@@ -1,10 +1,10 @@
 # Bobine
 
-**L'alternative open source et auto-hébergée à LesMills Cinema — affichage dynamique et lecteur vidéo planifié, hors ligne, pour salles de fitness et cours collectifs.**
+**L'alternative open source et auto-hébergée à Les Mills Cinema, Wexer et Screenly Anthias — régie vidéo, affichage dynamique et lecteur planifié hors ligne pour salles de fitness et cours collectifs.**
 
 Bobine transforme un mini PC dédié bon marché en système vidéo complet pour votre salle : il planifie et diffuse des vidéos de cours collectifs pré-enregistrées sur vos écrans, permet aux adhérents de parcourir et lancer un cours à la demande depuis une borne, pilote un écran câblé et un écran réseau indépendamment, propose un mode coach audio avec fonds animés, et diffuse une musique d'ambiance 24/7. Tout tourne en local, sur votre matériel. Sans cloud, sans abonnement, sans dépendance à un éditeur, sans connexion internet après l'installation.
 
-[English](README.md) · [Documentation technique](docs/ARCHITECTURE.md) · [Dernière version](https://github.com/FantasmaGlad/Bobine/releases/latest)
+[Site officiel](https://bobine.fit) · [Documentation web](https://bobine.fit/fr/documentation) · [English](README.md) · [Documentation technique](docs/ARCHITECTURE.md) · [Dernière version](https://github.com/FantasmaGlad/Bobine/releases/latest)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 ![Licence : AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)
@@ -13,13 +13,13 @@ Bobine transforme un mini PC dédié bon marché en système vidéo complet pour
 ![Plateforme : Debian 13](https://img.shields.io/badge/Platform-Debian%2013-A81D33)
 ![Auto-hébergé](https://img.shields.io/badge/Auto--h%C3%A9berg%C3%A9-Local--first-4c1)
 
-**Mots-clés :** alternative open source à LesMills Cinema, affichage dynamique auto-hébergé, logiciel de planification de cours collectifs, lecteur vidéo fitness à la demande, borne de cours virtuels, studio de cycling indoor, salle de sport, thin client, mini PC, signalétique hors ligne, local-first, FastAPI, Next.js, Debian.
+**Mots-clés :** alternative open source à Les Mills Cinema, alternative à Screenly Anthias pour salle de sport, alternative libre à Wexer et Fitness On Demand, alternative aux cours vidéo de franchise (Yako, Radical Fitness), affichage dynamique fitness auto-hébergé, logiciel de planification de cours collectifs, lecteur vidéo fitness à la demande, borne de cours virtuels, studio de cycling indoor, régie vidéo salle de sport, thin client, mini PC Dell Wyse 5070, signalétique hors ligne, automatisation TV HDMI-CEC, local-first, FastAPI, Next.js, Debian 13.
 
 ---
 
 ## Pourquoi Bobine
 
-Les salles de cours collectifs diffusent de plus en plus des cours vidéo pré-enregistrés, animés par un coach à l'écran (« cours virtuels »). Les solutions propriétaires comme LesMills Cinema enferment dans une plateforme fermée, un abonnement récurrent et une dépendance à un éditeur pour chaque mise à jour — et s'arrêtent dès que la connexion tombe. Bobine offre la même expérience en salle — cours planifiés, borne à la demande, expérience adhérent soignée — en gardant le contrôle total :
+Les salles de cours collectifs diffusent de plus en plus des cours vidéo pré-enregistrés, animés par un coach à l'écran (« cours virtuels »). Les solutions propriétaires comme Les Mills Cinema ou les plateformes cloud comme Wexer enferment dans une plateforme fermée, un abonnement récurrent par écran et une dépendance critique à Internet. Bobine offre la même expérience en salle — cours planifiés, borne à la demande, expérience adhérent soignée — en gardant le contrôle total :
 
 - **Vous êtes propriétaire.** Vos vidéos, votre matériel, votre planning. Pas d'abonnement, pas de dépendance à un éditeur, pas de compte.
 - **Ça marche hors ligne.** Une fois installé, la salle n'a besoin d'aucune connexion internet pour diffuser les cours.
@@ -27,7 +27,11 @@ Les salles de cours collectifs diffusent de plus en plus des cours vidéo pré-e
 - **Ça tourne sur du matériel bon marché.** Un thin client ou un mini PC d'occasion (type Dell Wyse 5070) suffit — aucune licence récurrente par écran.
 - **C'est autonome.** Démarrage automatique à la mise sous tension, reprise après coupure de courant, redémarrage automatique d'un composant en panne.
 
-Utilisateurs types : studios, salles de sport, espaces fitness d'hôtels et d'entreprises, kinés et centres de rééducation, studios de danse et de cycling — quiconque diffuse des vidéos de cours planifiées ou à la demande sur un écran, et cherche une alternative à LesMills Cinema sans abonnement.
+### Positionnement & Alternatives
+- **Alternative aux plateformes fitness propriétaires (Les Mills Cinema, Wexer Virtual, Fitness On Demand, Radical Fitness / catalogues de franchise type Yako)** : Bobine supprime les redevances mensuelles par écran et le verrouillage commercial. Vous restez maître de vos vidéos (cours maison ou libres), de la promotion de vos coachs résidents et de votre grille horaire, avec un fonctionnement 100% hors-ligne sans risque de panne internet.
+- **Alternative aux solutions d'affichage dynamique générique (Screenly Anthias, Yodeck, Xibo, TouchPlayer, Waves System)** : Contrairement aux afficheurs passifs limités à des boucles d'images publicitaires, Bobine est conçu pour le métier du fitness : allumage/veille automatique des TV par HDMI-CEC, borne tactile adhérents avec décompte, télécommande coach par QR code local sans application, et radio d'ambiance 24/7 avec annonces vocales programmées sur mini PC Debian 13 avec décodage matériel VA-API (< 8% CPU).
+
+Utilisateurs types : studios, salles de sport, espaces fitness d'hôtels et d'entreprises, kinés et centres de rééducation, studios de danse et de cycling — quiconque diffuse des vidéos de cours planifiées ou à la demande sur un écran, et cherche une alternative souveraine sans abonnement.
 
 Bobine est agnostique aux programmes : les catégories de cours sont libres, il s'adapte donc à n'importe quel catalogue de cours collectifs, cycling, renforcement, mobilité ou bien-être.
 

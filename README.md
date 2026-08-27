@@ -1,10 +1,10 @@
 # Bobine
 
-**The open-source, self-hosted alternative to LesMills Cinema — offline-first digital signage and scheduled video player for group-fitness studios and gyms.**
+**The open-source, self-hosted alternative to Les Mills Cinema, Wexer, and Screenly Anthias — offline-first gym video playout, digital signage, and scheduled class player for fitness studios.**
 
 Bobine turns a low-cost dedicated mini PC into a complete in-club video system: it schedules and plays pre-recorded group-fitness class videos on your screens, lets members browse and start a class on demand from a kiosk, drives a wired and a networked display independently, runs a coach audio mode with animated backgrounds, and streams 24/7 background music. Everything runs locally on your own hardware. No cloud, no subscription, no vendor lock-in, no internet required after setup.
 
-[Français](README.fr.md) · [Technical documentation](docs/ARCHITECTURE.md) · [Latest release](https://github.com/FantasmaGlad/Bobine/releases/latest)
+[Official Website](https://bobine.fit) · [Documentation](https://bobine.fit/fr/documentation) · [Français](README.fr.md) · [Technical Architecture](docs/ARCHITECTURE.md) · [Latest Release](https://github.com/FantasmaGlad/Bobine/releases/latest)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 ![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)
@@ -13,13 +13,13 @@ Bobine turns a low-cost dedicated mini PC into a complete in-club video system: 
 ![Platform: Debian 13](https://img.shields.io/badge/Platform-Debian%2013-A81D33)
 ![Self-hosted](https://img.shields.io/badge/Self--hosted-Local--first-4c1)
 
-**Keywords:** open-source LesMills Cinema alternative, self-hosted digital signage, group fitness class scheduling software, on-demand fitness video player, gym exercise class kiosk, boutique studio virtual classes, indoor cycling studio software, thin client, mini PC, offline video signage, local-first, FastAPI, Next.js, Debian.
+**Keywords:** open-source Les Mills Cinema alternative, Screenly Anthias alternative for gyms, Wexer Virtual alternative, Fitness On Demand open-source alternative, franchise workout video alternative (Radical Fitness / Yako), self-hosted gym digital signage, group fitness class scheduling software, on-demand gym cinema kiosk, boutique studio virtual classes, indoor cycling video playout, HDMI-CEC TV automation, x86-64 mini PC, offline-first video player, local-first, FastAPI, Next.js, Debian 13.
 
 ---
 
 ## Why Bobine
 
-Group-fitness rooms increasingly run pre-recorded, instructor-led video classes ("virtual classes") on a big screen. Proprietary solutions like LesMills Cinema lock you into a closed platform, a recurring subscription, and a vendor you depend on for every update — and they stop working when the internet drops. Bobine delivers the same in-club experience — scheduled classes, an on-demand kiosk, a polished member experience — while keeping you in full control:
+Group-fitness rooms increasingly run pre-recorded, instructor-led video classes ("virtual classes") on a big screen. Proprietary solutions like Les Mills Cinema or cloud SaaS platforms like Wexer lock operators into closed platforms, recurring per-screen subscriptions, and external dependencies that stop working when the internet drops. Bobine delivers the same in-club experience — scheduled classes, an on-demand kiosk, a polished member experience — while keeping you in full control:
 
 - **You own it.** Your videos, your hardware, your schedule. No monthly fee, no vendor lock-in, no account.
 - **It works offline.** Once installed, the club needs no internet connection to run classes.
@@ -27,7 +27,11 @@ Group-fitness rooms increasingly run pre-recorded, instructor-led video classes 
 - **It runs on cheap hardware.** A second-hand thin client or mini PC (Dell Wyse 5070 class) is enough — no recurring licence fee per screen.
 - **It is unattended.** Auto-starts on power-up, recovers from power loss, and restarts a failed component on its own.
 
-Typical users: boutique studios, gyms, hotel and corporate fitness rooms, physiotherapy and rehab spaces, dance and cycling studios — anyone who plays scheduled or on-demand fitness videos on a screen, and anyone looking for a LesMills Cinema alternative without the subscription.
+### Positioning & Alternatives
+- **Alternative to proprietary fitness subscriptions (Les Mills Cinema, Wexer Virtual, Fitness On Demand, Radical Fitness / franchise video packages like Yako)**: Bobine removes recurring monthly license fees and catalog constraints. Operators have full freedom over their video content (custom coach recordings or independent libraries), timetables, and studio branding, with 100% offline local SSD reliability.
+- **Alternative to generic digital signage (Screenly Anthias, Yodeck, Xibo, TouchPlayer, Waves System)**: Unlike passive billboard or menu loopers, Bobine is purpose-built for fitness operations: automated HDMI-CEC TV power management, interactive member on-demand touch kiosk, smartphone coach remote control via local QR code, and 24/7 background audio with crossfade and automated voice announcements, running smoothly on cost-effective x86-64 mini PCs with VA-API hardware decoding.
+
+Typical users: boutique studios, gyms, hotel and corporate fitness rooms, physiotherapy and rehab spaces, dance and cycling studios — anyone who plays scheduled or on-demand fitness videos on a screen, and anyone looking for a sovereign, self-hosted alternative without the subscription.
 
 Bobine is program-agnostic: class categories are free-form, so it fits any catalogue of group-fitness, cycling, strength, mobility or wellbeing classes.
 

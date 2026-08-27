@@ -4,7 +4,7 @@
   "private": true,
   "description": "Bobine — web interface (admin, member cinema kiosk, radio, mobile remote) for the self-hosted group-fitness digital signage and scheduled video player.",
   "license": "AGPL-3.0-or-later",
-  "homepage": "https://github.com/FantasmaGlad/Bobine",
+  "homepage": "https://bobine.fit",
   "repository": {
     "type": "git",
     "url": "https://github.com/FantasmaGlad/Bobine.git"
