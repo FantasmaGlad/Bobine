@@ -1,5 +1,28 @@
 # Bobine
 
+```text
+   ████████████████████                                                                                                 
+ ██████████████████████████                                                                                             
+ ██    ██         ██   █████                                                                                            
+ ██    ██         ██   ██████                                                                                           
+ ██ ███████████████████████ ██                                                                                          
+ █████████████████████████████                       ██████              ██████                                         
+  ██████████        ███████ ██                       ██████              ██████                                         
+   ██████████████████████   ██                       ██████              ██████                                         
+   ██████████   █████  ███████                       ██████                                                             
+   ██████        █████████████      █████████████    ████████████████    ██████  ████████████████      ████████████     
+  █████          ██ ██    █████    ███████████████   █████████████████   ██████  █████████████████    ███████████████   
+ █████                     ████   ███████    ██████  ████████   ████████ ██████  ████████   ███████  ██████     ██████  
+██████       ██        ███  ████ ██████       ██████ ██████       ██████ ██████  ███████     ██████ ██████████████████  
+██████        ██  ██        ████ ██████       ██████ ██████       ██████ ██████  ██████      ██████ ██████████████████  
+███████████    ███  ████████████ ███████     ███████ ███████      ██████ ██████  ██████      ██████ ██████              
+ ███ █████████████████████ █████  █████████████████  ██████████████████  ██████  ██████      ██████  ███████████████    
+█████ █ █████████ ███ █████████    ███████████████   █████████████████   ██████  ██████      ██████   ███████████████   
+ ████  ████████ ███ █   ███████       ██████████     ███████████████     ██████  ██████      ██████      ██████████     
+  ███████████████████████████                                                                                           
+     █████████████████████                                                                                              
+```
+
 **The open-source, self-hosted alternative to Les Mills Cinema, Wexer, and Screenly Anthias — offline-first gym video playout, digital signage, and scheduled class player for fitness studios.**
 
 Bobine turns a low-cost dedicated mini PC into a complete in-club video system: it schedules and plays pre-recorded group-fitness class videos on your screens, lets members browse and start a class on demand from a kiosk, drives a wired and a networked display independently, runs a coach audio mode with animated backgrounds, and streams 24/7 background music. Everything runs locally on your own hardware. No cloud, no subscription, no vendor lock-in, no internet required after setup.
