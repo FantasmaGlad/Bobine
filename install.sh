@@ -23,10 +23,11 @@ SCRIPT_VERSION="2.0"
 
 if [[ -t 1 ]] && [[ "${NO_COLOR:-}" != "1" ]] && command -v tput >/dev/null 2>&1 && [[ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ]]; then
     BOLD=$(tput bold); DIM=$(tput dim); RESET=$(tput sgr0)
+    WHITE=$(tput setaf 7 2>/dev/null || echo '')
     RED=$(tput setaf 1); GREEN=$(tput setaf 2); YELLOW=$(tput setaf 3)
     BLUE=$(tput setaf 4); CYAN=$(tput setaf 6)
 else
-    BOLD=""; DIM=""; RESET=""; RED=""; GREEN=""; YELLOW=""; BLUE=""; CYAN=""
+    BOLD=""; DIM=""; RESET=""; WHITE=""; RED=""; GREEN=""; YELLOW=""; BLUE=""; CYAN=""
 fi
 
 ICON_OK="${GREEN}✓${RESET}"
@@ -35,41 +36,43 @@ ICON_WARN="${YELLOW}⚠${RESET}"
 ICON_SKIP="${DIM}⤫${RESET}"
 ICON_INFO="${BLUE}→${RESET}"
 
+INSTALL_LANG=""
+
 banner() {
     local cols
     cols=$(tput cols 2>/dev/null || echo 80)
 
     printf "\n"
-    if (( cols >= 115 )); then
-        printf "%s%s" "$CYAN" "$BOLD"
+    if (( cols >= 75 )); then
+        printf "%s%s" "$WHITE" "$BOLD"
         cat <<'EOF'
-   ████████████████████                                                                                                 
- ██████████████████████████                                                                                             
- ██    ██         ██   █████                                                                                            
- ██    ██         ██   ██████                                                                                           
- ██ ███████████████████████ ██                                                                                          
- █████████████████████████████                       ██████              ██████                                         
-  ██████████        ███████ ██                       ██████              ██████                                         
-   ██████████████████████   ██                       ██████              ██████                                         
-   ██████████   █████  ███████                       ██████                                                             
-   ██████        █████████████      █████████████    ████████████████    ██████  ████████████████      ████████████     
-  █████          ██ ██    █████    ███████████████   █████████████████   ██████  █████████████████    ███████████████   
- █████                     ████   ███████    ██████  ████████   ████████ ██████  ████████   ███████  ██████     ██████  
-██████       ██        ███  ████ ██████       ██████ ██████       ██████ ██████  ███████     ██████ ██████████████████  
-██████        ██  ██        ████ ██████       ██████ ██████       ██████ ██████  ██████      ██████ ██████████████████  
-███████████    ███  ████████████ ███████     ███████ ███████      ██████ ██████  ██████      ██████ ██████              
- ███ █████████████████████ █████  █████████████████  ██████████████████  ██████  ██████      ██████  ███████████████    
-█████ █ █████████ ███ █████████    ███████████████   █████████████████   ██████  ██████      ██████   ███████████████   
- ████  ████████ ███ █   ███████       ██████████     ███████████████     ██████  ██████      ██████      ██████████     
-  ███████████████████████████                                                                                           
-     █████████████████████                                                                                              
+   ███████████                                                                
+ ███████████████                                                              
+ ██  ██   ██  ███                                                             
+ ██ █████████ ███                                                             
+ █████████████████               ████        ████                             
+  █████   █████ ██               ████        ████                             
+  █████████████ ██               ████        ████                             
+  ████   █████████     ██████    ████████    ████  █████████     ███████    
+ ████     ████████   ██████████  █████████   ████  ██████████   █████████   
+█████  ██  ██ ████  ████    ████ ████   ████ ████  ████   ████ ████   ████  
+██████  ██    ████  ████    ████ ████   ████ ████  ████   ████ ███████████  
+███████   ████████  ████    ████ ████   ████ ████  ████   ████ ███████████  
+ █████████████████  ████    ████ ████   ████ ████  ████   ████ ████         
+  ███████████████    ██████████  ██████████  ████  ████   ████  █████████   
+   ███████████         ██████    █████████   ████  ████   ████   ███████    
 EOF
         printf "%s" "$RESET"
     else
-        printf '%s%s  Bobine%s %s· installateur v%s%s\n' "$BOLD" "$CYAN" "$RESET" "$DIM" "$SCRIPT_VERSION" "$RESET"
+        printf '%s%s  Bobine%s %s· installateur v%s%s\n' "$BOLD" "$WHITE" "$RESET" "$DIM" "$SCRIPT_VERSION" "$RESET"
     fi
-    printf '%s  Régie Vidéo & Streaming Libre pour Salle de Sport%s\n' "$DIM" "$RESET"
-    printf '%s  Debian 13 (trixie) · Dell Wyse 5070 · FastAPI + Next.js (v%s)%s\n\n' "$DIM" "$SCRIPT_VERSION" "$RESET"
+    if [[ "${INSTALL_LANG:-fr}" == "en" ]]; then
+        printf '%s  Open-Source Video Playout & Streaming Suite for Gyms%s\n' "$DIM" "$RESET"
+        printf '%s  Debian 13 (trixie) · Dell Wyse 5070 · FastAPI + Next.js (v%s)%s\n\n' "$DIM" "$SCRIPT_VERSION" "$RESET"
+    else
+        printf '%s  Régie Vidéo & Streaming Libre pour Salle de Sport%s\n' "$DIM" "$RESET"
+        printf '%s  Debian 13 (trixie) · Dell Wyse 5070 · FastAPI + Next.js (v%s)%s\n\n' "$DIM" "$SCRIPT_VERSION" "$RESET"
+    fi
 }
 
 usage() {
@@ -81,6 +84,7 @@ ${BOLD}USAGE${RESET}
 
 ${BOLD}OPTIONS${RESET}
   -h, --help          Affiche cette aide et quitte
+  -l, --lang=fr|en    Langue de l'installateur (fr: Français, en: English)
   -y, --yes           Ne demande aucune confirmation (mode non-interactif)
   -v, --verbose       Mode verbeux : affiche l'intégralité des flux et logs de compilation en direct
   -q, --quiet         Mode silencieux : n'affiche que les erreurs et le bilan final
@@ -100,6 +104,7 @@ ${BOLD}OPTIONS${RESET}
 
 ${BOLD}EXEMPLES${RESET}
   sudo ./${SCRIPT_NAME}                       Installation standard (interface épurée par défaut)
+  sudo ./${SCRIPT_NAME} --lang=en             Installation en anglais
   sudo ./${SCRIPT_NAME} -v                    Installation avec flux verbeux (logs détaillés en direct)
   sudo ./${SCRIPT_NAME} --no-kiosk            Backend seul, sur un serveur ou un poste de dev
   sudo ./${SCRIPT_NAME} --skip-packages       Réinstalle après un 'git pull' sans retoucher apt
@@ -130,6 +135,8 @@ PROGRESS_JSON=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help) usage; exit 0 ;;
+        -l|--lang) INSTALL_LANG="${2:-}"; shift ;;
+        -l=*|--lang=*) INSTALL_LANG="${1#*=}" ;;
         -y|--yes) ASSUME_YES=true ;;
         --dry-run) DRY_RUN=true ;;
         --no-kiosk) NO_KIOSK=true ;;
@@ -148,6 +155,37 @@ while [[ $# -gt 0 ]]; do
     esac
     shift
 done
+
+select_installer_language() {
+    if [[ -n "${INSTALL_LANG:-}" ]]; then
+        case "${INSTALL_LANG,,}" in
+            en*) INSTALL_LANG="en" ;;
+            *)   INSTALL_LANG="fr" ;;
+        esac
+        return 0
+    fi
+
+    if $ASSUME_YES || [[ ! -t 0 ]]; then
+        if [[ "${LANG:-}" =~ ^en ]]; then
+            INSTALL_LANG="en"
+        else
+            INSTALL_LANG="fr"
+        fi
+        return 0
+    fi
+
+    printf '\n%s  Langue de l'\''installateur / Installer language :%s\n' "$BOLD" "$RESET"
+    printf '    %s1%s) Français (par défaut)\n' "$CYAN" "$RESET"
+    printf '    %s2%s) English\n' "$CYAN" "$RESET"
+    local reply
+    read -r -p "$(printf '%s  Votre choix / Choice [1/2] (1) : %s' "$YELLOW" "$RESET")" reply </dev/tty || reply="1"
+    case "$reply" in
+        2|[eE][nN]*) INSTALL_LANG="en" ;;
+        *)           INSTALL_LANG="fr" ;;
+    esac
+}
+
+select_installer_language
 
 # --progress=json : sortie machine (une ligne JSON par évènement) pour piloter
 # une barre de progression depuis l'assistant graphique (réf.
