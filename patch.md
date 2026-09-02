@@ -44,6 +44,7 @@ Ce document consigne les évolutions, correctifs et améliorations UI/UX apport�
   - Cadre de prévisualisation dimensionné (180×84 px) avec padding interne et fond surélevé (`--bg-surface-elevated`).
   - Ajout d'un sélecteur interactif segmenté (Boutons *Logo Bobine* / *Logo personnalisé*) dès qu'un logo est importé.
   - Bouton de remplacement du logo et bouton de suppression définitive avec confirmation modale.
+  - Remplacement de la simple case à cocher par un bouton toggle segmenté explicite **Oui / Non** pour l'animation vidéo de lancement mp4 (`Lancement.mp4`) avant les cours en canal Câblé.
 
 ---
 

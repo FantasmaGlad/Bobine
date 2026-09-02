@@ -285,6 +285,8 @@ export const dictionaries: Record<Language, Dict> = {
       error: "Erreur",
       networkError: "Erreur réseau",
       retry: "Réessayer",
+      yes: "Oui",
+      no: "Non",
     },
     dashboard: {
       stateLabels: {
@@ -1221,6 +1223,8 @@ export const dictionaries: Record<Language, Dict> = {
       error: "Error",
       networkError: "Network error",
       retry: "Retry",
+      yes: "Yes",
+      no: "No",
     },
     dashboard: {
       stateLabels: {

@@ -505,18 +505,40 @@ export default function SettingsPage() {
       {/* ---- Lecture ---- */}
       <form className="live-block" onSubmit={handleSave}>
         <h3><Icon name="play_circle" size={18} /> {t("settingsPage.playbackSection")}</h3>
-        <div className="form-group" style={{ flexDirection: "row", alignItems: "center", gap: "12px" }}>
-          <label className="ra-switch" title={t("settingsPage.launchAnimationLabel")}>
-            <input
-              type="checkbox"
-              checked={launchAnimationEnabled}
-              onChange={(e) => setLaunchAnimationEnabled(e.target.checked)}
-            />
-            <span className="ra-switch-track" />
-          </label>
-          <span className="form-label" style={{ margin: 0 }}>{t("settingsPage.launchAnimationLabel")}</span>
+        <div className="form-group" style={{ flexDirection: "column", gap: "8px", alignItems: "flex-start" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
+            <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
+              {t("settingsPage.launchAnimationLabel")}
+            </span>
+            <div
+              style={{
+                display: "inline-flex",
+                borderRadius: "var(--radius-md)",
+                overflow: "hidden",
+                border: "1px solid var(--border-color)",
+                background: "var(--bg-surface-elevated)",
+              }}
+            >
+              <button
+                type="button"
+                className={`btn btn-sm ${launchAnimationEnabled ? "btn-primary" : "btn-secondary"}`}
+                style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 16px", fontWeight: 700 }}
+                onClick={() => setLaunchAnimationEnabled(true)}
+              >
+                {t("common.yes")}
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${!launchAnimationEnabled ? "btn-primary" : "btn-secondary"}`}
+                style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 16px", fontWeight: 700 }}
+                onClick={() => setLaunchAnimationEnabled(false)}
+              >
+                {t("common.no")}
+              </button>
+            </div>
+          </div>
+          <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.launchAnimationHint")}</p>
         </div>
-        <p className="settings-hint" style={{ marginTop: "-6px" }}>{t("settingsPage.launchAnimationHint")}</p>
         <div className="settings-fields">
           <div className="form-group">
             <label className="form-label">{t("settingsPage.waitTimeLabel")}</label>
