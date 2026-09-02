@@ -17,6 +17,16 @@ interface AppSettingsContextValue {
   tList: (key: string) => string[];
   setTheme: (theme: Theme) => void;
   setLanguage: (language: Language) => void;
+  hasCustomLogo: boolean;
+  /** Incrémenté à chaque évènement logo (upload/suppression) : à ajouter en
+   * cache-buster (`?v=`) sur l'URL du logo custom, car l'URL elle-même
+   * (/api/branding/logo.png) ne change pas quand un logo remplace un autre
+   * — sans ce compteur, le navigateur pourrait servir l'ancien fichier
+   * depuis son cache. */
+  logoVersion: number;
+  launchAnimationEnabled: boolean;
+  setLaunchAnimationEnabled: (value: boolean) => void;
+  refreshBranding: () => void;
 }
 
 const DEFAULT_THEME: Theme = "les-mills-sombre";
@@ -29,6 +39,11 @@ const AppSettingsContext = createContext<AppSettingsContextValue>({
   tList: () => [],
   setTheme: () => {},
   setLanguage: () => {},
+  hasCustomLogo: false,
+  logoVersion: 0,
+  launchAnimationEnabled: true,
+  setLaunchAnimationEnabled: () => {},
+  refreshBranding: () => {},
 });
 
 export function useAppSettings() {
@@ -57,6 +72,22 @@ function getApiUrl(path: string) {
 export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
   const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE);
+  const [hasCustomLogo, setHasCustomLogo] = useState(false);
+  const [logoVersion, setLogoVersion] = useState(0);
+  const [launchAnimationEnabled, setLaunchAnimationEnabledState] = useState(true);
+
+  const refreshBranding = useCallback(() => {
+    fetch(getApiUrl("/settings"), { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+        if (typeof data.has_custom_logo === "boolean") {
+          setHasCustomLogo(data.has_custom_logo);
+          setLogoVersion((v) => v + 1);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     try {
@@ -78,6 +109,13 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         }
         if (data.language === "fr" || data.language === "en") {
           setLanguageState(data.language);
+        }
+        if (typeof data.intro_animation_enabled === "boolean") {
+          setLaunchAnimationEnabledState(data.intro_animation_enabled);
+        }
+        if (typeof data.has_custom_logo === "boolean") {
+          setHasCustomLogo(data.has_custom_logo);
+          setLogoVersion((v) => v + 1);
         }
       })
       .catch(() => {});
@@ -119,6 +157,16 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
               // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setLanguageState(parsed.language);
             }
+            if (typeof parsed.intro_animation_enabled === "boolean") {
+              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
+              setLaunchAnimationEnabledState(parsed.intro_animation_enabled);
+            }
+            if (typeof parsed.has_custom_logo === "boolean") {
+              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
+              setHasCustomLogo(parsed.has_custom_logo);
+              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
+              setLogoVersion((v) => v + 1);
+            }
           }
         } catch {
           // Message illisible : sans conséquence, le prochain évènement suffira.
@@ -156,7 +204,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     }
   }, [language]);
 
-  const persist = useCallback((payload: Record<string, string>) => {
+  const persist = useCallback((payload: Record<string, string | boolean>) => {
     fetch(getApiUrl("/settings"), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -180,6 +228,14 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     [persist]
   );
 
+  const setLaunchAnimationEnabled = useCallback(
+    (value: boolean) => {
+      setLaunchAnimationEnabledState(value);
+      persist({ intro_animation_enabled: value });
+    },
+    [persist]
+  );
+
   const t = useCallback(
     (key: string, params?: Record<string, string | number>) => translate(language, key, params),
     [language]
@@ -187,8 +243,32 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
 
   const tList = useCallback((key: string) => translateList(language, key), [language]);
 
+  // useMemo (réf. revue de code) : avant l'ajout du branding/toggle, AppLogo
+  // était un <img> statique sans hook, jamais concerné. Il consomme
+  // désormais ce contexte sur 8 écrans (dont le kiosque, actif en continu) —
+  // sans mémoïsation, CHAQUE render de ce Provider (y compris pour un état
+  // qu'aucun consommateur ne lit, si un futur champ est ajouté ici) recrée
+  // un objet `value` de référence différente et force tous les
+  // useAppSettings() à re-render, AppLogo inclus.
+  const value = React.useMemo(
+    () => ({
+      theme,
+      language,
+      t,
+      tList,
+      setTheme,
+      setLanguage,
+      hasCustomLogo,
+      logoVersion,
+      launchAnimationEnabled,
+      setLaunchAnimationEnabled,
+      refreshBranding,
+    }),
+    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, logoVersion, launchAnimationEnabled, setLaunchAnimationEnabled, refreshBranding]
+  );
+
   return (
-    <AppSettingsContext.Provider value={{ theme, language, t, tList, setTheme, setLanguage }}>
+    <AppSettingsContext.Provider value={value}>
       {children}
     </AppSettingsContext.Provider>
   );

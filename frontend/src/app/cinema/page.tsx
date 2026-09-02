@@ -248,7 +248,7 @@ const CinemaAllList = React.memo(function CinemaAllList({
  * Wyse ou sur un appareil du réseau.
  */
 export default function CinemaPage() {
-  const { t } = useAppSettings();
+  const { t, launchAnimationEnabled } = useAppSettings();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [videos, setVideos] = useState<CinemaVideo[]>([]);
   const [phase, setPhase] = useState<Phase>("grid");
@@ -399,13 +399,21 @@ export default function CinemaPage() {
   const handleSelect = useCallback((video: CinemaVideo) => {
     clearUpNextTask();
     setUpNext(null);
+    // Toggle "animation de lancement" (réf. mission "activer/désactiver
+    // l'animation mp4") : quand désactivée, on saute directement à la
+    // lecture par la même voie que "Lancer maintenant"/l'autoplay du "À
+    // suivre", sans passer par la phase "countdown" (intro).
+    if (!launchAnimationEnabled) {
+      playImmediately(video);
+      return;
+    }
     setSelected(video);
     setPosition(0);
     // Animation de lancement (réf. mission "la vidéo de lancement suffit à
     // cadencer le lancement") : sa propre fin (onEnded, plus bas dans le
     // JSX) démarre la lecture — plus de minuteur découplé de sa durée.
     setPhase("countdown");
-  }, []);
+  }, [launchAnimationEnabled, playImmediately]);
 
   const handleBackToMenu = useCallback(() => {
     clearUpNextTask();

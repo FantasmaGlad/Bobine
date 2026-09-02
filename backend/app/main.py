@@ -376,6 +376,12 @@ thumbnails_path = Path(settings.thumbnails_dir)
 thumbnails_path.mkdir(parents=True, exist_ok=True)
 app.mount("/api/thumbnails", StaticFiles(directory=str(thumbnails_path)), name="thumbnails")
 
+# Branding (logo personnalisé, réf. mission "customiser le logo") : DOIT être
+# monté avant le catch-all frontend ci-dessous, sinon la route serait masquée.
+branding_path = Path(settings.branding_dir)
+branding_path.mkdir(parents=True, exist_ok=True)
+app.mount("/api/branding", StaticFiles(directory=str(branding_path)), name="branding")
+
 # Frontend Next.js statique (si compilé et présent dans out/)
 frontend_out = Path(__file__).resolve().parent.parent.parent / "frontend" / "out"
 if frontend_out.exists():

@@ -35,3 +35,6 @@ AGENTS.md
 
 # Divers
 .DS_Store
+
+# Documents de patch/suivi personnels (non destinés au dépôt public)
+docs/patch.md

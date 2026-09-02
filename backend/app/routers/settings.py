@@ -2,12 +2,13 @@ import asyncio
 import logging
 import os
 import shutil
+import socket
 import subprocess
 from pathlib import Path
 from typing import Any
 
 import psutil
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -36,7 +37,15 @@ _WRITABLE_NUMERIC_FIELDS = {
     "radio_announcement_fade_ms",
 }
 _WRITABLE_STRING_FIELDS = {"theme", "language"}
-_DEFAULTS = {"theme": "les-mills-sombre", "language": "fr"}
+# Animation de lancement (réf. mission "activer/désactiver l'animation mp4") :
+# suit le pattern des champs STRING (theme/language) ci-dessus, PAS celui des
+# champs numériques — ces derniers ne sont réappliqués à `runtime_settings`
+# qu'au redémarrage via un cast `int()` en dur (app/config.py::_apply_db_overrides),
+# inadapté à un booléen. Un champ bool relu directement depuis la DB à chaque
+# `GET /api/settings` (comme theme/language) évite ce piège sans y toucher.
+_WRITABLE_BOOL_FIELDS = {"intro_animation_enabled"}
+_DEFAULTS = {"theme": "les-mills-sombre", "language": "fr", "intro_animation_enabled": "true"}
+_LOGO_FILENAME = "logo.png"
 # "les-mills-sombre" est la clé interne historique du thème "Sombre" (réf.
 # mission thèmes cinéma) — inchangée pour ne rien casser sur les
 # installations existantes, seul son libellé affiché change côté frontend.
@@ -66,6 +75,7 @@ class SettingsUpdate(BaseModel):
     radio_announcement_fade_ms: int | None = None
     theme: str | None = None
     language: str | None = None
+    intro_animation_enabled: bool | None = None
 
 
 def _get_db_value(db: Session, key: str) -> str | None:
@@ -73,16 +83,70 @@ def _get_db_value(db: Session, key: str) -> str | None:
     return row.value if row else None
 
 
+def _logo_path() -> Path:
+    return Path(runtime_settings.branding_dir) / _LOGO_FILENAME
+
+
+_UNSET = object()
+_cached_local_ip: object = _UNSET
+
+
+def _get_local_ip() -> str | None:
+    """Astuce socket UDP classique (aucun paquet réellement envoyé) : IP de
+    l'interface que le système utiliserait pour joindre le LAN — équivalent
+    de `hostname -I` sans sous-processus ni dépendance externe. Aide à la
+    découverte réseau (réf. mission "IP obtenue par l'appareil"), en
+    complément de la découverte mDNS (bobine.local, cf. install.sh).
+
+    Mise en cache après le premier appel (réf. revue de code) : cette IP ne
+    change pas en cours d'exécution dans le cas d'usage visé (affichage
+    informatif en page Paramètres) — sans cache, `GET/PUT /api/settings`
+    (interrogé au montage de CHAQUE écran, câblé/réseau/admin/radio) paierait
+    un appel socket bloquant à chaque requête, dans une coroutine `async def`
+    non déportée sur un thread : sur une machine sans route réseau par
+    défaut, un `connect()` UDP peut se bloquer jusqu'au timeout OS et geler
+    toute la boucle asyncio le temps de l'appel. Un timeout court borne aussi
+    ce pire cas dès le premier appel."""
+    global _cached_local_ip
+    if _cached_local_ip is not _UNSET:
+        return _cached_local_ip
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(0.2)
+    try:
+        s.connect(("8.8.8.8", 80))
+        _cached_local_ip = s.getsockname()[0]
+    except OSError:
+        _cached_local_ip = None
+    finally:
+        s.close()
+    return _cached_local_ip
+
+
 @router.get("")
 def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
     theme = _get_db_value(db, "theme") or _DEFAULTS["theme"]
     language = _get_db_value(db, "language") or _DEFAULTS["language"]
+    intro_animation_enabled = (
+        _get_db_value(db, "intro_animation_enabled") or _DEFAULTS["intro_animation_enabled"]
+    ) == "true"
     return {
         "wait_time_between_courses": runtime_settings.wait_time_between_courses,
         "volume_default": runtime_settings.volume_default,
         "audio_chain_timer_seconds": runtime_settings.audio_chain_timer_seconds,
         "theme": theme,
         "language": language,
+        "intro_animation_enabled": intro_animation_enabled,
+        # Logo personnalisé (réf. mission "customiser le logo") : la seule
+        # présence du fichier sur disque fait foi, pas de champ en base à
+        # tenir synchronisé (cf. app/config.py::branding_dir).
+        "has_custom_logo": _logo_path().exists(),
+        # Aide à la découverte réseau (réf. mission "IP obtenue par
+        # l'appareil"), en complément de bobine.local (avahi, cf. install.sh).
+        "network": {
+            "local_ip": _get_local_ip(),
+            "port": runtime_settings.port,
+            "mdns_url": "http://bobine.local",
+        },
         # Réglages du duck/fondu des rappels radio (réf. lot L6) : consommés
         # par /radio pour le fondu musique pendant une annonce, ET pour le
         # fondu du rappel lui-même (réf. correctif "vitesse du fade
@@ -217,6 +281,15 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
         raise HTTPException(status_code=400, detail="Aucun paramètre fourni")
 
     for key, value in updates.items():
+        if value is None:
+            # `exclude_unset=True` ne garde que les clés explicitement
+            # envoyées — un `null` explicite (distinct d'une clé omise) n'a
+            # de sens pour aucun de ces champs et serait sinon stocké tel
+            # quel comme la chaîne littérale "None" (réf. revue de code :
+            # `str(None)` puis relu `== "true"` → False silencieusement pour
+            # un booléen, ou `int(None)` → crash pour un champ numérique).
+            raise HTTPException(status_code=400, detail=f"{key} ne peut pas être nul")
+        stored_value = str(value)
         if key in _WRITABLE_NUMERIC_FIELDS and value is not None:
             if value < 0:
                 raise HTTPException(status_code=400, detail=f"{key} doit être positif")
@@ -225,12 +298,16 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
                 raise HTTPException(status_code=400, detail="Langue invalide (attendu 'fr' ou 'en')")
             if key == "theme" and value not in _VALID_THEMES:
                 raise HTTPException(status_code=400, detail=f"Thème invalide (attendu l'un de : {', '.join(sorted(_VALID_THEMES))})")
+        elif key in _WRITABLE_BOOL_FIELDS and value is not None:
+            # "true"/"false" minuscule (pas str(bool(...)) => "True"/"False")
+            # pour rester cohérent avec la lecture `== "true"` de get_settings().
+            stored_value = "true" if value else "false"
 
         row = db.query(Setting).filter(Setting.key == key).first()
         if row:
-            row.value = str(value)
+            row.value = stored_value
         else:
-            db.add(Setting(key=key, value=str(value)))
+            db.add(Setting(key=key, value=stored_value))
 
         # Effet immédiat sur le process en cours pour les champs numériques
         # (le singleton `runtime_settings` est un objet mutable partagé par
@@ -248,16 +325,70 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
     # qu'une fois au montage — un changement décidé depuis l'admin pendant
     # que /cinema ou un autre écran était déjà ouvert n'y apparaissait donc
     # jamais sans rechargement manuel. Diffusé uniquement si l'un des deux a
-    # effectivement changé, pour ne pas générer de trafic WebSocket inutile
-    # à chaque réglage numérique (countdown, volume...).
-    if "theme" in updates or "language" in updates:
+    # effectivement changé (ou l'animation de lancement, même besoin : les
+    # kiosques tournent 24/7 sans rechargement), pour ne pas générer de
+    # trafic WebSocket inutile à chaque réglage numérique (countdown, volume...).
+    if "theme" in updates or "language" in updates or "intro_animation_enabled" in updates:
         await ws_manager.broadcast({
             "event": "settings_change",
             "theme": result["theme"],
             "language": result["language"],
+            "intro_animation_enabled": result["intro_animation_enabled"],
         })
 
     return result
+
+
+@router.post("/logo")
+async def upload_logo(file: UploadFile = File(...)) -> dict[str, Any]:
+    """Upload d'un logo personnalisé (réf. mission "customiser le logo") :
+    normalisé en PNG sous un nom fixe (`_LOGO_FILENAME`) pour une URL stable
+    (/api/branding/logo.png), remplace tout logo custom précédent. Pas
+    d'entrée en base : la présence du fichier sur disque fait foi (cf.
+    get_settings, `has_custom_logo` / `_logo_path()`).
+
+    Validation par décodage réel (PIL) plutôt que sur l'en-tête `content_type`
+    (réf. revue de code) : ce champ est fourni par le client et peu fiable
+    (certains navigateurs/OS envoient `application/octet-stream` pour un PNG
+    valide) — même approche que les autres imports du projet (backgrounds,
+    radio), qui valident en tentant l'ouverture plutôt que sur un en-tête."""
+    import io
+
+    from PIL import Image, UnidentifiedImageError
+
+    raw = await file.read()
+    # Garde-fou taille (réf. revue de code) : matériel modeste visé par ce
+    # projet (Wyse), pas de limite avant lecture complète en mémoire sinon.
+    if len(raw) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Fichier trop volumineux (10 Mo max)")
+    try:
+        with Image.open(io.BytesIO(raw)) as img:
+            img = img.convert("RGBA")
+            img.thumbnail((800, 800))
+            branding_dir = Path(runtime_settings.branding_dir)
+            branding_dir.mkdir(parents=True, exist_ok=True)
+            img.save(_logo_path(), "PNG")
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as e:
+        # Capture large (pas seulement UnidentifiedImageError, réf. revue de
+        # code) : un fichier tronqué (OSError) ou une bombe de décompression
+        # (résolution annoncée énorme) sont aussi des cas de rejet propre en
+        # 400, pas un 500 non géré.
+        logger.warning(f"Upload de logo rejeté : {e}")
+        raise HTTPException(status_code=400, detail="Image illisible")
+
+    logger.info("Logo personnalisé mis à jour")
+    await ws_manager.broadcast({"event": "settings_change", "has_custom_logo": True})
+    return {"has_custom_logo": True}
+
+
+@router.delete("/logo")
+async def delete_logo() -> dict[str, Any]:
+    """Retire le logo personnalisé : retour au logo par défaut de l'app
+    (frontend/public/logo.png, cf. AppLogo.tsx)."""
+    _logo_path().unlink(missing_ok=True)
+    logger.info("Logo personnalisé supprimé — retour au logo par défaut")
+    await ws_manager.broadcast({"event": "settings_change", "has_custom_logo": False})
+    return {"has_custom_logo": False}
 
 
 def get_display_output_value(db: Session, channel: str = "cable") -> str:

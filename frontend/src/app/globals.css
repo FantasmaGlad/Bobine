@@ -546,6 +546,14 @@ h1, h2, h3, h4, h5, h6 {
   filter: var(--logo-filter);
 }
 
+/* Logo personnalisé (réf. mission "customiser le logo") : contrairement au
+   pictogramme monochrome par défaut, une image custom peut être en couleur —
+   elle ne doit pas hériter de l'inversion/neutralisation --logo-filter
+   pensée uniquement pour ce pictogramme. */
+.app-logo--custom {
+  filter: none;
+}
+
 /* .brand-logo est maintenant une image (réf. mission "remplace le logo"),
    plus un effet de dégradé sur du texte — la classe ne sert plus qu'à cibler
    l'élément (masquage en sidebar réduite ci-dessous). */
@@ -1656,8 +1664,10 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Écran d'attente natif : habillage figé (horloge + logo + bloc « prochain
    cours ») rendu directement par le kiosk. Les positions/tailles en % et les
-   tailles de texte en cqh reprennent à l'identique l'ancien habillage
-   dynamique. cqh se résout contre .kiosk-root (container-type: size). */
+   tailles de texte en cqmin (pas cqh seul, réf. correctif "mise en page
+   distordue sur écrans inhabituels type 1600x1200") reprennent à l'identique
+   l'ancien habillage dynamique. cqmin se résout contre .kiosk-root
+   (container-type: size). */
 .kiosk-waiting-stage {
   position: absolute;
   inset: 0;
@@ -1670,6 +1680,15 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: center;
   overflow: hidden;
   text-align: center;
+}
+
+/* Remplace l'ancien <img> codé en dur de la cellule logo (réf. mission
+   "customiser le logo" — passage par <AppLogo/>, qui ne pose plus width/
+   height/object-fit en inline puisque `size` n'est pas fourni ici). */
+.kiosk-waiting-stage-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .kiosk-waiting-clock {
@@ -3675,6 +3694,11 @@ h1, h2, h3, h4, h5, h6 {
 .cinema-hero {
   position: relative;
   min-height: 52vh;
+  /* Plafond ajouté (réf. correctif "mise en page distordue sur écrans
+     inhabituels type 1600x1200") : sans lui, 52vh occupe une part
+     disproportionnée de la hauteur sur un écran à ratio proche du carré,
+     écrasant la grille de cours en dessous. */
+  max-height: 60vh;
   display: flex;
   align-items: flex-end;
   overflow: hidden;
@@ -3728,6 +3752,19 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.05;
   margin: 0;
   text-shadow: 0 2px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* Garde-fou écrans à ratio proche du carré (ex. 1600x1200, 4:3) — réf.
+   correctif "mise en page distordue sur écrans inhabituels" : jusqu'ici
+   aucune media query de ce dépôt ne testait l'ASPECT plutôt que la seule
+   largeur, donc un écran large mais peu haut recevait l'habillage "desktop"
+   sans aucun ajustement de forme. Resserre le héros pour laisser plus de
+   place verticale à la grille de cours en dessous. */
+@media (max-aspect-ratio: 4/3) {
+  .cinema-hero {
+    min-height: 38vh;
+    max-height: 46vh;
+  }
 }
 
 /* Pastille de fond (réf. mission "intégrer au thème") : détache le texte du

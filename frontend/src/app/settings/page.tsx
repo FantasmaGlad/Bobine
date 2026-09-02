@@ -5,6 +5,7 @@ import { useAppSettings, type Theme } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
 import SystemStatus from "@/components/SystemStatus";
 import Icon from "@/components/Icon";
+import AppLogo from "@/components/AppLogo";
 
 interface SettingsData {
   wait_time_between_courses: number;
@@ -12,6 +13,7 @@ interface SettingsData {
   audio_chain_timer_seconds: number;
   radio_announcement_fade_ms: number;
   paths: Record<string, string>;
+  network: { local_ip: string | null; port: number; mdns_url: string };
 }
 
 interface StorageData {
@@ -115,8 +117,12 @@ const UNINSTALL_PHRASE = "DÉSINSTALLER";
 const normalizePhrase = (s: string) => s.trim().toUpperCase().replace(/É/g, "E");
 
 export default function SettingsPage() {
-  const { theme, language, setTheme, setLanguage, t } = useAppSettings();
+  const {
+    theme, language, setTheme, setLanguage, t,
+    hasCustomLogo, launchAnimationEnabled, setLaunchAnimationEnabled, refreshBranding,
+  } = useAppSettings();
   const [data, setData] = useState<SettingsData | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [storage, setStorage] = useState<StorageData | null>(null);
   const [system, setSystem] = useState<SystemUsageData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -212,6 +218,43 @@ export default function SettingsPage() {
       showToast(t("common.networkError"), "error");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleLogoUpload = async (file: File) => {
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(getApiUrl("/settings/logo"), { method: "POST", body: formData });
+      if (res.ok) {
+        refreshBranding();
+        showToast(t("settingsPage.logoUploadSuccess"));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.detail || t("settingsPage.logoUploadError"), "error");
+      }
+    } catch {
+      showToast(t("common.networkError"), "error");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleLogoReset = async () => {
+    setUploadingLogo(true);
+    try {
+      const res = await fetch(getApiUrl("/settings/logo"), { method: "DELETE" });
+      if (res.ok) {
+        refreshBranding();
+        showToast(t("settingsPage.logoResetSuccess"));
+      } else {
+        showToast(t("settingsPage.logoUploadError"), "error");
+      }
+    } catch {
+      showToast(t("common.networkError"), "error");
+    } finally {
+      setUploadingLogo(false);
     }
   };
 
@@ -313,9 +356,55 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* ---- Branding : logo personnalisé ---- */}
+      <section className="live-block">
+        <h3><Icon name="image" size={18} /> {t("settingsPage.brandingSection")}</h3>
+        <div className="form-group" style={{ flexDirection: "row", alignItems: "center", gap: "20px" }}>
+          <div style={{ width: 72, height: 72, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-surface-hover)", borderRadius: "12px", flexShrink: 0 }}>
+            <AppLogo size={48} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              <label className="btn btn-secondary" style={{ height: "40px", cursor: uploadingLogo ? "wait" : "pointer" }}>
+                <Icon name="upload" size={16} /> {t("settingsPage.logoUploadLabel")}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  style={{ display: "none" }}
+                  disabled={uploadingLogo}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleLogoUpload(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {hasCustomLogo && (
+                <button type="button" className="btn btn-secondary" style={{ height: "40px" }} onClick={handleLogoReset} disabled={uploadingLogo}>
+                  <Icon name="restart_alt" size={16} /> {t("settingsPage.logoResetButton")}
+                </button>
+              )}
+            </div>
+            <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.logoHint")}</p>
+          </div>
+        </div>
+      </section>
+
       {/* ---- Lecture ---- */}
       <form className="live-block" onSubmit={handleSave}>
         <h3><Icon name="play_circle" size={18} /> {t("settingsPage.playbackSection")}</h3>
+        <div className="form-group" style={{ flexDirection: "row", alignItems: "center", gap: "12px" }}>
+          <label className="ra-switch" title={t("settingsPage.launchAnimationLabel")}>
+            <input
+              type="checkbox"
+              checked={launchAnimationEnabled}
+              onChange={(e) => setLaunchAnimationEnabled(e.target.checked)}
+            />
+            <span className="ra-switch-track" />
+          </label>
+          <span className="form-label" style={{ margin: 0 }}>{t("settingsPage.launchAnimationLabel")}</span>
+        </div>
+        <p className="settings-hint" style={{ marginTop: "-6px" }}>{t("settingsPage.launchAnimationHint")}</p>
         <div className="settings-fields">
           <div className="form-group">
             <label className="form-label">{t("settingsPage.waitTimeLabel")}</label>
@@ -406,6 +495,20 @@ export default function SettingsPage() {
         <h3><Icon name="description" size={18} /> {t("settingsPage.docSection")}</h3>
         <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.docHint")}</p>
         <div className="settings-paths">
+          {/* IP locale (réf. mission "aide à la découverte réseau") : en
+              complément du nom mDNS bobine.local (avahi, déjà annoncé en fin
+              d'installation), utile quand la découverte par nom échoue (ex.
+              client ne supportant pas mDNS). */}
+          <div className="settings-path-row">
+            <span className="settings-path-key">{t("settingsPage.paths.localIp")}</span>
+            <span className="settings-path-val">
+              {data.network.local_ip ? `http://${data.network.local_ip}:${data.network.port}` : t("settingsPage.paths.localIpUnavailable")}
+            </span>
+          </div>
+          <div className="settings-path-row">
+            <span className="settings-path-key">{t("settingsPage.paths.mdnsUrl")}</span>
+            <span className="settings-path-val">{data.network.mdns_url}</span>
+          </div>
           {Object.entries(data.paths).map(([key, value]) => (
             <div key={key} className="settings-path-row">
               <span className="settings-path-key">{t(PATH_LABEL_KEYS[key] || key)}</span>

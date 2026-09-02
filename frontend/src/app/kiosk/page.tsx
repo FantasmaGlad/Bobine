@@ -43,7 +43,7 @@ interface NextCourse {
 }
 
 export default function KioskPage() {
-  const { t } = useAppSettings();
+  const { t, launchAnimationEnabled } = useAppSettings();
   // Canal de diffusion de CE kiosk (réf. mission "Tableau de bord Câblé /
   // Réseau") : l'écran câblé du Wyse (accès en 127.0.0.1/localhost) suit
   // l'état du canal câblé, tout autre appareil du LAN celui du canal réseau.
@@ -438,7 +438,7 @@ export default function KioskPage() {
           // donc directement le cours réel : il s'affiche dès que le
           // navigateur a assez mis en tampon pour peindre une image, sans
           // compte à rebours ni animation intercalée.
-          if (play_intro && intro && channel === "cable") {
+          if (play_intro && intro && channel === "cable" && launchAnimationEnabled) {
             const introAlreadyReady = intro.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA;
             setIntroReady(introAlreadyReady);
             setIntroActive(true);
@@ -553,7 +553,7 @@ export default function KioskPage() {
           break;
       }
     },
-    [showOsd, tryPlay]
+    [showOsd, tryPlay, launchAnimationEnabled]
   );
 
   const { state, sendCommand, isPrimary, displayOutputCable, displayOutputNetwork } = usePlaybackSocket(handleEvent, "kiosk", channel);
@@ -644,34 +644,37 @@ export default function KioskPage() {
     <div className="kiosk-root">
       {/* Écran d'attente (réf. mission logo + prochain cours) : habillage figé
           rendu nativement — horloge, logo imposant et bloc « prochain cours ».
-          Les tailles de texte sont en `cqh` (% de la hauteur de .kiosk-root,
-          qui porte container-type: size), et les positions en % reprennent à
-          l'identique l'ancien habillage. */}
+          Les tailles de texte sont en `cqmin` (min de cqw/cqh de .kiosk-root,
+          qui porte container-type: size) — pas `cqh` seul (réf. correctif
+          "mise en page distordue sur écrans inhabituels type 1600x1200") :
+          `cqh` seul dépend UNIQUEMENT de la hauteur du conteneur, donc occupe
+          une fraction de LARGEUR plus grande sur un écran étroit à hauteur
+          égale. Les positions en % reprennent à l'identique l'ancien
+          habillage. */}
       <div className={`kiosk-layer kiosk-waiting ${isIdle || (introActive && !introReady) ? "visible" : ""}`}>
         <div className="kiosk-waiting-stage">
           <div className="kiosk-waiting-cell" style={{ left: "20%", top: "20%", width: "60%", height: "14%" }}>
-            <span className="kiosk-waiting-clock" style={{ fontSize: "8cqh" }}>{formatClock(now)}</span>
+            <span className="kiosk-waiting-clock" style={{ fontSize: "8cqmin" }}>{formatClock(now)}</span>
           </div>
           <div className="kiosk-waiting-cell" style={{ left: "28%", top: "37%", width: "44%", height: "16%" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element -- logo statique de l'app, pas un asset buildé */}
-            <img src="/logo.png" alt="Logo" className="app-logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            <AppLogo className="kiosk-waiting-stage-logo" />
           </div>
           <div className="kiosk-waiting-cell" style={{ left: "15%", top: "56%", width: "70%", height: "30%" }}>
             <div className="kiosk-waiting-next">
               {nextCourse ? (
                 <>
-                  <span className="kiosk-waiting-next-label" style={{ fontSize: "calc(2.2cqh * 0.45)" }}>
+                  <span className="kiosk-waiting-next-label" style={{ fontSize: "calc(2.2cqmin * 0.45)" }}>
                     {t("kiosk.nextCourseLabel")}
                   </span>
-                  <span className="kiosk-waiting-next-title" style={{ fontSize: "2.2cqh" }}>
+                  <span className="kiosk-waiting-next-title" style={{ fontSize: "2.2cqmin" }}>
                     {nextCourse.title ?? t("kiosk.scheduledCourseFallback")}
                   </span>
-                  <span className="kiosk-waiting-next-countdown" style={{ fontSize: "calc(2.2cqh * 1.3)" }}>
+                  <span className="kiosk-waiting-next-countdown" style={{ fontSize: "calc(2.2cqmin * 1.3)" }}>
                     {formatDuration(nextCourseRemaining ?? 0)}
                   </span>
                 </>
               ) : (
-                <span className="kiosk-waiting-next-empty" style={{ fontSize: "calc(2.2cqh * 0.55)" }}>
+                <span className="kiosk-waiting-next-empty" style={{ fontSize: "calc(2.2cqmin * 0.55)" }}>
                   {t("kiosk.waitingForNextCourse")}
                 </span>
               )}

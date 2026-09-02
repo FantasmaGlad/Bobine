@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     radio_announcements_dir: str = "data/radio_announcements"
     radio_watch_dir: str = "data/radio_watched"
 
+    # Branding (logo personnalisé, réf. mission "customiser le logo") : dossier
+    # dédié séparé des médias — contient au plus un fichier `logo.png` (nom fixe,
+    # normalisé à l'upload), sa seule présence sur disque fait foi (pas de
+    # champ en base à synchroniser).
+    branding_dir: str = "data/branding"
+
     # Logs (Lot 9.6/13, réf. F8.2/F8.3) : dossier dédié, séparé des données média.
     logs_dir: str = "data/logs"
 
@@ -144,6 +150,7 @@ def load_settings() -> Settings:
         "radio_covers_dir",
         "radio_announcements_dir",
         "radio_watch_dir",
+        "branding_dir",
         "logs_dir",
     ]:
         path_str = getattr(settings, path_attr)
