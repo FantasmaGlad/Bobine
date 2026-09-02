@@ -652,33 +652,29 @@ export default function KioskPage() {
           égale. Les positions en % reprennent à l'identique l'ancien
           habillage. */}
       <div className={`kiosk-layer kiosk-waiting ${isIdle || (introActive && !introReady) ? "visible" : ""}`}>
-        <div className="kiosk-waiting-stage">
-          <div className="kiosk-waiting-cell" style={{ left: "20%", top: "20%", width: "60%", height: "14%" }}>
-            <span className="kiosk-waiting-clock" style={{ fontSize: "8cqmin" }}>{formatClock(now)}</span>
-          </div>
-          <div className="kiosk-waiting-cell" style={{ left: "28%", top: "37%", width: "44%", height: "16%" }}>
+        <div className="kiosk-waiting-content">
+          <span className="kiosk-waiting-clock">{formatClock(now)}</span>
+          <div className="kiosk-waiting-logo-wrap">
             <AppLogo className="kiosk-waiting-stage-logo" />
           </div>
-          <div className="kiosk-waiting-cell" style={{ left: "15%", top: "56%", width: "70%", height: "30%" }}>
-            <div className="kiosk-waiting-next">
-              {nextCourse ? (
-                <>
-                  <span className="kiosk-waiting-next-label" style={{ fontSize: "calc(2.2cqmin * 0.45)" }}>
-                    {t("kiosk.nextCourseLabel")}
-                  </span>
-                  <span className="kiosk-waiting-next-title" style={{ fontSize: "2.2cqmin" }}>
-                    {nextCourse.title ?? t("kiosk.scheduledCourseFallback")}
-                  </span>
-                  <span className="kiosk-waiting-next-countdown" style={{ fontSize: "calc(2.2cqmin * 1.3)" }}>
-                    {formatDuration(nextCourseRemaining ?? 0)}
-                  </span>
-                </>
-              ) : (
-                <span className="kiosk-waiting-next-empty" style={{ fontSize: "calc(2.2cqmin * 0.55)" }}>
-                  {t("kiosk.waitingForNextCourse")}
+          <div className="kiosk-waiting-next">
+            {nextCourse ? (
+              <>
+                <span className="kiosk-waiting-next-label">
+                  {t("kiosk.nextCourseLabel")}
                 </span>
-              )}
-            </div>
+                <span className="kiosk-waiting-next-title">
+                  {nextCourse.title ?? t("kiosk.scheduledCourseFallback")}
+                </span>
+                <span className="kiosk-waiting-next-countdown">
+                  {formatDuration(nextCourseRemaining ?? 0)}
+                </span>
+              </>
+            ) : (
+              <span className="kiosk-waiting-next-empty">
+                {t("kiosk.waitingForNextCourse")}
+              </span>
+            )}
           </div>
         </div>
       </div>

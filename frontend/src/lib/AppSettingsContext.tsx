@@ -6,9 +6,42 @@ import { translate, translateList, type Language } from "@/lib/i18n";
 // "les-mills-sombre" est la clé interne historique du thème "Sombre" (réf.
 // mission thèmes cinéma) — conservée telle quelle pour ne rien casser sur
 // les installations existantes, seul le libellé affiché change.
-export type Theme = "les-mills-sombre" | "clair" | "lune" | "menthe" | "automne" | "hiver" | "chili" | "ciel" | "orchidee" | "taupe" | "charbon" | "beige" | "lavande";
+export type Theme =
+  | "les-mills-sombre"
+  | "clair"
+  | "lune"
+  | "menthe"
+  | "automne"
+  | "hiver"
+  | "chili"
+  | "ciel"
+  | "orchidee"
+  | "taupe"
+  | "charbon"
+  | "beige"
+  | "lavande"
+  | "miel"
+  | "coco";
 
-export const THEME_VALUES: Theme[] = ["les-mills-sombre", "clair", "lune", "menthe", "automne", "hiver", "chili", "ciel", "orchidee", "taupe", "charbon", "beige", "lavande"];
+export const THEME_VALUES: Theme[] = [
+  "les-mills-sombre",
+  "clair",
+  "lune",
+  "menthe",
+  "automne",
+  "hiver",
+  "chili",
+  "ciel",
+  "orchidee",
+  "taupe",
+  "charbon",
+  "beige",
+  "lavande",
+  "miel",
+  "coco",
+];
+
+export type ActiveLogo = "default" | "custom";
 
 interface AppSettingsContextValue {
   theme: Theme;
@@ -18,6 +51,8 @@ interface AppSettingsContextValue {
   setTheme: (theme: Theme) => void;
   setLanguage: (language: Language) => void;
   hasCustomLogo: boolean;
+  activeLogo: ActiveLogo;
+  setActiveLogo: (activeLogo: ActiveLogo) => void;
   /** Incrémenté à chaque évènement logo (upload/suppression) : à ajouter en
    * cache-buster (`?v=`) sur l'URL du logo custom, car l'URL elle-même
    * (/api/branding/logo.png) ne change pas quand un logo remplace un autre
@@ -40,6 +75,8 @@ const AppSettingsContext = createContext<AppSettingsContextValue>({
   setTheme: () => {},
   setLanguage: () => {},
   hasCustomLogo: false,
+  activeLogo: "default",
+  setActiveLogo: () => {},
   logoVersion: 0,
   launchAnimationEnabled: true,
   setLaunchAnimationEnabled: () => {},
@@ -73,6 +110,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
   const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE);
   const [hasCustomLogo, setHasCustomLogo] = useState(false);
+  const [activeLogo, setActiveLogoState] = useState<ActiveLogo>("default");
   const [logoVersion, setLogoVersion] = useState(0);
   const [launchAnimationEnabled, setLaunchAnimationEnabledState] = useState(true);
 
@@ -84,6 +122,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         if (typeof data.has_custom_logo === "boolean") {
           setHasCustomLogo(data.has_custom_logo);
           setLogoVersion((v) => v + 1);
+        }
+        if (data.active_logo === "default" || data.active_logo === "custom") {
+          setActiveLogoState(data.active_logo);
         }
       })
       .catch(() => {});
@@ -116,6 +157,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         if (typeof data.has_custom_logo === "boolean") {
           setHasCustomLogo(data.has_custom_logo);
           setLogoVersion((v) => v + 1);
+        }
+        if (data.active_logo === "default" || data.active_logo === "custom") {
+          setActiveLogoState(data.active_logo);
         }
       })
       .catch(() => {});
@@ -166,6 +210,10 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
               setHasCustomLogo(parsed.has_custom_logo);
               // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setLogoVersion((v) => v + 1);
+            }
+            if (parsed.active_logo === "default" || parsed.active_logo === "custom") {
+              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
+              setActiveLogoState(parsed.active_logo);
             }
           }
         } catch {
@@ -236,6 +284,14 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     [persist]
   );
 
+  const setActiveLogo = useCallback(
+    (value: ActiveLogo) => {
+      setActiveLogoState(value);
+      persist({ active_logo: value });
+    },
+    [persist]
+  );
+
   const t = useCallback(
     (key: string, params?: Record<string, string | number>) => translate(language, key, params),
     [language]
@@ -259,12 +315,14 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       setTheme,
       setLanguage,
       hasCustomLogo,
+      activeLogo,
+      setActiveLogo,
       logoVersion,
       launchAnimationEnabled,
       setLaunchAnimationEnabled,
       refreshBranding,
     }),
-    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, logoVersion, launchAnimationEnabled, setLaunchAnimationEnabled, refreshBranding]
+    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, launchAnimationEnabled, setLaunchAnimationEnabled, refreshBranding]
   );
 
   return (

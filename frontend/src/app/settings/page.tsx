@@ -87,18 +87,20 @@ function getApiUrl(path: string) {
 
 const THEME_SWATCHES: { value: Theme; labelKey: string; colors: [string, string, string, string] }[] = [
   { value: "les-mills-sombre", labelKey: "settingsPage.themeDark", colors: ["#0a0a0a", "#1e1e20", "#e4002b", "#ffffff"] },
-  { value: "clair", labelKey: "settingsPage.themeLight", colors: ["#f4f4f5", "#ffffff", "#e4002b", "#16161a"] },
-  { value: "lune", labelKey: "settingsPage.themeLune", colors: ["#cccccc", "#a3a3cc", "#5c5c99", "#292966"] },
-  { value: "menthe", labelKey: "settingsPage.themeMenthe", colors: ["#98fbcb", "#bfffed", "#7fcfa8", "#558b71"] },
-  { value: "automne", labelKey: "settingsPage.themeAutomne", colors: ["#ffb343", "#db9a39", "#b37e2e", "#614419"] },
-  { value: "hiver", labelKey: "settingsPage.themeHiver", colors: ["#b8e3e9", "#93b1b5", "#4f7c82", "#0b2e33"] },
-  { value: "chili", labelKey: "settingsPage.themeChili", colors: ["#cd1c18", "#ffa896", "#9b1313", "#38000a"] },
-  { value: "ciel", labelKey: "settingsPage.themeCiel", colors: ["#b3ebf2", "#77cbda", "#4a9dae", "#2e6c7b"] },
-  { value: "orchidee", labelKey: "settingsPage.themeOrchidee", colors: ["#ed80e9", "#c96dc6", "#784176", "#4f2b4e"] },
-  { value: "taupe", labelKey: "settingsPage.themeTaupe", colors: ["#fcd3ae", "#ab8f76", "#826d5a", "#54463a"] },
-  { value: "charbon", labelKey: "settingsPage.themeCharbon", colors: ["#f2f2f2", "#a1a1a1", "#4a4a4a", "#1a1a1a"] },
-  { value: "beige", labelKey: "settingsPage.themeBeige", colors: ["#ede8d0", "#c9bfa0", "#6b5751", "#372528"] },
-  { value: "lavande", labelKey: "settingsPage.themeLavande", colors: ["#d3d3ff", "#bcbcf0", "#a47dab", "#2c2140"] },
+  { value: "clair", labelKey: "settingsPage.themeLight", colors: ["#f8f9fa", "#ffffff", "#e4002b", "#16161a"] },
+  { value: "miel", labelKey: "settingsPage.themeMiel", colors: ["#fdfbf5", "#fef7e7", "#d97706", "#2d1e0b"] },
+  { value: "coco", labelKey: "settingsPage.themeCoco", colors: ["#faf7f4", "#f3ece6", "#78350f", "#2c1d14"] },
+  { value: "lune", labelKey: "settingsPage.themeLune", colors: ["#0d111a", "#1e2638", "#6366f1", "#f1f5f9"] },
+  { value: "menthe", labelKey: "settingsPage.themeMenthe", colors: ["#f4f9f6", "#eaf3ee", "#10b981", "#132a1e"] },
+  { value: "automne", labelKey: "settingsPage.themeAutomne", colors: ["#14100c", "#282119", "#f59e0b", "#fef3c7"] },
+  { value: "hiver", labelKey: "settingsPage.themeHiver", colors: ["#0a1317", "#182830", "#06b6d4", "#f0fdfa"] },
+  { value: "chili", labelKey: "settingsPage.themeChili", colors: ["#15090a", "#2b1417", "#ef4444", "#fdf2f2"] },
+  { value: "ciel", labelKey: "settingsPage.themeCiel", colors: ["#f0f7fa", "#e2eff5", "#0284c7", "#0c2738"] },
+  { value: "orchidee", labelKey: "settingsPage.themeOrchidee", colors: ["#140d17", "#281b30", "#a855f7", "#faf5ff"] },
+  { value: "taupe", labelKey: "settingsPage.themeTaupe", colors: ["#1c1713", "#332a23", "#d4a373", "#fdfaf7"] },
+  { value: "charbon", labelKey: "settingsPage.themeCharbon", colors: ["#121214", "#232326", "#71717a", "#ffffff"] },
+  { value: "beige", labelKey: "settingsPage.themeBeige", colors: ["#f7f4ec", "#ede7d8", "#453229", "#241a15"] },
+  { value: "lavande", labelKey: "settingsPage.themeLavande", colors: ["#f7f6fc", "#edeaf7", "#7c3aed", "#1e1633"] },
 ];
 
 const PATH_LABEL_KEYS: Record<string, string> = {
@@ -119,7 +121,7 @@ const normalizePhrase = (s: string) => s.trim().toUpperCase().replace(/É/g, "E"
 export default function SettingsPage() {
   const {
     theme, language, setTheme, setLanguage, t,
-    hasCustomLogo, launchAnimationEnabled, setLaunchAnimationEnabled, refreshBranding,
+    hasCustomLogo, activeLogo, setActiveLogo, launchAnimationEnabled, setLaunchAnimationEnabled, refreshBranding,
   } = useAppSettings();
   const [data, setData] = useState<SettingsData | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -356,17 +358,68 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* ---- Branding : logo personnalisé ---- */}
+      {/* ---- Branding : image de marque & logo ---- */}
       <section className="live-block">
         <h3><Icon name="image" size={18} /> {t("settingsPage.brandingSection")}</h3>
-        <div className="form-group" style={{ flexDirection: "row", alignItems: "center", gap: "20px" }}>
-          <div style={{ width: 72, height: 72, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-surface-hover)", borderRadius: "12px", flexShrink: 0 }}>
-            <AppLogo size={48} />
+        <div className="form-group" style={{ flexDirection: "row", alignItems: "center", gap: "24px", flexWrap: "wrap" }}>
+          {/* Cadre de prévisualisation : dimensions généreuses et padding pour contenir tout logo */}
+          <div
+            style={{
+              width: "180px",
+              height: "84px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "var(--bg-surface-elevated)",
+              border: "1px solid var(--border-color)",
+              borderRadius: "var(--radius-md)",
+              padding: "10px",
+              flexShrink: 0,
+              overflow: "hidden",
+            }}
+          >
+            <AppLogo size={54} />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-              <label className="btn btn-secondary" style={{ height: "40px", cursor: uploadingLogo ? "wait" : "pointer" }}>
-                <Icon name="upload" size={16} /> {t("settingsPage.logoUploadLabel")}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", flexGrow: 1, minWidth: "260px" }}>
+            {/* Commutateur de logo (quand un logo personnalisé a été uploadé) */}
+            {hasCustomLogo && (
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                <span className="form-label" style={{ margin: 0, fontSize: "0.85rem" }}>
+                  {t("settingsPage.activeLogoLabel")}
+                </span>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    borderRadius: "var(--radius-md)",
+                    overflow: "hidden",
+                    border: "1px solid var(--border-color)",
+                    background: "var(--bg-surface-elevated)",
+                  }}
+                >
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${activeLogo === "default" ? "btn-primary" : "btn-secondary"}`}
+                    style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 14px" }}
+                    onClick={() => setActiveLogo("default")}
+                  >
+                    {t("settingsPage.logoBobine")}
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${activeLogo === "custom" ? "btn-primary" : "btn-secondary"}`}
+                    style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 14px" }}
+                    onClick={() => setActiveLogo("custom")}
+                  >
+                    {t("settingsPage.logoCustom")}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+              <label className="btn btn-secondary" style={{ height: "38px", cursor: uploadingLogo ? "wait" : "pointer" }}>
+                <Icon name="upload" size={16} /> {hasCustomLogo ? t("settingsPage.logoUploadReplace") : t("settingsPage.logoUploadLabel")}
                 <input
                   type="file"
                   accept="image/png,image/jpeg"
@@ -379,13 +432,28 @@ export default function SettingsPage() {
                   }}
                 />
               </label>
+
               {hasCustomLogo && (
-                <button type="button" className="btn btn-secondary" style={{ height: "40px" }} onClick={handleLogoReset} disabled={uploadingLogo}>
-                  <Icon name="restart_alt" size={16} /> {t("settingsPage.logoResetButton")}
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ height: "38px", color: "var(--accent-error)" }}
+                  onClick={() => {
+                    if (window.confirm(t("settingsPage.logoDeleteConfirm"))) {
+                      handleLogoReset();
+                    }
+                  }}
+                  disabled={uploadingLogo}
+                  title={t("settingsPage.logoDeleteButton")}
+                >
+                  <Icon name="delete" size={16} /> {t("settingsPage.logoDeleteButton")}
                 </button>
               )}
             </div>
-            <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.logoHint")}</p>
+
+            <p className="settings-hint" style={{ margin: 0 }}>
+              {t("settingsPage.logoHint")}
+            </p>
           </div>
         </div>
       </section>

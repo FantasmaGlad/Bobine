@@ -25,13 +25,13 @@ function getApiUrl(path: string) {
  * écran radio « hors diffusion », réf. .radio-brand-logo).
  */
 export default function AppLogo({ size, className }: AppLogoProps) {
-  const { hasCustomLogo, logoVersion } = useAppSettings();
+  const { hasCustomLogo, activeLogo, logoVersion } = useAppSettings();
   const [customFailed, setCustomFailed] = useState(false);
   // Un nouvel upload peut remplacer un logo custom précédemment en échec de
   // chargement (fichier corrompu) : retenter à chaque changement de version
   // plutôt que de rester bloqué sur le fallback par défaut.
   useEffect(() => setCustomFailed(false), [logoVersion]);
-  const useCustom = hasCustomLogo && !customFailed;
+  const useCustom = activeLogo === "custom" && hasCustomLogo && !customFailed;
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -42,14 +42,11 @@ export default function AppLogo({ size, className }: AppLogoProps) {
       // --logo-filter selon le thème (cf. globals.css) ; un logo custom en
       // couleur ne doit PAS hériter de ce filtre, d'où le modificateur.
       className={`app-logo${useCustom ? " app-logo--custom" : ""}${className ? ` ${className}` : ""}`}
-      // `width: "auto"` uniquement quand `size` est fourni (réf. revue de
-      // code) : posé inconditionnellement, il gagnerait TOUJOURS sur un
-      // `width` fixé par la classe CSS (ex. .kiosk-waiting-stage-logo,
-      // width:100%) puisqu'un style inline prime sur une règle de classe —
-      // cassant le contrat documenté ci-dessus ("si size est omis, la classe
-      // CSS pilote la taille") et laissant un logo à un ratio différent du
-      // défaut déborder de sa cellule plutôt que se contenir dedans.
-      style={size ? { height: size, width: "auto", display: "block" } : { display: "block" }}
+      style={
+        size
+          ? { maxHeight: size, maxWidth: "100%", width: "auto", height: "auto", display: "block", objectFit: "contain" }
+          : { maxWidth: "100%", maxHeight: "100%", display: "block", objectFit: "contain" }
+      }
       onError={() => setCustomFailed(true)}
     />
   );

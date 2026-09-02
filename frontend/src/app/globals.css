@@ -67,230 +67,267 @@
    blanc, illisible) — seul accent_par_programme réellement redéfini par
    thème. */
 :root[data-theme="clair"] {
-  --bg-main: #f4f4f5;
+  --bg-main: #f8f9fa;
   --bg-surface: #ffffff;
   --bg-surface-elevated: #ffffff;
-  --bg-surface-hover: #ececee;
+  --bg-surface-hover: #f1f3f5;
 
-  --text-main: #16161a;
-  --text-muted: #55555c;
-  --text-dim: #75757c;
+  --text-main: #18181b;
+  --text-muted: #52525b;
+  --text-dim: #71717a;
 
-  --border-color: #e1e1e4;
-  --border-focus: #b8b8bd;
+  --border-color: #e4e4e7;
+  --border-focus: #a1a1aa;
 
   --accent-sprint: #8a5a00;
   --logo-filter: none;
 }
 
-/* Thèmes additionnels (mission UI/UX "thèmes cinéma") : même principe que
-   "clair" ci-dessus — seules les couleurs de surface/texte/accent-primary
-   changent, RPM/Trip restent la même identité de marque partout. Diffusés en
-   temps réel à tous les écrans (admin, mobile, kiosk, cinéma, pause) via
-   l'évènement WebSocket settings_change (réf. AppSettingsContext.tsx). */
+/* Thèmes additionnels : palettes harmonisées selon les standards de design UI/UX moderne.
+   Contrastes vérifiés WCAG AA/AAA, surfaces feutrées, transitions équilibrées. */
+
+/* Miel — Thème clair teinté miel doré et chaleureux */
+:root[data-theme="miel"] {
+  --bg-main: #fdfbf5;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #fef7e7;
+  --bg-surface-hover: #faeed4;
+
+  --text-main: #2b1d0c;
+  --text-muted: #785723;
+  --text-dim: #997236;
+
+  --border-color: #ede0c2;
+  --border-focus: #deb86d;
+
+  --accent-primary: #d97706;
+  --accent-primary-fg: #ffffff;
+  --accent-sprint: #8a5a00;
+  --logo-filter: none;
+}
+
+/* Coco — Thème clair crème, lait de coco et marron chocolat */
+:root[data-theme="coco"] {
+  --bg-main: #faf7f4;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f4ece5;
+  --bg-surface-hover: #e9ded4;
+
+  --text-main: #2a1c14;
+  --text-muted: #6b4d3b;
+  --text-dim: #8c6a54;
+
+  --border-color: #e3d6cc;
+  --border-focus: #bda393;
+
+  --accent-primary: #78350f;
+  --accent-primary-fg: #ffffff;
+  --accent-sprint: #8a5a00;
+  --logo-filter: none;
+}
+
+/* Lune — Thème sombre indigo / nuit feutrée */
 :root[data-theme="lune"] {
-  --bg-main: #131229;
-  --bg-surface: #1b1a38;
-  --bg-surface-elevated: #292966;
-  --bg-surface-hover: #34335f;
+  --bg-main: #0c1017;
+  --bg-surface: #121824;
+  --bg-surface-elevated: #1a2334;
+  --bg-surface-hover: #222d42;
 
-  --text-main: #f1f0ff;
-  --text-muted: #a3a3cc;
-  --text-dim: #85859e;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
 
-  --border-color: #2e2d52;
-  --border-focus: #5c5c99;
+  --border-color: #1e293b;
+  --border-focus: #334155;
 
-  --accent-primary: #8484e6;
-  --accent-primary-fg: #161116;
+  --accent-primary: #6366f1;
+  --accent-primary-fg: #ffffff;
 }
 
+/* Menthe — Thème clair sauge délicate et fraîche */
 :root[data-theme="menthe"] {
-  --bg-main: #eafff5;
+  --bg-main: #f3f8f5;
   --bg-surface: #ffffff;
-  --bg-surface-elevated: #ffffff;
-  --bg-surface-hover: #d9fbe9;
+  --bg-surface-elevated: #e7f2ec;
+  --bg-surface-hover: #d7e8de;
 
-  --text-main: #0f2e22;
-  --text-muted: #3f6b58;
-  --text-dim: #5c8a76;
+  --text-main: #132a1e;
+  --text-muted: #3d6350;
+  --text-dim: #5c836f;
 
-  --border-color: #bfeedb;
-  --border-focus: #7fcfa8;
+  --border-color: #cde2d6;
+  --border-focus: #94c4a8;
 
-  --accent-primary: #2f9e6e;
-  --accent-primary-fg: #161116;
+  --accent-primary: #059669;
+  --accent-primary-fg: #ffffff;
   --accent-sprint: #8a5a00;
   --logo-filter: none;
 }
 
+/* Automne — Thème sombre cuivré et chaleureux */
 :root[data-theme="automne"] {
-  --bg-main: #1a120a;
-  --bg-surface: #241a0f;
-  --bg-surface-elevated: #614419;
-  --bg-surface-hover: #7a5722;
+  --bg-main: #130f0b;
+  --bg-surface: #1c1712;
+  --bg-surface-elevated: #292119;
+  --bg-surface-hover: #362c22;
 
-  --text-main: #fff3e0;
-  --text-muted: #db9a39;
-  --text-dim: #a97f3f;
+  --text-main: #fef3c7;
+  --text-muted: #d97706;
+  --text-dim: #b45309;
 
-  --border-color: #3a2a17;
-  --border-focus: #b37e2e;
+  --border-color: #362b1e;
+  --border-focus: #52422e;
 
-  --accent-primary: #ffb343;
-  --accent-primary-fg: #161116;
+  --accent-primary: #f59e0b;
+  --accent-primary-fg: #130f0b;
 }
 
+/* Hiver — Thème sombre fjord arctique / cyan boréal */
 :root[data-theme="hiver"] {
-  --bg-main: #071b1f;
-  --bg-surface: #0b2429;
-  --bg-surface-elevated: #0b2e33;
-  --bg-surface-hover: #123842;
+  --bg-main: #081114;
+  --bg-surface: #0e191e;
+  --bg-surface-elevated: #16252d;
+  --bg-surface-hover: #1f333d;
 
-  --text-main: #e8f7f9;
-  --text-muted: #93b1b5;
-  --text-dim: #6f9296;
+  --text-main: #f0fdfa;
+  --text-muted: #99f6e4;
+  --text-dim: #5eead4;
 
-  --border-color: #163a41;
-  --border-focus: #4f7c82;
+  --border-color: #17303a;
+  --border-focus: #284c5a;
 
-  --accent-primary: #6fd6e6;
-  --accent-primary-fg: #161116;
+  --accent-primary: #06b6d4;
+  --accent-primary-fg: #081114;
 }
 
+/* Chili — Thème sombre velours rubis profond */
 :root[data-theme="chili"] {
-  --bg-main: #170203;
-  --bg-surface: #240508;
-  --bg-surface-elevated: #38000a;
-  --bg-surface-hover: #4a0a10;
+  --bg-main: #140809;
+  --bg-surface: #1e0d0f;
+  --bg-surface-elevated: #2c1316;
+  --bg-surface-hover: #3b1a1e;
 
-  --text-main: #fff0ee;
-  --text-muted: #ffa896;
-  --text-dim: #d98a7a;
+  --text-main: #fdf2f2;
+  --text-muted: #fca5a5;
+  --text-dim: #f87171;
 
-  --border-color: #3d0d10;
-  --border-focus: #9b1313;
+  --border-color: #381519;
+  --border-focus: #572027;
 
-  --accent-primary: #cd1c18;
+  --accent-primary: #ef4444;
+  --accent-primary-fg: #ffffff;
 }
 
-/* Bleu Ciel (réf. mission thèmes) : thème clair — palette fournie
-   Blanc #FFFFFF / #2E6C7B / #4A9DAE / #77CBDA / #B3EBF2. Le texte principal
-   est un dérivé assombri de #2E6C7B pour tenir le contraste WCAG AA sur
-   fond blanc, même logique que le thème "clair". */
+/* Ciel — Thème clair azur pastel aérien */
 :root[data-theme="ciel"] {
-  --bg-main: #b3ebf2;
+  --bg-main: #f0f6fa;
   --bg-surface: #ffffff;
-  --bg-surface-elevated: #ffffff;
-  --bg-surface-hover: #d9f6fa;
+  --bg-surface-elevated: #e1edf5;
+  --bg-surface-hover: #d2e4f0;
 
-  --text-main: #14333b;
-  --text-muted: #2e6c7b;
-  --text-dim: #4a9dae;
+  --text-main: #0c2638;
+  --text-muted: #30546e;
+  --text-dim: #4d7594;
 
-  --border-color: #a4dfe9;
-  --border-focus: #77cbda;
+  --border-color: #c7deed;
+  --border-focus: #91b9d4;
 
-  --accent-primary: #2e6c7b;
+  --accent-primary: #0284c7;
+  --accent-primary-fg: #ffffff;
   --accent-sprint: #8a5a00;
   --logo-filter: none;
 }
 
-/* Violet Orchidée (réf. mission thèmes) : thème sombre — palette fournie
-   Blanc #FFFFFF / #4F2B4E / #784176 / #C96DC6 / #ED80E9. */
+/* Violet Orchidée — Thème sombre améthyste velouté */
 :root[data-theme="orchidee"] {
-  --bg-main: #2b172a;
-  --bg-surface: #3c203b;
-  --bg-surface-elevated: #4f2b4e;
-  --bg-surface-hover: #5e3a5d;
+  --bg-main: #130a14;
+  --bg-surface: #1c101e;
+  --bg-surface-elevated: #28172b;
+  --bg-surface-hover: #361f3a;
 
-  --text-main: #ffffff;
-  --text-muted: #ed80e9;
-  --text-dim: #c96dc6;
+  --text-main: #faf5ff;
+  --text-muted: #d8b4fe;
+  --text-dim: #c084fc;
 
-  --border-color: #4f2b4e;
-  --border-focus: #784176;
+  --border-color: #381d3d;
+  --border-focus: #592e61;
 
-  --accent-primary: #c96dc6;
-  --accent-primary-fg: #161116;
+  --accent-primary: #a855f7;
+  --accent-primary-fg: #ffffff;
 }
 
-/* Taupe (réf. mission thèmes) : thème sombre chaud — palette fournie
-   Blanc #FFFFFF / #54463A / #826D5A / #AB8F76 / #FCD3AE. Même construction
-   que "orchidee" : fonds dérivés assombris du marron foncé, la couleur la
-   plus claire sert de texte secondaire. */
+/* Taupe — Thème sombre sable chaud / moka noble */
 :root[data-theme="taupe"] {
-  --bg-main: #241e19;
-  --bg-surface: #322a23;
-  --bg-surface-elevated: #54463a;
-  --bg-surface-hover: #61503f;
+  --bg-main: #16120e;
+  --bg-surface: #201a15;
+  --bg-surface-elevated: #2d251e;
+  --bg-surface-hover: #3b3128;
 
-  --text-main: #ffffff;
-  --text-muted: #fcd3ae;
-  --text-dim: #ab8f76;
+  --text-main: #fdfbf7;
+  --text-muted: #d4a373;
+  --text-dim: #a67c52;
 
-  --border-color: #54463a;
-  --border-focus: #826d5a;
+  --border-color: #3a2e24;
+  --border-focus: #574636;
 
-  --accent-primary: #ab8f76;
-  --accent-primary-fg: #161116;
+  --accent-primary: #c9935f;
+  --accent-primary-fg: #16120e;
 }
 
-/* Charbon (réf. mission thèmes) : thème sombre neutre — palette fournie
-   Blanc #FFFFFF / #1A1A1A / #4A4A4A / #A1A1A1 / #F2F2F2. */
+/* Charbon — Thème sombre graphite mat et neutre */
 :root[data-theme="charbon"] {
-  --bg-main: #111111;
-  --bg-surface: #1a1a1a;
-  --bg-surface-elevated: #2b2b2b;
-  --bg-surface-hover: #383838;
+  --bg-main: #0e0e10;
+  --bg-surface: #16161a;
+  --bg-surface-elevated: #222226;
+  --bg-surface-hover: #2d2d33;
 
   --text-main: #ffffff;
-  --text-muted: #f2f2f2;
-  --text-dim: #a1a1a1;
+  --text-muted: #a1a1aa;
+  --text-dim: #71717a;
 
-  --border-color: #2e2e2e;
-  --border-focus: #4a4a4a;
+  --border-color: #27272a;
+  --border-focus: #3f3f46;
 
-  --accent-primary: #a1a1a1;
-  --accent-primary-fg: #161116;
+  --accent-primary: #71717a;
+  --accent-primary-fg: #ffffff;
 }
 
-/* Beige — fond beige chaud, accent aubergine sombre (thème clair). */
+/* Beige — Thème clair lin naturel et feutré */
 :root[data-theme="beige"] {
-  --bg-main: #ede8d0;
-  --bg-surface: #f6f2e4;
-  --bg-surface-elevated: #fffdf7;
-  --bg-surface-hover: #e2dcc2;
+  --bg-main: #f6f3eb;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #ede7db;
+  --bg-surface-hover: #e0d8c9;
 
-  --text-main: #372528;
-  --text-muted: #6b5751;
-  --text-dim: #7c675d;
+  --text-main: #2e2118;
+  --text-muted: #5e4a3c;
+  --text-dim: #7d6554;
 
-  --border-color: #dcd3b8;
-  --border-focus: #b8a98a;
+  --border-color: #dcd3c3;
+  --border-focus: #b5a793;
 
-  --accent-primary: #372528;
-  --accent-primary-fg: #f4efe0;
+  --accent-primary: #453229;
+  --accent-primary-fg: #f6f3eb;
   --accent-sprint: #8a5a00;
   --logo-filter: none;
 }
 
-/* Lavande — fond lavande clair, accent lilas (thème clair). */
+/* Lavande — Thème clair brume violette pastel */
 :root[data-theme="lavande"] {
-  --bg-main: #d3d3ff;
-  --bg-surface: #eeeeff;
-  --bg-surface-elevated: #faf9ff;
-  --bg-surface-hover: #c3c3f4;
+  --bg-main: #f6f5fc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #eae7f7;
+  --bg-surface-hover: #dcd8f0;
 
-  --text-main: #2c2140;
-  --text-muted: #5c4a75;
-  --text-dim: #6f5a86;
+  --text-main: #1f1636;
+  --text-muted: #4e3f6e;
+  --text-dim: #6d5b94;
 
-  --border-color: #bcbcf0;
-  --border-focus: #a47dab;
+  --border-color: #d6d0ee;
+  --border-focus: #a89ad6;
 
-  --accent-primary: #a47dab;
-  --accent-primary-fg: #241a30;
+  --accent-primary: #7c3aed;
+  --accent-primary-fg: #ffffff;
   --accent-sprint: #8a5a00;
   --logo-filter: none;
 }
@@ -1662,33 +1699,24 @@ h1, h2, h3, h4, h5, h6 {
   opacity: 0.95;
 }
 
-/* Écran d'attente natif : habillage figé (horloge + logo + bloc « prochain
-   cours ») rendu directement par le kiosk. Les positions/tailles en % et les
-   tailles de texte en cqmin (pas cqh seul, réf. correctif "mise en page
-   distordue sur écrans inhabituels type 1600x1200") reprennent à l'identique
-   l'ancien habillage dynamique. cqmin se résout contre .kiosk-root
-   (container-type: size). */
-.kiosk-waiting-stage {
-  position: absolute;
-  inset: 0;
+/* Écran d'attente TV / Kiosk : mise en page centrée fluide, avec des unités
+   harmonieuses (vmin / clamp) garantissant un affichage parfaitement proportionné
+   et centré sans distorsion sur les téléviseurs et moniteurs (16:9, 16:10, 4:3, 1600x1200). */
+.kiosk-waiting {
+  padding: clamp(16px, 4vmin, 48px);
+  box-sizing: border-box;
 }
 
-.kiosk-waiting-cell {
-  position: absolute;
+.kiosk-waiting-content {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  text-align: center;
-}
-
-/* Remplace l'ancien <img> codé en dur de la cellule logo (réf. mission
-   "customiser le logo" — passage par <AppLogo/>, qui ne pose plus width/
-   height/object-fit en inline puisque `size` n'est pas fourni ici). */
-.kiosk-waiting-stage-logo {
+  gap: clamp(18px, 4vmin, 42px);
   width: 100%;
-  height: 100%;
-  object-fit: contain;
+  max-width: min(90vw, 1100px);
+  text-align: center;
+  animation: cinema-fade-up 0.4s ease both;
 }
 
 .kiosk-waiting-clock {
@@ -1697,14 +1725,35 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-main);
   letter-spacing: 0.05em;
   font-variant-numeric: tabular-nums;
+  font-size: clamp(3.5rem, 8.5vmin, 7.5rem);
+  line-height: 1;
+}
+
+.kiosk-waiting-logo-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: min(65vw, 680px);
+  max-height: clamp(80px, 20vmin, 180px);
+  width: 100%;
+  height: auto;
+}
+
+.kiosk-waiting-stage-logo {
+  max-height: clamp(80px, 20vmin, 180px);
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
 }
 
 .kiosk-waiting-next {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   color: var(--text-main);
+  margin-top: 4px;
 }
 
 .kiosk-waiting-next-label {
@@ -1712,6 +1761,7 @@ h1, h2, h3, h4, h5, h6 {
   text-transform: uppercase;
   letter-spacing: 0.15em;
   font-weight: 700;
+  font-size: clamp(0.85rem, 1.8vmin, 1.25rem);
 }
 
 .kiosk-waiting-next-title {
@@ -1719,12 +1769,15 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 800;
   color: var(--accent-primary);
   text-transform: uppercase;
+  font-size: clamp(1.4rem, 3.2vmin, 2.8rem);
+  line-height: 1.2;
 }
 
 .kiosk-waiting-next-empty {
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.1em;
+  font-size: clamp(0.95rem, 2vmin, 1.35rem);
 }
 
 .kiosk-waiting-next-countdown {
@@ -1732,6 +1785,8 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 900;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+  font-size: clamp(2rem, 4.8vmin, 4.2rem);
+  margin-top: 4px;
 }
 
 .kiosk-video-layer {

@@ -36,7 +36,7 @@ _WRITABLE_NUMERIC_FIELDS = {
     "wait_time_between_courses", "volume_default", "audio_chain_timer_seconds",
     "radio_announcement_fade_ms",
 }
-_WRITABLE_STRING_FIELDS = {"theme", "language"}
+_WRITABLE_STRING_FIELDS = {"theme", "language", "active_logo"}
 # Animation de lancement (réf. mission "activer/désactiver l'animation mp4") :
 # suit le pattern des champs STRING (theme/language) ci-dessus, PAS celui des
 # champs numériques — ces derniers ne sont réappliqués à `runtime_settings`
@@ -44,12 +44,22 @@ _WRITABLE_STRING_FIELDS = {"theme", "language"}
 # inadapté à un booléen. Un champ bool relu directement depuis la DB à chaque
 # `GET /api/settings` (comme theme/language) évite ce piège sans y toucher.
 _WRITABLE_BOOL_FIELDS = {"intro_animation_enabled"}
-_DEFAULTS = {"theme": "les-mills-sombre", "language": "fr", "intro_animation_enabled": "true"}
+_DEFAULTS = {
+    "theme": "les-mills-sombre",
+    "language": "fr",
+    "intro_animation_enabled": "true",
+    "active_logo": "default",
+}
 _LOGO_FILENAME = "logo.png"
 # "les-mills-sombre" est la clé interne historique du thème "Sombre" (réf.
 # mission thèmes cinéma) — inchangée pour ne rien casser sur les
 # installations existantes, seul son libellé affiché change côté frontend.
-_VALID_THEMES = {"les-mills-sombre", "clair", "lune", "menthe", "automne", "hiver", "chili", "ciel", "orchidee", "taupe", "charbon", "beige", "lavande"}
+_VALID_THEMES = {
+    "les-mills-sombre", "clair", "lune", "menthe", "automne", "hiver",
+    "chili", "ciel", "orchidee", "taupe", "charbon", "beige", "lavande",
+    "miel", "coco",
+}
+_VALID_ACTIVE_LOGOS = {"default", "custom"}
 
 # Sortie affichée par CANAL de diffusion (réf. mission "canaux de diffusion
 # précis") : "câblé" (l'écran physiquement connecté au Wyse, en 127.0.0.1) et
@@ -76,6 +86,7 @@ class SettingsUpdate(BaseModel):
     theme: str | None = None
     language: str | None = None
     intro_animation_enabled: bool | None = None
+    active_logo: str | None = None
 
 
 def _get_db_value(db: Session, key: str) -> str | None:
@@ -129,6 +140,10 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
     intro_animation_enabled = (
         _get_db_value(db, "intro_animation_enabled") or _DEFAULTS["intro_animation_enabled"]
     ) == "true"
+    has_custom = _logo_path().exists()
+    active_logo = _get_db_value(db, "active_logo") or _DEFAULTS["active_logo"]
+    if active_logo == "custom" and not has_custom:
+        active_logo = "default"
     return {
         "wait_time_between_courses": runtime_settings.wait_time_between_courses,
         "volume_default": runtime_settings.volume_default,
@@ -136,10 +151,8 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "theme": theme,
         "language": language,
         "intro_animation_enabled": intro_animation_enabled,
-        # Logo personnalisé (réf. mission "customiser le logo") : la seule
-        # présence du fichier sur disque fait foi, pas de champ en base à
-        # tenir synchronisé (cf. app/config.py::branding_dir).
-        "has_custom_logo": _logo_path().exists(),
+        "has_custom_logo": has_custom,
+        "active_logo": active_logo,
         # Aide à la découverte réseau (réf. mission "IP obtenue par
         # l'appareil"), en complément de bobine.local (avahi, cf. install.sh).
         "network": {
@@ -298,6 +311,11 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
                 raise HTTPException(status_code=400, detail="Langue invalide (attendu 'fr' ou 'en')")
             if key == "theme" and value not in _VALID_THEMES:
                 raise HTTPException(status_code=400, detail=f"Thème invalide (attendu l'un de : {', '.join(sorted(_VALID_THEMES))})")
+            if key == "active_logo":
+                if value not in _VALID_ACTIVE_LOGOS:
+                    raise HTTPException(status_code=400, detail="Logo actif invalide (attendu 'default' ou 'custom')")
+                if value == "custom" and not _logo_path().exists():
+                    raise HTTPException(status_code=400, detail="Aucun logo personnalisé n'a été importé")
         elif key in _WRITABLE_BOOL_FIELDS and value is not None:
             # "true"/"false" minuscule (pas str(bool(...)) => "True"/"False")
             # pour rester cohérent avec la lecture `== "true"` de get_settings().
@@ -328,30 +346,26 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
     # effectivement changé (ou l'animation de lancement, même besoin : les
     # kiosques tournent 24/7 sans rechargement), pour ne pas générer de
     # trafic WebSocket inutile à chaque réglage numérique (countdown, volume...).
-    if "theme" in updates or "language" in updates or "intro_animation_enabled" in updates:
+    if "theme" in updates or "language" in updates or "intro_animation_enabled" in updates or "active_logo" in updates:
         await ws_manager.broadcast({
             "event": "settings_change",
             "theme": result["theme"],
             "language": result["language"],
             "intro_animation_enabled": result["intro_animation_enabled"],
+            "has_custom_logo": result["has_custom_logo"],
+            "active_logo": result["active_logo"],
         })
 
     return result
 
 
 @router.post("/logo")
-async def upload_logo(file: UploadFile = File(...)) -> dict[str, Any]:
+async def upload_logo(file: UploadFile = File(...), db: Session = Depends(get_db)) -> dict[str, Any]:
     """Upload d'un logo personnalisé (réf. mission "customiser le logo") :
     normalisé en PNG sous un nom fixe (`_LOGO_FILENAME`) pour une URL stable
-    (/api/branding/logo.png), remplace tout logo custom précédent. Pas
-    d'entrée en base : la présence du fichier sur disque fait foi (cf.
-    get_settings, `has_custom_logo` / `_logo_path()`).
-
-    Validation par décodage réel (PIL) plutôt que sur l'en-tête `content_type`
-    (réf. revue de code) : ce champ est fourni par le client et peu fiable
-    (certains navigateurs/OS envoient `application/octet-stream` pour un PNG
-    valide) — même approche que les autres imports du projet (backgrounds,
-    radio), qui valident en tentant l'ouverture plutôt que sur un en-tête."""
+    (/api/branding/logo.png), remplace tout logo custom précédent.
+    Active automatiquement `active_logo = "custom"` tout en permettant à l'utilisateur
+    de basculer manuellement vers le logo Bobine à tout moment."""
     import io
 
     from PIL import Image, UnidentifiedImageError
@@ -376,19 +390,29 @@ async def upload_logo(file: UploadFile = File(...)) -> dict[str, Any]:
         logger.warning(f"Upload de logo rejeté : {e}")
         raise HTTPException(status_code=400, detail="Image illisible")
 
-    logger.info("Logo personnalisé mis à jour")
-    await ws_manager.broadcast({"event": "settings_change", "has_custom_logo": True})
-    return {"has_custom_logo": True}
+    row = db.query(Setting).filter(Setting.key == "active_logo").first()
+    if row:
+        row.value = "custom"
+    else:
+        db.add(Setting(key="active_logo", value="custom"))
+    db.commit()
+
+    logger.info("Logo personnalisé mis à jour et activé")
+    await ws_manager.broadcast({"event": "settings_change", "has_custom_logo": True, "active_logo": "custom"})
+    return {"has_custom_logo": True, "active_logo": "custom"}
 
 
 @router.delete("/logo")
-async def delete_logo() -> dict[str, Any]:
-    """Retire le logo personnalisé : retour au logo par défaut de l'app
-    (frontend/public/logo.png, cf. AppLogo.tsx)."""
+async def delete_logo(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Retire le logo personnalisé et repasse le réglage actif sur le logo par défaut."""
     _logo_path().unlink(missing_ok=True)
+    row = db.query(Setting).filter(Setting.key == "active_logo").first()
+    if row:
+        row.value = "default"
+        db.commit()
     logger.info("Logo personnalisé supprimé — retour au logo par défaut")
-    await ws_manager.broadcast({"event": "settings_change", "has_custom_logo": False})
-    return {"has_custom_logo": False}
+    await ws_manager.broadcast({"event": "settings_change", "has_custom_logo": False, "active_logo": "default"})
+    return {"has_custom_logo": False, "active_logo": "default"}
 
 
 def get_display_output_value(db: Session, channel: str = "cable") -> str:

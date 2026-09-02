@@ -21,8 +21,6 @@ Bobine transforme un mini PC dédié bon marché en système vidéo complet pour
 ![Plateforme : Debian 13](https://img.shields.io/badge/Platform-Debian%2013-A81D33)
 ![Auto-hébergé](https://img.shields.io/badge/Auto--h%C3%A9berg%C3%A9-Local--first-4c1)
 
-**Mots-clés :** alternative open source à Les Mills Cinema, alternative à Screenly Anthias pour salle de sport, alternative libre à Wexer et Fitness On Demand, alternative aux cours vidéo de franchise (Yako, Radical Fitness), affichage dynamique fitness auto-hébergé, logiciel de planification de cours collectifs, lecteur vidéo fitness à la demande, borne de cours virtuels, studio de cycling indoor, régie vidéo salle de sport, thin client, mini PC Dell Wyse 5070, signalétique hors ligne, automatisation TV HDMI-CEC, local-first, FastAPI, Next.js, Debian 13.
-
 ---
 
 ## Pourquoi Bobine
@@ -201,3 +199,7 @@ Bobine est un logiciel libre sous licence **GNU Affero General Public License v3
 ## État et feuille de route
 
 Bobine est utilisé en production sur du matériel dédié. Prévu : un assistant d'installation graphique (fondations CLI déjà en place), un site web dédié et une documentation étendue. Les tickets et contributions sont bienvenus sur le [dépôt GitHub](https://github.com/FantasmaGlad/Bobine).
+
+---
+
+<sub>**Mots-clés :** alternative open source à Les Mills Cinema, alternative à Screenly Anthias pour salle de sport, alternative libre à Wexer et Fitness On Demand, alternative aux cours vidéo de franchise (Yako, Radical Fitness), affichage dynamique fitness auto-hébergé, logiciel de planification de cours collectifs, lecteur vidéo fitness à la demande, borne de cours virtuels, studio de cycling indoor, régie vidéo salle de sport, thin client, mini PC Dell Wyse 5070, signalétique hors ligne, automatisation TV HDMI-CEC, local-first, FastAPI, Next.js, Debian 13.</sub>
