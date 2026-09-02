@@ -343,7 +343,17 @@ export default function DashboardScreen({ channel }: Props) {
             <Icon name={isCable ? "cable" : "wifi"} size={18} />
             {isCable ? t("dashboard.liveCableTitle") : t("dashboard.liveNetworkTitle")}
           </h3>
-          <span className={`status-pill ${connected ? (channelCinema ? "neutral" : "ok") : "down"}`}>
+          <span
+            className={`status-pill ${
+              !connected
+                ? "down state-offline"
+                : channelCinema
+                ? "neutral"
+                : state.state === "waiting"
+                ? "waiting state-waiting"
+                : "ok state-" + state.state
+            }`}
+          >
             {!connected
               ? t("dashboard.disconnected")
               : channelCinema
@@ -601,6 +611,7 @@ export default function DashboardScreen({ channel }: Props) {
           <div className="live-header">
             <h3>{t("dashboard.upcomingTitle")}</h3>
             <a href={`/schedule/?channel=${channel}`} className="status-pill" style={{ textDecoration: "none" }}>
+              <Icon name="calendar_month" size={14} />
               {t("dashboard.viewSchedule")}
             </a>
           </div>

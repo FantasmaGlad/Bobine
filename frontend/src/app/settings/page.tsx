@@ -85,22 +85,32 @@ function getApiUrl(path: string) {
   return `/api${path}`;
 }
 
-const THEME_SWATCHES: { value: Theme; labelKey: string; colors: [string, string, string, string] }[] = [
-  { value: "les-mills-sombre", labelKey: "settingsPage.themeDark", colors: ["#0a0a0a", "#1e1e20", "#e4002b", "#ffffff"] },
-  { value: "clair", labelKey: "settingsPage.themeLight", colors: ["#f8f9fa", "#ffffff", "#e4002b", "#16161a"] },
-  { value: "miel", labelKey: "settingsPage.themeMiel", colors: ["#fdfbf5", "#fef7e7", "#d97706", "#2d1e0b"] },
-  { value: "coco", labelKey: "settingsPage.themeCoco", colors: ["#faf7f4", "#f3ece6", "#78350f", "#2c1d14"] },
-  { value: "lune", labelKey: "settingsPage.themeLune", colors: ["#0d111a", "#1e2638", "#6366f1", "#f1f5f9"] },
-  { value: "menthe", labelKey: "settingsPage.themeMenthe", colors: ["#f4f9f6", "#eaf3ee", "#10b981", "#132a1e"] },
-  { value: "automne", labelKey: "settingsPage.themeAutomne", colors: ["#14100c", "#282119", "#f59e0b", "#fef3c7"] },
-  { value: "hiver", labelKey: "settingsPage.themeHiver", colors: ["#0a1317", "#182830", "#06b6d4", "#f0fdfa"] },
-  { value: "chili", labelKey: "settingsPage.themeChili", colors: ["#15090a", "#2b1417", "#ef4444", "#fdf2f2"] },
-  { value: "ciel", labelKey: "settingsPage.themeCiel", colors: ["#f0f7fa", "#e2eff5", "#0284c7", "#0c2738"] },
-  { value: "orchidee", labelKey: "settingsPage.themeOrchidee", colors: ["#140d17", "#281b30", "#a855f7", "#faf5ff"] },
-  { value: "taupe", labelKey: "settingsPage.themeTaupe", colors: ["#1c1713", "#332a23", "#d4a373", "#fdfaf7"] },
-  { value: "charbon", labelKey: "settingsPage.themeCharbon", colors: ["#121214", "#232326", "#71717a", "#ffffff"] },
-  { value: "beige", labelKey: "settingsPage.themeBeige", colors: ["#f7f4ec", "#ede7d8", "#453229", "#241a15"] },
-  { value: "lavande", labelKey: "settingsPage.themeLavande", colors: ["#f7f6fc", "#edeaf7", "#7c3aed", "#1e1633"] },
+interface ThemeSwatch {
+  value: Theme;
+  labelKey: string;
+  category: "clair" | "sombre";
+  colors: [string, string, string, string];
+}
+
+const THEME_SWATCHES: ThemeSwatch[] = [
+  // --- Thèmes clairs ---
+  { value: "clair", labelKey: "settingsPage.themeLight", category: "clair", colors: ["#f8f9fa", "#ffffff", "#e4002b", "#16161a"] },
+  { value: "miel", labelKey: "settingsPage.themeMiel", category: "clair", colors: ["#fdfbf5", "#fef7e7", "#d97706", "#2d1e0b"] },
+  { value: "coco", labelKey: "settingsPage.themeCoco", category: "clair", colors: ["#faf7f4", "#f3ece6", "#78350f", "#2c1d14"] },
+  { value: "menthe", labelKey: "settingsPage.themeMenthe", category: "clair", colors: ["#f4f9f6", "#eaf3ee", "#10b981", "#132a1e"] },
+  { value: "ciel", labelKey: "settingsPage.themeCiel", category: "clair", colors: ["#f0f7fa", "#e2eff5", "#0284c7", "#0c2738"] },
+  { value: "beige", labelKey: "settingsPage.themeBeige", category: "clair", colors: ["#f7f4ec", "#ede7d8", "#453229", "#241a15"] },
+  { value: "lavande", labelKey: "settingsPage.themeLavande", category: "clair", colors: ["#f7f6fc", "#edeaf7", "#7c3aed", "#1e1633"] },
+
+  // --- Thèmes sombres ---
+  { value: "les-mills-sombre", labelKey: "settingsPage.themeDark", category: "sombre", colors: ["#0a0a0a", "#1e1e20", "#e4002b", "#ffffff"] },
+  { value: "lune", labelKey: "settingsPage.themeLune", category: "sombre", colors: ["#0d111a", "#1e2638", "#6366f1", "#f1f5f9"] },
+  { value: "automne", labelKey: "settingsPage.themeAutomne", category: "sombre", colors: ["#14100c", "#282119", "#f59e0b", "#fef3c7"] },
+  { value: "hiver", labelKey: "settingsPage.themeHiver", category: "sombre", colors: ["#0a1317", "#182830", "#06b6d4", "#f0fdfa"] },
+  { value: "chili", labelKey: "settingsPage.themeChili", category: "sombre", colors: ["#15090a", "#2b1417", "#ef4444", "#fdf2f2"] },
+  { value: "orchidee", labelKey: "settingsPage.themeOrchidee", category: "sombre", colors: ["#140d17", "#281b30", "#a855f7", "#faf5ff"] },
+  { value: "taupe", labelKey: "settingsPage.themeTaupe", category: "sombre", colors: ["#1c1713", "#332a23", "#d4a373", "#fdfaf7"] },
+  { value: "charbon", labelKey: "settingsPage.themeCharbon", category: "sombre", colors: ["#121214", "#232326", "#71717a", "#ffffff"] },
 ];
 
 const PATH_LABEL_KEYS: Record<string, string> = {
@@ -328,8 +338,16 @@ export default function SettingsPage() {
         <h3><Icon name="palette" size={18} /> {t("settingsPage.appearanceSection")}</h3>
         <div className="form-group">
           <label className="form-label">{t("settingsPage.themeLabel")}</label>
+
+          {/* Catégorie : Thèmes clairs */}
+          <div style={{ marginTop: "10px", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <Icon name="light_mode" size={16} />
+            <span style={{ fontSize: "0.82rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>
+              {t("settingsPage.themeCategoryLight")}
+            </span>
+          </div>
           <div className="theme-picker-grid">
-            {THEME_SWATCHES.map((option) => (
+            {THEME_SWATCHES.filter((o) => o.category === "clair").map((option) => (
               <button
                 key={option.value}
                 type="button"
@@ -345,6 +363,32 @@ export default function SettingsPage() {
               </button>
             ))}
           </div>
+
+          {/* Catégorie : Thèmes sombres */}
+          <div style={{ marginTop: "22px", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <Icon name="dark_mode" size={16} />
+            <span style={{ fontSize: "0.82rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>
+              {t("settingsPage.themeCategoryDark")}
+            </span>
+          </div>
+          <div className="theme-picker-grid">
+            {THEME_SWATCHES.filter((o) => o.category === "sombre").map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`theme-picker-card ${theme === option.value ? "active" : ""}`}
+                onClick={() => setTheme(option.value)}
+              >
+                <div className="theme-picker-swatch">
+                  {option.colors.map((c, i) => (
+                    <span key={i} style={{ background: c }} />
+                  ))}
+                </div>
+                <span className="theme-picker-name">{t(option.labelKey)}</span>
+              </button>
+            ))}
+          </div>
+
           <p className="settings-hint">{t("settingsPage.themeHint")}</p>
         </div>
 
