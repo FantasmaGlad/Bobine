@@ -82,3 +82,19 @@ Ce document consigne les évolutions, correctifs et améliorations UI/UX apport�
 ## 4. Documentation & Référencement (`README.md`, `README.fr.md`)
 
 - Repositionnement discret des listes de mots-clés SEO en fin de document (section pied de page) pour préserver la lisibilité humaine et l'élégance de la présentation tout en maintenant l'indexation.
+
+---
+
+## 5. Suivi des Releases & Découplage des Paramètres de Transition
+
+### Modifications techniques
+- **Découplage des sections de configuration (`frontend/src/app/settings/page.tsx`)** :
+  - Séparation nette entre la section **Animation de lancement** (vidéo `Lancement.mp4` pour canal Câblé avec commutateur Oui / Non) et la section **Durées de transition & Mode Coach** (durée d'attente entre cours de playlist, minuteur enchaînement coach, fondu des rappels radio et volume).
+- **Module de suivi des mises à jour (`backend/app/routers/updates.py`, `backend/app/main.py`)** :
+  - Endpoint `GET /api/updates/check` : compare la version locale Git / tag (`git describe`, `git rev-parse`) avec la dernière release officielle de `FantasmaGlad/Bobine` via l'API GitHub.
+  - Tolérance réseau complète : en mode hors-ligne ou sans connexion Internet, la réponse est traitée de manière gracieuse sans blocage ni erreur serveur.
+  - Endpoint `POST /api/updates/apply` : déclenche la mise à jour asynchrone et la relance des services.
+- **Interface & Animation professionnelle (`frontend/src/app/settings/page.tsx`, `frontend/src/app/globals.css`)** :
+  - Bouton interactif « Rechercher une mise à jour » avec animation de rotation fluide (`.olc-spin`).
+  - Affichage de la version actuelle et du commit actif.
+  - Badge « Système à jour » ou notification détaillée avec notes de version dépliables et bouton d'installation directe.

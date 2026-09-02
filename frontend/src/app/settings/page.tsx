@@ -32,6 +32,21 @@ interface SystemUsageData {
   memory_percent: number;
 }
 
+interface UpdateInfo {
+  online: boolean;
+  current_version: string;
+  current_tag: string;
+  current_commit: string;
+  latest_version: string | null;
+  has_update: boolean;
+  release_title: string | null;
+  release_notes: string | null;
+  published_at: string | null;
+  html_url: string | null;
+  message?: string;
+  checked_at: string;
+}
+
 /** Jauge circulaire (réf. mission "supervision cpu/ram en plus du stockage,
  * via des camemberts") : même technique conic-gradient déjà utilisée pour
  * l'anneau de progression "à suivre" de l'écran cinéma (cinema/page.tsx) —
@@ -145,6 +160,10 @@ export default function SettingsPage() {
   const [showUninstall, setShowUninstall] = useState(false);
   const [uninstallConfirm, setUninstallConfirm] = useState("");
   const [uninstalling, setUninstalling] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [applyingUpdate, setApplyingUpdate] = useState(false);
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
 
   const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
 
@@ -308,6 +327,47 @@ export default function SettingsPage() {
       setUninstalling(false);
       setShowUninstall(false);
       setUninstallConfirm("");
+    }
+  };
+
+  const checkForUpdates = async () => {
+    setCheckingUpdate(true);
+    try {
+      const res = await fetch(getApiUrl("/updates/check"), { cache: "no-store" });
+      if (res.ok) {
+        const info: UpdateInfo = await res.json();
+        setUpdateInfo(info);
+        if (info.has_update) {
+          showToast(t("settingsPage.updateAvailable"), "warning");
+        } else if (info.online) {
+          showToast(t("settingsPage.upToDate"), "success");
+        } else {
+          showToast(info.message || t("settingsPage.updateError"), "warning");
+        }
+      } else {
+        showToast(t("settingsPage.updateError"), "error");
+      }
+    } catch {
+      showToast(t("settingsPage.updateError"), "error");
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  const handleApplyUpdate = async () => {
+    if (!window.confirm(t("settingsPage.applyUpdate") + " ?")) return;
+    setApplyingUpdate(true);
+    try {
+      const res = await fetch(getApiUrl("/updates/apply"), { method: "POST" });
+      if (res.ok) {
+        showToast(t("settingsPage.updateSuccess"), "success");
+      } else {
+        showToast(t("settingsPage.updateError"), "error");
+      }
+    } catch {
+      showToast(t("settingsPage.updateError"), "error");
+    } finally {
+      setApplyingUpdate(false);
     }
   };
 
@@ -502,9 +562,9 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* ---- Lecture ---- */}
-      <form className="live-block" onSubmit={handleSave}>
-        <h3><Icon name="play_circle" size={18} /> {t("settingsPage.playbackSection")}</h3>
+      {/* ---- Animation de lancement (vidéo d'intro câblée) ---- */}
+      <section className="live-block">
+        <h3><Icon name="movie" size={18} /> {t("settingsPage.launchAnimationSection")}</h3>
         <div className="form-group" style={{ flexDirection: "column", gap: "8px", alignItems: "flex-start" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
             <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
@@ -539,16 +599,16 @@ export default function SettingsPage() {
           </div>
           <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.launchAnimationHint")}</p>
         </div>
+      </section>
+
+      {/* ---- Durées de transition & Mode Coach ---- */}
+      <form className="live-block" onSubmit={handleSave}>
+        <h3><Icon name="timer" size={18} /> {t("settingsPage.transitionsSection")}</h3>
         <div className="settings-fields">
           <div className="form-group">
             <label className="form-label">{t("settingsPage.waitTimeLabel")}</label>
             <input type="number" min={0} className="form-control" value={data.wait_time_between_courses}
               onChange={(e) => setData({ ...data, wait_time_between_courses: Number(e.target.value) })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">{t("settingsPage.volumeLabel")}</label>
-            <input type="number" min={0} max={100} className="form-control" value={data.volume_default}
-              onChange={(e) => setData({ ...data, volume_default: Number(e.target.value) })} />
           </div>
           <div className="form-group">
             <label className="form-label">{t("settingsPage.chainTimerLabel")}</label>
@@ -559,6 +619,11 @@ export default function SettingsPage() {
             <label className="form-label">{t("settingsPage.announcementFadeLabel")}</label>
             <input type="number" min={0} className="form-control" value={data.radio_announcement_fade_ms}
               onChange={(e) => setData({ ...data, radio_announcement_fade_ms: Number(e.target.value) })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">{t("settingsPage.volumeLabel")}</label>
+            <input type="number" min={0} max={100} className="form-control" value={data.volume_default}
+              onChange={(e) => setData({ ...data, volume_default: Number(e.target.value) })} />
           </div>
         </div>
         <button type="submit" className="btn btn-primary" style={{ height: "48px", alignSelf: "flex-start", marginTop: "4px" }} disabled={saving}>
@@ -604,6 +669,164 @@ export default function SettingsPage() {
       <section className="live-block">
         <h3><Icon name="monitor_heart" size={18} /> {t("settingsPage.statusSection")}</h3>
         <SystemStatus />
+      </section>
+
+      {/* ---- Mises à jour logicielles ---- */}
+      <section className="live-block">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+          <h3 style={{ margin: 0 }}>
+            <Icon name="system_update" size={18} /> {t("settingsPage.updatesSection")}
+          </h3>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ minHeight: "40px", padding: "6px 16px" }}
+            onClick={checkForUpdates}
+            disabled={checkingUpdate || applyingUpdate}
+          >
+            <Icon
+              name="sync"
+              size={16}
+              className={checkingUpdate ? "olc-spin" : ""}
+            />
+            {checkingUpdate ? t("settingsPage.checkingUpdates") : t("settingsPage.checkUpdates")}
+          </button>
+        </div>
+        <p className="settings-hint" style={{ marginTop: "4px" }}>
+          {t("settingsPage.updatesHint")}
+        </p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
+          {/* Version actuelle */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>
+              {t("settingsPage.currentVersion")} :
+            </span>
+            <span className="update-badge">
+              <strong>{updateInfo?.current_version ?? "V2.0.1"}</strong>
+              {updateInfo?.current_commit && updateInfo.current_commit !== "unknown" && (
+                <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.75rem", opacity: 0.8 }}>
+                  ({updateInfo.current_commit})
+                </span>
+              )}
+            </span>
+            {updateInfo?.checked_at && (
+              <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginLeft: "auto" }}>
+                {t("settingsPage.lastChecked")} : {new Date(updateInfo.checked_at).toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+
+          {/* Résultat de la recherche */}
+          {updateInfo && (
+            <div className="olc-anim-in" style={{ marginTop: "4px" }}>
+              {updateInfo.has_update ? (
+                <div
+                  className="update-card-banner"
+                  style={{
+                    borderLeft: "4px solid var(--accent-primary)",
+                    boxShadow: "var(--shadow-sm)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span className="update-badge alert">
+                        <Icon name="campaign" size={14} />
+                        {t("settingsPage.updateAvailable")}
+                      </span>
+                      <strong style={{ fontSize: "0.95rem" }}>{updateInfo.latest_version}</strong>
+                    </div>
+                    {updateInfo.html_url && (
+                      <a
+                        href={updateInfo.html_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-secondary btn-sm"
+                        style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                      >
+                        <Icon name="open_in_new" size={14} /> {t("settingsPage.viewOnGithub")}
+                      </a>
+                    )}
+                  </div>
+
+                  <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-main)" }}>
+                    {updateInfo.release_title || t("settingsPage.updateAvailableDetail")}
+                  </p>
+
+                  {updateInfo.release_notes && (
+                    <div>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ marginBottom: "8px" }}
+                        onClick={() => setShowReleaseNotes((v) => !v)}
+                      >
+                        <Icon name={showReleaseNotes ? "expand_less" : "expand_more"} size={16} />
+                        {t("settingsPage.releaseNotes")}
+                      </button>
+                      {showReleaseNotes && (
+                        <div className="update-notes-box olc-anim-in">
+                          {updateInfo.release_notes}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "4px" }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ height: "42px", padding: "0 20px", display: "inline-flex", alignItems: "center", gap: "8px" }}
+                      onClick={handleApplyUpdate}
+                      disabled={applyingUpdate}
+                    >
+                      {applyingUpdate ? (
+                        <>
+                          <Icon name="sync" size={16} className="olc-spin" />
+                          {t("settingsPage.applyingUpdate")}
+                        </>
+                      ) : (
+                        <>
+                          <Icon name="download" size={16} />
+                          {t("settingsPage.applyUpdate")}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : updateInfo.online ? (
+                <div
+                  className="update-card-banner"
+                  style={{
+                    borderLeft: "4px solid var(--accent-primary)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span className="update-badge success">
+                      <Icon name="check_circle" size={14} />
+                      {t("settingsPage.upToDate")}
+                    </span>
+                    <span style={{ fontSize: "0.9rem", color: "var(--text-main)" }}>
+                      {t("settingsPage.upToDateDetail")}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="update-card-banner"
+                  style={{ borderLeft: "4px solid var(--border-color)" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--text-muted)" }}>
+                    <Icon name="wifi_off" size={16} />
+                    <span style={{ fontSize: "0.85rem" }}>
+                      {updateInfo.message || t("settingsPage.updateError")}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* ---- Maintenance : resync ---- */}

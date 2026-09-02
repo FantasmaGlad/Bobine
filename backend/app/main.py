@@ -24,6 +24,7 @@ from app.radio_manager import get_radio_manager
 from app.routers import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,
     radio, radio_playlists, radio_announcements, settings as settings_router, logs, import_jobs,
+    updates,
 )
 from app.utils.radio_utils import content_type_for
 from app.scheduler_manager import (
@@ -160,6 +161,7 @@ app.include_router(radio_announcements.router)
 app.include_router(settings_router.router)
 app.include_router(logs.router)
 app.include_router(import_jobs.router)
+app.include_router(updates.router)
 
 
 def _kiosk_process_alive() -> str:
