@@ -9,7 +9,7 @@
 Dans l'architecture historique, Bobine nécessite un mini PC x86-64 (ex. Dell Wyse 5070 ou mini PC de salon) connecté en HDMI à l'écran de la salle, et l'utilisateur accède à l'administration via son smartphone ou un PC distant sur le réseau local.
 
 **La vision Android** :
-Transformer une tablette Android moderne (ex. Xiaomi Pad 6, Pad 7, Galaxy Tab S8/S9) en une station autonome complète via un **seul fichier APK**, connectée à un **dock USB-C avec alimentation Power Delivery et sortie HDMI** :
+Transformer une tablette Android moderne (ex. Xiaomi Pad 6, Pad 7, Pad 8, Galaxy Tab S8/S9/S10) en une station autonome complète via un **seul fichier APK**, connectée à un **dock USB-C avec alimentation Power Delivery et sortie HDMI** :
 1. **Écran tactile de la tablette (fixé au mur du studio)** : Affiche en continu le panneau d'administration, la télécommande tactile et le planning pour les coachs et les adhérents.
 2. **Écran TV / Vidéoprojecteur (via le câble HDMI du dock)** : Affiche le flux plein écran `/cinema` ou `/kiosk` en 1080p / 4K 60 fps avec accélération matérielle VPU native.
 3. **Serveur Backend autonome** : La tablette héberge elle-même le serveur FastAPI, SQLite et publie `bobine.local` sur le réseau Wi-Fi de la salle.
@@ -103,7 +103,7 @@ Toutes les tablettes Android ne sont pas compatibles. Le critère bloquant est l
 
 | Composant | Exigence minimale | Exemple de modèles recommandés | Modèles INCOMPATIBLES |
 |---|---|---|---|
-| **Port USB-C** | **USB 3.2 Gen 1 avec DisplayPort Alt Mode** | Xiaomi Pad 6, Xiaomi Pad 6 Pro, Xiaomi Pad 7, Samsung Galaxy Tab S7 / S8 / S9 | Xiaomi Redmi Pad (USB 2.0), Xiaomi Pad 5 standard (USB 2.0), Lenovo Tab M10 (USB 2.0) |
+| **Port USB-C** | **USB 3.2 Gen 1 avec DisplayPort Alt Mode** | Xiaomi Pad 6, Xiaomi Pad 6 Pro, Xiaomi Pad 7, Xiaomi Pad 8, Samsung Galaxy Tab S7 / S8 / S9 / S10 | Xiaomi Redmi Pad (USB 2.0), Xiaomi Pad 5 standard (USB 2.0), Lenovo Tab M10 (USB 2.0) |
 | **SoC / Processeur** | Snapdragon 870 ou supérieur (décodage 4K matériel) | Qualcomm Snapdragon 870, 8+ Gen 1, 8s Gen 3 | SoCs d'entrée de gamme sans décodage HEVC 60fps fluide |
 | **Stockage** | 128 Go ou 256 Go UFS | 128 Go minimum pour stocker ~100 cours vidéo HD | 32 Go ou 64 Go eMMC |
 | **Dock USB-C** | Hub avec HDMI 4K@60Hz + USB-C PD (Power Delivery ≥ 45W) + Ports USB-A | Docks Anker, Ugreen ou Baseus avec entrée secteur PD 65W | Adaptateurs simples sans injection de courant |
