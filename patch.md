@@ -189,3 +189,23 @@ Quatrième et dernier lot du chantier de portabilité multi-OS : Bobine s'instal
 - Pipeline CI : ajout du job `macos-build` dans `.github/workflows/ci.yml` (compilation PyInstaller, **signature ad-hoc obligatoire sur les runners Apple Silicon**, vérification `/api/health`, génération `.dmg`, publication de l'artefact).
 - **Non vérifiable dans cet environnement de développement Linux** : compilation réelle par `BUNDLE()`, exécution du `.app` sur une vraie machine macOS, avertissement Gatekeeper, comportement réel de `caffeinate`/`open -na`/LaunchAgent — écrit d'après une recherche documentaire dédiée (PyInstaller, Apple Developer, pystray), à valider au premier passage du job CI et lors d'un test manuel sur Mac réel avant toute distribution publique (détail dans le plan §4).
 
+---
+
+## 10. Mission PortabiliteCrossPlatformX — Harmonisation des icônes natives et raccourcis Bureau (Windows, Linux, macOS)
+
+### Contexte
+Garantit que chaque utilisateur, quelle que soit sa plateforme de bureau (Windows, Linux, macOS), dispose d'une icône de projet nette, fidèle à son ratio d'aspect, au format natif exigé par son système d'exploitation, ainsi que d'un raccourci d'application placé directement sur son Bureau dès l'installation.
+
+### Modifications techniques
+- **Générateur d'icônes automatisé (`scripts/generate_platform_icons.py`)** :
+  - Prend l'icône source `Assets/Images/logo_bobine_icon.png` (629×700), cadre le logo au centre d'un canevas carré transparent 1024×1024 sans déformation de ratio d'aspect (rééchantillonnage Lanczos).
+  - Génère automatiquement :
+    - **Windows** : `packaging/windows/bobine.ico` au format multi-résolution (16×16, 24×24, 32×32, 48×48, 64×64, 128×128, 256×256) pour un affichage net sur la barre des tâches, le bureau et dans l'explorateur.
+    - **macOS** : `packaging/macos/bobine.icns` avec la table des matières Apple (`TOC`, `ic07` à `ic14`, `ic10` 1024×1024 Retina).
+    - **Linux** : arborescence complète Freedesktop hicolor `packaging/linux/icons/hicolor/{16,24,32,48,64,128,256,512}x{...}/apps/bobine.png` et `packaging/linux/icons/pixmaps/bobine.png`.
+- **Raccourcis Bureau lors des installations** :
+  - **Windows (`packaging/windows/bobine.iss`)** : ajout de la tâche `[Tasks] Name: "desktopicon"` et du raccourci `[Icons] Name: "{autodesktop}\{#MyAppName}"` pointant sur `BobineTray.exe`. L'installeur propose la création du raccourci sur le Bureau (coché par défaut).
+  - **Linux (`packaging/linux/DEBIAN/postinst` & `packaging/linux/build_deb.sh`)** : le paquet Debian déploie toutes les résolutions hicolor et pixmaps ; le script `postinst` détecte le dossier `Desktop` ou `Bureau` de l'utilisateur connecté (`$SUDO_USER`) et y copie `bobine.desktop` avec permissions exécutables (`chmod 0755`) et marqueur de confiance GNOME (`gio set metadata::trusted true`). Nettoyage propre au `postrm`.
+  - **macOS (`backend/app/desktop/tray.py` & `packaging/macos/bobine.spec`)** : `bobine.icns` explicitement déclaré dans `CFBundleIconFile` d'`info_plist` ; `BobineTray` vérifie et crée au premier lancement un alias/symlink `Bobine.app` sur le Bureau (`~/Desktop/Bobine.app`) si le dossier existe.
+- **Rendu Systray (`backend/app/desktop/tray.py`)** : fonction `_load_icon_image()` améliorée pour recadrer en carré transparent avant redimensionnement en 64×64, évitant tout étirement de l'icône dans la zone de notification.
+

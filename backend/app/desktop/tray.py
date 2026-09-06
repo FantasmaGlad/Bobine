@@ -249,7 +249,17 @@ def _load_icon_image() -> Image.Image:
     ]
     for path in candidates:
         if path and path.exists():
-            return Image.open(path).convert("RGBA").resize((64, 64))
+            try:
+                img = Image.open(path).convert("RGBA")
+                bbox = img.getbbox()
+                cropped = img.crop(bbox) if bbox else img
+                cw, ch = cropped.size
+                max_dim = max(cw, ch)
+                square = Image.new("RGBA", (max_dim, max_dim), (0, 0, 0, 0))
+                square.paste(cropped, ((max_dim - cw) // 2, (max_dim - ch) // 2))
+                return square.resize((64, 64), Image.Resampling.LANCZOS)
+            except Exception:
+                pass
     return Image.new("RGBA", (64, 64), (15, 110, 116, 255))
 
 
@@ -339,12 +349,55 @@ def _ensure_launch_agent_macos() -> None:
         logger.warning(f"Échec de l'installation du LaunchAgent macOS (lancement automatique désactivé) : {e!r}")
 
 
+def _ensure_desktop_shortcut() -> None:
+    """Vérifie et assure la présence d'une icône / raccourci sur le Bureau de
+    l'utilisateur pour chaque plateforme de bureau :
+    - Windows : posé nativement à l'installation par Inno Setup ({autodesktop}).
+    - Linux : copie `bobine.desktop` vers ~/Desktop ou ~/Bureau si présent.
+    - macOS : crée un alias/symlink `Bobine.app` vers ~/Desktop si le dossier existe."""
+    system = platform.system()
+    try:
+        if system == "Linux":
+            desktop_src = Path("/usr/share/applications/bobine.desktop")
+            if not desktop_src.exists():
+                return
+            for dname in ("Desktop", "Bureau"):
+                target_dir = Path.home() / dname
+                if target_dir.is_dir():
+                    dest = target_dir / "bobine.desktop"
+                    if not dest.exists():
+                        shutil.copyfile(desktop_src, dest)
+                        dest.chmod(0o755)
+                        if shutil.which("gio"):
+                            subprocess.run(
+                                ["gio", "set", str(dest), "metadata::trusted", "true"],
+                                check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            )
+                        logger.info(f"Raccourci Bureau Linux créé : {dest}")
+                    break
+        elif system == "Darwin" and getattr(sys, "frozen", False):
+            app_path = Path(sys.executable).resolve().parent.parent
+            if app_path.suffix == ".app":
+                desktop_dir = Path.home() / "Desktop"
+                if desktop_dir.is_dir():
+                    dest = desktop_dir / app_path.name
+                    if not dest.exists():
+                        try:
+                            os.symlink(str(app_path), str(dest))
+                            logger.info(f"Raccourci Bureau macOS créé : {dest} -> {app_path}")
+                        except Exception:
+                            pass
+    except Exception as e:
+        logger.debug(f"Vérification du raccourci Bureau ignorée : {e!r}")
+
+
 def run() -> None:
     """Point d'entrée — `python -m app.desktop.tray` en développement, et
     l'exécutable `BobineTray.exe` une fois empaqueté."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     _ensure_launch_agent_macos()
+    _ensure_desktop_shortcut()
 
     supervisor = BackendSupervisor(_backend_command())
     supervisor.start()

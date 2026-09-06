@@ -368,7 +368,8 @@ Priorité n°1 du CDC. Dépend du Lot 0 et du module partagé §5.1 ci-dessous.
 - [x] Écrit le script Inno Setup (`.iss`) : `[Files]` (exécutables,
       `frontend/out/`, `config.toml` par défaut adapté aux chemins
       `%ProgramData%` — voir le correctif `config.py` ci-dessus),
-      `[Icons]` (raccourci Démarrage, Menu Démarrer), la règle de pare-feu
+      `[Tasks]` / `[Icons]` (raccourci Bureau `{autodesktop}` coché par défaut,
+      dossier Démarrage, Menu Démarrer), la règle de pare-feu
       ci-dessus (`[Run]`/`[UninstallRun]`), `PrivilegesRequired=admin` pour
       l'UAC — `packaging/windows/bobine.iss`. **Non testé** : nécessite
       Inno Setup (Windows uniquement), écrit d'après la documentation
@@ -458,7 +459,8 @@ Python et le `BobineTray` du Lot 1 (seul le packaging change).
       dépendances autonomes via PyInstaller Linux `onedir`), `usr/bin/bobine`
       (wrapper exécutable), `usr/share/applications/bobine.desktop` et
       `/etc/xdg/autostart/bobine.desktop`, `usr/lib/systemd/user/bobine.service`
-      (unité utilisateur).
+      (unité utilisateur), icônes multi-résolution `usr/share/icons/hicolor/{16..512}x{16..512}/apps/bobine.png`
+      et `usr/share/pixmaps/bobine.png`.
 - [x] Fichier `control` : dépendance `ffmpeg` déclarée, recommandation
       `avahi-daemon`, architecture `amd64`.
 - [x] mDNS : réutiliser `avahi-daemon` s'il est déjà actif sur le poste,
@@ -470,7 +472,8 @@ Python et le `BobineTray` du Lot 1 (seul le packaging change).
       profil via `LinuxDesktopHandler` (`backend/app/utils/deployment_profiles/linux_desktop.py`)
       et instruction `sudo apt remove bobine` dans les réglages.
 - [x] Scripts de maintenance du paquet (`postinst`/`prerm`/`postrm`) :
-      mise à jour des caches d'icônes/desktop et arrêt propre des processus.
+      mise à jour des caches d'icônes/desktop, création du raccourci sur le
+      Bureau utilisateur (`~/Desktop/bobine.desktop`), et arrêt propre des processus.
 - [x] CI : job `linux-desktop-deb` dans `.github/workflows/ci.yml` (build Next.js,
       PyInstaller Linux, compilation `dpkg-deb`, validation de structure et test
       d'installation réelle `sudo dpkg -i` sur Ubuntu).
@@ -501,7 +504,8 @@ Dépend du Lot 0 et du module partagé §5.1. Réutilise le code Python et
       via Pillow (support natif du format ICNS) à partir de
       `Assets/Images/logo_bobine_icon.png`, complétée sur un canevas carré
       transparent au préalable (même correctif que l'icône `.ico` Windows,
-      source non carrée à l'origine).
+      source non carrée à l'origine). Raccourci Bureau (`~/Desktop/Bobine.app`)
+      créé automatiquement par `BobineTray` au lancement si absent.
 - [x] `info_plist` du bundle inclus directement dans l'appel `BUNDLE()` du
       spec (`CFBundleName`, `CFBundleDisplayName`, `CFBundleVersion`,
       `CFBundleShortVersionString`, `LSMinimumSystemVersion="11.0"`,

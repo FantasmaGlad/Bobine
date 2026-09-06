@@ -148,6 +148,7 @@ app_bundle = BUNDLE(
         "CFBundleDisplayName": "Bobine",
         "CFBundleVersion": "2.0.1",
         "CFBundleShortVersionString": "2.0.1",
+        "CFBundleIconFile": "bobine.icns",
         "LSMinimumSystemVersion": "11.0",
         "NSHighResolutionCapable": True,
         # Masque l'icône du Dock/le sélecteur d'applications : Bobine est

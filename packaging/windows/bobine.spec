@@ -30,6 +30,7 @@ datas = [
     # `datas`) — app.desktop.tray._load_icon_image() cherche ce nom exact
     # à côté de l'exécutable.
     (str(REPO_DIR / "Assets" / "Images" / "logo_bobine_icon.png"), "."),
+    (str(SPEC_DIR / "bobine.ico"), "."),
 ]
 
 frontend_out = REPO_DIR / "frontend" / "out"

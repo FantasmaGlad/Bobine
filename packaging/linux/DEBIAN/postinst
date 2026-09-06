@@ -11,6 +11,30 @@ if [ "$1" = "configure" ]; then
     if command -v gtk-update-icon-cache >/dev/null 2>&1; then
         gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
     fi
+
+    # Raccourci sur le Bureau de l'utilisateur connecté (si le dossier Bureau/Desktop existe)
+    if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+        USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+        if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
+            for candidate in "$USER_HOME/Desktop" "$USER_HOME/Bureau"; do
+                if [ -d "$candidate" ]; then
+                    cp /usr/share/applications/bobine.desktop "$candidate/bobine.desktop"
+                    chown "$SUDO_USER:" "$candidate/bobine.desktop" 2>/dev/null || true
+                    chmod 0755 "$candidate/bobine.desktop" 2>/dev/null || true
+                    if command -v gio >/dev/null 2>&1; then
+                        su - "$SUDO_USER" -c "gio set '$candidate/bobine.desktop' metadata::trusted true" 2>/dev/null || true
+                    fi
+                    break
+                fi
+            done
+        fi
+    fi
+
+    # Modèle pour les futurs comptes utilisateurs si /etc/skel existe
+    if [ -d /etc/skel/Desktop ]; then
+        cp /usr/share/applications/bobine.desktop /etc/skel/Desktop/bobine.desktop
+        chmod 0755 /etc/skel/Desktop/bobine.desktop
+    fi
 fi
 
 exit 0

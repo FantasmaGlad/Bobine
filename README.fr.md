@@ -107,7 +107,7 @@ Bobine propose désormais deux familles de déploiement adaptées à vos besoins
 #### Sur Windows (10, 11 ou Windows IoT)
 
 1. **Téléchargez** `Bobine-Setup-*.exe` depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest).
-2. **Lancez l'installeur** et suivez l'assistant (choix français/anglais, acceptation de la licence AGPL-3.0). Il installe Bobine dans `Program Files\Bobine`, ajoute un raccourci au Menu Démarrer, enregistre le lancement automatique de Bobine à l'ouverture de session, et ouvre une règle de pare-feu Windows Defender pour que la télécommande mobile puisse joindre le backend depuis le réseau local.
+2. **Lancez l'installeur** et suivez l'assistant (choix français/anglais, acceptation de la licence AGPL-3.0). Il installe Bobine dans `Program Files\Bobine`, place un raccourci avec l'icône du projet sur votre **Bureau** et dans le Menu Démarrer, enregistre le lancement automatique de Bobine à l'ouverture de session, et ouvre une règle de pare-feu Windows Defender pour que la télécommande mobile puisse joindre le backend depuis le réseau local.
    - Windows SmartScreen affichera un avertissement « éditeur non reconnu » (l'installeur n'est pas encore signé) : cliquez sur **Informations complémentaires → Exécuter quand même** pour continuer.
 3. **Bobine démarre automatiquement** après l'installation : une icône apparaît dans la zone de notification. Cliquez dessus pour ouvrir l'admin, lancer la fenêtre en mode kiosque plein écran, redémarrer le backend ou quitter.
 4. **Ouvrez l'interface** : `http://bobine.local` depuis n'importe quel appareil du réseau local (ou `http://127.0.0.1:8000` sur le PC lui-même). Les données applicatives (vidéos, base SQLite, logs) vivent sous `%ProgramData%\Bobine`.
@@ -119,8 +119,8 @@ Bobine propose désormais deux familles de déploiement adaptées à vos besoins
    ```bash
    sudo apt install ./bobine_*_amd64.deb
    ```
-   *(Toutes les dépendances comme ffmpeg sont automatiquement résolues par apt).*
-3. **Lancez Bobine** depuis le menu d'applications de votre bureau ou tapez `bobine` dans un terminal.
+   *(Toutes les dépendances comme ffmpeg sont automatiquement résolues par apt, et les icônes multi-résolution sont intégrées au thème hicolor).*
+3. **Lancez Bobine** depuis le raccourci créé sur votre **Bureau**, le menu d'applications ou tapez `bobine` dans un terminal.
    - L'icône Bobine apparaît dans votre zone de notification / barre d'état (tray) et assure la supervision du moteur.
    - Lancement automatique au login XDG configuré nativement (et unité systemd utilisateur `systemctl --user start bobine` disponible — utilisez l'un ou l'autre, pas les deux à la fois, pour éviter de faire tourner deux instances).
    - Vos médias et données vivent dans votre dossier utilisateur selon la norme XDG : `~/.local/share/bobine/`.
@@ -128,8 +128,8 @@ Bobine propose désormais deux familles de déploiement adaptées à vos besoins
 #### Sur macOS (Apple Silicon)
 
 1. **Téléchargez** `Bobine-*.dmg` depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest).
-2. **Ouvrez le .dmg** et glissez `Bobine.app` dans votre dossier **Applications**.
-3. **Lancez Bobine** depuis Applications ou Spotlight.
+2. **Ouvrez le .dmg** et glissez `Bobine.app` (dotée de son icône Apple native Retina `.icns`) dans votre dossier **Applications**.
+3. **Lancez Bobine** depuis Applications, votre **Bureau** (raccourci créé automatiquement) ou Spotlight.
    - Bobine n'étant pas encore signé, Gatekeeper bloque le premier lancement : ouvrez **Réglages Système → Confidentialité et sécurité**, repérez le message « Bobine a été bloqué », cliquez sur **Ouvrir quand même**, puis confirmez.
    - Dès ce premier lancement, Bobine installe son propre LaunchAgent et démarrera automatiquement à chaque connexion par la suite. Une icône dans la barre de menus permet d'ouvrir l'admin, de lancer la fenêtre en mode kiosque plein écran, de redémarrer le backend ou de quitter.
 4. **Ouvrez l'interface** : `http://bobine.local` depuis n'importe quel appareil du réseau local. Les données applicatives (vidéos, base de données, logs) vivent sous `~/Library/Application Support/Bobine`.

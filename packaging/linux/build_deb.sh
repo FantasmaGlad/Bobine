@@ -57,7 +57,8 @@ mkdir -p "${STAGING_DIR}/usr/bin"
 mkdir -p "${STAGING_DIR}/usr/share/applications"
 mkdir -p "${STAGING_DIR}/etc/xdg/autostart"
 mkdir -p "${STAGING_DIR}/usr/lib/systemd/user"
-mkdir -p "${STAGING_DIR}/usr/share/icons/hicolor/256x256/apps"
+mkdir -p "${STAGING_DIR}/usr/share/pixmaps"
+mkdir -p "${STAGING_DIR}/usr/share/icons"
 
 # Copie des binaires et assets de l'application
 cp -a "${DIST_DIR}/"* "${STAGING_DIR}/usr/lib/bobine/"
@@ -76,9 +77,19 @@ cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/etc/xdg/autostart/bobine.deskt
 # Service systemd utilisateur
 cp "${SCRIPT_DIR}/bobine.service" "${STAGING_DIR}/usr/lib/systemd/user/bobine.service"
 
-# Icône de l'application
-if [ -f "${REPO_DIR}/Assets/Images/logo_bobine_icon.png" ]; then
-    cp "${REPO_DIR}/Assets/Images/logo_bobine_icon.png" "${STAGING_DIR}/usr/share/icons/hicolor/256x256/apps/bobine.png"
+# Icônes de l'application (multi-résolution hicolor + fallback pixmaps)
+ICONS_SRC="${SCRIPT_DIR}/icons"
+if [ ! -d "${ICONS_SRC}/hicolor" ] && [ -f "${REPO_DIR}/scripts/generate_platform_icons.py" ]; then
+    "${PYTHON_BIN}" "${REPO_DIR}/scripts/generate_platform_icons.py" || true
+fi
+
+if [ -d "${ICONS_SRC}/hicolor" ]; then
+    cp -a "${ICONS_SRC}/hicolor" "${STAGING_DIR}/usr/share/icons/"
+fi
+if [ -f "${ICONS_SRC}/pixmaps/bobine.png" ]; then
+    cp "${ICONS_SRC}/pixmaps/bobine.png" "${STAGING_DIR}/usr/share/pixmaps/bobine.png"
+elif [ -f "${REPO_DIR}/Assets/Images/logo_bobine_icon.png" ]; then
+    cp "${REPO_DIR}/Assets/Images/logo_bobine_icon.png" "${STAGING_DIR}/usr/share/pixmaps/bobine.png"
 fi
 
 # Métadonnées et scripts de maintenance Debian
@@ -94,6 +105,7 @@ chmod 0644 "${STAGING_DIR}/DEBIAN/control"
 
 # Normalisation des permissions dans le paquet
 find "${STAGING_DIR}" -type d -exec chmod 0755 {} +
+find "${STAGING_DIR}/usr/share" -type f -exec chmod 0644 {} +
 chmod 0755 "${STAGING_DIR}/usr/lib/bobine/BobineBackend"
 chmod 0755 "${STAGING_DIR}/usr/lib/bobine/BobineTray"
 

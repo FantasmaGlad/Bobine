@@ -47,7 +47,7 @@ SolidCompression=yes
 ; d'implémentation §2 — "décision explicite sur la licence").
 LicenseFile=..\..\LICENSE
 SetupIconFile=bobine.ico
-UninstallDisplayIcon={app}\BobineBackend.exe
+UninstallDisplayIcon={app}\BobineTray.exe
 
 ; Section [Languages] : l'app démarre en français par défaut
 ; (DEFAULT_LANGUAGE = "fr", AppSettingsContext.tsx) sans détection de
@@ -58,6 +58,9 @@ UninstallDisplayIcon={app}\BobineBackend.exe
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+
 [Files]
 ; Tout le dossier de sortie PyInstaller, à plat (cf. bobine.spec,
 ; contents_directory=".") : les deux exécutables, config.toml,
@@ -65,12 +68,13 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Source: "{#MyDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\Bobine"; Filename: "{app}\BobineTray.exe"
-Name: "{group}\{cm:UninstallProgram,Bobine}"; Filename: "{uninstallexe}"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"
+Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"; Tasks: desktopicon
 ; Lancement automatique de BobineTray à l'ouverture de session utilisateur
 ; (par utilisateur, pas system-wide — cf. CDC §5.3, pas de Service Windows
 ; pour ce profil).
-Name: "{userstartup}\Bobine"; Filename: "{app}\BobineTray.exe"
+Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"
 
 [Run]
 ; Règle de pare-feu pour le port d'écoute backend (0.0.0.0:8000, requis

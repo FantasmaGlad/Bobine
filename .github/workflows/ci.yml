@@ -195,6 +195,8 @@ jobs:
           test -f /usr/lib/systemd/user/bobine.service
           test -x /usr/lib/bobine/BobineBackend
           test -x /usr/lib/bobine/BobineTray
+          test -f /usr/share/icons/hicolor/256x256/apps/bobine.png
+          test -f /usr/share/pixmaps/bobine.png
       - uses: actions/upload-artifact@v4
         with:
           name: bobine-linux-deb
@@ -239,6 +241,8 @@ jobs:
       - name: Construire Bobine.app
         working-directory: backend
         run: pyinstaller ../packaging/macos/bobine.spec
+      - name: Vérifier la présence de l'icône dans le bundle
+        run: test -f backend/dist/Bobine.app/Contents/Resources/bobine.icns
       - name: Signature ad-hoc (requise par le noyau sur Apple Silicon)
         run: codesign --force --deep -s - backend/dist/Bobine.app
       - name: Vérifier que BobineBackend démarre et répond à /api/health

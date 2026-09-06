@@ -8,6 +8,15 @@ if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
     if command -v gtk-update-icon-cache >/dev/null 2>&1; then
         gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
     fi
+
+    # Nettoyage du raccourci sur le Bureau
+    if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+        USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+        if [ -n "$USER_HOME" ]; then
+            rm -f "$USER_HOME/Desktop/bobine.desktop" "$USER_HOME/Bureau/bobine.desktop" 2>/dev/null || true
+        fi
+    fi
+    rm -f /etc/skel/Desktop/bobine.desktop 2>/dev/null || true
 fi
 
 exit 0

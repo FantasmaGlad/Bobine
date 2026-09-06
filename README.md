@@ -107,7 +107,7 @@ Bobine now offers two deployment families tailored to your setup:
 #### On Windows (10, 11 or Windows IoT)
 
 1. **Download** `Bobine-Setup-*.exe` from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest).
-2. **Run the installer** and follow the wizard (French/English selection, AGPL-3.0 license acceptance). It installs Bobine into `Program Files\Bobine`, adds a Start Menu shortcut, registers autostart at user sign-in, and configures a Windows Defender Firewall rule so your mobile remote can connect over the local network.
+2. **Run the installer** and follow the wizard (French/English selection, AGPL-3.0 license acceptance). It installs Bobine into `Program Files\Bobine`, places a shortcut with the project icon on your **Desktop** and Start Menu, registers autostart at user sign-in, and configures a Windows Defender Firewall rule so your mobile remote can connect over the local network.
    - If Windows SmartScreen displays an "unrecognized publisher" alert, click **More info → Run anyway**.
 3. **Bobine starts automatically** in the system tray. Click the tray icon to open the admin panel, launch the full-screen kiosk browser window, restart the backend, or quit.
 4. **Open the interface**: `http://bobine.local` from any device on your local network (or `http://127.0.0.1:8000` on the PC itself). Application data (videos, SQLite database, logs) is stored in `%ProgramData%\Bobine`.
@@ -119,8 +119,8 @@ Bobine now offers two deployment families tailored to your setup:
    ```bash
    sudo apt install ./bobine_*_amd64.deb
    ```
-   *(All runtime dependencies including ffmpeg are handled automatically by apt).*
-3. **Launch Bobine** from your desktop applications menu or type `bobine` in a terminal.
+   *(All runtime dependencies including ffmpeg are handled automatically by apt, and multi-resolution icons are integrated into the hicolor theme).*
+3. **Launch Bobine** from the shortcut created on your **Desktop**, desktop applications menu, or type `bobine` in a terminal.
    - The Bobine tray icon appears in your system notification area and supervises the engine.
    - XDG autostart is enabled at desktop login (and a systemd user unit `systemctl --user start bobine` is also available — use one or the other, not both, to avoid running two instances at once).
    - Your media files, database, and logs live cleanly in your user directory following the XDG specification: `~/.local/share/bobine/`.
@@ -128,8 +128,8 @@ Bobine now offers two deployment families tailored to your setup:
 #### On macOS (Apple Silicon)
 
 1. **Download** `Bobine-*.dmg` from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest).
-2. **Open the .dmg** and drag `Bobine.app` into your **Applications** folder.
-3. **Launch Bobine** from Applications or Spotlight.
+2. **Open the .dmg** and drag `Bobine.app` (featuring its native Apple Retina `.icns` icon) into your **Applications** folder.
+3. **Launch Bobine** from Applications, your **Desktop** (shortcut created automatically), or Spotlight.
    - Bobine isn't code-signed yet, so Gatekeeper blocks the first launch: open **System Settings → Privacy & Security**, scroll to the "Bobine was blocked" notice, click **Open Anyway**, then confirm.
    - On this first launch, Bobine installs its own LaunchAgent so it keeps starting automatically at login from then on. A menu bar icon lets you open the admin panel, launch the full-screen kiosk window, restart the backend, or quit.
 4. **Open the interface**: `http://bobine.local` from any device on your local network. Application data (videos, database, logs) is stored in `~/Library/Application Support/Bobine`.
