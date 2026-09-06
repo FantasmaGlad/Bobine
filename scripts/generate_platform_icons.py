@@ -67,14 +67,14 @@ def generate_icons() -> None:
         hicolor_dir = REPO_DIR / "packaging" / "linux" / "icons" / "hicolor" / f"{s}x{s}" / "apps"
         hicolor_dir.mkdir(parents=True, exist_ok=True)
         out_img = master.resize((s, s), Image.Resampling.LANCZOS)
-        out_path = hicolor_dir / "bobine.png"
-        out_img.save(str(out_path), format="PNG")
+        out_img.save(str(hicolor_dir / "bobine.png"), format="PNG")
+        out_img.save(str(hicolor_dir / "com.bobine.app.png"), format="PNG")
 
     pixmaps_dir = REPO_DIR / "packaging" / "linux" / "icons" / "pixmaps"
     pixmaps_dir.mkdir(parents=True, exist_ok=True)
-    pixmap_path = pixmaps_dir / "bobine.png"
-    master.resize((256, 256), Image.Resampling.LANCZOS).save(str(pixmap_path), format="PNG")
-    print(f"[Linux]   Généré {len(linux_sizes)} icônes hicolor + pixmaps dans packaging/linux/icons/")
+    master.resize((256, 256), Image.Resampling.LANCZOS).save(str(pixmaps_dir / "bobine.png"), format="PNG")
+    master.resize((256, 256), Image.Resampling.LANCZOS).save(str(pixmaps_dir / "com.bobine.app.png"), format="PNG")
+    print(f"[Linux]   Généré {len(linux_sizes)} icônes hicolor (bobine + com.bobine.app) + pixmaps dans packaging/linux/icons/")
 
 
 if __name__ == "__main__":

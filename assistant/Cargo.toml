@@ -5,4 +5,4 @@
 # réécrire cette logique.
 [workspace]
 resolver = "2"
-members = ["core"]
+members = ["core", "src-tauri"]

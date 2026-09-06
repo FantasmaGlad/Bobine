@@ -1,0 +1,21 @@
+[package]
+name = "bobine-assistant"
+version = "0.1.0"
+edition = "2021"
+description = "Assistant d'installation graphique et télécommande de bureau Bobine (Tauri 2)"
+license = "AGPL-3.0-or-later"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+bobine-installer-core = { path = "../core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json"] }
+ssh2 = "0.9"
+
+[features]
+default = []

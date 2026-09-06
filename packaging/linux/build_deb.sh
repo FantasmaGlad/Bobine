@@ -59,6 +59,8 @@ mkdir -p "${STAGING_DIR}/etc/xdg/autostart"
 mkdir -p "${STAGING_DIR}/usr/lib/systemd/user"
 mkdir -p "${STAGING_DIR}/usr/share/pixmaps"
 mkdir -p "${STAGING_DIR}/usr/share/icons"
+mkdir -p "${STAGING_DIR}/usr/share/metainfo"
+mkdir -p "${STAGING_DIR}/usr/share/doc/bobine"
 
 # Copie des binaires et assets de l'application
 cp -a "${DIST_DIR}/"* "${STAGING_DIR}/usr/lib/bobine/"
@@ -70,9 +72,17 @@ exec /usr/lib/bobine/BobineTray "$@"
 EOF
 chmod 0755 "${STAGING_DIR}/usr/bin/bobine"
 
-# Fichiers .desktop et autostart
+# Fichiers .desktop et autostart (avec alias com.bobine.app pour AppStream)
 cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/usr/share/applications/bobine.desktop"
+cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/usr/share/applications/com.bobine.app.desktop"
 cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/etc/xdg/autostart/bobine.desktop"
+
+# Métadonnées AppStream (pour le Centre d'applications Ubuntu, GNOME Software, Discover)
+cp "${SCRIPT_DIR}/bobine.metainfo.xml" "${STAGING_DIR}/usr/share/metainfo/com.bobine.app.metainfo.xml"
+cp "${SCRIPT_DIR}/bobine.metainfo.xml" "${STAGING_DIR}/usr/share/metainfo/bobine.metainfo.xml"
+
+# Informations de Licence / Copyright Debian standard
+cp "${SCRIPT_DIR}/copyright" "${STAGING_DIR}/usr/share/doc/bobine/copyright"
 
 # Service systemd utilisateur
 cp "${SCRIPT_DIR}/bobine.service" "${STAGING_DIR}/usr/lib/systemd/user/bobine.service"
@@ -88,8 +98,10 @@ if [ -d "${ICONS_SRC}/hicolor" ]; then
 fi
 if [ -f "${ICONS_SRC}/pixmaps/bobine.png" ]; then
     cp "${ICONS_SRC}/pixmaps/bobine.png" "${STAGING_DIR}/usr/share/pixmaps/bobine.png"
+    cp "${ICONS_SRC}/pixmaps/com.bobine.app.png" "${STAGING_DIR}/usr/share/pixmaps/com.bobine.app.png" 2>/dev/null || true
 elif [ -f "${REPO_DIR}/Assets/Images/logo_bobine_icon.png" ]; then
     cp "${REPO_DIR}/Assets/Images/logo_bobine_icon.png" "${STAGING_DIR}/usr/share/pixmaps/bobine.png"
+    cp "${REPO_DIR}/Assets/Images/logo_bobine_icon.png" "${STAGING_DIR}/usr/share/pixmaps/com.bobine.app.png"
 fi
 
 # Métadonnées et scripts de maintenance Debian

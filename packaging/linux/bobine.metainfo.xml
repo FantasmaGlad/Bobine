@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.bobine.app</id>
+  <name>Bobine</name>
+  <summary>Système de diffusion vidéo et audio pour salles de sport et studios</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-or-later</project_license>
+  <developer id="com.bobine">
+    <name>Équipe Bobine</name>
+  </developer>
+  <description>
+    <p>
+      Bobine est une solution de diffusion multi-canal autonome conçue spécialement pour les salles de sport, studios de fitness, hôtels et cinémas privés.
+    </p>
+    <p>
+      Fonctionnalités principales :
+    </p>
+    <ul>
+      <li>Diffusion vidéo multi-canal : canal câblé (HDMI plein écran) et canal réseau indépendant.</li>
+      <li>Écran d'attente animé et mode kiosque sécurisé avec anti-veille automatique.</li>
+      <li>Mode Audio Coach avec minuteur, musiques d'entraînement et fonds visuels animés.</li>
+      <li>Canal Radio d'ambiance avec fondu sonore et rappels vocaux.</li>
+      <li>Télécommande mobile tactile et panneau d'administration moderne accessibles en réseau local.</li>
+      <li>Sauvegarde, restauration universelle et réinitialisation usine intégrées.</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">bobine.desktop</launchable>
+  <url type="homepage">https://bobine.fit</url>
+  <url type="bugtracker">https://github.com/FantasmaGlad/Bobine/issues</url>
+  <icon type="stock">bobine</icon>
+  <categories>
+    <category>AudioVideo</category>
+    <category>Video</category>
+    <category>Player</category>
+  </categories>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="2.0.1" date="2026-09-06">
+      <description>
+        <p>Version 2.0.1 : Application tout-en-un avec support de bureau Linux (.deb), anti-veille native Screen Wake Lock, sauvegardes universelles et gestionnaire de barre d'état.</p>
+      </description>
+    </release>
+  </releases>
+</component>

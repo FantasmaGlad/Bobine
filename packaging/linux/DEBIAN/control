@@ -7,7 +7,7 @@ Maintainer: Bobine Team <fantacasino3012@gmail.com>
 Depends: ffmpeg
 Recommends: avahi-daemon
 Homepage: https://bobine.fit
-Description: Système de diffusion vidéo et audio pour salles de sport et studios
- Bobine est une solution de diffusion multi-canal (vidéo câblée HDMI,
- écran réseau, canal radio musical autonome, télécommande mobile et
- panneau d'administration) conçue pour les salles de sport et studios.
+Description: Video and audio playout system for gym studios
+ Bobine is an autonomous multi-channel playout solution (wired HDMI video,
+ network screen, background radio, mobile remote and web administration)
+ designed for boutique gyms and fitness studios.

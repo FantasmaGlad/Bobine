@@ -407,5 +407,41 @@ Afin d'éviter toute extinction inopinée de l'écran pendant un cours de fitnes
   - Branchement du hook `useScreenWakeLock(isFullscreenRoute)` sur l'ensemble des routes immersives (`/kiosk`, `/cinema`, `/coach`, `/radio`).
   - Zéro dépendance native supplémentaire côté OS, fonctionne de manière homogène sur tous les navigateurs modernes (Chrome, Edge, Safari, Opera).
 
+---
 
+## 13. Assistant d'Installation & Télécommande Tauri (Option 2) et Résolution des Métadonnées .deb pour l'Ubuntu App Center
 
+### 13.1 Option 2 : Assistant d'Installation & Télécommande Tauri (`assistant/`)
+- **Architecture hybride Rust / Tauri 2** :
+  - Intégration du cœur de parsing et d'orchestration `bobine-installer-core` (modules `discovery`, `orchestrate`, `privilege`, `progress`).
+  - Commandes IPC Tauri exposées :
+    - `scan_network` : découverte des cibles sur le LAN (mDNS + balayage rapide du subnet /24).
+    - `test_connection` : authentification et diagnostic SSH (clé privée ou mot de passe, détection OS Debian 13).
+    - `run_system_inspection` : sonde des caractéristiques matérielles (CPU, GPU/VA-API, RAM, stockage, Wi-Fi, dépôts non-free-firmware).
+    - `start_installation` : orchestration de `install.sh` via session PTY distante avec streaming d'événements `--progress=json` et journalisation temps réel.
+    - `remote_fetch_status`, `remote_playback_command`, `remote_seek_command`, `remote_volume_command` : télécommande de bureau pour piloter les canaux vidéo, audio et radio de la borne Bobine à distance.
+- **Design System Bobine fidèle dans l'IHM (`assistant/ui/`)** :
+  - Thème sombre épuré reprenant fidèlement les tokens CSS de Bobine (`--background: #0f172a`, `--card: #1e293b`, accents émeraude / indigo, typographie Inter).
+  - Navigation par onglets (« Assistant d'installation » et « Télécommande »).
+  - Terminal interactif PTY émulé dans le DOM pour le suivi du déploiement.
+  - Commandes de lecture multimédia (Play, Pause, Stop, Seek, Volume) et sélecteur de canaux de diffusion.
+
+### 13.2 Correction Métadonnées Debian (.deb) pour l'App Center Ubuntu / GNOME Software
+- **Spécification AppStream 1.0 (`packaging/linux/bobine.metainfo.xml`)** :
+  - Identifiant unique : `<id>com.bobine.app</id>`
+  - Licence du projet : `<project_license>AGPL-3.0-or-later</project_license>`
+  - Nom du développeur : `<developer id="com.bobine"><name>Équipe Bobine</name></developer>`
+  - Description riche et soignée en français sans caractères d'échappement invalides.
+  - Classification de contenu OARS (`<content_rating type="oars-1.1"/>`).
+  - Suivi des versions et date de dernière mise à jour (`<release version="2.0.1" date="2026-09-06">`).
+- **Fichier de Licence Standard Debian (`packaging/linux/copyright`)** :
+  - Format Machine-Readable Debian Copyright 1.0 attestant de la licence AGPL-3.0.
+- **Icônes Multi-Résolutions Hicolor & Pixmaps** :
+  - Génération des déclinaisons `com.bobine.app.png` et `bobine.png` en 16x16, 24x24, 32x32, 48x48, 64x64, 128x128, 256x256 et 512x512 via `scripts/generate_platform_icons.py`.
+  - Résolution du problème d'icône grise dans l'App Center Ubuntu grâce à la correspondance exacte entre l'identifiant AppStream et le nom d'icône.
+- **Nettoyage du fichier de contrôle (`packaging/linux/DEBIAN/control`)** :
+  - Formatage en anglais international standardisé pour éviter les corruptions d'encodage (points d'interrogation `?` dans l'interface App Center).
+
+### 13.3 Cahiers des charges prospectifs
+- **`docs/PortabiliteAndroid.md`** : Portabilité autonome sur tablette Android (ex. Xiaomi Pad) sans Termux (CPython embarqué via Chaquopy, double affichage USB-C / DisplayPort Alt Mode via `android.app.Presentation`, `ForegroundService`).
+- **`docs/PortabiliteLaptop.md`** : Mode double-écran sur PC portable avec route `/desk` (« Pupitre Studio » adhérent-friendly avec verrouillage par code PIN et catalogue à la demande, sans miroir kiosque sur l'écran interne).

@@ -1,0 +1,446 @@
+/**
+ * Bobine — Assistant d'installation & Télécommande
+ * Logique IHM & IPC Tauri 2
+ */
+
+// Helper d'invocation Tauri avec repli navigateur gracieux
+const isTauri = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
+
+async function invokeTauri(cmd, args = {}) {
+  if (isTauri && window.__TAURI__.core?.invoke) {
+    return await window.__TAURI__.core.invoke(cmd, args);
+  }
+  console.log(`[IPC Mock] ${cmd}`, args);
+
+  // Mocks pour prévisualisation navigateur standalone
+  if (cmd === 'scan_network') {
+    await new Promise(r => setTimeout(r, 600));
+    return [
+      { ip: '10.0.0.30', hostname: 'pavilion-malefique.local', ssh_open: true, bobine_open: true, os_hint: 'Debian 13', is_wyse_or_bobine: true },
+      { ip: '10.0.0.28', hostname: 'dev-pc.local', ssh_open: true, bobine_open: false, os_hint: 'Linux', is_wyse_or_bobine: false }
+    ];
+  }
+  if (cmd === 'test_ssh_connection') {
+    await new Promise(r => setTimeout(r, 800));
+    return {
+      host: args.creds?.host || '10.0.0.30',
+      os_name: 'Debian GNU/Linux 13 (trixie)',
+      is_debian: true,
+      is_debian_13: true,
+      arch: 'x86_64',
+      is_amd64: true,
+      sudo_installed: true,
+      user_is_sudoer: true,
+      privilege_decision: 'sudo',
+      needs_root_password: false,
+      cpu_model: 'AMD Ryzen Embedded / Intel Pentium Silver J5005',
+      memory_total_mb: 8192,
+      disk_free_gb: 58,
+      gpu_info: 'Intel UHD Graphics 605 (VA-API matériel)'
+    };
+  }
+  if (cmd === 'remote_get_health') {
+    return { status: 'ok', components: { database: 'ok', kiosk: 'ok' } };
+  }
+  if (cmd === 'remote_get_playback') {
+    return {
+      channel: args.channel,
+      is_playing: false,
+      position: 0,
+      duration: 3300,
+      volume: 0.8,
+      video: { title: 'BODYPUMP 125 — Express 45', category: 'Strength' }
+    };
+  }
+  return { status: 'ok' };
+}
+
+// État de l'application
+const state = {
+  currentView: 'wizard',
+  currentStep: 1,
+  selectedTarget: null,
+  systemInspection: null,
+  remoteHost: '10.0.0.30',
+  remoteChannel: 'cable',
+  remotePollingTimer: null,
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  initNavigation();
+  initWizard();
+  initRemote();
+  listenTauriEvents();
+});
+
+/* ========================================================== */
+/* 1. Navigation entre onglets (Assistant vs Télécommande)    */
+/* ========================================================== */
+function initNavigation() {
+  const tabWizard = document.getElementById('tab-wizard-btn');
+  const tabRemote = document.getElementById('tab-remote-btn');
+  const viewWizard = document.getElementById('wizard-view');
+  const viewRemote = document.getElementById('remote-view');
+
+  tabWizard.addEventListener('click', () => {
+    tabWizard.classList.add('active');
+    tabRemote.classList.remove('active');
+    viewWizard.classList.add('active');
+    viewRemote.classList.remove('active');
+    state.currentView = 'wizard';
+  });
+
+  tabRemote.addEventListener('click', () => {
+    tabRemote.classList.add('active');
+    tabWizard.classList.remove('active');
+    viewRemote.classList.add('active');
+    viewWizard.classList.remove('active');
+    state.currentView = 'remote';
+    refreshRemoteState();
+  });
+}
+
+/* ========================================================== */
+/* 2. Wizard d'installation                                   */
+/* ========================================================== */
+function initWizard() {
+  // Découverte réseau
+  const btnScan = document.getElementById('btn-scan');
+  const scanSpinner = document.getElementById('scan-spinner');
+  const devicesList = document.getElementById('devices-list');
+  const manualIpInput = document.getElementById('manual-ip-input');
+  const btnManualTarget = document.getElementById('btn-manual-target');
+
+  btnScan.addEventListener('click', async () => {
+    scanSpinner.classList.add('spinning');
+    btnScan.disabled = true;
+    devicesList.innerHTML = '<div class="empty-state"><p>Scan des hôtes du sous-réseau en cours...</p></div>';
+
+    try {
+      const devices = await invokeTauri('scan_network', {});
+      renderDevicesList(devices);
+    } catch (err) {
+      devicesList.innerHTML = `<div class="empty-state"><p style="color: var(--accent-error);">Erreur lors du scan : ${err}</p></div>`;
+    } finally {
+      scanSpinner.classList.remove('spinning');
+      btnScan.disabled = false;
+    }
+  });
+
+  btnManualTarget.addEventListener('click', () => {
+    const ip = manualIpInput.value.trim();
+    if (!ip) return;
+    selectTarget(ip);
+    goToStep(2);
+  });
+
+  // Étape 2 -> Étape 3 (Test SSH)
+  document.getElementById('btn-back-to-1').addEventListener('click', () => goToStep(1));
+  const btnConnectSsh = document.getElementById('btn-connect-ssh');
+  const connectSpinner = document.getElementById('connect-spinner');
+
+  btnConnectSsh.addEventListener('click', async () => {
+    connectSpinner.classList.add('spinning');
+    btnConnectSsh.disabled = true;
+
+    const creds = {
+      host: document.getElementById('ssh-host').value,
+      port: parseInt(document.getElementById('ssh-port').value, 10) || 22,
+      username: document.getElementById('ssh-username').value.trim() || 'fanta',
+      password: document.getElementById('ssh-password').value || null,
+    };
+
+    try {
+      const inspection = await invokeTauri('test_ssh_connection', { creds });
+      state.systemInspection = inspection;
+      renderSystemSpecs(inspection);
+      goToStep(3);
+    } catch (err) {
+      alert(`Erreur de connexion SSH : ${err}`);
+    } finally {
+      connectSpinner.classList.remove('spinning');
+      btnConnectSsh.disabled = false;
+    }
+  });
+
+  // Étape 3 -> Étape 4 (Options)
+  document.getElementById('btn-back-to-2').addEventListener('click', () => goToStep(2));
+  document.getElementById('btn-to-options').addEventListener('click', () => goToStep(4));
+
+  // Étape 4 -> Étape 5 (Lancer installation)
+  document.getElementById('btn-back-to-3').addEventListener('click', () => goToStep(3));
+  document.getElementById('btn-start-install').addEventListener('click', async () => {
+    goToStep(5);
+    startInstallationRun();
+  });
+
+  // Actions fin d'installation
+  document.getElementById('btn-clear-logs').addEventListener('click', () => {
+    document.getElementById('terminal-logs').innerHTML = '';
+  });
+
+  document.getElementById('btn-open-browser').addEventListener('click', () => {
+    const target = state.selectedTarget || '10.0.0.30';
+    window.open(`http://${target}:8000`, '_blank');
+  });
+
+  document.getElementById('btn-switch-to-remote').addEventListener('click', () => {
+    if (state.selectedTarget) {
+      document.getElementById('remote-target-host').value = state.selectedTarget;
+      state.remoteHost = state.selectedTarget;
+    }
+    document.getElementById('tab-remote-btn').click();
+  });
+}
+
+function goToStep(stepNumber) {
+  state.currentStep = stepNumber;
+
+  // Mise à jour de la barre d'étapes
+  document.querySelectorAll('.wizard-stepper .step-item').forEach(item => {
+    const s = parseInt(item.dataset.step, 10);
+    item.classList.remove('active', 'completed');
+    if (s === stepNumber) item.classList.add('active');
+    else if (s < stepNumber) item.classList.add('completed');
+  });
+
+  // Affichage du panneau d'étape
+  document.querySelectorAll('.step-pane').forEach(pane => pane.classList.remove('active'));
+  const activePane = document.getElementById(`wizard-step-stepNumber`.replace('stepNumber', stepNumber));
+  if (activePane) activePane.classList.add('active');
+}
+
+function renderDevicesList(devices) {
+  const container = document.getElementById('devices-list');
+  if (!devices || devices.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>Aucun appareil compatible trouvé sur ce sous-réseau.</p></div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  devices.forEach(dev => {
+    const row = document.createElement('div');
+    row.className = `device-row ${dev.is_wyse_or_bobine ? 'selected' : ''}`;
+    row.innerHTML = `
+      <div class="device-info">
+        <span class="device-ip">${dev.ip}</span>
+        <div class="device-badges">
+          ${dev.bobine_open ? '<span class="pill pill-success">Bobine Actif</span>' : ''}
+          ${dev.ssh_open ? '<span class="pill pill-info">SSH Ouvert</span>' : ''}
+          <span class="pill" style="background-color: var(--bg-surface-hover);">${dev.os_hint || 'Linux'}</span>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-sm select-btn">Sélectionner</button>
+    `;
+
+    row.querySelector('.select-btn').addEventListener('click', () => {
+      selectTarget(dev.ip);
+      goToStep(2);
+    });
+
+    container.appendChild(row);
+  });
+}
+
+function selectTarget(ip) {
+  state.selectedTarget = ip;
+  document.getElementById('ssh-host').value = ip;
+  document.getElementById('global-status-dot').className = 'status-dot connected';
+  document.getElementById('global-status-text').textContent = `Cible : ${ip}`;
+}
+
+function renderSystemSpecs(spec) {
+  document.getElementById('spec-os').textContent = spec.os_name;
+  document.getElementById('spec-cpu').textContent = spec.cpu_model;
+  document.getElementById('spec-mem').textContent = `${(spec.memory_total_mb / 1024).toFixed(1)} Go RAM / ${spec.disk_free_gb} Go Libre`;
+  document.getElementById('spec-gpu').textContent = spec.gpu_info;
+
+  const rootBlock = document.getElementById('root-password-block');
+  if (spec.needs_root_password) {
+    rootBlock.style.display = 'block';
+  } else {
+    rootBlock.style.display = 'none';
+  }
+}
+
+async function startInstallationRun() {
+  const isMock = document.getElementById('opt-mock').checked;
+  const noKiosk = !document.getElementById('opt-kiosk').checked;
+  const rootPassword = document.getElementById('ssh-root-password')?.value || null;
+
+  const params = {
+    host: state.selectedTarget || '10.0.0.30',
+    port: parseInt(document.getElementById('ssh-port').value, 10) || 22,
+    username: document.getElementById('ssh-username').value.trim() || 'fanta',
+    password: document.getElementById('ssh-password').value || null,
+    root_password: rootPassword,
+    elevation_strategy: state.systemInspection?.privilege_decision || 'sudo',
+    script_path: null,
+    no_kiosk: noKiosk,
+    skip_packages: false,
+    mock_replay: isMock,
+  };
+
+  appendLog(`[SYS] Démarrage du processus de déploiement sur ${params.host}...`);
+
+  try {
+    await invokeTauri('start_installation', { params });
+  } catch (err) {
+    appendLog(`[ERREUR CRITIQUE] ${err}`);
+  }
+}
+
+function appendLog(line) {
+  const terminal = document.getElementById('terminal-logs');
+  const div = document.createElement('div');
+  div.className = 'log-line';
+  div.textContent = line;
+  terminal.appendChild(div);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function listenTauriEvents() {
+  if (!isTauri || !window.__TAURI__.event?.listen) return;
+
+  window.__TAURI__.event.listen('install_progress', (event) => {
+    const update = event.payload;
+    const fill = document.getElementById('install-progress-fill');
+    const label = document.getElementById('install-pct-label');
+    const subtitle = document.getElementById('install-step-subtitle');
+
+    fill.style.width = `${update.pct}%`;
+    label.textContent = `${update.pct}%`;
+    subtitle.textContent = `Étape ${update.step_index} sur ${update.total_steps} : ${update.step_title}`;
+
+    if (update.phase === 'succeeded' || update.pct >= 100) {
+      document.getElementById('install-title-heading').textContent = 'Installation terminée !';
+      document.getElementById('install-success-card').style.display = 'flex';
+    }
+  });
+
+  window.__TAURI__.event.listen('install_log', (event) => {
+    appendLog(event.payload);
+  });
+}
+
+/* ========================================================== */
+/* 3. Télécommande Studio (Remote Control)                    */
+/* ========================================================== */
+function initRemote() {
+  const hostInput = document.getElementById('remote-target-host');
+  const btnConnect = document.getElementById('btn-remote-connect');
+  const channelTabs = document.querySelectorAll('.channel-tab');
+
+  btnConnect.addEventListener('click', () => {
+    state.remoteHost = hostInput.value.trim();
+    refreshRemoteState();
+  });
+
+  channelTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      channelTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      state.remoteChannel = tab.dataset.channel;
+      document.getElementById('remote-active-channel-badge').textContent =
+        state.remoteChannel === 'cable' ? 'CANAL CÂBLÉ' : 'CANAL RÉSEAU';
+      refreshRemoteState();
+    });
+  });
+
+  // Boutons de contrôle de lecture
+  document.getElementById('btn-ctrl-playpause').addEventListener('click', async () => {
+    const isPlaying = document.getElementById('remote-playback-status-pill').classList.contains('playing');
+    const action = isPlaying ? 'pause' : 'play';
+    await sendRemoteAction(action);
+  });
+
+  document.getElementById('btn-ctrl-stop').addEventListener('click', async () => {
+    await sendRemoteAction('stop');
+  });
+
+  // Contrôle du volume
+  const volSlider = document.getElementById('remote-volume-slider');
+  const volLabel = document.getElementById('remote-volume-label');
+  volSlider.addEventListener('input', (e) => {
+    volLabel.textContent = `${e.target.value}%`;
+  });
+  volSlider.addEventListener('change', async (e) => {
+    const vol = parseFloat(e.target.value) / 100.0;
+    await invokeTauri('remote_control_playback', {
+      target: { host: state.remoteHost, port: 8000 },
+      action: 'volume',
+      channel: state.remoteChannel,
+      val: vol,
+    });
+  });
+
+  // Raccourcis rapides
+  document.getElementById('btn-quick-admin').addEventListener('click', () => {
+    window.open(`http://${state.remoteHost}:8000`, '_blank');
+  });
+}
+
+async function refreshRemoteState() {
+  const target = { host: state.remoteHost, port: 8000 };
+
+  try {
+    const health = await invokeTauri('remote_get_health', { target });
+    document.getElementById('health-db').textContent = health?.components?.database === 'ok' ? 'OK' : 'Erreur';
+    document.getElementById('health-kiosk').textContent = health?.components?.kiosk === 'ok' ? 'Actif' : 'Arrêté';
+  } catch {
+    document.getElementById('health-db').textContent = 'Hors-ligne';
+    document.getElementById('health-kiosk').textContent = 'Inconnu';
+  }
+
+  try {
+    const stateRes = await invokeTauri('remote_get_playback', { target, channel: state.remoteChannel });
+    updateRemoteUI(stateRes);
+  } catch (err) {
+    console.warn('Erreur refresh remote:', err);
+  }
+}
+
+function updateRemoteUI(playback) {
+  const titleEl = document.getElementById('remote-track-title');
+  const catEl = document.getElementById('remote-track-category');
+  const pill = document.getElementById('remote-playback-status-pill');
+  const fill = document.getElementById('remote-timeline-fill');
+  const curTime = document.getElementById('remote-current-time');
+  const totTime = document.getElementById('remote-total-time');
+
+  if (playback && playback.is_playing) {
+    pill.className = 'status-pill playing';
+    pill.textContent = 'En lecture';
+    titleEl.textContent = playback.video?.title || 'Cours en diffusion';
+    catEl.textContent = playback.video?.category || 'Vidéo de cours';
+  } else {
+    pill.className = 'status-pill waiting';
+    pill.textContent = 'En attente';
+    titleEl.textContent = 'Aucun cours en cours';
+    catEl.textContent = 'Écran d’attente actif';
+  }
+
+  const pos = playback?.position || 0;
+  const dur = playback?.duration || 1;
+  const pct = Math.min(100, Math.max(0, (pos / dur) * 100));
+
+  fill.style.width = `${pct}%`;
+  curTime.textContent = formatDuration(pos);
+  totTime.textContent = formatDuration(dur);
+}
+
+function sendRemoteAction(action) {
+  const target = { host: state.remoteHost, port: 8000 };
+  return invokeTauri('remote_control_playback', {
+    target,
+    action,
+    channel: state.remoteChannel,
+    val: null,
+  }).then(() => refreshRemoteState());
+}
+
+function formatDuration(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
