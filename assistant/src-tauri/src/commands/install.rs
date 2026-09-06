@@ -145,13 +145,7 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
         sess.set_tcp_stream(tcp);
         sess.handshake().map_err(|e| format!("Échec handshake SSH : {e}"))?;
 
-        if let Some(pwd) = &params.password {
-            sess.userauth_password(&params.username, pwd)
-                .map_err(|e| format!("Échec d'authentification SSH : {e}"))?;
-        } else {
-            sess.userauth_agent(&params.username)
-                .map_err(|e| format!("Échec d'authentification agent SSH : {e}"))?;
-        }
+        super::ssh_auth::authenticate_session(&sess, &params.username, params.password.as_deref())?;
 
         let script = params
             .script_path

@@ -157,10 +157,21 @@ function initWizard() {
   document.getElementById('btn-back-to-1').addEventListener('click', () => goToStep(1));
   const btnConnectSsh = document.getElementById('btn-connect-ssh');
   const connectSpinner = document.getElementById('connect-spinner');
+  const sshErrorBanner = document.getElementById('ssh-error-banner');
+  const sshErrorDesc = document.getElementById('ssh-error-desc');
+  ['ssh-username', 'ssh-password'].forEach((id) => {
+    document.getElementById(id)?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        btnConnectSsh.click();
+      }
+    });
+  });
 
   btnConnectSsh.addEventListener('click', async () => {
     connectSpinner.classList.add('spinning');
     btnConnectSsh.disabled = true;
+    if (sshErrorBanner) sshErrorBanner.style.display = 'none';
 
     const creds = {
       host: document.getElementById('ssh-host').value,
@@ -175,7 +186,12 @@ function initWizard() {
       renderSystemSpecs(inspection);
       goToStep(3);
     } catch (err) {
-      alert(`Erreur de connexion SSH : ${err}`);
+      if (sshErrorBanner && sshErrorDesc) {
+        sshErrorDesc.textContent = err;
+        sshErrorBanner.style.display = 'block';
+      } else {
+        alert(`Erreur de connexion SSH : ${err}`);
+      }
     } finally {
       connectSpinner.classList.remove('spinning');
       btnConnectSsh.disabled = false;

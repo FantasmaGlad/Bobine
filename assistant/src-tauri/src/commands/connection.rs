@@ -63,17 +63,7 @@ pub async fn test_ssh_connection(creds: SshCredentials) -> Result<SystemInspecti
         sess.set_tcp_stream(tcp);
         sess.handshake().map_err(|e| format!("Échec handshake SSH : {e}"))?;
 
-        if let Some(pwd) = &creds.password {
-            sess.userauth_password(&creds.username, pwd)
-                .map_err(|e| format!("Échec d'authentification SSH pour l'utilisateur '{}' : {e}", creds.username))?;
-        } else {
-            sess.userauth_agent(&creds.username)
-                .map_err(|e| format!("Échec d'authentification agent SSH pour '{}' : {e}", creds.username))?;
-        }
-
-        if !sess.authenticated() {
-            return Err("Authentification refusée par le serveur SSH".to_string());
-        }
+        super::ssh_auth::authenticate_session(&sess, &creds.username, creds.password.as_deref())?;
 
         // 1. Détection OS
         let os_release = run_remote_exec(&sess, "cat /etc/os-release 2>/dev/null || true")?;
