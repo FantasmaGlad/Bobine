@@ -51,13 +51,6 @@ Utilisateurs types : studios, salles de sport, espaces fitness d'hôtels et d'en
 
 Bobine est agnostique aux programmes : les catégories de cours sont libres, il s'adapte donc à n'importe quel catalogue de cours collectifs, cycling, renforcement, mobilité ou bien-être.
 
----
-
-## En images
-
-Démonstration complète — admin studio, planning, borne adhérent, télécommande mobile et radio — dans les [notes de version 2.0](https://github.com/FantasmaGlad/Bobine/releases/latest).
-
-https://github.com/user-attachments/assets/dfde9250-3016-43cc-af2d-5853f726ffe1
 
 ---
 
@@ -91,18 +84,25 @@ Pour l'architecture complète, le modèle de données, le contrat réseau et la 
 
 ---
 
-## Matériel requis
+## Matériel supporté
 
-- Un **ordinateur classique, PC portable, Mac ou mini PC x86-64** :
-  - **Modèles Intel recommandés** : Dell Wyse 5070 (Intel Celeron J4105 ~40-50 € reconditionné), HP ProDesk 400/600 G4/G5 DM, Lenovo ThinkCentre M710q/M720q Tiny, Beelink Mini S12/EQ12 (N100/N5105).
-  - **Modèles AMD recommandés** : HP EliteDesk 705 G4/G5 Mini (AMD Ryzen 3/5 Pro ~60-80 € reconditionné), Lenovo ThinkCentre M715q/M725q Tiny, HP T630/T730/T740 Thin Client.
-  - Tout PC portable ou de bureau sous Windows 10/11, Linux (Debian/Ubuntu/Mint) ou Mac Apple Silicon.
-  - Pour les appliances Linux dédiées : GPU Intel (pilote `iHD`/QuickSync) ou AMD (pilote `mesa-va-drivers`/Radeon) avec décodage matériel VA-API configuré automatiquement (< 8% CPU).
-- **4 Go de RAM** minimum (8 Go recommandés), SSD de 64 Go à 256 Go selon la taille de votre bibliothèque vidéo.
-- **Un ou deux écrans** (HDMI pour la sortie câblée ; l'écran réseau est n'importe quel appareil avec un navigateur).
-- Un **réseau local Wi-Fi** (un routeur ou point d'accès) pour joindre les autres appareils — le second écran réseau, la télécommande mobile et le lecteur radio se connectent tous sur le réseau local. Il ne demande **aucune connexion internet** et continue de fonctionner même si votre accès internet tombe : le réseau local seul suffit. Bobine peut aussi tourner **totalement hors ligne, sans aucun réseau**, mais seul l'unique écran câblé (HDMI) est alors utilisé.
+Bobine est un logiciel léger, optimisé pour fonctionner avec fluidité sur la quasi-totalité des ordinateurs actuels ou du matériel reconditionné :
 
-Internet n'est nécessaire qu'une seule fois, pour télécharger et installer le logiciel.
+- **Ordinateurs portables et PC de bureau (Windows 11 / 10 et Linux)** :
+  - PC portables grand public et professionnels : **HP Pavilion**, **Acer Aspire Go**, Lenovo IdeaPad/ThinkPad, Dell Inspiron/Latitude, ASUS Vivobook, etc.
+  - Toute tour ou PC de bureau disposant d'au moins 4 Go de mémoire vive (RAM).
+- **Gamme Apple Mac (macOS)** :
+  - **MacBook Air & MacBook Pro** (puces Apple Silicon M1, M2, M3, M4).
+  - **Mac Mini & iMac** (formats particulièrement compacts et silencieux pour la régie d'un studio).
+- **Mini PC & Boîtiers compacts (Idéaux pour une diffusion 24/7 en salle)** :
+  - Mini PC économiques ou reconditionnés : **Dell Wyse 5070**, **HP ProDesk 400/600 DM**, **Lenovo ThinkCentre Tiny**, **Beelink Mini S12/EQ12**, Intel NUC.
+  - Utilisables en application de bureau classique ou en borne dédiée 100% autonome sans écran/clavier (Debian 13).
+- **Écrans et diffusion sonore** :
+  - N'importe quel téléviseur, moniteur ou vidéoprojecteur raccordé en **HDMI ou DisplayPort**.
+  - Écran secondaire optionnel : toute tablette, smart TV ou ordinateur portable doté d'un navigateur web sur le réseau local.
+  - Sortie audio jack 3,5 mm, HDMI, carte son USB ou enceinte Bluetooth pour la sono de la salle.
+
+> Pour les détails techniques avancés (accélération matérielle VA-API, empreinte mémoire, schémas de bus et architecture Linux embarquée), consultez la [**Documentation technique (docs/ARCHITECTURE.md)**](docs/ARCHITECTURE.md).
 
 ---
 

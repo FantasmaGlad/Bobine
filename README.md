@@ -51,13 +51,6 @@ Typical users: boutique studios, gyms, hotel and corporate fitness rooms, physio
 
 Bobine is program-agnostic: class categories are free-form, so it fits any catalogue of group-fitness, cycling, strength, mobility or wellbeing classes.
 
----
-
-## See it in action
-
-Full walkthrough — studio admin, scheduling, member kiosk, mobile remote and radio — in the [2.0 release notes](https://github.com/FantasmaGlad/Bobine/releases/latest).
-
-https://github.com/user-attachments/assets/e33196d8-cfd7-449e-ad7f-0929a0361d10
 
 ---
 
@@ -91,18 +84,25 @@ For the full architecture, data model, network contract and API reference, see *
 
 ---
 
-## Hardware requirements
+## Supported Hardware
 
-- A **standard computer, laptop, or x86-64 mini PC**:
-  - **Recommended Intel models**: Dell Wyse 5070 (Intel Celeron J4105 ~$40-50 refurbished), HP ProDesk 400/600 G4/G5 DM, Lenovo ThinkCentre M710q/M720q Tiny, Beelink Mini S12/EQ12 (N100/N5105).
-  - **Recommended AMD models**: HP EliteDesk 705 G4/G5 Mini (AMD Ryzen 3/5 Pro ~$60-80 refurbished), Lenovo ThinkCentre M715q/M725q Tiny, HP T630/T730/T740 Thin Client.
-  - Any standard PC, laptop, or Mac running Windows 10/11, Debian/Ubuntu, or macOS (Apple Silicon).
-  - For Linux appliances: Intel iGPU (`iHD`/QuickSync) or AMD APU/GPU (`mesa-va-drivers`/Radeon) with VA-API hardware video decoding automatically configured (< 8% CPU usage).
-- **4 GB of RAM** minimum (8 GB recommended), SSD from 64 GB to 256 GB depending on your video library size.
-- **One or two screens** (HDMI for the wired output; the networked screen is any device with a web browser).
-- A **local Wi-Fi network** (a router or access point) to reach the other devices — the networked second screen, the mobile remote and the radio player all connect over the local network. It needs **no internet** and keeps working even if your internet connection drops: the LAN alone is enough. Bobine can also run **fully offline with no network at all**, using only the wired (HDMI) screen.
+Bobine is lightweight and designed to run smoothly on virtually any standard computer, laptop, or dedicated hardware:
 
-Internet is only needed once, to download and install the software.
+- **Laptops & Desktop PCs (Windows 11 / 10 & Linux)**:
+  - Standard consumer and office laptops: **HP Pavilion**, **Acer Aspire Go**, Lenovo IdeaPad/ThinkPad, Dell Inspiron/Latitude, ASUS Vivobook, etc.
+  - Any desktop tower or compact PC with 4 GB+ RAM.
+- **Apple Mac (macOS)**:
+  - **MacBook Air & MacBook Pro** (Apple Silicon M1, M2, M3, M4).
+  - **Mac Mini & iMac** (ideal ultra-compact, silent studio video players).
+- **Dedicated Mini PCs & Thin Clients (Ideal for 24/7 autonomous gym setups)**:
+  - Affordable refurbished units: **Dell Wyse 5070**, **HP ProDesk 400/600 DM**, **Lenovo ThinkCentre Tiny**, **Beelink Mini S12/EQ12**, Intel NUC.
+  - Can be run as a regular desktop app or as a 100% headless unattended Linux appliance (Debian 13).
+- **Screens & Audio Playout**:
+  - Any standard TV, monitor, or projector connected via **HDMI** or **DisplayPort**.
+  - Optional secondary screen: any tablet, smart TV, or laptop with a web browser on the local Wi-Fi.
+  - Standard 3.5mm jack, HDMI audio, USB soundcard, or Bluetooth speaker for gym sound.
+
+> For advanced technical benchmarks, GPU VA-API hardware decoding details, and appliance systemd architecture, see the dedicated [**Technical Architecture Documentation (docs/ARCHITECTURE.md)**](docs/ARCHITECTURE.md).
 
 ---
 

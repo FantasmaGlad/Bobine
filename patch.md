@@ -522,3 +522,24 @@ Afin d'éviter toute extinction inopinée de l'écran pendant un cours de fitnes
 - Configuration de `backend_exe` dans `packaging/windows/bobine.spec` avec `console=True` (tout en conservant la suppression absolue de fenêtre via `CREATE_NO_WINDOW` dans `tray.py`).
 - Enrichissement du step de santé dans `.github/workflows/ci.yml` avec boucle de scrutation active jusqu'à 20s et restitution des journaux stdout/stderr en cas d'incident.
 
+---
+
+## 17. Simplification grand public des READMEs : retrait de la vidéo datée et mise en avant du matériel grand public (laptops & Macs)
+
+### Contexte & Objectifs
+- Éliminer la démonstration vidéo datée qui ne reflétait plus l'ergonomie actuelle (versions 2.0+).
+- Structurer le README pour qu'il soit immédiatement lisible et accueillant pour le grand public et les gérants de studio, sans jargon d'ingénierie prématuré.
+- Présenter de manière limpide les gammes d'ordinateurs portables et de bureau du quotidien (HP Pavilion, Acer Aspire Go, MacBooks, Mac Mini, etc.) en plus des mini PC dédiés.
+- Déporter l'ensemble des détails techniques d'architecture bas niveau (décodage matériel VA-API, pilotes graphiques `iHD`/`mesa-va-drivers`, configuration système) vers les fichiers de documentation spécialisés (`docs/ARCHITECTURE.md`).
+
+### Modifications techniques
+- `README.md` & `README.fr.md` :
+  - Suppression intégrale des sections `## See it in action` et `## En images` ainsi que des liens vers les vidéos temporaires GitHub assets.
+  - Remplacement de la section technique "Matériel requis / Hardware requirements" par une section claire et aérée "Matériel supporté / Supported Hardware" :
+    - Ordinateurs portables et PC de bureau (HP Pavilion, Acer Aspire Go, Lenovo IdeaPad/ThinkPad, Dell Inspiron/Latitude, ASUS Vivobook).
+    - Gamme Apple Mac (MacBook Air/Pro puces M1 à M4, Mac Mini, iMac).
+    - Mini PC & boîtiers compacts pour diffusion autonome 24/7 (Dell Wyse 5070, HP ProDesk, Lenovo Tiny, Beelink Mini S12/EQ12).
+    - Connectique écran (HDMI, DisplayPort, second écran navigateur web sur réseau local) et sono (jack 3,5 mm, HDMI, carte son USB, Bluetooth).
+  - Ajout d'un renvoi explicite vers `docs/ARCHITECTURE.md` pour les intégrateurs et administrateurs système recherchant les spécifications avancées de décodage matériel et d'empreinte système.
+
+
