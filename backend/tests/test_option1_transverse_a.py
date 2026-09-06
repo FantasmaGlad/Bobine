@@ -177,7 +177,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
 
             manifest_data = json.loads(zf.read("manifest.json").decode("utf-8"))
             self.assertEqual(manifest_data["app"], "Bobine")
-            self.assertEqual(manifest_data["version"], "2.0.1")
+            self.assertEqual(manifest_data["version"], "3.0.0")
 
             db_data = zf.read("database.db")
             self.assertTrue(db_data.startswith(b"SQLite format 3\x00"))

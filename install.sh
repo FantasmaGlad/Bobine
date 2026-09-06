@@ -14,7 +14,7 @@
 set -euo pipefail
 
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
-SCRIPT_VERSION="2.0"
+SCRIPT_VERSION="3.0"
 
 # ============================================================================
 # 0. Affichage : couleurs, symboles, aide, arguments

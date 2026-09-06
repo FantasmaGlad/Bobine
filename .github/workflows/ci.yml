@@ -296,7 +296,7 @@ jobs:
           mkdir -p dmg-root dist-dmg
           cp -R backend/dist/Bobine.app dmg-root/
           ln -s /Applications dmg-root/Applications
-          hdiutil create -volname "Bobine" -srcfolder dmg-root -ov -format UDZO dist-dmg/Bobine-2.0.1.dmg
+          hdiutil create -volname "Bobine" -srcfolder dmg-root -ov -format UDZO dist-dmg/Bobine-3.0.0.dmg
       - uses: actions/upload-artifact@v4
         with:
           name: bobine-macos-dmg
@@ -339,8 +339,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: release-assets/*
-          tag_name: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')) && github.ref_name || 'V2.0.1' }}
-          name: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')) && github.ref_name || 'Bobine V2.0.1' }}
+          tag_name: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')) && github.ref_name || 'V3.0.0' }}
+          name: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')) && github.ref_name || 'Bobine V3.0.0' }}
           draft: false
           prerelease: false
           generate_release_notes: true

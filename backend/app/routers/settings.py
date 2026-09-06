@@ -638,7 +638,7 @@ def export_backup() -> Response:
 
     manifest = {
         "app": "Bobine",
-        "version": "2.0.1",
+        "version": "3.0.0",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "deployment_profile": get_deployment_profile(),
     }

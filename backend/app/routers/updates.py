@@ -43,7 +43,7 @@ def _get_local_version_info() -> dict[str, str]:
     échoueraient systématiquement en pure perte (deux sous-process, jusqu'à
     3s de timeout chacun, à chaque chargement de la page Réglages)."""
     commit = "unknown"
-    tag = "V2.0.1"
+    tag = "V3.0.0"
 
     if not get_profile_handler().supports_git_versioning():
         return {"current_version": tag, "current_tag": tag, "current_commit": commit}

@@ -15,7 +15,7 @@
 ; (pas de sous-dossier _internal — cf. contents_directory="." dans le spec).
 
 #define MyAppName "Bobine"
-#define MyAppVersion "2.0.1"
+#define MyAppVersion "3.0.0"
 #define MyAppPublisher "Bobine"
 #define MyAppURL "https://bobine.fit"
 #define MyDistDir "..\..\backend\dist\Bobine"

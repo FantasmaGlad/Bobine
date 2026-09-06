@@ -35,6 +35,11 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="3.0.0" date="2026-09-06">
+      <description>
+        <p>Version 3.0.0 : Sortie officielle multi-plateforme (Windows 11/10/IoT, Linux Debian/Ubuntu/Mint, macOS Apple Silicon), application de bureau tout-en-un, architecture unifiée sans Redis avec base SQLite locale, anti-veille Screen Wake Lock, sauvegardes ZIP universelles et compagnon de barre d'état.</p>
+      </description>
+    </release>
     <release version="2.0.1" date="2026-09-06">
       <description>
         <p>Version 2.0.1 : Application tout-en-un avec support de bureau Linux (.deb), anti-veille native Screen Wake Lock, sauvegardes universelles et gestionnaire de barre d'état.</p>

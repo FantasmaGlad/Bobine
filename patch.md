@@ -542,4 +542,21 @@ Afin d'éviter toute extinction inopinée de l'écran pendant un cours de fitnes
     - Connectique écran (HDMI, DisplayPort, second écran navigateur web sur réseau local) et sono (jack 3,5 mm, HDMI, carte son USB, Bluetooth).
   - Ajout d'un renvoi explicite vers `docs/ARCHITECTURE.md` pour les intégrateurs et administrateurs système recherchant les spécifications avancées de décodage matériel et d'empreinte système.
 
+---
+
+## 18. Version Officielle 3.0.0 — Portabilité Universelle & Accessibilité Grand Public
+
+### Contexte & Objectifs
+- Officialisation de la version majeure 3.0.0 de Bobine.
+- Déploiement grand public simplifié sur Windows (11, 10, IoT), Linux Bureau (Debian, Ubuntu, Mint), macOS (Apple Silicon M1-M4, Mac mini) et Appliance dédiée.
+- Démarrage silencieux sans invite de commande console, intégration en zone de notification / barre de menus, ouverture automatique du navigateur et règles de pare-feu automatiques.
+- Synchronisation complète de l'architecture sans Redis (FastAPI mono-processus + SQLite), anti-veille native Screen Wake Lock API, module de sauvegarde/restauration ZIP universel et assistant Tauri d'orchestration réseau.
+
+### Modifications techniques
+- **Nomenclature & Chaîne de build** :
+  - Mise à jour globale du numéro de version (`3.0.0` / `V3.0.0`) dans `settings.py`, `updates.py`, `bobine.iss`, `build_deb.sh`, `control`, `bobine.metainfo.xml`, `bobine.spec`, `build_app.sh`, `install.sh` (`3.0`) et `.github/workflows/ci.yml`.
+  - Alignement des artefacts de release : `Bobine-Setup-3.0.0.exe`, `bobine_3.0.0_amd64.deb`, `Bobine-3.0.0.dmg` et `bobine-assistant`.
+  - Validation stricte des suites de tests unitaires (`test_option1_transverse_a.py`) et compilation TypeScript du frontend (`npx tsc --noEmit`).
+
+
 

@@ -8,7 +8,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-VERSION="2.0.1"
+VERSION="3.0.0"
 PKG_NAME="bobine"
 ARCH="amd64"
 DEB_NAME="${PKG_NAME}_${VERSION}_${ARCH}.deb"

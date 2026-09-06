@@ -11,7 +11,7 @@ Bobine turns any PC, Mac, or low-cost dedicated mini PC into a complete in-club 
 [Official Website](https://bobine.fit) · [Documentation](https://bobine.fit/fr/documentation) · [Français](README.fr.md) · [Technical Architecture](docs/ARCHITECTURE.md) · [Latest Release](https://github.com/FantasmaGlad/Bobine/releases/latest)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
-[![Release: v2.0.1](https://img.shields.io/badge/Release-v2.0.1-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
+[![Release: v3.0.0](https://img.shields.io/badge/Release-v3.0.0-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
 ![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)
 ![Backend: FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
 ![Platforms: Windows 11 | Debian | Ubuntu | macOS](https://img.shields.io/badge/Platforms-Windows%2011%20%7C%20Linux%20%7C%20macOS-blue)
@@ -25,9 +25,9 @@ Install Bobine as a native desktop application on your workstation or studio PC 
 
 | Platform | Format | Architecture | Direct Download | Experience & Features |
 | :--- | :---: | :---: | :---: | :--- |
-| ![Windows 11](https://img.shields.io/badge/Windows%2011%20%2F%2010-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` (Installer) | x86-64 | [**Download Bobine-Setup-2.0.1.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/Bobine-Setup-2.0.1.exe) | 1-click wizard, Desktop shortcut, auto-opens browser, background tray, no terminal window |
-| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` (Package) | x86-64 (amd64) | [**Download bobine_2.0.1_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/bobine_2.0.1_amd64.deb) | Ubuntu App Center / `apt install`, XDG standard, single Desktop shortcut, system tray |
-| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` (Disk Image) | Apple Silicon (arm64) | [**Download Bobine-2.0.1.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/Bobine-2.0.1.dmg) | Drag-and-drop `Bobine.app`, native Retina `.icns` icon, menu bar tray, autostart |
+| ![Windows 11](https://img.shields.io/badge/Windows%2011%20%2F%2010-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` (Installer) | x86-64 | [**Download Bobine-Setup-3.0.0.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-Setup-3.0.0.exe) | 1-click wizard, Desktop shortcut, auto-opens browser, background tray, no terminal window |
+| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` (Package) | x86-64 (amd64) | [**Download bobine_3.0.0_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/bobine_3.0.0_amd64.deb) | Ubuntu App Center / `apt install`, XDG standard, single Desktop shortcut, system tray |
+| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` (Disk Image) | Apple Silicon (arm64) | [**Download Bobine-3.0.0.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-3.0.0.dmg) | Drag-and-drop `Bobine.app`, native Retina `.icns` icon, menu bar tray, autostart |
 | ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | Source & Binaries | Multi-OS | [**Browse GitHub Releases**](https://github.com/FantasmaGlad/Bobine/releases/latest) | Full changelog, release assets & checksums |
 | ![Website](https://img.shields.io/badge/bobine.fit-Official%20Site-059669?style=flat-square&logo=googlechrome&logoColor=white) | Web Portal | Universal | [**Visit bobine.fit**](https://bobine.fit) | Getting started guides, updates & documentation |
 
@@ -120,7 +120,7 @@ Bobine offers distinct deployment paths to match your exact setup:
 
 #### On Windows (11, 10 or Windows IoT)
 
-1. **Download** [**`Bobine-Setup-2.0.1.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/Bobine-Setup-2.0.1.exe) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Download** [**`Bobine-Setup-3.0.0.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-Setup-3.0.0.exe) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Run the installer** and follow the wizard (French/English selection, AGPL-3.0 license acceptance).
    - Installs Bobine into `Program Files\Bobine`.
    - Creates a **Desktop** shortcut with the official Bobine icon and adds an entry to the Start Menu.
@@ -136,7 +136,7 @@ Bobine offers distinct deployment paths to match your exact setup:
 
 #### On Linux Desktop (Debian, Ubuntu, Linux Mint & derivatives)
 
-1. **Download** [**`bobine_2.0.1_amd64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/bobine_2.0.1_amd64.deb) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Download** [**`bobine_3.0.0_amd64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/bobine_3.0.0_amd64.deb) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Install the package** via the Ubuntu App Center / GNOME Software by double-clicking the file, or via the terminal:
    ```bash
    sudo apt install ./bobine_*_amd64.deb
@@ -149,7 +149,7 @@ Bobine offers distinct deployment paths to match your exact setup:
 
 #### On macOS (Apple Silicon - M1/M2/M3/M4)
 
-1. **Download** [**`Bobine-2.0.1.dmg`**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/Bobine-2.0.1.dmg) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Download** [**`Bobine-3.0.0.dmg`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-3.0.0.dmg) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Open the .dmg** and drag `Bobine.app` into your **Applications** folder.
 3. **Launch Bobine** from Applications, your **Desktop** (shortcut created automatically), or Spotlight.
    - *First launch*: Since Bobine is free open-source software without an Apple Developer subscription, Gatekeeper will display a security notice. Open **System Settings → Privacy & Security**, scroll down to the "Bobine was blocked" section, click **Open Anyway**, and confirm.

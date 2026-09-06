@@ -14,7 +14,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-VERSION="2.0.1"
+VERSION="3.0.0"
 DMG_NAME="Bobine-${VERSION}.dmg"
 
 echo "=== [1/5] Vérification de l'environnement ==="
