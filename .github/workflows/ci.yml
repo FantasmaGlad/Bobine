@@ -200,3 +200,63 @@ jobs:
           name: bobine-linux-deb
           path: dist-deb/*.deb
 
+  macos-build:
+    # PortabiliteCrossPlatformX Lot 3 : PyInstaller ne cross-compile pas — ce
+    # job est le seul endroit où le packaging macOS (bobine.spec, BUNDLE())
+    # est réellement construit sur un vrai macOS. Écrit d'après la
+    # documentation officielle PyInstaller/Apple (aucune machine macOS dans
+    # l'environnement de développement) — jamais exécuté tel quel avant son
+    # premier passage ici, à surveiller de près.
+    # `macos-latest` est arm64 uniquement depuis macOS 14 (pas de x86_64 par
+    # défaut) : l'étape de signature ad-hoc est OBLIGATOIRE sur ce runner —
+    # sans elle, le noyau (AMFI) tue au lancement tout binaire/bibliothèque
+    # figé non signé sur Apple Silicon ("Killed: 9"), indépendamment de tout
+    # avertissement Gatekeeper (cf. plan §4).
+    name: macOS packaging (PyInstaller + dmg)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build du frontend (export statique)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Installer les dépendances Python + PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pyinstaller
+      - name: Construire Bobine.app
+        working-directory: backend
+        run: pyinstaller ../packaging/macos/bobine.spec
+      - name: Signature ad-hoc (requise par le noyau sur Apple Silicon)
+        run: codesign --force --deep -s - backend/dist/Bobine.app
+      - name: Vérifier que BobineBackend démarre et répond à /api/health
+        working-directory: backend/dist/Bobine.app/Contents/MacOS
+        run: |
+          ./BobineBackend &
+          PID=$!
+          sleep 5
+          curl -sf http://127.0.0.1:8000/api/health
+          kill "$PID"
+      - name: Créer le .dmg (hdiutil)
+        run: |
+          mkdir -p dmg-root dist-dmg
+          cp -R backend/dist/Bobine.app dmg-root/
+          ln -s /Applications dmg-root/Applications
+          hdiutil create -volname "Bobine" -srcfolder dmg-root -ov -format UDZO dist-dmg/Bobine-2.0.1.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bobine-macos-dmg
+          path: dist-dmg/*.dmg
+

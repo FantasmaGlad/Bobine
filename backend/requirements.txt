@@ -17,3 +17,9 @@ psutil
 # invoqués (cf. app/utils/mdns.py::_should_self_publish).
 pystray
 zeroconf
+
+# pystray sur macOS (Lot 3) s'appuie sur AppKit/Foundation via pyobjc — sans
+# effet sur Windows/Linux (marqueur sys_platform), cf. packaging/macos/bobine.spec.
+pyobjc-core; sys_platform == "darwin"
+pyobjc-framework-Cocoa; sys_platform == "darwin"
+pyobjc-framework-Quartz; sys_platform == "darwin"

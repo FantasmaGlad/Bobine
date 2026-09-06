@@ -164,3 +164,28 @@ Troisième lot du chantier de portabilité multi-OS, deuxième cible grand publi
   - `build_deb.sh` : script automatisé d'assemblage et de compilation `dpkg-deb`.
 - Pipeline CI : ajout du job `linux-desktop-deb` dans `.github/workflows/ci.yml` (compilation PyInstaller, génération `.deb`, validation de structure et test d'installation `sudo dpkg -i` sur Ubuntu).
 
+---
+
+## 9. Mission PortabiliteCrossPlatformX — Lot 3 : application de bureau macOS native (`.dmg`)
+
+### Contexte
+Quatrième et dernier lot du chantier de portabilité multi-OS : Bobine s'installe désormais aussi comme une application de bureau macOS classique (bundle `.app` glisser-déposer vers `/Applications`), complétant Windows (`.exe`, Lot 1) et Linux de bureau (`.deb`, Lot 2), tout en conservant intact le profil appliance headless. Détail complet dans [`docs/cahier-des-charges-multi-os.md`](docs/cahier-des-charges-multi-os.md) et [`docs/plan-implementation-portabilite-crossplatformx.md`](docs/plan-implementation-portabilite-crossplatformx.md) §4.
+
+### Impact site web / releases
+- **Nouveau livrable de release GitHub** : chaque release joint désormais `Bobine-<version>.dmg` (produit par le job CI `macos-build`), en plus de l'installeur Windows `.exe` et du paquet Linux `.deb`.
+- **À mentionner dans les notes de release** : premier support macOS natif (Apple Silicon), lancement automatique à la connexion via LaunchAgent, avertissement Gatekeeper « éditeur non identifié » à documenter comme limitation connue (pas de certificat de signature/notarisation pour l'instant, décision #7 du CDC).
+- Nouvelle section README (FR/EN) « Installer sur macOS ».
+
+### Modifications techniques (résumé — détail dans le plan §4)
+- Handler de profil `MacOSHandler` (`backend/app/utils/deployment_profiles/macos.py`) branché dans `backend/app/utils/deployment.py`.
+- Chemins de données par défaut résolus vers `~/Library/Application Support/Bobine` (`backend/app/config.py`), y compris pour le bundle figé où `BUNDLE()` PyInstaller relocalise les `datas` sous `Contents/Resources/` (correctif appliqué aussi dans `backend/app/main.py` pour `frontend/out/`).
+- `backend/app/desktop/tray.py` : lancement du navigateur en mode kiosque via `open -na` (bundles `.app`, pas d'exécutable nu sur le PATH) + anti-veille `caffeinate` attachée au PID du navigateur ; **auto-installation du LaunchAgent** (`~/Library/LaunchAgents/com.bobine.app.plist`) au tout premier lancement de `BobineTray`, faute de script `postinstall` disponible sur un `.dmg` glisser-déposer.
+- `backend/app/main.py` : correctif de détection du process kiosque (`_kiosk_process_alive`) pour le nom de process macOS de Chrome (« Google Chrome », non détecté auparavant).
+- `backend/requirements.txt` : ajout de `pyobjc-core`/`pyobjc-framework-Cocoa`/`pyobjc-framework-Quartz` (marqueur `sys_platform == "darwin"`, sans effet sur Windows/Linux) — `pystray` retenu plutôt que `rumps` après vérification.
+- Packaging complet (`packaging/macos/`) :
+  - `bobine.spec` : spec PyInstaller macOS produisant `Bobine.app` via `BUNDLE()`.
+  - `bobine.icns` : icône multi-résolution générée depuis les assets existants.
+  - `build_app.sh` : script automatisé de compilation, signature ad-hoc et génération du `.dmg` via `hdiutil`.
+- Pipeline CI : ajout du job `macos-build` dans `.github/workflows/ci.yml` (compilation PyInstaller, **signature ad-hoc obligatoire sur les runners Apple Silicon**, vérification `/api/health`, génération `.dmg`, publication de l'artefact).
+- **Non vérifiable dans cet environnement de développement Linux** : compilation réelle par `BUNDLE()`, exécution du `.app` sur une vraie machine macOS, avertissement Gatekeeper, comportement réel de `caffeinate`/`open -na`/LaunchAgent — écrit d'après une recherche documentaire dédiée (PyInstaller, Apple Developer, pystray), à valider au premier passage du job CI et lors d'un test manuel sur Mac réel avant toute distribution publique (détail dans le plan §4).
+

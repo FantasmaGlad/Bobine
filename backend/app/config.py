@@ -12,9 +12,16 @@ from pydantic_settings import BaseSettings
 # par PyInstaller (BobineBackend.exe, réf. PortabiliteCrossPlatformX
 # Lot 1), `__file__` ne pointe plus vers un fichier du dépôt : on retombe
 # sur le dossier de l'exécutable, où l'installeur place le config.toml par
-# défaut à côté.
+# défaut à côté — SAUF sur macOS (Lot 3) : depuis PyInstaller 6, `BUNDLE()`
+# déplace les `datas` (dont config.toml) sous `Contents/Resources/` et ne
+# laisse que l'exécutable dans `Contents/MacOS/` (contrairement à
+# `contents_directory="."` qui garde tout à plat sous Windows/Linux) — voir
+# docs/plan-implementation-portabilite-crossplatformx.md §4.
 if getattr(sys, "frozen", False):
-    ROOT_DIR = Path(sys.executable).resolve().parent
+    if platform.system() == "Darwin":
+        ROOT_DIR = Path(sys.executable).resolve().parent.parent / "Resources"
+    else:
+        ROOT_DIR = Path(sys.executable).resolve().parent
 else:
     ROOT_DIR = Path(__file__).resolve().parent.parent
 
@@ -28,11 +35,22 @@ def _data_root() -> Path:
     défaut vivent donc sous `%ProgramData%\\Bobine\\` à la place.
     Sous Linux de bureau (.deb dans `/usr/lib/bobine`), respect de la
     spécification XDG : données sous `~/.local/share/bobine`.
+    Sous macOS, `Bobine.app` dans `/Applications` est en lecture seule pour
+    un utilisateur standard (et sujet à la translocation Gatekeeper, cf.
+    plan §4) : données sous `~/Library/Application Support/Bobine`, la
+    convention native macOS.
     Linux headless / dev : `ROOT_DIR` reste la racine de confort."""
     if platform.system() == "Windows":
         program_data = os.environ.get("ProgramData")
         if program_data:
             return Path(program_data) / "Bobine"
+    elif platform.system() == "Darwin":
+        target = Path.home() / "Library" / "Application Support" / "Bobine"
+        try:
+            target.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
+        return target
     elif platform.system() == "Linux":
         if getattr(sys, "frozen", False) or not os.access(ROOT_DIR, os.W_OK) or os.environ.get("BOBINE_USE_XDG") == "1":
             xdg_data = os.environ.get("XDG_DATA_HOME")
@@ -54,11 +72,15 @@ def _global_config_path() -> Path:
     dépôt/de l'installation, cf. load_settings ci-dessous). `/etc/bobine/`
     n'existe pas sous Windows : `%ProgramData%\\Bobine\\` joue le même rôle.
     Sous Linux de bureau, la config utilisateur `~/.config/bobine/config.toml`
-    (XDG) prime si présente, avec repli sur `/etc/bobine/config.toml`."""
+    (XDG) prime si présente, avec repli sur `/etc/bobine/config.toml`. Sous
+    macOS, même logique que `_data_root()` : `~/Library/Application
+    Support/Bobine/config.toml`, pas d'équivalent `/etc` par utilisateur."""
     if platform.system() == "Windows":
         program_data = os.environ.get("ProgramData")
         if program_data:
             return Path(program_data) / "Bobine" / "config.toml"
+    elif platform.system() == "Darwin":
+        return Path.home() / "Library" / "Application Support" / "Bobine" / "config.toml"
     elif platform.system() == "Linux":
         xdg_config = os.environ.get("XDG_CONFIG_HOME")
         user_config = (Path(xdg_config) if xdg_config else Path.home() / ".config") / "bobine" / "config.toml"

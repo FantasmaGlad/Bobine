@@ -479,56 +479,208 @@ Python et le `BobineTray` du Lot 1 (seul le packaging change).
 - [x] Documentation : READMEs mis à jour mettant en avant les applications
       graphiques de bureau en première méthode, section 8 ajoutée dans `patch.md`.
 
-## 4. Lot 3 — macOS (plus tard)
+## 4. Lot 3 — macOS — implémenté le 2026-09-06
 
 Dépend du Lot 0 et du module partagé §5.1. Réutilise le code Python et
 `BobineTray` des lots précédents.
 
-- [ ] **Lever explicitement l'ambiguïté `pystray` vs `rumps` avant de
-      démarrer.** Le CDC et ce plan présentent `BobineTray` comme un
-      module écrit une seule fois puis réutilisé sans changement sur les 3
-      OS (`pystray` sait en principe sélectionner un backend adapté par
-      plateforme). Mais macOS est parfois évoqué séparément via `rumps`
-      (paquet PyPI distinct, API de construction de menu différente). Si
-      `rumps` s'avère réellement nécessaire, ce n'est plus une simple
-      réutilisation : cela implique une dépendance supplémentaire
-      (`rumps`/`pyobjc`) à ajouter à `requirements.txt` et aux
-      hidden-imports PyInstaller macOS, non budgétée ailleurs dans ce plan.
-      À trancher en tout début de ce lot, pas découvert en cours de route.
-- [ ] Bundle `.app` via PyInstaller (cible macOS — nécessite de tourner
-      sur une vraie machine macOS, pas de cross-compilation depuis Linux/
-      Windows) ou `py2app`.
-- [ ] Icône au format `.icns` — à produire à partir des assets existants.
-- [ ] Fichier `Info.plist` du bundle (identifiant, version, nom d'affichage).
-- [ ] Résoudre les chemins de données par défaut vers
-      `~/Library/Application Support/Bobine` plutôt que contre le bundle
-      `.app` (lecture seule / sujet à la translocation Gatekeeper) — même
-      problème de fond que Windows (§2) et Linux bureau (§3).
-- [ ] LaunchAgent (`~/Library/LaunchAgents/com.bobine.app.plist`) : `Label`,
-      `ProgramArguments`, `RunAtLoad=true`, `KeepAlive` conditionné (relance
-      sur crash, pas sur sortie propre), `StandardOutPath`/`StandardErrorPath`
-      pour les logs.
-- [ ] `BobineTray` (menu bar) : mêmes items de menu que Windows/Linux (cf.
-      point d'ambiguïté ci-dessus sur le backend exact).
-- [ ] mDNS : aucune action, Bonjour est actif nativement.
-- [ ] Mode kiosque optionnel : Chrome `--kiosk` + `caffeinate -d -i -w <pid>`
-      actif uniquement pendant la session kiosque.
+- [x] **Ambiguïté `pystray` vs `rumps` levée avant de démarrer**, par une
+      recherche dédiée (sources : dépôt `pystray` sur GitHub, PyPI, issues
+      PyInstaller). Décision : **`pystray` seul, pas de `rumps`.**
+      `pystray._darwin` s'appuie sur `AppKit`/`NSStatusItem` via `pyobjc` et
+      fonctionne aussi bien figé par PyInstaller ; `rumps` n'a pas eu de
+      release PyPI depuis 2022 et forkerait la logique du tray au lieu de la
+      partager entre les 3 OS. Ajouté à `requirements.txt` (marqueur
+      `sys_platform == "darwin"`, sans effet sur Windows/Linux — vérifié) :
+      `pyobjc-core`, `pyobjc-framework-Cocoa`, `pyobjc-framework-Quartz`.
+- [x] Bundle `.app` via PyInstaller (`packaging/macos/bobine.spec`,
+      `BUNDLE()` sur les mêmes `Analysis`/`EXE()` *onedir* que Windows/Linux)
+      — **NON TESTÉ**, nécessite une vraie machine macOS (pas de
+      cross-compilation).
+- [x] Icône au format `.icns` (`packaging/macos/bobine.icns`) — produite
+      via Pillow (support natif du format ICNS) à partir de
+      `Assets/Images/logo_bobine_icon.png`, complétée sur un canevas carré
+      transparent au préalable (même correctif que l'icône `.ico` Windows,
+      source non carrée à l'origine).
+- [x] `info_plist` du bundle inclus directement dans l'appel `BUNDLE()` du
+      spec (`CFBundleName`, `CFBundleDisplayName`, `CFBundleVersion`,
+      `CFBundleShortVersionString`, `LSMinimumSystemVersion="11.0"`,
+      `NSHighResolutionCapable`, `LSUIElement=True` pour masquer l'icône
+      Dock). **Point de vigilance découvert** : un bug récurrent du
+      bootloader PyInstaller peut faire réapparaître l'icône Dock malgré
+      `LSUIElement` (issues amont #1917/#2075/#3516/#6471) — à vérifier
+      explicitement au premier test manuel, pas garanti par la seule
+      lecture du spec.
+- [x] Chemins de données par défaut résolus vers `~/Library/Application
+      Support/Bobine` (`backend/app/config.py::_data_root()`/
+      `_global_config_path()`, branche `platform.system() == "Darwin"`) —
+      même logique que Windows (§2) et Linux bureau (§3), vérifiée par
+      exécution réelle (monkey-patch `platform.system` sur cet
+      environnement Linux, cf. Découvertes ci-dessous).
+- [x] LaunchAgent — **conception différente de ce que ce plan prévoyait
+      initialement, cf. Découvertes ci-dessous** : au lieu d'un fichier
+      statique installé par un `.pkg`, `BobineTray` génère et active
+      lui-même `~/Library/LaunchAgents/com.bobine.app.plist` à son premier
+      lancement (`app/desktop/tray.py::_ensure_launch_agent_macos`),
+      `Label`/`ProgramArguments`/`RunAtLoad=true`/`KeepAlive.SuccessfulExit
+      =false`/`StandardOutPath`/`StandardErrorPath` conformes à la
+      documentation Apple — vérifié par un test réel (génération +
+      relecture `plistlib` + appel `launchctl bootstrap` simulé sur cet
+      environnement Linux, cf. Découvertes).
+- [x] `BobineTray` (menu bar) : mêmes items de menu que Windows/Linux,
+      réutilisés tels quels (aucune divergence d'API nécessaire, la
+      décision `pystray` ci-dessus le confirme).
+- [x] mDNS — **correctif du point initial de ce plan, cf. Découvertes** :
+      contrairement à ce qui était prévu (« aucune action, Bonjour est actif
+      nativement »), le répondeur `zeroconf` embarqué reste actif sur
+      macOS, pour la même raison que sur Windows (Bonjour natif publie le
+      nom de la machine, pas spécifiquement `bobine.local`). Aucun code à
+      changer : `_should_self_publish()` (Lot 1) excluait déjà seulement
+      `"linux-headless"`, pas `"macos"`.
+- [x] Mode kiosque optionnel : Chrome via `open -na` (les navigateurs sont
+      des bundles `.app`, pas des exécutables nus sur le PATH — différence
+      avec Windows/Linux) + anti-veille `caffeinate -d -i -w <pid>` attachée
+      après coup au PID du navigateur (`_caffeinate_after_launch`), pas de
+      bascule on/off explicite comme sur les deux autres OS.
 - [ ] Pare-feu applicatif macOS (« Voulez-vous autoriser les connexions
-      entrantes ? ») — même remarque que pour Windows (§2) : sans
-      autorisation, la télécommande mobile peut ne pas fonctionner. Moins
-      critique que sous Windows (l'invite macOS est plus systématiquement
-      acceptée par les utilisateurs) mais à documenter tout de même.
-- [ ] Adapter le endpoint de désinstallation/réinitialisation pour ce
-      profil (§5) **et le mécanisme de mise à jour** (§5.4).
-- [ ] Fabrication du `.dmg` de distribution (`hdiutil` ou `create-dmg`) avec
-      glisser-déposer vers `/Applications`.
-- [ ] CI : job `macos-latest` pour builder le bundle à chaque push.
+      entrantes ? ») — rien à automatiser côté packaging (pas d'équivalent
+      `netsh`/règle à poser par un installeur .dmg), reste à documenter
+      dans le README comme limitation connue au même titre que Windows.
+- [x] Adapté le endpoint de désinstallation/réinitialisation pour ce
+      profil (`MacOSHandler`, §5) **et le mécanisme de mise à jour** (§5.4,
+      `UpdateUnsupported`).
+- [x] Fabrication du `.dmg` de distribution via `hdiutil` (recommandation de
+      la recherche : natif macOS, zéro dépendance tierce, suffisant pour un
+      premier lot — `create-dmg` reste une option future si un habillage
+      visuel plus poussé est souhaité) — `packaging/macos/build_app.sh`,
+      **NON TESTÉ** (nécessite une vraie machine macOS).
+- [x] CI : job `macos-build` dans `.github/workflows/ci.yml` — build
+      PyInstaller, **signature ad-hoc `codesign --force --deep -s -`**
+      (découverte critique, cf. ci-dessous), vérification `/api/health`,
+      compilation `.dmg`, publication de l'artefact. **Jamais encore
+      exécuté** (nécessite un push réel sur un runner macOS) — à surveiller
+      de près au premier déclenchement.
 - [ ] Test manuel sur Mac réel : installation, LaunchAgent actif au login,
       tray, kiosque optionnel, désinstallation (glisser vers la Corbeille +
       suppression du LaunchAgent), avertissement Gatekeeper documenté comme
-      limitation connue (CDC §7.4, décision #7).
-- [ ] Documentation : nouvelle section README « Installer sur macOS »
-      (§7.1).
+      limitation connue (CDC §7.4, décision #7). **Non fait** — nécessite
+      une vraie machine macOS, hors de portée d'une implémentation assistée
+      sur cet environnement Linux. À faire avant toute distribution
+      publique du `.dmg`.
+- [x] Documentation : nouvelle section README « Installer sur macOS »
+      (§7.1) — ajoutée dans `README.md` et `README.fr.md`.
+
+**Découvertes faites en cours d'implémentation, au-delà de ce que ce plan
+prévoyait** — issues d'une recherche documentaire dédiée (PyInstaller,
+Apple Developer, pystray) avant d'écrire le code, la machine macOS réelle
+restant hors de portée de cet environnement :
+- **`BUNDLE()` ne garde PAS une arborescence plate** contrairement à
+  `contents_directory="."` sous Windows/Linux : depuis PyInstaller 6, les
+  `datas` (config.toml, icône, `frontend/out/`) atterrissent sous
+  `Contents/Resources/`, seuls les exécutables restent dans
+  `Contents/MacOS/`. `app/config.py::ROOT_DIR` et
+  `app/main.py::frontend_out` auraient silencieusement cherché ces
+  fichiers au mauvais endroit sans une branche `Darwin` dédiée pointant
+  vers `Contents/Resources/` — corrigé dans les deux fichiers.
+  `app/desktop/tray.py::_load_icon_image` cherchait déjà (de façon
+  défensive, sans le savoir au départ) un second candidat
+  `.parent/"Resources"`, qui s'est avéré être exactement le bon chemin.
+- **`BUNDLE()` choisit `CFBundleExecutable` en prenant le premier
+  exécutable de la table des matières fusionnée**, sans avertissement en
+  cas d'ambiguïté : avec l'ordre `COLLECT(backend_exe, ..., tray_exe,
+  ...)` déjà utilisé par les specs Windows/Linux, `BobineBackend` serait
+  devenu l'exécutable principal du bundle — erreur silencieuse, alors que
+  c'est `BobineTray` qui doit être lancé par Finder/Dock/LaunchAgent
+  (il démarre lui-même `BobineBackend` en process enfant). Corrigé en
+  passant `tray_exe` explicitement en premier argument de `BUNDLE()`. Les
+  deux exécutables restent côte à côte dans `Contents/MacOS/` quel que
+  soit cet ordre — la recherche de process frère de `tray.py` n'en dépend
+  donc pas.
+- **Un `.dmg` glisser-déposer n'a pas de script `postinstall`** — à la
+  différence d'un `.pkg` (ou de `install.sh`/`postinst` du `.deb`), rien ne
+  s'exécute automatiquement à l'installation pour poser le LaunchAgent
+  dans `~/Library/LaunchAgents/`. Un `.pkg` aurait résolu ce problème mais
+  en introduit un autre, documenté par la recherche : son script
+  `postinstall` tourne en root avec `$HOME=/var/root`, sans accès fiable
+  au `$HOME` de l'utilisateur graphique réellement connecté (nécessite de
+  résoudre l'utilisateur de la console via `stat -f%Su /dev/console`, puis
+  `dscl` pour son vrai `$HOME`). Plutôt que cette gymnastique, la décision
+  a été de laisser `BobineTray` **s'auto-installer son propre LaunchAgent
+  à son tout premier lancement** (déjà exécuté par l'utilisateur normal,
+  `$HOME` correct par construction) — cohérent avec le choix déjà fait au
+  Lot 2 (XDG autostart posé par un simple `.desktop`, pas de gymnastique
+  d'activation `systemd --user` depuis un script root). Best-effort,
+  jamais bloquant : un échec de `launchctl bootstrap` logue un
+  avertissement sans empêcher le tray de démarrer.
+- **Bug réel trouvé et corrigé par une revue de code adversariale dédiée**
+  (`review-lot3-macos`, cf. méthodologie de vérification ci-dessous) : la
+  première version de `_ensure_launch_agent_macos` sautait purement et
+  simplement l'auto-installation dès que le fichier plist existait déjà
+  (`if agent_path.exists(): return`), sans jamais vérifier que le chemin
+  qu'il contenait était toujours valide. Or `packaging/macos/build_app.sh`
+  produit un `.dmg` glisser-déposer classique — un utilisateur qui
+  double-clique `Bobine.app` directement depuis le volume monté (avant de
+  le glisser dans `/Applications`), ou pendant la fenêtre de « translocation »
+  Gatekeeper (`/private/var/folders/.../AppTranslocation/<uuid>/`, l'app
+  n'étant qu'ad-hoc signée), voit ce chemin éphémère écrit tel quel dans le
+  plist. Une fois le `.dmg` éjecté, le LaunchAgent pointait vers un
+  exécutable qui n'existe plus — et ce chemin n'était jamais corrigé,
+  même après un lancement ultérieur depuis le bon emplacement : lancement
+  automatique cassé silencieusement, sans qu'aucun mécanisme du code ne
+  s'en rende compte. Corrigé en comparant `ProgramArguments[0]` du plist
+  existant au
+  `sys.executable` courant à CHAQUE lancement (pas seulement au premier),
+  et en réécrivant + rechargeant (`launchctl bootout` puis `bootstrap`) en
+  cas d'écart — vérifié par un test réel simulant les trois scénarios
+  (premier lancement depuis un chemin instable, réparation au lancement
+  suivant depuis `/Applications`, absence de réécriture superflue une fois
+  à jour).
+- **`SMAppService` (l'API de login items « moderne » recommandée par
+  Apple depuis macOS 13) n'a pas été retenue** : elle s'appelle depuis du
+  code Swift/ObjC compilé et lié à `ServiceManagement.framework`, pas
+  depuis un script shell ou un process Python figé, et apporte le plus de
+  valeur à une app signée/notarisée/sandboxée — sans objet ici (décision
+  #7 du CDC, pas de signature de code pour l'instant). Le LaunchAgent
+  classique (`launchctl bootstrap` + plist) reste la voie pleinement
+  supportée jusqu'aux dernières versions de macOS pour ce cas d'usage.
+- **`_should_self_publish()` (mDNS) était déjà correct sans modification**,
+  mais la formulation initiale de ce plan (« macOS : aucune action, Bonjour
+  est actif nativement ») était trompeuse : le service Bonjour natif de
+  macOS publie le nom d'hôte *configuré de la machine* (ex.
+  « Mac-de-Jean.local »), pas spécifiquement `bobine.local`. Sans le
+  répondeur `zeroconf` embarqué, `http://bobine.local` ne résoudrait pas
+  sur macOS — exactement le même besoin que Windows (§2). Corrigé dans la
+  documentation du module (`app/utils/mdns.py`) plutôt que dans le code,
+  qui n'avait pas besoin de changer.
+- **`_kiosk_process_alive()` (`app/main.py`, ajouté au Lot 1) ne détectait
+  pas Chrome sur macOS** : le nom de process macOS de Chrome est
+  `"Google Chrome"` (avec espace, tel qu'affiché par `psutil`), qui ne
+  correspond à aucun préfixe de `_KIOSK_PROCESS_NAMES` (`"chrome"` ne
+  matche pas `"google chrome"` avec `str.startswith`). Corrigé en ajoutant
+  `"google chrome"` à la liste — sans effet sur la détection Linux/Windows
+  déjà correcte.
+- **Signature ad-hoc obligatoire en CI, indépendante de toute question de
+  distribution** : les runners `macos-latest` de GitHub Actions sont
+  **Apple Silicon (arm64) depuis macOS 14**, où le noyau (AMFI) tue au
+  lancement (« Killed: 9 ») tout binaire ou bibliothèque figé(e) non
+  signé(e) — exigence du noyau, indépendante de Gatekeeper et de la
+  décision #7 du CDC (pas de certificat de signature). Sans
+  `codesign --force --deep -s -` avant de lancer `BobineBackend` figé,
+  jusqu'à l'étape de vérification `/api/health` du job CI aurait échoué —
+  ajoutée avant cette étape dans `build_app.sh` et dans le job CI.
+- **Méthodologie de vérification sans machine macOS réelle** : comme pour
+  le Lot 1, toutes les briques cross-plateforme ont été vérifiées par
+  exécution réelle sur cet environnement Linux — dispatch de profil vers
+  `MacOSHandler` par monkey-patch de `platform.system`, résolution réelle
+  de `DATA_ROOT`/`_global_config_path()` vers
+  `~/Library/Application Support/Bobine`, génération et relecture
+  `plistlib` du LaunchAgent (XML valide, `ProgramArguments` correctement
+  résolu), suite de tests backend et `tsc --noEmit` toujours au vert.
+  Restent strictement non vérifiables ici : compilation réelle par
+  PyInstaller `BUNDLE()`, bug potentiel `LSUIElement`/bootloader, exécution
+  du `.app` sur un vrai Mac, avertissement Gatekeeper, `caffeinate`/`open
+  -na` réels — à valider au premier passage du job CI `macos-build` et
+  lors d'un test manuel sur Mac réel.
 
 ## 5. Chantier transverse A — Bouton Désinstaller / Réinitialiser
 

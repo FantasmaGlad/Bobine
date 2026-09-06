@@ -17,7 +17,7 @@ Bobine turns a low-cost dedicated mini PC into a complete in-club video system: 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 ![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)
 ![Backend: FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
-![Platforms: Windows | Linux (.deb) | Debian 13](https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux%20(.deb)%20%7C%20Debian%2013-blue)
+![Platforms: Windows 10/11 | Linux (.deb) | macOS](https://img.shields.io/badge/Platforms-Windows%2010%2F11%20%7C%20Linux%20(.deb)%20%7C%20macOS-blue)
 ![Self-hosted](https://img.shields.io/badge/Self--hosted-Local--first-4c1)
 
 ---
@@ -97,12 +97,12 @@ Internet is only needed once, to install the operating system and the software.
 
 Bobine now offers two deployment families tailored to your setup:
 
-1. **Native Graphical Desktop App (Recommended for standard PCs)**: Available natively on **Windows** (`.exe`) and **Linux** (`.deb` Debian/Ubuntu). Bobine installs as a traditional desktop application with a notification tray icon, supervises the backend engine in the background, and lets you open the admin dashboard or trigger the full-screen kiosk mode with one click.
+1. **Native Graphical Desktop App (Recommended for standard PCs)**: Available natively on **Windows** (10, 11), **Linux** (`.deb` Debian/Ubuntu) and **macOS** (`.dmg`, Apple Silicon). Bobine installs as a traditional desktop application with a notification tray icon, supervises the backend engine in the background, and lets you open the admin dashboard or trigger the full-screen kiosk mode with one click.
 2. **Dedicated Headless Linux Appliance (Debian 13)**: For fitness clubs running on a dedicated bare mini PC (such as a Dell Wyse 5070) without a desktop environment, booting directly into an automated full-screen X11 kiosk.
 
 ---
 
-### Method 1 — Graphical Desktop App (Windows & Linux)
+### Method 1 — Graphical Desktop App (Windows, Linux & macOS)
 
 #### On Windows (10, 11 or Windows IoT)
 
@@ -122,8 +122,17 @@ Bobine now offers two deployment families tailored to your setup:
    *(All runtime dependencies including ffmpeg are handled automatically by apt).*
 3. **Launch Bobine** from your desktop applications menu or type `bobine` in a terminal.
    - The Bobine tray icon appears in your system notification area and supervises the engine.
-   - XDG autostart is enabled at desktop login (and a systemd user unit `systemctl --user start bobine` is also available).
+   - XDG autostart is enabled at desktop login (and a systemd user unit `systemctl --user start bobine` is also available — use one or the other, not both, to avoid running two instances at once).
    - Your media files, database, and logs live cleanly in your user directory following the XDG specification: `~/.local/share/bobine/`.
+
+#### On macOS (Apple Silicon)
+
+1. **Download** `Bobine-*.dmg` from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest).
+2. **Open the .dmg** and drag `Bobine.app` into your **Applications** folder.
+3. **Launch Bobine** from Applications or Spotlight.
+   - Bobine isn't code-signed yet, so Gatekeeper blocks the first launch: open **System Settings → Privacy & Security**, scroll to the "Bobine was blocked" notice, click **Open Anyway**, then confirm.
+   - On this first launch, Bobine installs its own LaunchAgent so it keeps starting automatically at login from then on. A menu bar icon lets you open the admin panel, launch the full-screen kiosk window, restart the backend, or quit.
+4. **Open the interface**: `http://bobine.local` from any device on your local network. Application data (videos, database, logs) is stored in `~/Library/Application Support/Bobine`.
 
 ---
 
@@ -195,6 +204,8 @@ sudo apt remove bobine
 ```
 To purge system configuration as well, run `sudo apt purge bobine`. Your personal data under `~/.local/share/bobine/` is preserved.
 
+**On macOS**, quit Bobine from the menu bar icon, drag `Bobine.app` from Applications to the Trash, then delete `~/Library/LaunchAgents/com.bobine.app.plist` to disable autostart. Your personal data under `~/Library/Application Support/Bobine` is preserved.
+
 On the **headless appliance**, use the dedicated management command:
 ```bash
 sudo ./install.sh --uninstall --purge
@@ -215,4 +226,4 @@ Bobine is in active use in production on dedicated hardware. Planned: a graphica
 
 ---
 
-<sub>**Keywords:** open-source Les Mills Cinema alternative, Screenly Anthias alternative for gyms, Wexer Virtual alternative, Fitness On Demand open-source alternative, franchise workout video alternative (Radical Fitness / Yako), self-hosted gym digital signage, group fitness class scheduling software, on-demand gym cinema kiosk, boutique studio virtual classes, indoor cycling video playout, HDMI-CEC TV automation, x86-64 mini PC, offline-first video player, local-first, FastAPI, Next.js, Debian 13.</sub>
+<sub>**Keywords:** open-source Les Mills Cinema alternative, Screenly Anthias alternative for gyms, Wexer Virtual alternative, Fitness On Demand open-source alternative, franchise workout video alternative (Radical Fitness / Yako), self-hosted gym digital signage, group fitness class scheduling software, on-demand gym cinema kiosk, boutique studio virtual classes, indoor cycling video playout, HDMI-CEC TV automation, x86-64 mini PC, offline-first video player, local-first, FastAPI, Next.js, Windows desktop app, macOS desktop app, Linux .deb package, cross-platform video signage.</sub>

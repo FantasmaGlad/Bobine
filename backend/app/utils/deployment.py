@@ -120,9 +120,10 @@ def get_profile_handler() -> ProfileHandler:
         elif profile == "linux-desktop":
             from app.utils.deployment_profiles.linux_desktop import LinuxDesktopHandler
             _handler = LinuxDesktopHandler()
+        elif profile == "macos":
+            from app.utils.deployment_profiles.macos import MacOSHandler
+            _handler = MacOSHandler()
         else:
-            # "macos" (Lot 3) n'a pas encore son propre handler : on retombe
-            # sur celui de l'appliance headless.
             from app.utils.deployment_profiles.linux_headless import LinuxHeadlessHandler
             _handler = LinuxHeadlessHandler()
     return _handler

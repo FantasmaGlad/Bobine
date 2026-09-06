@@ -1,5 +1,6 @@
 import os
 import logging
+import platform
 import sys
 import time
 import logging.handlers
@@ -139,7 +140,7 @@ app.include_router(import_jobs.router)
 app.include_router(updates.router)
 
 
-_KIOSK_PROCESS_NAMES = ("chromium", "chromium-browser", "chrome", "msedge")
+_KIOSK_PROCESS_NAMES = ("chromium", "chromium-browser", "chrome", "msedge", "google chrome")
 
 
 def _kiosk_process_alive() -> str:
@@ -147,8 +148,12 @@ def _kiosk_process_alive() -> str:
     backend tourne sur le même hôte). `psutil` (déjà une dépendance du
     projet) remplace `pgrep` — absent de Windows — depuis
     PortabiliteCrossPlatformX Lot 1 ; fonctionne à l'identique sur
-    Linux/Windows/macOS. "unknown" si l'énumération des process échoue
-    (rare — droits insuffisants)."""
+    Linux/Windows/macOS. Le nom de process macOS de Chrome est "Google
+    Chrome" (avec espace) — `"google chrome"` couvre ce cas après le
+    `.lower()` ci-dessous ; sans lui, aucun préfixe ne matchait "google
+    chrome" et le kiosque macOS aurait toujours été rapporté "down"
+    (Lot 3). "unknown" si l'énumération des process échoue (rare — droits
+    insuffisants)."""
     try:
         for proc in psutil.process_iter(["name"]):
             proc_name = (proc.info.get("name") or "").lower()
@@ -364,9 +369,15 @@ app.mount("/api/branding", StaticFiles(directory=str(branding_path)), name="bran
 # ne pointe plus vers un fichier du dépôt une fois figé par PyInstaller
 # (BobineBackend.exe, réf. PortabiliteCrossPlatformX Lot 1) : dans ce cas,
 # `frontend/out/` est placé par l'installeur juste à côté de l'exécutable
-# plutôt qu'à sa position relative dans le dépôt.
+# plutôt qu'à sa position relative dans le dépôt — SAUF sur macOS (Lot 3,
+# même raison qu'`app/config.py::ROOT_DIR` : `BUNDLE()` place les `datas`
+# sous `Contents/Resources/`, pas à côté de l'exécutable dans
+# `Contents/MacOS/`).
 if getattr(sys, "frozen", False):
-    frontend_out = Path(sys.executable).resolve().parent / "frontend" / "out"
+    if platform.system() == "Darwin":
+        frontend_out = Path(sys.executable).resolve().parent.parent / "Resources" / "frontend" / "out"
+    else:
+        frontend_out = Path(sys.executable).resolve().parent / "frontend" / "out"
 else:
     frontend_out = Path(__file__).resolve().parent.parent.parent / "frontend" / "out"
 if frontend_out.exists():

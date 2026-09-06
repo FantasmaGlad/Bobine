@@ -30,6 +30,18 @@ autonomes dans `/usr/lib/bobine/`, wrapper `/usr/bin/bobine`, intégration XDG
 Détail complet dans
 [`plan-implementation-portabilite-crossplatformx.md`](plan-implementation-portabilite-crossplatformx.md) §3.
 
+**Lot 3 (§7) implémenté le 2026-09-06** — `pystray` retenu (pas `rumps`),
+bundle `.app` via `BUNDLE()`, chemins `~/Library/Application Support/Bobine`,
+`caffeinate` pour l'anti-veille kiosque, `.dmg` via `hdiutil`, job CI
+`macos-build`. Deux écarts assumés par rapport à la rédaction initiale
+ci-dessous, expliqués en détail dans le plan §4 : le LaunchAgent est
+auto-installé par `BobineTray` à son premier lancement plutôt que posé par
+un script d'installeur (un `.dmg` glisser-déposer n'a pas de hook
+`postinstall`), et le répondeur mDNS embarqué reste actif sur macOS
+(Bonjour natif ne publie pas spécifiquement `bobine.local`, seulement le
+nom de la machine). Détail complet et découvertes de packaging dans
+[`plan-implementation-portabilite-crossplatformx.md`](plan-implementation-portabilite-crossplatformx.md) §4.
+
 ## 1. Objectif
 
 Faire de Bobine une application installable nativement sur quatre
@@ -314,22 +326,37 @@ pour ne pas dépendre d'un paquet système supplémentaire.
 
 ### 7.1 Paquet
 
-Un bundle `.app` (via PyInstaller avec cible macOS, ou `py2app`) livré
-dans un `.dmg`. Autostart par utilisateur via un **LaunchAgent**
-(`~/Library/LaunchAgents/`, pas un LaunchDaemon système — même logique
-« par utilisateur » que Linux desktop).
+Un bundle `.app` (via PyInstaller `BUNDLE()`) livré dans un `.dmg`
+glisser-déposer vers `/Applications`. Autostart par utilisateur via un
+**LaunchAgent** (`~/Library/LaunchAgents/`, pas un LaunchDaemon système —
+même logique « par utilisateur » que Linux desktop) — **auto-installé par
+`BobineTray` lui-même à son tout premier lancement** plutôt que posé par
+un script d'installeur : un `.dmg` glisser-déposer n'a pas de hook
+`postinstall` (contrairement à `install.sh`/`postinst` du `.deb`), et
+l'alternative d'un `.pkg` avec script `postinstall` root pose son propre
+problème (pas de `$HOME` fiable pour l'utilisateur graphique connecté).
+Implémentation et vérifications :
+[`plan-implementation-portabilite-crossplatformx.md`](plan-implementation-portabilite-crossplatformx.md) §4.
 
 ### 7.2 Barre menu
 
-`pystray` (backend `rumps`/AppKit sous macOS) pour l'icône de menu bar,
-même menu logique que Windows/Linux. Mode kiosque optionnel via Chrome
-`--kiosk` + `caffeinate -d -i -w <pid>` pendant la session kiosque
-uniquement.
+`pystray` (backend `_darwin`, AppKit/`NSStatusItem` via `pyobjc` — **pas
+`rumps`**, écarté après vérification : dernière publication PyPI en 2022,
+et son adoption forkerait la logique du tray au lieu de la partager entre
+les 3 OS) pour l'icône de menu bar, même menu logique que Windows/Linux.
+Mode kiosque optionnel via Chrome lancé par `open -na` (les navigateurs
+sont des bundles `.app`, pas des exécutables nus sur le PATH) +
+`caffeinate -d -i -w <pid>` attaché après coup au PID du navigateur,
+pendant la session kiosque uniquement.
 
 ### 7.3 mDNS
 
-Gratuit : Bonjour (`mDNSResponder`) est actif nativement sur macOS,
-aucune dépendance supplémentaire.
+**Pas gratuit, à nuancer** : Bonjour (`mDNSResponder`) est bien actif
+nativement sur macOS, mais il publie le nom d'hôte *configuré de la
+machine* (ex. « Mac-de-Jean.local »), pas spécifiquement `bobine.local`.
+Le répondeur `zeroconf` embarqué (déjà utilisé pour Windows, §5.5) reste
+donc actif sur ce profil aussi, pour la même raison — voir la découverte
+documentée dans le plan §4.
 
 ### 7.4 Signature et notarisation (décision #7)
 

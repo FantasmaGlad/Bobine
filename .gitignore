@@ -46,3 +46,4 @@ backend/dist/
 backend/build/
 dist-deb/
 dist-installer/
+dist-dmg/

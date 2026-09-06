@@ -17,7 +17,7 @@ Bobine transforme un mini PC dédié bon marché en système vidéo complet pour
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 ![Licence : AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)
 ![Backend : FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
-![Plateformes : Windows | Linux (.deb) | Debian 13](https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux%20(.deb)%20%7C%20Debian%2013-blue)
+![Plateformes : Windows 10/11 | Linux (.deb) | macOS](https://img.shields.io/badge/Platforms-Windows%2010%2F11%20%7C%20Linux%20(.deb)%20%7C%20macOS-blue)
 ![Auto-hébergé](https://img.shields.io/badge/Auto--h%C3%A9berg%C3%A9-Local--first-4c1)
 
 ---
@@ -97,12 +97,12 @@ Internet n'est nécessaire qu'une seule fois, pour installer le système d'explo
 
 Bobine propose désormais deux familles de déploiement adaptées à vos besoins :
 
-1. **L'application de bureau graphique (Recommandée pour un poste classique)** : disponible nativement sur **Windows** (`.exe`) et **Linux** (`.deb` Debian/Ubuntu). Bobine s'installe comme un logiciel de bureau traditionnel avec icône dans la zone de notification (systray), supervise le moteur en tâche de fond et permet d'ouvrir l'admin ou d'activer le mode kiosque plein écran en un clic.
+1. **L'application de bureau graphique (Recommandée pour un poste classique)** : disponible nativement sur **Windows** (10, 11), **Linux** (`.deb` Debian/Ubuntu) et **macOS** (`.dmg`, Apple Silicon). Bobine s'installe comme un logiciel de bureau traditionnel avec icône dans la zone de notification (systray), supervise le moteur en tâche de fond et permet d'ouvrir l'admin ou d'activer le mode kiosque plein écran en un clic.
 2. **L'appliance Linux dédiée headless (Debian 13)** : pour les salles de fitness équipées d'un mini PC dédié (type Dell Wyse 5070) sans bureau graphique, démarrant directement en kiosque X11 plein écran automatique.
 
 ---
 
-### Méthode 1 — Application de bureau graphique (Windows & Linux)
+### Méthode 1 — Application de bureau graphique (Windows, Linux & macOS)
 
 #### Sur Windows (10, 11 ou Windows IoT)
 
@@ -122,8 +122,17 @@ Bobine propose désormais deux familles de déploiement adaptées à vos besoins
    *(Toutes les dépendances comme ffmpeg sont automatiquement résolues par apt).*
 3. **Lancez Bobine** depuis le menu d'applications de votre bureau ou tapez `bobine` dans un terminal.
    - L'icône Bobine apparaît dans votre zone de notification / barre d'état (tray) et assure la supervision du moteur.
-   - Lancement automatique au login XDG configuré nativement (et unité systemd utilisateur `systemctl --user start bobine` disponible).
+   - Lancement automatique au login XDG configuré nativement (et unité systemd utilisateur `systemctl --user start bobine` disponible — utilisez l'un ou l'autre, pas les deux à la fois, pour éviter de faire tourner deux instances).
    - Vos médias et données vivent dans votre dossier utilisateur selon la norme XDG : `~/.local/share/bobine/`.
+
+#### Sur macOS (Apple Silicon)
+
+1. **Téléchargez** `Bobine-*.dmg` depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest).
+2. **Ouvrez le .dmg** et glissez `Bobine.app` dans votre dossier **Applications**.
+3. **Lancez Bobine** depuis Applications ou Spotlight.
+   - Bobine n'étant pas encore signé, Gatekeeper bloque le premier lancement : ouvrez **Réglages Système → Confidentialité et sécurité**, repérez le message « Bobine a été bloqué », cliquez sur **Ouvrir quand même**, puis confirmez.
+   - Dès ce premier lancement, Bobine installe son propre LaunchAgent et démarrera automatiquement à chaque connexion par la suite. Une icône dans la barre de menus permet d'ouvrir l'admin, de lancer la fenêtre en mode kiosque plein écran, de redémarrer le backend ou de quitter.
+4. **Ouvrez l'interface** : `http://bobine.local` depuis n'importe quel appareil du réseau local. Les données applicatives (vidéos, base de données, logs) vivent sous `~/Library/Application Support/Bobine`.
 
 ---
 
@@ -195,6 +204,8 @@ sudo apt remove bobine
 ```
 Pour purger également la configuration système, utilisez `sudo apt purge bobine`. Vos données utilisateur (`~/.local/share/bobine/`) restent conservées.
 
+**Sous macOS**, quittez Bobine depuis l'icône de la barre de menus, faites glisser `Bobine.app` du dossier Applications vers la Corbeille, puis supprimez `~/Library/LaunchAgents/com.bobine.app.plist` pour désactiver le lancement automatique. Vos données personnelles sous `~/Library/Application Support/Bobine` restent conservées.
+
 Sur l'**appliance headless**, utilisez la commande d'administration dédiée :
 ```bash
 sudo ./install.sh --uninstall --purge
@@ -215,4 +226,4 @@ Bobine est utilisé en production sur du matériel dédié. Prévu : un assistan
 
 ---
 
-<sub>**Mots-clés :** alternative open source à Les Mills Cinema, alternative à Screenly Anthias pour salle de sport, alternative libre à Wexer et Fitness On Demand, alternative aux cours vidéo de franchise (Yako, Radical Fitness), affichage dynamique fitness auto-hébergé, logiciel de planification de cours collectifs, lecteur vidéo fitness à la demande, borne de cours virtuels, studio de cycling indoor, régie vidéo salle de sport, thin client, mini PC Dell Wyse 5070, signalétique hors ligne, automatisation TV HDMI-CEC, local-first, FastAPI, Next.js, Debian 13.</sub>
+<sub>**Mots-clés :** alternative open source à Les Mills Cinema, alternative à Screenly Anthias pour salle de sport, alternative libre à Wexer et Fitness On Demand, alternative aux cours vidéo de franchise (Yako, Radical Fitness), affichage dynamique fitness auto-hébergé, logiciel de planification de cours collectifs, lecteur vidéo fitness à la demande, borne de cours virtuels, studio de cycling indoor, régie vidéo salle de sport, thin client, mini PC Dell Wyse 5070, signalétique hors ligne, automatisation TV HDMI-CEC, local-first, FastAPI, Next.js, application de bureau Windows, application de bureau macOS, paquet Linux .deb, régie vidéo multi-plateforme.</sub>

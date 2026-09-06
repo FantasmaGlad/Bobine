@@ -15,7 +15,9 @@ docs/plan-implementation-portabilite-crossplatformx.md §2.
 """
 
 import logging
+import os
 import platform
+import plistlib
 import shutil
 import subprocess
 import sys
@@ -131,7 +133,10 @@ def _set_display_always_on(enabled: bool) -> None:
     — jamais globalement : contrairement à l'appliance headless,
     l'utilisateur qui installe Bobine sur son PC personnel veut
     probablement garder son comportement de veille habituel le reste du
-    temps. Windows : SetThreadExecutionState ; Linux (X11) : xset."""
+    temps. Windows : SetThreadExecutionState ; Linux (X11) : xset. macOS ne
+    passe pas par ici (cf. `_caffeinate_after_launch` ci-dessous — `caffeinate`
+    s'attache au PID du navigateur et se libère tout seul à sa fermeture,
+    pas de bascule on/off explicite comme sur les deux autres OS)."""
     system = platform.system()
     if system == "Windows":
         import ctypes
@@ -151,10 +156,33 @@ def _set_display_always_on(enabled: bool) -> None:
                 pass
 
 
+def _caffeinate_after_launch(process_name: str, timeout_seconds: float = 5.0) -> None:
+    """macOS uniquement (CDC §7.4/plan §4) : attend que le navigateur lancé
+    via `open` apparaisse dans la table des process (`open` ne rend pas la
+    main sur son PID directement), puis attache `caffeinate -d -i -w <pid>`
+    — anti-veille active tant que ce process tourne, libérée automatiquement
+    à sa fermeture, sans bascule on/off explicite à gérer nous-mêmes. Appelé
+    dans un thread pour ne jamais bloquer l'item de menu qui a déclenché le
+    lancement du kiosque."""
+    import psutil
+
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        for proc in psutil.process_iter(["pid", "name"]):
+            if proc.info.get("name") == process_name:
+                subprocess.Popen(["caffeinate", "-d", "-i", "-w", str(proc.info["pid"])])
+                return
+        time.sleep(0.3)
+    logger.warning(f"caffeinate non attaché : process '{process_name}' introuvable après {timeout_seconds}s")
+
+
 def launch_kiosk_browser() -> None:
     """Lance le navigateur en mode kiosque optionnel (décision #1 du CDC).
     - Windows : préfère Edge (Chromium).
     - Linux : cherche chromium, google-chrome ou firefox en mode --kiosk.
+    - macOS : Google Chrome via `open -na` (les navigateurs sont des bundles
+      `.app`, pas des exécutables nus sur le PATH) + anti-veille `caffeinate`
+      attachée après coup (cf. `_caffeinate_after_launch`).
     - Repli universel : navigateur par défaut."""
     system = platform.system()
     kiosk_args = ["--kiosk", "--autoplay-policy=no-user-gesture-required", KIOSK_URL]
@@ -182,6 +210,19 @@ def launch_kiosk_browser() -> None:
             subprocess.Popen([firefox, "--kiosk", KIOSK_URL])
             return
 
+    elif system == "Darwin":
+        for app_name, process_name in (
+            ("Google Chrome", "Google Chrome"),
+            ("Chromium", "Chromium"),
+        ):
+            app_path = Path("/Applications") / f"{app_name}.app"
+            if app_path.exists():
+                subprocess.Popen(["open", "-na", str(app_path), "--args", *kiosk_args])
+                threading.Thread(
+                    target=_caffeinate_after_launch, args=(process_name,), daemon=True,
+                ).start()
+                return
+
     webbrowser.open(KIOSK_URL)
 
 
@@ -193,9 +234,17 @@ def _load_icon_image() -> Image.Image:
     (PyInstaller, cf. `packaging/windows/bobine.spec` — `contents_directory
     = "."` y garantit une arborescence plate, sans sous-dossier
     `_internal`), avec repli sur le chemin du dépôt en développement, puis
-    un repli minimal généré si aucun des deux n'est trouvé."""
+    un repli minimal généré si aucun des deux n'est trouvé.
+
+    macOS (Lot 3) : un bundle `.app` place l'exécutable dans
+    `Contents/MacOS/` mais peut placer les `datas` du spec dans
+    `Contents/Resources/` plutôt qu'à plat à côté — le second candidat
+    `.parent.parent / "Resources"` couvre ce cas sans rien casser sur
+    Windows/Linux (chemin simplement absent, ignoré)."""
+    exe_dir = Path(sys.executable).resolve().parent
     candidates = [
-        Path(sys.executable).resolve().parent / _ICON_FILENAME,
+        exe_dir / _ICON_FILENAME,
+        exe_dir.parent / "Resources" / _ICON_FILENAME,
         Path(__file__).resolve().parent.parent.parent.parent / "Assets" / "Images" / _ICON_FILENAME,
     ]
     for path in candidates:
@@ -204,10 +253,98 @@ def _load_icon_image() -> Image.Image:
     return Image.new("RGBA", (64, 64), (15, 110, 116, 255))
 
 
+_LAUNCH_AGENT_LABEL = "com.bobine.app"
+
+
+def _ensure_launch_agent_macos() -> None:
+    """macOS uniquement (Lot 3) : installe/active le LaunchAgent de lancement
+    automatique à l'ouverture de session, et le RÉPARE si le chemin qu'il
+    pointe est devenu obsolète.
+
+    Contrairement à Windows (raccourci `{userstartup}` posé par l'installeur
+    Inno Setup) et Linux de bureau (`.desktop` XDG autostart posé par
+    `postinst` du paquet .deb), la distribution macOS envisagée est un
+    simple `.dmg` glisser-déposer vers `/Applications` (CDC §7.1/§7.4) — un
+    `.dmg` n'a pas de script `postinstall` où poser
+    `~/Library/LaunchAgents/com.bobine.app.plist` (contrairement à un `.pkg`,
+    qui tournerait de toute façon en root sans `$HOME` fiable de
+    l'utilisateur connecté). C'est donc BobineTray lui-même qui écrit puis
+    charge son propre LaunchAgent — best-effort, jamais bloquant : un échec
+    ici ne doit jamais empêcher le tray de démarrer.
+
+    Ne PAS se contenter de sauter cette étape dès que le fichier existe déjà
+    (revue de code PortabiliteCrossPlatformX Lot 3) : si l'utilisateur lance
+    Bobine.app directement depuis le `.dmg` monté, ou pendant que Gatekeeper
+    l'a temporairement « translocated » sous
+    `/private/var/folders/.../AppTranslocation/<uuid>/`, avant de le glisser
+    dans `/Applications`, `sys.executable` pointe alors vers cet emplacement
+    éphémère — écrit tel quel dans le plist, il ne fonctionnerait plus une
+    fois le `.dmg` éjecté ou le dossier de translocation nettoyé, et plus
+    aucun lancement ultérieur (y compris depuis le bon emplacement final) ne
+    corrigeait jamais ce chemin figé. On compare donc `ProgramArguments[0]`
+    du plist existant au `sys.executable` courant à CHAQUE lancement, et on
+    réécrit + recharge si besoin."""
+    if platform.system() != "Darwin" or not getattr(sys, "frozen", False):
+        return
+
+    # sys.executable = .../Bobine.app/Contents/MacOS/BobineTray
+    tray_exe = str(Path(sys.executable).resolve())
+    agent_path = Path.home() / "Library" / "LaunchAgents" / f"{_LAUNCH_AGENT_LABEL}.plist"
+
+    if agent_path.exists():
+        try:
+            with open(agent_path, "rb") as f:
+                existing = plistlib.load(f)
+            if existing.get("ProgramArguments") == [tray_exe]:
+                return  # déjà à jour, rien à faire
+            logger.info(f"LaunchAgent obsolète (chemin enregistré différent de {tray_exe}) — réparation.")
+        except Exception:
+            logger.warning("LaunchAgent illisible/corrompu — réécriture.")
+
+    try:
+        log_dir = Path.home() / "Library" / "Logs" / "Bobine"
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        agent_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(agent_path, "wb") as f:
+            plistlib.dump(
+                {
+                    "Label": _LAUNCH_AGENT_LABEL,
+                    "ProgramArguments": [tray_exe],
+                    "RunAtLoad": True,
+                    # Relance uniquement sur crash (sortie non nulle), jamais
+                    # après un "Quitter" propre depuis le menu (exit(0)).
+                    "KeepAlive": {"SuccessfulExit": False},
+                    "ProcessType": "Interactive",
+                    "StandardOutPath": str(log_dir / "BobineTray.out.log"),
+                    "StandardErrorPath": str(log_dir / "BobineTray.err.log"),
+                },
+                f,
+            )
+
+        # `bootout` avant `bootstrap` : sans ça, recharger un Label déjà
+        # chargé (cas de réparation, pas de première installation) échoue
+        # silencieusement et l'ancien chemin obsolète resterait actif en
+        # mémoire jusqu'à la prochaine session.
+        subprocess.run(
+            ["launchctl", "bootout", f"gui/{os.getuid()}/{_LAUNCH_AGENT_LABEL}"],
+            check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        subprocess.run(
+            ["launchctl", "bootstrap", f"gui/{os.getuid()}", str(agent_path)],
+            check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        logger.info(f"LaunchAgent installé et activé : {agent_path} -> {tray_exe}")
+    except Exception as e:
+        logger.warning(f"Échec de l'installation du LaunchAgent macOS (lancement automatique désactivé) : {e!r}")
+
+
 def run() -> None:
     """Point d'entrée — `python -m app.desktop.tray` en développement, et
     l'exécutable `BobineTray.exe` une fois empaqueté."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+    _ensure_launch_agent_macos()
 
     supervisor = BackendSupervisor(_backend_command())
     supervisor.start()

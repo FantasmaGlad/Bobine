@@ -16,9 +16,17 @@ supplémentaire à réimporter — seul `workers > 1` exige une chaîne, pour
 que chaque worker puisse réimporter l'app dans son propre process).
 """
 
+import multiprocessing
+
 import uvicorn
 
 from app.main import app
 
 if __name__ == "__main__":
+    # No-op sur Linux/hors gel (cf. doc Python) ; requis sur Windows/macOS
+    # frozen si une dépendance venait à utiliser `multiprocessing` en interne
+    # (aucun usage direct ici avec workers=1, mais un import manquant de ce
+    # garde-fou provoquerait un boot loop silencieux si jamais le cas se
+    # présentait — coût nul de le poser dès maintenant).
+    multiprocessing.freeze_support()
     uvicorn.run(app, host="0.0.0.0", port=8000, workers=1)

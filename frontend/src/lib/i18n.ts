@@ -887,7 +887,7 @@ export const dictionaries: Record<Language, Dict> = {
       // systemd-run de l'appliance headless).
       uninstallDesktopHint: "Bobine s'installe et se désinstalle comme n'importe quelle application de bureau sur cet ordinateur.",
       uninstallDesktopWindows: "Ouvrez « Applications et fonctionnalités » dans les paramètres Windows, cherchez Bobine, puis choisissez Désinstaller.",
-      uninstallDesktopMacos: "Quittez Bobine puis faites glisser Bobine.app depuis le dossier Applications vers la Corbeille.",
+      uninstallDesktopMacos: "Quittez Bobine, faites glisser Bobine.app depuis le dossier Applications vers la Corbeille, puis supprimez ~/Library/LaunchAgents/com.bobine.app.plist pour désactiver le lancement automatique.",
       uninstallDesktopLinux: "Utilisez votre gestionnaire de paquets, par exemple : sudo apt remove bobine",
       playbackSection: "Lecture",
       themeLabel: "Thème",
@@ -1848,7 +1848,7 @@ export const dictionaries: Record<Language, Dict> = {
       uninstallError: "Failed to start the uninstall.",
       uninstallDesktopHint: "Bobine installs and uninstalls like any other desktop application on this computer.",
       uninstallDesktopWindows: "Open \"Apps & features\" in Windows Settings, find Bobine, then choose Uninstall.",
-      uninstallDesktopMacos: "Quit Bobine, then drag Bobine.app from the Applications folder to the Trash.",
+      uninstallDesktopMacos: "Quit Bobine, drag Bobine.app from the Applications folder to the Trash, then delete ~/Library/LaunchAgents/com.bobine.app.plist to disable autostart.",
       uninstallDesktopLinux: "Use your package manager, for example: sudo apt remove bobine",
       playbackSection: "Playback",
       themeLabel: "Theme",
