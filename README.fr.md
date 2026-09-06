@@ -25,11 +25,12 @@ Installez Bobine en quelques secondes comme une application graphique native sur
 
 | Plateforme | Format | Architecture | Téléchargement direct | Expérience & Fonctionnalités |
 | :--- | :---: | :---: | :---: | :--- |
-| ![Windows 11](https://img.shields.io/badge/Windows%2011%20%2F%2010-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` (Installeur) | x86-64 | [**Télécharger Bobine-Setup-3.0.0.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-Setup-3.0.0.exe) | Assistant 1 clic, raccourci Bureau, ouverture auto du navigateur, tâche de fond systray, zéro invite de commande |
-| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` (Paquet) | x86-64 (amd64) | [**Télécharger bobine_3.0.0_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/bobine_3.0.0_amd64.deb) | Centre d'Applications Ubuntu / `apt install`, conforme XDG, raccourci Bureau unique, zone de notification |
-| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` (Image disque) | Apple Silicon (arm64) | [**Télécharger Bobine-3.0.0.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-3.0.0.dmg) | Glisser-déposer `Bobine.app`, icône native Apple Retina `.icns`, icône barre de menus, démarrage auto |
-| ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | Binaires & Sources | Multi-OS | [**Voir les Releases GitHub**](https://github.com/FantasmaGlad/Bobine/releases/latest) | Historique complet, notes de version & sommes de contrôle |
-| ![Site Web](https://img.shields.io/badge/bobine.fit-Site%20Officiel-059669?style=flat-square&logo=googlechrome&logoColor=white) | Portail Web | Universel | [**Visiter bobine.fit**](https://bobine.fit) | Guide de prise en main, actualités & documentation |
+| ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe`<br>*(Installeur)* | x86-64 | [**Télécharger Bobine-Setup-3.0.0.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-Setup-3.0.0.exe) | **Windows 11, 10 & Windows IoT**<br>• Assistant guidé 1 clic & raccourci Bureau<br>• Ouverture auto du navigateur (`http://127.0.0.1:8000`)<br>• Systray silencieux en tâche de fond, zéro console |
+| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) ![Linux Mint](https://img.shields.io/badge/Linux%20Mint-87CF3E?style=flat-square&logo=linuxmint&logoColor=white) | `.deb`<br>*(Paquet)* | x86-64<br>*(amd64)* | [**Télécharger bobine_3.0.0_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/bobine_3.0.0_amd64.deb) | **Debian, Ubuntu & Linux Mint**<br>• Logithèque Ubuntu App Center / `apt install`<br>• Respect des standards XDG & raccourci Bureau<br>• Zone de notification système (systray) |
+| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg`<br>*(Image disque)* | Apple Silicon<br>*(arm64)* | [**Télécharger Bobine-3.0.0.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-3.0.0.dmg) | **Apple Silicon (M1, M2, M3, M4)**<br>• Glisser-déposer de `Bobine.app` dans Applications<br>• Icône native Retina `.icns` & barre de menus<br>• Démarrage automatique au login (LaunchAgent) |
+| ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | `.apk`<br>*(Paquet)* | ARM64 | *Prochainement...* | **Tablettes & Bornes Tactiles ARM**<br>• Sortie vidéo filaire USB-C (DisplayPort / HDMI)<br>• Pupitre coach tactile & régie vidéo autonome<br>• Prochainement... (en cours de développement) |
+| <a href="https://bobine.fit"><img src="Assets/Images/chrome.svg" width="18" height="18" valign="middle" alt="Chrome"></a> [**Bobine.fit**](https://bobine.fit) | Portail Web | Universel | [**Visiter bobine.fit**](https://bobine.fit) | **Site Officiel & Documentation**<br>• Guides de démarrage, actualités & notes de version<br>• Documentation interactive & télécommande web |
+| ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | Binaires & Sources | Multi-OS | [**Voir les Releases GitHub**](https://github.com/FantasmaGlad/Bobine/releases/latest) | **Historique Complet des Versions**<br>• Sommes de contrôle SHA-256 & notes de version |
 
 ---
 
@@ -158,7 +159,16 @@ Bobine propose différentes méthodes d'installation selon vos besoins et votre 
 
 ---
 
-### Option 2 — Appliance Linux dédiée headless (Mini PC / Debian 13)
+### Serveurs Dédiés & Appliances Headless — Méthodes d'Installation Avancées
+
+Pour les studios, salles de fitness et intégrateurs déployant des bornes autonomes 24/7 sur mini PC reconditionné (Dell Wyse 5070, HP ProDesk DM...) sans bureau graphique parasite :
+
+| Méthode | Type | Matériel cible | Déploiement | Points forts & Spécifications |
+| :--- | :---: | :---: | :--- | :--- |
+| <img src="Assets/Images/bash.svg" width="20" height="20" valign="middle" alt="Bash"> **Installateur Bash (CLI)** | Script Shell | Debian 13 (Mini PC) | `curl -sSL https://bobine.fit/install.sh \| bash` | • Séquence automatisée en 15 étapes<br>• Décodage matériel VA-API 4K (&lt; 8% CPU)<br>• Allumage/veille TV par HDMI-CEC<br>• Kiosque X11 plein écran sans veille<br>• Services systemd auto-réparateurs |
+| <img src="Assets/Images/network.svg" width="20" height="20" valign="middle" alt="Réseau"> **Bobine Assistant (Tauri)** | Application Graphique<br>*(Tauri 2)* | Windows, macOS & Linux | Assistant GUI par déploiement SSH | • Balayage `/24` de chaque interface réseau<br>• Audit matériel en direct (CPU, GPU, RAM, disque)<br>• Orchestration visuelle en 5 étapes guidées<br>• Zéro connaissance en ligne de commande requise |
+
+#### Option 2 — Appliance Linux dédiée headless (Mini PC / Debian 13)
 
 > **Pour les salles de sport et studios recherchant une indépendance totale, zéro manipulation au quotidien et une gestion matérielle ultra-fine.**  
 > Ce mode transforme un mini PC reconditionné (Dell Wyse 5070, HP ProDesk DM, Lenovo Tiny...) en serveur de diffusion vidéo 100% autonome qui démarre directement en affichage kiosque plein écran sans aucun environnement de bureau lourd.

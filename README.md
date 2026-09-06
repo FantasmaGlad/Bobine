@@ -25,11 +25,12 @@ Install Bobine as a native desktop application on your workstation or studio PC 
 
 | Platform | Format | Architecture | Direct Download | Experience & Features |
 | :--- | :---: | :---: | :---: | :--- |
-| ![Windows 11](https://img.shields.io/badge/Windows%2011%20%2F%2010-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` (Installer) | x86-64 | [**Download Bobine-Setup-3.0.0.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-Setup-3.0.0.exe) | 1-click wizard, Desktop shortcut, auto-opens browser, background tray, no terminal window |
-| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` (Package) | x86-64 (amd64) | [**Download bobine_3.0.0_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/bobine_3.0.0_amd64.deb) | Ubuntu App Center / `apt install`, XDG standard, single Desktop shortcut, system tray |
-| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` (Disk Image) | Apple Silicon (arm64) | [**Download Bobine-3.0.0.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-3.0.0.dmg) | Drag-and-drop `Bobine.app`, native Retina `.icns` icon, menu bar tray, autostart |
-| ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | Source & Binaries | Multi-OS | [**Browse GitHub Releases**](https://github.com/FantasmaGlad/Bobine/releases/latest) | Full changelog, release assets & checksums |
-| ![Website](https://img.shields.io/badge/bobine.fit-Official%20Site-059669?style=flat-square&logo=googlechrome&logoColor=white) | Web Portal | Universal | [**Visit bobine.fit**](https://bobine.fit) | Getting started guides, updates & documentation |
+| ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe`<br>*(Installer)* | x86-64 | [**Download Bobine-Setup-3.0.0.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-Setup-3.0.0.exe) | **Windows 11, 10 & Windows IoT**<br>• 1-click wizard & Desktop shortcut<br>• Auto-opens browser (`http://127.0.0.1:8000`)<br>• Background tray, zero terminal window |
+| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb`<br>*(Package)* | x86-64<br>*(amd64)* | [**Download bobine_3.0.0_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/bobine_3.0.0_amd64.deb) | **Debian, Ubuntu & Linux Mint**<br>• Ubuntu App Center / `apt install`<br>• XDG standard Desktop launcher<br>• System notification tray (systray) |
+| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg`<br>*(Disk Image)* | Apple Silicon<br>*(arm64)* | [**Download Bobine-3.0.0.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-3.0.0.dmg) | **Apple Silicon (M1, M2, M3, M4)**<br>• Drag-and-drop `Bobine.app` into Applications<br>• Native Retina `.icns` icon & menu bar companion<br>• Automatic LaunchAgent autostart at login |
+| ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | `.apk`<br>*(Package)* | ARM64 | *Prochainement...* | **Tablets & ARM Touch Kiosks**<br>• Video playout over USB-C (DisplayPort / HDMI)<br>• Touch coach console & member kiosk<br>• Prochainement... (in active development) |
+| <a href="https://bobine.fit"><img src="Assets/Images/chrome.svg" width="18" height="18" valign="middle" alt="Chrome"></a> [**Bobine.fit**](https://bobine.fit) | Web Portal | Universal | [**Visit bobine.fit**](https://bobine.fit) | **Official Website & Documentation**<br>• Getting started guides, updates & changelogs<br>• Web app remote and online documentation |
+| ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | Source & Binaries | Multi-OS | [**Browse GitHub Releases**](https://github.com/FantasmaGlad/Bobine/releases/latest) | **Full Release History & Sources**<br>• Checksums, tarballs & complete release notes |
 
 ---
 
@@ -158,17 +159,26 @@ Bobine offers distinct deployment paths to match your exact setup:
 
 ---
 
-### Option 2 — Dedicated Headless Linux Appliance (Mini PC / Debian 13)
+### Dedicated Servers & Headless Appliances — Advanced Installation Methods
+
+For studios, fitness clubs, and integrators deploying autonomous 24/7 kiosks on dedicated low-cost mini PCs (Dell Wyse 5070, HP ProDesk DM...) without desktop overhead:
+
+| Method | Type | Target Hardware | Deployment Process | Key Features |
+| :--- | :---: | :---: | :--- | :--- |
+| <img src="Assets/Images/bash.svg" width="20" height="20" valign="middle" alt="Bash"> **Bash Installer (CLI)** | Shell Script | Debian 13 (Mini PC) | `curl -sSL https://bobine.fit/install.sh \| bash` | • Full 15-step automated sequence<br>• Hardware VA-API 4K decoding (&lt; 8% CPU)<br>• HDMI-CEC TV automation on/off<br>• Locked X11 fullscreen kiosk without screensaver<br>• Auto-healing systemd services |
+| <img src="Assets/Images/network.svg" width="20" height="20" valign="middle" alt="Network"> **Bobine Assistant (Tauri)** | Desktop App<br>*(Tauri 2)* | Windows, macOS & Linux | GUI wizard via SSH remote deployment | • Multi-interface `/24` subnet network scan<br>• Live hardware audit (CPU, GPU, RAM, storage)<br>• 5-step guided visual orchestrator<br>• Zero command-line knowledge needed |
+
+#### Option 2 — Dedicated Headless Linux Appliance (Mini PC / Debian 13)
 
 > **For studio operators seeking 100% independence, zero manual intervention, and fine hardware management.**  
 > This mode turns a low-cost refurbished mini PC (such as a Dell Wyse 5070, HP ProDesk DM, or Lenovo Tiny) into a dedicated 24/7 video appliance that boots straight into a full-screen hardware-accelerated kiosk without any desktop overhead.
 
-#### 1. Minimal Debian 13 Setup
+##### 1. Minimal Debian 13 Setup
 1. **Download** the Debian 13 "Trixie" *netinst* ISO (~700 MB) from <https://www.debian.org/download>.
 2. **Flash it to a USB stick** (8 GB+) using [balenaEtcher](https://etcher.balena.io/) or `dd`.
 3. **Install on the mini PC**: In the software selection step, uncheck all desktop environments and keep only **SSH server** and **standard system utilities**.
 
-#### 2. Fast 1-Line CLI Installation
+##### 2. Fast 1-Line CLI Installation
 Connect to the mini PC directly or via SSH as your standard non-root user and run:
 
 ```bash
@@ -187,7 +197,7 @@ curl -sSL https://bobine.fit/install.sh | bash
 
 ---
 
-### Option 3 — Bobine Assistant, Graphical Installer (`assistant/`)
+#### Option 3 — Bobine Assistant, Graphical Installer (`assistant/`)
 
 > **Deploy your club appliances remotely from your own computer, without touching a terminal.**
 
