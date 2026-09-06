@@ -465,3 +465,23 @@ Afin d'éviter toute extinction inopinée de l'écran pendant un cours de fitnes
 - **Publication automatique des Releases GitHub** :
   - Job `release` coordonné (`softprops/action-gh-release@v2`) téléchargeant les artefacts des 3 runners et les publiant en pièces jointes téléchargeables sur la page des Releases GitHub du projet.
 
+---
+
+## 14. Polish Application Bureau Windows : suppression de la console noire & ouverture du navigateur au clic
+
+### Contexte & Problème résolu
+- Lors du premier test de l'application Windows (`Bobine-Setup-2.0.1.exe`) par un utilisateur externe :
+  1. Au clic sur l'icône Bobine installée sur le Bureau, une fenêtre d'invite de commande noire (`cmd.exe`) s'ouvrait pour afficher les journaux Uvicorn (`127.0.0.1:8000`), ce qui déroute les utilisateurs habitués aux applications graphiques natives.
+  2. Aucun navigateur ne s'ouvrait automatiquement : l'utilisateur devait manuellement deviner l'adresse locale `http://127.0.0.1:8000` et la taper dans son navigateur.
+  3. En cas de double clic ultérieur sur le raccourci Bureau alors que Bobine était déjà actif en arrière-plan, le second processus plantait en tentant de réoccuper le port 8000.
+
+### Modifications techniques
+- **Suppression intégrale de la fenêtre console noire** :
+  - `packaging/windows/bobine.spec` : configuration de `backend_exe` avec `console=False` (au lieu de `True`).
+  - `backend/app/desktop/tray.py` : ajout du flag `subprocess.CREATE_NO_WINDOW` (0x08000000) sous Windows lors du `Popen` de `BobineBackend`, éliminant tout pop-up de terminal parasite.
+- **Ouverture automatique et réactive de l'interface web** :
+  - `backend/app/desktop/tray.py` : au démarrage de l'application (hors lancement silencieux au démarrage système via `--startup` ou `--minimized`), un thread léger interroge `/api/health` et ouvre immédiatement l'interface d'administration (`http://127.0.0.1:8000`) dans le navigateur par défaut de l'utilisateur dès que le serveur est prêt.
+  - Détection d'instance active unique : si Bobine tourne déjà en arrière-plan (par exemple dans la zone de notification système / systray), un nouveau clic sur l'icône du Bureau ouvre immédiatement la page dans le navigateur sans créer de conflit ni de processus doublon.
+- **Démarrage discret à l'ouverture de session** :
+  - `packaging/windows/bobine.iss` : le raccourci de démarrage automatique `{userstartup}` passe désormais l'argument `--startup` pour rester discret dans le systray sans ouvrir intempestivement le navigateur à chaque démarrage du PC.
+

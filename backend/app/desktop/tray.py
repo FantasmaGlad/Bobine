@@ -98,8 +98,14 @@ class BackendSupervisor:
 
     def _supervise_loop(self) -> None:
         while not self._stop_requested:
+            creationflags = 0
+            if platform.system() == "Windows":
+                creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
             with self._lock:
-                self._process = subprocess.Popen(self._backend_command)
+                self._process = subprocess.Popen(
+                    self._backend_command,
+                    creationflags=creationflags,
+                )
             logger.info(f"BobineBackend démarré (pid={self._process.pid})")
             self._process.wait()
             if self._stop_requested:
@@ -391,16 +397,55 @@ def _ensure_desktop_shortcut() -> None:
         logger.debug(f"Vérification du raccourci Bureau ignorée : {e!r}")
 
 
+def is_backend_running() -> bool:
+    """Vérifie si une instance du backend Bobine répond déjà sur /api/health."""
+    try:
+        req = urllib.request.Request(HEALTH_URL, headers={"User-Agent": "BobineTray"})
+        with urllib.request.urlopen(req, timeout=1) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
+def _open_browser_when_ready(url: str, timeout_seconds: float = 20.0) -> None:
+    """Attend que le backend réponde, puis ouvre l'URL dans le navigateur par défaut."""
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        if is_backend_running():
+            logger.info(f"Backend prêt — ouverture du navigateur sur {url}")
+            webbrowser.open(url)
+            return
+        time.sleep(0.5)
+    logger.warning(f"Délai d'attente du backend dépassé — tentative d'ouverture du navigateur vers {url}")
+    webbrowser.open(url)
+
+
 def run() -> None:
     """Point d'entrée — `python -m app.desktop.tray` en développement, et
     l'exécutable `BobineTray.exe` une fois empaqueté."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+    # Si Bobine tourne déjà en arrière-plan, un clic sur l'icône du Bureau
+    # ouvre directement l'interface dans le navigateur sans lancer de doublon.
+    if is_backend_running():
+        logger.info("Bobine est déjà actif en arrière-plan. Ouverture de l'interface web.")
+        webbrowser.open(ADMIN_URL)
+        return
 
     _ensure_launch_agent_macos()
     _ensure_desktop_shortcut()
 
     supervisor = BackendSupervisor(_backend_command())
     supervisor.start()
+
+    # Ouvre automatiquement la page dans le navigateur sauf en démarrage silencieux (--startup / --minimized)
+    if "--startup" not in sys.argv and "--minimized" not in sys.argv:
+        threading.Thread(
+            target=_open_browser_when_ready,
+            args=(ADMIN_URL,),
+            daemon=True,
+            name="bobine-open-browser",
+        ).start()
 
     def on_open_admin(icon, item):
         webbrowser.open(ADMIN_URL)

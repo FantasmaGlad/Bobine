@@ -88,7 +88,7 @@ backend_exe = EXE(
     [],
     exclude_binaries=True,
     name="BobineBackend",
-    console=True,  # utile pour le diagnostic en Lot 1 ; à repasser en False une fois stabilisé
+    console=False,  # Pas de fenêtre console noire pour l'application desktop
     contents_directory=".",
     icon=ICON_PATH,
 )

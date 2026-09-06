@@ -74,7 +74,7 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"; Tasks: des
 ; Lancement automatique de BobineTray à l'ouverture de session utilisateur
 ; (par utilisateur, pas system-wide — cf. CDC §5.3, pas de Service Windows
 ; pour ce profil).
-Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"
+Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"; Parameters: "--startup"
 
 [Run]
 ; Règle de pare-feu pour le port d'écoute backend (0.0.0.0:8000, requis
