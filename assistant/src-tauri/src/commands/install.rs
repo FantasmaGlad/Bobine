@@ -186,20 +186,18 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
         let mut state = ProgressState::new();
         let reader = BufReader::new(channel.stream(0));
 
-        for line_res in reader.lines() {
-            if let Ok(line) = line_res {
-                match classify_line(&line) {
-                    LineKind::Event(ref ev) => {
-                        state.apply(ev);
-                        let update = progress_to_update(&state);
-                        app.emit("install_progress", update).ok();
-                    }
-                    LineKind::Log => {
-                        app.emit("install_log", line).ok();
-                    }
-                    LineKind::Malformed(err) => {
-                        app.emit("install_log", format!("[ATTENTION] Évènement malformé : {err}")).ok();
-                    }
+        for line in reader.lines().map_while(Result::ok) {
+            match classify_line(&line) {
+                LineKind::Event(ref ev) => {
+                    state.apply(ev);
+                    let update = progress_to_update(&state);
+                    app.emit("install_progress", update).ok();
+                }
+                LineKind::Log => {
+                    app.emit("install_log", line).ok();
+                }
+                LineKind::Malformed(err) => {
+                    app.emit("install_log", format!("[ATTENTION] Évènement malformé : {err}")).ok();
                 }
             }
         }
