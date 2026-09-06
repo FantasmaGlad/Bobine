@@ -2,7 +2,7 @@
 
 Application graphique (poste admin) qui **localise le mini PC**, s'y **connecte
 en SSH**, **détecte le matériel**, puis **déroule `install.sh`** avec une barre
-de progression. Cf. le cahier des charges : [`../docs/cahier-des-charges-installeur.md`](../docs/cahier-des-charges-installeur.md).
+de progression et une interface de télécommande dédiée.
 
 ## État
 
