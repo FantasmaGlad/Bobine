@@ -1,15 +1,10 @@
 import asyncio
 import enum
-import json
 import logging
-import os
 import time
 from typing import Any, Awaitable, Callable
 
 from app.config import settings
-from app.utils.boot_state import BOOT_ID_REDIS_KEY, current_boot_id
-from app.utils.redis_client import get_redis
-from app.utils.tick_lock import acquire_tick_lock
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +16,6 @@ BroadcastFn = Callable[[dict], Awaitable[None]]
 # "network" = tout /kiosk ouvert depuis un autre appareil du LAN.
 CHANNELS = ("cable", "network")
 DEFAULT_CHANNEL = "cable"
-
-# Préfixe des clés Redis de l'état de lecture courant (réf. plan
-# perf/concurrence Phase 1, P1) : chaque worker a ses propres instances de
-# PlaybackManager en mémoire ; ces clés (une par canal) sont la source de
-# vérité partagée qu'un worker relit à son démarrage pour se remettre à
-# niveau avec les autres.
-REDIS_STATE_KEY_PREFIX = "playback:state"
 
 
 class PlaybackStateEnum(str, enum.Enum):
@@ -55,14 +43,9 @@ class PlaybackManager:
         # tableaux de bord) ne réagissent qu'aux évènements de LEUR canal —
         # zéro interférence entre les deux lectures (réf. mission).
         self.channel = channel
-        # Identité de CE worker (correctif "0 synchronisation") : chaque état
-        # diffusé porte son origine, pour que les autres workers puissent
-        # l'appliquer à leur copie locale (cf. apply_remote_state) sans que
-        # l'émetteur ne se ré-applique son propre message.
-        self._worker_id = str(os.getpid())
-        # Instant (monotonic) du dernier report_position reçu DIRECTEMENT du
-        # kiosk par ce worker : seul le worker qui tient la connexion du kiosk
-        # primaire diffuse les position_tick (cf. _position_broadcast_loop).
+        # Instant (monotonic) du dernier report_position reçu directement du
+        # kiosk : seul le kiosk primaire diffuse les position_tick (cf.
+        # _position_broadcast_loop).
         self._last_direct_report = 0.0
         self._waiting_task: asyncio.Task | None = None
         self._audio_chain_wait_task: asyncio.Task | None = None
@@ -101,64 +84,10 @@ class PlaybackManager:
     def snapshot(self) -> dict:
         return dict(self.state)
 
-    async def sync_from_redis(self):
-        """
-        À appeler au démarrage de CE worker (lifespan FastAPI), avant de
-        traiter la moindre commande : reprend l'état publié par un autre
-        worker plutôt que de repartir sur l'état "waiting" par défaut, sinon
-        un client se connectant à ce worker verrait un écran cinéma "vide"
-        alors qu'une vidéo est en cours ailleurs (réf. Phase 1, P1).
-        Échec silencieux si Redis est injoignable ou la clé absente (tout
-        premier démarrage) : l'état par défaut fait alors foi.
-
-        Purge au redémarrage du service (correctif bug "cours fantôme") : si
-        l'état sauvegardé provient d'un lancement PRÉCÉDENT du service
-        (redémarrage, mise à jour, coupure), il est supprimé au lieu d'être
-        repris — sinon l'ancien cours/playlist revenait s'afficher et entrait
-        en interférence avec la suite. La reprise d'état ne sert que le cas
-        d'un worker individuel relancé au sein du même lancement de service.
-        """
-        try:
-            redis = get_redis()
-            boot_id = current_boot_id()
-            stored_boot_id = await redis.get(BOOT_ID_REDIS_KEY)
-            if stored_boot_id != boot_id:
-                # Premier worker (cf. app.utils.boot_state) d'un nouveau
-                # lancement de service : on purge les données temporaires de
-                # lecture DES DEUX CANAUX et on marque le lancement. Idempotent
-                # si plusieurs workers/canaux passent ici en même temps.
-                await redis.set(BOOT_ID_REDIS_KEY, boot_id)
-                await redis.delete(*(f"{REDIS_STATE_KEY_PREFIX}:{c}" for c in CHANNELS))
-                logger.info("Nouveau lancement du service : état de lecture temporaire purgé")
-                return
-            raw = await redis.get(f"{REDIS_STATE_KEY_PREFIX}:{self.channel}")
-        except Exception as e:
-            logger.warning(f"Impossible de lire l'état de lecture depuis Redis au démarrage : {e}")
-            return
-        if not raw:
-            return
-        try:
-            saved_state = json.loads(raw)
-        except (TypeError, ValueError):
-            logger.warning("État de lecture Redis illisible, ignoré")
-            return
-        # Ne reprend que les clés connues : un état sauvegardé par une version
-        # antérieure du schéma ne doit pas injecter de champs obsolètes.
-        for key in self.state:
-            if key in saved_state:
-                self.state[key] = saved_state[key]
-
-    async def _persist_to_redis(self):
-        try:
-            await get_redis().set(f"{REDIS_STATE_KEY_PREFIX}:{self.channel}", json.dumps(self.state))
-        except Exception as e:
-            logger.warning(f"Impossible d'enregistrer l'état de lecture dans Redis : {e}")
-
     async def _emit(self, cause: str, client_ts: float | None = None, play_intro: bool | None = None):
         payload: dict[str, Any] = {
             "event": "state_change",
             "cause": cause,
-            "origin": self._worker_id,
             "channel": self.channel,
             "data": self.snapshot(),
         }
@@ -172,35 +101,7 @@ class PlaybackManager:
         # cause autre que "load".
         if play_intro is not None:
             payload["play_intro"] = play_intro
-        await self._persist_to_redis()
         await self._broadcast(payload)
-
-    def apply_remote_state(self, data: dict, origin: str | None):
-        """
-        Applique à CE worker un état diffusé par un AUTRE worker (correctif
-        "0 synchronisation" : sans ça, seul le worker ayant traité une commande
-        avait un état à jour — les requêtes REST `/api/playback/state` et les
-        snapshots de connexion WebSocket servis par les 3 autres workers
-        renvoyaient un état périmé, d'où télécommandes aveugles, écran pause
-        qui "retombe" en attente au resync 15 s, kiosk miroir figé, et boucles
-        de position fantômes émettant des états contradictoires en rafale).
-
-        Appelé par l'écouteur Redis de chaque worker pour chaque state_change
-        reçu. N'émet ni ne persiste rien : l'émetteur d'origine s'en charge.
-        """
-        if origin is not None and origin == self._worker_id:
-            return
-        for key in self.state:
-            if key in data:
-                self.state[key] = data[key]
-        # Toute tâche locale contredite par l'état distant est annulée : par
-        # exemple un stop traité par un autre worker pendant que CE worker
-        # déroulait une attente inter-cours — sans annulation, la tâche
-        # locale finirait par remettre un état périmé toute seule.
-        if self.state["state"] != PlaybackStateEnum.playlist_waiting.value:
-            self._cancel_waiting()
-        if self.state["audio_chain_wait_remaining"] is None:
-            self._cancel_audio_chain_wait()
 
     def _cancel_waiting(self):
         if self._waiting_task and not self._waiting_task.done():
@@ -232,12 +133,11 @@ class PlaybackManager:
                 is_audio_playing = (
                     self.state["state"] == PlaybackStateEnum.coach_mode.value and self.state["audio_playing"]
                 )
-                # Seul le worker qui reçoit directement les rapports de
-                # position du kiosk primaire diffuse les ticks : les autres
-                # workers ont un état "playing" synchronisé (apply_remote_state)
-                # mais une position qui n'avance pas — les laisser émettre
-                # inonderait les clients d'états contradictoires (correctif
-                # "grosses saccades sur les commandes").
+                # Ne diffuse que si un kiosk rapporte activement sa position
+                # (cf. report_position) : sans cette garde, un canal "playing"
+                # sans kiosk primaire connecté émettrait des ticks à une
+                # position qui n'avance jamais (correctif "grosses saccades
+                # sur les commandes").
                 drives_playback = time.monotonic() - self._last_direct_report < 2.5
                 if (is_video_playing or is_audio_playing) and drives_playback:
                     await self._emit("position_tick")
@@ -344,60 +244,28 @@ class PlaybackManager:
         # entre deux itérations du sleep), on s'arrête sans jamais avancer la
         # playlist une seconde fois.
         this_task = asyncio.current_task()
-        # Verrou de tick (réf. correctif "tâches périodiques sans verrou de
-        # déclenchement") : au repos, un seul worker fait vivre cette tâche —
-        # ce verrou ne protège que le cas rare où une reprise après crash
-        # (ou un aléa Redis/WS) laisserait momentanément deux copies actives
-        # pour le MÊME canal, qui décompteraient et avanceraient sinon chacune
-        # de leur côté.
-        lock_key = f"tick:playlist_waiting:{self.channel}"
         try:
             remaining = self.state["playlist_waiting_remaining"] or 0.0
-            # Vrai dès que CE worker a lui-même décompté jusqu'à 0 : c'est lui
-            # qui enchaîne la vidéo suivante, SANS re-tenter le verrou de tick
-            # (correctif "playlist bloquée sur 0") — son propre verrou du
-            # dernier tick est encore valide, le re-prendre échouerait et
-            # _play_next_video ne serait jamais appelé (la playlist restait
-            # figée sur « 0 » sans jamais lancer le cours suivant).
-            advanced_here = False
             while remaining > 0:
                 await asyncio.sleep(1.0)
                 if self._waiting_task is not this_task:
                     return
-                # TTL du verrou volontairement INFÉRIEUR à l'intervalle d'un
-                # tick (1 s) — correctif "le décompte ne dure pas 1 s par
-                # seconde" : au repos un seul worker décompte, et il doit
-                # pouvoir re-prendre SON PROPRE verrou à chaque seconde. Un TTL
-                # ≥ 1 s (précédemment 1200 ms) le faisait entrer en collision
-                # avec lui-même — son verrou de la seconde précédente n'avait
-                # pas encore expiré — d'où un décompte deux fois trop lent
-                # (une décrémentation une seconde sur deux). 800 ms reste assez
-                # long pour bloquer un SECOND worker concurrent au sein du même
-                # tick (cas rare d'une reprise après crash).
-                if not await acquire_tick_lock(lock_key, ttl_ms=800):
-                    continue
                 remaining -= 1.0
                 self.state["playlist_waiting_remaining"] = max(0.0, remaining)
                 await self._emit("playlist_waiting_tick")
-                if remaining <= 0:
-                    advanced_here = True
 
             if self._waiting_task is not this_task:
-                return
-            # Cas wait_time == 0 (boucle jamais entrée) : personne n'a décompté,
-            # on prend le verrou pour dédoublonner l'enchaînement entre workers.
-            if not advanced_here and not await acquire_tick_lock(lock_key, ttl_ms=800):
                 return
             # Temps d'attente écoulé : lance la vidéo suivante. On détache CE
             # task du manager AVANT l'appel (correctif "timer bloqué à 0 en
             # prod") : _play_next_video() appelle _cancel_waiting(), qui
             # annulerait sinon le task COURANT (lui-même) — la CancelledError
             # serait alors levée au prochain await, à l'intérieur du load()
-            # suivant (persist Redis / broadcast). Résultat : l'état passait
-            # bien à "playing" en mémoire mais l'évènement "load" n'était
-            # JAMAIS diffusé au kiosk, qui restait figé sur « 0 ». En mettant
-            # self._waiting_task à None ici, _cancel_waiting() n'a plus rien à
-            # annuler et le broadcast aboutit.
+            # suivant (broadcast). Résultat : l'état passait bien à "playing"
+            # en mémoire mais l'évènement "load" n'était JAMAIS diffusé au
+            # kiosk, qui restait figé sur « 0 ». En mettant self._waiting_task
+            # à None ici, _cancel_waiting() n'a plus rien à annuler et le
+            # broadcast aboutit.
             self._waiting_task = None
             await self._play_next_video()
         except asyncio.CancelledError:
@@ -580,17 +448,15 @@ class PlaybackManager:
         """
         Rapport de la position réelle par le kiosk (plusieurs fois par
         seconde). Vraiment silencieux depuis la Phase 5 (P5) : met à jour
-        l'état en mémoire et dans Redis (pour qu'un worker qui redémarre ou
-        qu'une télécommande qui se reconnecte voit une position à jour) mais
-        NE diffuse PAS aux clients à chaque appel — _position_broadcast_loop
-        s'en charge à intervalle fixe. Un broadcast systématique ici
-        saturerait les télécommandes pour un gain de précision inutile.
+        l'état en mémoire mais NE diffuse PAS aux clients à chaque appel —
+        _position_broadcast_loop s'en charge à intervalle fixe. Un broadcast
+        systématique ici saturerait les télécommandes pour un gain de
+        précision inutile.
         """
         if self.state["current_video"] is None or self.state["state"] == PlaybackStateEnum.playlist_waiting.value:
             return
         self._last_direct_report = time.monotonic()
         self.state["position_seconds"] = position_seconds
-        await self._persist_to_redis()
 
     # ------------------------------------------------------------------
     # Mode audio coach (Lot 8, réf. F10.3/F10.4/UX4.5-4.9)
@@ -774,29 +640,15 @@ class PlaybackManager:
             return
         self._last_direct_report = time.monotonic()
         self.state["audio_position_seconds"] = position_seconds
-        await self._persist_to_redis()
 
     async def _run_audio_chain_wait(self):
-        # Verrou de tick (réf. correctif "tâches périodiques sans verrou de
-        # déclenchement", même principe que _run_waiting_period ci-dessus).
-        lock_key = f"tick:audio_chain_wait:{self.channel}"
         try:
             remaining = self.state["audio_chain_wait_remaining"] or 0.0
-            # Même correctif que _run_waiting_period (verrou en collision avec
-            # lui-même à TTL ≥ 1 s, et re-tentative finale qui échouait) : TTL
-            # abaissé à 800 ms + drapeau du worker qui a atteint 0 lui-même.
-            advanced_here = False
             while remaining > 0:
                 await asyncio.sleep(1.0)
-                if not await acquire_tick_lock(lock_key, ttl_ms=800):
-                    continue
                 remaining -= 1.0
                 self.state["audio_chain_wait_remaining"] = max(0.0, remaining)
                 await self._emit("audio_chain_wait_tick")
-                if remaining <= 0:
-                    advanced_here = True
-            if not advanced_here and not await acquire_tick_lock(lock_key, ttl_ms=800):
-                return
             # Détache CE task AVANT d'enchaîner (même correctif que
             # _run_waiting_period) : _goto_track() appelle
             # _cancel_audio_chain_wait(), qui annulerait sinon le task courant

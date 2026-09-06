@@ -61,7 +61,7 @@ https://github.com/user-attachments/assets/e33196d8-cfd7-449e-ad7f-0929a0361d10
 - **Coach audio mode** — play audio-only classes over the room speakers with an animated or still visual background on screen.
 - **Built-in radio** — a Spotify-style 24/7 background-music player with crossfade, shuffle, repeat, and scheduled spoken reminders ("re-rack your weights", etc.).
 - **Simple library management** — drag-and-drop import, bulk upload, free-form categories, grouped selection, per-file import progress, automatic thumbnails.
-- **Local-first and resilient** — multi-worker backend, shared state, automatic recovery after a reboot or power cut, and a health watchdog that restarts a dead component.
+- **Local-first and resilient** — automatic recovery after a reboot or power cut, and a health watchdog that restarts a dead component.
 - **Web admin + zero client install** — administer everything from a browser; member screens and remotes are just web pages.
 
 ---
@@ -70,7 +70,7 @@ https://github.com/user-attachments/assets/e33196d8-cfd7-449e-ad7f-0929a0361d10
 
 Bobine is a single mini PC on your local network running:
 
-- a **FastAPI** backend (multi-worker) with **Redis** as a shared state bus and **SQLite** for storage;
+- a **FastAPI** backend with **SQLite** for storage;
 - a **Chromium** kiosk in full screen (X11) for the wired screen;
 - a **Next.js** admin panel, member kiosk, and mobile remote, all served as static pages from the same machine.
 
@@ -137,7 +137,7 @@ sudo ./install.sh
 - **Server only (`--no-kiosk`)**: installs backend and API without local X11 kiosk display.
 - **Health check (`--check`)**: inspects installed services and configuration without applying changes.
 
-`install.sh` is idempotent and self-contained. It installs system packages, Redis, Node.js and the Python environment, builds the web interface, writes the configuration, registers the systemd services (backend, kiosk, audio guard, health watchdog), publishes the `bobine.local` name on the network, and starts everything. Re-run it after an update to rebuild and restart cleanly.
+`install.sh` is idempotent and self-contained. It installs system packages, Node.js and the Python environment, builds the web interface, writes the configuration, registers the systemd services (backend, kiosk, audio guard, health watchdog), publishes the `bobine.local` name on the network, and starts everything. Re-run it after an update to rebuild and restart cleanly.
 
 No internet at the club? You can copy the repository from another machine over SSH (rsync) instead of cloning it — see the *Operation & deployment* section of [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -174,7 +174,7 @@ Bobine exposes a machine-readable health endpoint:
 GET http://bobine.local/api/health
 ```
 
-It reports the status of **Redis**, the **SQLite database** and the **Chromium kiosk**, and returns HTTP `200` when healthy or `503` when a critical component is down. An on-device **watchdog** polls it and automatically restarts a failed component (backend, Redis or kiosk), so the club recovers without manual intervention. All services also restart automatically after a power cut.
+It reports the status of the **SQLite database** and the **Chromium kiosk**, and returns HTTP `200` when healthy or `503` when a critical component is down. An on-device **watchdog** polls it and automatically restarts a failed component (backend or kiosk), so the club recovers without manual intervention. All services also restart automatically after a power cut.
 
 ---
 

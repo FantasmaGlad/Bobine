@@ -3,8 +3,9 @@ name: CI
 # Intégration continue Bobine : à chaque push sur main et à chaque pull request,
 # on vérifie que le frontend Next.js se construit et que le backend Python est
 # syntaxiquement valide avec ses dépendances résolues. Volontairement léger et
-# fiable (pas de service externe) pour un statut vert stable ; la suite de tests
-# pytest (qui requiert Redis) pourra être ajoutée en tant que job séparé.
+# fiable pour un statut vert stable ; la suite de tests (backend/tests/, qui ne
+# requiert plus Redis depuis PortabiliteCrossPlatformX Lot 0) pourra être
+# ajoutée en tant que job séparé.
 
 on:
   push:

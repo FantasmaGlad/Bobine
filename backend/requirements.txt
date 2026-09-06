@@ -8,6 +8,5 @@ pydantic-settings
 apscheduler
 tzlocal
 aiofiles
-redis
 pillow
 psutil

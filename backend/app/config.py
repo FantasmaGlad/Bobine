@@ -52,11 +52,6 @@ class Settings(BaseSettings):
     # minuterie entre pistes en mode "auto + minuterie".
     audio_chain_timer_seconds: int = 20
 
-    # Redis (bus d'état partagé entre workers uvicorn, réf. plan perf/concurrence
-    # Phase 1) : synchronisation du PlaybackManager et diffusion WebSocket
-    # inter-workers, verrou distribué pour les jobs planifiés.
-    redis_url: str = "redis://localhost:6379/0"
-
     # Réseau & Serveur
     host: str = "0.0.0.0"
     port: int = 8000

@@ -17,7 +17,6 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import init_db, get_db, SessionLocal
-from app.utils.redis_client import get_redis
 from app.models import AudioTrack, Background, RadioAnnouncement, RadioTrack, Video
 from app.playback_manager import get_all_playback_managers
 from app.radio_manager import get_radio_manager
@@ -30,16 +29,13 @@ from app.utils.radio_utils import content_type_for
 from app.scheduler_manager import (
     autostart_default_radio_playlist,
     start_scheduler,
-    start_schedule_sync_listener,
     stop_scheduler,
-    stop_schedule_sync_listener,
 )
 from app.utils.importer import reconcile_orphaned_media
 from app.utils.radio_announcement_scheduler import (
     start_radio_announcement_scheduler,
     stop_radio_announcement_scheduler,
 )
-from app.utils.redis_client import close_redis
 from app.utils.watcher import start_watcher, stop_watcher
 from app.utils.ws_manager import manager as ws_manager
 
@@ -89,32 +85,8 @@ async def lifespan(app: FastAPI):
     reconcile_orphaned_media()
     start_watcher()
     start_scheduler()
-    # Bus d'état partagé Redis (réf. plan perf/concurrence Phase 1) : reprise
-    # de l'état de lecture publié par un autre worker — POUR CHAQUE CANAL de
-    # diffusion (réf. mission "tableaux de bord Câblé / Réseau") — puis
-    # abonnement au canal de diffusion inter-workers.
-    for playback_manager in get_all_playback_managers().values():
-        await playback_manager.sync_from_redis()
-    # Canal radio (réf. docs/cahier-des-charges-radio.md, lot L3) : même
-    # principe de reprise d'état que les canaux câblé/réseau ci-dessus, sur
-    # son propre gestionnaire indépendant.
-    await get_radio_manager().sync_from_redis()
-    # Abonnement au canal de diffusion inter-workers AVANT l'auto-démarrage
-    # radio ci-dessous (réf. correctif "musiques qui switchent en
-    # permanence") : autostart_default_radio_playlist() ne laisse qu'UN SEUL
-    # worker agir (verrou Redis) ; les autres doivent déjà écouter pour
-    # recevoir sa diffusion et converger vers le même état, plutôt que de
-    # rester chacun sur leur état local par défaut (idle).
-    await ws_manager.start_redis_listener()
-    # 24/7 (réf. lot L7, D10) : après reprise d'état — un worker qui rejoint
-    # un lancement de service déjà en cours ne doit rien auto-démarrer.
+    # 24/7 (réf. lot L7, D10).
     await autostart_default_radio_playlist()
-    # Écouteur de synchronisation du planning (réf. correctif "la modification
-    # d'un planning ne se propage qu'au worker qui a reçu la requête") : même
-    # principe que les deux écouteurs ci-dessus, pour que les 4 workers
-    # gardent un AsyncIOScheduler à jour après une création/modification/
-    # suppression de programmation traitée par n'importe lequel d'entre eux.
-    await start_schedule_sync_listener()
     for playback_manager in get_all_playback_managers().values():
         playback_manager.start_position_broadcast_loop()
     get_radio_manager().start_position_broadcast_loop()
@@ -123,16 +95,13 @@ async def lifespan(app: FastAPI):
     # de temporel, elle est vérifiée à chaque fin de piste (routers/playback.py).
     start_radio_announcement_scheduler()
     yield
-    # Shutdown : Arrêt propre du scheduler, du watcher et de Redis
+    # Shutdown : arrêt propre du scheduler et du watcher.
     stop_scheduler()
     stop_watcher()
     for playback_manager in get_all_playback_managers().values():
         playback_manager.stop_position_broadcast_loop()
     get_radio_manager().stop_position_broadcast_loop()
     await stop_radio_announcement_scheduler()
-    await ws_manager.stop_redis_listener()
-    await stop_schedule_sync_listener()
-    await close_redis()
 
 
 app = FastAPI(title="Bobine", lifespan=lifespan)
@@ -181,18 +150,12 @@ def _kiosk_process_alive() -> str:
 async def health():
     """Contrôle de santé lisible par machine, consommé par le chien de garde
     `bobine-watchdog` (redémarrage auto d'un composant mort) et par toute
-    supervision externe. Vérifie les dépendances critiques du backend — **Redis**
-    (bus d'état inter-workers) et la base **SQLite** — plus, à titre indicatif,
-    la présence du **kiosque Chromium**. Renvoie HTTP 200 si Redis ET la base
-    répondent, sinon 503. L'état du kiosque n'influe PAS sur le code HTTP : c'est
-    un composant séparé, que le chien de garde redémarre indépendamment du
-    backend."""
+    supervision externe. Vérifie la dépendance critique du backend — la base
+    **SQLite** — plus, à titre indicatif, la présence du **kiosque Chromium**.
+    Renvoie HTTP 200 si la base répond, sinon 503. L'état du kiosque n'influe
+    PAS sur le code HTTP : c'est un composant séparé, que le chien de garde
+    redémarre indépendamment du backend."""
     components: dict[str, str] = {}
-
-    try:
-        components["redis"] = "ok" if await get_redis().ping() else "down"
-    except Exception:
-        components["redis"] = "down"
 
     try:
         db = SessionLocal()
@@ -206,7 +169,7 @@ async def health():
 
     components["kiosk"] = _kiosk_process_alive()
 
-    healthy = components["redis"] == "ok" and components["database"] == "ok"
+    healthy = components["database"] == "ok"
     payload = {"status": "ok" if healthy else "degraded", "components": components}
     if not healthy:
         return JSONResponse(status_code=503, content=payload)

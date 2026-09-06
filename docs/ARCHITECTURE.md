@@ -2,16 +2,16 @@
 
 > Référence technique. Pour une présentation orientée utilisateur (à quoi sert Bobine, installation guidée, prise en main), voir le **[README](../README.md)** (`README.fr.md` pour le français).
 
-Diffusion, planification et pilotage de vidéos de cours en salle, sur mini PC dédié. Serveur multi-worker FastAPI + Redis + SQLite, kiosque Chromium X11, interface d'administration et télécommande mobile Next.js.
+Diffusion, planification et pilotage de vidéos de cours en salle, sur mini PC dédié. Serveur FastAPI mono-processus + SQLite, kiosque Chromium X11, interface d'administration et télécommande mobile Next.js.
 
-Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier ou déployer** le système Bobine : il décrit l'architecture réellement en place (pas une intention), le contrat réseau, le modèle de données inter-workers, ainsi que la configuration d'exploitation sur mini PC dédié.
+Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier ou déployer** le système Bobine : il décrit l'architecture réellement en place (pas une intention), le contrat réseau, le modèle de données, ainsi que la configuration d'exploitation sur mini PC dédié.
 
 ---
 
 ## Sommaire
 
 1. [Stack et démarrage](#1-stack-et-démarrage)
-2. [Architecture générale (Multi-worker & Bus Redis)](#2-architecture-générale)
+2. [Architecture générale](#2-architecture-générale)
 3. [Modèle de données & Persistance SQLite](#3-modèle-de-données--persistance-sqlite)
 4. [Canaux de diffusion & Gestionnaire de lecture](#4-canaux-de-diffusion--gestionnaire-de-lecture)
 5. [Module Radio](#5-module-radio)
@@ -27,7 +27,7 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 
 ### Stack technique
 
-- **Backend** : Python 3.11+, [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` (4 workers), [SQLAlchemy](https://www.sqlalchemy.org/), SQLite (`data/database.db`), Redis (bus d'état Pub/Sub, verrous distribués), `APScheduler` (planification), `watchdog` (surveillance des dossiers d'import), `ffmpeg` / VA-API (décodage matériel Intel ou AMD, pilote choisi selon le GPU détecté), Web Audio API (crossfade radio, côté navigateur).
+- **Backend** : Python 3.11+, [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` (mono-processus, cf. §2), [SQLAlchemy](https://www.sqlalchemy.org/), SQLite (`data/database.db`), `APScheduler` (planification), `watchdog` (surveillance des dossiers d'import), `ffmpeg` / VA-API (décodage matériel Intel ou AMD, pilote choisi selon le GPU détecté), Web Audio API (crossfade radio, côté navigateur).
 - **Frontend** : [Next.js](https://nextjs.org/) 16 (App Router, export statique servi par le backend en production), React 19, TypeScript, CSS Vanilla (global + design tokens, **13 thèmes de couleurs** commutables à chaud via `:root[data-theme=…]`), PWA (`manifest.json`), WebSockets, glisser-déposer natif (HTML5), Web Audio API.
 - **Exploitation & Kiosque** : Debian 13 (Trixie), Chromium en mode kiosque (X11 / `xinit`), `systemd` (services backend, kiosque, garde audio, chien de garde), `avahi-daemon` (découverte mDNS).
 - **Installation & outils** : `install.sh` (**Bash** idempotent : détection matérielle dynamique, remédiation APT, `--as-user`, sortie machine `--progress=json`, §7) ; **assistant d'installation graphique** en cours de construction (`assistant/`, cœur **Rust** testable qui parse la sortie de `install.sh` et orchestre le déploiement SSH — cf. [`cahier-des-charges-installeur.md`](cahier-des-charges-installeur.md) et [`assistant/README.md`](../assistant/README.md)).
@@ -36,14 +36,13 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 
 ### Développements locaux
 
-**Préréquis** : Node.js ≥ 20, Python ≥ 3.11, Redis local actif.
+**Préréquis** : Node.js ≥ 20, Python ≥ 3.11.
 
 ```bash
-# 1. Backend (FastAPI + Redis) — port 8001 en dev (voir note ci-dessous)
+# 1. Backend (FastAPI) — port 8001 en dev (voir note ci-dessous)
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-redis-server &          # requis : bus d'état partagé
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 
 # 2. Frontend (Next.js)
@@ -77,7 +76,6 @@ La configuration est chargée selon l'ordre de priorité suivant :
 | Clé | Défaut | Rôle |
 |---|---|---|
 | `database.database_url` | `sqlite:///data/database.db` | URL de connexion SQLite |
-| `redis.redis_url` | `redis://localhost:6379/0` | URL du bus d'état Redis |
 | `media.media_dir` | `data/videos` | Stockage des vidéos importées |
 | `media.watch_dir` | `data/watched` | Dossier surveillé pour import automatique |
 | `server.host` / `port` | `0.0.0.0:8000` | Écoute HTTP du backend |
@@ -93,22 +91,21 @@ La configuration est chargée selon l'ordre de priorité suivant :
 ```
 ┌─────────────┐      HTTP / WebSockets      ┌─────────────────────────────────┐
 │  Frontend   │ ───────────────────────────►│        Backend FastAPI          │
-│  Next.js    │                             │    (uvicorn, 4 workers)         │
+│  Next.js    │                             │    (uvicorn, mono-processus)    │
 │ (Kiosque /  │◀─────────────────────────── │  app/routers/* → playback_mgr   │
 │  Admin /    │                             └─────────────────────────────────┘
-│ Mobile Remote)│                                    │               │
-└─────────────┘                                    │               │
-                                                   ▼               ▼
-                                          ┌──────────────┐ ┌──────────────┐
-                                          │    SQLite    │ │    Redis     │
-                                          │ (database.db)│ │ (Pub/Sub &   │
-                                          └──────────────┘ │  State Bus)  │
-                                                           └──────────────┘
+│ Mobile Remote)│                                    │
+└─────────────┘                                    │
+                                                   ▼
+                                          ┌──────────────┐
+                                          │    SQLite    │
+                                          │ (database.db)│
+                                          └──────────────┘
 ```
 
-Le backend tourne en plusieurs workers `uvicorn` sous le même processus maître. Redis sert de **bus d'état partagé** (position de lecture, décompte inter-cours, verrous de tick `tick_lock.py`, synchronisation de planning) et de canal de diffusion Pub/Sub pour les WebSockets. Un client web reste parfaitement synchronisé quel que soit le worker traitant la requête HTTP.
+Le backend tourne en un seul processus `uvicorn` (`--workers 1`). L'état de lecture (position, playlist, planning) vit directement en mémoire de ce processus et est diffusé aux clients connectés via WebSocket ; aucun bus d'état externe n'est nécessaire pour rester synchronisé.
 
-> ⚠️ **Piège archi-connu, reproduit une fois (réf. correctif radio 2026-08-14)** : chaque worker exécute **sa propre copie** de tout code qui tourne à son démarrage (le bloc `lifespan` de `main.py`) ou sur son **propre** `AsyncIOScheduler` (le planning). Toute action qui ne doit avoir lieu **qu'une seule fois** par lancement de service (auto-démarrage, déclenchement d'une programmation à l'heure dite…) doit donc être protégée par un **verrou distribué Redis** (`SET NX PX`, cf. `tick_lock.py::acquire_tick_lock` et `scheduler_manager.py::_acquire_fire_lock`) — un seul worker agit, les autres convergent via la diffusion Redis (`apply_remote_state`), à condition que `ws_manager.start_redis_listener()` ait déjà été appelé sur CE worker (l'ordre des étapes du `lifespan` compte). Oubli constaté : l'auto-démarrage radio (§5) appelait `RadioPlaybackManager.load_playlist(..., shuffle=True)` sans ce verrou → les 4 workers tiraient chacun leur propre ordre aléatoire, donnant 4 états divergents en mémoire et des pistes qui semblaient « switcher » selon le worker qui répondait à la requête.
+> **Historique (avant PortabiliteCrossPlatformX Lot 0, cf. [`cahier-des-charges-multi-os.md`](cahier-des-charges-multi-os.md) §4)** : le backend tournait avec 4 workers `uvicorn` sous le même processus maître, et Redis servait de bus d'état partagé (position de lecture, verrous de tick, synchronisation de planning) et de canal Pub/Sub inter-workers — chaque worker exécutant sa propre copie du `lifespan` et de l'`AsyncIOScheduler`, une action à effet de bord (auto-démarrage radio, déclenchement d'une programmation) devait être protégée par un verrou distribué pour n'avoir lieu qu'une fois. Le passage au mono-processus supprime cette classe entière de problèmes par construction : il n'existe plus qu'une seule copie de chaque état, plus de course entre workers à arbitrer.
 
 ### Arborescence backend (`backend/app/`)
 
@@ -214,13 +211,13 @@ sudo ./install.sh
 
 ### Services Systemd créés
 
-- `bobine-backend.service` : API FastAPI Uvicorn sur le port 8000 (4 workers). `Restart=always`.
+- `bobine-backend.service` : API FastAPI Uvicorn sur le port 8000 (mono-processus, `--workers 1`). `Restart=always`.
 - `bobine-kiosk.service` : Mode Kiosque Chromium plein écran sur `xinit` (X11). `Restart=always`.
 - `bobine-audio-guard.service` : garde AUDIO uniquement — oneshot qui coupe Master/Speaker/Headphone au boot et à l'arrêt (silence hors session kiosque), recouverts par `kiosk-xinitrc` une fois prêt. Ne surveille rien d'autre.
-- `bobine-watchdog.timer` + `bobine-watchdog.service` : chien de garde de SANTÉ. Le timer déclenche `scripts/watchdog.sh` (`OnBootSec=90s`, puis toutes les 30 s) qui consomme `GET /api/health` et **redémarre automatiquement un composant mort** : si `/api/health` ne répond pas 200 → relance de `redis-server` (si arrêté) puis de `bobine-backend` ; si le service kiosk est activé mais qu'aucun processus Chromium n'est présent → relance de `bobine-kiosk`. Complète `Restart=always` (mort du *processus*) pour les défaillances *logiques* (backend vivant mais Redis injoignable, Chromium gelé…).
+- `bobine-watchdog.timer` + `bobine-watchdog.service` : chien de garde de SANTÉ. Le timer déclenche `scripts/watchdog.sh` (`OnBootSec=90s`, puis toutes les 30 s) qui consomme `GET /api/health` et **redémarre automatiquement un composant mort** : si `/api/health` ne répond pas 200 → relance de `bobine-backend` ; si le service kiosk est activé mais qu'aucun processus Chromium n'est présent → relance de `bobine-kiosk`. Complète `Restart=always` (mort du *processus*) pour les défaillances *logiques* (backend vivant mais base verrouillée, Chromium gelé…).
 - `bobine-redirect.service` : Redirection nftables du port 80 vers 8000.
 
-**Contrôle de santé** — `GET /api/health` renvoie `{"status": "ok"|"degraded", "components": {"redis", "database", "kiosk"}}`, avec HTTP `200` si Redis ET la base répondent, sinon `503` (l'état du kiosque est indicatif et n'affecte pas le code HTTP). C'est le point consommé par le watchdog ci-dessus et par toute supervision externe.
+**Contrôle de santé** — `GET /api/health` renvoie `{"status": "ok"|"degraded", "components": {"database", "kiosk"}}`, avec HTTP `200` si la base répond, sinon `503` (l'état du kiosque est indicatif et n'affecte pas le code HTTP). C'est le point consommé par le watchdog ci-dessus et par toute supervision externe.
 
 Pas de service dédié pour le canal Radio (arbitrage A5, cf. §5) : `/radio` s'ouvre à la main dans un navigateur, sur le même backend.
 

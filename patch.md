@@ -98,3 +98,22 @@ Ce document consigne les évolutions, correctifs et améliorations UI/UX apport�
   - Bouton interactif « Rechercher une mise à jour » avec animation de rotation fluide (`.olc-spin`).
   - Affichage de la version actuelle et du commit actif.
   - Badge « Système à jour » ou notification détaillée avec notes de version dépliables et bouton d'installation directe.
+
+---
+
+## 6. Mission PortabiliteCrossPlatformX — Lot 0 : suppression de Redis, backend mono-processus
+
+### Contexte
+Premier lot d'un chantier de portabilité multi-OS (Windows, Linux de bureau, macOS) détaillé dans [`docs/cahier-des-charges-multi-os.md`](docs/cahier-des-charges-multi-os.md) et [`docs/plan-implementation-portabilite-crossplatformx.md`](docs/plan-implementation-portabilite-crossplatformx.md). Ce lot est un préalable architectural bloquant pour les lots suivants (voir ces documents pour le détail complet).
+
+### Impact site web / releases
+- **Aucun impact utilisateur ni sur le site bobine.fit** : changement d'architecture interne, aucune fonctionnalité visible n'est ajoutée ou retirée.
+- **À mentionner dans les notes de la prochaine release GitHub** : suppression de la dépendance à Redis (utile pour quiconque aurait scripté une supervision externe autour de `redis-server` sur son installation).
+
+### Modifications techniques (résumé — détail dans le CDC §4)
+- Backend passé de 4 workers `uvicorn` à 1 seul (`install.sh`, `bobine-backend.service`) : l'état de lecture (câblé/réseau/radio), les verrous de tick et de planning, la file d'import et le bail « kiosque primaire » vivent désormais entièrement en mémoire d'un seul processus, sans bus d'état externe.
+- Suppression complète de la dépendance `redis` (`backend/requirements.txt`, `install.sh`, `scripts/watchdog.sh`).
+- `backend/app/utils/redis_client.py` et `tick_lock.py` supprimés ; `boot_state.py` simplifié (identifiant de démarrage local au processus, sans lecture `/proc`).
+- `GET /api/health` ne rapporte plus de composant « redis ».
+- Aucune migration de données : Redis ne portait que de l'état transitoire, jamais de données persistantes (SQLite reste l'unique stockage).
+- Documentation corrigée en conséquence : `README.md`/`README.fr.md`, `docs/ARCHITECTURE.md`, `docs/cahier-des-charges-radio.md`, contexte des agents IA (`.agents/`, `.gemini/`).

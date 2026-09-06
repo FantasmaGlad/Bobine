@@ -19,10 +19,10 @@ if _IS_SQLITE:
 engine = create_engine(
     settings.database_url,
     connect_args=connect_args,
-    # Avec plusieurs workers uvicorn (réf. plan perf/concurrence Phase 2, P3),
-    # chaque processus tient son propre pool de connexions vers le même
-    # fichier SQLite : un pool trop petit ferait attendre les requêtes pour
-    # rien sur une machine qui a par ailleurs de la marge mémoire.
+    # Plusieurs requêtes concurrentes (kiosk, télécommandes, admin, imports)
+    # peuvent ouvrir une session DB en même temps au sein de ce seul
+    # processus : un pool trop petit ferait attendre les requêtes pour rien
+    # sur une machine qui a par ailleurs de la marge mémoire.
     pool_size=5,
     max_overflow=5,
     pool_timeout=30,
@@ -34,8 +34,9 @@ engine = create_engine(
 def _set_sqlite_pragma(dbapi_connection, connection_record):
     """
     Mode WAL (Write-Ahead Logging) : autorise des lectures concurrentes
-    pendant une écriture, indispensable dès qu'on a plusieurs workers sur le
-    même fichier SQLite (réf. P3). busy_timeout fait patienter une connexion
+    pendant une écriture, utile dès que plusieurs requêtes/tâches de fond du
+    même processus accèdent au fichier SQLite en parallèle. busy_timeout fait
+    patienter une connexion
     en conflit d'écriture jusqu'à 30s au lieu de lever immédiatement
     "database is locked" — la RetryingSession ci-dessous ne sert donc qu'en
     dernier recours, si ce délai est lui-même dépassé.
@@ -176,16 +177,13 @@ def _migrate_add_missing_columns():
     bases déjà en production. Idempotent : ne fait rien si la colonne existe.
 
     Le check-then-act ci-dessous (PRAGMA table_info puis ALTER TABLE) n'est
-    PAS atomique : avec plusieurs workers uvicorn qui démarrent en même temps
-    (réf. constat en production, `--workers 4`) et appellent chacun cette
-    fonction, deux workers peuvent tous les deux constater l'absence d'une
-    colonne avant qu'aucun des deux n'ait eu le temps de l'ajouter — le second
-    ALTER TABLE échoue alors avec "duplicate column name" et fait planter tout
-    son worker au démarrage (`Application startup failed. Exiting.`). Chaque
-    ALTER TABLE est donc protégé individuellement : une collision concurrente
-    signifie qu'un AUTRE worker a gagné la course et a déjà ajouté la même
-    colonne — inoffensif, on l'ignore silencieusement plutôt que de laisser
-    planter le worker perdant.
+    pas atomique. Historiquement (avant PortabiliteCrossPlatformX Lot 0), les
+    4 workers uvicorn appelaient chacun cette fonction à leur propre
+    démarrage, avec un vrai risque de collision ("duplicate column name")
+    entre deux d'entre eux. Chaque ALTER TABLE reste protégé individuellement
+    par prudence (ignore silencieusement une collision plutôt que de faire
+    planter le démarrage), même si le scénario d'origine ne peut plus se
+    produire en process unique.
     """
     from sqlalchemy import text
     from sqlalchemy.exc import OperationalError

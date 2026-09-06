@@ -136,10 +136,12 @@ Ajout des entrées dans `frontend/src/lib/navLinks.ts` (3 nouveaux onglets ;
 ### 5.1 Nouveau canal `radio`
 
 Le `playback_manager` gère aujourd'hui `cable` et `network`. On ajoute
-`radio` comme troisième canal, avec son **propre état** dans Redis (bus d'état
-partagé, cf. §2 du README). Aucune interaction avec les autres canaux (D8).
+`radio` comme troisième canal, avec son **propre état** en mémoire du
+processus backend (cf. `docs/ARCHITECTURE.md` §2 — mono-processus depuis
+PortabiliteCrossPlatformX Lot 0). Aucune interaction avec les autres canaux
+(D8).
 
-L'état radio (Redis, sérialisé, diffusé par `/ws/playback` filtré sur le
+L'état radio (en mémoire, diffusé par `/ws/playback` filtré sur le
 canal) comprend :
 
 ```

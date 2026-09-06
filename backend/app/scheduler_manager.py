@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 from datetime import date, datetime, timedelta, timezone
@@ -23,7 +22,6 @@ from app.models import (
     Video,
 )
 from app.playback_manager import PlaybackStateEnum, get_playback_manager
-from app.utils.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -266,37 +264,24 @@ async def _launch_radio_shuffle_all(db: Session) -> str | None:
 async def autostart_default_radio_playlist() -> None:
     """Auto-démarrage au boot (réf. lot L7, D10) : si le canal radio est au
     repos et `radio_autostart_on_boot` est actif, charge la playlist
-    d'ambiance par défaut. À appeler une fois au démarrage du service, APRÈS
-    la reprise d'état Redis (sync_from_redis) — si un autre worker du même
-    lancement a déjà une lecture en cours, l'état repris n'est plus "idle" et
-    cet appel ne fait rien (pas de double lancement).
+    d'ambiance par défaut. À appeler une fois au démarrage du service — si
+    une lecture est déjà en cours (ex. relancée par une commande arrivée
+    entre-temps), l'état n'est plus "idle" et cet appel ne fait rien.
 
-    CORRECTIF (réf. « musiques qui switchent/se chevauchent en permanence ») :
-    contrairement à `fire_schedule`/`fire_schedule_end` (protégés par
-    `_acquire_fire_lock`), cette fonction est appelée directement par CHAQUE
-    worker uvicorn à SON PROPRE démarrage (main.py, pas de callback
-    planning) — sans verrou, les 4 workers exécutaient CHACUN
-    `_launch_radio_shuffle_all` (shuffle=True) en parallèle, calculant CHACUN
-    son propre tirage aléatoire : 4 ordres de lecture divergents en mémoire,
-    un par worker. Un client qui retombe sur un worker différent (resync
-    périodique `GET /api/radio/state`, ou simplement une requête de streaming
-    routée vers un autre worker) voyait alors une piste totalement
-    différente en cours — d'où des changements de piste qui semblaient
-    aléatoires/incessants. Même verrou Redis SET NX PX que le planning : un
-    seul worker agit, les autres reçoivent son état via la diffusion Redis
-    (`apply_remote_state`) — pourvu que `start_redis_listener()` tourne déjà
-    sur CE worker avant cet appel (réf. main.py)."""
+    CORRECTIF historique (réf. « musiques qui switchent/se chevauchent en
+    permanence », avant PortabiliteCrossPlatformX Lot 0) : avec 4 workers
+    uvicorn, cette fonction était appelée par CHACUN à son propre démarrage,
+    calculant chacun son propre tirage aléatoire — d'où des changements de
+    piste qui semblaient incessants. Process unique depuis le Lot 0 (voir
+    `docs/cahier-des-charges-multi-os.md` §4) : `main.py` n'appelle plus
+    cette fonction qu'une seule fois, le problème ne peut plus se poser."""
     from app.config import settings as runtime_settings
     from app.radio_manager import get_radio_manager
-    from app.utils.tick_lock import acquire_tick_lock
 
     if not runtime_settings.radio_autostart_on_boot:
         return
     manager = get_radio_manager()
     if manager.state["state"] != "idle":
-        return
-    if not await acquire_tick_lock("radio:autostart_lock", ttl_ms=10_000):
-        logger.info("Auto-démarrage radio déjà pris en charge par un autre worker, ignoré ici")
         return
     db = SessionLocal()
     try:
@@ -443,44 +428,14 @@ async def _launch_target(
         await manager.load_playlist(playlist.id, playlist.name, items_data)
 
 
-async def _acquire_fire_lock(schedule_id: int | str) -> bool:
-    """
-    Avec plusieurs workers uvicorn (réf. plan perf/concurrence Phase 1), chaque
-    processus démarre son propre AsyncIOScheduler à partir de la même règle
-    cron : sans garde-fou, une programmation se déclencherait donc une fois
-    PAR worker au même instant. Un verrou distribué Redis (SET NX PX) garantit
-    qu'un seul worker exécute réellement le lancement — les autres constatent
-    que le verrou est déjà pris et abandonnent silencieusement.
-
-    Tous les workers tournent sur la même machine (même horloge système), donc
-    leurs AsyncIOScheduler respectifs déclenchent le même job à quelques
-    millisecondes d'écart, pas à la seconde près : une fenêtre de 2s (avec une
-    expiration tout aussi courte, pour ne pas bloquer une occurrence future
-    distincte) suffit largement à les regrouper sous la même clé sans risquer
-    de retenir un verrou périmé d'une exécution précédente.
-
-    Si Redis est injoignable, on choisit de laisser passer l'exécution plutôt
-    que de risquer de perdre une programmation : mieux vaut un déclenchement
-    en double occasionnel qu'un cours qui ne démarre jamais.
-    """
-    two_second_bucket = int(datetime.now(timezone.utc).timestamp() // 2)
-    lock_key = f"schedule:firelock:{schedule_id}:{two_second_bucket}"
-    try:
-        acquired = await get_redis().set(lock_key, "1", nx=True, px=10_000)
-        return bool(acquired)
-    except Exception as e:
-        logger.warning(
-            f"Verrou Redis indisponible pour la programmation {schedule_id}, "
-            f"exécution locale sans dédoublonnage inter-workers : {e}"
-        )
-        return True
-
-
 async def fire_schedule(schedule_id: int) -> None:
-    """Callback APScheduler déclenché à l'heure d'une programmation."""
-    if not await _acquire_fire_lock(schedule_id):
-        logger.info(f"Programmation {schedule_id} déjà prise en charge par un autre worker, ignorée ici")
-        return
+    """Callback APScheduler déclenché à l'heure d'une programmation.
+
+    Avant PortabiliteCrossPlatformX Lot 0, un verrou distribué Redis
+    dédoublonnait ce déclenchement entre les 4 workers uvicorn, chacun ayant
+    son propre AsyncIOScheduler armé sur la même règle cron. Process unique
+    depuis ce lot : un seul AsyncIOScheduler existe, plus de doublon possible
+    par construction (voir `docs/cahier-des-charges-multi-os.md` §4)."""
     db = SessionLocal()
     try:
         schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
@@ -529,10 +484,6 @@ async def fire_schedule_end(schedule_id: int) -> None:
     L7, D9/A1) : retour à la playlist d'ambiance par défaut. N'existe que pour
     les programmations radio récurrentes avec `end_time` (pas de mode 24/7,
     pas de programmation ponctuelle — cf. _sync_end_job)."""
-    lock_id = f"{schedule_id}-end"
-    if not await _acquire_fire_lock(lock_id):
-        logger.info(f"Fin de fenêtre {schedule_id} déjà prise en charge par un autre worker, ignorée ici")
-        return
     db = SessionLocal()
     try:
         schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
@@ -650,104 +601,6 @@ def remove_schedule_job(schedule_id: int) -> None:
     if _scheduler.get_job(_job_id(schedule_id)):
         _scheduler.remove_job(_job_id(schedule_id))
     remove_end_schedule_job(schedule_id)
-
-
-# ---------------------------------------------------------------------------
-# Propagation inter-workers (réf. correctif "la modification d'un planning ne
-# se propage qu'au worker qui a reçu la requête") : sync_schedule_job/
-# remove_schedule_job ci-dessus ne touchent que l'AsyncIOScheduler EN MÉMOIRE
-# du worker courant, sans jobstore ni verrou partagé. En production (install.sh
-# lance uvicorn --workers 4), seul le worker ayant reçu la requête HTTP de
-# création/modification/suppression voyait donc son déclencheur à jour — les
-# 3 autres gardaient l'ancien : une récurrence modifiée se déclenchait alors
-# en double à l'ancien horaire (chaque worker restant la déclenche une fois),
-# et un déplacement d'horaire pouvait ne jamais se déclencher si l'ancien tir,
-# sur un des workers à jour, avait déjà marqué l'occurrence "once" comme faite.
-#
-# On republie donc chaque changement sur un canal Redis dédié, sur le même
-# principe que ws_manager.py pour l'état de lecture : CHAQUE worker (y
-# compris l'émetteur, qui réapplique alors sans effet réel) relit la
-# programmation depuis SA PROPRE session DB et appelle la fonction locale
-# ci-dessus — pas l'objet Schedule lui-même qui ne voyage pas sur Redis.
-SCHEDULE_SYNC_CHANNEL = "schedule:sync"
-
-_schedule_sync_task: asyncio.Task | None = None
-
-
-async def broadcast_schedule_change(schedule_id: int, removed: bool = False) -> None:
-    """À appeler après CHAQUE création/modification/suppression de
-    programmation (cf. routers/schedule.py), en plus de l'appel local à
-    sync_schedule_job/remove_schedule_job — jamais à la place."""
-    try:
-        await get_redis().publish(
-            SCHEDULE_SYNC_CHANNEL,
-            json.dumps({"schedule_id": schedule_id, "removed": removed}),
-        )
-    except Exception as e:
-        logger.warning(
-            f"Publication Redis indisponible pour la programmation {schedule_id} : "
-            f"les autres workers ne verront ce changement qu'à leur prochain redémarrage. {e}"
-        )
-
-
-def _apply_schedule_sync_message(data: dict) -> None:
-    schedule_id = data.get("schedule_id")
-    if schedule_id is None:
-        return
-    if data.get("removed"):
-        remove_schedule_job(schedule_id)
-        return
-    db = SessionLocal()
-    try:
-        schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
-        # Déjà supprimée/désactivée entre l'émission et la réception ailleurs
-        # (rare mais possible) : sync_schedule_job gère déjà ce cas via
-        # `schedule.active`, il ne reste qu'à couvrir la suppression pure.
-        if schedule:
-            sync_schedule_job(schedule)
-        else:
-            remove_schedule_job(schedule_id)
-    finally:
-        db.close()
-
-
-async def _listen_schedule_sync(pubsub) -> None:
-    try:
-        async for message in pubsub.listen():
-            if message.get("type") != "message":
-                continue
-            try:
-                data = json.loads(message["data"])
-            except (TypeError, ValueError):
-                logger.warning("Message de synchronisation planning invalide, ignoré")
-                continue
-            try:
-                _apply_schedule_sync_message(data)
-            except Exception as e:
-                logger.error(f"Échec d'application d'une synchronisation de planning distante : {e}")
-    except asyncio.CancelledError:
-        pass
-    finally:
-        await pubsub.unsubscribe(SCHEDULE_SYNC_CHANNEL)
-        await pubsub.aclose()
-
-
-async def start_schedule_sync_listener() -> None:
-    global _schedule_sync_task
-    pubsub = get_redis().pubsub()
-    await pubsub.subscribe(SCHEDULE_SYNC_CHANNEL)
-    _schedule_sync_task = asyncio.create_task(_listen_schedule_sync(pubsub))
-
-
-async def stop_schedule_sync_listener() -> None:
-    global _schedule_sync_task
-    if _schedule_sync_task:
-        _schedule_sync_task.cancel()
-        try:
-            await _schedule_sync_task
-        except asyncio.CancelledError:
-            pass
-        _schedule_sync_task = None
 
 
 def start_scheduler() -> None:

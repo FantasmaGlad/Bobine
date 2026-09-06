@@ -5,30 +5,23 @@ Sous-système INDÉPENDANT du PlaybackManager câblé/réseau (décisions D1/D2)
 (shuffle), répétition (piste/playlist), file d'attente « à suivre », volume.
 
 Comme le PlaybackManager, il fait autorité sur l'ÉTAT LOGIQUE partagé (diffusé à
-tous les clients via WebSocket + persisté dans Redis pour la synchro inter-workers).
-La lecture audio réelle est faite par l'écran `/radio` (lot L4) : il rapporte la
-position et signale la fin de piste (`radio_track_ended`), le moteur avance alors
-selon repeat/shuffle/queue. Le crossfade viendra au lot L5.
+tous les clients via WebSocket). La lecture audio réelle est faite par l'écran
+`/radio` (lot L4) : il rapporte la position et signale la fin de piste
+(`radio_track_ended`), le moteur avance alors selon repeat/shuffle/queue.
 """
 import asyncio
-import json
 import logging
-import os
 import random
 import time
 from typing import Any, Awaitable, Callable
 
 from app.config import settings
-from app.utils.boot_state import current_boot_id
-from app.utils.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
 BroadcastFn = Callable[[dict], Awaitable[None]]
 
 RADIO_CHANNEL = "radio"
-REDIS_STATE_KEY = "radio:state"
-RADIO_BOOT_KEY = "radio:boot_id"
 
 REPEAT_MODES = ("off", "playlist", "track")
 
@@ -36,7 +29,6 @@ REPEAT_MODES = ("off", "playlist", "track")
 class RadioPlaybackManager:
     def __init__(self, broadcast: BroadcastFn):
         self._broadcast = broadcast
-        self._worker_id = str(os.getpid())
         self._last_direct_report = 0.0
         self._position_broadcast_task: asyncio.Task | None = None
         # Avance différée (réf. lot L6, D12 « toutes les N musiques ») : la fin
@@ -71,65 +63,21 @@ class RadioPlaybackManager:
         }
 
     # ------------------------------------------------------------------
-    # État partagé (Redis) + diffusion
+    # Diffusion
     # ------------------------------------------------------------------
     def snapshot(self) -> dict:
         return dict(self.state)
-
-    async def sync_from_redis(self):
-        """Reprend l'état radio publié par un autre worker au démarrage. Purge
-        l'état d'un lancement de service PRÉCÉDENT (correctif « pas de fantôme »,
-        clé boot dédiée pour ne pas entrer en concurrence avec le PlaybackManager)."""
-        try:
-            redis = get_redis()
-            boot_id = current_boot_id()
-            stored = await redis.get(RADIO_BOOT_KEY)
-            if stored != boot_id:
-                await redis.set(RADIO_BOOT_KEY, boot_id)
-                await redis.delete(REDIS_STATE_KEY)
-                logger.info("Nouveau lancement du service : état radio temporaire purgé")
-                return
-            raw = await redis.get(REDIS_STATE_KEY)
-        except Exception as e:
-            logger.warning(f"Impossible de lire l'état radio depuis Redis au démarrage : {e}")
-            return
-        if not raw:
-            return
-        try:
-            saved = json.loads(raw)
-        except (TypeError, ValueError):
-            logger.warning("État radio Redis illisible, ignoré")
-            return
-        for key in self.state:
-            if key in saved:
-                self.state[key] = saved[key]
-
-    async def _persist_to_redis(self):
-        try:
-            await get_redis().set(REDIS_STATE_KEY, json.dumps(self.state))
-        except Exception as e:
-            logger.warning(f"Impossible d'enregistrer l'état radio dans Redis : {e}")
 
     async def _emit(self, cause: str, client_ts: float | None = None):
         payload: dict[str, Any] = {
             "event": "state_change",
             "cause": cause,
-            "origin": self._worker_id,
             "channel": RADIO_CHANNEL,
             "data": self.snapshot(),
         }
         if client_ts is not None:
             payload["client_ts"] = client_ts
-        await self._persist_to_redis()
         await self._broadcast(payload)
-
-    def apply_remote_state(self, data: dict, origin: str | None):
-        """Applique un état radio diffusé par un AUTRE worker (synchro inter-workers)."""
-        if origin is not None and origin == self._worker_id:
-            return
-        for key in self.state:
-            if key in data:
-                self.state[key] = data[key]
 
     # ------------------------------------------------------------------
     # Boucle de diffusion de la position (pour la barre de progression live)
@@ -147,9 +95,8 @@ class RadioPlaybackManager:
         try:
             while True:
                 await asyncio.sleep(1.0)
-                # Seul le worker qui tient la connexion du lecteur /radio
-                # (source de la position) diffuse les ticks, et seulement en
-                # lecture — évite des ticks contradictoires entre workers.
+                # Ne diffuse que si le lecteur /radio rapporte activement sa
+                # position (cf. report_position) et seulement en lecture.
                 if self.state["playing"] and (time.monotonic() - self._last_direct_report) < 5.0:
                     await self._emit("radio_position_tick")
         except asyncio.CancelledError:
@@ -423,7 +370,6 @@ class RadioPlaybackManager:
         appel — la boucle de position s'en charge)."""
         self.state["position_seconds"] = max(0.0, position_seconds)
         self._last_direct_report = time.monotonic()
-        await self._persist_to_redis()
 
 
 _manager: RadioPlaybackManager | None = None

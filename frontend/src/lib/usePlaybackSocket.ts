@@ -144,25 +144,20 @@ function getApiUrl(path: string): string {
 
 // Intervalle du filet de sécurité de resynchronisation (réf. audit
 // plan-corrections-bugs, points 2a/3) : un `broadcast()` peut échouer
-// silencieusement (accroc Redis) sans jamais faire tomber la connexion
-// WebSocket — dans ce cas aucun `state_change` ne rattrape jamais l'état
-// affiché. Ce re-fetch REST périodique recale l'état local sur l'état
-// réel du serveur même quand aucun évènement WebSocket n'est perdu.
+// silencieusement sans jamais faire tomber la connexion WebSocket — dans ce
+// cas aucun `state_change` ne rattrape jamais l'état affiché. Ce re-fetch
+// REST périodique recale l'état local sur l'état réel du serveur même quand
+// aucun évènement WebSocket n'est perdu.
 const RESYNC_INTERVAL_MS = 15000;
 
-// Renouvellement du bail primaire (réf. correctif "freeze vidéo réseau") :
-// doit rester nettement sous PRIMARY_LEASE_TTL_SECONDS (12s, backend
-// ws_manager.py) pour ne jamais laisser le bail expirer pendant qu'un kiosk
-// est toujours bien connecté.
-const KIOSK_IDENTIFY_INTERVAL_MS = 5000;
 const KIOSK_CLIENT_ID_STORAGE_KEY = "olc-kiosk-client-id";
 
 /**
  * Identifiant stable de CET appareil/onglet kiosk, persistant across
  * reconnexions WebSocket (contrairement à l'objet WebSocket lui-même) — la
- * clé du bail primaire Redis côté backend (cf. ws_manager.py,
- * PRIMARY_LEASE_KEY_PREFIX). Sans lui, une reconnexion qui atterrit sur un
- * autre worker uvicorn ne serait pas reconnue comme le même kiosk.
+ * clé du rôle primaire côté backend (cf. ws_manager.py,
+ * `_primary_client_id`). Sans lui, une reconnexion (nouvelle WebSocket)
+ * ne serait pas reconnue comme le même kiosk.
  */
 function getOrCreateKioskClientId(): string {
   if (typeof window === "undefined") return "";
@@ -268,8 +263,6 @@ export function usePlaybackSocket(
     let retryDelay = 1000;
     const MAX_RETRY_DELAY = 30000;
 
-    let identifyInterval: ReturnType<typeof setInterval> | undefined;
-
     const connect = () => {
       if (cancelled) return;
       const ws = new WebSocket(getWsUrl());
@@ -296,15 +289,14 @@ export function usePlaybackSocket(
         retryDelay = 1000;
         // Identification du rôle kiosk (réf. correctif P4) : envoyée dès
         // l'ouverture de la connexion pour que le backend puisse assigner
-        // le rôle primaire/miroir avant tout report_position, PUIS répétée
-        // périodiquement (réf. correctif "freeze vidéo réseau") pour
-        // renouveler le bail primaire Redis avant son expiration — sans ça,
-        // un kiosk pourtant toujours connecté finirait par perdre son statut
-        // primaire au bout de PRIMARY_LEASE_TTL_SECONDS.
+        // le rôle primaire/miroir avant tout report_position. Pas de
+        // renouvellement périodique nécessaire : le rôle primaire, côté
+        // backend, n'expire plus jamais tout seul (cf. ws_manager.py) — il
+        // n'est repris que sur une vraie déconnexion, auquel cas le backend
+        // pousse lui-même "promoted_primary" (cf. plus bas) pour déclencher
+        // un nouvel identify immédiat.
         if (role === "kiosk") {
           sendIdentify();
-          clearInterval(identifyInterval);
-          identifyInterval = setInterval(sendIdentify, KIOSK_IDENTIFY_INTERVAL_MS);
         }
         // Rejoue les commandes mises en file pendant la coupure (voir
         // sendCommand) — uniquement les fraîches, dans l'ordre d'émission.
@@ -341,10 +333,8 @@ export function usePlaybackSocket(
           }
           if (parsed.event === "promoted_primary") {
             // Le kiosk primaire du canal s'est déconnecté et a libéré son
-            // bail — on retente immédiatement notre identify (au lieu
-            // d'attendre le prochain renouvellement périodique) pour
-            // réclamer le rôle sans délai ; le backend confirmera via
-            // "kiosk_role".
+            // rôle — on retente immédiatement notre identify pour le
+            // réclamer sans délai ; le backend confirmera via "kiosk_role".
             sendIdentify();
             return;
           }
@@ -414,7 +404,6 @@ export function usePlaybackSocket(
         // programmer une seconde reconnexion concurrente à celle éventuelle
         // de la connexion réellement active.
         if (wsRef.current !== ws) return;
-        clearInterval(identifyInterval);
         setConnected(false);
         setIsPrimary(false);
         wsRef.current = null;
@@ -434,7 +423,6 @@ export function usePlaybackSocket(
     return () => {
       cancelled = true;
       clearTimeout(reconnectTimer);
-      clearInterval(identifyInterval);
       if (cinemaLockedTimerRef.current) clearTimeout(cinemaLockedTimerRef.current);
       wsRef.current?.close();
     };
@@ -444,9 +432,9 @@ export function usePlaybackSocket(
   // plan-corrections-bugs, points 2a/3) : indépendant du cycle de vie de la
   // connexion WebSocket ci-dessus. Recale l'état local sur `GET
   // /api/playback/state` à intervalle régulier, pour rattraper un
-  // `broadcast()` perdu côté serveur (Redis en accroc) sans que la
-  // connexion WebSocket elle-même n'ait jamais été coupée — dans ce cas
-  // aucun `state_change` de rattrapage n'arriverait jamais autrement.
+  // `broadcast()` perdu côté serveur sans que la connexion WebSocket
+  // elle-même n'ait jamais été coupée — dans ce cas aucun `state_change` de
+  // rattrapage n'arriverait jamais autrement.
   useEffect(() => {
     let cancelled = false;
     const resync = () => {
@@ -459,8 +447,8 @@ export function usePlaybackSocket(
           // Correctif "kiosk miroir figé" : jusqu'ici ce filet de sécurité
           // mettait à jour `state` (l'affichage textuel) mais n'appelait
           // jamais `onEvent` — le <video> du kiosk n'était donc JAMAIS
-          // corrigé par ce chemin. Un `state_change` perdu (accroc Redis,
-          // reconnexion WebSocket manquée) laissait alors la vidéo figée sur
+          // corrigé par ce chemin. Un `state_change` perdu (reconnexion
+          // WebSocket manquée) laissait alors la vidéo figée sur
           // sa dernière position connue indéfiniment, jusqu'au prochain
           // évènement WebSocket qui pouvait ne jamais arriver. On rejoue donc
           // ici un évènement "sync" synthétique, exactement comme au premier

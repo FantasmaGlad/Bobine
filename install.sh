@@ -666,16 +666,9 @@ else
         ca-certificates \
         gnupg \
         sudo \
-        redis-server \
         avahi-daemon \
         nftables
     ok "paquets système de base installés"
-
-    # Redis sert de bus d'état partagé entre les 4 workers uvicorn : synchronisation
-    # du PlaybackManager et diffusion WebSocket inter-workers. Empreinte mémoire
-    # négligeable (~5 Mo au repos) sur le Wyse 5070.
-    run systemctl enable --now redis-server
-    ok "redis-server actif"
 
     # ----------------------------------------------------------------------
     # Détection matérielle DYNAMIQUE (GPU/CPU/firmware) : on adapte les paquets
@@ -928,15 +921,14 @@ step backend-service "Service systemd — backend FastAPI"
 write_file /etc/systemd/system/bobine-backend.service <<EOF
 [Unit]
 Description=Bobine - Backend FastAPI
-After=network.target redis-server.service
-Wants=redis-server.service
+After=network.target
 
 [Service]
 Type=simple
 User=${TARGET_USER}
 Group=${TARGET_USER}
 WorkingDirectory=${BACKEND_DIR}
-ExecStart=${VENV_DIR}/bin/uvicorn app.main:app --host 0.0.0.0 --port ${SERVICE_PORT} --workers 4
+ExecStart=${VENV_DIR}/bin/uvicorn app.main:app --host 0.0.0.0 --port ${SERVICE_PORT} --workers 1
 Restart=always
 RestartSec=2
 # Reprise après coupure électrique : démarrage automatique au boot via
@@ -1402,10 +1394,10 @@ step_done
 # ---------------------------------------------------------------------------
 step watchdog "Chien de garde de santé (watchdog)"
 # ---------------------------------------------------------------------------
-# Redémarrage AUTOMATIQUE d'un composant mort en consommant /api/health (Redis,
-# base SQLite, kiosque Chromium). Complète `Restart=always` de systemd, qui ne
+# Redémarrage AUTOMATIQUE d'un composant mort en consommant /api/health (base
+# SQLite, kiosque Chromium). Complète `Restart=always` de systemd, qui ne
 # couvre que la mort du *processus*, pas les défaillances *logiques* (backend
-# vivant mais Redis injoignable, Chromium gelé…). Piloté par un TIMER systemd
+# vivant mais base verrouillée, Chromium gelé…). Piloté par un TIMER systemd
 # (pas de process résident). Distinct du garde AUDIO (`bobine-audio-guard`, un
 # oneshot qui coupe le son hors session kiosk) : rôles séparés.
 run chmod +x "${REPO_DIR}/scripts/watchdog.sh"

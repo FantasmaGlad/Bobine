@@ -91,21 +91,6 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
         )
         self.db.commit()
 
-    async def asyncSetUp(self):
-        # Isolation Redis : fire_schedule pose un verrou anti-double-déclenchement
-        # (schedule:firelock:{id}:{bucket}, TTL 10 s, réf. scheduler_manager.
-        # _acquire_fire_lock) qui survit dans Redis d'un test à l'autre. Les ids
-        # de programmation étant réutilisés (table vidée à chaque tearDown), un
-        # test qui refire un id déjà tiré < 10 s plus tôt serait dédupliqué à
-        # tort — l'interruption ne serait alors jamais sauvegardée. On purge donc
-        # ces verrous avant chaque test (uniquement ces clés, pas de flush global
-        # qui viderait le Redis partagé du poste de dev).
-        from app.utils.redis_client import get_redis
-        redis = get_redis()
-        keys = await redis.keys("schedule:firelock:*")
-        if keys:
-            await redis.delete(*keys)
-
     def tearDown(self):
         stop_scheduler()
         self.db.query(PlaybackState).delete()

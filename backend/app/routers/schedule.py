@@ -19,7 +19,6 @@ from app.models import (
     Video,
 )
 from app.scheduler_manager import (
-    broadcast_schedule_change,
     ensure_utc,
     expand_occurrences,
     remove_schedule_job,
@@ -262,11 +261,6 @@ async def create_schedule(data: ScheduleInput, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(schedule)
     sync_schedule_job(schedule)
-    # Réf. correctif "la modification d'un planning ne se propage qu'au worker
-    # qui a reçu la requête" : sync_schedule_job ci-dessus ne met à jour QUE
-    # l'AsyncIOScheduler de CE worker, broadcast_schedule_change relaie le
-    # changement aux 3 autres via Redis.
-    await broadcast_schedule_change(schedule.id)
     title, _ = resolve_target_title(db, schedule.target_type, schedule.target_id)
     log_activity(db, "schedule_created", f"{title or schedule.target_type.value} ({schedule.schedule_type.value})")
     return _to_response(db, schedule)
@@ -290,7 +284,6 @@ async def update_schedule(schedule_id: int, data: ScheduleInput, db: Session = D
     db.commit()
     db.refresh(schedule)
     sync_schedule_job(schedule)
-    await broadcast_schedule_change(schedule.id)
     title, _ = resolve_target_title(db, schedule.target_type, schedule.target_id)
     log_activity(db, "schedule_updated", title or schedule.target_type.value)
     return _to_response(db, schedule)
@@ -305,7 +298,6 @@ async def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
     db.delete(schedule)
     db.commit()
     remove_schedule_job(schedule_id)
-    await broadcast_schedule_change(schedule_id, removed=True)
     log_activity(db, "schedule_deleted", title or schedule.target_type.value)
     return {"message": "Programmation supprimée avec succès"}
 

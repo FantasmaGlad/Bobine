@@ -272,9 +272,8 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
             # Identification du rôle du client (réf. correctif P4).
             # Le kiosk envoie {"command": "identify", "params": {"role":
             # "kiosk", "channel": "cable"|"network"|"radio", "client_id":
-            # "..."}} dès l'ouverture de la connexion, PUIS périodiquement en
-            # renouvellement (réf. correctif "freeze vidéo réseau" — le bail
-            # primaire Redis expire s'il n'est pas rafraîchi). On enregistre
+            # "..."}} dès l'ouverture de la connexion (et de nouveau si
+            # promu primaire, cf. évènement "promoted_primary"). On enregistre
             # son rôle SUR SON CANAL et on lui retourne son statut
             # primaire/miroir via un message dédié à chaque appel.
             if message.get("command") == "identify":

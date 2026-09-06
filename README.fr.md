@@ -61,7 +61,7 @@ https://github.com/user-attachments/assets/dfde9250-3016-43cc-af2d-5853f726ffe1
 - **Mode coach audio** — diffusez des cours audio sur les enceintes de la salle avec un fond visuel animé ou fixe à l'écran.
 - **Radio intégrée** — un lecteur de musique d'ambiance 24/7 façon Spotify, avec fondu enchaîné, aléatoire, répétition et rappels vocaux programmés (« replacez vos poids », etc.).
 - **Gestion de bibliothèque simple** — import par glisser-déposer, envoi en lot, catégories libres, sélection groupée, progression fichier par fichier, miniatures automatiques.
-- **Local-first et résilient** — backend multi-worker, état partagé, reprise automatique après un redémarrage ou une coupure, et un chien de garde qui redémarre un composant mort.
+- **Local-first et résilient** — reprise automatique après un redémarrage ou une coupure, et un chien de garde qui redémarre un composant mort.
 - **Admin web, zéro installation client** — tout s'administre depuis un navigateur ; les écrans adhérents et les télécommandes ne sont que des pages web.
 
 ---
@@ -70,7 +70,7 @@ https://github.com/user-attachments/assets/dfde9250-3016-43cc-af2d-5853f726ffe1
 
 Bobine est un unique mini PC sur votre réseau local qui fait tourner :
 
-- un backend **FastAPI** (multi-worker) avec **Redis** comme bus d'état partagé et **SQLite** pour le stockage ;
+- un backend **FastAPI** avec **SQLite** pour le stockage ;
 - un kiosque **Chromium** en plein écran (X11) pour l'écran câblé ;
 - une interface **Next.js** (admin, borne adhérent, télécommande mobile), servie en pages statiques depuis la même machine.
 
@@ -137,7 +137,7 @@ sudo ./install.sh
 - **Mode serveur seul (`--no-kiosk`)** : installe uniquement le backend et l'API, sans stack graphique locale.
 - **Diagnostic de santé (`--check`)** : vérifie l'état de l'installation et des services sans rien modifier.
 
-`install.sh` est idempotent et autonome. Il installe les paquets système, Redis, Node.js et l'environnement Python, construit l'interface web, écrit la configuration, enregistre les services systemd (backend, kiosque, garde audio, chien de garde de santé), publie le nom `bobine.local` sur le réseau et démarre le tout. Relancez-le après une mise à jour pour reconstruire et redémarrer proprement.
+`install.sh` est idempotent et autonome. Il installe les paquets système, Node.js et l'environnement Python, construit l'interface web, écrit la configuration, enregistre les services systemd (backend, kiosque, garde audio, chien de garde de santé), publie le nom `bobine.local` sur le réseau et démarre le tout. Relancez-le après une mise à jour pour reconstruire et redémarrer proprement.
 
 Pas d'internet à la salle ? Vous pouvez copier le dépôt depuis une autre machine par SSH (rsync) au lieu de le cloner — voir la section *Exploitation & déploiement* de [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -174,7 +174,7 @@ Bobine expose un point de contrôle de santé lisible par machine :
 GET http://bobine.local/api/health
 ```
 
-Il rapporte l'état de **Redis**, de la base **SQLite** et du **kiosque Chromium**, et renvoie `200` si tout va bien ou `503` si un composant critique est mort. Un **chien de garde** local le sonde et redémarre automatiquement un composant en panne (backend, Redis ou kiosque) : la salle se rétablit sans intervention. Tous les services redémarrent aussi automatiquement après une coupure de courant.
+Il rapporte l'état de la base **SQLite** et du **kiosque Chromium**, et renvoie `200` si tout va bien ou `503` si un composant critique est mort. Un **chien de garde** local le sonde et redémarre automatiquement un composant en panne (backend ou kiosque) : la salle se rétablit sans intervention. Tous les services redémarrent aussi automatiquement après une coupure de courant.
 
 ---
 

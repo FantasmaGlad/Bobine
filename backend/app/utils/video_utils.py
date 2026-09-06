@@ -5,10 +5,6 @@ import logging
 import uuid
 from pathlib import Path
 
-import redis as redis_sync
-
-from app.config import settings
-
 logger = logging.getLogger(__name__)
 
 
@@ -28,47 +24,6 @@ FFMPEG_THUMBNAIL_TIMEOUT_SECONDS = 30
 # CPU modeste du Wyse 5070) : laisse la place à un réencodage légitimement
 # long tout en bornant le pire cas (fichier corrompu/pathologique).
 FFMPEG_NORMALIZE_TIMEOUT_SECONDS = 1800
-
-# Verrou ffmpeg PARTAGÉ PAR LES 4 WORKERS UVICORN (réf. retour utilisateur
-# "l'importation des fonds animés bloque et ne termine jamais") :
-# `ffmpeg_executor` (app.utils.executors, thread unique) ne sérialise les
-# imports ffmpeg qu'AU SEIN d'un seul worker — un ThreadPoolExecutor est un
-# objet Python en mémoire, jamais partagé entre les 4 PROCESSUS uvicorn
-# séparés. Constaté en production : deux imports de fonds animés reçus par
-# deux workers différents ont chacun lancé leur propre ffmpeg, tournant
-# SIMULTANÉMENT à ~200% CPU chacun sur les 2-4 coeurs du Wyse 5070 — un
-# réencodage qui aurait pris quelques minutes seul s'étirait ainsi bien
-# au-delà, exactement le symptôme "ne termine jamais". Ce verrou Redis (déjà
-# utilisé ailleurs dans l'app pour la coordination inter-workers) garantit
-# qu'un seul ffmpeg de réencodage/remux tourne réellement à la fois, quel que
-# soit le worker qui a reçu la requête — les autres patientent leur tour.
-FFMPEG_GLOBAL_LOCK_NAME = "lock:ffmpeg_global"
-
-_ffmpeg_lock_client: "redis_sync.Redis | None" = None
-
-
-def _get_ffmpeg_lock_client() -> "redis_sync.Redis":
-    global _ffmpeg_lock_client
-    if _ffmpeg_lock_client is None:
-        _ffmpeg_lock_client = redis_sync.Redis.from_url(settings.redis_url, decode_responses=True)
-    return _ffmpeg_lock_client
-
-
-def _global_ffmpeg_lock():
-    """
-    `timeout` : expiration automatique si le porteur crashe sans relâcher le
-    verrou — plus long que FFMPEG_NORMALIZE_TIMEOUT_SECONDS pour ne jamais
-    expirer avant que le sous-processus ffmpeg n'ait lui-même été tué par son
-    propre timeout. `blocking_timeout` : abandon si la file d'attente est
-    déjà trop longue, plutôt que de patienter indéfiniment derrière plusieurs
-    autres imports.
-    """
-    return _get_ffmpeg_lock_client().lock(
-        FFMPEG_GLOBAL_LOCK_NAME,
-        timeout=FFMPEG_NORMALIZE_TIMEOUT_SECONDS + 120,
-        blocking_timeout=FFMPEG_NORMALIZE_TIMEOUT_SECONDS * 3,
-    )
-
 
 def get_video_info(file_path: str) -> dict:
     """
@@ -406,23 +361,15 @@ def normalize_video(input_path: str, output_path: str, actions: list, source_met
     cmd.extend(["-movflags", "+faststart"])
     cmd.extend(["-y", output_path])
 
-    # Verrou global (réf. constat en production ci-dessus) : attend son tour
-    # si un autre worker a déjà un ffmpeg de normalisation en cours, plutôt
-    # que de se lancer en parallèle et de se disputer le CPU avec lui.
-    lock = _global_ffmpeg_lock()
-    try:
-        if not lock.acquire(blocking=True):
-            raise ValueError(
-                "Trop d'imports vidéo en attente de traitement — réessayez dans quelques minutes."
-            )
-    except redis_sync.exceptions.RedisError as e:
-        # Redis injoignable : on laisse passer plutôt que de bloquer tout
-        # import (même compromis que les verrous de tick ailleurs dans
-        # l'app) — le risque de contention CPU redevient alors possible mais
-        # mieux vaut ça qu'un import qui échoue systématiquement.
-        logger.warning(f"Verrou ffmpeg Redis indisponible, normalisation sans verrou : {e}")
-        lock = None
-
+    # Pas de verrou explicite ici : cette fonction n'est jamais appelée que
+    # depuis `app.utils.executors.ffmpeg_executor` (ThreadPoolExecutor à un
+    # seul thread, partagé par tous les chemins d'import), qui sérialise déjà
+    # totalement les appels ffmpeg au sein de ce processus. Avant
+    # PortabiliteCrossPlatformX Lot 0, un verrou Redis était nécessaire en
+    # plus de cet exécuteur car chacun des 4 workers uvicorn avait SON PROPRE
+    # exécuteur mono-thread — un import par worker pouvait donc tourner en
+    # parallèle des 3 autres. Process unique depuis ce lot : un seul
+    # exécuteur existe, le problème ne peut plus se poser.
     try:
         subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=FFMPEG_NORMALIZE_TIMEOUT_SECONDS)
         return output_path
@@ -435,12 +382,3 @@ def normalize_video(input_path: str, output_path: str, actions: list, source_met
     except subprocess.CalledProcessError as e:
         logger.error(f"ffmpeg normalization failed: {e.stderr}")
         raise ValueError(f"Échec de la normalisation de la vidéo avec ffmpeg : {e.stderr}")
-    finally:
-        if lock is not None:
-            try:
-                lock.release()
-            except Exception as e:
-                # Verrou déjà expiré (timeout Redis dépassé) ou Redis
-                # devenu injoignable entre-temps : sans conséquence, il
-                # s'auto-expirera de toute façon via son propre `timeout`.
-                logger.warning(f"Impossible de relâcher le verrou ffmpeg proprement : {e}")
