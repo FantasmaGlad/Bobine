@@ -13,7 +13,11 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 from app.utils.activity_log import log_activity
-from app.utils.deployment import UpdateUnsupported, get_profile_handler
+from app.utils.deployment import (
+    UpdateUnsupported,
+    get_deployment_profile,
+    get_profile_handler,
+)
 from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
@@ -114,6 +118,9 @@ async def check_updates() -> dict[str, Any]:
 
     release_data = await loop.run_in_executor(None, _fetch_github)
 
+    profile = get_deployment_profile()
+    handler = get_profile_handler()
+
     if not release_data:
         return {
             "online": False,
@@ -126,6 +133,11 @@ async def check_updates() -> dict[str, Any]:
             "release_notes": None,
             "published_at": None,
             "html_url": None,
+            "can_auto_apply": handler.supports_git_versioning(),
+            "download_url": None,
+            "asset_name": None,
+            "asset_size": None,
+            "deployment_profile": profile,
             "message": "Impossible de contacter les serveurs de mise à jour (hors ligne ou indisponible).",
             "checked_at": now_iso,
         }
@@ -141,6 +153,30 @@ async def check_updates() -> dict[str, Any]:
     latest_semver = _parse_semver(latest_tag)
 
     has_update = latest_semver > local_semver
+    can_auto_apply = handler.supports_git_versioning()
+
+    # Recherche de l'asset adapté au profil de déploiement (Lot 1 Windows .exe,
+    # Lot 2 Linux bureau .deb, Lot 3 macOS .dmg)
+    assets = release_data.get("assets") or []
+    matched_asset = None
+    target_ext = None
+    if profile == "windows":
+        target_ext = ".exe"
+    elif profile == "linux-desktop":
+        target_ext = ".deb"
+    elif profile == "macos":
+        target_ext = ".dmg"
+
+    if target_ext:
+        for asset in assets:
+            name = (asset.get("name") or "").lower()
+            if name.endswith(target_ext):
+                matched_asset = asset
+                break
+
+    download_url = matched_asset.get("browser_download_url") if matched_asset else html_url
+    asset_name = matched_asset.get("name") if matched_asset else None
+    asset_size = matched_asset.get("size") if matched_asset else None
 
     return {
         "online": True,
@@ -153,6 +189,11 @@ async def check_updates() -> dict[str, Any]:
         "release_notes": release_notes,
         "published_at": published_at,
         "html_url": html_url,
+        "can_auto_apply": can_auto_apply,
+        "download_url": download_url,
+        "asset_name": asset_name,
+        "asset_size": asset_size,
+        "deployment_profile": profile,
         "checked_at": now_iso,
     }
 

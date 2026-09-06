@@ -179,6 +179,8 @@ Bobine advertises itself over **mDNS (Zeroconf/Bonjour)** as `bobine.local`. If 
 - **Mobile remote** — open `http://bobine.local` on a phone; it adapts to a remote-control layout for staff.
 - **Radio** — open the radio screen on a dedicated device to play background music continuously; controlled from the admin *Radio* tab.
 - **Screen sync** — *Settings → Sync screens* clears every connected screen's cache and reloads it with the latest assets, and restarts the services.
+- **Backup & Restore** — from *Settings → Backup & Restore*, download a full ZIP archive of your SQLite database and configurations, or restore a previous backup directly from the browser.
+- **Factory Data Reset** — from *Settings → Danger Zone*, reset application data (SQLite database and media) while keeping the installed software.
 
 ---
 

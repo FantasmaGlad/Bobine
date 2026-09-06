@@ -1,18 +1,36 @@
 import asyncio
+import io
+import json
 import logging
 import os
 import shutil
 import socket
+import sqlite3
+import tempfile
+import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import psutil
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    HTTPException,
+    Response,
+    UploadFile,
+)
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.config import settings as runtime_settings
-from app.database import get_db
+from app.config import (
+    ROOT_DIR,
+    _global_config_path,
+    settings as runtime_settings,
+)
+from app.database import _IS_SQLITE, engine, get_db, init_db
 from app.models import Setting
 from app.playback_manager import get_playback_manager
 from app.utils.activity_log import log_activity
@@ -25,6 +43,15 @@ from app.utils.deployment import (
 from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
+
+
+def _get_sqlite_db_path() -> Path | None:
+    """Résout le chemin absolu du fichier SQLite à partir de database_url."""
+    db_url = runtime_settings.database_url
+    if db_url.startswith("sqlite:///"):
+        path_str = db_url[len("sqlite:///"):]
+        return Path(path_str).resolve()
+    return None
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -580,3 +607,289 @@ async def uninstall_system(payload: UninstallRequest, background_tasks: Backgrou
         )
     background_tasks.add_task(_run_uninstall)
     return {"message": "Désinstallation lancée : la machine se remet à zéro, le service va s'arrêter et l'interface deviendra injoignable."}
+
+
+# ---------------------------------------------------------------------------
+# Sauvegarde & Restauration universelle (Base SQLite + config)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/backup/export")
+def export_backup() -> Response:
+    """
+    Exporte une archive ZIP de sauvegarde contenant :
+    - La base de données SQLite (après checkpoint WAL pour garantir sa consistance)
+    - Le fichier de configuration config.toml (si présent)
+    - Un manifest.json décrivant la version, la date et le profil.
+    """
+    if not _IS_SQLITE:
+        raise HTTPException(status_code=400, detail="L'export de sauvegarde n'est supporté que pour SQLite.")
+
+    db_path = _get_sqlite_db_path()
+    if not db_path or not db_path.exists():
+        raise HTTPException(status_code=404, detail="Fichier de base de données introuvable.")
+
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE);"))
+    except Exception as e:
+        logger.warning(f"Avertissement lors du checkpoint WAL avant sauvegarde : {e}")
+
+    manifest = {
+        "app": "Bobine",
+        "version": "2.0.1",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "deployment_profile": get_deployment_profile(),
+    }
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("manifest.json", json.dumps(manifest, indent=2))
+        zf.write(db_path, arcname="database.db")
+
+        cfg_path = _global_config_path()
+        if cfg_path.exists():
+            zf.write(cfg_path, arcname="config.toml")
+        elif (ROOT_DIR / "config.toml").exists():
+            zf.write(ROOT_DIR / "config.toml", arcname="config.toml")
+
+    buf.seek(0)
+    timestamp_str = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    filename = f"bobine-backup-{timestamp_str}.zip"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+async def _run_restore_restart():
+    """Tâche d'arrière-plan après restauration : force reload puis redémarrage."""
+    await asyncio.sleep(1.0)
+    try:
+        await ws_manager.broadcast_force_reload()
+    except Exception as e:
+        logger.warning(f"Échec force_reload après restauration : {e}")
+    await asyncio.sleep(1.0)
+    get_profile_handler().restart_services()
+
+
+@router.post("/backup/restore")
+async def restore_backup(
+    file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    """
+    Restaure une sauvegarde depuis une archive ZIP uploadée.
+    Valide l'archive, vérifie l'en-tête et les tables SQLite, effectue une copie .bak,
+    remplace la base de données et planifie le redémarrage.
+    """
+    if not _IS_SQLITE:
+        raise HTTPException(status_code=400, detail="La restauration n'est supportée que pour SQLite.")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Fichier de sauvegarde vide.")
+
+    buf = io.BytesIO(content)
+    if not zipfile.is_zipfile(buf):
+        raise HTTPException(status_code=400, detail="Le fichier fourni n'est pas une archive ZIP valide.")
+
+    db_path = _get_sqlite_db_path()
+    if not db_path:
+        raise HTTPException(status_code=500, detail="Chemin de la base de données introuvable.")
+
+    with zipfile.ZipFile(buf, "r") as zf:
+        namelist = zf.namelist()
+        if "database.db" not in namelist:
+            raise HTTPException(status_code=400, detail="Archive invalide : database.db manquant.")
+
+        db_bytes = zf.read("database.db")
+        if not db_bytes.startswith(b"SQLite format 3\x00"):
+            raise HTTPException(status_code=400, detail="Le fichier database.db n'est pas une base SQLite valide.")
+
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+                tmp.write(db_bytes)
+                tmp_path = Path(tmp.name)
+            try:
+                con = sqlite3.connect(tmp_path)
+                cur = con.cursor()
+                cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                tables = {row[0] for row in cur.fetchall()}
+                con.close()
+                if "videos" not in tables and "settings" not in tables:
+                    raise HTTPException(status_code=400, detail="La base dans l'archive ne contient pas les tables Bobine.")
+            finally:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Échec de validation de la base de données : {e}")
+
+        config_bytes = zf.read("config.toml") if "config.toml" in namelist else None
+
+    try:
+        log_activity(db, "settings", "Restauration d'une sauvegarde de données")
+    except Exception:
+        pass
+
+    try:
+        from sqlalchemy import text
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE);"))
+        except Exception:
+            pass
+        engine.dispose()
+
+        if db_path.exists():
+            bak_path = db_path.with_suffix(".db.bak")
+            shutil.copy2(db_path, bak_path)
+
+        wal_file = Path(f"{db_path}-wal")
+        shm_file = Path(f"{db_path}-shm")
+        if wal_file.exists():
+            try:
+                wal_file.unlink()
+            except Exception:
+                pass
+        if shm_file.exists():
+            try:
+                shm_file.unlink()
+            except Exception:
+                pass
+
+        with open(db_path, "wb") as f:
+            f.write(db_bytes)
+
+        if config_bytes:
+            cfg_path = _global_config_path()
+            try:
+                if cfg_path.parent.exists() and os.access(cfg_path.parent, os.W_OK):
+                    with open(cfg_path, "wb") as f:
+                        f.write(config_bytes)
+            except Exception as e:
+                logger.warning(f"Impossible d'écrire config.toml restauré : {e}")
+
+        init_db()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erreur critique lors du remplacement de la base de données : {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur lors du remplacement de la base : {e}")
+
+    background_tasks.add_task(_run_restore_restart)
+    return {
+        "status": "ok",
+        "message": "Sauvegarde restaurée avec succès. L'application redémarre...",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Remise à zéro d'usine des données (DATA_ROOT)
+# ---------------------------------------------------------------------------
+
+
+class ResetDataRequest(BaseModel):
+    confirm: str
+
+
+def _clean_dir_contents(dir_path: Path) -> None:
+    """Supprime tous les fichiers et sous-dossiers d'un répertoire sans supprimer le répertoire lui-même."""
+    if not dir_path.exists() or not dir_path.is_dir():
+        return
+    for item in dir_path.iterdir():
+        try:
+            if item.is_file() or item.is_symlink():
+                item.unlink()
+            elif item.is_dir():
+                shutil.rmtree(item)
+        except Exception as e:
+            logger.warning(f"Impossible de supprimer {item} lors du reset des données : {e}")
+
+
+async def _run_reset_data_restart():
+    """Tâche d'arrière-plan après réinitialisation d'usine des données."""
+    await asyncio.sleep(1.0)
+    try:
+        await ws_manager.broadcast_force_reload()
+    except Exception as e:
+        logger.warning(f"Échec force_reload après reset-data : {e}")
+    await asyncio.sleep(1.0)
+    get_profile_handler().restart_services()
+
+
+@router.post("/system/reset-data")
+async def reset_data_system(payload: ResetDataRequest, background_tasks: BackgroundTasks) -> dict[str, str]:
+    """
+    Remise à zéro d'usine des données (DATA_ROOT) :
+    - Purge tous les fichiers des dossiers de médias (vidéos, audio, radio, vignettes, fonds, logos, logs).
+    - Réinitialise la base de données SQLite à zéro avec un schéma vierge.
+    - Ne touche STRICTEMENT JAMAIS aux binaires applicatifs (/usr/lib/bobine, %ProgramFiles%, /Applications).
+    - Redémarre les services.
+    Action IRRÉVERSIBLE exigeant la saisie de 'REINITIALISER'.
+    """
+    phrase = payload.confirm.strip().upper().replace("É", "E")
+    if phrase != "REINITIALISER":
+        raise HTTPException(status_code=400, detail="Phrase de confirmation incorrecte. Saisissez REINITIALISER.")
+
+    dirs_to_clean = [
+        runtime_settings.media_dir,
+        runtime_settings.watch_dir,
+        runtime_settings.thumbnails_dir,
+        runtime_settings.backgrounds_dir,
+        runtime_settings.backgrounds_watch_dir,
+        runtime_settings.audio_dir,
+        runtime_settings.audio_watch_dir,
+        runtime_settings.radio_dir,
+        runtime_settings.radio_covers_dir,
+        runtime_settings.radio_announcements_dir,
+        runtime_settings.radio_watch_dir,
+        runtime_settings.branding_dir,
+        runtime_settings.logs_dir,
+    ]
+    for d in dirs_to_clean:
+        try:
+            _clean_dir_contents(Path(d))
+        except Exception as e:
+            logger.warning(f"Erreur lors du nettoyage du dossier {d} : {e}")
+
+    if _IS_SQLITE:
+        db_path = _get_sqlite_db_path()
+        try:
+            from sqlalchemy import text
+            try:
+                with engine.connect() as conn:
+                    conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE);"))
+            except Exception:
+                pass
+            engine.dispose()
+
+            if db_path and db_path.exists():
+                db_path.unlink()
+            wal_file = Path(f"{db_path}-wal") if db_path else None
+            shm_file = Path(f"{db_path}-shm") if db_path else None
+            if wal_file and wal_file.exists():
+                try:
+                    wal_file.unlink()
+                except Exception:
+                    pass
+            if shm_file and shm_file.exists():
+                try:
+                    shm_file.unlink()
+                except Exception:
+                    pass
+
+            init_db()
+        except Exception as e:
+            logger.error(f"Erreur lors de la remise à zéro de la base de données : {e}")
+            raise HTTPException(status_code=500, detail=f"Erreur lors du reset DB : {e}")
+
+    background_tasks.add_task(_run_reset_data_restart)
+    return {
+        "message": "Remise à zéro des données effectuée. L'application redémarre avec une configuration vierge.",
+    }

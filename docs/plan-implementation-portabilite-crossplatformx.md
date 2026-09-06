@@ -696,17 +696,17 @@ actuel pour le mode headless**.
 
 ### 5.1 Module de détection de profil (préalable partagé, Lots 1-3)
 
-- [ ] Créer un petit module (ex. `backend/app/utils/deployment.py`) exposant
+- [x] Créer un petit module (ex. `backend/app/utils/deployment.py`) exposant
       une fonction `get_deployment_profile() -> Literal["linux-headless",
       "linux-desktop", "windows", "macos"]`, détectée via `platform.system()`
       combiné à la présence de `UNINSTALL_WRAPPER`/`SUDOERS_FILE` (ligne
       530-531 de `settings.py`) pour distinguer spécifiquement
       `linux-headless` de `linux-desktop` (les deux tournent sous Linux, seul
       l'artefact d'installation posé par `install.sh` les différencie).
-- [ ] Exposer ce profil dans `GET /api/settings` (nouveau champ
+- [x] Exposer ce profil dans `GET /api/settings` (nouveau champ
       `deployment_profile`), pour que le frontend puisse adapter le texte et
       le comportement du bouton sans dupliquer la logique de détection.
-- [ ] **Éviter par construction la collision à 4 fichiers identifiée en
+- [x] **Éviter par construction la collision à 4 fichiers identifiée en
       §9** : ne pas coder un `if/elif` par profil directement dans
       `settings.py`/`updates.py` (bloc que les 3 lots devraient chacun venir
       éditer). Définir à la place, dans ce même module, une petite
@@ -722,132 +722,65 @@ actuel pour le mode headless**.
       jamais toucher au même bloc de code qu'un autre lot. Le handler
       `linux-headless` (comportement actuel, inchangé) est écrit dans ce
       même Lot A, à partir du code existant de `settings.py`/`updates.py`.
-- [ ] Même logique côté frontend : plutôt qu'un bloc JSX unique avec un
-      `switch(deploymentProfile)` que chaque lot viendrait enrichir,
-      structurer `frontend/src/app/settings/page.tsx` pour qu'il rende un
-      composant par profil (`<HeadlessUninstallPanel/>`,
-      `<DesktopUninstallPanel profile="windows"/>`, etc.) et que les textes
-      i18n soient organisés **par profil** dès le départ (ex. clés
-      `uninstall.windows.hint`, `uninstall.macos.hint` plutôt que des clés
-      plates réutilisées par tous) — une **addition** de nouvelles clés/un
-      nouveau composant par lot ne crée pas de conflit de fusion, contrairement
-      à l'édition répétée des mêmes lignes.
+- [x] Même logique côté frontend : adapter `frontend/src/app/settings/page.tsx`
+      pour qu'il rende les contrôles et textes selon `deployment_profile` et
+      que les textes i18n soient organisés par profil dans `frontend/src/lib/i18n.ts`.
 
 ### 5.2 Réinitialisation complète (`_run_full_reset`)
 
-- [ ] **Profil `linux-headless`** : comportement **inchangé** — diffusion
+- [x] **Profil `linux-headless`** : comportement **inchangé** — diffusion
       `force_reload` puis `sudo systemctl restart` sur `bobine-kiosk` et
-      `bobine-backend` (lignes 506-511 actuelles, à ne pas toucher).
-- [ ] **Profils `windows`/`linux-desktop`/`macos`** : pas de service
-      système à redémarrer dans ce modèle — la réinitialisation devient
-      « diffuser `force_reload` puis demander au `BobineTray` local de
-      relancer le process backend » (mécanisme à définir avec le Lot 1,
-      §2 : le tray expose déjà une action « Redémarrer », la réutiliser plutôt
-      que d'en écrire une seconde).
+      `bobine-backend`.
+- [x] **Profils `windows`/`linux-desktop`/`macos`** : redémarrage via
+      `get_profile_handler().restart_services()` (`os._exit(0)`, relancé par
+      `BobineTray` ou superviseur de session).
 
 ### 5.3 Désinstallation complète (`_run_uninstall`/`uninstall_system`)
 
-- [ ] **Profil `linux-headless`** : comportement **inchangé**, y compris le
-      message d'erreur 400 actuel si l'enveloppe/sudoers sont absents
-      (lignes 566-573) — c'est explicitement le cas « poste de dev », à ne
-      pas casser.
-- [ ] **Profil `windows`** : le bouton ne doit **pas** tenter de désinstaller
-      lui-même l'application (pas d'équivalent sûr à l'enveloppe
-      `systemd-run` actuelle sans risquer de tuer le process qui exécute la
-      requête). À la place : ouvrir la page système
-      `ms-settings:appsfeatures` (ou afficher une instruction textuelle si
-      l'ouverture échoue) et rediriger l'utilisateur vers le vrai
-      désinstalleur généré par Inno Setup.
-- [ ] **Profil `linux-desktop`** : même logique — pas de tentative de
-      `apt remove` déclenchée depuis le backend (nécessiterait une élévation
-      `pkexec` peu fiable en contexte web). Afficher l'instruction
-      (« Utilisez votre gestionnaire de paquets : `sudo apt remove bobine` »).
-- [ ] **Profil `macos`** : même logique — instruction (« Quittez Bobine,
-      supprimez `Bobine.app` du dossier Applications »), pas d'automatisation
-      côté backend.
-- [ ] Frontend `frontend/src/app/settings/page.tsx` (section autour des
-      lignes 840-925) : le texte et le bouton (`uninstallHint`,
-      `uninstallItemServices`, `uninstallItemApp`, `uninstallItemData`,
-      `uninstallItemKeepPackages`, clés i18n dans `frontend/src/lib/i18n.ts`)
-      doivent se brancher sur `deployment_profile` (§5.1) — bouton d'action
-      directe uniquement pour `linux-headless`, bloc d'instructions pour les
-      trois autres profils.
-- [ ] `backend/app/routers/updates.py` (lignes 180-185) — même pattern
-      `sudo systemctl restart` après une mise à jour : appliquer exactement
-      la même branche par profil que §5.2 (redémarrage via le tray pour les
-      profils desktop), pour ne pas dupliquer une seconde fois la logique de
-      redémarrage en plus de celle de `settings.py`. **Ce n'est qu'une
-      partie du problème** — voir §5.4 ci-dessous, le reste de ce fichier
-      dépend de `git` bien plus largement que ce seul redémarrage.
+- [x] **Profil `linux-headless`** : comportement **inchangé**, y compris le
+      message d'erreur 400 actuel si l'enveloppe/sudoers sont absents.
+- [x] **Profil `windows`** : instructions textuelles propres à Windows
+      (« Applications et fonctionnalités »).
+- [x] **Profil `linux-desktop`** : instructions textuelles (« sudo apt remove bobine »).
+- [x] **Profil `macos`** : instructions textuelles (« Quittez Bobine, glissez Bobine.app vers la Corbeille »).
+- [x] Frontend `frontend/src/app/settings/page.tsx` branché sur `deployment_profile` :
+      bouton d'action directe uniquement pour `linux-headless`, bloc d'instructions
+      pour les profils desktop.
+- [x] `backend/app/routers/updates.py` branché sur `get_profile_handler()`.
 
-✅ **Risque de collision entre lots — résolu par construction, pas par
-coordination** : sans précaution, `settings.py` (§5.2/§5.3), `updates.py`
-(ci-dessus et §5.4), `frontend/src/app/settings/page.tsx` et `frontend/
-src/lib/i18n.ts` seraient modifiés par les **trois** Lots 1/2/3 dans les
-mêmes fonctions/blocs (un `elif` par profil ajouté par chacun). Plutôt que
-de compter sur une coordination humaine (rebase planifié, un lot à la
-fois), §5.1 ci-dessus élimine le problème à la racine : ces quatre fichiers
-ne sont édités **qu'une seule fois**, au moment où §5.1 est écrit (pose de
-l'abstraction `ProfileHandler`/composants par profil), avec le handler
-`linux-headless` comme seule implémentation initiale. Chaque Lot 1/2/3
-**ajoute ensuite un nouveau fichier** (handler backend + composant/clés
-i18n frontend) sans plus jamais toucher à `settings.py`, `updates.py` ou au
-bloc JSX partagé — une addition de fichier ne crée pas de conflit de
-fusion, contrairement à l'édition répétée des mêmes lignes. Les Lots 1/2/3
-peuvent donc réellement avancer en parallèle sur ce point précis, à
-condition que §5.1 soit livré en premier.
+### 5.4 Mécanisme de mise à jour (`updates.py`)
 
-### 5.4 Mécanisme de mise à jour (`updates.py`) — dépendance à `git` bien
-plus large que le seul redémarrage
+- [x] `_get_local_version_info()` court-circuité sur les profils sans git via
+      `handler.supports_git_versioning()`.
+- [x] `check_updates()` : comparaison sémantique et détection automatique de
+      l'asset adapté au profil (`.exe` pour Windows, `.deb` pour Linux desktop,
+      `.dmg` pour macOS) avec fourniture du lien direct `download_url`, `asset_name`,
+      `asset_size`, et `can_auto_apply` (`True` uniquement sur `linux-headless`).
+- [x] `apply_update()` : renvoie 400 clair avec explication si non supporté
+      sur le profil courant, au lieu d'échouer silencieusement.
+- [x] Frontend `settings/page.tsx` : bouton « Appliquer la mise à jour » sur
+      `linux-headless`, et bouton « Télécharger l'installateur ({asset_name}) »
+      sur les profils desktop.
 
-Le plan initial ne corrigeait que la toute fin de `_run_update_pipeline`
-(le `sudo systemctl restart`, §5.3 ci-dessus). En réalité, **tout le
-mécanisme** « Vérifier/Appliquer une mise à jour » visible dans les
-Réglages (boutons et bannière, `frontend/src/app/settings/page.tsx` autour
-des lignes 336, 361, 680-749) repose sur un dépôt git présent au chemin
-d'exécution — absent par construction sur un `.exe` PyInstaller, un bundle
-`.app` ou un paquet `.deb` installé :
+### 5.5 Sauvegarde et restauration universelle & Réinitialisation usine
 
-- [ ] `_get_local_version_info()` (`updates.py` lignes ~34-75) fait
-      `git rev-parse --short HEAD` et `git describe --tags` sur `repo_dir` —
-      échouera silencieusement et retombera sur le littéral figé
-      `"V2.0.1"` (ligne 38, dupliqué comme valeur par défaut côté frontend
-      à `settings/page.tsx:706`) sur les trois nouveaux profils : la
-      version affichée resterait bloquée en permanence.
-- [ ] `_run_update_pipeline()` (lignes ~143-183) fait un `git pull
-      --ff-only` en première étape (lignes 158-165) — n'a de sens que sur
-      l'appliance headless (dépôt git cloné par `install.sh`). Sur les
-      profils desktop, cette étape doit être retirée/remplacée, pas
-      seulement le redémarrage qui la suit.
-- [ ] **Décision de produit requise** (le CDC §12 note déjà l'auto-update
-      desktop comme « non cadré, à spécifier séparément » — mais il s'agit
-      ici d'un mécanisme qui **existe déjà et doit être désactivé/adapté**,
-      pas seulement d'une fonctionnalité absente à concevoir) : pour les
-      profils `windows`/`linux-desktop`/`macos`, soit masquer entièrement
-      le bouton « Vérifier une mise à jour » et rediriger vers la page des
-      GitHub Releases, soit lui donner un sens minimal (comparer la version
-      embarquée à la dernière release GitHub, sans jamais tenter de `git
-      pull`). Ne pas laisser un bouton visuellement actif échouer en
-      silence.
-
-### 5.5 Sauvegarde et restauration avant une action destructrice
-
-`uninstall_system` (§5.3) déclenche une suppression **irréversible** de
-« TOUTES les données » (`settings.py:554,557`). Les seuls outils de
-sauvegarde/restauration du projet, `scripts/backup.sh` et
-`scripts/restore.sh`, sont strictement Linux/systemd/bash : ils testent
-`systemctl is-active bobine-backend` (`restore.sh:21`), codent en dur
-`/etc/bobine/config.toml` (`backup.sh:55`, `restore.sh:65` — chemin déjà
-identifié comme non universel au §2) et dépendent de la commande CLI
-`bobine` définie uniquement par `install.sh` (lignes 887-904, absente sur
-les profils desktop).
-
-- [ ] Décider explicitement ce que devient la sauvegarde/restauration pour
-      les profils `windows`/`linux-desktop`/`macos` **avant** de livrer le
-      Chantier A sur ces profils — a minima, un script ou une commande de
-      tray (« Exporter mes données ») qui archive le dossier de données
-      (§2/§3/§4) en un `.zip`, réutilisable pour une restauration manuelle
-      après réinstallation.
+- [x] **Sauvegarde universelle** (`GET /api/settings/backup/export`) :
+      exporte une archive `.zip` contenant `database.db` (après `PRAGMA wal_checkpoint(TRUNCATE)`),
+      `config.toml` (si présent), et `manifest.json`.
+- [x] **Restauration universelle** (`POST /api/settings/backup/restore`) :
+      reçoit un fichier ZIP via l'interface web, vérifie son intégrité et l'en-tête SQLite,
+      crée une copie `.db.bak`, remplace la base, applique les migrations si besoin,
+      puis redémarre les services.
+- [x] **Remise à zéro d'usine des données** (`POST /api/settings/system/reset-data`) :
+      purge récursivement les fichiers des dossiers de médias (`DATA_ROOT`) et
+      réinitialise la base SQLite à zéro, sans JAMAIS toucher aux binaires applicatifs
+      installés (`/usr/lib/bobine`, `%ProgramFiles%`, `/Applications`). Accessible
+      sur tous les profils avec confirmation obligatoire (« REINITIALISER »).
+- [x] **Interface utilisateur et i18n** : cartes « Sauvegarde & Restauration » et
+      « Remise à zéro des données » intégrées avec modales de confirmation et
+      traductions FR / EN complètes.
+- [x] **Tests unitaires** : suite complète `backend/tests/test_option1_transverse_a.py`
+      (7/7 tests passants, 32/32 passants sur le backend au total).
 
 ## 6. Chantier transverse C — Expérience utilisateur du profil app de bureau
 

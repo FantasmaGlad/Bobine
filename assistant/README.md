@@ -47,3 +47,5 @@ le protocole côté `install.sh`, régénère la fixture et fais évoluer les te
    Allouer un **PTY** pour un flush ligne-à-ligne côté cible.
 4. Écrans du parcours (§4) : découverte → connexion → analyse → options →
    installation (barre + journal) → terminé (URL/QR).
+5. IHM web reprenant fidèlement le design system de Bobine (`frontend/src/app/globals.css` :
+   couleurs, typographie, surfaces, boutons, cartes, logo officiel).

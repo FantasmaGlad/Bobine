@@ -39,6 +39,15 @@ portable admin, pas sur le mini PC.
   session, jamais écrits sur disque.
 - L'assistant ne réimplémente pas la logique d'installation : il **orchestre**
   `install.sh` (source de vérité unique), pour éviter toute divergence.
+- **Identité visuelle & Design System** : l'interface web embarquée dans Tauri
+  doit **reprendre fidèlement l'esthétique et les codes visuels du logiciel Bobine**
+  (réf. `frontend/src/app/globals.css` et composants Next.js) :
+  - Palette de couleurs, contrastes et typographie issus du design system de Bobine
+    (fonds de surface feutrés, accents contrastés, mode sombre / clair cohérent).
+  - Composants stylisés : cartes aux bordures adoucies, boutons de commande aux
+    formes du projet, badges d'état typés (vert en ligne, ambre attention, rouge erreur).
+  - Intégration du logo officiel (`logo_bobine_icon.png`) et hiérarchie visuelle
+    pour garantir une continuité visuelle totale avec l'application principale.
 
 ## 4. Parcours utilisateur (écrans)
 

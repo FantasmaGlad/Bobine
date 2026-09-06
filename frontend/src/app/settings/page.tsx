@@ -50,6 +50,11 @@ interface UpdateInfo {
   release_notes: string | null;
   published_at: string | null;
   html_url: string | null;
+  can_auto_apply?: boolean;
+  download_url?: string | null;
+  asset_name?: string | null;
+  asset_size?: number | null;
+  deployment_profile?: DeploymentProfile;
   message?: string;
   checked_at: string;
 }
@@ -148,6 +153,7 @@ const PATH_LABEL_KEYS: Record<string, string> = {
 
 // Phrase à recopier pour armer la désinstallation (comparée sans casse/accent).
 const UNINSTALL_PHRASE = "DÉSINSTALLER";
+const RESET_DATA_PHRASE = "RÉINITIALISER";
 const normalizePhrase = (s: string) => s.trim().toUpperCase().replace(/É/g, "E");
 
 export default function SettingsPage() {
@@ -167,6 +173,18 @@ export default function SettingsPage() {
   const [showUninstall, setShowUninstall] = useState(false);
   const [uninstallConfirm, setUninstallConfirm] = useState("");
   const [uninstalling, setUninstalling] = useState(false);
+
+  // Sauvegarde & Restauration
+  const [exportingBackup, setExportingBackup] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState(false);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [selectedBackupFile, setSelectedBackupFile] = useState<File | null>(null);
+
+  // Remise à zéro des données
+  const [showResetData, setShowResetData] = useState(false);
+  const [resetDataConfirm, setResetDataConfirm] = useState("");
+  const [resettingData, setResettingData] = useState(false);
+
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [applyingUpdate, setApplyingUpdate] = useState(false);
@@ -376,6 +394,78 @@ export default function SettingsPage() {
       showToast(t("settingsPage.updateError"), "error");
     } finally {
       setApplyingUpdate(false);
+    }
+  };
+
+  const handleExportBackup = () => {
+    setExportingBackup(true);
+    const url = getApiUrl("/settings/backup/export");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bobine-backup-${new Date().toISOString().slice(0, 10)}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => setExportingBackup(false), 2000);
+  };
+
+  const handleSelectBackupFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedBackupFile(file);
+      setShowRestoreConfirm(true);
+    }
+    e.target.value = "";
+  };
+
+  const handleRestoreBackup = async () => {
+    if (!selectedBackupFile) return;
+    setRestoringBackup(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedBackupFile);
+      const res = await fetch(getApiUrl("/settings/backup/restore"), {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        showToast(t("settingsPage.restoreSuccess"), "success");
+        setShowRestoreConfirm(false);
+        setSelectedBackupFile(null);
+      } else {
+        const err = await res.json().catch(() => null);
+        showToast(err?.detail || t("settingsPage.restoreError"), "error");
+      }
+    } catch {
+      showToast(t("settingsPage.restoreError"), "error");
+    } finally {
+      setRestoringBackup(false);
+    }
+  };
+
+  const resetDataReady = normalizePhrase(resetDataConfirm) === "REINITIALISER";
+
+  const handleResetData = async () => {
+    if (!resetDataReady) return;
+    setResettingData(true);
+    try {
+      const res = await fetch(getApiUrl("/settings/system/reset-data"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: resetDataConfirm }),
+      });
+      if (res.ok) {
+        showToast(t("settingsPage.resetDataSuccess"), "success");
+        setShowResetData(false);
+        setResetDataConfirm("");
+      } else {
+        const err = await res.json().catch(() => null);
+        showToast(err?.detail || t("settingsPage.resetDataError"), "error");
+      }
+    } catch {
+      showToast(t("settingsPage.resetDataError"), "error");
+    } finally {
+      setResettingData(false);
     }
   };
 
@@ -781,25 +871,40 @@ export default function SettingsPage() {
                   )}
 
                   <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "4px" }}>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      style={{ height: "42px", padding: "0 20px", display: "inline-flex", alignItems: "center", gap: "8px" }}
-                      onClick={handleApplyUpdate}
-                      disabled={applyingUpdate}
-                    >
-                      {applyingUpdate ? (
-                        <>
-                          <Icon name="sync" size={16} className="olc-spin" />
-                          {t("settingsPage.applyingUpdate")}
-                        </>
-                      ) : (
-                        <>
-                          <Icon name="download" size={16} />
-                          {t("settingsPage.applyUpdate")}
-                        </>
-                      )}
-                    </button>
+                    {updateInfo.can_auto_apply ? (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        style={{ height: "42px", padding: "0 20px", display: "inline-flex", alignItems: "center", gap: "8px" }}
+                        onClick={handleApplyUpdate}
+                        disabled={applyingUpdate}
+                      >
+                        {applyingUpdate ? (
+                          <>
+                            <Icon name="sync" size={16} className="olc-spin" />
+                            {t("settingsPage.applyingUpdate")}
+                          </>
+                        ) : (
+                          <>
+                            <Icon name="download" size={16} />
+                            {t("settingsPage.applyUpdate")}
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <a
+                        href={updateInfo.download_url || updateInfo.html_url || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-primary"
+                        style={{ height: "42px", padding: "0 20px", display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none" }}
+                      >
+                        <Icon name="download" size={16} />
+                        {updateInfo.asset_name
+                          ? `${t("settingsPage.downloadUpdate")} (${updateInfo.asset_name}${updateInfo.asset_size ? ` - ${formatBytes(updateInfo.asset_size)}` : ""})`
+                          : t("settingsPage.downloadUpdate")}
+                      </a>
+                    )}
                   </div>
                 </div>
               ) : updateInfo.online ? (
@@ -837,6 +942,38 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* ---- Sauvegarde & Restauration universelle ---- */}
+      <section className="live-block">
+        <h3><Icon name="archive" size={18} /> {t("settingsPage.backupSection")}</h3>
+        <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.backupHint")}</p>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ minHeight: "44px", display: "inline-flex", alignItems: "center", gap: "8px" }}
+            onClick={handleExportBackup}
+            disabled={exportingBackup}
+          >
+            <Icon name="download" size={16} />
+            {exportingBackup ? t("settingsPage.exportingBackup") : t("settingsPage.exportBackup")}
+          </button>
+
+          <label
+            className="btn btn-secondary"
+            style={{ minHeight: "44px", display: "inline-flex", alignItems: "center", gap: "8px", cursor: "pointer", margin: 0 }}
+          >
+            <Icon name="upload" size={16} />
+            {t("settingsPage.restoreBackup")}
+            <input
+              type="file"
+              accept=".zip"
+              style={{ display: "none" }}
+              onChange={handleSelectBackupFile}
+            />
+          </label>
+        </div>
+      </section>
+
       {/* ---- Maintenance : resync ---- */}
       <section className="live-block">
         <h3><Icon name="sync" size={18} /> {t("settingsPage.syncSection")}</h3>
@@ -846,36 +983,54 @@ export default function SettingsPage() {
         </button>
       </section>
 
-      {/* ---- Zone de danger : désinstallation ----
-          Profil linux-headless (appliance) : bouton d'action directe +
-          modale de confirmation, comportement inchangé. Profils desktop
-          (Windows/macOS/Linux de bureau) : pas d'action déclenchée depuis
-          l'UI, juste les instructions propres à la plateforme (réf.
-          PortabiliteCrossPlatformX §5.3 — aucun équivalent sûr à
-          l'enveloppe systemd-run de l'appliance sur ces profils). */}
+      {/* ---- Zone de danger : réinitialisation usine & désinstallation ---- */}
       <section className="live-block settings-danger">
         <h3><Icon name="warning" size={18} /> {t("settingsPage.dangerSection")}</h3>
-        {data.deployment_profile === "linux-headless" ? (
-          <>
-            <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.uninstallHint")}</p>
-            <button type="button" className="btn btn-danger" style={{ height: "44px", alignSelf: "flex-start" }} onClick={() => setShowUninstall(true)}>
-              <Icon name="delete_forever" size={16} /> {t("settingsPage.uninstallButton")}
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.uninstallDesktopHint")}</p>
-            <p className="settings-hint" style={{ marginTop: 0 }}>
-              {t(
-                data.deployment_profile === "windows"
-                  ? "settingsPage.uninstallDesktopWindows"
-                  : data.deployment_profile === "macos"
-                  ? "settingsPage.uninstallDesktopMacos"
-                  : "settingsPage.uninstallDesktopLinux",
-              )}
-            </p>
-          </>
-        )}
+
+        {/* Remise à zéro des données (universelle tous profils) */}
+        <div style={{ marginBottom: "20px" }}>
+          <h4 style={{ margin: "0 0 6px 0", fontSize: "1rem", color: "var(--text-main)" }}>
+            {t("settingsPage.resetDataButton")}
+          </h4>
+          <p className="settings-hint" style={{ marginTop: 0 }}>
+            {t("settingsPage.resetDataHint")}
+          </p>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ height: "44px", color: "var(--accent-error)", borderColor: "var(--accent-error)" }}
+            onClick={() => setShowResetData(true)}
+          >
+            <Icon name="cleaning_services" size={16} /> {t("settingsPage.resetDataButton")}
+          </button>
+        </div>
+
+        <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: "16px" }}>
+          <h4 style={{ margin: "0 0 6px 0", fontSize: "1rem", color: "var(--text-main)" }}>
+            {t("settingsPage.uninstallButton")}
+          </h4>
+          {data.deployment_profile === "linux-headless" ? (
+            <>
+              <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.uninstallHint")}</p>
+              <button type="button" className="btn btn-danger" style={{ height: "44px", alignSelf: "flex-start" }} onClick={() => setShowUninstall(true)}>
+                <Icon name="delete_forever" size={16} /> {t("settingsPage.uninstallButton")}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.uninstallDesktopHint")}</p>
+              <p className="settings-hint" style={{ marginTop: 0 }}>
+                {t(
+                  data.deployment_profile === "windows"
+                    ? "settingsPage.uninstallDesktopWindows"
+                    : data.deployment_profile === "macos"
+                    ? "settingsPage.uninstallDesktopMacos"
+                    : "settingsPage.uninstallDesktopLinux",
+                )}
+              </p>
+            </>
+          )}
+        </div>
       </section>
 
       {/* ---- Documentation : chemins (lecture seule) ---- */}
@@ -953,6 +1108,92 @@ export default function SettingsPage() {
               </button>
               <button type="button" className="btn btn-danger" onClick={handleUninstall} disabled={!uninstallReady || uninstalling}>
                 {uninstalling ? t("settingsPage.uninstallInProgress") : t("settingsPage.uninstallConfirmButton")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---- Modale : restauration de sauvegarde ---- */}
+      {showRestoreConfirm && selectedBackupFile && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--accent-primary)" }}>
+              <Icon name="upload" size={20} /> {t("settingsPage.restoreBackup")}
+            </h3>
+            <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
+              {t("settingsPage.restoreBackupConfirmText")}
+            </p>
+            <div style={{ padding: "10px 14px", background: "var(--bg-surface-hover)", borderRadius: "8px", fontSize: "0.85rem", border: "1px solid var(--border-color)" }}>
+              <strong>{t("settingsPage.restoreBackupPrompt")}</strong>
+              <div style={{ marginTop: "4px", fontFamily: "var(--font-mono, monospace)" }}>
+                {selectedBackupFile.name} ({formatBytes(selectedBackupFile.size)})
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => { setShowRestoreConfirm(false); setSelectedBackupFile(null); }}
+                disabled={restoringBackup}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleRestoreBackup}
+                disabled={restoringBackup}
+              >
+                {restoringBackup ? t("settingsPage.restoringBackup") : t("settingsPage.restoreBackup")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---- Modale : remise à zéro d'usine des données (recopie de phrase obligatoire) ---- */}
+      {showResetData && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--accent-error)" }}>
+              <Icon name="cleaning_services" size={20} /> {t("settingsPage.resetDataButton")}
+            </h3>
+            <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
+              {t("settingsPage.resetDataConfirmText")}
+            </p>
+            <ul className="settings-uninstall-list">
+              <li>{t("settingsPage.resetDataItemMedia")}</li>
+              <li>{t("settingsPage.resetDataItemDb")}</li>
+              <li>{t("settingsPage.resetDataItemKeepApp")}</li>
+            </ul>
+            <label className="form-label" style={{ marginBottom: "4px" }}>
+              {t("settingsPage.resetDataTypeLabel", { phrase: RESET_DATA_PHRASE })}
+            </label>
+            <input
+              type="text"
+              className="form-control"
+              value={resetDataConfirm}
+              onChange={(e) => setResetDataConfirm(e.target.value)}
+              placeholder={RESET_DATA_PHRASE}
+              autoFocus
+            />
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => { setShowResetData(false); setResetDataConfirm(""); }}
+                disabled={resettingData}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleResetData}
+                disabled={!resetDataReady || resettingData}
+              >
+                {resettingData ? t("settingsPage.resetDataInProgress") : t("settingsPage.resetDataConfirmButton")}
               </button>
             </div>
           </div>

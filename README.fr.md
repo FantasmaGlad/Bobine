@@ -179,6 +179,8 @@ Bobine s'annonce en **mDNS (Zeroconf/Bonjour)** sous le nom `bobine.local`. Si v
 - **Télécommande mobile** — ouvrez `http://bobine.local` sur un téléphone ; l'affichage s'adapte en télécommande pour le staff.
 - **Radio** — ouvrez l'écran radio sur un appareil dédié pour diffuser la musique d'ambiance en continu ; pilotage depuis l'onglet *Radio* de l'admin.
 - **Synchronisation des écrans** — *Paramètres → Synchronisation des écrans* vide le cache de chaque écran connecté, le recharge avec les derniers assets et redémarre les services.
+- **Sauvegarde & Restauration** — depuis *Paramètres → Sauvegarde & Restauration*, téléchargez une archive ZIP complète de votre base SQLite et de vos configurations, ou restaurez un fichier de sauvegarde précédent directement depuis le navigateur.
+- **Remise à zéro des données** — depuis *Paramètres → Zone de danger*, remettez à zéro les données de l'application (base SQLite et médias) tout en conservant le logiciel installé.
 
 ---
 
