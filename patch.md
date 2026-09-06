@@ -430,17 +430,22 @@ Afin d'éviter toute extinction inopinée de l'écran pendant un cours de fitnes
 - **Spécification AppStream 1.0 (`packaging/linux/bobine.metainfo.xml`)** :
   - Identifiant unique : `<id>com.bobine.app</id>`
   - Licence du projet : `<project_license>AGPL-3.0-or-later</project_license>`
-  - Nom du développeur : `<developer id="com.bobine"><name>Équipe Bobine</name></developer>`
+  - Nom de l'éditeur / développeur : `<developer id="com.bobine"><name>FantasmaGlad</name></developer>`
+  - Liens officiels : `<url type="homepage">https://bobine.fit</url>` et `<url type="vcs-browser">https://github.com/FantasmaGlad/Bobine</url>`
   - Description riche et soignée en français sans caractères d'échappement invalides.
   - Classification de contenu OARS (`<content_rating type="oars-1.1"/>`).
   - Suivi des versions et date de dernière mise à jour (`<release version="2.0.1" date="2026-09-06">`).
+- **Suppression définitive du doublon d'icône sous GNOME & Bureau** :
+  - Remplacement de l'ancien double déploiement (`bobine.desktop` + `com.bobine.app.desktop`) par un lanceur unique officiel : `/usr/share/applications/com.bobine.app.desktop`.
+  - Mise à jour des scripts de maintenance `postinst` et `postrm` pour nettoyer tout raccourci résiduel sur le Bureau et poser le fichier unique.
+- **Taille de téléchargement & empreinte disque dans l'App Center** :
+  - Calcul et injection automatique de `Installed-Size` dans `DEBIAN/control` lors du build (`build_deb.sh`).
+  - Intégration de l'éditeur `FantasmaGlad`, des liens web et GitHub dans le bloc `Description:` de Debian.
 - **Fichier de Licence Standard Debian (`packaging/linux/copyright`)** :
   - Format Machine-Readable Debian Copyright 1.0 attestant de la licence AGPL-3.0.
-- **Icônes Multi-Résolutions Hicolor & Pixmaps** :
-  - Génération des déclinaisons `com.bobine.app.png` et `bobine.png` en 16x16, 24x24, 32x32, 48x48, 64x64, 128x128, 256x256 et 512x512 via `scripts/generate_platform_icons.py`.
-  - Résolution du problème d'icône grise dans l'App Center Ubuntu grâce à la correspondance exacte entre l'identifiant AppStream et le nom d'icône.
-- **Nettoyage du fichier de contrôle (`packaging/linux/DEBIAN/control`)** :
-  - Formatage en anglais international standardisé pour éviter les corruptions d'encodage (points d'interrogation `?` dans l'interface App Center).
+- **Support complet de l'Assistant Tauri sur Linux** :
+  - Script de construction dédié `assistant/build_linux.sh`.
+  - Binaire release autonome `assistant/target/release/bobine-assistant` et configuration de packaging Debian/AppImage.
 
 ### 13.3 Cahiers des charges prospectifs
 - **`docs/PortabiliteAndroid.md`** : Portabilité autonome sur tablette Android (ex. Xiaomi Pad) sans Termux (CPython embarqué via Chaquopy, double affichage USB-C / DisplayPort Alt Mode via `android.app.Presentation`, `ForegroundService`).

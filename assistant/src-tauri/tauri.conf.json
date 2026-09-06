@@ -23,5 +23,27 @@
     "security": {
       "csp": null
     }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "FantasmaGlad",
+    "copyright": "AGPL-3.0-or-later",
+    "category": "Utility",
+    "shortDescription": "Assistant d'installation et télécommande Bobine",
+    "longDescription": "Assistant graphique permettant de déployer, configurer et piloter à distance les bornes Bobine en SSH.",
+    "linux": {
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37"],
+        "section": "utils"
+      }
+    }
   }
 }

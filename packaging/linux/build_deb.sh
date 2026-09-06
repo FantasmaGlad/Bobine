@@ -60,6 +60,7 @@ mkdir -p "${STAGING_DIR}/usr/lib/systemd/user"
 mkdir -p "${STAGING_DIR}/usr/share/pixmaps"
 mkdir -p "${STAGING_DIR}/usr/share/icons"
 mkdir -p "${STAGING_DIR}/usr/share/metainfo"
+mkdir -p "${STAGING_DIR}/usr/share/appdata"
 mkdir -p "${STAGING_DIR}/usr/share/doc/bobine"
 
 # Copie des binaires et assets de l'application
@@ -72,14 +73,13 @@ exec /usr/lib/bobine/BobineTray "$@"
 EOF
 chmod 0755 "${STAGING_DIR}/usr/bin/bobine"
 
-# Fichiers .desktop et autostart (avec alias com.bobine.app pour AppStream)
-cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/usr/share/applications/bobine.desktop"
+# Fichier .desktop unique (com.bobine.app.desktop pour conformité AppStream et éviter les doublons dans GNOME)
 cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/usr/share/applications/com.bobine.app.desktop"
-cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/etc/xdg/autostart/bobine.desktop"
+cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/etc/xdg/autostart/com.bobine.app.desktop"
 
 # Métadonnées AppStream (pour le Centre d'applications Ubuntu, GNOME Software, Discover)
 cp "${SCRIPT_DIR}/bobine.metainfo.xml" "${STAGING_DIR}/usr/share/metainfo/com.bobine.app.metainfo.xml"
-cp "${SCRIPT_DIR}/bobine.metainfo.xml" "${STAGING_DIR}/usr/share/metainfo/bobine.metainfo.xml"
+cp "${SCRIPT_DIR}/bobine.metainfo.xml" "${STAGING_DIR}/usr/share/appdata/com.bobine.app.appdata.xml"
 
 # Informations de Licence / Copyright Debian standard
 cp "${SCRIPT_DIR}/copyright" "${STAGING_DIR}/usr/share/doc/bobine/copyright"
@@ -109,6 +109,14 @@ cp "${SCRIPT_DIR}/DEBIAN/control" "${STAGING_DIR}/DEBIAN/control"
 cp "${SCRIPT_DIR}/DEBIAN/postinst" "${STAGING_DIR}/DEBIAN/postinst"
 cp "${SCRIPT_DIR}/DEBIAN/prerm" "${STAGING_DIR}/DEBIAN/prerm"
 cp "${SCRIPT_DIR}/DEBIAN/postrm" "${STAGING_DIR}/DEBIAN/postrm"
+
+# Calcul dynamique de la taille installée pour le Centre d'applications
+INSTALLED_SIZE=$(du -sk "${STAGING_DIR}/usr" | awk '{print $1}')
+if ! grep -q "^Installed-Size:" "${STAGING_DIR}/DEBIAN/control"; then
+    echo "Installed-Size: ${INSTALLED_SIZE}" >> "${STAGING_DIR}/DEBIAN/control"
+else
+    sed -i "s/^Installed-Size:.*/Installed-Size: ${INSTALLED_SIZE}/" "${STAGING_DIR}/DEBIAN/control"
+fi
 
 chmod 0755 "${STAGING_DIR}/DEBIAN/postinst"
 chmod 0755 "${STAGING_DIR}/DEBIAN/prerm"

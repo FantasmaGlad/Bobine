@@ -14,9 +14,10 @@ if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
         USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
         if [ -n "$USER_HOME" ]; then
             rm -f "$USER_HOME/Desktop/bobine.desktop" "$USER_HOME/Bureau/bobine.desktop" 2>/dev/null || true
+            rm -f "$USER_HOME/Desktop/com.bobine.app.desktop" "$USER_HOME/Bureau/com.bobine.app.desktop" 2>/dev/null || true
         fi
     fi
-    rm -f /etc/skel/Desktop/bobine.desktop 2>/dev/null || true
+    rm -f /etc/skel/Desktop/bobine.desktop /etc/skel/Desktop/com.bobine.app.desktop 2>/dev/null || true
 fi
 
 exit 0

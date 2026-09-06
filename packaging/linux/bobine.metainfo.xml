@@ -6,7 +6,7 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>AGPL-3.0-or-later</project_license>
   <developer id="com.bobine">
-    <name>Équipe Bobine</name>
+    <name>FantasmaGlad</name>
   </developer>
   <description>
     <p>
@@ -24,10 +24,10 @@
       <li>Sauvegarde, restauration universelle et réinitialisation usine intégrées.</li>
     </ul>
   </description>
-  <launchable type="desktop-id">bobine.desktop</launchable>
+  <launchable type="desktop-id">com.bobine.app.desktop</launchable>
   <url type="homepage">https://bobine.fit</url>
+  <url type="vcs-browser">https://github.com/FantasmaGlad/Bobine</url>
   <url type="bugtracker">https://github.com/FantasmaGlad/Bobine/issues</url>
-  <icon type="stock">bobine</icon>
   <categories>
     <category>AudioVideo</category>
     <category>Video</category>

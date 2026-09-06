@@ -8,8 +8,9 @@ de progression. Cf. le cahier des charges : [`../docs/cahier-des-charges-install
 
 - **`core/` — bibliothèque `bobine-installer-core`** : livrée. Logique **pure**
   et testable (aucune E/S), fondation de l'IHM. Couverte par `cargo test`.
-- **IHM Tauri + SSH/mDNS réels** : jalon **J2**, à venir. Se branchera sur
-  `core` sans réécrire la logique.
+- **`src-tauri/` + `ui/` — Application graphique Tauri 2** : livrée et multi-plateforme.
+  Fonctionne nativement sur **Linux** (WebKitGTK), **Windows** (WebView2) et **macOS** (WebKit).
+  Découverte mDNS + scan `/24`, diagnostic SSH, terminal live PTY et télécommande de bureau.
 
 > `core` ne réimplémente pas l'installation : `install.sh` reste la **source de
 > vérité unique**. L'assistant l'**orchestre** (construit la commande, parse sa
@@ -24,28 +25,29 @@ de progression. Cf. le cahier des charges : [`../docs/cahier-des-charges-install
 | `privilege` | Arbre de décision de l'amorçage des privilèges (sudo présent ? sudoer ?) → `sudo` vs option B `su -`. | §7 |
 | `discovery` | Arithmétique du `/24` à sonder + modèle de candidat + indice d'OS depuis la bannière SSH. | §6 |
 
-## Tester
+## Tester et compiler
 
 ```bash
+# 1. Lancer la suite de tests unitaires
 cd assistant
 cargo test --workspace
+
+# 2. Compiler et lancer l'application sous Linux
+./build_linux.sh
+./target/release/bobine-assistant
+
+# 3. Lancer en mode développement Tauri
+npx @tauri-apps/cli dev
 ```
 
 Le test d'intégration [`core/tests/replay_fixture.rs`](core/tests/replay_fixture.rs)
 rejoue un flux `--progress=json` **réel** capturé depuis `install.sh`
 ([`fixtures/install-events.jsonl`](core/tests/fixtures/install-events.jsonl)) :
-garde-fou contre toute divergence entre l'émetteur et le parseur. Si tu modifies
-le protocole côté `install.sh`, régénère la fixture et fais évoluer les tests.
+garde-fou contre toute divergence entre l'émetteur et le parseur.
 
-## Prochaines étapes (J2)
+## Compatibilité Linux, Windows & macOS
 
-1. Membre `src-tauri/` (binaire Tauri) dépendant de `core`.
-2. Découverte réseau réelle : mDNS (`bobine.local`, `_ssh._tcp`) + scan du `/24`
-   (`discovery` fournit déjà les hôtes à sonder).
-3. Transport SSH (`russh`) : sondes privilèges (`privilege`), lancement de la
-   commande (`orchestrate`), lecture ligne-à-ligne du flux → `ProgressState`.
-   Allouer un **PTY** pour un flush ligne-à-ligne côté cible.
-4. Écrans du parcours (§4) : découverte → connexion → analyse → options →
-   installation (barre + journal) → terminé (URL/QR).
-5. IHM web reprenant fidèlement le design system de Bobine (`frontend/src/app/globals.css` :
-   couleurs, typographie, surfaces, boutons, cartes, logo officiel).
+L'Assistant d'installation et Télécommande de bureau est conçu pour s'exécuter directement depuis le poste de l'administrateur, quel que soit son système d'exploitation :
+- **Linux** : binaire natif GTK3/WebKitGTK, exécutable autonome ou paquet `.deb` via `assistant/build_linux.sh`.
+- **Windows** : exécutable `.exe` / installateur `.msi` via `npx @tauri-apps/cli build`.
+- **macOS** : bundle `.app` / image disque `.dmg` via `npx @tauri-apps/cli build`.

@@ -3,7 +3,7 @@ Version: 2.0.1
 Section: video
 Priority: optional
 Architecture: amd64
-Maintainer: Bobine Team <fantacasino3012@gmail.com>
+Maintainer: FantasmaGlad <fantacasino3012@gmail.com>
 Depends: ffmpeg
 Recommends: avahi-daemon
 Homepage: https://bobine.fit
@@ -11,3 +11,8 @@ Description: Video and audio playout system for gym studios
  Bobine is an autonomous multi-channel playout solution (wired HDMI video,
  network screen, background radio, mobile remote and web administration)
  designed for boutique gyms and fitness studios.
+ .
+ Site web : https://bobine.fit
+ Projet GitHub : https://github.com/FantasmaGlad/Bobine
+ Editeur : FantasmaGlad
+ Licence : GNU AGPL v3.0 (Affero General Public License)
