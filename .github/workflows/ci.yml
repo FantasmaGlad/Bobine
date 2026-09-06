@@ -335,14 +335,24 @@ jobs:
           path: release-assets
       - name: Inspect generated binary assets
         run: ls -lh release-assets/
+      - name: Select Release Notes Body
+        id: release-notes
+        run: |
+          TAG="${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')) && github.ref_name || 'V3.0.0' }}"
+          if [ -f "docs/releases/${TAG}.md" ]; then
+            echo "body_path=docs/releases/${TAG}.md" >> "$GITHUB_OUTPUT"
+          elif [ -f "docs/releases/V3.0.0.md" ]; then
+            echo "body_path=docs/releases/V3.0.0.md" >> "$GITHUB_OUTPUT"
+          fi
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           files: release-assets/*
           tag_name: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')) && github.ref_name || 'V3.0.0' }}
           name: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')) && github.ref_name || 'Bobine V3.0.0' }}
+          body_path: ${{ steps.release-notes.outputs.body_path }}
           draft: false
           prerelease: false
-          generate_release_notes: true
+          generate_release_notes: false
 
 
