@@ -1,0 +1,13 @@
+Package: bobine
+Version: 2.0.1
+Section: video
+Priority: optional
+Architecture: amd64
+Maintainer: Bobine Team <fantacasino3012@gmail.com>
+Depends: ffmpeg
+Recommends: avahi-daemon
+Homepage: https://bobine.fit
+Description: Système de diffusion vidéo et audio pour salles de sport et studios
+ Bobine est une solution de diffusion multi-canal (vidéo câblée HDMI,
+ écran réseau, canal radio musical autonome, télécommande mobile et
+ panneau d'administration) conçue pour les salles de sport et studios.

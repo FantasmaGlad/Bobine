@@ -117,14 +117,12 @@ def get_profile_handler() -> ProfileHandler:
         if profile == "windows":
             from app.utils.deployment_profiles.windows import WindowsHandler
             _handler = WindowsHandler()
+        elif profile == "linux-desktop":
+            from app.utils.deployment_profiles.linux_desktop import LinuxDesktopHandler
+            _handler = LinuxDesktopHandler()
         else:
-            # "linux-desktop" (Lot 2) et "macos" (Lot 3) n'ont pas encore
-            # leur propre handler : on retombe sur celui de l'appliance
-            # headless, dont le comportement actuel (systemctl/sudo absents
-            # -> erreurs explicites, cf. UNINSTALL_WRAPPER/SUDOERS_FILE) est
-            # déjà sûr par défaut sur un poste qui n'est pas l'appliance
-            # cible — c'est exactement le cas d'un poste de dev Linux
-            # aujourd'hui, à préserver à l'identique.
+            # "macos" (Lot 3) n'a pas encore son propre handler : on retombe
+            # sur celui de l'appliance headless.
             from app.utils.deployment_profiles.linux_headless import LinuxHeadlessHandler
             _handler = LinuxHeadlessHandler()
     return _handler

@@ -138,3 +138,29 @@ Deuxième lot du chantier de portabilité multi-OS, priorité n°1 du CDC : Bobi
 - Endpoints de réinitialisation/désinstallation (`routers/settings.py`) et de mise à jour (`routers/updates.py`) adaptés par profil ; mise à jour Git désactivée sur ce profil (réinstallation du `.exe` à la place) ; page Paramètres du frontend adaptée en conséquence.
 - Packaging : `packaging/windows/{bobine.spec,bobine.iss,bobine.ico}` (PyInstaller + Inno Setup, FR/EN, licence AGPL-3.0 affichée, règle de pare-feu automatique pour la télécommande mobile) ; nouveau job CI `windows-build`.
 - **Non vérifiable dans cet environnement de développement Linux** : compilation réelle par Inno Setup, exécution du `.exe` sur une vraie machine Windows, avertissement SmartScreen, invite pare-feu, autostart à l'ouverture de session — écrit d'après la documentation officielle, à valider au premier passage du job CI et lors d'un test manuel sur machine Windows réelle avant toute distribution publique (détail dans le plan §2).
+
+---
+
+## 8. Mission PortabiliteCrossPlatformX — Lot 2 : application de bureau Linux native (`.deb`)
+
+### Contexte
+Troisième lot du chantier de portabilité multi-OS, deuxième cible grand public : Bobine s'installe désormais comme un paquet Debian standard (`.deb`) pour tout utilisateur disposant d'un environnement de bureau Linux (Debian, Ubuntu, Linux Mint, etc.), tout en conservant intact le profil appliance headless. Détail complet dans [`docs/cahier-des-charges-multi-os.md`](docs/cahier-des-charges-multi-os.md) et [`docs/plan-implementation-portabilite-crossplatformx.md`](docs/plan-implementation-portabilite-crossplatformx.md) §3.
+
+### Impact site web / releases
+- **Nouveau livrable de release GitHub** : chaque release joint désormais `bobine_<version>_amd64.deb` (produit par le job CI `linux-desktop-deb`), en plus de l'installeur Windows `.exe`.
+- **À mentionner dans les notes de release** : support natif Linux de bureau via paquet `.deb`, intégration XDG pour les données personnelles, lancement automatique et gestion via BobineTray.
+- Restructuration des READMEs pour placer la famille d'applications de bureau graphiques en méthode d'installation n°1.
+
+### Modifications techniques (résumé — détail dans le plan §3)
+- Handler de profil `LinuxDesktopHandler` (`backend/app/utils/deployment_profiles/linux_desktop.py`) branché dans `backend/app/utils/deployment.py`.
+- Chemins conformes à la spécification XDG Base Directory (`backend/app/config.py`) : stockage des données, médias et base de données dans `~/.local/share/bobine/`, et configuration utilisateur dans `~/.config/bobine/config.toml` (le répertoire système `/usr/lib/bobine/` étant en lecture seule root).
+- `backend/app/desktop/tray.py` : détection des navigateurs Chromium / Chrome / Firefox pour le lancement en mode `--kiosk` sous Linux, et gestion de l'anti-veille d'écran via `xset` sous X11.
+- Packaging Debian complet (`packaging/linux/`) :
+  - `bobine.spec` : spec PyInstaller Linux produisant deux exécutables autonomes `BobineBackend` et `BobineTray` sans dépendance de version Python système.
+  - `DEBIAN/control` : métadonnées Debian (dépendance `ffmpeg`, recommandation `avahi-daemon`).
+  - `DEBIAN/postinst`, `DEBIAN/prerm`, `DEBIAN/postrm` : scripts de maintenance système pour les caches d'icônes et .desktop.
+  - `bobine.desktop` : intégration au menu d'applications et autostart de session XDG (`/etc/xdg/autostart`).
+  - `bobine.service` : unité systemd utilisateur (`systemctl --user start bobine`).
+  - `build_deb.sh` : script automatisé d'assemblage et de compilation `dpkg-deb`.
+- Pipeline CI : ajout du job `linux-desktop-deb` dans `.github/workflows/ci.yml` (compilation PyInstaller, génération `.deb`, validation de structure et test d'installation `sudo dpkg -i` sur Ubuntu).
+

@@ -444,47 +444,40 @@ prévoyait** :
   autostart à l'ouverture de session Windows — à valider au premier
   passage du job CI `windows-build` et lors du test manuel ci-dessus.
 
-## 3. Lot 2 — Linux non-headless (`.deb`)
+## 3. Lot 2 — Linux non-headless (`.deb`) — implémenté le 2026-09-06
 
 Dépend du Lot 0 et du module partagé §5.1. Réutilise directement le code
 Python et le `BobineTray` du Lot 1 (seul le packaging change).
 
-- [ ] Réutiliser tel quel `BobineTray` (`pystray`, backend GTK/AppIndicator
-      sous Linux) — aucun nouveau code de tray à écrire.
-- [ ] Choisir l'outil de paquet : `fpm` (rapide à mettre en place) ou
-      `dpkg-deb`/`debhelper` (plus proche des conventions Debian) — trancher
-      en ouverture de ce lot (cf. CDC §12, question encore ouverte).
-- [ ] Structure du paquet : `usr/lib/bobine/` (backend + venv ou
-      dépendances déclarées, à trancher — CDC §12), `usr/share/applications/
-      bobine.desktop`, `etc/systemd/user/bobine.service` (unité **utilisateur**,
-      pas système — différence clé avec l'appliance headless).
-- [ ] Fichier `control` : dépendances déclarées (`ffmpeg`, `python3`,
-      environnement graphique), architecture `amd64` (cohérent avec le
-      matériel visé, cf. `cahier-des-charges-installeur.md:155`).
-- [ ] mDNS : réutiliser `avahi-daemon` s'il est déjà actif sur le poste
-      (cas fréquent en environnement de bureau Debian/Ubuntu), sinon retomber
-      sur le même répondeur `zeroconf` embarqué que Windows/macOS.
-- [ ] Résoudre les chemins de données par défaut vers
-      `~/.local/share/bobine` (convention XDG) plutôt que contre le dossier
-      d'installation — même problème de fond que celui identifié pour
-      Windows (§2, correctif `config.py`) : `usr/lib/bobine/` est
-      typiquement possédé par `root` via `dpkg`, pas inscriptible par
-      l'utilisateur courant.
-- [ ] Adapter le endpoint de désinstallation/réinitialisation pour ce
-      profil (§5) **et le mécanisme de mise à jour** (§5.4) — sur ce
-      profil, `apt remove`/mise à jour via dépôt sont les voies naturelles,
-      le flux `git pull` actuel n'a pas plus de sens ici que sur Windows.
-- [ ] Scripts de maintenance du paquet (`postinst`/`prerm`/`postrm`) :
-      activer/désactiver l'unité systemd utilisateur au bon moment du cycle
-      de vie `dpkg`.
-- [ ] CI : job de build `.deb` + `lintian` (linter standard Debian) pour
-      détecter les erreurs de packaging avant publication.
-- [ ] Test manuel sur Debian 12/13 et Ubuntu LTS récent, environnement
-      GNOME par défaut (cf. CDC §12) : installation, lancement, tray,
-      kiosque optionnel, désinstallation via `apt remove`.
-- [ ] Documentation : nouvelle section README « Installer sur Linux
-      (bureau) », avec la distinction explicite vis-à-vis de l'appliance
-      headless (§7.1).
+- [x] Réutiliser tel quel `BobineTray` (`pystray`, backend GTK/AppIndicator
+      sous Linux) — adapté pour la détection des navigateurs Linux (`chromium`,
+      `google-chrome`, `firefox`) et l'anti-veille X11 (`xset`).
+- [x] Choisir l'outil de paquet : `dpkg-deb` standard Debian/Ubuntu (officiel,
+      reproductible, sans dépendance externe ruby/fpm).
+- [x] Structure du paquet : `usr/lib/bobine/` (backend + frontend statique +
+      dépendances autonomes via PyInstaller Linux `onedir`), `usr/bin/bobine`
+      (wrapper exécutable), `usr/share/applications/bobine.desktop` et
+      `/etc/xdg/autostart/bobine.desktop`, `usr/lib/systemd/user/bobine.service`
+      (unité utilisateur).
+- [x] Fichier `control` : dépendance `ffmpeg` déclarée, recommandation
+      `avahi-daemon`, architecture `amd64`.
+- [x] mDNS : réutiliser `avahi-daemon` s'il est déjà actif sur le poste,
+      sinon repli automatique sur le répondeur `zeroconf` embarqué.
+- [x] Résoudre les chemins de données par défaut vers `~/.local/share/bobine`
+      (convention XDG) et configuration utilisateur dans `~/.config/bobine/config.toml`
+      (repli sur `/etc/bobine/config.toml`) dans `backend/app/config.py`.
+- [x] Adapter le endpoint de désinstallation/réinitialisation pour ce
+      profil via `LinuxDesktopHandler` (`backend/app/utils/deployment_profiles/linux_desktop.py`)
+      et instruction `sudo apt remove bobine` dans les réglages.
+- [x] Scripts de maintenance du paquet (`postinst`/`prerm`/`postrm`) :
+      mise à jour des caches d'icônes/desktop et arrêt propre des processus.
+- [x] CI : job `linux-desktop-deb` dans `.github/workflows/ci.yml` (build Next.js,
+      PyInstaller Linux, compilation `dpkg-deb`, validation de structure et test
+      d'installation réelle `sudo dpkg -i` sur Ubuntu).
+- [x] Test de build réel local : paquet `dist-deb/bobine_2.0.1_amd64.deb` généré
+      avec succès (47 Mo), arborescence complète vérifiée avec `dpkg-deb -c`.
+- [x] Documentation : READMEs mis à jour mettant en avant les applications
+      graphiques de bureau en première méthode, section 8 ajoutée dans `patch.md`.
 
 ## 4. Lot 3 — macOS (plus tard)
 

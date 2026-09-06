@@ -17,8 +17,7 @@ Bobine transforme un mini PC dédié bon marché en système vidéo complet pour
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 ![Licence : AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)
 ![Backend : FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
-![Frontend : Next.js](https://img.shields.io/badge/Frontend-Next.js-000000)
-![Plateforme : Debian 13](https://img.shields.io/badge/Platform-Debian%2013-A81D33)
+![Plateformes : Windows | Linux (.deb) | Debian 13](https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux%20(.deb)%20%7C%20Debian%2013-blue)
 ![Auto-hébergé](https://img.shields.io/badge/Auto--h%C3%A9berg%C3%A9-Local--first-4c1)
 
 ---
@@ -94,76 +93,72 @@ Internet n'est nécessaire qu'une seule fois, pour installer le système d'explo
 
 ---
 
-## Démarrage rapide
+## Installation & Démarrage rapide
 
-### 1. Installer Debian 13 depuis une clé USB (voie rapide)
+Bobine propose désormais deux familles de déploiement adaptées à vos besoins :
 
+1. **L'application de bureau graphique (Recommandée pour un poste classique)** : disponible nativement sur **Windows** (`.exe`) et **Linux** (`.deb` Debian/Ubuntu). Bobine s'installe comme un logiciel de bureau traditionnel avec icône dans la zone de notification (systray), supervise le moteur en tâche de fond et permet d'ouvrir l'admin ou d'activer le mode kiosque plein écran en un clic.
+2. **L'appliance Linux dédiée headless (Debian 13)** : pour les salles de fitness équipées d'un mini PC dédié (type Dell Wyse 5070) sans bureau graphique, démarrant directement en kiosque X11 plein écran automatique.
+
+---
+
+### Méthode 1 — Application de bureau graphique (Windows & Linux)
+
+#### Sur Windows (10, 11 ou Windows IoT)
+
+1. **Téléchargez** `Bobine-Setup-*.exe` depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest).
+2. **Lancez l'installeur** et suivez l'assistant (choix français/anglais, acceptation de la licence AGPL-3.0). Il installe Bobine dans `Program Files\Bobine`, ajoute un raccourci au Menu Démarrer, enregistre le lancement automatique de Bobine à l'ouverture de session, et ouvre une règle de pare-feu Windows Defender pour que la télécommande mobile puisse joindre le backend depuis le réseau local.
+   - Windows SmartScreen affichera un avertissement « éditeur non reconnu » (l'installeur n'est pas encore signé) : cliquez sur **Informations complémentaires → Exécuter quand même** pour continuer.
+3. **Bobine démarre automatiquement** après l'installation : une icône apparaît dans la zone de notification. Cliquez dessus pour ouvrir l'admin, lancer la fenêtre en mode kiosque plein écran, redémarrer le backend ou quitter.
+4. **Ouvrez l'interface** : `http://bobine.local` depuis n'importe quel appareil du réseau local (ou `http://127.0.0.1:8000` sur le PC lui-même). Les données applicatives (vidéos, base SQLite, logs) vivent sous `%ProgramData%\Bobine`.
+
+#### Sur Linux avec bureau (Debian, Ubuntu et dérivés graphiques)
+
+1. **Téléchargez** le paquet `bobine_*_amd64.deb` depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest).
+2. **Installez le paquet** en terminal ou via votre logithèque :
+   ```bash
+   sudo apt install ./bobine_*_amd64.deb
+   ```
+   *(Toutes les dépendances comme ffmpeg sont automatiquement résolues par apt).*
+3. **Lancez Bobine** depuis le menu d'applications de votre bureau ou tapez `bobine` dans un terminal.
+   - L'icône Bobine apparaît dans votre zone de notification / barre d'état (tray) et assure la supervision du moteur.
+   - Lancement automatique au login XDG configuré nativement (et unité systemd utilisateur `systemctl --user start bobine` disponible).
+   - Vos médias et données vivent dans votre dossier utilisateur selon la norme XDG : `~/.local/share/bobine/`.
+
+---
+
+### Méthode 2 — Appliance Linux headless dédiée (Debian 13 sur mini PC)
+
+Ce mode transforme un mini PC dédié (sans écran clavier au quotidien) en serveur de diffusion vidéo 100% autonome et verrouillé en affichage kiosque.
+
+#### 1. Installer Debian 13 depuis une clé USB
 Bobine vise **Debian 13 « Trixie »**, installation minimale, sans environnement de bureau (Bobine apporte sa propre pile d'affichage kiosque).
 
 1. **Téléchargez** l'image Debian 13 *netinst* (~700 Mo) sur le site officiel : <https://www.debian.org/download>.
-2. **Écrivez-la sur une clé USB** (8 Go et plus). La clé est effacée.
-   - Linux : `sudo dd if=debian-13-*-amd64-netinst.iso of=/dev/sdX bs=4M status=progress oflag=sync` (remplacez `/dev/sdX` par votre clé, vue avec `lsblk` — vérifiez deux fois, cette commande écrase la cible).
-   - Windows/macOS : utilisez [balenaEtcher](https://etcher.balena.io/) ou Rufus, sélectionnez l'ISO et la clé, lancez.
-3. **Démarrez le mini PC sur la clé USB** : allumez et pressez la touche du menu de démarrage (souvent `F12`, `F7`, `F10` ou `Échap` sur Dell/thin client), choisissez la clé.
-4. **Déroulez l'installateur Debian** (graphique ou texte) :
-   - Définissez le nom de machine, un compte utilisateur normal et son mot de passe (retenez-les — c'est ce compte qui sert à la connexion SSH).
-   - À l'étape *Sélection des logiciels*, **décochez tous les environnements de bureau** ; ne gardez que **serveur SSH** et **utilitaires usuels du système**.
-   - Terminez et redémarrez en retirant la clé USB.
+2. **Écrivez-la sur une clé USB** (8 Go et plus) avec [balenaEtcher](https://etcher.balena.io/) ou `dd`.
+3. **Démarrez le mini PC sur la clé USB** et déroulez l'installateur : décochez tous les environnements de bureau, ne gardez que **serveur SSH** et **utilitaires usuels**.
 
-Vous avez maintenant une machine Debian 13 minimale, joignable sur votre réseau.
-
-### 2. Installer Bobine
-
+#### 2. Installer Bobine en ligne de commande
 Sur le mini PC (en direct ou par SSH), avec votre compte normal (pas root) :
 
-**Option A — Commande rapide en 1 ligne (recommandée) :**
-
 ```bash
+# Installation rapide en 1 ligne :
 curl -sSL https://bobine.fit/install.sh | bash
 ```
 
-**Option B — Clonage manuel :**
+*(Ou manuellement : `git clone https://github.com/FantasmaGlad/Bobine.git && cd Bobine && sudo ./install.sh`).*
 
-```bash
-git clone https://github.com/FantasmaGlad/Bobine.git
-cd Bobine
-sudo ./install.sh
-```
+---
 
-**Options d'affichage & contrôle :**
-- **Interface épurée (par défaut)** : progression claire et moderne, les logs détaillés sont stockés dans `/var/log/bobine/install-*.log`.
-- **Mode verbeux (`-v` ou `--verbose`)** : affiche tous les flux et logs de compilation en direct (`sudo ./install.sh -v` ou `curl -sSL https://bobine.fit/install.sh | bash -s -- -v`).
-- **Mode silencieux (`-q` ou `--quiet`)** : n'affiche que les erreurs et le bilan final.
-- **Mode serveur seul (`--no-kiosk`)** : installe uniquement le backend et l'API, sans stack graphique locale.
-- **Diagnostic de santé (`--check`)** : vérifie l'état de l'installation et des services sans rien modifier.
+### Ouvrir l'interface & commencer
 
-`install.sh` est idempotent et autonome. Il installe les paquets système, Node.js et l'environnement Python, construit l'interface web, écrit la configuration, enregistre les services systemd (backend, kiosque, garde audio, chien de garde de santé), publie le nom `bobine.local` sur le réseau et démarre le tout. Relancez-le après une mise à jour pour reconstruire et redémarrer proprement.
-
-Pas d'internet à la salle ? Vous pouvez copier le dépôt depuis une autre machine par SSH (rsync) au lieu de le cloner — voir la section *Exploitation & déploiement* de [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-### 3. Ouvrir l'interface
-
-Depuis n'importe quel appareil du même réseau, ouvrez :
+Depuis n'importe quel appareil connecté au même réseau Wi-Fi / Ethernet :
 
 ```
 http://bobine.local
 ```
 
-Bobine se publie en **mDNS (Zeroconf/Bonjour)** sous le nom `bobine.local` : pas besoin de connaître son adresse IP. Si votre réseau bloque le mDNS, utilisez l'IP de la machine directement (`http://<adresse-ip>`) ; l'IP est affichée à la fin de `install.sh`, ou trouvez-la avec `hostname -I` sur le mini PC.
-
-Importez quelques vidéos de cours depuis l'admin, créez un planning ou une playlist, et l'écran câblé se met à diffuser.
-
-### Alternative : installer sur Windows
-
-Bobine existe aussi en **application de bureau Windows native** — pas de Debian, pas de SSH, pas de mini PC headless. Ce mode cible un PC Windows 10/11 (ou Windows IoT) classique, ou un mini PC installé comme n'importe quelle application de bureau.
-
-1. **Téléchargez** `Bobine-Setup-*.exe` depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest).
-2. **Lancez l'installeur** et suivez l'assistant (choix français/anglais, acceptation de la licence AGPL-3.0). Il installe Bobine dans `Program Files\Bobine`, ajoute un raccourci au Menu Démarrer, enregistre le lancement automatique de Bobine à l'ouverture de session, et ouvre une règle de pare-feu Windows Defender pour que la télécommande mobile puisse joindre le backend depuis le réseau local.
-   - Windows SmartScreen affichera probablement un avertissement « éditeur non reconnu » : l'installeur n'est pas encore signé. Cliquez sur **Informations complémentaires → Exécuter quand même** pour continuer.
-3. **Bobine démarre automatiquement** après l'installation : une icône apparaît dans la zone de notification. Cliquez dessus pour ouvrir l'admin, lancer la fenêtre de navigateur en mode kiosque, redémarrer le backend ou quitter.
-4. **Ouvrez l'interface** comme sous Linux — `http://bobine.local` depuis n'importe quel appareil du réseau (ou `http://127.0.0.1:8000` sur la machine Windows elle-même).
-
-Différences avec l'appliance headless Linux : la mise à jour intégrée (*Paramètres → Vérifier les mises à jour*) est désactivée sous Windows — réinstallez plutôt le dernier `Bobine-Setup-*.exe` — et le mode kiosque est une fenêtre de navigateur optionnelle ouverte depuis l'icône de la zone de notification, pas un démarrage verrouillé. Les données applicatives (vidéos, base de données, logs) vivent sous `%ProgramData%\Bobine`, séparément des fichiers du programme installé.
+Bobine s'annonce en **mDNS (Zeroconf/Bonjour)** sous le nom `bobine.local`. Si votre réseau local ne relaie pas le mDNS, utilisez directement l'adresse IP locale de la machine (`http://<adresse-ip>:8000` ou port 80 sur l'appliance).
 
 ---
 
@@ -192,15 +187,19 @@ Il rapporte l'état de la base **SQLite** et du **kiosque Chromium**, et renvoie
 
 ## Désinstallation
 
-Depuis l'admin : *Paramètres → Zone de danger → Désinstaller* (une phrase de confirmation est demandée). Ou en ligne de commande sur le mini PC :
+**Sous Windows**, désinstallez comme n'importe quelle application de bureau : ouvrez *Paramètres → Applications → Applications installées* (ou le panneau classique *Programmes et fonctionnalités*), cherchez Bobine, et choisissez Désinstaller. Cela retire le programme installé ainsi que les raccourcis Menu Démarrer/démarrage automatique ; `%ProgramData%\Bobine` (vos vidéos, la base de données et les logs) est conservé pour qu'une réinstallation retrouve vos données.
 
+**Sous Linux (bureau)**, désinstallez via votre logithèque ou en ligne de commande :
+```bash
+sudo apt remove bobine
+```
+Pour purger également la configuration système, utilisez `sudo apt purge bobine`. Vos données utilisateur (`~/.local/share/bobine/`) restent conservées.
+
+Sur l'**appliance headless**, utilisez la commande d'administration dédiée :
 ```bash
 sudo ./install.sh --uninstall --purge
 ```
-
 Ajoutez `--purge-data` pour retirer aussi les médias importés (irréversible). Les paquets système partagés sont conservés. Voir `sudo ./install.sh --help` pour toutes les options.
-
-**Sous Windows**, désinstallez comme n'importe quelle application de bureau : ouvrez *Paramètres → Applications → Applications installées* (ou le panneau classique *Programmes et fonctionnalités*), cherchez Bobine, et choisissez Désinstaller. Cela retire le programme installé ainsi que les raccourcis Menu Démarrer/démarrage automatique ; `%ProgramData%\Bobine` (vos vidéos, la base de données et les logs) est conservé pour qu'une réinstallation retrouve vos données — supprimez ce dossier manuellement pour un nettoyage complet.
 
 ---
 

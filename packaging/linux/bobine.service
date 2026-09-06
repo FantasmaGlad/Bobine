@@ -1,0 +1,15 @@
+[Unit]
+Description=Bobine — Système de diffusion vidéo et audio (session utilisateur)
+Documentation=https://github.com/FantasmaGlad/Bobine
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/bobine
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

@@ -38,3 +38,11 @@ AGENTS.md
 
 # Documents de patch/suivi personnels (non destinés au dépôt public)
 docs/patch.md
+
+# Packaging & Build artefacts
+dist/
+build/
+backend/dist/
+backend/build/
+dist-deb/
+dist-installer/

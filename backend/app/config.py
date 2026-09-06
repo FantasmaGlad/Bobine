@@ -25,12 +25,24 @@ def _data_root() -> Path:
     d'installation (`%ProgramFiles%\\Bobine`), qui n'est **pas** inscriptible
     par un utilisateur standard sans élévation (CDC §5.2,
     plan-implementation-portabilite-crossplatformx.md §2) — les données par
-    défaut vivent donc sous `%ProgramData%\\Bobine\\` à la place. Linux/macOS
-    inchangés : `ROOT_DIR` reste la racine de confort de dev existante."""
+    défaut vivent donc sous `%ProgramData%\\Bobine\\` à la place.
+    Sous Linux de bureau (.deb dans `/usr/lib/bobine`), respect de la
+    spécification XDG : données sous `~/.local/share/bobine`.
+    Linux headless / dev : `ROOT_DIR` reste la racine de confort."""
     if platform.system() == "Windows":
         program_data = os.environ.get("ProgramData")
         if program_data:
             return Path(program_data) / "Bobine"
+    elif platform.system() == "Linux":
+        if getattr(sys, "frozen", False) or not os.access(ROOT_DIR, os.W_OK) or os.environ.get("BOBINE_USE_XDG") == "1":
+            xdg_data = os.environ.get("XDG_DATA_HOME")
+            base = Path(xdg_data) if xdg_data else Path.home() / ".local" / "share"
+            target = base / "bobine"
+            try:
+                target.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
+            return target
     return ROOT_DIR
 
 
@@ -40,12 +52,18 @@ DATA_ROOT = _data_root()
 def _global_config_path() -> Path:
     """Emplacement du config.toml de PRODUCTION (prioritaire sur celui du
     dépôt/de l'installation, cf. load_settings ci-dessous). `/etc/bobine/`
-    n'existe pas sous Windows : `%ProgramData%\\Bobine\\` joue le même rôle
-    (écrit par l'installeur Inno Setup plutôt que par `install.sh`)."""
+    n'existe pas sous Windows : `%ProgramData%\\Bobine\\` joue le même rôle.
+    Sous Linux de bureau, la config utilisateur `~/.config/bobine/config.toml`
+    (XDG) prime si présente, avec repli sur `/etc/bobine/config.toml`."""
     if platform.system() == "Windows":
         program_data = os.environ.get("ProgramData")
         if program_data:
             return Path(program_data) / "Bobine" / "config.toml"
+    elif platform.system() == "Linux":
+        xdg_config = os.environ.get("XDG_CONFIG_HOME")
+        user_config = (Path(xdg_config) if xdg_config else Path.home() / ".config") / "bobine" / "config.toml"
+        if user_config.exists():
+            return user_config
     return Path("/etc/bobine/config.toml")
 
 

@@ -19,11 +19,16 @@ migration de données » comme formulé initialement.
 ci-dessous (PyInstaller deux exécutables, Inno Setup, `pystray`,
 `zeroconf`, chemins `%ProgramData%`, pare-feu, avertissement SmartScreen
 documenté). Détail, vérifications réalisables sans machine Windows et
-découvertes de packaging (PyInstaller `_internal/`, imports figés,
-chemins figés) dans
-[`plan-implementation-portabilite-crossplatformx.md`](plan-implementation-portabilite-crossplatformx.md)
-§2. Reste explicitement non vérifié : compilation Inno Setup réelle et
-test sur une vraie machine Windows.
+découvertes de packaging dans
+[`plan-implementation-portabilite-crossplatformx.md`](plan-implementation-portabilite-crossplatformx.md) §2.
+
+**Lot 2 (§6) implémenté le 2026-09-06** — conforme à ce qui est décrit
+ci-dessous (paquet Debian `.deb` via `dpkg-deb`, deux exécutables PyInstaller
+autonomes dans `/usr/lib/bobine/`, wrapper `/usr/bin/bobine`, intégration XDG
+`bobine.desktop` autostart et `~/.local/share/bobine/`, service systemd user,
+`BobineTray` avec anti-veille X11 et détection multi-navigateurs, job CI `linux-desktop-deb`).
+Détail complet dans
+[`plan-implementation-portabilite-crossplatformx.md`](plan-implementation-portabilite-crossplatformx.md) §3.
 
 ## 1. Objectif
 

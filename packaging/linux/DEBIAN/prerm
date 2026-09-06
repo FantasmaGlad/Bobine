@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "remove" ] || [ "$1" = "upgrade" ] || [ "$1" = "deconfigure" ]; then
+    # Tentative d'arrêt préventif des processus utilisateurs Bobine en cours
+    if command -v killall >/dev/null 2>&1; then
+        killall -q BobineTray || true
+        killall -q BobineBackend || true
+    elif command -v pkill >/dev/null 2>&1; then
+        pkill -x BobineTray || true
+        pkill -x BobineBackend || true
+    fi
+fi
+
+exit 0

@@ -127,37 +127,62 @@ class BackendSupervisor:
 
 
 def _set_display_always_on(enabled: bool) -> None:
-    """Anti-veille activée UNIQUEMENT pendant la session kiosque (CDC §5.4)
+    """Anti-veille activée UNIQUEMENT pendant la session kiosque (CDC §5.4/§6.3)
     — jamais globalement : contrairement à l'appliance headless,
     l'utilisateur qui installe Bobine sur son PC personnel veut
     probablement garder son comportement de veille habituel le reste du
-    temps. No-op hors Windows (rien d'équivalent construit pour Linux/
-    macOS à ce stade — Lots 2/3), et donc invérifiable depuis cet
-    environnement Linux de développement."""
-    if platform.system() != "Windows":
-        return
-    import ctypes
-
-    ES_CONTINUOUS = 0x80000000
-    ES_DISPLAY_REQUIRED = 0x00000002
-    ES_SYSTEM_REQUIRED = 0x00000001
-    flags = ES_CONTINUOUS | (ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED if enabled else 0)
-    ctypes.windll.kernel32.SetThreadExecutionState(flags)  # type: ignore[attr-defined]
+    temps. Windows : SetThreadExecutionState ; Linux (X11) : xset."""
+    system = platform.system()
+    if system == "Windows":
+        import ctypes
+        ES_CONTINUOUS = 0x80000000
+        ES_DISPLAY_REQUIRED = 0x00000002
+        ES_SYSTEM_REQUIRED = 0x00000001
+        flags = ES_CONTINUOUS | (ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED if enabled else 0)
+        ctypes.windll.kernel32.SetThreadExecutionState(flags)  # type: ignore[attr-defined]
+    elif system == "Linux":
+        if shutil.which("xset"):
+            try:
+                if enabled:
+                    subprocess.run(["xset", "s", "off", "-dpms"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                else:
+                    subprocess.run(["xset", "s", "default", "+dpms"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except Exception:
+                pass
 
 
 def launch_kiosk_browser() -> None:
     """Lance le navigateur en mode kiosque optionnel (décision #1 du CDC).
-    Préfère Edge sous Windows (déjà présent sur toute machine Windows
-    10/11/IoT, Chromium sous le capot) ; repli sur le navigateur par défaut
-    ailleurs — pas un vrai kiosque verrouillé hors Windows/Edge, juste un
-    onglet plein écran."""
-    args = ["--kiosk", "--autoplay-policy=no-user-gesture-required", KIOSK_URL]
-    edge = shutil.which("msedge") if platform.system() == "Windows" else None
-    if edge:
-        _set_display_always_on(True)
-        subprocess.Popen([edge, *args])
-    else:
-        webbrowser.open(KIOSK_URL)
+    - Windows : préfère Edge (Chromium).
+    - Linux : cherche chromium, google-chrome ou firefox en mode --kiosk.
+    - Repli universel : navigateur par défaut."""
+    system = platform.system()
+    kiosk_args = ["--kiosk", "--autoplay-policy=no-user-gesture-required", KIOSK_URL]
+
+    if system == "Windows":
+        edge = shutil.which("msedge")
+        if edge:
+            _set_display_always_on(True)
+            subprocess.Popen([edge, *kiosk_args])
+            return
+
+    elif system == "Linux":
+        # Recherche d'un navigateur Chromium sous Linux
+        for candidate in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "brave-browser", "msedge"):
+            browser_bin = shutil.which(candidate)
+            if browser_bin:
+                _set_display_always_on(True)
+                subprocess.Popen([browser_bin, *kiosk_args])
+                return
+
+        # Repli Firefox
+        firefox = shutil.which("firefox")
+        if firefox:
+            _set_display_always_on(True)
+            subprocess.Popen([firefox, "--kiosk", KIOSK_URL])
+            return
+
+    webbrowser.open(KIOSK_URL)
 
 
 _ICON_FILENAME = "logo_bobine_icon.png"

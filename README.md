@@ -17,8 +17,7 @@ Bobine turns a low-cost dedicated mini PC into a complete in-club video system: 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 ![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)
 ![Backend: FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
-![Frontend: Next.js](https://img.shields.io/badge/Frontend-Next.js-000000)
-![Platform: Debian 13](https://img.shields.io/badge/Platform-Debian%2013-A81D33)
+![Platforms: Windows | Linux (.deb) | Debian 13](https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux%20(.deb)%20%7C%20Debian%2013-blue)
 ![Self-hosted](https://img.shields.io/badge/Self--hosted-Local--first-4c1)
 
 ---
@@ -94,76 +93,72 @@ Internet is only needed once, to install the operating system and the software.
 
 ---
 
-## Quick start
+## Installation & Quick Start
 
-### 1. Install Debian 13 from a USB key (fast path)
+Bobine now offers two deployment families tailored to your setup:
 
-Bobine targets **Debian 13 "Trixie"**, minimal install, no desktop environment (Bobine brings its own kiosk display stack).
+1. **Native Graphical Desktop App (Recommended for standard PCs)**: Available natively on **Windows** (`.exe`) and **Linux** (`.deb` Debian/Ubuntu). Bobine installs as a traditional desktop application with a notification tray icon, supervises the backend engine in the background, and lets you open the admin dashboard or trigger the full-screen kiosk mode with one click.
+2. **Dedicated Headless Linux Appliance (Debian 13)**: For fitness clubs running on a dedicated bare mini PC (such as a Dell Wyse 5070) without a desktop environment, booting directly into an automated full-screen X11 kiosk.
 
-1. **Download** the Debian 13 *netinst* image (~700 MB) from the official site: <https://www.debian.org/download>.
-2. **Write it to a USB key** (8 GB+). The key is erased.
-   - Linux: `sudo dd if=debian-13-*-amd64-netinst.iso of=/dev/sdX bs=4M status=progress oflag=sync` (replace `/dev/sdX` with your USB device from `lsblk` — double-check, this overwrites the target).
-   - Windows/macOS: use [balenaEtcher](https://etcher.balena.io/) or Rufus, select the ISO and the USB key, flash.
-3. **Boot the mini PC from the USB key**: power on and press the boot-menu key (often `F12`, `F7`, `F10` or `Esc` on Dell/thin clients), pick the USB device.
-4. **Run the Debian installer** (graphical or text):
-   - Set hostname, a normal user account and password (remember them — you connect over SSH with this user).
-   - At *Software selection*, **deselect every desktop environment**; keep only **SSH server** and **standard system utilities**.
-   - Finish and reboot, removing the USB key.
+---
 
-You now have a minimal Debian 13 machine reachable on your network.
+### Method 1 — Graphical Desktop App (Windows & Linux)
 
-### 2. Install Bobine
+#### On Windows (10, 11 or Windows IoT)
 
-On the mini PC (directly or over SSH), as your normal user (not root):
+1. **Download** `Bobine-Setup-*.exe` from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest).
+2. **Run the installer** and follow the wizard (French/English selection, AGPL-3.0 license acceptance). It installs Bobine into `Program Files\Bobine`, adds a Start Menu shortcut, registers autostart at user sign-in, and configures a Windows Defender Firewall rule so your mobile remote can connect over the local network.
+   - If Windows SmartScreen displays an "unrecognized publisher" alert, click **More info → Run anyway**.
+3. **Bobine starts automatically** in the system tray. Click the tray icon to open the admin panel, launch the full-screen kiosk browser window, restart the backend, or quit.
+4. **Open the interface**: `http://bobine.local` from any device on your local network (or `http://127.0.0.1:8000` on the PC itself). Application data (videos, SQLite database, logs) is stored in `%ProgramData%\Bobine`.
 
-**Option A — Quick 1-line command (recommended):**
+#### On Linux with a Desktop (Debian, Ubuntu and desktop derivatives)
+
+1. **Download** `bobine_*_amd64.deb` from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest).
+2. **Install the package** via your software manager or terminal:
+   ```bash
+   sudo apt install ./bobine_*_amd64.deb
+   ```
+   *(All runtime dependencies including ffmpeg are handled automatically by apt).*
+3. **Launch Bobine** from your desktop applications menu or type `bobine` in a terminal.
+   - The Bobine tray icon appears in your system notification area and supervises the engine.
+   - XDG autostart is enabled at desktop login (and a systemd user unit `systemctl --user start bobine` is also available).
+   - Your media files, database, and logs live cleanly in your user directory following the XDG specification: `~/.local/share/bobine/`.
+
+---
+
+### Method 2 — Dedicated Headless Linux Appliance (Debian 13 on mini PC)
+
+This mode turns a dedicated, headless mini PC into a 100% self-contained appliance locked in kiosk mode.
+
+#### 1. Install Debian 13 from a USB key
+Bobine targets **Debian 13 "Trixie"**, minimal install, no desktop environment.
+
+1. **Download** the Debian 13 *netinst* image (~700 MB) from <https://www.debian.org/download>.
+2. **Write it to a USB key** (8 GB+) using [balenaEtcher](https://etcher.balena.io/) or `dd`.
+3. **Boot the mini PC from USB** and run the installer: uncheck all desktop environments, keep only **SSH server** and **standard system utilities**.
+
+#### 2. Install Bobine via command line
+On the mini PC (directly or via SSH), as your normal user (not root):
 
 ```bash
+# Fast 1-line installation:
 curl -sSL https://bobine.fit/install.sh | bash
 ```
 
-**Option B — Manual clone:**
+*(Or manual clone: `git clone https://github.com/FantasmaGlad/Bobine.git && cd Bobine && sudo ./install.sh`).*
 
-```bash
-git clone https://github.com/FantasmaGlad/Bobine.git
-cd Bobine
-sudo ./install.sh
-```
+---
 
-**Display & Control Options:**
-- **Clean interface (default)**: streamlined progress indicators with full logs saved to `/var/log/bobine/install-*.log`.
-- **Verbose mode (`-v` or `--verbose`)**: live stream of all subprocess commands and compilation logs (`sudo ./install.sh -v` or `curl -sSL https://bobine.fit/install.sh | bash -s -- -v`).
-- **Quiet mode (`-q` or `--quiet`)**: silent run, only printing errors and final summary.
-- **Server only (`--no-kiosk`)**: installs backend and API without local X11 kiosk display.
-- **Health check (`--check`)**: inspects installed services and configuration without applying changes.
+### Open the Interface & Get Started
 
-`install.sh` is idempotent and self-contained. It installs system packages, Node.js and the Python environment, builds the web interface, writes the configuration, registers the systemd services (backend, kiosk, audio guard, health watchdog), publishes the `bobine.local` name on the network, and starts everything. Re-run it after an update to rebuild and restart cleanly.
-
-No internet at the club? You can copy the repository from another machine over SSH (rsync) instead of cloning it — see the *Operation & deployment* section of [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-### 3. Open the interface
-
-From any device on the same network, open:
+From any device connected to the same Wi-Fi / Ethernet network:
 
 ```
 http://bobine.local
 ```
 
-Bobine publishes itself over **mDNS (Zeroconf/Bonjour)** as `bobine.local`, so you do not need to know its IP address. If your network blocks mDNS, use the machine's IP directly (`http://<ip-address>`); the machine's IP is shown at the end of `install.sh`, or find it with `hostname -I` on the mini PC.
-
-Import a few class videos from the admin panel, build a schedule or a playlist, and the wired screen starts playing.
-
-### Alternative: install on Windows
-
-Bobine also ships as a **native Windows desktop app** — no Debian, no SSH, no headless mini PC. This targets a regular Windows 10/11 (or Windows IoT) PC or mini PC that you set up like any other desktop application.
-
-1. **Download** `Bobine-Setup-*.exe` from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest).
-2. **Run the installer** and follow the wizard (choose French or English, accept the AGPL-3.0 license). It installs Bobine under `Program Files\Bobine`, adds a Start Menu shortcut, registers Bobine to launch automatically at sign-in, and opens a Windows Defender Firewall rule so the mobile remote can reach the backend from the local network.
-   - Windows SmartScreen will likely warn about an "unrecognized publisher" — the installer is not code-signed yet. Click **More info → Run anyway** to proceed.
-3. **Bobine starts automatically** after installation: a tray icon appears in the notification area. Click it to open the admin panel, launch the optional kiosk browser window, restart the backend, or quit.
-4. **Open the interface** the same way as on Linux — `http://bobine.local` from any device on the network (or `http://127.0.0.1:8000` on the Windows machine itself).
-
-Differences from the headless Linux appliance: the built-in updater (*Settings → Check for updates*) is disabled on Windows — reinstall the latest `Bobine-Setup-*.exe` instead — and kiosk mode is an optional browser window you open from the tray, not a locked-down boot target. Application data (videos, database, logs) lives under `%ProgramData%\Bobine`, separate from the installed program files.
+Bobine advertises itself over **mDNS (Zeroconf/Bonjour)** as `bobine.local`. If your local network does not resolve mDNS, use the local IP address of the machine (`http://<ip-address>:8000` or port 80 on the appliance).
 
 ---
 
@@ -192,15 +187,19 @@ It reports the status of the **SQLite database** and the **Chromium kiosk**, and
 
 ## Uninstall
 
-From the admin panel: *Settings → Danger zone → Uninstall* (a confirmation phrase is required). Or from the command line on the mini PC:
+**On Windows**, uninstall like any desktop app: open *Settings → Apps → Installed apps* (or classic *Programs and Features*), find Bobine, and choose Uninstall. This removes the installed program and shortcuts; `%ProgramData%\Bobine` (your videos, database, and logs) is kept so a reinstall recovers your data.
 
+**On Linux (Desktop)**, uninstall via your software manager or terminal:
+```bash
+sudo apt remove bobine
+```
+To purge system configuration as well, run `sudo apt purge bobine`. Your personal data under `~/.local/share/bobine/` is preserved.
+
+On the **headless appliance**, use the dedicated management command:
 ```bash
 sudo ./install.sh --uninstall --purge
 ```
-
 Add `--purge-data` to also remove imported media (irreversible). Shared system packages are kept. See `sudo ./install.sh --help` for all options.
-
-**On Windows**, uninstall like any desktop app: open *Settings → Apps → Installed apps* (or the classic *Programs and Features*), find Bobine, and choose Uninstall. This removes the installed program and the Start Menu/autostart shortcuts; `%ProgramData%\Bobine` (your videos, database and logs) is kept so a reinstall recovers your data — delete that folder manually for a full cleanup.
 
 ---
 
