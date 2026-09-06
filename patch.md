@@ -209,3 +209,185 @@ Garantit que chaque utilisateur, quelle que soit sa plateforme de bureau (Window
   - **macOS (`backend/app/desktop/tray.py` & `packaging/macos/bobine.spec`)** : `bobine.icns` explicitement déclaré dans `CFBundleIconFile` d'`info_plist` ; `BobineTray` vérifie et crée au premier lancement un alias/symlink `Bobine.app` sur le Bureau (`~/Desktop/Bobine.app`) si le dossier existe.
 - **Rendu Systray (`backend/app/desktop/tray.py`)** : fonction `_load_icon_image()` améliorée pour recadrer en carré transparent avant redimensionnement en 64×64, évitant tout étirement de l'icône dans la zone de notification.
 
+---
+
+## 11. Mission PortabiliteCrossPlatformX — Chantier Transverse A & Guide de Distribution Web (`bobine.fit`)
+
+### Contexte & Objectifs
+Dans le cadre de la portabilité multi-OS complète de Bobine (appliance Debian headless, application Windows `.exe`, application Linux de bureau `.deb`, application macOS `.dmg`), les opérations d'administration système ne pouvaient plus présumer de la présence exclusive de `systemctl`, ni dépendre uniquement de commandes `git pull` pour les mises à jour.
+
+Le **Chantier Transverse A** unifie ces opérations au travers d'une architecture extensible de profils de déploiement (`ProfileHandler`), intègre la sauvegarde/restauration universelle de configuration et de données, et assure une gestion des mises à jour adaptée à chaque OS. En parallèle, cette section fournit le **guide technique complet pour distribuer automatiquement ces installeurs sur le site vitrine officiel `bobine.fit`**.
+
+---
+
+### Partie 1 : Modifications techniques (Chantier Transverse A)
+
+#### 1. Architecture par Profils (`backend/app/utils/deployment.py`)
+- Définition du protocole `ProfileHandler` et du registre `PROFILE_HANDLERS` pour les 4 profils de déploiement :
+  - `linux-headless` : Appliance dédiée Wyse / mini PC sous Debian 13 (gestion par systemd, mise à jour par git).
+  - `windows` : Application de bureau Windows 10/11 installée par Inno Setup (`.exe`).
+  - `linux-desktop` : Application de bureau pour distributions Debian/Ubuntu/Mint installée par paquet `.deb`.
+  - `macos` : Application de bureau Apple Silicon installée par `.dmg` / `Bobine.app`.
+- Exposition du profil courant dans `GET /api/settings` (`deployment_profile`) pour adapter dynamiquement l'interface d'administration.
+
+#### 2. Mises à jour intelligentes selon le profil (`backend/app/routers/updates.py`)
+- **Appliance Headless (`linux-headless`)** : Mise à jour automatique in-place via Git (`git rev-parse`, `git describe`, `git pull`) et redémarrage supervisé de `bobine-backend` et `bobine-kiosk`. `can_auto_apply = True`.
+- **Profils Desktop (`windows`, `linux-desktop`, `macos`)** :
+  - Détection sémantique de version via l'API GitHub Releases (`FantasmaGlad/Bobine`).
+  - Extraction automatique de l'actif installateur correspondant :
+    - Windows : `.exe` (`Bobine-Setup-<version>.exe`)
+    - Linux Desktop : `.deb` (`bobine_<version>_amd64.deb`)
+    - macOS : `.dmg` (`Bobine-<version>.dmg`)
+  - Fourniture du lien direct de téléchargement (`download_url`), du nom de l'actif (`asset_name`), de sa taille en octets (`asset_size`), et du drapeau `can_auto_apply = False`.
+  - Dans la page Paramètres (`frontend/src/app/settings/page.tsx`), remplacement du bouton "Appliquer la mise à jour" par un bouton d'action directe "Télécharger l'installateur ({asset_name})".
+
+#### 3. Sauvegarde & Restauration Universelles (`backend/app/routers/settings.py`)
+- **Exportation (`GET /api/settings/backup/export`)** :
+  - Exécute `PRAGMA wal_checkpoint(TRUNCATE)` sur SQLite pour vider les journaux WAL dans la base principale.
+  - Archive dans un fichier ZIP téléchargeable :
+    - `database.db` : base SQLite complète (cours, plannings, playlists, réglages).
+    - `config.toml` : configuration locale si personnalisée.
+    - `manifest.json` : métadonnées d'export (version, horodatage UTC, profil source, signature).
+- **Restauration (`POST /api/settings/backup/restore`)** :
+  - Réception du fichier ZIP via l'interface d'administration.
+  - Vérification de l'intégrité de l'archive et de l'en-tête binaire SQLite (`SQLite format 3\x00`).
+  - Sauvegarde de secours automatique de la base active (`database.db.bak`).
+  - Remplacement atomique de la base et de la configuration, puis redémarrage automatique des services.
+
+#### 4. Remise à zéro d'usine des données (`POST /api/settings/system/reset-data`)
+- Permet de réinitialiser entièrement les données applicatives (vidéos, musiques radio/cours, base de données SQLite) sans JAMAIS altérer les binaires applicatifs installés sur le système (`/usr/lib/bobine`, `Program Files`, `/Applications`).
+- Sécurité renforcée : confirmation modale exigeant la saisie explicite du mot « REINITIALISER ». Accessible sur l'ensemble des 4 profils de déploiement.
+
+---
+
+### Partie 2 : Guide d'Implémentation pour la Distribution Web (`bobine.fit`)
+
+Le site web vitrine `bobine.fit` doit permettre à tout visiteur de télécharger en 1 clic l'installateur graphique adapté à son système d'exploitation, tout en offrant un accès clair aux autres plateformes et à la méthode appliance.
+
+#### 1. Architecture & Stratégie de Téléchargement
+
+```mermaid
+graph TD
+    A[Visiteur sur bobine.fit] --> B[Détection OS en JS]
+    B --> C{Appel GitHub API}
+    C -->|Succès| D[Récupération release 'latest']
+    C -->|Rate-limit / Hors-ligne| E[Fallback URLs Statiques GitHub]
+    D --> F[Bouton Principal Dynamique]
+    E --> F
+    F -->|Clic| G[Téléchargement direct depuis le CDN GitHub]
+```
+
+- **Hébergement des binaires** : Les installeurs sont hébergés gratuitement et sans limite de bande passante sur le **CDN de GitHub Releases**. Le serveur de `bobine.fit` ne sert que les pages web statiques/légères.
+- **Mise à jour sans redéploiement** : Dès qu'une nouvelle version est publiée sur GitHub (ex: `v1.2.0`), le site web propose instantanément la nouvelle version sans aucune modification manuelle de son code.
+
+#### 2. Matrice de Correspondance Plateforme / Livrable
+
+| Système détecté | Fichier de destination | Format d'artefact GitHub | Action proposée sur `bobine.fit` |
+|---|---|---|---|
+| **Windows** (10, 11) | `Bobine-Setup-<version>.exe` | `.exe` | Téléchargement direct + note SmartScreen |
+| **macOS** (Apple Silicon) | `Bobine-<version>.dmg` | `.dmg` | Téléchargement direct + note Gatekeeper |
+| **Linux Bureau** (Debian, Ubuntu, Mint...) | `bobine_<version>_amd64.deb` | `.deb` | Téléchargement direct ou commande `apt install` |
+| **Appliance mini PC** (Debian 13 dédié) | Script d'installation | `install.sh` | Bloc de commande 1-ligne à copier/coller |
+
+#### 3. Logique de Détection OS côté Client (JavaScript / TypeScript)
+
+Ce code s'intègre facilement dans n'importe quelle stack frontend (React, Vue, Next.js, HTML/JS vanilla) :
+
+```javascript
+/**
+ * Détecte l'OS du visiteur avec prise en charge de User-Agent Client Hints.
+ * @returns {'windows' | 'macos' | 'linux' | 'unknown'}
+ */
+export function detectVisitorOS() {
+  if (typeof window === 'undefined') return 'unknown';
+
+  // 1. Détection moderne via User-Agent Data API si disponible
+  const platform = navigator.userAgentData?.platform?.toLowerCase() || '';
+  if (platform.includes('win')) return 'windows';
+  if (platform.includes('mac')) return 'macos';
+  if (platform.includes('linux')) return 'linux';
+
+  // 2. Détection classique par chaîne User-Agent
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('win')) return 'windows';
+  if (ua.includes('mac') && !ua.includes('iphone') && !ua.includes('ipad')) return 'macos';
+  if (ua.includes('linux') && !ua.includes('android')) return 'linux';
+
+  return 'unknown';
+}
+```
+
+#### 4. Intégration de l'API GitHub Releases avec Fallback Robuste
+
+```javascript
+const REPO = 'FantasmaGlad/Bobine';
+const GITHUB_API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
+
+// URLs statiques de repli (utilisées si l'API GitHub est rate-limitée)
+const FALLBACK_URLS = {
+  windows: `https://github.com/${REPO}/releases/latest/download/Bobine-Setup-latest.exe`,
+  macos: `https://github.com/${REPO}/releases/latest/download/Bobine-latest.dmg`,
+  linux: `https://github.com/${REPO}/releases/latest/download/bobine_latest_amd64.deb`,
+};
+
+export async function fetchLatestReleaseAssets() {
+  try {
+    const res = await fetch(GITHUB_API_URL);
+    if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+    const data = await res.json();
+    
+    const version = data.tag_name;
+    const assets = data.assets || [];
+
+    const getAsset = (ext) => assets.find(a => a.name.toLowerCase().endsWith(ext));
+
+    return {
+      version,
+      windows: {
+        url: getAsset('.exe')?.browser_download_url || FALLBACK_URLS.windows,
+        size: getAsset('.exe')?.size || 0,
+        filename: getAsset('.exe')?.name || 'Bobine-Setup.exe'
+      },
+      macos: {
+        url: getAsset('.dmg')?.browser_download_url || FALLBACK_URLS.macos,
+        size: getAsset('.dmg')?.size || 0,
+        filename: getAsset('.dmg')?.name || 'Bobine.dmg'
+      },
+      linux: {
+        url: getAsset('.deb')?.browser_download_url || FALLBACK_URLS.linux,
+        size: getAsset('.deb')?.size || 0,
+        filename: getAsset('.deb')?.name || 'bobine_amd64.deb'
+      }
+    };
+  } catch (err) {
+    console.warn('Utilisation des liens de secours statiques GitHub:', err);
+    return {
+      version: 'Dernière version',
+      windows: { url: FALLBACK_URLS.windows, size: 0, filename: 'Bobine-Setup.exe' },
+      macos: { url: FALLBACK_URLS.macos, size: 0, filename: 'Bobine.dmg' },
+      linux: { url: FALLBACK_URLS.linux, size: 0, filename: 'bobine_amd64.deb' }
+    };
+  }
+}
+```
+
+#### 5. Recommandations d'Interface & UX pour `bobine.fit`
+
+1. **Bouton Principal Dynamique (Hero Header)** :
+   - Détecte l'OS du visiteur et présente un bouton adapté :
+     - *« Télécharger pour Windows (v1.2.0 • 65 Mo) »*
+     - *« Télécharger pour macOS (v1.2.0 • 55 Mo) »*
+     - *« Télécharger pour Linux .deb (v1.2.0 • 48 Mo) »*
+2. **Menu « Autres plateformes »** :
+   - Juste sous le bouton principal, afficher des liens clairs :
+     *« Également disponible pour [Windows (.exe)](#), [macOS (.dmg)](#), [Linux (.deb)](#) ou [Mini PC Appliance (Debian 13)](#) »*.
+3. **Section Appliance Kiosque Dédiée (Salles de sport & Studios)** :
+   - Présenter la commande clé en main pour mini PC headless :
+     ```bash
+     curl -sSL https://bobine.fit/install.sh | bash
+     ```
+4. **Encadrés de Rassurance Utilisateur (Transparence Open-Source)** :
+   - **Windows SmartScreen** : *« Lors du premier lancement, Windows peut afficher "Éditeur non reconnu". Cliquez sur "Informations complémentaires" puis "Exécuter quand même". Bobine est un logiciel libre AGPL-3.0 sans certificat d'entreprise payant. »*
+   - **macOS Gatekeeper** : *« Lors de la première ouverture, macOS peut bloquer l'application. Rendez-vous dans Réglages Système → Confidentialité et sécurité → cliquez sur "Ouvrir quand même". »*
+
+

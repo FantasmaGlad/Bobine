@@ -73,7 +73,7 @@ sont repris tels quels dans les sections qui suivent.
 | # | Sujet | Décision |
 |---|---|---|
 | 1 | Mode d'affichage (Windows/macOS/Linux desktop) | **App de bureau par défaut** (fenêtre/icône, lancement manuel) ; le mode kiosque plein écran devient une **option**, pas une obligation. |
-| 2 | Périmètre de l'assistant Tauri | **Reste dédié au SSH vers Linux headless** (cf. `cahier-des-charges-installeur.md`). Les trois nouvelles cibles reçoivent des installeurs natifs séparés (`.exe`, `.deb`, `.pkg`/`.dmg`), pas une extension de `assistant/core`. |
+| 2 | Périmètre de l'assistant Tauri | **Reste dédié au SSH vers Linux headless** (cf. `cahier-des-charges-installeur.md`). Les trois nouvelles cibles reçoivent des installeurs natifs séparés (`.exe`, `.deb`, `.pkg`/`.dmg`), pas une extension de `assistant/core`. L'interface Tauri reprendra fidèlement le style et le design system du logiciel Bobine. |
 | 3 | Redis | **Supprimé sur les quatre cibles** (y compris l'appliance Linux headless actuelle). Bascule en mono-process, état partagé en mémoire — voir §4. |
 | 4 | HDMI-CEC | **Aucun développement.** Le README (FR/EN, lignes 38 et 205) est corrigé : l'extinction TV repose sur la veille automatique native du téléviseur en absence de signal HDMI, pas sur une commande CEC émise par Bobine. |
 | 5 | Point d'entrée « app de bureau » | **Icône de barre système/menu bar + navigateur par défaut.** Pas de coquille applicative native (pas de webview dédiée) à construire pour l'admin/le kiosque. |
