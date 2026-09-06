@@ -153,6 +153,18 @@ Bobine publishes itself over **mDNS (Zeroconf/Bonjour)** as `bobine.local`, so y
 
 Import a few class videos from the admin panel, build a schedule or a playlist, and the wired screen starts playing.
 
+### Alternative: install on Windows
+
+Bobine also ships as a **native Windows desktop app** — no Debian, no SSH, no headless mini PC. This targets a regular Windows 10/11 (or Windows IoT) PC or mini PC that you set up like any other desktop application.
+
+1. **Download** `Bobine-Setup-*.exe` from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest).
+2. **Run the installer** and follow the wizard (choose French or English, accept the AGPL-3.0 license). It installs Bobine under `Program Files\Bobine`, adds a Start Menu shortcut, registers Bobine to launch automatically at sign-in, and opens a Windows Defender Firewall rule so the mobile remote can reach the backend from the local network.
+   - Windows SmartScreen will likely warn about an "unrecognized publisher" — the installer is not code-signed yet. Click **More info → Run anyway** to proceed.
+3. **Bobine starts automatically** after installation: a tray icon appears in the notification area. Click it to open the admin panel, launch the optional kiosk browser window, restart the backend, or quit.
+4. **Open the interface** the same way as on Linux — `http://bobine.local` from any device on the network (or `http://127.0.0.1:8000` on the Windows machine itself).
+
+Differences from the headless Linux appliance: the built-in updater (*Settings → Check for updates*) is disabled on Windows — reinstall the latest `Bobine-Setup-*.exe` instead — and kiosk mode is an optional browser window you open from the tray, not a locked-down boot target. Application data (videos, database, logs) lives under `%ProgramData%\Bobine`, separate from the installed program files.
+
 ---
 
 ## Using Bobine
@@ -187,6 +199,8 @@ sudo ./install.sh --uninstall --purge
 ```
 
 Add `--purge-data` to also remove imported media (irreversible). Shared system packages are kept. See `sudo ./install.sh --help` for all options.
+
+**On Windows**, uninstall like any desktop app: open *Settings → Apps → Installed apps* (or the classic *Programs and Features*), find Bobine, and choose Uninstall. This removes the installed program and the Start Menu/autostart shortcuts; `%ProgramData%\Bobine` (your videos, database and logs) is kept so a reinstall recovers your data — delete that folder manually for a full cleanup.
 
 ---
 

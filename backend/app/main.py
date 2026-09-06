@@ -1,13 +1,14 @@
 import os
 import logging
+import sys
 import time
 import logging.handlers
 import tempfile
-import subprocess
 from pathlib import Path
 from contextlib import asynccontextmanager
 
 import aiofiles
+import psutil
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -32,6 +33,7 @@ from app.scheduler_manager import (
     stop_scheduler,
 )
 from app.utils.importer import reconcile_orphaned_media
+from app.utils.mdns import start_mdns_responder, stop_mdns_responder
 from app.utils.radio_announcement_scheduler import (
     start_radio_announcement_scheduler,
     stop_radio_announcement_scheduler,
@@ -85,6 +87,9 @@ async def lifespan(app: FastAPI):
     reconcile_orphaned_media()
     start_watcher()
     start_scheduler()
+    # Best-effort, no-op sur l'appliance headless (avahi s'en charge déjà) —
+    # cf. app/utils/mdns.py.
+    start_mdns_responder(settings.port)
     # 24/7 (réf. lot L7, D10).
     await autostart_default_radio_playlist()
     for playback_manager in get_all_playback_managers().values():
@@ -102,6 +107,7 @@ async def lifespan(app: FastAPI):
         playback_manager.stop_position_broadcast_loop()
     get_radio_manager().stop_position_broadcast_loop()
     await stop_radio_announcement_scheduler()
+    stop_mdns_responder()
 
 
 app = FastAPI(title="Bobine", lifespan=lifespan)
@@ -133,16 +139,23 @@ app.include_router(import_jobs.router)
 app.include_router(updates.router)
 
 
+_KIOSK_PROCESS_NAMES = ("chromium", "chromium-browser", "chrome", "msedge")
+
+
 def _kiosk_process_alive() -> str:
-    """Présence d'un processus Chromium kiosque sur la machine (le backend
-    tourne sur le même hôte). "unknown" si pgrep est indisponible (ex. poste de
-    dev sans le service kiosk)."""
-    for name in ("chromium", "chromium-browser", "chrome"):
-        try:
-            if subprocess.run(["pgrep", "-x", name], capture_output=True, timeout=3).returncode == 0:
+    """Présence d'un processus de navigateur kiosque sur la machine (le
+    backend tourne sur le même hôte). `psutil` (déjà une dépendance du
+    projet) remplace `pgrep` — absent de Windows — depuis
+    PortabiliteCrossPlatformX Lot 1 ; fonctionne à l'identique sur
+    Linux/Windows/macOS. "unknown" si l'énumération des process échoue
+    (rare — droits insuffisants)."""
+    try:
+        for proc in psutil.process_iter(["name"]):
+            proc_name = (proc.info.get("name") or "").lower()
+            if any(proc_name.startswith(name) for name in _KIOSK_PROCESS_NAMES):
                 return "ok"
-        except Exception:
-            return "unknown"
+    except Exception:
+        return "unknown"
     return "down"
 
 
@@ -347,8 +360,15 @@ branding_path = Path(settings.branding_dir)
 branding_path.mkdir(parents=True, exist_ok=True)
 app.mount("/api/branding", StaticFiles(directory=str(branding_path)), name="branding")
 
-# Frontend Next.js statique (si compilé et présent dans out/)
-frontend_out = Path(__file__).resolve().parent.parent.parent / "frontend" / "out"
+# Frontend Next.js statique (si compilé et présent dans out/). `__file__`
+# ne pointe plus vers un fichier du dépôt une fois figé par PyInstaller
+# (BobineBackend.exe, réf. PortabiliteCrossPlatformX Lot 1) : dans ce cas,
+# `frontend/out/` est placé par l'installeur juste à côté de l'exécutable
+# plutôt qu'à sa position relative dans le dépôt.
+if getattr(sys, "frozen", False):
+    frontend_out = Path(sys.executable).resolve().parent / "frontend" / "out"
+else:
+    frontend_out = Path(__file__).resolve().parent.parent.parent / "frontend" / "out"
 if frontend_out.exists():
     logger.info(f"Montage du frontend statique depuis {frontend_out}")
     app.mount("/", StaticFiles(directory=str(frontend_out), html=True), name="frontend")

@@ -15,6 +15,16 @@ découvertes faites en cours de route dans
 ci-dessous) s'est révélée sans régression réelle, pas seulement « sans
 migration de données » comme formulé initialement.
 
+**Lot 1 (§5) implémenté le 2026-09-06** — conforme à ce qui est décrit
+ci-dessous (PyInstaller deux exécutables, Inno Setup, `pystray`,
+`zeroconf`, chemins `%ProgramData%`, pare-feu, avertissement SmartScreen
+documenté). Détail, vérifications réalisables sans machine Windows et
+découvertes de packaging (PyInstaller `_internal/`, imports figés,
+chemins figés) dans
+[`plan-implementation-portabilite-crossplatformx.md`](plan-implementation-portabilite-crossplatformx.md)
+§2. Reste explicitement non vérifié : compilation Inno Setup réelle et
+test sur une vraie machine Windows.
+
 ## 1. Objectif
 
 Faire de Bobine une application installable nativement sur quatre

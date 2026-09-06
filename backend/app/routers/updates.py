@@ -13,6 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 
 from app.utils.activity_log import log_activity
+from app.utils.deployment import UpdateUnsupported, get_profile_handler
 from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
@@ -21,8 +22,6 @@ router = APIRouter(prefix="/api/updates", tags=["updates"])
 
 GITHUB_REPO = "FantasmaGlad/Bobine"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-BACKEND_SERVICE_UNIT = "bobine-backend.service"
-KIOSK_SERVICE_UNIT = "bobine-kiosk.service"
 
 
 def _parse_semver(version_str: str) -> tuple[int, ...]:
@@ -32,11 +31,20 @@ def _parse_semver(version_str: str) -> tuple[int, ...]:
 
 
 def _get_local_version_info() -> dict[str, str]:
-    """Détermine la version et le commit locaux depuis Git ou valeurs par défaut."""
-    repo_dir = Path(__file__).resolve().parent.parent.parent
+    """Détermine la version et le commit locaux depuis Git ou valeurs par défaut.
+
+    N'exécute `git` que sur les profils dont le dossier d'installation est
+    un vrai checkout (aujourd'hui : l'appliance headless seule) — un paquet
+    figé (`.exe`, `.app`, `.deb`) n'a pas de `.git` et ces appels
+    échoueraient systématiquement en pure perte (deux sous-process, jusqu'à
+    3s de timeout chacun, à chaque chargement de la page Réglages)."""
     commit = "unknown"
     tag = "V2.0.1"
 
+    if not get_profile_handler().supports_git_versioning():
+        return {"current_version": tag, "current_tag": tag, "current_commit": commit}
+
+    repo_dir = Path(__file__).resolve().parent.parent.parent
     try:
         res = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
@@ -150,25 +158,13 @@ async def check_updates() -> dict[str, Any]:
 
 
 async def _run_update_pipeline():
-    """Tâche d'arrière-plan appliquant la mise à jour Git et redémarrant les services."""
-    repo_dir = Path(__file__).resolve().parent.parent.parent
+    """Tâche d'arrière-plan appliquant la mise à jour et redémarrant les
+    services, via le handler du profil courant (§5.1/§5.4 du plan). Le
+    garde-fou de `apply_update()` (endpoint ci-dessous) évite normalement
+    d'arriver ici sur un profil qui ne supporte pas encore ce pipeline ;
+    l'exception est quand même rattrapée par prudence."""
     logger.info("Début du processus de mise à jour système...")
 
-    try:
-        # 1. Pull Git
-        res = subprocess.run(
-            ["git", "pull", "--ff-only"],
-            cwd=repo_dir,
-            capture_output=True,
-            text=True,
-            timeout=45,
-        )
-        logger.info(f"git pull résultat : {res.stdout}")
-    except Exception as e:
-        logger.error(f"Erreur lors du git pull de mise à jour : {e}")
-        return
-
-    # 2. Diffusion de rafraîchissement
     try:
         await ws_manager.broadcast_force_reload()
     except Exception as e:
@@ -176,18 +172,30 @@ async def _run_update_pipeline():
 
     await asyncio.sleep(1.0)
 
-    # 3. Redémarrage des services systemd si disponibles
-    for unit in (KIOSK_SERVICE_UNIT, BACKEND_SERVICE_UNIT):
-        try:
-            subprocess.run(["sudo", "systemctl", "restart", unit], check=True, timeout=20)
-            logger.info(f"Service {unit} redémarré après mise à jour.")
-        except Exception as e:
-            logger.info(f"Redémarrage systemd {unit} ignoré (environnement dev ?) : {e}")
+    try:
+        get_profile_handler().apply_update()
+    except UpdateUnsupported as e:
+        logger.warning(f"Mise à jour non applicable sur ce profil : {e.message}")
+    except Exception as e:
+        logger.error(f"Erreur lors de l'application de la mise à jour : {e}")
 
 
 @router.post("/apply")
 async def apply_update(background_tasks: BackgroundTasks) -> dict[str, str]:
-    """Déclenche la mise à jour du système et le rechargement des services."""
+    """Déclenche la mise à jour du système et le rechargement des services.
+
+    Non disponible sur les profils sans checkout git réel (Windows, et plus
+    tard macOS/Linux de bureau — cf. CDC §12, mécanisme non cadré pour ces
+    profils) : renvoie 400 avec un message clair plutôt que de démarrer un
+    pipeline qui échouerait silencieusement en tâche de fond."""
+    if not get_profile_handler().supports_git_versioning():
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "La mise à jour automatique n'est pas encore disponible sur ce profil — "
+                "téléchargez la dernière version depuis les releases GitHub du projet."
+            ),
+        )
     background_tasks.add_task(_run_update_pipeline)
     return {
         "status": "started",

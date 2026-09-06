@@ -272,13 +272,13 @@ prévoyait** (à noter pour la suite du chantier) :
   défaut Python dans `config.py`. La tâche correspondante de ce plan
   (§1.1 initial) était donc déjà sans objet.
 
-## 2. Lot 1 — Windows natif (`.exe`)
+## 2. Lot 1 — Windows natif (`.exe`) — implémenté le 2026-09-06
 
 Priorité n°1 du CDC. Dépend du Lot 0 et du module partagé §5.1 ci-dessous.
 
-- [ ] Créer le module partagé de détection de profil de déploiement
+- [x] Créer le module partagé de détection de profil de déploiement
       (§5.1) — préalable commun aux Lots 1 à 3, à écrire une seule fois.
-- [ ] **Corriger `backend/app/config.py` au-delà de la seule ligne 90** —
+- [x] **Corriger `backend/app/config.py` au-delà de la seule ligne 90** —
       remplacer le littéral POSIX `/etc/bobine/config.toml` par une
       résolution consciente de la plateforme (`%ProgramData%\Bobine\
       config.toml` sous Windows via `os.environ["ProgramData"]`,
@@ -305,13 +305,15 @@ Priorité n°1 du CDC. Dépend du Lot 0 et du module partagé §5.1 ci-dessous.
       Lots 2 et 3 (§3, §4 — respectivement `~/.local/share/bobine` et
       `~/Library/Application Support/Bobine`, conventions natives de
       chaque OS).
-- [ ] Corriger `backend/app/utils/boot_state.py` — remplacer la lecture de
-      `/proc/<pid>/stat` par `psutil.Process(os.getppid()).create_time()`
-      (déjà identifié dans l'audit, nécessaire pour Windows **et** macOS).
-- [ ] Corriger `backend/app/main.py:167-177` (`_kiosk_process_alive`) —
-      remplacer `pgrep` par `psutil.process_iter(['name'])` pour un
+- [x] ~~Corriger `backend/app/utils/boot_state.py`~~ — **sans objet**, déjà
+      réglé comme effet de bord du Lot 0 (§1.4) : la lecture de
+      `/proc/<pid>/stat` a été supprimée en même temps que Redis, remplacée
+      par un simple `uuid.uuid4()` généré une fois par process. Aucun code
+      Windows-spécifique à écrire ici.
+- [x] Corriger `backend/app/main.py:167-177` (`_kiosk_process_alive`) —
+      remplacé `pgrep` par `psutil.process_iter(['name'])` pour un
       fonctionnement identique sur les trois OS.
-- [ ] Écrire `BobineTray` (bibliothèque `pystray` + `Pillow`) : icône de
+- [x] Écrire `BobineTray` (bibliothèque `pystray` + `Pillow`) : icône de
       zone de notification, menu (État, Ouvrir l'administration, Ouvrir en
       mode kiosque, Redémarrer, Quitter), supervision du process backend
       (relance s'il meurt). **Portée à préciser par rapport à
@@ -319,23 +321,29 @@ Priorité n°1 du CDC. Dépend du Lot 0 et du module partagé §5.1 ci-dessous.
       process mort (déjà couvert par la relance simple ci-dessus), il
       détecte aussi des pannes *logiques* — backend vivant mais
       `/api/health` en échec, ou navigateur kiosque absent/gelé alors que le
-      mode kiosque est censé tourner. Décider explicitement si `BobineTray`
-      reproduit cette supervision logique (ex. poll périodique de
-      `/api/health`) ou si cette capacité est sciemment abandonnée sur les
-      profils desktop — ne pas le laisser tomber par simple omission.
-- [ ] Intégrer un répondeur mDNS embarqué (lib `zeroconf`) démarré par le
+      mode kiosque est censé tourner. **Décision actée** : `BobineTray`
+      reproduit la supervision logique côté backend (poll `/api/health`
+      toutes les 30s dans `BackendSupervisor._health_poll_loop`, redémarrage
+      forcé après 3 échecs consécutifs, cf. `backend/app/desktop/tray.py`) ;
+      le volet « navigateur kiosque gelé » de `watchdog.sh` n'a pas
+      d'équivalent ici et est sciemment abandonné pour ce profil — le mode
+      kiosque Windows est une fenêtre optionnelle ouverte par l'utilisateur
+      (décision #1 du CDC), pas une cible de boot verrouillée à surveiller.
+- [x] Intégrer un répondeur mDNS embarqué (lib `zeroconf`) démarré par le
       backend lui-même, publiant `bobine.local` — best-effort, non bloquant
-      en cas d'échec.
-- [ ] Implémenter le lancement du mode kiosque optionnel depuis le menu du
+      en cas d'échec (`backend/app/utils/mdns.py`, enregistrement dans un
+      thread daemon pour ne pas bloquer le démarrage FastAPI).
+- [x] Implémenté le lancement du mode kiosque optionnel depuis le menu du
       tray : navigateur par défaut ou Edge avec
       `--kiosk --autoplay-policy=no-user-gesture-required`, et
       `SetThreadExecutionState` activé **seulement** pendant cette session
-      (pas globalement).
-- [ ] Adapter le endpoint de désinstallation/réinitialisation pour ce
+      (pas globalement) — voir `launch_kiosk_browser`/`_set_display_always_on`
+      dans `backend/app/desktop/tray.py`.
+- [x] Adapté le endpoint de désinstallation/réinitialisation pour ce
       profil (détail complet en §5), **et le mécanisme de mise à jour**
       (le flux « Vérifier/Appliquer une mise à jour » existant repose
       entièrement sur `git` — voir §5.4, nouvelle sous-section).
-- [ ] Règle de pare-feu Windows Defender pour le port d'écoute backend
+- [x] Règle de pare-feu Windows Defender pour le port d'écoute backend
       (le backend écoute sur `0.0.0.0`, cf. `install.sh:862,939` et
       README « télécommande depuis n'importe quel téléphone du LAN ») :
       sans règle explicite (`netsh advfirewall firewall add rule` posée par
@@ -348,42 +356,93 @@ Priorité n°1 du CDC. Dépend du Lot 0 et du module partagé §5.1 ci-dessous.
       message d'erreur clair pour l'utilisateur (juste un timeout côté
       téléphone). À documenter dans l'écran de fin d'installation si la
       règle ne peut pas être posée automatiquement.
-- [ ] Spec PyInstaller : générer `BobineBackend.exe` et `BobineTray.exe`,
-      mode *onedir* recommandé au démarrage du chantier (plus simple à
-      déboguer que *onefile*, à reconsidérer une fois stabilisé).
-- [ ] Fournir `ffmpeg.exe`/`ffprobe.exe` (builds statiques gyan.dev/BtbN)
-      à côté de l'exécutable — aucune adaptation de code requise, les appels
-      backend sont déjà par nom nu.
-- [ ] Écrire le script Inno Setup (`.iss`) : `[Files]` (exécutables,
+- [x] Spec PyInstaller : génère `BobineBackend.exe` et `BobineTray.exe`,
+      mode *onedir* (plus simple à déboguer que *onefile*, à reconsidérer
+      une fois stabilisé) — `packaging/windows/bobine.spec`.
+- [x] Fournir `ffmpeg.exe`/`ffprobe.exe` (build statique BtbN) à côté de
+      l'exécutable — aucune adaptation de code requise, les appels backend
+      sont déjà par nom nu. Téléchargé et copié dans `dist/Bobine/` par le
+      job CI `windows-build` (`.github/workflows/ci.yml`), pas embarqué dans
+      le dépôt : `bobine.iss` copie `dist/Bobine/*` tel quel, donc aucune
+      modification du script Inno Setup n'était nécessaire.
+- [x] Écrit le script Inno Setup (`.iss`) : `[Files]` (exécutables,
       `frontend/out/`, `config.toml` par défaut adapté aux chemins
       `%ProgramData%` — voir le correctif `config.py` ci-dessus),
-      `[Icons]` (raccourci Démarrage, Menu Démarrer), `[Registry]` (entrée
-      « Applications et fonctionnalités »), la règle de pare-feu ci-dessus,
-      gestion de l'UAC si nécessaire à l'installation.
-- [ ] **Section `[Languages]` de l'installeur** — l'app démarre en
+      `[Icons]` (raccourci Démarrage, Menu Démarrer), la règle de pare-feu
+      ci-dessus (`[Run]`/`[UninstallRun]`), `PrivilegesRequired=admin` pour
+      l'UAC — `packaging/windows/bobine.iss`. **Non testé** : nécessite
+      Inno Setup (Windows uniquement), écrit d'après la documentation
+      officielle, à valider au premier passage du job CI `windows-build`.
+- [x] **Section `[Languages]` de l'installeur** — l'app démarre en
       français par défaut (`DEFAULT_LANGUAGE = "fr"`,
       `AppSettingsContext.tsx:68`, aucune détection de langue navigateur/OS)
       mais un script Inno Setup sans `[Languages]` explicite s'affiche
-      uniquement en anglais par défaut : ajouter au moins FR + EN pour ne
-      pas livrer un assistant d'installation dans une langue différente de
-      celle de l'application elle-même.
-- [ ] **Décision explicite sur la licence** — le dépôt contient un fichier
-      `LICENSE` à la racine ; Inno Setup supporte nativement
-      `LicenseFile=` dans `[Setup]` pour l'afficher/faire accepter à
-      l'installation. Décider consciemment de l'inclure ou de l'omettre,
-      plutôt que de laisser ce choix par défaut.
-- [ ] Icône d'application au format `.ico` (multi-résolution) — à produire
-      à partir des assets existants (`Assets/Images/`).
-- [ ] CI : ajouter un job `windows-latest` à `.github/workflows/ci.yml`
-      pour builder l'exécutable PyInstaller et l'installeur Inno Setup à
-      chaque push (rappel : PyInstaller ne cross-compile pas, ce job doit
-      tourner sur un runner Windows réel).
+      uniquement en anglais par défaut : ajouté FR + EN
+      (`[Languages]` dans `bobine.iss`).
+- [x] **Décision explicite sur la licence** — le dépôt contient un fichier
+      `LICENSE` à la racine ; décision actée d'inclure `LicenseFile=..\..\LICENSE`
+      dans `[Setup]` (affichée/acceptée à l'installation).
+- [x] Icône d'application au format `.ico` (multi-résolution 16 à 256px) —
+      produite à partir de `Assets/Images/logo_bobine_icon.png` (source non
+      carrée, complétée sur un canevas carré transparent avant génération,
+      cf. Découvertes ci-dessous) — `packaging/windows/bobine.ico`.
+- [x] CI : ajouté un job `windows-latest` (`windows-build`) à
+      `.github/workflows/ci.yml` — build PyInstaller, récupération de
+      ffmpeg/ffprobe, vérification `/api/health` sur l'exécutable réel,
+      compilation Inno Setup, publication de l'artefact. **Jamais encore
+      exécuté** (nécessite un push réel pour déclencher le runner Windows) —
+      à surveiller de près au premier déclenchement.
 - [ ] Test manuel sur machine Windows réelle : installation propre,
       lancement au démarrage de session, mode kiosque, mDNS, désinstallation
       via « Applications et fonctionnalités », avertissement SmartScreen
       documenté et accepté comme limitation connue (CDC §5.6, décision #7).
-- [ ] Documentation : nouvelle section README « Installer sur Windows »
-      (§7.1).
+      **Non fait** — nécessite une vraie machine Windows, hors de portée
+      d'une implémentation assistée sur cet environnement Linux. À faire
+      avant toute distribution publique de l'installeur.
+- [x] Documentation : nouvelle section README « Installer sur Windows »
+      (§7.1) — ajoutée dans `README.md` et `README.fr.md` (installation,
+      différences avec l'appliance headless, désinstallation).
+
+**Découvertes faites en cours d'implémentation, au-delà de ce que ce plan
+prévoyait** :
+- **`boot_state.py` était déjà réglé** par le Lot 0 (§1.4) — la tâche
+  prévue ici était devenue sans objet avant même de commencer ce lot.
+- **PyInstaller 6.x bundle `datas` sous un sous-dossier `_internal/` par
+  défaut**, cassant l'hypothèse d'une arborescence plate (`config.toml` à
+  côté de l'exécutable) sur laquelle `config.py`/`main.py`/`tray.py`
+  reposent. Corrigé avec `contents_directory="."` sur les deux `EXE()` du
+  spec — non anticipé par le plan initial.
+- **`uvicorn.run("app.main:app", ...)` (chaîne) est invisible à l'analyse
+  statique d'imports de PyInstaller** : le paquet `app` se retrouvait
+  absent du binaire figé (`ModuleNotFoundError` à l'exécution réelle).
+  Corrigé dans `run_backend.py` par un import direct de l'objet `app`
+  (valide avec `workers=1`, seul `workers > 1` exigerait la chaîne).
+- **`Path(__file__)` ne pointe plus vers un fichier réel une fois figé** :
+  `ROOT_DIR` (`config.py`) et `frontend_out` (`main.py`) auraient résolu un
+  chemin invalide. Corrigé par une branche `if getattr(sys, "frozen",
+  False)` dans les deux fichiers, utilisant `Path(sys.executable)` à la
+  place.
+- **Icône source non carrée** (`logo_bobine_icon.png`, 629×700) : générer
+  le `.ico` multi-résolution directement à partir de ce fichier aurait
+  produit des cadres internes déformés (ex. 14×16 au lieu de 16×16).
+  Corrigé en collant l'image sur un canevas carré transparent avant
+  redimensionnement.
+- **Méthodologie de vérification sans machine Windows réelle** : toutes
+  les briques cross-plateforme (détection de profil, `ProfileHandler`,
+  endpoints désinstallation/réinitialisation/mise à jour, rendu
+  conditionnel du frontend) ont été vérifiées par exécution réelle —
+  y compris en simulant un profil `"windows"` par monkey-patch de
+  `get_deployment_profile` pour exercer les branches Windows du backend et
+  du frontend sans matériel Windows. Le cycle PyInstaller complet
+  (`BobineBackend`/`BobineTray`) a été construit et exécuté réellement sur
+  Linux comme validation de substitution : binaires ELF fonctionnels,
+  démarrage/arrêt via `BackendSupervisor`, `/api/health` répondant — preuve
+  que la logique de packaging est saine, sans garantir la compilation
+  Windows elle-même (PyInstaller ne cross-compile pas). Restent
+  strictement non vérifiables ici : compilation réelle par Inno Setup,
+  avertissement SmartScreen, comportement UAC, invite pare-feu réelle,
+  autostart à l'ouverture de session Windows — à valider au premier
+  passage du job CI `windows-build` et lors du test manuel ci-dessus.
 
 ## 3. Lot 2 — Linux non-headless (`.deb`)
 

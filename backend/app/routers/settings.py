@@ -3,7 +3,6 @@ import logging
 import os
 import shutil
 import socket
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -17,16 +16,17 @@ from app.database import get_db
 from app.models import Setting
 from app.playback_manager import get_playback_manager
 from app.utils.activity_log import log_activity
+from app.utils.deployment import (
+    SUDOERS_FILE,
+    UNINSTALL_WRAPPER,
+    get_deployment_profile,
+    get_profile_handler,
+)
 from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
-
-# Noms exacts des unités systemd installées par install.sh (réf. audit
-# plan-corrections-bugs, point 4) — à garder synchronisés avec ce fichier.
-BACKEND_SERVICE_UNIT = "bobine-backend.service"
-KIOSK_SERVICE_UNIT = "bobine-kiosk.service"
 
 # Réglages ajustables depuis l'interface (réf. UX3.17), persistés dans la
 # table `settings` (clé/valeur) et reflétés immédiatement dans le singleton
@@ -148,6 +148,11 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "wait_time_between_courses": runtime_settings.wait_time_between_courses,
         "volume_default": runtime_settings.volume_default,
         "audio_chain_timer_seconds": runtime_settings.audio_chain_timer_seconds,
+        # Profil de déploiement (réf. PortabiliteCrossPlatformX §5.1) : le
+        # frontend s'en sert pour adapter le texte/comportement de la zone
+        # Désinstaller/Réinitialiser selon la plateforme, sans dupliquer la
+        # logique de détection côté client.
+        "deployment_profile": get_deployment_profile(),
         "theme": theme,
         "language": language,
         "intro_animation_enabled": intro_animation_enabled,
@@ -484,16 +489,17 @@ async def set_display_output(payload: DisplayOutputUpdate, db: Session = Depends
 async def _run_full_reset():
     """
     Diffuse un rechargement à tous les navigateurs connectés (PC/mobile/coach)
-    puis redémarre le service kiosk (relance Chromium) et enfin le service
-    backend (réf. audit plan-corrections-bugs, point 4 — bouton de
-    réinitialisation complète). Exécuté en tâche de fond APRÈS l'envoi de la
-    réponse HTTP : le redémarrage du backend termine le processus courant, il
-    ne peut donc pas avoir lieu pendant le traitement de la requête elle-même.
+    puis redémarre les services via le handler du profil courant (réf. audit
+    plan-corrections-bugs, point 4 — bouton de réinitialisation complète, et
+    PortabiliteCrossPlatformX §5.1/§5.2 pour le branchement par profil).
+    Exécuté en tâche de fond APRÈS l'envoi de la réponse HTTP : le
+    redémarrage du backend termine le processus courant, il ne peut donc pas
+    avoir lieu pendant le traitement de la requête elle-même.
 
-    Hors de l'environnement cible (règle sudoers/unités systemd installées par
-    install.sh absentes, ex. poste de dev), les appels `systemctl` échouent
-    proprement et sont juste loggés — seule la diffusion `force_reload` a un
-    effet observable en dev.
+    Sur le profil headless hors de l'environnement cible (règle sudoers/
+    unités systemd absentes, ex. poste de dev), les appels `systemctl`
+    échouent proprement et sont juste loggés — seule la diffusion
+    `force_reload` a un effet observable en dev.
     """
     try:
         await ws_manager.broadcast_force_reload()
@@ -503,12 +509,7 @@ async def _run_full_reset():
     # Laisse le temps au message de partir avant de couper les connexions.
     await asyncio.sleep(1.0)
 
-    for unit in (KIOSK_SERVICE_UNIT, BACKEND_SERVICE_UNIT):
-        try:
-            subprocess.run(["sudo", "systemctl", "restart", unit], check=True, timeout=15)
-            logger.info(f"Service {unit} redémarré (réinitialisation complète)")
-        except Exception as e:
-            logger.error(f"Échec du redémarrage de {unit} (hors environnement cible ?) : {e}")
+    get_profile_handler().restart_services()
 
 
 @router.post("/system/reset")
@@ -527,8 +528,6 @@ async def reset_system(background_tasks: BackgroundTasks) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # Désinstallation complète (bouton « Désinstaller » — remise à zéro machine)
 # ---------------------------------------------------------------------------
-UNINSTALL_WRAPPER = Path("/usr/local/sbin/bobine-uninstall")
-SUDOERS_FILE = Path("/etc/sudoers.d/bobine")
 
 
 class UninstallRequest(BaseModel):
@@ -536,33 +535,41 @@ class UninstallRequest(BaseModel):
 
 
 async def _run_uninstall():
-    """Laisse la réponse HTTP partir, puis déclenche l'enveloppe de
-    désinstallation en root (règle sudoers dédiée posée par install.sh).
-    L'enveloppe détache l'opération via systemd-run : le backend sera arrêté
-    pendant la remise à zéro, mais l'unité transitoire lui survit."""
+    """Laisse la réponse HTTP partir, puis déclenche la désinstallation via
+    le handler du profil courant."""
     await asyncio.sleep(1.0)
     try:
-        subprocess.Popen(["sudo", str(UNINSTALL_WRAPPER)], start_new_session=True)
-        logger.info("Désinstallation déclenchée (enveloppe systemd-run détachée).")
+        get_profile_handler().start_uninstall()
     except Exception as e:
         logger.error(f"Échec du lancement de la désinstallation : {e}")
 
 
 @router.post("/system/uninstall")
 async def uninstall_system(payload: UninstallRequest, background_tasks: BackgroundTasks) -> dict[str, str]:
-    """Remise à zéro complète de la machine (réf. bouton « Désinstaller ») :
-    services systemd + config /etc + application + venv + TOUTES les données,
-    via l'enveloppe /usr/local/sbin/bobine-uninstall (appelée en
-    root sans mot de passe grâce à la règle sudoers dédiée). Les paquets apt
-    partagés ne sont PAS retirés. Action IRRÉVERSIBLE — l'UI exige une phrase
-    de confirmation avant cet appel.
+    """Remise à zéro complète de la machine (réf. bouton « Désinstaller »).
+    Action IRRÉVERSIBLE sur les profils qui la supportent — l'UI exige une
+    phrase de confirmation avant cet appel, quel que soit le profil.
 
-    Hors d'une installation cible (enveloppe/sudoers absents, ex. poste de
-    dev), renvoie 400 avec la marche à suivre manuelle plutôt que d'échouer
-    silencieusement."""
+    Sur le profil headless (appliance) : services systemd + config /etc +
+    application + venv + TOUTES les données, via l'enveloppe
+    `/usr/local/sbin/bobine-uninstall` (root sans mot de passe, règle
+    sudoers dédiée posée par `install.sh`). Hors d'une installation cible
+    (enveloppe/sudoers absents, ex. poste de dev), renvoie 400 avec la
+    marche à suivre manuelle plutôt que d'échouer silencieusement.
+
+    Sur les profils desktop (Windows et, plus tard, macOS/Linux de bureau) :
+    aucune action n'est déclenchée depuis le backend (pas d'équivalent sûr à
+    l'enveloppe systemd-run de l'appliance, cf. PortabiliteCrossPlatformX
+    §5.3) — la réponse contient les instructions de désinstallation propres
+    à la plateforme."""
     phrase = payload.confirm.strip().upper().replace("É", "E")
     if phrase != "DESINSTALLER":
         raise HTTPException(status_code=400, detail="Phrase de confirmation incorrecte.")
+
+    handler = get_profile_handler()
+    if not handler.can_self_uninstall():
+        return {"message": handler.uninstall_instructions(), "self_uninstall": "false"}
+
     if not UNINSTALL_WRAPPER.exists() or not SUDOERS_FILE.exists():
         raise HTTPException(
             status_code=400,

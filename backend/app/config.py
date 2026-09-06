@@ -1,10 +1,52 @@
 import os
+import platform
+import sys
 import tomllib
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
-# Repère du dossier racine du backend de l'application (racine de backend/)
-ROOT_DIR = Path(__file__).resolve().parent.parent
+# Repère du dossier racine du backend de l'application (racine de backend/
+# en développement). Sert aussi de racine par défaut pour le config.toml
+# livré (valeurs versionnées, lues quand /etc/bobine — ou son équivalent
+# Windows, cf. _global_config_path — n'existe pas encore). Une fois figé
+# par PyInstaller (BobineBackend.exe, réf. PortabiliteCrossPlatformX
+# Lot 1), `__file__` ne pointe plus vers un fichier du dépôt : on retombe
+# sur le dossier de l'exécutable, où l'installeur place le config.toml par
+# défaut à côté.
+if getattr(sys, "frozen", False):
+    ROOT_DIR = Path(sys.executable).resolve().parent
+else:
+    ROOT_DIR = Path(__file__).resolve().parent.parent
+
+
+def _data_root() -> Path:
+    """Racine par défaut des chemins RELATIFS du config.toml (médias,
+    miniatures, logs...). Sous Windows, `ROOT_DIR` correspond au dossier
+    d'installation (`%ProgramFiles%\\Bobine`), qui n'est **pas** inscriptible
+    par un utilisateur standard sans élévation (CDC §5.2,
+    plan-implementation-portabilite-crossplatformx.md §2) — les données par
+    défaut vivent donc sous `%ProgramData%\\Bobine\\` à la place. Linux/macOS
+    inchangés : `ROOT_DIR` reste la racine de confort de dev existante."""
+    if platform.system() == "Windows":
+        program_data = os.environ.get("ProgramData")
+        if program_data:
+            return Path(program_data) / "Bobine"
+    return ROOT_DIR
+
+
+DATA_ROOT = _data_root()
+
+
+def _global_config_path() -> Path:
+    """Emplacement du config.toml de PRODUCTION (prioritaire sur celui du
+    dépôt/de l'installation, cf. load_settings ci-dessous). `/etc/bobine/`
+    n'existe pas sous Windows : `%ProgramData%\\Bobine\\` joue le même rôle
+    (écrit par l'installeur Inno Setup plutôt que par `install.sh`)."""
+    if platform.system() == "Windows":
+        program_data = os.environ.get("ProgramData")
+        if program_data:
+            return Path(program_data) / "Bobine" / "config.toml"
+    return Path("/etc/bobine/config.toml")
 
 
 class Settings(BaseSettings):
@@ -82,7 +124,7 @@ class Settings(BaseSettings):
 def load_settings() -> Settings:
     # Chemin potentiel local et global
     local_config = ROOT_DIR / "config.toml"
-    global_config = Path("/etc/bobine/config.toml")
+    global_config = _global_config_path()
 
     # La config de production (/etc) prime sur celle du dépôt (réf. F7.4) :
     # config.toml est versionné avec des valeurs de dev, donc toujours présent
@@ -151,14 +193,14 @@ def load_settings() -> Settings:
         path_str = getattr(settings, path_attr)
         path = Path(path_str)
         if not path.is_absolute():
-            setattr(settings, path_attr, str((ROOT_DIR / path).resolve()))
+            setattr(settings, path_attr, str((DATA_ROOT / path).resolve()))
 
     # Pour la base SQLite relative
     if settings.database_url.startswith("sqlite:///"):
         db_path_str = settings.database_url[len("sqlite:///"):]
         db_path = Path(db_path_str)
         if not db_path.is_absolute():
-            settings.database_url = f"sqlite:///{(ROOT_DIR / db_path).resolve()}"
+            settings.database_url = f"sqlite:///{(DATA_ROOT / db_path).resolve()}"
 
     _apply_db_overrides(settings)
     return settings

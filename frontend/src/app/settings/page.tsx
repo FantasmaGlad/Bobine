@@ -7,11 +7,18 @@ import SystemStatus from "@/components/SystemStatus";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 
+// Profil de déploiement (réf. PortabiliteCrossPlatformX §5.1) — détermine si
+// la zone Désinstaller propose une action directe (appliance headless) ou de
+// simples instructions (profils desktop, cf. section "Zone de danger" plus
+// bas).
+type DeploymentProfile = "linux-headless" | "linux-desktop" | "windows" | "macos";
+
 interface SettingsData {
   wait_time_between_courses: number;
   volume_default: number;
   audio_chain_timer_seconds: number;
   radio_announcement_fade_ms: number;
+  deployment_profile: DeploymentProfile;
   paths: Record<string, string>;
   network: { local_ip: string | null; port: number; mdns_url: string };
 }
@@ -362,7 +369,8 @@ export default function SettingsPage() {
       if (res.ok) {
         showToast(t("settingsPage.updateSuccess"), "success");
       } else {
-        showToast(t("settingsPage.updateError"), "error");
+        const body = await res.json().catch(() => null);
+        showToast(body?.detail || t("settingsPage.updateError"), "error");
       }
     } catch {
       showToast(t("settingsPage.updateError"), "error");
@@ -838,13 +846,36 @@ export default function SettingsPage() {
         </button>
       </section>
 
-      {/* ---- Zone de danger : désinstallation ---- */}
+      {/* ---- Zone de danger : désinstallation ----
+          Profil linux-headless (appliance) : bouton d'action directe +
+          modale de confirmation, comportement inchangé. Profils desktop
+          (Windows/macOS/Linux de bureau) : pas d'action déclenchée depuis
+          l'UI, juste les instructions propres à la plateforme (réf.
+          PortabiliteCrossPlatformX §5.3 — aucun équivalent sûr à
+          l'enveloppe systemd-run de l'appliance sur ces profils). */}
       <section className="live-block settings-danger">
         <h3><Icon name="warning" size={18} /> {t("settingsPage.dangerSection")}</h3>
-        <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.uninstallHint")}</p>
-        <button type="button" className="btn btn-danger" style={{ height: "44px", alignSelf: "flex-start" }} onClick={() => setShowUninstall(true)}>
-          <Icon name="delete_forever" size={16} /> {t("settingsPage.uninstallButton")}
-        </button>
+        {data.deployment_profile === "linux-headless" ? (
+          <>
+            <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.uninstallHint")}</p>
+            <button type="button" className="btn btn-danger" style={{ height: "44px", alignSelf: "flex-start" }} onClick={() => setShowUninstall(true)}>
+              <Icon name="delete_forever" size={16} /> {t("settingsPage.uninstallButton")}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.uninstallDesktopHint")}</p>
+            <p className="settings-hint" style={{ marginTop: 0 }}>
+              {t(
+                data.deployment_profile === "windows"
+                  ? "settingsPage.uninstallDesktopWindows"
+                  : data.deployment_profile === "macos"
+                  ? "settingsPage.uninstallDesktopMacos"
+                  : "settingsPage.uninstallDesktopLinux",
+              )}
+            </p>
+          </>
+        )}
       </section>
 
       {/* ---- Documentation : chemins (lecture seule) ---- */}

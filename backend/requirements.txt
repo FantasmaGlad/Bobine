@@ -10,3 +10,10 @@ tzlocal
 aiofiles
 pillow
 psutil
+# Profils desktop (PortabiliteCrossPlatformX, Lot 1+) : BobineTray (icône de
+# zone de notification) et répondeur mDNS embarqué. Aucune dépendance
+# native (python-xlib est un client X11 pur Python) — s'installent aussi
+# sur l'appliance headless sans effet, où ils ne sont simplement jamais
+# invoqués (cf. app/utils/mdns.py::_should_self_publish).
+pystray
+zeroconf

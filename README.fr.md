@@ -153,6 +153,18 @@ Bobine se publie en **mDNS (Zeroconf/Bonjour)** sous le nom `bobine.local` : pas
 
 Importez quelques vidéos de cours depuis l'admin, créez un planning ou une playlist, et l'écran câblé se met à diffuser.
 
+### Alternative : installer sur Windows
+
+Bobine existe aussi en **application de bureau Windows native** — pas de Debian, pas de SSH, pas de mini PC headless. Ce mode cible un PC Windows 10/11 (ou Windows IoT) classique, ou un mini PC installé comme n'importe quelle application de bureau.
+
+1. **Téléchargez** `Bobine-Setup-*.exe` depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest).
+2. **Lancez l'installeur** et suivez l'assistant (choix français/anglais, acceptation de la licence AGPL-3.0). Il installe Bobine dans `Program Files\Bobine`, ajoute un raccourci au Menu Démarrer, enregistre le lancement automatique de Bobine à l'ouverture de session, et ouvre une règle de pare-feu Windows Defender pour que la télécommande mobile puisse joindre le backend depuis le réseau local.
+   - Windows SmartScreen affichera probablement un avertissement « éditeur non reconnu » : l'installeur n'est pas encore signé. Cliquez sur **Informations complémentaires → Exécuter quand même** pour continuer.
+3. **Bobine démarre automatiquement** après l'installation : une icône apparaît dans la zone de notification. Cliquez dessus pour ouvrir l'admin, lancer la fenêtre de navigateur en mode kiosque, redémarrer le backend ou quitter.
+4. **Ouvrez l'interface** comme sous Linux — `http://bobine.local` depuis n'importe quel appareil du réseau (ou `http://127.0.0.1:8000` sur la machine Windows elle-même).
+
+Différences avec l'appliance headless Linux : la mise à jour intégrée (*Paramètres → Vérifier les mises à jour*) est désactivée sous Windows — réinstallez plutôt le dernier `Bobine-Setup-*.exe` — et le mode kiosque est une fenêtre de navigateur optionnelle ouverte depuis l'icône de la zone de notification, pas un démarrage verrouillé. Les données applicatives (vidéos, base de données, logs) vivent sous `%ProgramData%\Bobine`, séparément des fichiers du programme installé.
+
 ---
 
 ## Utiliser Bobine
@@ -187,6 +199,8 @@ sudo ./install.sh --uninstall --purge
 ```
 
 Ajoutez `--purge-data` pour retirer aussi les médias importés (irréversible). Les paquets système partagés sont conservés. Voir `sudo ./install.sh --help` pour toutes les options.
+
+**Sous Windows**, désinstallez comme n'importe quelle application de bureau : ouvrez *Paramètres → Applications → Applications installées* (ou le panneau classique *Programmes et fonctionnalités*), cherchez Bobine, et choisissez Désinstaller. Cela retire le programme installé ainsi que les raccourcis Menu Démarrer/démarrage automatique ; `%ProgramData%\Bobine` (vos vidéos, la base de données et les logs) est conservé pour qu'une réinstallation retrouve vos données — supprimez ce dossier manuellement pour un nettoyage complet.
 
 ---
 

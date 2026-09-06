@@ -117,3 +117,24 @@ Premier lot d'un chantier de portabilité multi-OS (Windows, Linux de bureau, ma
 - `GET /api/health` ne rapporte plus de composant « redis ».
 - Aucune migration de données : Redis ne portait que de l'état transitoire, jamais de données persistantes (SQLite reste l'unique stockage).
 - Documentation corrigée en conséquence : `README.md`/`README.fr.md`, `docs/ARCHITECTURE.md`, `docs/cahier-des-charges-radio.md`, contexte des agents IA (`.agents/`, `.gemini/`).
+
+---
+
+## 7. Mission PortabiliteCrossPlatformX — Lot 1 : application de bureau Windows native (`.exe`)
+
+### Contexte
+Deuxième lot du chantier de portabilité multi-OS, priorité n°1 du CDC : Bobine s'installe désormais aussi comme une application de bureau Windows classique (PC ou mini PC Windows 10/11/IoT), en plus de l'appliance headless Debian existante. Détail complet dans [`docs/cahier-des-charges-multi-os.md`](docs/cahier-des-charges-multi-os.md) et [`docs/plan-implementation-portabilite-crossplatformx.md`](docs/plan-implementation-portabilite-crossplatformx.md) §2.
+
+### Impact site web / releases
+- **Nouveau livrable de release GitHub** : chaque release doit désormais joindre `Bobine-Setup-<version>.exe` (produit par le job CI `windows-build`), en plus des artefacts existants.
+- **À mentionner dans les notes de release** : premier support Windows natif ; avertissement SmartScreen « éditeur non reconnu » à documenter comme limitation connue (pas de signature de code pour l'instant, CDC décision #7).
+- Nouvelle section README (FR/EN) « Installer sur Windows » — à référencer depuis le site bobine.fit une fois celui-ci mis à jour.
+
+### Modifications techniques (résumé — détail dans le plan §2)
+- Module partagé `backend/app/utils/deployment.py` + `backend/app/utils/deployment_profiles/` : détection de profil (`linux-headless`/`windows`, `linux-desktop`/`macos` réservés aux lots suivants) et abstraction `ProfileHandler` pour éviter toute collision future sur `settings.py`/`updates.py`/le frontend.
+- `backend/app/desktop/tray.py` : icône de zone de notification (`pystray`), supervision du process `BobineBackend` (relance sur mort ou échec répété de `/api/health`), lancement du mode kiosque optionnel (Edge `--kiosk` ou navigateur par défaut).
+- `backend/app/utils/mdns.py` : le backend publie lui-même `bobine.local` (`zeroconf`), remplace l'annonce Avahi de l'appliance headless.
+- `backend/app/config.py` : données applicatives sous `%ProgramData%\Bobine` (et non `%ProgramFiles%`, non inscriptible sans élévation) ; chemins et exécutable figé (`sys.frozen`) résolus dynamiquement.
+- Endpoints de réinitialisation/désinstallation (`routers/settings.py`) et de mise à jour (`routers/updates.py`) adaptés par profil ; mise à jour Git désactivée sur ce profil (réinstallation du `.exe` à la place) ; page Paramètres du frontend adaptée en conséquence.
+- Packaging : `packaging/windows/{bobine.spec,bobine.iss,bobine.ico}` (PyInstaller + Inno Setup, FR/EN, licence AGPL-3.0 affichée, règle de pare-feu automatique pour la télécommande mobile) ; nouveau job CI `windows-build`.
+- **Non vérifiable dans cet environnement de développement Linux** : compilation réelle par Inno Setup, exécution du `.exe` sur une vraie machine Windows, avertissement SmartScreen, invite pare-feu, autostart à l'ouverture de session — écrit d'après la documentation officielle, à valider au premier passage du job CI et lors d'un test manuel sur machine Windows réelle avant toute distribution publique (détail dans le plan §2).

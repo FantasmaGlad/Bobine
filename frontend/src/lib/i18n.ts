@@ -881,6 +881,14 @@ export const dictionaries: Record<Language, Dict> = {
       uninstallInProgress: "Désinstallation…",
       uninstallStarted: "Désinstallation lancée — la machine va se remettre à zéro.",
       uninstallError: "Échec du lancement de la désinstallation.",
+      // Profils desktop (Windows/macOS/Linux de bureau) : pas de bouton
+      // d'action directe, juste des instructions (réf.
+      // PortabiliteCrossPlatformX §5.3 — aucun équivalent sûr à l'enveloppe
+      // systemd-run de l'appliance headless).
+      uninstallDesktopHint: "Bobine s'installe et se désinstalle comme n'importe quelle application de bureau sur cet ordinateur.",
+      uninstallDesktopWindows: "Ouvrez « Applications et fonctionnalités » dans les paramètres Windows, cherchez Bobine, puis choisissez Désinstaller.",
+      uninstallDesktopMacos: "Quittez Bobine puis faites glisser Bobine.app depuis le dossier Applications vers la Corbeille.",
+      uninstallDesktopLinux: "Utilisez votre gestionnaire de paquets, par exemple : sudo apt remove bobine",
       playbackSection: "Lecture",
       themeLabel: "Thème",
       themeDark: "Sombre",
@@ -1838,6 +1846,10 @@ export const dictionaries: Record<Language, Dict> = {
       uninstallInProgress: "Uninstalling…",
       uninstallStarted: "Uninstall started — the machine will be wiped.",
       uninstallError: "Failed to start the uninstall.",
+      uninstallDesktopHint: "Bobine installs and uninstalls like any other desktop application on this computer.",
+      uninstallDesktopWindows: "Open \"Apps & features\" in Windows Settings, find Bobine, then choose Uninstall.",
+      uninstallDesktopMacos: "Quit Bobine, then drag Bobine.app from the Applications folder to the Trash.",
+      uninstallDesktopLinux: "Use your package manager, for example: sudo apt remove bobine",
       playbackSection: "Playback",
       themeLabel: "Theme",
       themeDark: "Dark",
