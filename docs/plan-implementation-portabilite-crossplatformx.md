@@ -925,13 +925,10 @@ Ces fichiers orientent tout agent IA démarrant une session sans historique :
 
 ### 7.6 CI (`.github/workflows/ci.yml`) et scripts divers
 
-- [ ] Ajouter les jobs `windows-latest` (Lot 1) et `macos-latest` (Lot 3),
-      en plus du job Linux existant.
-- [ ] Ajouter un job de build/lint `.deb` (Lot 2, `lintian`).
-- [ ] Une fois le Lot 0 livré, reconsidérer l'ajout de la suite
-      `backend/tests/` à la CI (mentionnée comme actuellement absente à
-      cause de la dépendance Redis, cf. commentaire en tête du fichier) —
-      amélioration désormais possible, pas obligatoire pour ce chantier.
+- [x] Ajouter les jobs `windows-latest` (Lot 1) et `macos-latest` (Lot 3),
+      en plus du job Linux existant, avec publication automatique des releases binaires (`.exe`, `.deb`, `.dmg`).
+- [x] Ajouter un job de build/lint/test `.deb` (Lot 2, `dpkg-deb` + test d'installation réelle sur Ubuntu).
+- [x] Ajout de la suite de tests backend (`unittest`) dans le job `backend` de la CI.
 - [x] `scripts/migrate_unify_data_dirs.py` (docstring lignes 31-35) —
       instructions adaptées pour couvrir à la fois l'appliance headless systemd et les applications de bureau (systray).
 

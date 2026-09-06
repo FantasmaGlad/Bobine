@@ -450,3 +450,18 @@ Afin d'éviter toute extinction inopinée de l'écran pendant un cours de fitnes
 ### 13.3 Cahiers des charges prospectifs
 - **`docs/PortabiliteAndroid.md`** : Portabilité autonome sur tablette Android (ex. Xiaomi Pad) sans Termux (CPython embarqué via Chaquopy, double affichage USB-C / DisplayPort Alt Mode via `android.app.Presentation`, `ForegroundService`).
 - **`docs/PortabiliteLaptop.md`** : Mode double-écran sur PC portable avec route `/desk` (« Pupitre Studio » adhérent-friendly avec verrouillage par code PIN et catalogue à la demande, sans miroir kiosque sur l'écran interne).
+
+### 13.4 Automatisation CI/CD Multi-OS & Publication des Releases Binaires (`.github/workflows/ci.yml`)
+- **Déclencheurs étendus** :
+  - Déclenchement automatique à chaque tag Git `v*` (ex: `git tag v2.0.1 && git push origin v2.0.1`).
+  - Déclenchement manuel à la demande (`workflow_dispatch`) depuis l'interface GitHub Actions.
+- **Validation continue intégrée** :
+  - Intégration de l'exécution automatique des 32 tests unitaires backend (`python -m unittest discover -s backend/tests`) avec provisionnement ffmpeg.
+  - Compilation et packaging de l'Assistant Tauri Linux (`bobine-assistant`).
+- **Génération automatique des binaires sur runners natifs** :
+  - Runner **`windows-latest`** : compilation PyInstaller de `BobineBackend.exe` + `BobineTray.exe`, injection de `ffmpeg.exe`/`ffprobe.exe`, test de vie `/api/health` et compilation de l'installeur Inno Setup `Bobine-Setup-2.0.1.exe`.
+  - Runner **`ubuntu-latest`** : build Next.js, PyInstaller Linux, assemblage et validation du paquet `.deb` `bobine_2.0.1_amd64.deb` avec test d'installation réelle `com.bobine.app.desktop`.
+  - Runner **`macos-latest`** (Apple Silicon) : build PyInstaller, signature ad-hoc obligatoire AMFI, vérification `/api/health` et image disque `.dmg` `Bobine-2.0.1.dmg`.
+- **Publication automatique des Releases GitHub** :
+  - Job `release` coordonné (`softprops/action-gh-release@v2`) téléchargeant les artefacts des 3 runners et les publiant en pièces jointes téléchargeables sur la page des Releases GitHub du projet.
+

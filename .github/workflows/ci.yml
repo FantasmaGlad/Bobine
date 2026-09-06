@@ -10,7 +10,9 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
+  workflow_dispatch:
 
 # Annule les exécutions précédentes encore en cours sur la même référence.
 concurrency:
@@ -52,6 +54,12 @@ jobs:
           pip install -r backend/requirements.txt
       - name: Syntax check (compile all sources)
         run: python -m compileall -q backend/app scripts
+      - name: Install system dependencies (ffmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Run test suite (unittest)
+        run: python -m unittest discover -s backend/tests
 
   assistant-core:
     name: Assistant core (Rust)
@@ -69,12 +77,23 @@ jobs:
             ~/.cargo/git
             assistant/target
           key: cargo-${{ runner.os }}-${{ hashFiles('assistant/**/Cargo.toml', 'assistant/Cargo.lock') }}
+      - name: Install system dependencies (WebKitGTK & AppIndicator)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: Clippy (warnings = erreurs)
         run: |
           rustup component add clippy
           cargo clippy --workspace --all-targets -- -D warnings
       - name: Tests
         run: cargo test --workspace
+      - name: Build Bobine Assistant (Linux binary)
+        run: |
+          cargo build --release --bin bobine-assistant
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bobine-assistant-linux
+          path: assistant/target/release/bobine-assistant
 
   install-script:
     name: install.sh sanity
@@ -191,7 +210,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ./dist-deb/*.deb
           test -x /usr/bin/bobine
-          test -f /usr/share/applications/bobine.desktop
+          test -f /usr/share/applications/com.bobine.app.desktop
+          test -f /usr/share/metainfo/com.bobine.app.metainfo.xml
           test -f /usr/lib/systemd/user/bobine.service
           test -x /usr/lib/bobine/BobineBackend
           test -x /usr/lib/bobine/BobineTray
@@ -263,4 +283,48 @@ jobs:
         with:
           name: bobine-macos-dmg
           path: dist-dmg/*.dmg
+
+  release:
+    name: Publish Release Binaries (GitHub Releases)
+    needs: [windows-build, linux-desktop-deb, macos-build, assistant-core]
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create release assets directory
+        run: mkdir -p release-assets
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-windows-installer
+          path: release-assets
+      - name: Download Linux deb
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-deb
+          path: release-assets
+      - name: Download macOS dmg
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-macos-dmg
+          path: release-assets
+      - name: Download Linux assistant binary
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-assistant-linux
+          path: release-assets
+      - name: Inspect generated binary assets
+        run: ls -lh release-assets/
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v2.0.1-preview' }}
+          name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'Bobine v2.0.1 Preview' }}
+          draft: false
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          generate_release_notes: true
+
 
