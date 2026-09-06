@@ -112,7 +112,7 @@ Bobine propose différentes méthodes d'installation selon vos besoins et votre 
 
 1. **Option 1 : Application de bureau graphique (La plus simple pour postes de travail et ordinateurs portables)** — Windows 11/10, Linux (Debian/Ubuntu) et macOS (Apple Silicon). S'installe comme un logiciel classique, ouvre automatiquement l'interface web au clic sur l'icône du Bureau, et se loge discrètement dans la barre des tâches / zone de notification.
 2. **Option 2 : Appliance Linux dédiée headless (Pour les salles autonomes & la gestion fine)** — Transforme un mini PC dédié (type Dell Wyse 5070) en borne vidéo 24/7 locked-in démarrant directement en kiosque X11 plein écran sans aucun bureau graphique parasite, avec gestion automatique de l'allumage TV par HDMI-CEC. Installation rapide en 1 ligne CLI.
-3. **Option 3 : Assistant graphique d'installation & Télécommande Tauri (`assistant/`)** — Un outil de bureau moderne pour découvrir, auditer et déployer à distance vos mini PC via le réseau local en SSH, avec télécommande multi-canal intégrée.
+3. **Option 3 : Assistant graphique d'installation Tauri (`assistant/`)** — Un outil de bureau moderne pour découvrir, auditer et déployer à distance vos mini PC via le réseau local en SSH.
 
 ---
 
@@ -187,18 +187,14 @@ curl -sSL https://bobine.fit/install.sh | bash
 
 ---
 
-### Option 3 — Assistant graphique d'installation & Télécommande Tauri (`assistant/`)
+### Option 3 — Assistant graphique d'installation Tauri (`assistant/`)
 
-> **Déployez et pilotez vos bornes mini PC à distance depuis votre propre poste de travail, sans toucher au terminal.**
+> **Déployez vos bornes mini PC à distance depuis votre propre poste de travail, sans toucher au terminal.**
 
-Disponible dans le dossier [`assistant/`](assistant/) (compilé nativement pour **Windows**, **Linux** et **macOS**), l'application graphique **Bobine Assistant** offre une orchestration complète à distance :
+Disponible dans le dossier [`assistant/`](assistant/) (compilé nativement pour **Windows**, **Linux** et **macOS**), l'application graphique **Bobine Assistant** guide le déploiement d'une borne de bout en bout :
 
-1. **Découverte automatique sur le réseau** : sonde le réseau local en mDNS (`bobine.local`) et par balayage rapide du sous-réseau `/24` pour localiser vos bornes Bobine.
-2. **Déploiement SSH guidé** : connexion sécurisée (clé privée ou mot de passe), audit matériel automatique (CPU, GPU VA-API, RAM, stockage, Wi-Fi), puis exécution de `install.sh` dans un terminal émulé interactif avec barre de progression en temps réel.
-3. **Télécommande multi-canal intégrée** : pilotez les 3 canaux de diffusion directement depuis votre poste :
-   - **Écran Câblé (HDMI)** : Play, Pause, Stop, Seek, Suivant.
-   - **Écran Réseau** : synchronisation et routage du second écran.
-   - **Radio d'ambiance** : playlist continue 24/7, réglage du volume et annonces vocales programmées.
+1. **Découverte automatique sur le réseau** : sonde le sous-réseau `/24` de chaque interface réseau locale (Wi-Fi, Ethernet, VPN) pour localiser vos bornes Bobine joignables.
+2. **Déploiement SSH guidé** : connexion sécurisée (clé privée ou mot de passe), audit matériel automatique (CPU, GPU VA-API, RAM, stockage), puis exécution de `install.sh` dans un terminal émulé interactif avec barre de progression en temps réel.
 
 ---
 
@@ -271,4 +267,4 @@ Bobine est utilisé en production sur du matériel dédié et sur postes de trav
 
 ---
 
-<sub>**Mots-clés :** alternative open source à Les Mills Cinema, alternative à Screenly Anthias pour salle de sport, alternative libre à Wexer Virtual et Fitness On Demand, alternative aux cours vidéo de franchise (Yako, Radical Fitness, Les Mills Virtuel), affichage dynamique fitness auto-hébergé, logiciel de planification de cours collectifs, régie vidéo salle de fitness, lecteur vidéo fitness à la demande, borne de cours virtuels en libre-service, studio de cycling indoor, diffusion vidéo cours coach, thin client, mini PC Dell Wyse 5070, signalétique hors ligne, automatisation TV HDMI-CEC, musique d'ambiance salle de sport, radio fitness avec annonces vocales, local-first, FastAPI, Next.js, application Tauri, application de bureau Windows 11, application de bureau macOS Apple Silicon, paquet Linux Debian Ubuntu .deb, régie vidéo multi-plateforme sans abonnement.</sub>
+<sub>**Mots-clés :** alternative open source à Les Mills Cinema, alternative à Screenly Anthias pour salle de sport, alternative libre à Wexer Virtual et Fitness On Demand, alternative aux cours vidéo de franchise (Yako, Radical Fitness, Les Mills Virtuel), affichage dynamique fitness auto-hébergé, logiciel de planification de cours collectifs, régie vidéo salle de fitness, lecteur vidéo fitness à la demande, borne de cours virtuels en libre-service, studio de cycling indoor, diffusion vidéo cours coach, thin client, mini PC Dell Wyse 5070, signalétique hors ligne, automatisation TV HDMI-CEC, musique d'ambiance salle de sport, radio fitness avec annonces vocales, local-first, FastAPI, Next.js, assistant d'installation Tauri, application de bureau Windows 11, application de bureau macOS Apple Silicon, paquet Linux Debian Ubuntu .deb, régie vidéo multi-plateforme sans abonnement.</sub>

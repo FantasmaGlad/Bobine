@@ -112,7 +112,7 @@ Bobine offers distinct deployment paths to match your exact setup:
 
 1. **Option 1: Native Graphical Desktop App (Simplest for standard PCs & Laptops)**: Windows 11/10, Linux (Debian/Ubuntu), and macOS (Apple Silicon). Installs like any regular software, auto-opens the web admin upon double-clicking the desktop icon, and lives quietly in your system tray.
 2. **Option 2: Dedicated Headless Linux Appliance (Best for autonomous clubs & fine control)**: Turns a bare-metal mini PC (such as a Dell Wyse 5070) into a dedicated, unattended appliance booting directly into a locked full-screen X11 kiosk with automated HDMI-CEC TV power management. Fast 1-line CLI install.
-3. **Option 3: Bobine Assistant & Remote Desktop Control (`assistant/`)**: A cross-platform graphical tool to discover, inspect, and deploy appliances over the local network via SSH, with real-time multi-channel remote control.
+3. **Option 3: Bobine Assistant, Graphical Installer (`assistant/`)**: A cross-platform graphical tool to discover, inspect, and deploy appliances over the local network via SSH.
 
 ---
 
@@ -187,18 +187,14 @@ curl -sSL https://bobine.fit/install.sh | bash
 
 ---
 
-### Option 3 — Bobine Assistant & Remote Desktop Control (`assistant/`)
+### Option 3 — Bobine Assistant, Graphical Installer (`assistant/`)
 
-> **Deploy and supervise your club appliances remotely from your own computer, without touching a terminal.**
+> **Deploy your club appliances remotely from your own computer, without touching a terminal.**
 
-Located in [`assistant/`](assistant/) (available natively for **Windows**, **Linux**, and **macOS**), the **Bobine Assistant** desktop application offers end-to-end remote orchestration:
+Located in [`assistant/`](assistant/) (available natively for **Windows**, **Linux**, and **macOS**), the **Bobine Assistant** desktop application guides the appliance deployment end to end:
 
-1. **Automated Network Discovery**: Scans your local network via mDNS (`bobine.local`) and fast `/24` subnet probing to detect all active Bobine units.
-2. **Guided SSH Deployment**: Establishes a secure SSH connection, performs an automated hardware audit (CPU, GPU VA-API, RAM, storage, Wi-Fi), and runs `install.sh` inside an embedded live terminal emulator with a real-time progress bar.
-3. **Multi-Channel Remote Control**: Directly command playout for all 3 channels from your desk:
-   - **Wired Screen (HDMI)**: Play, Pause, Stop, Seek, Next.
-   - **Networked Display**: Secondary screen synchronization and routing.
-   - **Background Radio**: 24/7 background playlist, volume control, and scheduled spoken announcements.
+1. **Automated Network Discovery**: Probes every local network interface's `/24` subnet (Wi-Fi, Ethernet, VPN) to detect all reachable Bobine units.
+2. **Guided SSH Deployment**: Establishes a secure SSH connection, performs an automated hardware audit (CPU, GPU VA-API, RAM, storage), and runs `install.sh` inside an embedded live terminal emulator with a real-time progress bar.
 
 ---
 
@@ -271,4 +267,4 @@ Bobine is in active use in production on dedicated hardware and desktop workstat
 
 ---
 
-<sub>**Keywords:** open-source Les Mills Cinema alternative, Screenly Anthias alternative for gyms, Wexer Virtual alternative, Fitness On Demand open-source alternative, franchise workout video playout (Radical Fitness, Yako, Les Mills Virtual), self-hosted gym digital signage, group fitness class scheduling software, on-demand gym cinema kiosk, virtual coach player, boutique fitness studio video automation, indoor cycling video playout, HDMI-CEC TV power management, x86-64 thin client, Dell Wyse 5070 video player, offline-first media player, local-first fitness system, background music player for gyms, crossfade gym radio, FastAPI, Next.js, Tauri desktop remote, Windows 11 desktop app, macOS Apple Silicon app, Linux Debian Ubuntu .deb package, cross-platform gym video signage, zero subscription gym software.</sub>
+<sub>**Keywords:** open-source Les Mills Cinema alternative, Screenly Anthias alternative for gyms, Wexer Virtual alternative, Fitness On Demand open-source alternative, franchise workout video playout (Radical Fitness, Yako, Les Mills Virtual), self-hosted gym digital signage, group fitness class scheduling software, on-demand gym cinema kiosk, virtual coach player, boutique fitness studio video automation, indoor cycling video playout, HDMI-CEC TV power management, x86-64 thin client, Dell Wyse 5070 video player, offline-first media player, local-first fitness system, background music player for gyms, crossfade gym radio, FastAPI, Next.js, Tauri desktop installer, Windows 11 desktop app, macOS Apple Silicon app, Linux Debian Ubuntu .deb package, cross-platform gym video signage, zero subscription gym software.</sub>

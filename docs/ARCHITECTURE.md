@@ -30,7 +30,7 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 - **Backend** : Python 3.11+, [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` (mono-processus, cf. §2), [SQLAlchemy](https://www.sqlalchemy.org/), SQLite (`data/database.db`), `APScheduler` (planification), `watchdog` (surveillance des dossiers d'import), `ffmpeg` / VA-API (décodage matériel Intel ou AMD, pilote choisi selon le GPU détecté), Web Audio API (crossfade radio, côté navigateur).
 - **Frontend** : [Next.js](https://nextjs.org/) 16 (App Router, export statique servi par le backend en production), React 19, TypeScript, CSS Vanilla (global + design tokens, **13 thèmes de couleurs** commutables à chaud via `:root[data-theme=…]`), PWA (`manifest.json`), WebSockets, glisser-déposer natif (HTML5), Web Audio API.
 - **Exploitation & Kiosque** : Debian 13 (Trixie), Chromium en mode kiosque (X11 / `xinit`), `systemd` (services backend, kiosque, garde audio, chien de garde), `avahi-daemon` (découverte mDNS).
-- **Installation & outils** : `install.sh` (**Bash** idempotent : détection matérielle dynamique, remédiation APT, `--as-user`, sortie machine `--progress=json`, §7) ; **assistant d'installation graphique & télécommande** (`assistant/`, application de bureau **Tauri / Rust**, découverte mDNS, orchestration SSH et télécommande multi-plateforme — cf. [`assistant/README.md`](../assistant/README.md)).
+- **Installation & outils** : `install.sh` (**Bash** idempotent : détection matérielle dynamique, remédiation APT, `--as-user`, sortie machine `--progress=json`, §7) ; **assistant d'installation graphique** (`assistant/`, application de bureau **Tauri / Rust**, balayage `/24` de chaque interface réseau locale et orchestration SSH — cf. [`assistant/README.md`](../assistant/README.md)).
 
 **Langages du dépôt** : **Python** (backend FastAPI), **TypeScript/React** (frontend Next.js), **Bash** (`install.sh`), **Rust** (cœur de l'assistant d'installation). **Intégration continue** (GitHub Actions, `.github/workflows/ci.yml`) à chaque push/PR : build du frontend, contrôle de syntaxe du backend, `cargo clippy` + `cargo test` de l'assistant, et sanity de `install.sh` (syntaxe + cohérence du compteur d'étapes).
 
@@ -221,11 +221,9 @@ sudo ./install.sh
 
 Pas de service dédié pour le canal Radio (arbitrage A5, cf. §5) : `/radio` s'ouvre à la main dans un navigateur, sur le même backend.
 
-### Assistant d'installation graphique & Télécommande de bureau
+### Assistant d'installation graphique
 
-Une application graphique autonome (`assistant/`, développée avec **Tauri 2 / Rust**) tourne sur le **poste de l'administrateur** (Windows, macOS ou Linux), localise le mini PC sur le LAN, s'y connecte en SSH, audite le matériel, puis **déroule `install.sh`** avec une barre de progression et un suivi temps réel des journaux d'installation. `install.sh` reste la **source de vérité unique** — l'assistant l'**orchestre**, il ne réimplémente rien.
-
-L'application intègre également une **Télécommande de bureau** complète permettant de piloter à distance les canaux Câblé, Réseau et Radio sans passer par le navigateur. Détails complets et instructions de compilation : [`assistant/README.md`](../assistant/README.md).
+Une application graphique autonome (`assistant/`, développée avec **Tauri 2 / Rust**) tourne sur le **poste de l'administrateur** (Windows, macOS ou Linux), localise le mini PC sur le LAN (balayage `/24` de chaque interface réseau locale), s'y connecte en SSH, audite le matériel, puis **déroule `install.sh`** avec une barre de progression et un suivi temps réel des journaux d'installation. `install.sh` reste la **source de vérité unique** — l'assistant l'**orchestre**, il ne réimplémente rien. Détails complets et instructions de compilation : [`assistant/README.md`](../assistant/README.md).
 
 ### Autorisation sudo restreinte & désinstallation depuis l'interface
 
@@ -287,7 +285,7 @@ ssh fanta@<WYSE_IP> "systemctl status bobine-backend bobine-kiosk"
 
 ### Déploiement sur la Wyse
 
-⚠️ **`git pull` ne fonctionne PAS sur la Wyse** : son réseau bloque GitHub entièrement (ports 22 **et** 443 vers github.com). Le dépôt `/home/fanta/Bobine` sur la Wyse **n'est pas un clone git** — le déploiement se fait par copie (`rsync`) depuis un poste de dev sur le même réseau local, jamais par `git pull` sur la machine cible elle-même.
+**Attention : `git pull` ne fonctionne PAS sur la Wyse** : son réseau bloque GitHub entièrement (ports 22 **et** 443 vers github.com). Le dépôt `/home/fanta/Bobine` sur la Wyse **n'est pas un clone git** — le déploiement se fait par copie (`rsync`) depuis un poste de dev sur le même réseau local, jamais par `git pull` sur la machine cible elle-même.
 
 ```bash
 # 1. Depuis le poste de dev, sur le même LAN que la Wyse — toujours en
