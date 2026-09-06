@@ -48,16 +48,21 @@ fn get_default_route_ip() -> Option<Ipv4Addr> {
     }
 }
 
+use std::sync::Arc;
+use tokio::sync::Semaphore;
+
 /// Sonde une IP sur le port 22 et lit la bannière SSH
 async fn probe_ssh(ip: Ipv4Addr) -> Option<(String, Option<String>)> {
     let addr = SocketAddr::new(IpAddr::V4(ip), 22);
     let connect_future = TcpStream::connect(addr);
 
-    if let Ok(Ok(stream)) = timeout(Duration::from_millis(250), connect_future).await {
+    // Timeout de 800ms : suffisant pour l'ARP + handshake TCP sur Wi-Fi/Ethernet
+    // sans bloquer indéfiniment sur les adresses vides.
+    if let Ok(Ok(stream)) = timeout(Duration::from_millis(800), connect_future).await {
         let mut reader = BufReader::new(stream);
         let mut line = String::new();
         // Lit la bannière SSH envoyée par le serveur (ex: "SSH-2.0-OpenSSH_9.2p1 Debian-2+deb12u3")
-        if let Ok(Ok(_)) = timeout(Duration::from_millis(200), reader.read_line(&mut line)).await {
+        if let Ok(Ok(_)) = timeout(Duration::from_millis(400), reader.read_line(&mut line)).await {
             let banner = line.trim().to_string();
             let hint = os_hint_from_banner(&banner);
             return Some((banner, hint));
@@ -70,7 +75,7 @@ async fn probe_ssh(ip: Ipv4Addr) -> Option<(String, Option<String>)> {
 /// Sonde si le port 8000 (API Bobine) est ouvert
 async fn probe_bobine_port(ip: Ipv4Addr) -> bool {
     let addr = SocketAddr::new(IpAddr::V4(ip), 8000);
-    timeout(Duration::from_millis(150), TcpStream::connect(addr))
+    timeout(Duration::from_millis(600), TcpStream::connect(addr))
         .await
         .map(|r| r.is_ok())
         .unwrap_or(false)
@@ -99,18 +104,30 @@ pub async fn scan_network(custom_subnet: Option<String>) -> Result<Vec<Discovere
     for local_ip in &local_ips {
         candidates_set.extend(subnet_hosts_v24(*local_ip));
     }
-    let candidates: Vec<Ipv4Addr> = candidates_set
+    let mut candidates: Vec<Ipv4Addr> = candidates_set
         .into_iter()
         .filter(|ip| !local_ips_set.contains(ip))
         .collect();
 
+    // Tri stable pour une exploration cohérente
+    candidates.sort();
+
+    // Limiteur de concurrence (64 sondes simultanées max) pour éviter
+    // de saturer la table ARP du noyau Linux ou le switch/routeur Wi-Fi
+    // par des rafales massives de requêtes broadcast.
+    let semaphore = Arc::new(Semaphore::new(64));
     let mut tasks = Vec::with_capacity(candidates.len());
 
-    // Lance les sondes TCP en parallèle par petits groupes
     for ip in candidates {
+        let sem = semaphore.clone();
         tasks.push(tokio::spawn(async move {
-            let ssh_res = probe_ssh(ip).await;
-            let bobine_open = probe_bobine_port(ip).await;
+            let _permit = sem.acquire_owned().await.ok()?;
+
+            // Sonde SSH (22) et Bobine (8000) en parallèle pour chaque hôte
+            let (ssh_res, bobine_open) = tokio::join!(
+                probe_ssh(ip),
+                probe_bobine_port(ip)
+            );
 
             if ssh_res.is_some() || bobine_open {
                 let os_hint = ssh_res.as_ref().and_then(|(_, hint)| hint.clone());
