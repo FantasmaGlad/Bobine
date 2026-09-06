@@ -806,7 +806,7 @@ actuel pour le mode headless**.
 
 ### 6.1 Anti-veille non couplé aux pages plein écran elles-mêmes
 
-- [ ] L'anti-veille (`SetThreadExecutionState`/`xset`/`caffeinate`,
+- [x] L'anti-veille (`SetThreadExecutionState`/`xset`/`caffeinate`,
       CDC §5.4/§6.3/§7.2) n'est prévu que pour l'action de menu « Ouvrir en
       mode kiosque » du tray. Mais `/cinema`, `/radio`, `/coach`, `/kiosk`
       restent des routes plein écran ordinaires (`isFullscreenRoute`,
@@ -814,11 +814,13 @@ actuel pour le mode headless**.
       simple navigation dans un onglet — exactement l'usage que le kiosque
       *optionnel* encourage. Dans ce cas, aucune des briques d'anti-veille
       prévues ne s'active : l'écran peut s'éteindre en pleine diffusion.
-- [ ] Évaluer l'ajout de la **Screen Wake Lock API** (standard web,
+- [x] Évaluer l'ajout de la **Screen Wake Lock API** (standard web,
       `navigator.wakeLock.request("screen")`) directement dans ces pages
       côté frontend — indépendante du mode de lancement (tray ou onglet
       classique), donc pertinente pour les 3 profils desktop sans dupliquer
-      de logique par OS.
+      de logique par OS. **Implémenté** via `frontend/src/lib/useScreenWakeLock.ts`
+      et branché dans `frontend/src/components/ClientLayout.tsx` sur toutes les
+      routes `isFullscreenRoute`. Réacquisition automatique sur `visibilitychange`.
 
 ## 7. Chantier transverse B — Documentation, contexte IA, suivi release/site
 

@@ -7,6 +7,7 @@ import { useIsMobile } from "@/lib/useIsMobile";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useAutoFullscreen } from "@/lib/useAutoFullscreen";
 import { useClickSound } from "@/lib/useClickSound";
+import { useScreenWakeLock } from "@/lib/useScreenWakeLock";
 import { navEntries, isNavGroup, footerNavLinks as footerNavLinkConfigs } from "@/lib/navLinks";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
@@ -47,6 +48,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     // /radio-remote, qui restent des pages d'admin normales.
     pathname === "/radio" || pathname === "/radio/";
   useClickSound(!isFullscreenRoute);
+  // Anti-veille automatique (Screen Wake Lock API) sur les écrans de diffusion
+  // et d'attente (réf. Chantier Transverse C du plan de portabilité multi-OS).
+  useScreenWakeLock(isFullscreenRoute);
 
   // La navigation ferme le tiroir mobile automatiquement (réf. UX4.1).
   useEffect(() => {

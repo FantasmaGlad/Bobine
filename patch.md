@@ -388,6 +388,24 @@ export async function fetchLatestReleaseAssets() {
      ```
 4. **Encadrés de Rassurance Utilisateur (Transparence Open-Source)** :
    - **Windows SmartScreen** : *« Lors du premier lancement, Windows peut afficher "Éditeur non reconnu". Cliquez sur "Informations complémentaires" puis "Exécuter quand même". Bobine est un logiciel libre AGPL-3.0 sans certificat d'entreprise payant. »*
-   - **macOS Gatekeeper** : *« Lors de la première ouverture, macOS peut bloquer l'application. Rendez-vous dans Réglages Système → Confidentialité et sécurité → cliquez sur "Ouvrir quand même". »*
+---
+
+## 12. Mission PortabiliteCrossPlatformX — Chantier Transverse C (Anti-veille Screen Wake Lock API)
+
+### Contexte & Objectifs
+Sur les profils de bureau (Windows, Linux desktop, macOS), les utilisateurs peuvent choisir d'ouvrir les écrans de diffusion (`/kiosk`, `/cinema`, `/coach`, `/radio`) dans un onglet ou une fenêtre de navigateur standard au lieu du mode kiosque natif supervisé par `BobineTray`.
+
+Afin d'éviter toute extinction inopinée de l'écran pendant un cours de fitness, un enchaînement coach ou la diffusion de la radio d'ambiance en l'absence d'interactions au clavier ou à la souris, l'anti-veille est désormais gérée directement par le navigateur via l'API standard **Screen Wake Lock**.
+
+### Modifications techniques
+- **Hook réactif `useScreenWakeLock` (`frontend/src/lib/useScreenWakeLock.ts`)** :
+  - Détection sécurisée du support navigateur (`'wakeLock' in navigator`).
+  - Demande automatique d'un verrou d'écran (`navigator.wakeLock.request("screen")`) dès l'activation d'une route de diffusion plein écran.
+  - Réacquisition automatique du verrou lors du changement de visibilité de l'onglet (`document.addEventListener("visibilitychange")`) si l'utilisateur revient sur l'onglet après l'avoir minimisé.
+  - Libération propre (`sentinel.release()`) lors de la navigation vers une page d'administration standard ou lors du démontage du composant.
+- **Intégration globale (`frontend/src/components/ClientLayout.tsx`)** :
+  - Branchement du hook `useScreenWakeLock(isFullscreenRoute)` sur l'ensemble des routes immersives (`/kiosk`, `/cinema`, `/coach`, `/radio`).
+  - Zéro dépendance native supplémentaire côté OS, fonctionne de manière homogène sur tous les navigateurs modernes (Chrome, Edge, Safari, Opera).
+
 
 
