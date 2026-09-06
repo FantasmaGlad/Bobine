@@ -346,7 +346,7 @@ function listenTauriEvents() {
     }
   });
 
-  window.__TAURI__.event.listen('install_log', (event) => {
+  listen('install_log', (event) => {
     appendLog(event.payload);
   });
 }
