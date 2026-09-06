@@ -251,7 +251,7 @@ Objectif : rendre l'installation « clic-clic » pour un exploitant non technici
 | **Playlists Audio** | `/api/audio-playlists` | Playlists mixtes audio coach avec fonds |
 | **Planning** | `/api/schedule` | Programmateurs, occurrences et exceptions |
 | **Lecture** | `/api/playback` | Contrôle de la lecture (play, pause, seek, stop, reprise) |
-| **Paramètres** | `/api/settings` | Configuration dynamique (lecture/thème/langue), sortie vidéo, espace de stockage (`/settings/storage`), synchronisation des écrans (`POST /settings/system/reset` — vidage des caches + rechargement + relance des services) et désinstallation machine (`POST /settings/system/uninstall`, phrase de confirmation requise) |
+| **Paramètres** | `/api/settings` | Configuration dynamique (lecture/thème/langue/`deployment_profile`), sortie vidéo, espace de stockage (`/settings/storage`), synchronisation des écrans (`POST /settings/system/reset` — vidage des caches + rechargement + relance des services), sauvegarde & restauration universelles ZIP (`/settings/system/backup`, `/settings/system/restore`), et réinitialisation usine ou désinstallation machine (`POST /settings/system/reset-data`, `POST /settings/system/uninstall`, phrase de confirmation requise) |
 | **Imports** | `/api/import-jobs` | Suivi des tâches d'importation en arrière-plan |
 | **Logs** | `/api/logs` | Consultation et téléchargement des journaux système |
 | **Radio — Bibliothèque** | `/api/radio` | Morceaux (CRUD, artistes/albums/tags), playlists radio, état du canal (`/api/radio/state`) |

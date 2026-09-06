@@ -4,6 +4,7 @@ Section: video
 Priority: optional
 Architecture: amd64
 Maintainer: FantasmaGlad <fantacasino3012@gmail.com>
+Installed-Size: 106012
 Depends: ffmpeg
 Recommends: avahi-daemon
 Homepage: https://bobine.fit
@@ -12,7 +13,22 @@ Description: Video and audio playout system for gym studios
  network screen, background radio, mobile remote and web administration)
  designed for boutique gyms and fitness studios.
  .
- Site web : https://bobine.fit
- Projet GitHub : https://github.com/FantasmaGlad/Bobine
- Editeur : FantasmaGlad
- Licence : GNU AGPL v3.0 (Affero General Public License)
+ * **Editeur :** FantasmaGlad
+ .
+ * **Site web officiel :** https://bobine.fit
+ .
+ * **Code source & GitHub :** https://github.com/FantasmaGlad/Bobine
+ .
+ * **Licence :** GNU AGPL v3.0 (Affero General Public License)
+ .
+ * **Fonctionnalités clés :**
+ .
+   - Diffusion multi-canal synchrone (Câblé HDMI et Réseau)
+ .
+   - Mode Audio Coach avec minuteur et fonds visuels animés
+ .
+   - Canal Radio d'ambiance avec fondu sonore et rappels vocaux
+ .
+   - Kiosque automatique avec anti-veille native Screen Wake Lock
+ .
+   - Sauvegarde & Restauration universelles (ZIP) et remise à zéro usine

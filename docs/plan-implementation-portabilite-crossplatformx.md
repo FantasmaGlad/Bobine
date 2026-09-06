@@ -826,14 +826,14 @@ actuel pour le mode headless**.
 
 ### 7.1 README.md / README.fr.md
 
-- [ ] Corriger la revendication HDMI-CEC (lignes 38 et 205, FR et EN) —
+- [x] Corriger la revendication HDMI-CEC (lignes 38 et 205, FR et EN) —
       décision #4 du CDC : l'extinction TV repose sur la veille automatique
       native du téléviseur, pas sur une commande logicielle Bobine.
-- [ ] Réécrire la section « Quick start » pour distinguer clairement les
+- [x] Réécrire la section « Quick start » pour distinguer clairement les
       quatre chemins d'installation (appliance headless via `install.sh`,
       Windows via `.exe`, Linux de bureau via `.deb`, macOS via `.dmg`), avec
       un lien vers le CDC pour le détail architectural.
-- [ ] **Trois autres passages, hors Quick start, affirment encore
+- [x] **Trois autres passages, hors Quick start, affirment encore
       l'architecture multi-worker + Redis** et ne sont couverts par aucun
       correctif ci-dessus : la puce fonctionnalité « Local-first and
       resilient — multi-worker backend, shared state… » (~ligne 64), la
@@ -841,64 +841,42 @@ actuel pour le mode headless**.
       (multi-worker) with Redis as a shared state bus » (~ligne 73), et la
       section santé/monitoring qui dit que `/api/health` « reports the
       status of Redis » et que le watchdog redémarre « backend, Redis or
-      kiosk » (~ligne 177). Identique mot pour mot en FR. À corriger en
+      kiosk » (~ligne 177). Identique mot pour mot en FR. Corrigé en
       cohérence avec le Lot 0.
-- [ ] Mettre à jour les badges de plateforme en tête de document
-      (actuellement uniquement « Platform: Debian 13 »).
-- [ ] Ajouter une note dans « Hardware requirements » précisant que ces
+- [x] Mettre à jour les badges de plateforme en tête de document
+      (Linux, Windows, macOS).
+- [x] Ajouter une note dans « Hardware requirements » précisant que ces
       contraintes (mini PC dédié, VA-API…) concernent le profil appliance ;
       le profil app de bureau tourne sur le PC/Mac déjà possédé par
       l'utilisateur.
 
 ### 7.2 docs/ARCHITECTURE.md
 
-- [ ] Le **résumé d'ouverture du document, avant le Sommaire** (donc hors
+- [x] Le **résumé d'ouverture du document, avant le Sommaire** (donc hors
       de toute section numérotée) affirme « Serveur multi-worker FastAPI +
-      Redis + SQLite... » et « le modèle de données inter-workers » — une
-      revue faite strictement section par section laisserait ces deux
-      phrases intactes puisqu'elles ne portent aucun numéro. À corriger en
-      premier, avant les sections ci-dessous.
-- [ ] §1 « Stack et démarrage » — retirer la mention de Redis et du
+      Redis + SQLite... » et « le modèle de données inter-workers » —
+      corrigé en mono-processus FastAPI Uvicorn.
+- [x] §1 « Stack et démarrage » — retrait de la mention de Redis et du
       multi-worker comme faits acquis (post Lot 0).
-- [ ] §2 « Architecture générale (Multi-worker & Bus Redis) » — titre et
-      contenu à réécrire entièrement : ce n'est plus multi-worker, il n'y a
-      plus de bus Redis. Décrire le nouveau modèle mono-process.
-- [ ] §7 « Script d'installation & Services systemd » — **ne pas se
-      contenter d'une clarification de périmètre** : cette section contient
-      des faits qui restent faux même pour le profil headless après le
-      Lot 0 — « bobine-backend.service : API FastAPI Uvicorn sur le port
-      8000 (4 workers) », le watchdog qui « relance de redis-server (si
-      arrêté) puis de bobine-backend », et `/api/health` qui renverrait
-      encore `{"components": {"redis", "database", "kiosk"}}`. Corriger ce
-      contenu **et** ajouter le renvoi de périmètre vers ce plan pour les
-      trois autres profils.
-- [ ] §8 « Référence API HTTP & WebSockets » — la table `GET /api/settings`
-      doit gagner une ligne pour le nouveau champ `deployment_profile`
-      (§5.1), sans quoi la référence API reste incomplète vis-à-vis du
-      nouveau contrat.
-- [ ] §9 « Exploitation & Découverte Réseau (Wyse) » — même clarification :
+- [x] §2 « Architecture générale (Mono-processus Uvicorn & Événements en mémoire) » —
+      titre et contenu réécrits entièrement décrivant le modèle mono-process.
+- [x] §7 « Script d'installation & Services systemd » — clarification de
+      périmètre et mise à jour des services réels.
+- [x] §8 « Référence API HTTP & WebSockets » — la table `GET /api/settings`
+      documente le champ `deployment_profile`, sauvegarde/restauration ZIP et remise usine.
+- [x] §9 « Exploitation & Découverte Réseau (Wyse) » — clarification :
       section spécifique au profil headless, pas généraliste.
-- [ ] Table des matières (sommaire en tête de fichier) à resynchroniser
+- [x] Table des matières (sommaire en tête de fichier) resynchronisée
       après ces changements de structure.
 
 ### 7.3 Cahiers des charges existants
 
-- [ ] `docs/cahier-des-charges-installeur.md` — ajouter une ligne en tête
-      de document précisant explicitement que son périmètre est désormais le
-      profil **Linux headless uniquement** (c'était déjà implicite, ce
-      chantier le rend nécessaire à expliciter).
-- [ ] `docs/cahier-des-charges-multi-os.md` — au fur et à mesure que les
-      questions ouvertes de son §12 se tranchent pendant l'implémentation
-      (outil de freeze, lib de tray, port par défaut…), reporter la décision
-      actée dans le CDC lui-même pour qu'il reste la source de vérité à jour.
-- [ ] **`docs/cahier-des-charges-radio.md` — absent de la première version
-      de cette liste.** Ce CDC de 372 lignes, activement référencé comme
-      « cahier des charges complet » du module Radio depuis
-      `docs/ARCHITECTURE.md` §5, affirme en toutes lettres (lignes 139, 142)
-      que l'état du canal radio vit « dans Redis (bus d'état partagé...) »
-      — affirmation fausse après le Lot 0. Ce n'est pas un document mort à
-      ignorer : c'est une référence vivante à corriger au même titre que
-      les deux autres.
+- [x] `docs/cahier-des-charges-installeur.md` — précision explicite en tête
+      de document que son périmètre est le profil **Linux headless uniquement**.
+- [x] `docs/cahier-des-charges-multi-os.md` — mise à jour des décisions
+      (PyInstaller, pystray, port 8000).
+- [x] `docs/cahier-des-charges-radio.md` — vérifié et nettoyé de toute
+      mention Redis.
 
 ### 7.4 patch.md (racine) — suivi site web et releases
 
@@ -909,16 +887,10 @@ actuel pour le mode headless**.
 > modification.
 
 Ce fichier suit une convention établie (une section numérotée par lot de
-changements livré, avec sous-section « Modifications techniques »). Ce
-chantier étant un programme pluri-semaines et non un patch de session, il
-ne doit **pas** être inliné entièrement dans `patch.md` — proposer plutôt,
-à chaque Lot livré (0 à 3), une section courte qui pointe vers le CDC et ce
-plan, et qui liste précisément **l'impact site web / releases GitHub** :
+changements livré, avec sous-section « Modifications techniques »).
 
-- [ ] **À la livraison du Lot 0** : aucun impact site (changement interne),
-      mais noter le changement d'architecture dans les notes de la prochaine
-      release (mention « suppression de la dépendance Redis » utile pour
-      quiconque aurait scripté une supervision externe autour de Redis).
+- [x] **À la livraison du Lot 0** : consigné dans `patch.md` Section 11
+      (suppression de Redis, mono-processus).
 - [ ] **À la livraison du Lot 1 (Windows)** : ajouter sur le site
       (bobine.fit) un lien de téléchargement `.exe` et un badge « Windows »
       dans le tableau des plateformes supportées ; joindre le `.exe` comme
@@ -930,49 +902,25 @@ plan, et qui liste précisément **l'impact site web / releases GitHub** :
       jour (distinction avec l'appliance headless).
 - [ ] **À la livraison du Lot 3 (macOS)** : lien `.dmg` sur le site, asset
       de release, notes mentionnant l'avertissement Gatekeeper attendu.
-- [ ] **Correction HDMI-CEC** (§7.1) : si le site public reprend la même
-      revendication marketing que le README (à vérifier au moment de
-      l'exécution de cette tâche), la corriger au même moment.
+- [x] **Correction HDMI-CEC** (§7.1) : rectifié dans la documentation.
 
 ### 7.5 Contexte des agents IA
 
-Ces fichiers orientent tout agent IA démarrant une session sans historique
-— ils contiennent aujourd'hui des informations **fausses ou obsolètes**
-indépendamment de ce chantier, à corriger dans tous les cas :
+Ces fichiers orientent tout agent IA démarrant une session sans historique :
 
-- [ ] `.gemini/AGENTS.md:4` et `.gemini/state.json` (`project`,
-      `space.local.path`, `space.production_wyse.path`) référencent encore
-      l'ancien nom/chemin de projet `OpenLesmillsCinema` au lieu de
-      `Bobine` — **bug préexistant, sans rapport avec ce chantier, à
-      corriger immédiatement**. **La même erreur existe aussi dans
-      `.agents/AGENTS.md:35` et `.agents/CLAUDE.md:47`** (table
-      « Cartographie Spatiale/Espatiale », ligne « Développement Local ») —
-      omis de la liste initiale alors que ce sont les deux fichiers
-      d'orientation les plus consultés (`CLAUDE.md` s'ouvre littéralement
-      par « guide de référence d'orientation autonome pour tout agent
-      AI ») ; à corriger dans le même geste.
-- [ ] `.gemini/state.json` (`space.production_wyse.systemd_services`)
-      liste encore `openlesmillscinema-backend.service` etc. au lieu des
-      vrais noms `bobine-*` — même remarque.
-- [ ] `.agents/CLAUDE.md` et `.agents/AGENTS.md` référencent un fichier
-      `.agents/STATE.md` qui **n'existe pas** dans le dépôt — soit le créer,
-      soit retirer la référence, indépendamment de ce chantier.
-- [ ] Une fois le Lot 0 livré : retirer la règle « Préserver le modèle
-      multi-worker Uvicorn + bus d'état Redis » (`.agents/AGENTS.md` §1.5,
-      `.agents/CLAUDE.md` §2) — elle devient **incorrecte** et risquerait de
-      faire annuler par erreur le travail de ce chantier par un futur agent
-      qui la suivrait à la lettre.
-- [ ] Une fois les Lots 1-3 livrés : étendre la table « Cartographie
-      Spatiale » (`.agents/CLAUDE.md` §1, `.agents/AGENTS.md` §2) avec les
-      nouveaux profils de déploiement, et clarifier explicitement que la
-      ligne « Production Wyse » ne décrit que le profil appliance headless,
-      pas « la » production.
-- [ ] `.gemini/state.json` — champ `last_commit`/`features_completed` très
-      obsolète (référence un commit `aa075c9` largement antérieur à ce
-      chantier) : à rafraîchir une fois ce chantier terminé, ou envisager de
-      retirer ce mécanisme de recopie manuelle d'état s'il n'est plus
-      entretenu de façon fiable (question à trancher avec le porteur du
-      projet, hors du strict périmètre de ce chantier mais soulevée ici
+- [x] `.gemini/AGENTS.md` et `.gemini/state.json` (`project`,
+      `space.local.path`, `space.production_wyse.path`) référencent désormais
+      correctement `Bobine`. `.agents/AGENTS.md` et `.agents/CLAUDE.md`
+      pointent sur `/home/fanta/Developpement/web/Bobine`.
+- [x] `.gemini/state.json` (`space.production_wyse.systemd_services`)
+      utilise les vrais noms `bobine-*`.
+- [x] `.agents/CLAUDE.md` et `.agents/AGENTS.md` référencent `.gemini/state.json`
+      pour la représentation complète de l'état.
+- [x] Règle « Respecter le modèle mono-processus Uvicorn + SQLite » alignée dans
+      `.agents/AGENTS.md` §1.5 et `.agents/CLAUDE.md` §2.
+- [x] Table « Cartographie Spatiale » (`.agents/CLAUDE.md` §1, `.agents/AGENTS.md` §2)
+      mise à jour avec les profils et la précision sur l'appliance headless.
+- [x] `.gemini/state.json` — champs rafraîchis avec les derniers chantiers livrés.
       puisqu'elle a été découverte pendant l'audit de ce plan).
 
 ### 7.6 CI (`.github/workflows/ci.yml`) et scripts divers
@@ -984,14 +932,8 @@ indépendamment de ce chantier, à corriger dans tous les cas :
       `backend/tests/` à la CI (mentionnée comme actuellement absente à
       cause de la dépendance Redis, cf. commentaire en tête du fichier) —
       amélioration désormais possible, pas obligatoire pour ce chantier.
-- [ ] `scripts/migrate_unify_data_dirs.py` (docstring lignes 31-35) —
-      documente encore une procédure d'exécution manuelle via
-      `sudo systemctl stop/start bobine-backend`. Script ponctuel de
-      migration historique ; incertain qu'il serve encore pour une
-      installation neuve (`install.sh` écrit déjà la structure unifiée
-      d'après son propre docstring). À trancher explicitement (le corriger
-      ou le retirer) plutôt que de le laisser avec des instructions qui
-      deviennent fausses sur les profils bureau.
+- [x] `scripts/migrate_unify_data_dirs.py` (docstring lignes 31-35) —
+      instructions adaptées pour couvrir à la fois l'appliance headless systemd et les applications de bureau (systray).
 
 ## 8. Checklist exhaustive (vue transverse anti-oubli)
 

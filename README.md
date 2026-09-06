@@ -159,6 +159,15 @@ curl -sSL https://bobine.fit/install.sh | bash
 
 ---
 
+### Method 3 — Tauri Graphical Installation Assistant & Desktop Remote Control
+
+To deploy and monitor mini PCs without typing a single terminal command, the **Bobine Assistant** desktop app in [`assistant/`](assistant/) (available for **Linux**, **Windows**, and **macOS**) provides full remote orchestration:
+1. **Automated discovery**: Locates Bobine appliances across the LAN via mDNS (`bobine.local`) and subnet scanning.
+2. **Guided SSH setup**: Securely connects with password or SSH keys, performs full hardware inspection (CPU, GPU VA-API, RAM, storage, Wi-Fi), and runs `install.sh` inside a live terminal emulator with a real-time progress bar.
+3. **Integrated desktop remote**: Controls playout across Wired HDMI, Network screen, and Radio channels directly from your workstation (Play, Pause, Stop, Seek, Volume).
+
+---
+
 ### Open the Interface & Get Started
 
 From any device connected to the same Wi-Fi / Ethernet network:

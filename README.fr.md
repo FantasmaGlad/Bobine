@@ -159,6 +159,15 @@ curl -sSL https://bobine.fit/install.sh | bash
 
 ---
 
+### Méthode 3 — Assistant graphique d'installation & Télécommande (Poste admin distant)
+
+Pour déployer vos mini PC sans taper une seule commande terminal, l'application graphique **Bobine Assistant** dans [`assistant/`](assistant/) (compatible **Linux**, **Windows** et **macOS**) permet de tout orchestrer à distance :
+1. **Découverte automatique** : localise les mini PC sur votre réseau local via mDNS (`bobine.local`) ou balayage rapide du sous-réseau.
+2. **Déploiement SSH piloté** : connexion sécurisée (clé privée ou mot de passe), audit matériel automatique (CPU, GPU VA-API, RAM, stockage, Wi-Fi), puis déroulement de `install.sh` avec session PTY et journal en direct.
+3. **Télécommande de bureau intégrée** : pilotez les canaux de diffusion (Câblé HDMI, Écran Réseau, Radio d'ambiance) directement depuis votre poste admin (Play, Pause, Stop, Volume, Seek).
+
+---
+
 ### Ouvrir l'interface & commencer
 
 Depuis n'importe quel appareil connecté au même réseau Wi-Fi / Ethernet :

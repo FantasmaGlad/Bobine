@@ -28,11 +28,14 @@ Sûreté
 - **Garde-fou** : refuse de s'exécuter tant que ``config.toml`` pointe encore
   vers l'ancien emplacement (lancer ``install.sh`` d'abord).
 
-À lancer **backend arrêté** :
-
+À lancer **backend / application arrêté(e)** :
+- Sur appliance headless Linux (systemd) :
     sudo systemctl stop bobine-backend
     backend/.venv/bin/python scripts/migrate_unify_data_dirs.py [--dry-run]
     sudo systemctl start bobine-backend
+- Sur application de bureau (Windows, Linux desktop, macOS) :
+    Quitter l'application Bobine depuis la zone de notification (systray), puis exécuter :
+    python scripts/migrate_unify_data_dirs.py [--dry-run]
 """
 from __future__ import annotations
 
