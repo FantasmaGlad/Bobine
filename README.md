@@ -10,15 +10,30 @@
 
 **The open-source, self-hosted alternative to Les Mills Cinema, Wexer, and Screenly Anthias — offline-first gym video playout, digital signage, and scheduled class player for fitness studios.**
 
-Bobine turns a low-cost dedicated mini PC into a complete in-club video system: it schedules and plays pre-recorded group-fitness class videos on your screens, lets members browse and start a class on demand from a kiosk, drives a wired and a networked display independently, runs a coach audio mode with animated backgrounds, and streams 24/7 background music. Everything runs locally on your own hardware. No cloud, no subscription, no vendor lock-in, no internet required after setup.
+Bobine turns any PC, Mac, or low-cost dedicated mini PC into a complete in-club video system: it schedules and plays pre-recorded group-fitness class videos on your screens, lets members browse and start a class on demand from a kiosk, drives a wired and a networked display independently, runs a coach audio mode with animated backgrounds, and streams 24/7 background music. Everything runs locally on your own hardware. No cloud, no subscription, no vendor lock-in, no internet required after setup.
 
 [Official Website](https://bobine.fit) · [Documentation](https://bobine.fit/fr/documentation) · [Français](README.fr.md) · [Technical Architecture](docs/ARCHITECTURE.md) · [Latest Release](https://github.com/FantasmaGlad/Bobine/releases/latest)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
+[![Release: v2.0.1](https://img.shields.io/badge/Release-v2.0.1-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
 ![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)
 ![Backend: FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
-![Platforms: Windows 10/11 | Linux (.deb) | macOS](https://img.shields.io/badge/Platforms-Windows%2010%2F11%20%7C%20Linux%20(.deb)%20%7C%20macOS-blue)
+![Platforms: Windows 11 | Debian | Ubuntu | macOS](https://img.shields.io/badge/Platforms-Windows%2011%20%7C%20Linux%20%7C%20macOS-blue)
 ![Self-hosted](https://img.shields.io/badge/Self--hosted-Local--first-4c1)
+
+---
+
+## ⚡ Quick Download & Native Desktop Apps
+
+Install Bobine as a native desktop application on your workstation or studio PC in seconds:
+
+| Platform | Format | Architecture | Direct Download | Experience & Features |
+| :--- | :---: | :---: | :---: | :--- |
+| ![Windows 11](https://img.shields.io/badge/Windows%2011%20%2F%2010-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` (Installer) | x86-64 | [**Download Bobine-Setup-2.0.1.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/Bobine-Setup-2.0.1.exe) | 1-click wizard, Desktop shortcut, auto-opens browser, background tray, no terminal window |
+| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` (Package) | x86-64 (amd64) | [**Download bobine_2.0.1_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/bobine_2.0.1_amd64.deb) | Ubuntu App Center / `apt install`, XDG standard, single Desktop shortcut, system tray |
+| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` (Disk Image) | Apple Silicon (arm64) | [**Download Bobine-2.0.1.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/Bobine-2.0.1.dmg) | Drag-and-drop `Bobine.app`, native Retina `.icns` icon, menu bar tray, autostart |
+| 🌐 **All Releases** | Source & Binaries | Multi-OS | [**Browse GitHub Releases**](https://github.com/FantasmaGlad/Bobine/releases/latest) | Full changelog, release assets & checksums |
+| 🌍 **Official Website** | Web Portal | Universal | [**Visit bobine.fit**](https://bobine.fit) | Getting started guides, updates & documentation |
 
 ---
 
@@ -62,18 +77,19 @@ https://github.com/user-attachments/assets/e33196d8-cfd7-449e-ad7f-0929a0361d10
 - **Simple library management** — drag-and-drop import, bulk upload, free-form categories, grouped selection, per-file import progress, automatic thumbnails.
 - **Local-first and resilient** — automatic recovery after a reboot or power cut, and a health watchdog that restarts a dead component.
 - **Web admin + zero client install** — administer everything from a browser; member screens and remotes are just web pages.
+- **Screen Wake Lock API** — prevents screen sleep automatically during workouts and radio playback across all modern browsers.
 
 ---
 
 ## How it works
 
-Bobine is a single mini PC on your local network running:
+Bobine is a single host machine on your local network running:
 
 - a **FastAPI** backend with **SQLite** for storage;
-- a **Chromium** kiosk in full screen (X11) for the wired screen;
+- a **Chromium** kiosk in full screen (X11) for the wired screen (on headless appliances);
 - a **Next.js** admin panel, member kiosk, and mobile remote, all served as static pages from the same machine.
 
-Other screens (networked display, member remotes, the admin PC) are ordinary web browsers pointing at the mini PC. Media never leaves your network.
+Other screens (networked display, member remotes, the admin PC) are ordinary web browsers pointing at the Bobine host. Media never leaves your network.
 
 For the full architecture, data model, network contract and API reference, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
@@ -81,90 +97,112 @@ For the full architecture, data model, network contract and API reference, see *
 
 ## Hardware requirements
 
-- A **mini PC or x86-64 thin client**:
+- A **standard computer, laptop, or x86-64 mini PC**:
   - **Recommended Intel models**: Dell Wyse 5070 (Intel Celeron J4105 ~$40-50 refurbished), HP ProDesk 400/600 G4/G5 DM, Lenovo ThinkCentre M710q/M720q Tiny, Beelink Mini S12/EQ12 (N100/N5105).
   - **Recommended AMD models**: HP EliteDesk 705 G4/G5 Mini (AMD Ryzen 3/5 Pro ~$60-80 refurbished), Lenovo ThinkCentre M715q/M725q Tiny, HP T630/T730/T740 Thin Client.
-  - Any Debian-compatible x86-64 PC with an Intel iGPU (`iHD`/QuickSync driver) or AMD APU/GPU (`mesa-va-drivers`/Radeon) works; VA-API hardware video decoding is automatically detected and configured.
+  - Any standard PC, laptop, or Mac running Windows 10/11, Debian/Ubuntu, or macOS (Apple Silicon).
+  - For Linux appliances: Intel iGPU (`iHD`/QuickSync) or AMD APU/GPU (`mesa-va-drivers`/Radeon) with VA-API hardware video decoding automatically configured (< 8% CPU usage).
 - **4 GB of RAM** minimum (8 GB recommended), SSD from 64 GB to 256 GB depending on your video library size.
-- **One or two screens** (HDMI for the wired output; the networked screen is any device with a browser).
-- A **local Wi-Fi network** (a router or access point) to reach the other devices — the networked second screen, the mobile remote and the radio player all connect over the local network. It needs **no internet** and keeps working even if your internet connection drops: the LAN alone is enough. Bobine can also run **fully offline with no network at all**, but then only the single wired (HDMI) screen is used.
+- **One or two screens** (HDMI for the wired output; the networked screen is any device with a web browser).
+- A **local Wi-Fi network** (a router or access point) to reach the other devices — the networked second screen, the mobile remote and the radio player all connect over the local network. It needs **no internet** and keeps working even if your internet connection drops: the LAN alone is enough. Bobine can also run **fully offline with no network at all**, using only the wired (HDMI) screen.
 
-Internet is only needed once, to install the operating system and the software.
-
----
-
-## Installation & Quick Start
-
-Bobine now offers two deployment families tailored to your setup:
-
-1. **Native Graphical Desktop App (Recommended for standard PCs)**: Available natively on **Windows** (10, 11), **Linux** (`.deb` Debian/Ubuntu) and **macOS** (`.dmg`, Apple Silicon). Bobine installs as a traditional desktop application with a notification tray icon, supervises the backend engine in the background, and lets you open the admin dashboard or trigger the full-screen kiosk mode with one click.
-2. **Dedicated Headless Linux Appliance (Debian 13)**: For fitness clubs running on a dedicated bare mini PC (such as a Dell Wyse 5070) without a desktop environment, booting directly into an automated full-screen X11 kiosk.
+Internet is only needed once, to download and install the software.
 
 ---
 
-### Method 1 — Graphical Desktop App (Windows, Linux & macOS)
+## Installation & Deployment Options
 
-#### On Windows (10, 11 or Windows IoT)
+Bobine offers distinct deployment paths to match your exact setup:
 
-1. **Download** `Bobine-Setup-*.exe` from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest).
-2. **Run the installer** and follow the wizard (French/English selection, AGPL-3.0 license acceptance). It installs Bobine into `Program Files\Bobine`, places a shortcut with the project icon on your **Desktop** and Start Menu, registers autostart at user sign-in, and configures a Windows Defender Firewall rule so your mobile remote can connect over the local network.
-   - If Windows SmartScreen displays an "unrecognized publisher" alert, click **More info → Run anyway**.
-3. **Bobine starts automatically** in the system tray. Click the tray icon to open the admin panel, launch the full-screen kiosk browser window, restart the backend, or quit.
-4. **Open the interface**: `http://bobine.local` from any device on your local network (or `http://127.0.0.1:8000` on the PC itself). Application data (videos, SQLite database, logs) is stored in `%ProgramData%\Bobine`.
+1. **Option 1: Native Graphical Desktop App (Simplest for standard PCs & Laptops)**: Windows 11/10, Linux (Debian/Ubuntu), and macOS (Apple Silicon). Installs like any regular software, auto-opens the web admin upon double-clicking the desktop icon, and lives quietly in your system tray.
+2. **Option 2: Dedicated Headless Linux Appliance (Best for autonomous clubs & fine control)**: Turns a bare-metal mini PC (such as a Dell Wyse 5070) into a dedicated, unattended appliance booting directly into a locked full-screen X11 kiosk with automated HDMI-CEC TV power management. Fast 1-line CLI install.
+3. **Option 3: Bobine Assistant & Remote Desktop Control (`assistant/`)**: A cross-platform graphical tool to discover, inspect, and deploy appliances over the local network via SSH, with real-time multi-channel remote control.
 
-#### On Linux with a Desktop (Debian, Ubuntu and desktop derivatives)
+---
 
-1. **Download** `bobine_*_amd64.deb` from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest).
-2. **Install the package** via your software manager or terminal:
+### Option 1 — Native Graphical Desktop App (Windows, Linux & macOS)
+
+#### On Windows (11, 10 or Windows IoT)
+
+1. **Download** [**`Bobine-Setup-2.0.1.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/Bobine-Setup-2.0.1.exe) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+2. **Run the installer** and follow the wizard (French/English selection, AGPL-3.0 license acceptance).
+   - Installs Bobine into `Program Files\Bobine`.
+   - Creates a **Desktop** shortcut with the official Bobine icon and adds an entry to the Start Menu.
+   - Configures automatic Windows Defender Firewall rules for local network access (mobile remote).
+   - Registers silent autostart in the background at user sign-in.
+   - *Note*: If Windows SmartScreen displays an "Unrecognized app" alert, click **More info → Run anyway** (Bobine is open-source and free of paid corporate certificates).
+3. **Double-click the Bobine Desktop icon**:
+   - The backend starts seamlessly in the background with **zero black console window**.
+   - Your default browser automatically opens the admin interface at `http://127.0.0.1:8000`.
+   - An icon appears in the system tray (notification area next to the clock) to reopen the admin panel, launch the full-screen kiosk display, restart the engine, or quit.
+   - If Bobine is already running, clicking the Desktop icon instantly refocuses your browser without conflicting.
+4. **Access from other devices**: Open `http://bobine.local` from any tablet, smartphone, or PC connected to the same local Wi-Fi / LAN network. Application data (videos, SQLite database, logs) is securely stored in `%ProgramData%\Bobine`.
+
+#### On Linux Desktop (Debian, Ubuntu, Linux Mint & derivatives)
+
+1. **Download** [**`bobine_2.0.1_amd64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/bobine_2.0.1_amd64.deb) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+2. **Install the package** via the Ubuntu App Center / GNOME Software by double-clicking the file, or via the terminal:
    ```bash
    sudo apt install ./bobine_*_amd64.deb
    ```
-   *(All runtime dependencies including ffmpeg are handled automatically by apt, and multi-resolution icons are integrated into the hicolor theme).*
-3. **Launch Bobine** from the shortcut created on your **Desktop**, desktop applications menu, or type `bobine` in a terminal.
-   - The Bobine tray icon appears in your system notification area and supervises the engine.
-   - XDG autostart is enabled at desktop login (and a systemd user unit `systemctl --user start bobine` is also available — use one or the other, not both, to avoid running two instances at once).
-   - Your media files, database, and logs live cleanly in your user directory following the XDG specification: `~/.local/share/bobine/`.
+   *(All runtime dependencies including `ffmpeg` are resolved automatically, and multi-resolution icons are integrated into the system theme).*
+3. **Launch Bobine** from your **Desktop** shortcut, the Applications menu, or by typing `bobine` in a terminal.
+   - The Bobine tray icon appears in your status bar / system tray.
+   - XDG autostart is automatically configured at desktop login.
+   - Your media files, database, and settings live cleanly in your user directory following the XDG specification: `~/.local/share/bobine/`.
 
-#### On macOS (Apple Silicon)
+#### On macOS (Apple Silicon - M1/M2/M3/M4)
 
-1. **Download** `Bobine-*.dmg` from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest).
-2. **Open the .dmg** and drag `Bobine.app` (featuring its native Apple Retina `.icns` icon) into your **Applications** folder.
+1. **Download** [**`Bobine-2.0.1.dmg`**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/Bobine-2.0.1.dmg) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+2. **Open the .dmg** and drag `Bobine.app` into your **Applications** folder.
 3. **Launch Bobine** from Applications, your **Desktop** (shortcut created automatically), or Spotlight.
-   - Bobine isn't code-signed yet, so Gatekeeper blocks the first launch: open **System Settings → Privacy & Security**, scroll to the "Bobine was blocked" notice, click **Open Anyway**, then confirm.
-   - On this first launch, Bobine installs its own LaunchAgent so it keeps starting automatically at login from then on. A menu bar icon lets you open the admin panel, launch the full-screen kiosk window, restart the backend, or quit.
-4. **Open the interface**: `http://bobine.local` from any device on your local network. Application data (videos, database, logs) is stored in `~/Library/Application Support/Bobine`.
+   - *First launch*: Since Bobine is free open-source software without an Apple Developer subscription, Gatekeeper will display a security notice. Open **System Settings → Privacy & Security**, scroll down to the "Bobine was blocked" section, click **Open Anyway**, and confirm.
+   - Bobine configures a LaunchAgent so it starts automatically at login. A menu bar icon lets you open the admin dashboard, start the full-screen kiosk, restart the engine, or quit.
+4. **Open the interface**: `http://bobine.local` from any device on your local network (or `http://127.0.0.1:8000` locally). Data is stored in `~/Library/Application Support/Bobine`.
 
 ---
 
-### Method 2 — Dedicated Headless Linux Appliance (Debian 13 on mini PC)
+### Option 2 — Dedicated Headless Linux Appliance (Mini PC / Debian 13)
 
-This mode turns a dedicated, headless mini PC into a 100% self-contained appliance locked in kiosk mode.
+> **For studio operators seeking 100% independence, zero manual intervention, and fine hardware management.**  
+> This mode turns a low-cost refurbished mini PC (such as a Dell Wyse 5070, HP ProDesk DM, or Lenovo Tiny) into a dedicated 24/7 video appliance that boots straight into a full-screen hardware-accelerated kiosk without any desktop overhead.
 
-#### 1. Install Debian 13 from a USB key
-Bobine targets **Debian 13 "Trixie"**, minimal install, no desktop environment.
+#### 1. Minimal Debian 13 Setup
+1. **Download** the Debian 13 "Trixie" *netinst* ISO (~700 MB) from <https://www.debian.org/download>.
+2. **Flash it to a USB stick** (8 GB+) using [balenaEtcher](https://etcher.balena.io/) or `dd`.
+3. **Install on the mini PC**: In the software selection step, uncheck all desktop environments and keep only **SSH server** and **standard system utilities**.
 
-1. **Download** the Debian 13 *netinst* image (~700 MB) from <https://www.debian.org/download>.
-2. **Write it to a USB key** (8 GB+) using [balenaEtcher](https://etcher.balena.io/) or `dd`.
-3. **Boot the mini PC from USB** and run the installer: uncheck all desktop environments, keep only **SSH server** and **standard system utilities**.
-
-#### 2. Install Bobine via command line
-On the mini PC (directly or via SSH), as your normal user (not root):
+#### 2. Fast 1-Line CLI Installation
+Connect to the mini PC directly or via SSH as your standard non-root user and run:
 
 ```bash
-# Fast 1-line installation:
+# Automated 1-line installation:
 curl -sSL https://bobine.fit/install.sh | bash
 ```
 
-*(Or manual clone: `git clone https://github.com/FantasmaGlad/Bobine.git && cd Bobine && sudo ./install.sh`).*
+*(Alternatively, for full source control and custom flags: `git clone https://github.com/FantasmaGlad/Bobine.git && cd Bobine && sudo ./install.sh`).*
+
+**What `install.sh` configures automatically:**
+- System packages: Python virtualenv, Uvicorn, SQLite, Chromium, FFmpeg with VA-API hardware decoding.
+- Full-screen X11 kiosk auto-login with screen saver suppression.
+- HDMI-CEC TV automation: automatically turns commercial TV displays on/off according to class schedules.
+- Systemd services (`bobine-backend.service`, `bobine-kiosk.service`, `bobine-audio-guard.service`).
+- System health watchdog: automatic restart upon unexpected failures and full power-loss recovery.
 
 ---
 
-### Method 3 — Tauri Graphical Installation Assistant & Desktop Remote Control
+### Option 3 — Bobine Assistant & Remote Desktop Control (`assistant/`)
 
-To deploy and monitor mini PCs without typing a single terminal command, the **Bobine Assistant** desktop app in [`assistant/`](assistant/) (available for **Linux**, **Windows**, and **macOS**) provides full remote orchestration:
-1. **Automated discovery**: Locates Bobine appliances across the LAN via mDNS (`bobine.local`) and subnet scanning.
-2. **Guided SSH setup**: Securely connects with password or SSH keys, performs full hardware inspection (CPU, GPU VA-API, RAM, storage, Wi-Fi), and runs `install.sh` inside a live terminal emulator with a real-time progress bar.
-3. **Integrated desktop remote**: Controls playout across Wired HDMI, Network screen, and Radio channels directly from your workstation (Play, Pause, Stop, Seek, Volume).
+> **Deploy and supervise your club appliances remotely from your own computer, without touching a terminal.**
+
+Located in [`assistant/`](assistant/) (available natively for **Windows**, **Linux**, and **macOS**), the **Bobine Assistant** desktop application offers end-to-end remote orchestration:
+
+1. **Automated Network Discovery**: Scans your local network via mDNS (`bobine.local`) and fast `/24` subnet probing to detect all active Bobine units.
+2. **Guided SSH Deployment**: Establishes a secure SSH connection, performs an automated hardware audit (CPU, GPU VA-API, RAM, storage, Wi-Fi), and runs `install.sh` inside an embedded live terminal emulator with a real-time progress bar.
+3. **Multi-Channel Remote Control**: Directly command playout for all 3 channels from your desk:
+   - **Wired Screen (HDMI)**: Play, Pause, Stop, Seek, Next.
+   - **Networked Display**: Secondary screen synchronization and routing.
+   - **Background Radio**: 24/7 background playlist, volume control, and scheduled spoken announcements.
 
 ---
 
@@ -233,8 +271,8 @@ Bobine is free software licensed under the **GNU Affero General Public License v
 
 ## Status and roadmap
 
-Bobine is in active use in production on dedicated hardware. Planned: a graphical installer assistant (CLI foundations already in place), a dedicated project website and expanded documentation. Issues and contributions are welcome on the [GitHub repository](https://github.com/FantasmaGlad/Bobine).
+Bobine is in active use in production on dedicated hardware and desktop workstations. Planned: extended prospective guides for mobile Android tablet stations and dual-screen laptop desk consoles. Issues and contributions are welcome on the [GitHub repository](https://github.com/FantasmaGlad/Bobine).
 
 ---
 
-<sub>**Keywords:** open-source Les Mills Cinema alternative, Screenly Anthias alternative for gyms, Wexer Virtual alternative, Fitness On Demand open-source alternative, franchise workout video alternative (Radical Fitness / Yako), self-hosted gym digital signage, group fitness class scheduling software, on-demand gym cinema kiosk, boutique studio virtual classes, indoor cycling video playout, HDMI-CEC TV automation, x86-64 mini PC, offline-first video player, local-first, FastAPI, Next.js, Windows desktop app, macOS desktop app, Linux .deb package, cross-platform video signage.</sub>
+<sub>**Keywords:** open-source Les Mills Cinema alternative, Screenly Anthias alternative for gyms, Wexer Virtual alternative, Fitness On Demand open-source alternative, franchise workout video playout (Radical Fitness, Yako, Les Mills Virtual), self-hosted gym digital signage, group fitness class scheduling software, on-demand gym cinema kiosk, virtual coach player, boutique fitness studio video automation, indoor cycling video playout, HDMI-CEC TV power management, x86-64 thin client, Dell Wyse 5070 video player, offline-first media player, local-first fitness system, background music player for gyms, crossfade gym radio, FastAPI, Next.js, Tauri desktop remote, Windows 11 desktop app, macOS Apple Silicon app, Linux Debian Ubuntu .deb package, cross-platform gym video signage, zero subscription gym software.</sub>

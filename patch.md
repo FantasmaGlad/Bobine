@@ -485,3 +485,23 @@ Afin d'éviter toute extinction inopinée de l'écran pendant un cours de fitnes
 - **Démarrage discret à l'ouverture de session** :
   - `packaging/windows/bobine.iss` : le raccourci de démarrage automatique `{userstartup}` passe désormais l'argument `--startup` pour rester discret dans le systray sans ouvrir intempestivement le navigateur à chaque démarrage du PC.
 
+---
+
+## 15. Refonte complète des READMEs (FR/EN) : téléchargement 1-clic multi-OS et structuration des options de déploiement
+
+### Contexte & Objectifs
+- Préparation de la publication officielle de la release et synchronisation avec le futur site web `bobine.fit`.
+- Mettre en valeur la simplicité d'installation sur postes de travail et ordinateurs portables (Windows 11, Linux Debian/Ubuntu, macOS Apple Silicon), avec tableau de téléchargement direct 1-clic doté des badges officiels des systèmes.
+- Présenter clairement la distinction entre :
+  1. Les applications graphiques de bureau 1-clic.
+  2. L'appliance Linux dédiée headless pour les salles de sport et studios recherchant une indépendance maximale et une gestion matérielle fine (mini PC Debian 13, démarrage direct en kiosque X11, HDMI-CEC TV, 100% hors-ligne, installation rapide en 1 ligne CLI `curl -sSL https://bobine.fit/install.sh | bash`).
+  3. L'Assistant graphique Tauri & Télécommande de bureau (`assistant/`) pour orchestrer et piloter les bornes à distance sans commande terminal.
+
+### Modifications techniques
+- `README.md` (anglais) et `README.fr.md` (français) entièrement restructurés et harmonisés :
+  - Tableau de téléchargement rapide avec badges colorés Shields.io aux logos officiels (Windows 11, Debian, Ubuntu, Apple macOS).
+  - Liens de téléchargement directs vers les binaires de la version stable actuelle (`V2.0.1`) et liens vers la dernière release globale (`/releases/latest`) ainsi que vers `bobine.fit`.
+  - Description détaillée de l'expérience utilisateur Windows (suppression de la console noire, ouverture automatique du navigateur au double-clic sur l'icône Bureau, règle de pare-feu automatique pour la télécommande).
+  - Description détaillée des paquets Linux `.deb` (App Center Ubuntu, raccourci Bureau unique, respect XDG) et macOS `.dmg` (icône native Retina `.icns`, LaunchAgent).
+  - Présentation valorisée de l'installation CLI appliance et de l'Assistant Tauri pour les salles autonomes.
+
