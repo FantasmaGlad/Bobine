@@ -10,14 +10,14 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Bobine — Assistant & Télécommande",
+        "title": "Bobine — Assistant d'installation",
         "width": 1080,
         "height": 740,
         "minWidth": 900,
         "minHeight": 600,
         "resizable": true,
         "decorations": true,
-        "backgroundColor": "#0a0a0a"
+        "backgroundColor": "#f8f9fa"
       }
     ],
     "security": {
@@ -37,8 +37,8 @@
     "publisher": "FantasmaGlad",
     "copyright": "AGPL-3.0-or-later",
     "category": "Utility",
-    "shortDescription": "Assistant d'installation et télécommande Bobine",
-    "longDescription": "Assistant graphique permettant de déployer, configurer et piloter à distance les bornes Bobine en SSH.",
+    "shortDescription": "Assistant d'installation Bobine",
+    "longDescription": "Assistant graphique permettant de découvrir, configurer et déployer les bornes Bobine en SSH.",
     "linux": {
       "deb": {
         "depends": ["libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37"],

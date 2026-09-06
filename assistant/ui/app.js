@@ -1,5 +1,5 @@
 /**
- * Bobine — Assistant d'installation & Télécommande
+ * Bobine — Assistant d'installation
  * Logique IHM & IPC Tauri 2
  */
 
@@ -39,69 +39,23 @@ async function invokeTauri(cmd, args = {}) {
       gpu_info: 'Intel UHD Graphics 605 (VA-API matériel)'
     };
   }
-  if (cmd === 'remote_get_health') {
-    return { status: 'ok', components: { database: 'ok', kiosk: 'ok' } };
-  }
-  if (cmd === 'remote_get_playback') {
-    return {
-      channel: args.channel,
-      is_playing: false,
-      position: 0,
-      duration: 3300,
-      volume: 0.8,
-      video: { title: 'BODYPUMP 125 — Express 45', category: 'Strength' }
-    };
-  }
   return { status: 'ok' };
 }
 
 // État de l'application
 const state = {
-  currentView: 'wizard',
   currentStep: 1,
   selectedTarget: null,
   systemInspection: null,
-  remoteHost: '10.0.0.30',
-  remoteChannel: 'cable',
-  remotePollingTimer: null,
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  initNavigation();
   initWizard();
-  initRemote();
   listenTauriEvents();
 });
 
 /* ========================================================== */
-/* 1. Navigation entre onglets (Assistant vs Télécommande)    */
-/* ========================================================== */
-function initNavigation() {
-  const tabWizard = document.getElementById('tab-wizard-btn');
-  const tabRemote = document.getElementById('tab-remote-btn');
-  const viewWizard = document.getElementById('wizard-view');
-  const viewRemote = document.getElementById('remote-view');
-
-  tabWizard.addEventListener('click', () => {
-    tabWizard.classList.add('active');
-    tabRemote.classList.remove('active');
-    viewWizard.classList.add('active');
-    viewRemote.classList.remove('active');
-    state.currentView = 'wizard';
-  });
-
-  tabRemote.addEventListener('click', () => {
-    tabRemote.classList.add('active');
-    tabWizard.classList.remove('active');
-    viewRemote.classList.add('active');
-    viewWizard.classList.remove('active');
-    state.currentView = 'remote';
-    refreshRemoteState();
-  });
-}
-
-/* ========================================================== */
-/* 2. Wizard d'installation                                   */
+/* Wizard d'installation                                       */
 /* ========================================================== */
 function initWizard() {
   // Découverte réseau
@@ -183,14 +137,6 @@ function initWizard() {
     const target = state.selectedTarget || '10.0.0.30';
     window.open(`http://${target}:8000`, '_blank');
   });
-
-  document.getElementById('btn-switch-to-remote').addEventListener('click', () => {
-    if (state.selectedTarget) {
-      document.getElementById('remote-target-host').value = state.selectedTarget;
-      state.remoteHost = state.selectedTarget;
-    }
-    document.getElementById('tab-remote-btn').click();
-  });
 }
 
 function goToStep(stepNumber) {
@@ -206,7 +152,7 @@ function goToStep(stepNumber) {
 
   // Affichage du panneau d'étape
   document.querySelectorAll('.step-pane').forEach(pane => pane.classList.remove('active'));
-  const activePane = document.getElementById(`wizard-step-stepNumber`.replace('stepNumber', stepNumber));
+  const activePane = document.getElementById(`wizard-step-${stepNumber}`);
   if (activePane) activePane.classList.add('active');
 }
 
@@ -321,126 +267,4 @@ function listenTauriEvents() {
   window.__TAURI__.event.listen('install_log', (event) => {
     appendLog(event.payload);
   });
-}
-
-/* ========================================================== */
-/* 3. Télécommande Studio (Remote Control)                    */
-/* ========================================================== */
-function initRemote() {
-  const hostInput = document.getElementById('remote-target-host');
-  const btnConnect = document.getElementById('btn-remote-connect');
-  const channelTabs = document.querySelectorAll('.channel-tab');
-
-  btnConnect.addEventListener('click', () => {
-    state.remoteHost = hostInput.value.trim();
-    refreshRemoteState();
-  });
-
-  channelTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      channelTabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      state.remoteChannel = tab.dataset.channel;
-      document.getElementById('remote-active-channel-badge').textContent =
-        state.remoteChannel === 'cable' ? 'CANAL CÂBLÉ' : 'CANAL RÉSEAU';
-      refreshRemoteState();
-    });
-  });
-
-  // Boutons de contrôle de lecture
-  document.getElementById('btn-ctrl-playpause').addEventListener('click', async () => {
-    const isPlaying = document.getElementById('remote-playback-status-pill').classList.contains('playing');
-    const action = isPlaying ? 'pause' : 'play';
-    await sendRemoteAction(action);
-  });
-
-  document.getElementById('btn-ctrl-stop').addEventListener('click', async () => {
-    await sendRemoteAction('stop');
-  });
-
-  // Contrôle du volume
-  const volSlider = document.getElementById('remote-volume-slider');
-  const volLabel = document.getElementById('remote-volume-label');
-  volSlider.addEventListener('input', (e) => {
-    volLabel.textContent = `${e.target.value}%`;
-  });
-  volSlider.addEventListener('change', async (e) => {
-    const vol = parseFloat(e.target.value) / 100.0;
-    await invokeTauri('remote_control_playback', {
-      target: { host: state.remoteHost, port: 8000 },
-      action: 'volume',
-      channel: state.remoteChannel,
-      val: vol,
-    });
-  });
-
-  // Raccourcis rapides
-  document.getElementById('btn-quick-admin').addEventListener('click', () => {
-    window.open(`http://${state.remoteHost}:8000`, '_blank');
-  });
-}
-
-async function refreshRemoteState() {
-  const target = { host: state.remoteHost, port: 8000 };
-
-  try {
-    const health = await invokeTauri('remote_get_health', { target });
-    document.getElementById('health-db').textContent = health?.components?.database === 'ok' ? 'OK' : 'Erreur';
-    document.getElementById('health-kiosk').textContent = health?.components?.kiosk === 'ok' ? 'Actif' : 'Arrêté';
-  } catch {
-    document.getElementById('health-db').textContent = 'Hors-ligne';
-    document.getElementById('health-kiosk').textContent = 'Inconnu';
-  }
-
-  try {
-    const stateRes = await invokeTauri('remote_get_playback', { target, channel: state.remoteChannel });
-    updateRemoteUI(stateRes);
-  } catch (err) {
-    console.warn('Erreur refresh remote:', err);
-  }
-}
-
-function updateRemoteUI(playback) {
-  const titleEl = document.getElementById('remote-track-title');
-  const catEl = document.getElementById('remote-track-category');
-  const pill = document.getElementById('remote-playback-status-pill');
-  const fill = document.getElementById('remote-timeline-fill');
-  const curTime = document.getElementById('remote-current-time');
-  const totTime = document.getElementById('remote-total-time');
-
-  if (playback && playback.is_playing) {
-    pill.className = 'status-pill playing';
-    pill.textContent = 'En lecture';
-    titleEl.textContent = playback.video?.title || 'Cours en diffusion';
-    catEl.textContent = playback.video?.category || 'Vidéo de cours';
-  } else {
-    pill.className = 'status-pill waiting';
-    pill.textContent = 'En attente';
-    titleEl.textContent = 'Aucun cours en cours';
-    catEl.textContent = 'Écran d’attente actif';
-  }
-
-  const pos = playback?.position || 0;
-  const dur = playback?.duration || 1;
-  const pct = Math.min(100, Math.max(0, (pos / dur) * 100));
-
-  fill.style.width = `${pct}%`;
-  curTime.textContent = formatDuration(pos);
-  totTime.textContent = formatDuration(dur);
-}
-
-function sendRemoteAction(action) {
-  const target = { host: state.remoteHost, port: 8000 };
-  return invokeTauri('remote_control_playback', {
-    target,
-    action,
-    channel: state.remoteChannel,
-    val: null,
-  }).then(() => refreshRemoteState());
-}
-
-function formatDuration(sec) {
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }

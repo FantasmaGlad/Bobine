@@ -2,7 +2,7 @@
 
 Application graphique (poste admin) qui **localise le mini PC**, s'y **connecte
 en SSH**, **détecte le matériel**, puis **déroule `install.sh`** avec une barre
-de progression et une interface de télécommande dédiée.
+de progression en temps réel.
 
 ## État
 
@@ -10,7 +10,7 @@ de progression et une interface de télécommande dédiée.
   et testable (aucune E/S), fondation de l'IHM. Couverte par `cargo test`.
 - **`src-tauri/` + `ui/` — Application graphique Tauri 2** : livrée et multi-plateforme.
   Fonctionne nativement sur **Linux** (WebKitGTK), **Windows** (WebView2) et **macOS** (WebKit).
-  Découverte mDNS + scan `/24`, diagnostic SSH, terminal live PTY et télécommande de bureau.
+  Scan `/24` du sous-réseau, diagnostic SSH et terminal live PTY.
 
 > `core` ne réimplémente pas l'installation : `install.sh` reste la **source de
 > vérité unique**. L'assistant l'**orchestre** (construit la commande, parse sa
@@ -47,7 +47,7 @@ garde-fou contre toute divergence entre l'émetteur et le parseur.
 
 ## Compatibilité Linux, Windows & macOS
 
-L'Assistant d'installation et Télécommande de bureau est conçu pour s'exécuter directement depuis le poste de l'administrateur, quel que soit son système d'exploitation :
+L'Assistant d'installation est conçu pour s'exécuter directement depuis le poste de l'administrateur, quel que soit son système d'exploitation :
 - **Linux** : binaire natif GTK3/WebKitGTK, exécutable autonome ou paquet `.deb` via `assistant/build_linux.sh`.
 - **Windows** : exécutable `.exe` / installateur `.msi` via `npx @tauri-apps/cli build`.
 - **macOS** : bundle `.app` / image disque `.dmg` via `npx @tauri-apps/cli build`.

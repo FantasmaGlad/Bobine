@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 use serde::{Deserialize, Serialize};
@@ -17,9 +18,28 @@ pub struct DiscoveredDevice {
     pub is_wyse_or_bobine: bool,
 }
 
-/// Détecte l'IP locale de la machine hôte pour déduire le sous-réseau
-fn get_local_ip() -> Option<Ipv4Addr> {
-    // Tente de résoudre via une socket UDP dummy vers un DNS public
+/// Détecte les IP locales (IPv4, non loopback) de TOUTES les interfaces
+/// réseau actives de la machine hôte — pas seulement celle de la route par
+/// défaut. Un poste admin avec VPN, Docker ou plusieurs cartes réseau actives
+/// verrait sinon le scan cibler le mauvais sous-réseau et manquer le mini PC
+/// (réf. retour utilisateur "n'arrive pas à scanner le réseau").
+fn get_local_ipv4_addrs() -> Vec<Ipv4Addr> {
+    match if_addrs::get_if_addrs() {
+        Ok(interfaces) => interfaces
+            .into_iter()
+            .filter(|iface| !iface.is_loopback())
+            .filter_map(|iface| match iface.ip() {
+                IpAddr::V4(ipv4) => Some(ipv4),
+                IpAddr::V6(_) => None,
+            })
+            .collect(),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Repli si l'énumération des interfaces échoue (permissions, plateforme
+/// exotique...) : déduit l'IP de la route par défaut via une astuce UDP.
+fn get_default_route_ip() -> Option<Ipv4Addr> {
     let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
     socket.connect("1.1.1.1:80").ok()?;
     match socket.local_addr().ok()?.ip() {
@@ -58,14 +78,32 @@ async fn probe_bobine_port(ip: Ipv4Addr) -> bool {
 
 #[tauri::command]
 pub async fn scan_network(custom_subnet: Option<String>) -> Result<Vec<DiscoveredDevice>, String> {
-    let local_ip = if let Some(sub) = custom_subnet {
-        sub.parse::<Ipv4Addr>()
-            .map_err(|e| format!("Sous-réseau invalide : {e}"))?
+    let local_ips: Vec<Ipv4Addr> = if let Some(sub) = custom_subnet {
+        vec![sub
+            .parse::<Ipv4Addr>()
+            .map_err(|e| format!("Sous-réseau invalide : {e}"))?]
     } else {
-        get_local_ip().unwrap_or_else(|| Ipv4Addr::new(192, 168, 1, 100))
+        let mut ips = get_local_ipv4_addrs();
+        if ips.is_empty() {
+            ips.push(get_default_route_ip().unwrap_or_else(|| Ipv4Addr::new(192, 168, 1, 100)));
+        }
+        ips
     };
 
-    let candidates = subnet_hosts_v24(local_ip);
+    // Un poste admin a souvent plusieurs interfaces actives à la fois
+    // (Wi-Fi + Ethernet, VPN, Docker...) : on sonde le /24 de CHACUNE plutôt
+    // que de deviner laquelle contient le mini PC, en dédoublonnant les
+    // candidats qui se recouvriraient entre deux interfaces.
+    let local_ips_set: HashSet<Ipv4Addr> = local_ips.iter().copied().collect();
+    let mut candidates_set: HashSet<Ipv4Addr> = HashSet::new();
+    for local_ip in &local_ips {
+        candidates_set.extend(subnet_hosts_v24(*local_ip));
+    }
+    let candidates: Vec<Ipv4Addr> = candidates_set
+        .into_iter()
+        .filter(|ip| !local_ips_set.contains(ip))
+        .collect();
+
     let mut tasks = Vec::with_capacity(candidates.len());
 
     // Lance les sondes TCP en parallèle par petits groupes
