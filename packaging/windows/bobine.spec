@@ -88,7 +88,7 @@ backend_exe = EXE(
     [],
     exclude_binaries=True,
     name="BobineBackend",
-    console=False,  # Pas de fenêtre console noire pour l'application desktop
+    console=True,  # Masqué nativement par CREATE_NO_WINDOW dans tray.py ; préserve les flux valides
     contents_directory=".",
     icon=ICON_PATH,
 )

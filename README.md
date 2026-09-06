@@ -1,11 +1,7 @@
 # Bobine
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="Assets/Images/bobine_banner_dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="Assets/Images/bobine_banner_light.svg">
-    <img alt="Bobine" src="Assets/Images/bobine_banner_dark.svg" width="100%">
-  </picture>
+  <img alt="Bobine" src="Assets/Images/bobine_banner.svg" width="100%">
 </p>
 
 **The open-source, self-hosted alternative to Les Mills Cinema, Wexer, and Screenly Anthias — offline-first gym video playout, digital signage, and scheduled class player for fitness studios.**
@@ -23,7 +19,7 @@ Bobine turns any PC, Mac, or low-cost dedicated mini PC into a complete in-club 
 
 ---
 
-## ⚡ Quick Download & Native Desktop Apps
+## Quick Download & Native Desktop Applications
 
 Install Bobine as a native desktop application on your workstation or studio PC in seconds:
 
@@ -32,8 +28,8 @@ Install Bobine as a native desktop application on your workstation or studio PC 
 | ![Windows 11](https://img.shields.io/badge/Windows%2011%20%2F%2010-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` (Installer) | x86-64 | [**Download Bobine-Setup-2.0.1.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/Bobine-Setup-2.0.1.exe) | 1-click wizard, Desktop shortcut, auto-opens browser, background tray, no terminal window |
 | ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` (Package) | x86-64 (amd64) | [**Download bobine_2.0.1_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/bobine_2.0.1_amd64.deb) | Ubuntu App Center / `apt install`, XDG standard, single Desktop shortcut, system tray |
 | ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` (Disk Image) | Apple Silicon (arm64) | [**Download Bobine-2.0.1.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/Bobine-2.0.1.dmg) | Drag-and-drop `Bobine.app`, native Retina `.icns` icon, menu bar tray, autostart |
-| 🌐 **All Releases** | Source & Binaries | Multi-OS | [**Browse GitHub Releases**](https://github.com/FantasmaGlad/Bobine/releases/latest) | Full changelog, release assets & checksums |
-| 🌍 **Official Website** | Web Portal | Universal | [**Visit bobine.fit**](https://bobine.fit) | Getting started guides, updates & documentation |
+| ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | Source & Binaries | Multi-OS | [**Browse GitHub Releases**](https://github.com/FantasmaGlad/Bobine/releases/latest) | Full changelog, release assets & checksums |
+| ![Website](https://img.shields.io/badge/bobine.fit-Official%20Site-059669?style=flat-square&logo=googlechrome&logoColor=white) | Web Portal | Universal | [**Visit bobine.fit**](https://bobine.fit) | Getting started guides, updates & documentation |
 
 ---
 

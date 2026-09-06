@@ -156,12 +156,30 @@ jobs:
         working-directory: backend/dist/Bobine
         shell: pwsh
         run: |
-          $proc = Start-Process -FilePath ".\BobineBackend.exe" -PassThru
-          Start-Sleep -Seconds 5
-          $response = Invoke-WebRequest -Uri "http://127.0.0.1:8000/api/health" -UseBasicParsing
-          Write-Host $response.Content
-          Stop-Process -Id $proc.Id -Force
-          if ($response.StatusCode -ne 200) { exit 1 }
+          $proc = Start-Process -FilePath ".\BobineBackend.exe" -RedirectStandardError "backend_err.log" -RedirectStandardOutput "backend_out.log" -PassThru
+          $ready = $false
+          for ($i = 0; $i -lt 20; $i++) {
+              Start-Sleep -Seconds 1
+              try {
+                  $response = Invoke-WebRequest -Uri "http://127.0.0.1:8000/api/health" -UseBasicParsing -TimeoutSec 2
+                  if ($response.StatusCode -eq 200) {
+                      $ready = $true
+                      Write-Host "Backend opérationnel : $($response.Content)"
+                      break
+                  }
+              } catch {
+                  # Attente de disponibilité
+              }
+          }
+          if (-not $ready) {
+              Write-Host "=== Backend stderr ==="
+              if (Test-Path "backend_err.log") { Get-Content "backend_err.log" }
+              Write-Host "=== Backend stdout ==="
+              if (Test-Path "backend_out.log") { Get-Content "backend_out.log" }
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+              exit 1
+          }
+          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
       - name: Compiler l'installeur (Inno Setup, préinstallé sur windows-latest)
         run: ISCC.exe packaging\windows\bobine.iss
       - uses: actions/upload-artifact@v4

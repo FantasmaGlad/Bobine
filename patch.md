@@ -505,3 +505,20 @@ Afin d'éviter toute extinction inopinée de l'écran pendant un cours de fitnes
   - Description détaillée des paquets Linux `.deb` (App Center Ubuntu, raccourci Bureau unique, respect XDG) et macOS `.dmg` (icône native Retina `.icns`, LaunchAgent).
   - Présentation valorisée de l'installation CLI appliance et de l'Assistant Tauri pour les salles autonomes.
 
+---
+
+## 16. Finition Image de Marque & Fiabilisation du Packaging Windows
+
+### 1. Suppression intégrale des emojis
+- Suppression de l'ensemble des emojis dans `README.md` et `README.fr.md` (remplacement par des badges officiels Shields.io avec logos SVG officiels pour GitHub, Chrome, etc.).
+
+### 2. Bannière ASCII : rendu vectoriel forcé Noir sur Blanc
+- `Assets/Images/bobine_banner.svg`, `bobine_banner_light.svg`, `bobine_banner_dark.svg` :
+  - Suppression des coins arrondis `rx="8"` et des fonds gris/sombres qui créaient un encadré artificiel.
+  - Rendu pur **noir sur blanc** : fond `#ffffff`, blocs de lettres `#000000`.
+
+### 3. Résolution de l'échec CI Windows Packaging
+- Protection contre les exceptions `AttributeError: 'NoneType' object has no attribute 'write'` dans `backend/run_backend.py` en redirigeant les flux standards nuls vers `os.devnull`.
+- Configuration de `backend_exe` dans `packaging/windows/bobine.spec` avec `console=True` (tout en conservant la suppression absolue de fenêtre via `CREATE_NO_WINDOW` dans `tray.py`).
+- Enrichissement du step de santé dans `.github/workflows/ci.yml` avec boucle de scrutation active jusqu'à 20s et restitution des journaux stdout/stderr en cas d'incident.
+

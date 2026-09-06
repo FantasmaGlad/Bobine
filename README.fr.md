@@ -1,11 +1,7 @@
 # Bobine
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="Assets/Images/bobine_banner_dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="Assets/Images/bobine_banner_light.svg">
-    <img alt="Bobine" src="Assets/Images/bobine_banner_dark.svg" width="100%">
-  </picture>
+  <img alt="Bobine" src="Assets/Images/bobine_banner.svg" width="100%">
 </p>
 
 **L'alternative open source et auto-hébergée à Les Mills Cinema, Wexer et Screenly Anthias — régie vidéo, affichage dynamique et lecteur planifié hors ligne pour salles de fitness et cours collectifs.**
@@ -23,7 +19,7 @@ Bobine transforme n'importe quel PC, Mac ou mini PC dédié bon marché en syst�
 
 ---
 
-## ⚡ Téléchargement rapide & Applications de bureau natives
+## Téléchargement rapide & Applications de bureau natives
 
 Installez Bobine en quelques secondes comme une application graphique native sur votre poste de travail, ordinateur portable ou PC de régie studio :
 
@@ -32,8 +28,8 @@ Installez Bobine en quelques secondes comme une application graphique native sur
 | ![Windows 11](https://img.shields.io/badge/Windows%2011%20%2F%2010-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` (Installeur) | x86-64 | [**Télécharger Bobine-Setup-2.0.1.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/Bobine-Setup-2.0.1.exe) | Assistant 1 clic, raccourci Bureau, ouverture auto du navigateur, tâche de fond systray, zéro invite de commande |
 | ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` (Paquet) | x86-64 (amd64) | [**Télécharger bobine_2.0.1_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/bobine_2.0.1_amd64.deb) | Centre d'Applications Ubuntu / `apt install`, conforme XDG, raccourci Bureau unique, zone de notification |
 | ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` (Image disque) | Apple Silicon (arm64) | [**Télécharger Bobine-2.0.1.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V2.0.1/Bobine-2.0.1.dmg) | Glisser-déposer `Bobine.app`, icône native Apple Retina `.icns`, icône barre de menus, démarrage auto |
-| 🌐 **Toutes les versions** | Binaires & Sources | Multi-OS | [**Voir les Releases GitHub**](https://github.com/FantasmaGlad/Bobine/releases/latest) | Historique complet, notes de version & sommes de contrôle |
-| 🌍 **Site officiel** | Portail Web | Universel | [**Visiter bobine.fit**](https://bobine.fit) | Guide de prise en main, actualités & documentation |
+| ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | Binaires & Sources | Multi-OS | [**Voir les Releases GitHub**](https://github.com/FantasmaGlad/Bobine/releases/latest) | Historique complet, notes de version & sommes de contrôle |
+| ![Site Web](https://img.shields.io/badge/bobine.fit-Site%20Officiel-059669?style=flat-square&logo=googlechrome&logoColor=white) | Portail Web | Universel | [**Visiter bobine.fit**](https://bobine.fit) | Guide de prise en main, actualités & documentation |
 
 ---
 

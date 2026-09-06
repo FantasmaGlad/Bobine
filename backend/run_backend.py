@@ -17,6 +17,17 @@ que chaque worker puisse réimporter l'app dans son propre process).
 """
 
 import multiprocessing
+import os
+import sys
+
+# Sous Windows sans console (ou si les flux standards sont None), rediriger
+# vers os.devnull pour éviter tout plantage d'uvicorn/logging sur AttributeError
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")
+if sys.stdin is None:
+    sys.stdin = open(os.devnull, "r", encoding="utf-8")
 
 import uvicorn
 
