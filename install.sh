@@ -14,7 +14,7 @@
 set -euo pipefail
 
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
-SCRIPT_VERSION="3.0"
+SCRIPT_VERSION="3.0.0"
 
 # ============================================================================
 # 0. Affichage : couleurs, symboles, aide, arguments
@@ -89,6 +89,7 @@ ${BOLD}USAGE${RESET}
 
 ${BOLD}OPTIONS${RESET}
   -h, --help          Affiche cette aide et quitte
+  -V, --version       Affiche la version et quitte
   -l, --lang=fr|en    Langue de l'installateur (fr: Français, en: English)
   -y, --yes           Ne demande aucune confirmation (mode non-interactif)
   -v, --verbose       Mode verbeux : affiche l'intégralité des flux et logs de compilation en direct
@@ -140,6 +141,7 @@ PROGRESS_JSON=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help) usage; exit 0 ;;
+        -V|--version) echo "Bobine install.sh v${SCRIPT_VERSION}"; exit 0 ;;
         -l|--lang) INSTALL_LANG="${2:-}"; shift ;;
         -l=*|--lang=*) INSTALL_LANG="${1#*=}" ;;
         -y|--yes) ASSUME_YES=true ;;

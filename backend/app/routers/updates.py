@@ -29,7 +29,7 @@ GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 
 def _parse_semver(version_str: str) -> tuple[int, ...]:
-    """Extrait les nombres d'une chaîne de version (ex: 'V2.0.1' -> (2, 0, 1))."""
+    """Extrait les nombres d'une chaîne de version (ex: 'V3.0.0' -> (3, 0, 0))."""
     numbers = re.findall(r"\d+", version_str or "")
     return tuple(map(int, numbers)) if numbers else (0, 0, 0)
 
@@ -75,7 +75,7 @@ def _get_local_version_info() -> dict[str, str]:
     except Exception:
         pass
 
-    # Version de base (ex: 'V2.0.1-10-gfedd080' -> 'V2.0.1')
+    # Version de base (ex: 'V3.0.0-10-gfedd080' -> 'V3.0.0')
     base_version = tag.split("-")[0] if "-" in tag else tag
     if not base_version.upper().startswith("V"):
         base_version = f"V{base_version}"

@@ -111,7 +111,7 @@ async def lifespan(app: FastAPI):
     stop_mdns_responder()
 
 
-app = FastAPI(title="Bobine", lifespan=lifespan)
+app = FastAPI(title="Bobine", version="3.0.0", lifespan=lifespan)
 
 # Configuration CORS pour le développement
 app.add_middleware(
