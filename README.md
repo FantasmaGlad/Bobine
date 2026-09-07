@@ -46,7 +46,7 @@ How to opt in permanently, so future updates keep offering Beta builds:
 - **Headless appliance installer** → `sudo ./install.sh --channel=beta`
 - **Bobine Assistant (remote install wizard)** → toggle "Bobine Beta Program" in the Options step.
 
-Full details on how the Beta channel works (update detection, downgrade behavior, release process): [Technical Architecture § Canal de mise à jour](docs/ARCHITECTURE.md#7-script-dinstallation--services-systemd).
+Full details on how the Beta channel works (update detection, downgrade behavior, release process): [Technical Architecture § Update Channel](docs/ARCHITECTURE.md#7-script-dinstallation--services-systemd) (French — no English version of this document yet).
 
 ---
 
