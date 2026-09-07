@@ -73,7 +73,10 @@ _WRITABLE_STRING_FIELDS = {"theme", "language", "active_logo", "update_channel"}
 # `GET /api/settings` (comme theme/language) évite ce piège sans y toucher.
 _WRITABLE_BOOL_FIELDS = {"intro_animation_enabled"}
 _DEFAULTS = {
-    "theme": "les-mills-sombre",
+    # "clair" (réf. mission "thème par défaut") : version claire du thème
+    # Les Mills par défaut — même accent rouge (#e4002b) que
+    # "les-mills-sombre", premier écran vu à l'installation.
+    "theme": "clair",
     "language": "fr",
     "intro_animation_enabled": "true",
     "active_logo": "default",

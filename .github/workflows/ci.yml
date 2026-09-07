@@ -529,25 +529,74 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -f beta "${{ github.sha }}"
           git push origin beta --force
-      - name: Generate rolling release notes (changelog since last Stable)
+      - name: Generate rolling release notes (README-style layout + changelog since last Stable)
         id: notes
         run: |
+          # Bloc statique (bannière + intro + tableau de téléchargement) dans un
+          # heredoc ENTIÈREMENT quoté ('NOTES_EOF') : aucune substitution shell,
+          # donc tous les backticks/`$`/badges markdown restent littéraux sans
+          # avoir besoin d'être échappés un par un. __COMMIT__/__VERSION__ sont
+          # remplacés juste après par sed (valeurs courtes, sans caractère
+          # spécial pour sed : un SHA court et un "x.y.z"). Chaque ligne du
+          # heredoc est indentée pour respecter le bloc scalaire YAML `run: |`
+          # (l'indentation commune est retirée par le parseur YAML avant que
+          # bash ne voie le script — le fichier markdown généré, lui, n'a
+          # bien AUCUNE indentation, sans quoi Markdown le lirait comme un
+          # bloc de code).
+          cat > /tmp/beta-notes.md <<'NOTES_EOF'
+          <p align="center">
+            <img alt="Bobine" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/bobine_banner.svg" width="100%">
+          </p>
+
+          # Bobine — Bêta (build automatique)
+
+          Pre-release à accès anticipé aux fonctionnalités en cours de développement — reconstruite automatiquement à chaque publication et republiée **en place** sur ce même tag mobile `beta` (jamais un nouveau tag par itération). Une version stable équivalente ou plus récente la remplace toujours automatiquement.
+
+          Réservée aux utilisateurs ayant activé le canal Bêta ("Programme Bobine Beta" dans Réglages → Mises à jour, `install.sh --channel=beta`, ou l'assistant Tauri).
+
+          **Basé sur** commit `__COMMIT__` · version à venir `__VERSION__`
+
+          ---
+
+          ## Téléchargement
+
+          | Plateforme | Format | Téléchargement direct |
+          | :--- | :---: | :--- |
+          | ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` | [**Bobine-Setup-beta.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-Setup-beta.exe) |
+          | ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` | [**bobine-beta_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine-beta_amd64.deb) |
+          | ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` | [**Bobine-beta.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-beta.dmg) |
+          | ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | Binaire natif | [**bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine-assistant) |
+          | ![Bash CLI](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | Script | [**install.sh**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/install.sh) — ou `sudo ./install.sh --channel=beta` sur une installation existante |
+
+          NOTES_EOF
+          sed -i "s/__COMMIT__/${{ needs.version.outputs.commit_short }}/; s/__VERSION__/${{ needs.version.outputs.base_version }}/" /tmp/beta-notes.md
+
+          # Bloc dynamique (changelog) ajouté à part, pas via sed : un message
+          # de commit peut contenir '/', '&' ou d'autres caractères qui
+          # casseraient une substitution sed, et un fence de code (```) rend le
+          # changelog bien plus lisible qu'un paragraphe brut (le Markdown
+          # fusionne des lignes consécutives sans ligne vide entre elles).
           LAST_STABLE="$(git tag --list 'V*' --sort=-v:refname | grep -E '^V[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
+          if [ -n "${LAST_STABLE}" ]; then
+            CHANGELOG_HEADING="Changements depuis ${LAST_STABLE}"
+            CHANGELOG="$(git log "${LAST_STABLE}..HEAD" --oneline --no-merges | head -50)"
+          else
+            CHANGELOG_HEADING="Changements récents"
+            CHANGELOG="$(git log --oneline --no-merges | head -50)"
+          fi
           {
-            echo "Build automatique depuis \`${GITHUB_REF_NAME}\` (commit \`${{ needs.version.outputs.commit_short }}\`), basé sur la version à venir \`${{ needs.version.outputs.base_version }}\`."
+            echo "---"
             echo ""
-            echo "Réservée aux utilisateurs ayant activé le canal Bêta (\"Programme Bobine Beta\") — une version stable équivalente ou plus récente la remplace toujours automatiquement."
+            echo "## ${CHANGELOG_HEADING}"
             echo ""
-            if [ -n "${LAST_STABLE}" ]; then
-              echo "## Changements depuis ${LAST_STABLE}"
-              echo ""
-              git log "${LAST_STABLE}..HEAD" --oneline --no-merges | head -50
-            else
-              echo "## Changements récents"
-              echo ""
-              git log --oneline --no-merges | head -50
-            fi
-          } > /tmp/beta-notes.md
+            echo '```'
+            echo "${CHANGELOG}"
+            echo '```'
+            echo ""
+            echo "---"
+            echo ""
+            echo "Retour à la Stable à tout moment, sans perte de données : Réglages → Mises à jour logicielles → « Programme Bobine Beta » → Stable."
+          } >> /tmp/beta-notes.md
           echo "notes_path=/tmp/beta-notes.md" >> "$GITHUB_OUTPUT"
       - name: Delete previous Beta release (assets get fully replaced, not merged)
         run: gh release delete beta --yes || true

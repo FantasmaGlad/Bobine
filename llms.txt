@@ -1,0 +1,29 @@
+# Bobine
+
+> Open-source, self-hosted video playout and digital signage system for gym studios and fitness clubs. Schedules and plays pre-recorded group-fitness class videos, an on-demand member kiosk, two independent display outputs (wired HDMI + networked), a coach audio mode, and a 24/7 background radio. Runs fully offline on Windows, macOS, Debian/Ubuntu desktop, or a dedicated headless Debian 13 mini PC appliance. AGPL-3.0 licensed — no cloud, no subscription, no account, no vendor lock-in.
+
+## Install
+
+- [Windows installer (.exe)](https://github.com/FantasmaGlad/Bobine/releases/latest): download `Bobine-Setup-<version>.exe` from the latest release and run it. 1-click wizard, no terminal.
+- [Debian/Ubuntu package (.deb)](https://github.com/FantasmaGlad/Bobine/releases/latest): download `bobine_<version>_amd64.deb`, then `sudo apt install ./bobine_<version>_amd64.deb` (or open it in a software center).
+- [macOS disk image (.dmg)](https://github.com/FantasmaGlad/Bobine/releases/latest): download `Bobine-<version>.dmg`, open it, drag `Bobine.app` into Applications.
+- [Headless Debian 13 mini PC appliance](install.sh): `git clone https://github.com/FantasmaGlad/Bobine && cd Bobine && sudo ./install.sh` — or the one-line bootstrap `curl -sSL https://bobine.fit/install.sh | bash`. Flags: `--channel=beta` for early access, `--no-kiosk` for a server-only profile (no Chromium/X11), `--dry-run` to preview, `--help` for the full list. Idempotent — re-running after `git pull` updates an existing install.
+- [Bobine Assistant](assistant/README.md): a Tauri desktop GUI (Windows/macOS/Linux) that discovers a target mini PC on the local network over SSH and runs `install.sh` remotely — no terminal or command-line knowledge required.
+
+## Beta channel
+
+- [Beta release](https://github.com/FantasmaGlad/Bobine/releases/tag/beta): a single rolling pre-release, rebuilt from the latest development code and republished in place under the same fixed tag `beta` (never a new tag per build). An equal or newer Stable release always supersedes it automatically. Opt in via Settings → Software Updates → "Bobine Beta Program" (already-installed apps), `install.sh --channel=beta` (fresh installs), or the Bobine Assistant's Options step. Switch back to Stable at any time, no data loss.
+
+## Docs
+
+- [README (English)](README.md): features, positioning vs. Les Mills Cinema / Wexer / Screenly Anthias, full download table, install methods.
+- [README (Français)](README.fr.md): same content in French.
+- [Technical Architecture](docs/ARCHITECTURE.md): stack, data model, playback channels, `install.sh` internals and systemd services, HTTP/WebSocket API reference, update-channel mechanism.
+- [License](LICENSE): GNU AGPL-3.0.
+
+## Repository
+
+- Source: https://github.com/FantasmaGlad/Bobine
+- Website: https://bobine.fit
+- Latest stable release: https://github.com/FantasmaGlad/Bobine/releases/latest
+- Issues: https://github.com/FantasmaGlad/Bobine/issues

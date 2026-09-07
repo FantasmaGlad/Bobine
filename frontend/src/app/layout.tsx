@@ -38,7 +38,9 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover" as const,
-  themeColor: "#0a0a0a",
+  // "clair" (réf. mission "thème par défaut") : couleur de fond du thème
+  // clair par défaut, cf. THEME_SWATCHES dans app/settings/page.tsx.
+  themeColor: "#f8f9fa",
 };
 
 export default function RootLayout({
@@ -49,7 +51,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      data-theme="les-mills-sombre"
+      data-theme="clair"
       className={`${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >

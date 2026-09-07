@@ -64,7 +64,11 @@ interface AppSettingsContextValue {
   refreshBranding: () => void;
 }
 
-const DEFAULT_THEME: Theme = "les-mills-sombre";
+// "clair" (réf. mission "thème par défaut") : version claire du thème
+// Les Mills par défaut (même accent rouge #e4002b que "les-mills-sombre",
+// cf. THEME_SWATCHES dans app/settings/page.tsx) — premier écran vu à
+// l'installation avant tout réglage utilisateur.
+const DEFAULT_THEME: Theme = "clair";
 const DEFAULT_LANGUAGE: Language = "fr";
 
 const AppSettingsContext = createContext<AppSettingsContextValue>({

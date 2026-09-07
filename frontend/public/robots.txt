@@ -1,0 +1,6 @@
+# Bobine's admin/kiosk web interface is a private, local-network application
+# (studio administration panel, member kiosk, mobile remote) — it has no
+# public pages meant for search indexing. This file only matters if an
+# instance is ever exposed beyond the local network by misconfiguration.
+User-agent: *
+Disallow: /
