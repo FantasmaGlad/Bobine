@@ -8,7 +8,7 @@
 
 Bobine turns any PC, Mac, or low-cost dedicated mini PC into a complete in-club video system: it schedules and plays pre-recorded group-fitness class videos on your screens, lets members browse and start a class on demand from a kiosk, drives a wired and a networked display independently, runs a coach audio mode with animated backgrounds, and streams 24/7 background music. Everything runs locally on your own hardware. No cloud, no subscription, no vendor lock-in, no internet required after setup.
 
-[Official Website](https://bobine.fit) · [Documentation](https://bobine.fit/fr/documentation) · [Français](README.fr.md) · [Technical Architecture](docs/ARCHITECTURE.md) · [Latest Release](https://github.com/FantasmaGlad/Bobine/releases/latest)
+[Official Website](https://bobine.fit) · [Documentation](https://bobine.fit/fr/documentation) · [Français](README.fr.md) · [Technical Architecture](docs/ARCHITECTURE.md) · [Latest Release](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Beta Release](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 [![Release: v3.0.0](https://img.shields.io/badge/Release-v3.0.0-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
