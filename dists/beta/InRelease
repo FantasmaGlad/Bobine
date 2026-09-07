@@ -1,0 +1,40 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+Origin: Bobine
+Label: Bobine
+Suite: beta
+Codename: beta
+Date: Mon, 07 Sep 2026 20:39:00 UTC
+Architectures: amd64
+Components: main
+Description: Depot officiel Bobine - Canal Beta
+MD5Sum:
+ bb6204b6d606b0188ee756e4fb35ec83 1316 main/binary-amd64/Packages
+ 31ba38b7d6d2355e9718dd03c47df81f 849 main/binary-amd64/Packages.gz
+ c0f27d419807d560342def5799aaaf30 50 main/binary-amd64/Release
+SHA1:
+ 1c806e6685d00411000c26077041c2312390744e 1316 main/binary-amd64/Packages
+ 6b7f389757fdcf8e54dc869465862e68cf2adca4 849 main/binary-amd64/Packages.gz
+ 29ab620d537ec1c4fa1069045a42725f7ee6a84d 50 main/binary-amd64/Release
+SHA256:
+ 1434d46607a1977f251fbc4d36f529e424fb25d461057008e6852ee3f289a61e 1316 main/binary-amd64/Packages
+ 26f619397a856a9e930a255d652b806ace7e7160dee315b8a9feeb30b015a683 849 main/binary-amd64/Packages.gz
+ 141cb8071f34bdf9878a7424f4c27768dec49c00691c9499d0468cfa6e18d08b 50 main/binary-amd64/Release
+-----BEGIN PGP SIGNATURE-----
+
+iQJHBAEBCAAxFiEElBtvUmpyWfRpTPS8G10YqXb6rRUFAmqfIOUTHGNvbnRhY3RA
+Ym9iaW5lLmZpdAAKCRAbXRipdvqtFQ5DD/0bLShJ95nb0hL9cadSq+NU+066JuwB
+53VqdkBxy3bqCJq+kvx/XywcQbAhYlArV+1avbUmdZhnQJmoaFbRpi5h9O/LwOKX
+uIJAiEM51IJMCLa9S3IGQyFTDv39Atg2OOhVjntCH54doj2CyNRDtSha3PXF38qS
+vNsQdib6D4srlakvZjTUQtUyqkXW+KKqsimxyZ5XOG/anYN76M2kEDIWR5qk5gdc
+6F7CE4C7s//9ZdZ0BOAJ+A+Xi6aOsOFDLTk1ZaF742RArVirTLAu1yYgHfFEPt30
+yC21aUl+6FFD39QnklokGlxvTjyRv5XBg48O2jvAfn3GGj3gLOSjqjs0sXB8SQN1
+spVrM7+ntMVDncO0psQHPB1LGhiOVzjRGiy7gMxQ4/xYFllHLl+LMsAKgzuxps9S
+JOEPI+eYt5qosgK2HmUZtWxlyBL+M3GX7vYLTu7fDNSpL2LIRnV6+g8SQG5dHDRF
+OMWEy/1uPYwdAWGVQmXcMzGVVe/1LhQuZWUfBsigkWvffeO+urUMjBHiUqXTImYh
+L/SXbyc04fEaugnCKT8YU+Lzqom8A1TGiwwi0Z5MpOOCJGEyv1KermJmT6rXT2Qi
+/3SEH6TiftZ2IDxx3itOR2I6EYz1Hf5Mc+N+7WYL3ziGiiHDtTsZrrzOEtaeA0YT
+Wu8u+Yj4UwWxbA==
+=oKZR
+-----END PGP SIGNATURE-----

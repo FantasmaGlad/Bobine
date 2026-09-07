@@ -1,0 +1,40 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+Origin: Bobine
+Label: Bobine
+Suite: stable
+Codename: stable
+Date: Mon, 07 Sep 2026 20:39:00 UTC
+Architectures: amd64
+Components: main
+Description: Depot officiel Bobine - Canal Stable
+MD5Sum:
+ bb6204b6d606b0188ee756e4fb35ec83 1316 main/binary-amd64/Packages
+ 31ba38b7d6d2355e9718dd03c47df81f 849 main/binary-amd64/Packages.gz
+ 82a1ae90445e5284617f8a8cc3a53fa4 52 main/binary-amd64/Release
+SHA1:
+ 1c806e6685d00411000c26077041c2312390744e 1316 main/binary-amd64/Packages
+ 6b7f389757fdcf8e54dc869465862e68cf2adca4 849 main/binary-amd64/Packages.gz
+ 9b61d92e2c42866227d305db51276f4714da5cd9 52 main/binary-amd64/Release
+SHA256:
+ 1434d46607a1977f251fbc4d36f529e424fb25d461057008e6852ee3f289a61e 1316 main/binary-amd64/Packages
+ 26f619397a856a9e930a255d652b806ace7e7160dee315b8a9feeb30b015a683 849 main/binary-amd64/Packages.gz
+ 5d14a4f1b270a16b7797dfa013f0d0d3325c616762714c6e9a34295a4d9be351 52 main/binary-amd64/Release
+-----BEGIN PGP SIGNATURE-----
+
+iQJHBAEBCAAxFiEElBtvUmpyWfRpTPS8G10YqXb6rRUFAmqfIOQTHGNvbnRhY3RA
+Ym9iaW5lLmZpdAAKCRAbXRipdvqtFfjQEACIH2Aw/+4QYW8zKS9qSamrU5RkkhGo
+lwODA0zj9yvii/z3QfEfyEn2d9m/+nDKFNxtlWotgSdEcXZcO5Wi818c1HWnxIEJ
+g8AnIZzDYMKoKENpn8VdU4lwAAPea2C4X8X7/HNgZaF/eeu5L+gU/BOlAOOEJCqP
+twmcN9M6MfAA270VXy5F7LqSE5prcExtCRown467gko3MnudoxN9qf4+/agFW/ze
+LXxs5TP5sp3BZvJx9toAXcvkAvRnB6vLebeTowyJyO4sQQ3/zuXu5HBmWGFLJc3T
+jtEe8Kpbm39q0qn8+2b7lGo5qd0RhUS4iNPZeURTiRH4GyMk4R6jPT1kOdplJcWi
+PiB/e7rJVsgZUjSBiykmfERjGBVNvg/FGZRcAkjmtfsFDZhMku/KlHC8KmoFlnZy
+NKScLpu0qtxqNyJsnErKdckX12224HpenxeuMFebmed5eb329S2sU6eX06FobtR/
+VaXxpKFhRCP1Uz5LSbm6NPkpcBHox9qYhUn9LxRrB5VjliukaEUFgFEYIPONXMAC
+IPxvfPcOr0y1N7YBjXA21jAvOWN6zL3h6kyKBLClaPY4PzdZiOYdSeyCVGAmBwrp
+x3k8/JrqC43+U8Q1XAqpCOjMLp2jarCsTjji1lb3loAy/BwZwN2tPeM8lT4ZmTTD
+VWghgK5anmEC6w==
+=cQfk
+-----END PGP SIGNATURE-----
