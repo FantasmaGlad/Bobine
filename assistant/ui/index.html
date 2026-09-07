@@ -25,6 +25,15 @@
       </div>
     </header>
 
+    <!-- Bannière "nouvelle version de l'assistant disponible" (masquée par défaut) -->
+    <div id="assistant-update-banner" class="update-banner" style="display: none;">
+      <span id="assistant-update-text" class="update-banner-text"></span>
+      <div class="update-banner-actions">
+        <button id="btn-assistant-update-download" type="button" class="btn btn-primary">Télécharger</button>
+        <button id="btn-assistant-update-dismiss" type="button" class="btn-text" aria-label="Fermer">Fermer</button>
+      </div>
+    </div>
+
     <!-- Conteneur principal -->
     <main class="app-content">
 
@@ -196,6 +205,14 @@
                 </div>
                 <input type="checkbox" id="opt-mock" class="toggle-input">
               </label>
+
+              <label class="toggle-card">
+                <div class="toggle-info">
+                  <span class="toggle-title">Programme Bobine Beta</span>
+                  <span class="toggle-desc">Accès anticipé aux fonctionnalités en cours de développement. Une version stable équivalente ou plus récente les remplace toujours automatiquement. Désactivé = canal Stable (recommandé).</span>
+                </div>
+                <input type="checkbox" id="opt-beta-channel" class="toggle-input">
+              </label>
             </div>
 
             <div class="step-actions">
@@ -241,6 +258,7 @@
                 <p>Votre mini PC est prêt pour la diffusion de cours.</p>
                 <div class="success-actions">
                   <button id="btn-open-browser" class="btn btn-primary">Ouvrir l'administration (Web)</button>
+                  <button id="btn-open-kiosk" class="btn btn-secondary">Ouvrir le kiosque (cinéma câblé)</button>
                 </div>
               </div>
             </div>

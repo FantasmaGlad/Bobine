@@ -20,6 +20,14 @@ pub struct RunInstallParams {
     pub no_kiosk: bool,
     pub skip_packages: bool,
     pub mock_replay: bool,
+    /// Canal de mise à jour de la cible (réf. mission "canal Stable/Bêta") —
+    /// "stable" ou "beta", relayé tel quel à `install.sh --channel=<...>`.
+    #[serde(default = "default_channel")]
+    pub channel: String,
+}
+
+fn default_channel() -> String {
+    "stable".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -163,6 +171,7 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
             no_kiosk: params.no_kiosk,
             skip_packages: params.skip_packages,
             progress_json: true,
+            channel: params.channel.clone(),
             ..Default::default()
         };
 

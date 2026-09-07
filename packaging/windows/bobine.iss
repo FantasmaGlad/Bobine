@@ -15,7 +15,14 @@
 ; (pas de sous-dossier _internal — cf. contents_directory="." dans le spec).
 
 #define MyAppName "Bobine"
-#define MyAppVersion "3.0.0"
+; Source de vérité unique (réf. mission "canal Stable/Bêta") : le fichier
+; VERSION à la racine du dépôt. La CI passe la version exacte (y compris
+; suffixe pre-release, ex. "3.0.1-beta.1") via `ISCC /DMyAppVersion=...` ;
+; ce garde `#ifndef` la laisse gagner sur le repli codé en dur ci-dessous,
+; utilisé uniquement lors d'une compilation manuelle sans ce define.
+#ifndef MyAppVersion
+  #define MyAppVersion "3.0.1"
+#endif
 #define MyAppPublisher "Bobine"
 #define MyAppURL "https://bobine.fit"
 #define MyDistDir "..\..\backend\dist\Bobine"

@@ -202,6 +202,7 @@ sudo ./install.sh
 | `--skip-packages` | Mise à jour du projet (après déploiement du code, §9) sans réinstaller les paquets `apt` |
 | `--skip-build` | Ne reconstruit pas le frontend Next.js |
 | `--as-user LOGIN` | Compte cible quand le script tourne en **root direct** (Debian **sans sudo**, lancé via `su -`) — cf. ci-dessous |
+| `--channel=stable\|beta` | Canal de mise à jour (défaut `stable`) — cf. « Canal de mise à jour » ci-dessous |
 | `--progress=json` | Sortie **machine** : une ligne JSON par évènement (`run_begin` / `step` `start\|ok\|skip\|error` / `run_end`) sur le **fd 3**, pour piloter une barre de progression (assistant graphique). Le journal humain reste inchangé — cf. « Assistant d'installation » ci-dessous |
 | `--uninstall [--purge] [--purge-data]` | Désinstallation progressive du système |
 
@@ -225,6 +226,17 @@ Pas de service dédié pour le canal Radio (arbitrage A5, cf. §5) : `/radio` s'
 
 Une application graphique autonome (`assistant/`, développée avec **Tauri 2 / Rust**) tourne sur le **poste de l'administrateur** (Windows, macOS ou Linux), localise le mini PC sur le LAN (balayage `/24` de chaque interface réseau locale), s'y connecte en SSH, audite le matériel, puis **déroule `install.sh`** avec une barre de progression et un suivi temps réel des journaux d'installation. `install.sh` reste la **source de vérité unique** — l'assistant l'**orchestre**, il ne réimplémente rien. Détails complets et instructions de compilation : [`assistant/README.md`](../assistant/README.md).
 
+### Canal de mise à jour (Stable / Bêta)
+
+Deux canaux, choisis à l'installation (`install.sh --channel=stable|beta`, ou dans le wizard de l'assistant Tauri) puis modifiables à tout moment depuis Réglages → Mises à jour ("Programme Bobine Beta") :
+
+- **Stable** (défaut) : `GET /api/updates/check` interroge `/repos/.../releases/latest` — un endpoint qui **exclut structurellement** les pre-releases côté API GitHub, donc ce canal ne peut jamais en recevoir une, même en cas de bug applicatif.
+- **Bêta** : interroge `/repos/.../releases` (liste complète, triée du plus récent au plus ancien) et prend le premier élément, pre-release ou non — accès anticipé aux fonctionnalités en développement, avec retour automatique en stable dès qu'une version stable dépasse la bêta suivie.
+
+Le choix est persisté (réglage `update_channel` en base pour le backend ; `/etc/bobine/update-channel` pour `install.sh`) et pilote aussi `apply_update()` du profil headless (bouton « Mettre à jour ») : `git checkout <tag>` plutôt qu'un `git pull --ff-only`, ce qui permet un vrai retour arrière (downgrade) vers un tag antérieur.
+
+Côté publication : la CI (`.github/workflows/ci.yml`) construit et publie les 4 artefacts (`.exe`, `.deb`, `.dmg`, `bobine-assistant`) plus `install.sh` à chaque tag `v*`/`V*` poussé ; un tag contenant `-beta.`/`-rc.`/`-alpha.` est automatiquement marqué pre-release sur GitHub. La version elle-même a une source de vérité unique : le fichier `VERSION` à la racine du dépôt.
+
 ### Autorisation sudo restreinte & désinstallation depuis l'interface
 
 `install.sh` écrit `/etc/sudoers.d/bobine` autorisant **sans mot de passe, et uniquement**, deux actions déclenchées depuis l'admin :
@@ -247,7 +259,8 @@ Une application graphique autonome (`assistant/`, développée avec **Tauri 2 / 
 | **Playlists Audio** | `/api/audio-playlists` | Playlists mixtes audio coach avec fonds |
 | **Planning** | `/api/schedule` | Programmateurs, occurrences et exceptions |
 | **Lecture** | `/api/playback` | Contrôle de la lecture (play, pause, seek, stop, reprise) |
-| **Paramètres** | `/api/settings` | Configuration dynamique (lecture/thème/langue/`deployment_profile`), sortie vidéo, espace de stockage (`/settings/storage`), synchronisation des écrans (`POST /settings/system/reset` — vidage des caches + rechargement + relance des services), sauvegarde & restauration universelles ZIP (`/settings/system/backup`, `/settings/system/restore`), et réinitialisation usine ou désinstallation machine (`POST /settings/system/reset-data`, `POST /settings/system/uninstall`, phrase de confirmation requise) |
+| **Paramètres** | `/api/settings` | Configuration dynamique (lecture/thème/langue/`deployment_profile`/`update_channel`), sortie vidéo, espace de stockage (`/settings/storage`), synchronisation des écrans (`POST /settings/system/reset` — vidage des caches + rechargement + relance des services), sauvegarde & restauration universelles ZIP (`/settings/system/backup`, `/settings/system/restore`), et réinitialisation usine ou désinstallation machine (`POST /settings/system/reset-data`, `POST /settings/system/uninstall`, phrase de confirmation requise) |
+| **Mises à jour** | `/api/updates` | `GET /updates/check` — interroge GitHub Releases selon le canal courant (Stable/Bêta, cf. §7) et le profil de déploiement pour l'asset adapté ; `POST /updates/apply` — déclenche `git checkout <tag>` + redémarrage (profil headless uniquement, 400 sinon) |
 | **Imports** | `/api/import-jobs` | Suivi des tâches d'importation en arrière-plan |
 | **Logs** | `/api/logs` | Consultation et téléchargement des journaux système |
 | **Radio — Bibliothèque** | `/api/radio` | Morceaux (CRUD, artistes/albums/tags), playlists radio, état du canal (`/api/radio/state`) |

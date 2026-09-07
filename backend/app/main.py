@@ -28,6 +28,7 @@ from app.routers import (
     updates,
 )
 from app.utils.radio_utils import content_type_for
+from app.utils.version import get_app_version
 from app.scheduler_manager import (
     autostart_default_radio_playlist,
     start_scheduler,
@@ -111,7 +112,7 @@ async def lifespan(app: FastAPI):
     stop_mdns_responder()
 
 
-app = FastAPI(title="Bobine", version="3.0.0", lifespan=lifespan)
+app = FastAPI(title="Bobine", version=get_app_version(), lifespan=lifespan)
 
 # Configuration CORS pour le développement
 app.add_middleware(

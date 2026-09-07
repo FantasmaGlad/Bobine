@@ -13,6 +13,12 @@ on:
     tags: ['v*', 'V*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: >-
+          Tag à publier (ex. V3.0.1 ou V3.0.1-beta.1) — requis uniquement
+          pour republier une release manuellement sans pousser de tag.
+        required: false
 
 # Annule les exécutions précédentes encore en cours sur la même référence.
 concurrency:
@@ -20,6 +26,61 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Résout le numéro de version une seule fois pour tous les jobs de
+  # packaging (réf. mission "canal Stable/Bêta") : source de vérité = fichier
+  # VERSION à la racine, confronté au tag Git quand la CI est déclenchée par
+  # un tag — échoue explicitement en cas de divergence plutôt que de publier
+  # silencieusement sous le mauvais numéro (c'est ce qui se passait avant :
+  # tout run non déclenché par un tag v*/V* retombait sur "V3.0.0" en dur).
+  version:
+    name: Resolve release version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      full_version: ${{ steps.resolve.outputs.full_version }}
+      deb_version: ${{ steps.resolve.outputs.deb_version }}
+      is_prerelease: ${{ steps.resolve.outputs.is_prerelease }}
+      tag_name: ${{ steps.resolve.outputs.tag_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Résoudre la version depuis VERSION et le tag Git
+        id: resolve
+        run: |
+          BASE_VERSION="$(cat VERSION)"
+          TAG_NAME=""
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.tag }}" ]]; then
+            TAG_NAME="${{ github.event.inputs.tag }}"
+          fi
+
+          FULL_VERSION="${BASE_VERSION}"
+          IS_PRERELEASE="false"
+          if [ -n "${TAG_NAME}" ]; then
+            # V3.0.1-beta.1 -> 3.0.1-beta.1 ; base = 3.0.1 (avant le premier '-')
+            TAG_VERSION="${TAG_NAME#v}"; TAG_VERSION="${TAG_VERSION#V}"
+            TAG_BASE="${TAG_VERSION%%-*}"
+            if [ "${TAG_BASE}" != "${BASE_VERSION}" ]; then
+              echo "::error::Le tag '${TAG_NAME}' (base ${TAG_BASE}) ne correspond pas au fichier VERSION (${BASE_VERSION}). Mettre à jour VERSION avant de taguer."
+              exit 1
+            fi
+            FULL_VERSION="${TAG_VERSION}"
+            case "${TAG_VERSION}" in
+              *-beta.*|*-rc.*|*-alpha.*) IS_PRERELEASE="true" ;;
+            esac
+          fi
+
+          # Convention Debian pour un pré-lancement (le '~' trie AVANT la
+          # version finale, cf. commentaire de build_deb.sh) : "3.0.1-beta.1"
+          # -> "3.0.1~beta.1".
+          DEB_VERSION="$(printf '%s' "${FULL_VERSION}" | sed 's/-/~/')"
+
+          echo "version=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "full_version=${FULL_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "deb_version=${DEB_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=${IS_PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+
   frontend:
     name: Frontend build (Next.js)
     runs-on: ubuntu-latest
@@ -119,6 +180,7 @@ jobs:
     # à surveiller de près au premier déclenchement.
     name: Windows packaging (PyInstaller + Inno Setup)
     runs-on: windows-latest
+    needs: [version]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -181,7 +243,7 @@ jobs:
           }
           Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
       - name: Compiler l'installeur (Inno Setup, préinstallé sur windows-latest)
-        run: ISCC.exe packaging\windows\bobine.iss
+        run: ISCC.exe /DMyAppVersion=${{ needs.version.outputs.full_version }} packaging\windows\bobine.iss
       - uses: actions/upload-artifact@v4
         with:
           name: bobine-windows-installer
@@ -194,6 +256,7 @@ jobs:
     # l'intégrité et l'installation réelle du paquet .deb sur ubuntu-latest.
     name: Linux desktop packaging (.deb)
     runs-on: ubuntu-latest
+    needs: [version]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -217,6 +280,8 @@ jobs:
           pip install -r backend/requirements.txt
           pip install pyinstaller
       - name: Construire le paquet Debian (.deb)
+        env:
+          VERSION: ${{ needs.version.outputs.deb_version }}
         run: |
           ./packaging/linux/build_deb.sh
       - name: Inspecter et valider la structure du paquet .deb
@@ -254,6 +319,7 @@ jobs:
     # avertissement Gatekeeper (cf. plan §4).
     name: macOS packaging (PyInstaller + dmg)
     runs-on: macos-latest
+    needs: [version]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -292,11 +358,13 @@ jobs:
           curl -sf http://127.0.0.1:8000/api/health
           kill "$PID"
       - name: Créer le .dmg (hdiutil)
+        env:
+          VERSION: ${{ needs.version.outputs.full_version }}
         run: |
           mkdir -p dmg-root dist-dmg
           cp -R backend/dist/Bobine.app dmg-root/
           ln -s /Applications dmg-root/Applications
-          hdiutil create -volname "Bobine" -srcfolder dmg-root -ov -format UDZO dist-dmg/Bobine-3.0.0.dmg
+          hdiutil create -volname "Bobine" -srcfolder dmg-root -ov -format UDZO "dist-dmg/Bobine-${VERSION}.dmg"
       - uses: actions/upload-artifact@v4
         with:
           name: bobine-macos-dmg
@@ -304,8 +372,11 @@ jobs:
 
   release:
     name: Publish Release Binaries (GitHub Releases)
-    needs: [windows-build, linux-desktop-deb, macos-build, assistant-core]
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V') || github.event_name == 'workflow_dispatch'
+    needs: [version, windows-build, linux-desktop-deb, macos-build, assistant-core]
+    # Publie uniquement quand un tag a été résolu (push d'un tag v*/V*, ou
+    # workflow_dispatch avec l'input `tag` renseigné) — plus de repli
+    # silencieux sur un tag en dur (réf. mission "canal Stable/Bêta").
+    if: needs.version.outputs.tag_name != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -333,26 +404,31 @@ jobs:
         with:
           name: bobine-assistant-linux
           path: release-assets
+      - name: Copy install script into release assets
+        # Réf. mission "canal Stable/Bêta" — "et les scripts" : install.sh
+        # n'était jusqu'ici jamais attaché à la release, seuls les paquets
+        # binaires l'étaient.
+        run: cp install.sh release-assets/
       - name: Inspect generated binary assets
         run: ls -lh release-assets/
       - name: Select Release Notes Body
         id: release-notes
         run: |
-          TAG="${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')) && github.ref_name || 'V3.0.0' }}"
-          if [ -f "docs/releases/${TAG}.md" ]; then
-            echo "body_path=docs/releases/${TAG}.md" >> "$GITHUB_OUTPUT"
-          elif [ -f "docs/releases/V3.0.0.md" ]; then
-            echo "body_path=docs/releases/V3.0.0.md" >> "$GITHUB_OUTPUT"
+          TAG="${{ needs.version.outputs.tag_name }}"
+          if [ ! -f "docs/releases/${TAG}.md" ]; then
+            echo "::error::docs/releases/${TAG}.md est introuvable — écrire les notes de version avant de publier le tag ${TAG}."
+            exit 1
           fi
+          echo "body_path=docs/releases/${TAG}.md" >> "$GITHUB_OUTPUT"
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           files: release-assets/*
-          tag_name: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')) && github.ref_name || 'V3.0.0' }}
-          name: ${{ (startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')) && github.ref_name || 'Bobine V3.0.0' }}
+          tag_name: ${{ needs.version.outputs.tag_name }}
+          name: Bobine ${{ needs.version.outputs.tag_name }}
           body_path: ${{ steps.release-notes.outputs.body_path }}
           draft: false
-          prerelease: false
+          prerelease: ${{ needs.version.outputs.is_prerelease == 'true' }}
           generate_release_notes: false
 
 

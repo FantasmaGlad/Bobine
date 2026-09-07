@@ -14,6 +14,7 @@ Référence : docs/cahier-des-charges-multi-os.md §5.3/§5.4,
 docs/plan-implementation-portabilite-crossplatformx.md §2.
 """
 
+import json
 import logging
 import os
 import platform
@@ -35,6 +36,7 @@ logger = logging.getLogger(__name__)
 ADMIN_URL = "http://127.0.0.1:8000"
 KIOSK_URL = f"{ADMIN_URL}/kiosk"
 HEALTH_URL = f"{ADMIN_URL}/api/health"
+UPDATES_CHECK_URL = f"{ADMIN_URL}/api/updates/check"
 
 # Supervision "logique" (process vivant mais /api/health en échec de façon
 # répétée) — complète la supervision "process mort" de BackendSupervisor,
@@ -42,6 +44,13 @@ HEALTH_URL = f"{ADMIN_URL}/api/health"
 # §2, portée précisée par rapport à ce script).
 HEALTH_POLL_INTERVAL_SECONDS = 30
 HEALTH_FAILURES_BEFORE_RESTART = 3
+
+# Notification "mise à jour disponible" (réf. mission "canal Stable/Bêta") :
+# interroge le backend LOCAL (`/api/updates/check`, déjà conscient du canal
+# Stable/Bêta choisi dans Réglages et du profil de déploiement pour l'asset à
+# proposer) plutôt que de dupliquer l'appel GitHub ici. 6h entre deux
+# vérifications — pas besoin de plus réactif pour une appliance de bureau.
+UPDATE_POLL_INTERVAL_SECONDS = 6 * 60 * 60
 
 
 def _backend_command() -> list[str]:
@@ -407,17 +416,58 @@ def is_backend_running() -> bool:
         return False
 
 
-def _open_browser_when_ready(url: str, timeout_seconds: float = 20.0) -> None:
-    """Attend que le backend réponde, puis ouvre l'URL dans le navigateur par défaut."""
+def _open_browser_when_ready(open_fn, label: str, timeout_seconds: float = 20.0) -> None:
+    """Attend que le backend réponde, puis déclenche `open_fn` (ouverture d'une
+    URL classique via `webbrowser.open`, ou lancement du kiosque via
+    `launch_kiosk_browser`, qui a besoin de flags dédiés par OS)."""
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         if is_backend_running():
-            logger.info(f"Backend prêt — ouverture du navigateur sur {url}")
-            webbrowser.open(url)
+            logger.info(f"Backend prêt — ouverture de {label}")
+            open_fn()
             return
         time.sleep(0.5)
-    logger.warning(f"Délai d'attente du backend dépassé — tentative d'ouverture du navigateur vers {url}")
-    webbrowser.open(url)
+    logger.warning(f"Délai d'attente du backend dépassé — tentative d'ouverture de {label}")
+    open_fn()
+
+
+# État de la dernière vérification de mise à jour, lu par le libellé
+# dynamique de l'item de menu (cf. `update_menu_text` dans `run()`) et écrit
+# uniquement par `_check_for_update_once()` — un verrou suffit, la fréquence
+# d'accès est très faible (un poll toutes les UPDATE_POLL_INTERVAL_SECONDS,
+# un rendu de menu à chaque clic droit sur l'icône).
+_update_lock = threading.Lock()
+_update_state: dict = {"has_update": False, "latest_version": None, "download_url": None}
+
+
+def _check_for_update_once() -> None:
+    """Interroge le backend local (déjà conscient du canal Stable/Bêta et du
+    profil de déploiement) et met à jour `_update_state`. Best-effort :
+    aucune exception ne doit jamais faire tomber le tray."""
+    try:
+        req = urllib.request.Request(UPDATES_CHECK_URL, headers={"User-Agent": "BobineTray"})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        with _update_lock:
+            _update_state["has_update"] = bool(data.get("has_update"))
+            _update_state["latest_version"] = data.get("latest_version")
+            _update_state["download_url"] = data.get("download_url") or data.get("html_url")
+        if _update_state["has_update"]:
+            logger.info(f"Mise à jour disponible : {_update_state['latest_version']}")
+    except Exception as e:
+        logger.info(f"Vérification de mise à jour indisponible : {e}")
+
+
+def _update_poll_loop() -> None:
+    """Vérifie dès que le backend répond, puis toutes les
+    UPDATE_POLL_INTERVAL_SECONDS — tourne pour toute la durée de vie du tray
+    (pas de condition d'arrêt : le process entier se termine sur `on_quit`)."""
+    deadline = time.time() + 30.0
+    while time.time() < deadline and not is_backend_running():
+        time.sleep(0.5)
+    while True:
+        _check_for_update_once()
+        time.sleep(UPDATE_POLL_INTERVAL_SECONDS)
 
 
 def run() -> None:
@@ -438,20 +488,44 @@ def run() -> None:
     supervisor = BackendSupervisor(_backend_command())
     supervisor.start()
 
-    # Ouvre automatiquement la page dans le navigateur sauf en démarrage silencieux (--startup / --minimized)
+    # Ouvre automatiquement les deux interfaces sauf en démarrage silencieux
+    # (--startup / --minimized) : l'administration (pour configurer/importer)
+    # ET le kiosque câblé (l'écran cinéma qui sort de base, comme sur
+    # l'appliance headless où bobine-kiosk.service l'affiche systématiquement
+    # au démarrage — cf. install.sh). L'utilisateur ferme l'onglet
+    # d'administration lui-même s'il n'en a pas l'usage immédiat.
     if "--startup" not in sys.argv and "--minimized" not in sys.argv:
         threading.Thread(
             target=_open_browser_when_ready,
-            args=(ADMIN_URL,),
+            args=(lambda: webbrowser.open(ADMIN_URL), "l'administration"),
             daemon=True,
-            name="bobine-open-browser",
+            name="bobine-open-admin",
         ).start()
+        threading.Thread(
+            target=_open_browser_when_ready,
+            args=(launch_kiosk_browser, "le kiosque câblé"),
+            daemon=True,
+            name="bobine-open-kiosk",
+        ).start()
+
+    threading.Thread(target=_update_poll_loop, daemon=True, name="bobine-tray-update-check").start()
 
     def on_open_admin(icon, item):
         webbrowser.open(ADMIN_URL)
 
     def on_open_kiosk(icon, item):
         launch_kiosk_browser()
+
+    def on_check_update(icon, item):
+        with _update_lock:
+            has_update = _update_state["has_update"]
+            download_url = _update_state["download_url"]
+        if has_update and download_url:
+            webbrowser.open(download_url)
+        else:
+            # Pas (encore) de mise à jour connue : clic = vérification
+            # immédiate plutôt qu'un item inerte jusqu'au prochain poll.
+            threading.Thread(target=_check_for_update_once, daemon=True, name="bobine-tray-update-check-now").start()
 
     def on_restart(icon, item):
         supervisor.restart_now()
@@ -463,11 +537,18 @@ def run() -> None:
     def status_text(item):
         return "État : en ligne" if supervisor.is_running() else "État : hors ligne"
 
+    def update_text(item):
+        with _update_lock:
+            if _update_state["has_update"]:
+                return f"Mise à jour disponible ({_update_state['latest_version']}) — Télécharger"
+            return "Aucune mise à jour disponible (cliquer pour vérifier)"
+
     menu = pystray.Menu(
         pystray.MenuItem(status_text, None, enabled=False),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Ouvrir l'administration", on_open_admin, default=True),
         pystray.MenuItem("Ouvrir en mode kiosque", on_open_kiosk),
+        pystray.MenuItem(update_text, on_check_update),
         pystray.MenuItem("Redémarrer", on_restart),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quitter", on_quit),

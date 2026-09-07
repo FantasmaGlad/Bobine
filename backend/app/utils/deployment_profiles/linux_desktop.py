@@ -38,7 +38,7 @@ class LinuxDesktopHandler(ProfileHandler):
     def supports_git_versioning(self) -> bool:
         return False
 
-    def apply_update(self) -> None:
+    def apply_update(self, target_tag: str | None = None) -> None:
         raise UpdateUnsupported(
             "La mise à jour automatique n'est pas encore disponible sur "
             "Linux (bureau) — téléchargez et installez le dernier paquet .deb "

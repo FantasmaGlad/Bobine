@@ -22,13 +22,22 @@ pub struct InstallOptions {
     /// Émet la sortie machine `--progress=json` (l'assistant en a besoin pour
     /// la barre de progression). Laissé configurable pour les tests.
     pub progress_json: bool,
+    /// Canal de mise à jour transmis à `install.sh --channel=<...>` (réf.
+    /// mission "canal Stable/Bêta") — vide (valeur par défaut dérivée) n'émet
+    /// aucun drapeau et laisse install.sh appliquer son propre défaut
+    /// ("stable"/dernier choix persisté). `assistant_default()` le fixe
+    /// explicitement à "stable" pour que la commande envoyée soit toujours
+    /// sans ambiguïté depuis l'assistant graphique.
+    pub channel: String,
 }
 
 impl InstallOptions {
-    /// Réglage par défaut de l'assistant : non-interactif (`-y`) + sortie JSON.
+    /// Réglage par défaut de l'assistant : non-interactif (`-y`) + sortie JSON
+    /// + canal Stable explicite.
     pub fn assistant_default() -> Self {
         InstallOptions {
             progress_json: true,
+            channel: "stable".to_string(),
             ..Default::default()
         }
     }
@@ -39,6 +48,9 @@ impl InstallOptions {
         let mut args = vec!["-y".to_string()];
         if self.progress_json {
             args.push("--progress=json".to_string());
+        }
+        if !self.channel.is_empty() {
+            args.push(format!("--channel={}", self.channel));
         }
         if self.no_kiosk {
             args.push("--no-kiosk".to_string());
@@ -132,7 +144,7 @@ mod tests {
     #[test]
     fn assistant_default_is_noninteractive_json() {
         let a = InstallOptions::assistant_default().to_args();
-        assert_eq!(a, vec!["-y", "--progress=json"]);
+        assert_eq!(a, vec!["-y", "--progress=json", "--channel=stable"]);
     }
 
     #[test]
@@ -143,11 +155,18 @@ mod tests {
             skip_build: false,
             dry_run: true,
             progress_json: true,
+            channel: String::new(),
         };
         assert_eq!(
             opts.to_args(),
             vec!["-y", "--progress=json", "--no-kiosk", "--skip-packages", "--dry-run"]
         );
+    }
+
+    #[test]
+    fn channel_flag_is_emitted_when_set() {
+        let opts = InstallOptions { channel: "beta".to_string(), ..Default::default() };
+        assert_eq!(opts.to_args(), vec!["-y", "--channel=beta"]);
     }
 
     #[test]
@@ -157,7 +176,7 @@ mod tests {
             &InstallOptions::assistant_default(),
             &Elevation::Sudo,
         );
-        assert_eq!(cmd, "sudo /home/fanta/Bobine/install.sh -y --progress=json");
+        assert_eq!(cmd, "sudo /home/fanta/Bobine/install.sh -y --progress=json --channel=stable");
     }
 
     #[test]
@@ -169,7 +188,7 @@ mod tests {
         );
         assert_eq!(
             cmd,
-            "su - -c '/home/fanta/Bobine/install.sh --as-user fanta -y --progress=json'"
+            "su - -c '/home/fanta/Bobine/install.sh --as-user fanta -y --progress=json --channel=stable'"
         );
     }
 
@@ -182,7 +201,7 @@ mod tests {
         );
         assert_eq!(
             cmd,
-            "sudo '/home/fa nta/Bobine/install.sh' -y --progress=json"
+            "sudo '/home/fa nta/Bobine/install.sh' -y --progress=json --channel=stable"
         );
     }
 

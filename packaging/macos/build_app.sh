@@ -14,7 +14,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-VERSION="3.0.0"
+# Source de vérité unique (réf. mission "canal Stable/Bêta") : fichier
+# VERSION à la racine du dépôt. Surchargeable via l'environnement (CI passe
+# une valeur suffixée, ex. "3.0.1-beta.1", pour les pre-releases).
+VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
 DMG_NAME="Bobine-${VERSION}.dmg"
 
 echo "=== [1/5] Vérification de l'environnement ==="

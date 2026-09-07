@@ -44,7 +44,7 @@ class WindowsHandler(ProfileHandler):
     def supports_git_versioning(self) -> bool:
         return False
 
-    def apply_update(self) -> None:
+    def apply_update(self, target_tag: str | None = None) -> None:
         raise UpdateUnsupported(
             "La mise à jour automatique n'est pas encore disponible sur "
             "Windows — téléchargez et exécutez le dernier installeur "

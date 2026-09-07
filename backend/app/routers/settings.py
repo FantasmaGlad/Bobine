@@ -40,6 +40,7 @@ from app.utils.deployment import (
     get_deployment_profile,
     get_profile_handler,
 )
+from app.utils.version import get_app_version
 from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
@@ -63,7 +64,7 @@ _WRITABLE_NUMERIC_FIELDS = {
     "wait_time_between_courses", "volume_default", "audio_chain_timer_seconds",
     "radio_announcement_fade_ms",
 }
-_WRITABLE_STRING_FIELDS = {"theme", "language", "active_logo"}
+_WRITABLE_STRING_FIELDS = {"theme", "language", "active_logo", "update_channel"}
 # Animation de lancement (réf. mission "activer/désactiver l'animation mp4") :
 # suit le pattern des champs STRING (theme/language) ci-dessus, PAS celui des
 # champs numériques — ces derniers ne sont réappliqués à `runtime_settings`
@@ -76,6 +77,10 @@ _DEFAULTS = {
     "language": "fr",
     "intro_animation_enabled": "true",
     "active_logo": "default",
+    # Canal de mise à jour (réf. mission "Programme Bobine Beta") : "stable"
+    # par défaut pour tout le monde — rejoindre la bêta est un choix
+    # explicite, jamais l'état de départ d'une installation.
+    "update_channel": "stable",
 }
 _LOGO_FILENAME = "logo.png"
 # "les-mills-sombre" est la clé interne historique du thème "Sombre" (réf.
@@ -87,6 +92,7 @@ _VALID_THEMES = {
     "miel", "coco",
 }
 _VALID_ACTIVE_LOGOS = {"default", "custom"}
+_VALID_UPDATE_CHANNELS = {"stable", "beta"}
 
 # Sortie affichée par CANAL de diffusion (réf. mission "canaux de diffusion
 # précis") : "câblé" (l'écran physiquement connecté au Wyse, en 127.0.0.1) et
@@ -114,6 +120,7 @@ class SettingsUpdate(BaseModel):
     language: str | None = None
     intro_animation_enabled: bool | None = None
     active_logo: str | None = None
+    update_channel: str | None = None
 
 
 def _get_db_value(db: Session, key: str) -> str | None:
@@ -171,6 +178,7 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
     active_logo = _get_db_value(db, "active_logo") or _DEFAULTS["active_logo"]
     if active_logo == "custom" and not has_custom:
         active_logo = "default"
+    update_channel = _get_db_value(db, "update_channel") or _DEFAULTS["update_channel"]
     return {
         "wait_time_between_courses": runtime_settings.wait_time_between_courses,
         "volume_default": runtime_settings.volume_default,
@@ -185,6 +193,10 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "intro_animation_enabled": intro_animation_enabled,
         "has_custom_logo": has_custom,
         "active_logo": active_logo,
+        # Programme Bobine Beta (réf. mission "canal Stable/Bêta") : "stable"
+        # ou "beta", consommé par GET /api/updates/check pour choisir
+        # l'endpoint GitHub interrogé.
+        "update_channel": update_channel,
         # Aide à la découverte réseau (réf. mission "IP obtenue par
         # l'appareil"), en complément de bobine.local (avahi, cf. install.sh).
         "network": {
@@ -348,6 +360,8 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
                     raise HTTPException(status_code=400, detail="Logo actif invalide (attendu 'default' ou 'custom')")
                 if value == "custom" and not _logo_path().exists():
                     raise HTTPException(status_code=400, detail="Aucun logo personnalisé n'a été importé")
+            if key == "update_channel" and value not in _VALID_UPDATE_CHANNELS:
+                raise HTTPException(status_code=400, detail="Canal de mise à jour invalide (attendu 'stable' ou 'beta')")
         elif key in _WRITABLE_BOOL_FIELDS and value is not None:
             # "true"/"false" minuscule (pas str(bool(...)) => "True"/"False")
             # pour rester cohérent avec la lecture `== "true"` de get_settings().
@@ -638,7 +652,7 @@ def export_backup() -> Response:
 
     manifest = {
         "app": "Bobine",
-        "version": "3.0.0",
+        "version": get_app_version(),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "deployment_profile": get_deployment_profile(),
     }

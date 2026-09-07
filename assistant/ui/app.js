@@ -61,11 +61,13 @@ const state = {
   currentStep: 1,
   selectedTarget: null,
   systemInspection: null,
+  installSuccessOpened: false,
 };
 
 function init() {
   initWizard();
   listenTauriEvents();
+  checkAssistantUpdate();
 }
 
 if (document.readyState === 'loading') {
@@ -215,9 +217,74 @@ function initWizard() {
   });
 
   document.getElementById('btn-open-browser').addEventListener('click', () => {
-    const target = state.selectedTarget || '10.0.0.30';
-    window.open(`http://${target}:8000`, '_blank');
+    window.open(adminUrl(), '_blank');
   });
+
+  document.getElementById('btn-open-kiosk').addEventListener('click', () => {
+    window.open(kioskUrl(), '_blank');
+  });
+}
+
+function adminUrl() {
+  const target = state.selectedTarget || '10.0.0.30';
+  return `http://${target}:8000`;
+}
+
+function kioskUrl() {
+  return `${adminUrl()}/kiosk`;
+}
+
+// Notification "nouvelle version de l'assistant disponible" (réf. mission
+// "canal Stable/Bêta") : l'assistant Tauri n'a pas de backend local à
+// interroger (contrairement à BobineTray) — appel direct à l'API GitHub
+// depuis le renderer. bobine-assistant n'embarque pas son propre numéro de
+// version (cf. plan) : on ne peut donc pas dire "vous êtes en retard", mais
+// on peut signaler "une version plus récente existe" en se souvenant du tag
+// déjà vu/fermé (localStorage) pour ne le proposer qu'une fois par release.
+const ASSISTANT_UPDATE_DISMISSED_KEY = 'bobine-assistant-update-dismissed-tag';
+const GITHUB_RELEASES_LATEST_URL = 'https://api.github.com/repos/FantasmaGlad/Bobine/releases/latest';
+
+async function checkAssistantUpdate() {
+  try {
+    const res = await fetch(GITHUB_RELEASES_LATEST_URL, {
+      headers: { Accept: 'application/vnd.github+json' },
+    });
+    if (!res.ok) return;
+    const release = await res.json();
+    const tag = release.tag_name;
+    if (!tag) return;
+
+    let dismissedTag = null;
+    try {
+      dismissedTag = localStorage.getItem(ASSISTANT_UPDATE_DISMISSED_KEY);
+    } catch {
+      // localStorage indisponible (mode privé strict) : tant pis, pas de mémorisation.
+    }
+    if (tag === dismissedTag) return;
+
+    const asset = (release.assets || []).find((a) => a.name === 'bobine-assistant');
+    const downloadUrl = asset?.browser_download_url || release.html_url;
+
+    const banner = document.getElementById('assistant-update-banner');
+    const text = document.getElementById('assistant-update-text');
+    if (!banner || !text) return;
+    text.textContent = `Bobine Assistant ${tag} est disponible.`;
+    banner.style.display = 'flex';
+
+    document.getElementById('btn-assistant-update-download').onclick = () => {
+      window.open(downloadUrl, '_blank');
+    };
+    document.getElementById('btn-assistant-update-dismiss').onclick = () => {
+      banner.style.display = 'none';
+      try {
+        localStorage.setItem(ASSISTANT_UPDATE_DISMISSED_KEY, tag);
+      } catch {
+        // idem : pas bloquant si indisponible.
+      }
+    };
+  } catch {
+    // Hors ligne ou API GitHub indisponible : silencieux, comme le reste de l'assistant.
+  }
 }
 
 function goToStep(stepNumber) {
@@ -309,6 +376,7 @@ function renderSystemSpecs(spec) {
 async function startInstallationRun() {
   const isMock = document.getElementById('opt-mock').checked;
   const noKiosk = !document.getElementById('opt-kiosk').checked;
+  const channel = document.getElementById('opt-beta-channel').checked ? 'beta' : 'stable';
   const rootPassword = document.getElementById('ssh-root-password')?.value || null;
 
   const params = {
@@ -322,6 +390,7 @@ async function startInstallationRun() {
     no_kiosk: noKiosk,
     skip_packages: false,
     mock_replay: isMock,
+    channel,
   };
 
   appendLog(`[SYS] Démarrage du processus de déploiement sur ${params.host}...`);
@@ -359,6 +428,18 @@ function listenTauriEvents() {
     if (update.phase === 'succeeded' || update.pct >= 100) {
       document.getElementById('install-title-heading').textContent = 'Installation terminée !';
       document.getElementById('install-success-card').style.display = 'flex';
+
+      // Ouverture automatique des deux interfaces à la première détection du
+      // succès (garde `installSuccessOpened` : cet évènement peut se répéter
+      // à 100%, il ne faut ouvrir les onglets qu'une seule fois) — même
+      // logique que l'installation CLI/appliance, qui affiche le kiosque
+      // câblé de base sans action manuelle. L'utilisateur ferme l'onglet
+      // d'administration lui-même s'il n'en a pas l'usage immédiat.
+      if (!state.installSuccessOpened) {
+        state.installSuccessOpened = true;
+        window.open(adminUrl(), '_blank');
+        window.open(kioskUrl(), '_blank');
+      }
     }
   });
 

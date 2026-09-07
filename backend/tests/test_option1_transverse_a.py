@@ -37,6 +37,7 @@ from app.routers.settings import (
     reset_data_system,
 )
 from app.routers.updates import check_updates
+from app.utils.version import get_app_version
 
 
 class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
@@ -80,7 +81,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
     async def test_check_updates_offline(self):
         """Vérifie que check_updates gère le mode hors-ligne sans planter."""
         with patch("urllib.request.urlopen", side_effect=OSError("Offline")):
-            res = await check_updates()
+            res = await check_updates(db=SessionLocal())
             self.assertFalse(res["online"])
             self.assertIn("deployment_profile", res)
             self.assertIn("can_auto_apply", res)
@@ -124,7 +125,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
              patch("app.routers.updates.get_deployment_profile", return_value="windows"), \
              patch("app.routers.updates.get_profile_handler") as mock_handler:
             mock_handler.return_value.supports_git_versioning.return_value = False
-            res = await check_updates()
+            res = await check_updates(db=SessionLocal())
             self.assertTrue(res["online"])
             self.assertTrue(res["has_update"])
             self.assertFalse(res["can_auto_apply"])
@@ -136,7 +137,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
              patch("app.routers.updates.get_deployment_profile", return_value="linux-desktop"), \
              patch("app.routers.updates.get_profile_handler") as mock_handler:
             mock_handler.return_value.supports_git_versioning.return_value = False
-            res = await check_updates()
+            res = await check_updates(db=SessionLocal())
             self.assertEqual(res["asset_name"], "bobine_9.9.9_amd64.deb")
             self.assertTrue(res["download_url"].endswith(".deb"))
 
@@ -145,7 +146,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
              patch("app.routers.updates.get_deployment_profile", return_value="macos"), \
              patch("app.routers.updates.get_profile_handler") as mock_handler:
             mock_handler.return_value.supports_git_versioning.return_value = False
-            res = await check_updates()
+            res = await check_updates(db=SessionLocal())
             self.assertEqual(res["asset_name"], "Bobine-9.9.9.dmg")
             self.assertTrue(res["download_url"].endswith(".dmg"))
 
@@ -154,7 +155,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
              patch("app.routers.updates.get_deployment_profile", return_value="linux-headless"), \
              patch("app.routers.updates.get_profile_handler") as mock_handler:
             mock_handler.return_value.supports_git_versioning.return_value = True
-            res = await check_updates()
+            res = await check_updates(db=SessionLocal())
             self.assertTrue(res["can_auto_apply"])
 
     # -----------------------------------------------------------------------
@@ -177,7 +178,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
 
             manifest_data = json.loads(zf.read("manifest.json").decode("utf-8"))
             self.assertEqual(manifest_data["app"], "Bobine")
-            self.assertEqual(manifest_data["version"], "3.0.0")
+            self.assertEqual(manifest_data["version"], get_app_version())
 
             db_data = zf.read("database.db")
             self.assertTrue(db_data.startswith(b"SQLite format 3\x00"))

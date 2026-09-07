@@ -43,14 +43,34 @@ class LinuxHeadlessHandler(ProfileHandler):
     def supports_git_versioning(self) -> bool:
         return True
 
-    def apply_update(self) -> None:
+    def apply_update(self, target_tag: str | None = None) -> None:
         repo_dir = Path(__file__).resolve().parent.parent.parent.parent
-        res = subprocess.run(
-            ["git", "pull", "--ff-only"],
-            cwd=repo_dir,
-            capture_output=True,
-            text=True,
-            timeout=45,
-        )
-        logger.info(f"git pull résultat : {res.stdout}")
+        if target_tag:
+            # Épingle le checkout sur le tag ciblé plutôt qu'un `git pull`
+            # aveugle sur la branche courante (réf. mission "canal Stable/
+            # Bêta") : seule façon de supporter un vrai retour en arrière
+            # (ex. Bêta 3.1.0-beta.2 -> Stable 3.0.1, un tag ANTÉRIEUR que
+            # `--ff-only` refuserait). HEAD détaché assumé — cette machine
+            # est une cible de déploiement, jamais un poste de développement
+            # git sur ce dépôt.
+            subprocess.run(["git", "fetch", "--tags"], cwd=repo_dir, capture_output=True, text=True, timeout=45, check=True)
+            res = subprocess.run(
+                ["git", "checkout", target_tag],
+                cwd=repo_dir,
+                capture_output=True,
+                text=True,
+                timeout=45,
+            )
+            logger.info(f"git checkout {target_tag} résultat : {res.stdout or res.stderr}")
+        else:
+            # Repli historique (aucun tag résolu côté appelant) : suit la
+            # branche courante par avance rapide uniquement.
+            res = subprocess.run(
+                ["git", "pull", "--ff-only"],
+                cwd=repo_dir,
+                capture_output=True,
+                text=True,
+                timeout=45,
+            )
+            logger.info(f"git pull résultat : {res.stdout}")
         self.restart_services()

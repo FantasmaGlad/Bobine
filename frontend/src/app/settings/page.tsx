@@ -21,6 +21,7 @@ interface SettingsData {
   deployment_profile: DeploymentProfile;
   paths: Record<string, string>;
   network: { local_ip: string | null; port: number; mdns_url: string };
+  update_channel: "stable" | "beta";
 }
 
 interface StorageData {
@@ -41,6 +42,7 @@ interface SystemUsageData {
 
 interface UpdateInfo {
   online: boolean;
+  channel?: "stable" | "beta";
   current_version: string;
   current_tag: string;
   current_commit: string;
@@ -140,6 +142,17 @@ const THEME_SWATCHES: ThemeSwatch[] = [
   { value: "charbon", labelKey: "settingsPage.themeCharbon", category: "sombre", colors: ["#121214", "#232326", "#71717a", "#ffffff"] },
 ];
 
+// Pages plein écran destinées à être ouvertes depuis un AUTRE appareil du
+// réseau local (TV câblée, tablette coach, poste radio dédié…), réf. mission
+// "documenter les urls avec l'ip dynamique par page" — même liste que
+// `isFullscreenRoute` dans ClientLayout.tsx.
+const PUBLIC_PAGE_KEYS: { path: string; labelKey: string }[] = [
+  { path: "/kiosk", labelKey: "settingsPage.paths.pageKiosk" },
+  { path: "/cinema", labelKey: "settingsPage.paths.pageCinema" },
+  { path: "/coach", labelKey: "settingsPage.paths.pageCoach" },
+  { path: "/radio", labelKey: "settingsPage.paths.pageRadio" },
+];
+
 const PATH_LABEL_KEYS: Record<string, string> = {
   database_url: "settingsPage.paths.database_url",
   media_dir: "settingsPage.paths.media_dir",
@@ -189,6 +202,7 @@ export default function SettingsPage() {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [applyingUpdate, setApplyingUpdate] = useState(false);
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
+  const [changingChannel, setChangingChannel] = useState(false);
 
   const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
 
@@ -355,7 +369,14 @@ export default function SettingsPage() {
     }
   };
 
-  const checkForUpdates = async () => {
+  // `silent` (réf. mission "notification de mise à jour disponible") : la
+  // vérification automatique au montage de la page ne doit pas déranger
+  // l'utilisateur avec un toast "Système à jour" à chaque ouverture des
+  // Réglages — seule une mise à jour RÉELLEMENT disponible mérite un toast
+  // non sollicité. Le clic manuel sur "Rechercher une mise à jour" garde
+  // lui son retour complet (y compris "à jour"/erreur), pour confirmer que
+  // le clic a bien fait quelque chose.
+  const checkForUpdates = async (silent = false) => {
     setCheckingUpdate(true);
     try {
       const res = await fetch(getApiUrl("/updates/check"), { cache: "no-store" });
@@ -364,20 +385,33 @@ export default function SettingsPage() {
         setUpdateInfo(info);
         if (info.has_update) {
           showToast(t("settingsPage.updateAvailable"), "warning");
-        } else if (info.online) {
-          showToast(t("settingsPage.upToDate"), "success");
-        } else {
-          showToast(info.message || t("settingsPage.updateError"), "warning");
+        } else if (!silent) {
+          if (info.online) {
+            showToast(t("settingsPage.upToDate"), "success");
+          } else {
+            showToast(info.message || t("settingsPage.updateError"), "warning");
+          }
         }
-      } else {
+      } else if (!silent) {
         showToast(t("settingsPage.updateError"), "error");
       }
     } catch {
-      showToast(t("settingsPage.updateError"), "error");
+      if (!silent) showToast(t("settingsPage.updateError"), "error");
     } finally {
       setCheckingUpdate(false);
     }
   };
+
+  // Notification proactive (réf. mission "notification de mise à jour
+  // disponible") : vérifie une fois à l'ouverture des Réglages, sans
+  // attendre un clic manuel sur "Rechercher une mise à jour" — silencieux
+  // sauf si une mise à jour est réellement trouvée (cf. paramètre `silent`
+  // ci-dessus).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- vérification ponctuelle contre une API externe (GitHub via le backend), pas un calcul dérivable au rendu
+    checkForUpdates(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- une seule vérification au montage, volontairement indépendante des re-rendus de checkForUpdates
+  }, []);
 
   const handleApplyUpdate = async () => {
     if (!window.confirm(t("settingsPage.applyUpdate") + " ?")) return;
@@ -394,6 +428,36 @@ export default function SettingsPage() {
       showToast(t("settingsPage.updateError"), "error");
     } finally {
       setApplyingUpdate(false);
+    }
+  };
+
+  // Programme Bobine Beta (réf. mission "canal Stable/Bêta") : bascule
+  // immédiate (comme le thème/la langue), pas de bouton "Enregistrer" séparé
+  // — c'est un choix binaire sans état intermédiaire à valider. Relance
+  // aussitôt checkForUpdates() pour que la carte "Mises à jour" reflète tout
+  // de suite le nouveau canal plutôt que de garder l'ancien résultat affiché
+  // jusqu'au prochain clic manuel sur "Rechercher une mise à jour".
+  const handleChannelChange = async (channel: "stable" | "beta") => {
+    if (!data || data.update_channel === channel || changingChannel) return;
+    setChangingChannel(true);
+    try {
+      const res = await fetch(getApiUrl("/settings"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ update_channel: channel }),
+      });
+      if (res.ok) {
+        setData(await res.json());
+        showToast(t(channel === "beta" ? "settingsPage.betaJoined" : "settingsPage.betaLeft"));
+        checkForUpdates();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.detail || t("settingsPage.saveError"), "error");
+      }
+    } catch {
+      showToast(t("common.networkError"), "error");
+    } finally {
+      setChangingChannel(false);
     }
   };
 
@@ -779,7 +843,7 @@ export default function SettingsPage() {
             type="button"
             className="btn btn-secondary"
             style={{ minHeight: "40px", padding: "6px 16px" }}
-            onClick={checkForUpdates}
+            onClick={() => checkForUpdates()}
             disabled={checkingUpdate || applyingUpdate}
           >
             <Icon
@@ -801,7 +865,7 @@ export default function SettingsPage() {
               {t("settingsPage.currentVersion")} :
             </span>
             <span className="update-badge">
-              <strong>{updateInfo?.current_version ?? "V3.0.0"}</strong>
+              <strong>{updateInfo?.current_version ?? "V3.0.1"}</strong>
               {updateInfo?.current_commit && updateInfo.current_commit !== "unknown" && (
                 <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.75rem", opacity: 0.8 }}>
                   ({updateInfo.current_commit})
@@ -814,6 +878,42 @@ export default function SettingsPage() {
               </span>
             )}
           </div>
+
+          {/* Programme Bobine Beta (réf. mission "canal Stable/Bêta") */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
+            <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
+              {t("settingsPage.betaLabel")}
+            </span>
+            <div
+              style={{
+                display: "inline-flex",
+                borderRadius: "var(--radius-md)",
+                overflow: "hidden",
+                border: "1px solid var(--border-color)",
+                background: "var(--bg-surface-elevated)",
+              }}
+            >
+              <button
+                type="button"
+                className={`btn btn-sm ${data.update_channel !== "beta" ? "btn-primary" : "btn-secondary"}`}
+                style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 16px", fontWeight: 700 }}
+                onClick={() => handleChannelChange("stable")}
+                disabled={changingChannel}
+              >
+                {t("settingsPage.betaStable")}
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${data.update_channel === "beta" ? "btn-primary" : "btn-secondary"}`}
+                style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 16px", fontWeight: 700 }}
+                onClick={() => handleChannelChange("beta")}
+                disabled={changingChannel}
+              >
+                {t("settingsPage.betaBeta")}
+              </button>
+            </div>
+          </div>
+          <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.betaHint")}</p>
 
           {/* Résultat de la recherche */}
           {updateInfo && (
@@ -1052,6 +1152,20 @@ export default function SettingsPage() {
             <span className="settings-path-key">{t("settingsPage.paths.mdnsUrl")}</span>
             <span className="settings-path-val">{data.network.mdns_url}</span>
           </div>
+          <div className="settings-path-row" style={{ marginTop: "10px" }}>
+            <span className="settings-path-key" style={{ fontWeight: 800 }}>{t("settingsPage.paths.pagesHeading")}</span>
+            <span />
+          </div>
+          {PUBLIC_PAGE_KEYS.map((page) => (
+            <div key={page.path} className="settings-path-row">
+              <span className="settings-path-key">{t(page.labelKey)}</span>
+              <span className="settings-path-val">
+                {data.network.local_ip
+                  ? `http://${data.network.local_ip}:${data.network.port}${page.path}`
+                  : t("settingsPage.paths.localIpUnavailable")}
+              </span>
+            </div>
+          ))}
           {Object.entries(data.paths).map(([key, value]) => (
             <div key={key} className="settings-path-row">
               <span className="settings-path-key">{t(PATH_LABEL_KEYS[key] || key)}</span>

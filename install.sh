@@ -14,7 +14,20 @@
 set -euo pipefail
 
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
-SCRIPT_VERSION="3.0.0"
+# Calculé tôt (avant tout usage root/argparse) : sert à la fois au bandeau
+# d'accueil ci-dessous et à REPO_DIR plus bas (cf. §"Cible" — même valeur,
+# lue une seule fois pour éviter toute divergence entre les deux usages).
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Source de vérité unique du numéro de version (réf. mission "canal Stable/
+# Bêta") : fichier VERSION à la racine du dépôt, lu ici et par les scripts de
+# packaging (packaging/linux/build_deb.sh, packaging/macos/build_app.sh) —
+# repli "3.0.1" si le fichier est absent (ex. script copié isolément).
+SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "3.0.1")"
+# Déplacé ici (auparavant défini beaucoup plus bas, avec le reste du bloc
+# "Cible") : nécessaire tôt pour select_update_channel(), qui lit/écrit le
+# canal choisi (${CONFIG_DIR}/update-channel) avant même l'exécution du
+# premier step() — cf. réf. mission "canal Stable/Bêta".
+CONFIG_DIR="/etc/bobine"
 
 # ============================================================================
 # 0. Affichage : couleurs, symboles, aide, arguments
@@ -91,6 +104,10 @@ ${BOLD}OPTIONS${RESET}
   -h, --help          Affiche cette aide et quitte
   -V, --version       Affiche la version et quitte
   -l, --lang=fr|en    Langue de l'installateur (fr: Français, en: English)
+      --channel=stable|beta
+                        Canal de mise à jour (stable par défaut). Bêta donne un accès
+                        anticipé aux fonctionnalités en cours de développement — la
+                        prochaine version stable la remplace toujours automatiquement.
   -y, --yes           Ne demande aucune confirmation (mode non-interactif)
   -v, --verbose       Mode verbeux : affiche l'intégralité des flux et logs de compilation en direct
   -q, --quiet         Mode silencieux : n'affiche que les erreurs et le bilan final
@@ -111,6 +128,7 @@ ${BOLD}OPTIONS${RESET}
 ${BOLD}EXEMPLES${RESET}
   sudo ./${SCRIPT_NAME}                       Installation standard (interface épurée par défaut)
   sudo ./${SCRIPT_NAME} --lang=en             Installation en anglais
+  sudo ./${SCRIPT_NAME} --channel=beta        Rejoint le canal Bêta (accès anticipé)
   sudo ./${SCRIPT_NAME} -v                    Installation avec flux verbeux (logs détaillés en direct)
   sudo ./${SCRIPT_NAME} --no-kiosk            Backend seul, sur un serveur ou un poste de dev
   sudo ./${SCRIPT_NAME} --skip-packages       Réinstalle après un 'git pull' sans retoucher apt
@@ -137,6 +155,7 @@ VERBOSE=false
 QUIET=false
 PROGRESS=""
 PROGRESS_JSON=false
+UPDATE_CHANNEL=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -144,6 +163,8 @@ while [[ $# -gt 0 ]]; do
         -V|--version) echo "Bobine install.sh v${SCRIPT_VERSION}"; exit 0 ;;
         -l|--lang) INSTALL_LANG="${2:-}"; shift ;;
         -l=*|--lang=*) INSTALL_LANG="${1#*=}" ;;
+        --channel) UPDATE_CHANNEL="${2:-}"; shift ;;
+        --channel=*) UPDATE_CHANNEL="${1#*=}" ;;
         -y|--yes) ASSUME_YES=true ;;
         --dry-run) DRY_RUN=true ;;
         --no-kiosk) NO_KIOSK=true ;;
@@ -193,6 +214,44 @@ select_installer_language() {
 }
 
 select_installer_language
+
+# Canal de mise à jour (réf. mission "Programme Bobine Beta") : "stable" ou
+# "beta". Une réinstallation idempotente (--skip-packages après un 'git
+# pull', cf. en-tête du script) reprend le canal précédemment choisi plutôt
+# que de retomber sur stable à chaque relance — c'est aussi ce que
+# backend/app/utils/deployment_profiles/linux_headless.py lit pour que le
+# bouton "Mettre à jour" de Réglages reste cohérent avec ce choix CLI.
+select_update_channel() {
+    if [[ -n "${UPDATE_CHANNEL:-}" ]]; then
+        case "${UPDATE_CHANNEL,,}" in
+            beta*) UPDATE_CHANNEL="beta" ;;
+            *)     UPDATE_CHANNEL="stable" ;;
+        esac
+        return 0
+    fi
+
+    local previous=""
+    [[ -f "${CONFIG_DIR}/update-channel" ]] && previous="$(cat "${CONFIG_DIR}/update-channel" 2>/dev/null || true)"
+
+    if $ASSUME_YES || [[ ! -t 0 ]]; then
+        UPDATE_CHANNEL="${previous:-stable}"
+        return 0
+    fi
+
+    printf '\n%s  Canal de mise à jour :%s\n' "$BOLD" "$RESET"
+    printf '    %s1%s) Stable (par défaut, recommandé)\n' "$CYAN" "$RESET"
+    printf '    %s2%s) Bêta — accès anticipé aux fonctionnalités en cours de développement\n' "$CYAN" "$RESET"
+    local default_choice="1"
+    [[ "${previous}" == "beta" ]] && default_choice="2"
+    local reply
+    read -r -p "$(printf '%s  Votre choix [1/2] (%s) : %s' "$YELLOW" "$default_choice" "$RESET")" reply </dev/tty || reply="${default_choice}"
+    case "${reply:-$default_choice}" in
+        2) UPDATE_CHANNEL="beta" ;;
+        *) UPDATE_CHANNEL="stable" ;;
+    esac
+}
+
+select_update_channel
 
 # --progress=json : sortie machine (une ligne JSON par évènement) pour piloter
 # une barre de progression depuis l'assistant graphique (réf.
@@ -333,7 +392,7 @@ ensure_apt_components() {
 # Cohérence garantie par la CI (job « install.sh sanity ») qui compare cette
 # valeur à `grep -cE '^\s*step ' install.sh` : un ajout d'étape sans mise à jour
 # ici casse le build (et fausserait le pourcentage de --progress=json).
-STEP_TOTAL=15
+STEP_TOTAL=16
 STEP_CUR=0
 STEP_START_TS=0
 CURRENT_STEP_TITLE=""
@@ -462,11 +521,9 @@ if [[ "${TARGET_USER}" == "root" ]]; then
     err "Le compte cible ne peut pas être root (le kiosk et les fichiers doivent appartenir à un utilisateur normal)."
     exit 1
 fi
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="${REPO_DIR}/backend"
 FRONTEND_DIR="${REPO_DIR}/frontend"
 VENV_DIR="${BACKEND_DIR}/.venv"
-CONFIG_DIR="/etc/bobine"
 CONFIG_FILE="${CONFIG_DIR}/config.toml"
 SERVICE_PORT=8000
 KIOSK_URL="http://127.0.0.1:${SERVICE_PORT}/kiosk"
@@ -643,6 +700,42 @@ fi
 
 # Début de la séquence pilotable : métadonnées d'exécution pour l'assistant.
 emit_event "\"event\":\"run_begin\",\"version\":\"${SCRIPT_VERSION}\",\"total\":${STEP_TOTAL},\"user\":\"$(_json_escape "${TARGET_USER}")\",\"repo\":\"$(_json_escape "${REPO_DIR}")\",\"log\":\"$(_json_escape "${LOG_FILE}")\",\"mode\":\"$($NO_KIOSK && echo server || echo kiosk)\",\"dry_run\":${DRY_RUN}"
+
+# ---------------------------------------------------------------------------
+step update-channel "Canal de mise à jour (Stable / Bêta)"
+# ---------------------------------------------------------------------------
+# Persiste le choix pour les relances idempotentes (cf. select_update_channel)
+# et pour que backend/app/utils/deployment_profiles/linux_headless.py reste
+# cohérent avec ce choix CLI quand le bouton "Mettre à jour" de Réglages est
+# utilisé ensuite.
+mkdir -p "${CONFIG_DIR}" 2>/dev/null || true
+write_file "${CONFIG_DIR}/update-channel" <<< "${UPDATE_CHANNEL}"
+
+if [[ -d "${REPO_DIR}/.git" ]]; then
+    run git -C "${REPO_DIR}" fetch --tags
+    if [[ "${UPDATE_CHANNEL}" == "beta" ]]; then
+        TARGET_TAG="$(git -C "${REPO_DIR}" tag --list 'V*' --sort=-v:refname 2>/dev/null | head -1)"
+    else
+        # Exclut les tags de pre-release (contiennent un '-', ex. V3.1.0-beta.1)
+        # — seul le canal stable doit les ignorer, cf. réf. mission "canal
+        # Stable/Bêta".
+        TARGET_TAG="$(git -C "${REPO_DIR}" tag --list 'V*' --sort=-v:refname 2>/dev/null | grep -vE -- '-' | head -1)"
+    fi
+    if [[ -n "${TARGET_TAG:-}" ]]; then
+        CURRENT_TAG="$(git -C "${REPO_DIR}" describe --tags --exact-match 2>/dev/null || true)"
+        if [[ "${CURRENT_TAG}" != "${TARGET_TAG}" ]]; then
+            log "Bascule sur ${TARGET_TAG} (canal ${UPDATE_CHANNEL})"
+            run git -C "${REPO_DIR}" checkout "${TARGET_TAG}"
+        else
+            ok "Déjà sur ${TARGET_TAG} (canal ${UPDATE_CHANNEL})"
+        fi
+    else
+        warn "Aucun tag de release trouvé dans ce dépôt — installation depuis la branche courante (canal « ${UPDATE_CHANNEL} » enregistré, sans effet pour cette exécution)."
+    fi
+else
+    warn "${REPO_DIR} n'est pas un dépôt git — canal « ${UPDATE_CHANNEL} » enregistré mais sans effet sur les fichiers installés."
+fi
+step_done
 
 # ---------------------------------------------------------------------------
 step packages "Paquets système (apt)"

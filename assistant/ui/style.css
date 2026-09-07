@@ -824,3 +824,33 @@ body {
   gap: 12px;
   margin-top: 14px;
 }
+
+/* Bannière "nouvelle version de l'assistant disponible" (réf. mission
+   "canal Stable/Bêta" — notification + bouton de téléchargement). */
+.update-banner {
+  background-color: rgba(3, 105, 161, 0.08);
+  border-bottom: 1px solid rgba(3, 105, 161, 0.25);
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.update-banner-text {
+  color: var(--accent-info);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.update-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.update-banner-actions .btn {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+}

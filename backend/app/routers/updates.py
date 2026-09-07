@@ -9,15 +9,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from app.database import get_db
+from app.models import Setting
 from app.utils.activity_log import log_activity
 from app.utils.deployment import (
     UpdateUnsupported,
     get_deployment_profile,
     get_profile_handler,
 )
+from app.utils.version import get_app_tag
 from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
@@ -25,13 +29,53 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/updates", tags=["updates"])
 
 GITHUB_REPO = "FantasmaGlad/Bobine"
-GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+# "stable" n'interroge QUE /releases/latest, qui exclut structurellement les
+# pre-releases et brouillons côté API GitHub — aucun risque qu'un canal
+# stable voie jamais une bêta, même en cas de bug côté filtrage applicatif.
+# "beta" interroge /releases (liste, triée du plus récent au plus ancien) et
+# prend le premier élément, qu'il soit pre-release ou non — ce qui fait
+# naturellement retomber un utilisateur bêta sur la dernière stable dès
+# qu'elle dépasse la bêta qu'il suit (réf. mission "canal Stable/Bêta").
+_RELEASES_LATEST_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+_RELEASES_LIST_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
+_VALID_CHANNELS = ("stable", "beta")
 
 
-def _parse_semver(version_str: str) -> tuple[int, ...]:
-    """Extrait les nombres d'une chaîne de version (ex: 'V3.0.0' -> (3, 0, 0))."""
-    numbers = re.findall(r"\d+", version_str or "")
-    return tuple(map(int, numbers)) if numbers else (0, 0, 0)
+def _get_update_channel(db: Session) -> str:
+    row = db.query(Setting).filter(Setting.key == "update_channel").first()
+    channel = row.value if row else None
+    return channel if channel in _VALID_CHANNELS else "stable"
+
+
+def _parse_version(version_str: str) -> tuple[tuple[int, int, int], tuple]:
+    """Parse une chaîne 'V3.0.1' ou 'V3.0.1-beta.2' en clé de tri conforme à
+    la précédence semver : à base MAJOR.MINOR.PATCH égale, une version SANS
+    pre-release est toujours postérieure à une version AVEC pre-release, et
+    deux pre-releases se comparent identifiant par identifiant (numérique si
+    possible, sinon lexical — les identifiants numériques ont une précédence
+    inférieure aux alphanumériques, cf. spec semver §11). Remplace l'ancien
+    `_parse_semver`, qui comparait des tuples d'entiers bruts et ne
+    distinguait pas 'V3.0.1-beta.1' de 'V3.0.1-beta.2' (les deux valaient
+    (3, 0, 1, 1) et (3, 0, 1, 2) par accident de parsing, et une vraie
+    'V3.0.1' stable pouvait même être vue comme ANTÉRIEURE à une bêta portant
+    un numéro d'identifiant plus élevé)."""
+    s = (version_str or "").strip()
+    if s[:1] in ("v", "V"):
+        s = s[1:]
+    base_part, _, prerelease_part = s.partition("-")
+    base_numbers = [int(n) for n in re.findall(r"\d+", base_part)[:3]]
+    base_numbers += [0] * (3 - len(base_numbers))
+    base = (base_numbers[0], base_numbers[1], base_numbers[2])
+
+    if not prerelease_part:
+        return base, (1,)
+
+    parsed_ids: tuple = tuple(
+        (0, int(part)) if part.isdigit() else (1, part)
+        for part in prerelease_part.split(".")
+        if part
+    )
+    return base, (0, *parsed_ids)
 
 
 def _get_local_version_info() -> dict[str, str]:
@@ -43,7 +87,7 @@ def _get_local_version_info() -> dict[str, str]:
     échoueraient systématiquement en pure perte (deux sous-process, jusqu'à
     3s de timeout chacun, à chaque chargement de la page Réglages)."""
     commit = "unknown"
-    tag = "V3.0.0"
+    tag = get_app_tag()
 
     if not get_profile_handler().supports_git_versioning():
         return {"current_version": tag, "current_tag": tag, "current_commit": commit}
@@ -87,17 +131,14 @@ def _get_local_version_info() -> dict[str, str]:
     }
 
 
-@router.get("/check")
-async def check_updates() -> dict[str, Any]:
-    """
-    Vérifie la disponibilité d'une nouvelle release officielle sur GitHub.
-    Gère gracieusement le mode hors-ligne sans planter.
-    """
-    local_info = _get_local_version_info()
-    now_iso = datetime.now(timezone.utc).isoformat()
-
+async def _fetch_release_for_channel(channel: str) -> dict[str, Any] | None:
+    """Interroge GitHub pour le canal donné — partagé entre `check_updates()`
+    (affichage) et `apply_update()` (résolution du tag cible pour
+    `apply_update(target_tag=...)`), pour ne jamais risquer que les deux
+    endpoints déterminent une release différente."""
+    url = _RELEASES_LIST_URL if channel == "beta" else _RELEASES_LATEST_URL
     req = urllib.request.Request(
-        GITHUB_API_URL,
+        url,
         headers={
             "User-Agent": "Bobine-Updater/2.0 (+https://bobine.fit)",
             "Accept": "application/vnd.github+json",
@@ -109,14 +150,36 @@ async def check_updates() -> dict[str, Any]:
     def _fetch_github() -> dict[str, Any] | None:
         try:
             with urllib.request.urlopen(req, timeout=4.5) as resp:
-                if resp.status == 200:
-                    return json.loads(resp.read().decode("utf-8"))
+                if resp.status != 200:
+                    return None
+                payload = json.loads(resp.read().decode("utf-8"))
+                if channel == "beta":
+                    # Liste triée du plus récent au plus ancien par l'API
+                    # GitHub — le premier élément est la dernière release
+                    # publiée, bêta ou stable (cf. commentaire sur
+                    # _RELEASES_LIST_URL).
+                    return payload[0] if payload else None
+                return payload
         except Exception as e:
             logger.info(f"Vérification GitHub indisponible (mode hors-ligne ou timeout) : {e}")
             return None
-        return None
 
-    release_data = await loop.run_in_executor(None, _fetch_github)
+    return await loop.run_in_executor(None, _fetch_github)
+
+
+@router.get("/check")
+async def check_updates(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """
+    Vérifie la disponibilité d'une nouvelle release officielle sur GitHub,
+    en respectant le canal choisi dans Réglages → Mises à jour (Stable ou
+    Bêta, "Programme Bobine Beta" — cf. `_get_update_channel`).
+    Gère gracieusement le mode hors-ligne sans planter.
+    """
+    local_info = _get_local_version_info()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    channel = _get_update_channel(db)
+
+    release_data = await _fetch_release_for_channel(channel)
 
     profile = get_deployment_profile()
     handler = get_profile_handler()
@@ -124,6 +187,7 @@ async def check_updates() -> dict[str, Any]:
     if not release_data:
         return {
             "online": False,
+            "channel": channel,
             "current_version": local_info["current_version"],
             "current_tag": local_info["current_tag"],
             "current_commit": local_info["current_commit"],
@@ -148,11 +212,7 @@ async def check_updates() -> dict[str, Any]:
     published_at = release_data.get("published_at") or ""
     html_url = release_data.get("html_url") or f"https://github.com/{GITHUB_REPO}/releases"
 
-    # Comparaison sémantique
-    local_semver = _parse_semver(local_info["current_version"])
-    latest_semver = _parse_semver(latest_tag)
-
-    has_update = latest_semver > local_semver
+    has_update = _parse_version(latest_tag) > _parse_version(local_info["current_version"])
     can_auto_apply = handler.supports_git_versioning()
 
     # Recherche de l'asset adapté au profil de déploiement (Lot 1 Windows .exe,
@@ -180,6 +240,7 @@ async def check_updates() -> dict[str, Any]:
 
     return {
         "online": True,
+        "channel": channel,
         "current_version": local_info["current_version"],
         "current_tag": local_info["current_tag"],
         "current_commit": local_info["current_commit"],
@@ -198,13 +259,17 @@ async def check_updates() -> dict[str, Any]:
     }
 
 
-async def _run_update_pipeline():
+async def _run_update_pipeline(target_tag: str | None):
     """Tâche d'arrière-plan appliquant la mise à jour et redémarrant les
     services, via le handler du profil courant (§5.1/§5.4 du plan). Le
     garde-fou de `apply_update()` (endpoint ci-dessous) évite normalement
     d'arriver ici sur un profil qui ne supporte pas encore ce pipeline ;
-    l'exception est quand même rattrapée par prudence."""
-    logger.info("Début du processus de mise à jour système...")
+    l'exception est quand même rattrapée par prudence. `target_tag` épingle
+    le checkout sur le tag résolu par le canal courant au moment du clic
+    (réf. mission "canal Stable/Bêta") — None si la résolution GitHub a
+    échoué, auquel cas le handler retombe sur son ancien comportement
+    (`git pull --ff-only` sur la branche courante)."""
+    logger.info(f"Début du processus de mise à jour système (cible : {target_tag or 'branche courante'})...")
 
     try:
         await ws_manager.broadcast_force_reload()
@@ -214,7 +279,7 @@ async def _run_update_pipeline():
     await asyncio.sleep(1.0)
 
     try:
-        get_profile_handler().apply_update()
+        get_profile_handler().apply_update(target_tag)
     except UpdateUnsupported as e:
         logger.warning(f"Mise à jour non applicable sur ce profil : {e.message}")
     except Exception as e:
@@ -222,7 +287,7 @@ async def _run_update_pipeline():
 
 
 @router.post("/apply")
-async def apply_update(background_tasks: BackgroundTasks) -> dict[str, str]:
+async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, str]:
     """Déclenche la mise à jour du système et le rechargement des services.
 
     Non disponible sur les profils sans checkout git réel (Windows, et plus
@@ -237,7 +302,14 @@ async def apply_update(background_tasks: BackgroundTasks) -> dict[str, str]:
                 "téléchargez la dernière version depuis les releases GitHub du projet."
             ),
         )
-    background_tasks.add_task(_run_update_pipeline)
+    # Résout à nouveau la release cible au moment du clic (plutôt que de
+    # faire confiance à une valeur envoyée par le client) : reflète toujours
+    # le canal Stable/Bêta courant, y compris si l'utilisateur l'a changé
+    # entre le dernier "Rechercher une mise à jour" et ce clic.
+    channel = _get_update_channel(db)
+    release_data = await _fetch_release_for_channel(channel)
+    target_tag = (release_data or {}).get("tag_name") or None
+    background_tasks.add_task(_run_update_pipeline, target_tag)
     return {
         "status": "started",
         "message": "Téléchargement et application de la mise à jour en cours...",

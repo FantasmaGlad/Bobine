@@ -40,7 +40,7 @@ class MacOSHandler(ProfileHandler):
     def supports_git_versioning(self) -> bool:
         return False
 
-    def apply_update(self) -> None:
+    def apply_update(self, target_tag: str | None = None) -> None:
         raise UpdateUnsupported(
             "La mise à jour automatique n'est pas encore disponible sur macOS — "
             "téléchargez et installez la dernière version depuis les releases GitHub "

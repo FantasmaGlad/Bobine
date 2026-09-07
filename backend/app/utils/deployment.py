@@ -94,10 +94,14 @@ class ProfileHandler:
         échoueraient silencieusement à chaque appel."""
         return False
 
-    def apply_update(self) -> None:
-        """Applique la mise à jour (typiquement `git pull` + redémarrage).
-        Lève `UpdateUnsupported` si ce profil n'a pas encore de mécanisme
-        de mise à jour automatique."""
+    def apply_update(self, target_tag: str | None = None) -> None:
+        """Applique la mise à jour (typiquement `git checkout <tag>` +
+        redémarrage). `target_tag` (ex. "V3.0.1" ou "V3.1.0-beta.1", fourni
+        par l'appelant à partir du dernier `check_updates()`) permet de
+        cibler explicitement un tag — y compris antérieur au tag actuel,
+        pour supporter un vrai retour en arrière (réf. mission "canal
+        Stable/Bêta" — downgrade Bêta -> Stable). Lève `UpdateUnsupported`
+        si ce profil n'a pas encore de mécanisme de mise à jour automatique."""
         raise UpdateUnsupported(
             "La mise à jour automatique n'est pas encore disponible sur ce "
             "profil — téléchargez la dernière version depuis les releases "
