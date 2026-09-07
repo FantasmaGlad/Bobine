@@ -33,6 +33,14 @@ REPO_DIR = SPEC_DIR.parent.parent
 BACKEND_DIR = REPO_DIR / "backend"
 ICON_PATH = str(SPEC_DIR / "bobine.icns")
 
+# Numéro de version du bundle (réf. mission "canal Stable/Bêta") — lu
+# dynamiquement depuis VERSION, jamais recopié en dur ici (c'était le cas
+# avant ce lot : BUNDLE() et Info.plist annonçaient "3.0.0" quelle que soit
+# la version réellement construite, découvert en même temps que le bug
+# analogue sur DEBIAN/control). La CI écrit VERSION avec le suffixe "-beta"
+# avant PyInstaller pour les builds du canal Bêta (cf. ci.yml).
+APP_VERSION = (REPO_DIR / "VERSION").read_text(encoding="utf-8").strip()
+
 datas = [
     (str(REPO_DIR / "config.toml"), "."),
     (str(REPO_DIR / "Assets" / "Images" / "logo_bobine_icon.png"), "."),
@@ -153,12 +161,12 @@ app_bundle = BUNDLE(
     name="Bobine.app",
     icon=ICON_PATH,
     bundle_identifier="com.bobine.app",
-    version="3.0.0",
+    version=APP_VERSION,
     info_plist={
         "CFBundleName": "Bobine",
         "CFBundleDisplayName": "Bobine",
-        "CFBundleVersion": "3.0.0",
-        "CFBundleShortVersionString": "3.0.0",
+        "CFBundleVersion": APP_VERSION,
+        "CFBundleShortVersionString": APP_VERSION,
         "CFBundleIconFile": "bobine.icns",
         "LSMinimumSystemVersion": "11.0",
         "NSHighResolutionCapable": True,
