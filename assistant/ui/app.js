@@ -53,6 +53,9 @@ async function invokeTauri(cmd, args = {}) {
       gpu_info: 'Intel UHD Graphics 605 (VA-API matériel)'
     };
   }
+  if (cmd === 'get_app_info') {
+    return { version: '0.0.0-dev', commit: 'preview' };
+  }
   return { status: 'ok' };
 }
 
@@ -235,49 +238,156 @@ function kioskUrl() {
 }
 
 // Notification "nouvelle version de l'assistant disponible" (réf. mission
-// "canal Stable/Bêta") : l'assistant Tauri n'a pas de backend local à
-// interroger (contrairement à BobineTray) — appel direct à l'API GitHub
-// depuis le renderer. bobine-assistant n'embarque pas son propre numéro de
-// version (cf. plan) : on ne peut donc pas dire "vous êtes en retard", mais
-// on peut signaler "une version plus récente existe" en se souvenant du tag
-// déjà vu/fermé (localStorage) pour ne le proposer qu'une fois par release.
-const ASSISTANT_UPDATE_DISMISSED_KEY = 'bobine-assistant-update-dismissed-tag';
+// "canal Stable/Bêta" puis "hiérarchie des versions") : l'assistant Tauri
+// n'a pas de backend local à interroger (contrairement à BobineTray) —
+// appel direct à l'API GitHub depuis le renderer. bobine-assistant embarque
+// désormais sa propre version/commit à la compilation (build.rs + commande
+// Tauri get_app_info), lus ici via invokeTauri — sans ça, un assistant
+// construit depuis le canal Bêta (donc déjà plus récent que la dernière
+// Stable) se voyait proposer "une mise à jour" vers cette Stable, en réalité
+// PLUS ANCIENNE : bug corrigé en comparant enfin correctement les versions
+// au lieu d'annoncer inconditionnellement "la dernière release existe".
+const ASSISTANT_UPDATE_DISMISSED_KEY = 'bobine-assistant-update-dismissed';
 const GITHUB_RELEASES_LATEST_URL = 'https://api.github.com/repos/FantasmaGlad/Bobine/releases/latest';
+const GITHUB_RELEASES_BETA_URL = 'https://api.github.com/repos/FantasmaGlad/Bobine/releases/tags/beta';
+
+// Port JS du comparateur semver du backend (voir
+// backend/app/routers/updates.py::_parse_version — même précédence, à
+// maintenir synchronisée si l'une des deux implémentations évolue) : à base
+// MAJOR.MINOR.PATCH égale, une version SANS pre-release est toujours
+// postérieure à une version AVEC pre-release ; deux pre-releases se
+// comparent identifiant par identifiant (numérique si possible, sinon
+// lexical — un identifiant numérique a une précédence inférieure à un
+// alphanumérique, cf. spec semver §11).
+function parseVersionForCompare(versionStr) {
+  let s = (versionStr || '').trim();
+  if (s[0] === 'v' || s[0] === 'V') s = s.slice(1);
+  const dashIdx = s.indexOf('-');
+  const basePart = dashIdx === -1 ? s : s.slice(0, dashIdx);
+  const prereleasePart = dashIdx === -1 ? '' : s.slice(dashIdx + 1);
+  const baseNumbers = (basePart.match(/\d+/g) || []).slice(0, 3).map(Number);
+  while (baseNumbers.length < 3) baseNumbers.push(0);
+  const identifiers = prereleasePart
+    ? prereleasePart.split('.').filter(Boolean).map((part) => (/^\d+$/.test(part) ? { n: Number(part) } : { s: part }))
+    : null;
+  return { base: baseNumbers, identifiers };
+}
+
+function compareIdentifier(a, b) {
+  const aIsNum = 'n' in a;
+  const bIsNum = 'n' in b;
+  if (aIsNum && bIsNum) return a.n - b.n;
+  if (aIsNum !== bIsNum) return aIsNum ? -1 : 1;
+  return a.s < b.s ? -1 : a.s > b.s ? 1 : 0;
+}
+
+// > 0 si a postérieure à b, < 0 si antérieure, 0 si égales.
+function compareVersions(aStr, bStr) {
+  const a = parseVersionForCompare(aStr);
+  const b = parseVersionForCompare(bStr);
+  for (let i = 0; i < 3; i++) {
+    if (a.base[i] !== b.base[i]) return a.base[i] - b.base[i];
+  }
+  if (!a.identifiers && !b.identifiers) return 0;
+  if (!a.identifiers) return 1;
+  if (!b.identifiers) return -1;
+  const len = Math.max(a.identifiers.length, b.identifiers.length);
+  for (let i = 0; i < len; i++) {
+    if (i >= a.identifiers.length) return -1;
+    if (i >= b.identifiers.length) return 1;
+    const c = compareIdentifier(a.identifiers[i], b.identifiers[i]);
+    if (c !== 0) return c;
+  }
+  return 0;
+}
+
+function renderAppVersionBadge(version, commit) {
+  const badge = document.getElementById('app-version-badge');
+  if (!badge || !version) return;
+  const shortCommit = (commit && commit !== 'unknown') ? ` (${commit})` : '';
+  badge.textContent = `v${version}${shortCommit}`;
+  badge.hidden = false;
+}
 
 async function checkAssistantUpdate() {
+  let myVersion = null;
+  let myCommit = null;
   try {
-    const res = await fetch(GITHUB_RELEASES_LATEST_URL, {
-      headers: { Accept: 'application/vnd.github+json' },
-    });
-    if (!res.ok) return;
-    const release = await res.json();
-    const tag = release.tag_name;
-    if (!tag) return;
+    const info = await invokeTauri('get_app_info', {});
+    myVersion = info?.version || null;
+    myCommit = info?.commit || null;
+  } catch {
+    return;
+  }
+  if (!myVersion) return;
+  renderAppVersionBadge(myVersion, myCommit);
 
-    let dismissedTag = null;
+  try {
+    const [stableRes, betaRes] = await Promise.allSettled([
+      fetch(GITHUB_RELEASES_LATEST_URL, { headers: { Accept: 'application/vnd.github+json' } }),
+      fetch(GITHUB_RELEASES_BETA_URL, { headers: { Accept: 'application/vnd.github+json' } }),
+    ]);
+
+    let candidate = null;
+
+    if (stableRes.status === 'fulfilled' && stableRes.value.ok) {
+      const release = await stableRes.value.json();
+      const tag = release.tag_name;
+      // Seule comparaison fiable pour la Stable : semver complet (cf.
+      // compareVersions) — jamais "une release existe donc c'est une
+      // mise à jour" comme avant ce correctif.
+      if (tag && compareVersions(tag, myVersion) > 0) {
+        const asset = (release.assets || []).find((a) => a.name === 'bobine-assistant');
+        candidate = {
+          key: `stable:${tag}`,
+          label: `Bobine Assistant ${tag} (Stable) est disponible.`,
+          downloadUrl: asset?.browser_download_url || release.html_url,
+        };
+      }
+    }
+
+    if (!candidate && betaRes.status === 'fulfilled' && betaRes.value.ok) {
+      const release = await betaRes.value.json();
+      const remoteCommit = (release.target_commitish || '').slice(0, 7);
+      // La Bêta n'a pas de numéro de version qui avance à chaque build (tag
+      // fixe "beta", cf. mission "canal Stable/Bêta") : comparaison par
+      // commit, comme côté backend (_beta_has_update).
+      if (
+        remoteCommit && myCommit && myCommit !== 'unknown' &&
+        !remoteCommit.startsWith(myCommit) && !myCommit.startsWith(remoteCommit)
+      ) {
+        const asset = (release.assets || []).find((a) => a.name === 'bobine-assistant');
+        candidate = {
+          key: `beta:${remoteCommit}`,
+          label: `Une nouvelle build Bêta de l'assistant est disponible (${remoteCommit}).`,
+          downloadUrl: asset?.browser_download_url || release.html_url,
+        };
+      }
+    }
+
+    if (!candidate) return;
+
+    let dismissedKey = null;
     try {
-      dismissedTag = localStorage.getItem(ASSISTANT_UPDATE_DISMISSED_KEY);
+      dismissedKey = localStorage.getItem(ASSISTANT_UPDATE_DISMISSED_KEY);
     } catch {
       // localStorage indisponible (mode privé strict) : tant pis, pas de mémorisation.
     }
-    if (tag === dismissedTag) return;
-
-    const asset = (release.assets || []).find((a) => a.name === 'bobine-assistant');
-    const downloadUrl = asset?.browser_download_url || release.html_url;
+    if (candidate.key === dismissedKey) return;
 
     const banner = document.getElementById('assistant-update-banner');
     const text = document.getElementById('assistant-update-text');
     if (!banner || !text) return;
-    text.textContent = `Bobine Assistant ${tag} est disponible.`;
+    text.textContent = candidate.label;
     banner.style.display = 'flex';
 
     document.getElementById('btn-assistant-update-download').onclick = () => {
-      window.open(downloadUrl, '_blank');
+      window.open(candidate.downloadUrl, '_blank');
     };
     document.getElementById('btn-assistant-update-dismiss').onclick = () => {
       banner.style.display = 'none';
       try {
-        localStorage.setItem(ASSISTANT_UPDATE_DISMISSED_KEY, tag);
+        localStorage.setItem(ASSISTANT_UPDATE_DISMISSED_KEY, candidate.key);
       } catch {
         // idem : pas bloquant si indisponible.
       }

@@ -826,10 +826,13 @@ body {
 }
 
 /* Bannière "nouvelle version de l'assistant disponible" (réf. mission
-   "canal Stable/Bêta" — notification + bouton de téléchargement). */
+   "canal Stable/Bêta" — notification + bouton de téléchargement). Style
+   général de l'installateur (gris neutre --accent-primary, pas de bleu
+   d'alerte) — cohérent avec le reste de l'IHM plutôt qu'une couleur
+   "notification système" hors charte. */
 .update-banner {
-  background-color: rgba(3, 105, 161, 0.08);
-  border-bottom: 1px solid rgba(3, 105, 161, 0.25);
+  background-color: var(--bg-surface-elevated);
+  border-bottom: 1px solid var(--border-color);
   padding: 10px 24px;
   display: flex;
   align-items: center;
@@ -839,7 +842,7 @@ body {
 }
 
 .update-banner-text {
-  color: var(--accent-info);
+  color: var(--text-main);
   font-size: 0.85rem;
   font-weight: 600;
 }
@@ -853,4 +856,22 @@ body {
 .update-banner-actions .btn {
   padding: 6px 14px;
   font-size: 0.8rem;
+}
+
+/* Numéro de version, coin bas-droit (réf. mission "hiérarchie des
+   versions") — discret, toujours visible, même style neutre que le reste
+   de l'IHM. */
+.app-version-badge {
+  position: fixed;
+  right: 16px;
+  bottom: 12px;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  pointer-events: none;
+  z-index: 10;
 }
