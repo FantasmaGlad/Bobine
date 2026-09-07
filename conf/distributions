@@ -1,0 +1,17 @@
+Origin: Bobine
+Label: Bobine
+Suite: stable
+Codename: stable
+Architectures: amd64
+Components: main
+Description: Depot officiel Bobine - Canal Stable
+SignWith: contact@bobine.fit
+
+Origin: Bobine
+Label: Bobine
+Suite: beta
+Codename: beta
+Architectures: amd64
+Components: main
+Description: Depot officiel Bobine - Canal Beta (Rolling)
+SignWith: contact@bobine.fit

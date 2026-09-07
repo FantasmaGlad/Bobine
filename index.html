@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Dépôt APT Officiel Bobine</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 680px; margin: 50px auto; padding: 0 20px; line-height: 1.6; color: #1e293b; background: #f8fafc; }
+    pre { background: #0f172a; color: #f8fafc; padding: 15px; border-radius: 8px; overflow-x: auto; }
+    code { font-family: ui-monospace, monospace; }
+    a { color: #0284c7; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>Dépôt APT Officiel Bobine</h1>
+  <p>Ce serveur héberge les paquets Debian / Ubuntu pour <a href="https://bobine.fit">Bobine</a>.</p>
+  <h3>Installation</h3>
+  <pre><code># 1. Clé de signature GPG
+curl -fsSL https://apt.bobine.fit/bobine.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/bobine.gpg
+
+# 2. Dépôt APT (Stable)
+echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] https://apt.bobine.fit/ stable main" | sudo tee /etc/apt/sources.list.d/bobine.list
+
+# 3. Installation
+sudo apt update && sudo apt install bobine</code></pre>
+</body>
+</html>
