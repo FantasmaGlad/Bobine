@@ -620,4 +620,67 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+  # Met à jour automatiquement le dépôt APT officiel (apt.bobine.fit) sur gh-pages
+  # dès qu'une release Stable ou Bêta a été publiée avec succès.
+  publish-apt-repo:
+    name: Publish to APT Repository (apt.bobine.fit)
+    needs: [version, linux-desktop-deb, release-stable, release-beta]
+    if: |
+      always() &&
+      !cancelled() &&
+      (needs.release-stable.result == 'success' || needs.release-beta.result == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Install reprepro
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y reprepro
+
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: apt-repo
+
+      - name: Download Linux deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-deb
+          path: deb-artifact
+
+      - name: Import GPG Private Key
+        run: |
+          echo "${{ secrets.APT_GPG_PRIVATE_KEY }}" | gpg --batch --import
+
+      - name: Update reprepro repository
+        run: |
+          CHANNEL="${{ needs.version.outputs.channel }}"
+          DEB_FILE=$(ls deb-artifact/*.deb | head -1)
+          echo "Mise à jour du dépôt APT pour le canal ${CHANNEL} avec ${DEB_FILE}"
+
+          cd apt-repo
+          if [ "$CHANNEL" = "beta" ]; then
+            # Sur le canal bêta roulant, on retire l'ancien paquet pour ne garder que la dernière version
+            reprepro remove beta bobine || true
+            reprepro includedeb beta "../$DEB_FILE"
+          else
+            # Sur le canal stable
+            reprepro includedeb stable "../$DEB_FILE"
+          fi
+
+      - name: Commit and push changes to gh-pages
+        run: |
+          cd apt-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dists/ pool/
+          if git diff --staged --quiet; then
+            echo "Aucune modification à publier dans le dépôt APT."
+          else
+            git commit -m "chore(apt): mise à jour du dépôt APT (${{ needs.version.outputs.channel }})"
+            git push origin gh-pages
+          fi
+
 
