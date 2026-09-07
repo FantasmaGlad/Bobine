@@ -15,10 +15,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # Source de vérité unique (réf. mission "canal Stable/Bêta") : fichier
-# VERSION à la racine du dépôt. Surchargeable via l'environnement (CI passe
-# une valeur suffixée, ex. "3.0.1-beta.1", pour les pre-releases).
+# VERSION à la racine du dépôt — c'est aussi ce qui finit bundlé dans
+# Bobine.app (cf. bobine.spec) et lu au runtime par app.utils.version.
 VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
-DMG_NAME="Bobine-${VERSION}.dmg"
+
+# Version utilisée dans le NOM DU FICHIER .dmg — délibérément distincte de
+# VERSION (réf. mission "canal Stable/Bêta") : par défaut identique (builds
+# stables), mais la CI passe la valeur fixe "beta" pour le canal Bêta — un
+# seul nom de fichier stable dans le temps plutôt qu'un nouveau nom à chaque
+# reconstruction (réf. mission "éviter 1000 fichiers").
+DMG_FILENAME_VERSION="${DMG_FILENAME_VERSION:-$VERSION}"
+DMG_NAME="Bobine-${DMG_FILENAME_VERSION}.dmg"
 
 echo "=== [1/5] Vérification de l'environnement ==="
 if [ "$(uname -s)" != "Darwin" ]; then

@@ -21,7 +21,7 @@ from app.utils.deployment import (
     get_deployment_profile,
     get_profile_handler,
 )
-from app.utils.version import get_app_tag
+from app.utils.version import get_app_commit, get_app_tag
 from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
@@ -32,12 +32,14 @@ GITHUB_REPO = "FantasmaGlad/Bobine"
 # "stable" n'interroge QUE /releases/latest, qui exclut structurellement les
 # pre-releases et brouillons côté API GitHub — aucun risque qu'un canal
 # stable voie jamais une bêta, même en cas de bug côté filtrage applicatif.
-# "beta" interroge /releases (liste, triée du plus récent au plus ancien) et
-# prend le premier élément, qu'il soit pre-release ou non — ce qui fait
-# naturellement retomber un utilisateur bêta sur la dernière stable dès
-# qu'elle dépasse la bêta qu'il suit (réf. mission "canal Stable/Bêta").
+# "beta" interroge un tag FIXE ("beta") — un seul fichier de release Bêta
+# sur GitHub, republié en place à chaque build plutôt qu'un nouveau tag par
+# itération (réf. mission "canal Stable/Bêta" — éviter l'accumulation de
+# releases sur la page publique). Voir .github/workflows/ci.yml, job
+# `release-beta` : force-déplace ce tag et republie dessus à chaque
+# déclenchement manuel.
 _RELEASES_LATEST_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-_RELEASES_LIST_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases"
+_RELEASES_BETA_TAG_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/beta"
 _VALID_CHANNELS = ("stable", "beta")
 
 
@@ -85,8 +87,13 @@ def _get_local_version_info() -> dict[str, str]:
     un vrai checkout (aujourd'hui : l'appliance headless seule) — un paquet
     figé (`.exe`, `.app`, `.deb`) n'a pas de `.git` et ces appels
     échoueraient systématiquement en pure perte (deux sous-process, jusqu'à
-    3s de timeout chacun, à chaque chargement de la page Réglages)."""
-    commit = "unknown"
+    3s de timeout chacun, à chaque chargement de la page Réglages). Ces
+    profils lisent en revanche le commit depuis le fichier COMMIT bundlé par
+    la CI (`get_app_commit()`, réf. mission "canal Stable/Bêta") — nécessaire
+    pour que la détection de mise à jour du canal Bêta (comparaison de
+    commit, cf. `_beta_has_update`) fonctionne aussi sur les profils
+    packagés, pas seulement sur l'appliance headless."""
+    commit = get_app_commit()
     tag = get_app_tag()
 
     if not get_profile_handler().supports_git_versioning():
@@ -135,8 +142,10 @@ async def _fetch_release_for_channel(channel: str) -> dict[str, Any] | None:
     """Interroge GitHub pour le canal donné — partagé entre `check_updates()`
     (affichage) et `apply_update()` (résolution du tag cible pour
     `apply_update(target_tag=...)`), pour ne jamais risquer que les deux
-    endpoints déterminent une release différente."""
-    url = _RELEASES_LIST_URL if channel == "beta" else _RELEASES_LATEST_URL
+    endpoints déterminent une release différente. Un seul objet release dans
+    les deux cas (`/releases/latest` pour stable, `/releases/tags/beta` pour
+    bêta) — même forme de réponse, pas de liste à filtrer côté application."""
+    url = _RELEASES_BETA_TAG_URL if channel == "beta" else _RELEASES_LATEST_URL
     req = urllib.request.Request(
         url,
         headers={
@@ -152,19 +161,29 @@ async def _fetch_release_for_channel(channel: str) -> dict[str, Any] | None:
             with urllib.request.urlopen(req, timeout=4.5) as resp:
                 if resp.status != 200:
                     return None
-                payload = json.loads(resp.read().decode("utf-8"))
-                if channel == "beta":
-                    # Liste triée du plus récent au plus ancien par l'API
-                    # GitHub — le premier élément est la dernière release
-                    # publiée, bêta ou stable (cf. commentaire sur
-                    # _RELEASES_LIST_URL).
-                    return payload[0] if payload else None
-                return payload
+                return json.loads(resp.read().decode("utf-8"))
         except Exception as e:
             logger.info(f"Vérification GitHub indisponible (mode hors-ligne ou timeout) : {e}")
             return None
 
     return await loop.run_in_executor(None, _fetch_github)
+
+
+def _short(sha: str | None, length: int = 7) -> str:
+    return (sha or "")[:length]
+
+
+def _beta_has_update(local_commit: str, release_data: dict[str, Any]) -> bool:
+    """Le canal Bêta n'a pas de numéro de version qui avance à chaque build
+    (tag fixe "beta", réf. mission "canal Stable/Bêta") — la comparaison
+    porte donc sur le COMMIT plutôt que sur une version sémantique : y a-t-il
+    une mise à jour si le commit visé par le tag "beta" diffère du commit
+    actuellement installé. `target_commitish` d'une release GitHub créée sur
+    un tag léger est le SHA complet pointé par ce tag."""
+    remote_commit = _short(release_data.get("target_commitish"))
+    if not remote_commit or local_commit in ("unknown", ""):
+        return False
+    return not remote_commit.startswith(local_commit) and not local_commit.startswith(remote_commit)
 
 
 @router.get("/check")
@@ -212,7 +231,16 @@ async def check_updates(db: Session = Depends(get_db)) -> dict[str, Any]:
     published_at = release_data.get("published_at") or ""
     html_url = release_data.get("html_url") or f"https://github.com/{GITHUB_REPO}/releases"
 
-    has_update = _parse_version(latest_tag) > _parse_version(local_info["current_version"])
+    if channel == "beta":
+        has_update = _beta_has_update(local_info["current_commit"], release_data)
+        remote_short = _short(release_data.get("target_commitish"))
+        # Affichage informatif (pas de numéro de version qui avance à chaque
+        # build sur ce canal, cf. _beta_has_update) : le commit visé plutôt
+        # qu'un numéro de version qui resterait figé entre deux publications.
+        latest_version = f"beta ({remote_short})" if remote_short else "beta"
+    else:
+        has_update = _parse_version(latest_tag) > _parse_version(local_info["current_version"])
+        latest_version = latest_tag
     can_auto_apply = handler.supports_git_versioning()
 
     # Recherche de l'asset adapté au profil de déploiement (Lot 1 Windows .exe,
@@ -244,7 +272,7 @@ async def check_updates(db: Session = Depends(get_db)) -> dict[str, Any]:
         "current_version": local_info["current_version"],
         "current_tag": local_info["current_tag"],
         "current_commit": local_info["current_commit"],
-        "latest_version": latest_tag,
+        "latest_version": latest_version,
         "has_update": has_update,
         "release_title": release_title,
         "release_notes": release_notes,

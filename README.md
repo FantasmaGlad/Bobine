@@ -35,6 +35,19 @@ Install Bobine as a native desktop application on your workstation or studio PC 
 | [![bobine.fit](https://img.shields.io/badge/bobine.fit-4285F4?style=flat-square&logo=data%3Aimage/svg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBkPSJNNDQgMjRjMCAxMS4wNDUtOC45NTUgMjAtMjAgMjAtNC41MiAwLTguNjgtMS41MDMtMTIuMDMtNC4wNDNsOS40NjctMTYuMzk0QTggOCAwIDAgMCAyNCAzMmM0LjQxOCAwIDgtMy41ODIgOC04eiIvPjxwYXRoIGZpbGw9IiNGQkMwMkQiIGQ9Ik00NCAyNEgyNGE4IDggMCAwIDAtNi45MjggNGwtOS40NjcgMTYuMzk0QTE5LjkyIDE5LjkyIDAgMCAxIDQgMjRDNCAxMy45ODcgMTEuMzg1IDUuNzA0IDIxLjAzNiA0LjIyTDMwLjUwMyAyMC42MUE3Ljk3IDcuOTcgMCAwIDAgMzIgMjR6Ii8%2BPHBhdGggZmlsbD0iI0U1MzkzNSIgZD0iTTI0IDRjNy40MDYgMCAxMy44NiA0LjAyNCAxNy4zIDEwLjAyN0wzMC41MDMgMjAuNjFBOCA4IDAgMCAwIDI0IDE2Yy0zLjE1NSAwLTUuOTE0IDEuODI2LTcuMjUgNC40OUw3LjI4NCA0LjA5NUMxMS44OTIgNC4wMzIgMTcuNjUgNCAyNCA0eiIvPjxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjI0IiByPSI2IiBmaWxsPSIjMTk3NkQyIi8%2BPC9zdmc%2B)](https://bobine.fit) | <sub>Web Portal</sub> | <sub>Universal</sub> | [**Visit bobine.fit**](https://bobine.fit) | **Official Website & Documentation**<br><sub>• Getting started guides, updates & changelogs</sub><br><sub>• Web app remote and online documentation</sub> |
 | ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | <sub>Source & Binaries</sub> | <sub>Multi-OS</sub> | [**Browse GitHub Releases**](https://github.com/FantasmaGlad/Bobine/releases/latest) | **Full Release History & Sources**<br><sub>• Checksums, tarballs & complete release notes</sub> |
 
+### Beta Program — Early Access
+
+Want to try upcoming features before they reach the stable release? Bobine ships a **Beta channel**: a single, always-current pre-release build, rebuilt from the latest development code — no need to track version numbers, an equal or newer stable release always supersedes it automatically, and you can switch back to Stable at any time with no data loss.
+
+[**Browse the Beta release**](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) — same platforms as above (`.exe`, `.deb`, `.dmg`, `bobine-assistant`, `install.sh`), file names suffixed `-beta` instead of a version number.
+
+How to opt in permanently, so future updates keep offering Beta builds:
+- **Already installed** → Settings → Software Updates → "Bobine Beta Program", switch to Beta.
+- **Headless appliance installer** → `sudo ./install.sh --channel=beta`
+- **Bobine Assistant (remote install wizard)** → toggle "Bobine Beta Program" in the Options step.
+
+Full details on how the Beta channel works (update detection, downgrade behavior, release process): [Technical Architecture § Canal de mise à jour](docs/ARCHITECTURE.md#7-script-dinstallation--services-systemd).
+
 ---
 
 ## Why Bobine

@@ -16,9 +16,18 @@ on:
     inputs:
       tag:
         description: >-
-          Tag à publier (ex. V3.0.1 ou V3.0.1-beta.1) — requis uniquement
-          pour republier une release manuellement sans pousser de tag.
+          Tag Stable à (re)publier (ex. V3.0.1) — republie manuellement une
+          release stable sans pousser de tag. Laisser vide si publish_beta
+          est coché.
         required: false
+      publish_beta:
+        description: >-
+          Publier/mettre à jour la release Bêta (tag mobile unique "beta")
+          depuis la référence choisie ci-dessus (Use workflow from) — un seul
+          fichier de release Bêta sur GitHub, republié en place à chaque
+          déclenchement plutôt qu'un nouveau tag par itération.
+        type: boolean
+        default: false
 
 # Annule les exécutions précédentes encore en cours sur la même référence.
 concurrency:
@@ -26,60 +35,83 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Résout le numéro de version une seule fois pour tous les jobs de
-  # packaging (réf. mission "canal Stable/Bêta") : source de vérité = fichier
-  # VERSION à la racine, confronté au tag Git quand la CI est déclenchée par
-  # un tag — échoue explicitement en cas de divergence plutôt que de publier
-  # silencieusement sous le mauvais numéro (c'est ce qui se passait avant :
-  # tout run non déclenché par un tag v*/V* retombait sur "V3.0.0" en dur).
+  # Résout la version et le CANAL une seule fois pour tous les jobs de
+  # packaging (réf. mission "canal Stable/Bêta"). Deux canaux structurellement
+  # séparés :
+  # - "stable" : déclenché par un tag Git Vx.y.z strict (pas de suffixe —
+  #   les tags -beta.N par itération sont abandonnés). Un nouveau tag/release
+  #   par version, comme avant : historique normal et attendu.
+  # - "beta"   : déclenché manuellement (workflow_dispatch, case
+  #   publish_beta cochée) depuis n'importe quelle référence (choisie via
+  #   "Use workflow from" dans l'UI Actions, main par défaut). Publie
+  #   TOUJOURS sous le même tag mobile "beta" — un seul fichier de release
+  #   Bêta sur GitHub, jamais d'accumulation (réf. mission "éviter 1000
+  #   fichiers"), republié en place par le job release-beta.
+  # Sans tag ni publish_beta (push simple, pull_request), CHANNEL="none" :
+  # les jobs de publication (release-stable, release-beta) ne se déclenchent
+  # pas, seuls les tests/builds de vérification tournent.
   version:
-    name: Resolve release version
+    name: Resolve release version & channel
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.resolve.outputs.version }}
-      full_version: ${{ steps.resolve.outputs.full_version }}
-      deb_version: ${{ steps.resolve.outputs.deb_version }}
-      is_prerelease: ${{ steps.resolve.outputs.is_prerelease }}
+      channel: ${{ steps.resolve.outputs.channel }}
       tag_name: ${{ steps.resolve.outputs.tag_name }}
+      base_version: ${{ steps.resolve.outputs.base_version }}
+      display_version: ${{ steps.resolve.outputs.display_version }}
+      deb_version: ${{ steps.resolve.outputs.deb_version }}
+      filename_version: ${{ steps.resolve.outputs.filename_version }}
+      commit_short: ${{ steps.resolve.outputs.commit_short }}
     steps:
       - uses: actions/checkout@v4
-      - name: Résoudre la version depuis VERSION et le tag Git
+      - name: Résoudre version, canal et identifiants de build
         id: resolve
         run: |
           BASE_VERSION="$(cat VERSION)"
+          COMMIT_SHORT="$(git rev-parse --short HEAD)"
+          CHANNEL="none"
           TAG_NAME=""
+
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             TAG_NAME="${GITHUB_REF_NAME}"
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.tag }}" ]]; then
             TAG_NAME="${{ github.event.inputs.tag }}"
           fi
 
-          FULL_VERSION="${BASE_VERSION}"
-          IS_PRERELEASE="false"
           if [ -n "${TAG_NAME}" ]; then
-            # V3.0.1-beta.1 -> 3.0.1-beta.1 ; base = 3.0.1 (avant le premier '-')
+            # Tag Stable strict Vx.y.z — plus de suffixe -beta./-rc. accepté
+            # ici (le canal Bêta n'utilise plus de tag par itération).
             TAG_VERSION="${TAG_NAME#v}"; TAG_VERSION="${TAG_VERSION#V}"
-            TAG_BASE="${TAG_VERSION%%-*}"
-            if [ "${TAG_BASE}" != "${BASE_VERSION}" ]; then
-              echo "::error::Le tag '${TAG_NAME}' (base ${TAG_BASE}) ne correspond pas au fichier VERSION (${BASE_VERSION}). Mettre à jour VERSION avant de taguer."
+            if ! [[ "${TAG_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Tag '${TAG_NAME}' invalide pour une release Stable (attendu Vx.y.z strict, ex. V3.0.1)."
               exit 1
             fi
-            FULL_VERSION="${TAG_VERSION}"
-            case "${TAG_VERSION}" in
-              *-beta.*|*-rc.*|*-alpha.*) IS_PRERELEASE="true" ;;
-            esac
+            if [ "${TAG_VERSION}" != "${BASE_VERSION}" ]; then
+              echo "::error::Le tag '${TAG_NAME}' (${TAG_VERSION}) ne correspond pas au fichier VERSION (${BASE_VERSION}). Mettre à jour VERSION avant de taguer."
+              exit 1
+            fi
+            CHANNEL="stable"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.publish_beta }}" == "true" ]]; then
+            CHANNEL="beta"
+            TAG_NAME="beta"
           fi
 
-          # Convention Debian pour un pré-lancement (le '~' trie AVANT la
-          # version finale, cf. commentaire de build_deb.sh) : "3.0.1-beta.1"
-          # -> "3.0.1~beta.1".
-          DEB_VERSION="$(printf '%s' "${FULL_VERSION}" | sed 's/-/~/')"
+          if [ "${CHANNEL}" = "beta" ]; then
+            DISPLAY_VERSION="${BASE_VERSION}-beta"     # bundlé (VERSION), AppVersion Windows — cosmétique
+            DEB_VERSION="${BASE_VERSION}~beta"         # champ Version: du paquet .deb — syntaxe Debian (le '~' trie AVANT la version finale)
+            FILENAME_VERSION="beta"                    # nom de fichier FIXE (exe/dmg/deb) — jamais de '~', jamais de suffixe qui change à chaque build
+          else
+            DISPLAY_VERSION="${BASE_VERSION}"
+            DEB_VERSION="${BASE_VERSION}"
+            FILENAME_VERSION="${BASE_VERSION}"
+          fi
 
-          echo "version=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "full_version=${FULL_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "deb_version=${DEB_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "is_prerelease=${IS_PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "channel=${CHANNEL}" >> "$GITHUB_OUTPUT"
           echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "base_version=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "display_version=${DISPLAY_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "deb_version=${DEB_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "filename_version=${FILENAME_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "commit_short=${COMMIT_SHORT}" >> "$GITHUB_OUTPUT"
 
   frontend:
     name: Frontend build (Next.js)
@@ -203,6 +235,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
           pip install pyinstaller
+      - name: Identifiants de build (VERSION bundlée + COMMIT)
+        shell: bash
+        run: |
+          echo "${{ needs.version.outputs.commit_short }}" > COMMIT
+          if [ "${{ needs.version.outputs.channel }}" = "beta" ]; then
+            echo "${{ needs.version.outputs.display_version }}" > VERSION
+          fi
       - name: Construire BobineBackend.exe + BobineTray.exe
         working-directory: backend
         run: pyinstaller ../packaging/windows/bobine.spec
@@ -243,7 +282,7 @@ jobs:
           }
           Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
       - name: Compiler l'installeur (Inno Setup, préinstallé sur windows-latest)
-        run: ISCC.exe /DMyAppVersion=${{ needs.version.outputs.full_version }} packaging\windows\bobine.iss
+        run: ISCC.exe /DMyAppVersion=${{ needs.version.outputs.display_version }} /DMyOutputVersion=${{ needs.version.outputs.filename_version }} packaging\windows\bobine.iss
       - uses: actions/upload-artifact@v4
         with:
           name: bobine-windows-installer
@@ -279,9 +318,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
           pip install pyinstaller
+      - name: Identifiants de build (VERSION bundlée + COMMIT)
+        run: |
+          echo "${{ needs.version.outputs.commit_short }}" > COMMIT
+          if [ "${{ needs.version.outputs.channel }}" = "beta" ]; then
+            echo "${{ needs.version.outputs.display_version }}" > VERSION
+          fi
       - name: Construire le paquet Debian (.deb)
         env:
           VERSION: ${{ needs.version.outputs.deb_version }}
+          DEB_FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
         run: |
           ./packaging/linux/build_deb.sh
       - name: Inspecter et valider la structure du paquet .deb
@@ -342,6 +388,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
           pip install pyinstaller
+      - name: Identifiants de build (VERSION bundlée + COMMIT)
+        run: |
+          echo "${{ needs.version.outputs.commit_short }}" > COMMIT
+          if [ "${{ needs.version.outputs.channel }}" = "beta" ]; then
+            echo "${{ needs.version.outputs.display_version }}" > VERSION
+          fi
       - name: Construire Bobine.app
         working-directory: backend
         run: pyinstaller ../packaging/macos/bobine.spec
@@ -359,24 +411,23 @@ jobs:
           kill "$PID"
       - name: Créer le .dmg (hdiutil)
         env:
-          VERSION: ${{ needs.version.outputs.full_version }}
+          DMG_FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
         run: |
           mkdir -p dmg-root dist-dmg
           cp -R backend/dist/Bobine.app dmg-root/
           ln -s /Applications dmg-root/Applications
-          hdiutil create -volname "Bobine" -srcfolder dmg-root -ov -format UDZO "dist-dmg/Bobine-${VERSION}.dmg"
+          hdiutil create -volname "Bobine" -srcfolder dmg-root -ov -format UDZO "dist-dmg/Bobine-${DMG_FILENAME_VERSION}.dmg"
       - uses: actions/upload-artifact@v4
         with:
           name: bobine-macos-dmg
           path: dist-dmg/*.dmg
 
-  release:
-    name: Publish Release Binaries (GitHub Releases)
+  # Publie une release STABLE — un tag Vx.y.z par version, historique normal
+  # et attendu sur la page GitHub Releases (réf. mission "canal Stable/Bêta").
+  release-stable:
+    name: Publish Stable Release
     needs: [version, windows-build, linux-desktop-deb, macos-build, assistant-core]
-    # Publie uniquement quand un tag a été résolu (push d'un tag v*/V*, ou
-    # workflow_dispatch avec l'input `tag` renseigné) — plus de repli
-    # silencieux sur un tag en dur (réf. mission "canal Stable/Bêta").
-    if: needs.version.outputs.tag_name != ''
+    if: needs.version.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -405,9 +456,6 @@ jobs:
           name: bobine-assistant-linux
           path: release-assets
       - name: Copy install script into release assets
-        # Réf. mission "canal Stable/Bêta" — "et les scripts" : install.sh
-        # n'était jusqu'ici jamais attaché à la release, seuls les paquets
-        # binaires l'étaient.
         run: cp install.sh release-assets/
       - name: Inspect generated binary assets
         run: ls -lh release-assets/
@@ -428,7 +476,91 @@ jobs:
           name: Bobine ${{ needs.version.outputs.tag_name }}
           body_path: ${{ steps.release-notes.outputs.body_path }}
           draft: false
-          prerelease: ${{ needs.version.outputs.is_prerelease == 'true' }}
+          prerelease: false
           generate_release_notes: false
+
+  # Publie/rafraîchit la release BÊTA — un seul tag mobile "beta", republié
+  # en place à chaque déclenchement manuel (réf. mission "canal Stable/Bêta"
+  # — éviter l'accumulation de releases Bêta sur la page publique). Le tag
+  # est force-déplacé sur le commit courant ; les notes sont générées
+  # automatiquement (changelog depuis la dernière Stable), pas de fichier
+  # docs/releases/ à maintenir pour ce canal (il serait obsolète dès le
+  # commit suivant).
+  release-beta:
+    name: Publish/Update Beta Release
+    needs: [version, windows-build, linux-desktop-deb, macos-build, assistant-core]
+    if: needs.version.outputs.channel == 'beta'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create release assets directory
+        run: mkdir -p release-assets
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-windows-installer
+          path: release-assets
+      - name: Download Linux deb
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-deb
+          path: release-assets
+      - name: Download macOS dmg
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-macos-dmg
+          path: release-assets
+      - name: Download Linux assistant binary
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-assistant-linux
+          path: release-assets
+      - name: Copy install script into release assets
+        run: cp install.sh release-assets/
+      - name: Inspect generated binary assets
+        run: ls -lh release-assets/
+      - name: Force-move the "beta" tag to the current commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f beta "${{ github.sha }}"
+          git push origin beta --force
+      - name: Generate rolling release notes (changelog since last Stable)
+        id: notes
+        run: |
+          LAST_STABLE="$(git tag --list 'V*' --sort=-v:refname | grep -E '^V[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
+          {
+            echo "Build automatique depuis \`${GITHUB_REF_NAME}\` (commit \`${{ needs.version.outputs.commit_short }}\`), basé sur la version à venir \`${{ needs.version.outputs.base_version }}\`."
+            echo ""
+            echo "Réservée aux utilisateurs ayant activé le canal Bêta (\"Programme Bobine Beta\") — une version stable équivalente ou plus récente la remplace toujours automatiquement."
+            echo ""
+            if [ -n "${LAST_STABLE}" ]; then
+              echo "## Changements depuis ${LAST_STABLE}"
+              echo ""
+              git log "${LAST_STABLE}..HEAD" --oneline --no-merges | head -50
+            else
+              echo "## Changements récents"
+              echo ""
+              git log --oneline --no-merges | head -50
+            fi
+          } > /tmp/beta-notes.md
+          echo "notes_path=/tmp/beta-notes.md" >> "$GITHUB_OUTPUT"
+      - name: Delete previous Beta release (assets get fully replaced, not merged)
+        run: gh release delete beta --yes || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Publish Beta release
+        run: |
+          gh release create beta release-assets/* \
+            --title "Bobine — Bêta (build automatique)" \
+            --notes-file "${{ steps.notes.outputs.notes_path }}" \
+            --prerelease \
+            --target "${{ github.sha }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
 

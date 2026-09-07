@@ -35,6 +35,19 @@ Installez Bobine en quelques secondes comme une application graphique native sur
 | [![bobine.fit](https://img.shields.io/badge/bobine.fit-4285F4?style=flat-square&logo=data%3Aimage/svg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBkPSJNNDQgMjRjMCAxMS4wNDUtOC45NTUgMjAtMjAgMjAtNC41MiAwLTguNjgtMS41MDMtMTIuMDMtNC4wNDNsOS40NjctMTYuMzk0QTggOCAwIDAgMCAyNCAzMmM0LjQxOCAwIDgtMy41ODIgOC04eiIvPjxwYXRoIGZpbGw9IiNGQkMwMkQiIGQ9Ik00NCAyNEgyNGE4IDggMCAwIDAtNi45MjggNGwtOS40NjcgMTYuMzk0QTE5LjkyIDE5LjkyIDAgMCAxIDQgMjRDNCAxMy45ODcgMTEuMzg1IDUuNzA0IDIxLjAzNiA0LjIyTDMwLjUwMyAyMC42MUE3Ljk3IDcuOTcgMCAwIDAgMzIgMjR6Ii8%2BPHBhdGggZmlsbD0iI0U1MzkzNSIgZD0iTTI0IDRjNy40MDYgMCAxMy44NiA0LjAyNCAxNy4zIDEwLjAyN0wzMC41MDMgMjAuNjFBOCA4IDAgMCAwIDI0IDE2Yy0zLjE1NSAwLTUuOTE0IDEuODI2LTcuMjUgNC40OUw3LjI4NCA0LjA5NUMxMS44OTIgNC4wMzIgMTcuNjUgNCAyNCA0eiIvPjxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjI0IiByPSI2IiBmaWxsPSIjMTk3NkQyIi8%2BPC9zdmc%2B)](https://bobine.fit) | <sub>Portail Web</sub> | <sub>Universel</sub> | [**Visiter bobine.fit**](https://bobine.fit) | **Site Officiel & Documentation**<br><sub>• Guides de démarrage, actualités & notes de version</sub><br><sub>• Documentation interactive & télécommande web</sub> |
 | ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | <sub>Binaires & Sources</sub> | <sub>Multi-OS</sub> | [**Voir les Releases GitHub**](https://github.com/FantasmaGlad/Bobine/releases/latest) | **Historique Complet des Versions**<br><sub>• Sommes de contrôle SHA-256 & notes de version</sub> |
 
+### Programme Bêta — Accès anticipé
+
+Envie d'essayer les prochaines fonctionnalités avant leur sortie stable ? Bobine propose un **canal Bêta** : une seule pre-release, toujours à jour, reconstruite depuis le code de développement le plus récent — aucun numéro de version à suivre, une version stable équivalente ou plus récente la remplace toujours automatiquement, et vous pouvez repasser en Stable à tout moment sans perte de données.
+
+[**Voir la release Bêta**](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) — mêmes plateformes que ci-dessus (`.exe`, `.deb`, `.dmg`, `bobine-assistant`, `install.sh`), noms de fichiers suffixés `-beta` plutôt qu'un numéro de version.
+
+Comment rejoindre le canal durablement, pour que les futures mises à jour continuent de proposer des builds Bêta :
+- **Déjà installé** → Réglages → Mises à jour logicielles → « Programme Bobine Beta », basculer sur Bêta.
+- **Installateur appliance headless** → `sudo ./install.sh --channel=beta`
+- **Bobine Assistant (assistant d'installation à distance)** → activer « Programme Bobine Beta » à l'étape Options.
+
+Détails complets sur le fonctionnement du canal Bêta (détection de mise à jour, downgrade, processus de publication) : [Architecture Technique § Canal de mise à jour](docs/ARCHITECTURE.md#7-script-dinstallation--services-systemd).
+
 ---
 
 ## Pourquoi Bobine

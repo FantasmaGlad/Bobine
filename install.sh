@@ -712,14 +712,26 @@ mkdir -p "${CONFIG_DIR}" 2>/dev/null || true
 write_file "${CONFIG_DIR}/update-channel" <<< "${UPDATE_CHANNEL}"
 
 if [[ -d "${REPO_DIR}/.git" ]]; then
-    run git -C "${REPO_DIR}" fetch --tags
+    # --force : le canal Bêta repose sur un tag UNIQUE et mobile ("beta",
+    # réf. mission "canal Stable/Bêta" — un seul fichier de release Bêta sur
+    # GitHub plutôt qu'un tag par itération) — sans --force, un `git fetch`
+    # classique refuse de mettre à jour un tag local si le tag distant a
+    # bougé depuis le dernier fetch.
+    run git -C "${REPO_DIR}" fetch --tags --force
     if [[ "${UPDATE_CHANNEL}" == "beta" ]]; then
-        TARGET_TAG="$(git -C "${REPO_DIR}" tag --list 'V*' --sort=-v:refname 2>/dev/null | head -1)"
+        # Tag fixe, pas de recherche : la CI republie toujours sous ce même
+        # nom (cf. .github/workflows/ci.yml, job release-beta). Peut ne pas
+        # exister encore (aucune bêta jamais publiée) — vérifié juste après,
+        # pas de recherche à faire ici contrairement à la branche stable.
+        if git -C "${REPO_DIR}" rev-parse --verify -q "refs/tags/beta" >/dev/null; then
+            TARGET_TAG="beta"
+        else
+            TARGET_TAG=""
+        fi
     else
-        # Exclut les tags de pre-release (contiennent un '-', ex. V3.1.0-beta.1)
-        # — seul le canal stable doit les ignorer, cf. réf. mission "canal
-        # Stable/Bêta".
-        TARGET_TAG="$(git -C "${REPO_DIR}" tag --list 'V*' --sort=-v:refname 2>/dev/null | grep -vE -- '-' | head -1)"
+        # Dernier tag Vx.y.z, en excluant tout tag qui ne suit pas cette
+        # forme stricte (garde-fou si un tag non standard existe).
+        TARGET_TAG="$(git -C "${REPO_DIR}" tag --list 'V*' --sort=-v:refname 2>/dev/null | grep -E '^V[0-9]+\.[0-9]+\.[0-9]+$' | head -1)"
     fi
     if [[ -n "${TARGET_TAG:-}" ]]; then
         CURRENT_TAG="$(git -C "${REPO_DIR}" describe --tags --exact-match 2>/dev/null || true)"

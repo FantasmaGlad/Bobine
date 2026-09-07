@@ -49,11 +49,14 @@ class LinuxHeadlessHandler(ProfileHandler):
             # Épingle le checkout sur le tag ciblé plutôt qu'un `git pull`
             # aveugle sur la branche courante (réf. mission "canal Stable/
             # Bêta") : seule façon de supporter un vrai retour en arrière
-            # (ex. Bêta 3.1.0-beta.2 -> Stable 3.0.1, un tag ANTÉRIEUR que
-            # `--ff-only` refuserait). HEAD détaché assumé — cette machine
-            # est une cible de déploiement, jamais un poste de développement
-            # git sur ce dépôt.
-            subprocess.run(["git", "fetch", "--tags"], cwd=repo_dir, capture_output=True, text=True, timeout=45, check=True)
+            # (ex. Bêta -> dernière Stable, un tag ANTÉRIEUR que `--ff-only`
+            # refuserait). HEAD détaché assumé — cette machine est une cible
+            # de déploiement, jamais un poste de développement git sur ce
+            # dépôt. --force : le canal Bêta est un tag UNIQUE et mobile
+            # ("beta", jamais un nouveau tag par itération) — sans --force,
+            # un fetch classique refuse de mettre à jour un tag local dont
+            # la cible distante a bougé depuis le dernier fetch.
+            subprocess.run(["git", "fetch", "--tags", "--force"], cwd=repo_dir, capture_output=True, text=True, timeout=45, check=True)
             res = subprocess.run(
                 ["git", "checkout", target_tag],
                 cwd=repo_dir,

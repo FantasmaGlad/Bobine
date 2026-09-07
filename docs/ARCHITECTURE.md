@@ -230,12 +230,16 @@ Une application graphique autonome (`assistant/`, développée avec **Tauri 2 / 
 
 Deux canaux, choisis à l'installation (`install.sh --channel=stable|beta`, ou dans le wizard de l'assistant Tauri) puis modifiables à tout moment depuis Réglages → Mises à jour ("Programme Bobine Beta") :
 
-- **Stable** (défaut) : `GET /api/updates/check` interroge `/repos/.../releases/latest` — un endpoint qui **exclut structurellement** les pre-releases côté API GitHub, donc ce canal ne peut jamais en recevoir une, même en cas de bug applicatif.
-- **Bêta** : interroge `/repos/.../releases` (liste complète, triée du plus récent au plus ancien) et prend le premier élément, pre-release ou non — accès anticipé aux fonctionnalités en développement, avec retour automatique en stable dès qu'une version stable dépasse la bêta suivie.
+- **Stable** (défaut) : `GET /api/updates/check` interroge `/repos/.../releases/latest` — exclut structurellement les pre-releases côté API GitHub, donc ce canal ne peut jamais en recevoir une, même en cas de bug applicatif. Chaque version stable a son propre tag `Vx.y.z` et sa propre entrée sur GitHub Releases (historique normal).
+- **Bêta** : interroge `/repos/.../releases/tags/beta` — un tag **unique et mobile**, republié en place à chaque publication plutôt qu'un nouveau tag par itération (`beta.1`, `beta.2`, … auraient fini par rendre la page Releases illisible). La détection de mise à jour compare le **commit** installé au commit visé par ce tag (`target_commitish`) — il n'y a pas de numéro de version qui avance à chaque build sur ce canal. Une version stable équivalente ou plus récente remplace toujours la bêta suivie.
 
-Le choix est persisté (réglage `update_channel` en base pour le backend ; `/etc/bobine/update-channel` pour `install.sh`) et pilote aussi `apply_update()` du profil headless (bouton « Mettre à jour ») : `git checkout <tag>` plutôt qu'un `git pull --ff-only`, ce qui permet un vrai retour arrière (downgrade) vers un tag antérieur.
+Le choix est persisté (réglage `update_channel` en base pour le backend ; `/etc/bobine/update-channel` pour `install.sh`) et pilote aussi `apply_update()` du profil headless (bouton « Mettre à jour ») : `git checkout <tag>` plutôt qu'un `git pull --ff-only`, ce qui permet un vrai retour arrière (downgrade) vers un tag antérieur — et suit correctement un tag mobile (`git fetch --tags --force`).
 
-Côté publication : la CI (`.github/workflows/ci.yml`) construit et publie les 4 artefacts (`.exe`, `.deb`, `.dmg`, `bobine-assistant`) plus `install.sh` à chaque tag `v*`/`V*` poussé ; un tag contenant `-beta.`/`-rc.`/`-alpha.` est automatiquement marqué pre-release sur GitHub. La version elle-même a une source de vérité unique : le fichier `VERSION` à la racine du dépôt.
+Côté publication (`.github/workflows/ci.yml`) : le job `version` calcule à la fois le numéro de version (source de vérité unique : le fichier `VERSION` à la racine du dépôt) et le **canal**, structurellement séparés à partir de là :
+- un tag `Vx.y.z` strict poussé → `release-stable` (nouvelle entrée GitHub Releases, `prerelease: false`, notes tirées de `docs/releases/<TAG>.md`, qui doit exister) ;
+- un déclenchement manuel (`workflow_dispatch`, case *publish_beta* cochée, depuis n'importe quelle référence) → `release-beta` (force-déplace le tag `beta` sur le commit choisi, supprime puis republie l'unique release Bêta, notes générées automatiquement — changelog depuis le dernier tag stable).
+
+Les noms de fichiers des artefacts Bêta sont **fixes** (`Bobine-Setup-beta.exe`, `Bobine-beta.dmg`, `bobine-beta_amd64.deb`) — jamais de version ni de caractère `~` dedans (GitHub Releases réécrit silencieusement `~` en `.` dans les noms d'assets téléchargés). Le numéro de version *interne* (affiché dans l'app, champ `Version:` du paquet Debian) reste précis : `VERSION`/`COMMIT` sont bundlés dans chaque paquet (mêmes `datas` PyInstaller que `config.toml`) et lus au runtime par `app.utils.version` — y compris sur les profils packagés (Windows/macOS/Linux desktop), qui n'ont pas de `.git` pour se renseigner autrement.
 
 ### Autorisation sudo restreinte & désinstallation depuis l'interface
 

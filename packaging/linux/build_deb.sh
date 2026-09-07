@@ -10,12 +10,25 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # Source de vérité unique (réf. mission "canal Stable/Bêta") : fichier
 # VERSION à la racine du dépôt. Surchargeable via l'environnement (CI passe
-# une valeur suffixée au format Debian, ex. "3.0.1~beta.1" — le tilde trie
-# avant la version finale — pour les pre-releases).
+# une valeur au format Debian, ex. "3.0.1~beta" pour le canal Bêta — le
+# tilde trie AVANT la version finale, cf. dpkg --compare-versions). C'est ce
+# qui va dans le champ Version: du paquet (DEBIAN/control ci-dessous), lu par
+# dpkg/apt — jamais dans le nom de fichier (cf. DEB_FILENAME_VERSION).
 VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
+
+# Version utilisée dans le NOM DU FICHIER .deb — délibérément distincte de
+# VERSION ci-dessus (réf. mission "canal Stable/Bêta") : GitHub Releases
+# réécrit silencieusement le caractère '~' en '.' dans les noms d'assets
+# téléchargés (constaté en pratique), ce qui casserait la convention Debian
+# du nom de fichier pour toute version contenant un '~'. Par défaut identique
+# à VERSION (paquets stables, sans '~') ; la CI passe la valeur fixe "beta"
+# pour le canal Bêta — un seul nom de fichier stable dans le temps, jamais de
+# caractère problématique, et aucune accumulation de fichiers versionnés à
+# chaque reconstruction (réf. mission "éviter 1000 fichiers").
+DEB_FILENAME_VERSION="${DEB_FILENAME_VERSION:-$VERSION}"
 PKG_NAME="bobine"
 ARCH="amd64"
-DEB_NAME="${PKG_NAME}_${VERSION}_${ARCH}.deb"
+DEB_NAME="${PKG_NAME}_${DEB_FILENAME_VERSION}_${ARCH}.deb"
 
 echo "=== [1/5] Vérification de l'environnement ==="
 if ! command -v dpkg-deb >/dev/null 2>&1; then
@@ -113,6 +126,13 @@ cp "${SCRIPT_DIR}/DEBIAN/control" "${STAGING_DIR}/DEBIAN/control"
 cp "${SCRIPT_DIR}/DEBIAN/postinst" "${STAGING_DIR}/DEBIAN/postinst"
 cp "${SCRIPT_DIR}/DEBIAN/prerm" "${STAGING_DIR}/DEBIAN/prerm"
 cp "${SCRIPT_DIR}/DEBIAN/postrm" "${STAGING_DIR}/DEBIAN/postrm"
+
+# Injection dynamique du numéro de version (réf. mission "canal Stable/
+# Bêta") : DEBIAN/control ne porte plus qu'un placeholder "0.0.0" versionné
+# dans le dépôt — remplacé ici par VERSION, jamais figé en dur comme avant
+# (le paquet publié s'annonçait "3.0.0" quelle que soit la version réelle,
+# cf. `dpkg -I` sur un ancien paquet).
+sed -i "s/^Version:.*/Version: ${VERSION}/" "${STAGING_DIR}/DEBIAN/control"
 
 # Calcul dynamique de la taille installée pour le Centre d'applications
 INSTALLED_SIZE=$(du -sk "${STAGING_DIR}/usr" | awk '{print $1}')

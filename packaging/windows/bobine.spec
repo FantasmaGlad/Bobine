@@ -31,11 +31,22 @@ datas = [
     # à côté de l'exécutable.
     (str(REPO_DIR / "Assets" / "Images" / "logo_bobine_icon.png"), "."),
     (str(SPEC_DIR / "bobine.ico"), "."),
+    # Numéro de version bundlé (réf. mission "canal Stable/Bêta") — lu au
+    # runtime par app.utils.version.get_app_version() à côté de l'exécutable,
+    # même mécanisme que config.toml ci-dessus.
+    (str(REPO_DIR / "VERSION"), "."),
 ]
 
 frontend_out = REPO_DIR / "frontend" / "out"
 if frontend_out.exists():
     datas.append((str(frontend_out), "frontend/out"))
+
+# COMMIT n'existe que sur les builds CI (ci.yml l'écrit juste avant
+# `pyinstaller`) — absent lors d'une compilation manuelle locale, auquel cas
+# app.utils.version.get_app_commit() retombe sur "unknown".
+commit_file = REPO_DIR / "COMMIT"
+if commit_file.exists():
+    datas.append((str(commit_file), "."))
 
 hiddenimports = [
     "uvicorn.logging",

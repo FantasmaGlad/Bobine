@@ -16,12 +16,22 @@
 
 #define MyAppName "Bobine"
 ; Source de vérité unique (réf. mission "canal Stable/Bêta") : le fichier
-; VERSION à la racine du dépôt. La CI passe la version exacte (y compris
-; suffixe pre-release, ex. "3.0.1-beta.1") via `ISCC /DMyAppVersion=...` ;
-; ce garde `#ifndef` la laisse gagner sur le repli codé en dur ci-dessous,
-; utilisé uniquement lors d'une compilation manuelle sans ce define.
+; VERSION à la racine du dépôt. La CI passe la version exacte via
+; `ISCC /DMyAppVersion=...` ; ce garde `#ifndef` la laisse gagner sur le
+; repli codé en dur ci-dessous, utilisé uniquement lors d'une compilation
+; manuelle sans ce define.
 #ifndef MyAppVersion
   #define MyAppVersion "3.0.1"
+#endif
+; Version utilisée dans le NOM DU FICHIER de l'installeur — délibérément
+; distincte de MyAppVersion (réf. mission "canal Stable/Bêta") : par défaut
+; identique (paquets stables), mais la CI passe la valeur fixe "beta" pour
+; le canal Bêta — un seul nom de fichier stable dans le temps plutôt qu'un
+; nouveau nom à chaque reconstruction (réf. mission "éviter 1000 fichiers"),
+; pendant que MyAppVersion (affiché dans "Applications et fonctionnalités"
+; Windows) reste la version réelle et précise.
+#ifndef MyOutputVersion
+  #define MyOutputVersion MyAppVersion
 #endif
 #define MyAppPublisher "Bobine"
 #define MyAppURL "https://bobine.fit"
@@ -47,7 +57,7 @@ DefaultGroupName=Bobine
 ; ultérieurs de BobineTray, eux, tournent en utilisateur standard.
 PrivilegesRequired=admin
 OutputDir=..\..\dist-installer
-OutputBaseFilename=Bobine-Setup-{#MyAppVersion}
+OutputBaseFilename=Bobine-Setup-{#MyOutputVersion}
 Compression=lzma2
 SolidCompression=yes
 ; Licence AGPL-3.0 du dépôt, affichée avant installation (cf. plan
