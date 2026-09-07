@@ -169,7 +169,9 @@ Bobine offers distinct deployment paths to match your exact setup:
 1. **Download** [**`Bobine-3.0.0.dmg`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-3.0.0.dmg) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Open the .dmg** and drag `Bobine.app` into your **Applications** folder.
 3. **Launch Bobine** from Applications, your **Desktop** (shortcut created automatically), or Spotlight.
-   - *First launch*: Since Bobine is free open-source software without an Apple Developer subscription, Gatekeeper will display a security notice. Open **System Settings → Privacy & Security**, scroll down to the "Bobine was blocked" section, click **Open Anyway**, and confirm.
+   - *First launch*: Since Bobine is free open-source software without a paid Apple Developer certificate (not notarized), Gatekeeper will block the first launch. Depending on your macOS version you'll see one of two messages:
+     - **"Bobine was blocked" / "from an unidentified developer"** → Open **System Settings → Privacy & Security**, scroll down, click **Open Anyway**, confirm.
+     - **"Bobine.app" is damaged and can't be opened. You should move it to the Trash"** → this is **not** a corrupted download — it's Gatekeeper's (misleading) wording for the same unsigned-app situation, and it offers no "Open Anyway" button. Fix it from Terminal: `xattr -cr /Applications/Bobine.app`, then launch it again.
    - Bobine configures a LaunchAgent so it starts automatically at login. A menu bar icon lets you open the admin dashboard, start the full-screen kiosk, restart the engine, or quit.
 4. **Open the interface**: `http://bobine.local` from any device on your local network (or `http://127.0.0.1:8000` locally). Data is stored in `~/Library/Application Support/Bobine`.
 

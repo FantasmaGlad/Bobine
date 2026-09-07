@@ -169,7 +169,9 @@ Bobine propose différentes méthodes d'installation selon vos besoins et votre 
 1. **Téléchargez** [**`Bobine-3.0.0.dmg`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-3.0.0.dmg) (ou depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Ouvrez le .dmg** et glissez `Bobine.app` dans votre dossier **Applications**.
 3. **Lancez Bobine** depuis Applications, votre **Bureau** (raccourci créé automatiquement) ou Spotlight.
-   - *Premier lancement* : Bobine n'étant pas encore signé via un abonnement Apple payant, Gatekeeper affiche une alerte de sécurité. Ouvrez **Réglages Système → Confidentialité et sécurité**, repérez le message « Bobine a été bloqué », cliquez sur **Ouvrir quand même**, puis confirmez.
+   - *Premier lancement* : Bobine n'étant pas signé par un certificat Apple Developer payant (pas de notarisation), Gatekeeper bloque le premier lancement. Selon la version de macOS, deux messages différents peuvent apparaître :
+     - **« Bobine a été bloqué » / « développeur non identifié »** → Ouvrez **Réglages Système → Confidentialité et sécurité**, repérez le message, cliquez sur **Ouvrir quand même**, puis confirmez.
+     - **« Bobine.app » est endommagé et ne peut pas être ouvert. Vous devez le placer dans la corbeille** → ce n'**est pas** un téléchargement corrompu — c'est la formulation (trompeuse) de Gatekeeper pour la même situation d'app non signée, sans bouton « Ouvrir quand même » disponible cette fois. Correctif via le Terminal : `xattr -cr /Applications/Bobine.app`, puis relancez l'application.
    - Dès ce premier lancement, Bobine installe son propre LaunchAgent et démarrera automatiquement à chaque connexion. Une icône dans la barre de menus permet d'ouvrir l'admin, de lancer le mode kiosque plein écran, de redémarrer le backend ou de quitter.
 4. **Ouvrez l'interface** : `http://bobine.local` depuis n'importe quel appareil du réseau local (ou `http://127.0.0.1:8000` en local). Les données vivent dans `~/Library/Application Support/Bobine`.
 
