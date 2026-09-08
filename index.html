@@ -4,51 +4,32 @@
   <meta charset="utf-8">
   <title>Dépôt APT Officiel Bobine — Debian & Ubuntu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Dépôt APT officiel de Bobine pour Debian et Ubuntu. Mises à jour automatisées, signatures GPG et support des canaux Stable et Bêta.">
+  <meta name="description" content="Dépôt APT officiel de Bobine pour Debian et Ubuntu. Mises à jour automatisées, signatures GPG et paquets natifs amd64.">
   <meta name="robots" content="index, follow">
   <link rel="icon" href="https://bobine.fit/favicon.ico">
   <style>
+    /* --------------------------------------------------------------------------
+       Bobine — Design System (Thème Clair : Albâtre & Ardoise)
+       Esthétique monochrome épurée, typographique, sans boîtes superflues
+       -------------------------------------------------------------------------- */
     :root {
       --bg-canvas: #f8fafc;
       --bg-surface: #ffffff;
-      --bg-card: #ffffff;
-      --bg-code: #090d16;
-      --bg-code-header: #111827;
+      --bg-code: #0f172a;
       --text-heading: #0f172a;
-      --text-body: #334155;
-      --text-muted: #64748b;
-      --accent-primary: #0284c7;
-      --accent-hover: #0369a1;
-      --accent-fg: #ffffff;
-      --accent-success: #16a34a;
+      --text-main: #1e293b;
+      --text-muted: #475569;
+      --text-dim: #64748b;
       --border-subtle: #e2e8f0;
-      --border-card: #e2e8f0;
-      --radius-sm: 6px;
-      --radius-md: 10px;
-      --radius-lg: 14px;
-      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+      --border-focus: #0f172a;
+      --accent-primary: #0f172a;
+      --accent-primary-fg: #ffffff;
+      --accent-hover: #1e293b;
+      --accent-success: #16a34a;
+      --radius-sm: 4px;
+      --radius-md: 6px;
       --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg-canvas: #090d16;
-        --bg-surface: #0f172a;
-        --bg-card: #0f172a;
-        --bg-code: #050811;
-        --bg-code-header: #090e1a;
-        --text-heading: #f8fafc;
-        --text-body: #cbd5e1;
-        --text-muted: #94a3b8;
-        --accent-primary: #38bdf8;
-        --accent-hover: #7dd3fc;
-        --accent-fg: #08090a;
-        --border-subtle: #1e293b;
-        --border-card: #1e293b;
-        --shadow-md: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
-      }
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -56,12 +37,12 @@
     body {
       font-family: var(--font-sans);
       background-color: var(--bg-canvas);
-      color: var(--text-body);
+      color: var(--text-main);
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* En-tête officiel */
+    /* En-tête persistant fidèle à bobine.fit */
     .site-header {
       position: sticky;
       top: 0;
@@ -73,44 +54,48 @@
     }
 
     .site-header__inner {
-      max-width: 900px;
+      max-width: 820px;
       margin: 0 auto;
-      padding: 0.85rem 1.5rem;
+      padding: 0.9rem 1.5rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
 
     .site-brand {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.85rem;
       text-decoration: none;
       color: var(--text-heading);
     }
 
     .site-brand__logo {
-      height: 22px;
+      height: 20px;
       width: auto;
       color: var(--text-heading);
+      display: block;
     }
 
-    .site-brand__tag {
+    .site-brand__divider {
+      width: 1px;
+      height: 16px;
+      background: var(--border-subtle);
+    }
+
+    .site-brand__label {
       font-family: var(--font-mono);
-      font-size: 0.72rem;
+      font-size: 0.75rem;
       font-weight: 700;
-      padding: 0.15rem 0.5rem;
-      border-radius: 9999px;
-      background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-      color: var(--accent-primary);
-      border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
-      letter-spacing: 0.04em;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
     }
 
     .site-nav {
       display: flex;
       align-items: center;
-      gap: 1.25rem;
+      gap: 1.5rem;
     }
 
     .site-nav__link {
@@ -129,321 +114,293 @@
     }
 
     /* Conteneur principal */
-    .container {
-      max-width: 900px;
+    .page-main {
+      max-width: 820px;
       margin: 0 auto;
-      padding: 3rem 1.5rem 5rem;
+      padding: 3.5rem 1.5rem 5rem;
     }
 
-    /* Section Hero */
+    /* Section Hero (sans encadré) */
     .hero {
-      margin-bottom: 2.5rem;
+      margin-bottom: 3.5rem;
+      padding-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border-subtle);
     }
 
-    .hero__pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
+    .hero__category {
       font-family: var(--font-mono);
       font-size: 0.75rem;
       font-weight: 700;
-      color: var(--accent-primary);
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.85rem;
+      color: var(--text-dim);
+      margin-bottom: 0.75rem;
+      display: block;
     }
 
     .hero__title {
-      font-size: clamp(2rem, 4vw, 2.75rem);
+      font-size: clamp(2.1rem, 4.5vw, 2.85rem);
       font-weight: 800;
-      letter-spacing: -0.03em;
+      letter-spacing: -0.035em;
       color: var(--text-heading);
-      line-height: 1.2;
+      line-height: 1.15;
       margin-bottom: 1rem;
     }
 
-    .hero__subtitle {
+    .hero__desc {
       font-size: 1.05rem;
       color: var(--text-muted);
-      max-width: 46rem;
       line-height: 1.65;
+      max-width: 44rem;
       margin-bottom: 1.5rem;
     }
 
-    .hero__badges {
+    .hero__meta {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.6rem;
+      align-items: center;
+      gap: 0.65rem 1.25rem;
+      font-size: 0.825rem;
+      color: var(--text-muted);
     }
 
-    .badge {
+    .hero__meta-item {
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      padding: 0.3rem 0.7rem;
-      border-radius: 9999px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-muted);
-      box-shadow: var(--shadow-sm);
     }
 
-    .badge--online {
-      color: var(--accent-success);
-      border-color: color-mix(in srgb, var(--accent-success) 30%, transparent);
-      background: color-mix(in srgb, var(--accent-success) 8%, var(--bg-surface));
-    }
-
-    .badge__dot {
+    .hero__meta-dot {
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: currentColor;
+      background: var(--accent-success);
     }
 
-    /* Sélecteur de canal */
-    .channel-selector {
-      margin: 2rem 0 1.75rem;
-      padding: 0.35rem;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      display: inline-flex;
-      gap: 0.35rem;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .channel-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.55rem 1.15rem;
-      border-radius: var(--radius-sm);
-      border: 1px solid transparent;
-      background: transparent;
-      color: var(--text-muted);
-      font-family: var(--font-sans);
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-
-    .channel-btn:hover {
-      color: var(--text-heading);
-    }
-
-    .channel-btn.is-active {
-      background: var(--accent-primary);
-      color: var(--accent-fg);
-      box-shadow: 0 2px 8px -1px color-mix(in srgb, var(--accent-primary) 35%, transparent);
-    }
-
-    /* Cartes d'instructions */
-    .steps-container {
+    /* Section Instructions d'installation (flux naturel, pas de boîtes dans des boîtes) */
+    .install-flow {
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 2.75rem;
     }
 
-    .step-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-card);
-      border-radius: var(--radius-lg);
-      padding: 1.5rem 1.75rem;
-      box-shadow: var(--shadow-md);
-      position: relative;
+    .flow-section-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-heading);
+      margin-bottom: 0.5rem;
     }
 
-    .step-card__header {
+    .install-step {
       display: flex;
-      align-items: center;
-      gap: 0.85rem;
-      margin-bottom: 0.75rem;
+      flex-direction: column;
+      gap: 0.65rem;
     }
 
-    .step-card__num {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-      color: var(--accent-primary);
+    .install-step__header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+    }
+
+    .install-step__num {
       font-family: var(--font-mono);
       font-size: 0.85rem;
       font-weight: 800;
-      border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
-      flex-shrink: 0;
+      color: var(--text-heading);
+      min-width: 1.25rem;
     }
 
-    .step-card__title {
-      font-size: 1.15rem;
+    .install-step__title {
+      font-size: 1.05rem;
       font-weight: 700;
       color: var(--text-heading);
     }
 
-    .step-card__desc {
-      font-size: 0.92rem;
+    .install-step__desc {
+      font-size: 0.925rem;
       color: var(--text-muted);
-      margin-bottom: 1rem;
       line-height: 1.6;
+      padding-left: 2rem;
     }
 
-    /* Bloc de commande avec bouton de copie */
-    .command-box {
-      background: var(--bg-code);
-      border: 1px solid color-mix(in srgb, var(--text-muted) 20%, transparent);
+    /* Bloc de commande unifié (style officiel bobine.fit) */
+    .command-wrapper {
+      margin-left: 2rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
       overflow: hidden;
+      transition: border-color 0.15s ease;
     }
 
-    .command-box__bar {
+    .command-wrapper:focus-within {
+      border-color: var(--border-focus);
+    }
+
+    .command-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0.45rem 0.85rem;
-      background: var(--bg-code-header);
-      border-bottom: 1px solid color-mix(in srgb, var(--text-muted) 15%, transparent);
+      background: var(--bg-canvas);
+      border-bottom: 1px solid var(--border-subtle);
       font-family: var(--font-mono);
-      font-size: 0.72rem;
-      color: var(--text-muted);
+      font-size: 0.725rem;
+      color: var(--text-dim);
     }
 
-    .command-box__content {
-      position: relative;
-      padding: 0.95rem 1.15rem;
+    .command-body {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      background: var(--bg-surface);
       overflow-x: auto;
     }
 
-    .command-box code {
+    .command-body code {
       font-family: var(--font-mono);
       font-size: 0.85rem;
-      color: #f1f5f9;
+      color: var(--text-heading);
       white-space: pre-wrap;
       word-break: break-all;
+      flex: 1;
     }
 
     .copy-btn {
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      padding: 0.3rem 0.65rem;
+      padding: 0.4rem 0.75rem;
       border-radius: var(--radius-sm);
-      border: 1px solid color-mix(in srgb, var(--text-muted) 30%, transparent);
-      background: transparent;
-      color: #cbd5e1;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      color: var(--text-main);
       font-family: var(--font-sans);
       font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.15s ease;
+      flex-shrink: 0;
       user-select: none;
     }
 
     .copy-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #ffffff;
-      border-color: rgba(255, 255, 255, 0.3);
+      background: var(--text-heading);
+      color: var(--accent-primary-fg);
+      border-color: var(--text-heading);
     }
 
     .copy-btn.is-copied {
-      background: color-mix(in srgb, var(--accent-success) 20%, transparent);
+      background: color-mix(in srgb, var(--accent-success) 12%, transparent);
       color: var(--accent-success);
       border-color: var(--accent-success);
     }
 
-    /* Format Switcher (DEB822 / One-liner) */
-    .format-switcher {
-      display: flex;
-      gap: 0.4rem;
-      margin-bottom: 0.75rem;
-    }
-
-    .format-btn {
-      padding: 0.25rem 0.65rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-surface);
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-
-    .format-btn.is-active {
-      background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-surface));
-      border-color: var(--accent-primary);
-      color: var(--accent-primary);
-    }
-
-    /* Spécifications & Audit */
-    .specs-grid {
-      margin-top: 2.5rem;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 1.25rem;
-    }
-
-    .spec-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      padding: 1.25rem;
-    }
-
-    .spec-card__label {
-      font-size: 0.78rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      margin-bottom: 0.4rem;
-    }
-
-    .spec-card__val {
-      font-family: var(--font-mono);
+    /* Note informative sobre pour le canal Bêta */
+    .info-callout {
+      margin-left: 2rem;
+      padding: 0.85rem 1rem;
+      background: color-mix(in srgb, var(--text-muted) 6%, transparent);
+      border-left: 3px solid var(--text-heading);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
       font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .info-callout strong {
+      color: var(--text-heading);
+    }
+
+    .info-callout code {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      background: color-mix(in srgb, var(--text-heading) 8%, transparent);
+      padding: 0.1rem 0.35rem;
+      border-radius: var(--radius-sm);
+      color: var(--text-heading);
+    }
+
+    /* Tableau technique d'audit (sans boîtes imbriquées) */
+    .specs-section {
+      margin-top: 3.5rem;
+      padding-top: 2.5rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .specs-section__title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-heading);
+      margin-bottom: 1.25rem;
+    }
+
+    .specs-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .specs-table tr {
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .specs-table tr:last-child {
+      border-bottom: none;
+    }
+
+    .specs-table th {
+      text-align: left;
+      padding: 0.75rem 0;
+      font-weight: 600;
+      color: var(--text-muted);
+      width: 220px;
+    }
+
+    .specs-table td {
+      padding: 0.75rem 0;
+      font-family: var(--font-mono);
       color: var(--text-heading);
       word-break: break-all;
     }
 
-    .spec-card__val a {
-      color: var(--accent-primary);
-      text-decoration: none;
-    }
-
-    .spec-card__val a:hover {
+    .specs-table td a {
+      color: var(--text-heading);
       text-decoration: underline;
+      text-underline-offset: 3px;
     }
 
-    /* Pied de page */
+    .specs-table td a:hover {
+      color: var(--text-muted);
+    }
+
+    /* Pied de page sobre */
     .site-footer {
       border-top: 1px solid var(--border-subtle);
-      background: var(--bg-surface);
+      background: var(--bg-canvas);
       padding: 2.5rem 1.5rem;
       font-size: 0.85rem;
       color: var(--text-muted);
     }
 
     .site-footer__inner {
-      max-width: 900px;
+      max-width: 820px;
       margin: 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
-      gap: 1rem;
+      gap: 1.25rem;
     }
 
     .site-footer__links {
       display: flex;
       align-items: center;
-      gap: 1.25rem;
+      gap: 1.5rem;
     }
 
     .site-footer__links a {
@@ -455,29 +412,34 @@
     .site-footer__links a:hover {
       color: var(--text-heading);
     }
+
+    @media (max-width: 640px) {
+      .page-main { padding: 2rem 1.25rem 3.5rem; }
+      .install-step__desc, .command-wrapper, .info-callout { margin-left: 0; padding-left: 0; }
+      .specs-table th { width: 140px; }
+      .command-body { flex-direction: column; align-items: flex-start; }
+      .copy-btn { width: 100%; justify-content: center; }
+    }
   </style>
 </head>
 <body>
 
-  <!-- En-tête -->
+  <!-- En-tête officiel -->
   <header class="site-header">
     <div class="site-header__inner">
-      <a href="https://bobine.fit" class="site-brand" title="Retourner sur bobine.fit">
+      <a href="https://bobine.fit" class="site-brand" title="Bobine - Accueil">
         <svg viewBox="0 0 118 20" preserveAspectRatio="xMinYMid meet" class="site-brand__logo" role="img" aria-label="Logo Bobine">
           <path fill="currentColor" d="M3,0h20v1h-20z M1,1h26v1h-26z M1,2h2v1h-2z M7,2h2v1h-2z M18,2h2v1h-2z M23,2h5v1h-5z M1,3h2v1h-2z M7,3h2v1h-2z M18,3h2v1h-2z M23,3h6v1h-6z M1,4h2v1h-2z M4,4h23v1h-23z M28,4h2v1h-2z M1,5h29v1h-29z M53,5h6v1h-6z M73,5h6v1h-6z M2,6h10v1h-10z M20,6h7v1h-7z M28,6h2v1h-2z M53,6h6v1h-6z M73,6h6v1h-6z M3,7h22v1h-22z M28,7h2v1h-2z M53,7h6v1h-6z M73,7h6v1h-6z M3,8h10v1h-10z M16,8h5v1h-5z M23,8h7v1h-7z M53,8h6v1h-6z M3,9h6v1h-6z M17,9h13v1h-13z M36,9h13v1h-13z M53,9h16v1h-16z M73,9h6v1h-6z M81,9h16v1h-16z M103,9h12v1h-12z M2,10h5v1h-5z M17,10h2v1h-2z M20,10h2v1h-2z M26,10h5v1h-5z M35,10h15v1h-15z M53,10h17v1h-17z M73,10h6v1h-6z M81,10h17v1h-17z M102,10h15v1h-15z M1,11h5v1h-5z M27,11h4v1h-4z M34,11h7v1h-7z M45,11h6v1h-6z M53,11h8v1h-8z M64,11h8v1h-8z M73,11h6v1h-6z M81,11h8v1h-8z M92,11h7v1h-7z M101,11h6v1h-6z M112,11h6v1h-6z M0,12h6v1h-6z M13,12h2v1h-2z M23,12h3v1h-3z M28,12h4v1h-4z M33,12h6v1h-6z M46,12h6v1h-6z M53,12h6v1h-6z M66,12h6v1h-6z M73,12h6v1h-6z M81,12h7v1h-7z M93,12h6v1h-6z M100,12h18v1h-18z M0,13h6v1h-6z M14,13h2v1h-2z M18,13h2v1h-2z M28,13h4v1h-4z M33,13h6v1h-6z M46,13h6v1h-6z M53,13h6v1h-6z M66,13h6v1h-6z M73,13h6v1h-6z M81,13h6v1h-6z M93,13h6v1h-6z M100,13h18v1h-18z M0,14h11v1h-11z M15,14h3v1h-3z M20,14h12v1h-12z M33,14h7v1h-7z M45,14h7v1h-7z M53,14h7v1h-7z M66,14h6v1h-6z M73,14h6v1h-6z M81,14h6v1h-6z M93,14h6v1h-6z M100,14h6v1h-6z M1,15h3v1h-3z M5,15h21v1h-21z M27,15h5v1h-5z M34,15h17v1h-17z M53,15h18v1h-18z M73,15h6v1h-6z M81,15h6v1h-6z M93,15h6v1h-6z M101,15h15v1h-15z M0,16h5v1h-5z M6,16h1v1h-1z M8,16h9v1h-9z M18,16h3v1h-3z M22,16h9v1h-9z M35,16h15v1h-15z M53,16h17v1h-17z M73,16h6v1h-6z M81,16h6v1h-6z M93,16h6v1h-6z M102,16h15v1h-15z M1,17h4v1h-4z M7,17h8v1h-8z M16,17h3v1h-3z M20,17h1v1h-1z M24,17h7v1h-7z M38,17h10v1h-10z M53,17h15v1h-15z M73,17h6v1h-6z M81,17h6v1h-6z M93,17h6v1h-6z M105,17h10v1h-10z M2,18h27v1h-27z M5,19h21v1h-21z" />
         </svg>
-        <span class="site-brand__tag">APT</span>
+        <span class="site-brand__divider" aria-hidden="true"></span>
+        <span class="site-brand__label">Dépôt APT</span>
       </a>
 
-      <nav class="site-nav">
-        <a href="https://bobine.fit" class="site-nav__link">
-          <span>bobine.fit</span>
-        </a>
-        <a href="https://bobine.fit/fr/documentation" class="site-nav__link">
-          <span>Documentation</span>
-        </a>
+      <nav class="site-nav" aria-label="Navigation principale">
+        <a href="https://bobine.fit" class="site-nav__link">bobine.fit</a>
+        <a href="https://bobine.fit/fr/documentation" class="site-nav__link">Documentation</a>
         <a href="https://github.com/FantasmaGlad/Bobine" target="_blank" rel="noopener noreferrer" class="site-nav__link">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
           <span>GitHub</span>
         </a>
       </nav>
@@ -485,228 +447,155 @@
   </header>
 
   <!-- Contenu Principal -->
-  <main class="container">
+  <main class="page-main">
     <section class="hero">
-      <div class="hero__pill">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-        <span>Paquetage Linux Natif · Debian & Ubuntu</span>
-      </div>
+      <span class="hero__category">Distribution Linux · Debian & Ubuntu</span>
       <h1 class="hero__title">Dépôt APT Officiel Bobine</h1>
-      <p class="hero__subtitle">
-        Installez et maintenez Bobine à jour via le gestionnaire de paquets standard <code>apt</code>. Dépôt binaire signé cryptographiquement par GPG avec prise en charge native des canaux Stable et Bêta.
+      <p class="hero__desc">
+        Installation et mises à jour logicielles pour Debian 12 / 13 et Ubuntu 22.04 / 24.04 LTS via <code>apt</code>. Dépôt binaire x86-64 signé cryptographiquement par GPG avec prise en charge des canaux Stable et Bêta.
       </p>
 
-      <div class="hero__badges">
-        <span class="badge badge--online">
-          <span class="badge__dot"></span>
-          <span>Dépôt Opérationnel (Edge CDN)</span>
+      <div class="hero__meta">
+        <span class="hero__meta-item">
+          <span class="hero__meta-dot" aria-hidden="true"></span>
+          <span>Dépôt opérationnel</span>
         </span>
-        <span class="badge">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-          <span>Debian 12 / 13 & Ubuntu 22.04 / 24.04</span>
-        </span>
-        <span class="badge">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-          <span>Signature GPG RSA 4096</span>
-        </span>
-        <span class="badge">
-          <span>Architecture amd64</span>
-        </span>
+        <span class="hero__meta-item">Debian 12 / 13</span>
+        <span class="hero__meta-item">Ubuntu 22.04 / 24.04 LTS</span>
+        <span class="hero__meta-item">Architecture amd64</span>
+        <span class="hero__meta-item">Signature RSA 4096</span>
       </div>
     </section>
 
-    <!-- Sélecteur de canal -->
-    <div class="channel-selector" role="tablist" aria-label="Canal de version">
-      <button type="button" class="channel-btn is-active" id="btn-stable" onclick="setChannel('stable')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-        <span>Canal Stable (Recommandé)</span>
-      </button>
-      <button type="button" class="channel-btn" id="btn-beta" onclick="setChannel('beta')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-        <span>Canal Bêta (Rolling Release)</span>
-      </button>
-    </div>
+    <!-- Guide d'installation en 3 étapes -->
+    <section class="install-flow" aria-labelledby="flow-heading">
+      <h2 id="flow-heading" class="flow-section-title">Installation en 3 étapes</h2>
 
-    <!-- Étapes d'installation -->
-    <div class="steps-container">
-      
       <!-- Étape 1 -->
-      <article class="step-card">
-        <div class="step-card__header">
-          <span class="step-card__num">1</span>
-          <h2 class="step-card__title">Importer la clé de signature GPG officielle</h2>
+      <article class="install-step">
+        <div class="install-step__header">
+          <span class="install-step__num">1.</span>
+          <h3 class="install-step__title">Trousseau de clés GPG officiel</h3>
         </div>
-        <p class="step-card__desc">
-          Enregistrez la clé publique du dépôt dans le trousseau sécurisé <code>/etc/apt/keyrings/</code> pour valider l'intégrité cryptographique des paquets :
+        <p class="install-step__desc">
+          Enregistrez la clé publique du dépôt dans <code>/etc/apt/keyrings/</code> pour vérifier l'authenticité des paquets :
         </p>
-
-        <div class="command-box">
-          <div class="command-box__bar">
+        <div class="command-wrapper">
+          <div class="command-header">
             <span>Terminal (Bash)</span>
-            <button type="button" class="copy-btn" onclick="copySnippet('cmd-step1', this)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          </div>
+          <div class="command-body">
+            <code id="cmd-1">curl -fsSL https://apt.bobine.fit/bobine.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/bobine.gpg</code>
+            <button type="button" class="copy-btn" onclick="copySnippet('cmd-1', this)" aria-label="Copier la commande">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
               <span>Copier</span>
             </button>
-          </div>
-          <div class="command-box__content">
-            <code id="cmd-step1">curl -fsSL https://apt.bobine.fit/bobine.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/bobine.gpg</code>
           </div>
         </div>
       </article>
 
       <!-- Étape 2 -->
-      <article class="step-card">
-        <div class="step-card__header">
-          <span class="step-card__num">2</span>
-          <h2 class="step-card__title">Ajouter le dépôt Bobine aux sources APT</h2>
+      <article class="install-step">
+        <div class="install-step__header">
+          <span class="install-step__num">2.</span>
+          <h3 class="install-step__title">Déclaration de la source de paquets APT</h3>
         </div>
-        <p class="step-card__desc">
-          Configurez la source APT correspondant à votre canal choisi (<strong id="channel-label-text">Stable</strong>) :
+        <p class="install-step__desc">
+          Ajoutez le dépôt officiel à la liste de vos sources logicielles (canal stable par défaut) :
         </p>
-
-        <!-- Format Selector -->
-        <div class="format-switcher">
-          <button type="button" class="format-btn is-active" id="btn-fmt-deb822" onclick="setFormat('deb822')">Format Moderne DEB822 (.sources)</button>
-          <button type="button" class="format-btn" id="btn-fmt-legacy" onclick="setFormat('legacy')">Format Traditionnel (.list)</button>
-        </div>
-
-        <div class="command-box">
-          <div class="command-box__bar">
-            <span id="format-bar-title">/etc/apt/sources.list.d/bobine.sources</span>
-            <button type="button" class="copy-btn" onclick="copySnippet('cmd-step2', this)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        <div class="command-wrapper">
+          <div class="command-header">
+            <span>/etc/apt/sources.list.d/bobine.list</span>
+          </div>
+          <div class="command-body">
+            <code id="cmd-2">echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] https://apt.bobine.fit/ stable main" | sudo tee /etc/apt/sources.list.d/bobine.list</code>
+            <button type="button" class="copy-btn" onclick="copySnippet('cmd-2', this)" aria-label="Copier la commande">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
               <span>Copier</span>
             </button>
           </div>
-          <div class="command-box__content">
-            <code id="cmd-step2">sudo tee /etc/apt/sources.list.d/bobine.sources <<'EOF'
-Types: deb
-URIs: https://apt.bobine.fit/
-Suites: stable
-Components: main
-Signed-By: /etc/apt/keyrings/bobine.gpg
-EOF</code>
-          </div>
         </div>
+
+        <aside class="info-callout">
+          <strong>Accès anticipé (Canal Bêta) :</strong> Pour recevoir les versions préliminaires roulantes en cours de test, remplacez simplement <code>stable</code> par <code>beta</code> dans la commande ci-dessus. Le paquet s'installe par-dessus sans créer de doublon.
+        </aside>
       </article>
 
       <!-- Étape 3 -->
-      <article class="step-card">
-        <div class="step-card__header">
-          <span class="step-card__num">3</span>
-          <h2 class="step-card__title">Mettre à jour les index et installer Bobine</h2>
+      <article class="install-step">
+        <div class="install-step__header">
+          <span class="install-step__num">3.</span>
+          <h3 class="install-step__title">Installation et mises à jour système</h3>
         </div>
-        <p class="step-card__desc">
-          Actualisez vos listes de paquets puis lancez l'installation. Toutes les dépendances (FFmpeg, Avahi) seront résolues automatiquement :
+        <p class="install-step__desc">
+          Mettez à jour vos listes de paquets puis installez Bobine. Les futures versions seront automatiquement proposées lors de vos <code>sudo apt upgrade</code> habituels :
         </p>
-
-        <div class="command-box">
-          <div class="command-box__bar">
+        <div class="command-wrapper">
+          <div class="command-header">
             <span>Terminal (Bash)</span>
-            <button type="button" class="copy-btn" onclick="copySnippet('cmd-step3', this)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          </div>
+          <div class="command-body">
+            <code id="cmd-3">sudo apt update && sudo apt install bobine</code>
+            <button type="button" class="copy-btn" onclick="copySnippet('cmd-3', this)" aria-label="Copier la commande">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
               <span>Copier</span>
             </button>
           </div>
-          <div class="command-box__content">
-            <code id="cmd-step3">sudo apt update && sudo apt install bobine</code>
-          </div>
         </div>
       </article>
+    </section>
 
-    </div>
+    <!-- Spécifications techniques & Audit GPG -->
+    <section class="specs-section" aria-labelledby="specs-heading">
+      <h2 id="specs-heading" class="specs-section__title">Spécifications & Empreinte Cryptographique</h2>
 
-    <!-- Fiche Technique & Audit Cryptographique -->
-    <section class="specs-grid">
-      <div class="spec-card">
-        <div class="spec-card__label">Identité Clé GPG</div>
-        <div class="spec-card__val">Bobine APT Repository &lt;contact@bobine.fit&gt;</div>
-      </div>
-
-      <div class="spec-card">
-        <div class="spec-card__label">Empreinte Cryptographique (Fingerprint)</div>
-        <div class="spec-card__val" style="font-size: 0.76rem;">941B 6F52 6A72 59F4 694C<br>F4BC 1B5D 18A9 76FA AD15</div>
-      </div>
-
-      <div class="spec-card">
-        <div class="spec-card__label">Clé Publique Brute</div>
-        <div class="spec-card__val">
-          <a href="/bobine.gpg" download="bobine.gpg">Télécharger bobine.gpg</a>
-        </div>
-      </div>
-
-      <div class="spec-card">
-        <div class="spec-card__label">Paquet Direct (Pool)</div>
-        <div class="spec-card__val">
-          <a href="/pool/main/b/bobine/bobine_3.0.0_amd64.deb">bobine_3.0.0_amd64.deb</a>
-        </div>
-      </div>
+      <table class="specs-table">
+        <tbody>
+          <tr>
+            <th scope="row">Identité GPG</th>
+            <td>Bobine APT Repository &lt;contact@bobine.fit&gt;</td>
+          </tr>
+          <tr>
+            <th scope="row">Empreinte (Fingerprint)</th>
+            <td>941B 6F52 6A72 59F4 694C F4BC 1B5D 18A9 76FA AD15</td>
+          </tr>
+          <tr>
+            <th scope="row">Clé publique brute</th>
+            <td><a href="/bobine.gpg" download="bobine.gpg">bobine.gpg</a></td>
+          </tr>
+          <tr>
+            <th scope="row">Paquet Debian (.deb)</th>
+            <td><a href="/pool/main/b/bobine/bobine_3.0.0_amd64.deb">pool/main/b/bobine/bobine_3.0.0_amd64.deb</a></td>
+          </tr>
+        </tbody>
+      </table>
     </section>
   </main>
 
-  <!-- Pied de page -->
+  <!-- Pied de page officiel -->
   <footer class="site-footer">
     <div class="site-footer__inner">
-      <div>
-        <strong>Bobine</strong> — Régie Vidéo & Streaming Libre pour Salle de Sport.
+      <div class="site-footer__copy">
+        <strong>Bobine</strong> — Régie Vidéo & Playout Libre pour Salle de Sport.
       </div>
-
-      <div class="site-footer__links">
+      <nav class="site-footer__links" aria-label="Liens de pied de page">
         <a href="https://bobine.fit">bobine.fit</a>
         <a href="https://bobine.fit/fr/documentation">Documentation</a>
         <a href="https://github.com/FantasmaGlad/Bobine" target="_blank" rel="noopener noreferrer">Code Source (AGPL-3.0)</a>
         <a href="https://github.com/FantasmaGlad/Bobine/releases" target="_blank" rel="noopener noreferrer">Releases GitHub</a>
-      </div>
+      </nav>
     </div>
   </footer>
 
   <script>
-    let currentChannel = "stable";
-    let currentFormat = "deb822";
-
-    function updateSnippets() {
-      const channelLabel = document.getElementById("channel-label-text");
-      channelLabel.textContent = currentChannel === "stable" ? "Stable" : "Bêta";
-
-      const cmdStep2 = document.getElementById("cmd-step2");
-      const formatTitle = document.getElementById("format-bar-title");
-
-      if (currentFormat === "deb822") {
-        formatTitle.textContent = "/etc/apt/sources.list.d/bobine.sources";
-        cmdStep2.textContent = `sudo tee /etc/apt/sources.list.d/bobine.sources <<'EOF'
-Types: deb
-URIs: https://apt.bobine.fit/
-Suites: ${currentChannel}
-Components: main
-Signed-By: /etc/apt/keyrings/bobine.gpg
-EOF`;
-      } else {
-        formatTitle.textContent = "/etc/apt/sources.list.d/bobine.list";
-        cmdStep2.textContent = `echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] https://apt.bobine.fit/ ${currentChannel} main" | sudo tee /etc/apt/sources.list.d/bobine.list`;
-      }
-    }
-
-    function setChannel(channel) {
-      currentChannel = channel;
-      document.getElementById("btn-stable").classList.toggle("is-active", channel === "stable");
-      document.getElementById("btn-beta").classList.toggle("is-active", channel === "beta");
-      updateSnippets();
-    }
-
-    function setFormat(format) {
-      currentFormat = format;
-      document.getElementById("btn-fmt-deb822").classList.toggle("is-active", format === "deb822");
-      document.getElementById("btn-fmt-legacy").classList.toggle("is-active", format === "legacy");
-      updateSnippets();
-    }
-
-    function copySnippet(elementId, btn) {
-      const text = document.getElementById(elementId).textContent;
-      navigator.clipboard.writeText(text).then(() => {
+    function copySnippet(id, btn) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      navigator.clipboard.writeText(el.textContent.trim()).then(() => {
         const originalHtml = btn.innerHTML;
         btn.classList.add("is-copied");
         btn.innerHTML = `
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
           <span>Copié !</span>
         `;
         setTimeout(() => {
