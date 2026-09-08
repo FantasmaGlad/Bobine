@@ -1,0 +1,472 @@
+# Plan d'implémentation — Portabilité Android
+
+Statut (2026-09-08) : **Lot 0 exécuté et GO confirmé** — build APK réel réussi (`android/app/build/outputs/apk/debug/app-debug.apk`), toutes les découvertes documentées ci-dessous. **Lot 1 largement entamé en pratique** dans ce même travail (squelette `android/` créé, wrapper Gradle committé, `MainActivity`/`spike_check.py` fonctionnels) mais pas formellement clos — la checklist du Lot 1 (validation matérielle réelle sur la tablette pilote via dock/HDMI) reste à faire. Lots 2+ non démarrés. Ce document est **vivant** : cocher les cases au fur et à mesure, ne jamais le laisser retomber en décalage avec la réalité du dépôt.
+
+Ce document opérationnalise les décisions de [`docs/PortabiliteAndroid.md`](PortabiliteAndroid.md) (ci-après « le CDC ») en tâches concrètes, séquencées, découpées en lots aussi petits que possible pour qu'un agent qui reprend le travail sur un seul lot n'ait besoin de charger en contexte que ce lot-là, sans devoir relire tout le chantier.
+
+## 0. Convention obligatoire de suivi (à respecter par tout agent travaillant sur ce plan)
+
+**Avant de commencer un lot**, relire entièrement sa section ci-dessous, y compris les « Découvertes » déjà notées par un travail précédent — elles peuvent invalider ou nuancer les tâches prévues.
+
+**Pendant le lot**, cocher chaque tâche `- [x]` au moment où elle est réellement terminée et vérifiée — pas en avance, pas en lot.
+
+**En terminant un lot** (même partiellement, même bloqué), mettre à jour sa sous-section **« Découvertes »** avec, au minimum :
+- **Ce qui a été fait** — concrètement, fichiers touchés, en quoi ça diffère de ce que ce plan prévoyait initialement (souvent rien ne se passe exactement comme prévu — le noter plutôt que de laisser le lecteur suivant le redécouvrir).
+- **Pourquoi** ce choix précis a été fait quand plusieurs options étaient possibles.
+- **Comment** valider que c'est fait (commande exacte, résultat attendu, ou constat que la validation reste à faire faute de matériel/accès).
+- **Blocages** rencontrés, y compris ceux non résolus — ne jamais laisser un blocage silencieux ; l'écrire même sans solution, pour que le prochain agent ne reparte pas de zéro sur la même impasse.
+- Toute **découverte qui remet en cause un autre lot** (fichier partagé, dépendance imprévue) doit aussi être répercutée dans la section du lot concerné, pas seulement ici.
+
+Mettre également à jour la ligne **Statut** en haut de ce document à chaque lot livré, dans le même esprit que [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) et les cahiers des charges existants du dépôt.
+
+Cette convention n'est pas optionnelle : c'est elle qui permet à un chantier pluri-lots de progresser vite malgré des agents qui n'ont, chacun, qu'une fenêtre de contexte limitée sur l'ensemble.
+
+---
+
+## 1. Principe d'organisation
+
+- **Lot 0** (§2) — spike de validation des dépendances Python sous Chaquopy. **Bloquant** : go/no-go de tout le reste. À faire en tout premier, avant d'écrire une ligne de Kotlin.
+- **Lot 1** (§3) — squelette du projet Android + validation matérielle de la tablette pilote. Dépend du Lot 0.
+- **Lots 2 à 12** (§4-§14) — un par brique fonctionnelle, largement indépendants les uns des autres une fois les Lots 0-1 posés (voir séquencement précis, §16). Chacun touche un périmètre de fichiers distinct, listé en tête de section.
+- **Lot 13** (§15) — signature, CI, publication.
+- **Checklist exhaustive** (§17), **séquencement** (§16), **risques** (§18) en fin de document.
+
+Convention de référence de fichiers : chemins relatifs à la racine du dépôt. Un fichier marqué **(nouveau)** n'existe pas encore.
+
+---
+
+## 2. Lot 0 — Spike de compatibilité Chaquopy (bloquant, go/no-go)
+
+Réf. CDC §3.1. Objectif unique : lever l'incertitude sur `pydantic-core` et `psutil` avant tout investissement dans l'UI Kotlin.
+
+### Fichiers concernés
+- **(nouveau)** un projet Android Studio minimal, jetable, hors du dépôt principal ou dans un dossier `android/` séparé — à décider par l'agent qui exécute ce lot selon ce qui est le plus simple à itérer.
+- `backend/requirements.txt` (lecture seule à ce stade — juste la liste des paquets à tester).
+
+### Tâches
+- [x] Créer un projet Gradle avec le plugin Chaquopy configuré — fait directement dans `android/` (pas de projet jetable séparé, fusionné avec le Lot 1 par pragmatisme). `minSdk 34`/`targetSdk 36`/`compileSdk 36` conformes au CDC §2.
+- [x] Déclarer les paquets de `backend/requirements.txt` dans le bloc `chaquopy.pip` — testé d'abord tel quel (`-r requirements.txt`), puis épinglé individuellement (versions exactes de `backend/.venv` réel) une fois le problème de backtracking pip identifié (cf. Découvertes).
+- [x] Synchronisation Gradle lancée, paquet par paquet, résultat noté pour chacun — voir Découvertes ci-dessous pour le détail complet (12/13 résolvent, 1 blocage sans solution — `watchdog`).
+- [x] Cas `pydantic-core` échoué : évalué et tranché — downgrade `pydantic==1.10.26`/`fastapi==0.99.1` sur le profil Android uniquement (décision utilisateur), validé par un build APK complet réussi.
+- [x] Cas `psutil` : **n'a en réalité pas échoué** (résout directement en version `7.1.3`) — la piste de repli `/proc/stat`/`/proc/meminfo` prévue par ce plan n'était pas nécessaire, non testée.
+- [ ] Import réel de `app.main` (le vrai module du dépôt) depuis Python embarqué — **pas fait à ce stade**, explicitement déplacé au Lot 2 (cf. Découvertes : `backend/` contient `.venv/`/`data/`/`tests/` qu'il ne faut pas embarquer tel quel).
+- [ ] Vérifier `sqlite3` (stdlib) sous stockage applicatif — pas encore testé.
+- [ ] Vérifier `watchdog` — **impossible en l'état**, le paquet n'a aucune distribution Android (cf. Découvertes) ; à remplacer par une implémentation maison avant de pouvoir tester quoi que ce soit ici.
+
+### Critère de sortie
+- [x] **Décision écrite et actée** : Chaquopy 17.0 fait tourner `backend/requirements.txt` moyennant 4 modifications précises pour le profil Android — `pydantic`/`fastapi` downgradés en v1/0.99.1 (bloquant `pydantic-core` contourné), `pillow`/`psutil`/`zeroconf` épinglés sur une version antérieure disponible pour Android, `uvicorn` sans l'extra `[standard]` (`httptools` indisponible), `watchdog` retiré (aucune alternative trouvée à ce stade, à traiter séparément). **GO** pour la suite du chantier, confirmé par un APK complet généré avec succès.
+
+### Découvertes
+
+**Ce lot a été exécuté pour de vrai** (pas seulement planifié) le 2026-09-08, dans un environnement disposant déjà d'un SDK Android (platforms 36/36.1/37.0), d'un JDK 17 et d'un accès réseau — projet créé directement dans `android/` (pas de projet jetable séparé, le Lot 1 a été fusionné dans ce même travail par pragmatisme).
+
+**1. Correction factuelle importante par rapport au CDC initial** ([`docs/PortabiliteAndroid.md`](PortabiliteAndroid.md) §3.1 citait « CPython 3.11 embarqué », avec un ton d'incertitude générale sur la maintenance de Chaquopy). En interrogeant d'abord le dépôt Maven historique de Chaquopy (`chaquo.com/maven/com/chaquo/python/gradle/`), la dernière version listée était `12.0.0` (2022-05-10) et le runtime Python le plus récent `3.8.13` — un signal fort d'abandon, potentiellement bloquant pour tout le chantier. **Ce dépôt s'est révélé être un mirroir legacy, pas la distribution actuelle.** Vérification croisée via l'API GitHub (`api.github.com/repos/chaquo/chaquopy`) : dépôt non archivé, push il y a quelques jours, dernière release **17.0.0 (2025-11-30)**. La documentation officielle courante (`chaquo.com/chaquopy/doc/current/android.html`) confirme :
+- Distribution actuelle via `mavenCentral()` + `id("com.chaquo.python") version "17.0.0"` (syntaxe `plugins {}`).
+- Python disponible dans Chaquopy 17.0 : **3.10, 3.11, 3.12, 3.13, 3.14** (défaut 3.10), pas seulement 3.11.
+- `minSdk` ≥ 24 requis (notre décision CDC de 34 est largement au-dessus, aucun conflit).
+- AGP testé : **7.3.x à 9.2.x** (les versions plus récentes « peuvent fonctionner mais n'ont pas été testées » par Chaquopy). Retenu : **AGP 9.2.1**, dernier correctif de la plage testée plutôt que la toute dernière AGP stable disponible (9.4.0 au moment de l'écriture).
+- Aucun NDK à installer, bibliothèques natives Chaquopy pré-compilées.
+- `buildPython` doit correspondre en majeur.mineur à la version Python de l'app. Seuls `python3.13`/`python3.14` étaient installés sur la machine utilisée → **Python retenu pour l'app : 3.13**.
+
+**2. Piège d'outillage découvert en pratique, absent de toute doc consultée avant coup** : **AGP 9.0+ a introduit un support Kotlin intégré et REFUSE l'ancien plugin séparé** `org.jetbrains.kotlin.android` — erreur de build obtenue au premier essai (« The 'org.jetbrains.kotlin.android' plugin is no longer required for Kotlin support since AGP 9.0 »). Solution : ne déclarer AUCUN plugin Kotlin (ni dans `android/build.gradle.kts` ni dans `android/app/build.gradle.kts`), AGP tire lui-même le Kotlin Gradle Plugin 2.2.10 comme dépendance runtime. Corollaire : le bloc DSL `kotlinOptions { jvmTarget = ... }` n'existe plus non plus (`Unresolved reference 'kotlinOptions'`) — `compileOptions { sourceCompatibility/targetCompatibility }` suffit à fixer la cible JVM pour Kotlin comme pour Java sous ce nouveau mode. Piège à répercuter dans toute doc/tutoriel Android antérieur à AGP 9.0 qu'un futur agent pourrait consulter.
+
+**3. Test réel de `chaquopy.defaultConfig.pip.install("-r", "../../backend/requirements.txt")` (fichier réel, pas retapé) — RÉSULTAT NÉGATIF, blocage confirmé** :
+```
+Collecting fastapi ... Using cached fastapi-0.141.1-py3-none-any.whl.metadata
+Collecting sqlalchemy ... Downloading sqlalchemy-2.0.52-py3-none-any.whl.metadata
+Collecting alembic ... Downloading alembic-1.19.2-py3-none-any.whl.metadata
+ERROR: Could not find a version that satisfies the requirement watchdog (from versions: none)
+ERROR: No matching distribution found for watchdog
+```
+**`watchdog`** (surveillance du dossier d'import, `backend/app/utils/watcher.py`) **n'a AUCUNE distribution disponible pour Android**, sur les deux index interrogés (PyPI public inclus, pas seulement le dépôt Chaquopy) — le CDC le classait à tort comme faible risque en se basant sur le fait qu'inotify existe dans le noyau Android ; le problème n'est pas le noyau (inotify y est bien présent, c'est le même noyau Linux) mais le fait que **le paquet PyPI `watchdog` lui-même n'a pas de wheel packagée pour la cible Android**, et le mécanisme de résolution de Chaquopy ne peut pas retomber sur une compilation depuis les sources pour une cible croisée. **Piste non testée à ce stade** : remplacer les quelques appels à `watchdog.observers` dans `watcher.py` par un petit observateur maison (`ctypes` + `inotify_init`/`inotify_add_watch` sur `libc`, ou un polling périodique plus simple mais moins réactif) — **seulement sur le profil Android**, sans toucher aux autres plateformes.
+
+**4. Deuxième blocage découvert en isolant le reste (`watchdog` retiré temporairement de `android/app/build.gradle.kts`, packages installés un par un plutôt que via `-r`, changement de diagnostic uniquement — pas une décision finale)** :
+```
+ERROR: Cannot install uvicorn[standard]==0.10.9, ... uvicorn[standard]==0.52.4
+because these package versions have conflicting dependencies.
+The conflict is caused by:
+    uvicorn[standard] 0.52.4 depends on httptools>=0.8.0; extra == "standard"
+    [... répété pour TOUTES les versions d'uvicorn ...]
+ERROR: ResolutionImpossible
+```
+**`uvicorn[standard]` échoue pour TOUTES ses versions** — la cause précise (pas une supposition, lue dans l'explication de résolution de pip) est `httptools` (parseur HTTP accéléré en C, un des extras de `[standard]`), qui n'a aucune distribution Android. **Correctif appliqué et validé en relançant le build** : installer `uvicorn` **sans** l'extra `[standard]` — `h11` (parseur HTTP pur Python, alternative de repli d'uvicorn) résolvait déjà sans problème dans le même test. Coût : pas d'accélération `uvloop`/`httptools`, acceptable pour un serveur embarqué à charge modeste (kiosque de salle, pas un service à haute concurrence) — **à documenter dans le CDC comme différence assumée entre le profil Android et les autres profils**, qui gardent `uvicorn[standard]` inchangé.
+
+**5. Bonne nouvelle, le risque initial de ce lot est levé** : dans ce même test isolé, **`psutil`, `pillow`, `pydantic` (donc `pydantic-core`, la dépendance transitive identifiée comme le principal risque du CDC), `pystray` et `zeroconf` ont tous été acceptés par le résolveur pip sans aucune erreur** — seuls `watchdog` et l'extra `[standard]` d'`uvicorn` bloquent, pas les paquets qui inquiétaient le plus au départ.
+
+**Décision de sortie de ce lot (provisoire, à confirmer par un build complet aboutissant à un APK installable — en cours au moment de la rédaction, résultat à ajouter ci-dessous)** : **GO conditionnel**. Chaquopy est vivant et fonctionnel pour la majorité du besoin ; deux adaptations minimes et bien identifiées sont nécessaires par rapport à `backend/requirements.txt` tel quel :
+- `uvicorn[standard]` → `uvicorn` (sans extra) sur le profil Android uniquement.
+- `watchdog` → à remplacer par une implémentation maison sur le profil Android uniquement (non fait à ce stade — reste un point ouvert, voir Lot 8/9 ou un nouveau lot dédié à créer si besoin).
+
+**6. Troisième piège découvert en corrigeant les deux premiers** : une fois `watchdog` retiré et `uvicorn[standard]` remplacé par `uvicorn`, le build a tourné **47 minutes** avant d'échouer sur :
+```
+error: resolution-too-deep
+× Dependency resolution exceeded maximum depth
+╰─> Pip cannot resolve the current dependencies as the dependency graph is too complex for pip to solve efficiently.
+hint: Try adding lower bounds to constrain your dependencies
+```
+**Ce n'est pas une incompatibilité Android** — c'est un problème mécanique de résolveur pip : `backend/requirements.txt` n'épingle **aucune** version (juste des noms de paquets nus), donc pip explore un espace combinatoire énorme (des dizaines de versions de `fastapi`/`sqlalchemy`/`alembic`/`pydantic` à croiser) avant d'abandonner. **Correctif appliqué** : épingler des versions exactes, copiées directement de `backend/.venv` réel via `python -m pip freeze` (donc des versions déjà connues pour bien fonctionner ensemble sur les autres plateformes) — pip n'a alors plus qu'à vérifier la disponibilité Android de CETTE version précise par paquet, sans recherche combinatoire. Résultat de ce build épinglé : *(à compléter — en cours au moment de la rédaction)*.
+
+**Conséquence pour le CDC/la suite du chantier, indépendamment du résultat final** : `backend/requirements.txt` sans bornes de version n'est pas praticable tel quel pour un `pip install` croisé vers Android (même s'il l'est très bien pour l'usage normal en développement/CI desktop, où pip résout contre l'environnement natif de la machine et n'a pas cette explosion combinatoire). Le Lot 2 (ou un nouveau lot dédié) devra décider d'une stratégie durable : soit un fichier de contraintes (`constraints.txt`) dédié au profil Android dérivé de `backend/.venv`, régénéré à chaque mise à jour de `requirements.txt`, soit épingler `requirements.txt` lui-même pour toutes les plateformes (impact plus large, hors périmètre de ce chantier Android seul).
+
+**7. Résultat du build épinglé (versions exactes copiées de `backend/.venv` réel via `pip freeze`)** : résolution quasi instantanée (15 s, contre 47 min sans épinglage) — **tout résout du premier coup** : `fastapi==0.141.1`, `uvicorn==0.52.1` (sans `[standard]`), `sqlalchemy==2.0.51`, `alembic==1.18.5`, `python-multipart==0.0.32`, `pydantic-settings==2.14.2` (donc `pydantic`/`pydantic-core` transitifs — LE risque initial de ce lot), `apscheduler==3.11.3`, `tzlocal==5.4.4`, `aiofiles==25.1.0`. Seul point : `pillow==12.3.0` (version desktop) indisponible pour Android — **seule `pillow==11.0.0` existe** sur l'index Chaquopy pour cette cible (message pip explicite : `from versions: 11.0.0`). Corrigé en épinglant `pillow==11.0.0` pour le profil Android (API stable entre ces versions pour l'usage de Bobine — vignettes/redimensionnement, pas de fonctionnalité récente utilisée). `psutil==7.2.2`, `pystray==0.19.5`, `zeroconf==0.151.3` retestés dans la même passe épinglée — résultat à ajouter avec le build final.
+
+**8. Deux derniers ajustements de version, mêmes symptômes que Pillow — un correctif par itération, chacun confirmé en ~15-20 s grâce à l'épinglage (§7)** :
+- `psutil==7.2.2` (desktop) indisponible → **seule `psutil==7.1.3` existe pour Android**, retenue. C'est le paquet identifié comme risque n°1 dans le CDC initial (extension C, pas de support Android officiel documenté en amont) — **la crainte ne s'est pas concrétisée : psutil a bien un wheel Android**, juste sur un patch antérieur.
+- `zeroconf==0.151.3` (desktop) indisponible → la version Android la plus récente disponible est **`0.39.4`**, un écart plus large que pour pillow/psutil (desktop est ~110 versions mineures plus loin). Retenue pour l'instant faute d'alternative ; **point de vigilance pour un lot ultérieur** (Lot 7, mDNS) : vérifier que l'API utilisée par `backend/app/utils/mdns.py` (probablement `Zeroconf`, `ServiceInfo`, `register_service`) est bien compatible avec cette version plus ancienne — pas vérifié à ce stade, seule la résolution pip a été testée, pas le comportement runtime.
+
+**9. CORRECTIF DU POINT 8 CI-DESSUS — le risque initial de ce lot n'était PAS levé, fausse alerte positive.** En relançant le build complet avec tout épinglé (§7-8), l'étape suivante a échoué sur `fastapi` avec un message pip explicite : *« some packages in these conflicts have no matching distributions available for your environment: pydantic-core »*. Ce n'est PAS le même schéma que pillow/psutil/zeroconf (une version antérieure existe) — **aucune version fonctionnelle de `pydantic-core` n'existe pour Android.**
+
+**Diagnostic isolé (`chaquopy.pip.install("pydantic-core")` seul, sans contrainte de version, pour lire précisément ce que pip trouve)** — résultat alarmant et déterminant :
+```
+Collecting pydantic-core
+  Downloading pydantic_core-0.0.1-py3-none-any.whl.metadata (637 bytes)
+Successfully installed pydantic-core-0.0.1
+```
+`pip` **« réussit »** silencieusement à installer `pydantic-core`, mais la version retenue (`0.0.1`) n'est PAS la vraie librairie. Vérification sur PyPI (`pypi.org/pypi/pydantic-core/0.0.1/json`) : c'est un **paquet placeholder vide, publié en 2022 par l'auteur de Pydantic, description littérale « Placeholder until pydantic-core is released »**, sans aucun code fonctionnel (`requires_dist: None`). La raison technique : c'est le **seul** wheel jamais publié sous ce nom au format `py3-none-any` (indépendant de plateforme) — toutes les vraies versions (2.x, l'extension Rust compilée que Pydantic v2/FastAPI utilisent réellement) sont taguées par plateforme (Linux/macOS/Windows) et **invisibles** pour la résolution croisée Android de Chaquopy. Le résolveur pip, ne voyant aucune version « éligible » parmi les vraies, se rabat sans avertir sur ce fantôme de 2022.
+
+**Conséquence directe, à ne pas minimiser** : **FastAPI et Pydantic v2, tels qu'utilisés aujourd'hui par tout `backend/app/`, ne peuvent PAS tourner sous Chaquopy sur Android en l'état.** C'est un point d'arrêt réel pour la prémisse centrale du CDC (« réutiliser le même backend FastAPI sans le réécrire »), pas un simple ajustement de version comme les trois précédents. `pydantic-core`/`pydantic-settings`/`fastapi` ont été retirés de la configuration `android/app/build.gradle.kts` en attendant un arbitrage — voir le CDC pour les options possibles et la demande de décision à l'utilisateur.
+
+**10. Décision utilisateur actée + confirmation finale par build réel : downgrade Pydantic v1 sur le profil Android uniquement.** Testé directement (pas seulement discuté) : `pydantic<2` → résout en `pydantic-1.10.26-py3-none-any.whl` (vraie librairie pure Python, pas un placeholder), combiné avec `fastapi<0.100.0` → résout en `fastapi-0.99.1` (dernière version encore compatible Pydantic v1, avec `starlette-0.27.0`/`anyio-4.15.1`). **Build complet réussi, APK généré** (`android/app/build/outputs/apk/debug/app-debug.apk`) avec toute la stack pinée à ces versions exactes. Configuration finale conservée dans `android/app/build.gradle.kts`.
+
+**Périmètre de compatibilité Pydantic v1 à traiter dans `backend/app/` pour le profil Android** (mesuré par grep sur tout le backend, pas estimé — volontairement petit, pas une réécriture) :
+- [`backend/app/config.py:6`](../backend/app/config.py) — `from pydantic_settings import BaseSettings` → `pydantic.BaseSettings` (intégré nativement à Pydantic v1, pas besoin du paquet séparé `pydantic-settings`, lui-même indisponible puisqu'il exige Pydantic v2).
+- [`backend/app/routers/radio_announcements.py:20,75`](../backend/app/routers/radio_announcements.py) — `field_validator` (syntaxe v2) → `validator` (syntaxe v1).
+- [`backend/app/routers/settings.py:339`](../backend/app/routers/settings.py) — `payload.model_dump(exclude_unset=True)` → `payload.dict(exclude_unset=True)`.
+- Tout le reste des ~15 fichiers qui importent Pydantic dans `backend/app/` n'utilise que `BaseModel` nu, syntaxe identique entre v1 et v2 — pas de changement necessaire.
+- **Non fait à ce stade** (Lot 0 ne teste que la résolution des dépendances, pas encore l'import du vrai `backend/app/` — cf. Lot 2) : écrire la couche de compatibilité réelle. Vu le périmètre mesuré ci-dessus, l'option la plus simple est probablement un petit module `backend/app/_compat_pydantic_v1.py` (ou équivalent) qui n'est importé que sur le profil Android, plutôt que de parsemer le code de branches conditionnelles — à trancher au Lot 2.
+- **Maintenance à long terme, à garder à l'esprit pour tout futur agent** : le profil Android reste figé sur FastAPI 0.99.1/Pydantic v1 (millésime mi-2023) tant que `pydantic-core` n'a pas de distribution Android — toute nouvelle route/schéma Pydantic ajoutée au backend doit rester compatible avec les deux syntaxes (ou passer par la couche de compatibilité ci-dessus), indéfiniment.
+
+**Bilan complet et final du Lot 0 — GO confirmé** : sur les 13 paquets de `requirements.txt` (hors `pyobjc-*`), **12 résolvent** (dont 3 avec un pin Android différent du desktop — pillow 11.0.0, psutil 7.1.3, zeroconf 0.39.4 — et `uvicorn` sans l'extra `[standard]`, `httptools` indisponible), **1 seul reste un blocage sans solution trouvée à ce stade** (`watchdog`, cf. pistes proposées plus haut — à traiter dans un lot dédié). Le blocage initial sur `pydantic-core` (bloquant dur, pas un simple ajustement de version) est levé par le downgrade Pydantic v1 côté Android, décision actée et validée par un vrai build APK réussi. Chaquopy 17.0 est vivant, activement maintenu, et fonctionnel pour l'essentiel du besoin de Bobine. **Le chantier peut avancer vers le Lot 1 (déjà largement entamé en pratique dans ce même travail) et le Lot 2.**
+
+---
+
+## 3. Lot 1 — Squelette du projet Android + validation matérielle
+
+Dépend du Lot 0 (le squelette réutilise sa configuration Chaquopy validée). Réf. CDC §6.
+
+### Fichiers concernés
+- **(nouveau)** structure définitive du projet Android (remplace le projet jetable du Lot 0 si celui-ci était hors dépôt), à un emplacement à trancher : `android/` à la racine, en miroir de `backend/`, `frontend/`, `assistant/`.
+- **(nouveau)** `android/app/build.gradle.kts`, `android/settings.gradle.kts`, manifeste `AndroidManifest.xml`.
+
+### Tâches
+- [ ] Créer la structure de projet définitive, avec la configuration Chaquopy validée au Lot 0.
+- [ ] `minSdk`/`targetSdk`/`compileSdk` conformes à la décision du CDC §2, testés contre Android 16 réel sur la tablette pilote.
+- [ ] Une `Activity` minimale qui démarre le `ForegroundService` (squelette vide à ce stade, complété au Lot 6) et affiche juste un texte de statut — pas encore de WebView.
+- [ ] Sur la tablette pilote (Xiaomi Pad 8), avec le dock USB-C réellement utilisé : vérifier la négociation DisplayPort Alt Mode (brancher un écran/vidéoprojecteur HDMI et confirmer qu'Android détecte un second `Display` via `DisplayManager.getDisplays()` — un simple log suffit à ce stade, pas encore de `Presentation`).
+- [ ] Vérifier que le dock alimente correctement la tablette en Power Delivery pendant la sortie vidéo active (pas de décharge progressive de la batterie).
+
+### Critère de sortie
+- [ ] APK installable sur la tablette pilote, backend Python démarré (santé vérifiable via `adb logcat` ou un endpoint `/api/health` accessible depuis un navigateur du même réseau), second écran détecté par `DisplayManager` quand le dock est branché.
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+---
+
+## 4. Lot 2 — Frontend statique embarqué
+
+Réf. CDC §1. Indépendant des Lots 0-1 sur le fond (peut être préparé en parallèle), mais son intégration finale dans l'APK dépend du Lot 1.
+
+### Fichiers concernés
+- `frontend/` (aucune modification de code attendue — l'export statique existe déjà via `next.config.ts` → `output: "export"`).
+- **(nouveau)** tâche Gradle ou script qui copie `frontend/out/` (après `npm run build`) vers les assets Android (`android/app/src/main/assets/www/` ou équivalent).
+- **(nouveau)** `.github/workflows/` — étape de build frontend à ajouter au pipeline Android (coordination avec le Lot 13).
+
+### Tâches
+- [ ] Vérifier que `npm run build` produit un `frontend/out/` fonctionnel servi tel quel par le backend FastAPI (déjà le comportement en production desktop — pas de changement attendu, juste à confirmer avant d'automatiser).
+- [ ] Écrire la tâche Gradle (`app/build.gradle.kts`) qui exécute `npm run build` puis copie `frontend/out/` dans les assets de l'APK, déclenchée avant chaque assemblage.
+- [ ] Confirmer que le backend, une fois démarré dans Chaquopy, sert bien ces fichiers copiés depuis le bon chemin (le code Python de service des statics ne doit pas être modifié — seul le chemin de recherche doit pointer vers l'emplacement Android correct, à vérifier).
+
+### Critère de sortie
+- [ ] Depuis la WebView (même une provisoire du Lot 1), `http://127.0.0.1:8000/kiosk/` affiche l'interface réelle, pas une 404.
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+---
+
+## 5. Lot 3 — Résolution du routage hostname (`/kiosk` vs `/cinema`)
+
+Réf. CDC §4 — **décision à trancher avant le Lot 4**, qui en dépend directement.
+
+### Fichiers concernés
+- [`frontend/src/lib/useDisplayOutputRedirect.ts`](../frontend/src/lib/useDisplayOutputRedirect.ts) — modification potentielle si la décision retenue nécessite une troisième catégorie de hostname (au-delà de « câblé »/« réseau »).
+- **(nouveau)** code Kotlin décidant quelle URL charge quelle `WebView`/`Presentation`.
+
+### Tâches
+- [ ] Trancher explicitement (et l'écrire dans Découvertes) : la `WebView` de l'écran tactile charge-t-elle `bobine.local:8000/kiosk` (mDNS, dépend du Lot 8) ou l'IP LAN locale de la tablette elle-même (déterminée par Kotlin au démarrage, sans dépendre de la résolution mDNS) ?
+- [ ] Si la réponse introduit un cas que `isWiredDisplay()` ne gère pas correctement (ex. la tablette elle-même résout `bobine.local` vers sa propre IP, ce qui pourrait ambiguïser la détection), modifier `useDisplayOutputRedirect.ts` en conséquence — sinon, ne pas y toucher.
+- [ ] Confirmer par un test manuel : bascule du réglage admin `cableOutput` entre `kiosk`/`cinema` → la `Presentation` HDMI (chargée sur `127.0.0.1`) suit le changement ; la `WebView` tactile (chargée sur l'autre hostname) n'est pas affectée par ce même réglage.
+
+### Critère de sortie
+- [ ] Le comportement du §4 du CDC est vérifié empiriquement sur la tablette pilote, pas seulement supposé correct par lecture de code.
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+---
+
+## 6. Lot 4 — Double affichage (`DisplayManager` + `Presentation`)
+
+Dépend des Lots 1 (détection du second écran déjà validée) et 3 (URL à charger tranchée). Réf. CDC §3.2.
+
+### Fichiers concernés
+- **(nouveau)** classe Kotlin héritant de `android.app.Presentation`, gérée par le `ForegroundService` (Lot 6) plutôt que par l'`Activity` (pour survivre à la fermeture de l'app, cf. Lot 6).
+- **(nouveau)** `DisplayManager.DisplayListener` pour réagir au branchement/débranchement du dock en cours d'exécution, pas seulement au démarrage.
+
+### Tâches
+- [ ] Implémenter la `Presentation` chargeant `http://127.0.0.1:8000/cinema` dans une `WebView` plein écran sur le `Display` externe.
+- [ ] Gérer le cycle de vie : branchement du dock en cours d'utilisation (l'app tourne déjà) → `Presentation` créée à la volée ; débranchement → `Presentation` détruite proprement, pas de crash.
+- [ ] Décider et implémenter le comportement de repli si aucun écran externe n'est détecté (CDC §3.2 : bascule manuelle vers `/cinema` sur la tablette elle-même, ou rien — à trancher et documenter ici).
+- [ ] Vérifier le décodage vidéo matériel réel sur la tablette pilote : lancer un cours en H.264 et en HEVC si le catalogue de test en contient, confirmer l'absence de saccades/surchauffe (CDC §3.3).
+
+### Critère de sortie
+- [ ] Sur la tablette pilote + dock réel + vidéoprojecteur/TV : `/kiosk` sur l'écran tactile, `/cinema` en lecture fluide sur la sortie HDMI, simultanément et indépendamment (vérifier qu'une action sur l'un ne perturbe pas l'autre).
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+---
+
+## 7. Lot 5 — WebView tactile principale + UI shell
+
+Dépend du Lot 2 (assets frontend disponibles). Indépendant du Lot 4 sur le fond.
+
+### Fichiers concernés
+- **(nouveau)** `Activity` principale avec une `WebView` chargeant `/kiosk`, plus un mécanisme de navigation vers l'admin (CDC §2 : « réplique le site à l'identique », pas un simple onglet limité).
+- **(nouveau)** gestion du plein écran immersif (`WindowInsetsController`) — quittable, pas de Lock Task (CDC §7).
+
+### Tâches
+- [ ] `WebView` principale avec JavaScript activé, chargeant l'URL décidée au Lot 3.
+- [ ] Navigation entre `/kiosk` et l'admin (`/dashboard-cable`, `/dashboard-network`, `/settings`, etc. — vérifier contre `frontend/src/app/` la liste réelle des routes admin à exposer) — CDC §2 : pas de verrouillage, navigation libre à l'intérieur de l'app.
+- [ ] Plein écran immersif au lancement (barres système masquées), sans empêcher le geste Accueil/multitâche de fonctionner normalement.
+- [ ] Vérifier que le clavier/télécommande USB HID (branché sur le dock) route bien ses événements vers la `WebView` focus — test avec une télécommande physique réelle si disponible, sinon avec un clavier USB générique en attendant.
+
+### Critère de sortie
+- [ ] Utilisation tactile complète de `/kiosk` et de l'admin depuis la tablette, sans barre d'adresse visible, sans sortie accidentelle vers un navigateur système.
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+---
+
+## 8. Lot 6 — `ForegroundService` persistant
+
+Réf. CDC §7. Dépend du Lot 1 (squelette du service). Les Lots 4 (Presentation) et 5 (WebView tactile) doivent être rattachés à ce service une fois qu'il existe, pas à l'`Activity`.
+
+### Fichiers concernés
+- **(nouveau)** `ForegroundService` avec notification persistante (« Bobine diffuse en arrière-plan »).
+- Refactor potentiel des Lots 4/5 si leur premier jet vivait dans l'`Activity` : déplacer la propriété du backend Python et de la `Presentation` vers le service, pour qu'ils survivent à la fermeture de l'`Activity`.
+
+### Tâches
+- [ ] Le service démarre le backend Python (Chaquopy) et possède la `Presentation` HDMI — pas l'`Activity`.
+- [ ] Notification persistante conforme aux exigences Android (canal de notification, icône, texte).
+- [ ] Test explicite : fermer l'app depuis le multitâche (swipe) pendant qu'un cours joue sur la sortie HDMI → la vidéo continue, la notification persiste.
+- [ ] Test explicite : rouvrir l'app après une fermeture complète → l'`Activity` se reconnecte au service déjà en cours (pas de redémarrage du backend, pas de double instance uvicorn).
+- [ ] `WakeLock` pour empêcher la mise en veille pendant que du contenu est activement diffusé sur HDMI — à ne pas confondre avec le plein écran immersif du Lot 5, qui concerne l'écran tactile.
+
+### Critère de sortie
+- [ ] Scénario CDC §2 vérifié : fermeture complète de l'app → service et diffusion HDMI toujours actifs.
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+---
+
+## 9. Lot 7 — mDNS (`MulticastLock`)
+
+Réf. CDC §5.1. Indépendant des autres lots sur le fond, peut être fait en parallèle dès le Lot 0 validé (dépend juste de `zeroconf` tournant sous Chaquopy).
+
+### Fichiers concernés
+- **(nouveau)** acquisition du `MulticastLock` côté Kotlin, dans le `ForegroundService` (Lot 6) au démarrage.
+- Aucune modification attendue côté Python (`zeroconf` déjà utilisé tel quel par le backend).
+
+### Tâches
+- [ ] Acquérir un `WifiManager.MulticastLock` référencé-compté au démarrage du service.
+- [ ] Vérifier depuis un smartphone du même réseau Wi-Fi que `http://bobine.local:8000` résout et répond.
+- [ ] Vérifier le comportement quand l'écran de la tablette est verrouillé/éteint (certains OEM restreignent le multicast écran éteint) — pertinent ici car la tablette n'est pas verrouillée en usage (CDC §2), l'écran peut donc s'éteindre pendant que le service tourne en fond.
+
+### Critère de sortie
+- [ ] Découverte réseau fonctionnelle depuis un appareil tiers, y compris quand l'écran de la tablette est éteint.
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+---
+
+## 10. Lot 8 — Binaire `ffmpeg`/`ffprobe` ARM64 embarqué
+
+Réf. CDC §9 (correction de l'approche `ffmpeg-kit`). Indépendant des autres lots sur le fond.
+
+### Fichiers concernés
+- **(nouveau)** binaires statiques `ffmpeg`/`ffprobe` ARM64, packagés au format `lib*.so` dans `android/app/src/main/jniLibs/arm64-v8a/` (contrainte Android 10+, W^X : un binaire natif ne peut s'exécuter que depuis le répertoire natif de l'app).
+- [`backend/app/utils/video_utils.py`](../backend/app/utils/video_utils.py) (lignes 271, 283, 296, 305, 331 — appels `subprocess.run(["ffmpeg", ...])`/`ffprobe`) — pas de changement de logique, seulement le nom/chemin du binaire invoqué doit pouvoir être surchargé (variable d'environnement ou détection de plateforme) pour pointer vers `context.applicationInfo.nativeLibraryDir` sous Android.
+- [`backend/app/utils/radio_utils.py`](../backend/app/utils/radio_utils.py) (lignes 143, 180, 192, 240 — mêmes appels) — même remarque.
+
+### Tâches
+- [ ] Choisir une source de binaires ffmpeg statiques ARM64 fiable et à jour (à documenter précisément : origine, version, licence — LGPL/GPL selon les modules compilés, vérifier compatibilité avec AGPL-3.0 du projet).
+- [ ] Les packager au format `lib*.so` requis par Android (renommage, pas de recompilation nécessaire si le binaire est déjà statique).
+- [ ] Adapter `video_utils.py`/`radio_utils.py` pour résoudre le chemin du binaire ffmpeg/ffprobe dynamiquement (ex. variable d'environnement positionnée par Kotlin au démarrage du processus Python, lue une fois au chargement du module) plutôt que le nom en dur `"ffmpeg"` — **seul changement de code Python attendu dans ce lot**, à garder minimal.
+- [ ] Test réel : import d'une vidéo depuis l'app Android, vérifier que la vignette est générée et que la durée est détectée correctement (mêmes chemins de code que `videos.py`/`routers/audio.py`, pas de logique dupliquée).
+
+### Critère de sortie
+- [ ] Import vidéo complet fonctionnel depuis l'app Android : upload, normalisation, vignette — sans changement de comportement perceptible par rapport au desktop.
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+---
+
+## 11. Lot 9 — Stockage médias & USB OTG
+
+Réf. CDC §5.2. Dépend du Lot 1 (structure de l'app).
+
+### Fichiers concernés
+- Configuration du chemin `media_dir`/`watch_dir` (`config.toml` / variables `BOBINE_*`) pointant vers `context.getExternalFilesDir(null)` sous Android — pas de changement de `backend/app/config.py` lui-même, seulement de la valeur injectée au démarrage.
+- **(nouveau)** gestion Kotlin de la détection d'un périphérique USB OTG branché sur le dock (Storage Access Framework ou détection de point de montage, à trancher selon ce que permet Android 16 sans root).
+
+### Tâches
+- [ ] Confirmer l'espace disponible réel et les permissions sur `getExternalFilesDir` (pas de demande de permission intrusive requise, à vérifier empiriquement).
+- [ ] Implémenter la détection et l'exposition d'une clé USB branchée sur le dock comme source d'import, côté UI (le backend traite déjà l'upload de fichiers de façon générique — pas de changement Python attendu, seulement la manière dont l'app Android présente ces fichiers au flux d'upload existant).
+
+### Critère de sortie
+- [ ] Import d'un fichier vidéo depuis une clé USB branchée sur le dock, bout en bout.
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+---
+
+## 12. Lot 10 — Device Owner (provisioning, exemption batterie)
+
+Réf. CDC §7. Peut être fait en parallèle des Lots 4-9, mais son test réel nécessite une tablette pouvant être remise à l'état d'usine (attention, opération destructive sur la tablette pilote si elle sert déjà à autre chose — confirmer avec l'utilisateur avant d'exécuter ce lot sur du matériel en cours d'usage).
+
+### Fichiers concernés
+- **(nouveau)** `DeviceAdminReceiver` minimal (Device Owner sans Lock Task).
+- **(nouveau)** procédure de provisioning documentée (`adb shell dpm set-device-owner ...`).
+
+### Tâches
+- [ ] Implémenter un `DeviceAdminReceiver` qui ne fait qu'exempter l'app des restrictions batterie — pas de politique de restriction supplémentaire imposée à l'utilisateur.
+- [ ] Documenter la procédure de provisioning exacte (tablette réinitialisée en usine → pas de compte configuré → `adb shell dpm set-device-owner ...` avant tout autre setup).
+- [ ] Test réel sur HyperOS (tablette pilote) : le service survit-il à une inactivité prolongée (heures) sans interaction utilisateur, comparé au comportement sans Device Owner ?
+
+### Critère de sortie
+- [ ] Survie du service vérifiée sur au moins 24h d'inactivité sur la tablette pilote, avec Device Owner actif.
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+---
+
+## 13. Lot 11 — Mécanisme de mise à jour in-app
+
+Réf. CDC §8. Dépend du Lot 13 (existence de releases GitHub réelles à détecter).
+
+### Fichiers concernés
+- **(nouveau)** code Kotlin de vérification de version + téléchargement + déclenchement d'installation (`REQUEST_INSTALL_PACKAGES`).
+- Potentiellement `backend/app/routers/updates.py` si le mécanisme choisi réutilise un endpoint commun avec le desktop plutôt que d'interroger directement l'API GitHub Releases — à trancher par l'agent qui exécute ce lot et à documenter dans Découvertes.
+
+### Tâches
+- [ ] Décider et documenter la source de vérité de version (API GitHub Releases directement, ou endpoint `bobine.fit` existant, ou nouveau).
+- [ ] Implémenter la vérification périodique + le téléchargement de l'APK.
+- [ ] Demander `REQUEST_INSTALL_PACKAGES` et déclencher l'installation, avec confirmation utilisateur (Android exige une interaction explicite pour ce type d'installation hors store).
+- [ ] Test réel : publier une version factice supérieure, vérifier la détection et l'installation bout en bout sur la tablette pilote.
+
+### Critère de sortie
+- [ ] Mise à jour d'une version factice vers une autre, sans intervention manuelle autre que la confirmation d'installation.
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+---
+
+## 14. Lot 12 — Documentation & contexte agents IA
+
+Transverse, peut être fait au fil de l'eau à chaque lot livré plutôt qu'à la fin — chaque lot devrait déjà mettre à jour ce qui le concerne directement dans le CDC ou l'architecture, ce lot couvre ce qui reste global.
+
+### Fichiers concernés
+- [`README.md`](../README.md) / [`README.fr.md`](../README.fr.md) — ligne Android actuellement « Coming soon » à mettre à jour une fois l'APK publiable.
+- [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) — ajouter une mention du profil Android une fois qu'il existe réellement (probablement un nouveau `deployment_profiles/android.py` si le mécanisme `get_deployment_profile()` de [`backend/app/utils/deployment.py`](../backend/app/utils/deployment.py) doit distinguer ce profil — à évaluer : Android tourne sous Linux au niveau noyau, `platform.system()` renverra `"Linux"`, donc une détection dédiée sera nécessaire si le comportement doit diverger du profil `linux-headless`/`linux-desktop` existant).
+- `.agents/AGENTS.md`, `.agents/CLAUDE.md`, `.gemini/AGENTS.md` — contexte agents IA, si le chantier introduit des conventions à connaître pour les futurs agents (ex. présence du dossier `android/`).
+
+### Tâches
+- [ ] Vérifier si `get_deployment_profile()` a besoin d'un cas Android explicite — probable si un comportement backend doit diverger (ex. chemins de stockage, désinstallation) — sinon documenter explicitement que ce n'est pas nécessaire et pourquoi.
+- [ ] Mettre à jour le tableau de téléchargement du README une fois l'APK publié sur GitHub Releases.
+- [ ] Mettre à jour `docs/ARCHITECTURE.md` avec la stack Android réelle (pas prospective) une fois le portage fonctionnel.
+
+### Critère de sortie
+- [ ] Aucune mention obsolète de « Coming soon » ou de plan prospectif dans les docs une fois le portage livré.
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+---
+
+## 15. Lot 13 — Signature APK, CI, publication GitHub Releases
+
+Réf. CDC §2. Dépend de tous les lots produisant du code fonctionnel (peut démarrer dès qu'il y a un APK installable à signer, même incomplet, pour roder le pipeline tôt).
+
+### Fichiers concernés
+- **(nouveau)** clé de signature auto-générée, gérée comme un secret GitHub Actions (jamais commitée).
+- [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — nouveau job de build/signature/publication Android, en miroir des jobs existants Windows/macOS/Linux.
+
+### Tâches
+- [ ] Générer une clé de signature dédiée, documenter sa conservation (secret CI + sauvegarde hors CI, une clé perdue empêche toute mise à jour future du même `applicationId`).
+- [ ] Ajouter le job CI : build Gradle, signature, upload en artefact de release GitHub, suffixé `-beta` pour les builds de la branche `main` (cohérent avec le canal Bêta desktop existant).
+- [ ] Vérifier que l'APK signé s'installe proprement sur la tablette pilote (pas seulement en `debug` non signé comme dans les lots précédents).
+
+### Critère de sortie
+- [ ] Un tag de release déclenche la CI, produit un APK signé, publié sur GitHub Releases, installable sur la tablette pilote sans avertissement de signature invalide.
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+---
+
+## 16. Séquencement
+
+1. **Lot 0** en premier, isolément — rien d'autre ne doit démarrer avant sa décision go/no-go écrite.
+2. **Lot 1**, dépend du Lot 0. Une fois livré, plusieurs lots peuvent démarrer **en parallèle** :
+   - **Lot 2** (frontend embarqué) — indépendant, peut même démarrer dès le Lot 0 si un projet Android jetable existe déjà pour le tester.
+   - **Lot 7** (mDNS) — indépendant, dépend juste de Chaquopy/`zeroconf` validés au Lot 0.
+   - **Lot 8** (ffmpeg statique) — indépendant du reste de l'app Android, peut être préparé et testé isolément.
+   - **Lot 10** (Device Owner) — indépendant sur le code, mais son test réel nécessite de sacrifier une tablette réinitialisée (coordination matérielle avec l'utilisateur avant de commencer, cf. avertissement du Lot 10).
+3. **Lot 3** (routage hostname) — dépend conceptuellement du Lot 2 (il faut du contenu à router) mais pas de code réellement partagé ; peut être tranché tôt en parallèle.
+4. **Lot 4** (double affichage) — dépend des Lots 1 et 3.
+5. **Lot 5** (WebView tactile) — dépend du Lot 2, indépendant du Lot 4 sur le fond, mais les deux convergent au **Lot 6**.
+6. **Lot 6** (`ForegroundService` persistant) — dépend des Lots 4 et 5 (il doit prendre possession de ce qu'ils ont produit). **Point de convergence obligatoire** avant le Lot 9 (persistance du stockage doit être vérifiée avec le service définitif, pas un service provisoire).
+7. **Lot 9** (stockage/USB OTG) — dépend du Lot 1, peut suivre le Lot 6 sans urgence particulière.
+8. **Lot 12** (documentation) — au fil de l'eau à chaque lot, pas un lot isolé en fin de chantier malgré sa numérotation.
+9. **Lot 13** (signature/CI) — peut démarrer dès qu'un APK installable existe (même incomplet), pour roder le pipeline tôt plutôt que de le découvrir en fin de chantier.
+10. **Lot 11** (mise à jour in-app) — en dernier, dépend du Lot 13 (releases réelles à détecter).
+
+---
+
+## 17. Checklist exhaustive (vue transverse anti-oubli)
+
+- [ ] Lot 0 — go/no-go dépendances Chaquopy
+- [ ] Lot 1 — squelette projet + validation matérielle tablette pilote
+- [ ] Lot 2 — frontend statique embarqué
+- [ ] Lot 3 — routage hostname `/kiosk` vs `/cinema`
+- [ ] Lot 4 — double affichage `DisplayManager`/`Presentation`
+- [ ] Lot 5 — WebView tactile + UI shell + plein écran immersif quittable
+- [ ] Lot 6 — `ForegroundService` persistant (survit à la fermeture de l'app)
+- [ ] Lot 7 — mDNS (`MulticastLock`)
+- [ ] Lot 8 — binaire ffmpeg/ffprobe ARM64 embarqué
+- [ ] Lot 9 — stockage médias & USB OTG
+- [ ] Lot 10 — Device Owner sans Lock Task
+- [ ] Lot 11 — mise à jour in-app
+- [ ] Lot 12 — documentation & contexte agents IA
+- [ ] Lot 13 — signature APK, CI, publication
+
+---
+
+## 18. Risques et points de vigilance
+
+- **Lot 0 non concluant** — si `pydantic-core` n'a pas de wheel Android exploitable et qu'aucun contournement simple n'existe, tout le chantier doit être remis en question (l'alternative serait de downgrader Pydantic/FastAPI, avec un impact potentiellement large sur le backend partagé avec les autres plateformes — **ne jamais faire ce choix dans le seul contexte du Lot 0** sans évaluer l'impact sur `backend/app/` dans son ensemble).
+- **`ffmpeg-kit-android` non retenu, mais son remplaçant (binaire statique bundlé) n'est pas encore validé non plus** (Lot 8) — c'est un risque réel, pas juste une correction cosmétique de ce document.
+- **Survie du service en arrière-plan sur HyperOS/One UI** — le Device Owner sans Lock Task (Lot 10) est la meilleure piste connue, mais n'est validée par aucun test réel avant l'exécution de ce lot. Prévoir un plan de repli (ex. notification incitant l'utilisateur à rouvrir l'app) si la survie 24/7 s'avère insuffisante même avec Device Owner.
+- **Provisioning Device Owner sur du matériel déjà en service** — `dpm set-device-owner` exige une tablette vierge ; si la tablette pilote sert déjà à d'autres tests au moment du Lot 10, coordonner avec l'utilisateur avant toute réinitialisation.
+- **Décodage AV1 non garanti** — ne pas supposer un décodage matériel universel si le catalogue de cours venait à inclure de l'AV1 (CDC §3.3).
+- **Régression du routage hostname existant** — le Lot 3 touche un mécanisme ([`useDisplayOutputRedirect.ts`](../frontend/src/lib/useDisplayOutputRedirect.ts)) partagé avec le desktop x86 actuel en production. Toute modification doit être testée aussi contre le comportement desktop existant (câblé/réseau), pas seulement contre le nouveau cas Android, pour ne pas régresser une fonctionnalité en production.
+- **Clé de signature APK perdue** — bloquerait toute mise à jour future du même `applicationId` sur les tablettes déjà déployées ; sa conservation (Lot 13) n'est pas un détail secondaire.

@@ -47,3 +47,15 @@ backend/build/
 dist-deb/
 dist-installer/
 dist-dmg/
+
+# Android (docs/plan-implementation-android.md) - gradlew/gradlew.bat et
+# gradle/wrapper/ SONT versionnes (build reproductible sans Gradle local) ;
+# tout le reste ci-dessous est local/genere et ne doit jamais l'etre.
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+android/.idea/
+android/.cxx/
+*.apk
+*.aab
