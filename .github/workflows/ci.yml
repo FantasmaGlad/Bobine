@@ -253,11 +253,11 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - uses: android-actions/setup-android@v3
+        if: steps.check_secrets.outputs.configured == 'true'
       - name: Installer les plateformes/outils Android requis
         if: steps.check_secrets.outputs.configured == 'true'
-        run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-36" "build-tools;36.1.0"
+        run: sdkmanager "platforms;android-36" "build-tools;36.1.0"
       - name: Décoder le keystore depuis le secret
         if: steps.check_secrets.outputs.configured == 'true'
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "${{ runner.temp }}/bobine-release.keystore"
