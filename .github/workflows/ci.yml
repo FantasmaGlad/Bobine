@@ -643,6 +643,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # Sérialise les publications sur gh-pages (groupe FIXE, pas ${{ github.ref
+    # }}) : un tag Vx.y.z (Stable) et un push sur main (Bêta, cf. fix
+    # précédent republiant la Bêta en continu) peuvent se déclencher à
+    # quelques secondes d'intervalle et courir en parallèle sur des refs
+    # différentes — sans ce verrou, les deux jobs checkoutent gh-pages en
+    # même temps et le second `git push` est rejeté (réf. échec réel du 8
+    # sept., release V3.0.1 : "cannot lock ref 'refs/heads/gh-pages'").
+    # cancel-in-progress: false — les deux publications doivent aboutir,
+    # seulement l'une après l'autre.
+    concurrency:
+      group: publish-apt-repo
+      cancel-in-progress: false
     steps:
       - name: Install reprepro
         run: |
