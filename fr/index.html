@@ -423,12 +423,12 @@
       color: var(--text-muted);
     }
 
-    /* Pied de page sobre */
+    /* Pied de page sobre avec recrutement à droite */
     .site-footer {
       border-top: 1px solid var(--border-subtle);
       background: var(--bg-canvas);
-      padding: 2.5rem 1.5rem;
-      font-size: 0.85rem;
+      padding: 1.75rem 1.5rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
     }
 
@@ -439,7 +439,13 @@
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
-      gap: 1.25rem;
+      gap: 1.25rem 2rem;
+    }
+
+    .site-footer__left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
     }
 
     .site-footer__links {
@@ -480,60 +486,44 @@
       border-color: var(--text-heading);
     }
 
-    /* Bannière de contribution Linux dans le footer */
-    .footer-contribute {
-      width: 100%;
-      margin-bottom: 1.75rem;
-      padding: 1rem 1.35rem;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 1rem;
+    /* Recrutement Linux en bas à droite */
+    .site-footer__right {
+      margin-left: auto;
+      max-width: 360px;
     }
 
-    .footer-contribute__text {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.65rem;
-      color: var(--text-main);
-      font-size: 0.875rem;
-      font-weight: 500;
-      line-height: 1.5;
-    }
-
-    .footer-contribute__text svg {
-      color: var(--text-dim);
-      flex-shrink: 0;
-    }
-
-    .footer-contribute__email {
+    .footer-recruit {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 0.775rem;
+      line-height: 1.4;
+      transition: color 0.15s ease;
+    }
+
+    .footer-recruit:hover {
+      color: var(--text-heading);
+    }
+
+    .footer-recruit svg {
+      flex-shrink: 0;
+      color: var(--text-dim);
+    }
+
+    .footer-recruit__email {
       font-family: var(--font-mono);
-      font-size: 0.8rem;
       font-weight: 600;
       color: var(--text-heading);
-      text-decoration: none;
-      padding: 0.4rem 0.8rem;
-      background: var(--bg-canvas);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      transition: all 0.15s ease;
+      text-decoration: underline;
+      text-underline-offset: 2px;
       white-space: nowrap;
     }
 
-    .footer-contribute__email:hover {
-      background: var(--text-heading);
-      color: var(--accent-primary-fg);
-      border-color: var(--text-heading);
-    }
-
     @media (max-width: 640px) {
+      .site-footer__inner { flex-direction: column; align-items: flex-start; gap: 1rem; }
+      .site-footer__right { margin-left: 0; max-width: none; }
       .page-main { padding: 2rem 1.25rem 3.5rem; }
       .site-header__inner { flex-wrap: wrap; }
       .site-nav { width: 100%; justify-content: space-between; gap: 0.75rem; }
@@ -833,33 +823,33 @@
   <!-- Pied de page officiel -->
   <footer class="site-footer">
     <div class="site-footer__inner">
-            <div class="footer-contribute">
-        <div class="footer-contribute__text">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-          <span>Si tu peux lire ça, c'est que tu t'intéresses au projet sur Linux. Viens m'aider à développer Bobine.</span>
+      <div class="site-footer__left">
+        <div class="site-footer__copy">
+          <strong>Bobine</strong> — Régie Vidéo & Playout Libre pour Salle de Sport.
         </div>
-        <a href="mailto:clement.barillot3901@gmail.com" class="footer-contribute__email">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
-          <span>clement.barillot3901@gmail.com</span>
+        <nav class="site-footer__links" aria-label="Liens de pied de page">
+          <a href="https://bobine.fit">bobine.fit</a>
+          <a href="https://bobine.fit/documentation">Documentation</a>
+          <a href="/pong/?lang=fr" class="site-nav__link site-nav__link--pong" title="Jouer à Pong contre le Bot" aria-label="Jouer à Pong contre le Bot">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <rect x="2" y="4" width="2.5" height="15" rx="1" />
+              <rect x="19.5" y="7" width="2.5" height="15" rx="1" />
+              <circle cx="11.5" cy="11.5" r="1.75" />
+            </svg>
+            <span>Pong</span>
+          </a>
+          <a href="https://github.com/FantasmaGlad/Bobine" target="_blank" rel="noopener noreferrer">Code Source (AGPL-3.0)</a>
+          <a href="https://github.com/FantasmaGlad/Bobine/releases" target="_blank" rel="noopener noreferrer">Releases GitHub</a>
+        </nav>
+      </div>
+
+      <div class="site-footer__right">
+        <a href="mailto:clement.barillot3901@gmail.com" class="footer-recruit">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+          <span>Si tu peux lire ça, c'est que tu t'intéresses au projet sur Linux. Viens m'aider à développer Bobine.</span>
+          <span class="footer-recruit__email">clement.barillot3901@gmail.com</span>
         </a>
       </div>
-      <div class="site-footer__copy">
-        <strong>Bobine</strong> — Régie Vidéo & Playout Libre pour Salle de Sport.
-      </div>
-      <nav class="site-footer__links" aria-label="Liens de pied de page">
-        <a href="https://bobine.fit">bobine.fit</a>
-        <a href="https://bobine.fit/fr/documentation">Documentation</a>
-                <a href="/pong/?lang=fr" class="site-nav__link site-nav__link--pong" title="Jouer à Pong contre le robot" aria-label="Jouer à Pong contre le robot">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <rect x="2" y="4" width="2.5" height="15" rx="1" />
-            <rect x="19.5" y="7" width="2.5" height="15" rx="1" />
-            <circle cx="11.5" cy="11.5" r="1.75" />
-          </svg>
-          <span>Pong</span>
-        </a>
-        <a href="https://github.com/FantasmaGlad/Bobine" target="_blank" rel="noopener noreferrer">Code Source (AGPL-3.0)</a>
-        <a href="https://github.com/FantasmaGlad/Bobine/releases" target="_blank" rel="noopener noreferrer">Releases GitHub</a>
-      </nav>
     </div>
   </footer>
 

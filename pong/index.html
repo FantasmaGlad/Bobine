@@ -3,53 +3,60 @@
 <head>
   <meta charset="utf-8">
   <title>Bobine Pong — Player vs Robot</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Play classic retro Pong against an autonomous robot. Built with lightweight HTML5 canvas and zero dependencies.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="description" content="Classic arcade Pong against an autonomous robot. Lightweight HTML5 canvas, responsive fullscreen, zero dependencies.">
   <meta name="robots" content="index, follow">
   <link rel="icon" href="https://bobine.fit/favicon.ico">
   <style>
     /* --------------------------------------------------------------------------
        Bobine — Design System (Thème Clair : Albâtre & Ardoise)
-       Esthétique monochrome épurée, typographique, sans boîtes superflues
+       Esthétique monochrome épurée, plein écran sans défilement
        -------------------------------------------------------------------------- */
     :root {
       --bg-canvas: #f8fafc;
       --bg-surface: #ffffff;
-      --bg-code: #0f172a;
       --text-heading: #0f172a;
       --text-main: #1e293b;
       --text-muted: #475569;
-      --text-dim: #64748b;
+      --text-dim: #94a3b8;
       --border-subtle: #e2e8f0;
-      --border-focus: #0f172a;
       --accent-primary: #0f172a;
       --accent-primary-fg: #ffffff;
       --accent-hover: #1e293b;
-      --accent-success: #16a34a;
       --radius-sm: 4px;
       --radius-md: 6px;
       --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: var(--font-sans);
-      background-color: var(--bg-canvas);
-      color: var(--text-main);
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
-    /* En-tête persistant */
+    html, body {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* En-tête persistant compact */
     .site-header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
+      flex-shrink: 0;
+      z-index: 50;
       background: color-mix(in srgb, var(--bg-canvas) 85%, transparent);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
@@ -57,9 +64,10 @@
     }
 
     .site-header__inner {
-      max-width: 860px;
+      width: 100%;
+      max-width: 1200px;
       margin: 0 auto;
-      padding: 0.9rem 1.5rem;
+      padding: 0.65rem 1.25rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -69,22 +77,21 @@
     .site-brand {
       display: inline-flex;
       align-items: center;
-      gap: 0.85rem;
+      gap: 0.75rem;
       text-decoration: none;
       color: var(--text-heading);
     }
 
     .site-brand__logo {
-      height: 22px;
+      height: 20px;
       width: auto;
-      max-width: 100%;
       color: var(--text-heading);
       display: block;
     }
 
     .site-brand__divider {
       width: 1px;
-      height: 16px;
+      height: 14px;
       background: var(--border-subtle);
     }
 
@@ -100,17 +107,16 @@
     .site-nav {
       display: flex;
       align-items: center;
-      gap: 1.25rem;
+      gap: 1rem;
     }
 
     .lang-switch {
       display: inline-flex;
       align-items: center;
-      gap: 0.25rem;
+      gap: 0.2rem;
       font-family: var(--font-mono);
-      font-size: 0.725rem;
+      font-size: 0.7rem;
       font-weight: 700;
-      letter-spacing: 0.04em;
       padding: 0.15rem 0.35rem;
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
@@ -125,14 +131,10 @@
       font-weight: inherit;
       color: var(--text-dim);
       cursor: pointer;
-      padding: 0.15rem 0.35rem;
+      padding: 0.1rem 0.3rem;
       border-radius: 2px;
       line-height: 1;
       transition: color 0.15s ease, background 0.15s ease;
-    }
-
-    .lang-switch__btn:hover {
-      color: var(--text-heading);
     }
 
     .lang-switch__btn.is-active {
@@ -142,18 +144,17 @@
 
     .lang-switch__sep {
       color: var(--border-subtle);
-      font-size: 0.7rem;
-      user-select: none;
+      font-size: 0.65rem;
     }
 
     .site-nav__link {
-      font-size: 0.875rem;
+      font-size: 0.825rem;
       font-weight: 500;
       color: var(--text-muted);
       text-decoration: none;
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.35rem;
       transition: color 0.15s ease;
     }
 
@@ -161,81 +162,53 @@
       color: var(--text-heading);
     }
 
-    /* Conteneur principal */
+    /* Zone de Jeu Plein Écran */
     .page-main {
-      max-width: 860px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 2.5rem 1.5rem 4rem;
       flex: 1;
-    }
-
-    /* En-tête du jeu */
-    .game-header {
-      margin-bottom: 2rem;
-      text-align: center;
-    }
-
-    .game-category {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      margin-bottom: 0.5rem;
-      display: block;
-    }
-
-    .game-title {
-      font-size: clamp(1.8rem, 4vw, 2.5rem);
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      color: var(--text-heading);
-      line-height: 1.15;
-      margin-bottom: 0.5rem;
-    }
-
-    .game-desc {
-      font-size: 0.95rem;
-      color: var(--text-muted);
-      max-width: 38rem;
-      margin: 0 auto;
-    }
-
-    /* Tableau des scores géant */
-    .pong-scoreboard {
+      min-height: 0;
+      position: relative;
+      width: 100%;
+      height: 100%;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 1.5rem;
-      margin-bottom: 1.25rem;
-      padding: 1rem 1.5rem;
+      flex-direction: column;
+      overflow: hidden;
       background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
     }
 
-    .pong-team {
+    /* Scoreboard minimaliste géant en haut au centre */
+    .pong-score-wrap {
+      position: absolute;
+      top: 1.25rem;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 2.25rem;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .pong-score-box {
       display: flex;
       flex-direction: column;
       align-items: center;
-      min-width: 110px;
+      min-width: 90px;
     }
 
-    .pong-team__label {
+    .pong-score-label {
       font-family: var(--font-mono);
-      font-size: 0.75rem;
+      font-size: 0.725rem;
       font-weight: 700;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
       color: var(--text-dim);
       margin-bottom: 0.2rem;
     }
 
-    .pong-team__score {
+    .pong-score-val {
       font-family: var(--font-mono);
-      font-size: clamp(2.5rem, 6vw, 3.8rem);
+      font-size: clamp(2.8rem, 6.5vw, 4.5rem);
       font-weight: 800;
       line-height: 1;
       color: var(--text-heading);
@@ -243,39 +216,31 @@
 
     .pong-score-colon {
       font-family: var(--font-mono);
-      font-size: clamp(2rem, 5vw, 3rem);
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
       font-weight: 800;
       color: var(--border-subtle);
-      user-select: none;
+      line-height: 1;
+      margin-top: 1rem;
     }
 
-    /* Arène de jeu */
-    .pong-arena-wrap {
-      position: relative;
-      width: 100%;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      overflow: hidden;
-      box-shadow: 0 4px 20px -8px rgba(15, 23, 42, 0.08);
-      touch-action: none;
-    }
-
+    /* Arène Canvas */
     canvas#pongCanvas {
-      display: block;
+      position: absolute;
+      inset: 0;
       width: 100%;
-      height: auto;
-      aspect-ratio: 800 / 480;
-      background: var(--bg-surface);
+      height: 100%;
+      display: block;
+      touch-action: none;
       cursor: crosshair;
     }
 
-    /* Superposition d'état (Pause / Victoire) */
-    .arena-overlay {
+    /* Overlay de Fin de Partie (Recommencer à la défaite) */
+    .pong-end-overlay {
       position: absolute;
       inset: 0;
-      background: color-mix(in srgb, var(--bg-surface) 92%, transparent);
-      backdrop-filter: blur(4px);
+      background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -283,213 +248,92 @@
       gap: 1rem;
       text-align: center;
       padding: 1.5rem;
+      z-index: 20;
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.2s ease;
     }
 
-    .arena-overlay.is-visible {
+    .pong-end-overlay.is-visible {
       opacity: 1;
       pointer-events: auto;
     }
 
-    .overlay-title {
-      font-size: clamp(1.5rem, 3.5vw, 2.2rem);
+    .pong-end-title {
+      font-size: clamp(1.8rem, 4vw, 2.75rem);
       font-weight: 800;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.03em;
       color: var(--text-heading);
+      line-height: 1.2;
     }
 
-    .overlay-subtitle {
+    .pong-end-desc {
       font-size: 0.95rem;
       color: var(--text-muted);
-      max-width: 26rem;
+      max-width: 24rem;
     }
 
-    .overlay-btn {
+    .pong-restart-btn {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.65rem 1.4rem;
+      margin-top: 0.5rem;
+      padding: 0.75rem 1.6rem;
       border-radius: var(--radius-sm);
-      border: 1px solid var(--border-subtle);
+      border: 1px solid var(--text-heading);
       background: var(--text-heading);
       color: var(--accent-primary-fg);
       font-family: var(--font-sans);
-      font-size: 0.875rem;
+      font-size: 0.9rem;
       font-weight: 600;
       cursor: pointer;
+      box-shadow: 0 2px 10px -2px rgba(15, 23, 42, 0.15);
       transition: all 0.15s ease;
     }
 
-    .overlay-btn:hover {
+    .pong-restart-btn:hover {
       background: var(--accent-hover);
+      transform: translateY(-1px);
     }
 
-    /* Barre de contrôle et statistiques */
-    .game-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 1rem;
-      margin-top: 1.25rem;
-      padding: 0.75rem 1rem;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      font-size: 0.85rem;
-    }
-
-    .toolbar-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .tool-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.4rem 0.75rem;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-canvas);
-      color: var(--text-main);
-      font-family: var(--font-sans);
-      font-size: 0.775rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      user-select: none;
-    }
-
-    .tool-btn:hover {
-      background: var(--text-heading);
-      color: var(--accent-primary-fg);
-      border-color: var(--text-heading);
-    }
-
-    .tool-btn.is-active {
-      background: var(--text-heading);
-      color: var(--accent-primary-fg);
-    }
-
-    .stats-summary {
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    .stats-item strong {
-      color: var(--text-heading);
-    }
-
-    /* Guide des touches */
-    .controls-hint {
-      margin-top: 1rem;
-      padding: 0.75rem 1rem;
-      font-size: 0.825rem;
-      color: var(--text-muted);
-      text-align: center;
-    }
-
-    .kbd {
-      display: inline-block;
-      padding: 0.15rem 0.45rem;
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: var(--text-heading);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.1);
-    }
-
-    /* Footer contributeur Linux */
+    /* Pied de page sobre avec recrutement à droite */
     .site-footer {
-      border-top: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+      z-index: 50;
       background: var(--bg-canvas);
-      padding: 2.5rem 1.5rem;
-      font-size: 0.85rem;
+      border-top: 1px solid var(--border-subtle);
+      padding: 0.65rem 1.25rem;
+      font-size: 0.775rem;
       color: var(--text-muted);
     }
 
     .site-footer__inner {
-      max-width: 860px;
+      width: 100%;
+      max-width: 1200px;
       margin: 0 auto;
       display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
-
-    .footer-contribute {
-      width: 100%;
-      padding: 1rem 1.35rem;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      display: flex;
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
-      gap: 1rem;
+      gap: 0.75rem 1.5rem;
     }
 
-    .footer-contribute__text {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.65rem;
-      color: var(--text-main);
-      font-size: 0.875rem;
-      font-weight: 500;
-      line-height: 1.5;
-    }
-
-    .footer-contribute__text svg {
-      color: var(--text-dim);
-      flex-shrink: 0;
-    }
-
-    .footer-contribute__email {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-heading);
-      text-decoration: none;
-      padding: 0.4rem 0.8rem;
-      background: var(--bg-canvas);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      transition: all 0.15s ease;
-      white-space: nowrap;
-    }
-
-    .footer-contribute__email:hover {
-      background: var(--text-heading);
-      color: var(--accent-primary-fg);
-      border-color: var(--text-heading);
-    }
-
-    .site-footer__bottom {
+    .site-footer__left {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
       gap: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .site-footer__copy strong {
+      color: var(--text-heading);
+      font-weight: 700;
     }
 
     .site-footer__links {
       display: flex;
       align-items: center;
-      gap: 1.5rem;
+      gap: 1rem;
     }
 
     .site-footer__links a {
@@ -502,13 +346,43 @@
       color: var(--text-heading);
     }
 
-    @media (max-width: 640px) {
-      .page-main { padding: 1.5rem 1rem 3rem; }
-      .site-header__inner { flex-wrap: wrap; }
-      .site-nav { width: 100%; justify-content: space-between; gap: 0.75rem; }
-      .game-toolbar { flex-direction: column; align-items: stretch; }
-      .stats-summary { justify-content: space-between; }
-      .toolbar-actions { justify-content: center; }
+    /* Recrutement Linux en bas à droite */
+    .site-footer__right {
+      margin-left: auto;
+    }
+
+    .footer-recruit {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+      color: var(--text-muted);
+      transition: color 0.15s ease;
+      line-height: 1.3;
+    }
+
+    .footer-recruit:hover {
+      color: var(--text-heading);
+    }
+
+    .footer-recruit svg {
+      flex-shrink: 0;
+      color: var(--text-dim);
+    }
+
+    .footer-recruit__email {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text-heading);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    @media (max-width: 768px) {
+      .site-header__inner { padding: 0.5rem 1rem; }
+      .site-footer__inner { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+      .site-footer__right { margin-left: 0; width: 100%; }
+      .footer-recruit { font-size: 0.725rem; flex-wrap: wrap; }
     }
   </style>
 </head>
@@ -517,7 +391,7 @@
   <!-- En-tête officiel -->
   <header class="site-header">
     <div class="site-header__inner">
-      <a href="/" class="site-brand" title="Bobine - APT Repository">
+      <a href="/" class="site-brand" id="brand-link" title="Bobine - APT Repository">
         <svg viewBox="24 20 944 280" class="site-brand__logo" fill="currentColor" role="img" aria-label="Logo Bobine">
           <rect x="48" y="20" width="160" height="14" />
           <rect x="32" y="34" width="208" height="14" />
@@ -648,106 +522,56 @@
         <span class="site-brand__label" data-i18n="brand_label">PONG</span>
       </a>
 
-      <nav class="site-nav" aria-label="Main navigation">
+      <nav class="site-nav" aria-label="Navigation">
         <div class="lang-switch" role="group" aria-label="Language selection">
           <button type="button" class="lang-switch__btn is-active" id="lang-btn-en" onclick="setLanguage('en')" aria-label="English">EN</button>
           <span class="lang-switch__sep" aria-hidden="true">/</span>
           <button type="button" class="lang-switch__btn" id="lang-btn-fr" onclick="setLanguage('fr')" aria-label="Français">FR</button>
         </div>
         <a href="/" class="site-nav__link" id="nav-back">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
           <span data-i18n="nav_back">Back to APT Repo</span>
         </a>
         <a href="https://github.com/FantasmaGlad/Bobine" target="_blank" rel="noopener noreferrer" class="site-nav__link">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
           <span>GitHub</span>
         </a>
       </nav>
     </div>
   </header>
 
-  <!-- Zone Principale de Jeu -->
-  <main class="page-main">
-    <section class="game-header">
-      <span class="game-category" data-i18n="game_category">Mini-Game · Retro Arcade</span>
-      <h1 class="game-title" data-i18n="game_title">Bobine Pong — Human vs Robot</h1>
-      <p class="game-desc" data-i18n="game_desc">
-        Classic retro arcade action. Control the left paddle to challenge our autonomous AI robot. All scores and match records are saved locally.
-      </p>
-    </section>
-
-    <!-- Tableau des scores -->
-    <section class="pong-scoreboard" aria-label="Scoreboard">
-      <div class="pong-team">
-        <span class="pong-team__label" data-i18n="player_label">PLAYER (YOU)</span>
-        <span class="pong-team__score" id="scorePlayer">0</span>
+  <!-- Arène Plein Écran -->
+  <main class="page-main" id="gameArea">
+    <!-- Scoreboard épuré géant -->
+    <div class="pong-score-wrap" aria-label="Score">
+      <div class="pong-score-box">
+        <span class="pong-score-label" data-i18n="player_label">PLAYER</span>
+        <span class="pong-score-val" id="scorePlayer">0</span>
       </div>
       <span class="pong-score-colon">:</span>
-      <div class="pong-team">
-        <span class="pong-team__label" data-i18n="robot_label">ROBOT (AI)</span>
-        <span class="pong-team__score" id="scoreBot">0</span>
-      </div>
-    </section>
-
-    <!-- Arène de jeu Canvas -->
-    <section class="pong-arena-wrap" aria-label="Game Canvas">
-      <canvas id="pongCanvas" width="800" height="480"></canvas>
-
-      <!-- Overlay (Pause / Victoire / Défaite) -->
-      <div class="arena-overlay" id="arenaOverlay">
-        <h2 class="overlay-title" id="overlayTitle">Game Paused</h2>
-        <p class="overlay-subtitle" id="overlaySubtitle">Press Space or click Resume to continue playing.</p>
-        <button type="button" class="overlay-btn" id="overlayBtn" onclick="togglePause()">Resume</button>
-      </div>
-    </section>
-
-    <!-- Barre d'outils et statistiques -->
-    <div class="game-toolbar">
-      <div class="toolbar-actions">
-        <button type="button" class="tool-btn" id="pauseBtn" onclick="togglePause()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
-          <span id="pauseBtnText" data-i18n="btn_pause">Pause</span>
-        </button>
-
-        <button type="button" class="tool-btn" onclick="resetMatch()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-          <span data-i18n="btn_reset">Reset Match</span>
-        </button>
-
-        <button type="button" class="tool-btn" id="soundBtn" onclick="toggleSound()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-          <span id="soundBtnText">Sound: ON</span>
-        </button>
-      </div>
-
-      <div class="stats-summary">
-        <span class="stats-item"><span data-i18n="stat_rally">Rally:</span> <strong id="statRally">0</strong></span>
-        <span class="stats-item"><span data-i18n="stat_best">Best:</span> <strong id="statBestRally">0</strong></span>
-        <span class="stats-item"><span data-i18n="stat_wins">Wins:</span> <strong id="statWins">0 - 0</strong></span>
+      <div class="pong-score-box">
+        <span class="pong-score-label" data-i18n="robot_label">ROBOT</span>
+        <span class="pong-score-val" id="scoreBot">0</span>
       </div>
     </div>
 
-    <!-- Aide aux contrôles -->
-    <div class="controls-hint">
-      <span data-i18n="controls_hint">Controls: Use <span class="kbd">W</span> / <span class="kbd">S</span> or <span class="kbd">↑</span> / <span class="kbd">↓</span> keys · Mouse or touch drag on canvas · <span class="kbd">Space</span> to pause. First to 7 points wins the match.</span>
+    <canvas id="pongCanvas"></canvas>
+
+    <!-- Overlay de Fin de Partie (Recommencer à la défaite) -->
+    <div class="pong-end-overlay" id="endOverlay" role="dialog" aria-modal="true">
+      <h2 class="pong-end-title" id="endTitle">Defeat</h2>
+      <p class="pong-end-desc" id="endDesc">The robot won this match.</p>
+      <button type="button" class="pong-restart-btn" id="restartBtn" onclick="restartMatch()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+        <span id="restartBtnText" data-i18n="btn_restart">Play Again</span>
+      </button>
     </div>
   </main>
 
-  <!-- Pied de page officiel avec mention recrutement Linux -->
+  <!-- Pied de page officiel avec mention recrutement Linux à droite -->
   <footer class="site-footer">
     <div class="site-footer__inner">
-      <div class="footer-contribute">
-        <div class="footer-contribute__text">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-          <span data-i18n="footer_contrib">If you can read this, you're interested in the Linux project. Come help me build Bobine.</span>
-        </div>
-        <a href="mailto:clement.barillot3901@gmail.com" class="footer-contribute__email">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
-          <span>clement.barillot3901@gmail.com</span>
-        </a>
-      </div>
-
-      <div class="site-footer__bottom">
+      <div class="site-footer__left">
         <div class="site-footer__copy">
           <strong data-i18n="footer_brand">Bobine</strong> — <span data-i18n="footer_tagline">Autonomous Playout & Video Controller for Fitness Studios.</span>
         </div>
@@ -755,8 +579,16 @@
           <a href="https://bobine.fit">bobine.fit</a>
           <a href="https://bobine.fit/en/documentation" id="footer-docs" data-i18n="footer_docs">Documentation</a>
           <a href="https://github.com/FantasmaGlad/Bobine" target="_blank" rel="noopener noreferrer" data-i18n="footer_source">Source Code (AGPL-3.0)</a>
-          <a href="https://github.com/FantasmaGlad/Bobine/releases" target="_blank" rel="noopener noreferrer" data-i18n="footer_releases">GitHub Releases</a>
+          <a href="https://github.com/FantasmaGlad/Bobine/releases" target="_blank" rel="noopener noreferrer" data-i18n="footer_releases">Releases</a>
         </nav>
+      </div>
+
+      <div class="site-footer__right">
+        <a href="mailto:clement.barillot3901@gmail.com" class="footer-recruit">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+          <span data-i18n="footer_contrib">If you can read this, you're interested in the Linux project. Come help me build Bobine.</span>
+          <span class="footer-recruit__email">clement.barillot3901@gmail.com</span>
+        </a>
       </div>
     </div>
   </footer>
@@ -770,68 +602,36 @@
         page_title: "Bobine Pong — Player vs Robot",
         brand_label: "PONG",
         nav_back: "Back to APT Repo",
-        game_category: "Mini-Game · Retro Arcade",
-        game_title: "Bobine Pong — Human vs Robot",
-        game_desc: "Classic retro arcade action. Control the left paddle to challenge our autonomous AI robot. All scores and match records are saved locally.",
-        player_label: "PLAYER (YOU)",
-        robot_label: "ROBOT (AI)",
-        btn_pause: "Pause",
-        btn_resume: "Resume",
-        btn_reset: "Reset Match",
-        sound_on: "Sound: ON",
-        sound_off: "Sound: OFF",
-        stat_rally: "Rally:",
-        stat_best: "Best:",
-        stat_wins: "Wins (You - Bot):",
-        controls_hint: "Controls: Use W / S or ↑ / ↓ keys · Mouse or touch drag on canvas · Space to pause. First to 7 points wins the match.",
-        overlay_paused_title: "Game Paused",
-        overlay_paused_desc: "Press Space or click Resume to continue playing.",
-        overlay_paused_btn: "Resume",
-        overlay_win_title: "Victory! You beat the Robot!",
-        overlay_win_desc: "Incredible reflexes! You won the 7-point match against the autonomous AI.",
-        overlay_win_btn: "Play Another Match",
-        overlay_loss_title: "Defeat! The Robot won this time.",
-        overlay_loss_desc: "The autonomous bot scored 7 points. Sharpen your angles and take your revenge!",
-        overlay_loss_btn: "Try Again",
+        player_label: "PLAYER",
+        robot_label: "ROBOT",
+        overlay_win_title: "Victory!",
+        overlay_win_desc: "You won the 7-point match against the robot.",
+        overlay_loss_title: "Defeat",
+        overlay_loss_desc: "The robot reached 7 points.",
+        btn_restart: "Play Again",
         footer_brand: "Bobine",
         footer_tagline: "Autonomous Playout & Video Controller for Fitness Studios.",
         footer_docs: "Documentation",
         footer_source: "Source Code (AGPL-3.0)",
-        footer_releases: "GitHub Releases",
+        footer_releases: "Releases",
         footer_contrib: "If you can read this, you're interested in the Linux project. Come help me build Bobine."
       },
       fr: {
         page_title: "Bobine Pong — Joueur contre Robot",
         brand_label: "PONG",
         nav_back: "Retour au dépôt APT",
-        game_category: "Mini-Jeu · Arcade Rétro",
-        game_title: "Bobine Pong — Humain contre Robot",
-        game_desc: "Jeu d'arcade rétro classique. Pilotez la raquette gauche pour défier le robot IA autonome. Vos victoires et scores sont conservés localement.",
-        player_label: "JOUEUR (VOUS)",
-        robot_label: "ROBOT (IA)",
-        btn_pause: "Pause",
-        btn_resume: "Reprendre",
-        btn_reset: "Recommencer",
-        sound_on: "Son : ACTIF",
-        sound_off: "Son : COUPÉ",
-        stat_rally: "Échange :",
-        stat_best: "Record :",
-        stat_wins: "Victoires (Vous - Bot) :",
-        controls_hint: "Contrôles : touches W / S ou ↑ / ↓ · Glissement tactile ou souris sur l'arène · Espace pour pause. Premier à 7 points gagne le match.",
-        overlay_paused_title: "Partie en pause",
-        overlay_paused_desc: "Appuyez sur Espace ou cliquez sur Reprendre pour continuer.",
-        overlay_paused_btn: "Reprendre",
-        overlay_win_title: "Victoire ! Vous avez battu le Robot !",
-        overlay_win_desc: "Réflexes impeccables ! Vous avez remporté la manche à 7 points face à l'IA.",
-        overlay_win_btn: "Rejouer un match",
-        overlay_loss_title: "Défaite ! Le Robot l'emporte cette fois.",
-        overlay_loss_desc: "Le bot autonome a atteint 7 points. Aiguisez vos angles et prenez votre revanche !",
-        overlay_loss_btn: "Prendre ma revanche",
+        player_label: "JOUEUR",
+        robot_label: "ROBOT",
+        overlay_win_title: "Victoire !",
+        overlay_win_desc: "Vous avez remporté la manche à 7 points face au robot.",
+        overlay_loss_title: "Défaite",
+        overlay_loss_desc: "Le robot a atteint 7 points.",
+        btn_restart: "Recommencer",
         footer_brand: "Bobine",
         footer_tagline: "Régie Vidéo & Playout Libre pour Salle de Sport.",
         footer_docs: "Documentation",
         footer_source: "Code Source (AGPL-3.0)",
-        footer_releases: "Releases GitHub",
+        footer_releases: "Releases",
         footer_contrib: "Si tu peux lire ça, c'est que tu t'intéresses au projet sur Linux. Viens m'aider à développer Bobine."
       }
     };
@@ -859,11 +659,15 @@
       }
 
       const navBack = document.getElementById("nav-back");
-      if (navBack) {
-        navBack.href = lang === "fr" ? "/fr/" : "/";
-      }
+      const brandLink = document.getElementById("brand-link");
+      const targetUrl = lang === "fr" ? "/fr/" : "/";
+      if (navBack) navBack.href = targetUrl;
+      if (brandLink) brandLink.href = targetUrl;
 
-      updateSoundButtonText();
+      const footerDocs = document.getElementById("footer-docs");
+      if (footerDocs) {
+        footerDocs.href = lang === "fr" ? "https://bobine.fit/documentation" : "https://bobine.fit/en/documentation";
+      }
 
       try {
         localStorage.setItem("bobine_apt_lang", lang);
@@ -893,11 +697,9 @@
     })();
 
     /* --------------------------------------------------------------------------
-       Sons Rétro Web Audio API (aucun fichier externe)
+       Sons Web Audio API Rétro (synthétisés nativement)
        -------------------------------------------------------------------------- */
     let audioCtx = null;
-    let soundEnabled = true;
-
     function getAudioContext() {
       if (!audioCtx && (window.AudioContext || window.webkitAudioContext)) {
         const AudioCtor = window.AudioContext || window.webkitAudioContext;
@@ -909,8 +711,7 @@
       return audioCtx;
     }
 
-    function playTone(freq, type, duration, vol = 0.08) {
-      if (!soundEnabled) return;
+    function playTone(freq, type, duration, vol = 0.07) {
       try {
         const ctx = getAudioContext();
         if (!ctx) return;
@@ -929,190 +730,146 @@
 
     function soundHit() { playTone(440, "square", 0.05, 0.06); }
     function soundBounce() { playTone(260, "square", 0.04, 0.05); }
-    function soundScore() { playTone(784, "sine", 0.18, 0.09); }
+    function soundScore() { playTone(784, "sine", 0.16, 0.08); }
+    function soundDefeat() {
+      [392, 330, 261, 220].forEach((f, idx) => {
+        setTimeout(() => playTone(f, "sawtooth", 0.18, 0.07), idx * 120);
+      });
+    }
     function soundWin() {
       [523, 659, 784, 1046].forEach((f, idx) => {
-        setTimeout(() => playTone(f, "sine", 0.15, 0.08), idx * 100);
+        setTimeout(() => playTone(f, "sine", 0.14, 0.08), idx * 100);
       });
     }
 
-    function toggleSound() {
-      soundEnabled = !soundEnabled;
-      updateSoundButtonText();
-    }
-
-    function updateSoundButtonText() {
-      const dict = I18N[currentLang] || I18N.en;
-      const el = document.getElementById("soundBtnText");
-      if (el) {
-        el.textContent = soundEnabled ? dict.sound_on : dict.sound_off;
-      }
-    }
-
     /* --------------------------------------------------------------------------
-       Moteur de Jeu Pong (Canvas 60 FPS)
+       Moteur de Jeu Pong (Plein Écran Responsive 60 FPS)
        -------------------------------------------------------------------------- */
     const canvas = document.getElementById("pongCanvas");
     const ctx = canvas.getContext("2d");
+    const container = document.getElementById("gameArea");
 
-    const CW = 800;
-    const CH = 480;
-
-    const PADDLE_W = 12;
-    const PADDLE_H = 72;
-    const BALL_SIZE = 12;
+    let W = 800;
+    let H = 600;
     const WIN_SCORE = 7;
 
     let scorePlayer = 0;
     let scoreBot = 0;
-    let rallyCount = 0;
-    let bestRally = 0;
-    let playerWins = 0;
-    let botWins = 0;
-
-    let isPaused = false;
     let matchOver = false;
 
-    // Charger les statistiques depuis localStorage
-    (function loadStats() {
-      try {
-        const raw = localStorage.getItem("bobine_pong_stats");
-        if (raw) {
-          const data = JSON.parse(raw);
-          playerWins = Number(data.playerWins) || 0;
-          botWins = Number(data.botWins) || 0;
-          bestRally = Number(data.bestRally) || 0;
-        }
-      } catch(e) {}
-      updateHUD();
-    })();
-
-    function saveStats() {
-      try {
-        localStorage.setItem("bobine_pong_stats", JSON.stringify({
-          playerWins,
-          botWins,
-          bestRally
-        }));
-      } catch(e) {}
-      updateHUD();
-    }
-
     const player = {
-      x: 24,
-      y: CH / 2 - PADDLE_H / 2,
-      w: PADDLE_W,
-      h: PADDLE_H,
-      speed: 7,
-      dy: 0
+      x: 28,
+      y: 200,
+      w: 12,
+      h: 90,
+      speed: 9
     };
 
     const bot = {
-      x: CW - 24 - PADDLE_W,
-      y: CH / 2 - PADDLE_H / 2,
-      w: PADDLE_W,
-      h: PADDLE_H,
-      speed: 4.8
-    };
-
-    const ball = {
-      x: CW / 2 - BALL_SIZE / 2,
-      y: CH / 2 - BALL_SIZE / 2,
-      w: BALL_SIZE,
-      h: BALL_SIZE,
-      vx: 5.5,
-      vy: 2.5,
+      x: 760,
+      y: 200,
+      w: 12,
+      h: 90,
       speed: 5.5
     };
 
+    const ball = {
+      x: 400,
+      y: 300,
+      size: 12,
+      vx: 6,
+      vy: 2,
+      speed: 6.5
+    };
+
+    function resizeCanvas() {
+      const rect = container.getBoundingClientRect();
+      W = Math.max(320, Math.floor(rect.width));
+      H = Math.max(240, Math.floor(rect.height));
+
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(W * dpr);
+      canvas.height = Math.floor(H * dpr);
+      canvas.style.width = W + "px";
+      canvas.style.height = H + "px";
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+
+      // Adaptation dynamique des raquettes selon la hauteur d'écran
+      const paddleH = Math.max(64, Math.min(120, Math.round(H * 0.18)));
+      player.h = paddleH;
+      bot.h = paddleH;
+
+      player.x = Math.max(20, Math.round(W * 0.03));
+      bot.x = W - player.x - bot.w;
+
+      // Garder les éléments dans l'arène
+      player.y = Math.max(0, Math.min(H - player.h, player.y));
+      bot.y = Math.max(0, Math.min(H - bot.h, bot.y));
+      ball.x = Math.max(0, Math.min(W - ball.size, ball.x));
+      ball.y = Math.max(0, Math.min(H - ball.size, ball.y));
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+
     function resetBall(direction = 1) {
-      ball.x = CW / 2 - BALL_SIZE / 2;
-      ball.y = CH / 2 - BALL_SIZE / 2;
-      ball.speed = 5.5;
-      const angle = (Math.random() * 0.7 - 0.35) * Math.PI;
+      ball.x = W / 2 - ball.size / 2;
+      ball.y = H / 2 - ball.size / 2;
+      ball.speed = Math.max(6.5, Math.min(9.5, W * 0.007));
+      const angle = (Math.random() * 0.6 - 0.3) * Math.PI;
       ball.vx = Math.cos(angle) * ball.speed * direction;
       ball.vy = Math.sin(angle) * ball.speed;
-      rallyCount = 0;
-      updateHUD();
     }
 
-    function resetMatch() {
+    function restartMatch() {
       scorePlayer = 0;
       scoreBot = 0;
-      rallyCount = 0;
       matchOver = false;
-      isPaused = false;
-      hideOverlay();
-      player.y = CH / 2 - PADDLE_H / 2;
-      bot.y = CH / 2 - PADDLE_H / 2;
+      document.getElementById("scorePlayer").textContent = "0";
+      document.getElementById("scoreBot").textContent = "0";
+      document.getElementById("endOverlay").classList.remove("is-visible");
+      player.y = H / 2 - player.h / 2;
+      bot.y = H / 2 - bot.h / 2;
       resetBall(Math.random() > 0.5 ? 1 : -1);
-      updateScoreboard();
     }
 
-    function updateScoreboard() {
-      document.getElementById("scorePlayer").textContent = scorePlayer;
-      document.getElementById("scoreBot").textContent = scoreBot;
-    }
+    function showEndOverlay(won) {
+      const dict = I18N[currentLang] || I18N.en;
+      const overlay = document.getElementById("endOverlay");
+      const titleEl = document.getElementById("endTitle");
+      const descEl = document.getElementById("endDesc");
+      const btnTextEl = document.getElementById("restartBtnText");
 
-    function updateHUD() {
-      document.getElementById("statRally").textContent = rallyCount;
-      document.getElementById("statBestRally").textContent = bestRally;
-      document.getElementById("statWins").textContent = `${playerWins} - ${botWins}`;
-    }
-
-    function showOverlay(title, desc, btnText, isMatchEnd = false) {
-      const overlay = document.getElementById("arenaOverlay");
-      document.getElementById("overlayTitle").textContent = title;
-      document.getElementById("overlaySubtitle").textContent = desc;
-      const btn = document.getElementById("overlayBtn");
-      btn.textContent = btnText;
-      if (isMatchEnd) {
-        btn.onclick = () => { resetMatch(); };
+      if (won) {
+        titleEl.textContent = dict.overlay_win_title;
+        descEl.textContent = dict.overlay_win_desc;
+        btnTextEl.textContent = dict.btn_restart;
+        soundWin();
       } else {
-        btn.onclick = () => { togglePause(); };
+        titleEl.textContent = dict.overlay_loss_title;
+        descEl.textContent = dict.overlay_loss_desc;
+        btnTextEl.textContent = dict.btn_restart;
+        soundDefeat();
       }
+
       overlay.classList.add("is-visible");
     }
 
-    function hideOverlay() {
-      document.getElementById("arenaOverlay").classList.remove("is-visible");
-    }
-
-    function togglePause() {
-      if (matchOver) return;
-      isPaused = !isPaused;
-      const dict = I18N[currentLang] || I18N.en;
-      const pauseBtnText = document.getElementById("pauseBtnText");
-      if (isPaused) {
-        showOverlay(dict.overlay_paused_title, dict.overlay_paused_desc, dict.overlay_paused_btn);
-        pauseBtnText.textContent = dict.btn_resume;
-      } else {
-        hideOverlay();
-        pauseBtnText.textContent = dict.btn_pause;
-      }
-    }
-
     // Contrôles Clavier
-    const keys = {
-      up: false,
-      down: false
-    };
-
+    const keys = { up: false, down: false };
     window.addEventListener("keydown", (e) => {
-      if (e.code === "Space") {
-        e.preventDefault();
-        togglePause();
-        return;
-      }
-      if (e.code === "KeyR") {
-        resetMatch();
-        return;
-      }
       if (e.code === "ArrowUp" || e.code === "KeyW" || e.code === "KeyZ") {
         keys.up = true;
+        e.preventDefault();
       }
       if (e.code === "ArrowDown" || e.code === "KeyS") {
         keys.down = true;
+        e.preventDefault();
+      }
+      if (matchOver && (e.code === "Enter" || e.code === "Space")) {
+        e.preventDefault();
+        restartMatch();
       }
     });
 
@@ -1125,79 +882,77 @@
       }
     });
 
-    // Contrôles Souris & Tactile
-    function handlePointerMove(clientY) {
-      if (isPaused || matchOver) return;
+    // Contrôles Souris & Tactile continus sur tout l'écran
+    function handlePointer(clientY) {
+      if (matchOver) return;
       const rect = canvas.getBoundingClientRect();
-      const scaleY = CH / rect.height;
-      const canvasY = (clientY - rect.top) * scaleY;
-      player.y = Math.max(0, Math.min(CH - player.h, canvasY - player.h / 2));
+      const canvasY = clientY - rect.top;
+      player.y = Math.max(0, Math.min(H - player.h, canvasY - player.h / 2));
     }
 
-    canvas.addEventListener("mousemove", (e) => {
-      handlePointerMove(e.clientY);
+    window.addEventListener("mousemove", (e) => {
+      handlePointer(e.clientY);
     });
 
-    canvas.addEventListener("touchmove", (e) => {
+    window.addEventListener("touchmove", (e) => {
       if (e.touches.length > 0) {
-        e.preventDefault();
-        handlePointerMove(e.touches[0].clientY);
+        handlePointer(e.touches[0].clientY);
       }
-    }, { passive: false });
+    }, { passive: true });
 
-    canvas.addEventListener("touchstart", (e) => {
+    window.addEventListener("touchstart", (e) => {
       if (e.touches.length > 0) {
-        handlePointerMove(e.touches[0].clientY);
+        handlePointer(e.touches[0].clientY);
       }
-    });
+    }, { passive: true });
 
     /* --------------------------------------------------------------------------
-       Boucle de Jeu (60 FPS)
+       Boucle de Mise à Jour Physique (60 FPS)
        -------------------------------------------------------------------------- */
     function update() {
-      if (isPaused || matchOver) return;
+      if (matchOver) return;
 
-      // Déplacement joueur au clavier
+      // Déplacement Clavier
       if (keys.up) {
         player.y = Math.max(0, player.y - player.speed);
       }
       if (keys.down) {
-        player.y = Math.min(CH - player.h, player.y + player.speed);
+        player.y = Math.min(H - player.h, player.y + player.speed);
       }
 
-      // IA Robot (suivi fluide et équilibré)
+      // Déplacement du Robot
       const botCenter = bot.y + bot.h / 2;
-      const targetY = ball.y + ball.h / 2;
+      const targetY = ball.y + ball.size / 2;
       const deltaY = targetY - botCenter;
+      bot.speed = Math.max(4.8, Math.min(8.2, H * 0.01));
 
       if (ball.vx > 0) {
-        // Si la balle vient vers le robot, il anticipe avec une vitesse limitée
         const step = Math.min(bot.speed, Math.abs(deltaY));
         if (deltaY > 6) {
-          bot.y = Math.min(CH - bot.h, bot.y + step);
+          bot.y = Math.min(H - bot.h, bot.y + step);
         } else if (deltaY < -6) {
           bot.y = Math.max(0, bot.y - step);
         }
       } else {
-        // Si la balle s'éloigne, le robot se replace doucement vers le centre
-        const centerOffset = CH / 2 - botCenter;
-        if (Math.abs(centerOffset) > 10) {
-          bot.y += Math.sign(centerOffset) * 1.5;
+        // Retour modéré vers le centre
+        const centerDiff = H / 2 - botCenter;
+        if (Math.abs(centerDiff) > 20) {
+          bot.y += Math.sign(centerDiff) * 1.5;
         }
       }
 
-      // Déplacement de la balle
+      // Déplacement Balle
       ball.x += ball.vx;
       ball.y += ball.vy;
 
-      // Rebond murs supérieur et inférieur
+      // Rebond Haut / Bas
       if (ball.y <= 0) {
         ball.y = 0;
-        ball.vy = -ball.vy;
+        ball.vy = Math.abs(ball.vy);
         soundBounce();
-      } else if (ball.y + ball.h >= CH) {
-        ball.y = CH - ball.h;
-        ball.vy = -ball.vy;
+      } else if (ball.y + ball.size >= H) {
+        ball.y = H - ball.size;
+        ball.vy = -Math.abs(ball.vy);
         soundBounce();
       }
 
@@ -1205,129 +960,104 @@
       if (
         ball.vx < 0 &&
         ball.x <= player.x + player.w &&
-        ball.x + ball.w >= player.x &&
-        ball.y + ball.h >= player.y &&
+        ball.x + ball.size >= player.x &&
+        ball.y + ball.size >= player.y &&
         ball.y <= player.y + player.h
       ) {
         ball.x = player.x + player.w;
-        // Calcul angle selon l'impact
-        const hitOffset = (ball.y + ball.h / 2 - (player.y + player.h / 2)) / (player.h / 2);
+        const hitOffset = (ball.y + ball.size / 2 - (player.y + player.h / 2)) / (player.h / 2);
         const maxAngle = (5 * Math.PI) / 12; // 75 deg
-        const angle = hitOffset * maxAngle;
-        ball.speed = Math.min(13.5, ball.speed + 0.35);
-        ball.vx = Math.cos(angle) * ball.speed;
+        const angle = Math.max(-0.95, Math.min(0.95, hitOffset)) * maxAngle;
+        ball.speed = Math.min(18, ball.speed + 0.4);
+        ball.vx = Math.abs(Math.cos(angle) * ball.speed);
         ball.vy = Math.sin(angle) * ball.speed;
-
-        rallyCount++;
-        if (rallyCount > bestRally) {
-          bestRally = rallyCount;
-          saveStats();
-        }
-        updateHUD();
         soundHit();
       }
 
       // Collision Raquette Robot (Droite)
       if (
         ball.vx > 0 &&
-        ball.x + ball.w >= bot.x &&
+        ball.x + ball.size >= bot.x &&
         ball.x <= bot.x + bot.w &&
-        ball.y + ball.h >= bot.y &&
+        ball.y + ball.size >= bot.y &&
         ball.y <= bot.y + bot.h
       ) {
-        ball.x = bot.x - ball.w;
-        const hitOffset = (ball.y + ball.h / 2 - (bot.y + bot.h / 2)) / (bot.h / 2);
+        ball.x = bot.x - ball.size;
+        const hitOffset = (ball.y + ball.size / 2 - (bot.y + bot.h / 2)) / (bot.h / 2);
         const maxAngle = (5 * Math.PI) / 12;
-        const angle = hitOffset * maxAngle;
-        ball.speed = Math.min(13.5, ball.speed + 0.35);
-        ball.vx = -Math.cos(angle) * ball.speed;
+        const angle = Math.max(-0.95, Math.min(0.95, hitOffset)) * maxAngle;
+        ball.speed = Math.min(18, ball.speed + 0.4);
+        ball.vx = -Math.abs(Math.cos(angle) * ball.speed);
         ball.vy = Math.sin(angle) * ball.speed;
-
-        rallyCount++;
-        if (rallyCount > bestRally) {
-          bestRally = rallyCount;
-          saveStats();
-        }
-        updateHUD();
         soundHit();
       }
 
-      // Point marqué Joueur
-      if (ball.x > CW) {
+      // Point Joueur
+      if (ball.x > W) {
         scorePlayer++;
+        document.getElementById("scorePlayer").textContent = scorePlayer;
         soundScore();
-        updateScoreboard();
-        checkMatchEnd();
-        if (!matchOver) resetBall(-1);
+        if (scorePlayer >= WIN_SCORE) {
+          matchOver = true;
+          showEndOverlay(true);
+        } else {
+          resetBall(-1);
+        }
       }
 
-      // Point marqué Robot
-      if (ball.x + ball.w < 0) {
+      // Point Robot
+      if (ball.x + ball.size < 0) {
         scoreBot++;
+        document.getElementById("scoreBot").textContent = scoreBot;
         soundScore();
-        updateScoreboard();
-        checkMatchEnd();
-        if (!matchOver) resetBall(1);
+        if (scoreBot >= WIN_SCORE) {
+          matchOver = true;
+          showEndOverlay(false);
+        } else {
+          resetBall(1);
+        }
       }
     }
 
-    function checkMatchEnd() {
-      const dict = I18N[currentLang] || I18N.en;
-      if (scorePlayer >= WIN_SCORE) {
-        matchOver = true;
-        playerWins++;
-        saveStats();
-        soundWin();
-        showOverlay(dict.overlay_win_title, dict.overlay_win_desc, dict.overlay_win_btn, true);
-      } else if (scoreBot >= WIN_SCORE) {
-        matchOver = true;
-        botWins++;
-        saveStats();
-        showOverlay(dict.overlay_loss_title, dict.overlay_loss_desc, dict.overlay_loss_btn, true);
-      }
+    function roundRect(context, x, y, width, height, radius) {
+      context.beginPath();
+      context.moveTo(x + radius, y);
+      context.lineTo(x + width - radius, y);
+      context.quadraticCurveTo(x + width, y, x + width, y + radius);
+      context.lineTo(x + width, y + height - radius);
+      context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      context.lineTo(x + radius, y + height);
+      context.quadraticCurveTo(x, y + height, x, y + height - radius);
+      context.lineTo(x, y + radius);
+      context.quadraticCurveTo(x, y, x + radius, y);
+      context.closePath();
     }
 
     function render() {
-      // Fond
+      // Nettoyage fond d'arène
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, CW, CH);
+      ctx.fillRect(0, 0, W, H);
 
       // Filet central discret
       ctx.fillStyle = "#e2e8f0";
-      const dashH = 10;
-      const gapH = 8;
-      const netX = CW / 2 - 1.5;
-      for (let y = 10; y < CH - 10; y += dashH + gapH) {
+      const dashH = 12;
+      const gapH = 10;
+      const netX = Math.round(W / 2 - 1.5);
+      for (let y = 10; y < H - 10; y += dashH + gapH) {
         ctx.fillRect(netX, y, 3, dashH);
       }
 
       // Raquettes (noir d'encre #0f172a)
       ctx.fillStyle = "#0f172a";
-      // Raquette joueur (arrondie)
       roundRect(ctx, player.x, player.y, player.w, player.h, 3);
       ctx.fill();
 
-      // Raquette robot
       roundRect(ctx, bot.x, bot.y, bot.w, bot.h, 3);
       ctx.fill();
 
       // Balle
-      roundRect(ctx, ball.x, ball.y, ball.w, ball.h, 2);
+      roundRect(ctx, ball.x, ball.y, ball.size, ball.size, 2);
       ctx.fill();
-    }
-
-    function roundRect(ctx, x, y, width, height, radius) {
-      ctx.beginPath();
-      ctx.moveTo(x + radius, y);
-      ctx.lineTo(x + width - radius, y);
-      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-      ctx.lineTo(x + width, y + height - radius);
-      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-      ctx.lineTo(x + radius, y + height);
-      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-      ctx.lineTo(x, y + radius);
-      ctx.quadraticCurveTo(x, y, x + radius, y);
-      ctx.closePath();
     }
 
     function gameLoop() {
@@ -1336,7 +1066,8 @@
       requestAnimationFrame(gameLoop);
     }
 
-    // Démarrage
+    // Initialisation
+    resizeCanvas();
     resetBall(1);
     requestAnimationFrame(gameLoop);
   </script>
