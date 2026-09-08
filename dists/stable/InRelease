@@ -1,40 +1,39 @@
 -----BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA256
+Hash: SHA512
 
 Origin: Bobine
 Label: Bobine
 Suite: stable
 Codename: stable
-Date: Mon, 07 Sep 2026 20:39:00 UTC
+Date: Tue, 08 Sep 2026 12:08:39 UTC
 Architectures: amd64
 Components: main
 Description: Depot officiel Bobine - Canal Stable
 MD5Sum:
- bb6204b6d606b0188ee756e4fb35ec83 1316 main/binary-amd64/Packages
- 31ba38b7d6d2355e9718dd03c47df81f 849 main/binary-amd64/Packages.gz
- 82a1ae90445e5284617f8a8cc3a53fa4 52 main/binary-amd64/Release
+ ed43e4e60444ef72133f6f9e045a6109 1316 main/binary-amd64/Packages
+ 33e30dcba7ccc18aa93d7588966df2c9 840 main/binary-amd64/Packages.gz
+ 02ddb3348372575002b6c17e50ed7e6d 131 main/binary-amd64/Release
 SHA1:
- 1c806e6685d00411000c26077041c2312390744e 1316 main/binary-amd64/Packages
- 6b7f389757fdcf8e54dc869465862e68cf2adca4 849 main/binary-amd64/Packages.gz
- 9b61d92e2c42866227d305db51276f4714da5cd9 52 main/binary-amd64/Release
+ 520d760ddf9b17fd4dad76ebc018e263c9bb56d7 1316 main/binary-amd64/Packages
+ cec4ba17f234db113afb266f8a17b1780053ec90 840 main/binary-amd64/Packages.gz
+ 1432511e73e94e3863b9703d6f2b887f074bcf11 131 main/binary-amd64/Release
 SHA256:
- 1434d46607a1977f251fbc4d36f529e424fb25d461057008e6852ee3f289a61e 1316 main/binary-amd64/Packages
- 26f619397a856a9e930a255d652b806ace7e7160dee315b8a9feeb30b015a683 849 main/binary-amd64/Packages.gz
- 5d14a4f1b270a16b7797dfa013f0d0d3325c616762714c6e9a34295a4d9be351 52 main/binary-amd64/Release
+ 18c9631a886471b600e2ea06906d423df683e938b85f86172a19bdcc3b0856c5 1316 main/binary-amd64/Packages
+ 62de004b5034aa0bb214fdc3012397d01c174b3021a951ec446f0b7e4434036a 840 main/binary-amd64/Packages.gz
+ 68592a6dbbf9417b9b7c9487ade2f40ed2f4179139cac8cc0940a982f9b81a83 131 main/binary-amd64/Release
 -----BEGIN PGP SIGNATURE-----
 
-iQJHBAEBCAAxFiEElBtvUmpyWfRpTPS8G10YqXb6rRUFAmqfIOQTHGNvbnRhY3RA
-Ym9iaW5lLmZpdAAKCRAbXRipdvqtFfjQEACIH2Aw/+4QYW8zKS9qSamrU5RkkhGo
-lwODA0zj9yvii/z3QfEfyEn2d9m/+nDKFNxtlWotgSdEcXZcO5Wi818c1HWnxIEJ
-g8AnIZzDYMKoKENpn8VdU4lwAAPea2C4X8X7/HNgZaF/eeu5L+gU/BOlAOOEJCqP
-twmcN9M6MfAA270VXy5F7LqSE5prcExtCRown467gko3MnudoxN9qf4+/agFW/ze
-LXxs5TP5sp3BZvJx9toAXcvkAvRnB6vLebeTowyJyO4sQQ3/zuXu5HBmWGFLJc3T
-jtEe8Kpbm39q0qn8+2b7lGo5qd0RhUS4iNPZeURTiRH4GyMk4R6jPT1kOdplJcWi
-PiB/e7rJVsgZUjSBiykmfERjGBVNvg/FGZRcAkjmtfsFDZhMku/KlHC8KmoFlnZy
-NKScLpu0qtxqNyJsnErKdckX12224HpenxeuMFebmed5eb329S2sU6eX06FobtR/
-VaXxpKFhRCP1Uz5LSbm6NPkpcBHox9qYhUn9LxRrB5VjliukaEUFgFEYIPONXMAC
-IPxvfPcOr0y1N7YBjXA21jAvOWN6zL3h6kyKBLClaPY4PzdZiOYdSeyCVGAmBwrp
-x3k8/JrqC43+U8Q1XAqpCOjMLp2jarCsTjji1lb3loAy/BwZwN2tPeM8lT4ZmTTD
-VWghgK5anmEC6w==
-=cQfk
+iQIzBAEBCgAdFiEElBtvUmpyWfRpTPS8G10YqXb6rRUFAmqf+scACgkQG10YqXb6
+rRWTIxAAmUofOVibgHcw1P2LR++1iAcHU8+RCkRJ7RZGABxcCrv4kGDDpGMnOQHq
+PsL6gwnUUIcldR5Ze634ASs082flqQhaI0rUCdKV/J4po50hH0NKlnR/oS7XbKs4
++y/bkNcAPvHLvNzjsZeLPOsi+mnaFco8BumqB+RrAZvvXdtbOY03WmDvjPku5tSO
+khUxdWu4IocPsHjZTfjW3IDlXC9egSA/SkY/jm81Rb8ZRZBRhLJ6x8KKTN3J7j8/
+U2+pMCO2UOp/XifRohHHMee+0Tarfp0pn5nHt0wvl8JjsgD4oNwcsyrSvhGlDSBA
+tbIQPrQtbBN95LE+Y8z/JJ/N5WbRftRjM/A/znOWAoE1JVcAZG+/CyrZjcICDRVX
+Y85XYwDYjRCswY+gC9t6amXRkXb1Hx8FFkcmQDp1Fwh1Kz9XEsF00SFWJ7NDk8Ll
+4nryI40O83zIMhtQ7/KqMskkru7sR7GZNYaF6KWuD0LkGPVsfRC9Qjhc6wJ5aa2w
+TtkcOZ55OfXALAH4jSAIylqlFC/R3gTP0hparjk05VSGu2syYp3/ecjvuimqkwaS
+LnNa4/Uy1Ee63x1/aXne4ZbMY9kJPZdCrsvkj6Ugyr6Sv93/QOxl4xPCdxp88HZG
+bbysRL0n10SNY2Xv+zOxzSabk7xNawWmyLXXm/rzsxCm1CjNG+c=
+=hADn
 -----END PGP SIGNATURE-----
