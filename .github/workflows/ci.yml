@@ -41,15 +41,20 @@ jobs:
   # - "stable" : déclenché par un tag Git Vx.y.z strict (pas de suffixe —
   #   les tags -beta.N par itération sont abandonnés). Un nouveau tag/release
   #   par version, comme avant : historique normal et attendu.
-  # - "beta"   : déclenché manuellement (workflow_dispatch, case
-  #   publish_beta cochée) depuis n'importe quelle référence (choisie via
-  #   "Use workflow from" dans l'UI Actions, main par défaut). Publie
-  #   TOUJOURS sous le même tag mobile "beta" — un seul fichier de release
-  #   Bêta sur GitHub, jamais d'accumulation (réf. mission "éviter 1000
-  #   fichiers"), republié en place par le job release-beta.
-  # Sans tag ni publish_beta (push simple, pull_request), CHANNEL="none" :
-  # les jobs de publication (release-stable, release-beta) ne se déclenchent
-  # pas, seuls les tests/builds de vérification tournent.
+  # - "beta"   : déclenché AUTOMATIQUEMENT à chaque push sur main (la Bêta
+  #   suit main en continu, cf. incident du 8 sept. où la release Bêta est
+  #   restée 6 commits en retard faute de republication manuelle), ou
+  #   manuellement (workflow_dispatch, case publish_beta cochée) depuis
+  #   n'importe quelle référence (choisie via "Use workflow from" dans l'UI
+  #   Actions — utile pour republier sans nouveau commit, ex. après un
+  #   correctif d'infra CI). Publie TOUJOURS sous le même tag mobile "beta"
+  #   — un seul fichier de release Bêta sur GitHub, jamais d'accumulation
+  #   (réf. mission "éviter 1000 fichiers"), republié en place par le job
+  #   release-beta à chaque déclenchement.
+  # Ni tag ni push sur main ni publish_beta (pull_request, push sur une autre
+  # branche) : CHANNEL="none" — les jobs de publication (release-stable,
+  # release-beta) ne se déclenchent pas, seuls les tests/builds de
+  # vérification tournent.
   version:
     name: Resolve release version & channel
     runs-on: ubuntu-latest
@@ -91,6 +96,12 @@ jobs:
             fi
             CHANNEL="stable"
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.publish_beta }}" == "true" ]]; then
+            CHANNEL="beta"
+            TAG_NAME="beta"
+          elif [[ "${{ github.event_name }}" == "push" && "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            # Push direct sur main (hors tag) : republie automatiquement la
+            # Bêta à chaque commit, pour qu'elle ne prenne plus jamais de
+            # retard sur main sans intervention manuelle.
             CHANNEL="beta"
             TAG_NAME="beta"
           fi
