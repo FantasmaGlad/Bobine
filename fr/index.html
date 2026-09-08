@@ -458,6 +458,81 @@
       color: var(--text-heading);
     }
 
+    
+    /* Bouton Pong dans la navigation */
+    .site-nav__link--pong {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface);
+      color: var(--text-heading);
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.15s ease;
+    }
+
+    .site-nav__link--pong:hover {
+      background: var(--text-heading);
+      color: var(--accent-primary-fg);
+      border-color: var(--text-heading);
+    }
+
+    /* Bannière de contribution Linux dans le footer */
+    .footer-contribute {
+      width: 100%;
+      margin-bottom: 1.75rem;
+      padding: 1rem 1.35rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .footer-contribute__text {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.65rem;
+      color: var(--text-main);
+      font-size: 0.875rem;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    .footer-contribute__text svg {
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .footer-contribute__email {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-heading);
+      text-decoration: none;
+      padding: 0.4rem 0.8rem;
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .footer-contribute__email:hover {
+      background: var(--text-heading);
+      color: var(--accent-primary-fg);
+      border-color: var(--text-heading);
+    }
+
     @media (max-width: 640px) {
       .page-main { padding: 2rem 1.25rem 3.5rem; }
       .site-header__inner { flex-wrap: wrap; }
@@ -475,8 +550,131 @@
   <header class="site-header">
     <div class="site-header__inner">
       <a href="https://bobine.fit" class="site-brand" title="Bobine - Accueil">
-        <svg viewBox="0 0 118 20" preserveAspectRatio="xMinYMid meet" class="site-brand__logo" role="img" aria-label="Logo Bobine">
-          <path fill="currentColor" d="M3,0h20v1h-20z M1,1h26v1h-26z M1,2h2v1h-2z M7,2h2v1h-2z M18,2h2v1h-2z M23,2h5v1h-5z M1,3h2v1h-2z M7,3h2v1h-2z M18,3h2v1h-2z M23,3h6v1h-6z M1,4h2v1h-2z M4,4h23v1h-23z M28,4h2v1h-2z M1,5h29v1h-29z M53,5h6v1h-6z M73,5h6v1h-6z M2,6h10v1h-10z M20,6h7v1h-7z M28,6h2v1h-2z M53,6h6v1h-6z M73,6h6v1h-6z M3,7h22v1h-22z M28,7h2v1h-2z M53,7h6v1h-6z M73,7h6v1h-6z M3,8h10v1h-10z M16,8h5v1h-5z M23,8h7v1h-7z M53,8h6v1h-6z M3,9h6v1h-6z M17,9h13v1h-13z M36,9h13v1h-13z M53,9h16v1h-16z M73,9h6v1h-6z M81,9h16v1h-16z M103,9h12v1h-12z M2,10h5v1h-5z M17,10h2v1h-2z M20,10h2v1h-2z M26,10h5v1h-5z M35,10h15v1h-15z M53,10h17v1h-17z M73,10h6v1h-6z M81,10h17v1h-17z M102,10h15v1h-15z M1,11h5v1h-5z M27,11h4v1h-4z M34,11h7v1h-7z M45,11h6v1h-6z M53,11h8v1h-8z M64,11h8v1h-8z M73,11h6v1h-6z M81,11h8v1h-8z M92,11h7v1h-7z M101,11h6v1h-6z M112,11h6v1h-6z M0,12h6v1h-6z M13,12h2v1h-2z M23,12h3v1h-3z M28,12h4v1h-4z M33,12h6v1h-6z M46,12h6v1h-6z M53,12h6v1h-6z M66,12h6v1h-6z M73,12h6v1h-6z M81,12h7v1h-7z M93,12h6v1h-6z M100,12h18v1h-18z M0,13h6v1h-6z M14,13h2v1h-2z M18,13h2v1h-2z M28,13h4v1h-4z M33,13h6v1h-6z M46,13h6v1h-6z M53,13h6v1h-6z M66,13h6v1h-6z M73,13h6v1h-6z M81,13h6v1h-6z M93,13h6v1h-6z M100,13h18v1h-18z M0,14h11v1h-11z M15,14h3v1h-3z M20,14h12v1h-12z M33,14h7v1h-7z M45,14h7v1h-7z M53,14h7v1h-7z M66,14h6v1h-6z M73,14h6v1h-6z M81,14h6v1h-6z M93,14h6v1h-6z M100,14h6v1h-6z M1,15h3v1h-3z M5,15h21v1h-21z M27,15h5v1h-5z M34,15h17v1h-17z M53,15h18v1h-18z M73,15h6v1h-6z M81,15h6v1h-6z M93,15h6v1h-6z M101,15h15v1h-15z M0,16h5v1h-5z M6,16h1v1h-1z M8,16h9v1h-9z M18,16h3v1h-3z M22,16h9v1h-9z M35,16h15v1h-15z M53,16h17v1h-17z M73,16h6v1h-6z M81,16h6v1h-6z M93,16h6v1h-6z M102,16h15v1h-15z M1,17h4v1h-4z M7,17h8v1h-8z M16,17h3v1h-3z M20,17h1v1h-1z M24,17h7v1h-7z M38,17h10v1h-10z M53,17h15v1h-15z M73,17h6v1h-6z M81,17h6v1h-6z M93,17h6v1h-6z M105,17h10v1h-10z M2,18h27v1h-27z M5,19h21v1h-21z" />
+        <svg viewBox="24 20 944 280" class="site-brand__logo" fill="currentColor" role="img" aria-label="Logo Bobine">
+          <rect x="48" y="20" width="160" height="14" />
+          <rect x="32" y="34" width="208" height="14" />
+          <rect x="32" y="48" width="16" height="14" />
+          <rect x="80" y="48" width="16" height="14" />
+          <rect x="168" y="48" width="16" height="14" />
+          <rect x="208" y="48" width="40" height="14" />
+          <rect x="32" y="62" width="16" height="14" />
+          <rect x="80" y="62" width="16" height="14" />
+          <rect x="168" y="62" width="16" height="14" />
+          <rect x="208" y="62" width="48" height="14" />
+          <rect x="32" y="76" width="16" height="14" />
+          <rect x="56" y="76" width="184" height="14" />
+          <rect x="248" y="76" width="16" height="14" />
+          <rect x="32" y="90" width="232" height="14" />
+          <rect x="448" y="90" width="48" height="14" />
+          <rect x="608" y="90" width="48" height="14" />
+          <rect x="40" y="104" width="80" height="14" />
+          <rect x="184" y="104" width="56" height="14" />
+          <rect x="248" y="104" width="16" height="14" />
+          <rect x="448" y="104" width="48" height="14" />
+          <rect x="608" y="104" width="48" height="14" />
+          <rect x="48" y="118" width="176" height="14" />
+          <rect x="248" y="118" width="16" height="14" />
+          <rect x="448" y="118" width="48" height="14" />
+          <rect x="608" y="118" width="48" height="14" />
+          <rect x="48" y="132" width="80" height="14" />
+          <rect x="152" y="132" width="40" height="14" />
+          <rect x="208" y="132" width="56" height="14" />
+          <rect x="448" y="132" width="48" height="14" />
+          <rect x="48" y="146" width="48" height="14" />
+          <rect x="160" y="146" width="104" height="14" />
+          <rect x="312" y="146" width="104" height="14" />
+          <rect x="448" y="146" width="128" height="14" />
+          <rect x="608" y="146" width="48" height="14" />
+          <rect x="672" y="146" width="128" height="14" />
+          <rect x="848" y="146" width="96" height="14" />
+          <rect x="40" y="160" width="40" height="14" />
+          <rect x="160" y="160" width="16" height="14" />
+          <rect x="184" y="160" width="16" height="14" />
+          <rect x="232" y="160" width="40" height="14" />
+          <rect x="304" y="160" width="120" height="14" />
+          <rect x="448" y="160" width="136" height="14" />
+          <rect x="608" y="160" width="48" height="14" />
+          <rect x="672" y="160" width="136" height="14" />
+          <rect x="840" y="160" width="120" height="14" />
+          <rect x="32" y="174" width="40" height="14" />
+          <rect x="240" y="174" width="32" height="14" />
+          <rect x="296" y="174" width="56" height="14" />
+          <rect x="384" y="174" width="48" height="14" />
+          <rect x="448" y="174" width="64" height="14" />
+          <rect x="536" y="174" width="64" height="14" />
+          <rect x="608" y="174" width="48" height="14" />
+          <rect x="672" y="174" width="64" height="14" />
+          <rect x="760" y="174" width="56" height="14" />
+          <rect x="832" y="174" width="48" height="14" />
+          <rect x="920" y="174" width="48" height="14" />
+          <rect x="24" y="188" width="48" height="14" />
+          <rect x="128" y="188" width="16" height="14" />
+          <rect x="208" y="188" width="24" height="14" />
+          <rect x="248" y="188" width="32" height="14" />
+          <rect x="288" y="188" width="48" height="14" />
+          <rect x="392" y="188" width="48" height="14" />
+          <rect x="448" y="188" width="48" height="14" />
+          <rect x="552" y="188" width="48" height="14" />
+          <rect x="608" y="188" width="48" height="14" />
+          <rect x="672" y="188" width="56" height="14" />
+          <rect x="768" y="188" width="48" height="14" />
+          <rect x="824" y="188" width="144" height="14" />
+          <rect x="24" y="202" width="48" height="14" />
+          <rect x="136" y="202" width="16" height="14" />
+          <rect x="168" y="202" width="16" height="14" />
+          <rect x="248" y="202" width="32" height="14" />
+          <rect x="288" y="202" width="48" height="14" />
+          <rect x="392" y="202" width="48" height="14" />
+          <rect x="448" y="202" width="48" height="14" />
+          <rect x="552" y="202" width="48" height="14" />
+          <rect x="608" y="202" width="48" height="14" />
+          <rect x="672" y="202" width="48" height="14" />
+          <rect x="768" y="202" width="48" height="14" />
+          <rect x="824" y="202" width="144" height="14" />
+          <rect x="24" y="216" width="88" height="14" />
+          <rect x="144" y="216" width="24" height="14" />
+          <rect x="184" y="216" width="96" height="14" />
+          <rect x="288" y="216" width="56" height="14" />
+          <rect x="384" y="216" width="56" height="14" />
+          <rect x="448" y="216" width="56" height="14" />
+          <rect x="552" y="216" width="48" height="14" />
+          <rect x="608" y="216" width="48" height="14" />
+          <rect x="672" y="216" width="48" height="14" />
+          <rect x="768" y="216" width="48" height="14" />
+          <rect x="824" y="216" width="48" height="14" />
+          <rect x="32" y="230" width="24" height="14" />
+          <rect x="64" y="230" width="168" height="14" />
+          <rect x="240" y="230" width="40" height="14" />
+          <rect x="296" y="230" width="136" height="14" />
+          <rect x="448" y="230" width="144" height="14" />
+          <rect x="608" y="230" width="48" height="14" />
+          <rect x="672" y="230" width="48" height="14" />
+          <rect x="768" y="230" width="48" height="14" />
+          <rect x="832" y="230" width="120" height="14" />
+          <rect x="24" y="244" width="40" height="14" />
+          <rect x="72" y="244" width="8" height="14" />
+          <rect x="88" y="244" width="72" height="14" />
+          <rect x="168" y="244" width="24" height="14" />
+          <rect x="200" y="244" width="72" height="14" />
+          <rect x="304" y="244" width="120" height="14" />
+          <rect x="448" y="244" width="136" height="14" />
+          <rect x="608" y="244" width="48" height="14" />
+          <rect x="672" y="244" width="48" height="14" />
+          <rect x="768" y="244" width="48" height="14" />
+          <rect x="840" y="244" width="120" height="14" />
+          <rect x="32" y="258" width="32" height="14" />
+          <rect x="80" y="258" width="64" height="14" />
+          <rect x="152" y="258" width="24" height="14" />
+          <rect x="184" y="258" width="8" height="14" />
+          <rect x="216" y="258" width="56" height="14" />
+          <rect x="328" y="258" width="80" height="14" />
+          <rect x="448" y="258" width="120" height="14" />
+          <rect x="608" y="258" width="48" height="14" />
+          <rect x="672" y="258" width="48" height="14" />
+          <rect x="768" y="258" width="48" height="14" />
+          <rect x="864" y="258" width="80" height="14" />
+          <rect x="40" y="272" width="216" height="14" />
+          <rect x="64" y="286" width="168" height="14" />
         </svg>
         <span class="site-brand__divider" aria-hidden="true"></span>
         <span class="site-brand__label">Dépôt APT</span>
@@ -490,6 +688,14 @@
         </div>
         <a href="https://bobine.fit" class="site-nav__link">bobine.fit</a>
         <a href="https://bobine.fit/fr/documentation" class="site-nav__link">Documentation</a>
+                <a href="/pong/?lang=fr" class="site-nav__link site-nav__link--pong" title="Jouer à Pong contre le robot" aria-label="Jouer à Pong contre le robot">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <rect x="2" y="4" width="2.5" height="15" rx="1" />
+            <rect x="19.5" y="7" width="2.5" height="15" rx="1" />
+            <circle cx="11.5" cy="11.5" r="1.75" />
+          </svg>
+          <span>Pong</span>
+        </a>
         <a href="https://github.com/FantasmaGlad/Bobine" target="_blank" rel="noopener noreferrer" class="site-nav__link">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
           <span>GitHub</span>
@@ -627,12 +833,30 @@
   <!-- Pied de page officiel -->
   <footer class="site-footer">
     <div class="site-footer__inner">
+            <div class="footer-contribute">
+        <div class="footer-contribute__text">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+          <span>Si tu peux lire ça, c'est que tu t'intéresses au projet sur Linux. Viens m'aider à développer Bobine.</span>
+        </div>
+        <a href="mailto:clement.barillot3901@gmail.com" class="footer-contribute__email">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
+          <span>clement.barillot3901@gmail.com</span>
+        </a>
+      </div>
       <div class="site-footer__copy">
         <strong>Bobine</strong> — Régie Vidéo & Playout Libre pour Salle de Sport.
       </div>
       <nav class="site-footer__links" aria-label="Liens de pied de page">
         <a href="https://bobine.fit">bobine.fit</a>
         <a href="https://bobine.fit/fr/documentation">Documentation</a>
+                <a href="/pong/?lang=fr" class="site-nav__link site-nav__link--pong" title="Jouer à Pong contre le robot" aria-label="Jouer à Pong contre le robot">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <rect x="2" y="4" width="2.5" height="15" rx="1" />
+            <rect x="19.5" y="7" width="2.5" height="15" rx="1" />
+            <circle cx="11.5" cy="11.5" r="1.75" />
+          </svg>
+          <span>Pong</span>
+        </a>
         <a href="https://github.com/FantasmaGlad/Bobine" target="_blank" rel="noopener noreferrer">Code Source (AGPL-3.0)</a>
         <a href="https://github.com/FantasmaGlad/Bobine/releases" target="_blank" rel="noopener noreferrer">Releases GitHub</a>
       </nav>
