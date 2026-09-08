@@ -244,6 +244,10 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Installer les dépendances npm (node_modules absent d'un checkout frais — la tâche Gradle buildFrontendStatic suppose qu'elles existent déjà)
+        if: steps.check_secrets.outputs.configured == 'true'
+        working-directory: frontend
+        run: npm ci
       - uses: actions/setup-python@v5
         if: steps.check_secrets.outputs.configured == 'true'
         with:
