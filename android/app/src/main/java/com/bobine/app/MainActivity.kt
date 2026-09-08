@@ -4,6 +4,9 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import android.webkit.ConsoleMessage
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -11,7 +14,14 @@ import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import com.chaquo.python.Python
 
-private const val KIOSK_URL = "http://127.0.0.1:8000/kiosk/"
+// 127.0.0.2 (pas 127.0.0.1) : tout le bloc 127.0.0.0/8 est loopback, donc
+// atteint le meme serveur local (confirme en pratique, Lot 3 - `nc` sur
+// l'emulateur), mais useDisplayOutputRedirect() (frontend) classe "cable"
+// UNIQUEMENT la chaine exacte "127.0.0.1"/"localhost" - cf.
+// docs/PortabiliteAndroid.md SS4. L'ecran tactile (ce WebView) doit rester
+// "reseau" pour ne pas suivre le reglage cableOutput destine a la sortie
+// HDMI (Lot 4, qui chargera lui http://127.0.0.1:8000/cinema).
+private const val KIOSK_URL = "http://127.0.0.2:8000/kiosk/"
 
 /**
  * Activite minimale du Lot 2 (cf. docs/plan-implementation-android.md) :
@@ -36,8 +46,19 @@ class MainActivity : AppCompatActivity() {
         // ci-dessous plutot qu'un chargement direct.
         py.getModule("bobine_bootstrap").callAttr("start_server_once")
 
+        // Debug uniquement (build debug) : console JS visible dans logcat
+        // (tag "WebViewConsole") et inspection chrome://inspect — utile
+        // pour diagnostiquer le routage /kiosk vs /cinema (Lot 3) et au-dela.
+        WebView.setWebContentsDebuggingEnabled(true)
+
         val webView = WebView(this)
         webView.settings.javaScriptEnabled = true
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+                Log.d("WebViewConsole", "${message.message()} (${message.sourceId()}:${message.lineNumber()})")
+                return true
+            }
+        }
         webView.webViewClient = object : WebViewClient() {
             override fun onReceivedError(
                 view: WebView,

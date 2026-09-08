@@ -1,6 +1,6 @@
 # Plan d'implémentation — Portabilité Android
 
-Statut (2026-09-08) : **Lots 0 et 2 exécutés et GO confirmés**, validés sur un **émulateur Android réel** (KVM, x86_64, API 37) — pas seulement des builds : `app.main` (le vrai backend) démarre, sert `/kiosk` en HTTP 200, et le rendu a été vérifié visuellement par capture d'écran de la WebView. **Lot 1 largement entamé en pratique** (squelette `android/`, wrapper Gradle committé) mais pas formellement clos — seule la validation matérielle réelle sur la tablette pilote (dock/HDMI physique) reste à faire, l'émulateur ne pouvant pas s'y substituer. Lots 3+ non démarrés. Ce document est **vivant** : cocher les cases au fur et à mesure, ne jamais le laisser retomber en décalage avec la réalité du dépôt.
+Statut (2026-09-08) : **Lots 0, 2 et 3 exécutés**, validés sur un **émulateur Android réel** (KVM, x86_64, API 37) — pas seulement des builds : `app.main` (le vrai backend) démarre, sert `/kiosk` en HTTP 200 sur `127.0.0.2` (hostname « réseau », décision du Lot 3), WebSocket fonctionnel (`/ws/playback`, corrigé au Lot 3). **Lot 3 partiellement clos** : le routage par hostname est validé, mais la vérification bout-en-bout de la bascule `cableOutput`/`networkOutput` est bloquée par un bug frontend préexistant et indépendant d'Android (erreur d'hydratation React sur `/kiosk` depuis l'export statique) — transféré en tâche séparée (`task_67d56a94`), à reprendre une fois corrigé. **Lot 1 largement entamé en pratique** (squelette `android/`, wrapper Gradle committé) mais pas formellement clos — seule la validation matérielle réelle sur la tablette pilote (dock/HDMI physique) reste à faire, l'émulateur ne pouvant pas s'y substituer. Lots 4+ non démarrés. Ce document est **vivant** : cocher les cases au fur et à mesure, ne jamais le laisser retomber en décalage avec la réalité du dépôt.
 
 Ce document opérationnalise les décisions de [`docs/PortabiliteAndroid.md`](PortabiliteAndroid.md) (ci-après « le CDC ») en tâches concrètes, séquencées, découpées en lots aussi petits que possible pour qu'un agent qui reprend le travail sur un seul lot n'ait besoin de charger en contexte que ce lot-là, sans devoir relire tout le chantier.
 
@@ -217,15 +217,28 @@ Réf. CDC §4 — **décision à trancher avant le Lot 4**, qui en dépend direc
 - **(nouveau)** code Kotlin décidant quelle URL charge quelle `WebView`/`Presentation`.
 
 ### Tâches
-- [ ] Trancher explicitement (et l'écrire dans Découvertes) : la `WebView` de l'écran tactile charge-t-elle `bobine.local:8000/kiosk` (mDNS, dépend du Lot 8) ou l'IP LAN locale de la tablette elle-même (déterminée par Kotlin au démarrage, sans dépendre de la résolution mDNS) ?
-- [ ] Si la réponse introduit un cas que `isWiredDisplay()` ne gère pas correctement (ex. la tablette elle-même résout `bobine.local` vers sa propre IP, ce qui pourrait ambiguïser la détection), modifier `useDisplayOutputRedirect.ts` en conséquence — sinon, ne pas y toucher.
-- [ ] Confirmer par un test manuel : bascule du réglage admin `cableOutput` entre `kiosk`/`cinema` → la `Presentation` HDMI (chargée sur `127.0.0.1`) suit le changement ; la `WebView` tactile (chargée sur l'autre hostname) n'est pas affectée par ce même réglage.
+- [x] Tranché — **ni `bobine.local` (mDNS) ni l'IP LAN de la tablette : `127.0.0.2`** (voir Découvertes pour le raisonnement et la validation empirique). Solution plus simple que les deux options envisagées initialement par ce plan, sans dépendance au Lot 8 ni à l'état du Wi-Fi.
+- [x] `isWiredDisplay()` gère déjà correctement ce cas **sans aucune modification** : la comparaison est une égalité stricte de chaîne (`"127.0.0.1"`/`"localhost"`), donc `"127.0.0.2"` est automatiquement classé « réseau ». `useDisplayOutputRedirect.ts` n'a pas été touché.
+- [x] `android/app/src/main/java/com/bobine/app/MainActivity.kt` mis à jour : la `WebView` tactile charge désormais `http://127.0.0.2:8000/kiosk/` au lieu de `127.0.0.1`.
+- [~] Test du basculement `cableOutput` réalisé partiellement — voir Découvertes : bloqué par un bug non lié à Android, transféré en tâche séparée.
 
 ### Critère de sortie
-- [ ] Le comportement du §4 du CDC est vérifié empiriquement sur la tablette pilote, pas seulement supposé correct par lecture de code.
+- [~] Le mécanisme de routage par hostname (`127.0.0.1` = câblé, `127.0.0.2` = réseau, tous deux atteignant le même serveur) est validé empiriquement. La vérification complète du comportement de bascule `cableOutput`/`networkOutput` en conditions réelles reste bloquée par un bug frontend préexistant, indépendant de ce chantier (voir Découvertes) — à reprendre une fois ce bug corrigé.
 
 ### Découvertes
-*(à compléter par l'agent qui exécute ce lot)*
+
+**1. Décision retenue : `127.0.0.2` plutôt que `bobine.local` ou l'IP LAN.** Les deux options envisagées par ce plan avaient chacune un coût : `bobine.local` dépend de la résolution mDNS depuis l'appareil lui-même vers son propre service (Lot 8, pas encore fait, et une résolution mDNS en boucle locale a des cas limites connus sur certains Android) ; l'IP LAN de la tablette dépend de l'état Wi-Fi (absente/instable avant association, ou si la tablette est un jour reliée en filaire uniquement). **Constat exploité** : le bloc entier `127.0.0.0/8` est loopback, pas seulement `127.0.0.1` — n'importe quelle adresse de ce bloc atteint le même serveur local. Vérifié en pratique sur l'émulateur avant toute décision :
+```
+adb shell "echo -e 'GET /api/health HTTP/1.0\r\n\r\n' | nc 127.0.0.2 8000"
+→ HTTP/1.1 200 OK ... {"status":"ok",...}
+```
+`isWiredDisplay()` (comparaison de chaîne stricte) classe `127.0.0.2` comme « réseau » sans aucune modification de code frontend. Confirmé ensuite dans la vraie `WebView` de l'app (pas seulement via `nc`) : `http://127.0.0.2:8000/kiosk/` s'affiche correctement, sans erreur `ERR_CLEARTEXT_NOT_PERMITTED` ni configuration de sécurité réseau Android supplémentaire (capture d'écran validée). **Zéro dépendance au Lot 8, zéro dépendance à l'état Wi-Fi** — plus simple et plus robuste que les deux pistes envisagées initialement.
+
+**2. Bug découvert en tentant de valider la bascule `cableOutput`, non lié à Android — transféré en tâche séparée, PAS corrigé ici.** En essayant de vérifier que la `WebView` sur `127.0.0.1` suit bien `cableOutput` (bascule via `PUT /api/settings/display-output`), la page a levé une erreur JS (`Uncaught Error: Minified React error #418` — erreur d'hydratation React) systématiquement lors du chargement de `/kiosk/` depuis l'export statique de production. **Reproduit indépendamment sur un vrai Chrome desktop** (même export statique, backend local sur le port 8002) — donc **pas un problème de portage Android**, un bug frontend préexistant qui affecte potentiellement aussi les profils desktop/appliance en production. N'apparaît pas sous `next dev`. Cause exacte non identifiée (probablement un rendu dépendant de l'heure/date dans l'écran d'attente, à confirmer) — hors périmètre de ce lot, transféré à une session dédiée plutôt que d'être creusé ici au risque de dériver du chantier Android. **Ce bug empêche de conclure définitivement sur le comportement de `useDisplayOutputRedirect`** dans ce lot : le mécanisme de routage par hostname lui-même (le sujet réel du Lot 3) est validé, mais la vérification bout-en-bout de la bascule kiosk/cinéma devra être refaite une fois ce bug corrigé.
+
+**3. Découverte fonctionnelle majeure, incidente à ce lot mais critique : les WebSockets ne fonctionnaient pas du tout sur Android avant ce lot.** En diagnostiquant le problème de bascule ci-dessus, les logs ont révélé `"GET /ws/playback HTTP/1.1" 404 Not Found` avec `"No supported WebSocket library detected. Please use 'pip install uvicorn[standard]'"`. Conséquence directe, non anticipée, du retrait de l'extra `[standard]` d'uvicorn au Lot 0 (motivé par `httptools`, indisponible sur Android) — **l'extra `[standard]` regroupe aussi le support WebSocket**, pas seulement l'accélération HTTP comme supposé initialement. `/ws/playback` est le mécanisme central de synchronisation temps réel de Bobine (état de lecture, `useDisplayOutputRedirect` en dépend lui-même via `usePlaybackSocket`) — sans lui, une bonne partie de l'admin et des écrans clients ne fonctionne pas du tout, pas juste plus lentement. **Corrigé** : ajout de `install("websockets")` (résout proprement pour Android, testé) dans `android/app/build.gradle.kts`, sans reprendre `httptools`/`uvloop`. Validé par un vrai test de connexion WebSocket : `wsproto`/`websockets` côté client Python a reçu l'événement `boot_id` attendu du protocole. **Le §3.1 du CDC concernant le compromis `uvicorn` sans `[standard]` doit être complété avec ce point** — corrigé dans le CDC en même temps que ce lot.
+
+**4. `MainActivity.kt` instrumentée pour le débogage** (`WebView.setWebContentsDebuggingEnabled(true)` + `WebChromeClient.onConsoleMessage` redirigé vers `Log.d("WebViewConsole", ...)`) — c'est ce qui a permis de repérer le bug d'hydratation (§2) au lieu de rester bloqué sans visibilité sur les erreurs JS. À conserver pour les lots suivants (utile dès le Lot 4/5 pour déboguer la `Presentation` et le WebView shell).
 
 ---
 
@@ -470,7 +483,7 @@ Réf. CDC §2. Dépend de tous les lots produisant du code fonctionnel (peut dé
 - [x] Lot 0 — go/no-go dépendances Chaquopy (GO — downgrade Pydantic v1 sur Android, watchdog en polling maison)
 - [ ] Lot 1 — squelette projet (fait) + validation matérielle tablette pilote réelle (reste à faire — nécessite le dock/HDMI physique, pas simulable sur émulateur)
 - [x] Lot 2 — frontend statique embarqué (GO — confirmé visuellement sur émulateur)
-- [ ] Lot 3 — routage hostname `/kiosk` vs `/cinema`
+- [~] Lot 3 — routage hostname `/kiosk` vs `/cinema` (décision 127.0.0.2 validée ; vérification bascule bloquée par un bug hors-périmètre, `task_67d56a94`)
 - [ ] Lot 4 — double affichage `DisplayManager`/`Presentation`
 - [ ] Lot 5 — WebView tactile + UI shell + plein écran immersif quittable
 - [ ] Lot 6 — `ForegroundService` persistant (survit à la fermeture de l'app)

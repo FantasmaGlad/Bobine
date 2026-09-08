@@ -126,6 +126,14 @@ chaquopy {
             // Android (confirme, cf. Decouvertes du plan Lot 0). uvicorn nu
             // retombe sur h11 (pur Python, deja resolu par ailleurs).
             install("uvicorn==0.52.1")
+            // websockets : /ws/playback (sync de lecture temps reel, coeur
+            // de Bobine) NE FONCTIONNE PAS avec uvicorn nu seul - "No
+            // supported WebSocket library detected", 404 sur /ws/playback
+            // (constate en pratique, Lot 3). uvicorn[standard] regroupe
+            // websockets ET httptools/uvloop (ces deux derniers sans
+            // distribution Android, cf. Lot 0) - installer websockets seul
+            // recupere le support WebSocket sans les extras bloquants.
+            install("websockets")
             install("sqlalchemy==2.0.51")
             install("alembic==1.18.5")
             install("python-multipart==0.0.32")
