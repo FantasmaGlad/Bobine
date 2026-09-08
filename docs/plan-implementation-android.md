@@ -462,6 +462,12 @@ Réf. CDC §2. Dépend de tous les lots produisant du code fonctionnel (peut dé
 
 **Format PKCS12 : un seul mot de passe pour le keystore ET la clé**, pas deux séparés — `keytool` récent ignore silencieusement un `-keypass` différent du `-storepass` sur ce format (avertissement explicite à la génération). Documenté dans `~/.bobine-signing/README.md` pour ne pas surprendre un futur agent qui s'attendrait à deux mots de passe distincts.
 
+**Le job CI a échoué deux fois de suite au premier vrai déclenchement, corrigé les deux fois en regardant le vrai log — pas en relisant la config a priori** :
+1. `sdkmanager: command not found` — le runner `ubuntu-latest` de GitHub Actions n'expose pas `sdkmanager` sur le `PATH` par défaut malgré un SDK Android préinstallé. Corrigé avec l'action `android-actions/setup-android@v3` (configure `ANDROID_HOME`/`PATH`/licences correctement) avant d'installer `platforms;android-36`/`build-tools;36.1.0` via `sdkmanager`.
+2. `sh: 1: next: not found` — la tâche Gradle `buildFrontendStatic` (Lot 2) suppose que `frontend/node_modules` existe déjà (vrai en local, jamais vrai sur un checkout CI frais). Corrigé en ajoutant une étape explicite `npm ci` dans le job, comme le font déjà `windows-build`/`frontend`.
+
+**Confirmé sur un vrai run CI, pas seulement en local** (3ᵉ tentative, run [34278925876](https://github.com/FantasmaGlad/Bobine/actions/runs/34278925876)) : `apksigner verify --print-certs` sur l'APK produit par le job affiche bien `CN=Bobine` (la clé dédiée, pas une clé de test), artefact `bobine-android-apk-<commit>` uploadé avec succès (~43 Mo). Le pipeline de signature est donc opérationnel de bout en bout, pas seulement documenté.
+
 **Build release testé pour de vrai, pas seulement en théorie** : `ANDROID_KEYSTORE_PATH`/`ANDROID_KEYSTORE_PASSWORD`/`ANDROID_KEY_ALIAS`/`ANDROID_KEY_PASSWORD` exportés en local, `./gradlew :app:assembleRelease` réussi, signature vérifiée avec `apksigner verify --print-certs` (`CN=Bobine`, pas le certificat `CN=Android Debug` des builds précédents), et installation propre sur l'émulateur après désinstallation de la version debug.
 
 ---
