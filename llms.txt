@@ -1,0 +1,59 @@
+# Bobine Official APT Repository (apt.bobine.fit)
+
+> Official cryptographically signed Debian/Ubuntu APT repository for Bobine (https://bobine.fit) — the free, open-source (AGPL-3.0) video playout and streaming system for sports clubs and fitness studios.
+
+## Overview
+- **Repository Host**: https://apt.bobine.fit
+- **Supported Architectures**: amd64 (x86-64)
+- **Supported Operating Systems**: Debian 12 (Bookworm), Debian 13 (Trixie), Ubuntu 22.04 LTS (Jammy), Ubuntu 24.04 LTS (Noble), Linux Mint 21/22
+- **Cryptographic Signature**: RSA 4096-bit GPG key
+- **Key Fingerprint**: 941B 6F52 6A72 59F4 694C F4BC 1B5D 18A9 76FA AD15
+- **Key Identity**: Bobine APT Repository <contact@bobine.fit>
+- **Public Key Location**: https://apt.bobine.fit/bobine.gpg
+
+## Installation Instructions
+
+### 1. Import Official GPG Keyring
+Import the public key into the standard system keyrings directory:
+```bash
+curl -fsSL https://apt.bobine.fit/bobine.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/bobine.gpg
+```
+
+### 2. Configure Repository Source
+Add the signed APT source definition:
+
+**Stable Channel (Recommended for production playout):**
+```bash
+echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] https://apt.bobine.fit/ stable main" | sudo tee /etc/apt/sources.list.d/bobine.list
+```
+
+**Beta Channel (Rolling pre-release channel):**
+```bash
+echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] https://apt.bobine.fit/ beta main" | sudo tee /etc/apt/sources.list.d/bobine.list
+```
+
+### 3. Install or Upgrade Bobine
+```bash
+sudo apt update && sudo apt install bobine
+```
+
+## Features of the Debian Package (.deb)
+- **Automatic Updates**: Handled via standard `sudo apt update && sudo apt upgrade`.
+- **AppStream Metadata**: Certified for Ubuntu App Center and GNOME Software with AGPL-3.0 licensing.
+- **Desktop Integration**: Includes `.desktop` launcher, system notification area icon (systray), and standard XDG configuration (`~/.local/share/bobine/`).
+- **Hardware Acceleration**: VA-API hardware decoding for Intel (QuickSync / iHD) and AMD (mesa-va-drivers) at <8% CPU utilization for 1080p60 and 4K streams.
+
+## Repository Endpoints & Files
+- GPG Public Key: https://apt.bobine.fit/bobine.gpg
+- Stable Release Index: https://apt.bobine.fit/dists/stable/Release
+- Stable InRelease: https://apt.bobine.fit/dists/stable/InRelease
+- Stable Packages: https://apt.bobine.fit/dists/stable/main/binary-amd64/Packages.gz
+- Beta Release Index: https://apt.bobine.fit/dists/beta/Release
+- Pool Directory: https://apt.bobine.fit/pool/main/b/bobine/
+- Retro Pong Game: https://apt.bobine.fit/pong/
+
+## Interconnectivity & Upstream Links
+- Main Website: https://bobine.fit
+- Full Documentation: https://bobine.fit/fr/documentation (French) and https://bobine.fit/en/documentation (English)
+- Source Code Repository: https://github.com/FantasmaGlad/Bobine
+- GitHub Releases: https://github.com/FantasmaGlad/Bobine/releases
