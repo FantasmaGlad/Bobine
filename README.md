@@ -26,7 +26,7 @@ Install Bobine as a native desktop application on your workstation or studio PC 
 | Platform | Format | Architecture | Direct Download / Command | Experience & Features |
 | :--- | :---: | :---: | :---: | :--- |
 | ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installer)*</sub> | <sub>x86-64</sub> | <sub>[**Download Bobine-Setup-3.0.0.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-Setup-3.0.0.exe)</sub> | **Windows 11, 10 & Windows IoT**<br><sub>• 1-click wizard & Desktop shortcut</sub><br><sub>• Auto-opens browser (`http://127.0.0.1:8000`)</sub><br><sub>• Background tray, zero terminal window</sub> |
-| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | <sub>`.deb`<br>*(Package)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>[**Download bobine_3.0.0_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/bobine_3.0.0_amd64.deb)</sub> | **Debian, Ubuntu & Linux Mint**<br><sub>• Ubuntu App Center / `apt install`</sub><br><sub>• XDG standard Desktop launcher</sub><br><sub>• System notification tray (systray)</sub> |
+| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | <sub>`.deb`<br>*(Package & Repo)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>[**APT Repo apt.bobine.fit**](https://apt.bobine.fit)<br>[**bobine_3.0.0_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/bobine_3.0.0_amd64.deb)</sub> | **Debian, Ubuntu & Linux Mint**<br><sub>• Official APT repository: `apt.bobine.fit`</sub><br><sub>• Ubuntu App Center / `apt install`</sub><br><sub>• XDG standard Desktop launcher</sub><br><sub>• System notification tray (systray)</sub> |
 | ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Disk Image)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Download Bobine-3.0.0.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-3.0.0.dmg)</sub> | **Apple Silicon (M1, M2, M3, M4)**<br><sub>• Drag-and-drop `Bobine.app` into Applications</sub><br><sub>• Native Retina `.icns` icon & menu bar companion</sub><br><sub>• Automatic LaunchAgent autostart at login</sub> |
 | ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Package)*</sub> | <sub>ARM64</sub> | <sub>*Coming soon...*</sub> | **Android Tablets & ARM Touch Kiosks**<br><sub>• Wired USB-C DisplayPort video output (Xiaomi Pad 6/7/8, Galaxy Tab)</sub><br><sub>• Touch coach console & standalone playout (Chaquopy feasibility study)</sub><br><sub>• Active development to expand hardware portability</sub> |
 | ![iOS / iPadOS](https://img.shields.io/badge/iOS%20%2F%20iPadOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>iPadOS App<br>*(Explored Track)*</sub> | <sub>ARM64 (Apple Silicon)</sub> | <sub>*Explored track...*</sub> | **iPads & Apple Touch Tablets**<br><sub>• Wired video over USB-C (DisplayPort) or Thunderbolt (iPad Pro M-series, iPad Air)</sub><br><sub>• Dual-screen coach console & standalone studio video playout</sub><br><sub>• Prospective track to extend touch device portability</sub> |
@@ -153,16 +153,32 @@ Bobine offers distinct deployment paths to match your exact setup:
 
 #### On Linux Desktop (Debian, Ubuntu, Linux Mint & derivatives)
 
+**Recommended Method — Official APT Repository ([apt.bobine.fit](https://apt.bobine.fit)):**
+Configure the official GPG-signed APT repository to install Bobine and automatically receive software updates via regular `sudo apt upgrade`:
+```bash
+# 1. Official GPG keyring
+curl -fsSL https://apt.bobine.fit/bobine.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/bobine.gpg
+
+# 2. Add official APT repository (Stable channel; replace 'stable' with 'beta' for pre-releases)
+echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] https://apt.bobine.fit/ stable main" | sudo tee /etc/apt/sources.list.d/bobine.list
+
+# 3. Update & Install
+sudo apt update && sudo apt install bobine
+```
+
+**Alternative Method — Standalone `.deb` Package (Offline or 1-click install):**
 1. **Download** [**`bobine_3.0.0_amd64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/bobine_3.0.0_amd64.deb) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Install the package** via the Ubuntu App Center / GNOME Software by double-clicking the file, or via the terminal:
    ```bash
    sudo apt install ./bobine_*_amd64.deb
    ```
    *(All runtime dependencies including `ffmpeg` are resolved automatically, and multi-resolution icons are integrated into the system theme).*
-3. **Launch Bobine** from your **Desktop** shortcut, the Applications menu, or by typing `bobine` in a terminal.
-   - The Bobine tray icon appears in your status bar / system tray.
-   - XDG autostart is automatically configured at desktop login.
-   - Your media files, database, and settings live cleanly in your user directory following the XDG specification: `~/.local/share/bobine/`.
+
+**Launch & Desktop Integration:**
+- Launch Bobine from your **Desktop** shortcut, the Applications menu, or by typing `bobine` in a terminal.
+- The Bobine tray icon appears in your status bar / system tray.
+- XDG autostart is automatically configured at desktop login.
+- Your media files, database, and settings live cleanly in your user directory following the XDG specification: `~/.local/share/bobine/`.
 
 #### On macOS (Apple Silicon - M1/M2/M3/M4)
 

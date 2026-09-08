@@ -26,7 +26,7 @@ Installez Bobine en quelques secondes comme une application graphique native sur
 | Plateforme | Format | Architecture | Téléchargement direct / Commande | Profil & Expérience Utilisateur |
 | :--- | :---: | :---: | :---: | :--- |
 | ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installeur)*</sub> | <sub>x86-64</sub> | <sub>[**Télécharger Bobine-Setup-3.0.0.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-Setup-3.0.0.exe)</sub> | **Windows 11, 10 & Windows IoT**<br><sub>• Assistant guidé 1 clic & raccourci Bureau</sub><br><sub>• Ouverture auto du navigateur (`http://127.0.0.1:8000`)</sub><br><sub>• Systray silencieux en tâche de fond, zéro console</sub> |
-| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) ![Linux Mint](https://img.shields.io/badge/Linux%20Mint-87CF3E?style=flat-square&logo=linuxmint&logoColor=white) | <sub>`.deb`<br>*(Paquet)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>[**Télécharger bobine_3.0.0_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/bobine_3.0.0_amd64.deb)</sub> | **Debian, Ubuntu & Linux Mint**<br><sub>• Logithèque Ubuntu App Center / `apt install`</sub><br><sub>• Respect des standards XDG & raccourci Bureau</sub><br><sub>• Zone de notification système (systray)</sub> |
+| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) ![Linux Mint](https://img.shields.io/badge/Linux%20Mint-87CF3E?style=flat-square&logo=linuxmint&logoColor=white) | <sub>`.deb`<br>*(Paquet & Dépôt)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>[**Dépôt APT apt.bobine.fit**](https://apt.bobine.fit)<br>[**bobine_3.0.0_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/bobine_3.0.0_amd64.deb)</sub> | **Debian, Ubuntu & Linux Mint**<br><sub>• Dépôt APT officiel : `apt.bobine.fit`</sub><br><sub>• Logithèque Ubuntu App Center / `apt install`</sub><br><sub>• Respect des standards XDG & raccourci Bureau</sub><br><sub>• Zone de notification système (systray)</sub> |
 | ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Image disque)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Télécharger Bobine-3.0.0.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/Bobine-3.0.0.dmg)</sub> | **Apple Silicon (M1, M2, M3, M4)**<br><sub>• Glisser-déposer de `Bobine.app` dans Applications</sub><br><sub>• Icône native Retina `.icns` & barre de menus</sub><br><sub>• Démarrage automatique au login (LaunchAgent)</sub> |
 | ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Paquet)*</sub> | <sub>ARM64</sub> | <sub>*Prochainement...*</sub> | **Tablettes Android & Bornes Tactiles ARM**<br><sub>• Sortie vidéo filaire USB-C DisplayPort (Xiaomi Pad 6/7/8, Galaxy Tab)</sub><br><sub>• Pupitre coach tactile & régie autonome (Chaquopy à l'étude)</sub><br><sub>• Faisabilité en cours pour étendre la portabilité</sub> |
 | ![iOS / iPadOS](https://img.shields.io/badge/iOS%20%2F%20iPadOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>App iPadOS<br>*(Piste explorée)*</sub> | <sub>ARM64 (Apple Silicon)</sub> | <sub>*Piste explorée...*</sub> | **iPads & Tablettes Tactiles Apple**<br><sub>• Sortie vidéo filaire USB-C (DisplayPort) ou Thunderbolt (iPad Pro M-series, iPad Air)</sub><br><sub>• Pupitre coach tactile & régie vidéo autonome sur grand écran</sub><br><sub>• Piste prospective pour étendre la portabilité</sub> |
@@ -153,16 +153,32 @@ Bobine propose différentes méthodes d'installation selon vos besoins et votre 
 
 #### Sur Linux avec bureau (Debian, Ubuntu et dérivés graphiques)
 
+**Méthode recommandée — Dépôt APT officiel ([apt.bobine.fit](https://apt.bobine.fit)) :**
+Configurez le dépôt APT officiel signé cryptographiquement par GPG pour installer Bobine et recevoir automatiquement les futures mises à jour lors de vos `sudo apt upgrade` habituels :
+```bash
+# 1. Clé publique GPG officielle
+curl -fsSL https://apt.bobine.fit/bobine.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/bobine.gpg
+
+# 2. Ajout du dépôt APT officiel (canal stable ; remplacer 'stable' par 'beta' pour les pré-versions)
+echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] https://apt.bobine.fit/ stable main" | sudo tee /etc/apt/sources.list.d/bobine.list
+
+# 3. Installation et mises à jour
+sudo apt update && sudo apt install bobine
+```
+
+**Méthode alternative — Paquet autonome `.deb` (Installation hors ligne ou via logithèque) :**
 1. **Téléchargez** [**`bobine_3.0.0_amd64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.0/bobine_3.0.0_amd64.deb) (ou depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Installez le paquet** en double-cliquant dessus (Centre d'Applications Ubuntu / GNOME Software) ou en ligne de commande :
    ```bash
    sudo apt install ./bobine_*_amd64.deb
    ```
    *(Toutes les dépendances comme `ffmpeg` sont automatiquement résolues par apt, et les icônes multi-résolution sont intégrées au thème système).*
-3. **Lancez Bobine** depuis le raccourci créé sur votre **Bureau**, le menu d'applications ou tapez `bobine` dans un terminal.
-   - L'icône Bobine apparaît dans votre zone de notification / barre d'état (tray) et assure la supervision du moteur.
-   - Lancement automatique au login XDG configuré nativement.
-   - Vos médias et données vivent dans votre dossier utilisateur selon la norme standard XDG : `~/.local/share/bobine/`.
+
+**Lancement et intégration au bureau :**
+- Lancez Bobine depuis le raccourci créé sur votre **Bureau**, le menu d'applications ou tapez `bobine` dans un terminal.
+- L'icône Bobine apparaît dans votre zone de notification / barre d'état (tray) et assure la supervision du moteur.
+- Lancement automatique au login XDG configuré nativement.
+- Vos médias et données vivent dans votre dossier utilisateur selon la norme standard XDG : `~/.local/share/bobine/`.
 
 #### Sur macOS (Apple Silicon - M1/M2/M3/M4)
 
