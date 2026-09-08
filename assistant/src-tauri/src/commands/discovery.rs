@@ -6,14 +6,22 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
-use bobine_installer_core::discovery::{os_hint_from_banner, subnet_hosts_v24};
+use bobine_installer_core::discovery::{os_hint_from_banner, os_hint_from_ports, subnet_hosts_v24};
 
+/// Un appareil détecté sur le réseau — pas nécessairement une cible Bobine.
+/// Réf. mission "scan réseau complet" : l'assistant affiche TOUT ce qui
+/// répond (nom, IP, OS estimé, ports ouverts), pas seulement les appareils
+/// SSH/Bobine — un utilisateur qui prépare un déploiement headless doit
+/// pouvoir reconnaître sa borne au milieu du reste du réseau (routeur,
+/// imprimante, téléphones...) plutôt que de voir une liste tronquée qui
+/// pourrait laisser croire à un scan cassé ou incomplet.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiscoveredDevice {
     pub ip: String,
     pub hostname: Option<String>,
     pub ssh_open: bool,
     pub bobine_open: bool,
+    pub open_ports: Vec<u16>,
     pub os_hint: Option<String>,
     pub is_wyse_or_bobine: bool,
 }
@@ -51,6 +59,15 @@ fn get_default_route_ip() -> Option<Ipv4Addr> {
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 
+/// Port pratiquement toujours fermé (9, "discard") sondé sur chaque
+/// candidat : une connexion *refusée* rapidement (RST reçu) prouve qu'un
+/// hôte existe à cette IP même sans AUCUN service utile ouvert (téléphone,
+/// imprimante verrouillée, appareil IoT...), ce qu'une simple absence de
+/// réponse ne permet pas de distinguer d'une adresse tout simplement
+/// inutilisée sur le sous-réseau. C'est ce qui permet d'afficher TOUS les
+/// appareils vivants plutôt que seulement ceux qui exposent SSH ou Bobine.
+const LIVENESS_PROBE_PORT: u16 = 9;
+
 /// Sonde une IP sur le port 22 et lit la bannière SSH
 async fn probe_ssh(ip: Ipv4Addr) -> Option<(String, Option<String>)> {
     let addr = SocketAddr::new(IpAddr::V4(ip), 22);
@@ -72,13 +89,84 @@ async fn probe_ssh(ip: Ipv4Addr) -> Option<(String, Option<String>)> {
     None
 }
 
-/// Sonde si le port 8000 (API Bobine) est ouvert
-async fn probe_bobine_port(ip: Ipv4Addr) -> bool {
-    let addr = SocketAddr::new(IpAddr::V4(ip), 8000);
-    timeout(Duration::from_millis(600), TcpStream::connect(addr))
+/// Sonde générique : le port TCP donné est-il ouvert (connexion réussie) ?
+async fn probe_port_open(ip: Ipv4Addr, port: u16) -> bool {
+    let addr = SocketAddr::new(IpAddr::V4(ip), port);
+    timeout(Duration::from_millis(500), TcpStream::connect(addr))
         .await
         .map(|r| r.is_ok())
         .unwrap_or(false)
+}
+
+/// Sonde un ensemble de ports usuels (HTTP/S, partage Windows, bureau à
+/// distance, AirPlay/Bonjour, impression réseau) en parallèle. Complète le
+/// port 8000 (Bobine, sondé à part) pour qualifier n'importe quel appareil
+/// du réseau, pas seulement les cibles Bobine.
+async fn probe_common_ports(ip: Ipv4Addr) -> Vec<u16> {
+    let (p80, p443, p445, p3389, p5000, p7000, p9100) = tokio::join!(
+        probe_port_open(ip, 80),
+        probe_port_open(ip, 443),
+        probe_port_open(ip, 445),
+        probe_port_open(ip, 3389),
+        probe_port_open(ip, 5000),
+        probe_port_open(ip, 7000),
+        probe_port_open(ip, 9100),
+    );
+    let mut ports = Vec::new();
+    if p80 {
+        ports.push(80);
+    }
+    if p443 {
+        ports.push(443);
+    }
+    if p445 {
+        ports.push(445);
+    }
+    if p3389 {
+        ports.push(3389);
+    }
+    if p5000 {
+        ports.push(5000);
+    }
+    if p7000 {
+        ports.push(7000);
+    }
+    if p9100 {
+        ports.push(9100);
+    }
+    ports
+}
+
+/// Sonde si le port 8000 (API Bobine) est ouvert
+async fn probe_bobine_port(ip: Ipv4Addr) -> bool {
+    probe_port_open(ip, 8000).await
+}
+
+/// Un hôte existe-t-il à cette IP même sans aucun port utile ouvert ? Une
+/// connexion *refusée* (RST) sur un port réputé fermé prouve la présence
+/// d'un système, contrairement à un simple timeout (silence = probablement
+/// rien à cette adresse).
+async fn probe_liveness(ip: Ipv4Addr) -> bool {
+    let addr = SocketAddr::new(IpAddr::V4(ip), LIVENESS_PROBE_PORT);
+    match timeout(Duration::from_millis(500), TcpStream::connect(addr)).await {
+        Ok(Ok(_)) => true,
+        Ok(Err(e)) => e.kind() == std::io::ErrorKind::ConnectionRefused,
+        Err(_) => false,
+    }
+}
+
+/// Résolution de nom inversée (DNS/mDNS/NetBIOS selon la plateforme, via le
+/// résolveur système — fonctionne aussi pour les noms `.local` sur la
+/// plupart des installations Linux (nss-mdns), macOS (Bonjour) et Windows
+/// (NetBIOS/LLMNR)). Best-effort : bornée dans le temps, `None` si rien
+/// n'est trouvé ou si le résolveur renvoie simplement l'IP elle-même.
+async fn resolve_hostname(ip: Ipv4Addr) -> Option<String> {
+    let ip_addr = IpAddr::V4(ip);
+    let lookup = tokio::task::spawn_blocking(move || dns_lookup::lookup_addr(&ip_addr).ok());
+    match timeout(Duration::from_millis(1200), lookup).await {
+        Ok(Ok(Some(name))) if name != ip.to_string() => Some(name),
+        _ => None,
+    }
 }
 
 #[tauri::command]
@@ -123,31 +211,56 @@ pub async fn scan_network(custom_subnet: Option<String>) -> Result<Vec<Discovere
         tasks.push(tokio::spawn(async move {
             let _permit = sem.acquire_owned().await.ok()?;
 
-            // Sonde SSH (22) et Bobine (8000) en parallèle pour chaque hôte
-            let (ssh_res, bobine_open) = tokio::join!(
+            // Sonde SSH (22), Bobine (8000), un panel de ports usuels et la
+            // "vivacité" générale (port fermé, RST) en parallèle pour
+            // chaque hôte — un appareil est retenu dès qu'UN SEUL de ces
+            // signaux répond, pas seulement SSH/Bobine.
+            let (ssh_res, bobine_open, mut open_ports, alive) = tokio::join!(
                 probe_ssh(ip),
-                probe_bobine_port(ip)
+                probe_bobine_port(ip),
+                probe_common_ports(ip),
+                probe_liveness(ip)
             );
 
-            if ssh_res.is_some() || bobine_open {
-                let os_hint = ssh_res.as_ref().and_then(|(_, hint)| hint.clone());
-                let is_wyse_or_bobine = bobine_open
-                    || os_hint
-                        .as_ref()
-                        .map(|h| h.to_lowercase().contains("debian") || h.to_lowercase().contains("linux"))
-                        .unwrap_or(false);
-
-                Some(DiscoveredDevice {
-                    ip: ip.to_string(),
-                    hostname: None,
-                    ssh_open: ssh_res.is_some(),
-                    bobine_open,
-                    os_hint,
-                    is_wyse_or_bobine,
-                })
-            } else {
-                None
+            let ssh_open = ssh_res.is_some();
+            if ssh_open {
+                open_ports.push(22);
             }
+            if bobine_open {
+                open_ports.push(8000);
+            }
+            open_ports.sort_unstable();
+
+            let is_alive = ssh_open || bobine_open || !open_ports.is_empty() || alive;
+            if !is_alive {
+                return None;
+            }
+
+            let hostname = resolve_hostname(ip).await;
+
+            let os_hint = ssh_res
+                .as_ref()
+                .and_then(|(_, hint)| hint.clone())
+                .or_else(|| os_hint_from_ports(&open_ports));
+
+            let is_wyse_or_bobine = bobine_open
+                || os_hint
+                    .as_ref()
+                    .map(|h| {
+                        let hl = h.to_lowercase();
+                        hl.contains("debian") || hl.contains("linux") || hl.contains("bobine")
+                    })
+                    .unwrap_or(false);
+
+            Some(DiscoveredDevice {
+                ip: ip.to_string(),
+                hostname,
+                ssh_open,
+                bobine_open,
+                open_ports,
+                os_hint,
+                is_wyse_or_bobine,
+            })
         }));
     }
 
@@ -158,11 +271,20 @@ pub async fn scan_network(custom_subnet: Option<String>) -> Result<Vec<Discovere
         }
     }
 
-    // Trie pour placer les cibles prioritaires (Debian / Bobine) en tête
+    // Trie pour placer les cibles prioritaires (Debian / Bobine) en tête,
+    // puis les hôtes SSH, puis le reste des appareils du réseau par IP
+    // (comparaison numérique des octets — pas lexicale, sinon "10.0.0.9"
+    // trierait après "10.0.0.10").
     results.sort_by(|a, b| {
         b.bobine_open
             .cmp(&a.bobine_open)
             .then_with(|| b.is_wyse_or_bobine.cmp(&a.is_wyse_or_bobine))
+            .then_with(|| b.ssh_open.cmp(&a.ssh_open))
+            .then_with(|| {
+                let ip_a = a.ip.parse::<Ipv4Addr>().unwrap_or(Ipv4Addr::UNSPECIFIED);
+                let ip_b = b.ip.parse::<Ipv4Addr>().unwrap_or(Ipv4Addr::UNSPECIFIED);
+                ip_a.octets().cmp(&ip_b.octets())
+            })
     });
 
     Ok(results)

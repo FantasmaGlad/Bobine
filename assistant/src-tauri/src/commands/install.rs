@@ -14,6 +14,11 @@ pub struct RunInstallParams {
     pub port: u16,
     pub username: String,
     pub password: Option<String>,
+    /// Chemin local d'une clé privée SSH importée explicitement — voir
+    /// `SshCredentials::key_path` (même mécanisme, relayé depuis l'étape 2
+    /// du wizard jusqu'à l'installation elle-même).
+    #[serde(default)]
+    pub key_path: Option<String>,
     pub root_password: Option<String>,
     pub elevation_strategy: String,
     pub script_path: Option<String>,
@@ -153,7 +158,12 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
         sess.set_tcp_stream(tcp);
         sess.handshake().map_err(|e| format!("Échec handshake SSH : {e}"))?;
 
-        super::ssh_auth::authenticate_session(&sess, &params.username, params.password.as_deref())?;
+        super::ssh_auth::authenticate_session(
+            &sess,
+            &params.username,
+            params.password.as_deref(),
+            params.key_path.as_deref(),
+        )?;
 
         let script = params
             .script_path

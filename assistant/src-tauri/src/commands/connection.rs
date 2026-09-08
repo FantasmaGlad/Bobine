@@ -12,6 +12,11 @@ pub struct SshCredentials {
     pub port: u16,
     pub username: String,
     pub password: Option<String>,
+    /// Chemin local d'une clé privée SSH importée explicitement (bouton
+    /// "Importer une clé SSH") — prioritaire sur le mot de passe et le
+    /// repli automatique sur ~/.ssh/ (réf. mission "clé SSH locale").
+    #[serde(default)]
+    pub key_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,7 +68,12 @@ pub async fn test_ssh_connection(creds: SshCredentials) -> Result<SystemInspecti
         sess.set_tcp_stream(tcp);
         sess.handshake().map_err(|e| format!("Échec handshake SSH : {e}"))?;
 
-        super::ssh_auth::authenticate_session(&sess, &creds.username, creds.password.as_deref())?;
+        super::ssh_auth::authenticate_session(
+            &sess,
+            &creds.username,
+            creds.password.as_deref(),
+            creds.key_path.as_deref(),
+        )?;
 
         // 1. Détection OS
         let os_release = run_remote_exec(&sess, "cat /etc/os-release 2>/dev/null || true")?;

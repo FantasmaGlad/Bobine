@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use ssh2::{Prompt, Session};
+use tauri_plugin_dialog::DialogExt;
 
 struct SimplePasswordPrompt<'a>(&'a str);
 
@@ -15,10 +16,13 @@ impl<'a> ssh2::KeyboardInteractivePrompt for SimplePasswordPrompt<'a> {
 }
 
 /// Authentifie une session SSH en testant successivement :
-/// 1. Mot de passe direct (si renseigné)
-/// 2. Authentification clavier-interactive / PAM (si mot de passe renseigné)
-/// 3. Agent SSH local (`ssh-agent`)
-/// 4. Fichiers de clés SSH courantes dans `~/.ssh/` (`id_ed25519`, `id_rsa`, `id_ecdsa`, etc.)
+/// 1. Clé SSH explicitement importée par l'utilisateur (bouton "Importer une
+///    clé SSH", réf. mission "clé SSH locale") — prioritaire sur tout le
+///    reste puisque choisie sciemment.
+/// 2. Mot de passe direct (si renseigné)
+/// 3. Authentification clavier-interactive / PAM (si mot de passe renseigné)
+/// 4. Agent SSH local (`ssh-agent`)
+/// 5. Fichiers de clés SSH courantes dans `~/.ssh/` (`id_ed25519`, `id_rsa`, `id_ecdsa`, etc.)
 ///
 /// Si toutes les méthodes échouent, renvoie un message d'erreur clair et contextuel
 /// (en particulier si le serveur distant refuse explicitement les mots de passe).
@@ -26,11 +30,37 @@ pub fn authenticate_session(
     sess: &Session,
     username: &str,
     password: Option<&str>,
+    key_path: Option<&str>,
 ) -> Result<(), String> {
     let supported = sess.auth_methods(username).unwrap_or("");
     let password_clean = password.filter(|p| !p.trim().is_empty());
 
-    // 1. Tenter le mot de passe si disponible
+    // 0. Tenter la clé explicitement importée en premier
+    if let Some(key) = key_path.filter(|k| !k.trim().is_empty()) {
+        let priv_key = PathBuf::from(key);
+        let pub_key = PathBuf::from(format!("{key}.pub"));
+        let pub_path = if pub_key.exists() {
+            Some(pub_key.as_path())
+        } else {
+            None
+        };
+        let _ = sess.userauth_pubkey_file(username, pub_path, &priv_key, None);
+        if sess.authenticated() {
+            return Ok(());
+        }
+        // Clé passphrase-protégée ou refusée par le serveur : on retente
+        // avec le mot de passe fourni comme passphrase de déchiffrement,
+        // avant de retomber sur le reste de la chaîne (agent, clés
+        // usuelles...) plutôt que d'échouer immédiatement.
+        if let Some(pwd) = password_clean {
+            let _ = sess.userauth_pubkey_file(username, pub_path, &priv_key, Some(pwd));
+            if sess.authenticated() {
+                return Ok(());
+            }
+        }
+    }
+
+    // 2. Tenter le mot de passe si disponible
     if let Some(pwd) = password_clean {
         let _ = sess.userauth_password(username, pwd);
         if sess.authenticated() {
@@ -45,13 +75,13 @@ pub fn authenticate_session(
         }
     }
 
-    // 2. Tenter l'agent SSH (ssh-agent)
+    // 3. Tenter l'agent SSH (ssh-agent)
     let _ = sess.userauth_agent(username);
     if sess.authenticated() {
         return Ok(());
     }
 
-    // 3. Tenter les clés SSH locales usuelles dans ~/.ssh/
+    // 4. Tenter les clés SSH locales usuelles dans ~/.ssh/
     if let Ok(home) = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
         let ssh_dir = PathBuf::from(home).join(".ssh");
         let key_candidates = [
@@ -104,6 +134,26 @@ pub fn authenticate_session(
     }
 }
 
+/// Ouvre le sélecteur de fichier natif pour importer une clé privée SSH
+/// locale (bouton "Importer une clé SSH" de l'étape 2, alternative au mot
+/// de passe et au repli automatique sur `~/.ssh/`) — utile pour une clé
+/// stockée à un emplacement ou sous un nom non standard. `pick_file` de
+/// l'API dialog est callback-based (synchrone côté thread principal) ; le
+/// canal one-shot le relie proprement à cette commande async. `None` si
+/// l'utilisateur ferme le sélecteur sans choisir de fichier.
+#[tauri::command]
+pub async fn pick_ssh_key_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .set_title("Sélectionner une clé privée SSH")
+        .pick_file(move |file_path| {
+            let _ = tx.send(file_path.map(|p| p.to_string()));
+        });
+    rx.await
+        .map_err(|e| format!("Erreur du sélecteur de fichier : {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -123,7 +173,7 @@ mod tests {
 
             // Même si on donne un mot de passe qui échoue (ou rejeté par le serveur),
             // authenticate_session doit automatiquement se replier sur l'agent ou les clés locales
-            let res = authenticate_session(&sess, "fanta", Some("un_faux_mot_de_passe"));
+            let res = authenticate_session(&sess, "fanta", Some("un_faux_mot_de_passe"), None);
             assert!(res.is_ok(), "L'authentification par repli sur clé devrait réussir : {:?}", res);
             assert!(sess.authenticated());
         }
@@ -139,7 +189,7 @@ mod tests {
             sess.set_tcp_stream(tcp);
             sess.handshake().unwrap();
 
-            let res = authenticate_session(&sess, "utilisateur_inexistant_xyz", Some("password123"));
+            let res = authenticate_session(&sess, "utilisateur_inexistant_xyz", Some("password123"), None);
             assert!(res.is_err());
             let err = res.unwrap_err();
             println!("Message d'erreur obtenu : {err}");

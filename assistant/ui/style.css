@@ -48,6 +48,23 @@ body {
   width: 100vw;
 }
 
+/* Bandeau d'aperçu navigateur (données de démonstration, jamais affiché
+   dans l'app Tauri compilée — voir IS_PREVIEW_MODE dans app.js) */
+.preview-mode-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background-color: var(--accent-warning);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px 12px;
+  letter-spacing: 0.02em;
+}
+
 /* Structure globale */
 .app-shell {
   display: flex;
@@ -390,9 +407,21 @@ body {
   font-size: 1rem;
 }
 
+.device-name {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
 .device-badges {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+}
+
+.device-ports {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono, monospace);
 }
 
 .pill {
@@ -621,6 +650,28 @@ body {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-muted);
+}
+
+.form-group--full {
+  grid-column: 1 / -1;
+}
+
+.key-import-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.key-filename-hint {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.key-filename-hint.has-key {
+  color: var(--accent-success);
+  font-weight: 600;
+  font-family: var(--font-mono);
 }
 
 .step-actions {

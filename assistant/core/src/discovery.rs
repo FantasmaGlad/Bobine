@@ -74,6 +74,30 @@ pub fn os_hint_from_banner(banner: &str) -> Option<String> {
     }
 }
 
+/// Indice d'OS de repli déduit des ports TCP ouverts, pour les appareils qui
+/// répondent sur le réseau mais n'exposent pas SSH (imprimantes, routeurs,
+/// postes Windows, télévisions...). Beaucoup moins fiable qu'une bannière SSH
+/// (des heuristiques, pas une identification) — n'intervient qu'en dernier
+/// recours quand [`os_hint_from_banner`] n'a rien donné (pas de port 22).
+/// Ordre de vérification volontairement du plus spécifique au plus générique.
+pub fn os_hint_from_ports(ports: &[u16]) -> Option<String> {
+    if ports.contains(&3389) {
+        Some("Windows (Bureau à distance)".to_string())
+    } else if ports.contains(&445) || ports.contains(&139) {
+        Some("Windows / Partage Samba".to_string())
+    } else if ports.contains(&5000) && ports.contains(&7000) {
+        Some("Apple (AirPlay)".to_string())
+    } else if ports.contains(&9100) {
+        Some("Imprimante réseau".to_string())
+    } else if ports.contains(&8000) {
+        Some("Bobine (sans SSH)".to_string())
+    } else if ports.contains(&80) || ports.contains(&443) {
+        Some("Appareil avec interface web".to_string())
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -117,6 +141,22 @@ mod tests {
             Some("Linux/OpenSSH".to_string())
         );
         assert_eq!(os_hint_from_banner("SSH-2.0-dropbear"), None);
+    }
+
+    #[test]
+    fn os_hint_from_ports_prioritises_most_specific_signal() {
+        assert_eq!(
+            os_hint_from_ports(&[80, 445, 3389]),
+            Some("Windows (Bureau à distance)".to_string())
+        );
+        assert_eq!(
+            os_hint_from_ports(&[445]),
+            Some("Windows / Partage Samba".to_string())
+        );
+        assert_eq!(os_hint_from_ports(&[9100]), Some("Imprimante réseau".to_string()));
+        assert_eq!(os_hint_from_ports(&[8000]), Some("Bobine (sans SSH)".to_string()));
+        assert_eq!(os_hint_from_ports(&[443]), Some("Appareil avec interface web".to_string()));
+        assert_eq!(os_hint_from_ports(&[]), None);
     }
 
     #[test]

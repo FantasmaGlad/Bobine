@@ -226,6 +226,8 @@ Pas de service dédié pour le canal Radio (arbitrage A5, cf. §5) : `/radio` s'
 
 Une application graphique autonome (`assistant/`, développée avec **Tauri 2 / Rust**) tourne sur le **poste de l'administrateur** (Windows, macOS ou Linux), localise le mini PC sur le LAN (balayage `/24` de chaque interface réseau locale), s'y connecte en SSH, audite le matériel, puis **déroule `install.sh`** avec une barre de progression et un suivi temps réel des journaux d'installation. `install.sh` reste la **source de vérité unique** — l'assistant l'**orchestre**, il ne réimplémente rien. Détails complets et instructions de compilation : [`assistant/README.md`](../assistant/README.md).
 
+Le scan réseau affiche **tous** les appareils qui répondent (pas seulement les cibles Bobine) — nom d'hôte, IP, indice d'OS, ports ouverts — pour qu'un utilisateur préparant un déploiement headless reconnaisse sa borne au milieu du reste du réseau. L'authentification SSH accepte, en plus du mot de passe, une clé privée importée explicitement via un sélecteur de fichier natif (`tauri-plugin-dialog`).
+
 ### Canal de mise à jour (Stable / Bêta)
 
 Deux canaux, choisis à l'installation (`install.sh --channel=stable|beta`, ou dans le wizard de l'assistant Tauri) puis modifiables à tout moment depuis Réglages → Mises à jour ("Programme Bobine Beta") :

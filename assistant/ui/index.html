@@ -124,6 +124,19 @@
                 <label for="ssh-password">Mot de passe utilisateur</label>
                 <input type="password" id="ssh-password" class="input-text" placeholder="•••••••• (ou laisser vide si clé SSH)">
               </div>
+              <div class="form-group form-group--full">
+                <label>Clé SSH privée (optionnel)</label>
+                <div class="key-import-row">
+                  <button type="button" id="btn-import-ssh-key" class="btn btn-secondary btn-sm">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                    </svg>
+                    <span>Importer une clé SSH</span>
+                  </button>
+                  <span id="ssh-key-filename" class="key-filename-hint">Aucune clé importée — mot de passe, agent SSH ou clés ~/.ssh/ courantes utilisés automatiquement</span>
+                  <button type="button" id="btn-clear-ssh-key" class="btn-text" style="display: none;">Retirer</button>
+                </div>
+              </div>
             </div>
 
             <div id="ssh-error-banner" class="alert-box alert-error" style="display: none; margin-top: 16px;">

@@ -19,19 +19,33 @@ function getTauriInvoke() {
   return null;
 }
 
+// Vrai uniquement en prévisualisation navigateur autonome (aucun pont
+// __TAURI__ injecté) — jamais dans l'app compilée réelle, où Tauri injecte
+// systématiquement window.__TAURI__ avant l'exécution du premier script de
+// page (withGlobalTauri: true). Sert à distinguer sans ambiguïté un scan
+// réseau RÉEL d'un jeu de données factice de démonstration (réf. mission
+// "Tauri n'invente pas d'IP" — les IP de démo utilisent volontairement la
+// plage documentaire réservée RFC 5737 203.0.113.0/24, qui ne peut jamais
+// correspondre à un appareil LAN réel, pour qu'elles ne soient jamais
+// confondues avec un résultat de scan authentique).
+const IS_PREVIEW_MODE = getTauriInvoke() === null;
+
 async function invokeTauri(cmd, args = {}) {
   const tauriInvoke = getTauriInvoke();
   if (tauriInvoke) {
     return await tauriInvoke(cmd, args);
   }
-  console.log(`[IPC Mock] ${cmd}`, args);
+  console.warn(`[Aperçu navigateur — données FICTIVES, pas un vrai appel Tauri] ${cmd}`, args);
 
-  // Mocks pour prévisualisation navigateur standalone
+  // Mocks pour prévisualisation navigateur standalone. IP volontairement
+  // hors de toute plage privée réelle (RFC 5737 TEST-NET-3) et noms
+  // explicitement marqués "exemple" pour ne jamais pouvoir être confondus
+  // avec un appareil réellement détecté sur le réseau de l'utilisateur.
   if (cmd === 'scan_network') {
     await new Promise(r => setTimeout(r, 1200));
     return [
-      { ip: '10.0.0.30', hostname: 'pavilion-malefique.local', ssh_open: true, bobine_open: true, os_hint: 'Debian 13', is_wyse_or_bobine: true },
-      { ip: '10.0.0.28', hostname: 'dev-pc.local', ssh_open: true, bobine_open: false, os_hint: 'Linux', is_wyse_or_bobine: false }
+      { ip: '203.0.113.10', hostname: 'exemple-borne-bobine.local', ssh_open: true, bobine_open: true, open_ports: [22, 8000], os_hint: 'Debian 13 (exemple)', is_wyse_or_bobine: true },
+      { ip: '203.0.113.20', hostname: 'exemple-poste-admin.local', ssh_open: true, bobine_open: false, open_ports: [22], os_hint: 'Linux (exemple)', is_wyse_or_bobine: false }
     ];
   }
   if (cmd === 'test_ssh_connection') {
@@ -56,18 +70,46 @@ async function invokeTauri(cmd, args = {}) {
   if (cmd === 'get_app_info') {
     return { version: '0.0.0-dev', commit: 'preview' };
   }
+  if (cmd === 'pick_ssh_key_file') {
+    await new Promise(r => setTimeout(r, 400));
+    return '/home/exemple/.ssh/cle_exemple_ed25519';
+  }
   return { status: 'ok' };
+}
+
+// Échappement HTML minimal — nécessaire dès qu'une valeur affichée provient
+// du réseau (nom d'hôte résolu en DNS inverse, bannière SSH...) : un
+// appareil malveillant du LAN peut renvoyer n'importe quel contenu dans ces
+// champs, il ne faut jamais les interpoler tels quels dans innerHTML.
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
 }
 
 // État de l'application
 const state = {
   currentStep: 1,
   selectedTarget: null,
+  selectedKeyPath: null,
   systemInspection: null,
   installSuccessOpened: false,
 };
 
+// Bandeau visible et non-cliquable-à-tort signalant que l'app tourne en
+// aperçu navigateur autonome (données de démonstration, pas un vrai scan
+// réseau) — voir IS_PREVIEW_MODE. N'apparaît jamais dans l'app Tauri
+// compilée réelle.
+function renderPreviewModeBanner() {
+  if (!IS_PREVIEW_MODE) return;
+  const banner = document.createElement('div');
+  banner.className = 'preview-mode-banner';
+  banner.textContent = 'Aperçu navigateur — données de démonstration fictives (IP 203.0.113.x), aucun scan réseau réel';
+  document.body.prepend(banner);
+}
+
 function init() {
+  renderPreviewModeBanner();
   initWizard();
   listenTauriEvents();
   checkAssistantUpdate();
@@ -101,7 +143,7 @@ function renderScanningAnimation() {
       </div>
       <div class="scanning-info">
         <h4>Recherche des appareils sur le réseau...</h4>
-        <p class="scanning-subtitle">Balayage des sous-réseaux locaux (SSH port 22, Bobine port 8000)...</p>
+        <p class="scanning-subtitle">Balayage des sous-réseaux locaux — tous les appareils qui répondent (SSH, Bobine, partage Windows, impression réseau...) sont listés, pas seulement les cibles Bobine.</p>
         <div class="scanning-shimmer-bar">
           <div class="shimmer-progress"></div>
         </div>
@@ -135,7 +177,7 @@ function initWizard() {
       const devices = await invokeTauri('scan_network', {});
       renderDevicesList(devices);
     } catch (err) {
-      devicesList.innerHTML = `<div class="empty-state"><p style="color: var(--accent-error);">Erreur lors du scan : ${err}</p></div>`;
+      devicesList.innerHTML = `<div class="empty-state"><p style="color: var(--accent-error);">Erreur lors du scan : ${escapeHtml(err)}</p></div>`;
     } finally {
       scanSpinner.classList.remove('spinning');
       btnScan.classList.remove('scanning');
@@ -156,6 +198,33 @@ function initWizard() {
       e.preventDefault();
       btnManualTarget.click();
     }
+  });
+
+  // Import d'une clé SSH privée locale (alternative au mot de passe et au
+  // repli automatique sur ~/.ssh/, réf. mission "clé SSH locale")
+  const btnImportKey = document.getElementById('btn-import-ssh-key');
+  const btnClearKey = document.getElementById('btn-clear-ssh-key');
+  const keyFilenameHint = document.getElementById('ssh-key-filename');
+
+  btnImportKey.addEventListener('click', async () => {
+    try {
+      const path = await invokeTauri('pick_ssh_key_file', {});
+      if (!path) return; // utilisateur a annulé le sélecteur
+      state.selectedKeyPath = path;
+      const filename = path.split(/[\\/]/).pop();
+      keyFilenameHint.textContent = `Clé importée : ${filename}`;
+      keyFilenameHint.classList.add('has-key');
+      btnClearKey.style.display = '';
+    } catch (err) {
+      keyFilenameHint.textContent = `Erreur lors de la sélection : ${err}`;
+    }
+  });
+
+  btnClearKey.addEventListener('click', () => {
+    state.selectedKeyPath = null;
+    keyFilenameHint.textContent = 'Aucune clé importée — mot de passe, agent SSH ou clés ~/.ssh/ courantes utilisés automatiquement';
+    keyFilenameHint.classList.remove('has-key');
+    btnClearKey.style.display = 'none';
   });
 
   // Étape 2 -> Étape 3 (Test SSH)
@@ -183,6 +252,7 @@ function initWizard() {
       port: parseInt(document.getElementById('ssh-port').value, 10) || 22,
       username: document.getElementById('ssh-username').value.trim() || 'fanta',
       password: document.getElementById('ssh-password').value || null,
+      key_path: state.selectedKeyPath || null,
     };
 
     try {
@@ -426,8 +496,8 @@ function renderDevicesList(devices) {
             <line x1="8" y1="11" x2="14" y2="11"/>
           </svg>
         </div>
-        <h4>Aucun appareil compatible trouvé</h4>
-        <p>Aucune cible Debian avec le port SSH ouvert (22) n'a répondu sur les sous-réseaux locaux. Vérifiez que la borne est allumée et reliée au même réseau, ou saisissez son IP manuellement ci-dessus.</p>
+        <h4>Aucun appareil détecté</h4>
+        <p>Aucun appareil n'a répondu sur les sous-réseaux locaux (aucune trace SSH, Bobine, ni aucun autre service courant). Vérifiez que la borne est allumée et reliée au même réseau, ou saisissez son IP manuellement ci-dessus.</p>
         <button id="btn-retry-scan" class="btn btn-secondary btn-sm" style="margin-top: 6px;">Relancer le scan</button>
       </div>
     `;
@@ -441,14 +511,17 @@ function renderDevicesList(devices) {
   devices.forEach(dev => {
     const row = document.createElement('div');
     row.className = `device-row ${dev.is_wyse_or_bobine ? 'selected' : ''}`;
+    const ports = (dev.open_ports || []).join(', ');
     row.innerHTML = `
       <div class="device-info">
-        <span class="device-ip">${dev.ip}</span>
+        <span class="device-ip">${escapeHtml(dev.ip)}</span>
+        ${dev.hostname ? `<span class="device-name">${escapeHtml(dev.hostname)}</span>` : ''}
         <div class="device-badges">
           ${dev.bobine_open ? '<span class="pill pill-success">Bobine Actif</span>' : ''}
           ${dev.ssh_open ? '<span class="pill pill-info">SSH Ouvert</span>' : ''}
-          <span class="pill" style="background-color: var(--bg-surface-hover);">${dev.os_hint || 'Linux'}</span>
+          <span class="pill" style="background-color: var(--bg-surface-hover);">${escapeHtml(dev.os_hint || 'Appareil inconnu')}</span>
         </div>
+        ${ports ? `<span class="device-ports">Ports ouverts : ${escapeHtml(ports)}</span>` : ''}
       </div>
       <button class="btn btn-secondary btn-sm select-btn">Sélectionner</button>
     `;
@@ -494,6 +567,7 @@ async function startInstallationRun() {
     port: parseInt(document.getElementById('ssh-port').value, 10) || 22,
     username: document.getElementById('ssh-username').value.trim() || 'fanta',
     password: document.getElementById('ssh-password').value || null,
+    key_path: state.selectedKeyPath || null,
     root_password: rootPassword,
     elevation_strategy: state.systemInspection?.privilege_decision || 'sudo',
     script_path: null,
