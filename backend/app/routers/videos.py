@@ -56,6 +56,7 @@ class VideoResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/PortabiliteAndroid.md §3.1) - v2 ignore silencieusement cette cle inconnue
 
 
 class ImportJobAccepted(BaseModel):

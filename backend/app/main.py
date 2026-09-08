@@ -374,7 +374,18 @@ app.mount("/api/branding", StaticFiles(directory=str(branding_path)), name="bran
 # même raison qu'`app/config.py::ROOT_DIR` : `BUNDLE()` place les `datas`
 # sous `Contents/Resources/`, pas à côté de l'exécutable dans
 # `Contents/MacOS/`).
-if getattr(sys, "frozen", False):
+# `sys.getandroidapilevel` : attribut ajouté par le build CPython officiel
+# pour Android (présent uniquement sous Chaquopy), moyen standard et fiable
+# de détecter ce profil — cf. docs/PortabiliteAndroid.md §3.1. Chaquopy
+# place le code applicatif sous un dossier fixe `AssetFinder/app/` (pas la
+# position relative réelle du dépôt) : `__file__` ne remonte donc pas à un
+# `frontend/` sibling de `backend/` comme dans le cas "dépôt" ci-dessous —
+# la tâche Gradle `stagePythonSources` (android/app/build.gradle.kts, Lot 2)
+# place plutôt le frontend compilé en `frontend_out/`, sibling du paquet
+# `app/` lui-même (donc 2 `.parent`, pas 3).
+if hasattr(sys, "getandroidapilevel"):
+    frontend_out = Path(__file__).resolve().parent.parent / "frontend_out"
+elif getattr(sys, "frozen", False):
     if platform.system() == "Darwin":
         frontend_out = Path(sys.executable).resolve().parent.parent / "Resources" / "frontend" / "out"
     else:

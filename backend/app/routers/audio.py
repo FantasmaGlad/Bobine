@@ -29,6 +29,7 @@ class AudioTrackResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/PortabiliteAndroid.md §3.1) - v2 ignore silencieusement cette cle inconnue
 
 
 class AudioCourseResponse(BaseModel):
@@ -42,6 +43,7 @@ class AudioCourseResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/PortabiliteAndroid.md §3.1) - v2 ignore silencieusement cette cle inconnue
 
 
 class AudioCourseDetailResponse(BaseModel):
@@ -54,6 +56,7 @@ class AudioCourseDetailResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/PortabiliteAndroid.md §3.1) - v2 ignore silencieusement cette cle inconnue
 
 
 class AudioCourseUpdate(BaseModel):

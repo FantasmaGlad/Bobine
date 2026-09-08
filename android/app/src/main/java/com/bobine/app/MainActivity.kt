@@ -1,46 +1,55 @@
 package com.bobine.app
 
+import android.annotation.SuppressLint
 import android.os.Bundle
-import android.widget.ScrollView
-import android.widget.TextView
+import android.os.Handler
+import android.os.Looper
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
-import com.chaquo.python.PyObject
 import com.chaquo.python.Python
 
+private const val KIOSK_URL = "http://127.0.0.1:8000/kiosk/"
+
 /**
- * Activite minimale du Lot 1 (cf. docs/plan-implementation-android.md) :
- * pas encore de WebView (Lot 5), pas encore de ForegroundService (Lot 6) -
- * juste la preuve que Chaquopy demarre et que les dependances du Lot 0
- * s'importent reellement sur l'appareil, pas seulement au moment du
- * `pip install` cote machine de developpement.
+ * Activite minimale du Lot 2 (cf. docs/plan-implementation-android.md) :
+ * demarre le vrai backend `app.main` (mis en scene par la tache Gradle
+ * `stagePythonSources`) et affiche `/kiosk` dans une WebView - validation
+ * de bout en bout backend+frontend, pas encore l'UI shell finale (Lot 5)
+ * ni la persistance en arriere-plan (Lot 6).
  */
 class MainActivity : AppCompatActivity() {
 
+    private val handler = Handler(Looper.getMainLooper())
+
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val status = TextView(this).apply {
-            setPadding(32, 64, 32, 32)
-            textSize = 14f
+        val py = Python.getInstance()
+        // `start_server_once` demarre uvicorn dans un thread Python et
+        // rend la main IMMEDIATEMENT (le serveur n'ecoute pas encore) -
+        // charger l'URL sans attendre echoue avec ERR_CONNECTION_REFUSED
+        // (constate en pratique, Lot 2). D'ou la reessai automatique
+        // ci-dessous plutot qu'un chargement direct.
+        py.getModule("bobine_bootstrap").callAttr("start_server_once")
+
+        val webView = WebView(this)
+        webView.settings.javaScriptEnabled = true
+        webView.webViewClient = object : WebViewClient() {
+            override fun onReceivedError(
+                view: WebView,
+                request: WebResourceRequest,
+                error: WebResourceError
+            ) {
+                if (request.isForMainFrame) {
+                    handler.postDelayed({ view.loadUrl(KIOSK_URL) }, 500)
+                }
+            }
         }
-        setContentView(ScrollView(this).apply { addView(status) })
-
-        status.text = "Verification des dependances (Lot 0)...\n"
-
-        try {
-            val py = Python.getInstance()
-            val spikeCheck: PyObject = py.getModule("spike_check")
-            val result: PyObject = spikeCheck.callAttr("run")
-            // run() retourne un tuple Python (ok_count, total, details) -
-            // asList() le convertit en liste Java indexable.
-            val parts = result.asList()
-            val okCount = parts[0].toInt()
-            val total = parts[1].toInt()
-            val details = parts[2].toString()
-
-            status.text = "Lot 0 - $okCount/$total paquets importes avec succes\n\n$details"
-        } catch (e: Exception) {
-            status.text = "ECHEC demarrage Python/Chaquopy :\n${e}"
-        }
+        setContentView(webView)
+        webView.loadUrl(KIOSK_URL)
     }
 }

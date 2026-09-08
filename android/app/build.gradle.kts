@@ -41,7 +41,66 @@ android {
     // cible JVM 17 pour Kotlin comme pour Java.
 }
 
+// Lot 2 (cf. docs/plan-implementation-android.md) : mise en scène du vrai
+// backend/app/ et du frontend statique compile, SANS copier tout backend/
+// (qui contient .venv/, data/, tests/, alembic/ - non pertinents/indesirables
+// dans l'APK).
+//
+// Chaquopy monte le contenu de `chaquopy.sourceSets` sous un dossier FIXE
+// `AssetFinder/app/` sur l'appareil (constate en pratique, Lot 2 - pas
+// derive du nom "backend" choisi ici) : la logique de chemins reelle de
+// `backend/app/main.py` (3 `.parent` pour retomber sur un `frontend/out`
+// sibling de `backend/`) ne peut donc PAS fonctionner telle quelle sur
+// Android, `AssetFinder/app/` etant un palier fixe imbrique par Chaquopy,
+// pas un vrai sibling adressable. `main.py` a une branche Android dediee
+// (detectee via `hasattr(sys, "getandroidapilevel")`) qui attend plutot
+// `frontend_out/` comme sibling du paquet `app/` - d'ou la disposition
+// choisie ici :
+//   build/pyStage/backend/app/...          <- chaquopy.sourceSets pointe ici
+//   build/pyStage/backend/frontend_out/...  <- sibling de app/, PAS de backend/
+val pyStageDir = layout.buildDirectory.dir("pyStage")
+
+val buildFrontend = tasks.register<Exec>("buildFrontendStatic") {
+    workingDir = rootProject.projectDir.resolve("../frontend")
+    commandLine("npm", "run", "build")
+    inputs.dir(workingDir.resolve("src"))
+    inputs.file(workingDir.resolve("package.json"))
+    inputs.file(workingDir.resolve("next.config.ts"))
+    outputs.dir(workingDir.resolve("out"))
+}
+
+val stagePythonSources = tasks.register<Copy>("stagePythonSources") {
+    dependsOn(buildFrontend)
+    // backend/app/ uniquement (pas backend/.venv, data, tests, alembic...).
+    from(rootProject.projectDir.resolve("../backend/app")) {
+        into("backend/app")
+        exclude("**/__pycache__/**")
+    }
+    from(rootProject.projectDir.resolve("../frontend/out")) {
+        into("backend/frontend_out")
+    }
+    into(pyStageDir)
+}
+
+// Chaquopy doit voir les sources mises en scene AVANT de les fusionner dans
+// l'APK. Le hook preBuild seul ne suffit pas : la validation stricte de
+// Gradle 9 (constatee en pratique, Lot 2) exige une dependance EXPLICITE
+// entre la tache qui lit `pyStageDir` (mergeDebugPythonSources /
+// mergeReleasePythonSources) et celle qui l'ecrit, sinon
+// "Property has implicit dependency" fait echouer le build - une
+// dependance transitive via preBuild ne compte pas comme telle.
+tasks.named("preBuild") {
+    dependsOn(stagePythonSources)
+}
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("PythonSources") }
+    .configureEach { dependsOn(stagePythonSources) }
+
 chaquopy {
+    sourceSets {
+        getByName("main") {
+            srcDir(pyStageDir.map { it.dir("backend") })
+        }
+    }
     defaultConfig {
         // Python 3.13 : c'est la version majeure.mineure disponible sur cette
         // machine de développement (buildPython doit matcher exactement en
@@ -63,11 +122,22 @@ chaquopy {
             // build complet reussi (APK genere) :
             install("pydantic==1.10.26")
             install("fastapi==0.99.1")
+            // Sans l'extra [standard] : httptools n'a aucune distribution
+            // Android (confirme, cf. Decouvertes du plan Lot 0). uvicorn nu
+            // retombe sur h11 (pur Python, deja resolu par ailleurs).
+            install("uvicorn==0.52.1")
             install("sqlalchemy==2.0.51")
             install("alembic==1.18.5")
             install("python-multipart==0.0.32")
             install("apscheduler==3.11.3")
             install("tzlocal==5.4.4")
+            // tzdata : Android n'a pas de base systeme /usr/share/zoneinfo
+            // a l'emplacement attendu par le module stdlib `zoneinfo` (a la
+            // difference des distributions Linux desktop) - decouvert au
+            // Lot 2 en executant reellement app.main sur un emulateur
+            // (ZoneInfoNotFoundError via scheduler_manager -> tzlocal).
+            // Absent de backend/requirements.txt car inutile ailleurs.
+            install("tzdata")
             install("aiofiles==25.1.0")
             // pillow==12.3.0 (version desktop) indisponible pour Android -
             // seule la 11.0.0 existe sur l'index Chaquopy (confirme en

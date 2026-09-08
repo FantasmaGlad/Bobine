@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db, SessionLocal
@@ -14,6 +14,7 @@ from app.models import Background, ImportSource
 from app.utils.importer import import_background, is_image_background
 from app.utils.executors import ffmpeg_executor
 from app.utils.import_jobs import create_job, update_job
+from app.utils._pydantic_compat import computed_field, _ComputedFieldsCompatMixin
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class BackgroundUpdate(BaseModel):
     title: str | None = None
 
 
-class BackgroundResponse(BaseModel):
+class BackgroundResponse(_ComputedFieldsCompatMixin, BaseModel):
     id: int
     file_path: str
     title: str
@@ -33,6 +34,7 @@ class BackgroundResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/PortabiliteAndroid.md §3.1) - v2 ignore silencieusement cette cle inconnue
 
     # Réf. mission "fond figé ou animé" : pas de colonne dédiée en base,
     # dérivé de l'extension du fichier pour que le kiosk et les écrans admin

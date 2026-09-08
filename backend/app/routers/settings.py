@@ -336,7 +336,10 @@ def get_system_usage() -> dict[str, Any]:
 
 @router.put("")
 async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)) -> dict[str, Any]:
-    updates = payload.model_dump(exclude_unset=True)
+    # `.model_dump` (Pydantic v2) sauf sur le profil Android où `.dict` (v1)
+    # est le seul disponible (cf. docs/PortabiliteAndroid.md §3.1).
+    dump = getattr(payload, "model_dump", None) or payload.dict
+    updates = dump(exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=400, detail="Aucun paramètre fourni")
 
