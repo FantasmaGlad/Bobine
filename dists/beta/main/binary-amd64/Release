@@ -1,3 +1,6 @@
 Archive: beta
 Component: main
+Origin: Bobine
+Label: Bobine
 Architecture: amd64
+Description: Depot officiel Bobine - Canal Beta (Rolling)
