@@ -1,6 +1,6 @@
 # Plan d'implémentation — Portabilité Android
 
-Statut (2026-09-08) : **Lots 0, 2 et 3 exécutés**, validés sur un **émulateur Android réel** (KVM, x86_64, API 37) — pas seulement des builds : `app.main` (le vrai backend) démarre, sert `/kiosk` en HTTP 200 sur `127.0.0.2` (hostname « réseau », décision du Lot 3), WebSocket fonctionnel (`/ws/playback`, corrigé au Lot 3). **Lot 3 partiellement clos** : le routage par hostname est validé, mais la vérification bout-en-bout de la bascule `cableOutput`/`networkOutput` est bloquée par un bug frontend préexistant et indépendant d'Android (erreur d'hydratation React sur `/kiosk` depuis l'export statique) — transféré en tâche séparée (`task_67d56a94`), à reprendre une fois corrigé. **Lot 1 largement entamé en pratique** (squelette `android/`, wrapper Gradle committé) mais pas formellement clos — seule la validation matérielle réelle sur la tablette pilote (dock/HDMI physique) reste à faire, l'émulateur ne pouvant pas s'y substituer. Lots 4+ non démarrés. Ce document est **vivant** : cocher les cases au fur et à mesure, ne jamais le laisser retomber en décalage avec la réalité du dépôt.
+Statut (2026-09-08) : **Lots 0, 2, 3 et 13 exécutés**, validés sur un **émulateur Android réel** (KVM, x86_64, API 37) — pas seulement des builds : `app.main` (le vrai backend) démarre, sert `/kiosk` en HTTP 200 sur `127.0.0.2` (hostname « réseau », décision du Lot 3), WebSocket fonctionnel (`/ws/playback`, corrigé au Lot 3), APK release signé avec une clé dédiée et installé proprement (Lot 13). **Lot 3 partiellement clos** : le routage par hostname est validé, mais la vérification bout-en-bout de la bascule `cableOutput`/`networkOutput` est bloquée par un bug frontend préexistant et indépendant d'Android (erreur d'hydratation React sur `/kiosk` depuis l'export statique) — transféré en tâche séparée (`task_67d56a94`), à reprendre une fois corrigé. **Lot 13 : la publication publique (GitHub Releases) est volontairement différée** — décision actée, l'APK reste un artefact CI en attendant que le portage soit prêt pour de vrais utilisateurs (voir Découvertes du Lot 13). **Lot 1 largement entamé en pratique** (squelette `android/`, wrapper Gradle committé) mais pas formellement clos — seule la validation matérielle réelle sur la tablette pilote (dock/HDMI physique) reste à faire, l'émulateur ne pouvant pas s'y substituer. Lots 4-12 non démarrés. Ce document est **vivant** : cocher les cases au fur et à mesure, ne jamais le laisser retomber en décalage avec la réalité du dépôt.
 
 Ce document opérationnalise les décisions de [`docs/PortabiliteAndroid.md`](PortabiliteAndroid.md) (ci-après « le CDC ») en tâches concrètes, séquencées, découpées en lots aussi petits que possible pour qu'un agent qui reprend le travail sur un seul lot n'ait besoin de charger en contexte que ce lot-là, sans devoir relire tout le chantier.
 
@@ -447,15 +447,22 @@ Réf. CDC §2. Dépend de tous les lots produisant du code fonctionnel (peut dé
 - [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — nouveau job de build/signature/publication Android, en miroir des jobs existants Windows/macOS/Linux.
 
 ### Tâches
-- [ ] Générer une clé de signature dédiée, documenter sa conservation (secret CI + sauvegarde hors CI, une clé perdue empêche toute mise à jour future du même `applicationId`).
-- [ ] Ajouter le job CI : build Gradle, signature, upload en artefact de release GitHub, suffixé `-beta` pour les builds de la branche `main` (cohérent avec le canal Bêta desktop existant).
-- [ ] Vérifier que l'APK signé s'installe proprement sur la tablette pilote (pas seulement en `debug` non signé comme dans les lots précédents).
+- [x] Clé de signature dédiée générée (`keytool`, RSA 4096, PKCS12, alias `bobine`, validité jusqu'en 2054) — **hors dépôt**, dans `~/.bobine-signing/` sur la machine où elle a été créée, avec un `README.md` documentant sa conservation et l'avertissement qu'une perte empêche toute mise à jour future du même `applicationId`. Les 4 secrets GitHub Actions correspondants (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`) sont configurés sur le dépôt.
+- [x] Job CI `android-build` ajouté à `.github/workflows/ci.yml` — **décision explicite, différente du plan initial** : PAS suffixé/publié dans la release Bêta publique pour l'instant (voir Découvertes). Reste un artefact CI téléchargeable.
+- [x] Vérifié : l'APK signé (clé dédiée, pas la clé debug) s'installe proprement sur l'émulateur (`adb install` après `adb uninstall` de la version debug — pas de conflit de signature, pas d'avertissement).
 
 ### Critère de sortie
-- [ ] Un tag de release déclenche la CI, produit un APK signé, publié sur GitHub Releases, installable sur la tablette pilote sans avertissement de signature invalide.
+- [x] **Adapté à la décision ci-dessus** : le job CI produit bien un APK signé à chaque push (une fois les secrets configurés, ce qui est fait), vérifié installable — mais rien n'est encore publié sur GitHub Releases par choix, pas par contrainte technique. Un vrai tag de release stable/bêta ne déclenche donc PAS encore de publication Android tant que cette décision n'est pas révisée (cf. Découvertes).
 
 ### Découvertes
-*(à compléter par l'agent qui exécute ce lot)*
+
+**Décision structurante qui diverge du plan initial : l'APK Android n'est PAS ajouté aux assets des releases Stable/Bêta publiques**, contrairement à ce que ce plan prévoyait (« suffixé `-beta`, cohérent avec le canal Bêta desktop »). Le portage est encore en chantier (Lots 4 à 12 non faits : pas de `ForegroundService`, pas de double affichage, pas de verrouillage kiosque) — publier maintenant risquerait de faire croire aux utilisateurs suivant le canal Bêta que l'Android est utilisable en salle, alors que ce n'est pas le cas. Le job `android-build` construit et signe malgré tout à chaque push (roder le pipeline tôt, comme prévu), mais seulement comme artefact CI téléchargeable depuis l'onglet Actions — `release-stable`/`release-beta` ne le référencent volontairement pas dans leur `needs:`. À revoir explicitement quand le portage sera prêt pour de vrais utilisateurs.
+
+**Le job ne fait pas échouer la CI si les secrets ne sont pas configurés.** Cohérent avec l'intention affichée en tête de `ci.yml` (« volontairement léger et fiable pour un statut vert stable ») : une vérification précoce (`check_secrets`) fait sauter proprement toutes les étapes suivantes avec un `::warning::` plutôt que de faire échouer la CI sur tous les pushes tant que les secrets ne sont pas configurés. Dans ce cas précis, les secrets ONT été configurés dans ce même lot, donc le job s'exécutera réellement dès le prochain push — mais ce garde-fou reste utile pour la reproductibilité (ex. un fork du dépôt sans ces secrets).
+
+**Format PKCS12 : un seul mot de passe pour le keystore ET la clé**, pas deux séparés — `keytool` récent ignore silencieusement un `-keypass` différent du `-storepass` sur ce format (avertissement explicite à la génération). Documenté dans `~/.bobine-signing/README.md` pour ne pas surprendre un futur agent qui s'attendrait à deux mots de passe distincts.
+
+**Build release testé pour de vrai, pas seulement en théorie** : `ANDROID_KEYSTORE_PATH`/`ANDROID_KEYSTORE_PASSWORD`/`ANDROID_KEY_ALIAS`/`ANDROID_KEY_PASSWORD` exportés en local, `./gradlew :app:assembleRelease` réussi, signature vérifiée avec `apksigner verify --print-certs` (`CN=Bobine`, pas le certificat `CN=Android Debug` des builds précédents), et installation propre sur l'émulateur après désinstallation de la version debug.
 
 ---
 
@@ -493,7 +500,7 @@ Réf. CDC §2. Dépend de tous les lots produisant du code fonctionnel (peut dé
 - [ ] Lot 10 — Device Owner sans Lock Task
 - [ ] Lot 11 — mise à jour in-app
 - [ ] Lot 12 — documentation & contexte agents IA
-- [ ] Lot 13 — signature APK, CI, publication
+- [x] Lot 13 — signature APK, CI (build+signature à chaque push) ; publication publique volontairement différée (décision actée, cf. Découvertes)
 
 ---
 

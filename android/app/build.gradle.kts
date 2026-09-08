@@ -4,12 +4,37 @@ plugins {
     id("com.chaquo.python")
 }
 
+// Lot 13 (cf. docs/plan-implementation-android.md) : signature release.
+// Cle dediee generee hors depot (~/.bobine-signing/ sur la machine de
+// build initiale, jamais commitee) - lue ici via variables d'environnement
+// (secrets GitHub Actions en CI : ANDROID_KEYSTORE_PATH pointe vers le
+// fichier decode a partir du secret ANDROID_KEYSTORE_BASE64, cf. le job
+// android-build de ci.yml). Absentes en local -> pas de signingConfig
+// applique, `assembleRelease` produit alors un APK non signe (utilisable
+// pour inspecter le build, pas pour l'installer en mise a jour reelle).
+val androidKeystorePath: String? = System.getenv("ANDROID_KEYSTORE_PATH")
+val androidKeystorePassword: String? = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+val androidKeyAlias: String? = System.getenv("ANDROID_KEY_ALIAS")
+val androidKeyPassword: String? = System.getenv("ANDROID_KEY_PASSWORD")
+val hasReleaseSigningConfig = listOf(androidKeystorePath, androidKeystorePassword, androidKeyAlias, androidKeyPassword).all { !it.isNullOrBlank() }
+
 android {
     namespace = "com.bobine.app"
     // CDC docs/PortabiliteAndroid.md §2 : minSdk/targetSdk API 34-36, priorité
     // donnée à l'avenir plutôt qu'à la compatibilité descendante. compileSdk 36
     // correspond à la tablette pilote réelle (Xiaomi Pad 8, Android 16).
     compileSdk = 36
+
+    if (hasReleaseSigningConfig) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(androidKeystorePath!!)
+                storePassword = androidKeystorePassword
+                keyAlias = androidKeyAlias
+                keyPassword = androidKeyPassword
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.bobine.app"
@@ -28,6 +53,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigningConfig) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
