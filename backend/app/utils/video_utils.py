@@ -3,6 +3,8 @@ import subprocess
 import json
 import logging
 import uuid
+import time
+import platform
 from pathlib import Path
 
 from app.utils.ffmpeg_binaries import FFMPEG_BIN, FFPROBE_BIN
@@ -378,7 +380,7 @@ def generate_thumbnail(video_path: str, thumbnail_dir: str, duration: float | No
         except subprocess.CalledProcessError as err:
             if is_android and ("av1" in (err.stderr or "").lower() or "not implemented" in (err.stderr or "").lower()):
                 # Tentative avec le décodeur matériel MediaCodec
-                cmd_retry = [FFMPEG_BIN, "-c:v", "av1_mediacodec"] + current_cmd[1:]
+                cmd_retry = [FFMPEG_BIN, "-operating_rate", "1000", "-c:v", "av1_mediacodec"] + current_cmd[1:]
                 try:
                     subprocess.run(cmd_retry, capture_output=True, text=True, check=True, timeout=FFMPEG_THUMBNAIL_TIMEOUT_SECONDS)
                     if thumb_path.exists() and thumb_path.stat().st_size > 0:
@@ -408,104 +410,233 @@ def generate_thumbnail(video_path: str, thumbnail_dir: str, duration: float | No
     raise ValueError("Impossible de générer la miniature avec ffmpeg : le fichier de sortie est vide ou inexistant.")
 
 
-def normalize_video(input_path: str, output_path: str, actions: list, source_metadata: dict | None = None) -> str:
+def _get_target_bitrate(width: int | None, height: int | None) -> str:
     """
-    Normalise le conteneur ou la piste audio d'une vidéo de manière non destructive (Stream Copy).
-    - MKV -> MP4 : Stream copy de la vidéo.
-    - AC-3 -> AAC : Réencodage audio en AAC, Stream copy de la vidéo.
+    Calcule un débit binaire adapté garantissant une qualité 'Maxi Premium'
+    sans aucune réduction (downscale) de résolution (réf. exigence utilisateur).
+    """
+    w = width or 1920
+    h = height or 1080
+    pixels = w * h
+    if pixels >= 3840 * 2160 * 0.8:  # 4K UHD (2160p)
+        return "28M"
+    elif pixels >= 2560 * 1440 * 0.8:  # 2K QHD (1440p)
+        return "14M"
+    return "6M"  # 1080p Full HD et inférieur
 
-    `source_metadata` (réf. correctif "appel ffprobe redondant alourdit
-    inutilement chaque normalisation") : tous les appelants ont déjà extrait
-    les métadonnées de CE MÊME fichier (souvent juste déplacé, jamais encore
-    modifié) pour décider des `actions` à passer ici — les leur faire
-    transmettre évite de relancer ffprobe une seconde fois sur un contenu
-    identique. Reste optionnel (repli sur un appel ffprobe local) pour ne pas
-    casser un futur appelant qui ne les aurait pas sous la main.
+
+def _get_encoder_args(is_android: bool, width: int | None, height: int | None) -> tuple[list[str], str]:
     """
-    # S'assurer que le dossier de sortie existe
+    Détermine les arguments d'encodage optimaux selon la plateforme et le matériel détecté.
+    Retourne (liste_arguments_ffmpeg, nom_encodeur).
+    """
+    bitrate = _get_target_bitrate(width, height)
+    system = platform.system().lower()
+
+    if is_android:
+        # Qualcomm Snapdragon MediaCodec matériel : operating_rate 1000 pour horloge max,
+        # nv12 pour zéro-copie avec le décodeur matériel.
+        return (["-c:v", "h264_mediacodec", "-operating_rate", "1000", "-pix_fmt", "nv12", "-b:v", bitrate], "h264_mediacodec")
+
+    if system == "darwin":
+        # macOS : Apple Silicon (puces M1/M2/M3/M4) et Intel via VideoToolbox matériel
+        return (["-c:v", "h264_videotoolbox", "-q:v", "65", "-pix_fmt", "yuv420p"], "h264_videotoolbox")
+
+    if system == "linux":
+        # Dell Wyse 5070 (Intel Gemini Lake UHD 600) ou station Linux avec VA-API QuickSync
+        if os.path.exists("/dev/dri/renderD128") and os.access("/dev/dri/renderD128", os.R_OK | os.W_OK):
+            return (["-vaapi_device", "/dev/dri/renderD128", "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-b:v", bitrate], "h264_vaapi")
+
+    # Repli logiciel universel haute compatibilité (Windows, serveurs headless sans GPU, repli après échec GPU)
+    return (["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"], "libx264")
+
+
+def _run_ffmpeg_with_progress(
+    cmd: list[str],
+    job_id: str | None,
+    duration_seconds: float | None,
+    timeout: int = FFMPEG_NORMALIZE_TIMEOUT_SECONDS,
+) -> tuple[int, str]:
+    """
+    Exécute FFmpeg en sous-processus Popen avec télémétrie en direct (-progress pipe:1),
+    enregistre le processus dans import_jobs pour permettre son annulation immédiate,
+    et calcule en temps réel progress_percent, eta_seconds et speed.
+    Retourne (returncode, stderr_output).
+    """
+    from app.utils.import_jobs import register_job_process, unregister_job_process, is_job_cancelled, update_job, JobCancelledError
+    import threading
+
+    if is_job_cancelled(job_id):
+        raise JobCancelledError(f"Job {job_id} annulé avant le démarrage de FFmpeg")
+
+    full_cmd = list(cmd)
+    if "-progress" not in full_cmd:
+        full_cmd.extend(["-progress", "pipe:1", "-nostats"])
+
+    proc = subprocess.Popen(
+        full_cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+    )
+    if job_id:
+        register_job_process(job_id, proc)
+
+    stderr_chunks: list[str] = []
+
+    def _read_stderr():
+        try:
+            if proc.stderr:
+                for s_line in proc.stderr:
+                    stderr_chunks.append(s_line)
+        except Exception:
+            pass
+
+    t_err = threading.Thread(target=_read_stderr, daemon=True)
+    t_err.start()
+
+    last_update = 0.0
+    current_speed = None
+    start_time = time.time()
+
+    try:
+        if proc.stdout:
+            for line in proc.stdout:
+                if is_job_cancelled(job_id):
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=1.0)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                    raise JobCancelledError(f"Job {job_id} annulé par l'utilisateur")
+
+                line = line.strip()
+                if not line:
+                    continue
+
+                if line.startswith("speed="):
+                    current_speed = line.split("=", 1)[1].strip()
+                elif line.startswith("out_time_us="):
+                    now = time.time()
+                    # Mises à jour throttlées toutes les 500 ms maximum
+                    if now - last_update >= 0.5:
+                        last_update = now
+                        try:
+                            out_us = int(line.split("=", 1)[1].strip())
+                            out_sec = out_us / 1_000_000.0
+                            pct = None
+                            eta = None
+                            if duration_seconds and duration_seconds > 0:
+                                pct = round(min(99.0, (out_sec / duration_seconds) * 100.0), 1)
+                                if current_speed and current_speed.endswith("x"):
+                                    try:
+                                        spd_val = float(current_speed[:-1])
+                                        if spd_val > 0.05:
+                                            eta = max(0, int((duration_seconds - out_sec) / spd_val))
+                                    except ValueError:
+                                        pass
+                            update_job(job_id, progress_percent=pct, eta_seconds=eta, speed=current_speed)
+                        except Exception:
+                            pass
+                elif line == "progress=end":
+                    update_job(job_id, progress_percent=100.0, eta_seconds=0)
+
+        remaining_timeout = max(1.0, float(timeout - (time.time() - start_time)))
+        proc.wait(timeout=remaining_timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        raise TimeoutError(f"Délai dépassé ({timeout}s) pour FFmpeg")
+    finally:
+        if job_id:
+            unregister_job_process(job_id)
+        t_err.join(timeout=1.0)
+
+    stderr_text = "".join(stderr_chunks)
+    if proc.returncode != 0:
+        if is_job_cancelled(job_id):
+            raise JobCancelledError(f"Job {job_id} annulé par l'utilisateur")
+        return (proc.returncode, stderr_text)
+
+    return (0, stderr_text)
+
+
+def normalize_video(
+    input_path: str,
+    output_path: str,
+    actions: list[str],
+    source_metadata: dict | None = None,
+    job_id: str | None = None,
+) -> str:
+    """
+    Normalise le conteneur ou la piste audio/vidéo d'une vidéo de manière optimisée.
+    - Stream copy quand les flux sont déjà compatibles (instantané).
+    - Accélération matérielle multi-OS (Android Snapdragon MediaCodec, Apple Silicon VideoToolbox,
+      Wyse/Linux Intel VA-API QuickSync) sans aucun downscale (Maxi Premium 2K/4K préservé).
+    - Télémétrie en direct (ETA, pourcentage, vitesse) et interruption immédiate en cas d'annulation.
+    """
+    from app.utils.deployment import get_deployment_profile
+    from app.utils.import_jobs import is_job_cancelled, JobCancelledError
+
+    if is_job_cancelled(job_id):
+        raise JobCancelledError(f"Job {job_id} annulé")
+
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     meta = source_metadata if source_metadata is not None else extract_metadata(input_path)
     in_codec = (meta.get("codec") or "").lower()
-
-    from app.utils.deployment import get_deployment_profile
     is_android = get_deployment_profile() == "android"
 
-    cmd = [FFMPEG_BIN]
-
-    # Sur Android, si le flux vidéo source est en AV1, le décodeur logiciel interne par défaut
-    # de ffmpeg (compilé sans libdav1d) échoue avec "Function not implemented".
-    # En spécifiant explicitement le décodeur matériel MediaCodec d'Android (-c:v av1_mediacodec)
-    # AVANT le fichier d'entrée (-i), ffmpeg utilise le décodeur matériel (Qualcomm/MediaTek)
-    # qui décode l'AV1 à pleine vitesse matérielle (130+ fps).
-    if is_android and in_codec == "av1":
-        cmd.extend(["-c:v", "av1_mediacodec"])
-
-    cmd.extend(["-i", input_path])
-
-    if "recode_video" in actions:
-        # Réencodage réel vers H.264 (réf. audit plan-corrections-bugs, point
-        # 6) : codec source hors liste blanche (HEVC/VP9/autre). Un simple
-        # remux par copie de flux ne suffit pas ici, contrairement au cas
-        # container-only — c'est justement ce qui manquait avant ce fix.
-        if is_android:
-            # Sur Android (Chaquopy), le binaire FFmpeg embarqué est compilé sans GPL
-            # (--disable-gpl), donc libx264 et ses options (-preset, -crf) ne sont pas
-            # disponibles. On utilise le hardware encoder natif MediaCodec (h264_mediacodec),
-            # ultra-rapide et intégré à Android Bionic.
-            cmd.extend(["-c:v", "h264_mediacodec", "-b:v", "5M", "-pix_fmt", "yuv420p"])
+    def _build_cmd(enc_args: list[str], av1_hw_in: bool) -> list[str]:
+        c = [FFMPEG_BIN]
+        if is_android and av1_hw_in:
+            c.extend(["-operating_rate", "1000", "-c:v", "av1_mediacodec"])
+        c.extend(["-i", input_path])
+        if "recode_video" in actions:
+            c.extend(enc_args)
         else:
-            # "veryfast"/CRF modéré : suffisant pour un fond animé court, le coût
-            # CPU reste ponctuel (à l'import, pas à la lecture).
-            cmd.extend(["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"])
-    else:
-        # Copie du flux vidéo (pas de réencodage vidéo lourd)
-        cmd.extend(["-c:v", "copy"])
+            c.extend(["-c:v", "copy"])
 
-    # Vérifier s'il y a une piste audio dans le fichier d'entrée
-    has_audio = meta.get("audio_codec") is not None
+        has_audio = meta.get("audio_codec") is not None
+        if not has_audio:
+            c.append("-an")
+        elif "recode_audio" in actions:
+            c.extend(["-c:a", "aac"])
+        else:
+            c.extend(["-c:a", "copy"])
 
-    if not has_audio:
-        cmd.append("-an")
-    elif "recode_audio" in actions:
-        cmd.extend(["-c:a", "aac"])
-    else:
-        cmd.extend(["-c:a", "copy"])
+        c.extend(["-movflags", "+faststart", "-y", output_path])
+        return c
 
-    # +faststart (réf. correctif "critique kiosk/réseau — reste figé sur la
-    # première frame") : place systématiquement l'atome moov en tête du
-    # fichier de sortie, quelle que soit la raison de cette normalisation
-    # (recodage réel ou simple remux déclenché par `remux_faststart`) — sans
-    # coût perceptible (ffmpeg réordonne juste les boîtes déjà écrites).
-    cmd.extend(["-movflags", "+faststart"])
-    cmd.extend(["-y", output_path])
+    # 1. Sélection initiale de l'encodeur
+    initial_enc_args, encoder_name = _get_encoder_args(is_android, meta.get("width"), meta.get("height"))
+    use_av1_hw = is_android and (in_codec == "av1")
+    cmd = _build_cmd(initial_enc_args, use_av1_hw)
 
-    # Pas de verrou explicite ici : cette fonction n'est jamais appelée que
-    # depuis `app.utils.executors.ffmpeg_executor` (ThreadPoolExecutor à un
-    # seul thread, partagé par tous les chemins d'import), qui sérialise déjà
-    # totalement les appels ffmpeg au sein de ce processus. Avant
-    # PortabiliteCrossPlatformX Lot 0, un verrou Redis était nécessaire en
-    # plus de cet exécuteur car chacun des 4 workers uvicorn avait SON PROPRE
-    # exécuteur mono-thread — un import par worker pouvait donc tourner en
-    # parallèle des 3 autres. Process unique depuis ce lot : un seul
-    # exécuteur existe, le problème ne peut plus se poser.
-    try:
-        subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=FFMPEG_NORMALIZE_TIMEOUT_SECONDS)
+    ret, stderr = _run_ffmpeg_with_progress(cmd, job_id, meta.get("duration_seconds"))
+    if ret == 0:
         return output_path
-    except subprocess.TimeoutExpired:
-        logger.error(f"ffmpeg : délai dépassé ({FFMPEG_NORMALIZE_TIMEOUT_SECONDS}s) en normalisant {input_path}")
-        raise ValueError(
-            f"La normalisation de la vidéo a dépassé {FFMPEG_NORMALIZE_TIMEOUT_SECONDS // 60} min (ffmpeg) — "
-            "fichier probablement trop volumineux ou corrompu."
-        )
-    except subprocess.CalledProcessError as e:
-        logger.error(f"ffmpeg normalization failed: {e.stderr}")
-        if is_android and in_codec != "av1" and ("av1" in (e.stderr or "").lower() or "not implemented" in (e.stderr or "").lower()):
-            # Tentative de repli dynamique avec le décodeur matériel av1_mediacodec
-            cmd_av1 = [FFMPEG_BIN, "-c:v", "av1_mediacodec"] + cmd[1:]
-            try:
-                subprocess.run(cmd_av1, capture_output=True, text=True, check=True, timeout=FFMPEG_NORMALIZE_TIMEOUT_SECONDS)
-                return output_path
-            except Exception as retry_err:
-                logger.error(f"ffmpeg : échec du retry av1_mediacodec : {retry_err}")
-        raise ValueError(f"Échec de la normalisation de la vidéo avec ffmpeg : {e.stderr}")
+
+    logger.warning(f"Échec de l'encodage avec {encoder_name} (code {ret}): {stderr}")
+
+    # 2. Repli matériel VA-API ou VideoToolbox -> libx264 si échec GPU
+    if encoder_name in ("h264_vaapi", "h264_videotoolbox"):
+        logger.info(f"Repli vers l'encodeur logiciel libx264 suite à l'erreur {encoder_name}...")
+        fallback_enc = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
+        cmd_fallback = _build_cmd(fallback_enc, use_av1_hw)
+        ret2, stderr2 = _run_ffmpeg_with_progress(cmd_fallback, job_id, meta.get("duration_seconds"))
+        if ret2 == 0:
+            return output_path
+        stderr = stderr2
+
+    # 3. Repli Android AV1 si le décodeur standard a échoué
+    if is_android and not use_av1_hw and ("av1" in stderr.lower() or "not implemented" in stderr.lower()):
+        logger.info("Détection d'un flux AV1 non géré par le décodeur par défaut, bascule vers av1_mediacodec...")
+        cmd_av1 = _build_cmd(initial_enc_args, av1_hw_in=True)
+        ret3, stderr3 = _run_ffmpeg_with_progress(cmd_av1, job_id, meta.get("duration_seconds"))
+        if ret3 == 0:
+            return output_path
+        stderr = stderr3
+
+    raise ValueError(f"Échec de la normalisation de la vidéo avec ffmpeg : {stderr}")
+

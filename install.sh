@@ -21,8 +21,8 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source de vérité unique du numéro de version (réf. mission "canal Stable/
 # Bêta") : fichier VERSION à la racine du dépôt, lu ici et par les scripts de
 # packaging (packaging/linux/build_deb.sh, packaging/macos/build_app.sh) —
-# repli "3.0.1" si le fichier est absent (ex. script copié isolément).
-SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "3.0.1")"
+# repli "3.0.2" si le fichier est absent (ex. script copié isolément).
+SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "3.0.2")"
 # Déplacé ici (auparavant défini beaucoup plus bas, avec le reste du bloc
 # "Cible") : nécessaire tôt pour select_update_channel(), qui lit/écrit le
 # canal choisi (${CONFIG_DIR}/update-channel) avant même l'exécution du
@@ -807,7 +807,7 @@ else
 
     # Pilote VA-API (décodage vidéo matériel) selon le GPU détecté.
     if $HAS_INTEL_GPU; then
-        apt_optional intel-media-va-driver-non-free || apt_optional i965-va-driver
+        apt_optional intel-media-va-driver-non-free || apt_optional intel-media-va-driver || apt_optional i965-va-driver
     fi
     if $HAS_AMD_GPU; then
         # radeonsi (Mesa) fournit le VA-API des GPU/APU AMD (Ryzen inclus).

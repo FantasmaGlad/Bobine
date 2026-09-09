@@ -13,7 +13,7 @@ from app.database import get_db, SessionLocal
 from app.models import Background, ImportSource
 from app.utils.importer import import_background, is_image_background
 from app.utils.executors import ffmpeg_executor
-from app.utils.import_jobs import create_job, update_job
+from app.utils.import_jobs import create_job, update_job, register_job_future, JobCancelledError
 from app.utils._pydantic_compat import computed_field, _ComputedFieldsCompatMixin
 
 logger = logging.getLogger(__name__)
@@ -67,9 +67,18 @@ def _run_background_import_job(job_id: str, temp_path: str, filename: str, title
                 db.close()
 
         update_job(job_id, stage="done", result_id=background.id)
+    except JobCancelledError:
+        logger.info(f"Tâche d'import du fond animé {job_id} annulée.")
+        update_job(job_id, stage="cancelled")
     except Exception as e:
         logger.error(f"Erreur lors de l'upload et de l'import du fond animé (job {job_id}): {e}", exc_info=True)
         update_job(job_id, stage="error", error=str(e))
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
 
 
 @router.post("/upload", response_model=ImportJobAccepted, status_code=202)
@@ -89,7 +98,8 @@ def upload_background(
         raise HTTPException(status_code=400, detail=str(e))
 
     job_id = create_job("background", file.filename, title or Path(file.filename).stem)
-    ffmpeg_executor.submit(_run_background_import_job, job_id, temp_path, file.filename, title)
+    future = ffmpeg_executor.submit(_run_background_import_job, job_id, temp_path, file.filename, title)
+    register_job_future(job_id, future)
     return {"job_id": job_id}
 
 

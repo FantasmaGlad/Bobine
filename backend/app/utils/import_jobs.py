@@ -1,6 +1,11 @@
+import concurrent.futures
+import subprocess
 import threading
 import time
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Suivi de file d'import (réf. mission "voir en direct les importations et
 # l'estimation d'où elles en sont") : les imports (upload web ET dossier
@@ -15,13 +20,22 @@ import uuid
 _lock = threading.Lock()
 _jobs: dict[str, dict] = {}
 _job_order: list[str] = []  # ids dans l'ordre de création (remplace le zset Redis)
+_job_futures: dict[str, concurrent.futures.Future] = {}
+_job_processes: dict[str, subprocess.Popen] = {}
+_cancelled_jobs: set[str] = set()
+
+
+class JobCancelledError(Exception):
+    """Levée lorsqu'une tâche d'importation a été annulée par l'utilisateur."""
+    pass
+
 
 # Le réencodage le plus long observé en production a dépassé 15 min (cf.
 # FFMPEG_NORMALIZE_TIMEOUT_SECONDS = 1800 dans video_utils.py) : la tâche doit
 # rester visible largement au-delà, sans quoi elle "disparaîtrait" de la
 # file en cours de traitement.
 ACTIVE_TTL_SECONDS = 3600
-# Une tâche terminée (succès ou erreur) reste visible quelques minutes pour
+# Une tâche terminée (succès, erreur ou annulation) reste visible quelques minutes pour
 # que l'utilisateur voie le résultat, puis s'efface d'elle-même — pas besoin
 # de nettoyage explicite.
 DONE_TTL_SECONDS = 300
@@ -36,11 +50,12 @@ _STAGE_LABELS = {
     "saving": "Enregistrement",
     "done": "Terminé",
     "error": "Échec",
+    "cancelled": "Annulé",
 }
 
 
 def _ttl_for(job: dict) -> int:
-    return DONE_TTL_SECONDS if job.get("stage") in ("done", "error") else ACTIVE_TTL_SECONDS
+    return DONE_TTL_SECONDS if job.get("stage") in ("done", "error", "cancelled") else ACTIVE_TTL_SECONDS
 
 
 def _is_expired(job: dict) -> bool:
@@ -64,6 +79,9 @@ def create_job(kind: str, filename: str, title: str | None = None, source: str =
         "stage_label": _STAGE_LABELS["queued"],
         "error": None,
         "result_id": None,
+        "progress_percent": None,
+        "eta_seconds": None,
+        "speed": None,
         "created_at": now,
         "updated_at": now,
     }
@@ -71,6 +89,79 @@ def create_job(kind: str, filename: str, title: str | None = None, source: str =
         _jobs[job_id] = job
         _job_order.append(job_id)
     return job_id
+
+
+def register_job_future(job_id: str, future: concurrent.futures.Future) -> None:
+    """Associe la Future d'un exécuteur à une tâche pour permettre son annulation en file."""
+    with _lock:
+        _job_futures[job_id] = future
+
+
+def register_job_process(job_id: str | None, proc: subprocess.Popen) -> None:
+    """Associe le processus sous-jacent (ex. FFmpeg) à la tâche en cours pour permettre
+    son arrêt forcé immédiat en cas d'annulation."""
+    if not job_id:
+        return
+    with _lock:
+        _job_processes[job_id] = proc
+
+
+def unregister_job_process(job_id: str | None) -> None:
+    """Désenregistre le processus une fois son exécution terminée."""
+    if not job_id:
+        return
+    with _lock:
+        _job_processes.pop(job_id, None)
+
+
+def is_job_cancelled(job_id: str | None) -> bool:
+    """Vérifie si la tâche a été marquée comme annulée."""
+    if not job_id:
+        return False
+    with _lock:
+        return job_id in _cancelled_jobs or (_jobs.get(job_id, {}).get("stage") == "cancelled")
+
+
+def cancel_job(job_id: str) -> bool:
+    """
+    Annule immédiatement une tâche d'importation en cours ou en attente :
+    1. Marque le job avec stage="cancelled".
+    2. Annule la Future dans l'exécuteur si elle n'a pas encore démarré.
+    3. Interrompt le processus FFmpeg (SIGTERM puis SIGKILL) s'il tourne.
+    """
+    future = None
+    proc = None
+    found = False
+
+    with _lock:
+        _cancelled_jobs.add(job_id)
+        job = _jobs.get(job_id)
+        if job is not None:
+            found = True
+            job["stage"] = "cancelled"
+            job["stage_label"] = _STAGE_LABELS["cancelled"]
+            job["updated_at"] = time.time()
+        future = _job_futures.pop(job_id, None)
+        proc = _job_processes.pop(job_id, None)
+
+    if future is not None and not future.done():
+        future.cancel()
+        logger.info(f"Future de l'import {job_id} annulée dans la file d'attente.")
+
+    if proc is not None:
+        try:
+            logger.info(f"Arrêt forcé du processus FFmpeg pour l'import {job_id} (PID {proc.pid})...")
+            proc.terminate()
+            try:
+                proc.wait(timeout=1.5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=1.0)
+            logger.info(f"Processus FFmpeg pour l'import {job_id} arrêté.")
+        except Exception as e:
+            logger.warning(f"Erreur lors de l'arrêt du processus pour l'import {job_id}: {e}")
+
+    return found
 
 
 def update_job(job_id: str | None, **fields) -> None:
@@ -109,9 +200,12 @@ def list_jobs() -> list[dict]:
         for job_id in stale_ids:
             _job_order.remove(job_id)
             _jobs.pop(job_id, None)
+            _job_futures.pop(job_id, None)
+            _job_processes.pop(job_id, None)
+            _cancelled_jobs.discard(job_id)
         jobs = [dict(_jobs[job_id]) for job_id in _job_order]
 
-    pending = [j for j in jobs if j["stage"] not in ("done", "error")]
+    pending = [j for j in jobs if j["stage"] not in ("done", "error", "cancelled")]
     for idx, job in enumerate(pending):
         job["queue_position"] = idx
 

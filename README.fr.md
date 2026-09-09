@@ -11,26 +11,30 @@ Bobine transforme n'importe quel PC, Mac ou mini PC dédié bon marché en syst�
 [Site officiel](https://bobine.fit) · [Documentation web](https://bobine.fit/fr/documentation) · [English](README.md) · [Documentation technique](docs/ARCHITECTURE.md) · [Dernière version](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Release Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
-[![Version : v3.0.1](https://img.shields.io/badge/Release-v3.0.1-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
+[![Version : v3.0.2](https://img.shields.io/badge/Release-v3.0.2-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
 ![Licence : AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)
 ![Backend : FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
-![Plateformes : Windows 11 | Debian | Ubuntu | macOS](https://img.shields.io/badge/Platforms-Windows%2011%20%7C%20Linux%20%7C%20macOS-blue)
+![Plateformes : Windows 11 | Linux | macOS | Android](https://img.shields.io/badge/Platforms-Windows%2011%20%7C%20Linux%20%7C%20macOS%20%7C%20Android-blue)
 ![Auto-hébergé](https://img.shields.io/badge/Auto--h%C3%A9berg%C3%A9-Local--first-4c1)
 
 ---
 
-## Téléchargement rapide & Applications de bureau natives
+<p align="center">
+  <img alt="Bobine Sortie Android Native" src="Assets/Images/AndroidRelease.png" width="100%">
+</p>
 
-Installez Bobine en quelques secondes comme une application graphique native sur votre poste de travail, ordinateur portable ou PC de régie studio :
+## Téléchargement rapide & Applications natives
+
+Installez Bobine en quelques secondes comme une application autonome sur votre tablette tactile, poste de travail ou PC de régie studio :
 
 | Plateforme | Format | Architecture | Téléchargement direct / Commande | Profil & Expérience Utilisateur |
 | :--- | :---: | :---: | :---: | :--- |
-| ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installeur)*</sub> | <sub>x86-64</sub> | <sub>[**Télécharger Bobine-Setup-3.0.1.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.1/Bobine-Setup-3.0.1.exe)</sub> | **Windows 11, 10 & Windows IoT**<br><sub>• Assistant guidé 1 clic & raccourci Bureau</sub><br><sub>• Ouverture auto du navigateur (`http://127.0.0.1:8000`)</sub><br><sub>• Systray silencieux en tâche de fond, zéro console</sub> |
-| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) ![Linux Mint](https://img.shields.io/badge/Linux%20Mint-87CF3E?style=flat-square&logo=linuxmint&logoColor=white) | <sub>`.deb`<br>*(Paquet & Dépôt)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>[**Dépôt APT apt.bobine.fit**](https://apt.bobine.fit)<br>[**bobine_3.0.1_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.1/bobine_3.0.1_amd64.deb)</sub> | **Debian, Ubuntu & Linux Mint**<br><sub>• Dépôt APT officiel : `apt.bobine.fit`</sub><br><sub>• Logithèque Ubuntu App Center / `apt install`</sub><br><sub>• Respect des standards XDG & raccourci Bureau</sub><br><sub>• Zone de notification système (systray)</sub> |
-| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Image disque)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Télécharger Bobine-3.0.1.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.1/Bobine-3.0.1.dmg)</sub> | **Apple Silicon (M1, M2, M3, M4)**<br><sub>• Glisser-déposer de `Bobine.app` dans Applications</sub><br><sub>• Icône native Retina `.icns` & barre de menus</sub><br><sub>• Démarrage automatique au login (LaunchAgent)</sub> |
-| ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Paquet)*</sub> | <sub>ARM64</sub> | <sub>*Builds CI pré-version...*</sub> | **Tablettes Android & Bornes Tactiles ARM**<br><sub>• Sortie vidéo filaire USB-C DisplayPort (Xiaomi Pad 6/7/8, Galaxy Tab)</sub><br><sub>• Double affichage natif (grille `/grid` sur tactile, `/cinema` sur TV HDMI)</sub><br><sub>• Backend FastAPI embarqué via Chaquopy, ForegroundService persistant & NDK ARM64 ffmpeg</sub> |
+| ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Paquet natif)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Télécharger Bobine-3.0.2.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-3.0.2.apk)</sub> | **Tablettes Android & Bornes Tactiles ARM**<br><sub>• Paquet APK autonome avec CPython 3.13 embarqué (Chaquopy) & FastAPI</sub><br><sub>• Double affichage natif (grille tactile `/grid`, diffusion `/cinema` sur TV HDMI)</sub><br><sub>• FFmpeg ARM64 intégré & accélération matérielle MediaCodec</sub> |
+| ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installeur)*</sub> | <sub>x86-64</sub> | <sub>[**Télécharger Bobine-Setup-3.0.2.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-Setup-3.0.2.exe)</sub> | **Windows 11, 10 & Windows IoT**<br><sub>• Assistant guidé 1 clic & raccourci Bureau</sub><br><sub>• Ouverture auto du navigateur (`http://127.0.0.1:8000`)</sub><br><sub>• Systray silencieux en tâche de fond, zéro console</sub> |
+| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) ![Linux Mint](https://img.shields.io/badge/Linux%20Mint-87CF3E?style=flat-square&logo=linuxmint&logoColor=white) | <sub>`.deb`<br>*(Paquet & Dépôt)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>[**Dépôt APT apt.bobine.fit**](https://apt.bobine.fit)<br>[**bobine_3.0.2_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/bobine_3.0.2_amd64.deb)</sub> | **Debian, Ubuntu & Linux Mint**<br><sub>• Dépôt APT officiel : `apt.bobine.fit`</sub><br><sub>• Logithèque Ubuntu App Center / `apt install`</sub><br><sub>• Respect des standards XDG & raccourci Bureau</sub><br><sub>• Zone de notification système (systray) & VA-API</sub> |
+| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Image disque)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Télécharger Bobine-3.0.2.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-3.0.2.dmg)</sub> | **Apple Silicon (M1, M2, M3, M4)**<br><sub>• Glisser-déposer de `Bobine.app` dans Applications</sub><br><sub>• Icône native Retina `.icns` & barre de menus</sub><br><sub>• Accélération matérielle VideoToolbox (`h264_videotoolbox`)</sub> |
 | ![iOS / iPadOS](https://img.shields.io/badge/iOS%20%2F%20iPadOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>App iPadOS<br>*(Piste explorée)*</sub> | <sub>ARM64 (Apple Silicon)</sub> | <sub>*Piste explorée...*</sub> | **iPads & Tablettes Tactiles Apple**<br><sub>• Sortie vidéo filaire USB-C (DisplayPort) ou Thunderbolt (iPad Pro M-series, iPad Air)</sub><br><sub>• Pupitre coach tactile & régie vidéo autonome sur grand écran</sub><br><sub>• Piste prospective pour étendre la portabilité</sub> |
-| ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | <sub>Binaire natif<br>*(Tauri 2)*</sub> | <sub>x86-64 (Linux)</sub> | <sub>[**Télécharger bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.1/bobine-assistant)</sub> | **Assistant Réseau Graphique (GUI)**<br><sub>• Scan réseau complet — tous les appareils (nom, IP, OS, ports)</sub><br><sub>• SSH par mot de passe, clé importée ou clés locales auto-détectées</sub><br><sub>• Aucune saisie en ligne de commande requise</sub> |
+| ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | <sub>Binaire natif<br>*(Tauri 2)*</sub> | <sub>x86-64 (Linux)</sub> | <sub>[**Télécharger bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/bobine-assistant)</sub> | **Assistant Réseau Graphique (GUI)**<br><sub>• Scan réseau complet — tous les appareils (nom, IP, OS, ports)</sub><br><sub>• SSH par mot de passe, clé importée ou clés locales auto-détectées</sub><br><sub>• Aucune saisie en ligne de commande requise</sub> |
 | ![Bash CLI](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | <sub>Script Shell<br>*(Automatisé)*</sub> | <sub>x86-64</sub> | <sub>`curl -sSL https://bobine.fit/install.sh \| bash`</sub> | **Appliance Dédiée Headless**<br><sub>• Déploiement automatisé en 15 étapes sur Debian 13</sub><br><sub>• Décodage matériel VA-API 4K (&lt; 8% CPU)</sub><br><sub>• Allumage/veille TV par HDMI-CEC & services auto-réparateurs</sub> |
 | [![bobine.fit](https://img.shields.io/badge/bobine.fit-4285F4?style=flat-square&logo=data%3Aimage/svg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBkPSJNNDQgMjRjMCAxMS4wNDUtOC45NTUgMjAtMjAgMjAtNC41MiAwLTguNjgtMS41MDMtMTIuMDMtNC4wNDNsOS40NjctMTYuMzk0QTggOCAwIDAgMCAyNCAzMmM0LjQxOCAwIDgtMy41ODIgOC04eiIvPjxwYXRoIGZpbGw9IiNGQkMwMkQiIGQ9Ik00NCAyNEgyNGE4IDggMCAwIDAtNi45MjggNGwtOS40NjcgMTYuMzk0QTE5LjkyIDE5LjkyIDAgMCAxIDQgMjRDNCAxMy45ODcgMTEuMzg1IDUuNzA0IDIxLjAzNiA0LjIyTDMwLjUwMyAyMC42MUE3Ljk3IDcuOTcgMCAwIDAgMzIgMjR6Ii8%2BPHBhdGggZmlsbD0iI0U1MzkzNSIgZD0iTTI0IDRjNy40MDYgMCAxMy44NiA0LjAyNCAxNy4zIDEwLjAyN0wzMC41MDMgMjAuNjFBOCA4IDAgMCAwIDI0IDE2Yy0zLjE1NSAwLTUuOTE0IDEuODI2LTcuMjUgNC40OUw3LjI4NCA0LjA5NUMxMS44OTIgNC4wMzIgMTcuNjUgNCAyNCA0eiIvPjxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjI0IiByPSI2IiBmaWxsPSIjMTk3NkQyIi8%2BPC9zdmc%2B)](https://bobine.fit) | <sub>Portail Web</sub> | <sub>Universel</sub> | <sub>[**Visiter bobine.fit**](https://bobine.fit)</sub> | **Site Officiel & Documentation**<br><sub>• Guides de démarrage, actualités & notes de version</sub><br><sub>• Documentation interactive & télécommande web</sub> |
 | ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | <sub>Binaires & Sources</sub> | <sub>Multi-OS</sub> | <sub>[**Voir les Releases GitHub**](https://github.com/FantasmaGlad/Bobine/releases/latest)</sub> | **Historique Complet des Versions**<br><sub>• Sommes de contrôle SHA-256 & notes de version</sub> |
@@ -84,6 +88,10 @@ Bobine est agnostique aux programmes : les catégories de cours sont libres, il 
 - **Local-first et résilient** — reprise automatique après un redémarrage ou une coupure, et un chien de garde qui redémarre un composant mort.
 - **Admin web, zéro installation client** — tout s'administre depuis un navigateur ; les écrans adhérents et les télécommandes ne sont que des pages web.
 - **Anti-veille Screen Wake Lock API** — empêche la mise en veille intempestive de l'écran pendant les cours et la radio sur tous les navigateurs modernes.
+- **Réencodage avec accélération matérielle multi-OS** — encodage GPU natif via MediaCodec (Android), VideoToolbox (Apple Silicon M1-M4) et VA-API (Linux), avec repli CPU optimisé `libx264 ultrafast`.
+- **Politique stricte « Maxi Premium » (2K et 4K natifs)** — préservation intégrale des résolutions ultra haute définition sans sous-échantillonnage destructif, format MP4 optimisé streaming immédiat (`+faststart`).
+- **Annulation réactive & estimation en direct (ETA)** — arrêt immédiat de FFmpeg au clic sur la croix (✕), purge automatique des fichiers temporaires et affichage en temps réel du temps restant et de la vitesse.
+- **Miniatures Full HD 1080p & navigation fluide (fast seek)** — vignettes de haute précision pour écrans 4K et intervalles de trames clés resserrés pour un déplacement temporel instantané sans latence.
 
 ---
 
@@ -103,8 +111,11 @@ Pour l'architecture complète, le modèle de données, le contrat réseau et la 
 
 ## Matériel supporté
 
-Bobine est un logiciel léger, optimisé pour fonctionner avec fluidité sur la quasi-totalité des ordinateurs actuels ou du matériel reconditionné :
+Bobine est un logiciel léger, optimisé pour fonctionner avec fluidité sur la quasi-totalité des ordinateurs actuels, tablettes tactiles ou du matériel reconditionné :
 
+- **Tablettes Android & Bornes Tactiles ARM (Régie autonome tout-en-un)** :
+  - **Xiaomi Pad 6, 7 & 8**, Samsung Galaxy Tab série S, Lenovo Tab série P (tablettes ARM64 disposant d'une sortie USB-C DisplayPort).
+  - Double affichage indépendant : contrôle tactile sur la tablette (`/grid`) + affichage plein écran (`/cinema`) sur TV ou vidéoprojecteur raccordé en HDMI.
 - **Ordinateurs portables et PC de bureau (Windows 11 / 10 et Linux)** :
   - PC portables grand public et professionnels : **HP Pavilion**, **Acer Aspire Go**, Lenovo IdeaPad/ThinkPad, Dell Inspiron/Latitude, ASUS Vivobook, etc.
   - Toute tour ou PC de bureau disposant d'au moins 4 Go de mémoire vive (RAM).
@@ -127,17 +138,27 @@ Bobine est un logiciel léger, optimisé pour fonctionner avec fluidité sur la 
 
 Bobine propose différentes méthodes d'installation selon vos besoins et votre profil d'usage :
 
-1. **Option 1 : Application de bureau graphique (La plus simple pour postes de travail et ordinateurs portables)** — Windows 11/10, Linux (Debian/Ubuntu) et macOS (Apple Silicon). S'installe comme un logiciel classique, ouvre automatiquement l'interface web au clic sur l'icône du Bureau, et se loge discrètement dans la barre des tâches / zone de notification.
+1. **Option 1 : Applications natives (La plus simple pour tablettes, ordinateurs portables et postes de bureau)** — Android (`.apk`), Windows 11/10 (`.exe`), Linux Desktop (`.deb` & dépôt APT) et macOS (`.dmg`). Installation en 1 clic, fonctionnement autonome hors ligne et intégration système native.
 2. **Option 2 : Appliance Linux dédiée headless (Pour les salles autonomes & la gestion fine)** — Transforme un mini PC dédié (type Dell Wyse 5070) en borne vidéo 24/7 locked-in démarrant directement en kiosque X11 plein écran sans aucun bureau graphique parasite, avec gestion automatique de l'allumage TV par HDMI-CEC. Installation rapide en 1 ligne CLI.
 3. **Option 3 : Assistant graphique d'installation Tauri (`assistant/`)** — Un outil de bureau moderne pour découvrir, auditer et déployer à distance vos mini PC via le réseau local en SSH.
 
 ---
 
-### Option 1 — Application de bureau graphique (Windows, Linux & macOS)
+### Option 1 — Applications natives (Android, Windows, Linux & macOS)
+
+#### Sur Android (Tablettes & Bornes Tactiles)
+
+1. **Téléchargez** [**`Bobine-3.0.2.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-3.0.2.apk) directement sur votre tablette (ou transférez le fichier via câble USB).
+2. **Installez le fichier APK** (autorisez l'installation d'applications de sources inconnues si votre système vous le demande).
+3. **Lancez Bobine** :
+   - Le service d'arrière-plan persistant (`ForegroundService`) démarre automatiquement le serveur FastAPI embarqué (Chaquopy / CPython 3.13) et acquiert le verrou mDNS.
+   - L'écran tactile de la tablette affiche immédiatement l'interface en grille optimisée tactile (`/grid`) pour planifier, lancer et piloter les cours.
+   - Raccordez un adaptateur ou dock USB-C vers HDMI relié à votre téléviseur ou vidéoprojecteur : Bobine bascule automatiquement la diffusion plein écran propre (`/cinema`) sur l'écran externe, sans barre d'état système.
+   - Les autres appareils connectés au Wi-Fi accèdent à la télécommande ou à l'administration via `http://bobine.local:8000`.
 
 #### Sur Windows (11, 10 ou Windows IoT)
 
-1. **Téléchargez** [**`Bobine-Setup-3.0.1.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.1/Bobine-Setup-3.0.1.exe) (ou depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Téléchargez** [**`Bobine-Setup-3.0.2.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-Setup-3.0.2.exe) (ou depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Lancez l'installeur** et suivez l'assistant (choix français/anglais, acceptation de la licence AGPL-3.0).
    - Installe Bobine dans `Program Files\Bobine`.
    - Place un raccourci avec l'icône officielle Bobine sur votre **Bureau** et dans le Menu Démarrer.
@@ -167,7 +188,7 @@ sudo apt update && sudo apt install bobine
 ```
 
 **Méthode alternative — Paquet autonome `.deb` (Installation hors ligne ou via logithèque) :**
-1. **Téléchargez** [**`bobine_3.0.1_amd64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.1/bobine_3.0.1_amd64.deb) (ou depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Téléchargez** [**`bobine_3.0.2_amd64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/bobine_3.0.2_amd64.deb) (ou depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Installez le paquet** en double-cliquant dessus (Centre d'Applications Ubuntu / GNOME Software) ou en ligne de commande :
    ```bash
    sudo apt install ./bobine_*_amd64.deb
@@ -182,7 +203,7 @@ sudo apt update && sudo apt install bobine
 
 #### Sur macOS (Apple Silicon - M1/M2/M3/M4)
 
-1. **Téléchargez** [**`Bobine-3.0.1.dmg`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.1/Bobine-3.0.1.dmg) (ou depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Téléchargez** [**`Bobine-3.0.2.dmg`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-3.0.2.dmg) (ou depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Ouvrez le .dmg** et glissez `Bobine.app` dans votre dossier **Applications**.
 3. **Lancez Bobine** depuis Applications, votre **Bureau** (raccourci créé automatiquement) ou Spotlight.
    - *Premier lancement* : Bobine n'étant pas signé par un certificat Apple Developer payant (pas de notarisation), Gatekeeper bloque le premier lancement. Selon la version de macOS, deux messages différents peuvent apparaître :

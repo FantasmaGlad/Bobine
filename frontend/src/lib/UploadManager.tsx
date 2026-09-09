@@ -75,6 +75,8 @@ export interface UploadTask extends PendingUploadSpec {
   status: UploadTaskStatus;
   /** Progression du TRANSFERT réseau (0-100), pas de l'import serveur. */
   progress: number;
+  /** Estimation du temps restant pour le transfert réseau (en secondes). */
+  uploadEtaSeconds?: number | null;
   /** Identifiant de la tâche d'import côté serveur (app.utils.import_jobs),
    *  connu une fois le transfert terminé (réponse 202). */
   jobId?: string;
@@ -82,6 +84,12 @@ export interface UploadTask extends PendingUploadSpec {
    *  à jour par polling tant que status === "processing". */
   stage?: string;
   stageLabel?: string;
+  /** Progression réelle de l'étape de réencodage (0-100%). */
+  progressPercent?: number | null;
+  /** Estimation du temps restant pour le réencodage serveur (en secondes). */
+  etaSeconds?: number | null;
+  /** Vitesse de traitement rapportée par FFmpeg (ex. '4.2x'). */
+  speed?: string | null;
   /** Position estimée dans la file d'attente (0 = prochain traité). */
   queuePosition?: number | null;
   /** Identifiant de l'élément créé (vidéo/fond/cours) une fois status === "done". */
@@ -181,9 +189,18 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
       const xhr = new XMLHttpRequest();
       updateTask(task.id, { status: "uploading", xhr });
 
+      const startTime = Date.now();
       xhr.upload.addEventListener("progress", (e) => {
-        if (e.lengthComputable) {
-          updateTask(task.id, { progress: Math.round((e.loaded / e.total) * 100) });
+        if (e.lengthComputable && e.total > 0) {
+          const progress = Math.round((e.loaded / e.total) * 100);
+          const elapsedSec = (Date.now() - startTime) / 1000;
+          let uploadEtaSeconds: number | null = null;
+          if (elapsedSec > 0.5 && e.loaded > 0) {
+            const bytesPerSec = e.loaded / elapsedSec;
+            const remainingBytes = e.total - e.loaded;
+            uploadEtaSeconds = Math.max(0, Math.round(remainingBytes / bytesPerSec));
+          }
+          updateTask(task.id, { progress, uploadEtaSeconds });
         }
       });
 
@@ -278,12 +295,18 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
   const cancelUpload = useCallback((id: string) => {
     const task = uploadsRef.current.find((t) => t.id === id);
     if (!task) return;
+
+    // Si la tâche est déjà côté serveur (en file d'attente ou en cours de réencodage),
+    // notifier le backend pour arrêter immédiatement FFmpeg et nettoyer les fichiers.
+    if (task.jobId) {
+      fetch(getApiUrl(`/import-jobs/${task.jobId}`), { method: "DELETE" }).catch((e) => {
+        console.error("Erreur lors de l'annulation de la tâche sur le serveur:", e);
+      });
+    }
+
     if (task.status === "uploading" && task.xhr) {
       task.xhr.abort(); // déclenche l'événement "abort" → nettoyage automatique
     } else {
-      // En attente, en traitement serveur, ou terminé : retirer directement
-      // (le traitement serveur d'une tâche déjà transférée continue en tâche
-      // de fond côté backend, cette annulation n'affecte que l'affichage).
       setUploads((prev) => {
         const next = prev.filter((t) => t.id !== id);
         uploadsRef.current = next;
@@ -311,17 +334,55 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
       if (processing.length === 0) return;
       fetch(getApiUrl("/import-jobs"), { cache: "no-store" })
         .then((res) => (res.ok ? res.json() : []))
-        .then((jobs: Array<{ id: string; stage: string; stage_label: string; queue_position: number | null; error: string | null; result_id: number | null }>) => {
+        .then((jobs: Array<{
+          id: string;
+          stage: string;
+          stage_label: string;
+          queue_position: number | null;
+          error: string | null;
+          result_id: number | null;
+          progress_percent: number | null;
+          eta_seconds: number | null;
+          speed: string | null;
+        }>) => {
           const byId = new Map(jobs.map((j) => [j.id, j]));
           processing.forEach((task) => {
             const job = task.jobId ? byId.get(task.jobId) : undefined;
             if (!job) return;
             if (job.stage === "done") {
-              updateTask(task.id, { status: "done", stage: job.stage, stageLabel: job.stage_label, resultId: job.result_id, queuePosition: null });
+              updateTask(task.id, {
+                status: "done",
+                stage: job.stage,
+                stageLabel: job.stage_label,
+                resultId: job.result_id,
+                queuePosition: null,
+                progressPercent: 100,
+                etaSeconds: 0,
+              });
             } else if (job.stage === "error") {
-              updateTask(task.id, { status: "error", stage: job.stage, stageLabel: job.stage_label, error: job.error || "Échec de l'import", queuePosition: null });
+              updateTask(task.id, {
+                status: "error",
+                stage: job.stage,
+                stageLabel: job.stage_label,
+                error: job.error || "Échec de l'import",
+                queuePosition: null,
+              });
+            } else if (job.stage === "cancelled") {
+              // Retirer de la liste si annulé côté serveur
+              setUploads((prev) => {
+                const next = prev.filter((t) => t.id !== task.id);
+                uploadsRef.current = next;
+                return next;
+              });
             } else {
-              updateTask(task.id, { stage: job.stage, stageLabel: job.stage_label, queuePosition: job.queue_position ?? null });
+              updateTask(task.id, {
+                stage: job.stage,
+                stageLabel: job.stage_label,
+                queuePosition: job.queue_position ?? null,
+                progressPercent: job.progress_percent,
+                etaSeconds: job.eta_seconds,
+                speed: job.speed,
+              });
             }
           });
         })
@@ -364,6 +425,14 @@ const KIND_LABELS: Record<UploadKind, string> = {
   radio_zip: "Musique radio",
   radio_announcement_files: "Rappels radio",
 };
+
+function formatEta(seconds: number | null | undefined): string | null {
+  if (typeof seconds !== "number" || isNaN(seconds) || seconds < 0) return null;
+  if (seconds < 60) return `~${seconds}s restantes`;
+  const mins = Math.floor(seconds / 60);
+  const remSecs = seconds % 60;
+  return remSecs > 0 ? `~${mins} min ${remSecs}s restantes` : `~${mins} min restantes`;
+}
 
 function UploadFloatingPanel() {
   const { uploads, cancelUpload, clearCompleted } = useContext(UploadManagerContext)!;
@@ -447,12 +516,19 @@ function UploadFloatingPanel() {
                 </span>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   {task.status === "uploading" && (
-                    <span style={{ color: "var(--text-muted)" }}>{task.progress}%</span>
+                    <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
+                      {task.progress}%{task.uploadEtaSeconds ? ` (${formatEta(task.uploadEtaSeconds)})` : ""}
+                    </span>
+                  )}
+                  {task.status === "processing" && typeof task.progressPercent === "number" && (
+                    <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
+                      {task.progressPercent}%
+                    </span>
                   )}
                   {(task.status === "uploading" || task.status === "pending" || task.status === "processing") && (
                     <button
                       onClick={() => cancelUpload(task.id)}
-                      title="Retirer de la liste"
+                      title="Annuler l'importation"
                       style={{
                         background: "none",
                         border: "none",
@@ -475,7 +551,15 @@ function UploadFloatingPanel() {
                 {task.status === "processing" && (
                   <>
                     {" — "}
-                    {task.stageLabel ?? "Traitement…"}
+                    {task.stage === "normalizing" && typeof task.progressPercent === "number" ? (
+                      <>
+                        Réencodage ({task.progressPercent}%)
+                        {task.etaSeconds !== null && task.etaSeconds !== undefined && ` — ${formatEta(task.etaSeconds)}`}
+                        {task.speed && ` (${task.speed})`}
+                      </>
+                    ) : (
+                      task.stageLabel ?? "Traitement…"
+                    )}
                     {typeof task.queuePosition === "number" && task.queuePosition > 0 &&
                       ` (${task.queuePosition} devant)`}
                   </>
@@ -496,7 +580,19 @@ function UploadFloatingPanel() {
               )}
               {task.status === "processing" && (
                 <div style={{ height: "3px", background: "var(--border-color)", borderRadius: "2px", overflow: "hidden" }}>
-                  <div className="olc-indeterminate-bar" style={{ background: "var(--accent-primary)" }} />
+                  {task.stage === "normalizing" && typeof task.progressPercent === "number" ? (
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${task.progressPercent}%`,
+                        background: "var(--accent-primary)",
+                        borderRadius: "2px",
+                        transition: "width 0.4s",
+                      }}
+                    />
+                  ) : (
+                    <div className="olc-indeterminate-bar" style={{ background: "var(--accent-primary)" }} />
+                  )}
                 </div>
               )}
               {task.status === "error" && task.error && (

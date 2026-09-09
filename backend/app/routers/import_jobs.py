@@ -1,9 +1,9 @@
 from typing import List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.utils.import_jobs import list_jobs
+from app.utils.import_jobs import list_jobs, cancel_job
 
 router = APIRouter(prefix="/api/import-jobs", tags=["import-jobs"])
 
@@ -21,6 +21,9 @@ class ImportJobResponse(BaseModel):
     created_at: float
     updated_at: float
     queue_position: int | None = None
+    progress_percent: float | None = None
+    eta_seconds: int | None = None
+    speed: str | None = None
 
 
 @router.get("", response_model=List[ImportJobResponse])
@@ -34,3 +37,16 @@ def get_import_jobs():
     reste de l'app, un polling léger suffit largement.
     """
     return list_jobs()
+
+
+@router.delete("/{job_id}")
+def cancel_import_job(job_id: str):
+    """
+    Annule immédiatement une tâche d'importation en cours ou en attente,
+    interrompt FFmpeg le cas échéant et supprime les fichiers temporaires.
+    """
+    found = cancel_job(job_id)
+    if not found:
+        raise HTTPException(status_code=404, detail="Tâche d'importation introuvable ou déjà terminée")
+    return {"status": "cancelled", "job_id": job_id}
+

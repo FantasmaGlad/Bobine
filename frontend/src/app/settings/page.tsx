@@ -812,7 +812,7 @@ export default function SettingsPage() {
               {t("settingsPage.currentVersion")} :
             </span>
             <span className="update-badge">
-              <strong>{updateInfo?.current_version ?? "V3.0.1"}</strong>
+              <strong>{updateInfo?.current_version ?? "V3.0.2"}</strong>
               {updateInfo?.current_commit && updateInfo.current_commit !== "unknown" && (
                 <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.75rem", opacity: 0.8 }}>
                   ({updateInfo.current_commit})

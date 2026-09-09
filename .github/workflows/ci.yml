@@ -208,15 +208,9 @@ jobs:
           path: assistant/target/release/bobine-assistant
 
   android-build:
-    # Lot 13 (docs/plan-implementation-android.md) : compile et signe
-    # l'APK Android à chaque push, comme les autres plateformes — MAIS,
-    # décision explicite (2026-09-08), ne l'ajoute PAS aux assets des
-    # releases Stable/Bêta publiques pour l'instant : le portage est encore
-    # en chantier (pas de ForegroundService, pas de double affichage, pas
-    # de verrouillage kiosque — Lots 4-12 non faits). Reste un artefact
-    # CI téléchargeable (onglet Actions), le temps que le portage soit prêt
-    # pour de vrais utilisateurs — voir `needs:` de release-stable/
-    # release-beta, qui ne référencent volontairement pas ce job.
+    # Compile et signe l'APK Android (Chaquopy + FastAPI embarqué + binaire FFmpeg ARM64).
+    # Inclus dans les assets officiels des releases Stable (Bobine-x.y.z.apk) et Bêta (Bobine-beta.apk)
+    # à partir de la version 3.0.2.
     #
     # Ne fait PAS échouer la CI si les secrets de signature n'existent pas
     # encore (cf. ~/.bobine-signing/README.md sur la machine où la clé a
@@ -307,7 +301,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: steps.check_secrets.outputs.configured == 'true'
         with:
-          name: bobine-android-apk-${{ needs.version.outputs.commit_short }}
+          name: bobine-android-apk
           path: android/app/build/outputs/apk/release/*.apk
 
   install-script:
@@ -548,7 +542,7 @@ jobs:
   # et attendu sur la page GitHub Releases (réf. mission "canal Stable/Bêta").
   release-stable:
     name: Publish Stable Release
-    needs: [version, windows-build, linux-desktop-deb, macos-build, assistant-core]
+    needs: [version, windows-build, linux-desktop-deb, macos-build, assistant-core, android-build]
     if: needs.version.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     permissions:
@@ -577,6 +571,21 @@ jobs:
         with:
           name: bobine-assistant-linux
           path: release-assets
+      - name: Download Android APK
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: bobine-android-apk
+          path: android-artifact
+      - name: Prepare Android APK asset
+        run: |
+          if [ -d "android-artifact" ] && compgen -G "android-artifact/*.apk" > /dev/null; then
+            APK_SRC=$(ls android-artifact/*.apk | head -1)
+            cp "$APK_SRC" "release-assets/Bobine-${{ needs.version.outputs.filename_version }}.apk"
+            echo "Android APK copié : release-assets/Bobine-${{ needs.version.outputs.filename_version }}.apk"
+          else
+            echo "Aucun APK Android trouvé dans l'artefact."
+          fi
       - name: Copy install script into release assets
         run: cp install.sh release-assets/
       - name: Inspect generated binary assets
@@ -610,7 +619,7 @@ jobs:
   # commit suivant).
   release-beta:
     name: Publish/Update Beta Release
-    needs: [version, windows-build, linux-desktop-deb, macos-build, assistant-core]
+    needs: [version, windows-build, linux-desktop-deb, macos-build, assistant-core, android-build]
     if: needs.version.outputs.channel == 'beta'
     runs-on: ubuntu-latest
     permissions:
@@ -641,6 +650,21 @@ jobs:
         with:
           name: bobine-assistant-linux
           path: release-assets
+      - name: Download Android APK
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: bobine-android-apk
+          path: android-artifact
+      - name: Prepare Android APK asset
+        run: |
+          if [ -d "android-artifact" ] && compgen -G "android-artifact/*.apk" > /dev/null; then
+            APK_SRC=$(ls android-artifact/*.apk | head -1)
+            cp "$APK_SRC" "release-assets/Bobine-beta.apk"
+            echo "Android APK copié : release-assets/Bobine-beta.apk"
+          else
+            echo "Aucun APK Android trouvé dans l'artefact."
+          fi
       - name: Copy install script into release assets
         run: cp install.sh release-assets/
       - name: Inspect generated binary assets
@@ -685,6 +709,7 @@ jobs:
           | Plateforme | Format | Téléchargement direct |
           | :--- | :---: | :--- |
           | ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` | [**Bobine-Setup-beta.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-Setup-beta.exe) |
+          | ![Android](https://img.shields.io/badge/Android-34A853?style=flat-square&logo=android&logoColor=white) | `.apk` | [**Bobine-beta.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-beta.apk) |
           | ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` | [**bobine_beta_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine_beta_amd64.deb) |
           | ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` | [**Bobine-beta.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-beta.dmg) |
           | ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | Binaire natif | [**bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine-assistant) |

@@ -278,6 +278,42 @@ class TestVideoFlow(unittest.TestCase):
             asyncio.run(upload_video_thumbnail(video.id, bad_upload, self.db))
         self.assertEqual(ctx.exception.status_code, 400)
 
+    def test_10_target_bitrate_maxi_premium(self):
+        from app.utils.video_utils import _get_target_bitrate
+        self.assertEqual(_get_target_bitrate(3840, 2160), "28M")  # 4K
+        self.assertEqual(_get_target_bitrate(2560, 1440), "14M")  # 2K
+        self.assertEqual(_get_target_bitrate(1920, 1080), "6M")   # 1080p
+        self.assertEqual(_get_target_bitrate(1280, 720), "6M")    # 720p
+
+    def test_11_encoder_args_multi_os(self):
+        from app.utils.video_utils import _get_encoder_args
+        args_android, name_android = _get_encoder_args(is_android=True, width=1920, height=1080)
+        self.assertEqual(name_android, "h264_mediacodec")
+        self.assertIn("-operating_rate", args_android)
+        self.assertIn("1000", args_android)
+        self.assertIn("nv12", args_android)
+
+    def test_12_cancel_import_job(self):
+        from app.utils.import_jobs import create_job, cancel_job, is_job_cancelled, get_job, JobCancelledError
+        job_id = create_job("video", "cancel_test.mp4")
+        self.assertFalse(is_job_cancelled(job_id))
+        
+        cancelled = cancel_job(job_id)
+        self.assertTrue(cancelled)
+        self.assertTrue(is_job_cancelled(job_id))
+        
+        job = get_job(job_id)
+        self.assertIsNotNone(job)
+        self.assertEqual(job["stage"], "cancelled")
+
+        # Vérifier que import_video lève JobCancelledError immédiatement si annulé
+        with self.assertRaises(JobCancelledError):
+            import_video(self.dummy_compatible_path, "cancelled_import.mp4", ImportSource.upload, job_id=job_id)
+        
+        # Vérifier qu'aucune vidéo n'a été insérée en base
+        self.assertEqual(self.db.query(Video).count(), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
+

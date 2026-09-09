@@ -16,7 +16,7 @@ from app.utils.video_utils import (
     normalize_video,
     read_mp4_duration_seconds,
 )
-from app.utils.import_jobs import update_job
+from app.utils.import_jobs import update_job, is_job_cancelled, JobCancelledError
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +161,9 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
     thumbnail_path = None
 
     try:
+        if is_job_cancelled(job_id):
+            raise JobCancelledError(f"Job {job_id} annulé")
+
         if compat["needs_normalization"]:
             update_job(job_id, stage="normalizing")
             # Déplacement vers un fichier temporaire pour normalisation
@@ -176,7 +179,7 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
 
             logger.info(f"Normalisation de {temp_dest_path} vers {final_dest_path} via actions: {compat['actions']}")
             try:
-                normalize_video(str(temp_dest_path), str(final_dest_path), compat["actions"], source_metadata=meta)
+                normalize_video(str(temp_dest_path), str(final_dest_path), compat["actions"], source_metadata=meta, job_id=job_id)
                 dest_path = final_dest_path
                 # Extraire à nouveau les métadonnées sur le fichier normalisé final
                 meta = _extract_metadata_or_unknown(str(dest_path), original_filename)
@@ -191,6 +194,9 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
             logger.info(f"Déplacement direct de {src_path} vers {dest_path}")
             shutil.move(src_path, dest_path)
 
+        if is_job_cancelled(job_id):
+            raise JobCancelledError(f"Job {job_id} annulé")
+
         # 3. Génération de la miniature
         update_job(job_id, stage="thumbnail")
         try:
@@ -200,6 +206,9 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
         except Exception as te:
             logger.error(f"Échec de la génération de miniature pour {dest_path}: {te}")
             thumbnail_path = None
+
+        if is_job_cancelled(job_id):
+            raise JobCancelledError(f"Job {job_id} annulé")
 
         # 4. Enregistrement en base de données
         update_job(job_id, stage="saving")
@@ -265,6 +274,20 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
             raise dbe
         finally:
             db.close()
+
+    except JobCancelledError:
+        logger.info(f"Import {job_id} annulé par l'utilisateur : nettoyage des fichiers partiels...")
+        if dest_path and Path(dest_path).exists():
+            try:
+                os.remove(dest_path)
+            except Exception:
+                pass
+        if thumbnail_path and Path(thumbnail_path).exists():
+            try:
+                os.remove(thumbnail_path)
+            except Exception:
+                pass
+        raise
 
     except Exception as e:
         logger.error(f"Erreur lors de l'importation de {original_filename}: {e}")
@@ -400,6 +423,9 @@ def import_background(
         # aussi strictement qu'un cours (pas d'exemption webm : un WebM
         # "nativement lisible" par Chromium en lecture simple n'a jamais été
         # testé spécifiquement en boucle sur le Wyse).
+        if is_job_cancelled(job_id):
+            raise JobCancelledError(f"Job {job_id} annulé")
+
         if compat["needs_normalization"]:
             update_job(job_id, stage="normalizing")
             temp_filename = f"temp_{file_id}_{clean_name}"
@@ -410,7 +436,7 @@ def import_background(
             final_dest_path = Path(settings.backgrounds_dir) / final_filename
 
             try:
-                normalize_video(str(temp_dest_path), str(final_dest_path), compat["actions"], source_metadata=meta)
+                normalize_video(str(temp_dest_path), str(final_dest_path), compat["actions"], source_metadata=meta, job_id=job_id)
                 dest_path = final_dest_path
                 meta = _extract_metadata_or_unknown(str(dest_path), original_filename)
             finally:
@@ -422,6 +448,9 @@ def import_background(
             dest_path = Path(settings.backgrounds_dir) / dest_filename
             shutil.move(src_path, dest_path)
 
+        if is_job_cancelled(job_id):
+            raise JobCancelledError(f"Job {job_id} annulé")
+
         update_job(job_id, stage="thumbnail")
         try:
             thumbnail_path = generate_thumbnail(
@@ -430,6 +459,9 @@ def import_background(
         except Exception as te:
             logger.error(f"Échec de la génération de miniature pour {dest_path}: {te}")
             thumbnail_path = None
+
+        if is_job_cancelled(job_id):
+            raise JobCancelledError(f"Job {job_id} annulé")
 
         update_job(job_id, stage="saving")
         db = SessionLocal()
@@ -458,6 +490,20 @@ def import_background(
             raise dbe
         finally:
             db.close()
+
+    except JobCancelledError:
+        logger.info(f"Fond animé {job_id} annulé par l'utilisateur : nettoyage des fichiers partiels...")
+        if dest_path and Path(dest_path).exists():
+            try:
+                os.remove(dest_path)
+            except Exception:
+                pass
+        if thumbnail_path and Path(thumbnail_path).exists():
+            try:
+                os.remove(thumbnail_path)
+            except Exception:
+                pass
+        raise
 
     except Exception as e:
         logger.error(f"Erreur lors de l'importation du fond animé {original_filename}: {e}")

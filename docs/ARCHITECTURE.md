@@ -13,6 +13,7 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 1. [Stack et démarrage](#1-stack-et-démarrage)
 2. [Architecture générale](#2-architecture-générale)
 3. [Modèle de données & Persistance SQLite](#3-modèle-de-données--persistance-sqlite)
+3bis. [Pipeline d'importation, Accélération Matérielle Multi-OS & Annulation Réactive](#3bis-pipeline-dimportation-accélération-matérielle-multi-os--annulation-réactive)
 4. [Canaux de diffusion & Gestionnaire de lecture](#4-canaux-de-diffusion--gestionnaire-de-lecture)
 5. [Module Radio](#5-module-radio)
 6. [Mode Audio Coach & Fonds animés](#6-mode-audio-coach--fonds-animés)
@@ -28,10 +29,10 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 
 ### Stack technique
 
-- **Backend** : Python 3.11+, [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` (mono-processus, cf. §2), [SQLAlchemy](https://www.sqlalchemy.org/), SQLite (`data/database.db`), `APScheduler` (planification), `watchdog` (surveillance des dossiers d'import), `ffmpeg` / VA-API (décodage matériel Intel ou AMD, pilote choisi selon le GPU détecté), Web Audio API (crossfade radio, côté navigateur).
+- **Backend** : Python 3.11+, [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` (mono-processus, cf. §2), [SQLAlchemy](https://www.sqlalchemy.org/), SQLite (`data/database.db`), `APScheduler` (planification), `watchdog` (surveillance des dossiers d'import), `ffmpeg` avec **accélération matérielle multi-OS** (`h264_mediacodec` sur Android, `h264_videotoolbox` sur macOS Apple Silicon/Intel, `h264_vaapi` sur Linux avec pilote Intel QuickSync ou AMD Mesa, repli universel `libx264`), Web Audio API (crossfade radio, côté navigateur). Politique stricte « Maxi Premium » préservant les résolutions 2K/4K sans sous-échantillonnage.
 - **Frontend** : [Next.js](https://nextjs.org/) 16 (App Router, export statique servi par le backend en production), React 19, TypeScript, CSS Vanilla (global + design tokens, **15 thèmes de couleurs** commutables à chaud via `:root[data-theme=…]`, dont le thème minéral clair « charbon » certifié WCAG AAA), PWA (`manifest.json`), WebSockets, glisser-déposer natif (HTML5), Web Audio API.
 - **Exploitation & Kiosque** : Debian 13 (Trixie), Chromium en mode kiosque (X11 / `xinit`), `systemd` (services backend, kiosque, garde audio, chien de garde), `avahi-daemon` (découverte mDNS).
-- **Portabilité Android (`android/`)** : application native Android (Kotlin + CPython embarqué via [Chaquopy](https://chaquopy.com/)), `minSdk 34` / `targetSdk 36` (Android 14-16, API 36 / Xiaomi Pad 8). Double affichage matériel via `DisplayManager` et `Presentation` (écran tactile sur `/grid`, sortie HDMI externe via dock USB-C sur `/cinema` avec écran de veille « En attente d'un cours »), `ForegroundService` persistant, binaires ARM64 NDK r28c (`ffmpeg`/`ffprobe` Bionic natifs, 16 KB page size) pour l'extraction de métadonnées et miniatures, avec replis Python pur et upload manuel universel (`PUT /api/videos/{id}/thumbnail`).
+- **Portabilité Android (`android/`)** : application native Android (Kotlin + CPython embarqué via [Chaquopy](https://chaquopy.com/)), `minSdk 34` / `targetSdk 36` (Android 14-16, API 36 / Xiaomi Pad 8). Double affichage matériel via `DisplayManager` et `Presentation` (écran tactile sur `/grid` sans sidebar, sortie HDMI externe via dock USB-C sur `/cinema` avec écran de veille « En attente d'un cours »), `ForegroundService` persistant, binaires ARM64 NDK r28c (`ffmpeg`/`ffprobe` Bionic natifs, 16 KB page size) avec décodage matériel `av1_mediacodec` et encodage `h264_mediacodec` ultra-rapide.
 - **Installation & outils** : `install.sh` (**Bash** idempotent : détection matérielle dynamique, remédiation APT, `--as-user`, sortie machine `--progress=json`, §7) ; **assistant d'installation graphique** (`assistant/`, application de bureau **Tauri / Rust**, balayage `/24` de chaque interface réseau locale et orchestration SSH — cf. [`assistant/README.md`](../assistant/README.md)).
 
 **Langages du dépôt** : **Python** (backend FastAPI), **TypeScript/React** (frontend Next.js), **Kotlin** (application Android), **Bash** (`install.sh`), **Rust** (cœur de l'assistant d'installation). **Intégration continue** (GitHub Actions, `.github/workflows/ci.yml`) à chaque push/PR : build du frontend, contrôle de syntaxe du backend, `cargo clippy` + `cargo test` de l'assistant, build et signature APK Android, et sanity de `install.sh` (syntaxe + cohérence du compteur d'étapes).
@@ -137,6 +138,44 @@ Le schéma de données est géré par **SQLAlchemy**. Il n'y a **pas d'Alembic a
 - `activity_log` : Journal des événements fonctionnels et techniques du système.
 - `radio_tracks`, `radio_tags`, `radio_playlists` & `radio_playlist_items` : Bibliothèque musicale et playlists du module Radio (§5) — sous-système indépendant des cours vidéo/audio coach.
 - `radio_announcements` & `radio_announcement_rules` : Rappels de bienséance (annonces) et leurs règles de déclenchement.
+
+---
+
+## 3bis. Pipeline d'importation, Accélération Matérielle Multi-OS & Annulation Réactive
+
+Bobine intègre un pipeline de traitement et d'ingestion multimédia unifié couvrant 4 flux d'importation distincts : les **vidéos de cours** (`/api/videos/upload` ou dossier `data/watched`), les **fonds animés** (`/api/backgrounds/upload` ou dossier `data/backgrounds_watched`), les **cours audio coach** (`/api/audio/upload` ou dossier `data/audio_watched`), et les **morceaux radio** (`/api/radio/upload` ou dossier `data/radio_watched`).
+
+### 1. File d'attente centralisée & Télémétrie en temps réel (`import_jobs.py`)
+
+Toute importation déclenchée par upload web ou par le surveillant de fichiers (`watchdog` / `PollingObserver`) génère un job unique suivi dans `app/utils/import_jobs.py` :
+- **États successifs** : `uploading` → `normalizing` (ou `transcoding`) → `thumbnail` → `done` (ou `error` / `cancelled`).
+- **Télémétrie continue FFmpeg** : invocation avec `-progress pipe:1 -nostats`. Un thread d'arrière-plan dédié consomme `stderr` en continu pour prévenir tout blocage de buffer. L'avancement extrait en direct la vitesse de conversion (`speed`, ex. `4.2x`), le pourcentage d'avancement (`progress_percent`) et l'estimation de durée restante (`eta_seconds`).
+- **Consultation API** : `GET /api/import-jobs` expose la liste ordonnée des jobs actifs et terminés récents avec leur progression détaillée pour le polling de l'interface d'administration.
+
+### 2. Accélération matérielle multi-OS (`video_utils.py`)
+
+Le moteur de normalisation adapte dynamiquement les paramètres de l'encodeur selon le profil système (`get_deployment_profile()`) et les capacités matérielles disponibles :
+- **Android (SoC Qualcomm Snapdragon / MediaTek)** : encodeur matériel natif `h264_mediacodec` cadencé par `-operating_rate 1000 -pix_fmt nv12`. Décodage matériel proactif `av1_mediacodec` pour les sources AV1 (évite l'absence de `libdav1d`). Vitesse constatée sur tablette Xiaomi Pad 8 : de **4.2x à 5.1x** temps réel (gain de 28% d'efficacité CPU).
+- **macOS (Apple Silicon M1 à M4 & Intel)** : encodeur matériel `h264_videotoolbox` (`-b:v <bitrate> -maxrate <maxrate> -pix_fmt nv12`), garantissant une conversion instantanée sans solliciter les cœurs CPU.
+- **Linux Bureau & Appliance Wyse (Intel QuickSync / AMD VA-API)** : encodeur matériel `h264_vaapi` via le périphérique `/dev/dri/renderD128` (`-vaapi_device /dev/dri/renderD128 -vf "format=nv12,hwupload"`). `install.sh` garantit la présence des pilotes libres ou non-free (`intel-media-va-driver`, `i965-va-driver`, Mesa radeonsi).
+- **Repli universel** : si l'accélération matérielle échoue ou n'est pas disponible, repli automatique transparent sur `libx264 -preset veryfast` sans interruption de la tâche.
+
+### 3. Règle d'or « Maxi Premium » (Zéro dégradation)
+
+Bobine respecte strictement la fidélité des médias sources :
+- **Aucun sous-échantillonnage destructif** : les résolutions natives 2K (1440p) et 4K (2160p) ne sont jamais réduites en 1080p.
+- **Débits cibles adaptatifs haute fidélité** (`_get_target_bitrate`) :
+  - **4K UHD (≥ 2160p)** : 28 Mbps (bitrate max 35 Mbps)
+  - **2K QHD (≥ 1440p)** : 14 Mbps (bitrate max 18 Mbps)
+  - **1080p FHD (≥ 1080p)** : 6 Mbps (bitrate max 8 Mbps)
+  - **720p HD** : 3.5 Mbps (bitrate max 4.5 Mbps)
+
+### 4. Annulation réactive & Nettoyage atomique
+
+- **Arrêt immédiat** : un clic sur la croix (✕) dans le panneau flottant d'upload émet un appel `DELETE /api/import-jobs/{job_id}`.
+- **Interruption du processus** : `cancel_job()` signale l'annulation atomique, envoie un signal `SIGTERM` (puis `SIGKILL` de sécurité sous 1.5s) au sous-processus FFmpeg enregistré, et annule le `Future` du pool de threads.
+- **Purge intégrale** : l'interruption lève `JobCancelledError`, entraînant la suppression immédiate des fichiers de destination partiels (`dest_path`, miniatures temporaires) sans aucune écriture en base de données.
+- **Nettoyage préventif au démarrage** : le backend scanne les répertoires médias au lancement pour supprimer les reliquats temporaires orphelins laissés par une coupure d'alimentation brutale.
 
 ---
 
@@ -269,7 +308,7 @@ Les noms de fichiers des artefacts Bêta sont **fixes** (`Bobine-Setup-beta.exe`
 | **Lecture** | `/api/playback` | Contrôle de la lecture (play, pause, seek, stop, reprise) |
 | **Paramètres** | `/api/settings` | Configuration dynamique (lecture/thème/langue/`deployment_profile`/`update_channel`), sortie vidéo, espace de stockage (`/settings/storage`), synchronisation des écrans (`POST /settings/system/reset` — vidage des caches + rechargement + relance des services), sauvegarde & restauration universelles ZIP (`/settings/system/backup`, `/settings/system/restore`), et réinitialisation usine ou désinstallation machine (`POST /settings/system/reset-data`, `POST /settings/system/uninstall`, phrase de confirmation requise) |
 | **Mises à jour** | `/api/updates` | `GET /updates/check` — interroge GitHub Releases selon le canal courant (Stable/Bêta, cf. §7) et le profil de déploiement pour l'asset adapté ; `POST /updates/apply` — déclenche `git checkout <tag>` + redémarrage (profil headless uniquement, 400 sinon) |
-| **Imports** | `/api/import-jobs` | Suivi des tâches d'importation en arrière-plan |
+| **Imports** | `/api/import-jobs` | File d'attente des tâches d'importation (`GET /api/import-jobs` avec pourcentage, ETA en secondes et vitesse) et annulation réactive (`DELETE /api/import-jobs/{id}` avec arrêt FFmpeg et purge) |
 | **Logs** | `/api/logs` | Consultation et téléchargement des journaux système |
 | **Radio — Bibliothèque** | `/api/radio` | Morceaux (CRUD, artistes/albums/tags), playlists radio, état du canal (`/api/radio/state`) |
 | **Radio — Rappels** | `/api/radio/announcements`, `/api/radio/announcement-rules` | Annonces (import + description), règles de déclenchement, déclenchement manuel |

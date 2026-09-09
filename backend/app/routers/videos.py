@@ -22,7 +22,7 @@ from app.models import Video, ImportSource
 from app.config import settings
 from app.utils.importer import import_video
 from app.utils.executors import ffmpeg_executor
-from app.utils.import_jobs import create_job, update_job
+from app.utils.import_jobs import create_job, update_job, register_job_future, JobCancelledError
 from app.utils.video_utils import (
     extract_metadata,
     check_compatibility,
@@ -102,9 +102,18 @@ def _run_video_import_job(
             db.close()
 
         update_job(job_id, stage="done", result_id=result_id)
+    except JobCancelledError:
+        logger.info(f"Tâche d'import vidéo {job_id} annulée.")
+        update_job(job_id, stage="cancelled")
     except Exception as e:
         logger.error(f"Erreur lors de l'upload et de l'import de la vidéo (job {job_id}): {e}", exc_info=True)
         update_job(job_id, stage="error", error=str(e))
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
 
 
 @router.post("/upload", response_model=ImportJobAccepted, status_code=202)
@@ -129,7 +138,8 @@ def upload_video(
         raise HTTPException(status_code=400, detail=str(e))
 
     job_id = create_job("video", file.filename, title or Path(file.filename).stem)
-    ffmpeg_executor.submit(_run_video_import_job, job_id, temp_path, file.filename, title, program, release)
+    future = ffmpeg_executor.submit(_run_video_import_job, job_id, temp_path, file.filename, title, program, release)
+    register_job_future(job_id, future)
     return {"job_id": job_id}
 
 

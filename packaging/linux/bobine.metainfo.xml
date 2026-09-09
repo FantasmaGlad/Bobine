@@ -35,6 +35,11 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="3.0.2" date="2026-09-09">
+      <description>
+        <p>Version 3.0.2 : Sortie officielle de l'application native Android (.apk) avec double affichage tactile/HDMI et serveur embarqué, réencodage avec accélération matérielle multi-OS (MediaCodec, VideoToolbox, VA-API), politique stricte « Maxi Premium » préservant les résolutions 2K/4K sans sous-échantillonnage, annulation réactive d'importation (croix ✕ avec arrêt immédiat et purge), estimation de durée en direct (ETA), miniatures 1080p et navigation temporelle fluide.</p>
+      </description>
+    </release>
     <release version="3.0.1" date="2026-09-08">
       <description>
         <p>Version 3.0.1 : Canal de mise à jour Stable/Bêta ("Programme Bobine Beta") avec notification de mise à jour intégrée, ouverture simultanée du tableau de bord administrateur et du kiosque câblé à l'installation, URLs réseau par page dans Réglages, dépôt APT officiel (apt.bobine.fit), thème clair par défaut et corrections de fiabilité multi-plateformes.</p>
