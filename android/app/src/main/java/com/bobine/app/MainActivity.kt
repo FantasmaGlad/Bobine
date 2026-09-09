@@ -18,6 +18,7 @@ import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.result.contract.ActivityResultContracts
@@ -86,6 +87,12 @@ class MainActivity : AppCompatActivity() {
 
         val webView = WebView(this)
         webView.settings.javaScriptEnabled = true
+        // Meme raison que BobinePresentation.kt (cf. son commentaire) : sans
+        // ce reglage, une mise a jour de l'app peut rester invisible sur cet
+        // ecran (cache HTTP heuristique base sur un Last-Modified de fichier
+        // normalise par le paquetage, sans rapport avec la vraie date de
+        // build).
+        webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(message: ConsoleMessage): Boolean {
                 Log.d("WebViewConsole", "${message.message()} (${message.sourceId()}:${message.lineNumber()})")

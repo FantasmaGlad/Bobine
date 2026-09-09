@@ -40,6 +40,17 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
         val webView = WebView(context)
         webView.settings.javaScriptEnabled = true
         webView.settings.mediaPlaybackRequiresUserGesture = false
+        // Reglage decouvert lors d'un correctif ulterieur (cf.
+        // docs/plan-implementation-android.md, "cache HTTP WebView") : le
+        // backend local est reinstalle avec du code different a chaque mise
+        // a jour de l'app, mais l'export statique Next.js voit son horodatage
+        // de fichier normalise a une date fixe tres ancienne par le
+        // paquetage - sans ce reglage, la WebView calcule une fraicheur HTTP
+        // heuristique de plusieurs ANNEES a partir de ce Last-Modified absurde
+        // et ne recharge alors plus jamais /cinema depuis le reseau, meme
+        // apres une reinstallation avec un frontend different. Le cout d'un
+        // aller-retour reseau est negligeable ici (backend en local, 127.0.0.1).
+        webView.settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(message: ConsoleMessage): Boolean {
                 Log.d("BobinePresentationConsole", "${message.message()} (${message.sourceId()}:${message.lineNumber()})")
