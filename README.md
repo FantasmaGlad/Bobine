@@ -89,7 +89,7 @@ Bobine is program-agnostic: class categories are free-form, so it fits any catal
 - **Web admin + zero client install** — administer everything from a browser; member screens and remotes are just web pages.
 - **Screen Wake Lock API** — prevents screen sleep automatically during workouts and radio playback across all modern browsers.
 - **Hardware-accelerated transcoding** — native MediaCodec (Android), VideoToolbox (Apple Silicon M1-M4), and VA-API (Linux) with ultrafast CPU fallback.
-- **Maxi Premium (native 2K & 4K)** — strict preservation of ultra-high definition resolutions without downscaling, standardized into fast-start MP4.
+- **Full native quality (2K & 4K)** — strict preservation of ultra-high definition resolutions without downscaling, standardized into fast-start MP4.
 - **Reactive import cancellation & live ETA** — 1-click cancel (✕) with instant FFmpeg SIGTERM/SIGKILL, orphan temp file purge, and real-time remaining duration estimation.
 - **Crisp 1080p thumbnails & fast seek** — Full HD previews on 4K displays and closed GOP keyframe intervals for instant playback seeking.
 

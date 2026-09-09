@@ -89,7 +89,7 @@ Bobine est agnostique aux programmes : les catégories de cours sont libres, il 
 - **Admin web, zéro installation client** — tout s'administre depuis un navigateur ; les écrans adhérents et les télécommandes ne sont que des pages web.
 - **Anti-veille Screen Wake Lock API** — empêche la mise en veille intempestive de l'écran pendant les cours et la radio sur tous les navigateurs modernes.
 - **Réencodage avec accélération matérielle multi-OS** — encodage GPU natif via MediaCodec (Android), VideoToolbox (Apple Silicon M1-M4) et VA-API (Linux), avec repli CPU optimisé `libx264 ultrafast`.
-- **Politique stricte « Maxi Premium » (2K et 4K natifs)** — préservation intégrale des résolutions ultra haute définition sans sous-échantillonnage destructif, format MP4 optimisé streaming immédiat (`+faststart`).
+- **Qualité vidéo intégrale (2K et 4K natifs)** — préservation intégrale des résolutions ultra haute définition sans sous-échantillonnage destructif, format MP4 optimisé streaming immédiat (`+faststart`).
 - **Annulation réactive & estimation en direct (ETA)** — arrêt immédiat de FFmpeg au clic sur la croix (✕), purge automatique des fichiers temporaires et affichage en temps réel du temps restant et de la vitesse.
 - **Miniatures Full HD 1080p & navigation fluide (fast seek)** — vignettes de haute précision pour écrans 4K et intervalles de trames clés resserrés pour un déplacement temporel instantané sans latence.
 
