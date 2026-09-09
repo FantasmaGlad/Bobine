@@ -423,9 +423,18 @@ def normalize_video(input_path: str, output_path: str, actions: list, source_met
         # 6) : codec source hors liste blanche (HEVC/VP9/autre). Un simple
         # remux par copie de flux ne suffit pas ici, contrairement au cas
         # container-only — c'est justement ce qui manquait avant ce fix.
-        # "veryfast"/CRF modéré : suffisant pour un fond animé court, le coût
-        # CPU reste ponctuel (à l'import, pas à la lecture).
-        cmd.extend(["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"])
+        from app.utils.deployment import get_deployment_profile
+
+        if get_deployment_profile() == "android":
+            # Sur Android (Chaquopy), le binaire FFmpeg embarqué est compilé sans GPL
+            # (--disable-gpl), donc libx264 et ses options (-preset, -crf) ne sont pas
+            # disponibles. On utilise le hardware encoder natif MediaCodec (h264_mediacodec),
+            # ultra-rapide et intégré à Android Bionic.
+            cmd.extend(["-c:v", "h264_mediacodec", "-b:v", "5M", "-pix_fmt", "yuv420p"])
+        else:
+            # "veryfast"/CRF modéré : suffisant pour un fond animé court, le coût
+            # CPU reste ponctuel (à l'import, pas à la lecture).
+            cmd.extend(["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"])
     else:
         # Copie du flux vidéo (pas de réencodage vidéo lourd)
         cmd.extend(["-c:v", "copy"])

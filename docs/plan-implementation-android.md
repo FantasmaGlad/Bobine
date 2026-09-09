@@ -756,6 +756,27 @@ Retours d'expérience et correctifs appliqués en conditions réelles sur la tab
 
 ---
 
+## 16quinquies. Étape 5 — Plein Écran `/grid` Sans Sidebar et Normalisation Vidéo `h264_mediacodec` (2026-09-09)
+
+Retours d'expérience et correctifs appliqués suite aux tests sur tablette Xiaomi Pad 8 :
+
+### A. Affichage Tablette : Plein Écran Dédié `/grid` Sans Barre Latérale Admin
+- **Symptôme** : L'écran tactile de la tablette affichait la barre latérale d'administration desktop (menu de navigation Bobine, état des sorties) autour de la grille, écrasant l'interface et rompant l'expérience kiosque.
+- **Cause racine** : Dans `frontend/src/components/ClientLayout.tsx`, `/grid` n'était pas inclus dans `isFullscreenRoute`. Sur un écran haute résolution (tablette 2880×1800, `window.innerWidth > 768`), la mise en page desktop avec sidebar s'appliquait par défaut.
+- **Correctif** : Ajout de `pathname === "/grid" || pathname === "/grid/"` à `isFullscreenRoute`. L'écran tactile bénéficie désormais du rendu autonome `<>{children}</>`, du maintien d'écran actif (Screen Wake Lock) et du silence sonore sans barre d'administration.
+- **Validation** : Vérification visuelle sur l'écran tactile (Display 0) et l'écran externe (Display 1, "Beyond TV") — deux affichages 100% distincts, la tablette restant sur la sélection tactile `/grid` tandis que la TV diffuse `/cinema`.
+
+### B. Normalisation Vidéo Android : Encodeur Matériel `h264_mediacodec`
+- **Symptôme** : Échec lors de l'importation de vidéos non-conformes (ex: MP4 sans faststart, codecs non compatibles) avec l'erreur :
+  `Unrecognized option 'preset'. Error splitting the argument list: Option not found`.
+- **Cause racine** : Dans `backend/app/utils/video_utils.py`, `normalize_video()` imposait `-c:v libx264 -preset veryfast -crf 20`. Or, sous Android ARM64, le binaire FFmpeg embarqué est compilé sans licence GPL (`--disable-gpl`), excluant `libx264` et ses options spécifiques (`-preset`, `-crf`).
+- **Correctif** : Sélection conditionnelle de l'encodeur selon le profil (`get_deployment_profile() == "android"`) :
+  - Sur Android : `-c:v h264_mediacodec -b:v 5M -pix_fmt yuv420p` (encodeur matériel natif Qualcomm/MediaTek, ultra-rapide et intégré à Bionic).
+  - Sur les autres profils (PC x86, macOS, Windows) : conservation de `libx264` avec `-preset veryfast -crf 20`.
+- **Validation** : Importation et réencodage réels d'une vidéo de test via l'API `/api/videos/upload` sur la tablette en Wi-Fi — encodage matériel réussi en 1 seconde, miniature générée et cours prêt pour diffusion.
+
+---
+
 ## 17. Checklist exhaustive (vue transverse anti-oubli)
 
 - [x] Lot 0 — go/no-go dépendances Chaquopy (GO — downgrade Pydantic v1 sur Android, watchdog en polling maison)
@@ -775,6 +796,7 @@ Retours d'expérience et correctifs appliqués en conditions réelles sur la tab
 - [x] Lot 14 — séparation `/grid` (écran tactile, sélection seule) / `/cinema` (écran HDMI, lecture) — validé de bout en bout sur la tablette pilote avec de vrais cours (RPM 108/109/110), pas seulement sur le backend de dev
 - [x] 16ter — correctifs post-Lot 14 issus de tests réels : icône (cache launcher), import sans ffprobe (durée récupérée, miniature manuelle), cache HTTP du frontend statique (bug latent non spécifique Android, corrigé serveur + WebView), retour tactile `/grid`, avertissement écran absent, synchronisation du thème (filet de sécurité), widget de contrôle sur `/grid` + retrait superposition HDMI (Android uniquement)
 - [x] 16quater — netteté 1080p des miniatures, seek optimiste sans rollback, handlers tactiles, transition Wi-Fi tablette pilote (192.168.1.22)
+- [x] 16quinquies — plein écran `/grid` sans sidebar, normalisation vidéo matérielle `h264_mediacodec` (Android)
 
 ---
 
