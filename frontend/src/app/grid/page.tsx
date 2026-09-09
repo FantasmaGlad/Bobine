@@ -399,7 +399,7 @@ export default function GridPage() {
                   title={t("cinema.removeCourse")}
                   aria-label={t("cinema.removeCourse")}
                 >
-                  <Icon name="close" size={16} />
+                  <Icon name="close" size={18} />
                 </button>
                 <span className="grid-now-playing-label">{t("cinema.nowPlaying")}</span>
                 <h2 className="grid-now-playing-title">{nowPlaying.title}</h2>
@@ -433,14 +433,14 @@ export default function GridPage() {
                     title={t("cinema.seekBack")}
                     aria-label={t("cinema.seekBack")}
                   >
-                    <Icon name="replay_10" size={22} />
+                    <Icon name="replay_10" size={26} />
                   </button>
                   <button
                     className="grid-now-playing-btn grid-now-playing-btn-main"
                     onClick={handleNowPlayingPlayPause}
                     title={nowPlaying.playing ? t("cinema.pause") : t("cinema.play")}
                   >
-                    <Icon name={nowPlaying.playing ? "pause" : "play_arrow"} size={24} filled />
+                    <Icon name={nowPlaying.playing ? "pause" : "play_arrow"} size={30} filled />
                   </button>
                   <button
                     className="grid-now-playing-btn"
@@ -448,7 +448,7 @@ export default function GridPage() {
                     title={t("cinema.seekForward")}
                     aria-label={t("cinema.seekForward")}
                   >
-                    <Icon name="forward_10" size={22} />
+                    <Icon name="forward_10" size={26} />
                   </button>
                 </div>
               </section>
