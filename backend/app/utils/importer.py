@@ -14,6 +14,7 @@ from app.utils.video_utils import (
     check_compatibility,
     generate_thumbnail,
     normalize_video,
+    read_mp4_duration_seconds,
 )
 from app.utils.import_jobs import update_job
 
@@ -31,6 +32,12 @@ def _extract_metadata_or_unknown(file_path: str, original_filename: str) -> dict
     propre echec tolere dans import_video/import_background) - seule la
     detection DRM ne peut alors plus s'executer (is_drm forcee a False),
     seul compromis reel de ce mode degrade.
+
+    Repli supplementaire (réf. retour "il manque les metadatas qui ne sont
+    pas affiches") : pour un MP4/M4V, la duree reste recuperable sans ffprobe
+    via un parcours pur Python de l'atome 'mvhd' (read_mp4_duration_seconds) -
+    largeur/hauteur/codec restent None (demanderaient de decoder 'stsd',
+    hors de portee de ce repli minimal).
     """
     try:
         return extract_metadata(file_path)
@@ -40,8 +47,11 @@ def _extract_metadata_or_unknown(file_path: str, original_filename: str) -> dict
             f"poursuivi sans metadonnees (duree/resolution/codec inconnus, "
             f"detection DRM impossible) : {e}"
         )
+        duration = None
+        if Path(file_path).suffix.lower() in (".mp4", ".m4v"):
+            duration = read_mp4_duration_seconds(file_path)
         return {
-            "duration_seconds": None,
+            "duration_seconds": duration,
             "width": None,
             "height": None,
             "codec": None,

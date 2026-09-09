@@ -187,6 +187,92 @@ def is_faststart_mp4(file_path: str) -> bool:
     return False
 
 
+def read_mp4_duration_seconds(file_path: str) -> float | None:
+    """
+    Lit la durée d'un MP4/M4V directement dans l'atome 'mvhd' (imbriqué dans
+    'moov'), sans ffprobe — repli utilisé quand ffprobe est indisponible (réf.
+    Lot 8, docs/plan-implementation-android.md : aucun binaire utilisable sous
+    Android) pour au moins récupérer la durée, seule métadonnée manquante
+    qu'un parcours d'en-têtes pur Python peut raisonnablement reconstituer
+    (largeur/hauteur/codec demanderaient de décoder les box 'stsd', bien plus
+    engagé pour un gain d'affichage secondaire).
+
+    Même style de parcours que is_faststart_mp4 ci-dessus (en-têtes de boîtes
+    uniquement) : d'abord les boîtes top-level jusqu'à 'moov', puis un second
+    parcours, imbriqué, à l'intérieur de son contenu jusqu'à 'mvhd'. Renvoie
+    None si le fichier n'a pas cette structure (pas un vrai MP4/M4V) ou en cas
+    d'erreur de lecture — jamais d'exception, un appelant traite déjà une
+    durée manquante comme telle.
+    """
+    try:
+        with open(file_path, "rb") as f:
+            file_size = os.fstat(f.fileno()).st_size
+
+            def find_child_box(start: int, end: int, target: bytes) -> tuple[int, int] | None:
+                """Cherche `target` parmi les boîtes enfants directes de
+                l'intervalle [start, end) ; renvoie (offset_contenu, taille_contenu)."""
+                pos = start
+                while pos < end:
+                    f.seek(pos)
+                    header = f.read(8)
+                    if len(header) < 8:
+                        return None
+                    size = int.from_bytes(header[0:4], "big")
+                    box_type = header[4:8]
+                    header_len = 8
+                    if size == 1:
+                        ext = f.read(8)
+                        if len(ext) < 8:
+                            return None
+                        size = int.from_bytes(ext, "big")
+                        header_len = 16
+                    elif size == 0:
+                        size = end - pos
+                    if size < header_len:
+                        return None
+                    if box_type == target:
+                        return pos + header_len, size - header_len
+                    pos += size
+                return None
+
+            moov = find_child_box(0, file_size, b"moov")
+            if moov is None:
+                return None
+            moov_start, moov_size = moov
+
+            mvhd = find_child_box(moov_start, moov_start + moov_size, b"mvhd")
+            if mvhd is None:
+                return None
+            mvhd_start, _ = mvhd
+
+            f.seek(mvhd_start)
+            version_flags = f.read(4)
+            if len(version_flags) < 4:
+                return None
+            version = version_flags[0]
+            if version == 1:
+                f.seek(mvhd_start + 4 + 16)
+                rest = f.read(12)
+                if len(rest) < 12:
+                    return None
+                timescale = int.from_bytes(rest[0:4], "big")
+                duration = int.from_bytes(rest[4:12], "big")
+            else:
+                f.seek(mvhd_start + 4 + 8)
+                rest = f.read(8)
+                if len(rest) < 8:
+                    return None
+                timescale = int.from_bytes(rest[0:4], "big")
+                duration = int.from_bytes(rest[4:8], "big")
+
+            if not timescale:
+                return None
+            return duration / timescale
+    except OSError as e:
+        logger.warning(f"Impossible de lire la durée MP4 (mvhd) de {file_path} : {e}")
+        return None
+
+
 def check_compatibility(metadata: dict, file_path: str, strict_video_codec: bool = False) -> dict:
     """
     Vérifie la compatibilité de la vidéo par rapport aux règles de lecture directe du navigateur.

@@ -18,7 +18,7 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 from app.config import settings
 from app.database import init_db, SessionLocal, get_db
 from app.models import Video, ImportSource
-from app.utils.video_utils import extract_metadata, check_compatibility, generate_thumbnail
+from app.utils.video_utils import extract_metadata, check_compatibility, generate_thumbnail, read_mp4_duration_seconds
 from app.utils.importer import import_video
 from app.routers.videos import VideoUpdate, update_video
 
@@ -185,9 +185,10 @@ class TestVideoFlow(unittest.TestCase):
         # Réf. Lot 8 (docs/plan-implementation-android.md) : sous Android, ni
         # ffprobe ni ffmpeg ne sont utilisables (aucun binaire ne survit au
         # filtre seccomp). Ce test simule exactement l'erreur réelle observée
-        # sur tablette pour vérifier que l'import aboutit quand même, avec des
-        # métadonnées et une miniature absentes, plutôt que d'échouer
-        # entièrement.
+        # sur tablette pour vérifier que l'import aboutit quand même : la
+        # durée est récupérée par repli pur Python (mvhd, cf.
+        # read_mp4_duration_seconds), mais largeur/hauteur/codec/miniature
+        # restent absents.
         temp_src = str(Path(settings.watch_dir) / "temp_no_ffprobe_import.mp4")
         shutil.copy(self.dummy_compatible_path, temp_src)
 
@@ -203,11 +204,26 @@ class TestVideoFlow(unittest.TestCase):
         self.assertIsNotNone(video.id)
         self.assertEqual(video.program, "RPM")
         self.assertTrue(os.path.exists(video.file_path))
-        self.assertIsNone(video.duration_seconds)
+        self.assertIsNotNone(video.duration_seconds)
+        self.assertAlmostEqual(video.duration_seconds, 1.0, delta=0.5)
         self.assertIsNone(video.width)
         self.assertIsNone(video.height)
         self.assertIsNone(video.codec)
         self.assertIsNone(video.thumbnail_path)
+
+    def test_08_read_mp4_duration_seconds(self):
+        # Vérifie le repli pur Python directement (indépendamment de
+        # l'import) contre le fichier de test généré par ffmpeg en
+        # setUpClass — évite de dépendre uniquement d'un test bout-en-bout
+        # pour couvrir ses cas limites (mauvaise extension, fichier absent).
+        duration = read_mp4_duration_seconds(self.dummy_compatible_path)
+        self.assertIsNotNone(duration)
+        self.assertAlmostEqual(duration, 1.0, delta=0.5)
+
+        self.assertIsNone(read_mp4_duration_seconds("/chemin/inexistant.mp4"))
+        # Un conteneur sans atome 'moov' (ex. le .mkv de test) doit renvoyer
+        # None proprement, jamais lever.
+        self.assertIsNone(read_mp4_duration_seconds(self.dummy_incompatible_path))
 
 
 if __name__ == "__main__":
