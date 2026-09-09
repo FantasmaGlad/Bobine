@@ -91,7 +91,10 @@ export interface CinemaRemoteState {
   reported_at: number;
 }
 
-export type CinemaCommandAction = "play" | "pause" | "seek" | "stop";
+// "launch" (Lot 14, docs/plan-implementation-android.md) : diffusé par
+// /grid (écran de sélection découplé) pour lancer un video_id précis sur
+// les /cinema du canal - jamais émis par le profil desktop existant.
+export type CinemaCommandAction = "play" | "pause" | "seek" | "stop" | "launch";
 
 export interface PlaybackEvent {
   event: "state_change" | "position_tick";
@@ -197,7 +200,7 @@ export function usePlaybackSocket(
   onEvent?: (evt: PlaybackEvent) => void,
   role?: "kiosk",
   channel: PlaybackChannel = "cable",
-  onCinemaCommand?: (action: CinemaCommandAction, positionSeconds: number) => void,
+  onCinemaCommand?: (action: CinemaCommandAction, positionSeconds: number, videoId?: number) => void,
 ) {
   const [state, setState] = useState<PlaybackState>(DEFAULT_STATE);
   const [connected, setConnected] = useState(false);
@@ -372,7 +375,7 @@ export function usePlaybackSocket(
           if (parsed.event === "cinema_command") {
             // Ordre admin appliqué par les pages /cinema du canal.
             if ((parsed.channel ?? "cable") !== channel) return;
-            onCinemaCommandRef.current?.(parsed.action, parsed.position_seconds ?? 0);
+            onCinemaCommandRef.current?.(parsed.action, parsed.position_seconds ?? 0, parsed.video_id ?? undefined);
             return;
           }
           if (parsed.event === "force_reload") {

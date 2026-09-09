@@ -24,19 +24,17 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
-// Revision actee (2026-09-09, demande explicite utilisateur) : l'ecran
-// tactile charge desormais /cinema en 127.0.0.1 ("cable" - meme hostname
-// et meme canal que BobinePresentation/HDMI, cf. Lot 4) au lieu de /kiosk
-// en 127.0.0.2 ("reseau", canal independant) utilise jusqu'ici. Objectif :
-// permettre de choisir un cours directement au toucher sur la tablette,
-// sur le MEME canal cable que ce qui joue sur l'ecran de la salle -
-// exactement l'interface de selection du mode "cinema cable" du desktop
-// x86, pas une grille de kiosque separee. Le backend supporte deja
-// plusieurs clients simultanes sur un meme canal (cf. logs "role : miroir"
-// deja observes) - aucun changement backend necessaire pour ce point.
-// `/kiosk` reste utilise ailleurs (canal reseau desktop), juste plus par
-// l'ecran tactile Android.
-private const val CINEMA_URL = "http://127.0.0.1:8000/cinema/"
+// Revision du 2026-09-09 (Lot 14, demande explicite utilisateur) : l'ecran
+// tactile charge desormais /grid, pas /cinema - une grille de selection
+// SEULE, qui ne bascule jamais vers un lecteur video local. Choisir un
+// cours au toucher envoie un ordre "launch" sur le canal cable (meme
+// mecanisme que les commandes admin play/pause/seek/stop deja existantes,
+// cf. docs/plan-implementation-android.md Lot 14) - c'est BobinePresentation
+// (HDMI, /cinema, cf. Lot 4) qui joue reellement le cours. Sans cette
+// separation, la tablette aurait aussi redecode/rejoue la meme video que
+// l'ecran HDMI des qu'un cours demarre (les deux chargeaient /cinema,
+// qui ne distingue aucun role primaire/miroir dans son rendu).
+private const val GRID_URL = "http://127.0.0.1:8000/grid/"
 
 /**
  * Ecran tactile de la tablette (Lot 5, cf. docs/plan-implementation-android.md) :
@@ -101,12 +99,12 @@ class MainActivity : AppCompatActivity() {
                 error: WebResourceError
             ) {
                 if (request.isForMainFrame) {
-                    handler.postDelayed({ view.loadUrl(CINEMA_URL) }, 500)
+                    handler.postDelayed({ view.loadUrl(GRID_URL) }, 500)
                 }
             }
         }
         setContentView(webView)
-        webView.loadUrl(CINEMA_URL)
+        webView.loadUrl(GRID_URL)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

@@ -315,12 +315,12 @@ export default function CinemaPage() {
   // celui de CET appareil : câblé si écran du Wyse, réseau sinon.
   const [channel] = useState<"cable" | "network">(() => (isWiredDisplay() ? "cable" : "network"));
   // Implémentation réelle installée plus bas, une fois les handlers définis.
-  const cinemaCmdRef = useRef<((action: string, positionSeconds: number) => void) | null>(null);
+  const cinemaCmdRef = useRef<((action: string, positionSeconds: number, videoId?: number) => void) | null>(null);
   const { displayOutputCable, displayOutputNetwork, sendCommand } = usePlaybackSocket(
     undefined,
     undefined,
     channel,
-    (action, positionSeconds) => cinemaCmdRef.current?.(action, positionSeconds),
+    (action, positionSeconds, videoId) => cinemaCmdRef.current?.(action, positionSeconds, videoId),
   );
   useDisplayOutputRedirect("cinema", displayOutputCable, displayOutputNetwork);
   // Son de survol des cartes de cours (réf. mission UI/UX).
@@ -547,10 +547,19 @@ export default function CinemaPage() {
   // Commandes admin reçues du tableau de bord (réf. mission "contrôler le
   // cours en mode cinéma") : appliquées à la lecture LOCALE de cet appareil.
   useEffect(() => {
-    cinemaCmdRef.current = (action, positionSeconds) => {
+    cinemaCmdRef.current = (action, positionSeconds, videoId) => {
       const el = videoRef.current;
       if (action === "stop") {
         handleBackToMenu();
+        return;
+      }
+      if (action === "launch") {
+        // Lot 14 (docs/plan-implementation-android.md) : ordre reçu de
+        // /grid (écran de sélection découplé, ex. tablette Android) - passe
+        // par le même chemin de lecture qu'un clic local sur la grille,
+        // aucune nouvelle logique de lecture à écrire.
+        const video = videos.find((v) => v.id === videoId);
+        if (video) handleSelect(video);
         return;
       }
       if (!el || phase !== "playing") return;
@@ -564,7 +573,7 @@ export default function CinemaPage() {
         setPosition(positionSeconds);
       }
     };
-  }, [phase, handleBackToMenu]);
+  }, [phase, handleBackToMenu, videos, handleSelect]);
 
   // Rapport périodique vers les tableaux de bord du canal : ce que joue CET
   // appareil. Un rapport "vide" est envoyé en quittant la lecture pour que

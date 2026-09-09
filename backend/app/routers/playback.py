@@ -610,8 +610,12 @@ async def _handle_command(
         # Pendant depuis l'admin : play/pause/seek/stop appliqué par les
         # pages /cinema du canal (toutes — sur le câblé il n'y a qu'un seul
         # écran, cas d'usage principal). "stop" ramène à la grille de choix.
+        # "launch" (Lot 14, docs/plan-implementation-android.md) : émis par
+        # /grid (écran de sélection découplé, tablette Android) pour lancer
+        # un cours précis sur le(s) /cinema du canal — jamais émis par le
+        # profil desktop existant, sans effet tant que /grid n'est pas utilisé.
         action = params.get("action")
-        if action not in ("play", "pause", "seek", "stop"):
+        if action not in ("play", "pause", "seek", "stop", "launch"):
             logger.warning(f"cinema_command : action inconnue {action}")
             return
         await ws_manager.broadcast({
@@ -619,6 +623,7 @@ async def _handle_command(
             "channel": channel,
             "action": action,
             "position_seconds": float(params.get("position_seconds") or 0),
+            "video_id": params.get("video_id"),
         })
     else:
         logger.warning(f"Commande WebSocket inconnue reçue : {command}")
