@@ -283,6 +283,53 @@ def delete_video(video_id: int, db: Session = Depends(get_db)):
     return {"message": "Vidéo supprimée avec succès"}
 
 
+@router.put("/{video_id}/thumbnail", response_model=VideoResponse)
+async def upload_video_thumbnail(video_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """
+    Miniature manuelle (réf. Lot 8, docs/plan-implementation-android.md :
+    generate_thumbnail() dépend de ffmpeg, indisponible sous Android — aucune
+    miniature auto n'est alors jamais produite à l'import). Permet à un admin
+    de fournir lui-même une image, exactement comme _import_background_image()
+    le fait déjà pour un fond fixe : aucun décodage vidéo requis, seulement
+    Pillow, donc disponible sur toutes les plateformes sans exception.
+    """
+    from PIL import Image, UnidentifiedImageError
+
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Vidéo non trouvée")
+
+    try:
+        img = Image.open(file.file)
+        img.verify()
+        file.file.seek(0)
+        img = Image.open(file.file).convert("RGB")
+    except (UnidentifiedImageError, OSError):
+        raise HTTPException(status_code=400, detail="Fichier image invalide")
+
+    thumbnails_dir = Path(settings.thumbnails_dir)
+    thumbnails_dir.mkdir(parents=True, exist_ok=True)
+
+    # Même gabarit que _import_background_image() (backend/app/utils/importer.py)
+    # pour une taille cohérente avec les miniatures générées par ffmpeg.
+    img.thumbnail((640, 360))
+    new_thumb_path = thumbnails_dir / f"thumb_{uuid.uuid4().hex}.jpg"
+    img.save(new_thumb_path, "JPEG", quality=85)
+
+    old_thumb_path = Path(video.thumbnail_path) if video.thumbnail_path else None
+    video.thumbnail_path = str(new_thumb_path)
+    db.commit()
+    db.refresh(video)
+
+    if old_thumb_path and old_thumb_path.exists() and old_thumb_path != new_thumb_path:
+        try:
+            os.remove(old_thumb_path)
+        except Exception as e:
+            logger.error(f"Impossible de supprimer l'ancienne miniature {old_thumb_path}: {e}")
+
+    return video
+
+
 def bg_normalize(video_id: int, actions: list, source_metadata: dict | None = None):
     """
     Tâche en arrière-plan pour normaliser une vidéo existante de manière asynchrone.

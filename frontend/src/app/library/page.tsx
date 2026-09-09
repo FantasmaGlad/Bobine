@@ -56,6 +56,7 @@ export default function LibraryPage() {
   // Drag-and-drop zone
   const [dragActive, setDragActive] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
   // Mini-formulaires pour préparer les métadonnées avant l'upload (P3).
   // Chaque entrée correspond à un fichier sélectionné mais pas encore envoyé.
@@ -338,6 +339,37 @@ export default function LibraryPage() {
       }
     } catch {
       showToast(t("library.normalizeNetworkError"), "error");
+    }
+  };
+
+  // Miniature manuelle (réf. Lot 8, docs/plan-implementation-android.md :
+  // generate_thumbnail() dépend de ffmpeg, indisponible sous Android — aucune
+  // vidéo importée là-bas n'a jamais de miniature auto). Même mécanique que
+  // handleSaveMetadata ci-dessus (met à jour la liste + le tiroir en place).
+  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+  const handleUploadThumbnail = async (file: File) => {
+    if (!selectedVideo) return;
+    setIsUploadingThumbnail(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch(getApiUrl(`/videos/${selectedVideo.id}/thumbnail`), {
+        method: "PUT",
+        body,
+      });
+      if (res.ok) {
+        const updatedVideo = await res.json();
+        showToast(t("library.thumbnailSaved"));
+        setVideos((prev) => prev.map((v) => (v.id === updatedVideo.id ? updatedVideo : v)));
+        setSelectedVideo(updatedVideo);
+      } else {
+        const errData = await res.json();
+        showToast(t("library.saveErrorDetail", { detail: errData.detail || t("library.saveErrorFallback") }), "error");
+      }
+    } catch {
+      showToast(t("library.saveConnectionError"), "error");
+    } finally {
+      setIsUploadingThumbnail(false);
     }
   };
 
@@ -857,6 +889,39 @@ export default function LibraryPage() {
                 <h4 style={{ fontSize: "0.85rem", fontWeight: 800, borderBottom: "1px solid var(--border-color)", paddingBottom: "6px", margin: "0 0 8px" }}>
                   {t("library.metadataSectionTitle")}
                 </h4>
+
+                <div className="form-group">
+                  <label className="form-label">{t("library.thumbnailFieldLabel")}</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "96px", aspectRatio: "16/9", borderRadius: "var(--radius-sm)", overflow: "hidden", background: "var(--bg-surface-elevated)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {getThumbnailSrc(selectedVideo) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={getThumbnailSrc(selectedVideo)!} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <Icon name="movie" size={24} style={{ opacity: 0.25 }} />
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => thumbnailInputRef.current?.click()}
+                      disabled={isUploadingThumbnail}
+                    >
+                      {isUploadingThumbnail ? t("common.saving") : t("library.changeThumbnail")}
+                    </button>
+                    <input
+                      ref={thumbnailInputRef}
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUploadThumbnail(file);
+                        e.target.value = "";
+                      }}
+                    />
+                  </div>
+                </div>
 
                 <div className="form-group">
                   <label className="form-label">{t("library.courseTitleFieldLabel")}</label>

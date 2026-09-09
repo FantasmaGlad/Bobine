@@ -1,5 +1,7 @@
 import os
 import sys
+import io
+import asyncio
 import shutil
 import unittest
 import subprocess
@@ -20,7 +22,7 @@ from app.database import init_db, SessionLocal, get_db
 from app.models import Video, ImportSource
 from app.utils.video_utils import extract_metadata, check_compatibility, generate_thumbnail, read_mp4_duration_seconds
 from app.utils.importer import import_video
-from app.routers.videos import VideoUpdate, update_video
+from app.routers.videos import VideoUpdate, update_video, upload_video_thumbnail
 
 
 class TestVideoFlow(unittest.TestCase):
@@ -224,6 +226,57 @@ class TestVideoFlow(unittest.TestCase):
         # Un conteneur sans atome 'moov' (ex. le .mkv de test) doit renvoyer
         # None proprement, jamais lever.
         self.assertIsNone(read_mp4_duration_seconds(self.dummy_incompatible_path))
+
+    def test_09_upload_video_thumbnail(self):
+        # Réf. retour utilisateur "comment avoir une miniature alors ?" (Lot 8
+        # bloque generate_thumbnail, qui dépend de ffmpeg) : miniature fournie
+        # manuellement par l'admin, décodée avec Pillow seul (aucune vidéo à
+        # décoder), même chemin que _import_background_image().
+        from PIL import Image
+        from fastapi import UploadFile
+
+        temp_src = str(Path(settings.watch_dir) / "temp_thumb_test.mp4")
+        shutil.copy(self.dummy_compatible_path, temp_src)
+        # ffmpeg est disponible dans cet environnement de test (contrairement
+        # à Android) : l'import produit déjà une miniature normale ici — ce
+        # test vérifie le REMPLACEMENT par une miniature manuelle, un cas
+        # tout aussi réel (l'admin n'aime pas la miniature auto) que le cas
+        # Android (aucune miniature auto du tout).
+        video = import_video(temp_src, "RPM 111.mp4", ImportSource.upload)
+        self.assertIsNotNone(video.thumbnail_path)
+        auto_thumb_path = Path(video.thumbnail_path)
+
+        buf = io.BytesIO()
+        Image.new("RGB", (800, 450), color=(200, 30, 30)).save(buf, "PNG")
+        buf.seek(0)
+        upload = UploadFile(file=buf, filename="cover.png")
+
+        updated = asyncio.run(upload_video_thumbnail(video.id, upload, self.db))
+        self.assertIsNotNone(updated.thumbnail_path)
+        first_thumb_path = Path(updated.thumbnail_path)
+        self.assertTrue(first_thumb_path.exists())
+        self.assertNotEqual(first_thumb_path, auto_thumb_path)
+        # La miniature auto générée par ffmpeg à l'import est remplacée et
+        # nettoyée, comme n'importe quel remplacement ci-dessous.
+        self.assertFalse(auto_thumb_path.exists())
+
+        # Un second envoi doit remplacer la miniature ET nettoyer l'ancien
+        # fichier (pas d'orphelin accumulé à chaque remplacement).
+        buf2 = io.BytesIO()
+        Image.new("RGB", (800, 450), color=(30, 200, 30)).save(buf2, "PNG")
+        buf2.seek(0)
+        upload2 = UploadFile(file=buf2, filename="cover2.png")
+        updated2 = asyncio.run(upload_video_thumbnail(video.id, upload2, self.db))
+        self.assertNotEqual(updated2.thumbnail_path, str(first_thumb_path))
+        self.assertFalse(first_thumb_path.exists())
+        self.assertTrue(Path(updated2.thumbnail_path).exists())
+
+        # Un fichier qui n'est pas une image doit être rejeté (400), pas planter.
+        from fastapi import HTTPException
+        bad_upload = UploadFile(file=io.BytesIO(b"not an image"), filename="bad.png")
+        with self.assertRaises(HTTPException) as ctx:
+            asyncio.run(upload_video_thumbnail(video.id, bad_upload, self.db))
+        self.assertEqual(ctx.exception.status_code, 400)
 
 
 if __name__ == "__main__":
