@@ -367,12 +367,29 @@ def generate_thumbnail(video_path: str, thumbnail_dir: str, duration: float | No
         str(thumb_path)
     ]
 
-    try:
-        subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=FFMPEG_THUMBNAIL_TIMEOUT_SECONDS)
-        if thumb_path.exists() and thumb_path.stat().st_size > 0:
-            return str(thumb_path)
-    except subprocess.CalledProcessError as e:
-        logger.error(f"ffmpeg thumbnail generation failed: {e.stderr}")
+    from app.utils.deployment import get_deployment_profile
+    is_android = get_deployment_profile() == "android"
+
+    def _try_run_thumb(current_cmd: list[str]) -> bool:
+        try:
+            subprocess.run(current_cmd, capture_output=True, text=True, check=True, timeout=FFMPEG_THUMBNAIL_TIMEOUT_SECONDS)
+            if thumb_path.exists() and thumb_path.stat().st_size > 0:
+                return True
+        except subprocess.CalledProcessError as err:
+            if is_android and ("av1" in (err.stderr or "").lower() or "not implemented" in (err.stderr or "").lower()):
+                # Tentative avec le décodeur matériel MediaCodec
+                cmd_retry = [FFMPEG_BIN, "-c:v", "av1_mediacodec"] + current_cmd[1:]
+                try:
+                    subprocess.run(cmd_retry, capture_output=True, text=True, check=True, timeout=FFMPEG_THUMBNAIL_TIMEOUT_SECONDS)
+                    if thumb_path.exists() and thumb_path.stat().st_size > 0:
+                        return True
+                except Exception as e_ret:
+                    logger.error(f"ffmpeg thumbnail retry av1_mediacodec failed: {e_ret}")
+            logger.error(f"ffmpeg thumbnail attempt failed: {err.stderr}")
+        return False
+
+    if _try_run_thumb(cmd):
+        return str(thumb_path)
 
     # Premier fallback : offset à 0.1s
     if offset != 0.1:
@@ -380,21 +397,13 @@ def generate_thumbnail(video_path: str, thumbnail_dir: str, duration: float | No
         if duration and new_offset >= duration:
             new_offset = 0.0
         cmd[2] = str(new_offset)
-        try:
-            subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=FFMPEG_THUMBNAIL_TIMEOUT_SECONDS)
-            if thumb_path.exists() and thumb_path.stat().st_size > 0:
-                return str(thumb_path)
-        except subprocess.CalledProcessError as e2:
-            logger.error(f"ffmpeg thumbnail fallback failed: {e2.stderr}")
+        if _try_run_thumb(cmd):
+            return str(thumb_path)
 
     # Deuxième fallback : début absolu (0.0s)
     cmd[2] = "0.0"
-    try:
-        subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=FFMPEG_THUMBNAIL_TIMEOUT_SECONDS)
-        if thumb_path.exists() and thumb_path.stat().st_size > 0:
-            return str(thumb_path)
-    except subprocess.CalledProcessError as e3:
-        logger.error(f"ffmpeg thumbnail second fallback failed: {e3.stderr}")
+    if _try_run_thumb(cmd):
+        return str(thumb_path)
 
     raise ValueError("Impossible de générer la miniature avec ffmpeg : le fichier de sortie est vide ou inexistant.")
 
@@ -416,16 +425,30 @@ def normalize_video(input_path: str, output_path: str, actions: list, source_met
     # S'assurer que le dossier de sortie existe
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
-    cmd = [FFMPEG_BIN, "-i", input_path]
+    meta = source_metadata if source_metadata is not None else extract_metadata(input_path)
+    in_codec = (meta.get("codec") or "").lower()
+
+    from app.utils.deployment import get_deployment_profile
+    is_android = get_deployment_profile() == "android"
+
+    cmd = [FFMPEG_BIN]
+
+    # Sur Android, si le flux vidéo source est en AV1, le décodeur logiciel interne par défaut
+    # de ffmpeg (compilé sans libdav1d) échoue avec "Function not implemented".
+    # En spécifiant explicitement le décodeur matériel MediaCodec d'Android (-c:v av1_mediacodec)
+    # AVANT le fichier d'entrée (-i), ffmpeg utilise le décodeur matériel (Qualcomm/MediaTek)
+    # qui décode l'AV1 à pleine vitesse matérielle (130+ fps).
+    if is_android and in_codec == "av1":
+        cmd.extend(["-c:v", "av1_mediacodec"])
+
+    cmd.extend(["-i", input_path])
 
     if "recode_video" in actions:
         # Réencodage réel vers H.264 (réf. audit plan-corrections-bugs, point
         # 6) : codec source hors liste blanche (HEVC/VP9/autre). Un simple
         # remux par copie de flux ne suffit pas ici, contrairement au cas
         # container-only — c'est justement ce qui manquait avant ce fix.
-        from app.utils.deployment import get_deployment_profile
-
-        if get_deployment_profile() == "android":
+        if is_android:
             # Sur Android (Chaquopy), le binaire FFmpeg embarqué est compilé sans GPL
             # (--disable-gpl), donc libx264 et ses options (-preset, -crf) ne sont pas
             # disponibles. On utilise le hardware encoder natif MediaCodec (h264_mediacodec),
@@ -440,7 +463,6 @@ def normalize_video(input_path: str, output_path: str, actions: list, source_met
         cmd.extend(["-c:v", "copy"])
 
     # Vérifier s'il y a une piste audio dans le fichier d'entrée
-    meta = source_metadata if source_metadata is not None else extract_metadata(input_path)
     has_audio = meta.get("audio_codec") is not None
 
     if not has_audio:
@@ -478,4 +500,12 @@ def normalize_video(input_path: str, output_path: str, actions: list, source_met
         )
     except subprocess.CalledProcessError as e:
         logger.error(f"ffmpeg normalization failed: {e.stderr}")
+        if is_android and in_codec != "av1" and ("av1" in (e.stderr or "").lower() or "not implemented" in (e.stderr or "").lower()):
+            # Tentative de repli dynamique avec le décodeur matériel av1_mediacodec
+            cmd_av1 = [FFMPEG_BIN, "-c:v", "av1_mediacodec"] + cmd[1:]
+            try:
+                subprocess.run(cmd_av1, capture_output=True, text=True, check=True, timeout=FFMPEG_NORMALIZE_TIMEOUT_SECONDS)
+                return output_path
+            except Exception as retry_err:
+                logger.error(f"ffmpeg : échec du retry av1_mediacodec : {retry_err}")
         raise ValueError(f"Échec de la normalisation de la vidéo avec ffmpeg : {e.stderr}")

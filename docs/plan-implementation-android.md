@@ -775,6 +775,15 @@ Retours d'expérience et correctifs appliqués suite aux tests sur tablette Xiao
   - Sur les autres profils (PC x86, macOS, Windows) : conservation de `libx264` avec `-preset veryfast -crf 20`.
 - **Validation** : Importation et réencodage réels d'une vidéo de test via l'API `/api/videos/upload` sur la tablette en Wi-Fi — encodage matériel réussi en 1 seconde, miniature générée et cours prêt pour diffusion.
 
+### C. Décodage Matériel AV1 (`av1_mediacodec`)
+- **Symptôme** : Échec lors du réencodage d'une vidéo source encodée en AV1 (format standard des téléchargements YouTube/Google récents) avec l'erreur :
+  `Your platform doesn't support hardware accelerated AV1 decoding. ... Error submitting packet to decoder: Function not implemented`.
+- **Cause racine** : Le binaire FFmpeg ARM64 embarqué sous Android est compilé sans `libdav1d` (décodeur logiciel AV1). Le décodeur interne par défaut de FFmpeg tente d'accéder à un chemin d'accélération matérielle non-Android et échoue. En revanche, le décodeur matériel MediaCodec d'Android (`av1_mediacodec`), interfacé avec la puce matérielle Qualcomm/MediaTek (`c2.qti.av1.decoder`), est parfaitement supporté par l'OS.
+- **Correctif** :
+  - Dans `normalize_video()` : spécification proactive de `-c:v av1_mediacodec` avant l'option d'entrée `-i` lorsque `in_codec == "av1"` sur profil Android, doublée d'un repli dynamique réactif sur `CalledProcessError` en cas d'erreur de décodage AV1.
+  - Dans `generate_thumbnail()` : sécurisation identique avec tentative de secours immédiate via `av1_mediacodec`.
+- **Validation** : Importation et normalisation complètes d'un flux AV1 720p/1080p avec audio sur la tablette en Wi-Fi — décodage matériel à plus de 130 fps (4.3x temps réel) par la puce Qualcomm, réencodage matériel H.264 et miniature générée sans aucune saccade.
+
 ---
 
 ## 17. Checklist exhaustive (vue transverse anti-oubli)
