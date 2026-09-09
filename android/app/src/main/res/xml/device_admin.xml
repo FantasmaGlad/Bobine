@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lot 10 : volontairement VIDE - aucune politique de restriction
+     declaree (pas de mot de passe impose, pas de chiffrement force, pas
+     de verrouillage). Le statut de Device Owner sert uniquement a
+     debloquer des capacites systeme reservees a ce role, jamais a
+     imposer une contrainte a l'utilisateur (CDC docs/PortabiliteAndroid.md
+     SS7, decision explicite "sans Lock Task"). -->
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies />
+</device-admin>

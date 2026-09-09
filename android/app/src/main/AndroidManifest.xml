@@ -12,6 +12,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Lot 10 : permission normale (accordee automatiquement a
+         l'installation, pas de prompt runtime) - condition necessaire
+         pour etre eligible a l'exemption Doze/optimisation batterie via
+         ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (MainActivity). -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name="com.chaquo.python.android.PyApplication"
@@ -39,6 +44,23 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Serveur de diffusion video local (backend Bobine + sortie HDMI)" />
         </service>
+
+        <!-- Lot 10 : Device Owner sans Lock Task (CDC SS7). exported=true
+             + BIND_DEVICE_ADMIN + l'intent-filter DEVICE_ADMIN_ENABLED
+             sont IMPOSES par l'API DevicePolicyManager, pas une decision
+             de securite laxiste ici - BIND_DEVICE_ADMIN restreint deja
+             qui peut interagir avec ce receiver au systeme uniquement. -->
+        <receiver
+            android:name=".BobineDeviceAdminReceiver"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

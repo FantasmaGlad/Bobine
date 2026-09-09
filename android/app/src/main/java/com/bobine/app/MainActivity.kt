@@ -4,10 +4,13 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -65,6 +68,7 @@ class MainActivity : AppCompatActivity() {
         ) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+        requestIgnoreBatteryOptimizations()
 
         startForegroundService(Intent(this, BobineForegroundService::class.java))
         // Pas d'appel a applyImmersiveFullscreen() ici : la fenetre n'est pas
@@ -107,6 +111,34 @@ class MainActivity : AppCompatActivity() {
         // temporairement, comportement standard Android a reproduire
         // volontairement (pas un blocage, juste une remise en place).
         if (hasFocus) applyImmersiveFullscreen()
+    }
+
+    // Lot 10 (cf. docs/plan-implementation-android.md) : sans exemption
+    // Doze/optimisation batterie, le systeme peut ralentir/suspendre le
+    // ForegroundService apres une longue inactivite ecran (le service
+    // reste demarre, mais son travail de fond - reseau, timers - peut
+    // etre differe). REQUEST_IGNORE_BATTERY_OPTIMIZATIONS est une
+    // permission normale (pas de prompt) mais l'action elle-meme affiche
+    // TOUJOURS une boite de dialogue systeme une fois - acceptable ici
+    // (demande unique a l'installation initiale, pas a chaque demarrage,
+    // cf. isIgnoringBatteryOptimizations ci-dessous), contrairement a un
+    // contournement silencieux via Device Owner dont l'existence n'a pas
+    // ete confirmee de facon fiable inter-OEM (cf. Decouvertes du Lot 10 -
+    // HyperOS/MIUI est connu pour ignorer les mecanismes AOSP standards et
+    // exiger des reglages constructeur additionnels, non automatisables
+    // depuis l'app).
+    private fun requestIgnoreBatteryOptimizations() {
+        val powerManager = getSystemService(PowerManager::class.java)
+        if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+            try {
+                startActivity(Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:$packageName")
+                ))
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Impossible de demander l'exemption batterie", e)
+            }
+        }
     }
 
     private fun applyImmersiveFullscreen() {
