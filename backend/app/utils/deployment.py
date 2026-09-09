@@ -15,7 +15,7 @@ import platform
 from pathlib import Path
 from typing import Literal
 
-DeploymentProfile = Literal["linux-headless", "linux-desktop", "windows", "macos"]
+DeploymentProfile = Literal["linux-headless", "linux-desktop", "windows", "macos", "android"]
 
 # Artefacts posés par install.sh sur l'appliance headless (réf.
 # install.sh:1266-1294, 917-920) : leur présence est ce qui distingue un
@@ -43,6 +43,15 @@ def get_deployment_profile() -> DeploymentProfile:
         return "windows"
     if system == "Darwin":
         return "macos"
+    # Chaquopy (cf. docs/plan-implementation-android.md, Découvertes du
+    # Lot 7) : platform.system() renvoie bien "Android", pas "Linux", bien
+    # que le noyau sous-jacent en soit un - un test explicite est donc
+    # nécessaire ici, sans quoi ce cas tomberait dans le repli
+    # "linux-desktop" plus bas (fonctionnellement presque correct par
+    # accident jusqu'ici, mais fragile pour tout comportement futur qui
+    # devrait diverger, ex. redémarrage/désinstallation - cf. android.py).
+    if system == "Android":
+        return "android"
     if UNINSTALL_WRAPPER.exists() and SUDOERS_FILE.exists():
         return "linux-headless"
     return "linux-desktop"
@@ -127,6 +136,9 @@ def get_profile_handler() -> ProfileHandler:
         elif profile == "macos":
             from app.utils.deployment_profiles.macos import MacOSHandler
             _handler = MacOSHandler()
+        elif profile == "android":
+            from app.utils.deployment_profiles.android import AndroidHandler
+            _handler = AndroidHandler()
         else:
             from app.utils.deployment_profiles.linux_headless import LinuxHeadlessHandler
             _handler = LinuxHeadlessHandler()
