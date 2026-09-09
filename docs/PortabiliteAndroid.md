@@ -14,7 +14,7 @@ Dans l'architecture historique, Bobine nécessite un mini PC x86-64 (ex. Dell Wy
 
 **La vision Android** : transformer une tablette Android moderne en une station autonome complète via un **seul fichier APK**, connectée à un **dock USB-C avec alimentation Power Delivery et sortie HDMI** :
 
-1. **Écran tactile de la tablette** : affiche `/kiosk` (l'interface tactile de sélection d'un cours par l'adhérent — grille de cours, écran d'attente). La tablette **n'est pas verrouillée en mode kiosque** : elle démarre en plein écran immersif quand l'app Bobine est ouverte, mais un geste système standard (Accueil, multitâche) permet à tout moment de la quitter et d'utiliser la tablette pour autre chose — voir §4.
+1. **Écran tactile de la tablette** : affiche `/cinema` (**révision du 2026-09-09, décision explicite** — voir §9 : la même interface de sélection de cours que le canal câblé du desktop x86, sur le même canal `127.0.0.1` que la sortie HDMI, pas une grille `/kiosk` séparée sur un canal réseau indépendant). L'adhérent ou l'encadrant choisit directement un cours au toucher sur la tablette, et la sélection joue immédiatement sur l'écran de la salle (même canal, synchronisé). La tablette **n'est pas verrouillée en mode kiosque** : elle démarre en plein écran immersif quand l'app Bobine est ouverte, mais un geste système standard (Accueil, multitâche) permet à tout moment de la quitter et d'utiliser la tablette pour autre chose — voir §4.
 2. **Sortie HDMI du dock** : affiche `/cinema` (le lecteur plein écran) en 1080p/4K avec décodage matériel via `MediaCodec` — c'est la « sortie classique » du canal câblé, servie en interne par `http://127.0.0.1:8000/cinema`, exactement comme aujourd'hui sur mini PC x86.
 3. **Interface admin** : accessible comme une page web ordinaire depuis la tablette (onglet dans l'app, ou navigateur), **sans verrouillage ni authentification dédiée** — le réseau local reste la seule barrière, comme aujourd'hui. Une authentification admin est une piste explorée pour plus tard, volontairement écartée du périmètre initial pour ne pas ajouter de friction.
 4. **Serveur Backend autonome** : la tablette héberge elle-même FastAPI + SQLite et publie `bobine.local` sur le Wi-Fi de la salle, via un service d'arrière-plan qui **survit à la fermeture complète de l'app** (§4) — le cours continue de jouer sur le vidéoprojecteur même si quelqu'un ferme l'app par erreur ou emprunte la tablette pour un autre usage.
@@ -33,7 +33,7 @@ Tableau récapitulatif des choix structurants, pour éviter de les re-débattre 
 | **Moteur de rendu web** | WebView système Android (Chromium, mis à jour par Google Play Services) | Léger, zéro maintenance, cohérent avec le kiosque Linux actuel qui utilise déjà le Chromium du système d'exploitation |
 | **Kotlin Multiplatform vs natif séparé** | **Kotlin natif pur pour Android.** Pas de KMP, y compris en prévision d'un futur port iOS | La logique métier partageable vit déjà dans le backend Python et le frontend Next.js, indépendamment du langage natif. La couche native restante diverge presque totalement entre Android (Chaquopy/JNI, `Presentation`/`DisplayManager`) et iOS (embarquement Python différent, `UIWindowScene`, modèle d'exécution en arrière-plan radicalement plus restrictif — cf. [`docs/PortabiliteIPadOS.md`](PortabiliteIPadOS.md) §4.A qui envisage même une architecture différente côté iOS). KMP n'aurait rien à partager que Python/TS ne partagent déjà |
 | **Signature & distribution APK** | Auto-signé (clé dédiée), CI opérationnelle (Lot 13) — **publication publique sur GitHub Releases volontairement différée** | Même posture que les `.exe`/`.dmg` actuels pour la signature (pas de compte développeur, pas de revue de store). Mais tant que les Lots 4-12 ne sont pas faits (pas de double affichage, pas de persistance en arrière-plan, pas de verrouillage), publier publiquement risquerait de laisser croire que l'app est utilisable en salle — l'APK signé reste un artefact CI en attendant |
-| **Mapping des routes** | `/kiosk` sur l'écran tactile de la tablette, `/cinema` sur la sortie HDMI | L'adhérent choisit son cours au toucher sur la tablette ; la vidéo elle-même est projetée sur l'écran de la salle |
+| **Mapping des routes** | `/cinema` (canal câblé, `127.0.0.1`) à la fois sur l'écran tactile de la tablette et sur la sortie HDMI — **révisé le 2026-09-09** (auparavant `/kiosk` sur canal réseau indépendant côté tactile, voir §9) | L'adhérent/encadrant choisit son cours au toucher sur la tablette, sur le même canal que ce qui joue sur l'écran de la salle — sélection et diffusion synchronisées |
 | **Verrouillage de l'écran tactile** | **Pas de Lock Task / mode kiosque réel.** Plein écran immersif (barres système masquées) au lancement de l'app, mais quittable à tout moment par un geste standard Android | La tablette doit rester utilisable pour autre chose — ce n'est pas un poste dédié comme le mini PC headless |
 | **Device Owner** | Activé, **sans** Lock Task associé — uniquement pour l'exemption des restrictions batterie/OEM agressives (HyperOS, One UI) qui tuent les services en arrière-plan malgré l'exemption standard « ignorer l'optimisation de la batterie » | La survie du service en fond est le vrai risque opérationnel identifié (§7) ; Device Owner sans Lock Task obtient cette fiabilité sans sacrifier l'usage libre de la tablette |
 | **Persistance du service d'arrière-plan** | Le `ForegroundService` (backend Python + `Presentation` HDMI) **continue de tourner même si l'app Bobine est fermée complètement** depuis le multitâche | Un swipe accidentel dans le multitâche, ou l'usage de la tablette pour autre chose, ne doit pas couper la diffusion HDMI en pleine séance |
@@ -67,11 +67,12 @@ Pour un déploiement professionnel en salle de sport, **aucun terminal, script o
 │  ┌──────────────▼──────────┐   ┌──────────▼──────────────┐  │
 │  │ Chaquopy (CPython 3.11) │   │   Deux Vues Découplées  │  │
 │  │                         │   │                         │  │
-│  │ • FastAPI + Uvicorn     │   │ 1. Tablette : /kiosk     │  │
+│  │ • FastAPI + Uvicorn     │   │ 1. Tablette : /cinema    │  │
 │  │ • SQLite (database.db)  │   │    (WebView, plein écran │  │
 │  │ • APScheduler, zeroconf │   │     immersif, quittable) │  │
 │  │ • ffmpeg/ffprobe ARM64  │   │ 2. HDMI : /cinema        │  │
-│  │   statique (§9)         │   │    (Presentation, 4K)    │  │
+│  │   statique (§9)         │   │    (Presentation, 4K,    │  │
+│  │                         │   │    même canal, §9)       │  │
 │  └─────────────────────────┘   └─────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -108,8 +109,8 @@ Android gère nativement le multi-affichage via [`DisplayManager`](https://devel
 
 - Dès que le câble HDMI est branché sur le dock USB-C, Android émet `DisplayListener.onDisplayAdded(displayId)`.
 - L'application instancie une classe héritant de `android.app.Presentation(context, display)` qui charge `http://127.0.0.1:8000/cinema` — cette URL en `127.0.0.1` est un choix délibéré, pas cosmétique (§4).
-- L'écran tactile de la tablette charge `/kiosk` via un hostname **différent** de `127.0.0.1` (§4) dans sa propre `WebView`, indépendamment de la `Presentation`.
-- Si aucun écran externe n'est détecté, la tablette peut afficher `/cinema` à la place, avec un bouton de bascule rapide dans l'UI native.
+- L'écran tactile de la tablette charge **aussi** `/cinema`, sur le **même hostname `127.0.0.1`** (révision du 2026-09-09, §9) — même canal câblé que la `Presentation` HDMI, dans sa propre `WebView` indépendante. Le backend supporte déjà plusieurs clients simultanés sur un même canal (rôle « primaire »/« miroir »), aucun changement backend requis.
+- Si aucun écran externe n'est détecté, la tablette affiche déjà `/cinema` par défaut (plus besoin de bouton de bascule dédié, cf. révision §9).
 
 ### 3.3 Décodage Vidéo Matériel
 
@@ -120,15 +121,17 @@ Android gère nativement le multi-affichage via [`DisplayManager`](https://devel
 
 ## 4. Le point de vigilance : routage `/kiosk` vs `/cinema` par hostname
 
-Le frontend distingue aujourd'hui « écran câblé » de « écran réseau » **uniquement par le hostname de la requête** — mécanisme existant, à ne pas casser ni dupliquer par erreur :
+**Section historique, partiellement dépassée par la révision du 2026-09-09 (§9)** — conservée pour comprendre le mécanisme de routage par hostname, toujours utilisé, même si l'écran tactile n'utilise plus `/kiosk` ni le hostname `127.0.0.2` depuis cette révision.
+
+Le frontend distingue « écran câblé » de « écran réseau » **uniquement par le hostname de la requête** — mécanisme existant, à ne pas casser ni dupliquer par erreur :
 
 - [`frontend/src/lib/useDisplayOutputRedirect.ts`](../frontend/src/lib/useDisplayOutputRedirect.ts) : `isWiredDisplay()` (ligne 12-15) renvoie vrai uniquement si `window.location.hostname` vaut `127.0.0.1` ou `localhost`. Un appareil « câblé » suit toujours le réglage `cableOutput` choisi par l'admin et démarre directement dans le bon mode au boot ; un appareil « réseau » n'est redirigé que si l'admin bascule le réglage en direct pendant que la page est ouverte (comportement voulu : quelqu'un qui ouvre `/cinema` volontairement y reste).
 
 **Implication pour le portage** : si la `Presentation` HDMI charge `http://127.0.0.1:8000/cinema`, elle hérite automatiquement de ce comportement existant sans aucun changement frontend — elle suit le réglage `cableOutput` de l'admin. C'est le comportement voulu (§1, sortie HDMI = « sortie classique »).
 
-En revanche, la `WebView` de l'écran tactile **ne doit pas** aussi tourner sur `127.0.0.1`, sinon elle serait elle aussi classée « câblé » et suivrait le même réglage — cassant l'indépendance entre « ce que l'adhérent sélectionne au toucher » et « ce qui joue à l'écran ».
+**Révisé le 2026-09-09 (§9)** : la `WebView` de l'écran tactile tourne désormais **aussi** sur `127.0.0.1` — décision explicite pour que le toucher sur la tablette sélectionne directement ce qui joue sur l'écran de la salle (même canal câblé), plutôt que de garder deux canaux indépendants comme le décrivait ce paragraphe avant révision.
 
-**Tranché et validé (Lot 3 du plan, exécuté) : `http://127.0.0.2:8000/kiosk/`**, ni `bobine.local` ni l'IP LAN de la tablette comme envisagé initialement. Le bloc entier `127.0.0.0/8` est loopback — n'importe quelle adresse de ce bloc atteint le même serveur local que `127.0.0.1`, mais `isWiredDisplay()` (comparaison de chaîne stricte) classe automatiquement `127.0.0.2` comme « réseau », **sans modifier une ligne de `useDisplayOutputRedirect.ts`**. Confirmé fonctionnel dans une vraie `WebView` Android (pas seulement testé au niveau TCP) : pas d'erreur `ERR_CLEARTEXT_NOT_PERMITTED`, pas de configuration de sécurité réseau Android supplémentaire nécessaire. Avantage décisif sur les deux options initialement envisagées : **aucune dépendance au Lot 8 (mDNS) ni à l'état du Wi-Fi** — fonctionne de façon identique que la tablette soit connectée ou non, dès le premier démarrage.
+**Le mécanisme `127.0.0.2` reste documenté ici pour mémoire (utilisé jusqu'au 2026-09-09)** : `http://127.0.0.2:8000/kiosk/`, tranché et validé au Lot 3 du plan — le bloc entier `127.0.0.0/8` est loopback, n'importe quelle adresse de ce bloc atteint le même serveur local que `127.0.0.1`, mais `isWiredDisplay()` (comparaison de chaîne stricte) classe automatiquement `127.0.0.2` comme « réseau », sans modifier `useDisplayOutputRedirect.ts`. Ce mécanisme reste disponible si un futur besoin justifie de redonner à l'écran tactile un canal indépendant du câblé.
 
 ---
 
@@ -194,6 +197,7 @@ Dans le même esprit que le système Stable/Bêta desktop existant ([`docs/ARCHI
 - **Le mode kiosque strict (Device Owner + Lock Task) est écarté** au profit d'un plein écran immersif quittable + Device Owner sans Lock Task uniquement pour l'exemption batterie.
 - **Le ton général sur Chaquopy et les dépendances a changé, dans les deux sens.** La version précédente exprimait une incertitude générale non vérifiée (« CPython 3.11 embarqué », risque flou sur `pydantic-core`/`psutil`). Après exécution réelle du Lot 0 : Chaquopy est activement maintenu (v17.0, Python jusqu'à 3.14) — meilleure nouvelle que prévu — mais **`pydantic-core` s'est révélé être un vrai blocage confirmé** (pas juste un risque), tandis que `psutil` — présenté comme le principal doute — s'est avéré sans problème. Le § 3.1 documente maintenant des faits vérifiés, pas des suppositions.
 - **« Le code Python de service des statics ne doit pas être modifié » (Lot 2) s'est révélé inexact.** Chaquopy monte le contenu de `chaquopy.sourceSets` sous un chemin fixe (`AssetFinder/app/...`) non configurable, incompatible avec la logique existante de `main.py` (3 `.parent` pour retrouver `frontend/out` en sibling de `backend/`). Une branche Android explicite, détectée via `hasattr(sys, "getandroidapilevel")`, a dû être ajoutée — petite, cohérente avec le style déjà en place (le fichier avait déjà des branches Windows/macOS/Linux), mais bien un changement de code, pas juste un ajustement de configuration.
+- **Révision du 2026-09-09 (demande explicite utilisateur, validée en conditions réelles sur la tablette pilote avec dock/HDMI physique) : l'écran tactile de la tablette n'affiche plus `/kiosk` (canal réseau indépendant), mais `/cinema` sur le hostname `127.0.0.1`** — exactement la grille de sélection de cours du canal câblé desktop, sur le **même canal** que la sortie HDMI. L'adhérent/encadrant sélectionne un cours directement au toucher sur la tablette, et la sortie HDMI (branchée comme un vidéoprojecteur ou un écran de salle) diffuse ce même cours, les deux `WebView` restant synchronisées via le même canal `cable` (le backend supporte déjà plusieurs clients simultanés sur un canal, rôle « primaire »/« miroir », vu en usage sur desktop aussi). `MainActivity.kt` a changé (`KIOSK_URL` → `CINEMA_URL`), aucun changement backend. `/kiosk` et le hostname `127.0.0.2` restent fonctionnels et documentés (§4) au cas où un besoin futur justifierait de redonner à l'écran tactile un canal indépendant, mais ne sont plus utilisés par défaut sur Android.
 
 ---
 

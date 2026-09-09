@@ -24,14 +24,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
-// 127.0.0.2 (pas 127.0.0.1) : tout le bloc 127.0.0.0/8 est loopback, donc
-// atteint le meme serveur local (confirme en pratique, Lot 3 - `nc` sur
-// l'emulateur), mais useDisplayOutputRedirect() (frontend) classe "cable"
-// UNIQUEMENT la chaine exacte "127.0.0.1"/"localhost" - cf.
-// docs/PortabiliteAndroid.md SS4. L'ecran tactile (ce WebView) doit rester
-// "reseau" pour ne pas suivre le reglage cableOutput destine a la sortie
-// HDMI (BobinePresentation, Lot 4, qui charge 127.0.0.1/cinema).
-private const val KIOSK_URL = "http://127.0.0.2:8000/kiosk/"
+// Revision actee (2026-09-09, demande explicite utilisateur) : l'ecran
+// tactile charge desormais /cinema en 127.0.0.1 ("cable" - meme hostname
+// et meme canal que BobinePresentation/HDMI, cf. Lot 4) au lieu de /kiosk
+// en 127.0.0.2 ("reseau", canal independant) utilise jusqu'ici. Objectif :
+// permettre de choisir un cours directement au toucher sur la tablette,
+// sur le MEME canal cable que ce qui joue sur l'ecran de la salle -
+// exactement l'interface de selection du mode "cinema cable" du desktop
+// x86, pas une grille de kiosque separee. Le backend supporte deja
+// plusieurs clients simultanes sur un meme canal (cf. logs "role : miroir"
+// deja observes) - aucun changement backend necessaire pour ce point.
+// `/kiosk` reste utilise ailleurs (canal reseau desktop), juste plus par
+// l'ecran tactile Android.
+private const val CINEMA_URL = "http://127.0.0.1:8000/cinema/"
 
 /**
  * Ecran tactile de la tablette (Lot 5, cf. docs/plan-implementation-android.md) :
@@ -78,8 +83,7 @@ class MainActivity : AppCompatActivity() {
         // ci-dessous s'en charge, garanti appele une fois la fenetre reelle.
 
         // Debug uniquement (build debug) : console JS visible dans logcat
-        // (tag "WebViewConsole") et inspection chrome://inspect — utile
-        // pour diagnostiquer le routage /kiosk vs /cinema (Lot 3) et au-dela.
+        // (tag "WebViewConsole") et inspection chrome://inspect.
         WebView.setWebContentsDebuggingEnabled(true)
 
         val webView = WebView(this)
@@ -97,12 +101,12 @@ class MainActivity : AppCompatActivity() {
                 error: WebResourceError
             ) {
                 if (request.isForMainFrame) {
-                    handler.postDelayed({ view.loadUrl(KIOSK_URL) }, 500)
+                    handler.postDelayed({ view.loadUrl(CINEMA_URL) }, 500)
                 }
             }
         }
         setContentView(webView)
-        webView.loadUrl(KIOSK_URL)
+        webView.loadUrl(CINEMA_URL)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
