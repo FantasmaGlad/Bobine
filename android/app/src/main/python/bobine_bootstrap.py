@@ -11,7 +11,11 @@ _started = False
 _lock = threading.Lock()
 
 
-def start_server_once():
+def start_server_once(external_files_dir=None):
+    """`external_files_dir` : `context.getExternalFilesDir(null)` cote
+    Kotlin (Lot 9) - pose `BOBINE_ANDROID_DATA_DIR` AVANT le premier import
+    de `app.config` (transitif via `app.main`), seul moment ou ça compte
+    puisque `DATA_ROOT` y est calculé une fois au niveau module."""
     global _started
     with _lock:
         if _started:
@@ -19,6 +23,10 @@ def start_server_once():
         _started = True
 
     def _run():
+        if external_files_dir:
+            import os
+            os.environ["BOBINE_ANDROID_DATA_DIR"] = external_files_dir
+
         import uvicorn
         from app.main import app
 

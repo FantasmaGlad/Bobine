@@ -66,6 +66,27 @@ def _data_root() -> Path:
             except Exception:
                 pass
             return target
+    elif platform.system() == "Android":
+        # Lot 9 (docs/plan-implementation-android.md) : sans cette branche,
+        # ROOT_DIR (repli plus bas) pointe vers AssetFinder/app/, le dossier
+        # interne prive ou Chaquopy re-deploie les SOURCES PYTHON elles-memes
+        # a chaque mise a jour de l'app - y stocker des donnees utilisateur
+        # (videos, base de donnees...) les exposerait a un ecrasement
+        # accidentel, en plus d'etre invisible depuis un gestionnaire de
+        # fichiers. BobineForegroundService.kt transmet
+        # `context.getExternalFilesDir(null)` (stockage externe specifique a
+        # l'app, persiste entre mises a jour, visible via un gestionnaire de
+        # fichiers/MTP) a bobine_bootstrap.start_server_once(), qui le pose
+        # dans cette variable d'environnement avant le premier import de ce
+        # module.
+        android_data_dir = os.environ.get("BOBINE_ANDROID_DATA_DIR")
+        if android_data_dir:
+            target = Path(android_data_dir)
+            try:
+                target.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
+            return target
     return ROOT_DIR
 
 

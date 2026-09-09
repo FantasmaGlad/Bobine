@@ -85,7 +85,12 @@ class BobineForegroundService : Service() {
         super.onCreate()
 
         val py = Python.getInstance()
-        py.getModule("bobine_bootstrap").callAttr("start_server_once")
+        // Lot 9 : stockage externe specifique a l'app (persiste entre mises
+        // a jour, visible via un gestionnaire de fichiers/MTP), PAS le
+        // dossier interne AssetFinder/app/ ou Chaquopy redeploie les
+        // sources Python elles-memes (cf. Decouvertes du Lot 9).
+        val externalFilesDir = applicationContext.getExternalFilesDir(null)?.absolutePath
+        py.getModule("bobine_bootstrap").callAttr("start_server_once", externalFilesDir)
 
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
