@@ -18,6 +18,6 @@ thumbnails_dir = "data/thumbnails"
 
 [playback]
 # Durée (secondes) de l'écran d'attente intercalé entre deux cours d'une playlist (F2.6)
-wait_time_between_courses = 10
+wait_time_between_courses = 0
 # Volume par défaut au démarrage (0-100)
 volume_default = 100

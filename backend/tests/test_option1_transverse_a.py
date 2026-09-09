@@ -35,6 +35,7 @@ from app.routers.settings import (
     export_backup,
     restore_backup,
     reset_data_system,
+    get_system_usage,
 )
 from app.routers.updates import check_updates
 from app.utils.version import get_app_version
@@ -285,6 +286,31 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(db.query(Video).count(), 0)
         finally:
             db.close()
+
+    def test_system_usage_normal_and_android_fallback(self):
+        """Vérifie que get_system_usage fonctionne normalement et ne lève jamais
+        d'erreur 500 même si psutil.cpu_percent échoue avec PermissionError (/proc/stat)."""
+        # Cas 1 : appel standard
+        usage = get_system_usage()
+        self.assertIn("cpu_percent", usage)
+        self.assertIn("memory_total_bytes", usage)
+        self.assertIn("memory_used_bytes", usage)
+        self.assertIn("memory_percent", usage)
+        self.assertIsInstance(usage["cpu_percent"], float)
+        self.assertIsInstance(usage["memory_total_bytes"], int)
+        self.assertGreater(usage["memory_total_bytes"], 0)
+
+        # Cas 2 : simulation échec psutil sous Android (SELinux /proc/stat)
+        with patch("psutil.cpu_percent", side_effect=PermissionError(13, "Permission denied: '/proc/stat'")), \
+             patch("psutil.virtual_memory", side_effect=PermissionError(13, "Permission denied")):
+            fallback_usage = get_system_usage()
+            self.assertIn("cpu_percent", fallback_usage)
+            self.assertIn("memory_total_bytes", fallback_usage)
+            self.assertIn("memory_used_bytes", fallback_usage)
+            self.assertIn("memory_percent", fallback_usage)
+            self.assertIsInstance(fallback_usage["cpu_percent"], float)
+            self.assertIsInstance(fallback_usage["memory_total_bytes"], int)
+
 
 
 if __name__ == "__main__":

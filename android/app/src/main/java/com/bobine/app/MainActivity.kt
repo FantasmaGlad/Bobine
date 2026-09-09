@@ -87,6 +87,9 @@ class MainActivity : AppCompatActivity() {
 
         val webView = WebView(this)
         webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
+        webView.settings.databaseEnabled = true
+        webView.settings.mediaPlaybackRequiresUserGesture = false
         // Meme raison que BobinePresentation.kt (cf. son commentaire) : sans
         // ce reglage, une mise a jour de l'app peut rester invisible sur cet
         // ecran (cache HTTP heuristique base sur un Last-Modified de fichier

@@ -158,14 +158,14 @@ class Settings(BaseSettings):
 
     # Mode audio coach (Lot 8, réf. F10.3/UX4.8) : réglage par défaut de la
     # minuterie entre pistes en mode "auto + minuterie".
-    audio_chain_timer_seconds: int = 20
+    audio_chain_timer_seconds: int = 5
 
     # Réseau & Serveur
     host: str = "0.0.0.0"
     port: int = 8000
 
     # Paramètres de lecture par défaut
-    wait_time_between_courses: int = 10
+    wait_time_between_courses: int = 0
     volume_default: int = 100
 
     # Réglages de lecture Radio (réf. docs/cahier-des-charges-radio.md, §9).

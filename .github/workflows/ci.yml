@@ -275,6 +275,19 @@ jobs:
         if: steps.check_secrets.outputs.configured == 'true'
         id: android_version
         run: echo "version_code=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Télécharger les binaires statiques ffmpeg/ffprobe ARM64 (Bionic NDK r28)
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: |
+          mkdir -p android/app/src/main/jniLibs/arm64-v8a
+          BASE_URL="https://raw.githubusercontent.com/hzw1199/Android-FFmpeg-Prebuilt/main/ffmpeg-8.1.1/bin"
+          if [ ! -f "android/app/src/main/jniLibs/arm64-v8a/libffmpeg.so" ]; then
+            curl -L -o "android/app/src/main/jniLibs/arm64-v8a/libffmpeg.so" "$BASE_URL/ffmpeg"
+            chmod +x "android/app/src/main/jniLibs/arm64-v8a/libffmpeg.so"
+          fi
+          if [ ! -f "android/app/src/main/jniLibs/arm64-v8a/libffprobe.so" ]; then
+            curl -L -o "android/app/src/main/jniLibs/arm64-v8a/libffprobe.so" "$BASE_URL/ffprobe"
+            chmod +x "android/app/src/main/jniLibs/arm64-v8a/libffprobe.so"
+          fi
       - name: Build + signature (Gradle)
         if: steps.check_secrets.outputs.configured == 'true'
         working-directory: android

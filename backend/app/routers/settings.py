@@ -7,6 +7,7 @@ import shutil
 import socket
 import sqlite3
 import tempfile
+import time
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -135,8 +136,9 @@ def _logo_path() -> Path:
     return Path(runtime_settings.branding_dir) / _LOGO_FILENAME
 
 
-_UNSET = object()
-_cached_local_ip: object = _UNSET
+_cached_local_ip: str | None = None
+_cached_local_ip_time: float = 0.0
+_LOCAL_IP_CACHE_TTL = 15.0  # Actualisation toutes les 15 secondes maximum
 
 
 def _get_local_ip() -> str | None:
@@ -146,25 +148,23 @@ def _get_local_ip() -> str | None:
     découverte réseau (réf. mission "IP obtenue par l'appareil"), en
     complément de la découverte mDNS (bobine.local, cf. install.sh).
 
-    Mise en cache après le premier appel (réf. revue de code) : cette IP ne
-    change pas en cours d'exécution dans le cas d'usage visé (affichage
-    informatif en page Paramètres) — sans cache, `GET/PUT /api/settings`
-    (interrogé au montage de CHAQUE écran, câblé/réseau/admin/radio) paierait
-    un appel socket bloquant à chaque requête, dans une coroutine `async def`
-    non déportée sur un thread : sur une machine sans route réseau par
-    défaut, un `connect()` UDP peut se bloquer jusqu'au timeout OS et geler
-    toute la boucle asyncio le temps de l'appel. Un timeout court borne aussi
-    ce pire cas dès le premier appel."""
-    global _cached_local_ip
-    if _cached_local_ip is not _UNSET:
+    Mise en cache avec TTL court (15s) pour éviter des appels socket répétés
+    tout en permettant à l'IP de s'actualiser automatiquement lors d'un
+    changement de réseau ou d'attribution DHCP sans redémarrer le serveur."""
+    global _cached_local_ip, _cached_local_ip_time
+    now = time.time()
+    if _cached_local_ip is not None and (now - _cached_local_ip_time) < _LOCAL_IP_CACHE_TTL:
         return _cached_local_ip
+
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.settimeout(0.2)
     try:
         s.connect(("8.8.8.8", 80))
         _cached_local_ip = s.getsockname()[0]
+        _cached_local_ip_time = now
     except OSError:
         _cached_local_ip = None
+        _cached_local_ip_time = now - (_LOCAL_IP_CACHE_TTL - 3.0)
     finally:
         s.close()
     return _cached_local_ip
@@ -317,20 +317,90 @@ def get_storage() -> dict[str, Any]:
     }
 
 
+_last_cpu_time: float = 0.0
+_last_proc_ticks: int = 0
+
+
+def _get_system_usage_values() -> tuple[float, int, int, float]:
+    """Retourne (cpu_percent, memory_total_bytes, memory_used_bytes, memory_percent).
+    Sous Android (API 34+), l'accès à /proc/stat est bloqué par SELinux pour les
+    applications du domaine untrusted_app, faisant échouer psutil.cpu_percent
+    avec PermissionError. Cette fonction utilise psutil en priorité, avec repli
+    gracieux sur /proc/meminfo et la mesure CPU du processus (/proc/self/stat)."""
+    global _last_cpu_time, _last_proc_ticks
+    cpu_percent = 0.0
+    mem_total = 0
+    mem_used = 0
+    mem_percent = 0.0
+
+    # 1. CPU
+    try:
+        cpu_percent = float(psutil.cpu_percent(interval=0.1))
+    except Exception:
+        try:
+            proc = psutil.Process()
+            cpu_percent = float(proc.cpu_percent(interval=0.1))
+        except Exception:
+            try:
+                with open("/proc/self/stat", "r") as f:
+                    parts = f.read().split()
+                    utime = int(parts[13])
+                    stime = int(parts[14])
+                    total_ticks = utime + stime
+                now = datetime.now(timezone.utc).timestamp()
+                clk_tck = os.sysconf(os.sysconf_names.get("SC_CLK_TCK", 100)) if hasattr(os, "sysconf") else 100
+                cpu_count = os.cpu_count() or 1
+                if _last_cpu_time > 0 and now > _last_cpu_time:
+                    delta_sec = now - _last_cpu_time
+                    delta_ticks = total_ticks - _last_proc_ticks
+                    if delta_sec > 0 and delta_ticks >= 0:
+                        pct = (delta_ticks / clk_tck) / delta_sec / cpu_count * 100.0
+                        cpu_percent = round(min(100.0, max(0.0, pct)), 1)
+                _last_cpu_time = now
+                _last_proc_ticks = total_ticks
+            except Exception:
+                cpu_percent = 0.0
+
+    # 2. Mémoire
+    try:
+        memory = psutil.virtual_memory()
+        mem_total = memory.total
+        mem_used = memory.total - memory.available
+        mem_percent = memory.percent
+    except Exception:
+        try:
+            meminfo: dict[str, int] = {}
+            with open("/proc/meminfo", "r") as f:
+                for line in f:
+                    parts = line.split(":")
+                    if len(parts) == 2:
+                        k = parts[0].strip()
+                        v = parts[1].strip().split()[0]
+                        meminfo[k] = int(v) * 1024
+            total = meminfo.get("MemTotal", 0)
+            available = meminfo.get("MemAvailable", meminfo.get("MemFree", 0))
+            used = max(0, total - available)
+            pct = round((used / total) * 100, 1) if total > 0 else 0.0
+            mem_total = total
+            mem_used = used
+            mem_percent = pct
+        except Exception:
+            pass
+
+    return cpu_percent, mem_total, mem_used, mem_percent
+
+
 @router.get("/system")
 def get_system_usage() -> dict[str, Any]:
     """Charge CPU et RAM (réf. mission "supervision cpu/ram en plus du
     stockage") : endpoint séparé de /storage (interval bloquant court pour
-    une mesure CPU instantanée fiable — psutil.cpu_percent(interval=None)
-    renverrait 0.0 sans appel préalable dans ce process — donc pas adapté à
-    être mélangé à une réponse par ailleurs bon marché comme /storage)."""
-    cpu_percent = psutil.cpu_percent(interval=0.1)
-    memory = psutil.virtual_memory()
+    une mesure CPU instantanée fiable). Robuste sous Android (SELinux)."""
+    cpu_percent, mem_total, mem_used, mem_percent = _get_system_usage_values()
     return {
         "cpu_percent": cpu_percent,
-        "memory_total_bytes": memory.total,
-        "memory_used_bytes": memory.total - memory.available,
-        "memory_percent": memory.percent,
+        "memory_total_bytes": mem_total,
+        "memory_used_bytes": mem_used,
+        "memory_percent": mem_percent,
     }
 
 

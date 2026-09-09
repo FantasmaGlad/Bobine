@@ -39,6 +39,8 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
 
         val webView = WebView(context)
         webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
+        webView.settings.databaseEnabled = true
         webView.settings.mediaPlaybackRequiresUserGesture = false
         // Reglage decouvert lors d'un correctif ulterieur (cf.
         // docs/plan-implementation-android.md, "cache HTTP WebView") : le
