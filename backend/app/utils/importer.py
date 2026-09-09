@@ -19,6 +19,37 @@ from app.utils.import_jobs import update_job
 
 logger = logging.getLogger(__name__)
 
+
+def _extract_metadata_or_unknown(file_path: str, original_filename: str) -> dict:
+    """Enveloppe extract_metadata() pour ne plus faire échouer tout l'import
+    quand ffprobe est indisponible ou en erreur (cf. Lot 8,
+    docs/plan-implementation-android.md : aucun binaire ffprobe utilisable
+    sous Android, tout binaire lie glibc statique y est tue par le filtre
+    seccomp). Duree/largeur/hauteur/codec/miniature sont deja nullables en
+    base et deja tolerees partout en aval (check_compatibility traite un
+    codec/audio_codec absent comme compatible, generate_thumbnail a son
+    propre echec tolere dans import_video/import_background) - seule la
+    detection DRM ne peut alors plus s'executer (is_drm forcee a False),
+    seul compromis reel de ce mode degrade.
+    """
+    try:
+        return extract_metadata(file_path)
+    except Exception as e:
+        logger.error(
+            f"ffprobe indisponible ou en echec pour {original_filename} - import "
+            f"poursuivi sans metadonnees (duree/resolution/codec inconnus, "
+            f"detection DRM impossible) : {e}"
+        )
+        return {
+            "duration_seconds": None,
+            "width": None,
+            "height": None,
+            "codec": None,
+            "audio_codec": None,
+            "is_drm": False,
+        }
+
+
 SUPPORTED_EXTENSIONS = {".mp4", ".m4v", ".mkv", ".avi", ".mov"}
 # Fonds animés (Lot 7) : mêmes conteneurs que les cours, plus WebM (nativement
 # lisible par Chromium, format courant pour des boucles d'ambiance courtes).
@@ -93,7 +124,7 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
 
     # 2. Extraction des métadonnées
     update_job(job_id, stage="probing")
-    meta = extract_metadata(src_path)
+    meta = _extract_metadata_or_unknown(src_path, original_filename)
 
     if meta["is_drm"]:
         # Suppression du fichier source en cas de DRM pour éviter des boucles infinies ou encombrements
@@ -138,7 +169,7 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
                 normalize_video(str(temp_dest_path), str(final_dest_path), compat["actions"], source_metadata=meta)
                 dest_path = final_dest_path
                 # Extraire à nouveau les métadonnées sur le fichier normalisé final
-                meta = extract_metadata(str(dest_path))
+                meta = _extract_metadata_or_unknown(str(dest_path), original_filename)
             finally:
                 if temp_dest_path.exists():
                     os.remove(temp_dest_path)
@@ -320,7 +351,7 @@ def import_background(
         return _import_background_image(src_path, original_filename, job_id=job_id)
 
     update_job(job_id, stage="probing")
-    meta = extract_metadata(src_path)
+    meta = _extract_metadata_or_unknown(src_path, original_filename)
 
     if meta["is_drm"]:
         if path_obj.exists():
@@ -371,7 +402,7 @@ def import_background(
             try:
                 normalize_video(str(temp_dest_path), str(final_dest_path), compat["actions"], source_metadata=meta)
                 dest_path = final_dest_path
-                meta = extract_metadata(str(dest_path))
+                meta = _extract_metadata_or_unknown(str(dest_path), original_filename)
             finally:
                 if temp_dest_path.exists():
                     os.remove(temp_dest_path)

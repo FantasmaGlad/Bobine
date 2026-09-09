@@ -4,6 +4,7 @@ import shutil
 import unittest
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 # Add backend directory to Python path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -179,6 +180,34 @@ class TestVideoFlow(unittest.TestCase):
         self.assertFalse(os.path.exists(old_file_path))
         self.assertTrue(os.path.exists(new_file_path))
         self.assertIn("Updated_Title_RPM_99", new_file_path)
+
+    def test_07_import_video_without_ffprobe(self):
+        # Réf. Lot 8 (docs/plan-implementation-android.md) : sous Android, ni
+        # ffprobe ni ffmpeg ne sont utilisables (aucun binaire ne survit au
+        # filtre seccomp). Ce test simule exactement l'erreur réelle observée
+        # sur tablette pour vérifier que l'import aboutit quand même, avec des
+        # métadonnées et une miniature absentes, plutôt que d'échouer
+        # entièrement.
+        temp_src = str(Path(settings.watch_dir) / "temp_no_ffprobe_import.mp4")
+        shutil.copy(self.dummy_compatible_path, temp_src)
+
+        with patch(
+            "app.utils.importer.extract_metadata",
+            side_effect=FileNotFoundError(2, "No such file or directory", "ffprobe"),
+        ), patch(
+            "app.utils.importer.generate_thumbnail",
+            side_effect=FileNotFoundError(2, "No such file or directory", "ffmpeg"),
+        ):
+            video = import_video(temp_src, "RPM 108.mp4", ImportSource.upload)
+
+        self.assertIsNotNone(video.id)
+        self.assertEqual(video.program, "RPM")
+        self.assertTrue(os.path.exists(video.file_path))
+        self.assertIsNone(video.duration_seconds)
+        self.assertIsNone(video.width)
+        self.assertIsNone(video.height)
+        self.assertIsNone(video.codec)
+        self.assertIsNone(video.thumbnail_path)
 
 
 if __name__ == "__main__":
