@@ -704,61 +704,73 @@ export default function CinemaPage() {
       {videos.length === 0 && (
         <div className="cinema-empty-screen">
           <AppLogo className="cinema-empty-logo" />
-          <span className="cinema-empty-clock">{formatClock(now)}</span>
+          <span className="cinema-empty-clock" suppressHydrationWarning>{formatClock(now)}</span>
           <span className="cinema-empty-message">{t("cinema.empty")}</span>
         </div>
       )}
 
-      {/* Vitrine de sélection : héros + rangées par programme + grille complète */}
-      <div className={`cinema-layer cinema-grid-layer ${showGrid ? "visible" : ""}`}>
-        {featured && (
-          <section className="cinema-hero">
-            {featuredThumb && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img className="cinema-hero-backdrop" src={featuredThumb} alt="" />
-            )}
-            <div className="cinema-hero-scrim" />
-            <div className="cinema-hero-content">
-              <AppLogo size={72} className="cinema-brand" />
-              <span className="cinema-hero-badge" style={{ color: themeFg }}>{t("cinema.featured")}</span>
-              <h1 className="cinema-hero-title">{featured.title}</h1>
-              <p className="cinema-hero-meta">
-                {[featured.program, featured.release, formatDurationMin(featured.duration_seconds)]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-              <button className="cinema-hero-play" style={{ color: themeFg }} onClick={() => handleSelect(featured)}>
-                <Icon name="play_arrow" size={26} color={themeFg} filled />
-                {t("cinema.launchCourse")}
-              </button>
-            </div>
-          </section>
-        )}
+      {/* Écran d'attente cinéma TV (sur sortie HDMI pilotée depuis /grid) */}
+      {isAndroidHdmiScreen && showGrid && (
+        <div className="cinema-standby-screen">
+          <AppLogo size={96} className="cinema-standby-logo" />
+          <span className="cinema-standby-clock" suppressHydrationWarning>{formatClock(now)}</span>
+          <h1 className="cinema-standby-title">{t("cinema.standbyTitle")}</h1>
+          <p className="cinema-standby-hint">{t("cinema.standbyHint")}</p>
+        </div>
+      )}
 
-        <div className="cinema-sections">
-          <p className="cinema-subtitle">{t("cinema.subtitle")}</p>
-          {rows.length === 0 && <p className="cinema-empty">{t("cinema.empty")}</p>}
-
-          {rows.map(([programName, items], rowIndex) => (
-            <CinemaRow
-              key={programName}
-              programName={programName}
-              items={items}
-              rowIndex={rowIndex}
-              onSelect={handleSelect}
-              onHover={playHoverSound}
-              coursesCountLabel={t("cinema.coursesCount", { count: items.length })}
-            />
-          ))}
-
-          {videos.length > 0 && (
-            <section className="cinema-all">
-              <h2>{t("cinema.allCourses")}</h2>
-              <CinemaAllList videos={videos} onSelect={handleSelect} onHover={playHoverSound} />
+      {/* Vitrine de sélection : héros + rangées par programme + grille complète (sur les profils non-HDMI Android) */}
+      {!isAndroidHdmiScreen && (
+        <div className={`cinema-layer cinema-grid-layer ${showGrid ? "visible" : ""}`}>
+          {featured && (
+            <section className="cinema-hero">
+              {featuredThumb && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className="cinema-hero-backdrop" src={featuredThumb} alt="" />
+              )}
+              <div className="cinema-hero-scrim" />
+              <div className="cinema-hero-content">
+                <AppLogo size={72} className="cinema-brand" />
+                <span className="cinema-hero-badge" style={{ color: themeFg }}>{t("cinema.featured")}</span>
+                <h1 className="cinema-hero-title">{featured.title}</h1>
+                <p className="cinema-hero-meta">
+                  {[featured.program, featured.release, formatDurationMin(featured.duration_seconds)]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                <button className="cinema-hero-play" style={{ color: themeFg }} onClick={() => handleSelect(featured)}>
+                  <Icon name="play_arrow" size={26} color={themeFg} filled />
+                  {t("cinema.launchCourse")}
+                </button>
+              </div>
             </section>
           )}
+
+          <div className="cinema-sections">
+            <p className="cinema-subtitle">{t("cinema.subtitle")}</p>
+            {rows.length === 0 && <p className="cinema-empty">{t("cinema.empty")}</p>}
+
+            {rows.map(([programName, items], rowIndex) => (
+              <CinemaRow
+                key={programName}
+                programName={programName}
+                items={items}
+                rowIndex={rowIndex}
+                onSelect={handleSelect}
+                onHover={playHoverSound}
+                coursesCountLabel={t("cinema.coursesCount", { count: items.length })}
+              />
+            ))}
+
+            {videos.length > 0 && (
+              <section className="cinema-all">
+                <h2>{t("cinema.allCourses")}</h2>
+                <CinemaAllList videos={videos} onSelect={handleSelect} onHover={playHoverSound} />
+              </section>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Animation de lancement (réf. mission "la vidéo de lancement suffit
           à cadencer le lancement") : sa propre fin (onEnded) démarre le

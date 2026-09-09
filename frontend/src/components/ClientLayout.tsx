@@ -80,11 +80,11 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             <button
               type="button"
               className="nav-link olc-press"
-              style={{ width: "100%", background: "transparent", border: "none", cursor: "pointer", font: "inherit", color: "inherit" }}
+              style={{ width: "100%", background: "transparent", border: "none", cursor: "pointer", font: "inherit" }}
               onClick={() => toggleGroup(entry.groupKey)}
               aria-expanded={open}
             >
-              <Icon name={entry.iconName} size={20} />
+              <Icon name={entry.iconName} size={20} weight={500} />
               <span style={{ flex: 1, textAlign: "left" }}>{t(entry.groupKey)}</span>
               <Icon name={open ? "expand_more" : "chevron_right"} size={18} />
             </button>
@@ -99,7 +99,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
                       onClick={onNavigate}
                       className={`nav-link olc-press ${isActive ? "active" : ""}`}
                     >
-                      <Icon name={child.iconName} size={20} />
+                      <Icon name={child.iconName} size={20} weight={500} />
                       <span>{t(child.labelKey)}</span>
                     </Link>
                   );
@@ -118,7 +118,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           className={`nav-link olc-press olc-anim-in ${isActive ? "active" : ""}`}
           style={{ animationDelay: `${i * 30}ms` }}
         >
-          <Icon name={entry.iconName} size={20} />
+          <Icon name={entry.iconName} size={20} weight={500} />
           <span>{t(entry.labelKey)}</span>
         </Link>
       );

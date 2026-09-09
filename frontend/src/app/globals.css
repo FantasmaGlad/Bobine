@@ -274,22 +274,24 @@
   --accent-primary-fg: #16120e;
 }
 
-/* Charbon — Thème sombre graphite mat et neutre */
+/* Charbon — Thème clair minéral, fusain et ardoise */
 :root[data-theme="charbon"] {
-  --bg-main: #0e0e10;
-  --bg-surface: #16161a;
-  --bg-surface-elevated: #222226;
-  --bg-surface-hover: #2d2d33;
+  --bg-main: #f4f4f5;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #e4e4e7;
+  --bg-surface-hover: #d4d4d8;
 
-  --text-main: #ffffff;
-  --text-muted: #a1a1aa;
+  --text-main: #09090b;
+  --text-muted: #52525b;
   --text-dim: #71717a;
 
-  --border-color: #27272a;
-  --border-focus: #3f3f46;
+  --border-color: #e4e4e7;
+  --border-focus: #18181b;
 
-  --accent-primary: #71717a;
+  --accent-primary: #18181b;
   --accent-primary-fg: #ffffff;
+
+  --logo-filter: none;
 }
 
 /* Beige — Thème clair lin naturel et feutré */
@@ -655,7 +657,8 @@ h1, h2, h3, h4, h5, h6 {
   gap: 12px;
   padding: 12px 16px;
   border-radius: var(--radius-md);
-  color: var(--text-muted);
+  color: var(--text-main);
+  opacity: 0.88;
   text-decoration: none;
   font-weight: 600;
   font-size: 0.95rem;
@@ -666,6 +669,7 @@ h1, h2, h3, h4, h5, h6 {
 .nav-link:hover {
   background-color: var(--bg-surface-hover);
   color: var(--text-main);
+  opacity: 1;
   transform: translateX(4px);
 }
 
@@ -3787,6 +3791,55 @@ a.status-pill:hover,
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.12em;
+}
+
+/* Écran d'attente cinéma passif (sortie HDMI TV salle, quand piloté par /grid) */
+.cinema-standby-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 5vh 5vw;
+  background: var(--bg-main);
+  color: var(--text-main);
+  text-align: center;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.cinema-standby-logo {
+  height: min(24vh, 30vw);
+  width: auto;
+  margin-bottom: 4px;
+}
+
+.cinema-standby-clock {
+  font-family: var(--font-title, sans-serif);
+  font-size: clamp(3.5rem, 8vw, 6.5rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--accent-primary);
+  line-height: 1;
+}
+
+.cinema-standby-title {
+  font-family: var(--font-title, sans-serif);
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.cinema-standby-hint {
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0;
+  letter-spacing: 0.04em;
 }
 
 /* Entrée en scène des sections et cartes (delay échelonné via style inline) */

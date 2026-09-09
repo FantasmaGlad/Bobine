@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useAppSettings, type Theme } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
-import SystemStatus from "@/components/SystemStatus";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 
@@ -124,6 +123,7 @@ interface ThemeSwatch {
 const THEME_SWATCHES: ThemeSwatch[] = [
   // --- Thèmes clairs ---
   { value: "clair", labelKey: "settingsPage.themeLight", category: "clair", colors: ["#f8f9fa", "#ffffff", "#e4002b", "#16161a"] },
+  { value: "charbon", labelKey: "settingsPage.themeCharbon", category: "clair", colors: ["#f4f4f5", "#ffffff", "#18181b", "#09090b"] },
   { value: "miel", labelKey: "settingsPage.themeMiel", category: "clair", colors: ["#fdfbf5", "#fef7e7", "#d97706", "#2d1e0b"] },
   { value: "coco", labelKey: "settingsPage.themeCoco", category: "clair", colors: ["#faf7f4", "#f3ece6", "#78350f", "#2c1d14"] },
   { value: "menthe", labelKey: "settingsPage.themeMenthe", category: "clair", colors: ["#f4f9f6", "#eaf3ee", "#10b981", "#132a1e"] },
@@ -139,7 +139,6 @@ const THEME_SWATCHES: ThemeSwatch[] = [
   { value: "chili", labelKey: "settingsPage.themeChili", category: "sombre", colors: ["#15090a", "#2b1417", "#ef4444", "#fdf2f2"] },
   { value: "orchidee", labelKey: "settingsPage.themeOrchidee", category: "sombre", colors: ["#140d17", "#281b30", "#a855f7", "#faf5ff"] },
   { value: "taupe", labelKey: "settingsPage.themeTaupe", category: "sombre", colors: ["#1c1713", "#332a23", "#d4a373", "#fdfaf7"] },
-  { value: "charbon", labelKey: "settingsPage.themeCharbon", category: "sombre", colors: ["#121214", "#232326", "#71717a", "#ffffff"] },
 ];
 
 // Pages plein écran destinées à être ouvertes depuis un AUTRE appareil du
@@ -179,7 +178,7 @@ export default function SettingsPage() {
   const [storage, setStorage] = useState<StorageData | null>(null);
   const [system, setSystem] = useState<SystemUsageData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [refreshingNetwork, setRefreshingNetwork] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -212,13 +211,25 @@ export default function SettingsPage() {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  useEffect(() => {
-    fetch(getApiUrl("/settings"), { cache: "no-store" })
+  const fetchSettings = useCallback((showIndicator = false) => {
+    if (showIndicator) setRefreshingNetwork(true);
+    return fetch(getApiUrl("/settings"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
-      .then(setData)
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
+      .then((d) => {
+        if (d) setData(d);
+      })
+      .catch(() => {})
+      .finally(() => {
+        setLoading(false);
+        if (showIndicator) setRefreshingNetwork(false);
+      });
   }, []);
+
+  useEffect(() => {
+    fetchSettings();
+    const id = setInterval(() => fetchSettings(false), 15000);
+    return () => clearInterval(id);
+  }, [fetchSettings]);
 
   useEffect(() => {
     let cancelled = false;
@@ -262,34 +273,6 @@ export default function SettingsPage() {
     };
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!data) return;
-    setSaving(true);
-    try {
-      const res = await fetch(getApiUrl("/settings"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          wait_time_between_courses: data.wait_time_between_courses,
-          volume_default: data.volume_default,
-          audio_chain_timer_seconds: data.audio_chain_timer_seconds,
-          radio_announcement_fade_ms: data.radio_announcement_fade_ms,
-        }),
-      });
-      if (res.ok) {
-        setData(await res.json());
-        showToast(t("settingsPage.savedToast"));
-      } else {
-        const err = await res.json().catch(() => ({}));
-        showToast(err.detail || t("settingsPage.saveError"), "error");
-      }
-    } catch {
-      showToast(t("common.networkError"), "error");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleLogoUpload = async (file: File) => {
     setUploadingLogo(true);
@@ -763,36 +746,6 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* ---- Durées de transition & Mode Coach ---- */}
-      <form className="live-block" onSubmit={handleSave}>
-        <h3><Icon name="timer" size={18} /> {t("settingsPage.transitionsSection")}</h3>
-        <div className="settings-fields">
-          <div className="form-group">
-            <label className="form-label">{t("settingsPage.waitTimeLabel")}</label>
-            <input type="number" min={0} className="form-control" value={data.wait_time_between_courses}
-              onChange={(e) => setData({ ...data, wait_time_between_courses: Number(e.target.value) })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">{t("settingsPage.chainTimerLabel")}</label>
-            <input type="number" min={1} className="form-control" value={data.audio_chain_timer_seconds}
-              onChange={(e) => setData({ ...data, audio_chain_timer_seconds: Number(e.target.value) })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">{t("settingsPage.announcementFadeLabel")}</label>
-            <input type="number" min={0} className="form-control" value={data.radio_announcement_fade_ms}
-              onChange={(e) => setData({ ...data, radio_announcement_fade_ms: Number(e.target.value) })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">{t("settingsPage.volumeLabel")}</label>
-            <input type="number" min={0} max={100} className="form-control" value={data.volume_default}
-              onChange={(e) => setData({ ...data, volume_default: Number(e.target.value) })} />
-          </div>
-        </div>
-        <button type="submit" className="btn btn-primary" style={{ height: "48px", alignSelf: "flex-start", marginTop: "4px" }} disabled={saving}>
-          {saving ? t("common.saving") : t("common.save")}
-        </button>
-      </form>
-
       {/* ---- Supervision (stockage, CPU, RAM) ---- */}
       <section className="live-block">
         <h3><Icon name="monitor_heart" size={18} /> {t("settingsPage.monitoringSection")}</h3>
@@ -825,12 +778,6 @@ export default function SettingsPage() {
         ) : (
           <p className="live-empty">{t("settingsPage.storageError")}</p>
         )}
-      </section>
-
-      {/* ---- État système (déplacé depuis l'en-tête) ---- */}
-      <section className="live-block">
-        <h3><Icon name="monitor_heart" size={18} /> {t("settingsPage.statusSection")}</h3>
-        <SystemStatus />
       </section>
 
       {/* ---- Mises à jour logicielles ---- */}
@@ -1135,8 +1082,20 @@ export default function SettingsPage() {
 
       {/* ---- Documentation : chemins (lecture seule) ---- */}
       <section className="live-block">
-        <h3><Icon name="description" size={18} /> {t("settingsPage.docSection")}</h3>
-        <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.docHint")}</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+          <h3 style={{ margin: 0 }}><Icon name="description" size={18} /> {t("settingsPage.docSection")}</h3>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ minHeight: "36px", padding: "4px 14px", fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: "6px" }}
+            onClick={() => fetchSettings(true)}
+            disabled={refreshingNetwork}
+          >
+            <Icon name="sync" size={16} className={refreshingNetwork ? "olc-spin" : ""} />
+            <span>{refreshingNetwork ? t("settingsPage.refreshingNetwork") : t("settingsPage.refreshNetwork")}</span>
+          </button>
+        </div>
+        <p className="settings-hint" style={{ marginTop: "4px" }}>{t("settingsPage.docHint")}</p>
         <div className="settings-paths">
           {/* IP locale (réf. mission "aide à la découverte réseau") : en
               complément du nom mDNS bobine.local (avahi, déjà annoncé en fin

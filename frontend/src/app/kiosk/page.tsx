@@ -653,7 +653,7 @@ export default function KioskPage() {
           habillage. */}
       <div className={`kiosk-layer kiosk-waiting ${isIdle || (introActive && !introReady) ? "visible" : ""}`}>
         <div className="kiosk-waiting-content">
-          <span className="kiosk-waiting-clock">{formatClock(now)}</span>
+          <span className="kiosk-waiting-clock" suppressHydrationWarning>{formatClock(now)}</span>
           <div className="kiosk-waiting-logo-wrap">
             <AppLogo className="kiosk-waiting-stage-logo" />
           </div>
@@ -681,7 +681,7 @@ export default function KioskPage() {
 
       <div className={`kiosk-layer kiosk-playlist-waiting ${state.state === "playlist_waiting" ? "visible" : ""}`}>
         <AppLogo size={110} className="kiosk-waiting-logo" />
-        <span className="kiosk-clock">{formatClock(now)}</span>
+        <span className="kiosk-clock" suppressHydrationWarning>{formatClock(now)}</span>
         <div className="kiosk-playlist-info">
           <span className="kiosk-playlist-label">{t("kiosk.activePlaylist")}</span>
           <span className="kiosk-playlist-name">{state.playlist_name}</span>
