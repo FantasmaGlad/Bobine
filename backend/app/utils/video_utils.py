@@ -412,8 +412,8 @@ def generate_thumbnail(video_path: str, thumbnail_dir: str, duration: float | No
 
 def _get_target_bitrate(width: int | None, height: int | None) -> str:
     """
-    Calcule un débit binaire adapté garantissant une qualité 'Maxi Premium'
-    sans aucune réduction (downscale) de résolution (réf. exigence utilisateur).
+    Calcule un débit binaire adapté garantissant une qualité vidéo native intégrale
+    sans aucune réduction (downscale) de résolution (conservation 2K/4K).
     """
     w = width or 1920
     h = height or 1080
@@ -572,7 +572,7 @@ def normalize_video(
     Normalise le conteneur ou la piste audio/vidéo d'une vidéo de manière optimisée.
     - Stream copy quand les flux sont déjà compatibles (instantané).
     - Accélération matérielle multi-OS (Android Snapdragon MediaCodec, Apple Silicon VideoToolbox,
-      Wyse/Linux Intel VA-API QuickSync) sans aucun downscale (Maxi Premium 2K/4K préservé).
+      Wyse/Linux Intel VA-API QuickSync) sans aucun downscale (conservation intégrale des résolutions 2K/4K).
     - Télémétrie en direct (ETA, pourcentage, vitesse) et interruption immédiate en cas d'annulation.
     """
     from app.utils.deployment import get_deployment_profile

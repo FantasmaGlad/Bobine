@@ -29,7 +29,7 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 
 ### Stack technique
 
-- **Backend** : Python 3.11+, [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` (mono-processus, cf. §2), [SQLAlchemy](https://www.sqlalchemy.org/), SQLite (`data/database.db`), `APScheduler` (planification), `watchdog` (surveillance des dossiers d'import), `ffmpeg` avec **accélération matérielle multi-OS** (`h264_mediacodec` sur Android, `h264_videotoolbox` sur macOS Apple Silicon/Intel, `h264_vaapi` sur Linux avec pilote Intel QuickSync ou AMD Mesa, repli universel `libx264`), Web Audio API (crossfade radio, côté navigateur). Politique stricte « Maxi Premium » préservant les résolutions 2K/4K sans sous-échantillonnage.
+- **Backend** : Python 3.11+, [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` (mono-processus, cf. §2), [SQLAlchemy](https://www.sqlalchemy.org/), SQLite (`data/database.db`), `APScheduler` (planification), `watchdog` (surveillance des dossiers d'import), `ffmpeg` avec **accélération matérielle multi-OS** (`h264_mediacodec` sur Android, `h264_videotoolbox` sur macOS Apple Silicon/Intel, `h264_vaapi` sur Linux avec pilote Intel QuickSync ou AMD Mesa, repli universel `libx264`), Web Audio API (crossfade radio, côté navigateur). Politique stricte de conservation intégrale des flux 2K et 4K sans sous-échantillonnage.
 - **Frontend** : [Next.js](https://nextjs.org/) 16 (App Router, export statique servi par le backend en production), React 19, TypeScript, CSS Vanilla (global + design tokens, **15 thèmes de couleurs** commutables à chaud via `:root[data-theme=…]`, dont le thème minéral clair « charbon » certifié WCAG AAA), PWA (`manifest.json`), WebSockets, glisser-déposer natif (HTML5), Web Audio API.
 - **Exploitation & Kiosque** : Debian 13 (Trixie), Chromium en mode kiosque (X11 / `xinit`), `systemd` (services backend, kiosque, garde audio, chien de garde), `avahi-daemon` (découverte mDNS).
 - **Portabilité Android (`android/`)** : application native Android (Kotlin + CPython embarqué via [Chaquopy](https://chaquopy.com/)), `minSdk 34` / `targetSdk 36` (Android 14-16, API 36 / Xiaomi Pad 8). Double affichage matériel via `DisplayManager` et `Presentation` (écran tactile sur `/grid` sans sidebar, sortie HDMI externe via dock USB-C sur `/cinema` avec écran de veille « En attente d'un cours »), `ForegroundService` persistant, binaires ARM64 NDK r28c (`ffmpeg`/`ffprobe` Bionic natifs, 16 KB page size) avec décodage matériel `av1_mediacodec` et encodage `h264_mediacodec` ultra-rapide.
@@ -160,7 +160,7 @@ Le moteur de normalisation adapte dynamiquement les paramètres de l'encodeur se
 - **Linux Bureau & Appliance Wyse (Intel QuickSync / AMD VA-API)** : encodeur matériel `h264_vaapi` via le périphérique `/dev/dri/renderD128` (`-vaapi_device /dev/dri/renderD128 -vf "format=nv12,hwupload"`). `install.sh` garantit la présence des pilotes libres ou non-free (`intel-media-va-driver`, `i965-va-driver`, Mesa radeonsi).
 - **Repli universel** : si l'accélération matérielle échoue ou n'est pas disponible, repli automatique transparent sur `libx264 -preset veryfast` sans interruption de la tâche.
 
-### 3. Règle d'or « Maxi Premium » (Zéro dégradation)
+### 3. Règle d'or : Conservation intégrale de la qualité source (Zéro dégradation)
 
 Bobine respecte strictement la fidélité des médias sources :
 - **Aucun sous-échantillonnage destructif** : les résolutions natives 2K (1440p) et 4K (2160p) ne sont jamais réduites en 1080p.
