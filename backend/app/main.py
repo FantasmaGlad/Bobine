@@ -392,8 +392,38 @@ elif getattr(sys, "frozen", False):
         frontend_out = Path(sys.executable).resolve().parent / "frontend" / "out"
 else:
     frontend_out = Path(__file__).resolve().parent.parent.parent / "frontend" / "out"
+class RevalidateStaticFiles(StaticFiles):
+    """StaticFiles standard, sauf `Cache-Control: no-cache` sur chaque
+    réponse (réf. correctif "une mise à jour de l'app ne se voit pas tant
+    qu'on n'a pas vidé le cache") : le dossier `frontend/out` exporté par
+    Next.js/Turbopack a son horodatage normalisé à une date fixe très
+    ancienne (01/02/1980, cf. étape de build reproductible) par tous les
+    pipelines de paquetage (APK Android, PyInstaller...) — sans en-tête
+    Cache-Control explicite, Starlette ne pose que `Last-Modified` d'après
+    cette date, et un navigateur applique alors le calcul heuristique de
+    fraîcheur de la RFC 7234 (fraîcheur ≈ 10 % de l'âge depuis
+    Last-Modified) : avec ~46 ans d'écart, la page/les bundles JS/CSS sont
+    alors considérés "frais" pendant des ANNÉES et ne sont plus jamais
+    re-demandés au serveur, même après une réinstallation de l'app avec du
+    code différent — reproduit concrètement sur la tablette Android (le
+    cache HTTP de la WebView, distinct du Cache Storage API que vide déjà
+    le bouton « Synchronisation des écrans », survit à un `adb install -r`).
+    `no-cache` (PAS `no-store`) force une revalidation via ETag à chaque
+    chargement plutôt que de désactiver tout cache : l'ETag est, lui,
+    correctement basé sur le contenu (calculé par Starlette depuis les
+    octets du fichier) — un fichier inchangé reçoit un 304 quasi gratuit, un
+    fichier modifié est re-téléchargé immédiatement, sans jamais dépendre
+    d'un horodatage de fichier qui n'a plus de sens après un paquetage.
+    """
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 if frontend_out.exists():
     logger.info(f"Montage du frontend statique depuis {frontend_out}")
-    app.mount("/", StaticFiles(directory=str(frontend_out), html=True), name="frontend")
+    app.mount("/", RevalidateStaticFiles(directory=str(frontend_out), html=True), name="frontend")
 else:
     logger.warning("Dossier frontend/out introuvable. Le frontend ne sera pas servi par FastAPI (dev direct).")
