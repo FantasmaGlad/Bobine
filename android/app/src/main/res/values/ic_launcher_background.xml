@@ -1,0 +1,6 @@
+<resources>
+    <!-- Meme fond neutre que le splash de Bobine Assistant (Tauri, cf.
+         assistant/src-tauri/tauri.conf.json) - coherence visuelle inter
+         plateformes plutot qu'une couleur inventee ici. -->
+    <color name="ic_launcher_background">#F8F9FA</color>
+</resources>

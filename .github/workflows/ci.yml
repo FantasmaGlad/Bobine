@@ -229,6 +229,12 @@ jobs:
     needs: [version]
     steps:
       - uses: actions/checkout@v4
+        with:
+          # fetch-depth 0 (pas le defaut 1) : requis pour que `git rev-list
+          # --count HEAD` ci-dessous compte l'historique reel plutot que de
+          # toujours renvoyer 1 sur un clone superficiel - c'est ce compteur
+          # qui sert de versionCode Android (doit croitre a chaque commit).
+          fetch-depth: 0
       - name: Vérifier que les secrets de signature sont configurés
         id: check_secrets
         run: |
@@ -265,6 +271,10 @@ jobs:
       - name: Décoder le keystore depuis le secret
         if: steps.check_secrets.outputs.configured == 'true'
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "${{ runner.temp }}/bobine-release.keystore"
+      - name: Résoudre versionName/versionCode dynamiques (Lot 11)
+        if: steps.check_secrets.outputs.configured == 'true'
+        id: android_version
+        run: echo "version_code=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
       - name: Build + signature (Gradle)
         if: steps.check_secrets.outputs.configured == 'true'
         working-directory: android
@@ -273,6 +283,8 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_VERSION_NAME: ${{ needs.version.outputs.display_version }}
+          ANDROID_VERSION_CODE: ${{ steps.android_version.outputs.version_code }}
         run: ./gradlew :app:assembleRelease --no-daemon
       - name: Vérifier la signature de l'APK produit
         if: steps.check_secrets.outputs.configured == 'true'

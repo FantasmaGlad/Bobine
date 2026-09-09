@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Depuis API 28, Android bloque par defaut tout trafic HTTP en clair -
+     confirme en pratique sur la tablette pilote reelle (Xiaomi Pad 8,
+     HyperOS/Android 16) : "net::ERR_CLEARTEXT_NOT_PERMITTED" sur les deux
+     WebView (MainActivity et BobinePresentation), alors que ce meme APK
+     fonctionnait sans probleme sur l'emulateur (API 37, WebView systeme
+     different). Ne PAS elargir a usesCleartextTraffic="true" global
+     (manifest) - seuls les deux hostnames loopback reellement utilises par
+     l'architecture (cf. docs/PortabiliteAndroid.md SS4, decision Lot 3 :
+     127.0.0.1 = cable, 127.0.0.2 = reseau) ont besoin de cette exception,
+     jamais un domaine externe. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">127.0.0.2</domain>
+    </domain-config>
+</network-security-config>

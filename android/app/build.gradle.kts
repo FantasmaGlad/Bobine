@@ -18,6 +18,25 @@ val androidKeyAlias: String? = System.getenv("ANDROID_KEY_ALIAS")
 val androidKeyPassword: String? = System.getenv("ANDROID_KEY_PASSWORD")
 val hasReleaseSigningConfig = listOf(androidKeystorePath, androidKeystorePassword, androidKeyAlias, androidKeyPassword).all { !it.isNullOrBlank() }
 
+// Lot 11 (cf. docs/plan-implementation-android.md, §"versions dynamiques") :
+// mêmes deux valeurs injectées par la CI que sur les autres plateformes
+// (VERSION/COMMIT bundlés, cf. ci.yml) plutôt que la constante figée
+// utilisée jusqu'ici. Le job android-build positionne :
+// - ANDROID_VERSION_NAME = needs.version.outputs.display_version, DEJA du
+//   format "x.y.z" (tag Stable) ou "x.y.z-beta" (push main) partagé avec
+//   Windows/macOS/Linux - aucun format Android-specifique invente ici.
+// - ANDROID_VERSION_CODE = nombre de commits sur main (`git rev-list
+//   --count HEAD`) - entier strictement croissant à chaque commit, condition
+//   exigée par Android pour qu'une mise à jour (Lot 11) soit acceptée
+//   par-dessus une installation existante ; un tag Stable pointant sur un
+//   commit de main garde la meme propriete de croissance (pas de retour en
+//   arriere), contrairement a un compteur reinitialise par run CI.
+// Absentes en local -> repli sur les anciennes constantes figees (build de
+// developpement uniquement, jamais installe comme mise a jour d'une
+// version CI reelle).
+val androidVersionName: String = System.getenv("ANDROID_VERSION_NAME") ?: "0.1.0-dev"
+val androidVersionCode: Int = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 1
+
 android {
     namespace = "com.bobine.app"
     // CDC docs/PortabiliteAndroid.md §2 : minSdk/targetSdk API 34-36, priorité
@@ -40,8 +59,8 @@ android {
         applicationId = "com.bobine.app"
         minSdk = 34
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0-dev"
+        versionCode = androidVersionCode
+        versionName = androidVersionName
 
         ndk {
             // arm64-v8a : tablettes réelles (checklist matérielle, CDC §6).
