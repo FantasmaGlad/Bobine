@@ -401,6 +401,11 @@ export default function DashboardScreen({ channel }: Props) {
                     sendCommand("cinema_command", { action: "seek", position_seconds: value });
                     setCinemaSeekDrag(null);
                   }}
+                  onTouchEnd={(e) => {
+                    const value = Number((e.target as HTMLInputElement).value);
+                    sendCommand("cinema_command", { action: "seek", position_seconds: value });
+                    setCinemaSeekDrag(null);
+                  }}
                   className="seek-slider"
                 />
                 <span className="live-time">{formatTime(cinemaLive.duration_seconds)}</span>

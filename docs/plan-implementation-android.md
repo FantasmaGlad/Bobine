@@ -8,11 +8,13 @@ Statut (2026-09-09) : **Lots 0, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 et 14 exécu
 
 **Révision du 2026-09-09, étape 3 (§16ter) — validé pour de vrai sur la tablette pilote avec de vrais cours (RPM 108/109/110), plusieurs correctifs et une refonte suite à cet usage réel.** Le lancement `/grid` → `/cinema` fonctionne bout en bout sur le matériel réel (pas seulement le backend de dev). Corrections apportées suite à ce premier vrai test : icône de lanceur (cause réelle = cache du launcher HyperOS, pas le pipeline), import vidéo sans ffprobe (durée récupérée par lecture directe de l'atome MP4 `mvhd`, miniature manuelle ajoutée en repli), **un bug de cache HTTP significatif et non spécifique à Android** (le frontend statique n'envoyait aucun `Cache-Control`, un navigateur pouvait alors ne plus jamais re-télécharger une page/un bundle JS-CSS après leur premier chargement, même après une mise à jour du code — corrigé côté serveur ET côté WebView), le retour tactile des cartes `/grid` (surlignage bleu natif au lieu d'une animation de clic), la synchronisation du thème (filet de sécurité périodique ajouté, même patron que celui déjà existant pour l'état de lecture). Puis, sur demande explicite : un widget de contrôle de lecture (avancer/reculer/pause/enlever) déplacé sur `/grid` elle-même, et la superposition de commandes historique retirée de l'écran HDMI (uniquement pour le profil de déploiement Android — le libre-service desktop, sans `/grid`, garde ses commandes locales inchangées). Détail complet dans les Découvertes du §16ter.
 
+**Révision du 2026-09-09, étape 4 (§16quater) — netteté 1080p, seek sans rollback, support tactile complet et Wi-Fi tablette.** Résolution du flou des miniatures (gabarit 1080p LANCZOS haute qualité, suppression de la mise à l'échelle CSS artificielle), élimination définitive du rollback lors des sauts temporels (verrouillage de rapport pendant `el.seeking` côté `/cinema`, état optimiste instantané sur `/grid`, gestionnaires `onTouchEnd`), transition de la tablette pilote en Wi-Fi (`192.168.1.22`).
+
 **Lots 1, 8, 9, 10, 11, 12 finalisés** :
 - **Lot 8 (ffmpeg ARM64)** : résolu via des binaires Bionic NDK r28c pré-compilés (`hzw1199/Android-FFmpeg-Prebuilt`), compatibles avec les pages mémoire de 16 Ko d'Android 15+/16, sans glibc. Emballés en `libffmpeg.so` et `libffprobe.so` dans `android/app/src/main/jniLibs/arm64-v8a/` avec `useLegacyPackaging = true`. Étape de téléchargement automatique ajoutée dans la CI. Possibilité d'upload manuel de miniature (`PUT /api/videos/{id}/thumbnail`) conservée et disponible universellement.
 - **Lot 12 (déploiement & supervision)** : profil `"android"` explicite, métriques CPU/RAM fiabilisées sous SELinux sans erreur HTTP 500 (repli sur `/proc/meminfo` et `/proc/self/stat`), nettoyage de l'interface des réglages (suppression des encadrés obsolètes et des durées de transition non utilisées, rafraîchissement réseau automatique et manuel).
 
-Ce document opérationnalise les décisions de [`docs/PortabiliteAndroid.md`](PortabiliteAndroid.md) (ci-après « le CDC ») en tâches concrètes, séquencées, découpées en lots aussi petits que possible pour qu'un agent qui reprend le travail sur un seul lot n'ait besoin de charger en contexte que ce lot-là, sans devoir relire tout le chantier.
+Ce document constitue la spécification technique et le journal de réalisation de référence pour la portabilité Android de Bobine. Il découpe l'architecture en lots concrets et séquencés.
 
 ## 0. Convention obligatoire de suivi (à respecter par tout agent travaillant sur ce plan)
 
@@ -727,6 +729,33 @@ Commits : `c5ec973` (première version pleine largeur), `9ba4c13` (widget défin
 
 ---
 
+## 16quater. Étape 4 — Netteté 1080p, Seek sans Rollback, Support Tactile et Wi-Fi Tablette (2026-09-09)
+
+Retours d'expérience et correctifs appliqués en conditions réelles sur la tablette pilote (Xiaomi Pad 8, Android 16) :
+
+### A. Flou des miniatures sur écrans haute densité (tablette 2.8K, TV 4K)
+- **Cause racine** : `videos.py` et `importer.py` généraient les miniatures en 640×360 avec une compression JPEG à 85%. Sur l'écran Retina de la tablette (2880×1800, densité 2.5x) ou un téléviseur 4K/1080p, étirer cette miniature dans le cadre du héros (qui occupe jusqu'à 2880px de large) provoquait un flou très prononcé. De plus, `.cinema-hero-backdrop` appliquait `transform: scale(1.03)` dans `globals.css`, forçant le moteur de rendu à un rééchantillonnage bilinéaire fractionnaire flou.
+- **Correctif** :
+  - Gabarit Pillow augmenté à **1920×1080** (`Image.Resampling.LANCZOS`, `quality=92, optimize=True`) lors de l'import et de l'upload manuel de miniature.
+  - Extraction ffmpeg passée à `-q:v 2` (quasi-sans perte).
+  - Suppression de `transform: scale(1.03)` et ajout de `image-rendering: -webkit-optimize-contrast` sur `.cinema-hero-backdrop` et `.card-thumbnail`.
+  - Résultat : piqué et netteté photographique immédiate sur les écrans haute densité.
+
+### B. Élimination du roll back lors du saut temporel (seek)
+- **Cause racine** :
+  1. Dans `cinema/page.tsx` : lors d'un `seek`, assigner `el.currentTime = target` bascule le lecteur en état transitoire `seeking = true`. Pendant que le décodeur matériel traverse les images clés (100–300 ms), `onTimeUpdate` et le battement `report()` émettaient la position antérieure obsolète sur le WebSocket.
+  2. Dans `grid/page.tsx` : le widget de lecture ne disposait d'aucun état optimiste. Lors de l'appui sur `+10s`/`-10s`, le curseur et l'horloge continuaient d'interpoler depuis l'ancienne position jusqu'à l'arrivée du rapport réseau, générant un à-coup ("roll back") perceptible. Tout appui rapide consécutif (+10s, +10s) lisait la position non encore mise à jour et sautait deux fois au même endroit.
+- **Correctif** :
+  - `cinema/page.tsx` : `if (e.currentTarget.seeking) return;` dans `onTimeUpdate`, et `if (el?.seeking) return;` dans `report()`. L'événement `onSeeked` prend le relais pour émettre la position réelle une fois calée.
+  - `grid/page.tsx` : ajout d'un état `optimisticSeek` avec réactivité instantanée à 0 ms, libéré intelligemment dès réception d'un rapport réseau cohérent (ou après un timeout de sécurité de 1.2s). Les appuis consécutifs s'additionnent naturellement (+10s + 10s = +20s).
+  - Ajout des gestionnaires tactiles `onTouchEnd` sur tous les curseurs de progression (`/cinema`, `/grid`, `DashboardScreen`).
+
+### C. Connectivité Réseau Tablette
+- Transition de la tablette pilote de l'Ethernet (`192.168.1.23`) vers le Wi-Fi (`192.168.1.22`).
+- Suppression du document préliminaire `docs/PortabiliteAndroid.md` (devenu redondant avec le présent plan d'implémentation opérationnel).
+
+---
+
 ## 17. Checklist exhaustive (vue transverse anti-oubli)
 
 - [x] Lot 0 — go/no-go dépendances Chaquopy (GO — downgrade Pydantic v1 sur Android, watchdog en polling maison)
@@ -745,6 +774,7 @@ Commits : `c5ec973` (première version pleine largeur), `9ba4c13` (widget défin
 - [x] Lot 13 — signature APK, CI (build+signature à chaque push) ; publication publique volontairement différée (décision actée, cf. Découvertes)
 - [x] Lot 14 — séparation `/grid` (écran tactile, sélection seule) / `/cinema` (écran HDMI, lecture) — validé de bout en bout sur la tablette pilote avec de vrais cours (RPM 108/109/110), pas seulement sur le backend de dev
 - [x] 16ter — correctifs post-Lot 14 issus de tests réels : icône (cache launcher), import sans ffprobe (durée récupérée, miniature manuelle), cache HTTP du frontend statique (bug latent non spécifique Android, corrigé serveur + WebView), retour tactile `/grid`, avertissement écran absent, synchronisation du thème (filet de sécurité), widget de contrôle sur `/grid` + retrait superposition HDMI (Android uniquement)
+- [x] 16quater — netteté 1080p des miniatures, seek optimiste sans rollback, handlers tactiles, transition Wi-Fi tablette pilote (192.168.1.22)
 
 ---
 

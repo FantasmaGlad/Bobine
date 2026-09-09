@@ -360,7 +360,7 @@ def generate_thumbnail(video_path: str, thumbnail_dir: str, duration: float | No
         "-ss", str(offset),
         "-i", video_path,
         "-vframes", "1",
-        "-q:v", "4",  # Qualité (1-31, 1 est le meilleur, 4 est très propre)
+        "-q:v", "2",  # Qualité (1-31, 1 est le meilleur, 2 est quasi sans perte)
         "-strict", "-2",  # Allow unofficial limited-range YUV for mjpeg encoder (needed for FFmpeg 8.0+)
         "-update", "1",   # Prevent single-frame warning/error on output file name
         "-y",

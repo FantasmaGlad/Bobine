@@ -310,11 +310,12 @@ async def upload_video_thumbnail(video_id: int, file: UploadFile = File(...), db
     thumbnails_dir = Path(settings.thumbnails_dir)
     thumbnails_dir.mkdir(parents=True, exist_ok=True)
 
-    # Même gabarit que _import_background_image() (backend/app/utils/importer.py)
-    # pour une taille cohérente avec les miniatures générées par ffmpeg.
-    img.thumbnail((640, 360))
+    # Gabarit haute résolution 1080p (LANCZOS) pour un rendu d'une netteté
+    # cristalline sur écrans Retina/Haute densité (tablettes 2.8K, TV 4K),
+    # évitant le flou de mise à l'échelle d'une miniature 360p étirée en héros.
+    img.thumbnail((1920, 1080), Image.Resampling.LANCZOS)
     new_thumb_path = thumbnails_dir / f"thumb_{uuid.uuid4().hex}.jpg"
-    img.save(new_thumb_path, "JPEG", quality=85)
+    img.save(new_thumb_path, "JPEG", quality=92, optimize=True)
 
     old_thumb_path = Path(video.thumbnail_path) if video.thumbnail_path else None
     video.thumbnail_path = str(new_thumb_path)

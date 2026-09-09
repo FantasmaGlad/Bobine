@@ -528,7 +528,9 @@ export default function CinemaPage() {
   const seekBy = (delta: number) => {
     const el = videoRef.current;
     if (!el) return;
-    el.currentTime = Math.max(0, Math.min((el.currentTime || 0) + delta, el.duration || 0));
+    const target = Math.max(0, Math.min((el.currentTime || 0) + delta, el.duration || 0));
+    el.currentTime = target;
+    setPosition(target);
     wakeControls();
   };
   const changeLocalVolume = (delta: number) => {
@@ -628,6 +630,9 @@ export default function CinemaPage() {
     }
     const report = () => {
       const el = videoRef.current;
+      // Ne pas émettre de rapport si le lecteur est en train de chercher une image clé
+      // (seeking), pour éviter d'émettre une position transitoire obsolète.
+      if (el?.seeking) return;
       sendCommand("cinema_report", {
         title: selected?.title ?? null,
         program: selected?.program ?? null,
@@ -798,6 +803,7 @@ export default function CinemaPage() {
           ref={videoRef}
           className="cinema-video"
           onTimeUpdate={(e) => {
+            if (e.currentTarget.seeking) return;
             const now = Date.now();
             if (now - lastPositionUpdateRef.current < 1000) return;
             lastPositionUpdateRef.current = now;
@@ -812,7 +818,10 @@ export default function CinemaPage() {
             setIsPlaying(false);
             reportNowRef.current?.();
           }}
-          onSeeked={() => reportNowRef.current?.()}
+          onSeeked={(e) => {
+            setPosition(e.currentTarget.currentTime);
+            reportNowRef.current?.();
+          }}
           onClick={handlePlayPause}
           playsInline
         />
@@ -852,6 +861,12 @@ export default function CinemaPage() {
               value={Math.min(displayPosition, duration || 0)}
               onChange={(e) => setSeekDragValue(Number(e.target.value))}
               onMouseUp={(e) => {
+                const value = Number((e.target as HTMLInputElement).value);
+                setSeekDragValue(null);
+                if (videoRef.current) videoRef.current.currentTime = value;
+                setPosition(value);
+              }}
+              onTouchEnd={(e) => {
                 const value = Number((e.target as HTMLInputElement).value);
                 setSeekDragValue(null);
                 if (videoRef.current) videoRef.current.currentTime = value;

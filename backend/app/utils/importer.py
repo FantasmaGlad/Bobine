@@ -303,9 +303,9 @@ def _import_background_image(src_path: str, original_filename: str, job_id: str 
     try:
         with Image.open(dest_path) as img:
             img = img.convert("RGB")
-            img.thumbnail((640, 360))
+            img.thumbnail((1920, 1080), Image.Resampling.LANCZOS)
             thumb_dest = Path(settings.thumbnails_dir) / f"thumb_{file_id}.jpg"
-            img.save(thumb_dest, "JPEG", quality=85)
+            img.save(thumb_dest, "JPEG", quality=92, optimize=True)
             thumbnail_path = str(thumb_dest)
     except Exception as te:
         logger.error(f"Échec de la génération de miniature pour {dest_path}: {te}")

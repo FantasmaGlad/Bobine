@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useHoverSound } from "@/lib/useHoverSound";
@@ -288,25 +288,55 @@ export default function GridPage() {
   }, []);
   const cinemaReceivedAtRef = React.useRef(0);
   const [pendingPlaying, setPendingPlaying] = useState<boolean | null>(null);
+  const [optimisticSeek, setOptimisticSeek] = useState<{ position: number; timestamp: number } | null>(null);
+  const optimisticTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     cinemaReceivedAtRef.current = Date.now();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- réaction à un rapport externe, le rapport redevient la vérité
     setPendingPlaying(null);
+    setOptimisticSeek((current) => {
+      if (!current) return null;
+      const elapsed = (Date.now() - current.timestamp) / 1000;
+      const expected = current.position + (cinemaState?.playing ? elapsed : 0);
+      if (Math.abs((cinemaState?.position_seconds ?? 0) - expected) < 2.5 || elapsed > 1.2) {
+        return null;
+      }
+      return current;
+    });
   }, [cinemaState]);
+
+  useEffect(() => {
+    return () => {
+      if (optimisticTimerRef.current) clearTimeout(optimisticTimerRef.current);
+    };
+  }, []);
+
   // Périmé après 8s sans nouveau rapport (même seuil que DashboardScreen) :
   // /cinema rapporte toutes les 2s, un dépassement signale un écran fermé/
   // déconnecté plutôt qu'une lecture qui existe encore.
   const nowPlayingRaw =
     cinemaState && cinemaState.title && nowPlayingTick - cinemaReceivedAtRef.current < 8000 ? cinemaState : null;
+  const isPlayingEffective = pendingPlaying ?? nowPlayingRaw?.playing ?? false;
+  const computedPosition = optimisticSeek
+    ? Math.min(
+        nowPlayingRaw?.duration_seconds || Infinity,
+        optimisticSeek.position +
+          (isPlayingEffective ? Math.max(0, (nowPlayingTick - optimisticSeek.timestamp) / 1000) : 0),
+      )
+    : nowPlayingRaw
+    ? Math.min(
+        nowPlayingRaw.duration_seconds || Infinity,
+        nowPlayingRaw.position_seconds +
+          (nowPlayingRaw.playing ? Math.max(0, (nowPlayingTick - cinemaReceivedAtRef.current) / 1000) : 0),
+      )
+    : 0;
+
   const nowPlaying = nowPlayingRaw
     ? {
         ...nowPlayingRaw,
-        playing: pendingPlaying ?? nowPlayingRaw.playing,
-        position_seconds: Math.min(
-          nowPlayingRaw.duration_seconds || Infinity,
-          nowPlayingRaw.position_seconds +
-            (nowPlayingRaw.playing ? Math.max(0, (nowPlayingTick - cinemaReceivedAtRef.current) / 1000) : 0),
-        ),
+        playing: isPlayingEffective,
+        position_seconds: computedPosition,
       }
     : null;
   const [nowPlayingSeekDrag, setNowPlayingSeekDrag] = useState<number | null>(null);
@@ -320,9 +350,16 @@ export default function GridPage() {
 
   const handleNowPlayingSeekDelta = useCallback((delta: number) => {
     if (!nowPlaying) return;
-    const target = Math.max(0, Math.min(nowPlaying.position_seconds + delta, nowPlaying.duration_seconds || Infinity));
+    const currentBase = optimisticSeek ? optimisticSeek.position : nowPlaying.position_seconds;
+    const target = Math.max(0, Math.min(currentBase + delta, nowPlaying.duration_seconds || Infinity));
+    const now = Date.now();
+    setOptimisticSeek({ position: target, timestamp: now });
+    if (optimisticTimerRef.current) clearTimeout(optimisticTimerRef.current);
+    optimisticTimerRef.current = setTimeout(() => {
+      setOptimisticSeek(null);
+    }, 2000);
     sendCommand("cinema_command", { action: "seek", position_seconds: target });
-  }, [nowPlaying, sendCommand]);
+  }, [nowPlaying, optimisticSeek, sendCommand]);
 
   const handleNowPlayingStop = useCallback(() => {
     sendCommand("cinema_command", { action: "stop" });
@@ -413,11 +450,19 @@ export default function GridPage() {
                   onChange={(e) => setNowPlayingSeekDrag(Number(e.target.value))}
                   onMouseUp={(e) => {
                     const value = Number((e.target as HTMLInputElement).value);
+                    const now = Date.now();
+                    setOptimisticSeek({ position: value, timestamp: now });
+                    if (optimisticTimerRef.current) clearTimeout(optimisticTimerRef.current);
+                    optimisticTimerRef.current = setTimeout(() => setOptimisticSeek(null), 2000);
                     sendCommand("cinema_command", { action: "seek", position_seconds: value });
                     setNowPlayingSeekDrag(null);
                   }}
                   onTouchEnd={(e) => {
                     const value = Number((e.target as HTMLInputElement).value);
+                    const now = Date.now();
+                    setOptimisticSeek({ position: value, timestamp: now });
+                    if (optimisticTimerRef.current) clearTimeout(optimisticTimerRef.current);
+                    optimisticTimerRef.current = setTimeout(() => setOptimisticSeek(null), 2000);
                     sendCommand("cinema_command", { action: "seek", position_seconds: value });
                     setNowPlayingSeekDrag(null);
                   }}
