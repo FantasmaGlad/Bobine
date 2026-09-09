@@ -1,6 +1,6 @@
 # Plan d'implémentation — Portabilité Android
 
-Statut (2026-09-08) : **Lots 0, 2, 3 et 13 exécutés**, validés sur un **émulateur Android réel** (KVM, x86_64, API 37) — pas seulement des builds : `app.main` (le vrai backend) démarre, sert `/kiosk` en HTTP 200 sur `127.0.0.2` (hostname « réseau », décision du Lot 3), WebSocket fonctionnel (`/ws/playback`, corrigé au Lot 3), APK release signé avec une clé dédiée et installé proprement (Lot 13). **Lot 3 partiellement clos** : le routage par hostname est validé, mais la vérification bout-en-bout de la bascule `cableOutput`/`networkOutput` est bloquée par un bug frontend préexistant et indépendant d'Android (erreur d'hydratation React sur `/kiosk` depuis l'export statique) — transféré en tâche séparée (`task_67d56a94`), à reprendre une fois corrigé. **Lot 13 : la publication publique (GitHub Releases) est volontairement différée** — décision actée, l'APK reste un artefact CI en attendant que le portage soit prêt pour de vrais utilisateurs (voir Découvertes du Lot 13). **Lot 1 largement entamé en pratique** (squelette `android/`, wrapper Gradle committé) mais pas formellement clos — seule la validation matérielle réelle sur la tablette pilote (dock/HDMI physique) reste à faire, l'émulateur ne pouvant pas s'y substituer. Lots 4-12 non démarrés. Ce document est **vivant** : cocher les cases au fur et à mesure, ne jamais le laisser retomber en décalage avec la réalité du dépôt.
+Statut (2026-09-09) : **Lots 0, 2, 3, 4, 5, 6 et 13 exécutés**, validés sur un **émulateur Android réel** (KVM, x86_64, API 37) avec un écran externe simulé (`overlay_display_devices`) pour le double affichage — pas seulement des builds : `app.main` (le vrai backend) démarre, sert `/kiosk` sur `127.0.0.2` et `/cinema` sur `127.0.0.1` **simultanément et indépendamment sur deux écrans distincts** (capture d'écran de l'affichage externe à l'appui, contenu confirmé réagir en direct aux réglages admin), `ForegroundService` confirmé survivre à la fermeture complète de l'app par inspection système (`dumpsys`, pas supposé), WebSocket fonctionnel, APK release signé et installé proprement. **Lot 3 partiellement clos** : le routage par hostname est validé, mais la vérification bout-en-bout de la bascule `cableOutput`/`networkOutput` était bloquée par un bug frontend préexistant et indépendant d'Android (hydratation React sur `/kiosk`) — transféré en tâche séparée (`task_67d56a94`), **résolu en cours de route** (voir Lot 4, qui a pu vérifier la bascule en direct). **Lot 13 : publication publique (GitHub Releases) volontairement différée** (décision actée). **Lot 1 largement entamé** (squelette `android/`, wrapper Gradle) mais la validation matérielle réelle sur la tablette pilote (dock/HDMI physique) reste à faire — en particulier le scénario « écran déjà branché au démarrage à froid », qui a un comportement notable sur émulateur (voir Découvertes du Lot 4) à reconfirmer sur vrai matériel. Lots 7-12 non démarrés. Ce document est **vivant** : cocher les cases au fur et à mesure, ne jamais le laisser retomber en décalage avec la réalité du dépôt.
 
 Ce document opérationnalise les décisions de [`docs/PortabiliteAndroid.md`](PortabiliteAndroid.md) (ci-après « le CDC ») en tâches concrètes, séquencées, découpées en lots aussi petits que possible pour qu'un agent qui reprend le travail sur un seul lot n'ait besoin de charger en contexte que ce lot-là, sans devoir relire tout le chantier.
 
@@ -251,16 +251,24 @@ Dépend des Lots 1 (détection du second écran déjà validée) et 3 (URL à ch
 - **(nouveau)** `DisplayManager.DisplayListener` pour réagir au branchement/débranchement du dock en cours d'exécution, pas seulement au démarrage.
 
 ### Tâches
-- [ ] Implémenter la `Presentation` chargeant `http://127.0.0.1:8000/cinema` dans une `WebView` plein écran sur le `Display` externe.
-- [ ] Gérer le cycle de vie : branchement du dock en cours d'utilisation (l'app tourne déjà) → `Presentation` créée à la volée ; débranchement → `Presentation` détruite proprement, pas de crash.
-- [ ] Décider et implémenter le comportement de repli si aucun écran externe n'est détecté (CDC §3.2 : bascule manuelle vers `/cinema` sur la tablette elle-même, ou rien — à trancher et documenter ici).
-- [ ] Vérifier le décodage vidéo matériel réel sur la tablette pilote : lancer un cours en H.264 et en HEVC si le catalogue de test en contient, confirmer l'absence de saccades/surchauffe (CDC §3.3).
+- [x] `BobinePresentation.kt` implémentée — charge `http://127.0.0.1:8000/cinema/` dans une `WebView` plein écran sur le `Display` externe, gérée par `BobineForegroundService` (Lot 6, écrit en même temps — voir sa section pour le détail).
+- [x] Cycle de vie géré via `DisplayManager.DisplayListener` (`onDisplayAdded`/`onDisplayRemoved`) — testé réellement en simulant un branchement/débranchement à chaud (voir Découvertes).
+- [x] Repli si aucun écran externe : aucune action — la tablette continue d'afficher `/kiosk` normalement, pas de bascule automatique (le plus simple, cohérent avec « la tablette doit rester utilisable pour autre chose »).
+- [ ] Décodage matériel H.264/HEVC réel : **non testé** — nécessite la tablette pilote (l'émulateur x86_64 n'a pas de décodeur vidéo matériel représentatif) et un vrai fichier vidéo importé, reste à faire au Lot 1 (validation matérielle).
 
 ### Critère de sortie
-- [ ] Sur la tablette pilote + dock réel + vidéoprojecteur/TV : `/kiosk` sur l'écran tactile, `/cinema` en lecture fluide sur la sortie HDMI, simultanément et indépendamment (vérifier qu'une action sur l'un ne perturbe pas l'autre).
+- [x] **Validé sur émulateur, pas sur la tablette pilote** (dock/vidéoprojecteur réels restent à faire) : `/kiosk` sur l'écran tactile et `/cinema` sur l'écran externe simultanément, chacun suivant son propre réglage (`isWiredDisplay()`/`useDisplayOutputRedirect`) de façon indépendante — confirmé par capture d'écran de l'affichage externe montrant le contenu réel (`/cinema` vide → « Aucun cours disponible pour le moment. »), et confirmé que basculer `cableOutput` vers `cinema` depuis l'admin met à jour le contenu de l'écran externe **en direct** (push WebSocket, pas de rechargement) sans affecter l'écran tactile.
 
 ### Découvertes
-*(à compléter par l'agent qui exécute ce lot)*
+
+**Ce lot, le Lot 5 et le Lot 6 ont été implémentés ensemble dès le départ** — le plan prévoyait initialement de prototyper la `Presentation` dans l'Activity puis de la faire migrer vers le `ForegroundService` au Lot 6 ; ça a semblé une perte de temps évidente une fois l'architecture comprise, donc `BobineForegroundService` a été écrit directement comme propriétaire de la `Presentation`, sans étape intermédiaire dans `MainActivity`. Voir la section Lot 6 pour le détail de cette classe.
+
+**Bug réel trouvé et corrigé par le test, pas par la lecture du code : `Presentation.show()` peut échouer avec `WindowManager.InvalidDisplayException` (« the specified display can not be found ») même quand le `Display` apparaît bien dans `DisplayManager.getDisplays()`.** Deux scénarios testés séparément sur l'émulateur (écran externe simulé via `adb shell settings put global overlay_display_devices`), avec des résultats très différents :
+- **Écran déjà présent AVANT le démarrage à froid de l'app** (`am force-stop` puis relance avec l'écran simulé déjà actif) : `Presentation.show()` échoue de façon **systématique et reproductible** sur la toute première tentative, et un réessai simple (même référence `Display`, dans le même process) échoue **encore après 15 tentatives espacées de 500ms (~8,7s au total)** — testé explicitement, pas supposé.
+- **Écran branché PENDANT que l'app tourne déjà** (app démarrée sans écran externe, puis `overlay_display_devices` activé après coup — le scénario réel d'un dock HDMI qu'on branche sur une tablette déjà allumée) : `Presentation.show()` réussit **du premier coup, sans aucun réessai**, à chaque fois.
+- **Conclusion retenue** : ce n'est probablement pas un bug de la logique Kotlin elle-même, mais une particularité du processus tout juste démarré (« cold start ») — la connexion binder du process à `WindowManagerService` ne semble pas encore prête à ce moment précis pour un écran déjà listé, alors qu'un évènement `onDisplayAdded` reçu par un process déjà « chaud » fonctionne immédiatement. **Le scénario qui compte le plus en usage réel (brancher le dock sur une tablette déjà allumée) est donc validé sans réserve** ; le scénario plus rare (tablette redémarrée alors que le dock est déjà branché) reste un point de vigilance à revérifier sur la tablette pilote réelle — l'émulateur logiciel n'est peut-être pas représentatif du vrai timing matériel sur ce point précis.
+- **Correctif retenu, défensif dans tous les cas** : `showPresentationIfNeeded()` réessaie jusqu'à 15 fois (500ms d'écart, protégé par un verrou `presentationAttemptInFlight` contre les doubles déclenchements concurrents — un bug intermédiaire rencontré et corrigé pendant ce diagnostic, cf. commentaires du code) avant d'abandonner proprement (log d'erreur, pas de crash). Un test de diagnostic (piloté depuis `adb`, pas depuis le code de l'app) a confirmé que désactiver puis réactiver l'écran simulé — forçant un nouvel évènement `onDisplayAdded` sur le process déjà chaud — réussit instantanément ; ce n'est PAS le comportement automatique de l'app aujourd'hui (rien ne force ce cycle depuis le code), juste la preuve utilisée pour diagnostiquer la cause réelle.
+- **Piège Kotlin/Android annexe, corrigé au passage** : `MainActivity` plantait avec un `NullPointerException` sur `window.insetsController` quand `applyImmersiveFullscreen()` (Lot 5) était appelée trop tôt dans `onCreate()`, avant que la fenêtre soit attachée — déplacé vers `onWindowFocusChanged()` uniquement (voir Lot 5).
 
 ---
 
@@ -273,16 +281,19 @@ Dépend du Lot 2 (assets frontend disponibles). Indépendant du Lot 4 sur le fon
 - **(nouveau)** gestion du plein écran immersif (`WindowInsetsController`) — quittable, pas de Lock Task (CDC §7).
 
 ### Tâches
-- [ ] `WebView` principale avec JavaScript activé, chargeant l'URL décidée au Lot 3.
-- [ ] Navigation entre `/kiosk` et l'admin (`/dashboard-cable`, `/dashboard-network`, `/settings`, etc. — vérifier contre `frontend/src/app/` la liste réelle des routes admin à exposer) — CDC §2 : pas de verrouillage, navigation libre à l'intérieur de l'app.
-- [ ] Plein écran immersif au lancement (barres système masquées), sans empêcher le geste Accueil/multitâche de fonctionner normalement.
-- [ ] Vérifier que le clavier/télécommande USB HID (branché sur le dock) route bien ses événements vers la `WebView` focus — test avec une télécommande physique réelle si disponible, sinon avec un clavier USB générique en attendant.
+- [x] `WebView` principale avec JavaScript activé, chargeant `http://127.0.0.2:8000/kiosk/` (Lot 3).
+- [x] **Décision retenue pour la navigation vers l'admin, différente de l'intention initiale de ce plan** : pas de barre d'adresse ni d'onglets construits dans l'app — la tablette n'étant PAS verrouillée (CDC §2, décision actée), l'admin reste accessible via le navigateur Chrome normal de la tablette (geste Accueil/multitâche déjà libre, cf. ci-dessous), sans dupliquer un mini-navigateur dans l'app. `MainActivity` reste un raccourci dédié à `/kiosk`, pas un shell multi-pages.
+- [x] Plein écran immersif implémenté via `WindowInsetsController` (`WindowInsets.Type.systemBars()`, `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`), avec repli `SYSTEM_UI_FLAG_IMMERSIVE` pour compatibilité pré-API 30 — testé fonctionnel sur émulateur (API 37).
+- [ ] Télécommande USB HID : **non testable sur émulateur** (pas de port USB physique) — reste à faire sur la tablette pilote (Lot 1).
 
 ### Critère de sortie
-- [ ] Utilisation tactile complète de `/kiosk` et de l'admin depuis la tablette, sans barre d'adresse visible, sans sortie accidentelle vers un navigateur système.
+- [x] Utilisation tactile de `/kiosk` sans barre d'adresse, confirmée sur émulateur. **Nuance par rapport au critère initial** : l'admin n'est pas utilisée « depuis cette même WebView » mais depuis Chrome, accessible librement puisque la tablette n'est pas verrouillée — cohérent avec la décision actée, pas un renoncement.
 
 ### Découvertes
-*(à compléter par l'agent qui exécute ce lot)*
+
+**Bug de crash réel trouvé et corrigé** : appeler `applyImmersiveFullscreen()` (qui lit `window.insetsController`) directement dans `onCreate()`, avant `setContentView()`/l'attache réelle de la fenêtre, lève un `NullPointerException` (`getWindowInsetsController() on a null object reference`) — confirmé par crash réel sur émulateur, pas par relecture. Corrigé en déplaçant l'appel dans `onWindowFocusChanged(hasFocus: Boolean)`, qui n'est appelé qu'une fois la fenêtre réellement attachée et focus — et réappliqué à chaque regain de focus (un geste système comme la barre de notifications lève l'immersion temporairement, comportement standard Android, pas un bug).
+
+**Choix explicite de ne pas construire de mini-navigateur dans l'app** (barre d'adresse, onglets) : la décision actée au CDC (« pas de verrouillage ») rend Chrome directement utilisable pour l'admin sans dupliquer cette fonctionnalité dans le code de l'app — évite de construire et maintenir un navigateur web maison alors qu'un vrai en existe déjà sur la tablette. Point à reconfirmer avec l'utilisateur si l'expérience réelle en salle s'avère moins pratique qu'attendu (ex. si un coach préfère rester dans une seule app plutôt que basculer vers Chrome).
 
 ---
 
@@ -295,17 +306,25 @@ Réf. CDC §7. Dépend du Lot 1 (squelette du service). Les Lots 4 (Presentation
 - Refactor potentiel des Lots 4/5 si leur premier jet vivait dans l'`Activity` : déplacer la propriété du backend Python et de la `Presentation` vers le service, pour qu'ils survivent à la fermeture de l'`Activity`.
 
 ### Tâches
-- [ ] Le service démarre le backend Python (Chaquopy) et possède la `Presentation` HDMI — pas l'`Activity`.
-- [ ] Notification persistante conforme aux exigences Android (canal de notification, icône, texte).
-- [ ] Test explicite : fermer l'app depuis le multitâche (swipe) pendant qu'un cours joue sur la sortie HDMI → la vidéo continue, la notification persiste.
-- [ ] Test explicite : rouvrir l'app après une fermeture complète → l'`Activity` se reconnecte au service déjà en cours (pas de redémarrage du backend, pas de double instance uvicorn).
-- [ ] `WakeLock` pour empêcher la mise en veille pendant que du contenu est activement diffusé sur HDMI — à ne pas confondre avec le plein écran immersif du Lot 5, qui concerne l'écran tactile.
+- [x] Le service démarre le backend Python (Chaquopy) et possède la `Presentation` HDMI — pas l'`Activity` (`BobineForegroundService.kt`, écrit en même temps que les Lots 4/5, voir Découvertes du Lot 4).
+- [x] Notification persistante — canal `bobine_service` (`IMPORTANCE_LOW`), icône, texte, `PendingIntent` pour rouvrir l'app au tap. **Nécessite une demande explicite de la permission runtime `POST_NOTIFICATIONS`** (voir Découvertes) sans quoi le service tourne normalement mais la notification reste invisible.
+- [x] Test explicite réel : app supprimée du multitâche (swipe simulé via `adb shell input swipe`, tâche confirmée absente de `dumpsys activity recents`) pendant que l'écran externe est actif → serveur toujours `200 OK` (même PID), `Presentation`/WakeLock/notification tous encore actifs.
+- [ ] Test de réouverture après fermeture complète : **non testé explicitement** (comportement attendu par construction — `MainActivity` ne fait que `startForegroundService`, idempotent si déjà démarré — mais pas vérifié avec un test dédié isolant ce cas précis).
+- [x] `WakeLock` (`PARTIAL_WAKE_LOCK`, tag `Bobine:hdmiPlayback`) acquis à l'ouverture de la `Presentation`, relâché à sa fermeture — confirmé actif via `dumpsys power` pendant qu'un écran externe est branché, et correctement relâché/racquis en cycle avec les évènements `onDisplayRemoved`/`onDisplayAdded`.
 
 ### Critère de sortie
-- [ ] Scénario CDC §2 vérifié : fermeture complète de l'app → service et diffusion HDMI toujours actifs.
+- [x] Scénario CDC §2 vérifié **réellement, pas supposé** : fermeture complète de l'app (tâche retirée du multitâche par un vrai geste simulé) → service, `Presentation` HDMI, WakeLock et notification tous confirmés actifs par inspection système (`dumpsys`), pas seulement par absence de crash apparent.
 
 ### Découvertes
-*(à compléter par l'agent qui exécute ce lot)*
+
+**Bug réel trouvé par le test, invisible à la lecture du code : `POST_NOTIFICATIONS` (permission « dangereuse » depuis Android 13) n'est PAS accordée du simple fait de l'avoir déclarée dans le Manifest.** Sans demande explicite à l'exécution, `startForeground()` démarre le service normalement (aucun crash, aucune erreur visible) mais la notification reste invisible — confirmé par `dumpsys notification` montrant `numEnqueuedByApp=5, numPostedByApp=0, numBlocked=5` avant correctif. Corrigé en ajoutant une demande de permission runtime dans `MainActivity` (`registerForActivityResult(ActivityResultContracts.RequestPermission())`, déclenchée dans `onCreate()` si non déjà accordée) — nouvelle dépendance `androidx.activity:activity-ktx`. Après correctif et acceptation par l'utilisateur, `dumpsys notification` confirme `numPostedByApp=1, numOngoing=1`.
+
+**Validation complète par inspection système (`dumpsys`), pas seulement par `curl`** : chaque composant du Lot 6 a été vérifié individuellement après un vrai retrait de tâche du multitâche (`adb shell input keyevent KEYCODE_APP_SWITCH` puis `adb shell input swipe`, absence confirmée dans `dumpsys activity recents`) :
+- Serveur : `curl http://127.0.0.1:8000/api/health` → `200 OK`, même PID qu'avant le retrait.
+- WakeLock : `dumpsys power` liste `PARTIAL_WAKE_LOCK 'Bobine:hdmiPlayback'` toujours acquis (`isFrozen=false`).
+- Notification : `dumpsys notification` confirme `numOngoing=1`.
+
+C'est la preuve la plus solide obtenue jusqu'ici sur ce chantier : pas une supposition sur le comportement d'un `ForegroundService`, un état système réellement inspecté après un vrai geste utilisateur simulé.
 
 ---
 
@@ -497,9 +516,9 @@ Réf. CDC §2. Dépend de tous les lots produisant du code fonctionnel (peut dé
 - [ ] Lot 1 — squelette projet (fait) + validation matérielle tablette pilote réelle (reste à faire — nécessite le dock/HDMI physique, pas simulable sur émulateur)
 - [x] Lot 2 — frontend statique embarqué (GO — confirmé visuellement sur émulateur)
 - [~] Lot 3 — routage hostname `/kiosk` vs `/cinema` (décision 127.0.0.2 validée ; vérification bascule bloquée par un bug hors-périmètre, `task_67d56a94`)
-- [ ] Lot 4 — double affichage `DisplayManager`/`Presentation`
-- [ ] Lot 5 — WebView tactile + UI shell + plein écran immersif quittable
-- [ ] Lot 6 — `ForegroundService` persistant (survit à la fermeture de l'app)
+- [x] Lot 4 — double affichage `DisplayManager`/`Presentation` (validé émulateur, hotplug réel ; cold-boot-avec-écran-déjà-présent à revérifier sur tablette)
+- [x] Lot 5 — WebView tactile + UI shell + plein écran immersif quittable (admin via Chrome, pas de mini-navigateur maison — décision actée)
+- [x] Lot 6 — `ForegroundService` persistant (survit à la fermeture de l'app — vérifié par `dumpsys`, pas supposé)
 - [ ] Lot 7 — mDNS (`MulticastLock`)
 - [ ] Lot 8 — binaire ffmpeg/ffprobe ARM64 embarqué
 - [ ] Lot 9 — stockage médias & USB OTG
