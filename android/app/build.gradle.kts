@@ -78,6 +78,25 @@ android {
         }
     }
 
+    // Lot 8 : par defaut (AGP recent), les libs natives restent compressees
+    // DANS l'APK et sont mappees en memoire par dlopen sans jamais toucher
+    // le disque - parfait pour de vraies bibliotheques partagees (Chaquopy),
+    // mais laisse android:applicationInfo.nativeLibraryDir VIDE. Or
+    // libffmpeg.so/libffprobe.so ne sont pas de vraies bibliotheques : ce
+    // sont des EXECUTABLES renommes en .so pour profiter du seul mecanisme
+    // de packaging natif d'Android, executes via subprocess.run (pas
+    // dlopen) - il leur faut un vrai fichier sur disque, avec le bit
+    // executable, pour que execve() fonctionne. useLegacyPackaging force
+    // l'extraction classique de TOUTES les libs natives a l'installation
+    // (constate en pratique : sans ceci, nativeLibraryDir existe mais reste
+    // vide malgre un packaging Gradle reussi - piege facile a rater vu
+    // qu'aucune erreur n'est levee avant l'echec runtime de subprocess.run).
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

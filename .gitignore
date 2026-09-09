@@ -57,5 +57,10 @@ android/app/build/
 android/build/
 android/.idea/
 android/.cxx/
+# Lot 8 (docs/plan-implementation-android.md) : binaires ffmpeg/ffprobe
+# statiques ARM64 (GPLv3, johnvansickle.com) - recuperes par le job CI
+# android-build (comme ffmpeg.exe/ffprobe.exe pour Windows, jamais
+# commites), ou places manuellement en local pour tester sur emulateur.
+android/app/src/main/jniLibs/
 *.apk
 *.aab

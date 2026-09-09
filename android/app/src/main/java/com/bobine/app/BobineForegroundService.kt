@@ -90,7 +90,12 @@ class BobineForegroundService : Service() {
         // dossier interne AssetFinder/app/ ou Chaquopy redeploie les
         // sources Python elles-memes (cf. Decouvertes du Lot 9).
         val externalFilesDir = applicationContext.getExternalFilesDir(null)?.absolutePath
-        py.getModule("bobine_bootstrap").callAttr("start_server_once", externalFilesDir)
+        // Lot 8 : dossier natif de l'app (seul emplacement d'ou Android 10+
+        // autorise l'execution d'un binaire embarque, contrainte W^X) -
+        // c'est la ou les jniLibs/<abi>/lib{ffmpeg,ffprobe}.so finissent
+        // apres installation.
+        val nativeLibraryDir = applicationContext.applicationInfo.nativeLibraryDir
+        py.getModule("bobine_bootstrap").callAttr("start_server_once", externalFilesDir, nativeLibraryDir)
 
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())

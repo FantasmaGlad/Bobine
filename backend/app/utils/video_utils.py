@@ -5,6 +5,8 @@ import logging
 import uuid
 from pathlib import Path
 
+from app.utils.ffmpeg_binaries import FFMPEG_BIN, FFPROBE_BIN
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +32,7 @@ def get_video_info(file_path: str) -> dict:
     Exécute ffprobe pour extraire les informations de flux et de format de la vidéo au format JSON.
     """
     cmd = [
-        "ffprobe",
+        FFPROBE_BIN,
         "-v", "error",
         "-show_entries", "format=duration",
         "-show_streams",
@@ -268,7 +270,7 @@ def generate_thumbnail(video_path: str, thumbnail_dir: str, duration: float | No
     thumb_path.parent.mkdir(parents=True, exist_ok=True)
 
     cmd = [
-        "ffmpeg",
+        FFMPEG_BIN,
         "-ss", str(offset),
         "-i", video_path,
         "-vframes", "1",
@@ -328,7 +330,7 @@ def normalize_video(input_path: str, output_path: str, actions: list, source_met
     # S'assurer que le dossier de sortie existe
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
-    cmd = ["ffmpeg", "-i", input_path]
+    cmd = [FFMPEG_BIN, "-i", input_path]
 
     if "recode_video" in actions:
         # Réencodage réel vers H.264 (réf. audit plan-corrections-bugs, point
