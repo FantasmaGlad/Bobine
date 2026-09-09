@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.hardware.display.DisplayManager
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -54,6 +55,16 @@ class BobineForegroundService : Service() {
     // la sortie HDMI, uniquement le temps ou la Presentation existe.
     private var wakeLock: PowerManager.WakeLock? = null
 
+    // Lot 7 : par defaut, Android ne livre PAS les paquets multicast (mDNS
+    // inclus) au processus applicatif tant qu'aucun MulticastLock n'est
+    // detenu - la decouverte reseau du backend (zeroconf, bobine.local)
+    // resterait invisible depuis un autre appareil du meme Wi-Fi sans
+    // cela, meme si le serveur ecoute correctement. Un seul lock pour
+    // toute la duree de vie du service (pas de reference-count fine par
+    // requete : la decouverte doit rester possible en permanence, pas
+    // seulement pendant une operation ponctuelle).
+    private var multicastLock: WifiManager.MulticastLock? = null
+
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(displayId: Int) {
             Log.i(TAG, "Ecran externe detecte (displayId=$displayId)")
@@ -78,6 +89,7 @@ class BobineForegroundService : Service() {
 
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
+        acquireMulticastLock()
 
         displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
         displayManager.registerDisplayListener(displayListener, null)
@@ -100,6 +112,7 @@ class BobineForegroundService : Service() {
         presentation?.dismiss()
         presentation = null
         releaseWakeLock()
+        releaseMulticastLock()
         super.onDestroy()
     }
 
@@ -168,6 +181,20 @@ class BobineForegroundService : Service() {
     private fun releaseWakeLock() {
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
+    }
+
+    private fun acquireMulticastLock() {
+        if (multicastLock?.isHeld == true) return
+        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        multicastLock = wifiManager.createMulticastLock("Bobine:mdns").apply {
+            setReferenceCounted(false)
+            acquire()
+        }
+    }
+
+    private fun releaseMulticastLock() {
+        multicastLock?.let { if (it.isHeld) it.release() }
+        multicastLock = null
     }
 
     private fun createNotificationChannel() {
