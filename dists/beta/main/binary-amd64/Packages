@@ -9,10 +9,10 @@ Homepage: https://bobine.fit
 Priority: optional
 Section: video
 Filename: pool/main/b/bobine/bobine_3.0.1~beta_amd64.deb
-Size: 55485388
-SHA256: 50ff17136878f0a37eab0ddce19f67df23d844e1eedcc400ec2e4c29dfd3fc8b
-SHA1: f11ae7ca3ed22afcd5306592a85670f400cc2847
-MD5sum: 5fec743d6363a46a514d1facfe7ae949
+Size: 55484844
+SHA256: 8254fd3a2e469435dd767b4df3e160235344ce27de779ca849db350cbd0b4de2
+SHA1: 2383452fa5863df89129e8c7c8f0957e6a19e9b6
+MD5sum: 195319f0c77e068a4c78b5cb2dd3d95c
 Description: Video and audio playout system for gym studios
  Bobine is an autonomous multi-channel playout solution (wired HDMI video,
  network screen, background radio, mobile remote and web administration)
