@@ -19,7 +19,8 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 7. [Script d'installation & Services systemd](#7-script-dinstallation--services-systemd)
 8. [Référence API HTTP & WebSockets](#8-référence-api-http--websockets)
 9. [Exploitation & Découverte Réseau (Wyse)](#9-exploitation--découverte-réseau-wyse)
-10. [Licence](#10-licence)
+10. [Matrice des interfaces & compatibilité multi-plateforme](#10-matrice-des-interfaces--compatibilité-multi-plateforme)
+11. [Licence](#11-licence)
 
 ---
 
@@ -340,6 +341,42 @@ Les commits restent locaux jusqu'à ce qu'une machine avec accès GitHub (hors L
 
 ---
 
-## 10. Licence
+## 10. Matrice des interfaces & compatibilité multi-plateforme
+
+Bobine repose sur une **interface frontend unique et unifiée** construite avec Next.js 16 (App Router) et exportée statiquement (`npm run build` → `frontend/out`). Cette interface est partagée et embarquée de manière identique sur **tous les profils de déploiement**.
+
+### 10.1 Cartographie des 22 routes de l'interface
+
+| Catégorie | Route(s) | Description & Particularités multi-OS |
+|---|---|---|
+| **Diffusion & Kiosque** | `/kiosk` | Kiosque automatique plein écran (programmation, inter-cours, vidéo de lancement). Horloge avec `suppressHydrationWarning` et synchronisation réseau (`/api/time`). |
+| | `/cinema` | Vitrine de sélection « Apple TV » avec héros, rangées par catégorie et télécommande HID. Sur profil Android avec écran HDMI connecté (`isAndroidHdmiScreen`), affiche un écran de veille passif *« En attente d'un cours »*. |
+| | `/grid` | Interface de sélection tactile dédiée (Xiaomi Pad / tablettes Android). Permet de lancer et piloter la lecture sans superposition sur l'écran TV. |
+| **Régies & Contrôle** | `/dashboard-cable`<br>`/dashboard-network` | Tableaux de bord de contrôle indépendant pour les canaux Câblé et Réseau (déclenchement direct, reprise, volume, fondu). |
+| **Administration** | `/settings` | Gestionnaire de configuration : 15 thèmes (dont thème clair minéral « Charbon » certifié WCAG AAA), actualisation réseau dynamique (polling 15s + bouton manuel), supervision CPU/RAM résiliente sous SELinux Android, sauvegarde/restauration ZIP. |
+| | `/library` | Bibliothèque vidéo avec métadonnées, durée et upload universel de miniatures personnalisées (`PUT /api/videos/{id}/thumbnail` via Pillow, sans dépendance ffmpeg). |
+| | `/playlists`<br>`/backgrounds`<br>`/schedule`<br>`/logs` | Gestion des listes ordonnées, fonds animés, programmation horaire récurrente (APScheduler) et inspection des journaux système. |
+| **Mode Coach Audio** | `/audio`<br>`/audio-playlists`<br>`/coach` | Playlists musicales rythmées avec minutage automatique, décompte et association d'arrière-plans vidéo synchronisés. |
+| **Canal Radio** | `/radio`<br>`/radio-announcements`<br>`/radio-library`<br>`/radio-remote` | Canal sonore continu indépendant avec enchaînement musical Web Audio API, ducking automatique et rappels vocaux de bienséance. |
+
+---
+
+### 10.2 Intégration et montage par profil de déploiement
+
+Le serveur FastAPI (`backend/app/main.py`) monte dynamiquement le dossier statique selon le profil exécuté via la classe `RevalidateStaticFiles` (injectant `Cache-Control: no-cache` pour forcer la revalidation ETag et éviter tout gel heuristique du cache HTTP) :
+
+| Profil | Cible & Format | Emplacement frontend servi | Consommateur principal de l'UI |
+|---|---|---|---|
+| **Headless Appliance** | Dell Wyse / Mini PC (`install.sh`, Debian 13) | `frontend/out/` (relatif au dépôt) | Kiosque Chromium X11 (`/kiosk` et/ou `/cinema`) + navigateur distant pour l'admin |
+| **Windows Desktop** | Windows 10/11 (`.exe` Inno Setup) | `%ProgramFiles%\Bobine\frontend\out\` | Navigateur web par défaut au lancement + icône de notification en barre des tâches (systray) |
+| **macOS Desktop** | macOS Apple Silicon (`.dmg` / `Bobine.app`) | `Bobine.app/Contents/Resources/frontend/out/` | Navigateur web par défaut + menu bar companion |
+| **Linux Desktop** | Debian/Ubuntu/Mint (`.deb` / `apt.bobine.fit`) | `/usr/lib/bobine/frontend/out/` | Navigateur web par défaut + systray XDG |
+| **Tablette Android** | Tablettes ARM64 (`.apk`, Chaquopy) | Assets embarqués `pyStage/backend/frontend_out/` | Double WebView matérielle : tactile local (`/grid`) + affichage externe HDMI (`/cinema`) |
+| **Assistant GUI** | Linux x86_64 (`bobine-assistant`, Tauri 2 / Rust) | `assistant/ui/` (intégré au binaire Rust) | Fenêtre native GTK WebKit pour la découverte mDNS, scan LAN et déploiement SSH |
+
+---
+
+## 11. Licence
 
 Bobine est distribué sous licence **GNU AGPL-3.0** (voir [`LICENSE`](../LICENSE) à la racine). Toute mise à disposition du logiciel, y compris via un service accessible en réseau, impose de publier le code source correspondant (y compris vos modifications) sous la même licence.
+
