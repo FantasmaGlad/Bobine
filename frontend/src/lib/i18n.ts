@@ -829,6 +829,11 @@ export const dictionaries: Record<Language, Dict> = {
       upNext: "À suivre",
       autoPlayIn: "Lecture automatique dans {{time}}",
       playNow: "Lancer maintenant",
+      gridNoScreen: "Aucun écran de lecture connecté sur ce canal — vérifiez la sortie câblée dans les réglages.",
+      nowPlaying: "En cours de lecture",
+      removeCourse: "Enlever",
+      seekBack: "Reculer de 10 secondes",
+      seekForward: "Avancer de 10 secondes",
     },
     kiosk: {
       nextCourseLabel: "Prochain cours",
@@ -1827,6 +1832,11 @@ export const dictionaries: Record<Language, Dict> = {
       upNext: "Up next",
       autoPlayIn: "Autoplay in {{time}}",
       playNow: "Play now",
+      gridNoScreen: "No playback screen connected on this channel — check the wired output in settings.",
+      nowPlaying: "Now playing",
+      removeCourse: "Remove",
+      seekBack: "Skip back 10 seconds",
+      seekForward: "Skip forward 10 seconds",
     },
     kiosk: {
       nextCourseLabel: "Next course",

@@ -253,6 +253,25 @@ export default function CinemaPage() {
   const [videos, setVideos] = useState<CinemaVideo[]>([]);
   const [phase, setPhase] = useState<Phase>("grid");
   const [selected, setSelected] = useState<CinemaVideo | null>(null);
+  // Écran HDMI passif de la tablette Android (Lot 14, demande explicite
+  // utilisateur "retire l'interface de superposition... il n'y en aura plus
+  // besoin") : sur ce déploiement précis, /grid (écran tactile) est
+  // désormais l'unique surface de contrôle (avance/recul/pause/retrait),
+  // cf. son panneau "en cours de lecture" — les commandes de superposition
+  // ici n'ont donc plus lieu d'être. Sur les autres profils (desktop, PC en
+  // libre-service SANS /grid), cet écran reste sa propre surface tactile
+  // locale : les commandes restent nécessaires, comportement inchangé.
+  // `deployment_profile` (Lot 12, backend/app/deployment.py) est déjà exposé
+  // par /api/settings, seul signal fiable pour cette distinction.
+  const [isAndroidHdmiScreen, setIsAndroidHdmiScreen] = useState(false);
+  useEffect(() => {
+    fetch(getApiUrl("/settings"), { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.deployment_profile === "android") setIsAndroidHdmiScreen(true);
+      })
+      .catch(() => {});
+  }, []);
 
   // Horloge de l'écran d'attente « bibliothèque vide » (voir plus bas) :
   // quand aucun cours n'est disponible, la vitrine n'a ni héros ni logo et se
@@ -299,6 +318,21 @@ export default function CinemaPage() {
   const lastPositionUpdateRef = useRef(0);
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Définie tôt (avant startPlayback ci-dessous, qui doit pouvoir l'appeler)
+  // — réf. correctif "l'interface de pause ne disparaît pas automatiquement
+  // sur la sortie HDMI" (Lot 14) : ce minuteur d'auto-masquage n'était armé
+  // QUE par `onMouseMove` sur cinema-root, jamais par le démarrage de la
+  // lecture elle-même. Sur un écran HDMI passif piloté à distance depuis
+  // /grid (aucune souris/tactile locale ne touche jamais CET écran), aucun
+  // `mousemove` ne se produit donc jamais et les commandes restaient
+  // affichées en permanence, `controlsVisible` gardant sa valeur initiale
+  // `true` pour toujours. Avant Lot 14, un minimum d'interaction locale
+  // (kiosk tactile, télécommande dongle) déclenchait ce chemin par hasard.
+  const wakeControls = useCallback(() => {
+    setControlsVisible(true);
+    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+    controlsTimerRef.current = setTimeout(() => setControlsVisible(false), CONTROLS_HIDE_MS);
+  }, []);
   const [seekDragValue, setSeekDragValue] = useState<number | null>(null);
   // "À suivre" : suggestion aléatoire en fin de cours + compte à rebours
   // d'autoplay (annulable d'un clic, réf. mission).
@@ -365,6 +399,10 @@ export default function CinemaPage() {
     el.currentTime = 0;
     el.load();
     setNeedsTapToPlay(false);
+    // Arme l'auto-masquage dès le début de la lecture (cf. commentaire sur
+    // wakeControls plus haut) : sans cet appel, un écran HDMI passif sans
+    // souris/tactile local ne masquerait jamais les commandes.
+    wakeControls();
     el.play()
       .then(() => setIsPlaying(true))
       .catch(() => {
@@ -480,12 +518,6 @@ export default function CinemaPage() {
       setIsPlaying(false);
     }
   };
-
-  const wakeControls = useCallback(() => {
-    setControlsVisible(true);
-    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
-    controlsTimerRef.current = setTimeout(() => setControlsVisible(false), CONTROLS_HIDE_MS);
-  }, []);
 
   // ------------------------------------------------------------------
   // Télécommande à dongle USB (réf. demande) : navigation de la vitrine au
@@ -778,6 +810,7 @@ export default function CinemaPage() {
             <span>{t("cinema.play")}</span>
           </button>
         )}
+        {!isAndroidHdmiScreen && (
         <div className={`cinema-controls ${isPlayingLayer && (controlsVisible || !isPlaying) ? "visible" : ""}`}>
           {/* Correctif "mention du cours en double" : le titre était déjà
               répété ici en haut à droite alors qu'il apparaît sur la vidéo
@@ -817,6 +850,7 @@ export default function CinemaPage() {
             <span className="cinema-time">{formatTime(duration)}</span>
           </div>
         </div>
+        )}
       </div>
 
       {/* Fin de cours : suggestion "À suivre" avec autoplay annulable */}

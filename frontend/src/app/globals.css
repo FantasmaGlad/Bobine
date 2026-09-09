@@ -3807,6 +3807,145 @@ a.status-pill:hover,
   margin-bottom: 4px;
 }
 
+/* --- Widget "en cours de lecture" (/grid, Lot 14, demande explicite
+   utilisateur : avancer/reculer/pause/enlever depuis l'écran de sélection —
+   l'écran HDMI n'affiche plus aucune commande). Style "widget Apple" demandé
+   explicitement : carte compacte en verre dépoli (backdrop-filter), posée à
+   DROITE du titre dans le héros (second enfant flex de .cinema-hero, cf.
+   grid/page.tsx) plutôt qu'en bandeau pleine largeur — et aucune couleur
+   fixe (rouge ou autre) : uniquement les tokens du thème actif. */
+.grid-now-playing {
+  position: relative;
+  width: 300px;
+  flex: 0 0 auto;
+  margin: 0 56px 42px 0;
+  padding: 22px 22px 18px;
+  background: color-mix(in srgb, var(--bg-surface-elevated) 62%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid color-mix(in srgb, var(--text-main) 12%, transparent);
+  border-radius: 22px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  animation: cinema-fade-up 0.4s ease both;
+}
+
+.grid-now-playing-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-main) 10%, transparent);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.grid-now-playing-close:hover {
+  background: color-mix(in srgb, var(--text-main) 18%, transparent);
+}
+
+.grid-now-playing-close:active {
+  transform: scale(0.9);
+}
+
+.grid-now-playing-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-primary);
+  margin-bottom: 4px;
+}
+
+.grid-now-playing-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 0 24px 14px 0;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.grid-now-playing-seek {
+  width: 100%;
+  display: block;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.grid-now-playing-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+  margin-bottom: 16px;
+}
+
+.grid-now-playing-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.grid-now-playing-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: none;
+  background: color-mix(in srgb, var(--text-main) 10%, transparent);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.12s ease, background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.grid-now-playing-btn:hover {
+  filter: brightness(1.15);
+}
+
+.grid-now-playing-btn:active {
+  transform: scale(0.9);
+  filter: brightness(0.92);
+}
+
+.grid-now-playing-btn-main {
+  width: 52px;
+  height: 52px;
+  background: var(--accent-primary);
+  color: var(--accent-primary-fg);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent-primary) 45%, transparent);
+}
+
+.grid-now-playing-btn-main:hover {
+  filter: brightness(1.08);
+}
+
+@media (max-aspect-ratio: 4/3) {
+  .grid-now-playing {
+    display: none;
+  }
+}
+
 /* --- Héros "À la une" (mise en page verticale façon Netflix) --- */
 .cinema-hero {
   position: relative;
@@ -3818,6 +3957,10 @@ a.status-pill:hover,
   max-height: 60vh;
   display: flex;
   align-items: flex-end;
+  /* justify-content sans effet tant qu'il n'y a qu'un seul enfant
+     (.cinema-hero-content) - pousse le widget "en cours de lecture" (/grid,
+     second enfant conditionnel) à droite quand il est présent. */
+  justify-content: space-between;
   overflow: hidden;
   animation: cinema-fade-up 0.5s ease both;
 }
@@ -3913,6 +4056,9 @@ a.status-pill:hover,
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
   box-shadow: 0 8px 26px color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .cinema-hero-play:hover,
@@ -3920,6 +4066,11 @@ a.status-pill:hover,
   transform: translateY(-2px) scale(1.04);
   filter: brightness(1.08);
   outline: none;
+}
+
+.cinema-hero-play:active {
+  transform: scale(0.96);
+  filter: brightness(0.92);
 }
 
 /* --- Corps vertical : rangées par programme puis grille complète --- */
@@ -4036,6 +4187,27 @@ a.status-pill:hover,
   z-index: 2;
 }
 
+/* Bandeau d'avertissement "aucun écran de lecture" (réf. retour "clic sur
+   une vidéo, rien ne se passe" — /grid, Lot 14) : purement indicatif, ne
+   bloque jamais l'envoi de l'ordre "launch" lui-même. */
+.grid-launch-warning {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: var(--accent-warning);
+  color: #1a1400;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 12px 22px;
+  border-radius: 999px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  max-width: 90vw;
+  text-align: center;
+  animation: cinema-fade-up 0.3s ease both;
+}
+
 .cinema-card {
   flex: 0 0 300px;
   display: flex;
@@ -4048,14 +4220,30 @@ a.status-pill:hover,
   color: inherit;
   cursor: pointer;
   scroll-snap-align: start;
-  transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2), filter 0.12s ease;
   animation: cinema-fade-up 0.45s ease both;
+  /* Retour tactile propre (réf. retour "le clic n'est pas beau, il sélectionne
+     la zone" — écran tactile Android/WebView) : sans ces trois règles, un
+     appui affiche le surlignage bleu de sélection natif au lieu d'une
+     animation de clic, cf. .olc-press plus haut pour le même correctif sur
+     d'autres éléments. */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .cinema-card:hover,
 .cinema-card:focus-visible {
   transform: translateY(-4px) scale(1.05);
   outline: none;
+}
+
+/* Après le :hover ci-dessus pour gagner le conflit à spécificité égale : un
+   écran tactile déclenche souvent :hover ET :active ensemble au toucher, on
+   veut alors l'effet "pressé" (échelle réduite), pas le survol (lift). */
+.cinema-card:active {
+  transform: scale(0.95);
+  filter: brightness(0.94);
 }
 
 .cinema-card-thumb {
@@ -4160,8 +4348,11 @@ a.status-pill:hover,
   text-align: left;
   color: inherit;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, filter 0.12s ease;
   animation: cinema-fade-up 0.4s ease both;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .cinema-all-item:hover,
@@ -4170,6 +4361,11 @@ a.status-pill:hover,
   border-color: var(--accent-primary);
   background: var(--bg-surface-hover);
   outline: none;
+}
+
+.cinema-all-item:active {
+  transform: scale(0.98);
+  filter: brightness(0.95);
 }
 
 .cinema-all-thumb {

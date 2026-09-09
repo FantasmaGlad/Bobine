@@ -50,6 +50,13 @@ function formatClock(date: Date) {
   return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
 }
 
+function formatTime(seconds: number | null | undefined) {
+  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "--:--";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 function thumbnailUrl(video: CinemaVideo): string | null {
   if (!video.thumbnail_path) return null;
   const filename = video.thumbnail_path.split("/").pop();
@@ -212,7 +219,17 @@ export default function GridPage() {
   // Toujours le canal câblé : /grid n'a de sens que pour piloter la sortie
   // câblée (ex. la sortie HDMI de la tablette Android) - pas de variante
   // réseau pour l'instant (périmètre du Lot 14, décision explicite).
-  const { sendCommand } = usePlaybackSocket(undefined, undefined, "cable");
+  const { sendCommand, displayOutputCable, cinemaState } = usePlaybackSocket(undefined, undefined, "cable");
+  // Avertissement "rien ne se passe" (retour utilisateur) : un ordre "launch"
+  // envoyé alors que la sortie câblée est réglée sur "kiosk" (et non
+  // "cinema") ne sera reçu par AUCUN écran - /kiosk n'écoute pas
+  // cinema_command. displayOutputCable est déjà suivi par usePlaybackSocket
+  // pour un tout autre usage (redirection de /cinema) ; le réutiliser ici en
+  // lecture seule coûte zéro requête supplémentaire. Purement indicatif :
+  // la commande part quand même (displayOutputCable peut être momentanément
+  // périmé/null au tout premier rendu).
+  const [launchWarning, setLaunchWarning] = useState<string | null>(null);
+  const launchWarningTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const playHoverSound = useHoverSound("/sounds/survole.mp3");
   const themeFg = useThemeAccentForeground();
 
@@ -244,6 +261,71 @@ export default function GridPage() {
   // propre affichage de grille.
   const handleSelect = useCallback((video: CinemaVideo) => {
     sendCommand("cinema_command", { action: "launch", video_id: video.id });
+    if (displayOutputCable !== null && displayOutputCable !== "cinema") {
+      setLaunchWarning(t("cinema.gridNoScreen"));
+      if (launchWarningTimerRef.current) clearTimeout(launchWarningTimerRef.current);
+      launchWarningTimerRef.current = setTimeout(() => setLaunchWarning(null), 6000);
+    }
+  }, [sendCommand, displayOutputCable, t]);
+
+  useEffect(() => {
+    return () => {
+      if (launchWarningTimerRef.current) clearTimeout(launchWarningTimerRef.current);
+    };
+  }, []);
+
+  // Panneau "en cours de lecture" (demande explicite utilisateur : avancer/
+  // reculer/pause/enlever depuis /grid, l'écran HDMI n'affiche plus aucune
+  // commande) — même mécanique que le bloc "cinéma" du tableau de bord admin
+  // (DashboardScreen.tsx) : `cinemaState` est le rapport passif que /cinema
+  // envoie déjà sur ce canal (titre/position/lecture), et les commandes
+  // play/pause/seek/stop empruntent le même `cinema_command` que "launch".
+  // Dupliqué plutôt que partagé, cf. commentaire en tête de fichier.
+  const [nowPlayingTick, setNowPlayingTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowPlayingTick(Date.now()), 250);
+    return () => clearInterval(id);
+  }, []);
+  const cinemaReceivedAtRef = React.useRef(0);
+  const [pendingPlaying, setPendingPlaying] = useState<boolean | null>(null);
+  useEffect(() => {
+    cinemaReceivedAtRef.current = Date.now();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- réaction à un rapport externe, le rapport redevient la vérité
+    setPendingPlaying(null);
+  }, [cinemaState]);
+  // Périmé après 8s sans nouveau rapport (même seuil que DashboardScreen) :
+  // /cinema rapporte toutes les 2s, un dépassement signale un écran fermé/
+  // déconnecté plutôt qu'une lecture qui existe encore.
+  const nowPlayingRaw =
+    cinemaState && cinemaState.title && nowPlayingTick - cinemaReceivedAtRef.current < 8000 ? cinemaState : null;
+  const nowPlaying = nowPlayingRaw
+    ? {
+        ...nowPlayingRaw,
+        playing: pendingPlaying ?? nowPlayingRaw.playing,
+        position_seconds: Math.min(
+          nowPlayingRaw.duration_seconds || Infinity,
+          nowPlayingRaw.position_seconds +
+            (nowPlayingRaw.playing ? Math.max(0, (nowPlayingTick - cinemaReceivedAtRef.current) / 1000) : 0),
+        ),
+      }
+    : null;
+  const [nowPlayingSeekDrag, setNowPlayingSeekDrag] = useState<number | null>(null);
+
+  const handleNowPlayingPlayPause = useCallback(() => {
+    if (!nowPlaying) return;
+    const next = !nowPlaying.playing;
+    setPendingPlaying(next);
+    sendCommand("cinema_command", { action: next ? "play" : "pause" });
+  }, [nowPlaying, sendCommand]);
+
+  const handleNowPlayingSeekDelta = useCallback((delta: number) => {
+    if (!nowPlaying) return;
+    const target = Math.max(0, Math.min(nowPlaying.position_seconds + delta, nowPlaying.duration_seconds || Infinity));
+    sendCommand("cinema_command", { action: "seek", position_seconds: target });
+  }, [nowPlaying, sendCommand]);
+
+  const handleNowPlayingStop = useCallback(() => {
+    sendCommand("cinema_command", { action: "stop" });
   }, [sendCommand]);
 
   const [scrambleTick, setScrambleTick] = useState(0);
@@ -273,6 +355,7 @@ export default function GridPage() {
 
   return (
     <div className="cinema-root">
+      {launchWarning && <div className="grid-launch-warning">{launchWarning}</div>}
       {videos.length === 0 && (
         <div className="cinema-empty-screen">
           <AppLogo className="cinema-empty-logo" />
@@ -303,6 +386,73 @@ export default function GridPage() {
                 {t("cinema.launchCourse")}
               </button>
             </div>
+
+            {/* Widget "en cours de lecture" (demande explicite : style Apple,
+                à droite du titre, aucune couleur rouge - tout suit le thème
+                actif). Rendu comme second enfant flex de .cinema-hero, à côté
+                de .cinema-hero-content plutôt qu'au-dessus de toute la page. */}
+            {nowPlaying && (
+              <section className="grid-now-playing">
+                <button
+                  className="grid-now-playing-close"
+                  onClick={handleNowPlayingStop}
+                  title={t("cinema.removeCourse")}
+                  aria-label={t("cinema.removeCourse")}
+                >
+                  <Icon name="close" size={16} />
+                </button>
+                <span className="grid-now-playing-label">{t("cinema.nowPlaying")}</span>
+                <h2 className="grid-now-playing-title">{nowPlaying.title}</h2>
+                <input
+                  type="range"
+                  className="grid-now-playing-seek"
+                  min={0}
+                  max={nowPlaying.duration_seconds || 0}
+                  step={1}
+                  value={nowPlayingSeekDrag ?? nowPlaying.position_seconds}
+                  onChange={(e) => setNowPlayingSeekDrag(Number(e.target.value))}
+                  onMouseUp={(e) => {
+                    const value = Number((e.target as HTMLInputElement).value);
+                    sendCommand("cinema_command", { action: "seek", position_seconds: value });
+                    setNowPlayingSeekDrag(null);
+                  }}
+                  onTouchEnd={(e) => {
+                    const value = Number((e.target as HTMLInputElement).value);
+                    sendCommand("cinema_command", { action: "seek", position_seconds: value });
+                    setNowPlayingSeekDrag(null);
+                  }}
+                />
+                <div className="grid-now-playing-times">
+                  <span>{formatTime(nowPlayingSeekDrag ?? nowPlaying.position_seconds)}</span>
+                  <span>{formatTime(nowPlaying.duration_seconds)}</span>
+                </div>
+                <div className="grid-now-playing-controls">
+                  <button
+                    className="grid-now-playing-btn"
+                    onClick={() => handleNowPlayingSeekDelta(-10)}
+                    title={t("cinema.seekBack")}
+                    aria-label={t("cinema.seekBack")}
+                  >
+                    <Icon name="replay_10" size={22} />
+                  </button>
+                  <button
+                    className="grid-now-playing-btn grid-now-playing-btn-main"
+                    onClick={handleNowPlayingPlayPause}
+                    title={nowPlaying.playing ? t("cinema.pause") : t("cinema.play")}
+                  >
+                    <Icon name={nowPlaying.playing ? "pause" : "play_arrow"} size={24} filled />
+                  </button>
+                  <button
+                    className="grid-now-playing-btn"
+                    onClick={() => handleNowPlayingSeekDelta(10)}
+                    title={t("cinema.seekForward")}
+                    aria-label={t("cinema.seekForward")}
+                  >
+                    <Icon name="forward_10" size={22} />
+                  </button>
+                </div>
+              </section>
+            )}
           </section>
         )}
 
