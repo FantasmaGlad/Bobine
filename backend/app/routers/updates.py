@@ -254,6 +254,14 @@ async def check_updates(db: Session = Depends(get_db)) -> dict[str, Any]:
         target_ext = ".deb"
     elif profile == "macos":
         target_ext = ".dmg"
+    elif profile == "android":
+        # Lot 11 : aucun asset .apk n'existe encore sur les releases
+        # publiques (Lot 13, publication volontairement differee) - ce
+        # cas reste donc inerte (repli sur html_url) tant que cette
+        # decision n'est pas revisitee, mais prepare le terrain pour
+        # qu'un .apk publie plus tard soit detecte automatiquement, sans
+        # nouveau changement ici.
+        target_ext = ".apk"
 
     if target_ext:
         for asset in assets:

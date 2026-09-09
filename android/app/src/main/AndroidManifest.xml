@@ -17,6 +17,11 @@
          pour etre eligible a l'exemption Doze/optimisation batterie via
          ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (MainActivity). -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Lot 11 : permission normale, evite seulement l'ecran "Autoriser
+         les sources inconnues" avant l'installation d'un APK via
+         Intent.ACTION_VIEW (UpdateManager.kt) - la boite de dialogue de
+         confirmation d'installation elle-meme reste toujours affichee. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:name="com.chaquo.python.android.PyApplication"
@@ -61,6 +66,19 @@
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
             </intent-filter>
         </receiver>
+
+        <!-- Lot 11 : expose uniquement cacheDir/updates/ (cf.
+             res/xml/file_paths.xml) a l'installeur de paquets systeme, le
+             temps de l'installation d'une mise a jour telechargee. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

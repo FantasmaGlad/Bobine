@@ -69,6 +69,7 @@ class MainActivity : AppCompatActivity() {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         requestIgnoreBatteryOptimizations()
+        UpdateManager.checkForUpdate(this)
 
         startForegroundService(Intent(this, BobineForegroundService::class.java))
         // Pas d'appel a applyImmersiveFullscreen() ici : la fenetre n'est pas

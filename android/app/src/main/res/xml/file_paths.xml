@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lot 11 : expose uniquement le sous-dossier ou l'APK telecharge est
+     ecrit (cache-dir/updates/) - jamais tout cacheDir, pour ne pas
+     exposer d'autres fichiers temporaires via ce FileProvider. -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="updates" path="updates/" />
+</paths>
