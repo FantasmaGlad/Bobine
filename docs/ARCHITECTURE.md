@@ -28,11 +28,12 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 ### Stack technique
 
 - **Backend** : Python 3.11+, [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` (mono-processus, cf. §2), [SQLAlchemy](https://www.sqlalchemy.org/), SQLite (`data/database.db`), `APScheduler` (planification), `watchdog` (surveillance des dossiers d'import), `ffmpeg` / VA-API (décodage matériel Intel ou AMD, pilote choisi selon le GPU détecté), Web Audio API (crossfade radio, côté navigateur).
-- **Frontend** : [Next.js](https://nextjs.org/) 16 (App Router, export statique servi par le backend en production), React 19, TypeScript, CSS Vanilla (global + design tokens, **13 thèmes de couleurs** commutables à chaud via `:root[data-theme=…]`), PWA (`manifest.json`), WebSockets, glisser-déposer natif (HTML5), Web Audio API.
+- **Frontend** : [Next.js](https://nextjs.org/) 16 (App Router, export statique servi par le backend en production), React 19, TypeScript, CSS Vanilla (global + design tokens, **15 thèmes de couleurs** commutables à chaud via `:root[data-theme=…]`, dont le thème minéral clair « charbon » certifié WCAG AAA), PWA (`manifest.json`), WebSockets, glisser-déposer natif (HTML5), Web Audio API.
 - **Exploitation & Kiosque** : Debian 13 (Trixie), Chromium en mode kiosque (X11 / `xinit`), `systemd` (services backend, kiosque, garde audio, chien de garde), `avahi-daemon` (découverte mDNS).
+- **Portabilité Android (`android/`)** : application native Android (Kotlin + CPython embarqué via [Chaquopy](https://chaquopy.com/)), `minSdk 34` / `targetSdk 36` (Android 14-16, API 36 / Xiaomi Pad 8). Double affichage matériel via `DisplayManager` et `Presentation` (écran tactile sur `/grid`, sortie HDMI externe via dock USB-C sur `/cinema` avec écran de veille « En attente d'un cours »), `ForegroundService` persistant, binaires ARM64 NDK r28c (`ffmpeg`/`ffprobe` Bionic natifs, 16 KB page size) pour l'extraction de métadonnées et miniatures, avec replis Python pur et upload manuel universel (`PUT /api/videos/{id}/thumbnail`).
 - **Installation & outils** : `install.sh` (**Bash** idempotent : détection matérielle dynamique, remédiation APT, `--as-user`, sortie machine `--progress=json`, §7) ; **assistant d'installation graphique** (`assistant/`, application de bureau **Tauri / Rust**, balayage `/24` de chaque interface réseau locale et orchestration SSH — cf. [`assistant/README.md`](../assistant/README.md)).
 
-**Langages du dépôt** : **Python** (backend FastAPI), **TypeScript/React** (frontend Next.js), **Bash** (`install.sh`), **Rust** (cœur de l'assistant d'installation). **Intégration continue** (GitHub Actions, `.github/workflows/ci.yml`) à chaque push/PR : build du frontend, contrôle de syntaxe du backend, `cargo clippy` + `cargo test` de l'assistant, et sanity de `install.sh` (syntaxe + cohérence du compteur d'étapes).
+**Langages du dépôt** : **Python** (backend FastAPI), **TypeScript/React** (frontend Next.js), **Kotlin** (application Android), **Bash** (`install.sh`), **Rust** (cœur de l'assistant d'installation). **Intégration continue** (GitHub Actions, `.github/workflows/ci.yml`) à chaque push/PR : build du frontend, contrôle de syntaxe du backend, `cargo clippy` + `cargo test` de l'assistant, build et signature APK Android, et sanity de `install.sh` (syntaxe + cohérence du compteur d'étapes).
 
 ### Développements locaux
 
@@ -79,7 +80,7 @@ La configuration est chargée selon l'ordre de priorité suivant :
 | `media.media_dir` | `data/videos` | Stockage des vidéos importées |
 | `media.watch_dir` | `data/watched` | Dossier surveillé pour import automatique |
 | `server.host` / `port` | `0.0.0.0:8000` | Écoute HTTP du backend |
-| `playback.wait_time_between_courses` | `10` | Délai d'inter-cours (s) |
+| `playback.wait_time_between_courses` | `0` | Délai d'inter-cours (s) |
 | `playback.volume_default` | `100` | Volume par défaut (0-100) |
 
 > **Fichiers temporaires d'upload** : le backend force `tempfile.tempdir` sur `data/tmp` (à côté des médias) au démarrage, au lieu de `/tmp`. Sur le Wyse, `/tmp` est un tmpfs en RAM (~3,8 Go) qu'un gros import vidéo/audio saturait (`OSError: No space left on device`, remonté côté client en « There was an error parsing the body ») alors que le disque média a des dizaines de Go libres.
