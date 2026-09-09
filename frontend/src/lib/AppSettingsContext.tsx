@@ -134,6 +134,31 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       .catch(() => {});
   }, []);
 
+  // Facteur commun au chargement initial ET au filet de sécurité périodique
+  // ci-dessous (réf. correctif "les couleurs ne sont pas dynamiques en
+  // fonction du style") : appliquer deux fois la même logique de lecture de
+  // `/api/settings` a fait diverger le code par le passé si on ne le
+  // factorisait pas.
+  const applySettingsPayload = useCallback((data: Record<string, unknown> | null) => {
+    if (!data) return;
+    if (THEME_VALUES.includes(data.theme as Theme)) {
+      setThemeState(data.theme as Theme);
+    }
+    if (data.language === "fr" || data.language === "en") {
+      setLanguageState(data.language);
+    }
+    if (typeof data.intro_animation_enabled === "boolean") {
+      setLaunchAnimationEnabledState(data.intro_animation_enabled);
+    }
+    if (typeof data.has_custom_logo === "boolean") {
+      setHasCustomLogo(data.has_custom_logo);
+      setLogoVersion((v) => v + 1);
+    }
+    if (data.active_logo === "default" || data.active_logo === "custom") {
+      setActiveLogoState(data.active_logo);
+    }
+  }, []);
+
   useEffect(() => {
     try {
       const cachedTheme = localStorage.getItem("olc-theme") as Theme | null;
@@ -142,32 +167,39 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       if (cachedTheme) setThemeState(cachedTheme);
       if (cachedLanguage) setLanguageState(cachedLanguage);
     } catch {
-      // localStorage indisponible (navigation privée stricte) : le défaut suffit.
+      // localStorage indisponible (navigation privée stricte, ou WebView
+      // Android sans DOM Storage activé — réf. correctif "les couleurs ne
+      // sont pas dynamiques" : confirmé en pratique que `window.localStorage`
+      // vaut `null` dans la WebView tactile de l'app Android, cf.
+      // docs/plan-implementation-android.md) : le défaut/le fetch suffisent.
     }
 
     fetch(getApiUrl("/settings"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!data) return;
-        if (THEME_VALUES.includes(data.theme)) {
-          setThemeState(data.theme);
-        }
-        if (data.language === "fr" || data.language === "en") {
-          setLanguageState(data.language);
-        }
-        if (typeof data.intro_animation_enabled === "boolean") {
-          setLaunchAnimationEnabledState(data.intro_animation_enabled);
-        }
-        if (typeof data.has_custom_logo === "boolean") {
-          setHasCustomLogo(data.has_custom_logo);
-          setLogoVersion((v) => v + 1);
-        }
-        if (data.active_logo === "default" || data.active_logo === "custom") {
-          setActiveLogoState(data.active_logo);
-        }
-      })
+      .then(applySettingsPayload)
       .catch(() => {});
-  }, []);
+  }, [applySettingsPayload]);
+
+  // Filet de sécurité de resynchronisation périodique (même motif que
+  // RESYNC_INTERVAL_MS dans usePlaybackSocket.ts, réf. correctif "les
+  // couleurs de l'interface ne sont pas dynamiques en fonction du style") :
+  // le chargement initial ci-dessus ne s'exécute qu'une fois, et la
+  // synchronisation "temps réel" plus bas dépend d'un `settings_change`
+  // reçu EN DIRECT sur une connexion WebSocket qui peut être en train de se
+  // reconnecter pile au moment où l'admin change le thème (constaté en
+  // pratique sur la tablette Android : un changement de thème décidé
+  // pendant que /grid tournait déjà n'était jamais rattrapé sans recharger
+  // la page). Ce re-fetch REST périodique referme cette fenêtre, exactement
+  // comme le filet de sécurité déjà en place pour l'état de lecture.
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetch(getApiUrl("/settings"), { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then(applySettingsPayload)
+        .catch(() => {});
+    }, 15000);
+    return () => clearInterval(id);
+  }, [applySettingsPayload]);
 
   // Synchronisation temps réel (correctif "le thème ne se synchronise pas
   // avec l'écran cinéma") : jusqu'ici le thème n'était chargé qu'une fois au
