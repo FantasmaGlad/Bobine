@@ -619,6 +619,56 @@ Réf. CDC §2. Dépend de tous les lots produisant du code fonctionnel (peut dé
 8. **Lot 12** (documentation) — au fil de l'eau à chaque lot, pas un lot isolé en fin de chantier malgré sa numérotation.
 9. **Lot 13** (signature/CI) — peut démarrer dès qu'un APK installable existe (même incomplet), pour roder le pipeline tôt plutôt que de le découvrir en fin de chantier.
 10. **Lot 11** (mise à jour in-app) — en dernier, dépend du Lot 13 (releases réelles à détecter).
+11. **Lot 14** (séparation `/grid`/`/cinema`) — ajouté après coup (2026-09-09, demande explicite utilisateur), dépend du Lot 5 (écran tactile déjà sur le canal câblé) et du Lot 4 (double affichage déjà validé physiquement).
+
+---
+
+## 16bis. Lot 14 — Séparation `/grid` (sélection, écran primaire) / `/cinema` (lecture, écran secondaire)
+
+Réf. demande explicite utilisateur du 2026-09-09, faisant suite à un test réel sur la tablette pilote (dock + écran HDMI branchés). **Périmètre volontairement limité à l'usage Android de ce chantier** : pas de généralisation vers un sélecteur "laptop"/kiosque réseau découplé du canal câblé pour l'instant, même si l'architecture posée ici y prépare naturellement le terrain (cf. Risques).
+
+### Contexte — bug latent découvert en préparant ce lot, pas encore visible en pratique
+
+Le Lot 5 (révisé le 2026-09-09) fait charger `/cinema` à la fois par l'écran tactile et par la sortie HDMI, sur le même canal `127.0.0.1`. Mais **`/cinema` ne distingue aujourd'hui aucun rôle primaire/miroir dans son rendu** — chaque client exécute indépendamment la même machine à états (`Phase = "grid" | "countdown" | "playing" | "ended"`) et décode/joue son **propre** `<video>` local. Tant qu'aucun cours n'est sélectionné (état `"grid"` par défaut), les deux écrans affichent la même chose par coïncidence — ce qui a pu faire croire à une synchronisation réelle lors des premiers tests. **Dès qu'un cours est réellement lancé, la tablette redécoderait et rejouerait la même vidéo que l'écran HDMI**, avec son propre son — double charge de décodage sur le SoC, et probablement deux pistes audio simultanées. Non testé jusqu'ici (aucun cours n'a encore été lancé pour de vrai sur la tablette pilote), mais un problème certain dès le premier vrai cours.
+
+### Mécanisme existant réutilisé — pas besoin d'un nouveau protocole complet
+
+Investigation du code réel (pas de suppositions) : il existe déjà un mécanisme de commande à distance, `cinema_command` (`backend/app/routers/playback.py` fonction `handle_websocket_command`, autour de la ligne 609), diffusé par `ws_manager.broadcast()` à **tous les clients `/cinema` du canal**. Actions déjà supportées : `"play"`, `"pause"`, `"seek"`, `"stop"` (`"stop"` ramène déjà la page à la grille — c'est exactement le patron à suivre). Côté frontend, `usePlaybackSocket.ts` expose ce flux via `onCinemaCommand?: (action, positionSeconds) => void` et `CinemaCommandAction`, et `cinema/page.tsx` l'utilise déjà (fonction assignée à `cinemaCmdRef.current`, ligne ~549) pour piloter sa lecture **locale** en réponse à une commande distante.
+
+**Décision retenue : étendre `cinema_command` avec une nouvelle action `"launch"` (+ `video_id`), plutôt que d'inventer un évènement séparé.** Réutilise tout le pipeline broadcast/réception déjà écrit, testé, et scopé par canal — pas de nouvelle plomberie WebSocket à construire.
+
+### Fichiers concernés
+
+- **Backend** — `backend/app/routers/playback.py` (bloc `elif command == "cinema_command":`) : ajouter `"launch"` à la liste des actions acceptées, transmettre `video_id` dans le message diffusé.
+- **Frontend** — `frontend/src/lib/usePlaybackSocket.ts` : ajouter `"launch"` à `CinemaCommandAction`, étendre la signature de `onCinemaCommand` avec un `videoId` optionnel, le extraire de `parsed.video_id` au moment de la diffusion vers le callback.
+- **Frontend** — `frontend/src/app/cinema/page.tsx` : dans le handler `cinemaCmdRef.current`, ajouter un cas `"launch"` qui retrouve la vidéo dans `videos` (état déjà chargé, cf. `GET /api/videos` sondé toutes les 15s) et appelle `handleSelect(video)` — **réutilise le chemin de lecture existant tel quel**, aucune nouvelle logique de lecture à écrire.
+- **Frontend (nouveau)** — `frontend/src/app/grid/page.tsx` : nouvelle route, grille de sélection seule (héros + rangées par programme + liste complète — même présentation visuelle que la section `cinema-grid-layer` de `/cinema`, lignes ~671-720 du fichier actuel), avec son propre sondage `GET /api/videos` (indépendant de celui de `/cinema` — accepter une duplication mineure de polling plutôt qu'un refactor profond de `cinema/page.tsx` partagé entre les deux routes, risqué pour le comportement desktop existant). `onSelect(video)` appelle `sendCommand("cinema_command", { action: "launch", video_id: video.id })` au lieu de gérer un `<video>` local — **la page reste sur la grille en permanence, aucune transition de phase locale, conforme à la demande explicite** (« l'écran primaire reste toujours sur la grille »).
+- **Android (modifié)** — `android/app/src/main/java/com/bobine/app/MainActivity.kt` : `CINEMA_URL` → `GRID_URL` (`http://127.0.0.1:8000/grid/`).
+- **Android (inchangé)** — `BobinePresentation.kt` reste sur `/cinema` (127.0.0.1) : c'est déjà exactement le comportement voulu, aucune modification.
+
+### Tâches
+
+- [ ] Backend : `"launch"` accepté par `cinema_command`, `video_id` transmis dans le message diffusé.
+- [ ] Frontend : `usePlaybackSocket.ts` étendu (type + signature + extraction de `video_id`).
+- [ ] Frontend : `/cinema` gère `"launch"` reçu à distance via `handleSelect` existant.
+- [ ] Frontend : nouvelle route `/grid` — grille seule, envoie `cinema_command`/`launch` au lieu de lire une vidéo localement, ne quitte jamais son propre affichage.
+- [ ] Android : `MainActivity.kt` charge `GRID_URL`.
+- [ ] Test réel sur la tablette pilote (dock + HDMI branchés) : sélectionner un cours sur l'écran tactile déclenche la lecture sur l'écran externe, sans décodage ni son sur la tablette elle-même ; l'écran tactile reste affiché sur la grille pendant toute la lecture.
+- [ ] Non-régression desktop : `/cinema` reste utilisable seul (sans `/grid`) exactement comme avant sur les profils existants (mini PC x86) — un `cinema_command`/`launch` qui n'est jamais émis ne doit rien changer à son comportement.
+
+### Critère de sortie
+
+- [ ] Sur la tablette pilote : sélection d'un cours sur `/grid` (écran tactile) → lecture réelle sur `/cinema` (écran HDMI) uniquement, tablette toujours sur la grille, aucun double décodage/son constaté.
+
+### Découvertes
+*(à compléter par l'agent qui exécute ce lot)*
+
+### Risques et points de vigilance spécifiques à ce lot
+
+- **Cas de bord — aucun `/cinema` connecté sur le canal au moment du `"launch"`** (dock débranché, `Presentation` pas encore attachée) : `ws_manager.broadcast()` diffuse à un ensemble de clients potentiellement vide — comportement actuel déjà silencieux pour `cinema_command`/`stop` dans ce cas (aucun client pour l'appliquer), cohérent avec le reste du système (best-effort, pas d'erreur serveur). Envisager un retour visuel léger côté `/grid` (ex. toast) si l'expérience s'avère confuse en pratique — pas fait par défaut.
+- **`cinema_launch` reçu pendant qu'un cours est DÉJÀ en cours de lecture locale sur `/cinema`** : `handleSelect` gère déjà ce cas pour un clic local (remplace le cours en cours par le nouveau) — comportement hérité tel quel, à confirmer satisfaisant à l'usage.
+- **Portée explicitement limitée au canal câblé (`127.0.0.1`) et à ce chantier Android** : `/grid` n'est pour l'instant chargée que par la tablette elle-même, sur le même canal que sa propre sortie HDMI — pas un sélecteur générique accessible depuis un autre appareil du réseau (« laptop »/kiosque déporté), explicitement hors périmètre de ce lot par décision utilisateur. L'architecture (action `cinema_command`/`launch` diffusée par canal, pas par appareil) rend cette extension possible plus tard sans reprendre ce qui est fait ici, mais ce n'est pas construit ni testé maintenant.
+- **Duplication mineure acceptée** : `/grid` sonde `GET /api/videos` indépendamment de `/cinema` plutôt que de partager un état — deux requêtes identiques toutes les 15s au lieu d'une quand les deux pages tournent simultanément (le cas normal sur la tablette). Négligeable en charge serveur, évite un refactor de `cinema/page.tsx` risqué pour le comportement desktop partagé.
 
 ---
 
@@ -638,6 +688,7 @@ Réf. CDC §2. Dépend de tous les lots produisant du code fonctionnel (peut dé
 - [~] Lot 11 — mise à jour in-app implémentée (UpdateManager.kt, vérification validée) ; téléchargement/installation non testables sans un .apk réel publié (Lot 13)
 - [~] Lot 12 — deployment.py gère désormais un profil "android" explicite (AndroidHandler) ; README/ARCHITECTURE.md restent à mettre à jour une fois le portage plus avancé
 - [x] Lot 13 — signature APK, CI (build+signature à chaque push) ; publication publique volontairement différée (décision actée, cf. Découvertes)
+- [ ] Lot 14 — séparation `/grid` (écran tactile, sélection seule) / `/cinema` (écran HDMI, lecture) — ajouté le 2026-09-09, demande explicite utilisateur
 
 ---
 
