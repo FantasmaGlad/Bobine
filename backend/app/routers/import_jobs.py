@@ -24,6 +24,8 @@ class ImportJobResponse(BaseModel):
     progress_percent: float | None = None
     eta_seconds: int | None = None
     speed: str | None = None
+    estimated_seconds: float | None = None
+    queue_eta_seconds: int | None = None
 
 
 @router.get("", response_model=List[ImportJobResponse])

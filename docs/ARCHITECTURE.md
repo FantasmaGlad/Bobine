@@ -159,6 +159,7 @@ Le moteur de normalisation adapte dynamiquement les paramètres de l'encodeur se
 - **macOS (Apple Silicon M1 à M4 & Intel)** : encodeur matériel `h264_videotoolbox` (`-b:v <bitrate> -maxrate <maxrate> -pix_fmt nv12`), garantissant une conversion instantanée sans solliciter les cœurs CPU.
 - **Linux Bureau & Appliance Wyse (Intel QuickSync / AMD VA-API)** : encodeur matériel `h264_vaapi` via le périphérique `/dev/dri/renderD128` (`-vaapi_device /dev/dri/renderD128 -vf "format=nv12,hwupload"`). `install.sh` garantit la présence des pilotes libres ou non-free (`intel-media-va-driver`, `i965-va-driver`, Mesa radeonsi).
 - **Repli universel** : si l'accélération matérielle échoue ou n'est pas disponible, repli automatique transparent sur `libx264 -preset veryfast` sans interruption de la tâche.
+- **Intervalle de trames clés resserré** : toutes les vidéos normalisées (quel que soit l'encodeur) reçoivent `-g 60` (`-keyint_min 60` en repli logiciel), soit une trame clé toutes les ~2s à 30 im/s — garantit une avance/retour rapide fiable et évite qu'un seek admin vers une position hors keyframe ne laisse le décodeur bloqué (cf. §4, « Récupération d'un décodeur vidéo bloqué »).
 
 ### 3. Règle d'or : Conservation intégrale de la qualité source (Zéro dégradation)
 
@@ -176,6 +177,14 @@ Bobine respecte strictement la fidélité des médias sources :
 - **Interruption du processus** : `cancel_job()` signale l'annulation atomique, envoie un signal `SIGTERM` (puis `SIGKILL` de sécurité sous 1.5s) au sous-processus FFmpeg enregistré, et annule le `Future` du pool de threads.
 - **Purge intégrale** : l'interruption lève `JobCancelledError`, entraînant la suppression immédiate des fichiers de destination partiels (`dest_path`, miniatures temporaires) sans aucune écriture en base de données.
 - **Nettoyage préventif au démarrage** : le backend scanne les répertoires médias au lancement pour supprimer les reliquats temporaires orphelins laissés par une coupure d'alimentation brutale.
+
+### 5. Estimation de durée avant démarrage & file d'attente (`encode_speed_stats.py`)
+
+La télémétrie FFmpeg du §1 (`progress_percent`, `eta_seconds`, `speed`) n'existe qu'une fois le réencodage réellement démarré — les étapes qui précèdent (attente en file, analyse du fichier, copie) n'affichaient auparavant qu'un indicateur « en cours » sans durée. Deux estimations complètent désormais cette télémétrie :
+- **Estimation initiale par tâche** (`estimated_seconds`) : posée dès la fin de l'analyse du fichier (avant le lancement de FFmpeg), calculée à partir de la durée de la vidéo source divisée par une vitesse moyenne (`x` temps réel) observée historiquement pour le couple (encodeur matériel, palier de résolution 4K/2K/1080p) courant. Cette moyenne mobile est persistée dans la table `settings` (clé `encode_speed_stats:<encodeur>:<palier>`) et affinée après chaque réencodage réussi ; tant qu'aucun échantillon n'existe, un repère par défaut prudent est utilisé par encodeur. Purement indicative, elle est écrasée par `eta_seconds` dès que la progression FFmpeg réelle démarre.
+- **Estimation cumulée de file d'attente** (`queue_eta_seconds`) : pour une tâche donnée, somme du temps restant estimé (ETA en direct si déjà en cours de réencodage, sinon estimation initiale) de toutes les tâches non terminées placées avant elle, plus son propre temps restant. Calculée dans `list_jobs()`, au même titre que `queue_position` — une estimation, pas une garantie.
+
+Ces deux champs sont exposés par `GET /api/import-jobs` et affichés dans le panneau flottant d'upload (`UploadManager.tsx`) : `~X min (estimation)` pendant l'analyse/la copie, puis `(N devant, ~X min au total)` tant qu'une tâche attend son tour.
 
 ---
 
@@ -197,6 +206,14 @@ Lorsqu'une programmation automatique (`scheduler`) doit démarrer alors qu'une l
 1. Le `playback_manager` interrompt la lecture manuelle et sauvegarde la position exacte et l'identifiant du média dans `playback_state`.
 2. Le cours programmé s'exécute.
 3. À la fin de la programmation, l'interface propose automatiquement la **reprise à la seconde près** du cours interrompu.
+
+### Récupération d'un décodeur vidéo bloqué (`/kiosk`, `/cinema`)
+
+Sur certains décodeurs matériels (VA-API sur la Wyse, MediaCodec en WebView Android), un seek vers une position hors keyframe peut laisser le pipeline vidéo bloqué sur la dernière image décodée pendant que la piste audio du même `<video>` continue d'avancer — l'écran affiche alors une image figée alors que le son se joue normalement. Deux protections indépendantes couvrent ce cas dans `/kiosk` et `/cinema` :
+1. **Seeks protégés** : toute assignation de `currentTime` passe par `seekWhenReady()`, qui diffère l'affectation jusqu'à `loadedmetadata` si l'élément n'est pas encore prêt (`readyState < HAVE_METADATA`) — une affectation directe y lève sinon une exception silencieusement avalée, sans retry.
+2. **Filet de sécurité par sondage** : un contrôle toutes les 2,5s détecte une absence de progression de `currentTime` alors que l'élément est censé jouer (ni en pause, ni en train de chercher, ni terminé) et tente de débloquer le décodeur par un micro-seek (+0,05s) suivi d'un `play()`.
+
+Ces deux mécanismes traitent le symptôme de manière générique ; la cause matérielle exacte du blocage du décodeur reste, elle, non instrumentée (pas de télémétrie décodeur en direct).
 
 ---
 

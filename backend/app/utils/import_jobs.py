@@ -82,6 +82,11 @@ def create_job(kind: str, filename: str, title: str | None = None, source: str =
         "progress_percent": None,
         "eta_seconds": None,
         "speed": None,
+        # Estimation initiale du réencodage, posée avant même le démarrage de
+        # ffmpeg (réf. mission "estimation de la durée d'importation et de
+        # réencodage", cf. video_utils.estimate_normalize_seconds) — écrasée
+        # par `eta_seconds` dès que la progression ffmpeg réelle démarre.
+        "estimated_seconds": None,
         "created_at": now,
         "updated_at": now,
     }
@@ -206,7 +211,21 @@ def list_jobs() -> list[dict]:
         jobs = [dict(_jobs[job_id]) for job_id in _job_order]
 
     pending = [j for j in jobs if j["stage"] not in ("done", "error", "cancelled")]
+    # ETA de file cumulée (réf. mission "estimation de la durée d'importation
+    # et de réencodage") : pour chaque tâche non terminée, temps encore
+    # nécessaire pour ELLE-MÊME (l'ETA ffmpeg en direct si l'encodage est déjà
+    # démarré, sinon l'estimation initiale posée en fin d'analyse, sinon 0
+    # pour les étapes rapides sans estimation dédiée — copie, miniature,
+    # enregistrement), additionné à celui de toutes les tâches placées avant
+    # elle dans la file. Une ESTIMATION au même titre que `queue_position`
+    # ci-dessus, pas une garantie.
+    cumulative = 0.0
     for idx, job in enumerate(pending):
         job["queue_position"] = idx
+        own_remaining = job.get("eta_seconds")
+        if own_remaining is None:
+            own_remaining = job.get("estimated_seconds") or 0.0
+        cumulative += own_remaining
+        job["queue_eta_seconds"] = round(cumulative)
 
     return jobs

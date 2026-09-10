@@ -433,22 +433,32 @@ def _get_encoder_args(is_android: bool, width: int | None, height: int | None) -
     bitrate = _get_target_bitrate(width, height)
     system = platform.system().lower()
 
+    # Intervalle de trames clés resserré (réf. correctif "freeze kiosk réseau
+    # au seek admin") : sans `-g` explicite, ffmpeg choisit un GOP par défaut
+    # pouvant dépasser plusieurs secondes — un seek admin vers une position
+    # hors keyframe oblige alors le décodeur à rattraper depuis la keyframe
+    # précédente, terrain propice aux blocages sur certains décodeurs
+    # matériels (VA-API, MediaCodec). Une trame clé toutes les 60 images
+    # (~2s à 30 im/s) borne ce rattrapage sans impact perceptible sur le
+    # débit à ces bitrates cibles.
+    gop_args = ["-g", "60"]
+
     if is_android:
         # Qualcomm Snapdragon MediaCodec matériel : operating_rate 1000 pour horloge max,
         # nv12 pour zéro-copie avec le décodeur matériel.
-        return (["-c:v", "h264_mediacodec", "-operating_rate", "1000", "-pix_fmt", "nv12", "-b:v", bitrate], "h264_mediacodec")
+        return (["-c:v", "h264_mediacodec", "-operating_rate", "1000", "-pix_fmt", "nv12", "-b:v", bitrate, *gop_args], "h264_mediacodec")
 
     if system == "darwin":
         # macOS : Apple Silicon (puces M1/M2/M3/M4) et Intel via VideoToolbox matériel
-        return (["-c:v", "h264_videotoolbox", "-q:v", "65", "-pix_fmt", "yuv420p"], "h264_videotoolbox")
+        return (["-c:v", "h264_videotoolbox", "-q:v", "65", "-pix_fmt", "yuv420p", *gop_args], "h264_videotoolbox")
 
     if system == "linux":
         # Dell Wyse 5070 (Intel Gemini Lake UHD 600) ou station Linux avec VA-API QuickSync
         if os.path.exists("/dev/dri/renderD128") and os.access("/dev/dri/renderD128", os.R_OK | os.W_OK):
-            return (["-vaapi_device", "/dev/dri/renderD128", "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-b:v", bitrate], "h264_vaapi")
+            return (["-vaapi_device", "/dev/dri/renderD128", "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-b:v", bitrate, *gop_args], "h264_vaapi")
 
     # Repli logiciel universel haute compatibilité (Windows, serveurs headless sans GPU, repli après échec GPU)
-    return (["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"], "libx264")
+    return (["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", *gop_args, "-keyint_min", "60"], "libx264")
 
 
 def _run_ffmpeg_with_progress(
@@ -456,6 +466,9 @@ def _run_ffmpeg_with_progress(
     job_id: str | None,
     duration_seconds: float | None,
     timeout: int = FFMPEG_NORMALIZE_TIMEOUT_SECONDS,
+    encoder_name: str | None = None,
+    width: int | None = None,
+    height: int | None = None,
 ) -> tuple[int, str]:
     """
     Exécute FFmpeg en sous-processus Popen avec télémétrie en direct (-progress pipe:1),
@@ -558,7 +571,36 @@ def _run_ffmpeg_with_progress(
             raise JobCancelledError(f"Job {job_id} annulé par l'utilisateur")
         return (proc.returncode, stderr_text)
 
+    if duration_seconds and duration_seconds > 0 and encoder_name:
+        elapsed = time.time() - start_time
+        if elapsed > 0:
+            from app.utils.encode_speed_stats import record_speed_sample, resolution_bucket
+
+            record_speed_sample(encoder_name, resolution_bucket(width, height), duration_seconds / elapsed)
+
     return (0, stderr_text)
+
+
+def estimate_normalize_seconds(source_metadata: dict) -> float | None:
+    """Estimation de la durée de réencodage AVANT le démarrage de ffmpeg (réf.
+    mission "estimation de la durée d'importation et de réencodage") : basée
+    sur la vitesse moyenne (x temps réel) déjà observée pour ce couple
+    (encodeur, résolution) via `encode_speed_stats`, ou un repère par défaut
+    tant qu'aucun échantillon n'existe encore. Purement indicative — écrasée
+    par la progression réelle de ffmpeg (`_run_ffmpeg_with_progress`) dès que
+    l'encodage démarre et émet sa première ligne de progression."""
+    from app.utils.deployment import get_deployment_profile
+    from app.utils.encode_speed_stats import get_estimated_speed, resolution_bucket
+
+    duration = source_metadata.get("duration_seconds")
+    if not duration or duration <= 0:
+        return None
+    is_android = get_deployment_profile() == "android"
+    _, encoder_name = _get_encoder_args(is_android, source_metadata.get("width"), source_metadata.get("height"))
+    speed = get_estimated_speed(encoder_name, resolution_bucket(source_metadata.get("width"), source_metadata.get("height")))
+    if speed <= 0:
+        return None
+    return duration / speed
 
 
 def normalize_video(
@@ -613,7 +655,10 @@ def normalize_video(
     use_av1_hw = is_android and (in_codec == "av1")
     cmd = _build_cmd(initial_enc_args, use_av1_hw)
 
-    ret, stderr = _run_ffmpeg_with_progress(cmd, job_id, meta.get("duration_seconds"))
+    ret, stderr = _run_ffmpeg_with_progress(
+        cmd, job_id, meta.get("duration_seconds"),
+        encoder_name=encoder_name, width=meta.get("width"), height=meta.get("height"),
+    )
     if ret == 0:
         return output_path
 
@@ -622,9 +667,12 @@ def normalize_video(
     # 2. Repli matériel VA-API ou VideoToolbox -> libx264 si échec GPU
     if encoder_name in ("h264_vaapi", "h264_videotoolbox"):
         logger.info(f"Repli vers l'encodeur logiciel libx264 suite à l'erreur {encoder_name}...")
-        fallback_enc = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
+        fallback_enc = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-g", "60", "-keyint_min", "60"]
         cmd_fallback = _build_cmd(fallback_enc, use_av1_hw)
-        ret2, stderr2 = _run_ffmpeg_with_progress(cmd_fallback, job_id, meta.get("duration_seconds"))
+        ret2, stderr2 = _run_ffmpeg_with_progress(
+            cmd_fallback, job_id, meta.get("duration_seconds"),
+            encoder_name="libx264", width=meta.get("width"), height=meta.get("height"),
+        )
         if ret2 == 0:
             return output_path
         stderr = stderr2
@@ -633,7 +681,10 @@ def normalize_video(
     if is_android and not use_av1_hw and ("av1" in stderr.lower() or "not implemented" in stderr.lower()):
         logger.info("Détection d'un flux AV1 non géré par le décodeur par défaut, bascule vers av1_mediacodec...")
         cmd_av1 = _build_cmd(initial_enc_args, av1_hw_in=True)
-        ret3, stderr3 = _run_ffmpeg_with_progress(cmd_av1, job_id, meta.get("duration_seconds"))
+        ret3, stderr3 = _run_ffmpeg_with_progress(
+            cmd_av1, job_id, meta.get("duration_seconds"),
+            encoder_name=encoder_name, width=meta.get("width"), height=meta.get("height"),
+        )
         if ret3 == 0:
             return output_path
         stderr = stderr3

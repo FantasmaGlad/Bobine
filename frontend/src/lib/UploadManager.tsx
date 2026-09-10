@@ -92,6 +92,11 @@ export interface UploadTask extends PendingUploadSpec {
   speed?: string | null;
   /** Position estimée dans la file d'attente (0 = prochain traité). */
   queuePosition?: number | null;
+  /** Estimation initiale du réencodage, posée avant même le démarrage de
+   *  ffmpeg (écrasée par `etaSeconds` dès que la progression réelle démarre). */
+  estimatedSeconds?: number | null;
+  /** Temps total estimé avant la fin de CETTE tâche, file d'attente comprise. */
+  queueEtaSeconds?: number | null;
   /** Identifiant de l'élément créé (vidéo/fond/cours) une fois status === "done". */
   resultId?: number | null;
   error?: string;
@@ -344,6 +349,8 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
           progress_percent: number | null;
           eta_seconds: number | null;
           speed: string | null;
+          estimated_seconds: number | null;
+          queue_eta_seconds: number | null;
         }>) => {
           const byId = new Map(jobs.map((j) => [j.id, j]));
           processing.forEach((task) => {
@@ -382,6 +389,8 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
                 progressPercent: job.progress_percent,
                 etaSeconds: job.eta_seconds,
                 speed: job.speed,
+                estimatedSeconds: job.estimated_seconds,
+                queueEtaSeconds: job.queue_eta_seconds,
               });
             }
           });
@@ -432,6 +441,17 @@ function formatEta(seconds: number | null | undefined): string | null {
   const mins = Math.floor(seconds / 60);
   const remSecs = seconds % 60;
   return remSecs > 0 ? `~${mins} min ${remSecs}s restantes` : `~${mins} min restantes`;
+}
+
+// Suffixe "(N devant, ~X min restantes)" affiché tant qu'une tâche attend
+// son tour (réf. mission "estimation de la durée d'importation et de
+// réencodage" — file d'attente comprise, pas seulement le réencodage
+// lui-même une fois démarré).
+function formatQueueSuffix(queuePosition: number | null | undefined, queueEtaSeconds: number | null | undefined): string {
+  if (typeof queuePosition !== "number" || queuePosition <= 0) return "";
+  const eta = formatEta(queueEtaSeconds);
+  const etaSuffix = eta ? `, ${eta.replace("restantes", "au total")}` : "";
+  return ` (${queuePosition} devant${etaSuffix})`;
 }
 
 function UploadFloatingPanel() {
@@ -558,10 +578,13 @@ function UploadFloatingPanel() {
                         {task.speed && ` (${task.speed})`}
                       </>
                     ) : (
-                      task.stageLabel ?? "Traitement…"
+                      <>
+                        {task.stageLabel ?? "Traitement…"}
+                        {task.stage === "normalizing" && typeof task.estimatedSeconds === "number" &&
+                          ` — ${formatEta(task.estimatedSeconds)} (estimation)`}
+                      </>
                     )}
-                    {typeof task.queuePosition === "number" && task.queuePosition > 0 &&
-                      ` (${task.queuePosition} devant)`}
+                    {formatQueueSuffix(task.queuePosition, task.queueEtaSeconds)}
                   </>
                 )}
               </span>

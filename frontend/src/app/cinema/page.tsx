@@ -22,6 +22,23 @@ function getApiUrl(path: string) {
   return `/api${path}`;
 }
 
+// Réf. correctif "freeze kiosk réseau au seek admin" (voir kiosk/page.tsx,
+// même bug) : assigner `currentTime` avant HAVE_METADATA lève une exception
+// dans certains navigateurs/WebView embarqués (dont la WebView Android
+// utilisée ici pour la sortie HDMI, cf. BobinePresentation.kt), ce qui
+// pouvait laisser un seek silencieusement sans effet.
+function seekWhenReady(el: HTMLMediaElement, position: number) {
+  const apply = () => {
+    try {
+      el.currentTime = position;
+    } catch {
+      // Rattrapé par le prochain seek/rapport si toujours pas prêt.
+    }
+  };
+  if (el.readyState >= HTMLMediaElement.HAVE_METADATA) apply();
+  else el.addEventListener("loadedmetadata", apply, { once: true });
+}
+
 interface CinemaVideo {
   id: number;
   title: string;
@@ -603,7 +620,7 @@ export default function CinemaPage() {
       } else if (action === "play") {
         el.play().then(() => setIsPlaying(true)).catch(() => {});
       } else if (action === "seek") {
-        el.currentTime = positionSeconds;
+        seekWhenReady(el, positionSeconds);
         setPosition(positionSeconds);
       }
     };
@@ -621,6 +638,36 @@ export default function CinemaPage() {
   // IMMÉDIAT à chaque changement d'état réel, qu'il vienne d'une commande
   // admin ou d'une action locale de l'adhérent — l'admin voit l'effet en
   // ~100 ms. L'intervalle ne sert plus que de battement de fond.
+  // Filet de sécurité "décodeur vidéo bloqué" (réf. correctif "freeze kiosk
+  // réseau au seek admin" — voir kiosk/page.tsx, même correctif) : sur
+  // certains décodeurs matériels (MediaCodec en WebView Android, sortie HDMI
+  // de ce fichier), un seek vers une position hors keyframe peut laisser le
+  // pipeline vidéo bloqué sur la dernière image décodée pendant que l'audio
+  // du même <video> continue d'avancer, sans que `waiting`/`stalled` ne se
+  // déclenchent forcément. On détecte l'absence de progression de
+  // `currentTime` pendant que l'élément est censé jouer et on tente de
+  // débloquer le décodeur par un micro-seek suivi d'un `play()`.
+  useEffect(() => {
+    let lastTime = -1;
+    const interval = window.setInterval(() => {
+      const video = videoRef.current;
+      if (!video || video.paused || video.seeking || video.ended || !video.src) {
+        lastTime = -1;
+        return;
+      }
+      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.currentTime === lastTime) {
+        try {
+          video.currentTime = Math.max(0, video.currentTime + 0.05);
+        } catch {
+          // Retenté au prochain contrôle.
+        }
+        video.play().catch(() => {});
+      }
+      lastTime = video.currentTime;
+    }, 2500);
+    return () => window.clearInterval(interval);
+  }, []);
+
   const reportNowRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     if (phase !== "playing") {
@@ -863,13 +910,13 @@ export default function CinemaPage() {
               onMouseUp={(e) => {
                 const value = Number((e.target as HTMLInputElement).value);
                 setSeekDragValue(null);
-                if (videoRef.current) videoRef.current.currentTime = value;
+                if (videoRef.current) seekWhenReady(videoRef.current, value);
                 setPosition(value);
               }}
               onTouchEnd={(e) => {
                 const value = Number((e.target as HTMLInputElement).value);
                 setSeekDragValue(null);
-                if (videoRef.current) videoRef.current.currentTime = value;
+                if (videoRef.current) seekWhenReady(videoRef.current, value);
                 setPosition(value);
               }}
               style={{ accentColor: programAccent }}

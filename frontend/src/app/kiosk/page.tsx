@@ -532,7 +532,14 @@ export default function KioskPage() {
           }
           break;
         case "seek":
-          if (video) video.currentTime = data.position_seconds;
+          // Réf. correctif "freeze kiosk réseau au seek admin" : ce cas
+          // assignait `currentTime` directement, sans passer par
+          // seekWhenReady comme "sync"/"load" plus haut — l'exception
+          // pré-HAVE_METADATA (cf. commentaire au-dessus de seekWhenReady)
+          // était alors avalée par le try/catch de usePlaybackSocket sans
+          // jamais être retentée, laissant l'image figée pendant que la
+          // piste audio du même <video> continuait sa lecture.
+          if (video) seekWhenReady(video, data.position_seconds);
           // Noms d'icônes Material Symbols (réf. mission "retire tous les
           // emojis") — rendus par <Icon> dans le JSX de l'OSD.
           showOsd({
@@ -600,6 +607,36 @@ export default function KioskPage() {
       sendCommand("audio_report_position", { position_seconds: audio.currentTime });
     }
   };
+
+  // Filet de sécurité "décodeur vidéo bloqué" (réf. correctif "freeze kiosk
+  // réseau au seek admin") : sur certains décodeurs matériels (VA-API sur le
+  // Wyse, MediaCodec en WebView Android), un seek vers une position hors
+  // keyframe peut laisser le pipeline vidéo bloqué sur la dernière image
+  // décodée alors que la piste audio du même <video> continue d'avancer —
+  // aucun évènement `waiting`/`stalled` fiable ne se déclenche dans ce cas
+  // précis. On détecte l'absence de progression de `currentTime` pendant que
+  // l'élément est censé jouer et on tente de débloquer le décodeur par un
+  // micro-seek suivi d'un `play()`.
+  useEffect(() => {
+    let lastTime = -1;
+    const interval = window.setInterval(() => {
+      const video = videoRef.current;
+      if (!video || video.paused || video.seeking || video.ended || !video.src) {
+        lastTime = -1;
+        return;
+      }
+      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.currentTime === lastTime) {
+        try {
+          video.currentTime = Math.max(0, video.currentTime + 0.05);
+        } catch {
+          // Retenté au prochain contrôle.
+        }
+        video.play().catch(() => {});
+      }
+      lastTime = video.currentTime;
+    }, 2500);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const program = state.current_video?.program ?? state.current_audio_course?.program ?? undefined;
   // Couleur du thème plutôt que du programme du cours (réf. correctif

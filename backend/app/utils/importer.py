@@ -15,6 +15,7 @@ from app.utils.video_utils import (
     generate_thumbnail,
     normalize_video,
     read_mp4_duration_seconds,
+    estimate_normalize_seconds,
 )
 from app.utils.import_jobs import update_job, is_job_cancelled, JobCancelledError
 
@@ -165,7 +166,11 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
             raise JobCancelledError(f"Job {job_id} annulé")
 
         if compat["needs_normalization"]:
-            update_job(job_id, stage="normalizing")
+            # Estimation initiale (réf. mission "estimation de la durée
+            # d'importation et de réencodage") : affichée le temps que ffmpeg
+            # démarre et émette sa propre progression en direct, qui prend
+            # ensuite le relais (cf. _run_ffmpeg_with_progress).
+            update_job(job_id, stage="normalizing", estimated_seconds=estimate_normalize_seconds(meta))
             # Déplacement vers un fichier temporaire pour normalisation
             temp_filename = f"temp_{file_id}_{clean_name}"
             temp_dest_path = Path(settings.media_dir) / temp_filename
@@ -427,7 +432,7 @@ def import_background(
             raise JobCancelledError(f"Job {job_id} annulé")
 
         if compat["needs_normalization"]:
-            update_job(job_id, stage="normalizing")
+            update_job(job_id, stage="normalizing", estimated_seconds=estimate_normalize_seconds(meta))
             temp_filename = f"temp_{file_id}_{clean_name}"
             temp_dest_path = Path(settings.backgrounds_dir) / temp_filename
             shutil.move(src_path, temp_dest_path)
