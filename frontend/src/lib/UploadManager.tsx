@@ -471,7 +471,7 @@ function UploadFloatingPanel() {
         bottom: "24px",
         right: "24px",
         zIndex: 9999,
-        width: minimized ? "auto" : "360px",
+        width: minimized ? "auto" : "420px",
         background: "var(--bg-surface-elevated)",
         border: "1px solid var(--border-color)",
         borderRadius: "12px",
@@ -519,7 +519,9 @@ function UploadFloatingPanel() {
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    maxWidth: "220px",
+                    maxWidth: "230px",
+                    flexShrink: 1,
+                    minWidth: 0,
                     display: "flex",
                     alignItems: "center",
                     gap: "4px",
@@ -534,17 +536,16 @@ function UploadFloatingPanel() {
                   )}
                   {task.title}
                 </span>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0, whiteSpace: "nowrap" }}>
                   {task.status === "uploading" && (
                     <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
                       {task.progress}%{task.uploadEtaSeconds ? ` (${formatEta(task.uploadEtaSeconds)})` : ""}
                     </span>
                   )}
-                  {task.status === "processing" && typeof task.progressPercent === "number" && (
-                    <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
-                      {task.progressPercent}%
-                    </span>
-                  )}
+                  {/* Pourcentage déjà repris avec son ETA dans la ligne de détail
+                      ci-dessous (stage === "normalizing") — un doublon ici, sur une
+                      seule ligne étroite partagée avec le titre, provoquait un
+                      chevauchement visuel dès que le texte d'ETA s'allongeait. */}
                   {(task.status === "uploading" || task.status === "pending" || task.status === "processing") && (
                     <button
                       onClick={() => cancelUpload(task.id)}
@@ -574,7 +575,16 @@ function UploadFloatingPanel() {
                     {task.stage === "normalizing" && typeof task.progressPercent === "number" ? (
                       <>
                         Réencodage ({task.progressPercent}%)
-                        {task.etaSeconds !== null && task.etaSeconds !== undefined && ` — ${formatEta(task.etaSeconds)}`}
+                        {/* Réf. correctif "estimation invisible à l'import" : FFmpeg émet sa
+                            première ligne de progression quasi immédiatement (souvent avant
+                            eta_seconds, qui nécessite une ligne "speed=" préalable) — sans repli
+                            sur estimatedSeconds ici, l'utilisateur ne voyait quasiment jamais
+                            aucune durée, seul le pourcentage brut apparaissait. */}
+                        {typeof task.etaSeconds === "number" ? (
+                          ` — ${formatEta(task.etaSeconds)}`
+                        ) : typeof task.estimatedSeconds === "number" ? (
+                          ` — ${formatEta(task.estimatedSeconds)} (estimation)`
+                        ) : null}
                         {task.speed && ` (${task.speed})`}
                       </>
                     ) : (

@@ -215,6 +215,8 @@ Sur certains décodeurs matériels (VA-API sur la Wyse, MediaCodec en WebView An
 
 Ces deux mécanismes traitent le symptôme de manière générique ; la cause matérielle exacte du blocage du décodeur reste, elle, non instrumentée (pas de télémétrie décodeur en direct).
 
+**État du diagnostic (2026-09-10) — freeze au seek toujours ouvert.** Une reproduction en direct sur le canal réseau (poste de dev Linux, Chrome avec `--enable-features=AcceleratedVideoDecodeLinuxGL` — le même flag que `install.sh` active sur le kiosk Wyse en production) a confirmé le symptôme malgré les deux protections ci-dessus déjà déployées : blocage de `position_seconds` pendant ~15 à 25s à chaque seek (jamais sur pause/lecture), reprise spontanée ensuite. Piste retenue : un bug connu de la pile de décodage vidéo accélérée expérimentale de Chromium sous Linux (désynchronisation du pipeline GPU au seek, hors de portée des deux protections JS ci-dessus qui agissent au niveau de l'élément `<video>`, pas du décodeur). **Non confirmé sur le Wyse réel** (aucun boîtier Wyse en service actuellement pour retester) ni définitivement écarté côté Android/MediaCodec (WebView) — priorité actuelle : validation sur Android via les builds CI (`android-build`), le poste Linux n'étant qu'un banc de test de substitution. Piste de correctif envisagée mais **pas appliquée** : désactiver `AcceleratedVideoDecodeLinuxGL` dans `install.sh` (repli decode logiciel) — à trancher une fois un Wyse de nouveau disponible pour valider le compromis CPU.
+
 ---
 
 ## 5. Module Radio
