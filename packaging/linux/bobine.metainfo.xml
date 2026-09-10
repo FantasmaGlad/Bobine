@@ -35,6 +35,11 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="3.0.3" date="2026-09-10">
+      <description>
+        <p>Version 3.0.3 : Élimination définitive du gel d'image vidéo au seek sur navigateurs et terminaux mobiles (synchronisation pause/seeked, garde d'état et watchdog d'images peintes), mode cinéma réseau déverrouillé avec accès universel à la vitrine de cours, normalisation et imports vidéo atomiques garantis sans fichier résiduel corrompu, et streaming partiel HTTP Range conforme RFC 7233 / RFC 9110.</p>
+      </description>
+    </release>
     <release version="3.0.2" date="2026-09-09">
       <description>
         <p>Version 3.0.2 : Sortie officielle de l'application native Android (.apk) avec double affichage tactile/HDMI et serveur embarqué, réencodage avec accélération matérielle multi-OS (MediaCodec, VideoToolbox, VA-API), politique stricte de conservation intégrale des résolutions 2K/4K sans sous-échantillonnage, annulation réactive d'importation (croix ✕ avec arrêt immédiat et purge), estimation de durée en direct (ETA), miniatures 1080p et navigation temporelle fluide.</p>
