@@ -55,6 +55,7 @@ export default function KioskPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastReportRef = useRef(0);
   const lastAudioReportRef = useRef(0);
+  const lastSeekTimeRef = useRef(0);
   // Rôle primaire lisible depuis handleEvent (défini avant l'appel du hook) :
   // le kiosk primaire est la SOURCE de la position rapportée au serveur — il
   // ne doit jamais se recaler dessus (boucle d'auto-correction pendant un
@@ -246,7 +247,22 @@ export default function KioskPage() {
       const seekWhenReady = (el: HTMLMediaElement, position: number) => {
         const apply = () => {
           try {
+            if (el.seeking) return;
+            lastSeekTimeRef.current = Date.now();
+            const wasPlaying = !el.paused;
+            if (wasPlaying) el.pause();
             el.currentTime = position;
+            if (wasPlaying) {
+              const onSeeked = () => {
+                el.removeEventListener("seeked", onSeeked);
+                tryPlay(el);
+              };
+              el.addEventListener("seeked", onSeeked, { once: true });
+              setTimeout(() => {
+                el.removeEventListener("seeked", onSeeked);
+                if (el.paused && wasPlaying) tryPlay(el);
+              }, 1200);
+            }
           } catch {
             // Rattrapé par le prochain sync/tick si toujours pas prêt.
           }
@@ -368,21 +384,15 @@ export default function KioskPage() {
           break;
         }
         case "position_tick": {
-          // Correctif "kiosk réseau jamais synchronisé / vidéo figée" :
-          // jusqu'ici ce cause n'était traité par aucun cas ci-dessous — un
-          // kiosk miroir (deuxième écran réseau, réf. rôle primaire/miroir)
-          // recevait bien l'évènement mais son <video> local n'était jamais
-          // corrigé, restant figé sur la position connue à sa connexion. Un
-          // seuil de dérive évite de saccader une lecture déjà correcte par
-          // des recalages incessants (~4 fois par seconde côté serveur).
-          // Le kiosk primaire, source de cette position, ne se recale jamais.
           if (isPrimaryRef.current) break;
+          // Période de grâce après un seek : laisser le tampon et le décodage se stabiliser
+          if (Date.now() - lastSeekTimeRef.current < 3000) break;
           const DRIFT_THRESHOLD_SECONDS = 1.5;
           if (data.current_audio_course && audio && currentTrack) {
-            if (Math.abs(audio.currentTime - data.audio_position_seconds) > DRIFT_THRESHOLD_SECONDS) {
+            if (!audio.seeking && Math.abs(audio.currentTime - data.audio_position_seconds) > DRIFT_THRESHOLD_SECONDS) {
               seekWhenReady(audio, data.audio_position_seconds);
             }
-            if (data.audio_playing && audio.paused) tryPlay(audio);
+            if (data.audio_playing && audio.paused && !audio.seeking) tryPlay(audio);
             else if (!data.audio_playing && !audio.paused) audio.pause();
             // Réf. correctif "fond animé non mis en pause avec la musique" :
             // un kiosk miroir qui rejoint APRÈS le play/pause d'origine (ou
@@ -396,10 +406,10 @@ export default function KioskPage() {
           }
           if (video && data.current_video) {
             const targetPlaying = data.state === "playing";
-            if (Math.abs(video.currentTime - data.position_seconds) > DRIFT_THRESHOLD_SECONDS) {
+            if (!video.seeking && Math.abs(video.currentTime - data.position_seconds) > DRIFT_THRESHOLD_SECONDS) {
               seekWhenReady(video, data.position_seconds);
             }
-            if (targetPlaying && video.paused) tryPlay(video);
+            if (targetPlaying && video.paused && !video.seeking) tryPlay(video);
             else if (!targetPlaying && !video.paused) video.pause();
           }
           break;
@@ -608,33 +618,74 @@ export default function KioskPage() {
     }
   };
 
-  // Filet de sécurité "décodeur vidéo bloqué" (réf. correctif "freeze kiosk
-  // réseau au seek admin") : sur certains décodeurs matériels (VA-API sur le
-  // Wyse, MediaCodec en WebView Android), un seek vers une position hors
-  // keyframe peut laisser le pipeline vidéo bloqué sur la dernière image
-  // décodée alors que la piste audio du même <video> continue d'avancer —
-  // aucun évènement `waiting`/`stalled` fiable ne se déclenche dans ce cas
-  // précis. On détecte l'absence de progression de `currentTime` pendant que
-  // l'élément est censé jouer et on tente de débloquer le décodeur par un
-  // micro-seek suivi d'un `play()`.
+  // Filet de sécurité "décodeur vidéo bloqué / texture figée" (réf. correctif "freeze kiosk
+  // réseau au seek admin") : sur certains décodeurs matériels (MediaCodec sur Android,
+  // VA-API sur le Wyse), un seek vers une position hors keyframe peut laisser le pipeline
+  // vidéo bloqué sur la dernière image décodée alors que la piste audio du même <video>
+  // continue d'avancer (et donc currentTime avance aussi !). On utilise requestVideoFrameCallback
+  // lorsqu'il est disponible pour surveiller le nombre d'images réellement peintes à l'écran,
+  // avec repli sur la progression de currentTime.
   useEffect(() => {
     let lastTime = -1;
+    let presentedFrames = 0;
+    let lastPresentedFrames = 0;
+    let rVfcSupported = false;
+
+    const onFrame = () => {
+      presentedFrames++;
+      const v = videoRef.current;
+      if (v && "requestVideoFrameCallback" in v) {
+        (v as unknown as { requestVideoFrameCallback: (cb: () => void) => void }).requestVideoFrameCallback(onFrame);
+      }
+    };
+
+    const v = videoRef.current;
+    if (v && "requestVideoFrameCallback" in v) {
+      rVfcSupported = true;
+      (v as unknown as { requestVideoFrameCallback: (cb: () => void) => void }).requestVideoFrameCallback(onFrame);
+    }
+
     const interval = window.setInterval(() => {
       const video = videoRef.current;
       if (!video || video.paused || video.seeking || video.ended || !video.src) {
         lastTime = -1;
+        lastPresentedFrames = presentedFrames;
         return;
       }
-      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.currentTime === lastTime) {
-        try {
-          video.currentTime = Math.max(0, video.currentTime + 0.05);
-        } catch {
-          // Retenté au prochain contrôle.
+      // Période de grâce après un seek récent (laisser le décodage initial s'installer)
+      if (Date.now() - lastSeekTimeRef.current < 3500) {
+        lastTime = video.currentTime;
+        lastPresentedFrames = presentedFrames;
+        return;
+      }
+
+      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        const visualFreeze = rVfcSupported && presentedFrames === lastPresentedFrames;
+        const clockFreeze = video.currentTime === lastTime;
+
+        if (visualFreeze || clockFreeze) {
+          const curPos = video.currentTime;
+          try {
+            video.pause();
+            video.currentTime = curPos + 0.05;
+            const onSeeked = () => {
+              video.removeEventListener("seeked", onSeeked);
+              video.play().catch(() => {});
+            };
+            video.addEventListener("seeked", onSeeked, { once: true });
+            setTimeout(() => {
+              video.removeEventListener("seeked", onSeeked);
+              if (video.paused) video.play().catch(() => {});
+            }, 1000);
+          } catch {
+            // Retenté au prochain contrôle si nécessaire
+          }
         }
-        video.play().catch(() => {});
       }
       lastTime = video.currentTime;
+      lastPresentedFrames = presentedFrames;
     }, 2500);
+
     return () => window.clearInterval(interval);
   }, []);
 

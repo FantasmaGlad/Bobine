@@ -178,19 +178,24 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
             logger.info(f"Déplacement de {src_path} vers {temp_dest_path} pour normalisation")
             shutil.move(src_path, temp_dest_path)
 
-            # Le fichier normalisé sera toujours un MP4
+            # Le fichier normalisé sera temporaire d'abord, puis déplacé vers son nom final
+            temp_norm_dest_path = Path(settings.media_dir) / f"temp_norm_{file_id}_{Path(clean_name).stem}.mp4"
             final_filename = f"video_{file_id}_{Path(clean_name).stem}.mp4"
             final_dest_path = Path(settings.media_dir) / final_filename
 
             logger.info(f"Normalisation de {temp_dest_path} vers {final_dest_path} via actions: {compat['actions']}")
             try:
-                normalize_video(str(temp_dest_path), str(final_dest_path), compat["actions"], source_metadata=meta, job_id=job_id)
+                normalize_video(str(temp_dest_path), str(temp_norm_dest_path), compat["actions"], source_metadata=meta, job_id=job_id)
+                if temp_norm_dest_path.exists():
+                    shutil.move(temp_norm_dest_path, final_dest_path)
                 dest_path = final_dest_path
                 # Extraire à nouveau les métadonnées sur le fichier normalisé final
                 meta = _extract_metadata_or_unknown(str(dest_path), original_filename)
             finally:
                 if temp_dest_path.exists():
                     os.remove(temp_dest_path)
+                if temp_norm_dest_path.exists():
+                    os.remove(temp_norm_dest_path)
         else:
             update_job(job_id, stage="copying")
             # Fichier compatible : déplacement direct vers le dossier de destination
@@ -437,16 +442,21 @@ def import_background(
             temp_dest_path = Path(settings.backgrounds_dir) / temp_filename
             shutil.move(src_path, temp_dest_path)
 
+            temp_norm_dest_path = Path(settings.backgrounds_dir) / f"temp_norm_{file_id}_{Path(clean_name).stem}.mp4"
             final_filename = f"bg_{file_id}_{Path(clean_name).stem}.mp4"
             final_dest_path = Path(settings.backgrounds_dir) / final_filename
 
             try:
-                normalize_video(str(temp_dest_path), str(final_dest_path), compat["actions"], source_metadata=meta, job_id=job_id)
+                normalize_video(str(temp_dest_path), str(temp_norm_dest_path), compat["actions"], source_metadata=meta, job_id=job_id)
+                if temp_norm_dest_path.exists():
+                    shutil.move(temp_norm_dest_path, final_dest_path)
                 dest_path = final_dest_path
                 meta = _extract_metadata_or_unknown(str(dest_path), original_filename)
             finally:
                 if temp_dest_path.exists():
                     os.remove(temp_dest_path)
+                if temp_norm_dest_path.exists():
+                    os.remove(temp_norm_dest_path)
         else:
             update_job(job_id, stage="copying")
             dest_filename = f"bg_{file_id}_{clean_name}"

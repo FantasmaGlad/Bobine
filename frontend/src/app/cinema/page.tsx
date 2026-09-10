@@ -23,14 +23,32 @@ function getApiUrl(path: string) {
 }
 
 // Réf. correctif "freeze kiosk réseau au seek admin" (voir kiosk/page.tsx,
-// même bug) : assigner `currentTime` avant HAVE_METADATA lève une exception
-// dans certains navigateurs/WebView embarqués (dont la WebView Android
-// utilisée ici pour la sortie HDMI, cf. BobinePresentation.kt), ce qui
-// pouvait laisser un seek silencieusement sans effet.
-function seekWhenReady(el: HTMLMediaElement, position: number) {
+// même bug) : assigner `currentTime` sur un élément en lecture sans pause
+// préalable fait défiler l'horloge audio avant que le décodeur vidéo n'ait reçu
+// sa première image clé (IDR), gelant l'image. On met en pause temporaire
+// pour laisser les décodeurs s'aligner, puis reprise sur l'évènement `seeked`.
+function seekWhenReady(el: HTMLMediaElement, position: number, onDone?: () => void) {
   const apply = () => {
     try {
+      if (el.seeking) return;
+      const wasPlaying = !el.paused;
+      if (wasPlaying) el.pause();
       el.currentTime = position;
+      if (wasPlaying) {
+        const onSeeked = () => {
+          el.removeEventListener("seeked", onSeeked);
+          el.play().catch(() => {});
+          onDone?.();
+        };
+        el.addEventListener("seeked", onSeeked, { once: true });
+        setTimeout(() => {
+          el.removeEventListener("seeked", onSeeked);
+          if (el.paused && wasPlaying) el.play().catch(() => {});
+          onDone?.();
+        }, 1200);
+      } else {
+        onDone?.();
+      }
     } catch {
       // Rattrapé par le prochain seek/rapport si toujours pas prêt.
     }
@@ -285,7 +303,9 @@ export default function CinemaPage() {
     fetch(getApiUrl("/settings"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.deployment_profile === "android") setIsAndroidHdmiScreen(true);
+        if (data?.deployment_profile === "android" && isWiredDisplay()) {
+          setIsAndroidHdmiScreen(true);
+        }
       })
       .catch(() => {});
   }, []);
@@ -333,6 +353,7 @@ export default function CinemaPage() {
   // sélection masquée mais toujours montée). Limité à 1 fois/seconde,
   // largement suffisant pour l'affichage de la position.
   const lastPositionUpdateRef = useRef(0);
+  const lastSeekTimeRef = useRef(0);
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Définie tôt (avant startPlayback ci-dessous, qui doit pouvoir l'appeler)
@@ -620,8 +641,8 @@ export default function CinemaPage() {
       } else if (action === "play") {
         el.play().then(() => setIsPlaying(true)).catch(() => {});
       } else if (action === "seek") {
-        seekWhenReady(el, positionSeconds);
-        setPosition(positionSeconds);
+        lastSeekTimeRef.current = Date.now();
+        seekWhenReady(el, positionSeconds, () => setPosition(positionSeconds));
       }
     };
   }, [phase, handleBackToMenu, videos, handleSelect]);
@@ -638,33 +659,75 @@ export default function CinemaPage() {
   // IMMÉDIAT à chaque changement d'état réel, qu'il vienne d'une commande
   // admin ou d'une action locale de l'adhérent — l'admin voit l'effet en
   // ~100 ms. L'intervalle ne sert plus que de battement de fond.
-  // Filet de sécurité "décodeur vidéo bloqué" (réf. correctif "freeze kiosk
+  // Filet de sécurité "décodeur vidéo bloqué / texture figée" (réf. correctif "freeze kiosk
   // réseau au seek admin" — voir kiosk/page.tsx, même correctif) : sur
   // certains décodeurs matériels (MediaCodec en WebView Android, sortie HDMI
   // de ce fichier), un seek vers une position hors keyframe peut laisser le
   // pipeline vidéo bloqué sur la dernière image décodée pendant que l'audio
-  // du même <video> continue d'avancer, sans que `waiting`/`stalled` ne se
-  // déclenchent forcément. On détecte l'absence de progression de
-  // `currentTime` pendant que l'élément est censé jouer et on tente de
-  // débloquer le décodeur par un micro-seek suivi d'un `play()`.
+  // du même <video> continue d'avancer (et donc currentTime avance aussi !).
+  // On utilise requestVideoFrameCallback lorsqu'il est disponible pour surveiller
+  // les images réellement peintes à l'écran, avec repli sur currentTime.
   useEffect(() => {
     let lastTime = -1;
+    let presentedFrames = 0;
+    let lastPresentedFrames = 0;
+    let rVfcSupported = false;
+
+    const onFrame = () => {
+      presentedFrames++;
+      const v = videoRef.current;
+      if (v && "requestVideoFrameCallback" in v) {
+        (v as unknown as { requestVideoFrameCallback: (cb: () => void) => void }).requestVideoFrameCallback(onFrame);
+      }
+    };
+
+    const v = videoRef.current;
+    if (v && "requestVideoFrameCallback" in v) {
+      rVfcSupported = true;
+      (v as unknown as { requestVideoFrameCallback: (cb: () => void) => void }).requestVideoFrameCallback(onFrame);
+    }
+
     const interval = window.setInterval(() => {
       const video = videoRef.current;
       if (!video || video.paused || video.seeking || video.ended || !video.src) {
         lastTime = -1;
+        lastPresentedFrames = presentedFrames;
         return;
       }
-      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.currentTime === lastTime) {
-        try {
-          video.currentTime = Math.max(0, video.currentTime + 0.05);
-        } catch {
-          // Retenté au prochain contrôle.
+      // Période de grâce après un seek récent
+      if (Date.now() - lastSeekTimeRef.current < 3500) {
+        lastTime = video.currentTime;
+        lastPresentedFrames = presentedFrames;
+        return;
+      }
+
+      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        const visualFreeze = rVfcSupported && presentedFrames === lastPresentedFrames;
+        const clockFreeze = video.currentTime === lastTime;
+
+        if (visualFreeze || clockFreeze) {
+          const curPos = video.currentTime;
+          try {
+            video.pause();
+            video.currentTime = curPos + 0.05;
+            const onSeeked = () => {
+              video.removeEventListener("seeked", onSeeked);
+              video.play().catch(() => {});
+            };
+            video.addEventListener("seeked", onSeeked, { once: true });
+            setTimeout(() => {
+              video.removeEventListener("seeked", onSeeked);
+              if (video.paused) video.play().catch(() => {});
+            }, 1000);
+          } catch {
+            // Retenté au prochain contrôle si nécessaire
+          }
         }
-        video.play().catch(() => {});
       }
       lastTime = video.currentTime;
+      lastPresentedFrames = presentedFrames;
     }, 2500);
+
     return () => window.clearInterval(interval);
   }, []);
 

@@ -1,6 +1,6 @@
 # Plan d'implémentation — Portabilité Android
 
-Statut (2026-09-09) : **Lots 0, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 et 14 exécutés.** Validation sur **émulateur Android réel** (KVM, x86_64, API 37) et sur **tablette pilote physique** (Xiaomi Pad 8, Android 16, dock USB-C + TV HDMI) — double affichage simultané et indépendant (tactile sur `/grid`, HDMI externe sur `/cinema`), `ForegroundService` persistant (`dumpsys`), WebSocket temps réel, APK signé release. **Lot 8 résolu** : binaires ARM64 NDK r28c (`libffmpeg.so`, `libffprobe.so`) Bionic natifs (16 KB page size compatible, sans glibc, zéro `SIGSYS`), intégrés au packaging Gradle et dans le workflow CI, avec conservation de la miniature manuelle sur toutes les plateformes. **Lot 12 clos** : profil Android explicite, métriques CPU/RAM robustes sous SELinux sans 500 (`/api/settings/system`), documentation mise à jour. Écran HDMI : écran de veille sobre "En attente d'un cours" avec horloge au lieu de dupliquer la grille tactile. Thème "charbon" minéral clair AA/AAA intégré universellement. Accélération matérielle multi-OS (`h264_mediacodec`, `h264_videotoolbox`, `h264_vaapi`), annulation réactive FFmpeg (croix ✕), estimation de durée (ETA) temps réel et politique stricte de conservation de la qualité native (zéro downscale 2K/4K).
+Statut (2026-09-10) : **Lots 0, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 et 14 exécutés.** Validation sur **émulateur Android réel** (KVM, x86_64, API 37) et sur **tablette pilote physique** (Xiaomi Pad 8, Android 16, dock USB-C + TV HDMI) — double affichage simultané et indépendant (tactile sur `/grid`, HDMI externe sur `/cinema`), `ForegroundService` persistant (`dumpsys`), WebSocket temps réel, APK signé release. **Lot 8 résolu** : binaires ARM64 NDK r28c (`libffmpeg.so`, `libffprobe.so`) Bionic natifs (16 KB page size compatible, sans glibc, zéro `SIGSYS`), intégrés au packaging Gradle et dans le workflow CI, avec conservation de la miniature manuelle sur toutes les plateformes. **Lot 12 clos** : profil Android explicite, métriques CPU/RAM robustes sous SELinux sans 500 (`/api/settings/system`), documentation mise à jour. Écran HDMI : écran de veille sobre "En attente d'un cours" avec horloge au lieu de dupliquer la grille tactile. Thème "charbon" minéral clair AA/AAA intégré universellement. Accélération matérielle multi-OS (`h264_mediacodec`, `h264_videotoolbox`, `h264_vaapi`), annulation réactive FFmpeg (croix ✕), estimation de durée (ETA) temps réel et politique stricte de conservation de la qualité native (zéro downscale 2K/4K). **Étape 7 validée** : élimination définitive du freeze au seek sous Chrome Android (synchronisation pause/seeked, garde `seeking`, période de grâce 3s et watchdog `requestVideoFrameCallback`), affichage de la vitrine complète sur `/cinema` pour les clients réseau (`isWiredDisplay()`), et imports vidéo atomiques (`temp_norm_*`).
 
 **Révision du 2026-09-09, étape 1 (dépassée par le Lot 14 ci-dessous, gardée pour l'historique) : l'écran tactile a d'abord chargé `/cinema` sur `127.0.0.1`** (même canal câblé que la sortie HDMI, au lieu de `/kiosk` sur `127.0.0.2`) — validé en conditions réelles sur la tablette pilote (dock/HDMI physique), les deux `WebView` affichant le même état `/cinema` indépendamment (pas un mirroring). **Également validé pour de vrai sur la tablette pilote dans cette session** : le double affichage (Lot 4) fonctionne avec un vrai dock USB-C et un vrai écran externe — `DisplayDeviceInfo{"Écran HDMI"...}` bien créé par le framework, `Presentation` attachée sans race condition au premier essai (mieux que redouté), et la persistance en arrière-plan (Lot 6) confirmée à nouveau sur ce matériel.
 
@@ -796,6 +796,31 @@ Retours d'expérience et correctifs appliqués suite aux tests sur tablette Xiao
 
 ---
 
+## 16septies. Étape 7 — Élimination du Freeze Vidéo au Seek (Chrome Android), Mode Cinéma Réseau et Imports Atomiques (2026-09-10)
+
+Retours d'expérience et correctifs appliqués suite aux tests sur tablette Xiaomi Pad 8 :
+
+### A. Élimination du Freeze d'Image au Seek sous Chrome Android
+- **Symptôme** : Après un saut temporel (seek) depuis le panneau d'administration, l'image vidéo restait figée sur une image fixe alors que la piste sonore et le compteur de temps continuaient d'avancer normalement.
+- **Causes racines** :
+  1. Lorsqu'un seek intervenait pendant la lecture, assigner directement `video.currentTime` laissait l'horloge audio redémarrer immédiatement, distancant le décodeur matériel vidéo (`c2.qti.avc.decoder` / MediaCodec) qui devait reconstruire le GOP depuis la keyframe précédente. Le pipeline vidéo rejetait alors les frames en retard et la texture d'affichage se figeait.
+  2. Sur les kiosques en rôle miroir (notamment sur le réseau ou en multi-onglets), l'événement périodique `position_tick` émis toutes les 250 ms relançait `seekWhenReady` en continu pendant que `video.seeking` était vrai, étouffant le décodeur matériel sous un flux perpétuel de vidages de tampon.
+- **Correctifs (`kiosk/page.tsx` et `cinema/page.tsx`)** :
+  - Mise en pause préalable systématique dans `seekWhenReady` avant d'assigner `currentTime`, avec reprise de la lecture différée jusqu'à la réception de l'événement `seeked` (et timeout de secours à 1200 ms).
+  - Protection anti-réentrance (`if (el.seeking) return`) et période de grâce de 3 000 ms via `lastSeekTimeRef` ignorant les micro-recalages de `position_tick`.
+  - Watchdog réactif basé sur `requestVideoFrameCallback` : détection du gel visuel réel (`presentedFrames === lastPresentedFrames`) indépendamment de la progression de `currentTime`, avec micro-seek de rattrapage sur `seeked`.
+
+### B. Mode Cinéma Réseau Déverrouillé
+- **Symptôme** : L'accès à `/cinema` depuis un navigateur sur le réseau ou sur la tablette affichait un écran d'attente "Sélectionnez votre cours sur la borne tactile" sans afficher la galerie de vidéos.
+- **Cause racine** : `isAndroidHdmiScreen = true` était conditionné uniquement par `deployment_profile === "android"`.
+- **Correctif** : Conditionnement strict à `data?.deployment_profile === "android" && isWiredDisplay()`. Seule la sortie filaire HDMI (sur `127.0.0.1` / second Display) affiche l'écran de veille d'attente, les accès réseau accèdent directement à la galerie complète.
+
+### C. Atomisation des Imports Vidéo et Streaming HTTP Range
+- **Import atomique (`importer.py`)** : écriture dans `temp_norm_*` puis déplacement atomique vers `final_dest_path` après validation complète, avec purge garantie en bloc `finally`. Évite tout résidu corrompu sans atome `moov`.
+- **Streaming HTTP Range (`main.py`)** : support des plages suffixées (`bytes=-N`) et suppression de l'en-tête `Content-Range` sur les réponses HTTP 200 complètes (RFC 7233 / 9110).
+
+---
+
 ## 17. Checklist exhaustive (vue transverse anti-oubli)
 
 - [x] Lot 0 — go/no-go dépendances Chaquopy (GO — downgrade Pydantic v1 sur Android, watchdog en polling maison)
@@ -817,6 +842,7 @@ Retours d'expérience et correctifs appliqués suite aux tests sur tablette Xiao
 - [x] 16quater — netteté 1080p des miniatures, seek optimiste sans rollback, handlers tactiles, transition Wi-Fi tablette pilote (192.168.1.22)
 - [x] 16quinquies — plein écran `/grid` sans sidebar, normalisation vidéo matérielle `h264_mediacodec` (Android)
 - [x] 16sexies — annulation réactive FFmpeg (croix ✕), estimation ETA en direct, conservation 2K/4K native intégrale et encodeurs matériels multi-OS
+- [x] 16septies — élimination définitive du freeze au seek (Chrome Android), vitrine /cinema réseau et imports atomiques
 
 ---
 

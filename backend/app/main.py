@@ -226,13 +226,18 @@ async def _range_stream_response(file_path: Path, range: str | None, content_typ
 
     if range:
         try:
-            # format attendu: "bytes=0-1048576"
+            # format attendu: "bytes=0-1048576" ou "bytes=1000-" ou "bytes=-1000"
             range_str = range.replace("bytes=", "").strip()
             parts = range_str.split("-")
             if parts[0]:
                 start = int(parts[0])
-            if len(parts) > 1 and parts[1]:
-                end = int(parts[1])
+                if len(parts) > 1 and parts[1]:
+                    end = int(parts[1])
+            elif len(parts) > 1 and parts[1]:
+                # Plage suffixée (ex: bytes=-500 pour les 500 derniers octets)
+                suffix_len = int(parts[1])
+                start = max(0, file_size - suffix_len)
+                end = file_size - 1
         except Exception:
             raise HTTPException(status_code=400, detail="Header de Range invalide")
 
@@ -253,11 +258,13 @@ async def _range_stream_response(file_path: Path, range: str | None, content_typ
                 yield chunk
 
     headers = {
-        "Content-Range": f"bytes {start}-{end}/{file_size}",
         "Accept-Ranges": "bytes",
         "Content-Length": str(chunk_size),
         "Content-Type": content_type,
     }
+    if range:
+        headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+
     return StreamingResponse(
         file_generator(), status_code=206 if range else 200, headers=headers
     )
