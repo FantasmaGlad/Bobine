@@ -278,7 +278,7 @@ class TestVideoFlow(unittest.TestCase):
             asyncio.run(upload_video_thumbnail(video.id, bad_upload, self.db))
         self.assertEqual(ctx.exception.status_code, 400)
 
-    def test_10_target_bitrate_maxi_premium(self):
+    def test_10_target_bitrate_heavy_video_4k_60(self):
         from app.utils.video_utils import _get_target_bitrate
         self.assertEqual(_get_target_bitrate(3840, 2160), "28M")  # 4K
         self.assertEqual(_get_target_bitrate(2560, 1440), "14M")  # 2K
