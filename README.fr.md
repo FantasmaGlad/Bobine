@@ -19,10 +19,6 @@ Bobine transforme n'importe quel PC, Mac ou mini PC dédié bon marché en syst�
 
 ---
 
-<p align="center">
-  <img alt="Bobine Sortie Android Native" src="Assets/Images/AndroidRelease.png" width="100%">
-</p>
-
 ## Téléchargement rapide & Applications natives
 
 Installez Bobine en quelques secondes comme une application autonome sur votre tablette tactile, poste de travail ou PC de régie studio :

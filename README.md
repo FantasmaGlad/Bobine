@@ -19,10 +19,6 @@ Bobine turns any PC, Mac, or low-cost dedicated mini PC into a complete in-club 
 
 ---
 
-<p align="center">
-  <img alt="Bobine Android Release" src="Assets/Images/AndroidRelease.png" width="100%">
-</p>
-
 ## Quick Download & Native Applications
 
 Install Bobine as a native application on your tablet, workstation, or studio PC in seconds:
