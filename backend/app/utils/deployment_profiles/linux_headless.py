@@ -22,12 +22,23 @@ class LinuxHeadlessHandler(ProfileHandler):
     profile = "linux-headless"
 
     def restart_services(self) -> None:
-        for unit in (KIOSK_SERVICE_UNIT, BACKEND_SERVICE_UNIT):
-            try:
-                subprocess.run(["sudo", "systemctl", "restart", unit], check=True, timeout=15)
-                logger.info(f"Service {unit} redémarré")
-            except Exception as e:
-                logger.error(f"Échec du redémarrage de {unit} (hors environnement cible ?) : {e}")
+        # Redémarrage asynchrone et détaché (réf. retour utilisateur "relancer
+        # le service lors de la mise à jour sans intervention manuelle") :
+        # Exécuter `systemctl restart bobine-backend` de façon synchrone dans
+        # le processus Python coupe le process avant la fin de la requête HTTP
+        # et peut bloquer. L'enveloppe détachée (start_new_session=True) avec
+        # un délai de 1 seconde permet à l'API de répondre 200 OK et de clore
+        # ses connexions avant le rechargement effectif des services systemd.
+        cmd = (
+            "sleep 1 && "
+            "(sudo /usr/bin/systemctl restart bobine-kiosk.service || sudo systemctl restart bobine-kiosk.service || true) && "
+            "(sudo /usr/bin/systemctl restart bobine-backend.service || sudo systemctl restart bobine-backend.service || true)"
+        )
+        try:
+            subprocess.Popen(["sh", "-c", cmd], start_new_session=True)
+            logger.info("Redémarrage asynchrone des services programmé (bobine-kiosk, bobine-backend)")
+        except Exception as e:
+            logger.error(f"Échec de programmation du redémarrage : {e}")
 
     def can_self_uninstall(self) -> bool:
         return True

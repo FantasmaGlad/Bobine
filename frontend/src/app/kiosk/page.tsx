@@ -892,12 +892,11 @@ export default function KioskPage() {
       </div>
 
       {isPaused && (
-        // Écran de pause cinématique façon Netflix (logo au centre, halo lumineux d'ambiance, métadonnées du cours)
+        // Écran de pause cinématique façon Netflix (logo au centre, ambiance sobre, métadonnées du cours)
         <div className="pause-overlay visible" onClick={() => sendCommand("play")}>
-          <div className="pause-overlay-glow" />
           <div className="pause-center" onClick={(e) => { e.stopPropagation(); sendCommand("play"); }}>
             <div className="pause-logo-wrap">
-              <AppLogo size={76} className="pause-logo" />
+              <AppLogo size={110} className="pause-logo" />
             </div>
             <button
               className="pause-resume-btn"
@@ -913,7 +912,7 @@ export default function KioskPage() {
               <h2 className="pause-title">{state.current_video?.title}</h2>
               <div className="pause-meta-row">
                 {program && (
-                  <span className="pause-badge" style={{ borderColor: programAccent, color: programAccent }}>
+                  <span className="pause-badge" style={{ color: programAccent }}>
                     {program}
                   </span>
                 )}

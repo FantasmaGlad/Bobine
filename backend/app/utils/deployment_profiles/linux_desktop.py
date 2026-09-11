@@ -30,9 +30,23 @@ class LinuxDesktopHandler(ProfileHandler):
         return (repo_dir / ".git").exists()
 
     def restart_services(self) -> None:
-        logger.info("Arrêt du process pour redémarrage (relance attendue de BobineTray ou systemd --user).")
-        # Sortie immédiate après l'envoi de la réponse HTTP de reset / mise à jour
-        os._exit(0)
+        logger.info("Déclenchement du redémarrage du service bureau Linux (BobineTray ou systemd --user)...")
+        # Programme une tentative de relance systemd --user en tâche détachée
+        cmd = "sleep 1 && (systemctl --user restart bobine.service || systemctl --user restart bobine || true)"
+        try:
+            subprocess.Popen(["sh", "-c", cmd], start_new_session=True)
+        except Exception as e:
+            logger.debug(f"Relance systemctl --user non disponible : {e}")
+
+        # Délai de 1.5s avant os._exit(0) pour laisser l'API HTTP répondre
+        import threading
+        import time
+
+        def _delayed_exit():
+            time.sleep(1.5)
+            os._exit(0)
+
+        threading.Thread(target=_delayed_exit, daemon=True).start()
 
     def can_self_uninstall(self) -> bool:
         return False

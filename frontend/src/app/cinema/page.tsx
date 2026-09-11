@@ -876,7 +876,7 @@ export default function CinemaPage() {
               <div className="cinema-hero-scrim" />
               <div className="cinema-hero-content">
                 <div className="cinema-hero-brand-row">
-                  <AppLogo size={32} className="cinema-brand-logo" />
+                  <AppLogo size={96} className="cinema-brand-logo" />
                   <span className="cinema-hero-kicker">{t("cinema.featured")}</span>
                 </div>
                 <h1 className="cinema-hero-title">{featured.title}</h1>
@@ -997,10 +997,9 @@ export default function CinemaPage() {
         {/* Écran de pause cinématique façon Netflix au centre de l'écran */}
         {isPlayingLayer && !isPlaying && !needsTapToPlay && (
           <div className="cinema-pause-overlay" onClick={handlePlayPause}>
-            <div className="cinema-pause-glow" />
             <div className="cinema-pause-center" onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}>
               <div className="cinema-pause-logo-wrap">
-                <AppLogo size={76} className="cinema-pause-logo" />
+                <AppLogo size={110} className="cinema-pause-logo" />
               </div>
               <button
                 className="cinema-pause-resume-btn"
@@ -1014,7 +1013,7 @@ export default function CinemaPage() {
                 <h2 className="cinema-pause-title">{selected?.title}</h2>
                 <div className="cinema-pause-meta-row">
                   {selected?.program && (
-                    <span className="cinema-pause-badge" style={{ borderColor: programAccent, color: programAccent }}>
+                    <span className="cinema-pause-badge" style={{ color: programAccent }}>
                       {selected.program}
                     </span>
                   )}

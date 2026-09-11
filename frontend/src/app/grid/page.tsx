@@ -110,7 +110,7 @@ const GridRow = React.memo(function GridRow({
   return (
     <section className="cinema-row" style={{ animationDelay: `${rowIndex * 90}ms` }}>
       <div className="cinema-row-header">
-        <h2 style={{ color: "var(--accent-primary)" }}>{programName}</h2>
+        <h2>{programName}</h2>
         <span className="cinema-row-count">{coursesCountLabel}</span>
       </div>
       <div className="cinema-row-wrap">
@@ -493,23 +493,48 @@ export default function GridPage() {
         {featured && (
           <section className="cinema-hero">
             {featuredThumb && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img className="cinema-hero-backdrop" src={featuredThumb} alt="" />
+              <div className="cinema-hero-backdrop-wrap">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="cinema-hero-backdrop" src={featuredThumb} alt="" />
+              </div>
             )}
+            {/* Masque de transition Netflix : fondu horizontal opaque couleur thème vers miniature + fondu vers le bas */}
             <div className="cinema-hero-scrim" />
             <div className="cinema-hero-content">
-              <AppLogo size={72} className="cinema-brand" />
-              <span className="cinema-hero-badge" style={{ color: themeFg }}>{t("cinema.featured")}</span>
+              <div className="cinema-hero-brand-row">
+                <AppLogo size={96} className="cinema-brand-logo" />
+                <span className="cinema-hero-kicker">{t("cinema.featured")}</span>
+              </div>
               <h1 className="cinema-hero-title">{featured.title}</h1>
-              <p className="cinema-hero-meta">
-                {[featured.program, featured.release, formatDurationMin(featured.duration_seconds)]
+              <div className="cinema-hero-meta-row">
+                {featured.program && (
+                  <span className="cinema-hero-program-tag">{featured.program}</span>
+                )}
+                {featured.release && (
+                  <span className="cinema-hero-year">{featured.release}</span>
+                )}
+                {featured.duration_seconds && (
+                  <span className="cinema-hero-duration">{formatDurationMin(featured.duration_seconds)}</span>
+                )}
+                <span className="cinema-hero-badge-pill">4K Ultra HD</span>
+                <span className="cinema-hero-badge-pill">Stéréo 5.1</span>
+              </div>
+              <p className="cinema-hero-desc">
+                {[
+                  featured.program,
+                  featured.release,
+                  featured.duration_seconds ? `${Math.round(featured.duration_seconds / 60)} min` : null,
+                  "Diffusion Studio Grand Écran",
+                ]
                   .filter(Boolean)
                   .join(" · ")}
               </p>
-              <button className="cinema-hero-play grid-hero-play" style={{ color: themeFg }} onClick={() => handleSelect(featured)}>
-                <Icon name="play_arrow" size={26} color={themeFg} filled />
-                {t("cinema.launchCourse")}
-              </button>
+              <div className="cinema-hero-actions">
+                <button className="cinema-hero-play" style={{ color: themeFg }} onClick={() => handleSelect(featured)}>
+                  <Icon name="play_arrow" size={28} color={themeFg} filled />
+                  {t("cinema.launchCourse")}
+                </button>
+              </div>
             </div>
 
             {/* Widget "en cours de lecture" (demande explicite : style Apple,

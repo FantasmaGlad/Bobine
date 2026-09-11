@@ -573,7 +573,7 @@ h1, h2, h3, h4, h5, h6 {
   max-height: 380px;
   overflow-y: auto;
   padding: 16px 20px;
-  background: var(--bg-base);
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   font-size: 0.9rem;
@@ -2047,23 +2047,15 @@ a.status-pill:hover,
    Écran de pause cinématique façon Netflix (kiosk & cinéma)
    Logo au centre, halo lumineux dynamique au thème, bouton de reprise
    circulaire, kicker "EN PAUSE", titre du cours et badges 4K/durée.
+/* ====================================================================
+   Écran de pause Netflix cinématique (kiosk plein écran et cinéma) :
    100% dynamique aux variables du thème actif, zéro couleur hardcodée.
+   100% matte, zéro reflet glowing, conforme DA premium sobre.
    ==================================================================== */
-@keyframes netflix-pause-glow {
-  0%, 100% {
-    opacity: 0.6;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.95;
-    transform: scale(1.05);
-  }
-}
-
 @keyframes netflix-pause-pop {
   from {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scale(0.96);
   }
   to {
     opacity: 1;
@@ -2079,9 +2071,9 @@ a.status-pill:hover,
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--bg-main) 65%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: color-mix(in srgb, var(--bg-main) 70%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   animation: fadeIn 0.18s ease-out;
   cursor: pointer;
   overflow: hidden;
@@ -2089,11 +2081,7 @@ a.status-pill:hover,
 
 .pause-overlay-glow,
 .cinema-pause-glow {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--accent-primary) 24%, transparent) 0%, transparent 68%);
-  pointer-events: none;
-  animation: netflix-pause-glow 4s ease-in-out infinite;
+  display: none !important;
 }
 
 .pause-center,
@@ -2117,27 +2105,30 @@ a.status-pill:hover,
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .pause-logo,
 .cinema-pause-logo {
-  filter: drop-shadow(0 4px 20px color-mix(in srgb, var(--accent-primary) 40%, transparent));
+  max-height: clamp(60px, 8vmin, 90px);
+  width: auto;
+  object-fit: contain;
+  filter: none !important;
   transition: transform 0.25s ease;
 }
 
 .pause-center:hover .pause-logo,
 .cinema-pause-center:hover .cinema-pause-logo {
-  transform: scale(1.04);
+  transform: scale(1.03);
 }
 
 .pause-resume-btn,
 .cinema-pause-resume-btn {
-  width: 88px;
-  height: 88px;
+  width: 92px;
+  height: 92px;
   border-radius: 50%;
   border: 2px solid color-mix(in srgb, var(--text-main) 30%, transparent);
-  background: color-mix(in srgb, var(--bg-main) 75%, transparent);
+  background: color-mix(in srgb, var(--bg-main) 85%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   color: var(--text-main);
@@ -2145,7 +2136,7 @@ a.status-pill:hover,
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -2153,11 +2144,11 @@ a.status-pill:hover,
 .cinema-pause-resume-btn:hover,
 .pause-center:hover .pause-resume-btn,
 .cinema-pause-center:hover .cinema-pause-resume-btn {
-  transform: scale(1.08);
+  transform: scale(1.06);
   border-color: var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 22%, var(--bg-main));
+  background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-main));
   color: var(--text-main);
-  box-shadow: 0 0 32px color-mix(in srgb, var(--accent-primary) 50%, transparent), 0 12px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
 }
 
 .pause-resume-btn:active,
@@ -2181,7 +2172,7 @@ a.status-pill:hover,
   text-transform: uppercase;
   letter-spacing: 0.28em;
   color: var(--accent-primary);
-  text-shadow: 0 0 12px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  text-shadow: none;
 }
 
 .pause-title,
@@ -2192,7 +2183,7 @@ a.status-pill:hover,
   color: var(--text-main);
   line-height: 1.15;
   margin: 0;
-  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2207,20 +2198,21 @@ a.status-pill:hover,
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
   margin-top: 4px;
 }
 
+/* Badges sans encadré, typographie pure et élégante */
 .pause-badge,
 .cinema-pause-badge {
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 0.88rem;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 4px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border-color);
-  background: color-mix(in srgb, var(--bg-main) 60%, transparent);
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
 }
 
 .pause-year,
@@ -2234,23 +2226,24 @@ a.status-pill:hover,
 .cinema-pause-time {
   font-size: 0.95rem;
   font-weight: 600;
-  color: var(--text-main);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
-  background: color-mix(in srgb, var(--text-main) 12%, transparent);
-  padding: 4px 12px;
-  border-radius: 999px;
+  background: transparent;
+  padding: 0;
+  border: none;
+  border-radius: 0;
 }
 
 .pause-badge-pill,
 .cinema-pause-badge-pill {
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--text-main) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--text-main) 24%, transparent);
-  color: var(--text-main);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
@@ -2267,7 +2260,7 @@ a.status-pill:hover,
 .pause-progress-fill {
   height: 100%;
   background: var(--accent-primary);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-primary) 70%, transparent);
+  box-shadow: none;
   transition: width 0.15s linear;
 }
 
@@ -4194,7 +4187,7 @@ a.status-pill:hover,
   display: flex;
   align-items: center;
   overflow: hidden;
-  background: var(--bg-base);
+  background: var(--bg-main);
   border-bottom: none;
   animation: cinema-fade-up 0.5s ease both;
 }
@@ -4208,6 +4201,14 @@ a.status-pill:hover,
   height: 100%;
   overflow: hidden;
   pointer-events: none;
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0%, black 80px),
+    linear-gradient(to top, transparent 0%, black 50px);
+  mask-image:
+    linear-gradient(to right, transparent 0%, black 80px),
+    linear-gradient(to top, transparent 0%, black 50px);
+  -webkit-mask-composite: destination-in;
+  mask-composite: intersect;
 }
 
 .cinema-hero-backdrop {
@@ -4223,32 +4224,31 @@ a.status-pill:hover,
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 1;
   /* Masque de transition Netflix :
-     1. Fondu horizontal : 100% opaque à la couleur du thème (var(--bg-base)) à gauche
-        sur toute la zone du texte, puis fondu rapide vers transparent entre 30% et 75%
-        pour révéler la miniature sur la droite.
-     2. Fondu vertical bas : fondu naturel vers var(--bg-base) pour une transition sans couture
-        vers les rangées de cours en dessous (zéro coupure nette ou ligne dure).
-     3. Léger assombrissement au sommet. */
+     1. Fondu horizontal rapide : 100% opaque à la couleur du thème (var(--bg-main)) à gauche
+        sur la zone du texte, puis fondu rapide vers transparent entre 24% et 44%
+        pour révéler la miniature sur la droite sans brume.
+     2. Fondu vertical bas rapide : transition douce sur 48px vers var(--bg-main)
+        pour supprimer la coupure nette en bas du héros. */
   background:
     linear-gradient(
       to right,
-      var(--bg-base) 0%,
-      var(--bg-base) 34%,
-      color-mix(in srgb, var(--bg-base) 94%, transparent) 46%,
-      color-mix(in srgb, var(--bg-base) 55%, transparent) 62%,
-      transparent 80%
+      var(--bg-main) 0%,
+      var(--bg-main) 24%,
+      color-mix(in srgb, var(--bg-main) 70%, transparent) 33%,
+      transparent 44%
     ),
     linear-gradient(
       to top,
-      var(--bg-base) 0%,
-      color-mix(in srgb, var(--bg-base) 80%, transparent) 22%,
-      transparent 55%
+      var(--bg-main) 0%,
+      color-mix(in srgb, var(--bg-main) 80%, transparent) 18px,
+      transparent 48px
     ),
     linear-gradient(
       to bottom,
-      color-mix(in srgb, var(--bg-base) 45%, transparent) 0%,
-      transparent 24%
+      color-mix(in srgb, var(--bg-main) 30%, transparent) 0%,
+      transparent 18%
     );
 }
 
@@ -4281,11 +4281,12 @@ a.status-pill:hover,
 .cinema-hero-brand-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .cinema-brand-logo {
-  height: 28px;
+  height: clamp(48px, 6vw, 68px);
+  max-height: 72px;
   width: auto;
   object-fit: contain;
 }
@@ -4312,7 +4313,7 @@ a.status-pill:hover,
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
   margin-top: 4px;
   font-size: 0.92rem;
   font-weight: 700;
@@ -4331,15 +4332,15 @@ a.status-pill:hover,
 }
 
 .cinema-hero-badge-pill {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-muted);
-  border: 1px solid color-mix(in srgb, var(--border-color) 90%, transparent);
-  background: color-mix(in srgb, var(--bg-surface-elevated) 60%, transparent);
-  padding: 2px 7px;
-  border-radius: 4px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
 }
 
 .cinema-hero-desc {
@@ -4370,7 +4371,7 @@ a.status-pill:hover,
   color: var(--accent-primary-fg);
   background: var(--accent-primary);
   cursor: pointer;
-  box-shadow: 0 6px 24px color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
   transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -4445,9 +4446,9 @@ a.status-pill:hover,
 
 .cinema-row-scroll {
   display: flex;
-  gap: 18px;
+  gap: 12px;
   overflow-x: auto;
-  padding: 16px 8px 24px;
+  padding: 12px 4px 18px;
   /* Barre de défilement native masquée : les flèches ci-dessous en sont le
      remplacement principal ; le geste tactile/trackpad reste disponible. */
   scrollbar-width: none;
@@ -4543,10 +4544,10 @@ a.status-pill:hover,
 }
 
 .cinema-card {
-  flex: 0 0 300px;
+  flex: 0 0 230px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   background: none;
   border: none;
   padding: 0;
@@ -4568,7 +4569,7 @@ a.status-pill:hover,
 
 .cinema-card:hover,
 .cinema-card:focus-visible {
-  transform: translateY(-4px) scale(1.05);
+  transform: translateY(-3px) scale(1.03);
   outline: none;
 }
 
@@ -4576,31 +4577,26 @@ a.status-pill:hover,
    écran tactile déclenche souvent :hover ET :active ensemble au toucher, on
    veut alors l'effet "pressé" (échelle réduite), pas le survol (lift). */
 .cinema-card:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
   filter: brightness(0.94);
 }
 
 .cinema-card-thumb {
   position: relative;
-  width: 300px;
+  width: 100%;
   aspect-ratio: 16 / 9;
-  border-radius: 14px;
+  border-radius: 10px;
   overflow: hidden;
   background: var(--bg-surface-elevated);
-  box-shadow:
-    0 4px 12px -2px rgba(0, 0, 0, 0.15),
-    0 12px 28px -4px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   border: 2px solid transparent;
-  transition: border-color 0.2s ease, box-shadow 0.24s ease, transform 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .cinema-card:hover .cinema-card-thumb,
 .cinema-card:focus-visible .cinema-card-thumb {
   border-color: var(--accent-primary);
-  box-shadow:
-    0 8px 20px -3px rgba(0, 0, 0, 0.25),
-    0 18px 36px -6px rgba(0, 0, 0, 0.35),
-    0 0 0 1px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
 }
 
 .cinema-card-duration {
@@ -4670,8 +4666,8 @@ a.status-pill:hover,
 
 .cinema-all-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
 }
 
 .cinema-all-item {

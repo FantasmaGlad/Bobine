@@ -12,6 +12,7 @@ Bobine turns any PC, Mac, or low-cost dedicated mini PC into a complete in-club 
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 [![Release: v3.0.3](https://img.shields.io/badge/Release-v3.0.3-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
+[![Beta: Rolling Channel](https://img.shields.io/badge/Beta-Rolling%20Channel-orange?logo=github)](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![Website: bobine.fit](https://img.shields.io/badge/Website-bobine.fit-4285F4.svg?logo=googlechrome&logoColor=white)](https://bobine.fit)
 ![Architecture: Local--first | Offline--capable](https://img.shields.io/badge/Architecture-Local--first%20%7C%20Offline--capable-success)

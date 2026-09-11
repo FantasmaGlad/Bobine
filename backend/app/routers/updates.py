@@ -131,6 +131,12 @@ def _get_local_version_info() -> dict[str, str]:
     if not base_version.upper().startswith("V"):
         base_version = f"V{base_version}"
 
+    # Si le tag résolu n'est pas un semver valide (ex: simple SHA de commit
+    # '92e2c85' en cas de clone superficiel shallow/CI sans fetch des tags),
+    # repli systématique sur la source de vérité VERSION/get_app_tag().
+    if not re.match(r"^V?\d+(\.\d+)+", base_version, re.IGNORECASE):
+        base_version = get_app_tag()
+
     return {
         "current_version": base_version,
         "current_tag": tag,
