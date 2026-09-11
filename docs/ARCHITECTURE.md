@@ -29,8 +29,8 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 
 ### Stack technique
 
-- **Backend** : Python 3.11+, [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` (mono-processus, cf. §2), [SQLAlchemy](https://www.sqlalchemy.org/), SQLite (`data/database.db`), `APScheduler` (planification), `watchdog` (surveillance des dossiers d'import), `ffmpeg` avec **accélération matérielle multi-OS** (`h264_mediacodec` sur Android, `h264_videotoolbox` sur macOS Apple Silicon/Intel, `h264_vaapi` sur Linux avec pilote Intel QuickSync ou AMD Mesa, repli universel `libx264`), Web Audio API (crossfade radio, côté navigateur). Politique stricte de conservation intégrale des flux 2K et 4K sans sous-échantillonnage.
-- **Frontend** : [Next.js](https://nextjs.org/) 16 (App Router, export statique servi par le backend en production), React 19, TypeScript, CSS Vanilla (global + design tokens, **15 thèmes de couleurs** commutables à chaud via `:root[data-theme=…]`, dont le thème minéral clair « charbon » certifié WCAG AAA), PWA (`manifest.json`), WebSockets, glisser-déposer natif (HTML5), Web Audio API.
+- **Backend** : Python 3.11+, [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` (mono-processus, cf. §2), [SQLAlchemy](https://www.sqlalchemy.org/), SQLite (`data/database.db`), `APScheduler` (planification), `watchdog` (surveillance des dossiers d'import), `ffmpeg` avec **accélération matérielle multi-OS** (`h264_mediacodec` sur Android, `h264_videotoolbox` sur macOS Apple Silicon/Intel, `h264_vaapi` sur Linux avec pilote Intel QuickSync ou AMD Mesa, `h264_qsv` sur Windows avec pilote Intel QuickSync, repli universel `libx264`), Web Audio API (crossfade radio, côté navigateur). Politique stricte de conservation intégrale des flux 2K et 4K sans sous-échantillonnage.
+- **Frontend** : [Next.js](https://nextjs.org/) 16 (App Router, export statique servi par le backend en production), React 19, TypeScript, CSS Vanilla (global + design tokens, **16 thèmes de couleurs** commutables à chaud via `:root[data-theme=…]`, dont la paire minérale « Charbon » / « Charbon Sombre » (clair et sombre, tous deux certifiés WCAG AA/AAA), PWA (`manifest.json`), WebSockets, glisser-déposer natif (HTML5), Web Audio API.
 - **Exploitation & Kiosque** : Debian 13 (Trixie), Chromium en mode kiosque (X11 / `xinit`), `systemd` (services backend, kiosque, garde audio, chien de garde), `avahi-daemon` (découverte mDNS).
 - **Portabilité Android (`android/`)** : application native Android (Kotlin + CPython embarqué via [Chaquopy](https://chaquopy.com/)), `minSdk 34` / `targetSdk 36` (Android 14-16, API 36 / Xiaomi Pad 8). Double affichage matériel via `DisplayManager` et `Presentation` (écran tactile sur `/grid` sans sidebar, sortie HDMI externe via dock USB-C sur `/cinema` avec écran de veille « En attente d'un cours »), `ForegroundService` persistant, binaires ARM64 NDK r28c (`ffmpeg`/`ffprobe` Bionic natifs, 16 KB page size) avec décodage matériel `av1_mediacodec` et encodage `h264_mediacodec` ultra-rapide.
 - **Installation & outils** : `install.sh` (**Bash** idempotent : détection matérielle dynamique, remédiation APT, `--as-user`, sortie machine `--progress=json`, §7) ; **assistant d'installation graphique** (`assistant/`, application de bureau **Tauri / Rust**, balayage `/24` de chaque interface réseau locale et orchestration SSH — cf. [`assistant/README.md`](../assistant/README.md)).
@@ -158,7 +158,8 @@ Le moteur de normalisation adapte dynamiquement les paramètres de l'encodeur se
 - **Android (SoC Qualcomm Snapdragon / MediaTek)** : encodeur matériel natif `h264_mediacodec` cadencé par `-operating_rate 1000 -pix_fmt nv12`. Décodage matériel proactif `av1_mediacodec` pour les sources AV1 (évite l'absence de `libdav1d`). Vitesse constatée sur tablette Xiaomi Pad 8 : de **4.2x à 5.1x** temps réel (gain de 28% d'efficacité CPU).
 - **macOS (Apple Silicon M1 à M4 & Intel)** : encodeur matériel `h264_videotoolbox` (`-b:v <bitrate> -maxrate <maxrate> -pix_fmt nv12`), garantissant une conversion instantanée sans solliciter les cœurs CPU.
 - **Linux Bureau & Appliance Wyse (Intel QuickSync / AMD VA-API)** : encodeur matériel `h264_vaapi` via le périphérique `/dev/dri/renderD128` (`-vaapi_device /dev/dri/renderD128 -vf "format=nv12,hwupload"`). `install.sh` garantit la présence des pilotes libres ou non-free (`intel-media-va-driver`, `i965-va-driver`, Mesa radeonsi).
-- **Repli universel** : si l'accélération matérielle échoue ou n'est pas disponible, repli automatique transparent sur `libx264 -preset veryfast` sans interruption de la tâche.
+- **Windows (Intel QuickSync)** : encodeur matériel `h264_qsv` (`-preset fast`). Aucun mécanisme de détection du GPU n'étant disponible sans dépendance supplémentaire (pywin32/WMI), l'encodeur est simplement tenté — le binaire `ffmpeg.exe` bundlé (build BtbN `win64-gpl`, cf. `.github/workflows/ci.yml`) inclut nativement NVENC/QSV/AMF, mais seul QuickSync est tenté par défaut (le plus répandu sur un PC de bureau/salle de sport typique) ; en cas d'échec (pilote Intel absent, GPU non compatible), repli logiciel automatique identique aux autres profils.
+- **Repli universel** : si l'accélération matérielle échoue ou n'est pas disponible (y compris Windows), repli automatique transparent sur `libx264 -preset veryfast` sans interruption de la tâche.
 - **Intervalle de trames clés resserré** : toutes les vidéos normalisées (quel que soit l'encodeur) reçoivent `-g 60` (`-keyint_min 60` en repli logiciel), soit une trame clé toutes les ~2s à 30 im/s — garantit une avance/retour rapide fiable et évite qu'un seek admin vers une position hors keyframe ne laisse le décodeur bloqué (cf. §4, « Récupération d'un décodeur vidéo bloqué »).
 
 ### 3. Règle d'or : Conservation intégrale de la qualité source (Zéro dégradation)
@@ -266,6 +267,10 @@ sudo ./install.sh
 
 **Détection matérielle dynamique** : l'installateur ne suppose plus un GPU Intel. Il détecte le GPU (`lspci`) et le CPU (`lscpu`) et installe les paquets adaptés — **Intel** : `intel-media-va-driver-non-free` (repli `i965-va-driver`) ; **AMD/Ryzen** : `mesa-va-drivers` + `firmware-amd-graphics` ; **NVIDIA** : décodage logiciel + avertissement — plus le **microcode** (`amd64-microcode`/`intel-microcode`) et le firmware Wi-Fi si une interface sans fil est présente. Les paquets non libres exigeant des composants APT absents (`non-free`, `non-free-firmware`, séparés depuis Debian 12) sont gérés en **activant ces composants** au besoin (sauvegarde `.bobine.bak` des sources).
 
+**Audio** : `alsa-utils` (`amixer`/`aplay`/`alsactl`) et la pile `pipewire`/`pipewire-pulse`/`wireplumber`/`pulseaudio-utils` sont installés systématiquement — sans eux, la configuration WirePlumber écrite plus bas (commutation automatique de prise jack, anti-sifflement) et les commandes `amixer`/`pactl` de `kiosk-xinitrc`/`bobine-audio-mute.sh` échouaient silencieusement sur un Debian minimal (netinst). Une étape **`capabilities`**, en fin d'installation (et rejouable via `--check`), vérifie que l'audio (`aplay -l`) et le décodage matériel VA-API (`vainfo`, profil H.264) fonctionnent réellement plutôt que de supposer que la configuration a suffi.
+
+**Optimisations système** (étape `tuning`) : gouverneur CPU réglé sur `performance` (`bobine-cpu-governor.service`, machine branchée secteur en continu) et journal systemd plafonné à 200 Mo (`/etc/systemd/journald.conf.d/bobine.conf`) — la mise en veille d'écran (DPMS/screensaver X11) est déjà désactivée dans `kiosk-xinitrc` depuis une version antérieure.
+
 **Privilèges — deux chemins** : soit `sudo ./install.sh` depuis un compte normal (le script refuse d'être root sans compte cible) ; soit, sur un Debian minimal **sans sudo** (mot de passe root défini à l'install, utilisateur non-sudoer), en **root direct** via `su - -c "\$PWD/install.sh --as-user <login> -y"`. Le script installe alors `sudo` et pose la règle sudoers restreinte, de sorte que les boutons « Synchronisation » / « Désinstaller » de l'admin fonctionnent ensuite. Les commandes exécutées « en tant que l'utilisateur » (venv, pip, build) passent par `sudo -u` si présent, sinon `runuser`.
 
 ### Services Systemd créés
@@ -275,6 +280,7 @@ sudo ./install.sh
 - `bobine-audio-guard.service` : garde AUDIO uniquement — oneshot qui coupe Master/Speaker/Headphone au boot et à l'arrêt (silence hors session kiosque), recouverts par `kiosk-xinitrc` une fois prêt. Ne surveille rien d'autre.
 - `bobine-watchdog.timer` + `bobine-watchdog.service` : chien de garde de SANTÉ. Le timer déclenche `scripts/watchdog.sh` (`OnBootSec=90s`, puis toutes les 30 s) qui consomme `GET /api/health` et **redémarre automatiquement un composant mort** : si `/api/health` ne répond pas 200 → relance de `bobine-backend` ; si le service kiosk est activé mais qu'aucun processus Chromium n'est présent → relance de `bobine-kiosk`. Complète `Restart=always` (mort du *processus*) pour les défaillances *logiques* (backend vivant mais base verrouillée, Chromium gelé…).
 - `bobine-redirect.service` : Redirection nftables du port 80 vers 8000.
+- `bobine-cpu-governor.service` : oneshot qui règle le gouverneur CPU sur `performance` à chaque démarrage (étape `tuning` de l'installateur).
 
 **Contrôle de santé** — `GET /api/health` renvoie `{"status": "ok"|"degraded", "components": {"database", "kiosk"}}`, avec HTTP `200` si la base répond, sinon `503` (l'état du kiosque est indicatif et n'affecte pas le code HTTP). C'est le point consommé par le watchdog ci-dessus et par toute supervision externe.
 
@@ -332,7 +338,7 @@ Les noms de fichiers des artefacts Bêta sont **fixes** (`Bobine-Setup-beta.exe`
 
 ### WebSockets
 
-- `/ws/playback` : Diffusion en temps réel de l'état de lecture par canal — câblé, réseau **et radio** (`channel=radio`, même connexion, vocabulaire de commandes `radio_*` propre au canal musical) — *position*, *durée*, *média courant*, décompte inter-cours.
+- `/ws/playback` : Diffusion en temps réel de l'état de lecture par canal — câblé, réseau **et radio** (`channel=radio`, même connexion, vocabulaire de commandes `radio_*` propre au canal musical) — *position*, *durée*, *média courant*, décompte inter-cours. Diffuse aussi `library_change` (import/modification/suppression d'une vidéo — upload, dossier surveillé ou édition de titre) : `/grid`, `/cinema` et `/library` rechargent leur liste sans attendre leur sondage périodique.
 
 ---
 
@@ -401,7 +407,7 @@ Les commits restent locaux jusqu'à ce qu'une machine avec accès GitHub (hors L
 
 Bobine repose sur une **interface frontend unique et unifiée** construite avec Next.js 16 (App Router) et exportée statiquement (`npm run build` → `frontend/out`). Cette interface est partagée et embarquée de manière identique sur **tous les profils de déploiement**.
 
-### 10.1 Cartographie des 22 routes de l'interface
+### 10.1 Cartographie des 18 routes de l'interface (+ `/` redirigeant vers `/dashboard-cable`)
 
 | Catégorie | Route(s) | Description & Particularités multi-OS |
 |---|---|---|
@@ -409,7 +415,7 @@ Bobine repose sur une **interface frontend unique et unifiée** construite avec 
 | | `/cinema` | Vitrine de sélection « Apple TV » avec héros, rangées par catégorie et télécommande HID. Sur profil Android avec écran HDMI connecté (`isAndroidHdmiScreen`), affiche un écran de veille passif *« En attente d'un cours »*. |
 | | `/grid` | Interface de sélection tactile dédiée (Xiaomi Pad / tablettes Android). Permet de lancer et piloter la lecture sans superposition sur l'écran TV. |
 | **Régies & Contrôle** | `/dashboard-cable`<br>`/dashboard-network` | Tableaux de bord de contrôle indépendant pour les canaux Câblé et Réseau (déclenchement direct, reprise, volume, fondu). |
-| **Administration** | `/settings` | Gestionnaire de configuration : 15 thèmes (dont thème clair minéral « Charbon » certifié WCAG AAA), actualisation réseau dynamique (polling 15s + bouton manuel), supervision CPU/RAM résiliente sous SELinux Android, sauvegarde/restauration ZIP. |
+| **Administration** | `/settings` | Gestionnaire de configuration : 16 thèmes (dont la paire minérale « Charbon » / « Charbon Sombre », clair et sombre, certifiés WCAG AA/AAA), actualisation réseau dynamique (polling 15s + bouton manuel), supervision CPU/RAM résiliente sous SELinux Android, sauvegarde/restauration ZIP. |
 | | `/library` | Bibliothèque vidéo avec métadonnées, durée et upload universel de miniatures personnalisées (`PUT /api/videos/{id}/thumbnail` via Pillow, sans dépendance ffmpeg). |
 | | `/playlists`<br>`/backgrounds`<br>`/schedule`<br>`/logs` | Gestion des listes ordonnées, fonds animés, programmation horaire récurrente (APScheduler) et inspection des journaux système. |
 | **Mode Coach Audio** | `/audio`<br>`/audio-playlists`<br>`/coach` | Playlists musicales rythmées avec minutage automatique, décompte et association d'arrière-plans vidéo synchronisés. |
@@ -428,6 +434,8 @@ Le serveur FastAPI (`backend/app/main.py`) monte dynamiquement le dossier statiq
 | **macOS Desktop** | macOS Apple Silicon (`.dmg` / `Bobine.app`) | `Bobine.app/Contents/Resources/frontend/out/` | Navigateur web par défaut + menu bar companion |
 | **Linux Desktop** | Debian/Ubuntu/Mint (`.deb` / `apt.bobine.fit`) | `/usr/lib/bobine/frontend/out/` | Navigateur web par défaut + systray XDG |
 | **Tablette Android** | Tablettes ARM64 (`.apk`, Chaquopy) | Assets embarqués `pyStage/backend/frontend_out/` | Double WebView matérielle : tactile local (`/grid`) + affichage externe HDMI (`/cinema`) |
+
+Sur le profil Android, les données sont réparties sur **deux racines de stockage** distinctes (`backend/app/config.py::_android_internal_root()`) — la base SQLite, les miniatures, les logs, le branding et les pochettes radio vivent sur le stockage **interne** de l'app (`context.filesDir`, f2fs natif) tandis que les médias (vidéos, fonds, audio, radio) restent sur le stockage **externe** (`context.getExternalFilesDir`, servi par FUSE, visible depuis un gestionnaire de fichiers). Une installation existante est migrée automatiquement et sans risque de perte (copie, jamais de déplacement destructif, vérification `PRAGMA integrity_check` avant utilisation) au premier démarrage qui suit une mise à jour — cf. `android/app/src/main/python/bobine_bootstrap.py`.
 | **Assistant GUI** | Linux x86_64 (`bobine-assistant`, Tauri 2 / Rust) | `assistant/ui/` (intégré au binaire Rust) | Fenêtre native GTK WebKit pour la découverte mDNS, scan LAN et déploiement SSH |
 
 ---
