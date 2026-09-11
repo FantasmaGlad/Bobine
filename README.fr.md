@@ -11,11 +11,19 @@ Bobine transforme n'importe quel PC, Mac ou mini PC dédié bon marché en syst�
 [Site officiel](https://bobine.fit) · [Documentation web](https://bobine.fit/fr/documentation) · [English](README.md) · [Documentation technique](docs/ARCHITECTURE.md) · [Dernière version](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Release Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
-[![Version : v3.0.2](https://img.shields.io/badge/Release-v3.0.2-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
-![Licence : AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)
-![Backend : FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
-![Plateformes : Windows 11 | Linux | macOS | Android](https://img.shields.io/badge/Platforms-Windows%2011%20%7C%20Linux%20%7C%20macOS%20%7C%20Android-blue)
-![Auto-hébergé](https://img.shields.io/badge/Auto--h%C3%A9berg%C3%A9-Local--first-4c1)
+[![Version : v3.0.3](https://img.shields.io/badge/Release-v3.0.3-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
+[![Licence : AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+[![Site officiel : bobine.fit](https://img.shields.io/badge/Site%20web-bobine.fit-4285F4.svg?logo=googlechrome&logoColor=white)](https://bobine.fit)
+![Architecture : Local-first | 100% Hors-ligne](https://img.shields.io/badge/Architecture-Local--first%20%7C%20Hors--ligne-success)
+![Confidentialité : Zéro télémétrie](https://img.shields.io/badge/Confidentialit%C3%A9-Z%C3%A9ro%20T%C3%A9l%C3%A9m%C3%A9trie-purple)
+![Accessibilité : WCAG 2.1 AA/AAA](https://img.shields.io/badge/Accessibilit%C3%A9-WCAG%202.1%20AA%2FAAA-blueviolet)
+![Frontend : Next.js 16 | React 19](https://img.shields.io/badge/Frontend-Next.js%2016%20%7C%20React%2019-black?logo=next.js)
+![Backend : FastAPI | Python 3.13](https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.13-009688?logo=fastapi)
+![Base de données : SQLite WAL](https://img.shields.io/badge/Base%20de%20donn%C3%A9es-SQLite%20WAL-003B57?logo=sqlite)
+![Vidéo : 4K 60fps Natif](https://img.shields.io/badge/Vid%C3%A9o-4K%2060fps%20Natif-orange)
+![Accélération matérielle : VA-API | VideoToolbox | MediaCodec | QSV](https://img.shields.io/badge/Acc%C3%A9l%C3%A9ration%20mat%C3%A9rielle-VA--API%20%7C%20VideoToolbox%20%7C%20MediaCodec%20%7C%20QSV-red)
+![Plateformes : Windows | macOS | Linux | Android](https://img.shields.io/badge/Plateformes-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-informational)
+[![Contributions bienvenues](https://img.shields.io/badge/PRs-bienvenues-brightgreen.svg)](https://github.com/FantasmaGlad/Bobine/pulls)
 
 ---
 
@@ -25,12 +33,12 @@ Installez Bobine en quelques secondes comme une application autonome sur votre t
 
 | Plateforme | Format | Architecture | Téléchargement direct / Commande | Profil & Expérience Utilisateur |
 | :--- | :---: | :---: | :---: | :--- |
-| ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Paquet natif)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Télécharger Bobine-3.0.2.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-3.0.2.apk)</sub> | **Tablettes Android & Bornes Tactiles ARM**<br><sub>• Paquet APK autonome avec CPython 3.13 embarqué (Chaquopy) & FastAPI</sub><br><sub>• Double affichage natif (grille tactile `/grid`, diffusion `/cinema` sur TV HDMI)</sub><br><sub>• FFmpeg ARM64 intégré & accélération matérielle MediaCodec</sub> |
-| ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installeur)*</sub> | <sub>x86-64</sub> | <sub>[**Télécharger Bobine-Setup-3.0.2.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-Setup-3.0.2.exe)</sub> | **Windows 11, 10 & Windows IoT**<br><sub>• Assistant guidé 1 clic & raccourci Bureau</sub><br><sub>• Ouverture auto du navigateur (`http://127.0.0.1:8000`)</sub><br><sub>• Systray silencieux en tâche de fond, zéro console</sub> |
-| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) ![Linux Mint](https://img.shields.io/badge/Linux%20Mint-87CF3E?style=flat-square&logo=linuxmint&logoColor=white) | <sub>`.deb`<br>*(Paquet & Dépôt)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>[**Dépôt APT apt.bobine.fit**](https://apt.bobine.fit)<br>[**bobine_3.0.2_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/bobine_3.0.2_amd64.deb)</sub> | **Debian, Ubuntu & Linux Mint**<br><sub>• Dépôt APT officiel : `apt.bobine.fit`</sub><br><sub>• Logithèque Ubuntu App Center / `apt install`</sub><br><sub>• Respect des standards XDG & raccourci Bureau</sub><br><sub>• Zone de notification système (systray) & VA-API</sub> |
-| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Image disque)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Télécharger Bobine-3.0.2.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-3.0.2.dmg)</sub> | **Apple Silicon (M1, M2, M3, M4)**<br><sub>• Glisser-déposer de `Bobine.app` dans Applications</sub><br><sub>• Icône native Retina `.icns` & barre de menus</sub><br><sub>• Accélération matérielle VideoToolbox (`h264_videotoolbox`)</sub> |
+| ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Paquet natif)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Télécharger Bobine-3.0.3.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.3/Bobine-3.0.3.apk)</sub> | **Tablettes Android & Bornes Tactiles ARM**<br><sub>• Paquet APK autonome avec CPython 3.13 embarqué (Chaquopy) & FastAPI</sub><br><sub>• Double affichage natif (grille tactile `/grid`, diffusion `/cinema` sur TV HDMI)</sub><br><sub>• FFmpeg ARM64 intégré & accélération matérielle MediaCodec</sub> |
+| ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installeur)*</sub> | <sub>x86-64</sub> | <sub>[**Télécharger Bobine-Setup-3.0.3.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.3/Bobine-Setup-3.0.3.exe)</sub> | **Windows 11, 10 & Windows IoT**<br><sub>• Assistant guidé 1 clic & raccourci Bureau</sub><br><sub>• Ouverture auto du navigateur (`http://127.0.0.1:8000`)</sub><br><sub>• Systray silencieux en tâche de fond, zéro console</sub> |
+| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) ![Linux Mint](https://img.shields.io/badge/Linux%20Mint-87CF3E?style=flat-square&logo=linuxmint&logoColor=white) | <sub>`.deb`<br>*(Paquet & Dépôt)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>[**Dépôt APT apt.bobine.fit**](https://apt.bobine.fit)<br>[**bobine_3.0.3_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.3/bobine_3.0.3_amd64.deb)</sub> | **Debian, Ubuntu & Linux Mint**<br><sub>• Dépôt APT officiel : `apt.bobine.fit`</sub><br><sub>• Logithèque Ubuntu App Center / `apt install`</sub><br><sub>• Respect des standards XDG & raccourci Bureau</sub><br><sub>• Zone de notification système (systray) & VA-API</sub> |
+| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Image disque)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Télécharger Bobine-3.0.3.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.3/Bobine-3.0.3.dmg)</sub> | **Apple Silicon (M1, M2, M3, M4)**<br><sub>• Glisser-déposer de `Bobine.app` dans Applications</sub><br><sub>• Icône native Retina `.icns` & barre de menus</sub><br><sub>• Accélération matérielle VideoToolbox (`h264_videotoolbox`)</sub> |
 | ![iOS / iPadOS](https://img.shields.io/badge/iOS%20%2F%20iPadOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>App iPadOS<br>*(Piste explorée)*</sub> | <sub>ARM64 (Apple Silicon)</sub> | <sub>*Piste explorée...*</sub> | **iPads & Tablettes Tactiles Apple**<br><sub>• Sortie vidéo filaire USB-C (DisplayPort) ou Thunderbolt (iPad Pro M-series, iPad Air)</sub><br><sub>• Pupitre coach tactile & régie vidéo autonome sur grand écran</sub><br><sub>• Piste prospective pour étendre la portabilité</sub> |
-| ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | <sub>Binaire natif<br>*(Tauri 2)*</sub> | <sub>x86-64 (Linux)</sub> | <sub>[**Télécharger bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/bobine-assistant)</sub> | **Assistant Réseau Graphique (GUI)**<br><sub>• Scan réseau complet — tous les appareils (nom, IP, OS, ports)</sub><br><sub>• SSH par mot de passe, clé importée ou clés locales auto-détectées</sub><br><sub>• Aucune saisie en ligne de commande requise</sub> |
+| ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | <sub>Binaire natif<br>*(Tauri 2)*</sub> | <sub>x86-64 (Linux)</sub> | <sub>[**Télécharger bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.3/bobine-assistant)</sub> | **Assistant Réseau Graphique (GUI)**<br><sub>• Scan réseau complet — tous les appareils (nom, IP, OS, ports)</sub><br><sub>• SSH par mot de passe, clé importée ou clés locales auto-détectées</sub><br><sub>• Aucune saisie en ligne de commande requise</sub> |
 | ![Bash CLI](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | <sub>Script Shell<br>*(Automatisé)*</sub> | <sub>x86-64</sub> | <sub>`curl -sSL https://bobine.fit/install.sh \| bash`</sub> | **Appliance Dédiée Headless**<br><sub>• Déploiement automatisé en 18 étapes sur Debian 13</sub><br><sub>• Décodage matériel VA-API 4K (&lt; 8% CPU)</sub><br><sub>• Allumage/veille TV par HDMI-CEC & services auto-réparateurs</sub> |
 | [![bobine.fit](https://img.shields.io/badge/bobine.fit-4285F4?style=flat-square&logo=data%3Aimage/svg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBkPSJNNDQgMjRjMCAxMS4wNDUtOC45NTUgMjAtMjAgMjAtNC41MiAwLTguNjgtMS41MDMtMTIuMDMtNC4wNDNsOS40NjctMTYuMzk0QTggOCAwIDAgMCAyNCAzMmM0LjQxOCAwIDgtMy41ODIgOC04eiIvPjxwYXRoIGZpbGw9IiNGQkMwMkQiIGQ9Ik00NCAyNEgyNGE4IDggMCAwIDAtNi45MjggNGwtOS40NjcgMTYuMzk0QTE5LjkyIDE5LjkyIDAgMCAxIDQgMjRDNCAxMy45ODcgMTEuMzg1IDUuNzA0IDIxLjAzNiA0LjIyTDMwLjUwMyAyMC42MUE3Ljk3IDcuOTcgMCAwIDAgMzIgMjR6Ii8%2BPHBhdGggZmlsbD0iI0U1MzkzNSIgZD0iTTI0IDRjNy40MDYgMCAxMy44NiA0LjAyNCAxNy4zIDEwLjAyN0wzMC41MDMgMjAuNjFBOCA4IDAgMCAwIDI0IDE2Yy0zLjE1NSAwLTUuOTE0IDEuODI2LTcuMjUgNC40OUw3LjI4NCA0LjA5NUMxMS44OTIgNC4wMzIgMTcuNjUgNCAyNCA0eiIvPjxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjI0IiByPSI2IiBmaWxsPSIjMTk3NkQyIi8%2BPC9zdmc%2B)](https://bobine.fit) | <sub>Portail Web</sub> | <sub>Universel</sub> | <sub>[**Visiter bobine.fit**](https://bobine.fit)</sub> | **Site Officiel & Documentation**<br><sub>• Guides de démarrage, actualités & notes de version</sub><br><sub>• Documentation interactive & télécommande web</sub> |
 | ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | <sub>Binaires & Sources</sub> | <sub>Multi-OS</sub> | <sub>[**Voir les Releases GitHub**](https://github.com/FantasmaGlad/Bobine/releases/latest)</sub> | **Historique Complet des Versions**<br><sub>• Sommes de contrôle SHA-256 & notes de version</sub> |
@@ -88,20 +96,6 @@ Bobine est agnostique aux programmes : les catégories de cours sont libres, il 
 - **Qualité vidéo intégrale (2K et 4K natifs)** — préservation intégrale des résolutions ultra haute définition sans sous-échantillonnage destructif, format MP4 optimisé streaming immédiat (`+faststart`).
 - **Annulation réactive & estimation en direct (ETA)** — arrêt immédiat de FFmpeg au clic sur la croix (✕), purge automatique des fichiers temporaires et affichage en temps réel du temps restant et de la vitesse.
 - **Miniatures Full HD 1080p & navigation fluide (fast seek)** — vignettes de haute précision pour écrans 4K et intervalles de trames clés resserrés pour un déplacement temporel instantané sans latence.
-
----
-
-## Comment ça marche
-
-Bobine est une machine hôte unique sur votre réseau local qui fait tourner :
-
-- un backend **FastAPI** avec **SQLite** pour le stockage ;
-- un kiosque **Chromium** en plein écran (X11) pour l'écran câblé (sur les appliances dédiées) ;
-- une interface **Next.js** (admin, borne adhérent, télécommande mobile), servie en pages statiques depuis la même machine.
-
-Les autres écrans (écran réseau, télécommandes, PC d'admin) sont de simples navigateurs pointant vers la machine hôte Bobine. Les médias ne quittent jamais votre réseau.
-
-Pour l'architecture complète, le modèle de données, le contrat réseau et la référence API, voir **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ---
 
@@ -321,6 +315,20 @@ Sur l'**appliance headless**, utilisez la commande d'administration dédiée :
 sudo ./install.sh --uninstall --purge
 ```
 Ajoutez `--purge-data` pour retirer aussi les médias importés (irréversible). Les paquets système partagés sont conservés. Voir `sudo ./install.sh --help` pour toutes les options.
+
+---
+
+## Comment ça marche
+
+Bobine est une machine hôte unique sur votre réseau local qui fait tourner :
+
+- un backend **FastAPI** avec **SQLite** pour le stockage ;
+- un kiosque **Chromium** en plein écran (X11) pour l'écran câblé (sur les appliances dédiées) ;
+- une interface **Next.js** (admin, borne adhérent, télécommande mobile), servie en pages statiques depuis la même machine.
+
+Les autres écrans (écran réseau, télécommandes, PC d'admin) sont de simples navigateurs pointant vers la machine hôte Bobine. Les médias ne quittent jamais votre réseau.
+
+Pour l'architecture complète, le modèle de données, le contrat réseau et la référence API, voir **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ---
 

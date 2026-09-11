@@ -11,11 +11,19 @@ Bobine turns any PC, Mac, or low-cost dedicated mini PC into a complete in-club 
 [Official Website](https://bobine.fit) · [Documentation](https://bobine.fit/fr/documentation) · [Français](README.fr.md) · [Technical Architecture](docs/ARCHITECTURE.md) · [Latest Release](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Beta Release](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
-[![Release: v3.0.2](https://img.shields.io/badge/Release-v3.0.2-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
-![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)
-![Backend: FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
-![Platforms: Windows 11 | Linux | macOS | Android](https://img.shields.io/badge/Platforms-Windows%2011%20%7C%20Linux%20%7C%20macOS%20%7C%20Android-blue)
-![Self-hosted](https://img.shields.io/badge/Self--hosted-Local--first-4c1)
+[![Release: v3.0.3](https://img.shields.io/badge/Release-v3.0.3-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+[![Website: bobine.fit](https://img.shields.io/badge/Website-bobine.fit-4285F4.svg?logo=googlechrome&logoColor=white)](https://bobine.fit)
+![Architecture: Local--first | Offline--capable](https://img.shields.io/badge/Architecture-Local--first%20%7C%20Offline--capable-success)
+![Privacy: Zero Telemetry](https://img.shields.io/badge/Privacy-Zero%20Telemetry-purple)
+![Accessibility: WCAG 2.1 AA/AAA](https://img.shields.io/badge/Accessibility-WCAG%202.1%20AA%2FAAA-blueviolet)
+![Frontend: Next.js 16 | React 19](https://img.shields.io/badge/Frontend-Next.js%2016%20%7C%20React%2019-black?logo=next.js)
+![Backend: FastAPI | Python 3.13](https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.13-009688?logo=fastapi)
+![Database: SQLite WAL](https://img.shields.io/badge/Database-SQLite%20WAL-003B57?logo=sqlite)
+![Video: 4K 60fps Native](https://img.shields.io/badge/Video-4K%2060fps%20Native-orange)
+![Hardware Accel: VA--API | VideoToolbox | MediaCodec | QSV](https://img.shields.io/badge/Hardware%20Accel-VA--API%20%7C%20VideoToolbox%20%7C%20MediaCodec%20%7C%20QSV-red)
+![Platforms: Windows | macOS | Linux | Android](https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-informational)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/FantasmaGlad/Bobine/pulls)
 
 ---
 
@@ -25,12 +33,12 @@ Install Bobine as a native application on your tablet, workstation, or studio PC
 
 | Platform | Format | Architecture | Direct Download / Command | Experience & Features |
 | :--- | :---: | :---: | :---: | :--- |
-| ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Native Package)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Download Bobine-3.0.2.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-3.0.2.apk)</sub> | **Android Tablets & ARM Touch Kiosks**<br><sub>• Official native APK with embedded CPython 3.13 (Chaquopy) & FastAPI</sub><br><sub>• Independent dual-display (touch `/grid` on tablet, HDMI `/cinema` on TV)</sub><br><sub>• ARM64 FFmpeg & MediaCodec hardware acceleration</sub> |
-| ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installer)*</sub> | <sub>x86-64</sub> | <sub>[**Download Bobine-Setup-3.0.2.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-Setup-3.0.2.exe)</sub> | **Windows 11, 10 & Windows IoT**<br><sub>• 1-click wizard & Desktop shortcut</sub><br><sub>• Auto-opens browser (`http://127.0.0.1:8000`)</sub><br><sub>• Background tray, zero terminal window</sub> |
-| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | <sub>`.deb`<br>*(Package & Repo)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>[**APT Repo apt.bobine.fit**](https://apt.bobine.fit)<br>[**bobine_3.0.2_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/bobine_3.0.2_amd64.deb)</sub> | **Debian, Ubuntu & Linux Mint**<br><sub>• Official APT repository: `apt.bobine.fit`</sub><br><sub>• Ubuntu App Center / `apt install`</sub><br><sub>• XDG standard Desktop launcher</sub><br><sub>• System notification tray (systray) & VA-API</sub> |
-| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Disk Image)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Download Bobine-3.0.2.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-3.0.2.dmg)</sub> | **Apple Silicon (M1, M2, M3, M4)**<br><sub>• Drag-and-drop `Bobine.app` into Applications</sub><br><sub>• Native Retina `.icns` icon & menu bar companion</sub><br><sub>• VideoToolbox hardware acceleration (`h264_videotoolbox`)</sub> |
+| ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Native Package)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Download Bobine-3.0.3.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.3/Bobine-3.0.3.apk)</sub> | **Android Tablets & ARM Touch Kiosks**<br><sub>• Official native APK with embedded CPython 3.13 (Chaquopy) & FastAPI</sub><br><sub>• Independent dual-display (touch `/grid` on tablet, HDMI `/cinema` on TV)</sub><br><sub>• ARM64 FFmpeg & MediaCodec hardware acceleration</sub> |
+| ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installer)*</sub> | <sub>x86-64</sub> | <sub>[**Download Bobine-Setup-3.0.3.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.3/Bobine-Setup-3.0.3.exe)</sub> | **Windows 11, 10 & Windows IoT**<br><sub>• 1-click wizard & Desktop shortcut</sub><br><sub>• Auto-opens browser (`http://127.0.0.1:8000`)</sub><br><sub>• Background tray, zero terminal window</sub> |
+| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | <sub>`.deb`<br>*(Package & Repo)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>[**APT Repo apt.bobine.fit**](https://apt.bobine.fit)<br>[**bobine_3.0.3_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.3/bobine_3.0.3_amd64.deb)</sub> | **Debian, Ubuntu & Linux Mint**<br><sub>• Official APT repository: `apt.bobine.fit`</sub><br><sub>• Ubuntu App Center / `apt install`</sub><br><sub>• XDG standard Desktop launcher</sub><br><sub>• System notification tray (systray) & VA-API</sub> |
+| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Disk Image)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Download Bobine-3.0.3.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.3/Bobine-3.0.3.dmg)</sub> | **Apple Silicon (M1, M2, M3, M4)**<br><sub>• Drag-and-drop `Bobine.app` into Applications</sub><br><sub>• Native Retina `.icns` icon & menu bar companion</sub><br><sub>• VideoToolbox hardware acceleration (`h264_videotoolbox`)</sub> |
 | ![iOS / iPadOS](https://img.shields.io/badge/iOS%20%2F%20iPadOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>iPadOS App<br>*(Explored Track)*</sub> | <sub>ARM64 (Apple Silicon)</sub> | <sub>*Explored track...*</sub> | **iPads & Apple Touch Tablets**<br><sub>• Wired video over USB-C (DisplayPort) or Thunderbolt (iPad Pro M-series, iPad Air)</sub><br><sub>• Dual-screen coach console & standalone studio video playout</sub><br><sub>• Prospective track to extend touch device portability</sub> |
-| ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | <sub>Native Binary<br>*(Tauri 2)*</sub> | <sub>x86-64 (Linux)</sub> | <sub>[**Download bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/bobine-assistant)</sub> | **Graphical Network Installer (GUI)**<br><sub>• Full subnet scan — every device, not just Bobine (name, IP, OS, ports)</sub><br><sub>• SSH via password, imported key file, or auto-detected local keys</sub><br><sub>• Zero command-line knowledge needed</sub> |
+| ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | <sub>Native Binary<br>*(Tauri 2)*</sub> | <sub>x86-64 (Linux)</sub> | <sub>[**Download bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.3/bobine-assistant)</sub> | **Graphical Network Installer (GUI)**<br><sub>• Full subnet scan — every device, not just Bobine (name, IP, OS, ports)</sub><br><sub>• SSH via password, imported key file, or auto-detected local keys</sub><br><sub>• Zero command-line knowledge needed</sub> |
 | ![Bash CLI](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | <sub>Shell Script<br>*(Automated)*</sub> | <sub>x86-64</sub> | <sub>`curl -sSL https://bobine.fit/install.sh \| bash`</sub> | **Headless Dedicated Appliance**<br><sub>• 18-step automated install for Debian 13 mini PCs</sub><br><sub>• Hardware 4K VA-API decoding (&lt; 8% CPU)</sub><br><sub>• HDMI-CEC TV control & auto-healing services</sub> |
 | [![bobine.fit](https://img.shields.io/badge/bobine.fit-4285F4?style=flat-square&logo=data%3Aimage/svg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBkPSJNNDQgMjRjMCAxMS4wNDUtOC45NTUgMjAtMjAgMjAtNC41MiAwLTguNjgtMS41MDMtMTIuMDMtNC4wNDNsOS40NjctMTYuMzk0QTggOCAwIDAgMCAyNCAzMmM0LjQxOCAwIDgtMy41ODIgOC04eiIvPjxwYXRoIGZpbGw9IiNGQkMwMkQiIGQ9Ik00NCAyNEgyNGE4IDggMCAwIDAtNi45MjggNGwtOS40NjcgMTYuMzk0QTE5LjkyIDE5LjkyIDAgMCAxIDQgMjRDNCAxMy45ODcgMTEuMzg1IDUuNzA0IDIxLjAzNiA0LjIyTDMwLjUwMyAyMC42MUE3Ljk3IDcuOTcgMCAwIDAgMzIgMjR6Ii8%2BPHBhdGggZmlsbD0iI0U1MzkzNSIgZD0iTTI0IDRjNy40MDYgMCAxMy44NiA0LjAyNCAxNy4zIDEwLjAyN0wzMC41MDMgMjAuNjFBOCA4IDAgMCAwIDI0IDE2Yy0zLjE1NSAwLTUuOTE0IDEuODI2LTcuMjUgNC40OUw3LjI4NCA0LjA5NUMxMS44OTIgNC4wMzIgMTcuNjUgNCAyNCA0eiIvPjxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjI0IiByPSI2IiBmaWxsPSIjMTk3NkQyIi8%2BPC9zdmc%2B)](https://bobine.fit) | <sub>Web Portal</sub> | <sub>Universal</sub> | <sub>[**Visit bobine.fit**](https://bobine.fit)</sub> | **Official Website & Documentation**<br><sub>• Getting started guides, updates & changelogs</sub><br><sub>• Web app remote and online documentation</sub> |
 | ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | <sub>Source & Binaries</sub> | <sub>Multi-OS</sub> | <sub>[**Browse GitHub Releases**](https://github.com/FantasmaGlad/Bobine/releases/latest)</sub> | **Full Release History & Sources**<br><sub>• Checksums, tarballs & complete release notes</sub> |
@@ -88,20 +96,6 @@ Bobine is program-agnostic: class categories are free-form, so it fits any catal
 - **Full native quality (2K & 4K)** — strict preservation of ultra-high definition resolutions without downscaling, standardized into fast-start MP4.
 - **Reactive import cancellation & live ETA** — 1-click cancel (✕) with instant FFmpeg SIGTERM/SIGKILL, orphan temp file purge, and real-time remaining duration estimation.
 - **Crisp 1080p thumbnails & fast seek** — Full HD previews on 4K displays and closed GOP keyframe intervals for instant playback seeking.
-
----
-
-## How it works
-
-Bobine is a single host machine on your local network running:
-
-- a **FastAPI** backend with **SQLite** for storage;
-- a **Chromium** kiosk in full screen (X11) for the wired screen (on headless appliances);
-- a **Next.js** admin panel, member kiosk, and mobile remote, all served as static pages from the same machine.
-
-Other screens (networked display, member remotes, the admin PC) are ordinary web browsers pointing at the Bobine host. Media never leaves your network.
-
-For the full architecture, data model, network contract and API reference, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ---
 
@@ -321,6 +315,20 @@ On the **headless appliance**, use the dedicated management command:
 sudo ./install.sh --uninstall --purge
 ```
 Add `--purge-data` to also remove imported media (irreversible). Shared system packages are kept. See `sudo ./install.sh --help` for all options.
+
+---
+
+## How it works
+
+Bobine is a single host machine on your local network running:
+
+- a **FastAPI** backend with **SQLite** for storage;
+- a **Chromium** kiosk in full screen (X11) for the wired screen (on headless appliances);
+- a **Next.js** admin panel, member kiosk, and mobile remote, all served as static pages from the same machine.
+
+Other screens (networked display, member remotes, the admin PC) are ordinary web browsers pointing at the Bobine host. Media never leaves your network.
+
+For the full architecture, data model, network contract and API reference, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ---
 
