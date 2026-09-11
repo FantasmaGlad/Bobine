@@ -40,6 +40,7 @@ class VideoUpdate(BaseModel):
     title: str | None = None
     program: str | None = None
     release: str | None = None
+    description: str | None = None
 
 
 class VideoResponse(BaseModel):
@@ -54,6 +55,11 @@ class VideoResponse(BaseModel):
     codec: str | None
     thumbnail_path: str | None
     source: str
+    description: str | None = None
+    audio_channels: int | None = None
+    audio_codec: str | None = None
+    fps: float | None = None
+    bitrate_kbps: int | None = None
 
     class Config:
         from_attributes = True
@@ -262,6 +268,8 @@ def update_video(video_id: int, payload: VideoUpdate, db: Session = Depends(get_
         video.program = payload.program
     if payload.release is not None:
         video.release = payload.release
+    if payload.description is not None:
+        video.description = payload.description.strip() if payload.description.strip() else None
 
     db.commit()
     db.refresh(video)
@@ -389,10 +397,20 @@ def bg_normalize(video_id: int, actions: list, source_metadata: dict | None = No
 
             # Mettre à jour l'enregistrement DB
             video.file_path = str(new_path)
-            video.duration_seconds = meta["duration_seconds"]
-            video.width = meta["width"]
-            video.height = meta["height"]
-            video.codec = meta["codec"]
+            video.duration_seconds = meta.get("duration_seconds")
+            video.width = meta.get("width")
+            video.height = meta.get("height")
+            video.codec = meta.get("codec")
+            if meta.get("audio_channels") is not None:
+                video.audio_channels = meta["audio_channels"]
+            if meta.get("audio_codec") is not None:
+                video.audio_codec = meta["audio_codec"]
+            if meta.get("fps") is not None:
+                video.fps = meta["fps"]
+            if meta.get("bitrate_kbps") is not None:
+                video.bitrate_kbps = meta["bitrate_kbps"]
+            if not video.description and meta.get("description"):
+                video.description = meta["description"]
 
             # Régénérer la miniature
             if video.thumbnail_path:

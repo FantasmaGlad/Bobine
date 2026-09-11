@@ -179,6 +179,13 @@ class PlaybackManager:
         keep_playlist: bool = False,
         play_intro: bool = True,
         thumbnail_url: str | None = None,
+        description: str | None = None,
+        audio_channels: int | None = None,
+        audio_codec: str | None = None,
+        fps: float | None = None,
+        bitrate_kbps: int | None = None,
+        width: int | None = None,
+        height: int | None = None,
     ):
         """
         Lance un cours. Bascule directement en lecture : le pacing du
@@ -207,6 +214,13 @@ class PlaybackManager:
             "duration_seconds": duration_seconds,
             "program": program,
             "thumbnail_url": thumbnail_url,
+            "description": description,
+            "audio_channels": audio_channels,
+            "audio_codec": audio_codec,
+            "fps": fps,
+            "bitrate_kbps": bitrate_kbps,
+            "width": width,
+            "height": height,
         }
         self.state["position_seconds"] = 0.0
         self.state["volume"] = self.state.get("volume", settings.volume_default)
@@ -242,6 +256,13 @@ class PlaybackManager:
             client_ts=client_ts,
             keep_playlist=True,
             thumbnail_url=first_item.get("thumbnail_url"),
+            description=first_item.get("description"),
+            audio_channels=first_item.get("audio_channels"),
+            audio_codec=first_item.get("audio_codec"),
+            fps=first_item.get("fps"),
+            bitrate_kbps=first_item.get("bitrate_kbps"),
+            width=first_item.get("width"),
+            height=first_item.get("height"),
         )
 
     async def _run_waiting_period(self):
@@ -304,6 +325,13 @@ class PlaybackManager:
                 keep_playlist=True,
                 play_intro=False,  # Pas d'animation de lancement entre deux vidéos d'une même playlist
                 thumbnail_url=next_item.get("thumbnail_url"),
+                description=next_item.get("description"),
+                audio_channels=next_item.get("audio_channels"),
+                audio_codec=next_item.get("audio_codec"),
+                fps=next_item.get("fps"),
+                bitrate_kbps=next_item.get("bitrate_kbps"),
+                width=next_item.get("width"),
+                height=next_item.get("height"),
             )
         else:
             await self.stop(client_ts)
@@ -336,6 +364,13 @@ class PlaybackManager:
             keep_playlist=True,
             play_intro=False,
             thumbnail_url=prev_item.get("thumbnail_url"),
+            description=prev_item.get("description"),
+            audio_channels=prev_item.get("audio_channels"),
+            audio_codec=prev_item.get("audio_codec"),
+            fps=prev_item.get("fps"),
+            bitrate_kbps=prev_item.get("bitrate_kbps"),
+            width=prev_item.get("width"),
+            height=prev_item.get("height"),
         )
 
     async def skip_waiting(self, client_ts: float | None = None):

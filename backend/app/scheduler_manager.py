@@ -408,7 +408,11 @@ async def _launch_target(
             logger.warning(f"Cible programmée introuvable : vidéo {target_id}")
             return
         thumb = video.thumbnail_path.split("/")[-1] if video.thumbnail_path else None
-        await manager.load(video.id, video.title, video.duration_seconds, video.program, thumbnail_url=thumb)
+        await manager.load(
+            video.id, video.title, video.duration_seconds, video.program, thumbnail_url=thumb,
+            description=video.description, audio_channels=video.audio_channels, audio_codec=video.audio_codec,
+            fps=video.fps, bitrate_kbps=video.bitrate_kbps, width=video.width, height=video.height,
+        )
     else:
         playlist = db.query(Playlist).filter(Playlist.id == target_id).first()
         if not playlist:
@@ -422,6 +426,13 @@ async def _launch_target(
                 "duration_seconds": item.video.duration_seconds,
                 "program": item.video.program,
                 "thumbnail_url": item.video.thumbnail_path.split("/")[-1] if item.video.thumbnail_path else None,
+                "description": item.video.description,
+                "audio_channels": item.video.audio_channels,
+                "audio_codec": item.video.audio_codec,
+                "fps": item.video.fps,
+                "bitrate_kbps": item.video.bitrate_kbps,
+                "width": item.video.width,
+                "height": item.video.height,
             }
             for item in sorted_items
         ]

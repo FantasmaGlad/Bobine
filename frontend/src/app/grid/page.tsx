@@ -8,6 +8,7 @@ import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
 import { useScreenWakeLock } from "@/lib/useScreenWakeLock";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
+import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 
 // Lot 14 (cf. docs/plan-implementation-android.md) : écran de sélection
 // SEUL — reprend la présentation visuelle de la grille de `/cinema` (héros
@@ -43,17 +44,11 @@ interface CinemaVideo {
   width?: number | null;
   height?: number | null;
   codec?: string | null;
-}
-
-function getResolutionBadge(width?: number | null, height?: number | null): string | null {
-  if (!width && !height) return null;
-  const w = width ?? 0;
-  const h = height ?? 0;
-  if (w >= 3840 || h >= 2160) return "4K Ultra HD";
-  if (w >= 2560 || h >= 1440) return "1440p QHD";
-  if (w >= 1920 || h >= 1080) return "1080p Full HD";
-  if (w >= 1280 || h >= 720) return "720p HD";
-  return null;
+  description?: string | null;
+  audio_channels?: number | null;
+  audio_codec?: string | null;
+  fps?: number | null;
+  bitrate_kbps?: number | null;
 }
 
 function formatDurationMin(seconds: number | null) {
@@ -534,7 +529,15 @@ export default function GridPage() {
                     {getResolutionBadge(featured.width, featured.height)}
                   </span>
                 )}
+                {getAudioQualityBadge(featured.audio_channels, featured.audio_codec) && (
+                  <span className="cinema-hero-badge-pill">
+                    {getAudioQualityBadge(featured.audio_channels, featured.audio_codec)}
+                  </span>
+                )}
               </div>
+              {featured.description && (
+                <p className="cinema-hero-description">{featured.description}</p>
+              )}
               <div className="cinema-hero-actions">
                 <button className="cinema-hero-play" style={{ color: themeFg }} onClick={() => handleSelect(featured)}>
                   <Icon name="play_arrow" size={28} color={themeFg} filled />

@@ -87,8 +87,64 @@ def extract_metadata(file_path: str) -> dict:
                 pass
 
     a_codec = None
+    audio_channels = None
     if a_stream:
         a_codec = a_stream.get("codec_name")
+        channels_val = a_stream.get("channels")
+        if channels_val is not None:
+            try:
+                audio_channels = int(channels_val)
+            except (ValueError, TypeError):
+                pass
+
+    # Extraction de la cadence d'images (FPS)
+    fps = None
+    if v_stream:
+        for rate_key in ("r_frame_rate", "avg_frame_rate"):
+            raw_rate = v_stream.get(rate_key)
+            if raw_rate and raw_rate != "0/0":
+                try:
+                    if "/" in raw_rate:
+                        num, den = raw_rate.split("/", 1)
+                        d = float(den)
+                        if d > 0:
+                            val = float(num) / d
+                            if 1 <= val <= 240:
+                                fps = round(val, 2)
+                                break
+                    else:
+                        val = float(raw_rate)
+                        if 1 <= val <= 240:
+                            fps = round(val, 2)
+                            break
+                except (ValueError, ZeroDivisionError):
+                    pass
+
+    # Extraction du débit global ou vidéo (en kbps)
+    bitrate_kbps = None
+    raw_br = fmt.get("bit_rate") or (v_stream.get("bit_rate") if v_stream else None)
+    if raw_br:
+        try:
+            bitrate_kbps = int(raw_br) // 1000
+        except (ValueError, TypeError):
+            pass
+
+    # Extraction de la description / synopsis intégrée aux métadonnées conteneur
+    description = None
+    fmt_tags = fmt.get("tags") or {}
+    if isinstance(fmt_tags, dict):
+        lower_tags = {str(k).lower(): str(v) for k, v in fmt_tags.items()}
+        desc_candidate = lower_tags.get("description") or lower_tags.get("comment") or lower_tags.get("synopsis")
+        if desc_candidate and desc_candidate.strip():
+            description = desc_candidate.strip()
+
+    if not description and v_stream:
+        v_tags = v_stream.get("tags") or {}
+        if isinstance(v_tags, dict):
+            lower_vtags = {str(k).lower(): str(v) for k, v in v_tags.items()}
+            desc_candidate = lower_vtags.get("description") or lower_vtags.get("comment") or lower_vtags.get("synopsis")
+            if desc_candidate and desc_candidate.strip():
+                description = desc_candidate.strip()
 
     # Détection des DRM (FairPlay / Encrypted streams)
     is_drm = False
@@ -116,6 +172,10 @@ def extract_metadata(file_path: str) -> dict:
         "height": height,
         "codec": v_codec,
         "audio_codec": a_codec,
+        "audio_channels": audio_channels,
+        "fps": fps,
+        "bitrate_kbps": bitrate_kbps,
+        "description": description,
         "is_drm": is_drm
     }
 

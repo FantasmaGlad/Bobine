@@ -2248,6 +2248,34 @@ a.status-pill:hover,
   text-transform: uppercase;
 }
 
+.pause-description,
+.cinema-pause-description {
+  margin: 8px 0 0;
+  font-size: clamp(0.9rem, 1.2vw, 1.05rem);
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--text-muted);
+  max-width: 680px;
+  text-align: center;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+.cinema-hero-description {
+  margin: 8px 0 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 600px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
 .pause-progress-track {
   position: absolute;
   left: 0;

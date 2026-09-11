@@ -128,7 +128,7 @@ Le schéma de données est géré par **SQLAlchemy**. Il n'y a **pas d'Alembic a
 
 ### Entités principales
 
-- `videos` / `backgrounds` : Métadonnées des médias (durée, résolution, codec, vignettes générées dans `data/thumbnails`).
+- `videos` / `backgrounds` : Métadonnées des médias (durée, résolution, codec, description/synopsis, fps, bitrate, canaux audio et codec audio, vignettes générées dans `data/thumbnails`).
 - `playlists` & `playlist_items` : Playlists de cours vidéo ordonnées.
 - `audio_courses` & `audio_tracks` : Cours audio importés et leurs pistes associées.
 - `audio_playlists` & `audio_playlist_items` : Éditions mixées audio coach avec attribution de fond visuel par piste.

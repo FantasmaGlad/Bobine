@@ -6,6 +6,7 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { isWiredDisplay, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
+import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 
 function getApiUrl(path: string) {
   if (typeof window !== "undefined" && window.location.port === "3000") {
@@ -919,9 +920,20 @@ export default function KioskPage() {
                 <span className="pause-time">
                   {formatTime(state.position_seconds)} / {formatTime(duration)}
                 </span>
-                <span className="pause-badge-pill">4K Ultra HD</span>
-                <span className="pause-badge-pill">Stéréo 5.1</span>
+                {getResolutionBadge(state.current_video?.width, state.current_video?.height, "HD") && (
+                  <span className="pause-badge-pill">
+                    {getResolutionBadge(state.current_video?.width, state.current_video?.height, "HD")}
+                  </span>
+                )}
+                {getAudioQualityBadge(state.current_video?.audio_channels, state.current_video?.audio_codec, "Stéréo 2.0") && (
+                  <span className="pause-badge-pill">
+                    {getAudioQualityBadge(state.current_video?.audio_channels, state.current_video?.audio_codec, "Stéréo 2.0")}
+                  </span>
+                )}
               </div>
+              {state.current_video?.description && (
+                <p className="pause-description">{state.current_video.description}</p>
+              )}
             </div>
           </div>
           <div className="pause-progress-track">

@@ -102,6 +102,9 @@ class TestVideoFlow(unittest.TestCase):
         self.assertEqual(meta["height"], 240)
         self.assertEqual(meta["codec"], "h264")
         self.assertEqual(meta["audio_codec"], "aac")
+        self.assertIsNotNone(meta.get("fps"))
+        self.assertEqual(meta["fps"], 30.0)
+        self.assertIsNotNone(meta.get("audio_channels"))
         self.assertFalse(meta["is_drm"])
 
         compat = check_compatibility(meta, self.dummy_compatible_path)
@@ -168,13 +171,19 @@ class TestVideoFlow(unittest.TestCase):
         old_file_path = video.file_path
         self.assertTrue(os.path.exists(old_file_path))
 
-        # Trigger metadata update with new title
-        payload = VideoUpdate(title="Updated Title RPM 99", program="RPM", release="99")
+        # Trigger metadata update with new title and description
+        payload = VideoUpdate(
+            title="Updated Title RPM 99",
+            program="RPM",
+            release="99",
+            description="Séance cardio haute intensité avec sprints et montées",
+        )
         updated_video = update_video(video.id, payload, self.db)
 
-        # Check DB title updated
+        # Check DB title and description updated
         self.assertEqual(updated_video.title, "Updated Title RPM 99")
         self.assertEqual(updated_video.release, "99")
+        self.assertEqual(updated_video.description, "Séance cardio haute intensité avec sprints et montées")
 
         # Check physical file is renamed
         new_file_path = updated_video.file_path

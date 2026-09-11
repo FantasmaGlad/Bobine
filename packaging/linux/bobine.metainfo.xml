@@ -37,7 +37,7 @@
   <releases>
     <release version="3.0.4" date="2026-09-11">
       <description>
-        <p>Version 3.0.4 : Désinstallation automatique 1-clic multi-plateforme (Linux, Windows, macOS, Android, Appliance Kiosque), refonte ergonomique et séparation nette de la zone de danger dans les Réglages, modernisation de l'affichage Cinéma et Pupitre Tactile (widget de lecture ancré à droite, miniatures agrandies à densité préservée, suppression des répétitions textuelles), écran de pause cinématique à métadonnées vérifiées et fiabilisation du redémarrage automatique des services systemd post-installation et mise à jour.</p>
+        <p>Version 3.0.4 : Ajout des descriptions et synopsis de cours avec édition dans la Bibliothèque, écran de pause cinématique épuré avec détection réelle de la qualité audio (Mono, Stéréo, Surround 5.1) et vidéo, rétro-remplissage automatique des métadonnées, désinstallation automatique 1-clic multi-plateforme (Linux, Windows, macOS, Android, Appliance Kiosque), refonte ergonomique de la zone de danger dans les Réglages, modernisation de l'affichage Cinéma et Pupitre Tactile (widget ancré à droite, miniatures agrandies, suppression des répétitions textuelles) et fiabilisation du redémarrage automatique des services systemd post-installation et mise à jour.</p>
       </description>
     </release>
     <release version="3.0.3" date="2026-09-10">

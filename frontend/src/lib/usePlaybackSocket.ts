@@ -18,6 +18,13 @@ export interface PlaybackVideo {
   duration_seconds: number | null;
   program?: string | null;
   thumbnail_url?: string | null;
+  description?: string | null;
+  audio_channels?: number | null;
+  audio_codec?: string | null;
+  fps?: number | null;
+  bitrate_kbps?: number | null;
+  width?: number | null;
+  height?: number | null;
 }
 
 export interface PlaybackBackground {

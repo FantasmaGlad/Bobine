@@ -126,6 +126,13 @@ def _build_playlist_video_items(playlist) -> list[dict]:
             "duration_seconds": item.video.duration_seconds,
             "program": item.video.program,
             "thumbnail_url": _thumbnail_filename(item.video.thumbnail_path),
+            "description": item.video.description,
+            "audio_channels": item.video.audio_channels,
+            "audio_codec": item.video.audio_codec,
+            "fps": item.video.fps,
+            "bitrate_kbps": item.video.bitrate_kbps,
+            "width": item.video.width,
+            "height": item.video.height,
         }
         for item in sorted_items
     ]
@@ -222,6 +229,9 @@ async def resume_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session =
             await manager.load(
                 video.id, video.title, video.duration_seconds, video.program,
                 thumbnail_url=_thumbnail_filename(video.thumbnail_path),
+                description=video.description, audio_channels=video.audio_channels,
+                audio_codec=video.audio_codec, fps=video.fps, bitrate_kbps=video.bitrate_kbps,
+                width=video.width, height=video.height,
             )
         else:
             playlist = db.query(Playlist).filter(Playlist.id == state.target_id).first()
@@ -234,6 +244,9 @@ async def resume_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session =
                 {
                     "id": i.video.id, "title": i.video.title, "duration_seconds": i.video.duration_seconds,
                     "program": i.video.program, "thumbnail_url": _thumbnail_filename(i.video.thumbnail_path),
+                    "description": i.video.description, "audio_channels": i.video.audio_channels,
+                    "audio_codec": i.video.audio_codec, "fps": i.video.fps, "bitrate_kbps": i.video.bitrate_kbps,
+                    "width": i.video.width, "height": i.video.height,
                 }
                 for i in sorted_items
             ]
@@ -252,6 +265,9 @@ async def resume_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session =
     await manager.load(
         video.id, video.title, video.duration_seconds, video.program, play_intro=False,
         thumbnail_url=_thumbnail_filename(video.thumbnail_path),
+        description=video.description, audio_channels=video.audio_channels,
+        audio_codec=video.audio_codec, fps=video.fps, bitrate_kbps=video.bitrate_kbps,
+        width=video.width, height=video.height,
     )
     await manager.seek(state.position_seconds or 0.0)
 
@@ -443,6 +459,9 @@ async def _handle_command(
         await manager.load(
             video.id, video.title, video.duration_seconds, video.program, client_ts,
             thumbnail_url=_thumbnail_filename(video.thumbnail_path),
+            description=video.description, audio_channels=video.audio_channels,
+            audio_codec=video.audio_codec, fps=video.fps, bitrate_kbps=video.bitrate_kbps,
+            width=video.width, height=video.height,
         )
         await run_in_threadpool(log_activity, db, "video_started", video.title)
     elif command == "load_background":

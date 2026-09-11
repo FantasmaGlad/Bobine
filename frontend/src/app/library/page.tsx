@@ -5,6 +5,12 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useUploadManager, PendingUploadSpec } from "@/lib/UploadManager";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import Icon from "@/components/Icon";
+import {
+  getResolutionBadge,
+  getAudioQualityBadge,
+  formatFps,
+  formatBitrate,
+} from "@/lib/videoBadges";
 
 interface Video {
   id: number;
@@ -18,6 +24,11 @@ interface Video {
   codec: string | null;
   thumbnail_path: string | null;
   source: string;
+  description?: string | null;
+  audio_channels?: number | null;
+  audio_codec?: string | null;
+  fps?: number | null;
+  bitrate_kbps?: number | null;
 }
 
 interface ToastState {
@@ -46,6 +57,7 @@ export default function LibraryPage() {
   const [drawerTitle, setDrawerTitle] = useState<string>("");
   const [drawerProgram, setDrawerProgram] = useState<string>("");
   const [drawerRelease, setDrawerRelease] = useState<string>("");
+  const [drawerDescription, setDrawerDescription] = useState<string>("");
   const [isSavingDrawer, setIsSavingDrawer] = useState<boolean>(false);
 
   // Catégories (programmes) réellement présentes dans la bibliothèque, pour
@@ -293,6 +305,7 @@ export default function LibraryPage() {
     // Catégorie = libellé libre (plus de presets figés).
     setDrawerProgram(video.program || "");
     setDrawerRelease(video.release || "");
+    setDrawerDescription(video.description || "");
   };
 
   // Close details drawer
@@ -318,6 +331,7 @@ export default function LibraryPage() {
           title: drawerTitle,
           program: finalProgram || null,
           release: drawerRelease || null,
+          description: drawerDescription.trim() || null,
         }),
       });
 
@@ -978,14 +992,45 @@ export default function LibraryPage() {
                   </div>
                 </div>
 
+                <div className="form-group">
+                  <label className="form-label">{t("library.descriptionFieldLabel")}</label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    value={drawerDescription}
+                    onChange={(e) => setDrawerDescription(e.target.value)}
+                    placeholder={t("library.descriptionPlaceholder")}
+                    style={{ resize: "vertical", minHeight: "76px", lineHeight: "1.5" }}
+                  />
+                </div>
+
                 {/* Readonly info */}
                 <div style={{ background: "var(--bg-surface-hover)", padding: "12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "8px", fontSize: "0.85rem", marginTop: "8px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ color: "var(--text-muted)" }}>{t("library.resolutionLabel")}</span>
                     <span style={{ color: "var(--text-main)", fontWeight: 600 }}>
                       {selectedVideo.width && selectedVideo.height ? `${selectedVideo.width}x${selectedVideo.height}` : t("library.unknownValue")}
+                      {getResolutionBadge(selectedVideo.width, selectedVideo.height) ? ` (${getResolutionBadge(selectedVideo.width, selectedVideo.height)})` : ""}
                     </span>
                   </div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--text-muted)" }}>{t("library.audioQualityLabel")}</span>
+                    <span style={{ color: "var(--text-main)", fontWeight: 600 }}>
+                      {getAudioQualityBadge(selectedVideo.audio_channels, selectedVideo.audio_codec)}
+                    </span>
+                  </div>
+                  {selectedVideo.fps ? (
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "var(--text-muted)" }}>{t("library.framerateLabel")}</span>
+                      <span style={{ color: "var(--text-main)", fontWeight: 600 }}>{formatFps(selectedVideo.fps)}</span>
+                    </div>
+                  ) : null}
+                  {selectedVideo.bitrate_kbps ? (
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "var(--text-muted)" }}>{t("library.bitrateLabel")}</span>
+                      <span style={{ color: "var(--text-main)", fontWeight: 600 }}>{formatBitrate(selectedVideo.bitrate_kbps)}</span>
+                    </div>
+                  ) : null}
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ color: "var(--text-muted)" }}>{t("library.videoCodecLabel")}</span>
                     <span style={{ color: "var(--text-main)", fontWeight: 600 }}>{selectedVideo.codec || t("library.unknownCodec")}</span>

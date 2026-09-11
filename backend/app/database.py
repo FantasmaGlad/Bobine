@@ -123,6 +123,7 @@ def init_db():
     _migrate_audio_playlist_items_to_tracks()
     Base.metadata.create_all(bind=engine)
     _migrate_add_missing_columns()
+    _migrate_backfill_video_metadata()
 
 
 def _migrate_audio_playlist_items_to_tracks():
@@ -207,6 +208,12 @@ def _migrate_add_missing_columns():
         # Fond d'ambiance par piste de playlist audio (réf. mission "associer
         # un fond animé à chaque musique qui se jouera en arrière plan").
         ("audio_playlist_items", "background_id", "INTEGER REFERENCES backgrounds(id)"),
+        # Métadonnées étendues et description pour les cours vidéo (réf. release 3.0.4)
+        ("videos", "description", "TEXT"),
+        ("videos", "audio_channels", "INTEGER"),
+        ("videos", "audio_codec", "VARCHAR"),
+        ("videos", "fps", "FLOAT"),
+        ("videos", "bitrate_kbps", "INTEGER"),
     ]
     with engine.connect() as conn:
         for table, column, ddl in wanted:
@@ -224,6 +231,50 @@ def _migrate_add_missing_columns():
                 logger.info(
                     f"Migration : colonne {table}.{column} déjà ajoutée par un autre worker, ignoré"
                 )
+
+
+def _migrate_backfill_video_metadata():
+    """
+    Rétro-migration : analyse les vidéos existantes en base qui n'ont pas encore
+    de métadonnées étendues (audio_channels is None) et les enrichit via ffprobe.
+    Ne modifie jamais une description déjà saisie manuellement par l'utilisateur.
+    """
+    if not _IS_SQLITE:
+        return
+    try:
+        from app.models import Video
+        from app.utils.video_utils import extract_metadata
+
+        with SessionLocal() as db:
+            videos = db.query(Video).filter(Video.audio_channels.is_(None)).all()
+            if not videos:
+                return
+            updated = 0
+            for v in videos:
+                if not v.file_path or not Path(v.file_path).exists():
+                    continue
+                try:
+                    meta = extract_metadata(v.file_path)
+                    v.audio_channels = meta.get("audio_channels")
+                    v.audio_codec = meta.get("audio_codec")
+                    v.fps = meta.get("fps")
+                    v.bitrate_kbps = meta.get("bitrate_kbps")
+                    if not v.description and meta.get("description"):
+                        v.description = meta.get("description")
+                    if not v.width and meta.get("width"):
+                        v.width = meta.get("width")
+                    if not v.height and meta.get("height"):
+                        v.height = meta.get("height")
+                    if not v.codec and meta.get("codec"):
+                        v.codec = meta.get("codec")
+                    updated += 1
+                except Exception as e:
+                    logger.debug(f"Rétro-migration métadonnées ignorée pour {v.file_path}: {e}")
+            if updated > 0:
+                db.commit()
+                logger.info(f"Migration : métadonnées enrichies pour {updated} vidéo(s) existante(s)")
+    except Exception as e:
+        logger.warning(f"Avertissement lors de la rétro-migration des métadonnées vidéo : {e}")
 
 
 def reset_database_connection(new_url: str):

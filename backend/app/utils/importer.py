@@ -57,6 +57,10 @@ def _extract_metadata_or_unknown(file_path: str, original_filename: str) -> dict
             "height": None,
             "codec": None,
             "audio_codec": None,
+            "audio_channels": None,
+            "fps": None,
+            "bitrate_kbps": None,
+            "description": None,
             "is_drm": False,
         }
 
@@ -250,12 +254,17 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
                 title=title,
                 program=program,
                 release=release,
-                duration_seconds=meta["duration_seconds"],
-                width=meta["width"],
-                height=meta["height"],
-                codec=meta["codec"],
+                duration_seconds=meta.get("duration_seconds"),
+                width=meta.get("width"),
+                height=meta.get("height"),
+                codec=meta.get("codec"),
                 thumbnail_path=thumbnail_path,
-                source=source
+                source=source,
+                description=meta.get("description"),
+                audio_channels=meta.get("audio_channels"),
+                audio_codec=meta.get("audio_codec"),
+                fps=meta.get("fps"),
+                bitrate_kbps=meta.get("bitrate_kbps"),
             )
             db.add(video)
             db.commit()

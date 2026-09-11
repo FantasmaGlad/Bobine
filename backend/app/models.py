@@ -67,6 +67,11 @@ class Video(Base):
     height: Mapped[int | None]
     codec: Mapped[str | None]
     thumbnail_path: Mapped[str | None]
+    description: Mapped[str | None]
+    audio_channels: Mapped[int | None]
+    audio_codec: Mapped[str | None]
+    fps: Mapped[float | None]
+    bitrate_kbps: Mapped[int | None]
     imported_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     source: Mapped[ImportSource]
 

@@ -9,6 +9,7 @@ import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
 import { useKioskRemote, moveDomFocus, activateDomFocus } from "@/lib/useKioskRemote";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
+import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 
 // Boutons de cours focalisables par la télécommande, dans l'ordre de lecture
 // (héros, puis rangées par programme, puis grille complète).
@@ -24,29 +25,26 @@ function getApiUrl(path: string) {
 
 // Réf. correctif "freeze kiosk réseau au seek admin" (voir kiosk/page.tsx,
 // même bug) : assigner `currentTime` sur un élément en lecture sans pause
-// préalable fait défiler l'horloge audio avant que le décodeur vidéo n'ait reçu
+// préalable force le pipeline média du navigateur à décoder immédiatement jusqu'à
 // sa première image clé (IDR), gelant l'image. On met en pause temporaire
-// pour laisser les décodeurs s'aligner, puis reprise sur l'évènement `seeked`.
-function seekWhenReady(el: HTMLMediaElement, position: number, onDone?: () => void) {
+// pendant le calage et on ne relance qu'une fois le seek confirmé ("seeked").
+function seekWhenReady(el: HTMLMediaElement, targetSeconds: number, onDone?: () => void) {
   const apply = () => {
     try {
-      if (el.seeking) return;
       const wasPlaying = !el.paused;
       if (wasPlaying) el.pause();
-      el.currentTime = position;
+      el.currentTime = targetSeconds;
       if (wasPlaying) {
-        const onSeeked = () => {
-          el.removeEventListener("seeked", onSeeked);
-          el.play().catch(() => {});
-          onDone?.();
-        };
-        el.addEventListener("seeked", onSeeked, { once: true });
-        setTimeout(() => {
-          el.removeEventListener("seeked", onSeeked);
-          if (el.paused && wasPlaying) el.play().catch(() => {});
-          onDone?.();
-        }, 1200);
+        el.addEventListener(
+          "seeked",
+          () => {
+            el.play().catch(() => {});
+            onDone?.();
+          },
+          { once: true }
+        );
       } else {
+        if (el.paused && wasPlaying) el.play().catch(() => {});
         onDone?.();
       }
     } catch {
@@ -67,17 +65,11 @@ interface CinemaVideo {
   width?: number | null;
   height?: number | null;
   codec?: string | null;
-}
-
-function getResolutionBadge(width?: number | null, height?: number | null): string | null {
-  if (!width && !height) return null;
-  const w = width ?? 0;
-  const h = height ?? 0;
-  if (w >= 3840 || h >= 2160) return "4K Ultra HD";
-  if (w >= 2560 || h >= 1440) return "1440p QHD";
-  if (w >= 1920 || h >= 1080) return "1080p Full HD";
-  if (w >= 1280 || h >= 720) return "720p HD";
-  return null;
+  description?: string | null;
+  audio_channels?: number | null;
+  audio_codec?: string | null;
+  fps?: number | null;
+  bitrate_kbps?: number | null;
 }
 
 function formatTime(seconds: number | null | undefined) {
@@ -972,7 +964,15 @@ export default function CinemaPage() {
                       {getResolutionBadge(featured.width, featured.height)}
                     </span>
                   )}
+                  {getAudioQualityBadge(featured.audio_channels, featured.audio_codec) && (
+                    <span className="cinema-hero-badge-pill">
+                      {getAudioQualityBadge(featured.audio_channels, featured.audio_codec)}
+                    </span>
+                  )}
                 </div>
+                {featured.description && (
+                  <p className="cinema-hero-description">{featured.description}</p>
+                )}
                 <div className="cinema-hero-actions">
                   <button className="cinema-hero-play" style={{ color: themeFg }} onClick={() => handleSelect(featured)}>
                     <Icon name="play_arrow" size={28} color={themeFg} filled />
@@ -1161,12 +1161,20 @@ export default function CinemaPage() {
                   <span className="cinema-pause-time">
                     {formatTime(displayPosition)} / {formatTime(duration)}
                   </span>
-                  {getResolutionBadge(selected?.width, selected?.height) && (
+                  {getResolutionBadge(selected?.width, selected?.height, "HD") && (
                     <span className="cinema-pause-badge-pill">
-                      {getResolutionBadge(selected?.width, selected?.height)}
+                      {getResolutionBadge(selected?.width, selected?.height, "HD")}
+                    </span>
+                  )}
+                  {getAudioQualityBadge(selected?.audio_channels, selected?.audio_codec, "Stéréo 2.0") && (
+                    <span className="cinema-pause-badge-pill">
+                      {getAudioQualityBadge(selected?.audio_channels, selected?.audio_codec, "Stéréo 2.0")}
                     </span>
                   )}
                 </div>
+                {selected?.description && (
+                  <p className="cinema-pause-description">{selected.description}</p>
+                )}
               </div>
             </div>
           </div>
