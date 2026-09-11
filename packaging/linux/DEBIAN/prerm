@@ -2,6 +2,11 @@
 set -e
 
 if [ "$1" = "remove" ] || [ "$1" = "upgrade" ] || [ "$1" = "deconfigure" ]; then
+    # Marquer si Bobine était en cours d'exécution pour le relancer en postinst après mise à jour
+    if pgrep -x BobineTray >/dev/null 2>&1 || pgrep -x BobineBackend >/dev/null 2>&1; then
+        touch /run/bobine-restart-after-upgrade 2>/dev/null || touch /tmp/bobine-restart-after-upgrade 2>/dev/null || true
+    fi
+
     # Tentative d'arrêt préventif des processus utilisateurs Bobine en cours
     if command -v killall >/dev/null 2>&1; then
         killall -q BobineTray || true

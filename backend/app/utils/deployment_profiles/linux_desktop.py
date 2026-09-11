@@ -115,7 +115,10 @@ class LinuxDesktopHandler(ProfileHandler):
         logger.info(f"Téléchargement du paquet .deb depuis {download_url}...")
         urllib.request.urlretrieve(download_url, deb_file)
 
-        # Lance l'installation polkit/dpkg en arrière-plan détaché
+        # Lance l'installation polkit/dpkg en arrière-plan détaché.
+        # prerm arrête proprement BobineBackend/BobineTray, puis postinst relance
+        # automatiquement l'application pour la session utilisateur.
+        # Ne PAS appeler self.restart_services() ici : cela tuerait le backend
+        # prématurément avant que pkexec n'ait pu authentifier l'utilisateur.
         cmd = f"sleep 1 && pkexec dpkg -i {deb_file}"
         subprocess.Popen(["sh", "-c", cmd], start_new_session=True)
-        self.restart_services()

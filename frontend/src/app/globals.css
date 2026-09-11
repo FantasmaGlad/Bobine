@@ -2110,7 +2110,8 @@ a.status-pill:hover,
 
 .pause-logo,
 .cinema-pause-logo {
-  max-height: clamp(60px, 8vmin, 90px);
+  height: clamp(90px, 14vmin, 150px);
+  max-height: clamp(90px, 14vmin, 150px);
   width: auto;
   object-fit: contain;
   filter: none !important;
@@ -2124,19 +2125,17 @@ a.status-pill:hover,
 
 .pause-resume-btn,
 .cinema-pause-resume-btn {
-  width: 92px;
-  height: 92px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
-  border: 2px solid color-mix(in srgb, var(--text-main) 30%, transparent);
-  background: color-mix(in srgb, var(--bg-main) 85%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  color: var(--text-main);
+  border: 2px solid var(--accent-primary);
+  background: var(--accent-primary);
+  color: var(--accent-primary-fg);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 26px color-mix(in srgb, var(--accent-primary) 38%, transparent);
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -2144,16 +2143,18 @@ a.status-pill:hover,
 .cinema-pause-resume-btn:hover,
 .pause-center:hover .pause-resume-btn,
 .cinema-pause-center:hover .cinema-pause-resume-btn {
-  transform: scale(1.06);
+  transform: scale(1.08);
   border-color: var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-main));
-  color: var(--text-main);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  background: var(--accent-primary);
+  filter: brightness(1.12);
+  color: var(--accent-primary-fg);
+  box-shadow: 0 10px 32px color-mix(in srgb, var(--accent-primary) 50%, transparent);
 }
 
 .pause-resume-btn:active,
 .cinema-pause-resume-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.95);
+  filter: brightness(0.92);
 }
 
 .pause-info,
@@ -4051,7 +4052,7 @@ a.status-pill:hover,
   position: relative;
   width: 380px;
   flex: 0 0 auto;
-  margin: 0 110px 42px 0;
+  margin: 0 48px 0 auto;
   padding: 28px 28px 24px;
   background: color-mix(in srgb, var(--bg-surface-elevated) 62%, transparent);
   backdrop-filter: blur(24px) saturate(180%);
@@ -4186,6 +4187,7 @@ a.status-pill:hover,
   max-height: 60vh;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   overflow: hidden;
   background: var(--bg-main);
   border-bottom: none;

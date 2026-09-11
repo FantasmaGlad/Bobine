@@ -64,6 +64,20 @@ interface CinemaVideo {
   release: string | null;
   duration_seconds: number | null;
   thumbnail_path: string | null;
+  width?: number | null;
+  height?: number | null;
+  codec?: string | null;
+}
+
+function getResolutionBadge(width?: number | null, height?: number | null): string | null {
+  if (!width && !height) return null;
+  const w = width ?? 0;
+  const h = height ?? 0;
+  if (w >= 3840 || h >= 2160) return "4K Ultra HD";
+  if (w >= 2560 || h >= 1440) return "1440p QHD";
+  if (w >= 1920 || h >= 1080) return "1080p Full HD";
+  if (w >= 1280 || h >= 720) return "720p HD";
+  return null;
 }
 
 function formatTime(seconds: number | null | undefined) {
@@ -391,7 +405,7 @@ export default function CinemaPage() {
   const [channel] = useState<"cable" | "network">(() => (isWiredDisplay() ? "cable" : "network"));
   // Implémentation réelle installée plus bas, une fois les handlers définis.
   const cinemaCmdRef = useRef<((action: string, positionSeconds: number, videoId?: number) => void) | null>(null);
-  const { displayOutputCable, displayOutputNetwork, sendCommand, libraryVersion } = usePlaybackSocket(
+  const { displayOutputCable, displayOutputNetwork, sendCommand, cinemaState, libraryVersion } = usePlaybackSocket(
     undefined,
     undefined,
     channel,
@@ -533,6 +547,70 @@ export default function CinemaPage() {
     setNeedsTapToPlay(false);
     setPosition(0);
   }, []);
+
+  const [nowPlayingTick, setNowPlayingTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowPlayingTick(Date.now()), 250);
+    return () => clearInterval(id);
+  }, []);
+  const cinemaReceivedAtRef = React.useRef(0);
+  const [pendingPlaying, setPendingPlaying] = useState<boolean | null>(null);
+  const [optimisticSeek, setOptimisticSeek] = useState<{ position: number; timestamp: number } | null>(null);
+
+  useEffect(() => {
+    cinemaReceivedAtRef.current = Date.now();
+    setPendingPlaying(null);
+    setOptimisticSeek((current) => {
+      if (!current) return null;
+      const elapsed = (Date.now() - current.timestamp) / 1000;
+      const expected = current.position + (cinemaState?.playing ? elapsed : 0);
+      if (Math.abs((cinemaState?.position_seconds ?? 0) - expected) < 2.5 || elapsed > 1.2) {
+        return null;
+      }
+      return current;
+    });
+  }, [cinemaState]);
+
+  const nowPlayingRaw =
+    cinemaState && cinemaState.title && nowPlayingTick - cinemaReceivedAtRef.current < 8000 ? cinemaState : null;
+  const isPlayingEffective = pendingPlaying ?? nowPlayingRaw?.playing ?? false;
+  const computedPosition = optimisticSeek
+    ? Math.min(
+        nowPlayingRaw?.duration_seconds || Infinity,
+        optimisticSeek.position +
+          (isPlayingEffective ? Math.max(0, (nowPlayingTick - optimisticSeek.timestamp) / 1000) : 0),
+      )
+    : nowPlayingRaw
+    ? Math.min(
+        nowPlayingRaw.duration_seconds || Infinity,
+        nowPlayingRaw.position_seconds +
+          (nowPlayingRaw.playing ? Math.max(0, (nowPlayingTick - cinemaReceivedAtRef.current) / 1000) : 0),
+      )
+    : 0;
+
+  const nowPlaying = nowPlayingRaw
+    ? {
+        ...nowPlayingRaw,
+        playing: isPlayingEffective,
+        position_seconds: computedPosition,
+      }
+    : null;
+  const [nowPlayingSeekDrag, setNowPlayingSeekDrag] = useState<number | null>(null);
+
+  const handleNowPlayingPlayPause = useCallback(() => {
+    if (!nowPlaying) return;
+    const next = !nowPlaying.playing;
+    setPendingPlaying(next);
+    sendCommand("cinema_command", { action: next ? "play" : "pause" });
+  }, [nowPlaying, sendCommand]);
+
+  const handleNowPlayingSeekDelta = useCallback((delta: number) => {
+    if (!nowPlaying) return;
+    const currentBase = optimisticSeek ? optimisticSeek.position : nowPlaying.position_seconds;
+    const target = Math.max(0, Math.min(currentBase + delta, nowPlaying.duration_seconds || Infinity));
+    setOptimisticSeek({ position: target, timestamp: Date.now() });
+    sendCommand("cinema_command", { action: "seek", position_seconds: target });
+  }, [nowPlaying, optimisticSeek, sendCommand]);
 
   // Fin naturelle du cours : suggestion aléatoire façon YouTube parmi les
   // autres cours, lancée automatiquement après 5 minutes — un clic sur
@@ -889,8 +967,11 @@ export default function CinemaPage() {
                   {featured.duration_seconds && (
                     <span className="cinema-hero-duration">{formatDurationMin(featured.duration_seconds)}</span>
                   )}
-                  <span className="cinema-hero-badge-pill">4K Ultra HD</span>
-                  <span className="cinema-hero-badge-pill">Stéréo 5.1</span>
+                  {getResolutionBadge(featured.width, featured.height) && (
+                    <span className="cinema-hero-badge-pill">
+                      {getResolutionBadge(featured.width, featured.height)}
+                    </span>
+                  )}
                 </div>
                 <div className="cinema-hero-actions">
                   <button className="cinema-hero-play" style={{ color: themeFg }} onClick={() => handleSelect(featured)}>
@@ -899,6 +980,74 @@ export default function CinemaPage() {
                   </button>
                 </div>
               </div>
+
+              {nowPlaying && (
+                <section className="grid-now-playing">
+                  <button
+                    type="button"
+                    className="grid-now-playing-close"
+                    onClick={() => {
+                      sendCommand("cinema_command", { action: "stop" });
+                      setPendingPlaying(null);
+                      setOptimisticSeek(null);
+                    }}
+                    aria-label="Arrêter"
+                    title="Arrêter"
+                  >
+                    <Icon name="close" size={18} />
+                  </button>
+                  <span className="grid-now-playing-label">{t("cinema.nowPlaying")}</span>
+                  <h2 className="grid-now-playing-title">{nowPlaying.title}</h2>
+                  <input
+                    type="range"
+                    className="grid-now-playing-seek"
+                    min={0}
+                    max={nowPlaying.duration_seconds || 0}
+                    step={1}
+                    value={nowPlayingSeekDrag ?? nowPlaying.position_seconds}
+                    onChange={(e) => setNowPlayingSeekDrag(Number(e.target.value))}
+                    onPointerUp={(e) => {
+                      const target = Number((e.target as HTMLInputElement).value);
+                      setNowPlayingSeekDrag(null);
+                      handleNowPlayingSeekDelta(target - nowPlaying.position_seconds);
+                    }}
+                    aria-label="Position dans le cours"
+                  />
+                  <div className="grid-now-playing-times">
+                    <span>{formatTime(nowPlayingSeekDrag ?? nowPlaying.position_seconds)}</span>
+                    <span>{formatTime(nowPlaying.duration_seconds)}</span>
+                  </div>
+                  <div className="grid-now-playing-controls">
+                    <button
+                      type="button"
+                      className="grid-now-playing-btn"
+                      onClick={() => handleNowPlayingSeekDelta(-30)}
+                      title="Reculer de 30 secondes"
+                      aria-label="Reculer de 30 secondes"
+                    >
+                      <Icon name="replay_30" size={24} />
+                    </button>
+                    <button
+                      type="button"
+                      className="grid-now-playing-btn grid-now-playing-btn-main"
+                      onClick={handleNowPlayingPlayPause}
+                      title={nowPlaying.playing ? t("cinema.pause") : t("cinema.play")}
+                      aria-label={nowPlaying.playing ? t("cinema.pause") : t("cinema.play")}
+                    >
+                      <Icon name={nowPlaying.playing ? "pause" : "play_arrow"} size={30} filled />
+                    </button>
+                    <button
+                      type="button"
+                      className="grid-now-playing-btn"
+                      onClick={() => handleNowPlayingSeekDelta(30)}
+                      title="Avancer de 30 secondes"
+                      aria-label="Avancer de 30 secondes"
+                    >
+                      <Icon name="forward_30" size={24} />
+                    </button>
+                  </div>
+                </section>
+              )}
             </section>
           )}
 
@@ -988,7 +1137,7 @@ export default function CinemaPage() {
           <div className="cinema-pause-overlay" onClick={handlePlayPause}>
             <div className="cinema-pause-center" onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}>
               <div className="cinema-pause-logo-wrap">
-                <AppLogo size={110} className="cinema-pause-logo" />
+                <AppLogo size={150} className="cinema-pause-logo" />
               </div>
               <button
                 className="cinema-pause-resume-btn"
@@ -1012,8 +1161,11 @@ export default function CinemaPage() {
                   <span className="cinema-pause-time">
                     {formatTime(displayPosition)} / {formatTime(duration)}
                   </span>
-                  <span className="cinema-pause-badge-pill">4K Ultra HD</span>
-                  <span className="cinema-pause-badge-pill">Stéréo 5.1</span>
+                  {getResolutionBadge(selected?.width, selected?.height) && (
+                    <span className="cinema-pause-badge-pill">
+                      {getResolutionBadge(selected?.width, selected?.height)}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

@@ -40,6 +40,20 @@ interface CinemaVideo {
   release: string | null;
   duration_seconds: number | null;
   thumbnail_path: string | null;
+  width?: number | null;
+  height?: number | null;
+  codec?: string | null;
+}
+
+function getResolutionBadge(width?: number | null, height?: number | null): string | null {
+  if (!width && !height) return null;
+  const w = width ?? 0;
+  const h = height ?? 0;
+  if (w >= 3840 || h >= 2160) return "4K Ultra HD";
+  if (w >= 2560 || h >= 1440) return "1440p QHD";
+  if (w >= 1920 || h >= 1080) return "1080p Full HD";
+  if (w >= 1280 || h >= 720) return "720p HD";
+  return null;
 }
 
 function formatDurationMin(seconds: number | null) {
@@ -515,8 +529,11 @@ export default function GridPage() {
                 {featured.duration_seconds && (
                   <span className="cinema-hero-duration">{formatDurationMin(featured.duration_seconds)}</span>
                 )}
-                <span className="cinema-hero-badge-pill">4K Ultra HD</span>
-                <span className="cinema-hero-badge-pill">Stéréo 5.1</span>
+                {getResolutionBadge(featured.width, featured.height) && (
+                  <span className="cinema-hero-badge-pill">
+                    {getResolutionBadge(featured.width, featured.height)}
+                  </span>
+                )}
               </div>
               <div className="cinema-hero-actions">
                 <button className="cinema-hero-play" style={{ color: themeFg }} onClick={() => handleSelect(featured)}>

@@ -39,6 +39,30 @@ if [ "$1" = "configure" ]; then
         cp /usr/share/applications/com.bobine.app.desktop /etc/skel/Desktop/com.bobine.app.desktop
         chmod 0755 /etc/skel/Desktop/com.bobine.app.desktop
     fi
+
+    # Relance automatique des services système si présents (appliance headless)
+    if systemctl is-active --quiet bobine-backend.service 2>/dev/null; then
+        systemctl daemon-reload 2>/dev/null || true
+        systemctl restart bobine-backend.service 2>/dev/null || true
+        if systemctl is-active --quiet bobine-kiosk.service 2>/dev/null; then
+            systemctl restart bobine-kiosk.service 2>/dev/null || true
+        fi
+    fi
+
+    # Relance automatique de l'application de bureau après mise à jour si elle tournait
+    if [ -f /run/bobine-restart-after-upgrade ] || [ -f /tmp/bobine-restart-after-upgrade ]; then
+        rm -f /run/bobine-restart-after-upgrade /tmp/bobine-restart-after-upgrade 2>/dev/null || true
+        if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+            USER_ID=$(id -u "$SUDO_USER" 2>/dev/null || echo "")
+            if [ -n "$USER_ID" ] && [ -d "/run/user/$USER_ID" ]; then
+                su - "$SUDO_USER" -c "XDG_RUNTIME_DIR=/run/user/$USER_ID systemctl --user daemon-reload" 2>/dev/null || true
+                su - "$SUDO_USER" -c "XDG_RUNTIME_DIR=/run/user/$USER_ID systemctl --user restart bobine.service" 2>/dev/null || true
+            fi
+            if ! pgrep -u "$SUDO_USER" -x BobineTray >/dev/null 2>&1; then
+                su - "$SUDO_USER" -c "nohup /usr/bin/bobine >/dev/null 2>&1 &" 2>/dev/null || true
+            fi
+        fi
+    fi
 fi
 
 exit 0

@@ -1650,13 +1650,17 @@ step activation "Activation des services & vérification de santé"
 # ---------------------------------------------------------------------------
 run systemctl daemon-reload
 if ! $NO_KIOSK; then
-    run systemctl enable --now bobine-audio-guard.service
+    run systemctl enable bobine-audio-guard.service
+    run systemctl restart bobine-audio-guard.service 2>/dev/null || run systemctl start bobine-audio-guard.service
 fi
-run systemctl enable --now bobine-backend.service
+run systemctl enable bobine-backend.service
+run systemctl restart bobine-backend.service 2>/dev/null || run systemctl start bobine-backend.service
 # Chien de garde : actif dans tous les modes (surveille au moins le backend).
-run systemctl enable --now bobine-watchdog.timer
+run systemctl enable bobine-watchdog.timer
+run systemctl restart bobine-watchdog.timer 2>/dev/null || run systemctl start bobine-watchdog.timer
 if ! $NO_KIOSK; then
-    run systemctl enable --now bobine-kiosk.service
+    run systemctl enable bobine-kiosk.service
+    run systemctl restart bobine-kiosk.service 2>/dev/null || run systemctl start bobine-kiosk.service
 fi
 run systemctl enable bobine-redirect.service >/dev/null 2>&1 || true
 if ! $DRY_RUN && ! systemctl restart bobine-redirect.service; then
