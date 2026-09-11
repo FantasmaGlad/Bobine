@@ -876,8 +876,7 @@ export default function CinemaPage() {
               <div className="cinema-hero-scrim" />
               <div className="cinema-hero-content">
                 <div className="cinema-hero-brand-row">
-                  <AppLogo size={96} className="cinema-brand-logo" />
-                  <span className="cinema-hero-kicker">{t("cinema.featured")}</span>
+                  <AppLogo size={110} className="cinema-brand-logo" />
                 </div>
                 <h1 className="cinema-hero-title">{featured.title}</h1>
                 <div className="cinema-hero-meta-row">
@@ -893,16 +892,6 @@ export default function CinemaPage() {
                   <span className="cinema-hero-badge-pill">4K Ultra HD</span>
                   <span className="cinema-hero-badge-pill">Stéréo 5.1</span>
                 </div>
-                <p className="cinema-hero-desc">
-                  {[
-                    featured.program,
-                    featured.release,
-                    featured.duration_seconds ? `${Math.round(featured.duration_seconds / 60)} min` : null,
-                    "Diffusion Studio Grand Écran",
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
                 <div className="cinema-hero-actions">
                   <button className="cinema-hero-play" style={{ color: themeFg }} onClick={() => handleSelect(featured)}>
                     <Icon name="play_arrow" size={28} color={themeFg} filled />

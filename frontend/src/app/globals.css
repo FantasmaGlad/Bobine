@@ -4285,8 +4285,8 @@ a.status-pill:hover,
 }
 
 .cinema-brand-logo {
-  height: clamp(48px, 6vw, 68px);
-  max-height: 72px;
+  height: clamp(80px, 10vw, 110px);
+  max-height: 110px;
   width: auto;
   object-fit: contain;
 }
@@ -4544,7 +4544,7 @@ a.status-pill:hover,
 }
 
 .cinema-card {
-  flex: 0 0 230px;
+  flex: 0 0 280px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -4666,7 +4666,7 @@ a.status-pill:hover,
 
 .cinema-all-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 10px;
 }
 
@@ -4702,7 +4702,7 @@ a.status-pill:hover,
 }
 
 .cinema-all-thumb {
-  flex: 0 0 96px;
+  flex: 0 0 120px;
   aspect-ratio: 16 / 9;
   border-radius: 10px;
   overflow: hidden;
