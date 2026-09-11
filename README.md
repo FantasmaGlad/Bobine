@@ -107,26 +107,34 @@ For the full architecture, data model, network contract and API reference, see *
 
 ## Supported Hardware
 
-Bobine is lightweight and designed to run smoothly on virtually any standard computer, laptop, tablet, or dedicated hardware:
+Bobine is lightweight, robust, and designed to run smoothly on a wide spectrum of modern, legacy, or refurbished hardware:
 
-- **Android Tablets & Touch Kiosks (All-in-One Autonomous Playout)**:
-  - **Xiaomi Pad 8** — reference tablet, validated in real-world conditions (independent touch/HDMI dual display, MediaCodec hardware acceleration, storage migration); **Xiaomi Pad 6 & 7**, Samsung Galaxy Tab S-series, Lenovo Tab P-series (ARM64 with USB-C DisplayPort alternate mode) share the same architecture, not individually tested.
-  - Standalone dual-display: interactive touch interface (`/grid`) on tablet + HDMI output (`/cinema`) on studio projector or TV.
-- **Laptops & Desktop PCs (Windows 11 / 10 & Linux)**:
-  - Standard consumer and office laptops: **HP Pavilion**, **Acer Aspire Go**, Lenovo IdeaPad/ThinkPad, Dell Inspiron/Latitude, ASUS Vivobook, etc.
-  - Any desktop tower or compact PC with 4 GB+ RAM.
-- **Apple Mac (macOS)**:
-  - **MacBook Air & MacBook Pro** (Apple Silicon M1, M2, M3, M4).
-  - **Mac Mini & iMac** (ideal ultra-compact, silent studio video players).
+- **Laptops (Windows 11/10, macOS & Linux)**:
+  - **All PC Laptops**: HP Pavilion, Acer Aspire, Lenovo IdeaPad/ThinkPad, Dell Inspiron/Latitude, ASUS Vivobook, etc.
+  - **Apple MacBook Range**: MacBook Air & MacBook Pro (Apple Silicon M1, M2, M3, M4, and Intel models).
+  - **Two flexible operating modes**:
+    - *Studio Console Mode (Dual Display)*: The laptop screen becomes an interactive control console (`/grid` with touch/trackpad/mouse) for selecting and managing classes, while the HDMI output streams clean full-screen video (`/cinema`) to the studio projector or TV with zero windows or cursor clutter.
+    - *Headless Clamshell Mode*: The laptop sits closed in a rack or equipment cabinet, streaming uninterrupted full-screen playback to the TV without sleeping, remotely controlled via any smartphone (`/mobile` or `/coach`).
+- **Android Tablets & ARM Touch Kiosks (All-in-One Touch Playout)**:
+  - **Xiaomi Pad 8** (official reference tablet, validated on testbeds and in real gym conditions), **Xiaomi Pad 6 & 7**, Samsung Galaxy Tab S-series, Lenovo Tab P-series (ARM64 devices featuring USB-C DisplayPort alternate mode to HDMI).
+  - *Two modes available*: Interactive touch console (`/grid` on tablet + clean `/cinema` on TV/projector), or Headless mode featuring a clean standby screen with an instant toggle switch.
+- **Desktop PCs & Studio Workstations**:
+  - Any standard Windows or Linux tower / desktop PC (4 GB+ RAM).
+  - Apple **Mac Mini** & **iMac** (exceptionally quiet, compact playout machines for fitness studios).
 - **Dedicated Mini PCs & Thin Clients (Ideal for 24/7 autonomous gym setups)**:
-  - Affordable refurbished units: **Dell Wyse 5070**, **HP ProDesk 400/600 DM**, **Lenovo ThinkCentre Tiny**, **Beelink Mini S12/EQ12**, Intel NUC.
-  - Can be run as a regular desktop app or as a 100% headless unattended Linux appliance (Debian 13).
-- **Screens & Audio Playout**:
-  - Any standard TV, monitor, or projector connected via **HDMI** or **DisplayPort**.
-  - Optional secondary screen: any tablet, smart TV, or laptop with a web browser on the local Wi-Fi.
-  - Standard 3.5mm jack, HDMI audio, USB soundcard, or Bluetooth speaker for gym sound.
+  - Affordable refurbished appliances: **Dell Wyse 5070**, **HP ProDesk 400/600 DM**, **Lenovo ThinkCentre Tiny**, **Beelink Mini S12/EQ12**, Intel NUC.
+  - 100% autonomous unattended Linux appliance (Debian 13) with auto-start and automated HDMI-CEC TV power management.
+- **Screens, Projectors & Digital Displays**:
+  - Any gym TV, large-format display, studio monitor, or projector connected via **HDMI**, **DisplayPort**, or **USB-C DisplayPort**.
+  - Interactive touch screens via USB/HDMI for member self-service.
+  - Ancillary screens: any local smart TV, tablet, or laptop browsing over Wi-Fi.
+- **Audio Playout & Sound Systems**:
+  - Standard 3.5mm analog jack, HDMI audio, external USB sound card, Bluetooth speaker, or direct line-in connection to studio amplifier / mixer.
+- **Remote Controls & Handheld Operation**:
+  - **Universal mobile web remote**: instant QR-code access from any iOS or Android smartphone with zero app installation.
+  - **Physical USB remotes**: out-of-the-box support for wireless presentation remotes and media Air Mice (2.4 GHz USB dongle recognized as a native keyboard without drivers).
 
-> For advanced technical benchmarks, GPU VA-API hardware decoding details, and appliance systemd architecture, see the dedicated [**Technical Architecture Documentation (docs/ARCHITECTURE.md)**](docs/ARCHITECTURE.md).
+> For advanced technical benchmarks, multi-OS hardware acceleration pipelines, and appliance systemd architecture, see the dedicated [**Technical Architecture Documentation (docs/ARCHITECTURE.md)**](docs/ARCHITECTURE.md).
 
 ---
 

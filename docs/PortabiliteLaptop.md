@@ -1,6 +1,7 @@
 # Cahier des charges & Faisabilité — Portabilité Laptop & Mode Pupitre Studio
 
-> Document prospectif détaillant l'exploitation de Bobine sur un ordinateur portable (Windows, macOS, Linux) en configuration multi-écrans (écran intégré + sortie HDMI/vidéoprojecteur).
+> Document prospectif détaillant l'exploitation de Bobine sur un ordinateur portable (Windows, macOS, Linux) en configuration multi-écrans (écran intégré + sortie HDMI/vidéoprojecteur).  
+> **Note de mise à jour (Septembre 2026)** : Ce document a été unifié et validé dans les spécifications définitives du [**Cahier des charges — Mode d'Affichage Hybride (docs/cahier-des-charges-affichage-hybride.md)**](cahier-des-charges-affichage-hybride.md). L'interface de sélection et de régie pupitre correspond à la route réelle [`/grid`](../frontend/src/app/grid/page.tsx), déjà développée et opérationnelle.
 
 ---
 

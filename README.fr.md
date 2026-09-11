@@ -107,26 +107,34 @@ Pour l'architecture complète, le modèle de données, le contrat réseau et la 
 
 ## Matériel supporté
 
-Bobine est un logiciel léger, optimisé pour fonctionner avec fluidité sur la quasi-totalité des ordinateurs actuels, tablettes tactiles ou du matériel reconditionné :
+Bobine est un logiciel léger et optimisé, conçu pour fonctionner avec fluidité sur une très large gamme d'équipements existants, neufs ou reconditionnés :
 
+- **Ordinateurs portables (Laptops Windows 11/10, macOS et Linux)** :
+  - **Tous PC portables** : HP Pavilion, Acer Aspire, Lenovo IdeaPad/ThinkPad, Dell Inspiron/Latitude, ASUS Vivobook, etc.
+  - **Gamme Apple MacBook** : MacBook Air & MacBook Pro (puces Apple Silicon M1, M2, M3, M4 et modèles Intel).
+  - **Deux modes d'utilisation au choix** :
+    - *Mode Pupitre Studio (Double écran)* : l'écran du PC portable sert de console régie tactile ou souris/touchpad (`/grid` pour choisir et piloter les cours), tandis que la sortie HDMI diffuse le flux vidéo épuré plein écran (`/cinema`) sur la TV ou le vidéoprojecteur sans afficher de bureau ni de curseur aux adhérents.
+    - *Mode Headless (Capot fermé / Clamshell)* : le PC portable est posé dans un meuble ou un rack régie et diffuse sur la TV grand écran capot fermé (sans se mettre en veille), piloté à distance depuis un smartphone (`/mobile` ou `/coach`).
 - **Tablettes Android & Bornes Tactiles ARM (Régie autonome tout-en-un)** :
-  - **Xiaomi Pad 8** — tablette de référence, validée en conditions réelles (double affichage tactile/HDMI, accélération matérielle MediaCodec, migration de stockage) ; **Xiaomi Pad 6 & 7**, Samsung Galaxy Tab série S, Lenovo Tab série P (tablettes ARM64 disposant d'une sortie USB-C DisplayPort) suivent la même architecture, non testées individuellement.
-  - Double affichage indépendant : contrôle tactile sur la tablette (`/grid`) + affichage plein écran (`/cinema`) sur TV ou vidéoprojecteur raccordé en HDMI.
-- **Ordinateurs portables et PC de bureau (Windows 11 / 10 et Linux)** :
-  - PC portables grand public et professionnels : **HP Pavilion**, **Acer Aspire Go**, Lenovo IdeaPad/ThinkPad, Dell Inspiron/Latitude, ASUS Vivobook, etc.
-  - Toute tour ou PC de bureau disposant d'au moins 4 Go de mémoire vive (RAM).
-- **Gamme Apple Mac (macOS)** :
-  - **MacBook Air & MacBook Pro** (puces Apple Silicon M1, M2, M3, M4).
-  - **Mac Mini & iMac** (formats particulièrement compacts et silencieux pour la régie d'un studio).
-- **Mini PC & Boîtiers compacts (Idéaux pour une diffusion 24/7 en salle)** :
+  - **Xiaomi Pad 8** (tablette de référence officielle, validée sur banc de test et en conditions réelles de salle), **Xiaomi Pad 6 & 7**, Samsung Galaxy Tab série S, Lenovo Tab série P (tablettes ARM64 disposant d'une sortie USB-C DisplayPort vers HDMI).
+  - *Deux modes disponibles* : Mode Pupitre tactile interactif (`/grid` sur la tablette + `/cinema` sur TV HDMI), ou Mode Headless avec écran d'accueil sobre et bouton de bascule rapide.
+- **PC fixes & Postes de travail de bureau** :
+  - Toute tour ou PC de bureau Windows/Linux (≥ 4 Go de mémoire vive).
+  - Apple **Mac Mini** & **iMac** (stations régie particulièrement compactes et silencieuses pour les studios de fitness).
+- **Mini PC & Boîtiers compacts dédiés (Idéaux pour une diffusion 24/7 en salle)** :
   - Mini PC économiques ou reconditionnés : **Dell Wyse 5070**, **HP ProDesk 400/600 DM**, **Lenovo ThinkCentre Tiny**, **Beelink Mini S12/EQ12**, Intel NUC.
-  - Utilisables en application de bureau classique ou en borne dédiée 100% autonome sans écran/clavier (Debian 13).
-- **Écrans et diffusion sonore** :
-  - N'importe quel téléviseur, moniteur ou vidéoprojecteur raccordé en **HDMI ou DisplayPort**.
-  - Écran secondaire optionnel : toute tablette, smart TV ou ordinateur portable doté d'un navigateur web sur le réseau local.
-  - Sortie audio jack 3,5 mm, HDMI, carte son USB ou enceinte Bluetooth pour la sono de la salle.
+  - Fonctionnement autonome 100% sans écran ni clavier (appliance Linux Debian 13) avec démarrage automatique et allumage TV par HDMI-CEC.
+- **Écrans, Vidéoprojecteurs & Affichage** :
+  - Tout téléviseur de salle, écran géant, moniteur ou vidéoprojecteur raccordé en **HDMI**, **DisplayPort** ou **USB-C DisplayPort**.
+  - Bornes tactiles avec dalle USB/HDMI pour le libre-service adhérents.
+  - Écrans d'appoint : toute smart TV, tablette ou smartphone connecté au Wi-Fi local via son navigateur.
+- **Systèmes sonores & Sono de salle** :
+  - Sortie Jack 3,5 mm, HDMI audio, carte son USB externe, enceinte Bluetooth, ou raccordement direct sur ampli de salle de sport / table de mixage.
+- **Télécommandes & Pilotage à distance** :
+  - **Télécommande mobile sans fil** : accessible immédiatement par QR code depuis n'importe quel smartphone iOS ou Android sans aucune application à installer.
+  - **Télécommandes physiques USB** : prise en charge native des télécommandes multimédias sans fil (Air Mouse, présentateurs à dongle USB 2,4 GHz) reconnues comme clavier standard sans pilote.
 
-> Pour les détails techniques avancés (accélération matérielle VA-API, empreinte mémoire, schémas de bus et architecture Linux embarquée), consultez la [**Documentation technique (docs/ARCHITECTURE.md)**](docs/ARCHITECTURE.md).
+> Pour les détails techniques avancés (accélération matérielle multi-OS, empreinte mémoire, schémas de bus et architecture Linux embarquée), consultez la [**Documentation technique (docs/ARCHITECTURE.md)**](docs/ARCHITECTURE.md).
 
 ---
 
