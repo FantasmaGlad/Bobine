@@ -16,6 +16,7 @@ from app.utils.radio_importer import import_radio_track_from_watched_file
 from app.utils.radio_utils import AUDIO_EXTENSIONS as RADIO_AUDIO_EXTENSIONS
 from app.utils.executors import ffmpeg_executor as _ffmpeg_executor, io_executor as _io_executor
 from app.utils.import_jobs import create_job, update_job
+from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,11 @@ class VideoWatchHandler(_BaseWatchHandler):
         try:
             logger.info(f"Watcher : Lancement de l'import pour {path.name}")
             video = import_video(file_path, path.name, ImportSource.watched_folder, job_id=job_id)
+            # Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6) :
+            # même diffusion que l'import web (routers/videos.py) — un
+            # cours déposé dans le dossier surveillé doit apparaître sans
+            # délai sur les écrans déjà ouverts.
+            ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "video_imported"})
             update_job(job_id, stage="done", result_id=video.id)
         except Exception as e:
             logger.error(f"Watcher : Échec de l'import automatique pour {path.name} : {e}")

@@ -15,7 +15,25 @@ logger = logging.getLogger(__name__)
 # serveur ~toutes les 30s en boucle, sans jamais laisser assez de temps
 # ininterrompu à la vidéo/l'intro pour réellement démarrer.
 PING_INTERVAL_SECONDS = 30.0
-PONG_TIMEOUT_SECONDS = 20.0
+# Lot 15 (docs/audit-android-2026-09-11.md §C2) : porté de 20s à 60s — une
+# WebView Android en arrière-plan (MainActivity non visible pendant que
+# l'admin est ouvert dans Chrome) voit ses minuteurs JS fortement throttlés
+# par le système (jusqu'à 1/minute après 5 min en arrière-plan), et ratait
+# systématiquement l'ancienne fenêtre de pong, provoquant une fermeture puis
+# reconnexion en boucle (constaté dans technical.log : "Client WebSocket
+# sans pong dans le délai" toutes les ~4 minutes). Le coût d'un délai de
+# détection plus long pour un VRAI client mort est acceptable ici (pas un
+# service à forte volumétrie de connexions).
+PONG_TIMEOUT_SECONDS = 60.0
+# Lot 15 (docs/audit-android-2026-09-11.md §C2), révisé après déploiement
+# réel : borne le temps qu'un seul client lent/bloqué peut faire perdre à
+# `broadcast()` — au-delà, ce client est considéré injoignable et fermé
+# proprement (cf. `broadcast()`) plutôt que de retarder tous les autres.
+# Porté de 1.0s à 3.0s après un test en conditions réelles sur Wi-Fi (pas
+# seulement en local) : 1s classifiait à tort des envois simplement lents
+# (latence Wi-Fi réelle, pas une connexion morte) comme injoignables,
+# fermant des clients qui auraient très bien fini par recevoir le message.
+BROADCAST_SEND_TIMEOUT_SECONDS = 3.0
 
 
 class ConnectionManager:
@@ -62,6 +80,31 @@ class ConnectionManager:
         # réelle de CE processus (cf. _unregister_kiosk), donc un simple
         # mapping sans expiration suffit.
         self._primary_client_id: dict[str, str] = {}
+        # Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6) : boucle
+        # asyncio principale, enregistrée une fois au démarrage
+        # (`main.py::lifespan`) — permet à du code exécuté HORS boucle (un
+        # endpoint FastAPI `def` synchrone tournant dans le threadpool, un
+        # exécuteur d'import ffmpeg/io) de programmer un broadcast sans
+        # jamais appeler une coroutine directement depuis le mauvais thread.
+        self._loop: asyncio.AbstractEventLoop | None = None
+
+    def bind_loop(self, loop: asyncio.AbstractEventLoop) -> None:
+        """Enregistre la boucle principale — voir `broadcast_threadsafe`."""
+        self._loop = loop
+
+    def broadcast_threadsafe(self, message: dict) -> None:
+        """Version thread-safe de `broadcast()` (cf. `bind_loop`) : pour du
+        code qui tourne dans un thread qui n'est PAS celui de la boucle
+        asyncio (endpoints synchrones `def`, exécuteurs `ffmpeg_executor`/
+        `io_executor`). Ne lève jamais — même philosophie que `broadcast()`
+        lui-même, un échec de diffusion ne doit jamais faire échouer
+        l'opération qui l'accompagne."""
+        if self._loop is None:
+            return
+        try:
+            asyncio.run_coroutine_threadsafe(self.broadcast(message), self._loop)
+        except Exception:
+            logger.warning("broadcast_threadsafe : échec de programmation sur la boucle", exc_info=True)
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -173,20 +216,56 @@ class ConnectionManager:
 
     async def broadcast(self, message: dict):
         """
-        Envoie directement à tous les clients WebSocket locaux. Ne DOIT
-        jamais lever : un accroc ici ne doit pas faire remonter d'exception
-        jusqu'à la commande appelante (ex. `manager.stop()`), sinon l'état
-        interne change bien mais aucun client ne le sait jamais — exactement
-        le bug qui faisait croire que stop/pause/lancement de programmation
-        ne faisaient rien (réf. audit plan-corrections-bugs, points 2a/3).
+        Envoie à tous les clients WebSocket locaux, EN PARALLÈLE (Lot 15,
+        docs/audit-android-2026-09-11.md §C2). Avant ce lot, l'envoi se
+        faisait client par client, en série : un seul client dont le tampon
+        TCP était plein (WebView Android en arrière-plan, Wi-Fi qui rame)
+        retardait la diffusion pour TOUS les autres, y compris `position_tick`
+        émis toutes les 250 ms — cause directe des commandes admin qui
+        semblaient ne pas atteindre la sortie câblée ou arrivaient en retard.
+
+        Ne DOIT jamais lever : un accroc ici ne doit pas faire remonter
+        d'exception jusqu'à la commande appelante (ex. `manager.stop()`),
+        sinon l'état interne change bien mais aucun client ne le sait jamais
+        — exactement le bug qui faisait croire que stop/pause/lancement de
+        programmation ne faisaient rien (réf. audit plan-corrections-bugs,
+        points 2a/3).
         """
-        dead_connections = []
-        for connection in list(self.active_connections.keys()):
+        connections = list(self.active_connections.keys())
+        if not connections:
+            return
+
+        async def _send_one(connection: WebSocket) -> WebSocket | None:
             try:
-                await connection.send_json(message)
+                await asyncio.wait_for(
+                    connection.send_json(message), timeout=BROADCAST_SEND_TIMEOUT_SECONDS
+                )
+                return None
             except Exception:
-                dead_connections.append(connection)
-        for connection in dead_connections:
+                return connection
+
+        results = await asyncio.gather(*(_send_one(c) for c in connections))
+        for connection in results:
+            if connection is None:
+                continue
+            # BUG RÉEL trouvé en déployant sur la tablette pilote (pas en
+            # relecture de code) : `self.disconnect(connection)` seul retire
+            # la connexion de `active_connections` — il ne l'a JAMAIS
+            # fermée. Le client, lui, ne reçoit ni frame de fermeture ni
+            # erreur : son objet WebSocket reste `OPEN` indéfiniment de son
+            # propre point de vue, alors que le serveur a cessé de lui
+            # diffuser quoi que ce soit. Résultat observé : `position_tick`
+            # s'arrête net, sans reconnexion, jusqu'au keepalive serveur
+            # (jusqu'à 90s) — exactement le rapport utilisateur "dashboard
+            # réseau qui freeze". `websocket.close()` AVANT `disconnect()`
+            # (même ordre que le timeout de `_ping_loop` ci-dessous, déjà
+            # correct) envoie la frame de fermeture au client, qui détecte
+            # `onclose` immédiatement et se reconnecte proprement via son
+            # propre backoff — au lieu de rester figé en silence.
+            try:
+                await connection.close()
+            except Exception:
+                pass
             self.disconnect(connection)
 
     async def broadcast_force_reload(self):

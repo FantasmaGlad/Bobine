@@ -32,27 +32,42 @@ private const val CINEMA_URL = "http://127.0.0.1:8000/cinema/"
 class BobinePresentation(context: Context, display: Display) : Presentation(context, display) {
 
     private val handler = Handler(Looper.getMainLooper())
+    private var webView: WebView? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val webView = WebView(context)
+        this.webView = webView
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
         webView.settings.mediaPlaybackRequiresUserGesture = false
-        // Reglage decouvert lors d'un correctif ulterieur (cf.
-        // docs/plan-implementation-android.md, "cache HTTP WebView") : le
-        // backend local est reinstalle avec du code different a chaque mise
-        // a jour de l'app, mais l'export statique Next.js voit son horodatage
-        // de fichier normalise a une date fixe tres ancienne par le
-        // paquetage - sans ce reglage, la WebView calcule une fraicheur HTTP
-        // heuristique de plusieurs ANNEES a partir de ce Last-Modified absurde
-        // et ne recharge alors plus jamais /cinema depuis le reseau, meme
-        // apres une reinstallation avec un frontend different. Le cout d'un
-        // aller-retour reseau est negligeable ici (backend en local, 127.0.0.1).
-        webView.settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+        // LOAD_DEFAULT plutot que LOAD_NO_CACHE (Lot 15, docs/audit-android-
+        // 2026-09-11.md §C4) : le probleme de fraicheur heuristique qui avait
+        // motive LOAD_NO_CACHE est desormais couvert cote SERVEUR
+        // (Cache-Control: no-cache + ETag sur le frontend statique, cf.
+        // RevalidateStaticFiles dans backend/app/main.py) - une revalidation
+        // ETag (304, quasi gratuite) suffit desormais a garantir la
+        // fraicheur, sans re-telecharger integralement les bundles JS/CSS
+        // (plusieurs Mo) a CHAQUE chargement de /cinema, couteux sur ce
+        // materiel (h11 pur Python, stockage externe FUSE) et repete tres
+        // souvent ici (reconnexion WebSocket, boot_id different -> reload
+        // complet). Le bouton « Synchronisation des ecrans »
+        // (clearCachesAndReload cote frontend) continue de vider le cache
+        // HTTP explicitement pour forcer une vraie mise a jour.
+        webView.settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+        // Lot 15 (docs/audit-android-2026-09-11.md §C2/C5) : priorite de
+        // rendu elevee explicite - cette Presentation tourne portee par un
+        // ForegroundService SANS Activity visible (importance systeme
+        // potentiellement plus basse qu'une app au premier plan), alors
+        // qu'elle affiche le flux video principal sur l'ecran HDMI. Sans
+        // ceci, le compositeur de cette WebView herite d'une priorite par
+        // defaut qui peut etre deprioritisee par le systeme au profit de
+        // l'app au premier plan (ex. l'admin ouvert dans Chrome) - cause
+        // probable des saccades video constatees.
+        webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(message: ConsoleMessage): Boolean {
                 Log.d("BobinePresentationConsole", "${message.message()} (${message.sourceId()}:${message.lineNumber()})")
@@ -74,5 +89,11 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
         }
         setContentView(webView)
         webView.loadUrl(CINEMA_URL)
+        webView.onResume()
+    }
+
+    override fun onStop() {
+        webView?.onPause()
+        super.onStop()
     }
 }

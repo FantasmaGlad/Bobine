@@ -18,6 +18,7 @@ export type Theme =
   | "orchidee"
   | "taupe"
   | "charbon"
+  | "charbon-sombre"
   | "beige"
   | "lavande"
   | "miel"
@@ -35,6 +36,7 @@ export const THEME_VALUES: Theme[] = [
   "orchidee",
   "taupe",
   "charbon",
+  "charbon-sombre",
   "beige",
   "lavande",
   "miel",

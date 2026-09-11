@@ -93,6 +93,42 @@ def _data_root() -> Path:
 DATA_ROOT = _data_root()
 
 
+def _android_internal_root() -> Path | None:
+    """Racine INTERNE Android (Lot 15, docs/audit-android-2026-09-11.md §C1/
+    C3) : `context.filesDir` — stockage privé de l'app sur `/data` (f2fs
+    natif), jamais servi par FUSE contrairement à `getExternalFilesDir` (qui
+    reste DATA_ROOT ci-dessus pour les médias). `None` sur toute autre
+    plateforme, ou si la variable n'a pas été posée par
+    `bobine_bootstrap.py` (anciennes installations sans cette étape —
+    `load_settings()` retombe alors sur DATA_ROOT pour tout, comportement
+    identique à avant ce lot).
+
+    Utilisée uniquement pour les quelques chemins à faible volume mais à
+    forte fréquence d'I/O aléatoire (base SQLite, miniatures, logs,
+    pochettes radio, branding) — jamais pour `media_dir`/`watch_dir`/
+    `backgrounds_dir`/`audio_dir`/`radio_dir` (gros fichiers, lus par blocs
+    séquentiels : le coût FUSE par octet y est négligeable comparé au coût
+    par appel système qui domine pour une base SQLite à verrous fréquents).
+    """
+    if platform.system() != "Android":
+        return None
+    android_internal_dir = os.environ.get("BOBINE_ANDROID_INTERNAL_DIR")
+    if not android_internal_dir:
+        return None
+    target = Path(android_internal_dir)
+    try:
+        target.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        return None
+    return target
+
+
+# Champs dont la racine de résolution bascule sur le stockage interne
+# Android quand `_android_internal_root()` est disponible (cf. sa
+# docstring) — inchangé sur toute autre plateforme (repli DATA_ROOT).
+_ANDROID_INTERNAL_ROOT_FIELDS = {"thumbnails_dir", "branding_dir", "logs_dir", "radio_covers_dir"}
+
+
 def _global_config_path() -> Path:
     """Emplacement du config.toml de PRODUCTION (prioritaire sur celui du
     dépôt/de l'installation, cf. load_settings ci-dessous). `/etc/bobine/`
@@ -259,14 +295,26 @@ def load_settings() -> Settings:
         path_str = getattr(settings, path_attr)
         path = Path(path_str)
         if not path.is_absolute():
-            setattr(settings, path_attr, str((DATA_ROOT / path).resolve()))
+            # Lot 15 (docs/audit-android-2026-09-11.md §C1/C3) : quelques
+            # chemins basculent sur le stockage interne Android (f2fs natif,
+            # jamais FUSE) quand disponible — inchangé (DATA_ROOT) partout
+            # ailleurs, y compris sur Android pour les gros médias.
+            root = DATA_ROOT
+            if path_attr in _ANDROID_INTERNAL_ROOT_FIELDS:
+                internal_root = _android_internal_root()
+                if internal_root is not None:
+                    root = internal_root
+            setattr(settings, path_attr, str((root / path).resolve()))
 
-    # Pour la base SQLite relative
+    # Pour la base SQLite relative — même bascule que ci-dessus (Lot 15) :
+    # la base SQLite (verrous/écritures fréquentes) est le cas d'usage
+    # premier de ce changement, cf. docs/audit-android-2026-09-11.md §C1.
     if settings.database_url.startswith("sqlite:///"):
         db_path_str = settings.database_url[len("sqlite:///"):]
         db_path = Path(db_path_str)
         if not db_path.is_absolute():
-            settings.database_url = f"sqlite:///{(DATA_ROOT / db_path).resolve()}"
+            db_root = _android_internal_root() or DATA_ROOT
+            settings.database_url = f"sqlite:///{(db_root / db_path).resolve()}"
 
     _apply_db_overrides(settings)
     return settings

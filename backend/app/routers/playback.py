@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -90,8 +91,52 @@ def _build_audio_course_item(course: AudioCourse, db: Session) -> dict:
     }
 
 
+def _build_audio_playlist_tracks(audio_playlist) -> list[dict]:
+    """Forme attendue par PlaybackManager.load_audio_playlist pour une
+    playlist audio — traverse `items`/`item.track`/`item.background`
+    (relations ORM paresseuses) : fonction SYNCHRONE, à appeler via
+    `run_in_threadpool` (Lot 15, docs/audit-android-2026-09-11.md §C1)."""
+    sorted_items = sorted(audio_playlist.items, key=lambda item: item.position)
+    return [
+        {
+            "id": item.track.id,
+            "number": item.track.number,
+            "title": item.track.title,
+            "duration_seconds": item.track.duration_seconds,
+            # Fond d'ambiance propre à CETTE piste (réf. mission "associer
+            # un fond animé à chaque musique") : résolu une fois ici plutôt
+            # que par le kiosk, comme le fond du cours/playlist lui-même.
+            "background_id": item.background_id,
+            "background_title": item.background.title if item.background else None,
+            "background_is_image": is_image_background(item.background.file_path) if item.background else False,
+        }
+        for item in sorted_items
+    ]
+
+
+def _build_playlist_video_items(playlist) -> list[dict]:
+    """Même rôle que `_build_audio_playlist_tracks` ci-dessus, pour une
+    playlist VIDÉO (`item.video`, relation ORM paresseuse) — fonction
+    SYNCHRONE, à appeler via `run_in_threadpool`."""
+    sorted_items = sorted(playlist.items, key=lambda x: x.position)
+    return [
+        {
+            "id": item.video.id,
+            "title": item.video.title,
+            "duration_seconds": item.video.duration_seconds,
+            "program": item.video.program,
+            "thumbnail_url": _thumbnail_filename(item.video.thumbnail_path),
+        }
+        for item in sorted_items
+    ]
+
+
 async def _load_audio_course_into_manager(course: AudioCourse, manager, db: Session, chain_mode=None, chain_timer_seconds=None, client_ts=None):
-    item = _build_audio_course_item(course, db)
+    # Lot 15 (docs/audit-android-2026-09-11.md §C1) : la construction de
+    # cet item traverse des relations ORM (background) qui peuvent
+    # déclencher leurs propres requêtes paresseuses — regroupées ici dans
+    # un seul aller-retour au threadpool plutôt que plusieurs micro-appels.
+    item = await run_in_threadpool(_build_audio_course_item, course, db)
     await manager.load_audio_course(
         item["id"], item["title"], item["program"], item["background_id"], item["tracks"],
         chain_mode=chain_mode, chain_timer_seconds=chain_timer_seconds, client_ts=client_ts,
@@ -318,6 +363,10 @@ def _log_track_if_changed(db: Session, manager, index_before: int | None) -> Non
         return
     tracks = manager.state.get("audio_tracks")
     if tracks and 0 <= index_after < len(tracks):
+        # Lot 15 : `_log_track_if_changed` elle-même reste synchrone (pas
+        # d'`await` disponible dans ses appelants directs sans les rendre
+        # tous async) — ses appelants (ci-dessous) invoquent DÉSORMAIS
+        # cette fonction via run_in_threadpool plutôt que directement.
         log_activity(db, "audio_track_started", tracks[index_after]["title"])
 
 
@@ -331,7 +380,10 @@ async def _reject_if_cinema_locked(db: Session, command: str, websocket: WebSock
     compte : il a son propre état. Rejet renvoyé UNIQUEMENT à l'émetteur
     (pas de broadcast) pour que l'admin puisse afficher un avertissement.
     """
-    if get_display_output_value(db, channel) != "cinema":
+    # Lot 15 : lecture DB sortie de la boucle — appelée par CHAQUE
+    # commande load*, potentiellement en concurrence avec un flux vidéo
+    # actif (stream_*) qui sature déjà le disque/FUSE.
+    if await run_in_threadpool(get_display_output_value, db, channel) != "cinema":
         return False
     logger.info(f"Commande {command} ignorée : le canal '{channel}' est en mode cinéma (verrouillé)")
     if websocket is not None:
@@ -384,7 +436,7 @@ async def _handle_command(
         if await _reject_if_cinema_locked(db, command, websocket, channel):
             return
         video_id = params.get("video_id")
-        video = db.query(Video).filter(Video.id == video_id).first()
+        video = await run_in_threadpool(lambda: db.query(Video).filter(Video.id == video_id).first())
         if not video:
             logger.warning(f"Commande load : vidéo {video_id} introuvable")
             return
@@ -392,17 +444,17 @@ async def _handle_command(
             video.id, video.title, video.duration_seconds, video.program, client_ts,
             thumbnail_url=_thumbnail_filename(video.thumbnail_path),
         )
-        log_activity(db, "video_started", video.title)
+        await run_in_threadpool(log_activity, db, "video_started", video.title)
     elif command == "load_background":
         background_id = params.get("background_id")
-        background = db.query(Background).filter(Background.id == background_id).first()
+        background = await run_in_threadpool(lambda: db.query(Background).filter(Background.id == background_id).first())
         if not background:
             logger.warning(f"Commande load_background : fond animé {background_id} introuvable")
             return
         await manager.load_background(
             background.id, background.title, is_image_background(background.file_path), client_ts
         )
-        log_activity(db, "background_started", background.title)
+        await run_in_threadpool(log_activity, db, "background_started", background.title)
     elif command == "load_audio_course":
         # Mode coach réservé au CANAL CÂBLÉ (réf. mission "tableaux de bord
         # Câblé / Réseau") : le coach anime un cours dans la salle physique,
@@ -421,7 +473,7 @@ async def _handle_command(
         if await _reject_if_cinema_locked(db, command, websocket, channel):
             return
         course_id = params.get("audio_course_id")
-        course = db.query(AudioCourse).filter(AudioCourse.id == course_id).first()
+        course = await run_in_threadpool(lambda: db.query(AudioCourse).filter(AudioCourse.id == course_id).first())
         if not course:
             logger.warning(f"Commande load_audio_course : cours audio {course_id} introuvable")
             return
@@ -431,7 +483,7 @@ async def _handle_command(
             chain_timer_seconds=params.get("chain_timer_seconds"),
             client_ts=client_ts,
         )
-        log_activity(db, "audio_course_started", course.title)
+        await run_in_threadpool(log_activity, db, "audio_course_started", course.title)
     elif command == "load_audio_playlist":
         # Même restriction que load_audio_course (réf. mission "tableaux de
         # bord Câblé / Réseau") : une playlist audio anime le mode coach,
@@ -450,26 +502,17 @@ async def _handle_command(
         if await _reject_if_cinema_locked(db, command, websocket, channel):
             return
         audio_playlist_id = params.get("audio_playlist_id")
-        audio_playlist = db.query(AudioPlaylist).filter(AudioPlaylist.id == audio_playlist_id).first()
+        audio_playlist = await run_in_threadpool(
+            lambda: db.query(AudioPlaylist).filter(AudioPlaylist.id == audio_playlist_id).first()
+        )
         if not audio_playlist:
             logger.warning(f"Commande load_audio_playlist : playlist audio {audio_playlist_id} introuvable")
             return
-        sorted_items = sorted(audio_playlist.items, key=lambda item: item.position)
-        tracks_data = [
-            {
-                "id": item.track.id,
-                "number": item.track.number,
-                "title": item.track.title,
-                "duration_seconds": item.track.duration_seconds,
-                # Fond d'ambiance propre à CETTE piste (réf. mission "associer
-                # un fond animé à chaque musique") : résolu une fois ici plutôt
-                # que par le kiosk, comme le fond du cours/playlist lui-même.
-                "background_id": item.background_id,
-                "background_title": item.background.title if item.background else None,
-                "background_is_image": is_image_background(item.background.file_path) if item.background else False,
-            }
-            for item in sorted_items
-        ]
+        # Lot 15 (docs/audit-android-2026-09-11.md §C1) : `item.track`/
+        # `item.background` sont des relations ORM paresseuses — chaque
+        # accès peut déclencher sa propre requête SQL synchrone. Regroupées
+        # dans un seul aller-retour au threadpool plutôt que par élément.
+        tracks_data = await run_in_threadpool(_build_audio_playlist_tracks, audio_playlist)
         await manager.load_audio_playlist(
             audio_playlist.id, audio_playlist.name, tracks_data,
             chain_mode=params.get("chain_mode"),
@@ -493,17 +536,17 @@ async def _handle_command(
     elif command == "audio_next_track":
         index_before = manager.state.get("audio_track_index")
         await manager.audio_next_track(client_ts)
-        _log_track_if_changed(db, manager, index_before)
+        await run_in_threadpool(_log_track_if_changed, db, manager, index_before)
     elif command == "audio_previous_track":
         index_before = manager.state.get("audio_track_index")
         await manager.audio_previous_track(client_ts)
-        _log_track_if_changed(db, manager, index_before)
+        await run_in_threadpool(_log_track_if_changed, db, manager, index_before)
     elif command == "audio_restart_track":
         await manager.audio_restart_track(client_ts)
     elif command == "audio_jump_to_track":
         index_before = manager.state.get("audio_track_index")
         await manager.audio_jump_to_track(int(params.get("index", 0)), client_ts)
-        _log_track_if_changed(db, manager, index_before)
+        await run_in_threadpool(_log_track_if_changed, db, manager, index_before)
     elif command == "audio_set_chain_mode":
         await manager.audio_set_chain_mode(params.get("mode", "auto"), client_ts)
     elif command == "audio_set_chain_timer":
@@ -521,29 +564,20 @@ async def _handle_command(
         # changé, seul cas où une NOUVELLE piste a réellement été lancée (réf.
         # F8.1 "pistes lancées" — le mode "manual" ou une piste déjà dernière
         # ne change pas l'index, donc ne loggue rien, à raison).
-        _log_track_if_changed(db, manager, index_before)
+        await run_in_threadpool(_log_track_if_changed, db, manager, index_before)
     elif command == "load_playlist":
         if await _reject_if_cinema_locked(db, command, websocket, channel):
             return
         playlist_id = params.get("playlist_id")
-        playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
+        playlist = await run_in_threadpool(lambda: db.query(Playlist).filter(Playlist.id == playlist_id).first())
         if not playlist:
             logger.warning(f"Commande load_playlist : playlist {playlist_id} introuvable")
             return
-        sorted_items = sorted(playlist.items, key=lambda x: x.position)
-        items_data = []
-        for item in sorted_items:
-            items_data.append({
-                "id": item.video.id,
-                "title": item.video.title,
-                "duration_seconds": item.video.duration_seconds,
-                "program": item.video.program,
-                "thumbnail_url": _thumbnail_filename(item.video.thumbnail_path),
-            })
+        items_data = await run_in_threadpool(_build_playlist_video_items, playlist)
         await manager.load_playlist(
             playlist.id, playlist.name, items_data, client_ts
         )
-        log_activity(db, "playlist_started", playlist.name)
+        await run_in_threadpool(log_activity, db, "playlist_started", playlist.name)
     elif command == "play":
         await manager.play(client_ts)
     elif command == "pause":
@@ -558,7 +592,7 @@ async def _handle_command(
                 or (current["current_background"] or {}).get("title")
                 or (current["current_audio_course"] or {}).get("title")
             )
-            log_activity(db, "playback_stopped", title)
+            await run_in_threadpool(log_activity, db, "playback_stopped", title)
         await manager.stop(client_ts)
     elif command == "seek":
         await manager.seek(float(params.get("position_seconds", 0)), client_ts)
@@ -578,7 +612,7 @@ async def _handle_command(
         title = (manager.state.get("current_video") or {}).get("title")
         await manager.video_ended(client_ts)
         if title:
-            log_activity(db, "video_ended", title)
+            await run_in_threadpool(log_activity, db, "video_ended", title)
     elif command == "report_position":
         # Seul le kiosk primaire a autorité sur la position de lecture (réf.
         # correctif P4) : les kiosks miroirs sont ignorés pour éviter les

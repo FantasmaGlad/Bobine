@@ -879,6 +879,11 @@ export const dictionaries: Record<Language, Dict> = {
       dangerSection: "Zone de danger",
       docSection: "Documentation",
       docHint: "Emplacements réels utilisés par l'application (lecture seule, définis à l'installation).",
+      // Réf. retour utilisateur (2026-09-11) : clarifie que ces liens (IP
+      // locale) rejoignent le canal RÉSEAU, distinct du canal câblé
+      // (accessible uniquement en local sur la machine, 127.0.0.1) —
+      // valable sur tous les profils (Wyse, desktop, Android).
+      docPagesChannelNote: "Ces liens (via l'IP réseau) ouvrent le canal Réseau, indépendant du canal Câblé. Le canal Câblé n'est accessible qu'en local sur cette machine, à l'adresse http://127.0.0.1:{{port}}.",
       uninstallHint: "Désinstalle complètement le programme et remet la machine dans un état de bureau nu. Irréversible.",
       uninstallButton: "Désinstaller (remise à zéro)",
       uninstallConfirmText: "Cette action est IRRÉVERSIBLE. La machine sera remise à zéro :",
@@ -899,6 +904,11 @@ export const dictionaries: Record<Language, Dict> = {
       uninstallDesktopWindows: "Ouvrez « Applications et fonctionnalités » dans les paramètres Windows, cherchez Bobine, puis choisissez Désinstaller.",
       uninstallDesktopMacos: "Quittez Bobine, faites glisser Bobine.app depuis le dossier Applications vers la Corbeille, puis supprimez ~/Library/LaunchAgents/com.bobine.app.plist pour désactiver le lancement automatique.",
       uninstallDesktopLinux: "Utilisez votre gestionnaire de paquets, par exemple : sudo apt remove bobine",
+      // Android (Lot 15, réf. retour utilisateur "la section Désinstaller
+      // parle d'apt" — l'app tombait par défaut sur uninstallDesktopLinux,
+      // aucune branche dédiée n'existant) : pas de gestionnaire de paquets,
+      // l'app se désinstalle comme n'importe quelle app Android.
+      uninstallDesktopAndroid: "Appui long sur l'icône Bobine depuis l'écran d'accueil puis « Désinstaller », ou Paramètres → Applications → Bobine → Désinstaller. Supprime aussi toutes les données (vidéos, base de données) stockées par l'app.",
       playbackSection: "Lecture",
       themeLabel: "Thème",
       themeDark: "Sombre",
@@ -911,6 +921,7 @@ export const dictionaries: Record<Language, Dict> = {
       themeCiel: "Bleu Ciel",
       themeOrchidee: "Violet Orchidée",
       themeTaupe: "Taupe",
+      themeCharbonSombre: "Charbon sombre",
       themeCharbon: "Charbon",
       themeBeige: "Beige",
       themeLavande: "Lavande",
@@ -991,7 +1002,12 @@ export const dictionaries: Record<Language, Dict> = {
         localIpUnavailable: "Indisponible (aucune route réseau détectée)",
         mdnsUrl: "Nom réseau (mDNS)",
         pagesHeading: "URLs des écrans (réseau local)",
-        pageKiosk: "Kiosque (écran câblé / cinéma)",
+        // Réf. retour utilisateur (2026-09-11) : "câblé" ici prêtait à
+        // confusion, cette liste n'affichant QUE des URLs réseau (cf.
+        // docPagesChannelNote juste au-dessus) — /kiosk fonctionne sur les
+        // deux canaux selon la façon dont on y accède, pas seulement câblé.
+        pageKiosk: "Kiosque (lecture vidéo)",
+        pageGrid: "Grille tactile (sélection de cours, Android)",
         pageCinema: "Cinéma (bibliothèque plein écran)",
         pageCoach: "Coach (cours audio plein écran)",
         pageRadio: "Radio (poste dédié)",
@@ -1889,6 +1905,7 @@ export const dictionaries: Record<Language, Dict> = {
       dangerSection: "Danger zone",
       docSection: "Documentation",
       docHint: "Actual locations used by the app (read-only, set at install time).",
+      docPagesChannelNote: "These links (via the LAN IP) open the Network channel, independent from the Cable channel. The Cable channel is only reachable locally on this machine, at http://127.0.0.1:{{port}}.",
       uninstallHint: "Fully uninstalls the program and returns the machine to a bare desktop state. Irreversible.",
       uninstallButton: "Uninstall (full reset)",
       uninstallConfirmText: "This action is IRREVERSIBLE. The machine will be wiped:",
@@ -1905,6 +1922,7 @@ export const dictionaries: Record<Language, Dict> = {
       uninstallDesktopWindows: "Open \"Apps & features\" in Windows Settings, find Bobine, then choose Uninstall.",
       uninstallDesktopMacos: "Quit Bobine, drag Bobine.app from the Applications folder to the Trash, then delete ~/Library/LaunchAgents/com.bobine.app.plist to disable autostart.",
       uninstallDesktopLinux: "Use your package manager, for example: sudo apt remove bobine",
+      uninstallDesktopAndroid: "Long-press the Bobine icon on the home screen then \"Uninstall\", or Settings → Apps → Bobine → Uninstall. This also deletes all data (videos, database) stored by the app.",
       playbackSection: "Playback",
       themeLabel: "Theme",
       themeDark: "Dark",
@@ -1917,6 +1935,7 @@ export const dictionaries: Record<Language, Dict> = {
       themeCiel: "Sky Blue",
       themeOrchidee: "Orchid Purple",
       themeTaupe: "Taupe",
+      themeCharbonSombre: "Dark charcoal",
       themeCharbon: "Charcoal",
       themeBeige: "Beige",
       themeLavande: "Lavender",
@@ -1997,7 +2016,8 @@ export const dictionaries: Record<Language, Dict> = {
         localIpUnavailable: "Unavailable (no network route detected)",
         mdnsUrl: "Network name (mDNS)",
         pagesHeading: "Screen URLs (local network)",
-        pageKiosk: "Kiosk (wired / cinema screen)",
+        pageKiosk: "Kiosk (video playback)",
+        pageGrid: "Touch grid (course selection, Android)",
         pageCinema: "Cinema (fullscreen library)",
         pageCoach: "Coach (fullscreen audio courses)",
         pageRadio: "Radio (dedicated station)",

@@ -33,7 +33,25 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-ADMIN_URL = "http://127.0.0.1:8000"
+
+def _resolve_admin_port() -> int:
+    """Port réellement configuré (`config.toml`/`BOBINE_PORT`), pas le 8000
+    par défaut codé en dur — trouvé lors d'un audit multi-plateforme
+    (2026-09-11) : `app.config` (même paquet `app`, aucun import circulaire
+    avec ce module) expose déjà cette valeur, jamais lue ici jusqu'à présent
+    — un utilisateur changeant le port dans sa configuration voyait le bouton
+    « Administration » et le kiosque du tray continuer de pointer vers 8000
+    en silence. Repli sur 8000 si `app.config` échoue à charger pour
+    n'importe quelle raison (ce module reste un point d'entrée standalone,
+    packagé séparément par PyInstaller — jamais bloquer le tray pour ça)."""
+    try:
+        from app.config import settings
+        return int(settings.port)
+    except Exception:
+        return 8000
+
+
+ADMIN_URL = f"http://127.0.0.1:{_resolve_admin_port()}"
 KIOSK_URL = f"{ADMIN_URL}/kiosk"
 HEALTH_URL = f"{ADMIN_URL}/api/health"
 UPDATES_CHECK_URL = f"{ADMIN_URL}/api/updates/check"

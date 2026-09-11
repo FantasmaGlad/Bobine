@@ -23,6 +23,7 @@ from app.config import settings
 from app.utils.importer import import_video
 from app.utils.executors import ffmpeg_executor
 from app.utils.import_jobs import create_job, update_job, register_job_future, JobCancelledError
+from app.utils.ws_manager import manager as ws_manager
 from app.utils.video_utils import (
     extract_metadata,
     check_compatibility,
@@ -101,6 +102,12 @@ def _run_video_import_job(
         finally:
             db.close()
 
+        # Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6) : un
+        # cours importé doit apparaître SANS délai sur /grid, /cinema et
+        # /library déjà ouverts, pas seulement au prochain sondage (15s
+        # sur /grid et /cinema, jamais sur /library). Exécuté hors boucle
+        # asyncio (thread de ffmpeg_executor) — version thread-safe.
+        ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "video_imported"})
         update_job(job_id, stage="done", result_id=result_id)
     except JobCancelledError:
         logger.info(f"Tâche d'import vidéo {job_id} annulée.")
@@ -258,6 +265,11 @@ def update_video(video_id: int, payload: VideoUpdate, db: Session = Depends(get_
 
     db.commit()
     db.refresh(video)
+    # Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6, réf. retour
+    # utilisateur "le titre modifié ne se met pas à jour instantanément") :
+    # `update_video` reste un endpoint SYNCHRONE (`def`, exécuté dans le
+    # threadpool FastAPI) — version thread-safe du broadcast.
+    ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "video_updated"})
     return video
 
 
@@ -290,6 +302,7 @@ def delete_video(video_id: int, db: Session = Depends(get_db)):
 
     db.delete(video)
     db.commit()
+    ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "video_deleted"})
     return {"message": "Vidéo supprimée avec succès"}
 
 

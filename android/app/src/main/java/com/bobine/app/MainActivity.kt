@@ -51,6 +51,12 @@ private const val GRID_URL = "http://127.0.0.1:8000/grid/"
 class MainActivity : AppCompatActivity() {
 
     private val handler = Handler(Looper.getMainLooper())
+    // Lot 15 (docs/audit-android-2026-09-11.md §C2/C4) : champ de classe
+    // plutot qu'une simple val locale de onCreate() - necessaire pour
+    // relayer onResume()/onPause() de l'Activity vers la WebView
+    // (webView.onResume()/onPause() pilotent son cycle de rendu interne,
+    // distinct du cycle de vie Android).
+    private var webView: WebView? = null
 
     // POST_NOTIFICATIONS (API 33+) est une permission "dangereuse" - la
     // declarer dans le Manifest ne l'accorde PAS automatiquement, une
@@ -82,20 +88,36 @@ class MainActivity : AppCompatActivity() {
         // ci-dessous s'en charge, garanti appele une fois la fenetre reelle.
 
         // Debug uniquement (build debug) : console JS visible dans logcat
-        // (tag "WebViewConsole") et inspection chrome://inspect.
-        WebView.setWebContentsDebuggingEnabled(true)
+        // (tag "WebViewConsole") et inspection chrome://inspect. Restreint
+        // au build debug (Lot 15) : rester actif en release ouvrait une
+        // surface de debogage locale inutile en production, sans aucun
+        // benefice (personne n'inspecte un kiosque de salle via USB).
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
 
         val webView = WebView(this)
+        this.webView = webView
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
         webView.settings.mediaPlaybackRequiresUserGesture = false
-        // Meme raison que BobinePresentation.kt (cf. son commentaire) : sans
-        // ce reglage, une mise a jour de l'app peut rester invisible sur cet
-        // ecran (cache HTTP heuristique base sur un Last-Modified de fichier
-        // normalise par le paquetage, sans rapport avec la vraie date de
-        // build).
-        webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
+        // LOAD_DEFAULT plutot que LOAD_NO_CACHE (Lot 15, docs/audit-android-
+        // 2026-09-11.md §C4) : le serveur impose deja une revalidation
+        // systematique (Cache-Control: no-cache + ETag, cf.
+        // RevalidateStaticFiles dans backend/app/main.py, ajoute APRES la
+        // decouverte initiale du probleme de cache HTTP heuristique
+        // mentionnee dans l'historique de ce fichier) - un fichier inchange
+        // recoit desormais un 304 quasi gratuit au lieu d'un retelechargement
+        // integral a CHAQUE chargement de page, couteux sur ce materiel
+        // (h11 pur Python, stockage externe FUSE). Le bouton « Synchronisation
+        // des ecrans » (clearCachesAndReload cote frontend) continue de vider
+        // le cache HTTP explicitement pour forcer une vraie mise a jour.
+        webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+        // Lot 15 (docs/audit-android-2026-09-11.md §C2) : priorite de rendu
+        // elevee meme quand cette Activity passe en arriere-plan (l'admin
+        // ouvert dans Chrome par-dessus) - sans ceci, le systeme peut
+        // deprioriser fortement le compositeur de cette WebView, aggravant
+        // les saccades constatees lors d'un retour au premier plan.
+        webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(message: ConsoleMessage): Boolean {
                 Log.d("WebViewConsole", "${message.message()} (${message.sourceId()}:${message.lineNumber()})")
@@ -115,6 +137,16 @@ class MainActivity : AppCompatActivity() {
         }
         setContentView(webView)
         webView.loadUrl(GRID_URL)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        webView?.onResume()
+    }
+
+    override fun onPause() {
+        webView?.onPause()
+        super.onPause()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

@@ -81,31 +81,70 @@ class BobineForegroundService : Service() {
         override fun onDisplayChanged(displayId: Int) {}
     }
 
+    // Lot 15 (docs/audit-android-2026-09-11.md §C3) : compte les tentatives
+    // de demarrage differe du serveur Python quand getExternalFilesDir()
+    // renvoie encore null (stockage pas encore monte au demarrage a froid -
+    // rare mais deja observe sur d'autres apps Android en Direct Boot ou
+    // juste apres un redemarrage). Avant ce lot, une valeur null etait
+    // transmise telle quelle a bobine_bootstrap.py, qui retombait
+    // SILENCIEUSEMENT sur le dossier interne prive AssetFinder/app/
+    // (ecrase par Chaquopy a chaque mise a jour, cf. Lot 9) - source
+    // probable des disparitions de bibliotheque rapportees (donnees ecrites
+    // dans la mauvaise base le temps de cette fenetre, jusqu'au prochain
+    // redemarrage du service).
+    private var storageRetries = 0
+
     override fun onCreate() {
         super.onCreate()
 
-        val py = Python.getInstance()
-        // Lot 9 : stockage externe specifique a l'app (persiste entre mises
-        // a jour, visible via un gestionnaire de fichiers/MTP), PAS le
-        // dossier interne AssetFinder/app/ ou Chaquopy redeploie les
-        // sources Python elles-memes (cf. Decouvertes du Lot 9).
-        val externalFilesDir = applicationContext.getExternalFilesDir(null)?.absolutePath
-        // Lot 8 : dossier natif de l'app (seul emplacement d'ou Android 10+
-        // autorise l'execution d'un binaire embarque, contrainte W^X) -
-        // c'est la ou les jniLibs/<abi>/lib{ffmpeg,ffprobe}.so finissent
-        // apres installation.
-        val nativeLibraryDir = applicationContext.applicationInfo.nativeLibraryDir
-        py.getModule("bobine_bootstrap").callAttr("start_server_once", externalFilesDir, nativeLibraryDir)
-
         createNotificationChannel()
+        // startForeground() DOIT etre appele tres tot (quelques secondes,
+        // sous peine de ForegroundServiceDidNotStartInTimeException sur API
+        // 31+) - deplace AVANT le demarrage du serveur Python (qui peut
+        // desormais attendre le montage du stockage externe, cf.
+        // startPythonServerWhenStorageReady ci-dessous) plutot qu'apres.
         startForeground(NOTIFICATION_ID, buildNotification())
         acquireMulticastLock()
+
+        startPythonServerWhenStorageReady()
 
         displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
         displayManager.registerDisplayListener(displayListener, null)
         // Cas ou le dock/vidoprojecteur est deja branche avant le demarrage
         // du service (pas seulement un branchement en cours d'utilisation).
         showPresentationIfNeeded()
+    }
+
+    private fun startPythonServerWhenStorageReady() {
+        // Lot 9 : stockage externe specifique a l'app (persiste entre mises
+        // a jour, visible via un gestionnaire de fichiers/MTP) - reserve
+        // aux MEDIAS depuis le Lot 15 (gros fichiers, cf.
+        // bobine_bootstrap.py). PAS le dossier interne AssetFinder/app/ ou
+        // Chaquopy redeploie les sources Python elles-memes (Lot 9).
+        val externalFilesDir = applicationContext.getExternalFilesDir(null)?.absolutePath
+        if (externalFilesDir == null) {
+            storageRetries++
+            if (storageRetries <= 30) {
+                Log.w(TAG, "Stockage externe pas encore monte (tentative $storageRetries/30), nouvel essai dans 2s")
+                handler.postDelayed({ startPythonServerWhenStorageReady() }, 2000)
+            } else {
+                Log.e(TAG, "Stockage externe indisponible apres 60s - abandon (le service reste actif, un redemarrage relancera cette sequence)")
+            }
+            return
+        }
+        // Lot 15 (docs/audit-android-2026-09-11.md §C1/C3) : dossier PRIVE
+        // de l'app sur le stockage interne (f2fs natif, jamais FUSE) - base
+        // SQLite, miniatures, logs, branding, pochettes radio.
+        val internalFilesDir = applicationContext.filesDir.absolutePath
+        // Lot 8 : dossier natif de l'app (seul emplacement d'ou Android 10+
+        // autorise l'execution d'un binaire embarque, contrainte W^X) -
+        // c'est la ou les jniLibs/<abi>/lib{ffmpeg,ffprobe}.so finissent
+        // apres installation.
+        val nativeLibraryDir = applicationContext.applicationInfo.nativeLibraryDir
+        val py = Python.getInstance()
+        py.getModule("bobine_bootstrap").callAttr(
+            "start_server_once", externalFilesDir, nativeLibraryDir, internalFilesDir
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

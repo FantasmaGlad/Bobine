@@ -388,7 +388,7 @@ export default function CinemaPage() {
   const [channel] = useState<"cable" | "network">(() => (isWiredDisplay() ? "cable" : "network"));
   // Implémentation réelle installée plus bas, une fois les handlers définis.
   const cinemaCmdRef = useRef<((action: string, positionSeconds: number, videoId?: number) => void) | null>(null);
-  const { displayOutputCable, displayOutputNetwork, sendCommand } = usePlaybackSocket(
+  const { displayOutputCable, displayOutputNetwork, sendCommand, libraryVersion } = usePlaybackSocket(
     undefined,
     undefined,
     channel,
@@ -404,26 +404,36 @@ export default function CinemaPage() {
   // cours ne se mettent pas à jour en direct »). On ne remplace l'état que si
   // la liste a réellement changé, pour ne pas re-rendre la vitrine (ni couper
   // un survol/scroll) à chaque tick.
+  // Même correctif que /grid (docs/audit-android-2026-09-11.md §C1,
+  // §5 étape 15.6) : retentative rapide (3s) sur échec, sans jamais vider
+  // une liste déjà chargée.
   useEffect(() => {
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     const load = () => {
       fetch(getApiUrl("/videos?sort_by=title&order=asc"), { cache: "no-store" })
-        .then((res) => (res.ok ? res.json() : []))
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
         .then((data: CinemaVideo[]) => {
           if (cancelled || !Array.isArray(data)) return;
           setVideos((prev) =>
             prev.length === data.length && prev.every((v, i) => v.id === data[i]?.id) ? prev : data,
           );
         })
-        .catch(() => {});
+        .catch(() => {
+          if (cancelled) return;
+          if (retryTimer) clearTimeout(retryTimer);
+          retryTimer = setTimeout(load, 3000);
+        });
     };
     load();
     const id = setInterval(load, 15000);
     return () => {
       cancelled = true;
       clearInterval(id);
+      if (retryTimer) clearTimeout(retryTimer);
     };
-  }, []);
+    // libraryVersion : recharge immédiate sur `library_change`.
+  }, [libraryVersion]);
 
   const clearUpNextTask = () => {
     if (upNextTaskRef.current) clearInterval(upNextTaskRef.current);

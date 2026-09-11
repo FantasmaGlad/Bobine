@@ -97,6 +97,14 @@ android {
         }
     }
 
+    // Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.4) : génération de
+    // BuildConfig désactivée par défaut depuis AGP 8+ (surface d'API
+    // réduite par défaut) — nécessaire pour BuildConfig.DEBUG, utilisé par
+    // MainActivity.kt pour ne garder le débogage WebView qu'en build debug.
+    buildFeatures {
+        buildConfig = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

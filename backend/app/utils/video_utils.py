@@ -457,7 +457,20 @@ def _get_encoder_args(is_android: bool, width: int | None, height: int | None) -
         if os.path.exists("/dev/dri/renderD128") and os.access("/dev/dri/renderD128", os.R_OK | os.W_OK):
             return (["-vaapi_device", "/dev/dri/renderD128", "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-b:v", bitrate, *gop_args], "h264_vaapi")
 
-    # Repli logiciel universel haute compatibilité (Windows, serveurs headless sans GPU, repli après échec GPU)
+    if system == "windows":
+        # Windows : aucun mécanisme de détection fiable du GPU sans dépendance
+        # supplémentaire (pywin32/WMI, absente du projet) — Intel QuickSync
+        # (h264_qsv) est tenté en premier : encodeur matériel le plus
+        # largement disponible sur un PC de bureau/salle de sport typique
+        # (tout CPU Intel avec graphique intégré depuis plusieurs
+        # générations), sans dépendre d'une carte dédiée NVIDIA/AMD. Aucun
+        # risque d'échec silencieux : si le pilote QuickSync est absent,
+        # ffmpeg renvoie un code non nul et `normalize_video` bascule sur
+        # l'encodeur logiciel libx264, exactement le même repli déjà en
+        # place pour VA-API (Linux) et VideoToolbox (macOS) ci-dessus.
+        return (["-c:v", "h264_qsv", "-preset", "fast", "-b:v", bitrate, *gop_args], "h264_qsv")
+
+    # Repli logiciel universel haute compatibilité (serveurs headless sans GPU, repli après échec GPU)
     return (["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", *gop_args, "-keyint_min", "60"], "libx264")
 
 
@@ -665,7 +678,7 @@ def normalize_video(
     logger.warning(f"Échec de l'encodage avec {encoder_name} (code {ret}): {stderr}")
 
     # 2. Repli matériel VA-API ou VideoToolbox -> libx264 si échec GPU
-    if encoder_name in ("h264_vaapi", "h264_videotoolbox"):
+    if encoder_name in ("h264_vaapi", "h264_videotoolbox", "h264_qsv"):
         logger.info(f"Repli vers l'encodeur logiciel libx264 suite à l'erreur {encoder_name}...")
         fallback_enc = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-g", "60", "-keyint_min", "60"]
         cmd_fallback = _build_cmd(fallback_enc, use_av1_hw)

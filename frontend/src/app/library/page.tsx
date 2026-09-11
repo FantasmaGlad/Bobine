@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useUploadManager, PendingUploadSpec } from "@/lib/UploadManager";
+import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import Icon from "@/components/Icon";
 
 interface Video {
@@ -88,6 +89,12 @@ export default function LibraryPage() {
 
   // Upload Manager global (P3)
   const { addUploads, uploads } = useUploadManager();
+  // Écoute passive uniquement (aucune commande envoyée depuis cette page) :
+  // réagit à `library_change` (réf. docs/audit-android-2026-09-11.md §5
+  // étape 15.6, retour utilisateur "le titre modifié ne se met pas à jour
+  // instantanément") — un import/modification/suppression fait ailleurs
+  // (autre onglet, dossier surveillé) se reflète ici sans action manuelle.
+  const { libraryVersion } = usePlaybackSocket();
   // Réf. mission "voir en direct les importations" : `seenDoneIds` évite de
   // redéclencher un fetch à chaque tick de polling tant qu'aucune tâche
   // vidéo n'a nouvellement terminé (effet déclaré plus bas, après
@@ -158,6 +165,7 @@ export default function LibraryPage() {
     fetchVideos();
   }, [search, programFilter, releaseFilter, sortBy]);
 
+
   useEffect(() => {
     fetch(getApiUrl("/playlists"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : []))
@@ -172,6 +180,17 @@ export default function LibraryPage() {
       .catch(() => {});
   };
   useEffect(fetchPrograms, []);
+
+  // Recharge sur `library_change` venu d'ailleurs (autre onglet, dossier
+  // surveillé) — `libraryVersion === 0` (valeur initiale, avant tout
+  // évènement reçu) est ignoré : l'effet ci-dessus s'en charge déjà au
+  // montage, inutile de refetcher une seconde fois pour rien.
+  useEffect(() => {
+    if (libraryVersion === 0) return;
+    fetchVideos();
+    fetchPrograms();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [libraryVersion]);
 
   // Liste de suggestions = catégories du serveur ∪ celles des vidéos déjà
   // chargées (pour qu'une catégorie tout juste créée apparaisse sans attendre

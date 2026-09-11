@@ -1,3 +1,5 @@
+import asyncio
+import hashlib
 import os
 import logging
 import platform
@@ -11,11 +13,14 @@ from contextlib import asynccontextmanager
 import aiofiles
 import psutil
 from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from starlette.datastructures import Headers
+from starlette.staticfiles import NotModifiedResponse
 
 from app.config import settings
 from app.database import init_db, get_db, SessionLocal
@@ -42,6 +47,16 @@ from app.utils.radio_announcement_scheduler import (
 )
 from app.utils.watcher import start_watcher, stop_watcher
 from app.utils.ws_manager import manager as ws_manager
+
+# Profil Android (Lot 15, docs/audit-android-2026-09-11.md §C1) : détecté une
+# fois au chargement du module, réutilisé par `health()` et par chaque
+# endpoint `stream_*` ci-dessous pour décider s'il faut sortir les appels
+# SQLAlchemy synchrones de la boucle d'évènements. `hasattr(sys,
+# "getandroidapilevel")` est le même test déjà utilisé plus bas dans ce
+# fichier pour le montage du frontend statique — attribut du build CPython
+# officiel pour Android, présent uniquement sous Chaquopy.
+_IS_ANDROID = hasattr(sys, "getandroidapilevel")
+
 
 # Log technique (réf. F8.2, Lot 9.6/UX3.18) : mêmes messages que la console
 # de dev, en plus écrits dans un fichier consultable/téléchargeable depuis
@@ -81,6 +96,11 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup : Initialisation de la BDD, démarrage du watcher et du scheduler
+    # Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6) : enregistre la
+    # boucle principale pour ws_manager.broadcast_threadsafe() — doit être
+    # posé avant que quoi que ce soit (watcher, endpoints) ne puisse tenter
+    # de diffuser depuis un thread hors boucle.
+    ws_manager.bind_loop(asyncio.get_running_loop())
     init_db()
     # Avant le watcher (réf. correctif "déplacement de fichier et commit en
     # base pas atomiques") : aucun import n'est possible tant que l'app n'a
@@ -176,17 +196,30 @@ async def health():
     redémarre indépendamment du backend."""
     components: dict[str, str] = {}
 
-    try:
-        db = SessionLocal()
+    def _check_database() -> str:
         try:
-            db.execute(text("SELECT 1"))
-        finally:
-            db.close()
-        components["database"] = "ok"
-    except Exception:
-        components["database"] = "down"
+            db = SessionLocal()
+            try:
+                db.execute(text("SELECT 1"))
+            finally:
+                db.close()
+            return "ok"
+        except Exception:
+            return "down"
 
-    components["kiosk"] = _kiosk_process_alive()
+    # Lot 15 (docs/audit-android-2026-09-11.md §C1) : `SELECT 1` synchrone
+    # sorti de la boucle d'évènements — appelé toutes les 30s par le
+    # watchdog systemd sur les profils desktop, et potentiellement par une
+    # supervision externe sur Android, il ne doit jamais retarder les autres
+    # requêtes en vol.
+    components["database"] = await run_in_threadpool(_check_database)
+
+    # `_kiosk_process_alive()` énumère TOUS les processus du système
+    # (`psutil.process_iter`) — non pertinent sur Android (aucun kiosque
+    # Chromium à détecter, cf. `_kiosk_process_alive` ci-dessus) et
+    # coûteux sous SELinux Android (chaque `/proc/<pid>` refusé lève une
+    # exception interceptée). Réf. audit §2 "écarts secondaires".
+    components["kiosk"] = "n/a" if _IS_ANDROID else await run_in_threadpool(_kiosk_process_alive)
 
     healthy = components["database"] == "ok"
     payload = {"status": "ok" if healthy else "degraded", "components": components}
@@ -218,10 +251,16 @@ async def _range_stream_response(file_path: Path, range: str | None, content_typ
     Utilise aiofiles pour une lecture disque non-bloquante : le thread de
     l'event loop reste disponible pour les autres requêtes pendant le streaming.
     """
-    if not file_path.exists():
+    # Lot 15 (docs/audit-android-2026-09-11.md §C1) : `exists()`/`stat()`
+    # sortis de la boucle — sur le stockage externe Android (FUSE), même un
+    # simple `stat` a un coût mesurable ; chaque requête Range (plusieurs
+    # par seconde pendant une lecture) en fait un. Sans effet mesurable sur
+    # les autres plateformes (appel déjà quasi instantané sur ext4/NTFS/APFS).
+    exists = await run_in_threadpool(file_path.exists)
+    if not exists:
         raise HTTPException(status_code=404, detail="Fichier manquant sur le disque")
 
-    file_size = file_path.stat().st_size
+    file_size = (await run_in_threadpool(file_path.stat)).st_size
     start, end = 0, file_size - 1
 
     if range:
@@ -246,12 +285,18 @@ async def _range_stream_response(file_path: Path, range: str | None, content_typ
     end = max(start, min(end, file_size - 1))
     chunk_size = end - start + 1
 
+    # Taille de bloc de lecture : 1 Mo sur Android (Lot 15, réf. audit §5
+    # étape 15.2) — moins d'allers-retours à travers le démon FUSE du
+    # stockage externe qu'à 128 Ko, mesurable sur un flux 4K/60fps à haut
+    # débit. 128 Ko ailleurs (inchangé), où le coût par appel est négligeable.
+    read_block_size = 1024 * 1024 if _IS_ANDROID else 8192 * 16
+
     async def file_generator():
         async with aiofiles.open(file_path, "rb") as f:
             await f.seek(start)
             remaining = chunk_size
             while remaining > 0:
-                chunk = await f.read(min(8192 * 16, remaining))  # chunks de 128KB
+                chunk = await f.read(min(read_block_size, remaining))
                 if not chunk:
                     break
                 remaining -= len(chunk)
@@ -276,7 +321,7 @@ async def stream_video(
     range: str | None = Header(None),
     db: Session = Depends(get_db),
 ):
-    video = db.query(Video).filter(Video.id == video_id).first()
+    video = await run_in_threadpool(lambda: db.query(Video).filter(Video.id == video_id).first())
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
     return await _range_stream_response(Path(video.file_path), range, "video/mp4")
@@ -296,7 +341,7 @@ async def stream_background(
     range: str | None = Header(None),
     db: Session = Depends(get_db),
 ):
-    background = db.query(Background).filter(Background.id == background_id).first()
+    background = await run_in_threadpool(lambda: db.query(Background).filter(Background.id == background_id).first())
     if not background:
         raise HTTPException(status_code=404, detail="Fond animé non trouvé")
     suffix = Path(background.file_path).suffix.lower()
@@ -315,7 +360,7 @@ async def stream_audio_track(
     range: str | None = Header(None),
     db: Session = Depends(get_db),
 ):
-    track = db.query(AudioTrack).filter(AudioTrack.id == track_id).first()
+    track = await run_in_threadpool(lambda: db.query(AudioTrack).filter(AudioTrack.id == track_id).first())
     if not track:
         raise HTTPException(status_code=404, detail="Piste audio non trouvée")
     return await _range_stream_response(Path(track.file_path), range, "audio/mpeg")
@@ -329,7 +374,7 @@ async def stream_radio_track(
 ):
     """Flux audio d'un morceau radio. Type MIME déduit de l'extension (tous
     formats web, réf. A2 : les non-web sont transcodés en .m4a à l'import)."""
-    track = db.query(RadioTrack).filter(RadioTrack.id == track_id).first()
+    track = await run_in_threadpool(lambda: db.query(RadioTrack).filter(RadioTrack.id == track_id).first())
     if not track:
         raise HTTPException(status_code=404, detail="Morceau non trouvé")
     return await _range_stream_response(Path(track.file_path), range, content_type_for(track.file_path))
@@ -342,7 +387,7 @@ async def stream_radio_cover(
     db: Session = Depends(get_db),
 ):
     """Pochette d'un morceau radio (JPEG normalisé, extrait ID3 ou uploadé)."""
-    track = db.query(RadioTrack).filter(RadioTrack.id == track_id).first()
+    track = await run_in_threadpool(lambda: db.query(RadioTrack).filter(RadioTrack.id == track_id).first())
     if not track or not track.cover_path:
         raise HTTPException(status_code=404, detail="Pochette non trouvée")
     return await _range_stream_response(Path(track.cover_path), range, "image/jpeg")
@@ -355,7 +400,7 @@ async def stream_radio_announcement(
     db: Session = Depends(get_db),
 ):
     """Flux audio d'un rappel (réf. lot L6)."""
-    announcement = db.query(RadioAnnouncement).filter(RadioAnnouncement.id == announcement_id).first()
+    announcement = await run_in_threadpool(lambda: db.query(RadioAnnouncement).filter(RadioAnnouncement.id == announcement_id).first())
     if not announcement:
         raise HTTPException(status_code=404, detail="Rappel non trouvé")
     return await _range_stream_response(Path(announcement.file_path), range, content_type_for(announcement.file_path))
@@ -415,16 +460,68 @@ class RevalidateStaticFiles(StaticFiles):
     code différent — reproduit concrètement sur la tablette Android (le
     cache HTTP de la WebView, distinct du Cache Storage API que vide déjà
     le bouton « Synchronisation des écrans », survit à un `adb install -r`).
-    `no-cache` (PAS `no-store`) force une revalidation via ETag à chaque
-    chargement plutôt que de désactiver tout cache : l'ETag est, lui,
-    correctement basé sur le contenu (calculé par Starlette depuis les
-    octets du fichier) — un fichier inchangé reçoit un 304 quasi gratuit, un
-    fichier modifié est re-téléchargé immédiatement, sans jamais dépendre
-    d'un horodatage de fichier qui n'a plus de sens après un paquetage.
+
+    Lot 15, correction post-déploiement, DEUX bugs distincts trouvés en
+    testant pour de vrai sur la tablette pilote Android (pas seulement en
+    relisant le code) — cf. docs/audit-android-2026-09-11.md :
+
+    1. Le paragraphe ci-dessus affirmait à tort que l'ETag de Starlette est
+       "correctement basé sur le contenu". **Faux, vérifié dans la source**
+       (`starlette.responses.FileResponse.set_stat_headers`) : l'ETag par
+       défaut est `md5(mtime + "-" + taille)`, PAS un hachage des octets du
+       fichier. Le mtime étant normalisé à une date fixe identique sur
+       CHAQUE build, l'ETag ne dépendait en pratique que de la taille en
+       octets — deux versions différentes d'un même fichier peuvent avoir
+       la même taille par coïncidence et obtenir le même ETag.
+
+    2. **Insuffisant à lui seul, deuxième bug trouvé après un premier
+       correctif encore incomplet** : `StaticFiles.is_not_modified()`
+       (appelée par le `file_response()` par défaut) vérifie `If-None-Match`
+       PUIS, seulement si ABSENT de la requête, retombe sur une comparaison
+       `If-Modified-Since` vs `Last-Modified` — et `Last-Modified` reste,
+       lui, TOUJOURS calculé depuis le mtime figé (01/02/1980, cf.
+       ci-dessus), jamais corrigé par le point 1. Un client qui envoie
+       `If-Modified-Since` sans `If-None-Match` (constaté empiriquement :
+       le cache HTTP natif de la WebView Android ne rejoue pas
+       systématiquement l'ETag) obtient alors TOUJOURS "non modifié" —
+       n'importe quelle date envoyée est postérieure à 1980. **Reproduit et
+       confirmé par une requête directe** (`curl -H "If-Modified-Since:
+       ..." → 304` même avec un ETag fraîchement recalculé et différent).
+
+    Les deux corrigés ensemble : ETag recalculé depuis un hachage réel du
+    contenu (coût négligeable, uniquement les petits fichiers statiques du
+    frontend — les médias passent par `_range_stream_response`, jamais par
+    cette classe), et la revalidation ne considère PLUS QUE cet ETag — plus
+    aucun repli sur `If-Modified-Since`/`Last-Modified`, structurellement
+    inutilisables tant que le mtime reste figé par le build reproductible.
+    Un client sans `If-None-Match` du tout reçoit toujours le contenu
+    complet (200), jamais un 304 dont la fraîcheur ne peut être garantie.
     """
 
-    def file_response(self, *args, **kwargs):
-        response = super().file_response(*args, **kwargs)
+    def file_response(self, full_path, stat_result, scope, status_code: int = 200):
+        request_headers = Headers(scope=scope)
+        response = FileResponse(full_path, status_code=status_code, stat_result=stat_result)
+        try:
+            with open(full_path, "rb") as f:
+                content_hash = hashlib.md5(f.read(), usedforsecurity=False).hexdigest()
+            response.headers["etag"] = f'"{content_hash}"'
+        except OSError:
+            # Repli sur l'ETag mtime+size par défaut de Starlette si le
+            # fichier n'est plus lisible entre le stat() et cette lecture
+            # (rare course, ex. suppression concurrente) — ne doit jamais
+            # faire échouer la réponse.
+            pass
+
+        # Comparaison ETag SEULE (pas `self.is_not_modified()`, qui retombe
+        # sur If-Modified-Since/Last-Modified quand If-None-Match est
+        # absent — cf. point 2 ci-dessus, c'est précisément ce repli qui
+        # servait du contenu périmé). Absence d'If-None-Match == pas de
+        # cache connu valide == contenu complet, jamais un 304 par défaut.
+        if_none_match = request_headers.get("if-none-match")
+        if if_none_match and response.headers["etag"] in (
+            tag.strip().removeprefix("W/") for tag in if_none_match.split(",")
+        ):
+            response = NotModifiedResponse(response.headers)
         response.headers["Cache-Control"] = "no-cache"
         return response
 

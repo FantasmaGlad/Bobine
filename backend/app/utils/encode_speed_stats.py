@@ -34,6 +34,12 @@ _DEFAULT_SPEED_BY_ENCODER = {
     "h264_mediacodec": 2.0,
     "h264_videotoolbox": 3.0,
     "h264_vaapi": 2.5,
+    # Repère de départ identique à h264_vaapi : même matériel Intel
+    # QuickSync sous-jacent, caractéristiques de performance comparables.
+    # Sans cette entrée, `get_estimated_speed` retombait sur 1.0 (le repli
+    # générique) — sous-estimant la vitesse réelle jusqu'au premier
+    # échantillon enregistré.
+    "h264_qsv": 2.5,
     "libx264": 1.0,
 }
 

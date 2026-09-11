@@ -392,7 +392,7 @@ ensure_apt_components() {
 # Cohérence garantie par la CI (job « install.sh sanity ») qui compare cette
 # valeur à `grep -cE '^\s*step ' install.sh` : un ajout d'étape sans mise à jour
 # ici casse le build (et fausserait le pourcentage de --progress=json).
-STEP_TOTAL=16
+STEP_TOTAL=18
 STEP_CUR=0
 STEP_START_TS=0
 CURRENT_STEP_TITLE=""
@@ -650,6 +650,22 @@ do_check() {
         box_line "  ✗ build frontend absent"
     fi
     [[ -d "${VENV_DIR}" ]] && box_line "  ✓ environnement Python présent" || box_line "  ✗ environnement Python absent"
+    # Réf. audit-android-2026-09-11.md (mission secondaire, écart H4) : même
+    # vérification qu'en fin d'installation, rejouable à tout moment sans
+    # réinstaller quoi que ce soit.
+    if ! $NO_KIOSK; then
+        box_mid
+        if command -v aplay >/dev/null 2>&1 && aplay -l 2>/dev/null | grep -q '^card '; then
+            box_line "  ✓ audio : $(aplay -l 2>/dev/null | grep -c '^card ') carte(s) détectée(s)"
+        else
+            box_line "  ✗ audio : aucune carte détectée (aplay -l)"
+        fi
+        if command -v vainfo >/dev/null 2>&1 && vainfo 2>&1 | grep -qi 'VAProfileH264'; then
+            box_line "  ✓ décodage matériel H.264 (VA-API) disponible"
+        else
+            box_line "  ⚠ décodage matériel indisponible — repli logiciel (voir vainfo)"
+        fi
+    fi
     if git -C "${REPO_DIR}" rev-parse --short HEAD &>/dev/null; then
         local rev dirty extra=""
         rev=$(git -C "${REPO_DIR}" rev-parse --short HEAD)
@@ -774,7 +790,26 @@ else
         gnupg \
         sudo \
         avahi-daemon \
-        nftables
+        nftables \
+        alsa-utils \
+        pipewire \
+        pipewire-pulse \
+        wireplumber \
+        pulseaudio-utils
+    # Réf. mission "vérifie que l'installateur configure bien les sorties
+    # audio" (audit-android-2026-09-11.md, mission secondaire) : ni
+    # alsa-utils (amixer/aplay/alsactl) ni PipeWire/WirePlumber n'étaient
+    # jamais installés par ce script alors que l'étape "audio" plus bas
+    # écrit déjà une configuration WirePlumber dédiée
+    # (/etc/wireplumber/wireplumber.conf.d/51-fix-jack-autoport.conf) et que
+    # kiosk-xinitrc/bobine-audio-mute.sh appellent `amixer`/`pactl` sur
+    # chaque carte détectée — sur un Debian minimal (netinst, sans tâche
+    # bureau), AUCUN de ces binaires n'existe, et toutes ces commandes
+    # échouaient silencieusement (`|| true`/`2>/dev/null` partout) : le
+    # démute, le 100% matériel de référence et la coupure hors session ne
+    # s'appliquaient jamais, Chromium retombant sur ALSA direct — ce qui ne
+    # fonctionnait que par chance, tant qu'aucune autre application ne
+    # prenait la carte son en même temps.
     ok "paquets système de base installés"
 
     # ----------------------------------------------------------------------
@@ -1155,7 +1190,11 @@ for BOBINE_CARD in $(awk -F'[][]' '/^ *[0-9]+ \[/{print $2}' /proc/asound/cards 
     # indépendant de ces niveaux matériels de référence.
     amixer -c "${BOBINE_CARD}" scontrols 2>/dev/null | sed -n "s/^Simple mixer control '\([^']*\)'.*/\1/p" | sort -u | while IFS= read -r BOBINE_CTRL; do
         case "${BOBINE_CTRL}" in
-            *[Mm]ic*|*Boost|Capture|"Input Source"|"Auto-Mute Mode") continue ;;
+            # IEC958*/Beep/Loopback ajoutés (réf. audit-android-2026-09-11.md,
+            # écart H8) : un contrôle numérique S/PDIF ou de rebouclage
+            # démuté à 100% par erreur peut activer une sortie parasite sur
+            # certains codecs, jamais souhaitée sur ce déploiement.
+            *[Mm]ic*|*Boost|Capture|"Input Source"|"Auto-Mute Mode"|IEC958*|Beep|Loopback) continue ;;
         esac
         amixer -c "${BOBINE_CARD}" sset "${BOBINE_CTRL}" 100% unmute >/dev/null 2>&1 || true
     done
@@ -1207,8 +1246,11 @@ exec ${CHROMIUM_BIN} \
     --disable-pinch \
     --overscroll-history-navigation=0 \
     --autoplay-policy=no-user-gesture-required \
-    --enable-features=AcceleratedVideoDecodeLinuxGL \
+    --enable-features=AcceleratedVideoDecodeLinuxGL,VaapiVideoDecodeLinuxGL \
     --use-gl=egl \
+    --enable-gpu-rasterization \
+    --enable-zero-copy \
+    --ignore-gpu-blocklist \
     --start-fullscreen \
     --check-for-update-interval=31536000
 EOF
@@ -1282,12 +1324,22 @@ EOF
     write_file /etc/modprobe.d/bobine-audio.conf <<'EOF'
 options snd-hda-intel power_save=0 power_save_controller=N
 EOF
-    # Application immédiate sans attendre le prochain reboot.
+    # Application immédiate sans attendre le prochain reboot. Réf.
+    # audit-android-2026-09-11.md (mission secondaire, écart H2/H3) :
+    # le chemin PCI `0000:00:0e.0` ci-dessus était figé sur celui du Wyse
+    # 5070 précis — sans effet sur tout autre modèle/chipset (AMD, autre
+    # Intel) et sur les DAC USB (snd_usb_audio, qui n'a pas de paramètre
+    # power_save propre mais expose le même mécanisme générique
+    # `power/control` sous sysfs). Boucle sur TOUTES les cartes son
+    # réellement présentes plutôt qu'un chemin unique — couvre HDA et USB
+    # de la même façon, sans avoir besoin de distinguer les deux.
     if ! $DRY_RUN; then
         echo 0 > /sys/module/snd_hda_intel/parameters/power_save 2>/dev/null || true
-        echo on > /sys/bus/pci/devices/0000:00:0e.0/power/control 2>/dev/null || true
+        for BOBINE_PC in /sys/class/sound/card*/device/power/control; do
+            [[ -e "${BOBINE_PC}" ]] && echo on > "${BOBINE_PC}" 2>/dev/null || true
+        done
     fi
-    ok "mise en veille du codec audio désactivée"
+    ok "mise en veille du codec audio désactivée (HDA et USB)"
 
     # Si un powertop.service ("powertop --auto-tune") existe sur la machine,
     # il RÉACTIVE power_save=1 à chaque boot APRÈS le chargement du module,
@@ -1299,7 +1351,7 @@ EOF
         write_file /etc/systemd/system/powertop.service.d/10-audio-nopowersave.conf <<'EOF'
 [Service]
 ExecStartPost=/bin/sh -c 'echo 0 > /sys/module/snd_hda_intel/parameters/power_save'
-ExecStartPost=/bin/sh -c 'echo on > /sys/bus/pci/devices/0000:00:0e.0/power/control'
+ExecStartPost=/bin/sh -c 'for pc in /sys/class/sound/card*/device/power/control; do [ -e "$pc" ] && echo on > "$pc"; done; true'
 EOF
         ok "garde-fou powertop installé"
     fi
@@ -1325,7 +1377,11 @@ CARDS=$(awk -F'[][]' '/^ *[0-9]+ \[/{print $2}' /proc/asound/cards 2>/dev/null |
 for CARD in ${CARDS}; do
     amixer -c "${CARD}" scontrols 2>/dev/null | sed -n "s/^Simple mixer control '\([^']*\)'.*/\1/p" | sort -u | while IFS= read -r CTRL; do
         case "${CTRL}" in
-            *[Mm]ic*|*Boost|Capture|"Input Source"|"Auto-Mute Mode") continue ;;
+            # IEC958*/Beep/Loopback ajoutés (réf. audit-android-2026-09-11.md,
+            # écart H8) : un contrôle numérique S/PDIF ou de rebouclage
+            # démuté à 100% par erreur peut activer une sortie parasite sur
+            # certains codecs, jamais souhaitée sur ce déploiement.
+            *[Mm]ic*|*Boost|Capture|"Input Source"|"Auto-Mute Mode"|IEC958*|Beep|Loopback) continue ;;
         esac
         amixer -c "${CARD}" -q sset "${CTRL}" mute 2>/dev/null || true
     done
@@ -1535,6 +1591,61 @@ ok "chien de garde santé (watchdog) écrit"
 step_done
 
 # ---------------------------------------------------------------------------
+step tuning "Optimisations système (gouverneur CPU, journal)"
+# ---------------------------------------------------------------------------
+# Réf. audit-android-2026-09-11.md (mission secondaire, écart H6) : deux
+# optimisations à faible risque, appliquées dès l'installation plutôt que
+# laissées aux valeurs par défaut Debian (pensées pour un poste de bureau
+# économe en énergie, pas une appliance branchée secteur en continu).
+if $NO_KIOSK; then
+    step_skip "--no-kiosk"
+else
+    # Gouverneur CPU "performance" : évite les changements de fréquence sous
+    # charge variable (lecture vidéo + décodage/encodage ffmpeg concurrents)
+    # qui peuvent introduire des micro-saccades — sans intérêt énergétique
+    # ici, la machine reste branchée secteur en permanence (kiosque de
+    # salle). Service oneshot plutôt qu'une simple commande ponctuelle :
+    # certains noyaux réinitialisent le gouverneur par défaut à chaque
+    # démarrage, un service WantedBy=multi-user.target le réapplique à
+    # chaque boot sans dépendre d'un fichier de config spécifique au pilote
+    # cpufreq présent (intel_pstate, acpi-cpufreq...).
+    if [[ -d /sys/devices/system/cpu/cpu0/cpufreq ]]; then
+        write_file /etc/systemd/system/bobine-cpu-governor.service <<'EOF'
+[Unit]
+Description=Bobine - Gouverneur CPU en mode performance
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do [ -e "$g" ] && echo performance > "$g"; done; true'
+
+[Install]
+WantedBy=multi-user.target
+EOF
+        run systemctl daemon-reload
+        run systemctl enable --now bobine-cpu-governor.service
+        ok "gouverneur CPU réglé sur performance"
+    else
+        warn "cpufreq indisponible sur ce matériel (CPU sans scaling ou virtualisé) — gouverneur laissé tel quel"
+    fi
+
+    # Plafond du journal systemd : par défaut Debian autorise jusqu'à 10% du
+    # disque pour /var/log/journal — sans limite explicite, une appliance
+    # tournant 24/7 pendant des mois sur un stockage eMMC/SSD limité peut
+    # voir son journal grossir sans borne raisonnable.
+    run mkdir -p /etc/systemd/journald.conf.d
+    write_file /etc/systemd/journald.conf.d/bobine.conf <<'EOF'
+[Journal]
+SystemMaxUse=200M
+EOF
+    if ! $DRY_RUN; then
+        systemctl restart systemd-journald 2>/dev/null || true
+    fi
+    ok "journal systemd plafonné à 200 Mo"
+    step_done
+fi
+
+# ---------------------------------------------------------------------------
 step activation "Activation des services & vérification de santé"
 # ---------------------------------------------------------------------------
 run systemctl daemon-reload
@@ -1571,6 +1682,43 @@ fi
 step_done
 
 # ---------------------------------------------------------------------------
+step capabilities "Vérification des capacités audio & vidéo"
+# ---------------------------------------------------------------------------
+# Réf. audit-android-2026-09-11.md (mission secondaire) : jusqu'ici, rien ne
+# vérifiait après coup que l'audio et le décodage matériel fonctionnent
+# RÉELLEMENT — un déploiement pouvait être déclaré "terminé" avec un son
+# muet ou un décodage logiciel, sans qu'aucun signal ne le distingue d'une
+# installation saine avant de le découvrir en salle. Purement diagnostique :
+# ne modifie rien, n'échoue jamais le script (avertissements seulement).
+AUDIO_OK=false
+VAAPI_OK=false
+if $NO_KIOSK; then
+    step_skip "--no-kiosk (aucune sortie locale attendue)"
+elif $DRY_RUN; then
+    step_skip "--dry-run"
+else
+    if command -v aplay >/dev/null 2>&1 && aplay -l 2>/dev/null | grep -q '^card '; then
+        AUDIO_OK=true
+        ok "carte(s) audio détectée(s) : $(aplay -l 2>/dev/null | grep -c '^card ')"
+    else
+        warn "aucune carte audio détectée par aplay -l — vérifier le matériel/les pilotes"
+    fi
+    if command -v vainfo >/dev/null 2>&1; then
+        VAINFO_OUT="$(vainfo 2>&1 || true)"
+        if grep -qi 'VAProfileH264' <<<"${VAINFO_OUT}"; then
+            VAAPI_OK=true
+            VAAPI_DRIVER="$(grep -oE 'Driver version: .*' <<<"${VAINFO_OUT}" | head -1)"
+            ok "décodage matériel H.264 disponible (${VAAPI_DRIVER:-pilote VA-API actif})"
+        else
+            warn "aucun profil H.264 VA-API détecté — décodage logiciel probable (voir 'vainfo' pour le détail)"
+        fi
+    else
+        warn "vainfo introuvable — impossible de vérifier le décodage matériel"
+    fi
+    step_done
+fi
+
+# ---------------------------------------------------------------------------
 # Résumé final
 # ---------------------------------------------------------------------------
 echo
@@ -1586,12 +1734,17 @@ box_line "  Config     ${CONFIG_FILE}"
 box_line "  Journal    ${LOG_FILE}"
 box_line "  Contrôle   bobine {start|stop|restart|status|logs}"
 box_line "  Diagnostic sudo ./${SCRIPT_NAME} --check"
+if ! $NO_KIOSK && ! $DRY_RUN; then
+    box_mid
+    box_line "  Audio      $($AUDIO_OK && echo 'OK' || echo 'À VÉRIFIER — voir aplay -l')"
+    box_line "  Vidéo (VA-API) $($VAAPI_OK && echo 'OK (matériel)' || echo 'décodage logiciel — voir vainfo')"
+fi
 box_bottom
 echo
 
 # Fin de la séquence pilotable : l'assistant peut fermer sa barre à 100 % et
 # afficher l'écran final (URL/QR). healthy reflète le contrôle /api/health.
-emit_event "\"event\":\"run_end\",\"status\":\"ok\",\"pct\":100,\"total\":${STEP_TOTAL},\"healthy\":${HEALTHY:-false},\"url\":\"http://bobine.local\",\"port\":${SERVICE_PORT},\"dry_run\":${DRY_RUN}"
+emit_event "\"event\":\"run_end\",\"status\":\"ok\",\"pct\":100,\"total\":${STEP_TOTAL},\"healthy\":${HEALTHY:-false},\"audio\":${AUDIO_OK:-false},\"vaapi\":${VAAPI_OK:-false},\"url\":\"http://bobine.local\",\"port\":${SERVICE_PORT},\"dry_run\":${DRY_RUN}"
 
 if ! $DRY_RUN; then
     systemctl --no-pager --lines=0 status bobine-backend.service $($NO_KIOSK || echo bobine-kiosk.service) 2>/dev/null || true

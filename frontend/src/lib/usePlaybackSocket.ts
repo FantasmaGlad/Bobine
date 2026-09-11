@@ -222,7 +222,26 @@ export function usePlaybackSocket(
   // isPrimary : vrai si ce kiosk est le kiosk primaire (seul autorisé à
   // envoyer report_position). Toujours false pour les télécommandes/admin.
   const [isPrimary, setIsPrimary] = useState(false);
+  // Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6, réf. retour
+  // utilisateur "le titre modifié ne se met pas à jour instantanément") :
+  // incrémenté à chaque `library_change` reçu (vidéo importée/modifiée/
+  // supprimée) — une page consommatrice (grid/cinema/library) l'ajoute
+  // en dépendance d'effet pour recharger sa liste sans attendre le
+  // prochain sondage périodique.
+  const [libraryVersion, setLibraryVersion] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
+  // Lot 15, correction post-déploiement (réf. retour utilisateur "le
+  // dashboard réseau freeze/lag/répète" — mesuré en conditions réelles :
+  // sur un Wi-Fi réel vers la tablette, le flux de position_tick peut
+  // s'arrêter SILENCIEUSEMENT après quelques secondes — ni erreur ni
+  // fermeture propre de la connexion des deux côtés, juste plus aucune
+  // donnée qui circule. Sans détection dédiée, le client ne s'en aperçoit
+  // qu'au keepalive serveur (jusqu'à 90s : 30s d'intervalle de ping + 60s
+  // de tolérance de pong, volontairement assouplis pour tolérer les pages
+  // en arrière-plan) — bien trop long pour un tableau de bord ACTIF que
+  // l'admin regarde. Ce ref suit l'heure du DERNIER message reçu, tous
+  // types confondus (y compris les ping serveur).
+  const lastMessageAtRef = useRef(Date.now());
   // Commandes émises pendant une (re)connexion, rejouées à l'ouverture si
   // récentes (< 5 s) — voir sendCommand.
   const pendingCommandsRef = useRef<{ payload: string; queuedAt: number }[]>([]);
@@ -290,6 +309,7 @@ export function usePlaybackSocket(
         if (wsRef.current !== ws) return;
         setConnected(true);
         retryDelay = 1000;
+        lastMessageAtRef.current = Date.now();
         // Identification du rôle kiosk (réf. correctif P4) : envoyée dès
         // l'ouverture de la connexion pour que le backend puisse assigner
         // le rôle primaire/miroir avant tout report_position. Pas de
@@ -311,6 +331,7 @@ export function usePlaybackSocket(
 
       ws.onmessage = (evt) => {
         if (wsRef.current !== ws) return;
+        lastMessageAtRef.current = Date.now();
         try {
           const parsed = JSON.parse(evt.data);
           if (parsed.event === "ping") {
@@ -378,6 +399,11 @@ export function usePlaybackSocket(
             onCinemaCommandRef.current?.(parsed.action, parsed.position_seconds ?? 0, parsed.video_id ?? undefined);
             return;
           }
+          if (parsed.event === "library_change") {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- réaction à un évènement externe temps réel
+            setLibraryVersion((v) => v + 1);
+            return;
+          }
           if (parsed.event === "force_reload") {
             // Bouton « Synchronisation des écrans » (Paramètres) : vide les
             // caches de l'appareil PUIS recharge, pour reprendre à zéro (état
@@ -423,10 +449,65 @@ export function usePlaybackSocket(
 
     connect();
 
+    // Lot 15 (docs/audit-android-2026-09-11.md §C2) : un onglet/WebView en
+    // arrière-plan voit ses minuteurs JS throttlés par le navigateur (jusqu'à
+    // 1 réveil/minute) — le `pong` de réponse au `ping` serveur peut alors
+    // arriver tard ou pas du tout tant que la page reste cachée, ce qui la
+    // faisait fermer côté serveur (cf. PONG_TIMEOUT_SECONDS, assoupli en
+    // complément côté serveur). `visibilitychange` se déclenche lui de façon
+    // fiable et IMMÉDIATE dès que l'utilisateur revient sur cette page,
+    // indépendamment de tout minuteur throttlé — un pong proactif à cet
+    // instant referme la fenêtre avant que le serveur n'ait eu la moindre
+    // raison de couper la connexion.
+    const onVisible = () => {
+      if (typeof document === "undefined" || document.visibilityState !== "visible") return;
+      const ws = wsRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ command: "pong" }));
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisible);
+    }
+
+    // Chien de garde de silence (réf. commentaire de lastMessageAtRef
+    // ci-dessus) : `readyState === OPEN` ne garantit PAS que des données
+    // circulent encore — mesuré en conditions réelles sur Wi-Fi, la
+    // connexion peut rester "ouverte" au sens du navigateur alors que plus
+    // rien n'est réellement délivré dans un sens ou l'autre, sans jamais
+    // déclencher `onclose`/`onerror`. Seuil COURT (5s) pendant une lecture
+    // active — la cadence normale de `position_tick` est de 250 ms à 2 s,
+    // 5 s de silence total y est déjà anormal — et seuil LONG (35s, un peu
+    // plus que `PING_INTERVAL_SECONDS` côté serveur) au repos, pour ne
+    // jamais déclencher à tort entre deux ping normaux. Ne fait rien tant
+    // que la page est en arrière-plan (ses minuteurs sont de toute façon
+    // throttlés, et rien n'y est activement regardé) — `onVisible`
+    // ci-dessus reprend la main dès le retour au premier plan.
+    const STALE_THRESHOLD_ACTIVE_MS = 5000;
+    const STALE_THRESHOLD_IDLE_MS = 35000;
+    const staleWatchdog = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      const current = wsRef.current;
+      if (!current || current.readyState !== WebSocket.OPEN) return;
+      const isActivelyPlaying =
+        stateRef.current.state === "playing" || stateRef.current.audio_playing;
+      const threshold = isActivelyPlaying ? STALE_THRESHOLD_ACTIVE_MS : STALE_THRESHOLD_IDLE_MS;
+      if (Date.now() - lastMessageAtRef.current > threshold) {
+        // Force une reconnexion propre plutôt que d'attendre le keepalive
+        // serveur : ferme CETTE connexion, `onclose` (déjà en place)
+        // programme la reconnexion avec son propre backoff.
+        current.close();
+      }
+    }, 2000);
+
     return () => {
       cancelled = true;
       clearTimeout(reconnectTimer);
+      clearInterval(staleWatchdog);
       if (cinemaLockedTimerRef.current) clearTimeout(cinemaLockedTimerRef.current);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisible);
+      }
       wsRef.current?.close();
     };
   }, [role, channel]);
@@ -511,6 +592,9 @@ export function usePlaybackSocket(
     if (pendingCommandsRef.current.length > 10) pendingCommandsRef.current.shift();
   }, [channel]);
 
-  return { state, connected, sendCommand, isPrimary, displayOutputCable, displayOutputNetwork, cinemaLocked, cinemaState };
+  return {
+    state, connected, sendCommand, isPrimary, displayOutputCable, displayOutputNetwork,
+    cinemaLocked, cinemaState, libraryVersion,
+  };
 }
 

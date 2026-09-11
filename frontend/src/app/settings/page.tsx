@@ -10,7 +10,12 @@ import AppLogo from "@/components/AppLogo";
 // la zone Désinstaller propose une action directe (appliance headless) ou de
 // simples instructions (profils desktop, cf. section "Zone de danger" plus
 // bas).
-type DeploymentProfile = "linux-headless" | "linux-desktop" | "windows" | "macos";
+// "android" ajouté (Lot 15, réf. audit-android-2026-09-11.md) : absent
+// depuis l'introduction du profil Android (Lot 12) — les comparaisons
+// strictes contre "android" existaient déjà ailleurs dans le dépôt
+// (cinema/page.tsx) mais sur des données non typées (`any`), ce qui
+// masquait le type manquant ici.
+type DeploymentProfile = "linux-headless" | "linux-desktop" | "windows" | "macos" | "android";
 
 interface SettingsData {
   wait_time_between_courses: number;
@@ -139,6 +144,7 @@ const THEME_SWATCHES: ThemeSwatch[] = [
   { value: "chili", labelKey: "settingsPage.themeChili", category: "sombre", colors: ["#15090a", "#2b1417", "#ef4444", "#fdf2f2"] },
   { value: "orchidee", labelKey: "settingsPage.themeOrchidee", category: "sombre", colors: ["#140d17", "#281b30", "#a855f7", "#faf5ff"] },
   { value: "taupe", labelKey: "settingsPage.themeTaupe", category: "sombre", colors: ["#1c1713", "#332a23", "#d4a373", "#fdfaf7"] },
+  { value: "charbon-sombre", labelKey: "settingsPage.themeCharbonSombre", category: "sombre", colors: ["#0b0b0d", "#141417", "#c9c9d1", "#f2f2f4"] },
 ];
 
 // Pages plein écran destinées à être ouvertes depuis un AUTRE appareil du
@@ -150,6 +156,13 @@ const PUBLIC_PAGE_KEYS: { path: string; labelKey: string }[] = [
   { path: "/cinema", labelKey: "settingsPage.paths.pageCinema" },
   { path: "/coach", labelKey: "settingsPage.paths.pageCoach" },
   { path: "/radio", labelKey: "settingsPage.paths.pageRadio" },
+];
+
+// /grid (écran tactile de sélection, Lot 14) : spécifique au profil
+// Android — inutile de l'afficher sur les autres profils, qui n'ont pas
+// cette page (réf. retour utilisateur, vérification des URLs par profil).
+const ANDROID_PAGE_KEYS: { path: string; labelKey: string }[] = [
+  { path: "/grid", labelKey: "settingsPage.paths.pageGrid" },
 ];
 
 const PATH_LABEL_KEYS: Record<string, string> = {
@@ -1068,10 +1081,15 @@ export default function SettingsPage() {
               <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.uninstallDesktopHint")}</p>
               <p className="settings-hint" style={{ marginTop: 0 }}>
                 {t(
+                  // Lot 15 (réf. retour utilisateur "la section Désinstaller
+                  // sur Android parle d'apt") : branche Android manquante,
+                  // le repli final (Linux desktop / apt) s'appliquait à tort.
                   data.deployment_profile === "windows"
                     ? "settingsPage.uninstallDesktopWindows"
                     : data.deployment_profile === "macos"
                     ? "settingsPage.uninstallDesktopMacos"
+                    : data.deployment_profile === "android"
+                    ? "settingsPage.uninstallDesktopAndroid"
                     : "settingsPage.uninstallDesktopLinux",
                 )}
               </p>
@@ -1115,7 +1133,10 @@ export default function SettingsPage() {
             <span className="settings-path-key" style={{ fontWeight: 800 }}>{t("settingsPage.paths.pagesHeading")}</span>
             <span />
           </div>
-          {PUBLIC_PAGE_KEYS.map((page) => (
+          <p className="settings-hint" style={{ marginTop: "-2px", marginBottom: "8px" }}>
+            {t("settingsPage.docPagesChannelNote", { port: data.network.port })}
+          </p>
+          {(data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS).map((page) => (
             <div key={page.path} className="settings-path-row">
               <span className="settings-path-key">{t(page.labelKey)}</span>
               <span className="settings-path-val">

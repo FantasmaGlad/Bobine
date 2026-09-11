@@ -219,7 +219,7 @@ export default function GridPage() {
   // Toujours le canal câblé : /grid n'a de sens que pour piloter la sortie
   // câblée (ex. la sortie HDMI de la tablette Android) - pas de variante
   // réseau pour l'instant (périmètre du Lot 14, décision explicite).
-  const { sendCommand, displayOutputCable, cinemaState } = usePlaybackSocket(undefined, undefined, "cable");
+  const { sendCommand, displayOutputCable, cinemaState, libraryVersion } = usePlaybackSocket(undefined, undefined, "cable");
   // Avertissement "rien ne se passe" (retour utilisateur) : un ordre "launch"
   // envoyé alors que la sortie câblée est réglée sur "kiosk" (et non
   // "cinema") ne sera reçu par AUCUN écran - /kiosk n'écoute pas
@@ -235,26 +235,42 @@ export default function GridPage() {
 
   // Même sondage que /cinema (15s) - dupliqué plutôt que partagé, cf.
   // commentaire en tête de fichier.
+  // Réf. retour utilisateur "/grid n'affiche aucune vidéo" (2026-09-11) :
+  // un échec transitoire (backend momentanément congestionné, cf.
+  // docs/audit-android-2026-09-11.md §C1) laissait `videos` vide jusqu'au
+  // PROCHAIN sondage à 15s — ressenti comme "il faut recharger plusieurs
+  // fois". Retentative rapide (3s) dédiée sur ÉCHEC uniquement, en plus du
+  // sondage normal ; ne vide JAMAIS une liste déjà chargée sur un échec
+  // (une réponse invalide/une erreur réseau ponctuelle garde l'affichage
+  // précédent plutôt que de faire disparaître la grille).
   useEffect(() => {
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     const load = () => {
       fetch(getApiUrl("/videos?sort_by=title&order=asc"), { cache: "no-store" })
-        .then((res) => (res.ok ? res.json() : []))
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
         .then((data: CinemaVideo[]) => {
           if (cancelled || !Array.isArray(data)) return;
           setVideos((prev) =>
             prev.length === data.length && prev.every((v, i) => v.id === data[i]?.id) ? prev : data,
           );
         })
-        .catch(() => {});
+        .catch(() => {
+          if (cancelled) return;
+          if (retryTimer) clearTimeout(retryTimer);
+          retryTimer = setTimeout(load, 3000);
+        });
     };
     load();
     const id = setInterval(load, 15000);
     return () => {
       cancelled = true;
       clearInterval(id);
+      if (retryTimer) clearTimeout(retryTimer);
     };
-  }, []);
+    // libraryVersion : recharge immédiate sur `library_change` (import/
+    // modif/suppression), au lieu d'attendre jusqu'à 15s.
+  }, [libraryVersion]);
 
   // Lancement distant (Lot 14) : envoie l'ordre sur le canal câblé plutôt
   // que de lire quoi que ce soit ici - cette page ne quitte JAMAIS son

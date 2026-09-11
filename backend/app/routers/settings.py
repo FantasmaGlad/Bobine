@@ -92,8 +92,8 @@ _LOGO_FILENAME = "logo.png"
 # installations existantes, seul son libellé affiché change côté frontend.
 _VALID_THEMES = {
     "les-mills-sombre", "clair", "lune", "menthe", "automne", "hiver",
-    "chili", "ciel", "orchidee", "taupe", "charbon", "beige", "lavande",
-    "miel", "coco",
+    "chili", "ciel", "orchidee", "taupe", "charbon", "charbon-sombre",
+    "beige", "lavande", "miel", "coco",
 }
 _VALID_ACTIVE_LOGOS = {"default", "custom"}
 _VALID_UPDATE_CHANNELS = {"stable", "beta"}
