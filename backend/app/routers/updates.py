@@ -216,7 +216,7 @@ async def check_updates(db: Session = Depends(get_db)) -> dict[str, Any]:
             "release_notes": None,
             "published_at": None,
             "html_url": None,
-            "can_auto_apply": handler.supports_git_versioning(),
+            "can_auto_apply": handler.can_auto_apply(),
             "download_url": None,
             "asset_name": None,
             "asset_size": None,
@@ -241,7 +241,7 @@ async def check_updates(db: Session = Depends(get_db)) -> dict[str, Any]:
     else:
         has_update = _parse_version(latest_tag) > _parse_version(local_info["current_version"])
         latest_version = latest_tag
-    can_auto_apply = handler.supports_git_versioning()
+    can_auto_apply = handler.can_auto_apply()
 
     # Recherche de l'asset adapté au profil de déploiement (Lot 1 Windows .exe,
     # Lot 2 Linux bureau .deb, Lot 3 macOS .dmg)
@@ -295,7 +295,7 @@ async def check_updates(db: Session = Depends(get_db)) -> dict[str, Any]:
     }
 
 
-async def _run_update_pipeline(target_tag: str | None):
+async def _run_update_pipeline(target_tag: str | None, download_url: str | None = None):
     """Tâche d'arrière-plan appliquant la mise à jour et redémarrant les
     services, via le handler du profil courant (§5.1/§5.4 du plan). Le
     garde-fou de `apply_update()` (endpoint ci-dessous) évite normalement
@@ -304,8 +304,9 @@ async def _run_update_pipeline(target_tag: str | None):
     le checkout sur le tag résolu par le canal courant au moment du clic
     (réf. mission "canal Stable/Bêta") — None si la résolution GitHub a
     échoué, auquel cas le handler retombe sur son ancien comportement
-    (`git pull --ff-only` sur la branche courante)."""
-    logger.info(f"Début du processus de mise à jour système (cible : {target_tag or 'branche courante'})...")
+    (`git pull --ff-only` sur la branche courante). `download_url` est l'URL
+    directe du paquet d'installation pour les profils non-git."""
+    logger.info(f"Début du processus de mise à jour système (cible : {target_tag or 'branche courante'}, url: {download_url})...")
 
     try:
         await ws_manager.broadcast_force_reload()
@@ -315,7 +316,7 @@ async def _run_update_pipeline(target_tag: str | None):
     await asyncio.sleep(1.0)
 
     try:
-        get_profile_handler().apply_update(target_tag)
+        get_profile_handler().apply_update(target_tag=target_tag, download_url=download_url)
     except UpdateUnsupported as e:
         logger.warning(f"Mise à jour non applicable sur ce profil : {e.message}")
     except Exception as e:
@@ -326,11 +327,11 @@ async def _run_update_pipeline(target_tag: str | None):
 async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, str]:
     """Déclenche la mise à jour du système et le rechargement des services.
 
-    Non disponible sur les profils sans checkout git réel (Windows, et plus
-    tard macOS/Linux de bureau — cf. CDC §12, mécanisme non cadré pour ces
-    profils) : renvoie 400 avec un message clair plutôt que de démarrer un
-    pipeline qui échouerait silencieusement en tâche de fond."""
-    if not get_profile_handler().supports_git_versioning():
+    Vérifie si le profil de déploiement supporte l'application automatique
+    (git, paquet .deb, .exe Windows, .apk Android). Renvoie 400 avec un message
+    clair si le profil ne sait pas encore appliquer de mise à jour."""
+    handler = get_profile_handler()
+    if not handler.can_auto_apply():
         raise HTTPException(
             status_code=400,
             detail=(
@@ -345,7 +346,27 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
     channel = _get_update_channel(db)
     release_data = await _fetch_release_for_channel(channel)
     target_tag = (release_data or {}).get("tag_name") or None
-    background_tasks.add_task(_run_update_pipeline, target_tag)
+
+    profile = get_deployment_profile()
+    download_url = None
+    target_ext = None
+    if profile == "windows":
+        target_ext = ".exe"
+    elif profile == "linux-desktop":
+        target_ext = ".deb"
+    elif profile == "macos":
+        target_ext = ".dmg"
+    elif profile == "android":
+        target_ext = ".apk"
+
+    if target_ext and release_data:
+        for asset in release_data.get("assets", []):
+            name = (asset.get("name") or "").lower()
+            if name.endswith(target_ext):
+                download_url = asset.get("browser_download_url")
+                break
+
+    background_tasks.add_task(_run_update_pipeline, target_tag, download_url)
     return {
         "status": "started",
         "message": "Téléchargement et application de la mise à jour en cours...",

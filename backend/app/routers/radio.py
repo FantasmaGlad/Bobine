@@ -225,7 +225,7 @@ def update_track(track_id: int, payload: RadioTrackUpdate, db: Session = Depends
         raise HTTPException(status_code=404, detail="Morceau non trouvé")
 
     # `.model_fields_set` (v2) / `.__fields_set__` (v1, profil Android) —
-    # cf. docs/PortabiliteAndroid.md §3.1.
+    # cf. docs/ARCHITECTURE.md §3.1.
     fields_set = getattr(payload, "model_fields_set", None) or payload.__fields_set__
     text_fields = ("title", "artist", "album", "album_artist", "genre")
     for field in text_fields:

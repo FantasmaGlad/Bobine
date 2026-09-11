@@ -478,14 +478,15 @@ def _get_encoder_args(is_android: bool, width: int | None, height: int | None) -
         # Dell Wyse 5070 (Intel Gemini Lake UHD 600) ou station Linux avec VA-API
         dev = _find_vaapi_device()
         if dev:
-            return (["-vaapi_device", dev, "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-b:v", bitrate, *gop_args], "h264_vaapi")
+            return (["-vaapi_device", dev, "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-async_depth", "4", "-b:v", bitrate, *gop_args], "h264_vaapi")
 
     if system == "windows":
         # Windows : Intel QuickSync (h264_qsv)
         return (["-c:v", "h264_qsv", "-preset", "fast", "-b:v", bitrate, *gop_args], "h264_qsv")
 
     # Repli logiciel universel haute compatibilité (serveurs headless sans GPU, repli après échec GPU)
-    return (["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", *gop_args, "-keyint_min", "60"], "libx264")
+    # Race to sleep : preset ultrafast et tous les threads CPU disponibles (-threads 0) pour achever la tâche au plus vite
+    return (["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-threads", "0", "-pix_fmt", "yuv420p", *gop_args, "-keyint_min", "60"], "libx264")
 
 
 def _get_transcode_pipeline(
@@ -509,7 +510,7 @@ def _get_transcode_pipeline(
         "name": "software_libx264",
         "encoder_name": "libx264",
         "hw_in": [],
-        "enc_args": ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", *gop_args, "-keyint_min", "60"],
+        "enc_args": ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-threads", "0", "-pix_fmt", "yuv420p", *gop_args, "-keyint_min", "60"],
     }
 
     if is_android:
@@ -563,13 +564,13 @@ def _get_transcode_pipeline(
                     "name": "vaapi_full",
                     "encoder_name": "h264_vaapi",
                     "hw_in": ["-hwaccel", "vaapi", "-hwaccel_device", vaapi_dev, "-hwaccel_output_format", "vaapi"],
-                    "enc_args": ["-vf", "scale_vaapi=format=nv12", "-c:v", "h264_vaapi", "-b:v", bitrate, *gop_args],
+                    "enc_args": ["-vf", "scale_vaapi=format=nv12", "-c:v", "h264_vaapi", "-async_depth", "4", "-b:v", bitrate, *gop_args],
                 },
                 {
                     "name": "vaapi_hybrid",
                     "encoder_name": "h264_vaapi",
                     "hw_in": [],
-                    "enc_args": ["-vaapi_device", vaapi_dev, "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-b:v", bitrate, *gop_args],
+                    "enc_args": ["-vaapi_device", vaapi_dev, "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-async_depth", "4", "-b:v", bitrate, *gop_args],
                 },
                 sw_tier,
             ]
@@ -777,7 +778,7 @@ def normalize_video(
         c = [FFMPEG_BIN]
         if hw_in:
             c.extend(hw_in)
-        c.extend(["-i", input_path])
+        c.extend(["-threads", "0", "-i", input_path])
         if "recode_video" in actions:
             c.extend(enc_args)
         else:
@@ -786,12 +787,12 @@ def normalize_video(
         has_audio = meta.get("audio_codec") is not None
         if not has_audio:
             c.append("-an")
-        elif "recode_audio" in actions:
+        elif "recode_audio" in actions and (meta.get("audio_codec") or "").lower() != "aac":
             c.extend(["-c:a", "aac"])
         else:
             c.extend(["-c:a", "copy"])
 
-        c.extend(["-movflags", "+faststart", "-y", output_path])
+        c.extend(["-threads", "0", "-movflags", "+faststart", "-y", output_path])
         return c
 
     # Construction de la liste des paliers d'exécution

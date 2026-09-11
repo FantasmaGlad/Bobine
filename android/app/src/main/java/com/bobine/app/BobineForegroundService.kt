@@ -28,7 +28,7 @@ private const val TAG = "BobineForegroundService"
  * et la `Presentation` HDMI (Lot 4), DECOUPLE du cycle de vie de
  * `MainActivity` - c'est ce qui permet au cours de continuer de jouer sur
  * la sortie HDMI meme si l'app est fermee depuis le multitache (CDC
- * docs/PortabiliteAndroid.md SS7 : la tablette reste utilisable pour autre
+ * docs/ARCHITECTURE.md SS7 : la tablette reste utilisable pour autre
  * chose, pas un mode kiosque strict).
  *
  * Ne gere PAS encore l'exemption batterie (Device Owner, Lot 10) ni le

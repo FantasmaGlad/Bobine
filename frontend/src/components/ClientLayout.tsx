@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useAutoFullscreen } from "@/lib/useAutoFullscreen";
@@ -11,6 +11,13 @@ import { useScreenWakeLock } from "@/lib/useScreenWakeLock";
 import { navEntries, isNavGroup, footerNavLinks as footerNavLinkConfigs } from "@/lib/navLinks";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
+
+function getApiUrl(path: string) {
+  if (typeof window !== "undefined" && window.location.port === "3000") {
+    return `http://localhost:8001/api${path}`;
+  }
+  return `/api${path}`;
+}
 
 interface ClientLayoutProps {
   children: React.ReactNode;
@@ -29,9 +36,12 @@ function isNavLinkActive(pathname: string, href: string): boolean {
 
 export default function ClientLayout({ children }: ClientLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const isMobile = useIsMobile();
   const { t } = useAppSettings();
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+  const [updateAvailableVersion, setUpdateAvailableVersion] = useState<string | null>(null);
+  const [updateDismissed, setUpdateDismissed] = useState<boolean>(false);
   // Réf. mission UI/UX — "plein écran de base sur mobile" : demande le
   // plein écran navigateur dès le premier tap (le remote/coach mobile n'a
   // aucune raison de garder la barre d'adresse visible).
@@ -58,6 +68,19 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronise l'état du tiroir avec le système de routing externe (Next.js), pas un simple calcul dérivable au rendu
     setDrawerOpen(false);
   }, [pathname]);
+
+  // Notification de mise à jour globale cliquable (réf. retour utilisateur)
+  useEffect(() => {
+    if (isFullscreenRoute) return;
+    fetch(getApiUrl("/updates/check"), { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => {
+        if (d?.has_update) {
+          setUpdateAvailableVersion(d.latest_version ?? null);
+        }
+      })
+      .catch(() => {});
+  }, [isFullscreenRoute]);
 
   // Réf. mission UI/UX — icônes Google Material Symbols reprises telles
   // quelles du design importé (surface "PC Admin") plutôt que les SVG
@@ -125,6 +148,43 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       );
     });
 
+  const renderUpdateToast = () => {
+    if (!updateAvailableVersion || updateDismissed || pathname === "/settings" || pathname.startsWith("/settings/")) {
+      return null;
+    }
+    return (
+      <div
+        className="toast warning clickable olc-press olc-anim-in"
+        style={{ cursor: "pointer", zIndex: 1000 }}
+        onClick={() => router.push("/settings#updates-section")}
+        role="button"
+        tabIndex={0}
+      >
+        <Icon name="system_update" size={18} color="var(--accent-primary)" />
+        <span>{t("settingsPage.updateAvailable")} ({updateAvailableVersion})</span>
+        <button
+          type="button"
+          style={{
+            background: "none",
+            border: "none",
+            color: "inherit",
+            cursor: "pointer",
+            padding: "0 0 0 6px",
+            display: "flex",
+            alignItems: "center",
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setUpdateDismissed(true);
+          }}
+          aria-label="Fermer"
+        >
+          <Icon name="close" size={16} />
+        </button>
+      </div>
+    );
+  };
+
   // L'écran kiosk, l'interface cinéma adhérents et le mode coach mobile
   // n'ont ni sidebar ni en-tête d'administration : plein écran dédié
   // uniquement (réf. UX4.5).
@@ -174,6 +234,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             </div>
           </>
         )}
+        {renderUpdateToast()}
       </div>
     );
   }
@@ -215,6 +276,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             le statut système (Watcher/Écran) est déplacé dans Paramètres. */}
         <main className="page-content">{children}</main>
       </div>
+      {renderUpdateToast()}
     </div>
   );
 }

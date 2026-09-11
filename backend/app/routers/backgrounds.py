@@ -34,7 +34,7 @@ class BackgroundResponse(_ComputedFieldsCompatMixin, BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/PortabiliteAndroid.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
 
     # Réf. mission "fond figé ou animé" : pas de colonne dédiée en base,
     # dérivé de l'extension du fichier pour que le kiosk et les écrans admin

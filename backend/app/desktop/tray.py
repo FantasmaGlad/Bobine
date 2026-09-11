@@ -10,8 +10,7 @@ Setup), qui démarre et surveille `BobineBackend.exe` comme process enfant
 (cf. CDC §5.3 : « app de bureau lancée par un utilisateur connecté »,
 pas une « boîte noire »).
 
-Référence : docs/cahier-des-charges-multi-os.md §5.3/§5.4,
-docs/plan-implementation-portabilite-crossplatformx.md §2.
+Référence : docs/ARCHITECTURE.md §2.
 """
 
 import json

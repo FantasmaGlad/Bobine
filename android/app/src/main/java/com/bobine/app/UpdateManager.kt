@@ -104,7 +104,17 @@ object UpdateManager {
     // Manifest) evite seulement l'ecran intermediaire "Autoriser les
     // sources inconnues" - le Device Owner (Lot 10) en dispense aussi
     // automatiquement l'app d'apres la documentation Android (non
-    // reverifie en pratique dans cette session, aucun .apk reel a tester).
+    fun downloadAndInstall(context: Context, downloadUrl: String) {
+        Thread {
+            try {
+                val apkFile = downloadApk(context, downloadUrl)
+                Handler(Looper.getMainLooper()).post { triggerInstall(context, apkFile) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Erreur téléchargement ou installation de l'APK : ${e.message}", e)
+            }
+        }.start()
+    }
+
     private fun triggerInstall(context: Context, apkFile: File) {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", apkFile)
         val intent = Intent(Intent.ACTION_VIEW).apply {

@@ -110,6 +110,12 @@ function formatBytes(bytes: number): string {
 interface ToastState {
   message: string;
   type: "success" | "error" | "warning";
+  onClick?: () => void;
+}
+
+interface LidInfo {
+  has_lid: boolean;
+  prevent_sleep: boolean;
 }
 
 function getApiUrl(path: string) {
@@ -218,13 +224,48 @@ export default function SettingsPage() {
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [changingChannel, setChangingChannel] = useState(false);
 
-  const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
+  const [lidInfo, setLidInfo] = useState<LidInfo | null>(null);
+  const [updatingLid, setUpdatingLid] = useState(false);
+
+  const showToast = (message: string, type: ToastState["type"] = "success", onClick?: () => void) =>
+    setToast({ message, type, onClick });
 
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 5000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    fetch(getApiUrl("/settings/laptop-lid"), { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((info) => {
+        if (info) setLidInfo(info);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleToggleLid = async (preventSleep: boolean) => {
+    setUpdatingLid(true);
+    try {
+      const res = await fetch(getApiUrl("/settings/laptop-lid"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prevent_sleep: preventSleep }),
+      });
+      if (res.ok) {
+        const updated: LidInfo = await res.json();
+        setLidInfo(updated);
+        showToast(t("settingsPage.clamshellApplied"), "success");
+      } else {
+        showToast(t("settingsPage.clamshellError"), "error");
+      }
+    } catch {
+      showToast(t("settingsPage.clamshellError"), "error");
+    } finally {
+      setUpdatingLid(false);
+    }
+  };
 
   const fetchSettings = useCallback((showIndicator = false) => {
     if (showIndicator) setRefreshingNetwork(true);
@@ -382,7 +423,14 @@ export default function SettingsPage() {
         const info: UpdateInfo = await res.json();
         setUpdateInfo(info);
         if (info.has_update) {
-          showToast(t("settingsPage.updateAvailable"), "warning");
+          showToast(
+            `${t("settingsPage.updateAvailable")} (${info.latest_version})`,
+            "warning",
+            () => {
+              const el = document.getElementById("updates-section");
+              if (el) el.scrollIntoView({ behavior: "smooth" });
+            },
+          );
         } else if (!silent) {
           if (info.online) {
             showToast(t("settingsPage.upToDate"), "success");
@@ -543,8 +591,16 @@ export default function SettingsPage() {
   return (
     <div className="settings-page">
       {toast && (
-        <div className={`toast ${toast.type}`}>
+        <div
+          className={`toast ${toast.type} ${toast.onClick ? "clickable olc-press" : ""}`}
+          onClick={toast.onClick}
+          style={{ cursor: toast.onClick ? "pointer" : "default" }}
+          role={toast.onClick ? "button" : undefined}
+          tabIndex={toast.onClick ? 0 : undefined}
+        >
+          {toast.type === "warning" && <Icon name="system_update" size={18} color="var(--accent-primary)" />}
           <span>{toast.message}</span>
+          {toast.onClick && <Icon name="arrow_downward" size={16} />}
         </div>
       )}
 
@@ -729,36 +785,68 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          {/* Raccourcis d'accès direct */}
-          <div style={{ display: "flex", gap: "10px", marginTop: "16px", flexWrap: "wrap", alignItems: "center" }}>
-            <a
-              href="/grid"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-secondary"
-              style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none" }}
+          {/* Contrôle du capot (PC Portable / Clamshell) */}
+          {lidInfo?.has_lid && (
+            <div
+              style={{
+                marginTop: "16px",
+                padding: "16px 20px",
+                borderRadius: "var(--radius-md)",
+                background: "var(--bg-surface-elevated)",
+                border: "1px solid var(--border-color)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "16px",
+                flexWrap: "wrap",
+              }}
             >
-              <Icon name="grid_view" size={16} />
-              {t("settingsPage.wiredDisplayOpenGrid")}
-            </a>
-            <a
-              href="/cinema"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-secondary"
-              style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none" }}
-            >
-              <Icon name="movie" size={16} />
-              {t("settingsPage.wiredDisplayOpenCinema")}
-            </a>
-          </div>
+              <div style={{ flex: "1 1 280px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, fontSize: "0.95rem", color: "var(--text-main)" }}>
+                  <Icon name="laptop" size={20} />
+                  <span>{t("settingsPage.clamshellToggle")}</span>
+                </div>
+                <p className="settings-hint" style={{ margin: "4px 0 0 28px", fontSize: "0.85rem" }}>
+                  {t("settingsPage.clamshellDesc")}
+                </p>
+              </div>
+              <div
+                style={{
+                  display: "inline-flex",
+                  borderRadius: "var(--radius-md)",
+                  overflow: "hidden",
+                  border: "1px solid var(--border-color)",
+                  background: "var(--bg-surface-elevated)",
+                }}
+              >
+                <button
+                  type="button"
+                  className={`btn btn-sm ${lidInfo.prevent_sleep ? "btn-primary" : "btn-secondary"}`}
+                  style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 16px", fontWeight: 700 }}
+                  onClick={() => handleToggleLid(true)}
+                  disabled={updatingLid}
+                >
+                  {t("common.yes")}
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${!lidInfo.prevent_sleep ? "btn-primary" : "btn-secondary"}`}
+                  style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 16px", fontWeight: 700 }}
+                  onClick={() => handleToggleLid(false)}
+                  disabled={updatingLid}
+                >
+                  {t("common.no")}
+                </button>
+              </div>
+            </div>
+          )}
 
-          {/* Astuce selon plateforme */}
-          <p className="settings-hint" style={{ marginTop: "12px" }}>
-            {data?.deployment_profile === "android"
-              ? t("settingsPage.wiredDisplayTabletHint")
-              : t("settingsPage.wiredDisplayLaptopHint")}
-          </p>
+          {/* Astuce tablette sur profil Android */}
+          {data?.deployment_profile === "android" && (
+            <p className="settings-hint" style={{ marginTop: "12px" }}>
+              {t("settingsPage.wiredDisplayTabletHint")}
+            </p>
+          )}
         </div>
       </section>
 
@@ -936,7 +1024,7 @@ export default function SettingsPage() {
       </section>
 
       {/* ---- Mises à jour logicielles ---- */}
-      <section className="live-block">
+      <section className="live-block" id="updates-section">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
           <h3 style={{ margin: 0 }}>
             <Icon name="system_update" size={18} /> {t("settingsPage.updatesSection")}

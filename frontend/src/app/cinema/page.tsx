@@ -418,9 +418,23 @@ export default function CinemaPage() {
         .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
         .then((data: CinemaVideo[]) => {
           if (cancelled || !Array.isArray(data)) return;
-          setVideos((prev) =>
-            prev.length === data.length && prev.every((v, i) => v.id === data[i]?.id) ? prev : data,
-          );
+          setVideos((prev) => {
+            const isSame =
+              prev.length === data.length &&
+              prev.every((v, i) => {
+                const d = data[i];
+                return (
+                  d &&
+                  v.id === d.id &&
+                  v.title === d.title &&
+                  v.program === d.program &&
+                  v.release === d.release &&
+                  v.duration_seconds === d.duration_seconds &&
+                  v.thumbnail_path === d.thumbnail_path
+                );
+              });
+            return isSame ? prev : data;
+          });
         })
         .catch(() => {
           if (cancelled) return;

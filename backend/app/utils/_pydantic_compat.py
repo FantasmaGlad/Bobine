@@ -1,5 +1,5 @@
 """Compatibilité Pydantic v1 (profil Android) / v2 (toutes les autres
-plateformes) — cf. docs/PortabiliteAndroid.md §3.1 : `pydantic-core` (donc
+plateformes) — cf. docs/ARCHITECTURE.md §3.1 : `pydantic-core` (donc
 Pydantic v2, donc FastAPI) n'a aucune distribution Android réelle, d'où un
 downgrade Pydantic v1 sur ce seul profil.
 

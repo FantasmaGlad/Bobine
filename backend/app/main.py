@@ -428,7 +428,7 @@ app.mount("/api/branding", StaticFiles(directory=str(branding_path)), name="bran
 # `Contents/MacOS/`).
 # `sys.getandroidapilevel` : attribut ajouté par le build CPython officiel
 # pour Android (présent uniquement sous Chaquopy), moyen standard et fiable
-# de détecter ce profil — cf. docs/PortabiliteAndroid.md §3.1. Chaquopy
+# de détecter ce profil — cf. docs/ARCHITECTURE.md §3.1. Chaquopy
 # place le code applicatif sous un dossier fixe `AssetFinder/app/` (pas la
 # position relative réelle du dépôt) : `__file__` ne remonte donc pas à un
 # `frontend/` sibling de `backend/` comme dans le cas "dépôt" ci-dessous —

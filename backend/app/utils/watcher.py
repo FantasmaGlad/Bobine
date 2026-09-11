@@ -5,7 +5,7 @@ try:
     from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler
 except ImportError:  # watchdog n'a aucune distribution Android (profil Android
-    # uniquement — cf. docs/PortabiliteAndroid.md §3.1/§9) : repli par polling.
+    # uniquement — cf. docs/ARCHITECTURE.md §3.1/§9) : repli par polling.
     from app.utils._polling_observer import PollingObserver as Observer, FileSystemEventHandler
 
 from app.config import settings

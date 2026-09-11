@@ -19,7 +19,7 @@ from typing import List
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 try:
     from pydantic import BaseModel, field_validator
-except ImportError:  # Pydantic v1 (profil Android, cf. docs/PortabiliteAndroid.md §3.1)
+except ImportError:  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1)
     from pydantic import BaseModel, validator as field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -189,7 +189,7 @@ def update_announcement(announcement_id: int, payload: RadioAnnouncementUpdate, 
         raise HTTPException(status_code=404, detail="Rappel non trouvé")
 
     # `.model_fields_set` (v2) / `.__fields_set__` (v1, profil Android) —
-    # cf. docs/PortabiliteAndroid.md §3.1.
+    # cf. docs/ARCHITECTURE.md §3.1.
     fields_set = getattr(payload, "model_fields_set", None) or payload.__fields_set__
     if "description" in fields_set:
         description = (payload.description or "").strip()

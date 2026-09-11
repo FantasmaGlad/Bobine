@@ -12,6 +12,10 @@ La désinstallation est déléguée au gestionnaire de paquets de la distributio
 
 import logging
 import os
+import subprocess
+import tempfile
+import urllib.request
+from pathlib import Path
 
 from app.utils.deployment import ProfileHandler, UpdateUnsupported
 
@@ -20,6 +24,10 @@ logger = logging.getLogger(__name__)
 
 class LinuxDesktopHandler(ProfileHandler):
     profile = "linux-desktop"
+
+    def _is_git_clone(self) -> bool:
+        repo_dir = Path(__file__).resolve().parent.parent.parent.parent
+        return (repo_dir / ".git").exists()
 
     def restart_services(self) -> None:
         logger.info("Arrêt du process pour redémarrage (relance attendue de BobineTray ou systemd --user).")
@@ -36,12 +44,54 @@ class LinuxDesktopHandler(ProfileHandler):
         )
 
     def supports_git_versioning(self) -> bool:
-        return False
+        return self._is_git_clone()
 
-    def apply_update(self, target_tag: str | None = None) -> None:
-        raise UpdateUnsupported(
-            "La mise à jour automatique n'est pas encore disponible sur "
-            "Linux (bureau) — téléchargez et installez le dernier paquet .deb "
-            "depuis les releases GitHub du projet "
-            "(github.com/FantasmaGlad/Bobine/releases) ou mettez à jour via apt."
-        )
+    def can_auto_apply(self) -> bool:
+        return True
+
+    def apply_update(self, target_tag: str | None = None, download_url: str | None = None) -> None:
+        repo_dir = Path(__file__).resolve().parent.parent.parent.parent
+        if self._is_git_clone():
+            if target_tag:
+                subprocess.run(
+                    ["git", "fetch", "--tags", "--force"],
+                    cwd=repo_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=45,
+                    check=True,
+                )
+                res = subprocess.run(
+                    ["git", "checkout", target_tag],
+                    cwd=repo_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=45,
+                )
+                logger.info(f"git checkout {target_tag} (dev linux) : {res.stdout or res.stderr}")
+            else:
+                res = subprocess.run(
+                    ["git", "pull", "--ff-only"],
+                    cwd=repo_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=45,
+                )
+                logger.info(f"git pull (dev linux) : {res.stdout}")
+            self.restart_services()
+            return
+
+        # Environnement paquet installé .deb
+        if not download_url:
+            raise UpdateUnsupported(
+                "Aucun lien de téléchargement disponible pour mettre à jour le paquet Linux (.deb)."
+            )
+
+        deb_file = Path(tempfile.gettempdir()) / "bobine_update.deb"
+        logger.info(f"Téléchargement du paquet .deb depuis {download_url}...")
+        urllib.request.urlretrieve(download_url, deb_file)
+
+        # Lance l'installation polkit/dpkg en arrière-plan détaché
+        cmd = f"sleep 1 && pkexec dpkg -i {deb_file}"
+        subprocess.Popen(["sh", "-c", cmd], start_new_session=True)
+        self.restart_services()

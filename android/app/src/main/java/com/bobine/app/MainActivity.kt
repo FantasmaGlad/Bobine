@@ -41,7 +41,7 @@ private const val GRID_URL = "http://127.0.0.1:8000/grid/"
  * Ecran tactile de la tablette (Lot 5, cf. docs/plan-implementation-android.md) :
  * plein ecran immersif au demarrage, mais PAS de Lock Task - un geste
  * standard Android (Accueil, multitache) reste actif a tout moment (CDC
- * docs/PortabiliteAndroid.md SS2/SS7, decision explicite : la tablette
+ * docs/ARCHITECTURE.md SS2/SS7, decision explicite : la tablette
  * reste utilisable pour autre chose, pas un poste dedie).
  *
  * Ne demarre plus le backend elle-meme depuis le Lot 6 : c'est

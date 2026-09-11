@@ -1,4 +1,4 @@
-"""Handler du profil `android` (app Chaquopy, cf. CDC docs/PortabiliteAndroid.md,
+"""Handler du profil `android` (app Chaquopy, cf. CDC docs/ARCHITECTURE.md,
 plan docs/plan-implementation-android.md Lot 12).
 
 Contrairement aux autres profils, il n'existe PAS ici de superviseur léger
@@ -48,9 +48,20 @@ class AndroidHandler(ProfileHandler):
     def supports_git_versioning(self) -> bool:
         return False
 
-    def apply_update(self, target_tag: str | None = None) -> None:
-        raise UpdateUnsupported(
-            "La mise à jour automatique n'est pas encore disponible sur Android — "
-            "réinstallez le dernier APK depuis les releases GitHub du projet "
-            "(github.com/FantasmaGlad/Bobine/releases)."
-        )
+    def can_auto_apply(self) -> bool:
+        return True
+
+    def apply_update(self, target_tag: str | None = None, download_url: str | None = None) -> None:
+        if not download_url:
+            raise UpdateUnsupported(
+                "Aucun lien de téléchargement d'APK disponible pour la mise à jour."
+            )
+        try:
+            from java import jclass  # Chaquopy
+            py_app = jclass("com.chaquo.python.android.PyApplication")
+            context = py_app.context
+            update_mgr = jclass("com.bobine.app.UpdateManager")
+            update_mgr.INSTANCE.downloadAndInstall(context, download_url)
+        except Exception as exc:
+            logger.exception("Échec du déclenchement de la mise à jour Android via UpdateManager")
+            raise UpdateUnsupported(f"Impossible de déclencher la mise à jour Android : {exc}") from exc

@@ -555,9 +555,9 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--accent-primary);
 }
 .update-badge.alert {
-  background: color-mix(in srgb, var(--accent-warning) 14%, var(--bg-surface-elevated));
-  border-color: color-mix(in srgb, var(--accent-warning) 35%, transparent);
-  color: var(--accent-warning);
+  background: color-mix(in srgb, var(--accent-primary) 15%, var(--bg-surface-elevated));
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  color: var(--accent-primary);
 }
 .update-card-banner {
   padding: 16px;
@@ -1476,8 +1476,9 @@ h1, h2, h3, h4, h5, h6 {
   bottom: 24px;
   right: 24px;
   background: var(--bg-surface-elevated);
+  color: var(--text-main);
   border-left: 4px solid var(--accent-success);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
   padding: 16px 24px;
   border-radius: var(--radius-md);
   z-index: 150;
@@ -1487,6 +1488,13 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   gap: 12px;
   animation: slideInRight var(--transition-normal);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.toast[style*="cursor: pointer"]:hover,
+.toast.clickable:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.55);
 }
 
 .toast.error {
@@ -1494,7 +1502,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .toast.warning {
-  border-left-color: var(--accent-warning);
+  border-left-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-surface-elevated));
 }
 
 /* ============================================================
@@ -4047,18 +4056,13 @@ a.status-pill:hover,
 .cinema-hero {
   position: relative;
   min-height: 52vh;
-  /* Plafond ajouté (réf. correctif "mise en page distordue sur écrans
-     inhabituels type 1600x1200") : sans lui, 52vh occupe une part
-     disproportionnée de la hauteur sur un écran à ratio proche du carré,
-     écrasant la grille de cours en dessous. */
+  /* Plafond pour écrans à ratio proche du carré */
   max-height: 60vh;
   display: flex;
   align-items: flex-end;
-  /* justify-content sans effet tant qu'il n'y a qu'un seul enfant
-     (.cinema-hero-content) - pousse le widget "en cours de lecture" (/grid,
-     second enfant conditionnel) à droite quand il est présent. */
   justify-content: space-between;
   overflow: hidden;
+  border-bottom: 1px solid var(--border-color);
   animation: cinema-fade-up 0.5s ease both;
 }
 
@@ -4075,35 +4079,45 @@ a.status-pill:hover,
 .cinema-hero-scrim {
   position: absolute;
   inset: 0;
-  /* Option B (Style Netflix) : dégradé resserré à courbe naturelle douce.
-     Remplace l'ancien dégradé 55% baveux et boueux par une courbe à paliers
-     progressifs (eased stops) concentrée sur les 32% inférieurs pour connecter
-     naturellement le héros au fond de page tout en laissant le visuel 100% net. */
+  /* Coupure nette premium : suppression du dégradé fade-out vers le fond de page.
+     Légère protection ambiante sur l'image pour préserver la netteté et le contraste. */
   background:
     linear-gradient(
-      to top,
-      var(--bg-main) 0%,
-      color-mix(in srgb, var(--bg-main) 92%, transparent) 8%,
-      color-mix(in srgb, var(--bg-main) 65%, transparent) 16%,
-      color-mix(in srgb, var(--bg-main) 28%, transparent) 26%,
-      transparent 35%
-    ),
-    linear-gradient(
-      to right,
-      color-mix(in srgb, var(--bg-main) 82%, transparent) 0%,
-      color-mix(in srgb, var(--bg-main) 45%, transparent) 22%,
-      transparent 45%
+      to bottom,
+      rgba(0, 0, 0, 0.4) 0%,
+      transparent 35%,
+      rgba(0, 0, 0, 0.25) 100%
     );
+  pointer-events: none;
 }
 
+/* Widget Glassmorphism Apple pour les informations du héros */
 .cinema-hero-content {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 10px;
-  padding: 48px 64px 42px;
-  max-width: 720px;
+  gap: 12px;
+  margin: 36px 48px;
+  padding: 24px 32px;
+  max-width: 660px;
+  background: color-mix(in srgb, var(--bg-surface-elevated) 65%, transparent);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .cinema-hero-content {
+    margin: 16px;
+    padding: 18px 20px;
+    border-radius: 18px;
+    max-width: calc(100% - 32px);
+  }
 }
 
 /* Fond = accent du THÈME actif (réf. mission "intégrer au thème") : change
@@ -4120,12 +4134,13 @@ a.status-pill:hover,
 }
 
 .cinema-hero-title {
-  font-size: clamp(2rem, 5vw, 3.4rem);
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
   font-weight: 800;
-  line-height: 1.05;
+  line-height: 1.12;
   margin: 0;
+  color: var(--text-main);
   letter-spacing: -0.015em;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
 }
 
 /* Typographie tranchante et sans halo baveux sur les thèmes clairs */
@@ -4140,12 +4155,6 @@ a.status-pill:hover,
   text-shadow: none;
 }
 
-/* Garde-fou écrans à ratio proche du carré (ex. 1600x1200, 4:3) — réf.
-   correctif "mise en page distordue sur écrans inhabituels" : jusqu'ici
-   aucune media query de ce dépôt ne testait l'ASPECT plutôt que la seule
-   largeur, donc un écran large mais peu haut recevait l'habillage "desktop"
-   sans aucun ajustement de forme. Resserre le héros pour laisser plus de
-   place verticale à la grille de cours en dessous. */
 @media (max-aspect-ratio: 4/3) {
   .cinema-hero {
     min-height: 38vh;
@@ -4153,18 +4162,13 @@ a.status-pill:hover,
   }
 }
 
-/* Pastille de fond (réf. mission "intégrer au thème") : détache le texte du
-   fond vidéo/image derrière le héros, avec une teinte de surface qui suit le
-   thème plutôt que du texte nu. display:inline-flex pour que la pastille ne
-   dépasse pas la largeur du contenu (c'est un <p>, bloc par défaut). */
 .cinema-hero-meta {
   display: inline-flex;
+  align-items: center;
   color: var(--text-muted);
-  font-size: 1.05rem;
+  font-size: 0.95rem;
+  font-weight: 600;
   margin: 0;
-  background: color-mix(in srgb, var(--bg-surface-elevated) 88%, transparent);
-  padding: 5px 14px;
-  border-radius: 999px;
 }
 
 .cinema-hero-play {
@@ -4259,7 +4263,7 @@ a.status-pill:hover,
   display: flex;
   gap: 18px;
   overflow-x: auto;
-  padding: 6px 4px 16px;
+  padding: 16px 8px 24px;
   /* Barre de défilement native masquée : les flèches ci-dessous en sont le
      remplacement principal ; le geste tactile/trackpad reste disponible. */
   scrollbar-width: none;
@@ -4396,16 +4400,23 @@ a.status-pill:hover,
   position: relative;
   width: 300px;
   aspect-ratio: 16 / 9;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
   background: var(--bg-surface-elevated);
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 4px 12px -2px rgba(0, 0, 0, 0.15),
+    0 12px 28px -4px rgba(0, 0, 0, 0.25);
   border: 2px solid transparent;
-  transition: border-color 0.18s ease, box-shadow 0.22s ease;
+  transition: border-color 0.2s ease, box-shadow 0.24s ease, transform 0.2s ease;
 }
 
-.cinema-card:hover .cinema-card-thumb {
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+.cinema-card:hover .cinema-card-thumb,
+.cinema-card:focus-visible .cinema-card-thumb {
+  border-color: var(--accent-primary);
+  box-shadow:
+    0 8px 20px -3px rgba(0, 0, 0, 0.25),
+    0 18px 36px -6px rgba(0, 0, 0, 0.35),
+    0 0 0 1px color-mix(in srgb, var(--accent-primary) 30%, transparent);
 }
 
 .cinema-card-duration {
@@ -4418,11 +4429,7 @@ a.status-pill:hover,
   font-weight: 700;
   padding: 3px 8px;
   border-radius: 6px;
-}
-
-.cinema-card:hover .cinema-card-thumb,
-.cinema-card:focus-visible .cinema-card-thumb {
-  border-color: var(--accent-primary);
+  z-index: 2;
 }
 
 .cinema-card-thumb img {
@@ -4517,9 +4524,10 @@ a.status-pill:hover,
 .cinema-all-thumb {
   flex: 0 0 96px;
   aspect-ratio: 16 / 9;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
   background: var(--bg-surface-elevated);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;

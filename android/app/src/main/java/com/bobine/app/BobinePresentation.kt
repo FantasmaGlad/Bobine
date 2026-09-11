@@ -18,7 +18,7 @@ import android.webkit.WebViewClient
 // 127.0.0.1 (PAS 127.0.0.2 comme l'ecran tactile, cf. MainActivity) :
 // isWiredDisplay() (frontend/src/lib/useDisplayOutputRedirect.ts) classe
 // cet hostname exact "cable" - la sortie HDMI doit suivre le reglage
-// cableOutput choisi par l'admin (CDC docs/PortabiliteAndroid.md SS4),
+// cableOutput choisi par l'admin (CDC docs/ARCHITECTURE.md SS4),
 // exactement comme le canal Cable existant sur mini PC x86.
 private const val CINEMA_URL = "http://127.0.0.1:8000/cinema/"
 

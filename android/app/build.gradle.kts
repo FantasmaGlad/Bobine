@@ -39,7 +39,7 @@ val androidVersionCode: Int = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull
 
 android {
     namespace = "com.bobine.app"
-    // CDC docs/PortabiliteAndroid.md §2 : minSdk/targetSdk API 34-36, priorité
+    // CDC docs/ARCHITECTURE.md §2 : minSdk/targetSdk API 34-36, priorité
     // donnée à l'avenir plutôt qu'à la compatibilité descendante. compileSdk 36
     // correspond à la tablette pilote réelle (Xiaomi Pad 8, Android 16).
     compileSdk = 36

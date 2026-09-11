@@ -24,7 +24,7 @@ class ActivityLogResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/PortabiliteAndroid.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
 
 
 @router.get("/activity", response_model=List[ActivityLogResponse])

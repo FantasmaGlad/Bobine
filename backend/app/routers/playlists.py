@@ -36,7 +36,7 @@ class VideoResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/PortabiliteAndroid.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
 
 
 class PlaylistItemResponse(BaseModel):
@@ -46,7 +46,7 @@ class PlaylistItemResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/PortabiliteAndroid.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
 
 
 class PlaylistDetailResponse(BaseModel):
@@ -58,7 +58,7 @@ class PlaylistDetailResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/PortabiliteAndroid.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
 
 
 class PlaylistSummaryResponse(BaseModel):
@@ -70,7 +70,7 @@ class PlaylistSummaryResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/PortabiliteAndroid.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
 
 
 @router.get("", response_model=List[PlaylistSummaryResponse])

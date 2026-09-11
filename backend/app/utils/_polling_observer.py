@@ -1,5 +1,5 @@
 """Repli du profil Android pour la surveillance de dossier (cf.
-docs/PortabiliteAndroid.md §3.1/§9, docs/plan-implementation-android.md Lot 0) :
+docs/ARCHITECTURE.md §3.1/§9, docs/plan-implementation-android.md Lot 0) :
 le paquet `watchdog` n'a aucune distribution Android (le noyau expose bien
 inotify, mais aucun wheel du paquet PyPI n'existe pour cette cible). Ce module
 n'est importé que si `watchdog` est absent — voir `app/utils/watcher.py`.

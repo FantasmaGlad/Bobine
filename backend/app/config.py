@@ -5,7 +5,7 @@ import tomllib
 from pathlib import Path
 try:
     from pydantic_settings import BaseSettings
-except ImportError:  # Pydantic v1 (profil Android, cf. docs/PortabiliteAndroid.md §3.1 —
+except ImportError:  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1 —
     # pydantic-core n'a aucune distribution Android, downgrade Pydantic v1 sur ce profil
     # uniquement). BaseSettings est intégré nativement à Pydantic v1, pas de paquet séparé.
     from pydantic import BaseSettings
@@ -379,7 +379,7 @@ def reload_settings() -> None:
     global settings
     new_settings = load_settings()
     # `.model_fields` (Pydantic v2) sauf sur le profil Android où `.__fields__`
-    # (v1) est le seul disponible (cf. docs/PortabiliteAndroid.md §3.1) — un
+    # (v1) est le seul disponible (cf. docs/ARCHITECTURE.md §3.1) — un
     # dict, itérer dessus donne aussi ses clés (mêmes noms de champs).
     for field in getattr(settings, "model_fields", None) or settings.__fields__:
         if hasattr(new_settings, field):

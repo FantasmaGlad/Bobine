@@ -43,7 +43,7 @@ class LinuxHeadlessHandler(ProfileHandler):
     def supports_git_versioning(self) -> bool:
         return True
 
-    def apply_update(self, target_tag: str | None = None) -> None:
+    def apply_update(self, target_tag: str | None = None, download_url: str | None = None) -> None:
         repo_dir = Path(__file__).resolve().parent.parent.parent.parent
         if target_tag:
             # Épingle le checkout sur le tag ciblé plutôt qu'un `git pull`

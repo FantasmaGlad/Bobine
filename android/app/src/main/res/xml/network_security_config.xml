@@ -6,7 +6,7 @@
      fonctionnait sans probleme sur l'emulateur (API 37, WebView systeme
      different). Ne PAS elargir a usesCleartextTraffic="true" global
      (manifest) - seuls les deux hostnames loopback reellement utilises par
-     l'architecture (cf. docs/PortabiliteAndroid.md SS4, decision Lot 3 :
+     l'architecture (cf. docs/ARCHITECTURE.md SS4, decision Lot 3 :
      127.0.0.1 = cable, 127.0.0.2 = reseau) ont besoin de cette exception,
      jamais un domaine externe. -->
 <network-security-config>

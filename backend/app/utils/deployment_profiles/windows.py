@@ -44,10 +44,48 @@ class WindowsHandler(ProfileHandler):
     def supports_git_versioning(self) -> bool:
         return False
 
-    def apply_update(self, target_tag: str | None = None) -> None:
-        raise UpdateUnsupported(
-            "La mise à jour automatique n'est pas encore disponible sur "
-            "Windows — téléchargez et exécutez le dernier installeur "
-            "depuis les releases GitHub du projet "
-            "(github.com/FantasmaGlad/Bobine/releases)."
-        )
+    def can_auto_apply(self) -> bool:
+        return True
+
+    def apply_update(self, target_tag: str | None = None, download_url: str | None = None) -> None:
+        if not download_url:
+            raise UpdateUnsupported(
+                "Aucun lien de téléchargement disponible pour mettre à jour l'application Windows (.exe)."
+            )
+
+        import subprocess
+        import sys
+        import tempfile
+        import urllib.request
+        from pathlib import Path
+
+        temp_dir = Path(tempfile.gettempdir())
+        installer_path = temp_dir / "Bobine-Setup-update.exe"
+        logger.info(f"Téléchargement de l'installeur Windows depuis {download_url}...")
+        urllib.request.urlretrieve(download_url, installer_path)
+
+        app_dir = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(os.environ.get("ProgramFiles", "C:\\Program Files")) / "Bobine"
+        tray_exe = app_dir / "BobineTray.exe"
+
+        batch_path = temp_dir / "bobine_update_runner.bat"
+        # Script batch qui attend la sortie de BobineBackend, exécute l'installeur Inno Setup silencieusement, et relance BobineTray
+        batch_content = f"""@echo off
+timeout /t 2 /nobreak > NUL
+"{installer_path}" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS
+if exist "{tray_exe}" (
+    start "" "{tray_exe}"
+)
+del "{installer_path}" > NUL 2>&1
+del "%~f0" > NUL 2>&1
+"""
+        batch_path.write_text(batch_content, encoding="latin1")
+
+        logger.info(f"Lancement du batch de mise à jour Windows {batch_path}...")
+        creationflags = 0
+        if hasattr(subprocess, "DETACHED_PROCESS"):
+            creationflags |= subprocess.DETACHED_PROCESS
+        if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+            creationflags |= subprocess.CREATE_NEW_PROCESS_GROUP
+
+        subprocess.Popen(["cmd.exe", "/c", str(batch_path)], creationflags=creationflags, close_fds=True)
+        self.restart_services()
