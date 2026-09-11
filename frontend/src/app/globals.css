@@ -570,16 +570,32 @@ h1, h2, h3, h4, h5, h6 {
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .update-notes-box {
-  max-height: 220px;
+  max-height: 380px;
   overflow-y: auto;
-  padding: 12px 14px;
+  padding: 16px 20px;
   background: var(--bg-base);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  color: var(--text-muted);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-main);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06) inset;
+}
+.update-notes-box::-webkit-scrollbar {
+  width: 6px;
+}
+.update-notes-box::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.wired-display-action-card {
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.wired-display-action-card:hover {
+  border-color: var(--accent-primary) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
 }
 
 /* Lift + accent border au survol des cartes (bibliothèque, fonds animés,
@@ -4052,163 +4068,214 @@ a.status-pill:hover,
   }
 }
 
-/* --- Héros "À la une" (mise en page verticale façon Netflix) --- */
+/* --- Héros "À la une" (Authentique style Netflix TV) --- */
 .cinema-hero {
   position: relative;
   min-height: 52vh;
-  /* Plafond pour écrans à ratio proche du carré */
   max-height: 60vh;
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+  align-items: center;
   overflow: hidden;
-  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-base);
+  border-bottom: none;
   animation: cinema-fade-up 0.5s ease both;
 }
 
-.cinema-hero-backdrop {
+.cinema-hero-backdrop-wrap {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 75%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cinema-hero-backdrop {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: saturate(1.05);
+  object-position: center 25%;
+  filter: saturate(1.1) contrast(1.04);
   image-rendering: -webkit-optimize-contrast;
 }
 
 .cinema-hero-scrim {
   position: absolute;
   inset: 0;
-  /* Coupure nette premium : suppression du dégradé fade-out vers le fond de page.
-     Légère protection ambiante sur l'image pour préserver la netteté et le contraste. */
+  pointer-events: none;
+  /* Masque de transition Netflix :
+     1. Fondu horizontal : 100% opaque à la couleur du thème (var(--bg-base)) à gauche
+        sur toute la zone du texte, puis fondu rapide vers transparent entre 30% et 75%
+        pour révéler la miniature sur la droite.
+     2. Fondu vertical bas : fondu naturel vers var(--bg-base) pour une transition sans couture
+        vers les rangées de cours en dessous (zéro coupure nette ou ligne dure).
+     3. Léger assombrissement au sommet. */
   background:
     linear-gradient(
+      to right,
+      var(--bg-base) 0%,
+      var(--bg-base) 34%,
+      color-mix(in srgb, var(--bg-base) 94%, transparent) 46%,
+      color-mix(in srgb, var(--bg-base) 55%, transparent) 62%,
+      transparent 80%
+    ),
+    linear-gradient(
+      to top,
+      var(--bg-base) 0%,
+      color-mix(in srgb, var(--bg-base) 80%, transparent) 22%,
+      transparent 55%
+    ),
+    linear-gradient(
       to bottom,
-      rgba(0, 0, 0, 0.4) 0%,
-      transparent 35%,
-      rgba(0, 0, 0, 0.25) 100%
+      color-mix(in srgb, var(--bg-base) 45%, transparent) 0%,
+      transparent 24%
     );
-  pointer-events: none;
 }
 
-/* Widget Glassmorphism Apple pour les informations du héros */
+/* Zone d'information héroïque compacte & riche posée directement sur le fond */
 .cinema-hero-content {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 12px;
-  margin: 36px 48px;
-  padding: 24px 32px;
-  max-width: 660px;
-  background: color-mix(in srgb, var(--bg-surface-elevated) 65%, transparent);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
-  border-radius: 24px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+  gap: 10px;
+  margin: 0;
+  padding: 40px 64px;
+  max-width: 640px;
   z-index: 2;
-  transition: all 0.3s ease;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 @media (max-width: 768px) {
   .cinema-hero-content {
-    margin: 16px;
-    padding: 18px 20px;
-    border-radius: 18px;
-    max-width: calc(100% - 32px);
+    padding: 24px 20px;
+    max-width: 100%;
   }
 }
 
-/* Fond = accent du THÈME actif (réf. mission "intégrer au thème") : change
-   avec le thème choisi, plutôt que la couleur fixe du programme du cours. */
-.cinema-hero-badge {
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent-primary-fg);
-  background: var(--accent-primary);
-  padding: 4px 12px;
-  border-radius: 999px;
-}
-
-.cinema-hero-title {
-  font-size: clamp(1.8rem, 4vw, 2.8rem);
-  font-weight: 800;
-  line-height: 1.12;
-  margin: 0;
-  color: var(--text-main);
-  letter-spacing: -0.015em;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
-}
-
-/* Typographie tranchante et sans halo baveux sur les thèmes clairs */
-:root[data-theme="clair"] .cinema-hero-title,
-:root[data-theme="charbon"] .cinema-hero-title,
-:root[data-theme="beige"] .cinema-hero-title,
-:root[data-theme="coco"] .cinema-hero-title,
-:root[data-theme="menthe"] .cinema-hero-title,
-:root[data-theme="miel"] .cinema-hero-title,
-:root[data-theme="lavande"] .cinema-hero-title,
-:root[data-theme="ciel"] .cinema-hero-title {
-  text-shadow: none;
-}
-
-@media (max-aspect-ratio: 4/3) {
-  .cinema-hero {
-    min-height: 38vh;
-    max-height: 46vh;
-  }
-}
-
-.cinema-hero-meta {
-  display: inline-flex;
-  align-items: center;
-  color: var(--text-muted);
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.cinema-hero-play {
+.cinema-hero-brand-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 10px;
+}
+
+.cinema-brand-logo {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+}
+
+.cinema-hero-kicker {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+}
+
+.cinema-hero-title {
+  font-size: clamp(2rem, 4.4vw, 3.6rem);
+  font-weight: 900;
+  line-height: 1.05;
+  margin: 0;
+  color: var(--text-main);
+  letter-spacing: -0.025em;
+  text-transform: uppercase;
+}
+
+.cinema-hero-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.cinema-hero-program-tag {
+  color: var(--accent-primary);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.cinema-hero-year,
+.cinema-hero-duration {
+  color: var(--text-muted);
+}
+
+.cinema-hero-badge-pill {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid color-mix(in srgb, var(--border-color) 90%, transparent);
+  background: color-mix(in srgb, var(--bg-surface-elevated) 60%, transparent);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.cinema-hero-desc {
+  font-size: 0.94rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: 2px 0 6px;
+  max-width: 520px;
+}
+
+.cinema-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.cinema-hero-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   border: none;
-  border-radius: 999px;
-  padding: 14px 28px;
-  font-size: 1.05rem;
+  border-radius: 8px;
+  padding: 14px 30px;
+  font-size: 1.08rem;
   font-weight: 800;
   color: var(--accent-primary-fg);
   background: var(--accent-primary);
   cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-  box-shadow: 0 8px 26px color-mix(in srgb, var(--accent-primary) 45%, transparent);
-  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 6px 24px color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
   user-select: none;
-  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .cinema-hero-play:hover,
 .cinema-hero-play:focus-visible {
-  transform: translateY(-2px) scale(1.04);
+  transform: translateY(-2px) scale(1.03);
   filter: brightness(1.08);
   outline: none;
 }
 
 .cinema-hero-play:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
   filter: brightness(0.92);
 }
 
 /* --- Corps vertical : rangées par programme puis grille complète --- */
 .cinema-sections {
-  padding: 26px 64px 72px;
+  padding: 18px 64px 72px;
   display: flex;
   flex-direction: column;
-  gap: 34px;
+  gap: 32px;
 }
 
 .cinema-subtitle {
@@ -4228,22 +4295,21 @@ a.status-pill:hover,
 
 .cinema-row-header {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 
-/* Pastille de fond (réf. mission "intégrer au thème") : le titre de rangée
-   ("RPM", "Sprint"...) reposait sur du texte nu — une teinte de surface qui
-   suit le thème le détache mieux du fond de page. */
+/* Titre de rangée Netflix : sobre, sans bulle pill baveuse */
 .cinema-row-header h2 {
-  font-size: 1.3rem;
+  font-size: 1.25rem;
   font-weight: 800;
   margin: 0;
-  letter-spacing: 0.02em;
-  background: color-mix(in srgb, var(--bg-surface-elevated) 88%, transparent);
-  padding: 4px 14px;
-  border-radius: 999px;
+  letter-spacing: -0.01em;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: var(--text-main) !important;
 }
 
 .cinema-row-count {

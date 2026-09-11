@@ -5,6 +5,7 @@ import { useAppSettings, type Theme } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
+import MarkdownView from "@/components/MarkdownView";
 
 // Profil de déploiement (réf. PortabiliteCrossPlatformX §5.1) — détermine si
 // la zone Désinstaller propose une action directe (appliance headless) ou de
@@ -785,6 +786,107 @@ export default function SettingsPage() {
             </button>
           </div>
 
+          {/* Liens d'accès direct au mode Pupitre Studio & Écran Vidéo */}
+          {wiredDisplayMode === "dual_screen" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }} className="olc-anim-in">
+              {/* Carte 1 : Pupitre Studio */}
+              <a
+                href="/grid"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="wired-display-action-card olc-card-hover"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "16px 20px",
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--bg-surface-elevated)",
+                  border: "1px solid var(--border-color)",
+                  textDecoration: "none",
+                  color: "inherit",
+                  gap: "16px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                  <div style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--accent-primary)",
+                    color: "var(--accent-primary-fg)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}>
+                    <Icon name="touch_app" size={22} />
+                  </div>
+                  <div>
+                    <strong style={{ display: "block", fontSize: "0.98rem", color: "var(--text-main)", marginBottom: "3px" }}>
+                      {t("settingsPage.wiredDisplayOpenGrid")}
+                    </strong>
+                    <span style={{ fontSize: "0.84rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                      {t("settingsPage.wiredDisplayOpenGridDesc")}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--accent-primary)", fontWeight: 700, fontSize: "0.9rem", flexShrink: 0 }}>
+                  <span>{t("settingsPage.wiredDisplayOpenGrid")}</span>
+                  <Icon name="open_in_new" size={16} />
+                </div>
+              </a>
+
+              {/* Carte 2 : Écran Vidéo HDMI */}
+              <a
+                href="/cinema"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="wired-display-action-card olc-card-hover"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "16px 20px",
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--bg-surface-elevated)",
+                  border: "1px solid var(--border-color)",
+                  textDecoration: "none",
+                  color: "inherit",
+                  gap: "16px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                  <div style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--bg-surface-hover)",
+                    color: "var(--text-main)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}>
+                    <Icon name="tv" size={22} />
+                  </div>
+                  <div>
+                    <strong style={{ display: "block", fontSize: "0.98rem", color: "var(--text-main)", marginBottom: "3px" }}>
+                      {t("settingsPage.wiredDisplayOpenCinema")}
+                    </strong>
+                    <span style={{ fontSize: "0.84rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                      {t("settingsPage.wiredDisplayOpenCinemaDesc")}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--accent-primary)", fontWeight: 700, fontSize: "0.9rem", flexShrink: 0 }}>
+                  <span>{t("settingsPage.wiredDisplayOpenCinema")}</span>
+                  <Icon name="open_in_new" size={16} />
+                </div>
+              </a>
+            </div>
+          )}
+
           {/* Contrôle du capot (PC Portable / Clamshell) */}
           {lidInfo?.has_lid && (
             <div
@@ -1154,7 +1256,7 @@ export default function SettingsPage() {
                       </button>
                       {showReleaseNotes && (
                         <div className="update-notes-box olc-anim-in">
-                          {updateInfo.release_notes}
+                          <MarkdownView content={updateInfo.release_notes} />
                         </div>
                       )}
                     </div>
