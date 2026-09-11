@@ -1,18 +1,18 @@
 Package: bobine
-Version: 3.0.3
+Version: 3.0.4
 Architecture: amd64
 Maintainer: FantasmaGlad <fantacasino3012@gmail.com>
-Installed-Size: 139384
+Installed-Size: 139400
 Depends: ffmpeg
 Recommends: avahi-daemon
 Homepage: https://bobine.fit
 Priority: optional
 Section: video
-Filename: pool/main/b/bobine/bobine_3.0.3_amd64.deb
-Size: 58473508
-SHA256: 2be45a8e08e26b8d20587049072106d272af94f3ac16ba68032772db6a9caf65
-SHA1: 1b77443e071ab7ef7290255b40ec94c3bd14c92f
-MD5sum: efa670b560aa297e244d0150a3398aee
+Filename: pool/main/b/bobine/bobine_3.0.4_amd64.deb
+Size: 58490222
+SHA256: 6a04ab99b169417784fd861fad710c5dceddef3350512944a6fff69d4141b6ea
+SHA1: cbdd5edc34f3dae7e5ff2bd3b2fea55e363e81c8
+MD5sum: 23946476de1060e28da2eeb67a8146f3
 Description: Video and audio playout system for gym studios
  Bobine is an autonomous multi-channel playout solution (wired HDMI video,
  network screen, background radio, mobile remote and web administration)
