@@ -4,17 +4,25 @@
   <img alt="Bobine" src="Assets/Images/bobine_banner.svg" width="100%">
 </p>
 
-**The open-source, self-hosted alternative to Les Mills Cinema, Wexer, and Screenly Anthias — offline-first gym video playout, digital signage, and scheduled class player for fitness studios.**
+**The open-source, self-hosted alternative to Les Mills Cinema, Wexer, and Screenly Anthias — professional offline-first video playout, digital signage, and scheduled group-fitness cinema for fitness clubs, gyms, and sports studios.**
 
-Bobine turns any PC, Mac, or low-cost dedicated mini PC into a complete in-club video system: it schedules and plays pre-recorded group-fitness class videos on your screens, lets members browse and start a class on demand from a kiosk, drives a wired and a networked display independently, runs a coach audio mode with animated backgrounds, and streams 24/7 background music. Everything runs locally on your own hardware. No cloud, no subscription, no vendor lock-in, no internet required after setup.
+Bobine turns any tablet, desktop PC, Mac, or low-cost dedicated mini PC into a complete autonomous broadcast studio:
+- **Cinematic 4K 60fps Playout**: Schedules and plays group-fitness classes on big screens with a streaming-style catalog, modern Netflix-style home and pause overlay, and multi-OS hardware acceleration (VA-API, VideoToolbox, MediaCodec, QuickSync).
+- **Independent Dual Channel**: Drives a wired display (HDMI TV / projector) and a networked display (Wi-Fi / LAN) simultaneously with separate playout pipelines, or pairs a mobile touch coach desk (`/grid`) with big-screen cinema (`/cinema`).
+- **On-Demand Member Kiosk & Mobile Remote**: Lets members browse and start workouts on demand from a locked interactive kiosk, or control music and volume via QR code smartphone remotes.
+- **Audio Coach Mode & 24/7 Studio Radio**: Runs audio workouts over dynamic animated motion backgrounds and streams continuous club background music.
+- **100% Local-First & Sovereign**: Everything runs directly on your own hardware. Zero cloud dependencies, zero monthly subscriptions, zero telemetry, zero vendor lock-in — engineered for rock-solid 24/7 unattended playback even without internet.
 
 [Official Website](https://bobine.fit) · [Documentation](https://bobine.fit/fr/documentation) · [Français](README.fr.md) · [Technical Architecture](docs/ARCHITECTURE.md) · [Latest Release](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Beta Release](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 [![Release: v3.0.3](https://img.shields.io/badge/Release-v3.0.3-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
 [![Beta: Rolling Channel](https://img.shields.io/badge/Beta-Rolling%20Channel-orange?logo=github)](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
+[![APT Repo: apt.bobine.fit](https://img.shields.io/badge/APT%20Repo-apt.bobine.fit-A81D33?logo=debian&logoColor=white)](https://apt.bobine.fit)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![Website: bobine.fit](https://img.shields.io/badge/Website-bobine.fit-4285F4.svg?logo=googlechrome&logoColor=white)](https://bobine.fit)
+![Playout: 24/7 Unattended](https://img.shields.io/badge/Playout-24%2F7%20Unattended-success)
+![Self-Hosted: 100% On-Premise](https://img.shields.io/badge/Self--Hosted-100%25%20On--Premise-informational)
 ![Architecture: Local--first | Offline--capable](https://img.shields.io/badge/Architecture-Local--first%20%7C%20Offline--capable-success)
 ![Privacy: Zero Telemetry](https://img.shields.io/badge/Privacy-Zero%20Telemetry-purple)
 ![Accessibility: WCAG 2.1 AA/AAA](https://img.shields.io/badge/Accessibility-WCAG%202.1%20AA%2FAAA-blueviolet)

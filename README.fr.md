@@ -4,17 +4,25 @@
   <img alt="Bobine" src="Assets/Images/bobine_banner.svg" width="100%">
 </p>
 
-**L'alternative open source et auto-hébergée à Les Mills Cinema, Wexer et Screenly Anthias — régie vidéo, affichage dynamique et lecteur planifié hors ligne pour salles de fitness et cours collectifs.**
+**L'alternative open source et auto-hébergée à Les Mills Cinema, Wexer et Screenly Anthias — régie vidéo professionnelle, affichage dynamique et diffusion de cours collectifs 100% hors-ligne pour salles de sport et studios de fitness.**
 
-Bobine transforme n'importe quel PC, Mac ou mini PC dédié bon marché en système vidéo complet pour votre salle : il planifie et diffuse des vidéos de cours collectifs pré-enregistrées sur vos écrans, permet aux adhérents de parcourir et lancer un cours à la demande depuis une borne, pilote un écran câblé et un écran réseau indépendamment, propose un mode coach audio avec fonds animés, et diffuse une musique d'ambiance 24/7. Tout tourne en local, sur votre matériel. Sans cloud, sans abonnement, sans dépendance à un éditeur, sans connexion internet après l'installation.
+Bobine transforme n'importe quelle tablette, PC de bureau, Mac ou mini PC dédié bon marché en une véritable régie audiovisuelle autonome :
+- **Diffusion Cinéma 4K 60 fps** : Planifie et diffuse des cours de fitness sur grand écran avec un catalogue immersif façon plateforme de streaming, un écran de pause moderne type Netflix, et une accélération matérielle complète multi-OS (VA-API, VideoToolbox, MediaCodec, QuickSync).
+- **Double canal indépendant** : Pilote simultanément et sans interférence un écran câblé (TV/projecteur HDMI) et un écran réseau (navigateurs LAN/Wi-Fi), ou associe un pupitre tactile coach (`/grid`) à l'écran de projection (`/cinema`).
+- **Borne adhérents & télécommande mobile** : Permet aux membres de lancer des cours à la demande depuis une borne interactive verrouillée, ou de piloter musique et volume depuis leur smartphone via un simple QR code.
+- **Mode Audio Coach & Radio 24/7** : Anime les séances rythmées sur des boucles visuelles cinématiques et assure une ambiance musicale ininterrompue.
+- **100% Souverain & Local-first** : Aucune dépendance au cloud, zéro abonnement, zéro télémétrie, aucune connexion internet requise après installation — conçu pour une stabilité industrielle 24/7 sans interruption.
 
 [Site officiel](https://bobine.fit) · [Documentation web](https://bobine.fit/fr/documentation) · [English](README.md) · [Documentation technique](docs/ARCHITECTURE.md) · [Dernière version](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Release Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 [![Version : v3.0.3](https://img.shields.io/badge/Release-v3.0.3-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
 [![Canal Bêta](https://img.shields.io/badge/Canal%20Bêta-Actif-orange?logo=github)](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
+[![Dépôt APT : apt.bobine.fit](https://img.shields.io/badge/D%C3%A9p%C3%B4t%20APT-apt.bobine.fit-A81D33?logo=debian&logoColor=white)](https://apt.bobine.fit)
 [![Licence : AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![Site officiel : bobine.fit](https://img.shields.io/badge/Site%20web-bobine.fit-4285F4.svg?logo=googlechrome&logoColor=white)](https://bobine.fit)
+![Diffusion : 24/7 Autonome](https://img.shields.io/badge/Diffusion-24%2F7%20Autonome-success)
+![Auto-hébergé : 100% Souverain](https://img.shields.io/badge/Auto--h%C3%A9berg%C3%A9-100%25%20Souverain-informational)
 ![Architecture : Local-first | 100% Hors-ligne](https://img.shields.io/badge/Architecture-Local--first%20%7C%20Hors--ligne-success)
 ![Confidentialité : Zéro télémétrie](https://img.shields.io/badge/Confidentialit%C3%A9-Z%C3%A9ro%20T%C3%A9l%C3%A9m%C3%A9trie-purple)
 ![Accessibilité : WCAG 2.1 AA/AAA](https://img.shields.io/badge/Accessibilit%C3%A9-WCAG%202.1%20AA%2FAAA-blueviolet)
