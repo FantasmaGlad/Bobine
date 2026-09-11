@@ -21,8 +21,8 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source de vérité unique du numéro de version (réf. mission "canal Stable/
 # Bêta") : fichier VERSION à la racine du dépôt, lu ici et par les scripts de
 # packaging (packaging/linux/build_deb.sh, packaging/macos/build_app.sh) —
-# repli "3.0.3" si le fichier est absent (ex. script copié isolément).
-SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "3.0.3")"
+# repli "3.0.4" si le fichier est absent (ex. script copié isolément).
+SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "3.0.4")"
 # Déplacé ici (auparavant défini beaucoup plus bas, avec le reste du bloc
 # "Cible") : nécessaire tôt pour select_update_channel(), qui lit/écrit le
 # canal choisi (${CONFIG_DIR}/update-channel) avant même l'exécution du

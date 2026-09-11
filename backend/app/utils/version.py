@@ -22,7 +22,7 @@ from pathlib import Path
 
 from app.config import ROOT_DIR
 
-_FALLBACK_VERSION = "3.0.3"
+_FALLBACK_VERSION = "3.0.4"
 _FALLBACK_COMMIT = "unknown"
 
 

@@ -35,6 +35,11 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="3.0.4" date="2026-09-11">
+      <description>
+        <p>Version 3.0.4 : Désinstallation automatique 1-clic multi-plateforme (Linux, Windows, macOS, Android, Appliance Kiosque), refonte ergonomique et séparation nette de la zone de danger dans les Réglages, modernisation de l'affichage Cinéma et Pupitre Tactile (widget de lecture ancré à droite, miniatures agrandies à densité préservée, suppression des répétitions textuelles), écran de pause cinématique à métadonnées vérifiées et fiabilisation du redémarrage automatique des services systemd post-installation et mise à jour.</p>
+      </description>
+    </release>
     <release version="3.0.3" date="2026-09-10">
       <description>
         <p>Version 3.0.3 : Élimination définitive du gel d'image vidéo au seek sur navigateurs et terminaux mobiles (synchronisation pause/seeked, garde d'état et watchdog d'images peintes), mode cinéma réseau déverrouillé avec accès universel à la vitrine de cours, normalisation et imports vidéo atomiques garantis sans fichier résiduel corrompu, et streaming partiel HTTP Range conforme RFC 7233 / RFC 9110.</p>
