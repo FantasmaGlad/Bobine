@@ -2043,99 +2043,217 @@ a.status-pill:hover,
    marque par cours est pertinente pour un compte à rebours de quelques
    secondes, beaucoup moins pour un écran de pause qui peut rester affiché
    longtemps. */
-.pause-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 15;
-  background: color-mix(in srgb, var(--bg-main) 45%, transparent);
-  animation: fadeIn 0.12s ease;
+/* ====================================================================
+   Écran de pause cinématique façon Netflix (kiosk & cinéma)
+   Logo au centre, halo lumineux dynamique au thème, bouton de reprise
+   circulaire, kicker "EN PAUSE", titre du cours et badges 4K/durée.
+   100% dynamique aux variables du thème actif, zéro couleur hardcodée.
+   ==================================================================== */
+@keyframes netflix-pause-glow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.05);
+  }
 }
 
-.pause-overlay-glow {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 70% 60% at 50% 45%, color-mix(in srgb, var(--bg-main) 55%, transparent) 0%, transparent 72%);
-  pointer-events: none;
+@keyframes netflix-pause-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-.pause-resume-btn {
+.pause-overlay,
+.cinema-pause-overlay {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 104px;
-  height: 104px;
-  border-radius: 50%;
-  border: none;
+  inset: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--bg-main) 55%, transparent);
-  /* Le disque prend la teinte du thème (bg-main) : une icône blanche fixe
-     devenait quasi invisible sur les thèmes clairs (réf. correctif "boutons
-     cinéma/kiosk hors thème" — même bug que .cinema-hero-play). */
-  color: var(--text-main);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--text-main) 25%, transparent), 0 10px 40px rgba(0, 0, 0, 0.4);
+  background: color-mix(in srgb, var(--bg-main) 65%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: fadeIn 0.18s ease-out;
   cursor: pointer;
-  transition: transform 0.12s ease, background 0.12s ease;
+  overflow: hidden;
 }
 
-.pause-resume-btn:hover {
-  transform: translate(-50%, -50%) scale(1.08);
-  background: color-mix(in srgb, var(--accent-primary) 70%, transparent);
-}
-
-.pause-info-bar {
+.pause-overlay-glow,
+.cinema-pause-glow {
   position: absolute;
-  left: 5%;
-  bottom: 7%;
-  max-width: 60%;
-  display: flex;
-  align-items: center;
-  gap: 16px;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--accent-primary) 24%, transparent) 0%, transparent 68%);
+  pointer-events: none;
+  animation: netflix-pause-glow 4s ease-in-out infinite;
 }
 
-.pause-info-logo {
-  flex-shrink: 0;
-  opacity: 0.95;
-}
-
-.pause-info-text {
+.pause-center,
+.cinema-pause-center {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+  align-items: center;
+  text-align: center;
+  max-width: 860px;
+  width: 90%;
+  padding: 32px 28px;
+  gap: 16px;
+  animation: netflix-pause-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
 }
 
-.pause-info-eyebrow {
+.pause-logo-wrap,
+.cinema-pause-logo-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.pause-logo,
+.cinema-pause-logo {
+  filter: drop-shadow(0 4px 20px color-mix(in srgb, var(--accent-primary) 40%, transparent));
+  transition: transform 0.25s ease;
+}
+
+.pause-center:hover .pause-logo,
+.cinema-pause-center:hover .cinema-pause-logo {
+  transform: scale(1.04);
+}
+
+.pause-resume-btn,
+.cinema-pause-resume-btn {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--text-main) 30%, transparent);
+  background: color-mix(in srgb, var(--bg-main) 75%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pause-resume-btn:hover,
+.cinema-pause-resume-btn:hover,
+.pause-center:hover .pause-resume-btn,
+.cinema-pause-center:hover .cinema-pause-resume-btn {
+  transform: scale(1.08);
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 22%, var(--bg-main));
+  color: var(--text-main);
+  box-shadow: 0 0 32px color-mix(in srgb, var(--accent-primary) 50%, transparent), 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.pause-resume-btn:active,
+.cinema-pause-resume-btn:active {
+  transform: scale(0.96);
+}
+
+.pause-info,
+.cinema-pause-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.pause-kicker,
+.cinema-pause-kicker {
   font-size: 0.85rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.28em;
+  color: var(--accent-primary);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent-primary) 30%, transparent);
 }
 
-.pause-info-title {
+.pause-title,
+.cinema-pause-title {
   font-family: var(--font-title);
-  font-size: 2.4rem;
+  font-size: clamp(2rem, 3.8vw, 3rem);
   font-weight: 800;
   color: var(--text-main);
   line-height: 1.15;
+  margin: 0;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
-.pause-info-meta {
-  font-size: 1rem;
+.pause-meta-row,
+.cinema-pause-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.pause-badge,
+.cinema-pause-badge {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-main) 60%, transparent);
+}
+
+.pause-year,
+.cinema-pause-year {
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
 }
 
-/* Barre de progression pleine largeur au bord de l'écran, façon lecteur
-   vidéo de plateforme de streaming — plus proéminente que l'ancienne barre
-   centrée à largeur fixe. */
+.pause-time,
+.cinema-pause-time {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--text-main) 12%, transparent);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.pause-badge-pill,
+.cinema-pause-badge-pill {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text-main) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-main) 24%, transparent);
+  color: var(--text-main);
+  text-transform: uppercase;
+}
+
 .pause-progress-track {
   position: absolute;
   left: 0;
@@ -4786,6 +4904,7 @@ a.status-pill:hover,
 .cinema-controls {
   position: absolute;
   inset: 0;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -4798,6 +4917,11 @@ a.status-pill:hover,
 
 .cinema-controls.visible {
   opacity: 1;
+  pointer-events: none;
+}
+
+.cinema-controls-top,
+.cinema-controls-bottom {
   pointer-events: auto;
 }
 

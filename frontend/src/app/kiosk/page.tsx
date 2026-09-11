@@ -892,34 +892,37 @@ export default function KioskPage() {
       </div>
 
       {isPaused && (
-        // Écran de pause façon plateforme de streaming (réf. mission UI/UX) :
-        // vidéo assombrie visible en fond (pas de coupure brutale), gros
-        // bouton central pour reprendre, bandeau d'info en bas à gauche
-        // (logo, titre, programme, position), barre de progression pleine
-        // largeur au tout bord inférieur — mise en page dédiée dont le texte
-        // ne chevauche pas ces éléments (réf. correctif "informations qui se
-        // chevauchent").
-        <div className="pause-overlay visible">
+        // Écran de pause cinématique façon Netflix (logo au centre, halo lumineux d'ambiance, métadonnées du cours)
+        <div className="pause-overlay visible" onClick={() => sendCommand("play")}>
           <div className="pause-overlay-glow" />
-          <button
-            className="pause-resume-btn"
-            onClick={() => sendCommand("play")}
-            title={t("kiosk.resume")}
-          >
-            <Icon name="play_arrow" size={44} filled />
-          </button>
-          <div className="pause-info-bar">
-            <AppLogo size={64} className="pause-info-logo" />
-            <div className="pause-info-text">
-              <span className="pause-info-eyebrow" style={{ color: programAccent }}>
+          <div className="pause-center" onClick={(e) => { e.stopPropagation(); sendCommand("play"); }}>
+            <div className="pause-logo-wrap">
+              <AppLogo size={76} className="pause-logo" />
+            </div>
+            <button
+              className="pause-resume-btn"
+              onClick={(e) => { e.stopPropagation(); sendCommand("play"); }}
+              title={t("kiosk.resume")}
+            >
+              <Icon name="play_arrow" size={46} filled />
+            </button>
+            <div className="pause-info">
+              <span className="pause-kicker" style={{ color: programAccent }}>
                 {t("kiosk.pausedLabel")}
               </span>
-              <span className="pause-info-title">{state.current_video?.title}</span>
-              <span className="pause-info-meta">
-                {[program, `${formatTime(state.position_seconds)} / ${formatTime(duration)}`]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
+              <h2 className="pause-title">{state.current_video?.title}</h2>
+              <div className="pause-meta-row">
+                {program && (
+                  <span className="pause-badge" style={{ borderColor: programAccent, color: programAccent }}>
+                    {program}
+                  </span>
+                )}
+                <span className="pause-time">
+                  {formatTime(state.position_seconds)} / {formatTime(duration)}
+                </span>
+                <span className="pause-badge-pill">4K Ultra HD</span>
+                <span className="pause-badge-pill">Stéréo 5.1</span>
+              </div>
             </div>
           </div>
           <div className="pause-progress-track">

@@ -993,6 +993,45 @@ export default function CinemaPage() {
             <span>{t("cinema.play")}</span>
           </button>
         )}
+
+        {/* Écran de pause cinématique façon Netflix au centre de l'écran */}
+        {isPlayingLayer && !isPlaying && !needsTapToPlay && (
+          <div className="cinema-pause-overlay" onClick={handlePlayPause}>
+            <div className="cinema-pause-glow" />
+            <div className="cinema-pause-center" onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}>
+              <div className="cinema-pause-logo-wrap">
+                <AppLogo size={76} className="cinema-pause-logo" />
+              </div>
+              <button
+                className="cinema-pause-resume-btn"
+                onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}
+                title={t("cinema.play")}
+              >
+                <Icon name="play_arrow" size={46} filled />
+              </button>
+              <div className="cinema-pause-info">
+                <span className="cinema-pause-kicker">{t("cinema.pause")}</span>
+                <h2 className="cinema-pause-title">{selected?.title}</h2>
+                <div className="cinema-pause-meta-row">
+                  {selected?.program && (
+                    <span className="cinema-pause-badge" style={{ borderColor: programAccent, color: programAccent }}>
+                      {selected.program}
+                    </span>
+                  )}
+                  {selected?.release && (
+                    <span className="cinema-pause-year">{selected.release}</span>
+                  )}
+                  <span className="cinema-pause-time">
+                    {formatTime(displayPosition)} / {formatTime(duration)}
+                  </span>
+                  <span className="cinema-pause-badge-pill">4K Ultra HD</span>
+                  <span className="cinema-pause-badge-pill">Stéréo 5.1</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {!hideControls && (
         <div className={`cinema-controls ${isPlayingLayer && (controlsVisible || !isPlaying) ? "visible" : ""}`}>
           {/* Correctif "mention du cours en double" : le titre était déjà
