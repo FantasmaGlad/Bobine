@@ -50,6 +50,14 @@ class PlaybackManager:
         self._waiting_task: asyncio.Task | None = None
         self._audio_chain_wait_task: asyncio.Task | None = None
         self._position_broadcast_task: asyncio.Task | None = None
+        # Numéro de séquence des `position_tick` de CE canal (réf. retour
+        # utilisateur "renforcer le logiciel pour les réseaux imparfaits") :
+        # incrémenté à chaque tick émis, jamais réinitialisé (y compris entre
+        # deux vidéos). Le client compare ce numéro au précédent reçu — un
+        # écart signale un tick perdu en silence (Wi-Fi imparfait) et
+        # déclenche une resynchronisation REST immédiate au lieu d'attendre
+        # le prochain cycle du filet de sécurité périodique (15s).
+        self._tick_seq = 0
         # Fond d'ambiance de repli du cours/playlist EN COURS (réf. mission
         # "associer un fond animé à chaque musique") : celui choisi au
         # lancement (background_id du cours, ou None pour une playlist). Non
@@ -93,6 +101,9 @@ class PlaybackManager:
         }
         if client_ts is not None:
             payload["client_ts"] = client_ts
+        if cause == "position_tick":
+            self._tick_seq += 1
+            payload["tick_seq"] = self._tick_seq
         # Signal transitoire (pas persisté dans self.state) : indique au kiosk
         # s'il doit jouer l'animation Lancement.mp4 avant de démarrer ce cours
         # (réf. mission "la vidéo de lancement suffit à cadencer le

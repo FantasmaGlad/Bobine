@@ -107,6 +107,10 @@ export interface PlaybackEvent {
   // Lancement.mp4 avant de révéler ce cours, ou l'enchaîner directement
   // (suite de playlist, navigation préc./suiv., reprise interrompue).
   play_intro?: boolean;
+  // Présent uniquement sur cause "position_tick" (réf. renforcement réseaux
+  // imparfaits) : numéro de séquence incrémental propre au canal, jamais
+  // réinitialisé — sert à détecter un tick perdu en silence côté client.
+  tick_seq?: number;
 }
 
 const DEFAULT_STATE: PlaybackState = {
@@ -254,6 +258,17 @@ export function usePlaybackSocket(
   // ancien bundle JS/HTML au lieu de se recharger comme le fait le bouton
   // « Synchronisation des écrans ».
   const bootIdRef = useRef<string | null>(null);
+  // Dernier `tick_seq` de `position_tick` reçu pour ce canal (réf.
+  // renforcement réseaux imparfaits) : null tant qu'aucun tick n'est arrivé
+  // sur la connexion courante — un écart
+  // (`tick_seq` reçu > dernier + 1) signale un tick perdu en silence, plus
+  // fréquent sur un Wi-Fi imparfait qu'une vraie coupure de connexion (auquel
+  // cas `onclose`/le chien de garde de silence ci-dessous s'en chargent déjà).
+  // Dans ce cas on ne peut pas attendre le prochain cycle du filet de
+  // sécurité périodique (15s, cf. RESYNC_INTERVAL_MS) : `doResyncRef`
+  // déclenche une resynchronisation REST immédiate.
+  const lastTickSeqRef = useRef<number | null>(null);
+  const doResyncRef = useRef<() => void>(() => {});
   const onEventRef = useRef(onEvent);
   const onCinemaCommandRef = useRef(onCinemaCommand);
   // Miroir de `state` lisible en dehors du cycle de rendu React (correctif
@@ -310,6 +325,10 @@ export function usePlaybackSocket(
         setConnected(true);
         retryDelay = 1000;
         lastMessageAtRef.current = Date.now();
+        // Nouvelle connexion : aucun tick de référence pour détecter un
+        // écart tant que le premier n'est pas arrivé (évite un faux
+        // positif comparant à un `tick_seq` d'une connexion précédente).
+        lastTickSeqRef.current = null;
         // Identification du rôle kiosk (réf. correctif P4) : envoyée dès
         // l'ouverture de la connexion pour que le backend puisse assigner
         // le rôle primaire/miroir avant tout report_position. Pas de
@@ -419,6 +438,16 @@ export function usePlaybackSocket(
             // que ceux de SON canal. Absence de champ = message d'une
             // version antérieure du backend → canal câblé.
             if ((parsed.channel ?? "cable") !== channel) return;
+            if (parsed.cause === "position_tick" && typeof parsed.tick_seq === "number") {
+              const previous = lastTickSeqRef.current;
+              if (previous !== null && parsed.tick_seq > previous + 1) {
+                // Trou détecté (des ticks intermédiaires n'ont jamais
+                // atteint ce client, silencieusement) : ne pas attendre le
+                // prochain cycle du filet de sécurité périodique.
+                doResyncRef.current();
+              }
+              lastTickSeqRef.current = parsed.tick_seq;
+            }
             setState(parsed.data);
             onEventRef.current?.(parsed as PlaybackEvent);
           }
@@ -522,6 +551,7 @@ export function usePlaybackSocket(
   useEffect(() => {
     let cancelled = false;
     const resync = () => {
+      if (cancelled) return;
       fetch(getApiUrl(`/playback/state?channel=${channel}`), { cache: "no-store" })
         .then((res) => (res.ok ? res.json() : null))
         .then((data: PlaybackState | null) => {
@@ -544,10 +574,16 @@ export function usePlaybackSocket(
           // gère déjà ce cas, rien à faire de plus ici.
         });
     };
+    // Exposée hors de cet effet (réf. renforcement réseaux imparfaits) :
+    // la détection de trou dans les `position_tick`, gérée par l'effet de
+    // connexion WebSocket ci-dessus, appelle cette MÊME fonction pour une
+    // resynchronisation immédiate au lieu d'attendre `RESYNC_INTERVAL_MS`.
+    doResyncRef.current = resync;
     const id = setInterval(resync, RESYNC_INTERVAL_MS);
     return () => {
       cancelled = true;
       clearInterval(id);
+      doResyncRef.current = () => {};
     };
   }, [channel]);
 

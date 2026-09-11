@@ -197,7 +197,7 @@ Fichiers : `frontend/src/app/library/page.tsx`, `backend/app/routers/videos.py`.
 
 - [ ] `docs/plan-implementation-android.md` : section Lot 15 avec Découvertes (mesures de §4, écarts par rapport à ce plan).
 - [ ] `docs/ARCHITECTURE.md` §2 et §10.2 : deux racines de stockage sur Android, WebSocket parallèle, rendition de lecture.
-- [ ] `docs/releases/V3.0.4.md` et `VERSION`.
+- [ ] `docs/releases/V3.0.3.md` (fusionné avec les correctifs seek/cinéma/imports déjà documentés sous ce numéro, jamais tagué en release stable) et `VERSION`.
 - [ ] `.agents/CLAUDE.md`, `.agents/AGENTS.md`, `.gemini/state.json`.
 - [ ] Test backend : aucun handler `async def` avec `Session` en paramètre direct (garde-fou C1) ; test `broadcast` avec un client bloquant (garde-fou C2).
 
