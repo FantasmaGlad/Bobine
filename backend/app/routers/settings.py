@@ -721,7 +721,7 @@ async def uninstall_system(payload: UninstallRequest, background_tasks: Backgrou
     if not handler.can_self_uninstall():
         return {"message": handler.uninstall_instructions(), "self_uninstall": "false"}
 
-    if not UNINSTALL_WRAPPER.exists() or not SUDOERS_FILE.exists():
+    if handler.profile == "linux-headless" and (not UNINSTALL_WRAPPER.exists() or not SUDOERS_FILE.exists()):
         raise HTTPException(
             status_code=400,
             detail=(
@@ -730,7 +730,7 @@ async def uninstall_system(payload: UninstallRequest, background_tasks: Backgrou
             ),
         )
     background_tasks.add_task(_run_uninstall)
-    return {"message": "Désinstallation lancée : la machine se remet à zéro, le service va s'arrêter et l'interface deviendra injoignable."}
+    return {"message": "Désinstallation lancée : la procédure de suppression est en cours d'exécution."}
 
 
 # ---------------------------------------------------------------------------

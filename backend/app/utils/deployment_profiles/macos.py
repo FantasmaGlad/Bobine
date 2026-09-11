@@ -28,7 +28,18 @@ class MacOSHandler(ProfileHandler):
         os._exit(0)
 
     def can_self_uninstall(self) -> bool:
-        return False
+        return True
+
+    def start_uninstall(self) -> None:
+        import subprocess
+
+        cmd = (
+            "sleep 1 && "
+            "rm -f ~/Library/LaunchAgents/com.bobine.app.plist && "
+            "rm -rf /Applications/Bobine.app"
+        )
+        subprocess.Popen(["sh", "-c", cmd], start_new_session=True)
+        os._exit(0)
 
     def uninstall_instructions(self) -> str:
         return (

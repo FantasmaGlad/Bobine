@@ -1377,56 +1377,74 @@ export default function SettingsPage() {
 
       {/* ---- Zone de danger : réinitialisation usine & désinstallation ---- */}
       <section className="live-block settings-danger">
-        <h3><Icon name="warning" size={18} /> {t("settingsPage.dangerSection")}</h3>
+        <h3 style={{ margin: "0 0 6px 0" }}>
+          <Icon name="warning" size={18} /> {t("settingsPage.dangerSection")}
+        </h3>
+        <p className="settings-hint" style={{ margin: "0 0 16px 0" }}>
+          {t("settingsPage.dangerHint")}
+        </p>
 
-        {/* Remise à zéro des données (universelle tous profils) */}
-        <div style={{ marginBottom: "20px" }}>
-          <h4 style={{ margin: "0 0 6px 0", fontSize: "1rem", color: "var(--text-main)" }}>
-            {t("settingsPage.resetDataButton")}
-          </h4>
-          <p className="settings-hint" style={{ marginTop: 0 }}>
-            {t("settingsPage.resetDataHint")}
-          </p>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            style={{ height: "44px", color: "var(--accent-error)", borderColor: "var(--accent-error)" }}
-            onClick={() => setShowResetData(true)}
-          >
-            <Icon name="cleaning_services" size={16} /> {t("settingsPage.resetDataButton")}
-          </button>
-        </div>
-
-        <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: "16px" }}>
-          <h4 style={{ margin: "0 0 6px 0", fontSize: "1rem", color: "var(--text-main)" }}>
-            {t("settingsPage.uninstallButton")}
-          </h4>
-          {data.deployment_profile === "linux-headless" ? (
-            <>
-              <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.uninstallHint")}</p>
-              <button type="button" className="btn btn-danger" style={{ height: "44px", alignSelf: "flex-start" }} onClick={() => setShowUninstall(true)}>
-                <Icon name="delete_forever" size={16} /> {t("settingsPage.uninstallButton")}
+        <div className="settings-danger-group">
+          {/* 1. Remise à zéro des données (universelle tous profils) */}
+          <div className="settings-danger-card">
+            <h4>
+              <Icon name="cleaning_services" size={18} /> {t("settingsPage.resetDataTitle")}
+            </h4>
+            <p>{t("settingsPage.resetDataHint")}</p>
+            <div>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ height: "42px", color: "var(--accent-error)", borderColor: "var(--accent-error)" }}
+                onClick={() => setShowResetData(true)}
+              >
+                <Icon name="cleaning_services" size={16} /> {t("settingsPage.resetDataAction")}
               </button>
-            </>
-          ) : (
-            <>
-              <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.uninstallDesktopHint")}</p>
-              <p className="settings-hint" style={{ marginTop: 0 }}>
-                {t(
-                  // Lot 15 (réf. retour utilisateur "la section Désinstaller
-                  // sur Android parle d'apt") : branche Android manquante,
-                  // le repli final (Linux desktop / apt) s'appliquait à tort.
-                  data.deployment_profile === "windows"
-                    ? "settingsPage.uninstallDesktopWindows"
-                    : data.deployment_profile === "macos"
-                    ? "settingsPage.uninstallDesktopMacos"
-                    : data.deployment_profile === "android"
-                    ? "settingsPage.uninstallDesktopAndroid"
-                    : "settingsPage.uninstallDesktopLinux",
-                )}
-              </p>
-            </>
-          )}
+            </div>
+          </div>
+
+          {/* 2. Désinstallation du logiciel (tous profils avec bouton automatique) */}
+          <div className="settings-danger-card">
+            <h4>
+              <Icon name="delete_forever" size={18} /> {t("settingsPage.uninstallSectionTitle")}
+            </h4>
+            <p>
+              {t(
+                data.deployment_profile === "windows"
+                  ? "settingsPage.uninstallDesktopWindows"
+                  : data.deployment_profile === "macos"
+                  ? "settingsPage.uninstallDesktopMacos"
+                  : data.deployment_profile === "android"
+                  ? "settingsPage.uninstallDesktopAndroid"
+                  : data.deployment_profile === "linux-headless"
+                  ? "settingsPage.uninstallHint"
+                  : "settingsPage.uninstallDesktopLinux",
+              )}
+            </p>
+            <div>
+              <button
+                type="button"
+                className="btn btn-danger"
+                style={{ height: "42px" }}
+                onClick={() => setShowUninstall(true)}
+              >
+                <Icon name="delete_forever" size={16} /> {t("settingsPage.uninstallAction")}
+              </button>
+            </div>
+            <div className="settings-danger-manual">
+              {t(
+                data.deployment_profile === "windows"
+                  ? "settingsPage.uninstallManualHintWindows"
+                  : data.deployment_profile === "macos"
+                  ? "settingsPage.uninstallManualHintMacos"
+                  : data.deployment_profile === "android"
+                  ? "settingsPage.uninstallManualHintAndroid"
+                  : data.deployment_profile === "linux-headless"
+                  ? "settingsPage.uninstallManualHintHeadless"
+                  : "settingsPage.uninstallManualHintLinux",
+              )}
+            </div>
+          </div>
         </div>
       </section>
 

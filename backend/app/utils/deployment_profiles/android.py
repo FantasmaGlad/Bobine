@@ -37,7 +37,23 @@ class AndroidHandler(ProfileHandler):
         os._exit(0)
 
     def can_self_uninstall(self) -> bool:
-        return False
+        return True
+
+    def start_uninstall(self) -> None:
+        try:
+            from java import jclass  # Chaquopy
+            Uri = jclass("android.net.Uri")
+            Intent = jclass("android.content.Intent")
+            py_app = jclass("com.chaquo.python.android.PyApplication")
+            context = py_app.context
+            intent = Intent(Intent.ACTION_DELETE)
+            intent.setData(Uri.parse("package:com.bobine.app"))
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+            logger.info("Dialogue système de désinstallation Android ouvert via ACTION_DELETE.")
+        except Exception as exc:
+            logger.exception("Échec de l'ouverture du dialogue de désinstallation Android")
+            raise
 
     def uninstall_instructions(self) -> str:
         return (

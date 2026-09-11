@@ -49,11 +49,21 @@ class LinuxDesktopHandler(ProfileHandler):
         threading.Thread(target=_delayed_exit, daemon=True).start()
 
     def can_self_uninstall(self) -> bool:
-        return False
+        return True
+
+    def start_uninstall(self) -> None:
+        repo_dir = Path(__file__).resolve().parent.parent.parent.parent
+        if self._is_git_clone() and (repo_dir / "install.sh").exists():
+            cmd = "sleep 1 && pkexec ./install.sh --uninstall --purge --purge-data -y"
+            subprocess.Popen(["sh", "-c", cmd], cwd=repo_dir, start_new_session=True)
+        else:
+            cmd = "sleep 1 && (pkexec apt-get remove -y bobine || pkexec dpkg -P bobine || pkexec dpkg -r bobine)"
+            subprocess.Popen(["sh", "-c", cmd], start_new_session=True)
+        logger.info("Désinstallation Linux desktop déclenchée en tâche de fond via pkexec.")
 
     def uninstall_instructions(self) -> str:
         return (
-            "Pour désinstaller Bobine, exécutez dans un terminal : "
+            "Pour désinstaller Bobine manuellement, exécutez dans un terminal : "
             "sudo apt remove bobine (ou utilisez votre logithèque habituelle)."
         )
 

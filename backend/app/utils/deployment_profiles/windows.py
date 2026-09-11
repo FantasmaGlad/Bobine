@@ -32,7 +32,38 @@ class WindowsHandler(ProfileHandler):
         os._exit(0)
 
     def can_self_uninstall(self) -> bool:
-        return False
+        return True
+
+    def start_uninstall(self) -> None:
+        import subprocess
+        import sys
+        import tempfile
+        from pathlib import Path
+
+        app_dir = (
+            Path(sys.executable).parent
+            if getattr(sys, "frozen", False)
+            else Path(os.environ.get("ProgramFiles", "C:\\Program Files")) / "Bobine"
+        )
+        uninstaller = app_dir / "unins000.exe"
+        temp_dir = Path(tempfile.gettempdir())
+        batch_path = temp_dir / "bobine_uninstall_runner.bat"
+        batch_content = f"""@echo off
+timeout /t 2 /nobreak > NUL
+if exist "{uninstaller}" (
+    start "" "{uninstaller}"
+)
+del "%~f0" > NUL 2>&1
+"""
+        batch_path.write_text(batch_content, encoding="latin1")
+        creationflags = 0
+        if hasattr(subprocess, "DETACHED_PROCESS"):
+            creationflags |= subprocess.DETACHED_PROCESS
+        if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+            creationflags |= subprocess.CREATE_NEW_PROCESS_GROUP
+
+        subprocess.Popen(["cmd.exe", "/c", str(batch_path)], creationflags=creationflags, close_fds=True)
+        self.restart_services()
 
     def uninstall_instructions(self) -> str:
         return (
