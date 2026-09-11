@@ -10,7 +10,7 @@ Bobine turns any PC, Mac, or low-cost dedicated mini PC into a complete in-club 
 
 [Official Website](https://bobine.fit) · [Documentation](https://bobine.fit/fr/documentation) · [Français](README.fr.md) · [Technical Architecture](docs/ARCHITECTURE.md) · [Latest Release](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Beta Release](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
 
-[![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
+[![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 [![Release: v3.0.2](https://img.shields.io/badge/Release-v3.0.2-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
 ![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)
 ![Backend: FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)

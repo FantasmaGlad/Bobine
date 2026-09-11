@@ -10,7 +10,7 @@ Bobine transforme n'importe quel PC, Mac ou mini PC dédié bon marché en syst�
 
 [Site officiel](https://bobine.fit) · [Documentation web](https://bobine.fit/fr/documentation) · [English](README.md) · [Documentation technique](docs/ARCHITECTURE.md) · [Dernière version](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Release Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
 
-[![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
+[![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 [![Version : v3.0.2](https://img.shields.io/badge/Release-v3.0.2-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
 ![Licence : AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)
 ![Backend : FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
