@@ -20,7 +20,6 @@ Bobine transforme n'importe quelle tablette, PC de bureau, Mac ou mini PC dédi�
 [![Canal Bêta](https://img.shields.io/badge/Canal%20Bêta-Actif-orange?logo=github)](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
 [![Dépôt APT : apt.bobine.fit](https://img.shields.io/badge/D%C3%A9p%C3%B4t%20APT-apt.bobine.fit-A81D33?logo=debian&logoColor=white)](https://apt.bobine.fit)
 [![Licence : AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Site officiel : bobine.fit](https://img.shields.io/badge/Site%20web-bobine.fit-4285F4.svg?logo=googlechrome&logoColor=white)](https://bobine.fit)
 ![Diffusion : 24/7 Autonome](https://img.shields.io/badge/Diffusion-24%2F7%20Autonome-success)
 ![Auto-hébergé : 100% Souverain](https://img.shields.io/badge/Auto--h%C3%A9berg%C3%A9-100%25%20Souverain-informational)
 ![Architecture : Local-first | 100% Hors-ligne](https://img.shields.io/badge/Architecture-Local--first%20%7C%20Hors--ligne-success)

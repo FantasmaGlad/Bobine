@@ -20,7 +20,6 @@ Bobine turns any tablet, desktop PC, Mac, or low-cost dedicated mini PC into a c
 [![Beta: Rolling Channel](https://img.shields.io/badge/Beta-Rolling%20Channel-orange?logo=github)](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
 [![APT Repo: apt.bobine.fit](https://img.shields.io/badge/APT%20Repo-apt.bobine.fit-A81D33?logo=debian&logoColor=white)](https://apt.bobine.fit)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Website: bobine.fit](https://img.shields.io/badge/Website-bobine.fit-4285F4.svg?logo=googlechrome&logoColor=white)](https://bobine.fit)
 ![Playout: 24/7 Unattended](https://img.shields.io/badge/Playout-24%2F7%20Unattended-success)
 ![Self-Hosted: 100% On-Premise](https://img.shields.io/badge/Self--Hosted-100%25%20On--Premise-informational)
 ![Architecture: Local--first | Offline--capable](https://img.shields.io/badge/Architecture-Local--first%20%7C%20Offline--capable-success)
