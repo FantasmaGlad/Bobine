@@ -65,7 +65,7 @@ _WRITABLE_NUMERIC_FIELDS = {
     "wait_time_between_courses", "volume_default", "audio_chain_timer_seconds",
     "radio_announcement_fade_ms",
 }
-_WRITABLE_STRING_FIELDS = {"theme", "language", "active_logo", "update_channel"}
+_WRITABLE_STRING_FIELDS = {"theme", "language", "active_logo", "update_channel", "wired_display_mode"}
 # Animation de lancement (réf. mission "activer/désactiver l'animation mp4") :
 # suit le pattern des champs STRING (theme/language) ci-dessus, PAS celui des
 # champs numériques — ces derniers ne sont réappliqués à `runtime_settings`
@@ -85,6 +85,9 @@ _DEFAULTS = {
     # par défaut pour tout le monde — rejoindre la bêta est un choix
     # explicite, jamais l'état de départ d'une installation.
     "update_channel": "stable",
+    # Mode d'affichage câblé (réf. cahier des charges affichage hybride) :
+    # "headless" par défaut (desktop/laptop/wyse), "dual_screen" pour tablette.
+    "wired_display_mode": "headless",
 }
 _LOGO_FILENAME = "logo.png"
 # "les-mills-sombre" est la clé interne historique du thème "Sombre" (réf.
@@ -97,6 +100,7 @@ _VALID_THEMES = {
 }
 _VALID_ACTIVE_LOGOS = {"default", "custom"}
 _VALID_UPDATE_CHANNELS = {"stable", "beta"}
+_VALID_WIRED_DISPLAY_MODES = {"dual_screen", "headless"}
 
 # Sortie affichée par CANAL de diffusion (réf. mission "canaux de diffusion
 # précis") : "câblé" (l'écran physiquement connecté au Wyse, en 127.0.0.1) et
@@ -125,6 +129,7 @@ class SettingsUpdate(BaseModel):
     intro_animation_enabled: bool | None = None
     active_logo: str | None = None
     update_channel: str | None = None
+    wired_display_mode: str | None = None
 
 
 def _get_db_value(db: Session, key: str) -> str | None:
@@ -182,6 +187,10 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
     if active_logo == "custom" and not has_custom:
         active_logo = "default"
     update_channel = _get_db_value(db, "update_channel") or _DEFAULTS["update_channel"]
+    default_wired_mode = "dual_screen" if get_deployment_profile() == "android" else "headless"
+    wired_display_mode = _get_db_value(db, "wired_display_mode") or default_wired_mode
+    if wired_display_mode not in _VALID_WIRED_DISPLAY_MODES:
+        wired_display_mode = default_wired_mode
     return {
         "wait_time_between_courses": runtime_settings.wait_time_between_courses,
         "volume_default": runtime_settings.volume_default,
@@ -200,6 +209,9 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         # ou "beta", consommé par GET /api/updates/check pour choisir
         # l'endpoint GitHub interrogé.
         "update_channel": update_channel,
+        # Mode d'affichage câblé (réf. cahier des charges affichage hybride) :
+        # "dual_screen" (pupitre tactile + vidéo HDMI) ou "headless" (cinéma autonome).
+        "wired_display_mode": wired_display_mode,
         # Aide à la découverte réseau (réf. mission "IP obtenue par
         # l'appareil"), en complément de bobine.local (avahi, cf. install.sh).
         "network": {
@@ -438,6 +450,11 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
                     raise HTTPException(status_code=400, detail="Aucun logo personnalisé n'a été importé")
             if key == "update_channel" and value not in _VALID_UPDATE_CHANNELS:
                 raise HTTPException(status_code=400, detail="Canal de mise à jour invalide (attendu 'stable' ou 'beta')")
+            if key == "wired_display_mode" and value not in _VALID_WIRED_DISPLAY_MODES:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Mode d'affichage câblé invalide (attendu 'dual_screen' ou 'headless')",
+                )
         elif key in _WRITABLE_BOOL_FIELDS and value is not None:
             # "true"/"false" minuscule (pas str(bool(...)) => "True"/"False")
             # pour rester cohérent avec la lecture `== "true"` de get_settings().
@@ -468,7 +485,13 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
     # effectivement changé (ou l'animation de lancement, même besoin : les
     # kiosques tournent 24/7 sans rechargement), pour ne pas générer de
     # trafic WebSocket inutile à chaque réglage numérique (countdown, volume...).
-    if "theme" in updates or "language" in updates or "intro_animation_enabled" in updates or "active_logo" in updates:
+    if (
+        "theme" in updates
+        or "language" in updates
+        or "intro_animation_enabled" in updates
+        or "active_logo" in updates
+        or "wired_display_mode" in updates
+    ):
         await ws_manager.broadcast({
             "event": "settings_change",
             "theme": result["theme"],
@@ -476,6 +499,15 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
             "intro_animation_enabled": result["intro_animation_enabled"],
             "has_custom_logo": result["has_custom_logo"],
             "active_logo": result["active_logo"],
+            "wired_display_mode": result["wired_display_mode"],
+        })
+
+    # Diffusion dédiée display_mode_change sur canal "cable" (CDC §4.1 affichage hybride)
+    if "wired_display_mode" in updates:
+        await ws_manager.broadcast({
+            "event": "display_mode_change",
+            "channel": "cable",
+            "mode": result["wired_display_mode"],
         })
 
     return result

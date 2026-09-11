@@ -522,7 +522,7 @@ export default function DashboardScreen({ channel }: Props) {
                     <img
                       src={getApiUrl(`/thumbnails/${state.current_video.thumbnail_url}`)}
                       alt=""
-                      style={{ width: "88px", height: "50px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "#000" }}
+                      style={{ width: "88px", height: "50px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "var(--bg-surface-elevated)" }}
                     />
                   )}
                   {/* Repli sur le titre du fond animé : state.current_video

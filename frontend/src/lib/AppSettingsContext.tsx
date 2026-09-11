@@ -44,6 +44,7 @@ export const THEME_VALUES: Theme[] = [
 ];
 
 export type ActiveLogo = "default" | "custom";
+export type WiredDisplayMode = "dual_screen" | "headless";
 
 interface AppSettingsContextValue {
   theme: Theme;
@@ -64,6 +65,8 @@ interface AppSettingsContextValue {
   launchAnimationEnabled: boolean;
   setLaunchAnimationEnabled: (value: boolean) => void;
   refreshBranding: () => void;
+  wiredDisplayMode: WiredDisplayMode;
+  setWiredDisplayMode: (mode: WiredDisplayMode) => void;
 }
 
 // "clair" (réf. mission "thème par défaut") : version claire du thème
@@ -72,6 +75,7 @@ interface AppSettingsContextValue {
 // l'installation avant tout réglage utilisateur.
 const DEFAULT_THEME: Theme = "clair";
 const DEFAULT_LANGUAGE: Language = "fr";
+const DEFAULT_WIRED_DISPLAY_MODE: WiredDisplayMode = "headless";
 
 const AppSettingsContext = createContext<AppSettingsContextValue>({
   theme: DEFAULT_THEME,
@@ -87,6 +91,8 @@ const AppSettingsContext = createContext<AppSettingsContextValue>({
   launchAnimationEnabled: true,
   setLaunchAnimationEnabled: () => {},
   refreshBranding: () => {},
+  wiredDisplayMode: DEFAULT_WIRED_DISPLAY_MODE,
+  setWiredDisplayMode: () => {},
 });
 
 export function useAppSettings() {
@@ -119,6 +125,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const [activeLogo, setActiveLogoState] = useState<ActiveLogo>("default");
   const [logoVersion, setLogoVersion] = useState(0);
   const [launchAnimationEnabled, setLaunchAnimationEnabledState] = useState(true);
+  const [wiredDisplayMode, setWiredDisplayModeState] = useState<WiredDisplayMode>(DEFAULT_WIRED_DISPLAY_MODE);
 
   const refreshBranding = useCallback(() => {
     fetch(getApiUrl("/settings"), { cache: "no-store" })
@@ -158,6 +165,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     }
     if (data.active_logo === "default" || data.active_logo === "custom") {
       setActiveLogoState(data.active_logo);
+    }
+    if (data.wired_display_mode === "dual_screen" || data.wired_display_mode === "headless") {
+      setWiredDisplayModeState(data.wired_display_mode);
     }
   }, []);
 
@@ -253,6 +263,17 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
               // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setActiveLogoState(parsed.active_logo);
             }
+            if (parsed.wired_display_mode === "dual_screen" || parsed.wired_display_mode === "headless") {
+              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
+              setWiredDisplayModeState(parsed.wired_display_mode);
+            }
+          }
+          if (parsed.event === "display_mode_change") {
+            const mode = parsed.mode || parsed.wired_display_mode;
+            if (mode === "dual_screen" || mode === "headless") {
+              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
+              setWiredDisplayModeState(mode);
+            }
           }
         } catch {
           // Message illisible : sans conséquence, le prochain évènement suffira.
@@ -330,6 +351,14 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     [persist]
   );
 
+  const setWiredDisplayMode = useCallback(
+    (value: WiredDisplayMode) => {
+      setWiredDisplayModeState(value);
+      persist({ wired_display_mode: value });
+    },
+    [persist]
+  );
+
   const t = useCallback(
     (key: string, params?: Record<string, string | number>) => translate(language, key, params),
     [language]
@@ -359,8 +388,10 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       launchAnimationEnabled,
       setLaunchAnimationEnabled,
       refreshBranding,
+      wiredDisplayMode,
+      setWiredDisplayMode,
     }),
-    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, launchAnimationEnabled, setLaunchAnimationEnabled, refreshBranding]
+    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, launchAnimationEnabled, setLaunchAnimationEnabled, refreshBranding, wiredDisplayMode, setWiredDisplayMode]
   );
 
   return (

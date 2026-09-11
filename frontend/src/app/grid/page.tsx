@@ -5,6 +5,7 @@ import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useHoverSound } from "@/lib/useHoverSound";
 import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
+import { useScreenWakeLock } from "@/lib/useScreenWakeLock";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 
@@ -207,7 +208,8 @@ const GridAllList = React.memo(function GridAllList({
 });
 
 export default function GridPage() {
-  const { t } = useAppSettings();
+  const { t, wiredDisplayMode, setWiredDisplayMode } = useAppSettings();
+  useScreenWakeLock(true);
   const [videos, setVideos] = useState<CinemaVideo[]>([]);
   const [now, setNow] = useState<Date>(() => new Date());
 
@@ -405,6 +407,62 @@ export default function GridPage() {
     }
     return [...byProgram.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [videos, t]);
+
+  if (wiredDisplayMode === "headless") {
+    return (
+      <div className="grid-standby-root">
+        <div className="grid-standby-card">
+          <div className="grid-standby-header">
+            <AppLogo size={48} className="grid-standby-logo" />
+            <span className="grid-standby-clock">{formatClock(now)}</span>
+          </div>
+
+          <div className="grid-standby-content">
+            <h1 className="grid-standby-title">{t("settingsPage.gridStandbyTitle")}</h1>
+            <p className="grid-standby-subtitle">{t("settingsPage.gridStandbySubtitle")}</p>
+
+            <div className="grid-standby-status-box">
+              <div className="grid-standby-status-badge">
+                <span className="grid-standby-pulse-dot" />
+                <Icon name="tv" size={20} />
+                <span>{t("settingsPage.gridStandbyHdmiActive")}</span>
+              </div>
+              <p className="grid-standby-status-desc">{t("settingsPage.gridStandbyHdmiHelp")}</p>
+              {nowPlaying && (
+                <div className="grid-standby-now-playing">
+                  <span className="grid-standby-now-playing-label">{t("cinema.nowPlaying")} :</span>
+                  <strong className="grid-standby-now-playing-title">{nowPlaying.title}</strong>
+                  {nowPlaying.duration_seconds ? (
+                    <span className="grid-standby-now-playing-time">
+                      ({formatTime(nowPlaying.position_seconds)} / {formatTime(nowPlaying.duration_seconds)})
+                    </span>
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            <div className="grid-standby-actions">
+              <button
+                type="button"
+                className="btn btn-primary grid-standby-btn-main"
+                style={{ color: themeFg }}
+                onClick={() => setWiredDisplayMode("dual_screen")}
+              >
+                <Icon name="devices" size={22} color={themeFg} />
+                <span>{t("settingsPage.gridStandbySwitchToDual")}</span>
+              </button>
+              <p className="grid-standby-action-hint">{t("settingsPage.gridStandbySwitchToDualHelp")}</p>
+
+              <a href="/" className="btn btn-secondary grid-standby-btn-admin">
+                <Icon name="settings" size={18} />
+                <span>{t("settingsPage.gridStandbyOpenAdmin")}</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="cinema-root">

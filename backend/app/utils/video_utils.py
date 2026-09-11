@@ -425,6 +425,28 @@ def _get_target_bitrate(width: int | None, height: int | None) -> str:
     return "6M"  # 1080p Full HD et inférieur
 
 
+def _find_vaapi_device() -> str | None:
+    """
+    Recherche un périphérique DRM render node disponible et accessible en lecture/écriture.
+    Priorité aux noeuds conventionnels renderD128 et renderD129, puis balayage de /dev/dri/renderD*.
+    """
+    candidates = ["/dev/dri/renderD128", "/dev/dri/renderD129"]
+    dri_dir = Path("/dev/dri")
+    if dri_dir.exists():
+        try:
+            for p in dri_dir.glob("renderD*"):
+                sp = str(p)
+                if sp not in candidates:
+                    candidates.append(sp)
+        except OSError:
+            pass
+
+    for dev in candidates:
+        if os.path.exists(dev) and os.access(dev, os.R_OK | os.W_OK):
+            return dev
+    return None
+
+
 def _get_encoder_args(is_android: bool, width: int | None, height: int | None) -> tuple[list[str], str]:
     """
     Détermine les arguments d'encodage optimaux selon la plateforme et le matériel détecté.
@@ -453,25 +475,123 @@ def _get_encoder_args(is_android: bool, width: int | None, height: int | None) -
         return (["-c:v", "h264_videotoolbox", "-q:v", "65", "-pix_fmt", "yuv420p", *gop_args], "h264_videotoolbox")
 
     if system == "linux":
-        # Dell Wyse 5070 (Intel Gemini Lake UHD 600) ou station Linux avec VA-API QuickSync
-        if os.path.exists("/dev/dri/renderD128") and os.access("/dev/dri/renderD128", os.R_OK | os.W_OK):
-            return (["-vaapi_device", "/dev/dri/renderD128", "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-b:v", bitrate, *gop_args], "h264_vaapi")
+        # Dell Wyse 5070 (Intel Gemini Lake UHD 600) ou station Linux avec VA-API
+        dev = _find_vaapi_device()
+        if dev:
+            return (["-vaapi_device", dev, "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-b:v", bitrate, *gop_args], "h264_vaapi")
 
     if system == "windows":
-        # Windows : aucun mécanisme de détection fiable du GPU sans dépendance
-        # supplémentaire (pywin32/WMI, absente du projet) — Intel QuickSync
-        # (h264_qsv) est tenté en premier : encodeur matériel le plus
-        # largement disponible sur un PC de bureau/salle de sport typique
-        # (tout CPU Intel avec graphique intégré depuis plusieurs
-        # générations), sans dépendre d'une carte dédiée NVIDIA/AMD. Aucun
-        # risque d'échec silencieux : si le pilote QuickSync est absent,
-        # ffmpeg renvoie un code non nul et `normalize_video` bascule sur
-        # l'encodeur logiciel libx264, exactement le même repli déjà en
-        # place pour VA-API (Linux) et VideoToolbox (macOS) ci-dessus.
+        # Windows : Intel QuickSync (h264_qsv)
         return (["-c:v", "h264_qsv", "-preset", "fast", "-b:v", bitrate, *gop_args], "h264_qsv")
 
     # Repli logiciel universel haute compatibilité (serveurs headless sans GPU, repli après échec GPU)
     return (["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", *gop_args, "-keyint_min", "60"], "libx264")
+
+
+def _get_transcode_pipeline(
+    is_android: bool,
+    in_codec: str,
+    width: int | None,
+    height: int | None,
+) -> list[dict]:
+    """
+    Construit le pipeline d'accélération matérielle multi-paliers (Full HW -> Hybride -> Logiciel).
+    Chaque palier est un dictionnaire contenant :
+    - 'name': identifiant lisible du palier
+    - 'encoder_name': nom de l'encodeur (pour les statistiques de vitesse)
+    - 'hw_in': liste d'arguments placés AVANT -i (décodage matériel GPU direct en VRAM)
+    - 'enc_args': liste d'arguments d'encodage vidéo placés APRÈS -i
+    """
+    bitrate = _get_target_bitrate(width, height)
+    system = platform.system().lower()
+    gop_args = ["-g", "60"]
+    sw_tier = {
+        "name": "software_libx264",
+        "encoder_name": "libx264",
+        "hw_in": [],
+        "enc_args": ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", *gop_args, "-keyint_min", "60"],
+    }
+
+    if is_android:
+        android_decoders = {
+            "av1": "av1_mediacodec",
+            "hevc": "hevc_mediacodec",
+            "h265": "hevc_mediacodec",
+            "vp9": "vp9_mediacodec",
+            "h264": "h264_mediacodec",
+        }
+        dec = android_decoders.get(in_codec)
+        tiers = []
+        if dec:
+            tiers.append({
+                "name": "android_mediacodec_full",
+                "encoder_name": "h264_mediacodec",
+                "hw_in": ["-operating_rate", "1000", "-c:v", dec],
+                "enc_args": ["-c:v", "h264_mediacodec", "-operating_rate", "1000", "-pix_fmt", "nv12", "-b:v", bitrate, *gop_args],
+            })
+        tiers.append({
+            "name": "android_mediacodec_hybrid",
+            "encoder_name": "h264_mediacodec",
+            "hw_in": [],
+            "enc_args": ["-c:v", "h264_mediacodec", "-operating_rate", "1000", "-pix_fmt", "nv12", "-b:v", bitrate, *gop_args],
+        })
+        tiers.append(sw_tier)
+        return tiers
+
+    if system == "darwin":
+        return [
+            {
+                "name": "videotoolbox_full",
+                "encoder_name": "h264_videotoolbox",
+                "hw_in": ["-hwaccel", "videotoolbox"],
+                "enc_args": ["-c:v", "h264_videotoolbox", "-q:v", "65", "-pix_fmt", "yuv420p", *gop_args],
+            },
+            {
+                "name": "videotoolbox_hybrid",
+                "encoder_name": "h264_videotoolbox",
+                "hw_in": [],
+                "enc_args": ["-c:v", "h264_videotoolbox", "-q:v", "65", "-pix_fmt", "yuv420p", *gop_args],
+            },
+            sw_tier,
+        ]
+
+    if system == "linux":
+        vaapi_dev = _find_vaapi_device()
+        if vaapi_dev:
+            return [
+                {
+                    "name": "vaapi_full",
+                    "encoder_name": "h264_vaapi",
+                    "hw_in": ["-hwaccel", "vaapi", "-hwaccel_device", vaapi_dev, "-hwaccel_output_format", "vaapi"],
+                    "enc_args": ["-vf", "scale_vaapi=format=nv12", "-c:v", "h264_vaapi", "-b:v", bitrate, *gop_args],
+                },
+                {
+                    "name": "vaapi_hybrid",
+                    "encoder_name": "h264_vaapi",
+                    "hw_in": [],
+                    "enc_args": ["-vaapi_device", vaapi_dev, "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-b:v", bitrate, *gop_args],
+                },
+                sw_tier,
+            ]
+
+    if system == "windows":
+        return [
+            {
+                "name": "qsv_full",
+                "encoder_name": "h264_qsv",
+                "hw_in": ["-hwaccel", "qsv", "-hwaccel_output_format", "qsv"],
+                "enc_args": ["-c:v", "h264_qsv", "-preset", "fast", "-b:v", bitrate, *gop_args],
+            },
+            {
+                "name": "qsv_hybrid",
+                "encoder_name": "h264_qsv",
+                "hw_in": [],
+                "enc_args": ["-c:v", "h264_qsv", "-preset", "fast", "-b:v", bitrate, *gop_args],
+            },
+            sw_tier,
+        ]
+
+    return [sw_tier]
 
 
 def _run_ffmpeg_with_progress(
@@ -518,6 +638,12 @@ def _run_ffmpeg_with_progress(
                     stderr_chunks.append(s_line)
         except Exception:
             pass
+        finally:
+            if proc.stderr:
+                try:
+                    proc.stderr.close()
+                except Exception:
+                    pass
 
     t_err = threading.Thread(target=_read_stderr, daemon=True)
     t_err.start()
@@ -576,6 +702,11 @@ def _run_ffmpeg_with_progress(
     finally:
         if job_id:
             unregister_job_process(job_id)
+        if proc.stdout:
+            try:
+                proc.stdout.close()
+            except Exception:
+                pass
         t_err.join(timeout=1.0)
 
     stderr_text = "".join(stderr_chunks)
@@ -626,8 +757,8 @@ def normalize_video(
     """
     Normalise le conteneur ou la piste audio/vidéo d'une vidéo de manière optimisée.
     - Stream copy quand les flux sont déjà compatibles (instantané).
-    - Accélération matérielle multi-OS (Android Snapdragon MediaCodec, Apple Silicon VideoToolbox,
-      Wyse/Linux Intel VA-API QuickSync) sans aucun downscale (conservation intégrale des résolutions 2K/4K).
+    - Accélération matérielle intégrale multi-paliers (Full HW GPU direct -> Hybride GPU -> Repli logiciel libx264)
+      sans aucun downscale (conservation intégrale des résolutions 2K/4K).
     - Télémétrie en direct (ETA, pourcentage, vitesse) et interruption immédiate en cas d'annulation.
     """
     from app.utils.deployment import get_deployment_profile
@@ -642,10 +773,10 @@ def normalize_video(
     in_codec = (meta.get("codec") or "").lower()
     is_android = get_deployment_profile() == "android"
 
-    def _build_cmd(enc_args: list[str], av1_hw_in: bool) -> list[str]:
+    def _build_cmd(hw_in: list[str], enc_args: list[str]) -> list[str]:
         c = [FFMPEG_BIN]
-        if is_android and av1_hw_in:
-            c.extend(["-operating_rate", "1000", "-c:v", "av1_mediacodec"])
+        if hw_in:
+            c.extend(hw_in)
         c.extend(["-i", input_path])
         if "recode_video" in actions:
             c.extend(enc_args)
@@ -663,44 +794,37 @@ def normalize_video(
         c.extend(["-movflags", "+faststart", "-y", output_path])
         return c
 
-    # 1. Sélection initiale de l'encodeur
-    initial_enc_args, encoder_name = _get_encoder_args(is_android, meta.get("width"), meta.get("height"))
-    use_av1_hw = is_android and (in_codec == "av1")
-    cmd = _build_cmd(initial_enc_args, use_av1_hw)
+    # Construction de la liste des paliers d'exécution
+    if "recode_video" in actions:
+        tiers = _get_transcode_pipeline(is_android, in_codec, meta.get("width"), meta.get("height"))
+    else:
+        # Copie de flux vidéo directe (instantanée, pas de réencodage vidéo nécessaire)
+        tiers = [{"name": "stream_copy", "encoder_name": None, "hw_in": [], "enc_args": ["-c:v", "copy"]}]
 
-    ret, stderr = _run_ffmpeg_with_progress(
-        cmd, job_id, meta.get("duration_seconds"),
-        encoder_name=encoder_name, width=meta.get("width"), height=meta.get("height"),
-    )
-    if ret == 0:
-        return output_path
-
-    logger.warning(f"Échec de l'encodage avec {encoder_name} (code {ret}): {stderr}")
-
-    # 2. Repli matériel VA-API ou VideoToolbox -> libx264 si échec GPU
-    if encoder_name in ("h264_vaapi", "h264_videotoolbox", "h264_qsv"):
-        logger.info(f"Repli vers l'encodeur logiciel libx264 suite à l'erreur {encoder_name}...")
-        fallback_enc = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-g", "60", "-keyint_min", "60"]
-        cmd_fallback = _build_cmd(fallback_enc, use_av1_hw)
-        ret2, stderr2 = _run_ffmpeg_with_progress(
-            cmd_fallback, job_id, meta.get("duration_seconds"),
-            encoder_name="libx264", width=meta.get("width"), height=meta.get("height"),
+    last_error_stderr = ""
+    for idx, tier in enumerate(tiers):
+        cmd = _build_cmd(tier["hw_in"], tier["enc_args"])
+        logger.info(f"Tentative de normalisation vidéo (palier {idx + 1}/{len(tiers)}: {tier['name']})...")
+        ret, stderr = _run_ffmpeg_with_progress(
+            cmd,
+            job_id,
+            meta.get("duration_seconds"),
+            encoder_name=tier["encoder_name"],
+            width=meta.get("width"),
+            height=meta.get("height"),
         )
-        if ret2 == 0:
+        if ret == 0:
             return output_path
-        stderr = stderr2
 
-    # 3. Repli Android AV1 si le décodeur standard a échoué
-    if is_android and not use_av1_hw and ("av1" in stderr.lower() or "not implemented" in stderr.lower()):
-        logger.info("Détection d'un flux AV1 non géré par le décodeur par défaut, bascule vers av1_mediacodec...")
-        cmd_av1 = _build_cmd(initial_enc_args, av1_hw_in=True)
-        ret3, stderr3 = _run_ffmpeg_with_progress(
-            cmd_av1, job_id, meta.get("duration_seconds"),
-            encoder_name=encoder_name, width=meta.get("width"), height=meta.get("height"),
-        )
-        if ret3 == 0:
-            return output_path
-        stderr = stderr3
+        last_error_stderr = stderr
+        logger.warning(f"Échec de l'encodage avec {tier['name']} ({tier['encoder_name']}) (code {ret}): {stderr}")
 
-    raise ValueError(f"Échec de la normalisation de la vidéo avec ffmpeg : {stderr}")
+        # Nettoyage de l'éventuel fichier de sortie partiel avant la tentative suivante
+        try:
+            if os.path.exists(output_path):
+                os.remove(output_path)
+        except OSError:
+            pass
+
+    raise ValueError(f"Échec de la normalisation de la vidéo avec ffmpeg : {last_error_stderr}")
 

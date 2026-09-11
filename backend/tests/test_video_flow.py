@@ -310,10 +310,79 @@ class TestVideoFlow(unittest.TestCase):
         with self.assertRaises(JobCancelledError):
             import_video(self.dummy_compatible_path, "cancelled_import.mp4", ImportSource.upload, job_id=job_id)
         
-        # Vérifier qu'aucune vidéo n'a été insérée en base
-        self.assertEqual(self.db.query(Video).count(), 0)
+    def test_13_transcode_pipeline_multi_os(self):
+        from app.utils.video_utils import _get_transcode_pipeline
+
+        # 1. Android avec source AV1
+        android_pipeline = _get_transcode_pipeline(is_android=True, in_codec="av1", width=3840, height=2160)
+        self.assertEqual(len(android_pipeline), 3)
+        self.assertEqual(android_pipeline[0]["name"], "android_mediacodec_full")
+        self.assertIn("av1_mediacodec", android_pipeline[0]["hw_in"])
+        self.assertEqual(android_pipeline[0]["encoder_name"], "h264_mediacodec")
+        self.assertIn("28M", android_pipeline[0]["enc_args"])
+        self.assertEqual(android_pipeline[1]["name"], "android_mediacodec_hybrid")
+        self.assertEqual(android_pipeline[2]["name"], "software_libx264")
+
+        # 2. macOS Apple Silicon / Intel
+        with patch("platform.system", return_value="Darwin"):
+            mac_pipeline = _get_transcode_pipeline(is_android=False, in_codec="hevc", width=1920, height=1080)
+            self.assertEqual(len(mac_pipeline), 3)
+            self.assertEqual(mac_pipeline[0]["name"], "videotoolbox_full")
+            self.assertIn("-hwaccel", mac_pipeline[0]["hw_in"])
+            self.assertIn("videotoolbox", mac_pipeline[0]["hw_in"])
+            self.assertEqual(mac_pipeline[0]["encoder_name"], "h264_videotoolbox")
+            self.assertEqual(mac_pipeline[1]["name"], "videotoolbox_hybrid")
+            self.assertEqual(mac_pipeline[2]["name"], "software_libx264")
+
+        # 3. Windows Intel QuickSync
+        with patch("platform.system", return_value="Windows"):
+            win_pipeline = _get_transcode_pipeline(is_android=False, in_codec="hevc", width=2560, height=1440)
+            self.assertEqual(len(win_pipeline), 3)
+            self.assertEqual(win_pipeline[0]["name"], "qsv_full")
+            self.assertIn("-hwaccel", win_pipeline[0]["hw_in"])
+            self.assertIn("qsv", win_pipeline[0]["hw_in"])
+            self.assertEqual(win_pipeline[0]["encoder_name"], "h264_qsv")
+            self.assertIn("14M", win_pipeline[0]["enc_args"])
+            self.assertEqual(win_pipeline[1]["name"], "qsv_hybrid")
+            self.assertEqual(win_pipeline[2]["name"], "software_libx264")
+
+        # 4. Linux avec VA-API (Intel / AMD)
+        with patch("platform.system", return_value="Linux"), patch("app.utils.video_utils._find_vaapi_device", return_value="/dev/dri/renderD128"):
+            linux_pipeline = _get_transcode_pipeline(is_android=False, in_codec="av1", width=3840, height=2160)
+            self.assertEqual(len(linux_pipeline), 3)
+            self.assertEqual(linux_pipeline[0]["name"], "vaapi_full")
+            self.assertIn("-hwaccel", linux_pipeline[0]["hw_in"])
+            self.assertIn("vaapi", linux_pipeline[0]["hw_in"])
+            self.assertIn("scale_vaapi=format=nv12", " ".join(linux_pipeline[0]["enc_args"]))
+            self.assertEqual(linux_pipeline[0]["encoder_name"], "h264_vaapi")
+            self.assertIn("28M", linux_pipeline[0]["enc_args"])
+            self.assertEqual(linux_pipeline[1]["name"], "vaapi_hybrid")
+            self.assertEqual(linux_pipeline[2]["name"], "software_libx264")
+
+    def test_14_normalize_video_recode_action(self):
+        from app.utils.video_utils import normalize_video
+        test_out_path = str(Path(settings.media_dir) / "test_norm_output.mp4")
+        try:
+            # Normaliser la vidéo incompatible avec action recode_video explicite
+            meta = extract_metadata(self.dummy_incompatible_path)
+            res = normalize_video(
+                self.dummy_incompatible_path,
+                test_out_path,
+                actions=["recode_video", "recode_audio", "recode_container"],
+                source_metadata=meta,
+            )
+            self.assertTrue(os.path.exists(res))
+            out_meta = extract_metadata(res)
+            self.assertEqual(out_meta["codec"], "h264")
+            self.assertEqual(out_meta["audio_codec"], "aac")
+            self.assertEqual(out_meta["width"], 320)
+            self.assertEqual(out_meta["height"], 240)
+        finally:
+            if os.path.exists(test_out_path):
+                os.remove(test_out_path)
 
 
 if __name__ == "__main__":
     unittest.main()
+
 

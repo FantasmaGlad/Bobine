@@ -151,7 +151,7 @@ export default function RadioRemotePage() {
                 <img
                   src={coverSrc}
                   alt=""
-                  style={{ width: "56px", height: "56px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "#000" }}
+                  style={{ width: "56px", height: "56px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "var(--bg-surface-elevated)" }}
                 />
               ) : (
                 <div

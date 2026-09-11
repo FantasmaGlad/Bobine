@@ -26,6 +26,7 @@ interface SettingsData {
   paths: Record<string, string>;
   network: { local_ip: string | null; port: number; mdns_url: string };
   update_channel: "stable" | "beta";
+  wired_display_mode: "dual_screen" | "headless";
 }
 
 interface StorageData {
@@ -71,7 +72,7 @@ interface UpdateInfo {
  * aucune dépendance de graphique supplémentaire. */
 function UsageGauge({ label, percent, detail, size = 96 }: { label: string; percent: number; detail: string; size?: number }) {
   const clamped = Math.max(0, Math.min(100, percent));
-  const color = clamped >= 90 ? "var(--accent-error)" : clamped >= 75 ? "#f59e0b" : "var(--accent-primary)";
+  const color = clamped >= 90 ? "var(--accent-error)" : clamped >= 75 ? "var(--accent-warning)" : "var(--accent-primary)";
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", flex: "1 1 140px", minWidth: "140px" }}>
       <div
@@ -127,24 +128,24 @@ interface ThemeSwatch {
 
 const THEME_SWATCHES: ThemeSwatch[] = [
   // --- Thèmes clairs ---
-  { value: "clair", labelKey: "settingsPage.themeLight", category: "clair", colors: ["#f8f9fa", "#ffffff", "#e4002b", "#16161a"] },
-  { value: "charbon", labelKey: "settingsPage.themeCharbon", category: "clair", colors: ["#f4f4f5", "#ffffff", "#18181b", "#09090b"] },
-  { value: "miel", labelKey: "settingsPage.themeMiel", category: "clair", colors: ["#fdfbf5", "#fef7e7", "#d97706", "#2d1e0b"] },
-  { value: "coco", labelKey: "settingsPage.themeCoco", category: "clair", colors: ["#faf7f4", "#f3ece6", "#78350f", "#2c1d14"] },
-  { value: "menthe", labelKey: "settingsPage.themeMenthe", category: "clair", colors: ["#f4f9f6", "#eaf3ee", "#10b981", "#132a1e"] },
-  { value: "ciel", labelKey: "settingsPage.themeCiel", category: "clair", colors: ["#f0f7fa", "#e2eff5", "#0284c7", "#0c2738"] },
-  { value: "beige", labelKey: "settingsPage.themeBeige", category: "clair", colors: ["#f7f4ec", "#ede7d8", "#453229", "#241a15"] },
-  { value: "lavande", labelKey: "settingsPage.themeLavande", category: "clair", colors: ["#f7f6fc", "#edeaf7", "#7c3aed", "#1e1633"] },
+  { value: "clair", labelKey: "settingsPage.themeLight", category: "clair", colors: ["#f8f9fa", "#f1f3f5", "#dc2626", "#111827"] },
+  { value: "charbon", labelKey: "settingsPage.themeCharbon", category: "clair", colors: ["#f4f4f5", "#e4e4e7", "#18181b", "#09090b"] },
+  { value: "miel", labelKey: "settingsPage.themeMiel", category: "clair", colors: ["#fdfbf5", "#fef7e7", "#b45309", "#291b07"] },
+  { value: "menthe", labelKey: "settingsPage.themeMenthe", category: "clair", colors: ["#f2f8f5", "#e5f2eb", "#047857", "#0e261a"] },
+  { value: "ciel", labelKey: "settingsPage.themeCiel", category: "clair", colors: ["#f0f6fa", "#e0edf6", "#0275b1", "#0a2233"] },
+  { value: "lavande", labelKey: "settingsPage.themeLavande", category: "clair", colors: ["#f6f5fc", "#eae7f7", "#6d28d9", "#1b1130"] },
+  { value: "beige", labelKey: "settingsPage.themeBeige", category: "clair", colors: ["#f7f4ed", "#eee7da", "#543320", "#261a12"] },
+  { value: "coco", labelKey: "settingsPage.themeCoco", category: "clair", colors: ["#faf6f2", "#f2e8de", "#6b2c0b", "#26170e"] },
 
   // --- Thèmes sombres ---
-  { value: "les-mills-sombre", labelKey: "settingsPage.themeDark", category: "sombre", colors: ["#0a0a0a", "#1e1e20", "#e4002b", "#ffffff"] },
-  { value: "lune", labelKey: "settingsPage.themeLune", category: "sombre", colors: ["#0d111a", "#1e2638", "#6366f1", "#f1f5f9"] },
-  { value: "automne", labelKey: "settingsPage.themeAutomne", category: "sombre", colors: ["#14100c", "#282119", "#f59e0b", "#fef3c7"] },
-  { value: "hiver", labelKey: "settingsPage.themeHiver", category: "sombre", colors: ["#0a1317", "#182830", "#06b6d4", "#f0fdfa"] },
-  { value: "chili", labelKey: "settingsPage.themeChili", category: "sombre", colors: ["#15090a", "#2b1417", "#ef4444", "#fdf2f2"] },
-  { value: "orchidee", labelKey: "settingsPage.themeOrchidee", category: "sombre", colors: ["#140d17", "#281b30", "#a855f7", "#faf5ff"] },
-  { value: "taupe", labelKey: "settingsPage.themeTaupe", category: "sombre", colors: ["#1c1713", "#332a23", "#d4a373", "#fdfaf7"] },
-  { value: "charbon-sombre", labelKey: "settingsPage.themeCharbonSombre", category: "sombre", colors: ["#0b0b0d", "#141417", "#c9c9d1", "#f2f2f4"] },
+  { value: "les-mills-sombre", labelKey: "settingsPage.themeDark", category: "sombre", colors: ["#09090b", "#1a1a20", "#e4002b", "#ffffff"] },
+  { value: "charbon-sombre", labelKey: "settingsPage.themeCharbonSombre", category: "sombre", colors: ["#0d1014", "#1c222b", "#cbd5e1", "#f1f5f9"] },
+  { value: "automne", labelKey: "settingsPage.themeAutomne", category: "sombre", colors: ["#140c06", "#2a1b0f", "#f59e0b", "#fef3c7"] },
+  { value: "hiver", labelKey: "settingsPage.themeHiver", category: "sombre", colors: ["#041118", "#0e2634", "#06b6d4", "#ecfeff"] },
+  { value: "lune", labelKey: "settingsPage.themeLune", category: "sombre", colors: ["#090a16", "#181a38", "#4f46e5", "#e0e7ff"] },
+  { value: "chili", labelKey: "settingsPage.themeChili", category: "sombre", colors: ["#140507", "#2d0d12", "#e11d48", "#ffe4e6"] },
+  { value: "orchidee", labelKey: "settingsPage.themeOrchidee", category: "sombre", colors: ["#120516", "#2b0d35", "#9333ea", "#fdf4ff"] },
+  { value: "taupe", labelKey: "settingsPage.themeTaupe", category: "sombre", colors: ["#140e09", "#2d1f15", "#d97706", "#fafaf9"] },
 ];
 
 // Pages plein écran destinées à être ouvertes depuis un AUTRE appareil du
@@ -185,6 +186,7 @@ export default function SettingsPage() {
   const {
     theme, language, setTheme, setLanguage, t,
     hasCustomLogo, activeLogo, setActiveLogo, launchAnimationEnabled, setLaunchAnimationEnabled, refreshBranding,
+    wiredDisplayMode, setWiredDisplayMode,
   } = useAppSettings();
   const [data, setData] = useState<SettingsData | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -617,6 +619,146 @@ export default function SettingsPage() {
             <option value="en">{t("settingsPage.languageEn")}</option>
           </select>
           <p className="settings-hint">{t("settingsPage.languageHint")}</p>
+        </div>
+      </section>
+
+      {/* ---- Sortie câblée : Pupitre Studio (/grid) vs Headless (Écran physique & HDMI) ---- */}
+      <section className="live-block">
+        <h3><Icon name="tv" size={18} /> {t("settingsPage.wiredDisplaySection")}</h3>
+        <p className="settings-hint" style={{ marginTop: "-8px", marginBottom: "16px" }}>
+          {t("settingsPage.wiredDisplaySubtitle")}
+        </p>
+
+        <div className="form-group">
+          <label className="form-label">{t("settingsPage.wiredDisplayModeLabel")}</label>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px", marginTop: "8px" }}>
+            {/* Option 1 : Headless (Affichage Classique / mini-PC autonome) */}
+            <button
+              type="button"
+              className={`theme-picker-card ${wiredDisplayMode === "headless" ? "active" : ""}`}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                padding: "16px",
+                textAlign: "left",
+                height: "auto",
+                gap: "8px",
+              }}
+              onClick={() => {
+                setWiredDisplayMode("headless");
+                showToast(t("settingsPage.savedToast"), "success");
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%" }}>
+                <div style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "var(--radius-sm)",
+                  background: wiredDisplayMode === "headless" ? "var(--accent-primary)" : "var(--bg-surface-hover)",
+                  color: wiredDisplayMode === "headless" ? "var(--accent-primary-fg)" : "var(--text-main)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  <Icon name="desktop_windows" size={20} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ display: "block", fontSize: "0.95rem" }}>
+                    {t("settingsPage.wiredDisplayModeHeadless")}
+                  </strong>
+                </div>
+                {wiredDisplayMode === "headless" && (
+                  <span style={{ color: "var(--accent-primary)", display: "flex", alignItems: "center" }}>
+                    <Icon name="check_circle" size={18} />
+                  </span>
+                )}
+              </div>
+              <p style={{ margin: 0, fontSize: "0.84rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                {t("settingsPage.wiredDisplayModeHeadlessDesc")}
+              </p>
+            </button>
+
+            {/* Option 2 : Pupitre Studio + Vidéo HDMI */}
+            <button
+              type="button"
+              className={`theme-picker-card ${wiredDisplayMode === "dual_screen" ? "active" : ""}`}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                padding: "16px",
+                textAlign: "left",
+                height: "auto",
+                gap: "8px",
+              }}
+              onClick={() => {
+                setWiredDisplayMode("dual_screen");
+                showToast(t("settingsPage.savedToast"), "success");
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%" }}>
+                <div style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "var(--radius-sm)",
+                  background: wiredDisplayMode === "dual_screen" ? "var(--accent-primary)" : "var(--bg-surface-hover)",
+                  color: wiredDisplayMode === "dual_screen" ? "var(--accent-primary-fg)" : "var(--text-main)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  <Icon name="view_quilt" size={20} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ display: "block", fontSize: "0.95rem" }}>
+                    {t("settingsPage.wiredDisplayModeDual")}
+                  </strong>
+                </div>
+                {wiredDisplayMode === "dual_screen" && (
+                  <span style={{ color: "var(--accent-primary)", display: "flex", alignItems: "center" }}>
+                    <Icon name="check_circle" size={18} />
+                  </span>
+                )}
+              </div>
+              <p style={{ margin: 0, fontSize: "0.84rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                {t("settingsPage.wiredDisplayModeDualDesc")}
+              </p>
+            </button>
+          </div>
+
+          {/* Raccourcis d'accès direct */}
+          <div style={{ display: "flex", gap: "10px", marginTop: "16px", flexWrap: "wrap", alignItems: "center" }}>
+            <a
+              href="/grid"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary"
+              style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none" }}
+            >
+              <Icon name="grid_view" size={16} />
+              {t("settingsPage.wiredDisplayOpenGrid")}
+            </a>
+            <a
+              href="/cinema"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary"
+              style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none" }}
+            >
+              <Icon name="movie" size={16} />
+              {t("settingsPage.wiredDisplayOpenCinema")}
+            </a>
+          </div>
+
+          {/* Astuce selon plateforme */}
+          <p className="settings-hint" style={{ marginTop: "12px" }}>
+            {data?.deployment_profile === "android"
+              ? t("settingsPage.wiredDisplayTabletHint")
+              : t("settingsPage.wiredDisplayLaptopHint")}
+          </p>
         </div>
       </section>
 
@@ -1114,44 +1256,80 @@ export default function SettingsPage() {
           </button>
         </div>
         <p className="settings-hint" style={{ marginTop: "4px" }}>{t("settingsPage.docHint")}</p>
-        <div className="settings-paths">
-          {/* IP locale (réf. mission "aide à la découverte réseau") : en
-              complément du nom mDNS bobine.local (avahi, déjà annoncé en fin
-              d'installation), utile quand la découverte par nom échoue (ex.
-              client ne supportant pas mDNS). */}
-          <div className="settings-path-row">
-            <span className="settings-path-key">{t("settingsPage.paths.localIp")}</span>
-            <span className="settings-path-val">
-              {data.network.local_ip ? `http://${data.network.local_ip}:${data.network.port}` : t("settingsPage.paths.localIpUnavailable")}
-            </span>
+
+        {/* 1. Accès Local (boucle locale 127.0.0.1) */}
+        <div className="settings-doc-group">
+          <div className="settings-doc-header">
+            <Icon name="tv" size={18} />
+            <span>{t("settingsPage.paths.localHeading")}</span>
           </div>
-          <div className="settings-path-row">
-            <span className="settings-path-key">{t("settingsPage.paths.mdnsUrl")}</span>
-            <span className="settings-path-val">{data.network.mdns_url}</span>
+          <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.localHint")}</p>
+          <div className="settings-paths">
+            {(data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS).map((page) => {
+              const localUrl = `http://127.0.0.1:${data.network.port}${page.path}`;
+              return (
+                <div key={`local-${page.path}`} className="settings-path-row">
+                  <span className="settings-path-key">{t(page.labelKey)}</span>
+                  <a href={localUrl} target="_blank" rel="noopener noreferrer" className="settings-path-link">
+                    {localUrl}
+                  </a>
+                </div>
+              );
+            })}
           </div>
-          <div className="settings-path-row" style={{ marginTop: "10px" }}>
-            <span className="settings-path-key" style={{ fontWeight: 800 }}>{t("settingsPage.paths.pagesHeading")}</span>
-            <span />
+        </div>
+
+        {/* 2. Accès Réseau (LAN / Wi-Fi) */}
+        <div className="settings-doc-group">
+          <div className="settings-doc-header">
+            <Icon name="wifi" size={18} />
+            <span>{t("settingsPage.paths.networkHeading")}</span>
           </div>
-          <p className="settings-hint" style={{ marginTop: "-2px", marginBottom: "8px" }}>
-            {t("settingsPage.docPagesChannelNote", { port: data.network.port })}
-          </p>
-          {(data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS).map((page) => (
-            <div key={page.path} className="settings-path-row">
-              <span className="settings-path-key">{t(page.labelKey)}</span>
+          <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.networkHint")}</p>
+          <div className="settings-paths">
+            <div className="settings-path-row">
+              <span className="settings-path-key">{t("settingsPage.paths.localIp")}</span>
               <span className="settings-path-val">
-                {data.network.local_ip
-                  ? `http://${data.network.local_ip}:${data.network.port}${page.path}`
-                  : t("settingsPage.paths.localIpUnavailable")}
+                {data.network.local_ip ? `http://${data.network.local_ip}:${data.network.port}` : t("settingsPage.paths.localIpUnavailable")}
               </span>
             </div>
-          ))}
-          {Object.entries(data.paths).map(([key, value]) => (
-            <div key={key} className="settings-path-row">
-              <span className="settings-path-key">{t(PATH_LABEL_KEYS[key] || key)}</span>
-              <span className="settings-path-val">{value}</span>
+            <div className="settings-path-row">
+              <span className="settings-path-key">{t("settingsPage.paths.mdnsUrl")}</span>
+              <span className="settings-path-val">{data.network.mdns_url}</span>
             </div>
-          ))}
+            {(data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS).map((page) => {
+              const netUrl = data.network.local_ip ? `http://${data.network.local_ip}:${data.network.port}${page.path}` : null;
+              return (
+                <div key={`net-${page.path}`} className="settings-path-row">
+                  <span className="settings-path-key">{t(page.labelKey)}</span>
+                  {netUrl ? (
+                    <a href={netUrl} target="_blank" rel="noopener noreferrer" className="settings-path-link">
+                      {netUrl}
+                    </a>
+                  ) : (
+                    <span className="settings-path-val">{t("settingsPage.paths.localIpUnavailable")}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 3. Données et Chemins système */}
+        <div className="settings-doc-group">
+          <div className="settings-doc-header">
+            <Icon name="folder" size={18} />
+            <span>{t("settingsPage.paths.systemHeading")}</span>
+          </div>
+          <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.systemHint")}</p>
+          <div className="settings-paths">
+            {Object.entries(data.paths).map(([key, value]) => (
+              <div key={key} className="settings-path-row">
+                <span className="settings-path-key">{t(PATH_LABEL_KEYS[key] || key)}</span>
+                <span className="settings-path-val">{value}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

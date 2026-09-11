@@ -53,6 +53,8 @@ def _resolve_admin_port() -> int:
 
 ADMIN_URL = f"http://127.0.0.1:{_resolve_admin_port()}"
 KIOSK_URL = f"{ADMIN_URL}/kiosk"
+GRID_URL = f"{ADMIN_URL}/grid"
+CINEMA_URL = f"{ADMIN_URL}/cinema"
 HEALTH_URL = f"{ADMIN_URL}/api/health"
 UPDATES_CHECK_URL = f"{ADMIN_URL}/api/updates/check"
 
@@ -209,7 +211,7 @@ def _caffeinate_after_launch(process_name: str, timeout_seconds: float = 5.0) ->
     logger.warning(f"caffeinate non attaché : process '{process_name}' introuvable après {timeout_seconds}s")
 
 
-def launch_kiosk_browser() -> None:
+def launch_kiosk_browser(url: str | None = None) -> None:
     """Lance le navigateur en mode kiosque optionnel (décision #1 du CDC).
     - Windows : préfère Edge (Chromium).
     - Linux : cherche chromium, google-chrome ou firefox en mode --kiosk.
@@ -217,8 +219,9 @@ def launch_kiosk_browser() -> None:
       `.app`, pas des exécutables nus sur le PATH) + anti-veille `caffeinate`
       attachée après coup (cf. `_caffeinate_after_launch`).
     - Repli universel : navigateur par défaut."""
+    target_url = url or KIOSK_URL
     system = platform.system()
-    kiosk_args = ["--kiosk", "--autoplay-policy=no-user-gesture-required", KIOSK_URL]
+    kiosk_args = ["--kiosk", "--autoplay-policy=no-user-gesture-required", target_url]
 
     if system == "Windows":
         edge = shutil.which("msedge")
@@ -240,7 +243,7 @@ def launch_kiosk_browser() -> None:
         firefox = shutil.which("firefox")
         if firefox:
             _set_display_always_on(True)
-            subprocess.Popen([firefox, "--kiosk", KIOSK_URL])
+            subprocess.Popen([firefox, "--kiosk", target_url])
             return
 
     elif system == "Darwin":
@@ -256,7 +259,47 @@ def launch_kiosk_browser() -> None:
                 ).start()
                 return
 
-    webbrowser.open(KIOSK_URL)
+    webbrowser.open(target_url)
+
+
+def _get_wired_display_mode() -> str:
+    """Lit le mode d'affichage câblé configuré depuis le backend local (/api/settings)."""
+    try:
+        req = urllib.request.Request(f"{ADMIN_URL}/api/settings", headers={"User-Agent": "BobineTray"})
+        with urllib.request.urlopen(req, timeout=2) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data.get("wired_display_mode", "headless")
+    except Exception:
+        return "headless"
+
+
+def _open_initial_displays(timeout_seconds: float = 20.0) -> None:
+    """Orchestre l'ouverture des interfaces au démarrage selon le mode d'affichage configuré (CDC §4.3).
+    - En mode Pupitre Studio (dual_screen) :
+      - Ouvre /grid sur l'écran du PC (navigateur pour touchpad/souris/tactile)
+      - Ouvre /cinema en plein écran / kiosque sur la sortie HDMI
+    - En mode Classique / Headless (headless) :
+      - Ouvre l'administration sur l'écran du PC
+      - Ouvre le kiosque câblé sur la sortie HDMI
+    """
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        if is_backend_running():
+            mode = _get_wired_display_mode()
+            logger.info(f"Backend prêt — mode d'affichage câblé configuré : {mode}")
+            if mode == "dual_screen":
+                logger.info("Démarrage en mode Pupitre Studio (double écran) : /grid + /cinema")
+                webbrowser.open(GRID_URL)
+                launch_kiosk_browser(f"{ADMIN_URL}/cinema")
+            else:
+                logger.info("Démarrage en mode Classique / Headless : Administration + Kiosque")
+                webbrowser.open(ADMIN_URL)
+                launch_kiosk_browser(KIOSK_URL)
+            return
+        time.sleep(0.5)
+    logger.warning("Délai d'attente du backend dépassé — ouverture par défaut")
+    webbrowser.open(ADMIN_URL)
+    launch_kiosk_browser(KIOSK_URL)
 
 
 _ICON_FILENAME = "logo_bobine_icon.png"
@@ -506,30 +549,27 @@ def run() -> None:
     supervisor = BackendSupervisor(_backend_command())
     supervisor.start()
 
-    # Ouvre automatiquement les deux interfaces sauf en démarrage silencieux
-    # (--startup / --minimized) : l'administration (pour configurer/importer)
-    # ET le kiosque câblé (l'écran cinéma qui sort de base, comme sur
-    # l'appliance headless où bobine-kiosk.service l'affiche systématiquement
-    # au démarrage — cf. install.sh). L'utilisateur ferme l'onglet
-    # d'administration lui-même s'il n'en a pas l'usage immédiat.
+    # Ouvre automatiquement les interfaces selon le mode d'affichage configuré
+    # (CDC §4.3 affichage hybride) sauf en démarrage silencieux (--startup / --minimized) :
+    # - En mode Pupitre Studio (dual_screen) : /grid sur l'écran du PC et /cinema sur la sortie HDMI.
+    # - En mode Classique / Headless (headless) : l'administration sur l'écran du PC et le kiosque sur HDMI.
     if "--startup" not in sys.argv and "--minimized" not in sys.argv:
         threading.Thread(
-            target=_open_browser_when_ready,
-            args=(lambda: webbrowser.open(ADMIN_URL), "l'administration"),
+            target=_open_initial_displays,
             daemon=True,
-            name="bobine-open-admin",
-        ).start()
-        threading.Thread(
-            target=_open_browser_when_ready,
-            args=(launch_kiosk_browser, "le kiosque câblé"),
-            daemon=True,
-            name="bobine-open-kiosk",
+            name="bobine-open-displays",
         ).start()
 
     threading.Thread(target=_update_poll_loop, daemon=True, name="bobine-tray-update-check").start()
 
     def on_open_admin(icon, item):
         webbrowser.open(ADMIN_URL)
+
+    def on_open_grid(icon, item):
+        webbrowser.open(GRID_URL)
+
+    def on_open_cinema(icon, item):
+        webbrowser.open(CINEMA_URL)
 
     def on_open_kiosk(icon, item):
         launch_kiosk_browser()
@@ -565,6 +605,8 @@ def run() -> None:
         pystray.MenuItem(status_text, None, enabled=False),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Ouvrir l'administration", on_open_admin, default=True),
+        pystray.MenuItem("Ouvrir le pupitre tactile (/grid)", on_open_grid),
+        pystray.MenuItem("Ouvrir l'écran cinéma (/cinema)", on_open_cinema),
         pystray.MenuItem("Ouvrir en mode kiosque", on_open_kiosk),
         pystray.MenuItem(update_text, on_check_update),
         pystray.MenuItem("Redémarrer", on_restart),

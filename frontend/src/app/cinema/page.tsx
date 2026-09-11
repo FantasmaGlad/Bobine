@@ -283,21 +283,18 @@ const CinemaAllList = React.memo(function CinemaAllList({
  * Wyse ou sur un appareil du réseau.
  */
 export default function CinemaPage() {
-  const { t, launchAnimationEnabled } = useAppSettings();
+  const { t, launchAnimationEnabled, wiredDisplayMode } = useAppSettings();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [videos, setVideos] = useState<CinemaVideo[]>([]);
   const [phase, setPhase] = useState<Phase>("grid");
   const [selected, setSelected] = useState<CinemaVideo | null>(null);
-  // Écran HDMI passif de la tablette Android (Lot 14, demande explicite
-  // utilisateur "retire l'interface de superposition... il n'y en aura plus
-  // besoin") : sur ce déploiement précis, /grid (écran tactile) est
-  // désormais l'unique surface de contrôle (avance/recul/pause/retrait),
-  // cf. son panneau "en cours de lecture" — les commandes de superposition
-  // ici n'ont donc plus lieu d'être. Sur les autres profils (desktop, PC en
-  // libre-service SANS /grid), cet écran reste sa propre surface tactile
-  // locale : les commandes restent nécessaires, comportement inchangé.
-  // `deployment_profile` (Lot 12, backend/app/deployment.py) est déjà exposé
-  // par /api/settings, seul signal fiable pour cette distinction.
+  // Écran HDMI passif (Lot 14 et Cahier des charges affichage hybride) :
+  // En mode double écran ("dual_screen" sur sortie câblée physique), /grid
+  // (écran intégré du laptop ou écran tactile de la tablette) est l'unique
+  // surface de pilotage (lancement/avance/recul/pause/retrait).
+  // Les commandes de superposition sur cet écran n'ont donc plus lieu d'être,
+  // et l'écran affiche une attente sobre lorsqu'aucun cours n'est diffusé.
+  // En mode classique / "headless", cet écran reste autonome avec ses contrôles.
   const [isAndroidHdmiScreen, setIsAndroidHdmiScreen] = useState(false);
   useEffect(() => {
     fetch(getApiUrl("/settings"), { cache: "no-store" })
@@ -309,6 +306,12 @@ export default function CinemaPage() {
       })
       .catch(() => {});
   }, []);
+
+  // Masquage des contrôles HDMI & mode passif (CDC §4.2 affichage hybride) :
+  // En mode double écran ("dual_screen" sur sortie câblée physique), /grid
+  // (écran tactile ou laptop) pilote tout — les contrôles de superposition
+  // sont masqués et l'écran HDMI affiche une attente sobre lorsqu'aucun cours ne joue.
+  const hideControls = isAndroidHdmiScreen || (wiredDisplayMode === "dual_screen" && isWiredDisplay());
 
   // Horloge de l'écran d'attente « bibliothèque vide » (voir plus bas) :
   // quand aucun cours n'est disponible, la vitrine n'a ni héros ni logo et se
@@ -835,7 +838,7 @@ export default function CinemaPage() {
       )}
 
       {/* Écran d'attente cinéma TV (sur sortie HDMI pilotée depuis /grid) */}
-      {isAndroidHdmiScreen && showGrid && (
+      {hideControls && showGrid && (
         <div className="cinema-standby-screen">
           <AppLogo size={96} className="cinema-standby-logo" />
           <span className="cinema-standby-clock" suppressHydrationWarning>{formatClock(now)}</span>
@@ -844,8 +847,8 @@ export default function CinemaPage() {
         </div>
       )}
 
-      {/* Vitrine de sélection : héros + rangées par programme + grille complète (sur les profils non-HDMI Android) */}
-      {!isAndroidHdmiScreen && (
+      {/* Vitrine de sélection : héros + rangées par programme + grille complète (sur les profils avec contrôles) */}
+      {!hideControls && (
         <div className={`cinema-layer cinema-grid-layer ${showGrid ? "visible" : ""}`}>
           {featured && (
             <section className="cinema-hero">
@@ -951,7 +954,7 @@ export default function CinemaPage() {
             <span>{t("cinema.play")}</span>
           </button>
         )}
-        {!isAndroidHdmiScreen && (
+        {!hideControls && (
         <div className={`cinema-controls ${isPlayingLayer && (controlsVisible || !isPlaying) ? "visible" : ""}`}>
           {/* Correctif "mention du cours en double" : le titre était déjà
               répété ici en haut à droite alors qu'il apparaît sur la vidéo

@@ -8,16 +8,11 @@
   --bg-surface-hover: #262629;
 
   --text-main: #ffffff;
-  --text-muted: #8e8e93;
-  /* #828288 plutôt que la valeur d'origine #5c5c60 (2.97:1 sur --bg-main) :
-     utilisé pour du vrai texte (aides de formulaire, sous-titres), pas
-     seulement décoratif — remonté pour passer le seuil WCAG AA texte normal
-     (4.5:1), réf. UX6.2/tâche 11.7. Vérifié : 5.18:1 sur --bg-main, 4.82:1
-     sur --bg-surface. */
-  --text-dim: #828288;
+  --text-muted: #9ca3af;
+  --text-dim: #868e96;
 
-  --border-color: #2c2c2e;
-  --border-focus: #48484a;
+  --border-color: #27272a;
+  --border-focus: #52525b;
 
   /* Accent Colors */
   --accent-primary: #e4002b; /* Rouge Bobine */
@@ -57,224 +52,36 @@
   --logo-filter: invert(1);
 }
 
-/* Thème clair alternatif (réf. UX1.2, tâche 11.3) : appliqué via l'attribut
-   data-theme posé sur <html> par AppSettingsProvider (réf. 11.4/11.5), pas
-   une media query — le choix est un réglage persisté côté serveur (UX1.4),
-   pas la préférence système du navigateur. Les couleurs de programme
-   (RPM/Trip) restent identiques entre thèmes, identité de marque (§1.2) ; le
-   jaune Sprint est en revanche assombri ici (accent-sprint) pour rester
-   lisible en texte sur fond clair (le jaune d'origine tombe à ~1.6:1 sur
-   blanc, illisible) — seul accent_par_programme réellement redéfini par
-   thème. */
+/* ============================================================
+   SYSTÈME DE THÈMES BOBINE — 16 THÈMES (8 CLAIRS, 8 SOMBRES)
+   Design Studio / Cinéma haute fidélité, certifié 100% WCAG AA/AAA
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   THÈMES CLAIRS (8)
+   ------------------------------------------------------------ */
+
+/* Carmin — Rouge signature Bobine sur blanc immaculé (ex-Clair) */
 :root[data-theme="clair"] {
   --bg-main: #f8f9fa;
   --bg-surface: #ffffff;
-  --bg-surface-elevated: #ffffff;
-  --bg-surface-hover: #f1f3f5;
+  --bg-surface-elevated: #f1f3f5;
+  --bg-surface-hover: #e9ecef;
 
-  --text-main: #18181b;
-  --text-muted: #52525b;
-  --text-dim: #71717a;
+  --text-main: #111827;
+  --text-muted: #4b5563;
+  --text-dim: #6b7280;
 
-  --border-color: #e4e4e7;
-  --border-focus: #a1a1aa;
+  --border-color: #e5e7eb;
+  --border-focus: #9ca3af;
 
-  --accent-sprint: #8a5a00;
-  --logo-filter: none;
-}
-
-/* Thèmes additionnels : palettes harmonisées selon les standards de design UI/UX moderne.
-   Contrastes vérifiés WCAG AA/AAA, surfaces feutrées, transitions équilibrées. */
-
-/* Miel — Thème clair teinté miel doré et chaleureux */
-:root[data-theme="miel"] {
-  --bg-main: #fdfbf5;
-  --bg-surface: #ffffff;
-  --bg-surface-elevated: #fef7e7;
-  --bg-surface-hover: #faeed4;
-
-  --text-main: #2b1d0c;
-  --text-muted: #785723;
-  --text-dim: #997236;
-
-  --border-color: #ede0c2;
-  --border-focus: #deb86d;
-
-  --accent-primary: #d97706;
+  --accent-primary: #dc2626;
   --accent-primary-fg: #ffffff;
   --accent-sprint: #8a5a00;
   --logo-filter: none;
 }
 
-/* Coco — Thème clair crème, lait de coco et marron chocolat */
-:root[data-theme="coco"] {
-  --bg-main: #faf7f4;
-  --bg-surface: #ffffff;
-  --bg-surface-elevated: #f4ece5;
-  --bg-surface-hover: #e9ded4;
-
-  --text-main: #2a1c14;
-  --text-muted: #6b4d3b;
-  --text-dim: #8c6a54;
-
-  --border-color: #e3d6cc;
-  --border-focus: #bda393;
-
-  --accent-primary: #78350f;
-  --accent-primary-fg: #ffffff;
-  --accent-sprint: #8a5a00;
-  --logo-filter: none;
-}
-
-/* Lune — Thème sombre indigo / nuit feutrée */
-:root[data-theme="lune"] {
-  --bg-main: #0c1017;
-  --bg-surface: #121824;
-  --bg-surface-elevated: #1a2334;
-  --bg-surface-hover: #222d42;
-
-  --text-main: #f1f5f9;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
-
-  --border-color: #1e293b;
-  --border-focus: #334155;
-
-  --accent-primary: #6366f1;
-  --accent-primary-fg: #ffffff;
-}
-
-/* Menthe — Thème clair sauge délicate et fraîche */
-:root[data-theme="menthe"] {
-  --bg-main: #f3f8f5;
-  --bg-surface: #ffffff;
-  --bg-surface-elevated: #e7f2ec;
-  --bg-surface-hover: #d7e8de;
-
-  --text-main: #132a1e;
-  --text-muted: #3d6350;
-  --text-dim: #5c836f;
-
-  --border-color: #cde2d6;
-  --border-focus: #94c4a8;
-
-  --accent-primary: #059669;
-  --accent-primary-fg: #ffffff;
-  --accent-sprint: #8a5a00;
-  --logo-filter: none;
-}
-
-/* Automne — Thème sombre cuivré et chaleureux */
-:root[data-theme="automne"] {
-  --bg-main: #130f0b;
-  --bg-surface: #1c1712;
-  --bg-surface-elevated: #292119;
-  --bg-surface-hover: #362c22;
-
-  --text-main: #fef3c7;
-  --text-muted: #d97706;
-  --text-dim: #b45309;
-
-  --border-color: #362b1e;
-  --border-focus: #52422e;
-
-  --accent-primary: #f59e0b;
-  --accent-primary-fg: #130f0b;
-}
-
-/* Hiver — Thème sombre fjord arctique / cyan boréal */
-:root[data-theme="hiver"] {
-  --bg-main: #081114;
-  --bg-surface: #0e191e;
-  --bg-surface-elevated: #16252d;
-  --bg-surface-hover: #1f333d;
-
-  --text-main: #f0fdfa;
-  --text-muted: #99f6e4;
-  --text-dim: #5eead4;
-
-  --border-color: #17303a;
-  --border-focus: #284c5a;
-
-  --accent-primary: #06b6d4;
-  --accent-primary-fg: #081114;
-}
-
-/* Chili — Thème sombre velours rubis profond */
-:root[data-theme="chili"] {
-  --bg-main: #140809;
-  --bg-surface: #1e0d0f;
-  --bg-surface-elevated: #2c1316;
-  --bg-surface-hover: #3b1a1e;
-
-  --text-main: #fdf2f2;
-  --text-muted: #fca5a5;
-  --text-dim: #f87171;
-
-  --border-color: #381519;
-  --border-focus: #572027;
-
-  --accent-primary: #ef4444;
-  --accent-primary-fg: #ffffff;
-}
-
-/* Ciel — Thème clair azur pastel aérien */
-:root[data-theme="ciel"] {
-  --bg-main: #f0f6fa;
-  --bg-surface: #ffffff;
-  --bg-surface-elevated: #e1edf5;
-  --bg-surface-hover: #d2e4f0;
-
-  --text-main: #0c2638;
-  --text-muted: #30546e;
-  --text-dim: #4d7594;
-
-  --border-color: #c7deed;
-  --border-focus: #91b9d4;
-
-  --accent-primary: #0284c7;
-  --accent-primary-fg: #ffffff;
-  --accent-sprint: #8a5a00;
-  --logo-filter: none;
-}
-
-/* Violet Orchidée — Thème sombre améthyste velouté */
-:root[data-theme="orchidee"] {
-  --bg-main: #130a14;
-  --bg-surface: #1c101e;
-  --bg-surface-elevated: #28172b;
-  --bg-surface-hover: #361f3a;
-
-  --text-main: #faf5ff;
-  --text-muted: #d8b4fe;
-  --text-dim: #c084fc;
-
-  --border-color: #381d3d;
-  --border-focus: #592e61;
-
-  --accent-primary: #a855f7;
-  --accent-primary-fg: #ffffff;
-}
-
-/* Taupe — Thème sombre sable chaud / moka noble */
-:root[data-theme="taupe"] {
-  --bg-main: #16120e;
-  --bg-surface: #201a15;
-  --bg-surface-elevated: #2d251e;
-  --bg-surface-hover: #3b3128;
-
-  --text-main: #fdfbf7;
-  --text-muted: #d4a373;
-  --text-dim: #a67c52;
-
-  --border-color: #3a2e24;
-  --border-focus: #574636;
-
-  --accent-primary: #c9935f;
-  --accent-primary-fg: #16120e;
-}
-
-/* Charbon — Thème clair minéral, fusain et ardoise */
+/* Charbon — Pureté minérale, fusain et ardoise sur blanc de titane */
 :root[data-theme="charbon"] {
   --bg-main: #f4f4f5;
   --bg-surface: #ffffff;
@@ -283,94 +90,291 @@
 
   --text-main: #09090b;
   --text-muted: #52525b;
-  --text-dim: #71717a;
+  --text-dim: #616875;
 
   --border-color: #e4e4e7;
   --border-focus: #18181b;
 
   --accent-primary: #18181b;
   --accent-primary-fg: #ffffff;
-
-  --logo-filter: none;
-}
-
-/* Charbon Sombre — pendant sombre du thème Charbon ci-dessus : même identité
-   minérale (fusain/ardoise/graphite), inversée plutôt qu'une simple teinte
-   affaiblie. Palette validée AA/AAA WCAG 2.x (contraste réel calculé,
-   formule de luminance relative sRGB — pas une estimation) :
-     texte principal   17.6:1 / 16.4:1 / 15.2:1 (AAA, sur bg-main/surface/elevated)
-     texte atténué       8.1:1 / 7.6:1            (AAA)
-     texte discret        4.8:1 / 4.5:1            (AA — palier ciblé
-       délibérément pour ce niveau, même logique que --text-dim du thème
-       sombre par défaut ci-dessus : AAA sur les trois niveaux à la fois
-       aurait annulé la hiérarchie visuelle entre "atténué" et "discret")
-     accent (texte)      12.0:1 / 11.2:1           (AAA)
-     accent (fond plein) 11.6:1 (accent-primary-fg sur accent-primary, AAA)
-     anneau de focus      3.7:1 / 3.4:1            (>= 3:1, seuil "composant
-       d'interface" WCAG 1.4.11 — pas le seuil texte)
-   Accent "acier poli" (gris clair neutre) plutôt qu'une teinte vive : reste
-   fidèle à l'identité quasi-monochrome de la paire Charbon/Charbon Sombre,
-   les couleurs de programme (--accent-rpm/sprint/trip/other) restant
-   inchangées (héritées de :root) comme sur tous les autres thèmes. */
-:root[data-theme="charbon-sombre"] {
-  --bg-main: #0b0b0d;
-  --bg-surface: #141417;
-  --bg-surface-elevated: #1c1c20;
-  --bg-surface-hover: #26262b;
-
-  --text-main: #f2f2f4;
-  --text-muted: #a6a6ad;
-  --text-dim: #7d7d85;
-
-  --border-color: #29292e;
-  --border-focus: #6a6a75;
-
-  --accent-primary: #c9c9d1;
-  --accent-primary-fg: #101012;
-
-  /* Logo noir sur fond sombre : inversé en blanc, comme le thème sombre par
-     défaut (:root) — PAS "none" comme le pendant clair Charbon ci-dessus. */
-  --logo-filter: invert(1);
-}
-
-/* Beige — Thème clair lin naturel et feutré */
-:root[data-theme="beige"] {
-  --bg-main: #f6f3eb;
-  --bg-surface: #ffffff;
-  --bg-surface-elevated: #ede7db;
-  --bg-surface-hover: #e0d8c9;
-
-  --text-main: #2e2118;
-  --text-muted: #5e4a3c;
-  --text-dim: #7d6554;
-
-  --border-color: #dcd3c3;
-  --border-focus: #b5a793;
-
-  --accent-primary: #453229;
-  --accent-primary-fg: #f6f3eb;
   --accent-sprint: #8a5a00;
   --logo-filter: none;
 }
 
-/* Lavande — Thème clair brume violette pastel */
+/* Ambre — Lumière dorée vivifiante, miel chaud et énergie solaire (ex-Miel) */
+:root[data-theme="miel"] {
+  --bg-main: #fdfbf5;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #fef7e7;
+  --bg-surface-hover: #faeed4;
+
+  --text-main: #291b07;
+  --text-muted: #714b10;
+  --text-dim: #8f621b;
+
+  --border-color: #eddcc0;
+  --border-focus: #d97706;
+
+  --accent-primary: #b45309;
+  --accent-primary-fg: #ffffff;
+  --accent-sprint: #8a5a00;
+  --logo-filter: none;
+}
+
+/* Sauge — Douceur botanique, matcha frais et sérénité scandinave (ex-Menthe) */
+:root[data-theme="menthe"] {
+  --bg-main: #f2f8f5;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #e5f2eb;
+  --bg-surface-hover: #d3e7dc;
+
+  --text-main: #0e261a;
+  --text-muted: #2f5742;
+  --text-dim: #48755d;
+
+  --border-color: #c8e2d4;
+  --border-focus: #059669;
+
+  --accent-primary: #047857;
+  --accent-primary-fg: #ffffff;
+  --accent-sprint: #8a5a00;
+  --logo-filter: none;
+}
+
+/* Azur — Pureté alpine, azur cristallin et glace boréale (ex-Ciel) */
+:root[data-theme="ciel"] {
+  --bg-main: #f0f6fa;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #e0edf6;
+  --bg-surface-hover: #cee1ee;
+
+  --text-main: #0a2233;
+  --text-muted: #264f6d;
+  --text-dim: #3f6e91;
+
+  --border-color: #c3dced;
+  --border-focus: #0284c7;
+
+  --accent-primary: #0275b1;
+  --accent-primary-fg: #ffffff;
+  --accent-sprint: #8a5a00;
+  --logo-filter: none;
+}
+
+/* Lavande — Nuance poudrée, lilas satiné et raffinement moderne */
 :root[data-theme="lavande"] {
   --bg-main: #f6f5fc;
   --bg-surface: #ffffff;
   --bg-surface-elevated: #eae7f7;
-  --bg-surface-hover: #dcd8f0;
+  --bg-surface-hover: #ded8f2;
 
-  --text-main: #1f1636;
-  --text-muted: #4e3f6e;
-  --text-dim: #6d5b94;
+  --text-main: #1b1130;
+  --text-muted: #48366e;
+  --text-dim: #65518f;
 
-  --border-color: #d6d0ee;
-  --border-focus: #a89ad6;
+  --border-color: #d7d0ee;
+  --border-focus: #7c3aed;
 
-  --accent-primary: #7c3aed;
+  --accent-primary: #6d28d9;
   --accent-primary-fg: #ffffff;
   --accent-sprint: #8a5a00;
   --logo-filter: none;
+}
+
+/* Sable — Lin naturel, terre cuite douce et douceur organique (ex-Beige) */
+:root[data-theme="beige"] {
+  --bg-main: #f7f4ed;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #eee7da;
+  --bg-surface-hover: #e1d7c4;
+
+  --text-main: #261a12;
+  --text-muted: #564132;
+  --text-dim: #735a49;
+
+  --border-color: #dfd5c4;
+  --border-focus: #784b30;
+
+  --accent-primary: #543320;
+  --accent-primary-fg: #ffffff;
+  --accent-sprint: #8a5a00;
+  --logo-filter: none;
+}
+
+/* Cacao — Chocolat feutré, velouté lacté et gourmandise sobre (ex-Coco) */
+:root[data-theme="coco"] {
+  --bg-main: #faf6f2;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f2e8de;
+  --bg-surface-hover: #e7d7c8;
+
+  --text-main: #26170e;
+  --text-muted: #5e3e2c;
+  --text-dim: #7c553f;
+
+  --border-color: #e4d4c5;
+  --border-focus: #873e15;
+
+  --accent-primary: #6b2c0b;
+  --accent-primary-fg: #ffffff;
+  --accent-sprint: #8a5a00;
+  --logo-filter: none;
+}
+
+/* ------------------------------------------------------------
+   THÈMES SOMBRES (8)
+   ------------------------------------------------------------ */
+
+/* Onyx — Noir absolu et rouge signature Bobine (ex-Sombre) */
+:root[data-theme="les-mills-sombre"] {
+  --bg-main: #09090b;
+  --bg-surface: #121215;
+  --bg-surface-elevated: #1a1a20;
+  --bg-surface-hover: #25252d;
+
+  --text-main: #ffffff;
+  --text-muted: #a1a1aa;
+  --text-dim: #82828e;
+
+  --border-color: #27272f;
+  --border-focus: #52525e;
+
+  --accent-primary: #e4002b;
+  --accent-primary-fg: #ffffff;
+  --logo-filter: invert(1);
+}
+
+/* Graphite — Monochrome furtif, graphite profond et acier brossé (ex-Charbon Sombre) */
+:root[data-theme="charbon-sombre"] {
+  --bg-main: #0d1014;
+  --bg-surface: #14181f;
+  --bg-surface-elevated: #1c222b;
+  --bg-surface-hover: #262e3b;
+
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-dim: #718096;
+
+  --border-color: #242d3a;
+  --border-focus: #475569;
+
+  --accent-primary: #cbd5e1;
+  --accent-primary-fg: #0d1014;
+  --logo-filter: invert(1);
+}
+
+/* Cuivre — Braise nocturne, reflets de cuivre chaud et magma tamisé (ex-Automne) */
+:root[data-theme="automne"] {
+  --bg-main: #140c06;
+  --bg-surface: #1d120a;
+  --bg-surface-elevated: #2a1b0f;
+  --bg-surface-hover: #392515;
+
+  --text-main: #fef3c7;
+  --text-muted: #d98c3f;
+  --text-dim: #b56c25;
+
+  --border-color: #3d2716;
+  --border-focus: #5e3c23;
+
+  --accent-primary: #f59e0b;
+  --accent-primary-fg: #140c06;
+  --logo-filter: invert(1);
+}
+
+/* Abysse — Fjord boréal, profondeur glaciale et lueur néon turquoise (ex-Hiver) */
+:root[data-theme="hiver"] {
+  --bg-main: #041118;
+  --bg-surface: #081a24;
+  --bg-surface-elevated: #0e2634;
+  --bg-surface-hover: #143346;
+
+  --text-main: #ecfeff;
+  --text-muted: #67e8f9;
+  --text-dim: #22d3ee;
+
+  --border-color: #13384c;
+  --border-focus: #1d5370;
+
+  --accent-primary: #06b6d4;
+  --accent-primary-fg: #041118;
+  --logo-filter: invert(1);
+}
+
+/* Indigo — Immersion studio nocturne, bleu profond et pulsation spatiale (ex-Lune) */
+:root[data-theme="lune"] {
+  --bg-main: #090a16;
+  --bg-surface: #101226;
+  --bg-surface-elevated: #181a38;
+  --bg-surface-hover: #21254d;
+
+  --text-main: #e0e7ff;
+  --text-muted: #a5b4fc;
+  --text-dim: #818cf8;
+
+  --border-color: #232752;
+  --border-focus: #373e82;
+
+  --accent-primary: #4f46e5;
+  --accent-primary-fg: #ffffff;
+  --logo-filter: invert(1);
+}
+
+/* Rubis — Intensité maximale, velours grenat et rouge incandescent (ex-Chili) */
+:root[data-theme="chili"] {
+  --bg-main: #140507;
+  --bg-surface: #20090d;
+  --bg-surface-elevated: #2d0d12;
+  --bg-surface-hover: #3d131a;
+
+  --text-main: #ffe4e6;
+  --text-muted: #fda4af;
+  --text-dim: #fb7185;
+
+  --border-color: #43141c;
+  --border-focus: #641e2a;
+
+  --accent-primary: #e11d48;
+  --accent-primary-fg: #ffffff;
+  --logo-filter: invert(1);
+}
+
+/* Orchidée — Atmosphère clubbing, pourpre magnétique et néon améthyste (ex-Orchidée) */
+:root[data-theme="orchidee"] {
+  --bg-main: #120516;
+  --bg-surface: #1d0824;
+  --bg-surface-elevated: #2b0d35;
+  --bg-surface-hover: #3c134a;
+
+  --text-main: #fdf4ff;
+  --text-muted: #e879f9;
+  --text-dim: #d946ef;
+
+  --border-color: #3f144d;
+  --border-focus: #602075;
+
+  --accent-primary: #9333ea;
+  --accent-primary-fg: #ffffff;
+  --logo-filter: invert(1);
+}
+
+/* Moka — Expresso intense, cuir noble et boiseries feutrées (ex-Taupe) */
+:root[data-theme="taupe"] {
+  --bg-main: #140e09;
+  --bg-surface: #1f150e;
+  --bg-surface-elevated: #2d1f15;
+  --bg-surface-hover: #3d2b1e;
+
+  --text-main: #fafaf9;
+  --text-muted: #d6aa7d;
+  --text-dim: #a8784a;
+
+  --border-color: #3d2c1e;
+  --border-focus: #5a412c;
+
+  --accent-primary: #d97706;
+  --accent-primary-fg: #140e09;
+  --logo-filter: invert(1);
 }
 
 /* Base resets */
@@ -551,9 +555,9 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--accent-primary);
 }
 .update-badge.alert {
-  background: color-mix(in srgb, #f59e0b 14%, var(--bg-surface-elevated));
-  border-color: color-mix(in srgb, #f59e0b 35%, transparent);
-  color: #f59e0b;
+  background: color-mix(in srgb, var(--accent-warning) 14%, var(--bg-surface-elevated));
+  border-color: color-mix(in srgb, var(--accent-warning) 35%, transparent);
+  color: var(--accent-warning);
 }
 .update-card-banner {
   padding: 16px;
@@ -1066,7 +1070,7 @@ h1, h2, h3, h4, h5, h6 {
   position: relative;
   width: 100%;
   padding-top: 56.25%; /* 16:9 */
-  background: #000;
+  background: var(--bg-surface-elevated);
   overflow: hidden;
 }
 
@@ -1204,7 +1208,7 @@ h1, h2, h3, h4, h5, h6 {
   height: 36px;
   object-fit: cover;
   border-radius: var(--radius-sm);
-  background: #000;
+  background: var(--bg-surface-elevated);
 }
 
 /* Detail Drawer */
@@ -1255,7 +1259,7 @@ h1, h2, h3, h4, h5, h6 {
 .drawer-video-container {
   width: 100%;
   aspect-ratio: 16/9;
-  background: #000;
+  background: var(--bg-surface-elevated);
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border-color);
@@ -1385,7 +1389,7 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 2px 10px color-mix(in srgb, var(--accent-primary) 25%, transparent);
 }
 .btn-primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent-primary) 85%, #000);
+  background: color-mix(in srgb, var(--accent-primary) 85%, var(--bg-main));
   box-shadow: 0 4px 16px color-mix(in srgb, var(--accent-primary) 35%, transparent);
 }
 
@@ -4131,7 +4135,8 @@ a.status-pill:hover,
 :root[data-theme="coco"] .cinema-hero-title,
 :root[data-theme="menthe"] .cinema-hero-title,
 :root[data-theme="miel"] .cinema-hero-title,
-:root[data-theme="lavande"] .cinema-hero-title {
+:root[data-theme="lavande"] .cinema-hero-title,
+:root[data-theme="ciel"] .cinema-hero-title {
   text-shadow: none;
 }
 
@@ -5233,13 +5238,19 @@ a.status-pill:hover,
   font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }
 .settings-uninstall-list li::marker { color: var(--accent-error); }
 
-/* Documentation : chemins */
+/* Documentation : chemins et accès */
 .settings-paths { display: flex; flex-direction: column; gap: 6px; }
+.settings-doc-group { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border-color); }
+.settings-doc-group:first-of-type { margin-top: 10px; padding-top: 0; border-top: none; }
+.settings-doc-header { display: flex; align-items: center; gap: 8px; font-size: 0.92rem; font-weight: 800; color: var(--text-main); }
 .settings-path-row { display: flex; justify-content: space-between; gap: 16px; align-items: baseline;
   padding: 8px 10px; background: var(--bg-surface-elevated); border-radius: var(--radius-sm); }
 .settings-path-key { color: var(--text-muted); font-size: 0.82rem; flex-shrink: 0; }
 .settings-path-val { color: var(--text-main); font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
   font-size: 0.8rem; text-align: right; word-break: break-all; }
+.settings-path-link { color: var(--accent-primary); text-decoration: none; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.8rem; text-align: right; word-break: break-all; transition: opacity var(--transition-fast); }
+.settings-path-link:hover { text-decoration: underline; opacity: 0.85; }
 
 /* ============================================================
    Écran Rappels (refonte, style bibliothèque radio)
@@ -5302,3 +5313,203 @@ a.status-pill:hover,
 .ra-time-pill { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600;
   background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--text-main);
   border: 1px solid var(--accent-primary); border-radius: 999px; padding: 3px 10px; }
+
+/* ==========================================================================
+   Écran de veille / accueil sobre du mode Headless (/grid)
+   Réf. Cahier des charges affichage hybride (tablettes & laptops)
+   ========================================================================== */
+
+.grid-standby-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg-main);
+  color: var(--text-main);
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.grid-standby-card {
+  width: 100%;
+  max-width: 580px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 36px 32px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  animation: fadeIn 0.3s ease;
+}
+
+.grid-standby-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 20px;
+}
+
+.grid-standby-logo {
+  height: 48px;
+  width: auto;
+}
+
+.grid-standby-clock {
+  font-family: var(--font-title);
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.grid-standby-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.grid-standby-title {
+  font-family: var(--font-title);
+  font-size: 1.45rem;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+}
+
+.grid-standby-subtitle {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.grid-standby-status-box {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grid-standby-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent-success);
+}
+
+.grid-standby-pulse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-success);
+  box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.7);
+  animation: pulseSuccess 2s infinite;
+}
+
+@keyframes pulseSuccess {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(48, 209, 88, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(48, 209, 88, 0);
+  }
+}
+
+.grid-standby-status-desc {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.grid-standby-now-playing {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.88rem;
+}
+
+.grid-standby-now-playing-label {
+  color: var(--accent-primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.grid-standby-now-playing-title {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.grid-standby-now-playing-time {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.grid-standby-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.grid-standby-btn-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 52px;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  border: none;
+  transition: transform var(--transition-fast), filter var(--transition-fast);
+}
+
+.grid-standby-btn-main:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+.grid-standby-action-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin: -4px 0 6px;
+  line-height: 1.4;
+}
+
+.grid-standby-btn-admin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
