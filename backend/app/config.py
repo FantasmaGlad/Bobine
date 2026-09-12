@@ -203,6 +203,7 @@ class Settings(BaseSettings):
     # Paramètres de lecture par défaut
     wait_time_between_courses: int = 0
     volume_default: int = 100
+    logs_retention_days: int = 7
 
     # Réglages de lecture Radio (réf. docs/cahier-des-charges-radio.md, §9).
     # Consommés par les lots ultérieurs (moteur de lecture L3, crossfade L5,

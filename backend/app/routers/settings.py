@@ -45,6 +45,8 @@ from app.utils.hardware_info import (
     get_ram_info,
     get_runtime_info,
     get_storage_model,
+    get_system_telemetry_payload,
+    purge_expired_logs_and_metrics,
 )
 from app.utils.deployment import (
     SUDOERS_FILE,
@@ -74,7 +76,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 # secours au tout premier démarrage (avant toute modification via l'UI).
 _WRITABLE_NUMERIC_FIELDS = {
     "wait_time_between_courses", "volume_default", "audio_chain_timer_seconds",
-    "radio_announcement_fade_ms",
+    "radio_announcement_fade_ms", "logs_retention_days",
 }
 _WRITABLE_STRING_FIELDS = {"theme", "language", "active_logo", "update_channel", "wired_display_mode"}
 _DEFAULTS = {
@@ -91,6 +93,8 @@ _DEFAULTS = {
     # Mode d'affichage câblé (réf. cahier des charges affichage hybride) :
     # "headless" par défaut (desktop/laptop/wyse), "dual_screen" pour tablette.
     "wired_display_mode": "headless",
+    # Rétention des logs d'activité et métriques système en jours
+    "logs_retention_days": "7",
 }
 _LOGO_FILENAME = "logo.png"
 # "les-mills-sombre" est la clé interne historique du thème "Sombre" (réf.
@@ -127,6 +131,7 @@ class SettingsUpdate(BaseModel):
     volume_default: int | None = None
     audio_chain_timer_seconds: int | None = None
     radio_announcement_fade_ms: int | None = None
+    logs_retention_days: int | None = None
     theme: str | None = None
     language: str | None = None
     active_logo: str | None = None
@@ -190,10 +195,16 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
     wired_display_mode = _get_db_value(db, "wired_display_mode") or default_wired_mode
     if wired_display_mode not in _VALID_WIRED_DISPLAY_MODES:
         wired_display_mode = default_wired_mode
+    logs_retention_str = _get_db_value(db, "logs_retention_days") or _DEFAULTS["logs_retention_days"]
+    try:
+        logs_retention_days = int(logs_retention_str)
+    except ValueError:
+        logs_retention_days = 7
     return {
         "wait_time_between_courses": runtime_settings.wait_time_between_courses,
         "volume_default": runtime_settings.volume_default,
         "audio_chain_timer_seconds": runtime_settings.audio_chain_timer_seconds,
+        "logs_retention_days": logs_retention_days,
         # Profil de déploiement (réf. PortabiliteCrossPlatformX §5.1) : le
         # frontend s'en sert pour adapter le texte/comportement de la zone
         # Désinstaller/Réinitialiser selon la plateforme, sans dupliquer la
@@ -404,33 +415,25 @@ def _get_system_usage_values() -> tuple[float, int, int, float]:
 @router.get("/system")
 def get_system_usage() -> dict[str, Any]:
     """Charge CPU, GPU, RAM, Températures, Puissance (W), Modèles des composants et Runtime (réf. CDC V3.0.5 Bêta)."""
-    cpu_percent, mem_total, mem_used, mem_percent = _get_system_usage_values()
-    gpu_name, gpu_percent, gpu_temp_c = get_gpu_info()
-    cpu_name = get_cpu_model_name()
-    cpu_temp_c = get_cpu_temp()
-    power_watts = get_power_watts()
-    storage_model = get_storage_model()
-    ram_info = get_ram_info()
-    runtime = get_runtime_info()
+    return get_system_telemetry_payload()
 
-    return {
-        "cpu_percent": cpu_percent,
-        "cpu_name": cpu_name,
-        "cpu_temp_c": cpu_temp_c,
-        "gpu_percent": gpu_percent,
-        "gpu_name": gpu_name,
-        "gpu_temp_c": gpu_temp_c,
-        "memory_total_bytes": mem_total,
-        "memory_used_bytes": mem_used,
-        "memory_percent": mem_percent,
-        "ram_brand": ram_info.get("brand"),
-        "ram_type": ram_info.get("type"),
-        "ram_freq": ram_info.get("freq"),
-        "ram_model": ram_info.get("model_label"),
-        "power_watts": power_watts,
-        "storage_model": storage_model,
-        "runtime": runtime,
-    }
+
+@router.post("/logs/purge")
+def purge_logs_manual(retention_days: int | None = None, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Purge manuelle des journaux d'activité et historiques de métriques."""
+    if retention_days is None:
+        row = db.query(Setting).filter(Setting.key == "logs_retention_days").first()
+        retention_days = int(row.value) if row and row.value and row.value.isdigit() else 7
+    if retention_days < 1:
+        retention_days = 1
+    purged = purge_expired_logs_and_metrics(db, retention_days)
+    log_activity(
+        db,
+        "logs_purged",
+        f"Purge manuelle (rétention {retention_days}j) : {purged['purged_logs']} logs, {purged['purged_metrics']} métriques",
+    )
+    return {"message": "Purge effectuée avec succès", "details": purged, "retention_days": retention_days}
+
 
 
 @router.put("")
@@ -453,7 +456,9 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
             raise HTTPException(status_code=400, detail=f"{key} ne peut pas être nul")
         stored_value = str(value)
         if key in _WRITABLE_NUMERIC_FIELDS and value is not None:
-            if value < 0:
+            if key == "logs_retention_days" and value < 1:
+                raise HTTPException(status_code=400, detail="Le délai de rétention doit être d'au moins 1 jour")
+            elif value < 0:
                 raise HTTPException(status_code=400, detail=f"{key} doit être positif")
         elif key in _WRITABLE_STRING_FIELDS and value is not None:
             if key == "language" and value not in ("fr", "en"):
@@ -483,7 +488,7 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
         # (le singleton `runtime_settings` est un objet mutable partagé par
         # tout le backend : playback_manager, scheduler_manager, etc. lisent
         # ses attributs directement à chaque usage, pas seulement au démarrage).
-        if key in _WRITABLE_NUMERIC_FIELDS:
+        if key in _WRITABLE_NUMERIC_FIELDS and hasattr(runtime_settings, key):
             setattr(runtime_settings, key, int(value))
 
     db.commit()

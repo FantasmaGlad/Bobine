@@ -215,6 +215,8 @@ def _migrate_add_missing_columns():
         ("videos", "audio_codec", "VARCHAR"),
         ("videos", "fps", "FLOAT"),
         ("videos", "bitrate_kbps", "INTEGER"),
+        # Télémétrie extensible : stockage JSON dynamique pour métriques futures
+        ("system_metrics_history", "extra_data", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, column, ddl in wanted:

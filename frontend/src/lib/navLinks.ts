@@ -48,7 +48,14 @@ export const navEntries: NavEntry[] = [
   { href: "/library", labelKey: "nav.library", iconName: "video_library" },
   { href: "/playlists", labelKey: "nav.playlists", iconName: "playlist_play" },
   { href: "/schedule", labelKey: "nav.schedule", iconName: "calendar_month" },
-  { href: "/metrics", labelKey: "nav.metrics", iconName: "analytics" },
+  {
+    groupKey: "nav.metricsGroup",
+    iconName: "analytics",
+    children: [
+      { href: "/metrics/courses", labelKey: "nav.metricsCourses", iconName: "school" },
+      { href: "/metrics/system", labelKey: "nav.metricsSystem", iconName: "monitor_heart" },
+    ],
+  },
 ];
 
 export const footerNavLinks: NavLinkConfig[] = [

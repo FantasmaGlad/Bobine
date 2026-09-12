@@ -219,23 +219,43 @@ Bobine embarque un module d'introspection matérielle de bas niveau (`backend/ap
   - Calcul de l'espace total, libre et pourcentage d'occupation via `shutil.disk_usage()` (ou `StatFs` sous Android).
   - *Linux / Wyse* : nœuds sysfs `/sys/block/<disk>/device/model` et `lsblk`.
   - *Android* : inspection du type de bus eMMC / UFS (`/sys/block/sda/device/model` ou `mmcblk0`).
-- **Puissance Électrique en Watts (W)** :
+- **Puissance Électrique en Watts (W) & Énergie Cumulée (Wh)** :
   - Mesure instantanée de la consommation électrique globale en direct :
   - *Linux x86 / Wyse* : lecture de l'interface Intel/AMD RAPL (Running Average Power Limit) sous `/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj` avec échantillonnage différentiel sur 100 ms.
   - *Laptops / Tablettes / Macs sur batterie* : calcul instantané `P = U * I` via les capteurs de batterie (sysfs `/sys/class/power_supply/`, `AppleSmartBattery` sous macOS via `ioreg`).
+  - *Sur secteur (maintien batterie et chargeur AC)* :
+    - Sur Linux laptop : priorisation des capteurs matériels APU/GPU/SoC (`hwmon` `amdgpu` ou RAPL) sur la sonde de batterie `BAT1` (qui rapporterait un faux courant de fuite de 0.05 W une fois la batterie pleine).
+    - Sur Android (Chaquopy) : détection de l'état branché (`plugged > 0` ou statut `CHARGING`/`FULL`). En maintien à 100%, le courant chimique aux bornes de la batterie étant de 0 µA, la puissance active réelle est calculée à partir du profil thermique/énergétique du SoC et du scaling de charge CPU instantanée (3.2W de base + scaling CPU dynamique).
+    - Sur macOS : détection via `ioreg -rc AppleSmartBattery` (`Watts` direct ou `ExternalConnected`).
+    - Sur Windows : interrogation de l'état AC via `Get-CimInstance Win32_Battery`.
+  - *Énergie Cumulée & Puissance Moyenne* : intégration trapézoïdale continue de la puissance instantanée au fil du temps (`cumulative_energy_wh = ∫ P dt`), exposée en Watt-heures (Wh) aux côtés de la puissance moyenne (`average_power_watts`).
 - **Températures CPU et GPU (°C)** :
   - Lecture des capteurs thermiques matériels sous `/sys/class/thermal/thermal_zone*` et `/sys/class/hwmon/`.
   - Sous Android, ciblage spécifique des zones CPU et GPU Adreno `/sys/class/kgsl/kgsl-3d0/temp`.
 - **Temps d'activité (Uptime & Runtime)** :
   - Uptime du système d'exploitation et runtime continu du serveur Bobine (depuis l'initialisation de l'instance FastAPI).
 
-### 2. Moteur de Métriques d'Assiduité & Notation 5 Étoiles (`/metrics`)
+### 2. Moteur de Métriques d'Assiduité, Télémétrie Système & Rétention (`/metrics`)
 
+- **Découplage Modulaire de l'Interface (`/metrics`)** :
+  - La section Métriques est découpée en deux espaces distincts et ergonomiques :
+    - **Cours & Assiduité (`/metrics/courses`)** : KPIs de séances, taux de complétion, durée de visionnage, histogramme d'affluence horaire 24h et palmarès des cours les plus suivis et les mieux notés.
+    - **Système & Matériel (`/metrics/system`)** : surveillance en direct de la machine (CPU, RAM, Disque, Températures CPU/GPU, Puissance électrique en W, Énergie cumulée en Wh, Runtime serveur et Uptime OS).
+  - **Tiroir Latéral d'Historique (`TelemetryHistoryDrawer.tsx`)** :
+    - Clic direct sur n'importe quelle carte métrique pour déployer un tiroir latéral animé depuis la droite avec courbe temporelle interactive (SVG responsive).
+    - Filtres temporels rapides : **1 heure**, **6 heures**, **24 heures** et **7 jours**.
+    - Affichage des extrêmes (minimum, maximum, moyenne) et horodatage dynamique.
+- **Base de Données Dynamique & Évolutive (`SystemMetricLog`)** :
+  - Table SQLite `system_metrics_logs` conçue selon un schéma extensible EAV (`metric_type`, `value`, `unit`, `recorded_at`), acceptant sans migration lourde toute nouvelle sonde matérielle future (watts, cpu, ram, disque, temp_cpu, temp_gpu, etc.).
+  - Échantillonnage automatique et non bloquant orchestré par `scheduler_manager.py`.
+- **Rétention Configurable & Purge Automatique (`logs_retention_days`)** :
+  - Délai de conservation des journaux et des métriques matérielles paramétrable dans Paramètres (`GET`/`PUT /api/settings`, champ `logs_retention_days`, défaut : 7 jours).
+  - Tâche de fond périodique (`_cleanup_old_logs_and_metrics`) purgeant atomiquement les enregistrements antérieurs au seuil configuré.
 - **Collecte des Sessions (`playback_sessions`)** : traçage de chaque séance vidéo diffusée (id du cours, titre, canal, déclencheur manuel/planning, durée visionnée, durée totale, flag `completed` calculé à ≥90%).
 - **Notation de Satisfaction (`course_ratings`)** : recueil des avis 1 à 5 étoiles après diffusion :
   - Affichage contextuel : sur le pupitre coach (`/grid`) dans le conteneur du cours terminé en mode double écran ; sur grand écran (`/cinema` HDMI) en mode headless.
   - Barre de décompte d'auto-fermeture (5 minutes / 300 s) continue et fluide, synchronisée sur l'horloge système.
-  - Étoiles et graphiques dynamiquement harmonisés avec le thème de couleur actif (`var(--accent-primary)`).
+  - Harmonisation chromatique intégrale : étoiles d'évaluation, jauges et icône d'alimentation (éclair et unité Watt) synchronisées sur la variable CSS du thème actif (`var(--accent-primary)`).
 - **Tableau de Bord Analytique (`GET /api/metrics/dashboard`)** :
   - 4 indicateurs clés (Satisfaction moyenne /5, Taux de complétion %, Durée totale de diffusion en heures, Nombre de séances).
   - Histogramme d'affluence sur 24 heures (CSS Grid pur, détection automatique de l'heure de pointe).

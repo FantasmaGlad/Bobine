@@ -23,6 +23,7 @@ interface SettingsData {
   volume_default: number;
   audio_chain_timer_seconds: number;
   radio_announcement_fade_ms: number;
+  logs_retention_days?: number;
   deployment_profile: DeploymentProfile;
   paths: Record<string, string>;
   network: { local_ip: string | null; port: number; mdns_url: string };
@@ -125,7 +126,19 @@ function UsageGauge({
       </div>
       <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-main)", textAlign: "center" }}>{label}</span>
       {sublabel && (
-        <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", textAlign: "center", maxWidth: "160px", wordBreak: "break-word" }}>
+        <span
+          title={sublabel}
+          style={{
+            fontSize: "0.72rem",
+            color: "var(--text-muted)",
+            textAlign: "center",
+            maxWidth: "200px",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            display: "inline-block",
+          }}
+        >
           {sublabel}
         </span>
       )}
@@ -260,6 +273,10 @@ export default function SettingsPage() {
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [changingChannel, setChangingChannel] = useState(false);
 
+  // Nettoyage automatique des journaux & métriques
+  const [logsRetentionDays, setLogsRetentionDays] = useState<number>(7);
+  const [isPurgingLogs, setIsPurgingLogs] = useState<boolean>(false);
+
   const [lidInfo, setLidInfo] = useState<LidInfo | null>(null);
   const [updatingLid, setUpdatingLid] = useState(false);
 
@@ -308,7 +325,12 @@ export default function SettingsPage() {
     return fetch(getApiUrl("/settings"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((d) => {
-        if (d) setData(d);
+        if (d) {
+          setData(d);
+          if (typeof d.logs_retention_days === "number") {
+            setLogsRetentionDays(d.logs_retention_days);
+          }
+        }
       })
       .catch(() => {})
       .finally(() => {
@@ -540,6 +562,45 @@ export default function SettingsPage() {
       showToast(t("common.networkError"), "error");
     } finally {
       setChangingChannel(false);
+    }
+  };
+
+  const handleSaveLogsRetention = async (days: number) => {
+    try {
+      const res = await fetch(getApiUrl("/settings"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logs_retention_days: days }),
+      });
+      if (res.ok) {
+        showToast("Rétention des logs enregistrée", "success");
+      } else {
+        showToast(t("settingsPage.saveError"), "error");
+      }
+    } catch {
+      showToast(t("common.networkError"), "error");
+    }
+  };
+
+  const handlePurgeLogs = async () => {
+    if (!window.confirm("Purger définitivement les journaux et historiques de métriques plus anciens que la période configurée ?")) return;
+    setIsPurgingLogs(true);
+    try {
+      const res = await fetch(getApiUrl("/settings/logs/purge"), { method: "POST" });
+      const body = await res.json();
+      if (res.ok) {
+        const details = body.details;
+        const msg = details
+          ? `Nettoyage terminé : ${details.purged_logs} logs et ${details.purged_metrics} métriques supprimés.`
+          : (body.message || t("settingsPage.logsPurgedSuccess"));
+        showToast(msg, "success");
+      } else {
+        showToast(body.detail || t("settingsPage.saveError"), "error");
+      }
+    } catch {
+      showToast(t("common.networkError"), "error");
+    } finally {
+      setIsPurgingLogs(false);
     }
   };
 
@@ -1164,7 +1225,7 @@ export default function SettingsPage() {
               }}>
                 {system?.power_watts != null && (
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <Icon name="bolt" size={16} style={{ color: "var(--accent-warning)" }} />
+                    <Icon name="bolt" size={16} style={{ color: "var(--accent-primary)" }} />
                     <span><strong style={{ color: "var(--text-main)" }}>{t("settingsPage.powerLabel")}:</strong> {system.power_watts.toFixed(1)} W</span>
                   </div>
                 )}
@@ -1441,6 +1502,53 @@ export default function SettingsPage() {
         <button type="button" className="btn btn-secondary" style={{ height: "44px", alignSelf: "flex-start" }} onClick={() => setShowResetConfirm(true)}>
           <Icon name="sync" size={16} /> {t("settingsPage.syncResetButton")}
         </button>
+      </section>
+
+      {/* ---- Maintenance : Nettoyage des journaux & métriques ---- */}
+      <section className="live-block">
+        <h3><Icon name="auto_delete" size={18} /> {t("settingsPage.logsMaintenanceSection")}</h3>
+        <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.logsMaintenanceHint")}</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <label style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-main)" }}>
+              {t("settingsPage.logsRetentionDaysLabel")} :
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={365}
+              value={logsRetentionDays}
+              onChange={(e) => setLogsRetentionDays(Math.max(1, parseInt(e.target.value) || 1))}
+              onBlur={() => handleSaveLogsRetention(logsRetentionDays)}
+              style={{
+                width: "80px",
+                padding: "6px 10px",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--border-color)",
+                background: "var(--bg-surface-elevated)",
+                color: "var(--text-main)",
+                fontSize: "0.95rem",
+                fontWeight: 700,
+                textAlign: "center",
+              }}
+            />
+            <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+              {t("settingsPage.logsRetentionDaysHint")}
+            </span>
+          </div>
+          <div>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ height: "42px", display: "inline-flex", alignItems: "center", gap: "8px" }}
+              onClick={handlePurgeLogs}
+              disabled={isPurgingLogs}
+            >
+              <Icon name="delete_sweep" size={18} />
+              {isPurgingLogs ? t("settingsPage.logsPurging") : t("settingsPage.logsPurgeNow")}
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* ---- Zone de danger : réinitialisation usine & désinstallation ---- */}

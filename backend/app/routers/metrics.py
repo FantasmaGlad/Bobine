@@ -8,17 +8,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import CourseRating, PlaybackSession, Video
+from app.models import CourseRating, PlaybackSession, SystemMetricsHistory, Video
 from app.utils.activity_log import log_activity
-from app.utils.hardware_info import (
-    get_cpu_model_name,
-    get_cpu_temp,
-    get_gpu_info,
-    get_power_watts,
-    get_ram_info,
-    get_runtime_info,
-    get_storage_model,
-)
+from app.utils.hardware_info import get_system_telemetry_payload
 from app.utils.playback_session_tracker import (
     close_playback_session,
     start_playback_session,
@@ -286,53 +278,7 @@ def get_metrics_dashboard(
     course_stats.sort(key=lambda x: (x["sessions_count"], x["average_rating"]), reverse=True)
 
     # --- Télémétrie Matérielle ---
-    gpu_name, gpu_percent, gpu_temp_c = get_gpu_info()
-    ram_info = get_ram_info()
-    import shutil
-    disk_usage = shutil.disk_usage("/")
-    used_pct = round((disk_usage.used / disk_usage.total) * 100, 1) if disk_usage.total else 0.0
-
-    import psutil
-    try:
-        vm = psutil.virtual_memory()
-        mem_total = vm.total
-        mem_used = vm.total - vm.available
-        mem_percent = vm.percent
-    except Exception:
-        mem_total, mem_used, mem_percent = 0, 0, 0.0
-
-    hardware = {
-        "cpu_name": get_cpu_model_name(),
-        "cpu_percent": 0.0,
-        "cpu_temp_c": get_cpu_temp(),
-        "gpu_name": gpu_name,
-        "gpu_percent": gpu_percent,
-        "gpu_temp_c": gpu_temp_c,
-        "power_watts": get_power_watts(),
-        "storage_model": get_storage_model(),
-        "storage_used_percent": used_pct,
-        "storage_free_bytes": disk_usage.free,
-        "storage_total_bytes": disk_usage.total,
-        "storage": {
-            "total_bytes": disk_usage.total,
-            "used_bytes": disk_usage.used,
-            "free_bytes": disk_usage.free,
-            "used_percent": used_pct,
-        },
-        "memory_total_bytes": mem_total,
-        "memory_used_bytes": mem_used,
-        "memory_percent": mem_percent,
-        "ram_brand": ram_info.get("brand"),
-        "ram_type": ram_info.get("type"),
-        "ram_freq": ram_info.get("freq"),
-        "ram_model": ram_info.get("model_label"),
-        "runtime": get_runtime_info(),
-    }
-
-    try:
-        hardware["cpu_percent"] = float(psutil.cpu_percent(interval=None))
-    except Exception:
-        pass
+    hardware = get_system_telemetry_payload()
 
     rating_breakdown = [
         {
@@ -386,3 +332,103 @@ def get_metrics_dashboard(
         "hardware": hardware,
         "hardware_telemetry": hardware,
     }
+
+
+@router.get("/hardware/history")
+def get_hardware_history(
+    metric: str = Query("cpu", pattern="^[a-zA-Z0-9_]+$"),
+    period: str = Query("1h", pattern="^(1h|6h|24h|7d)$"),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Historique temporel d'une métrique matérielle (1h, 6h, 24h, 7j) dynamique avec statistiques et points échantillonnés."""
+    now = datetime.now(timezone.utc)
+    if period == "1h":
+        start_time = now - timedelta(hours=1)
+    elif period == "6h":
+        start_time = now - timedelta(hours=6)
+    elif period == "24h":
+        start_time = now - timedelta(hours=24)
+    else:  # "7d"
+        start_time = now - timedelta(days=7)
+
+    records = (
+        db.query(SystemMetricsHistory)
+        .filter(SystemMetricsHistory.timestamp >= start_time)
+        .order_by(SystemMetricsHistory.timestamp.asc())
+        .all()
+    )
+
+    metric_meta = {
+        "cpu": {"unit": "%", "label": "Charge CPU"},
+        "cpu_temp": {"unit": "°C", "label": "Température CPU"},
+        "gpu": {"unit": "%", "label": "Charge GPU"},
+        "gpu_temp": {"unit": "°C", "label": "Température GPU"},
+        "memory": {"unit": "%", "label": "Utilisation RAM"},
+        "storage": {"unit": "%", "label": "Occupation Stockage"},
+        "power": {"unit": "W", "label": "Puissance consommée"},
+    }
+
+    if metric in metric_meta:
+        meta = metric_meta[metric]
+    else:
+        # Déduction dynamique de l'unité et du libellé pour toute métrique future
+        m_lower = metric.lower()
+        unit = "%" if ("pct" in m_lower or "percent" in m_lower) else ("°C" if "temp" in m_lower else ("W" if "watt" in m_lower else ""))
+        meta = {"unit": unit, "label": metric.replace("_", " ").title()}
+
+    raw_points: list[dict[str, Any]] = []
+    for r in records:
+        val = r.get_metric(metric)
+        if val is not None:
+            ts = r.timestamp.isoformat() if r.timestamp else None
+            if ts:
+                raw_points.append({"timestamp": ts, "value": round(float(val), 1)})
+
+    # Obtenir la valeur live actuelle
+    latest_telemetry = get_system_telemetry_payload()
+    current_val_map = {
+        "cpu": latest_telemetry.get("cpu_percent"),
+        "cpu_temp": latest_telemetry.get("cpu_temp_c"),
+        "gpu": latest_telemetry.get("gpu_percent"),
+        "gpu_temp": latest_telemetry.get("gpu_temp_c"),
+        "memory": latest_telemetry.get("memory_percent"),
+        "storage": latest_telemetry.get("storage_used_percent"),
+        "power": latest_telemetry.get("power_watts"),
+    }
+    live_val = current_val_map.get(metric) or latest_telemetry.get(metric)
+
+    if not raw_points:
+        if live_val is not None:
+            raw_points.append({"timestamp": now.isoformat(), "value": round(float(live_val), 1)})
+        else:
+            raw_points.append({"timestamp": now.isoformat(), "value": 0.0})
+
+    # Sous-échantillonnage fluide pour un tracé SVG performant (< 80 points)
+    if len(raw_points) > 80:
+        step = max(1, len(raw_points) // 60)
+        sampled = raw_points[::step]
+        if raw_points[-1] not in sampled:
+            sampled.append(raw_points[-1])
+        points = sampled
+    else:
+        points = raw_points
+
+    values = [p["value"] for p in raw_points]
+    min_val = min(values) if values else 0.0
+    max_val = max(values) if values else 0.0
+    avg_val = round(sum(values) / len(values), 1) if values else 0.0
+    current_val = round(float(live_val), 1) if live_val is not None else (raw_points[-1]["value"] if raw_points else 0.0)
+
+    return {
+        "metric": metric,
+        "label": meta["label"],
+        "unit": meta["unit"],
+        "period": period,
+        "points": points,
+        "current": current_val,
+        "min": min_val,
+        "max": max_val,
+        "avg": avg_val,
+        "count": len(raw_points),
+    }
+

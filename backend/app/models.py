@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, ForeignKey, Integer, Table
+from sqlalchemy import Column, ForeignKey, Integer, Table, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -414,3 +414,59 @@ class PlaybackSession(Base):
     launch_type: Mapped[str] = mapped_column()  # 'grid', 'cinema', 'schedule', 'kiosk'
 
     video: Mapped["Video"] = relationship(back_populates="playback_sessions")
+
+
+class SystemMetricsHistory(Base):
+    """Enregistrement périodique (1 min) de la télémétrie matérielle et système."""
+    __tablename__ = "system_metrics_history"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    timestamp: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc), index=True)
+    cpu_percent: Mapped[float | None] = mapped_column(nullable=True)
+    cpu_temp_c: Mapped[float | None] = mapped_column(nullable=True)
+    gpu_percent: Mapped[float | None] = mapped_column(nullable=True)
+    gpu_temp_c: Mapped[float | None] = mapped_column(nullable=True)
+    memory_percent: Mapped[float | None] = mapped_column(nullable=True)
+    memory_used_bytes: Mapped[int | None] = mapped_column(nullable=True)
+    storage_used_percent: Mapped[float | None] = mapped_column(nullable=True)
+    storage_free_bytes: Mapped[int | None] = mapped_column(nullable=True)
+    power_watts: Mapped[float | None] = mapped_column(nullable=True)
+    # Champ dynamique (JSON text) pour toute métrique future (NPU, ventilateurs, batterie, réseau, etc.)
+    extra_data: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    def get_metric(self, name: str) -> float | None:
+        """
+        Extrait dynamiquement la valeur d'une métrique demandée.
+        Supporte les colonnes natives, les alias usuels ou n'importe quelle métrique future stockée dans extra_data (JSON).
+        """
+        alias_map = {
+            "cpu": "cpu_percent",
+            "cpu_temp": "cpu_temp_c",
+            "gpu": "gpu_percent",
+            "gpu_temp": "gpu_temp_c",
+            "memory": "memory_percent",
+            "storage": "storage_used_percent",
+            "power": "power_watts",
+        }
+        target_attr = alias_map.get(name, name)
+        if hasattr(self, target_attr):
+            val = getattr(self, target_attr)
+            if val is not None:
+                try:
+                    return float(val)
+                except (ValueError, TypeError):
+                    pass
+
+        if self.extra_data:
+            try:
+                import json
+                payload = json.loads(self.extra_data)
+                if isinstance(payload, dict):
+                    val = payload.get(name) or payload.get(target_attr)
+                    if val is not None:
+                        return float(val)
+            except Exception:
+                pass
+        return None
+
+

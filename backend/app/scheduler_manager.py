@@ -22,6 +22,7 @@ from app.models import (
     Video,
 )
 from app.playback_manager import PlaybackStateEnum, get_playback_manager
+from app.utils.hardware_info import purge_expired_logs_and_metrics, record_hardware_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -615,10 +616,50 @@ def remove_schedule_job(schedule_id: int) -> None:
     remove_end_schedule_job(schedule_id)
 
 
+def _periodic_hardware_snapshot() -> None:
+    db = SessionLocal()
+    try:
+        record_hardware_snapshot(db)
+    except Exception as e:
+        logger.warning(f"Erreur enregistrement snapshot télémétrie : {e}")
+    finally:
+        db.close()
+
+
+def _periodic_purge_logs() -> None:
+    db = SessionLocal()
+    try:
+        from app.models import Setting
+        row = db.query(Setting).filter(Setting.key == "logs_retention_days").first()
+        retention = int(row.value) if row and row.value and row.value.isdigit() else 7
+        purged = purge_expired_logs_and_metrics(db, retention)
+        logger.info(f"Purge automatique effectuée : {purged}")
+    except Exception as e:
+        logger.warning(f"Erreur purge automatique logs : {e}")
+    finally:
+        db.close()
+
+
 def start_scheduler() -> None:
     global _scheduler
     _scheduler = AsyncIOScheduler(timezone=LOCAL_TZ)
     _scheduler.start()
+
+    # Relevé télémétrie périodique (toutes les 60s)
+    _scheduler.add_job(
+        _periodic_hardware_snapshot,
+        trigger="interval",
+        seconds=60,
+        id="hardware_telemetry_snapshot",
+        replace_existing=True,
+    )
+    # Purge automatique quotidienne des logs et métriques (chaque jour à 03:00)
+    _scheduler.add_job(
+        _periodic_purge_logs,
+        trigger=CronTrigger(hour=3, minute=0, timezone=LOCAL_TZ),
+        id="purge_expired_logs",
+        replace_existing=True,
+    )
 
     db = SessionLocal()
     try:
@@ -626,6 +667,8 @@ def start_scheduler() -> None:
         for schedule in active_schedules:
             sync_schedule_job(schedule)
         logger.info(f"Scheduler démarré, {len(active_schedules)} programmation(s) active(s) rechargée(s)")
+        # Snapshot initial
+        record_hardware_snapshot(db)
     finally:
         db.close()
 

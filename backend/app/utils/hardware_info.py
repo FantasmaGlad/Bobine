@@ -1,6 +1,8 @@
+from datetime import datetime, timedelta, timezone
 import glob
 import logging
 import os
+from pathlib import Path
 import platform
 import re
 import shutil
@@ -27,6 +29,15 @@ _HARDWARE_CACHE: dict[str, Any] = {
 # État pour le calcul de puissance par delta RAPL (si power_input n'est pas directement disponible)
 _LAST_RAPL_CHECK = 0.0
 _LAST_RAPL_ENERGY_UJ = 0
+
+# État de lissage CPU non bloquant
+_LAST_CPU_TIMES: tuple[float, float, float] = (0.0, 0.0, 0.0)  # (wall_time, total_ticks, idle_ticks)
+_LAST_SMOOTH_CPU_PCT: float = 0.0
+
+# Suivi de l'énergie consommée depuis le début du runtime (Wh)
+_CUMULATIVE_ENERGY_WH: float = 0.0
+_LAST_ENERGY_SAMPLE_TIME: float = 0.0
+
 
 
 def shutil_which(cmd: str) -> bool:
@@ -433,42 +444,81 @@ def get_cpu_temp() -> float | None:
 def get_power_watts() -> float | None:
     """
     Retourne la consommation instantanée en Watts (W) de la machine.
-    Lit hwmon power_input, power_supply ou intel-rapl energy_uj.
+    Prise en charge multi-OS : Linux (APU/GPU hwmon, RAPL, batterie/secteur),
+    Android (BatteryManager sur batterie et sur chargeur), macOS (ioreg/AppleSmartBattery),
+    et repli physique proportionnel à la charge CPU.
     """
     global _LAST_RAPL_CHECK, _LAST_RAPL_ENERGY_UJ
 
-    for p in glob.glob("/sys/class/hwmon/*/power*_input"):
+    # 1. ANDROID (Chaquopy) : gestion batterie et chargeur secteur
+    if hasattr(sys, "getandroidapilevel") or shutil_which("getprop"):
         try:
-            with open(p, "r", encoding="utf-8") as f:
-                val = int(f.read().strip())
-                if val > 0:
-                    return round(val / 1_000_000.0, 1)
-        except Exception:
-            pass
+            from com.chaquo.python import Python
+            from android.content import Context, Intent, IntentFilter
+            from android.os import BatteryManager
+            app_ctx = Python.getPlatform().getApplication()
+            bm = app_ctx.getSystemService(Context.BATTERY_SERVICE)
+            filt = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            intent = app_ctx.registerReceiver(None, filt)
+            if intent:
+                plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0)
+                status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                voltage_mv = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)
+                current_ua = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+                if current_ua == -2147483648:  # Integer.MIN_VALUE si non disponible
+                    current_ua = 0
 
-    for p in glob.glob("/sys/class/power_supply/*/power_now"):
-        try:
-            with open(p, "r", encoding="utf-8") as f:
-                val = int(f.read().strip())
-                if val > 0:
-                    return round(val / 1_000_000.0, 1)
-        except Exception:
-            pass
+                cpu_pct = get_cpu_percent()
 
-    for ps_dir in glob.glob("/sys/class/power_supply/*"):
-        curr_p = os.path.join(ps_dir, "current_now")
-        volt_p = os.path.join(ps_dir, "voltage_now")
-        if os.path.exists(curr_p) and os.path.exists(volt_p):
-            try:
-                with open(curr_p, "r", encoding="utf-8") as f1, open(volt_p, "r", encoding="utf-8") as f2:
-                    curr = int(f1.read().strip())
-                    volt = int(f2.read().strip())
-                    if curr > 0 and volt > 0:
-                        watts = (curr * volt) / 1_000_000_000_000.0
+                # A. Branché au secteur (plugged > 0 ou statut CHARGING / FULL)
+                if plugged > 0 or status in (BatteryManager.BATTERY_STATUS_CHARGING, BatteryManager.BATTERY_STATUS_FULL):
+                    # Consommation de fonctionnement actif de la tablette (écran 3K 144Hz + SoC + radios)
+                    active_w = 3.2 + (cpu_pct / 100.0) * 5.0
+
+                    if status == BatteryManager.BATTERY_STATUS_CHARGING and current_ua != 0 and abs(current_ua) < 20_000_000:
+                        v = (voltage_mv / 1000.0) if voltage_mv > 0 else 4.2
+                        charge_w = (abs(current_ua) / 1_000_000.0) * v
+                        total_w = charge_w + active_w
+                        return round(min(120.0, max(1.0, total_w)), 1)
+                    else:
+                        # Batterie pleine (100%) ou maintien : la tablette fonctionne sur l'alimentation externe
+                        return round(min(60.0, max(1.5, active_w)), 1)
+
+                # B. Sur batterie (débranché)
+                if current_ua != 0 and abs(current_ua) < 20_000_000 and voltage_mv > 0:
+                    watts = (abs(current_ua) / 1_000_000.0) * (voltage_mv / 1000.0)
+                    if 0.5 <= watts <= 60.0:
                         return round(watts, 1)
+
+                # Repli sur batterie si le capteur de courant est masqué par le fabricant
+                return round(2.8 + (cpu_pct / 100.0) * 4.5, 1)
+        except Exception:
+            pass
+
+    # 2. LINUX : Capteurs matériels SoC / APU / GPU / CPU (prioritaires sur la batterie)
+    for h_dir in glob.glob("/sys/class/hwmon/hwmon*"):
+        name_file = os.path.join(h_dir, "name")
+        name = ""
+        if os.path.exists(name_file):
+            try:
+                with open(name_file, "r", encoding="utf-8") as f:
+                    name = f.read().strip().lower()
+            except Exception:
+                pass
+        # On ignore les sondes batterie ici (traitées ci-dessous selon leur statut AC/DC)
+        if "bat" in name or "battery" in name:
+            continue
+
+        for p in glob.glob(os.path.join(h_dir, "power*_input")) + glob.glob(os.path.join(h_dir, "power*_average")):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    val = int(f.read().strip())
+                    if 500_000 <= val <= 500_000_000:
+                        return round(val / 1_000_000.0, 1)
             except Exception:
                 pass
 
+    # 3. LINUX : Intel / AMD RAPL (Running Average Power Limit) — Idéal Wyse 5070 et serveurs headless
     for p in glob.glob("/sys/class/powercap/intel-rapl/*/energy_uj"):
         try:
             with open(p, "r", encoding="utf-8") as f:
@@ -489,23 +539,115 @@ def get_power_watts() -> float | None:
         except Exception:
             pass
 
-    # 4. macOS : lecture batterie via ioreg
+    # 4. LINUX : Gestion intelligente batterie / alimentation secteur (Laptops)
+    is_on_ac = False
+    for ac_dir in glob.glob("/sys/class/power_supply/*"):
+        type_file = os.path.join(ac_dir, "type")
+        online_file = os.path.join(ac_dir, "online")
+        if os.path.exists(type_file) and os.path.exists(online_file):
+            try:
+                t = open(type_file, "r").read().strip().lower()
+                o = open(online_file, "r").read().strip()
+                if t in ("mains", "ac", "usb") and o == "1":
+                    is_on_ac = True
+                    break
+            except Exception:
+                pass
+
+    for bat_dir in glob.glob("/sys/class/power_supply/*"):
+        type_file = os.path.join(bat_dir, "type")
+        if os.path.exists(type_file):
+            try:
+                if open(type_file, "r").read().strip().lower() != "battery":
+                    continue
+            except Exception:
+                pass
+
+        status_file = os.path.join(bat_dir, "status")
+        status = ""
+        if os.path.exists(status_file):
+            try:
+                status = open(status_file, "r").read().strip().lower()
+            except Exception:
+                pass
+
+        power_file = os.path.join(bat_dir, "power_now")
+        curr_file = os.path.join(bat_dir, "current_now")
+        volt_file = os.path.join(bat_dir, "voltage_now")
+        bat_watts = None
+
+        if os.path.exists(power_file):
+            try:
+                val = int(open(power_file, "r").read().strip())
+                if val > 0:
+                    bat_watts = val / 1_000_000.0
+            except Exception:
+                pass
+        elif os.path.exists(curr_file) and os.path.exists(volt_file):
+            try:
+                c = int(open(curr_file, "r").read().strip())
+                v = int(open(volt_file, "r").read().strip())
+                if c > 0 and v > 0:
+                    bat_watts = (c * v) / 1_000_000_000_000.0
+            except Exception:
+                pass
+
+        # A. Sur batterie : décharge réelle du PC portable
+        if status == "discharging" and bat_watts and bat_watts >= 0.5:
+            return round(bat_watts, 1)
+
+        # B. Branché au secteur (charge ou plein)
+        if status in ("charging", "full", "not charging") or is_on_ac:
+            cpu_pct = get_cpu_percent()
+            base_laptop_w = 9.0 + (cpu_pct / 100.0) * 22.0
+            if status == "charging" and bat_watts and bat_watts > 1.0:
+                return round(bat_watts + base_laptop_w, 1)
+            else:
+                return round(base_laptop_w, 1)
+
+    # 5. macOS : AppleSmartBattery (batterie et chargeur)
     if sys.platform == "darwin":
         try:
             out = subprocess.check_output(["ioreg", "-rc", "AppleSmartBattery"], text=True, timeout=1)
             volt = None
             amp = None
+            is_charging = False
+            external_connected = False
             for line in out.splitlines():
                 if '"Voltage" =' in line:
                     volt = int(line.split("=", 1)[1].strip())
                 elif '"Amperage" =' in line:
-                    amp = abs(int(line.split("=", 1)[1].strip()))
-            if volt and amp and volt > 0 and amp > 0:
-                watts = (volt * amp) / 1_000_000.0
-                if 0.5 <= watts <= 300.0:
+                    amp = int(line.split("=", 1)[1].strip())
+                elif '"IsCharging" =' in line:
+                    is_charging = "Yes" in line or "true" in line.lower()
+                elif '"ExternalConnected" =' in line:
+                    external_connected = "Yes" in line or "true" in line.lower()
+
+            cpu_pct = get_cpu_percent()
+            base_mac_w = 4.5 + (cpu_pct / 100.0) * 22.0
+
+            if external_connected:
+                if is_charging and amp and amp > 0 and volt and volt > 0:
+                    charge_w = (volt * amp) / 1_000_000.0
+                    return round(charge_w + base_mac_w, 1)
+                else:
+                    return round(base_mac_w, 1)
+            elif volt and amp and volt > 0 and amp != 0:
+                watts = (volt * abs(amp)) / 1_000_000.0
+                if 0.5 <= watts <= 150.0:
                     return round(watts, 1)
         except Exception:
             pass
+
+    # 6. Repli physique universel pour tout appareil branché (Desktop, Mini-PC, Clamshell sans capteur)
+    try:
+        cpu_pct = get_cpu_percent()
+        nb_cores = os.cpu_count() or 4
+        base_w = min(12.0, max(3.5, nb_cores * 1.2))
+        active_w = base_w + (cpu_pct / 100.0) * (nb_cores * 2.8)
+        return round(active_w, 1)
+    except Exception:
+        pass
 
     return None
 
@@ -529,13 +671,13 @@ def get_storage_model() -> str:
         if "ufshc" in bootdevice.lower():
             # UFS 4.0 sur les puces haut de gamme Snapdragon 8 Elite (SM8750/SM8735P) et 8 Gen 3
             if any(s in soc_model for s in ("SM8750", "SM8735", "SUN", "SM8650", "PINEAPPLE")):
-                model = "Stockage Flash UFS 4.0 (256 Go)"
+                model = "Flash UFS 4.0 (256 Go)"
             elif any(s in soc_model for s in ("SM8550", "KALAMA", "SM8475")):
-                model = "Stockage Flash UFS 3.1"
+                model = "Flash UFS 3.1"
             else:
-                model = "Stockage Flash UFS"
+                model = "Flash UFS"
         elif "mmc" in bootdevice.lower():
-            model = "Stockage Flash eMMC 5.1"
+            model = "Flash eMMC 5.1"
 
     # 2. LINUX (Desktop & Wyse Headless)
     if not model and sys.platform.startswith("linux"):
@@ -745,27 +887,184 @@ def get_ram_info() -> dict[str, Any]:
     return result
 
 
+def get_cpu_percent() -> float:
+    """
+    Calcule la charge CPU globale du système de manière non bloquante et lissée.
+    Prise en charge multi-OS : Linux (desktop/headless), Windows, macOS, Android (SELinux).
+    """
+    global _LAST_CPU_TIMES, _LAST_SMOOTH_CPU_PCT
+    now = time.time()
+    last_wall, last_total, last_idle = _LAST_CPU_TIMES
+
+    # Si mesuré il y a moins de 1.5s, renvoyer la valeur en cache pour éviter les micro-saccades
+    if last_wall > 0 and (now - last_wall) < 1.5:
+        return _LAST_SMOOTH_CPU_PCT
+
+    # 1. Linux & Wyse Headless via /proc/stat (non bloquant, instantané)
+    if os.path.exists("/proc/stat"):
+        try:
+            with open("/proc/stat", "r", encoding="utf-8") as f:
+                line = f.readline()
+                if line.startswith("cpu "):
+                    parts = [float(x) for x in line.split()[1:]]
+                    idle = parts[3] + (parts[4] if len(parts) > 4 else 0.0)
+                    total = sum(parts)
+                    if last_wall > 0 and total > last_total:
+                        delta_total = total - last_total
+                        delta_idle = idle - last_idle
+                        pct = (1.0 - (delta_idle / delta_total)) * 100.0
+                        _LAST_SMOOTH_CPU_PCT = round(min(100.0, max(0.0, pct)), 1)
+                    _LAST_CPU_TIMES = (now, total, idle)
+                    return _LAST_SMOOTH_CPU_PCT
+        except Exception:
+            pass
+
+    # 2. Repli /proc/loadavg (normalisé par nombre de cœurs) si /proc/stat est restreint par SELinux
+    if os.path.exists("/proc/loadavg"):
+        try:
+            with open("/proc/loadavg", "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                if content:
+                    load1 = float(content.split()[0])
+                    cpu_count = os.cpu_count() or 1
+                    pct = round(min(100.0, max(0.0, (load1 / cpu_count) * 100.0)), 1)
+                    _LAST_SMOOTH_CPU_PCT = pct
+                    _LAST_CPU_TIMES = (now, 0.0, 0.0)
+                    return _LAST_SMOOTH_CPU_PCT
+        except Exception:
+            pass
+
+    # 3. Repli psutil sans intervalle bloquant (Windows, macOS)
+    try:
+        val = psutil.cpu_percent(interval=None)
+        if val > 0.0:
+            _LAST_SMOOTH_CPU_PCT = round(val, 1)
+            _LAST_CPU_TIMES = (now, 0.0, 0.0)
+            return _LAST_SMOOTH_CPU_PCT
+    except Exception:
+        pass
+
+    # 4. Repli /proc/self/stat pour bacs à sable stricts (Android untrusted_app)
+    if os.path.exists("/proc/self/stat"):
+        try:
+            with open("/proc/self/stat", "r", encoding="utf-8") as f:
+                parts = f.read().split()
+                utime = int(parts[13])
+                stime = int(parts[14])
+                total_ticks = utime + stime
+            cpu_count = os.cpu_count() or 1
+            clk_tck = os.sysconf(os.sysconf_names.get("SC_CLK_TCK", 100)) if hasattr(os, "sysconf") else 100
+            if last_wall > 0 and now > last_wall and last_total > 0:
+                delta_sec = now - last_wall
+                delta_ticks = total_ticks - last_total
+                if delta_sec > 0 and delta_ticks >= 0:
+                    pct = (delta_ticks / clk_tck) / delta_sec / cpu_count * 100.0
+                    _LAST_SMOOTH_CPU_PCT = round(min(100.0, max(0.0, pct)), 1)
+            _LAST_CPU_TIMES = (now, total_ticks, 0.0)
+            return _LAST_SMOOTH_CPU_PCT
+        except Exception:
+            pass
+
+    _LAST_CPU_TIMES = (now, 0.0, 0.0)
+    return _LAST_SMOOTH_CPU_PCT
+
+
+def get_storage_usage() -> dict[str, Any]:
+    """
+    Mesure l'espace disque réel sur le dossier média applicatif (et non sur / qui
+    est un ramdisk système de 700 Mo en lecture seule sous Android).
+    """
+    try:
+        from app.config import runtime_settings
+        media_dir = Path(runtime_settings.media_dir)
+    except Exception:
+        media_dir = Path("data")
+
+    probe = media_dir
+    while not probe.exists() and probe != probe.parent:
+        probe = probe.parent
+    if not probe.exists():
+        probe = Path(".")
+
+    try:
+        usage = shutil.disk_usage(probe)
+        used_pct = round((usage.used / usage.total) * 100, 1) if usage.total else 0.0
+        return {
+            "total_bytes": usage.total,
+            "used_bytes": usage.used,
+            "free_bytes": usage.free,
+            "used_percent": used_pct,
+        }
+    except Exception:
+        return {"total_bytes": 0, "used_bytes": 0, "free_bytes": 0, "used_percent": 0.0}
+
+
+def update_cumulative_energy(watts: float | None) -> None:
+    """Met à jour l'énergie cumulée en Watt-heures (Wh)."""
+    global _CUMULATIVE_ENERGY_WH, _LAST_ENERGY_SAMPLE_TIME
+    now = time.time()
+    if _LAST_ENERGY_SAMPLE_TIME > 0 and watts and watts > 0:
+        delta_hours = (now - _LAST_ENERGY_SAMPLE_TIME) / 3600.0
+        if 0 < delta_hours < 0.1:  # Ignorer les sauts temporels > 6 min
+            _CUMULATIVE_ENERGY_WH += watts * delta_hours
+    _LAST_ENERGY_SAMPLE_TIME = now
+
+
+def get_cumulative_energy_wh() -> float:
+    return round(_CUMULATIVE_ENERGY_WH, 2)
+
+
+def get_average_power_watts() -> float | None:
+    now = time.time()
+    runtime_hours = (now - _SERVICE_START_TIME) / 3600.0
+    if runtime_hours > 0 and _CUMULATIVE_ENERGY_WH > 0:
+        return round(_CUMULATIVE_ENERGY_WH / runtime_hours, 1)
+    return None
+
+
 def get_runtime_info() -> dict[str, Any]:
     """Retourne les informations d'uptime du système et de runtime de Bobine."""
     now = time.time()
     service_uptime = int(now - _SERVICE_START_TIME)
 
     system_uptime = 0
-    try:
-        system_uptime = int(now - psutil.boot_time())
-    except Exception:
-        if os.path.exists("/proc/uptime"):
-            try:
-                with open("/proc/uptime", "r", encoding="utf-8") as f:
-                    system_uptime = int(float(f.read().split()[0]))
-            except Exception:
-                system_uptime = service_uptime
+    is_android = hasattr(sys, "getandroidapilevel") or shutil_which("getprop")
+
+    # 1. ANDROID : Uptime système exact via SystemClock (non affecté par SELinux /proc/uptime)
+    if is_android:
+        try:
+            from android.os import SystemClock
+            system_uptime = int(SystemClock.elapsedRealtime() / 1000)
+        except Exception:
+            pass
+
+    # 2. Linux & Wyse Headless via /proc/uptime
+    if system_uptime <= 0 and os.path.exists("/proc/uptime"):
+        try:
+            with open("/proc/uptime", "r", encoding="utf-8") as f:
+                system_uptime = int(float(f.read().split()[0]))
+        except Exception:
+            pass
+
+    # 3. Windows & macOS via psutil boot_time
+    if system_uptime <= 0:
+        try:
+            system_uptime = int(now - psutil.boot_time())
+        except Exception:
+            system_uptime = service_uptime
+
+    avg_w = get_average_power_watts()
+    wh = get_cumulative_energy_wh()
 
     return {
         "service_uptime_seconds": service_uptime,
         "service_uptime_formatted": format_duration_short(service_uptime),
+        "app_runtime_formatted": format_duration_short(service_uptime),
         "system_uptime_seconds": system_uptime,
         "system_uptime_formatted": format_duration_short(system_uptime),
+        "uptime_formatted": format_duration_short(system_uptime),
+        "cumulative_energy_wh": wh if wh > 0 else None,
+        "average_power_watts": avg_w,
     }
 
 
@@ -779,3 +1078,115 @@ def format_duration_short(seconds: int) -> str:
     if hours > 0:
         return f"{hours}h {minutes:02d}m"
     return f"{minutes}m"
+
+
+def get_system_telemetry_payload() -> dict[str, Any]:
+    """
+    Génère la télémétrie matérielle complète unifiée consommée par
+    /api/settings/system et /api/metrics/dashboard.
+    """
+    gpu_name, gpu_percent, gpu_temp_c = get_gpu_info()
+    ram_info = get_ram_info()
+    storage_info = get_storage_usage()
+    power_watts = get_power_watts()
+    update_cumulative_energy(power_watts)
+    cpu_pct = get_cpu_percent()
+    cpu_temp = get_cpu_temp()
+    runtime = get_runtime_info()
+
+    # Mémoire RAM
+    mem_total, mem_used, mem_percent = 0, 0, 0.0
+    try:
+        vm = psutil.virtual_memory()
+        mem_total = vm.total
+        mem_used = vm.total - vm.available
+        mem_percent = vm.percent
+    except Exception:
+        try:
+            with open("/proc/meminfo", "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            m = {}
+            for l in lines:
+                if ":" in l:
+                    k, v = l.split(":", 1)
+                    m[k.strip()] = int(v.strip().split()[0]) * 1024
+            mem_total = m.get("MemTotal", 0)
+            avail = m.get("MemAvailable", m.get("MemFree", 0))
+            mem_used = max(0, mem_total - avail)
+            mem_percent = round((mem_used / mem_total) * 100, 1) if mem_total else 0.0
+        except Exception:
+            pass
+
+    return {
+        "cpu_name": get_cpu_model_name(),
+        "cpu_percent": cpu_pct,
+        "cpu_temp_c": cpu_temp,
+        "gpu_name": gpu_name,
+        "gpu_percent": gpu_percent,
+        "gpu_temp_c": gpu_temp_c,
+        "power_watts": power_watts,
+        "storage_model": get_storage_model(),
+        "storage_used_percent": storage_info["used_percent"],
+        "storage_free_bytes": storage_info["free_bytes"],
+        "storage_total_bytes": storage_info["total_bytes"],
+        "storage": storage_info,
+        "memory_total_bytes": mem_total,
+        "memory_used_bytes": mem_used,
+        "memory_percent": mem_percent,
+        "ram_brand": ram_info.get("brand"),
+        "ram_type": ram_info.get("type"),
+        "ram_freq": ram_info.get("freq"),
+        "ram_model": ram_info.get("model_label"),
+        "runtime": runtime,
+    }
+
+
+def record_hardware_snapshot(db, extra: dict[str, Any] | None = None) -> None:
+    """Enregistre un instantané matériel dans la table system_metrics_history."""
+    try:
+        telemetry = get_system_telemetry_payload()
+        from app.models import SystemMetricsHistory
+        import json
+        extra_json = json.dumps(extra) if extra else None
+        snapshot = SystemMetricsHistory(
+            cpu_percent=telemetry.get("cpu_percent"),
+            cpu_temp_c=telemetry.get("cpu_temp_c"),
+            gpu_percent=telemetry.get("gpu_percent"),
+            gpu_temp_c=telemetry.get("gpu_temp_c"),
+            memory_percent=telemetry.get("memory_percent"),
+            memory_used_bytes=telemetry.get("memory_used_bytes"),
+            storage_used_percent=telemetry.get("storage_used_percent"),
+            storage_free_bytes=telemetry.get("storage_free_bytes"),
+            power_watts=telemetry.get("power_watts"),
+            extra_data=extra_json,
+        )
+        db.add(snapshot)
+        db.commit()
+    except Exception as e:
+        logger.debug(f"Échec enregistrement télémétrie snapshot: {e}")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
+
+def purge_expired_logs_and_metrics(db, retention_days: int = 7) -> dict[str, int]:
+    """Supprime les logs d'activité et métriques système plus anciens que retention_days."""
+    from app.models import ActivityLog, SystemMetricsHistory
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max(1, retention_days))
+    purged_logs = 0
+    purged_metrics = 0
+    try:
+        purged_logs = db.query(ActivityLog).filter(ActivityLog.timestamp < cutoff).delete()
+        purged_metrics = db.query(SystemMetricsHistory).filter(SystemMetricsHistory.timestamp < cutoff).delete()
+        db.commit()
+        if purged_logs > 0 or purged_metrics > 0:
+            logger.info(f"Purge automatique réussie ({retention_days}j) : {purged_logs} logs et {purged_metrics} métriques supprimés.")
+    except Exception as e:
+        logger.error(f"Erreur purge logs/métriques: {e}")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+    return {"purged_logs": purged_logs, "purged_metrics": purged_metrics}
+

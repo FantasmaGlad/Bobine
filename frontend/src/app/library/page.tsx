@@ -896,11 +896,11 @@ export default function LibraryPage() {
         <>
           <div className="detail-drawer-overlay" onClick={handleCloseDrawer} />
           <div className="detail-drawer">
-            <div className="drawer-header">
-              <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", maxWidth: "80%" }}>
-                {selectedVideo.title}
+            <div className="drawer-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--border-color)" }}>
+              <h3 style={{ fontSize: "1rem", fontWeight: 800, margin: 0, letterSpacing: "0.02em" }}>
+                {t("library.metadataSectionTitle")}
               </h3>
-              <button className="close-btn" onClick={handleCloseDrawer}>
+              <button className="close-btn" onClick={handleCloseDrawer} aria-label={t("common.close")}>
                 <Icon name="close" size={20} />
               </button>
             </div>
@@ -919,9 +919,6 @@ export default function LibraryPage() {
 
               {/* Form edit metadata */}
               <form className="drawer-form" onSubmit={handleSaveMetadata}>
-                <h4 style={{ fontSize: "0.85rem", fontWeight: 800, borderBottom: "1px solid var(--border-color)", paddingBottom: "6px", margin: "0 0 8px" }}>
-                  {t("library.metadataSectionTitle")}
-                </h4>
 
                 <div className="form-group">
                   <label className="form-label">{t("library.thumbnailFieldLabel")}</label>

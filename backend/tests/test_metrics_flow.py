@@ -20,10 +20,11 @@ from app.models import CourseRating, ImportSource, PlaybackSession, Video
 from app.routers.metrics import (
     RatingCreate,
     create_course_rating,
+    get_hardware_history,
     get_metrics_dashboard,
     list_course_ratings,
 )
-from app.routers.settings import get_storage, get_system_usage
+from app.routers.settings import get_storage, get_system_usage, purge_logs_manual
 from app.utils.hardware_info import (
     get_cpu_model_name,
     get_cpu_temp,
@@ -32,6 +33,8 @@ from app.utils.hardware_info import (
     get_ram_info,
     get_runtime_info,
     get_storage_model,
+    purge_expired_logs_and_metrics,
+    record_hardware_snapshot,
 )
 from app.utils.playback_session_tracker import (
     close_playback_session,
@@ -229,3 +232,94 @@ class TestMetricsFlow(unittest.TestCase):
 
         runtime = get_runtime_info()
         self.assertIn("service_uptime_formatted", runtime)
+
+    def test_hardware_history_endpoint(self):
+        """Teste l'historique temporel matériel et son sous-échantillonnage."""
+        with SessionLocal() as db:
+            from app.models import SystemMetricsHistory
+            db.query(SystemMetricsHistory).delete()
+            db.commit()
+
+            # Snapshot initial
+            record_hardware_snapshot(db)
+
+            res = get_hardware_history(metric="cpu", period="1h", db=db)
+            self.assertEqual(res["metric"], "cpu")
+            self.assertEqual(res["unit"], "%")
+            self.assertGreaterEqual(len(res["points"]), 1)
+            self.assertIn("current", res)
+            self.assertIn("min", res)
+            self.assertIn("max", res)
+            self.assertIn("avg", res)
+
+    def test_logs_and_metrics_purge(self):
+        """Teste la purge automatique et manuelle des logs et métriques expirés."""
+        with SessionLocal() as db:
+            purged = purge_expired_logs_and_metrics(db, retention_days=7)
+            self.assertIn("purged_logs", purged)
+            self.assertIn("purged_metrics", purged)
+
+            manual_res = purge_logs_manual(retention_days=7, db=db)
+            self.assertEqual(manual_res["retention_days"], 7)
+            self.assertIn("details", manual_res)
+
+    def test_dynamic_metrics_future_extensibility(self):
+        """Valide qu'une nouvelle métrique future (ex: fan_rpm, npu_load, battery_pct) est enregistrée et servie sans altération de schéma."""
+        with SessionLocal() as db:
+            from app.models import SystemMetricsHistory
+            record_hardware_snapshot(db, extra={"fan_rpm": 2400.0, "npu_load_percent": 35.5, "battery_pct": 92.0})
+
+            res_fan = get_hardware_history(metric="fan_rpm", period="1h", db=db)
+            self.assertEqual(res_fan["metric"], "fan_rpm")
+            self.assertGreaterEqual(len(res_fan["points"]), 1)
+            self.assertEqual(res_fan["points"][-1]["value"], 2400.0)
+
+            res_npu = get_hardware_history(metric="npu_load_percent", period="1h", db=db)
+            self.assertEqual(res_npu["unit"], "%")
+            self.assertEqual(res_npu["points"][-1]["value"], 35.5)
+
+    def test_settings_logs_retention_days_update(self):
+        """Valide la modification du délai de rétention des logs via PUT /api/settings et la validation des bornes."""
+        from app.routers.settings import update_settings, get_settings, SettingsUpdate
+        import asyncio
+
+        with SessionLocal() as db:
+            # 1. Mise à jour valide à 14 jours
+            res = asyncio.run(update_settings(SettingsUpdate(logs_retention_days=14), db=db))
+            self.assertEqual(res["logs_retention_days"], 14)
+
+            # Vérification de la lecture
+            settings_res = get_settings(db=db)
+            self.assertEqual(settings_res["logs_retention_days"], 14)
+
+            # 2. Rejet des valeurs invalides (< 1 jour)
+            with self.assertRaises(HTTPException) as cm:
+                asyncio.run(update_settings(SettingsUpdate(logs_retention_days=0), db=db))
+            self.assertEqual(cm.exception.status_code, 400)
+
+            with self.assertRaises(HTTPException) as cm_neg:
+                asyncio.run(update_settings(SettingsUpdate(logs_retention_days=-5), db=db))
+            self.assertEqual(cm_neg.exception.status_code, 400)
+
+            # Remise à la valeur par défaut 7 jours
+            asyncio.run(update_settings(SettingsUpdate(logs_retention_days=7), db=db))
+
+    def test_power_watts_calculation_and_energy(self):
+        """Valide le calcul de puissance multi-OS et l'accumulation d'énergie Wh."""
+        from app.utils.hardware_info import (
+            get_power_watts,
+            update_cumulative_energy,
+            get_cumulative_energy_wh,
+            get_average_power_watts,
+        )
+        p = get_power_watts()
+        self.assertIsNotNone(p)
+        self.assertGreater(p, 0.0)
+
+        # Simulation accumulation d'énergie
+        update_cumulative_energy(15.0)
+        wh = get_cumulative_energy_wh()
+        self.assertIsInstance(wh, float)
+
+
+
