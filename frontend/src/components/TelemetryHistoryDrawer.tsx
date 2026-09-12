@@ -233,7 +233,7 @@ export default function TelemetryHistoryDrawer({
         <div className="telemetry-chart-container">
           <div className="telemetry-chart-head">
             <span className="telemetry-chart-caption">
-              Évolution temporelle ({coords.length} point{coords.length > 1 ? "s" : ""})
+              Évolution temporelle
             </span>
             {hoveredPoint && (
               <span className="telemetry-chart-hover-pill">

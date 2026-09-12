@@ -909,9 +909,11 @@ export default function LibraryPage() {
               {/* HTML5 video player streaming with range support */}
               <div className="drawer-video-container">
                 <video
+                  key={selectedVideo.id}
                   className="drawer-video"
                   controls
                   playsInline
+                  preload="metadata"
                   src={getApiUrl(`/videos/${selectedVideo.id}/stream`)}
                   poster={getThumbnailSrc(selectedVideo) || undefined}
                 />

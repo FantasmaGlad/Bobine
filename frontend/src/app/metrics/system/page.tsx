@@ -96,174 +96,197 @@ export default function MetricsSystemPage() {
 
   return (
     <div className="metrics-page">
-      {/* Grille principale de supervision matérielle */}
-      <section className="metrics-section-card" style={{ marginTop: 0 }}>
-        <div className="metrics-section-header">
-          <div>
-            <h3>
-              <Icon name="monitor_heart" size={22} /> {t("metricsPage.telemetryTitle")}
-            </h3>
-            <p className="metrics-section-subtitle">
-              Surveillance en direct des composants. Cliquez sur une métrique pour afficher son historique temporel.
-            </p>
+      {/* En-tête épuré */}
+      <div className="metrics-section-header" style={{ marginBottom: "16px" }}>
+        <div>
+          <h3>
+            <Icon name="monitor_heart" size={22} /> {t("metricsPage.telemetryTitle")}
+          </h3>
+          <p className="metrics-section-subtitle">
+            Surveillance en direct des composants. Cliquez sur une métrique pour afficher son historique temporel.
+          </p>
+        </div>
+      </div>
+
+      {/* Grille principale de supervision matérielle harmonisée sur les cartes de cours */}
+      <section className="metrics-telemetry-grid">
+        {/* 1. CPU */}
+        <div
+          className="metrics-telemetry-item interactive"
+          role="button"
+          tabIndex={0}
+          onClick={() => openDrawer("cpu", "Charge CPU", "memory")}
+          onKeyDown={(e) => handleKeyDown(e, "cpu", "Charge CPU", "memory")}
+          aria-label="Afficher l'historique de la charge CPU"
+        >
+          <div className="metrics-telemetry-item-head">
+            <span className="metrics-telemetry-name">{t("metricsPage.cpu")}</span>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+              <Icon name="memory" size={24} />
+            </div>
           </div>
+          <span className="metrics-telemetry-component-name" title={telemetry?.cpu_name}>
+            {telemetry?.cpu_name || "Processeur"}
+          </span>
+          <div className="metrics-telemetry-metric-val">
+            <span className="metrics-telemetry-big-num">
+              {telemetry?.cpu_percent != null ? telemetry.cpu_percent.toFixed(0) : "0"}%
+            </span>
+            {telemetry?.cpu_temp_c != null && (
+              <span className="metrics-telemetry-temp">{telemetry.cpu_temp_c.toFixed(0)} °C</span>
+            )}
+          </div>
+          <span className="metrics-telemetry-cta">
+            Historique <Icon name="chevron_right" size={14} />
+          </span>
         </div>
 
-        <div className="metrics-telemetry-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
-          {/* 1. CPU */}
-          <div
-            className="metrics-telemetry-item interactive"
-            role="button"
-            tabIndex={0}
-            onClick={() => openDrawer("cpu", "Charge CPU", "memory")}
-            onKeyDown={(e) => handleKeyDown(e, "cpu", "Charge CPU", "memory")}
-            aria-label="Afficher l'historique de la charge CPU"
-          >
-            <div className="metrics-telemetry-item-head">
-              <Icon name="memory" size={20} />
-              <span className="metrics-telemetry-name">{t("metricsPage.cpu")}</span>
+        {/* 2. GPU */}
+        <div
+          className="metrics-telemetry-item interactive"
+          role="button"
+          tabIndex={0}
+          onClick={() => openDrawer("gpu", "Charge GPU", "videogame_asset")}
+          onKeyDown={(e) => handleKeyDown(e, "gpu", "Charge GPU", "videogame_asset")}
+          aria-label="Afficher l'historique de la puce graphique"
+        >
+          <div className="metrics-telemetry-item-head">
+            <span className="metrics-telemetry-name">{t("metricsPage.gpu")}</span>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+              <Icon name="videogame_asset" size={24} />
             </div>
-            <span className="metrics-telemetry-component-name" title={telemetry?.cpu_name}>
-              {telemetry?.cpu_name || "Processeur"}
-            </span>
-            <div className="metrics-telemetry-metric-val">
-              <strong>{telemetry?.cpu_percent != null ? telemetry.cpu_percent.toFixed(0) : "0"}%</strong>
-              {telemetry?.cpu_temp_c != null && (
-                <span className="metrics-telemetry-temp">{telemetry.cpu_temp_c.toFixed(0)} °C</span>
-              )}
-            </div>
-            <span className="metrics-telemetry-cta">
-              Historique <Icon name="chevron_right" size={14} />
-            </span>
           </div>
+          <span className="metrics-telemetry-component-name" title={telemetry?.gpu_name || "Puce Graphique"}>
+            {telemetry?.gpu_name || "Puce Graphique"}
+          </span>
+          <div className="metrics-telemetry-metric-val">
+            <span className="metrics-telemetry-big-num">
+              {telemetry?.gpu_percent != null ? telemetry.gpu_percent.toFixed(0) : "0"}%
+            </span>
+            {telemetry?.gpu_temp_c != null && (
+              <span className="metrics-telemetry-temp">{telemetry.gpu_temp_c.toFixed(0)} °C</span>
+            )}
+          </div>
+          <span className="metrics-telemetry-cta">
+            Historique <Icon name="chevron_right" size={14} />
+          </span>
+        </div>
 
-          {/* 2. GPU */}
-          <div
-            className="metrics-telemetry-item interactive"
-            role="button"
-            tabIndex={0}
-            onClick={() => openDrawer("gpu", "Charge GPU", "videogame_asset")}
-            onKeyDown={(e) => handleKeyDown(e, "gpu", "Charge GPU", "videogame_asset")}
-            aria-label="Afficher l'historique de la puce graphique"
+        {/* 3. RAM */}
+        <div
+          className="metrics-telemetry-item interactive"
+          role="button"
+          tabIndex={0}
+          onClick={() => openDrawer("memory", "Utilisation RAM", "developer_board")}
+          onKeyDown={(e) => handleKeyDown(e, "memory", "Utilisation RAM", "developer_board")}
+          aria-label="Afficher l'historique de la mémoire vive"
+        >
+          <div className="metrics-telemetry-item-head">
+            <span className="metrics-telemetry-name">{t("metricsPage.ram")}</span>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+              <Icon name="developer_board" size={24} />
+            </div>
+          </div>
+          <span
+            className="metrics-telemetry-component-name"
+            title={telemetry?.ram_model || (telemetry?.ram_type ? `${telemetry.ram_brand ? telemetry.ram_brand + " " : ""}${telemetry.ram_type}${telemetry.ram_freq ? " " + telemetry.ram_freq : ""}` : "Mémoire vive")}
           >
-            <div className="metrics-telemetry-item-head">
-              <Icon name="videogame_asset" size={20} />
-              <span className="metrics-telemetry-name">{t("metricsPage.gpu")}</span>
-            </div>
-            <span className="metrics-telemetry-component-name" title={telemetry?.gpu_name || "Puce Graphique"}>
-              {telemetry?.gpu_name || "Puce Graphique"}
+            {telemetry?.ram_model || (telemetry?.ram_type ? `${telemetry.ram_brand ? telemetry.ram_brand + " " : ""}${telemetry.ram_type}${telemetry.ram_freq ? " " + telemetry.ram_freq : ""}` : "Mémoire vive")}
+          </span>
+          <div className="metrics-telemetry-metric-val">
+            <span className="metrics-telemetry-big-num">
+              {telemetry?.memory_percent != null ? telemetry.memory_percent.toFixed(0) : "0"}%
             </span>
-            <div className="metrics-telemetry-metric-val">
-              <strong>{telemetry?.gpu_percent != null ? telemetry.gpu_percent.toFixed(0) : "0"}%</strong>
-              {telemetry?.gpu_temp_c != null && (
-                <span className="metrics-telemetry-temp">{telemetry.gpu_temp_c.toFixed(0)} °C</span>
-              )}
-            </div>
-            <span className="metrics-telemetry-cta">
-              Historique <Icon name="chevron_right" size={14} />
+            <span className="metrics-telemetry-temp">
+              {formatBytes(telemetry?.memory_used_bytes)} / {formatBytes(telemetry?.memory_total_bytes)}
             </span>
           </div>
+          <span className="metrics-telemetry-cta">
+            Historique <Icon name="chevron_right" size={14} />
+          </span>
+        </div>
 
-          {/* 3. RAM */}
-          <div
-            className="metrics-telemetry-item interactive"
-            role="button"
-            tabIndex={0}
-            onClick={() => openDrawer("memory", "Utilisation RAM", "developer_board")}
-            onKeyDown={(e) => handleKeyDown(e, "memory", "Utilisation RAM", "developer_board")}
-            aria-label="Afficher l'historique de la mémoire vive"
-          >
-            <div className="metrics-telemetry-item-head">
-              <Icon name="developer_board" size={20} />
-              <span className="metrics-telemetry-name">{t("metricsPage.ram")}</span>
+        {/* 4. Stockage Principal */}
+        <div
+          className="metrics-telemetry-item interactive"
+          role="button"
+          tabIndex={0}
+          onClick={() => openDrawer("storage", "Occupation Stockage", "storage")}
+          onKeyDown={(e) => handleKeyDown(e, "storage", "Occupation Stockage", "storage")}
+          aria-label="Afficher l'historique du stockage principal"
+        >
+          <div className="metrics-telemetry-item-head">
+            <span className="metrics-telemetry-name">{t("metricsPage.storage")}</span>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+              <Icon name="storage" size={24} />
             </div>
-            <span
-              className="metrics-telemetry-component-name"
-              title={telemetry?.ram_model || (telemetry?.ram_type ? `${telemetry.ram_brand ? telemetry.ram_brand + " " : ""}${telemetry.ram_type}${telemetry.ram_freq ? " " + telemetry.ram_freq : ""}` : "Mémoire vive")}
-            >
-              {telemetry?.ram_model || (telemetry?.ram_type ? `${telemetry.ram_brand ? telemetry.ram_brand + " " : ""}${telemetry.ram_type}${telemetry.ram_freq ? " " + telemetry.ram_freq : ""}` : "Mémoire vive")}
+          </div>
+          <span className="metrics-telemetry-component-name" title={telemetry?.storage_model || "Disque principal"}>
+            {telemetry?.storage_model || "Disque principal"}
+          </span>
+          <div className="metrics-telemetry-metric-val">
+            <span className="metrics-telemetry-big-num">
+              {usedStoragePct.toFixed(0)}%
             </span>
-            <div className="metrics-telemetry-metric-val">
-              <strong>{telemetry?.memory_percent != null ? telemetry.memory_percent.toFixed(0) : "0"}%</strong>
-              <span className="metrics-telemetry-temp">
-                {formatBytes(telemetry?.memory_used_bytes)} / {formatBytes(telemetry?.memory_total_bytes)}
-              </span>
-            </div>
-            <span className="metrics-telemetry-cta">
-              Historique <Icon name="chevron_right" size={14} />
+            <span className="metrics-telemetry-temp">
+              {formatBytes(freeStorage)} libres sur {formatBytes(totalStorage)}
             </span>
           </div>
+          <span className="metrics-telemetry-cta">
+            Historique <Icon name="chevron_right" size={14} />
+          </span>
+        </div>
 
-          {/* 4. Stockage Principal */}
-          <div
-            className="metrics-telemetry-item interactive"
-            role="button"
-            tabIndex={0}
-            onClick={() => openDrawer("storage", "Occupation Stockage", "storage")}
-            onKeyDown={(e) => handleKeyDown(e, "storage", "Occupation Stockage", "storage")}
-            aria-label="Afficher l'historique du stockage principal"
-          >
-            <div className="metrics-telemetry-item-head">
-              <Icon name="storage" size={20} />
-              <span className="metrics-telemetry-name">{t("metricsPage.storage")}</span>
+        {/* 5. Puissance & Énergie */}
+        <div
+          className="metrics-telemetry-item interactive"
+          role="button"
+          tabIndex={0}
+          onClick={() => openDrawer("power", "Puissance consommée", "bolt")}
+          onKeyDown={(e) => handleKeyDown(e, "power", "Puissance consommée", "bolt")}
+          aria-label="Afficher l'historique de la puissance et de l'énergie consommée"
+        >
+          <div className="metrics-telemetry-item-head">
+            <span className="metrics-telemetry-name">{t("metricsPage.power")} & Énergie</span>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+              <Icon name="bolt" size={24} />
             </div>
-            <span className="metrics-telemetry-component-name" title={telemetry?.storage_model || "Disque principal"}>
-              {telemetry?.storage_model || "Disque principal"}
-            </span>
-            <div className="metrics-telemetry-metric-val">
-              <strong>{usedStoragePct.toFixed(0)}%</strong>
-              <span className="metrics-telemetry-temp">
-                {formatBytes(freeStorage)} libres sur {formatBytes(totalStorage)}
-              </span>
-            </div>
-            <span className="metrics-telemetry-cta">
-              Historique <Icon name="chevron_right" size={14} />
+          </div>
+          <span className="metrics-telemetry-component-name">
+            {telemetry?.runtime?.cumulative_energy_wh != null
+              ? `Cumul: ${telemetry.runtime.cumulative_energy_wh.toFixed(1)} Wh · Moy: ${telemetry.runtime.average_power_watts != null ? telemetry.runtime.average_power_watts.toFixed(1) + " W" : "--"}`
+              : "Alimentation système"}
+          </span>
+          <div className="metrics-telemetry-metric-val">
+            <span className="metrics-telemetry-big-num" style={{ color: "var(--accent-primary)" }}>
+              {telemetry?.power_watts != null ? `${telemetry.power_watts.toFixed(1)} W` : "-- W"}
             </span>
           </div>
+          <span className="metrics-telemetry-cta">
+            Historique <Icon name="chevron_right" size={14} />
+          </span>
+        </div>
 
-          {/* 5. Puissance & Énergie */}
-          <div
-            className="metrics-telemetry-item interactive"
-            role="button"
-            tabIndex={0}
-            onClick={() => openDrawer("power", "Puissance consommée", "bolt")}
-            onKeyDown={(e) => handleKeyDown(e, "power", "Puissance consommée", "bolt")}
-            aria-label="Afficher l'historique de la puissance et de l'énergie consommée"
-          >
-            <div className="metrics-telemetry-item-head">
-              <Icon name="bolt" size={20} style={{ color: "var(--accent-primary)" }} />
-              <span className="metrics-telemetry-name">{t("metricsPage.power")} & Énergie</span>
-            </div>
-            <span className="metrics-telemetry-component-name">
-              {telemetry?.runtime?.cumulative_energy_wh != null
-                ? `Cumul: ${telemetry.runtime.cumulative_energy_wh.toFixed(1)} Wh · Moy: ${telemetry.runtime.average_power_watts != null ? telemetry.runtime.average_power_watts.toFixed(1) + " W" : "--"}`
-                : "Alimentation système"}
-            </span>
-            <div className="metrics-telemetry-metric-val">
-              <strong style={{ color: "var(--accent-primary)" }}>
-                {telemetry?.power_watts != null ? `${telemetry.power_watts.toFixed(1)} W` : "-- W"}
-              </strong>
-            </div>
-            <span className="metrics-telemetry-cta">
-              Historique <Icon name="chevron_right" size={14} />
-            </span>
-          </div>
-
-          {/* 6. Uptime Système & Runtime Service */}
-          <div className="metrics-telemetry-item">
-            <div className="metrics-telemetry-item-head">
-              <Icon name="timer" size={20} />
-              <span className="metrics-telemetry-name">{t("metricsPage.runtime")}</span>
-            </div>
-            <span className="metrics-telemetry-component-name">
-              Uptime Système : {telemetry?.runtime?.uptime_formatted || "--"}
-            </span>
-            <div className="metrics-telemetry-metric-val">
-              <span style={{ fontSize: "0.92rem", fontWeight: 700, color: "var(--accent-primary)" }}>
-                Service : {telemetry?.runtime?.app_runtime_formatted || "--"}
-              </span>
+        {/* 6. Uptime Système & Runtime Service */}
+        <div className="metrics-telemetry-item">
+          <div className="metrics-telemetry-item-head">
+            <span className="metrics-telemetry-name">{t("metricsPage.runtime")}</span>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+              <Icon name="timer" size={24} />
             </div>
           </div>
+          <span className="metrics-telemetry-component-name">
+            Uptime Système : {telemetry?.runtime?.uptime_formatted || "--"}
+          </span>
+          <div className="metrics-telemetry-metric-val">
+            <span className="metrics-telemetry-big-num" style={{ fontSize: "1.4rem", color: "var(--accent-primary)" }}>
+              {telemetry?.runtime?.app_runtime_formatted || "--"}
+            </span>
+            <span className="metrics-telemetry-temp">
+              Service Bobine
+            </span>
+          </div>
+          <div style={{ marginTop: "auto" }} />
         </div>
       </section>
 
