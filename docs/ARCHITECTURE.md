@@ -316,14 +316,20 @@ Sous-système musical « type Spotify » **totalement indépendant** des cours v
 
 ---
 
-## 6. Mode Audio Coach & Fonds animés
+## 6. Mode Audio Coach & Hub d'Ambiances Visuelles
 
-Le mode **Audio Coach** permet de diffuser des cours audio (pistes vocales / musique) sur l'équipement sonore de la salle tout en affichant un fond visuel dynamique sur l'écran.
+Le mode **Audio Coach** permet de diffuser des cours audio (pistes vocales / musique rythmée) sur l'équipement sonore de la salle tout en projetant une ambiance visuelle dynamique et cinématique sur l'écran câblé (HDMI).
 
-- **Importation** : Support des fichiers MP3 individuellement ou par paquets ZIP.
-- **Fonds animés** : Boucles vidéo stockées dans `data/backgrounds` (arbre média unifié sous `${REPO_DIR}/data`), jouées en boucle infinie sans coupure.
+- **Console Régie Coach (`/coach`)** : Console de pilotage studio réactive et tactile.
+  - **Sur tablette paysage et ordinateur (>= 900px)** : Disposition double colonne asymétrique ergonomique.
+    - *Colonne gauche* : Informations de piste, barre de progression interactive, minuteur de repos/exercice, contrôles de transport tactiles surdimensionnés, curseur de volume réactif, boutons de bouclage/enchaînement, et playlist intégrée déroulante avec saut direct de piste.
+    - *Colonne droite* : **Stage Monitor 16:9** (retour vidéo en direct du flux HDMI de salle avec vidéo, pochette ou halo cinématique sobre, et incrustation en direct du titre et de la progression) surmontant une **Palette tactile d'ambiances 16:9** permettant de commuter l'ambiance visuelle projetée en direct en 1 touche sans rupture sonore.
+  - **Sur smartphone et écran compact (< 900px)** : Interface monoposte épurée avec tiroirs tactiles rétractables (*bottom sheets*) pour la sélection rapide des pistes et des ambiances visuelles.
+- **Redirection automatique vers la régie** : Dès que le mode Coach est activé sur la borne, toute ouverture ou navigation vers le tableau de bord câblé (`/dashboard-cable`) redirige automatiquement et instantanément vers `/coach`, assurant une coordination sans friction pour tout le personnel ou le coach intervenant depuis un terminal mobile ou un poste déporté.
+- **Hub d'Ambiances Visuelles (`/backgrounds`)** : Espace centralisé dédié à la gestion des boucles d'ambiance visuelle 16:9. Fini l'ancien commutateur non intuitif : chaque carte propose une prévisualisation vidéo en survol dynamique, des badges de diffusion en direct (« Sur Câblé », « Sur Réseau », « Par défaut Coach »), un lecteur modal immersif complet, des boutons de diffusion immédiate 1-clic hors séance, et la possibilité d'assigner l'ambiance par défaut (`default_coach_background_id`).
+- **Sélecteur Visuel Audio (`/audio`)** : L'assignation d'ambiance dans la bibliothèque audio s'effectue via une carte 16:9 interactive ouvrant une galerie visuelle de sélection avec miniatures, remplaçant l'ancien menu textuel.
 - **Minuteur d'enchaînement (`audio_chain_timer_seconds`)** : Délai de transition configurable entre deux pistes audio (modifiable depuis `/api/settings`).
-- **Lancement** : une playlist audio coach se lance depuis la page « Cours Audio » (`/audio`, actif uniquement quand le câblé est **déjà** en mode coach — sinon on passe d'abord par « Passer en mode coach » / `/coach`) ou directement depuis l'écran mobile `/coach`. Le raccourci autrefois présent sur le tableau de bord câblé a été déplacé ici.
+- **Persistance et Repli** : Persistance du réglage `default_coach_background_id` dans la table SQLite `settings`. Tout cours audio sans fond spécifique attribué hérite automatiquement de l'ambiance par défaut configurée.
 
 ---
 
@@ -493,19 +499,21 @@ Les commits restent locaux jusqu'à ce qu'une machine avec accès GitHub (hors L
 
 Bobine repose sur une **interface frontend unique et unifiée** construite avec Next.js 16 (App Router) et exportée statiquement (`npm run build` → `frontend/out`). Cette interface est partagée et embarquée de manière identique sur **tous les profils de déploiement**.
 
-### 10.1 Cartographie des 19 routes de l'interface (+ `/` redirigeant vers `/dashboard-cable`)
+### 10.1 Cartographie des 20 routes de l'interface (+ `/` redirigeant vers `/dashboard-cable`)
 
 | Catégorie | Route(s) | Description & Particularités multi-OS |
 |---|---|---|
 | **Diffusion & Kiosque** | `/kiosk` | Kiosque automatique plein écran (programmation, inter-cours, démarrage direct sans délai). Horloge avec `suppressHydrationWarning` et synchronisation réseau (`/api/time`). |
 | | `/cinema` | Vitrine de sélection « Apple TV » avec héros, rangées par catégorie, télécommande HID et **Moteur Vidéo Gapless A/B Deck** (double décodeur sans écran noir). En mode Pupitre Studio double écran (`dual_screen`), l'écran externe affiche un écran de veille passif *« En attente d'un cours »* pendant que la sélection s'opère sur la console tactile `/grid` ; en mode Headless (`headless`), l'écran externe présente directement la grille interactive complète. Notation 5 étoiles sur l'écran de fin. |
 | | `/grid` | Interface de sélection tactile et régie dédiée (tablettes Android, ordinateurs portables en mode Pupitre Studio). **Pilote exclusivement le canal câblé (HDMI)** (aucun équivalent réseau, administré via `/dashboard-network`). Supporte la navigation tactile, souris, télécommandes HID et manettes de jeu avec anti-rebond et lissage monotone du temps. Évaluation 5 étoiles tactile à la fin du cours. (cf. [`docs/cahier-des-charges-affichage-hybride.md`](cahier-des-charges-affichage-hybride.md)). |
-| **Régies & Contrôle** | `/dashboard-cable`<br>`/dashboard-network` | Tableaux de bord de contrôle indépendant pour les canaux Câblé et Réseau (déclenchement direct, reprise, volume, fondu). |
+| **Régies & Contrôle** | `/dashboard-cable`<br>`/dashboard-network` | Tableaux de bord de contrôle indépendant pour les canaux Câblé et Réseau (déclenchement direct, reprise, volume, diffusion d'ambiance visuelle 1-clic). Redirection automatique transparente de `/dashboard-cable` vers `/coach` lorsque le mode coach est actif. |
+| **Console Régie Coach** | `/coach` | Console régie studio responsive : double colonne sur tablette paysage et desktop avec lecteur tactile surdimensionné, minuteur, playlist déroulante intégrée, **Stage Monitor 16:9** (retour HDMI direct de salle) et **Palette tactile d'ambiances 16:9** avec switch live 1-clic. Version compacte monoposte avec tiroirs tactiles sur mobile. |
 | **Administration** | `/settings` | Gestionnaire de configuration : 16 thèmes (dont la paire minérale « Charbon » / « Charbon Sombre », clair et sombre, certifiés WCAG AA/AAA), sélecteur de mode d'affichage câblé (Pupitre Studio double écran vs Headless), actualisation réseau dynamique (polling 15s + bouton manuel), supervision complète (CPU, GPU, RAM, Stockage, Puissance en W, Températures, Uptime), sauvegarde/restauration ZIP. |
-| | `/metrics` | Tableau de bord analytique et assiduité (Bêta 3.0.5) : 4 indicateurs clés (satisfaction moyenne 5★, taux de complétion ≥90%, volume de diffusion en heures, nombre de séances), histogramme 24h d'affluence horaire CSS pur, palmarès des cours plébiscités et télémétrie matérielle temps réel. |
+| | `/metrics`<br>`/metrics/courses`<br>`/metrics/system` | Tableau de bord analytique et assiduité (Bêta 3.0.5) : 4 indicateurs clés (satisfaction moyenne 5★, taux de complétion ≥90%, volume de diffusion en heures, nombre de séances), histogramme 24h d'affluence horaire CSS pur, palmarès des cours plébiscités, télémétrie matérielle temps réel, base EAV et tiroir d'historique (1h, 6h, 24h, 7j). |
 | | `/library` | Bibliothèque vidéo avec métadonnées, durée et upload universel de miniatures personnalisées (`PUT /api/videos/{id}/thumbnail` via Pillow, sans dépendance ffmpeg). |
-| | `/playlists`<br>`/backgrounds`<br>`/schedule`<br>`/logs` | Gestion des listes ordonnées, fonds animés, programmation horaire récurrente (APScheduler) et inspection des journaux système. |
-| **Mode Coach Audio** | `/audio`<br>`/audio-playlists`<br>`/coach` | Playlists musicales rythmées avec minutage automatique, décompte et association d'arrière-plans vidéo synchronisés. |
+| | `/backgrounds` | Hub d'Ambiances Visuelles (Bêta 3.0.5) : gestion centralisée des boucles d'ambiance 16:9 avec prévisualisations vidéo au survol, projection directe sur sorties Câblée et Réseau, lecteur modal immersif et configuration du fond par défaut pour les cours coach. |
+| | `/audio`<br>`/audio-playlists` | Bibliothèque audio coach et gestionnaire de playlists avec sélecteur visuel d'ambiance 16:9 modal et assignation dynamique. |
+| | `/playlists`<br>`/schedule`<br>`/logs` | Gestion des listes ordonnées, programmation horaire récurrente (APScheduler) et inspection des journaux système. |
 | **Canal Radio** | `/radio`<br>`/radio-announcements`<br>`/radio-library`<br>`/radio-remote` | Canal sonore continu indépendant avec enchaînement musical Web Audio API, ducking automatique et rappels vocaux de bienséance. |
 
 ---

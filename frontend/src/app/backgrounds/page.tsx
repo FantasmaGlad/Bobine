@@ -12,6 +12,7 @@ interface BackgroundItem {
   title: string;
   duration_seconds: number | null;
   thumbnail_path: string | null;
+  is_image: boolean;
 }
 
 interface ToastState {
@@ -28,13 +29,17 @@ function getApiUrl(path: string) {
 
 function BackgroundCard({
   bg,
-  isActive,
-  onLaunch,
+  isDefault,
+  isActiveCable,
+  isActiveNetwork,
+  onClick,
   onDelete,
 }: {
   bg: BackgroundItem;
-  isActive: boolean;
-  onLaunch: () => void;
+  isDefault: boolean;
+  isActiveCable: boolean;
+  isActiveNetwork: boolean;
+  onClick: () => void;
   onDelete: () => void;
 }) {
   const { t } = useAppSettings();
@@ -44,13 +49,13 @@ function BackgroundCard({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (hovering) {
+    if (hovering && !bg.is_image) {
       video.currentTime = 0;
       video.play().catch(() => {});
     } else {
       video.pause();
     }
-  }, [hovering]);
+  }, [hovering, bg.is_image]);
 
   const thumbSrc = bg.thumbnail_path
     ? getApiUrl(`/thumbnails/${bg.thumbnail_path.split("/").pop()}`)
@@ -58,13 +63,14 @@ function BackgroundCard({
 
   return (
     <div
-      className={`video-card ${isActive ? "program-rpm" : ""}`}
+      className={`video-card olc-press ${isActiveCable || isActiveNetwork ? "program-rpm" : ""}`}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
-      onClick={onLaunch}
+      onClick={onClick}
+      style={{ cursor: "pointer", position: "relative" }}
     >
-      <div className="thumbnail-wrapper">
-        {hovering ? (
+      <div className="thumbnail-wrapper" style={{ position: "relative", aspectRatio: "16/9", overflow: "hidden", borderRadius: "10px" }}>
+        {hovering && !bg.is_image ? (
           <video
             ref={videoRef}
             className="card-thumbnail"
@@ -72,31 +78,131 @@ function BackgroundCard({
             muted
             loop
             playsInline
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : thumbSrc ? (
-          <img src={thumbSrc} alt={bg.title} className="card-thumbnail" />
+          <img
+            src={thumbSrc}
+            alt={bg.title}
+            className="card-thumbnail"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
         ) : (
-          <div style={{ position: "absolute", inset: 0, background: "var(--bg-surface-elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Icon name="gradient" size={32} style={{ opacity: 0.2 }} />
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "var(--bg-surface-elevated)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon name={bg.is_image ? "image" : "gradient"} size={32} style={{ opacity: 0.3 }} />
           </div>
         )}
-        {isActive && <span className="card-duration" style={{ background: "var(--accent-success)", left: 8, right: "auto" }}>{t("backgrounds.onScreen")}</span>}
+
+        {/* Badges en superposition */}
+        <div style={{ position: "absolute", top: 8, left: 8, display: "flex", flexDirection: "column", gap: "6px", zIndex: 3 }}>
+          {isDefault && (
+            <span
+              style={{
+                background: "var(--accent-primary)",
+                color: "var(--accent-primary-fg)",
+                padding: "3px 8px",
+                borderRadius: "6px",
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+              }}
+            >
+              <Icon name="bookmark" size={13} filled />
+              {t("backgrounds.defaultBadge")}
+            </span>
+          )}
+        </div>
+
+        <div style={{ position: "absolute", top: 8, right: 8, display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-end", zIndex: 3 }}>
+          {isActiveCable && (
+            <span
+              style={{
+                background: "var(--accent-success)",
+                color: "#ffffff",
+                padding: "3px 8px",
+                borderRadius: "6px",
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+              }}
+            >
+              <Icon name="cable" size={13} />
+              {t("backgrounds.onCable")}
+            </span>
+          )}
+          {isActiveNetwork && (
+            <span
+              style={{
+                background: "var(--accent-primary)",
+                color: "var(--accent-primary-fg)",
+                padding: "3px 8px",
+                borderRadius: "6px",
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+              }}
+            >
+              <Icon name="wifi" size={13} />
+              {t("backgrounds.onNetwork")}
+            </span>
+          )}
+        </div>
+
+        <span
+          className="card-duration"
+          style={{
+            position: "absolute",
+            bottom: 8,
+            right: 8,
+            background: "rgba(0, 0, 0, 0.75)",
+            color: "#ffffff",
+            padding: "2px 6px",
+            borderRadius: "4px",
+            fontSize: "0.72rem",
+            fontWeight: 600,
+          }}
+        >
+          {bg.duration_seconds ? `${Math.round(bg.duration_seconds)}s` : t("backgrounds.infiniteLoop")}
+        </span>
       </div>
-      <div className="card-content">
-        <h4 className="card-title" title={bg.title}>
+
+      <div className="card-content" style={{ padding: "12px 6px 6px" }}>
+        <h4 className="card-title" title={bg.title} style={{ fontSize: "0.95rem", fontWeight: 700, margin: "0 0 6px" }}>
           {bg.title}
         </h4>
-        <div className="card-meta-row">
-          <span className="release-badge">{t("backgrounds.infiniteLoop")}</span>
+        <div className="card-meta-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span className="release-badge" style={{ fontSize: "0.75rem" }}>
+            {bg.is_image ? "Image" : "Vidéo"}
+          </span>
           <button
             type="button"
             className="btn btn-danger"
-            style={{ height: "32px", padding: "0 10px", fontSize: "0.75rem" }}
+            style={{ height: "30px", padding: "0 8px", fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
+            title={t("common.delete")}
           >
+            <Icon name="delete" size={15} />
             {t("common.delete")}
           </button>
         </div>
@@ -107,35 +213,27 @@ function BackgroundCard({
 
 export default function BackgroundsPage() {
   const { t } = useAppSettings();
-  // Canal ciblé par "Lancer" (réf. correctif "afficher un fond ne marche
-  // pas — le kiosk réseau ne le lance jamais") : `usePlaybackSocket()` sans
-  // argument cible TOUJOURS le canal câblé par défaut — cette page n'avait
-  // aucun moyen de viser le réseau, un clic "Lancer" depuis ici n'affichait
-  // donc jamais rien sur un kiosk réseau, quel que soit l'appareil utilisé
-  // pour cliquer. Même sélecteur de canal que la page Planning.
-  const [channel, setChannel] = useState<"cable" | "network">("cable");
-  const { state, sendCommand } = usePlaybackSocket(undefined, undefined, channel);
+
+  // Écoute des deux sorties (câblée et réseau) pour refléter l'état réel de diffusion
+  const { state: cableState, sendCommand: sendCableCommand } = usePlaybackSocket(undefined, undefined, "cable");
+  const { state: networkState, sendCommand: sendNetworkCommand } = usePlaybackSocket(undefined, undefined, "network");
+
   const [backgrounds, setBackgrounds] = useState<BackgroundItem[]>([]);
+  const [defaultCoachBgId, setDefaultCoachBgId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<ToastState | null>(null);
 
-  // Mini-formulaires pour préparer les titres avant l'upload, même principe
-  // que la bibliothèque vidéo (réf. mission "queue en direct des
-  // importations + import parallèle") : plusieurs fichiers peuvent être
-  // sélectionnés et lancés à la fois, et la zone reste utilisable pendant
-  // qu'un import précédent est encore traité côté serveur — l'ancienne
-  // version bloquait la sélection d'un second fichier tant que le premier
-  // n'était pas totalement terminé (transfert + normalisation ffmpeg
-  // éventuelle), impossible de lancer un second import en attendant.
+  // Modale d'aperçu / inspection
+  const [inspectingBg, setInspectingBg] = useState<BackgroundItem | null>(null);
+
+  // Uploads
   const [pendingSpecs, setPendingSpecs] = useState<Array<PendingUploadSpec & { key: string }>>([]);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addUploads, uploads } = useUploadManager();
-  // Réf. mission "voir en direct les importations" : évite de redéclencher
-  // un fetch à chaque tick de polling tant qu'aucun import de fond animé n'a
-  // nouvellement terminé (effet déclaré plus bas, après `fetchBackgrounds`).
   const seenDoneIds = useRef<Set<string>>(new Set());
 
+  // Suppression
   const [toDelete, setToDelete] = useState<BackgroundItem | null>(null);
 
   const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
@@ -146,12 +244,29 @@ export default function BackgroundsPage() {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch(getApiUrl("/settings"), { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        setDefaultCoachBgId(
+          typeof data.default_coach_background_id === "number" ? data.default_coach_background_id : null
+        );
+      }
+    } catch {
+      // Ignorer silencieusement
+    }
+  };
+
   const fetchBackgrounds = async () => {
     setLoading(true);
     try {
       const res = await fetch(getApiUrl("/backgrounds"), { cache: "no-store" });
-      if (res.ok) setBackgrounds(await res.json());
-      else showToast(t("backgrounds.fetchError"), "error");
+      if (res.ok) {
+        setBackgrounds(await res.json());
+      } else {
+        showToast(t("backgrounds.fetchError"), "error");
+      }
     } catch {
       showToast(t("backgrounds.connectionError"), "error");
     } finally {
@@ -160,14 +275,11 @@ export default function BackgroundsPage() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial, même motif que les autres pages (library/playlists/schedule)
     fetchBackgrounds();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchSettings();
   }, []);
 
-  // Rafraîchit la liste dès qu'un import de fond animé se termine (réf.
-  // mission "voir en direct les importations") — voir library/page.tsx pour
-  // le même mécanisme.
+  // Rafraîchit la liste dès qu'un import se termine
   useEffect(() => {
     const newlyDone = uploads.filter(
       (u) => u.kind === "background" && u.status === "done" && !seenDoneIds.current.has(u.id)
@@ -175,7 +287,6 @@ export default function BackgroundsPage() {
     if (newlyDone.length === 0) return;
     newlyDone.forEach((u) => seenDoneIds.current.add(u.id));
     fetchBackgrounds();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploads]);
 
   const addPendingSpecs = (files: File[]) => {
@@ -212,14 +323,41 @@ export default function BackgroundsPage() {
   const submitPendingUploads = () => {
     if (pendingSpecs.length === 0) return;
     addUploads(pendingSpecs.map(({ file, title }) => ({ kind: "background" as const, file, title })));
-    // Le résultat de chaque import (succès/échec) est visible en direct dans
-    // le panneau d'imports flottant — plus besoin d'un toast générique ici.
     setPendingSpecs([]);
   };
 
-  const handleLaunch = (bg: BackgroundItem) => {
-    sendCommand("load_background", { background_id: bg.id });
-    showToast(t("backgrounds.launchedToast", { title: bg.title }));
+  const handleToggleDefaultCoach = async (bgId: number) => {
+    const newId = defaultCoachBgId === bgId ? null : bgId;
+    try {
+      const res = await fetch(getApiUrl("/settings"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ default_coach_background_id: newId }),
+      });
+      if (res.ok) {
+        setDefaultCoachBgId(newId);
+        showToast(
+          newId !== null
+            ? t("backgrounds.defaultSetToast")
+            : t("backgrounds.defaultClearedToast"),
+          "success"
+        );
+      } else {
+        showToast(t("backgrounds.defaultErrorToast"), "error");
+      }
+    } catch {
+      showToast(t("backgrounds.defaultErrorToast"), "error");
+    }
+  };
+
+  const handleBroadcastCable = (bg: BackgroundItem) => {
+    sendCableCommand("load_background", { background_id: bg.id });
+    showToast(t("backgrounds.launchedCableToast", { title: bg.title }));
+  };
+
+  const handleBroadcastNetwork = (bg: BackgroundItem) => {
+    sendNetworkCommand("load_background", { background_id: bg.id });
+    showToast(t("backgrounds.launchedNetworkToast", { title: bg.title }));
   };
 
   const confirmDelete = async () => {
@@ -229,6 +367,8 @@ export default function BackgroundsPage() {
       if (res.ok) {
         showToast(t("backgrounds.deletedToast"));
         setBackgrounds((prev) => prev.filter((b) => b.id !== toDelete.id));
+        if (inspectingBg?.id === toDelete.id) setInspectingBg(null);
+        if (defaultCoachBgId === toDelete.id) setDefaultCoachBgId(null);
       } else {
         showToast(t("backgrounds.deleteError"), "error");
       }
@@ -236,6 +376,9 @@ export default function BackgroundsPage() {
       setToDelete(null);
     }
   };
+
+  const isCableBgActive = cableState.state === "background";
+  const isNetworkBgActive = networkState.state === "background";
 
   return (
     <div className="library-container">
@@ -245,30 +388,57 @@ export default function BackgroundsPage() {
         </div>
       )}
 
-      {/* Sélecteur de canal (réf. correctif "afficher un fond ne marche
-          pas") : détermine sur quel écran "Lancer" affiche le fond cliqué,
-          et duquel des deux canaux le badge "à l'écran" reflète l'état. */}
-      <div className="view-toggle" style={{ alignSelf: "flex-start" }}>
-        <button
-          className={`view-btn olc-press ${channel === "cable" ? "active" : ""}`}
-          onClick={() => setChannel("cable")}
-          title={t("backgrounds.channelCableTitle")}
-          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 12px" }}
-        >
-          <Icon name="cable" size={16} />
-          {t("backgrounds.channelTabCable")}
-        </button>
-        <button
-          className={`view-btn olc-press ${channel === "network" ? "active" : ""}`}
-          onClick={() => setChannel("network")}
-          title={t("backgrounds.channelNetworkTitle")}
-          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 12px" }}
-        >
-          <Icon name="wifi" size={16} />
-          {t("backgrounds.channelTabNetwork")}
-        </button>
+      {/* En-tête de section Hub d'Ambiances */}
+      <div style={{ marginBottom: "20px" }}>
+        <h1 style={{ fontFamily: "var(--font-title)", fontSize: "1.6rem", fontWeight: 900, margin: "0 0 6px" }}>
+          {t("backgrounds.hubTitle")}
+        </h1>
+        <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", margin: 0, maxWidth: "680px" }}>
+          {t("backgrounds.hubSubtitle")}
+        </p>
       </div>
 
+      {/* Bandeaux de statut si une ambiance est active en direct */}
+      {(isCableBgActive || isNetworkBgActive) && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
+          {isCableBgActive && (
+            <div
+              className="interrupted-block"
+              style={{ borderColor: "color-mix(in srgb, var(--accent-success) 40%, transparent)", margin: 0 }}
+            >
+              <div className="interrupted-text">
+                <span className="interrupted-label" style={{ color: "var(--accent-success)", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Icon name="cable" size={16} />
+                  {t("backgrounds.onCable")} · {t("backgrounds.onScreenNow")}
+                </span>
+                <span className="interrupted-title">{cableState.current_background?.title}</span>
+              </div>
+              <button className="btn btn-secondary" onClick={() => sendCableCommand("stop")}>
+                {t("backgrounds.stop")}
+              </button>
+            </div>
+          )}
+          {isNetworkBgActive && (
+            <div
+              className="interrupted-block"
+              style={{ borderColor: "color-mix(in srgb, var(--accent-primary) 40%, transparent)", margin: 0 }}
+            >
+              <div className="interrupted-text">
+                <span className="interrupted-label" style={{ color: "var(--accent-primary)", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Icon name="wifi" size={16} />
+                  {t("backgrounds.onNetwork")} · {t("backgrounds.onScreenNow")}
+                </span>
+                <span className="interrupted-title">{networkState.current_background?.title}</span>
+              </div>
+              <button className="btn btn-secondary" onClick={() => sendNetworkCommand("stop")}>
+                {t("backgrounds.stop")}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Zone de téléversement Drag & Drop */}
       <div
         className={`upload-zone ${dragActive ? "drag-active" : ""}`}
         onDragEnter={handleDrag}
@@ -282,7 +452,7 @@ export default function BackgroundsPage() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="video/*"
+          accept="video/*,image/*"
           multiple
           style={{ display: "none" }}
           onChange={(e) => {
@@ -342,18 +512,7 @@ export default function BackgroundsPage() {
         )}
       </div>
 
-      {state.state === "background" && (
-        <div className="interrupted-block" style={{ borderColor: "color-mix(in srgb, var(--accent-success) 35%, transparent)" }}>
-          <div className="interrupted-text">
-            <span className="interrupted-label" style={{ color: "var(--accent-success)" }}>{t("backgrounds.onScreenNow")}</span>
-            <span className="interrupted-title">{state.current_background?.title}</span>
-          </div>
-          <button className="btn btn-secondary" onClick={() => sendCommand("stop")}>
-            {t("backgrounds.stop")}
-          </button>
-        </div>
-      )}
-
+      {/* Grille des cartes d'ambiance */}
       {loading ? (
         <div style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center", minHeight: "300px", color: "var(--text-muted)" }}>
           {t("backgrounds.loadingBackgrounds")}
@@ -369,14 +528,146 @@ export default function BackgroundsPage() {
             <BackgroundCard
               key={bg.id}
               bg={bg}
-              isActive={state.state === "background" && state.current_background?.id === bg.id}
-              onLaunch={() => handleLaunch(bg)}
+              isDefault={defaultCoachBgId === bg.id}
+              isActiveCable={cableState.state === "background" && cableState.current_background?.id === bg.id}
+              isActiveNetwork={networkState.state === "background" && networkState.current_background?.id === bg.id}
+              onClick={() => setInspectingBg(bg)}
               onDelete={() => setToDelete(bg)}
             />
           ))}
         </div>
       )}
 
+      {/* Modale d'inspection et de prévisualisation grand format */}
+      {inspectingBg && (
+        <div className="modal-overlay" onClick={() => setInspectingBg(null)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "640px", width: "100%", padding: "24px" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <Icon name={inspectingBg.is_image ? "image" : "videocam"} size={22} color="var(--accent-primary)" />
+                <h3 style={{ fontSize: "1.2rem", fontWeight: 800, margin: 0 }}>
+                  {inspectingBg.title}
+                </h3>
+              </div>
+              <button
+                className="coach-icon-btn olc-press"
+                style={{ width: "36px", height: "36px", fontSize: "0.9rem" }}
+                onClick={() => setInspectingBg(null)}
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+
+            {/* Lecteur grand format */}
+            <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", borderRadius: "10px", overflow: "hidden", background: "#000", marginBottom: "16px" }}>
+              {inspectingBg.is_image ? (
+                <img
+                  src={getApiUrl(`/backgrounds/${inspectingBg.id}/stream`)}
+                  alt={inspectingBg.title}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <video
+                  src={getApiUrl(`/backgrounds/${inspectingBg.id}/stream`)}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  controls
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              )}
+            </div>
+
+            {/* Métadonnées & Statut */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+                gap: "10px",
+                padding: "12px",
+                background: "var(--bg-surface-elevated)",
+                borderRadius: "8px",
+                marginBottom: "20px",
+                fontSize: "0.85rem",
+              }}
+            >
+              <div>
+                <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.75rem" }}>{t("backgrounds.formatLabel")}</span>
+                <strong style={{ color: "var(--text-main)" }}>{inspectingBg.is_image ? "Image fixe" : "Boucle vidéo"}</strong>
+              </div>
+              <div>
+                <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.75rem" }}>{t("backgrounds.durationLabel")}</span>
+                <strong style={{ color: "var(--text-main)" }}>
+                  {inspectingBg.duration_seconds ? `${Math.round(inspectingBg.duration_seconds)}s` : t("backgrounds.infiniteLoop")}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.75rem" }}>Mode Coach</span>
+                <strong style={{ color: defaultCoachBgId === inspectingBg.id ? "var(--accent-primary)" : "var(--text-muted)" }}>
+                  {defaultCoachBgId === inspectingBg.id ? "Par défaut" : "Optionnel"}
+                </strong>
+              </div>
+            </div>
+
+            {/* Actions principales */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  type="button"
+                  className={`btn ${defaultCoachBgId === inspectingBg.id ? "btn-secondary" : "btn-primary"}`}
+                  style={{ flex: 1, height: "44px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+                  onClick={() => handleToggleDefaultCoach(inspectingBg.id)}
+                >
+                  <Icon name={defaultCoachBgId === inspectingBg.id ? "bookmark_remove" : "bookmark_add"} size={18} />
+                  {defaultCoachBgId === inspectingBg.id ? "Retirer fond par défaut Coach" : t("backgrounds.setAsDefaultCoach")}
+                </button>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1, minWidth: "200px", height: "44px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+                  onClick={() => handleBroadcastCable(inspectingBg)}
+                >
+                  <Icon name="cable" size={18} color="var(--accent-success)" />
+                  {t("backgrounds.broadcastCable")}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ flex: 1, minWidth: "200px", height: "44px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+                  onClick={() => handleBroadcastNetwork(inspectingBg)}
+                >
+                  <Icon name="wifi" size={18} color="var(--accent-primary)" />
+                  {t("backgrounds.broadcastNetwork")}
+                </button>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  style={{ height: "38px", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  onClick={() => {
+                    setToDelete(inspectingBg);
+                  }}
+                >
+                  <Icon name="delete" size={16} />
+                  {t("common.delete")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation de suppression */}
       {toDelete && (
         <div className="modal-overlay">
           <div className="modal-content">

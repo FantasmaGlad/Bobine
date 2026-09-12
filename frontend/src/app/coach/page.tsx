@@ -28,6 +28,8 @@ interface BackgroundSummary {
   id: number;
   title: string;
   is_image: boolean;
+  thumbnail_path: string | null;
+  duration_seconds: number | null;
 }
 
 function getApiUrl(path: string) {
@@ -259,116 +261,356 @@ export default function CoachModePage() {
     );
   }
 
+  const activeBgId = state.current_background?.id ?? state.current_audio_course?.background_id ?? null;
+  const activeBgTitle = state.current_background?.title ?? (
+    activeBgId ? backgrounds.find((b) => b.id === activeBgId)?.title : null
+  );
+  const activeBgIsImage = state.current_background?.is_image ?? (
+    activeBgId ? Boolean(backgrounds.find((b) => b.id === activeBgId)?.is_image) : false
+  );
+  const audioProgress = currentTrack?.duration_seconds && currentTrack.duration_seconds > 0
+    ? Math.min(100, (state.audio_position_seconds / currentTrack.duration_seconds) * 100)
+    : 0;
+
   return (
     <div className="coach-screen coach-live-screen" style={{ borderTopColor: accent }}>
-      <div className="coach-live-header">
-        {/* Retour non destructif (réf. correctif "le cours coach s'arrête si
-            on quitte la page par mégarde") : navigue vers le tableau de bord
-            SANS jamais arrêter le cours — le mode coach continue de tourner
-            côté serveur, on peut revenir dessus à tout moment (cet écran
-            réaffiche automatiquement l'état live dès qu'il est monté). Avant
-            ce correctif, seul un bouton "X" ARRÊTANT le cours occupait cette
-            position en haut à droite — l'endroit naturel où on tape pour
-            "sortir", d'où l'arrêt accidentel signalé.
-            Link plutôt qu'un <a> classique (réf. correctif "quitte le plein
-            écran sur téléphone") : un rechargement complet couperait la
-            Fullscreen API en plus de l'état React. */}
+      {/* Barre supérieure universelle */}
+      <div className="coach-live-header" style={{ maxWidth: "1280px" }}>
         <Link href="/" className="coach-icon-btn olc-press" title={t("coach.backToDashboard")}>
           <Icon name="arrow_back" size={20} />
         </Link>
-        <span className="coach-live-course-title" style={{ color: accent }}>
-          {course?.title}
-        </span>
-        {/* Menu d'accès aux autres fonctions (réf. correctif "aucun bouton
-            pour naviguer hors du mode coach sur le téléphone") : remplace
-            l'ancien espaceur muet — même non-destructivité que le retour à
-            gauche, le cours coach continue de tourner côté serveur. */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <span className="coach-live-course-title" style={{ color: accent }}>
+            {course?.title}
+          </span>
+          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600 }}>
+            Console Régie Coach · Sortie Câblée
+          </span>
+        </div>
         <button className="coach-icon-btn olc-press" onClick={() => setShowNav(true)} title={t("coach.otherFunctions")}>
           <Icon name="menu" size={20} />
         </button>
       </div>
 
-      <div className="coach-live-track-block olc-anim-in" key={currentTrack?.id}>
-        <span className="coach-live-track-label">
-          {currentTrack ? t("coach.trackLabel", { index: trackIndex + 1, total: tracks.length }) : t("coach.noTrack")}
-        </span>
-        <span className="coach-live-track-title">{currentTrack?.title}</span>
-        <span className="coach-live-track-time">- {formatTime(remaining)}</span>
-      </div>
+      {/* Grille responsive Console Régie (2 colonnes sur tablette/laptop, 1 colonne sur smartphone) */}
+      <div className="coach-console-grid">
+        {/* Colonne Gauche : Commandes audio et pistes */}
+        <div className="coach-audio-col">
+          {/* Bloc Piste en cours */}
+          <div className="coach-live-track-block olc-anim-in" key={currentTrack?.id} style={{ width: "100%" }}>
+            <span className="coach-live-track-label">
+              {currentTrack ? t("coach.trackLabel", { index: trackIndex + 1, total: tracks.length }) : t("coach.noTrack")}
+            </span>
+            <span className="coach-live-track-title">{currentTrack?.title}</span>
+            <span className="coach-live-track-time">- {formatTime(remaining)}</span>
+            <div style={{ width: "100%", height: "6px", background: "var(--bg-surface-elevated)", borderRadius: "3px", overflow: "hidden", marginTop: "10px" }}>
+              <div style={{ width: `${audioProgress}%`, height: "100%", background: accent, transition: "width 0.25s linear" }} />
+            </div>
+          </div>
 
-      <div className="coach-controls-grid">
-        <button className="coach-btn olc-press" onClick={() => sendCommand("audio_previous_track")} disabled={trackIndex <= 0}>
-          <Icon name="skip_previous" size={28} filled />
-        </button>
-        <button
-          className="coach-btn coach-btn-main olc-press"
-          style={{ background: accent, color: accentFg }}
-          onClick={() => sendCommand(state.audio_playing ? "pause" : "play")}
-        >
-          <Icon name={state.audio_playing ? "pause" : "play_arrow"} size={36} color={accentFg} filled />
-        </button>
-        <button
-          className="coach-btn olc-press"
-          onClick={() => sendCommand("audio_next_track")}
-          disabled={trackIndex >= tracks.length - 1}
-        >
-          <Icon name="skip_next" size={28} filled />
-        </button>
-      </div>
+          {/* Commandes de lecture principales */}
+          <div className="coach-controls-grid">
+            <button className="coach-btn olc-press" onClick={() => sendCommand("audio_previous_track")} disabled={trackIndex <= 0} title="Précédent">
+              <Icon name="skip_previous" size={28} filled />
+            </button>
+            <button
+              className="coach-btn coach-btn-main olc-press"
+              style={{ background: accent, color: accentFg }}
+              onClick={() => sendCommand(state.audio_playing ? "pause" : "play")}
+              title={state.audio_playing ? "Pause" : "Lecture"}
+            >
+              <Icon name={state.audio_playing ? "pause" : "play_arrow"} size={36} color={accentFg} filled />
+            </button>
+            <button
+              className="coach-btn olc-press"
+              onClick={() => sendCommand("audio_next_track")}
+              disabled={trackIndex >= tracks.length - 1}
+              title="Suivant"
+            >
+              <Icon name="skip_next" size={28} filled />
+            </button>
+          </div>
 
-      <button className="coach-btn coach-btn-wide olc-press" onClick={() => sendCommand("audio_restart_track")}>
-        <Icon name="restart_alt" size={18} />
-        {t("coach.restartTrack")}
-      </button>
-
-      <div className="coach-volume-row">
-        <button className="coach-btn coach-btn-square olc-press" onClick={() => sendCommand("volume", { volume: Math.max(0, state.volume - 10) })}>
-          <Icon name="remove" size={18} />
-        </button>
-        <span className="coach-volume-value">
-          <Icon name="volume_up" size={16} style={{ marginRight: "4px" }} />
-          {state.volume}%
-        </span>
-        <button className="coach-btn coach-btn-square olc-press" onClick={() => sendCommand("volume", { volume: Math.min(100, state.volume + 10) })}>
-          <Icon name="add" size={18} />
-        </button>
-      </div>
-
-      <div className="coach-chain-mode-row">
-        {(["auto", "timer", "manual"] as const).map((mode) => (
-          <button
-            key={mode}
-            className={`speed-btn ${state.audio_chain_mode === mode ? "active" : ""}`}
-            style={{ minHeight: "48px" }}
-            onClick={() => sendCommand("audio_set_chain_mode", { mode })}
-          >
-            {CHAIN_MODE_LABELS[mode]}
+          <button className="coach-btn coach-btn-wide olc-press" onClick={() => sendCommand("audio_restart_track")}>
+            <Icon name="restart_alt" size={18} />
+            {t("coach.restartTrack")}
           </button>
-        ))}
+
+          {/* Volume tactile */}
+          <div className="coach-volume-row">
+            <button className="coach-btn coach-btn-square olc-press" onClick={() => sendCommand("volume", { volume: Math.max(0, state.volume - 10) })}>
+              <Icon name="remove" size={18} />
+            </button>
+            <span className="coach-volume-value">
+              <Icon name="volume_up" size={16} style={{ marginRight: "4px" }} />
+              {state.volume}%
+            </span>
+            <button className="coach-btn coach-btn-square olc-press" onClick={() => sendCommand("volume", { volume: Math.min(100, state.volume + 10) })}>
+              <Icon name="add" size={18} />
+            </button>
+          </div>
+
+          {/* Mode d'enchaînement */}
+          <div className="coach-chain-mode-row">
+            {(["auto", "timer", "manual"] as const).map((mode) => (
+              <button
+                key={mode}
+                className={`speed-btn ${state.audio_chain_mode === mode ? "active" : ""}`}
+                style={{ minHeight: "44px" }}
+                onClick={() => sendCommand("audio_set_chain_mode", { mode })}
+              >
+                {CHAIN_MODE_LABELS[mode]}
+              </button>
+            ))}
+          </div>
+
+          {/* Boutons d'accès rapide sur smartphone */}
+          <div style={{ display: "flex", gap: "10px", width: "100%", maxWidth: "420px", justifyContent: "center" }}>
+            <button className="coach-tracklist-toggle olc-press" style={{ flex: 1 }} onClick={() => setShowTrackList(true)}>
+              <Icon name="queue_music" size={18} />
+              {t("coach.viewTracks", { count: tracks.length })}
+            </button>
+            <button className="coach-tracklist-toggle olc-press" style={{ flex: 1 }} onClick={() => setShowBackgrounds(true)}>
+              <Icon name="wallpaper" size={18} />
+              {t("coach.backgroundBtn")}
+            </button>
+          </div>
+
+          {/* Liste intégrée des pistes (visible sur tablette paysage & desktop) */}
+          <div className="coach-inline-tracklist-panel">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h4 style={{ fontSize: "0.9rem", fontWeight: 800, margin: 0 }}>
+                {t("coach.courseTracksTitle")}
+              </h4>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600 }}>
+                {tracks.length} pistes
+              </span>
+            </div>
+            <div className="coach-inline-tracklist">
+              {tracks.map((track, idx) => {
+                const isTrackActive = idx === trackIndex;
+                return (
+                  <button
+                    key={track.id}
+                    type="button"
+                    className={`coach-inline-track olc-press ${isTrackActive ? "active" : ""}`}
+                    onClick={() => sendCommand("audio_jump_to_track", { index: idx })}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ color: isTrackActive ? accent : "var(--text-muted)", fontSize: "0.8rem", width: "20px" }}>
+                        {idx + 1}.
+                      </span>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {track.title}
+                      </span>
+                    </span>
+                    <span style={{ fontSize: "0.78rem", color: isTrackActive ? accent : "var(--text-muted)", flexShrink: 0 }}>
+                      {formatTime(track.duration_seconds)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Action destructive protégée */}
+          <button className="coach-disable-btn olc-press" onClick={() => sendCommand("stop")}>
+            <Icon name="power_settings_new" size={18} />
+            {t("coach.disableCoachMode")}
+          </button>
+        </div>
+
+        {/* Colonne Droite : Retour Scène HDMI & Palette d'Ambiances */}
+        <div className="coach-stage-col">
+          {/* Moniteur Scène Grand Écran (Direct HDMI) */}
+          <div className="coach-stage-monitor">
+            {activeBgId ? (
+              activeBgIsImage ? (
+                <img
+                  className="coach-monitor-media"
+                  src={getApiUrl(`/backgrounds/${activeBgId}/stream`)}
+                  alt=""
+                />
+              ) : (
+                <video
+                  className="coach-monitor-media"
+                  src={getApiUrl(`/backgrounds/${activeBgId}/stream`)}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                />
+              )
+            ) : (
+              <div className="coach-monitor-placeholder">
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", opacity: 0.35 }}>
+                  <Icon name="hide_image" size={36} color="var(--accent-primary)" />
+                  <span style={{ fontSize: "0.8rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                    {t("coach.soberScreenActive")}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="coach-monitor-gradient" />
+
+            <div className="coach-monitor-top">
+              <span className="coach-monitor-badge">
+                <span className="coach-monitor-live-dot" />
+                {t("coach.stageMonitorTitle")}
+              </span>
+              <span
+                style={{
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  padding: "3px 8px",
+                  borderRadius: "12px",
+                  background: "rgba(0, 0, 0, 0.6)",
+                  color: "rgba(255, 255, 255, 0.9)",
+                  backdropFilter: "blur(6px)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                }}
+              >
+                {activeBgTitle || t("coach.soberScreenActive")}
+              </span>
+            </div>
+
+            <div className="coach-monitor-bottom">
+              <h2 className="coach-monitor-track-title">
+                {currentTrack?.title || course?.title}
+              </h2>
+              <div className="coach-monitor-meta">
+                <span>{currentTrack ? t("coach.trackLabel", { index: trackIndex + 1, total: tracks.length }) : ""}</span>
+                <span>
+                  {formatTime(state.audio_position_seconds)} / {formatTime(currentTrack?.duration_seconds)}
+                </span>
+              </div>
+              <div style={{ width: "100%", height: "4px", background: "rgba(255, 255, 255, 0.2)", borderRadius: "2px", overflow: "hidden" }}>
+                <div style={{ width: `${audioProgress}%`, height: "100%", background: accent, transition: "width 0.25s linear" }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Palette Tactile d'Ambiances Visuelles */}
+          <div className="coach-ambiance-panel">
+            <div className="coach-ambiance-header">
+              <div>
+                <h3 style={{ fontSize: "1rem", fontWeight: 800, margin: 0 }}>
+                  {t("coach.ambiancePaletteTitle")}
+                </h3>
+                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                  {t("coach.stageMonitorHint")}
+                </span>
+              </div>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600 }}>
+                {t("coach.ambianceCount", { count: backgrounds.length })}
+              </span>
+            </div>
+
+            {/* Bouton Écran Sobre */}
+            <button
+              type="button"
+              className={`olc-press ${!activeBgId ? "active" : ""}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                width: "100%",
+                minHeight: "40px",
+                borderRadius: "var(--radius-md)",
+                background: !activeBgId ? "color-mix(in srgb, var(--accent-primary) 15%, var(--bg-surface-elevated))" : "var(--bg-surface-elevated)",
+                border: `1.5px solid ${!activeBgId ? "var(--accent-primary)" : "var(--border-color)"}`,
+                color: !activeBgId ? "var(--accent-primary)" : "var(--text-main)",
+                fontWeight: 700,
+                fontSize: "0.82rem",
+                cursor: "pointer",
+              }}
+              onClick={() => sendCommand("audio_set_background", { background_id: null })}
+            >
+              <Icon name="hide_image" size={18} />
+              {t("coach.soberScreenBtn")}
+              {!activeBgId && <Icon name="check_circle" size={16} filled />}
+            </button>
+
+            {/* Grille tactile d'ambiances 16:9 */}
+            <div className="coach-ambiance-grid">
+              {backgrounds.map((bg) => {
+                const isActive = activeBgId === bg.id;
+                const thumb = bg.thumbnail_path
+                  ? getApiUrl(`/thumbnails/${bg.thumbnail_path.split("/").pop()}`)
+                  : null;
+                return (
+                  <div
+                    key={bg.id}
+                    className={`coach-ambiance-thumb-card olc-press ${isActive ? "active" : ""}`}
+                    onClick={() => sendCommand("audio_set_background", { background_id: bg.id })}
+                    title={bg.title}
+                  >
+                    <div className="coach-ambiance-thumb-media">
+                      {thumb ? (
+                        <img src={thumb} alt={bg.title} />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Icon name={bg.is_image ? "image" : "videocam"} size={22} style={{ opacity: 0.4 }} />
+                        </div>
+                      )}
+                      {isActive && (
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: 4,
+                            right: 4,
+                            background: "var(--accent-primary)",
+                            color: "var(--accent-primary-fg)",
+                            borderRadius: "4px",
+                            padding: "1px 5px",
+                            fontSize: "0.68rem",
+                            fontWeight: 800,
+                            boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
+                          }}
+                        >
+                          Actif
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          position: "absolute",
+                          bottom: 3,
+                          right: 3,
+                          background: "rgba(0, 0, 0, 0.7)",
+                          color: "#fff",
+                          borderRadius: "3px",
+                          padding: "1px 4px",
+                          fontSize: "0.65rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {bg.is_image ? "Image" : bg.duration_seconds ? `${Math.round(bg.duration_seconds)}s` : "Boucle"}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        padding: "6px 8px",
+                        fontSize: "0.78rem",
+                        fontWeight: 600,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        color: isActive ? "var(--accent-primary)" : "var(--text-main)",
+                      }}
+                    >
+                      {bg.title}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <button className="coach-tracklist-toggle olc-press" onClick={() => setShowTrackList(true)}>
-        <Icon name="queue_music" size={18} />
-        {t("coach.viewTracks", { count: tracks.length })}
-      </button>
-
-      <button className="coach-tracklist-toggle olc-press" onClick={() => setShowBackgrounds(true)}>
-        <Icon name="wallpaper" size={18} />
-        {t("coach.backgroundBtn")}
-        {state.current_background && (
-          <span style={{ color: "var(--text-muted)" }}> · {state.current_background.title}</span>
-        )}
-      </button>
-
-      {/* Action destructive isolée du reste de l'écran (réf. correctif "le
-          cours coach s'arrête si on quitte la page par mégarde") : seul
-          bouton qui arrête réellement le cours, clairement libellé plutôt
-          qu'une icône ambiguë, placé en bas loin du geste naturel de retour. */}
-      <button className="coach-disable-btn olc-press" onClick={() => sendCommand("stop")}>
-        <Icon name="power_settings_new" size={18} />
-        {t("coach.disableCoachMode")}
-      </button>
-
+      {/* Bottom sheet Ambiances (sur smartphone) */}
       {showBackgrounds && (
         <div className="coach-sheet-overlay" onClick={() => setShowBackgrounds(false)}>
           <div className="coach-sheet" onClick={(e) => e.stopPropagation()}>
@@ -376,7 +618,7 @@ export default function CoachModePage() {
             <h3 style={{ margin: "0 0 12px" }}>{t("coach.backgroundsTitle")}</h3>
             <div className="coach-sheet-list">
               <button
-                className={`coach-sheet-track olc-press ${!state.current_background ? "active" : ""}`}
+                className={`coach-sheet-track olc-press ${!activeBgId ? "active" : ""}`}
                 onClick={() => {
                   sendCommand("audio_set_background", { background_id: null });
                   setShowBackgrounds(false);
@@ -386,11 +628,12 @@ export default function CoachModePage() {
                   <Icon name="hide_image" size={18} />
                   {t("coach.noBackground")}
                 </span>
+                {!activeBgId && <Icon name="check_circle" size={18} color="var(--accent-primary)" filled />}
               </button>
               {backgrounds.map((bg) => (
                 <button
                   key={bg.id}
-                  className={`coach-sheet-track olc-press ${state.current_background?.id === bg.id ? "active" : ""}`}
+                  className={`coach-sheet-track olc-press ${activeBgId === bg.id ? "active" : ""}`}
                   onClick={() => {
                     sendCommand("audio_set_background", { background_id: bg.id });
                     setShowBackgrounds(false);
@@ -413,6 +656,7 @@ export default function CoachModePage() {
         </div>
       )}
 
+      {/* Bottom sheet Pistes (sur smartphone) */}
       {showTrackList && (
         <div className="coach-sheet-overlay" onClick={() => setShowTrackList(false)}>
           <div className="coach-sheet" onClick={(e) => e.stopPropagation()}>

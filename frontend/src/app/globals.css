@@ -3212,11 +3212,258 @@ a.status-pill:hover,
 
 /* Écran de contrôle live (mode coach actif) */
 .coach-live-screen {
-  padding: 24px 20px 40px;
+  padding: 20px 20px 40px;
   gap: 20px;
   border-top: 6px solid;
   align-items: center;
   text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.coach-console-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+@media (min-width: 900px) {
+  .coach-console-grid {
+    grid-template-columns: 1fr 1.15fr;
+    max-width: 1280px;
+    align-items: start;
+    text-align: left;
+  }
+}
+
+.coach-audio-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .coach-audio-col {
+    align-items: stretch;
+    text-align: left;
+  }
+}
+
+.coach-stage-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* Moniteur Scène Grand Écran */
+.coach-stage-monitor {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: #000;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, var(--border-color));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.coach-monitor-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coach-monitor-placeholder {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent-primary) 18%, transparent) 0%, #000000 85%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coach-monitor-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.65) 0%, transparent 40%, rgba(0,0,0,0.88) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.coach-monitor-top {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+}
+
+.coach-monitor-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.coach-monitor-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-error);
+  box-shadow: 0 0 8px var(--accent-error);
+  animation: olcPulseDot 1.8s ease-in-out infinite;
+}
+
+.coach-monitor-bottom {
+  position: relative;
+  z-index: 2;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coach-monitor-track-title {
+  font-family: var(--font-title);
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.2;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coach-monitor-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+}
+
+/* Palette d'ambiances */
+.coach-ambiance-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.coach-ambiance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.coach-ambiance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.coach-ambiance-thumb-card {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-surface-elevated);
+  border: 2px solid var(--border-color);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+  position: relative;
+}
+
+.coach-ambiance-thumb-card:hover {
+  border-color: color-mix(in srgb, var(--accent-primary) 50%, var(--border-color));
+}
+
+.coach-ambiance-thumb-card.active {
+  border-color: var(--accent-primary);
+  background: var(--bg-surface-active);
+}
+
+.coach-ambiance-thumb-media {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg-surface-hover);
+  position: relative;
+  overflow: hidden;
+}
+
+.coach-ambiance-thumb-media img,
+.coach-ambiance-thumb-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coach-inline-tracklist-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.coach-inline-tracklist {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+  margin-top: 10px;
+}
+
+.coach-inline-track {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.coach-inline-track.active {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-surface-elevated));
 }
 
 .coach-live-header {

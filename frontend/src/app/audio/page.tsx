@@ -31,6 +31,8 @@ interface AudioCourseDetail extends AudioCourseSummary {
 interface BackgroundOption {
   id: number;
   title: string;
+  thumbnail_path?: string | null;
+  is_image?: boolean;
 }
 
 interface AudioPlaylistSummary {
@@ -91,6 +93,8 @@ export default function AudioLibraryPage() {
   const [drawerProgram, setDrawerProgram] = useState("");
   const [drawerRelease, setDrawerRelease] = useState("");
   const [drawerBackgroundId, setDrawerBackgroundId] = useState<string>("");
+  const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
+  const [defaultCoachBgId, setDefaultCoachBgId] = useState<number | null>(null);
   const [savingDrawer, setSavingDrawer] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -144,6 +148,9 @@ export default function AudioLibraryPage() {
 
   const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
 
+  const selectedBg = backgrounds.find((b) => String(b.id) === String(drawerBackgroundId));
+  const defaultBg = defaultCoachBgId ? backgrounds.find((b) => b.id === defaultCoachBgId) : null;
+
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 4000);
@@ -176,6 +183,14 @@ export default function AudioLibraryPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial, même motif que library/playlists/schedule
     fetchCourses();
     fetchBackgrounds();
+    fetch(getApiUrl("/settings"), { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && typeof data.default_coach_background_id === "number") {
+          setDefaultCoachBgId(data.default_coach_background_id);
+        }
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -536,12 +551,69 @@ export default function AudioLibraryPage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">{t("audio.backgroundAssociationLabel")}</label>
-                  <select className="form-control" value={drawerBackgroundId} onChange={(e) => setDrawerBackgroundId(e.target.value)}>
-                    <option value="">{t("audio.noBackgroundOption")}</option>
-                    {backgrounds.map((bg) => (
-                      <option key={bg.id} value={bg.id}>{bg.title}</option>
-                    ))}
-                  </select>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      background: "var(--bg-surface-elevated)",
+                      border: "1px solid var(--border-color)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "8px 12px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "72px",
+                        height: "40.5px",
+                        borderRadius: "6px",
+                        overflow: "hidden",
+                        background: "var(--bg-surface-hover)",
+                        position: "relative",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {selectedBg?.thumbnail_path ? (
+                        <img
+                          src={getApiUrl(`/thumbnails/${selectedBg.thumbnail_path.split("/").pop()}`)}
+                          alt={selectedBg.title}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      ) : defaultBg?.thumbnail_path && !drawerBackgroundId ? (
+                        <img
+                          src={getApiUrl(`/thumbnails/${defaultBg.thumbnail_path.split("/").pop()}`)}
+                          alt={defaultBg.title}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.4 }}>
+                          <Icon name={drawerBackgroundId ? "image" : "hide_image"} size={20} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: "0.85rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {selectedBg ? selectedBg.title : defaultBg ? `${defaultBg.title} (${t("backgrounds.defaultBadge")})` : t("audio.noBackgroundOption")}
+                      </div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                        {selectedBg
+                          ? (selectedBg.is_image ? "Image fixe personnalisée" : "Boucle vidéo personnalisée")
+                          : defaultBg
+                          ? t("backgrounds.defaultClubAmbiance")
+                          : t("backgrounds.noBackgroundAmbiance")}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ height: "34px", padding: "0 10px", fontSize: "0.8rem", whiteSpace: "nowrap" }}
+                      onClick={() => setShowBackgroundPicker(true)}
+                    >
+                      {t("coach.changeAmbianceBtn")}
+                    </button>
+                  </div>
                 </div>
 
                 <h4 style={{ fontSize: "0.85rem", fontWeight: 800, borderBottom: "1px solid var(--border-color)", paddingBottom: "6px", margin: "16px 0 8px" }}>
@@ -600,6 +672,165 @@ export default function AudioLibraryPage() {
               <button type="button" className="btn btn-secondary" onClick={() => setToDelete(null)}>{t("common.cancel")}</button>
               <button type="button" className="btn btn-primary" style={{ backgroundColor: "var(--accent-error)" }} onClick={confirmDelete}>
                 {t("audio.confirmDelete")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBackgroundPicker && (
+        <div className="modal-overlay" onClick={() => setShowBackgroundPicker(false)}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "620px", width: "100%", maxHeight: "85vh", display: "flex", flexDirection: "column" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 800 }}>
+                {t("dashboard.chooseAmbiance")}
+              </h3>
+              <button
+                className="coach-icon-btn olc-press"
+                style={{ width: "36px", height: "36px", fontSize: "0.9rem" }}
+                onClick={() => setShowBackgroundPicker(false)}
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+
+            <div style={{ overflowY: "auto", flex: 1, paddingRight: "4px" }}>
+              {/* Option 1 : Fond par défaut du club (si configuré) */}
+              {defaultBg && (
+                <div
+                  className={`olc-press ${!drawerBackgroundId ? "active" : ""}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    background: !drawerBackgroundId ? "var(--bg-surface-hover)" : "var(--bg-surface-elevated)",
+                    border: `1.5px solid ${!drawerBackgroundId ? "var(--accent-primary)" : "var(--border-color)"}`,
+                    cursor: "pointer",
+                    marginBottom: "10px",
+                  }}
+                  onClick={() => {
+                    setDrawerBackgroundId("");
+                    setShowBackgroundPicker(false);
+                  }}
+                >
+                  <div style={{ width: "64px", height: "36px", borderRadius: "4px", overflow: "hidden", background: "var(--bg-surface-hover)", flexShrink: 0 }}>
+                    {defaultBg.thumbnail_path ? (
+                      <img
+                        src={getApiUrl(`/thumbnails/${defaultBg.thumbnail_path.split("/").pop()}`)}
+                        alt={defaultBg.title}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Icon name="bookmark" size={18} color="var(--accent-primary)" />
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: "0.88rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span>{defaultBg.title}</span>
+                      <span style={{ fontSize: "0.72rem", background: "var(--accent-primary)", color: "var(--accent-primary-fg)", padding: "2px 6px", borderRadius: "4px" }}>
+                        {t("backgrounds.defaultBadge")}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                      {t("backgrounds.defaultClubAmbiance")}
+                    </div>
+                  </div>
+                  {!drawerBackgroundId && <Icon name="check_circle" size={20} color="var(--accent-primary)" filled />}
+                </div>
+              )}
+
+              {/* Option 2 : Écran sobre (aucun fond) */}
+              <div
+                className="olc-press"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "10px 12px",
+                  borderRadius: "8px",
+                  background: (!defaultBg && !drawerBackgroundId) ? "var(--bg-surface-hover)" : "var(--bg-surface-elevated)",
+                  border: `1.5px solid ${(!defaultBg && !drawerBackgroundId) ? "var(--accent-primary)" : "var(--border-color)"}`,
+                  cursor: "pointer",
+                  marginBottom: "14px",
+                }}
+                onClick={() => {
+                  setDrawerBackgroundId("");
+                  setShowBackgroundPicker(false);
+                }}
+              >
+                <div style={{ width: "64px", height: "36px", borderRadius: "4px", background: "var(--bg-surface-hover)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Icon name="hide_image" size={20} style={{ opacity: 0.5 }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{t("backgrounds.noBackgroundAmbiance")}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Afficher un écran sobre sans boucle visuelle</div>
+                </div>
+                {!defaultBg && !drawerBackgroundId && <Icon name="check_circle" size={20} color="var(--accent-primary)" filled />}
+              </div>
+
+              {/* Grille des ambiances disponibles */}
+              <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
+                {t("backgrounds.hubTitle")} ({backgrounds.length})
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "10px" }}>
+                {backgrounds.map((bg) => {
+                  const isSelected = String(bg.id) === String(drawerBackgroundId);
+                  const thumb = bg.thumbnail_path
+                    ? getApiUrl(`/thumbnails/${bg.thumbnail_path.split("/").pop()}`)
+                    : null;
+                  return (
+                    <div
+                      key={bg.id}
+                      className="olc-press"
+                      style={{
+                        background: isSelected ? "var(--bg-surface-hover)" : "var(--bg-surface-elevated)",
+                        border: `2px solid ${isSelected ? "var(--accent-primary)" : "var(--border-color)"}`,
+                        borderRadius: "8px",
+                        overflow: "hidden",
+                        cursor: "pointer",
+                        display: "flex",
+                        flexDirection: "column",
+                      }}
+                      onClick={() => {
+                        setDrawerBackgroundId(String(bg.id));
+                        setShowBackgroundPicker(false);
+                      }}
+                    >
+                      <div style={{ width: "100%", aspectRatio: "16/9", background: "var(--bg-surface-hover)", position: "relative" }}>
+                        {thumb ? (
+                          <img src={thumb} alt={bg.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <Icon name={bg.is_image ? "image" : "videocam"} size={22} style={{ opacity: 0.4 }} />
+                          </div>
+                        )}
+                        {isSelected && (
+                          <div style={{ position: "absolute", top: 4, right: 4, background: "var(--accent-primary)", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <Icon name="check" size={14} color="var(--accent-primary-fg)" />
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ padding: "6px 8px", fontSize: "0.78rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={bg.title}>
+                        {bg.title}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "16px" }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowBackgroundPicker(false)}>
+                {t("common.close")}
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { usePlaybackSocket, PlaybackChannel, PlaybackEvent } from "@/lib/usePlaybackSocket";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useAppSettings } from "@/lib/AppSettingsContext";
@@ -36,6 +37,10 @@ interface OccurrenceSummary {
 interface BackgroundSummary {
   id: number;
   title: string;
+  duration_seconds?: number | null;
+  thumbnail_path?: string | null;
+  file_path?: string;
+  is_image?: boolean;
 }
 
 interface InterruptedState {
@@ -167,14 +172,30 @@ export default function DashboardScreen({ channel }: Props) {
   const [volumeDragValue, setVolumeDragValue] = useState<number | null>(null);
   const [interrupted, setInterrupted] = useState<InterruptedState | null>(null);
   const [isResuming, setIsResuming] = useState(false);
+  const router = useRouter();
   const [upcoming, setUpcoming] = useState<OccurrenceSummary[]>([]);
   const [backgrounds, setBackgrounds] = useState<BackgroundSummary[]>([]);
+  const [showAmbianceModal, setShowAmbianceModal] = useState(false);
+  const [selectedAmbianceBg, setSelectedAmbianceBg] = useState<BackgroundSummary | null>(null);
 
   const isCable = channel === "cable";
   // Sortie active de CE canal uniquement : le verrou cinéma et le switch
   // n'observent jamais l'autre canal (zéro interférence).
   const displayOutput = isCable ? displayOutputCable : displayOutputNetwork;
   const channelCinema = displayOutput === "cinema";
+
+  // Redirection automatique vers /coach lorsque le mode coach est actif sur le canal câblé
+  useEffect(() => {
+    if (isCable && state.state === "coach_mode") {
+      router.replace("/coach");
+    }
+  }, [isCable, state.state, router]);
+
+  const handleLaunchAmbiance = (bg: BackgroundSummary) => {
+    sendCommand("load_background", { background_id: bg.id });
+    setShowAmbianceModal(false);
+    setSelectedAmbianceBg(null);
+  };
 
   const fetchInterrupted = () => {
     fetch(getApiUrl(`/playback/interrupted?channel=${channel}`), { cache: "no-store" })
@@ -300,6 +321,28 @@ export default function DashboardScreen({ channel }: Props) {
         }}
         channel={channel}
       />
+    );
+  }
+
+  if (isCable && state.state === "coach_mode") {
+    return (
+      <div className="dashboard-root" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "55vh", textAlign: "center", gap: "16px", padding: "40px 20px" }}>
+        <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Icon name="mic" size={36} color="var(--accent-primary)" />
+        </div>
+        <h2 style={{ fontSize: "1.4rem", fontWeight: 800, margin: 0 }}>{t("dashboard.coachModeActiveTitle")}</h2>
+        <p style={{ color: "var(--text-muted)", maxWidth: "440px", margin: 0, fontSize: "0.9rem", lineHeight: 1.5 }}>
+          {t("dashboard.coachModeActiveDesc")}
+        </p>
+        <Link
+          href="/coach/"
+          className="btn btn-primary olc-press"
+          style={{ textDecoration: "none", height: "46px", padding: "0 28px", display: "inline-flex", alignItems: "center", gap: "8px", fontWeight: 700 }}
+        >
+          <Icon name="mic" size={18} />
+          {t("dashboard.joinCoachSession")}
+        </Link>
+      </div>
     );
   }
 
@@ -518,65 +561,91 @@ export default function DashboardScreen({ channel }: Props) {
             ) : (
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                  {state.current_video?.thumbnail_url && (
-                    <img
-                      src={getApiUrl(`/thumbnails/${state.current_video.thumbnail_url}`)}
-                      alt=""
-                      style={{ width: "88px", height: "50px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "var(--bg-surface-elevated)" }}
-                    />
+                  {state.state === "background" ? (
+                    (() => {
+                      const activeBg = backgrounds.find((b) => b.id === state.current_background?.id);
+                      const thumb = activeBg?.thumbnail_path ? getApiUrl(`/thumbnails/${activeBg.thumbnail_path.split("/").pop()}`) : null;
+                      return thumb ? (
+                        <img
+                          src={thumb}
+                          alt=""
+                          style={{ width: "88px", height: "50px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "var(--bg-surface-elevated)" }}
+                        />
+                      ) : (
+                        <div style={{ width: "88px", height: "50px", borderRadius: "var(--radius-sm)", background: "var(--bg-surface-elevated)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Icon name="wallpaper" size={22} style={{ opacity: 0.5 }} />
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    state.current_video?.thumbnail_url && (
+                      <img
+                        src={getApiUrl(`/thumbnails/${state.current_video.thumbnail_url}`)}
+                        alt=""
+                        style={{ width: "88px", height: "50px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "var(--bg-surface-elevated)" }}
+                      />
+                    )
                   )}
-                  {/* Repli sur le titre du fond animé : state.current_video
-                      est null en mode "background", sinon le titre restait vide. */}
-                  <div className="live-title">
-                    {state.current_video?.title || (state.state === "background" ? state.current_background?.title : "")}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <div className="live-title">
+                      {state.current_video?.title || (state.state === "background" ? state.current_background?.title : "")}
+                    </div>
+                    {state.state === "background" && (
+                      <span style={{ fontSize: "0.8rem", color: "var(--accent-primary)", fontWeight: 700 }}>
+                        {t("dashboard.ambianceActive")}
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                <div className="live-progress">
-                  <span className="live-time">{formatTime(displayPosition)}</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={duration || 0}
-                    step={1}
-                    value={displayPosition}
-                    disabled={state.state === "background"}
-                    onChange={(e) => setSeekDragValue(Number(e.target.value))}
-                    onMouseUp={(e) => {
-                      const value = Number((e.target as HTMLInputElement).value);
-                      sendCommand("seek", { position_seconds: value });
-                      setSeekDragValue(null);
-                    }}
-                    className="seek-slider"
-                  />
-                  <span className="live-time">{formatTime(duration)}</span>
-                </div>
+                {state.state !== "background" && (
+                  <div className="live-progress">
+                    <span className="live-time">{formatTime(displayPosition)}</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={duration || 0}
+                      step={1}
+                      value={displayPosition}
+                      onChange={(e) => setSeekDragValue(Number(e.target.value))}
+                      onMouseUp={(e) => {
+                        const value = Number((e.target as HTMLInputElement).value);
+                        sendCommand("seek", { position_seconds: value });
+                        setSeekDragValue(null);
+                      }}
+                      className="seek-slider"
+                    />
+                    <span className="live-time">{formatTime(duration)}</span>
+                  </div>
+                )}
 
                 <div className="live-controls">
                   <button className="btn btn-secondary control-btn" onClick={() => sendCommand("stop")}>
                     <Icon name="stop" size={18} />
-                    {t("dashboard.stop")}
+                    {state.state === "background" ? t("dashboard.quitAmbiance") : t("dashboard.stop")}
                   </button>
-                  <button
-                    className="btn btn-primary control-btn control-btn-main"
-                    onClick={handlePlayPause}
-                    disabled={state.state === "background"}
-                  >
-                    <Icon name={state.state === "playing" ? "pause" : "play_arrow"} size={20} filled />
-                    {state.state === "playing" ? t("dashboard.pause") : t("dashboard.play")}
-                  </button>
-                  <div className="speed-group">
-                    {SPEED_OPTIONS.map((s) => (
+                  {state.state !== "background" && (
+                    <>
                       <button
-                        key={s}
-                        className={`speed-btn ${state.speed === s ? "active" : ""}`}
-                        onClick={() => sendCommand("speed", { speed: s })}
-                        disabled={state.state === "background"}
+                        className="btn btn-primary control-btn control-btn-main"
+                        onClick={handlePlayPause}
                       >
-                        {s}x
+                        <Icon name={state.state === "playing" ? "pause" : "play_arrow"} size={20} filled />
+                        {state.state === "playing" ? t("dashboard.pause") : t("dashboard.play")}
                       </button>
-                    ))}
-                  </div>
+                      <div className="speed-group">
+                        {SPEED_OPTIONS.map((s) => (
+                          <button
+                            key={s}
+                            className={`speed-btn ${state.speed === s ? "active" : ""}`}
+                            onClick={() => sendCommand("speed", { speed: s })}
+                          >
+                            {s}x
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="volume-row">
@@ -655,17 +724,26 @@ export default function DashboardScreen({ channel }: Props) {
           disponibles en mode cinéma"). Réservé au canal câblé (le coach
           anime la salle physique) — pas de raccourci sur le tableau réseau.
           Le raccourci "lancer un fond" a été retiré (non fonctionnel). */}
-      {!channelCinema && isCable && (
+      {!channelCinema && (
         <div className="live-block">
           <h3>{t("dashboard.shortcutsTitle")}</h3>
-          <div className="launch-row" style={{ flexWrap: "wrap" }}>
-            {/* Link plutôt qu'un <a> classique (réf. correctif "quitte le
-                plein écran sur téléphone") : un <a href> natif recharge
-                toute la page et coupe la Fullscreen API du navigateur. */}
-            <Link href="/coach/" className="btn btn-primary" style={{ textDecoration: "none", display: "flex", alignItems: "center" }}>
-              <Icon name="mic" size={16} />
-              {t("dashboard.switchToCoach")}
-            </Link>
+          <div className="launch-row" style={{ flexWrap: "wrap", gap: "10px" }}>
+            {isCable && (
+              <Link href="/coach/" className="btn btn-primary" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "6px" }}>
+                <Icon name="mic" size={16} />
+                {t("dashboard.switchToCoach")}
+              </Link>
+            )}
+            <button
+              type="button"
+              className="btn btn-secondary olc-press"
+              style={{ display: "flex", alignItems: "center", gap: "6px" }}
+              onClick={() => setShowAmbianceModal(true)}
+              disabled={cinemaLocked}
+            >
+              <Icon name="wallpaper" size={16} />
+              {t("dashboard.launchAmbiance")}
+            </button>
           </div>
         </div>
       )}
@@ -750,6 +828,126 @@ export default function DashboardScreen({ channel }: Props) {
           </div>
 
         </>
+      )}
+
+      {showAmbianceModal && (
+        <div className="modal-overlay" onClick={() => setShowAmbianceModal(false)}>
+          <div
+            className="modal-content"
+            style={{ width: "680px", maxWidth: "94vw", maxHeight: "85vh", overflowY: "auto" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <h3 style={{ margin: "0 0 4px", fontSize: "1.2rem", fontWeight: 800 }}>
+                  {t("dashboard.chooseAmbiance")}
+                </h3>
+                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                  {t("dashboard.chooseAmbianceHint")}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={() => setShowAmbianceModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}
+              >
+                <Icon name="close" size={20} />
+              </button>
+            </div>
+
+            {backgrounds.length === 0 ? (
+              <p className="live-empty" style={{ margin: "24px 0" }}>
+                {t("backgrounds.noBackgrounds")}
+              </p>
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                  gap: "12px",
+                  margin: "16px 0",
+                }}
+              >
+                {backgrounds.map((bg) => {
+                  const isSelected = selectedAmbianceBg?.id === bg.id;
+                  const thumb = bg.thumbnail_path ? getApiUrl(`/thumbnails/${bg.thumbnail_path.split("/").pop()}`) : null;
+                  return (
+                    <div
+                      key={bg.id}
+                      onClick={() => setSelectedAmbianceBg(bg)}
+                      className="olc-card-hover olc-press"
+                      style={{
+                        cursor: "pointer",
+                        borderRadius: "var(--radius-md)",
+                        border: isSelected ? "2px solid var(--accent-primary)" : "1px solid var(--border-color)",
+                        background: isSelected ? "color-mix(in srgb, var(--accent-primary) 8%, var(--bg-surface))" : "var(--bg-surface)",
+                        overflow: "hidden",
+                        display: "flex",
+                        flexDirection: "column",
+                        transition: "all var(--transition-normal)",
+                      }}
+                    >
+                      <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "var(--bg-surface-elevated)" }}>
+                        {thumb ? (
+                          <img src={thumb} alt={bg.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <Icon name="wallpaper" size={24} style={{ opacity: 0.3 }} />
+                          </div>
+                        )}
+                        <span
+                          style={{
+                            position: "absolute",
+                            bottom: "6px",
+                            right: "6px",
+                            background: "rgba(0,0,0,0.7)",
+                            color: "#fff",
+                            fontSize: "0.7rem",
+                            fontWeight: 700,
+                            padding: "2px 6px",
+                            borderRadius: "var(--radius-sm)",
+                          }}
+                        >
+                          {bg.is_image ? t("coach.backgroundImageTag") : t("coach.backgroundVideoTag")}
+                        </span>
+                      </div>
+                      <div style={{ padding: "10px" }}>
+                        <span style={{ fontSize: "0.85rem", fontWeight: 700, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {bg.title}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="modal-actions" style={{ marginTop: "12px", borderTop: "1px solid var(--border-color)", paddingTop: "12px" }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowAmbianceModal(false);
+                  setSelectedAmbianceBg(null);
+                }}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!selectedAmbianceBg}
+                onClick={() => {
+                  if (selectedAmbianceBg) handleLaunchAmbiance(selectedAmbianceBg);
+                }}
+              >
+                <Icon name="play_arrow" size={16} filled />
+                {t("dashboard.confirmLaunchAmbiance")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

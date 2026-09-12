@@ -76,7 +76,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 # secours au tout premier démarrage (avant toute modification via l'UI).
 _WRITABLE_NUMERIC_FIELDS = {
     "wait_time_between_courses", "volume_default", "audio_chain_timer_seconds",
-    "radio_announcement_fade_ms", "logs_retention_days",
+    "radio_announcement_fade_ms", "logs_retention_days", "default_coach_background_id",
 }
 _WRITABLE_STRING_FIELDS = {"theme", "language", "active_logo", "update_channel", "wired_display_mode"}
 _DEFAULTS = {
@@ -132,6 +132,7 @@ class SettingsUpdate(BaseModel):
     audio_chain_timer_seconds: int | None = None
     radio_announcement_fade_ms: int | None = None
     logs_retention_days: int | None = None
+    default_coach_background_id: int | None = None
     theme: str | None = None
     language: str | None = None
     active_logo: str | None = None
@@ -200,11 +201,14 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         logs_retention_days = int(logs_retention_str)
     except ValueError:
         logs_retention_days = 7
+    default_bg_str = _get_db_value(db, "default_coach_background_id")
+    default_coach_background_id = int(default_bg_str) if default_bg_str and default_bg_str.isdigit() else None
     return {
         "wait_time_between_courses": runtime_settings.wait_time_between_courses,
         "volume_default": runtime_settings.volume_default,
         "audio_chain_timer_seconds": runtime_settings.audio_chain_timer_seconds,
         "logs_retention_days": logs_retention_days,
+        "default_coach_background_id": default_coach_background_id,
         # Profil de déploiement (réf. PortabiliteCrossPlatformX §5.1) : le
         # frontend s'en sert pour adapter le texte/comportement de la zone
         # Désinstaller/Réinitialiser selon la plateforme, sans dupliquer la
@@ -447,17 +451,22 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
 
     for key, value in updates.items():
         if value is None:
-            # `exclude_unset=True` ne garde que les clés explicitement
-            # envoyées — un `null` explicite (distinct d'une clé omise) n'a
-            # de sens pour aucun de ces champs et serait sinon stocké tel
-            # quel comme la chaîne littérale "None" (réf. revue de code :
-            # `str(None)` puis relu `== "true"` → False silencieusement pour
-            # un booléen, ou `int(None)` → crash pour un champ numérique).
-            raise HTTPException(status_code=400, detail=f"{key} ne peut pas être nul")
-        stored_value = str(value)
+            if key == "default_coach_background_id":
+                stored_value = ""
+            else:
+                raise HTTPException(status_code=400, detail=f"{key} ne peut pas être nul")
+        else:
+            stored_value = str(value)
         if key in _WRITABLE_NUMERIC_FIELDS and value is not None:
             if key == "logs_retention_days" and value < 1:
                 raise HTTPException(status_code=400, detail="Le délai de rétention doit être d'au moins 1 jour")
+            elif key == "default_coach_background_id":
+                if value > 0:
+                    from app.models import Background
+                    if not db.query(Background).filter(Background.id == value).first():
+                        raise HTTPException(status_code=400, detail=f"Fond d'ambiance {value} introuvable")
+                elif value == 0:
+                    stored_value = ""
             elif value < 0:
                 raise HTTPException(status_code=400, detail=f"{key} doit être positif")
         elif key in _WRITABLE_STRING_FIELDS and value is not None:

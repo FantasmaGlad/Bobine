@@ -37,7 +37,18 @@ val hasReleaseSigningConfig = listOf(androidKeystorePath, androidKeystorePasswor
 val rootVersionFile = rootProject.projectDir.resolve("../VERSION")
 val fallbackVersionName = if (rootVersionFile.exists()) rootVersionFile.readText().trim() else "3.0.5"
 val androidVersionName: String = System.getenv("ANDROID_VERSION_NAME") ?: fallbackVersionName
-val androidVersionCode: Int = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 220
+val fallbackVersionCode: Int = try {
+    val process = ProcessBuilder("git", "rev-list", "--count", "HEAD")
+        .directory(rootProject.projectDir)
+        .redirectErrorStream(true)
+        .start()
+    val output = process.inputStream.bufferedReader().readText().trim()
+    process.waitFor()
+    output.toIntOrNull() ?: 222
+} catch (_: Exception) {
+    222
+}
+val androidVersionCode: Int = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: fallbackVersionCode
 
 android {
     namespace = "com.bobine.app"

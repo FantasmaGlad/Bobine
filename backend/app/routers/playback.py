@@ -83,16 +83,25 @@ def _build_audio_course_item(course: AudioCourse, db: Session) -> dict:
     ]
     background_title = None
     background_is_image = False
-    if course.background_id:
-        bg = db.query(Background).filter(Background.id == course.background_id).first()
+    effective_bg_id = course.background_id
+    if not effective_bg_id:
+        from app.models import Setting
+        default_setting = db.query(Setting).filter(Setting.key == "default_coach_background_id").first()
+        if default_setting and default_setting.value and default_setting.value.isdigit():
+            effective_bg_id = int(default_setting.value)
+
+    if effective_bg_id:
+        bg = db.query(Background).filter(Background.id == effective_bg_id).first()
         if bg:
             background_title = bg.title
             background_is_image = is_image_background(bg.file_path)
+        else:
+            effective_bg_id = None
     return {
         "id": course.id,
         "title": course.title,
         "program": course.program,
-        "background_id": course.background_id,
+        "background_id": effective_bg_id,
         "background_title": background_title,
         "background_is_image": background_is_image,
         "tracks": tracks,
