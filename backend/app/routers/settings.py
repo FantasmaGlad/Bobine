@@ -42,6 +42,7 @@ from app.utils.hardware_info import (
     get_cpu_temp,
     get_gpu_info,
     get_power_watts,
+    get_ram_info,
     get_runtime_info,
     get_storage_model,
 )
@@ -409,6 +410,7 @@ def get_system_usage() -> dict[str, Any]:
     cpu_temp_c = get_cpu_temp()
     power_watts = get_power_watts()
     storage_model = get_storage_model()
+    ram_info = get_ram_info()
     runtime = get_runtime_info()
 
     return {
@@ -421,6 +423,10 @@ def get_system_usage() -> dict[str, Any]:
         "memory_total_bytes": mem_total,
         "memory_used_bytes": mem_used,
         "memory_percent": mem_percent,
+        "ram_brand": ram_info.get("brand"),
+        "ram_type": ram_info.get("type"),
+        "ram_freq": ram_info.get("freq"),
+        "ram_model": ram_info.get("model_label"),
         "power_watts": power_watts,
         "storage_model": storage_model,
         "runtime": runtime,

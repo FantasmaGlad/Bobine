@@ -2,6 +2,7 @@ import glob
 import logging
 import os
 import platform
+import re
 import subprocess
 import sys
 import time
@@ -19,6 +20,7 @@ _HARDWARE_CACHE: dict[str, Any] = {
     "cpu_name": None,
     "gpu_name": None,
     "storage_model": None,
+    "ram_info": None,
 }
 
 # État pour le calcul de puissance par delta RAPL (si power_input n'est pas directement disponible)
@@ -280,6 +282,182 @@ def get_storage_model() -> str:
 
     _HARDWARE_CACHE["storage_model"] = model
     return model
+
+
+def get_ram_info() -> dict[str, Any]:
+    """
+    Retourne les informations matérielles détaillées de la mémoire vive (RAM) :
+    - brand (marque : Hynix, Samsung, Micron, Crucial, Kingston...)
+    - type (technologie : DDR2, DDR3, DDR4, DDR5, LPDDR4, LPDDR5, LPDDR5x...)
+    - freq (fréquence max : ex. 7500 MHz, 6400 MHz, 3200 MHz...)
+    - model_label (libellé commercial formaté pour l'interface utilisateur)
+    """
+    if _HARDWARE_CACHE.get("ram_info"):
+        return _HARDWARE_CACHE["ram_info"]
+
+    brand = ""
+    ram_type = ""
+    freq = ""
+
+    # 1. Linux via udevadm (lecture SMBIOS sans privilèges root)
+    if sys.platform.startswith("linux") and shutil_which("udevadm"):
+        try:
+            res = subprocess.run(
+                ["udevadm", "info", "-p", "/devices/virtual/dmi/id"],
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            if res.returncode == 0:
+                for line in res.stdout.splitlines():
+                    if "MANUFACTURER=" in line and not brand:
+                        val = line.split("=", 1)[1].strip()
+                        if val and val.lower() not in ("not specified", "not available", "unknown", "n/a", "other", "none"):
+                            brand = val
+                    if "TYPE=" in line and not ram_type and "TYPE_DETAIL=" not in line:
+                        val = line.split("=", 1)[1].strip()
+                        if val and val.lower() not in ("unknown", "other", "none", "n/a"):
+                            ram_type = val
+                    if ("SPEED_MTS=" in line or "CONFIGURED_SPEED_MTS=" in line) and not freq:
+                        val = line.split("=", 1)[1].strip()
+                        if val.isdigit() and int(val) > 0:
+                            freq = f"{val} MHz"
+        except Exception:
+            pass
+
+    # 2. Linux via dmidecode (si disponible avec ou sans sudo)
+    if (not brand or not ram_type or not freq) and shutil_which("dmidecode"):
+        for cmd in (["dmidecode", "-t", "17"], ["sudo", "-n", "dmidecode", "-t", "17"]):
+            try:
+                out = subprocess.check_output(cmd, text=True, timeout=1, stderr=subprocess.DEVNULL)
+                for line in out.splitlines():
+                    sline = line.strip()
+                    if sline.startswith("Manufacturer:") and not brand:
+                        val = sline.split(":", 1)[1].strip()
+                        if val and val.lower() not in ("not specified", "not available", "unknown", "n/a", "other", "none"):
+                            brand = val
+                    elif sline.startswith("Type:") and not ram_type and "Type Detail" not in sline:
+                        val = sline.split(":", 1)[1].strip()
+                        if val and val.lower() not in ("unknown", "other", "none", "n/a"):
+                            ram_type = val
+                    elif (sline.startswith("Speed:") or sline.startswith("Configured Memory Speed:")) and not freq:
+                        val = sline.split(":", 1)[1].strip()
+                        if val and not any(k in val.lower() for k in ("unknown", "configured")):
+                            freq = val.replace("MT/s", "MHz").strip()
+                if brand and ram_type and freq:
+                    break
+            except Exception:
+                pass
+
+    # 3. Linux via inxi si disponible
+    if (not brand or not ram_type or not freq) and shutil_which("inxi"):
+        try:
+            out = subprocess.check_output(["inxi", "-m", "-a", "-c0"], text=True, timeout=2, stderr=subprocess.DEVNULL)
+            for line in out.splitlines():
+                line_str = line.strip()
+                if "manufacturer:" in line_str and not brand:
+                    m = re.search(r"manufacturer:\s*([^ ]+)", line_str, re.IGNORECASE)
+                    if m and m.group(1).lower() not in ("n/a", "unknown", "none"):
+                        brand = m.group(1)
+                if "type:" in line_str and not ram_type:
+                    m = re.search(r"type:\s*([A-Za-z0-9]+)", line_str, re.IGNORECASE)
+                    if m and m.group(1).lower() not in ("n/a", "unknown", "none"):
+                        ram_type = m.group(1)
+                if "speed:" in line_str and not freq:
+                    m = re.search(r"(?:spec|actual):\s*(\d+)\s*(?:MT/s|MHz)", line_str, re.IGNORECASE)
+                    if m:
+                        freq = f"{m.group(1)} MHz"
+        except Exception:
+            pass
+
+    # 4. Repli sysfs & logs noyau pour type et fabricant
+    if sys.platform.startswith("linux"):
+        if not brand:
+            for dmi_f in ("/sys/class/dmi/id/sys_vendor", "/sys/class/dmi/id/board_vendor"):
+                if os.path.exists(dmi_f):
+                    try:
+                        with open(dmi_f, "r", encoding="utf-8") as fp:
+                            v = fp.read().strip()
+                            if v and v.lower() not in ("not specified", "to be filled by o.e.m.", "unknown"):
+                                brand = v
+                                break
+                    except Exception:
+                        pass
+        if not ram_type:
+            try:
+                p = subprocess.run(["journalctl", "-b", "0", "--no-pager"], capture_output=True, text=True, timeout=2)
+                if p.returncode == 0:
+                    m = re.search(r"\b(LP?DDR[2-5][Xx]?)\b", p.stdout, re.IGNORECASE)
+                    if m:
+                        ram_type = m.group(1).upper()
+            except Exception:
+                pass
+
+    # 5. Windows via PowerShell / WMI
+    elif sys.platform == "win32":
+        try:
+            ps_cmd = 'Get-CimInstance Win32_PhysicalMemory | Select-Object -First 1 Manufacturer, SMBIOSMemoryType, Speed | ConvertTo-Json'
+            out = subprocess.check_output(["powershell", "-NoProfile", "-Command", ps_cmd], text=True, timeout=2)
+            import json
+            data = json.loads(out)
+            if isinstance(data, dict):
+                brand = data.get("Manufacturer") or ""
+                smbios_type = data.get("SMBIOSMemoryType")
+                type_map = {20: "DDR", 21: "DDR2", 24: "DDR3", 26: "DDR4", 30: "DDR5", 34: "LPDDR4", 35: "LPDDR5"}
+                if smbios_type in type_map:
+                    ram_type = type_map[smbios_type]
+                speed = data.get("Speed")
+                if speed:
+                    freq = f"{speed} MHz"
+        except Exception:
+            pass
+
+    # 6. macOS via system_profiler
+    elif sys.platform == "darwin":
+        try:
+            out = subprocess.check_output(["system_profiler", "SPMemoryDataType"], text=True, timeout=2)
+            for line in out.splitlines():
+                sline = line.strip()
+                if sline.startswith("Type:") and not ram_type:
+                    ram_type = sline.split(":", 1)[1].strip()
+                elif sline.startswith("Speed:") and not freq:
+                    freq = sline.split(":", 1)[1].strip()
+                elif sline.startswith("Manufacturer:") and not brand:
+                    brand = sline.split(":", 1)[1].strip()
+            if not brand:
+                brand = "Apple"
+        except Exception:
+            pass
+
+    # 7. Android via getprop
+    if not ram_type and shutil_which("getprop"):
+        for prop in ("ro.boot.dram_type", "ro.boot.ddr_type"):
+            try:
+                v = subprocess.check_output(["getprop", prop], text=True, timeout=1).strip()
+                if v:
+                    ram_type = v.upper()
+                    break
+            except Exception:
+                pass
+
+    parts = []
+    if brand:
+        parts.append(brand)
+    if ram_type:
+        parts.append(ram_type)
+    if freq:
+        parts.append(freq)
+
+    model_label = " ".join(parts) if parts else "RAM Système"
+
+    result = {
+        "brand": brand or None,
+        "type": ram_type or None,
+        "freq": freq or None,
+        "model_label": model_label,
+    }
+    _HARDWARE_CACHE["ram_info"] = result
+    return result
 
 
 def get_runtime_info() -> dict[str, Any]:

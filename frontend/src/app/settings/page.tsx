@@ -50,6 +50,10 @@ interface SystemUsageData {
   memory_total_bytes: number;
   memory_used_bytes: number;
   memory_percent: number;
+  ram_brand?: string | null;
+  ram_type?: string | null;
+  ram_freq?: string | null;
+  ram_model?: string | null;
   power_watts?: number | null;
   storage_model?: string;
   runtime?: {
@@ -1137,6 +1141,7 @@ export default function SettingsPage() {
               {system && (
                 <UsageGauge
                   label={t("settingsPage.ramLabel")}
+                  sublabel={system.ram_model || (system.ram_type ? `${system.ram_brand ? system.ram_brand + " " : ""}${system.ram_type}${system.ram_freq ? " " + system.ram_freq : ""}` : undefined)}
                   percent={system.memory_percent}
                   detail={t("settingsPage.ramDetail", { used: formatBytes(system.memory_used_bytes), total: formatBytes(system.memory_total_bytes) })}
                 />

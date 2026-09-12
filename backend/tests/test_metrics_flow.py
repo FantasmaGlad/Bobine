@@ -29,6 +29,7 @@ from app.utils.hardware_info import (
     get_cpu_temp,
     get_gpu_info,
     get_power_watts,
+    get_ram_info,
     get_runtime_info,
     get_storage_model,
 )
@@ -189,6 +190,8 @@ class TestMetricsFlow(unittest.TestCase):
         self.assertIn("cpu_name", hw)
         self.assertIn("gpu_name", hw)
         self.assertIn("storage_model", hw)
+        self.assertIn("ram_model", hw)
+        self.assertIn("ram_type", hw)
         self.assertIn("runtime", hw)
 
     def test_hardware_supervision_endpoints(self):
@@ -198,6 +201,10 @@ class TestMetricsFlow(unittest.TestCase):
         self.assertIn("cpu_name", d)
         self.assertIn("gpu_name", d)
         self.assertIn("storage_model", d)
+        self.assertIn("ram_model", d)
+        self.assertIn("ram_type", d)
+        self.assertIn("ram_brand", d)
+        self.assertIn("ram_freq", d)
         self.assertIn("runtime", d)
 
         s = get_storage()
@@ -215,6 +222,10 @@ class TestMetricsFlow(unittest.TestCase):
 
         storage = get_storage_model()
         self.assertIsInstance(storage, str)
+
+        ram = get_ram_info()
+        self.assertIsInstance(ram, dict)
+        self.assertIn("model_label", ram)
 
         runtime = get_runtime_info()
         self.assertIn("service_uptime_formatted", runtime)

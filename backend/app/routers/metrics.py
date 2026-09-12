@@ -15,6 +15,7 @@ from app.utils.hardware_info import (
     get_cpu_temp,
     get_gpu_info,
     get_power_watts,
+    get_ram_info,
     get_runtime_info,
     get_storage_model,
 )
@@ -279,12 +280,23 @@ def get_metrics_dashboard(
 
     # --- Télémétrie Matérielle ---
     gpu_name, gpu_percent, gpu_temp_c = get_gpu_info()
+    ram_info = get_ram_info()
     import shutil
     disk_usage = shutil.disk_usage("/")
     used_pct = round((disk_usage.used / disk_usage.total) * 100, 1) if disk_usage.total else 0.0
 
+    import psutil
+    try:
+        vm = psutil.virtual_memory()
+        mem_total = vm.total
+        mem_used = vm.total - vm.available
+        mem_percent = vm.percent
+    except Exception:
+        mem_total, mem_used, mem_percent = 0, 0, 0.0
+
     hardware = {
         "cpu_name": get_cpu_model_name(),
+        "cpu_percent": 0.0,
         "cpu_temp_c": get_cpu_temp(),
         "gpu_name": gpu_name,
         "gpu_percent": gpu_percent,
@@ -294,8 +306,39 @@ def get_metrics_dashboard(
         "storage_used_percent": used_pct,
         "storage_free_bytes": disk_usage.free,
         "storage_total_bytes": disk_usage.total,
+        "storage": {
+            "total_bytes": disk_usage.total,
+            "used_bytes": disk_usage.used,
+            "free_bytes": disk_usage.free,
+            "used_percent": used_pct,
+        },
+        "memory_total_bytes": mem_total,
+        "memory_used_bytes": mem_used,
+        "memory_percent": mem_percent,
+        "ram_brand": ram_info.get("brand"),
+        "ram_type": ram_info.get("type"),
+        "ram_freq": ram_info.get("freq"),
+        "ram_model": ram_info.get("model_label"),
         "runtime": get_runtime_info(),
     }
+
+    try:
+        hardware["cpu_percent"] = float(psutil.cpu_percent(interval=None))
+    except Exception:
+        pass
+
+    rating_breakdown = [
+        {
+            "score": int(star),
+            "count": count,
+            "percentage": round((count / ratings_count) * 100, 1) if ratings_count > 0 else 0.0,
+        }
+        for star, count in sorted(distribution.items(), key=lambda x: int(x[0]), reverse=True)
+    ]
+
+    hourly_attendance = [{"hour": h["hour"], "sessions": h["count"]} for h in hourly_distribution]
+    max_h_count = max([h["count"] for h in hourly_distribution] or [0])
+    peak_hours = [h["hour"] for h in hourly_distribution if h["count"] == max_h_count and max_h_count > 0]
 
     return {
         "period": period,
@@ -320,8 +363,19 @@ def get_metrics_dashboard(
                 "total": total_sessions,
                 "breakdown": launch_breakdown,
             },
+            "average_satisfaction": ratings_avg,
+            "ratings_count": ratings_count,
+            "completion_rate": completion_rate,
+            "total_broadcast_hours": total_broadcast_hours,
+            "total_sessions": total_sessions,
+            "completed_sessions": completed_sessions,
         },
+        "rating_breakdown": rating_breakdown,
         "hourly_distribution": hourly_distribution,
+        "hourly_attendance": hourly_attendance,
+        "peak_hours": peak_hours,
         "course_stats": course_stats,
+        "top_courses": course_stats,
         "hardware": hardware,
+        "hardware_telemetry": hardware,
     }

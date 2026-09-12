@@ -53,6 +53,10 @@ interface DashboardMetrics {
     memory_total_bytes: number;
     memory_used_bytes: number;
     memory_percent: number;
+    ram_brand?: string | null;
+    ram_type?: string | null;
+    ram_freq?: string | null;
+    ram_model?: string | null;
     power_watts?: number | null;
     storage_model?: string;
     storage?: {
@@ -423,10 +427,13 @@ export default function MetricsPage() {
                 <span className="metrics-telemetry-name">{t("metricsPage.ram")}</span>
               </div>
               <span className="metrics-telemetry-component-name">
-                {formatBytes(telemetry?.memory_used_bytes)} / {formatBytes(telemetry?.memory_total_bytes)}
+                {telemetry?.ram_model || (telemetry?.ram_type ? `${telemetry.ram_brand ? telemetry.ram_brand + " " : ""}${telemetry.ram_type}${telemetry.ram_freq ? " " + telemetry.ram_freq : ""}` : "Mémoire vive")}
               </span>
               <div className="metrics-telemetry-metric-val">
                 <strong>{telemetry?.memory_percent != null ? telemetry.memory_percent.toFixed(0) : "0"}%</strong>
+                <span className="metrics-telemetry-temp">
+                  {formatBytes(telemetry?.memory_used_bytes)} / {formatBytes(telemetry?.memory_total_bytes)}
+                </span>
               </div>
             </div>
 
