@@ -367,13 +367,21 @@ export default function CinemaPage() {
   const [channel] = useState<"cable" | "network">(() => (isWiredDisplay() ? "cable" : "network"));
   // Implémentation réelle installée plus bas, une fois les handlers définis.
   const cinemaCmdRef = useRef<((action: string, positionSeconds: number, videoId?: number) => void) | null>(null);
-  const { displayOutputCable, displayOutputNetwork, sendCommand, cinemaState, libraryVersion } = usePlaybackSocket(
+  const { state, displayOutputCable, displayOutputNetwork, sendCommand, cinemaState, libraryVersion } = usePlaybackSocket(
     undefined,
     undefined,
     channel,
     (action, positionSeconds, videoId) => cinemaCmdRef.current?.(action, positionSeconds, videoId),
   );
   useDisplayOutputRedirect("cinema", displayOutputCable, displayOutputNetwork);
+
+  // Bascule automatique vers le kiosque si le mode coach est actif sur ce canal,
+  // permettant à l'écran externe de restituer l'audio et la scène visuelle d'ambiance
+  useEffect(() => {
+    if (state.state === "coach_mode") {
+      window.location.replace("/kiosk");
+    }
+  }, [state.state]);
   // Son de survol des cartes de cours (réf. mission UI/UX).
   const playHoverSound = useHoverSound("/sounds/survole.mp3");
 

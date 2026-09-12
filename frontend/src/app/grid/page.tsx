@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useHoverSound } from "@/lib/useHoverSound";
@@ -230,10 +231,20 @@ export default function GridPage() {
     return () => clearInterval(id);
   }, []);
 
+  const router = useRouter();
+
   // Toujours le canal câblé : /grid n'a de sens que pour piloter la sortie
   // câblée (ex. la sortie HDMI de la tablette Android) - pas de variante
   // réseau pour l'instant (périmètre du Lot 14, décision explicite).
-  const { sendCommand, displayOutputCable, cinemaState, libraryVersion } = usePlaybackSocket(undefined, undefined, "cable");
+  const { state, sendCommand, displayOutputCable, cinemaState, libraryVersion } = usePlaybackSocket(undefined, undefined, "cable");
+
+  // Bascule automatique vers l'interface coach si le mode coach est actif sur le canal câblé
+  // (valable aussi bien sur tablette que sur appliance avec écran en mode headless)
+  useEffect(() => {
+    if (state.state === "coach_mode") {
+      router.replace("/coach");
+    }
+  }, [state.state, router]);
   // Avertissement "rien ne se passe" (retour utilisateur) : un ordre "launch"
   // envoyé alors que la sortie câblée est réglée sur "kiosk" (et non
   // "cinema") ne sera reçu par AUCUN écran - /kiosk n'écoute pas

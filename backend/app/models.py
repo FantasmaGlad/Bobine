@@ -1,8 +1,11 @@
 import enum
 from datetime import datetime, timezone
+from pathlib import Path
 
 from sqlalchemy import Column, ForeignKey, Integer, Table, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 
 
 class Base(DeclarativeBase):
@@ -90,6 +93,12 @@ class Background(Base):
     thumbnail_path: Mapped[str | None]
     imported_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
+    @property
+    def is_image(self) -> bool:
+        if not self.file_path:
+            return False
+        return Path(self.file_path).suffix.lower() in IMAGE_EXTENSIONS
+
 
 class AudioCourse(Base):
     __tablename__ = "audio_courses"
@@ -117,8 +126,20 @@ class AudioTrack(Base):
     file_path: Mapped[str] = mapped_column(unique=True)
     duration_seconds: Mapped[float | None]
     position: Mapped[int]
+    background_id: Mapped[int | None] = mapped_column(ForeignKey("backgrounds.id"), nullable=True)
 
     course: Mapped[AudioCourse] = relationship(back_populates="tracks")
+    background: Mapped["Background | None"] = relationship()
+
+    @property
+    def background_title(self) -> str | None:
+        return self.background.title if self.background else None
+
+    @property
+    def background_is_image(self) -> bool:
+        if not self.background or not self.background.file_path:
+            return False
+        return Path(self.background.file_path).suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
 
 
 class Playlist(Base):

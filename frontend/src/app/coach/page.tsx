@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { usePlaybackSocket, PlaybackState } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
@@ -146,6 +147,38 @@ export default function CoachModePage() {
     sendCommand("load_audio_playlist", { audio_playlist_id: playlistId });
   };
 
+  const router = useRouter();
+
+  const handleExitCoach = async () => {
+    try {
+      await sendCommand("stop");
+    } finally {
+      if (typeof window !== "undefined" && (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")) {
+        router.push("/grid");
+      } else {
+        router.push("/");
+      }
+    }
+  };
+
+  const handleBackFromPicker = () => {
+    if (typeof window !== "undefined" && (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")) {
+      router.push("/grid");
+    } else {
+      router.push("/");
+    }
+  };
+
+  const wasCoachModeRef = useRef(isCoachMode);
+  useEffect(() => {
+    if (wasCoachModeRef.current && !isCoachMode) {
+      if (typeof window !== "undefined" && (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")) {
+        router.replace("/grid");
+      }
+    }
+    wasCoachModeRef.current = isCoachMode;
+  }, [isCoachMode, router]);
+
   const navSheet = showNav && (
     <div className="coach-sheet-overlay" onClick={() => setShowNav(false)}>
       <div className="coach-sheet" onClick={(e) => e.stopPropagation()}>
@@ -167,13 +200,14 @@ export default function CoachModePage() {
     return (
       <div className="coach-screen coach-picker-screen">
         <div className="coach-picker-topbar">
-          {/* Link (navigation cliente) plutôt qu'un <a> classique (réf.
-              correctif "quitte le plein écran sur téléphone") : un <a href>
-              natif force un rechargement complet de la page, ce qui coupe la
-              Fullscreen API du navigateur en plus de perdre l'état React. */}
-          <Link href="/" className="coach-icon-btn olc-press" title={t("coach.backToDashboard")}>
+          <button
+            type="button"
+            className="coach-icon-btn olc-press"
+            onClick={handleBackFromPicker}
+            title={t("coach.backToDashboard")}
+          >
             <Icon name="arrow_back" size={20} />
-          </Link>
+          </button>
           <button className="coach-icon-btn olc-press" onClick={() => setShowNav(true)} title={t("coach.otherFunctions")}>
             <Icon name="menu" size={20} />
           </button>
@@ -276,9 +310,15 @@ export default function CoachModePage() {
     <div className="coach-screen coach-live-screen" style={{ borderTopColor: accent }}>
       {/* Barre supérieure universelle */}
       <div className="coach-live-header" style={{ maxWidth: "1280px" }}>
-        <Link href="/" className="coach-icon-btn olc-press" title={t("coach.backToDashboard")}>
-          <Icon name="arrow_back" size={20} />
-        </Link>
+        <button
+          type="button"
+          className="coach-exit-btn olc-press"
+          onClick={handleExitCoach}
+          title={t("coach.disableCoachMode")}
+        >
+          <Icon name="power_settings_new" size={20} />
+          <span>Quitter le mode coach</span>
+        </button>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
           <span className="coach-live-course-title" style={{ color: accent }}>
             {course?.title}
@@ -294,10 +334,10 @@ export default function CoachModePage() {
 
       {/* Grille responsive Console Régie (2 colonnes sur tablette/laptop, 1 colonne sur smartphone) */}
       <div className="coach-console-grid">
-        {/* Colonne Gauche : Commandes audio et pistes */}
+        {/* Colonne Gauche : Commandes audio centrées */}
         <div className="coach-audio-col">
           {/* Bloc Piste en cours */}
-          <div className="coach-live-track-block olc-anim-in" key={currentTrack?.id} style={{ width: "100%" }}>
+          <div className="coach-live-track-block olc-anim-in" key={currentTrack?.id} style={{ width: "100%", maxWidth: "420px" }}>
             <span className="coach-live-track-label">
               {currentTrack ? t("coach.trackLabel", { index: trackIndex + 1, total: tracks.length }) : t("coach.noTrack")}
             </span>
@@ -364,59 +404,15 @@ export default function CoachModePage() {
             ))}
           </div>
 
-          {/* Boutons d'accès rapide sur smartphone */}
-          <div style={{ display: "flex", gap: "10px", width: "100%", maxWidth: "420px", justifyContent: "center" }}>
-            <button className="coach-tracklist-toggle olc-press" style={{ flex: 1 }} onClick={() => setShowTrackList(true)}>
-              <Icon name="queue_music" size={18} />
-              {t("coach.viewTracks", { count: tracks.length })}
-            </button>
-            <button className="coach-tracklist-toggle olc-press" style={{ flex: 1 }} onClick={() => setShowBackgrounds(true)}>
-              <Icon name="wallpaper" size={18} />
-              {t("coach.backgroundBtn")}
-            </button>
-          </div>
-
-          {/* Liste intégrée des pistes (visible sur tablette paysage & desktop) */}
-          <div className="coach-inline-tracklist-panel">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h4 style={{ fontSize: "0.9rem", fontWeight: 800, margin: 0 }}>
-                {t("coach.courseTracksTitle")}
-              </h4>
-              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600 }}>
-                {tracks.length} pistes
-              </span>
-            </div>
-            <div className="coach-inline-tracklist">
-              {tracks.map((track, idx) => {
-                const isTrackActive = idx === trackIndex;
-                return (
-                  <button
-                    key={track.id}
-                    type="button"
-                    className={`coach-inline-track olc-press ${isTrackActive ? "active" : ""}`}
-                    onClick={() => sendCommand("audio_jump_to_track", { index: idx })}
-                  >
-                    <span style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      <span style={{ color: isTrackActive ? accent : "var(--text-muted)", fontSize: "0.8rem", width: "20px" }}>
-                        {idx + 1}.
-                      </span>
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {track.title}
-                      </span>
-                    </span>
-                    <span style={{ fontSize: "0.78rem", color: isTrackActive ? accent : "var(--text-muted)", flexShrink: 0 }}>
-                      {formatTime(track.duration_seconds)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Action destructive protégée */}
-          <button className="coach-disable-btn olc-press" onClick={() => sendCommand("stop")}>
-            <Icon name="power_settings_new" size={18} />
-            {t("coach.disableCoachMode")}
+          {/* Bouton d'accès au tiroir déroulant des pistes */}
+          <button
+            type="button"
+            className="coach-btn coach-btn-wide olc-press"
+            style={{ minHeight: "52px", marginTop: "4px" }}
+            onClick={() => setShowTrackList(true)}
+          >
+            <Icon name="queue_music" size={20} />
+            <span>{t("coach.viewTracks", { count: tracks.length })}</span>
           </button>
         </div>
 

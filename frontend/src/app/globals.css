@@ -2967,13 +2967,23 @@ a.status-pill:hover,
   background: var(--bg-main);
 }
 
-/* Fond d'ambiance actif sous le mode coach (réf. mission "afficher un fond
-   depuis le mode coach") : la couche devient un simple voile sombre pour
-   laisser voir le fond (animé ou figé) rendu par la couche inférieure, tout
-   en gardant le texte lisible. Sans cette règle le fond était totalement
-   masqué par le background opaque ci-dessus. */
+/* Fond d'ambiance actif sous le mode coach (réf. CDC v3.0.5) :
+   Rendu à 100% net, sans voile coloré ni assombrissement artificiel. */
 .kiosk-coach-mode.with-background {
-  background: color-mix(in srgb, var(--bg-main) 45%, transparent);
+  background: transparent;
+}
+
+.kiosk-coach-mode.with-background .coach-stage-glow {
+  display: none;
+}
+
+.kiosk-coach-mode.with-background .coach-stage-eyebrow,
+.kiosk-coach-mode.with-background .coach-stage-course,
+.kiosk-coach-mode.with-background .coach-stage-track-label,
+.kiosk-coach-mode.with-background .coach-stage-track-title,
+.kiosk-coach-mode.with-background .coach-stage-time,
+.kiosk-coach-mode.with-background .coach-stage-next-hint {
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.95), 0 0 24px rgba(0, 0, 0, 0.85);
 }
 
 /* Scène plein écran (correctif "carré rouge minuscule") : l'ancien
@@ -3245,12 +3255,13 @@ a.status-pill:hover,
   gap: 16px;
   width: 100%;
   align-items: center;
+  text-align: center;
 }
 
 @media (min-width: 900px) {
   .coach-audio-col {
-    align-items: stretch;
-    text-align: left;
+    align-items: center;
+    text-align: center;
   }
 }
 
@@ -3281,7 +3292,7 @@ a.status-pill:hover,
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .coach-monitor-placeholder {
@@ -3296,9 +3307,30 @@ a.status-pill:hover,
 .coach-monitor-gradient {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,0.65) 0%, transparent 40%, rgba(0,0,0,0.88) 100%);
+  background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 40%, rgba(0,0,0,0.5) 100%);
   pointer-events: none;
   z-index: 1;
+}
+
+.coach-exit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent-error) 15%, var(--bg-surface-elevated));
+  border: 1px solid color-mix(in srgb, var(--accent-error) 40%, var(--border-color));
+  color: var(--accent-error);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.coach-exit-btn:hover {
+  background: color-mix(in srgb, var(--accent-error) 25%, var(--bg-surface-elevated));
+  border-color: var(--accent-error);
 }
 
 .coach-monitor-top {

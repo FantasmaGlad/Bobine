@@ -17,7 +17,7 @@ from app.utils.import_jobs import update_job
 
 logger = logging.getLogger(__name__)
 
-AUDIO_EXTENSIONS = {".mp3"}
+AUDIO_EXTENSIONS = {".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg"}
 
 
 def _guess_program(title: str) -> str | None:

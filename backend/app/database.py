@@ -209,6 +209,8 @@ def _migrate_add_missing_columns():
         # Fond d'ambiance par piste de playlist audio (réf. mission "associer
         # un fond animé à chaque musique qui se jouera en arrière plan").
         ("audio_playlist_items", "background_id", "INTEGER REFERENCES backgrounds(id)"),
+        # Fond d'ambiance par piste individuelle de cours audio
+        ("audio_tracks", "background_id", "INTEGER REFERENCES backgrounds(id)"),
         # Métadonnées étendues et description pour les cours vidéo (réf. release 3.0.4)
         ("videos", "description", "TEXT"),
         ("videos", "audio_channels", "INTEGER"),

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import AudioCourse, AudioTrack
+from app.models import AudioCourse, AudioTrack, Background
 from app.utils.audio_importer import import_audio_course_from_files, import_audio_course_from_zip
 from app.utils.executors import io_executor
 from app.utils.import_jobs import create_job, update_job
@@ -26,6 +26,9 @@ class AudioTrackResponse(BaseModel):
     title: str
     duration_seconds: float | None
     position: int
+    background_id: int | None = None
+    background_title: str | None = None
+    background_is_image: bool = False
 
     class Config:
         from_attributes = True
@@ -83,6 +86,16 @@ class AudioTrackWithCourseResponse(BaseModel):
     course_id: int
     course_title: str
     course_program: str | None
+    background_id: int | None = None
+    background_title: str | None = None
+    background_is_image: bool = False
+
+
+class AudioTrackUpdate(BaseModel):
+    title: str | None = None
+    number: int | None = None
+    background_id: int | None = None
+    clear_background: bool = False
 
 
 def _to_summary(course: AudioCourse) -> dict:
@@ -127,6 +140,9 @@ def list_all_tracks(db: Session = Depends(get_db)):
             "course_id": t.course.id,
             "course_title": t.course.title,
             "course_program": t.course.program,
+            "background_id": t.background_id,
+            "background_title": t.background_title,
+            "background_is_image": t.background_is_image,
         }
         for t in tracks
     ]
@@ -138,6 +154,38 @@ def get_audio_course(course_id: int, db: Session = Depends(get_db)):
     if not course:
         raise HTTPException(status_code=404, detail="Cours audio non trouvé")
     return course
+
+
+@router.put("/{course_id}/tracks/{track_id}", response_model=AudioTrackResponse)
+def update_audio_track(
+    course_id: int,
+    track_id: int,
+    payload: AudioTrackUpdate,
+    db: Session = Depends(get_db),
+):
+    course = db.query(AudioCourse).filter(AudioCourse.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Cours audio non trouvé")
+    track = (
+        db.query(AudioTrack)
+        .filter(AudioTrack.id == track_id, AudioTrack.audio_course_id == course_id)
+        .first()
+    )
+    if not track:
+        raise HTTPException(status_code=404, detail="Piste audio non trouvée")
+
+    if payload.title is not None and payload.title.strip():
+        track.title = payload.title.strip()
+    if payload.number is not None:
+        track.number = payload.number
+    if payload.clear_background:
+        track.background_id = None
+    elif payload.background_id is not None:
+        track.background_id = payload.background_id
+
+    db.commit()
+    db.refresh(track)
+    return track
 
 
 class ImportJobAccepted(BaseModel):

@@ -76,11 +76,7 @@ def _thumbnail_filename(thumbnail_path: str | None) -> str | None:
 
 def _build_audio_course_item(course: AudioCourse, db: Session) -> dict:
     """Forme attendue par PlaybackManager.load_audio_course/load_audio_playlist
-    pour UN cours audio : pistes triées + fond d'ambiance résolu."""
-    tracks = [
-        {"id": t.id, "number": t.number, "title": t.title, "duration_seconds": t.duration_seconds}
-        for t in sorted(course.tracks, key=lambda t: t.position)
-    ]
+    pour UN cours audio : pistes triées + fond d'ambiance résolu (par piste ou par repli cours/défaut)."""
     background_title = None
     background_is_image = False
     effective_bg_id = course.background_id
@@ -97,6 +93,34 @@ def _build_audio_course_item(course: AudioCourse, db: Session) -> dict:
             background_is_image = is_image_background(bg.file_path)
         else:
             effective_bg_id = None
+
+    tracks = []
+    for t in sorted(course.tracks, key=lambda t: t.position):
+        track_bg_id = getattr(t, "background_id", None)
+        track_bg_title = None
+        track_bg_is_image = False
+        if track_bg_id:
+            track_bg = db.query(Background).filter(Background.id == track_bg_id).first()
+            if track_bg:
+                track_bg_title = track_bg.title
+                track_bg_is_image = is_image_background(track_bg.file_path)
+            else:
+                track_bg_id = None
+
+        final_bg_id = track_bg_id if track_bg_id is not None else effective_bg_id
+        final_bg_title = track_bg_title if track_bg_id is not None else background_title
+        final_bg_is_image = track_bg_is_image if track_bg_id is not None else background_is_image
+
+        tracks.append({
+            "id": t.id,
+            "number": t.number,
+            "title": t.title,
+            "duration_seconds": t.duration_seconds,
+            "background_id": final_bg_id,
+            "background_title": final_bg_title,
+            "background_is_image": final_bg_is_image,
+        })
+
     return {
         "id": course.id,
         "title": course.title,

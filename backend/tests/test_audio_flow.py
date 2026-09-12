@@ -249,6 +249,44 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         self.db.refresh(schedule)
         self.assertFalse(schedule.active)
 
+    async def test_07_audio_track_individual_background_and_update(self):
+        from app.models import Background
+        bg = Background(title="Neon Pulse", file_path="data/test_neon.mp4")
+        self.db.add(bg)
+        self.db.commit()
+
+        course = AudioCourse(title="RPM 115", program="RPM")
+        self.db.add(course)
+        self.db.commit()
+
+        t1 = AudioTrack(audio_course_id=course.id, title="Track 1", file_path="data/test_t1.mp3", position=0, duration_seconds=120.0, background_id=bg.id)
+        t2 = AudioTrack(audio_course_id=course.id, title="Track 2", file_path="data/test_t2.mp3", position=1, duration_seconds=180.0, background_id=None)
+        self.db.add_all([t1, t2])
+        self.db.commit()
+
+        self.assertEqual(t1.background_id, bg.id)
+        self.assertEqual(t1.background_title, "Neon Pulse")
+        self.assertFalse(t1.background_is_image)
+        self.assertIsNone(t2.background_id)
+
+        # Vérification du comportement dynamique avec PlaybackManager
+        from app import playback_manager as playback_manager_module
+        async def mock_bc(data): pass
+        playback_manager_module.init_playback_managers(mock_bc)
+        mgr = playback_manager_module.get_playback_manager()
+
+        tracks_payload = [
+            {"id": t1.id, "number": 1, "title": t1.title, "duration_seconds": t1.duration_seconds, "background_id": t1.background_id},
+            {"id": t2.id, "number": 2, "title": t2.title, "duration_seconds": t2.duration_seconds, "background_id": t2.background_id},
+        ]
+        await mgr.load_audio_course(course.id, course.title, course.program, None, tracks_payload)
+        # Track 1 démarre : current_background doit être le fond de la piste 1
+        self.assertEqual(mgr.state["current_background"]["id"], bg.id)
+
+        # Passer à la piste 2 sans fond propre : current_background retombe sur None (fond du cours)
+        await mgr.audio_next_track()
+        self.assertIsNone(mgr.state["current_background"])
+
 
 if __name__ == "__main__":
     unittest.main()
