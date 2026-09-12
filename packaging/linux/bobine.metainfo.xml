@@ -35,6 +35,11 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="3.0.5" date="2026-09-12">
+      <description>
+        <p>Version 3.0.5 : Console Régie Coach responsive (/coach) avec pupitre tactile, minuteur décompte temps réel, enchaînement automatique et retour vidéo Stage Monitor HDMI direct ; Hub d'Ambiances Visuelles (/backgrounds) avec prévisualisations vidéo 16:9 et projection 1-clic ; association personnalisée de fonds animés par piste audio ; tableau de bord d'assiduité (/metrics) et télémétrie matérielle enrichie (puissance en Watts, températures, fréquence RAM MT/s) ; moteur vidéo Gapless A/B Deck (/cinema) et notation 5 étoiles.</p>
+      </description>
+    </release>
     <release version="3.0.4" date="2026-09-11">
       <description>
         <p>Version 3.0.4 : Ajout des descriptions et synopsis de cours avec édition dans la Bibliothèque, écran de pause cinématique épuré avec détection réelle de la qualité audio (Mono, Stéréo, Surround 5.1) et vidéo, rétro-remplissage automatique des métadonnées, désinstallation automatique 1-clic multi-plateforme (Linux, Windows, macOS, Android, Appliance Kiosque), refonte ergonomique de la zone de danger dans les Réglages, modernisation de l'affichage Cinéma et Pupitre Tactile (widget ancré à droite, miniatures agrandies, suppression des répétitions textuelles) et fiabilisation du redémarrage automatique des services systemd post-installation et mise à jour.</p>

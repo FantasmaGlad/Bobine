@@ -51,7 +51,13 @@ export default function KioskPage() {
   // l'état du canal câblé, tout autre appareil du LAN celui du canal réseau.
   // Chacun n'applique QUE les évènements de son canal — deux lectures
   // simultanées totalement indépendantes, zéro interférence.
-  const [channel] = useState<"cable" | "network">(() => (isWiredDisplay() ? "cable" : "network"));
+  const [channel] = useState<"cable" | "network">(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search).get("channel");
+      if (p === "network" || p === "cable") return p;
+    }
+    return "cable";
+  });
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const bgVideoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);

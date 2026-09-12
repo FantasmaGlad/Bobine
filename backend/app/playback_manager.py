@@ -164,19 +164,39 @@ class PlaybackManager:
 
     async def _position_broadcast_loop(self):
         try:
+            last_tick_time = time.monotonic()
             while True:
                 await asyncio.sleep(0.25)
+                now = time.monotonic()
+                delta = now - last_tick_time
+                last_tick_time = now
+
                 is_video_playing = self.state["state"] == PlaybackStateEnum.playing.value
                 is_audio_playing = (
                     self.state["state"] == PlaybackStateEnum.coach_mode.value and self.state["audio_playing"]
                 )
-                # Ne diffuse que si un kiosk rapporte activement sa position
-                # (cf. report_position) : sans cette garde, un canal "playing"
-                # sans kiosk primaire connecté émettrait des ticks à une
-                # position qui n'avance jamais (correctif "grosses saccades
-                # sur les commandes").
                 drives_playback = time.monotonic() - self._last_direct_report < 2.5
-                if (is_video_playing or is_audio_playing) and drives_playback:
+                if is_video_playing and drives_playback:
+                    await self._emit("position_tick")
+                elif is_audio_playing:
+                    if not drives_playback:
+                        cur_pos = self.state.get("audio_position_seconds") or 0.0
+                        tracks = self.state.get("audio_tracks") or []
+                        idx = self.state.get("audio_track_index")
+                        track_dur = (
+                            tracks[idx].get("duration_seconds")
+                            if idx is not None and 0 <= idx < len(tracks)
+                            else None
+                        )
+                        new_pos = cur_pos + delta
+                        if track_dur and new_pos >= track_dur:
+                            if self.state.get("audio_chain_mode") == "auto":
+                                await self.audio_next_track()
+                                continue
+                            else:
+                                new_pos = track_dur
+                                self.state["audio_playing"] = False
+                        self.state["audio_position_seconds"] = new_pos
                     await self._emit("position_tick")
         except asyncio.CancelledError:
             pass
@@ -592,13 +612,13 @@ class PlaybackManager:
         }
         self.state["audio_tracks"] = tracks
         self.state["audio_track_index"] = 0 if tracks else None
-        self.state["audio_playing"] = bool(tracks)
+        self.state["audio_playing"] = False
         self.state["audio_position_seconds"] = 0.0
         # Fond RÉELLEMENT affiché pour la première piste (réf. mission
         # "associer un fond animé à chaque musique") : peut différer du fond
         # de repli ci-dessus si CETTE piste a son propre fond.
         self.state["current_background"] = self._track_background(tracks[0]) if tracks else None
-        if chain_mode in ("auto", "timer", "manual"):
+        if chain_mode in ("auto", "manual"):
             self.state["audio_chain_mode"] = chain_mode
         if chain_timer_seconds is not None:
             self.state["audio_chain_timer_seconds"] = max(1, int(chain_timer_seconds))
@@ -709,7 +729,7 @@ class PlaybackManager:
         await self._emit("audio_set_background", client_ts)
 
     async def audio_set_chain_mode(self, mode: str, client_ts: float | None = None):
-        if mode not in ("auto", "timer", "manual"):
+        if mode not in ("auto", "manual"):
             return
         self._cancel_audio_chain_wait()
         self.state["audio_chain_mode"] = mode

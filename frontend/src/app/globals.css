@@ -3333,6 +3333,30 @@ a.status-pill:hover,
   border-color: var(--accent-error);
 }
 
+.coach-exit-btn-centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  min-height: 52px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent-error) 12%, var(--bg-surface-elevated));
+  border: 1.5px solid color-mix(in srgb, var(--accent-error) 45%, var(--border-color));
+  color: var(--accent-error);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.coach-exit-btn-centered:hover {
+  background: color-mix(in srgb, var(--accent-error) 22%, var(--bg-surface-elevated));
+  border-color: var(--accent-error);
+}
+
 .coach-monitor-top {
   position: relative;
   z-index: 2;

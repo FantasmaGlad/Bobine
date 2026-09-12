@@ -125,6 +125,7 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     _migrate_add_missing_columns()
     _migrate_backfill_video_metadata()
+    _migrate_backfill_audio_duration()
 
 
 def _migrate_audio_playlist_items_to_tracks():
@@ -280,6 +281,44 @@ def _migrate_backfill_video_metadata():
                 logger.info(f"Migration : métadonnées enrichies pour {updated} vidéo(s) existante(s)")
     except Exception as e:
         logger.warning(f"Avertissement lors de la rétro-migration des métadonnées vidéo : {e}")
+
+
+def _migrate_backfill_audio_duration():
+    """
+    Rétro-migration : analyse les pistes audio et radio existantes en base qui n'ont
+    pas encore de durée (duration_seconds is None) et les enrichit via FFPROBE_BIN.
+    """
+    if not _IS_SQLITE:
+        return
+    try:
+        from app.models import AudioTrack, RadioTrack
+        from app.utils.audio_utils import extract_audio_duration
+
+        with SessionLocal() as db:
+            tracks = db.query(AudioTrack).filter(AudioTrack.duration_seconds.is_(None)).all()
+            updated = 0
+            for t in tracks:
+                if not t.file_path or not Path(t.file_path).exists():
+                    continue
+                dur = extract_audio_duration(t.file_path)
+                if dur:
+                    t.duration_seconds = dur
+                    updated += 1
+
+            radio_tracks = db.query(RadioTrack).filter(RadioTrack.duration_seconds.is_(None)).all()
+            for rt in radio_tracks:
+                if not rt.file_path or not Path(rt.file_path).exists():
+                    continue
+                dur = extract_audio_duration(rt.file_path)
+                if dur:
+                    rt.duration_seconds = dur
+                    updated += 1
+
+            if updated > 0:
+                db.commit()
+                logger.info(f"Migration : durée enrichie pour {updated} piste(s) audio/radio")
+    except Exception as e:
+        logger.warning(f"Avertissement lors de la rétro-migration des durées audio : {e}")
 
 
 def reset_database_connection(new_url: str):

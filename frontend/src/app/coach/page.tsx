@@ -51,7 +51,6 @@ export default function CoachModePage() {
   const { t } = useAppSettings();
   const CHAIN_MODE_LABELS: Record<string, string> = {
     auto: t("coach.chainModeLabels.auto"),
-    timer: t("coach.chainModeLabels.timer"),
     manual: t("coach.chainModeLabels.manual"),
   };
   // hasSynced (correctif "le bouton stop du mode coach ne marche pas") :
@@ -126,8 +125,28 @@ export default function CoachModePage() {
   const tracks = state.audio_tracks || [];
   const trackIndex = state.audio_track_index ?? 0;
   const currentTrack = tracks[trackIndex] || null;
+
+  const [localPos, setLocalPos] = useState<number>(0);
+
+  useEffect(() => {
+    setLocalPos(state.audio_position_seconds || 0);
+  }, [state.audio_position_seconds, state.audio_track_index]);
+
+  useEffect(() => {
+    if (!state.audio_playing) return;
+    const timer = setInterval(() => {
+      setLocalPos((prev) => {
+        const dur = currentTrack?.duration_seconds;
+        const next = prev + 0.1;
+        if (dur && next > dur) return dur;
+        return next;
+      });
+    }, 100);
+    return () => clearInterval(timer);
+  }, [state.audio_playing, currentTrack?.duration_seconds]);
+
   const remaining = currentTrack?.duration_seconds
-    ? Math.max(0, currentTrack.duration_seconds - state.audio_position_seconds)
+    ? Math.max(0, currentTrack.duration_seconds - localPos)
     : null;
   const filteredCourses = courses.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()));
 
@@ -303,30 +322,13 @@ export default function CoachModePage() {
     activeBgId ? Boolean(backgrounds.find((b) => b.id === activeBgId)?.is_image) : false
   );
   const audioProgress = currentTrack?.duration_seconds && currentTrack.duration_seconds > 0
-    ? Math.min(100, (state.audio_position_seconds / currentTrack.duration_seconds) * 100)
+    ? Math.min(100, (localPos / currentTrack.duration_seconds) * 100)
     : 0;
 
   return (
     <div className="coach-screen coach-live-screen" style={{ borderTopColor: accent }}>
       {/* Barre supérieure universelle */}
-      <div className="coach-live-header" style={{ maxWidth: "1280px" }}>
-        <button
-          type="button"
-          className="coach-exit-btn olc-press"
-          onClick={handleExitCoach}
-          title={t("coach.disableCoachMode")}
-        >
-          <Icon name="power_settings_new" size={20} />
-          <span>Quitter le mode coach</span>
-        </button>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <span className="coach-live-course-title" style={{ color: accent }}>
-            {course?.title}
-          </span>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600 }}>
-            Console Régie Coach · Sortie Câblée
-          </span>
-        </div>
+      <div className="coach-live-header" style={{ maxWidth: "1280px", justifyContent: "flex-end" }}>
         <button className="coach-icon-btn olc-press" onClick={() => setShowNav(true)} title={t("coach.otherFunctions")}>
           <Icon name="menu" size={20} />
         </button>
@@ -392,11 +394,11 @@ export default function CoachModePage() {
 
           {/* Mode d'enchaînement */}
           <div className="coach-chain-mode-row">
-            {(["auto", "timer", "manual"] as const).map((mode) => (
+            {(["auto", "manual"] as const).map((mode) => (
               <button
                 key={mode}
                 className={`speed-btn ${state.audio_chain_mode === mode ? "active" : ""}`}
-                style={{ minHeight: "44px" }}
+                style={{ minHeight: "44px", flex: 1 }}
                 onClick={() => sendCommand("audio_set_chain_mode", { mode })}
               >
                 {CHAIN_MODE_LABELS[mode]}
@@ -413,6 +415,17 @@ export default function CoachModePage() {
           >
             <Icon name="queue_music" size={20} />
             <span>{t("coach.viewTracks", { count: tracks.length })}</span>
+          </button>
+
+          {/* Bouton Quitter le mode coach centré avec la structure */}
+          <button
+            type="button"
+            className="coach-exit-btn-centered olc-press"
+            onClick={handleExitCoach}
+            title={t("coach.disableCoachMode")}
+          >
+            <Icon name="power_settings_new" size={20} />
+            <span>Quitter le mode coach</span>
           </button>
         </div>
 
@@ -478,7 +491,7 @@ export default function CoachModePage() {
               <div className="coach-monitor-meta">
                 <span>{currentTrack ? t("coach.trackLabel", { index: trackIndex + 1, total: tracks.length }) : ""}</span>
                 <span>
-                  {formatTime(state.audio_position_seconds)} / {formatTime(currentTrack?.duration_seconds)}
+                  {formatTime(localPos)} / {formatTime(currentTrack?.duration_seconds)}
                 </span>
               </div>
               <div style={{ width: "100%", height: "4px", background: "rgba(255, 255, 255, 0.2)", borderRadius: "2px", overflow: "hidden" }}>

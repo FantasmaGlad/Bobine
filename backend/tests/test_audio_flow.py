@@ -144,10 +144,13 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         # Lancement en 2 taps : le choix du cours suffit à démarrer la lecture (réf. F10.4)
         await manager.load_audio_course(1, "RPM 110", "RPM", None, tracks)
         self.assertEqual(manager.state["state"], "coach_mode")
-        self.assertTrue(manager.state["audio_playing"])
+        # En pause par défaut à l'activation : au coach de cliquer sur play
+        self.assertFalse(manager.state["audio_playing"])
         self.assertEqual(manager.state["audio_track_index"], 0)
 
         # play/pause pilotent la piste audio en mode coach (même bouton que la vidéo, réf. UX5.1)
+        await manager.play()
+        self.assertTrue(manager.state["audio_playing"])
         await manager.pause()
         self.assertFalse(manager.state["audio_playing"])
         await manager.play()
