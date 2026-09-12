@@ -4545,11 +4545,13 @@ a.status-pill:hover,
    mise en valeur nettement (halo), pour être repérable de loin sur l'écran
    cinéma. Classe posée en JS (.kiosk-remote-focus) plutôt que `:focus` : un
    kiosk n'a pas toujours le focus fenêtre OS, et `:focus` disparaîtrait alors. */
+.kiosk-remote-focus,
 .cinema-grid-layer .kiosk-remote-focus {
   box-shadow: 0 0 0 4px var(--bg-main), 0 0 0 8px var(--accent-primary) !important;
   border-radius: var(--radius-md);
   transform: scale(1.04);
-  z-index: 2;
+  z-index: 10;
+  outline: none !important;
 }
 
 /* Bandeau d'avertissement "aucun écran de lecture" (réf. retour "clic sur
@@ -4575,6 +4577,9 @@ a.status-pill:hover,
 
 .cinema-card {
   flex: 0 0 280px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -4595,6 +4600,7 @@ a.status-pill:hover,
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-touch-callout: none;
+  overflow: hidden;
 }
 
 .cinema-card:hover,
@@ -4613,8 +4619,14 @@ a.status-pill:hover,
 
 .cinema-card-thumb {
   position: relative;
-  width: 100%;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  height: 157.5px;
+  min-height: 157.5px;
+  max-height: 157.5px;
   aspect-ratio: 16 / 9;
+  flex: 0 0 157.5px;
   border-radius: 10px;
   overflow: hidden;
   background: var(--bg-surface-elevated);
@@ -4677,6 +4689,9 @@ a.status-pill:hover,
 .cinema-card-title {
   font-size: 1rem;
   font-weight: 600;
+  width: 100%;
+  max-width: 280px;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4685,6 +4700,41 @@ a.status-pill:hover,
 .cinema-card-meta {
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+/* --- Défilement horizontal fluide des titres longs (Marquee) --- */
+.marquee-track {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  display: block;
+}
+
+.marquee-track.marquee-overflowing {
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 14px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 14px), transparent 100%);
+}
+
+.marquee-content {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.marquee-track.marquee-overflowing .marquee-content {
+  animation: marquee-scroll var(--marquee-duration, 8s) cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+}
+
+@keyframes marquee-scroll {
+  0%, 20% {
+    transform: translateX(0);
+  }
+  80%, 100% {
+    transform: translateX(var(--marquee-distance, 0px));
+  }
 }
 
 /* --- Grille complète "Tous les cours" (mise en page liste verticale) --- */
@@ -4716,6 +4766,7 @@ a.status-pill:hover,
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-touch-callout: none;
+  overflow: hidden;
 }
 
 .cinema-all-item:hover,
@@ -4733,6 +4784,12 @@ a.status-pill:hover,
 
 .cinema-all-thumb {
   flex: 0 0 120px;
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  height: 67.5px;
+  min-height: 67.5px;
+  max-height: 67.5px;
   aspect-ratio: 16 / 9;
   border-radius: 10px;
   overflow: hidden;
@@ -4753,13 +4810,17 @@ a.status-pill:hover,
 .cinema-all-text {
   flex: 1;
   min-width: 0;
+  max-width: calc(100% - 134px);
   display: flex;
   flex-direction: column;
   gap: 3px;
+  overflow: hidden;
 }
 
 .cinema-all-title {
   font-weight: 700;
+  width: 100%;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

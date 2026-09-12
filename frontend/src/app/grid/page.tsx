@@ -6,8 +6,10 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useHoverSound } from "@/lib/useHoverSound";
 import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
 import { useScreenWakeLock } from "@/lib/useScreenWakeLock";
+import { useKioskRemote, moveDomFocus, moveDomFocus2D, activateDomFocus } from "@/lib/useKioskRemote";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
+import MarqueeText from "@/components/MarqueeText";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 
 // Lot 14 (cf. docs/plan-implementation-android.md) : écran de sélection
@@ -156,7 +158,7 @@ const GridRow = React.memo(function GridRow({
                     <span className="cinema-card-duration">{formatDurationMin(v.duration_seconds)}</span>
                   ) : null}
                 </div>
-                <span className="cinema-card-title">{v.title}</span>
+                <MarqueeText text={v.title} className="cinema-card-title" />
                 <span className="cinema-card-meta">{v.release ?? ""}</span>
               </button>
             );
@@ -203,7 +205,7 @@ const GridAllList = React.memo(function GridAllList({
               )}
             </div>
             <div className="cinema-all-text">
-              <span className="cinema-all-title">{v.title}</span>
+              <MarqueeText text={v.title} className="cinema-all-title" />
               <span className="cinema-all-meta" style={{ color: accent }}>
                 {[v.program, formatDurationMin(v.duration_seconds)].filter(Boolean).join(" · ")}
               </span>
@@ -300,7 +302,14 @@ export default function GridPage() {
   // Lancement distant (Lot 14) : envoie l'ordre sur le canal câblé plutôt
   // que de lire quoi que ce soit ici - cette page ne quitte JAMAIS son
   // propre affichage de grille.
+  const lastLaunchRef = useRef<number>(0);
   const handleSelect = useCallback((video: CinemaVideo) => {
+    const now = Date.now();
+    if (now - lastLaunchRef.current < 1500) {
+      // Protection anti-rebond : ignore les doubles clics ou doubles taps rapides
+      return;
+    }
+    lastLaunchRef.current = now;
     sendCommand("cinema_command", { action: "launch", video_id: video.id });
     if (displayOutputCable !== null && displayOutputCable !== "cinema") {
       setLaunchWarning(t("cinema.gridNoScreen"));
@@ -332,6 +341,11 @@ export default function GridPage() {
   const [optimisticSeek, setOptimisticSeek] = useState<{ position: number; timestamp: number } | null>(null);
   const optimisticTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Lissage monotone de la position affichée : pendant la lecture active,
+  // le temps avance continuellement sans jamais faire de saut arrière de 2-3s.
+  const smoothedPositionRef = useRef<number>(0);
+  const lastTickTimeRef = useRef<number>(Date.now());
+
   useEffect(() => {
     cinemaReceivedAtRef.current = Date.now();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- réaction à un rapport externe, le rapport redevient la vérité
@@ -359,7 +373,8 @@ export default function GridPage() {
   const nowPlayingRaw =
     cinemaState && cinemaState.title && nowPlayingTick - cinemaReceivedAtRef.current < 8000 ? cinemaState : null;
   const isPlayingEffective = pendingPlaying ?? nowPlayingRaw?.playing ?? false;
-  const computedPosition = optimisticSeek
+
+  const rawPosition = optimisticSeek
     ? Math.min(
         nowPlayingRaw?.duration_seconds || Infinity,
         optimisticSeek.position +
@@ -372,6 +387,33 @@ export default function GridPage() {
           (nowPlayingRaw.playing ? Math.max(0, (nowPlayingTick - cinemaReceivedAtRef.current) / 1000) : 0),
       )
     : 0;
+
+  const nowMs = Date.now();
+  const dt = Math.max(0, Math.min(1.0, (nowMs - lastTickTimeRef.current) / 1000));
+  lastTickTimeRef.current = nowMs;
+
+  let computedPosition: number;
+  if (!nowPlayingRaw) {
+    smoothedPositionRef.current = 0;
+    computedPosition = 0;
+  } else if (optimisticSeek) {
+    smoothedPositionRef.current = rawPosition;
+    computedPosition = rawPosition;
+  } else if (!isPlayingEffective) {
+    smoothedPositionRef.current = nowPlayingRaw.position_seconds;
+    computedPosition = nowPlayingRaw.position_seconds;
+  } else {
+    const expected = smoothedPositionRef.current + dt;
+    // Si écart supérieur à 2.5s (seek réel ou saut de cours), recalage franc
+    if (Math.abs(expected - rawPosition) >= 2.5) {
+      smoothedPositionRef.current = rawPosition;
+    } else {
+      // Monotone : avance avec le temps, ne recule jamais sur un jitter réseau
+      smoothedPositionRef.current = Math.max(expected, rawPosition - 0.5);
+    }
+    const duration = nowPlayingRaw.duration_seconds || Infinity;
+    computedPosition = Math.min(duration, smoothedPositionRef.current);
+  }
 
   const nowPlaying = nowPlayingRaw
     ? {
@@ -430,6 +472,40 @@ export default function GridPage() {
     }
     return [...byProgram.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [videos, t]);
+
+  useKioskRemote(() => {
+    if (wiredDisplayMode === "headless") {
+      return {
+        onLeft: () => moveDomFocus(".grid-standby-actions button, .grid-standby-actions a", -1),
+        onRight: () => moveDomFocus(".grid-standby-actions button, .grid-standby-actions a", 1),
+        onUp: () => moveDomFocus(".grid-standby-actions button, .grid-standby-actions a", -1),
+        onDown: () => moveDomFocus(".grid-standby-actions button, .grid-standby-actions a", 1),
+        onEnter: () => activateDomFocus(".grid-standby-actions button, .grid-standby-actions a"),
+        onPlayPause: handleNowPlayingPlayPause,
+      };
+    }
+    return {
+      onLeft: () => moveDomFocus2D(".cinema-card, .cinema-hero-play", "left"),
+      onRight: () => moveDomFocus2D(".cinema-card, .cinema-hero-play", "right"),
+      onUp: () => moveDomFocus2D(".cinema-card, .cinema-hero-play", "up"),
+      onDown: () => moveDomFocus2D(".cinema-card, .cinema-hero-play", "down"),
+      onPrev: () => (nowPlaying ? handleNowPlayingSeekDelta(-30) : moveDomFocus2D(".cinema-card, .cinema-hero-play", "left")),
+      onNext: () => (nowPlaying ? handleNowPlayingSeekDelta(30) : moveDomFocus2D(".cinema-card, .cinema-hero-play", "right")),
+      onEnter: () => activateDomFocus(".cinema-card, .cinema-hero-play"),
+      onPlayPause: () => {
+        if (nowPlaying) {
+          handleNowPlayingPlayPause();
+        } else {
+          activateDomFocus(".cinema-card, .cinema-hero-play");
+        }
+      },
+      onBack: () => {
+        if (nowPlaying) {
+          handleNowPlayingStop();
+        }
+      },
+    };
+  });
 
   if (wiredDisplayMode === "headless") {
     return (
@@ -561,7 +637,7 @@ export default function GridPage() {
                   <Icon name="close" size={18} />
                 </button>
                 <span className="grid-now-playing-label">{t("cinema.nowPlaying")}</span>
-                <h2 className="grid-now-playing-title">{nowPlaying.title}</h2>
+                <MarqueeText text={nowPlaying.title} className="grid-now-playing-title" />
                 <input
                   type="range"
                   className="grid-now-playing-seek"

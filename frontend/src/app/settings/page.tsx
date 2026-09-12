@@ -786,6 +786,27 @@ export default function SettingsPage() {
             </button>
           </div>
 
+          {/* Note explicite sur le périmètre de /grid (canal câblé uniquement) */}
+          <div
+            style={{
+              marginTop: "12px",
+              padding: "12px 16px",
+              background: "var(--bg-surface-elevated)",
+              border: "1px solid var(--border-color)",
+              borderRadius: "var(--radius-md)",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "12px",
+            }}
+          >
+            <div style={{ color: "var(--accent-primary)", marginTop: "1px", flexShrink: 0 }}>
+              <Icon name="info" size={20} />
+            </div>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
+              {t("settingsPage.wiredDisplayGridCableOnlyNote")}
+            </p>
+          </div>
+
           {/* Liens d'accès direct au mode Pupitre Studio & Écran Vidéo */}
           {wiredDisplayMode === "dual_screen" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }} className="olc-anim-in">

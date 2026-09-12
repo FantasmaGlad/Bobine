@@ -39,6 +39,11 @@ private const val TAG = "BobineForegroundService"
  */
 class BobineForegroundService : Service() {
 
+    companion object {
+        var currentPresentation: BobinePresentation? = null
+            private set
+    }
+
     private lateinit var displayManager: DisplayManager
     private var presentation: BobinePresentation? = null
     private val handler = Handler(Looper.getMainLooper())
@@ -75,6 +80,7 @@ class BobineForegroundService : Service() {
             Log.i(TAG, "Ecran externe retire (displayId=$displayId)")
             presentation?.dismiss()
             presentation = null
+            currentPresentation = null
             releaseWakeLock()
         }
 
@@ -160,6 +166,7 @@ class BobineForegroundService : Service() {
         displayManager.unregisterDisplayListener(displayListener)
         presentation?.dismiss()
         presentation = null
+        currentPresentation = null
         releaseWakeLock()
         releaseMulticastLock()
         super.onDestroy()
@@ -190,7 +197,10 @@ class BobineForegroundService : Service() {
         presentationAttemptInFlight = true
         try {
             Log.i(TAG, "Ouverture de la Presentation sur ${external.name} (id=${external.displayId})")
-            presentation = BobinePresentation(this, external).also { it.show() }
+            presentation = BobinePresentation(this, external).also {
+                it.show()
+                currentPresentation = it
+            }
             acquireWakeLock()
             presentationAttemptInFlight = false
             presentationRetries = 0

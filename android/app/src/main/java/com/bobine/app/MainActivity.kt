@@ -12,6 +12,8 @@ import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
+import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.webkit.ConsoleMessage
@@ -184,6 +186,26 @@ class MainActivity : AppCompatActivity() {
                 Log.w("MainActivity", "Impossible de demander l'exemption batterie", e)
             }
         }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val pres = BobineForegroundService.currentPresentation
+        if (pres != null && pres.isShowing) {
+            if (pres.dispatchKeyEvent(event)) {
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        val pres = BobineForegroundService.currentPresentation
+        if (pres != null && pres.isShowing) {
+            if (pres.dispatchGenericMotionEvent(event)) {
+                return true
+            }
+        }
+        return super.dispatchGenericMotionEvent(event)
     }
 
     private fun applyImmersiveFullscreen() {

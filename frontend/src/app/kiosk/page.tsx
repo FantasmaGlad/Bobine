@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { usePlaybackSocket, PlaybackEvent } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { isWiredDisplay, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
+import { useKioskRemote } from "@/lib/useKioskRemote";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
@@ -564,76 +565,105 @@ export default function KioskPage() {
     }
   };
 
-  // Filet de sécurité "décodeur vidéo bloqué / texture figée" (réf. correctif "freeze kiosk
-  // réseau au seek admin") : sur certains décodeurs matériels (MediaCodec sur Android,
-  // VA-API sur le Wyse), un seek vers une position hors keyframe peut laisser le pipeline
-  // vidéo bloqué sur la dernière image décodée alors que la piste audio du même <video>
-  // continue d'avancer (et donc currentTime avance aussi !). On utilise requestVideoFrameCallback
-  // lorsqu'il est disponible pour surveiller le nombre d'images réellement peintes à l'écran,
-  // avec repli sur la progression de currentTime.
+  // Surveillance douce des décrochages de lecture : ne pause ni ne seek jamais
+  // la vidéo agressivement. Relance simplement .play() si la vidéo est déclarée
+  // en lecture mais figée > 6s.
   useEffect(() => {
     let lastTime = -1;
-    let presentedFrames = 0;
-    let lastPresentedFrames = 0;
-    let rVfcSupported = false;
-
-    const onFrame = () => {
-      presentedFrames++;
-      const v = videoRef.current;
-      if (v && "requestVideoFrameCallback" in v) {
-        (v as unknown as { requestVideoFrameCallback: (cb: () => void) => void }).requestVideoFrameCallback(onFrame);
-      }
-    };
-
-    const v = videoRef.current;
-    if (v && "requestVideoFrameCallback" in v) {
-      rVfcSupported = true;
-      (v as unknown as { requestVideoFrameCallback: (cb: () => void) => void }).requestVideoFrameCallback(onFrame);
-    }
+    let stallCount = 0;
 
     const interval = window.setInterval(() => {
       const video = videoRef.current;
       if (!video || video.paused || video.seeking || video.ended || !video.src) {
         lastTime = -1;
-        lastPresentedFrames = presentedFrames;
+        stallCount = 0;
         return;
       }
-      // Période de grâce après un seek récent (laisser le décodage initial s'installer)
+      // Période de grâce après un seek récent (3.5s)
       if (Date.now() - lastSeekTimeRef.current < 3500) {
         lastTime = video.currentTime;
-        lastPresentedFrames = presentedFrames;
+        stallCount = 0;
         return;
       }
 
       if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-        const visualFreeze = rVfcSupported && presentedFrames === lastPresentedFrames;
-        const clockFreeze = video.currentTime === lastTime;
-
-        if (visualFreeze || clockFreeze) {
-          const curPos = video.currentTime;
-          try {
-            video.pause();
-            video.currentTime = curPos + 0.05;
-            const onSeeked = () => {
-              video.removeEventListener("seeked", onSeeked);
-              video.play().catch(() => {});
-            };
-            video.addEventListener("seeked", onSeeked, { once: true });
-            setTimeout(() => {
-              video.removeEventListener("seeked", onSeeked);
-              if (video.paused) video.play().catch(() => {});
-            }, 1000);
-          } catch {
-            // Retenté au prochain contrôle si nécessaire
+        if (Math.abs(video.currentTime - lastTime) < 0.05) {
+          stallCount++;
+          if (stallCount >= 3) {
+            stallCount = 0;
+            video.play().catch(() => {});
           }
+        } else {
+          stallCount = 0;
         }
       }
       lastTime = video.currentTime;
-      lastPresentedFrames = presentedFrames;
     }, 2500);
 
     return () => window.clearInterval(interval);
   }, []);
+
+  useKioskRemote(() => {
+    return {
+      onPlayPause: () => {
+        if (state.current_video) {
+          sendCommand(state.state === "playing" ? "pause" : "play");
+        } else if (state.current_audio_course) {
+          sendCommand(state.audio_playing ? "pause" : "play");
+        }
+      },
+      onEnter: () => {
+        if (state.current_video) {
+          sendCommand(state.state === "playing" ? "pause" : "play");
+        } else if (state.current_audio_course) {
+          sendCommand(state.audio_playing ? "pause" : "play");
+        }
+      },
+      onLeft: () => {
+        if (state.current_video) {
+          const cur = videoRef.current?.currentTime || state.position_seconds || 0;
+          sendCommand("seek", { position_seconds: Math.max(0, cur - 10) });
+        } else if (state.current_audio_course) {
+          const cur = audioRef.current?.currentTime || state.audio_position_seconds || 0;
+          sendCommand("seek", { position_seconds: Math.max(0, cur - 10) });
+        }
+      },
+      onRight: () => {
+        if (state.current_video) {
+          const cur = videoRef.current?.currentTime || state.position_seconds || 0;
+          const dur = videoRef.current?.duration || state.current_video.duration_seconds || 0;
+          sendCommand("seek", { position_seconds: Math.min(dur, cur + 10) });
+        } else if (state.current_audio_course) {
+          const cur = audioRef.current?.currentTime || state.audio_position_seconds || 0;
+          const dur = audioRef.current?.duration || 0;
+          sendCommand("seek", { position_seconds: Math.min(dur, cur + 10) });
+        }
+      },
+      onVolumeUp: () => {
+        const v = videoRef.current;
+        if (v) v.volume = Math.min(1, (v.volume ?? 1) + 0.1);
+        const a = audioRef.current;
+        if (a) a.volume = Math.min(1, (a.volume ?? 1) + 0.1);
+      },
+      onVolumeDown: () => {
+        const v = videoRef.current;
+        if (v) v.volume = Math.max(0, (v.volume ?? 1) - 0.1);
+        const a = audioRef.current;
+        if (a) a.volume = Math.max(0, (a.volume ?? 1) - 0.1);
+      },
+      onBack: () => {
+        if (state.current_video || state.current_audio_course) {
+          sendCommand("stop");
+        }
+      },
+      onMute: () => {
+        const v = videoRef.current;
+        if (v) v.muted = !v.muted;
+        const a = audioRef.current;
+        if (a) a.muted = !a.muted;
+      },
+    };
+  });
 
   const program = state.current_video?.program ?? state.current_audio_course?.program ?? undefined;
   // Couleur du thème plutôt que du programme du cours (réf. correctif
@@ -729,12 +759,25 @@ export default function KioskPage() {
         )}
       </div>
 
-      <div className={`kiosk-layer kiosk-video-layer ${isVideoLayer ? "visible" : ""}`}>
+      <div
+        className={`kiosk-layer kiosk-video-layer ${isVideoLayer ? "visible" : ""}`}
+        onClick={() => {
+          if (isVideoLayer && state.current_video) {
+            sendCommand(state.state === "playing" ? "pause" : "play");
+          }
+        }}
+      >
         <video
           ref={videoRef}
           className="kiosk-video"
           onTimeUpdate={handleTimeUpdate}
           onEnded={() => sendCommand("video_ended")}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (state.current_video) {
+              sendCommand(state.state === "playing" ? "pause" : "play");
+            }
+          }}
           // preload="auto" : demande au navigateur de mettre en tampon en
           // avance plutôt qu'au tout dernier moment — atténue les saccades sur
           // l'écran RÉSEAU (lecture par-dessus le LAN/Wi-Fi, contrairement au

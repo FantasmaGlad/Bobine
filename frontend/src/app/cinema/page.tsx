@@ -6,9 +6,10 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { isWiredDisplay, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import { useHoverSound } from "@/lib/useHoverSound";
 import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
-import { useKioskRemote, moveDomFocus, activateDomFocus } from "@/lib/useKioskRemote";
+import { useKioskRemote, moveDomFocus, moveDomFocus2D, activateDomFocus } from "@/lib/useKioskRemote";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
+import MarqueeText from "@/components/MarqueeText";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 
 // Boutons de cours focalisables par la télécommande, dans l'ordre de lecture
@@ -207,7 +208,7 @@ const CinemaRow = React.memo(function CinemaRow({
                     <span className="cinema-card-duration">{formatDurationMin(v.duration_seconds)}</span>
                   ) : null}
                 </div>
-                <span className="cinema-card-title">{v.title}</span>
+                <MarqueeText text={v.title} className="cinema-card-title" />
                 <span className="cinema-card-meta">{v.release ?? ""}</span>
               </button>
             );
@@ -260,7 +261,7 @@ const CinemaAllList = React.memo(function CinemaAllList({
               )}
             </div>
             <div className="cinema-all-text">
-              <span className="cinema-all-title">{v.title}</span>
+              <MarqueeText text={v.title} className="cinema-all-title" />
               <span className="cinema-all-meta" style={{ color: accent }}>
                 {[v.program, formatDurationMin(v.duration_seconds)].filter(Boolean).join(" · ")}
               </span>
@@ -614,12 +615,12 @@ export default function CinemaPage() {
   useKioskRemote(() => {
     if (phase === "grid") {
       return {
-        onLeft: () => moveDomFocus(CINEMA_GRID_CARDS, -1),
-        onUp: () => moveDomFocus(CINEMA_GRID_CARDS, -1),
-        onPrev: () => moveDomFocus(CINEMA_GRID_CARDS, -1),
-        onRight: () => moveDomFocus(CINEMA_GRID_CARDS, 1),
-        onDown: () => moveDomFocus(CINEMA_GRID_CARDS, 1),
-        onNext: () => moveDomFocus(CINEMA_GRID_CARDS, 1),
+        onLeft: () => moveDomFocus2D(CINEMA_GRID_CARDS, "left"),
+        onRight: () => moveDomFocus2D(CINEMA_GRID_CARDS, "right"),
+        onUp: () => moveDomFocus2D(CINEMA_GRID_CARDS, "up"),
+        onDown: () => moveDomFocus2D(CINEMA_GRID_CARDS, "down"),
+        onPrev: () => moveDomFocus2D(CINEMA_GRID_CARDS, "left"),
+        onNext: () => moveDomFocus2D(CINEMA_GRID_CARDS, "right"),
         onEnter: () => activateDomFocus(CINEMA_GRID_CARDS),
         onPlayPause: () => activateDomFocus(CINEMA_GRID_CARDS),
       };
@@ -635,6 +636,8 @@ export default function CinemaPage() {
         onDown: () => changeLocalVolume(-0.1),
         onVolumeUp: () => changeLocalVolume(0.1),
         onVolumeDown: () => changeLocalVolume(-0.1),
+        onPrev: () => seekBy(-30),
+        onNext: () => seekBy(30),
       };
     }
     if (phase === "ended") {
@@ -690,73 +693,40 @@ export default function CinemaPage() {
   // IMMÉDIAT à chaque changement d'état réel, qu'il vienne d'une commande
   // admin ou d'une action locale de l'adhérent — l'admin voit l'effet en
   // ~100 ms. L'intervalle ne sert plus que de battement de fond.
-  // Filet de sécurité "décodeur vidéo bloqué / texture figée" (réf. correctif "freeze kiosk
-  // réseau au seek admin" — voir kiosk/page.tsx, même correctif) : sur
-  // certains décodeurs matériels (MediaCodec en WebView Android, sortie HDMI
-  // de ce fichier), un seek vers une position hors keyframe peut laisser le
-  // pipeline vidéo bloqué sur la dernière image décodée pendant que l'audio
-  // du même <video> continue d'avancer (et donc currentTime avance aussi !).
-  // On utilise requestVideoFrameCallback lorsqu'il est disponible pour surveiller
-  // les images réellement peintes à l'écran, avec repli sur currentTime.
+  // Surveillance douce des décrochages de lecture : ne pause ni ne seek jamais
+  // la vidéo agressivement (cause de la boucle infinie play/pause et des saccades).
+  // Relance simplement .play() si la vidéo est déclarée en lecture mais figée > 6s.
   useEffect(() => {
     let lastTime = -1;
-    let presentedFrames = 0;
-    let lastPresentedFrames = 0;
-    let rVfcSupported = false;
-
-    const onFrame = () => {
-      presentedFrames++;
-      const v = videoRef.current;
-      if (v && "requestVideoFrameCallback" in v) {
-        (v as unknown as { requestVideoFrameCallback: (cb: () => void) => void }).requestVideoFrameCallback(onFrame);
-      }
-    };
-
-    const v = videoRef.current;
-    if (v && "requestVideoFrameCallback" in v) {
-      rVfcSupported = true;
-      (v as unknown as { requestVideoFrameCallback: (cb: () => void) => void }).requestVideoFrameCallback(onFrame);
-    }
+    let stallCount = 0;
 
     const interval = window.setInterval(() => {
       const video = videoRef.current;
       if (!video || video.paused || video.seeking || video.ended || !video.src) {
         lastTime = -1;
-        lastPresentedFrames = presentedFrames;
+        stallCount = 0;
         return;
       }
-      // Période de grâce après un seek récent
+      // Période de grâce après un seek récent (3.5s)
       if (Date.now() - lastSeekTimeRef.current < 3500) {
         lastTime = video.currentTime;
-        lastPresentedFrames = presentedFrames;
+        stallCount = 0;
         return;
       }
 
       if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-        const visualFreeze = rVfcSupported && presentedFrames === lastPresentedFrames;
-        const clockFreeze = video.currentTime === lastTime;
-
-        if (visualFreeze || clockFreeze) {
-          const curPos = video.currentTime;
-          try {
-            video.pause();
-            video.currentTime = curPos + 0.05;
-            const onSeeked = () => {
-              video.removeEventListener("seeked", onSeeked);
-              video.play().catch(() => {});
-            };
-            video.addEventListener("seeked", onSeeked, { once: true });
-            setTimeout(() => {
-              video.removeEventListener("seeked", onSeeked);
-              if (video.paused) video.play().catch(() => {});
-            }, 1000);
-          } catch {
-            // Retenté au prochain contrôle si nécessaire
+        if (Math.abs(video.currentTime - lastTime) < 0.05) {
+          stallCount++;
+          // Détection d'un vrai gel prolongé (> 7.5s sans progression de l'horloge)
+          if (stallCount >= 3) {
+            stallCount = 0;
+            video.play().catch(() => {});
           }
+        } else {
+          stallCount = 0;
         }
       }
       lastTime = video.currentTime;
-      lastPresentedFrames = presentedFrames;
     }, 2500);
 
     return () => window.clearInterval(interval);
@@ -841,7 +811,12 @@ export default function CinemaPage() {
   const themeFg = useThemeAccentForeground();
 
   return (
-    <div className="cinema-root" onMouseMove={isPlayingLayer ? wakeControls : undefined}>
+    <div
+      className="cinema-root"
+      onMouseMove={isPlayingLayer ? wakeControls : undefined}
+      onTouchStart={isPlayingLayer ? wakeControls : undefined}
+      onPointerDown={isPlayingLayer ? wakeControls : undefined}
+    >
       {/* Écran d'attente « bibliothèque vide » : recouvre la vitrine tant
           qu'aucun cours n'est importé (sinon la TV n'affiche qu'un mince texte
           sur fond noir — « rien » côté salle). Grand logo + heure + message,

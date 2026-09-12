@@ -8,6 +8,9 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.Display
+import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.WindowManager
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -32,14 +35,24 @@ private const val CINEMA_URL = "http://127.0.0.1:8000/cinema/"
 class BobinePresentation(context: Context, display: Display) : Presentation(context, display) {
 
     private val handler = Handler(Looper.getMainLooper())
-    private var webView: WebView? = null
+    var webView: WebView? = null
+        private set
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Configuration de la fenetre pour accepter les touches, manettes et le pointeur externe
+        window?.let { win ->
+            win.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+            win.decorView.isFocusable = true
+            win.decorView.isFocusableInTouchMode = true
+        }
+
         val webView = WebView(context)
         this.webView = webView
+        webView.isFocusable = true
+        webView.isFocusableInTouchMode = true
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
@@ -90,6 +103,28 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
         setContentView(webView)
         webView.loadUrl(CINEMA_URL)
         webView.onResume()
+        webView.requestFocus()
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (webView?.dispatchKeyEvent(event) == true) {
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        if (webView?.dispatchGenericMotionEvent(event) == true) {
+            return true
+        }
+        return super.dispatchGenericMotionEvent(event)
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (webView?.dispatchTouchEvent(event) == true) {
+            return true
+        }
+        return super.dispatchTouchEvent(event)
     }
 
     override fun onStop() {

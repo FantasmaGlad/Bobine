@@ -153,3 +153,9 @@ Conformément à la directive d'architecture, la nouvelle section est positionn�
 4. **Lot 4 — Adaptation de `/cinema` & Desktop Tray** :
    - Masquage des contrôles HDMI en mode double-écran.
    - Mise à jour de `tray.py` pour orchestrer les fenêtres selon le mode choisi.
+5. **Lot 5 — Contrôles Universels, Lissage & Périmètre Câblé Exclusif (V3.0.4)** :
+   - **Périmètre Câblé Exclusif** : Documentation technique et bandeau explicatif dans les Réglages rappelant que `/grid` pilote exclusivement la sortie câblée (HDMI). Le canal réseau est quant à lui géré depuis le tableau de bord Réseau.
+   - **Support Manettes de Jeu (HTML5 Gamepad API)** : Déplacement fluide au D-Pad et stick gauche (`moveDomFocus2D`), sélection au bouton A/Croix, retour au bouton B/Rond, play/pause (X/Y/Start), navigation temporelle (L1/R1) et volume (L2/R2) sur toutes les interfaces (`/grid`, `/cinema`, `/kiosk`, `/radio`).
+   - **Relais Matériel Android (`BobinePresentation`)** : Interception et relais des événements `KeyEvent` et `MotionEvent` depuis `MainActivity` vers la `Presentation` HDMI pour un pilotage direct de l'écran externe.
+   - **Stabilisation de Lecture** : Remplacement des watchdogs agressifs par une détection douce sans pause ni seek, éliminant les saccades et la boucle infinie play/pause au lancement.
+   - **Lissage Monotone du Temps** : Suppression définitive des sauts arrière de 2-3 secondes sur l'écran Headless lors de la lecture d'un cours.
