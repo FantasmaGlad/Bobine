@@ -412,6 +412,7 @@ async def _launch_target(
             video.id, video.title, video.duration_seconds, video.program, thumbnail_url=thumb,
             description=video.description, audio_channels=video.audio_channels, audio_codec=video.audio_codec,
             fps=video.fps, bitrate_kbps=video.bitrate_kbps, width=video.width, height=video.height,
+            launch_type="schedule",
         )
     else:
         playlist = db.query(Playlist).filter(Playlist.id == target_id).first()

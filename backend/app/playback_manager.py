@@ -28,6 +28,37 @@ class PlaybackStateEnum(str, enum.Enum):
     background = "background"  # Lot 7 (F9.2) : fond animé en boucle, plein écran, sans son
 
 
+def _db_start_session(video_id: int, channel: str, launch_type: str, duration: float) -> int | None:
+    try:
+        from app.database import SessionLocal
+        from app.utils.playback_session_tracker import start_playback_session
+        with SessionLocal() as db:
+            return start_playback_session(db, video_id, channel, launch_type, duration)
+    except Exception as e:
+        logger.error(f"Erreur DB start session : {e}")
+        return None
+
+
+def _db_update_session(session_id: int, position: float) -> None:
+    try:
+        from app.database import SessionLocal
+        from app.utils.playback_session_tracker import update_playback_session_progress
+        with SessionLocal() as db:
+            update_playback_session_progress(db, session_id, position)
+    except Exception as e:
+        logger.debug(f"Erreur DB update session : {e}")
+
+
+def _db_close_session(session_id: int, position: float | None = None, completed: bool | None = None) -> None:
+    try:
+        from app.database import SessionLocal
+        from app.utils.playback_session_tracker import close_playback_session
+        with SessionLocal() as db:
+            close_playback_session(db, session_id, position, completed)
+    except Exception as e:
+        logger.error(f"Erreur DB close session : {e}")
+
+
 class PlaybackManager:
     """
     État de lecture global et partagé de l'écran cinéma (Lot 3, réf. plan
@@ -43,6 +74,9 @@ class PlaybackManager:
         # tableaux de bord) ne réagissent qu'aux évènements de LEUR canal —
         # zéro interférence entre les deux lectures (réf. mission).
         self.channel = channel
+        # Session de lecture SQLite active pour ce canal (réf. CDC V3.0.5 §2.3)
+        self._current_session_id: int | None = None
+        self._last_session_update: float = 0.0
         # Instant (monotonic) du dernier report_position reçu directement du
         # kiosk : seul le kiosk primaire diffuse les position_tick (cf.
         # _position_broadcast_loop).
@@ -177,10 +211,18 @@ class PlaybackManager:
         bitrate_kbps: int | None = None,
         width: int | None = None,
         height: int | None = None,
+        launch_type: str = "kiosk",
     ):
         """
         Lance un cours directement en lecture.
         """
+        # Clôture de la session précédente si elle était encore ouverte
+        if self._current_session_id is not None:
+            old_sess_id = self._current_session_id
+            self._current_session_id = None
+            pos = self.state.get("position_seconds", 0.0)
+            asyncio.create_task(asyncio.to_thread(_db_close_session, old_sess_id, pos))
+
         self.state["current_background"] = None
         self._clear_audio_coach()
         if not keep_playlist:
@@ -208,6 +250,13 @@ class PlaybackManager:
         self.state["position_seconds"] = 0.0
         self.state["volume"] = self.state.get("volume", settings.volume_default)
         self.state["state"] = PlaybackStateEnum.playing.value
+
+        # Démarrage de la session SQLite d'assiduité (réf. CDC V3.0.5 §2.3)
+        self._current_session_id = await asyncio.to_thread(
+            _db_start_session, video_id, self.channel, launch_type, duration_seconds or 0.0
+        )
+        self._last_session_update = time.monotonic()
+
         await self._emit("load", client_ts)
 
     async def load_playlist(
@@ -364,6 +413,13 @@ class PlaybackManager:
         """Gère la fin naturelle d'une vidéo signalée par le kiosk."""
         self._cancel_waiting()
 
+        # Clôture avec complétion validée de la session de lecture
+        if self._current_session_id is not None:
+            sess_id = self._current_session_id
+            self._current_session_id = None
+            total_dur = (self.state.get("current_video") or {}).get("duration_seconds") or self.state.get("position_seconds", 0.0)
+            asyncio.create_task(asyncio.to_thread(_db_close_session, sess_id, total_dur, True))
+
         idx = self.state["playlist_index"]
         items = self.state["playlist_items"]
         if idx is not None and items is not None:
@@ -371,16 +427,6 @@ class PlaybackManager:
                 # Transition vers l'écran d'attente intercalée
                 self.state["state"] = PlaybackStateEnum.playlist_waiting.value
                 self.state["playlist_waiting_remaining"] = float(settings.wait_time_between_courses)
-                # Task créé AVANT le broadcast qui suit (réf. correctif "tâche
-                # d'attente orpheline") : `await self._emit(...)` cède la main
-                # à la boucle d'évènements, où une commande concurrente
-                # (skip_waiting/next_video/previous_video) peut être traitée.
-                # Si self._waiting_task n'était pas déjà assigné à CE task à
-                # ce moment-là, le _cancel_waiting() de cette commande ne
-                # trouve rien à annuler — le task créé ensuite devient alors
-                # orphelin et fait avancer la playlist une seconde fois de son
-                # côté. L'assigner ici, avant tout point de suspension,
-                # garantit qu'il est toujours annulable dès sa création.
                 self._waiting_task = asyncio.create_task(self._run_waiting_period())
                 await self._emit("video_ended", client_ts)
             else:
@@ -422,6 +468,14 @@ class PlaybackManager:
     async def stop(self, client_ts: float | None = None):
         self._cancel_waiting()
         self._clear_audio_coach()
+
+        # Clôture de la session d'assiduité avec position finale
+        if self._current_session_id is not None:
+            sess_id = self._current_session_id
+            self._current_session_id = None
+            pos = self.state.get("position_seconds", 0.0)
+            asyncio.create_task(asyncio.to_thread(_db_close_session, sess_id, pos))
+
         self.state["state"] = PlaybackStateEnum.waiting.value
         self.state["current_video"] = None
         self.state["position_seconds"] = 0.0
@@ -482,8 +536,14 @@ class PlaybackManager:
         """
         if self.state["current_video"] is None or self.state["state"] == PlaybackStateEnum.playlist_waiting.value:
             return
-        self._last_direct_report = time.monotonic()
+        now_mono = time.monotonic()
+        self._last_direct_report = now_mono
         self.state["position_seconds"] = position_seconds
+
+        # Throttling de la mise à jour en base toutes les 5s
+        if self._current_session_id is not None and (now_mono - self._last_session_update >= 5.0):
+            self._last_session_update = now_mono
+            asyncio.create_task(asyncio.to_thread(_db_update_session, self._current_session_id, position_seconds))
 
     # ------------------------------------------------------------------
     # Mode audio coach (Lot 8, réf. F10.3/F10.4/UX4.5-4.9)

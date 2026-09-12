@@ -37,6 +37,14 @@ from app.database import _IS_SQLITE, engine, get_db, init_db
 from app.models import Setting
 from app.playback_manager import get_playback_manager
 from app.utils.activity_log import log_activity
+from app.utils.hardware_info import (
+    get_cpu_model_name,
+    get_cpu_temp,
+    get_gpu_info,
+    get_power_watts,
+    get_runtime_info,
+    get_storage_model,
+)
 from app.utils.deployment import (
     SUDOERS_FILE,
     UNINSTALL_WRAPPER,
@@ -315,6 +323,7 @@ def get_storage() -> dict[str, Any]:
         "used_percent": round(usage.used / usage.total * 100, 1) if usage.total else 0.0,
         "app_bytes": app_bytes,
         "path": str(probe),
+        "storage_model": get_storage_model(),
     }
 
 
@@ -393,15 +402,28 @@ def _get_system_usage_values() -> tuple[float, int, int, float]:
 
 @router.get("/system")
 def get_system_usage() -> dict[str, Any]:
-    """Charge CPU et RAM (réf. mission "supervision cpu/ram en plus du
-    stockage") : endpoint séparé de /storage (interval bloquant court pour
-    une mesure CPU instantanée fiable). Robuste sous Android (SELinux)."""
+    """Charge CPU, GPU, RAM, Températures, Puissance (W), Modèles des composants et Runtime (réf. CDC V3.0.5 Bêta)."""
     cpu_percent, mem_total, mem_used, mem_percent = _get_system_usage_values()
+    gpu_name, gpu_percent, gpu_temp_c = get_gpu_info()
+    cpu_name = get_cpu_model_name()
+    cpu_temp_c = get_cpu_temp()
+    power_watts = get_power_watts()
+    storage_model = get_storage_model()
+    runtime = get_runtime_info()
+
     return {
         "cpu_percent": cpu_percent,
+        "cpu_name": cpu_name,
+        "cpu_temp_c": cpu_temp_c,
+        "gpu_percent": gpu_percent,
+        "gpu_name": gpu_name,
+        "gpu_temp_c": gpu_temp_c,
         "memory_total_bytes": mem_total,
         "memory_used_bytes": mem_used,
         "memory_percent": mem_percent,
+        "power_watts": power_watts,
+        "storage_model": storage_model,
+        "runtime": runtime,
     }
 
 

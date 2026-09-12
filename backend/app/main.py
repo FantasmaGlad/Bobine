@@ -30,7 +30,7 @@ from app.radio_manager import get_radio_manager
 from app.routers import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,
     radio, radio_playlists, radio_announcements, settings as settings_router, logs, import_jobs,
-    updates,
+    updates, metrics,
 )
 from app.utils.radio_utils import content_type_for
 from app.utils.version import get_app_version
@@ -159,6 +159,7 @@ app.include_router(settings_router.router)
 app.include_router(logs.router)
 app.include_router(import_jobs.router)
 app.include_router(updates.router)
+app.include_router(metrics.router)
 
 
 _KIOSK_PROCESS_NAMES = ("chromium", "chromium-browser", "chrome", "msedge", "google chrome")

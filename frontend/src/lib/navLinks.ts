@@ -48,6 +48,7 @@ export const navEntries: NavEntry[] = [
   { href: "/library", labelKey: "nav.library", iconName: "video_library" },
   { href: "/playlists", labelKey: "nav.playlists", iconName: "playlist_play" },
   { href: "/schedule", labelKey: "nav.schedule", iconName: "calendar_month" },
+  { href: "/metrics", labelKey: "nav.metrics", iconName: "analytics" },
 ];
 
 export const footerNavLinks: NavLinkConfig[] = [

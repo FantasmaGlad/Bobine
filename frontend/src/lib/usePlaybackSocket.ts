@@ -95,6 +95,7 @@ export interface CinemaRemoteState {
   position_seconds: number;
   duration_seconds: number;
   playing: boolean;
+  video_id?: number | null;
   reported_at: number;
 }
 

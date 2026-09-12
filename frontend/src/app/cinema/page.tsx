@@ -10,6 +10,7 @@ import { useKioskRemote, moveDomFocus, moveDomFocus2D, activateDomFocus } from "
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import MarqueeText from "@/components/MarqueeText";
+import CourseRatingWidget from "@/components/CourseRatingWidget";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 
 // Boutons de cours focalisables par la télécommande, dans l'ordre de lecture
@@ -291,7 +292,16 @@ const CinemaAllList = React.memo(function CinemaAllList({
  */
 export default function CinemaPage() {
   const { t, wiredDisplayMode } = useAppSettings();
+  const deckARef = useRef<HTMLVideoElement | null>(null);
+  const deckBRef = useRef<HTMLVideoElement | null>(null);
+  const [activeDeck, setActiveDeck] = useState<"A" | "B">("A");
+  const activeDeckRef = useRef<"A" | "B">("A");
+  activeDeckRef.current = activeDeck;
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    videoRef.current = activeDeck === "A" ? deckARef.current : deckBRef.current;
+  }, [activeDeck]);
+  const [endedVideo, setEndedVideo] = useState<CinemaVideo | null>(null);
   const [videos, setVideos] = useState<CinemaVideo[]>([]);
   const [phase, setPhase] = useState<Phase>("grid");
   const [selected, setSelected] = useState<CinemaVideo | null>(null);
@@ -424,34 +434,71 @@ export default function CinemaPage() {
   };
 
   const startPlayback = useCallback((video: CinemaVideo) => {
-    const el = videoRef.current;
-    if (!el) return;
-    el.src = getApiUrl(`/videos/${video.id}/stream`);
-    el.currentTime = 0;
-    el.volume = 1.0;
-    el.muted = false;
-    el.load();
+    const currentActive = activeDeckRef.current === "A" ? deckARef.current : deckBRef.current;
+    const idle = activeDeckRef.current === "A" ? deckBRef.current : deckARef.current;
+
     setNeedsTapToPlay(false);
-    // Arme l'auto-masquage dès le début de la lecture (cf. commentaire sur
-    // wakeControls plus haut) : sans cet appel, un écran HDMI passif sans
-    // souris/tactile local ne masquerait jamais les commandes.
     wakeControls();
-    el.play()
-      .then(() => setIsPlaying(true))
-      .catch(() => {
-        // Autoplay refusé par le navigateur (fréquent hors kiosk Chromium,
-        // ex. Safari mobile sans interaction directe) : on affiche un bouton
-        // de lancement manuel plutôt que de rester silencieusement figé.
-        setIsPlaying(false);
-        setNeedsTapToPlay(true);
-      });
-  }, [wakeControls]);
+
+    // Si aucune vidéo ne joue ou si l'un des décodeurs n'est pas dispo, on charge sur l'actif
+    if (!isPlaying || !idle || !currentActive) {
+      const target = currentActive || idle;
+      if (!target) return;
+      target.src = getApiUrl(`/videos/${video.id}/stream`);
+      target.currentTime = 0;
+      target.volume = 1.0;
+      target.muted = false;
+      target.load();
+      target.play()
+        .then(() => setIsPlaying(true))
+        .catch(() => {
+          setIsPlaying(false);
+          setNeedsTapToPlay(true);
+        });
+      return;
+    }
+
+    // Double Décodeur Vidéo Gapless A/B Deck (réf. CDC V3.0.5 §3.2) :
+    // Préchargement en coulisses sur le deck inactif
+    idle.src = getApiUrl(`/videos/${video.id}/stream`);
+    idle.currentTime = 0;
+    idle.volume = 1.0;
+    idle.muted = false;
+    idle.load();
+
+    const onCanPlay = () => {
+      idle.removeEventListener("canplay", onCanPlay);
+      idle.play()
+        .then(() => {
+          setIsPlaying(true);
+          const nextDeck = activeDeckRef.current === "A" ? "B" : "A";
+          setActiveDeck(nextDeck);
+          if (videoRef.current) videoRef.current = idle;
+
+          // Déchargement doux du deck précédent après transition 0.4s
+          setTimeout(() => {
+            if (currentActive) {
+              currentActive.pause();
+              currentActive.removeAttribute("src");
+              currentActive.load();
+            }
+          }, 450);
+        })
+        .catch(() => {
+          setIsPlaying(false);
+          setNeedsTapToPlay(true);
+        });
+    };
+
+    idle.addEventListener("canplay", onCanPlay, { once: true });
+  }, [isPlaying, wakeControls]);
 
   // Lancement direct sans délai ni animation d'introduction
   const handleSelect = useCallback(
     (video: CinemaVideo) => {
       clearUpNextTask();
       setUpNext(null);
+      setEndedVideo(null);
       setSelected(video);
       setPhase("playing");
       setPosition(0);
@@ -464,15 +511,17 @@ export default function CinemaPage() {
 
   const handleBackToMenu = useCallback(() => {
     clearUpNextTask();
-    const el = videoRef.current;
-    if (el) {
-      el.pause();
-      el.removeAttribute("src");
-      el.load();
-    }
+    [deckARef.current, deckBRef.current].forEach((el) => {
+      if (el) {
+        el.pause();
+        el.removeAttribute("src");
+        el.load();
+      }
+    });
     setPhase("grid");
     setSelected(null);
     setUpNext(null);
+    setEndedVideo(null);
     setIsPlaying(false);
     setNeedsTapToPlay(false);
     setPosition(0);
@@ -546,13 +595,14 @@ export default function CinemaPage() {
   // autres cours, lancée automatiquement après 5 minutes — un clic sur
   // "Retour au menu" annule, "Lancer maintenant" court-circuite l'attente.
   const handleEnded = useCallback(() => {
-    const el = videoRef.current;
+    const el = activeDeckRef.current === "A" ? deckARef.current : deckBRef.current;
     if (el) {
       el.pause();
-      el.removeAttribute("src");
-      el.load();
     }
     setIsPlaying(false);
+    if (selected) {
+      setEndedVideo(selected);
+    }
     const candidates = videos.filter((v) => v.id !== selected?.id);
     if (candidates.length === 0) {
       handleBackToMenu();
@@ -985,35 +1035,80 @@ export default function CinemaPage() {
         </div>
       )}
 
-      {/* Lecture vidéo plein écran, locale à cet appareil */}
+      {/* Lecture vidéo plein écran via Double Décodeur A/B Deck Gapless (réf. CDC V3.0.5 §3.2) */}
       <div className={`cinema-layer cinema-video-layer ${isPlayingLayer ? "visible" : ""}`}>
-        <video
-          ref={videoRef}
-          className="cinema-video"
-          preload="auto"
-          onTimeUpdate={(e) => {
-            if (e.currentTarget.seeking) return;
-            const now = Date.now();
-            if (now - lastPositionUpdateRef.current < 1000) return;
-            lastPositionUpdateRef.current = now;
-            setPosition(e.currentTarget.currentTime);
-          }}
-          onEnded={handleEnded}
-          onPlay={() => {
-            setIsPlaying(true);
-            reportNowRef.current?.();
-          }}
-          onPause={() => {
-            setIsPlaying(false);
-            reportNowRef.current?.();
-          }}
-          onSeeked={(e) => {
-            setPosition(e.currentTarget.currentTime);
-            reportNowRef.current?.();
-          }}
-          onClick={handlePlayPause}
-          playsInline
-        />
+        <div className="cinema-deck-container">
+          <video
+            ref={deckARef}
+            className={`cinema-deck cinema-deck-a ${activeDeck === "A" ? "deck-active" : "deck-idle"}`}
+            preload="auto"
+            onTimeUpdate={(e) => {
+              if (activeDeck !== "A" || e.currentTarget.seeking) return;
+              const now = Date.now();
+              if (now - lastPositionUpdateRef.current < 1000) return;
+              lastPositionUpdateRef.current = now;
+              setPosition(e.currentTarget.currentTime);
+            }}
+            onEnded={() => {
+              if (activeDeck === "A") handleEnded();
+            }}
+            onPlay={() => {
+              if (activeDeck === "A") {
+                setIsPlaying(true);
+                reportNowRef.current?.();
+              }
+            }}
+            onPause={() => {
+              if (activeDeck === "A") {
+                setIsPlaying(false);
+                reportNowRef.current?.();
+              }
+            }}
+            onSeeked={(e) => {
+              if (activeDeck === "A") {
+                setPosition(e.currentTarget.currentTime);
+                reportNowRef.current?.();
+              }
+            }}
+            onClick={handlePlayPause}
+            playsInline
+          />
+          <video
+            ref={deckBRef}
+            className={`cinema-deck cinema-deck-b ${activeDeck === "B" ? "deck-active" : "deck-idle"}`}
+            preload="auto"
+            onTimeUpdate={(e) => {
+              if (activeDeck !== "B" || e.currentTarget.seeking) return;
+              const now = Date.now();
+              if (now - lastPositionUpdateRef.current < 1000) return;
+              lastPositionUpdateRef.current = now;
+              setPosition(e.currentTarget.currentTime);
+            }}
+            onEnded={() => {
+              if (activeDeck === "B") handleEnded();
+            }}
+            onPlay={() => {
+              if (activeDeck === "B") {
+                setIsPlaying(true);
+                reportNowRef.current?.();
+              }
+            }}
+            onPause={() => {
+              if (activeDeck === "B") {
+                setIsPlaying(false);
+                reportNowRef.current?.();
+              }
+            }}
+            onSeeked={(e) => {
+              if (activeDeck === "B") {
+                setPosition(e.currentTarget.currentTime);
+                reportNowRef.current?.();
+              }
+            }}
+            onClick={handlePlayPause}
+            playsInline
+          />
+        </div>
         {needsTapToPlay && (
           <button className="cinema-tap-to-play" onClick={handlePlayPause}>
             <Icon name="play_arrow" size={56} filled />
@@ -1118,46 +1213,61 @@ export default function CinemaPage() {
         )}
       </div>
 
-      {/* Fin de cours : suggestion "À suivre" avec autoplay annulable */}
+      {/* Fin de cours : suggestion "À suivre" avec notation 5 étoiles et autoplay annulable */}
       <div className={`cinema-layer cinema-upnext ${isEnded ? "visible" : ""}`}>
-        {upNext && (
-          <div className="cinema-upnext-card" style={{ "--upnext-accent": upNextAccent } as React.CSSProperties}>
-            <span className="cinema-upnext-label">{t("cinema.upNext")}</span>
-            <button className="cinema-upnext-thumb" onClick={() => playImmediately(upNext)} title={t("cinema.playNow")}>
-              {upNextThumb ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={upNextThumb} alt="" />
-              ) : (
-                <Icon name="movie" size={48} color="var(--text-dim)" />
-              )}
-              <span
-                className="cinema-upnext-ring"
-                style={{ background: `conic-gradient(var(--upnext-accent) ${upNextProgressDeg}deg, rgba(255,255,255,0.18) 0deg)` }}
-              >
-                <span className="cinema-upnext-ring-inner">
-                  <Icon name="play_arrow" size={34} filled />
-                </span>
-              </span>
-            </button>
-            <h2 className="cinema-upnext-title">{upNext.title}</h2>
-            <p className="cinema-upnext-meta">
-              {[upNext.program, upNext.release, formatDurationMin(upNext.duration_seconds)].filter(Boolean).join(" · ")}
-            </p>
-            <p className="cinema-upnext-autoplay">
-              {t("cinema.autoPlayIn", { time: formatTime(upNextRemaining) })}
-            </p>
-            <div className="cinema-upnext-actions">
-              <button className="cinema-hero-play" style={{ color: themeFg }} onClick={() => playImmediately(upNext)}>
-                <Icon name="play_arrow" size={22} color={themeFg} filled />
-                {t("cinema.playNow")}
-              </button>
-              <button className="cinema-ctl-btn" onClick={handleBackToMenu}>
-                <Icon name="arrow_back" size={20} color="currentColor" />
-                {t("cinema.backToMenu")}
-              </button>
+        <div className="cinema-upnext-layout">
+          {endedVideo && (
+            <div className="cinema-rating-container">
+              <CourseRatingWidget
+                videoId={endedVideo.id}
+                courseTitle={endedVideo.title}
+                channel="cable"
+                isCinemaMode={true}
+                autoCloseSeconds={300}
+                onClose={() => setEndedVideo(null)}
+              />
             </div>
-          </div>
-        )}
+          )}
+
+          {upNext && (
+            <div className="cinema-upnext-card" style={{ "--upnext-accent": upNextAccent } as React.CSSProperties}>
+              <span className="cinema-upnext-label">{t("cinema.upNext")}</span>
+              <button className="cinema-upnext-thumb" onClick={() => playImmediately(upNext)} title={t("cinema.playNow")}>
+                {upNextThumb ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={upNextThumb} alt="" />
+                ) : (
+                  <Icon name="movie" size={48} color="var(--text-dim)" />
+                )}
+                <span
+                  className="cinema-upnext-ring"
+                  style={{ background: `conic-gradient(var(--upnext-accent) ${upNextProgressDeg}deg, rgba(255,255,255,0.18) 0deg)` }}
+                >
+                  <span className="cinema-upnext-ring-inner">
+                    <Icon name="play_arrow" size={34} filled />
+                  </span>
+                </span>
+              </button>
+              <h2 className="cinema-upnext-title">{upNext.title}</h2>
+              <p className="cinema-upnext-meta">
+                {[upNext.program, upNext.release, formatDurationMin(upNext.duration_seconds)].filter(Boolean).join(" · ")}
+              </p>
+              <p className="cinema-upnext-autoplay">
+                {t("cinema.autoPlayIn", { time: formatTime(upNextRemaining) })}
+              </p>
+              <div className="cinema-upnext-actions">
+                <button className="cinema-hero-play" style={{ color: themeFg }} onClick={() => playImmediately(upNext)}>
+                  <Icon name="play_arrow" size={22} color={themeFg} filled />
+                  {t("cinema.playNow")}
+                </button>
+                <button className="cinema-ctl-btn" onClick={handleBackToMenu}>
+                  <Icon name="arrow_back" size={20} color="currentColor" />
+                  {t("cinema.backToMenu")}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

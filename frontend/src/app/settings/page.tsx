@@ -37,13 +37,27 @@ interface StorageData {
   used_percent: number;
   app_bytes: number;
   path: string;
+  storage_model?: string;
 }
 
 interface SystemUsageData {
   cpu_percent: number;
+  cpu_name?: string;
+  cpu_temp_c?: number | null;
+  gpu_percent?: number | null;
+  gpu_name?: string | null;
+  gpu_temp_c?: number | null;
   memory_total_bytes: number;
   memory_used_bytes: number;
   memory_percent: number;
+  power_watts?: number | null;
+  storage_model?: string;
+  runtime?: {
+    uptime_seconds: number;
+    uptime_formatted: string;
+    app_runtime_seconds: number;
+    app_runtime_formatted: string;
+  };
 }
 
 interface UpdateInfo {
@@ -71,11 +85,23 @@ interface UpdateInfo {
  * via des camemberts") : même technique conic-gradient déjà utilisée pour
  * l'anneau de progression "à suivre" de l'écran cinéma (cinema/page.tsx) —
  * aucune dépendance de graphique supplémentaire. */
-function UsageGauge({ label, percent, detail, size = 96 }: { label: string; percent: number; detail: string; size?: number }) {
+function UsageGauge({
+  label,
+  sublabel,
+  percent,
+  detail,
+  size = 96,
+}: {
+  label: string;
+  sublabel?: string;
+  percent: number;
+  detail: string;
+  size?: number;
+}) {
   const clamped = Math.max(0, Math.min(100, percent));
   const color = clamped >= 90 ? "var(--accent-error)" : clamped >= 75 ? "var(--accent-warning)" : "var(--accent-primary)";
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", flex: "1 1 140px", minWidth: "140px" }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", flex: "1 1 140px", minWidth: "140px" }}>
       <div
         style={{
           position: "relative", width: size, height: size, borderRadius: "50%",
@@ -93,7 +119,12 @@ function UsageGauge({ label, percent, detail, size = 96 }: { label: string; perc
           </span>
         </div>
       </div>
-      <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-main)" }}>{label}</span>
+      <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-main)", textAlign: "center" }}>{label}</span>
+      {sublabel && (
+        <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", textAlign: "center", maxWidth: "160px", wordBreak: "break-word" }}>
+          {sublabel}
+        </span>
+      )}
       <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textAlign: "center" }}>{detail}</span>
     </div>
   );
@@ -1073,21 +1104,35 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* ---- Supervision (stockage, CPU, RAM) ---- */}
+      {/* ---- Supervision (stockage, CPU, GPU, RAM, Télémétrie) ---- */}
       <section className="live-block">
         <h3><Icon name="monitor_heart" size={18} /> {t("settingsPage.monitoringSection")}</h3>
         {storage || system ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", justifyContent: "space-around" }}>
               {storage && (
                 <UsageGauge
                   label={t("settingsPage.storageSection")}
+                  sublabel={storage.storage_model || system?.storage_model}
                   percent={storage.used_percent}
                   detail={t("settingsPage.storageFreeOfTotal", { free: formatBytes(storage.free_bytes), total: formatBytes(storage.total_bytes) })}
                 />
               )}
               {system && (
-                <UsageGauge label={t("settingsPage.cpuLabel")} percent={system.cpu_percent} detail={t("settingsPage.cpuHint")} />
+                <UsageGauge
+                  label={t("settingsPage.cpuLabel")}
+                  sublabel={system.cpu_name}
+                  percent={system.cpu_percent}
+                  detail={system.cpu_temp_c != null ? `${system.cpu_temp_c.toFixed(0)} °C` : t("settingsPage.cpuHint")}
+                />
+              )}
+              {system && (system.gpu_percent != null || system.gpu_name) && (
+                <UsageGauge
+                  label={t("settingsPage.gpuLabel")}
+                  sublabel={system.gpu_name || undefined}
+                  percent={system.gpu_percent ?? 0}
+                  detail={system.gpu_temp_c != null ? `${system.gpu_temp_c.toFixed(0)} °C` : t("settingsPage.gpuHint")}
+                />
               )}
               {system && (
                 <UsageGauge
@@ -1097,6 +1142,42 @@ export default function SettingsPage() {
                 />
               )}
             </div>
+
+            {/* Barre de métriques matérielles étendues : Puissance, Uptime, Runtime */}
+            {(system?.power_watts != null || system?.runtime?.uptime_formatted || system?.runtime?.app_runtime_formatted) && (
+              <div style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "16px",
+                justifyContent: "center",
+                padding: "10px 16px",
+                background: "var(--bg-surface)",
+                borderRadius: "8px",
+                border: "1px solid var(--border-color)",
+                fontSize: "0.85rem",
+                color: "var(--text-muted)",
+              }}>
+                {system?.power_watts != null && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Icon name="bolt" size={16} style={{ color: "var(--accent-warning)" }} />
+                    <span><strong style={{ color: "var(--text-main)" }}>{t("settingsPage.powerLabel")}:</strong> {system.power_watts.toFixed(1)} W</span>
+                  </div>
+                )}
+                {system?.runtime?.uptime_formatted && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Icon name="schedule" size={16} style={{ color: "var(--accent-primary)" }} />
+                    <span><strong style={{ color: "var(--text-main)" }}>{t("settingsPage.uptimeLabel")}:</strong> {system.runtime.uptime_formatted}</span>
+                  </div>
+                )}
+                {system?.runtime?.app_runtime_formatted && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Icon name="timer" size={16} style={{ color: "var(--accent-primary)" }} />
+                    <span><strong style={{ color: "var(--text-main)" }}>{t("settingsPage.runtimeLabel")}:</strong> {system.runtime.app_runtime_formatted}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {storage && (
               <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{t("settingsPage.storageApp", { app: formatBytes(storage.app_bytes) })}</span>
             )}

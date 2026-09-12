@@ -10,6 +10,7 @@ import { useKioskRemote, moveDomFocus, moveDomFocus2D, activateDomFocus } from "
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import MarqueeText from "@/components/MarqueeText";
+import CourseRatingWidget from "@/components/CourseRatingWidget";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 
 // Lot 14 (cf. docs/plan-implementation-android.md) : écran de sélection
@@ -448,6 +449,61 @@ export default function GridPage() {
     sendCommand("cinema_command", { action: "stop" });
   }, [sendCommand]);
 
+  // Système de notation 5 étoiles sur le pupitre coach (réf. CDC V3.0.5 §2.2)
+  const [ratingCourse, setRatingCourse] = useState<{
+    videoId: number;
+    title: string;
+    sessionId?: number | null;
+  } | null>(null);
+  const ratingShownForVideoRef = useRef<number | null>(null);
+  const lastPlayingRef = useRef<{
+    videoId: number;
+    title: string;
+    position: number;
+    duration: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (nowPlaying && nowPlaying.video_id) {
+      lastPlayingRef.current = {
+        videoId: nowPlaying.video_id,
+        title: nowPlaying.title || "",
+        position: nowPlaying.position_seconds,
+        duration: nowPlaying.duration_seconds,
+      };
+
+      // Déclenchement de la notation à 95% de la séance
+      if (
+        nowPlaying.duration_seconds > 0 &&
+        nowPlaying.position_seconds / nowPlaying.duration_seconds >= 0.95 &&
+        ratingShownForVideoRef.current !== nowPlaying.video_id
+      ) {
+        ratingShownForVideoRef.current = nowPlaying.video_id;
+        setRatingCourse({
+          videoId: nowPlaying.video_id,
+          title: nowPlaying.title || "",
+          sessionId: null,
+        });
+      }
+    } else if (!nowPlaying && lastPlayingRef.current) {
+      // Fin de cours naturelle (plus de 90% visionné)
+      const last = lastPlayingRef.current;
+      if (
+        last.duration > 0 &&
+        last.position / last.duration >= 0.90 &&
+        ratingShownForVideoRef.current !== last.videoId
+      ) {
+        ratingShownForVideoRef.current = last.videoId;
+        setRatingCourse({
+          videoId: last.videoId,
+          title: last.title,
+          sessionId: null,
+        });
+      }
+      lastPlayingRef.current = null;
+    }
+  }, [nowPlaying]);
+
   const [scrambleTick, setScrambleTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setScrambleTick((v) => v + 1), 60_000);
@@ -622,11 +678,16 @@ export default function GridPage() {
               </div>
             </div>
 
-            {/* Widget "en cours de lecture" (demande explicite : style Apple,
-                à droite du titre, aucune couleur rouge - tout suit le thème
-                actif). Rendu comme second enfant flex de .cinema-hero, à côté
-                de .cinema-hero-content plutôt qu'au-dessus de toute la page. */}
-            {nowPlaying && (
+            {/* Widget "en cours de lecture" ou carte d'évaluation tactile 5 étoiles (réf. CDC V3.0.5 §2.2) */}
+            {ratingCourse ? (
+              <CourseRatingWidget
+                videoId={ratingCourse.videoId}
+                courseTitle={ratingCourse.title}
+                sessionId={ratingCourse.sessionId}
+                channel="cable"
+                onClose={() => setRatingCourse(null)}
+              />
+            ) : nowPlaying ? (
               <section className="grid-now-playing">
                 <button
                   className="grid-now-playing-close"
@@ -695,7 +756,7 @@ export default function GridPage() {
                   </button>
                 </div>
               </section>
-            )}
+            ) : null}
           </section>
         )}
 

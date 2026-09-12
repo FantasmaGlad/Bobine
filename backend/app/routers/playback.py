@@ -21,11 +21,19 @@ from app.scheduler_manager import ensure_utc, resolve_target_title
 from app.utils.activity_log import log_activity
 from app.utils.boot_state import current_boot_id
 from app.utils.importer import is_image_background
+from app.utils.playback_session_tracker import (
+    close_playback_session,
+    start_playback_session,
+    update_playback_session_progress,
+)
 from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["playback"])
+
+# Suivi des sessions de lecture actives pour les sorties /cinema par canal
+_cinema_sessions: dict[str, int] = {}
 
 # Les PlaybackManagers sont initialisés ici avec le broadcast du
 # ConnectionManager : UN ÉTAT PAR CANAL de diffusion (réf. mission "tableaux
@@ -647,15 +655,37 @@ async def _handle_command(
         # tableaux de bord du canal l'affichent. Simple relais, aucun état
         # serveur : si la page cinéma se ferme, ses rapports cessent et le
         # tableau de bord efface l'affichage après un délai sans nouvelles.
+        pos = float(params.get("position_seconds") or 0)
+        dur = float(params.get("duration_seconds") or 0)
+        vid = params.get("video_id")
+        is_playing = bool(params.get("playing"))
+
+        # Suivi de session SQLite pour /cinema (réf. CDC V3.0.5 §2.3)
+        if is_playing and vid:
+            if channel not in _cinema_sessions:
+                sess_id = await run_in_threadpool(
+                    start_playback_session, db, int(vid), channel, "cinema", dur
+                )
+                if sess_id:
+                    _cinema_sessions[channel] = sess_id
+            else:
+                await run_in_threadpool(
+                    update_playback_session_progress, db, _cinema_sessions[channel], pos
+                )
+        elif not params.get("title") and channel in _cinema_sessions:
+            sess_id = _cinema_sessions.pop(channel)
+            await run_in_threadpool(close_playback_session, db, sess_id, pos)
+
         await ws_manager.broadcast({
             "event": "cinema_state",
             "channel": channel,
             "data": {
                 "title": params.get("title"),
                 "program": params.get("program"),
-                "position_seconds": float(params.get("position_seconds") or 0),
-                "duration_seconds": float(params.get("duration_seconds") or 0),
-                "playing": bool(params.get("playing")),
+                "position_seconds": pos,
+                "duration_seconds": dur,
+                "playing": is_playing,
+                "video_id": vid,
                 "reported_at": datetime.now().timestamp(),
             },
         })
@@ -671,6 +701,24 @@ async def _handle_command(
         if action not in ("play", "pause", "seek", "stop", "launch"):
             logger.warning(f"cinema_command : action inconnue {action}")
             return
+
+        # Gestion des sessions de lecture sur commande directe
+        if action == "launch" and params.get("video_id"):
+            vid = int(params.get("video_id"))
+            if channel in _cinema_sessions:
+                old_id = _cinema_sessions.pop(channel)
+                await run_in_threadpool(close_playback_session, db, old_id)
+            launch_type = "grid" if params.get("source") == "grid" or not is_kiosk else "cinema"
+            sess_id = await run_in_threadpool(
+                start_playback_session, db, vid, channel, launch_type, float(params.get("duration_seconds") or 0)
+            )
+            if sess_id:
+                _cinema_sessions[channel] = sess_id
+        elif action == "stop" and channel in _cinema_sessions:
+            sess_id = _cinema_sessions.pop(channel)
+            pos = float(params.get("position_seconds") or 0)
+            await run_in_threadpool(close_playback_session, db, sess_id, pos)
+
         await ws_manager.broadcast({
             "event": "cinema_command",
             "channel": channel,

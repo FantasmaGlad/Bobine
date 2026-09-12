@@ -76,6 +76,8 @@ class Video(Base):
     source: Mapped[ImportSource]
 
     playlist_items: Mapped[list["PlaylistItem"]] = relationship(back_populates="video")
+    ratings: Mapped[list["CourseRating"]] = relationship(back_populates="video", cascade="all, delete-orphan")
+    playback_sessions: Mapped[list["PlaybackSession"]] = relationship(back_populates="video", cascade="all, delete-orphan")
 
 
 class Background(Base):
@@ -381,3 +383,34 @@ class ActivityLog(Base):
     timestamp: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     event_type: Mapped[str]
     detail: Mapped[str | None]
+
+
+class CourseRating(Base):
+    """Évaluation 5 étoiles d'un cours vidéo (réf. CDC V3.0.5 Bêta §2.2)."""
+    __tablename__ = "course_ratings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id"))
+    rating: Mapped[int] = mapped_column()  # 1 à 5
+    channel: Mapped[str] = mapped_column()  # 'cable' ou 'network'
+    source: Mapped[str] = mapped_column()   # 'grid' ou 'cinema'
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+
+    video: Mapped["Video"] = relationship(back_populates="ratings")
+
+
+class PlaybackSession(Base):
+    """Session de lecture et assiduité d'un cours vidéo (réf. CDC V3.0.5 Bêta §2.3)."""
+    __tablename__ = "playback_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id"))
+    channel: Mapped[str] = mapped_column()  # 'cable' ou 'network'
+    started_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    ended_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    duration_played_seconds: Mapped[float] = mapped_column(default=0.0)
+    total_duration_seconds: Mapped[float] = mapped_column(default=0.0)
+    completed: Mapped[bool] = mapped_column(default=False)
+    launch_type: Mapped[str] = mapped_column()  # 'grid', 'cinema', 'schedule', 'kiosk'
+
+    video: Mapped["Video"] = relationship(back_populates="playback_sessions")

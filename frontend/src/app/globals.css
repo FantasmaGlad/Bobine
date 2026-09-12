@@ -5830,3 +5830,790 @@ a.status-pill:hover,
   font-size: 0.9rem;
   text-decoration: none;
 }
+
+/* ============================================================
+   Bêta 3.0.5 — Moteur Vidéo Gapless A/B Deck & Notation 5 Étoiles
+   ============================================================ */
+
+/* Double Décodeur Vidéo Gapless A/B Deck */
+.cinema-deck-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+.cinema-deck {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: opacity 0.4s ease;
+  background: #000;
+}
+
+.cinema-deck.deck-active {
+  opacity: 1;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.cinema-deck.deck-idle {
+  opacity: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Carte d'évaluation 5 Étoiles (Pupitre Coach /grid & Grand Écran /cinema) */
+.course-rating-card {
+  position: relative;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg, 16px);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(16px);
+  z-index: 10;
+  transition: all var(--transition-normal, 0.3s ease);
+}
+
+.course-rating-grid {
+  width: 100%;
+  max-width: 440px;
+}
+
+.course-rating-cinema {
+  width: 100%;
+  max-width: 580px;
+  padding: 24px 28px;
+  border-radius: 20px;
+  text-align: center;
+  background: color-mix(in srgb, var(--bg-surface) 90%, black);
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, white 10%);
+}
+
+.course-rating-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.course-rating-title-block {
+  flex: 1;
+}
+
+.course-rating-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0 0 4px;
+}
+
+.course-rating-cinema .course-rating-title {
+  font-size: 1.4rem;
+  justify-content: center;
+}
+
+.course-rating-icon-title {
+  color: var(--accent-warning);
+}
+
+.course-rating-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.course-rating-cinema .course-rating-subtitle {
+  font-size: 1rem;
+}
+
+.course-rating-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.course-rating-close-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-surface-hover);
+}
+
+.course-rating-stars-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.course-rating-stars-list {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.course-rating-cinema .course-rating-stars-list {
+  gap: 12px;
+  margin: 10px 0;
+}
+
+.course-rating-star-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-fast, 0.15s ease), color var(--transition-fast, 0.15s ease);
+}
+
+.course-rating-star-btn:hover,
+.course-rating-star-btn:focus-visible {
+  transform: scale(1.18);
+  outline: none;
+}
+
+.course-rating-star-icon {
+  color: var(--text-dim, #666);
+  transition: color var(--transition-fast);
+}
+
+.course-rating-star-btn.active .course-rating-star-icon {
+  color: var(--accent-warning);
+}
+
+.course-rating-score-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  min-height: 1.3em;
+  text-align: center;
+}
+
+.course-rating-cinema .course-rating-score-label {
+  font-size: 1.15rem;
+}
+
+.course-rating-submitted-feedback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.course-rating-confirmed-stars {
+  display: flex;
+  gap: 6px;
+}
+
+.course-rating-confirmed-star {
+  color: var(--accent-warning);
+}
+
+.course-rating-confirmed-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.course-rating-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.course-rating-timer-text {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.course-rating-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: var(--border-color);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.course-rating-progress-fill {
+  height: 100%;
+  background: var(--accent-primary);
+  transition: width 1s linear;
+}
+
+.grid-rating-card-wrapper {
+  z-index: 5;
+}
+
+.cinema-upnext-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  max-width: 90vw;
+}
+
+@media (min-width: 900px) {
+  .cinema-upnext-layout {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.cinema-rating-container {
+  display: flex;
+  justify-content: center;
+}
+
+/* ============================================================
+   Bêta 3.0.5 — Tableau de Bord Métriques (/metrics)
+   ============================================================ */
+
+.metrics-page {
+  padding: 24px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .metrics-page {
+    padding: 16px;
+    gap: 18px;
+  }
+}
+
+.metrics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.metrics-header-title-wrap h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0 0 6px;
+}
+
+.metrics-subtitle {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.metrics-refresh-btn {
+  min-height: 38px;
+  padding: 6px 14px;
+}
+
+.metrics-refresh-btn .spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.metrics-filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 10px);
+}
+
+.metrics-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.metrics-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.metrics-kpis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.metrics-kpi-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 12px);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.metrics-kpi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.metrics-kpi-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metrics-kpi-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.metrics-kpi-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.metrics-kpi-main-num {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: var(--text-main);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.metrics-kpi-unit {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.metrics-kpi-detail {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.metrics-kpi-extra {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.metrics-rating-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.metrics-rating-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.metrics-rating-star-num {
+  width: 24px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.metrics-rating-bar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-surface-hover);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.metrics-rating-bar-fill {
+  height: 100%;
+  background: var(--accent-warning);
+  border-radius: 3px;
+}
+
+.metrics-rating-bar-pct {
+  width: 32px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.metrics-split-row {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .metrics-split-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.metrics-section-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 12px);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.metrics-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.metrics-section-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0 0 4px;
+}
+
+.metrics-section-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.metrics-peak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--accent-primary);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* Histogramme 24h CSS */
+.metrics-histogram-container {
+  width: 100%;
+  padding: 12px 0 4px;
+}
+
+.metrics-histogram-bars {
+  display: flex;
+  align-items: flex-end;
+  height: 160px;
+  gap: 6px;
+  padding-bottom: 24px;
+  position: relative;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.metrics-histogram-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.metrics-histogram-bar {
+  width: 100%;
+  max-width: 24px;
+  background: color-mix(in srgb, var(--accent-primary) 50%, var(--bg-surface-hover));
+  border-radius: 4px 4px 0 0;
+  transition: height 0.4s ease, background var(--transition-fast);
+  cursor: pointer;
+  position: relative;
+}
+
+.metrics-histogram-bar:hover {
+  background: var(--accent-primary);
+}
+
+.metrics-histogram-bar.peak {
+  background: var(--accent-primary);
+}
+
+.metrics-histogram-tooltip {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-main);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.metrics-histogram-bar:hover .metrics-histogram-tooltip {
+  opacity: 1;
+}
+
+.metrics-histogram-label {
+  position: absolute;
+  bottom: -22px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Télémétrie Matérielle */
+.metrics-telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.metrics-telemetry-item {
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metrics-telemetry-item-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.metrics-telemetry-name {
+  color: var(--text-main);
+}
+
+.metrics-telemetry-component-name {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metrics-telemetry-metric-val {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 1.1rem;
+  color: var(--text-main);
+}
+
+.metrics-telemetry-temp {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Tableau du Palmarès des Cours */
+.metrics-table-wrapper {
+  overflow-x: auto;
+}
+
+.metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.metrics-table th {
+  padding: 10px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.metrics-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+  color: var(--text-main);
+}
+
+.metrics-rank-cell {
+  text-align: center;
+}
+
+.metrics-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 0.82rem;
+  font-weight: 800;
+  background: var(--bg-surface-hover);
+  color: var(--text-muted);
+}
+
+.metrics-rank-badge.rank-1 {
+  background: color-mix(in srgb, var(--accent-warning) 20%, transparent);
+  color: var(--accent-warning);
+}
+
+.metrics-rank-badge.rank-2 {
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  color: var(--accent-primary);
+}
+
+.metrics-rank-badge.rank-3 {
+  background: color-mix(in srgb, var(--text-main) 12%, transparent);
+  color: var(--text-main);
+}
+
+.metrics-course-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.metrics-course-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metrics-course-title {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.metrics-course-program {
+  font-size: 0.75rem;
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.metrics-table-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.metrics-table-progress-bar {
+  width: 70px;
+  height: 6px;
+  background: var(--bg-surface-hover);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.metrics-table-progress-fill {
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: 3px;
+}
+
+.metrics-table-progress-text {
+  font-size: 0.82rem;
+  font-weight: 700;
+  width: 36px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.metrics-table-rating {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-weight: 700;
+}
+
+.metrics-table-rating-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: normal;
+}
+
+.metrics-no-rating {
+  color: var(--text-muted);
+}
+
+.metrics-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}

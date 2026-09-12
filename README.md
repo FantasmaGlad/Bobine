@@ -7,9 +7,10 @@
 **The open-source, self-hosted alternative to Les Mills Cinema, Wexer, and Screenly Anthias — professional offline-first video playout, digital signage, and scheduled group-fitness cinema for fitness clubs, gyms, and sports studios.**
 
 Bobine turns any tablet, desktop PC, Mac, or low-cost dedicated mini PC into a complete autonomous broadcast studio:
-- **Cinematic 4K 60fps Playout**: Schedules and plays group-fitness classes on big screens with a streaming-style catalog, modern Netflix-style home and pause overlay, and multi-OS hardware acceleration (VA-API, VideoToolbox, MediaCodec, QuickSync).
-- **Independent Dual Channel**: Drives a wired display (HDMI TV / projector) and a networked display (Wi-Fi / LAN) simultaneously with separate playout pipelines, or pairs a mobile touch coach desk (`/grid`) with big-screen cinema (`/cinema`).
-- **On-Demand Member Kiosk & Mobile Remote**: Lets members browse and start workouts on demand from a locked interactive kiosk, or control music and volume via QR code smartphone remotes.
+- **Cinematic 4K 60fps Playout & Gapless A/B Deck Engine**: Schedules and plays group-fitness classes on big screens with a streaming-style catalog, modern Netflix-style home and pause overlay, dual continuous video decoders eliminating all black screens between classes, and multi-OS hardware acceleration (VA-API, VideoToolbox, MediaCodec, QuickSync).
+- **Independent Dual Channel & Studio Coach Desk**: Drives a wired display (HDMI TV / projector) and a networked display (Wi-Fi / LAN) simultaneously with separate playout pipelines, or pairs a mobile touch coach desk (`/grid`) with big-screen cinema (`/cinema`).
+- **On-Demand Member Kiosk & 5-Star Rating System**: Lets members browse and start workouts on demand from a locked interactive kiosk, submit 5-star ratings on touch screens or on big screens via remote/gamepad, or control music and volume via QR code smartphone remotes.
+- **Metrics Dashboard & Live Hardware Telemetry**: Comprehensive attendance and workout analytics (`/metrics`) with completion rates, 24-hour attendance bar charts, and real-time host telemetry (power draw in Watts, temperatures, CPU/GPU loads and component commercial models).
 - **Audio Coach Mode & 24/7 Studio Radio**: Runs audio workouts over dynamic animated motion backgrounds and streams continuous club background music.
 - **100% Local-First & Sovereign**: Everything runs directly on your own hardware. Zero cloud dependencies, zero monthly subscriptions, zero telemetry, zero vendor lock-in — engineered for rock-solid 24/7 unattended playback even without internet.
 

@@ -134,6 +134,8 @@ Le schéma de données est géré par **SQLAlchemy**. Il n'y a **pas d'Alembic a
 - `audio_playlists` & `audio_playlist_items` : Éditions mixées audio coach avec attribution de fond visuel par piste.
 - `schedules` & `schedule_overrides` : Programmations récurrentes ou ponctuelles, avec gestion des exceptions d'occurrences (annulation, remplacement).
 - `playback_state` : État de lecture persisté par canal (*Câblé* et *Réseau*), incluant la sauvegarde des actions interrompues pour la reprise automatique.
+- `playback_sessions` : Sessions d'assiduité et d'écoute par canal et type de lancement, durée jouée, durée totale et statut d'achèvement (`completed = True` si progression ≥ 90%).
+- `course_ratings` : Évaluations de satisfaction 5 étoiles (score 1 à 5) recueillies sur le pupitre coach `/grid` ou grand écran `/cinema` avec horodatage UTC et canal.
 - `settings` : Clés/valeurs des paramètres modifiables à chaud depuis l'interface admin.
 - `activity_log` : Journal des événements fonctionnels et techniques du système.
 - `radio_tracks`, `radio_tags`, `radio_playlists` & `radio_playlist_items` : Bibliothèque musicale et playlists du module Radio (§5) — sous-système indépendant des cours vidéo/audio coach.
@@ -220,6 +222,12 @@ Sur certains décodeurs matériels (MediaCodec sur Android, VA-API sur Linux/Wys
 3. **Période de grâce après seek (3 500 ms)** : sur les kiosques miroirs (réseau ou multi-écrans), les recalages périodiques de `position_tick` sont ignorés pendant 3,5 secondes après un seek pour laisser les tampons et l'affichage se stabiliser.
 4. **Détection douce de décrochage sans saccade** : remplacement des watchdogs agressifs par une vérification non-destructive de gel prolongé (> 7,5s consécutives sans progression de l'horloge hors chargement/seek), déclenchant une relance propre `.play()` sans cycle artificiel de pause/seek saccadé.
 5. **Protection anti-rebond (1,5s) et lissage temporel monotone sur `/grid`** : élimination des doubles commandes accidentelles au lancement de cours et affichage d'un temps de lecture régulier seconde par seconde sans saut arrière dû aux aléas de paquets réseau.
+
+### Double Décodeur Vidéo Gapless A/B Deck (`/cinema`) & Notation 5 Étoiles
+
+- **Moteur Vidéo A/B Deck Gapless** : sur Chromium et WebView Android, l'assignation d'un nouveau `video.src` entraîne la destruction du pipeline de décodage matériel et génère un écran noir de 200 à 600 ms. Bobine monte désormais **deux éléments `<video>` permanents dans le DOM** (`deckARef` et `deckBRef`) au sein d'un conteneur `.cinema-deck-container`. Le Deck Actif joue en direct (`opacity: 1`, `zIndex: 2`), tandis que le cours suivant ou l'écran de veille est préchargé en coulisses sur le Deck en Attente (`opacity: 0`, `zIndex: 1`, `preload="auto"`). Dès confirmation de `canplay`, un fondu enchaîné matériel CSS (`opacity 0.4s ease`) s'opère sans le moindre clignotement ni flash noir.
+- **Système de Notation 5 Étoiles** : à la fin naturelle d'un cours ou dès franchissement de 95% de progression, le widget de pilotage sur `/grid` (pupitre coach) ou l'écran cinématique de fin de cours sur `/cinema` (grand écran) propose une carte d'évaluation tactile et physique à 5 étoiles (Google Icons `star` / `star_outline`). Contrôlable à la télécommande multimédia, manette de jeu, souris ou tactile, avec décompte d'auto-fermeture de 5 minutes (300 s). Les avis sont persistés en base SQLite (`course_ratings`).
+- **Sessions de Lecture & Assiduité** : chaque diffusion vidéo est tracée dans la table `playback_sessions` avec le canal, le type de déclencheur, la durée exacte visionnée et le flag `completed` (vrai si ≥ 90% du cours a été suivi), alimentant le tableau de bord `/metrics`.
 
 ---
 
@@ -340,6 +348,7 @@ Les noms de fichiers des artefacts Bêta sont **fixes** (`Bobine-Setup-beta.exe`
 | **Logs** | `/api/logs` | Consultation et téléchargement des journaux système |
 | **Radio — Bibliothèque** | `/api/radio` | Morceaux (CRUD, artistes/albums/tags), playlists radio, état du canal (`/api/radio/state`) |
 | **Radio — Rappels** | `/api/radio/announcements`, `/api/radio/announcement-rules` | Annonces (import + description), règles de déclenchement, déclenchement manuel |
+| **Métriques & Assiduité** | `/api/metrics` | Synthèse analytique du club (`GET /metrics/dashboard` avec filtres période et canal, KPIs satisfaction, complétion, affluence horaire 24h, classement des cours et télémétrie matérielle) et notation 5 étoiles (`POST /metrics/ratings`, `GET /metrics/ratings`) |
 
 ### WebSockets
 
@@ -412,15 +421,16 @@ Les commits restent locaux jusqu'à ce qu'une machine avec accès GitHub (hors L
 
 Bobine repose sur une **interface frontend unique et unifiée** construite avec Next.js 16 (App Router) et exportée statiquement (`npm run build` → `frontend/out`). Cette interface est partagée et embarquée de manière identique sur **tous les profils de déploiement**.
 
-### 10.1 Cartographie des 18 routes de l'interface (+ `/` redirigeant vers `/dashboard-cable`)
+### 10.1 Cartographie des 19 routes de l'interface (+ `/` redirigeant vers `/dashboard-cable`)
 
 | Catégorie | Route(s) | Description & Particularités multi-OS |
 |---|---|---|
 | **Diffusion & Kiosque** | `/kiosk` | Kiosque automatique plein écran (programmation, inter-cours, démarrage direct sans délai). Horloge avec `suppressHydrationWarning` et synchronisation réseau (`/api/time`). |
-| | `/cinema` | Vitrine de sélection « Apple TV » avec héros, rangées par catégorie et télécommande HID. En mode Pupitre Studio double écran (`dual_screen`), l'écran externe affiche un écran de veille passif *« En attente d'un cours »* pendant que la sélection s'opère sur la console tactile `/grid` ; en mode Headless (`headless`), l'écran externe présente directement la grille interactive complète. |
-| | `/grid` | Interface de sélection tactile et régie dédiée (tablettes Android, ordinateurs portables en mode Pupitre Studio). **Pilote exclusivement le canal câblé (HDMI)** (aucun équivalent réseau, administré via `/dashboard-network`). Supporte la navigation tactile, souris, télécommandes HID et manettes de jeu avec anti-rebond et lissage monotone du temps (cf. [`docs/cahier-des-charges-affichage-hybride.md`](cahier-des-charges-affichage-hybride.md)). |
+| | `/cinema` | Vitrine de sélection « Apple TV » avec héros, rangées par catégorie, télécommande HID et **Moteur Vidéo Gapless A/B Deck** (double décodeur sans écran noir). En mode Pupitre Studio double écran (`dual_screen`), l'écran externe affiche un écran de veille passif *« En attente d'un cours »* pendant que la sélection s'opère sur la console tactile `/grid` ; en mode Headless (`headless`), l'écran externe présente directement la grille interactive complète. Notation 5 étoiles sur l'écran de fin. |
+| | `/grid` | Interface de sélection tactile et régie dédiée (tablettes Android, ordinateurs portables en mode Pupitre Studio). **Pilote exclusivement le canal câblé (HDMI)** (aucun équivalent réseau, administré via `/dashboard-network`). Supporte la navigation tactile, souris, télécommandes HID et manettes de jeu avec anti-rebond et lissage monotone du temps. Évaluation 5 étoiles tactile à la fin du cours. (cf. [`docs/cahier-des-charges-affichage-hybride.md`](cahier-des-charges-affichage-hybride.md)). |
 | **Régies & Contrôle** | `/dashboard-cable`<br>`/dashboard-network` | Tableaux de bord de contrôle indépendant pour les canaux Câblé et Réseau (déclenchement direct, reprise, volume, fondu). |
-| **Administration** | `/settings` | Gestionnaire de configuration : 16 thèmes (dont la paire minérale « Charbon » / « Charbon Sombre », clair et sombre, certifiés WCAG AA/AAA), sélecteur de mode d'affichage câblé (Pupitre Studio double écran vs Headless), actualisation réseau dynamique (polling 15s + bouton manuel), supervision CPU/RAM résiliente sous SELinux Android, sauvegarde/restauration ZIP. |
+| **Administration** | `/settings` | Gestionnaire de configuration : 16 thèmes (dont la paire minérale « Charbon » / « Charbon Sombre », clair et sombre, certifiés WCAG AA/AAA), sélecteur de mode d'affichage câblé (Pupitre Studio double écran vs Headless), actualisation réseau dynamique (polling 15s + bouton manuel), supervision complète (CPU, GPU, RAM, Stockage, Puissance en W, Températures, Uptime), sauvegarde/restauration ZIP. |
+| | `/metrics` | Tableau de bord analytique et assiduité (Bêta 3.0.5) : 4 indicateurs clés (satisfaction moyenne 5★, taux de complétion ≥90%, volume de diffusion en heures, nombre de séances), histogramme 24h d'affluence horaire CSS pur, palmarès des cours plébiscités et télémétrie matérielle temps réel. |
 | | `/library` | Bibliothèque vidéo avec métadonnées, durée et upload universel de miniatures personnalisées (`PUT /api/videos/{id}/thumbnail` via Pillow, sans dépendance ffmpeg). |
 | | `/playlists`<br>`/backgrounds`<br>`/schedule`<br>`/logs` | Gestion des listes ordonnées, fonds animés, programmation horaire récurrente (APScheduler) et inspection des journaux système. |
 | **Mode Coach Audio** | `/audio`<br>`/audio-playlists`<br>`/coach` | Playlists musicales rythmées avec minutage automatique, décompte et association d'arrière-plans vidéo synchronisés. |
