@@ -411,8 +411,8 @@ Bobine repose sur une **interface frontend unique et unifiée** construite avec 
 
 | Catégorie | Route(s) | Description & Particularités multi-OS |
 |---|---|---|
-| **Diffusion & Kiosque** | `/kiosk` | Kiosque automatique plein écran (programmation, inter-cours, vidéo de lancement). Horloge avec `suppressHydrationWarning` et synchronisation réseau (`/api/time`). |
-| | `/cinema` | Vitrine de sélection « Apple TV » avec héros, rangées par catégorie et télécommande HID. Sur profil Android avec écran HDMI connecté (`isAndroidHdmiScreen`), affiche un écran de veille passif *« En attente d'un cours »*. |
+| **Diffusion & Kiosque** | `/kiosk` | Kiosque automatique plein écran (programmation, inter-cours, démarrage direct sans délai). Horloge avec `suppressHydrationWarning` et synchronisation réseau (`/api/time`). |
+| | `/cinema` | Vitrine de sélection « Apple TV » avec héros, rangées par catégorie et télécommande HID. En mode Pupitre Studio double écran (`dual_screen`), l'écran externe affiche un écran de veille passif *« En attente d'un cours »* pendant que la sélection s'opère sur la console tactile `/grid` ; en mode Headless (`headless`), l'écran externe présente directement la grille interactive complète. |
 | | `/grid` | Interface de sélection tactile et régie dédiée (tablettes Android, ordinateurs portables en mode Pupitre Studio). Permet de lancer et piloter la lecture sans superposition sur l'écran TV (cf. [`docs/cahier-des-charges-affichage-hybride.md`](cahier-des-charges-affichage-hybride.md)). |
 | **Régies & Contrôle** | `/dashboard-cable`<br>`/dashboard-network` | Tableaux de bord de contrôle indépendant pour les canaux Câblé et Réseau (déclenchement direct, reprise, volume, fondu). |
 | **Administration** | `/settings` | Gestionnaire de configuration : 16 thèmes (dont la paire minérale « Charbon » / « Charbon Sombre », clair et sombre, certifiés WCAG AA/AAA), sélecteur de mode d'affichage câblé (Pupitre Studio double écran vs Headless), actualisation réseau dynamique (polling 15s + bouton manuel), supervision CPU/RAM résiliente sous SELinux Android, sauvegarde/restauration ZIP. |

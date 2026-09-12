@@ -68,20 +68,12 @@ _WRITABLE_NUMERIC_FIELDS = {
     "radio_announcement_fade_ms",
 }
 _WRITABLE_STRING_FIELDS = {"theme", "language", "active_logo", "update_channel", "wired_display_mode"}
-# Animation de lancement (réf. mission "activer/désactiver l'animation mp4") :
-# suit le pattern des champs STRING (theme/language) ci-dessus, PAS celui des
-# champs numériques — ces derniers ne sont réappliqués à `runtime_settings`
-# qu'au redémarrage via un cast `int()` en dur (app/config.py::_apply_db_overrides),
-# inadapté à un booléen. Un champ bool relu directement depuis la DB à chaque
-# `GET /api/settings` (comme theme/language) évite ce piège sans y toucher.
-_WRITABLE_BOOL_FIELDS = {"intro_animation_enabled"}
 _DEFAULTS = {
     # "clair" (réf. mission "thème par défaut") : version claire du thème
     # Les Mills par défaut — même accent rouge (#e4002b) que
     # "les-mills-sombre", premier écran vu à l'installation.
     "theme": "clair",
     "language": "fr",
-    "intro_animation_enabled": "true",
     "active_logo": "default",
     # Canal de mise à jour (réf. mission "Programme Bobine Beta") : "stable"
     # par défaut pour tout le monde — rejoindre la bêta est un choix
@@ -128,7 +120,6 @@ class SettingsUpdate(BaseModel):
     radio_announcement_fade_ms: int | None = None
     theme: str | None = None
     language: str | None = None
-    intro_animation_enabled: bool | None = None
     active_logo: str | None = None
     update_channel: str | None = None
     wired_display_mode: str | None = None
@@ -181,9 +172,6 @@ def _get_local_ip() -> str | None:
 def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
     theme = _get_db_value(db, "theme") or _DEFAULTS["theme"]
     language = _get_db_value(db, "language") or _DEFAULTS["language"]
-    intro_animation_enabled = (
-        _get_db_value(db, "intro_animation_enabled") or _DEFAULTS["intro_animation_enabled"]
-    ) == "true"
     has_custom = _logo_path().exists()
     active_logo = _get_db_value(db, "active_logo") or _DEFAULTS["active_logo"]
     if active_logo == "custom" and not has_custom:
@@ -204,7 +192,6 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "deployment_profile": get_deployment_profile(),
         "theme": theme,
         "language": language,
-        "intro_animation_enabled": intro_animation_enabled,
         "has_custom_logo": has_custom,
         "active_logo": active_logo,
         # Programme Bobine Beta (réf. mission "canal Stable/Bêta") : "stable"
@@ -457,10 +444,6 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
                     status_code=400,
                     detail="Mode d'affichage câblé invalide (attendu 'dual_screen' ou 'headless')",
                 )
-        elif key in _WRITABLE_BOOL_FIELDS and value is not None:
-            # "true"/"false" minuscule (pas str(bool(...)) => "True"/"False")
-            # pour rester cohérent avec la lecture `== "true"` de get_settings().
-            stored_value = "true" if value else "false"
 
         row = db.query(Setting).filter(Setting.key == key).first()
         if row:
@@ -484,13 +467,11 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
     # qu'une fois au montage — un changement décidé depuis l'admin pendant
     # que /cinema ou un autre écran était déjà ouvert n'y apparaissait donc
     # jamais sans rechargement manuel. Diffusé uniquement si l'un des deux a
-    # effectivement changé (ou l'animation de lancement, même besoin : les
-    # kiosques tournent 24/7 sans rechargement), pour ne pas générer de
-    # trafic WebSocket inutile à chaque réglage numérique (countdown, volume...).
+    # effectivement changé (les kiosques tournent 24/7 sans rechargement),
+    # pour ne pas générer de trafic WebSocket inutile à chaque réglage numérique (countdown, volume...).
     if (
         "theme" in updates
         or "language" in updates
-        or "intro_animation_enabled" in updates
         or "active_logo" in updates
         or "wired_display_mode" in updates
     ):
@@ -498,7 +479,6 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
             "event": "settings_change",
             "theme": result["theme"],
             "language": result["language"],
-            "intro_animation_enabled": result["intro_animation_enabled"],
             "has_custom_logo": result["has_custom_logo"],
             "active_logo": result["active_logo"],
             "wired_display_mode": result["wired_display_mode"],

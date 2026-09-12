@@ -109,11 +109,6 @@ export interface PlaybackEvent {
   client_ts?: number;
   channel?: PlaybackChannel;
   data: PlaybackState;
-  // Présent uniquement sur cause "load" (réf. mission "la vidéo de lancement
-  // suffit à cadencer le lancement") : indique au kiosk s'il doit jouer
-  // Lancement.mp4 avant de révéler ce cours, ou l'enchaîner directement
-  // (suite de playlist, navigation préc./suiv., reprise interrompue).
-  play_intro?: boolean;
   // Présent uniquement sur cause "position_tick" (réf. renforcement réseaux
   // imparfaits) : numéro de séquence incrémental propre au canal, jamais
   // réinitialisé — sert à détecter un tick perdu en silence côté client.

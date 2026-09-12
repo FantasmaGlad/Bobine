@@ -263,7 +263,7 @@ async def resume_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session =
         raise HTTPException(status_code=404, detail="La vidéo interrompue n'existe plus dans la bibliothèque")
 
     await manager.load(
-        video.id, video.title, video.duration_seconds, video.program, play_intro=False,
+        video.id, video.title, video.duration_seconds, video.program,
         thumbnail_url=_thumbnail_filename(video.thumbnail_path),
         description=video.description, audio_channels=video.audio_channels,
         audio_codec=video.audio_codec, fps=video.fps, bitrate_kbps=video.bitrate_kbps,

@@ -109,9 +109,8 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
 
         # Une programmation vidéo doit pouvoir prendre le relais sur un fond animé (F9.2 "prise de relais")
         await manager.load(video_id=42, title="RPM 100", duration_seconds=2700.0)
-        # Bascule directe en lecture : le compte à rebours serveur a été retiré,
-        # le pacing est désormais l'animation Lancement.mp4 côté kiosk (réf.
-        # refactor "retrait du minuteur autonome").
+        # Bascule directe en lecture : démarrage immédiat du cours
+        # sans compte à rebours ni vidéo intermédiaire.
         self.assertEqual(manager.state["state"], "playing")
         self.assertIsNone(manager.state["current_background"])
         self.assertEqual(manager.state["current_video"]["id"], 42)

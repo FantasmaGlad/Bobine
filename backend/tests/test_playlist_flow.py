@@ -136,8 +136,7 @@ class TestPlaylistFlow(unittest.IsolatedAsyncioTestCase):
         await manager.load_playlist(pl["id"], pl["name"], items_data)
         
         # Check initial state: bascule directe en lecture du premier cours
-        # (le pacing du lancement est désormais l'animation Lancement.mp4 côté
-        # kiosk, plus d'état serveur "countdown" intermédiaire).
+        # (démarrage immédiat sans vidéo ni minuteur intermédiaire).
         self.assertEqual(manager.state["state"], "playing")
         self.assertEqual(manager.state["current_video"]["id"], self.video1.id)
         self.assertEqual(manager.state["playlist_name"], "Flow Playlist")

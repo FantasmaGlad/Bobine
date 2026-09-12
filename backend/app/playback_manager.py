@@ -92,7 +92,7 @@ class PlaybackManager:
     def snapshot(self) -> dict:
         return dict(self.state)
 
-    async def _emit(self, cause: str, client_ts: float | None = None, play_intro: bool | None = None):
+    async def _emit(self, cause: str, client_ts: float | None = None):
         payload: dict[str, Any] = {
             "event": "state_change",
             "cause": cause,
@@ -104,14 +104,6 @@ class PlaybackManager:
         if cause == "position_tick":
             self._tick_seq += 1
             payload["tick_seq"] = self._tick_seq
-        # Signal transitoire (pas persisté dans self.state) : indique au kiosk
-        # s'il doit jouer l'animation Lancement.mp4 avant de démarrer ce cours
-        # (réf. mission "la vidéo de lancement suffit à cadencer le
-        # lancement" — plus de compte à rebours serveur, c'est la durée
-        # propre de cette vidéo qui pace l'affichage). Absent pour toute
-        # cause autre que "load".
-        if play_intro is not None:
-            payload["play_intro"] = play_intro
         await self._broadcast(payload)
 
     def _cancel_waiting(self):
@@ -177,7 +169,6 @@ class PlaybackManager:
         program: str | None = None,
         client_ts: float | None = None,
         keep_playlist: bool = False,
-        play_intro: bool = True,
         thumbnail_url: str | None = None,
         description: str | None = None,
         audio_channels: int | None = None,
@@ -188,15 +179,7 @@ class PlaybackManager:
         height: int | None = None,
     ):
         """
-        Lance un cours. Bascule directement en lecture : le pacing du
-        lancement n'est plus un compte à rebours serveur (ancien
-        countdown_seconds), mais l'animation Lancement.mp4 elle-même, jouée
-        et cadencée entièrement côté kiosk (réf. mission point 4 bis — "la
-        vidéo suffit à cadencer le lancement"). `play_intro` indique juste au
-        kiosk s'il doit la jouer avant de révéler ce cours (lancement
-        explicite) ou l'enchaîner directement (suite de playlist, navigation
-        préc./suiv., reprise d'une lecture interrompue — l'attente a déjà eu
-        lieu, pas de double délai).
+        Lance un cours directement en lecture.
         """
         self.state["current_background"] = None
         self._clear_audio_coach()
@@ -225,7 +208,7 @@ class PlaybackManager:
         self.state["position_seconds"] = 0.0
         self.state["volume"] = self.state.get("volume", settings.volume_default)
         self.state["state"] = PlaybackStateEnum.playing.value
-        await self._emit("load", client_ts, play_intro=play_intro)
+        await self._emit("load", client_ts)
 
     async def load_playlist(
         self,
@@ -323,7 +306,6 @@ class PlaybackManager:
                 program=next_item.get("program"),
                 client_ts=client_ts,
                 keep_playlist=True,
-                play_intro=False,  # Pas d'animation de lancement entre deux vidéos d'une même playlist
                 thumbnail_url=next_item.get("thumbnail_url"),
                 description=next_item.get("description"),
                 audio_channels=next_item.get("audio_channels"),
@@ -362,7 +344,6 @@ class PlaybackManager:
             program=prev_item.get("program"),
             client_ts=client_ts,
             keep_playlist=True,
-            play_intro=False,
             thumbnail_url=prev_item.get("thumbnail_url"),
             description=prev_item.get("description"),
             audio_channels=prev_item.get("audio_channels"),

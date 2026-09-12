@@ -44,7 +44,7 @@ interface NextCourse {
 }
 
 export default function KioskPage() {
-  const { t, launchAnimationEnabled } = useAppSettings();
+  const { t } = useAppSettings();
   // Canal de diffusion de CE kiosk (réf. mission "Tableau de bord Câblé /
   // Réseau") : l'écran câblé du Wyse (accès en 127.0.0.1/localhost) suit
   // l'état du canal câblé, tout autre appareil du LAN celui du canal réseau.
@@ -78,9 +78,6 @@ export default function KioskPage() {
   // dont l'horloge système peut être décalée si NTP n'a pas encore synchro.
   const clockOffsetRef = useRef<number>(0);
   const [nextCourse, setNextCourse] = useState<NextCourse | null>(null);
-  // Vidéo d'animation de lancement (réf. mission point 4) : jouée à chaque
-  // entrée en état "countdown", à la place de l'ancien anneau chiffré.
-  const introRef = useRef<HTMLVideoElement | null>(null);
   // Tick rapide (réf. audit plan-corrections-bugs, point 7) : force un
   // re-rendu à 5 Hz pour que le compte à rebours avant lancement et le
   // minuteur s'affichent en interpolation locale continue plutôt que par
@@ -171,9 +168,11 @@ export default function KioskPage() {
   const tryPlay = useCallback((el: HTMLMediaElement | null | undefined) => {
     if (!el) return;
     el.play().catch(() => {
-      el.muted = true;
-      el.play().catch(() => {});
-      if (channel === "network") setNeedsAudioUnlock(true);
+      if (channel === "network") {
+        el.muted = true;
+        el.play().catch(() => {});
+        setNeedsAudioUnlock(true);
+      }
     });
   }, [channel]);
 
@@ -193,11 +192,10 @@ export default function KioskPage() {
 
   const handleEvent = useCallback(
     (evt: PlaybackEvent) => {
-      const { cause, data, client_ts, play_intro } = evt;
+      const { cause, data, client_ts } = evt;
       const video = videoRef.current;
       const bgVideo = bgVideoRef.current;
       const audio = audioRef.current;
-      const intro = introRef.current;
 
       if (client_ts) {
         // Instrumentation de latence commande -> effet écran (cible < 500 ms, réf. NF4 / tâche 3.10).
@@ -237,14 +235,13 @@ export default function KioskPage() {
       };
 
       // Repli "métadonnées pas encore chargées" (réf. retour utilisateur
-      // 2026-07-21 "le cours sur la télé (réseau) ne se lance jamais, ni
-      // l'intro" — TV sur une liaison réseau lente qui reconnecte son
-      // WebSocket toutes les ~30s tant que la mise en tampon n'a pas abouti) :
-      // assigner `currentTime` avant HAVE_METADATA lève une exception dans
-      // certains navigateurs/WebView embarqués, ce qui empêchait alors
-      // silencieusement le tryPlay() suivant sur la même ligne — retenté à
-      // chaque reconnexion, sans jamais aboutir. On diffère l'assignation
-      // jusqu'à `loadedmetadata` plutôt que de suivre en aveugle.
+      // "le cours sur la télé (réseau) ne se lance jamais" — TV sur une liaison
+      // réseau lente qui reconnecte son WebSocket toutes les ~30s tant que
+      // la mise en tampon n'a pas abouti) : assigner `currentTime` avant
+      // HAVE_METADATA lève une exception dans certains navigateurs/WebView
+      // embarqués, ce qui empêchait alors silencieusement le tryPlay() suivant —
+      // retenté à chaque reconnexion, sans jamais aboutir. On diffère
+      // l'assignation jusqu'à `loadedmetadata` plutôt que de suivre en aveugle.
       const seekWhenReady = (el: HTMLMediaElement, position: number) => {
         const apply = () => {
           try {
@@ -314,11 +311,7 @@ export default function KioskPage() {
           // Resynchronisation (reconnexion, redémarrage du serveur) : on
           // décharge d'abord tout média que l'état serveur ne référence plus,
           // sinon un cours chargé avant un redémarrage backend continuerait
-          // de jouer alors que le serveur est repassé en attente. Pas de
-          // rejeu de l'animation de lancement ici (elle n'est déclenchée que
-          // par la cause "load" elle-même) : ce client rejoint directement
-          // l'état réel du cours en cours, avance ou non.
-          setIntroActive(false);
+          // de jouer alors que le serveur est repassé en attente.
           if (!data.current_video) unloadMedia(video);
           if (!backgroundId || backgroundIsImage) unloadMedia(bgVideo);
           if (!data.current_audio_course) unloadMedia(audio);
@@ -423,7 +416,7 @@ export default function KioskPage() {
           if (!video || !data.current_video) break;
           video.src = getApiUrl(`/videos/${data.current_video.id}/stream`);
           // Pas d'assignation explicite de currentTime ici (réf. correctif
-          // "le cours sur la télé réseau ne se lance jamais, ni l'intro") :
+          // "le cours sur la télé réseau ne se lance jamais") :
           // une nouvelle src remet déjà la position à 0 nativement, et
           // l'assigner nous-mêmes avant HAVE_METADATA lève une exception
           // dans certains navigateurs/WebView embarqués — exactement le même
@@ -433,37 +426,7 @@ export default function KioskPage() {
           applyVolume(video);
           video.playbackRate = data.speed;
           video.load();
-          // Pacing du lancement (réf. mission "la vidéo de lancement suffit à
-          // cadencer le lancement") : sur l'écran câblé, on joue Lancement.mp4
-          // en overlay et c'est SA fin (onEnded) qui déclenche tryPlay(video)
-          // ci-dessous.
-          //
-          // PAS sur le réseau (réf. correctif "critique kiosk/réseau — reste
-          // gelé sur la première frame") : même une fois l'intro elle-même
-          // protégée contre la mise en tampon (cf. onCanPlay plus bas), faire
-          // dépendre le démarrage du COURS de la fin d'une SECONDE vidéo
-          // (l'intro) ajoute un aller-retour de bufferisation de plus avant
-          // que quoi que ce soit de réel ne s'affiche sur un appareil réseau
-          // dont la bande passante est imprévisible — c'est justement cette
-          // couche intermédiaire qui restait bloquée. Sur le réseau, on lance
-          // donc directement le cours réel : il s'affiche dès que le
-          // navigateur a assez mis en tampon pour peindre une image, sans
-          // compte à rebours ni animation intercalée.
-          if (play_intro && intro && channel === "cable" && launchAnimationEnabled) {
-            const introAlreadyReady = intro.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA;
-            setIntroReady(introAlreadyReady);
-            setIntroActive(true);
-            // Contrairement à `video`, `intro` garde la même src d'un cours à
-            // l'autre : sa position ne revient donc pas à 0 toute seule et
-            // doit être remise explicitement, mais via seekWhenReady pour ne
-            // pas re-tomber dans le piège pré-métadonnées.
-            seekWhenReady(intro, 0);
-            intro.muted = false;
-            if (introAlreadyReady) tryPlay(intro);
-          } else {
-            setIntroActive(false);
-            tryPlay(video);
-          }
+          tryPlay(video);
           break;
         }
         case "load_background": {
@@ -524,8 +487,6 @@ export default function KioskPage() {
           }
           break;
         case "stop":
-          setIntroActive(false);
-          if (intro) intro.pause();
           if (video) {
             video.pause();
             video.removeAttribute("src");
@@ -571,7 +532,7 @@ export default function KioskPage() {
           break;
       }
     },
-    [showOsd, tryPlay, launchAnimationEnabled]
+    [showOsd, tryPlay]
   );
 
   const { state, sendCommand, isPrimary, displayOutputCable, displayOutputNetwork } = usePlaybackSocket(handleEvent, "kiosk", channel);
@@ -582,22 +543,6 @@ export default function KioskPage() {
   // navigue vers /cinema si SON canal (câblé si c'est l'écran du Wyse,
   // réseau sinon) est passé en mode cinéma.
   useDisplayOutputRedirect("kiosk", displayOutputCable, displayOutputNetwork);
-
-  // Animation de lancement Lancement.mp4 (réf. mission "la vidéo de
-  // lancement suffit à cadencer le lancement") : plus de compte à rebours
-  // serveur — `introActive` est piloté directement par handleEvent (cause
-  // "load", cf. ci-dessus) et sa propre fin (onEnded, plus bas dans le JSX)
-  // déclenche le démarrage du cours réel. Le pacing est donc entièrement
-  // celui de cette vidéo, pas d'un minuteur découplé.
-  const [introActive, setIntroActive] = useState(false);
-  // introReady (réf. retour utilisateur "l'animation ne se lance pas sur le
-  // réseau", 2026-07-20) : sur une connexion réseau lente/chargée, la vidéo
-  // (~13 Mo) peut ne pas avoir bufferisé la moindre image tout de suite —
-  // révéler ce calque avant ça produirait un écran NOIR (l'élément <video>
-  // existe mais n'a rien à peindre). On ne le révèle donc qu'une fois
-  // l'évènement `canplay` reçu, en laissant l'écran d'attente précédent
-  // visible entre-temps plutôt qu'un noir garanti.
-  const [introReady, setIntroReady] = useState(false);
 
   const handleTimeUpdate = () => {
     const video = videoRef.current;
@@ -697,11 +642,7 @@ export default function KioskPage() {
   // clair).
   const programAccent = "var(--accent-primary)";
   const isIdle = state.state === "waiting" || state.state === "offline";
-  // L'animation de lancement occulte la vraie vidéo tant qu'elle joue (réf.
-  // "la vidéo de lancement suffit à cadencer le lancement") : le serveur
-  // passe désormais directement en "playing" au chargement, sans état
-  // intermédiaire — c'est ce drapeau LOCAL qui retarde la révélation.
-  const isVideoLayer = (state.state === "playing" || state.state === "paused") && !introActive;
+  const isVideoLayer = state.state === "playing" || state.state === "paused";
   const isPaused = state.state === "paused";
   const isCoachMode = state.state === "coach_mode";
   const coachBackgroundId = state.current_background?.id ?? state.current_audio_course?.background_id ?? null;
@@ -740,7 +681,7 @@ export default function KioskPage() {
           une fraction de LARGEUR plus grande sur un écran étroit à hauteur
           égale. Les positions en % reprennent à l'identique l'ancien
           habillage. */}
-      <div className={`kiosk-layer kiosk-waiting ${isIdle || (introActive && !introReady) ? "visible" : ""}`}>
+      <div className={`kiosk-layer kiosk-waiting ${isIdle ? "visible" : ""}`}>
         <div className="kiosk-waiting-content">
           <span className="kiosk-waiting-clock" suppressHydrationWarning>{formatClock(now)}</span>
           <div className="kiosk-waiting-logo-wrap">
@@ -786,33 +727,6 @@ export default function KioskPage() {
         ) : (
           <span className="kiosk-waiting-sub">{t("kiosk.playlistEnd")}</span>
         )}
-      </div>
-
-      {/* Animation de lancement (réf. mission "la vidéo de lancement suffit à
-          cadencer le lancement") : jouée en overlay avant chaque cours lancé
-          explicitement (pas entre deux vidéos d'une même playlist). C'est sa
-          propre fin (onEnded) qui démarre le cours réel — plus de minuteur
-          serveur découplé de sa durée. */}
-      <div className={`kiosk-layer kiosk-countdown ${introActive && introReady ? "visible" : ""}`}>
-        <video
-          ref={introRef}
-          className="kiosk-video"
-          src="/lancement.mp4"
-          preload="auto"
-          playsInline
-          onCanPlay={() => {
-            // Démarre la lecture ICI plutôt qu'au moment du "load" (voir
-            // handleEvent ci-dessus) quand l'intro n'était pas encore prête :
-            // c'est exactement l'instant où la couche devient visible, donc
-            // celui où sa lecture doit réellement commencer.
-            setIntroReady(true);
-            tryPlay(introRef.current);
-          }}
-          onEnded={() => {
-            setIntroActive(false);
-            tryPlay(videoRef.current);
-          }}
-        />
       </div>
 
       <div className={`kiosk-layer kiosk-video-layer ${isVideoLayer ? "visible" : ""}`}>

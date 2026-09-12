@@ -105,7 +105,7 @@ const UP_NEXT_AUTOPLAY_SECONDS = 5 * 60;
 // toutes les 15 minutes.
 const SCRAMBLE_INTERVAL_MS = 15 * 60 * 1000;
 
-type Phase = "grid" | "countdown" | "playing" | "ended";
+type Phase = "grid" | "playing" | "ended";
 
 // Fraction de la largeur visible parcourue à chaque clic sur une flèche.
 const ROW_SCROLL_FRACTION = 0.85;
@@ -289,35 +289,18 @@ const CinemaAllList = React.memo(function CinemaAllList({
  * Wyse ou sur un appareil du réseau.
  */
 export default function CinemaPage() {
-  const { t, launchAnimationEnabled, wiredDisplayMode } = useAppSettings();
+  const { t, wiredDisplayMode } = useAppSettings();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [videos, setVideos] = useState<CinemaVideo[]>([]);
   const [phase, setPhase] = useState<Phase>("grid");
   const [selected, setSelected] = useState<CinemaVideo | null>(null);
-  // Écran HDMI passif (Lot 14 et Cahier des charges affichage hybride) :
-  // En mode double écran ("dual_screen" sur sortie câblée physique), /grid
-  // (écran intégré du laptop ou écran tactile de la tablette) est l'unique
-  // surface de pilotage (lancement/avance/recul/pause/retrait).
-  // Les commandes de superposition sur cet écran n'ont donc plus lieu d'être,
-  // et l'écran affiche une attente sobre lorsqu'aucun cours n'est diffusé.
-  // En mode classique / "headless", cet écran reste autonome avec ses contrôles.
-  const [isAndroidHdmiScreen, setIsAndroidHdmiScreen] = useState(false);
-  useEffect(() => {
-    fetch(getApiUrl("/settings"), { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.deployment_profile === "android" && isWiredDisplay()) {
-          setIsAndroidHdmiScreen(true);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   // Masquage des contrôles HDMI & mode passif (CDC §4.2 affichage hybride) :
   // En mode double écran ("dual_screen" sur sortie câblée physique), /grid
   // (écran tactile ou laptop) pilote tout — les contrôles de superposition
   // sont masqués et l'écran HDMI affiche une attente sobre lorsqu'aucun cours ne joue.
-  const hideControls = isAndroidHdmiScreen || (wiredDisplayMode === "dual_screen" && isWiredDisplay());
+  // En mode classique / "headless", cet écran reste autonome avec ses contrôles et sa vitrine complète.
+  const hideControls = wiredDisplayMode === "dual_screen" && isWiredDisplay();
 
   // Horloge de l'écran d'attente « bibliothèque vide » (voir plus bas) :
   // quand aucun cours n'est disponible, la vitrine n'a ni héros ni logo et se
@@ -328,31 +311,7 @@ export default function CinemaPage() {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
-  // Vidéo d'animation de lancement, rejouée du début à chaque sélection.
-  // introReady : voir kiosk/page.tsx (même correctif, réf. retour utilisateur
-  // "l'animation ne se lance pas sur le réseau") — sur une connexion lente,
-  // ce calque peut ne rien avoir à peindre au tout début ; on ne le révèle
-  // qu'une fois une image réellement décodée (`canplay`). C'est la fin de
-  // cette vidéo (onEnded, réf. mission "la vidéo de lancement suffit à
-  // cadencer le lancement") qui démarre le cours, pas un minuteur séparé.
-  const introRef = useRef<HTMLVideoElement | null>(null);
-  const [introReady, setIntroReady] = useState(false);
-  useEffect(() => {
-    const el = introRef.current;
-    if (!el) return;
-    if (phase === "countdown") {
-      setIntroReady(el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA);
-      el.currentTime = 0;
-      el.muted = false;
-      el.play().catch(() => {
-        el.muted = true;
-        el.play().catch(() => {});
-      });
-    } else {
-      el.pause();
-      setIntroReady(false);
-    }
-  }, [phase]);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [needsTapToPlay, setNeedsTapToPlay] = useState(false);
   const [position, setPosition] = useState(0);
@@ -468,6 +427,8 @@ export default function CinemaPage() {
     if (!el) return;
     el.src = getApiUrl(`/videos/${video.id}/stream`);
     el.currentTime = 0;
+    el.volume = 1.0;
+    el.muted = false;
     el.load();
     setNeedsTapToPlay(false);
     // Arme l'auto-masquage dès le début de la lecture (cf. commentaire sur
@@ -483,11 +444,10 @@ export default function CinemaPage() {
         setIsPlaying(false);
         setNeedsTapToPlay(true);
       });
-  }, []);
+  }, [wakeControls]);
 
-  // Lancement direct sans compte à rebours (bouton "Lancer maintenant" et
-  // autoplay du "À suivre" : l'attente a déjà eu lieu, pas de double délai).
-  const playImmediately = useCallback(
+  // Lancement direct sans délai ni animation d'introduction
+  const handleSelect = useCallback(
     (video: CinemaVideo) => {
       clearUpNextTask();
       setUpNext(null);
@@ -499,30 +459,7 @@ export default function CinemaPage() {
     [startPlayback],
   );
 
-  // useCallback (réf. correctif "cinéma lent/lagué") : une référence stable
-  // permet à CinemaRow (React.memo ci-dessous) de ne PAS se re-rendre à
-  // chaque tick de position vidéo — sans ça, chaque frappe de `onTimeUpdate`
-  // recréait cette fonction, invalidant la mémoïsation et forçant React à
-  // réconcilier toute la grille (potentiellement des dizaines de cartes),
-  // pourtant masquée derrière la vidéo, sur le CPU/GPU modeste du Wyse.
-  const handleSelect = useCallback((video: CinemaVideo) => {
-    clearUpNextTask();
-    setUpNext(null);
-    // Toggle "animation de lancement" (réf. mission "activer/désactiver
-    // l'animation mp4") : quand désactivée, on saute directement à la
-    // lecture par la même voie que "Lancer maintenant"/l'autoplay du "À
-    // suivre", sans passer par la phase "countdown" (intro).
-    if (!launchAnimationEnabled) {
-      playImmediately(video);
-      return;
-    }
-    setSelected(video);
-    setPosition(0);
-    // Animation de lancement (réf. mission "la vidéo de lancement suffit à
-    // cadencer le lancement") : sa propre fin (onEnded, plus bas dans le
-    // JSX) démarre la lecture — plus de minuteur découplé de sa durée.
-    setPhase("countdown");
-  }, [launchAnimationEnabled, playImmediately]);
+  const playImmediately = handleSelect;
 
   const handleBackToMenu = useCallback(() => {
     clearUpNextTask();
@@ -686,9 +623,6 @@ export default function CinemaPage() {
         onEnter: () => activateDomFocus(CINEMA_GRID_CARDS),
         onPlayPause: () => activateDomFocus(CINEMA_GRID_CARDS),
       };
-    }
-    if (phase === "countdown") {
-      return { onBack: handleBackToMenu };
     }
     if (phase === "playing") {
       return {
@@ -858,9 +792,8 @@ export default function CinemaPage() {
   }, [phase, selected, sendCommand]);
 
   const isPlayingLayer = phase === "playing";
-  const isCountdown = phase === "countdown";
   const isEnded = phase === "ended";
-  const showGrid = phase === "grid" || (phase === "countdown" && !introReady);
+  const showGrid = phase === "grid";
 
   const programAccent = "var(--accent-primary)";
   const duration = selected?.duration_seconds ?? 0;
@@ -1077,31 +1010,12 @@ export default function CinemaPage() {
         </div>
       )}
 
-      {/* Animation de lancement (réf. mission "la vidéo de lancement suffit
-          à cadencer le lancement") : sa propre fin (onEnded) démarre le
-          cours choisi, plus de compte à rebours minuté séparément. */}
-      <div className={`cinema-layer cinema-countdown ${isCountdown && introReady ? "visible" : ""}`}>
-        <video
-          ref={introRef}
-          className="cinema-video"
-          src="/lancement.mp4"
-          preload="auto"
-          playsInline
-          onCanPlay={() => setIntroReady(true)}
-          onEnded={() => {
-            if (selected) {
-              setPhase("playing");
-              startPlayback(selected);
-            }
-          }}
-        />
-      </div>
-
       {/* Lecture vidéo plein écran, locale à cet appareil */}
       <div className={`cinema-layer cinema-video-layer ${isPlayingLayer ? "visible" : ""}`}>
         <video
           ref={videoRef}
           className="cinema-video"
+          preload="auto"
           onTimeUpdate={(e) => {
             if (e.currentTarget.seeking) return;
             const now = Date.now();

@@ -62,8 +62,6 @@ interface AppSettingsContextValue {
    * — sans ce compteur, le navigateur pourrait servir l'ancien fichier
    * depuis son cache. */
   logoVersion: number;
-  launchAnimationEnabled: boolean;
-  setLaunchAnimationEnabled: (value: boolean) => void;
   refreshBranding: () => void;
   wiredDisplayMode: WiredDisplayMode;
   setWiredDisplayMode: (mode: WiredDisplayMode) => void;
@@ -88,8 +86,6 @@ const AppSettingsContext = createContext<AppSettingsContextValue>({
   activeLogo: "default",
   setActiveLogo: () => {},
   logoVersion: 0,
-  launchAnimationEnabled: true,
-  setLaunchAnimationEnabled: () => {},
   refreshBranding: () => {},
   wiredDisplayMode: DEFAULT_WIRED_DISPLAY_MODE,
   setWiredDisplayMode: () => {},
@@ -124,7 +120,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const [hasCustomLogo, setHasCustomLogo] = useState(false);
   const [activeLogo, setActiveLogoState] = useState<ActiveLogo>("default");
   const [logoVersion, setLogoVersion] = useState(0);
-  const [launchAnimationEnabled, setLaunchAnimationEnabledState] = useState(true);
   const [wiredDisplayMode, setWiredDisplayModeState] = useState<WiredDisplayMode>(DEFAULT_WIRED_DISPLAY_MODE);
 
   const refreshBranding = useCallback(() => {
@@ -155,9 +150,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     }
     if (data.language === "fr" || data.language === "en") {
       setLanguageState(data.language);
-    }
-    if (typeof data.intro_animation_enabled === "boolean") {
-      setLaunchAnimationEnabledState(data.intro_animation_enabled);
     }
     if (typeof data.has_custom_logo === "boolean") {
       setHasCustomLogo(data.has_custom_logo);
@@ -249,10 +241,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
               // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setLanguageState(parsed.language);
             }
-            if (typeof parsed.intro_animation_enabled === "boolean") {
-              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
-              setLaunchAnimationEnabledState(parsed.intro_animation_enabled);
-            }
             if (typeof parsed.has_custom_logo === "boolean") {
               // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setHasCustomLogo(parsed.has_custom_logo);
@@ -335,14 +323,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     [persist]
   );
 
-  const setLaunchAnimationEnabled = useCallback(
-    (value: boolean) => {
-      setLaunchAnimationEnabledState(value);
-      persist({ intro_animation_enabled: value });
-    },
-    [persist]
-  );
-
   const setActiveLogo = useCallback(
     (value: ActiveLogo) => {
       setActiveLogoState(value);
@@ -385,13 +365,11 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       activeLogo,
       setActiveLogo,
       logoVersion,
-      launchAnimationEnabled,
-      setLaunchAnimationEnabled,
       refreshBranding,
       wiredDisplayMode,
       setWiredDisplayMode,
     }),
-    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, launchAnimationEnabled, setLaunchAnimationEnabled, refreshBranding, wiredDisplayMode, setWiredDisplayMode]
+    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode]
   );
 
   return (
