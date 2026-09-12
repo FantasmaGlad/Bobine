@@ -42,7 +42,15 @@ _LAST_ENERGY_SAMPLE_TIME: float = 0.0
 
 def shutil_which(cmd: str) -> bool:
     """Vérifie si une commande existe dans PATH sans lever d'exception."""
-    return shutil.which(cmd) is not None
+    try:
+        return shutil.which(cmd) is not None
+    except Exception:
+        return False
+
+
+def is_android_system() -> bool:
+    """Détecte si l'environnement d'exécution est Android (Chaquopy ou shell Android Linux)."""
+    return hasattr(sys, "getandroidapilevel") or (sys.platform.startswith("linux") and shutil_which("getprop"))
 
 
 def _get_android_prop(prop_name: str) -> str:
@@ -129,7 +137,7 @@ def get_cpu_model_name() -> str:
         return _HARDWARE_CACHE["cpu_name"]
 
     name = ""
-    is_android = hasattr(sys, "getandroidapilevel") or shutil_which("getprop")
+    is_android = is_android_system()
 
     # 1. ANDROID : détection SoC via getprop et sysfs
     if is_android:
@@ -227,7 +235,7 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
     name = _HARDWARE_CACHE["gpu_name"]
     gpu_percent: float | None = None
     gpu_temp: float | None = None
-    is_android = hasattr(sys, "getandroidapilevel") or shutil_which("getprop")
+    is_android = is_android_system()
 
     # 1. ANDROID (Qualcomm Adreno / ARM Mali)
     if is_android:
@@ -451,7 +459,7 @@ def get_power_watts() -> float | None:
     global _LAST_RAPL_CHECK, _LAST_RAPL_ENERGY_UJ
 
     # 1. ANDROID (Chaquopy) : gestion batterie et chargeur secteur
-    if hasattr(sys, "getandroidapilevel") or shutil_which("getprop"):
+    if is_android_system():
         try:
             from com.chaquo.python import Python
             from android.content import Context, Intent, IntentFilter
@@ -495,115 +503,117 @@ def get_power_watts() -> float | None:
         except Exception:
             pass
 
-    # 2. LINUX : Capteurs matériels SoC / APU / GPU / CPU (prioritaires sur la batterie)
-    for h_dir in glob.glob("/sys/class/hwmon/hwmon*"):
-        name_file = os.path.join(h_dir, "name")
-        name = ""
-        if os.path.exists(name_file):
-            try:
-                with open(name_file, "r", encoding="utf-8") as f:
-                    name = f.read().strip().lower()
-            except Exception:
-                pass
-        # On ignore les sondes batterie ici (traitées ci-dessous selon leur statut AC/DC)
-        if "bat" in name or "battery" in name:
-            continue
+    # 2. LINUX (Desktop, Laptop, Wyse Headless) : Capteurs matériels SoC / APU / GPU / RAPL / Batterie
+    if sys.platform.startswith("linux") and not is_android_system():
+        # A. Capteurs matériels SoC / APU / GPU / CPU (prioritaires sur la batterie)
+        for h_dir in glob.glob("/sys/class/hwmon/hwmon*"):
+            name_file = os.path.join(h_dir, "name")
+            name = ""
+            if os.path.exists(name_file):
+                try:
+                    with open(name_file, "r", encoding="utf-8") as f:
+                        name = f.read().strip().lower()
+                except Exception:
+                    pass
+            # On ignore les sondes batterie ici (traitées ci-dessous selon leur statut AC/DC)
+            if "bat" in name or "battery" in name:
+                continue
 
-        for p in glob.glob(os.path.join(h_dir, "power*_input")) + glob.glob(os.path.join(h_dir, "power*_average")):
+            for p in glob.glob(os.path.join(h_dir, "power*_input")) + glob.glob(os.path.join(h_dir, "power*_average")):
+                try:
+                    with open(p, "r", encoding="utf-8") as f:
+                        val = int(f.read().strip())
+                        if 500_000 <= val <= 500_000_000:
+                            return round(val / 1_000_000.0, 1)
+                except Exception:
+                    pass
+
+        # B. Intel / AMD RAPL (Running Average Power Limit) — Idéal Wyse 5070 et serveurs headless
+        for p in glob.glob("/sys/class/powercap/intel-rapl/*/energy_uj"):
             try:
                 with open(p, "r", encoding="utf-8") as f:
-                    val = int(f.read().strip())
-                    if 500_000 <= val <= 500_000_000:
-                        return round(val / 1_000_000.0, 1)
+                    current_energy = int(f.read().strip())
+                now = time.time()
+                if _LAST_RAPL_CHECK > 0 and now > _LAST_RAPL_CHECK:
+                    delta_sec = now - _LAST_RAPL_CHECK
+                    delta_energy = current_energy - _LAST_RAPL_ENERGY_UJ
+                    if delta_sec > 0 and delta_energy > 0:
+                        watts = (delta_energy / 1_000_000.0) / delta_sec
+                        _LAST_RAPL_CHECK = now
+                        _LAST_RAPL_ENERGY_UJ = current_energy
+                        if 0.5 <= watts <= 300.0:
+                            return round(watts, 1)
+                _LAST_RAPL_CHECK = now
+                _LAST_RAPL_ENERGY_UJ = current_energy
+                break
             except Exception:
                 pass
 
-    # 3. LINUX : Intel / AMD RAPL (Running Average Power Limit) — Idéal Wyse 5070 et serveurs headless
-    for p in glob.glob("/sys/class/powercap/intel-rapl/*/energy_uj"):
-        try:
-            with open(p, "r", encoding="utf-8") as f:
-                current_energy = int(f.read().strip())
-            now = time.time()
-            if _LAST_RAPL_CHECK > 0 and now > _LAST_RAPL_CHECK:
-                delta_sec = now - _LAST_RAPL_CHECK
-                delta_energy = current_energy - _LAST_RAPL_ENERGY_UJ
-                if delta_sec > 0 and delta_energy > 0:
-                    watts = (delta_energy / 1_000_000.0) / delta_sec
-                    _LAST_RAPL_CHECK = now
-                    _LAST_RAPL_ENERGY_UJ = current_energy
-                    if 0.5 <= watts <= 300.0:
-                        return round(watts, 1)
-            _LAST_RAPL_CHECK = now
-            _LAST_RAPL_ENERGY_UJ = current_energy
-            break
-        except Exception:
-            pass
+        # C. Gestion intelligente batterie / alimentation secteur (Laptops Linux)
+        is_on_ac = False
+        for ac_dir in glob.glob("/sys/class/power_supply/*"):
+            type_file = os.path.join(ac_dir, "type")
+            online_file = os.path.join(ac_dir, "online")
+            if os.path.exists(type_file) and os.path.exists(online_file):
+                try:
+                    t = open(type_file, "r").read().strip().lower()
+                    o = open(online_file, "r").read().strip()
+                    if t in ("mains", "ac", "usb") and o == "1":
+                        is_on_ac = True
+                        break
+                except Exception:
+                    pass
 
-    # 4. LINUX : Gestion intelligente batterie / alimentation secteur (Laptops)
-    is_on_ac = False
-    for ac_dir in glob.glob("/sys/class/power_supply/*"):
-        type_file = os.path.join(ac_dir, "type")
-        online_file = os.path.join(ac_dir, "online")
-        if os.path.exists(type_file) and os.path.exists(online_file):
-            try:
-                t = open(type_file, "r").read().strip().lower()
-                o = open(online_file, "r").read().strip()
-                if t in ("mains", "ac", "usb") and o == "1":
-                    is_on_ac = True
-                    break
-            except Exception:
-                pass
+        for bat_dir in glob.glob("/sys/class/power_supply/*"):
+            type_file = os.path.join(bat_dir, "type")
+            if os.path.exists(type_file):
+                try:
+                    if open(type_file, "r").read().strip().lower() != "battery":
+                        continue
+                except Exception:
+                    pass
 
-    for bat_dir in glob.glob("/sys/class/power_supply/*"):
-        type_file = os.path.join(bat_dir, "type")
-        if os.path.exists(type_file):
-            try:
-                if open(type_file, "r").read().strip().lower() != "battery":
-                    continue
-            except Exception:
-                pass
+            status_file = os.path.join(bat_dir, "status")
+            status = ""
+            if os.path.exists(status_file):
+                try:
+                    status = open(status_file, "r").read().strip().lower()
+                except Exception:
+                    pass
 
-        status_file = os.path.join(bat_dir, "status")
-        status = ""
-        if os.path.exists(status_file):
-            try:
-                status = open(status_file, "r").read().strip().lower()
-            except Exception:
-                pass
+            power_file = os.path.join(bat_dir, "power_now")
+            curr_file = os.path.join(bat_dir, "current_now")
+            volt_file = os.path.join(bat_dir, "voltage_now")
+            bat_watts = None
 
-        power_file = os.path.join(bat_dir, "power_now")
-        curr_file = os.path.join(bat_dir, "current_now")
-        volt_file = os.path.join(bat_dir, "voltage_now")
-        bat_watts = None
+            if os.path.exists(power_file):
+                try:
+                    val = int(open(power_file, "r").read().strip())
+                    if val > 0:
+                        bat_watts = val / 1_000_000.0
+                except Exception:
+                    pass
+            elif os.path.exists(curr_file) and os.path.exists(volt_file):
+                try:
+                    c = int(open(curr_file, "r").read().strip())
+                    v = int(open(volt_file, "r").read().strip())
+                    if c > 0 and v > 0:
+                        bat_watts = (c * v) / 1_000_000_000_000.0
+                except Exception:
+                    pass
 
-        if os.path.exists(power_file):
-            try:
-                val = int(open(power_file, "r").read().strip())
-                if val > 0:
-                    bat_watts = val / 1_000_000.0
-            except Exception:
-                pass
-        elif os.path.exists(curr_file) and os.path.exists(volt_file):
-            try:
-                c = int(open(curr_file, "r").read().strip())
-                v = int(open(volt_file, "r").read().strip())
-                if c > 0 and v > 0:
-                    bat_watts = (c * v) / 1_000_000_000_000.0
-            except Exception:
-                pass
+            # Sur batterie : décharge réelle du PC portable
+            if status == "discharging" and bat_watts and bat_watts >= 0.5:
+                return round(bat_watts, 1)
 
-        # A. Sur batterie : décharge réelle du PC portable
-        if status == "discharging" and bat_watts and bat_watts >= 0.5:
-            return round(bat_watts, 1)
-
-        # B. Branché au secteur (charge ou plein)
-        if status in ("charging", "full", "not charging") or is_on_ac:
-            cpu_pct = get_cpu_percent()
-            base_laptop_w = 9.0 + (cpu_pct / 100.0) * 22.0
-            if status == "charging" and bat_watts and bat_watts > 1.0:
-                return round(bat_watts + base_laptop_w, 1)
-            else:
-                return round(base_laptop_w, 1)
+            # Branché au secteur (charge ou plein)
+            if status in ("charging", "full", "not charging") or is_on_ac:
+                cpu_pct = get_cpu_percent()
+                base_laptop_w = 9.0 + (cpu_pct / 100.0) * 22.0
+                if status == "charging" and bat_watts and bat_watts > 1.0:
+                    return round(bat_watts + base_laptop_w, 1)
+                else:
+                    return round(base_laptop_w, 1)
 
     # 5. macOS : AppleSmartBattery (batterie et chargeur)
     if sys.platform == "darwin":
@@ -639,13 +649,50 @@ def get_power_watts() -> float | None:
         except Exception:
             pass
 
-    # 6. Repli physique universel pour tout appareil branché (Desktop, Mini-PC, Clamshell sans capteur)
+    # 6. Repli physique universel multi-OS et multi-facteur (Desktop fixe, Mini-PC, Mac mini, Laptops branchés ou sur batterie)
     try:
         cpu_pct = get_cpu_percent()
         nb_cores = os.cpu_count() or 4
-        base_w = min(12.0, max(3.5, nb_cores * 1.2))
-        active_w = base_w + (cpu_pct / 100.0) * (nb_cores * 2.8)
-        return round(active_w, 1)
+
+        bat = None
+        try:
+            bat = psutil.sensors_battery()
+        except Exception:
+            pass
+
+        # Cas A : Appareil portable avec batterie (Laptop Windows, MacBook sans ioreg, Laptop Linux)
+        if bat is not None:
+            if not bat.power_plugged:
+                # Sur batterie (décharge active)
+                base_discharge = 6.0 + (cpu_pct / 100.0) * (nb_cores * 1.8)
+                return round(min(65.0, max(3.0, base_discharge)), 1)
+            else:
+                # Sur secteur AC / branché
+                base_laptop_ac = 9.0 + (cpu_pct / 100.0) * 22.0
+                if hasattr(bat, "percent") and bat.percent is not None and bat.percent < 90:
+                    # En cours de charge active de la batterie
+                    charge_power = 25.0
+                    return round(min(120.0, max(12.0, base_laptop_ac + charge_power)), 1)
+                else:
+                    # Batterie pleine (100%) ou en maintien de charge
+                    return round(min(65.0, max(7.0, base_laptop_ac)), 1)
+
+        # Cas B : Appareil fixe sans batterie (PC fixe tour Windows, Mac mini / Mac Studio, Wyse headless / mini-PC)
+        if sys.platform == "win32":
+            # PC Fixe Windows (tour de bureau : alimentation ATX, CPU desktop, GPU dédié ou chipset)
+            base_desktop = 28.0 + min(25.0, max(0.0, (nb_cores - 4) * 2.5))
+            active_desktop = base_desktop + (cpu_pct / 100.0) * (nb_cores * 4.5)
+            return round(min(450.0, max(20.0, active_desktop)), 1)
+        elif sys.platform == "darwin":
+            # Mac mini / Mac Studio (Apple Silicon ultra-efficient sans batterie)
+            base_macmini = 6.5 + min(8.0, max(0.0, (nb_cores - 4) * 1.0))
+            active_macmini = base_macmini + (cpu_pct / 100.0) * (nb_cores * 3.0)
+            return round(min(120.0, max(5.0, active_macmini)), 1)
+        else:
+            # Linux Headless / Appliance Dell Wyse 5070 / mini-PC Celeron
+            base_mini = min(12.0, max(4.0, nb_cores * 1.2))
+            active_mini = base_mini + (cpu_pct / 100.0) * (nb_cores * 2.5)
+            return round(min(90.0, max(3.5, active_mini)), 1)
     except Exception:
         pass
 
@@ -661,7 +708,7 @@ def get_storage_model() -> str:
         return _HARDWARE_CACHE["storage_model"]
 
     model = ""
-    is_android = hasattr(sys, "getandroidapilevel") or shutil_which("getprop")
+    is_android = is_android_system()
 
     # 1. ANDROID : détection bus UFS / eMMC
     if is_android:
@@ -752,7 +799,7 @@ def get_ram_info() -> dict[str, Any]:
     brand = ""
     ram_type = ""
     freq = ""
-    is_android = hasattr(sys, "getandroidapilevel") or shutil_which("getprop")
+    is_android = is_android_system()
 
     # 1. ANDROID : détection de la RAM via spécification SoC et getprop
     if is_android:
@@ -1028,7 +1075,7 @@ def get_runtime_info() -> dict[str, Any]:
     service_uptime = int(now - _SERVICE_START_TIME)
 
     system_uptime = 0
-    is_android = hasattr(sys, "getandroidapilevel") or shutil_which("getprop")
+    is_android = is_android_system()
 
     # 1. ANDROID : Uptime système exact via SystemClock (non affecté par SELinux /proc/uptime)
     if is_android:

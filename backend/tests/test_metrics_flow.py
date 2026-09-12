@@ -321,5 +321,69 @@ class TestMetricsFlow(unittest.TestCase):
         wh = get_cumulative_energy_wh()
         self.assertIsInstance(wh, float)
 
+    def test_power_watts_multi_os_profiles(self):
+        """Vérifie le comportement de calcul de puissance sur tous les profils matériels (Mac mini, MacBook, PC fixe, Laptop, Wyse)."""
+        from unittest.mock import patch
+        from collections import namedtuple
+        from app.utils.hardware_info import get_power_watts
 
+        BatteryMock = namedtuple("BatteryMock", ["percent", "secsleft", "power_plugged"])
 
+        # 1. Mac mini (macOS, sans batterie)
+        with patch("sys.platform", "darwin"), \
+             patch("psutil.sensors_battery", return_value=None), \
+             patch("subprocess.check_output", side_effect=Exception("no battery")):
+            w = get_power_watts()
+            self.assertIsNotNone(w)
+            self.assertGreaterEqual(w, 5.0)
+            self.assertLessEqual(w, 100.0)
+
+        # 2. MacBook branché sur secteur (maintien / 100%)
+        with patch("sys.platform", "darwin"), \
+             patch("psutil.sensors_battery", return_value=BatteryMock(100.0, -2, True)), \
+             patch("subprocess.check_output", side_effect=Exception("skip ioreg")):
+            w = get_power_watts()
+            self.assertIsNotNone(w)
+            self.assertGreaterEqual(w, 7.0)
+            self.assertLessEqual(w, 65.0)
+
+        # 3. MacBook sur batterie (décharge)
+        with patch("sys.platform", "darwin"), \
+             patch("psutil.sensors_battery", return_value=BatteryMock(80.0, 12000, False)), \
+             patch("subprocess.check_output", side_effect=Exception("skip ioreg")):
+            w = get_power_watts()
+            self.assertIsNotNone(w)
+            self.assertGreaterEqual(w, 3.0)
+            self.assertLessEqual(w, 65.0)
+
+        # 4. PC fixe Windows (Tour desktop, sans batterie)
+        with patch("sys.platform", "win32"), \
+             patch("psutil.sensors_battery", return_value=None):
+            w = get_power_watts()
+            self.assertIsNotNone(w)
+            self.assertGreaterEqual(w, 20.0)
+            self.assertLessEqual(w, 450.0)
+
+        # 5. Laptop Windows branché sur secteur
+        with patch("sys.platform", "win32"), \
+             patch("psutil.sensors_battery", return_value=BatteryMock(95.0, -2, True)):
+            w = get_power_watts()
+            self.assertIsNotNone(w)
+            self.assertGreaterEqual(w, 7.0)
+            self.assertLessEqual(w, 65.0)
+
+        # 6. Laptop Windows en charge rapide (< 90%)
+        with patch("sys.platform", "win32"), \
+             patch("psutil.sensors_battery", return_value=BatteryMock(50.0, -2, True)):
+            w = get_power_watts()
+            self.assertIsNotNone(w)
+            self.assertGreaterEqual(w, 30.0)
+
+        # 7. Linux Headless Wyse 5070 (sans batterie, sans RAPL)
+        with patch("sys.platform", "linux"), \
+             patch("psutil.sensors_battery", return_value=None), \
+             patch("glob.glob", return_value=[]):
+            w = get_power_watts()
+            self.assertIsNotNone(w)
+            self.assertGreaterEqual(w, 3.5)
+            self.assertLessEqual(w, 90.0)
