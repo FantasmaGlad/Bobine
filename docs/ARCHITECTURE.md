@@ -14,6 +14,7 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 2. [Architecture générale](#2-architecture-générale)
 3. [Modèle de données & Persistance SQLite](#3-modèle-de-données--persistance-sqlite)
 3bis. [Pipeline d'importation, Accélération Matérielle Multi-OS & Annulation Réactive](#3bis-pipeline-dimportation-accélération-matérielle-multi-os--annulation-réactive)
+3ter. [Télémétrie Matérielle Universelle Multi-OS & Métriques d'Assiduité](#3ter-télémétrie-matérielle-universelle-multi-os--métriques-dassiduité)
 4. [Canaux de diffusion & Gestionnaire de lecture](#4-canaux-de-diffusion--gestionnaire-de-lecture)
 5. [Module Radio](#5-module-radio)
 6. [Mode Audio Coach & Fonds animés](#6-mode-audio-coach--fonds-animés)
@@ -188,6 +189,57 @@ La télémétrie FFmpeg du §1 (`progress_percent`, `eta_seconds`, `speed`) n'ex
 - **Estimation cumulée de file d'attente** (`queue_eta_seconds`) : pour une tâche donnée, somme du temps restant estimé (ETA en direct si déjà en cours de réencodage, sinon estimation initiale) de toutes les tâches non terminées placées avant elle, plus son propre temps restant. Calculée dans `list_jobs()`, au même titre que `queue_position` — une estimation, pas une garantie.
 
 Ces deux champs sont exposés par `GET /api/import-jobs` et affichés dans le panneau flottant d'upload (`UploadManager.tsx`) : `~X min (estimation)` pendant l'analyse/la copie, puis `(N devant, ~X min au total)` tant qu'une tâche attend son tour.
+
+---
+
+## 3ter. Télémétrie Matérielle Universelle Multi-OS & Métriques d'Assiduité
+
+### 1. Supervision Matérielle Universelle (`hardware_info.py`)
+
+Bobine embarque un module d'introspection matérielle de bas niveau (`backend/app/utils/hardware_info.py`) exposé par `GET /api/settings/system` et consommé par le panneau Réglages (`/settings`) et le tableau de bord (`/metrics`). Afin de garantir une restitution fidèle et professionnelle (sans codes techniques bruts, sans architecture générique `aarch64` ni étiquettes vagues), le module résout les dénominations commerciales complètes et audite les composants physiques réels sur les 5 profils d'exécution :
+
+- **Processeur (CPU)** :
+  - *Android ARM64* : lecture des propriétés système AOSP `ro.soc.model` (ex: `Snapdragon 8 Elite`, `Dimensity 9300`) et repli sur `ro.board.platform` ou `/proc/cpuinfo`.
+  - *Linux Bureau & Wyse Headless* : extraction du modèle commercial depuis `/proc/cpuinfo` (`model name`), nettoyage regex des suffixes superflus (`(R)`, `(TM)`, fréquences redondantes).
+  - *macOS Desktop* : appel `sysctl -n machdep.cpu.brand_string` (ex: `Apple M3 Pro`, `Intel Core i7`).
+  - *Windows Desktop* : requête directe dans le Registre Windows `HKLM\HARDWARE\DESCRIPTION\System\CentralProcessor\0\ProcessorNameString` (ultra-rapide, sans spawn de processus).
+- **Puce Graphique (GPU)** :
+  - *Android ARM64* : identification de la puce Adreno via les nœuds sysfs du pilote graphique Qualcomm `/sys/class/kgsl/kgsl-3d0/gpu_model` (ex: `Qualcomm Adreno 825`), ou nœuds Mali pour SoC MediaTek.
+  - *Linux Bureau & Wyse Headless* : parcours sysfs DRM `/sys/class/drm/card*/device/` avec résolution du nom via `udevadm` ou extraction `lspci` (Intel UHD/Iris Xe, AMD Radeon Graphics, Nvidia GeForce) avec nettoyage des parenthèses vides.
+  - *macOS Desktop* : interrogation `system_profiler SPDisplaysDataType`.
+  - *Windows Desktop* : requête PowerShell `Get-CimInstance Win32_VideoController` non bloquante avec timeout strict (1,5s).
+- **Mémoire Vive (RAM)** :
+  - Restitution de la capacité totale et utilisée (en Go et %), ainsi que des métadonnées constructeur : marque/fabricant (Samsung, Micron, SK Hynix, Crucial, Corsair), technologie de mémoire (LPDDR5X, LPDDR5, DDR5, DDR4, LPDDR4X) et fréquence d'horloge maximale (ex: 8533 MT/s, 6400 MHz).
+  - *Android* : diagnostic via `/proc/meminfo`, propriétés de plateforme et sysfs mémoire.
+  - *Linux / Wyse* : inspection SMBIOS non-root via `udevadm info -p /devices/virtual/dmi/id` ou `dmidecode -t memory` si disponible.
+  - *macOS* : `system_profiler SPMemoryDataType`.
+  - *Windows* : requête WMI `Win32_PhysicalMemory` (Manufacturer, SMBIOSMemoryType, Speed).
+- **Stockage Principal** :
+  - Identification commerciale du disque système (ex: `Samsung SSD 990 PRO 2TB`, `Western Digital WD Black SN850X`, `Stockage Flash UFS 4.0 256 Go` sous Android).
+  - Calcul de l'espace total, libre et pourcentage d'occupation via `shutil.disk_usage()` (ou `StatFs` sous Android).
+  - *Linux / Wyse* : nœuds sysfs `/sys/block/<disk>/device/model` et `lsblk`.
+  - *Android* : inspection du type de bus eMMC / UFS (`/sys/block/sda/device/model` ou `mmcblk0`).
+- **Puissance Électrique en Watts (W)** :
+  - Mesure instantanée de la consommation électrique globale en direct :
+  - *Linux x86 / Wyse* : lecture de l'interface Intel/AMD RAPL (Running Average Power Limit) sous `/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj` avec échantillonnage différentiel sur 100 ms.
+  - *Laptops / Tablettes / Macs sur batterie* : calcul instantané `P = U * I` via les capteurs de batterie (sysfs `/sys/class/power_supply/`, `AppleSmartBattery` sous macOS via `ioreg`).
+- **Températures CPU et GPU (°C)** :
+  - Lecture des capteurs thermiques matériels sous `/sys/class/thermal/thermal_zone*` et `/sys/class/hwmon/`.
+  - Sous Android, ciblage spécifique des zones CPU et GPU Adreno `/sys/class/kgsl/kgsl-3d0/temp`.
+- **Temps d'activité (Uptime & Runtime)** :
+  - Uptime du système d'exploitation et runtime continu du serveur Bobine (depuis l'initialisation de l'instance FastAPI).
+
+### 2. Moteur de Métriques d'Assiduité & Notation 5 Étoiles (`/metrics`)
+
+- **Collecte des Sessions (`playback_sessions`)** : traçage de chaque séance vidéo diffusée (id du cours, titre, canal, déclencheur manuel/planning, durée visionnée, durée totale, flag `completed` calculé à ≥90%).
+- **Notation de Satisfaction (`course_ratings`)** : recueil des avis 1 à 5 étoiles après diffusion :
+  - Affichage contextuel : sur le pupitre coach (`/grid`) dans le conteneur du cours terminé en mode double écran ; sur grand écran (`/cinema` HDMI) en mode headless.
+  - Barre de décompte d'auto-fermeture (5 minutes / 300 s) continue et fluide, synchronisée sur l'horloge système.
+  - Étoiles et graphiques dynamiquement harmonisés avec le thème de couleur actif (`var(--accent-primary)`).
+- **Tableau de Bord Analytique (`GET /api/metrics/dashboard`)** :
+  - 4 indicateurs clés (Satisfaction moyenne /5, Taux de complétion %, Durée totale de diffusion en heures, Nombre de séances).
+  - Histogramme d'affluence sur 24 heures (CSS Grid pur, détection automatique de l'heure de pointe).
+  - Classement des cours les plus diffusés et les mieux notés.
 
 ---
 

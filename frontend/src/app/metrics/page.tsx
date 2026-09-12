@@ -218,7 +218,7 @@ export default function MetricsPage() {
         <div className="metrics-kpi-card">
           <div className="metrics-kpi-header">
             <span className="metrics-kpi-title">{t("metricsPage.kpiSatisfaction")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-warning)" }}>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
               <Icon name="star" size={24} filled />
             </div>
           </div>
@@ -539,7 +539,7 @@ export default function MetricsPage() {
                       <td style={{ textAlign: "right" }}>
                         {c.average_rating != null ? (
                           <div className="metrics-table-rating">
-                            <Icon name="star" size={16} filled style={{ color: "var(--accent-warning)" }} />
+                            <Icon name="star" size={16} filled style={{ color: "var(--accent-primary)" }} />
                             <span>{(c.average_rating ?? 0).toFixed(1)}</span>
                             <span className="metrics-table-rating-count">({c.ratings_count ?? 0})</span>
                           </div>
