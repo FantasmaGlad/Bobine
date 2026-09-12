@@ -65,6 +65,7 @@ interface AppSettingsContextValue {
   refreshBranding: () => void;
   wiredDisplayMode: WiredDisplayMode;
   setWiredDisplayMode: (mode: WiredDisplayMode) => void;
+  waitTimeBetweenCourses: number;
 }
 
 // "clair" (réf. mission "thème par défaut") : version claire du thème
@@ -89,6 +90,7 @@ const AppSettingsContext = createContext<AppSettingsContextValue>({
   refreshBranding: () => {},
   wiredDisplayMode: DEFAULT_WIRED_DISPLAY_MODE,
   setWiredDisplayMode: () => {},
+  waitTimeBetweenCourses: 0,
 });
 
 export function useAppSettings() {
@@ -121,6 +123,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const [activeLogo, setActiveLogoState] = useState<ActiveLogo>("default");
   const [logoVersion, setLogoVersion] = useState(0);
   const [wiredDisplayMode, setWiredDisplayModeState] = useState<WiredDisplayMode>(DEFAULT_WIRED_DISPLAY_MODE);
+  const [waitTimeBetweenCourses, setWaitTimeBetweenCourses] = useState<number>(0);
 
   const refreshBranding = useCallback(() => {
     fetch(getApiUrl("/settings"), { cache: "no-store" })
@@ -160,6 +163,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     }
     if (data.wired_display_mode === "dual_screen" || data.wired_display_mode === "headless") {
       setWiredDisplayModeState(data.wired_display_mode);
+    }
+    if (typeof data.wait_time_between_courses === "number") {
+      setWaitTimeBetweenCourses(data.wait_time_between_courses);
     }
   }, []);
 
@@ -368,8 +374,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       refreshBranding,
       wiredDisplayMode,
       setWiredDisplayMode,
+      waitTimeBetweenCourses,
     }),
-    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode]
+    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode, waitTimeBetweenCourses]
   );
 
   return (

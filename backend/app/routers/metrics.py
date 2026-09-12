@@ -261,15 +261,22 @@ def get_metrics_dashboard(
         v_completion_rate = round((v_completed_count / v_sess_count) * 100, 1) if v_sess_count > 0 else 0.0
         v_avg_rating = round(sum(r.rating for r in v_ratings) / v_ratings_count, 1) if v_ratings_count > 0 else 0.0
 
+        v_total_hours = round(((v.duration_seconds or 0) * v_sess_count) / 3600.0, 1)
+        thumb_name = _thumbnail_filename(v.thumbnail_path)
+
         course_stats.append({
             "video_id": v.id,
             "title": v.title,
             "program": v.program or "Autre",
             "release": v.release,
             "duration_seconds": v.duration_seconds or 0,
-            "thumbnail_url": _thumbnail_filename(v.thumbnail_path),
+            "total_duration_hours": v_total_hours,
+            "thumbnail_path": thumb_name,
+            "thumbnail_url": thumb_name,
             "sessions_count": v_sess_count,
+            "total_sessions": v_sess_count,
             "completed_count": v_completed_count,
+            "completed_sessions": v_completed_count,
             "completion_rate": v_completion_rate,
             "average_rating": v_avg_rating,
             "ratings_count": v_ratings_count,

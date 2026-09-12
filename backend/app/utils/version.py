@@ -16,13 +16,14 @@ juste avant PyInstaller) — absent en développement local et sur l'appliance
 headless, qui a de toute façon `git` disponible pour une info plus précise
 (cf. `_get_local_version_info()` dans updates.py)."""
 
+import os
 import sys
 from functools import lru_cache
 from pathlib import Path
 
 from app.config import ROOT_DIR
 
-_FALLBACK_VERSION = "3.0.4"
+_FALLBACK_VERSION = "3.0.5"
 _FALLBACK_COMMIT = "unknown"
 
 
@@ -38,12 +39,25 @@ def _app_root() -> Path:
 
 @lru_cache(maxsize=1)
 def get_app_version() -> str:
-    """Numéro de version nu (ex. "3.0.1", ou "3.0.1-beta" sur un build du
+    """Numéro de version nu (ex. "3.0.5", ou "3.0.5-beta" sur un build du
     canal Bêta), sans préfixe "V"."""
-    try:
-        return (_app_root() / "VERSION").read_text(encoding="utf-8").strip() or _FALLBACK_VERSION
-    except OSError:
-        return _FALLBACK_VERSION
+    # 1. Variable d'environnement injectée par la plateforme (ex: Android BuildConfig.VERSION_NAME)
+    env_ver = os.environ.get("BOBINE_VERSION", "").strip()
+    if env_ver:
+        return env_ver.lstrip("vV")
+
+    # 2. Emplacement standard racine du dépôt / paquet figé
+    for candidate_dir in (_app_root(), Path(__file__).resolve().parent, Path(__file__).resolve().parent.parent, ROOT_DIR):
+        try:
+            ver_file = candidate_dir / "VERSION"
+            if ver_file.is_file():
+                content = ver_file.read_text(encoding="utf-8").strip()
+                if content:
+                    return content
+        except OSError:
+            pass
+
+    return _FALLBACK_VERSION
 
 
 @lru_cache(maxsize=1)
@@ -52,10 +66,21 @@ def get_app_commit() -> str:
     développement local (pas de fichier COMMIT généré par la CI) — sans
     incidence : `_get_local_version_info()` préfère `git rev-parse`
     directement quand un vrai checkout est disponible."""
-    try:
-        return (_app_root() / "COMMIT").read_text(encoding="utf-8").strip() or _FALLBACK_COMMIT
-    except OSError:
-        return _FALLBACK_COMMIT
+    env_commit = os.environ.get("BOBINE_COMMIT", "").strip()
+    if env_commit:
+        return env_commit
+
+    for candidate_dir in (_app_root(), Path(__file__).resolve().parent, Path(__file__).resolve().parent.parent, ROOT_DIR):
+        try:
+            commit_file = candidate_dir / "COMMIT"
+            if commit_file.is_file():
+                content = commit_file.read_text(encoding="utf-8").strip()
+                if content:
+                    return content
+        except OSError:
+            pass
+
+    return _FALLBACK_COMMIT
 
 
 def get_app_tag() -> str:

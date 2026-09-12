@@ -34,8 +34,10 @@ val hasReleaseSigningConfig = listOf(androidKeystorePath, androidKeystorePasswor
 // Absentes en local -> repli sur les anciennes constantes figees (build de
 // developpement uniquement, jamais installe comme mise a jour d'une
 // version CI reelle).
-val androidVersionName: String = System.getenv("ANDROID_VERSION_NAME") ?: "0.1.0-dev"
-val androidVersionCode: Int = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 1
+val rootVersionFile = rootProject.projectDir.resolve("../VERSION")
+val fallbackVersionName = if (rootVersionFile.exists()) rootVersionFile.readText().trim() else "3.0.5"
+val androidVersionName: String = System.getenv("ANDROID_VERSION_NAME") ?: fallbackVersionName
+val androidVersionCode: Int = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: 220
 
 android {
     namespace = "com.bobine.app"
@@ -152,6 +154,20 @@ val stagePythonSources = tasks.register<Copy>("stagePythonSources") {
     }
     from(rootProject.projectDir.resolve("../frontend/out")) {
         into("backend/frontend_out")
+    }
+    from(rootProject.projectDir.resolve("../VERSION")) {
+        into("backend/app")
+    }
+    from(rootProject.projectDir.resolve("../VERSION")) {
+        into("backend")
+    }
+    if (rootProject.projectDir.resolve("../COMMIT").exists()) {
+        from(rootProject.projectDir.resolve("../COMMIT")) {
+            into("backend/app")
+        }
+        from(rootProject.projectDir.resolve("../COMMIT")) {
+            into("backend")
+        }
     }
     into(pyStageDir)
 }

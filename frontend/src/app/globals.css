@@ -5510,12 +5510,6 @@ a.status-pill:hover,
   margin-top: auto;
 }
 
-/* Statut système (Watcher / Écran) */
-.settings-status-grid { display: flex; flex-direction: column; gap: 10px; }
-.settings-status-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.settings-status-key { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
-.settings-status-val { display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 700; color: var(--text-main); }
-
 /* Zone de danger */
 .settings-danger { border-color: color-mix(in srgb, var(--accent-error) 45%, var(--border-color)); }
 .settings-danger h3 { color: var(--accent-error); }
@@ -5999,7 +5993,7 @@ a.status-pill:hover,
 }
 
 .course-rating-star-btn.active .course-rating-star-icon {
-  color: var(--accent-warning);
+  color: var(--accent-primary);
 }
 
 .course-rating-score-label {
@@ -6028,7 +6022,7 @@ a.status-pill:hover,
 }
 
 .course-rating-confirmed-star {
-  color: var(--accent-warning);
+  color: var(--accent-primary);
 }
 
 .course-rating-confirmed-text {
@@ -6064,7 +6058,7 @@ a.status-pill:hover,
 .course-rating-progress-fill {
   height: 100%;
   background: var(--accent-primary);
-  transition: width 1s linear;
+  transition: width 0.1s linear;
 }
 
 .grid-rating-card-wrapper {

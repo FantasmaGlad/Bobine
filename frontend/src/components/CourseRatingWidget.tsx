@@ -20,7 +20,7 @@ export default function CourseRatingWidget({
   courseTitle,
   sessionId,
   channel = "cable",
-  autoCloseSeconds = 300,
+  autoCloseSeconds = 20,
   onClose,
   onRated,
   isCinemaMode = false,
@@ -29,26 +29,35 @@ export default function CourseRatingWidget({
   const [selectedScore, setSelectedScore] = useState<number | null>(null);
   const [hoveredScore, setHoveredScore] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [remainingSeconds, setRemainingSeconds] = useState(autoCloseSeconds);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-close countdown
+  // Durée effective du compte à rebours (calée sur la transition entre cours)
+  const duration = autoCloseSeconds > 0 ? autoCloseSeconds : 20;
+  const [remainingSeconds, setRemainingSeconds] = useState(duration);
+  const startTimeRef = useRef<number>(Date.now());
+  const onCloseRef = useRef(onClose);
+
   useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setRemainingSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current!);
-          if (onClose) onClose();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    onCloseRef.current = onClose;
   }, [onClose]);
+
+  // Compte à rebours précis basé sur l'horloge système (immune aux saccades et re-renders)
+  useEffect(() => {
+    if (submitted) return; // Si déjà soumis, le timer post-soumission prend le relais
+    setRemainingSeconds(duration);
+    startTimeRef.current = Date.now();
+
+    const timer = setInterval(() => {
+      const elapsed = (Date.now() - startTimeRef.current) / 1000;
+      const left = Math.max(0, duration - elapsed);
+      setRemainingSeconds(left);
+      if (left <= 0) {
+        clearInterval(timer);
+        if (onCloseRef.current) onCloseRef.current();
+      }
+    }, 100);
+
+    return () => clearInterval(timer);
+  }, [duration, submitted]);
 
   const handleSelectScore = useCallback(
     async (score: number) => {
@@ -62,10 +71,9 @@ export default function CourseRatingWidget({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             video_id: videoId,
-            course_title: courseTitle,
-            score,
-            session_id: sessionId ?? null,
+            rating: score,
             channel,
+            source: isCinemaMode ? "cinema" : "grid",
           }),
         });
       } catch (err) {
@@ -74,19 +82,19 @@ export default function CourseRatingWidget({
 
       if (onRated) onRated(score);
 
-      // Auto-close quickly after feedback (3.5s)
+      // Fermeture automatique après affichage du remerciement (2,5s)
       setTimeout(() => {
-        if (onClose) onClose();
-      }, 3500);
+        if (onCloseRef.current) onCloseRef.current();
+      }, 2500);
     },
-    [videoId, courseTitle, sessionId, channel, submitted, onRated, onClose]
+    [videoId, channel, isCinemaMode, submitted, onRated]
   );
 
-  // Keyboard navigation (ArrowLeft/ArrowRight to select stars, Enter to submit, Escape to close)
+  // Navigation clavier / télécommande
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (onClose) onClose();
+        if (onCloseRef.current) onCloseRef.current();
       } else if (e.key === "ArrowLeft") {
         setHoveredScore((prev) => Math.max(1, (prev || 1) - 1));
       } else if (e.key === "ArrowRight") {
@@ -99,10 +107,11 @@ export default function CourseRatingWidget({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hoveredScore, submitted, handleSelectScore, onClose]);
+  }, [hoveredScore, submitted, handleSelectScore]);
 
   const currentActiveScore = hoveredScore || selectedScore || 0;
-  const progressPercent = Math.max(0, (remainingSeconds / autoCloseSeconds) * 100);
+  // Progression inversée : commence à 100% et descend progressivement à 0%
+  const progressPercent = Math.max(0, Math.min(100, (remainingSeconds / duration) * 100));
 
   const getScoreLabel = (score: number) => {
     switch (score) {
@@ -130,11 +139,10 @@ export default function CourseRatingWidget({
       <div className="course-rating-header">
         <div className="course-rating-title-block">
           <h4 className="course-rating-title">
-            <Icon name="star_rate" size={isCinemaMode ? 28 : 20} className="course-rating-icon-title" />
             {submitted ? t("courseRating.submitSuccess") : t("courseRating.title")}
           </h4>
           <p className="course-rating-subtitle">
-            {submitted ? courseTitle : t("courseRating.subtitle")}
+            {courseTitle ? (submitted ? courseTitle : `${courseTitle} — ${t("courseRating.subtitle")}`) : t("courseRating.subtitle")}
           </p>
         </div>
         {onClose && (
@@ -196,19 +204,17 @@ export default function CourseRatingWidget({
         </div>
       )}
 
-      {/* Auto-close indicator & progress bar */}
-      <div className="course-rating-footer">
-        <div className="course-rating-timer-text">
-          <Icon name="timer" size={14} />
-          <span>{t("courseRating.autoClose", { seconds: remainingSeconds })}</span>
+      {/* Barre de progression inversée (sans texte "Fermeture dans 300 s") */}
+      {!submitted && (
+        <div className="course-rating-footer">
+          <div className="course-rating-progress-bar">
+            <div
+              className="course-rating-progress-fill"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
         </div>
-        <div className="course-rating-progress-bar">
-          <div
-            className="course-rating-progress-fill"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      </div>
+      )}
     </div>
   );
 }

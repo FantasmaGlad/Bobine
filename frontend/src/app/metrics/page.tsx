@@ -21,6 +21,8 @@ interface CourseStat {
   total_duration_hours: number;
   average_rating: number | null;
   ratings_count: number;
+  sessions_count?: number;
+  duration_seconds?: number;
 }
 
 interface HourlyAttendance {
@@ -117,7 +119,7 @@ export default function MetricsPage() {
   const kpis = metrics?.kpis;
   const ratingBreakdown = metrics?.rating_breakdown || [];
   const hourly = metrics?.hourly_attendance || [];
-  const maxHourlySessions = Math.max(1, ...hourly.map((h) => h.sessions));
+  const maxHourlySessions = Math.max(1, ...(hourly.length ? hourly.map((h) => Number(h?.sessions) || 0) : [1]));
   const courses = metrics?.top_courses || [];
   const telemetry = metrics?.hardware_telemetry;
 
@@ -335,16 +337,17 @@ export default function MetricsPage() {
           <div className="metrics-histogram-container">
             <div className="metrics-histogram-bars">
               {hourly.map((item) => {
-                const heightPct = Math.max(4, (item.sessions / maxHourlySessions) * 100);
+                const sessCount = Number(item?.sessions) || 0;
+                const heightPct = Math.max(4, Math.min(100, (sessCount / (maxHourlySessions || 1)) * 100));
                 const isPeak = metrics?.peak_hours?.includes(item.hour);
                 return (
                   <div key={item.hour} className="metrics-histogram-column">
                     <div
                       className={`metrics-histogram-bar ${isPeak ? "peak" : ""}`}
                       style={{ height: `${heightPct}%` }}
-                      title={`${item.hour}h:00 — ${item.sessions} ${t("metricsPage.sessionsCount")}`}
+                      title={`${item.hour}h:00 — ${sessCount} ${t("metricsPage.sessionsCount")}`}
                     >
-                      <span className="metrics-histogram-tooltip">{item.sessions}</span>
+                      <span className="metrics-histogram-tooltip">{sessCount}</span>
                     </div>
                     <span className="metrics-histogram-label">
                       {item.hour % 3 === 0 ? `${item.hour}h` : ""}
@@ -514,18 +517,22 @@ export default function MetricsPage() {
                           {c.program && <span className="metrics-course-program">{c.program}</span>}
                         </div>
                       </td>
-                      <td style={{ textAlign: "right", fontWeight: 700 }}>{c.total_sessions}</td>
-                      <td style={{ textAlign: "right" }}>{c.total_duration_hours.toFixed(1)} h</td>
+                      <td style={{ textAlign: "right", fontWeight: 700 }}>
+                        {c.total_sessions ?? c.sessions_count ?? 0}
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        {(c.total_duration_hours ?? (c.duration_seconds ? ((c.duration_seconds * (c.sessions_count || c.total_sessions || 1)) / 3600) : 0)).toFixed(1)} h
+                      </td>
                       <td style={{ textAlign: "center" }}>
                         <div className="metrics-table-progress-wrap">
                           <div className="metrics-table-progress-bar">
                             <div
                               className="metrics-table-progress-fill"
-                              style={{ width: `${c.completion_rate}%` }}
+                              style={{ width: `${Math.min(100, Math.max(0, c.completion_rate ?? 0))}%` }}
                             />
                           </div>
                           <span className="metrics-table-progress-text">
-                            {c.completion_rate.toFixed(0)}%
+                            {(c.completion_rate ?? 0).toFixed(0)}%
                           </span>
                         </div>
                       </td>
@@ -533,8 +540,8 @@ export default function MetricsPage() {
                         {c.average_rating != null ? (
                           <div className="metrics-table-rating">
                             <Icon name="star" size={16} filled style={{ color: "var(--accent-warning)" }} />
-                            <span>{c.average_rating.toFixed(1)}</span>
-                            <span className="metrics-table-rating-count">({c.ratings_count})</span>
+                            <span>{(c.average_rating ?? 0).toFixed(1)}</span>
+                            <span className="metrics-table-rating-count">({c.ratings_count ?? 0})</span>
                           </div>
                         ) : (
                           <span className="metrics-no-rating">--</span>

@@ -220,7 +220,7 @@ const GridAllList = React.memo(function GridAllList({
 });
 
 export default function GridPage() {
-  const { t, wiredDisplayMode, setWiredDisplayMode } = useAppSettings();
+  const { t, wiredDisplayMode, setWiredDisplayMode, waitTimeBetweenCourses } = useAppSettings();
   useScreenWakeLock(true);
   const [videos, setVideos] = useState<CinemaVideo[]>([]);
   const [now, setNow] = useState<Date>(() => new Date());
@@ -685,6 +685,7 @@ export default function GridPage() {
                 courseTitle={ratingCourse.title}
                 sessionId={ratingCourse.sessionId}
                 channel="cable"
+                autoCloseSeconds={waitTimeBetweenCourses > 0 ? waitTimeBetweenCourses : 20}
                 onClose={() => setRatingCourse(null)}
               />
             ) : nowPlaying ? (

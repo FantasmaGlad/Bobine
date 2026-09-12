@@ -142,7 +142,7 @@ def _migrate_to_internal_storage_once(external_files_dir, internal_files_dir):
         _migrate_small_dirs(external_data_dir, internal_data_dir)
 
 
-def start_server_once(external_files_dir=None, native_library_dir=None, internal_files_dir=None):
+def start_server_once(external_files_dir=None, native_library_dir=None, internal_files_dir=None, app_version=None):
     """`external_files_dir` : `context.getExternalFilesDir(null)` côté
     Kotlin (Lot 9) — médias uniquement depuis le Lot 15, cf. docstring de
     module.
@@ -158,7 +158,9 @@ def start_server_once(external_files_dir=None, native_library_dir=None, internal
     BOBINE_FFMPEG_BIN/BOBINE_FFPROBE_BIN vers les binaires statiques ARM64
     embarqués en lib*.so, UNIQUEMENT s'ils existent réellement (absents
     d'un build local sans l'étape de récupération CI, cf. Découvertes du
-    Lot 8) — sinon app.utils.ffmpeg_binaries retombe sur les noms nus."""
+    Lot 8) — sinon app.utils.ffmpeg_binaries retombe sur les noms nus.
+
+    `app_version` : version de l'application passée depuis BuildConfig.VERSION_NAME."""
     global _started
     with _lock:
         if _started:
@@ -167,6 +169,8 @@ def start_server_once(external_files_dir=None, native_library_dir=None, internal
 
     def _run():
         import os as _os
+        if app_version:
+            _os.environ["BOBINE_VERSION"] = str(app_version)
         if external_files_dir:
             _os.environ["BOBINE_ANDROID_DATA_DIR"] = external_files_dir
         if internal_files_dir:

@@ -291,7 +291,7 @@ const CinemaAllList = React.memo(function CinemaAllList({
  * Wyse ou sur un appareil du réseau.
  */
 export default function CinemaPage() {
-  const { t, wiredDisplayMode } = useAppSettings();
+  const { t, wiredDisplayMode, waitTimeBetweenCourses } = useAppSettings();
   const deckARef = useRef<HTMLVideoElement | null>(null);
   const deckBRef = useRef<HTMLVideoElement | null>(null);
   const [activeDeck, setActiveDeck] = useState<"A" | "B">("A");
@@ -1216,14 +1216,14 @@ export default function CinemaPage() {
       {/* Fin de cours : suggestion "À suivre" avec notation 5 étoiles et autoplay annulable */}
       <div className={`cinema-layer cinema-upnext ${isEnded ? "visible" : ""}`}>
         <div className="cinema-upnext-layout">
-          {endedVideo && (
+          {endedVideo && wiredDisplayMode === "headless" && (
             <div className="cinema-rating-container">
               <CourseRatingWidget
                 videoId={endedVideo.id}
                 courseTitle={endedVideo.title}
                 channel="cable"
                 isCinemaMode={true}
-                autoCloseSeconds={300}
+                autoCloseSeconds={waitTimeBetweenCourses > 0 ? waitTimeBetweenCourses : 20}
                 onClose={() => setEndedVideo(null)}
               />
             </div>

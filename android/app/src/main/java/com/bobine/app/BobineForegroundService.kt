@@ -149,7 +149,7 @@ class BobineForegroundService : Service() {
         val nativeLibraryDir = applicationContext.applicationInfo.nativeLibraryDir
         val py = Python.getInstance()
         py.getModule("bobine_bootstrap").callAttr(
-            "start_server_once", externalFilesDir, nativeLibraryDir, internalFilesDir
+            "start_server_once", externalFilesDir, nativeLibraryDir, internalFilesDir, BuildConfig.VERSION_NAME
         )
     }
 
