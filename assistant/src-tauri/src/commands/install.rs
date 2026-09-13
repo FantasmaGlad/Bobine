@@ -86,7 +86,7 @@ fn progress_to_update(state: &ProgressState) -> ProgressUpdate {
 /// sans risquer d'être supprimée par l'optimiseur comme un simple `for b in
 /// s.as_bytes_mut() { *b = 0 }` le pourrait. Les octets de remplacement (0)
 /// restent de l'ASCII valide, donc la chaîne reste UTF-8 valide.
-fn scrub_secret(s: &mut String) {
+fn scrub_secret(s: &mut str) {
     let bytes = unsafe { s.as_bytes_mut() };
     for b in bytes {
         unsafe { std::ptr::write_volatile(b, 0u8) };
@@ -198,7 +198,7 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
         // On le sort de `params` une bonne fois pour n'en garder qu'une
         // seule copie en mémoire, à écraser en fin de fonction.
         let mut root_password = params.root_password;
-        if needs_root_password && root_password.as_deref().map_or(true, |p| p.trim().is_empty()) {
+        if needs_root_password && root_password.as_deref().is_none_or(|p| p.trim().is_empty()) {
             return Err(
                 "Le mot de passe root est requis pour lancer l'installation via « su - » sur cette machine, mais aucun mot de passe n'a été fourni.".to_string(),
             );
