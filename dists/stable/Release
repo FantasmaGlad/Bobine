@@ -2,19 +2,19 @@ Origin: Bobine
 Label: Bobine
 Suite: stable
 Codename: stable
-Date: Sat, 12 Sep 2026 13:42:38 UTC
+Date: Sun, 13 Sep 2026 06:39:23 UTC
 Architectures: amd64
 Components: main
 Description: Depot officiel Bobine - Canal Stable
 MD5Sum:
- 008e3487932f52978789a9e4950d8244 1316 main/binary-amd64/Packages
- 8a719951c0793797888c08a8601a5ff8 840 main/binary-amd64/Packages.gz
+ 0de1cb039430ba0f3e3ec3915d69c184 1316 main/binary-amd64/Packages
+ e53ee9aacadcd06a554ad574e266c3b5 840 main/binary-amd64/Packages.gz
  02ddb3348372575002b6c17e50ed7e6d 131 main/binary-amd64/Release
 SHA1:
- 35f85a9ac19378118086ce1a74a76bdd6b4df272 1316 main/binary-amd64/Packages
- 4c02740c3ed46b27370d97491757849b3204cb9b 840 main/binary-amd64/Packages.gz
+ 1b6fa55fa9d0402e943cde9fdb43f042d29761cc 1316 main/binary-amd64/Packages
+ 900ba0d4f480f92ba37a02e1a3d82c85f8c5be96 840 main/binary-amd64/Packages.gz
  1432511e73e94e3863b9703d6f2b887f074bcf11 131 main/binary-amd64/Release
 SHA256:
- 1941929e6fb8d451ec3c0c6861c7427b2a904ecd2142e655f32b87a0e9370722 1316 main/binary-amd64/Packages
- 3ce40eca785e4a482b6e5108606e05d756acea767f9b1c930a29ec4ee3959dce 840 main/binary-amd64/Packages.gz
+ 9fda11dda87c9f057304403c264e30d273c0f06b68fd90278ba07d4b179d7549 1316 main/binary-amd64/Packages
+ e1652165a7c861abbf74f00670f9f081c4344d313ed9bacb1cfffc0ca76c24e7 840 main/binary-amd64/Packages.gz
  68592a6dbbf9417b9b7c9487ade2f40ed2f4179139cac8cc0940a982f9b81a83 131 main/binary-amd64/Release
