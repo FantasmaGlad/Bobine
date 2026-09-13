@@ -5,35 +5,35 @@ Origin: Bobine
 Label: Bobine
 Suite: beta
 Codename: beta
-Date: Sun, 13 Sep 2026 08:40:38 UTC
+Date: Sun, 13 Sep 2026 10:19:14 UTC
 Architectures: amd64
 Components: main
 Description: Depot officiel Bobine - Canal Beta (Rolling)
 MD5Sum:
- 7eae5db61fe644d5870f644d141d631b 1326 main/binary-amd64/Packages
- 29835643b10a29e4aa817b7cfb1a4785 845 main/binary-amd64/Packages.gz
+ 9e6a7a29b98b21fc9b8ce5143e69a31d 1326 main/binary-amd64/Packages
+ ad0be8e2d50c293e994d8d1a00d30338 844 main/binary-amd64/Packages.gz
  4e9d61f921811eec892d767f9346bd94 137 main/binary-amd64/Release
 SHA1:
- dda2f4f084caef7fd6576bba02ee39c7f5861627 1326 main/binary-amd64/Packages
- 3213ce80f16f7be06e3904bd95e58c2ecfc7f835 845 main/binary-amd64/Packages.gz
+ 858d38267ca95826cf85cabc4ea19dd5c46fe23a 1326 main/binary-amd64/Packages
+ 2ace9aa0a6c38c79e9d3824a35f1f3b46db7c7ab 844 main/binary-amd64/Packages.gz
  86f9121fae9dbe6f26cfdf16b475332ea4c5715c 137 main/binary-amd64/Release
 SHA256:
- 16a775370891eecb85502adc0366297e17077d8c3f74c0fbced9a0dc7747203d 1326 main/binary-amd64/Packages
- eb4345a9f0f1b1148a2730722b820013b3f2ac33f0fdb2a8146eb202cbd539ae 845 main/binary-amd64/Packages.gz
+ debbd639593e8c73d2bbea0f07f84c94dc6847504a31b09ab5268dc340b297df 1326 main/binary-amd64/Packages
+ 7a0969d2ed5e4d2d930f22985e7b60f39d06826fcdb9d1a689292466c5c48148 844 main/binary-amd64/Packages.gz
  aff5f63ae1ae3189fdc60f93f86620d6d66c572d9dc9a7db3d0aa522163ecbb0 137 main/binary-amd64/Release
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAEBCgAdFiEElBtvUmpyWfRpTPS8G10YqXb6rRUFAmqmYYYACgkQG10YqXb6
-rRV2lBAAnnsaY/HTFLw7wDiJkxljKljeWdZxJEZfoD3D3xCnxYyybQcXvjrIFz1n
-0meF6o53PyC02biq6QJ2waQCZRBdipXZEh9iL6wwzBF7RwwoKBA6ufDBAXac1Zw8
-UMvsH2VLrFSNyyL/yHPdSieGKKu/obUdNfxb4XVpfq6hNiqfoGsr8iQNikegyvHH
-DNYPmjPiPTbzCU6bQMT0TjzT6zh1OLGo1hwNjd2d+0gRRkjxIQ2ddSdtZx5QK+yH
-Q5sdBQzzf6GHOxGtYWX2HocqdrSy0s7of3Hq8yeXubfHtjVVVYCBR+EpeUsyj48K
-yuXoMidQ0BCR/XFKgWZ8ksClx4JS7h00AcH5pd9VBrAtQ3cs4HC8VnrJXu5y0N9Q
-kaKD6OvYuR/C8pHKEQhywb6dHTLFHHDiBBTi4iyFMsFJsJiIgVNK325zSP9ezmU+
-HS8r4OUm+z/jECLggBgxGuQ+IMnQIt4hmmGatmQelGcy6mUN1gjpmR9l7tY7qPSS
-1qZnmYwIBKKuAzHoxKl7D5h/6Ybdr9DrWXr7Ao4X0dh7OX4bjf72U91cAJl9SK2K
-aa/f6FblA/fIN0F/eOP5470fGCfMn8QqBP0AKe0Tcu1LujZ7n5EJf+SFrx0fWf9v
-IfE2ziu7zxuh9p9OJt3SsafeCbOKCBDWEi5uaoeQJCjnhN4EHug=
-=ABqo
+iQIzBAEBCgAdFiEElBtvUmpyWfRpTPS8G10YqXb6rRUFAmqmeKIACgkQG10YqXb6
+rRWoAA//W/ilCCg3Zkx98SduZlh7rWIMw1TpU1n0w/lw2uYd0CcqDsYnnkgTft04
+HRAGNVPhvJ75TirqYk1lBFVH+OEpuowsqGRJ1JKnf3p/VXDPZYmfXvG4K0Img6Mb
+3wLTTRA+OLwkgs4ZodoX2GQlacqKRf/aY/wEnngKHFpW4Bcfe5KCEUTfhiOpcZHH
+T9RVgmSn0Nqg6cSnsT68+5FE6YEPZviOkFe82Yb5G5vBr/bt8NAAnLGy/erd+FCA
+ePL3waDhPNlHdlkevWGDlm5CBRwVP9GWazpJOd5OdYC3L+lfkDq0IVNLS+0v+HRS
+tMwP2pSfnTde0dD8f8/m7qUBIH46ZLIsJAn1DQaWm49IOu6f8dEPf3H/8d4KrLjA
+Ofm+R+uVEPCV3XR8E3/c4wdn+ORyF5l9Wc5K6RZm1/9Wfyp3Ntw6lyXZSpB5ofJQ
+L01SfoX1ZqAJPg51h9jPjna4PH5qVWXODbtUsJdjVDW/FZeJA03bsM42tnCZB8DA
+5zBFHyXG8xRxDViTGO8/I+LW+4jSvBBEPdwkSeAqJaRtYO1tO/T1pX2Ee84dJjd3
+RutGCD5fpPYiE5PX5ZsYIr0crD8G2uLoKtoQ/YjDXiyy2CHMmKTuRC2GKVUktkL8
+8K/KbUPCODwYmtuzohF/peFABRgj3QIuDQ9IiK6opKcvnhemoAA=
+=8SNC
 -----END PGP SIGNATURE-----
