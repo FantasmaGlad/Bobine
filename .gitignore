@@ -23,12 +23,14 @@ backend/data/
 /VideoTest/
 
 # Outillage local (agents IA, éditeurs)
+# Note : AGENTS.md à la racine du dépôt est le guide canonique versionné
+# (cf. AGENTS.md lui-même) - ne pas ignorer CLAUDE.md/AGENTS.md par nom nu
+# ici, les dossiers ci-dessous suffisent à ignorer leurs propres copies
+# locales (.claude/CLAUDE.md, .agents/*.md, .gemini/AGENTS.md).
 .claude/
 .agents/
 .agent/
 .gemini/
-CLAUDE.md
-AGENTS.md
 .pytest_cache/
 .vscode/
 .idea/
