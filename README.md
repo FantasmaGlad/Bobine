@@ -14,10 +14,10 @@ Bobine turns any tablet, desktop PC, Mac, or low-cost dedicated mini PC into a c
 - **Audio Coach Mode & 24/7 Studio Radio**: Runs audio workouts over dynamic animated motion backgrounds and streams continuous club background music.
 - **100% Local-First & Sovereign**: Everything runs directly on your own hardware. Zero cloud dependencies, zero monthly subscriptions, zero telemetry, zero vendor lock-in — engineered for rock-solid 24/7 unattended playback even without internet.
 
-[Official Website](https://bobine.fit) · [Documentation](https://bobine.fit/fr/documentation) · [Français](README.fr.md) · [Technical Architecture](docs/ARCHITECTURE.md) · [Latest Release](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Beta Release](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
+[Official Website](https://bobine.fit) · [Documentation](https://bobine.fit/fr/documentation) · [Français](README.fr.md) · [Technical Architecture](docs/ARCHITECTURE.en.md) · [Latest Release](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Beta Release](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
-[![Release: v3.0.4](https://img.shields.io/badge/Release-v3.0.4-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
+[![Release: v3.0.5](https://img.shields.io/badge/Release-v3.0.5-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
 [![Beta: Rolling Channel](https://img.shields.io/badge/Beta-Rolling%20Channel-orange?logo=github)](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
 [![APT Repo: apt.bobine.fit](https://img.shields.io/badge/APT%20Repo-apt.bobine.fit-A81D33?logo=debian&logoColor=white)](https://apt.bobine.fit)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
@@ -42,12 +42,12 @@ Install Bobine as a native application on your tablet, workstation, or studio PC
 
 | Platform | Format | Architecture | Direct Download / Command | Target Profile & Key Features |
 | :--- | :---: | :---: | :---: | :--- |
-| ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Native Package)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Download Bobine-3.0.4.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.4/Bobine-3.0.4.apk)</sub> | **Android Tablets & Mobile Studio Playout**<br><sub>• Complete all-in-one station: replaces bulky PCs in the workout room</sub><br><sub>• Dual display: touch coach desk (`/grid`) + TV big-screen playback (`/cinema`)</sub><br><sub>• 100% offline reliability, even in basements without Wi-Fi or cellular signal</sub><br><sub>• Ideal on a desk stand, wall mount, or studio bike handlebar</sub> |
-| ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installer)*</sub> | <sub>x86-64</sub> | <sub>[**Download Bobine-Setup-3.0.4.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.4/Bobine-Setup-3.0.4.exe)</sub> | **Windows Laptops & Desktop PCs**<br><sub>• 1-click guided installer with Desktop shortcut</sub><br><sub>• Silent background start in system tray near the clock</sub><br><sub>• Clamshell mode: connect laptop to HDMI TV and close lid without sleep</sub><br><sub>• Instant smartphone remote control via QR code for music & classes</sub> |
-| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | <sub>`.deb`<br>*(Package & Repo)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>[**APT Repo apt.bobine.fit**](https://apt.bobine.fit)<br>[**bobine_3.0.4_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.4/bobine_3.0.4_amd64.deb)</sub> | **Linux Desktops & Repurposed Gym PCs**<br><sub>• Official `.deb` package and Ubuntu App Center / `apt install` support</sub><br><sub>• Seamless 1-click updates via the official `apt.bobine.fit` repository</sub><br><sub>• Give a second life to existing desktop hardware as a gym kiosk</sub><br><sub>• Full system integration: desktop app launcher & notification tray</sub> |
-| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Disk Image)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Download Bobine-3.0.4.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.4/Bobine-3.0.4.dmg)</sub> | **MacBook, Mac mini & iMac (Apple Silicon)**<br><sub>• Drag-and-drop into `/Applications`, ready to play in seconds</sub><br><sub>• Refined Mac experience: native Retina icon & unobtrusive menu bar companion</sub><br><sub>• Silent 4K playback: zero overheating and zero fan noise on MacBook</sub><br><sub>• Direct video output to gym TV or studio projector over HDMI or USB-C</sub> |
+| ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Native Package)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Download Bobine-3.0.5.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.5/Bobine-3.0.5.apk)</sub> | **Android Tablets & Mobile Studio Playout**<br><sub>• Complete all-in-one station: replaces bulky PCs in the workout room</sub><br><sub>• Dual display: touch coach desk (`/grid`) + TV big-screen playback (`/cinema`)</sub><br><sub>• 100% offline reliability, even in basements without Wi-Fi or cellular signal</sub><br><sub>• Ideal on a desk stand, wall mount, or studio bike handlebar</sub> |
+| ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installer)*</sub> | <sub>x86-64</sub> | <sub>[**Download Bobine-Setup-3.0.5.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.5/Bobine-Setup-3.0.5.exe)</sub> | **Windows Laptops & Desktop PCs**<br><sub>• 1-click guided installer with Desktop shortcut</sub><br><sub>• Silent background start in system tray near the clock</sub><br><sub>• Clamshell mode: connect laptop to HDMI TV and close lid without sleep</sub><br><sub>• Instant smartphone remote control via QR code for music & classes</sub> |
+| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | <sub>`.deb`<br>*(Package & Repo)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>[**APT Repo apt.bobine.fit**](https://apt.bobine.fit)<br>[**bobine_3.0.5_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.5/bobine_3.0.5_amd64.deb)</sub> | **Linux Desktops & Repurposed Gym PCs**<br><sub>• Official `.deb` package and Ubuntu App Center / `apt install` support</sub><br><sub>• Seamless 1-click updates via the official `apt.bobine.fit` repository</sub><br><sub>• Give a second life to existing desktop hardware as a gym kiosk</sub><br><sub>• Full system integration: desktop app launcher & notification tray</sub> |
+| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Disk Image)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Download Bobine-3.0.5.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.5/Bobine-3.0.5.dmg)</sub> | **MacBook, Mac mini & iMac (Apple Silicon)**<br><sub>• Drag-and-drop into `/Applications`, ready to play in seconds</sub><br><sub>• Refined Mac experience: native Retina icon & unobtrusive menu bar companion</sub><br><sub>• Silent 4K playback: zero overheating and zero fan noise on MacBook</sub><br><sub>• Direct video output to gym TV or studio projector over HDMI or USB-C</sub> |
 | ![iOS / iPadOS](https://img.shields.io/badge/iOS%20%2F%20iPadOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>iPadOS App<br>*(Explored Track)*</sub> | <sub>ARM64 (Apple Silicon)</sub> | <sub>*Explored track...*</sub> | **iPads & Apple Tablets (Explored Track)**<br><sub>• Mobile touch coach desk and studio big-screen control</sub><br><sub>• Wired video output over USB-C / Thunderbolt to TV or projector</sub><br><sub>• Prospective track to expand tablet portability across Apple hardware</sub> |
-| ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | <sub>Native Binary<br>*(Tauri 2)*</sub> | <sub>x86-64 (Linux)</sub> | <sub>[**Download bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.4/bobine-assistant)</sub> | **Graphical Management & Deployment Assistant (GUI)**<br><sub>• Smart network scan: automatically discovers all Bobine kiosks on Wi-Fi/LAN</sub><br><sub>• Remote deployment and 1-click updates without touching the command line</sub><br><sub>• Assisted SSH connection via password or imported SSH key</sub><br><sub>• Ideal for gym managers and technicians overseeing multiple rooms</sub> |
+| ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | <sub>Native Binary<br>*(Tauri 2)*</sub> | <sub>x86-64 (Linux)</sub> | <sub>[**Download bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.5/bobine-assistant)</sub> | **Graphical Management & Deployment Assistant (GUI)**<br><sub>• Smart network scan: automatically discovers all Bobine kiosks on Wi-Fi/LAN</sub><br><sub>• Remote deployment and 1-click updates without touching the command line</sub><br><sub>• Assisted SSH connection via password or imported SSH key</sub><br><sub>• Ideal for gym managers and technicians overseeing multiple rooms</sub> |
 | ![Bash CLI](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | <sub>Shell Script<br>*(Automated)*</sub> | <sub>x86-64</sub> | <sub>`curl -sSL https://bobine.fit/install.sh \| bash`</sub> | **Headless Dedicated Appliance (AV Integrators & Power Users)**<br><sub>• 18-step automated unattended install for dedicated mini PCs (Wyse 5070, NUC, Tiny)</sub><br><sub>• Direct locked full-screen X11 kiosk, zero bulky desktop overhead</sub><br><sub>• Hardware HDMI-CEC: automatically powers TV on and off with schedule</sub><br><sub>• Ultra-low power (&lt; 8W) & auto-healing systemd services 24/7</sub> |
 | [![bobine.fit](https://img.shields.io/badge/bobine.fit-4285F4?style=flat-square&logo=data%3Aimage/svg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBkPSJNNDQgMjRjMCAxMS4wNDUtOC45NTUgMjAtMjAgMjAtNC41MiAwLTguNjgtMS41MDMtMTIuMDMtNC4wNDNsOS40NjctMTYuMzk0QTggOCAwIDAgMCAyNCAzMmM0LjQxOCAwIDgtMy41ODIgOC04eiIvPjxwYXRoIGZpbGw9IiNGQkMwMkQiIGQ9Ik00NCAyNEgyNGE4IDggMCAwIDAtNi45MjggNGwtOS40NjcgMTYuMzk0QTE5LjkyIDE5LjkyIDAgMCAxIDQgMjRDNCAxMy45ODcgMTEuMzg1IDUuNzA0IDIxLjAzNiA0LjIyTDMwLjUwMyAyMC42MUE3Ljk3IDcuOTcgMCAwIDAgMzIgMjR6Ii8%2BPHBhdGggZmlsbD0iI0U1MzkzNSIgZD0iTTI0IDRjNy40MDYgMCAxMy44NiA0LjAyNCAxNy4zIDEwLjAyN0wzMC41MDMgMjAuNjFBOCA4IDAgMCAwIDI0IDE2Yy0zLjE1NSAwLTUuOTE0IDEuODI2LTcuMjUgNC40OUw3LjI4NCA0LjA5NUMxMS44OTIgNC4wMzIgMTcuNjUgNCAyNCA0eiIvPjxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjI0IiByPSI2IiBmaWxsPSIjMTk3NkQyIi8%2BPC9zdmc%2B)](https://bobine.fit) | <sub>Web Portal</sub> | <sub>Universal</sub> | <sub>[**Visit bobine.fit**](https://bobine.fit)</sub> | **Official Website & Knowledge Base**<br><sub>• Step-by-step getting started guides, tutorials & announcements</sub><br><sub>• Interactive documentation and instant web remote</sub> |
 | ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | <sub>Source & Binaries</sub> | <sub>Multi-OS</sub> | <sub>[**Browse GitHub Releases**](https://github.com/FantasmaGlad/Bobine/releases/latest)</sub> | **Full Version History & Source Code**<br><sub>• Verified SHA-256 checksums, release tarballs & comprehensive changelogs</sub> |
@@ -63,7 +63,7 @@ How to opt in permanently, so future updates keep offering Beta builds:
 - **Headless appliance installer** → `sudo ./install.sh --channel=beta`
 - **Bobine Assistant (remote install wizard)** → toggle "Bobine Beta Program" in the Options step.
 
-Full details on how the Beta channel works (update detection, downgrade behavior, release process): [Technical Architecture § Update Channel](docs/ARCHITECTURE.md#7-script-dinstallation--services-systemd) (French — no English version of this document yet).
+Full details on how the Beta channel works (update detection, downgrade behavior, release process): [Technical Architecture § Update Channel](docs/ARCHITECTURE.en.md#7-install-script--systemd-services).
 
 ---
 
@@ -137,7 +137,7 @@ Bobine is lightweight, robust, and designed to run smoothly on a wide spectrum o
   - **Universal mobile web remote**: instant QR-code access from any iOS or Android smartphone with zero app installation.
   - **Physical USB remotes**: out-of-the-box support for wireless presentation remotes and media Air Mice (2.4 GHz USB dongle recognized as a native keyboard without drivers).
 
-> For advanced technical benchmarks, multi-OS hardware acceleration pipelines, and appliance systemd architecture, see the dedicated [**Technical Architecture Documentation (docs/ARCHITECTURE.md)**](docs/ARCHITECTURE.md).
+> For advanced technical benchmarks, multi-OS hardware acceleration pipelines, and appliance systemd architecture, see the dedicated [**Technical Architecture Documentation (docs/ARCHITECTURE.en.md)**](docs/ARCHITECTURE.en.md).
 
 ---
 
@@ -155,7 +155,7 @@ Bobine offers distinct deployment paths to match your exact setup:
 
 #### On Android (Tablets & Touch Kiosks)
 
-1. **Download** [**`Bobine-3.0.2.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-3.0.2.apk) directly on your Android tablet (or transfer via USB).
+1. **Download** [**`Bobine-3.0.5.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.5/Bobine-3.0.5.apk) directly on your Android tablet (or transfer via USB).
 2. **Install the APK** (enable installation from unknown sources if prompted).
 3. **Launch Bobine**:
    - The persistent `ForegroundService` starts the embedded FastAPI backend (CPython 3.13 via Chaquopy) and automatically acquires an mDNS multicast lock.
@@ -165,7 +165,7 @@ Bobine offers distinct deployment paths to match your exact setup:
 
 #### On Windows (11, 10 or Windows IoT)
 
-1. **Download** [**`Bobine-Setup-3.0.2.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-Setup-3.0.2.exe) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Download** [**`Bobine-Setup-3.0.5.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.5/Bobine-Setup-3.0.5.exe) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Run the installer** and follow the wizard (French/English selection, AGPL-3.0 license acceptance).
    - Installs Bobine into `Program Files\Bobine`.
    - Creates a **Desktop** shortcut with the official Bobine icon and adds an entry to the Start Menu.
@@ -195,7 +195,7 @@ sudo apt update && sudo apt install bobine
 ```
 
 **Alternative Method — Standalone `.deb` Package (Offline or 1-click install):**
-1. **Download** [**`bobine_3.0.2_amd64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/bobine_3.0.2_amd64.deb) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Download** [**`bobine_3.0.5_amd64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.5/bobine_3.0.5_amd64.deb) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Install the package** via the Ubuntu App Center / GNOME Software by double-clicking the file, or via the terminal:
    ```bash
    sudo apt install ./bobine_*_amd64.deb
@@ -210,7 +210,7 @@ sudo apt update && sudo apt install bobine
 
 #### On macOS (Apple Silicon - M1/M2/M3/M4)
 
-1. **Download** [**`Bobine-3.0.2.dmg`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.2/Bobine-3.0.2.dmg) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Download** [**`Bobine-3.0.5.dmg`**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.5/Bobine-3.0.5.dmg) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Open the .dmg** and drag `Bobine.app` into your **Applications** folder.
 3. **Launch Bobine** from Applications, your **Desktop** (shortcut created automatically), or Spotlight.
    - *First launch*: Since Bobine is free open-source software without a paid Apple Developer certificate (not notarized), Gatekeeper will block the first launch. Depending on your macOS version you'll see one of two messages:
@@ -337,7 +337,7 @@ Bobine is a single host machine on your local network running:
 
 Other screens (networked display, member remotes, the admin PC) are ordinary web browsers pointing at the Bobine host. Media never leaves your network.
 
-For the full architecture, data model, network contract and API reference, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+For the full architecture, data model, network contract and API reference, see **[docs/ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md)**.
 
 ---
 

@@ -1,5 +1,7 @@
 # Bobine — Architecture technique & référence développeur
 
+> **Bilinguisme** : ce document doit être maintenu en parallèle de sa version anglaise ([`ARCHITECTURE.en.md`](ARCHITECTURE.en.md)) — dernière synchronisation : 2026-09-13.
+
 > Référence technique. Pour une présentation orientée utilisateur (à quoi sert Bobine, installation guidée, prise en main), voir le **[README](../README.md)** (`README.fr.md` pour le français).
 
 Diffusion, planification et pilotage de vidéos de cours en salle, sur mini PC dédié. Serveur FastAPI mono-processus + SQLite, kiosque Chromium X11, interface d'administration et télécommande mobile Next.js.
@@ -125,7 +127,7 @@ Le backend tourne en un seul processus `uvicorn` (`--workers 1`). L'état de lec
 
 ## 3. Modèle de données & Persistance SQLite
 
-Le schéma de données est géré par **SQLAlchemy**. Il n'y a **pas d'Alembic actif** dans ce projet (dossier `alembic/versions/` vide) : les tables sont créées par `Base.metadata.create_all()` au démarrage, et l'ajout de colonnes sur des tables existantes passe par des micro-migrations idempotentes dans `database.py::_migrate_add_missing_columns`. Stockage dans un fichier SQLite unique (`data/database.db`).
+Le schéma de données est géré par **SQLAlchemy**. Il n'y a **pas d'Alembic actif** dans ce projet (le dossier `alembic/versions/` n'existe pas : seuls `alembic.ini`, `alembic/env.py` et `alembic/README` sont présents) : les tables sont créées par `Base.metadata.create_all()` au démarrage, et l'ajout de colonnes sur des tables existantes passe par des micro-migrations idempotentes dans `database.py::_migrate_add_missing_columns`. Stockage dans un fichier SQLite unique (`data/database.db`).
 
 ### Entités principales
 
@@ -436,14 +438,14 @@ Les noms de fichiers des artefacts Bêta sont **fixes** (`Bobine-Setup-beta.exe`
 
 ## 9. Exploitation & Découverte Réseau (Wyse)
 
-Sur le réseau local, la machine Wyse de production (`pavilion-malefique` / Dell Wyse 5070) reçoit son adresse IP via **DHCP**.
+Sur le réseau local, la machine Wyse de production (`bobine-prod.local` / Dell Wyse 5070) reçoit son adresse IP via **DHCP**.
 
 ### Protocole de Découverte Réseau (Si l'IP change)
 
-1. **Test sur l'adresse courante ou le nom mDNS** :
+1. **Test sur l'adresse courante ou le nom mDNS** (exemple d'IP documentaire ci-dessous, à remplacer par l'adresse réelle du site) :
    ```bash
-   curl -s --connect-timeout 2 http://10.0.0.30:8000/api/settings
-   curl -s --connect-timeout 2 http://pavilion-malefique.local:8000/api/settings
+   curl -s --connect-timeout 2 http://192.0.2.10:8000/api/settings
+   curl -s --connect-timeout 2 http://bobine-prod.local:8000/api/settings
    ```
 2. **Scan Nmap automatique du sous-réseau** (si l'IP n'est pas joignable) :
    ```bash
