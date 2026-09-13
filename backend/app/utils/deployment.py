@@ -4,16 +4,14 @@ dépend — redémarrage des services, désinstallation, mise à jour.
 Un seul point d'entrée (`get_profile_handler()`) pour que
 `routers/settings.py` et `routers/updates.py` n'appellent plus jamais
 `sudo`/`systemctl`/`git` directement selon la plateforme : chaque profil
-(Lots 1 à 3 de PortabiliteCrossPlatformX) ajoute son propre fichier de
-handler dans `deployment_profiles/`, sans jamais toucher aux deux routers
-ni à ce module — c'est ce qui évite la collision de fusion à 4 lots sur
-les mêmes fichiers, identifiée dans
-`docs/plan-implementation-portabilite-crossplatformx.md` §5.1/§9.
+ajoute son propre fichier de handler dans `deployment_profiles/`, sans
+jamais toucher aux deux routers ni à ce module — voir `docs/ARCHITECTURE.md`
+§4 pour le détail des cinq profils cibles.
 """
 
 import platform
 from pathlib import Path
-from typing import Literal
+from typing import Callable, Literal
 
 DeploymentProfile = Literal["linux-headless", "linux-desktop", "windows", "macos", "android"]
 
@@ -107,10 +105,38 @@ class ProfileHandler:
         """True si ce profil permet l'application automatique d'une mise à jour."""
         return self.supports_git_versioning()
 
-    def apply_update(self, target_tag: str | None = None, download_url: str | None = None) -> None:
-        """Applique la mise à jour (typiquement `git checkout <tag>` ou téléchargement
-        d'installeur + redémarrage). `target_tag` permet de cibler explicitement un tag.
-        `download_url` contient l'URL directe de l'asset si applicable."""
+    def can_schedule_auto_apply(self) -> bool:
+        """True si ce profil peut être déclenché SANS surveillance humaine
+        par la planification quotidienne (Réglages → Mise à jour
+        automatique). Volontairement plus restrictif que `can_auto_apply()`
+        (qui autorise déjà le bouton manuel) le temps qu'un profil soit
+        validé en conditions réelles : un profil récemment automatisé mais
+        jamais testé sur du matériel réel (macOS) ne doit pas pouvoir se
+        déclencher tout seul à 3h du matin sans supervision. Redéfini à
+        True dans chaque handler une fois ce profil éprouvé."""
+        return False
+
+    def apply_update(
+        self,
+        target_tag: str | None = None,
+        download_url: str | None = None,
+        asset_digest: str | None = None,
+        report: "Callable[..., None] | None" = None,
+    ) -> None:
+        """Applique la mise à jour (typiquement `git checkout <tag>` ou
+        téléchargement d'installeur + redémarrage). `target_tag` permet de
+        cibler explicitement un tag. `download_url`/`asset_digest` sont
+        l'URL et l'empreinte SHA-256 (`sha256:<hex>`, déjà fournie par
+        l'API GitHub Releases) de l'asset pour les profils non-git.
+
+        `report(step, percent=None, message=None)` — si fourni par
+        l'appelant (`update_orchestrator.run_update_pipeline`) — est une
+        fonction SYNCHRONE à appeler à chaque étape significative
+        (téléchargement, vérification, installation, redémarrage) pour
+        que la progression soit diffusée en temps réel. Cette méthode
+        s'exécute déjà hors de la boucle asyncio (`asyncio.to_thread`
+        côté appelant) : les appels bloquants (subprocess, téléchargement)
+        y sont donc sans risque pour `/api/health`."""
         raise UpdateUnsupported(
             "La mise à jour automatique n'est pas encore disponible sur ce "
             "profil — téléchargez la dernière version depuis les releases "

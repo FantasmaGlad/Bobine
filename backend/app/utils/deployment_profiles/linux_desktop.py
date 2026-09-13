@@ -1,5 +1,4 @@
-"""Handler du profil `linux-desktop` (app de bureau Linux, paquet .deb — cf.
-CDC §6, plan §3).
+"""Handler du profil `linux-desktop` (app de bureau Linux, paquet .deb).
 
 Dans ce profil, Bobine tourne en session utilisateur (lancé au login par le
 fichier .desktop autostart ou l'unité systemd utilisateur) avec BobineTray
@@ -14,20 +13,37 @@ import logging
 import os
 import subprocess
 import tempfile
-import urllib.request
 from pathlib import Path
+from typing import Callable
 
 from app.utils.deployment import ProfileHandler, UpdateUnsupported
+from app.utils.update_orchestrator import download_with_progress, run_checked
 
 logger = logging.getLogger(__name__)
+
+_NOOP_REPORT: Callable[..., None] = lambda *a, **k: None  # noqa: E731
 
 
 class LinuxDesktopHandler(ProfileHandler):
     profile = "linux-desktop"
 
+    def _backend_dir(self) -> Path:
+        return Path(__file__).resolve().parent.parent.parent.parent
+
+    def _repo_root(self) -> Path:
+        # `_backend_dir()` (4 niveaux au-dessus de ce fichier) est le dossier
+        # `backend/` — utilisable comme `cwd` pour les commandes git
+        # (git remonte tout seul jusqu'à la racine du dépôt depuis n'importe
+        # quel sous-dossier de l'arbre de travail), mais PAS l'endroit où
+        # chercher `.git` lui-même : `.git` vit à la racine du dépôt, UN
+        # niveau au-dessus de `backend/`. Confondre les deux (bug corrigé
+        # ici) faisait toujours échouer `_is_git_clone()` sur un vrai
+        # checkout git de développement, basculant à tort sur le chemin
+        # "paquet .deb téléchargé" même en environnement de dev.
+        return self._backend_dir().parent
+
     def _is_git_clone(self) -> bool:
-        repo_dir = Path(__file__).resolve().parent.parent.parent.parent
-        return (repo_dir / ".git").exists()
+        return (self._repo_root() / ".git").exists()
 
     def restart_services(self) -> None:
         logger.info("Déclenchement du redémarrage du service bureau Linux (BobineTray ou systemd --user)...")
@@ -52,7 +68,7 @@ class LinuxDesktopHandler(ProfileHandler):
         return True
 
     def start_uninstall(self) -> None:
-        repo_dir = Path(__file__).resolve().parent.parent.parent.parent
+        repo_dir = self._repo_root()
         if self._is_git_clone() and (repo_dir / "install.sh").exists():
             cmd = "sleep 1 && pkexec ./install.sh --uninstall --purge --purge-data -y"
             subprocess.Popen(["sh", "-c", cmd], cwd=repo_dir, start_new_session=True)
@@ -73,35 +89,29 @@ class LinuxDesktopHandler(ProfileHandler):
     def can_auto_apply(self) -> bool:
         return True
 
-    def apply_update(self, target_tag: str | None = None, download_url: str | None = None) -> None:
-        repo_dir = Path(__file__).resolve().parent.parent.parent.parent
+    def can_schedule_auto_apply(self) -> bool:
+        return True
+
+    def apply_update(
+        self,
+        target_tag: str | None = None,
+        download_url: str | None = None,
+        asset_digest: str | None = None,
+        report: Callable[..., None] | None = None,
+    ) -> None:
+        report = report or _NOOP_REPORT
+        repo_dir = self._backend_dir().parent if self._is_git_clone() else None
+
         if self._is_git_clone():
+            report("checking", message="Récupération de la nouvelle version…")
             if target_tag:
-                subprocess.run(
-                    ["git", "fetch", "--tags", "--force"],
-                    cwd=repo_dir,
-                    capture_output=True,
-                    text=True,
-                    timeout=45,
-                    check=True,
-                )
-                res = subprocess.run(
-                    ["git", "checkout", target_tag],
-                    cwd=repo_dir,
-                    capture_output=True,
-                    text=True,
-                    timeout=45,
-                )
-                logger.info(f"git checkout {target_tag} (dev linux) : {res.stdout or res.stderr}")
+                run_checked(["git", "fetch", "--tags", "--force"], cwd=repo_dir, timeout=45)
+                run_checked(["git", "checkout", target_tag], cwd=repo_dir, timeout=45)
+                logger.info(f"git checkout {target_tag} (dev linux) effectué avec succès.")
             else:
-                res = subprocess.run(
-                    ["git", "pull", "--ff-only"],
-                    cwd=repo_dir,
-                    capture_output=True,
-                    text=True,
-                    timeout=45,
-                )
-                logger.info(f"git pull (dev linux) : {res.stdout}")
+                run_checked(["git", "pull", "--ff-only"], cwd=repo_dir, timeout=45)
+                logger.info("git pull --ff-only (dev linux) effectué avec succès.")
+            report("restarting", message="Redémarrage…")
             self.restart_services()
             return
 
@@ -111,14 +121,47 @@ class LinuxDesktopHandler(ProfileHandler):
                 "Aucun lien de téléchargement disponible pour mettre à jour le paquet Linux (.deb)."
             )
 
-        deb_file = Path(tempfile.gettempdir()) / "bobine_update.deb"
-        logger.info(f"Téléchargement du paquet .deb depuis {download_url}...")
-        urllib.request.urlretrieve(download_url, deb_file)
+        deb_file = Path(tempfile.mkdtemp(prefix="bobine-update-")) / "bobine_update.deb"
+        report("downloading", percent=0, message="Téléchargement du paquet .deb…")
+        download_with_progress(
+            download_url, deb_file, asset_digest,
+            on_progress=lambda pct: report("downloading", percent=pct, message=f"Téléchargement : {pct}%"),
+        )
 
-        # Lance l'installation polkit/dpkg en arrière-plan détaché.
-        # prerm arrête proprement BobineBackend/BobineTray, puis postinst relance
-        # automatiquement l'application pour la session utilisateur.
-        # Ne PAS appeler self.restart_services() ici : cela tuerait le backend
-        # prématurément avant que pkexec n'ait pu authentifier l'utilisateur.
-        cmd = f"sleep 1 && pkexec dpkg -i {deb_file}"
-        subprocess.Popen(["sh", "-c", cmd], start_new_session=True)
+        # Correctif de la cause racine "l'application ne redémarre jamais
+        # après une mise à jour .deb" : l'ANCIEN code lançait `pkexec dpkg -i`
+        # en tâche détachée (fire-and-forget, résultat jamais lu) et
+        # déléguait la relance à `postinst` du paquet, qui devine
+        # l'utilisateur à relancer via la variable d'environnement
+        # `$SUDO_USER` — variable que `pkexec` NE positionne JAMAIS
+        # (contrairement à `sudo`). Ce process Python tourne DÉJÀ comme
+        # l'utilisateur de la session (seule l'installation du paquet exige
+        # une élévation via `pkexec`, pas ce process lui-même) : il connaît
+        # donc directement qui relancer, sans avoir besoin de deviner quoi
+        # que ce soit ni de dépendre de `postinst`. `postinst` reste un
+        # filet de sécurité pour le cas d'un `apt upgrade` lancé en dehors
+        # de l'application (cf. packaging/linux/DEBIAN/postinst).
+        report("installing", message="Installation du paquet (autorisation système requise)…")
+        try:
+            run_checked(["pkexec", "dpkg", "-i", str(deb_file)], timeout=180)
+        except Exception as e:
+            raise RuntimeError(f"Échec de l'installation du paquet .deb : {e}") from e
+        finally:
+            try:
+                deb_file.unlink(missing_ok=True)
+                deb_file.parent.rmdir()
+            except OSError:
+                pass
+
+        report("restarting", message="Redémarrage du service…")
+        try:
+            run_checked(["systemctl", "--user", "restart", "bobine.service"], timeout=20)
+        except Exception as e:
+            # Le paquet EST installé à ce stade (l'exception précédente
+            # aurait déjà interrompu l'exécution sinon) : un échec ICI est
+            # signalé clairement plutôt que silencieusement ignoré, mais ne
+            # doit pas laisser croire que la mise à jour elle-même a échoué.
+            raise RuntimeError(
+                f"Paquet installé avec succès, mais le redémarrage automatique du service a échoué "
+                f"({e}) — relancez Bobine manuellement pour appliquer la mise à jour."
+            ) from e

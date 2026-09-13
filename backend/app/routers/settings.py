@@ -3,6 +3,7 @@ import io
 import json
 import logging
 import os
+import re
 import shutil
 import socket
 import sqlite3
@@ -38,12 +39,6 @@ from app.models import Setting
 from app.playback_manager import get_playback_manager
 from app.utils.activity_log import log_activity
 from app.utils.hardware_info import (
-    get_cpu_model_name,
-    get_cpu_temp,
-    get_gpu_info,
-    get_power_watts,
-    get_ram_info,
-    get_runtime_info,
     get_storage_model,
     get_system_telemetry_payload,
     purge_expired_logs_and_metrics,
@@ -78,7 +73,10 @@ _WRITABLE_NUMERIC_FIELDS = {
     "wait_time_between_courses", "volume_default", "audio_chain_timer_seconds",
     "radio_announcement_fade_ms", "logs_retention_days", "default_coach_background_id",
 }
-_WRITABLE_STRING_FIELDS = {"theme", "language", "active_logo", "update_channel", "wired_display_mode"}
+_WRITABLE_STRING_FIELDS = {
+    "theme", "language", "active_logo", "update_channel", "wired_display_mode",
+    "auto_update_enabled", "auto_update_time",
+}
 _DEFAULTS = {
     # "clair" (réf. mission "thème par défaut") : version claire du thème
     # Les Mills par défaut — même accent rouge (#e4002b) que
@@ -95,7 +93,17 @@ _DEFAULTS = {
     "wired_display_mode": "headless",
     # Rétention des logs d'activité et métriques système en jours
     "logs_retention_days": "7",
+    # Mise à jour automatique (Réglages → Mises à jour) : désactivée par
+    # défaut — contrairement à la purge de logs ou au relevé télémétrique
+    # (jobs de maintenance sans risque), une mise à jour système reste un
+    # choix explicite de l'administrateur, jamais l'état de départ d'une
+    # installation. L'heure par défaut (3h) est en revanche pré-remplie dès
+    # l'activation, cohérente avec les autres tâches de fond nocturnes déjà
+    # planifiées à cette heure (cf. `_periodic_purge_logs`).
+    "auto_update_enabled": "false",
+    "auto_update_time": "03:00",
 }
+_AUTO_UPDATE_TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _LOGO_FILENAME = "logo.png"
 # "les-mills-sombre" est la clé interne historique du thème "Sombre" (réf.
 # mission thèmes cinéma) — inchangée pour ne rien casser sur les
@@ -138,6 +146,8 @@ class SettingsUpdate(BaseModel):
     active_logo: str | None = None
     update_channel: str | None = None
     wired_display_mode: str | None = None
+    auto_update_enabled: str | None = None
+    auto_update_time: str | None = None
 
 
 def _get_db_value(db: Session, key: str) -> str | None:
@@ -196,6 +206,8 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
     wired_display_mode = _get_db_value(db, "wired_display_mode") or default_wired_mode
     if wired_display_mode not in _VALID_WIRED_DISPLAY_MODES:
         wired_display_mode = default_wired_mode
+    auto_update_enabled = _get_db_value(db, "auto_update_enabled") or _DEFAULTS["auto_update_enabled"]
+    auto_update_time = _get_db_value(db, "auto_update_time") or _DEFAULTS["auto_update_time"]
     logs_retention_str = _get_db_value(db, "logs_retention_days") or _DEFAULTS["logs_retention_days"]
     try:
         logs_retention_days = int(logs_retention_str)
@@ -225,6 +237,11 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         # Mode d'affichage câblé (réf. cahier des charges affichage hybride) :
         # "dual_screen" (pupitre tactile + vidéo HDMI) ou "headless" (cinéma autonome).
         "wired_display_mode": wired_display_mode,
+        # Mise à jour automatique planifiée (Réglages → Mises à jour) :
+        # vérifiée et appliquée chaque jour à `auto_update_time` si
+        # `auto_update_enabled` — cf. app.scheduler_manager.sync_auto_update_job.
+        "auto_update_enabled": auto_update_enabled,
+        "auto_update_time": auto_update_time,
         # Aide à la découverte réseau (réf. mission "IP obtenue par
         # l'appareil"), en complément de bobine.local (avahi, cf. install.sh).
         "network": {
@@ -486,6 +503,10 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
                     status_code=400,
                     detail="Mode d'affichage câblé invalide (attendu 'dual_screen' ou 'headless')",
                 )
+            if key == "auto_update_enabled" and value not in ("true", "false"):
+                raise HTTPException(status_code=400, detail="auto_update_enabled invalide (attendu 'true' ou 'false')")
+            if key == "auto_update_time" and not _AUTO_UPDATE_TIME_RE.match(value):
+                raise HTTPException(status_code=400, detail="Heure de mise à jour automatique invalide (attendu 'HH:MM')")
 
         row = db.query(Setting).filter(Setting.key == key).first()
         if row:
@@ -503,6 +524,18 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
     db.commit()
     logger.info(f"Paramètres mis à jour : {updates}")
     result = get_settings(db)
+
+    if "auto_update_enabled" in updates or "auto_update_time" in updates:
+        # Import différé : `scheduler_manager` importe déjà plusieurs
+        # modules utilitaires au chargement, et ce routeur est lui-même
+        # importé tôt par `main.py` — même précaution que les autres
+        # imports différés de ce fichier (cf. `Background` plus haut).
+        from app.scheduler_manager import sync_auto_update_job
+
+        sync_auto_update_job(
+            enabled=result["auto_update_enabled"] == "true",
+            time_str=result["auto_update_time"],
+        )
 
     # Diffusion temps réel (correctif "thème ne se synchronise pas sur
     # l'écran cinéma") : AppSettingsProvider ne chargeait le thème/langue

@@ -31,11 +31,15 @@ private const val TAG = "BobineForegroundService"
  * docs/ARCHITECTURE.md SS7 : la tablette reste utilisable pour autre
  * chose, pas un mode kiosque strict).
  *
- * Ne gere PAS encore l'exemption batterie (Device Owner, Lot 10) ni le
- * redemarrage apres un "kill" complet du processus par le systeme
- * (`onTaskRemoved` fait de son mieux mais un ForegroundService seul, sans
- * Device Owner, reste soumis aux politiques d'economie d'energie
- * agressives de certains constructeurs - risque deja documente au CDC SS7).
+ * L'exemption batterie est demandee via la boite de dialogue systeme
+ * standard (`MainActivity.requestIgnoreBatteryOptimizations`, appelee une
+ * fois a l'installation) plutot qu'un contournement silencieux via Device
+ * Owner - fiabilite inter-OEM non confirmee (HyperOS/MIUI notamment
+ * ignore les mecanismes AOSP standards). Le redemarrage apres un "kill"
+ * complet du processus par le systeme reste en revanche non garanti
+ * (`onTaskRemoved` fait de son mieux mais un ForegroundService seul reste
+ * soumis aux politiques d'economie d'energie agressives de certains
+ * constructeurs - risque deja documente au CDC SS7).
  */
 class BobineForegroundService : Service() {
 

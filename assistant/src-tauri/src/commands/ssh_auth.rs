@@ -160,13 +160,21 @@ mod tests {
     use std::net::TcpStream;
     use std::time::Duration;
 
+    /// Hôte ciblé par les tests d'intégration SSH ci-dessous. Ils ont besoin
+    /// d'un vrai serveur SSH joignable (d'où le `#[ignore]` : ils ne
+    /// tournent pas en CI ni par défaut en local) ; la variable d'env évite
+    /// de coder l'adresse d'une machine de développement en dur dans le
+    /// dépôt. Par défaut : loopback, pour un sshd local le cas échéant.
+    fn test_ssh_host() -> String {
+        std::env::var("BOBINE_TEST_SSH_HOST").unwrap_or_else(|_| "127.0.0.1".to_string())
+    }
+
     #[test]
+    #[ignore = "nécessite un serveur SSH accessible (voir BOBINE_TEST_SSH_HOST) en environnement de développement"]
     fn test_auth_fallback_with_password_or_key() {
-        // Test uniquement si l'hôte 192.168.1.186:22 est joignable
-        if let Ok(tcp) = TcpStream::connect_timeout(
-            &"192.168.1.186:22".parse().unwrap(),
-            Duration::from_millis(500),
-        ) {
+        let addr = format!("{}:22", test_ssh_host());
+        // Test uniquement si l'hôte est joignable
+        if let Ok(tcp) = TcpStream::connect_timeout(&addr.parse().unwrap(), Duration::from_millis(500)) {
             let mut sess = Session::new().unwrap();
             sess.set_tcp_stream(tcp);
             sess.handshake().unwrap();
@@ -180,11 +188,10 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "nécessite un serveur SSH accessible (voir BOBINE_TEST_SSH_HOST) en environnement de développement"]
     fn test_auth_error_message_when_password_disabled() {
-        if let Ok(tcp) = TcpStream::connect_timeout(
-            &"192.168.1.186:22".parse().unwrap(),
-            Duration::from_millis(500),
-        ) {
+        let addr = format!("{}:22", test_ssh_host());
+        if let Ok(tcp) = TcpStream::connect_timeout(&addr.parse().unwrap(), Duration::from_millis(500)) {
             let mut sess = Session::new().unwrap();
             sess.set_tcp_stream(tcp);
             sess.handshake().unwrap();

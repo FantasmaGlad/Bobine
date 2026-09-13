@@ -1,6 +1,5 @@
 import asyncio
 import hashlib
-import os
 import logging
 import platform
 import sys
@@ -33,6 +32,7 @@ from app.routers import (
     updates, metrics,
 )
 from app.utils.radio_utils import content_type_for
+from app.utils.update_orchestrator import load_persisted_state_at_startup
 from app.utils.version import get_app_version
 from app.scheduler_manager import (
     autostart_default_radio_playlist,
@@ -102,6 +102,12 @@ async def lifespan(app: FastAPI):
     # de diffuser depuis un thread hors boucle.
     ws_manager.bind_loop(asyncio.get_running_loop())
     init_db()
+    # Recharge l'issue de la dernière mise à jour AVANT toute autre
+    # initialisation : un redémarrage déclenché par une mise à jour réussie
+    # (ou un service qui a crashé en plein milieu) ne doit pas laisser
+    # `GET /api/updates/status` retomber silencieusement à "idle" avant que
+    # le frontend n'ait pu lire le résultat réel.
+    load_persisted_state_at_startup()
     # Avant le watcher (réf. correctif "déplacement de fichier et commit en
     # base pas atomiques") : aucun import n'est possible tant que l'app n'a
     # pas fini de démarrer, donc tout fichier orphelin trouvé ici provient

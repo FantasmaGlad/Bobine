@@ -1,6 +1,6 @@
-use std::io::{BufRead, BufReader};
+use std::io::{Read, Write};
 use std::net::TcpStream;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use ssh2::Session;
 use tauri::Emitter;
@@ -77,6 +77,19 @@ fn progress_to_update(state: &ProgressState) -> ProgressUpdate {
         phase: phase_str.to_string(),
         error_message,
         access_url,
+    }
+}
+
+/// Écrase le contenu d'un secret (mot de passe root) avant qu'il ne sorte de
+/// portée. Pas de dépendance `zeroize` dans ce crate : une écriture volatile
+/// octet par octet suffit à éviter qu'il traîne lisible dans un tas libéré,
+/// sans risquer d'être supprimée par l'optimiseur comme un simple `for b in
+/// s.as_bytes_mut() { *b = 0 }` le pourrait. Les octets de remplacement (0)
+/// restent de l'ASCII valide, donc la chaîne reste UTF-8 valide.
+fn scrub_secret(s: &mut String) {
+    let bytes = unsafe { s.as_bytes_mut() };
+    for b in bytes {
+        unsafe { std::ptr::write_volatile(b, 0u8) };
     }
 }
 
@@ -169,13 +182,27 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
             .script_path
             .unwrap_or_else(|| format!("/home/{}/Bobine/install.sh", params.username));
 
-        let elevation = if params.elevation_strategy == "su_as_user" {
+        let needs_root_password = params.elevation_strategy == "su_as_user";
+        let elevation = if needs_root_password {
             Elevation::SuRoot {
                 as_user: params.username.clone(),
             }
         } else {
             Elevation::Sudo
         };
+
+        // Le mot de passe root n'est nécessaire que pour l'option B (`su -`,
+        // cf. privilege.rs::PrivilegeDecision::BootstrapSuAsUser) : c'est le
+        // seul cas où la commande distante s'arrête sur une invite
+        // interactive avant de continuer (voir en-tête d'orchestrate.rs).
+        // On le sort de `params` une bonne fois pour n'en garder qu'une
+        // seule copie en mémoire, à écraser en fin de fonction.
+        let mut root_password = params.root_password;
+        if needs_root_password && root_password.as_deref().map_or(true, |p| p.trim().is_empty()) {
+            return Err(
+                "Le mot de passe root est requis pour lancer l'installation via « su - » sur cette machine, mais aucun mot de passe n'a été fourni.".to_string(),
+            );
+        }
 
         let opts = CoreOptions {
             no_kiosk: params.no_kiosk,
@@ -191,31 +218,111 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
         let mut channel = sess
             .channel_session()
             .map_err(|e| format!("Erreur allocation canal SSH : {e}"))?;
+        // PTY requis dans tous les cas : `su -` (et certains `sudo`) ne
+        // présentent leur invite de mot de passe interactive que si un
+        // terminal est alloué côté distant — sans lui, la commande resterait
+        // bloquée en silence en attendant une saisie qui ne peut jamais
+        // arriver sur un canal non-PTY.
         channel.request_pty("xterm", None, None).ok();
         channel
             .exec(&cmd)
             .map_err(|e| format!("Erreur lancement de la commande : {e}"))?;
 
         let mut state = ProgressState::new();
-        let reader = BufReader::new(channel.stream(0));
 
-        for line in reader.lines().map_while(Result::ok) {
-            match classify_line(&line) {
-                LineKind::Event(ref ev) => {
-                    state.apply(ev);
-                    let update = progress_to_update(&state);
-                    app.emit("install_progress", update).ok();
+        // Mode non bloquant : seul moyen de borner à 20s l'attente de
+        // l'invite mot de passe ci-dessous sans geler l'installation si
+        // `su -` ne la présente jamais (c'était le bug d'origine : le mot de
+        // passe collecté par l'IHM n'était jamais écrit sur le canal SSH et
+        // l'installation restait bloquée indéfiniment, sans erreur visible).
+        sess.set_blocking(false);
+
+        let mut password_sent = !needs_root_password;
+        let prompt_deadline = Instant::now() + Duration::from_secs(20);
+        // Octets reçus pas encore découpés en lignes complètes.
+        let mut pending: Vec<u8> = Vec::new();
+
+        let result: Result<(), String> = loop {
+            let mut chunk = [0u8; 4096];
+            match channel.read(&mut chunk) {
+                Ok(0) => break Ok(()), // canal fermé : la commande distante s'est terminée
+                Ok(n) => {
+                    pending.extend_from_slice(&chunk[..n]);
+
+                    // L'invite de mot de passe n'est jamais suivie d'un saut
+                    // de ligne (le shell distant attend la saisie) : on
+                    // l'observe donc sur le buffer brut, avant le découpage
+                    // en lignes ci-dessous qui ne voit que du texte déjà
+                    // terminé par '\n'.
+                    if !password_sent {
+                        let lower = String::from_utf8_lossy(&pending).to_lowercase();
+                        if lower.contains("password") || lower.contains("mot de passe") {
+                            if let Some(pwd) = root_password.as_deref() {
+                                let mut to_send = format!("{pwd}\n");
+                                // Écriture bloquante ponctuelle : évite de
+                                // traiter un simple `WouldBlock` transitoire
+                                // sur ce petit envoi comme un échec réel.
+                                sess.set_blocking(true);
+                                let write_res = channel.write_all(to_send.as_bytes());
+                                sess.set_blocking(false);
+                                scrub_secret(&mut to_send);
+                                if let Err(e) = write_res {
+                                    break Err(format!(
+                                        "Échec de transmission du mot de passe root sur le canal SSH : {e}"
+                                    ));
+                                }
+                            }
+                            password_sent = true;
+                            // L'invite elle-même ne doit pas être réinterprétée
+                            // comme une ligne de log/progression JSON.
+                            pending.clear();
+                        }
+                    }
+
+                    while let Some(pos) = pending.iter().position(|&b| b == b'\n') {
+                        let raw_line: Vec<u8> = pending.drain(..=pos).collect();
+                        let line = String::from_utf8_lossy(&raw_line);
+                        let line = line.trim_end_matches(['\r', '\n']);
+                        match classify_line(line) {
+                            LineKind::Event(ref ev) => {
+                                state.apply(ev);
+                                let update = progress_to_update(&state);
+                                app.emit("install_progress", update).ok();
+                            }
+                            LineKind::Log => {
+                                app.emit("install_log", line.to_string()).ok();
+                            }
+                            LineKind::Malformed(err) => {
+                                app.emit(
+                                    "install_log",
+                                    format!("[ATTENTION] Évènement malformé : {err}"),
+                                )
+                                .ok();
+                            }
+                        }
+                    }
                 }
-                LineKind::Log => {
-                    app.emit("install_log", line).ok();
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    if !password_sent && Instant::now() >= prompt_deadline {
+                        break Err(
+                            "Le mot de passe root n'a pas pu être transmis — invite de mot de passe non détectée sur la machine distante".to_string(),
+                        );
+                    }
+                    std::thread::sleep(Duration::from_millis(80));
                 }
-                LineKind::Malformed(err) => {
-                    app.emit("install_log", format!("[ATTENTION] Évènement malformé : {err}")).ok();
-                }
+                Err(e) => break Err(format!("Erreur de lecture du canal SSH : {e}")),
             }
-        }
+        };
 
-        Ok(())
+        // Le secret ne doit pas survivre au-delà de ce point, qu'il ait
+        // servi (élévation `su -`) ou non (élévation `sudo`, échec avant
+        // détection de l'invite...).
+        if let Some(pwd) = root_password.as_mut() {
+            scrub_secret(pwd);
+        }
+        drop(root_password);
+
+        result
     })
     .await
     .map_err(|e| format!("Erreur d'exécution de tâche : {e}"))?

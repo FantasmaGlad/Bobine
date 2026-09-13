@@ -19,6 +19,7 @@ from app.models import (
     ScheduleOverride,
     ScheduleTargetType,
     ScheduleType,
+    Setting,
     Video,
 )
 from app.playback_manager import PlaybackStateEnum, get_playback_manager
@@ -626,10 +627,64 @@ def _periodic_hardware_snapshot() -> None:
         db.close()
 
 
+_AUTO_UPDATE_JOB_ID = "auto_update_check"
+
+
+async def _run_auto_update_check() -> None:
+    """Job planifié (Réglages → Mise à jour automatique) — `AsyncIOScheduler`
+    exécute directement les callables `async def` sur sa propre boucle
+    asyncio (même patron que `fire_schedule`/`_launch_target` plus haut
+    dans ce fichier), aucun pont thread-safe n'est donc nécessaire ici.
+    Import différé de `run_scheduled_update_if_available` : évite d'avoir à
+    établir un ordre d'import entre `scheduler_manager` (importé tôt par
+    `main.py`) et `routers.updates` — même précaution que `from app.models
+    import Setting` un peu plus bas dans ce fichier."""
+    from app.routers.updates import run_scheduled_update_if_available
+
+    db = SessionLocal()
+    try:
+        await run_scheduled_update_if_available(db)
+    except Exception as e:
+        logger.error(f"Erreur lors de la vérification automatique de mise à jour : {e}")
+    finally:
+        db.close()
+
+
+def sync_auto_update_job(enabled: bool, time_str: str) -> None:
+    """(Ré)enregistre ou retire le job planifié de mise à jour automatique.
+    Appelé au démarrage (lecture du réglage persisté) et à chaque
+    modification du réglage depuis Réglages (cf. routers/settings.py)."""
+    if _scheduler is None:
+        logger.debug("Scheduler non démarré : synchronisation de la mise à jour automatique ignorée")
+        return
+    if not enabled:
+        remove_auto_update_job()
+        return
+    try:
+        hour, minute = (int(part) for part in time_str.split(":"))
+    except (ValueError, AttributeError):
+        logger.warning(f"Heure de mise à jour automatique invalide ({time_str!r}) — job non programmé")
+        return
+    _scheduler.add_job(
+        _run_auto_update_check,
+        trigger=CronTrigger(hour=hour, minute=minute, timezone=LOCAL_TZ),
+        id=_AUTO_UPDATE_JOB_ID,
+        replace_existing=True,
+        misfire_grace_time=MISFIRE_GRACE_SECONDS,
+    )
+    logger.info(f"Mise à jour automatique planifiée chaque jour à {hour:02d}:{minute:02d}")
+
+
+def remove_auto_update_job() -> None:
+    if _scheduler is None:
+        return
+    if _scheduler.get_job(_AUTO_UPDATE_JOB_ID):
+        _scheduler.remove_job(_AUTO_UPDATE_JOB_ID)
+
+
 def _periodic_purge_logs() -> None:
     db = SessionLocal()
     try:
-        from app.models import Setting
         row = db.query(Setting).filter(Setting.key == "logs_retention_days").first()
         retention = int(row.value) if row and row.value and row.value.isdigit() else 7
         purged = purge_expired_logs_and_metrics(db, retention)
@@ -669,6 +724,13 @@ def start_scheduler() -> None:
         logger.info(f"Scheduler démarré, {len(active_schedules)} programmation(s) active(s) rechargée(s)")
         # Snapshot initial
         record_hardware_snapshot(db)
+
+        auto_update_row = db.query(Setting).filter(Setting.key == "auto_update_enabled").first()
+        auto_update_time_row = db.query(Setting).filter(Setting.key == "auto_update_time").first()
+        sync_auto_update_job(
+            enabled=bool(auto_update_row and auto_update_row.value == "true"),
+            time_str=(auto_update_time_row.value if auto_update_time_row else "03:00"),
+        )
     finally:
         db.close()
 

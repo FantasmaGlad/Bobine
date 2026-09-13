@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import os
 import re
 import subprocess
 import urllib.request
@@ -17,12 +16,16 @@ from app.database import get_db
 from app.models import Setting
 from app.utils.activity_log import log_activity
 from app.utils.deployment import (
-    UpdateUnsupported,
     get_deployment_profile,
     get_profile_handler,
 )
+from app.utils.update_orchestrator import (
+    get_status,
+    is_running,
+    report_external_event,
+    run_update_pipeline,
+)
 from app.utils.version import get_app_commit, get_app_tag
-from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,28 @@ _RELEASES_LATEST_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/lat
 _RELEASES_BETA_TAG_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/beta"
 _VALID_CHANNELS = ("stable", "beta")
 
+# Extension d'asset attendue par profil de déploiement — un seul point de
+# vérité, utilisé à la fois par `check_updates()` (affichage) et
+# `apply_update()` (résolution de l'URL à télécharger), qui dupliquaient
+# auparavant chacun leur propre copie de ce mapping.
+_ASSET_EXTENSION_BY_PROFILE = {
+    "windows": ".exe",
+    "linux-desktop": ".deb",
+    "macos": ".dmg",
+    "android": ".apk",
+}
+
+
+class AndroidUpdateCallback(BaseModel):
+    """Rappel émis par `UpdateManager.kt` une fois le téléchargement de
+    l'APK terminé (succès ou échec) — `apply_update()` du profil Android
+    (backend/app/utils/deployment_profiles/android.py) délègue le
+    téléchargement à un thread Kotlin asynchrone et ne peut donc pas
+    connaître l'issue réelle avant que ce rappel n'arrive."""
+
+    status: str  # "downloaded" ou "error"
+    message: str | None = None
+
 
 def _get_update_channel(db: Session) -> str:
     row = db.query(Setting).filter(Setting.key == "update_channel").first()
@@ -55,12 +80,7 @@ def _parse_version(version_str: str) -> tuple[tuple[int, int, int], tuple]:
     pre-release est toujours postérieure à une version AVEC pre-release, et
     deux pre-releases se comparent identifiant par identifiant (numérique si
     possible, sinon lexical — les identifiants numériques ont une précédence
-    inférieure aux alphanumériques, cf. spec semver §11). Remplace l'ancien
-    `_parse_semver`, qui comparait des tuples d'entiers bruts et ne
-    distinguait pas 'V3.0.1-beta.1' de 'V3.0.1-beta.2' (les deux valaient
-    (3, 0, 1, 1) et (3, 0, 1, 2) par accident de parsing, et une vraie
-    'V3.0.1' stable pouvait même être vue comme ANTÉRIEURE à une bêta portant
-    un numéro d'identifiant plus élevé)."""
+    inférieure aux alphanumériques, cf. spec semver §11)."""
     s = (version_str or "").strip()
     if s[:1] in ("v", "V"):
         s = s[1:]
@@ -86,13 +106,7 @@ def _get_local_version_info() -> dict[str, str]:
     N'exécute `git` que sur les profils dont le dossier d'installation est
     un vrai checkout (aujourd'hui : l'appliance headless seule) — un paquet
     figé (`.exe`, `.app`, `.deb`) n'a pas de `.git` et ces appels
-    échoueraient systématiquement en pure perte (deux sous-process, jusqu'à
-    3s de timeout chacun, à chaque chargement de la page Réglages). Ces
-    profils lisent en revanche le commit depuis le fichier COMMIT bundlé par
-    la CI (`get_app_commit()`, réf. mission "canal Stable/Bêta") — nécessaire
-    pour que la détection de mise à jour du canal Bêta (comparaison de
-    commit, cf. `_beta_has_update`) fonctionne aussi sur les profils
-    packagés, pas seulement sur l'appliance headless."""
+    échoueraient systématiquement en pure perte."""
     commit = get_app_commit()
     tag = get_app_tag()
 
@@ -146,11 +160,9 @@ def _get_local_version_info() -> dict[str, str]:
 
 async def _fetch_release_for_channel(channel: str) -> dict[str, Any] | None:
     """Interroge GitHub pour le canal donné — partagé entre `check_updates()`
-    (affichage) et `apply_update()` (résolution du tag cible pour
-    `apply_update(target_tag=...)`), pour ne jamais risquer que les deux
-    endpoints déterminent une release différente. Un seul objet release dans
-    les deux cas (`/releases/latest` pour stable, `/releases/tags/beta` pour
-    bêta) — même forme de réponse, pas de liste à filtrer côté application."""
+    (affichage) et `apply_update()` (résolution du tag cible), pour ne
+    jamais risquer que les deux endpoints déterminent une release
+    différente."""
     url = _RELEASES_BETA_TAG_URL if channel == "beta" else _RELEASES_LATEST_URL
     req = urllib.request.Request(
         url,
@@ -181,15 +193,39 @@ def _short(sha: str | None, length: int = 7) -> str:
 
 def _beta_has_update(local_commit: str, release_data: dict[str, Any]) -> bool:
     """Le canal Bêta n'a pas de numéro de version qui avance à chaque build
-    (tag fixe "beta", réf. mission "canal Stable/Bêta") — la comparaison
-    porte donc sur le COMMIT plutôt que sur une version sémantique : y a-t-il
-    une mise à jour si le commit visé par le tag "beta" diffère du commit
-    actuellement installé. `target_commitish` d'une release GitHub créée sur
-    un tag léger est le SHA complet pointé par ce tag."""
+    (tag fixe "beta") — la comparaison porte donc sur le COMMIT plutôt que
+    sur une version sémantique."""
     remote_commit = _short(release_data.get("target_commitish"))
     if not remote_commit or local_commit in ("unknown", ""):
         return False
     return not remote_commit.startswith(local_commit) and not local_commit.startswith(remote_commit)
+
+
+def _resolve_asset(profile: str, release_data: dict[str, Any] | None) -> dict[str, Any]:
+    """Cherche l'asset adapté au profil de déploiement courant parmi ceux
+    d'une release GitHub. Renvoie systématiquement les quatre mêmes clés
+    (valant `None` si aucun asset ne correspond), pour que les deux
+    appelants (`check_updates`, `apply_update`) n'aient chacun qu'une seule
+    forme de résultat à gérer. `digest` reprend le champ natif que l'API
+    GitHub Releases fournit déjà pour chaque asset (`"sha256:<hex>"`) —
+    aucune infrastructure de checksum supplémentaire n'est nécessaire pour
+    vérifier l'intégrité d'un téléchargement avant de l'exécuter avec des
+    privilèges élevés (cf. `update_orchestrator.download_with_progress`)."""
+    target_ext = _ASSET_EXTENSION_BY_PROFILE.get(profile)
+    assets = (release_data or {}).get("assets") or []
+    matched = None
+    if target_ext:
+        for asset in assets:
+            name = (asset.get("name") or "").lower()
+            if name.endswith(target_ext):
+                matched = asset
+                break
+    return {
+        "download_url": matched.get("browser_download_url") if matched else None,
+        "asset_name": matched.get("name") if matched else None,
+        "asset_size": matched.get("size") if matched else None,
+        "asset_digest": matched.get("digest") if matched else None,
+    }
 
 
 @router.get("/check")
@@ -197,8 +233,7 @@ async def check_updates(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Vérifie la disponibilité d'une nouvelle release officielle sur GitHub,
     en respectant le canal choisi dans Réglages → Mises à jour (Stable ou
-    Bêta, "Programme Bobine Beta" — cf. `_get_update_channel`).
-    Gère gracieusement le mode hors-ligne sans planter.
+    Bêta). Gère gracieusement le mode hors-ligne sans planter.
     """
     local_info = _get_local_version_info()
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -241,44 +276,15 @@ async def check_updates(db: Session = Depends(get_db)) -> dict[str, Any]:
         has_update = _beta_has_update(local_info["current_commit"], release_data)
         remote_short = _short(release_data.get("target_commitish"))
         # Affichage informatif (pas de numéro de version qui avance à chaque
-        # build sur ce canal, cf. _beta_has_update) : le commit visé plutôt
-        # qu'un numéro de version qui resterait figé entre deux publications.
+        # build sur ce canal) : le commit visé plutôt qu'un numéro de
+        # version qui resterait figé entre deux publications.
         latest_version = f"beta ({remote_short})" if remote_short else "beta"
     else:
         has_update = _parse_version(latest_tag) > _parse_version(local_info["current_version"])
         latest_version = latest_tag
-    can_auto_apply = handler.can_auto_apply()
 
-    # Recherche de l'asset adapté au profil de déploiement (Lot 1 Windows .exe,
-    # Lot 2 Linux bureau .deb, Lot 3 macOS .dmg)
-    assets = release_data.get("assets") or []
-    matched_asset = None
-    target_ext = None
-    if profile == "windows":
-        target_ext = ".exe"
-    elif profile == "linux-desktop":
-        target_ext = ".deb"
-    elif profile == "macos":
-        target_ext = ".dmg"
-    elif profile == "android":
-        # Lot 11 : aucun asset .apk n'existe encore sur les releases
-        # publiques (Lot 13, publication volontairement differee) - ce
-        # cas reste donc inerte (repli sur html_url) tant que cette
-        # decision n'est pas revisitee, mais prepare le terrain pour
-        # qu'un .apk publie plus tard soit detecte automatiquement, sans
-        # nouveau changement ici.
-        target_ext = ".apk"
-
-    if target_ext:
-        for asset in assets:
-            name = (asset.get("name") or "").lower()
-            if name.endswith(target_ext):
-                matched_asset = asset
-                break
-
-    download_url = matched_asset.get("browser_download_url") if matched_asset else html_url
-    asset_name = matched_asset.get("name") if matched_asset else None
-    asset_size = matched_asset.get("size") if matched_asset else None
+    asset = _resolve_asset(profile, release_data)
+    download_url = asset["download_url"] or html_url
 
     return {
         "online": True,
@@ -292,50 +298,50 @@ async def check_updates(db: Session = Depends(get_db)) -> dict[str, Any]:
         "release_notes": release_notes,
         "published_at": published_at,
         "html_url": html_url,
-        "can_auto_apply": can_auto_apply,
+        "can_auto_apply": handler.can_auto_apply(),
         "download_url": download_url,
-        "asset_name": asset_name,
-        "asset_size": asset_size,
+        "asset_name": asset["asset_name"],
+        "asset_size": asset["asset_size"],
         "deployment_profile": profile,
         "checked_at": now_iso,
     }
 
 
-async def _run_update_pipeline(target_tag: str | None, download_url: str | None = None):
-    """Tâche d'arrière-plan appliquant la mise à jour et redémarrant les
-    services, via le handler du profil courant (§5.1/§5.4 du plan). Le
-    garde-fou de `apply_update()` (endpoint ci-dessous) évite normalement
-    d'arriver ici sur un profil qui ne supporte pas encore ce pipeline ;
-    l'exception est quand même rattrapée par prudence. `target_tag` épingle
-    le checkout sur le tag résolu par le canal courant au moment du clic
-    (réf. mission "canal Stable/Bêta") — None si la résolution GitHub a
-    échoué, auquel cas le handler retombe sur son ancien comportement
-    (`git pull --ff-only` sur la branche courante). `download_url` est l'URL
-    directe du paquet d'installation pour les profils non-git."""
-    logger.info(f"Début du processus de mise à jour système (cible : {target_tag or 'branche courante'}, url: {download_url})...")
+@router.get("/status")
+async def get_update_status() -> dict[str, Any]:
+    """État courant (ou dernier connu) du pipeline de mise à jour — lu par
+    le frontend au chargement de la page ET par l'overlay de progression
+    en repli si le WebSocket n'est pas connecté au moment où une mise à
+    jour planifiée se termine (cas concret : déclenchement à 3h du matin,
+    personne devant l'écran)."""
+    return get_status()
 
-    try:
-        await ws_manager.broadcast_force_reload()
-    except Exception as e:
-        logger.warning(f"Échec broadcast WebSocket lors de la mise à jour : {e}")
 
-    await asyncio.sleep(1.0)
-
-    try:
-        get_profile_handler().apply_update(target_tag=target_tag, download_url=download_url)
-    except UpdateUnsupported as e:
-        logger.warning(f"Mise à jour non applicable sur ce profil : {e.message}")
-    except Exception as e:
-        logger.error(f"Erreur lors de l'application de la mise à jour : {e}")
+@router.post("/_android-callback")
+async def android_update_callback(payload: AndroidUpdateCallback) -> dict[str, str]:
+    """Rappel interne (boucle locale uniquement, jamais exposé au delà de
+    127.0.0.1 par la configuration réseau du profil Android) : `UpdateManager.
+    kt` l'appelle une fois le téléchargement de l'APK terminé, puisque
+    `apply_update()` côté Python ne peut pas connaître cette issue avant
+    que le thread Kotlin ne l'ait déterminée."""
+    if payload.status == "downloaded":
+        await report_external_event(
+            "awaiting_user_confirmation",
+            message=payload.message or "APK téléchargé — confirmez l'installation sur l'appareil.",
+        )
+    else:
+        await report_external_event("failed", message=payload.message, error=payload.message)
+    return {"status": "ok"}
 
 
 @router.post("/apply")
 async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, str]:
-    """Déclenche la mise à jour du système et le rechargement des services.
+    """Déclenche la mise à jour du système en tâche de fond.
 
     Vérifie si le profil de déploiement supporte l'application automatique
-    (git, paquet .deb, .exe Windows, .apk Android). Renvoie 400 avec un message
-    clair si le profil ne sait pas encore appliquer de mise à jour."""
+    et qu'aucune mise à jour n'est déjà en cours (409 sinon — corrige le
+    risque de deux installations concurrentes sur un double clic ou deux
+    onglets ouverts)."""
     handler = get_profile_handler()
     if not handler.can_auto_apply():
         raise HTTPException(
@@ -345,6 +351,9 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
                 "téléchargez la dernière version depuis les releases GitHub du projet."
             ),
         )
+    if is_running():
+        raise HTTPException(status_code=409, detail="Une mise à jour est déjà en cours d'application.")
+
     # Résout à nouveau la release cible au moment du clic (plutôt que de
     # faire confiance à une valeur envoyée par le client) : reflète toujours
     # le canal Stable/Bêta courant, y compris si l'utilisateur l'a changé
@@ -354,26 +363,42 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
     target_tag = (release_data or {}).get("tag_name") or None
 
     profile = get_deployment_profile()
-    download_url = None
-    target_ext = None
-    if profile == "windows":
-        target_ext = ".exe"
-    elif profile == "linux-desktop":
-        target_ext = ".deb"
-    elif profile == "macos":
-        target_ext = ".dmg"
-    elif profile == "android":
-        target_ext = ".apk"
+    asset = _resolve_asset(profile, release_data)
 
-    if target_ext and release_data:
-        for asset in release_data.get("assets", []):
-            name = (asset.get("name") or "").lower()
-            if name.endswith(target_ext):
-                download_url = asset.get("browser_download_url")
-                break
-
-    background_tasks.add_task(_run_update_pipeline, target_tag, download_url)
+    log_activity(db, "update_apply", f"Mise à jour manuelle déclenchée (cible : {target_tag or 'branche courante'})")
+    background_tasks.add_task(
+        run_update_pipeline, target_tag, asset["download_url"], asset["asset_digest"], "manual"
+    )
     return {
         "status": "started",
         "message": "Téléchargement et application de la mise à jour en cours...",
     }
+
+
+async def run_scheduled_update_if_available(db: Session) -> None:
+    """Appelée par `scheduler_manager` au créneau planifié (Réglages → Mise
+    à jour automatique). Vérifie d'abord qu'une mise à jour existe RÉELLEMENT
+    avant de déclencher quoi que ce soit — contrairement au bouton manuel,
+    personne ne clique ici, donc pas de retour utilisateur immédiat en cas
+    de "rien à faire" à gérer, juste un silence normal dans les journaux."""
+    handler = get_profile_handler()
+    if not handler.can_schedule_auto_apply() or is_running():
+        return
+    channel = _get_update_channel(db)
+    release_data = await _fetch_release_for_channel(channel)
+    if not release_data:
+        return
+    local_info = _get_local_version_info()
+    if channel == "beta":
+        has_update = _beta_has_update(local_info["current_commit"], release_data)
+    else:
+        latest_tag = release_data.get("tag_name") or ""
+        has_update = _parse_version(latest_tag) > _parse_version(local_info["current_version"])
+    if not has_update:
+        return
+
+    target_tag = release_data.get("tag_name") or None
+    profile = get_deployment_profile()
+    asset = _resolve_asset(profile, release_data)
+    log_activity(db, "update_apply", f"Mise à jour planifiée déclenchée (cible : {target_tag or 'branche courante'})")
+    await run_update_pipeline(target_tag, asset["download_url"], asset["asset_digest"], "scheduled")

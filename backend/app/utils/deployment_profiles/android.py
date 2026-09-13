@@ -20,10 +20,13 @@ chemin fiable en production.
 
 import logging
 import os
+from typing import Callable
 
 from app.utils.deployment import ProfileHandler, UpdateUnsupported
 
 logger = logging.getLogger(__name__)
+
+_NOOP_REPORT: Callable[..., None] = lambda *a, **k: None  # noqa: E731
 
 
 class AndroidHandler(ProfileHandler):
@@ -51,7 +54,7 @@ class AndroidHandler(ProfileHandler):
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
             logger.info("Dialogue système de désinstallation Android ouvert via ACTION_DELETE.")
-        except Exception as exc:
+        except Exception:
             logger.exception("Échec de l'ouverture du dialogue de désinstallation Android")
             raise
 
@@ -67,11 +70,28 @@ class AndroidHandler(ProfileHandler):
     def can_auto_apply(self) -> bool:
         return True
 
-    def apply_update(self, target_tag: str | None = None, download_url: str | None = None) -> None:
+    def can_schedule_auto_apply(self) -> bool:
+        # Le téléchargement/la vérification PEUVENT se déclencher sans
+        # supervision (planification quotidienne) — seule l'installation
+        # finale exige un tap de confirmation Android (cf. apply_update
+        # ci-dessous), décision produit délibérée et maintenue : jamais
+        # d'installation silencieuse via PackageInstaller/Device Owner,
+        # même si l'appareil dispose des privilèges nécessaires.
+        return True
+
+    def apply_update(
+        self,
+        target_tag: str | None = None,
+        download_url: str | None = None,
+        asset_digest: str | None = None,
+        report: Callable[..., None] | None = None,
+    ) -> None:
+        report = report or _NOOP_REPORT
         if not download_url:
             raise UpdateUnsupported(
                 "Aucun lien de téléchargement d'APK disponible pour la mise à jour."
             )
+        report("downloading", message="Téléchargement de l'APK sur l'appareil…")
         try:
             from java import jclass  # Chaquopy
             py_app = jclass("com.chaquo.python.android.PyApplication")
@@ -81,3 +101,17 @@ class AndroidHandler(ProfileHandler):
         except Exception as exc:
             logger.exception("Échec du déclenchement de la mise à jour Android via UpdateManager")
             raise UpdateUnsupported(f"Impossible de déclencher la mise à jour Android : {exc}") from exc
+        # `downloadAndInstall` (Kotlin) lance le téléchargement dans SON
+        # PROPRE thread et rend la main immédiatement — cette méthode ne
+        # sait donc pas encore si le téléchargement a réussi au moment où
+        # elle retourne. L'étape finale ("terminé"/"échoué") est reportée
+        # par le rappel Kotlin -> `POST /api/updates/_android-callback`
+        # (cf. routers/updates.py), qui met à jour l'état partagé une fois
+        # l'APK effectivement prêt ou en erreur — pas ici. Ce qu'on SAIT en
+        # revanche dès ce point : la confirmation finale nécessitera un
+        # tap utilisateur sur la boîte de dialogue système Android
+        # (jamais d'installation silencieuse, cf. can_schedule_auto_apply).
+        report(
+            "awaiting_user_confirmation",
+            message="Téléchargement lancé — une confirmation sur la tablette sera nécessaire pour installer.",
+        )

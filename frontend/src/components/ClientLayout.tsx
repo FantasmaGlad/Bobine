@@ -11,6 +11,7 @@ import { useScreenWakeLock } from "@/lib/useScreenWakeLock";
 import { navEntries, isNavGroup, footerNavLinks as footerNavLinkConfigs } from "@/lib/navLinks";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
+import UpdateProgressOverlay from "@/components/UpdateProgressOverlay";
 
 function getApiUrl(path: string) {
   if (typeof window !== "undefined" && window.location.port === "3000") {
@@ -235,6 +236,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           </>
         )}
         {renderUpdateToast()}
+        <UpdateProgressOverlay />
       </div>
     );
   }
@@ -277,6 +279,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         <main className="page-content">{children}</main>
       </div>
       {renderUpdateToast()}
+      <UpdateProgressOverlay />
     </div>
   );
 }

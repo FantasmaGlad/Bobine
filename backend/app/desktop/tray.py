@@ -56,6 +56,7 @@ GRID_URL = f"{ADMIN_URL}/grid"
 CINEMA_URL = f"{ADMIN_URL}/cinema"
 HEALTH_URL = f"{ADMIN_URL}/api/health"
 UPDATES_CHECK_URL = f"{ADMIN_URL}/api/updates/check"
+UPDATES_STATUS_URL = f"{ADMIN_URL}/api/updates/status"
 
 # Supervision "logique" (process vivant mais /api/health en échec de façon
 # répétée) — complète la supervision "process mort" de BackendSupervisor,
@@ -64,12 +65,21 @@ UPDATES_CHECK_URL = f"{ADMIN_URL}/api/updates/check"
 HEALTH_POLL_INTERVAL_SECONDS = 30
 HEALTH_FAILURES_BEFORE_RESTART = 3
 
-# Notification "mise à jour disponible" (réf. mission "canal Stable/Bêta") :
-# interroge le backend LOCAL (`/api/updates/check`, déjà conscient du canal
-# Stable/Bêta choisi dans Réglages et du profil de déploiement pour l'asset à
-# proposer) plutôt que de dupliquer l'appel GitHub ici. 6h entre deux
-# vérifications — pas besoin de plus réactif pour une appliance de bureau.
+# Notification "mise à jour disponible" : interroge le backend LOCAL
+# (`/api/updates/check`, déjà conscient du canal Stable/Bêta choisi dans
+# Réglages et du profil de déploiement pour l'asset à proposer) plutôt que
+# de dupliquer l'appel GitHub ici. 6h entre deux vérifications — pas besoin
+# de plus réactif pour une appliance de bureau.
 UPDATE_POLL_INTERVAL_SECONDS = 6 * 60 * 60
+
+# Suivi de la PROGRESSION d'une mise à jour déjà en cours (déclenchée
+# manuellement depuis Réglages, ou automatiquement par la planification
+# quotidienne) : intervalle bien plus court que UPDATE_POLL_INTERVAL_SECONDS
+# ci-dessus, qui ne sert lui qu'à détecter qu'UNE NOUVELLE version existe.
+# Le tray n'a aucun moyen d'être notifié directement par le backend (deux
+# process séparés, aucun canal dédié) — il compare simplement l'état lu à
+# chaque passage à celui vu au tour précédent.
+UPDATE_STATUS_POLL_INTERVAL_SECONDS = 15
 
 
 def _backend_command() -> list[str]:
@@ -530,6 +540,51 @@ def _update_poll_loop() -> None:
         time.sleep(UPDATE_POLL_INTERVAL_SECONDS)
 
 
+def _notify_best_effort(icon: "pystray.Icon", title: str, message: str) -> None:
+    """`pystray.Icon.notify()` n'est pas également fiable sur tous les
+    environnements de bureau Linux (dépend du backend GTK/AppIndicator
+    disponible) — un échec ici ne doit dégrader que la notification native,
+    jamais faire tomber le tray lui-même. La bannière affichée dans
+    l'interface web (cf. `UpdateProgressOverlay` côté frontend) reste dans
+    tous les cas le canal d'information fiable."""
+    try:
+        icon.notify(message, title)
+    except Exception as e:
+        logger.debug(f"Notification native indisponible ({title!r}) : {e}")
+
+
+def _update_status_poll_loop(icon: "pystray.Icon") -> None:
+    """Suit la progression d'une mise à jour déjà en cours (déclenchée
+    manuellement depuis Réglages, OU automatiquement par la planification
+    quotidienne — les deux origines alimentent le même `/api/updates/status`,
+    cf. `update_orchestrator.run_update_pipeline`) et affiche une
+    notification native à la fin, réussie ou non. Sans ce suivi, une mise à
+    jour planifiée à 3h du matin n'avait AUCUN moyen de se signaler à un
+    utilisateur qui n'a pas de navigateur ouvert sur Réglages à ce moment-là."""
+    last_notified_started_at = None
+    while True:
+        time.sleep(UPDATE_STATUS_POLL_INTERVAL_SECONDS)
+        try:
+            req = urllib.request.Request(UPDATES_STATUS_URL, headers={"User-Agent": "BobineTray"})
+            with urllib.request.urlopen(req, timeout=4) as resp:
+                status = json.loads(resp.read().decode("utf-8"))
+        except Exception:
+            continue
+
+        step = status.get("step")
+        started_at = status.get("started_at")
+        if step not in ("done", "failed") or started_at is None:
+            continue
+        if started_at == last_notified_started_at:
+            continue  # déjà notifié pour cette exécution du pipeline
+        last_notified_started_at = started_at
+
+        if step == "done":
+            _notify_best_effort(icon, "Bobine — Mise à jour installée", status.get("message") or "Mise à jour terminée avec succès.")
+        else:
+            _notify_best_effort(icon, "Bobine — Échec de la mise à jour", status.get("error") or status.get("message") or "La mise à jour a échoué.")
+
+
 def run() -> None:
     """Point d'entrée — `python -m app.desktop.tray` en développement, et
     l'exécutable `BobineTray.exe` une fois empaqueté."""
@@ -614,6 +669,9 @@ def run() -> None:
     )
 
     icon = pystray.Icon("bobine", _load_icon_image(), "Bobine", menu=menu)
+    threading.Thread(
+        target=_update_status_poll_loop, args=(icon,), daemon=True, name="bobine-tray-update-status",
+    ).start()
     icon.run()
 
 

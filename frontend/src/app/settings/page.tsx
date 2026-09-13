@@ -29,6 +29,8 @@ interface SettingsData {
   network: { local_ip: string | null; port: number; mdns_url: string };
   update_channel: "stable" | "beta";
   wired_display_mode: "dual_screen" | "headless";
+  auto_update_enabled: "true" | "false";
+  auto_update_time: string;
 }
 
 
@@ -246,6 +248,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial depuis le backend puis rafraîchissement périodique, pas un calcul dérivable au rendu
     fetchSettings();
     const id = setInterval(() => fetchSettings(false), 15000);
     return () => clearInterval(id);
@@ -389,7 +392,17 @@ export default function SettingsPage() {
     try {
       const res = await fetch(getApiUrl("/updates/apply"), { method: "POST" });
       if (res.ok) {
-        showToast(t("settingsPage.updateSuccess"), "success");
+        // Le succès RÉEL (ou l'échec) est désormais suivi en direct par
+        // <UpdateProgressOverlay/> (montée globalement dans ClientLayout,
+        // WebSocket "update_progress") — ce toast ne fait plus que
+        // confirmer le DÉCLENCHEMENT, jamais l'issue. Avant ce correctif,
+        // ce même message ("Mise à jour téléchargée...") s'affichait ici
+        // dès cette réponse HTTP, avant même que le téléchargement n'ait
+        // commencé côté serveur — un échec réel (réseau coupé, checkout
+        // git refusé, installeur annulé) restait alors invisible.
+        showToast(t("settingsPage.updateInProgressHint"));
+      } else if (res.status === 409) {
+        showToast(t("settingsPage.updateAlreadyInProgress"), "warning");
       } else {
         const body = await res.json().catch(() => null);
         showToast(body?.detail || t("settingsPage.updateError"), "error");
@@ -398,6 +411,26 @@ export default function SettingsPage() {
       showToast(t("settingsPage.updateError"), "error");
     } finally {
       setApplyingUpdate(false);
+    }
+  };
+
+  const handleAutoUpdateChange = async (patch: { auto_update_enabled?: "true" | "false"; auto_update_time?: string }) => {
+    if (!data) return;
+    try {
+      const res = await fetch(getApiUrl("/settings"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (res.ok) {
+        setData(await res.json());
+        showToast(t("settingsPage.autoUpdateSaved"));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.detail || t("settingsPage.saveError"), "error");
+      }
+    } catch {
+      showToast(t("common.networkError"), "error");
     }
   };
 
@@ -1064,7 +1097,7 @@ export default function SettingsPage() {
               {t("settingsPage.currentVersion")} :
             </span>
             <span className="update-badge">
-              <strong>{updateInfo?.current_version ?? "V3.0.4"}</strong>
+              <strong>{updateInfo?.current_version ?? "…"}</strong>
               {updateInfo?.current_commit && updateInfo.current_commit !== "unknown" && (
                 <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.75rem", opacity: 0.8 }}>
                   ({updateInfo.current_commit})
@@ -1113,6 +1146,38 @@ export default function SettingsPage() {
             </div>
           </div>
           <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.betaHint")}</p>
+
+          {/* Mise à jour automatique planifiée */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
+            <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
+              {t("settingsPage.autoUpdateSection")}
+            </span>
+            <label className="ra-switch" title={t("settingsPage.autoUpdateToggleLabel")}>
+              <input
+                type="checkbox"
+                checked={data.auto_update_enabled === "true"}
+                onChange={(e) => handleAutoUpdateChange({ auto_update_enabled: e.target.checked ? "true" : "false" })}
+              />
+              <span className="ra-switch-track" />
+            </label>
+          </div>
+          {data.auto_update_enabled === "true" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <label htmlFor="auto-update-time" className="form-label" style={{ margin: 0 }}>
+                {t("settingsPage.autoUpdateTimeLabel")}
+              </label>
+              <input
+                id="auto-update-time"
+                type="time"
+                className="form-control"
+                style={{ maxWidth: "140px" }}
+                value={data.auto_update_time}
+                onChange={(e) => setData({ ...data, auto_update_time: e.target.value })}
+                onBlur={(e) => handleAutoUpdateChange({ auto_update_time: e.target.value })}
+              />
+            </div>
+          )}
+          <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.autoUpdateToggleHint")}</p>
 
           {/* Résultat de la recherche */}
           {updateInfo && (
