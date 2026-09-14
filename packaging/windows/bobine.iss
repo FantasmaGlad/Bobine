@@ -65,6 +65,9 @@ SolidCompression=yes
 LicenseFile=..\..\LICENSE
 SetupIconFile=bobine.ico
 UninstallDisplayIcon={app}\BobineTray.exe
+CloseApplications=yes
+CloseApplicationsFilter=*Bobine*.exe
+RestartApplications=no
 
 ; Section [Languages] : l'app démarre en français par défaut
 ; (DEFAULT_LANGUAGE = "fr", AppSettingsContext.tsx) sans détection de
@@ -78,11 +81,17 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
+[InstallDelete]
+; Purge des modules C compiles et DLLs existants avant extraction
+; pour eviter tout conflit binaire avec des reliquats d'une ancienne installation
+Type: files; Name: "{app}\*.pyd"
+Type: files; Name: "{app}\*.dll"
+
 [Files]
 ; Tout le dossier de sortie PyInstaller, à plat (cf. bobine.spec,
 ; contents_directory=".") : les deux exécutables, config.toml,
 ; logo_bobine_icon.png, frontend/out/ et les dépendances Python figées.
-Source: "{#MyDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+Source: "{#MyDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"
@@ -117,3 +126,15 @@ Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=
 ; données ; un utilisateur qui veut un nettoyage complet doit supprimer
 ; %ProgramData%\Bobine manuellement (à documenter dans le README, cf.
 ; plan §2 section "Documentation").
+
+[Code]
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  // Termine les processus Bobine actifs pour liberer les verrous de fichiers
+  // lors d'une mise a jour ou reinstallation par-dessus une version existante
+  Exec('taskkill.exe', '/F /IM BobineTray.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/F /IM BobineBackend.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := '';
+end;
