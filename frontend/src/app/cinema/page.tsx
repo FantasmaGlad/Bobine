@@ -366,12 +366,12 @@ export default function CinemaPage() {
   // celui de CET appareil : câblé si écran du Wyse, réseau sinon.
   const [channel] = useState<"cable" | "network">(() => (isWiredDisplay() ? "cable" : "network"));
   // Implémentation réelle installée plus bas, une fois les handlers définis.
-  const cinemaCmdRef = useRef<((action: string, positionSeconds: number, videoId?: number) => void) | null>(null);
+  const cinemaCmdRef = useRef<((action: string, positionSeconds: number, videoId?: number, extra?: { title?: string; duration_seconds?: number | null }) => void) | null>(null);
   const { state, displayOutputCable, displayOutputNetwork, sendCommand, cinemaState, libraryVersion } = usePlaybackSocket(
     undefined,
     undefined,
     channel,
-    (action, positionSeconds, videoId) => cinemaCmdRef.current?.(action, positionSeconds, videoId),
+    (action, positionSeconds, videoId, extra) => cinemaCmdRef.current?.(action, positionSeconds, videoId, extra),
   );
   useDisplayOutputRedirect("cinema", displayOutputCable, displayOutputNetwork);
 
@@ -711,7 +711,7 @@ export default function CinemaPage() {
   // Commandes admin reçues du tableau de bord (réf. mission "contrôler le
   // cours en mode cinéma") : appliquées à la lecture LOCALE de cet appareil.
   useEffect(() => {
-    cinemaCmdRef.current = (action, positionSeconds, videoId) => {
+    cinemaCmdRef.current = (action, positionSeconds, videoId, extra) => {
       const el = videoRef.current;
       if (action === "stop") {
         handleBackToMenu();
@@ -720,9 +720,19 @@ export default function CinemaPage() {
       if (action === "launch") {
         // Lot 14 (docs/plan-implementation-android.md) : ordre reçu de
         // /grid (écran de sélection découplé, ex. tablette Android) - passe
-        // par le même chemin de lecture qu'un clic local sur la grille,
-        // aucune nouvelle logique de lecture à écrire.
-        const video = videos.find((v) => v.id === videoId);
+        // par le même chemin de lecture qu'un clic local sur la grille.
+        let video = videos.find((v) => Number(v.id) === Number(videoId));
+        if (!video && videoId) {
+          // Repli immédiat si la liste des vidéos est en cours de chargement ou vide
+          video = {
+            id: Number(videoId),
+            title: extra?.title || "",
+            program: null,
+            release: null,
+            duration_seconds: extra?.duration_seconds ?? null,
+            thumbnail_path: null,
+          };
+        }
         if (video) handleSelect(video);
         return;
       }

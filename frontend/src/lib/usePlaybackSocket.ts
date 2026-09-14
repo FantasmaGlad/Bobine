@@ -207,7 +207,7 @@ export function usePlaybackSocket(
   onEvent?: (evt: PlaybackEvent) => void,
   role?: "kiosk",
   channel: PlaybackChannel = "cable",
-  onCinemaCommand?: (action: CinemaCommandAction, positionSeconds: number, videoId?: number) => void,
+  onCinemaCommand?: (action: CinemaCommandAction, positionSeconds: number, videoId?: number, extra?: { title?: string; duration_seconds?: number | null }) => void,
 ) {
   const [state, setState] = useState<PlaybackState>(DEFAULT_STATE);
   const [connected, setConnected] = useState(false);
@@ -418,7 +418,12 @@ export function usePlaybackSocket(
           if (parsed.event === "cinema_command") {
             // Ordre admin appliqué par les pages /cinema du canal.
             if ((parsed.channel ?? "cable") !== channel) return;
-            onCinemaCommandRef.current?.(parsed.action, parsed.position_seconds ?? 0, parsed.video_id ?? undefined);
+            onCinemaCommandRef.current?.(
+              parsed.action,
+              parsed.position_seconds ?? 0,
+              parsed.video_id ?? undefined,
+              { title: parsed.title, duration_seconds: parsed.duration_seconds }
+            );
             return;
           }
           if (parsed.event === "library_change") {
