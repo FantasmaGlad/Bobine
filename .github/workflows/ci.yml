@@ -364,7 +364,8 @@ jobs:
       - name: Fournir ffmpeg.exe/ffprobe.exe (build statique BtbN, appelés par nom nu par le backend)
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile ffmpeg.zip
+          $ffmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+          curl.exe -fL --retry 5 --retry-delay 5 "$ffmpegUrl" -o ffmpeg.zip
           Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg-extracted
           $bin = Get-ChildItem -Path ffmpeg-extracted -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1 -ExpandProperty DirectoryName
           Copy-Item "$bin\ffmpeg.exe" backend\dist\Bobine\

@@ -35,7 +35,7 @@ Bobine cible **5 profils d'exécution réels** en production. Toute modification
    - *Spécificités* : Debian 13 dédiée, services systemd système (`bobine-backend.service`, `bobine-kiosk.service`), Chromium X11 plein écran sans bureau, pilotage écran HDMI/DisplayPort.
    - *Télémétrie/Matériel* : Sysfs `intel-rapl` pour la puissance en Watts, `hwmon`, `lsblk` / sysfs block.
 4. **Windows Desktop (`.exe`, Inno Setup)** :
-   - *Spécificités* : Exécutable silencieux sans console noire (`console=False`, `CREATE_NO_WINDOW`), intégration systray Win32, mode clamshell sans veille via `powercfg`.
+   - *Spécificités* : Exécutable silencieux sans console noire (`console=False`, `CREATE_NO_WINDOW`), intégration systray Win32, mode clamshell sans veille via `powercfg`. Installeur Inno Setup auto-réparateur avec libération pré-installation des verrous de fichiers via `PrepareToInstall` (`taskkill`), purge des anciens `.pyd`/`.dll` (`[InstallDelete]`) et flag `ignoreversion`.
    - *Télémétrie/Matériel* : Registre Windows `CentralProcessor\0\ProcessorNameString`, commandes PowerShell/WMI non bloquantes (`Win32_VideoController`, `Win32_PhysicalMemory`, `Win32_DiskDrive`).
 5. **macOS Desktop (`.dmg`, Apple Silicon & Intel)** :
    - *Spécificités* : Structure bundle `Bobine.app/Contents/Resources/`, LaunchAgent utilisateur, `caffeinate` pour la prévention de veille, décodage/encodage matériel VideoToolbox.
@@ -140,6 +140,8 @@ Pour tout agent démarrant une session fraîche sans mémoire du dépôt :
   - Système de Notation 5 Étoiles : recueil d'avis à la fin de chaque séance sur `/grid` et `/cinema` (télécommande, manette, souris, tactile) avec auto-fermeture de 5 minutes.
   - Sessions d'assiduité (`playback_sessions`) et nouveau tableau de bord d'analytics `/metrics` (4 KPIs, histogramme horaire 24h CSS, classement des cours).
   - Supervision matérielle étendue : puissance instantanée en Watts (W), températures CPU/GPU (°C), modèles commerciaux des composants (CPU, GPU, Disque), télémétrie RAM détaillée (marque/constructeur, technologie LPDDR5X/DDR5/DDR4, fréquence max en MHz/MT/s) et Uptime/Runtime intégrés dans `/settings` et `/metrics`.
+  - Fiabilisation du double affichage HDMI Android : maintien du focus tactile sur la tablette principale (`FLAG_NOT_FOCUSABLE`), priorité locale des touches/souris, sortie câblée par défaut calée sur Cinema, payload WebSocket enrichi et ouverture des liens d'administration dans le navigateur externe.
+  - Installeur Windows Inno Setup auto-réparateur : libération automatique des verrous de fichiers via `PrepareToInstall` (`taskkill`), purge pré-installation des anciens `.pyd`/`.dll` (`[InstallDelete]`), remplacement forcé inconditionnel (`ignoreversion`) et résilience des téléchargements CI (`curl.exe --retry 5`).
 - **Fichier d'état structuré** : Consulte `.gemini/state.json` pour la représentation complète de l'état.
 
 ---
