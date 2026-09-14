@@ -127,6 +127,28 @@ class MainActivity : AppCompatActivity() {
             }
         }
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(
+                view: WebView,
+                request: WebResourceRequest
+            ): Boolean {
+                val uri = request.url
+                val path = uri.path ?: ""
+                // Si la navigation quitte la grille (ex: acces a l'administration / ou tout lien externe),
+                // on l'ouvre directement dans le navigateur systeme par defaut pour ne pas pieger l'utilisateur
+                // dans une WebView en plein ecran sans barre de navigation ni retour.
+                if (path != "/grid" && !path.startsWith("/grid/")) {
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, uri)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        view.context.startActivity(intent)
+                        return true
+                    } catch (e: Exception) {
+                        Log.w("MainActivity", "Impossible d'ouvrir le navigateur externe pour $uri", e)
+                    }
+                }
+                return false
+            }
+
             override fun onReceivedError(
                 view: WebView,
                 request: WebResourceRequest,
@@ -189,23 +211,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Priorite a l'interface locale tactile de la tablette (/grid) :
+        // si MainActivity ou sa WebView consomme l'evenement (navigation, enter, play/pause),
+        // on ne le deroute pas.
+        if (super.dispatchKeyEvent(event)) {
+            return true
+        }
         val pres = BobineForegroundService.currentPresentation
         if (pres != null && pres.isShowing) {
             if (pres.dispatchKeyEvent(event)) {
                 return true
             }
         }
-        return super.dispatchKeyEvent(event)
+        return false
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        if (super.dispatchGenericMotionEvent(event)) {
+            return true
+        }
         val pres = BobineForegroundService.currentPresentation
         if (pres != null && pres.isShowing) {
             if (pres.dispatchGenericMotionEvent(event)) {
                 return true
             }
         }
-        return super.dispatchGenericMotionEvent(event)
+        return false
     }
 
     private fun applyImmersiveFullscreen() {

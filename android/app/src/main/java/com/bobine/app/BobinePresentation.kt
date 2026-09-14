@@ -42,11 +42,10 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Configuration de la fenetre pour accepter les touches, manettes et le pointeur externe
+        // Configuration de la fenetre : FLAG_NOT_FOCUSABLE conserve pour ne jamais
+        // derober le focus a MainActivity sur la tablette principale.
         window?.let { win ->
-            win.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
-            win.decorView.isFocusable = true
-            win.decorView.isFocusableInTouchMode = true
+            win.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
         }
 
         val webView = WebView(context)
@@ -103,7 +102,6 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
         setContentView(webView)
         webView.loadUrl(CINEMA_URL)
         webView.onResume()
-        webView.requestFocus()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

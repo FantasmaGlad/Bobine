@@ -35,6 +35,11 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="3.0.6" date="2026-09-14">
+      <description>
+        <p>Version 3.0.6 : Correctif critique d'affichage et pilotage HDMI Android en mode double ecran (maintien du focus sur la tablette principale, priorite des controles tactiles et telecommandes, sortie cablee par defaut reglee sur Cinema, securisation du payload WebSocket de lancement) ; ouverture automatique de l'administration et des liens externes dans le navigateur par defaut sous Android ; nouveau catalogue de recommandations materielles et bundles sur bobine.fit.</p>
+      </description>
+    </release>
     <release version="3.0.5" date="2026-09-12">
       <description>
         <p>Version 3.0.5 : Console Régie Coach responsive (/coach) avec pupitre tactile, minuteur décompte temps réel, enchaînement automatique et retour vidéo Stage Monitor HDMI direct ; Hub d'Ambiances Visuelles (/backgrounds) avec prévisualisations vidéo 16:9 et projection 1-clic ; association personnalisée de fonds animés par piste audio ; tableau de bord d'assiduité (/metrics) et télémétrie matérielle enrichie (puissance en Watts, températures, fréquence RAM MT/s) ; moteur vidéo Gapless A/B Deck (/cinema) et notation 5 étoiles.</p>

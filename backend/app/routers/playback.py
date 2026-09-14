@@ -752,13 +752,19 @@ async def _handle_command(
             pos = float(params.get("position_seconds") or 0)
             await run_in_threadpool(close_playback_session, db, sess_id, pos)
 
-        await ws_manager.broadcast({
+        cmd_payload = {
             "event": "cinema_command",
             "channel": channel,
             "action": action,
             "position_seconds": float(params.get("position_seconds") or 0),
             "video_id": params.get("video_id"),
-        })
+        }
+        if "title" in params:
+            cmd_payload["title"] = params["title"]
+        if "duration_seconds" in params:
+            cmd_payload["duration_seconds"] = params["duration_seconds"]
+
+        await ws_manager.broadcast(cmd_payload)
     else:
         logger.warning(f"Commande WebSocket inconnue reçue : {command}")
 

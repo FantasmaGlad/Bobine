@@ -35,7 +35,7 @@ val hasReleaseSigningConfig = listOf(androidKeystorePath, androidKeystorePasswor
 // developpement uniquement, jamais installe comme mise a jour d'une
 // version CI reelle).
 val rootVersionFile = rootProject.projectDir.resolve("../VERSION")
-val fallbackVersionName = if (rootVersionFile.exists()) rootVersionFile.readText().trim() else "3.0.5"
+val fallbackVersionName = if (rootVersionFile.exists()) rootVersionFile.readText().trim() else "3.0.6"
 val androidVersionName: String = System.getenv("ANDROID_VERSION_NAME") ?: fallbackVersionName
 val fallbackVersionCode: Int = try {
     val process = ProcessBuilder("git", "rev-list", "--count", "HEAD")

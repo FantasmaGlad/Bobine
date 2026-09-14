@@ -322,7 +322,12 @@ export default function GridPage() {
       return;
     }
     lastLaunchRef.current = now;
-    sendCommand("cinema_command", { action: "launch", video_id: video.id });
+    sendCommand("cinema_command", {
+      action: "launch",
+      video_id: video.id,
+      title: video.title,
+      duration_seconds: video.duration_seconds,
+    });
     if (displayOutputCable !== null && displayOutputCable !== "cinema") {
       setLaunchWarning(t("cinema.gridNoScreen"));
       if (launchWarningTimerRef.current) clearTimeout(launchWarningTimerRef.current);
@@ -619,7 +624,12 @@ export default function GridPage() {
               </button>
               <p className="grid-standby-action-hint">{t("settingsPage.gridStandbySwitchToDualHelp")}</p>
 
-              <a href="/" className="btn btn-secondary grid-standby-btn-admin">
+              <a
+                href="/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary grid-standby-btn-admin"
+              >
                 <Icon name="settings" size={18} />
                 <span>{t("settingsPage.gridStandbyOpenAdmin")}</span>
               </a>

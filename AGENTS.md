@@ -100,7 +100,7 @@ Pour tout agent démarrant une session fraîche sans mémoire du dépôt :
 ## 3. Cartographie Temporelle & État du Projet
 
 - **Branche Git actuelle** : `main` (branche propre, synchro `origin/main`).
-- **Dernier Commit** : Version 3.0.5 Stable (Notes de release `docs/releases/V3.0.5.md`).
+- **Dernier Commit** : Version 3.0.6 Stable (Notes de release `docs/releases/V3.0.6.md`).
 - **Fonctionnalités Clés** :
   - Kiosque d'affichage automatique avec reprise sur coupure et anti-veille Screen Wake Lock API.
   - Double canal de diffusion indépendant (*Câblé* et *Réseau*) + Canal Radio.
@@ -644,9 +644,9 @@ L'incrémentation d'une version de Bobine (corrective, mineure ou majeure) touch
     - *Imports atomiques (`importer.py`)* : normalisation via fichier temporaire `temp_norm_*` puis déplacement atomique `shutil.move` vers `final_dest_path`, purge immédiate des fichiers tronqués en bloc `finally`.
     - *Streaming HTTP Range (`main.py`)* : support des plages suffixées (`bytes=-N`) et suppression de l'en-tête `Content-Range` lors des réponses HTTP 200 complètes (RFC 7233 / 9110).
 
-- **Statut de version (mis à jour au 2026-09-13)** : dernier tag stable réel
-  publié : `V3.0.5` (`VERSION` à jour, notes `docs/releases/V3.0.5.md`
-  publiées sur GitHub Releases). Les notes `docs/releases/V3.0.3.md` et
+- **Statut de version (mis à jour au 2026-09-14)** : dernier tag stable réel
+  publié : `V3.0.6` (`VERSION` à jour, notes `docs/releases/V3.0.6.md`
+  publiées sur GitHub Releases). Les notes `docs/releases/V3.0.5.md`,
   `docs/releases/V3.0.4.md` existent bien toutes les deux et séparément dans
   `docs/releases/` (une note précédente affirmant que `V3.0.4.md` avait été
   fusionnée dans `V3.0.3.md` puis supprimée était devenue fausse — les deux
