@@ -100,7 +100,7 @@ Pour tout agent démarrant une session fraîche sans mémoire du dépôt :
 ## 3. Cartographie Temporelle & État du Projet
 
 - **Branche Git actuelle** : `main` (branche propre, synchro `origin/main`).
-- **Dernier Commit** : Version 3.0.6 Stable (Notes de release `docs/releases/V3.0.6.md`).
+- **Dernier Commit** : Version 3.0.6 Stable (Notes de release `docs/releases/V3.0.6.md`), suivie de commits Bêta (canal `beta`, changelog auto-généré par la CI — pas de fichier `docs/releases/` par itération) portant la refonte des playlists ci-dessous.
 - **Fonctionnalités Clés** :
   - Kiosque d'affichage automatique avec reprise sur coupure et anti-veille Screen Wake Lock API.
   - Double canal de diffusion indépendant (*Câblé* et *Réseau*) + Canal Radio.
@@ -142,6 +142,10 @@ Pour tout agent démarrant une session fraîche sans mémoire du dépôt :
   - Supervision matérielle étendue : puissance instantanée en Watts (W), températures CPU/GPU (°C), modèles commerciaux des composants (CPU, GPU, Disque), télémétrie RAM détaillée (marque/constructeur, technologie LPDDR5X/DDR5/DDR4, fréquence max en MHz/MT/s) et Uptime/Runtime intégrés dans `/settings` et `/metrics`.
   - Fiabilisation du double affichage HDMI Android : maintien du focus tactile sur la tablette principale (`FLAG_NOT_FOCUSABLE`), priorité locale des touches/souris, sortie câblée par défaut calée sur Cinema, payload WebSocket enrichi et ouverture des liens d'administration dans le navigateur externe.
   - Installeur Windows Inno Setup auto-réparateur : libération automatique des verrous de fichiers via `PrepareToInstall` (`taskkill`), purge pré-installation des anciens `.pyd`/`.dll` (`[InstallDelete]`), remplacement forcé inconditionnel (`ignoreversion`) et résilience des téléchargements CI (`curl.exe --retry 5`).
+  - Refonte de la création de playlists (réf. mission "playlists addictives") : catégorie "Playlist" retirée du volet de navigation, création de playlists vidéo déplacée dans Bibliothèque (`VideoPlaylistManager`) et création de playlists audio coach dans Coach → Cours Audio (`AudioPlaylistManager`) — chacune intégrée à son propre écran d'import/affichage de médias plutôt qu'isolée sur une page dédiée. Sélecteur de médias en cartes visuelles (vignette, durée, badges) au lieu d'une liste de texte pur ; côté audio, accordéon par cours avec bouton "Tout le cours" pour ajouter une édition entière en un clic (mix de plusieurs éditions sans recherche piste par piste). Cours audio dotés d'une image de couverture réutilisant la miniature de l'ambiance déjà assignée (`AudioCourse.background_id`) — aucune migration de schéma, aucun champ `cover_path` dédié.
+  - Suppression des présélections de catégorie codées en dur (résidu Lesmills "Rpm/Sprint/The Trip") à l'import vidéo et audio : champ libre avec suggestions (`datalist`) alimentées par les catégories réellement présentes en base (`GET /api/audio/programs`).
+  - Correctif scroll sidebar : `.app-sidebar` en `overflow-y: auto` pour atteindre les entrées de menu (Planning, Métriques, Paramètres…) qui débordaient en bas d'écran quand tous les groupes accordéon étaient dépliés.
+  - Algorithme léger de détection "Catégorie Édition" (`frontend/src/lib/parseMediaName.ts`, réutilisé côté import vidéo et audio, miroir Python dans `backend/app/utils/audio_importer.py::_guess_release`) : reconnaît le motif "Rpm 101" dans un nom de fichier/dossier importé pour pré-remplir catégorie + édition + titre affiché. Corrige le bug "chiffre random affiché sur la tablette" — l'ancienne regex (`(?:release|rel|r|#|v)\s*(\d+)` côté vidéo, `\b\d{1,3}\b` côté audio) pouvait accrocher un numéro de piste, une date ou une résolution vidéo au lieu de l'édition réelle ; la nouvelle version exige que le nombre soit collé à un mot et ignore les nombres à 4 chiffres ressemblant à une année/résolution sauf catégorie déjà connue.
 - **Fichier d'état structuré** : Consulte `.gemini/state.json` pour la représentation complète de l'état.
 
 ---

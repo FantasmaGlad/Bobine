@@ -371,6 +371,8 @@ export const dictionaries: Record<Language, Dict> = {
       noAudioPlaylists: "Aucune playlist audio dans la bibliothèque pour le moment.",
     },
     library: {
+      mediaTab: "Médiathèque",
+      playlistsTab: "Playlists",
       fetchError: "Erreur lors de la récupération des vidéos",
       connectionError: "Impossible de se connecter au serveur",
       bulkDeletedPartial: "{{ok}}/{{total}} vidéos supprimées",
@@ -579,6 +581,9 @@ export const dictionaries: Record<Language, Dict> = {
       deletePlaylistConfirmAfter: "? Cette action est irréversible.",
       trackBackgroundLabel: "Fond d'ambiance de ce morceau",
       trackBackgroundNone: "Fond de la playlist",
+      addWholeCourse: "Tout le cours",
+      addedWholeCourseToast: "{{count}} piste(s) de « {{title}} » ajoutées",
+      tracksInCourse: "{{count}} piste(s)",
     },
     schedule: {
       dayLabels: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
@@ -661,6 +666,10 @@ export const dictionaries: Record<Language, Dict> = {
       coursesCount: "{{count}} cours",
     },
     audio: {
+      coursesTab: "Cours",
+      playlistsTab: "Playlists",
+      programPlaceholder: "Ex. RPM, yoga… (libre)",
+      noProgram: "Sans catégorie",
       coachLaunchTitle: "Lancer une playlist sur l'écran coach",
       coachLaunchHint: "Le câblé est en mode coach : choisissez une playlist audio à diffuser sur l'écran cinéma.",
       coachLaunchDisabledHint: "Passez d'abord le câblé en mode coach (bouton « Passer en mode coach » ou écran /coach) pour lancer une playlist ici.",
@@ -1549,6 +1558,8 @@ export const dictionaries: Record<Language, Dict> = {
       noAudioPlaylists: "No audio playlist in the library yet.",
     },
     library: {
+      mediaTab: "Media Library",
+      playlistsTab: "Playlists",
       fetchError: "Error while fetching videos",
       connectionError: "Unable to connect to the server",
       bulkDeletedPartial: "{{ok}}/{{total}} videos deleted",
@@ -1757,6 +1768,9 @@ export const dictionaries: Record<Language, Dict> = {
       deletePlaylistConfirmAfter: "? This action is irreversible.",
       trackBackgroundLabel: "This track's background",
       trackBackgroundNone: "Playlist's background",
+      addWholeCourse: "Whole course",
+      addedWholeCourseToast: "{{count}} track(s) from \"{{title}}\" added",
+      tracksInCourse: "{{count}} track(s)",
     },
     schedule: {
       dayLabels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -1839,6 +1853,10 @@ export const dictionaries: Record<Language, Dict> = {
       coursesCount: "{{count}} courses",
     },
     audio: {
+      coursesTab: "Courses",
+      playlistsTab: "Playlists",
+      programPlaceholder: "e.g. RPM, yoga… (free text)",
+      noProgram: "No category",
       coachLaunchTitle: "Launch a playlist on the coach screen",
       coachLaunchHint: "Cable is in coach mode: pick an audio playlist to play on the cinema screen.",
       coachLaunchDisabledHint: "Switch the cable output to coach mode first (\"Switch to coach mode\" button or the /coach screen) to launch a playlist here.",
