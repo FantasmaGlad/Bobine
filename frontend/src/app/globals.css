@@ -2454,9 +2454,59 @@ a.status-pill:hover,
    (qui, lui, tenait toute la page) pour laisser la place à cette bascule. */
 .playlists-split-container {
   display: flex;
-  height: calc(100vh - var(--header-height) - 64px);
+  flex: 1;
+  min-height: 0;
   gap: 24px;
   overflow: hidden;
+}
+
+/* Contexte "onglet Playlists" de Bibliothèque/Coach › Cours Audio (réf.
+   correctif "playlists audio : infos qui se chevauchent, pas scrollable,
+   trop compact") : VideoPlaylistManager/AudioPlaylistManager sont montés
+   dans .library-container APRÈS le bascule .view-toggle, pas seuls sur la
+   page comme les anciennes routes /playlists et /audio-playlists (devenues
+   de simples redirections). .playlists-split-container (flex:1, min-height:
+   0 ci-dessus) attend un ancêtre à hauteur bornée pour que ses colonnes
+   défilent en interne plutôt que de s'écraser à 0px (séquenceur/liste vides
+   à l'écran) ou de déborder par-dessus le reste de la page. Ce modificateur
+   isole cette hauteur bornée au seul mode Playlists — la grille
+   Médiathèque/Cours garde son défilement naturel (.library-container
+   min-height:100%, réf. commentaire plus haut) volontairement SANS hauteur
+   fixe. 64px = padding vertical de .page-content (32px × 2), seul autre
+   parent entre ce conteneur et la fenêtre.
+*/
+/* Desktop uniquement (breakpoint 768px, même seuil que useIsMobile.ts) : sur
+   mobile, VideoPlaylistManager/AudioPlaylistManager empilent déjà leurs
+   panneaux en colonne avec height:"auto" (styles isMobile déjà en place dans
+   ces composants) et comptent sur le défilement naturel de la page — un
+   overflow:hidden borné ici les aurait tronqués au lieu de les laisser
+   grandir. */
+@media (min-width: 769px) {
+  .library-container.playlists-mode {
+    height: calc(100vh - var(--header-height) - 64px);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .library-container.playlists-mode .view-toggle {
+    flex-shrink: 0;
+  }
+}
+
+/* VideoPlaylistManager/AudioPlaylistManager enveloppent tout leur rendu dans
+   un <div> racine (conteneur du toast + .playlists-split-container) : sans
+   cette classe, ce <div> est un bloc ordinaire (flex:0 1 auto par défaut) —
+   il s'écrase à la hauteur de son contenu au lieu de transmettre le flex:1
+   de .library-container.playlists-mode à .playlists-split-container, qui se
+   retrouvait alors hors d'un contexte flex utile et retombait lui aussi à sa
+   hauteur de contenu (~256px de constaté) plutôt que de remplir l'écran —
+   c'est ce qui produisait le rendu "trop compact, infos qui se chevauchent,
+   pas scrollable". */
+.playlist-manager-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .playlists-left-panel {
