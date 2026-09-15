@@ -259,6 +259,15 @@ jobs:
           java-version: "17"
       - uses: android-actions/setup-android@v3
         if: steps.check_secrets.outputs.configured == 'true'
+        with:
+          # Réf. incident 2026-09-15 : le paquet legacy "tools" (installé par
+          # défaut par cette action, `packages: "tools platform-tools"`) a
+          # disparu du dépôt SDK Google ("Failed to find package 'tools'",
+          # exit code 1) — cassait tout le job avant même l'étape suivante,
+          # qui installe déjà les seuls paquets réellement utilisés
+          # (platforms;android-36, build-tools;36.1.0). platform-tools seul
+          # suffit ici.
+          packages: "platform-tools"
       - name: Installer les plateformes/outils Android requis
         if: steps.check_secrets.outputs.configured == 'true'
         run: sdkmanager "platforms;android-36" "build-tools;36.1.0"
