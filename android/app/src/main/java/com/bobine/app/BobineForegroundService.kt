@@ -18,10 +18,15 @@ import android.util.Log
 import android.view.Display
 import android.view.WindowManager
 import com.chaquo.python.Python
+import org.json.JSONObject
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
 
 private const val NOTIFICATION_CHANNEL_ID = "bobine_service"
 private const val NOTIFICATION_ID = 1
 private const val TAG = "BobineForegroundService"
+private const val SETTINGS_URL = "http://127.0.0.1:8000/api/settings"
 
 /**
  * Lot 6 (cf. docs/plan-implementation-android.md) : porte le backend Python
@@ -86,9 +91,52 @@ class BobineForegroundService : Service() {
             presentation = null
             currentPresentation = null
             releaseWakeLock()
+            syncWiredDisplayMode("headless")
         }
 
         override fun onDisplayChanged(displayId: Int) {}
+    }
+
+    /**
+     * Reflete la presence reelle de l'ecran HDMI dans le reglage
+     * `wired_display_mode` (reference AppSettingsContext.tsx / GET-PUT
+     * /api/settings) - correctif "brancher un projecteur HDMI, /grid ne
+     * detecte pas l'ecran et refuse de lancer un cours meme si l'image
+     * s'affiche bien dessus" : ce DisplayListener detecte deja avec
+     * precision et en temps reel le branchement/debranchement (c'est ce qui
+     * permet a `showPresentationIfNeeded()` d'afficher correctement /cinema
+     * sur le HDMI), mais avant ce correctif ce signal n'etait JAMAIS
+     * remonte au backend - `wired_display_mode` restait a la valeur figee
+     * en base (ex. "headless" choisi une fois par un admin AVANT de
+     * posseder un projecteur), et /grid affichait indefiniment son
+     * placeholder de veille "ecran cable inactif" au lieu de la grille de
+     * cours, quel que soit l'etat reel du branchement.
+     *
+     * Best-effort et non-bloquant (thread dedie, memes precautions que
+     * UpdateManager.reportCallback) : le backend embarque peut ne pas
+     * encore repondre au tout premier demarrage a froid (fenetre de
+     * quelques secondes), et cette synchronisation n'est de toute facon
+     * qu'un confort — l'admin garde le bouton manuel "Passer en double
+     * ecran" du placeholder de veille comme repli.
+     */
+    private fun syncWiredDisplayMode(mode: String) {
+        Thread {
+            try {
+                val connection = URL(SETTINGS_URL).openConnection() as HttpURLConnection
+                connection.requestMethod = "PUT"
+                connection.doOutput = true
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                val body = JSONObject().put("wired_display_mode", mode).toString()
+                OutputStreamWriter(connection.outputStream).use { it.write(body) }
+                connection.inputStream.use { it.readBytes() }
+                connection.disconnect()
+                Log.i(TAG, "wired_display_mode synchronise sur '$mode'")
+            } catch (e: Exception) {
+                Log.w(TAG, "Echec de synchronisation de wired_display_mode='$mode' (non bloquant)", e)
+            }
+        }.start()
     }
 
     // Lot 15 (docs/audit-android-2026-09-11.md §C3) : compte les tentatives
@@ -206,6 +254,7 @@ class BobineForegroundService : Service() {
                 currentPresentation = it
             }
             acquireWakeLock()
+            syncWiredDisplayMode("dual_screen")
             presentationAttemptInFlight = false
             presentationRetries = 0
         } catch (e: WindowManager.InvalidDisplayException) {
