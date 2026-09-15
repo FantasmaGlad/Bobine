@@ -31,9 +31,22 @@ def _guess_program(title: str) -> str | None:
     return None
 
 
+_RESOLUTION_NUMBERS = {"144", "240", "360", "480", "720", "1080", "1440", "2160", "4320"}
+
+
 def _guess_release(title: str) -> str | None:
-    match = re.search(r"\b\d{1,3}\b", title)
-    return match.group(0) if match else None
+    """
+    Repère le nombre collé à un mot ("Rpm 101") plutôt que le premier chiffre
+    isolé trouvé n'importe où dans le titre (réf. bug "chiffre random
+    affiché sur la tablette" : `\\b\\d{1,3}\\b` seul pouvait accrocher un
+    numéro de piste ou de date au lieu de l'édition réelle).
+    """
+    for word, number in re.findall(r"([A-Za-zÀ-ÖØ-öø-ÿ]+)[\s_-]+(\d{1,4})\b", title):
+        is_year = len(number) == 4 and 1900 <= int(number) <= 2099
+        if is_year or number in _RESOLUTION_NUMBERS:
+            continue
+        return number
+    return None
 
 
 def wait_for_folder_to_stabilize(dir_path: str, stable_secs: int = 3, timeout: int = 300) -> bool:

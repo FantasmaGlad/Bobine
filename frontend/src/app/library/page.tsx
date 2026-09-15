@@ -4,7 +4,9 @@ import React, { useEffect, useState, useRef } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useUploadManager, PendingUploadSpec } from "@/lib/UploadManager";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
+import { parseMediaName } from "@/lib/parseMediaName";
 import Icon from "@/components/Icon";
+import VideoPlaylistManager from "@/components/VideoPlaylistManager";
 import {
   getResolutionBadge,
   getAudioQualityBadge,
@@ -38,6 +40,11 @@ interface ToastState {
 
 export default function LibraryPage() {
   const { t } = useAppSettings();
+  // Bascule Médiathèque/Playlists (réf. mission "supprimer la catégorie
+  // playlist du volet ouvrant, déplacer la création de playlist vidéo dans
+  // Bibliothèque") : la création de playlist vidéo vit désormais ici plutôt
+  // que sur une page /playlists séparée.
+  const [mode, setMode] = useState<"media" | "playlists">("media");
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -468,12 +475,8 @@ export default function LibraryPage() {
   const addPendingSpecs = (files: File[]) => {
     const known = availablePrograms;
     const specs = files.map((file) => {
-      const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf(".")) || file.name;
-      const lowerName = file.name.toLowerCase();
-      const program = known.find((p) => p && lowerName.includes(p.toLowerCase())) ?? "";
-      const match = file.name.match(/(?:release|rel|r|#|\bv)\s*(\d+)/i);
-      const release = match?.[1] ?? "";
-      return { key: Math.random().toString(36).slice(2), kind: "video" as const, file, title: nameWithoutExt, program, release };
+      const { title, program, release } = parseMediaName(file.name, known);
+      return { key: Math.random().toString(36).slice(2), kind: "video" as const, file, title, program, release };
     });
     setPendingSpecs((prev) => [...prev, ...specs]);
   };
@@ -514,6 +517,28 @@ export default function LibraryPage() {
 
   return (
     <div className="library-container">
+      {/* Bascule Médiathèque/Playlists : mêmes boutons que le bascule
+          grille/liste ci-dessous (.view-toggle), pour rester dans le même
+          langage visuel plutôt qu'introduire un nouveau composant d'onglet. */}
+      <div className="view-toggle" style={{ alignSelf: "flex-start" }}>
+        <button
+          className={`view-btn olc-press ${mode === "media" ? "active" : ""}`}
+          onClick={() => setMode("media")}
+        >
+          <Icon name="video_library" size={16} /> {t("library.mediaTab")}
+        </button>
+        <button
+          className={`view-btn olc-press ${mode === "playlists" ? "active" : ""}`}
+          onClick={() => setMode("playlists")}
+        >
+          <Icon name="playlist_play" size={16} /> {t("library.playlistsTab")}
+        </button>
+      </div>
+
+      {mode === "playlists" ? (
+        <VideoPlaylistManager />
+      ) : (
+      <>
       {/* Suggestions de catégories partagées (import + drawer) : les catégories
           déjà utilisées dans la bibliothèque, sans rien imposer — l'utilisateur
           peut toujours en saisir une nouvelle. */}
@@ -1179,6 +1204,8 @@ export default function LibraryPage() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

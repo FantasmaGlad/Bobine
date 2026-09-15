@@ -115,6 +115,10 @@ class AudioCourse(Base):
         back_populates="course", order_by="AudioTrack.position", cascade="all, delete-orphan"
     )
 
+    @property
+    def background_thumbnail_path(self) -> str | None:
+        return self.background.thumbnail_path if self.background else None
+
 
 class AudioTrack(Base):
     __tablename__ = "audio_tracks"

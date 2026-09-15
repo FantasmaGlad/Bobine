@@ -669,6 +669,12 @@ h1, h2, h3, h4, h5, h6 {
   flex-shrink: 0;
   padding: 24px 16px;
   justify-content: space-between;
+  /* Correctif "impossible de scroller le menu déplié" : avec tous les
+     groupes accordéon ouverts, la liste des liens peut dépasser la hauteur
+     de l'écran — sans ce scroll propre à la sidebar, les entrées qui
+     débordent en bas (Planning, Métriques, Paramètres...) étaient
+     inatteignables. */
+  overflow-y: auto;
 }
 
 .sidebar-brand {
@@ -2441,9 +2447,14 @@ a.status-pill:hover,
 }
 
 /* Playlist split screen administration */
+/* Réf. refonte "intégrer la création de playlist dans Bibliothèque/Cours
+   audio" : ce bloc est désormais EMBARQUÉ sous la bascule de mode
+   Médiathèque/Cours ↔ Playlists de sa page hôte plutôt que d'occuper une
+   page dédiée — on retire donc un peu plus de hauteur que l'ancien calc
+   (qui, lui, tenait toute la page) pour laisser la place à cette bascule. */
 .playlists-split-container {
   display: flex;
-  height: calc(100vh - var(--header-height) - 48px);
+  height: calc(100vh - var(--header-height) - 64px);
   gap: 24px;
   overflow: hidden;
 }
@@ -2459,23 +2470,6 @@ a.status-pill:hover,
   border-radius: var(--radius-lg);
   padding: 20px;
   height: 100%;
-}
-
-/* Bascule vidéo/audio en haut du panneau gauche (réf. correctif "il manque
-   l'onglet pour faire des playlists de musiques") : réutilise .speed-btn
-   (déjà utilisé pour les onglets Cours/Playlists audio du mode coach)
-   plutôt qu'un nouveau composant d'onglet. */
-.playlists-type-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.playlists-type-tabs .speed-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
 }
 
 .playlists-right-panel {
@@ -2559,6 +2553,14 @@ a.status-pill:hover,
   flex-direction: column;
   gap: 20px;
   height: 100%;
+  /* Filet de sécurité (réf. correctif "séquenceur et bibliothèque se
+     superposent sur petite fenêtre") : sans ce scroll, un contenu qui ne
+     tient pas dans la hauteur disponible écrasait le séquenceur (flex:1,
+     min-height:0) à 0px — son enfant .drag-drop-zone (min-height:150px)
+     débordait alors visuellement PAR-DESSUS .library-picker au lieu de
+     pousser la hauteur du formulaire. Avec overflow-y:auto, le formulaire
+     défile proprement dans ce cas plutôt que de superposer son contenu. */
+  overflow-y: auto;
 }
 
 .editor-metadata-grid {
@@ -2671,26 +2673,143 @@ a.status-pill:hover,
   height: 280px;
 }
 
+/* Grille de cartes visuelles (réf. mission "sans devoir chercher à l'aveugle
+   dans un énorme catalogue sans preview ni image") : remplace l'ancienne
+   liste de lignes texte par le même langage visuel que .video-card, en
+   compact, pour choisir un média au coup d'œil plutôt qu'à l'aveugle. */
 .library-picker-list {
   flex: 1;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 8px;
   padding-right: 2px;
+  align-content: flex-start;
 }
 
-.library-picker-item {
+.picker-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.picker-card:hover {
+  border-color: var(--border-focus);
+  transform: translateY(-2px);
+}
+
+.picker-card-content {
+  padding: 6px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.picker-card-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-card-meta {
   display: flex;
   align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* Bouton "+" flottant : visible au survol sur desktop, toujours visible sur
+   tactile (.always-show-add, posé par les pages quand isMobile). */
+.picker-card-add {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: var(--accent-primary-fg);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all var(--transition-fast);
+}
+
+.picker-card:hover .picker-card-add,
+.picker-card.always-show-add .picker-card-add {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Carte "cours" dépliable du picker audio (réf. mission "audio peut contenir
+   des groupes comme des cours entiers") : en-tête compact (vignette
+   d'ambiance + bouton "tout le cours") + pistes en accordéon. */
+.picker-course-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.picker-course-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.picker-course-thumb {
+  width: 56px;
+  height: 32px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-surface-elevated);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.picker-course-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.picker-course-tracks {
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+}
+
+.picker-track-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.01);
   border: 1px solid rgba(255, 255, 255, 0.03);
   border-radius: var(--radius-sm);
-  padding: 8px 12px;
+  padding: 6px 8px;
   cursor: grab;
 }
 
-.library-picker-item:hover {
+.picker-track-row:hover {
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -3838,6 +3957,9 @@ a.status-pill:hover,
   flex-direction: column;
   padding: 20px 12px;
   animation: fadeIn var(--transition-fast);
+  /* Même correctif que .app-sidebar : les groupes accordéon dépliés peuvent
+     dépasser la hauteur de l'écran sur téléphone. */
+  overflow-y: auto;
 }
 
 .mobile-drawer-nav {

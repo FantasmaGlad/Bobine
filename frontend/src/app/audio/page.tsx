@@ -3,7 +3,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useUploadManager } from "@/lib/UploadManager";
+import { parseMediaName } from "@/lib/parseMediaName";
 import Icon from "@/components/Icon";
+import AudioPlaylistManager from "@/components/AudioPlaylistManager";
 
 const AUDIO_EXTENSIONS = [".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg"];
 const AUDIO_ACCEPT = ".mp3,.m4a,.wav,.aac,.flac,.ogg,audio/*";
@@ -25,6 +27,7 @@ interface AudioCourseSummary {
   program: string | null;
   release: string | null;
   background_id: number | null;
+  background_thumbnail_path: string | null;
   track_count: number;
   total_duration_seconds: number;
 }
@@ -52,8 +55,6 @@ interface ToastState {
   type: "success" | "error" | "warning";
 }
 
-const PROGRAM_GROUPS = ["RPM", "Sprint", "The Trip", "Autre"];
-
 function getApiUrl(path: string) {
   if (typeof window !== "undefined" && window.location.port === "3000") {
     return `http://localhost:8001/api${path}`;
@@ -68,30 +69,32 @@ function formatDuration(seconds: number | null) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function programBadgeClass(program: string | null) {
-  if (!program) return "autre";
-  const p = program.toLowerCase();
-  if (p === "rpm") return "rpm";
-  if (p === "sprint") return "sprint";
-  if (p === "the trip" || p === "trip") return "the-trip";
+// Catégories libres (réf. correctif "retire les presets Rpm/Sprint/The
+// Trip") : plus de couleur par programme, une seule classe générique suffit
+// (même simplification déjà faite côté Bibliothèque vidéo).
+function programBadgeClass(_program: string | null) {
   return "autre";
 }
 
-function programCardClass(program: string | null) {
-  if (!program) return "program-autre";
-  const p = program.toLowerCase();
-  if (p === "rpm") return "program-rpm";
-  if (p === "sprint") return "program-sprint";
-  if (p === "the trip" || p === "trip") return "program-the-trip";
+function programCardClass(_program: string | null) {
   return "program-autre";
 }
 
 export default function AudioLibraryPage() {
   const { t } = useAppSettings();
+  // Bascule Cours/Playlists (réf. mission "supprimer la catégorie playlist
+  // du volet ouvrant, déplacer la création de playlist audio coach dans
+  // Coach > Cours audio") : la création d'éditions mixées vit désormais ici
+  // plutôt que sur une page /audio-playlists séparée.
+  const [mode, setMode] = useState<"courses" | "playlists">("courses");
   const [courses, setCourses] = useState<AudioCourseSummary[]>([]);
   const [backgrounds, setBackgrounds] = useState<BackgroundOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<ToastState | null>(null);
+  // Catégories (programmes) réellement présentes parmi les cours audio, pour
+  // les suggestions de saisie libre (réf. correctif "retire les presets
+  // Rpm/Sprint/The Trip") — même pattern que la Bibliothèque vidéo.
+  const [programs, setPrograms] = useState<string[]>([]);
 
   const [selected, setSelected] = useState<AudioCourseDetail | null>(null);
   const [drawerTitle, setDrawerTitle] = useState("");
@@ -110,7 +113,7 @@ export default function AudioLibraryPage() {
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadZip, setUploadZip] = useState<File | null>(null);
   const [uploadTitle, setUploadTitle] = useState("");
-  const [uploadProgram, setUploadProgram] = useState("RPM");
+  const [uploadProgram, setUploadProgram] = useState("");
   const [uploadRelease, setUploadRelease] = useState("");
   const [dragActive, setDragActive] = useState(false);
 
@@ -161,6 +164,7 @@ export default function AudioLibraryPage() {
     if (newlyDone.length === 0) return;
     newlyDone.forEach((u) => seenDoneIds.current.add(u.id));
     fetchCourses();
+    fetchPrograms();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploads]);
 
@@ -197,10 +201,18 @@ export default function AudioLibraryPage() {
     }
   };
 
+  const fetchPrograms = () => {
+    fetch(getApiUrl("/audio/programs"), { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: string[]) => setPrograms(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial, même motif que library/playlists/schedule
     fetchCourses();
     fetchBackgrounds();
+    fetchPrograms();
     fetch(getApiUrl("/settings"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -249,6 +261,7 @@ export default function AudioLibraryPage() {
         setSelected(updated);
         showToast(t("audio.updatedToast"));
         fetchCourses();
+        fetchPrograms();
       } else {
         showToast(t("audio.saveError"), "error");
       }
@@ -309,7 +322,10 @@ export default function AudioLibraryPage() {
     if (uploadMode === "zip") {
       const zip = Array.from(files).find((f) => f.name.toLowerCase().endsWith(".zip")) || files[0];
       setUploadZip(zip);
-      setUploadTitle(zip.name.replace(/\.zip$/i, "").replace(/[_-]/g, " "));
+      const { title, program, release } = parseMediaName(zip.name, programs);
+      setUploadTitle(title);
+      if (!uploadProgram && program) setUploadProgram(program);
+      if (!uploadRelease && release) setUploadRelease(release);
     } else {
       const audioFiles = Array.from(files).filter((f) => {
         const lower = f.name.toLowerCase();
@@ -317,11 +333,23 @@ export default function AudioLibraryPage() {
       });
       setUploadFiles(audioFiles);
       if (audioFiles.length && !uploadTitle) {
-        const baseName = audioFiles[0].name
-          .replace(/\.(mp3|m4a|wav|aac|flac|ogg)$/i, "")
-          .replace(/^\d+[\s._-]*/, "")
-          .split(/[_-]/)[0];
-        setUploadTitle(baseName || t("audio.newCourseFallback"));
+        // Réf. bug "chiffre random affiché sur la tablette" : si le nom du
+        // 1er fichier contient le schéma "Catégorie Édition" ("Rpm 101 - 01
+        // Warmup.mp3"), on s'en sert. Sinon (fichiers de piste nommés sans le
+        // cours, ex. "01 Warmup.mp3") on retombe sur l'ancien repli : retirer
+        // le numéro de piste en tête et garder le premier segment du nom.
+        const { title, program, release } = parseMediaName(audioFiles[0].name, programs);
+        if (program && release) {
+          setUploadTitle(title);
+          if (!uploadProgram) setUploadProgram(program);
+          if (!uploadRelease) setUploadRelease(release);
+        } else {
+          const baseName = audioFiles[0].name
+            .replace(/\.(mp3|m4a|wav|aac|flac|ogg)$/i, "")
+            .replace(/^\d+[\s._-]*/, "")
+            .split(/[_-]/)[0];
+          setUploadTitle(baseName || t("audio.newCourseFallback"));
+        }
       }
     }
   };
@@ -364,15 +392,56 @@ export default function AudioLibraryPage() {
     resetUpload();
   };
 
-  const grouped = PROGRAM_GROUPS.map((program) => ({
-    program,
-    courses: courses.filter((c) =>
-      program === "Autre" ? !c.program || !PROGRAM_GROUPS.slice(0, 3).includes(c.program) : c.program === program
-    ),
-  })).filter((g) => g.courses.length > 0);
+  // Regroupement dynamique par catégorie réellement présente (réf. correctif
+  // "retire les presets Rpm/Sprint/The Trip") : même logique que la grille de
+  // la Bibliothèque vidéo — "" = bucket "sans catégorie", placé en dernier.
+  const grouped = Array.from(new Set(courses.map((c) => (c.program && c.program.trim() ? c.program : ""))))
+    .sort((a, b) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, "fr", { sensitivity: "base" })))
+    .map((program) => ({
+      program,
+      courses: courses.filter((c) => (c.program && c.program.trim() ? c.program : "") === program),
+    }))
+    .filter((g) => g.courses.length > 0);
+
+  const getCourseThumbSrc = (course: AudioCourseSummary) => {
+    if (!course.background_thumbnail_path) return null;
+    const filename = course.background_thumbnail_path.split("/").pop();
+    if (!filename) return null;
+    return getApiUrl(`/thumbnails/${filename}`);
+  };
 
   return (
     <div className="library-container">
+      {/* Bascule Cours/Playlists : même langage visuel que le bascule
+          grille/liste de la Bibliothèque vidéo (.view-toggle). */}
+      <div className="view-toggle" style={{ alignSelf: "flex-start" }}>
+        <button
+          className={`view-btn olc-press ${mode === "courses" ? "active" : ""}`}
+          onClick={() => setMode("courses")}
+        >
+          <Icon name="library_music" size={16} /> {t("audio.coursesTab")}
+        </button>
+        <button
+          className={`view-btn olc-press ${mode === "playlists" ? "active" : ""}`}
+          onClick={() => setMode("playlists")}
+        >
+          <Icon name="playlist_play" size={16} /> {t("audio.playlistsTab")}
+        </button>
+      </div>
+
+      {mode === "playlists" ? (
+        <AudioPlaylistManager />
+      ) : (
+      <>
+      {/* Suggestions de catégories déjà utilisées (réf. correctif "retire les
+          presets Rpm/Sprint/The Trip") : saisie libre + suggestions, comme la
+          Bibliothèque vidéo. */}
+      <datalist id="audio-programs">
+        {programs.map((p) => (
+          <option key={p} value={p} />
+        ))}
+      </datalist>
+
       {toast && (
         <div className={`toast ${toast.type}`}>
           <span>{toast.message}</span>
@@ -434,12 +503,14 @@ export default function AudioLibraryPage() {
             <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
               <div className="form-group" style={{ flex: 1 }}>
                 <label className="form-label">{t("audio.programLabel")}</label>
-                <select className="form-control" value={uploadProgram} onChange={(e) => setUploadProgram(e.target.value)}>
-                  <option value="RPM">RPM</option>
-                  <option value="Sprint">Sprint</option>
-                  <option value="The Trip">The Trip</option>
-                  <option value="Autre">{t("audio.otherProgram")}</option>
-                </select>
+                <input
+                  type="text"
+                  list="audio-programs"
+                  className="form-control"
+                  placeholder={t("audio.programPlaceholder")}
+                  value={uploadProgram}
+                  onChange={(e) => setUploadProgram(e.target.value)}
+                />
               </div>
               <div className="form-group" style={{ flex: 1 }}>
                 <label className="form-label">{t("audio.releaseLabel")}</label>
@@ -498,25 +569,35 @@ export default function AudioLibraryPage() {
                   color: "var(--accent-primary)",
                 }}
               >
-                {group.program === "Autre" ? t("audio.otherProgram") : group.program}{" "}
+                {group.program === "" ? t("audio.noProgram") : group.program}{" "}
                 <span style={{ color: "var(--text-dim)" }}>({group.courses.length})</span>
               </h3>
               <div className="videos-grid">
-                {group.courses.map((course) => (
-                  <div key={course.id} className={`video-card ${programCardClass(course.program)}`} onClick={() => openCourse(course.id)}>
-                    <div className="thumbnail-wrapper" style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-surface-elevated)" }}>
-                      <Icon name="library_music" size={40} style={{ opacity: 0.25 }} />
-                      <span className="card-duration">{t("audio.tracksCount", { count: course.track_count })}</span>
-                    </div>
-                    <div className="card-content">
-                      <h4 className="card-title" title={course.title}>{course.title}</h4>
-                      <div className="card-meta-row">
-                        <span className={`program-badge ${programBadgeClass(course.program)}`}>{course.program || t("audio.otherProgram")}</span>
-                        <span className="release-badge">{formatDuration(course.total_duration_seconds)}</span>
+                {group.courses.map((course) => {
+                  const thumbSrc = getCourseThumbSrc(course);
+                  return (
+                    <div key={course.id} className={`video-card ${programCardClass(course.program)}`} onClick={() => openCourse(course.id)}>
+                      <div className="thumbnail-wrapper" style={{ background: "var(--bg-surface-elevated)" }}>
+                        {thumbSrc ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={thumbSrc} alt="" className="card-thumbnail" />
+                        ) : (
+                          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <Icon name="library_music" size={40} style={{ opacity: 0.25 }} />
+                          </div>
+                        )}
+                        <span className="card-duration">{t("audio.tracksCount", { count: course.track_count })}</span>
+                      </div>
+                      <div className="card-content">
+                        <h4 className="card-title" title={course.title}>{course.title}</h4>
+                        <div className="card-meta-row">
+                          <span className={`program-badge ${programBadgeClass(course.program)}`}>{course.program || t("audio.noProgram")}</span>
+                          <span className="release-badge">{formatDuration(course.total_duration_seconds)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -547,13 +628,14 @@ export default function AudioLibraryPage() {
                 <div style={{ display: "flex", gap: "12px" }}>
                   <div className="form-group" style={{ flex: 1 }}>
                     <label className="form-label">{t("audio.programLabel")}</label>
-                    <select className="form-control" value={drawerProgram} onChange={(e) => setDrawerProgram(e.target.value)}>
-                      <option value="">{t("audio.noneOption")}</option>
-                      <option value="RPM">RPM</option>
-                      <option value="Sprint">Sprint</option>
-                      <option value="The Trip">The Trip</option>
-                      <option value="Autre">{t("audio.otherProgram")}</option>
-                    </select>
+                    <input
+                      type="text"
+                      list="audio-programs"
+                      className="form-control"
+                      placeholder={t("audio.programPlaceholder")}
+                      value={drawerProgram}
+                      onChange={(e) => setDrawerProgram(e.target.value)}
+                    />
                   </div>
                   <div className="form-group" style={{ flex: 1 }}>
                     <label className="form-label">{t("audio.releaseLabel")}</label>
@@ -952,6 +1034,8 @@ export default function AudioLibraryPage() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

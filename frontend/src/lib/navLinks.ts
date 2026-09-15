@@ -24,7 +24,10 @@ export function isNavGroup(entry: NavEntry): entry is NavGroupConfig {
 //   "Radio" et "Coach" remontés juste en dessous (réf. demande).
 // - "Radio" regroupe télécommande + bibliothèque + rappels.
 // - "Coach" regroupe cours audio + fonds animés.
-// - "Playlist" est une page unique fusionnant playlists vidéo et audio.
+// - Pas d'entrée "Playlist" séparée : la création de playlists vidéo vit
+//   dans "Bibliothèque", celle des playlists audio dans "Coach" > "Cours
+//   audio" (réf. mission "supprimer la catégorie playlist du volet
+//   ouvrant, déplacer chaque création dans son milieu approprié").
 export const navEntries: NavEntry[] = [
   { href: "/dashboard-cable", labelKey: "nav.dashboardCable", iconName: "cable" },
   { href: "/dashboard-network", labelKey: "nav.dashboardNetwork", iconName: "wifi" },
@@ -46,7 +49,6 @@ export const navEntries: NavEntry[] = [
     ],
   },
   { href: "/library", labelKey: "nav.library", iconName: "video_library" },
-  { href: "/playlists", labelKey: "nav.playlists", iconName: "playlist_play" },
   { href: "/schedule", labelKey: "nav.schedule", iconName: "calendar_month" },
   {
     groupKey: "nav.metricsGroup",

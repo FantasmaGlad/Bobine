@@ -41,6 +41,7 @@ class AudioCourseResponse(BaseModel):
     program: str | None
     release: str | None
     background_id: int | None
+    background_thumbnail_path: str | None = None
     track_count: int
     total_duration_seconds: float
 
@@ -105,6 +106,7 @@ def _to_summary(course: AudioCourse) -> dict:
         "program": course.program,
         "release": course.release,
         "background_id": course.background_id,
+        "background_thumbnail_path": course.background_thumbnail_path,
         "track_count": len(course.tracks),
         "total_duration_seconds": sum(t.duration_seconds or 0.0 for t in course.tracks),
     }
@@ -146,6 +148,23 @@ def list_all_tracks(db: Session = Depends(get_db)):
         }
         for t in tracks
     ]
+
+
+@router.get("/programs", response_model=List[str])
+def list_audio_programs(db: Session = Depends(get_db)):
+    """Catégories (programmes) réellement présentes parmi les cours audio,
+    triées. Même pattern que `videos.list_programs` : remplace les presets
+    RPM/Sprint/The Trip codés en dur par des suggestions dérivées des cours
+    déjà importés. Défini AVANT `/{course_id}` pour ne pas être interceptée
+    par cette route paramétrée.
+    """
+    rows = (
+        db.query(AudioCourse.program)
+        .filter(AudioCourse.program.isnot(None), AudioCourse.program != "")
+        .distinct()
+        .all()
+    )
+    return sorted({r[0] for r in rows}, key=str.casefold)
 
 
 @router.get("/{course_id}", response_model=AudioCourseDetailResponse)
