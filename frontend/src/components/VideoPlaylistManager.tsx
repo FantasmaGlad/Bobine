@@ -442,7 +442,7 @@ export default function VideoPlaylistManager() {
   );
 
   return (
-    <div>
+    <div className="playlist-manager-wrap">
       {toast && (
         <div className={`toast ${toast.type}`}>
           {toast.type === "success" && <Icon name="check_circle" size={20} color="var(--accent-success)" filled />}

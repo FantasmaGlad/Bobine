@@ -505,7 +505,7 @@ export default function AudioPlaylistManager() {
   const totalDurationSeconds = playlistItems.reduce((acc, item) => acc + (item.track.duration_seconds ?? 0), 0);
 
   return (
-    <div>
+    <div className="playlist-manager-wrap">
       {toast && (
         <div className={`toast ${toast.type}`}>
           {toast.type === "success" && <Icon name="check_circle" size={20} color="var(--accent-success)" filled />}

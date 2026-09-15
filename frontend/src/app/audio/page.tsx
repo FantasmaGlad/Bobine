@@ -10,6 +10,63 @@ import AudioPlaylistManager from "@/components/AudioPlaylistManager";
 const AUDIO_EXTENSIONS = [".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg"];
 const AUDIO_ACCEPT = ".mp3,.m4a,.wav,.aac,.flac,.ogg,audio/*";
 
+const isAudioFile = (f: File) => {
+  const lower = f.name.toLowerCase();
+  return AUDIO_EXTENSIONS.some((ext) => lower.endsWith(ext));
+};
+
+// FileSystemEntry (webkitGetAsEntry) n'est pas dans le lib DOM de TypeScript
+// — ce sont les types minimaux réellement utilisés ici.
+interface FileEntryLike {
+  isFile: boolean;
+  isDirectory: boolean;
+  name: string;
+  file: (cb: (f: File) => void) => void;
+  createReader?: () => { readEntries: (cb: (entries: FileEntryLike[]) => void) => void };
+}
+
+/** Lit récursivement un FileSystemEntry (fichier OU dossier) en liste de
+ * fichiers audio — réf. mission "importer un dossier complet et l'avoir
+ * sous un même cours" : un dossier glissé-déposé n'expose pas directement
+ * ses fichiers via `DataTransfer.files` (juste une entrée dossier vide côté
+ * navigateur), il faut le parcourir via cette API asynchrone dédiée.
+ * `readEntries` est plafonné à ~100 résultats par appel par le navigateur :
+ * on boucle jusqu'à une liste vide. */
+async function readEntryRecursively(entry: FileEntryLike): Promise<File[]> {
+  if (entry.isFile) {
+    return new Promise((resolve) => entry.file((f) => resolve(isAudioFile(f) ? [f] : [])));
+  }
+  if (entry.isDirectory && entry.createReader) {
+    const reader = entry.createReader();
+    const allEntries: FileEntryLike[] = [];
+    for (;;) {
+      const batch: FileEntryLike[] = await new Promise((resolve) => reader.readEntries(resolve));
+      if (batch.length === 0) break;
+      allEntries.push(...batch);
+    }
+    const nested = await Promise.all(allEntries.map(readEntryRecursively));
+    return nested.flat();
+  }
+  return [];
+}
+
+/** Rassemble les fichiers audio d'un DataTransfer glissé-déposé, dossier(s)
+ * inclus, et déduit le nom du cours du dossier de plus haut niveau s'il y en
+ * a un — sinon (fichiers isolés glissés directement) `folderName` est null
+ * et l'appelant retombe sur son heuristique par fichier. */
+async function collectDroppedAudioFiles(dataTransfer: DataTransfer): Promise<{ files: File[]; folderName: string | null }> {
+  const items = dataTransfer.items;
+  if (!items || items.length === 0 || typeof items[0]?.webkitGetAsEntry !== "function") {
+    return { files: Array.from(dataTransfer.files).filter(isAudioFile), folderName: null };
+  }
+  const entries = Array.from(items)
+    .map((item) => item.webkitGetAsEntry() as FileEntryLike | null)
+    .filter((e): e is FileEntryLike => e !== null);
+  const folderEntry = entries.find((e) => e.isDirectory);
+  const nested = await Promise.all(entries.map(readEntryRecursively));
+  return { files: nested.flat(), folderName: folderEntry?.name ?? null };
+}
+
 interface AudioTrack {
   id: number;
   number: number | null;
@@ -119,6 +176,7 @@ export default function AudioLibraryPage() {
 
   const [pickingTrackBackgroundId, setPickingTrackBackgroundId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const assignTrackBackground = async (trackId: number, bgId: number | null) => {
     if (!selected) return;
@@ -317,7 +375,15 @@ export default function AudioLibraryPage() {
     setUploadRelease("");
   };
 
-  const handleFilesSelected = (files: FileList | null) => {
+  /**
+   * `folderNameHint` : nom du dossier d'origine quand les fichiers viennent
+   * d'un import de dossier (glissé-déposé via collectDroppedAudioFiles, ou
+   * sélecteur natif webkitdirectory) — réf. mission "importer un dossier
+   * complet et l'avoir sous un même cours". Dans ce cas le nom du DOSSIER
+   * sert à déduire catégorie/édition (aussi fiable que le nom d'une archive
+   * ZIP), plutôt que le nom d'une piste individuelle au hasard.
+   */
+  const handleFilesSelected = (files: FileList | File[] | null, folderNameHint?: string | null) => {
     if (!files || files.length === 0) return;
     if (uploadMode === "zip") {
       const zip = Array.from(files).find((f) => f.name.toLowerCase().endsWith(".zip")) || files[0];
@@ -327,19 +393,35 @@ export default function AudioLibraryPage() {
       if (!uploadProgram && program) setUploadProgram(program);
       if (!uploadRelease && release) setUploadRelease(release);
     } else {
-      const audioFiles = Array.from(files).filter((f) => {
-        const lower = f.name.toLowerCase();
-        return AUDIO_EXTENSIONS.some((ext) => lower.endsWith(ext));
-      });
+      const audioFiles = Array.from(files).filter(isAudioFile);
       setUploadFiles(audioFiles);
       if (audioFiles.length && !uploadTitle) {
-        // Réf. bug "chiffre random affiché sur la tablette" : si le nom du
-        // 1er fichier contient le schéma "Catégorie Édition" ("Rpm 101 - 01
-        // Warmup.mp3"), on s'en sert. Sinon (fichiers de piste nommés sans le
-        // cours, ex. "01 Warmup.mp3") on retombe sur l'ancien repli : retirer
-        // le numéro de piste en tête et garder le premier segment du nom.
+        // webkitRelativePath ("Dossier/sous-dossier/piste.mp3") : posé
+        // automatiquement par le navigateur pour un <input webkitdirectory>,
+        // absent pour une sélection de fichiers isolés.
+        const relPath = (audioFiles[0] as File & { webkitRelativePath?: string }).webkitRelativePath;
+        const folderName = folderNameHint || (relPath ? relPath.split("/")[0] : null);
+
+        if (folderName) {
+          const { title, program, release } = parseMediaName(folderName, programs);
+          setUploadTitle(title);
+          if (!uploadProgram && program) setUploadProgram(program);
+          if (!uploadRelease && release) setUploadRelease(release);
+          return;
+        }
+
+        // Pas de dossier connu : repli piste par piste (réf. bug "chiffre
+        // random affiché sur la tablette" + "cours importés séparément
+        // libellisés sous le nom d'un morceau au lieu de Sans catégorie").
+        // Le mot qui précède un nombre dans le nom d'UNE piste isolée
+        // ("Squat 12.mp3") n'a aucune raison d'être une vraie catégorie —
+        // on n'auto-remplit la catégorie que si elle correspond à une
+        // catégorie DÉJÀ existante ; sinon le champ reste vide et le cours
+        // atterrit dans le groupe "Sans catégorie" existant plutôt que d'en
+        // inventer une nouvelle.
         const { title, program, release } = parseMediaName(audioFiles[0].name, programs);
-        if (program && release) {
+        const isKnownProgram = program && programs.some((p) => p.toLowerCase() === program.toLowerCase());
+        if (isKnownProgram && release) {
           setUploadTitle(title);
           if (!uploadProgram) setUploadProgram(program);
           if (!uploadRelease) setUploadRelease(release);
@@ -364,7 +446,18 @@ export default function AudioLibraryPage() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    handleFilesSelected(e.dataTransfer.files);
+    if (uploadMode === "zip") {
+      handleFilesSelected(e.dataTransfer.files);
+      return;
+    }
+    // Mode Fichiers MP3 : parcourt aussi un dossier glissé-déposé (réf.
+    // mission "importer un dossier complet et l'avoir sous un même cours")
+    // — DataTransfer.items doit être lu de façon SYNCHRONE pendant
+    // l'événement (webkitGetAsEntry()), collectDroppedAudioFiles le fait
+    // avant sa première attente asynchrone.
+    collectDroppedAudioFiles(e.dataTransfer).then(({ files, folderName }) => {
+      handleFilesSelected(files, folderName);
+    });
   };
 
   const executeUpload = () => {
@@ -411,7 +504,7 @@ export default function AudioLibraryPage() {
   };
 
   return (
-    <div className="library-container">
+    <div className={`library-container ${mode === "playlists" ? "playlists-mode" : ""}`}>
       {/* Bascule Cours/Playlists : même langage visuel que le bascule
           grille/liste de la Bibliothèque vidéo (.view-toggle). */}
       <div className="view-toggle" style={{ alignSelf: "flex-start" }}>
@@ -467,6 +560,30 @@ export default function AudioLibraryPage() {
             e.target.value = "";
           }}
         />
+        {/* Import d'un dossier complet (réf. mission "importer un dossier
+            complet et l'avoir sous un même cours") : webkitdirectory n'est
+            pas dans le typage DOM standard de React, posé directement sur le
+            noeud DOM plutôt qu'en JSX typé. */}
+        <input
+          ref={(el) => {
+            folderInputRef.current = el;
+            // webkitdirectory/directory : attributs non typés par React/TS,
+            // posés directement sur le noeud DOM une fois monté.
+            if (el) {
+              el.setAttribute("webkitdirectory", "");
+              el.setAttribute("directory", "");
+            }
+          }}
+          type="file"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            const relPath = (files[0] as (File & { webkitRelativePath?: string }) | undefined)?.webkitRelativePath;
+            handleFilesSelected(files, relPath ? relPath.split("/")[0] : null);
+            e.target.value = "";
+          }}
+        />
 
         {uploadFiles.length === 0 && !uploadZip ? (
           <>
@@ -493,6 +610,20 @@ export default function AudioLibraryPage() {
             <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>
               {t("audio.trackOrderHint")}
             </p>
+            {uploadMode === "files" && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ marginTop: "12px" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  folderInputRef.current?.click();
+                }}
+              >
+                <Icon name="folder_open" size={16} />
+                {t("audio.importFolder")}
+              </button>
+            )}
           </>
         ) : (
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "500px", textAlign: "left" }}>

@@ -516,7 +516,7 @@ export default function LibraryPage() {
   };
 
   return (
-    <div className="library-container">
+    <div className={`library-container ${mode === "playlists" ? "playlists-mode" : ""}`}>
       {/* Bascule Médiathèque/Playlists : mêmes boutons que le bascule
           grille/liste ci-dessous (.view-toggle), pour rester dans le même
           langage visuel plutôt qu'introduire un nouveau composant d'onglet. */}
