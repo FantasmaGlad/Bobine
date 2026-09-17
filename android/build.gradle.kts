@@ -16,6 +16,6 @@
 //   ancienne (12.0.0, 2022) trouvée sur l'ancien dépôt Maven maison
 //   chaquo.com/maven ; la distribution actuelle passe par mavenCentral().
 plugins {
-    id("com.android.application") version "9.2.1" apply false
+    id("com.android.application") version "9.4.0" apply false
     id("com.chaquo.python") version "17.0.0" apply false
 }
