@@ -200,7 +200,18 @@ def download_with_progress(
     Fonction SYNCHRONE et bloquante par conception : les handlers de
     profil qui l'appellent tournent déjà dans un thread dédié via
     `asyncio.to_thread` (cf. `run_update_pipeline`), jamais sur la boucle
-    asyncio elle-même."""
+    asyncio elle-même.
+
+    Fail-closed (réf. CDC sécurité 2026-09) : `expected_digest` absent
+    (asset non retrouvé dans la release GitHub, ou champ `digest` manquant
+    côté API) refuse le téléchargement plutôt que d'installer un binaire à
+    privilèges élevés sans aucune vérification — mieux vaut rater une mise
+    à jour automatique qu'en exécuter une jamais vérifiée."""
+    if not expected_digest:
+        raise RuntimeError(
+            "Empreinte d'intégrité indisponible pour cet asset — "
+            "installation annulée par précaution."
+        )
     req = urllib.request.Request(
         url, headers={"User-Agent": "Bobine-Updater/2.0 (+https://bobine.fit)"}
     )
@@ -224,16 +235,15 @@ def download_with_progress(
                         last_percent = percent
                         on_progress(percent)
 
-    if expected_digest:
-        actual = hasher.hexdigest().lower()
-        expected = expected_digest.split(":")[-1].lower()
-        if actual != expected:
-            dest.unlink(missing_ok=True)
-            raise RuntimeError(
-                f"Empreinte SHA-256 invalide pour le fichier téléchargé "
-                f"(attendu {expected[:12]}…, obtenu {actual[:12]}…) — "
-                f"fichier supprimé, installation annulée par précaution."
-            )
+    actual = hasher.hexdigest().lower()
+    expected = expected_digest.split(":")[-1].lower()
+    if actual != expected:
+        dest.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"Empreinte SHA-256 invalide pour le fichier téléchargé "
+            f"(attendu {expected[:12]}…, obtenu {actual[:12]}…) — "
+            f"fichier supprimé, installation annulée par précaution."
+        )
     if on_progress:
         on_progress(100)
 

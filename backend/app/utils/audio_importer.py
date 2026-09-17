@@ -14,6 +14,7 @@ from app.models import AudioCourse, AudioTrack
 from app.utils.activity_log import log_activity
 from app.utils.audio_utils import extract_audio_duration, parse_track_number_and_title
 from app.utils.import_jobs import update_job
+from app.utils.zip_safety import UnsafeZipError, safe_extract_zip
 
 logger = logging.getLogger(__name__)
 
@@ -183,9 +184,11 @@ def import_audio_course_from_zip(
     with tempfile.TemporaryDirectory() as tmp_dir:
         try:
             with zipfile.ZipFile(zip_path, "r") as zf:
-                zf.extractall(tmp_dir)
+                safe_extract_zip(zf, Path(tmp_dir))
         except zipfile.BadZipFile:
             raise ValueError("L'archive ZIP est invalide ou corrompue.")
+        except UnsafeZipError as e:
+            raise ValueError(str(e))
         finally:
             if Path(zip_path).exists():
                 os.remove(zip_path)
