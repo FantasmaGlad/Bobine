@@ -92,6 +92,63 @@ def resolve_target_title(
     return (playlist.name, None) if playlist else (None, None)
 
 
+def resolve_target_display(db: Session, target_type: ScheduleTargetType, target_id: int) -> dict:
+    """
+    Titre/programme/durée/miniature d'une cible de programmation, pour le
+    planning visuel (réf. `docs/cahier-des-charges-planning-visuel.md` §2).
+    Fonction séparée de `resolve_target_title` (plutôt qu'un tuple élargi)
+    pour ne pas devoir toucher tous ses appelants existants qui n'ont besoin
+    que du titre/programme (suppressions, remplacements...).
+
+    - vidéo : durée et miniature propres.
+    - playlist vidéo : `Playlist` n'a pas de champ cover — miniature dérivée
+      du 1er élément (`thumbnail_path`), même convention que RadioPlaylist
+      ci-dessous ; durée = somme des items.
+    - playlist radio (fenêtre programmée) : `duration_seconds` volontairement
+      `None` — le bloc du planning se dimensionne sur la fenêtre horaire
+      choisie (`time_of_day`/`end_time`), pas sur le contenu qui boucle (cf.
+      CDC §2.3). `cover_track_id` = 1er morceau ayant une pochette, même
+      logique que `routers/radio_playlists.py::list_playlists`.
+    """
+    if target_type == ScheduleTargetType.video:
+        video = db.query(Video).filter(Video.id == target_id).first()
+        if not video:
+            return {"title": None, "program": None, "duration_seconds": None, "thumbnail_path": None, "cover_track_id": None}
+        return {
+            "title": video.title,
+            "program": video.program,
+            "duration_seconds": video.duration_seconds,
+            "thumbnail_path": video.thumbnail_path,
+            "cover_track_id": None,
+        }
+    if target_type == ScheduleTargetType.radio_playlist:
+        radio_playlist = db.query(RadioPlaylist).filter(RadioPlaylist.id == target_id).first()
+        if not radio_playlist:
+            return {"title": None, "program": None, "duration_seconds": None, "thumbnail_path": None, "cover_track_id": None}
+        items = sorted(radio_playlist.items, key=lambda it: it.position)
+        cover_track_id = next((it.track.id for it in items if it.track and it.track.cover_path), None)
+        return {
+            "title": radio_playlist.name,
+            "program": None,
+            "duration_seconds": None,
+            "thumbnail_path": None,
+            "cover_track_id": cover_track_id,
+        }
+    playlist = db.query(Playlist).filter(Playlist.id == target_id).first()
+    if not playlist:
+        return {"title": None, "program": None, "duration_seconds": None, "thumbnail_path": None, "cover_track_id": None}
+    items = sorted(playlist.items, key=lambda it: it.position)
+    first_thumbnail = next((it.video.thumbnail_path for it in items if it.video and it.video.thumbnail_path), None)
+    total_duration = sum((it.video.duration_seconds or 0.0) for it in items if it.video)
+    return {
+        "title": playlist.name,
+        "program": None,
+        "duration_seconds": total_duration,
+        "thumbnail_path": first_thumbnail,
+        "cover_track_id": None,
+    }
+
+
 def expand_occurrences(
     db: Session, schedules: list[Schedule], start: datetime, end: datetime
 ) -> list[dict]:
@@ -116,10 +173,20 @@ def expand_occurrences(
 
     results: list[dict] = []
     for schedule in schedules:
+        # Réf. planning visuel §2.3 : fenêtre radio (end_time/24_7) résolue
+        # une fois par programmation, pas par occurrence — sert au calcul de
+        # la taille du bloc côté client pour une cible radio_playlist
+        # (durée du bloc = fenêtre choisie, pas contenu qui boucle).
+        window_end_time, window_is_24_7 = None, False
+        if schedule.recurrence_rule:
+            rule = json.loads(schedule.recurrence_rule)
+            window_end_time = rule.get("end_time")
+            window_is_24_7 = rule.get("mode") == "24_7"
+
         if schedule.schedule_type == ScheduleType.once:
             run_at = ensure_utc(schedule.run_at) if schedule.run_at else None
             if run_at and start <= run_at <= end:
-                title, program = resolve_target_title(db, schedule.target_type, schedule.target_id)
+                display = resolve_target_display(db, schedule.target_type, schedule.target_id)
                 results.append(
                     {
                         "schedule_id": schedule.id,
@@ -128,8 +195,13 @@ def expand_occurrences(
                         "run_at": run_at,
                         "target_type": schedule.target_type,
                         "target_id": schedule.target_id,
-                        "title": title,
-                        "program": program,
+                        "title": display["title"],
+                        "program": display["program"],
+                        "duration_seconds": display["duration_seconds"],
+                        "thumbnail_path": display["thumbnail_path"],
+                        "cover_track_id": display["cover_track_id"],
+                        "end_time": window_end_time,
+                        "is_24_7": window_is_24_7,
                         "is_override": False,
                         "override_action": None,
                         "override_id": None,
@@ -145,7 +217,7 @@ def expand_occurrences(
             override = overrides_by_key.get((schedule.id, fire_time.date()))
 
             if override is not None and override.action == OverrideAction.cancelled:
-                title, program = resolve_target_title(db, schedule.target_type, schedule.target_id)
+                display = resolve_target_display(db, schedule.target_type, schedule.target_id)
                 results.append(
                     {
                         "schedule_id": schedule.id,
@@ -154,15 +226,20 @@ def expand_occurrences(
                         "run_at": fire_time,
                         "target_type": schedule.target_type,
                         "target_id": schedule.target_id,
-                        "title": title,
-                        "program": program,
+                        "title": display["title"],
+                        "program": display["program"],
+                        "duration_seconds": display["duration_seconds"],
+                        "thumbnail_path": display["thumbnail_path"],
+                        "cover_track_id": display["cover_track_id"],
+                        "end_time": window_end_time,
+                        "is_24_7": window_is_24_7,
                         "is_override": True,
                         "override_action": OverrideAction.cancelled,
                         "override_id": override.id,
                     }
                 )
             elif override is not None and override.action == OverrideAction.replaced:
-                title, program = resolve_target_title(
+                display = resolve_target_display(
                     db, override.replacement_target_type, override.replacement_target_id
                 )
                 results.append(
@@ -173,15 +250,20 @@ def expand_occurrences(
                         "run_at": fire_time,
                         "target_type": override.replacement_target_type,
                         "target_id": override.replacement_target_id,
-                        "title": title,
-                        "program": program,
+                        "title": display["title"],
+                        "program": display["program"],
+                        "duration_seconds": display["duration_seconds"],
+                        "thumbnail_path": display["thumbnail_path"],
+                        "cover_track_id": display["cover_track_id"],
+                        "end_time": window_end_time,
+                        "is_24_7": window_is_24_7,
                         "is_override": True,
                         "override_action": OverrideAction.replaced,
                         "override_id": override.id,
                     }
                 )
             else:
-                title, program = resolve_target_title(db, schedule.target_type, schedule.target_id)
+                display = resolve_target_display(db, schedule.target_type, schedule.target_id)
                 results.append(
                     {
                         "schedule_id": schedule.id,
@@ -190,8 +272,13 @@ def expand_occurrences(
                         "run_at": fire_time,
                         "target_type": schedule.target_type,
                         "target_id": schedule.target_id,
-                        "title": title,
-                        "program": program,
+                        "title": display["title"],
+                        "program": display["program"],
+                        "duration_seconds": display["duration_seconds"],
+                        "thumbnail_path": display["thumbnail_path"],
+                        "cover_track_id": display["cover_track_id"],
+                        "end_time": window_end_time,
+                        "is_24_7": window_is_24_7,
                         "is_override": False,
                         "override_action": None,
                         "override_id": None,
@@ -367,10 +454,21 @@ async def _launch_target(
     # exactement dans cette fenêtre de quelques secondes croit qu'une "vidéo
     # manuelle" est active et sauvegarde une fausse interruption pointant sur
     # la vidéo déjà terminée (position ≈ sa fin, rien de sensé à reprendre).
-    manual_video_active = current["current_video"] is not None and current["state"] not in (
-        PlaybackStateEnum.waiting.value,
-        PlaybackStateEnum.offline.value,
-        PlaybackStateEnum.playlist_waiting.value,
+    # Réf. CDC planning visuel (2026-09-17) §5.3 : `scheduled_launch` (posé
+    # par PlaybackManager.load/load_playlist quand appelés avec scheduled=
+    # True, cf. ci-dessous) distingue une vraie lecture manuelle d'un
+    # reliquat de programmation encore en cours — sans quoi la règle réseau
+    # "le manuel gagne toujours" plus bas s'appliquait aussi à tort à un
+    # chevauchement programmation vs programmation, annulant silencieusement
+    # la seconde au lieu de la laisser couper proprement la première.
+    manual_video_active = (
+        current["current_video"] is not None
+        and current["state"] not in (
+            PlaybackStateEnum.waiting.value,
+            PlaybackStateEnum.offline.value,
+            PlaybackStateEnum.playlist_waiting.value,
+        )
+        and not current.get("scheduled_launch", False)
     )
 
     # Règle de conflit RÉSEAU (retour utilisateur 2026-07-21) : sur ce canal,
@@ -414,7 +512,7 @@ async def _launch_target(
             video.id, video.title, video.duration_seconds, video.program, thumbnail_url=thumb,
             description=video.description, audio_channels=video.audio_channels, audio_codec=video.audio_codec,
             fps=video.fps, bitrate_kbps=video.bitrate_kbps, width=video.width, height=video.height,
-            launch_type="schedule",
+            launch_type="schedule", scheduled=True,
         )
     else:
         playlist = db.query(Playlist).filter(Playlist.id == target_id).first()
@@ -439,7 +537,7 @@ async def _launch_target(
             }
             for item in sorted_items
         ]
-        await manager.load_playlist(playlist.id, playlist.name, items_data)
+        await manager.load_playlist(playlist.id, playlist.name, items_data, scheduled=True)
 
 
 async def fire_schedule(schedule_id: int) -> None:
