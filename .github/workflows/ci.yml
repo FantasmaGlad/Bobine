@@ -67,7 +67,7 @@ jobs:
       filename_version: ${{ steps.resolve.outputs.filename_version }}
       commit_short: ${{ steps.resolve.outputs.commit_short }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Résoudre version, canal et identifiants de build
         id: resolve
         run: |
@@ -131,8 +131,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -146,8 +146,8 @@ jobs:
     name: Backend checks (Python)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -173,9 +173,9 @@ jobs:
       run:
         working-directory: assistant
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -202,7 +202,7 @@ jobs:
       - name: Build Bobine Assistant (Linux binary)
         run: |
           cargo build --release --bin bobine-assistant
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bobine-assistant-linux
           path: assistant/target/release/bobine-assistant
@@ -222,7 +222,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [version]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # fetch-depth 0 (pas le defaut 1) : requis pour que `git rev-list
           # --count HEAD` ci-dessous compte l'historique reel plutot que de
@@ -238,7 +238,7 @@ jobs:
             echo "::warning::Secrets de signature Android absents (ANDROID_KEYSTORE_BASE64 etc.) — job ignoré, pas d'échec. Voir docs/plan-implementation-android.md Lot 13."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.check_secrets.outputs.configured == 'true'
         with:
           node-version: 22
@@ -248,16 +248,16 @@ jobs:
         if: steps.check_secrets.outputs.configured == 'true'
         working-directory: frontend
         run: npm ci
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: steps.check_secrets.outputs.configured == 'true'
         with:
           python-version: "3.13"
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         if: steps.check_secrets.outputs.configured == 'true'
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         if: steps.check_secrets.outputs.configured == 'true'
         with:
           # Réf. incident 2026-09-15 : le paquet legacy "tools" (installé par
@@ -307,7 +307,7 @@ jobs:
         run: |
           APK="$(find android/app/build/outputs/apk/release -name '*.apk')"
           "${ANDROID_HOME}"/build-tools/36.1.0/apksigner verify --print-certs "$APK"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.check_secrets.outputs.configured == 'true'
         with:
           name: bobine-android-apk
@@ -317,7 +317,7 @@ jobs:
     name: install.sh sanity
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Vérification de syntaxe bash
         run: bash -n install.sh
       - name: Le compteur d'étapes STEP_TOTAL reflète le nombre d'appels à step()
@@ -339,8 +339,8 @@ jobs:
     runs-on: windows-latest
     needs: [version]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -350,7 +350,7 @@ jobs:
         run: |
           npm ci
           npm run build
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -409,7 +409,7 @@ jobs:
           Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
       - name: Compiler l'installeur (Inno Setup, préinstallé sur windows-latest)
         run: ISCC.exe /DMyAppVersion=${{ needs.version.outputs.display_version }} /DMyOutputVersion=${{ needs.version.outputs.filename_version }} packaging\windows\bobine.iss
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bobine-windows-installer
           path: dist-installer/*.exe
@@ -423,8 +423,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [version]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -434,7 +434,7 @@ jobs:
         run: |
           npm ci
           npm run build
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -472,7 +472,7 @@ jobs:
           test -x /usr/lib/bobine/BobineTray
           test -f /usr/share/icons/hicolor/256x256/apps/bobine.png
           test -f /usr/share/pixmaps/bobine.png
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bobine-linux-deb
           path: dist-deb/*.deb
@@ -493,8 +493,8 @@ jobs:
     runs-on: macos-latest
     needs: [version]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -504,7 +504,7 @@ jobs:
         run: |
           npm ci
           npm run build
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -543,7 +543,7 @@ jobs:
           cp -R backend/dist/Bobine.app dmg-root/
           ln -s /Applications dmg-root/Applications
           hdiutil create -volname "Bobine" -srcfolder dmg-root -ov -format UDZO "dist-dmg/Bobine-${DMG_FILENAME_VERSION}.dmg"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bobine-macos-dmg
           path: dist-dmg/*.dmg
@@ -558,31 +558,31 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Create release assets directory
         run: mkdir -p release-assets
       - name: Download Windows installer
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: bobine-windows-installer
           path: release-assets
       - name: Download Linux deb
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: bobine-linux-deb
           path: release-assets
       - name: Download macOS dmg
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: bobine-macos-dmg
           path: release-assets
       - name: Download Linux assistant binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: bobine-assistant-linux
           path: release-assets
       - name: Download Android APK
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           name: bobine-android-apk
@@ -610,7 +610,7 @@ jobs:
           fi
           echo "body_path=docs/releases/${TAG}.md" >> "$GITHUB_OUTPUT"
       - name: Publish to GitHub Releases
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release-assets/*
           tag_name: ${{ needs.version.outputs.tag_name }}
@@ -635,33 +635,33 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Create release assets directory
         run: mkdir -p release-assets
       - name: Download Windows installer
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: bobine-windows-installer
           path: release-assets
       - name: Download Linux deb
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: bobine-linux-deb
           path: release-assets
       - name: Download macOS dmg
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: bobine-macos-dmg
           path: release-assets
       - name: Download Linux assistant binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: bobine-assistant-linux
           path: release-assets
       - name: Download Android APK
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
           name: bobine-android-apk
@@ -800,13 +800,13 @@ jobs:
           sudo apt-get install -y reprepro
 
       - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: gh-pages
           path: apt-repo
 
       - name: Download Linux deb artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: bobine-linux-deb
           path: deb-artifact
