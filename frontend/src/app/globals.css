@@ -2936,28 +2936,6 @@ a.status-pill:hover,
   flex-direction: column;
 }
 
-.schedule-week-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 12px;
-  flex: 1;
-  min-height: 0;
-}
-
-.schedule-day-column {
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  min-height: 0;
-}
-
-.schedule-day-column.today {
-  border-color: var(--accent-primary);
-}
-
 .schedule-day-header {
   padding: 10px 12px;
   text-align: center;
@@ -2986,28 +2964,201 @@ a.status-pill:hover,
   margin-top: 2px;
 }
 
-.schedule-day-body {
+/* Timeline proportionnelle Jour/Semaine (réf.
+   docs/cahier-des-charges-planning-visuel.md) : remplace l'ancienne grille
+   de chips de taille uniforme (.schedule-week-grid/.schedule-day-column/
+   .schedule-day-body, supprimées) — un conteneur scrollable, une règle
+   horaire par colonne, des blocs positionnés en absolu proportionnellement
+   à pxPerMinute (top/height calculés côté JS).                            */
+.schedule-timeline-scroll {
   flex: 1;
-  min-height: 120px;
-  overflow-y: auto;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: background var(--transition-fast);
+  min-height: 0;
+  overflow: auto;
 }
 
-.schedule-day-body.drag-over {
+.schedule-timeline-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(150px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.schedule-timeline-week-col {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.schedule-timeline-day-single {
+  max-width: 640px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.schedule-timeline-column.today .schedule-day-header-name {
+  color: var(--accent-primary);
+}
+
+.schedule-timeline-track {
+  position: relative;
+  cursor: pointer;
+}
+
+.schedule-timeline-track.drag-over {
   background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
   outline: 2px dashed var(--accent-primary);
   outline-offset: -2px;
 }
 
-.schedule-day-empty-hint {
+.schedule-timeline-hour-row {
+  border-top: 1px solid var(--border-color);
+  position: relative;
+}
+
+.schedule-timeline-hour-row:first-child {
+  border-top: none;
+}
+
+.schedule-timeline-hour-label {
+  position: absolute;
+  top: -7px;
+  left: 4px;
+  font-size: 0.62rem;
+  font-weight: 700;
   color: var(--text-dim);
+  background: var(--bg-surface);
+  padding: 0 3px;
+  pointer-events: none;
+}
+
+/* Bande de fond "ambiance permanente 24/7" (§2.4) : sous les blocs normaux
+   (z-index implicite 0, les blocs posent z-index:1), un bloc normal qui se
+   trouve par-dessus la masque donc naturellement à cet endroit. */
+.schedule-timeline-band-247 {
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent-primary) 6%, transparent),
+    color-mix(in srgb, var(--accent-primary) 6%, transparent) 8px,
+    transparent 8px,
+    transparent 16px
+  );
+  pointer-events: none;
+}
+
+.schedule-timeline-band-247-label {
+  position: sticky;
+  top: 4px;
+  margin: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+}
+
+.schedule-timeline-block {
+  position: absolute;
+  display: flex;
+  gap: 6px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent-primary);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all var(--transition-fast);
+  /* Filet de sécurité au zoom minimal (§3) : un bloc de quelques minutes ne
+     doit jamais s'écraser sous une hauteur lisible — quitte à empiéter
+     légèrement sur le bloc suivant (déjà signalé visuellement si
+     chevauchement réel, cf. .cuts-previous ci-dessous). */
+  min-height: 34px;
+}
+
+.schedule-timeline-block:hover {
+  border-color: var(--border-focus);
+  z-index: 2 !important;
+}
+
+.schedule-timeline-block.cancelled {
+  opacity: 0.5;
+}
+
+.schedule-timeline-block.cancelled .schedule-timeline-block-title {
+  text-decoration: line-through;
+}
+
+/* Chevauchement (§5.2) : le bloc qui démarre après et coupera le précédent
+   porte une bordure distincte + le petit badge ciseaux sur sa miniature. */
+.schedule-timeline-block.cuts-previous {
+  border-left-color: var(--accent-warning);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-warning) 40%, transparent);
+}
+
+.schedule-timeline-block-thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.schedule-timeline-block-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.schedule-timeline-cut-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-warning);
+  color: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.schedule-timeline-block-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.schedule-timeline-block-title {
   font-size: 0.75rem;
-  text-align: center;
-  padding: 12px 4px;
+  font-weight: 700;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-timeline-block-time {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .schedule-occurrence-chip {

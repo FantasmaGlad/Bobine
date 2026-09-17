@@ -58,6 +58,14 @@ interface Occurrence {
   target_id: number;
   title: string | null;
   program: string | null;
+  // Réf. docs/cahier-des-charges-planning-visuel.md §2 : bloc proportionnel
+  // à la durée réelle (vidéo/playlist) ou à la fenêtre choisie (radio, où
+  // duration_seconds reste toujours null).
+  duration_seconds: number | null;
+  thumbnail_path: string | null;
+  cover_track_id: number | null;
+  end_time: string | null;
+  is_24_7: boolean;
   is_override: boolean;
   override_action: OverrideActionValue | null;
   override_id: number | null;
@@ -116,10 +124,84 @@ function formatOccurrenceTime(iso: string) {
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
+function occurrenceKey(o: Occurrence): string {
+  return `${o.schedule_id}-${o.run_at}`;
+}
+
 function formatDuration(seconds: number | null) {
   if (!seconds) return "";
   const mins = Math.round(seconds / 60);
   return `${mins} min`;
+}
+
+// Réf. docs/cahier-des-charges-planning-visuel.md §2-3 : timeline
+// proportionnelle à la durée réelle (vidéo/playlist) ou à la fenêtre
+// choisie (radio) — mêmes hypothèses que le backend (fenêtres radio jamais
+// à cheval sur minuit, cf. schedule.py::_validate_and_normalize).
+const MIN_BLOCK_MINUTES = 15;
+const MINUTES_PER_DAY = 1440;
+
+function minutesSinceMidnight(iso: string): number {
+  const d = new Date(iso);
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+function parseTimeToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map((n) => parseInt(n, 10));
+  return h * 60 + m;
+}
+
+interface OccurrenceWindow {
+  startMin: number;
+  durationMin: number;
+  isBackgroundBand: boolean;
+}
+
+function getOccurrenceWindow(o: Occurrence): OccurrenceWindow {
+  const startMin = minutesSinceMidnight(o.run_at);
+  if (o.target_type === "radio_playlist") {
+    if (o.is_24_7) {
+      return { startMin: 0, durationMin: MINUTES_PER_DAY, isBackgroundBand: true };
+    }
+    if (o.end_time) {
+      const endMin = parseTimeToMinutes(o.end_time);
+      const durationMin = endMin > startMin ? endMin - startMin : MIN_BLOCK_MINUTES;
+      return { startMin, durationMin, isBackgroundBand: false };
+    }
+    return { startMin, durationMin: MIN_BLOCK_MINUTES, isBackgroundBand: false };
+  }
+  const durationMin = o.duration_seconds ? Math.max(o.duration_seconds / 60, MIN_BLOCK_MINUTES) : MIN_BLOCK_MINUTES;
+  return { startMin, durationMin, isBackgroundBand: false };
+}
+
+function getOccurrenceThumbSrc(o: Occurrence): string | null {
+  if (o.target_type === "radio_playlist") {
+    return o.cover_track_id != null ? getApiUrl(`/radio/tracks/${o.cover_track_id}/cover`) : null;
+  }
+  if (!o.thumbnail_path) return null;
+  const filename = o.thumbnail_path.split("/").pop();
+  return filename ? getApiUrl(`/thumbnails/${filename}`) : null;
+}
+
+/**
+ * Chevauchement (réf. CDC §5.2/§5.3) : simule le comportement RUNTIME —
+ * quand plusieurs occurrences se chevauchent, celle qui démarre le plus tard
+ * coupe toujours celle en cours et devient la nouvelle "fenêtre active",
+ * quelle que soit la fin initialement prévue de la précédente. Retourne
+ * l'ensemble des clés d'occurrences qui coupent quelque chose à leur
+ * démarrage (pour l'indicateur visuel), sur une liste déjà triée par heure
+ * de début et limitée à un seul jour.
+ */
+function computeCutsPrevious(dayOccurrences: Occurrence[]): Set<string> {
+  const cuts = new Set<string>();
+  let activeEndMin = -1;
+  for (const o of dayOccurrences) {
+    const win = getOccurrenceWindow(o);
+    if (win.isBackgroundBand) continue; // l'ambiance de fond ne coupe/n'est jamais coupée
+    if (win.startMin < activeEndMin) cuts.add(occurrenceKey(o));
+    activeEndMin = win.startMin + win.durationMin;
+  }
+  return cuts;
 }
 
 export default function SchedulePage() {
@@ -127,7 +209,25 @@ export default function SchedulePage() {
   const { t, tList, language } = useAppSettings();
   const DAY_LABELS = tList("schedule.dayLabels");
   const DAY_LABELS_FULL = tList("schedule.dayLabelsFull");
-  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  // Réf. docs/cahier-des-charges-planning-visuel.md : l'ancienne grille
+  // calendrier (chips de taille uniforme) est remplacée par une timeline
+  // proportionnelle à la durée, en granularité Jour ou Semaine — la vue
+  // Liste existante n'est pas concernée (§1.2.5).
+  const [viewMode, setViewMode] = useState<"day" | "week" | "list">("week");
+  // Échelle de la timeline, en pixels par minute (§3 : proportionnel strict
+  // + zoom réglable plutôt qu'un plafonnement — un index plutôt qu'un
+  // curseur continu, plus simple à piloter aux boutons +/- comme sur
+  // mobile, réf. §7).
+  const ZOOM_LEVELS = [0.5, 0.8, 1.2, 1.8, 2.6];
+  const [zoomIndex, setZoomIndex] = useState(2);
+  const pxPerMinute = ZOOM_LEVELS[zoomIndex];
+  // Jour affiché en vue Jour (indépendant de weekStart, pour naviguer jour
+  // par jour sans perturber la semaine affichée si on repasse en Semaine).
+  const [dayViewDate, setDayViewDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
   // Planning PAR CANAL de diffusion (réf. mission "un planning pour le Câblé
   // et un pour le Réseau, distincts") : l'onglet actif filtre tout — vue
   // calendrier, vue liste — et toute création se fait sur ce canal. Ouvrable
@@ -138,13 +238,15 @@ export default function SchedulePage() {
     return requested === "network" || requested === "radio" ? requested : "cable";
   });
 
-  // La grille calendrier à 7 colonnes n'est pas exploitable sur un écran de
-  // téléphone (réf. UX4.1 "présentation adaptée") : bascule sur la vue liste
-  // déjà existante (UX3.16), sans empêcher l'utilisateur de revenir à la
-  // grille manuellement ensuite via le même bouton que sur PC.
+  // La vue Semaine (7 colonnes proportionnelles à la minute) n'est pas
+  // exploitable sur un écran de téléphone (réf. CDC planning visuel §7) :
+  // bascule sur la vue Jour, seule granularité "timeline" qui garde un sens
+  // en une seule colonne — l'utilisateur garde aussi la vue Liste, les deux
+  // seules proposées sur mobile (le sélecteur masque Semaine dans ce cas).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronise avec le viewport (matchMedia), motif déjà accepté ailleurs (useIsMobile, ClientLayout)
-    if (isMobile) setViewMode("list");
+    if (isMobile && viewMode === "week") setViewMode("day");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile]);
 
   // Bibliothèque rapide glisser-déposer (UX3.14) : repliée par défaut sur
@@ -228,6 +330,19 @@ export default function SchedulePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekStart, channel]);
 
+  // La vue Jour navigue par jour, mais réutilise le même fetch "semaine"
+  // que la vue Semaine (weekStart) plutôt qu'un fetch dédié par jour — plus
+  // simple, et navigation instantanée tant qu'on reste dans la même semaine.
+  // Ne resynchronise `weekStart` QU'en vue Jour, jamais l'inverse : la vue
+  // Semaine garde sa propre navigation indépendante.
+  useEffect(() => {
+    if (viewMode !== "day") return;
+    const dayWeekStart = getWeekStart(dayViewDate);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resynchronise la fenêtre de fetch avec le jour affiché
+    if (dayWeekStart.getTime() !== weekStart.getTime()) setWeekStart(dayWeekStart);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayViewDate, viewMode]);
+
   useEffect(() => {
     fetch(getApiUrl("/videos?sort_by=imported_at&order=desc"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : []))
@@ -284,6 +399,24 @@ export default function SchedulePage() {
   const goToPreviousWeek = () => setWeekStart((prev) => addDays(prev, -7));
   const goToNextWeek = () => setWeekStart((prev) => addDays(prev, 7));
   const goToToday = () => setWeekStart(getWeekStart(new Date()));
+
+  const goToPreviousDay = () => setDayViewDate((prev) => addDays(prev, -1));
+  const goToNextDay = () => setDayViewDate((prev) => addDays(prev, 1));
+  const goToTodayDay = () => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    setDayViewDate(d);
+  };
+
+  // Bascule Jour/Semaine/Liste (§7) : en passant en vue Jour, aligne le jour
+  // affiché sur la semaine déjà chargée si `dayViewDate` s'en est éloigné
+  // (ex. resté sur un jour d'une semaine visitée puis quittée pour la vue
+  // Semaine, qui a navigué ailleurs) — sinon la vue Jour s'ouvrirait sur un
+  // jour hors de portée du fetch courant.
+  const switchToDayView = () => {
+    if (dayViewDate < weekStart || dayViewDate >= weekEndExclusive) setDayViewDate(weekStart);
+    setViewMode("day");
+  };
 
   // --------------------------------------------------------------------
   // Tiroir : création / édition d'une programmation
@@ -443,8 +576,6 @@ export default function SchedulePage() {
   // --------------------------------------------------------------------
   // Overrides — actions rapides sur une occurrence (UX3.15)
   // --------------------------------------------------------------------
-  const occurrenceKey = (o: Occurrence) => `${o.schedule_id}-${o.run_at}`;
-
   const handleCancelOccurrence = async (o: Occurrence) => {
     try {
       const res = await fetch(getApiUrl(`/schedule/${o.schedule_id}/overrides`), {
@@ -523,12 +654,94 @@ export default function SchedulePage() {
   // "couleurs hardcodées associées à un cours" — le thème prime désormais).
   const getProgramAccent = () => "var(--accent-primary)";
 
+  // Panneau d'actions rapides (édition/annulation/rétablissement/remplacement
+  // d'une occurrence, UX3.15) — factorisé pour être partagé entre la chip de
+  // la vue Liste et le bloc proportionnel des vues Jour/Semaine plutôt que
+  // dupliqué (même comportement, juste un conteneur visuel différent).
+  const renderOccurrenceActions = (o: Occurrence, key: string) => {
+    const isCancelled = o.override_action === "cancelled";
+    const isReplaced = o.override_action === "replaced";
+    const isRecurring = o.schedule_type === "recurring";
+    return (
+      <div className="schedule-occurrence-actions" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="btn btn-secondary" onClick={() => openEditDrawer(o.schedule_id)}>
+          {t("schedule.editSeries")}
+        </button>
+        {isRecurring && !isCancelled && !isReplaced && (
+          <button type="button" className="btn btn-secondary" onClick={() => handleCancelOccurrence(o)}>
+            {t("schedule.cancelOccurrence")}
+          </button>
+        )}
+        {isRecurring && (isCancelled || isReplaced) && (
+          <button type="button" className="btn btn-secondary" onClick={() => handleRestoreOccurrence(o)}>
+            {t("schedule.restoreOccurrence")}
+          </button>
+        )}
+        {isRecurring && !isCancelled && (
+          <>
+            {replacingKey === key ? (
+              <>
+                <select
+                  className="filter-select"
+                  value={replaceValue}
+                  onChange={(e) => setReplaceValue(e.target.value)}
+                  style={{ width: "100%", height: "26px", fontSize: "0.7rem" }}
+                >
+                  <option value="">{t("schedule.replaceWith")}</option>
+                  {o.target_type === "radio_playlist" ? (
+                    <optgroup label={t("schedule.radioPlaylistsGroup")}>
+                      {radioPlaylists.map((p) => (
+                        <option key={`rp-${p.id}`} value={`radio_playlist:${p.id}`}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : (
+                    <>
+                      <optgroup label={t("schedule.videosGroup")}>
+                        {videos.map((v) => (
+                          <option key={`v-${v.id}`} value={`video:${v.id}`}>
+                            {v.title}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label={t("schedule.playlistsGroup")}>
+                        {playlists.map((p) => (
+                          <option key={`p-${p.id}`} value={`playlist:${p.id}`}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </>
+                  )}
+                </select>
+                <button type="button" className="btn btn-primary" onClick={() => handleConfirmReplace(o)}>
+                  {t("schedule.confirmReplace")}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setReplaceValue("");
+                  setReplacingKey(key);
+                }}
+              >
+                {t("schedule.replaceOccurrence")}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
   const renderOccurrenceChip = (o: Occurrence, compact: boolean) => {
     const key = occurrenceKey(o);
     const isExpanded = expandedKey === key;
     const isCancelled = o.override_action === "cancelled";
     const isReplaced = o.override_action === "replaced";
-    const isRecurring = o.schedule_type === "recurring";
 
     return (
       <div
@@ -549,83 +762,134 @@ export default function SchedulePage() {
         {isReplaced && <span className="schedule-occurrence-badge">{t("schedule.replacedBadge")}</span>}
         {isCancelled && <span className="schedule-occurrence-badge">{t("schedule.cancelledBadge")}</span>}
 
-        {isExpanded && (
-          <div className="schedule-occurrence-actions" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => openEditDrawer(o.schedule_id)}
-            >
-              {t("schedule.editSeries")}
-            </button>
-            {isRecurring && !isCancelled && !isReplaced && (
-              <button type="button" className="btn btn-secondary" onClick={() => handleCancelOccurrence(o)}>
-                {t("schedule.cancelOccurrence")}
-              </button>
-            )}
-            {isRecurring && (isCancelled || isReplaced) && (
-              <button type="button" className="btn btn-secondary" onClick={() => handleRestoreOccurrence(o)}>
-                {t("schedule.restoreOccurrence")}
-              </button>
-            )}
-            {isRecurring && !isCancelled && (
-              <>
-                {replacingKey === key ? (
-                  <>
-                    <select
-                      className="filter-select"
-                      value={replaceValue}
-                      onChange={(e) => setReplaceValue(e.target.value)}
-                      style={{ width: "100%", height: "26px", fontSize: "0.7rem" }}
-                    >
-                      <option value="">{t("schedule.replaceWith")}</option>
-                      {o.target_type === "radio_playlist" ? (
-                        <optgroup label={t("schedule.radioPlaylistsGroup")}>
-                          {radioPlaylists.map((p) => (
-                            <option key={`rp-${p.id}`} value={`radio_playlist:${p.id}`}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ) : (
-                        <>
-                          <optgroup label={t("schedule.videosGroup")}>
-                            {videos.map((v) => (
-                              <option key={`v-${v.id}`} value={`video:${v.id}`}>
-                                {v.title}
-                              </option>
-                            ))}
-                          </optgroup>
-                          <optgroup label={t("schedule.playlistsGroup")}>
-                            {playlists.map((p) => (
-                              <option key={`p-${p.id}`} value={`playlist:${p.id}`}>
-                                {p.name}
-                              </option>
-                            ))}
-                          </optgroup>
-                        </>
-                      )}
-                    </select>
-                    <button type="button" className="btn btn-primary" onClick={() => handleConfirmReplace(o)}>
-                      {t("schedule.confirmReplace")}
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      setReplaceValue("");
-                      setReplacingKey(key);
-                    }}
-                  >
-                    {t("schedule.replaceOccurrence")}
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        )}
+        {isExpanded && renderOccurrenceActions(o, key)}
+      </div>
+    );
+  };
+
+  // Bloc proportionnel à la durée (vues Jour/Semaine, réf. CDC §2-3) :
+  // positionné en absolu dans sa colonne via `style` (top/height calculés
+  // par l'appelant selon pxPerMinute), miniature par type de média,
+  // indicateur de chevauchement au tap (§5.2, pas de survol au tactile).
+  const renderTimelineBlock = (o: Occurrence, style: React.CSSProperties, cutsPrevious: boolean) => {
+    const key = occurrenceKey(o);
+    const isExpanded = expandedKey === key;
+    const isCancelled = o.override_action === "cancelled";
+    const isReplaced = o.override_action === "replaced";
+    const thumbSrc = getOccurrenceThumbSrc(o);
+    const win = getOccurrenceWindow(o);
+    const durationLabel =
+      o.target_type === "radio_playlist"
+        ? o.end_time
+          ? `${formatOccurrenceTime(o.run_at)}–${o.end_time}`
+          : formatOccurrenceTime(o.run_at)
+        : `${formatOccurrenceTime(o.run_at)} · ${formatDuration(o.duration_seconds)}`;
+
+    return (
+      <div
+        key={key}
+        className={`schedule-timeline-block ${isCancelled ? "cancelled" : ""} ${cutsPrevious ? "cuts-previous" : ""}`}
+        style={style}
+        title={cutsPrevious ? t("schedule.overlapTooltip") : undefined}
+        onClick={(e) => {
+          e.stopPropagation();
+          setReplacingKey(null);
+          setExpandedKey(isExpanded ? null : key);
+        }}
+      >
+        <div className="schedule-timeline-block-thumb">
+          {thumbSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={thumbSrc} alt="" />
+          ) : (
+            <Icon
+              name={o.target_type === "radio_playlist" ? "graphic_eq" : o.target_type === "playlist" ? "playlist_play" : "movie"}
+              size={18}
+              style={{ opacity: 0.35 }}
+            />
+          )}
+          {cutsPrevious && (
+            <span className="schedule-timeline-cut-badge">
+              <Icon name="content_cut" size={11} />
+            </span>
+          )}
+        </div>
+        <div className="schedule-timeline-block-body">
+          <div className="schedule-timeline-block-title">{o.title ?? t("schedule.targetNotFound")}</div>
+          <div className="schedule-timeline-block-time">{durationLabel}</div>
+          {isReplaced && <span className="schedule-occurrence-badge">{t("schedule.replacedBadge")}</span>}
+          {isCancelled && <span className="schedule-occurrence-badge">{t("schedule.cancelledBadge")}</span>}
+        </div>
+        {isExpanded && !win.isBackgroundBand && renderOccurrenceActions(o, key)}
+      </div>
+    );
+  };
+
+  // Bande de fond "ambiance permanente 24/7" (réf. CDC §2.4) : un vrai calque
+  // de fond sur toute la hauteur de la journée (z-index sous les blocs
+  // normaux), pas un bloc de plus — un bloc normal qui se trouve par-dessus
+  // le masque naturellement à cet endroit (empilement standard), sans avoir
+  // à calculer les créneaux libres explicitement.
+  const renderBackgroundBand = (o: Occurrence) => (
+    <div
+      key={occurrenceKey(o)}
+      className="schedule-timeline-band-247"
+      title={o.title ?? t("schedule.permanentAmbianceLabel")}
+      style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }}
+    >
+      <div className="schedule-timeline-band-247-label">
+        <Icon name="graphic_eq" size={12} />
+        <span>{o.title ?? t("schedule.permanentAmbianceLabel")}</span>
+      </div>
+    </div>
+  );
+
+  const HOUR_HEIGHT = 60 * pxPerMinute;
+
+  const renderTimelineColumn = (day: Date, dayIndex: number, dayOccurrences: Occurrence[]) => {
+    const isToday = isSameLocalDay(day, todayRef);
+    const bands = dayOccurrences.filter((o) => getOccurrenceWindow(o).isBackgroundBand);
+    const timedOccurrences = dayOccurrences.filter((o) => !getOccurrenceWindow(o).isBackgroundBand);
+    const cutsPreviousKeys = computeCutsPrevious(timedOccurrences);
+
+    return (
+      <div
+        key={dayIndex}
+        className={`schedule-timeline-column ${isToday ? "today" : ""}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOverDay(dayIndex);
+        }}
+        onDragLeave={() => setDragOverDay(null)}
+        onDrop={() => handleDropOnDay(dayIndex)}
+      >
+        <div
+          className={`schedule-timeline-track ${dragOverDay === dayIndex ? "drag-over" : ""}`}
+          style={{ height: MINUTES_PER_DAY * pxPerMinute }}
+          onClick={() => openCreateDrawer(day)}
+        >
+          {bands.map(renderBackgroundBand)}
+          {Array.from({ length: 24 }, (_, hour) => (
+            <div key={hour} className="schedule-timeline-hour-row" style={{ height: HOUR_HEIGHT }}>
+              <span className="schedule-timeline-hour-label">{`${hour.toString().padStart(2, "0")}:00`}</span>
+            </div>
+          ))}
+          {timedOccurrences.map((o) => {
+            const win = getOccurrenceWindow(o);
+            return renderTimelineBlock(
+              o,
+              {
+                position: "absolute",
+                top: win.startMin * pxPerMinute,
+                height: win.durationMin * pxPerMinute,
+                left: 4,
+                right: 4,
+                zIndex: 1,
+              },
+              cutsPreviousKeys.has(occurrenceKey(o))
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -671,30 +935,83 @@ export default function SchedulePage() {
             {t("schedule.channelTabRadio")}
           </button>
         </div>
-        <div className="week-nav">
-          <button className="btn btn-secondary" onClick={goToPreviousWeek} title={t("schedule.previousWeekTitle")}>
-            <Icon name="chevron_left" size={16} />
-            {t("schedule.previousWeekShort")}
-          </button>
-          <button className="btn btn-secondary" onClick={goToToday}>
-            {t("schedule.today")}
-          </button>
-          <button className="btn btn-secondary" onClick={goToNextWeek} title={t("schedule.nextWeekTitle")}>
-            {t("schedule.nextWeekShort")}
-            <Icon name="chevron_right" size={16} />
-          </button>
-          <span className="week-nav-label">{formatWeekLabel(weekStart, language)}</span>
-        </div>
+        {viewMode === "day" ? (
+          <div className="week-nav">
+            <button className="btn btn-secondary" onClick={goToPreviousDay} title={t("schedule.previousDayTitle")}>
+              <Icon name="chevron_left" size={16} />
+            </button>
+            <button className="btn btn-secondary" onClick={goToTodayDay}>
+              {t("schedule.today")}
+            </button>
+            <button className="btn btn-secondary" onClick={goToNextDay} title={t("schedule.nextDayTitle")}>
+              <Icon name="chevron_right" size={16} />
+            </button>
+            <span className="week-nav-label">
+              {DAY_LABELS_FULL[(dayViewDate.getDay() + 6) % 7]} {dayViewDate.toLocaleDateString(language === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "short" })}
+            </span>
+          </div>
+        ) : viewMode === "week" ? (
+          <div className="week-nav">
+            <button className="btn btn-secondary" onClick={goToPreviousWeek} title={t("schedule.previousWeekTitle")}>
+              <Icon name="chevron_left" size={16} />
+              {t("schedule.previousWeekShort")}
+            </button>
+            <button className="btn btn-secondary" onClick={goToToday}>
+              {t("schedule.today")}
+            </button>
+            <button className="btn btn-secondary" onClick={goToNextWeek} title={t("schedule.nextWeekTitle")}>
+              {t("schedule.nextWeekShort")}
+              <Icon name="chevron_right" size={16} />
+            </button>
+            <span className="week-nav-label">{formatWeekLabel(weekStart, language)}</span>
+          </div>
+        ) : (
+          <div className="week-nav" />
+        )}
 
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          {viewMode !== "list" && (
+            <div className="view-toggle" title={t("schedule.zoomTitle")}>
+              <button
+                type="button"
+                className="view-btn olc-press"
+                onClick={() => setZoomIndex((z) => Math.max(0, z - 1))}
+                disabled={zoomIndex === 0}
+                title={t("schedule.zoomOutTitle")}
+              >
+                <Icon name="zoom_out" size={16} />
+              </button>
+              <button
+                type="button"
+                className="view-btn olc-press"
+                onClick={() => setZoomIndex((z) => Math.min(ZOOM_LEVELS.length - 1, z + 1))}
+                disabled={zoomIndex === ZOOM_LEVELS.length - 1}
+                title={t("schedule.zoomInTitle")}
+              >
+                <Icon name="zoom_in" size={16} />
+              </button>
+            </div>
+          )}
           <div className="view-toggle">
             <button
-              className={`view-btn olc-press ${viewMode === "calendar" ? "active" : ""}`}
-              onClick={() => setViewMode("calendar")}
-              title={t("schedule.calendarView")}
+              className={`view-btn olc-press ${viewMode === "day" ? "active" : ""}`}
+              onClick={switchToDayView}
+              title={t("schedule.dayView")}
             >
-              <Icon name="calendar_month" size={18} />
+              <Icon name="view_day" size={18} />
             </button>
+            {/* Vue Semaine masquée sur mobile (réf. CDC planning visuel §7) :
+                7 colonnes proportionnelles à la minute illisibles à cette
+                largeur — Jour + Liste couvrent le besoin sans ce compromis. */}
+            {!isMobile && (
+              <button
+                className={`view-btn olc-press ${viewMode === "week" ? "active" : ""}`}
+                onClick={() => setViewMode("week")}
+                title={t("schedule.weekView")}
+              >
+                <Icon name="calendar_view_week" size={18} />
+              </button>
+            )}
             <button
               className={`view-btn olc-press ${viewMode === "list" ? "active" : ""}`}
               onClick={() => setViewMode("list")}
@@ -716,38 +1033,29 @@ export default function SchedulePage() {
             <div style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
               {t("schedule.loadingSchedule")}
             </div>
-          ) : viewMode === "calendar" ? (
-            <div className="schedule-week-grid">
-              {weekDays.map((day, index) => {
-                const isToday = isSameLocalDay(day, todayRef);
-                return (
-                  <div
-                    key={index}
-                    className={`schedule-day-column ${isToday ? "today" : ""}`}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDragOverDay(index);
-                    }}
-                    onDragLeave={() => setDragOverDay(null)}
-                    onDrop={() => handleDropOnDay(index)}
-                  >
+          ) : viewMode === "week" ? (
+            <div className="schedule-timeline-scroll">
+              <div className="schedule-timeline-week-grid">
+                {weekDays.map((day, index) => (
+                  <div key={index} className="schedule-timeline-week-col">
                     <div className="schedule-day-header">
                       <span className="schedule-day-header-name">{DAY_LABELS_FULL[index]}</span>
                       <span className="schedule-day-header-date">{day.getDate()}</span>
                     </div>
-                    <div
-                      className={`schedule-day-body ${dragOverDay === index ? "drag-over" : ""}`}
-                      onClick={() => openCreateDrawer(day)}
-                    >
-                      {occurrencesByDay[index].length === 0 ? (
-                        <div className="schedule-day-empty-hint">{t("schedule.emptyDayHint")}</div>
-                      ) : (
-                        occurrencesByDay[index].map((o) => renderOccurrenceChip(o, false))
-                      )}
-                    </div>
+                    {renderTimelineColumn(day, index, occurrencesByDay[index])}
                   </div>
-                );
-              })}
+                ))}
+              </div>
+            </div>
+          ) : viewMode === "day" ? (
+            <div className="schedule-timeline-scroll">
+              <div className="schedule-timeline-day-single">
+                {renderTimelineColumn(
+                  dayViewDate,
+                  weekDays.findIndex((d) => isSameLocalDay(d, dayViewDate)),
+                  occurrencesByDay[weekDays.findIndex((d) => isSameLocalDay(d, dayViewDate))] ?? []
+                )}
+              </div>
             </div>
           ) : (
             <div className="schedule-list-scroll">

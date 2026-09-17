@@ -22,6 +22,7 @@ from app.scheduler_manager import (
     ensure_utc,
     expand_occurrences,
     remove_schedule_job,
+    resolve_target_display,
     resolve_target_title,
     sync_schedule_job,
 )
@@ -64,6 +65,9 @@ class ScheduleResponse(BaseModel):
     target_id: int
     target_title: str | None
     target_program: str | None
+    target_duration_seconds: float | None = None
+    target_thumbnail_path: str | None = None
+    target_cover_track_id: int | None = None
     schedule_type: ScheduleType
     run_at: datetime | None
     days_of_week: List[int] | None
@@ -99,6 +103,15 @@ class OccurrenceResponse(BaseModel):
     target_id: int
     title: str | None
     program: str | None
+    # Réf. docs/cahier-des-charges-planning-visuel.md §2 : bloc proportionnel
+    # à la durée réelle (vidéo/playlist) ou à la fenêtre choisie (radio, où
+    # `duration_seconds` reste toujours None — le contenu boucle, seule la
+    # fenêtre `end_time`/`is_24_7` a un sens pour dimensionner le bloc).
+    duration_seconds: float | None = None
+    thumbnail_path: str | None = None
+    cover_track_id: int | None = None
+    end_time: str | None = None
+    is_24_7: bool = False
     is_override: bool
     override_action: OverrideAction | None
     override_id: int | None
@@ -160,7 +173,7 @@ def _validate_and_normalize(data: ScheduleInput) -> tuple[datetime | None, str |
 
 
 def _to_response(db: Session, schedule: Schedule) -> dict:
-    title, program = resolve_target_title(db, schedule.target_type, schedule.target_id)
+    display = resolve_target_display(db, schedule.target_type, schedule.target_id)
     days_of_week, time_of_day, end_time, is_24_7 = None, None, None, False
     if schedule.recurrence_rule:
         rule = json.loads(schedule.recurrence_rule)
@@ -173,8 +186,11 @@ def _to_response(db: Session, schedule: Schedule) -> dict:
         "channel": schedule.channel or "cable",
         "target_type": schedule.target_type,
         "target_id": schedule.target_id,
-        "target_title": title,
-        "target_program": program,
+        "target_title": display["title"],
+        "target_program": display["program"],
+        "target_duration_seconds": display["duration_seconds"],
+        "target_thumbnail_path": display["thumbnail_path"],
+        "target_cover_track_id": display["cover_track_id"],
         "schedule_type": schedule.schedule_type,
         "run_at": ensure_utc(schedule.run_at) if schedule.run_at else None,
         "days_of_week": days_of_week,

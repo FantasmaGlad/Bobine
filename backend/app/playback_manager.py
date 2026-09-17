@@ -121,6 +121,14 @@ class PlaybackManager:
             "audio_chain_mode": "auto",
             "audio_chain_timer_seconds": settings.audio_chain_timer_seconds,
             "audio_chain_wait_remaining": None,
+            # Réf. CDC planning visuel (2026-09-17) §5.3 : distingue "lecture
+            # manuelle" d'un "reliquat d'une programmation encore en cours"
+            # pour la détection de conflit de scheduler_manager._launch_target
+            # — sans ce marqueur, la règle réseau "le manuel gagne toujours"
+            # s'appliquait aussi à tort à un chevauchement programmation vs
+            # programmation, annulant silencieusement la seconde au lieu de
+            # la laisser couper proprement la première.
+            "scheduled_launch": False,
         }
 
     def snapshot(self) -> dict:
@@ -232,6 +240,7 @@ class PlaybackManager:
         width: int | None = None,
         height: int | None = None,
         launch_type: str = "kiosk",
+        scheduled: bool = False,
     ):
         """
         Lance un cours directement en lecture.
@@ -270,6 +279,7 @@ class PlaybackManager:
         self.state["position_seconds"] = 0.0
         self.state["volume"] = self.state.get("volume", settings.volume_default)
         self.state["state"] = PlaybackStateEnum.playing.value
+        self.state["scheduled_launch"] = scheduled
 
         # Démarrage de la session SQLite d'assiduité (réf. CDC V3.0.5 §2.3)
         self._current_session_id = await asyncio.to_thread(
@@ -285,6 +295,7 @@ class PlaybackManager:
         playlist_name: str,
         playlist_items: list[dict],
         client_ts: float | None = None,
+        scheduled: bool = False,
     ):
         """Lance une playlist : initialise l'index et charge la première vidéo avec compte à rebours."""
         self._cancel_waiting()
@@ -315,6 +326,7 @@ class PlaybackManager:
             bitrate_kbps=first_item.get("bitrate_kbps"),
             width=first_item.get("width"),
             height=first_item.get("height"),
+            scheduled=scheduled,
         )
 
     async def _run_waiting_period(self):
@@ -368,6 +380,10 @@ class PlaybackManager:
         if next_idx < len(items):
             self.state["playlist_index"] = next_idx
             next_item = items[next_idx]
+            # Réf. "scheduled_launch" ci-dessus : relu AVANT l'appel qui va le
+            # réécrire, pour que l'avance automatique/manuelle au sein d'une
+            # MÊME playlist ne perde jamais l'origine "programmation" de la
+            # lecture en cours.
             await self.load(
                 video_id=next_item["id"],
                 title=next_item["title"],
@@ -383,6 +399,7 @@ class PlaybackManager:
                 bitrate_kbps=next_item.get("bitrate_kbps"),
                 width=next_item.get("width"),
                 height=next_item.get("height"),
+                scheduled=self.state.get("scheduled_launch", False),
             )
         else:
             await self.stop(client_ts)
@@ -421,6 +438,7 @@ class PlaybackManager:
             bitrate_kbps=prev_item.get("bitrate_kbps"),
             width=prev_item.get("width"),
             height=prev_item.get("height"),
+            scheduled=self.state.get("scheduled_launch", False),
         )
 
     async def skip_waiting(self, client_ts: float | None = None):
