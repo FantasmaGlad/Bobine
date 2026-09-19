@@ -49,6 +49,7 @@ Install Bobine as a native application on your tablet, workstation, or studio PC
 | ![iOS / iPadOS](https://img.shields.io/badge/iOS%20%2F%20iPadOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>iPadOS App<br>*(Explored Track)*</sub> | <sub>ARM64 (Apple Silicon)</sub> | <sub>*Explored track...*</sub> | **iPads & Apple Tablets (Explored Track)**<br><sub>• Mobile touch coach desk and studio big-screen control</sub><br><sub>• Wired video output over USB-C / Thunderbolt to TV or projector</sub><br><sub>• Prospective track to expand tablet portability across Apple hardware</sub> |
 | ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | <sub>Native Binary<br>*(Tauri 2)*</sub> | <sub>x86-64 (Linux)</sub> | <sub>[**Download bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/V3.0.6/bobine-assistant)</sub> | **Graphical Management & Deployment Assistant (GUI)**<br><sub>• Smart network scan: automatically discovers all Bobine kiosks on Wi-Fi/LAN</sub><br><sub>• Remote deployment and 1-click updates without touching the command line</sub><br><sub>• Assisted SSH connection via password or imported SSH key</sub><br><sub>• Ideal for gym managers and technicians overseeing multiple rooms</sub> |
 | ![Bash CLI](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | <sub>Shell Script<br>*(Automated)*</sub> | <sub>x86-64</sub> | <sub>`curl -sSL https://bobine.fit/install.sh \| bash`</sub> | **Headless Dedicated Appliance (AV Integrators & Power Users)**<br><sub>• 18-step automated unattended install for dedicated mini PCs (Wyse 5070, NUC, Tiny)</sub><br><sub>• Direct locked full-screen X11 kiosk, zero bulky desktop overhead</sub><br><sub>• Hardware HDMI-CEC: automatically powers TV on and off with schedule</sub><br><sub>• Ultra-low power (&lt; 8W) & auto-healing systemd services 24/7</sub> |
+| [![Tor Browser](https://img.shields.io/badge/Tor_Browser-7D4698?style=flat-square&logo=torbrowser&logoColor=white)](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/) | <sub>APT Repo & Mirror<br>*(Tor Network)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>`curl -fsSL https://bobine.fit/install-tor.sh \| bash`<br>[**Tor Mirror (.onion)**](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/)<br>[**APT Repo (.onion)**](http://rzvwjat5pidtxtwzcsvew7yc5ugfjvzz432ecpn3s5mlch4cs7vvmqad.onion/)</sub> | **Protected Distribution via Tor (.onion)**<br><sub>• Anonymous APT installation and updates without exposing your gym's IP</sub><br><sub>• Bypasses restrictive corporate or hotel firewalls</sub><br><sub>• Same official cryptographically signed GPG packages verified by apt</sub> |
 | [![bobine.fit](https://img.shields.io/badge/bobine.fit-4285F4?style=flat-square&logo=data%3Aimage/svg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBkPSJNNDQgMjRjMCAxMS4wNDUtOC45NTUgMjAtMjAgMjAtNC41MiAwLTguNjgtMS41MDMtMTIuMDMtNC4wNDNsOS40NjctMTYuMzk0QTggOCAwIDAgMCAyNCAzMmM0LjQxOCAwIDgtMy41ODIgOC04eiIvPjxwYXRoIGZpbGw9IiNGQkMwMkQiIGQ9Ik00NCAyNEgyNGE4IDggMCAwIDAtNi45MjggNGwtOS40NjcgMTYuMzk0QTE5LjkyIDE5LjkyIDAgMCAxIDQgMjRDNCAxMy45ODcgMTEuMzg1IDUuNzA0IDIxLjAzNiA0LjIyTDMwLjUwMyAyMC42MUE3Ljk3IDcuOTcgMCAwIDAgMzIgMjR6Ii8%2BPHBhdGggZmlsbD0iI0U1MzkzNSIgZD0iTTI0IDRjNy40MDYgMCAxMy44NiA0LjAyNCAxNy4zIDEwLjAyN0wzMC41MDMgMjAuNjFBOCA4IDAgMCAwIDI0IDE2Yy0zLjE1NSAwLTUuOTE0IDEuODI2LTcuMjUgNC40OUw3LjI4NCA0LjA5NUMxMS44OTIgNC4wMzIgMTcuNjUgNCAyNCA0eiIvPjxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjI0IiByPSI2IiBmaWxsPSIjMTk3NkQyIi8%2BPC9zdmc%2B)](https://bobine.fit) | <sub>Web Portal</sub> | <sub>Universal</sub> | <sub>[**Visit bobine.fit**](https://bobine.fit)</sub> | **Official Website & Knowledge Base**<br><sub>• Step-by-step getting started guides, tutorials & announcements</sub><br><sub>• Interactive documentation and instant web remote</sub> |
 | ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | <sub>Source & Binaries</sub> | <sub>Multi-OS</sub> | <sub>[**Browse GitHub Releases**](https://github.com/FantasmaGlad/Bobine/releases/latest)</sub> | **Full Version History & Source Code**<br><sub>• Verified SHA-256 checksums, release tarballs & comprehensive changelogs</sub> |
 
@@ -76,6 +77,7 @@ Group-fitness rooms increasingly run pre-recorded, instructor-led video classes 
 - **The source is open.** AGPL-3.0-licensed and auditable — the system's future doesn't depend on a vendor's business decisions.
 - **It runs on cheap hardware.** A second-hand thin client or mini PC (Dell Wyse 5070 class) is enough — no recurring licence fee per screen.
 - **It is unattended.** Auto-starts on power-up, recovers from power loss, and restarts a failed component on its own.
+- **Tor Network (.onion) Distribution & Privacy.** Both the website mirror and the APT package repository are published as onion services for gyms desiring zero IP disclosure or operating behind restrictive firewalls.
 
 ### Positioning & Alternatives
 - **Alternative to proprietary fitness subscriptions (Les Mills Cinema, Wexer Virtual, Fitness On Demand, Radical Fitness / franchise video packages like Yako)**: Bobine removes recurring monthly license fees and catalog constraints. Operators have full freedom over their video content (custom coach recordings or independent libraries), timetables, and studio branding, with 100% offline local SSD reliability.
@@ -192,6 +194,19 @@ echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] https://apt.bobine.fit/ stabl
 
 # 3. Update & Install
 sudo apt update && sudo apt install bobine
+```
+
+**Secure Option — APT Repository over Tor (.onion):**
+To install and update Bobine with end-to-end privacy without revealing your facility's IP address:
+```bash
+sudo apt install apt-transport-tor
+curl -fsS --socks5-hostname 127.0.0.1:9050 http://rzvwjat5pidtxtwzcsvew7yc5ugfjvzz432ecpn3s5mlch4cs7vvmqad.onion/bobine.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/bobine.gpg
+echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] tor+http://rzvwjat5pidtxtwzcsvew7yc5ugfjvzz432ecpn3s5mlch4cs7vvmqad.onion/ stable main" | sudo tee /etc/apt/sources.list.d/bobine-onion.list
+sudo apt update && sudo apt install bobine
+```
+Or via the automated script (Tor-routed GPG fingerprint validation):
+```bash
+curl -fsSL https://bobine.fit/install-tor.sh | bash
 ```
 
 **Alternative Method — Standalone `.deb` Package (Offline or 1-click install):**
