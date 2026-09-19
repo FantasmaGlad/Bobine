@@ -82,6 +82,7 @@ Les salles de cours collectifs diffusent de plus en plus des cours vidéo pré-e
 ### Positionnement & Alternatives
 - **Alternative aux plateformes fitness propriétaires (Les Mills Cinema, Wexer Virtual, Fitness On Demand, Radical Fitness / catalogues de franchise type Yako)** : Bobine supprime les redevances mensuelles par écran et le verrouillage commercial. Vous restez maître de vos vidéos (cours maison ou libres), de la promotion de vos coachs résidents et de votre grille horaire, avec un fonctionnement 100% hors-ligne sans risque de panne internet.
 - **Alternative aux solutions d'affichage dynamique générique (Screenly Anthias, Yodeck, Xibo, TouchPlayer, Waves System)** : Contrairement aux afficheurs passifs limités à des boucles d'images publicitaires, Bobine est conçu pour le métier du fitness : allumage/veille automatique des TV par HDMI-CEC, borne tactile adhérents avec décompte, télécommande coach par QR code local sans application, et radio d'ambiance 24/7 avec annonces vocales programmées sur mini PC Debian 13 avec décodage matériel VA-API (< 8% CPU).
+- **Communauté & Annuaire** : Retrouvez également la fiche du projet et ses alternatives libres sur [AlternativeTo](https://alternativeto.net/software/fantasmaglad-bobine/about/).
 
 Utilisateurs types : studios, salles de sport, espaces fitness d'hôtels et d'entreprises, kinés et centres de rééducation, studios de danse et de cycling — quiconque diffuse des vidéos de cours planifiées ou à la demande sur un écran, et cherche une alternative souveraine sans abonnement.
 
@@ -370,7 +371,7 @@ Afin de maximiser la portabilité matérielle et d'alléger l'encombrement techn
 * **Tablettes Android avec sortie USB-C DisplayPort** (ex. Xiaomi Pad 6, 7 ou 8, Samsung Galaxy Tab S9/S10) : Embarquement du serveur FastAPI en local via Chaquopy et diffusion vidéo vers l'écran ou le vidéoprojecteur du studio via l'API Presentation d'Android.
 * **iPads Apple avec sortie Thunderbolt / USB-C** (ex. iPad Pro à puce M1/M2/M4 avec Thunderbolt / USB 4, iPad Air M2 avec DisplayPort sur USB-C) : Un unique câble ou dock USB-C alimenté relie la tablette au vidéoprojecteur, dédiant l'écran tactile aux commandes de l'instructeur tout en propulsant le flux vidéo du cours sur le grand écran.
 
-Les tickets et contributions sont bienvenus sur le [dépôt GitHub](https://github.com/FantasmaGlad/Bobine).
+Les tickets et contributions sont bienvenus sur le [dépôt GitHub](https://github.com/FantasmaGlad/Bobine). Vous pouvez également soutenir et évaluer le projet sur [AlternativeTo](https://alternativeto.net/software/fantasmaglad-bobine/about/).
 
 ---
 

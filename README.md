@@ -82,6 +82,7 @@ Group-fitness rooms increasingly run pre-recorded, instructor-led video classes 
 ### Positioning & Alternatives
 - **Alternative to proprietary fitness subscriptions (Les Mills Cinema, Wexer Virtual, Fitness On Demand, Radical Fitness / franchise video packages like Yako)**: Bobine removes recurring monthly license fees and catalog constraints. Operators have full freedom over their video content (custom coach recordings or independent libraries), timetables, and studio branding, with 100% offline local SSD reliability.
 - **Alternative to generic digital signage (Screenly Anthias, Yodeck, Xibo, TouchPlayer, Waves System)**: Unlike passive billboard or menu loopers, Bobine is purpose-built for fitness operations: automated HDMI-CEC TV power management, interactive member on-demand touch kiosk, smartphone coach remote control via local QR code, and 24/7 background audio with crossfade and automated voice announcements, running smoothly on cost-effective x86-64 mini PCs with VA-API hardware decoding.
+- **Community & Directory**: Also listed on [AlternativeTo](https://alternativeto.net/software/fantasmaglad-bobine/about/) for open-source recommendations and reviews.
 
 Typical users: boutique studios, gyms, hotel and corporate fitness rooms, physiotherapy and rehab spaces, dance and cycling studios — anyone who plays scheduled or on-demand fitness videos on a screen, and anyone looking for a sovereign, self-hosted alternative without the subscription.
 
@@ -370,7 +371,7 @@ To maximize hardware portability and reduce the equipment footprint in fitness s
 * **Android Tablets with USB-C DisplayPort** (e.g. Xiaomi Pad 6, 7, or 8, Samsung Galaxy Tab S9/S10): Embedding the FastAPI backend locally via Chaquopy and outputting the video feed to the studio display or projector via Android's Presentation API.
 * **Apple iPads with Thunderbolt / USB-C Video** (e.g. iPad Pro M1/M2/M4 with Thunderbolt / USB 4, iPad Air M2 with DisplayPort over USB-C): A single cable or powered dock connects the iPad to the projector, dedicating the touch interface to coach controls while driving full video playout to the studio room.
 
-Issues and contributions are welcome on the [GitHub repository](https://github.com/FantasmaGlad/Bobine).
+Issues and contributions are welcome on the [GitHub repository](https://github.com/FantasmaGlad/Bobine). You can also discover and review the project on [AlternativeTo](https://alternativeto.net/software/fantasmaglad-bobine/about/).
 
 ---
 
