@@ -2,19 +2,19 @@ Origin: Bobine
 Label: Bobine
 Suite: beta
 Codename: beta
-Date: Sat, 19 Sep 2026 22:24:37 UTC
+Date: Sun, 20 Sep 2026 07:32:55 UTC
 Architectures: amd64
 Components: main
 Description: Depot officiel Bobine - Canal Beta (Rolling)
 MD5Sum:
- ab9b10c00fdca5a0c88aa1ceb432d8de 1326 main/binary-amd64/Packages
- 68288ac316d19c416f09e55189023266 845 main/binary-amd64/Packages.gz
+ dac66bb13dcb814ad8fa51f60f5d698e 1326 main/binary-amd64/Packages
+ 2809c1ea6801b2cfa475f5ace4f340f7 846 main/binary-amd64/Packages.gz
  4e9d61f921811eec892d767f9346bd94 137 main/binary-amd64/Release
 SHA1:
- 61986b32ce21c7c3cbfdabb98240e17fb060c227 1326 main/binary-amd64/Packages
- c5e7c585e34a29efe2312fc9ba066a85b2363cb8 845 main/binary-amd64/Packages.gz
+ 30902169a6a3ddfd5be8a4951b68da9d15504547 1326 main/binary-amd64/Packages
+ efba0531a30bf020b4bc0680eedc7a03838195d3 846 main/binary-amd64/Packages.gz
  86f9121fae9dbe6f26cfdf16b475332ea4c5715c 137 main/binary-amd64/Release
 SHA256:
- 141fabd43aaf7a38e12c8a8dacda536c9214ebdff5c602399d2e045a2fa3e278 1326 main/binary-amd64/Packages
- 4d05c0fdcacf406929c29e24add2d5a7d075b9c8b11567ee68a1818ee04d0a5b 845 main/binary-amd64/Packages.gz
+ 5e530fe169856c216ebe2b8192ea06f4efd6d3bfcb5e27028aa623250078d2c7 1326 main/binary-amd64/Packages
+ b6720e0b8f000d51d7ce1d5e9b363a25149c114f72813b342adbb99e82afac2c 846 main/binary-amd64/Packages.gz
  aff5f63ae1ae3189fdc60f93f86620d6d66c572d9dc9a7db3d0aa522163ecbb0 137 main/binary-amd64/Release
