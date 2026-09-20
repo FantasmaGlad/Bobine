@@ -1,6 +1,6 @@
-# Réf. docs/cahier-des-charges-securite-hygiene-2026-09.md §4 : ouvre des PR
-# de mise à jour de dépendances, groupées par écosystème pour limiter le
-# bruit — aucun auto-merge, revue et fusion restent manuelles.
+# Configuration Dependabot — Bobine
+# Mises à jour hebdomadaires groupées par écosystème.
+# Aucun auto-merge : revue manuelle par le mainteneur.
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -11,6 +11,11 @@ updates:
       frontend-dependencies:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "pip"
     directory: "/backend"
@@ -38,6 +43,10 @@ updates:
       android-dependencies:
         patterns:
           - "*"
+    ignore:
+      # Chaquopy 17.0 teste et garantit la compatibilité jusqu'à AGP 9.2.x maximum
+      - dependency-name: "com.android.application"
+      - dependency-name: "com.android.tools.build:gradle"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -47,3 +56,7 @@ updates:
       github-actions-dependencies:
         patterns:
           - "*"
+    ignore:
+      # Évite les ruptures majeures en bloc sur les actions de CI et packaging multi-OS
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
