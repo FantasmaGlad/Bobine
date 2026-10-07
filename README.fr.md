@@ -377,7 +377,7 @@ Afin de maximiser la portabilité matérielle et d'alléger l'encombrement techn
 * **Tablettes Android avec sortie USB-C DisplayPort** (ex. Xiaomi Pad 6, 7 ou 8, Samsung Galaxy Tab S9/S10) : Embarquement du serveur FastAPI en local via Chaquopy et diffusion vidéo vers l'écran ou le vidéoprojecteur du studio via l'API Presentation d'Android.
 * **iPads Apple avec sortie Thunderbolt / USB-C** (ex. iPad Pro à puce M1/M2/M4 avec Thunderbolt / USB 4, iPad Air M2 avec DisplayPort sur USB-C) : Un unique câble ou dock USB-C alimenté relie la tablette au vidéoprojecteur, dédiant l'écran tactile aux commandes de l'instructeur tout en propulsant le flux vidéo du cours sur le grand écran.
 
-Les tickets et contributions sont bienvenus sur le [dépôt GitHub](https://github.com/FantasmaGlad/Bobine). Vous pouvez également soutenir et évaluer le projet sur [AlternativeTo](https://alternativeto.net/software/fantasmaglad-bobine/about/).
+Les tickets et contributions sont bienvenus sur le [dépôt GitHub](https://github.com/FantasmaGlad/Bobine), dans le respect de notre [Code de conduite](CODE_OF_CONDUCT.fr.md). Vous pouvez également soutenir et évaluer le projet sur [AlternativeTo](https://alternativeto.net/software/fantasmaglad-bobine/about/).
 
 ---
 
