@@ -377,7 +377,7 @@ To maximize hardware portability and reduce the equipment footprint in fitness s
 * **Android Tablets with USB-C DisplayPort** (e.g. Xiaomi Pad 6, 7, or 8, Samsung Galaxy Tab S9/S10): Embedding the FastAPI backend locally via Chaquopy and outputting the video feed to the studio display or projector via Android's Presentation API.
 * **Apple iPads with Thunderbolt / USB-C Video** (e.g. iPad Pro M1/M2/M4 with Thunderbolt / USB 4, iPad Air M2 with DisplayPort over USB-C): A single cable or powered dock connects the iPad to the projector, dedicating the touch interface to coach controls while driving full video playout to the studio room.
 
-Issues and contributions are welcome on the [GitHub repository](https://github.com/FantasmaGlad/Bobine), under the terms of our [Code of Conduct](CODE_OF_CONDUCT.md). You can also discover and review the project on [AlternativeTo](https://alternativeto.net/software/fantasmaglad-bobine/about/).
+Issues and contributions are welcome on the [GitHub repository](https://github.com/FantasmaGlad/Bobine), under the terms of our [Contributing guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md). You can also discover and review the project on [AlternativeTo](https://alternativeto.net/software/fantasmaglad-bobine/about/).
 
 ---
 
