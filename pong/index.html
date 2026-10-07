@@ -617,16 +617,17 @@
         <nav class="site-footer__links" aria-label="Footer links">
           <a href="https://bobine.fit">bobine.fit</a>
           <a href="https://bobine.fit/en/documentation" id="footer-docs" data-i18n="footer_docs">Documentation</a>
+          <a href="https://bobine.fit/en/securite" id="footer-security" data-i18n="footer_security">Security</a>
           <a href="https://github.com/FantasmaGlad/Bobine" target="_blank" rel="noopener noreferrer" data-i18n="footer_source">Source Code (AGPL-3.0)</a>
           <a href="https://github.com/FantasmaGlad/Bobine/releases" target="_blank" rel="noopener noreferrer" data-i18n="footer_releases">Releases</a>
         </nav>
       </div>
 
       <div class="site-footer__right">
-        <a href="mailto:clement.barillot3901@gmail.com" class="footer-recruit">
+        <a href="mailto:clement.barillot@bobine.fit" class="footer-recruit">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
           <span data-i18n="footer_contrib">If you can read this, you're interested in the Linux project. Come help me build Bobine.</span>
-          <span class="footer-recruit__email">clement.barillot3901@gmail.com</span>
+          <span class="footer-recruit__email">clement.barillot@bobine.fit</span>
         </a>
       </div>
     </div>
@@ -651,6 +652,7 @@
         footer_brand: "Bobine",
         footer_tagline: "Autonomous Playout & Video Controller for Fitness Studios.",
         footer_docs: "Documentation",
+        footer_security: "Security",
         footer_source: "Source Code (AGPL-3.0)",
         footer_releases: "Releases",
         footer_contrib: "If you can read this, you're interested in the Linux project. Come help me build Bobine."
@@ -669,6 +671,7 @@
         footer_brand: "Bobine",
         footer_tagline: "Régie Vidéo & Playout Libre pour Salle de Sport.",
         footer_docs: "Documentation",
+        footer_security: "Sécurité",
         footer_source: "Code Source (AGPL-3.0)",
         footer_releases: "Releases",
         footer_contrib: "Si tu peux lire ça, c'est que tu t'intéresses au projet sur Linux. Viens m'aider à développer Bobine."
@@ -706,6 +709,10 @@
       const footerDocs = document.getElementById("footer-docs");
       if (footerDocs) {
         footerDocs.href = lang === "fr" ? "https://bobine.fit/documentation" : "https://bobine.fit/en/documentation";
+      }
+      const footerSecurity = document.getElementById("footer-security");
+      if (footerSecurity) {
+        footerSecurity.href = lang === "fr" ? "https://bobine.fit/fr/securite" : "https://bobine.fit/en/securite";
       }
 
       try {
