@@ -2,7 +2,7 @@
 
 Thank you for considering a contribution. Bobine runs unattended in gyms and studios, on hardware its maintainer cannot always reach: a regression is not an inconvenience, it is a class that does not start. The standards below follow from that. They are strict because the software is relied upon, not to discourage you.
 
-French version: [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md). By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md). Vulnerabilities are not reported through issues or pull requests: see [SECURITY.md](SECURITY.md).
+French version: [docs/fr/CONTRIBUTING.md](docs/fr/CONTRIBUTING.md). By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md). Vulnerabilities are not reported through issues or pull requests: see [SECURITY.md](SECURITY.md).
 
 ## Before you start
 

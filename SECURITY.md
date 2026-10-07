@@ -2,7 +2,7 @@
 
 Bobine is maintained by a single developer, with a documented and verifiable vulnerability-handling process. This page explains how to report a vulnerability, how to encrypt the report, what to expect in return, and how to verify the authenticity of what we publish.
 
-French version: [SECURITY.fr.md](SECURITY.fr.md). Machine-readable policy ([RFC 9116](https://www.rfc-editor.org/rfc/rfc9116), OpenPGP-signed): <https://bobine.fit/.well-known/security.txt>. Website policy page: <https://bobine.fit/en/securite>.
+French version: [docs/fr/SECURITY.md](docs/fr/SECURITY.md). Machine-readable policy ([RFC 9116](https://www.rfc-editor.org/rfc/rfc9116), OpenPGP-signed): <https://bobine.fit/.well-known/security.txt>. Website policy page: <https://bobine.fit/en/securite>.
 
 ## Supported versions
 

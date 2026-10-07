@@ -359,7 +359,7 @@ Pour l'architecture complète, le modèle de données, le contrat réseau et la 
 
 ## Sécurité
 
-Signalez les vulnérabilités en privé, jamais dans un ticket public : utilisez le [signalement privé de vulnérabilité GitHub](https://github.com/FantasmaGlad/Bobine/security/advisories/new) ou écrivez à [security@bobine.fit](mailto:security@bobine.fit). Les rapports contenant des détails exploitables doivent être chiffrés avec la clé OpenPGP `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2` (Ed25519, expire le 2028-10-06), publiée dans [`docs/security/`](docs/security/bobine-security-public-key.asc), sur <https://bobine.fit/.well-known/security.asc>, sur <https://security.bobine.fit> et via `gpg --locate-keys security@bobine.fit` : vérifiez que l'empreinte correspond sur au moins deux canaux. Créez votre propre paire de clés et joignez votre clé publique pour que nous puissions répondre chiffré. Politique complète, périmètre et délais : [SECURITY.fr.md](SECURITY.fr.md).
+Signalez les vulnérabilités en privé, jamais dans un ticket public : utilisez le [signalement privé de vulnérabilité GitHub](https://github.com/FantasmaGlad/Bobine/security/advisories/new) ou écrivez à [security@bobine.fit](mailto:security@bobine.fit). Les rapports contenant des détails exploitables doivent être chiffrés avec la clé OpenPGP `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2` (Ed25519, expire le 2028-10-06), publiée dans [`docs/security/`](docs/security/bobine-security-public-key.asc), sur <https://bobine.fit/.well-known/security.asc>, sur <https://security.bobine.fit> et via `gpg --locate-keys security@bobine.fit` : vérifiez que l'empreinte correspond sur au moins deux canaux. Créez votre propre paire de clés et joignez votre clé publique pour que nous puissions répondre chiffré. Politique complète, périmètre et délais : [docs/fr/SECURITY.md](docs/fr/SECURITY.md).
 
 ---
 
@@ -377,7 +377,7 @@ Afin de maximiser la portabilité matérielle et d'alléger l'encombrement techn
 * **Tablettes Android avec sortie USB-C DisplayPort** (ex. Xiaomi Pad 6, 7 ou 8, Samsung Galaxy Tab S9/S10) : Embarquement du serveur FastAPI en local via Chaquopy et diffusion vidéo vers l'écran ou le vidéoprojecteur du studio via l'API Presentation d'Android.
 * **iPads Apple avec sortie Thunderbolt / USB-C** (ex. iPad Pro à puce M1/M2/M4 avec Thunderbolt / USB 4, iPad Air M2 avec DisplayPort sur USB-C) : Un unique câble ou dock USB-C alimenté relie la tablette au vidéoprojecteur, dédiant l'écran tactile aux commandes de l'instructeur tout en propulsant le flux vidéo du cours sur le grand écran.
 
-Les tickets et contributions sont bienvenus sur le [dépôt GitHub](https://github.com/FantasmaGlad/Bobine), dans le respect de notre [guide de contribution](CONTRIBUTING.fr.md) et de notre [Code de conduite](CODE_OF_CONDUCT.fr.md). Vous pouvez également soutenir et évaluer le projet sur [AlternativeTo](https://alternativeto.net/software/fantasmaglad-bobine/about/).
+Les tickets et contributions sont bienvenus sur le [dépôt GitHub](https://github.com/FantasmaGlad/Bobine), dans le respect de notre [guide de contribution](docs/fr/CONTRIBUTING.md) et de notre [Code de conduite](docs/fr/CODE_OF_CONDUCT.md). Vous pouvez également soutenir et évaluer le projet sur [AlternativeTo](https://alternativeto.net/software/fantasmaglad-bobine/about/).
 
 ---
 

@@ -2,7 +2,7 @@
 
 Merci d'envisager une contribution. Bobine fonctionne sans surveillance dans des salles de sport et des studios, sur du matériel que son mainteneur ne peut pas toujours atteindre : une régression n'est pas un désagrément, c'est un cours qui ne démarre pas. Les exigences ci-dessous en découlent. Elles sont strictes parce que le logiciel est utilisé en production, pas pour vous décourager.
 
-Version anglaise : [CONTRIBUTING.md](CONTRIBUTING.md). En participant, vous acceptez de respecter le [Code de conduite](CODE_OF_CONDUCT.fr.md). Les vulnérabilités ne se signalent ni par ticket ni par demande de fusion : voir [SECURITY.fr.md](SECURITY.fr.md).
+Version anglaise : [CONTRIBUTING.md](../../CONTRIBUTING.md). En participant, vous acceptez de respecter le [Code de conduite](CODE_OF_CONDUCT.md). Les vulnérabilités ne se signalent ni par ticket ni par demande de fusion : voir [SECURITY.md](SECURITY.md).
 
 ## Avant de commencer
 
@@ -19,7 +19,7 @@ Version anglaise : [CONTRIBUTING.md](CONTRIBUTING.md). En participant, vous acce
 
 **Dites ce que vous n'avez pas vérifié.** Indiquez précisément ce que vous avez testé, sur quel système et quelle version, et ce que vous n'avez pas pu tester. Une lacune assumée est bienvenue ; une affirmation non vérifiée présentée comme un fait ne l'est pas.
 
-**Respectez l'architecture.** Lisez [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) avant de toucher au backend, au modèle de données ou au contrat réseau. Bobine fonctionne en un seul processus (FastAPI et SQLite) et entièrement hors ligne. Un changement qui ajoute un service externe, une dépendance au cloud ou un nouveau composant d'arrière-plan exige un accord préalable dans un ticket.
+**Respectez l'architecture.** Lisez [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) avant de toucher au backend, au modèle de données ou au contrat réseau. Bobine fonctionne en un seul processus (FastAPI et SQLite) et entièrement hors ligne. Un changement qui ajoute un service externe, une dépendance au cloud ou un nouveau composant d'arrière-plan exige un accord préalable dans un ticket.
 
 **Exactitude de la documentation.** Ne documentez jamais une fonctionnalité qui n'existe pas ou n'est pas publiée. La documentation utilisateur vit dans `README.md` et `README.fr.md` ; gardez les deux cohérents, et signalez-nous si vous ne pouvez pas fournir la traduction.
 
@@ -111,7 +111,7 @@ Ajouter une dépendance exige une justification dans la demande de fusion : ce q
 
 ## Licence
 
-Bobine est publié sous [GNU AGPL-3.0](LICENSE). En soumettant une contribution, vous déclarez en avoir le droit et acceptez qu'elle soit distribuée sous la même licence.
+Bobine est publié sous [GNU AGPL-3.0](../../LICENSE). En soumettant une contribution, vous déclarez en avoir le droit et acceptez qu'elle soit distribuée sous la même licence.
 
 ## Historique du document
 

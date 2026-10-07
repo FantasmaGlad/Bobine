@@ -1,6 +1,6 @@
 # Code of Conduct
 
-French version: [CODE_OF_CONDUCT.fr.md](CODE_OF_CONDUCT.fr.md). How to contribute: [CONTRIBUTING.md](CONTRIBUTING.md).
+French version: [docs/fr/CODE_OF_CONDUCT.md](docs/fr/CODE_OF_CONDUCT.md). How to contribute: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Our pledge
 

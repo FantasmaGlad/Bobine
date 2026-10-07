@@ -1,6 +1,6 @@
 # Code de conduite
 
-Version anglaise : [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Comment contribuer : [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md).
+Version anglaise : [CODE_OF_CONDUCT.md](../../CODE_OF_CONDUCT.md). Comment contribuer : [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Notre engagement
 
@@ -46,7 +46,7 @@ Les comportements abusifs, harcelants ou autrement inacceptables peuvent être s
 - Chaque signalement sera examiné et instruit rapidement et équitablement. Nous visons un accusé de réception sous 7 jours.
 - Le mainteneur est tenu de respecter la vie privée et la sécurité de la personne qui signale un incident. Un signalement n'est jamais communiqué et l'identité de son auteur n'est jamais divulguée sans son accord, sauf obligation légale.
 - Le projet n'ayant qu'un seul mainteneur, un signalement qui le concerne ne peut pas être traité par lui. Dans ce cas, signalez-le à GitHub via le [signalement d'abus de GitHub](https://support.github.com/contact/report-abuse), en mentionnant ce projet.
-- Les vulnérabilités ne relèvent pas du code de conduite : voir [SECURITY.fr.md](SECURITY.fr.md).
+- Les vulnérabilités ne relèvent pas du code de conduite : voir [SECURITY.md](SECURITY.md).
 
 ## Barème d'application
 
