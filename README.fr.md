@@ -357,6 +357,12 @@ Pour l'architecture complète, le modèle de données, le contrat réseau et la 
 
 ---
 
+## Sécurité
+
+Signalez les vulnérabilités en privé, jamais dans un ticket public : utilisez le [signalement privé de vulnérabilité GitHub](https://github.com/FantasmaGlad/Bobine/security/advisories/new) ou écrivez à [security@bobine.fit](mailto:security@bobine.fit). Les rapports contenant des détails exploitables doivent être chiffrés avec la clé OpenPGP `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2` (Ed25519, expire le 2028-10-06), publiée dans [`docs/security/`](docs/security/bobine-security-public-key.asc), sur <https://bobine.fit/.well-known/security.asc> et via `gpg --locate-keys security@bobine.fit` : vérifiez que l'empreinte correspond sur au moins deux canaux. Créez votre propre paire de clés et joignez votre clé publique pour que nous puissions répondre chiffré. Politique complète, périmètre et délais : [SECURITY.fr.md](SECURITY.fr.md).
+
+---
+
 ## Licence
 
 Bobine est un logiciel libre sous licence **GNU Affero General Public License v3.0 (AGPL-3.0)** — voir [`LICENSE`](LICENSE). Si vous exploitez une version modifiée pour fournir un service en réseau, vous devez mettre à disposition le code source correspondant sous la même licence.
