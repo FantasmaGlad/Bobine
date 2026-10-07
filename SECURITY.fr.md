@@ -87,6 +87,8 @@ Le script `install-tor.sh` épingle l'empreinte de la clé principale et s'arrê
 
 | Date | Modification |
 |---|---|
-| 2026-10-07 | Publication de la politique. Création de la clé de réception `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2`. Signature de `security.txt` avec cette clé. |
+| 2026-10-07 | Publication de la politique avec une première clé de réception (`8208 FFD3 F7AB 4DD3 6B0A CDD8 4726 A378 F683 265A`). |
+| 2026-10-07 | Première clé révoquée et retirée le jour même, quelques heures après sa publication, car sa phrase secrète était inutilisable. Aucun rapport n'avait été reçu et la clé privée n'a jamais été exposée. La clé publique révoquée, avec sa signature de révocation, est publiée dans [`docs/security/revoked/`](docs/security/revoked/bobine-security-8208FFD3F7AB4DD3-REVOKED.asc). |
+| 2026-10-07 | Création et publication de la clé de réception actuelle `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2`. Signature de `security.txt` avec cette clé. |
 
 Cet historique recense tout changement de clé, d'empreinte ou d'engagement. Une rotation ou une révocation de clé y est annoncée, ainsi que sur <https://bobine.fit/fr/securite>.
