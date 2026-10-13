@@ -26,7 +26,19 @@ import java.net.URL
 private const val NOTIFICATION_CHANNEL_ID = "bobine_service"
 private const val NOTIFICATION_ID = 1
 private const val TAG = "BobineForegroundService"
-private const val SETTINGS_URL = "http://127.0.0.1:8000/api/settings"
+private const val DISPLAY_STATE_URL = "http://127.0.0.1:8000/api/display/state"
+// Re-émission périodique de l'état des écrans (plan 4.0, P1-2) : le rapport
+// côté backend est volontairement gardé en mémoire (un fait matériel
+// instantané) ; si le serveur Python redémarre sans que le service le fasse,
+// ce rappel le remet à jour. Sert aussi de filet de réconciliation de la
+// `Presentation` (cf. reconcileDisplays).
+private const val RECONCILE_INTERVAL_MS = 60_000L
+// Cadence des nouvelles tentatives d'ouverture de la `Presentation` : rapide au
+// début (le WindowManager peut ne pas être prêt), puis lente et SANS abandon
+// définitif — un projecteur dont l'EDID arrive tard n'est ainsi jamais perdu.
+private const val PRESENTATION_FAST_RETRIES = 15
+private const val PRESENTATION_FAST_DELAY_MS = 500L
+private const val PRESENTATION_SLOW_DELAY_MS = 5_000L
 
 /**
  * Lot 6 (cf. docs/plan-implementation-android.md) : porte le backend Python
@@ -81,63 +93,134 @@ class BobineForegroundService : Service() {
 
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(displayId: Int) {
-            Log.i(TAG, "Ecran externe detecte (displayId=$displayId)")
+            Log.i(TAG, "Ecran detecte (displayId=$displayId) : ${describeDisplays()}")
+            presentationRetries = 0
             showPresentationIfNeeded()
+            reportDisplayState()
         }
 
         override fun onDisplayRemoved(displayId: Int) {
-            Log.i(TAG, "Ecran externe retire (displayId=$displayId)")
-            presentation?.dismiss()
-            presentation = null
-            currentPresentation = null
-            releaseWakeLock()
-            syncWiredDisplayMode("headless")
+            Log.i(TAG, "Ecran retire (displayId=$displayId) : ${describeDisplays()}")
+            // Ne ferme la Presentation que si SON ecran a disparu (ou s'il n'y
+            // a plus aucun ecran externe) : retirer un autre ecran virtuel ne
+            // doit pas couper la sortie HDMI.
+            val current = presentation
+            if (current != null && (current.display.displayId == displayId || externalDisplays().isEmpty())) {
+                current.dismiss()
+                presentation = null
+                currentPresentation = null
+                releaseWakeLock()
+            }
+            // Un autre ecran externe peut prendre le relais immediatement.
+            showPresentationIfNeeded()
+            reportDisplayState()
         }
 
-        override fun onDisplayChanged(displayId: Int) {}
+        // Un ecran deja connu change (resolution/mode negocie apres coup, mise
+        // sous tension d'un projecteur, EDID tardif...) : avant ce correctif ce
+        // callback etait vide, et une Presentation abandonnee ou jamais ouverte
+        // n'etait plus jamais retentee sans rebrancher le cable.
+        override fun onDisplayChanged(displayId: Int) {
+            if (displayId == Display.DEFAULT_DISPLAY) return
+            if (presentation == null) {
+                Log.i(TAG, "Ecran modifie (displayId=$displayId) sans Presentation : nouvelle tentative")
+                presentationRetries = 0
+                showPresentationIfNeeded()
+            }
+            reportDisplayState()
+        }
     }
 
     /**
-     * Reflete la presence reelle de l'ecran HDMI dans le reglage
-     * `wired_display_mode` (reference AppSettingsContext.tsx / GET-PUT
-     * /api/settings) - correctif "brancher un projecteur HDMI, /grid ne
-     * detecte pas l'ecran et refuse de lancer un cours meme si l'image
-     * s'affiche bien dessus" : ce DisplayListener detecte deja avec
-     * precision et en temps reel le branchement/debranchement (c'est ce qui
-     * permet a `showPresentationIfNeeded()` d'afficher correctement /cinema
-     * sur le HDMI), mais avant ce correctif ce signal n'etait JAMAIS
-     * remonte au backend - `wired_display_mode` restait a la valeur figee
-     * en base (ex. "headless" choisi une fois par un admin AVANT de
-     * posseder un projecteur), et /grid affichait indefiniment son
-     * placeholder de veille "ecran cable inactif" au lieu de la grille de
-     * cours, quel que soit l'etat reel du branchement.
-     *
-     * Best-effort et non-bloquant (thread dedie, memes precautions que
-     * UpdateManager.reportCallback) : le backend embarque peut ne pas
-     * encore repondre au tout premier demarrage a froid (fenetre de
-     * quelques secondes), et cette synchronisation n'est de toute facon
-     * qu'un confort — l'admin garde le bouton manuel "Passer en double
-     * ecran" du placeholder de veille comme repli.
+     * Ecrans EXTERNES reellement utilisables comme sortie de diffusion : tout
+     * `Display` autre que l'ecran integre, SAUF les ecrans prives (virtuels
+     * crees par une autre application, ex. enregistrement d'ecran) qui n'ont
+     * aucune raison de recevoir /cinema. Les ecrans marques `FLAG_PRESENTATION`
+     * passent en premier. Volontairement pas limite a la categorie
+     * PRESENTATION : le HDMI de la tablette pilote n'a pas ete verifie comme
+     * portant ce drapeau sur tous les OEM (HyperOS), l'exclure aurait pu
+     * supprimer la vraie sortie.
      */
-    private fun syncWiredDisplayMode(mode: String) {
-        Thread {
-            try {
-                val connection = URL(SETTINGS_URL).openConnection() as HttpURLConnection
-                connection.requestMethod = "PUT"
-                connection.doOutput = true
-                connection.setRequestProperty("Content-Type", "application/json")
-                connection.connectTimeout = 5000
-                connection.readTimeout = 5000
-                val body = JSONObject().put("wired_display_mode", mode).toString()
-                OutputStreamWriter(connection.outputStream).use { it.write(body) }
-                connection.inputStream.use { it.readBytes() }
-                connection.disconnect()
-                Log.i(TAG, "wired_display_mode synchronise sur '$mode'")
-            } catch (e: Exception) {
-                Log.w(TAG, "Echec de synchronisation de wired_display_mode='$mode' (non bloquant)", e)
-            }
-        }.start()
+    private fun externalDisplays(): List<Display> =
+        displayManager.displays
+            .filter { it.displayId != Display.DEFAULT_DISPLAY && (it.flags and Display.FLAG_PRIVATE) == 0 }
+            .sortedByDescending { (it.flags and Display.FLAG_PRESENTATION) != 0 }
+
+    private fun describeDisplays(): String =
+        displayManager.displays.joinToString { "[id=${it.displayId} nom='${it.name}' flags=0x${Integer.toHexString(it.flags)} etat=${it.state}]" }
+
+    /**
+     * Remonte au backend le nombre d'ecrans externes REELLEMENT connectes
+     * (`PUT /api/display/state`, plan 4.0 P1-1) : le mode d'affichage cable
+     * effectif en est derive cote serveur (>= 1 ecran = double ecran), sans
+     * reglage manuel — avant, ce signal n'etait envoye qu'une fois et un echec
+     * (serveur Python embarque pas encore a l'ecoute au demarrage a froid) etait
+     * perdu pour de bon.
+     *
+     * Rejouable : en cas d'echec on reessaie avec un delai croissant tant que
+     * la valeur a envoyer n'a pas change entre-temps ; chaque appel annule les
+     * tentatives precedentes (compteur de generation) pour ne jamais ecraser un
+     * etat recent par un plus ancien. Thread dedie, jamais sur le thread
+     * principal.
+     */
+    private fun reportDisplayState() {
+        val externals = externalDisplays()
+        val count = externals.size
+        val resolution = externals.firstOrNull()?.let { "${it.mode.physicalWidth}x${it.mode.physicalHeight}" }
+        val generation = ++reportGeneration
+        Thread { postDisplayState(count, resolution, generation, attempt = 0) }.start()
     }
+
+    private fun postDisplayState(count: Int, resolution: String?, generation: Int, attempt: Int) {
+        if (generation != reportGeneration) return // un etat plus recent a pris le relais
+        try {
+            val connection = URL(DISPLAY_STATE_URL).openConnection() as HttpURLConnection
+            connection.requestMethod = "PUT"
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            val body = JSONObject()
+                .put("external_count", count)
+                .put("source", "android")
+                .apply { if (resolution != null) put("resolution", resolution) }
+                .toString()
+            OutputStreamWriter(connection.outputStream).use { it.write(body) }
+            connection.inputStream.use { it.readBytes() }
+            connection.disconnect()
+            Log.i(TAG, "Etat des ecrans rapporte au backend : $count ecran(s) externe(s)")
+        } catch (e: Exception) {
+            // Backend pas encore pret (demarrage a froid) : on retente, delai
+            // croissant plafonne, tant que cette valeur reste la plus recente.
+            val delayMs = minOf(1000L * (attempt + 1), 10_000L)
+            Log.w(TAG, "Rapport d'etat des ecrans en echec (tentative ${attempt + 1}), nouvel essai dans ${delayMs}ms", e)
+            handler.postDelayed({
+                Thread { postDisplayState(count, resolution, generation, attempt + 1) }.start()
+            }, delayMs)
+        }
+    }
+
+    /**
+     * Filet de reconciliation periodique : (re)ouvre la Presentation si un
+     * ecran externe existe sans elle, la recree si le systeme l'a fermee, et
+     * re-emet l'etat des ecrans au backend.
+     */
+    private val reconcileRunnable = object : Runnable {
+        override fun run() {
+            val current = presentation
+            if (current != null && !current.isShowing) {
+                Log.w(TAG, "Presentation fermee par le systeme : reouverture")
+                presentation = null
+                currentPresentation = null
+                releaseWakeLock()
+            }
+            showPresentationIfNeeded()
+            reportDisplayState()
+            handler.postDelayed(this, RECONCILE_INTERVAL_MS)
+        }
+    }
+
+    @Volatile private var reportGeneration = 0
 
     // Lot 15 (docs/audit-android-2026-09-11.md §C3) : compte les tentatives
     // de demarrage differe du serveur Python quand getExternalFilesDir()
@@ -170,7 +253,12 @@ class BobineForegroundService : Service() {
         displayManager.registerDisplayListener(displayListener, null)
         // Cas ou le dock/vidoprojecteur est deja branche avant le demarrage
         // du service (pas seulement un branchement en cours d'utilisation).
+        Log.i(TAG, "Ecrans au demarrage : ${describeDisplays()}")
         showPresentationIfNeeded()
+        // Etat des ecrans rapporte AU DEMARRAGE meme sans ecran externe (0), et
+        // re-emis periodiquement (cf. reconcileRunnable).
+        reportDisplayState()
+        handler.postDelayed(reconcileRunnable, RECONCILE_INTERVAL_MS)
     }
 
     private fun startPythonServerWhenStorageReady() {
@@ -215,6 +303,8 @@ class BobineForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        handler.removeCallbacks(reconcileRunnable)
+        reportGeneration++ // annule les rapports en attente
         displayManager.unregisterDisplayListener(displayListener)
         presentation?.dismiss()
         presentation = null
@@ -231,9 +321,8 @@ class BobineForegroundService : Service() {
         // displayId 0 = ecran interne de la tablette (jamais une sortie
         // HDMI) - cf. CDC SS3.2, une seule Presentation a la fois attendue
         // ici (un seul dock/sortie externe par appareil dans ce cas
-        // d'usage).
-        val external = displayManager.displays.firstOrNull { it.displayId != Display.DEFAULT_DISPLAY }
-            ?: return
+        // d'usage). Voir externalDisplays() pour le filtrage des ecrans prives.
+        val external = externalDisplays().firstOrNull() ?: return
 
         // `Display` peut apparaitre dans DisplayManager.getDisplays() avant
         // que WindowManagerService ait fini d'enregistrer son propre
@@ -248,36 +337,32 @@ class BobineForegroundService : Service() {
         // sans le corriger (l'app plantait puis se retablissait seule).
         presentationAttemptInFlight = true
         try {
-            Log.i(TAG, "Ouverture de la Presentation sur ${external.name} (id=${external.displayId})")
+            Log.i(TAG, "Ouverture de la Presentation sur ${external.name} (id=${external.displayId}, flags=0x${Integer.toHexString(external.flags)})")
             presentation = BobinePresentation(this, external).also {
                 it.show()
                 currentPresentation = it
             }
             acquireWakeLock()
-            syncWiredDisplayMode("dual_screen")
             presentationAttemptInFlight = false
             presentationRetries = 0
-        } catch (e: WindowManager.InvalidDisplayException) {
+        } catch (e: Exception) {
+            // Toute exception (InvalidDisplayException attendue au demarrage,
+            // mais aussi BadTokenException/SecurityException selon l'OEM) est
+            // retentee SANS abandon definitif : 15 essais rapides (7,5 s, mesure
+            // en pratique Lot 4) puis un essai toutes les 5 s. Avant ce lot,
+            // l'abandon apres 15 essais laissait un projecteur a EDID tardif
+            // noir jusqu'a un rebranchement du cable.
+            presentation = null
+            currentPresentation = null
             presentationRetries++
-            if (presentationRetries <= 15) {
-                // 15 x 500ms = 7,5s de marge : mesure en pratique (Lot 4),
-                // 5 tentatives (2,5s) etaient insuffisantes sur un demarrage
-                // a froid de l'app sur emulateur - le tout premier
-                // rattachement de fenetre a un Display externe echoue de
-                // facon systematique juste apres `onCreate()`, le temps que
-                // le process finisse d'etablir sa connexion binder a
-                // WindowManagerService ; un display ajoute plus tard (app
-                // deja "chaude") reussit lui du premier coup, sans reessai.
-                Log.w(TAG, "Affichage ${external.displayId} pas encore pret (tentative $presentationRetries/15), nouvel essai dans 500ms", e)
-                handler.postDelayed({
-                    presentationAttemptInFlight = false
-                    showPresentationIfNeeded()
-                }, 500)
-            } else {
-                Log.e(TAG, "Abandon apres 15 tentatives sur l'affichage ${external.displayId}", e)
-                presentationAttemptInFlight = false
-                presentationRetries = 0
+            val delayMs = if (presentationRetries <= PRESENTATION_FAST_RETRIES) PRESENTATION_FAST_DELAY_MS else PRESENTATION_SLOW_DELAY_MS
+            if (presentationRetries == 1 || presentationRetries == PRESENTATION_FAST_RETRIES + 1) {
+                Log.w(TAG, "Presentation impossible sur l'ecran ${external.displayId} (tentative $presentationRetries), nouvel essai dans ${delayMs}ms", e)
             }
+            handler.postDelayed({
+                presentationAttemptInFlight = false
+                showPresentationIfNeeded()
+            }, delayMs)
         }
     }
 

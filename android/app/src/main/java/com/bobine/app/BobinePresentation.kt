@@ -23,7 +23,9 @@ import android.webkit.WebViewClient
 // cet hostname exact "cable" - la sortie HDMI doit suivre le reglage
 // cableOutput choisi par l'admin (CDC docs/ARCHITECTURE.md SS4),
 // exactement comme le canal Cable existant sur mini PC x86.
-private const val CINEMA_URL = "http://127.0.0.1:8000/cinema/"
+// ?channel=cable EXPLICITE (plan 4.0, P2-1) : la sortie HDMI est toujours le
+// canal cable, quel que soit le nom d'hote — voir lib/displayChannel.ts.
+private const val CINEMA_URL = "http://127.0.0.1:8000/cinema/?channel=cable"
 
 /**
  * Lot 4 (cf. docs/plan-implementation-android.md) : rendu independant sur
