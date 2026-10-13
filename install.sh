@@ -560,6 +560,8 @@ if $DO_UNINSTALL; then
     # déclenchée par lui) : retirer aussi le timer.
     run systemctl disable --now bobine-watchdog.timer 2>/dev/null || true
     run rm -f /etc/systemd/system/bobine-watchdog.timer
+    run rm -f /etc/systemd/system/bobine-display-hotplug.service /etc/udev/rules.d/90-bobine-display.rules
+    run udevadm control --reload-rules 2>/dev/null || true
     run systemctl daemon-reload
 
     run rm -f /etc/sudoers.d/bobine
@@ -1128,7 +1130,12 @@ fi
 # démarrage à froid : on réessaie avant de se rabattre sur l'état courant.
 OUTPUT=""
 for _ in $(seq 1 15); do
-    OUTPUT=$(xrandr --query | awk '/ connected/{print $1; exit}')
+    # Sortie retenue : une sortie EXTERNE (HDMI/DP...) de préférence à une
+    # dalle interne (eDP/LVDS/DSI) quand les deux sont connectées (mini-PC
+    # portable branché sur un projecteur), sinon la première connectée. Une
+    # reconfiguration à chaud est déclenchée par bobine-display-hotplug
+    # (règle udev DRM) qui redémarre cette session.
+    OUTPUT=$(xrandr --query | awk '/ connected/{ if ($1 !~ /^(eDP|LVDS|DSI)/) { print $1; found=1; exit } if (!first) first=$1 } END { if (!found && first) print first }')
     [ -n "${OUTPUT}" ] && break
     sleep 1
 done
@@ -1276,12 +1283,36 @@ UtmpIdentifier=tty1
 UtmpMode=user
 Restart=always
 RestartSec=2
+# Memorise la topologie des ecrans au demarrage de la session (prefixe + = en
+# root) : bobine-display-hotplug ne redemarre le kiosque que si elle CHANGE.
+ExecStartPre=+${REPO_DIR}/scripts/bobine-display-hotplug.sh --record
 ExecStart=/usr/bin/xinit ${CONFIG_DIR}/kiosk-xinitrc -- :0 vt1 -nolisten tcp
 
 [Install]
 WantedBy=multi-user.target
 EOF
     ok "bobine-kiosk.service + kiosk-xinitrc écrits"
+
+    # Branchement/débranchement d'un projecteur ou d'une TV à chaud (plan 4.0,
+    # P1-4) : règle udev DRM -> unité oneshot -> redémarrage du kiosque si la
+    # liste des sorties connectées a changé (cf. scripts/bobine-display-hotplug.sh).
+    run chmod +x "${REPO_DIR}/scripts/bobine-display-hotplug.sh"
+    write_file /etc/systemd/system/bobine-display-hotplug.service <<EOF
+[Unit]
+Description=Bobine - Reconfiguration du kiosque au branchement d'un ecran
+After=bobine-kiosk.service
+# Les evenements HPD arrivent en rafale : le script s'anti-rebondit lui-meme.
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=${REPO_DIR}/scripts/bobine-display-hotplug.sh
+EOF
+    write_file /etc/udev/rules.d/90-bobine-display.rules <<'EOF'
+# Bobine : evenement de branchement/debranchement d'un ecran (HPD DRM).
+ACTION=="change", SUBSYSTEM=="drm", ENV{HOTPLUG}=="1", TAG+="systemd", ENV{SYSTEMD_WANTS}+="bobine-display-hotplug.service"
+EOF
+    ok "hotplug des écrans (udev DRM + bobine-display-hotplug) écrit"
     step_done
 fi
 
@@ -1661,6 +1692,8 @@ run systemctl restart bobine-watchdog.timer 2>/dev/null || run systemctl start b
 if ! $NO_KIOSK; then
     run systemctl enable bobine-kiosk.service
     run systemctl restart bobine-kiosk.service 2>/dev/null || run systemctl start bobine-kiosk.service
+    # Prise en compte de la regle udev de hotplug des ecrans (sans reboot).
+    run udevadm control --reload-rules 2>/dev/null || true
 fi
 run systemctl enable bobine-redirect.service >/dev/null 2>&1 || true
 if ! $DRY_RUN && ! systemctl restart bobine-redirect.service; then
