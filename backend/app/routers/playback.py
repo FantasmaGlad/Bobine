@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
@@ -378,6 +379,17 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
             # promu primaire, cf. évènement "promoted_primary"). On enregistre
             # son rôle SUR SON CANAL et on lui retourne son statut
             # primaire/miroir via un message dédié à chaque appel.
+            if message.get("command") == "time_sync":
+                # Mesure d'horloge façon NTP (plan 4.0, P2-4) : répond
+                # DIRECTEMENT à ce client avec l'heure serveur ; il en déduit
+                # son décalage (milieu de l'aller-retour) pour calculer la
+                # position cible de l'horloge de lecture.
+                await websocket.send_json({
+                    "event": "time_sync",
+                    "t0": (message.get("params") or {}).get("t0"),
+                    "server_ms": time.time() * 1000.0,
+                })
+                continue
             if message.get("command") == "subscribe":
                 # Abonnement de canal (plan 4.0, P2-3) : {"command": "subscribe",
                 # "params": {"channels": ["cable", ...]}} — liste vide autorisée.

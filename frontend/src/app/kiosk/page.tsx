@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { usePlaybackSocket, PlaybackEvent } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import { useVideoClockFollower } from "@/lib/useVideoClockFollower";
 import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import { useKioskRemote } from "@/lib/useKioskRemote";
 import Icon from "@/components/Icon";
@@ -346,37 +347,15 @@ export default function KioskPage() {
           if (!video || !data.current_video) break;
           const src = getApiUrl(`/videos/${data.current_video.id}/stream`);
           applyVolume(video);
-          video.playbackRate = data.speed;
-          const targetPosition = data.position_seconds;
-          const targetPlaying = data.state === "playing";
           // Ne recharger la vidéo que si la source a changé (réf. Bug 1 / B1a).
           // Appeler video.load() sur la même source interrompt la lecture en
-          // cours et peut provoquer une reprise non voulue via le listener canplay.
+          // cours. Plan 4.0 (P2-4) : ni position ni lecture/pause ici — c'est
+          // `useVideoClockFollower` qui amène le <video> sur l'horloge serveur
+          // (départ synchronisé, correction de dérive par `playbackRate`).
           const srcChanged = !video.src || !video.src.endsWith(src);
           if (srcChanged) {
             video.src = src;
             video.load();
-            const onVideoReady = () => {
-              video.removeEventListener("canplay", onVideoReady);
-              video.currentTime = targetPosition;
-              if (targetPlaying) tryPlay(video);
-            };
-            video.addEventListener("canplay", onVideoReady);
-          } else {
-            // Même source : NE PAS recaler le kiosk PRIMAIRE (correctif
-            // "saccades sur le réseau"). Le primaire est la SOURCE de la
-            // position — il la rapporte au serveur avec ~1 s de retard (report
-            // throttlé à 1/s). Se recaler sur cette position à chaque resync
-            // (15 s) ou reconnexion le faisait sauter ~1 s en arrière, d'où des
-            // saccades périodiques (aggravées par les reconnexions WS sur un
-            // lien réseau instable). Seuls les miroirs se recalent, et
-            // uniquement au-delà d'un seuil de dérive — même logique que
-            // "position_tick" ci-dessous.
-            if (!isPrimaryRef.current && Math.abs(video.currentTime - targetPosition) > 1.5) {
-              seekWhenReady(video, targetPosition);
-            }
-            if (targetPlaying && video.paused) tryPlay(video);
-            else if (!targetPlaying && !video.paused) video.pause();
           }
           break;
         }
@@ -401,14 +380,6 @@ export default function KioskPage() {
               else if (!data.audio_playing && !bgVideo.paused) bgVideo.pause();
             }
           }
-          if (video && data.current_video) {
-            const targetPlaying = data.state === "playing";
-            if (!video.seeking && Math.abs(video.currentTime - data.position_seconds) > DRIFT_THRESHOLD_SECONDS) {
-              seekWhenReady(video, data.position_seconds);
-            }
-            if (targetPlaying && video.paused && !video.seeking) tryPlay(video);
-            else if (!targetPlaying && !video.paused) video.pause();
-          }
           break;
         }
         case "load": {
@@ -427,9 +398,9 @@ export default function KioskPage() {
           // exception ici casserait silencieusement tout le reste du bloc, y
           // compris le tryPlay() qui lance réellement la lecture.
           applyVolume(video);
-          video.playbackRate = data.speed;
+          // Plan 4.0 (P2-4) : pas de tryPlay ici — le suiveur d'horloge lance la
+          // lecture à l'instant de départ synchronisé publié par le serveur.
           video.load();
-          tryPlay(video);
           break;
         }
         case "load_background": {
@@ -474,9 +445,8 @@ export default function KioskPage() {
             // fond animé" : le fond du mode coach (bgVideo) suit maintenant
             // le même play/pause que la piste audio, dans les deux sens.
             if (bgVideo && bgVideo.src) tryPlay(bgVideo);
-          } else {
-            tryPlay(video);
           }
+          // Vidéo : le suiveur d'horloge démarre la lecture à l'instant publié.
           break;
         case "pause":
           if (data.current_audio_course) {
@@ -514,7 +484,8 @@ export default function KioskPage() {
           // était alors avalée par le try/catch de usePlaybackSocket sans
           // jamais être retentée, laissant l'image figée pendant que la
           // piste audio du même <video> continuait sa lecture.
-          if (video) seekWhenReady(video, data.position_seconds);
+          // Vidéo : la nouvelle position est portée par l'ancre d'horloge, que le
+          // suiveur applique (un seul seek si l'écart est grand, sinon vitesse).
           // Noms d'icônes Material Symbols (réf. mission "retire tous les
           // emojis") — rendus par <Icon> dans le JSX de l'OSD.
           showOsd({
@@ -528,7 +499,7 @@ export default function KioskPage() {
           showOsd({ icon: "volume_up", label: `${data.volume}%` });
           break;
         case "speed":
-          if (video) video.playbackRate = data.speed;
+          // La vitesse nominale vient de l'ancre d'horloge (suiveur).
           showOsd({ icon: "speed", label: `${data.speed.toFixed(2)}x` });
           break;
         default:
@@ -538,7 +509,18 @@ export default function KioskPage() {
     [showOsd, tryPlay]
   );
 
-  const { state, sendCommand, isPrimary, displayOutputCable, displayOutputNetwork } = usePlaybackSocket(handleEvent, "kiosk", channel);
+  const { state, sendCommand, serverNow, isPrimary, displayOutputCable, displayOutputNetwork } = usePlaybackSocket(handleEvent, "kiosk", channel);
+  // Suit l'horloge de lecture serveur (plan 4.0, P2-4) : démarrage simultané
+  // des écrans et correction de dérive sans seek.
+  useVideoClockFollower({
+    videoRef,
+    state,
+    serverNow,
+    tryPlay,
+    onSeek: () => {
+      lastSeekTimeRef.current = Date.now();
+    },
+  });
   useEffect(() => {
     isPrimaryRef.current = isPrimary;
   }, [isPrimary]);
@@ -773,7 +755,7 @@ export default function KioskPage() {
           ref={videoRef}
           className="kiosk-video"
           onTimeUpdate={handleTimeUpdate}
-          onEnded={() => sendCommand("video_ended")}
+          onEnded={() => sendCommand("video_ended", { video_id: state.current_video?.id })}
           onClick={(e) => {
             e.stopPropagation();
             if (state.current_video) {
