@@ -38,6 +38,12 @@ from app.database import _IS_SQLITE, engine, get_db, init_db
 from app.models import Setting
 from app.playback_manager import get_playback_manager
 from app.utils.activity_log import log_activity
+from app.utils.display_state import (
+    DEFAULT_DISPLAY_MODE_SETTING,
+    VALID_DISPLAY_MODE_SETTINGS,
+    effective_wired_display_mode,
+    get_hardware_state,
+)
 from app.utils.hardware_info import (
     get_storage_model,
     get_system_telemetry_payload,
@@ -75,7 +81,7 @@ _WRITABLE_NUMERIC_FIELDS = {
 }
 _WRITABLE_STRING_FIELDS = {
     "theme", "language", "active_logo", "update_channel", "wired_display_mode",
-    "auto_update_enabled", "auto_update_time",
+    "display_mode_setting", "auto_update_enabled", "auto_update_time",
 }
 _DEFAULTS = {
     # "clair" (réf. mission "thème par défaut") : version claire du thème
@@ -146,6 +152,10 @@ class SettingsUpdate(BaseModel):
     active_logo: str | None = None
     update_channel: str | None = None
     wired_display_mode: str | None = None
+    # "auto" (dérivé du matériel, défaut) ou forçage "dual_screen"/"headless"
+    # (plan 4.0, P1-1). Une écriture de `wired_display_mode` par un ancien client
+    # est traduite en forçage manuel (cf. update_settings).
+    display_mode_setting: str | None = None
     auto_update_enabled: str | None = None
     auto_update_time: str | None = None
 
@@ -193,6 +203,39 @@ def _get_local_ip() -> str | None:
     return _cached_local_ip
 
 
+def get_display_mode_setting(db: Session) -> str:
+    value = _get_db_value(db, "display_mode_setting") or DEFAULT_DISPLAY_MODE_SETTING
+    return value if value in VALID_DISPLAY_MODE_SETTINGS else DEFAULT_DISPLAY_MODE_SETTING
+
+
+def get_effective_wired_display_mode(db: Session) -> str:
+    """Mode d'affichage câblé effectif (plan 4.0, P1-1) : forçage admin, sinon
+    dérivé des écrans externes réellement connectés. Sans rapport matériel :
+    `dual_screen` sur Android (tablette = pupitre tactile, comportement
+    historique), `headless` ailleurs."""
+    default = "dual_screen" if get_deployment_profile() == "android" else "headless"
+    return effective_wired_display_mode(
+        get_display_mode_setting(db), get_hardware_state().external_count, default
+    )
+
+
+async def broadcast_display_mode(db: Session) -> str:
+    """Diffuse le mode effectif à tous les écrans (frontend : `settings_change`
+    et `display_mode_change`, déjà consommés par AppSettingsContext)."""
+    snapshot = get_settings(db)
+    mode = snapshot["wired_display_mode"]
+    await ws_manager.broadcast({
+        "event": "settings_change",
+        "theme": snapshot["theme"],
+        "language": snapshot["language"],
+        "has_custom_logo": snapshot["has_custom_logo"],
+        "active_logo": snapshot["active_logo"],
+        "wired_display_mode": mode,
+    })
+    await ws_manager.broadcast({"event": "display_mode_change", "channel": "cable", "mode": mode})
+    return mode
+
+
 @router.get("")
 def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
     theme = _get_db_value(db, "theme") or _DEFAULTS["theme"]
@@ -202,10 +245,8 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
     if active_logo == "custom" and not has_custom:
         active_logo = "default"
     update_channel = _get_db_value(db, "update_channel") or _DEFAULTS["update_channel"]
-    default_wired_mode = "dual_screen" if get_deployment_profile() == "android" else "headless"
-    wired_display_mode = _get_db_value(db, "wired_display_mode") or default_wired_mode
-    if wired_display_mode not in _VALID_WIRED_DISPLAY_MODES:
-        wired_display_mode = default_wired_mode
+    display_mode_setting = get_display_mode_setting(db)
+    wired_display_mode = get_effective_wired_display_mode(db)
     auto_update_enabled = _get_db_value(db, "auto_update_enabled") or _DEFAULTS["auto_update_enabled"]
     auto_update_time = _get_db_value(db, "auto_update_time") or _DEFAULTS["auto_update_time"]
     logs_retention_str = _get_db_value(db, "logs_retention_days") or _DEFAULTS["logs_retention_days"]
@@ -237,6 +278,10 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         # Mode d'affichage câblé (réf. cahier des charges affichage hybride) :
         # "dual_screen" (pupitre tactile + vidéo HDMI) ou "headless" (cinéma autonome).
         "wired_display_mode": wired_display_mode,
+        # Réglage administrateur : "auto" (dérivé du matériel) ou forçage ; et
+        # nombre d'écrans externes réellement détectés (None = aucun rapport).
+        "display_mode_setting": display_mode_setting,
+        "display_external_count": get_hardware_state().external_count,
         # Mise à jour automatique planifiée (Réglages → Mises à jour) :
         # vérifiée et appliquée chaque jour à `auto_update_time` si
         # `auto_update_enabled` — cf. app.scheduler_manager.sync_auto_update_job.
@@ -466,6 +511,11 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
     if not updates:
         raise HTTPException(status_code=400, detail="Aucun paramètre fourni")
 
+    # Compatibilité : un ancien client qui écrit `wired_display_mode` exprime un
+    # choix MANUEL de l'administrateur -> forçage du mode (plan 4.0, P1-1).
+    if updates.get("wired_display_mode") and "display_mode_setting" not in updates:
+        updates["display_mode_setting"] = updates["wired_display_mode"]
+
     for key, value in updates.items():
         if value is None:
             if key == "default_coach_background_id":
@@ -498,6 +548,11 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
                     raise HTTPException(status_code=400, detail="Aucun logo personnalisé n'a été importé")
             if key == "update_channel" and value not in _VALID_UPDATE_CHANNELS:
                 raise HTTPException(status_code=400, detail="Canal de mise à jour invalide (attendu 'stable' ou 'beta')")
+            if key == "display_mode_setting" and value not in VALID_DISPLAY_MODE_SETTINGS:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Mode d'affichage invalide (attendu 'auto', 'dual_screen' ou 'headless')",
+                )
             if key == "wired_display_mode" and value not in _VALID_WIRED_DISPLAY_MODES:
                 raise HTTPException(
                     status_code=400,
@@ -549,6 +604,7 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
         or "language" in updates
         or "active_logo" in updates
         or "wired_display_mode" in updates
+        or "display_mode_setting" in updates
     ):
         await ws_manager.broadcast({
             "event": "settings_change",
@@ -560,7 +616,7 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
         })
 
     # Diffusion dédiée display_mode_change sur canal "cable" (CDC §4.1 affichage hybride)
-    if "wired_display_mode" in updates:
+    if "wired_display_mode" in updates or "display_mode_setting" in updates:
         await ws_manager.broadcast({
             "event": "display_mode_change",
             "channel": "cable",

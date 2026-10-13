@@ -154,7 +154,7 @@ export default function SettingsPage() {
   const {
     theme, language, setTheme, setLanguage, t,
     hasCustomLogo, activeLogo, setActiveLogo, refreshBranding,
-    wiredDisplayMode, setWiredDisplayMode,
+    wiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount,
   } = useAppSettings();
   const [data, setData] = useState<SettingsData | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -684,10 +684,10 @@ export default function SettingsPage() {
         <div className="form-group">
           <label className="form-label">{t("settingsPage.wiredDisplayModeLabel")}</label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px", marginTop: "8px" }}>
-            {/* Option 1 : Headless (Affichage Classique / mini-PC autonome) */}
+            {/* Option 0 : Automatique (dérivé des écrans externes réellement connectés) */}
             <button
               type="button"
-              className={`theme-picker-card ${wiredDisplayMode === "headless" ? "active" : ""}`}
+              className={`theme-picker-card ${displayModeSetting === "auto" ? "active" : ""}`}
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -698,7 +698,7 @@ export default function SettingsPage() {
                 gap: "8px",
               }}
               onClick={() => {
-                setWiredDisplayMode("headless");
+                setDisplayModeSetting("auto");
                 showToast(t("settingsPage.savedToast"), "success");
               }}
             >
@@ -707,8 +707,64 @@ export default function SettingsPage() {
                   width: "36px",
                   height: "36px",
                   borderRadius: "var(--radius-sm)",
-                  background: wiredDisplayMode === "headless" ? "var(--accent-primary)" : "var(--bg-surface-hover)",
-                  color: wiredDisplayMode === "headless" ? "var(--accent-primary-fg)" : "var(--text-main)",
+                  background: displayModeSetting === "auto" ? "var(--accent-primary)" : "var(--bg-surface-hover)",
+                  color: displayModeSetting === "auto" ? "var(--accent-primary-fg)" : "var(--text-main)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  <Icon name="autorenew" size={20} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ display: "block", fontSize: "0.95rem" }}>
+                    {t("settingsPage.wiredDisplayModeAuto")}
+                  </strong>
+                </div>
+                {displayModeSetting === "auto" && (
+                  <span style={{ color: "var(--accent-primary)", display: "flex", alignItems: "center" }}>
+                    <Icon name="check_circle" size={18} />
+                  </span>
+                )}
+              </div>
+              <p style={{ margin: 0, fontSize: "0.84rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                {t("settingsPage.wiredDisplayModeAutoDesc")}
+              </p>
+              <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--accent-primary)", lineHeight: 1.4 }}>
+                {displayExternalCount === null
+                  ? t("settingsPage.wiredDisplayAutoNoReport")
+                  : t("settingsPage.wiredDisplayAutoDetected", {
+                      count: displayExternalCount,
+                      mode: wiredDisplayMode === "dual_screen" ? t("settingsPage.wiredDisplayModeDual") : t("settingsPage.wiredDisplayModeHeadless"),
+                    })}
+              </p>
+            </button>
+
+            {/* Option 1 : Headless (Affichage Classique / mini-PC autonome) */}
+            <button
+              type="button"
+              className={`theme-picker-card ${displayModeSetting === "headless" ? "active" : ""}`}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                padding: "16px",
+                textAlign: "left",
+                height: "auto",
+                gap: "8px",
+              }}
+              onClick={() => {
+                setDisplayModeSetting("headless");
+                showToast(t("settingsPage.savedToast"), "success");
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%" }}>
+                <div style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "var(--radius-sm)",
+                  background: displayModeSetting === "headless" ? "var(--accent-primary)" : "var(--bg-surface-hover)",
+                  color: displayModeSetting === "headless" ? "var(--accent-primary-fg)" : "var(--text-main)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -721,7 +777,7 @@ export default function SettingsPage() {
                     {t("settingsPage.wiredDisplayModeHeadless")}
                   </strong>
                 </div>
-                {wiredDisplayMode === "headless" && (
+                {displayModeSetting === "headless" && (
                   <span style={{ color: "var(--accent-primary)", display: "flex", alignItems: "center" }}>
                     <Icon name="check_circle" size={18} />
                   </span>
@@ -735,7 +791,7 @@ export default function SettingsPage() {
             {/* Option 2 : Pupitre Studio + Vidéo HDMI */}
             <button
               type="button"
-              className={`theme-picker-card ${wiredDisplayMode === "dual_screen" ? "active" : ""}`}
+              className={`theme-picker-card ${displayModeSetting === "dual_screen" ? "active" : ""}`}
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -746,7 +802,7 @@ export default function SettingsPage() {
                 gap: "8px",
               }}
               onClick={() => {
-                setWiredDisplayMode("dual_screen");
+                setDisplayModeSetting("dual_screen");
                 showToast(t("settingsPage.savedToast"), "success");
               }}
             >
@@ -755,8 +811,8 @@ export default function SettingsPage() {
                   width: "36px",
                   height: "36px",
                   borderRadius: "var(--radius-sm)",
-                  background: wiredDisplayMode === "dual_screen" ? "var(--accent-primary)" : "var(--bg-surface-hover)",
-                  color: wiredDisplayMode === "dual_screen" ? "var(--accent-primary-fg)" : "var(--text-main)",
+                  background: displayModeSetting === "dual_screen" ? "var(--accent-primary)" : "var(--bg-surface-hover)",
+                  color: displayModeSetting === "dual_screen" ? "var(--accent-primary-fg)" : "var(--text-main)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -769,7 +825,7 @@ export default function SettingsPage() {
                     {t("settingsPage.wiredDisplayModeDual")}
                   </strong>
                 </div>
-                {wiredDisplayMode === "dual_screen" && (
+                {displayModeSetting === "dual_screen" && (
                   <span style={{ color: "var(--accent-primary)", display: "flex", alignItems: "center" }}>
                     <Icon name="check_circle" size={18} />
                   </span>

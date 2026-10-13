@@ -29,7 +29,7 @@ from app.radio_manager import get_radio_manager
 from app.routers import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,
     radio, radio_playlists, radio_announcements, settings as settings_router, logs, import_jobs,
-    updates, metrics,
+    updates, metrics, display,
 )
 from app.utils.radio_utils import content_type_for
 from app.utils.update_orchestrator import load_persisted_state_at_startup
@@ -162,6 +162,7 @@ app.include_router(radio.router)
 app.include_router(radio_playlists.router)
 app.include_router(radio_announcements.router)
 app.include_router(settings_router.router)
+app.include_router(display.router)
 app.include_router(logs.router)
 app.include_router(import_jobs.router)
 app.include_router(updates.router)

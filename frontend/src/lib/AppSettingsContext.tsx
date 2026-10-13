@@ -45,6 +45,9 @@ export const THEME_VALUES: Theme[] = [
 
 export type ActiveLogo = "default" | "custom";
 export type WiredDisplayMode = "dual_screen" | "headless";
+/** Réglage administrateur : "auto" = dérivé des écrans externes réellement
+ * connectés (plan 4.0, P1-1) ; sinon forçage manuel. */
+export type DisplayModeSetting = "auto" | WiredDisplayMode;
 
 interface AppSettingsContextValue {
   theme: Theme;
@@ -65,6 +68,10 @@ interface AppSettingsContextValue {
   refreshBranding: () => void;
   wiredDisplayMode: WiredDisplayMode;
   setWiredDisplayMode: (mode: WiredDisplayMode) => void;
+  displayModeSetting: DisplayModeSetting;
+  setDisplayModeSetting: (setting: DisplayModeSetting) => void;
+  /** Nombre d'écrans externes détectés par la plateforme (null = aucun rapport). */
+  displayExternalCount: number | null;
   waitTimeBetweenCourses: number;
 }
 
@@ -90,6 +97,9 @@ const AppSettingsContext = createContext<AppSettingsContextValue>({
   refreshBranding: () => {},
   wiredDisplayMode: DEFAULT_WIRED_DISPLAY_MODE,
   setWiredDisplayMode: () => {},
+  displayModeSetting: "auto",
+  setDisplayModeSetting: () => {},
+  displayExternalCount: null,
   waitTimeBetweenCourses: 0,
 });
 
@@ -124,6 +134,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const [logoVersion, setLogoVersion] = useState(0);
   const [wiredDisplayMode, setWiredDisplayModeState] = useState<WiredDisplayMode>(DEFAULT_WIRED_DISPLAY_MODE);
   const [waitTimeBetweenCourses, setWaitTimeBetweenCourses] = useState<number>(0);
+  const [displayModeSetting, setDisplayModeSettingState] = useState<DisplayModeSetting>("auto");
+  const [displayExternalCount, setDisplayExternalCount] = useState<number | null>(null);
 
   const refreshBranding = useCallback(() => {
     fetch(getApiUrl("/settings"), { cache: "no-store" })
@@ -164,6 +176,10 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     if (data.wired_display_mode === "dual_screen" || data.wired_display_mode === "headless") {
       setWiredDisplayModeState(data.wired_display_mode);
     }
+    if (data.display_mode_setting === "auto" || data.display_mode_setting === "dual_screen" || data.display_mode_setting === "headless") {
+      setDisplayModeSettingState(data.display_mode_setting);
+    }
+    setDisplayExternalCount(typeof data.display_external_count === "number" ? data.display_external_count : null);
     if (typeof data.wait_time_between_courses === "number") {
       setWaitTimeBetweenCourses(data.wait_time_between_courses);
     }
@@ -270,6 +286,12 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
               // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setWiredDisplayModeState(mode);
             }
+            // Branchement/débranchement d'un projecteur : recale aussi le
+            // nombre d'écrans détectés (affiché dans les Réglages).
+            fetch(getApiUrl("/settings"), { cache: "no-store" })
+              .then((res) => (res.ok ? res.json() : null))
+              .then(applySettingsPayload)
+              .catch(() => {});
           }
         } catch {
           // Message illisible : sans conséquence, le prochain évènement suffira.
@@ -287,7 +309,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       clearTimeout(reconnectTimer);
       ws?.close();
     };
-  }, []);
+  }, [applySettingsPayload]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -347,6 +369,18 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     [persist]
   );
 
+  // Réglage du mode d'affichage câblé : "auto" (dérivé du matériel, défaut) ou
+  // forçage manuel. En forçage, le mode effectif est appliqué tout de suite
+  // localement ; en auto, le serveur le recalcule et le rediffuse.
+  const setDisplayModeSetting = useCallback(
+    (value: DisplayModeSetting) => {
+      setDisplayModeSettingState(value);
+      if (value !== "auto") setWiredDisplayModeState(value);
+      persist({ display_mode_setting: value });
+    },
+    [persist]
+  );
+
   const t = useCallback(
     (key: string, params?: Record<string, string | number>) => translate(language, key, params),
     [language]
@@ -376,9 +410,12 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       refreshBranding,
       wiredDisplayMode,
       setWiredDisplayMode,
+      displayModeSetting,
+      setDisplayModeSetting,
+      displayExternalCount,
       waitTimeBetweenCourses,
     }),
-    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode, waitTimeBetweenCourses]
+    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount, waitTimeBetweenCourses]
   );
 
   return (
