@@ -16,6 +16,7 @@ import time
 from typing import Any, Awaitable, Callable
 
 from app.config import settings
+from app.utils.playback_clock import PlaybackClock
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +26,28 @@ RADIO_CHANNEL = "radio"
 
 REPEAT_MODES = ("off", "playlist", "track")
 
+# Même modèle que la vidéo et l'audio coach (plan 4.0.1) : la position d'une
+# piste est une fonction du temps (horloge serveur), plus la dernière valeur
+# rapportée par le poste /radio primaire.
+HEARTBEAT_SECONDS = 1.0
+# Marge au-delà de la durée avant que le SERVEUR enchaîne lui-même la piste
+# (aucun poste connecté, ou poste bloqué) ; les postes signalent la fin au bon
+# moment, ce filet ne sert que s'ils ne le font pas.
+TRACK_END_GRACE_SECONDS = 2.0
+# Démarrage synchronisé : seulement s'il y a au moins deux postes /radio à
+# caler entre eux (sinon réponse immédiate).
+PLAY_LEAD_MS = 150.0
+
 
 class RadioPlaybackManager:
     def __init__(self, broadcast: BroadcastFn):
         self._broadcast = broadcast
         self._last_direct_report = 0.0
+        self._clock = PlaybackClock()
+        # Nombre de postes /radio connectés (fourni par la couche WebSocket).
+        self.display_counter: Callable[[str], int] = lambda channel: 0
+        # Chemin de fin de piste du routeur (rappels inclus), pour le filet serveur.
+        self.track_end_handler: Callable[[int | None], Awaitable[None]] | None = None
         self._position_broadcast_task: asyncio.Task | None = None
         # Avance différée (réf. lot L6, D12 « toutes les N musiques ») : la fin
         # de piste qui a déclenché le rappel n'avance PAS tout de suite — cet
@@ -65,8 +83,32 @@ class RadioPlaybackManager:
     # ------------------------------------------------------------------
     # Diffusion
     # ------------------------------------------------------------------
+    def _lead_ms(self, nominal_ms: float) -> float:
+        try:
+            return nominal_ms if self.display_counter(RADIO_CHANNEL) >= 2 else 0.0
+        except Exception:
+            return 0.0
+
+    def _refresh_position(self) -> None:
+        """Aligne `state["position_seconds"]` (champ historique) sur l'horloge."""
+        if self.state["current_track"] is None or self.state["state"] not in ("playing", "paused", "announcing"):
+            return
+        pos = self._clock.position()
+        duration = self.state.get("duration_seconds")
+        if duration:
+            pos = min(pos, duration)
+        self.state["position_seconds"] = pos
+
+    def _start_clock(self, position: float = 0.0) -> None:
+        """(Re)démarre l'horloge d'une piste ; sans écran à caler, immédiatement."""
+        self._clock.reset()
+        self._clock.start(position, lead_ms=self._lead_ms(PLAY_LEAD_MS))
+
     def snapshot(self) -> dict:
-        return dict(self.state)
+        self._refresh_position()
+        snap = dict(self.state)
+        snap["clock"] = self._clock.to_dict()
+        return snap
 
     async def _emit(self, cause: str, client_ts: float | None = None):
         payload: dict[str, Any] = {
@@ -94,13 +136,34 @@ class RadioPlaybackManager:
     async def _position_broadcast_loop(self):
         try:
             while True:
-                await asyncio.sleep(1.0)
-                # Ne diffuse que si le lecteur /radio rapporte activement sa
-                # position (cf. report_position) et seulement en lecture.
-                if self.state["playing"] and (time.monotonic() - self._last_direct_report) < 5.0:
+                await asyncio.sleep(HEARTBEAT_SECONDS)
+                # L'horloge serveur avance seule : heartbeat tant qu'une piste
+                # est en lecture, qu'un poste /radio rapporte ou non.
+                if self.state["playing"]:
+                    if await self._end_track_if_overdue():
+                        continue
                     await self._emit("radio_position_tick")
         except asyncio.CancelledError:
             pass
+
+    async def _end_track_if_overdue(self) -> bool:
+        """Filet de sécurité : enchaîne la piste côté serveur si sa durée est
+        dépassée d'une marge sans qu'aucun poste n'ait signalé la fin. Inactif
+        pendant un rappel (la musique est alors gérée par le rappel)."""
+        if self.state["state"] != "playing":
+            return False
+        track = self.state["current_track"]
+        duration = self.state.get("duration_seconds")
+        if track is None or not duration or self._clock.position() < duration + TRACK_END_GRACE_SECONDS:
+            return False
+        logger.info("Radio : fin de piste déclenchée par l'horloge serveur")
+        # Même chemin que la commande `radio_track_ended` (règle « toutes les N
+        # musiques » incluse) quand le routeur l'a branché ; sinon avancement simple.
+        if self.track_end_handler is not None:
+            await self.track_end_handler(track.get("id"))
+        else:
+            await self.track_ended(track_id=track.get("id"))
+        return True
 
     # ------------------------------------------------------------------
     # Helpers
@@ -161,6 +224,10 @@ class RadioPlaybackManager:
         self.state["current_announcement"] = None
         self._deferred_advance_pending = False
         self._sync_current()
+        if order:
+            self._start_clock(0.0)
+        else:
+            self._clock.reset()
         await self._emit("radio_load_playlist", client_ts)
 
     async def play(self, client_ts: float | None = None):
@@ -168,11 +235,14 @@ class RadioPlaybackManager:
             return
         self.state["playing"] = True
         self.state["state"] = "playing"
+        if not self._clock.running:
+            self._clock.start(lead_ms=self._lead_ms(PLAY_LEAD_MS))
         await self._emit("radio_play", client_ts)
 
     async def pause(self, client_ts: float | None = None):
         if self.state["current_track"] is None:
             return
+        self._clock.pause()
         self.state["playing"] = False
         self.state["state"] = "paused"
         await self._emit("radio_pause", client_ts)
@@ -185,6 +255,7 @@ class RadioPlaybackManager:
             "current_announcement": None,
         })
         self._deferred_advance_pending = False
+        self._clock.reset()
         await self._emit("radio_stop", client_ts)
 
     async def next_track(self, client_ts: float | None = None):
@@ -200,14 +271,17 @@ class RadioPlaybackManager:
         self.state["playing"] = True
         self.state["state"] = "playing"
         self._sync_current()
+        self._start_clock(0.0)
         await self._emit("radio_next_track", client_ts)
 
     async def previous_track(self, client_ts: float | None = None):
         if not self.state["order"]:
             return
         # Au-delà de 3 s, « précédent » redémarre la piste courante (comme Spotify).
+        self._refresh_position()
         if self.state["position_seconds"] > 3.0:
             self.state["position_seconds"] = 0.0
+            self._start_clock(0.0)
             await self._emit("radio_restart_track", client_ts)
             return
         i = (self.state["index"] or 0) - 1
@@ -218,6 +292,7 @@ class RadioPlaybackManager:
         self.state["playing"] = True
         self.state["state"] = "playing"
         self._sync_current()
+        self._start_clock(0.0)
         await self._emit("radio_previous_track", client_ts)
 
     async def jump_to(self, index: int, client_ts: float | None = None):
@@ -229,6 +304,7 @@ class RadioPlaybackManager:
         self.state["playing"] = True
         self.state["state"] = "playing"
         self._sync_current()
+        self._start_clock(0.0)
         await self._emit("radio_jump_to_track", client_ts)
 
     async def _advance_or_stop(self, client_ts: float | None = None):
@@ -240,20 +316,32 @@ class RadioPlaybackManager:
             self.state["playing"] = True
             self.state["state"] = "playing"
             self._sync_current()
+            self._start_clock(0.0)
             await self._emit("radio_next_track", client_ts)
         else:
             # Fin de playlist, pas de répétition : on s'arrête sur la dernière.
             self.state["playing"] = False
             self.state["state"] = "paused"
             self.state["position_seconds"] = 0.0
+            self._clock.reset()
             await self._emit("radio_ended", client_ts)
 
-    async def track_ended(self, client_ts: float | None = None):
-        """Fin de piste rapportée par le lecteur /radio : enchaînement auto."""
+    async def track_ended(self, client_ts: float | None = None, track_id: int | None = None):
+        """Fin de piste rapportée par un lecteur /radio : enchaînement auto.
+
+        Idempotent (plan 4.0.1) : CHAQUE page /radio envoie la fin de piste, et
+        le serveur peut l'avoir déjà enchaînée lui-même. `track_id` = la piste
+        que le poste vient de terminer ; si ce n'est plus la piste courante, le
+        signal est périmé et ignoré (sans cela, un poste en retard sautait une
+        piste de plus). Absent (ancien client), seul l'état est vérifié."""
         if not self.state["order"]:
+            return
+        current = self.state["current_track"]
+        if track_id is not None and current is not None and current.get("id") != track_id:
             return
         if self.state["repeat"] == "track":
             self.state["position_seconds"] = 0.0
+            self._start_clock(0.0)
             await self._emit("radio_restart_track", client_ts)
             return
         await self._advance_or_stop(client_ts)
@@ -292,6 +380,8 @@ class RadioPlaybackManager:
 
     async def seek(self, position_seconds: float, client_ts: float | None = None):
         self.state["position_seconds"] = max(0.0, position_seconds)
+        if self.state["current_track"] is not None:
+            self._clock.seek(self.state["position_seconds"], lead_ms=self._lead_ms(PLAY_LEAD_MS) if self._clock.running else 0.0)
         await self._emit("radio_seek", client_ts)
 
     async def set_volume(self, volume: float, client_ts: float | None = None):
@@ -362,13 +452,22 @@ class RadioPlaybackManager:
         self.state["order"] = order
         if not order:
             self.state.update({"playing": False, "state": "idle"})
+            self._clock.reset()
         self._sync_current()
+        if index == cur and order:
+            # La piste courante a été retirée : la suivante démarre de zéro.
+            self.state["position_seconds"] = 0.0
+            if self.state["playing"]:
+                self._start_clock(0.0)
+            else:
+                self._clock.reset()
         await self._emit("radio_queue_changed", client_ts)
 
     async def report_position(self, position_seconds: float):
         """Rapport de position du lecteur /radio (pas de diffusion à chaque
         appel — la boucle de position s'en charge)."""
-        self.state["position_seconds"] = max(0.0, position_seconds)
+        # Plan 4.0.1 : la position vient de l'horloge serveur ; ce rapport ne la
+        # modifie plus (diagnostic seulement).
         self._last_direct_report = time.monotonic()
 
 

@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clearCachesAndReload } from "@/lib/cacheReload";
+import type { ClockAnchor } from "@/lib/playbackClock";
+import { ServerClockSync } from "@/lib/serverClockSync";
+import type { ClockTarget } from "@/lib/useMediaClockFollower";
 
 /** Réf. docs/cahier-des-charges-radio.md, lot L3 — état du 3e canal `radio`,
  * moteur INDÉPENDANT du câblé/réseau (RadioPlaybackManager côté backend).
@@ -38,6 +41,8 @@ export interface RadioState {
   current_track: RadioTrackInfo | null;
   position_seconds: number;
   duration_seconds: number | null;
+  /** Ancre de l'horloge de lecture pilotée par le serveur (plan 4.0.1). */
+  clock?: ClockAnchor | null;
   volume: number;
   shuffle: boolean;
   repeat: RadioRepeatMode;
@@ -63,7 +68,18 @@ const DEFAULT_STATE: RadioState = {
   crossfade_seconds: 4,
   current_announcement: null,
   tracks_since_announcement: 0,
+  clock: null,
 };
+
+/** Cible du suiveur d'horloge pour le lecteur /radio : la piste courante, en lecture ou en
+ * pause. Aucun suivi pendant un rappel (état « announcing ») : la musique y est gérée par
+ * le rappel (fondu, attente de fin). */
+export function selectRadioTarget(state: RadioState): ClockTarget {
+  if (!state.current_track || (state.state !== "playing" && state.state !== "paused")) {
+    return { anchor: null, mode: null };
+  }
+  return { anchor: state.clock, mode: state.playing ? "playing" : "paused", key: state.current_track.id };
+}
 
 export interface RadioEvent {
   event: "state_change";
@@ -115,6 +131,8 @@ export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kios
   // (référence pour cette page), une valeur différente à une reconnexion
   // ultérieure signale un redémarrage backend entre-temps.
   const bootIdRef = useRef<string | null>(null);
+  // Mesure du décalage d'horloge avec le serveur (partagée avec usePlaybackSocket).
+  const clockSyncRef = useRef(new ServerClockSync());
 
   useEffect(() => {
     onEventRef.current = onEvent;
@@ -144,6 +162,7 @@ export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kios
         // avant tout report_position.
         // Abonnement de canal (plan 4.0, P2-3) : n'écoute que les évènements radio.
         ws.send(JSON.stringify({ command: "subscribe", params: { channels: ["radio"] } }));
+        clockSyncRef.current.start(ws, () => wsRef.current === ws);
         if (role === "kiosk") {
           ws.send(JSON.stringify({ command: "identify", params: { role: "kiosk", channel: "radio" } }));
         }
@@ -161,6 +180,7 @@ export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kios
             ws.send(JSON.stringify({ command: "pong" }));
             return;
           }
+          if (clockSyncRef.current.handleMessage(parsed)) return;
           if (parsed.event === "boot_id") {
             if (bootIdRef.current === null) {
               bootIdRef.current = parsed.boot_id;
@@ -195,6 +215,7 @@ export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kios
       };
 
       ws.onclose = () => {
+        clockSyncRef.current.stop();
         if (wsRef.current !== ws) return;
         setConnected(false);
         setIsPrimary(false);
@@ -253,5 +274,7 @@ export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kios
     if (pendingCommandsRef.current.length > 10) pendingCommandsRef.current.shift();
   }, []);
 
-  return { state, connected, sendCommand, isPrimary };
+  const serverNow = useCallback(() => clockSyncRef.current.serverNow(), []);
+
+  return { state, connected, sendCommand, isPrimary, serverNow };
 }

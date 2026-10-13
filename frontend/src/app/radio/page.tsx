@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
-import { RadioEvent, RadioRepeatMode, RadioTrackInfo, useRadioSocket } from "@/lib/useRadioSocket";
+import { RadioEvent, RadioRepeatMode, RadioTrackInfo, selectRadioTarget, useRadioSocket } from "@/lib/useRadioSocket";
+import { useMediaClockFollower } from "@/lib/useMediaClockFollower";
 import { useKioskRemote } from "@/lib/useKioskRemote";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
@@ -334,13 +335,10 @@ export default function RadioScreenPage() {
         } catch {
           // ignore
         }
-      } else if (!isPrimaryRef.current && Math.abs(el.currentTime - data.position_seconds) > 1.5) {
-        try {
-          el.currentTime = data.position_seconds;
-        } catch {
-          // ignore
-        }
       }
+      // Postes miroirs : position et lecture/pause suivent l'horloge serveur
+      // (`useMediaClockFollower` plus bas), plus de recalage par seek au-delà
+      // de 1,5 s. Le poste primaire reste la source audio (fondu enchaîné).
 
       if (ann?.mode === "wait_end") {
         // La piste vient de se terminer et laisse place au rappel (D12) : ne
@@ -373,7 +371,24 @@ export default function RadioScreenPage() {
     loadDirect(track, data.position_seconds || 0, data.playing, isDucking ? duckSettingsRef.current.level : data.volume);
   };
 
-  const { state, connected, sendCommand, isPrimary } = useRadioSocket(handleEvent, "kiosk");
+  const { state, connected, sendCommand, isPrimary, serverNow } = useRadioSocket(handleEvent, "kiosk");
+  // Postes MIROIRS : suivent l'horloge serveur (plan 4.0.1). Pas de suivi pendant un
+  // rappel (état « announcing » : la musique y est gérée par le rappel).
+  const activeMediaRef = useMemo(
+    () => ({ get current() { return getAudioEl(activeSlotRef.current); } }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- getAudioEl ne lit que des refs stables
+    [],
+  );
+  useMediaClockFollower({
+    mediaRef: activeMediaRef,
+    state,
+    select: selectRadioTarget,
+    enabled: !isPrimary,
+    serverNow,
+    tryPlay: (el) => {
+      if (unlockedRef.current) el?.play().catch(() => {});
+    },
+  });
   useEffect(() => {
     isPrimaryRef.current = isPrimary;
   }, [isPrimary]);
@@ -461,7 +476,9 @@ export default function RadioScreenPage() {
   const handleTimeUpdateB = () => handleTimeUpdateForSlot(1);
 
   const handleEndedForSlot = (slot: Slot) => {
-    if (slot === activeSlotRef.current) sendCommand("radio_track_ended");
+    // `track_id` : piste que CE poste vient de terminer — le serveur ignore un
+    // signal périmé (chaque page /radio l'envoie, plan 4.0.1).
+    if (slot === activeSlotRef.current) sendCommand("radio_track_ended", { track_id: slotTrackIdRef.current[slot] });
   };
   const handleEndedA = () => handleEndedForSlot(0);
   const handleEndedB = () => handleEndedForSlot(1);
@@ -527,7 +544,7 @@ export default function RadioScreenPage() {
       clearInterval(pollId);
       recoveringRef.current = false;
       if (slot === activeSlotRef.current && playingRef.current && !activeAnnouncementRef.current) {
-        sendCommand("radio_track_ended");
+        sendCommand("radio_track_ended", { track_id: slotTrackIdRef.current[slot] });
       }
     }, RECOVERY_POLL_MS);
   }, [sendCommand]);

@@ -50,6 +50,11 @@ for _manager in playback_managers.values():
 # lecture INDÉPENDANT (décisions D1/D2), même broadcast partagé pour rester
 # sur la même connexion WebSocket que les deux canaux ci-dessus.
 radio_manager = init_radio_manager(ws_manager.broadcast)
+# Postes /radio connectés (démarrage synchronisé seulement à plusieurs) et filet
+# de sécurité serveur de fin de piste, qui doit passer par la MÊME règle que la
+# commande (rappels « toutes les N musiques »).
+radio_manager.display_counter = ws_manager.kiosk_count
+radio_manager.track_end_handler = lambda track_id: _radio_track_end_fallback(track_id)
 
 
 def _resolve_channel(value) -> str:
@@ -811,6 +816,37 @@ def _radio_track_dict(track: RadioTrack) -> dict:
     }
 
 
+async def _handle_radio_track_ended(manager, db, client_ts, track_id: int | None) -> None:
+    """Fin de piste radio, IDEMPOTENTE : chaque page /radio l'envoie, et le serveur
+    peut l'avoir déjà enchaînée. Un signal périmé (autre piste que la courante) est
+    ignoré AVANT de compter la piste, sans quoi un doublon faussait aussi la règle
+    « toutes les N musiques »."""
+    current = manager.state.get("current_track")
+    if track_id is not None and current is not None and current.get("id") != track_id:
+        return
+    # Règle « toutes les N musiques » (réf. lot L6, D11-D12) : vérifiée ICI (accès
+    # DB), pas dans le manager (état pur). Si due, le rappel se joue AVANT
+    # l'avancement (attente-fin), qui reprendra à sa fin (`announcement_ended`).
+    manager.state["tracks_since_announcement"] = manager.state.get("tracks_since_announcement", 0) + 1
+    due = _due_wait_end_announcement(db, manager)
+    if due:
+        await manager.play_announcement(
+            {"id": due.id, "description": due.description}, mode="wait_end",
+            client_ts=client_ts, deferred_advance=True,
+        )
+    else:
+        await manager.track_ended(client_ts, track_id=track_id)
+
+
+async def _radio_track_end_fallback(track_id: int | None) -> None:
+    """Fin de piste déclenchée par l'horloge serveur (aucun poste ne l'a signalée) :
+    même chemin que la commande, avec sa propre session de base de données."""
+    from app.database import SessionLocal
+
+    with SessionLocal() as db:
+        await _handle_radio_track_ended(radio_manager, db, None, track_id)
+
+
 async def _handle_radio_command(
     command: str, params: dict, client_ts, db: Session,
     websocket: WebSocket | None = None, is_kiosk: bool = False,
@@ -895,15 +931,9 @@ async def _handle_radio_command(
         # rappel se joue AVANT l'avancement (attente-fin), qui reprendra à sa
         # fin (`announcement_ended`, deferred_advance=True) plutôt que tout
         # de suite.
-        manager.state["tracks_since_announcement"] = manager.state.get("tracks_since_announcement", 0) + 1
-        due = _due_wait_end_announcement(db, manager)
-        if due:
-            await manager.play_announcement(
-                {"id": due.id, "description": due.description}, mode="wait_end",
-                client_ts=client_ts, deferred_advance=True,
-            )
-        else:
-            await manager.track_ended(client_ts)
+        raw_track_id = params.get("track_id")
+        track_id = raw_track_id if isinstance(raw_track_id, int) and not isinstance(raw_track_id, bool) else None
+        await _handle_radio_track_ended(manager, db, client_ts, track_id)
     elif command == "radio_play_announcement":
         # Déclenchement manuel depuis /radio (bouton rappel) — toujours en
         # mode « duck » (D12), null = tirage aléatoire (D13).

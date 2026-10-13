@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { PlaybackState } from "@/lib/usePlaybackSocket";
 import { anchorPosition, msUntilStart, planDrift, type ClockAnchor } from "@/lib/playbackClock";
 
 // Cadence de la boucle de suivi : assez courte pour tenir une précision de
@@ -31,11 +30,13 @@ export interface ClockTarget {
   key?: string | number | null;
 }
 
-interface Options {
-  mediaRef: React.RefObject<HTMLMediaElement | null>;
-  state: PlaybackState;
-  /** Extrait de l'état la cible à suivre (vidéo, piste audio du mode coach...). */
-  select: (state: PlaybackState) => ClockTarget;
+interface Options<S> {
+  mediaRef: { current: HTMLMediaElement | null };
+  state: S;
+  /** Extrait de l'état la cible à suivre (vidéo, piste audio du mode coach, radio...). */
+  select: (state: S) => ClockTarget;
+  /** Désactive le suivi sans démonter le hook (ex. poste primaire de la radio, qui reste la source). */
+  enabled?: boolean;
   /** Heure serveur estimée (epoch, ms). */
   serverNow: () => number;
   /** Lance la lecture avec le repli d'autoplay propre à la page. */
@@ -56,15 +57,17 @@ interface Options {
  *  - ordre explicite (changement d'epoch) : appliqué immédiatement.
  * Ne touche jamais à un média en cours de chargement ou de seek.
  */
-export function useMediaClockFollower({ mediaRef, state, select, serverNow, tryPlay, onSeek }: Options) {
+export function useMediaClockFollower<S>({ mediaRef, state, select, enabled = true, serverNow, tryPlay, onSeek }: Options<S>) {
   const stateRef = useRef(state);
   const selectRef = useRef(select);
+  const enabledRef = useRef(enabled);
   const serverNowRef = useRef(serverNow);
   const tryPlayRef = useRef(tryPlay);
   const onSeekRef = useRef(onSeek);
   useEffect(() => {
     stateRef.current = state;
     selectRef.current = select;
+    enabledRef.current = enabled;
     serverNowRef.current = serverNow;
     tryPlayRef.current = tryPlay;
     onSeekRef.current = onSeek;
@@ -116,6 +119,7 @@ export function useMediaClockFollower({ mediaRef, state, select, serverNow, tryP
     };
 
     const tick = () => {
+      if (!enabledRef.current) return;
       const video = mediaRef.current;
       const target0 = selectRef.current(stateRef.current);
       const anchor = target0.anchor;
@@ -207,5 +211,5 @@ export function useMediaClockFollower({ mediaRef, state, select, serverNow, tryP
   const anchor = current.anchor;
   useEffect(() => {
     tickRef.current?.();
-  }, [anchor?.at_ms, anchor?.running, anchor?.pos, anchor?.rate, anchor?.epoch, current.mode, current.key]);
+  }, [anchor?.at_ms, anchor?.running, anchor?.pos, anchor?.rate, anchor?.epoch, current.mode, current.key, enabled]);
 }

@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clearCachesAndReload } from "@/lib/cacheReload";
 import { createPageClientId } from "@/lib/displayChannel";
-import { ClockOffsetEstimator, type ClockAnchor } from "@/lib/playbackClock";
+import { type ClockAnchor } from "@/lib/playbackClock";
+import { ServerClockSync } from "@/lib/serverClockSync";
 
 export type PlaybackStateValue =
   | "waiting"
@@ -268,10 +269,9 @@ export function usePlaybackSocket(
   // sécurité périodique (15s, cf. RESYNC_INTERVAL_MS) : `doResyncRef`
   // déclenche une resynchronisation REST immédiate.
   const lastTickSeqRef = useRef<number | null>(null);
-  // Décalage horloge locale <-> horloge serveur (plan 4.0, P2-4) : mesuré par
-  // aller-retour `time_sync` sur la WebSocket déjà ouverte (médiane des
-  // échantillons au plus petit RTT) — remplace le simple /api/time ponctuel.
-  const clockOffsetRef = useRef(new ClockOffsetEstimator());
+  // Mesure du décalage d'horloge avec le serveur (plan 4.0, P2-4) : partagée
+  // avec la radio (lib/serverClockSync.ts).
+  const clockSyncRef = useRef(new ServerClockSync());
   const doResyncRef = useRef<() => void>(() => {});
   const onEventRef = useRef(onEvent);
   const onCinemaCommandRef = useRef(onCinemaCommand);
@@ -317,22 +317,6 @@ export function usePlaybackSocket(
         }));
       };
 
-      // Mesures d'horloge : une rafale à l'ouverture (offset exploitable en
-      // < 1 s) puis une mesure toutes les 30 s (dérive de l'horloge locale).
-      let syncTimers: ReturnType<typeof setTimeout>[] = [];
-      let syncInterval: ReturnType<typeof setInterval> | null = null;
-      const sendTimeSync = () => {
-        if (wsRef.current === ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ command: "time_sync", params: { t0: Date.now() } }));
-        }
-      };
-      const stopTimeSync = () => {
-        syncTimers.forEach(clearTimeout);
-        syncTimers = [];
-        if (syncInterval) clearInterval(syncInterval);
-        syncInterval = null;
-      };
-
       ws.onopen = () => {
         // Garde-fou "socket fantôme" (correctif "le bouton Stop ne marche
         // plus après une reconnexion") : si une connexion PRÉCÉDENTE encore
@@ -349,8 +333,7 @@ export function usePlaybackSocket(
         // écart tant que le premier n'est pas arrivé (évite un faux
         // positif comparant à un `tick_seq` d'une connexion précédente).
         lastTickSeqRef.current = null;
-        syncTimers = [0, 150, 300, 450, 600].map((delay) => setTimeout(sendTimeSync, delay));
-        syncInterval = setInterval(sendTimeSync, 30000);
+        clockSyncRef.current.start(ws, () => wsRef.current === ws);
         // Abonnement de canal (plan 4.0, P2-3) : le serveur n'enverra plus à
         // cette connexion les évènements propres aux AUTRES canaux (le tri
         // client `parsed.channel !== channel` reste en filet de sécurité).
@@ -385,12 +368,7 @@ export function usePlaybackSocket(
             ws.send(JSON.stringify({ command: "pong" }));
             return;
           }
-          if (parsed.event === "time_sync") {
-            if (typeof parsed.t0 === "number" && typeof parsed.server_ms === "number") {
-              clockOffsetRef.current.add(parsed.t0, parsed.server_ms, Date.now());
-            }
-            return;
-          }
+          if (clockSyncRef.current.handleMessage(parsed)) return;
           if (parsed.event === "boot_id") {
             if (bootIdRef.current === null) {
               bootIdRef.current = parsed.boot_id;
@@ -494,7 +472,7 @@ export function usePlaybackSocket(
       };
 
       ws.onclose = () => {
-        stopTimeSync();
+        clockSyncRef.current.stop();
         // Même garde-fou qu'à l'ouverture : une connexion déjà remplacée qui
         // se ferme tardivement ne doit ni toucher l'état partagé, ni
         // programmer une seconde reconnexion concurrente à celle éventuelle
@@ -647,7 +625,7 @@ export function usePlaybackSocket(
   }, []);
 
   /** Heure serveur estimée (epoch, ms) : horloge locale + décalage mesuré. */
-  const serverNow = useCallback(() => Date.now() + clockOffsetRef.current.offsetMs(), []);
+  const serverNow = useCallback(() => clockSyncRef.current.serverNow(), []);
 
   const sendCommand = useCallback((command: string, params: Record<string, unknown> = {}) => {
     const ws = wsRef.current;
