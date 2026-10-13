@@ -63,6 +63,16 @@ if [ ! -d "${APP_PATH}" ]; then
     exit 1
 fi
 
+echo "=== [3b/5] Fenêtre native du projecteur (plan 4.0, P1-3b) ==="
+# Remplace le navigateur piloté sur macOS : Safari n'a ni kiosque ni choix de
+# l'écran. Copiée dans le bundle AVANT la signature ad-hoc ci-dessous.
+if command -v cargo >/dev/null 2>&1; then
+    (cd "${REPO_DIR}/projector" && cargo build --release)
+    cp "${REPO_DIR}/projector/target/release/bobine-projector" "${APP_PATH}/Contents/MacOS/bobine-projector"
+else
+    echo "Avertissement: cargo introuvable — le projecteur utilisera le navigateur par défaut." >&2
+fi
+
 echo "=== [4/5] Signature ad-hoc (requise par le noyau sur Apple Silicon, cf. plan §4) ==="
 # Sans ceci, macOS tue au lancement ("Killed: 9") tout binaire/bibliothèque
 # non signé sur Apple Silicon — l'exigence vient du noyau (AMFI), pas de

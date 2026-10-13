@@ -57,3 +57,6 @@ android/app/src/main/jniLibs/
 Thumbs.db
 docs/patch.md
 
+
+# Composant natif du projecteur (macOS)
+projector/target/

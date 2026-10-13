@@ -523,6 +523,14 @@ jobs:
       - name: Construire Bobine.app
         working-directory: backend
         run: pyinstaller ../packaging/macos/bobine.spec
+      # Fenêtre native du projecteur (plan 4.0, P1-3b) : tests puis binaire
+      # release, copié dans le bundle AVANT la signature ad-hoc ci-dessous.
+      - name: Tester et construire la fenêtre native du projecteur
+        working-directory: projector
+        run: |
+          cargo test
+          cargo build --release
+          cp target/release/bobine-projector ../backend/dist/Bobine.app/Contents/MacOS/bobine-projector
       - name: Vérifier la présence de l'icône dans le bundle
         run: test -f backend/dist/Bobine.app/Contents/Resources/bobine.icns
       - name: Signature ad-hoc (requise par le noyau sur Apple Silicon)

@@ -32,6 +32,7 @@ import platform
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -314,6 +315,39 @@ def find_kiosk_browser(
     return None
 
 
+def find_native_projector(
+    system: str | None = None,
+    environ: dict | None = None,
+    executable: str | None = None,
+    exists: Callable[[str], bool] = os.path.exists,
+) -> str | None:
+    """Fenêtre native `bobine-projector` (plan 4.0, P1-3b, décision D4) : sur
+    macOS elle remplace le navigateur piloté (Safari n'a ni kiosque ni choix de
+    l'écran, et aucun Chromium n'est garanti). Cherchée à côté de l'exécutable
+    du tray dans `Bobine.app/Contents/MacOS` (ou `Resources`). La variable
+    `BOBINE_PROJECTOR_BIN` permet de forcer un chemin (tests, installation
+    atypique) sur n'importe quel OS. Pur et testable."""
+    system = system or platform.system()
+    environ = os.environ if environ is None else environ
+    override = environ.get("BOBINE_PROJECTOR_BIN")
+    if override and exists(override):
+        return override
+    if system != "Darwin":
+        return None
+    executable = executable or sys.executable
+    macos_dir = Path(executable).parent
+    for candidate in (macos_dir / "bobine-projector", macos_dir.parent / "Resources" / "bobine-projector"):
+        if exists(str(candidate)):
+            return str(candidate)
+    return None
+
+
+def build_native_projector_command(binary: str, url: str, monitor: str = "external") -> list[str]:
+    """Ligne de commande de la fenêtre native : elle choisit elle-même l'écran
+    externe (les positions ne sont pas exposées par `system_profiler`)."""
+    return [binary, "--url", url, "--monitor", monitor]
+
+
 def build_projector_command(
     browser: str,
     url: str,
@@ -357,8 +391,12 @@ class ProjectorWindow:
         browser_finder: Callable[[], str | None] = find_kiosk_browser,
         popen: Callable[..., "subprocess.Popen"] = subprocess.Popen,
         profile_factory: Callable[[], str] = lambda: tempfile.mkdtemp(prefix="bobine-projector-"),
+        native_finder: Callable[[], str | None] = find_native_projector,
+        after_launch: Callable[["subprocess.Popen"], None] | None = None,
     ) -> None:
         self._url = url
+        self._native_finder = native_finder
+        self._after_launch = after_launch
         self._browser_finder = browser_finder
         self._popen = popen
         self._profile_factory = profile_factory
@@ -380,21 +418,33 @@ class ProjectorWindow:
         if self.is_open and self._monitor == monitor:
             return True
         self.close()
-        browser = self._browser_finder()
-        if not browser:
-            logger.warning("Aucun navigateur Chromium trouvé : fenêtre projecteur impossible")
-            return False
-        profile_dir = self._profile_factory()
-        wayland = os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland"
-        command = build_projector_command(browser, self._url, monitor, profile_dir, wayland=wayland)
+        profile_dir: str | None = None
+        native = self._native_finder()
+        if native:
+            # Fenêtre native (macOS) : pas de navigateur, pas de profil.
+            command = build_native_projector_command(native, self._url)
+        else:
+            browser = self._browser_finder()
+            if not browser:
+                logger.warning("Aucune fenêtre native ni navigateur Chromium trouvé : fenêtre projecteur impossible")
+                return False
+            profile_dir = self._profile_factory()
+            wayland = os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland"
+            command = build_projector_command(browser, self._url, monitor, profile_dir, wayland=wayland)
         try:
             self._process = self._popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as exc:
             logger.warning(f"Lancement de la fenêtre projecteur impossible : {exc}")
-            shutil.rmtree(profile_dir, ignore_errors=True)
+            if profile_dir:
+                shutil.rmtree(profile_dir, ignore_errors=True)
             return False
         self._profile_dir = profile_dir
         self._monitor = monitor
+        if self._after_launch:
+            try:
+                self._after_launch(self._process)
+            except Exception as exc:
+                logger.debug(f"after_launch ignoré : {exc}")
         logger.info(f"Fenêtre projecteur ouverte sur {monitor.name} ({monitor.resolution}+{monitor.x}+{monitor.y})")
         return True
 

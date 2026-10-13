@@ -1,0 +1,21 @@
+[package]
+name = "bobine-projector"
+version = "0.1.0"
+edition = "2021"
+description = "Fenetre native plein ecran de Bobine pour le projecteur (macOS) : affiche /cinema sur l'ecran externe sans navigateur."
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/FantasmaGlad/Bobine"
+publish = false
+
+[[bin]]
+name = "bobine-projector"
+path = "src/main.rs"
+
+[dependencies]
+tao = "0.35"
+wry = "0.55"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true

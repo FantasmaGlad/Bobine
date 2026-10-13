@@ -642,9 +642,18 @@ def run() -> None:
     # Plug and play (plan 4.0, P1-3a) : démarre TOUJOURS, y compris en démarrage
     # silencieux (--startup) — brancher un projecteur doit afficher /cinema
     # dessus sans aucun geste, au démarrage comme à chaud.
+    def _keep_awake_while_projecting(process) -> None:
+        # macOS : anti-veille tant que la fenêtre native tourne (même
+        # mécanisme que le kiosque navigateur, cf. `_caffeinate_after_launch`) ;
+        # `caffeinate -w` se libère seul à la fermeture du process.
+        if platform.system() == "Darwin" and shutil.which("caffeinate"):
+            subprocess.Popen(["caffeinate", "-d", "-i", "-w", str(process.pid)])
+        elif platform.system() in ("Windows", "Linux"):
+            _set_display_always_on(True)
+
     display_orchestrator = DisplayOrchestrator(
         DISPLAY_STATE_URL,
-        ProjectorWindow(PROJECTOR_URL),
+        ProjectorWindow(PROJECTOR_URL, after_launch=_keep_awake_while_projecting),
         ready_check=is_backend_running,
     )
     display_watcher = DisplayWatcher(display_orchestrator.handle_change)

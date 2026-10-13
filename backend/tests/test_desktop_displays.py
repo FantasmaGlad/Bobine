@@ -269,3 +269,59 @@ def test_rapport_au_backend_rejoue_jusqu_au_succes_puis_cede_la_place_au_plus_re
 
     assert report_display_state("http://x", 1, source="linux", sleep=sleeper, urlopen=failing, max_attempts=10) is False
     assert len(calls) <= 3
+
+
+# ----------------------------------------------------------------------
+# Fenêtre native (macOS, plan 4.0 P1-3b, décision D4)
+# ----------------------------------------------------------------------
+from app.desktop.displays import build_native_projector_command, find_native_projector  # noqa: E402
+
+
+def test_fenetre_native_trouvee_a_cote_de_l_executable_du_tray_sur_macos():
+    exe = "/Applications/Bobine.app/Contents/MacOS/BobineTray"
+    present = {"/Applications/Bobine.app/Contents/MacOS/bobine-projector"}
+    assert find_native_projector("Darwin", environ={}, executable=exe, exists=lambda p: p in present) == \
+        "/Applications/Bobine.app/Contents/MacOS/bobine-projector"
+    present = {"/Applications/Bobine.app/Contents/Resources/bobine-projector"}
+    assert find_native_projector("Darwin", environ={}, executable=exe, exists=lambda p: p in present) == \
+        "/Applications/Bobine.app/Contents/Resources/bobine-projector"
+    assert find_native_projector("Darwin", environ={}, executable=exe, exists=lambda p: False) is None
+
+
+def test_fenetre_native_jamais_cherchee_hors_macos_sauf_surcharge_explicite():
+    exe = "/usr/bin/python3"
+    assert find_native_projector("Linux", environ={}, executable=exe, exists=lambda p: True) is None
+    assert find_native_projector("Windows", environ={}, executable=exe, exists=lambda p: True) is None
+    assert find_native_projector("Linux", environ={"BOBINE_PROJECTOR_BIN": "/opt/p"}, executable=exe,
+                                 exists=lambda p: p == "/opt/p") == "/opt/p"
+    # Surcharge vers un fichier absent : ignorée.
+    assert find_native_projector("Linux", environ={"BOBINE_PROJECTOR_BIN": "/nope"}, executable=exe,
+                                 exists=lambda p: False) is None
+
+
+def test_commande_native_choisit_l_ecran_externe_elle_meme():
+    assert build_native_projector_command("/b/bobine-projector", "http://127.0.0.1:8000/cinema/?channel=cable") == [
+        "/b/bobine-projector", "--url", "http://127.0.0.1:8000/cinema/?channel=cable", "--monitor", "external",
+    ]
+
+
+def test_la_fenetre_native_est_preferee_au_navigateur_et_sans_profil_jetable():
+    launches = []
+    kept_awake = []
+
+    def popen(command, **kwargs):
+        proc = FakeProcess()
+        proc.pid = 4242
+        launches.append(command)
+        return proc
+
+    window = ProjectorWindow(
+        "http://x/cinema", browser_finder=lambda: "/bin/chromium", popen=popen,
+        profile_factory=lambda: "/tmp/ne-doit-pas-servir",
+        native_finder=lambda: "/app/bobine-projector", after_launch=kept_awake.append,
+    )
+    assert window.show_on(Monitor("Projecteur", 0, 0, 1920, 1080)) is True
+    assert launches[0][0] == "/app/bobine-projector" and "--monitor" in launches[0]
+    assert "--user-data-dir" not in " ".join(launches[0])
+    assert len(kept_awake) == 1 and kept_awake[0].pid == 4242
+    window.close()
