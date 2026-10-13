@@ -5,6 +5,7 @@ import time
 from typing import Any, Awaitable, Callable
 
 from app.config import settings
+from app.utils.playback_clock import PlaybackClock
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,24 @@ BroadcastFn = Callable[[dict], Awaitable[None]]
 # "network" = tout /kiosk ouvert depuis un autre appareil du LAN.
 CHANNELS = ("cable", "network")
 DEFAULT_CHANNEL = "cable"
+
+
+# Décalage (ms) entre l'ordre reçu et l'instant où TOUS les écrans démarrent
+# (réf. plan 4.0, P2-2) : laisse à chaque écran le temps de recevoir l'ordre
+# et de précharger, pour qu'ils démarrent ensemble plutôt que « au plus vite »
+# chacun de son côté. Court pour play/seek (média déjà chargé), plus long pour
+# un nouveau cours (il faut ouvrir le flux).
+LOAD_LEAD_MS = 1000.0
+PLAY_LEAD_MS = 300.0
+SEEK_LEAD_MS = 300.0
+# Cadence du heartbeat de position pendant la lecture vidéo : chaque écran
+# recalcule seul sa position à partir de l'horloge ; le heartbeat ne sert qu'à
+# ré-ancrer les arrivants et à rattraper un évènement perdu.
+VIDEO_HEARTBEAT_SECONDS = 1.0
+# Marge au-delà de la durée avant que le SERVEUR déclare lui-même la fin d'un
+# cours (filet de sécurité si aucun écran n'envoie `video_ended`, p. ex. aucun
+# kiosque connecté sur le canal).
+VIDEO_END_GRACE_SECONDS = 3.0
 
 
 class PlaybackStateEnum(str, enum.Enum):
@@ -92,6 +111,10 @@ class PlaybackManager:
         # déclenche une resynchronisation REST immédiate au lieu d'attendre
         # le prochain cycle du filet de sécurité périodique (15s).
         self._tick_seq = 0
+        # Horloge de lecture vidéo (réf. plan 4.0, P2-2) : source de vérité de
+        # la position, indépendante de tout kiosque.
+        self._clock = PlaybackClock()
+        self._last_heartbeat = 0.0
         # Fond d'ambiance de repli du cours/playlist EN COURS (réf. mission
         # "associer un fond animé à chaque musique") : celui choisi au
         # lancement (background_id du cours, ou None pour une playlist). Non
@@ -131,8 +154,30 @@ class PlaybackManager:
             "scheduled_launch": False,
         }
 
+    def _refresh_position(self) -> None:
+        """Aligne `state["position_seconds"]` (champ historique lu par l'API REST,
+        le planning de reprise et les clients non migrés) sur l'horloge."""
+        current = self.state.get("current_video")
+        if current is None:
+            return
+        if self.state["state"] not in (
+            PlaybackStateEnum.playing.value,
+            PlaybackStateEnum.paused.value,
+        ):
+            return
+        pos = self._clock.position()
+        duration = current.get("duration_seconds")
+        if duration:
+            pos = min(pos, duration)
+        self.state["position_seconds"] = pos
+
     def snapshot(self) -> dict:
-        return dict(self.state)
+        self._refresh_position()
+        snap = dict(self.state)
+        # Ancre de l'horloge (cf. playback_clock.PlaybackClock.to_dict) : les
+        # écrans en déduisent la position à tout instant, sans tick.
+        snap["clock"] = self._clock.to_dict()
+        return snap
 
     async def _emit(self, cause: str, client_ts: float | None = None):
         payload: dict[str, Any] = {
@@ -184,8 +229,14 @@ class PlaybackManager:
                     self.state["state"] == PlaybackStateEnum.coach_mode.value and self.state["audio_playing"]
                 )
                 drives_playback = time.monotonic() - self._last_direct_report < 2.5
-                if is_video_playing and drives_playback:
-                    await self._emit("position_tick")
+                if is_video_playing:
+                    # Vidéo : l'horloge serveur avance seule, qu'un kiosque
+                    # rapporte ou non — heartbeat lent, pas de tick à 4 Hz.
+                    if now - self._last_heartbeat >= VIDEO_HEARTBEAT_SECONDS:
+                        self._last_heartbeat = now
+                        if await self._end_video_if_overdue():
+                            continue
+                        await self._emit("position_tick")
                 elif is_audio_playing:
                     if not drives_playback:
                         cur_pos = self.state.get("audio_position_seconds") or 0.0
@@ -208,6 +259,19 @@ class PlaybackManager:
                     await self._emit("position_tick")
         except asyncio.CancelledError:
             pass
+
+    async def _end_video_if_overdue(self) -> bool:
+        """Filet de sécurité : si la position dépasse la durée connue d'une
+        marge, termine le cours côté serveur (un écran peut être absent,
+        bloqué en mise en mémoire tampon ou ne jamais envoyer `video_ended`).
+        Retourne True si la fin a été déclenchée."""
+        current = self.state.get("current_video")
+        duration = (current or {}).get("duration_seconds")
+        if not duration or self._clock.position() < duration + VIDEO_END_GRACE_SECONDS:
+            return False
+        logger.info(f"Canal {self.channel} : fin de cours déclenchée par l'horloge serveur")
+        await self.video_ended(video_id=current["id"])
+        return True
 
     def _clear_audio_coach(self):
         """Sort du mode audio coach (réf. F10.4) — appelé par tout ce qui
@@ -280,6 +344,10 @@ class PlaybackManager:
         self.state["volume"] = self.state.get("volume", settings.volume_default)
         self.state["state"] = PlaybackStateEnum.playing.value
         self.state["scheduled_launch"] = scheduled
+        self._clock.reset()
+        self._clock.set_rate(self.state["speed"])
+        self._clock.start(0.0, lead_ms=LOAD_LEAD_MS)
+        self._last_heartbeat = time.monotonic()
 
         # Démarrage de la session SQLite d'assiduité (réf. CDC V3.0.5 §2.3)
         self._current_session_id = await asyncio.to_thread(
@@ -447,9 +515,26 @@ class PlaybackManager:
             return
         await self._play_next_video(client_ts)
 
-    async def video_ended(self, client_ts: float | None = None):
-        """Gère la fin naturelle d'une vidéo signalée par le kiosk."""
+    async def video_ended(self, client_ts: float | None = None, video_id: int | None = None):
+        """Gère la fin naturelle d'une vidéo signalée par un écran.
+
+        Idempotent : TOUS les écrans du canal (miroirs compris) envoient
+        `video_ended` à la fin du cours, et le serveur peut déjà l'avoir
+        déclenchée lui-même (horloge). Sans cette garde, le signal tardif d'un
+        second écran terminait le cours SUIVANT dès son démarrage. `video_id`
+        (celui que l'écran vient de finir) doit donc être le cours en lecture ;
+        s'il est absent (client ancien), seul l'état « en lecture » est exigé.
+        """
+        current = self.state.get("current_video")
+        if current is None or self.state["state"] != PlaybackStateEnum.playing.value:
+            return
+        if video_id is not None and current.get("id") != video_id:
+            return
         self._cancel_waiting()
+        duration = current.get("duration_seconds")
+        self._clock.pause()
+        if duration:
+            self._clock.seek(duration)
 
         # Clôture avec complétion validée de la session de lecture
         if self._current_session_id is not None:
@@ -488,6 +573,9 @@ class PlaybackManager:
         ):
             return
         self.state["state"] = PlaybackStateEnum.playing.value
+        if not self._clock.running:
+            self._clock.start(lead_ms=PLAY_LEAD_MS)
+        self._last_heartbeat = time.monotonic()
         await self._emit("play", client_ts)
 
     async def pause(self, client_ts: float | None = None):
@@ -500,6 +588,7 @@ class PlaybackManager:
             or self.state["state"] == PlaybackStateEnum.playlist_waiting.value
         ):
             return
+        self._clock.pause()
         self.state["state"] = PlaybackStateEnum.paused.value
         await self._emit("pause", client_ts)
 
@@ -517,6 +606,7 @@ class PlaybackManager:
         self.state["state"] = PlaybackStateEnum.waiting.value
         self.state["current_video"] = None
         self.state["position_seconds"] = 0.0
+        self._clock.reset()
         self.state["playlist_id"] = None
         self.state["playlist_name"] = None
         self.state["playlist_items"] = None
@@ -537,6 +627,7 @@ class PlaybackManager:
         self.state["state"] = PlaybackStateEnum.background.value
         self.state["current_video"] = None
         self.state["position_seconds"] = 0.0
+        self._clock.reset()
         self.state["playlist_id"] = None
         self.state["playlist_name"] = None
         self.state["playlist_items"] = None
@@ -553,6 +644,8 @@ class PlaybackManager:
         if duration:
             position_seconds = min(position_seconds, duration)
         self.state["position_seconds"] = position_seconds
+        self._clock.seek(position_seconds, lead_ms=SEEK_LEAD_MS if self._clock.running else 0.0)
+        self._last_heartbeat = time.monotonic()
         await self._emit("seek", client_ts)
 
     async def set_volume(self, volume: float, client_ts: float | None = None):
@@ -561,27 +654,33 @@ class PlaybackManager:
 
     async def set_speed(self, speed: float, client_ts: float | None = None):
         self.state["speed"] = max(0.25, min(2.0, float(speed)))
+        self._clock.set_rate(self.state["speed"])
         await self._emit("speed", client_ts)
 
     async def report_position(self, position_seconds: float):
         """
-        Rapport de la position réelle par le kiosk (plusieurs fois par
-        seconde). Vraiment silencieux depuis la Phase 5 (P5) : met à jour
-        l'état en mémoire mais NE diffuse PAS aux clients à chaque appel —
-        _position_broadcast_loop s'en charge à intervalle fixe. Un broadcast
-        systématique ici saturerait les télécommandes pour un gain de
-        précision inutile.
+        Rapport de la position réelle d'un écran (kiosque primaire).
+
+        Depuis le lot P2-2 la position est portée par l'horloge serveur
+        (`PlaybackClock`) : ce rapport N'EST PLUS la source de la position et
+        ne la modifie plus (il en fixait l'âge et la précision, et sans écran
+        primaire connecté le cours n'avançait pas). Il sert uniquement à :
+          * mémoriser qu'un écran joue réellement (`_last_direct_report`,
+            diagnostic) ;
+          * alimenter le suivi d'assiduité en base.
+        Silencieux : aucune diffusion (cf. `_position_broadcast_loop`).
         """
         if self.state["current_video"] is None or self.state["state"] == PlaybackStateEnum.playlist_waiting.value:
             return
         now_mono = time.monotonic()
         self._last_direct_report = now_mono
-        self.state["position_seconds"] = position_seconds
 
         # Throttling de la mise à jour en base toutes les 5s
         if self._current_session_id is not None and (now_mono - self._last_session_update >= 5.0):
             self._last_session_update = now_mono
-            asyncio.create_task(asyncio.to_thread(_db_update_session, self._current_session_id, position_seconds))
+            asyncio.create_task(
+                asyncio.to_thread(_db_update_session, self._current_session_id, min(position_seconds, self._clock.position() + 5.0))
+            )
 
     # ------------------------------------------------------------------
     # Mode audio coach (Lot 8, réf. F10.3/F10.4/UX4.5-4.9)

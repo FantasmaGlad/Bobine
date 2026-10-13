@@ -670,8 +670,12 @@ async def _handle_command(
         # F8.1 "vidéos jouées (fin)" : capturé AVANT l'appel, `video_ended()`
         # vide `current_video` (arrêt standard ou avance de playlist).
         title = (manager.state.get("current_video") or {}).get("title")
-        await manager.video_ended(client_ts)
-        if title:
+        raw_video_id = params.get("video_id")
+        ended_video_id = int(raw_video_id) if isinstance(raw_video_id, (int, float, str)) and str(raw_video_id).lstrip("-").isdigit() else None
+        current_id = (manager.state.get("current_video") or {}).get("id")
+        was_current = manager.state["state"] == "playing" and (ended_video_id is None or ended_video_id == current_id)
+        await manager.video_ended(client_ts, video_id=ended_video_id)
+        if title and was_current:
             await run_in_threadpool(log_activity, db, "video_ended", title)
     elif command == "report_position":
         # Seul le kiosk primaire a autorité sur la position de lecture (réf.

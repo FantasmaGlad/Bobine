@@ -329,7 +329,9 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
         await manager.load(
             self.video1.id, self.video1.title, self.video1.duration_seconds, self.video1.program
         )
-        manager.state["position_seconds"] = 42.0
+        # La position vient désormais de l'horloge serveur (plan 4.0, P2-2) :
+        # on la déplace via l'API de lecture, plus en écrivant l'état.
+        await manager.seek(42.0)
 
         scheduled = await create_schedule(
             ScheduleInput(
@@ -350,13 +352,14 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
         interrupted = self.db.query(PlaybackState).order_by(PlaybackState.id.desc()).first()
         self.assertIsNotNone(interrupted)
         self.assertEqual(interrupted.video_id, self.video1.id)
-        self.assertEqual(interrupted.position_seconds, 42.0)
+        # Tolérance : l'horloge avance en temps réel pendant l'exécution du test.
+        self.assertAlmostEqual(interrupted.position_seconds, 42.0, delta=5.0)
         self.assertEqual(interrupted.cause, "schedule")
 
         # Reprise manuelle depuis l'interface.
         await resume_interrupted_state(db=self.db)
         self.assertEqual(manager.state["current_video"]["id"], self.video1.id)
-        self.assertEqual(manager.state["position_seconds"], 42.0)
+        self.assertAlmostEqual(manager.state["position_seconds"], 42.0, delta=5.0)
         self.assertIsNone(self.db.query(PlaybackState).order_by(PlaybackState.id.desc()).first())
 
     async def test_conflict_dismiss_without_resume(self):
