@@ -35,6 +35,11 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="4.0.1" date="2026-10-13">
+      <description>
+        <p>Version 4.0.1 : horloge de lecture pilotee par le serveur etendue a la piste audio du mode coach, a la radio et aux cours /cinema lances par ordre ; fin de piste idempotente (plus de piste sautee avec plusieurs ecrans) ; reponses de la telecommande en quelques millisecondes.</p>
+      </description>
+    </release>
     <release version="4.0.0" date="2026-10-13">
       <description>
         <p>Version 4.0.0 : projection HDMI plug-and-play (ecran externe detecte a chaud sur Android, Windows, macOS, Linux et mini-PC, fenetre cinema placee automatiquement sur le projecteur, mode d'affichage automatique) et synchronisation du canal Reseau a moins de 100 ms (horloge de lecture pilotee par le serveur, demarrage simultane, correction de derive sans saccade, identite de canal explicite).</p>
