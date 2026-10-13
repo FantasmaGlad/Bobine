@@ -145,3 +145,4 @@ def test_sortie_du_mode_coach_remet_l_horloge_audio_a_zero():
         assert snap["audio_position_seconds"] == 0.0
 
     asyncio.run(_run())
+
