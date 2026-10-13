@@ -15,6 +15,7 @@ from app.models import (
     RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType,
     RadioPlaylist, RadioTrack, Video, Playlist,
 )
+from app.utils.playback_clock import PlaybackClock
 from app.playback_manager import CHANNELS, DEFAULT_CHANNEL, get_playback_manager, init_playback_managers
 from app.radio_manager import init_radio_manager, get_radio_manager
 from app.routers.settings import get_display_output_value
@@ -340,6 +341,46 @@ def dismiss_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depe
         db.delete(state)
         db.commit()
     return {"message": "Lecture interrompue abandonnée"}
+
+
+# Horloge du cours /cinema LANCÉ PAR ORDRE, par canal (plan 4.0.1) : un `launch`
+# (depuis /grid ou le tableau de bord) crée l'horloge, les ordres suivants
+# (play, pause, seek) la pilotent, `stop` la détruit. Les pages /cinema qui jouent
+# CE cours la suivent (démarrage et dérive corrigés comme pour /kiosk) ; une page
+# dont l'adhérent a choisi un autre cours à la main reste totalement indépendante
+# (lecture locale, décision de conception de la mission /cinema). Sans `launch`
+# préalable, aucune ancre n'est jointe aux ordres : comportement inchangé.
+_cinema_clocks: dict[str, PlaybackClock] = {}
+_cinema_launched_video: dict[str, int] = {}
+
+
+def _cinema_clock_for(channel: str) -> PlaybackClock:
+    clock = _cinema_clocks.get(channel)
+    if clock is None:
+        clock = _cinema_clocks[channel] = PlaybackClock()
+    return clock
+
+
+def _apply_cinema_command_to_clock(channel: str, action: str, params: dict) -> None:
+    """Met à jour l'horloge du cours lancé par ordre selon l'ordre reçu."""
+    clock = _cinema_clock_for(channel)
+    if action == "launch" and params.get("video_id"):
+        _cinema_launched_video[channel] = int(params["video_id"])
+        clock.reset()
+        clock.start(max(0.0, float(params.get("position_seconds") or 0)))
+        return
+    if channel not in _cinema_launched_video:
+        return  # pas de cours lancé par ordre : lecture locale, aucune horloge
+    if action == "stop":
+        _cinema_launched_video.pop(channel, None)
+        clock.reset()
+    elif action == "pause":
+        clock.pause()
+    elif action == "play":
+        if not clock.running:
+            clock.start()
+    elif action == "seek":
+        clock.seek(max(0.0, float(params.get("position_seconds") or 0)))
 
 
 @router.websocket("/ws/playback")
@@ -786,6 +827,7 @@ async def _handle_command(
             pos = float(params.get("position_seconds") or 0)
             await run_in_threadpool(close_playback_session, db, sess_id, pos)
 
+        _apply_cinema_command_to_clock(channel, action, params)
         cmd_payload = {
             "event": "cinema_command",
             "channel": channel,
@@ -793,6 +835,12 @@ async def _handle_command(
             "position_seconds": float(params.get("position_seconds") or 0),
             "video_id": params.get("video_id"),
         }
+        launched = _cinema_launched_video.get(channel)
+        if launched is not None and action != "stop":
+            # Ancre d'horloge du cours lancé par ordre + son identifiant : les pages
+            # qui jouent CE cours s'y calent (plan 4.0.1).
+            cmd_payload["clock"] = _cinema_clock_for(channel).to_dict()
+            cmd_payload["clock_video_id"] = launched
         if "title" in params:
             cmd_payload["title"] = params["title"]
         if "duration_seconds" in params:

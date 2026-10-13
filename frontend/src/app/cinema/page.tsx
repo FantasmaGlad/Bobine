@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { buildOutputUrl } from "@/lib/displayChannel";
+import type { ClockAnchor } from "@/lib/playbackClock";
+import { useMediaClockFollower, type ClockTarget } from "@/lib/useMediaClockFollower";
+import type { CinemaCommandExtra } from "@/lib/usePlaybackSocket";
 import { getDisplayChannel, isWiredDisplay, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import { useHoverSound } from "@/lib/useHoverSound";
 import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
@@ -291,6 +294,18 @@ const CinemaAllList = React.memo(function CinemaAllList({
  * doit céder la place à /kiosk, selon qu'elle tourne sur l'écran câblé du
  * Wyse ou sur un appareil du réseau.
  */
+/** Cours lancé PAR ORDRE (depuis /grid ou le tableau de bord) que cette page suit sur
+ * l'horloge serveur (plan 4.0.1). Absent = lecture locale (cours choisi à la main). */
+interface CinemaSync {
+  anchor: ClockAnchor;
+  videoId: number;
+}
+
+function selectCinemaTarget(sync: CinemaSync | null): ClockTarget {
+  if (!sync) return { anchor: null, mode: null };
+  return { anchor: sync.anchor, mode: sync.anchor.running ? "playing" : "paused", key: sync.videoId };
+}
+
 export default function CinemaPage() {
   const { t, wiredDisplayMode, waitTimeBetweenCourses } = useAppSettings();
   const deckARef = useRef<HTMLVideoElement | null>(null);
@@ -367,8 +382,11 @@ export default function CinemaPage() {
   // celui de CET appareil : câblé si écran du Wyse, réseau sinon.
   const [channel] = useState<"cable" | "network">(() => getDisplayChannel("cinema"));
   // Implémentation réelle installée plus bas, une fois les handlers définis.
-  const cinemaCmdRef = useRef<((action: string, positionSeconds: number, videoId?: number, extra?: { title?: string; duration_seconds?: number | null }) => void) | null>(null);
-  const { state, displayOutputCable, displayOutputNetwork, sendCommand, cinemaState, libraryVersion } = usePlaybackSocket(
+  const cinemaCmdRef = useRef<((action: string, positionSeconds: number, videoId?: number, extra?: CinemaCommandExtra) => void) | null>(null);
+  // Cours lancé par ordre, suivi sur l'horloge serveur ; effacé dès que l'utilisateur
+  // prend la main localement (pause, seek, autre cours, retour au menu...).
+  const [cinemaSync, setCinemaSync] = useState<CinemaSync | null>(null);
+  const { state, displayOutputCable, displayOutputNetwork, sendCommand, cinemaState, libraryVersion, serverNow } = usePlaybackSocket(
     undefined,
     undefined,
     channel,
@@ -505,6 +523,7 @@ export default function CinemaPage() {
   // Lancement direct sans délai ni animation d'introduction
   const handleSelect = useCallback(
     (video: CinemaVideo) => {
+      setCinemaSync(null);
       clearUpNextTask();
       setUpNext(null);
       setEndedVideo(null);
@@ -519,6 +538,7 @@ export default function CinemaPage() {
   const playImmediately = handleSelect;
 
   const handleBackToMenu = useCallback(() => {
+    setCinemaSync(null);
     clearUpNextTask();
     [deckARef.current, deckBRef.current].forEach((el) => {
       if (el) {
@@ -604,6 +624,7 @@ export default function CinemaPage() {
   // autres cours, lancée automatiquement après 5 minutes — un clic sur
   // "Retour au menu" annule, "Lancer maintenant" court-circuite l'attente.
   const handleEnded = useCallback(() => {
+    setCinemaSync(null);
     const el = activeDeckRef.current === "A" ? deckARef.current : deckBRef.current;
     if (el) {
       el.pause();
@@ -639,6 +660,7 @@ export default function CinemaPage() {
   const handlePlayPause = () => {
     const el = videoRef.current;
     if (!el) return;
+    setCinemaSync(null); // l'utilisateur prend la main : lecture locale
     if (needsTapToPlay) {
       el.play().then(() => { setIsPlaying(true); setNeedsTapToPlay(false); }).catch(() => {});
       return;
@@ -660,6 +682,7 @@ export default function CinemaPage() {
   const seekBy = (delta: number) => {
     const el = videoRef.current;
     if (!el) return;
+    setCinemaSync(null);
     const target = Math.max(0, Math.min((el.currentTime || 0) + delta, el.duration || 0));
     el.currentTime = target;
     setPosition(target);
@@ -734,7 +757,14 @@ export default function CinemaPage() {
             thumbnail_path: null,
           };
         }
-        if (video) handleSelect(video);
+        if (video) {
+          handleSelect(video);
+          // Cours lancé par ordre : cette page le suit sur l'horloge serveur
+          // (démarrage et dérive corrigés comme pour /kiosk).
+          if (extra?.clock && extra.clock_video_id === Number(video.id)) {
+            setCinemaSync({ anchor: extra.clock, videoId: extra.clock_video_id });
+          }
+        }
         return;
       }
       if (!el || phase !== "playing") return;
@@ -747,8 +777,31 @@ export default function CinemaPage() {
         lastSeekTimeRef.current = Date.now();
         seekWhenReady(el, positionSeconds, () => setPosition(positionSeconds));
       }
+      // Nouvelle ancre pour la page qui joue CE cours lancé par ordre ; une page qui
+      // joue autre chose (choix local d'un adhérent) n'est pas concernée.
+      if (extra?.clock && extra.clock_video_id !== undefined && Number(selected?.id) === extra.clock_video_id) {
+        setCinemaSync({ anchor: extra.clock, videoId: extra.clock_video_id });
+      }
     };
-  }, [phase, handleBackToMenu, videos, handleSelect]);
+  }, [phase, handleBackToMenu, videos, handleSelect, selected?.id]);
+
+  // Suivi de l'horloge serveur pour le cours lancé par ordre (plan 4.0.1). N'agit que
+  // si l'élément joue bien CE cours (le double lecteur A/B charge d'abord le nouveau
+  // cours en coulisses) et jamais sur une vidéo terminée.
+  const cinemaMediaRef = useMemo(() => ({ get current() { return videoRef.current; } }), []);
+  useMediaClockFollower({
+    mediaRef: cinemaMediaRef,
+    state: cinemaSync,
+    select: selectCinemaTarget,
+    isMediaForKey: (el, key) => el.src.endsWith(`/videos/${key}/stream`),
+    serverNow,
+    tryPlay: (el) => {
+      el?.play().catch(() => {});
+    },
+    onSeek: () => {
+      lastSeekTimeRef.current = Date.now();
+    },
+  });
 
   // Rapport périodique vers les tableaux de bord du canal : ce que joue CET
   // appareil. Un rapport "vide" est envoyé en quittant la lecture pour que
@@ -1215,12 +1268,14 @@ export default function CinemaPage() {
               onMouseUp={(e) => {
                 const value = Number((e.target as HTMLInputElement).value);
                 setSeekDragValue(null);
+                setCinemaSync(null);
                 if (videoRef.current) seekWhenReady(videoRef.current, value);
                 setPosition(value);
               }}
               onTouchEnd={(e) => {
                 const value = Number((e.target as HTMLInputElement).value);
                 setSeekDragValue(null);
+                setCinemaSync(null);
                 if (videoRef.current) seekWhenReady(videoRef.current, value);
                 setPosition(value);
               }}

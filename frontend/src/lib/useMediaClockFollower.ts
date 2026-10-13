@@ -37,6 +37,9 @@ interface Options<S> {
   select: (state: S) => ClockTarget;
   /** Désactive le suivi sans démonter le hook (ex. poste primaire de la radio, qui reste la source). */
   enabled?: boolean;
+  /** Vérifie que l'élément joue bien le média visé (`key`) avant d'agir : évite de
+   * « corriger » un lecteur qui charge encore le cours précédent (double lecteur A/B). */
+  isMediaForKey?: (el: HTMLMediaElement, key: string | number | null | undefined) => boolean;
   /** Heure serveur estimée (epoch, ms). */
   serverNow: () => number;
   /** Lance la lecture avec le repli d'autoplay propre à la page. */
@@ -57,10 +60,11 @@ interface Options<S> {
  *  - ordre explicite (changement d'epoch) : appliqué immédiatement.
  * Ne touche jamais à un média en cours de chargement ou de seek.
  */
-export function useMediaClockFollower<S>({ mediaRef, state, select, enabled = true, serverNow, tryPlay, onSeek }: Options<S>) {
+export function useMediaClockFollower<S>({ mediaRef, state, select, enabled = true, isMediaForKey, serverNow, tryPlay, onSeek }: Options<S>) {
   const stateRef = useRef(state);
   const selectRef = useRef(select);
   const enabledRef = useRef(enabled);
+  const isMediaForKeyRef = useRef(isMediaForKey);
   const serverNowRef = useRef(serverNow);
   const tryPlayRef = useRef(tryPlay);
   const onSeekRef = useRef(onSeek);
@@ -68,6 +72,7 @@ export function useMediaClockFollower<S>({ mediaRef, state, select, enabled = tr
     stateRef.current = state;
     selectRef.current = select;
     enabledRef.current = enabled;
+    isMediaForKeyRef.current = isMediaForKey;
     serverNowRef.current = serverNow;
     tryPlayRef.current = tryPlay;
     onSeekRef.current = onSeek;
@@ -124,6 +129,9 @@ export function useMediaClockFollower<S>({ mediaRef, state, select, enabled = tr
       const target0 = selectRef.current(stateRef.current);
       const anchor = target0.anchor;
       if (!video || !video.src || !anchor || target0.mode === null) return;
+      // Média terminé : ne jamais le relancer (l'horloge, elle, continue d'avancer).
+      if (video.ended) return;
+      if (isMediaForKeyRef.current && !isMediaForKeyRef.current(video, target0.key)) return;
       if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
 
       const now = serverNowRef.current();

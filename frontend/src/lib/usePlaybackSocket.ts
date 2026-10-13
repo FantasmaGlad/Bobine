@@ -111,6 +111,15 @@ export interface CinemaRemoteState {
 // "launch" (Lot 14, docs/plan-implementation-android.md) : diffusé par
 // /grid (écran de sélection découplé) pour lancer un video_id précis sur
 // les /cinema du canal - jamais émis par le profil desktop existant.
+/** Données additionnelles d'un ordre cinéma : titre/durée du cours, et — pour un cours
+ * lancé par ordre — l'ancre d'horloge serveur et l'identifiant du cours qu'elle pilote. */
+export interface CinemaCommandExtra {
+  title?: string;
+  duration_seconds?: number | null;
+  clock?: ClockAnchor;
+  clock_video_id?: number;
+}
+
 export type CinemaCommandAction = "play" | "pause" | "seek" | "stop" | "launch";
 
 export interface PlaybackEvent {
@@ -205,7 +214,7 @@ export function usePlaybackSocket(
   onEvent?: (evt: PlaybackEvent) => void,
   role?: "kiosk",
   channel: PlaybackChannel = "cable",
-  onCinemaCommand?: (action: CinemaCommandAction, positionSeconds: number, videoId?: number, extra?: { title?: string; duration_seconds?: number | null }) => void,
+  onCinemaCommand?: (action: CinemaCommandAction, positionSeconds: number, videoId?: number, extra?: CinemaCommandExtra) => void,
 ) {
   const [state, setState] = useState<PlaybackState>(DEFAULT_STATE);
   const [connected, setConnected] = useState(false);
@@ -429,7 +438,7 @@ export function usePlaybackSocket(
               parsed.action,
               parsed.position_seconds ?? 0,
               parsed.video_id ?? undefined,
-              { title: parsed.title, duration_seconds: parsed.duration_seconds }
+              { title: parsed.title, duration_seconds: parsed.duration_seconds, clock: parsed.clock, clock_video_id: parsed.clock_video_id }
             );
             return;
           }
