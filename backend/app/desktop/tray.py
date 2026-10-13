@@ -30,6 +30,15 @@ from pathlib import Path
 import pystray
 from PIL import Image
 
+from app.desktop.displays import (
+    REPORT_REFRESH_SECONDS,
+    DisplayOrchestrator,
+    DisplayWatcher,
+    ProjectorWindow,
+    external_monitors,
+    list_monitors,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,6 +64,10 @@ KIOSK_URL = f"{ADMIN_URL}/kiosk"
 GRID_URL = f"{ADMIN_URL}/grid"
 CINEMA_URL = f"{ADMIN_URL}/cinema"
 HEALTH_URL = f"{ADMIN_URL}/api/health"
+DISPLAY_STATE_URL = f"{ADMIN_URL}/api/display/state"
+# ?channel=cable EXPLICITE : l'écran projecteur est toujours le canal câblé
+# (cf. frontend/src/lib/displayChannel.ts).
+PROJECTOR_URL = f"{ADMIN_URL}/cinema/?channel=cable"
 UPDATES_CHECK_URL = f"{ADMIN_URL}/api/updates/check"
 UPDATES_STATUS_URL = f"{ADMIN_URL}/api/updates/status"
 
@@ -283,25 +296,35 @@ def _get_wired_display_mode() -> str:
 
 
 def _open_initial_displays(timeout_seconds: float = 20.0) -> None:
-    """Orchestre l'ouverture des interfaces au démarrage selon le mode d'affichage configuré (CDC §4.3).
-    - En mode Pupitre Studio (dual_screen) :
-      - Ouvre /grid sur l'écran du PC (navigateur pour touchpad/souris/tactile)
-      - Ouvre /cinema en plein écran / kiosque sur la sortie HDMI
-    - En mode Classique / Headless (headless) :
-      - Ouvre l'administration sur l'écran du PC
-      - Ouvre le kiosque câblé sur la sortie HDMI
+    """Orchestre l'ouverture des interfaces au démarrage (CDC §4.3).
+
+    Plan 4.0 (P1-3a) : l'écran EXTERNE (projecteur, TV) n'est plus ouvert ici,
+    à l'aveugle et sans position, mais par `DisplayOrchestrator` qui énumère les
+    moniteurs, place une fenêtre dédiée sur le bon écran et suit les
+    branchements/débranchements à chaud. Ce démarrage ne s'occupe donc que de
+    l'écran du PC :
+      - écran externe détecté : /grid (pupitre) ou l'administration sur le PC,
+        le projecteur étant géré par l'orchestrateur ;
+      - aucun écran externe (comportement historique « mini-PC autonome ») :
+        administration + kiosque câblé sur l'écran unique.
     """
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         if is_backend_running():
+            has_external = bool(external_monitors(list_monitors()))
             mode = _get_wired_display_mode()
-            logger.info(f"Backend prêt — mode d'affichage câblé configuré : {mode}")
-            if mode == "dual_screen":
-                logger.info("Démarrage en mode Pupitre Studio (double écran) : /grid + /cinema")
-                webbrowser.open(GRID_URL)
-                launch_kiosk_browser(f"{ADMIN_URL}/cinema")
+            logger.info(
+                f"Backend prêt — mode d'affichage câblé : {mode}, écran externe détecté : {has_external}"
+            )
+            if has_external or mode == "dual_screen":
+                webbrowser.open(GRID_URL if mode == "dual_screen" else ADMIN_URL)
+                if not has_external and mode == "dual_screen":
+                    # Pupitre forcé sans projecteur branché : la fenêtre
+                    # /cinema sera ouverte par l'orchestrateur dès qu'un écran
+                    # apparaîtra ; rien à lancer ici.
+                    logger.info("Mode double écran sans écran externe : en attente d'un projecteur")
             else:
-                logger.info("Démarrage en mode Classique / Headless : Administration + Kiosque")
+                logger.info("Mode autonome (aucun écran externe) : Administration + Kiosque")
                 webbrowser.open(ADMIN_URL)
                 launch_kiosk_browser(KIOSK_URL)
             return
@@ -616,6 +639,24 @@ def run() -> None:
 
     threading.Thread(target=_update_poll_loop, daemon=True, name="bobine-tray-update-check").start()
 
+    # Plug and play (plan 4.0, P1-3a) : démarre TOUJOURS, y compris en démarrage
+    # silencieux (--startup) — brancher un projecteur doit afficher /cinema
+    # dessus sans aucun geste, au démarrage comme à chaud.
+    display_orchestrator = DisplayOrchestrator(
+        DISPLAY_STATE_URL,
+        ProjectorWindow(PROJECTOR_URL),
+        ready_check=is_backend_running,
+    )
+    display_watcher = DisplayWatcher(display_orchestrator.handle_change)
+    display_watcher.start()
+
+    def _refresh_display_report_loop() -> None:
+        while True:
+            time.sleep(REPORT_REFRESH_SECONDS)
+            display_orchestrator.refresh_report()
+
+    threading.Thread(target=_refresh_display_report_loop, daemon=True, name="bobine-display-refresh").start()
+
     def on_open_admin(icon, item):
         webbrowser.open(ADMIN_URL)
 
@@ -642,7 +683,13 @@ def run() -> None:
     def on_restart(icon, item):
         supervisor.restart_now()
 
+    def on_reopen_projector(icon, item):
+        if not display_orchestrator.reopen_projector():
+            _notify_best_effort(icon, "Bobine", "Aucun écran externe détecté.")
+
     def on_quit(icon, item):
+        display_watcher.stop()
+        display_orchestrator.shutdown()
         supervisor.stop()
         icon.stop()
 
@@ -662,6 +709,7 @@ def run() -> None:
         pystray.MenuItem("Ouvrir le pupitre tactile (/grid)", on_open_grid),
         pystray.MenuItem("Ouvrir l'écran cinéma (/cinema)", on_open_cinema),
         pystray.MenuItem("Ouvrir en mode kiosque", on_open_kiosk),
+        pystray.MenuItem("Rouvrir l'écran projecteur", on_reopen_projector),
         pystray.MenuItem(update_text, on_check_update),
         pystray.MenuItem("Redémarrer", on_restart),
         pystray.Menu.SEPARATOR,
