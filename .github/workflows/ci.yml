@@ -538,9 +538,15 @@ jobs:
       # release, copié dans le bundle AVANT la signature ad-hoc ci-dessous.
       - name: Tester et construire la fenêtre native du projecteur
         working-directory: projector
+        # Nouvelles tentatives réseau : le téléchargement de l'index crates.io a
+        # déjà échoué une fois sur une panne DNS passagère du runner. `--locked`
+        # impose Cargo.lock (build reproductible).
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
         run: |
-          cargo test
-          cargo build --release
+          cargo test --locked
+          cargo build --release --locked
           cp target/release/bobine-projector ../backend/dist/Bobine.app/Contents/MacOS/bobine-projector
       - name: Vérifier la présence de l'icône dans le bundle
         run: test -f backend/dist/Bobine.app/Contents/Resources/bobine.icns
