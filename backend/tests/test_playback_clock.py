@@ -5,6 +5,7 @@ import asyncio
 
 from app.playback_manager import (
     LOAD_LEAD_MS,
+    PLAY_LEAD_MS,
     VIDEO_END_GRACE_SECONDS,
     PlaybackManager,
 )
@@ -120,7 +121,7 @@ def test_la_position_avance_sans_aucun_kiosque_connecte():
         fake = FakeTime()
         _patch_clock(m, fake)
         await m.load(1, "Cours", 120.0)
-        fake.advance(1.0 + 10.0)  # lead de démarrage + 10 s de lecture
+        fake.advance(10.0)  # aucun écran connecté : pas de délai de démarrage
         snap = m.snapshot()
         assert snap["state"] == "playing"
         assert abs(snap["position_seconds"] - 10.0) < 1e-6
@@ -137,14 +138,14 @@ def test_play_pause_seek_vitesse_pilotent_l_horloge():
         fake = FakeTime()
         _patch_clock(m, fake)
         await m.load(1, "Cours", 600.0)
-        fake.advance(LOAD_LEAD_MS / 1000 + 20)
+        fake.advance(20)
         await m.pause()
         fake.advance(50)
         assert abs(m.snapshot()["position_seconds"] - 20.0) < 1e-6
         await m.seek(100.0)
         assert m.snapshot()["position_seconds"] == 100.0
         await m.play()
-        fake.advance(0.3 + 4)
+        fake.advance(4)
         assert abs(m.snapshot()["position_seconds"] - 104.0) < 1e-6
         await m.set_speed(2.0)
         fake.advance(5)
@@ -162,7 +163,7 @@ def test_report_position_ne_modifie_plus_la_position():
         fake = FakeTime()
         _patch_clock(m, fake)
         await m.load(1, "Cours", 600.0)
-        fake.advance(1.0 + 7.0)
+        fake.advance(7.0)
         await m.report_position(999.0)
         assert abs(m.snapshot()["position_seconds"] - 7.0) < 1e-6
 
@@ -201,10 +202,88 @@ def test_le_serveur_termine_lui_meme_un_cours_depasse():
         fake = FakeTime()
         _patch_clock(m, fake)
         await m.load(1, "Cours", 30.0)
-        fake.advance(1.0 + 30.0 + VIDEO_END_GRACE_SECONDS - 0.1)
+        fake.advance(30.0 + VIDEO_END_GRACE_SECONDS - 0.1)
         assert await m._end_video_if_overdue() is False
         fake.advance(0.2)
         assert await m._end_video_if_overdue() is True
         assert m.state["state"] == "waiting"
 
     asyncio.run(_run())
+
+
+# ---------------------------------------------------------------------------
+# Délai de démarrage synchronisé ADAPTATIF (réponse immédiate avec un seul écran)
+# ---------------------------------------------------------------------------
+
+def test_un_seul_ecran_ou_aucun_demarre_sans_delai():
+    """Mesuré avant correction : play = 300 ms, chargement = 1 009 ms de latence
+    ressentie, alors que pause répondait en 1 à 3 ms."""
+    async def _run():
+        for screens in (0, 1):
+            m = _manager([])
+            m.display_counter = lambda channel, n=screens: n
+            fake = FakeTime()
+            _patch_clock(m, fake)
+            await m.load(1, "Cours", 600.0)
+            anchor = m.snapshot()["clock"]
+            assert anchor["at_ms"] <= int(fake.epoch) + 1, f"{screens} écran(s) : départ différé"
+            await m.pause()
+            await m.play()
+            assert m.snapshot()["clock"]["at_ms"] <= int(fake.epoch) + 1
+            await m.seek(30.0)
+            assert m.snapshot()["clock"]["at_ms"] <= int(fake.epoch) + 1
+
+    asyncio.run(_run())
+
+
+def test_plusieurs_ecrans_demarrent_ensemble_a_un_instant_commun_futur():
+    async def _run():
+        m = _manager([])
+        m.display_counter = lambda channel: 2
+        fake = FakeTime()
+        _patch_clock(m, fake)
+        await m.load(1, "Cours", 600.0)
+        assert m.snapshot()["clock"]["at_ms"] == int(round(fake.epoch + LOAD_LEAD_MS))
+        fake.advance(LOAD_LEAD_MS / 1000)
+        await m.pause()
+        await m.play()
+        assert m.snapshot()["clock"]["at_ms"] == int(round(fake.epoch + PLAY_LEAD_MS))
+
+    asyncio.run(_run())
+
+
+def test_un_compteur_d_ecrans_defaillant_ne_bloque_jamais_la_lecture():
+    async def _run():
+        m = _manager([])
+
+        def boom(channel):
+            raise RuntimeError("compteur indisponible")
+
+        m.display_counter = boom
+        fake = FakeTime()
+        _patch_clock(m, fake)
+        await m.load(1, "Cours", 600.0)
+        assert m.snapshot()["clock"]["at_ms"] <= int(fake.epoch) + 1
+
+    asyncio.run(_run())
+
+
+def test_l_epoch_change_a_chaque_ordre_et_reste_stable_entre_deux_heartbeats():
+    """Permet à un écran de distinguer un ORDRE explicite (à appliquer sans délai
+    de grâce) d'une simple dérive."""
+    t = FakeTime()
+    c = t.clock()
+    e0 = c.to_dict()["epoch"]
+    c.start(0.0)
+    e1 = c.to_dict()["epoch"]
+    t.advance(5)
+    assert c.to_dict()["epoch"] == e1  # simple heartbeat : inchangé
+    c.seek(40.0)
+    e2 = c.to_dict()["epoch"]
+    c.pause()
+    e3 = c.to_dict()["epoch"]
+    c.set_rate(1.5)
+    e4 = c.to_dict()["epoch"]
+    c.reset()
+    e5 = c.to_dict()["epoch"]
+    assert len({e0, e1, e2, e3, e4, e5}) == 6

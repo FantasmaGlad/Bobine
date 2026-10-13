@@ -10,6 +10,9 @@ import { anchorPosition, msUntilStart, planDrift } from "@/lib/playbackClock";
 const FOLLOW_INTERVAL_MS = 200;
 // Au-delà de cet écart (s) à l'arrêt/avant le départ, on replace le média.
 const HOLD_SEEK_THRESHOLD_S = 0.25;
+// Départ en retard : au-delà de cet écart (s) on saute à la position cible, en
+// dessous on démarre tel quel et la correction de vitesse comble l'écart.
+const LATE_START_SEEK_THRESHOLD_S = 1.0;
 // Après un `seek`, on laisse le décodeur se stabiliser avant de juger la dérive,
 // et on n'en refait pas un autre tout de suite (anti-boucle).
 const SETTLE_AFTER_SEEK_MS = 1500;
@@ -53,9 +56,16 @@ export function useVideoClockFollower({ videoRef, state, serverNow, tryPlay, onS
     onSeekRef.current = onSeek;
   });
 
+  // Fonction de suivi exposée à l'effet de réaction ci-dessous (le corps
+  // vit dans l'effet principal, qui en possède l'état interne).
+  const tickRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     let correcting = false;
     let lastSeekAt = 0;
+    // Dernière epoch d'ancre traitée : un changement = un ORDRE explicite
+    // (télécommande, /grid, planning), à appliquer immédiatement.
+    let handledEpoch: number | undefined;
     let lastPlayAttemptAt = 0;
     let startTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -136,20 +146,26 @@ export function useVideoClockFollower({ videoRef, state, serverNow, tryPlay, onS
 
       // --- En lecture, instant de départ passé.
       if (video.paused) {
-        // Départ manqué (média pas prêt à l'heure) : on rejoint la position
-        // courante d'abord si l'écart est grand, sinon on relance simplement.
-        if (Math.abs(video.currentTime - target) > HOLD_SEEK_THRESHOLD_S) {
+        // Départ manqué (média pas prêt à l'heure : l'horloge serveur avance
+        // pendant l'ouverture du flux) : un petit retard est rattrapé par la
+        // vitesse après le démarrage — AUCUN seek (reset du décodeur) pour
+        // quelques centaines de ms ; au-delà de 1 s on rejoint la position.
+        if (Math.abs(video.currentTime - target) > LATE_START_SEEK_THRESHOLD_S) {
           seekSafely(video, target + SEEK_LATENCY_COMPENSATION_S, true);
         }
         playThrottled(video);
         return;
       }
       if (video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) return; // mise en mémoire tampon
-      if (Date.now() - lastSeekAt < SETTLE_AFTER_SEEK_MS) return;
+      // Ordre explicite : ni délai de grâce ni anti-boucle (deux seeks +10 s
+      // consécutifs à la télécommande doivent chacun s'exécuter aussitôt).
+      const explicit = anchor.epoch !== undefined && anchor.epoch !== handledEpoch;
+      if (anchor.epoch !== undefined) handledEpoch = anchor.epoch;
+      if (!explicit && Date.now() - lastSeekAt < SETTLE_AFTER_SEEK_MS) return;
 
-      const plan = planDrift(video.currentTime - target, nominal, correcting);
+      const plan = planDrift(video.currentTime - target, nominal, correcting, explicit);
       if (plan.action === "seek") {
-        if (Date.now() - lastSeekAt >= MIN_MS_BETWEEN_SEEKS) {
+        if (explicit || Date.now() - lastSeekAt >= MIN_MS_BETWEEN_SEEKS) {
           correcting = false;
           video.playbackRate = nominal;
           seekSafely(video, target + SEEK_LATENCY_COMPENSATION_S, true);
@@ -162,10 +178,20 @@ export function useVideoClockFollower({ videoRef, state, serverNow, tryPlay, onS
       }
     };
 
+    tickRef.current = tick;
     const id = setInterval(tick, FOLLOW_INTERVAL_MS);
     return () => {
+      tickRef.current = null;
       clearInterval(id);
       if (startTimer) clearTimeout(startTimer);
     };
   }, [videoRef]);
+
+  // Réaction IMMÉDIATE à un ordre (play, pause, seek, nouveau cours) : sans
+  // cela, une commande attendait jusqu'à FOLLOW_INTERVAL_MS (200 ms) le prochain
+  // tour de la boucle avant d'être appliquée à l'écran.
+  const anchor = state.clock;
+  useEffect(() => {
+    tickRef.current?.();
+  }, [anchor?.at_ms, anchor?.running, anchor?.pos, anchor?.rate, state.state, state.current_video?.id]);
 }

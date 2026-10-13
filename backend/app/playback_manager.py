@@ -21,12 +21,15 @@ DEFAULT_CHANNEL = "cable"
 
 # Décalage (ms) entre l'ordre reçu et l'instant où TOUS les écrans démarrent
 # (réf. plan 4.0, P2-2) : laisse à chaque écran le temps de recevoir l'ordre
-# et de précharger, pour qu'ils démarrent ensemble plutôt que « au plus vite »
-# chacun de son côté. Court pour play/seek (média déjà chargé), plus long pour
-# un nouveau cours (il faut ouvrir le flux).
-LOAD_LEAD_MS = 1000.0
-PLAY_LEAD_MS = 300.0
-SEEK_LEAD_MS = 300.0
+# pour qu'ils démarrent ENSEMBLE plutôt que « au plus vite » chacun de son côté.
+# Il n'a de sens qu'avec PLUSIEURS écrans : avec un seul (ou aucun), tout délai
+# n'est que de la latence ressentie — mesuré 300 ms sur play et 1 000 ms au
+# chargement avec un délai fixe, contre 1 à 3 ms sur pause — donc nul (cf.
+# `PlaybackManager._lead_ms`). Court pour play/seek (média déjà chargé), un peu
+# plus long pour un nouveau cours (il faut ouvrir le flux).
+LOAD_LEAD_MS = 400.0
+PLAY_LEAD_MS = 150.0
+SEEK_LEAD_MS = 150.0
 # Cadence du heartbeat de position pendant la lecture vidéo : chaque écran
 # recalcule seul sa position à partir de l'horloge ; le heartbeat ne sert qu'à
 # ré-ancrer les arrivants et à rattraper un évènement perdu.
@@ -115,6 +118,9 @@ class PlaybackManager:
         # la position, indépendante de tout kiosque.
         self._clock = PlaybackClock()
         self._last_heartbeat = 0.0
+        # Nombre d'écrans de diffusion connectés sur CE canal (fourni par la
+        # couche WebSocket) : décide si un démarrage synchronisé est utile.
+        self.display_counter: Callable[[str], int] = lambda channel: 0
         # Fond d'ambiance de repli du cours/playlist EN COURS (réf. mission
         # "associer un fond animé à chaque musique") : celui choisi au
         # lancement (background_id du cours, ou None pour une playlist). Non
@@ -153,6 +159,15 @@ class PlaybackManager:
             # la laisser couper proprement la première.
             "scheduled_launch": False,
         }
+
+    def _lead_ms(self, nominal_ms: float) -> float:
+        """Délai de démarrage synchronisé : `nominal_ms` s'il y a au moins deux
+        écrans de diffusion sur le canal à caler entre eux, sinon 0 (réponse
+        immédiate). Ne lève jamais : en cas de doute, aucun délai."""
+        try:
+            return nominal_ms if self.display_counter(self.channel) >= 2 else 0.0
+        except Exception:
+            return 0.0
 
     def _refresh_position(self) -> None:
         """Aligne `state["position_seconds"]` (champ historique lu par l'API REST,
@@ -346,7 +361,7 @@ class PlaybackManager:
         self.state["scheduled_launch"] = scheduled
         self._clock.reset()
         self._clock.set_rate(self.state["speed"])
-        self._clock.start(0.0, lead_ms=LOAD_LEAD_MS)
+        self._clock.start(0.0, lead_ms=self._lead_ms(LOAD_LEAD_MS))
         self._last_heartbeat = time.monotonic()
 
         # Démarrage de la session SQLite d'assiduité (réf. CDC V3.0.5 §2.3)
@@ -574,7 +589,7 @@ class PlaybackManager:
             return
         self.state["state"] = PlaybackStateEnum.playing.value
         if not self._clock.running:
-            self._clock.start(lead_ms=PLAY_LEAD_MS)
+            self._clock.start(lead_ms=self._lead_ms(PLAY_LEAD_MS))
         self._last_heartbeat = time.monotonic()
         await self._emit("play", client_ts)
 
@@ -644,7 +659,7 @@ class PlaybackManager:
         if duration:
             position_seconds = min(position_seconds, duration)
         self.state["position_seconds"] = position_seconds
-        self._clock.seek(position_seconds, lead_ms=SEEK_LEAD_MS if self._clock.running else 0.0)
+        self._clock.seek(position_seconds, lead_ms=self._lead_ms(SEEK_LEAD_MS) if self._clock.running else 0.0)
         self._last_heartbeat = time.monotonic()
         await self._emit("seek", client_ts)
 

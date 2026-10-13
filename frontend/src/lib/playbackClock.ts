@@ -21,6 +21,9 @@ export interface ClockAnchor {
   at_ms: number;
   rate: number;
   running: boolean;
+  /** Incrémenté par le serveur à chaque ordre (play, pause, seek, vitesse,
+   * chargement, arrêt) ; absent d'un backend plus ancien. */
+  epoch?: number;
 }
 
 /** Position cible (s) à l'instant serveur `serverNowMs`. */
@@ -42,6 +45,10 @@ export const DRIFT_ENTER_S = 0.08;
 export const DRIFT_EXIT_S = 0.03;
 export const DRIFT_HARD_SEEK_S = 2.0;
 export const MAX_RATE_ADJUST = 0.05;
+// Après un ORDRE explicite (seek/play/chargement), au-delà de cet écart on
+// replace tout de suite le média sur la position demandée : l'utilisateur veut
+// la position exacte, pas une convergence progressive par la vitesse.
+export const EXPLICIT_SEEK_S = 0.3;
 const RATE_GAIN = 0.5;
 
 export type DriftAction = "none" | "rate" | "seek";
@@ -56,10 +63,19 @@ export interface DriftPlan {
  * @param drift          position du média − position cible (s) ; > 0 = en avance.
  * @param nominalRate    vitesse choisie par l'utilisateur (ancre.rate).
  * @param wasCorrecting  une correction de vitesse était déjà en cours.
+ * @param explicit       la dérive vient d'un ORDRE (changement d'epoch), pas d'un
+ *                       décrochage : seek immédiat dès 0,3 s d'écart.
  */
-export function planDrift(drift: number, nominalRate: number, wasCorrecting: boolean): DriftPlan {
+export function planDrift(
+  drift: number,
+  nominalRate: number,
+  wasCorrecting: boolean,
+  explicit = false,
+): DriftPlan {
   const abs = Math.abs(drift);
-  if (abs >= DRIFT_HARD_SEEK_S) return { action: "seek", playbackRate: nominalRate };
+  if (abs >= DRIFT_HARD_SEEK_S || (explicit && abs >= EXPLICIT_SEEK_S)) {
+    return { action: "seek", playbackRate: nominalRate };
+  }
   const engage = wasCorrecting ? abs >= DRIFT_EXIT_S : abs >= DRIFT_ENTER_S;
   if (!engage) return { action: "none", playbackRate: nominalRate };
   const adjust = Math.max(-MAX_RATE_ADJUST, Math.min(MAX_RATE_ADJUST, drift * RATE_GAIN));

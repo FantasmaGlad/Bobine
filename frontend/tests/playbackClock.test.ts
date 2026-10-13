@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   ClockOffsetEstimator,
   DRIFT_HARD_SEEK_S,
+  EXPLICIT_SEEK_S,
   MAX_RATE_ADJUST,
   anchorPosition,
   msUntilStart,
@@ -92,4 +93,14 @@ test("estimation d'horloge : échantillons invalides ignorés, fenêtre bornée"
   assert.equal(e.count, 0);
   for (let i = 0; i < 10; i++) e.add(i * 100, i * 100 + 5, i * 100 + 10);
   assert.equal(e.count, 4);
+});
+
+test("ordre explicite : seek immédiat dès 0,3 s d'écart, sans attendre la convergence", () => {
+  // Dérive de 0,5 s : en régime normal on corrige par la vitesse...
+  assert.equal(planDrift(0.5, 1, false).action, "rate");
+  // ...mais juste après un ordre (seek +10 s à la télécommande) on replace le média.
+  assert.deepEqual(planDrift(0.5, 1, false, true), { action: "seek", playbackRate: 1 });
+  assert.equal(planDrift(-10, 1, false, true).action, "seek");
+  // Sous le seuil explicite, rien de brutal.
+  assert.notEqual(planDrift(EXPLICIT_SEEK_S - 0.05, 1, false, true).action, "seek");
 });

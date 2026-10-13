@@ -38,6 +38,11 @@ class PlaybackClock:
         self._position = 0.0
         self._rate = 1.0
         self._running = False
+        # Compteur incrémenté à chaque DISCONTINUITÉ voulue (démarrage, pause,
+        # seek, changement de vitesse, arrêt) : permet à un écran de distinguer
+        # un ORDRE explicite (à appliquer tout de suite, sans délai de grâce ni
+        # anti-boucle) d'une simple dérive à corriger en douceur.
+        self._epoch = 0
         # Instant (monotonic) à partir duquel la position commence à avancer.
         # Peut être dans le futur (démarrage synchronisé, cf. `lead_ms`).
         self._start_mono = 0.0
@@ -86,6 +91,7 @@ class PlaybackClock:
             "at_ms": int(round(at_ms)),
             "rate": self._rate,
             "running": self._running,
+            "epoch": self._epoch,
         }
 
     # ------------------------------------------------------------------
@@ -95,23 +101,27 @@ class PlaybackClock:
         """(Re)démarre la lecture depuis `position` (défaut : position
         courante), dans `lead_ms` millisecondes."""
         base = self.position() if position is None else max(0.0, position)
+        self._epoch += 1
         self._position = base
         self._running = True
         self._start_mono = self._monotonic() + max(0.0, lead_ms) / 1000.0
 
     def pause(self) -> None:
         """Fige la position courante."""
+        self._epoch += 1
         self._position = self.position()
         self._running = False
 
     def seek(self, position: float, lead_ms: float = 0.0) -> None:
         """Déplace la position ; conserve l'état en lecture/pause."""
+        self._epoch += 1
         self._position = max(0.0, position)
         if self._running:
             self._start_mono = self._monotonic() + max(0.0, lead_ms) / 1000.0
 
     def set_rate(self, rate: float) -> None:
         """Change la vitesse SANS saut de position."""
+        self._epoch += 1
         self._position = self.position()
         self._rate = float(rate)
         if self._running:
@@ -120,6 +130,7 @@ class PlaybackClock:
     def reset(self) -> None:
         """Arrêt complet (aucun cours) : position 0, à l'arrêt. La vitesse
         choisie est conservée (réglage de l'utilisateur, pas de la lecture)."""
+        self._epoch += 1
         self._position = 0.0
         self._running = False
         self._start_mono = 0.0

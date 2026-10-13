@@ -42,6 +42,10 @@ _cinema_sessions: dict[str, int] = {}
 # réseau (autres appareils du LAN) ont chacun leur lecture, leur playlist et
 # leur planning, totalement indépendants.
 playback_managers = init_playback_managers(ws_manager.broadcast)
+# Délai de démarrage synchronisé seulement s'il y a au moins deux écrans à caler
+# sur le canal (plan 4.0) : un seul écran répond immédiatement.
+for _manager in playback_managers.values():
+    _manager.display_counter = ws_manager.kiosk_count
 # 3e canal, radio (réf. docs/cahier-des-charges-radio.md, lot L3) : moteur de
 # lecture INDÉPENDANT (décisions D1/D2), même broadcast partagé pour rester
 # sur la même connexion WebSocket que les deux canaux ci-dessus.

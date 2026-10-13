@@ -198,6 +198,10 @@ class ConnectionManager:
         )
         return is_primary
 
+    def kiosk_count(self, channel: str) -> int:
+        """Nombre d'écrans de diffusion (kiosques identifiés) sur ce canal."""
+        return len(self._kiosk_connections.get(channel, []))
+
     def is_primary_kiosk(self, websocket: WebSocket) -> bool:
         """Retourne True si ce websocket est le kiosk primaire de son canal
         (dernier statut connu, mis à jour à chaque identify)."""
