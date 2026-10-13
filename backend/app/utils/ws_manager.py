@@ -36,6 +36,16 @@ PONG_TIMEOUT_SECONDS = 60.0
 BROADCAST_SEND_TIMEOUT_SECONDS = 3.0
 
 
+# Évènements propres à UN canal de diffusion (champ `channel`) : seuls les
+# clients abonnés à ce canal les reçoivent (réf. plan 4.0, P2-3). Avant, chaque
+# tick de position — état complet — partait vers TOUTES les connexions de TOUS
+# les canaux et le tri se faisait côté client : CPU et réseau consommés pour
+# rien (le coût croît avec le nombre d'écrans). Les autres évènements
+# (`display_output`, `settings_change`, `force_reload`, `ping`…) concernent tout
+# le monde et ne sont jamais filtrés.
+CHANNEL_SCOPED_EVENTS = frozenset({"state_change", "cinema_state", "cinema_command"})
+
+
 class ConnectionManager:
     """Diffuse les changements d'état de lecture à tous les clients connectés
     (écran kiosk + télécommandes PC/mobile). Cf. plan de construction §8.3.2.
@@ -80,6 +90,10 @@ class ConnectionManager:
         # réelle de CE processus (cf. _unregister_kiosk), donc un simple
         # mapping sans expiration suffit.
         self._primary_client_id: dict[str, str] = {}
+        # Abonnements de canal déclarés par les clients (`subscribe` /
+        # `identify`). Une connexion SANS entrée reçoit tout (anciens bundles
+        # frontend en cache : comportement historique, aucune régression).
+        self._subscriptions: dict[WebSocket, frozenset[str]] = {}
         # Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6) : boucle
         # asyncio principale, enregistrée une fois au démarrage
         # (`main.py::lifespan`) — permet à du code exécuté HORS boucle (un
@@ -117,9 +131,23 @@ class ConnectionManager:
         if task:
             task.cancel()
         self._last_pong.pop(websocket, None)
+        self._subscriptions.pop(websocket, None)
         # Gestion du rôle kiosk : si ce kiosk était le primaire, promouvoir le suivant.
         asyncio.create_task(self._unregister_kiosk(websocket))
         logger.info(f"Client WebSocket déconnecté ({len(self.active_connections)} au total)")
+
+    def subscribe(self, websocket: WebSocket, channels) -> None:
+        """Déclare les canaux dont ce client veut les évènements propres à un
+        canal. Liste vide = aucun (client qui n'écoute que les évènements
+        globaux, p. ex. thème/langue)."""
+        self._subscriptions[websocket] = frozenset(str(c) for c in channels)
+
+    def _wants(self, websocket: WebSocket, message: dict) -> bool:
+        subscribed = self._subscriptions.get(websocket)
+        if subscribed is None or message.get("event") not in CHANNEL_SCOPED_EVENTS:
+            return True
+        channel = message.get("channel")
+        return channel is None or channel in subscribed
 
     def note_pong(self, websocket: WebSocket):
         """Appelé quand un client répond {"command": "pong"} à notre ping."""
@@ -161,6 +189,7 @@ class ConnectionManager:
             kiosks.append(websocket)
         self._kiosk_channel[websocket] = channel
         self._kiosk_client_id[websocket] = client_id
+        self.subscribe(websocket, (channel,))
         is_primary = self._claim_primary(channel, client_id)
         self._kiosk_primary_status[websocket] = is_primary
         logger.info(
@@ -231,7 +260,7 @@ class ConnectionManager:
         programmation ne faisaient rien (réf. audit plan-corrections-bugs,
         points 2a/3).
         """
-        connections = list(self.active_connections.keys())
+        connections = [c for c in self.active_connections.keys() if self._wants(c, message)]
         if not connections:
             return
 

@@ -378,6 +378,13 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
             # promu primaire, cf. évènement "promoted_primary"). On enregistre
             # son rôle SUR SON CANAL et on lui retourne son statut
             # primaire/miroir via un message dédié à chaque appel.
+            if message.get("command") == "subscribe":
+                # Abonnement de canal (plan 4.0, P2-3) : {"command": "subscribe",
+                # "params": {"channels": ["cable", ...]}} — liste vide autorisée.
+                requested = (message.get("params") or {}).get("channels")
+                if isinstance(requested, list):
+                    ws_manager.subscribe(websocket, [c for c in requested if isinstance(c, str)])
+                continue
             if message.get("command") == "identify":
                 params = message.get("params") or {}
                 role = params.get("role")

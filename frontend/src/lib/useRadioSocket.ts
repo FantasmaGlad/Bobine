@@ -142,6 +142,8 @@ export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kios
         // Identification du rôle kiosk (réf. correctif P4) : envoyée dès
         // l'ouverture pour que le backend assigne le rôle primaire/miroir
         // avant tout report_position.
+        // Abonnement de canal (plan 4.0, P2-3) : n'écoute que les évènements radio.
+        ws.send(JSON.stringify({ command: "subscribe", params: { channels: ["radio"] } }));
         if (role === "kiosk") {
           ws.send(JSON.stringify({ command: "identify", params: { role: "kiosk", channel: "radio" } }));
         }

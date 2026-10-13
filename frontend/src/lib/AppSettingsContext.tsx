@@ -231,6 +231,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       const host = isDevServer ? "localhost:8001" : window.location.host;
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       ws = new WebSocket(`${protocol}//${host}/ws/playback`);
+      // N'écoute que les évènements globaux (plan 4.0, P2-3) : aucun canal.
+      ws.onopen = () => ws?.send(JSON.stringify({ command: "subscribe", params: { channels: [] } }));
       ws.onmessage = (evt) => {
         try {
           const parsed = JSON.parse(evt.data);

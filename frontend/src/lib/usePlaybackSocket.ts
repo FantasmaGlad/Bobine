@@ -320,6 +320,10 @@ export function usePlaybackSocket(
         // écart tant que le premier n'est pas arrivé (évite un faux
         // positif comparant à un `tick_seq` d'une connexion précédente).
         lastTickSeqRef.current = null;
+        // Abonnement de canal (plan 4.0, P2-3) : le serveur n'enverra plus à
+        // cette connexion les évènements propres aux AUTRES canaux (le tri
+        // client `parsed.channel !== channel` reste en filet de sécurité).
+        ws.send(JSON.stringify({ command: "subscribe", params: { channels: [channel] } }));
         // Identification du rôle kiosk (réf. correctif P4) : envoyée dès
         // l'ouverture de la connexion pour que le backend puisse assigner
         // le rôle primaire/miroir avant tout report_position. Pas de

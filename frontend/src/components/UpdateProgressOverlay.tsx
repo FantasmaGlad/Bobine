@@ -92,6 +92,8 @@ export default function UpdateProgressOverlay() {
     const connect = () => {
       if (cancelled || typeof window === "undefined") return;
       ws = new WebSocket(getWsUrl());
+      // N'écoute que les évènements globaux (plan 4.0, P2-3) : aucun canal.
+      ws.onopen = () => ws?.send(JSON.stringify({ command: "subscribe", params: { channels: [] } }));
       ws.onmessage = (evt) => {
         try {
           const parsed = JSON.parse(evt.data);
