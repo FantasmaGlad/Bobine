@@ -162,8 +162,19 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-      - name: Run test suite (unittest)
-        run: python -m unittest discover -s backend/tests
+      # pytest (et non `unittest discover`) : c'est la commande documentée
+      # (AGENTS.md §1.3) et `unittest` ignore les tests écrits en simples
+      # fonctions (suivi de séquence, horloge de lecture, diffusion par canal,
+      # écrans...), qui n'étaient donc jamais exécutés en CI. pytest exécute
+      # aussi les `unittest.TestCase` existants.
+      # httpx : requis par starlette.testclient.TestClient (tests de l'API), non
+      # déclaré dans requirements.txt car inutile à l'exécution.
+      - name: Install test dependencies
+        run: pip install pytest httpx
+      - name: Run test suite (pytest)
+        run: python -m pytest backend/tests -q
+        env:
+          PYTHONPATH: backend
 
   assistant-core:
     name: Assistant core (Rust)
