@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clearCachesAndReload } from "@/lib/cacheReload";
+import { createPageClientId } from "@/lib/displayChannel";
 
 export type PlaybackStateValue =
   | "waiting"
@@ -160,32 +161,19 @@ function getApiUrl(path: string): string {
 // aucun évènement WebSocket n'est perdu.
 const RESYNC_INTERVAL_MS = 15000;
 
-const KIOSK_CLIENT_ID_STORAGE_KEY = "olc-kiosk-client-id";
+// Identifiant de CETTE page auprès du serveur (clé du rôle primaire, cf.
+// ws_manager.py `_primary_client_id`) : créé une fois par chargement de page et
+// gardé en mémoire — les reconnexions WebSocket de la page le réutilisent
+// (reprise immédiate du rôle primaire), mais il n'est JAMAIS persisté. Stocké
+// en `localStorage` (ancien comportement), il était commun à tous les onglets
+// de la même origine : sur une seule machine en 127.0.0.1, deux onglets
+// étaient pris pour le même kiosque et se déclaraient tous deux primaires.
+let pageClientId: string | null = null;
 
-/**
- * Identifiant stable de CET appareil/onglet kiosk, persistant across
- * reconnexions WebSocket (contrairement à l'objet WebSocket lui-même) — la
- * clé du rôle primaire côté backend (cf. ws_manager.py,
- * `_primary_client_id`). Sans lui, une reconnexion (nouvelle WebSocket)
- * ne serait pas reconnue comme le même kiosk.
- */
-function getOrCreateKioskClientId(): string {
+function getPageKioskClientId(): string {
   if (typeof window === "undefined") return "";
-  try {
-    const existing = window.localStorage.getItem(KIOSK_CLIENT_ID_STORAGE_KEY);
-    if (existing) return existing;
-    const created =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `kiosk-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    window.localStorage.setItem(KIOSK_CLIENT_ID_STORAGE_KEY, created);
-    return created;
-  } catch {
-    // localStorage indisponible (navigation privée stricte, etc.) : repli sur
-    // un identifiant de session, perdu à la prochaine reconnexion — dégrade
-    // gracieusement vers l'ancien comportement (pas de reprise cross-worker).
-    return `kiosk-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  }
+  if (pageClientId === null) pageClientId = createPageClientId();
+  return pageClientId;
 }
 
 /**
@@ -312,7 +300,7 @@ export function usePlaybackSocket(
         if (wsRef.current !== ws || ws.readyState !== WebSocket.OPEN) return;
         ws.send(JSON.stringify({
           command: "identify",
-          params: { role: "kiosk", channel, client_id: getOrCreateKioskClientId() },
+          params: { role: "kiosk", channel, client_id: getPageKioskClientId() },
         }));
       };
 

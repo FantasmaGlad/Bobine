@@ -409,6 +409,20 @@ export default function DashboardScreen({ channel }: Props) {
           onSetDisplayOutput={handleSetDisplayOutput}
           label={isCable ? t("dashboard.displayOutputCableLabel") : t("dashboard.displayOutputNetworkLabel")}
         />
+        {!isCable && (
+          // Écran explicitement rattaché au canal Réseau (lib/displayChannel.ts) :
+          // indispensable pour en ouvrir un sur la machine du serveur, où
+          // 127.0.0.1 désigne sinon le canal câblé.
+          <a
+            href={`/${displayOutput === "cinema" ? "cinema" : "kiosk"}?channel=network`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="status-pill"
+            style={{ textDecoration: "none" }}
+          >
+            {t("dashboard.openNetworkScreen")}
+          </a>
+        )}
       </div>
 
       <div className="live-block">

@@ -118,6 +118,10 @@ const THEME_SWATCHES: ThemeSwatch[] = [
 // `isFullscreenRoute` dans ClientLayout.tsx.
 const PUBLIC_PAGE_KEYS: { path: string; labelKey: string }[] = [
   { path: "/kiosk", labelKey: "settingsPage.paths.pageKiosk" },
+  // Écran explicitement rattaché au canal RÉSEAU : seul moyen d'en avoir un
+  // sur la machine du serveur (127.0.0.1), où le nom d'hôte désigne sinon le
+  // canal câblé (cf. lib/displayChannel.ts).
+  { path: "/kiosk?channel=network", labelKey: "settingsPage.paths.pageKioskNetwork" },
   { path: "/cinema", labelKey: "settingsPage.paths.pageCinema" },
   { path: "/coach", labelKey: "settingsPage.paths.pageCoach" },
   { path: "/radio", labelKey: "settingsPage.paths.pageRadio" },

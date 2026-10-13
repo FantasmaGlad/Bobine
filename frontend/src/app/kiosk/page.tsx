@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { usePlaybackSocket, PlaybackEvent } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import { isWiredDisplay, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
+import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import { useKioskRemote } from "@/lib/useKioskRemote";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
@@ -47,17 +47,13 @@ interface NextCourse {
 export default function KioskPage() {
   const { t } = useAppSettings();
   // Canal de diffusion de CE kiosk (réf. mission "Tableau de bord Câblé /
-  // Réseau") : l'écran câblé du Wyse (accès en 127.0.0.1/localhost) suit
-  // l'état du canal câblé, tout autre appareil du LAN celui du canal réseau.
-  // Chacun n'applique QUE les évènements de son canal — deux lectures
-  // simultanées totalement indépendantes, zéro interférence.
-  const [channel] = useState<"cable" | "network">(() => {
-    if (typeof window !== "undefined") {
-      const p = new URLSearchParams(window.location.search).get("channel");
-      if (p === "network" || p === "cable") return p;
-    }
-    return "cable";
-  });
+  // Réseau") : `?channel=` explicite d'abord (seul moyen d'avoir un écran
+  // réseau sur la machine du serveur, en 127.0.0.1), sinon câblé — défaut
+  // volontaire (commit 675e441 : une TV sur IP LAN reste un écran câblé).
+  // Règle partagée avec /cinema : cf. lib/displayChannel.ts. Chacun
+  // n'applique QUE les évènements de son canal — deux lectures simultanées
+  // totalement indépendantes, zéro interférence.
+  const [channel] = useState<"cable" | "network">(() => getDisplayChannel("kiosk"));
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const bgVideoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);

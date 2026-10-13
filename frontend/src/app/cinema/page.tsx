@@ -3,7 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import { isWiredDisplay, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
+import { buildOutputUrl } from "@/lib/displayChannel";
+import { getDisplayChannel, isWiredDisplay, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import { useHoverSound } from "@/lib/useHoverSound";
 import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
 import { useKioskRemote, moveDomFocus, moveDomFocus2D, activateDomFocus } from "@/lib/useKioskRemote";
@@ -364,7 +365,7 @@ export default function CinemaPage() {
   // commandes admin (play/pause/seek/stop). La lecture reste locale : le
   // playback_manager du serveur n'est jamais impliqué. Le canal suivi est
   // celui de CET appareil : câblé si écran du Wyse, réseau sinon.
-  const [channel] = useState<"cable" | "network">(() => (isWiredDisplay() ? "cable" : "network"));
+  const [channel] = useState<"cable" | "network">(() => getDisplayChannel("cinema"));
   // Implémentation réelle installée plus bas, une fois les handlers définis.
   const cinemaCmdRef = useRef<((action: string, positionSeconds: number, videoId?: number, extra?: { title?: string; duration_seconds?: number | null }) => void) | null>(null);
   const { state, displayOutputCable, displayOutputNetwork, sendCommand, cinemaState, libraryVersion } = usePlaybackSocket(
@@ -379,9 +380,9 @@ export default function CinemaPage() {
   // permettant à l'écran externe de restituer l'audio et la scène visuelle d'ambiance
   useEffect(() => {
     if (state.state === "coach_mode") {
-      window.location.replace("/kiosk");
+      window.location.replace(buildOutputUrl("kiosk", window.location.search, channel));
     }
-  }, [state.state]);
+  }, [state.state, channel]);
   // Son de survol des cartes de cours (réf. mission UI/UX).
   const playHoverSound = useHoverSound("/sounds/survole.mp3");
 
