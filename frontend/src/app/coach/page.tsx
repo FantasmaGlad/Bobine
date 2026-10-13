@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePlaybackSocket, PlaybackState } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import { anchorPosition } from "@/lib/playbackClock";
 import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
 import { navLinks, footerNavLinks } from "@/lib/navLinks";
 import Icon from "@/components/Icon";
@@ -60,7 +61,7 @@ export default function CoachModePage() {
   // — ce qui est justement le cas normal après un Stop — donc l'écran
   // restait bloqué sur le cours coach obsolète au lieu de revenir au picker.
   const [hasSynced, setHasSynced] = useState(false);
-  const { state: wsState, connected, sendCommand } = usePlaybackSocket(() => setHasSynced(true));
+  const { state: wsState, connected, sendCommand, serverNow } = usePlaybackSocket(() => setHasSynced(true));
   const [courses, setCourses] = useState<AudioCourseSummary[]>([]);
   const [loading, setLoading] = useState(true);
   // Playlists audio ("éditions mixées", réf. mission "création de playlists
@@ -128,22 +129,27 @@ export default function CoachModePage() {
 
   const [localPos, setLocalPos] = useState<number>(0);
 
+  // Minuterie du coach (plan 4.0.1) : position déduite de l'ANCRE d'horloge
+  // serveur de la piste (`audio_clock`), recalculée 10 fois par seconde — plus
+  // d'incrément local de 0,1 s recalé à chaque tick, qui dérivait entre deux
+  // messages et n'était pas aligné sur ce que jouent réellement les écrans.
+  // Repli sur `audio_position_seconds` pour un backend sans ancre.
+  const audioAnchor = state.audio_clock;
+  const trackDuration = currentTrack?.duration_seconds;
   useEffect(() => {
-    setLocalPos(state.audio_position_seconds || 0);
-  }, [state.audio_position_seconds, state.audio_track_index]);
-
-  useEffect(() => {
-    if (!state.audio_playing) return;
-    const timer = setInterval(() => {
-      setLocalPos((prev) => {
-        const dur = currentTrack?.duration_seconds;
-        const next = prev + 0.1;
-        if (dur && next > dur) return dur;
-        return next;
-      });
-    }, 100);
+    if (!audioAnchor) {
+      setLocalPos(state.audio_position_seconds || 0);
+      return;
+    }
+    const compute = () => {
+      const position = anchorPosition(audioAnchor, serverNow());
+      setLocalPos(trackDuration ? Math.min(position, trackDuration) : position);
+    };
+    compute();
+    if (!audioAnchor.running) return;
+    const timer = setInterval(compute, 100);
     return () => clearInterval(timer);
-  }, [state.audio_playing, currentTrack?.duration_seconds]);
+  }, [audioAnchor, trackDuration, serverNow, state.audio_position_seconds]);
 
   const remaining = currentTrack?.duration_seconds
     ? Math.max(0, currentTrack.duration_seconds - localPos)

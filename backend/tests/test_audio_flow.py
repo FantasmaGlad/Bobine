@@ -159,14 +159,14 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         # Navigation suivant/précédent
         await manager.audio_next_track()
         self.assertEqual(manager.state["audio_track_index"], 1)
-        self.assertEqual(manager.state["audio_position_seconds"], 0.0)
+        self.assertAlmostEqual(manager.state["audio_position_seconds"], 0.0, delta=0.5)  # horloge serveur : avance en temps réel
         await manager.audio_previous_track()
         self.assertEqual(manager.state["audio_track_index"], 0)
 
         # Relancer la piste au début (réf. UX4.6)
         manager.state["audio_position_seconds"] = 120.0
         await manager.audio_restart_track()
-        self.assertEqual(manager.state["audio_position_seconds"], 0.0)
+        self.assertAlmostEqual(manager.state["audio_position_seconds"], 0.0, delta=0.5)  # horloge serveur : avance en temps réel
         self.assertTrue(manager.state["audio_playing"])
 
         # Saut direct à une piste (bottom sheet, réf. UX4.7)

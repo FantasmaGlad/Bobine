@@ -88,6 +88,8 @@ export interface PlaybackState {
    * P2-2) : la position cible s'en déduit localement (cf. lib/playbackClock.ts).
    * Absente d'un backend plus ancien. */
   clock?: ClockAnchor | null;
+  /** Ancre de l'horloge de la piste audio du mode coach (plan 4.0.1). */
+  audio_clock?: ClockAnchor | null;
 }
 
 export type PlaybackChannel = "cable" | "network";
@@ -143,6 +145,7 @@ const DEFAULT_STATE: PlaybackState = {
   audio_chain_timer_seconds: 20,
   audio_chain_wait_remaining: null,
   clock: null,
+  audio_clock: null,
 };
 
 function getWsUrl(): string {

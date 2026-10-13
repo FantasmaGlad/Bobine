@@ -38,6 +38,10 @@ VIDEO_HEARTBEAT_SECONDS = 1.0
 # cours (filet de sécurité si aucun écran n'envoie `video_ended`, p. ex. aucun
 # kiosque connecté sur le canal).
 VIDEO_END_GRACE_SECONDS = 3.0
+# Même filet de sécurité pour une piste audio du mode coach : les écrans
+# signalent la fin de piste au bon moment ; si aucun ne le fait (aucun écran
+# connecté, pistes en mise en mémoire tampon) le serveur l'enchaîne lui-même.
+AUDIO_END_GRACE_SECONDS = 2.0
 
 
 class PlaybackStateEnum(str, enum.Enum):
@@ -117,6 +121,10 @@ class PlaybackManager:
         # Horloge de lecture vidéo (réf. plan 4.0, P2-2) : source de vérité de
         # la position, indépendante de tout kiosque.
         self._clock = PlaybackClock()
+        # Horloge de la piste audio du mode coach (plan 4.0.1) : même modèle que
+        # la vidéo — la position est une fonction du temps, plus la dernière
+        # valeur rapportée par un écran primaire.
+        self._audio_clock = PlaybackClock()
         self._last_heartbeat = 0.0
         # Nombre d'écrans de diffusion connectés sur CE canal (fourni par la
         # couche WebSocket) : décide si un démarrage synchronisé est utile.
@@ -169,9 +177,26 @@ class PlaybackManager:
         except Exception:
             return 0.0
 
+    def _track_duration(self) -> float | None:
+        tracks = self.state.get("audio_tracks") or []
+        idx = self.state.get("audio_track_index")
+        if idx is not None and 0 <= idx < len(tracks):
+            return tracks[idx].get("duration_seconds")
+        return None
+
+    def _refresh_audio_position(self) -> None:
+        if self.state.get("current_audio_course") is None:
+            return
+        pos = self._audio_clock.position()
+        duration = self._track_duration()
+        if duration:
+            pos = min(pos, duration)
+        self.state["audio_position_seconds"] = pos
+
     def _refresh_position(self) -> None:
         """Aligne `state["position_seconds"]` (champ historique lu par l'API REST,
         le planning de reprise et les clients non migrés) sur l'horloge."""
+        self._refresh_audio_position()
         current = self.state.get("current_video")
         if current is None:
             return
@@ -192,6 +217,7 @@ class PlaybackManager:
         # Ancre de l'horloge (cf. playback_clock.PlaybackClock.to_dict) : les
         # écrans en déduisent la position à tout instant, sans tick.
         snap["clock"] = self._clock.to_dict()
+        snap["audio_clock"] = self._audio_clock.to_dict()
         return snap
 
     async def _emit(self, cause: str, client_ts: float | None = None):
@@ -253,25 +279,15 @@ class PlaybackManager:
                             continue
                         await self._emit("position_tick")
                 elif is_audio_playing:
-                    if not drives_playback:
-                        cur_pos = self.state.get("audio_position_seconds") or 0.0
-                        tracks = self.state.get("audio_tracks") or []
-                        idx = self.state.get("audio_track_index")
-                        track_dur = (
-                            tracks[idx].get("duration_seconds")
-                            if idx is not None and 0 <= idx < len(tracks)
-                            else None
-                        )
-                        new_pos = cur_pos + delta
-                        if track_dur and new_pos >= track_dur:
-                            if self.state.get("audio_chain_mode") == "auto":
-                                await self.audio_next_track()
-                                continue
-                            else:
-                                new_pos = track_dur
-                                self.state["audio_playing"] = False
-                        self.state["audio_position_seconds"] = new_pos
-                    await self._emit("position_tick")
+                    # Audio coach : l'horloge serveur avance seule (plan 4.0.1) ;
+                    # heartbeat lent (la minuterie du coach s'interpole
+                    # localement) et fin de piste enchaînée par le serveur si
+                    # aucun écran ne la signale.
+                    if now - self._last_heartbeat >= VIDEO_HEARTBEAT_SECONDS:
+                        self._last_heartbeat = now
+                        if await self._end_audio_track_if_overdue():
+                            continue
+                        await self._emit("position_tick")
         except asyncio.CancelledError:
             pass
 
@@ -288,6 +304,14 @@ class PlaybackManager:
         await self.video_ended(video_id=current["id"])
         return True
 
+    async def _end_audio_track_if_overdue(self) -> bool:
+        duration = self._track_duration()
+        if not duration or self._audio_clock.position() < duration + AUDIO_END_GRACE_SECONDS:
+            return False
+        logger.info(f"Canal {self.channel} : fin de piste déclenchée par l'horloge serveur")
+        await self.audio_track_ended(track_index=self.state.get("audio_track_index"))
+        return True
+
     def _clear_audio_coach(self):
         """Sort du mode audio coach (réf. F10.4) — appelé par tout ce qui
         prend le relais sur l'écran (cours vidéo, playlist, fond animé,
@@ -300,6 +324,7 @@ class PlaybackManager:
         self.state["audio_playing"] = False
         self.state["audio_position_seconds"] = 0.0
         self.state["audio_chain_wait_remaining"] = None
+        self._audio_clock.reset()
         self._default_audio_background = None
 
     async def load(
@@ -580,6 +605,9 @@ class PlaybackManager:
         # un seul état partagé, pas de mode de contrôle séparé par écran).
         if self.state["current_audio_course"] is not None:
             self.state["audio_playing"] = True
+            if not self._audio_clock.running:
+                self._audio_clock.start(lead_ms=self._lead_ms(PLAY_LEAD_MS))
+            self._last_heartbeat = time.monotonic()
             await self._emit("play", client_ts)
             return
         if (
@@ -596,6 +624,7 @@ class PlaybackManager:
     async def pause(self, client_ts: float | None = None):
         if self.state["current_audio_course"] is not None:
             self.state["audio_playing"] = False
+            self._audio_clock.pause()
             await self._emit("pause", client_ts)
             return
         if (
@@ -746,6 +775,7 @@ class PlaybackManager:
         self.state["audio_track_index"] = 0 if tracks else None
         self.state["audio_playing"] = False
         self.state["audio_position_seconds"] = 0.0
+        self._audio_clock.reset()
         # Fond RÉELLEMENT affiché pour la première piste (réf. mission
         # "associer un fond animé à chaque musique") : peut différer du fond
         # de repli ci-dessus si CETTE piste a son propre fond.
@@ -803,6 +833,9 @@ class PlaybackManager:
         self.state["audio_track_index"] = index
         self.state["audio_position_seconds"] = 0.0
         self.state["audio_playing"] = True
+        self._audio_clock.reset()
+        self._audio_clock.start(0.0, lead_ms=self._lead_ms(PLAY_LEAD_MS))
+        self._last_heartbeat = time.monotonic()
         self.state["current_background"] = self._track_background(tracks[index])
         return True
 
@@ -817,6 +850,7 @@ class PlaybackManager:
             # mais en pause (réf. F10.3, pas d'arrêt automatique du mode coach).
             self._cancel_audio_chain_wait()
             self.state["audio_playing"] = False
+            self._audio_clock.pause()
             await self._emit("audio_course_ended", client_ts)
 
     async def audio_previous_track(self, client_ts: float | None = None):
@@ -833,6 +867,9 @@ class PlaybackManager:
         self._cancel_audio_chain_wait()
         self.state["audio_position_seconds"] = 0.0
         self.state["audio_playing"] = True
+        self._audio_clock.reset()
+        self._audio_clock.start(0.0, lead_ms=self._lead_ms(PLAY_LEAD_MS))
+        self._last_heartbeat = time.monotonic()
         await self._emit("audio_restart_track", client_ts)
 
     async def audio_jump_to_track(self, index: int, client_ts: float | None = None):
@@ -877,8 +914,9 @@ class PlaybackManager:
         côté piste audio."""
         if self.state["current_audio_course"] is None:
             return
+        # Plan 4.0.1 : la position audio vient de l'horloge serveur ; ce rapport
+        # ne la modifie plus (il en fixait l'âge et la précision).
         self._last_direct_report = time.monotonic()
-        self.state["audio_position_seconds"] = position_seconds
 
     async def _run_audio_chain_wait(self):
         try:
@@ -899,11 +937,12 @@ class PlaybackManager:
                 await self._emit("audio_next_track")
             else:
                 self.state["audio_playing"] = False
+                self._audio_clock.pause()
                 await self._emit("audio_course_ended")
         except asyncio.CancelledError:
             pass
 
-    async def audio_track_ended(self, client_ts: float | None = None):
+    async def audio_track_ended(self, client_ts: float | None = None, track_index: int | None = None):
         """
         Fin naturelle d'une piste signalée par le kiosk (`<audio onEnded>`).
         Trois comportements selon le mode d'enchaînement actif (réf. F10.3,
@@ -918,13 +957,26 @@ class PlaybackManager:
         mode = self.state["audio_chain_mode"]
         idx = self.state["audio_track_index"]
 
+        # Idempotent (plan 4.0.1) : TOUS les écrans envoient la fin de piste, et
+        # le serveur peut l'avoir déjà enchaînée lui-même. Sans cette garde, le
+        # signal tardif d'un second écran sautait une piste de plus en mode auto
+        # (ou relançait l'attente en mode minuterie). `track_index` = la piste que
+        # l'écran vient de terminer ; absent (ancien client), seul l'état « en
+        # lecture » est exigé.
+        if not self.state["audio_playing"]:
+            return
+        if track_index is not None and track_index != idx:
+            return
+
         if mode == "manual":
             self.state["audio_playing"] = False
+            self._audio_clock.pause()
             await self._emit("audio_track_ended_manual", client_ts)
             return
 
         if mode == "timer":
             self.state["audio_playing"] = False
+            self._audio_clock.pause()
             self.state["audio_chain_wait_remaining"] = float(self.state["audio_chain_timer_seconds"])
             await self._emit("audio_chain_wait_start", client_ts)
             self._audio_chain_wait_task = asyncio.create_task(self._run_audio_chain_wait())
@@ -935,6 +987,7 @@ class PlaybackManager:
             await self._emit("audio_next_track", client_ts)
         else:
             self.state["audio_playing"] = False
+            self._audio_clock.pause()
             await self._emit("audio_course_ended", client_ts)
 
 

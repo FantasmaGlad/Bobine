@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { usePlaybackSocket, PlaybackEvent } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import { useAudioClockFollower } from "@/lib/useAudioClockFollower";
 import { useVideoClockFollower } from "@/lib/useVideoClockFollower";
 import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import { useKioskRemote } from "@/lib/useKioskRemote";
@@ -238,41 +239,6 @@ export default function KioskPage() {
         el.volume = data.volume / 100;
       };
 
-      // Repli "métadonnées pas encore chargées" (réf. retour utilisateur
-      // "le cours sur la télé (réseau) ne se lance jamais" — TV sur une liaison
-      // réseau lente qui reconnecte son WebSocket toutes les ~30s tant que
-      // la mise en tampon n'a pas abouti) : assigner `currentTime` avant
-      // HAVE_METADATA lève une exception dans certains navigateurs/WebView
-      // embarqués, ce qui empêchait alors silencieusement le tryPlay() suivant —
-      // retenté à chaque reconnexion, sans jamais aboutir. On diffère
-      // l'assignation jusqu'à `loadedmetadata` plutôt que de suivre en aveugle.
-      const seekWhenReady = (el: HTMLMediaElement, position: number) => {
-        const apply = () => {
-          try {
-            if (el.seeking) return;
-            lastSeekTimeRef.current = Date.now();
-            const wasPlaying = !el.paused;
-            if (wasPlaying) el.pause();
-            el.currentTime = position;
-            if (wasPlaying) {
-              const onSeeked = () => {
-                el.removeEventListener("seeked", onSeeked);
-                tryPlay(el);
-              };
-              el.addEventListener("seeked", onSeeked, { once: true });
-              setTimeout(() => {
-                el.removeEventListener("seeked", onSeeked);
-                if (el.paused && wasPlaying) tryPlay(el);
-              }, 1200);
-            }
-          } catch {
-            // Rattrapé par le prochain sync/tick si toujours pas prêt.
-          }
-        };
-        if (el.readyState >= HTMLMediaElement.HAVE_METADATA) apply();
-        else el.addEventListener("loadedmetadata", apply, { once: true });
-      };
-
       const syncAudioToTrack = (resetTime: boolean) => {
         if (!audio || !currentTrack) return;
         const src = getApiUrl(`/audio/tracks/${currentTrack.id}/stream`);
@@ -280,10 +246,13 @@ export default function KioskPage() {
           audio.src = src;
           audio.load();
         }
-        if (resetTime) seekWhenReady(audio, 0);
+        // Plan 4.0.1 : ni position ni lecture/pause ici — `useAudioClockFollower`
+        // amène l'<audio> sur l'horloge serveur (départ synchronisé, correction
+        // de dérive par `playbackRate`). `resetTime` reste accepté pour
+        // lisibilité des appelants : une nouvelle piste repart de l'ancre à 0.
+        void resetTime;
         applyVolume(audio);
-        if (data.audio_playing) tryPlay(audio);
-        else audio.pause();
+        if (!data.audio_playing) audio.pause();
       };
 
       // Fond d'ambiance du mode coach (réf. mission "associer un fond animé
@@ -339,10 +308,8 @@ export default function KioskPage() {
             if (!audio.src || !audio.src.endsWith(aSrc)) {
               audio.src = aSrc;
               audio.load();
-              seekWhenReady(audio, data.audio_position_seconds);
             }
             applyVolume(audio);
-            if (data.audio_playing) tryPlay(audio);
           }
           if (!video || !data.current_video) break;
           const src = getApiUrl(`/videos/${data.current_video.id}/stream`);
@@ -363,13 +330,9 @@ export default function KioskPage() {
           if (isPrimaryRef.current) break;
           // Période de grâce après un seek : laisser le tampon et le décodage se stabiliser
           if (Date.now() - lastSeekTimeRef.current < 3000) break;
-          const DRIFT_THRESHOLD_SECONDS = 1.5;
           if (data.current_audio_course && audio && currentTrack) {
-            if (!audio.seeking && Math.abs(audio.currentTime - data.audio_position_seconds) > DRIFT_THRESHOLD_SECONDS) {
-              seekWhenReady(audio, data.audio_position_seconds);
-            }
-            if (data.audio_playing && audio.paused && !audio.seeking) tryPlay(audio);
-            else if (!data.audio_playing && !audio.paused) audio.pause();
+            // Position et lecture/pause de la piste : portées par l'horloge
+            // serveur (`useAudioClockFollower`), plus recalées ici par seek.
             // Réf. correctif "fond animé non mis en pause avec la musique" :
             // un kiosk miroir qui rejoint APRÈS le play/pause d'origine (ou
             // qui rate l'évènement) doit aussi rattraper l'état pause du
@@ -521,6 +484,8 @@ export default function KioskPage() {
       lastSeekTimeRef.current = Date.now();
     },
   });
+  // Même modèle pour la piste audio du mode coach (plan 4.0.1).
+  useAudioClockFollower({ audioRef, state, serverNow, tryPlay });
   useEffect(() => {
     isPrimaryRef.current = isPrimary;
   }, [isPrimary]);
@@ -793,7 +758,7 @@ export default function KioskPage() {
         <audio
           ref={audioRef}
           onTimeUpdate={handleAudioTimeUpdate}
-          onEnded={() => sendCommand("audio_track_ended")}
+          onEnded={() => sendCommand("audio_track_ended", { track_index: state.audio_track_index })}
         />
         <div
           className="coach-stage"

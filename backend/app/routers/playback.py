@@ -641,7 +641,9 @@ async def _handle_command(
         await manager.audio_report_position(float(params.get("position_seconds", 0)))
     elif command == "audio_track_ended":
         index_before = manager.state.get("audio_track_index")
-        await manager.audio_track_ended(client_ts)
+        raw_index = params.get("track_index")
+        track_index = raw_index if isinstance(raw_index, int) and not isinstance(raw_index, bool) else None
+        await manager.audio_track_ended(client_ts, track_index=track_index)
         # Couvre aussi bien l'enchaînement auto/minuterie (F10.3) que la
         # navigation manuelle ci-dessus : dans les deux cas l'index de piste a
         # changé, seul cas où une NOUVELLE piste a réellement été lancée (réf.
