@@ -273,7 +273,7 @@ The system drives two **strictly independent** video broadcast channels, plus a 
 2. **Network Channel (`channel=network`)**: A secondary channel for network broadcast or auxiliary screens.
 3. **Radio Channel (`channel=radio`)**: A 3rd channel, fully independent from the first two (no interaction) — continuous music playback on a dedicated station. Managed by a separate state manager (`radio_manager.py`), not the `playback_manager` below.
 
-Each screen displays `/kiosk` or `/cinema` depending on the output chosen by the admin (`/api/settings/display-output`, e.g. cable → `cinema`, network → `kiosk`). The cabled screen (`127.0.0.1`, detected via `isWiredDisplay()`) always follows its stored output. **The studio desk `/grid` exclusively drives the cabled channel (HDMI)**: there is no `/grid` interface for the network channel (which is driven from `/dashboard-network`). **Empty library**: `/cinema` shows a full-screen idle screen (big logo + clock + "No course available") instead of a black screen; `/kiosk` has its own idle screen (clock + next course). **Course categories** are **free-form** labels (no more fixed RPM/Sprint/The Trip): typed input with suggestions from already-used categories, dynamic filtering and grouping.
+Each screen displays `/kiosk` or `/cinema` depending on the output chosen by the admin (`/api/settings/display-output`, e.g. cable → `cinema`, network → `kiosk`). The cabled screen (`127.0.0.1`, detected via `isWiredDisplay()`) always follows its stored output; a screen's channel is explicit through `?channel=` (see "Channel Identity" below). **The studio desk `/grid` exclusively drives the cabled channel (HDMI)**: there is no `/grid` interface for the network channel (which is driven from `/dashboard-network`). **Empty library**: `/cinema` shows a full-screen idle screen (big logo + clock + "No course available") instead of a black screen; `/kiosk` has its own idle screen (clock + next course). **Course categories** are **free-form** labels (no more fixed RPM/Sprint/The Trip): typed input with suggestions from already-used categories, dynamic filtering and grouping.
 
 **Universal controls: physical remotes, keyboards, mice, touch and gamepads** (see the `useKioskRemote` hook & HTML5 Gamepad API): all broadcast and control surfaces (`/cinema`, `/grid`, `/kiosk`, `/radio`) react consistently to every input device:
 - **USB & Bluetooth remotes**: presentation dongles, media remotes and "air remotes" recognized as standard HID keyboards.
@@ -296,6 +296,30 @@ On some hardware decoders (MediaCodec on Android, VA-API on Linux/Wyse), a hot s
 3. **Post-seek grace period (3,500 ms)**: on mirror kiosks (network or multi-screen), periodic `position_tick` realignments are ignored for 3.5 seconds after a seek, to let buffers and display stabilize.
 4. **Soft stall detection with no jitter**: aggressive watchdogs are replaced by a non-destructive check for prolonged freezes (> 7.5 consecutive seconds with no clock progress outside loading/seek), triggering a clean `.play()` relaunch with no jarring artificial pause/seek cycle.
 5. **Debounce protection (1.5s) and monotonic time smoothing on `/grid`**: eliminates accidental double commands when launching a course, and displays a steady second-by-second playback time with no backward jump caused by network packet jitter.
+
+### Channel Identity & Server-Driven Playback Clock (4.0)
+
+**Explicit channel identity** (`frontend/src/lib/displayChannel.ts`, a single rule shared by `/kiosk` and `/cinema`): the `?channel=cable|network` URL parameter wins; without it `/kiosk` stays cabled (historical decision: a TV on a LAN IP is still a cabled screen) and `/cinema` infers its channel from the hostname (`127.0.0.1` = cabled). The kiosk ↔ cinema redirect now **preserves** `?channel=` — before 4.0 it dropped it, which reclassified a network screen opened on the server machine as "cabled". A "Network" screen on the server machine is therefore opened through `/kiosk?channel=network` (link in the Network dashboard and in Settings). The kiosk identifier is generated **per page load** (no more `localStorage` shared between tabs, which made several local tabs all "primary").
+
+**Server-driven playback clock** (`backend/app/utils/playback_clock.py`, `PlaybackManager`): a course position is a function of time, `position(t) = anchor_position + (t − anchor_instant) × rate`, no longer the last value reported by a kiosk. Every broadcast state carries the anchor `clock = { pos, at_ms, rate, running }`; `at_ms` may be **in the future** (synchronized start: 1,000 ms on load, 300 ms for play/seek). Consequences: the position advances **with no kiosk connected**; the position tick drops from 4 Hz to a **1 Hz heartbeat**; `report_position` is only used for attendance tracking; `video_ended` is **idempotent** (carries `video_id`: every screen sends it) and the server ends an overdue course itself (duration + 3 s).
+
+**Screen-side following** (`lib/playbackClock.ts`, `lib/useVideoClockFollower.ts`): the screen estimates its offset from the server clock through `time_sync` (round trips on the existing WebSocket, median of the lowest-RTT samples), then drives its `<video>` to the target position — **before the start instant**: paused at the right position, `play()` at the exact instant; **while playing**: drift < 80 ms ignored, beyond that `playbackRate` is adjusted by ±5 % (**no `seek`**, so the hardware decoder is not reset), a single `seek` if drift exceeds 2 s (1.5 s grace, 4 s minimum between seeks). Accuracy target: **< 100 ms** between Network-channel screens.
+
+**Channel-filtered broadcast**: each client subscribes (`subscribe`); the server only sends channel-scoped events (`state_change`, `cinema_state`, `cinema_command`) to its subscribers. Global events (`display_output`, `settings_change`, `display_mode_change`, `force_reload`, `update_progress`) are never filtered; a client with no subscription (old cached bundle) receives everything.
+
+### Plug-and-Play HDMI Projection (4.0)
+
+The **cabled display mode is no longer a frozen preference**: each platform reports the number of external screens actually connected (`PUT /api/display/state`, idempotent, replayable), the backend derives the effective mode (`dual_screen` as soon as an external screen exists, otherwise `headless`) and broadcasts it (`display_mode_change`). The `display_mode_setting` setting defaults to `auto`; `dual_screen`/`headless` force the mode. The hardware report is kept **in memory** (an instantaneous fact, never persisted) and re-sent periodically.
+
+| Profile | Detection | Action |
+|---|---|---|
+| **Android** | `DisplayListener` (add, remove, **change**), private displays excluded | `Presentation` → `/cinema/?channel=cable`; 15 fast retries then one try every 5 s **with no give-up**; state reported at start, on every change, then every 60 s |
+| **Windows** | `EnumDisplayMonitors` (ctypes), 2 s stabilized polling | Edge/Chrome kiosk, dedicated throwaway profile, `--window-position` of the external monitor |
+| **Linux Desktop** | `xrandr --listmonitors` (X11 / XWayland) | Chromium kiosk, dedicated profile; best-effort positioning under Wayland (`--ozone-platform=x11`) |
+| **macOS** | `system_profiler SPDisplaysDataType` | Native `bobine-projector` window (`projector/`, WKWebView) which picks the external screen itself; falls back to the default browser if absent |
+| **Wyse Appliance** | udev DRM rule → `bobine-display-hotplug` (sysfs, 3 s debounce) | `try-restart bobine-kiosk` only when the set of connected outputs changes; reuses the boot-time `xrandr` logic; **reports no external screen** (its output IS the standalone display) |
+
+Desktop implementation: `backend/app/desktop/displays.py` (enumeration, `DisplayWatcher`, `ProjectorWindow`, `DisplayOrchestrator`, tested without a display).
 
 ### Gapless A/B Deck Video Engine (`/cinema`) & 5-Star Rating
 
@@ -422,6 +446,7 @@ Beta artifact filenames are **fixed** (`Bobine-Setup-beta.exe`, `Bobine-beta.dmg
 | **Audio Playlists** | `/api/audio-playlists` | Mixed audio-coach playlists with backgrounds |
 | **Schedule** | `/api/schedule` | Schedulers, occurrences and exceptions |
 | **Playback** | `/api/playback` | Playback control (play, pause, seek, stop, resume) |
+| **Displays** | `/api/display` | `GET/PUT /display/state`: number of external screens reported by each platform and the effective cabled display mode (see "Plug-and-Play HDMI Projection") |
 | **Settings** | `/api/settings` | Dynamic configuration (playback/theme/language/`deployment_profile`/`update_channel`), video output, storage space (`/settings/storage`), screen sync (`POST /settings/system/reset` — clears caches + reload + restarts services), universal ZIP backup & restore (`/settings/system/backup`, `/settings/system/restore`), and factory reset or machine uninstall (`POST /settings/system/reset-data`, `POST /settings/system/uninstall`, confirmation phrase required) |
 | **Updates** | `/api/updates` | `GET /updates/check` — queries GitHub Releases according to the current channel (Stable/Beta, see §7) and deployment profile for the matching asset; `POST /updates/apply` — triggers `git checkout <tag>` + restart (headless profile only, 400 otherwise) |
 | **Imports** | `/api/import-jobs` | Import task queue (`GET /api/import-jobs` with percentage, ETA in seconds and speed) and reactive cancellation (`DELETE /api/import-jobs/{id}` with FFmpeg stop and purge) |
@@ -432,6 +457,7 @@ Beta artifact filenames are **fixed** (`Bobine-Setup-beta.exe`, `Bobine-beta.dmg
 
 ### WebSockets
 
+- **Client → server commands added in 4.0**: `subscribe` (`{channels: [...]}`, subscription to channel-scoped events), `time_sync` (`{t0}`, direct reply `{event: "time_sync", t0, server_ms}` used to estimate clock offset). Every `state_change` carries the `clock` anchor.
 - `/ws/playback`: Real-time broadcast of playback state per channel — cabled, network **and radio** (`channel=radio`, same connection, `radio_*` command vocabulary specific to the music channel) — *position*, *duration*, *current media*, inter-course countdown. Also broadcasts `library_change` (a video import/modification/deletion — upload, watched folder, or title edit): `/grid`, `/cinema` and `/library` reload their list without waiting for their periodic poll.
 
 ---

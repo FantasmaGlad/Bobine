@@ -273,7 +273,7 @@ Le système pilote deux canaux de diffusion vidéo **strictement indépendants**
 2. **Canal Réseau (`channel=network`)** : Canal secondaire destiné à la diffusion réseau ou aux écrans auxiliaires.
 3. **Canal Radio (`channel=radio`)** : 3ᵉ canal, totalement indépendant des deux premiers (aucune interaction) — diffusion musicale continue sur un poste dédié. Géré par un gestionnaire d'état séparé (`radio_manager.py`), pas le `playback_manager` ci-dessous.
 
-Chaque écran affiche `/kiosk` ou `/cinema` selon la sortie choisie par l'admin (`/api/settings/display-output`, ex. câble → `cinema`, réseau → `kiosk`). L'écran câblé (`127.0.0.1`, détecté par `isWiredDisplay()`) suit toujours sa sortie stockée. **Le pupitre studio `/grid` pilote exclusivement le canal câblé (HDMI)** : il n'y a pas d'interface `/grid` pour le canal réseau (qui se pilote depuis `/dashboard-network`). **Bibliothèque vide** : `/cinema` affiche un écran d'attente plein écran (grand logo + heure + « Aucun cours disponible ») au lieu d'un écran noir ; `/kiosk` a son propre écran d'attente (horloge + prochain cours). Les **catégories de cours** sont des libellés **libres** (plus de RPM/Sprint/The Trip figés) : saisie avec suggestions des catégories déjà utilisées, filtre et regroupement dynamiques.
+Chaque écran affiche `/kiosk` ou `/cinema` selon la sortie choisie par l'admin (`/api/settings/display-output`, ex. câble → `cinema`, réseau → `kiosk`). L'écran câblé (`127.0.0.1`, détecté par `isWiredDisplay()`) suit toujours sa sortie stockée ; le canal d'un écran est explicite via `?channel=` (cf. « Identité de canal » ci-dessous). **Le pupitre studio `/grid` pilote exclusivement le canal câblé (HDMI)** : il n'y a pas d'interface `/grid` pour le canal réseau (qui se pilote depuis `/dashboard-network`). **Bibliothèque vide** : `/cinema` affiche un écran d'attente plein écran (grand logo + heure + « Aucun cours disponible ») au lieu d'un écran noir ; `/kiosk` a son propre écran d'attente (horloge + prochain cours). Les **catégories de cours** sont des libellés **libres** (plus de RPM/Sprint/The Trip figés) : saisie avec suggestions des catégories déjà utilisées, filtre et regroupement dynamiques.
 
 **Contrôles universels : Télécommandes physiques, Claviers, Souris, Tactile et Manettes de jeu** (réf. hook `useKioskRemote` & HTML5 Gamepad API) : L'ensemble des interfaces de diffusion et de régie (`/cinema`, `/grid`, `/kiosk`, `/radio`) réagissent de manière cohérente à l'ensemble des périphériques d'entrée :
 - **Télécommandes USB & Bluetooth** : dongles de présentation, télécommandes multimédias et "air remotes" reconnus en claviers HID standards.
@@ -296,6 +296,30 @@ Sur certains décodeurs matériels (MediaCodec sur Android, VA-API sur Linux/Wys
 3. **Période de grâce après seek (3 500 ms)** : sur les kiosques miroirs (réseau ou multi-écrans), les recalages périodiques de `position_tick` sont ignorés pendant 3,5 secondes après un seek pour laisser les tampons et l'affichage se stabiliser.
 4. **Détection douce de décrochage sans saccade** : remplacement des watchdogs agressifs par une vérification non-destructive de gel prolongé (> 7,5s consécutives sans progression de l'horloge hors chargement/seek), déclenchant une relance propre `.play()` sans cycle artificiel de pause/seek saccadé.
 5. **Protection anti-rebond (1,5s) et lissage temporel monotone sur `/grid`** : élimination des doubles commandes accidentelles au lancement de cours et affichage d'un temps de lecture régulier seconde par seconde sans saut arrière dû aux aléas de paquets réseau.
+
+### Identité de canal et horloge de lecture serveur (4.0)
+
+**Identité de canal explicite** (`frontend/src/lib/displayChannel.ts`, règle unique partagée par `/kiosk` et `/cinema`) : le paramètre d'URL `?channel=cable|network` est prioritaire ; sans lui, `/kiosk` reste câblé (décision historique : une TV sur IP LAN reste un écran câblé) et `/cinema` déduit son canal du nom d'hôte (`127.0.0.1` = câblé). La redirection kiosque ↔ cinéma **conserve** `?channel=` — avant la 4.0 elle le supprimait, ce qui reclassait « câblé » un écran réseau ouvert sur la machine du serveur. Un écran « Réseau » sur la machine du serveur s'ouvre donc via `/kiosk?channel=network` (lien dans le tableau de bord Réseau et dans Réglages). L'identifiant de kiosque est généré **par chargement de page** (plus de `localStorage` partagé entre onglets, qui rendait plusieurs onglets locaux « primaires »).
+
+**Horloge de lecture pilotée par le serveur** (`backend/app/utils/playback_clock.py`, `PlaybackManager`) : la position d'un cours est une fonction du temps, `position(t) = position_ancre + (t − instant_ancre) × vitesse`, et non plus la dernière valeur rapportée par un kiosque. Chaque état diffusé porte l'ancre `clock = { pos, at_ms, rate, running }` ; `at_ms` peut être **dans le futur** (démarrage synchronisé : 1 000 ms au chargement, 300 ms pour play/seek). Conséquences : la position avance **sans aucun kiosque connecté** ; le tick de position passe de 4 Hz à un **heartbeat de 1 Hz** ; `report_position` ne sert plus qu'au suivi d'assiduité ; `video_ended` est **idempotent** (porte le `video_id` : tous les écrans l'envoient) et le serveur termine lui-même un cours dépassé de sa durée + 3 s.
+
+**Suivi côté écran** (`lib/playbackClock.ts`, `lib/useVideoClockFollower.ts`) : l'écran estime son décalage avec l'horloge serveur par `time_sync` (aller-retour sur la WebSocket, médiane des échantillons au plus petit RTT), puis amène son `<video>` sur la position cible — **avant l'instant de départ** : en pause à la bonne position, `play()` à l'instant exact ; **en lecture** : dérive < 80 ms ignorée, au-delà `playbackRate` ajusté de ±5 % (**sans `seek`**, donc sans réinitialiser le décodeur matériel), un seul `seek` si la dérive dépasse 2 s (délai de grâce 1,5 s, 4 s minimum entre deux seeks). Cible de précision : **< 100 ms** entre écrans du canal Réseau.
+
+**Diffusion filtrée par canal** : chaque client s'abonne (`subscribe`) ; le serveur n'envoie les évènements propres à un canal (`state_change`, `cinema_state`, `cinema_command`) qu'à ses abonnés. Les évènements globaux (`display_output`, `settings_change`, `display_mode_change`, `force_reload`, `update_progress`) ne sont jamais filtrés ; un client sans abonnement (ancien bundle en cache) reçoit tout.
+
+### Projection HDMI plug-and-play (4.0)
+
+Le **mode d'affichage câblé n'est plus une préférence figée** : chaque plateforme remonte le nombre d'écrans externes réellement connectés (`PUT /api/display/state`, idempotent, rejouable), le backend en déduit le mode effectif (`dual_screen` dès qu'un écran externe existe, sinon `headless`) et le diffuse (`display_mode_change`). Le réglage `display_mode_setting` vaut `auto` par défaut ; `dual_screen`/`headless` forcent le mode. Le rapport matériel est gardé **en mémoire** (fait instantané, jamais persisté) et ré-émis périodiquement.
+
+| Profil | Détection | Action |
+|---|---|---|
+| **Android** | `DisplayListener` (ajout, retrait, **modification**), écrans privés exclus | `Presentation` → `/cinema/?channel=cable` ; 15 essais rapides puis un essai / 5 s **sans abandon** ; état rapporté au démarrage, à chaque changement, puis toutes les 60 s |
+| **Windows** | `EnumDisplayMonitors` (ctypes), sondage 2 s stabilisé | Edge/Chrome kiosque, profil jetable dédié, `--window-position` du moniteur externe |
+| **Linux Bureau** | `xrandr --listmonitors` (X11 / XWayland) | Chromium kiosque, profil dédié ; sous Wayland positionnement « meilleur effort » (`--ozone-platform=x11`) |
+| **macOS** | `system_profiler SPDisplaysDataType` | Fenêtre native `bobine-projector` (`projector/`, WKWebView), écran externe choisi par la fenêtre elle-même ; repli navigateur par défaut si absente |
+| **Appliance Wyse** | Règle udev DRM → `bobine-display-hotplug` (sysfs, anti-rebond 3 s) | `try-restart bobine-kiosk` uniquement si l'ensemble des sorties connectées change ; la logique `xrandr` de démarrage est réutilisée ; **ne rapporte aucun écran externe** (sa sortie EST l'affichage autonome) |
+
+Implémentation desktop : `backend/app/desktop/displays.py` (énumération, `DisplayWatcher`, `ProjectorWindow`, `DisplayOrchestrator`, testés sans affichage).
 
 ### Double Décodeur Vidéo Gapless A/B Deck (`/cinema`) & Notation 5 Étoiles
 
@@ -422,6 +446,7 @@ Les noms de fichiers des artefacts Bêta sont **fixes** (`Bobine-Setup-beta.exe`
 | **Playlists Audio** | `/api/audio-playlists` | Playlists mixtes audio coach avec fonds |
 | **Planning** | `/api/schedule` | Programmateurs, occurrences et exceptions |
 | **Lecture** | `/api/playback` | Contrôle de la lecture (play, pause, seek, stop, reprise) |
+| **Écrans** | `/api/display` | `GET/PUT /display/state` : nombre d'écrans externes remonté par chaque plateforme et mode d'affichage câblé effectif (cf. « Projection HDMI plug-and-play ») |
 | **Paramètres** | `/api/settings` | Configuration dynamique (lecture/thème/langue/`deployment_profile`/`update_channel`), sortie vidéo, espace de stockage (`/settings/storage`), synchronisation des écrans (`POST /settings/system/reset` — vidage des caches + rechargement + relance des services), sauvegarde & restauration universelles ZIP (`/settings/system/backup`, `/settings/system/restore`), et réinitialisation usine ou désinstallation machine (`POST /settings/system/reset-data`, `POST /settings/system/uninstall`, phrase de confirmation requise) |
 | **Mises à jour** | `/api/updates` | `GET /updates/check` — interroge GitHub Releases selon le canal courant (Stable/Bêta, cf. §7) et le profil de déploiement pour l'asset adapté ; `POST /updates/apply` — déclenche `git checkout <tag>` + redémarrage (profil headless uniquement, 400 sinon) |
 | **Imports** | `/api/import-jobs` | File d'attente des tâches d'importation (`GET /api/import-jobs` avec pourcentage, ETA en secondes et vitesse) et annulation réactive (`DELETE /api/import-jobs/{id}` avec arrêt FFmpeg et purge) |
@@ -432,6 +457,7 @@ Les noms de fichiers des artefacts Bêta sont **fixes** (`Bobine-Setup-beta.exe`
 
 ### WebSockets
 
+- **Commandes client → serveur ajoutées en 4.0** : `subscribe` (`{channels: [...]}`, abonnement aux évènements propres à un canal), `time_sync` (`{t0}`, réponse directe `{event: "time_sync", t0, server_ms}` pour estimer le décalage d'horloge). Chaque `state_change` porte l'ancre d'horloge `clock`.
 - `/ws/playback` : Diffusion en temps réel de l'état de lecture par canal — câblé, réseau **et radio** (`channel=radio`, même connexion, vocabulaire de commandes `radio_*` propre au canal musical) — *position*, *durée*, *média courant*, décompte inter-cours. Diffuse aussi `library_change` (import/modification/suppression d'une vidéo — upload, dossier surveillé ou édition de titre) : `/grid`, `/cinema` et `/library` rechargent leur liste sans attendre leur sondage périodique.
 
 ---
