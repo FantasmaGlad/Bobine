@@ -52,6 +52,12 @@ def client():
     with TestClient(app) as c:
         # Réglage propre : mode auto.
         c.put("/api/settings", json={"display_mode_setting": "auto"})
+        from app.database import SessionLocal
+        from app.models import Setting
+        db = SessionLocal()
+        db.query(Setting).filter(Setting.key.in_(["display_output_cable", "display_output_network"])).delete(synchronize_session=False)
+        db.commit()
+        db.close()
         yield c
     reset_hardware_state()
 
@@ -85,3 +91,17 @@ def test_validation_des_valeurs(client):
     assert client.put("/api/settings", json={"display_mode_setting": "nimporte"}).status_code == 400
     assert client.put("/api/display/state", json={"external_count": -1}).status_code == 422
     assert client.put("/api/display/state", json={"external_count": 99}).status_code == 422
+
+
+def test_sortie_cable_par_defaut_cinema_en_dual_screen(client):
+    # En headless (0 écran externe), la sortie câble par défaut est kiosk
+    client.put("/api/display/state", json={"external_count": 0, "source": "linux"})
+    assert client.get("/api/settings/display-output").json()["cable"] == "kiosk"
+
+    # En dual_screen (1 écran externe branché), la sortie câble par défaut est cinema
+    client.put("/api/display/state", json={"external_count": 1, "source": "linux"})
+    assert client.get("/api/settings/display-output").json()["cable"] == "cinema"
+
+    # Un forçage explicite sur le canal câble est respecté
+    client.put("/api/settings/display-output", json={"channel": "cable", "output": "kiosk"})
+    assert client.get("/api/settings/display-output").json()["cable"] == "kiosk"

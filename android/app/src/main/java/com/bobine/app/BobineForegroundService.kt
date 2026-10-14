@@ -63,6 +63,16 @@ class BobineForegroundService : Service() {
     companion object {
         var currentPresentation: BobinePresentation? = null
             private set
+
+        @Volatile
+        private var instance: BobineForegroundService? = null
+
+        fun notifyDisplayStateChanged() {
+            val svc = instance ?: return
+            svc.handler.post {
+                svc.showPresentationIfNeeded()
+            }
+        }
     }
 
     private lateinit var displayManager: DisplayManager
@@ -237,6 +247,7 @@ class BobineForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
 
         createNotificationChannel()
         // startForeground() DOIT etre appele tres tot (quelques secondes,
@@ -303,6 +314,9 @@ class BobineForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        if (instance === this) {
+            instance = null
+        }
         handler.removeCallbacks(reconcileRunnable)
         reportGeneration++ // annule les rapports en attente
         displayManager.unregisterDisplayListener(displayListener)
@@ -315,6 +329,15 @@ class BobineForegroundService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun getPresentationContext(): Context {
+        val activity = MainActivity.activeActivity?.get()
+        return if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
+            activity
+        } else {
+            this
+        }
+    }
 
     private fun showPresentationIfNeeded() {
         if (presentation != null || presentationAttemptInFlight) return
@@ -335,10 +358,11 @@ class BobineForegroundService : Service() {
         // d'emulateur. Repli en reessai avec un court delai plutot qu'un
         // crash : le redemarrage automatique START_STICKY masquait ce bug
         // sans le corriger (l'app plantait puis se retablissait seule).
+        val presentationContext = getPresentationContext()
         presentationAttemptInFlight = true
         try {
-            Log.i(TAG, "Ouverture de la Presentation sur ${external.name} (id=${external.displayId}, flags=0x${Integer.toHexString(external.flags)})")
-            presentation = BobinePresentation(this, external).also {
+            Log.i(TAG, "Ouverture de la Presentation sur ${external.name} (id=${external.displayId}, flags=0x${Integer.toHexString(external.flags)}, context=${presentationContext.javaClass.simpleName})")
+            presentation = BobinePresentation(presentationContext, external).also {
                 it.show()
                 currentPresentation = it
             }

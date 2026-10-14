@@ -313,13 +313,15 @@ Le **mode d'affichage câblé n'est plus une préférence figée** : chaque plat
 
 | Profil | Détection | Action |
 |---|---|---|
-| **Android** | `DisplayListener` (ajout, retrait, **modification**), écrans privés exclus | `Presentation` → `/cinema/?channel=cable` ; 15 essais rapides puis un essai / 5 s **sans abandon** ; état rapporté au démarrage, à chaque changement, puis toutes les 60 s |
-| **Windows** | `EnumDisplayMonitors` (ctypes), sondage 2 s stabilisé | Edge/Chrome kiosque, profil jetable dédié, `--window-position` du moniteur externe |
-| **Linux Bureau** | `xrandr --listmonitors` (X11 / XWayland) | Chromium kiosque, profil dédié ; sous Wayland positionnement « meilleur effort » (`--ozone-platform=x11`) |
+| **Android** | `DisplayListener` (ajout, retrait, **modification**), écrans privés exclus | `Presentation` → `/cinema/?channel=cable` ; token d'activité prioritaire (`MainActivity.activeActivity`) et repli `TYPE_APPLICATION_OVERLAY` (`SYSTEM_ALERT_WINDOW`) pour éliminer tout `BadTokenException` ; 15 essais rapides puis un essai / 5 s **sans abandon** ; état rapporté au démarrage, à chaque changement, puis toutes les 60 s |
+| **Windows** | `EnumDisplayMonitors` (ctypes), sondage 2 s stabilisé | Fenêtre native `bobine-projector.exe` (WebView2) si disponible ; repli Edge/Chrome kiosque avec profil dédié, `--new-window`, `--window-position` et `--start-fullscreen` |
+| **Linux Bureau** | `xrandr --listmonitors` (X11 / XWayland) | Fenêtre native `bobine-projector` (WebKitGTK) si disponible ; repli Chromium kiosque avec profil dédié, `--new-window`, `--start-fullscreen` et sous Wayland `--ozone-platform=x11` |
 | **macOS** | `system_profiler SPDisplaysDataType` | Fenêtre native `bobine-projector` (`projector/`, WKWebView), écran externe choisi par la fenêtre elle-même ; repli navigateur par défaut si absente |
 | **Appliance Wyse** | Règle udev DRM → `bobine-display-hotplug` (sysfs, anti-rebond 3 s) | `try-restart bobine-kiosk` uniquement si l'ensemble des sorties connectées change ; la logique `xrandr` de démarrage est réutilisée ; **ne rapporte aucun écran externe** (sa sortie EST l'affichage autonome) |
 
-Implémentation desktop : `backend/app/desktop/displays.py` (énumération, `DisplayWatcher`, `ProjectorWindow`, `DisplayOrchestrator`, testés sans affichage).
+Implémentation desktop : `backend/app/desktop/displays.py` (énumération, `DisplayWatcher`, `ProjectorWindow`, `DisplayOrchestrator`, recherche multi-OS `find_native_projector`, testés sans affichage).
+Sortie active : dans `backend/app/routers/settings.py`, la valeur par défaut du canal câblé est automatiquement dérivée vers `"cinema"` dès que le mode matériel effectif est `"dual_screen"`, empêchant la redirection intempestive de `/cinema` vers `/kiosk` lors du branchement d'un écran étendu.
+
 
 ### Double Décodeur Vidéo Gapless A/B Deck (`/cinema`) & Notation 5 Étoiles
 

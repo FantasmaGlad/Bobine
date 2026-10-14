@@ -686,8 +686,12 @@ def get_display_output_value(db: Session, channel: str = "cable") -> str:
     """Valeur de sortie active pour un canal, réutilisable hors endpoint
     (réf. verrouillage cinéma dans routers/playback.py)."""
     value = _get_db_value(db, _DISPLAY_OUTPUT_KEYS[channel])
-    default_output = "cinema" if (channel == "cable" and get_deployment_profile() == "android") else "kiosk"
-    return value if value in _DISPLAY_OUTPUTS else default_output
+    if value in _DISPLAY_OUTPUTS:
+        return value
+    if channel == "cable":
+        if get_deployment_profile() == "android" or get_effective_wired_display_mode(db) == "dual_screen":
+            return "cinema"
+    return "kiosk"
 
 
 @router.get("/display-output")

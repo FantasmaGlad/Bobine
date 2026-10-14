@@ -69,8 +69,10 @@ def test_commande_projecteur_positionnee_avec_profil_dedie():
     cmd = build_projector_command("/usr/bin/chromium", "http://127.0.0.1:8000/cinema/?channel=cable", PROJECTOR, "/tmp/p")
     assert cmd[0] == "/usr/bin/chromium"
     assert "--user-data-dir=/tmp/p" in cmd
+    assert "--new-window" in cmd
     assert "--window-position=1920,0" in cmd
     assert "--window-size=1920,1080" in cmd
+    assert "--start-fullscreen" in cmd
     assert "--kiosk" in cmd and "--autoplay-policy=no-user-gesture-required" in cmd
     assert cmd[-1] == "http://127.0.0.1:8000/cinema/?channel=cable"
     assert "--ozone-platform=x11" not in cmd
@@ -288,15 +290,24 @@ def test_fenetre_native_trouvee_a_cote_de_l_executable_du_tray_sur_macos():
     assert find_native_projector("Darwin", environ={}, executable=exe, exists=lambda p: False) is None
 
 
-def test_fenetre_native_jamais_cherchee_hors_macos_sauf_surcharge_explicite():
-    exe = "/usr/bin/python3"
-    assert find_native_projector("Linux", environ={}, executable=exe, exists=lambda p: True) is None
-    assert find_native_projector("Windows", environ={}, executable=exe, exists=lambda p: True) is None
+def test_fenetre_native_trouvee_sur_linux_et_windows_si_presente():
+    exe = "/opt/bobine/bin/bobine-tray"
+    present = {"/opt/bobine/bin/bobine-projector"}
+    assert find_native_projector("Linux", environ={}, executable=exe, exists=lambda p: p in present) == \
+        "/opt/bobine/bin/bobine-projector"
+
+    exe_win = r"C:\Bobine\BobineTray.exe"
+    present_win = {r"C:\Bobine\bobine-projector.exe"}
+    assert find_native_projector("Windows", environ={}, executable=exe_win, exists=lambda p: p in present_win) == \
+        r"C:\Bobine\bobine-projector.exe"
+
     assert find_native_projector("Linux", environ={"BOBINE_PROJECTOR_BIN": "/opt/p"}, executable=exe,
                                  exists=lambda p: p == "/opt/p") == "/opt/p"
     # Surcharge vers un fichier absent : ignorée.
     assert find_native_projector("Linux", environ={"BOBINE_PROJECTOR_BIN": "/nope"}, executable=exe,
                                  exists=lambda p: False) is None
+    # Aucun binaire présent : retourne None.
+    assert find_native_projector("Linux", environ={}, executable=exe, exists=lambda p: False) is None
 
 
 def test_commande_native_choisit_l_ecran_externe_elle_meme():

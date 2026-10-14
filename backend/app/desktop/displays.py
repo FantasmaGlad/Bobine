@@ -38,7 +38,7 @@ import threading
 import time
 import urllib.request
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Callable, Sequence
 
 logger = logging.getLogger(__name__)
@@ -321,24 +321,39 @@ def find_native_projector(
     executable: str | None = None,
     exists: Callable[[str], bool] = os.path.exists,
 ) -> str | None:
-    """Fenêtre native `bobine-projector` (plan 4.0, P1-3b, décision D4) : sur
-    macOS elle remplace le navigateur piloté (Safari n'a ni kiosque ni choix de
-    l'écran, et aucun Chromium n'est garanti). Cherchée à côté de l'exécutable
-    du tray dans `Bobine.app/Contents/MacOS` (ou `Resources`). La variable
-    `BOBINE_PROJECTOR_BIN` permet de forcer un chemin (tests, installation
-    atypique) sur n'importe quel OS. Pur et testable."""
+    """Fenêtre native `bobine-projector` (plan 4.0, P1-3b, décision D4) :
+    Remplace le navigateur piloté (WKWebView sur macOS, WebView2 sur Windows,
+    WebKitGTK sur Linux) pour éliminer les conflits de positionnement multi-écrans.
+    Cherchée via BOBINE_PROJECTOR_BIN, puis à côté de l'exécutable du tray
+    ou dans le dossier target/release du crate projector. Pur et testable."""
     system = system or platform.system()
     environ = os.environ if environ is None else environ
     override = environ.get("BOBINE_PROJECTOR_BIN")
     if override and exists(override):
         return override
-    if system != "Darwin":
-        return None
+
     executable = executable or sys.executable
-    macos_dir = Path(executable).parent
-    for candidate in (macos_dir / "bobine-projector", macos_dir.parent / "Resources" / "bobine-projector"):
-        if exists(str(candidate)):
-            return str(candidate)
+    path_cls = PureWindowsPath if system == "Windows" else Path
+    exe_path = path_cls(executable)
+    exe_dir = exe_path.parent
+
+    bin_name = "bobine-projector.exe" if system == "Windows" else "bobine-projector"
+
+    if system == "Darwin":
+        for candidate in (exe_dir / "bobine-projector", exe_dir.parent / "Resources" / "bobine-projector"):
+            if exists(str(candidate)):
+                return str(candidate)
+    else:
+        # Linux & Windows : à côté de l'exécutable, ou dans target/release/ en environnement dev
+        candidates = [
+            exe_dir / bin_name,
+            exe_dir / "projector" / "target" / "release" / bin_name,
+            exe_dir.parent / "projector" / "target" / "release" / bin_name,
+        ]
+        for candidate in candidates:
+            if exists(str(candidate)):
+                return str(candidate)
+
     return None
 
 
@@ -363,8 +378,10 @@ def build_projector_command(
     command = [
         browser,
         f"--user-data-dir={profile_dir}",
+        "--new-window",
         f"--window-position={monitor.x},{monitor.y}",
         f"--window-size={monitor.width},{monitor.height}",
+        "--start-fullscreen",
         "--kiosk",
         "--autoplay-policy=no-user-gesture-required",
         "--no-first-run",

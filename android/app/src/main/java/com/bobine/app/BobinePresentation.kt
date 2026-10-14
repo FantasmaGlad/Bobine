@@ -48,6 +48,14 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
         // derober le focus a MainActivity sur la tablette principale.
         window?.let { win ->
             win.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+            if (context !is android.app.Activity) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    win.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+                } else {
+                    @Suppress("DEPRECATION")
+                    win.setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT)
+                }
+            }
         }
 
         val webView = WebView(context)

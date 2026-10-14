@@ -22,6 +22,8 @@
          Intent.ACTION_VIEW (UpdateManager.kt) - la boite de dialogue de
          confirmation d'installation elle-meme reste toujours affichee. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Affichage Presentation sur ecran externe HDMI (mode bureau étendu) -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:name="com.chaquo.python.android.PyApplication"

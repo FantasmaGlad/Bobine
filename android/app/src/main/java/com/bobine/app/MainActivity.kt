@@ -52,6 +52,12 @@ private const val GRID_URL = "http://127.0.0.1:8000/grid/"
  */
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        @Volatile
+        var activeActivity: java.lang.ref.WeakReference<MainActivity>? = null
+            private set
+    }
+
     private val handler = Handler(Looper.getMainLooper())
     // Lot 15 (docs/audit-android-2026-09-11.md §C2/C4) : champ de classe
     // plutot qu'une simple val locale de onCreate() - necessaire pour
@@ -74,6 +80,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        activeActivity = java.lang.ref.WeakReference(this)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -165,12 +172,21 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        activeActivity = java.lang.ref.WeakReference(this)
+        BobineForegroundService.notifyDisplayStateChanged()
         webView?.onResume()
     }
 
     override fun onPause() {
         webView?.onPause()
         super.onPause()
+    }
+
+    override fun onDestroy() {
+        if (activeActivity?.get() === this) {
+            activeActivity = null
+        }
+        super.onDestroy()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
