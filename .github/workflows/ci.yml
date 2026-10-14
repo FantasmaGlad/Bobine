@@ -312,17 +312,24 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_VERSION_NAME: ${{ needs.version.outputs.display_version }}
           ANDROID_VERSION_CODE: ${{ steps.android_version.outputs.version_code }}
-        run: ./gradlew :app:assembleRelease --no-daemon
-      - name: Vérifier la signature de l'APK produit
+        run: ./gradlew :app:assembleMobileRelease :app:assembleTvRelease --no-daemon
+      - name: Vérifier la signature des APKs produits
         if: steps.check_secrets.outputs.configured == 'true'
         run: |
-          APK="$(find android/app/build/outputs/apk/release -name '*.apk')"
-          "${ANDROID_HOME}"/build-tools/36.1.0/apksigner verify --print-certs "$APK"
+          for APK in $(find android/app/build/outputs/apk -name '*release*.apk'); do
+            echo "Vérification signature : $APK"
+            "${ANDROID_HOME}"/build-tools/36.1.0/apksigner verify --print-certs "$APK"
+          done
       - uses: actions/upload-artifact@v4
         if: steps.check_secrets.outputs.configured == 'true'
         with:
           name: bobine-android-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/mobile/release/*.apk
+      - uses: actions/upload-artifact@v4
+        if: steps.check_secrets.outputs.configured == 'true'
+        with:
+          name: bobine-android-tv-apk
+          path: android/app/build/outputs/apk/tv/release/*.apk
 
   install-script:
     name: install.sh sanity
@@ -612,7 +619,13 @@ jobs:
         with:
           name: bobine-android-apk
           path: android-artifact
-      - name: Prepare Android APK asset
+      - name: Download Android TV APK
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: bobine-android-tv-apk
+          path: android-tv-artifact
+      - name: Prepare Android APK assets
         run: |
           if [ -d "android-artifact" ] && compgen -G "android-artifact/*.apk" > /dev/null; then
             APK_SRC=$(ls android-artifact/*.apk | head -1)
@@ -620,6 +633,13 @@ jobs:
             echo "Android APK copié : release-assets/Bobine-${{ needs.version.outputs.filename_version }}.apk"
           else
             echo "Aucun APK Android trouvé dans l'artefact."
+          fi
+          if [ -d "android-tv-artifact" ] && compgen -G "android-tv-artifact/*.apk" > /dev/null; then
+            APK_TV_SRC=$(ls android-tv-artifact/*.apk | head -1)
+            cp "$APK_TV_SRC" "release-assets/Bobine-TV-${{ needs.version.outputs.filename_version }}.apk"
+            echo "Android TV APK copié : release-assets/Bobine-TV-${{ needs.version.outputs.filename_version }}.apk"
+          else
+            echo "Aucun APK Android TV trouvé dans l'artefact."
           fi
       - name: Copy install script into release assets
         run: cp install.sh release-assets/
@@ -691,7 +711,13 @@ jobs:
         with:
           name: bobine-android-apk
           path: android-artifact
-      - name: Prepare Android APK asset
+      - name: Download Android TV APK
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: bobine-android-tv-apk
+          path: android-tv-artifact
+      - name: Prepare Android APK assets
         run: |
           if [ -d "android-artifact" ] && compgen -G "android-artifact/*.apk" > /dev/null; then
             APK_SRC=$(ls android-artifact/*.apk | head -1)
@@ -699,6 +725,13 @@ jobs:
             echo "Android APK copié : release-assets/Bobine-beta.apk"
           else
             echo "Aucun APK Android trouvé dans l'artefact."
+          fi
+          if [ -d "android-tv-artifact" ] && compgen -G "android-tv-artifact/*.apk" > /dev/null; then
+            APK_TV_SRC=$(ls android-tv-artifact/*.apk | head -1)
+            cp "$APK_TV_SRC" "release-assets/Bobine-TV-beta.apk"
+            echo "Android TV APK copié : release-assets/Bobine-TV-beta.apk"
+          else
+            echo "Aucun APK Android TV trouvé dans l'artefact."
           fi
       - name: Copy install script into release assets
         run: cp install.sh release-assets/
@@ -745,6 +778,7 @@ jobs:
           | :--- | :---: | :--- |
           | ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` | [**Bobine-Setup-beta.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-Setup-beta.exe) |
           | ![Android](https://img.shields.io/badge/Android-34A853?style=flat-square&logo=android&logoColor=white) | `.apk` | [**Bobine-beta.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-beta.apk) |
+          | ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=androidtv&logoColor=white) | `.apk` | [**Bobine-TV-beta.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-TV-beta.apk) |
           | ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` | [**bobine_beta_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine_beta_amd64.deb) |
           | ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` | [**Bobine-beta.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-beta.dmg) |
           | ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | Binaire natif | [**bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine-assistant) |

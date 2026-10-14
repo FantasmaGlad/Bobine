@@ -17,6 +17,7 @@ import android.os.PowerManager
 import android.util.Log
 import android.view.Display
 import android.view.WindowManager
+import androidx.core.content.ContextCompat
 import com.chaquo.python.Python
 import org.json.JSONObject
 import java.io.OutputStreamWriter
@@ -278,8 +279,8 @@ class BobineForegroundService : Service() {
         // aux MEDIAS depuis le Lot 15 (gros fichiers, cf.
         // bobine_bootstrap.py). PAS le dossier interne AssetFinder/app/ ou
         // Chaquopy redeploie les sources Python elles-memes (Lot 9).
-        val externalFilesDir = applicationContext.getExternalFilesDir(null)?.absolutePath
-        if (externalFilesDir == null) {
+        val externalFilesDirs = ContextCompat.getExternalFilesDirs(applicationContext, null).filterNotNull()
+        if (externalFilesDirs.isEmpty()) {
             storageRetries++
             if (storageRetries <= 30) {
                 Log.w(TAG, "Stockage externe pas encore monte (tentative $storageRetries/30), nouvel essai dans 2s")
@@ -289,6 +290,16 @@ class BobineForegroundService : Service() {
             }
             return
         }
+        // Stockage amovible USB / SSD / SD (index >= 1) prioritaire s'il est inscriptible
+        // (crucial pour Android TV ou l'eMMC interne est souvent limite a ~4-8 Go)
+        val removableDir = externalFilesDirs.drop(1).firstOrNull { it.canWrite() }
+        val selectedExternalDir = if (removableDir != null) {
+            Log.i(TAG, "Stockage amovible USB detecte et selectionne : ${removableDir.absolutePath} (espace libre: ${removableDir.freeSpace / (1024 * 1024)} Mo)")
+            removableDir.absolutePath
+        } else {
+            externalFilesDirs.first().absolutePath
+        }
+
         // Lot 15 (docs/audit-android-2026-09-11.md §C1/C3) : dossier PRIVE
         // de l'app sur le stockage interne (f2fs natif, jamais FUSE) - base
         // SQLite, miniatures, logs, branding, pochettes radio.
@@ -300,7 +311,7 @@ class BobineForegroundService : Service() {
         val nativeLibraryDir = applicationContext.applicationInfo.nativeLibraryDir
         val py = Python.getInstance()
         py.getModule("bobine_bootstrap").callAttr(
-            "start_server_once", externalFilesDir, nativeLibraryDir, internalFilesDir, BuildConfig.VERSION_NAME
+            "start_server_once", selectedExternalDir, nativeLibraryDir, internalFilesDir, BuildConfig.VERSION_NAME
         )
     }
 
@@ -340,6 +351,10 @@ class BobineForegroundService : Service() {
     }
 
     private fun showPresentationIfNeeded() {
+        if (MainActivity.isTvDevice(this)) {
+            // Sur Android TV : l'ecran principal est deja le diffuseur unique (pas de Presentation secondaire)
+            return
+        }
         if (presentation != null || presentationAttemptInFlight) return
         // displayId 0 = ecran interne de la tablette (jamais une sortie
         // HDMI) - cf. CDC SS3.2, une seule Presentation a la fois attendue

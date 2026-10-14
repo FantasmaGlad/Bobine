@@ -82,6 +82,17 @@ android {
         }
     }
 
+    flavorDimensions += listOf("device")
+    productFlavors {
+        create("mobile") {
+            dimension = "device"
+        }
+        create("tv") {
+            dimension = "device"
+            applicationIdSuffix = ".tv"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false

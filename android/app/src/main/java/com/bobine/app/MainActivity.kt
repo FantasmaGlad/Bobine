@@ -2,8 +2,11 @@ package com.bobine.app
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.UiModeManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -16,6 +19,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.WindowInsets
 import android.view.WindowInsetsController
+import android.view.WindowManager
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -38,9 +42,12 @@ import androidx.core.content.ContextCompat
 // l'ecran HDMI des qu'un cours demarre (les deux chargeaient /cinema,
 // qui ne distingue aucun role primaire/miroir dans son rendu).
 private const val GRID_URL = "http://127.0.0.1:8000/grid/"
+// Sur Android TV / Google TV, l'ecran principal est le grand ecran de la TV.
+// On charge /kiosk par defaut, concu pour la navigation D-Pad a la telecommande.
+private const val KIOSK_URL = "http://127.0.0.1:8000/kiosk"
 
 /**
- * Ecran tactile de la tablette (Lot 5, cf. docs/plan-implementation-android.md) :
+ * Ecran tactile de la tablette ou affichage Leanback Android TV (Lot 5 / Android TV) :
  * plein ecran immersif au demarrage, mais PAS de Lock Task - un geste
  * standard Android (Accueil, multitache) reste actif a tout moment (CDC
  * docs/ARCHITECTURE.md SS2/SS7, decision explicite : la tablette
@@ -56,6 +63,13 @@ class MainActivity : AppCompatActivity() {
         @Volatile
         var activeActivity: java.lang.ref.WeakReference<MainActivity>? = null
             private set
+
+        fun isTvDevice(context: Context): Boolean {
+            val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
+            return uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+                || context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+                || context.packageName.endsWith(".tv")
+        }
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -95,6 +109,13 @@ class MainActivity : AppCompatActivity() {
         // encore attachee a ce stade (`window.insetsController` est null,
         // NullPointerException constatee en pratique). onWindowFocusChanged
         // ci-dessous s'en charge, garanti appele une fois la fenetre reelle.
+
+        val isTv = isTvDevice(this)
+        if (isTv) {
+            // Sur Android TV : neutralise la veille d'ecran Daydream / Ambient pendant l'utilisation de Bobine
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        val initialUrl = if (isTv) KIOSK_URL else GRID_URL
 
         // Debug uniquement (build debug) : console JS visible dans logcat
         // (tag "WebViewConsole") et inspection chrome://inspect. Restreint
@@ -140,17 +161,37 @@ class MainActivity : AppCompatActivity() {
             ): Boolean {
                 val uri = request.url
                 val path = uri.path ?: ""
-                // Si la navigation quitte la grille (ex: acces a l'administration / ou tout lien externe),
-                // on l'ouvre directement dans le navigateur systeme par defaut pour ne pas pieger l'utilisateur
-                // dans une WebView en plein ecran sans barre de navigation ni retour.
-                if (path != "/grid" && !path.startsWith("/grid/")) {
-                    try {
-                        val intent = Intent(Intent.ACTION_VIEW, uri)
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        view.context.startActivity(intent)
-                        return true
-                    } catch (e: Exception) {
-                        Log.w("MainActivity", "Impossible d'ouvrir le navigateur externe pour $uri", e)
+                val host = uri.host ?: ""
+                val isLocal = host == "127.0.0.1" || host == "localhost"
+
+                if (!isTv) {
+                    // Mode tablette / mobile tactile :
+                    // Si la navigation quitte la grille (ex: acces a l'administration / ou tout lien externe),
+                    // on l'ouvre directement dans le navigateur systeme par defaut pour ne pas pieger l'utilisateur
+                    // dans une WebView en plein ecran sans barre de navigation ni retour.
+                    if (path != "/grid" && !path.startsWith("/grid/")) {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, uri)
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            view.context.startActivity(intent)
+                            return true
+                        } catch (e: Exception) {
+                            Log.w("MainActivity", "Impossible d'ouvrir le navigateur externe pour $uri", e)
+                        }
+                    }
+                } else {
+                    // Mode Android TV & Google TV :
+                    // L'utilisateur navigue au D-Pad de la telecommande entre /kiosk, /cinema, /radio, etc.
+                    // Tout le contenu local Bobine reste dans la WebView. Seuls les liens distants tiers ouvrent un navigateur externe.
+                    if (!isLocal) {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, uri)
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            view.context.startActivity(intent)
+                            return true
+                        } catch (e: Exception) {
+                            Log.w("MainActivity", "Impossible d'ouvrir le lien externe pour $uri", e)
+                        }
                     }
                 }
                 return false
@@ -162,12 +203,12 @@ class MainActivity : AppCompatActivity() {
                 error: WebResourceError
             ) {
                 if (request.isForMainFrame) {
-                    handler.postDelayed({ view.loadUrl(GRID_URL) }, 500)
+                    handler.postDelayed({ view.loadUrl(initialUrl) }, 500)
                 }
             }
         }
         setContentView(webView)
-        webView.loadUrl(GRID_URL)
+        webView.loadUrl(initialUrl)
     }
 
     override fun onResume() {
@@ -240,6 +281,15 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return false
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        // Navigation D-Pad telecommande Android TV : le bouton retour revient a la vue precedente
+        if (keyCode == KeyEvent.KEYCODE_BACK && webView?.canGoBack() == true) {
+            webView?.goBack()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
