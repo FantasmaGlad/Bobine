@@ -368,7 +368,12 @@ L'installation de production s'effectue via le script shell idempotent `install.
 ```bash
 # Installation complète sur la machine cible
 sudo ./install.sh
+
+# Ou en une commande, sans dépôt local (le script récupère le code lui-même)
+curl -fsSL https://bobine.fit/install.sh | bash
 ```
+
+Lancé hors d'une copie de Bobine (tube `curl | bash`, ou fichier copié seul), `install.sh` **s'amorce** (`bootstrap_standalone`) : il demande `sudo` de lui-même (sans `sudo -E`, qui exige un droit `SETENV`), installe `git`/`curl` si le système est minimal, clone le dépôt (clone allégé `--filter=blob:none`) dans `~<compte>/Bobine` à la dernière Stable — ou au tag mobile `beta` avec `--channel=beta` —, puis se relance depuis ce dépôt. Les questions de langue et de canal se posent sur `/dev/tty` même quand le script arrive par un tube, et sont sautées sans terminal (CI, SSH sans PTY). Avant toute modification, `preflight_network` corrige une horloge dérivée (pile CMOS à plat : sans cela les certificats TLS sont « pas encore valides » et apt échoue) et vérifie l'accès à GitHub avec un message précis. Les appels apt attendent le verrou `unattended-upgrades` (`DPkg::Lock::Timeout`) et réessaient (`Acquire::Retries`). Les étapes longues affichent un indicateur animé (dernière ligne utile du journal + temps écoulé) sur un vrai terminal ; l'écran final donne l'IP du réseau local et un code QR (`qrencode`) pour ouvrir l'administration depuis un téléphone. Si le checkout du canal remplace `install.sh` par une autre version, il se relance une fois depuis la nouvelle (garde `BOBINE_REEXEC`). Le CI exécute l'amorçage en `--dry-run` via un tube (régression historique : `${BASH_SOURCE[0]}` non défini sous `set -u` faisait planter la commande annoncée dans le README avant tout message).
 
 ### Options d'installation (`sudo ./install.sh --help`)
 
@@ -407,9 +412,9 @@ Pas de service dédié pour le canal Radio (arbitrage A5, cf. §5) : `/radio` s'
 
 ### Assistant d'installation graphique
 
-Une application graphique autonome (`assistant/`, développée avec **Tauri 2 / Rust**) tourne sur le **poste de l'administrateur** (Windows, macOS ou Linux), localise le mini PC sur le LAN (balayage `/24` de chaque interface réseau locale), s'y connecte en SSH, audite le matériel, puis **déroule `install.sh`** avec une barre de progression et un suivi temps réel des journaux d'installation. `install.sh` reste la **source de vérité unique** — l'assistant l'**orchestre**, il ne réimplémente rien. Détails complets et instructions de compilation : [`assistant/README.md`](../assistant/README.md).
+Une application graphique autonome (`assistant/`, développée avec **Tauri 2 / Rust**) tourne sur le **poste de l'administrateur** (Windows, macOS ou Linux), localise le mini PC sur le LAN (balayage de chaque interface réseau locale avec son vrai masque, de /24 à /22, résultats en direct, table ARP et nom `bobine.local` en renfort), s'y connecte en SSH, audite le matériel, puis **déroule `install.sh`** avec une barre de progression et un suivi temps réel des journaux d'installation. `install.sh` reste la **source de vérité unique** — l'assistant l'**orchestre**, il ne réimplémente rien. Détails complets et instructions de compilation : [`assistant/README.md`](../assistant/README.md).
 
-Le scan réseau affiche **tous** les appareils qui répondent (pas seulement les cibles Bobine) — nom d'hôte, IP, indice d'OS, ports ouverts — pour qu'un utilisateur préparant un déploiement headless reconnaisse sa borne au milieu du reste du réseau. L'authentification SSH accepte, en plus du mot de passe, une clé privée importée explicitement via un sélecteur de fichier natif (`tauri-plugin-dialog`).
+Le scan réseau affiche **tous** les appareils qui répondent (pas seulement les cibles Bobine) — nom d'hôte, IP, indice d'OS, ports ouverts — pour qu'un utilisateur préparant un déploiement headless reconnaisse sa borne au milieu du reste du réseau. `install.sh` est embarqué dans l'assistant à la compilation et téléversé sur la cible (`bash /tmp/…`) : aucun dépôt, `git` ni `curl` préalable n'est nécessaire sur la borne, et l'hôte peut être saisi par nom (`bobine.local`). Le code de sortie réel du script est vérifié et un échec est affiché avec « Réessayer » et « Copier le journal ». L'authentification SSH accepte, en plus du mot de passe, une clé privée importée explicitement via un sélecteur de fichier natif (`tauri-plugin-dialog`).
 
 ### Canal de mise à jour (Stable / Bêta)
 
@@ -425,6 +430,16 @@ Côté publication (`.github/workflows/ci.yml`) : le job `version` calcule à la
 - un push direct sur `main` (hors tag), ou un déclenchement manuel (`workflow_dispatch`, case *publish_beta* cochée, depuis n'importe quelle référence — utile pour republier sans nouveau commit) → `release-beta` (force-déplace le tag `beta` sur le commit courant, supprime puis republie l'unique release Bêta, notes générées automatiquement — changelog depuis le dernier tag stable). La Bêta suit donc `main` en continu, sans jamais prendre de retard.
 
 Les noms de fichiers des artefacts Bêta sont **fixes** (`Bobine-Setup-beta.exe`, `Bobine-beta.dmg`, `bobine_beta_amd64.deb`) — jamais de version ni de caractère `~` dedans (GitHub Releases réécrit silencieusement `~` en `.` dans les noms d'assets téléchargés). Le numéro de version *interne* (affiché dans l'app, champ `Version:` du paquet Debian) reste précis : `VERSION`/`COMMIT` sont bundlés dans chaque paquet (mêmes `datas` PyInstaller que `config.toml`) et lus au runtime par `app.utils.version` — y compris sur les profils packagés (Windows/macOS/Linux desktop), qui n'ont pas de `.git` pour se renseigner autrement.
+
+#### Robustesse du pipeline de mise à jour
+
+- **Retour en Stable** : quand le build local est une Bêta (version `x.y.z-beta`, ou checkout headless posé exactement sur le tag `beta`), choisir le canal Stable propose la dernière Stable même si elle est numériquement inférieure — `GET /api/updates/check` renvoie alors `is_downgrade: true` et Réglages affiche « Revenir à la version Stable ». La planification quotidienne n'applique **jamais** un retour arrière : seul le bouton le fait.
+- **Interrogation GitHub** : réponse mise en cache par canal avec `ETag` (une requête conditionnelle `304` ne consomme pas le quota partagé du réseau), repli sur la dernière réponse connue pendant la courte fenêtre où la CI supprime puis recrée la release `beta`, et codes d'erreur distincts (`offline`, `rate_limited`, `not_found_*`) au lieu d'un « hors ligne » générique. `?refresh=1` contourne la fenêtre anti-doublon (clic explicite, changement de canal).
+- **Choix de l'asset** : par profil (extension) et, sur Android, par variante (`Bobine-<v>.apk` téléphone/tablette vs `Bobine-TV-<v>.apk`, deux `applicationId` distincts). Empreinte SHA-256 obligatoire (fail-closed) sur tous les profils non-git, Android compris.
+- **Téléchargement** : fichier `.part`, trois tentatives, contrôle de l'espace disque, renommage atomique seulement après vérification de l'empreinte.
+- **État après redémarrage** : un service qui se relance pour appliquer la mise à jour ne peut pas écrire « terminé ». `update_orchestrator` enregistre l'empreinte `version|commit` avant la mise à jour et, au démarrage suivant, conclut « terminé » si elle a changé, « échec » sinon (`load_persisted_state_at_startup`). Aucun `force_reload` n'est diffusé au début du pipeline : les clients se rechargent d'eux-mêmes via le changement de `boot_id`.
+- **Headless** : retour arrière automatique (`git checkout` de la référence précédente) si l'installation des dépendances ou la compilation du frontend échoue ; délais allongés pour un Dell Wyse 5070.
+- **Android** : `AndroidHandler` obtient le contexte via `Python.getPlatform().getApplication()` (`PyApplication.context` n'existe pas — cause racine de l'échec « Impossible de déclencher la mise à jour Android »). `UpdateManager.kt` télécharge, vérifie l'empreinte, contrôle paquet/signature/`versionCode` (Android interdit tout retour en arrière sans désinstaller : message explicite plutôt que « application non installée »), puis propose l'installation via une notification qui porte directement l'intention d'installation. Il ne télécharge plus rien spontanément au lancement de l'application.
 
 ### Autorisation sudo restreinte & désinstallation depuis l'interface
 
@@ -562,6 +577,18 @@ Le serveur FastAPI (`backend/app/main.py`) monte dynamiquement le dossier statiq
 
 Sur le profil Android, les données sont réparties sur **deux racines de stockage** distinctes (`backend/app/config.py::_android_internal_root()`) — la base SQLite, les miniatures, les logs, le branding et les pochettes radio vivent sur le stockage **interne** de l'app (`context.filesDir`, f2fs natif) tandis que les médias (vidéos, fonds, audio, radio) restent sur le stockage **externe** (`context.getExternalFilesDir`, servi par FUSE, visible depuis un gestionnaire de fichiers). Une installation existante est migrée automatiquement et sans risque de perte (copie, jamais de déplacement destructif, vérification `PRAGMA integrity_check` avant utilisation) au premier démarrage qui suit une mise à jour — cf. `android/app/src/main/python/bobine_bootstrap.py`.
 | **Assistant GUI** | Linux x86_64 (`bobine-assistant`, Tauri 2 / Rust) | `assistant/ui/` (intégré au binaire Rust) | Fenêtre native GTK WebKit pour la découverte mDNS, scan LAN et déploiement SSH |
+
+### 10.3 Compatibilité navigateurs (Firefox / Gecko)
+
+<img src="../Assets/Images/firefox.svg" alt="Firefox" width="40" align="left" hspace="10" /> Bobine soutient le projet Firefox : l'interface d'administration et les lecteurs ouverts depuis d'autres appareils (`/radio`, `/kiosk`, `/cinema`, `/coach`) ciblent Firefox (version courante, précédente et ESR ; bureau et Android) au même titre que les moteurs Chromium et WebKit.
+
+- **Règle d'ingénierie** : détection de fonctionnalités uniquement (jamais `navigator.userAgent`) ; aucun code spécifique à un navigateur.
+- **Vérifié sur Firefox 157** : WebSocket, XHR/`FormData` (upload), `Range` (206, plage suffixe), CORS, Web Audio, Gamepad, Wake Lock, `requestVideoFrameCallback`, `webkitdirectory`, Cache API. Lecture H.264 (jusqu'à 1080p60 à 60 Mbit/s) sans image perdue ; HEVC/AV1 dépendent de l'OS et du matériel.
+- **Écarts connus** : `HEAD` sur les `/stream` renvoie du HTML ; filtre MIME du glisser-déposer ; HEVC/VP9/4K60 conservés tels quels à l'import ; Wake Lock et Gamepad exigent un contexte sécurisé (HTTPS/`localhost`) selon leur documentation.
+- **Crash/lag d'import signalé** : non reproduit (31 fichiers / 1,5 Go, lien limité à 32 Mbit/s, 2 cœurs) — cause racine à établir par le protocole du plan.
+- Détails, mesures, protocole de diagnostic et lots d'implémentation F0–F8 : [`docs/PLAN-COMPATIBILITE-FIREFOX.md`](PLAN-COMPATIBILITE-FIREFOX.md) ; banc de mesure reproductible : [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
+
+<br clear="left"/>
 
 ---
 

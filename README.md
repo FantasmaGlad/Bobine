@@ -4,6 +4,15 @@
   <img alt="Bobine" src="Assets/Images/bobine_banner.svg" width="100%">
 </p>
 
+<p align="center">
+  <img alt="Bobine supports Firefox — the Firefox fox and Baamix, Bobine's mascot" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/FirefoxBaamix.png" width="320">
+</p>
+
+<p align="center">
+  <b>New in 4.0.3 (beta) — Bobine now officially supports Firefox.</b><br>
+  <sub>Admin interface and third-party players (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>) verified on Firefox 157, with a published hardening plan. Also: more reliable Stable/Beta updates, a smoother installer. <a href="#supported-browsers">Browser support</a> · <a href="docs/PLAN-COMPATIBILITY-FIREFOX.en.md">Firefox plan</a></sub>
+</p>
+
 **The open-source, self-hosted alternative to Les Mills Cinema, Wexer, and Screenly Anthias — professional offline-first video playout, digital signage, and scheduled group-fitness cinema for fitness clubs, gyms, and sports studios.**
 
 Bobine turns any tablet, desktop PC, Mac, or low-cost dedicated mini PC into a complete autonomous broadcast studio:
@@ -31,6 +40,7 @@ Bobine turns any tablet, desktop PC, Mac, or low-cost dedicated mini PC into a c
 ![Database: SQLite WAL](https://img.shields.io/badge/Database-SQLite%20WAL-003B57?logo=sqlite)
 ![Video: 4K 60fps Native](https://img.shields.io/badge/Video-4K%2060fps%20Native-orange)
 ![Hardware Accel: VA--API | VideoToolbox | MediaCodec | QSV](https://img.shields.io/badge/Hardware%20Accel-VA--API%20%7C%20VideoToolbox%20%7C%20MediaCodec%20%7C%20QSV-red)
+![Browsers: Firefox | Chrome | Edge | Safari](https://img.shields.io/badge/Browsers-Firefox%20%7C%20Chrome%20%7C%20Edge%20%7C%20Safari-FF7139?logo=firefoxbrowser&logoColor=white)
 ![Platforms: Windows | macOS | Linux | Android](https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-informational)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/FantasmaGlad/Bobine/pulls)
 
@@ -147,6 +157,22 @@ Bobine is lightweight, robust, and designed to run smoothly on a wide spectrum o
   - **Physical USB remotes**: out-of-the-box support for wireless presentation remotes and media Air Mice (2.4 GHz USB dongle recognized as a native keyboard without drivers).
 
 > For advanced technical benchmarks, multi-OS hardware acceleration pipelines, and appliance systemd architecture, see the dedicated [**Technical Architecture Documentation (docs/ARCHITECTURE.en.md)**](docs/ARCHITECTURE.en.md).
+
+### Supported Browsers
+
+<p align="left">
+  <a href="https://www.mozilla.org/firefox/"><img src="Assets/Images/firefox.svg" alt="Firefox" width="56" align="left" hspace="12" /></a>
+  <b>Bobine proudly supports Firefox.</b> The admin interface and every player opened from another device (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>, <code>/coach</code>, <code>/mobile</code>) target Firefox (current release and ESR, desktop and Android) alongside Chrome, Edge and Safari — one codebase, feature detection only, no browser sniffing.
+</p>
+
+| Browser | Status |
+|---|---|
+| **Firefox** (Windows, macOS, Linux, Android — release, previous release & ESR) | Supported — all Web APIs used by Bobine verified present on Firefox 157; hardening plan in progress |
+| Chrome / Chromium / Edge | Supported (reference kiosk engine on the headless appliance) |
+| Safari / iOS browsers (WebKit) | Supported on a best-effort basis |
+| Firefox derivatives (LibreWolf, Waterfox, Floorp, Zen) | Best effort (same Gecko engine) |
+
+Hardware video decoding is browser- and OS-dependent (HEVC/AV1 in particular). See the [**Firefox / Gecko compatibility plan**](docs/PLAN-COMPATIBILITY-FIREFOX.en.md) — measurements, known gaps and roadmap — and [`scripts/browser-bench/`](scripts/browser-bench/README.md) to reproduce them. *Firefox is a trademark of the Mozilla Foundation; its logo is used here only to state compatibility, with no affiliation or endorsement.*
 
 ---
 
@@ -277,9 +303,14 @@ For studios, fitness clubs, and integrators deploying autonomous 24/7 kiosks on 
 Connect to the mini PC directly or via SSH as your standard non-root user and run:
 
 ```bash
-# Automated 1-line installation:
-curl -sSL https://bobine.fit/install.sh | bash
+# Automated 1-line installation (stable channel):
+curl -fsSL https://bobine.fit/install.sh | bash
+
+# Same, but on the Beta channel (early access):
+curl -fsSL https://bobine.fit/install.sh | bash -s -- --channel=beta
 ```
+
+The script fetches the code into `~/Bobine` (installing `git`/`curl` first if the system is minimal), asks for `sudo` by itself, shows live progress with a spinner and per-step timings, waits for any running `unattended-upgrades`, fixes a drifted system clock, and finishes with the admin URL **and a QR code** to open it from a phone. Re-running it is safe: it updates an existing installation in place. Add `--dry-run` to preview every action.
 
 *(Alternatively, for full source control and custom flags: `git clone https://github.com/FantasmaGlad/Bobine.git && cd Bobine && sudo ./install.sh`).*
 

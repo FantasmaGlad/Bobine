@@ -366,7 +366,12 @@ Production installation is done via the idempotent shell script `install.sh` on 
 ```bash
 # Full installation on the target machine
 sudo ./install.sh
+
+# Or as a single command, with no local checkout (the script fetches the code itself)
+curl -fsSL https://bobine.fit/install.sh | bash
 ```
+
+When launched outside a Bobine checkout (`curl | bash` pipe, or a lone copied file), `install.sh` **bootstraps itself** (`bootstrap_standalone`): it asks for `sudo` on its own (without `sudo -E`, which needs a `SETENV` right), installs `git`/`curl` on a minimal system, clones the repository (partial `--filter=blob:none` clone) into `~<account>/Bobine` at the latest Stable — or the moving `beta` tag with `--channel=beta` — then restarts from that checkout. The language and channel questions are asked on `/dev/tty` even when the script arrives through a pipe, and skipped when there is no terminal (CI, SSH without a PTY). Before any change, `preflight_network` fixes a drifted clock (a dead CMOS battery makes TLS certificates "not yet valid" and apt fail) and checks GitHub access with a precise message. apt calls wait for the `unattended-upgrades` lock (`DPkg::Lock::Timeout`) and retry (`Acquire::Retries`). Long steps show an animated indicator (last useful log line + elapsed time) on a real terminal; the final screen gives the LAN IP and a QR code (`qrencode`) to open the admin from a phone. If the channel checkout replaces `install.sh` with another version, it restarts once from the new one (`BOBINE_REEXEC` guard). CI runs the bootstrap in `--dry-run` through a pipe (historical regression: an unset `${BASH_SOURCE[0]}` under `set -u` crashed the command advertised in the README before any message).
 
 ### Installation Options (`sudo ./install.sh --help`)
 
@@ -405,9 +410,9 @@ No dedicated service for the Radio channel (decision A5, see §5): `/radio` is o
 
 ### Graphical Installation Assistant
 
-A standalone graphical application (`assistant/`, built with **Tauri 2 / Rust**) runs on the **administrator's machine** (Windows, macOS or Linux), locates the mini PC on the LAN (a `/24` scan of every local network interface), connects to it over SSH, audits the hardware, then **drives `install.sh`** with a progress bar and a live view of the installation logs. `install.sh` remains the **single source of truth** — the assistant **orchestrates** it, it doesn't reimplement anything. Full details and build instructions: [`assistant/README.md`](../assistant/README.md).
+A standalone graphical application (`assistant/`, built with **Tauri 2 / Rust**) runs on the **administrator's machine** (Windows, macOS or Linux), locates the mini PC on the LAN (a scan of every local network interface using its real netmask, from /24 to /22, with live results, the ARP table and the `bobine.local` name as reinforcement), connects to it over SSH, audits the hardware, then **drives `install.sh`** with a progress bar and a live view of the installation logs. `install.sh` remains the **single source of truth** — the assistant **orchestrates** it, it doesn't reimplement anything. Full details and build instructions: [`assistant/README.md`](../assistant/README.md).
 
-The network scan shows **every** device that responds (not just Bobine targets) — hostname, IP, OS hint, open ports — so that a user preparing a headless deployment can recognize their kiosk among the rest of the network. SSH authentication accepts, in addition to a password, a private key explicitly imported via a native file picker (`tauri-plugin-dialog`).
+The network scan shows **every** device that responds (not just Bobine targets) — hostname, IP, OS hint, open ports — so that a user preparing a headless deployment can recognize their kiosk among the rest of the network. `install.sh` is embedded in the assistant at build time and uploaded to the target (`bash /tmp/…`): no repository, `git` or `curl` is needed on the kiosk beforehand, and the host can be entered by name (`bobine.local`). The script's real exit code is checked and a failure is shown with "Retry" and "Copy log". SSH authentication accepts, in addition to a password, a private key explicitly imported via a native file picker (`tauri-plugin-dialog`).
 
 ### Update Channel (Stable / Beta)
 
@@ -423,6 +428,16 @@ On the publishing side (`.github/workflows/ci.yml`): the `version` job computes 
 - a direct push to `main` (outside of a tag), or a manual trigger (`workflow_dispatch`, the *publish_beta* checkbox, from any ref — useful for republishing with no new commit) → `release-beta` (force-moves the `beta` tag onto the current commit, deletes then republishes the single Beta release, with auto-generated notes — a changelog since the last stable tag). The Beta thus follows `main` continuously, never falling behind.
 
 Beta artifact filenames are **fixed** (`Bobine-Setup-beta.exe`, `Bobine-beta.dmg`, `bobine_beta_amd64.deb`) — never a version number or a `~` character in them (GitHub Releases silently rewrites `~` to `.` in downloaded asset names). The *internal* version number (shown in the app, the `Version:` field of the Debian package) stays precise: `VERSION`/`COMMIT` are bundled into every package (the same PyInstaller `datas` as `config.toml`) and read at runtime by `app.utils.version` — including on packaged profiles (Windows/macOS/Linux desktop), which have no `.git` to consult otherwise.
+
+#### Update Pipeline Hardening
+
+- **Going back to Stable**: when the local build is a Beta (version `x.y.z-beta`, or a headless checkout sitting exactly on the `beta` tag), choosing the Stable channel offers the latest Stable even if it is numerically lower — `GET /api/updates/check` then returns `is_downgrade: true` and Settings shows "Go back to the Stable version". The daily schedule **never** applies a rollback: only the button does.
+- **Querying GitHub**: responses cached per channel with an `ETag` (a conditional `304` does not consume the network's shared rate limit), a fallback to the last known response during the short window where CI deletes then recreates the `beta` release, and distinct error codes (`offline`, `rate_limited`, `not_found_*`) instead of a generic "offline". `?refresh=1` bypasses the de-duplication window (explicit click, channel change).
+- **Asset selection**: per profile (extension) and, on Android, per variant (`Bobine-<v>.apk` phone/tablet vs `Bobine-TV-<v>.apk`, two distinct `applicationId`s). A SHA-256 digest is mandatory (fail-closed) on every non-git profile, Android included.
+- **Download**: `.part` file, three attempts, free-space check, atomic rename only after the digest is verified.
+- **State after a restart**: a service that restarts itself to apply the update cannot write "done". `update_orchestrator` records the `version|commit` fingerprint before the update and, at the next startup, concludes "done" if it changed and "failed" otherwise (`load_persisted_state_at_startup`). No `force_reload` is broadcast at the start of the pipeline: clients reload themselves through the `boot_id` change.
+- **Headless**: automatic rollback (`git checkout` of the previous ref) if the dependency install or the frontend build fails; longer timeouts for a Dell Wyse 5070.
+- **Android**: `AndroidHandler` gets its context via `Python.getPlatform().getApplication()` (`PyApplication.context` does not exist — the root cause of "Impossible de déclencher la mise à jour Android"). `UpdateManager.kt` downloads, verifies the digest, checks package/signature/`versionCode` (Android forbids any downgrade without uninstalling: an explicit message instead of "app not installed"), then offers the install through a notification that carries the install intent directly. It no longer downloads anything spontaneously at app launch.
 
 ### Restricted sudo Authorization & Uninstall from the Interface
 
@@ -560,6 +575,18 @@ The FastAPI server (`backend/app/main.py`) dynamically mounts the static folder 
 
 On the Android profile, data is split across **two storage roots** (`backend/app/config.py::_android_internal_root()`) — the SQLite database, thumbnails, logs, branding and radio cover art live on the app's **internal** storage (`context.filesDir`, native f2fs), while media (videos, backgrounds, audio, radio) stays on **external** storage (`context.getExternalFilesDir`, served over FUSE, visible from a file manager). An existing install is migrated automatically with no risk of data loss (copy, never a destructive move, with a `PRAGMA integrity_check` before use) on the first launch following an update — see `android/app/src/main/python/bobine_bootstrap.py`.
 | **GUI Assistant** | Linux x86_64 (`bobine-assistant`, Tauri 2 / Rust) | `assistant/ui/` (bundled into the Rust binary) | Native GTK WebKit window for mDNS discovery, LAN scanning and SSH deployment |
+
+### 10.3 Browser compatibility (Firefox / Gecko)
+
+<img src="../Assets/Images/firefox.svg" alt="Firefox" width="40" align="left" hspace="10" /> Bobine supports the Firefox project: the admin interface and the players opened from other devices (`/radio`, `/kiosk`, `/cinema`, `/coach`) target Firefox (current, previous and ESR; desktop and Android) on equal footing with Chromium and WebKit engines.
+
+- **Engineering rule**: feature detection only (never `navigator.userAgent`); no browser-specific code.
+- **Verified on Firefox 157**: WebSocket, XHR/`FormData` upload, `Range` (206, suffix ranges), CORS, Web Audio, Gamepad, Wake Lock, `requestVideoFrameCallback`, `webkitdirectory`, Cache API. H.264 playback (up to 1080p60 at 60 Mbit/s) with no dropped frame; HEVC/AV1 depend on the OS and hardware.
+- **Known gaps**: `HEAD` on `/stream` returns HTML; drag-and-drop MIME filter; HEVC/VP9/4K60 kept as-is on import; Wake Lock and Gamepad require a secure context (HTTPS/`localhost`) per their documentation.
+- **Reported import crash/lag**: not reproduced (31 files / 1.5 GB, 32 Mbit/s throttled link, 2 cores) — root cause to be established with the plan's diagnostic protocol.
+- Details, measurements, diagnostic protocol and work packages F0–F8: [`docs/PLAN-COMPATIBILITY-FIREFOX.en.md`](PLAN-COMPATIBILITY-FIREFOX.en.md); reproducible bench: [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
+
+<br clear="left"/>
 
 ---
 
