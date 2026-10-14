@@ -13,6 +13,7 @@ from app.database import get_db, SessionLocal
 from app.models import Background, ImportSource
 from app.utils.importer import import_background, is_image_background
 from app.utils.executors import ffmpeg_executor
+from app.utils.staged_uploads import receive_single_upload
 from app.utils.import_jobs import create_job, update_job, register_job_future, JobCancelledError
 from app.utils._pydantic_compat import computed_field, _ComputedFieldsCompatMixin
 
@@ -83,22 +84,16 @@ def _run_background_import_job(job_id: str, temp_path: str, filename: str, title
 
 @router.post("/upload", response_model=ImportJobAccepted, status_code=202)
 def upload_background(
-    file: UploadFile = File(...),
+    file: UploadFile | None = File(None),
+    upload_id: str | None = Form(None),
     title: str | None = Form(None),
 ):
     """Upload web d'un fond animé (réf. F9.1, UX3.12) — traité en arrière-plan,
     voir `_run_background_import_job` et `GET /api/import-jobs`."""
-    suffix = Path(file.filename).suffix.lower()
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
-            shutil.copyfileobj(file.file, temp_file)
-            temp_path = temp_file.name
-    except Exception as e:
-        logger.error(f"Erreur lors de la réception de l'upload du fond animé: {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=str(e))
+    temp_path, filename = receive_single_upload(file, upload_id)
 
-    job_id = create_job("background", file.filename, title or Path(file.filename).stem)
-    future = ffmpeg_executor.submit(_run_background_import_job, job_id, temp_path, file.filename, title)
+    job_id = create_job("background", filename, title or Path(filename).stem)
+    future = ffmpeg_executor.submit(_run_background_import_job, job_id, temp_path, filename, title)
     register_job_future(job_id, future)
     return {"job_id": job_id}
 

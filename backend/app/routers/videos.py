@@ -22,6 +22,8 @@ from app.models import Video, ImportSource
 from app.config import settings
 from app.utils.importer import import_video
 from app.utils.executors import ffmpeg_executor
+from app.utils.staged_uploads import receive_single_upload
+from app.utils.web_rendition import remove_web_file, request_web_rendition
 from app.utils.import_jobs import create_job, update_job, register_job_future, JobCancelledError
 from app.utils.ws_manager import manager as ws_manager
 from app.utils.video_utils import (
@@ -60,6 +62,12 @@ class VideoResponse(BaseModel):
     audio_codec: str | None = None
     fps: float | None = None
     bitrate_kbps: int | None = None
+    pix_fmt: str | None = None
+    # Lisibilité sur les navigateurs tiers (cf. app/utils/web_profile.py) :
+    # `web_issues` vide = lisible partout ; `web_status` = état de la version web.
+    web_safe: bool = True
+    web_issues: List[str] = []
+    web_status: str | None = None
 
     class Config:
         from_attributes = True
@@ -131,7 +139,8 @@ def _run_video_import_job(
 
 @router.post("/upload", response_model=ImportJobAccepted, status_code=202)
 def upload_video(
-    file: UploadFile = File(...),
+    file: UploadFile | None = File(None),
+    upload_id: str | None = Form(None),
     title: str | None = Form(None),
     program: str | None = Form(None),
     release: str | None = Form(None),
@@ -141,17 +150,12 @@ def upload_video(
     arrière-plan (normalisation automatique si requise) — voir
     `_run_video_import_job` et `GET /api/import-jobs`.
     """
-    suffix = Path(file.filename).suffix.lower()
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
-            shutil.copyfileobj(file.file, temp_file)
-            temp_path = temp_file.name
-    except Exception as e:
-        logger.error(f"Erreur lors de la réception de l'upload vidéo: {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=str(e))
+    # `upload_id` : fichier déjà reçu par morceaux (app/utils/staged_uploads.py) ;
+    # sinon multipart classique — comportement historique conservé.
+    temp_path, filename = receive_single_upload(file, upload_id)
 
-    job_id = create_job("video", file.filename, title or Path(file.filename).stem)
-    future = ffmpeg_executor.submit(_run_video_import_job, job_id, temp_path, file.filename, title, program, release)
+    job_id = create_job("video", filename, title or Path(filename).stem)
+    future = ffmpeg_executor.submit(_run_video_import_job, job_id, temp_path, filename, title, program, release)
     register_job_future(job_id, future)
     return {"job_id": job_id}
 
@@ -308,10 +312,41 @@ def delete_video(video_id: int, db: Session = Depends(get_db)):
             except Exception as e:
                 logger.error(f"Impossible de supprimer la miniature {p}: {e}")
 
+    # Suppression de la version web « lisible partout », s'il y en a une
+    remove_web_file(video.web_path)
+
     db.delete(video)
     db.commit()
     ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "video_deleted"})
     return {"message": "Vidéo supprimée avec succès"}
+
+
+@router.post("/{video_id}/web-rendition", response_model=ImportJobAccepted, status_code=202)
+def create_web_rendition(video_id: int, db: Session = Depends(get_db)):
+    """Lance la production de la version « lisible partout » (H.264 8 bits,
+    ≤ 1080p, AAC) — suivie via `GET /api/import-jobs`, état dans `web_status`.
+    La vidéo d'origine n'est jamais modifiée (cf. app/utils/web_profile.py)."""
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Vidéo non trouvée")
+    if video.web_safe:
+        raise HTTPException(status_code=409, detail="Cette vidéo est déjà lisible sur tous les navigateurs : aucune version web n'est nécessaire.")
+    job_id = request_web_rendition(video_id)
+    if job_id is None:
+        raise HTTPException(status_code=409, detail="Une version web est déjà en cours de production pour cette vidéo.")
+    return {"job_id": job_id}
+
+
+@router.delete("/{video_id}/web-rendition")
+def delete_web_rendition(video_id: int, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Vidéo non trouvée")
+    remove_web_file(video.web_path)
+    video.web_path, video.web_status = None, None
+    db.commit()
+    ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "web_rendition_deleted"})
+    return {"message": "Version web supprimée"}
 
 
 @router.put("/{video_id}/thumbnail", response_model=VideoResponse)

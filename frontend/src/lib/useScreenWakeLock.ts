@@ -32,6 +32,9 @@ export function useScreenWakeLock(enabled: boolean) {
         // Si un verrou valide est déjà actif, rien à faire
         if (wakeLockRef.current && !wakeLockRef.current.released) return;
 
+        // Fonction détectée plus haut (`"wakeLock" in navigator`) : absente de Firefox < 126
+        // et hors contexte sécurisé, sans conséquence — l'échec est silencieux.
+        // eslint-disable-next-line compat/compat -- détectée par feature detection
         const sentinel = await navigator.wakeLock.request("screen");
         if (!isActive) {
           await sentinel.release();

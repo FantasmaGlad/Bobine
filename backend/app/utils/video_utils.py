@@ -76,10 +76,12 @@ def extract_metadata(file_path: str) -> dict:
     width = None
     height = None
     v_codec = None
+    pix_fmt = None
     if v_stream:
         width = v_stream.get("width")
         height = v_stream.get("height")
         v_codec = v_stream.get("codec_name")
+        pix_fmt = v_stream.get("pix_fmt")
         if duration is None and "duration" in v_stream:
             try:
                 duration = float(v_stream["duration"])
@@ -175,6 +177,7 @@ def extract_metadata(file_path: str) -> dict:
         "audio_channels": audio_channels,
         "fps": fps,
         "bitrate_kbps": bitrate_kbps,
+        "pix_fmt": pix_fmt,
         "description": description,
         "is_drm": is_drm
     }
@@ -655,6 +658,38 @@ def _get_transcode_pipeline(
     return [sw_tier]
 
 
+
+def _shares_machine_with_browser() -> bool:
+    """Vrai sur les profils où le navigateur d'administration tourne sur la
+    MÊME machine que le backend (applications Windows, macOS et Linux de
+    bureau) : un réencodage `-threads 0` au plein de la priorité y affame le
+    navigateur (onglet figé, voire tué par manque de mémoire/CPU). Faux sur
+    l'appliance headless dédiée (le « race to sleep » reste voulu : finir
+    vite pour redormir) et sur Android (cf. profil dédié, seccomp)."""
+    from app.utils.deployment import get_deployment_profile
+
+    return get_deployment_profile() in ("windows", "macos", "linux-desktop")
+
+
+def _background_priority_popen_kwargs() -> dict:
+    """Windows : classe de priorité « sous la normale » dès la création."""
+    if os.name == "nt" and _shares_machine_with_browser():
+        return {"creationflags": getattr(subprocess, "BELOW_NORMAL_PRIORITY_CLASS", 0)}
+    return {}
+
+
+def _lower_process_priority(pid: int) -> None:
+    """POSIX (macOS, Linux de bureau) : `nice 10` sur le processus ffmpeg. Posé
+    juste après le lancement plutôt que par `preexec_fn`, déconseillé dans un
+    processus multi-threadé (risque d'interblocage). Best-effort : un échec ne
+    doit jamais faire échouer l'import."""
+    if os.name == "nt" or not _shares_machine_with_browser():
+        return
+    try:
+        os.setpriority(os.PRIO_PROCESS, pid, 10)
+    except (OSError, AttributeError) as e:
+        logger.debug(f"Priorité réduite de ffmpeg impossible (pid {pid}) : {e}")
+
 def _run_ffmpeg_with_progress(
     cmd: list[str],
     job_id: str | None,
@@ -686,7 +721,9 @@ def _run_ffmpeg_with_progress(
         stderr=subprocess.PIPE,
         text=True,
         bufsize=1,
+        **_background_priority_popen_kwargs(),
     )
+    _lower_process_priority(proc.pid)
     if job_id:
         register_job_process(job_id, proc)
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import BrowserCompatibility from "@/components/BrowserCompatibility";
 import { useAppSettings, type Theme } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
 import Icon from "@/components/Icon";
@@ -1383,6 +1384,9 @@ export default function SettingsPage() {
           )}
         </div>
       </section>
+
+      {/* ---- Compatibilité navigateur (diagnostic local, lot F5 du plan Firefox) ---- */}
+      <BrowserCompatibility />
 
       {/* ---- Sauvegarde & Restauration universelle ---- */}
       <section className="live-block">

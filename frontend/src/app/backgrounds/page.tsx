@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import { VIDEO_ACCEPT } from "@/lib/mediaFiles";
 import { useUploadManager, PendingUploadSpec } from "@/lib/UploadManager";
 import Icon from "@/components/Icon";
 
@@ -452,7 +453,7 @@ export default function BackgroundsPage() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="video/*,image/*"
+          accept={`${VIDEO_ACCEPT},image/*`}
           multiple
           style={{ display: "none" }}
           onChange={(e) => {

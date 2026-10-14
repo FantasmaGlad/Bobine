@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
+import { videoStreamUrl } from "@/lib/clientCodecSupport";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { buildOutputUrl } from "@/lib/displayChannel";
 import type { ClockAnchor } from "@/lib/playbackClock";
@@ -471,7 +472,7 @@ export default function CinemaPage() {
     if (!isPlaying || !idle || !currentActive) {
       const target = currentActive || idle;
       if (!target) return;
-      target.src = getApiUrl(`/videos/${video.id}/stream`);
+      target.src = videoStreamUrl(getApiUrl, video.id);
       target.currentTime = 0;
       target.volume = 1.0;
       target.muted = false;
@@ -487,7 +488,7 @@ export default function CinemaPage() {
 
     // Double Décodeur Vidéo Gapless A/B Deck (réf. CDC V3.0.5 §3.2) :
     // Préchargement en coulisses sur le deck inactif
-    idle.src = getApiUrl(`/videos/${video.id}/stream`);
+    idle.src = videoStreamUrl(getApiUrl, video.id);
     idle.currentTime = 0;
     idle.volume = 1.0;
     idle.muted = false;
@@ -793,7 +794,7 @@ export default function CinemaPage() {
     mediaRef: cinemaMediaRef,
     state: cinemaSync,
     select: selectCinemaTarget,
-    isMediaForKey: (el, key) => el.src.endsWith(`/videos/${key}/stream`),
+    isMediaForKey: (el, key) => el.src.includes(`/videos/${key}/stream`),
     serverNow,
     tryPlay: (el) => {
       el?.play().catch(() => {});

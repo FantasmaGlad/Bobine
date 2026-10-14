@@ -205,9 +205,17 @@ export function useMediaClockFollower<S>({ mediaRef, state, select, enabled = tr
 
     tickRef.current = tick;
     const id = setInterval(tick, FOLLOW_INTERVAL_MS);
+    // Onglet masqué : Firefox (comme Chromium) ramène les minuteurs à ≥ 1 s, la
+    // dérive peut donc s'accumuler. Au retour au premier plan, on recale TOUT
+    // DE SUITE au lieu d'attendre le tour suivant (plan Firefox, lot F4).
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       tickRef.current = null;
       clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
       if (startTimer) clearTimeout(startTimer);
     };
   }, [mediaRef]);

@@ -60,6 +60,7 @@ def _extract_metadata_or_unknown(file_path: str, original_filename: str) -> dict
             "audio_channels": None,
             "fps": None,
             "bitrate_kbps": None,
+            "pix_fmt": None,
             "description": None,
             "is_drm": False,
         }
@@ -265,6 +266,7 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
                 audio_codec=meta.get("audio_codec"),
                 fps=meta.get("fps"),
                 bitrate_kbps=meta.get("bitrate_kbps"),
+                pix_fmt=meta.get("pix_fmt"),
             )
             db.add(video)
             db.commit()

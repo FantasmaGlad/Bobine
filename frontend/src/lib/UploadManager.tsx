@@ -42,9 +42,35 @@ import React, {
   useState,
 } from "react";
 import Icon from "@/components/Icon";
+import {
+  ChunkedUnsupportedError,
+  UploadAbortedError,
+  cancelChunkedUpload,
+  uploadFileInChunks,
+} from "@/lib/chunkedUpload";
 
-const MAX_CONCURRENT_UPLOADS = 3;
 const JOB_POLL_INTERVAL_MS = 1500;
+/** Fréquence maximale des mises à jour d'état pendant un transfert : chaque
+ *  `setUploads` re-rend tout le contexte — à raison de dizaines d'évènements
+ *  `progress` par seconde et par transfert, c'était le premier coût sur un
+ *  poste modeste (plan de compatibilité Firefox, lot F2). */
+const PROGRESS_MIN_INTERVAL_MS = 250;
+
+/** Transferts réseau simultanés, adaptés à la machine (jamais
+ *  `navigator.deviceMemory`, absent de Firefox) : 3 sur un poste confortable,
+ *  1 sur un appareil modeste où plusieurs gros envois en parallèle saturent
+ *  CPU, mémoire et lien Wi-Fi. */
+function maxConcurrentUploads(): number {
+  const cores = typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 4 : 4;
+  if (cores <= 3) return 1;
+  if (cores <= 7) return 2;
+  return 3;
+}
+
+/** Types d'import à fichier unique, potentiellement très volumineux : envoyés
+ *  par morceaux reprenables (lib/chunkedUpload.ts). Les imports multi-fichiers
+ *  de pistes audio (quelques Mo chacune) restent en `multipart` classique. */
+const CHUNKED_KINDS: ReadonlySet<UploadKind> = new Set<UploadKind>(["video", "background", "audio_zip", "radio_zip"]);
 
 // ---------------------------------------------------------------------------
 // Types
@@ -101,6 +127,8 @@ export interface UploadTask extends PendingUploadSpec {
   resultId?: number | null;
   error?: string;
   xhr?: XMLHttpRequest;
+  /** Annulation d'un transfert par morceaux en cours (équivalent de `xhr.abort()`). */
+  abort?: () => void;
 }
 
 interface UploadManagerContextValue {
@@ -168,9 +196,12 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     });
   }, []);
 
-  const buildFormData = (task: UploadTask): FormData => {
+  const buildFormData = (task: UploadTask, uploadId?: string): FormData => {
     const formData = new FormData();
-    if (task.kind === "audio_files" || task.kind === "radio_files" || task.kind === "radio_announcement_files") {
+    if (uploadId) {
+      // Fichier déjà reçu par morceaux : l'import le reprend côté serveur.
+      formData.append("upload_id", uploadId);
+    } else if (task.kind === "audio_files" || task.kind === "radio_files" || task.kind === "radio_announcement_files") {
       (task.files ?? []).forEach((f) => formData.append("files", f));
     } else if (task.file) {
       formData.append("file", task.file);
@@ -185,28 +216,97 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     return formData;
   };
 
-  /** Lance l'upload XHR d'une tâche. Appelé par startNext(). Libère son
-   * créneau réseau (onDone) dès que le TRANSFERT est fini (réponse 202 avec
-   * job_id) — le traitement serveur qui suit ne bloque plus la file
-   * d'upload, il est suivi séparément par pollJobs(). */
-  const runUpload = useCallback(
+  /** Rapporteur de progression d'un transfert : calcule pourcentage et temps
+   *  restant, et ne touche à l'état React qu'à PROGRESS_MIN_INTERVAL_MS d'écart
+   *  (toujours au début et à la fin). */
+  const makeProgressReporter = useCallback(
+    (taskId: string) => {
+      const startTime = Date.now();
+      let lastUpdateAt = 0;
+      return (loaded: number, total: number) => {
+        if (total <= 0) return;
+        const now = Date.now();
+        if (loaded < total && lastUpdateAt !== 0 && now - lastUpdateAt < PROGRESS_MIN_INTERVAL_MS) return;
+        lastUpdateAt = now;
+        const elapsedSec = (now - startTime) / 1000;
+        let uploadEtaSeconds: number | null = null;
+        if (elapsedSec > 0.5 && loaded > 0) {
+          uploadEtaSeconds = Math.max(0, Math.round((total - loaded) / (loaded / elapsedSec)));
+        }
+        updateTask(taskId, { progress: Math.round((loaded / total) * 100), uploadEtaSeconds });
+      };
+    },
+    [updateTask],
+  );
+
+  /** Transfert par morceaux reprenable d'un fichier unique (vidéo, fond, ZIP),
+   *  puis appel du point d'entrée d'import avec `upload_id`. Retombe sur
+   *  l'envoi classique si le serveur ne connaît pas le protocole. */
+  const runChunkedUpload = useCallback(
+    (task: UploadTask, onDone: () => void, fallback: () => void) => {
+      const controller = new AbortController();
+      let sessionId: string | undefined;
+      updateTask(task.id, { status: "uploading", abort: () => controller.abort() });
+      const report = makeProgressReporter(task.id);
+
+      (async () => {
+        const uploadId = await uploadFileInChunks(task.file!, {
+          apiUrl: getApiUrl,
+          signal: controller.signal,
+          onSession: (id) => { sessionId = id; },
+          onProgress: report,
+        });
+        sessionId = uploadId;
+        const res = await fetch(getApiUrl(UPLOAD_ENDPOINTS[task.kind]), {
+          method: "POST",
+          body: buildFormData(task, uploadId),
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.detail || "Erreur lors de l'import");
+        }
+        const body = await res.json().catch(() => ({}));
+        updateTask(task.id, {
+          status: body.job_id ? "processing" : "done",
+          progress: 100,
+          jobId: body.job_id,
+          stage: "queued",
+          stageLabel: "En attente",
+          abort: undefined,
+        });
+        onDone();
+      })().catch((err: unknown) => {
+        const aborted = err instanceof UploadAbortedError || (err as DOMException)?.name === "AbortError";
+        if (err instanceof ChunkedUnsupportedError) {
+          fallback();
+          return;
+        }
+        if (aborted) {
+          if (sessionId) void cancelChunkedUpload(sessionId, getApiUrl);
+          setUploads((prev) => {
+            const next = prev.filter((t) => t.id !== task.id);
+            uploadsRef.current = next;
+            return next;
+          });
+        } else {
+          updateTask(task.id, { status: "error", error: (err as Error).message || "Erreur lors de l'upload", abort: undefined });
+        }
+        onDone();
+      });
+    },
+    [updateTask, makeProgressReporter],
+  );
+
+  /** Envoi `multipart/form-data` classique (pistes audio multiples, repli). */
+  const runMultipartUpload = useCallback(
     (task: UploadTask, onDone: () => void) => {
       const xhr = new XMLHttpRequest();
       updateTask(task.id, { status: "uploading", xhr });
 
-      const startTime = Date.now();
+      const report = makeProgressReporter(task.id);
       xhr.upload.addEventListener("progress", (e) => {
-        if (e.lengthComputable && e.total > 0) {
-          const progress = Math.round((e.loaded / e.total) * 100);
-          const elapsedSec = (Date.now() - startTime) / 1000;
-          let uploadEtaSeconds: number | null = null;
-          if (elapsedSec > 0.5 && e.loaded > 0) {
-            const bytesPerSec = e.loaded / elapsedSec;
-            const remainingBytes = e.total - e.loaded;
-            uploadEtaSeconds = Math.max(0, Math.round(remainingBytes / bytesPerSec));
-          }
-          updateTask(task.id, { progress, uploadEtaSeconds });
-        }
+        if (e.lengthComputable) report(e.loaded, e.total);
       });
 
       xhr.addEventListener("load", () => {
@@ -256,7 +356,23 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
       xhr.open("POST", getApiUrl(UPLOAD_ENDPOINTS[task.kind]));
       xhr.send(buildFormData(task));
     },
-    [updateTask],
+    [updateTask, makeProgressReporter],
+  );
+
+  /** Lance l'upload d'une tâche (appelé par fillSlots). Libère son créneau
+   * réseau (onDone) dès que le TRANSFERT est fini (réponse 202 avec job_id) —
+   * le traitement serveur qui suit ne bloque plus la file d'upload, il est
+   * suivi séparément par le polling des tâches d'import. */
+  const runUpload = useCallback(
+    (task: UploadTask, onDone: () => void) => {
+      const multipart = () => runMultipartUpload(task, onDone);
+      if (CHUNKED_KINDS.has(task.kind) && task.file) {
+        runChunkedUpload(task, onDone, multipart);
+        return;
+      }
+      multipart();
+    },
+    [runChunkedUpload, runMultipartUpload],
   );
 
   /**
@@ -270,7 +386,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
    */
   const fillSlots = useCallback(() => {
     const activeCount = uploadsRef.current.filter((t) => t.status === "uploading").length;
-    const slotsFree = MAX_CONCURRENT_UPLOADS - activeCount;
+    const slotsFree = maxConcurrentUploads() - activeCount;
     if (slotsFree <= 0) return;
     const toStart = uploadsRef.current.filter((t) => t.status === "pending").slice(0, slotsFree);
     toStart.forEach((task) => runUpload(task, fillSlots));
@@ -309,8 +425,11 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
       });
     }
 
-    if (task.status === "uploading" && task.xhr) {
-      task.xhr.abort(); // déclenche l'événement "abort" → nettoyage automatique
+    if (task.status === "uploading" && (task.xhr || task.abort)) {
+      // XHR : l'évènement "abort" nettoie ; transfert par morceaux : le
+      // contrôleur d'annulation fait de même (cf. runChunkedUpload).
+      if (task.xhr) task.xhr.abort();
+      else task.abort?.();
     } else {
       setUploads((prev) => {
         const next = prev.filter((t) => t.id !== id);

@@ -578,6 +578,25 @@ export default function RadioScreenPage() {
     return () => clearInterval(id);
   }, [attemptRecovery]);
 
+  // Le contexte audio peut repasser en « suspended » sans geste de
+  // l'utilisateur (Firefox : changement de périphérique de sortie,
+  // économiseur d'énergie, retour d'un onglet masqué) : la radio resterait
+  // alors muette alors que tout paraît « en lecture ». On le relance dès que
+  // l'onglet redevient visible et par un contrôle léger périodique, mais
+  // seulement une fois le poste déverrouillé par un vrai geste.
+  useEffect(() => {
+    const resumeIfSuspended = () => {
+      const ctx = audioCtxRef.current;
+      if (ctx && unlockedRef.current && ctx.state !== "running") ctx.resume().catch(() => {});
+    };
+    document.addEventListener("visibilitychange", resumeIfSuspended);
+    const id = setInterval(resumeIfSuspended, 5000);
+    return () => {
+      document.removeEventListener("visibilitychange", resumeIfSuspended);
+      clearInterval(id);
+    };
+  }, []);
+
   const handleUnlock = () => {
     setUnlocked(true);
     ensureAudioGraph(state.volume);

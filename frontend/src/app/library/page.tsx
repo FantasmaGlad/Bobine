@@ -2,7 +2,10 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import { videoStreamUrl } from "@/lib/clientCodecSupport";
+import WebRenditionPanel from "@/components/WebRenditionPanel";
 import { useUploadManager, PendingUploadSpec } from "@/lib/UploadManager";
+import { VIDEO_ACCEPT, partitionVideoFiles } from "@/lib/mediaFiles";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { parseMediaName } from "@/lib/parseMediaName";
 import Icon from "@/components/Icon";
@@ -457,13 +460,24 @@ export default function LibraryPage() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("video/"));
-    if (files.length > 0) addPendingSpecs(files);
+    acceptDroppedOrSelected(Array.from(e.dataTransfer.files));
+  };
+
+  /** Ajoute les fichiers vidéo reconnus (type MIME OU extension, cf.
+   *  lib/mediaFiles.ts) et prévient explicitement pour les autres : un
+   *  fichier ignoré en silence est indiscernable d'un bug d'import. */
+  const acceptDroppedOrSelected = (files: File[]) => {
+    const { accepted, rejected } = partitionVideoFiles(files);
+    if (accepted.length > 0) addPendingSpecs(accepted);
+    if (rejected.length > 0) {
+      const names = rejected.slice(0, 3).map((f) => f.name).join(", ") + (rejected.length > 3 ? "…" : "");
+      showToast(t("library.unsupportedFiles", { count: rejected.length, names }), "warning");
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    if (files.length > 0) addPendingSpecs(files);
+    if (files.length > 0) acceptDroppedOrSelected(files);
     // Réinitialiser l'input pour permettre de re-sélectionner les mêmes fichiers.
     e.target.value = "";
   };
@@ -573,7 +587,7 @@ export default function LibraryPage() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="video/*"
+          accept={VIDEO_ACCEPT}
           multiple
           style={{ display: "none" }}
           onChange={handleFileChange}
@@ -939,9 +953,10 @@ export default function LibraryPage() {
                   controls
                   playsInline
                   preload="metadata"
-                  src={getApiUrl(`/videos/${selectedVideo.id}/stream`)}
+                  src={videoStreamUrl(getApiUrl, selectedVideo.id)}
                   poster={getThumbnailSrc(selectedVideo) || undefined}
                 />
+                <WebRenditionPanel key={selectedVideo.id} videoId={selectedVideo.id} />
               </div>
 
               {/* Form edit metadata */}

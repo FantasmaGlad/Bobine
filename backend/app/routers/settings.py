@@ -82,6 +82,7 @@ _WRITABLE_NUMERIC_FIELDS = {
 _WRITABLE_STRING_FIELDS = {
     "theme", "language", "active_logo", "update_channel", "wired_display_mode",
     "display_mode_setting", "auto_update_enabled", "auto_update_time",
+    "auto_web_rendition",
 }
 _DEFAULTS = {
     # "clair" (réf. mission "thème par défaut") : version claire du thème
@@ -108,6 +109,12 @@ _DEFAULTS = {
     # planifiées à cette heure (cf. `_periodic_purge_logs`).
     "auto_update_enabled": "false",
     "auto_update_time": "03:00",
+    # Version web « lisible partout » (lot F3, plan Firefox) : désactivée par
+    # défaut — c'est un réencodage ffmpeg (plusieurs minutes sur un CPU
+    # modeste) que l'administrateur choisit d'activer ; quand elle l'est, la
+    # première lecture depuis un navigateur incapable de décoder l'original la
+    # déclenche automatiquement (cf. main.py::stream_video).
+    "auto_web_rendition": "false",
 }
 _AUTO_UPDATE_TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _LOGO_FILENAME = "logo.png"
@@ -158,6 +165,7 @@ class SettingsUpdate(BaseModel):
     display_mode_setting: str | None = None
     auto_update_enabled: str | None = None
     auto_update_time: str | None = None
+    auto_web_rendition: str | None = None
 
 
 def _get_db_value(db: Session, key: str) -> str | None:
@@ -287,6 +295,7 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         # `auto_update_enabled` — cf. app.scheduler_manager.sync_auto_update_job.
         "auto_update_enabled": auto_update_enabled,
         "auto_update_time": auto_update_time,
+        "auto_web_rendition": _get_db_value(db, "auto_web_rendition") or _DEFAULTS["auto_web_rendition"],
         # Aide à la découverte réseau (réf. mission "IP obtenue par
         # l'appareil"), en complément de bobine.local (avahi, cf. install.sh).
         "network": {
@@ -560,6 +569,8 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
                 )
             if key == "auto_update_enabled" and value not in ("true", "false"):
                 raise HTTPException(status_code=400, detail="auto_update_enabled invalide (attendu 'true' ou 'false')")
+            if key == "auto_web_rendition" and value not in ("true", "false"):
+                raise HTTPException(status_code=400, detail="auto_web_rendition invalide (attendu 'true' ou 'false')")
             if key == "auto_update_time" and not _AUTO_UPDATE_TIME_RE.match(value):
                 raise HTTPException(status_code=400, detail="Heure de mise à jour automatique invalide (attendu 'HH:MM')")
 

@@ -75,8 +75,25 @@ class Video(Base):
     audio_codec: Mapped[str | None]
     fps: Mapped[float | None]
     bitrate_kbps: Mapped[int | None]
+    # Format de pixels (yuv420p, yuv420p10le…) : nécessaire pour savoir si un
+    # navigateur tiers saura décoder le fichier (app/utils/web_profile.py).
+    pix_fmt: Mapped[str | None]
+    # Version « lisible partout » produite à la demande (H.264 8 bits ≤ 1080p) ;
+    # `web_status` : None | "pending" | "ready" | "error".
+    web_path: Mapped[str | None]
+    web_status: Mapped[str | None]
     imported_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     source: Mapped[ImportSource]
+
+    @property
+    def web_issues(self) -> list[str]:
+        from app.utils.web_profile import web_playback_issues
+
+        return web_playback_issues(self.codec, self.pix_fmt, self.width, self.height, self.fps)
+
+    @property
+    def web_safe(self) -> bool:
+        return not self.web_issues
 
     playlist_items: Mapped[list["PlaylistItem"]] = relationship(back_populates="video")
     ratings: Mapped[list["CourseRating"]] = relationship(back_populates="video", cascade="all, delete-orphan")

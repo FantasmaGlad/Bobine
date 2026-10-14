@@ -11,11 +11,11 @@ from contextlib import asynccontextmanager
 
 import aiofiles
 import psutil
-from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
+from fastapi.responses import Response, StreamingResponse, JSONResponse, FileResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.datastructures import Headers
@@ -23,14 +23,17 @@ from starlette.staticfiles import NotModifiedResponse
 
 from app.config import settings
 from app.database import init_db, get_db, SessionLocal
-from app.models import AudioTrack, Background, RadioAnnouncement, RadioTrack, Video
+from app.models import AudioTrack, Background, RadioAnnouncement, RadioTrack, Setting, Video
 from app.playback_manager import get_all_playback_managers
 from app.radio_manager import get_radio_manager
 from app.routers import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,
     radio, radio_playlists, radio_announcements, settings as settings_router, logs, import_jobs,
-    updates, metrics, display,
+    updates, metrics, display, uploads,
 )
+from app.utils.media_response import build_media_response
+from app.utils.web_profile import choose_rendition, client_can_decode, parse_accept
+from app.utils.web_rendition import request_web_rendition
 from app.utils.radio_utils import content_type_for
 from app.utils.update_orchestrator import load_persisted_state_at_startup
 from app.utils.version import get_app_version
@@ -108,6 +111,10 @@ async def lifespan(app: FastAPI):
     # `GET /api/updates/status` retomber silencieusement à "idle" avant que
     # le frontend n'ait pu lire le résultat réel.
     load_persisted_state_at_startup()
+    # Transferts par morceaux abandonnés depuis plus de 24 h (app/utils/staged_uploads.py)
+    from app.utils.staged_uploads import purge_stale
+    purge_stale()
+    _reset_stale_web_rendition_status()
     # Avant le watcher (réf. correctif "déplacement de fichier et commit en
     # base pas atomiques") : aucun import n'est possible tant que l'app n'a
     # pas fini de démarrer, donc tout fichier orphelin trouvé ici provient
@@ -165,6 +172,7 @@ app.include_router(settings_router.router)
 app.include_router(display.router)
 app.include_router(logs.router)
 app.include_router(import_jobs.router)
+app.include_router(uploads.router)
 app.include_router(updates.router)
 app.include_router(metrics.router)
 
@@ -249,90 +257,68 @@ def get_server_time():
     return {"server_ts": int(time.time() * 1000)}
 
 
-async def _range_stream_response(file_path: Path, range: str | None, content_type: str) -> StreamingResponse:
-    """
-    Sert un fichier avec support HTTP Range (nécessaire pour la lecture directe
-    et le saut dans la timeline). Partagé par tous les flux média (vidéos,
-    fonds animés, pistes audio) : même logique de découpage par octets quel
-    que soit le type de contenu.
-
-    Utilise aiofiles pour une lecture disque non-bloquante : le thread de
-    l'event loop reste disponible pour les autres requêtes pendant le streaming.
-    """
-    # Lot 15 (docs/audit-android-2026-09-11.md §C1) : `exists()`/`stat()`
-    # sortis de la boucle — sur le stockage externe Android (FUSE), même un
-    # simple `stat` a un coût mesurable ; chaque requête Range (plusieurs
-    # par seconde pendant une lecture) en fait un. Sans effet mesurable sur
-    # les autres plateformes (appel déjà quasi instantané sur ext4/NTFS/APFS).
-    exists = await run_in_threadpool(file_path.exists)
-    if not exists:
-        raise HTTPException(status_code=404, detail="Fichier manquant sur le disque")
-
-    file_size = (await run_in_threadpool(file_path.stat)).st_size
-    start, end = 0, file_size - 1
-
-    if range:
-        try:
-            # format attendu: "bytes=0-1048576" ou "bytes=1000-" ou "bytes=-1000"
-            range_str = range.replace("bytes=", "").strip()
-            parts = range_str.split("-")
-            if parts[0]:
-                start = int(parts[0])
-                if len(parts) > 1 and parts[1]:
-                    end = int(parts[1])
-            elif len(parts) > 1 and parts[1]:
-                # Plage suffixée (ex: bytes=-500 pour les 500 derniers octets)
-                suffix_len = int(parts[1])
-                start = max(0, file_size - suffix_len)
-                end = file_size - 1
-        except Exception:
-            raise HTTPException(status_code=400, detail="Header de Range invalide")
-
-    # Clamping pour s'assurer que les index restent dans les limites du fichier
-    start = max(0, min(start, file_size - 1))
-    end = max(start, min(end, file_size - 1))
-    chunk_size = end - start + 1
-
-    # Taille de bloc de lecture : 1 Mo sur Android (Lot 15, réf. audit §5
-    # étape 15.2) — moins d'allers-retours à travers le démon FUSE du
-    # stockage externe qu'à 128 Ko, mesurable sur un flux 4K/60fps à haut
-    # débit. 128 Ko ailleurs (inchangé), où le coût par appel est négligeable.
-    read_block_size = 1024 * 1024 if _IS_ANDROID else 8192 * 16
-
-    async def file_generator():
-        async with aiofiles.open(file_path, "rb") as f:
-            await f.seek(start)
-            remaining = chunk_size
-            while remaining > 0:
-                chunk = await f.read(min(read_block_size, remaining))
-                if not chunk:
-                    break
-                remaining -= len(chunk)
-                yield chunk
-
-    headers = {
-        "Accept-Ranges": "bytes",
-        "Content-Length": str(chunk_size),
-        "Content-Type": content_type,
-    }
-    if range:
-        headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
-
-    return StreamingResponse(
-        file_generator(), status_code=206 if range else 200, headers=headers
-    )
+async def _range_stream_response(file_path: Path, request: Request, content_type: str) -> Response:
+    """Sert un fichier média avec support HTTP Range complet, en GET comme en
+    HEAD — voir `app/utils/media_response.py` (RFC 9110 : plages, If-Range,
+    ETag, 416). Partagé par tous les flux média (vidéos, fonds animés, pistes
+    audio, pochettes)."""
+    return await build_media_response(file_path, request.headers, request.method, content_type)
 
 
-@app.get("/api/videos/{video_id}/stream")
+@app.api_route("/api/videos/{video_id}/stream", methods=["GET", "HEAD"])
 async def stream_video(
     video_id: int,
-    range: str | None = Header(None),
+    request: Request,
+    profile: str | None = None,
+    accept: str | None = None,
     db: Session = Depends(get_db),
 ):
+    """Flux d'une vidéo, avec négociation de la version lisible (lot F3).
+
+    Sans paramètre : l'original, comme avant. `?accept=h264,hevc` : capacités
+    de décodage annoncées par le navigateur (frontend/src/lib/
+    clientCodecSupport.ts) — si l'original n'est pas décodable par ce client et
+    qu'une version web existe, c'est elle qui est servie. `?profile=web|original`
+    force le choix. L'en-tête `X-Bobine-Rendition` indique la version servie."""
     video = await run_in_threadpool(lambda: db.query(Video).filter(Video.id == video_id).first())
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
-    return await _range_stream_response(Path(video.file_path), range, "video/mp4")
+
+    web_ready = bool(video.web_path) and video.web_status == "ready" and await run_in_threadpool(Path(video.web_path).exists)
+    rendition = choose_rendition(
+        issues=video.web_issues, web_ready=web_ready, profile=profile, accept=parse_accept(accept),
+    )
+    if rendition == "original" and not web_ready and accept is not None and video.web_status != "pending":
+        # Client incapable de décoder l'original ET aucune version web : si
+        # l'administrateur a activé la production automatique, on la lance
+        # maintenant (ce premier essai échouera, les suivants seront servis).
+        parsed = parse_accept(accept) or set()
+        if not client_can_decode(video.web_issues, parsed) and await run_in_threadpool(_auto_web_rendition_enabled, db):
+            await run_in_threadpool(request_web_rendition, video.id)
+
+    path = Path(video.web_path) if rendition == "web" else Path(video.file_path)
+    response = await _range_stream_response(path, request, "video/mp4")
+    response.headers["X-Bobine-Rendition"] = rendition
+    return response
+
+
+def _reset_stale_web_rendition_status() -> None:
+    """Une version web « en cours » trouvée au démarrage ne peut venir que d'un
+    arrêt brutal du processus : on la ramène à « absente » plutôt que de laisser
+    l'interface annoncer indéfiniment une production qui n'existe plus."""
+    db = SessionLocal()
+    try:
+        db.query(Video).filter(Video.web_status == "pending").update({Video.web_status: None})
+        db.commit()
+    except Exception as e:
+        logger.warning(f"Réinitialisation des versions web en attente impossible : {e}")
+    finally:
+        db.close()
+
+
+def _auto_web_rendition_enabled(db: Session) -> bool:
+    row = db.query(Setting).filter(Setting.key == "auto_web_rendition").first()
+    return bool(row and row.value == "true")
 
 
 _IMAGE_CONTENT_TYPES = {
@@ -343,10 +329,10 @@ _IMAGE_CONTENT_TYPES = {
 }
 
 
-@app.get("/api/backgrounds/{background_id}/stream")
+@app.api_route("/api/backgrounds/{background_id}/stream", methods=["GET", "HEAD"])
 async def stream_background(
     background_id: int,
-    range: str | None = Header(None),
+    request: Request,
     db: Session = Depends(get_db),
 ):
     background = await run_in_threadpool(lambda: db.query(Background).filter(Background.id == background_id).first())
@@ -357,27 +343,27 @@ async def stream_background(
     # endpoint de streaming par plage que les vidéos — une image tient
     # largement en une seule plage, aucune adaptation du flux nécessaire.
     if suffix in _IMAGE_CONTENT_TYPES:
-        return await _range_stream_response(Path(background.file_path), range, _IMAGE_CONTENT_TYPES[suffix])
+        return await _range_stream_response(Path(background.file_path), request, _IMAGE_CONTENT_TYPES[suffix])
     content_type = "video/webm" if suffix == ".webm" else "video/mp4"
-    return await _range_stream_response(Path(background.file_path), range, content_type)
+    return await _range_stream_response(Path(background.file_path), request, content_type)
 
 
-@app.get("/api/audio/tracks/{track_id}/stream")
+@app.api_route("/api/audio/tracks/{track_id}/stream", methods=["GET", "HEAD"])
 async def stream_audio_track(
     track_id: int,
-    range: str | None = Header(None),
+    request: Request,
     db: Session = Depends(get_db),
 ):
     track = await run_in_threadpool(lambda: db.query(AudioTrack).filter(AudioTrack.id == track_id).first())
     if not track:
         raise HTTPException(status_code=404, detail="Piste audio non trouvée")
-    return await _range_stream_response(Path(track.file_path), range, "audio/mpeg")
+    return await _range_stream_response(Path(track.file_path), request, "audio/mpeg")
 
 
-@app.get("/api/radio/tracks/{track_id}/stream")
+@app.api_route("/api/radio/tracks/{track_id}/stream", methods=["GET", "HEAD"])
 async def stream_radio_track(
     track_id: int,
-    range: str | None = Header(None),
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """Flux audio d'un morceau radio. Type MIME déduit de l'extension (tous
@@ -385,33 +371,33 @@ async def stream_radio_track(
     track = await run_in_threadpool(lambda: db.query(RadioTrack).filter(RadioTrack.id == track_id).first())
     if not track:
         raise HTTPException(status_code=404, detail="Morceau non trouvé")
-    return await _range_stream_response(Path(track.file_path), range, content_type_for(track.file_path))
+    return await _range_stream_response(Path(track.file_path), request, content_type_for(track.file_path))
 
 
-@app.get("/api/radio/tracks/{track_id}/cover")
+@app.api_route("/api/radio/tracks/{track_id}/cover", methods=["GET", "HEAD"])
 async def stream_radio_cover(
     track_id: int,
-    range: str | None = Header(None),
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """Pochette d'un morceau radio (JPEG normalisé, extrait ID3 ou uploadé)."""
     track = await run_in_threadpool(lambda: db.query(RadioTrack).filter(RadioTrack.id == track_id).first())
     if not track or not track.cover_path:
         raise HTTPException(status_code=404, detail="Pochette non trouvée")
-    return await _range_stream_response(Path(track.cover_path), range, "image/jpeg")
+    return await _range_stream_response(Path(track.cover_path), request, "image/jpeg")
 
 
-@app.get("/api/radio/announcements/{announcement_id}/stream")
+@app.api_route("/api/radio/announcements/{announcement_id}/stream", methods=["GET", "HEAD"])
 async def stream_radio_announcement(
     announcement_id: int,
-    range: str | None = Header(None),
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """Flux audio d'un rappel (réf. lot L6)."""
     announcement = await run_in_threadpool(lambda: db.query(RadioAnnouncement).filter(RadioAnnouncement.id == announcement_id).first())
     if not announcement:
         raise HTTPException(status_code=404, detail="Rappel non trouvé")
-    return await _range_stream_response(Path(announcement.file_path), range, content_type_for(announcement.file_path))
+    return await _range_stream_response(Path(announcement.file_path), request, content_type_for(announcement.file_path))
 
 
 # Montage des dossiers statiques requis
@@ -505,6 +491,15 @@ class RevalidateStaticFiles(StaticFiles):
     Un client sans `If-None-Match` du tout reçoit toujours le contenu
     complet (200), jamais un 304 dont la fraîcheur ne peut être garantie.
     """
+
+    async def get_response(self, path: str, scope):
+        # Un chemin /api/* qui n'a trouvé aucune route (méthode non déclarée,
+        # ressource absente) ne doit JAMAIS recevoir la page HTML 404 du
+        # frontend : un client d'API (ou un `HEAD` de sonde) y verrait un
+        # faux succès `text/html`. 404 JSON explicite à la place.
+        if path == "api" or path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Ressource d'API introuvable")
+        return await super().get_response(path, scope)
 
     def file_response(self, full_path, stat_result, scope, status_code: int = 200):
         request_headers = Headers(scope=scope)

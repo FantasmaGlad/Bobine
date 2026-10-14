@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { usePlaybackSocket, PlaybackEvent } from "@/lib/usePlaybackSocket";
+import { videoStreamUrl } from "@/lib/clientCodecSupport";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useAudioClockFollower } from "@/lib/useAudioClockFollower";
 import { useVideoClockFollower } from "@/lib/useVideoClockFollower";
@@ -312,7 +313,7 @@ export default function KioskPage() {
             applyVolume(audio);
           }
           if (!video || !data.current_video) break;
-          const src = getApiUrl(`/videos/${data.current_video.id}/stream`);
+          const src = videoStreamUrl(getApiUrl, data.current_video.id);
           applyVolume(video);
           // Ne recharger la vidéo que si la source a changé (réf. Bug 1 / B1a).
           // Appeler video.load() sur la même source interrompt la lecture en
@@ -351,7 +352,7 @@ export default function KioskPage() {
           unloadMedia(bgVideo);
           unloadMedia(audio);
           if (!video || !data.current_video) break;
-          video.src = getApiUrl(`/videos/${data.current_video.id}/stream`);
+          video.src = videoStreamUrl(getApiUrl, data.current_video.id);
           // Pas d'assignation explicite de currentTime ici (réf. correctif
           // "le cours sur la télé réseau ne se lance jamais") :
           // une nouvelle src remet déjà la position à 0 nativement, et

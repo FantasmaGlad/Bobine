@@ -13,6 +13,7 @@ from app.database import get_db
 from app.models import AudioCourse, AudioTrack, Background
 from app.utils.audio_importer import import_audio_course_from_files, import_audio_course_from_zip
 from app.utils.executors import io_executor
+from app.utils.staged_uploads import receive_single_upload
 from app.utils.import_jobs import create_job, update_job
 
 logger = logging.getLogger(__name__)
@@ -275,7 +276,8 @@ def upload_audio_course(
 
 @router.post("/upload-zip", response_model=ImportJobAccepted, status_code=202)
 def upload_audio_course_zip(
-    file: UploadFile = File(...),
+    file: UploadFile | None = File(None),
+    upload_id: str | None = Form(None),
     title: str = Form(...),
     program: str | None = Form(None),
     release: str | None = Form(None),
@@ -286,13 +288,7 @@ def upload_audio_course_zip(
     if not title.strip():
         raise HTTPException(status_code=400, detail="Le titre du cours est requis")
 
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as temp_file:
-            shutil.copyfileobj(file.file, temp_file)
-            temp_path = temp_file.name
-    except Exception as e:
-        logger.error(f"Erreur lors de la réception de l'upload ZIP du cours audio: {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=str(e))
+    temp_path, _ = receive_single_upload(file, upload_id, forced_suffix=".zip")
 
     job_id = create_job("audio", title.strip(), title.strip())
     io_executor.submit(_run_audio_zip_import_job, job_id, temp_path, title.strip(), program, release)

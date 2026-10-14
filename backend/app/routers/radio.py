@@ -21,6 +21,7 @@ from app.config import settings
 from app.database import get_db
 from app.models import RadioPlaylistItem, RadioTag, RadioTrack, radio_track_tags
 from app.utils.executors import io_executor
+from app.utils.staged_uploads import receive_single_upload
 from app.utils.import_jobs import create_job, update_job
 from app.utils.radio_importer import import_radio_tracks_from_files, import_radio_tracks_from_zip
 from app.utils.radio_utils import save_cover_image
@@ -186,16 +187,11 @@ def upload_tracks(files: List[UploadFile] = File(...)):
 
 
 @router.post("/tracks/upload-zip", response_model=ImportJobAccepted, status_code=202)
-def upload_tracks_zip(file: UploadFile = File(...)):
+def upload_tracks_zip(file: UploadFile | None = File(None), upload_id: str | None = Form(None)):
     """Import d'une archive ZIP de morceaux, traité en arrière-plan."""
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as temp_file:
-            shutil.copyfileobj(file.file, temp_file)
-            temp_path = temp_file.name
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    temp_path, filename = receive_single_upload(file, upload_id, forced_suffix=".zip")
 
-    job_id = create_job("radio", file.filename or "archive.zip", file.filename)
+    job_id = create_job("radio", filename or "archive.zip", filename)
     io_executor.submit(_run_zip_import_job, job_id, temp_path)
     return {"job_id": job_id}
 

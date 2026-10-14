@@ -218,6 +218,10 @@ def _migrate_add_missing_columns():
         ("videos", "audio_codec", "VARCHAR"),
         ("videos", "fps", "FLOAT"),
         ("videos", "bitrate_kbps", "INTEGER"),
+        # Format de pixels + version web « lisible partout » (lot F3, plan Firefox)
+        ("videos", "pix_fmt", "VARCHAR"),
+        ("videos", "web_path", "VARCHAR"),
+        ("videos", "web_status", "VARCHAR"),
         # Télémétrie extensible : stockage JSON dynamique pour métriques futures
         ("system_metrics_history", "extra_data", "TEXT"),
     ]
@@ -252,7 +256,13 @@ def _migrate_backfill_video_metadata():
         from app.utils.video_utils import extract_metadata
 
         with SessionLocal() as db:
-            videos = db.query(Video).filter(Video.audio_channels.is_(None)).all()
+            # `pix_fmt` : vidéos importées avant le lot F3 (format de pixels
+            # inconnu) — réanalysées une seule fois, comme les métadonnées
+            # étendues. Les fichiers sans flux vidéo (codec None) sont exclus
+            # pour ne pas être réanalysés à chaque démarrage.
+            videos = db.query(Video).filter(
+                Video.audio_channels.is_(None) | (Video.pix_fmt.is_(None) & Video.codec.isnot(None))
+            ).all()
             if not videos:
                 return
             updated = 0
@@ -265,6 +275,7 @@ def _migrate_backfill_video_metadata():
                     v.audio_codec = meta.get("audio_codec")
                     v.fps = meta.get("fps")
                     v.bitrate_kbps = meta.get("bitrate_kbps")
+                    v.pix_fmt = meta.get("pix_fmt") or v.pix_fmt
                     if not v.description and meta.get("description"):
                         v.description = meta.get("description")
                     if not v.width and meta.get("width"):
