@@ -24,13 +24,16 @@ import asyncio
 import hashlib
 import json
 import logging
+import shutil
 import subprocess
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any, Callable, Literal
 
 from app.utils.deployment import UpdateUnsupported, get_profile_handler
+from app.utils.version import get_build_fingerprint
 from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
@@ -40,8 +43,9 @@ UpdateStep = Literal[
     "restarting", "awaiting_user_confirmation", "done", "failed",
 ]
 
-DOWNLOAD_CHUNK_SIZE = 8192
+DOWNLOAD_CHUNK_SIZE = 64 * 1024
 DOWNLOAD_TIMEOUT_SECONDS = 30
+DOWNLOAD_ATTEMPTS = 3
 
 # Un seul pipeline de mise à jour à la fois (corrige le constat "double
 # clic ou deux onglets peuvent lancer deux installations en parallèle sur
@@ -60,7 +64,16 @@ _state: dict[str, Any] = {
     "started_at": None,
     "updated_at": None,
     "error": None,
+    # Empreinte `version|commit` du code AVANT la mise à jour — voir
+    # `load_persisted_state_at_startup()`. Interne : jamais exposée au client.
+    "from_fingerprint": None,
 }
+
+_INTERNAL_KEYS = ("from_fingerprint",)
+
+
+def _public_state() -> dict[str, Any]:
+    return {k: v for k, v in _state.items() if k not in _INTERNAL_KEYS}
 
 
 def is_running() -> bool:
@@ -72,7 +85,7 @@ def is_running() -> bool:
 def get_status() -> dict[str, Any]:
     """État courant (ou dernier connu) — copie défensive, jamais l'objet
     interne muté par le pipeline."""
-    return dict(_state)
+    return _public_state()
 
 
 def status_file_path() -> Path:
@@ -105,25 +118,55 @@ def load_persisted_state_at_startup() -> None:
     """Recharge le dernier état connu au démarrage du process (appelé
     depuis `main.py::lifespan`) — sans ça, un redémarrage déclenché par
     une mise à jour réussie ferait réapparaître `GET /api/updates/status`
-    à "idle" avant même que le frontend ait pu lire le résultat réel."""
+    à "idle" avant même que le frontend ait pu lire le résultat réel.
+
+    Un état intermédiaire ("restarting", "installing"…) persisté sur disque
+    est normal et ATTENDU quand le service s'est relancé lui-même pour
+    appliquer la mise à jour (systemctl restart, os._exit puis relance par
+    le superviseur, installation d'un APK) : le process qui l'a écrit ne
+    peut pas écrire "terminé" avant de mourir. L'issue réelle se déduit
+    donc en comparant l'empreinte `version|commit` du code qui tourne
+    MAINTENANT à celle enregistrée au début du pipeline — l'ancien code
+    marquait systématiquement ces mises à jour réussies comme "échouées"."""
     try:
         path = _status_file_path()
-        if path.exists():
-            persisted = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(persisted, dict):
-                _state.update(persisted)
-                # Un pipeline ne peut pas être "en cours" après un
-                # redémarrage du process qui l'exécutait — un état
-                # intermédiaire orphelin (ex. "downloading" si le process
-                # a été tué avant d'écrire "failed") serait trompeur.
-                if _state.get("step") not in ("done", "failed", "idle"):
-                    _state["step"] = "failed"
-                    _state["error"] = "Le service a redémarré avant la fin de la mise à jour."
+        if not path.exists():
+            return
+        persisted = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(persisted, dict):
+            return
+        _state.update(persisted)
+        if _state.get("step") in ("done", "failed", "idle"):
+            return
+        previous = _state.get("from_fingerprint")
+        applied = bool(previous) and previous != get_build_fingerprint()
+        if applied:
+            _state.update(
+                step="done", percent=100, error=None,
+                message="Mise à jour terminée avec succès.",
+            )
+        elif _state.get("step") == "awaiting_user_confirmation":
+            # APK téléchargé mais jamais installé (confirmation refusée ou
+            # ignorée, puis relance de l'app) : rien à signaler de plus.
+            _state.update(step="idle", percent=None, message=None, error=None)
+        else:
+            _state.update(
+                step="failed",
+                error="Le service s'est arrêté avant la fin de la mise à jour — "
+                      "la version installée n'a pas changé.",
+            )
+            _state["message"] = _state["error"]
+        _persist_state()
     except Exception as e:
         logger.debug(f"Échec de relecture de l'état de mise à jour persisté : {e}")
 
 
-async def report_external_event(step: str, message: str | None = None, error: str | None = None) -> None:
+async def report_external_event(
+    step: str,
+    message: str | None = None,
+    error: str | None = None,
+    percent: int | None = None,
+) -> None:
     """Point d'entrée public pour un évènement qui n'arrive PAS depuis
     `run_update_pipeline` lui-même — aujourd'hui uniquement le rappel
     Android (`POST /api/updates/_android-callback`, cf. routers/updates.py) :
@@ -132,14 +175,14 @@ async def report_external_event(step: str, message: str | None = None, error: st
     asynchrone côté JVM), donc après que le pipeline se soit déjà terminé
     de son point de vue. Aucun verrou à tenir ici : à ce stade
     `run_update_pipeline` a déjà relâché `_lock`."""
-    await _set_state(step=step, message=message, error=error)
+    await _set_state(step=step, message=message, error=error, percent=percent)
 
 
 async def _set_state(**kwargs: Any) -> None:
     _state.update(kwargs)
     _state["updated_at"] = time.time()
     try:
-        await ws_manager.broadcast({"event": "update_progress", **_state})
+        await ws_manager.broadcast({"event": "update_progress", **_public_state()})
     except Exception as e:
         logger.warning(f"Échec de diffusion de la progression de mise à jour : {e}")
     _persist_state()
@@ -212,16 +255,67 @@ def download_with_progress(
             "Empreinte d'intégrité indisponible pour cet asset — "
             "installation annulée par précaution."
         )
+    part = dest.with_name(dest.name + ".part")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    last_error: Exception | None = None
+    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+        try:
+            hasher = _download_once(url, part, on_progress)
+            break
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
+            # Coupure Wi-Fi, reset de connexion ou fichier tronqué : cas
+            # courants sur un réseau de salle de sport — on retente avec un
+            # court délai croissant plutôt que d'échouer au premier incident.
+            # Une erreur d'espace disque n'a aucune chance de se résoudre
+            # d'elle-même : propagée immédiatement.
+            last_error = e
+            part.unlink(missing_ok=True)
+            if isinstance(e, OSError) and getattr(e, "errno", None) == 28:
+                raise RuntimeError("Espace disque insuffisant pour télécharger la mise à jour.") from e
+            logger.warning(f"Téléchargement interrompu (tentative {attempt}/{DOWNLOAD_ATTEMPTS}) : {e}")
+            if attempt < DOWNLOAD_ATTEMPTS:
+                time.sleep(2 * attempt)
+    else:
+        raise RuntimeError(
+            f"Téléchargement impossible après {DOWNLOAD_ATTEMPTS} tentatives : {last_error}"
+        )
+
+    actual = hasher.hexdigest().lower()
+    expected = expected_digest.split(":")[-1].lower()
+    if actual != expected:
+        part.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"Empreinte SHA-256 invalide pour le fichier téléchargé "
+            f"(attendu {expected[:12]}…, obtenu {actual[:12]}…) — "
+            f"fichier supprimé, installation annulée par précaution."
+        )
+    # Renommage atomique APRÈS vérification : `dest` n'existe jamais dans un
+    # état partiel ou non vérifié, un installeur ne peut donc pas le lancer
+    # par erreur.
+    part.replace(dest)
+    if on_progress:
+        on_progress(100)
+
+
+def _download_once(url: str, part: Path, on_progress: Callable[[int], None] | None):
+    """Une tentative de téléchargement vers `part` ; renvoie le hasher
+    SHA-256 alimenté par tous les octets écrits."""
     req = urllib.request.Request(
         url, headers={"User-Agent": "Bobine-Updater/2.0 (+https://bobine.fit)"}
     )
     hasher = hashlib.sha256()
-    dest.parent.mkdir(parents=True, exist_ok=True)
     last_percent = -1
     with urllib.request.urlopen(req, timeout=DOWNLOAD_TIMEOUT_SECONDS) as resp:
         total = int(resp.headers.get("Content-Length") or 0)
+        if total:
+            free = shutil.disk_usage(part.parent).free
+            if free < total * 1.2:
+                raise RuntimeError(
+                    f"Espace disque insuffisant pour la mise à jour "
+                    f"({free // 1_048_576} Mo libres, {total // 1_048_576} Mo requis)."
+                )
         read = 0
-        with open(dest, "wb") as f:
+        with open(part, "wb") as f:
             while True:
                 chunk = resp.read(DOWNLOAD_CHUNK_SIZE)
                 if not chunk:
@@ -234,18 +328,9 @@ def download_with_progress(
                     if percent != last_percent:
                         last_percent = percent
                         on_progress(percent)
-
-    actual = hasher.hexdigest().lower()
-    expected = expected_digest.split(":")[-1].lower()
-    if actual != expected:
-        dest.unlink(missing_ok=True)
-        raise RuntimeError(
-            f"Empreinte SHA-256 invalide pour le fichier téléchargé "
-            f"(attendu {expected[:12]}…, obtenu {actual[:12]}…) — "
-            f"fichier supprimé, installation annulée par précaution."
-        )
-    if on_progress:
-        on_progress(100)
+        if total and read != total:
+            raise ConnectionError(f"Fichier tronqué ({read}/{total} octets reçus).")
+    return hasher
 
 
 async def run_update_pipeline(
@@ -277,18 +362,21 @@ async def run_update_pipeline(
             triggered_by=triggered_by,
             started_at=time.time(),
             error=None,
+            from_fingerprint=get_build_fingerprint(),
         )
         logger.info(
             f"Début du processus de mise à jour système "
             f"(cible : {target_tag or 'branche courante'}, déclenchement : {triggered_by})..."
         )
 
-        try:
-            await ws_manager.broadcast_force_reload()
-        except Exception as e:
-            logger.warning(f"Échec broadcast WebSocket lors de la mise à jour : {e}")
-
-        await asyncio.sleep(1.0)
+        # Aucun `force_reload` ici (l'ancien code rechargeait TOUS les écrans
+        # dès le début, avant même de savoir si la mise à jour allait
+        # aboutir — écrans de diffusion coupés en pleine séance pour une
+        # mise à jour échouée ou simplement en attente de confirmation).
+        # Quand le backend redémarre réellement, chaque client détecte le
+        # changement de `boot_id` à sa reconnexion WebSocket et se recharge
+        # tout seul (cf. usePlaybackSocket/useRadioSocket).
+        await asyncio.sleep(0.5)
 
         loop = asyncio.get_running_loop()
         report = make_reporter(loop)
@@ -308,7 +396,11 @@ async def run_update_pipeline(
                 asset_digest=asset_digest,
                 report=report,
             )
-            if _state["step"] not in ("awaiting_user_confirmation",):
+            # Un handler à achèvement asynchrone (Android : téléchargement
+            # dans un thread JVM, issue rapportée plus tard par rappel HTTP)
+            # a déjà positionné l'étape réelle — ne jamais l'écraser par
+            # "terminé" ici.
+            if not handler.async_completion:
                 await _set_state(step="done", percent=100, message="Mise à jour terminée avec succès.")
         except UpdateUnsupported as e:
             logger.warning(f"Mise à jour non applicable sur ce profil : {e.message}")

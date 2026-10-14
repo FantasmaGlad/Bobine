@@ -71,6 +71,20 @@ class ProfileHandler:
 
     profile: DeploymentProfile
 
+    # True si `apply_update()` retourne AVANT l'issue réelle de la mise à
+    # jour (travail délégué à un autre thread/process qui la rapportera lui-
+    # même) — l'orchestrateur ne doit alors jamais conclure "terminé" au
+    # retour de la méthode. Aujourd'hui : Android seulement.
+    async_completion: bool = False
+
+    def asset_variant(self) -> str | None:
+        """Variante de l'asset de release à choisir quand une même release
+        en publie plusieurs pour ce profil (Android : APK téléphone/tablette
+        vs APK Android TV, deux `applicationId` distincts — installer le
+        mauvais ne met PAS à jour l'application en place, il en installe une
+        seconde à côté). None = aucune ambiguïté."""
+        return None
+
     def restart_services(self) -> None:
         """Redémarre le backend (et le kiosque, le cas échéant) — utilisé
         à la fois par le bouton Réinitialiser et après une mise à jour."""

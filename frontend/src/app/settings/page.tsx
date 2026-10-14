@@ -42,6 +42,11 @@ interface UpdateInfo {
   current_commit: string;
   latest_version: string | null;
   has_update: boolean;
+  /** Vrai quand la version proposée est ANTÉRIEURE à celle installée
+   * (retour Bêta -> Stable demandé explicitement via le sélecteur de canal). */
+  is_downgrade?: boolean;
+  error_code?: "offline" | "rate_limited" | "not_found_beta" | "not_found_stable" | null;
+  local_build?: "stable" | "beta";
   release_title: string | null;
   release_notes: string | null;
   published_at: string | null;
@@ -349,11 +354,19 @@ export default function SettingsPage() {
   const checkForUpdates = async (silent = false) => {
     setCheckingUpdate(true);
     try {
-      const res = await fetch(getApiUrl("/updates/check"), { cache: "no-store" });
+      // `refresh=1` : un clic explicite (ou un changement de canal) doit
+      // contourner la fenêtre anti-doublon du serveur ; l'ouverture
+      // silencieuse de la page peut, elle, réutiliser une réponse récente.
+      const res = await fetch(getApiUrl(`/updates/check${silent ? "" : "?refresh=1"}`), { cache: "no-store" });
       if (res.ok) {
         const info: UpdateInfo = await res.json();
         setUpdateInfo(info);
-        if (info.has_update) {
+        // Un retour en arrière (Bêta -> Stable) est un choix de l'utilisateur,
+        // pas une nouveauté : pas de toast d'alerte non sollicité à chaque
+        // ouverture de la page, la carte ci-dessous suffit.
+        if (info.has_update && info.is_downgrade && silent) {
+          // rien : voir commentaire ci-dessus
+        } else if (info.has_update) {
           showToast(
             `${t("settingsPage.updateAvailable")} (${info.latest_version})`,
             "warning",
@@ -391,7 +404,10 @@ export default function SettingsPage() {
   }, []);
 
   const handleApplyUpdate = async () => {
-    if (!window.confirm(t("settingsPage.applyUpdate") + " ?")) return;
+    const confirmText = updateInfo?.is_downgrade
+      ? t("settingsPage.confirmDowngrade", { version: updateInfo.latest_version ?? "" })
+      : t("settingsPage.applyUpdate") + " ?";
+    if (!window.confirm(confirmText)) return;
     setApplyingUpdate(true);
     try {
       const res = await fetch(getApiUrl("/updates/apply"), { method: "POST" });
@@ -1254,7 +1270,7 @@ export default function SettingsPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <span className="update-badge alert">
                         <Icon name="campaign" size={14} />
-                        {t("settingsPage.updateAvailable")}
+                        {updateInfo.is_downgrade ? t("settingsPage.downgradeAvailable") : t("settingsPage.updateAvailable")}
                       </span>
                       <strong style={{ fontSize: "0.95rem" }}>{updateInfo.latest_version}</strong>
                     </div>
@@ -1272,7 +1288,9 @@ export default function SettingsPage() {
                   </div>
 
                   <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-main)" }}>
-                    {updateInfo.release_title || t("settingsPage.updateAvailableDetail")}
+                    {updateInfo.is_downgrade
+                      ? t("settingsPage.downgradeDetail")
+                      : updateInfo.release_title || t("settingsPage.updateAvailableDetail")}
                   </p>
 
                   {updateInfo.release_notes && (
@@ -1311,7 +1329,7 @@ export default function SettingsPage() {
                         ) : (
                           <>
                             <Icon name="download" size={16} />
-                            {t("settingsPage.applyUpdate")}
+                            {updateInfo.is_downgrade ? t("settingsPage.applyDowngrade") : t("settingsPage.applyUpdate")}
                           </>
                         )}
                       </button>
@@ -1354,7 +1372,7 @@ export default function SettingsPage() {
                   style={{ borderLeft: "4px solid var(--border-color)" }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--text-muted)" }}>
-                    <Icon name="wifi_off" size={16} />
+                    <Icon name={updateInfo.error_code === "offline" || !updateInfo.error_code ? "wifi_off" : "info"} size={16} />
                     <span style={{ fontSize: "0.85rem" }}>
                       {updateInfo.message || t("settingsPage.updateError")}
                     </span>

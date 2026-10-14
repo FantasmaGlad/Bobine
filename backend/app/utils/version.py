@@ -17,13 +17,14 @@ headless, qui a de toute façon `git` disponible pour une info plus précise
 (cf. `_get_local_version_info()` dans updates.py)."""
 
 import os
+import subprocess
 import sys
 from functools import lru_cache
 from pathlib import Path
 
 from app.config import ROOT_DIR
 
-_FALLBACK_VERSION = "4.0.1"
+_FALLBACK_VERSION = "4.0.3"
 _FALLBACK_COMMIT = "unknown"
 
 
@@ -89,3 +90,70 @@ def get_app_tag() -> str:
     Git réel n'est disponible (profils packagés sans checkout, cf.
     updates.py)."""
     return f"V{get_app_version()}"
+
+
+def is_prerelease_version(version: str | None = None) -> bool:
+    """Vrai si la version porte un suffixe de pré-release ("4.0.3-beta") —
+    marque d'un build du canal Bêta (la CI écrit `<base>-beta` dans VERSION,
+    cf. ci.yml, étape "Identifiants de build"). Sert à distinguer un build
+    Bêta d'une Stable de MÊME numéro de base : sans ça, repasser en Stable
+    depuis "4.0.2-beta" n'était jamais proposé (même base que la Stable)."""
+    candidate = (version if version is not None else get_app_version()).strip().lstrip("vV")
+    return "-" in candidate
+
+
+def _git_head_short() -> str | None:
+    """Commit HEAD court du checkout git qui contient l'application, ou None
+    (profils packagés sans `.git`, git absent, délai dépassé). Jamais mis en
+    cache : l'appelant veut la valeur du code RÉELLEMENT chargé à cet
+    instant, c'est tout l'intérêt d'une empreinte comparée avant/après une
+    mise à jour."""
+    root = _app_root()
+    if not (root / ".git").exists():
+        return None
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=root, capture_output=True, text=True, timeout=3, check=True,
+        )
+        return res.stdout.strip() or None
+    except Exception:
+        return None
+
+
+def get_build_fingerprint() -> str:
+    """Empreinte `version|commit` du code actuellement en cours d'exécution.
+
+    Comparée avant/après une mise à jour par `update_orchestrator` pour
+    déterminer si un redémarrage a réellement installé quelque chose : un
+    service qui se relance en plein pipeline (cas NORMAL de toute mise à
+    jour qui redémarre son propre processus) ne peut pas écrire lui-même
+    l'état "terminé" — l'issue réelle se déduit donc au démarrage suivant.
+    Sur l'appliance headless la version de base peut rester identique entre
+    deux builds Bêta : le commit git est donc inclus quand il est lisible."""
+    version = _read_version_uncached()
+    commit = _git_head_short() or _read_commit_uncached()
+    return f"{version}|{commit}"
+
+
+def _read_flat_file(name: str) -> str | None:
+    for candidate_dir in (_app_root(), Path(__file__).resolve().parent, Path(__file__).resolve().parent.parent, ROOT_DIR):
+        try:
+            file = candidate_dir / name
+            if file.is_file():
+                content = file.read_text(encoding="utf-8").strip()
+                if content:
+                    return content
+        except OSError:
+            pass
+    return None
+
+
+def _read_version_uncached() -> str:
+    env_ver = os.environ.get("BOBINE_VERSION", "").strip()
+    return env_ver.lstrip("vV") if env_ver else (_read_flat_file("VERSION") or _FALLBACK_VERSION)
+
+
+def _read_commit_uncached() -> str:
+    env_commit = os.environ.get("BOBINE_COMMIT", "").strip()
+    return env_commit or _read_flat_file("COMMIT") or _FALLBACK_COMMIT

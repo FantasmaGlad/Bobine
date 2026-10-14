@@ -76,7 +76,10 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     fetch(getApiUrl("/updates/check"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((d) => {
-        if (d?.has_update) {
+        // Un retour en arrière Bêta -> Stable est un choix explicite de
+        // l'utilisateur (sélecteur de canal), jamais une "nouveauté" à
+        // annoncer sur chaque page.
+        if (d?.has_update && !d.is_downgrade) {
           setUpdateAvailableVersion(d.latest_version ?? null);
         }
       })

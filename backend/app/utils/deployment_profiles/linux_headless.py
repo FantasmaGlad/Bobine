@@ -101,6 +101,13 @@ class LinuxHeadlessHandler(ProfileHandler):
         report = report or _NOOP_REPORT
         repo_dir = _repo_dir()
 
+        # Point de retour AVANT de toucher quoi que ce soit : l'ancien code
+        # laissait l'appliance sur du code neuf avec un frontend ancien (ou
+        # des dépendances à moitié installées) dès qu'une étape suivant le
+        # `git checkout` échouait — typiquement un `npm run build` qui
+        # dépasse son délai sur un Dell Wyse 5070 (Celeron, plusieurs minutes).
+        previous_ref = self._current_ref(repo_dir)
+
         report("checking", message="Récupération de la nouvelle version…")
         if target_tag:
             # Épingle le checkout sur le tag ciblé plutôt qu'un `git pull`
@@ -128,6 +135,41 @@ class LinuxHeadlessHandler(ProfileHandler):
             run_checked(["git", "pull", "--ff-only"], cwd=repo_dir, timeout=45)
             logger.info("git pull --ff-only effectué avec succès.")
 
+        try:
+            self._rebuild(repo_dir, report)
+        except Exception as e:
+            self._rollback(repo_dir, previous_ref)
+            raise RuntimeError(
+                f"{e} — version précédente restaurée ({previous_ref[:12]}), l'appliance continue "
+                f"de fonctionner sur l'ancienne version."
+            ) from e
+
+        # Hors du `try` : un service qui refuse de redémarrer (sudoers cassé,
+        # unité désactivée) ne justifie PAS d'annuler un code et un frontend
+        # désormais cohérents entre eux — l'erreur est simplement remontée.
+        self._restart_services_checked(report)
+
+    @staticmethod
+    def _current_ref(repo_dir: Path) -> str:
+        """Branche courante si HEAD en suit une, sinon SHA complet (HEAD
+        détaché, état normal après une mise à jour par tag)."""
+        try:
+            branch = run_checked(["git", "symbolic-ref", "--short", "-q", "HEAD"], cwd=repo_dir, timeout=10)
+            if branch.stdout.strip():
+                return branch.stdout.strip()
+        except Exception:
+            pass
+        return run_checked(["git", "rev-parse", "HEAD"], cwd=repo_dir, timeout=10).stdout.strip()
+
+    @staticmethod
+    def _rollback(repo_dir: Path, previous_ref: str) -> None:
+        try:
+            run_checked(["git", "checkout", previous_ref], cwd=repo_dir, timeout=45)
+            logger.warning(f"Mise à jour annulée : retour à {previous_ref}.")
+        except Exception as rollback_error:
+            logger.error(f"Échec du retour arrière vers {previous_ref} : {rollback_error}")
+
+    def _rebuild(self, repo_dir: Path, report: Callable[..., None]) -> None:
         # Réinstallation des dépendances Python et reconstruction du
         # frontend : `frontend/out` (servi statiquement par le backend)
         # est gitignoré et NE fait donc jamais partie d'un `git checkout`
@@ -142,13 +184,13 @@ class LinuxHeadlessHandler(ProfileHandler):
             report("installing", message="Mise à jour des dépendances serveur…")
             run_checked(
                 [str(venv_pip), "install", "-q", "-r", str(repo_dir / "backend" / "requirements.txt")],
-                timeout=180,
+                timeout=300,
             )
         else:
             logger.warning(f"Environnement virtuel introuvable ({venv_pip}) — étape pip ignorée.")
 
-        report("installing", message="Reconstruction de l'interface…")
-        run_checked(["npm", "ci", "--no-audit", "--no-fund"], cwd=repo_dir / "frontend", timeout=300)
-        run_checked(["npm", "run", "build"], cwd=repo_dir / "frontend", timeout=300)
-
-        self._restart_services_checked(report)
+        # Délais larges : la compilation Next.js d'un Celeron J4105/J5005
+        # dépasse régulièrement 5 minutes (constaté sur Wyse 5070).
+        report("installing", message="Reconstruction de l'interface (plusieurs minutes sur ce matériel)…")
+        run_checked(["npm", "ci", "--no-audit", "--no-fund"], cwd=repo_dir / "frontend", timeout=900)
+        run_checked(["npm", "run", "build"], cwd=repo_dir / "frontend", timeout=1200)

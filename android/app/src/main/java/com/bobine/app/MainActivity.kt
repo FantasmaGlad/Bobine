@@ -102,7 +102,9 @@ class MainActivity : AppCompatActivity() {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         requestIgnoreBatteryOptimizations()
-        UpdateManager.checkForUpdate(this)
+        // Plus de telechargement spontane ici (cf. UpdateManager) : seulement
+        // le menage d'un APK deja installe ou perime.
+        UpdateManager.cleanupStaleDownloads(this)
 
         startForegroundService(Intent(this, BobineForegroundService::class.java))
         // Pas d'appel a applyImmersiveFullscreen() ici : la fenetre n'est pas
