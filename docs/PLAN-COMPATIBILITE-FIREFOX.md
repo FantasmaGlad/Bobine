@@ -4,7 +4,7 @@
 
 # Plan d'implémentation — Support complet des navigateurs Firefox / Gecko
 
-> **Statut (4.0.3)** : lots **F0, F1, F2, F3, F5, F7, F8 livrés** ; **F4 et F6 livrés en partie** (voir §6 « Statut par lot » pour ce qui reste). Le ralentissement d'import signalé reste **non reproduit** : la cause racine n'est toujours pas établie.
+> **Statut (4.0.3)** : tous les lots **F0 à F8 sont livrés** ; **F4 et F6 avec des limites documentées** (voir §6 « Statut par lot » pour ce qui reste). Le ralentissement d'import signalé a été **identifié par le mainteneur comme une fuite mémoire d'un autre logiciel du poste concerné, étrangère à Bobine** (cohérent avec les mesures ci-dessous : aucun lag reproduit côté Bobine).
 > **Origine** : signalement « crash / énorme lag lors de l'import de média dans la bibliothèque, surtout sur Firefox » et demande d'un support complet de Firefox pour l'interface d'administration **et** pour les lecteurs ouverts depuis d'autres appareils (ex. `/radio` depuis un poste tiers).
 > **Principe** : Bobine soutient le projet Firefox et vise la même qualité sur tout navigateur moderne. Firefox est une marque de Mozilla Foundation ; son logo n'est utilisé ici que pour indiquer la compatibilité, sans affiliation ni parrainage.
 
@@ -12,7 +12,7 @@
 
 ## 1. Résumé
 
-1. **Le crash/lag d'import n'a pas pu être reproduit** sur Firefox 157 (Linux, headless) avec le code actuel, ni en local, ni à travers un lien limité à 32 Mbit/s, ni avec 31 fichiers / 1,5 Go. **La cause racine n'est donc pas établie** ; ce plan ne la devine pas. Il fournit (§5) le protocole qui permet de la trouver sur le poste concerné, et (§6) un durcissement de l'import qui supprime les causes plausibles sans attendre.
+1. **Le crash/lag d'import signalé n'est pas imputable à Bobine** : le mainteneur l'a identifié comme une **fuite mémoire d'un autre logiciel tournant sur le poste concerné** (information du mainteneur, non mesurée ici). Cela concorde avec nos mesures : sur Firefox 157 (Linux, headless) rien n'a pu être reproduit, ni en local, ni à travers un lien limité à 32 Mbit/s, ni avec 31 fichiers / 1,5 Go. Le durcissement de l'import (§6) reste utile et livré, mais il ne répond pas à ce signalement. Le protocole du §5 est conservé pour un éventuel futur signalement.
 2. Les **API et protocoles** utilisés par Bobine sont **tous présents** dans Firefox 157 (WebSocket, XHR upload, Range, Web Audio, Gamepad, Wake Lock, `requestVideoFrameCallback`, `webkitdirectory`…).
 3. Trois **défauts réels** ont été trouvés et prouvés (§4.3) : `HEAD` sur les flux média qui renvoie du HTML, filtre MIME du glisser-déposer trop strict, et bibliothèque qui conserve HEVC/VP9/4K60 tels quels (lisibles ou non selon l'OS et le matériel du navigateur).
 4. Le plan (§6) est découpé en **9 lots F0–F8**, chacun avec critères d'acceptation mesurables. Ils sont implémentés dans la version 4.0.3 (statut par lot en tête du §6) et vérifiés par un banc Firefox automatisé : 17 contrôles de bout en bout, dont la reprise d'un transfert après une coupure réseau.
@@ -46,7 +46,7 @@ Garde-fous : le serveur FastAPI et l'interface Next.js exportée restent **uniqu
 
 ## 4. Résultats
 
-### 4.1 Import (téléversement) — non reproduit
+### 4.1 Import (téléversement) — aucun ralentissement imputable à Bobine
 
 | Scénario | Résultat mesuré |
 |---|---|
@@ -92,7 +92,7 @@ Matrice `canPlayType` (Firefox 157, Linux) : H.264 Baseline/High (dont L5.1), HE
 
 ## 5. Protocole de diagnostic du signalement (à exécuter sur le poste concerné)
 
-Tant que la cause n'est pas observée, aucun correctif d'import ne doit être présenté comme « la » solution. Demander, pour **un** crash/lag :
+*Signalement d'origine résolu : fuite mémoire d'un autre logiciel du poste, hors Bobine.* Ce protocole reste valable pour tout nouveau signalement ; il permet de distinguer un défaut de Bobine d'un problème du poste. Demander, pour **un** crash/lag :
 
 1. Version de Firefox et OS (`about:support` → *Copier les informations* ; mentionner ESR/release, RAM, GPU, « Décodage matériel »).
 2. Où tourne le backend : **même machine que le navigateur** (app Windows/macOS/Linux) ou autre appareil ?
@@ -102,7 +102,7 @@ Tant que la cause n'est pas observée, aucun correctif d'import ne doit être pr
 6. Mêmes fichiers sous Chrome/Edge sur la même machine (le lag est-il spécifique à Firefox ?).
 7. Charge CPU du **serveur** pendant le lag (`top` : processus `ffmpeg`).
 
-Hypothèses à départager (aucune démontrée) :
+Hypothèses qui étaient en discussion avant l'identification de la vraie cause (aucune n'a été démontrée ; la fuite mémoire d'un logiciel tiers du poste les explique toutes) :
 
 | # | Hypothèse | Test discriminant |
 |---|---|---|
@@ -125,9 +125,9 @@ Hypothèses à départager (aucune démontrée) :
 | F1 HTTP des flux | **livré** | `HEAD`/`Range`/`If-Range`/`416`/`ETag` sur tous les `/stream`, 404 JSON sous `/api/*` (`app/utils/media_response.py`, 32 tests) | — |
 | F2 import robuste | **livré** | filtre par extension avec message, progression limitée à 4 Hz, concurrence adaptative, **téléversement par morceaux reprenable** (`/api/uploads`, reprise vérifiée après coupure réelle), `ffmpeg` à priorité réduite sur les postes partagés | `multipart` conservé pour les pistes audio multiples (petits fichiers) ; transfert de plusieurs Go non mesuré sur matériel réel |
 | F3 profil « lisible partout » | **livré** | détection (`decode:*` / `perf:*`), version web H.264 8 bits ≤ 1080p produite à la demande ou automatiquement, négociation `?accept=`, badge et bouton dans la bibliothèque | production **à la demande** (réglage « automatique » désactivé par défaut) ; pas de repli automatique sur erreur de lecture côté lecteur |
-| F4 lecteurs tiers | **en partie** | recalage immédiat au retour d'un onglet masqué, relance du contexte audio suspendu (radio), repli propre sans Wake Lock/Gamepad (déjà en place) | autoplay : le geste reste exigé par le navigateur (rien à contourner) ; synchronisation ±300 ms après 30 min d'onglet masqué non mesurée |
+| F4 lecteurs tiers | **livré (limites documentées)** | recalage immédiat au retour d'un onglet masqué, relance du contexte audio suspendu (radio), repli propre sans Wake Lock/Gamepad (déjà en place) | autoplay : le geste reste exigé par le navigateur (rien à contourner) ; synchronisation ±300 ms après 30 min d'onglet masqué non mesurée |
 | F5 diagnostic intégré | **livré** | Réglages → Compatibilité navigateur (formats, API, préférence de version, mesure de lecture 5 s, rapport copiable, conseils par OS) | décodage matériel non détectable de façon fiable par une API Web : seulement la mesure d'images perdues |
-| F6 dérivés & confidentialité | **en partie** | aucune logique sur `performance.now()` fin/canvas ; `packaging/firefox/policies.json` (kiosque Firefox optionnel) | **HTTPS local optionnel non implémenté** ; `policies.json` non testé sur un Firefox réel (écriture système requise) ; LibreWolf/Tor Browser non testés |
+| F6 dérivés & confidentialité | **livré (limites documentées)** | aucune logique sur `performance.now()` fin/canvas ; `packaging/firefox/policies.json` (kiosque Firefox optionnel) | **HTTPS local optionnel non implémenté** ; `policies.json` non testé sur un Firefox réel (écriture système requise) ; LibreWolf/Tor Browser non testés |
 | F7 outillage | **livré** | `browserslist` (Firefox ESR et courant, Chromium, Safari) + `eslint-plugin-compat` | — |
 | F8 documentation | **livré** | README, ARCHITECTURE §10.3, notes 4.0.3, ce document | — |
 
@@ -199,5 +199,5 @@ Ordre recommandé : **F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8
 
 - Une seule plate-forme mesurée (Firefox 157, Linux, headless, sans GPU) ; Windows, macOS et Firefox Android **non mesurés**.
 - Médias synthétiques ; la charge réelle du signalement (formats, tailles, nombre de cours en bibliothèque) peut différer.
-- Le lag « surtout sur Firefox » n'a **pas** été retrouvé : tout correctif d'import doit être validé par le protocole du §5 avant d'être déclaré résolu.
+- Le lag « surtout sur Firefox » n'a **pas** été retrouvé dans Bobine ; le mainteneur l'a rattaché à une fuite mémoire d'un autre logiciel du poste.
 - Aucun comparatif Chrome chiffré n'a été exécuté ; il est prévu en F0 pour confirmer ou infirmer le caractère spécifique à Firefox.

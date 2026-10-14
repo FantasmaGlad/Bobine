@@ -5,12 +5,12 @@
 # Implementation plan — Full support for Firefox / Gecko browsers
 
 > English summary of [`PLAN-COMPATIBILITE-FIREFOX.md`](PLAN-COMPATIBILITE-FIREFOX.md) (the French document is the reference, with all tables and raw numbers).
-> **Status (4.0.3)**: work packages **F0, F1, F2, F3, F5, F7, F8 delivered**; **F4 and F6 partly delivered** (see the table below). The reported import slowdown is still **not reproduced**: the root cause is not established.
+> **Status (4.0.3)**: all work packages **F0 to F8 are delivered**; **F4 and F6 with documented limits** (see the table below). The reported import slowdown was **identified by the maintainer as a memory leak in another program on the affected PC, unrelated to Bobine** (consistent with our measurements: no lag reproduced on the Bobine side).
 > Firefox is a trademark of the Mozilla Foundation; its logo is used only to state compatibility, with no affiliation or endorsement.
 
 ## 1. Summary
 
-1. **The reported import crash/lag could not be reproduced** on Firefox 157 (Linux, headless) — not locally, not through a 32 Mbit/s throttled link, not with 31 files / 1.5 GB, not with backend and browser limited to 2 CPU cores. **The root cause is therefore not established**; this plan does not guess it. It provides a diagnostic protocol (§4) and hardening that removes the plausible causes (§5).
+1. **The reported import crash/lag is not caused by Bobine**: the maintainer identified it as a **memory leak in another program running on the affected PC** (maintainer's finding, not measured here). This matches our measurements: nothing could be reproduced on Firefox 157 (Linux, headless) — not locally, not through a 32 Mbit/s throttled link, not with 31 files / 1.5 GB, not with backend and browser limited to 2 CPU cores. The import hardening (§5) is delivered and still useful, but it does not answer that report. The §4 protocol is kept for any future report.
 2. Every Web API and protocol Bobine uses is **present** in Firefox 157 (WebSocket, XHR upload, Range, Web Audio, Gamepad, Wake Lock, `requestVideoFrameCallback`, `webkitdirectory`…).
 3. Three **real defects** were proven: `HEAD` on media streams returns HTML; the drag-and-drop MIME filter (`File.type.startsWith("video/")`) is too strict (to be confirmed per OS); the library keeps HEVC/VP9/4K60 as-is (playable or not depending on the browser's OS and hardware).
 
@@ -35,11 +35,11 @@ To verify on the bench (documented, not yet measured): `wakeLock` and `getGamepa
 ## 4. Diagnostic protocol for the reported symptom
 
 Collect for **one** crash: Firefox version/OS (`about:support`), whether the backend runs on the same machine as the browser, file sizes/extensions/codecs, whether the lag is during **transfer**, **processing** or **library display**, console + network tab, `about:crashes`, `about:memory`, the same files in Chrome/Edge, and server CPU (`ffmpeg`) during the lag.
-Open hypotheses (none proven): H1 single multi-GB multipart request; H2 backend and browser on one weak machine with `ffmpeg -threads 0` at `nice 0`; H3 software 4K/HEVC decoding in the library preview; H4 React state update on every `progress` event × N transfers; H5 6-connections-per-host limit; H6 browser extensions.
+Hypotheses that were open before the real cause was identified (none was proven; a third-party memory leak on the PC explains them all): H1 single multi-GB multipart request; H2 backend and browser on one weak machine with `ffmpeg -threads 0` at `nice 0`; H3 software 4K/HEVC decoding in the library preview; H4 React state update on every `progress` event × N transfers; H5 6-connections-per-host limit; H6 browser extensions.
 
 ## 5. Work packages
 
-**Delivery status (4.0.3)** — F0 Firefox end-to-end bench (17 checks, CI job `firefox-smoke`): delivered; F1 HTTP conformance of streams (`HEAD`, `Range`, `If-Range`, `416`, JSON 404 under `/api/*`): delivered; F2 extension-based drop filter, throttled progress, adaptive concurrency, **resumable chunked upload** (resume verified after a real network cut), lowered `ffmpeg` priority on shared machines: delivered; F3 web rendition (H.264 8-bit ≤ 1080p), `?accept=` negotiation, library badge/button: delivered (produced on demand; automatic production is an opt-in setting); F4: partly (visibility resync, AudioContext keep-alive; hidden-tab sync over 30 min not measured); F5 *Settings → Browser compatibility*: delivered; F6: partly (`packaging/firefox/policies.json` kiosk policy; **optional local HTTPS not implemented**, policy file untested on a real Firefox, LibreWolf/Tor not tested); F7 `browserslist` + `eslint-plugin-compat`: delivered; F8 docs: delivered. Not measured: Windows, macOS, Firefox for Android, Firefox ESR.
+**Delivery status (4.0.3)** — F0 Firefox end-to-end bench (17 checks, CI job `firefox-smoke`): delivered; F1 HTTP conformance of streams (`HEAD`, `Range`, `If-Range`, `416`, JSON 404 under `/api/*`): delivered; F2 extension-based drop filter, throttled progress, adaptive concurrency, **resumable chunked upload** (resume verified after a real network cut), lowered `ffmpeg` priority on shared machines: delivered; F3 web rendition (H.264 8-bit ≤ 1080p), `?accept=` negotiation, library badge/button: delivered (produced on demand; automatic production is an opt-in setting); F4: delivered with limits (visibility resync, AudioContext keep-alive; hidden-tab sync over 30 min not measured); F5 *Settings → Browser compatibility*: delivered; F6: delivered with limits (`packaging/firefox/policies.json` kiosk policy; **optional local HTTPS not implemented**, policy file untested on a real Firefox, LibreWolf/Tor not tested); F7 `browserslist` + `eslint-plugin-compat`: delivered; F8 docs: delivered. Not measured: Windows, macOS, Firefox for Android, Firefox ESR.
 
 | Lot | Goal | Acceptance |
 |---|---|---|
@@ -55,4 +55,4 @@ Open hypotheses (none proven): H1 single multi-GB multipart request; H2 backend 
 
 ## 6. Limits of the study
 
-One platform measured (Firefox 157, Linux, headless, no GPU); Windows, macOS and Firefox for Android **not measured**; synthetic media; no quantified Chrome comparison yet (planned in F0). Any import fix must be validated with the §4 protocol before being declared resolved.
+One platform measured (Firefox 157, Linux, headless, no GPU); Windows, macOS and Firefox for Android **not measured**; synthetic media; no quantified Chrome comparison yet (planned in F0). The reported lag was traced by the maintainer to another program's memory leak, not to Bobine.

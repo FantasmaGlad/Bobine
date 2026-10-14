@@ -167,7 +167,7 @@ Bobine est un logiciel léger et optimisé, conçu pour fonctionner avec fluidit
 
 | Navigateur | Statut |
 |---|---|
-| **Firefox** (Windows, macOS, Linux, Android — version courante, précédente et ESR) | **Supporté** — vérifié de bout en bout sur Firefox 157 / Linux (17 contrôles automatiques en CI, dont la reprise d'un envoi après une coupure réseau). Windows, macOS, Android et ESR pas encore mesurés ; le ralentissement d'import signalé n'a pas pu être reproduit |
+| **Firefox** (Windows, macOS, Linux, Android — version courante, précédente et ESR) | **Supporté** — vérifié de bout en bout sur Firefox 157 / Linux (17 contrôles automatiques en CI, dont la reprise d'un envoi après une coupure réseau). Windows, macOS, Android et ESR pas encore mesurés  (le ralentissement d'import signalé un jour venait d'une fuite mémoire d'un autre logiciel de ce poste, pas de Bobine) |
 | Chrome / Chromium / Edge | Supporté (moteur de référence du kiosque sur l'appliance headless) |
 | Safari / navigateurs iOS (WebKit) | Supporté au mieux |
 | Dérivés de Firefox (LibreWolf, Waterfox, Floorp, Zen) | Au mieux (même moteur Gecko) |

@@ -167,7 +167,7 @@ Bobine is lightweight, robust, and designed to run smoothly on a wide spectrum o
 
 | Browser | Status |
 |---|---|
-| **Firefox** (Windows, macOS, Linux, Android — release, previous release & ESR) | **Supported** — verified end to end on Firefox 157 / Linux (17 automated checks in CI, including resuming an upload after a network cut). Windows, macOS, Android and ESR are not yet measured; the reported import slowdown could not be reproduced |
+| **Firefox** (Windows, macOS, Linux, Android — release, previous release & ESR) | **Supported** — verified end to end on Firefox 157 / Linux (17 automated checks in CI, including resuming an upload after a network cut). Windows, macOS, Android and ESR are not yet measured (the import slowdown once reported was traced to another program's memory leak on that PC, not to Bobine) |
 | Chrome / Chromium / Edge | Supported (reference kiosk engine on the headless appliance) |
 | Safari / iOS browsers (WebKit) | Supported on a best-effort basis |
 | Firefox derivatives (LibreWolf, Waterfox, Floorp, Zen) | Best effort (same Gecko engine) |
