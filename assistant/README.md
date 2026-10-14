@@ -50,8 +50,13 @@ garde-fou contre toute divergence entre l'émetteur et le parseur.
 
 ## Scan réseau
 
-Le bouton « Lancer le scan réseau » sonde le `/24` de **chaque interface
-locale active** (Wi-Fi, Ethernet, VPN...) et affiche **tous les appareils qui
+Le bouton « Lancer le scan réseau » sonde le réseau de **chaque interface
+locale active** (Wi-Fi, Ethernet...), avec son **vrai masque** (de /24 jusqu'à
+/22 ; un réseau plus vaste est ramené au bloc /22 du poste) — plus un `/24`
+supposé qui ratait la borne sur un réseau /23 ou /22. Les interfaces de
+conteneurs/VM, l'auto-adressage 169.254/16 et — tant qu'une autre interface
+existe — les tunnels VPN sont ignorés. Les appareils apparaissent **en direct**
+(évènements `scan_device`/`scan_progress`) et affiche **tous les appareils qui
 répondent**, pas seulement les cibles Debian/Bobine — un routeur, une
 imprimante réseau ou un poste Windows apparaissent aussi, avec leur IP, leur
 nom d'hôte résolu (DNS inverse, fonctionne pour les noms `.local` sur la
@@ -63,6 +68,34 @@ cette adresse même sans service exposé). Les résultats sont triés avec les
 cibles Bobine/Debian en tête, mais rien n'est filtré : un utilisateur qui
 prépare un déploiement headless voit le réseau tel qu'il est réellement,
 plutôt qu'une liste tronquée qui pourrait laisser croire à un scan cassé.
+
+Robustesse du balayage :
+
+- **Sockets plafonnées** (96 simultanées, tous hôtes confondus) : l'ancien
+  balayage ouvrait ~700 sockets d'un coup, au-delà de la limite d'un processus
+  graphique macOS (256) — `connect` échouait en « Too many open files », lu
+  comme « port fermé », et le scan ne trouvait alors rien, sans erreur.
+- **Table ARP** (`/proc/net/arp`, `arp -a`) lue après le balayage : révèle les
+  appareils dont tous les ports sont filtrés et fournit l'adresse MAC.
+- **Nom `bobine.local`** résolu par le système : trouve la borne même hors des
+  réseaux balayés (relais mDNS) ; `/api/health` confirme qu'un port 8000 est
+  bien un backend Bobine et non un serveur de dev quelconque.
+- **« Scanner un autre réseau »** (`192.168.2.0/24`) pour un VLAN, un réseau
+  invité ou un second routeur ; l'état vide liste les causes usuelles
+  (borne éteinte, autre réseau, isolation des clients du Wi-Fi).
+
+## Installation sur la cible
+
+`install.sh` est **embarqué à la compilation** (`include_str!`), téléversé par
+SCP dans `/tmp` puis lancé via `bash` (`/tmp` peut être monté `noexec`) : la
+borne n'a besoin ni de `git`, ni de `curl`, ni d'un dépôt déjà cloné. Le script
+s'amorce lui-même (voir l'en-tête d'`install.sh`) : il récupère la version du
+canal choisi puis se relance depuis ce dépôt. L'hôte peut être une IP **ou un
+nom** (`bobine.local`) — l'ancien code n'acceptait que des IP littérales. La
+session SSH envoie des messages de maintien de connexion pendant les étapes
+silencieuses (compilation du frontend), et le code de sortie réel d'`install.sh`
+est vérifié : un échec est désormais affiché (carte « L'installation n'a pas
+abouti » avec « Réessayer » et « Copier le journal »).
 
 En aperçu navigateur autonome (sans backend Tauri, `assistant-ui` dans
 `.claude/launch.json`), `app.js` retombe sur un jeu de données factice

@@ -116,19 +116,42 @@ pub fn shell_quote(token: &str) -> String {
 ///
 /// `script_path` est le chemin absolu d'`install.sh` sur la cible.
 pub fn build_remote_command(script_path: &str, opts: &InstallOptions, elev: &Elevation) -> String {
+    build_command(None, script_path, opts, elev)
+}
+
+/// Variante qui passe le script à un interpréteur explicite (`bash <script>`)
+/// au lieu de l'exécuter directement : indispensable pour un script téléversé
+/// dans `/tmp`, souvent monté `noexec` sur un système durci (le bit exécutable
+/// n'y suffit alors pas).
+pub fn build_remote_command_via(
+    interpreter: &str,
+    script_path: &str,
+    opts: &InstallOptions,
+    elev: &Elevation,
+) -> String {
+    build_command(Some(interpreter), script_path, opts, elev)
+}
+
+fn build_command(interpreter: Option<&str>, script_path: &str, opts: &InstallOptions, elev: &Elevation) -> String {
     match elev {
         Elevation::Sudo => {
-            let mut parts = vec!["sudo".to_string(), shell_quote(script_path)];
+            let mut parts = vec!["sudo".to_string()];
+            if let Some(i) = interpreter {
+                parts.push(shell_quote(i));
+            }
+            parts.push(shell_quote(script_path));
             parts.extend(opts.to_args().iter().map(|a| shell_quote(a)));
             parts.join(" ")
         }
         Elevation::SuRoot { as_user } => {
             // Commande interne exécutée en root : script + --as-user <login> + args.
-            let mut inner = vec![
-                shell_quote(script_path),
-                "--as-user".to_string(),
-                shell_quote(as_user),
-            ];
+            let mut inner = Vec::new();
+            if let Some(i) = interpreter {
+                inner.push(shell_quote(i));
+            }
+            inner.push(shell_quote(script_path));
+            inner.push("--as-user".to_string());
+            inner.push(shell_quote(as_user));
             inner.extend(opts.to_args().iter().map(|a| shell_quote(a)));
             let inner_cmd = inner.join(" ");
             // `su - -c '<inner>'` : login shell root, une seule commande protégée.
@@ -223,6 +246,27 @@ mod tests {
         assert_eq!(
             cmd,
             "su - -c '/opt/bobine/install.sh --as-user '\\''op er'\\'' -y --progress=json --no-kiosk'"
+        );
+    }
+
+    #[test]
+    fn uploaded_script_runs_through_an_explicit_interpreter() {
+        let sudo = build_remote_command_via(
+            "bash",
+            "/tmp/bobine-install-1.sh",
+            &InstallOptions::assistant_default(),
+            &Elevation::Sudo,
+        );
+        assert_eq!(sudo, "sudo bash /tmp/bobine-install-1.sh -y --progress=json --channel=stable");
+        let su = build_remote_command_via(
+            "bash",
+            "/tmp/bobine-install-1.sh",
+            &InstallOptions::assistant_default(),
+            &Elevation::SuRoot { as_user: "fanta".to_string() },
+        );
+        assert_eq!(
+            su,
+            "su - -c 'bash /tmp/bobine-install-1.sh --as-user fanta -y --progress=json --channel=stable'"
         );
     }
 }

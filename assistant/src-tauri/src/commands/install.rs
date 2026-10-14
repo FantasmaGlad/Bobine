@@ -1,11 +1,13 @@
 use std::io::{Read, Write};
-use std::net::TcpStream;
+use std::path::Path;
 use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use ssh2::Session;
 use tauri::Emitter;
 
-use bobine_installer_core::orchestrate::{build_remote_command, Elevation, InstallOptions as CoreOptions};
+use bobine_installer_core::orchestrate::{
+    build_remote_command, build_remote_command_via, Elevation, InstallOptions as CoreOptions,
+};
 use bobine_installer_core::progress::{classify_line, LineKind, Phase, ProgressState};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,6 +80,41 @@ fn progress_to_update(state: &ProgressState) -> ProgressUpdate {
         error_message,
         access_url,
     }
+}
+
+/// `install.sh` de CETTE version de l'assistant, embarqué à la compilation.
+///
+/// Téléversé sur la cible au lancement : la borne n'a besoin ni de `git`, ni de
+/// `curl`, ni d'un dépôt déjà cloné (l'ancien chemin supposait `~/Bobine/
+/// install.sh` déjà présent — impossible sur une machine neuve). Le script
+/// embarqué s'amorce lui-même : il récupère le code de la version choisie
+/// (Stable ou Bêta) puis se relance depuis ce dépôt. Épinglé à la version de
+/// l'assistant : pas de téléchargement d'un script sans rapport avec lui.
+const EMBEDDED_INSTALL_SH: &str = include_str!("../../../../install.sh");
+
+fn remote_script_path() -> String {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    format!("/tmp/bobine-install-{}-{}.sh", std::process::id(), nanos)
+}
+
+/// Téléverse le script embarqué par SCP (mode 0700 : lisible du seul
+/// propriétaire ; root peut toujours le lire).
+fn upload_install_script(sess: &Session, remote_path: &str) -> Result<(), String> {
+    let bytes = EMBEDDED_INSTALL_SH.as_bytes();
+    let mut remote = sess
+        .scp_send(Path::new(remote_path), 0o700, bytes.len() as u64, None)
+        .map_err(|e| format!("Impossible de téléverser l'installateur sur la cible ({remote_path}) : {e}"))?;
+    remote
+        .write_all(bytes)
+        .map_err(|e| format!("Échec de l'envoi de l'installateur : {e}"))?;
+    remote.send_eof().ok();
+    remote.wait_eof().ok();
+    remote.close().ok();
+    remote.wait_close().ok();
+    Ok(())
 }
 
 /// Écrase le contenu d'un secret (mot de passe root) avant qu'il ne sorte de
@@ -158,29 +195,26 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
     }
 
     tokio::task::spawn_blocking(move || {
-        let addr = format!("{}:{}", params.host, params.port);
-        let tcp = TcpStream::connect_timeout(
-            &addr
-                .parse()
-                .map_err(|e| format!("Adresse hôte invalide '{addr}' : {e}"))?,
-            Duration::from_secs(5),
-        )
-        .map_err(|e| format!("Impossible de joindre l'hôte {addr} : {e}"))?;
-
-        let mut sess = Session::new().map_err(|e| format!("Erreur session SSH : {e}"))?;
-        sess.set_tcp_stream(tcp);
-        sess.handshake().map_err(|e| format!("Échec handshake SSH : {e}"))?;
-
-        super::ssh_auth::authenticate_session(
-            &sess,
+        let sess = super::connection::open_ssh_session(
+            &params.host,
+            params.port,
             &params.username,
             params.password.as_deref(),
             params.key_path.as_deref(),
         )?;
 
-        let script = params
-            .script_path
-            .unwrap_or_else(|| format!("/home/{}/Bobine/install.sh", params.username));
+        // Script fourni explicitement (copie locale déjà présente sur la
+        // cible) : exécuté tel quel. Sinon : script embarqué téléversé dans
+        // /tmp, lancé via `bash` (/tmp peut être monté noexec).
+        let (script, uploaded) = match params.script_path.clone() {
+            Some(path) => (path, false),
+            None => {
+                let remote = remote_script_path();
+                app.emit("install_log", "> Envoi de l'installateur sur la cible…".to_string()).ok();
+                upload_install_script(&sess, &remote)?;
+                (remote, true)
+            }
+        };
 
         let needs_root_password = params.elevation_strategy == "su_as_user";
         let elevation = if needs_root_password {
@@ -212,7 +246,11 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
             ..Default::default()
         };
 
-        let cmd = build_remote_command(&script, &opts, &elevation);
+        let cmd = if uploaded {
+            build_remote_command_via("bash", &script, &opts, &elevation)
+        } else {
+            build_remote_command(&script, &opts, &elevation)
+        };
         app.emit("install_log", format!("> Exécution distante : {cmd}")).ok();
 
         let mut channel = sess
@@ -238,6 +276,7 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
         sess.set_blocking(false);
 
         let mut password_sent = !needs_root_password;
+        let mut last_keepalive = Instant::now();
         let prompt_deadline = Instant::now() + Duration::from_secs(20);
         // Octets reçus pas encore découpés en lignes complètes.
         let mut pending: Vec<u8> = Vec::new();
@@ -303,6 +342,12 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
                     }
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    // Maintien de la connexion pendant les longues étapes
+                    // silencieuses (compilation du frontend, pip...).
+                    if last_keepalive.elapsed() >= Duration::from_secs(15) {
+                        last_keepalive = Instant::now();
+                        let _ = sess.keepalive_send();
+                    }
                     if !password_sent && Instant::now() >= prompt_deadline {
                         break Err(
                             "Le mot de passe root n'a pas pu être transmis — invite de mot de passe non détectée sur la machine distante".to_string(),
@@ -322,7 +367,29 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
         }
         drop(root_password);
 
-        result
+        // Code de sortie réel de install.sh : un canal fermé n'est pas un
+        // succès. Sans cette vérification, une commande introuvable, un sudo
+        // refusé ou un script tué se terminaient « sans erreur » côté
+        // assistant, qui n'affichait alors ni succès ni échec.
+        sess.set_blocking(true);
+        channel.wait_close().ok();
+        let exit_code = channel.exit_status().unwrap_or(-1);
+
+        if uploaded {
+            // Ménage du script téléversé (best-effort).
+            if let Ok(mut cleanup) = sess.channel_session() {
+                let _ = cleanup.exec(&format!("rm -f {}", script));
+                let _ = cleanup.wait_close();
+            }
+        }
+
+        result?;
+        if exit_code != 0 && state.phase != Phase::Succeeded {
+            return Err(format!(
+                "L'installation s'est interrompue (code de sortie {exit_code}). Consultez le journal ci-dessus et /var/log/bobine/ sur la borne."
+            ));
+        }
+        Ok(())
     })
     .await
     .map_err(|e| format!("Erreur d'exécution de tâche : {e}"))?

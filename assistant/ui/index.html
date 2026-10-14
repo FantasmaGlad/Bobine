@@ -90,6 +90,20 @@
               </div>
             </div>
 
+            <details class="scan-advanced">
+              <summary>Scanner un autre réseau</summary>
+              <div class="manual-input-group">
+                <input type="text" id="custom-network-input" placeholder="Ex: 192.168.2.0/24 (sans suffixe : /24)" class="input-text" autocomplete="off" spellcheck="false">
+                <button id="btn-scan-custom" class="btn btn-secondary">Scanner ce réseau</button>
+              </div>
+              <p class="subtitle">Utile si la borne est sur un autre sous-réseau que ce poste (réseau invité, VLAN, second routeur).</p>
+            </details>
+
+            <div id="scan-progress" class="scan-progress" style="display: none;" aria-live="polite">
+              <div class="scan-progress-track"><div id="scan-progress-fill" class="scan-progress-fill"></div></div>
+              <span id="scan-progress-text" class="scan-progress-text"></span>
+            </div>
+
             <div class="devices-list-container">
               <h3>Appareils détectés</h3>
               <div id="devices-list" class="devices-list">
@@ -118,7 +132,7 @@
               </div>
               <div class="form-group">
                 <label for="ssh-username">Utilisateur standard</label>
-                <input type="text" id="ssh-username" class="input-text" value="fanta" placeholder="Ex: fanta ou admin">
+                <input type="text" id="ssh-username" class="input-text" value="" placeholder="Votre identifiant sur la borne (ex. admin)" autocomplete="username" spellcheck="false">
               </div>
               <div class="form-group">
                 <label for="ssh-password">Mot de passe utilisateur</label>
@@ -262,6 +276,17 @@
               </div>
             </div>
 
+            <!-- Échec d'installation -->
+            <div id="install-failure-card" class="alert-box alert-error" style="display: none; margin-top: 16px;">
+              <h3>L'installation n'a pas abouti</h3>
+              <p id="install-failure-message"></p>
+              <p class="subtitle">Le journal complet est conservé sur la borne dans <code>/var/log/bobine/</code>. L'installation est relançable sans risque : elle reprend là où elle s'est arrêtée.</p>
+              <div class="success-actions">
+                <button id="btn-retry-install" class="btn btn-primary">Réessayer</button>
+                <button id="btn-copy-logs" class="btn btn-secondary">Copier le journal</button>
+              </div>
+            </div>
+
             <!-- Fin d'installation réussie -->
             <div id="install-success-card" class="success-banner" style="display: none;">
               <div class="success-icon">
@@ -286,6 +311,6 @@
     </main>
   </div>
 
-  <script src="app.js?v=99"></script>
+  <script src="app.js?v=100"></script>
 </body>
 </html>

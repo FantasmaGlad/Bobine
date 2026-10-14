@@ -926,3 +926,56 @@ body {
   pointer-events: none;
   z-index: 10;
 }
+
+
+/* ---- Scan réseau en direct ------------------------------------------ */
+.scan-advanced {
+  margin: 10px 0 14px;
+  font-size: 0.9rem;
+}
+.scan-advanced summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  user-select: none;
+}
+.scan-advanced .manual-input-group { margin-top: 8px; }
+
+.scan-progress {
+  margin: 14px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.scan-progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border-color);
+  overflow: hidden;
+}
+.scan-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--accent-primary);
+  transition: width 0.25s ease;
+}
+.scan-progress-text {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.device-row.device-enter {
+  animation: device-enter 0.35s ease both;
+}
+@keyframes device-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.device-mac {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-reduced-motion: reduce) {
+  .device-row.device-enter { animation: none; }
+  .scan-progress-fill { transition: none; }
+}

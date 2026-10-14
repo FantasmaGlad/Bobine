@@ -44,8 +44,9 @@ async function invokeTauri(cmd, args = {}) {
   if (cmd === 'scan_network') {
     await new Promise(r => setTimeout(r, 1200));
     return [
-      { ip: '203.0.113.10', hostname: 'exemple-borne-bobine.local', ssh_open: true, bobine_open: true, open_ports: [22, 8000], os_hint: 'Debian 13 (exemple)', is_wyse_or_bobine: true },
-      { ip: '203.0.113.20', hostname: 'exemple-poste-admin.local', ssh_open: true, bobine_open: false, open_ports: [22], os_hint: 'Linux (exemple)', is_wyse_or_bobine: false }
+      { ip: '203.0.113.10', hostname: 'exemple-borne-bobine.local', ssh_open: true, bobine_open: true, open_ports: [22, 8000], os_hint: 'Debian 13 (exemple)', is_wyse_or_bobine: true, mac: '02:00:5e:00:53:10', seen_via: 'ports' },
+      { ip: '203.0.113.20', hostname: 'exemple-poste-admin.local', ssh_open: true, bobine_open: false, open_ports: [22], os_hint: 'Linux (exemple)', is_wyse_or_bobine: false, mac: null, seen_via: 'ports' },
+      { ip: '203.0.113.30', hostname: null, ssh_open: false, bobine_open: false, open_ports: [], os_hint: null, is_wyse_or_bobine: false, mac: '02:00:5e:00:53:30', seen_via: 'arp' }
     ];
   }
   if (cmd === 'test_ssh_connection') {
@@ -108,8 +109,20 @@ function renderPreviewModeBanner() {
   document.body.prepend(banner);
 }
 
+// Mémorisation locale (identifiant SSH...) : un geste en moins à chaque
+// déploiement. Jamais de mot de passe ni de clé. Silencieux si indisponible.
+function remember(key, value) {
+  try { localStorage.setItem(`bobine-assistant:${key}`, value); } catch { /* mode privé strict */ }
+}
+function recall(key) {
+  try { return localStorage.getItem(`bobine-assistant:${key}`); } catch { return null; }
+}
+
 function init() {
   renderPreviewModeBanner();
+  const savedUser = recall('sshUsername');
+  const userField = document.getElementById('ssh-username');
+  if (savedUser && userField && !userField.value) userField.value = savedUser;
   initWizard();
   listenTauriEvents();
   checkAssistantUpdate();
@@ -150,6 +163,7 @@ function renderScanningAnimation() {
         <span class="scanning-hint">Recherche active en cours, veuillez patienter quelques secondes</span>
       </div>
     </div>
+    <div id="live-devices"></div>
   `;
 }
 
@@ -165,24 +179,50 @@ function initWizard() {
   const manualIpInput = document.getElementById('manual-ip-input');
   const btnManualTarget = document.getElementById('btn-manual-target');
 
-  btnScan.addEventListener('click', async () => {
+  const customNetworkInput = document.getElementById('custom-network-input');
+  const btnScanCustom = document.getElementById('btn-scan-custom');
+
+  async function runScan(customSubnet) {
     scanSpinner.classList.add('spinning');
     btnScan.classList.add('scanning');
     btnScan.disabled = true;
+    if (btnScanCustom) btnScanCustom.disabled = true;
     if (btnScanLabel) btnScanLabel.textContent = 'Scan en cours...';
 
+    state.liveDevices = new Map();
     renderScanningAnimation();
+    updateScanProgress({ done: 0, total: 0, found: 0, networks: [] });
 
     try {
-      const devices = await invokeTauri('scan_network', {});
+      const args = customSubnet ? { customSubnet } : {};
+      const devices = await invokeTauri('scan_network', args);
       renderDevicesList(devices);
+      remember('lastScanCount', String(devices.length));
     } catch (err) {
       devicesList.innerHTML = `<div class="empty-state"><p style="color: var(--accent-error);">Erreur lors du scan : ${escapeHtml(err)}</p></div>`;
     } finally {
+      hideScanProgress();
       scanSpinner.classList.remove('spinning');
       btnScan.classList.remove('scanning');
       btnScan.disabled = false;
+      if (btnScanCustom) btnScanCustom.disabled = false;
       if (btnScanLabel) btnScanLabel.textContent = 'Lancer le scan réseau';
+    }
+  }
+
+  btnScan.addEventListener('click', () => runScan(null));
+  btnScanCustom?.addEventListener('click', () => {
+    const spec = customNetworkInput.value.trim();
+    if (!spec) {
+      customNetworkInput.focus();
+      return;
+    }
+    runScan(spec);
+  });
+  customNetworkInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      btnScanCustom.click();
     }
   });
 
@@ -247,10 +287,26 @@ function initWizard() {
     btnConnectSsh.disabled = true;
     if (sshErrorBanner) sshErrorBanner.style.display = 'none';
 
+    const username = document.getElementById('ssh-username').value.trim();
+    if (!username) {
+      // Aucun identifiant « par défaut » : l'ancien repli silencieux sur un
+      // compte précis du mainteneur tentait une connexion avec un login que
+      // personne d'autre n'a sur sa borne.
+      if (sshErrorBanner && sshErrorDesc) {
+        sshErrorDesc.textContent = "Saisissez l'identifiant du compte à utiliser sur la borne (celui créé à l'installation de Debian).";
+        sshErrorBanner.style.display = 'block';
+      }
+      document.getElementById('ssh-username').focus();
+      connectSpinner.classList.remove('spinning');
+      btnConnectSsh.disabled = false;
+      return;
+    }
+    remember('sshUsername', username);
+
     const creds = {
       host: document.getElementById('ssh-host').value,
       port: parseInt(document.getElementById('ssh-port').value, 10) || 22,
-      username: document.getElementById('ssh-username').value.trim() || 'fanta',
+      username,
       password: document.getElementById('ssh-password').value || null,
       key_path: state.selectedKeyPath || null,
     };
@@ -287,6 +343,21 @@ function initWizard() {
   // Actions fin d'installation
   document.getElementById('btn-clear-logs').addEventListener('click', () => {
     document.getElementById('terminal-logs').innerHTML = '';
+  });
+
+  document.getElementById('btn-retry-install').addEventListener('click', () => {
+    hideInstallFailure();
+    goToStep(4);
+  });
+  document.getElementById('btn-copy-logs').addEventListener('click', async (e) => {
+    const text = Array.from(document.querySelectorAll('#terminal-logs .log-line')).map((l) => l.textContent).join('\n');
+    const button = e.currentTarget;
+    try {
+      await navigator.clipboard.writeText(text);
+      button.textContent = 'Journal copié ✓';
+    } catch {
+      button.textContent = 'Copie impossible — sélectionnez le journal à la main';
+    }
   });
 
   document.getElementById('btn-open-browser').addEventListener('click', () => {
@@ -497,7 +568,12 @@ function renderDevicesList(devices) {
           </svg>
         </div>
         <h4>Aucun appareil détecté</h4>
-        <p>Aucun appareil n'a répondu sur les sous-réseaux locaux (aucune trace SSH, Bobine, ni aucun autre service courant). Vérifiez que la borne est allumée et reliée au même réseau, ou saisissez son IP manuellement ci-dessus.</p>
+        <p>Aucun appareil n'a répondu sur le réseau de ce poste. Causes les plus fréquentes :</p>
+        <ul class="empty-hints">
+          <li>la borne est éteinte ou n'est pas encore branchée au réseau ;</li>
+          <li>ce poste et la borne ne sont pas sur le même réseau (Wi-Fi invité, second routeur, VPN actif) — utilisez « Scanner un autre réseau » ;</li>
+          <li>le Wi-Fi isole les appareils entre eux (« isolation AP », réseau invité) : branchez la borne en Ethernet sur le même routeur ou saisissez son adresse IP ci-dessus.</li>
+        </ul>
         <button id="btn-retry-scan" class="btn btn-secondary btn-sm" style="margin-top: 6px;">Relancer le scan</button>
       </div>
     `;
@@ -508,31 +584,55 @@ function renderDevicesList(devices) {
   }
 
   container.innerHTML = '';
-  devices.forEach(dev => {
-    const row = document.createElement('div');
-    row.className = `device-row ${dev.is_wyse_or_bobine ? 'selected' : ''}`;
-    const ports = (dev.open_ports || []).join(', ');
-    row.innerHTML = `
-      <div class="device-info">
-        <span class="device-ip">${escapeHtml(dev.ip)}</span>
-        ${dev.hostname ? `<span class="device-name">${escapeHtml(dev.hostname)}</span>` : ''}
-        <div class="device-badges">
-          ${dev.bobine_open ? '<span class="pill pill-success">Bobine Actif</span>' : ''}
-          ${dev.ssh_open ? '<span class="pill pill-info">SSH Ouvert</span>' : ''}
-          <span class="pill" style="background-color: var(--bg-surface-hover);">${escapeHtml(dev.os_hint || 'Appareil inconnu')}</span>
-        </div>
-        ${ports ? `<span class="device-ports">Ports ouverts : ${escapeHtml(ports)}</span>` : ''}
+  devices.forEach((dev) => container.appendChild(buildDeviceRow(dev)));
+}
+
+function buildDeviceRow(dev, animate = false) {
+  const row = document.createElement('div');
+  row.className = `device-row ${dev.is_wyse_or_bobine ? 'selected' : ''}${animate ? ' device-enter' : ''}`;
+  const ports = (dev.open_ports || []).join(', ');
+  const via = dev.seen_via === 'arp'
+    ? 'Présent sur le réseau (aucun port ouvert — pare-feu)'
+    : dev.seen_via === 'mdns' ? 'Trouvé par son nom bobine.local' : '';
+  // Toute valeur issue du réseau passe par escapeHtml (cf. en-tête du fichier).
+  row.innerHTML = `
+    <div class="device-info">
+      <span class="device-ip">${escapeHtml(dev.ip)}</span>
+      ${dev.hostname ? `<span class="device-name">${escapeHtml(dev.hostname)}</span>` : ''}
+      <div class="device-badges">
+        ${dev.bobine_open ? '<span class="pill pill-success">Bobine Actif</span>' : ''}
+        ${dev.ssh_open ? '<span class="pill pill-info">SSH Ouvert</span>' : ''}
+        <span class="pill" style="background-color: var(--bg-surface-hover);">${escapeHtml(dev.os_hint || 'Appareil inconnu')}</span>
       </div>
-      <button class="btn btn-secondary btn-sm select-btn">Sélectionner</button>
-    `;
-
-    row.querySelector('.select-btn').addEventListener('click', () => {
-      selectTarget(dev.ip);
-      goToStep(2);
-    });
-
-    container.appendChild(row);
+      ${ports ? `<span class="device-ports">Ports ouverts : ${escapeHtml(ports)}</span>` : ''}
+      ${via ? `<span class="device-ports">${escapeHtml(via)}</span>` : ''}
+      ${dev.mac ? `<span class="device-mac">${escapeHtml(dev.mac)}</span>` : ''}
+    </div>
+    <button class="btn btn-secondary btn-sm select-btn">Sélectionner</button>
+  `;
+  row.querySelector('.select-btn').addEventListener('click', () => {
+    selectTarget(dev.ip);
+    goToStep(2);
   });
+  return row;
+}
+
+function updateScanProgress({ done, total, found, networks }) {
+  const box = document.getElementById('scan-progress');
+  if (!box) return;
+  box.style.display = 'flex';
+  const pct = total > 0 ? Math.min(100, Math.round((done * 100) / total)) : 0;
+  document.getElementById('scan-progress-fill').style.width = `${pct}%`;
+  const nets = (networks || []).length ? ` · réseau : ${networks.join(', ')}` : '';
+  const text = total > 0
+    ? `${done}/${total} adresses sondées · ${found} appareil${found > 1 ? 's' : ''} trouvé${found > 1 ? 's' : ''}${nets}`
+    : 'Préparation du scan…';
+  document.getElementById('scan-progress-text').textContent = text;
+}
+
+function hideScanProgress() {
+  const box = document.getElementById('scan-progress');
+  if (box) box.style.display = 'none';
 }
 
 function selectTarget(ip) {
@@ -565,7 +665,7 @@ async function startInstallationRun() {
   const params = {
     host: state.selectedTarget || '10.0.0.30',
     port: parseInt(document.getElementById('ssh-port').value, 10) || 22,
-    username: document.getElementById('ssh-username').value.trim() || 'fanta',
+    username: document.getElementById('ssh-username').value.trim(),
     password: document.getElementById('ssh-password').value || null,
     key_path: state.selectedKeyPath || null,
     root_password: rootPassword,
@@ -579,11 +679,24 @@ async function startInstallationRun() {
 
   appendLog(`[SYS] Démarrage du processus de déploiement sur ${params.host}...`);
 
+  hideInstallFailure();
   try {
     await invokeTauri('start_installation', { params });
   } catch (err) {
     appendLog(`[ERREUR CRITIQUE] ${err}`);
+    showInstallFailure(String(err));
   }
+}
+
+function showInstallFailure(message) {
+  document.getElementById('install-title-heading').textContent = "L'installation s'est arrêtée";
+  document.getElementById('install-failure-message').textContent = message;
+  document.getElementById('install-failure-card').style.display = 'block';
+}
+
+function hideInstallFailure() {
+  document.getElementById('install-failure-card').style.display = 'none';
+  document.getElementById('install-title-heading').textContent = 'Déploiement en cours...';
 }
 
 function appendLog(line) {
@@ -599,6 +712,19 @@ function listenTauriEvents() {
   const listen = window.__TAURI__?.event?.listen;
   if (!listen) return;
 
+  // Scan en direct : chaque appareil apparaît dès qu'il est trouvé, au lieu
+  // d'attendre la fin d'un balayage de plusieurs centaines d'adresses.
+  listen('scan_device', (event) => {
+    const dev = event.payload;
+    const live = document.getElementById('live-devices');
+    if (!live || !dev) return;
+    state.liveDevices = state.liveDevices || new Map();
+    if (state.liveDevices.has(dev.ip)) return;
+    state.liveDevices.set(dev.ip, dev);
+    live.appendChild(buildDeviceRow(dev, true));
+  });
+  listen('scan_progress', (event) => updateScanProgress(event.payload));
+
   listen('install_progress', (event) => {
     const update = event.payload;
     const fill = document.getElementById('install-progress-fill');
@@ -608,6 +734,11 @@ function listenTauriEvents() {
     fill.style.width = `${update.pct}%`;
     label.textContent = `${update.pct}%`;
     subtitle.textContent = `Étape ${update.step_index} sur ${update.total_steps} : ${update.step_title}`;
+
+    if (update.phase === 'failed') {
+      showInstallFailure(update.error_message || "Une étape de l'installation a échoué.");
+      return;
+    }
 
     if (update.phase === 'succeeded' || update.pct >= 100) {
       document.getElementById('install-title-heading').textContent = 'Installation terminée !';

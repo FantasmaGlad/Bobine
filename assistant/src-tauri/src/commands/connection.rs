@@ -1,5 +1,5 @@
 use std::io::Read;
-use std::net::TcpStream;
+use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use ssh2::Session;
@@ -37,6 +37,87 @@ pub struct SystemInspection {
     pub gpu_info: String,
 }
 
+/// Ouvre une session SSH authentifiée vers `host:port`.
+///
+/// `host` peut être une IP **ou un nom** (`bobine.local`, `mini-pc`) : l'ancien
+/// code faisait `format!("{host}:{port}").parse::<SocketAddr>()`, qui n'accepte
+/// QUE des adresses IP littérales — saisir `bobine.local` échouait avec « Adresse
+/// hôte invalide ». La résolution passe désormais par le résolveur système
+/// (DNS, mDNS, hosts), avec préférence pour IPv4 (le scan n'énumère que de
+/// l'IPv4 et les bornes n'annoncent pas toujours d'IPv6 joignable).
+///
+/// Les erreurs de connexion sont traduites en cause probable + action, au lieu
+/// du texte brut de l'OS.
+pub(crate) fn open_ssh_session(
+    host: &str,
+    port: u16,
+    username: &str,
+    password: Option<&str>,
+    key_path: Option<&str>,
+) -> Result<Session, String> {
+    let host = host.trim();
+    if host.is_empty() {
+        return Err("Adresse de la borne manquante : sélectionnez-la dans le scan ou saisissez son IP.".to_string());
+    }
+    let mut addrs: Vec<SocketAddr> = (host, port)
+        .to_socket_addrs()
+        .map_err(|e| {
+            format!("Nom ou adresse « {host} » introuvable ({e}). Essayez l'adresse IP de la borne (visible dans l'interface du routeur).")
+        })?
+        .collect();
+    addrs.sort_by_key(|a| a.is_ipv6()); // IPv4 d'abord
+    if addrs.is_empty() {
+        return Err(format!("Aucune adresse trouvée pour « {host} »."));
+    }
+
+    let mut last_error = String::new();
+    let mut tcp = None;
+    for addr in &addrs {
+        match TcpStream::connect_timeout(addr, Duration::from_secs(8)) {
+            Ok(stream) => {
+                tcp = Some(stream);
+                break;
+            }
+            Err(e) => last_error = describe_connect_error(host, port, &e),
+        }
+    }
+    let tcp = tcp.ok_or(last_error)?;
+    tcp.set_nodelay(true).ok();
+
+    let mut sess = Session::new().map_err(|e| format!("Erreur session SSH : {e}"))?;
+    sess.set_tcp_stream(tcp);
+    // Borne les opérations bloquantes (handshake, authentification) : une
+    // machine qui accepte la connexion TCP sans parler SSH ne doit pas figer
+    // l'assistant indéfiniment.
+    sess.set_timeout(30_000);
+    sess.handshake().map_err(|e| {
+        format!("Échec de la négociation SSH avec {host}:{port} ({e}) — ce port héberge-t-il bien un serveur SSH ?")
+    })?;
+    // Messages de maintien de connexion : une installation dure plusieurs
+    // minutes pendant lesquelles aucun octet ne circule parfois (compilation) —
+    // sans eux, une box ou un Wi-Fi qui purge les connexions inactives la
+    // coupait en plein milieu.
+    sess.set_keepalive(true, 15);
+
+    super::ssh_auth::authenticate_session(&sess, username, password, key_path)?;
+    Ok(sess)
+}
+
+fn describe_connect_error(host: &str, port: u16, e: &std::io::Error) -> String {
+    use std::io::ErrorKind::*;
+    match e.kind() {
+        ConnectionRefused => format!(
+            "Connexion refusée par {host}:{port} : la machine est joignable mais SSH n'y est pas actif. \
+             Sur la borne : « sudo apt install openssh-server » puis « sudo systemctl enable --now ssh »."
+        ),
+        TimedOut | WouldBlock => format!(
+            "Délai dépassé vers {host}:{port} : machine éteinte, adresse erronée, autre réseau, ou isolation des clients \
+             activée sur le Wi-Fi (réglage « isolation AP » / réseau invité du routeur)."
+        ),
+        _ => format!("Impossible de joindre {host}:{port} : {e}"),
+    }
+}
+
 fn run_remote_exec(sess: &Session, cmd: &str) -> Result<String, String> {
     let mut channel = sess
         .channel_session()
@@ -55,21 +136,9 @@ fn run_remote_exec(sess: &Session, cmd: &str) -> Result<String, String> {
 #[tauri::command]
 pub async fn test_ssh_connection(creds: SshCredentials) -> Result<SystemInspection, String> {
     tokio::task::spawn_blocking(move || {
-        let addr = format!("{}:{}", creds.host, creds.port);
-        let tcp = TcpStream::connect_timeout(
-            &addr
-                .parse()
-                .map_err(|e| format!("Adresse hôte invalide '{addr}' : {e}"))?,
-            Duration::from_secs(5),
-        )
-        .map_err(|e| format!("Impossible de joindre l'hôte {addr} : {e}"))?;
-
-        let mut sess = Session::new().map_err(|e| format!("Erreur session SSH : {e}"))?;
-        sess.set_tcp_stream(tcp);
-        sess.handshake().map_err(|e| format!("Échec handshake SSH : {e}"))?;
-
-        super::ssh_auth::authenticate_session(
-            &sess,
+        let sess = open_ssh_session(
+            &creds.host,
+            creds.port,
             &creds.username,
             creds.password.as_deref(),
             creds.key_path.as_deref(),

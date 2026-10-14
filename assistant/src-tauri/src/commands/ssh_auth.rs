@@ -88,9 +88,6 @@ pub fn authenticate_session(
             "id_ed25519",
             "id_rsa",
             "id_ecdsa",
-            "deploy_key_lutecium",
-            "lutecium_deploy",
-            "bobineweb_deploy",
         ];
 
         for key_name in &key_candidates {
