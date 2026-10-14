@@ -142,6 +142,60 @@ jobs:
       - name: Build static export
         run: npm run build
 
+  firefox-smoke:
+    # Compatibilité Firefox/Gecko (lot F0 du plan docs/PLAN-COMPATIBILITE-FIREFOX.md) :
+    # un vrai Firefox (préinstallé sur le runner, avec geckodriver) pilote une
+    # instance de TEST isolée — import par morceaux, négociation de la version
+    # vidéo, protocole (HEAD/404 JSON), pages principales. Échoue si une page
+    # affiche une erreur applicative ou si l'interface se fige pendant l'import.
+    # Volontairement hors des `needs:` des jobs de publication : un retard de
+    # runner ne doit jamais bloquer une release.
+    name: Firefox smoke tests (geckodriver)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+      - name: Start isolated test backend
+        run: |
+          mkdir -p "$RUNNER_TEMP/bobine-e2e"
+          cd backend
+          BOBINE_USE_XDG=1 XDG_DATA_HOME="$RUNNER_TEMP/bobine-e2e/data" XDG_CONFIG_HOME="$RUNNER_TEMP/bobine-e2e/cfg" \
+            nohup python ../scripts/browser-bench/run_test_backend.py 8078 > "$RUNNER_TEMP/backend.log" 2>&1 &
+          for _ in $(seq 1 40); do
+            curl -fs http://127.0.0.1:8078/api/health && break
+            sleep 1
+          done
+          curl -fs http://127.0.0.1:8078/api/health
+      - name: Firefox end-to-end bench
+        run: |
+          firefox --version
+          geckodriver --version
+          python scripts/browser-bench/e2e_firefox.py --resume
+      - name: Backend log (on failure)
+        if: failure()
+        run: tail -n 100 "$RUNNER_TEMP/backend.log"
+
   backend:
     name: Backend checks (Python)
     runs-on: ubuntu-latest
@@ -777,7 +831,7 @@ jobs:
 
           # Bobine — Bêta (build automatique)
 
-          > **Bobine soutient Firefox.** Interface d'administration et lecteurs tiers (`/radio`, `/kiosk`, `/cinema`) vérifiés sur Firefox 157 — [plan de compatibilité](https://github.com/FantasmaGlad/Bobine/blob/main/docs/PLAN-COMPATIBILITE-FIREFOX.md). Cette bêta apporte aussi des mises à jour Stable/Bêta fiabilisées (dont le retour en Stable) et un installateur plus fluide.
+          > **Bobine soutient Firefox.** Interface d'administration et lecteurs tiers (`/radio`, `/kiosk`, `/cinema`) vérifiés de bout en bout sur Firefox 157 : envois reprenables après coupure, flux média conformes HTTP, version vidéo compatible en repli automatique, diagnostic navigateur intégré — [plan et statut](https://github.com/FantasmaGlad/Bobine/blob/main/docs/PLAN-COMPATIBILITE-FIREFOX.md). Cette bêta apporte aussi des mises à jour Stable/Bêta fiabilisées (dont le retour en Stable) et un installateur plus fluide.
 
           Pre-release à accès anticipé aux fonctionnalités en cours de développement — reconstruite automatiquement à chaque publication et republiée **en place** sur ce même tag mobile `beta` (jamais un nouveau tag par itération). Une version stable équivalente ou plus récente la remplace toujours automatiquement.
 
