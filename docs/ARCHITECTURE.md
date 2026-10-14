@@ -584,9 +584,10 @@ Sur le profil Android, les données sont réparties sur **deux racines de stocka
 
 - **Règle d'ingénierie** : détection de fonctionnalités uniquement (jamais `navigator.userAgent`) ; aucun code spécifique à un navigateur.
 - **Vérifié sur Firefox 157** : WebSocket, XHR/`FormData` (upload), `Range` (206, plage suffixe), CORS, Web Audio, Gamepad, Wake Lock, `requestVideoFrameCallback`, `webkitdirectory`, Cache API. Lecture H.264 (jusqu'à 1080p60 à 60 Mbit/s) sans image perdue ; HEVC/AV1 dépendent de l'OS et du matériel.
-- **Écarts connus** : `HEAD` sur les `/stream` renvoie du HTML ; filtre MIME du glisser-déposer ; HEVC/VP9/4K60 conservés tels quels à l'import ; Wake Lock et Gamepad exigent un contexte sécurisé (HTTPS/`localhost`) selon leur documentation.
+- **Livré en 4.0.3** : flux média conformes RFC 9110 (`HEAD`, `Range`, `If-Range`, `416`, `ETag` — `app/utils/media_response.py` ; plus aucun `/api/*` ne renvoie du HTML) ; **téléversement par morceaux reprenable** (`/api/uploads`, `app/utils/staged_uploads.py`, client `frontend/src/lib/chunkedUpload.ts`) ; filtre de dépôt par extension ; `ffmpeg` à priorité réduite sur les profils où le navigateur partage la machine ; **version web « lisible partout »** (H.264 8 bits ≤ 1080p, `app/utils/web_profile.py`, négociation `?accept=` sur `/api/videos/{id}/stream`, original jamais modifié) ; Réglages → Compatibilité navigateur.
+- **Reste ouvert** : HTTPS local optionnel (Wake Lock et Gamepad exigent un contexte sécurisé — `http://<ip>` du LAN) ; mesures Windows/macOS/Android/ESR.
 - **Crash/lag d'import signalé** : non reproduit (31 fichiers / 1,5 Go, lien limité à 32 Mbit/s, 2 cœurs) — cause racine à établir par le protocole du plan.
-- Détails, mesures, protocole de diagnostic et lots d'implémentation F0–F8 : [`docs/PLAN-COMPATIBILITE-FIREFOX.md`](PLAN-COMPATIBILITE-FIREFOX.md) ; banc de mesure reproductible : [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
+- Détails, mesures, protocole de diagnostic et statut des lots F0–F8 : [`docs/PLAN-COMPATIBILITE-FIREFOX.md`](PLAN-COMPATIBILITE-FIREFOX.md) ; banc de mesure reproductible : [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
 
 <br clear="left"/>
 

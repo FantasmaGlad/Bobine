@@ -582,9 +582,10 @@ On the Android profile, data is split across **two storage roots** (`backend/app
 
 - **Engineering rule**: feature detection only (never `navigator.userAgent`); no browser-specific code.
 - **Verified on Firefox 157**: WebSocket, XHR/`FormData` upload, `Range` (206, suffix ranges), CORS, Web Audio, Gamepad, Wake Lock, `requestVideoFrameCallback`, `webkitdirectory`, Cache API. H.264 playback (up to 1080p60 at 60 Mbit/s) with no dropped frame; HEVC/AV1 depend on the OS and hardware.
-- **Known gaps**: `HEAD` on `/stream` returns HTML; drag-and-drop MIME filter; HEVC/VP9/4K60 kept as-is on import; Wake Lock and Gamepad require a secure context (HTTPS/`localhost`) per their documentation.
+- **Delivered in 4.0.3**: RFC 9110-compliant media streams (`HEAD`, `Range`, `If-Range`, `416`, `ETag` — `app/utils/media_response.py`; no `/api/*` path returns HTML any more); **resumable chunked upload** (`/api/uploads`, `app/utils/staged_uploads.py`, client `frontend/src/lib/chunkedUpload.ts`); extension-based drop filter; lowered `ffmpeg` priority on profiles where the browser shares the machine; **"plays everywhere" web version** (H.264 8-bit ≤ 1080p, `app/utils/web_profile.py`, `?accept=` negotiation on `/api/videos/{id}/stream`, original never modified); Settings → Browser compatibility.
+- **Still open**: optional local HTTPS (Wake Lock and Gamepad need a secure context — a LAN `http://<ip>`); Windows/macOS/Android/ESR measurements.
 - **Reported import crash/lag**: not reproduced (31 files / 1.5 GB, 32 Mbit/s throttled link, 2 cores) — root cause to be established with the plan's diagnostic protocol.
-- Details, measurements, diagnostic protocol and work packages F0–F8: [`docs/PLAN-COMPATIBILITY-FIREFOX.en.md`](PLAN-COMPATIBILITY-FIREFOX.en.md); reproducible bench: [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
+- Details, measurements, diagnostic protocol and status of work packages F0–F8: [`docs/PLAN-COMPATIBILITY-FIREFOX.en.md`](PLAN-COMPATIBILITY-FIREFOX.en.md); reproducible bench: [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
 
 <br clear="left"/>
 

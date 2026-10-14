@@ -5,7 +5,7 @@
 # Implementation plan — Full support for Firefox / Gecko browsers
 
 > English summary of [`PLAN-COMPATIBILITE-FIREFOX.md`](PLAN-COMPATIBILITE-FIREFOX.md) (the French document is the reference, with all tables and raw numbers).
-> **Status**: plan only — no application code was changed by this document.
+> **Status (4.0.3)**: work packages **F0, F1, F2, F3, F5, F7, F8 delivered**; **F4 and F6 partly delivered** (see the table below). The reported import slowdown is still **not reproduced**: the root cause is not established.
 > Firefox is a trademark of the Mozilla Foundation; its logo is used only to state compatibility, with no affiliation or endorsement.
 
 ## 1. Summary
@@ -38,6 +38,8 @@ Collect for **one** crash: Firefox version/OS (`about:support`), whether the bac
 Open hypotheses (none proven): H1 single multi-GB multipart request; H2 backend and browser on one weak machine with `ffmpeg -threads 0` at `nice 0`; H3 software 4K/HEVC decoding in the library preview; H4 React state update on every `progress` event × N transfers; H5 6-connections-per-host limit; H6 browser extensions.
 
 ## 5. Work packages
+
+**Delivery status (4.0.3)** — F0 Firefox end-to-end bench (17 checks, CI job `firefox-smoke`): delivered; F1 HTTP conformance of streams (`HEAD`, `Range`, `If-Range`, `416`, JSON 404 under `/api/*`): delivered; F2 extension-based drop filter, throttled progress, adaptive concurrency, **resumable chunked upload** (resume verified after a real network cut), lowered `ffmpeg` priority on shared machines: delivered; F3 web rendition (H.264 8-bit ≤ 1080p), `?accept=` negotiation, library badge/button: delivered (produced on demand; automatic production is an opt-in setting); F4: partly (visibility resync, AudioContext keep-alive; hidden-tab sync over 30 min not measured); F5 *Settings → Browser compatibility*: delivered; F6: partly (`packaging/firefox/policies.json` kiosk policy; **optional local HTTPS not implemented**, policy file untested on a real Firefox, LibreWolf/Tor not tested); F7 `browserslist` + `eslint-plugin-compat`: delivered; F8 docs: delivered. Not measured: Windows, macOS, Firefox for Android, Firefox ESR.
 
 | Lot | Goal | Acceptance |
 |---|---|---|

@@ -10,7 +10,7 @@
 
 <p align="center">
   <b>Nouveau en 4.0.3 (bêta) — Bobine soutient officiellement Firefox.</b><br>
-  <sub>Interface d'administration et lecteurs tiers (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>) vérifiés sur Firefox 157, avec un plan de durcissement publié. Aussi : mises à jour Stable/Bêta fiabilisées, installateur plus fluide. <a href="#navigateurs-supportés">Navigateurs supportés</a> · <a href="docs/PLAN-COMPATIBILITE-FIREFOX.md">Plan Firefox</a></sub>
+  <sub>Interface d'administration et lecteurs tiers (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>) vérifiés de bout en bout sur Firefox 157 : envois reprenables, flux média conformes HTTP, version vidéo compatible en repli automatique et diagnostic navigateur intégré. Aussi : mises à jour Stable/Bêta fiabilisées, installateur plus fluide. <a href="#navigateurs-supportés">Navigateurs supportés</a> · <a href="docs/PLAN-COMPATIBILITE-FIREFOX.md">Plan Firefox et statut</a></sub>
 </p>
 
 **L'alternative open source et auto-hébergée à Les Mills Cinema, Wexer et Screenly Anthias — régie vidéo professionnelle, affichage dynamique et diffusion de cours collectifs 100% hors-ligne pour salles de sport et studios de fitness.**
@@ -167,12 +167,12 @@ Bobine est un logiciel léger et optimisé, conçu pour fonctionner avec fluidit
 
 | Navigateur | Statut |
 |---|---|
-| **Firefox** (Windows, macOS, Linux, Android — version courante, précédente et ESR) | Supporté — toutes les API Web utilisées par Bobine vérifiées présentes sur Firefox 157 ; plan de durcissement en cours |
+| **Firefox** (Windows, macOS, Linux, Android — version courante, précédente et ESR) | **Supporté** — vérifié de bout en bout sur Firefox 157 / Linux (17 contrôles automatiques en CI, dont la reprise d'un envoi après une coupure réseau). Windows, macOS, Android et ESR pas encore mesurés ; le ralentissement d'import signalé n'a pas pu être reproduit |
 | Chrome / Chromium / Edge | Supporté (moteur de référence du kiosque sur l'appliance headless) |
 | Safari / navigateurs iOS (WebKit) | Supporté au mieux |
 | Dérivés de Firefox (LibreWolf, Waterfox, Floorp, Zen) | Au mieux (même moteur Gecko) |
 
-Le décodage vidéo matériel dépend du navigateur et du système (HEVC/AV1 en particulier). Consultez le [**plan de compatibilité Firefox / Gecko**](docs/PLAN-COMPATIBILITE-FIREFOX.md) — mesures, écarts connus et feuille de route — et [`scripts/browser-bench/`](scripts/browser-bench/README.md) pour les reproduire. *Firefox est une marque de la Mozilla Foundation ; son logo n'est utilisé ici que pour indiquer la compatibilité, sans affiliation ni parrainage.*
+Le décodage vidéo matériel dépend du navigateur et du système (HEVC/AV1 en particulier) : quand un navigateur ne sait pas décoder une vidéo, Bobine lui sert une version H.264 compatible (produite à la demande, l'original reste intact) — voir *Réglages → Compatibilité navigateur* pour un diagnostic local. Consultez le [**plan de compatibilité Firefox / Gecko et son statut de livraison**](docs/PLAN-COMPATIBILITE-FIREFOX.md) et [`scripts/browser-bench/`](scripts/browser-bench/README.md) pour reproduire les mesures. *Firefox est une marque de la Mozilla Foundation ; son logo n'est utilisé ici que pour indiquer la compatibilité, sans affiliation ni parrainage.*
 
 ---
 

@@ -4,7 +4,7 @@
 
 # Plan d'implémentation — Support complet des navigateurs Firefox / Gecko
 
-> **Statut** : plan, aucune ligne de code applicatif modifiée par ce document.
+> **Statut (4.0.3)** : lots **F0, F1, F2, F3, F5, F7, F8 livrés** ; **F4 et F6 livrés en partie** (voir §6 « Statut par lot » pour ce qui reste). Le ralentissement d'import signalé reste **non reproduit** : la cause racine n'est toujours pas établie.
 > **Origine** : signalement « crash / énorme lag lors de l'import de média dans la bibliothèque, surtout sur Firefox » et demande d'un support complet de Firefox pour l'interface d'administration **et** pour les lecteurs ouverts depuis d'autres appareils (ex. `/radio` depuis un poste tiers).
 > **Principe** : Bobine soutient le projet Firefox et vise la même qualité sur tout navigateur moderne. Firefox est une marque de Mozilla Foundation ; son logo n'est utilisé ici que pour indiquer la compatibilité, sans affiliation ni parrainage.
 
@@ -15,7 +15,7 @@
 1. **Le crash/lag d'import n'a pas pu être reproduit** sur Firefox 157 (Linux, headless) avec le code actuel, ni en local, ni à travers un lien limité à 32 Mbit/s, ni avec 31 fichiers / 1,5 Go. **La cause racine n'est donc pas établie** ; ce plan ne la devine pas. Il fournit (§5) le protocole qui permet de la trouver sur le poste concerné, et (§6) un durcissement de l'import qui supprime les causes plausibles sans attendre.
 2. Les **API et protocoles** utilisés par Bobine sont **tous présents** dans Firefox 157 (WebSocket, XHR upload, Range, Web Audio, Gamepad, Wake Lock, `requestVideoFrameCallback`, `webkitdirectory`…).
 3. Trois **défauts réels** ont été trouvés et prouvés (§4.3) : `HEAD` sur les flux média qui renvoie du HTML, filtre MIME du glisser-déposer trop strict, et bibliothèque qui conserve HEVC/VP9/4K60 tels quels (lisibles ou non selon l'OS et le matériel du navigateur).
-4. Le plan (§6) est découpé en **9 lots F0–F8**, chacun avec critères d'acceptation mesurables.
+4. Le plan (§6) est découpé en **9 lots F0–F8**, chacun avec critères d'acceptation mesurables. Ils sont implémentés dans la version 4.0.3 (statut par lot en tête du §6) et vérifiés par un banc Firefox automatisé : 17 contrôles de bout en bout, dont la reprise d'un transfert après une coupure réseau.
 
 ---
 
@@ -84,6 +84,8 @@ Matrice `canPlayType` (Firefox 157, Linux) : H.264 Baseline/High (dont L5.1), HE
 | API absentes de Firefox 157 | ℹ️ | `showDirectoryPicker` (non utilisé), `PerformanceObserver` `longtask`, `animation-timeline`, `interpolate-size`, `line-clamp` sans préfixe (le code utilise `-webkit-line-clamp`, supporté) |
 | `deviceMemory` | ℹ️ | Non exposé par Firefox : ne jamais s'en servir pour adapter la charge |
 
+> **Corrigés dans la 4.0.3** : `HEAD` sur les flux (F1), filtre MIME du glisser-déposer (F2), conservation de HEVC/VP9/10 bits sans repli pour les navigateurs qui ne les décodent pas (F3 : version web servie par négociation). Les mesures de ce chapitre décrivent l'état AVANT correction.
+
 > **À vérifier au banc (F0)** — documenté mais pas encore mesuré ici : `wakeLock` et `getGamepads` exigent un **contexte sécurisé** (HTTPS ou `localhost`). Sur un poste tiers qui ouvre `http://bobine.local:8000`, ils sont donc attendus **absents**, y compris sous Chrome — à confirmer avec une mesure par IP LAN.
 
 ---
@@ -115,13 +117,27 @@ Hypothèses à départager (aucune démontrée) :
 
 ## 6. Plan d'implémentation
 
+### Statut par lot (version 4.0.3)
+
+| Lot | État | Livré | Reste / non vérifié |
+|---|---|---|---|
+| F0 banc Gecko | **livré** | `scripts/browser-bench/e2e_firefox.py` (17 contrôles) + job CI `firefox-smoke` | Windows, macOS, Firefox pour Android et ESR non mesurés ; comparatif Chrome chiffré non fait |
+| F1 HTTP des flux | **livré** | `HEAD`/`Range`/`If-Range`/`416`/`ETag` sur tous les `/stream`, 404 JSON sous `/api/*` (`app/utils/media_response.py`, 32 tests) | — |
+| F2 import robuste | **livré** | filtre par extension avec message, progression limitée à 4 Hz, concurrence adaptative, **téléversement par morceaux reprenable** (`/api/uploads`, reprise vérifiée après coupure réelle), `ffmpeg` à priorité réduite sur les postes partagés | `multipart` conservé pour les pistes audio multiples (petits fichiers) ; transfert de plusieurs Go non mesuré sur matériel réel |
+| F3 profil « lisible partout » | **livré** | détection (`decode:*` / `perf:*`), version web H.264 8 bits ≤ 1080p produite à la demande ou automatiquement, négociation `?accept=`, badge et bouton dans la bibliothèque | production **à la demande** (réglage « automatique » désactivé par défaut) ; pas de repli automatique sur erreur de lecture côté lecteur |
+| F4 lecteurs tiers | **en partie** | recalage immédiat au retour d'un onglet masqué, relance du contexte audio suspendu (radio), repli propre sans Wake Lock/Gamepad (déjà en place) | autoplay : le geste reste exigé par le navigateur (rien à contourner) ; synchronisation ±300 ms après 30 min d'onglet masqué non mesurée |
+| F5 diagnostic intégré | **livré** | Réglages → Compatibilité navigateur (formats, API, préférence de version, mesure de lecture 5 s, rapport copiable, conseils par OS) | décodage matériel non détectable de façon fiable par une API Web : seulement la mesure d'images perdues |
+| F6 dérivés & confidentialité | **en partie** | aucune logique sur `performance.now()` fin/canvas ; `packaging/firefox/policies.json` (kiosque Firefox optionnel) | **HTTPS local optionnel non implémenté** ; `policies.json` non testé sur un Firefox réel (écriture système requise) ; LibreWolf/Tor Browser non testés |
+| F7 outillage | **livré** | `browserslist` (Firefox ESR et courant, Chromium, Safari) + `eslint-plugin-compat` | — |
+| F8 documentation | **livré** | README, ARCHITECTURE §10.3, notes 4.0.3, ce document | — |
+
 Ordre recommandé : **F0 → F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8**. F0 et F1 sont indépendants et peu risqués : à livrer en premier.
 
 ### F0 — Banc de test Gecko (prérequis)
 - Promouvoir [`scripts/browser-bench/`](../scripts/browser-bench/README.md) en test reproductible : matrice Firefox ESR + stable, Windows/macOS/Linux/Android (BrowserStack ou machines physiques de la flotte).
 - Ajouter au CI un job `firefox-smoke` (Playwright `firefox` ou geckodriver) : chargement de `/library`, `/radio`, `/kiosk?channel=network`, `/coach`, `/settings` sans erreur console ; upload de 2 fichiers de test ; lecture 5 s d'un H.264.
 - Mesurer enfin les points « à vérifier » du §4.3 (contexte non sécurisé, `File.type`, HEVC Windows).
-- **Acceptation** : le job échoue si une page lève une erreur JS ou si le retard de boucle d'évènements dépasse 200 ms pendant l'import de référence.
+- **Acceptation** : le job échoue si une page lève une erreur JS ou si le retard de boucle d'évènements dépasse 200 ms pendant l'import de référence. *(Réalisé : le banc détecte l'overlay d'erreur Next.js et le retard de boucle ; les erreurs de console ne sont pas lisibles via WebDriver classique.)*
 
 ### F1 — Conformité HTTP des flux média (correctif prouvé)
 - Fichiers : `backend/app/main.py` (routes `/stream`), tests `backend/tests/`.

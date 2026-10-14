@@ -1,0 +1,24 @@
+{
+  "policies": {
+    "DisableTelemetry": true,
+    "DisableFirefoxStudies": true,
+    "DontCheckDefaultBrowser": true,
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": "",
+    "NoDefaultBookmarks": true,
+    "Permissions": {
+      "Autoplay": {
+        "Allow": ["http://localhost:8000", "http://127.0.0.1:8000", "http://bobine.local:8000"],
+        "Default": "block-audio",
+        "BlockNewRequests": false
+      }
+    },
+    "UserMessaging": {
+      "WhatsNew": false,
+      "ExtensionRecommendations": false,
+      "FeatureRecommendations": false,
+      "UrlbarInterventions": false,
+      "SkipOnboarding": true
+    }
+  }
+}
