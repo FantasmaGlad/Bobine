@@ -344,6 +344,15 @@ jobs:
           actual=$(grep -cE '^[[:space:]]*step ' install.sh)
           echo "STEP_TOTAL=${declared} ; appels step()=${actual}"
           test "${declared}" = "${actual}"
+      - name: L'installation en une commande (tube curl | bash) s'amorce sans dépôt local
+        run: |
+          # Reproduit `curl … | sudo bash` : le script arrive par stdin, hors
+          # de tout dépôt — régression historique : `${BASH_SOURCE[0]}` non
+          # défini sous `set -u` faisait planter le script avant tout message.
+          cd "$(mktemp -d)"
+          out=$(cat "${GITHUB_WORKSPACE}/install.sh" | sudo bash -s -- --as-user "$(id -un)" --dry-run -y --lang=en 2>&1)
+          echo "$out"
+          grep -q "would clone" <<<"$out"
 
   windows-build:
     # PortabiliteCrossPlatformX Lot 1 : PyInstaller ne cross-compile pas — ce
@@ -762,7 +771,13 @@ jobs:
             <img alt="Bobine" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/bobine_banner.svg" width="100%">
           </p>
 
+          <p align="center">
+            <img alt="Bobine soutient Firefox — le renard Firefox et Baamix" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/FirefoxBaamix.png" width="320">
+          </p>
+
           # Bobine — Bêta (build automatique)
+
+          > **Bobine soutient Firefox.** Interface d'administration et lecteurs tiers (`/radio`, `/kiosk`, `/cinema`) vérifiés sur Firefox 157 — [plan de compatibilité](https://github.com/FantasmaGlad/Bobine/blob/main/docs/PLAN-COMPATIBILITE-FIREFOX.md). Cette bêta apporte aussi des mises à jour Stable/Bêta fiabilisées (dont le retour en Stable) et un installateur plus fluide.
 
           Pre-release à accès anticipé aux fonctionnalités en cours de développement — reconstruite automatiquement à chaque publication et republiée **en place** sur ce même tag mobile `beta` (jamais un nouveau tag par itération). Une version stable équivalente ou plus récente la remplace toujours automatiquement.
 
