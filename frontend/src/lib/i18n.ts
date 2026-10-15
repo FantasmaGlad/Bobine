@@ -2,7 +2,7 @@ export type Language = "fr" | "en";
 
 type Dict = { [key: string]: string | string[] | Dict };
 
-// Réf. UX1.5 (tâche 11.6) : toute chaîne affichée à l'utilisateur passe par
+// Toute chaîne affichée à l'utilisateur passe par
 // ce dictionnaire plutôt que d'être codée en dur dans les composants. Organisé
 // par section d'écran plutôt qu'un plat unique, pour rester navigable malgré
 // le volume (~6000 lignes de JSX à couvrir).
@@ -302,7 +302,7 @@ export const dictionaries: Record<Language, Dict> = {
         playlist_waiting: "Attente inter-cours",
       },
       disconnected: "Déconnecté",
-      interruptedCoachLabel: "Programmation reportée — mode audio coach actif (F10.7)",
+      interruptedCoachLabel: "Programmation reportée — mode audio coach actif",
       interruptedScheduleLabel: "Lecture interrompue par une programmation",
       scheduledCourseFallback: "Cours programmé",
       courseFallback: "Cours",
@@ -762,7 +762,7 @@ export const dictionaries: Record<Language, Dict> = {
       metadataSectionTitle: "MÉTADONNÉES DU COURS",
       titleLabel: "Titre",
       noneOption: "Aucun",
-      backgroundAssociationLabel: "Fond animé associé (réf. F9.5)",
+      backgroundAssociationLabel: "Fond animé associé",
       noBackgroundOption: "Aucun (habillage sobre par défaut)",
       tracksSectionTitle: "PISTES ({{count}}) — glisser-déposer pour réordonner",
       deleteCourseTitle: "Supprimer ce cours audio ?",
@@ -1550,7 +1550,7 @@ export const dictionaries: Record<Language, Dict> = {
         playlist_waiting: "Between courses",
       },
       disconnected: "Disconnected",
-      interruptedCoachLabel: "Schedule postponed — audio coach mode active (F10.7)",
+      interruptedCoachLabel: "Schedule postponed — audio coach mode active",
       interruptedScheduleLabel: "Playback interrupted by a scheduled program",
       scheduledCourseFallback: "Scheduled course",
       courseFallback: "Course",
@@ -2010,7 +2010,7 @@ export const dictionaries: Record<Language, Dict> = {
       metadataSectionTitle: "COURSE METADATA",
       titleLabel: "Title",
       noneOption: "None",
-      backgroundAssociationLabel: "Associated background (ref. F9.5)",
+      backgroundAssociationLabel: "Associated background",
       noBackgroundOption: "None (sober look by default)",
       tracksSectionTitle: "TRACKS ({{count}}) — drag and drop to reorder",
       deleteCourseTitle: "Delete this audio course?",

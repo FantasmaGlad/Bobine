@@ -8,7 +8,7 @@ import { UploadManagerProvider } from "@/lib/UploadManager";
 
 // Applique le thème/la langue mis en cache (localStorage) avant même
 // l'hydratation React, pour éviter un flash du mauvais thème au premier
-// affichage (réf. UX1.3/UX1.4, tâche 11.4/11.5) — script bloquant volontaire
+// affichage — script bloquant volontaire
 // (pas de défer/async), s'exécute donc avant tout rendu visible. Le contenu
 // est statique (jamais de données utilisateur injectées ici), sans risque XSS.
 const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('olc-theme');if(t)document.documentElement.setAttribute('data-theme',t);var l=localStorage.getItem('olc-language');if(l)document.documentElement.lang=l;}catch(e){}})();`;
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 };
 
-// Réf. mission UI/UX — "plein écran de base sur mobile" : ces meta forcent le
+// ces meta forcent le
 // mode standalone (sans barre d'adresse) quand la page est ajoutée à l'écran
 // d'accueil (Android/iOS). Un vrai plein écran navigateur (Fullscreen API)
 // exige un geste utilisateur — voir le hook useAutoFullscreen déclenché au
@@ -38,7 +38,7 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover" as const,
-  // "clair" (réf. mission "thème par défaut") : couleur de fond du thème
+  // "clair" : couleur de fond du thème
   // clair par défaut, cf. THEME_SWATCHES dans app/settings/page.tsx.
   themeColor: "#f8f9fa",
 };
@@ -65,8 +65,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        {/* Icône requise pour que la PWA soit réellement installable (réf.
-            correctif "pas de plein écran sur téléphone") : avec `icons: []`
+        {/* Icône requise pour que la PWA soit réellement installable : avec `icons: []`
             dans le manifest, Chrome Android ne créait qu'un simple raccourci
             qui rouvrait le navigateur classique — le mode
             fullscreen/standalone du manifest était ignoré. */}

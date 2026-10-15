@@ -64,26 +64,22 @@ export default function CoachModePage() {
   const { state: wsState, connected, sendCommand, serverNow } = usePlaybackSocket(() => setHasSynced(true));
   const [courses, setCourses] = useState<AudioCourseSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  // Playlists audio ("éditions mixées", réf. mission "création de playlists
-  // spéciales juste avec les cours audios") : onglet séparé du picker de
+  // Playlists audio ("éditions mixées") : onglet séparé du picker de
   // cours isolés, plutôt qu'une longue liste mélangée.
   const [audioPlaylists, setAudioPlaylists] = useState<AudioPlaylistSummary[]>([]);
   const [pickerTab, setPickerTab] = useState<"courses" | "playlists">("courses");
   const [showTrackList, setShowTrackList] = useState(false);
-  // Sélecteur de fond d'écran (réf. mission "afficher un fond, figé ou animé,
-  // directement depuis le mode coach") : liste les fonds importés dans
+  // Sélecteur de fond d'écran : liste les fonds importés dans
   // l'admin, appliqués en direct sur l'écran câblé via audio_set_background.
   const [showBackgrounds, setShowBackgrounds] = useState(false);
   const [backgrounds, setBackgrounds] = useState<BackgroundSummary[]>([]);
   const [search, setSearch] = useState("");
-  // Accès aux autres fonctions de l'admin sans quitter le mode coach (réf.
-  // retour utilisateur "aucun bouton pour naviguer hors du mode coach sur le
-  // téléphone") : ClientLayout masque sidebar/tiroir sur cette route en
+  // Accès aux autres fonctions de l'admin sans quitter le mode coach : ClientLayout masque sidebar/tiroir sur cette route en
   // plein écran, ce menu local est donc la seule porte de sortie vers les
   // autres pages — la navigation elle-même reste non destructive, le cours
   // coach continue de tourner côté serveur qu'on y revienne ou non.
   const [showNav, setShowNav] = useState(false);
-  // État de snapshot HTTP (réf. Bug 4 / B4) : pré-hydrate l'interface avant
+  // État de snapshot HTTP : pré-hydrate l'interface avant
   // que le premier message WebSocket ne soit reçu. Sans cela, tous les boutons
   // de navigation de piste audio sont disabled car DEFAULT_STATE a
   // audio_tracks=null. Le WS prend le relais dès sa première notification.
@@ -119,8 +115,7 @@ export default function CoachModePage() {
 
   const isCoachMode = state.state === "coach_mode";
   const course = state.current_audio_course;
-  // Couleur du thème plutôt que du programme du cours (réf. correctif
-  // "couleurs hardcodées associées à un cours" — le thème prime désormais).
+  // Couleur du thème plutôt que du programme du cours.
   const accent = "var(--accent-primary)";
   const accentFg = useThemeAccentForeground();
   const tracks = state.audio_tracks || [];
@@ -129,7 +124,7 @@ export default function CoachModePage() {
 
   const [localPos, setLocalPos] = useState<number>(0);
 
-  // Minuterie du coach (plan 4.0.1) : position déduite de l'ANCRE d'horloge
+  // Minuterie du coach : position déduite de l'ANCRE d'horloge
   // serveur de la piste (`audio_clock`), recalculée 10 fois par seconde — plus
   // d'incrément local de 0,1 s recalé à chaque tick, qui dérivait entre deux
   // messages et n'était pas aligné sur ce que jouent réellement les écrans.
@@ -158,13 +153,12 @@ export default function CoachModePage() {
 
   const filteredAudioPlaylists = audioPlaylists.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
-  // Tap 2/2 : le choix du cours suffit à le lancer (réf. F10.4/UX4.9).
+  // Tap 2/2 : le choix du cours suffit à le lancer.
   const launchCourse = (courseId: number) => {
     sendCommand("load_audio_course", { audio_course_id: courseId });
   };
 
-  // Idem pour une playlist audio ("édition mixée", réf. mission "playlists
-  // spéciales... musiques de plusieurs RPM différents") : traitée côté
+  // Idem pour une playlist audio ("édition mixée") : traitée côté
   // serveur comme un cours virtuel dont les pistes viennent de plusieurs
   // cours — même flux de lecture qu'un cours normal, pas de notion de
   // "cours suivant" à enchaîner.
@@ -249,8 +243,7 @@ export default function CoachModePage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          {/* Onglet Cours isolés / Playlists audio (réf. mission "éditions
-              mixées") : deux listes distinctes plutôt qu'une seule mélangée. */}
+          {/* Onglet Cours isolés / Playlists audio : deux listes distinctes plutôt qu'une seule mélangée. */}
           <div className="coach-picker-tabs">
             <button
               type="button"

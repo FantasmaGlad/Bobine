@@ -1,6 +1,6 @@
 /**
  * Script exécuté de manière synchrone pendant le parsing HTML, avant toute
- * hydratation React (réf. UX1.3/1.4, tâche 11.4/11.5) — nécessaire pour
+ * hydratation React — nécessaire pour
  * appliquer le thème/la langue mis en cache avant le premier paint sans
  * flash. Ce composant suit le patron documenté par cette version de Next.js
  * (node_modules/next/dist/docs/.../preventing-flash-before-hydration.md) :

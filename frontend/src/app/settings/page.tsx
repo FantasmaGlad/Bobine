@@ -8,12 +8,12 @@ import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import MarkdownView from "@/components/MarkdownView";
 
-// Profil de déploiement (réf. PortabiliteCrossPlatformX §5.1) — détermine si
+// Profil de déploiement — détermine si
 // la zone Désinstaller propose une action directe (appliance headless) ou de
 // simples instructions (profils desktop, cf. section "Zone de danger" plus
 // bas).
-// "android" ajouté (Lot 15, réf. audit-android-2026-09-11.md) : absent
-// depuis l'introduction du profil Android (Lot 12) — les comparaisons
+// "android" ajouté : absent
+// depuis l'introduction du profil Android — les comparaisons
 // strictes contre "android" existaient déjà ailleurs dans le dépôt
 // (cinema/page.tsx) mais sur des données non typées (`any`), ce qui
 // masquait le type manquant ici.
@@ -119,8 +119,7 @@ const THEME_SWATCHES: ThemeSwatch[] = [
 ];
 
 // Pages plein écran destinées à être ouvertes depuis un AUTRE appareil du
-// réseau local (TV câblée, tablette coach, poste radio dédié…), réf. mission
-// "documenter les urls avec l'ip dynamique par page" — même liste que
+// réseau local (TV câblée, tablette coach, poste radio dédié…) — même liste que
 // `isFullscreenRoute` dans ClientLayout.tsx.
 const PUBLIC_PAGE_KEYS: { path: string; labelKey: string }[] = [
   { path: "/kiosk", labelKey: "settingsPage.paths.pageKiosk" },
@@ -133,9 +132,9 @@ const PUBLIC_PAGE_KEYS: { path: string; labelKey: string }[] = [
   { path: "/radio", labelKey: "settingsPage.paths.pageRadio" },
 ];
 
-// /grid (écran tactile de sélection, Lot 14) : spécifique au profil
+// /grid (écran tactile de sélection) : spécifique au profil
 // Android — inutile de l'afficher sur les autres profils, qui n'ont pas
-// cette page (réf. retour utilisateur, vérification des URLs par profil).
+// cette page.
 const ANDROID_PAGE_KEYS: { path: string; labelKey: string }[] = [
   { path: "/grid", labelKey: "settingsPage.paths.pageGrid" },
 ];
@@ -345,7 +344,7 @@ export default function SettingsPage() {
     }
   };
 
-  // `silent` (réf. mission "notification de mise à jour disponible") : la
+  // `silent` : la
   // vérification automatique au montage de la page ne doit pas déranger
   // l'utilisateur avec un toast "Système à jour" à chaque ouverture des
   // Réglages — seule une mise à jour RÉELLEMENT disponible mérite un toast
@@ -393,8 +392,7 @@ export default function SettingsPage() {
     }
   };
 
-  // Notification proactive (réf. mission "notification de mise à jour
-  // disponible") : vérifie une fois à l'ouverture des Réglages, sans
+  // Notification proactive : vérifie une fois à l'ouverture des Réglages, sans
   // attendre un clic manuel sur "Rechercher une mise à jour" — silencieux
   // sauf si une mise à jour est réellement trouvée (cf. paramètre `silent`
   // ci-dessus).
@@ -455,7 +453,7 @@ export default function SettingsPage() {
     }
   };
 
-  // Programme Bobine Beta (réf. mission "canal Stable/Bêta") : bascule
+  // Programme Bobine Beta : bascule
   // immédiate (comme le thème/la langue), pas de bouton "Enregistrer" séparé
   // — c'est un choix binaire sans état intermédiaire à valider. Relance
   // aussitôt checkForUpdates() pour que la carte "Mises à jour" reflète tout
@@ -1188,7 +1186,7 @@ export default function SettingsPage() {
             )}
           </div>
 
-          {/* Programme Bobine Beta (réf. mission "canal Stable/Bêta") */}
+          {/* Programme Bobine Beta */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
             <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
               {t("settingsPage.betaLabel")}
@@ -1385,7 +1383,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* ---- Compatibilité navigateur (diagnostic local, lot F5 du plan Firefox) ---- */}
+      {/* ---- Compatibilité navigateur (diagnostic local) ---- */}
       <BrowserCompatibility />
 
       {/* ---- Sauvegarde & Restauration universelle ---- */}

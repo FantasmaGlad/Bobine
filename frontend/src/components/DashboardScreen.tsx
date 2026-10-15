@@ -47,11 +47,11 @@ interface InterruptedState {
   id: number;
   cause: string | null;
   interrupted_at: string;
-  // Forme F5.3 (cause="schedule") : lecture manuelle interrompue par une programmation.
+  // Interruption par programmation (cause="schedule") : lecture manuelle interrompue par une programmation.
   video_id?: number | null;
   title?: string | null;
   position_seconds?: number | null;
-  // Forme F10.7 (cause="coach_priority") : programmation reportée par le mode audio coach.
+  // Report par le mode coach (cause="coach_priority") : programmation reportée par le mode audio coach.
   target_type?: string | null;
   target_id?: number | null;
 }
@@ -79,8 +79,7 @@ function formatDuration(seconds: number) {
 const SPEED_OPTIONS = [0.5, 1, 1.25, 1.5, 2];
 
 interface Props {
-  /** Canal de diffusion piloté par ce tableau de bord (réf. mission
-   * "Tableau de bord Câblé / Réseau") : toute cette page — état en direct,
+  /** Canal de diffusion piloté par ce tableau de bord : toute cette page — état en direct,
    * lancements, planning à venir, bascule kiosk/cinéma — ne parle QUE de ce
    * canal, l'autre a sa propre page jumelle totalement indépendante. */
   channel: PlaybackChannel;
@@ -88,7 +87,7 @@ interface Props {
 
 /**
  * Tableau de bord d'UN canal de diffusion (PC : page complète ; mobile :
- * télécommande dédiée). Réf. mission "Tableau de bord Câblé / Réseau" :
+ * télécommande dédiée). :
  * musique/playlist en direct, lancement de cours/playlist, planning et
  * bascule kiosk/cinéma, indépendants entre les deux canaux.
  */
@@ -103,8 +102,7 @@ export default function DashboardScreen({ channel }: Props) {
     offline: t("dashboard.stateLabels.offline"),
     playlist_waiting: t("dashboard.stateLabels.playlist_waiting"),
   };
-  // Cause du dernier évènement reçu (réf. retour utilisateur 2026-07-21 "la
-  // tête de lecture tremblote") : seul un rapport de routine ("position_tick")
+  // Cause du dernier évènement reçu : seul un rapport de routine ("position_tick")
   // doit être lissé sans jamais reculer, une vraie discontinuité (chargement,
   // recherche, arrêt...) doit au contraire s'appliquer immédiatement — voir
   // useInterpolatedPosition.
@@ -113,8 +111,7 @@ export default function DashboardScreen({ channel }: Props) {
   const { state, connected, sendCommand, displayOutputCable, displayOutputNetwork, cinemaLocked, cinemaState } =
     usePlaybackSocket(handlePlaybackEvent, undefined, channel);
   const livePosition = useInterpolatedPosition(state.position_seconds, state.state === "playing", lastCause);
-  // Glissement en cours sur la barre de position du bloc cinéma (réf.
-  // mission "contrôler le cours en mode cinéma").
+  // Glissement en cours sur la barre de position du bloc cinéma.
   const [cinemaSeekDrag, setCinemaSeekDrag] = useState<number | null>(null);
   // Un rapport cinéma est considéré périmé après 8 s sans nouvelles (la page
   // /cinema rapporte toutes les 2 s) : l'appareil a été fermé ou a perdu le
@@ -122,8 +119,7 @@ export default function DashboardScreen({ channel }: Props) {
   // Fraîcheur mesurée à la RÉCEPTION locale (pas au timestamp serveur du
   // rapport, sujet au décalage d'horloge entre machines).
   const cinemaReceivedAtRef = useRef(0);
-  // Play/pause optimiste (réf. "les boutons ne marchent pas à tous les
-  // coups") : l'état affiché ne bougeait qu'au rapport suivant de la page
+  // Play/pause optimiste : l'état affiché ne bougeait qu'au rapport suivant de la page
   // cinéma — le bouton semblait mort, l'admin re-cliquait et annulait sa
   // propre commande. On affiche l'état COMMANDÉ immédiatement, et le premier
   // rapport reçu ensuite (désormais quasi instantané côté cinéma) reprend la
@@ -205,8 +201,7 @@ export default function DashboardScreen({ channel }: Props) {
   };
 
   useEffect(() => {
-    // Bloc « Prochainement » : les 3 prochaines occurrences actives DU CANAL
-    // (réf. UX3.4 + mission "un planning pour le câblé, un pour le réseau").
+    // Bloc « Prochainement » : les 3 prochaines occurrences actives DU CANAL.
     const now = new Date();
     const horizon = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
     fetch(
@@ -236,7 +231,7 @@ export default function DashboardScreen({ channel }: Props) {
       .then(setPlaylists)
       .catch(() => setPlaylists([]));
 
-    // F5.3 : une programmation peut interrompre une lecture manuelle à tout
+    // Une programmation peut interrompre une lecture manuelle à tout
     // moment pendant que ce tableau de bord est ouvert — on vérifie donc
     // périodiquement plutôt qu'au seul chargement de la page.
     fetchInterrupted();
@@ -378,8 +373,7 @@ export default function DashboardScreen({ channel }: Props) {
         </div>
       )}
 
-      {/* Bascule kiosk/cinéma de CE canal (réf. mission "changer le mode
-          entre Kiosk et Cinéma, tout indépendamment"). */}
+      {/* Bascule kiosk/cinéma de CE canal. */}
       <div className="live-block channel-card">
         <div className="live-header">
           <h3>
@@ -436,8 +430,7 @@ export default function DashboardScreen({ channel }: Props) {
         {channelCinema ? (
           // Mode cinéma : la lecture est LOCALE à l'écran libre-service, mais
           // la page /cinema du canal rapporte ce qu'elle joue et obéit aux
-          // commandes admin (réf. mission "contrôler le cours en mode
-          // cinéma") — play/pause/seek/stop relayés tels quels, sans passer
+          // commandes admin — play/pause/seek/stop relayés tels quels, sans passer
           // par l'état de lecture partagé du serveur.
           cinemaLive ? (
             <>
@@ -527,8 +520,7 @@ export default function DashboardScreen({ channel }: Props) {
               </div>
             )}
 
-            {/* "À suivre" persistant pendant la lecture normale d'une playlist
-                (réf. audit plan-corrections-bugs, point 2b). */}
+            {/* "À suivre" persistant pendant la lecture normale d'une playlist. */}
             {state.playlist_name && state.state !== "playlist_waiting" && nextPlaylistItem && (
               <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "12px" }}>
                 {t("dashboard.nextCourseLabel", { title: nextPlaylistItem.title })}
@@ -692,8 +684,7 @@ export default function DashboardScreen({ channel }: Props) {
 
       {/* Planning "à venir" : n'a de sens qu'en mode kiosk (la programmation
           pilote l'écran) — sans objet en mode cinéma (libre-service), donc
-          masqué comme les autres blocs kiosk-only ci-dessous (réf. retour
-          utilisateur "ne pas afficher Prochainement en sortie cinéma"). */}
+          masqué comme les autres blocs kiosk-only ci-dessous. */}
       {!channelCinema && (
         <div className="live-block">
           <div className="live-header">
@@ -734,8 +725,7 @@ export default function DashboardScreen({ channel }: Props) {
 
       {/* Raccourci mode coach : pilote l'écran kiosk, sans objet en mode
           cinéma (l'écran affiche le libre-service) — masqué plutôt que juste
-          désactivé (réf. retour utilisateur "masquer les fonctionnalités non
-          disponibles en mode cinéma"). Réservé au canal câblé (le coach
+          désactivé. Réservé au canal câblé (le coach
           anime la salle physique) — pas de raccourci sur le tableau réseau.
           Le raccourci "lancer un fond" a été retiré (non fonctionnel). */}
       {!channelCinema && (

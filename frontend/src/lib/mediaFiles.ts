@@ -6,7 +6,7 @@
  * par le NAVIGATEUR depuis la base de types du système d'exploitation. Selon
  * Firefox/OS, il est vide pour des extensions pourtant courantes (`.mkv`,
  * `.ts`, `.mov`, `.m4v`…) — le fichier était alors ignoré SANS aucun message
- * (plan de compatibilité Firefox, docs/PLAN-COMPATIBILITE-FIREFOX.md §4.3).
+ * (constaté sous Firefox).
  * L'extension fait donc foi en second recours ; la validation réelle du
  * contenu reste faite côté serveur par ffprobe.
  */

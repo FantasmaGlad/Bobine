@@ -3,8 +3,7 @@
 import { useEffect } from "react";
 
 /**
- * Passage en plein écran navigateur au premier geste utilisateur (réf.
- * mission UI/UX — "plein écran de base sur mobile"). La Fullscreen API exige
+ * Passage en plein écran navigateur au premier geste utilisateur. La Fullscreen API exige
  * un geste utilisateur pour s'activer ; impossible de la déclencher au
  * chargement de la page. Ce hook écoute donc le tout premier tap/clic et
  * tente `requestFullscreen()` à ce moment précis — échec silencieux si le

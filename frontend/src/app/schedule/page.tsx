@@ -45,7 +45,7 @@ interface ScheduleDetail {
   time_of_day: string | null;
   active: boolean;
   override_count: number;
-  // Fenêtre radio (réf. lot L7) : sans objet pour video/playlist.
+  // Fenêtre radio : sans objet pour video/playlist.
   end_time: string | null;
   is_24_7: boolean;
 }
@@ -58,7 +58,7 @@ interface Occurrence {
   target_id: number;
   title: string | null;
   program: string | null;
-  // Réf. docs/cahier-des-charges-planning-visuel.md §2 : bloc proportionnel
+  // Bloc proportionnel
   // à la durée réelle (vidéo/playlist) ou à la fenêtre choisie (radio, où
   // duration_seconds reste toujours null).
   duration_seconds: number | null;
@@ -134,7 +134,7 @@ function formatDuration(seconds: number | null) {
   return `${mins} min`;
 }
 
-// Réf. docs/cahier-des-charges-planning-visuel.md §2-3 : timeline
+// Timeline
 // proportionnelle à la durée réelle (vidéo/playlist) ou à la fenêtre
 // choisie (radio) — mêmes hypothèses que le backend (fenêtres radio jamais
 // à cheval sur minuit, cf. schedule.py::_validate_and_normalize).
@@ -184,7 +184,7 @@ function getOccurrenceThumbSrc(o: Occurrence): string | null {
 }
 
 /**
- * Chevauchement (réf. CDC §5.2/§5.3) : simule le comportement RUNTIME —
+ * Chevauchement : simule le comportement RUNTIME —
  * quand plusieurs occurrences se chevauchent, celle qui démarre le plus tard
  * coupe toujours celle en cours et devient la nouvelle "fenêtre active",
  * quelle que soit la fin initialement prévue de la précédente. Retourne
@@ -209,15 +209,15 @@ export default function SchedulePage() {
   const { t, tList, language } = useAppSettings();
   const DAY_LABELS = tList("schedule.dayLabels");
   const DAY_LABELS_FULL = tList("schedule.dayLabelsFull");
-  // Réf. docs/cahier-des-charges-planning-visuel.md : l'ancienne grille
+  // l'ancienne grille
   // calendrier (chips de taille uniforme) est remplacée par une timeline
   // proportionnelle à la durée, en granularité Jour ou Semaine — la vue
-  // Liste existante n'est pas concernée (§1.2.5).
+  // Liste existante n'est pas concernée.
   const [viewMode, setViewMode] = useState<"day" | "week" | "list">("week");
-  // Échelle de la timeline, en pixels par minute (§3 : proportionnel strict
+  // Échelle de la timeline, en pixels par minute (proportionnel strict
   // + zoom réglable plutôt qu'un plafonnement — un index plutôt qu'un
   // curseur continu, plus simple à piloter aux boutons +/- comme sur
-  // mobile, réf. §7).
+  // mobile).
   const ZOOM_LEVELS = [0.5, 0.8, 1.2, 1.8, 2.6];
   const [zoomIndex, setZoomIndex] = useState(2);
   const pxPerMinute = ZOOM_LEVELS[zoomIndex];
@@ -228,8 +228,7 @@ export default function SchedulePage() {
     d.setHours(0, 0, 0, 0);
     return d;
   });
-  // Planning PAR CANAL de diffusion (réf. mission "un planning pour le Câblé
-  // et un pour le Réseau, distincts") : l'onglet actif filtre tout — vue
+  // Planning PAR CANAL de diffusion : l'onglet actif filtre tout — vue
   // calendrier, vue liste — et toute création se fait sur ce canal. Ouvrable
   // directement sur un canal donné via ?channel= (liens des tableaux de bord).
   const [channel, setChannel] = useState<ChannelValue>(() => {
@@ -239,7 +238,7 @@ export default function SchedulePage() {
   });
 
   // La vue Semaine (7 colonnes proportionnelles à la minute) n'est pas
-  // exploitable sur un écran de téléphone (réf. CDC planning visuel §7) :
+  // exploitable sur un écran de téléphone :
   // bascule sur la vue Jour, seule granularité "timeline" qui garde un sens
   // en une seule colonne — l'utilisateur garde aussi la vue Liste, les deux
   // seules proposées sur mobile (le sélecteur masque Semaine dans ce cas).
@@ -249,8 +248,8 @@ export default function SchedulePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile]);
 
-  // Bibliothèque rapide glisser-déposer (UX3.14) : repliée par défaut sur
-  // téléphone (réf. mission "Double Planning", màj mobile) — le
+  // Bibliothèque rapide glisser-déposer : repliée par défaut sur
+  // téléphone — le
   // glisser-déposer HTML5 ne fonctionne pas au toucher, la garder ouverte
   // n'y mangerait que de la place utile sans rien apporter.
   useEffect(() => {
@@ -281,16 +280,16 @@ export default function SchedulePage() {
   const [formDaysOfWeek, setFormDaysOfWeek] = useState<number[]>([]);
   const [formTime, setFormTime] = useState<string>("18:00");
   const [formActive, setFormActive] = useState<boolean>(true);
-  // Fenêtre radio (réf. lot L7, D9/A1) : sans effet pour video/playlist.
+  // Fenêtre radio : sans effet pour video/playlist.
   const [formEndTime, setFormEndTime] = useState<string>("20:00");
   const [formIs24_7, setFormIs24_7] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Confirmation de suppression (destructive, réf. UX5.2)
+  // Confirmation de suppression (destructive)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [scheduleToDeleteId, setScheduleToDeleteId] = useState<number | null>(null);
 
-  // Glisser-déposer depuis la bibliothèque rapide (UX3.14)
+  // Glisser-déposer depuis la bibliothèque rapide
   const [dragPayload, setDragPayload] = useState<{ type: TargetType; id: number } | null>(null);
   const [dragOverDay, setDragOverDay] = useState<number | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(true);
@@ -408,7 +407,7 @@ export default function SchedulePage() {
     setDayViewDate(d);
   };
 
-  // Bascule Jour/Semaine/Liste (§7) : en passant en vue Jour, aligne le jour
+  // Bascule Jour/Semaine/Liste : en passant en vue Jour, aligne le jour
   // affiché sur la semaine déjà chargée si `dayViewDate` s'en est éloigné
   // (ex. resté sur un jour d'une semaine visitée puis quittée pour la vue
   // Semaine, qui a navigué ailleurs) — sinon la vue Jour s'ouvrirait sur un
@@ -422,7 +421,7 @@ export default function SchedulePage() {
   // Tiroir : création / édition d'une programmation
   // --------------------------------------------------------------------
   const resetForm = () => {
-    // Le canal radio n'a qu'un seul type de cible (réf. lot L7) : pas de
+    // Le canal radio n'a qu'un seul type de cible : pas de
     // toggle vidéo/playlist à afficher dans ce cas (cf. JSX du tiroir).
     setFormTargetType(channel === "radio" ? "radio_playlist" : "video");
     setFormTargetId("");
@@ -507,8 +506,7 @@ export default function SchedulePage() {
       target_id: Number(formTargetId),
       schedule_type: formScheduleType,
       active: formActive,
-      // Une programmation appartient au canal de l'onglet actif (réf.
-      // mission "un planning pour le Câblé et un pour le Réseau").
+      // Une programmation appartient au canal de l'onglet actif.
       channel,
     };
     if (formScheduleType === "once") {
@@ -516,7 +514,7 @@ export default function SchedulePage() {
     } else {
       payload.days_of_week = formDaysOfWeek;
       payload.time_of_day = formTime;
-      // Fenêtre radio (réf. lot L7, D9/A1) : sans effet côté backend pour
+      // Fenêtre radio : sans effet côté backend pour
       // video/playlist, mais inutile de les envoyer hors de ce cas.
       if (formTargetType === "radio_playlist") {
         payload.is_24_7 = formIs24_7;
@@ -574,7 +572,7 @@ export default function SchedulePage() {
   };
 
   // --------------------------------------------------------------------
-  // Overrides — actions rapides sur une occurrence (UX3.15)
+  // Overrides — actions rapides sur une occurrence
   // --------------------------------------------------------------------
   const handleCancelOccurrence = async (o: Occurrence) => {
     try {
@@ -641,7 +639,7 @@ export default function SchedulePage() {
   };
 
   // --------------------------------------------------------------------
-  // Glisser-déposer bibliothèque -> jour (UX3.14)
+  // Glisser-déposer bibliothèque -> jour
   // --------------------------------------------------------------------
   const handleDropOnDay = (dayIndex: number) => {
     setDragOverDay(null);
@@ -650,12 +648,11 @@ export default function SchedulePage() {
     setDragPayload(null);
   };
 
-  // Couleur du thème plutôt que du programme du cours (réf. correctif
-  // "couleurs hardcodées associées à un cours" — le thème prime désormais).
+  // Couleur du thème plutôt que du programme du cours.
   const getProgramAccent = () => "var(--accent-primary)";
 
   // Panneau d'actions rapides (édition/annulation/rétablissement/remplacement
-  // d'une occurrence, UX3.15) — factorisé pour être partagé entre la chip de
+  // d'une occurrence) — factorisé pour être partagé entre la chip de
   // la vue Liste et le bloc proportionnel des vues Jour/Semaine plutôt que
   // dupliqué (même comportement, juste un conteneur visuel différent).
   const renderOccurrenceActions = (o: Occurrence, key: string) => {
@@ -767,10 +764,10 @@ export default function SchedulePage() {
     );
   };
 
-  // Bloc proportionnel à la durée (vues Jour/Semaine, réf. CDC §2-3) :
+  // Bloc proportionnel à la durée (vues Jour/Semaine) :
   // positionné en absolu dans sa colonne via `style` (top/height calculés
   // par l'appelant selon pxPerMinute), miniature par type de média,
-  // indicateur de chevauchement au tap (§5.2, pas de survol au tactile).
+  // indicateur de chevauchement au tap (pas de survol au tactile).
   const renderTimelineBlock = (o: Occurrence, style: React.CSSProperties, cutsPrevious: boolean) => {
     const key = occurrenceKey(o);
     const isExpanded = expandedKey === key;
@@ -825,7 +822,7 @@ export default function SchedulePage() {
     );
   };
 
-  // Bande de fond "ambiance permanente 24/7" (réf. CDC §2.4) : un vrai calque
+  // Bande de fond "ambiance permanente 24/7" : un vrai calque
   // de fond sur toute la hauteur de la journée (z-index sous les blocs
   // normaux), pas un bloc de plus — un bloc normal qui se trouve par-dessus
   // le masque naturellement à cet endroit (empilement standard), sans avoir
@@ -903,8 +900,7 @@ export default function SchedulePage() {
       )}
 
       <div className="schedule-toolbar">
-        {/* Onglets de canal (réf. mission "un planning pour le Câblé et un
-            pour le Réseau, distincts") : tout ce qui suit — calendrier,
+        {/* Onglets de canal : tout ce qui suit — calendrier,
             liste, créations — ne concerne que le canal sélectionné. */}
         <div className="view-toggle">
           <button
@@ -1000,7 +996,7 @@ export default function SchedulePage() {
             >
               <Icon name="view_day" size={18} />
             </button>
-            {/* Vue Semaine masquée sur mobile (réf. CDC planning visuel §7) :
+            {/* Vue Semaine masquée sur mobile :
                 7 colonnes proportionnelles à la minute illisibles à cette
                 largeur — Jour + Liste couvrent le besoin sans ce compromis. */}
             {!isMobile && (
@@ -1081,11 +1077,11 @@ export default function SchedulePage() {
           )}
         </div>
 
-        {/* Bibliothèque rapide (glisser-déposer sur un jour, UX3.14) : le
+        {/* Bibliothèque rapide (glisser-déposer sur un jour) : le
             glisser-déposer HTML5 n'existe pas au toucher, ce panneau reste
             surtout un raccourci de recherche sur téléphone — d'où la largeur
             pleine plutôt que la colonne fixe du PC. Sans objet sur le canal
-            radio (réf. lot L7) : un seul type de cible (playlist radio), pas
+            radio : un seul type de cible (playlist radio), pas
             de bibliothèque vidéo/playlist à glisser-déposer ici. */}
         {libraryOpen && channel !== "radio" && (
           <div className="library-picker" style={{ width: isMobile ? "100%" : "260px", height: "auto", flexShrink: 0 }}>
@@ -1174,7 +1170,7 @@ export default function SchedulePage() {
                   {channel === "radio" ? t("schedule.radioPlaylistLabel") : t("schedule.targetLabel")}
                 </label>
                 {/* Le canal radio n'a qu'un seul type de cible (playlist
-                    radio, réf. lot L7) : pas de toggle à afficher, contrairement
+                    radio) : pas de toggle à afficher, contrairement
                     au câblé/réseau qui choisissent entre vidéo et playlist. */}
                 {channel !== "radio" && (
                   <div className="speed-group" style={{ width: "100%" }}>
@@ -1305,7 +1301,7 @@ export default function SchedulePage() {
                     />
                   </div>
 
-                  {/* Fenêtre radio (réf. lot L7, D9/A1) : sans objet pour
+                  {/* Fenêtre radio : sans objet pour
                       vidéo/playlist. 24/7 = la playlist remplace le défaut
                       indéfiniment (pas de retour auto) ; sinon une heure de
                       fin déclenche le retour à l'ambiance par défaut. */}
@@ -1377,7 +1373,7 @@ export default function SchedulePage() {
         </>
       )}
 
-      {/* Confirmation de suppression (destructive, réf. UX5.2) */}
+      {/* Confirmation de suppression (destructive) */}
       {showDeleteConfirm && (
         <div className="modal-overlay">
           <div className="modal-content">

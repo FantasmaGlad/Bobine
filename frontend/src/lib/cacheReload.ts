@@ -1,6 +1,5 @@
 /**
- * Rechargement « synchronisation des écrans » (réf. bouton Paramètres
- * « Synchronisation des écrans ») : vide les caches du navigateur de l'appareil
+ * Rechargement « synchronisation des écrans » : vide les caches du navigateur de l'appareil
  * AVANT de recharger, pour qu'il re-télécharge les nouveaux assets depuis le
  * serveur au lieu de resservir d'anciennes versions mises en cache.
  *

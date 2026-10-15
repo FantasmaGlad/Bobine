@@ -2,7 +2,6 @@
 // importé (ex. "Rpm 101.mp4" -> catégorie "Rpm", édition "101") — utilisé au
 // pré-remplissage des champs d'import vidéo (Bibliothèque) et audio (Coach).
 //
-// Réf. bug "chiffre random affiché sur la tablette à la place de l'édition" :
 // l'ancienne heuristique (regex `(?:release|rel|r|#|v)\s*(\d+)`) cherchait
 // une simple lettre "r" suivie d'un chiffre n'importe où dans le nom, ce qui
 // pouvait accrocher un numéro de piste, une date ou une résolution vidéo

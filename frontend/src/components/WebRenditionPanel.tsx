@@ -23,9 +23,8 @@ function decodeIssues(issues: string[]): string[] {
 }
 
 /**
- * Panneau « version compatible navigateurs » du détail d'une vidéo (lot F3 du
- * plan de compatibilité Firefox) : n'apparaît que pour un fichier qu'un
- * navigateur tiers pourrait ne pas savoir décoder. L'original n'est jamais
+ * Panneau « version compatible navigateurs » du détail d'une vidéo : n'apparaît que pour un
+ * fichier qu'un navigateur tiers pourrait ne pas savoir décoder. L'original n'est jamais
  * modifié ; la version compatible est servie automatiquement aux clients qui
  * en ont besoin (négociation `?accept=`, cf. lib/clientCodecSupport.ts).
  */

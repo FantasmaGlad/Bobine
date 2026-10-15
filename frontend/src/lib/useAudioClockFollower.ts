@@ -24,7 +24,7 @@ export function selectAudioTarget(state: PlaybackState): ClockTarget {
   };
 }
 
-/** Fait suivre l'horloge serveur à l'<audio> du mode coach (plan 4.0.1). */
+/** Fait suivre l'horloge serveur à l'<audio> du mode coach. */
 export function useAudioClockFollower({ audioRef, state, serverNow, tryPlay, onSeek }: AudioOptions) {
   useMediaClockFollower({ mediaRef: audioRef, state, select: selectAudioTarget, serverNow, tryPlay, onSeek });
 }

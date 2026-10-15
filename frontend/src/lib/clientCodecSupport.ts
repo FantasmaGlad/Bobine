@@ -1,7 +1,7 @@
 /**
  * Capacités de décodage vidéo du navigateur, annoncées au serveur pour qu'il
  * serve la version « lisible partout » quand l'original ne peut pas être décodé
- * (lot F3 du plan de compatibilité Firefox, backend `app/utils/web_profile.py`).
+ * (côté serveur : `app/utils/web_profile.py`).
  *
  * `canPlayType` est SYNCHRONE : la décision peut être prise au moment exact où
  * l'on assigne `video.src`, sans état asynchrone à attendre. Le résultat est

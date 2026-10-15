@@ -105,8 +105,7 @@ export default function RadioLibraryPage() {
 
   // Import (modale)
   const [importOpen, setImportOpen] = useState(false);
-  // Réf. simplification "juste le logo import, précisé en dessous zip/dossier/
-  // pistes" : ZIP et pistes partagent désormais le même sélecteur générique
+  // ZIP et pistes partagent désormais le même sélecteur générique
   // (détecté après coup à la sélection, cf. startFilesUpload) — seul le
   // dossier a encore besoin d'un mode dédié (sélecteur natif différent,
   // webkitdirectory).
@@ -238,15 +237,14 @@ export default function RadioLibraryPage() {
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
-      // UNE tâche par morceau (réf. « on ne voit qu'un chargement du premier
-      // audio ») : comme les vidéos, chaque fichier a sa propre ligne de
+      // UNE tâche par morceau : comme les vidéos, chaque fichier a sa propre ligne de
       // progression dans le panneau d'import, au lieu d'un seul lot opaque.
       // L'endpoint /radio/tracks/upload accepte une liste — un fichier par
       // requête crée un job d'import distinct, donc un suivi 1-par-1.
       addUploads(files.map((f) => ({ kind: "radio_files" as const, files: [f], title: f.name })));
     } else if (files.length === 1 && files[0].name.toLowerCase().endsWith(".zip")) {
       // Une seule archive ZIP sélectionnée/déposée : détectée automatiquement,
-      // pas besoin d'un mode dédié (réf. simplification de l'import).
+      // pas besoin d'un mode dédié.
       addUploads([{ kind: "radio_zip", file: files[0], title: files[0].name }]);
     } else {
       // Idem sélection multiple de fichiers : une tâche (donc une ligne de

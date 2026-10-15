@@ -7,8 +7,7 @@ const REFRESH_INTERVAL_MS = 30000;
 
 /**
  * Mesure du décalage entre l'horloge locale et l'horloge serveur, par aller-retour
- * `time_sync` sur une WebSocket DÉJÀ ouverte (réf. plan 4.0 P2-4, partagé en
- * 4.0.1 entre les connexions de lecture et de radio). L'estimation survit aux
+ * `time_sync` sur une WebSocket DÉJÀ ouverte. L'estimation survit aux
  * reconnexions : l'écart entre deux horloges ne change pas parce que la
  * connexion a été refaite.
  */

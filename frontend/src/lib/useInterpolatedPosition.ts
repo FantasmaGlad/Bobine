@@ -19,8 +19,7 @@ import { useEffect, useRef, useState } from "react";
  * autres causes sont toujours appliquées telles quelles, y compris vers
  * l'arrière (ex. une recherche en arrière sur la barre de progression).
  *
- * Correctif "le minuteur tourne dans le vide à l'infini" (réf. retour user,
- * radio) : si le flux réel se bloque (hoquet réseau) sans jamais déclencher
+ * Correctif "le minuteur tourne dans le vide à l'infini" : si le flux réel se bloque (hoquet réseau) sans jamais déclencher
  * `ended`/`error`, plus aucun rapport de position n'arrive alors que `playing`
  * reste vrai côté serveur — sans garde-fou, l'extrapolation ci-dessous
  * continuait indéfiniment à partir de la dernière position connue, donnant

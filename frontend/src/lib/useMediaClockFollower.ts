@@ -50,7 +50,7 @@ interface Options<S> {
 
 /**
  * Fait suivre à un élément média (<video> ou <audio>) l'horloge de lecture
- * publiée par le serveur (réf. plan 4.0 P2-4, étendu en 4.0.1 à l'audio) :
+ * publiée par le serveur :
  *  - avant l'instant de départ : maintenu en pause à la bonne position
  *    (préchargé), puis `play()` lancé à l'instant exact -> tous les écrans
  *    démarrent ensemble ;
@@ -207,7 +207,7 @@ export function useMediaClockFollower<S>({ mediaRef, state, select, enabled = tr
     const id = setInterval(tick, FOLLOW_INTERVAL_MS);
     // Onglet masqué : Firefox (comme Chromium) ramène les minuteurs à ≥ 1 s, la
     // dérive peut donc s'accumuler. Au retour au premier plan, on recale TOUT
-    // DE SUITE au lieu d'attendre le tour suivant (plan Firefox, lot F4).
+    // DE SUITE au lieu d'attendre le tour suivant.
     const onVisible = () => {
       if (document.visibilityState === "visible") tick();
     };

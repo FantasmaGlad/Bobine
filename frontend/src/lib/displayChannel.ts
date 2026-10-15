@@ -72,8 +72,7 @@ export function buildOutputUrl(target: DisplayPage, search: string, channel: Dis
  * Faut-il suivre immédiatement la sortie stockée au montage ? Seul le canal
  * câblé le fait (l'écran du Wyse doit démarrer dans le bon mode au boot) ; un
  * appareil du réseau ne suit que les bascules décidées EN DIRECT, pour ne pas
- * éjecter quelqu'un qui ouvre volontairement /cinema (réf. correctif « kiosk
- * et cinéma dépendants »).
+ * éjecter quelqu'un qui ouvre volontairement /cinema.
  */
 export function shouldFollowInitialOutput(channel: DisplayChannel): boolean {
   return channel === "cable";

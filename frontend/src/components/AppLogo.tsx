@@ -17,12 +17,12 @@ function getApiUrl(path: string) {
 
 /**
  * Logo de l'application : celui personnalisé uploadé depuis Paramètres
- * (réf. mission "customiser le logo") si présent, sinon le logo Bobine par
+ * si présent, sinon le logo Bobine par
  * défaut (/public/logo.png). `size` est la HAUTEUR affichée (px) ; le
  * bandeau par défaut fait ~2,34× cette hauteur en largeur. Si `size` est
  * omis, aucune hauteur inline n'est posée : c'est alors la classe CSS
  * (`className`) qui pilote la taille — utile pour un logo responsive (ex.
- * écran radio « hors diffusion », réf. .radio-brand-logo).
+ * écran radio « hors diffusion »).
  */
 export default function AppLogo({ size, className }: AppLogoProps) {
   const { hasCustomLogo, activeLogo, logoVersion } = useAppSettings();

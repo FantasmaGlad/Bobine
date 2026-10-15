@@ -12,8 +12,7 @@ function hexLuminance(hex: string): number | null {
 }
 
 /**
- * Couleur de texte lisible sur un fond donné (réf. correctif "boutons cinéma
- * hors thème") : un texte blanc fixe devenait illisible sur certaines
+ * Couleur de texte lisible sur un fond donné : un texte blanc fixe devenait illisible sur certaines
  * teintes claires (ex. thèmes charbon/orchidée/taupe, contraste < 3:1).
  * Calculé depuis la couleur RÉSOLUE de la variable CSS, pas depuis le nom du
  * thème, pour rester juste même si les teintes évoluent.
@@ -30,7 +29,7 @@ export function readableForeground(hex: string | null): string {
  * Couleur de texte/icône lisible pour un élément dont le fond est l'accent du
  * THÈME actif (`--accent-primary`) — recalculée à chaque changement de
  * thème. Partagée par toute page dont un bouton/badge prend un fond en
- * pleine teinte d'accent (réf. mission "intégrer au thème" : cinema, coach).
+ * pleine teinte d'accent.
  */
 export function useThemeAccentForeground(): string {
   const { theme } = useAppSettings();

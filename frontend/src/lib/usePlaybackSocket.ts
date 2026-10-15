@@ -34,15 +34,13 @@ export interface PlaybackBackground {
   id: number;
   title: string;
   /** Fond figé (png/jpg/webp) plutôt qu'une boucle vidéo — rendu via <img>
-   * côté kiosk (réf. mission "fond figé ou animé depuis le mode coach"). */
+   * côté kiosk. */
   is_image?: boolean;
 }
 
 export type AudioChainMode = "auto" | "timer" | "manual";
 
-/** Représente aussi bien un cours audio isolé qu'une playlist audio lancée
- * (réf. mission "playlists spéciales... des musiques de plusieurs RPM
- * différents") : une playlist est traitée côté serveur comme un cours
+/** Représente aussi bien un cours audio isolé qu'une playlist audio lancée : une playlist est traitée côté serveur comme un cours
  * virtuel dont les pistes viennent de plusieurs cours (program=null dans ce
  * cas, faute de programme unique). */
 export interface PlaybackAudioCourse {
@@ -57,8 +55,7 @@ export interface PlaybackAudioTrack {
   number: number | null;
   title: string;
   duration_seconds: number | null;
-  /** Fond d'ambiance propre à CETTE piste au sein d'une playlist audio (réf.
-   * mission "associer un fond animé à chaque musique") — absent/nul pour une
+  /** Fond d'ambiance propre à CETTE piste au sein d'une playlist audio — absent/nul pour une
    * piste sans fond propre, qui affiche alors le fond du cours/playlist. */
   background_id?: number | null;
   background_title?: string | null;
@@ -85,18 +82,16 @@ export interface PlaybackState {
   audio_chain_mode: AudioChainMode;
   audio_chain_timer_seconds: number;
   audio_chain_wait_remaining: number | null;
-  /** Ancre de l'horloge de lecture vidéo pilotée par le serveur (plan 4.0,
-   * P2-2) : la position cible s'en déduit localement (cf. lib/playbackClock.ts).
+  /** Ancre de l'horloge de lecture vidéo pilotée par le serveur : la position cible s'en déduit localement (cf. lib/playbackClock.ts).
    * Absente d'un backend plus ancien. */
   clock?: ClockAnchor | null;
-  /** Ancre de l'horloge de la piste audio du mode coach (plan 4.0.1). */
+  /** Ancre de l'horloge de la piste audio du mode coach. */
   audio_clock?: ClockAnchor | null;
 }
 
 export type PlaybackChannel = "cable" | "network";
 
-/** Lecture locale rapportée par une page /cinema du canal (réf. mission
- * "contrôler le cours en mode cinéma") : purement déclaratif, le serveur ne
+/** Lecture locale rapportée par une page /cinema du canal : purement déclaratif, le serveur ne
  * fait que relayer — null tant qu'aucun rapport n'est arrivé. */
 export interface CinemaRemoteState {
   title: string | null;
@@ -108,7 +103,7 @@ export interface CinemaRemoteState {
   reported_at: number;
 }
 
-// "launch" (Lot 14, docs/plan-implementation-android.md) : diffusé par
+// "launch" : diffusé par
 // /grid (écran de sélection découplé) pour lancer un video_id précis sur
 // les /cinema du canal - jamais émis par le profil desktop existant.
 /** Données additionnelles d'un ordre cinéma : titre/durée du cours, et — pour un cours
@@ -128,8 +123,7 @@ export interface PlaybackEvent {
   client_ts?: number;
   channel?: PlaybackChannel;
   data: PlaybackState;
-  // Présent uniquement sur cause "position_tick" (réf. renforcement réseaux
-  // imparfaits) : numéro de séquence incrémental propre au canal, jamais
+  // Présent uniquement sur cause "position_tick" : numéro de séquence incrémental propre au canal, jamais
   // réinitialisé — sert à détecter un tick perdu en silence côté client.
   tick_seq?: number;
 }
@@ -172,8 +166,7 @@ function getApiUrl(path: string): string {
   return isDevServer ? `http://localhost:8001/api${path}` : `/api${path}`;
 }
 
-// Intervalle du filet de sécurité de resynchronisation (réf. audit
-// plan-corrections-bugs, points 2a/3) : un `broadcast()` peut échouer
+// Intervalle du filet de sécurité de resynchronisation : un `broadcast()` peut échouer
 // silencieusement sans jamais faire tomber la connexion WebSocket — dans ce
 // cas aucun `state_change` ne rattrape jamais l'état affiché. Ce re-fetch
 // REST périodique recale l'état local sur l'état réel du serveur même quand
@@ -196,7 +189,7 @@ function getPageKioskClientId(): string {
 }
 
 /**
- * Connexion WebSocket partagée à l'état de lecture (Lot 3). Utilisée à la
+ * Connexion WebSocket partagée à l'état de lecture. Utilisée à la
  * fois par l'écran kiosk (qui pilote un <video> réel) et par les
  * télécommandes (qui ne font que refléter/commander l'état).
  *
@@ -204,9 +197,8 @@ function getPageKioskClientId(): string {
  * @param role     Rôle du client : "kiosk" pour un écran kiosk, omis pour
  *                 une télécommande/admin. Un kiosk envoie un message
  *                 d'identification à la connexion et reçoit en retour son
- *                 statut primaire/miroir (réf. correctif P4).
- * @param channel  Canal de diffusion suivi par ce client (réf. mission
- *                 "tableaux de bord Câblé / Réseau") : seuls les évènements
+ *                 statut primaire/miroir.
+ * @param channel  Canal de diffusion suivi par ce client : seuls les évènements
  *                 de CE canal sont appliqués, et chaque commande envoyée
  *                 porte ce canal — deux lectures totalement indépendantes.
  */
@@ -218,17 +210,15 @@ export function usePlaybackSocket(
 ) {
   const [state, setState] = useState<PlaybackState>(DEFAULT_STATE);
   const [connected, setConnected] = useState(false);
-  // Dernier rapport de lecture cinéma du canal (réf. mission "contrôler le
-  // cours en mode cinéma") — affiché par les tableaux de bord.
+  // Dernier rapport de lecture cinéma du canal — affiché par les tableaux de bord.
   const [cinemaState, setCinemaState] = useState<CinemaRemoteState | null>(null);
-  // Sortie active par CANAL de diffusion (réf. canaux indépendants
-  // câblé/réseau) : "kiosk" ou "cinema" chacun. Poussée en temps réel par
+  // Sortie active par CANAL de diffusion : "kiosk" ou "cinema" chacun. Poussée en temps réel par
   // l'évènement display_output ; null tant que la valeur initiale n'a pas
   // été chargée (évite une redirection intempestive au montage avant de
   // connaître la vraie valeur).
   const [displayOutputCable, setDisplayOutputCable] = useState<"kiosk" | "cinema" | null>(null);
   const [displayOutputNetwork, setDisplayOutputNetwork] = useState<"kiosk" | "cinema" | null>(null);
-  // Verrou du mode cinéma (mission /cinema, point 2) : vrai brièvement après
+  // Verrou du mode cinéma : vrai brièvement après
   // qu'un "load"/"load_playlist" manuel a été rejeté par le backend, pour
   // que l'admin affiche un avertissement. Se réinitialise seul.
   const [cinemaLocked, setCinemaLocked] = useState(false);
@@ -236,16 +226,13 @@ export function usePlaybackSocket(
   // isPrimary : vrai si ce kiosk est le kiosk primaire (seul autorisé à
   // envoyer report_position). Toujours false pour les télécommandes/admin.
   const [isPrimary, setIsPrimary] = useState(false);
-  // Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6, réf. retour
-  // utilisateur "le titre modifié ne se met pas à jour instantanément") :
   // incrémenté à chaque `library_change` reçu (vidéo importée/modifiée/
   // supprimée) — une page consommatrice (grid/cinema/library) l'ajoute
   // en dépendance d'effet pour recharger sa liste sans attendre le
   // prochain sondage périodique.
   const [libraryVersion, setLibraryVersion] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
-  // Lot 15, correction post-déploiement (réf. retour utilisateur "le
-  // dashboard réseau freeze/lag/répète" — mesuré en conditions réelles :
+  // Détection d'un flux silencieux (mesuré en conditions réelles) :
   // sur un Wi-Fi réel vers la tablette, le flux de position_tick peut
   // s'arrêter SILENCIEUSEMENT après quelques secondes — ni erreur ni
   // fermeture propre de la connexion des deux côtés, juste plus aucune
@@ -259,8 +246,7 @@ export function usePlaybackSocket(
   // Commandes émises pendant une (re)connexion, rejouées à l'ouverture si
   // récentes (< 5 s) — voir sendCommand.
   const pendingCommandsRef = useRef<{ payload: string; queuedAt: number }[]>([]);
-  // Détection d'un backend redémarré depuis le chargement de CETTE page (réf.
-  // retour user "un redémarrage ne resynchronise pas tous les écrans") : null
+  // Détection d'un backend redémarré depuis le chargement de CETTE page : null
   // jusqu'au premier "boot_id" reçu (valeur de référence pour cette page) ;
   // une valeur DIFFÉRENTE à une reconnexion ultérieure signale que le backend
   // a redémarré entre-temps (reboot machine, watchdog, crash...) — l'écran ne
@@ -268,8 +254,7 @@ export function usePlaybackSocket(
   // ancien bundle JS/HTML au lieu de se recharger comme le fait le bouton
   // « Synchronisation des écrans ».
   const bootIdRef = useRef<string | null>(null);
-  // Dernier `tick_seq` de `position_tick` reçu pour ce canal (réf.
-  // renforcement réseaux imparfaits) : null tant qu'aucun tick n'est arrivé
+  // Dernier `tick_seq` de `position_tick` reçu pour ce canal : null tant qu'aucun tick n'est arrivé
   // sur la connexion courante — un écart
   // (`tick_seq` reçu > dernier + 1) signale un tick perdu en silence, plus
   // fréquent sur un Wi-Fi imparfait qu'une vraie coupure de connexion (auquel
@@ -278,7 +263,7 @@ export function usePlaybackSocket(
   // sécurité périodique (15s, cf. RESYNC_INTERVAL_MS) : `doResyncRef`
   // déclenche une resynchronisation REST immédiate.
   const lastTickSeqRef = useRef<number | null>(null);
-  // Mesure du décalage d'horloge avec le serveur (plan 4.0, P2-4) : partagée
+  // Mesure du décalage d'horloge avec le serveur : partagée
   // avec la radio (lib/serverClockSync.ts).
   const clockSyncRef = useRef(new ServerClockSync());
   const doResyncRef = useRef<() => void>(() => {});
@@ -308,7 +293,7 @@ export function usePlaybackSocket(
     let reconnectTimer: ReturnType<typeof setTimeout>;
     // Backoff exponentiel (1s -> 2s -> 4s ... plafonné à 30s) : évite de
     // marteler le backend de tentatives de reconnexion en cas de coupure
-    // prolongée (réf. plan perf/concurrence Phase 3, P6). Réinitialisé à
+    // prolongée. Réinitialisé à
     // chaque connexion réussie.
     let retryDelay = 1000;
     const MAX_RETRY_DELAY = 30000;
@@ -343,11 +328,11 @@ export function usePlaybackSocket(
         // positif comparant à un `tick_seq` d'une connexion précédente).
         lastTickSeqRef.current = null;
         clockSyncRef.current.start(ws, () => wsRef.current === ws);
-        // Abonnement de canal (plan 4.0, P2-3) : le serveur n'enverra plus à
+        // Abonnement de canal : le serveur n'enverra plus à
         // cette connexion les évènements propres aux AUTRES canaux (le tri
         // client `parsed.channel !== channel` reste en filet de sécurité).
         ws.send(JSON.stringify({ command: "subscribe", params: { channels: [channel] } }));
-        // Identification du rôle kiosk (réf. correctif P4) : envoyée dès
+        // Identification du rôle kiosk : envoyée dès
         // l'ouverture de la connexion pour que le backend puisse assigner
         // le rôle primaire/miroir avant tout report_position. Pas de
         // renouvellement périodique nécessaire : le rôle primaire, côté
@@ -372,7 +357,7 @@ export function usePlaybackSocket(
         try {
           const parsed = JSON.parse(evt.data);
           if (parsed.event === "ping") {
-            // Keepalive serveur (réf. Phase 3, P7) : répondre immédiatement
+            // Keepalive serveur : répondre immédiatement
             // pour signaler que cette connexion est toujours vivante.
             ws.send(JSON.stringify({ command: "pong" }));
             return;
@@ -411,7 +396,7 @@ export function usePlaybackSocket(
             return;
           }
           if (parsed.event === "command_rejected") {
-            // Verrou du mode cinéma (mission /cinema, point 2) : le backend
+            // Verrou du mode cinéma : le backend
             // a ignoré un "load"/"load_playlist" manuel car la sortie
             // câblée est en mode cinéma. N'arrive qu'au client émetteur (pas
             // de broadcast), donc uniquement pertinent pour l'admin qui a
@@ -424,8 +409,7 @@ export function usePlaybackSocket(
             return;
           }
           if (parsed.event === "cinema_state") {
-            // Rapport d'une page /cinema du canal (réf. mission "contrôler
-            // le cours en mode cinéma") : simple reflet pour les tableaux
+            // Rapport d'une page /cinema du canal : simple reflet pour les tableaux
             // de bord, filtré par canal comme les états de lecture.
             if ((parsed.channel ?? "cable") !== channel) return;
             setCinemaState(parsed.data ?? null);
@@ -456,8 +440,7 @@ export function usePlaybackSocket(
             return;
           }
           if (parsed.event === "state_change" || parsed.event === "position_tick") {
-            // Filtrage par canal (réf. mission "tableaux de bord Câblé /
-            // Réseau") : le serveur diffuse les évènements des DEUX canaux
+            // Filtrage par canal : le serveur diffuse les évènements des DEUX canaux
             // sur la même connexion, chacun étiqueté — ce client n'applique
             // que ceux de SON canal. Absence de champ = message d'une
             // version antérieure du backend → canal câblé.
@@ -503,7 +486,7 @@ export function usePlaybackSocket(
 
     connect();
 
-    // Lot 15 (docs/audit-android-2026-09-11.md §C2) : un onglet/WebView en
+    // un onglet/WebView en
     // arrière-plan voit ses minuteurs JS throttlés par le navigateur (jusqu'à
     // 1 réveil/minute) — le `pong` de réponse au `ping` serveur peut alors
     // arriver tard ou pas du tout tant que la page reste cachée, ce qui la
@@ -524,8 +507,7 @@ export function usePlaybackSocket(
       document.addEventListener("visibilitychange", onVisible);
     }
 
-    // Chien de garde de silence (réf. commentaire de lastMessageAtRef
-    // ci-dessus) : `readyState === OPEN` ne garantit PAS que des données
+    // Chien de garde de silence : `readyState === OPEN` ne garantit PAS que des données
     // circulent encore — mesuré en conditions réelles sur Wi-Fi, la
     // connexion peut rester "ouverte" au sens du navigateur alors que plus
     // rien n'est réellement délivré dans un sens ou l'autre, sans jamais
@@ -566,8 +548,7 @@ export function usePlaybackSocket(
     };
   }, [role, channel]);
 
-  // Filet de sécurité de resynchronisation périodique (réf. audit
-  // plan-corrections-bugs, points 2a/3) : indépendant du cycle de vie de la
+  // Filet de sécurité de resynchronisation périodique : indépendant du cycle de vie de la
   // connexion WebSocket ci-dessus. Recale l'état local sur `GET
   // /api/playback/state` à intervalle régulier, pour rattraper un
   // `broadcast()` perdu côté serveur sans que la connexion WebSocket
@@ -599,7 +580,7 @@ export function usePlaybackSocket(
           // gère déjà ce cas, rien à faire de plus ici.
         });
     };
-    // Exposée hors de cet effet (réf. renforcement réseaux imparfaits) :
+    // Exposée hors de cet effet :
     // la détection de trou dans les `position_tick`, gérée par l'effet de
     // connexion WebSocket ci-dessus, appelle cette MÊME fonction pour une
     // resynchronisation immédiate au lieu d'attendre `RESYNC_INTERVAL_MS`.
@@ -645,8 +626,7 @@ export function usePlaybackSocket(
       ws.send(payload);
       return;
     }
-    // File d'attente courte (réf. "les boutons ne marchent pas à tous les
-    // coups") : pendant une (re)connexion — fréquent sur téléphone dont le
+    // File d'attente courte : pendant une (re)connexion — fréquent sur téléphone dont le
     // Wi-Fi se rendort/reprend — les commandes étaient jetées SILENCIEUSEMENT,
     // le bouton semblait juste ne rien faire. On mémorise la commande avec
     // son heure d'émission et la boucle de connexion la rejoue à l'ouverture

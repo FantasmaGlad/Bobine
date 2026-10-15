@@ -33,7 +33,7 @@ export function getDisplayChannel(page: DisplayPage): DisplayChannel {
 
 /**
  * Fait suivre à la page affichée la sortie choisie par l'admin pour SON
- * canal (réf. canaux de diffusion indépendants câblé/réseau).
+ * canal.
  *
  * Correctif « kiosk et cinéma dépendants » : seul le canal CÂBLÉ applique la
  * valeur stockée dès le montage — il doit démarrer dans le bon mode au boot.

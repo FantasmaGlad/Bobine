@@ -1,7 +1,7 @@
 /* Bobine — Global Styles & Design System */
 
 :root {
-  /* Colors - Dark Theme (thème par défaut, réf. UX1.1) */
+  /* Colors - Dark Theme (thème par défaut) */
   --bg-main: #0a0a0a;
   --bg-surface: #141414;
   --bg-surface-elevated: #1e1e20;
@@ -16,8 +16,7 @@
 
   /* Accent Colors */
   --accent-primary: #e4002b; /* Rouge Bobine */
-  /* Couleur de texte/icône lisible posée SUR --accent-primary (réf. mission
-     "100% des éléments sur le thème") : recalculée par thème (luminance WCAG
+  /* Couleur de texte/icône lisible posée SUR --accent-primary : recalculée par thème (luminance WCAG
      réelle de l'accent — blanc sur les accents foncés, encre sombre sur les
      accents clairs). À utiliser partout où un élément a l'accent en fond
      plein (btn-primary, badge héros cinéma, bouton play coach...), jamais un
@@ -46,7 +45,7 @@
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Logo (réf. mission "remplace le logo") : le fichier fourni est un
+  /* Logo : le fichier fourni est un
      pictogramme noir pur sur fond transparent — invisible sur un fond sombre
      sans inversion. Les thèmes clairs (clair, menthe) annulent ce filtre. */
   --logo-filter: invert(1);
@@ -453,7 +452,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ---------------------------------------------------------------------
-   Icônes Material Symbols (réf. mission UI/UX) — police variable Google
+   Icônes Material Symbols — police variable Google
    chargée dans layout.tsx. Le composant Icon.tsx pilote la variation
    (taille/graisse/remplissage) via style inline ; cette classe ne fixe
    que les réglages communs.
@@ -474,7 +473,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ---------------------------------------------------------------------
-   Animations partagées — dynamisme de l'interface (réf. mission UI/UX) :
+   Animations partagées — dynamisme de l'interface :
    entrée de cartes/listes, retour visuel au clic, pastille de statut qui
    respire, apparition « punchy » façon compteur (inspirée du prototype de
    design importé), scintillement de chargement.
@@ -508,15 +507,13 @@ h1, h2, h3, h4, h5, h6 {
 .olc-anim-in {
   animation: olcSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-/* Icône de traitement en cours (réf. retour utilisateur "l'importation des
-   fonds animés bloque et ne termine jamais") : signale qu'un travail serveur
+/* Icône de traitement en cours : signale qu'un travail serveur
    se poursuit après la fin d'un transfert réseau. */
 .olc-spin {
   animation: olcSpin 1s linear infinite;
 }
 
-/* Barre de progression indéterminée (réf. mission "voir en direct les
-   importations") : le traitement serveur d'un import (analyse/réencodage/
+/* Barre de progression indéterminée : le traitement serveur d'un import (analyse/réencodage/
    miniature) n'a pas de progression numérique fiable à afficher — ce
    balayage signale une activité réelle plutôt qu'une barre figée. */
 .olc-indeterminate-bar {
@@ -612,8 +609,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Retour visuel au clic — à poser sur tout élément interactif (boutons,
    lignes cliquables) pour un feedback tactile net sur PC comme sur mobile.
-   user-select/-webkit-touch-callout (réf. correctif "Stop mobile ne marche
-   pas") : sans ça, un appui MAINTENU sur un vrai téléphone (ex. le bouton
+   user-select/-webkit-touch-callout : sans ça, un appui MAINTENU sur un vrai téléphone (ex. le bouton
    Stop en appui long de MobileRemote) peut déclencher le menu contextuel
    natif du navigateur (sélection de texte / callout iOS) avant la fin du
    délai, qui interrompt le geste — invisible en test automatisé (évènements
@@ -680,7 +676,7 @@ h1, h2, h3, h4, h5, h6 {
 .sidebar-brand {
   display: flex;
   align-items: center;
-  /* Logo imposant façon Netflix (réf. mission logo) : centré et pleine
+  /* Logo imposant façon Netflix : centré et pleine
      largeur de la sidebar plutôt qu'une petite vignette alignée à gauche. */
   justify-content: center;
   gap: 12px;
@@ -691,12 +687,12 @@ h1, h2, h3, h4, h5, h6 {
 /* Le fichier logo fourni est un pictogramme noir pur sur fond transparent :
    sans ce filtre il est invisible sur toute surface sombre (sidebar admin,
    bandeau de pause). Inversé par défaut, désactivé sur les thèmes clairs
-   (--logo-filter, réf. blocs de thème ci-dessus). */
+   (--logo-filter). */
 .app-logo {
   filter: var(--logo-filter);
 }
 
-/* Logo personnalisé (réf. mission "customiser le logo") : contrairement au
+/* Logo personnalisé : contrairement au
    pictogramme monochrome par défaut, une image custom peut être en couleur —
    elle ne doit pas hériter de l'inversion/neutralisation --logo-filter
    pensée uniquement pour ce pictogramme. */
@@ -704,7 +700,7 @@ h1, h2, h3, h4, h5, h6 {
   filter: none;
 }
 
-/* .brand-logo est maintenant une image (réf. mission "remplace le logo"),
+/* .brand-logo est maintenant une image,
    plus un effet de dégradé sur du texte — la classe ne sert plus qu'à cibler
    l'élément (masquage en sidebar réduite ci-dessous). */
 
@@ -849,8 +845,7 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Polish UX téléphone (réf. retour utilisateur "interface téléphone trop
-   compacte") pour les pages sans traitement mobile dédié (bibliothèque,
+/* Polish UX téléphone pour les pages sans traitement mobile dédié (bibliothèque,
    cours audio, fonds, paramètres, logs...) qui tournaient jusqu'ici dans la
    coquille mobile sans aucun ajustement de leur contenu. Même seuil que le
    hook useIsMobile() (768px) pour rester cohérent avec la bascule vers la
@@ -906,8 +901,7 @@ h1, h2, h3, h4, h5, h6 {
      scrollables), le flexbox l'écrasait à la hauteur restante et
      `overflow-y: hidden` masquait toutes les lignes du bas, INACCESSIBLES.
      Avec min-height, le conteneur grandit avec son contenu et c'est
-     .page-content qui défile naturellement (réf. correctif « le scroll ne
-     marche pas dans l'affichage liste »). */
+     .page-content qui défile naturellement. */
   min-height: 100%;
 }
 
@@ -1064,7 +1058,7 @@ h1, h2, h3, h4, h5, h6 {
   border-color: var(--border-focus);
 }
 
-/* Carte sélectionnée (réf. « sélection groupée ») : liseré accent + halo,
+/* Carte sélectionnée : liseré accent + halo,
    pour repérer d'un coup d'œil ce qui est coché avant une action groupée. */
 .video-card.selected {
   border-color: var(--accent-primary);
@@ -1075,10 +1069,7 @@ h1, h2, h3, h4, h5, h6 {
   background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
 }
 
-/* Liseré de gauche : couleur du THÈME plutôt que du programme du cours (réf.
-   correctif "couleurs hardcodées associées à un cours" — le thème prime
-   désormais sur RPM/Sprint/The Trip, qui restaient rouge/jaune/violet fixes
-   sur tous les thèmes). Les 4 classes restent posées par les pages
+/* Liseré de gauche : couleur du THÈME plutôt que du programme du cours. Les 4 classes restent posées par les pages
    Bibliothèque/Cours Audio (regroupement par programme), mais pointent
    maintenant toutes vers la même variable. */
 .video-card.program-rpm,
@@ -1159,10 +1150,7 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: 0.05em;
 }
 
-/* Couleur du thème plutôt que du programme du cours (réf. correctif
-   "couleurs hardcodées associées à un cours" — le thème prime désormais sur
-   RPM/Sprint/The Trip, qui restaient rouge/jaune/violet fixes sur tous les
-   thèmes). Les 4 classes restent posées par les pages Bibliothèque/Cours
+/* Couleur du thème plutôt que du programme du cours. Les 4 classes restent posées par les pages Bibliothèque/Cours
    Audio/Playlists (JS pas encore nettoyé de cette distinction), mais
    pointent maintenant toutes vers le même accent de thème. */
 .program-badge.rpm,
@@ -1191,7 +1179,7 @@ h1, h2, h3, h4, h5, h6 {
   overflow-x: auto;
   /* auto (et non hidden) : filet de sécurité si la hauteur du conteneur est un
      jour de nouveau contrainte — on défile alors DANS le tableau au lieu de
-     couper les lignes (réf. correctif scroll liste). */
+     couper les lignes. */
   overflow-y: auto;
 }
 
@@ -1315,7 +1303,7 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-muted);
 }
 
-/* Sélecteur visuel de thème (réf. mission "thèmes cinéma") : vignette à 4
+/* Sélecteur visuel de thème : vignette à 4
    couleurs par thème plutôt qu'un simple menu déroulant textuel. */
 .theme-picker-grid {
   display: grid;
@@ -1395,7 +1383,7 @@ h1, h2, h3, h4, h5, h6 {
   border: none;
   transition: transform 0.15s ease, box-shadow 0.15s ease, background var(--transition-fast), border-color var(--transition-fast);
 }
-/* Dynamisme au survol/clic (réf. mission UI/UX), app entière : un léger
+/* Dynamisme au survol/clic, app entière : un léger
    soulèvement au survol, un retour "pressé" au clic — appliqué une seule
    fois ici plutôt que dupliqué sur chaque bouton de chaque page. */
 .btn:hover:not(:disabled) {
@@ -1533,7 +1521,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ============================================================
-   Dashboard / Télécommande "En direct" (Lot 3)
+   Dashboard / Télécommande "En direct"
    ============================================================ */
 .dashboard-container {
   display: flex;
@@ -1559,8 +1547,7 @@ h1, h2, h3, h4, h5, h6 {
   gap: 8px;
 }
 
-/* Sections "Lancer un cours" câblée/réseau côte à côte (réf. mission, point
-   3) : deux lancements indépendants vers le même écran partagé, distingués
+/* Sections "Lancer un cours" câblée/réseau côte à côte : deux lancements indépendants vers le même écran partagé, distingués
    uniquement par où le son sera audible (câblé) ou muet (réseau). */
 .launch-block-row {
   display: grid;
@@ -1663,7 +1650,7 @@ a.status-pill:hover,
   border-color: color-mix(in srgb, var(--accent-error) 30%, transparent);
 }
 
-/* Entrée en cascade des blocs du tableau de bord (réf. mission UI/UX) —
+/* Entrée en cascade des blocs du tableau de bord —
    chaque bloc apparaît en glissant légèrement, décalé du précédent. */
 .dashboard-container > * {
   animation: olcSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -1777,12 +1764,12 @@ a.status-pill:hover,
 }
 
 /* ============================================================
-   Écran Kiosk / Cinéma (Lot 3) — plein écran, sans chrome admin
+   Écran Kiosk / Cinéma — plein écran, sans chrome admin
    ============================================================ */
 .kiosk-root {
   position: fixed;
   inset: 0;
-  /* Contexte de container query (réf. Lot 12) : les éléments de canvas
+  /* Contexte de container query : les éléments de canvas
      dimensionnent leur texte en `cqh` (% de la hauteur de CE conteneur)
      plutôt qu'en `vh` (% de la fenêtre du navigateur), pour que la même
      composition JSON s'affiche à l'identique ici (plein écran) et dans la
@@ -1791,7 +1778,7 @@ a.status-pill:hover,
      fenêtre, cqh y vaut donc la même chose que vh. */
   container-type: size;
   /* var(--bg-main) plutôt que #000 en dur : l'écran d'attente doit suivre le
-     thème actif (réf. UX2.3/tâche 11.4). Sans effet sur la lecture vidéo
+     thème actif. Sans effet sur la lecture vidéo
      elle-même : .kiosk-video-layer (ci-dessous) est un calque plein cadre
      opaque et toujours noir, qui recouvre entièrement ce fond pendant la
      lecture. */
@@ -1809,7 +1796,7 @@ a.status-pill:hover,
   justify-content: center;
   opacity: 0;
   pointer-events: none;
-  /* Court et sans backdrop-filter (réf. correctif fluidité cinéma) : le GPU
+  /* Court et sans backdrop-filter : le GPU
      intégré du Wyse (Gemini Lake) sature sur les flous recalculés en continu
      pendant la lecture vidéo, provoquant des saccades visibles. */
   transition: opacity 0.12s ease;
@@ -1836,7 +1823,7 @@ a.status-pill:hover,
   letter-spacing: 0.1em;
 }
 
-/* Logo imposant sur les écrans d'attente (réf. mission logo) : signe la
+/* Logo imposant sur les écrans d'attente : signe la
    paternité du projet sur l'écran d'attente par défaut et l'attente
    inter-cours, façon écran d'accueil de plateforme de streaming. */
 .kiosk-waiting-logo {
@@ -1963,7 +1950,7 @@ a.status-pill:hover,
   z-index: 20;
 }
 
-/* Bandeau "Activer le son" (réf. correctif "kiosk réseau figé") : contrairement
+/* Bandeau "Activer le son" : contrairement
    à l'OSD ci-dessus, ne disparaît PAS tout seul — un appareil réseau qui a
    bloqué l'autoplay avec son reste bloqué tant que personne ne tape dessus,
    donc pas de timer de masquage automatique. Zone tactile généreuse, cliquable
@@ -1993,7 +1980,7 @@ a.status-pill:hover,
 }
 
 /* ============================================================
-   Écran d'attente : horloge & prochain cours (Lot 4)
+   Écran d'attente : horloge & prochain cours
    ============================================================ */
 .kiosk-clock {
   font-family: var(--font-title);
@@ -2040,16 +2027,13 @@ a.status-pill:hover,
 }
 
 /* ============================================================
-   Overlay de pause façon plateforme de streaming (Lot 4, F1.4/UX2.11 ;
-   réf. mission UI/UX "écran de pause style YouTube")
+   Overlay de pause façon plateforme de streaming
    ============================================================
    Vidéo assombrie mais visible en fond (scrim translucide), bouton de
    reprise circulaire au centre, bandeau d'info ancré en bas à gauche, barre
    de progression pleine largeur au tout bord inférieur — plus de rendu
-   canvas générique dont le texte pouvait chevaucher icône/barre (réf.
-   correctif "informations qui se chevauchent"). Accent lié au THÈME
-   (var(--accent-primary)) plutôt qu'à la couleur du programme en pause
-   (réf. correctif "violet ne va pas avec le thème sombre") : une teinte de
+   canvas générique dont le texte pouvait chevaucher icône/barre. Accent lié au THÈME
+   (var(--accent-primary)) plutôt qu'à la couleur du programme en pause : une teinte de
    marque par cours est pertinente pour un compte à rebours de quelques
    secondes, beaucoup moins pour un écran de pause qui peut rester affiché
    longtemps. */
@@ -2304,7 +2288,7 @@ a.status-pill:hover,
 }
 
 /* ============================================================
-   Minuteur/chronomètre — overlay kiosk (Lot 4, UX2.4-2.7)
+   Minuteur/chronomètre — overlay kiosk
    ============================================================ */
 .timer-overlay.timer-fullscreen {
   position: absolute;
@@ -2390,7 +2374,7 @@ a.status-pill:hover,
 }
 
 /* ============================================================
-   Bloc Minuteur — tableau de bord (Lot 4)
+   Bloc Minuteur — tableau de bord
    ============================================================ */
 .timer-mode-group {
   display: flex;
@@ -2407,7 +2391,7 @@ a.status-pill:hover,
 }
 
 /* ============================================================
-   Écran d'attente Playlist intercalé (Lot 5)
+   Écran d'attente Playlist intercalé
    ============================================================ */
 .kiosk-playlist-waiting {
   background: radial-gradient(circle at center, color-mix(in srgb, var(--bg-main) 92%, #fff) 0%, color-mix(in srgb, var(--bg-main) 82%, #000) 100%);
@@ -2447,8 +2431,7 @@ a.status-pill:hover,
 }
 
 /* Playlist split screen administration */
-/* Réf. refonte "intégrer la création de playlist dans Bibliothèque/Cours
-   audio" : ce bloc est désormais EMBARQUÉ sous la bascule de mode
+/* ce bloc est désormais EMBARQUÉ sous la bascule de mode
    Médiathèque/Cours ↔ Playlists de sa page hôte plutôt que d'occuper une
    page dédiée — on retire donc un peu plus de hauteur que l'ancien calc
    (qui, lui, tenait toute la page) pour laisser la place à cette bascule. */
@@ -2460,9 +2443,7 @@ a.status-pill:hover,
   overflow: hidden;
 }
 
-/* Contexte "onglet Playlists" de Bibliothèque/Coach › Cours Audio (réf.
-   correctif "playlists audio : infos qui se chevauchent, pas scrollable,
-   trop compact") : VideoPlaylistManager/AudioPlaylistManager sont montés
+/* Contexte "onglet Playlists" de Bibliothèque/Coach › Cours Audio : VideoPlaylistManager/AudioPlaylistManager sont montés
    dans .library-container APRÈS le bascule .view-toggle, pas seuls sur la
    page comme les anciennes routes /playlists et /audio-playlists (devenues
    de simples redirections). .playlists-split-container (flex:1, min-height:
@@ -2471,7 +2452,7 @@ a.status-pill:hover,
    à l'écran) ou de déborder par-dessus le reste de la page. Ce modificateur
    isole cette hauteur bornée au seul mode Playlists — la grille
    Médiathèque/Cours garde son défilement naturel (.library-container
-   min-height:100%, réf. commentaire plus haut) volontairement SANS hauteur
+   min-height:100%) volontairement SANS hauteur
    fixe. 64px = padding vertical de .page-content (32px × 2), seul autre
    parent entre ce conteneur et la fenêtre.
 */
@@ -2603,8 +2584,7 @@ a.status-pill:hover,
   flex-direction: column;
   gap: 20px;
   height: 100%;
-  /* Filet de sécurité (réf. correctif "séquenceur et bibliothèque se
-     superposent sur petite fenêtre") : sans ce scroll, un contenu qui ne
+  /* Filet de sécurité : sans ce scroll, un contenu qui ne
      tient pas dans la hauteur disponible écrasait le séquenceur (flex:1,
      min-height:0) à 0px — son enfant .drag-drop-zone (min-height:150px)
      débordait alors visuellement PAR-DESSUS .library-picker au lieu de
@@ -2723,8 +2703,7 @@ a.status-pill:hover,
   height: 280px;
 }
 
-/* Grille de cartes visuelles (réf. mission "sans devoir chercher à l'aveugle
-   dans un énorme catalogue sans preview ni image") : remplace l'ancienne
+/* Grille de cartes visuelles : remplace l'ancienne
    liste de lignes texte par le même langage visuel que .video-card, en
    compact, pour choisir un média au coup d'œil plutôt qu'à l'aveugle. */
 .library-picker-list {
@@ -2804,8 +2783,7 @@ a.status-pill:hover,
   transform: scale(1);
 }
 
-/* Carte "cours" dépliable du picker audio (réf. mission "audio peut contenir
-   des groupes comme des cours entiers") : en-tête compact (vignette
+/* Carte "cours" dépliable du picker audio : en-tête compact (vignette
    d'ambiance + bouton "tout le cours") + pistes en accordéon. */
 .picker-course-card {
   background: var(--bg-surface);
@@ -2876,7 +2854,7 @@ a.status-pill:hover,
 }
 
 /* ============================================================
-   Planning — Programmation horaire (Lot 6)
+   Planning — Programmation horaire
    ============================================================ */
 .schedule-page {
   display: flex;
@@ -2911,7 +2889,7 @@ a.status-pill:hover,
   text-transform: capitalize;
 }
 
-/* Planning sur téléphone (réf. mission "Double Planning", màj mobile) : la
+/* Planning sur téléphone : la
    barre d'outils (onglets canal, navigation semaine, bascule vue, bouton
    création) ne tient pas sur une largeur de téléphone en une seule ligne
    malgré le flex-wrap du conteneur — chaque groupe doit lui-même pouvoir
@@ -2964,8 +2942,7 @@ a.status-pill:hover,
   margin-top: 2px;
 }
 
-/* Timeline proportionnelle Jour/Semaine (réf.
-   docs/cahier-des-charges-planning-visuel.md) : remplace l'ancienne grille
+/* Timeline proportionnelle Jour/Semaine : remplace l'ancienne grille
    de chips de taille uniforme (.schedule-week-grid/.schedule-day-column/
    .schedule-day-body, supprimées) — un conteneur scrollable, une règle
    horaire par colonne, des blocs positionnés en absolu proportionnellement
@@ -3036,7 +3013,7 @@ a.status-pill:hover,
   pointer-events: none;
 }
 
-/* Bande de fond "ambiance permanente 24/7" (§2.4) : sous les blocs normaux
+/* Bande de fond "ambiance permanente 24/7" : sous les blocs normaux
    (z-index implicite 0, les blocs posent z-index:1), un bloc normal qui se
    trouve par-dessus la masque donc naturellement à cet endroit. */
 .schedule-timeline-band-247 {
@@ -3078,7 +3055,7 @@ a.status-pill:hover,
   cursor: pointer;
   overflow: hidden;
   transition: all var(--transition-fast);
-  /* Filet de sécurité au zoom minimal (§3) : un bloc de quelques minutes ne
+  /* Filet de sécurité au zoom minimal : un bloc de quelques minutes ne
      doit jamais s'écraser sous une hauteur lisible — quitte à empiéter
      légèrement sur le bloc suivant (déjà signalé visuellement si
      chevauchement réel, cf. .cuts-previous ci-dessous). */
@@ -3098,7 +3075,7 @@ a.status-pill:hover,
   text-decoration: line-through;
 }
 
-/* Chevauchement (§5.2) : le bloc qui démarre après et coupera le précédent
+/* Chevauchement : le bloc qui démarre après et coupera le précédent
    porte une bordure distincte + le petit badge ciseaux sur sa miniature. */
 .schedule-timeline-block.cuts-previous {
   border-left-color: var(--accent-warning);
@@ -3226,7 +3203,7 @@ a.status-pill:hover,
   padding: 0 8px;
 }
 
-/* Vue liste chronologique alternative (UX3.16) */
+/* Vue liste chronologique alternative */
 .schedule-list-scroll {
   flex: 1;
   min-height: 0;
@@ -3242,7 +3219,7 @@ a.status-pill:hover,
   padding: 14px 4px 8px;
 }
 
-/* Bannière de reprise après interruption par une programmation (F5.3) */
+/* Bannière de reprise après interruption par une programmation */
 .interrupted-block {
   background: var(--bg-surface);
   border: 1px solid rgba(255, 159, 10, 0.35);
@@ -3281,13 +3258,13 @@ a.status-pill:hover,
 }
 
 /* ============================================================
-   Mode audio coach — écran kiosk (Lot 8, réf. F10.5/UX2.13)
+   Mode audio coach — écran kiosk
    ============================================================ */
 .kiosk-coach-mode {
   background: var(--bg-main);
 }
 
-/* Fond d'ambiance actif sous le mode coach (réf. CDC v3.0.5) :
+/* Fond d'ambiance actif sous le mode coach :
    Rendu à 100% net, sans voile coloré ni assombrissement artificiel. */
 .kiosk-coach-mode.with-background {
   background: transparent;
@@ -3310,8 +3287,7 @@ a.status-pill:hover,
    habillage était une petite carte bordée, perdue au centre d'un immense
    fond noir. Remplacé par une mise en page immersive occupant tout l'écran,
    avec une lueur radiale douce à la couleur du programme derrière le texte
-   plutôt qu'un encadré — sans backdrop-filter (coût GPU, réf. correctif
-   fluidité cinéma). */
+   plutôt qu'un encadré — sans backdrop-filter (coût GPU). */
 .coach-stage {
   position: relative;
   display: flex;
@@ -3404,8 +3380,7 @@ a.status-pill:hover,
   color: var(--text-muted);
 }
 
-/* Couleur du thème/programme (--coach-accent, réf. correctif "élément Pause
-   hors thème sur l'écran câblé en mode coach") plutôt que --accent-warning :
+/* Couleur du thème/programme (--coach-accent) plutôt que --accent-warning :
    ce dernier ne varie JAMAIS d'un thème à l'autre (couleur sémantique
    "avertissement" fixe partout dans l'app), donc ce badge restait orange
    quel que soit le thème choisi ou le programme en cours — contrairement à
@@ -3432,8 +3407,8 @@ a.status-pill:hover,
 }
 
 /* ============================================================
-   Mode coach mobile — écran dédié /coach (Lot 8, réf. UX4.5-4.9)
-   Cibles tactiles >= 64px partout sur cet écran (réf. UX6.1).
+   Mode coach mobile — écran dédié /coach
+   Cibles tactiles >= 64px partout sur cet écran.
    ============================================================ */
 .coach-screen {
   min-height: 100vh;
@@ -3444,7 +3419,7 @@ a.status-pill:hover,
   overflow-y: auto;
 }
 
-/* Écran de sélection (2e tap, réf. UX4.9) */
+/* Écran de sélection (2e tap) */
 .coach-picker-screen {
   padding: 24px;
   gap: 20px;
@@ -3476,7 +3451,7 @@ a.status-pill:hover,
   width: 100%;
 }
 
-/* Onglet Cours isolés / Playlists audio (réf. mission "éditions mixées") */
+/* Onglet Cours isolés / Playlists audio */
 .coach-picker-tabs {
   display: flex;
   gap: 8px;
@@ -3872,8 +3847,7 @@ a.status-pill:hover,
   text-decoration: none;
 }
 
-/* Bouton "Désactiver le mode coach" (réf. correctif "le cours coach s'arrête
-   si on quitte la page par mégarde") : seule action qui arrête réellement le
+/* Bouton "Désactiver le mode coach" : seule action qui arrête réellement le
    cours, volontairement discrète et éloignée du geste de retour, avec un
    libellé explicite plutôt qu'une icône ambiguë en haut de l'écran. */
 .coach-disable-btn {
@@ -4032,9 +4006,7 @@ a.status-pill:hover,
   padding: 12px 20px 24px;
   display: flex;
   flex-direction: column;
-  /* Un panneau qui glisse depuis le BAS (réf. mission UI/UX — auparavant
-     `slideInRight`, un glissement horizontal incohérent pour une feuille
-     ancrée en bas d'écran). */
+  /* Un panneau qui glisse depuis le BAS. */
   animation: olcSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -4075,7 +4047,7 @@ a.status-pill:hover,
 }
 
 /* ============================================================
-   Coquille mobile — menu burger (Lot 10, réf. UX4.1/UX4.4)
+   Coquille mobile — menu burger
    Pas de sidebar permanente sur mobile : l'écran principal est dédié
    au contrôle, la navigation reste dans un tiroir discret.
    ============================================================ */
@@ -4089,8 +4061,7 @@ a.status-pill:hover,
   background: var(--bg-main);
 }
 
-/* Grille 3 colonnes plutôt que flex + transform de centrage (réf. correctif
-   "logo mobile minuscule et mal placé") : burger et point de statut occupent
+/* Grille 3 colonnes plutôt que flex + transform de centrage : burger et point de statut occupent
    leur colonne naturelle (auto), le logo (lockup large, ratio ~2,45:1) est
    centré dans la colonne du milieu SANS position absolue ni transform, qui
    provoquaient un rendu visuel décorrélé de son rectangle réel mesuré
@@ -4130,7 +4101,7 @@ a.status-pill:hover,
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  /* Réf. retour utilisateur "interface téléphone trop compacte" : les pages
+  /* les pages
      sans traitement mobile dédié (bibliothèque, paramètres, logs...)
      touchaient les bords de l'écran, aucune respiration nulle part. */
   padding: 16px;
@@ -4183,8 +4154,8 @@ a.status-pill:hover,
 }
 
 /* ============================================================
-   Télécommande mobile plein écran (Lot 10, réf. UX4.1-UX4.4)
-   Cibles tactiles >= 64px sur cet écran (réf. UX6.1).
+   Télécommande mobile plein écran
+   Cibles tactiles >= 64px sur cet écran.
    ============================================================ */
 .mobile-remote {
   flex: 1;
@@ -4213,7 +4184,7 @@ a.status-pill:hover,
   gap: 14px;
 }
 
-/* Nom de playlist + "à suivre" (réf. audit plan-corrections-bugs, point 2b) */
+/* Nom de playlist + "à suivre" */
 .mobile-remote-playlist-badge {
   width: 100%;
   display: flex;
@@ -4279,8 +4250,7 @@ a.status-pill:hover,
   margin-top: auto;
 }
 
-/* Couleur du thème plutôt qu'un rouge fixe (réf. correctif "couleurs
-   hardcodées associées à un cours" — le thème prime désormais). */
+/* Couleur du thème plutôt qu'un rouge fixe. */
 .mobile-remote-stop {
   width: 100%;
   max-width: 360px;
@@ -4310,7 +4280,7 @@ a.status-pill:hover,
 }
 
 /* ============================================================
-   Éditeur de canvas (Lot 12, réf. UX2.2) — PC uniquement, pas de
+   Éditeur de canvas — PC uniquement, pas de
    déclinaison mobile (édition fine au doigt hors périmètre v1).
    ============================================================ */
 .canvas-editor-page {
@@ -4559,7 +4529,7 @@ a.status-pill:hover,
 
 
 /* ==========================================================================
-   Interface cinéma adhérents — /cinema (mission "sortie cinéma autonome").
+   Interface cinéma adhérents — /cinema .
    Style "Apple TV" : rangées par programme, cartes 16:9, navigation souris.
    ========================================================================== */
 
@@ -4594,8 +4564,7 @@ a.status-pill:hover,
   scrollbar-width: thin;
 }
 
-/* Écran d'attente « bibliothèque vide » (réf. « le cinéma câblé n'affiche rien
-   quand il n'y a pas de cours ») : recouvre la vitrine, fond opaque du thème,
+/* Écran d'attente « bibliothèque vide » : recouvre la vitrine, fond opaque du thème,
    grand logo (image noire inversée par --logo-filter selon le thème), heure et
    message centrés. z-index au-dessus des .cinema-layer. */
 .cinema-empty-screen {
@@ -4693,13 +4662,13 @@ a.status-pill:hover,
   }
 }
 
-/* .cinema-brand est une image (logo, réf. mission "remplace le logo") : plus
+/* .cinema-brand est une image (logo) : plus
    de styles typographiques à porter ici. */
 .cinema-brand {
   margin-bottom: 4px;
 }
 
-/* --- Widget "en cours de lecture" (/grid, Lot 14, demande explicite
+/* --- Widget "en cours de lecture" (/grid, demande explicite
    utilisateur : avancer/reculer/pause/enlever depuis l'écran de sélection —
    l'écran HDMI n'affiche plus aucune commande). Style "widget Apple" demandé
    explicitement : carte compacte en verre dépoli (backdrop-filter), posée à
@@ -5097,8 +5066,7 @@ a.status-pill:hover,
   font-weight: 600;
 }
 
-/* Conteneur des flèches gauche/droite + rangée défilante (réf. mission
-   cinéma, point 2) : remplace la barre de défilement native par des
+/* Conteneur des flèches gauche/droite + rangée défilante : remplace la barre de défilement native par des
    chevrons, dans l'esprit Netflix. */
 .cinema-row-wrap {
   position: relative;
@@ -5171,7 +5139,7 @@ a.status-pill:hover,
   transform: scale(0.94);
 }
 
-/* Télécommande à dongle (réf. demande) : la carte de cours SÉLECTIONNÉE est
+/* Télécommande à dongle : la carte de cours SÉLECTIONNÉE est
    mise en valeur nettement (halo), pour être repérable de loin sur l'écran
    cinéma. Classe posée en JS (.kiosk-remote-focus) plutôt que `:focus` : un
    kiosk n'a pas toujours le focus fenêtre OS, et `:focus` disparaîtrait alors. */
@@ -5184,8 +5152,7 @@ a.status-pill:hover,
   outline: none !important;
 }
 
-/* Bandeau d'avertissement "aucun écran de lecture" (réf. retour "clic sur
-   une vidéo, rien ne se passe" — /grid, Lot 14) : purement indicatif, ne
+/* Bandeau d'avertissement "aucun écran de lecture" : purement indicatif, ne
    bloque jamais l'envoi de l'ordre "launch" lui-même. */
 .grid-launch-warning {
   position: fixed;
@@ -5222,8 +5189,7 @@ a.status-pill:hover,
   scroll-snap-align: start;
   transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2), filter 0.12s ease;
   animation: cinema-fade-up 0.45s ease both;
-  /* Retour tactile propre (réf. retour "le clic n'est pas beau, il sélectionne
-     la zone" — écran tactile Android/WebView) : sans ces trois règles, un
+  /* Retour tactile propre : sans ces trois règles, un
      appui affiche le surlignage bleu de sélection natif au lieu d'une
      animation de clic, cf. .olc-press plus haut pour le même correctif sur
      d'autres éléments. */
@@ -5461,7 +5427,7 @@ a.status-pill:hover,
   font-weight: 600;
 }
 
-/* --- Fin de cours : "À suivre" avec autoplay annulable (réf. mission) --- */
+/* --- Fin de cours : "À suivre" avec autoplay annulable --- */
 .cinema-upnext {
   display: flex;
   align-items: center;
@@ -5754,7 +5720,7 @@ a.status-pill:hover,
   padding: 10px 16px 0;
 }
 
-/* ===== Écran radio dédié (/radio, lot L4) — mise en page "type Spotify" du
+/* ===== Écran radio dédié (/radio) — mise en page "type Spotify" du
    poste dédié, pensée écran tactile/souris. Volontairement plus simple que
    .kiosk-* (pas de multi-couches vidéo/fond/intro à gérer, un seul <audio>). */
 .radio-screen {
@@ -5900,8 +5866,7 @@ a.status-pill:hover,
      est une image noire inversée par --logo-filter selon le thème ; un fond
      dur cassait ce couple (logo noir invisible sur les thèmes clairs). Avec
      var(--bg-main)/var(--text-main), le logo reste toujours lisible et
-     l'écran couvre entièrement le poste (réf. demande « pas de fond
-     transparent + agrandis le logo »). */
+     l'écran couvre entièrement le poste. */
   background: var(--bg-main);
   color: var(--text-main);
   padding: 5vh 5vw;
@@ -6042,7 +6007,7 @@ a.status-pill:hover,
 .rl-drag-handle { color: var(--text-dim); cursor: grab; flex-shrink: 0; }
 
 /* Tiroir d'édition de playlist — liste unique façon "Ajouter à la playlist"
-   (recherche épinglée, une seule zone de défilement) : réf. bug où le
+   (recherche épinglée, une seule zone de défilement) : évite que le
    panneau semblait "se refermer sur lui-même" à l'ajout, causé par un
    double scroll imbriqué + un rafraîchissement complet de la page à chaque
    clic. Voir radio-library/page.tsx. */
@@ -6126,8 +6091,7 @@ a.status-pill:hover,
 .settings-hint { font-size: 0.78rem; color: var(--text-dim); margin: 6px 0 0; line-height: 1.4; }
 .settings-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
 
-/* Corrige le désalignement des champs (réf. retour utilisateur "les boutons
-   ne sont pas alignés") : la grille étire chaque .form-group à la hauteur de
+/* Corrige le désalignement des champs : la grille étire chaque .form-group à la hauteur de
    la plus grande cellule de la ligne, mais les libellés ont des longueurs
    très différentes ("Volume par défaut (%)" vs "Minuterie par défaut entre
    pistes en mode coach « auto + minuterie » (secondes)", qui peut passer sur
@@ -6257,7 +6221,7 @@ a.status-pill:hover,
 
 /* ==========================================================================
    Écran de veille / accueil sobre du mode Headless (/grid)
-   Réf. Cahier des charges affichage hybride (tablettes & laptops)
+   Affichage hybride (tablettes & laptops)
    ========================================================================== */
 
 .grid-standby-root {

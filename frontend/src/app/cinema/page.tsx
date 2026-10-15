@@ -30,7 +30,7 @@ function getApiUrl(path: string) {
   return `/api${path}`;
 }
 
-// Réf. correctif "freeze kiosk réseau au seek admin" (voir kiosk/page.tsx,
+// (voir kiosk/page.tsx,
 // même bug) : assigner `currentTime` sur un élément en lecture sans pause
 // préalable force le pipeline média du navigateur à décoder immédiatement jusqu'à
 // sa première image clé (IDR), gelant l'image. On met en pause temporaire
@@ -105,10 +105,10 @@ function thumbnailUrl(video: CinemaVideo): string | null {
 
 // Délai d'inactivité souris avant de masquer la barre de contrôle en lecture.
 const CONTROLS_HIDE_MS = 3000;
-// "À suivre" (réf. mission cinéma) : délai avant lancement automatique du
+// "À suivre" : délai avant lancement automatique du
 // cours suggéré en fin de lecture, façon YouTube.
 const UP_NEXT_AUTOPLAY_SECONDS = 5 * 60;
-// "Scramble" de la suggestion à la une (réf. mission UI/UX) : nouveau tirage
+// "Scramble" de la suggestion à la une : nouveau tirage
 // toutes les 15 minutes.
 const SCRAMBLE_INTERVAL_MS = 15 * 60 * 1000;
 
@@ -118,13 +118,12 @@ type Phase = "grid" | "playing" | "ended";
 const ROW_SCROLL_FRACTION = 0.85;
 
 /**
- * Rangée horizontale avec flèches de défilement (réf. mission cinéma, point
- * 2) : remplace la dépendance à la barre de défilement native (peu visible,
+ * Rangée horizontale avec flèches de défilement : remplace la dépendance à la barre de défilement native (peu visible,
  * malaisée à la souris) par des boutons gauche/droite façon Netflix. Chaque
  * rangée gère sa propre référence de scroll, d'où un composant dédié plutôt
  * qu'une simple boucle inline.
  */
-// React.memo (réf. correctif "cinéma lent/lagué") : la grille de sélection
+// React.memo : la grille de sélection
 // reste montée (masquée en CSS) même pendant la lecture — sans mémoïsation,
 // chaque mise à jour de position vidéo (plusieurs fois par seconde) forçait
 // React à réconcilier toute la grille, invisible mais bien réelle dans le
@@ -281,22 +280,21 @@ const CinemaAllList = React.memo(function CinemaAllList({
 });
 
 /**
- * Interface cinéma adhérents (mission /cinema). Contrairement à /kiosk, la
+ * Interface cinéma adhérents. Contrairement à /kiosk, la
  * lecture est ENTIÈREMENT LOCALE à cet onglet/appareil — aucune commande
  * n'est envoyée à l'état de lecture partagé du serveur (playback_manager).
- * C'est un choix architectural délibéré (réf. mission, point 2) : plusieurs
+ * C'est un choix architectural délibéré : plusieurs
  * adhérents doivent pouvoir chacun choisir et regarder un cours différent en
  * même temps, sur leur propre téléphone ou sur l'écran câblé, sans qu'un
  * lancement en écrase un autre. Le flux vidéo (`/api/videos/{id}/stream`)
  * supporte nativement des lectures concurrentes indépendantes.
  *
- * La sortie reste pilotée depuis l'admin PAR CANAL (réf. canaux indépendants
- * câblé/réseau) : cette page écoute les deux évènements pour savoir si elle
+ * La sortie reste pilotée depuis l'admin PAR CANAL : cette page écoute les deux évènements pour savoir si elle
  * doit céder la place à /kiosk, selon qu'elle tourne sur l'écran câblé du
  * Wyse ou sur un appareil du réseau.
  */
 /** Cours lancé PAR ORDRE (depuis /grid ou le tableau de bord) que cette page suit sur
- * l'horloge serveur (plan 4.0.1). Absent = lecture locale (cours choisi à la main). */
+ * l'horloge serveur. Absent = lecture locale (cours choisi à la main). */
 interface CinemaSync {
   anchor: ClockAnchor;
   videoId: number;
@@ -323,7 +321,7 @@ export default function CinemaPage() {
   const [phase, setPhase] = useState<Phase>("grid");
   const [selected, setSelected] = useState<CinemaVideo | null>(null);
 
-  // Masquage des contrôles HDMI & mode passif (CDC §4.2 affichage hybride) :
+  // Masquage des contrôles HDMI & mode passif :
   // En mode double écran ("dual_screen" sur sortie câblée physique), /grid
   // (écran tactile ou laptop) pilote tout — les contrôles de superposition
   // sont masqués et l'écran HDMI affiche une attente sobre lorsqu'aucun cours ne joue.
@@ -343,7 +341,7 @@ export default function CinemaPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [needsTapToPlay, setNeedsTapToPlay] = useState(false);
   const [position, setPosition] = useState(0);
-  // Dernière mise à jour de `position` (réf. correctif "cinéma lent/lagué") :
+  // Dernière mise à jour de `position` :
   // l'évènement natif `timeupdate` se déclenche plusieurs fois par seconde,
   // chaque déclenchement re-rendait tout le composant (dont la grille de
   // sélection masquée mais toujours montée). Limité à 1 fois/seconde,
@@ -352,15 +350,13 @@ export default function CinemaPage() {
   const lastSeekTimeRef = useRef(0);
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Définie tôt (avant startPlayback ci-dessous, qui doit pouvoir l'appeler)
-  // — réf. correctif "l'interface de pause ne disparaît pas automatiquement
-  // sur la sortie HDMI" (Lot 14) : ce minuteur d'auto-masquage n'était armé
+  // Définie tôt (avant startPlayback ci-dessous, qui doit pouvoir l'appeler) : ce minuteur d'auto-masquage n'était armé
   // QUE par `onMouseMove` sur cinema-root, jamais par le démarrage de la
   // lecture elle-même. Sur un écran HDMI passif piloté à distance depuis
   // /grid (aucune souris/tactile locale ne touche jamais CET écran), aucun
   // `mousemove` ne se produit donc jamais et les commandes restaient
   // affichées en permanence, `controlsVisible` gardant sa valeur initiale
-  // `true` pour toujours. Avant Lot 14, un minimum d'interaction locale
+  // `true` pour toujours. Auparavant, un minimum d'interaction locale
   // (kiosk tactile, télécommande dongle) déclenchait ce chemin par hasard.
   const wakeControls = useCallback(() => {
     setControlsVisible(true);
@@ -369,14 +365,13 @@ export default function CinemaPage() {
   }, []);
   const [seekDragValue, setSeekDragValue] = useState<number | null>(null);
   // "À suivre" : suggestion aléatoire en fin de cours + compte à rebours
-  // d'autoplay (annulable d'un clic, réf. mission).
+  // d'autoplay (annulable d'un clic).
   const [upNext, setUpNext] = useState<CinemaVideo | null>(null);
   const [upNextRemaining, setUpNextRemaining] = useState(UP_NEXT_AUTOPLAY_SECONDS);
   const upNextTaskRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Partagé avec le reste de l'app : la sortie active des deux canaux (pour
-  // suivre la bascule kiosk/cinéma décidée depuis l'admin), et depuis la
-  // mission "contrôler le cours en mode cinéma", un canal de supervision —
+  // suivre la bascule kiosk/cinéma décidée depuis l'admin), et un canal de supervision —
   // cette page RAPPORTE sa lecture locale (titre/position) et OBÉIT aux
   // commandes admin (play/pause/seek/stop). La lecture reste locale : le
   // playback_manager du serveur n'est jamais impliqué. Le canal suivi est
@@ -402,17 +397,15 @@ export default function CinemaPage() {
       window.location.replace(buildOutputUrl("kiosk", window.location.search, channel));
     }
   }, [state.state, channel]);
-  // Son de survol des cartes de cours (réf. mission UI/UX).
+  // Son de survol des cartes de cours.
   const playHoverSound = useHoverSound("/sounds/survole.mp3");
 
   // Rafraîchissement LIVE de la vitrine : la page cinéma est un écran passif
   // qui ne se recharge jamais ; sans ce sondage, un cours importé depuis un
-  // autre poste n'apparaissait qu'après un rechargement manuel (réf. « les
-  // cours ne se mettent pas à jour en direct »). On ne remplace l'état que si
+  // autre poste n'apparaissait qu'après un rechargement manuel. On ne remplace l'état que si
   // la liste a réellement changé, pour ne pas re-rendre la vitrine (ni couper
   // un survol/scroll) à chaque tick.
-  // Même correctif que /grid (docs/audit-android-2026-09-11.md §C1,
-  // §5 étape 15.6) : retentative rapide (3s) sur échec, sans jamais vider
+  // Même correctif que /grid : retentative rapide (3s) sur échec, sans jamais vider
   // une liste déjà chargée.
   useEffect(() => {
     let cancelled = false;
@@ -486,7 +479,7 @@ export default function CinemaPage() {
       return;
     }
 
-    // Double Décodeur Vidéo Gapless A/B Deck (réf. CDC V3.0.5 §3.2) :
+    // Double Décodeur Vidéo Gapless A/B Deck :
     // Préchargement en coulisses sur le deck inactif
     idle.src = videoStreamUrl(getApiUrl, video.id);
     idle.currentTime = 0;
@@ -675,7 +668,7 @@ export default function CinemaPage() {
   };
 
   // ------------------------------------------------------------------
-  // Télécommande à dongle USB (réf. demande) : navigation de la vitrine au
+  // Télécommande à dongle USB : navigation de la vitrine au
   // clavier (focus natif des cartes) + transport pendant la lecture. Aucun
   // pilote ni matériel : la télécommande émet des touches clavier/média que
   // Chromium délivre en `keydown`. Voir useKioskRemote.
@@ -733,8 +726,7 @@ export default function CinemaPage() {
     return {};
   });
 
-  // Commandes admin reçues du tableau de bord (réf. mission "contrôler le
-  // cours en mode cinéma") : appliquées à la lecture LOCALE de cet appareil.
+  // Commandes admin reçues du tableau de bord : appliquées à la lecture LOCALE de cet appareil.
   useEffect(() => {
     cinemaCmdRef.current = (action, positionSeconds, videoId, extra) => {
       const el = videoRef.current;
@@ -743,7 +735,7 @@ export default function CinemaPage() {
         return;
       }
       if (action === "launch") {
-        // Lot 14 (docs/plan-implementation-android.md) : ordre reçu de
+        // ordre reçu de
         // /grid (écran de sélection découplé, ex. tablette Android) - passe
         // par le même chemin de lecture qu'un clic local sur la grille.
         let video = videos.find((v) => Number(v.id) === Number(videoId));
@@ -786,7 +778,7 @@ export default function CinemaPage() {
     };
   }, [phase, handleBackToMenu, videos, handleSelect, selected?.id]);
 
-  // Suivi de l'horloge serveur pour le cours lancé par ordre (plan 4.0.1). N'agit que
+  // Suivi de l'horloge serveur pour le cours lancé par ordre. N'agit que
   // si l'élément joue bien CE cours (le double lecteur A/B charge d'abord le nouveau
   // cours en coulisses) et jamais sur une vidéo terminée.
   const cinemaMediaRef = useMemo(() => ({ get current() { return videoRef.current; } }), []);
@@ -808,7 +800,7 @@ export default function CinemaPage() {
   // appareil. Un rapport "vide" est envoyé en quittant la lecture pour que
   // l'affichage admin s'efface immédiatement.
   //
-  // reportNowRef (réf. "les boutons admin ne marchent pas à tous les coups") :
+  // reportNowRef :
   // avec un rapport UNIQUEMENT périodique, l'admin qui pressait pause voyait
   // l'état "en lecture" persister jusqu'à 2 s — croyant le bouton sans effet,
   // il re-pressait et annulait sa propre commande. Les évènements onPlay/
@@ -902,8 +894,7 @@ export default function CinemaPage() {
     return [...byProgram.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [videos, t]);
 
-  // Cours "À la une" du héros : léger algorithme de "scramble" (réf. mission
-  // UI/UX) qui fait tourner la suggestion toutes les 15 minutes plutôt
+  // Cours "À la une" du héros : léger algorithme de "scramble" qui fait tourner la suggestion toutes les 15 minutes plutôt
   // qu'une seule fois par jour — un adhérent qui repasse devant l'écran cinéma
   // plusieurs fois dans la journée voit une vitrine renouvelée. Le tirage
   // reste déterministe (hachage multiplicatif du créneau de 15 min, pas
@@ -928,8 +919,7 @@ export default function CinemaPage() {
   // Progression de l'anneau d'autoplay (conic-gradient, 0 -> 360deg).
   const upNextProgressDeg = (1 - upNextRemaining / UP_NEXT_AUTOPLAY_SECONDS) * 360;
 
-  // Fond du badge "À la une" et du bouton "Lancer le cours" (réf. mission
-  // "intégrer au thème") : accent du THÈME actif, pas du programme — la
+  // Fond du badge "À la une" et du bouton "Lancer le cours" : accent du THÈME actif, pas du programme — la
   // teinte change donc avec le thème choisi, identique pour tous les cours.
   const themeFg = useThemeAccentForeground();
 
@@ -1108,7 +1098,7 @@ export default function CinemaPage() {
         </div>
       )}
 
-      {/* Lecture vidéo plein écran via Double Décodeur A/B Deck Gapless (réf. CDC V3.0.5 §3.2) */}
+      {/* Lecture vidéo plein écran via Double Décodeur A/B Deck Gapless */}
       <div className={`cinema-layer cinema-video-layer ${isPlayingLayer ? "visible" : ""}`}>
         <div className="cinema-deck-container">
           <video

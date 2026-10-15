@@ -1,5 +1,5 @@
 /**
- * Côté client de l'horloge de lecture serveur (réf. plan 4.0, P2-3/P2-4) —
+ * Côté client de l'horloge de lecture serveur —
  * logique PURE (aucun accès au DOM) pour rester testable (`frontend/tests/`).
  *
  * Le serveur publie une ancre `{ pos, at_ms, rate, running }` : « à l'instant

@@ -26,8 +26,7 @@ interface FileEntryLike {
 }
 
 /** Lit récursivement un FileSystemEntry (fichier OU dossier) en liste de
- * fichiers audio — réf. mission "importer un dossier complet et l'avoir
- * sous un même cours" : un dossier glissé-déposé n'expose pas directement
+ * fichiers audio : un dossier glissé-déposé n'expose pas directement
  * ses fichiers via `DataTransfer.files` (juste une entrée dossier vide côté
  * navigateur), il faut le parcourir via cette API asynchrone dédiée.
  * `readEntries` est plafonné à ~100 résultats par appel par le navigateur :
@@ -126,8 +125,7 @@ function formatDuration(seconds: number | null) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-// Catégories libres (réf. correctif "retire les presets Rpm/Sprint/The
-// Trip") : plus de couleur par programme, une seule classe générique suffit
+// Catégories libres : plus de couleur par programme, une seule classe générique suffit
 // (même simplification déjà faite côté Bibliothèque vidéo).
 function programBadgeClass(_program: string | null) {
   return "autre";
@@ -139,9 +137,7 @@ function programCardClass(_program: string | null) {
 
 export default function AudioLibraryPage() {
   const { t } = useAppSettings();
-  // Bascule Cours/Playlists (réf. mission "supprimer la catégorie playlist
-  // du volet ouvrant, déplacer la création de playlist audio coach dans
-  // Coach > Cours audio") : la création d'éditions mixées vit désormais ici
+  // Bascule Cours/Playlists : la création d'éditions mixées vit désormais ici
   // plutôt que sur une page /audio-playlists séparée.
   const [mode, setMode] = useState<"courses" | "playlists">("courses");
   const [courses, setCourses] = useState<AudioCourseSummary[]>([]);
@@ -149,8 +145,7 @@ export default function AudioLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<ToastState | null>(null);
   // Catégories (programmes) réellement présentes parmi les cours audio, pour
-  // les suggestions de saisie libre (réf. correctif "retire les presets
-  // Rpm/Sprint/The Trip") — même pattern que la Bibliothèque vidéo.
+  // les suggestions de saisie libre — même pattern que la Bibliothèque vidéo.
   const [programs, setPrograms] = useState<string[]>([]);
 
   const [selected, setSelected] = useState<AudioCourseDetail | null>(null);
@@ -207,7 +202,6 @@ export default function AudioLibraryPage() {
     }
   };
 
-  // Réf. mission "queue en direct des importations + import parallèle" :
   // l'import d'un cours (plusieurs MP3 ou une archive ZIP) est désormais
   // envoyé à la file globale d'imports puis le formulaire se réinitialise
   // immédiatement — l'ancienne version désactivait tout le formulaire
@@ -378,8 +372,7 @@ export default function AudioLibraryPage() {
   /**
    * `folderNameHint` : nom du dossier d'origine quand les fichiers viennent
    * d'un import de dossier (glissé-déposé via collectDroppedAudioFiles, ou
-   * sélecteur natif webkitdirectory) — réf. mission "importer un dossier
-   * complet et l'avoir sous un même cours". Dans ce cas le nom du DOSSIER
+   * sélecteur natif webkitdirectory). Dans ce cas le nom du DOSSIER
    * sert à déduire catégorie/édition (aussi fiable que le nom d'une archive
    * ZIP), plutôt que le nom d'une piste individuelle au hasard.
    */
@@ -410,9 +403,7 @@ export default function AudioLibraryPage() {
           return;
         }
 
-        // Pas de dossier connu : repli piste par piste (réf. bug "chiffre
-        // random affiché sur la tablette" + "cours importés séparément
-        // libellisés sous le nom d'un morceau au lieu de Sans catégorie").
+        // Pas de dossier connu : repli piste par piste.
         // Le mot qui précède un nombre dans le nom d'UNE piste isolée
         // ("Squat 12.mp3") n'a aucune raison d'être une vraie catégorie —
         // on n'auto-remplit la catégorie que si elle correspond à une
@@ -450,8 +441,7 @@ export default function AudioLibraryPage() {
       handleFilesSelected(e.dataTransfer.files);
       return;
     }
-    // Mode Fichiers MP3 : parcourt aussi un dossier glissé-déposé (réf.
-    // mission "importer un dossier complet et l'avoir sous un même cours")
+    // Mode Fichiers MP3 : parcourt aussi un dossier glissé-déposé
     // — DataTransfer.items doit être lu de façon SYNCHRONE pendant
     // l'événement (webkitGetAsEntry()), collectDroppedAudioFiles le fait
     // avant sa première attente asynchrone.
@@ -485,8 +475,7 @@ export default function AudioLibraryPage() {
     resetUpload();
   };
 
-  // Regroupement dynamique par catégorie réellement présente (réf. correctif
-  // "retire les presets Rpm/Sprint/The Trip") : même logique que la grille de
+  // Regroupement dynamique par catégorie réellement présente : même logique que la grille de
   // la Bibliothèque vidéo — "" = bucket "sans catégorie", placé en dernier.
   const grouped = Array.from(new Set(courses.map((c) => (c.program && c.program.trim() ? c.program : ""))))
     .sort((a, b) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, "fr", { sensitivity: "base" })))
@@ -526,8 +515,7 @@ export default function AudioLibraryPage() {
         <AudioPlaylistManager />
       ) : (
       <>
-      {/* Suggestions de catégories déjà utilisées (réf. correctif "retire les
-          presets Rpm/Sprint/The Trip") : saisie libre + suggestions, comme la
+      {/* Suggestions de catégories déjà utilisées : saisie libre + suggestions, comme la
           Bibliothèque vidéo. */}
       <datalist id="audio-programs">
         {programs.map((p) => (
@@ -560,8 +548,7 @@ export default function AudioLibraryPage() {
             e.target.value = "";
           }}
         />
-        {/* Import d'un dossier complet (réf. mission "importer un dossier
-            complet et l'avoir sous un même cours") : webkitdirectory n'est
+        {/* Import d'un dossier complet : webkitdirectory n'est
             pas dans le typage DOM standard de React, posé directement sur le
             noeud DOM plutôt qu'en JSX typé. */}
         <input
@@ -691,8 +678,7 @@ export default function AudioLibraryPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
           {grouped.map((group) => (
             <div key={group.program}>
-              {/* Couleur du thème plutôt que du programme (réf. correctif
-                  "couleurs hardcodées associées à un cours"). */}
+              {/* Couleur du thème plutôt que du programme. */}
               <h3
                 style={{
                   fontSize: "0.85rem",

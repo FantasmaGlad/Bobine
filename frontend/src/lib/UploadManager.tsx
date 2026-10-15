@@ -2,10 +2,9 @@
 
 /**
  * UploadManager — Gestionnaire global des imports (vidéos, fonds animés,
- * cours audio) — réf. correctif P3, étendu réf. mission "queue en direct des
- * importations + import parallèle".
+ * cours audio).
  *
- * Problème résolu (P3) : dans l'implémentation précédente, le XHR était
+ * Problème résolu : dans l'implémentation précédente, le XHR était
  * instancié à l'intérieur du composant LibraryPage. Quand Next.js démontait
  * ce composant lors d'une navigation, le XHR était GC'd et l'upload était
  * annulé.
@@ -15,8 +14,7 @@
  * Un panneau flottant (bas-droit) affiche la progression en permanence, pour
  * les 3 types d'import confondus.
  *
- * Deux phases bien distinctes par tâche (réf. mission "vitesse
- * d'importation") :
+ * Deux phases bien distinctes par tâche :
  * 1. "uploading" — transfert réseau du fichier, suivi par XHR (progress 0-100).
  *    Jusqu'à MAX_CONCURRENT_UPLOADS transferts en parallèle : aucune raison
  *    de les sérialiser, ce n'est que de la bande passante.
@@ -53,7 +51,7 @@ const JOB_POLL_INTERVAL_MS = 1500;
 /** Fréquence maximale des mises à jour d'état pendant un transfert : chaque
  *  `setUploads` re-rend tout le contexte — à raison de dizaines d'évènements
  *  `progress` par seconde et par transfert, c'était le premier coût sur un
- *  poste modeste (plan de compatibilité Firefox, lot F2). */
+ *  poste modeste). */
 const PROGRESS_MIN_INTERVAL_MS = 250;
 
 /** Transferts réseau simultanés, adaptés à la machine (jamais
@@ -377,9 +375,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
 
   /**
    * Démarre autant d'uploads en attente que de créneaux réseau libres
-   * jusqu'à MAX_CONCURRENT_UPLOADS (réf. audit plan-corrections-bugs, point
-   * 5, et mission "import parallèle" : le créneau se libère dès la fin du
-   * TRANSFERT, pas de l'import complet — voir runUpload). Appelé après
+   * jusqu'à MAX_CONCURRENT_UPLOADS. Appelé après
    * chaque fin de transfert (succès, erreur ou annulation) pour reprendre le
    * créneau libéré, et à l'ajout de nouveaux fichiers — y compris pendant
    * qu'un import précédent est encore en train d'être traité côté serveur.
@@ -447,8 +443,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     });
   }, []);
 
-  // Polling des tâches d'import serveur en cours (réf. mission "voir en
-  // direct les importations et l'estimation d'où elles en sont") : ces
+  // Polling des tâches d'import serveur en cours : ces
   // tâches (réencodage compris) peuvent durer bien plus longtemps qu'un XHR
   // ne reste ouvert — un intervalle léger suffit, pas besoin d'un canal
   // WebSocket dédié pour une progression qui évolue à l'échelle de la seconde.
@@ -563,9 +558,7 @@ function formatEta(seconds: number | null | undefined): string | null {
 }
 
 // Suffixe "(N devant, ~X min restantes)" affiché tant qu'une tâche attend
-// son tour (réf. mission "estimation de la durée d'importation et de
-// réencodage" — file d'attente comprise, pas seulement le réencodage
-// lui-même une fois démarré).
+// son tour.
 function formatQueueSuffix(queuePosition: number | null | undefined, queueEtaSeconds: number | null | undefined): string {
   if (typeof queuePosition !== "number" || queuePosition <= 0) return "";
   const eta = formatEta(queueEtaSeconds);
@@ -694,7 +687,7 @@ function UploadFloatingPanel() {
                     {task.stage === "normalizing" && typeof task.progressPercent === "number" ? (
                       <>
                         Réencodage ({task.progressPercent}%)
-                        {/* Réf. correctif "estimation invisible à l'import" : FFmpeg émet sa
+                        {/* FFmpeg émet sa
                             première ligne de progression quasi immédiatement (souvent avant
                             eta_seconds, qui nécessite une ligne "speed=" préalable) — sans repli
                             sur estimatedSeconds ici, l'utilisateur ne voyait quasiment jamais

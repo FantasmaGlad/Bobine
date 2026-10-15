@@ -14,7 +14,7 @@ const AUDIO_EXTENSIONS = [
 ];
 const isAudioFile = (name: string) => AUDIO_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
 
-// Écran « Rappels » (réf. docs/cahier-des-charges-radio.md §7, lot L6) —
+// Écran « Rappels » —
 // refonte UI/UX (style de la bibliothèque radio) : en-tête clair, import
 // aéré, liste de rappels en cartes lisibles (lecture / activer / éditer /
 // supprimer), et règles de déclenchement dans une colonne dédiée.
@@ -74,8 +74,7 @@ export default function RadioAnnouncementsPage() {
   // `webkitdirectory` posé/retiré juste avant `click()`, dans le même
   // gestionnaire (pas via un effet React) : un setUploadMode() suivi d'un
   // click() synchrone ouvrirait le sélecteur natif avant que l'attribut
-  // n'ait eu le temps d'être appliqué par le re-rendu (réf. même correctif
-  // que la bibliothèque radio).
+  // n'ait eu le temps d'être appliqué par le re-rendu.
   const openFilePicker = () => {
     setUploadMode("file");
     const el = fileInputRef.current;
@@ -122,8 +121,7 @@ export default function RadioAnnouncementsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chargement initial uniquement
   }, []);
 
-  // Rafraîchit la liste dès qu'un import groupé se termine (réf. pattern déjà
-  // en place pour la bibliothèque radio) : le job tourne en arrière-plan côté
+  // Rafraîchit la liste dès qu'un import groupé se termine : le job tourne en arrière-plan côté
   // UploadManager, cette page n'en est notifiée qu'en observant `uploads`.
   useEffect(() => {
     const newlyDone = uploads.filter(
@@ -169,8 +167,7 @@ export default function RadioAnnouncementsPage() {
       return;
     }
     // Une tâche (donc une ligne de progression) par rappel, comme les vidéos
-    // et la bibliothèque radio (réf. « on ne voit qu'un chargement du premier
-    // audio »). L'endpoint /announcements/upload-batch accepte une liste : un
+    // et la bibliothèque radio. L'endpoint /announcements/upload-batch accepte une liste : un
     // fichier par requête crée un job distinct, suivi 1-par-1.
     addUploads(files.map((f) => ({ kind: "radio_announcement_files" as const, files: [f], title: f.name })));
     showToast(t("radioAnnouncements.importStarted"));

@@ -43,11 +43,11 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [updateAvailableVersion, setUpdateAvailableVersion] = useState<string | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState<boolean>(false);
-  // Réf. mission UI/UX — "plein écran de base sur mobile" : demande le
+  // demande le
   // plein écran navigateur dès le premier tap (le remote/coach mobile n'a
   // aucune raison de garder la barre d'adresse visible).
   useAutoFullscreen(isMobile);
-  // Son de clic (réf. mission UI/UX) : uniquement dans le studio admin, pas
+  // Son de clic : uniquement dans le studio admin, pas
   // sur l'écran cinéma/kiosk ni le mode coach (appels de hooks toujours
   // inconditionnels, seul `enabled` varie selon la route).
   const isFullscreenRoute =
@@ -55,22 +55,22 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     pathname === "/cinema" || pathname === "/cinema/" ||
     pathname === "/coach" || pathname === "/coach/" ||
     pathname === "/grid" || pathname === "/grid/" ||
-    // Poste radio dédié (réf. lot L4) : écran plein écran comme /kiosk, PAS
+    // Poste radio dédié : écran plein écran comme /kiosk, PAS
     // de préfixe (pathname.startsWith) pour ne pas avaler /radio-library et
     // /radio-remote, qui restent des pages d'admin normales.
     pathname === "/radio" || pathname === "/radio/";
   useClickSound(!isFullscreenRoute);
   // Anti-veille automatique (Screen Wake Lock API) sur les écrans de diffusion
-  // et d'attente (réf. Chantier Transverse C du plan de portabilité multi-OS).
+  // et d'attente.
   useScreenWakeLock(isFullscreenRoute);
 
-  // La navigation ferme le tiroir mobile automatiquement (réf. UX4.1).
+  // La navigation ferme le tiroir mobile automatiquement.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronise l'état du tiroir avec le système de routing externe (Next.js), pas un simple calcul dérivable au rendu
     setDrawerOpen(false);
   }, [pathname]);
 
-  // Notification de mise à jour globale cliquable (réf. retour utilisateur)
+  // Notification de mise à jour globale cliquable
   useEffect(() => {
     if (isFullscreenRoute) return;
     fetch(getApiUrl("/updates/check"), { cache: "no-store" })
@@ -86,13 +86,13 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       .catch(() => {});
   }, [isFullscreenRoute]);
 
-  // Réf. mission UI/UX — icônes Google Material Symbols reprises telles
+  // icônes Google Material Symbols reprises telles
   // quelles du design importé (surface "PC Admin") plutôt que les SVG
   // Heroicons d'origine, pour une identité visuelle cohérente avec le reste
   // de la refonte.
   const footerLinks = footerNavLinkConfigs.map((link) => ({ ...link, label: t(link.labelKey) }));
 
-  // Regroupements dépliables (accordéon, réf. demande de réorganisation) :
+  // Regroupements dépliables (accordéon) :
   // ouverts par défaut si la page courante est dans le groupe ; l'utilisateur
   // peut ensuite plier/déplier à sa guise.
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
@@ -191,13 +191,13 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
   // L'écran kiosk, l'interface cinéma adhérents et le mode coach mobile
   // n'ont ni sidebar ni en-tête d'administration : plein écran dédié
-  // uniquement (réf. UX4.5).
+  // uniquement.
   if (isFullscreenRoute) {
     return <>{children}</>;
   }
 
   if (isMobile) {
-    // Réf. UX4.1 : pas de navigation permanente visible sur mobile — l'écran
+    // Pas de navigation permanente visible sur mobile — l'écran
     // principal (la page courante, généralement la télécommande) occupe tout
     // l'espace, la navigation reste dans un tiroir discret (burger).
     return (
@@ -277,7 +277,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
       {/* Main Area */}
       <div className="app-main">
-        {/* En-tête retiré (réf. demande) : le contenu occupe tout l'espace ;
+        {/* En-tête retiré : le contenu occupe tout l'espace ;
             le statut système (Watcher/Écran) est déplacé dans Paramètres. */}
         <main className="page-content">{children}</main>
       </div>

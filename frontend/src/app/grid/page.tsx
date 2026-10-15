@@ -14,7 +14,7 @@ import MarqueeText from "@/components/MarqueeText";
 import CourseRatingWidget from "@/components/CourseRatingWidget";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 
-// Lot 14 (cf. docs/plan-implementation-android.md) : écran de sélection
+// écran de sélection
 // SEUL — reprend la présentation visuelle de la grille de `/cinema` (héros
 // + rangées par programme + liste complète), mais sans jamais lire de
 // vidéo localement. Sélectionner un cours envoie une commande `launch` sur
@@ -29,7 +29,7 @@ import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 // cohérent avec la convention déjà en place dans ce dépôt (chaque route a
 // sa propre petite fonction `getApiUrl`, jamais un utilitaire central) et
 // évite tout risque de régression sur `/cinema`, qui reste inchangé à part
-// l'ajout de la commande `launch` (cf. Découvertes du Lot 14).
+// l'ajout de la commande `launch`.
 
 function getApiUrl(path: string) {
   if (typeof window !== "undefined" && window.location.port === "3000") {
@@ -235,7 +235,7 @@ export default function GridPage() {
 
   // Toujours le canal câblé : /grid n'a de sens que pour piloter la sortie
   // câblée (ex. la sortie HDMI de la tablette Android) - pas de variante
-  // réseau pour l'instant (périmètre du Lot 14, décision explicite).
+  // réseau pour l'instant (périmètre volontairement limité).
   const { state, sendCommand, displayOutputCable, cinemaState, libraryVersion } = usePlaybackSocket(undefined, undefined, "cable");
 
   // Bascule automatique vers l'interface coach si le mode coach est actif sur le canal câblé
@@ -260,9 +260,7 @@ export default function GridPage() {
 
   // Même sondage que /cinema (15s) - dupliqué plutôt que partagé, cf.
   // commentaire en tête de fichier.
-  // Réf. retour utilisateur "/grid n'affiche aucune vidéo" (2026-09-11) :
-  // un échec transitoire (backend momentanément congestionné, cf.
-  // docs/audit-android-2026-09-11.md §C1) laissait `videos` vide jusqu'au
+  // Un échec transitoire (backend momentanément congestionné) laissait `videos` vide jusqu'au
   // PROCHAIN sondage à 15s — ressenti comme "il faut recharger plusieurs
   // fois". Retentative rapide (3s) dédiée sur ÉCHEC uniquement, en plus du
   // sondage normal ; ne vide JAMAIS une liste déjà chargée sur un échec
@@ -311,7 +309,7 @@ export default function GridPage() {
     // modif/suppression), au lieu d'attendre jusqu'à 15s.
   }, [libraryVersion]);
 
-  // Lancement distant (Lot 14) : envoie l'ordre sur le canal câblé plutôt
+  // Lancement distant : envoie l'ordre sur le canal câblé plutôt
   // que de lire quoi que ce soit ici - cette page ne quitte JAMAIS son
   // propre affichage de grille.
   const lastLaunchRef = useRef<number>(0);
@@ -465,7 +463,7 @@ export default function GridPage() {
     sendCommand("cinema_command", { action: "stop" });
   }, [sendCommand]);
 
-  // Système de notation 5 étoiles sur le pupitre coach (réf. CDC V3.0.5 §2.2)
+  // Système de notation 5 étoiles sur le pupitre coach
   const [ratingCourse, setRatingCourse] = useState<{
     videoId: number;
     title: string;
@@ -699,7 +697,7 @@ export default function GridPage() {
               </div>
             </div>
 
-            {/* Widget "en cours de lecture" ou carte d'évaluation tactile 5 étoiles (réf. CDC V3.0.5 §2.2) */}
+            {/* Widget "en cours de lecture" ou carte d'évaluation tactile 5 étoiles */}
             {ratingCourse ? (
               <CourseRatingWidget
                 videoId={ratingCourse.videoId}

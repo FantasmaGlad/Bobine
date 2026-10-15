@@ -6,7 +6,7 @@ import type { ClockAnchor } from "@/lib/playbackClock";
 import { ServerClockSync } from "@/lib/serverClockSync";
 import type { ClockTarget } from "@/lib/useMediaClockFollower";
 
-/** Réf. docs/cahier-des-charges-radio.md, lot L3 — état du 3e canal `radio`,
+/** état du 3e canal `radio`,
  * moteur INDÉPENDANT du câblé/réseau (RadioPlaybackManager côté backend).
  * Partage la même connexion WebSocket `/ws/playback` que usePlaybackSocket
  * (filtrée sur `channel: "radio"`), mais un vocabulaire d'état et de
@@ -23,7 +23,7 @@ export interface RadioTrackInfo {
 
 export type RadioRepeatMode = "off" | "playlist" | "track";
 
-/** Rappel en cours (réf. lot L6, D12) : "wait_end" = inséré entre 2 pistes
+/** Rappel en cours : "wait_end" = inséré entre 2 pistes
  * (musique déjà arrêtée), "duck" = fondu immédiat pendant que la musique
  * continue (X min / heures fixes / manuel). */
 export interface RadioAnnouncementInfo {
@@ -41,7 +41,7 @@ export interface RadioState {
   current_track: RadioTrackInfo | null;
   position_seconds: number;
   duration_seconds: number | null;
-  /** Ancre de l'horloge de lecture pilotée par le serveur (plan 4.0.1). */
+  /** Ancre de l'horloge de lecture pilotée par le serveur. */
   clock?: ClockAnchor | null;
   volume: number;
   shuffle: boolean;
@@ -103,17 +103,15 @@ function getApiUrl(path: string): string {
   return isDevServer ? `http://localhost:8001/api${path}` : `/api${path}`;
 }
 
-// Même filet de sécurité que usePlaybackSocket (réf. audit
-// plan-corrections-bugs) : recale l'état sur GET /api/radio/state à
+// Même filet de sécurité que usePlaybackSocket : recale l'état sur GET /api/radio/state à
 // intervalle régulier, au cas où un broadcast() aurait été perdu.
 const RESYNC_INTERVAL_MS = 15000;
 
 /**
  * @param onEvent  Callback appelé à chaque changement d'état reçu.
- * @param role     "kiosk" pour le poste /radio (lot L4) : envoie un identify
+ * @param role     "kiosk" pour le poste /radio : envoie un identify
  *                 à la connexion et reçoit son statut primaire/miroir en
- *                 retour (réf. correctif P4, même mécanisme que le kiosk
- *                 câblé/réseau) — seul le primaire a autorité pour rapporter
+ *                 retour — seul le primaire a autorité pour rapporter
  *                 la position réelle de lecture. Omis pour une télécommande
  *                 (radio-remote), qui ne fait que refléter/commander l'état.
  */
@@ -125,8 +123,7 @@ export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kios
   const pendingCommandsRef = useRef<{ payload: string; queuedAt: number }[]>([]);
   const onEventRef = useRef(onEvent);
   const stateRef = useRef<RadioState>(DEFAULT_STATE);
-  // Détection d'un backend redémarré depuis le chargement de CETTE page (réf.
-  // retour user "un redémarrage ne resynchronise pas tous les écrans") — même
+  // Détection d'un backend redémarré depuis le chargement de CETTE page — même
   // patron que usePlaybackSocket.ts : null jusqu'au premier "boot_id" reçu
   // (référence pour cette page), une valeur différente à une reconnexion
   // ultérieure signale un redémarrage backend entre-temps.
@@ -157,10 +154,10 @@ export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kios
         if (wsRef.current !== ws) return;
         setConnected(true);
         retryDelay = 1000;
-        // Identification du rôle kiosk (réf. correctif P4) : envoyée dès
+        // Identification du rôle kiosk : envoyée dès
         // l'ouverture pour que le backend assigne le rôle primaire/miroir
         // avant tout report_position.
-        // Abonnement de canal (plan 4.0, P2-3) : n'écoute que les évènements radio.
+        // Abonnement de canal : n'écoute que les évènements radio.
         ws.send(JSON.stringify({ command: "subscribe", params: { channels: ["radio"] } }));
         clockSyncRef.current.start(ws, () => wsRef.current === ws);
         if (role === "kiosk") {

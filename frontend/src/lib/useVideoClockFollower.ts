@@ -19,7 +19,7 @@ export function selectVideoTarget(state: PlaybackState): ClockTarget {
   return { anchor: state.clock, mode: state.state, key: state.current_video.id };
 }
 
-/** Fait suivre l'horloge serveur au <video> d'un écran (plan 4.0, P2-4). */
+/** Fait suivre l'horloge serveur au <video> d'un écran. */
 export function useVideoClockFollower({ videoRef, state, serverNow, tryPlay, onSeek }: VideoOptions) {
   useMediaClockFollower({ mediaRef: videoRef, state, select: selectVideoTarget, serverNow, tryPlay, onSeek });
 }

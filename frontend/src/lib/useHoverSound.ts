@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
 /**
- * Retour sonore au survol (réf. mission UI/UX, interface cinéma) : une seule
+ * Retour sonore au survol : une seule
  * instance <audio> réutilisée (remise à zéro puis rejouée) plutôt qu'un
  * `new Audio()` par survol — évite d'accumuler des lectures qui se
  * chevauchent quand la souris parcourt rapidement plusieurs cartes.

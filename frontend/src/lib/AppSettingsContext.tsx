@@ -3,8 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { translate, translateList, type Language } from "@/lib/i18n";
 
-// "les-mills-sombre" est la clé interne historique du thème "Sombre" (réf.
-// mission thèmes cinéma) — conservée telle quelle pour ne rien casser sur
+// "les-mills-sombre" est la clé interne historique du thème "Sombre" — conservée telle quelle pour ne rien casser sur
 // les installations existantes, seul le libellé affiché change.
 export type Theme =
   | "les-mills-sombre"
@@ -46,7 +45,7 @@ export const THEME_VALUES: Theme[] = [
 export type ActiveLogo = "default" | "custom";
 export type WiredDisplayMode = "dual_screen" | "headless";
 /** Réglage administrateur : "auto" = dérivé des écrans externes réellement
- * connectés (plan 4.0, P1-1) ; sinon forçage manuel. */
+ * connectés ; sinon forçage manuel. */
 export type DisplayModeSetting = "auto" | WiredDisplayMode;
 
 interface AppSettingsContextValue {
@@ -75,7 +74,7 @@ interface AppSettingsContextValue {
   waitTimeBetweenCourses: number;
 }
 
-// "clair" (réf. mission "thème par défaut") : version claire du thème
+// "clair" : version claire du thème
 // Les Mills par défaut (même accent rouge #e4002b que "les-mills-sombre",
 // cf. THEME_SWATCHES dans app/settings/page.tsx) — premier écran vu à
 // l'installation avant tout réglage utilisateur.
@@ -115,12 +114,12 @@ function getApiUrl(path: string) {
 }
 
 /**
- * Thème (réf. UX1.1-UX1.4) et langue (réf. UX1.5) partagés par toute
+ * Thème et langue partagés par toute
  * l'application — PC, mobile ET écran cinéma (ce provider enveloppe
  * ClientLayout dans son ensemble, y compris les routes /kiosk et /coach qui
- * court-circuitent la coquille de navigation, réf. UX2.3/tâche 11.4).
+ * court-circuitent la coquille de navigation).
  *
- * Persistance côté serveur (table `settings`, réf. Lot 9) : chargée une fois
+ * Persistance côté serveur (table `settings`) : chargée une fois
  * au montage. Le flash du mauvais thème au tout premier rendu est évité par
  * un petit script bloquant dans layout.tsx qui applique la valeur mise en
  * cache localStorage avant l'hydratation React — ce provider ne fait que
@@ -154,8 +153,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   }, []);
 
   // Facteur commun au chargement initial ET au filet de sécurité périodique
-  // ci-dessous (réf. correctif "les couleurs ne sont pas dynamiques en
-  // fonction du style") : appliquer deux fois la même logique de lecture de
+  // ci-dessous : appliquer deux fois la même logique de lecture de
   // `/api/settings` a fait diverger le code par le passé si on ne le
   // factorisait pas.
   const applySettingsPayload = useCallback((data: Record<string, unknown> | null) => {
@@ -194,10 +192,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       if (cachedLanguage) setLanguageState(cachedLanguage);
     } catch {
       // localStorage indisponible (navigation privée stricte, ou WebView
-      // Android sans DOM Storage activé — réf. correctif "les couleurs ne
-      // sont pas dynamiques" : confirmé en pratique que `window.localStorage`
-      // vaut `null` dans la WebView tactile de l'app Android, cf.
-      // docs/plan-implementation-android.md) : le défaut/le fetch suffisent.
+      // Android sans DOM Storage activé : confirmé en pratique que `window.localStorage`
+      // vaut `null` dans la WebView tactile de l'app Android, en pratique) : le défaut/le fetch suffisent.
     }
 
     fetch(getApiUrl("/settings"), { cache: "no-store" })
@@ -207,8 +203,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   }, [applySettingsPayload]);
 
   // Filet de sécurité de resynchronisation périodique (même motif que
-  // RESYNC_INTERVAL_MS dans usePlaybackSocket.ts, réf. correctif "les
-  // couleurs de l'interface ne sont pas dynamiques en fonction du style") :
+  // RESYNC_INTERVAL_MS dans usePlaybackSocket.ts) :
   // le chargement initial ci-dessus ne s'exécute qu'une fois, et la
   // synchronisation "temps réel" plus bas dépend d'un `settings_change`
   // reçu EN DIRECT sur une connexion WebSocket qui peut être en train de se
@@ -247,7 +242,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       const host = isDevServer ? "localhost:8001" : window.location.host;
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       ws = new WebSocket(`${protocol}//${host}/ws/playback`);
-      // N'écoute que les évènements globaux (plan 4.0, P2-3) : aucun canal.
+      // N'écoute que les évènements globaux : aucun canal.
       ws.onopen = () => ws?.send(JSON.stringify({ command: "subscribe", params: { channels: [] } }));
       ws.onmessage = (evt) => {
         try {
@@ -388,7 +383,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
 
   const tList = useCallback((key: string) => translateList(language, key), [language]);
 
-  // useMemo (réf. revue de code) : avant l'ajout du branding/toggle, AppLogo
+  // useMemo : avant l'ajout du branding/toggle, AppLogo
   // était un <img> statique sans hook, jamais concerné. Il consomme
   // désormais ce contexte sur 8 écrans (dont le kiosque, actif en continu) —
   // sans mémoïsation, CHAQUE render de ce Provider (y compris pour un état

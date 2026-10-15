@@ -71,7 +71,7 @@ function collect(): Capabilities {
 }
 
 /**
- * Réglages → Compatibilité navigateur (lot F5 du plan Firefox) : diagnostic
+ * Réglages → Compatibilité navigateur : diagnostic
  * local de CE navigateur, choix de la version vidéo utilisée, mesure de lecture
  * réelle et rapport copiable. Aucune donnée n'est envoyée nulle part.
  */

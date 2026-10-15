@@ -43,9 +43,7 @@ interface ToastState {
 
 export default function LibraryPage() {
   const { t } = useAppSettings();
-  // Bascule Médiathèque/Playlists (réf. mission "supprimer la catégorie
-  // playlist du volet ouvrant, déplacer la création de playlist vidéo dans
-  // Bibliothèque") : la création de playlist vidéo vit désormais ici plutôt
+  // Bascule Médiathèque/Playlists : la création de playlist vidéo vit désormais ici plutôt
   // que sur une page /playlists séparée.
   const [mode, setMode] = useState<"media" | "playlists">("media");
   const [videos, setVideos] = useState<Video[]>([]);
@@ -72,8 +70,7 @@ export default function LibraryPage() {
 
   // Catégories (programmes) réellement présentes dans la bibliothèque, pour
   // alimenter les suggestions de saisie, le filtre et le regroupement — plus
-  // aucune liste figée (réf. « retire les catégories hardcodées, laisse créer
-  // sa propre catégorie »).
+  // aucune liste figée.
   const [programs, setPrograms] = useState<string[]>([]);
 
   // Drag-and-drop zone
@@ -81,7 +78,7 @@ export default function LibraryPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
-  // Mini-formulaires pour préparer les métadonnées avant l'upload (P3).
+  // Mini-formulaires pour préparer les métadonnées avant l'upload.
   // Chaque entrée correspond à un fichier sélectionné mais pas encore envoyé.
   const [pendingSpecs, setPendingSpecs] = useState<Array<PendingUploadSpec & { key: string }>>([]);
 
@@ -90,7 +87,7 @@ export default function LibraryPage() {
   const [videoToDelete, setVideoToDelete] = useState<Video | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState<boolean>(false);
 
-  // Sélection multiple (réf. UX3.9)
+  // Sélection multiple
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [playlists, setPlaylists] = useState<{ id: number; name: string }[]>([]);
   const [showAddToPlaylist, setShowAddToPlaylist] = useState<boolean>(false);
@@ -109,15 +106,13 @@ export default function LibraryPage() {
     return `/api${path}`;
   };
 
-  // Upload Manager global (P3)
+  // Upload Manager global
   const { addUploads, uploads } = useUploadManager();
   // Écoute passive uniquement (aucune commande envoyée depuis cette page) :
-  // réagit à `library_change` (réf. docs/audit-android-2026-09-11.md §5
-  // étape 15.6, retour utilisateur "le titre modifié ne se met pas à jour
-  // instantanément") — un import/modification/suppression fait ailleurs
+  // réagit à `library_change` — un import/modification/suppression fait ailleurs
   // (autre onglet, dossier surveillé) se reflète ici sans action manuelle.
   const { libraryVersion } = usePlaybackSocket();
-  // Réf. mission "voir en direct les importations" : `seenDoneIds` évite de
+  // `seenDoneIds` évite de
   // redéclencher un fetch à chaque tick de polling tant qu'aucune tâche
   // vidéo n'a nouvellement terminé (effet déclaré plus bas, après
   // `fetchVideos`).
@@ -166,8 +161,7 @@ export default function LibraryPage() {
     }
   };
 
-  // Rafraîchit la bibliothèque dès qu'un import vidéo se termine (réf.
-  // mission "voir en direct les importations") : les imports sont désormais
+  // Rafraîchit la bibliothèque dès qu'un import vidéo se termine : les imports sont désormais
   // traités en arrière-plan (réponse HTTP 202 immédiate), sans ce suivi la
   // nouvelle vidéo n'apparaissait qu'après une action manuelle (changement
   // de filtre/tri).
@@ -232,8 +226,7 @@ export default function LibraryPage() {
     });
   };
 
-  // Sélection groupée (réf. demande « impossible de faire une sélection
-  // groupée ») : cases « tout sélectionner » (par groupe de programme en vue
+  // Sélection groupée : cases « tout sélectionner » (par groupe de programme en vue
   // grille, globale en vue liste) + sélection par plage au Maj-clic en liste.
   const setManySelected = (ids: number[], select: boolean) => {
     setSelectedIds((prev) => {
@@ -385,9 +378,7 @@ export default function LibraryPage() {
     }
   };
 
-  // Miniature manuelle (réf. Lot 8, docs/plan-implementation-android.md :
-  // generate_thumbnail() dépend de ffmpeg, indisponible sous Android — aucune
-  // vidéo importée là-bas n'a jamais de miniature auto). Même mécanique que
+  // Miniature manuelle. Même mécanique que
   // handleSaveMetadata ci-dessus (met à jour la liste + le tiroir en place).
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const handleUploadThumbnail = async (file: File) => {
@@ -685,7 +676,7 @@ export default function LibraryPage() {
         )}
       </div>
 
-      {/* Barre d'actions groupées (réf. UX3.9) */}
+      {/* Barre d'actions groupées */}
       {selectedIds.size > 0 && (
         <div className="interrupted-block">
           <div className="interrupted-text">
@@ -779,8 +770,7 @@ export default function LibraryPage() {
           <p style={{ fontSize: "0.85rem", margin: "4px 0 0" }}>{t("library.noVideosHint")}</p>
         </div>
       ) : viewMode === "grid" ? (
-        /* GRID VIEW — regroupée dynamiquement par catégorie présente (réf.
-           UX3.6 + « catégories libres ») : "" = bucket « sans catégorie », placé
+        /* GRID VIEW — regroupée dynamiquement par catégorie présente : "" = bucket « sans catégorie », placé
            en dernier ; les autres triées sans casse. */
         <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
           {Array.from(new Set(videos.map((v) => (v.program && v.program.trim() ? v.program : ""))))
@@ -792,9 +782,8 @@ export default function LibraryPage() {
             .filter((g) => g.items.length > 0)
             .map((group) => (
               <div key={group.program}>
-                {/* Couleur du thème plutôt que du programme (réf. correctif
-                    "couleurs hardcodées associées à un cours"). La case coche
-                    tout le groupe d'un coup (réf. « sélection groupée »). */}
+                {/* Couleur du thème plutôt que du programme. La case coche
+                    tout le groupe d'un coup. */}
                 <h3
                   style={{
                     fontSize: "0.85rem",
@@ -1162,7 +1151,7 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Confirmation Bulk Delete Modal (réf. UX3.9/UX5.2) */}
+      {/* Confirmation Bulk Delete Modal */}
       {bulkDeleteConfirm && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -1184,7 +1173,7 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Ajout groupé à une playlist (réf. UX3.9) */}
+      {/* Ajout groupé à une playlist */}
       {showAddToPlaylist && (
         <div className="modal-overlay">
           <div className="modal-content">

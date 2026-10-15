@@ -6,11 +6,9 @@ import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
 import { RadioEvent, RadioRepeatMode, useRadioSocket } from "@/lib/useRadioSocket";
 import Icon from "@/components/Icon";
 
-// Télécommande admin du canal radio (réf. docs/cahier-des-charges-radio.md,
-// lot L3) : pilote le RadioPlaybackManager à distance (mobile + PC). Le
-// lecteur réel (écran /radio, poste dédié) arrive au lot L4 — d'ici là, cette
-// page permet déjà de tester/piloter le moteur (playlist, file d'attente,
-// shuffle, repeat).
+// Télécommande admin du canal radio : pilote le RadioPlaybackManager à distance (mobile + PC). Le
+// lecteur réel est l'écran /radio (poste dédié) ; cette page pilote le moteur
+// (playlist, file d'attente, shuffle, repeat).
 
 interface RadioPlaylistSummary {
   id: number;
@@ -262,8 +260,7 @@ export default function RadioRemotePage() {
           <input type="checkbox" checked={shuffleOnLoad} onChange={(e) => setShuffleOnLoad(e.target.checked)} />
           {t("radioRemote.shuffleOnLoad")}
         </label>
-        {/* Lecture aléatoire de TOUTE la bibliothèque, sans playlist (réf.
-            demande user) : indépendant du sélecteur ci-dessus. */}
+        {/* Lecture aléatoire de TOUTE la bibliothèque, sans playlist : indépendant du sélecteur ci-dessus. */}
         <button className="btn btn-secondary" style={{ width: "100%", marginTop: "10px" }} onClick={() => sendCommand("radio_shuffle_all")}>
           <Icon name="shuffle" size={16} />
           {t("radioRemote.shuffleAll")}

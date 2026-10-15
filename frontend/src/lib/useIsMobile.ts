@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 
 /**
- * Bascule PC / mobile (réf. UX4.1 : le mobile est une télécommande plein
- * écran avant tout, pas juste une variante compacte du tableau de bord PC).
+ * Bascule PC / mobile.
  * 768px : même seuil que les presets tablette/mobile du reste de l'outillage.
  */
 export function useIsMobile(breakpoint = 768): boolean {

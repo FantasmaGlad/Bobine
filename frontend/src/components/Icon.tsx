@@ -14,7 +14,7 @@ interface IconProps {
 
 /**
  * Icône Google Material Symbols (police variable chargée dans layout.tsx),
- * réf. mission UI/UX — remplace les émojis/caractères unicode utilisés
+ * remplace les émojis/caractères unicode utilisés
  * jusqu'ici dans l'admin PC et le mobile par le système d'icônes.
  */
 export default function Icon({ name, size = 20, filled = false, weight = 400, color, className, style }: IconProps) {

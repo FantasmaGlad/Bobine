@@ -5,7 +5,6 @@ import { useEffect, useRef } from "react";
 /**
  * Maintien de l'écran allumé (Anti-veille / Screen Wake Lock API).
  *
- * Réf. Chantier Transverse C (§6 du plan de portabilité multi-OS) :
  * Sur les profils d'application de bureau (Windows, macOS, Linux desktop),
  * les sorties vidéo et audio (/cinema, /kiosk, /coach, /radio) peuvent être
  * consultées directement dans un onglet ou une fenêtre du navigateur par défaut,

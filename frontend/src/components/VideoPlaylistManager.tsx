@@ -49,13 +49,10 @@ interface ToastState {
 
 /**
  * Créateur de playlists vidéo pour le mode kiosk, embarqué dans l'onglet
- * "Playlists" de la Bibliothèque (réf. mission "supprimer la catégorie
- * playlist du volet ouvrant, déplacer la création de playlist vidéo dans
- * Bibliothèque") — anciennement la page `/playlists` à part entière.
+ * "Playlists" de la Bibliothèque — anciennement la page `/playlists` à part entière.
  *
  * Le panneau "Ajouter depuis la bibliothèque" affiche désormais des cartes
- * avec vignette (réf. mission "sans devoir chercher à l'aveugle dans un
- * énorme catalogue sans preview ni image") au lieu de simples lignes de
+ * avec vignette au lieu de simples lignes de
  * texte.
  */
 export default function VideoPlaylistManager() {
@@ -718,7 +715,7 @@ export default function VideoPlaylistManager() {
               </div>
 
               {/* Library Picker at the Bottom : grille de vignettes plutôt que
-                  du texte (réf. mission "sans image, à l'aveugle"). */}
+                  du texte. */}
               <div className="library-picker" style={isMobile ? { height: "auto", maxHeight: "360px" } : undefined}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span className="form-label" style={{ fontSize: "0.75rem", margin: 0, textTransform: "uppercase", color: "var(--text-muted)", letterSpacing: "0.05em" }}>

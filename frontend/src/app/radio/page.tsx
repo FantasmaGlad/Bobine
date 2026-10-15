@@ -9,14 +9,13 @@ import { useKioskRemote } from "@/lib/useKioskRemote";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 
-// Écran du poste radio dédié (réf. docs/cahier-des-charges-radio.md, lots
-// L4/L5) : mise en page "type Spotify", lecteur PRIMAIRE (source de la
-// position rapportée au serveur, comme le kiosk câblé/réseau — réf. correctif
-// P4). Ouvert à la main dans un navigateur standard, PAS de service kiosk
+// Écran du poste radio dédié : mise en page "type Spotify", lecteur PRIMAIRE (source de la
+// position rapportée au serveur, comme le kiosk câblé/réseau).
+// Ouvert à la main dans un navigateur standard, PAS de service kiosk
 // systemd dédié (arbitrage A5) — d'où l'écran de déverrouillage ci-dessous
 // (politique d'autoplay des navigateurs).
 //
-// Moteur audio (lot L5, §6) : DEUX <audio> ("slots" A=0/B=1) routés dans un
+// Moteur audio : DEUX <audio> ("slots" A=0/B=1) routés dans un
 // graphe Web Audio API (MediaElementAudioSourceNode -> GainNode ->
 // destination) — impossible de faire chevaucher deux lectures sur un seul
 // élément. `activeSlotRef` désigne le slot que le SERVEUR considère comme la
@@ -25,7 +24,7 @@ import AppLogo from "@/components/AppLogo";
 // attendre la confirmation serveur pour démarrer le fondu — seule
 // l'officialisation du changement de slot actif attend cette confirmation
 // (cf. handleEvent), pour que la position rapportée reste cohérente avec
-// l'état serveur pendant le chevauchement. Le rappel (lot L6, duck) réutilise
+// l'état serveur pendant le chevauchement. Le rappel réutilise
 // le MÊME graphe : la « rampe de gain » n'est plus qu'une primitive partagée.
 
 function getApiUrl(path: string) {
@@ -57,7 +56,7 @@ const OTHER_SLOT = (slot: Slot): Slot => (slot === 0 ? 1 : 0);
 export default function RadioScreenPage() {
   const { t } = useAppSettings();
 
-  // Deux éléments <audio> (slots A=0/B=1, réf. lot L5) plutôt qu'un seul :
+  // Deux éléments <audio> (slots A=0/B=1) plutôt qu'un seul :
   // le crossfade a besoin de faire chevaucher deux lectures. Refs NOMMÉES
   // individuellement (pas un tableau de refs) : nécessaire pour le binding
   // `ref=` en JSX, et plus lisible pour le lint hooks/refs.
@@ -93,8 +92,7 @@ export default function RadioScreenPage() {
   const slotTrackIdRef = useRef<[number | null, number | null]>([null, null]);
   const crossfadingRef = useRef(false);
 
-  // Détection de flux bloqué (réf. retour user "la radio se coupe... le
-  // minuteur tourne dans le vide à l'infini") : un hoquet réseau (Wi-Fi de la
+  // Détection de flux bloqué : un hoquet réseau (Wi-Fi de la
   // salle) peut arrêter la progression du flux SANS jamais déclencher `ended`
   // ni `error` côté <audio> — la radio restait alors silencieuse
   // indéfiniment, pendant que useInterpolatedPosition continuait d'extrapoler
@@ -113,9 +111,7 @@ export default function RadioScreenPage() {
   const playingRef = useRef(false);
 
   const activeAnnouncementRef = useRef<{ id: number; mode: string } | null>(null);
-  // Fondu d'entrée/sortie du RAPPEL LUI-MÊME (réf. correctif "vitesse de fade
-  // réglable" — jusqu'ici seule la musique de fond était atténuée en mode
-  // duck, le gain du rappel restait fixé à 1). Le timeout de fin de fondu de
+  // Fondu d'entrée/sortie du RAPPEL LUI-MÊME. Le timeout de fin de fondu de
   // sortie est annulable : un nouveau rappel qui démarrerait avant son
   // expiration (dos-à-dos, écart < fadeMs) ne doit pas se faire couper par un
   // pause() différé destiné à l'ancien.
@@ -135,7 +131,7 @@ export default function RadioScreenPage() {
   }, []);
 
   // ------------------------------------------------------------------
-  // Graphe Web Audio (réf. lot L5)
+  // Graphe Web Audio
   // ------------------------------------------------------------------
   const ensureAudioGraph = (initialVolume: number) => {
     if (graphReadyRef.current) return;
@@ -210,7 +206,7 @@ export default function RadioScreenPage() {
   };
 
   // ------------------------------------------------------------------
-  // Fondu enchaîné (réf. lot L5, D6) : démarré CÔTÉ CLIENT, en avance sur la
+  // Fondu enchaîné : démarré CÔTÉ CLIENT, en avance sur la
   // confirmation serveur (qui n'arrive qu'à la fin réelle de la piste
   // sortante). `activeSlotRef` ne bascule qu'à cette confirmation (cf.
   // handleEvent) — pendant le chevauchement, la position rapportée reste
@@ -249,8 +245,8 @@ export default function RadioScreenPage() {
     const data = evt.data;
     const announcementAudio = announcementAudioRef.current;
 
-    // --- Rappels (réf. lot L6) : le duck réutilise le graphe Web Audio du
-    // crossfade (rampGain) au lieu du ramp <audio>.volume du lot L6. ---
+    // --- Rappels : le duck réutilise le graphe Web Audio du
+    // crossfade (rampGain) au lieu du ramp <audio>.volume. ---
     const ann = data.current_announcement;
     const wasAnnouncing = activeAnnouncementRef.current;
     if (announcementAudio && ann && ann.id !== wasAnnouncing?.id) {
@@ -341,7 +337,7 @@ export default function RadioScreenPage() {
       // de 1,5 s. Le poste primaire reste la source audio (fondu enchaîné).
 
       if (ann?.mode === "wait_end") {
-        // La piste vient de se terminer et laisse place au rappel (D12) : ne
+        // La piste vient de se terminer et laisse place au rappel : ne
         // pas la relancer malgré `data.playing` resté à sa valeur d'avant.
       } else if (data.playing && el.paused) {
         if (unlocked) el.play().catch(() => {});
@@ -353,7 +349,7 @@ export default function RadioScreenPage() {
 
     if (crossfadingRef.current && slotTrackIdRef.current[otherSlot] === track.id) {
       // Le serveur confirme la piste vers laquelle un fondu était déjà en
-      // cours (réf. lot L5) : on officialise le changement de slot actif,
+      // cours : on officialise le changement de slot actif,
       // rien à recharger — tout l'intérêt du fondu anticipé.
       setGainNow(activeSlot, 0);
       setGainNow(otherSlot, isDucking ? duckSettingsRef.current.level / 100 : data.volume / 100);
@@ -372,7 +368,7 @@ export default function RadioScreenPage() {
   };
 
   const { state, connected, sendCommand, isPrimary, serverNow } = useRadioSocket(handleEvent, "kiosk");
-  // Postes MIROIRS : suivent l'horloge serveur (plan 4.0.1). Pas de suivi pendant un
+  // Postes MIROIRS : suivent l'horloge serveur. Pas de suivi pendant un
   // rappel (état « announcing » : la musique y est gérée par le rappel).
   const activeMediaRef = useMemo(
     () => ({ get current() { return getAudioEl(activeSlotRef.current); } }),
@@ -402,7 +398,7 @@ export default function RadioScreenPage() {
   const livePosition = useInterpolatedPosition(state.position_seconds, state.playing, lastCause);
 
   // null au premier rendu (plutôt que new Date()) : réglage react-hooks/purity
-  // + correctif hydratation (React error #418, réf. retour user) — new Date()
+  // + correctif hydratation (React error #418) — new Date()
   // évalué pendant le rendu produit une valeur DIFFÉRENTE à la génération de
   // l'export statique (figée au moment du `npm run build`) et à l'hydratation
   // côté client (l'instant réel où la page s'ouvre, potentiellement des jours
@@ -462,7 +458,7 @@ export default function RadioScreenPage() {
   const handleTimeUpdateForSlot = (slot: Slot) => {
     const el = getAudioEl(slot);
     if (!el || slot !== activeSlotRef.current) return;
-    lastProgressRef.current[slot] = Date.now(); // signe de vie du flux (réf. watchdog de blocage ci-dessous)
+    lastProgressRef.current[slot] = Date.now(); // signe de vie du flux
     if (isPrimaryRef.current) {
       const nowMs = Date.now();
       if (nowMs - lastReportRef.current >= 900) {
@@ -477,15 +473,14 @@ export default function RadioScreenPage() {
 
   const handleEndedForSlot = (slot: Slot) => {
     // `track_id` : piste que CE poste vient de terminer — le serveur ignore un
-    // signal périmé (chaque page /radio l'envoie, plan 4.0.1).
+    // signal périmé (chaque page /radio l'envoie).
     if (slot === activeSlotRef.current) sendCommand("radio_track_ended", { track_id: slotTrackIdRef.current[slot] });
   };
   const handleEndedA = () => handleEndedForSlot(0);
   const handleEndedB = () => handleEndedForSlot(1);
 
   // ------------------------------------------------------------------
-  // Récupération d'un flux bloqué (réf. retour user "la radio se coupe sans
-  // raison, le minuteur tourne dans le vide à l'infini") : ni `onEnded`
+  // Récupération d'un flux bloqué : ni `onEnded`
   // (la piste ne s'est pas vraiment terminée) ni le serveur (rien ne lui dit
   // que ça a coincé) ne peuvent s'en apercevoir seuls — c'est au lecteur, qui
   // voit le flux réel, de le détecter et de se réparer. Un seul essai de
@@ -493,8 +488,7 @@ export default function RadioScreenPage() {
   // passager) ; si ça ne suffit pas, on traite ça comme une fin de piste pour
   // que le serveur avance normalement plutôt que de rester bloqué en silence.
   //
-  // CORRECTIF (réf. retour user "rappel qui se lance par-dessus sans fade" +
-  // "chevauchement de plusieurs pistes", malgré 0 règle temporelle définie) :
+  // CORRECTIF :
   // un unique contrôle ponctuel à RECOVERY_GRACE_MS donnait de FAUX abandons
   // — sur un réseau déjà en difficulté (raison même du déclenchement), un
   // rechargement peut légitimement prendre plus de 5 s à reprendre. Quand ça
@@ -632,7 +626,7 @@ export default function RadioScreenPage() {
   const repeatLabel =
     state.repeat === "track" ? t("radioRemote.repeatTrack") : state.repeat === "playlist" ? t("radioRemote.repeatPlaylist") : t("radioRemote.repeatOff");
 
-  // Télécommande à dongle USB (réf. demande) : transport + volume au clavier/
+  // Télécommande à dongle USB : transport + volume au clavier/
   // touches média. Une touche étant un geste utilisateur, elle peut aussi
   // débloquer l'audio depuis l'overlay « Démarrer la radio ».
   const changeRadioVolume = (delta: number) => {
