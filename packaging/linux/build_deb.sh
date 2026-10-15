@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script de construction du paquet Debian (.deb) de Bobine
-# PortabiliteCrossPlatformX — Lot 2 (Linux non-headless)
+# Linux non-headless (profil bureau)
 # ==============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-# Source de vérité unique (réf. mission "canal Stable/Bêta") : fichier
+# Source de vérité unique : fichier
 # VERSION à la racine du dépôt. Surchargeable via l'environnement (CI passe
 # une valeur au format Debian, ex. "3.0.1~beta" pour le canal Bêta — le
 # tilde trie AVANT la version finale, cf. dpkg --compare-versions). C'est ce
@@ -17,14 +17,14 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
 
 # Version utilisée dans le NOM DU FICHIER .deb — délibérément distincte de
-# VERSION ci-dessus (réf. mission "canal Stable/Bêta") : GitHub Releases
+# VERSION ci-dessus : GitHub Releases
 # réécrit silencieusement le caractère '~' en '.' dans les noms d'assets
 # téléchargés (constaté en pratique), ce qui casserait la convention Debian
 # du nom de fichier pour toute version contenant un '~'. Par défaut identique
 # à VERSION (paquets stables, sans '~') ; la CI passe la valeur fixe "beta"
 # pour le canal Bêta — un seul nom de fichier stable dans le temps, jamais de
 # caractère problématique, et aucune accumulation de fichiers versionnés à
-# chaque reconstruction (réf. mission "éviter 1000 fichiers").
+# chaque reconstruction.
 DEB_FILENAME_VERSION="${DEB_FILENAME_VERSION:-$VERSION}"
 PKG_NAME="bobine"
 ARCH="amd64"
@@ -106,10 +106,6 @@ cp "${SCRIPT_DIR}/bobine.service" "${STAGING_DIR}/usr/lib/systemd/user/bobine.se
 
 # Icônes de l'application (multi-résolution hicolor + fallback pixmaps)
 ICONS_SRC="${SCRIPT_DIR}/icons"
-if [ ! -d "${ICONS_SRC}/hicolor" ] && [ -f "${REPO_DIR}/scripts/generate_platform_icons.py" ]; then
-    "${PYTHON_BIN}" "${REPO_DIR}/scripts/generate_platform_icons.py" || true
-fi
-
 if [ -d "${ICONS_SRC}/hicolor" ]; then
     cp -a "${ICONS_SRC}/hicolor" "${STAGING_DIR}/usr/share/icons/"
 fi
@@ -127,8 +123,7 @@ cp "${SCRIPT_DIR}/DEBIAN/postinst" "${STAGING_DIR}/DEBIAN/postinst"
 cp "${SCRIPT_DIR}/DEBIAN/prerm" "${STAGING_DIR}/DEBIAN/prerm"
 cp "${SCRIPT_DIR}/DEBIAN/postrm" "${STAGING_DIR}/DEBIAN/postrm"
 
-# Injection dynamique du numéro de version (réf. mission "canal Stable/
-# Bêta") : DEBIAN/control ne porte plus qu'un placeholder "0.0.0" versionné
+# Injection dynamique du numéro de version : DEBIAN/control ne porte plus qu'un placeholder "0.0.0" versionné
 # dans le dépôt — remplacé ici par VERSION, jamais figé en dur comme avant
 # (le paquet publié s'annonçait "3.0.0" quelle que soit la version réelle,
 # cf. `dpkg -I` sur un ancien paquet).

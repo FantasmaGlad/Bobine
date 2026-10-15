@@ -21,12 +21,12 @@ de progression en temps réel.
 
 ## Modules de `core`
 
-| Module | Rôle | Réf. cahier |
-|---|---|---|
-| `progress` | Parse `install.sh --progress=json` (évènements typés) + `ProgressState` prêt à afficher (barre, libellé, phase, erreur). | §10 |
-| `orchestrate` | Construit la commande distante `install.sh` (`sudo` ou `su - --as-user`), sans jamais embarquer de mot de passe. | §7, §10 |
-| `privilege` | Arbre de décision de l'amorçage des privilèges (sudo présent ? sudoer ?) → `sudo` vs option B `su -`. | §7 |
-| `discovery` | Arithmétique du `/24` à sonder + modèle de candidat + indice d'OS depuis la bannière SSH ou, à défaut, les ports ouverts. | §6 |
+| Module | Rôle |
+|---|---|
+| `progress` | Parse `install.sh --progress=json` (évènements typés) + `ProgressState` prêt à afficher (barre, libellé, phase, erreur). |
+| `orchestrate` | Construit la commande distante `install.sh` (`sudo` ou `su - --as-user`), sans jamais embarquer de mot de passe. |
+| `privilege` | Arbre de décision de l'amorçage des privilèges (sudo présent ? sudoer ?) → `sudo` vs option B `su -`. |
+| `discovery` | Arithmétique du `/24` à sonder + modèle de candidat + indice d'OS depuis la bannière SSH ou, à défaut, les ports ouverts. |
 
 ## Tester et compiler
 
@@ -97,8 +97,8 @@ silencieuses (compilation du frontend), et le code de sortie réel d'`install.sh
 est vérifié : un échec est désormais affiché (carte « L'installation n'a pas
 abouti » avec « Réessayer » et « Copier le journal »).
 
-En aperçu navigateur autonome (sans backend Tauri, `assistant-ui` dans
-`.claude/launch.json`), `app.js` retombe sur un jeu de données factice
+En aperçu navigateur autonome (sans backend Tauri, `assistant-ui` : serveur statique
+sur `assistant/src`), `app.js` retombe sur un jeu de données factice
 utilisant volontairement la plage documentaire réservée RFC 5737
 (`203.0.113.0/24`) — jamais une IP privée plausible — et affiche un bandeau
 d'avertissement permanent en haut de l'écran, pour qu'un résultat de

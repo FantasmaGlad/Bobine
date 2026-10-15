@@ -406,7 +406,7 @@ When launched outside a Bobine checkout (`curl | bash` pipe, or a lone copied fi
 
 **Health check** — `GET /api/health` returns `{"status": "ok"|"degraded", "components": {"database", "kiosk"}}`, with HTTP `200` if the database responds, `503` otherwise (the kiosk's state is indicative and doesn't affect the HTTP status code). This is the endpoint consumed by the watchdog above and by any external monitoring.
 
-No dedicated service for the Radio channel (decision A5, see §5): `/radio` is opened manually in a browser, on the same backend.
+No dedicated service for the Radio channel (see §5): `/radio` is opened manually in a browser, on the same backend.
 
 ### Graphical Installation Assistant
 
@@ -513,8 +513,6 @@ rsync -a --delete --dry-run \
   --exclude='frontend/node_modules/' --exclude='frontend/.next/' --exclude='frontend/out/' \
   --exclude='__pycache__/' --exclude='*.pyc' --exclude='*.db*' --exclude='*.log' \
   --exclude='backend/.pytest_cache/' --exclude='VideoTest/' \
-  --exclude='.claude/' --exclude='.agents/' --exclude='.gemini/' \
-  --exclude='AGENTS.md' --exclude='CLAUDE.md' \
   ./ fanta@<WYSE_IP>:/home/fanta/Bobine/
 # (then without --dry-run once verified)
 
@@ -585,7 +583,7 @@ On the Android profile, data is split across **two storage roots** (`backend/app
 - **Delivered in 4.0.3**: RFC 9110-compliant media streams (`HEAD`, `Range`, `If-Range`, `416`, `ETag` — `app/utils/media_response.py`; no `/api/*` path returns HTML any more); **resumable chunked upload** (`/api/uploads`, `app/utils/staged_uploads.py`, client `frontend/src/lib/chunkedUpload.ts`); extension-based drop filter; lowered `ffmpeg` priority on profiles where the browser shares the machine; **"plays everywhere" web version** (H.264 8-bit ≤ 1080p, `app/utils/web_profile.py`, `?accept=` negotiation on `/api/videos/{id}/stream`, original never modified); Settings → Browser compatibility.
 - **Still open**: optional local HTTPS (Wake Lock and Gamepad need a secure context — a LAN `http://<ip>`); Windows/macOS/Android/ESR measurements.
 - **Reported import crash/lag**: identified by the maintainer as a memory leak in another program on the PC, unrelated to Bobine (consistent with our measurements: nothing reproduced with 31 files / 1.5 GB, a 32 Mbit/s throttled link, 2 cores).
-- Details, measurements, diagnostic protocol and status of work packages F0–F8: [`docs/PLAN-COMPATIBILITY-FIREFOX.en.md`](PLAN-COMPATIBILITY-FIREFOX.en.md); reproducible bench: [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
+- Reproducible measurement bench: [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
 
 <br clear="left"/>
 

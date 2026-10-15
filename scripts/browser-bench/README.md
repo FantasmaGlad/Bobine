@@ -1,9 +1,8 @@
 # Banc de compatibilité navigateurs (Firefox / Gecko)
 
 Outils jetables, sans dépendance (bibliothèque standard Python + JavaScript
-injecté), utilisés pour établir les mesures du
-[plan de compatibilité Firefox](../../docs/PLAN-COMPATIBILITE-FIREFOX.md).
-Ils ne font jamais partie du build de Bobine.
+injecté), utilisés pour établir les mesures de
+compatibilité Firefox. Ils ne font jamais partie du build de Bobine.
 
 | Fichier | Rôle |
 |---|---|
@@ -48,8 +47,7 @@ print(wd.execute(open("scripts/browser-bench/support-matrix.js").read()))
 
 - Firefox **headless**, sans accélération GPU : pire cas réaliste pour un poste
   sans décodage matériel, mais pas représentatif d'un poste équipé.
-- Linux uniquement ; Windows, macOS et Firefox pour Android restent à mesurer
-  (lot F0 du plan).
+- Linux uniquement ; Windows, macOS et Firefox pour Android restent à mesurer.
 - Fichiers synthétiques (`ffmpeg -f lavfi -i testsrc2`) : pas de contenu réel.
 - `performance.now()` est dégradé par `privacy.resistFingerprinting`
   (Tor Browser, LibreWolf) : les retards inférieurs à 100 ms n'y sont pas fiables.

@@ -10,7 +10,7 @@
 
 <p align="center">
   <b>New in 4.0.3 (beta) — Bobine now officially supports Firefox.</b><br>
-  <sub>Admin interface and third-party players (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>) verified end to end on Firefox 157: resumable uploads, HTTP-compliant media streams, an automatic compatible-video fallback and a built-in browser diagnostic. Also: more reliable Stable/Beta updates, a smoother installer. <a href="#supported-browsers">Browser support</a> · <a href="docs/PLAN-COMPATIBILITY-FIREFOX.en.md">Firefox plan &amp; status</a></sub>
+  <sub>Admin interface and third-party players (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>) verified end to end on Firefox 157: resumable uploads, HTTP-compliant media streams, an automatic compatible-video fallback and a built-in browser diagnostic. Also: more reliable Stable/Beta updates, a smoother installer. <a href="#supported-browsers">Browser support</a></sub>
 </p>
 
 **The open-source, self-hosted alternative to Les Mills Cinema, Wexer, and Screenly Anthias — professional offline-first video playout, digital signage, and scheduled group-fitness cinema for fitness clubs, gyms, and sports studios.**
@@ -172,7 +172,7 @@ Bobine is lightweight, robust, and designed to run smoothly on a wide spectrum o
 | Safari / iOS browsers (WebKit) | Supported on a best-effort basis |
 | Firefox derivatives (LibreWolf, Waterfox, Floorp, Zen) | Best effort (same Gecko engine) |
 
-Hardware video decoding is browser- and OS-dependent (HEVC/AV1 in particular): when a browser cannot decode a video, Bobine serves a compatible H.264 version (produced on demand, original untouched) — see *Settings → Browser compatibility* for a local diagnostic. See the [**Firefox / Gecko compatibility plan and delivery status**](docs/PLAN-COMPATIBILITY-FIREFOX.en.md) and [`scripts/browser-bench/`](scripts/browser-bench/README.md) to reproduce the measurements. *Firefox is a trademark of the Mozilla Foundation; its logo is used here only to state compatibility, with no affiliation or endorsement.*
+Hardware video decoding is browser- and OS-dependent (HEVC/AV1 in particular): when a browser cannot decode a video, Bobine serves a compatible H.264 version (produced on demand, original untouched) — see *Settings → Browser compatibility* for a local diagnostic. See [`scripts/browser-bench/`](scripts/browser-bench/README.md) to reproduce the Firefox measurements. *Firefox is a trademark of the Mozilla Foundation; its logo is used here only to state compatibility, with no affiliation or endorsement.*
 
 ---
 

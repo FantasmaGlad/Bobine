@@ -10,7 +10,7 @@
 
 <p align="center">
   <b>Nouveau en 4.0.3 (bêta) — Bobine soutient officiellement Firefox.</b><br>
-  <sub>Interface d'administration et lecteurs tiers (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>) vérifiés de bout en bout sur Firefox 157 : envois reprenables, flux média conformes HTTP, version vidéo compatible en repli automatique et diagnostic navigateur intégré. Aussi : mises à jour Stable/Bêta fiabilisées, installateur plus fluide. <a href="#navigateurs-supportés">Navigateurs supportés</a> · <a href="docs/PLAN-COMPATIBILITE-FIREFOX.md">Plan Firefox et statut</a></sub>
+  <sub>Interface d'administration et lecteurs tiers (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>) vérifiés de bout en bout sur Firefox 157 : envois reprenables, flux média conformes HTTP, version vidéo compatible en repli automatique et diagnostic navigateur intégré. Aussi : mises à jour Stable/Bêta fiabilisées, installateur plus fluide. <a href="#navigateurs-supportés">Navigateurs supportés</a></sub>
 </p>
 
 **L'alternative open source et auto-hébergée à Les Mills Cinema, Wexer et Screenly Anthias — régie vidéo professionnelle, affichage dynamique et diffusion de cours collectifs 100% hors-ligne pour salles de sport et studios de fitness.**
@@ -172,7 +172,7 @@ Bobine est un logiciel léger et optimisé, conçu pour fonctionner avec fluidit
 | Safari / navigateurs iOS (WebKit) | Supporté au mieux |
 | Dérivés de Firefox (LibreWolf, Waterfox, Floorp, Zen) | Au mieux (même moteur Gecko) |
 
-Le décodage vidéo matériel dépend du navigateur et du système (HEVC/AV1 en particulier) : quand un navigateur ne sait pas décoder une vidéo, Bobine lui sert une version H.264 compatible (produite à la demande, l'original reste intact) — voir *Réglages → Compatibilité navigateur* pour un diagnostic local. Consultez le [**plan de compatibilité Firefox / Gecko et son statut de livraison**](docs/PLAN-COMPATIBILITE-FIREFOX.md) et [`scripts/browser-bench/`](scripts/browser-bench/README.md) pour reproduire les mesures. *Firefox est une marque de la Mozilla Foundation ; son logo n'est utilisé ici que pour indiquer la compatibilité, sans affiliation ni parrainage.*
+Le décodage vidéo matériel dépend du navigateur et du système (HEVC/AV1 en particulier) : quand un navigateur ne sait pas décoder une vidéo, Bobine lui sert une version H.264 compatible (produite à la demande, l'original reste intact) — voir *Réglages → Compatibilité navigateur* pour un diagnostic local. Voir [`scripts/browser-bench/`](scripts/browser-bench/README.md) pour reproduire les mesures sous Firefox. *Firefox est une marque de la Mozilla Foundation ; son logo n'est utilisé ici que pour indiquer la compatibilité, sans affiliation ni parrainage.*
 
 ---
 
