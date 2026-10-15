@@ -1,7 +1,7 @@
 # Bobine
 
 <p align="center">
-  <img alt="Bobine" src="Assets/Images/bobine_banner.svg" width="100%">
+  <img alt="Bobine" src="Assets/Images/LogoBanniere.png" width="100%">
 </p>
 
 <p align="center">

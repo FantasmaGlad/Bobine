@@ -819,7 +819,7 @@ jobs:
           # bloc de code).
           cat > /tmp/beta-notes.md <<'NOTES_EOF'
           <p align="center">
-            <img alt="Bobine" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/bobine_banner.svg" width="100%">
+            <img alt="Bobine" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/LogoBanniere.png" width="100%">
           </p>
 
           <p align="center">
