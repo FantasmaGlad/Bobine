@@ -27,7 +27,7 @@ pub struct RunInstallParams {
     pub no_kiosk: bool,
     pub skip_packages: bool,
     pub mock_replay: bool,
-    /// Canal de mise à jour de la cible (réf. mission "canal Stable/Bêta") —
+    /// Canal de mise à jour de la cible —
     /// "stable" ou "beta", relayé tel quel à `install.sh --channel=<...>`.
     #[serde(default = "default_channel")]
     pub channel: String,

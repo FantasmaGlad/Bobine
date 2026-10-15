@@ -23,11 +23,7 @@ function getTauriInvoke() {
 // __TAURI__ injecté) — jamais dans l'app compilée réelle, où Tauri injecte
 // systématiquement window.__TAURI__ avant l'exécution du premier script de
 // page (withGlobalTauri: true). Sert à distinguer sans ambiguïté un scan
-// réseau RÉEL d'un jeu de données factice de démonstration (réf. mission
-// "Tauri n'invente pas d'IP" — les IP de démo utilisent volontairement la
-// plage documentaire réservée RFC 5737 203.0.113.0/24, qui ne peut jamais
-// correspondre à un appareil LAN réel, pour qu'elles ne soient jamais
-// confondues avec un résultat de scan authentique).
+// réseau RÉEL d'un jeu de données factice de démonstration.
 const IS_PREVIEW_MODE = getTauriInvoke() === null;
 
 async function invokeTauri(cmd, args = {}) {
@@ -241,7 +237,7 @@ function initWizard() {
   });
 
   // Import d'une clé SSH privée locale (alternative au mot de passe et au
-  // repli automatique sur ~/.ssh/, réf. mission "clé SSH locale")
+  // repli automatique sur ~/.ssh/)
   const btnImportKey = document.getElementById('btn-import-ssh-key');
   const btnClearKey = document.getElementById('btn-clear-ssh-key');
   const keyFilenameHint = document.getElementById('ssh-key-filename');
@@ -378,8 +374,7 @@ function kioskUrl() {
   return `${adminUrl()}/kiosk`;
 }
 
-// Notification "nouvelle version de l'assistant disponible" (réf. mission
-// "canal Stable/Bêta" puis "hiérarchie des versions") : l'assistant Tauri
+// Notification "nouvelle version de l'assistant disponible" : l'assistant Tauri
 // n'a pas de backend local à interroger (contrairement à BobineTray) —
 // appel direct à l'API GitHub depuis le renderer. bobine-assistant embarque
 // désormais sa propre version/commit à la compilation (build.rs + commande
@@ -399,7 +394,7 @@ const GITHUB_RELEASES_BETA_URL = 'https://api.github.com/repos/FantasmaGlad/Bobi
 // postérieure à une version AVEC pre-release ; deux pre-releases se
 // comparent identifiant par identifiant (numérique si possible, sinon
 // lexical — un identifiant numérique a une précédence inférieure à un
-// alphanumérique, cf. spec semver §11).
+// alphanumérique, comme le veut semver).
 function parseVersionForCompare(versionStr) {
   let s = (versionStr || '').trim();
   if (s[0] === 'v' || s[0] === 'V') s = s.slice(1);
@@ -491,7 +486,7 @@ async function checkAssistantUpdate() {
       const release = await betaRes.value.json();
       const remoteCommit = (release.target_commitish || '').slice(0, 7);
       // La Bêta n'a pas de numéro de version qui avance à chaque build (tag
-      // fixe "beta", cf. mission "canal Stable/Bêta") : comparaison par
+      // fixe "beta") : comparaison par
       // commit, comme côté backend (_beta_has_update).
       if (
         remoteCommit && myCommit && myCommit !== 'unknown' &&

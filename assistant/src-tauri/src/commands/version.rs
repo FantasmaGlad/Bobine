@@ -1,10 +1,7 @@
 use serde::Serialize;
 
 /// Version et commit du build courant, embarqués à la compilation par
-/// `build.rs` (réf. mission "hiérarchie des versions" — l'assistant ne
-/// pouvait pas se comparer correctement aux releases GitHub sans connaître
-/// sa propre version, ce qui lui faisait proposer une "mise à jour" vers une
-/// Stable en réalité plus ancienne que le build Bêta déjà installé).
+/// `build.rs`.
 #[derive(Debug, Clone, Serialize)]
 pub struct AppInfo {
     pub version: String,

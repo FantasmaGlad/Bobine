@@ -1,8 +1,7 @@
 //! Construit la commande shell exécutée sur la cible (via SSH) pour dérouler
 //! `install.sh`.
 //!
-//! Deux stratégies d'élévation (réf. `docs/cahier-des-charges-installeur.md`
-//! §7) :
+//! Deux stratégies d'élévation :
 //! - [`Elevation::Sudo`] : l'utilisateur SSH est déjà sudoer → `sudo install.sh …`.
 //! - [`Elevation::SuRoot`] : machine sans `sudo` / non-sudoer → root direct via
 //!   `su - -c "install.sh --as-user <login> …"` (option B, ne modifie pas la
@@ -10,7 +9,7 @@
 //!
 //! La commande produite ne contient **jamais** de mot de passe : le secret
 //! (mot de passe utilisateur pour `sudo`, ou root pour `su`) est fourni
-//! séparément par l'IHM via l'entrée du PTY SSH (§13).
+//! séparément par l'IHM via l'entrée du PTY SSH.
 
 /// Options mappées sur les drapeaux d'`install.sh`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -22,8 +21,7 @@ pub struct InstallOptions {
     /// Émet la sortie machine `--progress=json` (l'assistant en a besoin pour
     /// la barre de progression). Laissé configurable pour les tests.
     pub progress_json: bool,
-    /// Canal de mise à jour transmis à `install.sh --channel=<...>` (réf.
-    /// mission "canal Stable/Bêta") — vide (valeur par défaut dérivée) n'émet
+    /// Canal de mise à jour transmis à `install.sh --channel=<...>` — vide (valeur par défaut dérivée) n'émet
     /// aucun drapeau et laisse install.sh appliquer son propre défaut
     /// ("stable"/dernier choix persisté). `assistant_default()` le fixe
     /// explicitement à "stable" pour que la commande envoyée soit toujours
@@ -68,7 +66,7 @@ impl InstallOptions {
     }
 }
 
-/// Stratégie d'élévation de privilèges retenue pour la cible (réf. §7).
+/// Stratégie d'élévation de privilèges retenue pour la cible.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Elevation {
     /// L'utilisateur SSH est sudoer : `sudo <script> <args>`.

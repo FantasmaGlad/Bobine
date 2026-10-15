@@ -28,7 +28,7 @@ private const val NOTIFICATION_CHANNEL_ID = "bobine_service"
 private const val NOTIFICATION_ID = 1
 private const val TAG = "BobineForegroundService"
 private const val DISPLAY_STATE_URL = "http://127.0.0.1:8000/api/display/state"
-// Re-émission périodique de l'état des écrans (plan 4.0, P1-2) : le rapport
+// Re-émission périodique de l'état des écrans : le rapport
 // côté backend est volontairement gardé en mémoire (un fait matériel
 // instantané) ; si le serveur Python redémarre sans que le service le fasse,
 // ce rappel le remet à jour. Sert aussi de filet de réconciliation de la
@@ -42,12 +42,10 @@ private const val PRESENTATION_FAST_DELAY_MS = 500L
 private const val PRESENTATION_SLOW_DELAY_MS = 5_000L
 
 /**
- * Lot 6 (cf. docs/plan-implementation-android.md) : porte le backend Python
- * et la `Presentation` HDMI (Lot 4), DECOUPLE du cycle de vie de
+ * porte le backend Python
+ * et la `Presentation` HDMI, DECOUPLE du cycle de vie de
  * `MainActivity` - c'est ce qui permet au cours de continuer de jouer sur
- * la sortie HDMI meme si l'app est fermee depuis le multitache (CDC
- * docs/ARCHITECTURE.md SS7 : la tablette reste utilisable pour autre
- * chose, pas un mode kiosque strict).
+ * la sortie HDMI meme si l'app est fermee depuis le multitache.
  *
  * L'exemption batterie est demandee via la boite de dialogue systeme
  * standard (`MainActivity.requestIgnoreBatteryOptimizations`, appelee une
@@ -57,7 +55,7 @@ private const val PRESENTATION_SLOW_DELAY_MS = 5_000L
  * complet du processus par le systeme reste en revanche non garanti
  * (`onTaskRemoved` fait de son mieux mais un ForegroundService seul reste
  * soumis aux politiques d'economie d'energie agressives de certains
- * constructeurs - risque deja documente au CDC SS7).
+ * constructeurs).
  */
 class BobineForegroundService : Service() {
 
@@ -86,13 +84,13 @@ class BobineForegroundService : Service() {
     // premiere tentative quasi simultanee, epuisant les 5 essais en
     // quelques dizaines de ms au lieu d'un vrai backoff de 500ms chacun).
     private var presentationAttemptInFlight = false
-    // PARTIAL_WAKE_LOCK (CPU seul, pas l'ecran tactile - l'immersion du
-    // Lot 5 s'occupe de l'ecran tactile separement) : empeche le systeme
+    // PARTIAL_WAKE_LOCK (CPU seul, pas l'ecran tactile - l'immersion de
+    // MainActivity s'occupe de l'ecran tactile separement) : empeche le systeme
     // de suspendre le CPU pendant qu'un cours est activement diffuse sur
     // la sortie HDMI, uniquement le temps ou la Presentation existe.
     private var wakeLock: PowerManager.WakeLock? = null
 
-    // Lot 7 : par defaut, Android ne livre PAS les paquets multicast (mDNS
+    // par defaut, Android ne livre PAS les paquets multicast (mDNS
     // inclus) au processus applicatif tant qu'aucun MulticastLock n'est
     // detenu - la decouverte reseau du backend (zeroconf, bobine.local)
     // resterait invisible depuis un autre appareil du meme Wi-Fi sans
@@ -162,7 +160,7 @@ class BobineForegroundService : Service() {
 
     /**
      * Remonte au backend le nombre d'ecrans externes REELLEMENT connectes
-     * (`PUT /api/display/state`, plan 4.0 P1-1) : le mode d'affichage cable
+     * (`PUT /api/display/state`) : le mode d'affichage cable
      * effectif en est derive cote serveur (>= 1 ecran = double ecran), sans
      * reglage manuel — avant, ce signal n'etait envoye qu'une fois et un echec
      * (serveur Python embarque pas encore a l'ecoute au demarrage a froid) etait
@@ -233,14 +231,14 @@ class BobineForegroundService : Service() {
 
     @Volatile private var reportGeneration = 0
 
-    // Lot 15 (docs/audit-android-2026-09-11.md §C3) : compte les tentatives
+    // compte les tentatives
     // de demarrage differe du serveur Python quand getExternalFilesDir()
     // renvoie encore null (stockage pas encore monte au demarrage a froid -
     // rare mais deja observe sur d'autres apps Android en Direct Boot ou
     // juste apres un redemarrage). Avant ce lot, une valeur null etait
     // transmise telle quelle a bobine_bootstrap.py, qui retombait
     // SILENCIEUSEMENT sur le dossier interne prive AssetFinder/app/
-    // (ecrase par Chaquopy a chaque mise a jour, cf. Lot 9) - source
+    // (ecrase par Chaquopy a chaque mise a jour) - source
     // probable des disparitions de bibliotheque rapportees (donnees ecrites
     // dans la mauvaise base le temps de cette fenetre, jusqu'au prochain
     // redemarrage du service).
@@ -274,11 +272,11 @@ class BobineForegroundService : Service() {
     }
 
     private fun startPythonServerWhenStorageReady() {
-        // Lot 9 : stockage externe specifique a l'app (persiste entre mises
+        // stockage externe specifique a l'app (persiste entre mises
         // a jour, visible via un gestionnaire de fichiers/MTP) - reserve
-        // aux MEDIAS depuis le Lot 15 (gros fichiers, cf.
+        // aux MEDIAS (gros fichiers, voir
         // bobine_bootstrap.py). PAS le dossier interne AssetFinder/app/ ou
-        // Chaquopy redeploie les sources Python elles-memes (Lot 9).
+        // Chaquopy redeploie les sources Python elles-memes.
         val externalFilesDirs = ContextCompat.getExternalFilesDirs(applicationContext, null).filterNotNull()
         if (externalFilesDirs.isEmpty()) {
             storageRetries++
@@ -300,11 +298,11 @@ class BobineForegroundService : Service() {
             externalFilesDirs.first().absolutePath
         }
 
-        // Lot 15 (docs/audit-android-2026-09-11.md §C1/C3) : dossier PRIVE
+        // dossier PRIVE
         // de l'app sur le stockage interne (f2fs natif, jamais FUSE) - base
         // SQLite, miniatures, logs, branding, pochettes radio.
         val internalFilesDir = applicationContext.filesDir.absolutePath
-        // Lot 8 : dossier natif de l'app (seul emplacement d'ou Android 10+
+        // dossier natif de l'app (seul emplacement d'ou Android 10+
         // autorise l'execution d'un binaire embarque, contrainte W^X) -
         // c'est la ou les jniLibs/<abi>/lib{ffmpeg,ffprobe}.so finissent
         // apres installation.
@@ -318,7 +316,7 @@ class BobineForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // START_STICKY : le systeme relance le service (sans le dernier
         // Intent) s'il le tue pour recuperer de la memoire - ne remplace
-        // pas l'exemption batterie du Lot 10, mais aide sur les kills
+        // pas l'exemption batterie, mais aide sur les kills
         // "normaux" (pression memoire) par opposition aux politiques
         // d'economie d'energie constructeur agressives.
         return START_STICKY
@@ -357,7 +355,7 @@ class BobineForegroundService : Service() {
         }
         if (presentation != null || presentationAttemptInFlight) return
         // displayId 0 = ecran interne de la tablette (jamais une sortie
-        // HDMI) - cf. CDC SS3.2, une seule Presentation a la fois attendue
+        // HDMI) - une seule Presentation a la fois attendue
         // ici (un seul dock/sortie externe par appareil dans ce cas
         // d'usage). Voir externalDisplays() pour le filtrage des ecrans prives.
         val external = externalDisplays().firstOrNull() ?: return
@@ -367,7 +365,7 @@ class BobineForegroundService : Service() {
         // DisplayContent - Presentation.show() leve alors
         // InvalidDisplayException ("the specified display can not be
         // found"). Constate de facon systematique et reproductible sur
-        // l'emulateur (Lot 4) juste apres le demarrage du service, y
+        // l'emulateur juste apres le demarrage du service, y
         // compris apres un branchement a chaud simule - plausible aussi
         // sur un vrai branchement HDMI a chaud, pas seulement un artefact
         // d'emulateur. Repli en reessai avec un court delai plutot qu'un
@@ -388,7 +386,7 @@ class BobineForegroundService : Service() {
             // Toute exception (InvalidDisplayException attendue au demarrage,
             // mais aussi BadTokenException/SecurityException selon l'OEM) est
             // retentee SANS abandon definitif : 15 essais rapides (7,5 s, mesure
-            // en pratique Lot 4) puis un essai toutes les 5 s. Avant ce lot,
+            // en pratique) puis un essai toutes les 5 s. Auparavant,
             // l'abandon apres 15 essais laissait un projecteur a EDID tardif
             // noir jusqu'a un rebranchement du cable.
             presentation = null

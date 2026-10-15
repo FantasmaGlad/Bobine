@@ -2,8 +2,7 @@
 scène par la tâche Gradle `stagePythonSources`) et lancement d'uvicorn dans
 un thread. Appelé par `BobineForegroundService.kt`.
 
-Lot 15 (docs/audit-android-2026-09-11.md §C1/C3, réf. plan-implementation-
-android.md) : reçoit désormais DEUX racines de stockage, pas une seule.
+Reçoit DEUX racines de stockage, pas une seule.
 - `internal_files_dir` (`context.filesDir` côté Kotlin) : stockage privé de
   l'app sur `/data`, f2fs natif, jamais servi par FUSE — utilisé pour la
   base SQLite, les miniatures, les logs, le branding et les pochettes radio
@@ -14,10 +13,8 @@ android.md) : reçoit désormais DEUX racines de stockage, pas une seule.
   médias (vidéos, fonds, audio, radio : gros fichiers lus par blocs
   séquentiels, coût FUSE par octet négligeable, contrairement à la base).
 
-Avant Lot 15, la base SQLite vivait sur le stockage externe (FUSE) — cause
-racine mesurée de la lenteur/non-réponse réseau (docs/audit-android-2026-09-11.md
-§4 : chaque écriture SQLite bloquant sur FUSE ralentit toute la boucle
-d'évènements, jusqu'à `PRAGMA busy_timeout=30000`). Ce module migre une
+Auparavant, la base SQLite vivait sur le stockage externe (FUSE) — cause
+racine mesurée de la lenteur/non-réponse réseau. Ce module migre une
 installation existante UNE SEULE FOIS, avant tout import de `app.config`
 (la seule fenêtre où poser les variables d'environnement compte, cf.
 `config.py::DATA_ROOT`/`_android_internal_root()` calculés une fois au
@@ -73,8 +70,7 @@ def _checkpoint_and_copy_database(external_data_dir, internal_data_dir):
 
         shutil.copy2(external_db, internal_db)
 
-        # Réécriture des chemins absolus stockés en base (réf. même schéma
-        # que scripts/migrate_unify_data_dirs.py) : thumbnail_path et
+        # Réécriture des chemins absolus stockés en base : thumbnail_path et
         # cover_path pointaient vers l'ancien dossier externe, qui ne
         # contiendra plus ces fichiers une fois les dossiers ci-dessous
         # migrés — sans cette réécriture, toutes les miniatures/pochettes
@@ -144,21 +140,20 @@ def _migrate_to_internal_storage_once(external_files_dir, internal_files_dir):
 
 def start_server_once(external_files_dir=None, native_library_dir=None, internal_files_dir=None, app_version=None):
     """`external_files_dir` : `context.getExternalFilesDir(null)` côté
-    Kotlin (Lot 9) — médias uniquement depuis le Lot 15, cf. docstring de
+    Kotlin — médias uniquement, cf. docstring de
     module.
 
-    `internal_files_dir` : `context.filesDir` côté Kotlin (Lot 15) — base
+    `internal_files_dir` : `context.filesDir` côté Kotlin — base
     SQLite, miniatures, logs, branding, pochettes radio. Optionnel pour ne
     pas casser un appelant Kotlin non mis à jour (repli intégral sur
-    `external_files_dir` pour tout, comportement du Lot 9).
+    `external_files_dir` pour tout, comportement historique).
 
     `native_library_dir` : `context.applicationInfo.nativeLibraryDir` côté
-    Kotlin (Lot 8) — Android 10+ interdit d'exécuter un binaire natif
+    Kotlin — Android 10+ interdit d'exécuter un binaire natif
     depuis ailleurs que ce dossier (contrainte W^X). Pose
     BOBINE_FFMPEG_BIN/BOBINE_FFPROBE_BIN vers les binaires statiques ARM64
     embarqués en lib*.so, UNIQUEMENT s'ils existent réellement (absents
-    d'un build local sans l'étape de récupération CI, cf. Découvertes du
-    Lot 8) — sinon app.utils.ffmpeg_binaries retombe sur les noms nus.
+    d'un build local sans l'étape de récupération CI) — sinon app.utils.ffmpeg_binaries retombe sur les noms nus.
 
     `app_version` : version de l'application passée depuis BuildConfig.VERSION_NAME."""
     global _started
@@ -188,7 +183,7 @@ def start_server_once(external_files_dir=None, native_library_dir=None, internal
         import uvicorn
         from app.main import app
 
-        # Lot 15 (docs/audit-android-2026-09-11.md §2/C2) : keepalive HTTP
+        # keepalive HTTP
         # allongé (Chromium/WebView ré-ouvrait une connexion TCP entre deux
         # requêtes Range espacées de plus de 5s, coût élevé sur ce
         # matériel) ; ping WebSocket natif d'uvicorn désactivé (le

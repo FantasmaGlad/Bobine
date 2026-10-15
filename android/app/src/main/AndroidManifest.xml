@@ -5,19 +5,19 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Lot 6 : aucun type standard (mediaPlayback, location...) ne
+    <!-- aucun type standard (mediaPlayback, location...) ne
          correspond a "serveur local + affichage externe" - specialUse est
          le mecanisme prevu par Android 14+ pour ce cas, avec justification
          explicite (PROPERTY_SPECIAL_USE_FGS_SUBTYPE ci-dessous). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- Lot 10 : permission normale (accordee automatiquement a
+    <!-- permission normale (accordee automatiquement a
          l'installation, pas de prompt runtime) - condition necessaire
          pour etre eligible a l'exemption Doze/optimisation batterie via
          ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (MainActivity). -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    <!-- Lot 11 : permission normale, evite seulement l'ecran "Autoriser
+    <!-- permission normale, evite seulement l'ecran "Autoriser
          les sources inconnues" avant l'installation d'un APK via
          Intent.ACTION_VIEW (UpdateManager.kt) - la boite de dialogue de
          confirmation d'installation elle-meme reste toujours affichee. -->
@@ -54,7 +54,7 @@
                 android:value="Serveur de diffusion video local (backend Bobine + sortie HDMI)" />
         </service>
 
-        <!-- Lot 10 : Device Owner sans Lock Task (CDC SS7). exported=true
+        <!-- Device Owner sans Lock Task. exported=true
              + BIND_DEVICE_ADMIN + l'intent-filter DEVICE_ADMIN_ENABLED
              sont IMPOSES par l'API DevicePolicyManager, pas une decision
              de securite laxiste ici - BIND_DEVICE_ADMIN restreint deja
@@ -71,7 +71,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- Lot 11 : expose uniquement cacheDir/updates/ (cf.
+        <!-- expose uniquement cacheDir/updates/ (cf.
              res/xml/file_paths.xml) a l'installeur de paquets systeme, le
              temps de l'installation d'une mise a jour telechargee. -->
         <provider

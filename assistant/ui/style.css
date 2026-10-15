@@ -876,8 +876,7 @@ body {
   margin-top: 14px;
 }
 
-/* Bannière "nouvelle version de l'assistant disponible" (réf. mission
-   "canal Stable/Bêta" — notification + bouton de téléchargement). Style
+/* Bannière "nouvelle version de l'assistant disponible". Style
    général de l'installateur (gris neutre --accent-primary, pas de bleu
    d'alerte) — cohérent avec le reste de l'IHM plutôt qu'une couleur
    "notification système" hors charte. */
@@ -909,8 +908,7 @@ body {
   font-size: 0.8rem;
 }
 
-/* Numéro de version, coin bas-droit (réf. mission "hiérarchie des
-   versions") — discret, toujours visible, même style neutre que le reste
+/* Numéro de version, coin bas-droit — discret, toujours visible, même style neutre que le reste
    de l'IHM. */
 .app-version-badge {
   position: fixed;

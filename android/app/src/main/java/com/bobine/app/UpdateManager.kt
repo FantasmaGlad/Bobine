@@ -47,8 +47,8 @@ private class UpdateRejected(message: String) : IllegalStateException(message)
 /**
  * Telecharge l'APK de la release choisie dans Reglages, le VERIFIE, puis
  * declenche l'installation standard Android (boite de dialogue systeme de
- * confirmation - pas de contournement silencieux, conforme a la decision
- * du CDC : "Android exige une interaction explicite pour ce type
+ * confirmation - pas de contournement silencieux, conforme au principe
+ * "Android exige une interaction explicite pour ce type
  * d'installation hors store"; seul le telechargement/la verification se
  * declenchent sans supervision, jamais l'installation finale).
  *
@@ -270,7 +270,7 @@ object UpdateManager {
         // Intent.ACTION_VIEW sur un .apk affiche TOUJOURS la boite de dialogue
         // systeme d'installation (nom du paquet, permissions, confirmer) -
         // c'est le comportement voulu, pas un contournement a chercher a
-        // eviter (cf. CDC). REQUEST_INSTALL_PACKAGES (Manifest) envoie
+        // eviter. REQUEST_INSTALL_PACKAGES (Manifest) envoie
         // l'utilisateur vers l'ecran "Autoriser cette source" si besoin.
         return Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "application/vnd.android.package-archive")

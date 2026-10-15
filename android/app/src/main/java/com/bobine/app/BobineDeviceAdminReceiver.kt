@@ -1,7 +1,7 @@
 package com.bobine.app
 
 /**
- * Device Owner SANS Lock Task - CDC §7, décision explicite de ne pas
+ * Device Owner SANS Lock Task - décision explicite de ne pas
  * verrouiller la tablette (geste système standard toujours possible). Ce
  * receiver ne déclare AUCUNE politique de restriction
  * (`res/xml/device_admin.xml` est volontairement vide) : le statut de

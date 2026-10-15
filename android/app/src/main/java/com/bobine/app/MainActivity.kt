@@ -31,13 +31,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
-// Revision du 2026-09-09 (Lot 14, demande explicite utilisateur) : l'ecran
+// Revision du 2026-09-09 : l'ecran
 // tactile charge desormais /grid, pas /cinema - une grille de selection
 // SEULE, qui ne bascule jamais vers un lecteur video local. Choisir un
 // cours au toucher envoie un ordre "launch" sur le canal cable (meme
-// mecanisme que les commandes admin play/pause/seek/stop deja existantes,
-// cf. docs/plan-implementation-android.md Lot 14) - c'est BobinePresentation
-// (HDMI, /cinema, cf. Lot 4) qui joue reellement le cours. Sans cette
+// mecanisme que les commandes admin play/pause/seek/stop deja existantes) - c'est BobinePresentation
+// (HDMI, /cinema) qui joue reellement le cours. Sans cette
 // separation, la tablette aurait aussi redecode/rejoue la meme video que
 // l'ecran HDMI des qu'un cours demarre (les deux chargeaient /cinema,
 // qui ne distingue aucun role primaire/miroir dans son rendu).
@@ -47,13 +46,11 @@ private const val GRID_URL = "http://127.0.0.1:8000/grid/"
 private const val KIOSK_URL = "http://127.0.0.1:8000/kiosk"
 
 /**
- * Ecran tactile de la tablette ou affichage Leanback Android TV (Lot 5 / Android TV) :
+ * Ecran tactile de la tablette ou affichage Leanback Android TV :
  * plein ecran immersif au demarrage, mais PAS de Lock Task - un geste
- * standard Android (Accueil, multitache) reste actif a tout moment (CDC
- * docs/ARCHITECTURE.md SS2/SS7, decision explicite : la tablette
- * reste utilisable pour autre chose, pas un poste dedie).
+ * standard Android (Accueil, multitache) reste actif a tout moment.
  *
- * Ne demarre plus le backend elle-meme depuis le Lot 6 : c'est
+ * Ne demarre plus le backend elle-meme : c'est
  * `BobineForegroundService` qui le fait, decouple du cycle de vie de
  * cette Activity - fermer l'app ne coupe plus la diffusion HDMI.
  */
@@ -73,7 +70,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val handler = Handler(Looper.getMainLooper())
-    // Lot 15 (docs/audit-android-2026-09-11.md §C2/C4) : champ de classe
+    // champ de classe
     // plutot qu'une simple val locale de onCreate() - necessaire pour
     // relayer onResume()/onPause() de l'Activity vers la WebView
     // (webView.onResume()/onPause() pilotent son cycle de rendu interne,
@@ -85,7 +82,7 @@ class MainActivity : AppCompatActivity() {
     // demande explicite a l'utilisateur est necessaire. Sans elle,
     // `startForeground()` (BobineForegroundService) demarre quand meme le
     // service normalement (pas de crash) mais la notification persistante
-    // reste invisible - constate en pratique (Lot 6) : le service et le
+    // reste invisible - constate en pratique : le service et le
     // serveur survivaient bien a la fermeture de l'app, mais
     // `dumpsys notification` ne montrait rien pour com.bobine.app.
     private val notificationPermissionLauncher =
@@ -121,7 +118,7 @@ class MainActivity : AppCompatActivity() {
 
         // Debug uniquement (build debug) : console JS visible dans logcat
         // (tag "WebViewConsole") et inspection chrome://inspect. Restreint
-        // au build debug (Lot 15) : rester actif en release ouvrait une
+        // au build debug : rester actif en release ouvrait une
         // surface de debogage locale inutile en production, sans aucun
         // benefice (personne n'inspecte un kiosque de salle via USB).
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
@@ -132,8 +129,7 @@ class MainActivity : AppCompatActivity() {
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
         webView.settings.mediaPlaybackRequiresUserGesture = false
-        // LOAD_DEFAULT plutot que LOAD_NO_CACHE (Lot 15, docs/audit-android-
-        // 2026-09-11.md §C4) : le serveur impose deja une revalidation
+        // LOAD_DEFAULT plutot que LOAD_NO_CACHE : le serveur impose deja une revalidation
         // systematique (Cache-Control: no-cache + ETag, cf.
         // RevalidateStaticFiles dans backend/app/main.py, ajoute APRES la
         // decouverte initiale du probleme de cache HTTP heuristique
@@ -144,7 +140,7 @@ class MainActivity : AppCompatActivity() {
         // des ecrans » (clearCachesAndReload cote frontend) continue de vider
         // le cache HTTP explicitement pour forcer une vraie mise a jour.
         webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
-        // Lot 15 (docs/audit-android-2026-09-11.md §C2) : priorite de rendu
+        // priorite de rendu
         // elevee meme quand cette Activity passe en arriere-plan (l'admin
         // ouvert dans Chrome par-dessus) - sans ceci, le systeme peut
         // deprioriser fortement le compositeur de cette WebView, aggravant
@@ -241,7 +237,7 @@ class MainActivity : AppCompatActivity() {
         if (hasFocus) applyImmersiveFullscreen()
     }
 
-    // Lot 10 (cf. docs/plan-implementation-android.md) : sans exemption
+    // sans exemption
     // Doze/optimisation batterie, le systeme peut ralentir/suspendre le
     // ForegroundService apres une longue inactivite ecran (le service
     // reste demarre, mais son travail de fond - reseau, timers - peut
@@ -251,7 +247,7 @@ class MainActivity : AppCompatActivity() {
     // (demande unique a l'installation initiale, pas a chaque demarrage,
     // cf. isIgnoringBatteryOptimizations ci-dessous), contrairement a un
     // contournement silencieux via Device Owner dont l'existence n'a pas
-    // ete confirmee de facon fiable inter-OEM (cf. Decouvertes du Lot 10 -
+    // ete confirmee de facon fiable inter-OEM ( -
     // HyperOS/MIUI est connu pour ignorer les mecanismes AOSP standards et
     // exiger des reglages constructeur additionnels, non automatisables
     // depuis l'app).

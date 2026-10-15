@@ -1,9 +1,6 @@
 use std::path::Path;
 
-/// Embarque la version et le commit de build dans le binaire (réf. mission
-/// "hiérarchie des versions" — l'assistant ne pouvait pas se comparer
-/// correctement aux releases GitHub car il n'avait aucune idée de sa propre
-/// version). Lit `VERSION`/`COMMIT` à la racine du dépôt — mêmes fichiers
+/// Embarque la version et le commit de build dans le binaire. Lit `VERSION`/`COMMIT` à la racine du dépôt — mêmes fichiers
 /// que ceux lus par le backend Python (`app/utils/version.py`), écrits par
 /// la CI juste avant `cargo build` (VERSION suffixée "-beta" pour un build
 /// du canal Bêta, cf. ci.yml). Repli sur des valeurs de développement si

@@ -14,7 +14,7 @@ pub struct SshCredentials {
     pub password: Option<String>,
     /// Chemin local d'une clé privée SSH importée explicitement (bouton
     /// "Importer une clé SSH") — prioritaire sur le mot de passe et le
-    /// repli automatique sur ~/.ssh/ (réf. mission "clé SSH locale").
+    /// repli automatique sur ~/.ssh/.
     #[serde(default)]
     pub key_path: Option<String>,
 }

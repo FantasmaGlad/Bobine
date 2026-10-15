@@ -1,5 +1,5 @@
 //! Amorçage des privilèges : décide comment lancer `install.sh` selon l'état
-//! de `sudo` sur la cible (réf. `docs/cahier-des-charges-installeur.md` §7).
+//! de `sudo` sur la cible.
 //!
 //! Rappel du problème : sur un Debian minimal, `sudo` peut être **absent** et
 //! l'utilisateur **non-sudoer** (cas « mot de passe root défini »). On retient

@@ -21,14 +21,14 @@ import android.webkit.WebViewClient
 // 127.0.0.1 (PAS 127.0.0.2 comme l'ecran tactile, cf. MainActivity) :
 // isWiredDisplay() (frontend/src/lib/useDisplayOutputRedirect.ts) classe
 // cet hostname exact "cable" - la sortie HDMI doit suivre le reglage
-// cableOutput choisi par l'admin (CDC docs/ARCHITECTURE.md SS4),
+// cableOutput choisi par l'admin,
 // exactement comme le canal Cable existant sur mini PC x86.
-// ?channel=cable EXPLICITE (plan 4.0, P2-1) : la sortie HDMI est toujours le
+// ?channel=cable EXPLICITE : la sortie HDMI est toujours le
 // canal cable, quel que soit le nom d'hote — voir lib/displayChannel.ts.
 private const val CINEMA_URL = "http://127.0.0.1:8000/cinema/?channel=cable"
 
 /**
- * Lot 4 (cf. docs/plan-implementation-android.md) : rendu independant sur
+ * rendu independant sur
  * l'ecran externe (HDMI via le dock USB-C), pas une simple recopie de
  * l'ecran tactile - c'est le mecanisme standard Android pour du contenu
  * reellement distinct par ecran (utilise par Chromecast/Android Auto).
@@ -66,8 +66,7 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
         webView.settings.mediaPlaybackRequiresUserGesture = false
-        // LOAD_DEFAULT plutot que LOAD_NO_CACHE (Lot 15, docs/audit-android-
-        // 2026-09-11.md §C4) : le probleme de fraicheur heuristique qui avait
+        // LOAD_DEFAULT plutot que LOAD_NO_CACHE : le probleme de fraicheur heuristique qui avait
         // motive LOAD_NO_CACHE est desormais couvert cote SERVEUR
         // (Cache-Control: no-cache + ETag sur le frontend statique, cf.
         // RevalidateStaticFiles dans backend/app/main.py) - une revalidation
@@ -80,7 +79,7 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
         // (clearCachesAndReload cote frontend) continue de vider le cache
         // HTTP explicitement pour forcer une vraie mise a jour.
         webView.settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
-        // Lot 15 (docs/audit-android-2026-09-11.md §C2/C5) : priorite de
+        // priorite de
         // rendu elevee explicite - cette Presentation tourne portee par un
         // ForegroundService SANS Activity visible (importance systeme
         // potentiellement plus basse qu'une app au premier plan), alors
@@ -102,7 +101,7 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
                 request: WebResourceRequest,
                 error: WebResourceError
             ) {
-                // Meme raison qu'au Lot 2 (MainActivity) : le serveur peut ne
+                // Meme raison que dans MainActivity : le serveur peut ne
                 // pas encore ecouter au tout premier affichage.
                 if (request.isForMainFrame) {
                     handler.postDelayed({ view.loadUrl(CINEMA_URL) }, 500)

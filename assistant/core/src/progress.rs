@@ -1,6 +1,6 @@
 //! Parse le flux machine de `install.sh --progress=json`.
 //!
-//! Contrat (réf. `docs/cahier-des-charges-installeur.md` §10) : `install.sh`
+//! Contrat : `install.sh`
 //! émet une **ligne JSON compacte par évènement**, versionnée par la clé de
 //! tête `"bobine":1`. Les autres lignes du flux sont du journal humain, à
 //! afficher tel quel. On distingue donc trois natures de ligne

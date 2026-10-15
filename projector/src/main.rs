@@ -1,4 +1,4 @@
-//! Fenetre native plein ecran de Bobine pour le projecteur (plan 4.0, P1-3b).
+//! Fenetre native plein ecran de Bobine pour le projecteur.
 //!
 //! Pourquoi : sur macOS, Safari n'offre ni mode kiosque en ligne de commande, ni
 //! choix de l'ecran ou s'ouvre la fenetre, et bloque l'autoplay avec son ;

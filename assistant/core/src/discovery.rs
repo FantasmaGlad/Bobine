@@ -1,5 +1,4 @@
-//! Arithmétique de découverte réseau (réf.
-//! `docs/cahier-des-charges-installeur.md` §6).
+//! Arithmétique de découverte réseau.
 //!
 //! Logique **pure** uniquement : déduire le `/24` local à sonder à partir de
 //! l'IP du poste admin, et modéliser un candidat. Le scan effectif (port 22,
@@ -156,7 +155,7 @@ fn looks_like_mac(tok: &str) -> bool {
     parts.len() == 6 && parts.iter().all(|p| (1..=2).contains(&p.len()) && p.chars().all(|c| c.is_ascii_hexdigit()))
 }
 
-/// Un candidat trouvé sur le réseau (§6). Les champs optionnels se remplissent
+/// Un candidat trouvé sur le réseau. Les champs optionnels se remplissent
 /// au fil des sondes (résolution de nom, bannière SSH…).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Candidate {

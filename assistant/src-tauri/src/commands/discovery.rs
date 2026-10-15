@@ -16,7 +16,7 @@ use bobine_installer_core::discovery::{
 };
 
 /// Un appareil détecté sur le réseau — pas nécessairement une cible Bobine.
-/// Réf. mission "scan réseau complet" : l'assistant affiche TOUT ce qui
+/// l'assistant affiche TOUT ce qui
 /// répond (nom, IP, OS estimé, ports ouverts), pas seulement les appareils
 /// SSH/Bobine — un utilisateur qui prépare un déploiement headless doit
 /// pouvoir reconnaître sa borne au milieu du reste du réseau (routeur,

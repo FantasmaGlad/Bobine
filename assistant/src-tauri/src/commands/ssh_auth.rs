@@ -17,7 +17,7 @@ impl<'a> ssh2::KeyboardInteractivePrompt for SimplePasswordPrompt<'a> {
 
 /// Authentifie une session SSH en testant successivement :
 /// 1. Clé SSH explicitement importée par l'utilisateur (bouton "Importer une
-///    clé SSH", réf. mission "clé SSH locale") — prioritaire sur tout le
+///    clé SSH") — prioritaire sur tout le
 ///    reste puisque choisie sciemment.
 /// 2. Mot de passe direct (si renseigné)
 /// 3. Authentification clavier-interactive / PAM (si mot de passe renseigné)
