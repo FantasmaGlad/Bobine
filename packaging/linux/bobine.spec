@@ -1,5 +1,4 @@
-# PyInstaller spec — BobineBackend + BobineTray (PortabiliteCrossPlatformX
-# Lot 2 — Linux de bureau .deb). Mode "onedir" autonome : les deux exécutables
+# PyInstaller spec — BobineBackend + BobineTray. Mode "onedir" autonome : les deux exécutables
 # partagent le même dossier de sortie dist/Bobine/ qui est copié tel quel
 # dans /usr/lib/bobine/.
 
@@ -16,7 +15,7 @@ BACKEND_DIR = REPO_DIR / "backend"
 datas = [
     (str(REPO_DIR / "config.toml"), "."),
     (str(REPO_DIR / "Assets" / "Images" / "logo_bobine_icon.png"), "."),
-    # Numéro de version bundlé (réf. mission "canal Stable/Bêta") — lu au
+    # Numéro de version bundlé — lu au
     # runtime par app.utils.version.get_app_version() à côté de l'exécutable,
     # même mécanisme que config.toml ci-dessus.
     (str(REPO_DIR / "VERSION"), "."),

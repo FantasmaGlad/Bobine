@@ -38,15 +38,14 @@ fi
 # lui-même — sinon l'ancienne logique d'installation s'appliquerait à du code
 # plus récent.
 SELF_SHA="$([[ -f "${SELF_PATH}" ]] && sha256sum "${SELF_PATH}" 2>/dev/null | cut -d' ' -f1 || true)"
-# Source de vérité unique du numéro de version (réf. mission "canal Stable/
-# Bêta") : fichier VERSION à la racine du dépôt, lu ici et par les scripts de
+# Source de vérité unique du numéro de version : fichier VERSION à la racine du dépôt, lu ici et par les scripts de
 # packaging (packaging/linux/build_deb.sh, packaging/macos/build_app.sh) —
 # repli "3.0.4" si le fichier est absent (ex. script copié isolément).
 SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "4.0.3")"
 # Déplacé ici (auparavant défini beaucoup plus bas, avec le reste du bloc
 # "Cible") : nécessaire tôt pour select_update_channel(), qui lit/écrit le
 # canal choisi (${CONFIG_DIR}/update-channel) avant même l'exécution du
-# premier step() — cf. réf. mission "canal Stable/Bêta".
+# premier step().
 CONFIG_DIR="/etc/bobine"
 
 # ============================================================================
@@ -249,7 +248,7 @@ select_installer_language() {
 
 select_installer_language
 
-# Canal de mise à jour (réf. mission "Programme Bobine Beta") : "stable" ou
+# Canal de mise à jour : "stable" ou
 # "beta". Une réinstallation idempotente (--skip-packages après un 'git
 # pull', cf. en-tête du script) reprend le canal précédemment choisi plutôt
 # que de retomber sur stable à chaque relance — c'est aussi ce que
@@ -288,8 +287,7 @@ select_update_channel() {
 select_update_channel
 
 # --progress=json : sortie machine (une ligne JSON par évènement) pour piloter
-# une barre de progression depuis l'assistant graphique (réf.
-# docs/cahier-des-charges-installeur.md §10). Seule la valeur 'json' est gérée.
+# une barre de progression depuis l'assistant graphique. Seule la valeur 'json' est gérée.
 case "${PROGRESS}" in
     "")     ;;
     json)   PROGRESS_JSON=true ;;
@@ -647,7 +645,7 @@ STEP_OPEN=false
 # une barre de progression + un journal repliable, sans que ces lignes polluent
 # le fichier journal humain. Schéma versionné par la clé de tête "bobine":1
 # (le consommateur filtre les lignes qui matchent ^\{"bobine":). Silencieux hors
-# --progress=json. Réf. docs/cahier-des-charges-installeur.md §10.
+# --progress=json.
 # Astuce SSH : allouer un PTY pour un flush ligne à ligne côté assistant.
 _json_escape() { local s="$1"; s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; printf '%s' "$s"; }
 _now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
@@ -744,8 +742,7 @@ fi
 
 # Compte cible (propriétaire des fichiers, service kiosk, groupes GPU) :
 #  - chemin classique : SUDO_USER (le compte ayant lancé sudo) ;
-#  - chemin --as-user (root direct via 'su -', machine sans sudo, réf. cahier
-#    des charges installeur §7 « option B ») : le login fourni explicitement.
+#  - chemin --as-user (root direct via 'su -', machine sans sudo) : le login fourni explicitement.
 if [[ -n "${AS_USER}" ]]; then
     TARGET_USER="${AS_USER}"
 elif [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
@@ -840,8 +837,7 @@ if $DO_UNINSTALL; then
         if $DO_PURGE_DATA; then
             if confirm "${RED}Supprimer aussi les médias importés (${REPO_DIR}/data et l'ancien ${REPO_DIR}/backend/data) ? IRRÉVERSIBLE.${RESET}"; then
                 run rm -rf "${REPO_DIR}/data"
-                # Ancien emplacement historique (réf. §10.1 cahier des charges
-                # Radio) : audio/fonds/logs pouvaient y résider avant unification
+                # Ancien emplacement historique : audio/fonds/logs pouvaient y résider avant unification
                 # — sans cette ligne ils survivaient à un --purge-data (orphelins).
                 run rm -rf "${REPO_DIR}/backend/data"
                 warn "Médias importés supprimés (nouvel et ancien emplacement)."
@@ -907,8 +903,7 @@ do_check() {
         box_line "  ✗ build frontend absent"
     fi
     [[ -d "${VENV_DIR}" ]] && box_line "  ✓ environnement Python présent" || box_line "  ✗ environnement Python absent"
-    # Réf. audit-android-2026-09-11.md (mission secondaire, écart H4) : même
-    # vérification qu'en fin d'installation, rejouable à tout moment sans
+    # Même vérification qu'en fin d'installation, rejouable à tout moment sans
     # réinstaller quoi que ce soit.
     if ! $NO_KIOSK; then
         box_mid
@@ -1026,7 +1021,7 @@ write_file "${CONFIG_DIR}/update-channel" <<< "${UPDATE_CHANNEL}"
 
 if [[ -d "${REPO_DIR}/.git" ]]; then
     # --force : le canal Bêta repose sur un tag UNIQUE et mobile ("beta",
-    # réf. mission "canal Stable/Bêta" — un seul fichier de release Bêta sur
+    # un seul fichier de release Bêta sur
     # GitHub plutôt qu'un tag par itération) — sans --force, un `git fetch`
     # classique refuse de mettre à jour un tag local si le tag distant a
     # bougé depuis le dernier fetch.
@@ -1104,9 +1099,7 @@ else
         pipewire-pulse \
         wireplumber \
         pulseaudio-utils
-    # Réf. mission "vérifie que l'installateur configure bien les sorties
-    # audio" (audit-android-2026-09-11.md, mission secondaire) : ni
-    # alsa-utils (amixer/aplay/alsactl) ni PipeWire/WirePlumber n'étaient
+    # ni alsa-utils (amixer/aplay/alsactl) ni PipeWire/WirePlumber n'étaient
     # jamais installés par ce script alors que l'étape "audio" plus bas
     # écrit déjà une configuration WirePlumber dédiée
     # (/etc/wireplumber/wireplumber.conf.d/51-fix-jack-autoport.conf) et que
@@ -1134,8 +1127,7 @@ else
     ok "matériel détecté — GPU: Intel=$HAS_INTEL_GPU AMD=$HAS_AMD_GPU NVIDIA=$HAS_NVIDIA_GPU | CPU=${CPU_VENDOR:-inconnu}"
 
     # Les pilotes/firmwares non libres exigent les composants non-free* : on les
-    # active AVANT si du matériel en a besoin, puis on rafraîchit apt (réf.
-    # docs/cahier-des-charges-installeur.md §9).
+    # active AVANT si du matériel en a besoin, puis on rafraîchit apt.
     if $HAS_INTEL_GPU || $HAS_AMD_GPU || $HAS_NVIDIA_GPU; then
         if ! $DRY_RUN && ensure_apt_components; then
             run apt-get "${APT_OPTS[@]}" update -qq || true
@@ -1261,8 +1253,7 @@ step config "Configuration de production"
 # ---------------------------------------------------------------------------
 log "Écriture de ${CONFIG_FILE}"
 run mkdir -p "${CONFIG_DIR}"
-# Tous les dossiers média sous un unique arbre ${REPO_DIR}/data (réf. §10.1 du
-# cahier des charges Radio) : avant ce correctif, seuls videos/watched/
+# Tous les dossiers média sous un unique arbre ${REPO_DIR}/data : avant ce correctif, seuls videos/watched/
 # thumbnails étaient créés/déclarés, et audio/fonds/logs retombaient sur les
 # défauts relatifs à backend/ → données éclatées sur deux arbres.
 run mkdir -p \
@@ -1290,7 +1281,7 @@ backgrounds_dir = "${REPO_DIR}/data/backgrounds"
 backgrounds_watch_dir = "${REPO_DIR}/data/backgrounds_watched"
 audio_dir = "${REPO_DIR}/data/audio"
 audio_watch_dir = "${REPO_DIR}/data/audio_watched"
-# Module Radio (réf. docs/cahier-des-charges-radio.md) : sous-système musical
+# Module Radio : sous-système musical
 # indépendant, dossiers séparés des cours audio coach.
 radio_dir = "${REPO_DIR}/data/radio"
 radio_covers_dir = "${REPO_DIR}/data/radio_covers"
@@ -1310,8 +1301,7 @@ volume_default = 100
 EOF
 ok "configuration écrite"
 
-# Convergence des installations antérieures (réf. §10.1 du cahier des charges
-# Radio) : jusqu'ici audio/fonds/logs pouvaient résider sous backend/data. On
+# Convergence des installations antérieures : jusqu'ici audio/fonds/logs pouvaient résider sous backend/data. On
 # le signale et on oriente vers le script de migration dédié (opt-in, sauvegarde
 # la base avant toute réécriture, à lancer backend arrêté) plutôt que de
 # relocaliser automatiquement des données de production en plein install.
@@ -1467,7 +1457,7 @@ for _ in $(seq 1 60); do
     sleep 1
 done
 
-# Sécurité audio (réf. diagnostic prises jack qui hurlent) : WirePlumber/ACP
+# Sécurité audio : WirePlumber/ACP
 # réinitialise certains registres bruts du codec (dont 'Auto-Mute Mode') à
 # leur valeur par défaut ('Disabled') à chaque activation de profil, ce qui
 # annule silencieusement 'alsactl store' au boot suivant — reconstaté ici
@@ -1502,16 +1492,14 @@ for BOBINE_CARD in $(awk -F'[][]' '/^ *[0-9]+ \[/{print $2}' /proc/asound/cards 
     # indépendant de ces niveaux matériels de référence.
     amixer -c "${BOBINE_CARD}" scontrols 2>/dev/null | sed -n "s/^Simple mixer control '\([^']*\)'.*/\1/p" | sort -u | while IFS= read -r BOBINE_CTRL; do
         case "${BOBINE_CTRL}" in
-            # IEC958*/Beep/Loopback ajoutés (réf. audit-android-2026-09-11.md,
-            # écart H8) : un contrôle numérique S/PDIF ou de rebouclage
+            # IEC958*/Beep/Loopback ajoutés : un contrôle numérique S/PDIF ou de rebouclage
             # démuté à 100% par erreur peut activer une sortie parasite sur
             # certains codecs, jamais souhaitée sur ce déploiement.
             *[Mm]ic*|*Boost|Capture|"Input Source"|"Auto-Mute Mode"|IEC958*|Beep|Loopback) continue ;;
         esac
         amixer -c "${BOBINE_CARD}" sset "${BOBINE_CTRL}" 100% unmute >/dev/null 2>&1 || true
     done
-    # Chemin micro fermé (réf. "bruit strident continu même pendant la
-    # lecture") : la prise avant est une prise combo casque/micro (TRRS) — le
+    # Chemin micro fermé : la prise avant est une prise combo casque/micro (TRRS) — le
     # codec y détectait un "Headset Mic" fantôme et polarisait le contact
     # micro avec Capture ET Headset Mic Boost à fond (+60dB cumulés). Un câble
     # stéréo TRS classique branché là court-circuite ce contact polarisé vers
@@ -1598,8 +1586,7 @@ WantedBy=multi-user.target
 EOF
     ok "bobine-kiosk.service + kiosk-xinitrc écrits"
 
-    # Branchement/débranchement d'un projecteur ou d'une TV à chaud (plan 4.0,
-    # P1-4) : règle udev DRM -> unité oneshot -> redémarrage du kiosque si la
+    # Branchement/débranchement d'un projecteur ou d'une TV à chaud : règle udev DRM -> unité oneshot -> redémarrage du kiosque si la
     # liste des sorties connectées a changé (cf. scripts/bobine-display-hotplug.sh).
     run chmod +x "${REPO_DIR}/scripts/bobine-display-hotplug.sh"
     write_file /etc/systemd/system/bobine-display-hotplug.service <<EOF
@@ -1661,8 +1648,7 @@ EOF
 options snd-hda-intel power_save=0 power_save_controller=N
 EOF
     # Application immédiate sans attendre le prochain reboot. Réf.
-    # audit-android-2026-09-11.md (mission secondaire, écart H2/H3) :
-    # le chemin PCI `0000:00:0e.0` ci-dessus était figé sur celui du Wyse
+    # Le chemin PCI `0000:00:0e.0` ci-dessus était figé sur celui du Wyse
     # 5070 précis — sans effet sur tout autre modèle/chipset (AMD, autre
     # Intel) et sur les DAC USB (snd_usb_audio, qui n'a pas de paramètre
     # power_save propre mais expose le même mécanisme générique
@@ -1713,8 +1699,7 @@ CARDS=$(awk -F'[][]' '/^ *[0-9]+ \[/{print $2}' /proc/asound/cards 2>/dev/null |
 for CARD in ${CARDS}; do
     amixer -c "${CARD}" scontrols 2>/dev/null | sed -n "s/^Simple mixer control '\([^']*\)'.*/\1/p" | sort -u | while IFS= read -r CTRL; do
         case "${CTRL}" in
-            # IEC958*/Beep/Loopback ajoutés (réf. audit-android-2026-09-11.md,
-            # écart H8) : un contrôle numérique S/PDIF ou de rebouclage
+            # IEC958*/Beep/Loopback ajoutés : un contrôle numérique S/PDIF ou de rebouclage
             # démuté à 100% par erreur peut activer une sortie parasite sur
             # certains codecs, jamais souhaitée sur ce déploiement.
             *[Mm]ic*|*Boost|Capture|"Input Source"|"Auto-Mute Mode"|IEC958*|Beep|Loopback) continue ;;
@@ -1834,8 +1819,8 @@ fi
 # un confort, l'accès par http://<IP>:8000 reste toujours valable.
 run systemctl unmask avahi-daemon.service avahi-daemon.socket >/dev/null 2>&1 || true
 
-# Réf. "bobine.local injoignable après un redémarrage complet, alors que
-# 'systemctl restart avahi-daemon' seul fonctionnait" : l'unité avahi-daemon
+# Cas traité : « bobine.local » injoignable après un redémarrage complet, alors que
+# `systemctl restart avahi-daemon` seul fonctionnait. L'unité avahi-daemon
 # livrée par Debian ne dépend QUE de sysinit.target/basic.target, pas de
 # network-online.target — rien sur cette machine ne tire cette cible non
 # plus (NetworkManager-wait-online.service est activable mais jamais
@@ -1929,8 +1914,7 @@ step_done
 # ---------------------------------------------------------------------------
 step tuning "Optimisations système (gouverneur CPU, journal)"
 # ---------------------------------------------------------------------------
-# Réf. audit-android-2026-09-11.md (mission secondaire, écart H6) : deux
-# optimisations à faible risque, appliquées dès l'installation plutôt que
+# Deux optimisations à faible risque, appliquées dès l'installation plutôt que
 # laissées aux valeurs par défaut Debian (pensées pour un poste de bureau
 # économe en énergie, pas une appliance branchée secteur en continu).
 if $NO_KIOSK; then
@@ -2026,7 +2010,7 @@ step_done
 # ---------------------------------------------------------------------------
 step capabilities "Vérification des capacités audio & vidéo"
 # ---------------------------------------------------------------------------
-# Réf. audit-android-2026-09-11.md (mission secondaire) : jusqu'ici, rien ne
+# Jusqu'ici, rien ne
 # vérifiait après coup que l'audio et le décodage matériel fonctionnent
 # RÉELLEMENT — un déploiement pouvait être déclaré "terminé" avec un son
 # muet ou un décodage logiciel, sans qu'aucun signal ne le distingue d'une

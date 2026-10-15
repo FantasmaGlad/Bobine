@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unifie les données sous ``${REPO}/data`` (réf. docs/cahier-des-charges-radio.md §10.1).
+"""Unifie les données sous ``${REPO}/data``.
 
 Contexte
 --------

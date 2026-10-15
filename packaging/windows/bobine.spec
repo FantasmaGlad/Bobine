@@ -1,7 +1,5 @@
-# PyInstaller spec — BobineBackend + BobineTray (PortabiliteCrossPlatformX
-# Lot 1). Un seul spec, deux exécutables partageant le même dossier de
-# sortie (mode "onedir" — cf. plan-implementation-portabilite-crossplatformx.md
-# §2 : plus simple à déboguer que "onefile", à reconsidérer une fois
+# PyInstaller spec — BobineBackend + BobineTray. Un seul spec, deux exécutables partageant le même dossier de
+# sortie (mode "onedir" : plus simple à déboguer que "onefile", à reconsidérer une fois
 # stabilisé).
 #
 # Construction (depuis backend/, sur la plateforme cible — PyInstaller ne
@@ -31,7 +29,7 @@ datas = [
     # à côté de l'exécutable.
     (str(REPO_DIR / "Assets" / "Images" / "logo_bobine_icon.png"), "."),
     (str(SPEC_DIR / "bobine.ico"), "."),
-    # Numéro de version bundlé (réf. mission "canal Stable/Bêta") — lu au
+    # Numéro de version bundlé — lu au
     # runtime par app.utils.version.get_app_version() à côté de l'exécutable,
     # même mécanisme que config.toml ci-dessus.
     (str(REPO_DIR / "VERSION"), "."),
@@ -89,7 +87,7 @@ tray_pyz = PYZ(tray_analysis.pure, tray_analysis.zipped_data, cipher=block_ciphe
 # par défaut depuis PyInstaller 6 — restaure l'arborescence plate attendue
 # par app/config.py (ROOT_DIR), app/main.py (frontend_out) et
 # app/desktop/tray.py (_load_icon_image) une fois figé : tout à côté de
-# l'exécutable, comme décrit dans le CDC/plan (pas de sous-dossier à
+# l'exécutable, (pas de sous-dossier à
 # connaître en plus).
 ICON_PATH = str(SPEC_DIR / "bobine.ico")
 

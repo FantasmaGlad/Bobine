@@ -4,7 +4,7 @@ name: CI
 # on vérifie que le frontend Next.js se construit et que le backend Python est
 # syntaxiquement valide avec ses dépendances résolues. Volontairement léger et
 # fiable pour un statut vert stable ; la suite de tests (backend/tests/, qui ne
-# requiert plus Redis depuis PortabiliteCrossPlatformX Lot 0) pourra être
+# requiert plus Redis) pourra être
 # ajoutée en tant que job séparé.
 
 on:
@@ -36,7 +36,7 @@ concurrency:
 
 jobs:
   # Résout la version et le CANAL une seule fois pour tous les jobs de
-  # packaging (réf. mission "canal Stable/Bêta"). Deux canaux structurellement
+  # packaging. Deux canaux structurellement
   # séparés :
   # - "stable" : déclenché par un tag Git Vx.y.z strict (pas de suffixe —
   #   les tags -beta.N par itération sont abandonnés). Un nouveau tag/release
@@ -48,8 +48,7 @@ jobs:
   #   n'importe quelle référence (choisie via "Use workflow from" dans l'UI
   #   Actions — utile pour republier sans nouveau commit, ex. après un
   #   correctif d'infra CI). Publie TOUJOURS sous le même tag mobile "beta"
-  #   — un seul fichier de release Bêta sur GitHub, jamais d'accumulation
-  #   (réf. mission "éviter 1000 fichiers"), republié en place par le job
+  #   — un seul fichier de release Bêta sur GitHub, jamais d'accumulation, republié en place par le job
   #   release-beta à chaque déclenchement.
   # Ni tag ni push sur main ni publish_beta (pull_request, push sur une autre
   # branche) : CHANNEL="none" — les jobs de publication (release-stable,
@@ -143,7 +142,7 @@ jobs:
         run: npm run build
 
   firefox-smoke:
-    # Compatibilité Firefox/Gecko (lot F0 du plan docs/PLAN-COMPATIBILITE-FIREFOX.md) :
+    # Compatibilité Firefox/Gecko :
     # un vrai Firefox (préinstallé sur le runner, avec geckodriver) pilote une
     # instance de TEST isolée — import par morceaux, négociation de la version
     # vidéo, protocole (HEAD/404 JSON), pages principales. Échoue si une page
@@ -217,7 +216,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
       # pytest (et non `unittest discover`) : c'est la commande documentée
-      # (AGENTS.md §1.3) et `unittest` ignore les tests écrits en simples
+      # et `unittest` ignore les tests écrits en simples
       # fonctions (suivi de séquence, horloge de lecture, diffusion par canal,
       # écrans...), qui n'étaient donc jamais exécutés en CI. pytest exécute
       # aussi les `unittest.TestCase` existants.
@@ -251,7 +250,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - name: Identifiants de build (VERSION bundlée + COMMIT, réf. mission "hiérarchie des versions")
+      - name: Identifiants de build (VERSION bundlée + COMMIT)
         working-directory: .
         run: |
           echo "${{ needs.version.outputs.commit_short }}" > COMMIT
@@ -300,7 +299,7 @@ jobs:
           if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::Secrets de signature Android absents (ANDROID_KEYSTORE_BASE64 etc.) — job ignoré, pas d'échec. Voir docs/plan-implementation-android.md Lot 13."
+            echo "::warning::Secrets de signature Android absents (ANDROID_KEYSTORE_BASE64 etc.) — job ignoré, pas d'échec."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/setup-node@v4
@@ -325,7 +324,7 @@ jobs:
       - uses: android-actions/setup-android@v3
         if: steps.check_secrets.outputs.configured == 'true'
         with:
-          # Réf. incident 2026-09-15 : le paquet legacy "tools" (installé par
+          # le paquet legacy "tools" (installé par
           # défaut par cette action, `packages: "tools platform-tools"`) a
           # disparu du dépôt SDK Google ("Failed to find package 'tools'",
           # exit code 1) — cassait tout le job avant même l'étape suivante,
@@ -339,7 +338,7 @@ jobs:
       - name: Décoder le keystore depuis le secret
         if: steps.check_secrets.outputs.configured == 'true'
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "${{ runner.temp }}/bobine-release.keystore"
-      - name: Résoudre versionName/versionCode dynamiques (Lot 11)
+      - name: Résoudre versionName/versionCode dynamiques
         if: steps.check_secrets.outputs.configured == 'true'
         id: android_version
         run: echo "version_code=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
@@ -409,11 +408,10 @@ jobs:
           grep -q "would clone" <<<"$out"
 
   windows-build:
-    # PortabiliteCrossPlatformX Lot 1 : PyInstaller ne cross-compile pas — ce
+    # PyInstaller ne cross-compile pas — ce
     # job est le seul endroit où le packaging Windows (bobine.spec) est
     # réellement construit sur un vrai Windows. Écrit et vérifié localement
-    # sur Linux (import réel de l'exécutable figé, cf.
-    # docs/plan-implementation-portabilite-crossplatformx.md §2) mais
+    # sur Linux (import réel de l'exécutable figé) mais
     # jamais exécuté tel quel sur Windows avant son premier passage ici —
     # à surveiller de près au premier déclenchement.
     name: Windows packaging (PyInstaller + Inno Setup)
@@ -496,7 +494,7 @@ jobs:
           path: dist-installer/*.exe
 
   linux-desktop-deb:
-    # PortabiliteCrossPlatformX Lot 2 : packaging Linux non-headless (.deb).
+    # Packaging Linux non-headless (.deb).
     # Construit le frontend Next.js, les exécutables PyInstaller Linux
     # (BobineBackend + BobineTray), assemble l'arborescence Debian et valide
     # l'intégrité et l'installation réelle du paquet .deb sur ubuntu-latest.
@@ -559,7 +557,7 @@ jobs:
           path: dist-deb/*.deb
 
   macos-build:
-    # PortabiliteCrossPlatformX Lot 3 : PyInstaller ne cross-compile pas — ce
+    # PyInstaller ne cross-compile pas — ce
     # job est le seul endroit où le packaging macOS (bobine.spec, BUNDLE())
     # est réellement construit sur un vrai macOS. Écrit d'après la
     # documentation officielle PyInstaller/Apple (aucune machine macOS dans
@@ -569,7 +567,7 @@ jobs:
     # défaut) : l'étape de signature ad-hoc est OBLIGATOIRE sur ce runner —
     # sans elle, le noyau (AMFI) tue au lancement tout binaire/bibliothèque
     # figé non signé sur Apple Silicon ("Killed: 9"), indépendamment de tout
-    # avertissement Gatekeeper (cf. plan §4).
+    # avertissement Gatekeeper.
     name: macOS packaging (PyInstaller + dmg)
     runs-on: macos-latest
     needs: [version]
@@ -604,7 +602,7 @@ jobs:
       - name: Construire Bobine.app
         working-directory: backend
         run: pyinstaller ../packaging/macos/bobine.spec
-      # Fenêtre native du projecteur (plan 4.0, P1-3b) : tests puis binaire
+      # Fenêtre native du projecteur : tests puis binaire
       # release, copié dans le bundle AVANT la signature ad-hoc ci-dessous.
       - name: Tester et construire la fenêtre native du projecteur
         working-directory: projector
@@ -644,7 +642,7 @@ jobs:
           path: dist-dmg/*.dmg
 
   # Publie une release STABLE — un tag Vx.y.z par version, historique normal
-  # et attendu sur la page GitHub Releases (réf. mission "canal Stable/Bêta").
+  # et attendu sur la page GitHub Releases.
   release-stable:
     name: Publish Stable Release
     needs: [version, windows-build, linux-desktop-deb, macos-build, assistant-core, android-build]
@@ -729,8 +727,7 @@ jobs:
           generate_release_notes: false
 
   # Publie/rafraîchit la release BÊTA — un seul tag mobile "beta", republié
-  # en place à chaque déclenchement manuel (réf. mission "canal Stable/Bêta"
-  # — éviter l'accumulation de releases Bêta sur la page publique). Le tag
+  # en place à chaque déclenchement manuel. Le tag
   # est force-déplacé sur le commit courant ; les notes sont générées
   # automatiquement (changelog depuis la dernière Stable), pas de fichier
   # docs/releases/ à maintenir pour ce canal (il serait obsolète dès le
@@ -831,7 +828,7 @@ jobs:
 
           # Bobine — Bêta (build automatique)
 
-          > **Bobine soutient Firefox.** Interface d'administration et lecteurs tiers (`/radio`, `/kiosk`, `/cinema`) vérifiés de bout en bout sur Firefox 157 : envois reprenables après coupure, flux média conformes HTTP, version vidéo compatible en repli automatique, diagnostic navigateur intégré — [plan et statut](https://github.com/FantasmaGlad/Bobine/blob/main/docs/PLAN-COMPATIBILITE-FIREFOX.md). Cette bêta apporte aussi des mises à jour Stable/Bêta fiabilisées (dont le retour en Stable) et un installateur plus fluide.
+          > **Bobine soutient Firefox.** Interface d'administration et lecteurs tiers (`/radio`, `/kiosk`, `/cinema`) vérifiés de bout en bout sur Firefox 157 : envois reprenables après coupure, flux média conformes HTTP, version vidéo compatible en repli automatique, diagnostic navigateur intégré. Cette bêta apporte aussi des mises à jour Stable/Bêta fiabilisées (dont le retour en Stable) et un installateur plus fluide.
 
           Pre-release à accès anticipé aux fonctionnalités en cours de développement — reconstruite automatiquement à chaque publication et republiée **en place** sur ce même tag mobile `beta` (jamais un nouveau tag par itération). Une version stable équivalente ou plus récente la remplace toujours automatiquement.
 
@@ -914,8 +911,7 @@ jobs:
     # précédent republiant la Bêta en continu) peuvent se déclencher à
     # quelques secondes d'intervalle et courir en parallèle sur des refs
     # différentes — sans ce verrou, les deux jobs checkoutent gh-pages en
-    # même temps et le second `git push` est rejeté (réf. échec réel du 8
-    # sept., release V3.0.1 : "cannot lock ref 'refs/heads/gh-pages'").
+    # même temps et le second `git push` est rejeté.
     # cancel-in-progress: false — les deux publications doivent aboutir,
     # seulement l'une après l'autre.
     concurrency:

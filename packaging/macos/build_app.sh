@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script de construction de Bobine.app + Bobine.dmg (macOS)
-# PortabiliteCrossPlatformX — Lot 3
 #
 # NE PEUT ÊTRE EXÉCUTÉ QUE SUR UNE VRAIE MACHINE macOS — PyInstaller ne
 # cross-compile pas (aucun bundle macOS ne peut être produit depuis Linux ou
@@ -14,16 +13,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-# Source de vérité unique (réf. mission "canal Stable/Bêta") : fichier
+# Source de vérité unique : fichier
 # VERSION à la racine du dépôt — c'est aussi ce qui finit bundlé dans
 # Bobine.app (cf. bobine.spec) et lu au runtime par app.utils.version.
 VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
 
 # Version utilisée dans le NOM DU FICHIER .dmg — délibérément distincte de
-# VERSION (réf. mission "canal Stable/Bêta") : par défaut identique (builds
+# VERSION : par défaut identique (builds
 # stables), mais la CI passe la valeur fixe "beta" pour le canal Bêta — un
 # seul nom de fichier stable dans le temps plutôt qu'un nouveau nom à chaque
-# reconstruction (réf. mission "éviter 1000 fichiers").
+# reconstruction.
 DMG_FILENAME_VERSION="${DMG_FILENAME_VERSION:-$VERSION}"
 DMG_NAME="Bobine-${DMG_FILENAME_VERSION}.dmg"
 
@@ -63,7 +62,7 @@ if [ ! -d "${APP_PATH}" ]; then
     exit 1
 fi
 
-echo "=== [3b/5] Fenêtre native du projecteur (plan 4.0, P1-3b) ==="
+echo "=== [3b/5] Fenêtre native du projecteur ==="
 # Remplace le navigateur piloté sur macOS : Safari n'a ni kiosque ni choix de
 # l'écran. Copiée dans le bundle AVANT la signature ad-hoc ci-dessous.
 if command -v cargo >/dev/null 2>&1; then
@@ -73,13 +72,13 @@ else
     echo "Avertissement: cargo introuvable — le projecteur utilisera le navigateur par défaut." >&2
 fi
 
-echo "=== [4/5] Signature ad-hoc (requise par le noyau sur Apple Silicon, cf. plan §4) ==="
+echo "=== [4/5] Signature ad-hoc (requise par le noyau sur Apple Silicon) ==="
 # Sans ceci, macOS tue au lancement ("Killed: 9") tout binaire/bibliothèque
 # non signé sur Apple Silicon — l'exigence vient du noyau (AMFI), pas de
 # Gatekeeper : cette signature ad-hoc ("-s -") ne remplace PAS une vraie
 # signature développeur et ne supprime PAS l'avertissement "éditeur non
-# identifié" à l'ouverture (limitation connue et assumée, décision #7 du
-# CDC — pas de certificat de signature de code pour l'instant).
+# identifié" à l'ouverture (limitation connue et assumée : pas de
+# certificat de signature de code pour l'instant).
 codesign --force --deep -s - "${APP_PATH}"
 
 echo "=== [5/5] Création du .dmg via hdiutil ==="

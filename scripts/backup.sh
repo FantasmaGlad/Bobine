@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# backup.sh — Sauvegarde complète d'Bobine (réf. NF7, tâche 15.6).
+# backup.sh — Sauvegarde complète d'Bobine.
 #
 # Usage :
 #   ./scripts/backup.sh [dossier_de_destination]
@@ -34,7 +34,7 @@ fi
 log "Lecture des chemins depuis la configuration active"
 # Source de vérité unique (évite de dupliquer/parser config.toml en bash) :
 # app.config.settings résout déjà la priorité /etc vs dépôt, les chemins
-# relatifs, etc. (réf. F7.4).
+# relatifs, etc..
 PATHS_JSON="$(cd "${BACKEND_DIR}" && "${PYTHON_BIN}" -c '
 import json
 from app.config import settings

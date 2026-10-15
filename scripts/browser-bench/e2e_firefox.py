@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Banc de bout en bout Firefox (lot F0 du plan de compatibilité) : pilote un
+"""Banc de bout en bout Firefox (compatibilité Firefox) : pilote un
 vrai Firefox (geckodriver) contre une instance Bobine de TEST et vérifie les
 comportements qui conditionnent le support officiel.
 

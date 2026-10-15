@@ -1,5 +1,4 @@
-# PyInstaller spec — BobineBackend + BobineTray (PortabiliteCrossPlatformX
-# Lot 3 — macOS). Produit un unique bundle `Bobine.app` (via BUNDLE())
+# PyInstaller spec — BobineBackend + BobineTray. Produit un unique bundle `Bobine.app` (via BUNDLE())
 # contenant les deux exécutables *onedir* dans `Contents/MacOS/`.
 #
 # Construction (SUR UNE VRAIE MACHINE macOS — PyInstaller ne cross-compile
@@ -12,8 +11,7 @@
 # `datas` (config.toml, icône, frontend/out/) sous `Contents/Resources/` et
 # ne laisse que les binaires dans `Contents/MacOS/` — pris en compte par
 # `app/config.py::ROOT_DIR` et `app/main.py::frontend_out` (branches
-# `platform.system() == "Darwin"`, cf.
-# docs/plan-implementation-portabilite-crossplatformx.md §4).
+# `platform.system() == "Darwin"`).
 #
 # NON TESTÉ sur une vraie machine macOS — écrit d'après :
 #   - la documentation officielle PyInstaller (BUNDLE(), Info.plist,
@@ -33,7 +31,7 @@ REPO_DIR = SPEC_DIR.parent.parent
 BACKEND_DIR = REPO_DIR / "backend"
 ICON_PATH = str(SPEC_DIR / "bobine.icns")
 
-# Numéro de version du bundle (réf. mission "canal Stable/Bêta") — lu
+# Numéro de version du bundle — lu
 # dynamiquement depuis VERSION, jamais recopié en dur ici (c'était le cas
 # avant ce lot : BUNDLE() et Info.plist annonçaient "3.0.0" quelle que soit
 # la version réellement construite, découvert en même temps que le bug
@@ -44,7 +42,7 @@ APP_VERSION = (REPO_DIR / "VERSION").read_text(encoding="utf-8").strip()
 datas = [
     (str(REPO_DIR / "config.toml"), "."),
     (str(REPO_DIR / "Assets" / "Images" / "logo_bobine_icon.png"), "."),
-    # Numéro de version bundlé (réf. mission "canal Stable/Bêta") — relocalisé
+    # Numéro de version bundlé — relocalisé
     # sous Contents/Resources/ comme config.toml ci-dessus, lu au runtime par
     # app.utils.version.get_app_version() (ROOT_DIR y pointe déjà sur macOS).
     (str(REPO_DIR / "VERSION"), "."),
@@ -90,7 +88,7 @@ backend_analysis = Analysis(
 # runtime via sys.platform dans pystray/__init__.py::backend()) — sans
 # cette liste explicite, `pystray._darwin` et les modules pyobjc/AppKit
 # sous-jacents seraient absents du bundle figé (recherche
-# PortabiliteCrossPlatformX Lot 3, cf. plan §4).
+# dans la source de pystray).
 tray_analysis = Analysis(
     [str(BACKEND_DIR / "run_tray.py")],
     pathex=[str(BACKEND_DIR)],
@@ -171,12 +169,12 @@ app_bundle = BUNDLE(
         "LSMinimumSystemVersion": "11.0",
         "NSHighResolutionCapable": True,
         # Masque l'icône du Dock/le sélecteur d'applications : Bobine est
-        # une app de barre de menus, pas une fenêtre classique (CDC §7.2).
+        # une app de barre de menus, pas une fenêtre classique.
         # ATTENTION (découverte recherche, non vérifiée sur Mac réel) : un
         # bug récurrent du bootloader PyInstaller (TransformProcessType,
         # issues #1917/#2075/#3516/#6471) peut faire réapparaître l'icône
         # Dock malgré ce réglage — à vérifier explicitement au premier test
-        # manuel (cf. plan §4).
+        # manuel.
         "LSUIElement": True,
     },
 )

@@ -1,6 +1,6 @@
 #!/bin/sh
 # bobine-display-hotplug — redémarre le kiosque quand un écran est branché ou
-# débranché (appliance Wyse / mini-PC headless, plan 4.0 P1-4).
+# débranché (appliance Wyse / mini-PC headless).
 #
 # Pourquoi : la configuration de la sortie vidéo (xrandr, géométrie Chromium)
 # n'était exécutée qu'UNE fois au démarrage de la session kiosque

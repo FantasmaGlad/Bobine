@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# restore.sh — Restauration d'une sauvegarde Bobine (réf. NF7, tâche 15.6).
+# restore.sh — Restauration d'une sauvegarde Bobine.
 #
 # Usage :
 #   sudo bobine stop        # arrêter le service avant de toucher aux fichiers
