@@ -24,8 +24,7 @@ logger = logging.getLogger(__name__)
 
 def _extract_metadata_or_unknown(file_path: str, original_filename: str) -> dict:
     """Enveloppe extract_metadata() pour ne plus faire échouer tout l'import
-    quand ffprobe est indisponible ou en erreur (cf. Lot 8,
-    docs/plan-implementation-android.md : aucun binaire ffprobe utilisable
+    quand ffprobe est indisponible ou en erreur (sous Android : aucun binaire ffprobe utilisable
     sous Android, tout binaire lie glibc statique y est tue par le filtre
     seccomp). Duree/largeur/hauteur/codec/miniature sont deja nullables en
     base et deja tolerees partout en aval (check_compatibility traite un
@@ -34,8 +33,7 @@ def _extract_metadata_or_unknown(file_path: str, original_filename: str) -> dict
     detection DRM ne peut alors plus s'executer (is_drm forcee a False),
     seul compromis reel de ce mode degrade.
 
-    Repli supplementaire (réf. retour "il manque les metadatas qui ne sont
-    pas affiches") : pour un MP4/M4V, la duree reste recuperable sans ffprobe
+    Repli supplementaire : pour un MP4/M4V, la duree reste recuperable sans ffprobe
     via un parcours pur Python de l'atome 'mvhd' (read_mp4_duration_seconds) -
     largeur/hauteur/codec restent None (demanderaient de decoder 'stsd',
     hors de portee de ce repli minimal).
@@ -67,9 +65,9 @@ def _extract_metadata_or_unknown(file_path: str, original_filename: str) -> dict
 
 
 SUPPORTED_EXTENSIONS = {".mp4", ".m4v", ".mkv", ".avi", ".mov"}
-# Fonds animés (Lot 7) : mêmes conteneurs que les cours, plus WebM (nativement
+# Fonds animés : mêmes conteneurs que les cours, plus WebM (nativement
 # lisible par Chromium, format courant pour des boucles d'ambiance courtes).
-# Images fixes (réf. mission "fond figé ou animé" du mode coach) : un fond
+# Images fixes : un fond
 # n'a plus besoin d'être une boucle vidéo — png/jpg/webp couvrent l'essentiel
 # des visuels de marque déjà utilisés ailleurs dans l'appli (logo, etc.).
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
@@ -77,8 +75,7 @@ BACKGROUND_SUPPORTED_EXTENSIONS = SUPPORTED_EXTENSIONS | {".webm"} | IMAGE_EXTEN
 
 
 def is_image_background(file_path: str) -> bool:
-    """Détecte un fond image fixe par extension (réf. mission "fond figé ou
-    animé") — pas de colonne dédiée en base, la distinction ne sert qu'à
+    """Détecte un fond image fixe par extension — pas de colonne dédiée en base, la distinction ne sert qu'à
     orienter le pipeline d'import et le rendu (image vs boucle vidéo)."""
     return Path(file_path).suffix.lower() in IMAGE_EXTENSIONS
 
@@ -124,7 +121,7 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
     4. Génération de la miniature.
     5. Insertion en base de données.
 
-    `job_id` (réf. mission "queue en direct des importations") : identifiant
+    `job_id` : identifiant
     optionnel d'une tâche déjà enregistrée via `app.utils.import_jobs`, mis à
     jour à chaque étape pour que l'UI d'admin affiche une progression réelle
     plutôt qu'un indicateur "en cours" muet. `None` (défaut) laisse la
@@ -171,8 +168,7 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
             raise JobCancelledError(f"Job {job_id} annulé")
 
         if compat["needs_normalization"]:
-            # Estimation initiale (réf. mission "estimation de la durée
-            # d'importation et de réencodage") : affichée le temps que ffmpeg
+            # Estimation initiale : affichée le temps que ffmpeg
             # démarre et émette sa propre progression en direct, qui prend
             # ensuite le relais (cf. _run_ffmpeg_with_progress).
             update_job(job_id, stage="normalizing", estimated_seconds=estimate_normalize_seconds(meta))
@@ -322,7 +318,7 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
 
 
 def _import_background_image(src_path: str, original_filename: str, job_id: str | None = None) -> Background:
-    """Fond fixe (réf. mission "fond figé ou animé") : pipeline dédié, sans
+    """Fond fixe : pipeline dédié, sans
     ffmpeg — une image n'a ni codec à valider ni normalisation à envisager,
     seule sa décodabilité compte (via Pillow)."""
     from PIL import Image, UnidentifiedImageError
@@ -387,11 +383,11 @@ def import_background(
     src_path: str, original_filename: str, source: ImportSource, job_id: str | None = None
 ) -> Background:
     """
-    Importe un fond animé (Lot 7, réf. F9.1) : même pipeline que import_video
+    Importe un fond animé : même pipeline que import_video
     (stabilisation, métadonnées, normalisation si nécessaire, miniature) mais
     dans le dossier dédié `settings.backgrounds_dir`, sans parsing programme/
     release (non pertinent pour une boucle d'ambiance) et sans piste audio
-    (les fonds animés sont toujours joués sans son, réf. F9.2).
+    (les fonds animés sont toujours joués sans son).
 
     `job_id` : voir `import_video` — même mécanique de suivi de progression.
     """
@@ -417,7 +413,7 @@ def import_background(
             f"Le fichier {original_filename} est protégé par DRM et ne peut pas être lu."
         )
 
-    # strict_video_codec=True (réf. audit plan-corrections-bugs, point 6) :
+    # strict_video_codec=True :
     # un fond animé boucle indéfiniment, contrairement à un cours lu une
     # seule fois — seul H.264 est accepté tel quel ici.
     compat = check_compatibility(meta, src_path, strict_video_codec=True)
@@ -432,8 +428,7 @@ def import_background(
     thumbnail_path = None
 
     try:
-        # Réutilise pleinement `compat["actions"]` (réf. audit
-        # plan-corrections-bugs, point 6) — auparavant cette fonction gatait
+        # Réutilise pleinement `compat["actions"]` — auparavant cette fonction gatait
         # la normalisation sur la seule extension du fichier (`suffix !=
         # ".mp4"`) et forçait toujours `["recode_container"]` en ignorant le
         # codec vidéo réel : un .mp4 avec un codec vidéo non validé passait
@@ -543,8 +538,7 @@ def import_background(
 
 def reconcile_orphaned_media() -> None:
     """
-    Filet de sécurité au démarrage (réf. correctif "le déplacement de fichier
-    et le commit en base ne sont pas atomiques") : import_video/import_background
+    Filet de sécurité au démarrage : import_video/import_background
     déplacent déjà le fichier vers son dossier final AVANT le commit DB, avec
     un nettoyage sur exception Python (`except Exception as dbe`) — mais un
     crash DUR du processus (coupure électrique, kill -9) entre les deux

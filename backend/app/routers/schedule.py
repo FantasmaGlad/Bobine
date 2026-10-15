@@ -31,8 +31,8 @@ from app.utils.activity_log import log_activity
 router = APIRouter(prefix="/api/schedule", tags=["schedule"])
 
 _TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
-# Réf. lot L7 : "radio" ajouté aux deux canaux existants (cable/network) —
-# 3e canal indépendant (D8), même mécanisme de planning par canal.
+# "radio" ajouté aux deux canaux existants (cable/network) —
+# 3e canal indépendant, même mécanisme de planning par canal.
 _CHANNELS = ("cable", "network", "radio")
 
 
@@ -42,15 +42,14 @@ _CHANNELS = ("cable", "network", "radio")
 class ScheduleInput(BaseModel):
     target_type: ScheduleTargetType
     target_id: int
-    # Canal de diffusion ciblé (réf. mission "tableaux de bord Câblé /
-    # Réseau") : un planning par canal, "cable" par défaut (compatibilité).
+    # Canal de diffusion ciblé : un planning par canal, "cable" par défaut (compatibilité).
     channel: str = "cable"
     schedule_type: ScheduleType
     run_at: datetime | None = None
     days_of_week: List[int] | None = None  # 0=lundi .. 6=dimanche
     time_of_day: str | None = None  # "HH:MM"
     active: bool = True
-    # Fenêtre radio (réf. lot L7, D9/A1) : sans objet pour target_type
+    # Fenêtre radio : sans objet pour target_type
     # video/playlist, silencieusement ignorés dans ce cas. Uniquement pour
     # les programmations RÉCURRENTES (cf. _validate_and_normalize) — fin de
     # fenêtre, ou 24/7 (ne revient jamais seul au défaut).
@@ -103,7 +102,7 @@ class OccurrenceResponse(BaseModel):
     target_id: int
     title: str | None
     program: str | None
-    # Réf. docs/cahier-des-charges-planning-visuel.md §2 : bloc proportionnel
+    # Bloc proportionnel
     # à la durée réelle (vidéo/playlist) ou à la fenêtre choisie (radio, où
     # `duration_seconds` reste toujours None — le contenu boucle, seule la
     # fenêtre `end_time`/`is_24_7` a un sens pour dimensionner le bloc).
@@ -152,7 +151,7 @@ def _validate_and_normalize(data: ScheduleInput) -> tuple[datetime | None, str |
 
     rule_dict: dict = {"days_of_week": sorted(set(data.days_of_week)), "time": data.time_of_day}
 
-    # Fenêtre radio (réf. lot L7) : sans effet pour les autres cibles (le
+    # Fenêtre radio : sans effet pour les autres cibles (le
     # champ reste ignoré côté modèle vidéo/playlist — pas de risque de
     # régression, `_sync_end_job` ne l'exploite que pour radio_playlist).
     if data.target_type == ScheduleTargetType.radio_playlist:
@@ -207,8 +206,7 @@ def _to_response(db: Session, schedule: Schedule) -> dict:
 # ---------------------------------------------------------------------------
 @router.get("", response_model=List[ScheduleResponse])
 def list_schedules(channel: str | None = None, db: Session = Depends(get_db)):
-    """Liste des programmations, filtrable par canal de diffusion (réf.
-    mission "tableaux de bord Câblé / Réseau" : un planning par canal)."""
+    """Liste des programmations, filtrable par canal de diffusion."""
     query = db.query(Schedule)
     if channel in _CHANNELS:
         query = query.filter(Schedule.channel == channel)
@@ -219,7 +217,7 @@ def list_schedules(channel: str | None = None, db: Session = Depends(get_db)):
 def list_occurrences(start: datetime, end: datetime, channel: str | None = None, db: Session = Depends(get_db)):
     """
     Occurrences résolues (récurrence + overrides) dans [start, end], pour les
-    vues planning calendrier/liste (UX3.14-3.16). Inclut les occurrences
+    vues planning calendrier/liste. Inclut les occurrences
     annulées (à afficher barrées côté UI). Filtrable par canal de diffusion.
     """
     start, end = ensure_utc(start), ensure_utc(end)
@@ -235,7 +233,7 @@ def list_occurrences(start: datetime, end: datetime, channel: str | None = None,
 def get_next_schedule(channel: str | None = None, db: Session = Depends(get_db)):
     """
     Prochaine occurrence active à venir, récurrence et overrides résolus, pour
-    le bloc « prochain cours » de l'écran d'attente (Lot 4, réf. UX2.1/UX2.5).
+    le bloc « prochain cours » de l'écran d'attente.
     Filtrable par canal (chaque kiosk n'affiche que le planning de SON canal).
     """
     now = datetime.now(timezone.utc)

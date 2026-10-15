@@ -1,5 +1,4 @@
-"""Production de la version web « lisible partout » d'une vidéo (lot F3 du
-plan de compatibilité Firefox). Logique pure : `app/utils/web_profile.py` ;
+"""Production de la version web « lisible partout » d'une vidéo. Logique pure : `app/utils/web_profile.py` ;
 ici, la tâche d'arrière-plan (ffmpeg, suivi dans `import_jobs`, état en base).
 
 Les fichiers vivent dans `<media_dir>/web/` — sous-dossier volontaire :

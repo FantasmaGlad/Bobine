@@ -1,7 +1,6 @@
-"""Moteur des règles temporelles de rappels (réf. docs/cahier-des-charges-radio.md
-§7, D11-D12, lot L6) : « toutes les X minutes » et « à heures fixes ». La règle
+"""Moteur des règles temporelles de rappels : « toutes les X minutes » et « à heures fixes ». La règle
 « toutes les N musiques » est vérifiée ailleurs, à chaque fin de piste
-(réf. routers/playback.py::_handle_radio_command) — elle n'a rien de temporel.
+ — elle n'a rien de temporel.
 
 Boucle asyncio légère (même patron que RadioPlaybackManager._position_broadcast_loop)
 plutôt qu'APScheduler : les règles sont peu nombreuses, vérifiées à intervalle

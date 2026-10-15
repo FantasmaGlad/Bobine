@@ -87,14 +87,12 @@ def _run_video_import_job(
     release: str | None,
 ) -> None:
     """
-    Exécutée sur `ffmpeg_executor` (réf. audit plan-corrections-bugs, point
-    5 : un seul ffmpeg à la fois, y compris avec le dossier surveillé).
+    Exécutée sur `ffmpeg_executor`.
     Contrairement à l'ancienne implémentation synchrone, la requête HTTP
     d'upload ne bloque plus jusqu'à la fin de cette fonction (qui peut
     prendre jusqu'à FFMPEG_NORMALIZE_TIMEOUT_SECONDS = 30 min) — elle est
     seulement mise en file, et son avancement est visible via
-    `app.utils.import_jobs` / `GET /api/import-jobs` (réf. mission "voir en
-    direct les importations").
+    `app.utils.import_jobs` / `GET /api/import-jobs`.
     """
     try:
         video = import_video(temp_path, filename, ImportSource.upload, job_id=job_id)
@@ -116,7 +114,7 @@ def _run_video_import_job(
         finally:
             db.close()
 
-        # Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6) : un
+        # un
         # cours importé doit apparaître SANS délai sur /grid, /cinema et
         # /library déjà ouverts, pas seulement au prochain sondage (15s
         # sur /grid et /cinema, jamais sur /library). Exécuté hors boucle
@@ -277,8 +275,6 @@ def update_video(video_id: int, payload: VideoUpdate, db: Session = Depends(get_
 
     db.commit()
     db.refresh(video)
-    # Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6, réf. retour
-    # utilisateur "le titre modifié ne se met pas à jour instantanément") :
     # `update_video` reste un endpoint SYNCHRONE (`def`, exécuté dans le
     # threadpool FastAPI) — version thread-safe du broadcast.
     ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "video_updated"})
@@ -352,9 +348,7 @@ def delete_web_rendition(video_id: int, db: Session = Depends(get_db)):
 @router.put("/{video_id}/thumbnail", response_model=VideoResponse)
 async def upload_video_thumbnail(video_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
-    Miniature manuelle (réf. Lot 8, docs/plan-implementation-android.md :
-    generate_thumbnail() dépend de ffmpeg, indisponible sous Android — aucune
-    miniature auto n'est alors jamais produite à l'import). Permet à un admin
+    Miniature manuelle. Permet à un admin
     de fournir lui-même une image, exactement comme _import_background_image()
     le fait déjà pour un fond fixe : aucun décodage vidéo requis, seulement
     Pillow, donc disponible sur toutes les plateformes sans exception.
@@ -401,7 +395,7 @@ def bg_normalize(video_id: int, actions: list, source_metadata: dict | None = No
     """
     Tâche en arrière-plan pour normaliser une vidéo existante de manière asynchrone.
 
-    `source_metadata` (réf. correctif "appel ffprobe redondant") : l'appelant
+    `source_metadata` : l'appelant
     (manual_normalize) a déjà extrait les métadonnées de ce même fichier pour
     décider des `actions` — inutile de relancer ffprobe dessus une seconde
     fois avant même de le déplacer vers son emplacement temporaire.
@@ -497,8 +491,7 @@ def manual_normalize(
         return {"message": "La vidéo est déjà compatible Direct Play, aucune action requise."}
 
     # ffmpeg_executor (mono-thread, partagé avec l'import upload/watcher) plutôt
-    # que BackgroundTasks (réf. correctif "la normalisation manuelle contourne
-    # l'exécuteur ffmpeg partagé") : BackgroundTasks exécute une fonction sync
+    # que BackgroundTasks : BackgroundTasks exécute une fonction sync
     # sur le pool de threads générique de Starlette, PAS sur notre exécuteur
     # dédié — un import en cours au même moment lançait donc un second ffmpeg
     # en parallèle, doublant la charge CPU sur le Wyse. submit() sans .result()

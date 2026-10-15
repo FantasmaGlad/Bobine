@@ -5,9 +5,8 @@ Sur l'appliance Linux headless, ce rôle est déjà tenu par `avahi-daemon`,
 configuré par `install.sh` pour publier précisément `bobine.local` (cf.
 `install.sh` §mdns-redirect) — ce module n'y est donc PAS activé, pour
 éviter deux répondeurs concurrents sur le même nom. Il s'active sur tous
-les autres profils, Windows ET macOS (Lot 3) inclus : contrairement à ce
-que suggère une lecture rapide du CDC §7.3 (« mDNS : aucune action, Bonjour
-est actif nativement »), le service Bonjour natif de macOS publie le nom
+les autres profils, Windows ET macOS inclus : contrairement à ce
+que l'on pourrait croire (« Bonjour est actif nativement »), le service Bonjour natif de macOS publie le nom
 d'hôte *configuré de la machine* (ex. « Mac-de-Jean.local »), pas
 spécifiquement « bobine.local » — sans ce répondeur embarqué, rien ne
 publierait ce nom précis sur macOS, exactement comme sur Windows (cf.

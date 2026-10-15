@@ -1,5 +1,4 @@
-"""Téléversement par morceaux reprenable (lot F2 du plan de compatibilité
-Firefox, docs/PLAN-COMPATIBILITE-FIREFOX.md).
+"""Téléversement par morceaux reprenable.
 
 Pourquoi : jusqu'ici, un fichier vidéo ou une archive ZIP partait en UNE seule
 requête `multipart/form-data` de plusieurs Go. Une coupure Wi-Fi à 95 %

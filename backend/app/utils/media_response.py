@@ -4,8 +4,7 @@ la RFC 9110, pour TOUS les navigateurs — Firefox compris.
 Pourquoi un module dédié : l'ancien `_range_stream_response` (app/main.py)
 n'était exposé qu'en `GET`. Un `HEAD /api/videos/{id}/stream` retombait alors
 sur le montage statique du frontend et renvoyait la page HTML 404 avec un
-statut 206 et `content-type: text/html` (reproduit sur Firefox 157, cf.
-docs/PLAN-COMPATIBILITE-FIREFOX.md §4.3). Les gestionnaires de téléchargement,
+statut 206 et `content-type: text/html` (reproduit sur Firefox 157). Les gestionnaires de téléchargement,
 extensions, lecteurs externes (VLC, Cast) et sondes de disponibilité
 utilisent `HEAD` pour connaître la taille et le type avant de lire.
 
@@ -36,7 +35,7 @@ _IS_ANDROID = hasattr(sys, "getandroidapilevel")
 
 # 1 Mo sur Android (moins d'allers-retours à travers le démon FUSE du
 # stockage externe qu'à 128 Ko, mesurable sur un flux 4K/60 fps à haut
-# débit — docs/audit-android-2026-09-11.md §5 étape 15.2), 128 Ko ailleurs.
+# débit), 128 Ko ailleurs.
 _READ_BLOCK_SIZE = 1024 * 1024 if _IS_ANDROID else 8192 * 16
 
 

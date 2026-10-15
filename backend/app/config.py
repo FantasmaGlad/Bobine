@@ -14,14 +14,12 @@ except ImportError:  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3
 # en développement). Sert aussi de racine par défaut pour le config.toml
 # livré (valeurs versionnées, lues quand /etc/bobine — ou son équivalent
 # Windows, cf. _global_config_path — n'existe pas encore). Une fois figé
-# par PyInstaller (BobineBackend.exe, réf. PortabiliteCrossPlatformX
-# Lot 1), `__file__` ne pointe plus vers un fichier du dépôt : on retombe
+# par PyInstaller (BobineBackend.exe), `__file__` ne pointe plus vers un fichier du dépôt : on retombe
 # sur le dossier de l'exécutable, où l'installeur place le config.toml par
-# défaut à côté — SAUF sur macOS (Lot 3) : depuis PyInstaller 6, `BUNDLE()`
+# défaut à côté — SAUF sur macOS : depuis PyInstaller 6, `BUNDLE()`
 # déplace les `datas` (dont config.toml) sous `Contents/Resources/` et ne
 # laisse que l'exécutable dans `Contents/MacOS/` (contrairement à
-# `contents_directory="."` qui garde tout à plat sous Windows/Linux) — voir
-# docs/plan-implementation-portabilite-crossplatformx.md §4.
+# `contents_directory="."` qui garde tout à plat sous Windows/Linux).
 if getattr(sys, "frozen", False):
     if platform.system() == "Darwin":
         ROOT_DIR = Path(sys.executable).resolve().parent.parent / "Resources"
@@ -35,14 +33,12 @@ def _data_root() -> Path:
     """Racine par défaut des chemins RELATIFS du config.toml (médias,
     miniatures, logs...). Sous Windows, `ROOT_DIR` correspond au dossier
     d'installation (`%ProgramFiles%\\Bobine`), qui n'est **pas** inscriptible
-    par un utilisateur standard sans élévation (CDC §5.2,
-    plan-implementation-portabilite-crossplatformx.md §2) — les données par
+    par un utilisateur standard sans élévation — les données par
     défaut vivent donc sous `%ProgramData%\\Bobine\\` à la place.
     Sous Linux de bureau (.deb dans `/usr/lib/bobine`), respect de la
     spécification XDG : données sous `~/.local/share/bobine`.
     Sous macOS, `Bobine.app` dans `/Applications` est en lecture seule pour
-    un utilisateur standard (et sujet à la translocation Gatekeeper, cf.
-    plan §4) : données sous `~/Library/Application Support/Bobine`, la
+    un utilisateur standard (et sujet à la translocation Gatekeeper) : données sous `~/Library/Application Support/Bobine`, la
     convention native macOS.
     Linux headless / dev : `ROOT_DIR` reste la racine de confort."""
     if platform.system() == "Windows":
@@ -67,7 +63,7 @@ def _data_root() -> Path:
                 pass
             return target
     elif platform.system() == "Android":
-        # Lot 9 (docs/plan-implementation-android.md) : sans cette branche,
+        # sans cette branche,
         # ROOT_DIR (repli plus bas) pointe vers AssetFinder/app/, le dossier
         # interne prive ou Chaquopy re-deploie les SOURCES PYTHON elles-memes
         # a chaque mise a jour de l'app - y stocker des donnees utilisateur
@@ -94,8 +90,7 @@ DATA_ROOT = _data_root()
 
 
 def _android_internal_root() -> Path | None:
-    """Racine INTERNE Android (Lot 15, docs/audit-android-2026-09-11.md §C1/
-    C3) : `context.filesDir` — stockage privé de l'app sur `/data` (f2fs
+    """Racine INTERNE Android : `context.filesDir` — stockage privé de l'app sur `/data` (f2fs
     natif), jamais servi par FUSE contrairement à `getExternalFilesDir` (qui
     reste DATA_ROOT ci-dessus pour les médias). `None` sur toute autre
     plateforme, ou si la variable n'a pas été posée par
@@ -160,20 +155,20 @@ class Settings(BaseSettings):
     watch_dir: str = "data/watched"
     thumbnails_dir: str = "data/thumbnails"
 
-    # Fonds animés (Lot 7, réf. F9.1) : dossier dédié séparé des cours, avec
+    # Fonds animés : dossier dédié séparé des cours, avec
     # son propre dossier surveillé plutôt que de partager celui des vidéos —
     # sinon un fond animé déposé par erreur dans le mauvais dossier serait
     # indexé comme un cours (et vice versa).
     backgrounds_dir: str = "data/backgrounds"
     backgrounds_watch_dir: str = "data/backgrounds_watched"
 
-    # Cours audio (Lot 8, réf. F10.1) : MP3 regroupés par cours, dossier
+    # Cours audio : MP3 regroupés par cours, dossier
     # surveillé séparé (une sous-fixture par cours y est attendue : voir
     # utils/audio_importer.py).
     audio_dir: str = "data/audio"
     audio_watch_dir: str = "data/audio_watched"
 
-    # Module Radio (réf. docs/cahier-des-charges-radio.md) : sous-système
+    # Module Radio : sous-système
     # musical indépendant, dossiers séparés des cours audio coach. `radio_dir`
     # = fichiers musique, `radio_covers_dir` = pochettes (extraites ID3 ou
     # uploadées), `radio_announcements_dir` = rappels, `radio_watch_dir` =
@@ -183,16 +178,16 @@ class Settings(BaseSettings):
     radio_announcements_dir: str = "data/radio_announcements"
     radio_watch_dir: str = "data/radio_watched"
 
-    # Branding (logo personnalisé, réf. mission "customiser le logo") : dossier
+    # Branding (logo personnalisé) : dossier
     # dédié séparé des médias — contient au plus un fichier `logo.png` (nom fixe,
     # normalisé à l'upload), sa seule présence sur disque fait foi (pas de
     # champ en base à synchroniser).
     branding_dir: str = "data/branding"
 
-    # Logs (Lot 9.6/13, réf. F8.2/F8.3) : dossier dédié, séparé des données média.
+    # Logs : dossier dédié, séparé des données média.
     logs_dir: str = "data/logs"
 
-    # Mode audio coach (Lot 8, réf. F10.3/UX4.8) : réglage par défaut de la
+    # Mode audio coach : réglage par défaut de la
     # minuterie entre pistes en mode "auto + minuterie".
     audio_chain_timer_seconds: int = 5
 
@@ -205,7 +200,7 @@ class Settings(BaseSettings):
     volume_default: int = 100
     logs_retention_days: int = 7
 
-    # Réglages de lecture Radio (réf. docs/cahier-des-charges-radio.md, §9).
+    # Réglages de lecture Radio.
     # Consommés par les lots ultérieurs (moteur de lecture L3, crossfade L5,
     # rappels L6, auto-boot L7) ; déclarés ici pour centraliser la config.
     # La playlist d'ambiance par défaut n'est PAS un réglage : c'est la
@@ -229,7 +224,7 @@ def load_settings() -> Settings:
     local_config = ROOT_DIR / "config.toml"
     global_config = _global_config_path()
 
-    # La config de production (/etc) prime sur celle du dépôt (réf. F7.4) :
+    # La config de production (/etc) prime sur celle du dépôt :
     # config.toml est versionné avec des valeurs de dev, donc toujours présent
     # après un clone — s'il primait, /etc/bobine/config.toml ne
     # servirait jamais une fois le dépôt cloné sur la machine de production.
@@ -296,7 +291,7 @@ def load_settings() -> Settings:
         path_str = getattr(settings, path_attr)
         path = Path(path_str)
         if not path.is_absolute():
-            # Lot 15 (docs/audit-android-2026-09-11.md §C1/C3) : quelques
+            # quelques
             # chemins basculent sur le stockage interne Android (f2fs natif,
             # jamais FUSE) quand disponible — inchangé (DATA_ROOT) partout
             # ailleurs, y compris sur Android pour les gros médias.
@@ -307,9 +302,9 @@ def load_settings() -> Settings:
                     root = internal_root
             setattr(settings, path_attr, str((root / path).resolve()))
 
-    # Pour la base SQLite relative — même bascule que ci-dessus (Lot 15) :
+    # Pour la base SQLite relative — même bascule que ci-dessus :
     # la base SQLite (verrous/écritures fréquentes) est le cas d'usage
-    # premier de ce changement, cf. docs/audit-android-2026-09-11.md §C1.
+    # premier de ce changement.
     if settings.database_url.startswith("sqlite:///"):
         db_path_str = settings.database_url[len("sqlite:///"):]
         db_path = Path(db_path_str)
@@ -321,9 +316,9 @@ def load_settings() -> Settings:
     return settings
 
 
-# Réglages modifiables depuis la page Paramètres (Lot 9, réf. UX3.17),
-# persistés dans la table `settings` (clé/valeur, cf. §7 cahier fonctionnel)
-# au lieu de config.toml : ils doivent survivre à un redémarrage (F7.3) sans
+# Réglages modifiables depuis la page Paramètres,
+# persistés dans la table `settings` (clé/valeur)
+# au lieu de config.toml : ils doivent survivre à un redémarrage sans
 # nécessiter de réécrire le fichier de config.
 _DB_OVERRIDABLE_FIELDS = (
     "wait_time_between_courses",
@@ -380,7 +375,7 @@ def reload_settings() -> None:
     global settings
     new_settings = load_settings()
     # `.model_fields` (Pydantic v2) sauf sur le profil Android où `.__fields__`
-    # (v1) est le seul disponible (cf. docs/ARCHITECTURE.md §3.1) — un
+    # (v1) est le seul disponible — un
     # dict, itérer dessus donne aussi ses clés (mêmes noms de champs).
     for field in getattr(settings, "model_fields", None) or settings.__fields__:
         if hasattr(new_settings, field):

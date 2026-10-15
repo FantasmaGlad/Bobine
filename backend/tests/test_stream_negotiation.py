@@ -1,6 +1,5 @@
-"""Négociation de la version servie par `GET /api/videos/{id}/stream` (lot F3
-du plan Firefox) : l'original par défaut, la version web pour un client qui
-annonce ne pas savoir décoder le codec, jamais une version web absente."""
+"""Négociation de la version servie par `GET /api/videos/{id}/stream` : l'original par défaut, la version web
+pour un client qui annonce ne pas savoir décoder le codec, jamais une version web absente."""
 
 import os
 import sys

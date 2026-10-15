@@ -1,4 +1,4 @@
-"""Script de hotplug du Wyse (plan 4.0, P1-4) : n'agit que sur un changement
+"""Script de hotplug du Wyse : n'agit que sur un changement
 réel de la liste des sorties connectées."""
 
 import os

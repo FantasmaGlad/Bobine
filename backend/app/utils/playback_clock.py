@@ -1,4 +1,4 @@
-"""Horloge de lecture vidéo pilotée par le SERVEUR (réf. plan 4.0, lot P2-2).
+"""Horloge de lecture vidéo pilotée par le SERVEUR.
 
 Pourquoi : jusqu'ici la position d'un cours n'existait que si un kiosque
 « primaire » la rapportait (≤ 1 fois/s) — sans kiosque connecté sur le canal,

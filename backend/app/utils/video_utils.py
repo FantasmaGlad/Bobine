@@ -12,8 +12,7 @@ from app.utils.ffmpeg_binaries import FFMPEG_BIN, FFPROBE_BIN
 logger = logging.getLogger(__name__)
 
 
-# Délai maximum accordé à chaque appel ffprobe/ffmpeg (réf. retour
-# utilisateur "l'importation des fonds animés bloque et ne termine jamais") :
+# Délai maximum accordé à chaque appel ffprobe/ffmpeg :
 # ces appels tournent sur l'exécuteur mono-thread PARTAGÉ par tous les imports
 # de l'application (app.utils.executors.ffmpeg_executor) — un seul fichier
 # problématique (corrompu, flux exotique sur lequel ffmpeg reste bloqué en
@@ -22,10 +21,7 @@ logger = logging.getLogger(__name__)
 # thread. Un timeout transforme ce blocage silencieux en échec explicite.
 FFPROBE_TIMEOUT_SECONDS = 30
 FFMPEG_THUMBNAIL_TIMEOUT_SECONDS = 30
-# Plus généreux que les deux ci-dessus (réf. constat en production : un
-# réencodage réel de vidéo musicale complète de plusieurs minutes, soumise
-# comme fond animé, a mis plus de 15 min à se terminer en logiciel pur sur le
-# CPU modeste du Wyse 5070) : laisse la place à un réencodage légitimement
+# Plus généreux que les deux ci-dessus : laisse la place à un réencodage légitimement
 # long tout en bornant le pire cas (fichier corrompu/pathologique).
 FFMPEG_NORMALIZE_TIMEOUT_SECONDS = 1800
 
@@ -183,9 +179,8 @@ def extract_metadata(file_path: str) -> dict:
     }
 
 
-# Codecs vidéo dont la robustesse a été validée sur le Wyse 5070 (Lot 0).
-# Restreint à H.264 pour l'instant (réf. audit plan-corrections-bugs, point
-# 6) : HEVC/VP9 ont été validés en lecture continue mais pas spécifiquement
+# Codecs vidéo dont la robustesse a été validée sur le Wyse 5070.
+# Restreint à H.264 pour l'instant : HEVC/VP9 ont été validés en lecture continue mais pas spécifiquement
 # en boucle (un fond animé redémarre le décodeur toutes les quelques
 # secondes, sollicitation plus dure qu'une lecture linéaire) — à élargir
 # seulement après un vrai test de boucle sur le matériel cible.
@@ -193,8 +188,7 @@ COMPATIBLE_VIDEO_CODECS = {"h264"}
 
 # Codecs supplémentaires validés pour une vidéo de COURS (lue une seule fois,
 # en continu — jamais en boucle) : plus permissive que la liste stricte
-# ci-dessus, réservée aux fonds animés. Réf. correctif "un cours mal encodé
-# peut être importé sans avertissement puis échouer à la lecture" — avant ce
+# ci-dessus, réservée aux fonds animés. — avant ce
 # correctif, `strict_video_codec=False` ne rétrécissait pas cette liste, il
 # sautait la vérification du codec vidéo EN ENTIER (n'importe quel codec,
 # même jamais testé sur ce matériel — AV1, MPEG-2, VC-1...— passait pour
@@ -209,8 +203,7 @@ def is_faststart_mp4(file_path: str) -> bool:
     Vrai si l'atome 'moov' (index des échantillons) précède l'atome 'mdat'
     (données) dans le fichier — condition requise pour qu'un navigateur
     puisse décoder la moindre image avant d'avoir reçu la quasi-totalité du
-    fichier (réf. correctif "critique kiosk/réseau — reste figé sur la
-    première frame"). ffmpeg écrit 'moov' APRÈS 'mdat' par défaut (à la toute
+    fichier. ffmpeg écrit 'moov' APRÈS 'mdat' par défaut (à la toute
     fin du fichier) sauf option explicite `-movflags +faststart` : invisible
     en boucle localhost (l'écran câblé récupère la fin du fichier quasi
     instantanément via Range), mais un lecteur sur une vraie liaison LAN/WiFi
@@ -255,9 +248,7 @@ def is_faststart_mp4(file_path: str) -> bool:
 def read_mp4_duration_seconds(file_path: str) -> float | None:
     """
     Lit la durée d'un MP4/M4V directement dans l'atome 'mvhd' (imbriqué dans
-    'moov'), sans ffprobe — repli utilisé quand ffprobe est indisponible (réf.
-    Lot 8, docs/plan-implementation-android.md : aucun binaire utilisable sous
-    Android) pour au moins récupérer la durée, seule métadonnée manquante
+    'moov'), sans ffprobe — repli utilisé quand ffprobe est indisponible pour au moins récupérer la durée, seule métadonnée manquante
     qu'un parcours d'en-têtes pur Python peut raisonnablement reconstituer
     (largeur/hauteur/codec demanderaient de décoder les box 'stsd', bien plus
     engagé pour un gain d'affichage secondaire).
@@ -343,7 +334,7 @@ def check_compatibility(metadata: dict, file_path: str, strict_video_codec: bool
     Vérifie la compatibilité de la vidéo par rapport aux règles de lecture directe du navigateur.
     Retourne si le fichier est directement lisible ou s'il nécessite une normalisation.
 
-    `strict_video_codec` (réf. audit plan-corrections-bugs, point 6) : à
+    `strict_video_codec` : à
     activer uniquement pour les fonds animés, qui bouclent indéfiniment et
     sollicitent donc le décodeur matériel bien plus durement (redémarrage à
     chaque tour) qu'une vidéo de cours lue une seule fois en continu. Pour un
@@ -371,8 +362,7 @@ def check_compatibility(metadata: dict, file_path: str, strict_video_codec: bool
     needs_audio_recode = metadata["audio_codec"] is not None and metadata["audio_codec"] != "aac"
     needs_container_recode = not is_mp4_container
     needs_video_recode = not is_video_codec_compatible
-    # Réf. correctif "critique kiosk/réseau — reste figé sur la première
-    # frame" : un conteneur/codec par ailleurs déjà compatible peut quand même
+    # un conteneur/codec par ailleurs déjà compatible peut quand même
     # avoir son atome moov en fin de fichier (export non "web optimisé") — un
     # défaut invisible en local mais bloquant sur le réseau. Seul un
     # conteneur MP4 est concerné (un remux container->mp4 ci-dessous produit
@@ -518,8 +508,7 @@ def _get_encoder_args(is_android: bool, width: int | None, height: int | None) -
     bitrate = _get_target_bitrate(width, height)
     system = platform.system().lower()
 
-    # Intervalle de trames clés resserré (réf. correctif "freeze kiosk réseau
-    # au seek admin") : sans `-g` explicite, ffmpeg choisit un GOP par défaut
+    # Intervalle de trames clés resserré : sans `-g` explicite, ffmpeg choisit un GOP par défaut
     # pouvant dépasser plusieurs secondes — un seek admin vers une position
     # hors keyframe oblige alors le décodeur à rattraper depuis la keyframe
     # précédente, terrain propice aux blocages sur certains décodeurs
@@ -824,8 +813,7 @@ def _run_ffmpeg_with_progress(
 
 
 def estimate_normalize_seconds(source_metadata: dict) -> float | None:
-    """Estimation de la durée de réencodage AVANT le démarrage de ffmpeg (réf.
-    mission "estimation de la durée d'importation et de réencodage") : basée
+    """Estimation de la durée de réencodage AVANT le démarrage de ffmpeg : basée
     sur la vitesse moyenne (x temps réel) déjà observée pour ce couple
     (encodeur, résolution) via `encode_speed_stats`, ou un repère par défaut
     tant qu'aucun échantillon n'existe encore. Purement indicative — écrasée

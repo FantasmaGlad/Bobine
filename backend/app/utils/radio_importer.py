@@ -1,4 +1,4 @@
-"""Import de morceaux dans la bibliothèque Radio (réf. docs/cahier-des-charges-radio.md §5.3).
+"""Import de morceaux dans la bibliothèque Radio.
 
 Chaque fichier musical devient un `RadioTrack` indépendant (contrairement aux
 cours audio coach regroupés) : métadonnées ID3 + pochette extraites, fichier
@@ -156,8 +156,7 @@ def _ingest_announcement(db, src: Path, description: str) -> RadioAnnouncement:
     meta = extract_radio_metadata(str(src))
 
     Path(settings.radio_announcements_dir).mkdir(parents=True, exist_ok=True)
-    # Normalisation loudness systématique (réf. correctif « voix trop faible
-    # vs musique ») : on ré-encode toujours en AAC/.m4a avec loudnorm (2 passes,
+    # Normalisation loudness systématique : on ré-encode toujours en AAC/.m4a avec loudnorm (2 passes,
     # cible -10 LUFS), pour que le rappel s'entende au moins aussi fort que la
     # musique masterisée.
     dest_path = Path(settings.radio_announcements_dir) / f"announcement_{file_id}.m4a"
@@ -171,9 +170,9 @@ def _ingest_announcement(db, src: Path, description: str) -> RadioAnnouncement:
 
 
 def import_radio_announcement(file_path: str, description: str, db) -> RadioAnnouncement:
-    """Importe un rappel (réf. lot L6, D11-D13) : fichier unique + description
+    """Importe un rappel : fichier unique + description
     OBLIGATOIRE, saisie en même temps que l'upload — pas de traitement en
-    arrière-plan (pas de dossier surveillé pour les rappels, cf. §10.2 :
+    arrière-plan (pas de dossier surveillé pour les rappels :
     une description manuelle est de toute façon requise). Effectue le commit."""
     announcement = _ingest_announcement(db, Path(file_path), description)
     db.commit()

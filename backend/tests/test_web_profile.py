@@ -1,4 +1,4 @@
-"""Version web « lisible partout » (lot F3 du plan Firefox) : détection des
+"""Version web « lisible partout » : détection des
 raisons de non-lisibilité, négociation selon les capacités annoncées par le
 navigateur, et vrai transcodage ffmpeg d'un HEVC 10 bits."""
 
@@ -42,7 +42,7 @@ def test_uhd_60fps_is_only_a_performance_note():
 
 
 def test_unknown_pixel_format_is_not_flagged():
-    # vidéos importées avant le lot F3 : tant qu'elles n'ont pas été
+    # vidéos importées avec l'ancienne analyse : tant qu'elles n'ont pas été
     # réanalysées, on ne prétend pas savoir
     assert web_playback_issues("h264", None, 1920, 1080, 30.0) == []
 

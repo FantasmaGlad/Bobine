@@ -1,4 +1,4 @@
-"""Utilitaires du module Radio (réf. docs/cahier-des-charges-radio.md §5.3).
+"""Utilitaires du module Radio.
 
 Extraction des métadonnées et de la pochette embarquée d'un fichier musical, et
 transcodage vers un format lisible par le navigateur pour les formats exotiques.
@@ -49,8 +49,7 @@ def clean_filename_label(file_path: str) -> str:
     """Dérive un libellé lisible depuis un nom de fichier (underscores en
     espaces) — utilisé en repli quand aucun tag ID3 de titre n'est présent,
     et pour dériver automatiquement la description d'un rappel importé en
-    lot (réf. correctif "import groupé de rappels sans ressaisir chaque
-    description à la main")."""
+    lot."""
     stem = Path(file_path).stem.replace("_", " ").strip()
     return stem or Path(file_path).stem
 
@@ -165,7 +164,7 @@ def extract_embedded_cover(file_path: str, covers_dir: str, file_id: str) -> str
 
 def save_cover_image(src_image_path: str, covers_dir: str, file_id: str) -> str:
     """Enregistre une pochette fournie manuellement (upload) : redimensionnée et
-    normalisée en JPEG, comme les pochettes extraites (réf. D3 override manuel)."""
+    normalisée en JPEG, comme les pochettes extraites."""
     Path(covers_dir).mkdir(parents=True, exist_ok=True)
     from PIL import Image
     dest = Path(covers_dir) / f"cover_{file_id}.jpg"
@@ -177,8 +176,7 @@ def save_cover_image(src_image_path: str, covers_dir: str, file_id: str) -> str:
 
 
 def transcode_to_web(src_path: str, dest_path: str) -> None:
-    """Transcode un format non lu par le navigateur (ex. .wma) en AAC/.m4a
-    (réf. A2). Lève en cas d'échec ffmpeg."""
+    """Transcode un format non lu par le navigateur (ex. .wma) en AAC/.m4a. Lève en cas d'échec ffmpeg."""
     cmd = [FFMPEG_BIN, "-y", "-i", src_path, "-vn", "-c:a", "aac", "-b:a", "256k", dest_path]
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode != 0:
@@ -211,9 +209,7 @@ def _measure_loudnorm(src_path: str, target_lufs: float) -> dict | None:
 def normalize_announcement_loudness(src_path: str, dest_path: str, target_lufs: float = -10.0) -> None:
     """Normalise le loudness d'un rappel (filtre EBU R128 `loudnorm`) au niveau
     d'une musique commerciale, puis ré-encode en AAC/.m4a.
-
-    Réf. correctif user « la voix des rappels est très faible vs la musique ;
-    elle doit être au minimum aussi forte » : une voix brute a un loudness
+ : une voix brute a un loudness
     (LUFS) bien plus faible qu'une musique masterisée, et les pistes musicales
     ne sont PAS normalisées à l'import (souvent -9 à -11 LUFS). On aligne donc
     la voix sur ce niveau commercial (cible -10 LUFS ≈ la plupart des masters),

@@ -70,7 +70,7 @@ def _resolve_period_start(period: str) -> datetime | None:
 
 @router.post("/ratings", status_code=201)
 def create_course_rating(payload: RatingCreate, db: Session = Depends(get_db)):
-    """Enregistre l'évaluation 5 étoiles d'un cours vidéo (réf. CDC V3.0.5 Bêta §2.2)."""
+    """Enregistre l'évaluation 5 étoiles d'un cours vidéo."""
     video = db.query(Video).filter(Video.id == payload.video_id).first()
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo introuvable")
@@ -164,7 +164,7 @@ def get_metrics_dashboard(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """
-    Tableau de bord unifié des métriques club et télémétrie matérielle (CDC V3.0.5 Bêta §2.4).
+    Tableau de bord unifié des métriques club et télémétrie matérielle.
     """
     start_date = _resolve_period_start(period)
 

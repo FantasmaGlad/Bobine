@@ -33,7 +33,7 @@ def list_activity_logs(
     limit: int = Query(200, le=1000),
     db: Session = Depends(get_db),
 ):
-    """Log d'activité filtrable (réf. F8.1, UX3.18)."""
+    """Log d'activité filtrable."""
     query = db.query(ActivityLog).order_by(ActivityLog.id.desc())
     if event_type:
         query = query.filter(ActivityLog.event_type == event_type)
@@ -48,7 +48,7 @@ def list_activity_event_types(db: Session = Depends(get_db)):
 
 @router.get("/technical", response_class=PlainTextResponse)
 def get_technical_log(lines: int = Query(500, le=5000)):
-    """Log technique brut (réf. F8.2, UX3.18) : erreurs backend, échecs de lecture, etc."""
+    """Log technique brut : erreurs backend, échecs de lecture, etc."""
     log_path = settings.technical_log_path
     if not log_path.exists():
         return ""
@@ -59,7 +59,7 @@ def get_technical_log(lines: int = Query(500, le=5000)):
 
 @router.get("/technical/download")
 def download_technical_log():
-    """Téléchargement du log technique complet (réf. UX3.18)."""
+    """Téléchargement du log technique complet."""
     from fastapi.responses import FileResponse
 
     log_path = settings.technical_log_path
@@ -74,8 +74,7 @@ def delete_activity_logs(
     limit: int | None = Query(None, gt=0),
     db: Session = Depends(get_db),
 ):
-    """Supprime des logs d'activité (réf. retour utilisateur "possibilité de
-    supprimer les derniers logs") : par identifiants précis (sélection dans
+    """Supprime des logs d'activité : par identifiants précis (sélection dans
     le tableau), les `limit` plus récents (purge), ou tout si aucun des deux
     n'est fourni (bouton "vider")."""
     if ids:
@@ -96,8 +95,7 @@ def delete_activity_logs(
 
 @router.delete("/technical")
 def clear_technical_log():
-    """Vide le log technique (réf. retour utilisateur "possibilité de
-    supprimer les derniers logs")."""
+    """Vide le log technique."""
     log_path = settings.technical_log_path
     if log_path.exists():
         log_path.write_text("", encoding="utf-8")

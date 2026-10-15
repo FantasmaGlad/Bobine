@@ -39,8 +39,7 @@ class TestVideoFlow(unittest.TestCase):
         print("Generating compatible test video with ffmpeg...")
         # H264 + AAC MP4 (Direct Play compatible). `-movflags +faststart` place
         # l'atome moov en tête : sans lui, check_compatibility déclencherait un
-        # remux_faststart (réf. correctif "kiosk/réseau figé sur la première
-        # frame") — une vidéo réellement optimisée web ne nécessite aucune
+        # remux_faststart — une vidéo réellement optimisée web ne nécessite aucune
         # normalisation, ce que ce test valide.
         cmd_comp = [
             "ffmpeg", "-y",
@@ -193,7 +192,7 @@ class TestVideoFlow(unittest.TestCase):
         self.assertIn("Updated_Title_RPM_99", new_file_path)
 
     def test_07_import_video_without_ffprobe(self):
-        # Réf. Lot 8 (docs/plan-implementation-android.md) : sous Android, ni
+        # Sous Android, ni
         # ffprobe ni ffmpeg ne sont utilisables (aucun binaire ne survit au
         # filtre seccomp). Ce test simule exactement l'erreur réelle observée
         # sur tablette pour vérifier que l'import aboutit quand même : la
@@ -237,8 +236,7 @@ class TestVideoFlow(unittest.TestCase):
         self.assertIsNone(read_mp4_duration_seconds(self.dummy_incompatible_path))
 
     def test_09_upload_video_thumbnail(self):
-        # Réf. retour utilisateur "comment avoir une miniature alors ?" (Lot 8
-        # bloque generate_thumbnail, qui dépend de ffmpeg) : miniature fournie
+        # miniature fournie
         # manuellement par l'admin, décodée avec Pillow seul (aucune vidéo à
         # décoder), même chemin que _import_background_image().
         from PIL import Image

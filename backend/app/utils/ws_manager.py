@@ -7,15 +7,14 @@ from fastapi import WebSocket
 logger = logging.getLogger(__name__)
 
 # Keepalive : un ping toutes les 30s, un client sans pong dans les 20s qui
-# suivent est considéré mort (réf. plan perf/concurrence Phase 3, P7).
-# Relâché depuis 20s/10s (réf. retour utilisateur 2026-07-21 "le cours sur la
-# télé/réseau ne se lance jamais") : un kiosk réel sur une liaison réseau
+# suivent est considéré mort.
+# Relâché depuis 20s/10s : un kiosk réel sur une liaison réseau
 # lente/chargée (thread JS occupé à bufferiser un gros fichier vidéo) rate
 # systématiquement la fenêtre de pong d'origine et se fait fermer par le
 # serveur ~toutes les 30s en boucle, sans jamais laisser assez de temps
 # ininterrompu à la vidéo/l'intro pour réellement démarrer.
 PING_INTERVAL_SECONDS = 30.0
-# Lot 15 (docs/audit-android-2026-09-11.md §C2) : porté de 20s à 60s — une
+# porté de 20s à 60s — une
 # WebView Android en arrière-plan (MainActivity non visible pendant que
 # l'admin est ouvert dans Chrome) voit ses minuteurs JS fortement throttlés
 # par le système (jusqu'à 1/minute après 5 min en arrière-plan), et ratait
@@ -25,8 +24,7 @@ PING_INTERVAL_SECONDS = 30.0
 # détection plus long pour un VRAI client mort est acceptable ici (pas un
 # service à forte volumétrie de connexions).
 PONG_TIMEOUT_SECONDS = 60.0
-# Lot 15 (docs/audit-android-2026-09-11.md §C2), révisé après déploiement
-# réel : borne le temps qu'un seul client lent/bloqué peut faire perdre à
+# Borne le temps qu'un seul client lent/bloqué peut faire perdre à
 # `broadcast()` — au-delà, ce client est considéré injoignable et fermé
 # proprement (cf. `broadcast()`) plutôt que de retarder tous les autres.
 # Porté de 1.0s à 3.0s après un test en conditions réelles sur Wi-Fi (pas
@@ -37,7 +35,7 @@ BROADCAST_SEND_TIMEOUT_SECONDS = 3.0
 
 
 # Évènements propres à UN canal de diffusion (champ `channel`) : seuls les
-# clients abonnés à ce canal les reçoivent (réf. plan 4.0, P2-3). Avant, chaque
+# clients abonnés à ce canal les reçoivent. Avant, chaque
 # tick de position — état complet — partait vers TOUTES les connexions de TOUS
 # les canaux et le tri se faisait côté client : CPU et réseau consommés pour
 # rien (le coût croît avec le nombre d'écrans). Les autres évènements
@@ -48,14 +46,13 @@ CHANNEL_SCOPED_EVENTS = frozenset({"state_change", "cinema_state", "cinema_comma
 
 class ConnectionManager:
     """Diffuse les changements d'état de lecture à tous les clients connectés
-    (écran kiosk + télécommandes PC/mobile). Cf. plan de construction §8.3.2.
+    (écran kiosk + télécommandes PC/mobile).
 
-    Process unique (réf. PortabiliteCrossPlatformX, Lot 0 — suppression de
-    Redis/multi-worker) : toutes les connexions WebSocket vivent dans le même
+    Process unique : toutes les connexions WebSocket vivent dans le même
     processus, `broadcast()` écrit donc directement sur les sockets locales,
     sans canal de diffusion externe à relayer.
 
-    Gestion du rôle kiosk (réf. correctif P4 — 2 kiosks simultanés) :
+    Gestion du rôle kiosk :
     Seul le kiosk "primaire" (premier arrivé, ou dont le `client_id` est déjà
     reconnu) envoie report_position. Les suivants sont en mode miroir
     (reçoivent les états, ne rapportent pas). Si le primaire se déconnecte,
@@ -65,8 +62,7 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: dict[WebSocket, asyncio.Task] = {}
         self._last_pong: dict[WebSocket, float] = {}
-        # Listes ordonnées des kiosks connectés, PAR CANAL de diffusion (réf.
-        # mission "tableaux de bord Câblé / Réseau") : chaque canal a son
+        # Listes ordonnées des kiosks connectés, PAR CANAL de diffusion : chaque canal a son
         # propre kiosk primaire (premier arrivé), source de la position de SA
         # lecture. Un kiosk câblé et un kiosk réseau ne se disputent jamais
         # le rôle.
@@ -80,12 +76,10 @@ class ConnectionManager:
         # seconde).
         self._kiosk_client_id: dict[WebSocket, str] = {}
         self._kiosk_primary_status: dict[WebSocket, bool] = {}
-        # `client_id` actuellement reconnu primaire, par canal (réf. correctif
-        # "freeze vidéo en sortie réseau") : une reconnexion (même client_id,
+        # `client_id` actuellement reconnu primaire, par canal : une reconnexion (même client_id,
         # nouvelle WebSocket) reprend immédiatement son rôle primaire même si
         # son ancienne connexion (morte mais pas encore expirée côté
-        # ping/pong) est toujours dans `_kiosk_connections`. Process unique
-        # depuis Lot 0 : plus besoin d'un bail à durée de vie (Redis TTL) —
+        # ping/pong) est toujours dans `_kiosk_connections`. Process unique : plus besoin d'un bail à durée de vie (Redis TTL) —
         # la libération est déclenchée de façon fiable par la déconnexion
         # réelle de CE processus (cf. _unregister_kiosk), donc un simple
         # mapping sans expiration suffit.
@@ -94,7 +88,7 @@ class ConnectionManager:
         # `identify`). Une connexion SANS entrée reçoit tout (anciens bundles
         # frontend en cache : comportement historique, aucune régression).
         self._subscriptions: dict[WebSocket, frozenset[str]] = {}
-        # Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6) : boucle
+        # boucle
         # asyncio principale, enregistrée une fois au démarrage
         # (`main.py::lifespan`) — permet à du code exécuté HORS boucle (un
         # endpoint FastAPI `def` synchrone tournant dans le threadpool, un
@@ -249,8 +243,7 @@ class ConnectionManager:
 
     async def broadcast(self, message: dict):
         """
-        Envoie à tous les clients WebSocket locaux, EN PARALLÈLE (Lot 15,
-        docs/audit-android-2026-09-11.md §C2). Avant ce lot, l'envoi se
+        Envoie à tous les clients WebSocket locaux, EN PARALLÈLE. Avant ce lot, l'envoi se
         faisait client par client, en série : un seul client dont le tampon
         TCP était plein (WebView Android en arrière-plan, Wi-Fi qui rame)
         retardait la diffusion pour TOUS les autres, y compris `position_tick`
@@ -261,8 +254,7 @@ class ConnectionManager:
         d'exception jusqu'à la commande appelante (ex. `manager.stop()`),
         sinon l'état interne change bien mais aucun client ne le sait jamais
         — exactement le bug qui faisait croire que stop/pause/lancement de
-        programmation ne faisaient rien (réf. audit plan-corrections-bugs,
-        points 2a/3).
+        programmation ne faisaient rien.
         """
         connections = [c for c in self.active_connections.keys() if self._wants(c, message)]
         if not connections:
@@ -303,8 +295,7 @@ class ConnectionManager:
 
     async def broadcast_force_reload(self):
         """Demande à tous les clients navigateur connectés (PC/mobile/coach)
-        de recharger leur page (réf. audit plan-corrections-bugs, point 4 —
-        bouton de réinitialisation complète). Le kiosk, lui, est relancé
+        de recharger leur page. Le kiosk, lui, est relancé
         directement via `systemctl restart` côté serveur ; recevoir aussi cet
         évènement ne lui pose pas de problème (rechargement idempotent)."""
         await self.broadcast({"event": "force_reload"})

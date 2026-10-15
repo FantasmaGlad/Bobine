@@ -1,16 +1,11 @@
-"""Lot 15, correction post-déploiement (docs/audit-android-2026-09-11.md) —
-régression sur `RevalidateStaticFiles` (app/main.py) : l'ETag PAR DÉFAUT de
+"""Régression sur `RevalidateStaticFiles` (app/main.py) : l'ETag PAR DÉFAUT de
 Starlette (`FileResponse.set_stat_headers`) est `md5(mtime + "-" + taille)`,
-PAS un hachage du contenu réel — contrairement à ce qu'affirmait à tort le
-commentaire de cette classe avant ce correctif. Comme l'export Next.js
-normalise le mtime de chaque fichier à une date fixe identique sur CHAQUE
-build (reproductibilité), l'ETag ne dépendait en pratique que de la taille
-en octets : deux versions différentes d'un même fichier avec la même
-taille obtenaient le même ETag, et un `GET` avec `If-None-Match` recevait
-un 304 à tort, servant une page HTML périmée référençant des bundles
-JS/CSS qui n'existent plus dans le build courant. Reproduit concrètement
-sur la tablette pilote Android après déploiement (`GET /grid/` → 304 suivi
-d'une rafale de 404 sur les chunks référencés).
+PAS un hachage du contenu réel. Comme l'export Next.js normalise le mtime de
+chaque fichier à une date fixe (build reproductible), l'ETag ne dépendait en
+pratique que de la taille : deux versions différentes d'un même fichier de même
+taille obtenaient le même ETag, et un `GET` avec `If-None-Match` recevait un
+304 à tort, servant une page HTML périmée qui référence des bundles JS/CSS
+absents du build courant.
 
 Ce test simule exactement ce scénario : deux fichiers de même taille en
 octets, EXACTEMENT le même mtime (comme le fait le build reproductible),

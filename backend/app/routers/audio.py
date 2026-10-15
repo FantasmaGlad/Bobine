@@ -77,8 +77,7 @@ class TrackReorderInput(BaseModel):
 
 
 class AudioTrackWithCourseResponse(BaseModel):
-    """Piste individuelle avec le contexte de son cours d'origine (réf.
-    mission "playlists spéciales... musiques de plusieurs RPM différents") :
+    """Piste individuelle avec le contexte de son cours d'origine :
     sert de source pour le sélecteur de pistes des playlists audio, qui pioche
     librement dans n'importe quel cours plutôt que de les enchaîner entiers."""
     id: int
@@ -123,8 +122,7 @@ def list_audio_courses(db: Session = Depends(get_db)):
 def list_all_tracks(db: Session = Depends(get_db)):
     """
     Toutes les pistes de tous les cours audio, à plat, avec leur contexte de
-    cours d'origine (réf. mission "playlists spéciales... des musiques de
-    plusieurs RPM différents, pas juste plusieurs RPM collés") : source du
+    cours d'origine : source du
     sélecteur de pistes des playlists audio — DOIT être déclarée avant
     `/{course_id}` pour ne pas être interceptée par cette route paramétrée.
     """
@@ -217,8 +215,7 @@ def _run_audio_files_import_job(
 ) -> None:
     """Voir `videos.py::_run_video_import_job` — même mécanique de suivi. Sur
     `io_executor` (pas `ffmpeg_executor`) : cet import n'appelle que ffprobe,
-    pas de réencodage ffmpeg (réf. watcher.py, même choix pour le dossier
-    surveillé), donc pas de raison de faire la queue derrière un import
+    pas de réencodage ffmpeg, donc pas de raison de faire la queue derrière un import
     vidéo/fond en cours."""
     try:
         course = import_audio_course_from_files(temp_paths, title, program, release, job_id=job_id)
@@ -248,13 +245,13 @@ def upload_audio_course(
     program: str | None = Form(None),
     release: str | None = Form(None),
 ):
-    """Import multi-fichiers MP3 d'un cours (réf. F10.1, UX3.11), traité en
+    """Import multi-fichiers MP3 d'un cours, traité en
     arrière-plan — voir `_run_audio_files_import_job` et `GET /api/import-jobs`."""
     if not title.strip():
         raise HTTPException(status_code=400, detail="Le titre du cours est requis")
 
     # Dossier temporaire dédié à cette requête : chaque fichier y garde son
-    # nom d'origine intact (le numéro de piste en tête de nom, réf. F10.1,
+    # nom d'origine intact (le numéro de piste en tête de nom.1,
     # doit rester parsable — un fichier temporaire renommé le perdrait).
     tmp_dir = Path(tempfile.mkdtemp(prefix="olmc_audio_upload_"))
     temp_paths = []
@@ -282,7 +279,7 @@ def upload_audio_course_zip(
     program: str | None = Form(None),
     release: str | None = Form(None),
 ):
-    """Import d'une archive ZIP d'un cours complet (réf. F10.1, UX3.11),
+    """Import d'une archive ZIP d'un cours complet,
     traité en arrière-plan — voir `_run_audio_zip_import_job` et
     `GET /api/import-jobs`."""
     if not title.strip():
@@ -319,7 +316,7 @@ def update_audio_course(course_id: int, payload: AudioCourseUpdate, db: Session 
 
 @router.put("/{course_id}/tracks/reorder", response_model=AudioCourseDetailResponse)
 def reorder_tracks(course_id: int, payload: TrackReorderInput, db: Session = Depends(get_db)):
-    """Réordonnancement des pistes par glisser-déposer (réf. UX3.10)."""
+    """Réordonnancement des pistes par glisser-déposer."""
     course = db.query(AudioCourse).filter(AudioCourse.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Cours audio non trouvé")

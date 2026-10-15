@@ -38,17 +38,16 @@ router = APIRouter(tags=["playback"])
 _cinema_sessions: dict[str, int] = {}
 
 # Les PlaybackManagers sont initialisés ici avec le broadcast du
-# ConnectionManager : UN ÉTAT PAR CANAL de diffusion (réf. mission "tableaux
-# de bord Câblé / Réseau") — le canal câblé (écran du Wyse) et le canal
+# ConnectionManager : UN ÉTAT PAR CANAL de diffusion — le canal câblé (écran du Wyse) et le canal
 # réseau (autres appareils du LAN) ont chacun leur lecture, leur playlist et
 # leur planning, totalement indépendants.
 playback_managers = init_playback_managers(ws_manager.broadcast)
 # Délai de démarrage synchronisé seulement s'il y a au moins deux écrans à caler
-# sur le canal (plan 4.0) : un seul écran répond immédiatement.
+# sur le canal : un seul écran répond immédiatement.
 for _manager in playback_managers.values():
     _manager.display_counter = ws_manager.kiosk_count
-# 3e canal, radio (réf. docs/cahier-des-charges-radio.md, lot L3) : moteur de
-# lecture INDÉPENDANT (décisions D1/D2), même broadcast partagé pour rester
+# 3e canal, radio : moteur de
+# lecture INDÉPENDANT, même broadcast partagé pour rester
 # sur la même connexion WebSocket que les deux canaux ci-dessus.
 radio_manager = init_radio_manager(ws_manager.broadcast)
 # Postes /radio connectés (démarrage synchronisé seulement à plusieurs) et filet
@@ -69,18 +68,18 @@ class InterruptedStateResponse(BaseModel):
     cause: str | None
     channel: str | None = None
     interrupted_at: datetime
-    # Forme F5.3 (cause="schedule") : lecture manuelle interrompue, reprise à la position exacte.
+    # Interruption par programmation (cause="schedule") : lecture manuelle interrompue, reprise à la position exacte.
     video_id: int | None = None
     title: str | None = None
     position_seconds: float | None = None
-    # Forme F10.7 (cause="coach_priority") : programmation reportée par le mode coach, relance depuis zéro.
+    # Report par le mode coach (cause="coach_priority") : programmation reportée par le mode coach, relance depuis zéro.
     target_type: str | None = None
     target_id: int | None = None
 
 
 def _thumbnail_filename(thumbnail_path: str | None) -> str | None:
     """Nom de fichier seul (pas le chemin disque complet) pour reconstruire
-    l'URL `/api/thumbnails/<fichier>` côté client — réf. UX3.3 vignette du
+    l'URL `/api/thumbnails/<fichier>` côté client.3 vignette du
     bloc « En direct »."""
     return thumbnail_path.split("/")[-1] if thumbnail_path else None
 
@@ -147,7 +146,7 @@ def _build_audio_playlist_tracks(audio_playlist) -> list[dict]:
     """Forme attendue par PlaybackManager.load_audio_playlist pour une
     playlist audio — traverse `items`/`item.track`/`item.background`
     (relations ORM paresseuses) : fonction SYNCHRONE, à appeler via
-    `run_in_threadpool` (Lot 15, docs/audit-android-2026-09-11.md §C1)."""
+    `run_in_threadpool`."""
     sorted_items = sorted(audio_playlist.items, key=lambda item: item.position)
     return [
         {
@@ -155,8 +154,7 @@ def _build_audio_playlist_tracks(audio_playlist) -> list[dict]:
             "number": item.track.number,
             "title": item.track.title,
             "duration_seconds": item.track.duration_seconds,
-            # Fond d'ambiance propre à CETTE piste (réf. mission "associer
-            # un fond animé à chaque musique") : résolu une fois ici plutôt
+            # Fond d'ambiance propre à CETTE piste : résolu une fois ici plutôt
             # que par le kiosk, comme le fond du cours/playlist lui-même.
             "background_id": item.background_id,
             "background_title": item.background.title if item.background else None,
@@ -191,7 +189,7 @@ def _build_playlist_video_items(playlist) -> list[dict]:
 
 
 async def _load_audio_course_into_manager(course: AudioCourse, manager, db: Session, chain_mode=None, chain_timer_seconds=None, client_ts=None):
-    # Lot 15 (docs/audit-android-2026-09-11.md §C1) : la construction de
+    # la construction de
     # cet item traverse des relations ORM (background) qui peuvent
     # déclencher leurs propres requêtes paresseuses — regroupées ici dans
     # un seul aller-retour au threadpool plutôt que plusieurs micro-appels.
@@ -215,8 +213,8 @@ def get_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depends(
     """
     Dernière action différée en attente de reprise/relance explicite depuis
     l'interface, POUR UN CANAL DONNÉ : soit une lecture manuelle interrompue
-    par une programmation (F5.3), soit une programmation reportée par le mode
-    coach (F10.7).
+    par une programmation, soit une programmation reportée par le mode
+    coach.
     """
     resolved = _resolve_channel(channel)
     state = (
@@ -256,7 +254,7 @@ def get_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depends(
 async def resume_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depends(get_db)):
     """
     Relance l'action différée du canal : reprise à la position exacte pour
-    F5.3, relance depuis zéro de la cible programmée pour F10.7 (elle n'avait
+    une interruption par programmation, relance depuis zéro de la cible reportée par le mode coach (elle n'avait
     jamais démarré, il n'y a pas de position à reprendre).
     """
     resolved = _resolve_channel(channel)
@@ -343,12 +341,12 @@ def dismiss_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depe
     return {"message": "Lecture interrompue abandonnée"}
 
 
-# Horloge du cours /cinema LANCÉ PAR ORDRE, par canal (plan 4.0.1) : un `launch`
+# Horloge du cours /cinema LANCÉ PAR ORDRE, par canal : un `launch`
 # (depuis /grid ou le tableau de bord) crée l'horloge, les ordres suivants
 # (play, pause, seek) la pilotent, `stop` la détruit. Les pages /cinema qui jouent
 # CE cours la suivent (démarrage et dérive corrigés comme pour /kiosk) ; une page
 # dont l'adhérent a choisi un autre cours à la main reste totalement indépendante
-# (lecture locale, décision de conception de la mission /cinema). Sans `launch`
+# (lecture locale, choix de conception de /cinema). Sans `launch`
 # préalable, aucune ancre n'est jointe aux ordres : comportement inchangé.
 _cinema_clocks: dict[str, PlaybackClock] = {}
 _cinema_launched_video: dict[str, int] = {}
@@ -390,8 +388,7 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
     kiosk_channel = DEFAULT_CHANNEL
     kiosk_client_id = ""
     try:
-        # Réf. retour user « un redémarrage ne resynchronise pas tous les
-        # écrans » : un écran réseau/radio ouvert depuis un moment ne fait que
+        # un écran réseau/radio ouvert depuis un moment ne fait que
         # RECONNECTER son WebSocket après un restart backend (reboot machine,
         # watchdog, crash...) — sans ce message, il resynchronise son ÉTAT
         # mais continue de tourner sur son ANCIEN bundle JS/HTML en mémoire.
@@ -412,7 +409,7 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
                 "channel": channel,
                 "data": get_playback_manager(channel).snapshot(),
             })
-        # 3e canal radio (réf. lot L3), hors CHANNELS (cable/network) : envoyé
+        # 3e canal radio, hors CHANNELS (cable/network) : envoyé
         # à part, même mécanisme.
         await websocket.send_json({
             "event": "state_change",
@@ -422,7 +419,7 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
         })
         while True:
             message = await websocket.receive_json()
-            # Identification du rôle du client (réf. correctif P4).
+            # Identification du rôle du client.
             # Le kiosk envoie {"command": "identify", "params": {"role":
             # "kiosk", "channel": "cable"|"network"|"radio", "client_id":
             # "..."}} dès l'ouverture de la connexion (et de nouveau si
@@ -430,7 +427,7 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
             # son rôle SUR SON CANAL et on lui retourne son statut
             # primaire/miroir via un message dédié à chaque appel.
             if message.get("command") == "time_sync":
-                # Mesure d'horloge façon NTP (plan 4.0, P2-4) : répond
+                # Mesure d'horloge façon NTP : répond
                 # DIRECTEMENT à ce client avec l'heure serveur ; il en déduit
                 # son décalage (milieu de l'aller-retour) pour calculer la
                 # position cible de l'horloge de lecture.
@@ -441,7 +438,7 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
                 })
                 continue
             if message.get("command") == "subscribe":
-                # Abonnement de canal (plan 4.0, P2-3) : {"command": "subscribe",
+                # Abonnement de canal : {"command": "subscribe",
                 # "params": {"channels": ["cable", ...]}} — liste vide autorisée.
                 requested = (message.get("params") or {}).get("channels")
                 if isinstance(requested, list):
@@ -454,7 +451,7 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
                     if not is_kiosk:
                         is_kiosk = True
                         requested_channel = params.get("channel")
-                        # Le poste /radio (lot L4) est le lecteur primaire du 3e
+                        # Le poste /radio est le lecteur primaire du 3e
                         # canal, hors CHANNELS (cable/network) : _resolve_channel
                         # le ferait retomber sur "cable" à tort.
                         kiosk_channel = "radio" if requested_channel == "radio" else _resolve_channel(requested_channel)
@@ -480,7 +477,7 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
 
 
 def _log_track_if_changed(db: Session, manager, index_before: int | None) -> None:
-    """F8.1 « pistes lancées » : logue l'entrée en lecture d'une nouvelle
+    """Journalise l'entrée en lecture d'une nouvelle
     piste, uniquement si l'index a effectivement changé (une commande peut ne
     rien faire — dernière piste déjà atteinte, mode manuel après une fin de
     piste — auquel cas rien n'a été "lancé")."""
@@ -489,7 +486,7 @@ def _log_track_if_changed(db: Session, manager, index_before: int | None) -> Non
         return
     tracks = manager.state.get("audio_tracks")
     if tracks and 0 <= index_after < len(tracks):
-        # Lot 15 : `_log_track_if_changed` elle-même reste synchrone (pas
+        # `_log_track_if_changed` elle-même reste synchrone (pas
         # d'`await` disponible dans ses appelants directs sans les rendre
         # tous async) — ses appelants (ci-dessous) invoquent DÉSORMAIS
         # cette fonction via run_in_threadpool plutôt que directement.
@@ -498,15 +495,14 @@ def _log_track_if_changed(db: Session, manager, index_before: int | None) -> Non
 
 async def _reject_if_cinema_locked(db: Session, command: str, websocket: WebSocket | None, channel: str) -> bool:
     """
-    Verrou du mode cinéma, PAR CANAL (réf. mission "tableaux de bord Câblé /
-    Réseau") : un lancement manuel cible désormais l'état de lecture d'UN
+    Verrou du mode cinéma, PAR CANAL : un lancement manuel cible désormais l'état de lecture d'UN
     canal précis. Si CE canal est en mode cinéma (libre-service), sa lecture
     pilotée ne serait visible nulle part — le laisser passer démarrerait une
     vidéo fantôme en arrière-plan. L'autre canal n'entre plus en ligne de
     compte : il a son propre état. Rejet renvoyé UNIQUEMENT à l'émetteur
     (pas de broadcast) pour que l'admin puisse afficher un avertissement.
     """
-    # Lot 15 : lecture DB sortie de la boucle — appelée par CHAQUE
+    # lecture DB sortie de la boucle — appelée par CHAQUE
     # commande load*, potentiellement en concurrence avec un flux vidéo
     # actif (stream_*) qui sature déjà le disque/FUSE.
     if await run_in_threadpool(get_display_output_value, db, channel) != "cinema":
@@ -535,7 +531,7 @@ async def _handle_command(
     client_ts = params.get("client_ts")
 
     if command == "pong":
-        # Réponse du client à notre keepalive (réf. Phase 3, P7) — pas un
+        # Réponse du client à notre keepalive — pas un
         # ordre de lecture, ne fait qu'acter que la connexion est vivante.
         # Traité avant toute résolution de canal : ne concerne aucun des
         # gestionnaires d'état.
@@ -543,13 +539,12 @@ async def _handle_command(
             ws_manager.note_pong(websocket)
         return
 
-    # Canal ciblé par la commande (réf. mission "tableaux de bord Câblé /
-    # Réseau") : porté par chaque commande des tableaux de bord ; un kiosk,
+    # Canal ciblé par la commande : porté par chaque commande des tableaux de bord ; un kiosk,
     # lui, agit toujours sur le canal déclaré à son identify. Absent ou
     # invalide = canal câblé (compatibilité anciens clients).
     raw_channel = params.get("channel") or default_channel
     if raw_channel == "radio":
-        # 3e canal, moteur INDÉPENDANT (réf. lot L3) : vocabulaire de
+        # 3e canal, moteur INDÉPENDANT : vocabulaire de
         # commandes propre (radio_*), géré séparément plutôt que dans la
         # chaîne câblé/réseau ci-dessous.
         await _handle_radio_command(command, params, client_ts, db, websocket, is_kiosk)
@@ -585,8 +580,7 @@ async def _handle_command(
         )
         await run_in_threadpool(log_activity, db, "background_started", background.title)
     elif command == "load_audio_course":
-        # Mode coach réservé au CANAL CÂBLÉ (réf. mission "tableaux de bord
-        # Câblé / Réseau") : le coach anime un cours dans la salle physique,
+        # Mode coach réservé au CANAL CÂBLÉ : le coach anime un cours dans la salle physique,
         # ça n'a pas de sens sur le canal réseau — la commande y est rejetée.
         if channel != "cable":
             logger.info("Commande load_audio_course ignorée : le mode coach est réservé au canal câblé")
@@ -614,8 +608,7 @@ async def _handle_command(
         )
         await run_in_threadpool(log_activity, db, "audio_course_started", course.title)
     elif command == "load_audio_playlist":
-        # Même restriction que load_audio_course (réf. mission "tableaux de
-        # bord Câblé / Réseau") : une playlist audio anime le mode coach,
+        # Même restriction que load_audio_course : une playlist audio anime le mode coach,
         # réservé au canal câblé.
         if channel != "cable":
             logger.info("Commande load_audio_playlist ignorée : le mode coach est réservé au canal câblé")
@@ -637,7 +630,7 @@ async def _handle_command(
         if not audio_playlist:
             logger.warning(f"Commande load_audio_playlist : playlist audio {audio_playlist_id} introuvable")
             return
-        # Lot 15 (docs/audit-android-2026-09-11.md §C1) : `item.track`/
+        # `item.track`/
         # `item.background` sont des relations ORM paresseuses — chaque
         # accès peut déclencher sa propre requête SQL synchrone. Regroupées
         # dans un seul aller-retour au threadpool plutôt que par élément.
@@ -650,8 +643,7 @@ async def _handle_command(
         )
         log_activity(db, "audio_playlist_started", audio_playlist.name)
     elif command == "audio_set_background":
-        # Changement de fond EN DIRECT pendant le mode coach (réf. mission
-        # "ajoute la possibilité d'afficher un fond depuis le mode coach") :
+        # Changement de fond EN DIRECT pendant le mode coach :
         # background_id nul retire le fond en cours (aucun fond).
         background_id = params.get("background_id")
         title, is_image = None, False
@@ -690,11 +682,9 @@ async def _handle_command(
         raw_index = params.get("track_index")
         track_index = raw_index if isinstance(raw_index, int) and not isinstance(raw_index, bool) else None
         await manager.audio_track_ended(client_ts, track_index=track_index)
-        # Couvre aussi bien l'enchaînement auto/minuterie (F10.3) que la
+        # Couvre aussi bien l'enchaînement auto/minuterie que la
         # navigation manuelle ci-dessus : dans les deux cas l'index de piste a
-        # changé, seul cas où une NOUVELLE piste a réellement été lancée (réf.
-        # F8.1 "pistes lancées" — le mode "manual" ou une piste déjà dernière
-        # ne change pas l'index, donc ne loggue rien, à raison).
+        # changé, seul cas où une NOUVELLE piste a réellement été lancée.
         await run_in_threadpool(_log_track_if_changed, db, manager, index_before)
     elif command == "load_playlist":
         if await _reject_if_cinema_locked(db, command, websocket, channel):
@@ -714,7 +704,7 @@ async def _handle_command(
     elif command == "pause":
         await manager.pause(client_ts)
     elif command == "stop":
-        # F8.1 "annulation" : n'a de sens comme évènement que s'il y avait
+        # Évènement "annulation" : n'a de sens comme évènement que s'il y avait
         # effectivement quelque chose en cours à interrompre.
         current = manager.snapshot()
         if current["current_video"] or current["current_background"] or current["current_audio_course"]:
@@ -738,7 +728,7 @@ async def _handle_command(
     elif command == "skip_waiting":
         await manager.skip_waiting(client_ts)
     elif command == "video_ended":
-        # F8.1 "vidéos jouées (fin)" : capturé AVANT l'appel, `video_ended()`
+        # Évènement "vidéos jouées (fin)" : capturé AVANT l'appel, `video_ended()`
         # vide `current_video` (arrêt standard ou avance de playlist).
         title = (manager.state.get("current_video") or {}).get("title")
         raw_video_id = params.get("video_id")
@@ -749,15 +739,13 @@ async def _handle_command(
         if title and was_current:
             await run_in_threadpool(log_activity, db, "video_ended", title)
     elif command == "report_position":
-        # Seul le kiosk primaire a autorité sur la position de lecture (réf.
-        # correctif P4) : les kiosks miroirs sont ignorés pour éviter les
+        # Seul le kiosk primaire a autorité sur la position de lecture : les kiosks miroirs sont ignorés pour éviter les
         # conflits de position entre plusieurs kiosks simultanés.
         if is_kiosk and websocket is not None and not ws_manager.is_primary_kiosk(websocket):
             return
         await manager.report_position(float(params.get("position_seconds", 0)))
     elif command == "cinema_report":
-        # Supervision du mode cinéma (réf. mission "l'admin ne peut pas
-        # contrôler le cours en mode cinéma") : la lecture cinéma est LOCALE
+        # Supervision du mode cinéma : la lecture cinéma est LOCALE
         # à chaque appareil (jamais dans le playback_manager), mais la page
         # /cinema remonte périodiquement ce qu'elle joue pour que les
         # tableaux de bord du canal l'affichent. Simple relais, aucun état
@@ -768,7 +756,7 @@ async def _handle_command(
         vid = params.get("video_id")
         is_playing = bool(params.get("playing"))
 
-        # Suivi de session SQLite pour /cinema (réf. CDC V3.0.5 §2.3)
+        # Suivi de session SQLite pour /cinema
         if is_playing and vid:
             if channel not in _cinema_sessions:
                 sess_id = await run_in_threadpool(
@@ -801,7 +789,7 @@ async def _handle_command(
         # Pendant depuis l'admin : play/pause/seek/stop appliqué par les
         # pages /cinema du canal (toutes — sur le câblé il n'y a qu'un seul
         # écran, cas d'usage principal). "stop" ramène à la grille de choix.
-        # "launch" (Lot 14, docs/plan-implementation-android.md) : émis par
+        # "launch" : émis par
         # /grid (écran de sélection découplé, tablette Android) pour lancer
         # un cours précis sur le(s) /cinema du canal — jamais émis par le
         # profil desktop existant, sans effet tant que /grid n'est pas utilisé.
@@ -838,7 +826,7 @@ async def _handle_command(
         launched = _cinema_launched_video.get(channel)
         if launched is not None and action != "stop":
             # Ancre d'horloge du cours lancé par ordre + son identifiant : les pages
-            # qui jouent CE cours s'y calent (plan 4.0.1).
+            # qui jouent CE cours s'y calent.
             cmd_payload["clock"] = _cinema_clock_for(channel).to_dict()
             cmd_payload["clock_video_id"] = launched
         if "title" in params:
@@ -853,7 +841,7 @@ async def _handle_command(
 
 def _radio_track_dict(track: RadioTrack) -> dict:
     """Forme d'une piste radio dans l'état du RadioPlaybackManager (`order`,
-    `current_track`, file d'attente) — réf. §5.1 du cahier des charges."""
+    `current_track`, file d'attente)."""
     return {
         "id": track.id,
         "title": track.title,
@@ -872,7 +860,7 @@ async def _handle_radio_track_ended(manager, db, client_ts, track_id: int | None
     current = manager.state.get("current_track")
     if track_id is not None and current is not None and current.get("id") != track_id:
         return
-    # Règle « toutes les N musiques » (réf. lot L6, D11-D12) : vérifiée ICI (accès
+    # Règle « toutes les N musiques » : vérifiée ICI (accès
     # DB), pas dans le manager (état pur). Si due, le rappel se joue AVANT
     # l'avancement (attente-fin), qui reprendra à sa fin (`announcement_ended`).
     manager.state["tracks_since_announcement"] = manager.state.get("tracks_since_announcement", 0) + 1
@@ -899,8 +887,7 @@ async def _handle_radio_command(
     command: str, params: dict, client_ts, db: Session,
     websocket: WebSocket | None = None, is_kiosk: bool = False,
 ) -> None:
-    """Commandes du canal radio (réf. docs/cahier-des-charges-radio.md §5.5,
-    lots L3/L4) : vocabulaire propre (radio_*), séparé de la chaîne câblé/
+    """Commandes du canal radio : vocabulaire propre (radio_*), séparé de la chaîne câblé/
     réseau ci-dessus car le RadioPlaybackManager n'a pas la même sémantique
     d'état (playlist de morceaux plutôt que vidéo/cours)."""
     manager = get_radio_manager()
@@ -913,8 +900,7 @@ async def _handle_radio_command(
             return
         sorted_items = sorted(playlist.items, key=lambda item: item.position)
         tracks = [_radio_track_dict(item.track) for item in sorted_items if item.track]
-        # repeat="playlist" comme le chargement planifié "ambiance 24/7" (réf.
-        # scheduler_manager.py, lot L7, D9) : une radio n'a pas vocation à
+        # repeat="playlist" comme le chargement planifié "ambiance 24/7" : une radio n'a pas vocation à
         # s'arrêter en silence en fin de liste — correctif "le mode aléatoire
         # n'est pas infini" (shuffle et repeat sont deux réglages indépendants
         # côté RadioPlaybackManager, l'un n'implique pas l'autre). Le DJ garde
@@ -925,8 +911,7 @@ async def _handle_radio_command(
         )
         log_activity(db, "radio_playlist_started", playlist.name)
     elif command == "radio_shuffle_all":
-        # Lecture aléatoire de TOUTE la bibliothèque, sans playlist (réf. demande
-        # user) : playlist_id=None, tous les morceaux mélangés à la volée.
+        # Lecture aléatoire de TOUTE la bibliothèque, sans playlist : playlist_id=None, tous les morceaux mélangés à la volée.
         tracks = [_radio_track_dict(t) for t in db.query(RadioTrack).all()]
         if not tracks:
             logger.info("Commande radio_shuffle_all : bibliothèque radio vide")
@@ -973,7 +958,7 @@ async def _handle_radio_command(
     elif command == "radio_remove_from_queue":
         await manager.remove_from_order(int(params.get("index", -1)), client_ts)
     elif command == "radio_track_ended":
-        # Règle « toutes les N musiques » (réf. lot L6, D11-D12) : vérifiée
+        # Règle « toutes les N musiques » : vérifiée
         # ICI (accès DB), pas dans le manager (état pur) — même partage des
         # responsabilités que scheduler_manager/playback_manager. Si due, le
         # rappel se joue AVANT l'avancement (attente-fin), qui reprendra à sa
@@ -984,7 +969,7 @@ async def _handle_radio_command(
         await _handle_radio_track_ended(manager, db, client_ts, track_id)
     elif command == "radio_play_announcement":
         # Déclenchement manuel depuis /radio (bouton rappel) — toujours en
-        # mode « duck » (D12), null = tirage aléatoire (D13).
+        # mode « duck », null = tirage aléatoire.
         announcement = _resolve_announcement(db, params.get("announcement_id"))
         if not announcement:
             logger.warning("Commande radio_play_announcement : aucun rappel disponible")
@@ -995,7 +980,7 @@ async def _handle_radio_command(
     elif command == "announcement_ended":
         await manager.announcement_ended(client_ts)
     elif command == "report_position":
-        # Même règle que report_position câblé/réseau (lot L4) : seul le
+        # Même règle que report_position câblé/réseau : seul le
         # poste /radio primaire (identify role=kiosk channel=radio) a
         # autorité sur la position — un éventuel second onglet /radio ouvert
         # par erreur reste miroir et ne doit pas contredire le rapport du
@@ -1008,7 +993,7 @@ async def _handle_radio_command(
 
 
 def _resolve_announcement(db: Session, announcement_id) -> RadioAnnouncement | None:
-    """Rappel ciblé, ou tirage aléatoire parmi les actifs si absent (D13)."""
+    """Rappel ciblé, ou tirage aléatoire parmi les actifs si absent."""
     query = db.query(RadioAnnouncement).filter(RadioAnnouncement.enabled == True)  # noqa: E712
     if announcement_id:
         return query.filter(RadioAnnouncement.id == announcement_id).first()
@@ -1016,9 +1001,9 @@ def _resolve_announcement(db: Session, announcement_id) -> RadioAnnouncement | N
 
 
 def _due_wait_end_announcement(db: Session, manager) -> RadioAnnouncement | None:
-    """Règle « toutes les N musiques » due (réf. D11) : compare le compteur
+    """Règle « toutes les N musiques » due : compare le compteur
     (déjà incrémenté par l'appelant) au seuil de la règle enregistrée la plus
-    stricte. Renvoie un rappel tiré au hasard (D13) si une règle active est
+    stricte. Renvoie un rappel tiré au hasard si une règle active est
     satisfaite, sinon None."""
     count = manager.state.get("tracks_since_announcement", 0)
     rules = (

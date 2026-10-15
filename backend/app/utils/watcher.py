@@ -20,8 +20,7 @@ from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
-# _ffmpeg_executor / _io_executor viennent maintenant de app.utils.executors
-# (réf. audit plan-corrections-bugs, point 5) : ce module et les routers
+# _ffmpeg_executor / _io_executor viennent maintenant de app.utils.executors : ce module et les routers
 # d'upload web partagent désormais le même exécuteur mono-thread ffmpeg,
 # plutôt que le watcher en ayant un à lui tout seul pendant que l'upload web
 # lançait ffmpeg sans aucune coordination. Ré-exportés sous ces noms pour ne
@@ -69,7 +68,7 @@ class VideoWatchHandler(_BaseWatchHandler):
         path = Path(file_path)
         if not path.exists():
             return
-        # Suivi de file (réf. mission "voir en direct les importations") :
+        # Suivi de file :
         # les imports dossier surveillé passent par le même exécuteur ffmpeg
         # partagé que les uploads web, autant les rendre visibles dans la
         # même file plutôt que de les laisser invisibles à l'admin.
@@ -77,7 +76,6 @@ class VideoWatchHandler(_BaseWatchHandler):
         try:
             logger.info(f"Watcher : Lancement de l'import pour {path.name}")
             video = import_video(file_path, path.name, ImportSource.watched_folder, job_id=job_id)
-            # Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6) :
             # même diffusion que l'import web (routers/videos.py) — un
             # cours déposé dans le dossier surveillé doit apparaître sans
             # délai sur les écrans déjà ouverts.
@@ -108,7 +106,7 @@ class BackgroundWatchHandler(_BaseWatchHandler):
 
 class AudioCourseWatchHandler(FileSystemEventHandler):
     """
-    Cas particulier (réf. F10.1) : un cours audio est un GROUPE de fichiers,
+    Cas particulier : un cours audio est un GROUPE de fichiers,
     pas un fichier unique. Le dossier surveillé attend donc un SOUS-DOSSIER
     (un cours = un sous-dossier nommé d'après le cours, contenant ses MP3),
     pas des fichiers déposés directement à la racine.
@@ -131,7 +129,7 @@ class AudioCourseWatchHandler(FileSystemEventHandler):
         logger.info(f"Watcher : Dossier de cours audio détecté : {path.name}")
         # Pas de ffmpeg ici (seulement ffprobe pour la durée, cf. audio_utils) :
         # va sur l'exécuteur I/O plutôt que de faire la queue derrière un
-        # import vidéo/fond en cours (réf. Phase 4).
+        # import vidéo/fond en cours.
         _io_executor.submit(self._safe_import, str(path))
 
     def _safe_import(self, dir_path: str):
@@ -152,7 +150,7 @@ class AudioCourseWatchHandler(FileSystemEventHandler):
 
 
 class RadioTrackWatchHandler(_BaseWatchHandler):
-    """Module Radio (réf. docs/cahier-des-charges-radio.md) : contrairement aux
+    """Module Radio : contrairement aux
     cours audio coach (un sous-dossier = un cours), chaque fichier musical déposé
     devient un morceau indépendant. Pas de ffmpeg lourd (ffprobe + extraction de
     pochette, transcodage seulement pour un format non-web) : exécuteur I/O."""

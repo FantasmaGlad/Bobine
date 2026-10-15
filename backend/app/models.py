@@ -25,7 +25,7 @@ class ScheduleType(str, enum.Enum):
 class ScheduleTargetType(str, enum.Enum):
     video = "video"
     playlist = "playlist"
-    # Réf. lot L7 : intégration Planning du module Radio — une fenêtre
+    # intégration Planning du module Radio — une fenêtre
     # (ou 24/7) remplace temporairement la playlist d'ambiance par défaut.
     radio_playlist = "radio_playlist"
 
@@ -36,8 +36,7 @@ class OverrideAction(str, enum.Enum):
 
 
 class RadioCoverSource(str, enum.Enum):
-    """Origine de la pochette d'un morceau radio (réf. cahier des charges Radio,
-    D3 « auto ID3 + override manuel ») : `id3` = extraite du fichier à l'import,
+    """Origine de la pochette d'un morceau radio : `id3` = extraite du fichier à l'import,
     `manual` = image fournie/remplacée depuis l'admin, `none` = pas de pochette."""
     id3 = "id3"
     manual = "manual"
@@ -45,7 +44,7 @@ class RadioCoverSource(str, enum.Enum):
 
 
 class RadioAnnouncementRuleType(str, enum.Enum):
-    """Type de déclenchement d'un rappel (réf. cahier des charges Radio, D11) :
+    """Type de déclenchement d'un rappel :
     entre les morceaux (`every_n_tracks`), à intervalle régulier
     (`every_x_minutes`) ou à horaires fixes récurrents (`fixed_times`). Le
     déclenchement « manuel » n'est pas une règle persistée mais une action à la
@@ -61,8 +60,8 @@ class Video(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     file_path: Mapped[str] = mapped_column(unique=True)
     title: Mapped[str]
-    # Programme volontairement en texte libre (pas un enum figé) : §8 du cahier
-    # des charges prévoit l'ajout de programmes au-delà de RPM/Sprint/The Trip.
+    # Programme volontairement en texte libre (pas un enum figé) : d'autres
+    # programmes pourront être ajoutés au-delà de RPM/Sprint/The Trip.
     program: Mapped[str | None]
     release: Mapped[str | None]
     duration_seconds: Mapped[float | None]
@@ -189,8 +188,7 @@ class PlaylistItem(Base):
 
 class AudioPlaylist(Base):
     """Playlist spéciale composée de pistes individuelles piochées dans
-    n'importe quel cours audio (réf. mission "playlists spéciales... des
-    musiques de plusieurs RPM différents, pas juste plusieurs RPM collés") :
+    n'importe quel cours audio :
     une "édition mixée" est une séquence de PISTES (pas de cours entiers
     enchaînés) — un mix peut donc combiner des morceaux de RPM 101, 103 et
     110 dans n'importe quel ordre."""
@@ -212,9 +210,7 @@ class AudioPlaylistItem(Base):
     playlist_id: Mapped[int] = mapped_column(ForeignKey("audio_playlists.id"))
     audio_track_id: Mapped[int] = mapped_column(ForeignKey("audio_tracks.id"))
     position: Mapped[int]
-    # Fond d'ambiance propre à CETTE piste dans CETTE playlist (réf. mission
-    # "associer un fond animé à chaque musique qui se jouera en arrière
-    # plan") : rattaché à l'item plutôt qu'à la piste elle-même, une même
+    # Fond d'ambiance propre à CETTE piste dans CETTE playlist : rattaché à l'item plutôt qu'à la piste elle-même, une même
     # piste pouvant apparaître dans plusieurs playlists avec un fond
     # différent à chaque fois. Nul = pas de fond propre, le fond de la
     # playlist/du cours (défini au lancement) reste affiché pour cette piste.
@@ -226,16 +222,16 @@ class AudioPlaylistItem(Base):
 
 
 # ---------------------------------------------------------------------------
-# Module Radio (réf. docs/cahier-des-charges-radio.md)
+# Module Radio
 #
-# Sous-système musical INDÉPENDANT (décision D1) : tables `radio_*` séparées des
+# Sous-système musical INDÉPENDANT : tables `radio_*` séparées des
 # cours audio coach (`audio_*`), avec leurs propres métadonnées (artiste, album,
-# genre, pochette) et un 3e canal de diffusion `radio` (décision D2). Les tables
+# genre, pochette) et un 3e canal de diffusion `radio`. Les tables
 # sont créées par `Base.metadata.create_all()` au démarrage — ce projet n'utilise
 # pas Alembic (cf. database.py::_migrate_add_missing_columns).
 # ---------------------------------------------------------------------------
 
-# Association N-N morceaux <-> étiquettes (réf. D7 « tags/genres ») : une table
+# Association N-N morceaux <-> étiquettes : une table
 # de liaison simple sans données propres, contrairement aux `*_items` qui
 # portent une position — un morceau peut avoir plusieurs tags, un tag plusieurs
 # morceaux.
@@ -248,7 +244,7 @@ radio_track_tags = Table(
 
 
 class RadioTrack(Base):
-    """Un morceau de musique de la bibliothèque radio (réf. D1/D3/D7). Les
+    """Un morceau de musique de la bibliothèque radio. Les
     champs de navigation (artiste/album/album_artist/genre) alimentent les vues
     « artiste/album » et « tags/genres » par regroupement dérivé — pas de tables
     Artiste/Album dédiées en v1."""
@@ -267,7 +263,7 @@ class RadioTrack(Base):
     duration_seconds: Mapped[float | None]
     # Pochette : chemin du fichier image extrait (ID3) ou uploadé, `None` si
     # aucune. `cover_source` trace son origine pour ne pas réécraser une
-    # pochette manuelle lors d'un ré-import (réf. D3).
+    # pochette manuelle lors d'un ré-import.
     cover_path: Mapped[str | None]
     cover_source: Mapped[RadioCoverSource] = mapped_column(default=RadioCoverSource.none)
     source: Mapped[ImportSource]
@@ -277,7 +273,7 @@ class RadioTrack(Base):
 
 
 class RadioTag(Base):
-    """Étiquette libre applicable aux morceaux radio (réf. D7 « tags/genres ») :
+    """Étiquette libre applicable aux morceaux radio :
     ambiance, tempo, occasion… saisie/gérée depuis l'admin, indépendante du
     `genre` ID3 porté par le morceau."""
     __tablename__ = "radio_tags"
@@ -289,8 +285,8 @@ class RadioTag(Base):
 
 
 class RadioPlaylist(Base):
-    """Playlist radio créée à la main (réf. D6/D7). `is_default` désigne la
-    playlist d'ambiance qui tourne en boucle 24/7 (décision D9) : une seule à la
+    """Playlist radio créée à la main. `is_default` désigne la
+    playlist d'ambiance qui tourne en boucle 24/7 : une seule à la
     fois, garantie applicativement (aucune contrainte SQL). `cover_path` est
     optionnel — sinon l'UI dérive la pochette du premier morceau."""
     __tablename__ = "radio_playlists"
@@ -319,7 +315,7 @@ class RadioPlaylistItem(Base):
 
 
 class RadioAnnouncement(Base):
-    """Rappel de bienséance intercalé dans la musique (réf. D11-D13) : fichier
+    """Rappel de bienséance intercalé dans la musique : fichier
     audio + `description` OBLIGATOIRE (le texte dit par l'annonce, pour gérer
     facilement le pool depuis l'admin). `enabled` retire un rappel du tirage
     sans le supprimer."""
@@ -334,9 +330,9 @@ class RadioAnnouncement(Base):
 
 
 class RadioAnnouncementRule(Base):
-    """Règle de déclenchement des rappels (réf. D11-D12). Les règles définissent
+    """Règle de déclenchement des rappels. Les règles définissent
     QUAND déclencher ; le rappel joué est tiré AU HASARD parmi les
-    `radio_announcements` actifs (décision D13, pas de ciblage par règle en v1).
+    `radio_announcements` actifs.
     Seul le champ correspondant au `rule_type` est renseigné :
     - `every_n_tracks`  -> `n_tracks`      (insertion à la fin du morceau)
     - `every_x_minutes` -> `interval_minutes` (fondu immédiat / duck)
@@ -363,8 +359,7 @@ class Schedule(Base):
     recurrence_rule: Mapped[str | None]
     run_at: Mapped[datetime | None]
     active: Mapped[bool] = mapped_column(default=True)
-    # Canal de diffusion ciblé par cette programmation (réf. mission
-    # "tableaux de bord Câblé / Réseau") : "cable" ou "network" — chaque
+    # Canal de diffusion ciblé par cette programmation : "cable" ou "network" — chaque
     # canal a son planning propre, déclenché sur SON état de lecture.
     channel: Mapped[str] = mapped_column(default="cable", server_default="cable")
 
@@ -389,9 +384,9 @@ class ScheduleOverride(Base):
 class PlaybackState(Base):
     """Mémorise une action différée en attente de reprise ou de relance
     manuelle depuis l'interface. Deux formes selon `cause` :
-    - "schedule" (F5.3) : lecture manuelle interrompue par une programmation
+    - "schedule" : lecture manuelle interrompue par une programmation
       -> `video_id`/`position_seconds` renseignés, reprise à la position exacte.
-    - "coach_priority" (F10.7) : programmation qui n'a PAS pu démarrer car le
+    - "coach_priority" : programmation qui n'a PAS pu démarrer car le
       mode audio coach était actif -> `target_type`/`target_id` renseignés
       (cible jamais lancée, donc pas de position), relance depuis zéro.
     Une seule ligne à la fois quelle que soit la cause (la plus récente
@@ -406,7 +401,7 @@ class PlaybackState(Base):
     target_id: Mapped[int | None]
     cause: Mapped[str | None]
     # Canal dont la lecture a été interrompue/reportée (une action différée
-    # en attente PAR canal, réf. mission "tableaux de bord Câblé / Réseau").
+    # en attente PAR canal).
     channel: Mapped[str] = mapped_column(default="cable", server_default="cable")
     interrupted_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
@@ -428,7 +423,7 @@ class ActivityLog(Base):
 
 
 class CourseRating(Base):
-    """Évaluation 5 étoiles d'un cours vidéo (réf. CDC V3.0.5 Bêta §2.2)."""
+    """Évaluation 5 étoiles d'un cours vidéo."""
     __tablename__ = "course_ratings"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -442,7 +437,7 @@ class CourseRating(Base):
 
 
 class PlaybackSession(Base):
-    """Session de lecture et assiduité d'un cours vidéo (réf. CDC V3.0.5 Bêta §2.3)."""
+    """Session de lecture et assiduité d'un cours vidéo."""
     __tablename__ = "playback_sessions"
 
     id: Mapped[int] = mapped_column(primary_key=True)

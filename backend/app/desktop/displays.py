@@ -1,5 +1,5 @@
 """Détection des écrans externes et fenêtre « projecteur » des profils desktop
-(Windows, Linux de bureau ; macOS : voir plus bas) — réf. plan 4.0, P1-3a.
+(Windows, Linux de bureau ; macOS : voir plus bas).
 
 Pourquoi : jusqu'ici le tray n'ouvrait ses interfaces qu'UNE fois au démarrage
 (`tray._open_initial_displays`), sans jamais énumérer les moniteurs ni
@@ -20,7 +20,7 @@ Ce module apporte :
 
 Aucun import de `pystray`/GUI ici : tout est testable sans affichage
 (`backend/tests/test_desktop_displays.py`). Les appels d'OS sont enveloppés
-(règle d'or §1.2 d'AGENTS.md : repli élégant, jamais d'échec fatal).
+(repli élégant, jamais d'échec fatal).
 """
 
 from __future__ import annotations
@@ -103,7 +103,7 @@ def parse_xrandr_listmonitors(output: str) -> list[Monitor]:
 
 def _list_monitors_linux() -> list[Monitor]:
     # X11 natif, ou XWayland sous Wayland (GNOME/KDE y exposent leurs moniteurs
-    # via RandR) — positionnement « meilleur effort » sous Wayland (décision D6).
+    # via RandR) — positionnement « meilleur effort » sous Wayland.
     xrandr = shutil.which("xrandr")
     if not xrandr:
         return []
@@ -170,7 +170,7 @@ def parse_macos_displays(profiler_json: str) -> list[Monitor]:
     """Analyse `system_profiler SPDisplaysDataType -json` (pur, testable). Les
     positions ne sont pas exposées par cet outil : seuls le nombre d'écrans,
     leur résolution et l'écran principal sont fiables — suffisant pour dériver
-    le mode ; le placement de fenêtre macOS passe par la fenêtre native (P1-3b)."""
+    le mode ; le placement de fenêtre macOS passe par la fenêtre native."""
     try:
         data = json.loads(profiler_json)
     except (ValueError, TypeError):
@@ -288,7 +288,7 @@ def find_kiosk_browser(
     environ: dict | None = None,
 ) -> str | None:
     """Navigateur Chromium utilisable en kiosque (pur, testable). macOS : None —
-    le projecteur y passe par une fenêtre native (plan 4.0, décision D4/P1-3b)."""
+    le projecteur y passe par une fenêtre native."""
     system = system or platform.system()
     environ = os.environ if environ is None else environ
     if system == "Windows":
@@ -321,7 +321,7 @@ def find_native_projector(
     executable: str | None = None,
     exists: Callable[[str], bool] = os.path.exists,
 ) -> str | None:
-    """Fenêtre native `bobine-projector` (plan 4.0, P1-3b, décision D4) :
+    """Fenêtre native `bobine-projector` :
     Remplace le navigateur piloté (WKWebView sur macOS, WebView2 sur Windows,
     WebKitGTK sur Linux) pour éliminer les conflits de positionnement multi-écrans.
     Cherchée via BOBINE_PROJECTOR_BIN, puis à côté de l'exécutable du tray
@@ -374,7 +374,7 @@ def build_projector_command(
     """Ligne de commande du navigateur kiosque positionné sur `monitor` (pur).
     `--user-data-dir` dédié : sans lui, un navigateur déjà ouvert récupère l'URL
     et ignore `--kiosk`/`--window-position`. Sous Wayland, Chromium ignore le
-    positionnement : on le force via XWayland (meilleur effort, décision D6)."""
+    positionnement : on le force via XWayland (meilleur effort)."""
     command = [
         browser,
         f"--user-data-dir={profile_dir}",

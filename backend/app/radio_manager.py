@@ -1,12 +1,12 @@
-"""Moteur de lecture du canal Radio (réf. docs/cahier-des-charges-radio.md, lot L3).
+"""Moteur de lecture du canal Radio.
 
-Sous-système INDÉPENDANT du PlaybackManager câblé/réseau (décisions D1/D2) : un
+Sous-système INDÉPENDANT du PlaybackManager câblé/réseau : un
 3e canal `radio` avec sa propre sémantique musicale — playlist, ordre de lecture
 (shuffle), répétition (piste/playlist), file d'attente « à suivre », volume.
 
 Comme le PlaybackManager, il fait autorité sur l'ÉTAT LOGIQUE partagé (diffusé à
 tous les clients via WebSocket). La lecture audio réelle est faite par l'écran
-`/radio` (lot L4) : il rapporte la position et signale la fin de piste
+`/radio` : il rapporte la position et signale la fin de piste
 (`radio_track_ended`), le moteur avance alors selon repeat/shuffle/queue.
 """
 import asyncio
@@ -26,7 +26,7 @@ RADIO_CHANNEL = "radio"
 
 REPEAT_MODES = ("off", "playlist", "track")
 
-# Même modèle que la vidéo et l'audio coach (plan 4.0.1) : la position d'une
+# Même modèle que la vidéo et l'audio coach : la position d'une
 # piste est une fonction du temps (horloge serveur), plus la dernière valeur
 # rapportée par le poste /radio primaire.
 HEARTBEAT_SECONDS = 1.0
@@ -49,7 +49,7 @@ class RadioPlaybackManager:
         # Chemin de fin de piste du routeur (rappels inclus), pour le filet serveur.
         self.track_end_handler: Callable[[int | None], Awaitable[None]] | None = None
         self._position_broadcast_task: asyncio.Task | None = None
-        # Avance différée (réf. lot L6, D12 « toutes les N musiques ») : la fin
+        # Avance différée : la fin
         # de piste qui a déclenché le rappel n'avance PAS tout de suite — cet
         # indicateur interne (pas de self.state : pur détail d'orchestration,
         # jamais utile au client) fait patienter l'avancement jusqu'à la fin du
@@ -70,12 +70,12 @@ class RadioPlaybackManager:
             "playing": False,
             # Réglages transmis au lecteur /radio (lots L4/L5).
             "crossfade_seconds": settings.radio_crossfade_seconds,
-            # Rappels (réf. lot L6) : {id, description, mode} | None. `mode` =
-            # "wait_end" (D12 « toutes les N musiques », inséré entre 2 pistes,
+            # Rappels : {id, description, mode} | None. `mode` =
+            # "wait_end" (« toutes les N musiques », inséré entre 2 pistes,
             # musique déjà arrêtée) ou "duck" (X min/heures fixes/manuel, fondu
             # immédiat pendant que la musique continue).
             "current_announcement": None,
-            # Compteur de la règle « toutes les N musiques » (réf. D11),
+            # Compteur de la règle « toutes les N musiques »,
             # remis à zéro à chaque rappel joué, quel que soit son mode.
             "tracks_since_announcement": 0,
         }
@@ -202,9 +202,8 @@ class RadioPlaybackManager:
                             shuffle: bool | None = None, client_ts: float | None = None,
                             repeat: str | None = None):
         """`repeat`, si fourni, force le mode de répétition APRÈS chargement
-        (réf. lot L7 : ambiance 24/7 par défaut et fenêtres de Planning radio,
-        toutes deux censées boucler plutôt que s'arrêter en silence en fin de
-        playlist — D9)."""
+        (ambiance 24/7 par défaut et fenêtres de Planning radio, toutes deux
+        censées boucler plutôt que s'arrêter en silence en fin de playlist)."""
         if shuffle is not None:
             self.state["shuffle"] = bool(shuffle)
         if repeat is not None:
@@ -220,7 +219,7 @@ class RadioPlaybackManager:
         self.state["playing"] = bool(order)
         self.state["state"] = "playing" if order else "idle"
         # Un rappel en cours (mode wait_end en particulier) n'a plus de sens
-        # une fois la playlist remplacée (réf. lot L6).
+        # une fois la playlist remplacée.
         self.state["current_announcement"] = None
         self._deferred_advance_pending = False
         self._sync_current()
@@ -310,7 +309,7 @@ class RadioPlaybackManager:
     async def _advance_or_stop(self, client_ts: float | None = None):
         """Avance à la piste suivante ou s'arrête en fin de playlist (partagé
         entre la fin de piste normale et la reprise après un rappel « toutes
-        les N musiques », réf. lot L6)."""
+        les N musiques »)."""
         if self._advance_index():
             self.state["position_seconds"] = 0.0
             self.state["playing"] = True
@@ -329,7 +328,7 @@ class RadioPlaybackManager:
     async def track_ended(self, client_ts: float | None = None, track_id: int | None = None):
         """Fin de piste rapportée par un lecteur /radio : enchaînement auto.
 
-        Idempotent (plan 4.0.1) : CHAQUE page /radio envoie la fin de piste, et
+        Idempotent : CHAQUE page /radio envoie la fin de piste, et
         le serveur peut l'avoir déjà enchaînée lui-même. `track_id` = la piste
         que le poste vient de terminer ; si ce n'est plus la piste courante, le
         signal est périmé et ignoré (sans cela, un poste en retard sautait une
@@ -347,16 +346,16 @@ class RadioPlaybackManager:
         await self._advance_or_stop(client_ts)
 
     # ------------------------------------------------------------------
-    # Rappels (réf. lot L6, D11-D13)
+    # Rappels
     # ------------------------------------------------------------------
     async def play_announcement(
         self, announcement: dict, mode: str, client_ts: float | None = None, deferred_advance: bool = False,
     ):
-        """Déclenche un rappel. `mode` = "wait_end" (D12 : la piste vient de se
+        """Déclenche un rappel. `mode` = "wait_end" (la piste vient de se
         terminer, `deferred_advance=True` fait patienter l'avancement jusqu'à
         `announcement_ended`) ou "duck" (X min/heures fixes/manuel : la
         musique continue, le fondu est géré côté lecteur /radio). Le compteur
-        « toutes les N musiques » est remis à zéro par TOUT rappel joué (D11),
+        « toutes les N musiques » est remis à zéro par TOUT rappel joué,
         pas seulement ceux déclenchés par cette règle."""
         self.state["current_announcement"] = {
             "id": announcement["id"], "description": announcement["description"], "mode": mode,
@@ -408,10 +407,7 @@ class RadioPlaybackManager:
         await self._emit("radio_set_repeat", client_ts)
 
     async def add_to_queue(self, track: dict, client_ts: float | None = None):
-        """Ajoute une piste en FIN de file d'attente (réf. correctif "Lire
-        ensuite" — jusqu'ici cette méthode insérait juste après la piste
-        courante, ce qui faisait passer chaque nouvel ajout devant les
-        précédents au lieu de les mettre à la suite). Voir `play_next` pour
+        """Ajoute une piste en FIN de file d'attente. Voir `play_next` pour
         l'insertion immédiate après la piste en cours."""
         order = self.state["order"]
         order.append(track)
@@ -424,8 +420,7 @@ class RadioPlaybackManager:
 
     async def play_next(self, track: dict, client_ts: float | None = None):
         """« Lire ensuite » : insère une piste juste après la piste courante,
-        devant tout ce qui est déjà en file d'attente (réf. retour
-        utilisateur "Lire ensuite" dans la radio)."""
+        devant tout ce qui est déjà en file d'attente."""
         order = self.state["order"]
         idx = self.state["index"]
         insert_at = (idx + 1) if idx is not None else len(order)
@@ -466,7 +461,7 @@ class RadioPlaybackManager:
     async def report_position(self, position_seconds: float):
         """Rapport de position du lecteur /radio (pas de diffusion à chaque
         appel — la boucle de position s'en charge)."""
-        # Plan 4.0.1 : la position vient de l'horloge serveur ; ce rapport ne la
+        # La position vient de l'horloge serveur ; ce rapport ne la
         # modifie plus (diagnostic seulement).
         self._last_direct_report = time.monotonic()
 

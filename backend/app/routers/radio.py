@@ -1,8 +1,7 @@
-"""Router du module Radio — bibliothèque musicale (réf. docs/cahier-des-charges-radio.md).
+"""Router du module Radio — bibliothèque musicale.
 
-Lot L1 : gestion de la bibliothèque (« Piste Audio Radio ») — import, liste
+Gestion de la bibliothèque (« Piste Audio Radio ») — import, liste
 filtrable, édition des métadonnées et pochettes, navigation artiste/album, tags.
-Le moteur de lecture (canal radio) et les playlists arrivent aux lots suivants.
 Le streaming audio et la pochette sont servis par main.py (via _range_stream_response).
 """
 import logging
@@ -33,7 +32,7 @@ router = APIRouter(prefix="/api/radio", tags=["radio"])
 
 @router.get("/state")
 def get_radio_state():
-    """Snapshot ponctuel de l'état du canal radio (réf. lot L3), utile au
+    """Snapshot ponctuel de l'état du canal radio, utile au
     premier rendu de la télécommande admin avant connexion WebSocket —
     même rôle que GET /api/playback/state pour câblé/réseau."""
     from app.radio_manager import get_radio_manager
@@ -110,7 +109,7 @@ def list_tracks(
     db: Session = Depends(get_db),
 ):
     """Liste filtrable des morceaux (vue « Morceaux » + filtres artiste/album/
-    genre/tag des autres vues, réf. D7)."""
+    genre/tag des autres vues)."""
     query = db.query(RadioTrack)
     if q:
         like = f"%{q.strip()}%"
@@ -166,7 +165,7 @@ def _run_zip_import_job(job_id: str, temp_path: str) -> None:
 
 @router.post("/tracks/upload", response_model=ImportJobAccepted, status_code=202)
 def upload_tracks(files: List[UploadFile] = File(...)):
-    """Import multi-fichiers de morceaux (tous formats audio, réf. A2), traité en
+    """Import multi-fichiers de morceaux (tous formats audio), traité en
     arrière-plan — voir GET /api/import-jobs."""
     tmp_dir = Path(tempfile.mkdtemp(prefix="olmc_radio_upload_"))
     temp_paths = []
@@ -215,7 +214,7 @@ def _apply_tags(db: Session, track: RadioTrack, tag_names: List[str]) -> None:
 
 @router.put("/tracks/{track_id}", response_model=RadioTrackResponse)
 def update_track(track_id: int, payload: RadioTrackUpdate, db: Session = Depends(get_db)):
-    """Édition manuelle des métadonnées et des tags (réf. D3 override manuel)."""
+    """Édition manuelle des métadonnées et des tags."""
     track = db.query(RadioTrack).filter(RadioTrack.id == track_id).first()
     if not track:
         raise HTTPException(status_code=404, detail="Morceau non trouvé")
@@ -244,7 +243,7 @@ def update_track(track_id: int, payload: RadioTrackUpdate, db: Session = Depends
 
 @router.post("/tracks/{track_id}/cover", response_model=RadioTrackResponse)
 def upload_track_cover(track_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
-    """Pochette fournie manuellement (réf. D3) : remplace la pochette existante."""
+    """Pochette fournie manuellement : remplace la pochette existante."""
     from app.models import RadioCoverSource
 
     track = db.query(RadioTrack).filter(RadioTrack.id == track_id).first()
@@ -306,7 +305,7 @@ def delete_track(track_id: int, db: Session = Depends(get_db)):
 
 
 # ---------------------------------------------------------------------------
-# Navigation dérivée — artistes / albums (réf. D7, pas de tables dédiées)
+# Navigation dérivée — artistes / albums
 # ---------------------------------------------------------------------------
 @router.get("/artists")
 def list_artists(db: Session = Depends(get_db)):
@@ -353,7 +352,7 @@ def list_albums(db: Session = Depends(get_db)):
 
 
 # ---------------------------------------------------------------------------
-# Tags (réf. D7 « étiquettes / genres »)
+# Tags
 # ---------------------------------------------------------------------------
 @router.get("/tags")
 def list_tags(db: Session = Depends(get_db)):

@@ -1,16 +1,14 @@
 """BobineTray — icône de zone de notification + supervision du backend,
-pour les profils « app de bureau » (Windows Lot 1, puis Linux de bureau /
-macOS aux Lots 2-3).
+pour les profils « app de bureau » (Windows, Linux de bureau et
+macOS).
 
 Point d'entrée SÉPARÉ de l'API FastAPI (`app.main`) : ce module est
 empaqueté par PyInstaller comme un second exécutable (`BobineTray.exe`),
 lancé au démarrage de session (raccourci posé par l'installeur Inno
 Setup), qui démarre et surveille `BobineBackend.exe` comme process enfant
-— aucun Service Windows ni canal de communication dédié n'est nécessaire
-(cf. CDC §5.3 : « app de bureau lancée par un utilisateur connecté »,
-pas une « boîte noire »).
+— aucun Service Windows ni canal de communication dédié n'est nécessaire.
 
-Référence : docs/ARCHITECTURE.md §2.
+Voir docs/ARCHITECTURE.md.
 """
 
 import json
@@ -73,8 +71,7 @@ UPDATES_STATUS_URL = f"{ADMIN_URL}/api/updates/status"
 
 # Supervision "logique" (process vivant mais /api/health en échec de façon
 # répétée) — complète la supervision "process mort" de BackendSupervisor,
-# même principe que scripts/watchdog.sh pour l'appliance headless (cf. plan
-# §2, portée précisée par rapport à ce script).
+# même principe que scripts/watchdog.sh pour l'appliance headless.
 HEALTH_POLL_INTERVAL_SECONDS = 30
 HEALTH_FAILURES_BEFORE_RESTART = 3
 
@@ -186,7 +183,7 @@ class BackendSupervisor:
 
 
 def _set_display_always_on(enabled: bool) -> None:
-    """Anti-veille activée UNIQUEMENT pendant la session kiosque (CDC §5.4/§6.3)
+    """Anti-veille activée UNIQUEMENT pendant la session kiosque
     — jamais globalement : contrairement à l'appliance headless,
     l'utilisateur qui installe Bobine sur son PC personnel veut
     probablement garder son comportement de veille habituel le reste du
@@ -214,7 +211,7 @@ def _set_display_always_on(enabled: bool) -> None:
 
 
 def _caffeinate_after_launch(process_name: str, timeout_seconds: float = 5.0) -> None:
-    """macOS uniquement (CDC §7.4/plan §4) : attend que le navigateur lancé
+    """macOS uniquement : attend que le navigateur lancé
     via `open` apparaisse dans la table des process (`open` ne rend pas la
     main sur son PID directement), puis attache `caffeinate -d -i -w <pid>`
     — anti-veille active tant que ce process tourne, libérée automatiquement
@@ -234,7 +231,7 @@ def _caffeinate_after_launch(process_name: str, timeout_seconds: float = 5.0) ->
 
 
 def launch_kiosk_browser(url: str | None = None) -> None:
-    """Lance le navigateur en mode kiosque optionnel (décision #1 du CDC).
+    """Lance le navigateur en mode kiosque optionnel.
     - Windows : préfère Edge (Chromium).
     - Linux : cherche chromium, google-chrome ou firefox en mode --kiosk.
     - macOS : Google Chrome via `open -na` (les navigateurs sont des bundles
@@ -296,9 +293,9 @@ def _get_wired_display_mode() -> str:
 
 
 def _open_initial_displays(timeout_seconds: float = 20.0) -> None:
-    """Orchestre l'ouverture des interfaces au démarrage (CDC §4.3).
+    """Orchestre l'ouverture des interfaces au démarrage.
 
-    Plan 4.0 (P1-3a) : l'écran EXTERNE (projecteur, TV) n'est plus ouvert ici,
+    L'écran EXTERNE (projecteur, TV) n'est plus ouvert ici,
     à l'aveugle et sans position, mais par `DisplayOrchestrator` qui énumère les
     moniteurs, place une fenêtre dédiée sur le bon écran et suit les
     branchements/débranchements à chaud. Ce démarrage ne s'occupe donc que de
@@ -344,7 +341,7 @@ def _load_icon_image() -> Image.Image:
     `_internal`), avec repli sur le chemin du dépôt en développement, puis
     un repli minimal généré si aucun des deux n'est trouvé.
 
-    macOS (Lot 3) : un bundle `.app` place l'exécutable dans
+    macOS : un bundle `.app` place l'exécutable dans
     `Contents/MacOS/` mais peut placer les `datas` du spec dans
     `Contents/Resources/` plutôt qu'à plat à côté — le second candidat
     `.parent.parent / "Resources"` couvre ce cas sans rien casser sur
@@ -375,14 +372,14 @@ _LAUNCH_AGENT_LABEL = "com.bobine.app"
 
 
 def _ensure_launch_agent_macos() -> None:
-    """macOS uniquement (Lot 3) : installe/active le LaunchAgent de lancement
+    """macOS uniquement : installe/active le LaunchAgent de lancement
     automatique à l'ouverture de session, et le RÉPARE si le chemin qu'il
     pointe est devenu obsolète.
 
     Contrairement à Windows (raccourci `{userstartup}` posé par l'installeur
     Inno Setup) et Linux de bureau (`.desktop` XDG autostart posé par
     `postinst` du paquet .deb), la distribution macOS envisagée est un
-    simple `.dmg` glisser-déposer vers `/Applications` (CDC §7.1/§7.4) — un
+    simple `.dmg` glisser-déposer vers `/Applications` — un
     `.dmg` n'a pas de script `postinstall` où poser
     `~/Library/LaunchAgents/com.bobine.app.plist` (contrairement à un `.pkg`,
     qui tournerait de toute façon en root sans `$HOME` fiable de
@@ -390,8 +387,7 @@ def _ensure_launch_agent_macos() -> None:
     charge son propre LaunchAgent — best-effort, jamais bloquant : un échec
     ici ne doit jamais empêcher le tray de démarrer.
 
-    Ne PAS se contenter de sauter cette étape dès que le fichier existe déjà
-    (revue de code PortabiliteCrossPlatformX Lot 3) : si l'utilisateur lance
+    Ne PAS se contenter de sauter cette étape dès que le fichier existe déjà : si l'utilisateur lance
     Bobine.app directement depuis le `.dmg` monté, ou pendant que Gatekeeper
     l'a temporairement « translocated » sous
     `/private/var/folders/.../AppTranslocation/<uuid>/`, avant de le glisser
@@ -627,7 +623,7 @@ def run() -> None:
     supervisor.start()
 
     # Ouvre automatiquement les interfaces selon le mode d'affichage configuré
-    # (CDC §4.3 affichage hybride) sauf en démarrage silencieux (--startup / --minimized) :
+    # sauf en démarrage silencieux (--startup / --minimized) :
     # - En mode Pupitre Studio (dual_screen) : /grid sur l'écran du PC et /cinema sur la sortie HDMI.
     # - En mode Classique / Headless (headless) : l'administration sur l'écran du PC et le kiosque sur HDMI.
     if "--startup" not in sys.argv and "--minimized" not in sys.argv:
@@ -639,7 +635,7 @@ def run() -> None:
 
     threading.Thread(target=_update_poll_loop, daemon=True, name="bobine-tray-update-check").start()
 
-    # Plug and play (plan 4.0, P1-3a) : démarre TOUJOURS, y compris en démarrage
+    # Plug and play : démarre TOUJOURS, y compris en démarrage
     # silencieux (--startup) — brancher un projecteur doit afficher /cinema
     # dessus sans aucun geste, au démarrage comme à chaud.
     def _keep_awake_while_projecting(process) -> None:

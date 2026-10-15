@@ -1,9 +1,9 @@
-"""Router des playlists Radio (réf. docs/cahier-des-charges-radio.md, lot L2).
+"""Router des playlists Radio.
 
 Playlists de morceaux de la bibliothèque radio, sur le modèle des playlists audio
 coach (remplacement complet de la liste ordonnée à la création/mise à jour). En
 plus : une playlist peut être marquée `is_default` — la playlist d'ambiance jouée
-en boucle 24/7 (décision D9), une seule à la fois.
+en boucle 24/7, une seule à la fois.
 """
 import logging
 from datetime import datetime
@@ -188,7 +188,7 @@ def add_track(playlist_id: int, data: AddTrackInput, db: Session = Depends(get_d
 
 @router.put("/{playlist_id}/default", response_model=RadioPlaylistDetailResponse)
 def set_default(playlist_id: int, db: Session = Depends(get_db)):
-    """Désigne la playlist d'ambiance par défaut (décision D9) : une seule à la
+    """Désigne la playlist d'ambiance par défaut : une seule à la
     fois, garantie applicativement."""
     playlist = _get_or_404(playlist_id, db)
     db.query(RadioPlaylist).filter(RadioPlaylist.id != playlist_id, RadioPlaylist.is_default == True).update(  # noqa: E712

@@ -54,7 +54,7 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
 
 class RetryingSession(Session):
     """
-    Filet de sécurité au-dessus de busy_timeout (réf. P3) : si une écriture
+    Filet de sécurité au-dessus de busy_timeout : si une écriture
     échoue quand même avec "database is locked" (contention extrême, ou
     busy_timeout dépassé), on retente le commit avec un backoff exponentiel
     court plutôt que de renvoyer une erreur 500 au client pour un conflit
@@ -131,8 +131,7 @@ def init_db():
 def _migrate_audio_playlist_items_to_tracks():
     """
     `audio_playlist_items` a changé de grain : chaque ligne référençait un
-    COURS entier (`audio_course_id`) avant la mission "playlists spéciales
-    piste par piste, pas juste des cours entiers collés bout à bout"; le
+    COURS entier (`audio_course_id`) ; le
     modèle référence désormais une PISTE (`audio_track_id`). `create_all` ne
     modifiant jamais une table déjà existante, une base créée avant ce
     changement garde l'ancienne colonne `audio_course_id` (NOT NULL, sans
@@ -180,7 +179,7 @@ def _migrate_add_missing_columns():
     bases déjà en production. Idempotent : ne fait rien si la colonne existe.
 
     Le check-then-act ci-dessous (PRAGMA table_info puis ALTER TABLE) n'est
-    pas atomique. Historiquement (avant PortabiliteCrossPlatformX Lot 0), les
+    pas atomique. Historiquement (avant le passage à un processus unique), les
     4 workers uvicorn appelaient chacun cette fonction à leur propre
     démarrage, avec un vrai risque de collision ("duplicate column name")
     entre deux d'entre eux. Chaque ALTER TABLE reste protégé individuellement
@@ -195,30 +194,29 @@ def _migrate_add_missing_columns():
         return
 
     # (table, colonne, définition SQL) — canal de diffusion par programmation
-    # et par action différée (réf. mission "tableaux de bord Câblé / Réseau").
+    # et par action différée.
     wanted = [
         ("schedules", "channel", "VARCHAR NOT NULL DEFAULT 'cable'"),
         ("playback_state", "channel", "VARCHAR NOT NULL DEFAULT 'cable'"),
-        # target_type/target_id (cause "coach_priority", réf. F10.7 mode audio
-        # coach) présents dans le modèle depuis le Lot 6 mais absents de cette
+        # target_type/target_id (cause "coach_priority".7 mode audio
+        # coach) présents dans le modèle mais absents de cette
         # liste jusqu'ici : sur toute base créée avant leur ajout au modèle,
         # `create_all` ne les ajoute jamais (il ne modifie pas les tables
         # existantes), ce qui cassait silencieusement toute lecture de
         # PlaybackState avec "no such column: playback_state.target_type".
         ("playback_state", "target_type", "VARCHAR"),
         ("playback_state", "target_id", "INTEGER"),
-        # Fond d'ambiance par piste de playlist audio (réf. mission "associer
-        # un fond animé à chaque musique qui se jouera en arrière plan").
+        # Fond d'ambiance par piste de playlist audio.
         ("audio_playlist_items", "background_id", "INTEGER REFERENCES backgrounds(id)"),
         # Fond d'ambiance par piste individuelle de cours audio
         ("audio_tracks", "background_id", "INTEGER REFERENCES backgrounds(id)"),
-        # Métadonnées étendues et description pour les cours vidéo (réf. release 3.0.4)
+        # Métadonnées étendues et description pour les cours vidéo
         ("videos", "description", "TEXT"),
         ("videos", "audio_channels", "INTEGER"),
         ("videos", "audio_codec", "VARCHAR"),
         ("videos", "fps", "FLOAT"),
         ("videos", "bitrate_kbps", "INTEGER"),
-        # Format de pixels + version web « lisible partout » (lot F3, plan Firefox)
+        # Format de pixels + version web « lisible partout »
         ("videos", "pix_fmt", "VARCHAR"),
         ("videos", "web_path", "VARCHAR"),
         ("videos", "web_status", "VARCHAR"),
@@ -256,7 +254,7 @@ def _migrate_backfill_video_metadata():
         from app.utils.video_utils import extract_metadata
 
         with SessionLocal() as db:
-            # `pix_fmt` : vidéos importées avant le lot F3 (format de pixels
+            # `pix_fmt` : vidéos importées sans format de pixels enregistré (format de pixels
             # inconnu) — réanalysées une seule fois, comme les métadonnées
             # étendues. Les fichiers sans flux vidéo (codec None) sont exclus
             # pour ne pas être réanalysés à chaque démarrage.

@@ -1,7 +1,7 @@
 """Handler du profil `windows` (app de bureau, .exe PyInstaller +
 installeur Inno Setup).
 
-Pas de service Windows dans ce profil (décision #1 du CDC : app de bureau
+Pas de service Windows dans ce profil (app de bureau
 lancée par un utilisateur connecté, pas une « boîte noire » sans
 supervision) — la supervision du process backend est assurée par
 `BobineTray` (cf. `backend/app/desktop/tray.py`), qui relance

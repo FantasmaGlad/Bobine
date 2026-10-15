@@ -71,7 +71,7 @@ def _get_sqlite_db_path() -> Path | None:
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-# Réglages ajustables depuis l'interface (réf. UX3.17), persistés dans la
+# Réglages ajustables depuis l'interface, persistés dans la
 # table `settings` (clé/valeur) et reflétés immédiatement dans le singleton
 # `runtime_settings` en mémoire — le fichier config.toml reste la valeur de
 # secours au tout premier démarrage (avant toute modification via l'UI).
@@ -85,17 +85,17 @@ _WRITABLE_STRING_FIELDS = {
     "auto_web_rendition",
 }
 _DEFAULTS = {
-    # "clair" (réf. mission "thème par défaut") : version claire du thème
+    # "clair" : version claire du thème
     # Les Mills par défaut — même accent rouge (#e4002b) que
     # "les-mills-sombre", premier écran vu à l'installation.
     "theme": "clair",
     "language": "fr",
     "active_logo": "default",
-    # Canal de mise à jour (réf. mission "Programme Bobine Beta") : "stable"
+    # Canal de mise à jour : "stable"
     # par défaut pour tout le monde — rejoindre la bêta est un choix
     # explicite, jamais l'état de départ d'une installation.
     "update_channel": "stable",
-    # Mode d'affichage câblé (réf. cahier des charges affichage hybride) :
+    # Mode d'affichage câblé :
     # "headless" par défaut (desktop/laptop/wyse), "dual_screen" pour tablette.
     "wired_display_mode": "headless",
     # Rétention des logs d'activité et métriques système en jours
@@ -109,7 +109,7 @@ _DEFAULTS = {
     # planifiées à cette heure (cf. `_periodic_purge_logs`).
     "auto_update_enabled": "false",
     "auto_update_time": "03:00",
-    # Version web « lisible partout » (lot F3, plan Firefox) : désactivée par
+    # Version web « lisible partout » : désactivée par
     # défaut — c'est un réencodage ffmpeg (plusieurs minutes sur un CPU
     # modeste) que l'administrateur choisit d'activer ; quand elle l'est, la
     # première lecture depuis un navigateur incapable de décoder l'original la
@@ -118,8 +118,7 @@ _DEFAULTS = {
 }
 _AUTO_UPDATE_TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _LOGO_FILENAME = "logo.png"
-# "les-mills-sombre" est la clé interne historique du thème "Sombre" (réf.
-# mission thèmes cinéma) — inchangée pour ne rien casser sur les
+# "les-mills-sombre" est la clé interne historique du thème "Sombre" — inchangée pour ne rien casser sur les
 # installations existantes, seul son libellé affiché change côté frontend.
 _VALID_THEMES = {
     "les-mills-sombre", "clair", "lune", "menthe", "automne", "hiver",
@@ -130,8 +129,7 @@ _VALID_ACTIVE_LOGOS = {"default", "custom"}
 _VALID_UPDATE_CHANNELS = {"stable", "beta"}
 _VALID_WIRED_DISPLAY_MODES = {"dual_screen", "headless"}
 
-# Sortie affichée par CANAL de diffusion (réf. mission "canaux de diffusion
-# précis") : "câblé" (l'écran physiquement connecté au Wyse, en 127.0.0.1) et
+# Sortie affichée par CANAL de diffusion : "câblé" (l'écran physiquement connecté au Wyse, en 127.0.0.1) et
 # "réseau" (tout autre appareil du LAN qui ouvre /kiosk ou /cinema) sont
 # désormais deux réglages INDÉPENDANTS — l'admin peut par exemple laisser le
 # câblé en kiosk piloté pendant que le réseau bascule en libre-service
@@ -159,8 +157,7 @@ class SettingsUpdate(BaseModel):
     active_logo: str | None = None
     update_channel: str | None = None
     wired_display_mode: str | None = None
-    # "auto" (dérivé du matériel, défaut) ou forçage "dual_screen"/"headless"
-    # (plan 4.0, P1-1). Une écriture de `wired_display_mode` par un ancien client
+    # "auto" (dérivé du matériel, défaut) ou forçage "dual_screen"/"headless". Une écriture de `wired_display_mode` par un ancien client
     # est traduite en forçage manuel (cf. update_settings).
     display_mode_setting: str | None = None
     auto_update_enabled: str | None = None
@@ -186,7 +183,7 @@ def _get_local_ip() -> str | None:
     """Astuce socket UDP classique (aucun paquet réellement envoyé) : IP de
     l'interface que le système utiliserait pour joindre le LAN — équivalent
     de `hostname -I` sans sous-processus ni dépendance externe. Aide à la
-    découverte réseau (réf. mission "IP obtenue par l'appareil"), en
+    découverte réseau, en
     complément de la découverte mDNS (bobine.local, cf. install.sh).
 
     Mise en cache avec TTL court (15s) pour éviter des appels socket répétés
@@ -217,7 +214,7 @@ def get_display_mode_setting(db: Session) -> str:
 
 
 def get_effective_wired_display_mode(db: Session) -> str:
-    """Mode d'affichage câblé effectif (plan 4.0, P1-1) : forçage admin, sinon
+    """Mode d'affichage câblé effectif : forçage admin, sinon
     dérivé des écrans externes réellement connectés. Sans rapport matériel :
     `dual_screen` sur Android (tablette = pupitre tactile, comportement
     historique), `headless` ailleurs."""
@@ -270,7 +267,7 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "audio_chain_timer_seconds": runtime_settings.audio_chain_timer_seconds,
         "logs_retention_days": logs_retention_days,
         "default_coach_background_id": default_coach_background_id,
-        # Profil de déploiement (réf. PortabiliteCrossPlatformX §5.1) : le
+        # Profil de déploiement : le
         # frontend s'en sert pour adapter le texte/comportement de la zone
         # Désinstaller/Réinitialiser selon la plateforme, sans dupliquer la
         # logique de détection côté client.
@@ -279,11 +276,11 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "language": language,
         "has_custom_logo": has_custom,
         "active_logo": active_logo,
-        # Programme Bobine Beta (réf. mission "canal Stable/Bêta") : "stable"
+        # Programme Bobine Beta : "stable"
         # ou "beta", consommé par GET /api/updates/check pour choisir
         # l'endpoint GitHub interrogé.
         "update_channel": update_channel,
-        # Mode d'affichage câblé (réf. cahier des charges affichage hybride) :
+        # Mode d'affichage câblé :
         # "dual_screen" (pupitre tactile + vidéo HDMI) ou "headless" (cinéma autonome).
         "wired_display_mode": wired_display_mode,
         # Réglage administrateur : "auto" (dérivé du matériel) ou forçage ; et
@@ -296,22 +293,20 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "auto_update_enabled": auto_update_enabled,
         "auto_update_time": auto_update_time,
         "auto_web_rendition": _get_db_value(db, "auto_web_rendition") or _DEFAULTS["auto_web_rendition"],
-        # Aide à la découverte réseau (réf. mission "IP obtenue par
-        # l'appareil"), en complément de bobine.local (avahi, cf. install.sh).
+        # Aide à la découverte réseau, en complément de bobine.local (avahi, cf. install.sh).
         "network": {
             "local_ip": _get_local_ip(),
             "port": runtime_settings.port,
             "mdns_url": "http://bobine.local",
         },
-        # Réglages du duck/fondu des rappels radio (réf. lot L6) : consommés
+        # Réglages du duck/fondu des rappels radio : consommés
         # par /radio pour le fondu musique pendant une annonce, ET pour le
-        # fondu du rappel lui-même (réf. correctif "vitesse du fade
-        # réglable"). radio_announcement_duck_level reste en lecture seule
+        # fondu du rappel lui-même. radio_announcement_duck_level reste en lecture seule
         # pour l'instant (pas demandé) ; fade_ms est éditable (cf.
         # _WRITABLE_NUMERIC_FIELDS).
         "radio_announcement_duck_level": runtime_settings.radio_announcement_duck_level,
         "radio_announcement_fade_ms": runtime_settings.radio_announcement_fade_ms,
-        # Chemins en lecture seule (réf. UX3.17 "chemins d'information")
+        # Chemins en lecture seule
         "paths": {
             "database_url": runtime_settings.database_url,
             "media_dir": runtime_settings.media_dir,
@@ -326,8 +321,7 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
 
 
 # Dossiers de médias dont on additionne l'empreinte disque pour l'indicateur
-# de stockage (réf. mission "un indicateur de la quantité de stockage restant
-# pour monitorer la capacité de l'application") : ce que l'application
+# de stockage : ce que l'application
 # consomme réellement, cours + fonds + audio + vignettes + logs + dossiers
 # surveillés. Les chemins sont déjà résolus en absolu par app.config.
 _STORAGE_TRACKED_DIRS = (
@@ -371,8 +365,7 @@ def _dir_size(path: Path) -> int:
 @router.get("/storage")
 def get_storage() -> dict[str, Any]:
     """
-    Indicateur de capacité de stockage (réf. mission "monitorer la capacité de
-    l'application") : espace disque du volume qui héberge les médias (total /
+    Indicateur de capacité de stockage : espace disque du volume qui héberge les médias (total /
     utilisé / libre) et empreinte propre de l'application (somme des dossiers
     de médias). Permet à l'admin de voir combien de cours/fonds/audio il peut
     encore importer avant de saturer le disque du Wyse.
@@ -489,7 +482,7 @@ def _get_system_usage_values() -> tuple[float, int, int, float]:
 
 @router.get("/system")
 def get_system_usage() -> dict[str, Any]:
-    """Charge CPU, GPU, RAM, Températures, Puissance (W), Modèles des composants et Runtime (réf. CDC V3.0.5 Bêta)."""
+    """Charge CPU, GPU, RAM, Températures, Puissance (W), Modèles des composants et Runtime."""
     return get_system_telemetry_payload()
 
 
@@ -514,14 +507,14 @@ def purge_logs_manual(retention_days: int | None = None, db: Session = Depends(g
 @router.put("")
 async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)) -> dict[str, Any]:
     # `.model_dump` (Pydantic v2) sauf sur le profil Android où `.dict` (v1)
-    # est le seul disponible (cf. docs/ARCHITECTURE.md §3.1).
+    # est le seul disponible.
     dump = getattr(payload, "model_dump", None) or payload.dict
     updates = dump(exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=400, detail="Aucun paramètre fourni")
 
     # Compatibilité : un ancien client qui écrit `wired_display_mode` exprime un
-    # choix MANUEL de l'administrateur -> forçage du mode (plan 4.0, P1-1).
+    # choix MANUEL de l'administrateur -> forçage du mode.
     if updates.get("wired_display_mode") and "display_mode_setting" not in updates:
         updates["display_mode_setting"] = updates["wired_display_mode"]
 
@@ -626,7 +619,7 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
             "wired_display_mode": result["wired_display_mode"],
         })
 
-    # Diffusion dédiée display_mode_change sur canal "cable" (CDC §4.1 affichage hybride)
+    # Diffusion dédiée display_mode_change sur canal "cable"
     if "wired_display_mode" in updates or "display_mode_setting" in updates:
         await ws_manager.broadcast({
             "event": "display_mode_change",
@@ -639,7 +632,7 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
 
 @router.post("/logo")
 async def upload_logo(file: UploadFile = File(...), db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Upload d'un logo personnalisé (réf. mission "customiser le logo") :
+    """Upload d'un logo personnalisé :
     normalisé en PNG sous un nom fixe (`_LOGO_FILENAME`) pour une URL stable
     (/api/branding/logo.png), remplace tout logo custom précédent.
     Active automatiquement `active_logo = "custom"` tout en permettant à l'utilisateur
@@ -649,7 +642,7 @@ async def upload_logo(file: UploadFile = File(...), db: Session = Depends(get_db
     from PIL import Image, UnidentifiedImageError
 
     raw = await file.read()
-    # Garde-fou taille (réf. revue de code) : matériel modeste visé par ce
+    # Garde-fou taille : matériel modeste visé par ce
     # projet (Wyse), pas de limite avant lecture complète en mémoire sinon.
     if len(raw) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Fichier trop volumineux (10 Mo max)")
@@ -661,8 +654,7 @@ async def upload_logo(file: UploadFile = File(...), db: Session = Depends(get_db
             branding_dir.mkdir(parents=True, exist_ok=True)
             img.save(_logo_path(), "PNG")
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as e:
-        # Capture large (pas seulement UnidentifiedImageError, réf. revue de
-        # code) : un fichier tronqué (OSError) ou une bombe de décompression
+        # Capture large (pas seulement UnidentifiedImageError) : un fichier tronqué (OSError) ou une bombe de décompression
         # (résolution annoncée énorme) sont aussi des cas de rejet propre en
         # 400, pas un 500 non géré.
         logger.warning(f"Upload de logo rejeté : {e}")
@@ -695,7 +687,7 @@ async def delete_logo(db: Session = Depends(get_db)) -> dict[str, Any]:
 
 def get_display_output_value(db: Session, channel: str = "cable") -> str:
     """Valeur de sortie active pour un canal, réutilisable hors endpoint
-    (réf. verrouillage cinéma dans routers/playback.py)."""
+    (verrouillage cinéma dans routers/playback.py)."""
     value = _get_db_value(db, _DISPLAY_OUTPUT_KEYS[channel])
     if value in _DISPLAY_OUTPUTS:
         return value
@@ -742,8 +734,7 @@ async def set_display_output(payload: DisplayOutputUpdate, db: Session = Depends
     # sans ça l'état serveur restait "en cours" (position qui continue
     # d'avancer, "En direct" affiché côté admin) et pouvait reprendre en
     # l'état si on rebasculait sur kiosk plus tard, en conflit avec ce que
-    # l'utilisateur regarde alors en cinéma (réf. retour utilisateur
-    # "couper et retirer la vidéo qui se jouait sur le kiosk").
+    # l'utilisateur regarde alors en cinéma.
     if payload.output == "cinema":
         manager = get_playback_manager(payload.channel)
         current = manager.snapshot()
@@ -767,9 +758,7 @@ async def set_display_output(payload: DisplayOutputUpdate, db: Session = Depends
 async def _run_full_reset():
     """
     Diffuse un rechargement à tous les navigateurs connectés (PC/mobile/coach)
-    puis redémarre les services via le handler du profil courant (réf. audit
-    plan-corrections-bugs, point 4 — bouton de réinitialisation complète, et
-    PortabiliteCrossPlatformX §5.1/§5.2 pour le branchement par profil).
+    puis redémarre les services via le handler du profil courant.
     Exécuté en tâche de fond APRÈS l'envoi de la réponse HTTP : le
     redémarrage du backend termine le processus courant, il ne peut donc pas
     avoir lieu pendant le traitement de la requête elle-même.
@@ -793,7 +782,7 @@ async def _run_full_reset():
 @router.post("/system/reset")
 async def reset_system(background_tasks: BackgroundTasks) -> dict[str, str]:
     """
-    Réinitialisation complète (réf. audit plan-corrections-bugs, point 4) :
+    Réinitialisation complète :
     force le rechargement de tous les écrans connectés puis redémarre le
     kiosk et le backend. Action volontairement lourde/perturbatrice — le
     bouton correspondant côté UI doit demander confirmation avant d'appeler
@@ -824,7 +813,7 @@ async def _run_uninstall():
 
 @router.post("/system/uninstall")
 async def uninstall_system(payload: UninstallRequest, background_tasks: BackgroundTasks) -> dict[str, str]:
-    """Remise à zéro complète de la machine (réf. bouton « Désinstaller »).
+    """Remise à zéro complète de la machine.
     Action IRRÉVERSIBLE sur les profils qui la supportent — l'UI exige une
     phrase de confirmation avant cet appel, quel que soit le profil.
 
@@ -837,8 +826,7 @@ async def uninstall_system(payload: UninstallRequest, background_tasks: Backgrou
 
     Sur les profils desktop (Windows et, plus tard, macOS/Linux de bureau) :
     aucune action n'est déclenchée depuis le backend (pas d'équivalent sûr à
-    l'enveloppe systemd-run de l'appliance, cf. PortabiliteCrossPlatformX
-    §5.3) — la réponse contient les instructions de désinstallation propres
+    l'enveloppe systemd-run de l'appliance) — la réponse contient les instructions de désinstallation propres
     à la plateforme."""
     phrase = payload.confirm.strip().upper().replace("É", "E")
     if phrase != "DESINSTALLER":

@@ -29,8 +29,7 @@ class LinuxHeadlessHandler(ProfileHandler):
     profile = "linux-headless"
 
     def restart_services(self) -> None:
-        # Redémarrage asynchrone et détaché (réf. retour utilisateur "relancer
-        # le service lors de la mise à jour sans intervention manuelle") :
+        # Redémarrage asynchrone et détaché :
         # Exécuter `systemctl restart bobine-backend` de façon synchrone dans
         # le processus Python coupe le process avant la fin de la requête HTTP
         # et peut bloquer. L'enveloppe détachée (start_new_session=True) avec
@@ -111,8 +110,7 @@ class LinuxHeadlessHandler(ProfileHandler):
         report("checking", message="Récupération de la nouvelle version…")
         if target_tag:
             # Épingle le checkout sur le tag ciblé plutôt qu'un `git pull`
-            # aveugle sur la branche courante (réf. mission "canal Stable/
-            # Bêta") : seule façon de supporter un vrai retour en arrière
+            # aveugle sur la branche courante : seule façon de supporter un vrai retour en arrière
             # (ex. Bêta -> dernière Stable, un tag ANTÉRIEUR que `--ff-only`
             # refuserait). HEAD détaché assumé — cette machine est une cible
             # de déploiement, jamais un poste de développement git sur ce

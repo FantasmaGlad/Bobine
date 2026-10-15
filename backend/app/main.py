@@ -51,7 +51,7 @@ from app.utils.radio_announcement_scheduler import (
 from app.utils.watcher import start_watcher, stop_watcher
 from app.utils.ws_manager import manager as ws_manager
 
-# Profil Android (Lot 15, docs/audit-android-2026-09-11.md §C1) : détecté une
+# Profil Android : détecté une
 # fois au chargement du module, réutilisé par `health()` et par chaque
 # endpoint `stream_*` ci-dessous pour décider s'il faut sortir les appels
 # SQLAlchemy synchrones de la boucle d'évènements. `hasattr(sys,
@@ -61,11 +61,11 @@ from app.utils.ws_manager import manager as ws_manager
 _IS_ANDROID = hasattr(sys, "getandroidapilevel")
 
 
-# Log technique (réf. F8.2, Lot 9.6/UX3.18) : mêmes messages que la console
+# Log technique : mêmes messages que la console
 # de dev, en plus écrits dans un fichier consultable/téléchargeable depuis
-# l'interface. Rotation par taille (réf. F8.3, tâche 13.3) : 5 Mo x 5 fichiers
+# l'interface. Rotation par taille : 5 Mo x 5 fichiers
 # (25 Mo max sur disque) via RotatingFileHandler plutôt que logrotate système —
-# autonome (aucune configuration OS à poser au Lot 14), identique en dev et en
+# autonome (aucune configuration OS à poser), identique en dev et en
 # production, cohérent avec le reste de la config applicative centralisée.
 # `/api/logs/technical*` (routers/logs.py) ne sert que le fichier courant
 # (`technical.log`) ; les archives (`technical.log.1` etc.) restent accessibles
@@ -99,7 +99,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup : Initialisation de la BDD, démarrage du watcher et du scheduler
-    # Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6) : enregistre la
+    # enregistre la
     # boucle principale pour ws_manager.broadcast_threadsafe() — doit être
     # posé avant que quoi que ce soit (watcher, endpoints) ne puisse tenter
     # de diffuser depuis un thread hors boucle.
@@ -115,8 +115,7 @@ async def lifespan(app: FastAPI):
     from app.utils.staged_uploads import purge_stale
     purge_stale()
     _reset_stale_web_rendition_status()
-    # Avant le watcher (réf. correctif "déplacement de fichier et commit en
-    # base pas atomiques") : aucun import n'est possible tant que l'app n'a
+    # Avant le watcher : aucun import n'est possible tant que l'app n'a
     # pas fini de démarrer, donc tout fichier orphelin trouvé ici provient
     # forcément d'un arrêt brutal du service lors d'une exécution précédente.
     reconcile_orphaned_media()
@@ -125,12 +124,12 @@ async def lifespan(app: FastAPI):
     # Best-effort, no-op sur l'appliance headless (avahi s'en charge déjà) —
     # cf. app/utils/mdns.py.
     start_mdns_responder(settings.port)
-    # 24/7 (réf. lot L7, D10).
+    # 24/7.
     await autostart_default_radio_playlist()
     for playback_manager in get_all_playback_managers().values():
         playback_manager.start_position_broadcast_loop()
     get_radio_manager().start_position_broadcast_loop()
-    # Règles temporelles des rappels (réf. lot L6, D11) : toutes les X
+    # Règles temporelles des rappels : toutes les X
     # minutes / à heures fixes — la règle « toutes les N musiques » n'a rien
     # de temporel, elle est vérifiée à chaque fin de piste (routers/playback.py).
     start_radio_announcement_scheduler()
@@ -183,13 +182,11 @@ _KIOSK_PROCESS_NAMES = ("chromium", "chromium-browser", "chrome", "msedge", "goo
 def _kiosk_process_alive() -> str:
     """Présence d'un processus de navigateur kiosque sur la machine (le
     backend tourne sur le même hôte). `psutil` (déjà une dépendance du
-    projet) remplace `pgrep` — absent de Windows — depuis
-    PortabiliteCrossPlatformX Lot 1 ; fonctionne à l'identique sur
+    projet) remplace `pgrep` — absent de Windows — ; fonctionne à l'identique sur
     Linux/Windows/macOS. Le nom de process macOS de Chrome est "Google
     Chrome" (avec espace) — `"google chrome"` couvre ce cas après le
     `.lower()` ci-dessous ; sans lui, aucun préfixe ne matchait "google
-    chrome" et le kiosque macOS aurait toujours été rapporté "down"
-    (Lot 3). "unknown" si l'énumération des process échoue (rare — droits
+    chrome" et le kiosque macOS aurait toujours été rapporté "down". "unknown" si l'énumération des process échoue (rare — droits
     insuffisants)."""
     try:
         for proc in psutil.process_iter(["name"]):
@@ -223,7 +220,7 @@ async def health():
         except Exception:
             return "down"
 
-    # Lot 15 (docs/audit-android-2026-09-11.md §C1) : `SELECT 1` synchrone
+    # `SELECT 1` synchrone
     # sorti de la boucle d'évènements — appelé toutes les 30s par le
     # watchdog systemd sur les profils desktop, et potentiellement par une
     # supervision externe sur Android, il ne doit jamais retarder les autres
@@ -234,7 +231,7 @@ async def health():
     # (`psutil.process_iter`) — non pertinent sur Android (aucun kiosque
     # Chromium à détecter, cf. `_kiosk_process_alive` ci-dessus) et
     # coûteux sous SELinux Android (chaque `/proc/<pid>` refusé lève une
-    # exception interceptée). Réf. audit §2 "écarts secondaires".
+    # exception interceptée)..
     components["kiosk"] = "n/a" if _IS_ANDROID else await run_in_threadpool(_kiosk_process_alive)
 
     healthy = components["database"] == "ok"
@@ -250,7 +247,7 @@ def get_server_time():
 
     Utilisé par les kiosks clients pour corriger la dérive d'horloge locale :
     le kiosk calcule delta = server_ts - Date.now() et applique ce décalage
-    à tous ses affichages de l'heure (réf. correctif horloge TV kiosk).
+    à tous ses affichages de l'heure.
     La précision réseau LAN (~0.5 ms) est largement suffisante pour un affichage
     à la seconde.
     """
@@ -273,7 +270,7 @@ async def stream_video(
     accept: str | None = None,
     db: Session = Depends(get_db),
 ):
-    """Flux d'une vidéo, avec négociation de la version lisible (lot F3).
+    """Flux d'une vidéo, avec négociation de la version lisible.
 
     Sans paramètre : l'original, comme avant. `?accept=h264,hevc` : capacités
     de décodage annoncées par le navigateur (frontend/src/lib/
@@ -339,7 +336,7 @@ async def stream_background(
     if not background:
         raise HTTPException(status_code=404, detail="Fond animé non trouvé")
     suffix = Path(background.file_path).suffix.lower()
-    # Fond figé (réf. mission "fond figé ou animé") : servi par le même
+    # Fond figé : servi par le même
     # endpoint de streaming par plage que les vidéos — une image tient
     # largement en une seule plage, aucune adaptation du flux nécessaire.
     if suffix in _IMAGE_CONTENT_TYPES:
@@ -367,7 +364,7 @@ async def stream_radio_track(
     db: Session = Depends(get_db),
 ):
     """Flux audio d'un morceau radio. Type MIME déduit de l'extension (tous
-    formats web, réf. A2 : les non-web sont transcodés en .m4a à l'import)."""
+    formats web)."""
     track = await run_in_threadpool(lambda: db.query(RadioTrack).filter(RadioTrack.id == track_id).first())
     if not track:
         raise HTTPException(status_code=404, detail="Morceau non trouvé")
@@ -393,7 +390,7 @@ async def stream_radio_announcement(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Flux audio d'un rappel (réf. lot L6)."""
+    """Flux audio d'un rappel."""
     announcement = await run_in_threadpool(lambda: db.query(RadioAnnouncement).filter(RadioAnnouncement.id == announcement_id).first())
     if not announcement:
         raise HTTPException(status_code=404, detail="Rappel non trouvé")
@@ -406,7 +403,7 @@ thumbnails_path = Path(settings.thumbnails_dir)
 thumbnails_path.mkdir(parents=True, exist_ok=True)
 app.mount("/api/thumbnails", StaticFiles(directory=str(thumbnails_path)), name="thumbnails")
 
-# Branding (logo personnalisé, réf. mission "customiser le logo") : DOIT être
+# Branding (logo personnalisé) : DOIT être
 # monté avant le catch-all frontend ci-dessous, sinon la route serait masquée.
 branding_path = Path(settings.branding_dir)
 branding_path.mkdir(parents=True, exist_ok=True)
@@ -414,19 +411,16 @@ app.mount("/api/branding", StaticFiles(directory=str(branding_path)), name="bran
 
 # Frontend Next.js statique (si compilé et présent dans out/). `__file__`
 # ne pointe plus vers un fichier du dépôt une fois figé par PyInstaller
-# (BobineBackend.exe, réf. PortabiliteCrossPlatformX Lot 1) : dans ce cas,
+# (BobineBackend.exe) : dans ce cas,
 # `frontend/out/` est placé par l'installeur juste à côté de l'exécutable
-# plutôt qu'à sa position relative dans le dépôt — SAUF sur macOS (Lot 3,
-# même raison qu'`app/config.py::ROOT_DIR` : `BUNDLE()` place les `datas`
-# sous `Contents/Resources/`, pas à côté de l'exécutable dans
-# `Contents/MacOS/`).
+# plutôt qu'à sa position relative dans le dépôt — SAUF sur macOS.
 # `sys.getandroidapilevel` : attribut ajouté par le build CPython officiel
 # pour Android (présent uniquement sous Chaquopy), moyen standard et fiable
 # de détecter ce profil — cf. docs/ARCHITECTURE.md §3.1. Chaquopy
 # place le code applicatif sous un dossier fixe `AssetFinder/app/` (pas la
 # position relative réelle du dépôt) : `__file__` ne remonte donc pas à un
 # `frontend/` sibling de `backend/` comme dans le cas "dépôt" ci-dessous —
-# la tâche Gradle `stagePythonSources` (android/app/build.gradle.kts, Lot 2)
+# la tâche Gradle `stagePythonSources` (android/app/build.gradle.kts)
 # place plutôt le frontend compilé en `frontend_out/`, sibling du paquet
 # `app/` lui-même (donc 2 `.parent`, pas 3).
 if hasattr(sys, "getandroidapilevel"):
@@ -439,57 +433,26 @@ elif getattr(sys, "frozen", False):
 else:
     frontend_out = Path(__file__).resolve().parent.parent.parent / "frontend" / "out"
 class RevalidateStaticFiles(StaticFiles):
-    """StaticFiles standard, sauf `Cache-Control: no-cache` sur chaque
-    réponse (réf. correctif "une mise à jour de l'app ne se voit pas tant
-    qu'on n'a pas vidé le cache") : le dossier `frontend/out` exporté par
-    Next.js/Turbopack a son horodatage normalisé à une date fixe très
-    ancienne (01/02/1980, cf. étape de build reproductible) par tous les
-    pipelines de paquetage (APK Android, PyInstaller...) — sans en-tête
-    Cache-Control explicite, Starlette ne pose que `Last-Modified` d'après
-    cette date, et un navigateur applique alors le calcul heuristique de
-    fraîcheur de la RFC 7234 (fraîcheur ≈ 10 % de l'âge depuis
-    Last-Modified) : avec ~46 ans d'écart, la page/les bundles JS/CSS sont
-    alors considérés "frais" pendant des ANNÉES et ne sont plus jamais
-    re-demandés au serveur, même après une réinstallation de l'app avec du
-    code différent — reproduit concrètement sur la tablette Android (le
-    cache HTTP de la WebView, distinct du Cache Storage API que vide déjà
-    le bouton « Synchronisation des écrans », survit à un `adb install -r`).
+    """StaticFiles standard, avec revalidation systématique des fichiers du
+    frontend exporté (`frontend/out`).
 
-    Lot 15, correction post-déploiement, DEUX bugs distincts trouvés en
-    testant pour de vrai sur la tablette pilote Android (pas seulement en
-    relisant le code) — cf. docs/audit-android-2026-09-11.md :
+    Deux pièges évités :
 
-    1. Le paragraphe ci-dessus affirmait à tort que l'ETag de Starlette est
-       "correctement basé sur le contenu". **Faux, vérifié dans la source**
-       (`starlette.responses.FileResponse.set_stat_headers`) : l'ETag par
-       défaut est `md5(mtime + "-" + taille)`, PAS un hachage des octets du
-       fichier. Le mtime étant normalisé à une date fixe identique sur
-       CHAQUE build, l'ETag ne dépendait en pratique que de la taille en
-       octets — deux versions différentes d'un même fichier peuvent avoir
-       la même taille par coïncidence et obtenir le même ETag.
-
-    2. **Insuffisant à lui seul, deuxième bug trouvé après un premier
-       correctif encore incomplet** : `StaticFiles.is_not_modified()`
-       (appelée par le `file_response()` par défaut) vérifie `If-None-Match`
-       PUIS, seulement si ABSENT de la requête, retombe sur une comparaison
-       `If-Modified-Since` vs `Last-Modified` — et `Last-Modified` reste,
-       lui, TOUJOURS calculé depuis le mtime figé (01/02/1980, cf.
-       ci-dessus), jamais corrigé par le point 1. Un client qui envoie
-       `If-Modified-Since` sans `If-None-Match` (constaté empiriquement :
-       le cache HTTP natif de la WebView Android ne rejoue pas
-       systématiquement l'ETag) obtient alors TOUJOURS "non modifié" —
-       n'importe quelle date envoyée est postérieure à 1980. **Reproduit et
-       confirmé par une requête directe** (`curl -H "If-Modified-Since:
-       ..." → 304` même avec un ETag fraîchement recalculé et différent).
-
-    Les deux corrigés ensemble : ETag recalculé depuis un hachage réel du
-    contenu (coût négligeable, uniquement les petits fichiers statiques du
-    frontend — les médias passent par `_range_stream_response`, jamais par
-    cette classe), et la revalidation ne considère PLUS QUE cet ETag — plus
-    aucun repli sur `If-Modified-Since`/`Last-Modified`, structurellement
-    inutilisables tant que le mtime reste figé par le build reproductible.
-    Un client sans `If-None-Match` du tout reçoit toujours le contenu
-    complet (200), jamais un 304 dont la fraîcheur ne peut être garantie.
+    - Les pipelines de paquetage (APK Android, PyInstaller…) normalisent le
+      mtime des fichiers à une date fixe très ancienne (01/02/1980, build
+      reproductible). Sans `Cache-Control` explicite, le calcul heuristique de
+      fraîcheur (RFC 7234, ~10 % de l'âge depuis `Last-Modified`) rendrait la
+      page et les bundles JS/CSS « frais » pendant des années : une WebView
+      conserverait l'ancien code après une mise à jour. Chaque réponse porte
+      donc `Cache-Control: no-cache`.
+    - L'ETag par défaut de Starlette est `md5(mtime + "-" + taille)`, pas un
+      hachage du contenu : avec un mtime figé, deux versions d'un même fichier
+      de même taille partageraient le même ETag, et `If-Modified-Since` /
+      `Last-Modified` (toujours 1980) répondraient « non modifié » à tort.
+      L'ETag est donc recalculé sur le contenu réel (fichiers statiques
+      légers uniquement — les médias passent par `app/utils/media_response.py`)
+      et seule la comparaison `If-None-Match` est utilisée. Un client sans
+      `If-None-Match` reçoit toujours le contenu complet (200).
     """
 
     async def get_response(self, path: str, scope):

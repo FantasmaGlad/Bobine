@@ -20,8 +20,7 @@ router = APIRouter(prefix="/api/audio-playlists", tags=["audio-playlists"])
 class AudioPlaylistItemInput(BaseModel):
     audio_track_id: int
     position: int | None = None
-    # Fond d'ambiance propre à cette piste (réf. mission "associer un fond
-    # animé à chaque musique qui se jouera en arrière plan") : nul = pas de
+    # Fond d'ambiance propre à cette piste : nul = pas de
     # fond propre, le fond de la playlist/du cours reste affiché.
     background_id: int | None = None
 

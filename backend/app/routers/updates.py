@@ -39,8 +39,7 @@ GITHUB_REPO = "FantasmaGlad/Bobine"
 # stable voie jamais une bêta, même en cas de bug côté filtrage applicatif.
 # "beta" interroge un tag FIXE ("beta") — un seul fichier de release Bêta
 # sur GitHub, republié en place à chaque build plutôt qu'un nouveau tag par
-# itération (réf. mission "canal Stable/Bêta" — éviter l'accumulation de
-# releases sur la page publique). Voir .github/workflows/ci.yml, job
+# itération. Voir .github/workflows/ci.yml, job
 # `release-beta` : force-déplace ce tag et republie dessus à chaque
 # déclenchement manuel.
 _RELEASES_LATEST_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
@@ -97,7 +96,7 @@ def _parse_version(version_str: str) -> tuple[tuple[int, int, int], tuple]:
     pre-release est toujours postérieure à une version AVEC pre-release, et
     deux pre-releases se comparent identifiant par identifiant (numérique si
     possible, sinon lexical — les identifiants numériques ont une précédence
-    inférieure aux alphanumériques, cf. spec semver §11)."""
+    inférieure aux alphanumériques, comme le veut semver)."""
     s = (version_str or "").strip()
     if s[:1] in ("v", "V"):
         s = s[1:]

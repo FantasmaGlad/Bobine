@@ -6,7 +6,7 @@ Un seul point d'entrée (`get_profile_handler()`) pour que
 `sudo`/`systemctl`/`git` directement selon la plateforme : chaque profil
 ajoute son propre fichier de handler dans `deployment_profiles/`, sans
 jamais toucher aux deux routers ni à ce module — voir `docs/ARCHITECTURE.md`
-§4 pour le détail des cinq profils cibles.
+pour le détail des cinq profils cibles.
 """
 
 import platform
@@ -15,9 +15,8 @@ from typing import Callable, Literal
 
 DeploymentProfile = Literal["linux-headless", "linux-desktop", "windows", "macos", "android"]
 
-# Artefacts posés par install.sh sur l'appliance headless (réf.
-# install.sh:1266-1294, 917-920) : leur présence est ce qui distingue un
-# Linux headless (appliance) d'un Linux de bureau (Lot 2, paquet .deb) —
+# Artefacts posés par install.sh sur l'appliance headless : leur présence est ce qui distingue un
+# Linux headless (appliance) d'un Linux de bureau —
 # les deux tournant par ailleurs sous le même OS.
 UNINSTALL_WRAPPER = Path("/usr/local/sbin/bobine-uninstall")
 SUDOERS_FILE = Path("/etc/sudoers.d/bobine")
@@ -41,8 +40,7 @@ def get_deployment_profile() -> DeploymentProfile:
         return "windows"
     if system == "Darwin":
         return "macos"
-    # Chaquopy (cf. docs/plan-implementation-android.md, Découvertes du
-    # Lot 7) : platform.system() renvoie bien "Android", pas "Linux", bien
+    # Chaquopy : platform.system() renvoie bien "Android", pas "Linux", bien
     # que le noyau sous-jacent en soit un - un test explicite est donc
     # nécessaire ici, sans quoi ce cas tomberait dans le repli
     # "linux-desktop" plus bas (fonctionnellement presque correct par
@@ -57,8 +55,7 @@ def get_deployment_profile() -> DeploymentProfile:
 
 class UpdateUnsupported(Exception):
     """Levée par un `ProfileHandler` qui ne sait pas encore appliquer de
-    mise à jour automatique sur son profil (cf. CDC §12 : mécanisme non
-    cadré pour les profils desktop à ce stade)."""
+    mise à jour automatique sur son profil."""
 
     def __init__(self, message: str):
         super().__init__(message)
@@ -102,9 +99,8 @@ class ProfileHandler:
 
     def uninstall_instructions(self) -> str:
         """Message affiché à la place du bouton d'action directe, pour un
-        profil où la désinstallation automatique n'est pas sûre (§5.3 du
-        plan — pas d'équivalent fiable à l'enveloppe systemd-run de
-        l'appliance headless)."""
+        profil où la désinstallation automatique n'est pas sûre (pas d'équivalent fiable à l'enveloppe
+        systemd-run de l'appliance headless)."""
         raise NotImplementedError
 
     def supports_git_versioning(self) -> bool:

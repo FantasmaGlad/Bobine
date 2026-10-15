@@ -245,7 +245,7 @@ def download_with_progress(
     `asyncio.to_thread` (cf. `run_update_pipeline`), jamais sur la boucle
     asyncio elle-même.
 
-    Fail-closed (réf. CDC sécurité 2026-09) : `expected_digest` absent
+    Fail-closed : `expected_digest` absent
     (asset non retrouvé dans la release GitHub, ou champ `digest` manquant
     côté API) refuse le téléchargement plutôt que d'installer un binaire à
     privilèges élevés sans aucune vérification — mieux vaut rater une mise

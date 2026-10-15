@@ -1,5 +1,4 @@
-"""Extraction sûre d'archives ZIP (réf. CDC sécurité 2026-09, correctif
-zip-slip) — un membre nommé `../../etc/x` (ou équivalent) fait normalement
+"""Extraction sûre d'archives ZIP — un membre nommé `../../etc/x` (ou équivalent) fait normalement
 écrire `ZipFile.extractall()` hors du dossier de destination prévu, sans
 qu'aucune vérification native ne s'y oppose."""
 

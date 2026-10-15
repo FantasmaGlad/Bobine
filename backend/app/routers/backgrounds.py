@@ -37,7 +37,7 @@ class BackgroundResponse(_ComputedFieldsCompatMixin, BaseModel):
         from_attributes = True
         orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
 
-    # Réf. mission "fond figé ou animé" : pas de colonne dédiée en base,
+    # pas de colonne dédiée en base,
     # dérivé de l'extension du fichier pour que le kiosk et les écrans admin
     # sachent rendre une <img> plutôt qu'une <video> en boucle.
     @computed_field
@@ -52,8 +52,8 @@ class ImportJobAccepted(BaseModel):
 
 def _run_background_import_job(job_id: str, temp_path: str, filename: str, title: str | None) -> None:
     """Voir `videos.py::_run_video_import_job` — même mécanique (exécuteur
-    ffmpeg partagé, réf. audit plan-corrections-bugs point 5 ; job suivi via
-    `app.utils.import_jobs`, réf. mission "voir en direct les imports")."""
+    ffmpeg partagé; job suivi via
+    `app.utils.import_jobs`)."""
     try:
         background = import_background(temp_path, filename, ImportSource.upload, job_id=job_id)
 
@@ -88,7 +88,7 @@ def upload_background(
     upload_id: str | None = Form(None),
     title: str | None = Form(None),
 ):
-    """Upload web d'un fond animé (réf. F9.1, UX3.12) — traité en arrière-plan,
+    """Upload web d'un fond animé — traité en arrière-plan,
     voir `_run_background_import_job` et `GET /api/import-jobs`."""
     temp_path, filename = receive_single_upload(file, upload_id)
 

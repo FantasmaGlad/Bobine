@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # saisis par l'utilisateur (ex. "RPM tous les mardis 18h00") sont des heures
 # locales de la salle. On ancre donc le scheduler sur le fuseau local de la
 # machine plutôt que UTC, pour que les récurrences restent correctes après un
-# changement d'heure été/hiver (F5.5 : fonctionnement horloge locale).
+# changement d'heure été/hiver (fonctionnement sur l'horloge locale).
 LOCAL_TZ = get_localzone()
 
 # Filet de sécurité anti-boucle infinie lors du déroulé d'une récurrence sur
@@ -39,7 +39,7 @@ LOCAL_TZ = get_localzone()
 # programmation hebdomadaire sur une plage d'un an ne produit que ~52 occurrences).
 _MAX_OCCURRENCES_PER_SCHEDULE = 1000
 
-# Tolérance de retard APScheduler (réf. sync_schedule_job, misfire_grace_time)
+# Tolérance de retard APScheduler
 # ET marge de recalage du jour civil dans fire_schedule ci-dessous : les DEUX
 # doivent rester identiques (correctif "recherche d'exception en course avec
 # la marge de tolérance de retard"), sinon une programmation proche de minuit
@@ -95,7 +95,7 @@ def resolve_target_title(
 def resolve_target_display(db: Session, target_type: ScheduleTargetType, target_id: int) -> dict:
     """
     Titre/programme/durée/miniature d'une cible de programmation, pour le
-    planning visuel (réf. `docs/cahier-des-charges-planning-visuel.md` §2).
+    planning visuel.
     Fonction séparée de `resolve_target_title` (plutôt qu'un tuple élargi)
     pour ne pas devoir toucher tous ses appelants existants qui n'ont besoin
     que du titre/programme (suppressions, remplacements...).
@@ -106,8 +106,7 @@ def resolve_target_display(db: Session, target_type: ScheduleTargetType, target_
       ci-dessous ; durée = somme des items.
     - playlist radio (fenêtre programmée) : `duration_seconds` volontairement
       `None` — le bloc du planning se dimensionne sur la fenêtre horaire
-      choisie (`time_of_day`/`end_time`), pas sur le contenu qui boucle (cf.
-      CDC §2.3). `cover_track_id` = 1er morceau ayant une pochette, même
+      choisie (`time_of_day`/`end_time`), pas sur le contenu qui boucle. `cover_track_id` = 1er morceau ayant une pochette, même
       logique que `routers/radio_playlists.py::list_playlists`.
     """
     if target_type == ScheduleTargetType.video:
@@ -154,11 +153,10 @@ def expand_occurrences(
 ) -> list[dict]:
     """
     Développe une liste de programmations actives en occurrences concrètes
-    dans l'intervalle [start, end], overrides résolus (réf. F5.2/F5.4, UX3.14-16).
+    dans l'intervalle [start, end], overrides résolus.
 
     Les occurrences annulées sont *incluses* dans le résultat (avec le titre
-    d'origine) plutôt qu'omises : le planning doit pouvoir les afficher barrées
-    (UX3.15), pas simplement les faire disparaître.
+    d'origine) plutôt qu'omises : le planning doit pouvoir les afficher barrées, pas simplement les faire disparaître.
     """
     if not schedules:
         return []
@@ -173,7 +171,7 @@ def expand_occurrences(
 
     results: list[dict] = []
     for schedule in schedules:
-        # Réf. planning visuel §2.3 : fenêtre radio (end_time/24_7) résolue
+        # fenêtre radio (end_time/24_7) résolue
         # une fois par programmation, pas par occurrence — sert au calcul de
         # la taille du bloc côté client pour une cible radio_playlist
         # (durée du bloc = fenêtre choisie, pas contenu qui boucle).
@@ -307,7 +305,7 @@ def _radio_track_dict(track) -> dict:
 
 
 async def _launch_radio_target(db: Session, playlist_id: int) -> None:
-    """Lance une playlist radio EN BOUCLE (réf. lot L7, D9) : utilisé aussi
+    """Lance une playlist radio EN BOUCLE : utilisé aussi
     bien par l'auto-boot (ambiance par défaut) que par une programmation
     Planning radio (fenêtre ou 24/7) — les deux doivent boucler plutôt que
     s'arrêter en silence en fin de playlist."""
@@ -328,9 +326,7 @@ async def _launch_radio_target(db: Session, playlist_id: int) -> None:
 async def _launch_radio_shuffle_all(db: Session) -> str | None:
     """Ambiance par défaut « de secours » : joue TOUTE la bibliothèque radio,
     mélangée et en boucle infinie. Utilisé quand AUCUNE RadioPlaylist n'est
-    marquée `is_default`, pour ne jamais laisser la radio muette (réf. demande
-    user : « éviter de devoir créer une playlist et de se retrouver sans
-    musique »).
+    marquée `is_default`, pour ne jamais laisser la radio muette.
 
     Playlist VIRTUELLE (playlist_id=None, comme la commande `radio_shuffle_all`
     de routers/playback.py) : rien n'est persisté en base, la liste est
@@ -351,17 +347,16 @@ async def _launch_radio_shuffle_all(db: Session) -> str | None:
 
 
 async def autostart_default_radio_playlist() -> None:
-    """Auto-démarrage au boot (réf. lot L7, D10) : si le canal radio est au
+    """Auto-démarrage au boot : si le canal radio est au
     repos et `radio_autostart_on_boot` est actif, charge la playlist
     d'ambiance par défaut. À appeler une fois au démarrage du service — si
     une lecture est déjà en cours (ex. relancée par une commande arrivée
     entre-temps), l'état n'est plus "idle" et cet appel ne fait rien.
 
-    CORRECTIF historique (réf. « musiques qui switchent/se chevauchent en
-    permanence », avant PortabiliteCrossPlatformX Lot 0) : avec 4 workers
+    CORRECTIF historique : avec 4 workers
     uvicorn, cette fonction était appelée par CHACUN à son propre démarrage,
     calculant chacun son propre tirage aléatoire — d'où des changements de
-    piste qui semblaient incessants. Process unique depuis le Lot 0 (voir
+    piste qui semblaient incessants. Process unique (voir
     `docs/ARCHITECTURE.md` §2) : `main.py` n'appelle plus
     cette fonction qu'une seule fois, le problème ne peut plus se poser."""
     from app.config import settings as runtime_settings
@@ -380,8 +375,7 @@ async def autostart_default_radio_playlist() -> None:
             await _launch_radio_target(db, default_playlist.id)
         else:
             # Aucune playlist marquée par défaut : plutôt que de rester muet, on
-            # démarre toute la bibliothèque en aléatoire/boucle (réf. demande
-            # user). Overridable : dès qu'une playlist est marquée `is_default`,
+            # démarre toute la bibliothèque en aléatoire/boucle. Overridable : dès qu'une playlist est marquée `is_default`,
             # la branche ci-dessus reprend la priorité au prochain démarrage.
             if await _launch_radio_shuffle_all(db):
                 logger.info("Auto-démarrage radio : aucune playlist par défaut → toute la bibliothèque en aléatoire")
@@ -392,7 +386,7 @@ async def autostart_default_radio_playlist() -> None:
 
 
 async def _revert_radio_to_default(db: Session) -> None:
-    """Fin de fenêtre radio (réf. lot L7, D9) : retour à la playlist d'ambiance
+    """Fin de fenêtre radio : retour à la playlist d'ambiance
     par défaut, ou arrêt si aucune n'est définie."""
     from app.radio_manager import get_radio_manager
 
@@ -411,11 +405,9 @@ async def _launch_target(
     db: Session, target_type: ScheduleTargetType, target_id: int, channel: str = "cable"
 ) -> None:
     """Lance la cible d'une programmation sur l'état de lecture de SON canal
-    (réf. mission "tableaux de bord Câblé / Réseau" : un planning par canal,
-    zéro interférence entre les deux lectures)."""
+    (un planning par canal, zéro interférence entre les deux lectures)."""
     if target_type == ScheduleTargetType.radio_playlist:
-        # 3e canal radio (réf. lot L7), sous-système totalement indépendant
-        # (D8) : aucune des règles de conflit câblé/réseau ci-dessous ne
+        # 3e canal radio, sous-système totalement indépendant : aucune des règles de conflit câblé/réseau ci-dessous ne
         # s'applique — pas de mode coach, pas de "lecture manuelle en cours".
         await _launch_radio_target(db, target_id)
         return
@@ -423,7 +415,7 @@ async def _launch_target(
     manager = get_playback_manager(channel)
     current = manager.snapshot()
 
-    # F10.7 — priorité au mode audio coach : contrairement à F5.3, la
+    # Priorité au mode audio coach : contrairement au canal câblé, la
     # programmation n'est PAS prioritaire ici. Le coach anime un cours en
     # physique ; une programmation automatique ne doit surtout pas lui couper
     # le son. On n'appelle jamais _launch_target dans ce cas : la cible est
@@ -442,19 +434,18 @@ async def _launch_target(
         )
         db.commit()
         logger.info(
-            f"Programmation ({target_type.value} {target_id}) reportée : mode audio coach actif (réf. F10.7)"
+            f"Programmation ({target_type.value} {target_id}) reportée : mode audio coach actif"
         )
         return
 
-    # Réf. correctif "état interrompu incorrect pendant l'attente entre deux
-    # vidéos d'une playlist" : `current_video` reste renseigné (celui qui
+    # `current_video` reste renseigné (celui qui
     # vient de se terminer) pendant `playlist_waiting`, comme le sont déjà
     # obligées de le vérifier PlaybackManager.play/pause/seek/report_position
     # — sans cette même exclusion ici, une programmation qui se déclenche
     # exactement dans cette fenêtre de quelques secondes croit qu'une "vidéo
     # manuelle" est active et sauvegarde une fausse interruption pointant sur
     # la vidéo déjà terminée (position ≈ sa fin, rien de sensé à reprendre).
-    # Réf. CDC planning visuel (2026-09-17) §5.3 : `scheduled_launch` (posé
+    # `scheduled_launch` (posé
     # par PlaybackManager.load/load_playlist quand appelés avec scheduled=
     # True, cf. ci-dessous) distingue une vraie lecture manuelle d'un
     # reliquat de programmation encore en cours — sans quoi la règle réseau
@@ -474,17 +465,17 @@ async def _launch_target(
     # Règle de conflit RÉSEAU (retour utilisateur 2026-07-21) : sur ce canal,
     # un lancement manuel en cours gagne toujours — une programmation qui
     # arrive en même temps est simplement annulée, sans jamais interrompre la
-    # lecture manuelle. Contraire à F5.3 (câblé) ci-dessous : le réseau sert
+    # lecture manuelle. Contraire à la règle du canal câblé ci-dessous : le réseau sert
     # des appareils individuels lancés à la demande, pas le planning de la
     # salle physique, donc la priorité s'inverse.
     if channel == "network" and manual_video_active:
         logger.info(
             f"Programmation ({target_type.value} {target_id}) annulée : lecture manuelle en cours sur le "
-            "canal réseau (priorité au manuel, réf. retour utilisateur 2026-07-21)"
+            "canal réseau (priorité au manuel)"
         )
         return
 
-    # F5.3 — règle de conflit CÂBLÉ : la programmation est prioritaire sur une
+    # Règle de conflit CÂBLÉ : la programmation est prioritaire sur une
     # lecture manuelle en cours. On ne la reprend jamais automatiquement ;
     # on mémorise juste sa position pour une relance manuelle depuis l'UI
     # (endpoints /api/playback/interrupted*). Une seule interruption "en
@@ -543,10 +534,10 @@ async def _launch_target(
 async def fire_schedule(schedule_id: int) -> None:
     """Callback APScheduler déclenché à l'heure d'une programmation.
 
-    Avant PortabiliteCrossPlatformX Lot 0, un verrou distribué Redis
+    Auparavant, un verrou distribué Redis
     dédoublonnait ce déclenchement entre les 4 workers uvicorn, chacun ayant
     son propre AsyncIOScheduler armé sur la même règle cron. Process unique
-    depuis ce lot : un seul AsyncIOScheduler existe, plus de doublon possible
+    désormais : un seul AsyncIOScheduler existe, plus de doublon possible
     par construction (voir `docs/ARCHITECTURE.md` §2)."""
     db = SessionLocal()
     try:
@@ -560,9 +551,7 @@ async def fire_schedule(schedule_id: int) -> None:
             # Jour civil *local* : une occurrence récurrente est ancrée au
             # calendrier de la salle, pas à la date UTC (qui peut différer
             # près de minuit selon le fuseau).
-            # Recalé de MISFIRE_GRACE_SECONDS avant de prendre le jour civil
-            # (réf. correctif "recherche d'exception en course avec la marge
-            # de tolérance de retard") : ce callback peut s'exécuter jusqu'à
+            # Recalé de MISFIRE_GRACE_SECONDS avant de prendre le jour civil : ce callback peut s'exécuter jusqu'à
             # misfire_grace_time secondes après l'heure prévue (add_job
             # ci-dessous). Sans ce recalage, une programmation à 23:59:30
             # déclenchée avec 45s de retard (23:59:75 = 00:00:15) verrait
@@ -592,8 +581,7 @@ async def fire_schedule(schedule_id: int) -> None:
 
 
 async def fire_schedule_end(schedule_id: int) -> None:
-    """Callback APScheduler déclenché à la FIN d'une fenêtre radio (réf. lot
-    L7, D9/A1) : retour à la playlist d'ambiance par défaut. N'existe que pour
+    """Callback APScheduler déclenché à la FIN d'une fenêtre radio : retour à la playlist d'ambiance par défaut. N'existe que pour
     les programmations radio récurrentes avec `end_time` (pas de mode 24/7,
     pas de programmation ponctuelle — cf. _sync_end_job)."""
     db = SessionLocal()
@@ -629,8 +617,6 @@ def sync_schedule_job(schedule: Schedule) -> None:
         else:
             trigger = _build_cron_trigger(schedule)
     except Exception as e:
-        # Réf. correctif "json.loads non protégé sur une ligne malformée peut
-        # interrompre toute la boucle de resynchronisation au démarrage" :
         # start_scheduler() appelle sync_schedule_job() pour CHAQUE
         # programmation active dans une simple boucle for — une seule ligne
         # corrompue (recurrence_rule invalide après une édition manuelle en
@@ -658,7 +644,7 @@ def sync_schedule_job(schedule: Schedule) -> None:
 
 
 def _sync_end_job(schedule: Schedule) -> None:
-    """(Ré)enregistre le job de FIN de fenêtre radio (réf. lot L7), ou le
+    """(Ré)enregistre le job de FIN de fenêtre radio, ou le
     retire s'il ne s'applique pas. Portée volontairement restreinte aux
     programmations radio RÉCURRENTES : une fenêtre ponctuelle (schedule_type
     "once") ne revient pas automatiquement au défaut — limitation assumée

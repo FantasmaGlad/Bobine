@@ -11,16 +11,14 @@ logger = logging.getLogger(__name__)
 
 BroadcastFn = Callable[[dict], Awaitable[None]]
 
-# Canaux de diffusion indépendants (réf. mission "tableaux de bord Câblé /
-# Réseau") : chaque canal a son PROPRE état de lecture, sa propre playlist,
+# Canaux de diffusion indépendants : chaque canal a son PROPRE état de lecture, sa propre playlist,
 # son propre kiosk primaire. "cable" = l'écran physiquement branché au Wyse,
 # "network" = tout /kiosk ouvert depuis un autre appareil du LAN.
 CHANNELS = ("cable", "network")
 DEFAULT_CHANNEL = "cable"
 
 
-# Décalage (ms) entre l'ordre reçu et l'instant où TOUS les écrans démarrent
-# (réf. plan 4.0, P2-2) : laisse à chaque écran le temps de recevoir l'ordre
+# Décalage (ms) entre l'ordre reçu et l'instant où TOUS les écrans démarrent : laisse à chaque écran le temps de recevoir l'ordre
 # pour qu'ils démarrent ENSEMBLE plutôt que « au plus vite » chacun de son côté.
 # Il n'a de sens qu'avec PLUSIEURS écrans : avec un seul (ou aucun), tout délai
 # n'est que de la latence ressentie — mesuré 300 ms sur play et 1 000 ms au
@@ -51,7 +49,7 @@ class PlaybackStateEnum(str, enum.Enum):
     coach_mode = "coach_mode"
     offline = "offline"
     playlist_waiting = "playlist_waiting"
-    background = "background"  # Lot 7 (F9.2) : fond animé en boucle, plein écran, sans son
+    background = "background"  # fond animé en boucle, plein écran, sans son
 
 
 def _db_start_session(video_id: int, channel: str, launch_type: str, duration: float) -> int | None:
@@ -87,8 +85,7 @@ def _db_close_session(session_id: int, position: float | None = None, completed:
 
 class PlaybackManager:
     """
-    État de lecture global et partagé de l'écran cinéma (Lot 3, réf. plan
-    de construction §8.3.1). Le kiosk reste seul maître de la lecture réelle
+    État de lecture global et partagé de l'écran cinéma. Le kiosk reste seul maître de la lecture réelle
     (élément <video>) ; ce gestionnaire fait autorité sur l'état logique
     partagé, diffusé à tous les clients (kiosk + télécommandes) via WebSocket.
     """
@@ -98,9 +95,9 @@ class PlaybackManager:
         # Canal de diffusion que cet état pilote ("cable" ou "network").
         # Chaque évènement émis porte ce champ pour que les clients (kiosks,
         # tableaux de bord) ne réagissent qu'aux évènements de LEUR canal —
-        # zéro interférence entre les deux lectures (réf. mission).
+        # zéro interférence entre les deux lectures.
         self.channel = channel
-        # Session de lecture SQLite active pour ce canal (réf. CDC V3.0.5 §2.3)
+        # Session de lecture SQLite active pour ce canal
         self._current_session_id: int | None = None
         self._last_session_update: float = 0.0
         # Instant (monotonic) du dernier report_position reçu directement du
@@ -110,18 +107,17 @@ class PlaybackManager:
         self._waiting_task: asyncio.Task | None = None
         self._audio_chain_wait_task: asyncio.Task | None = None
         self._position_broadcast_task: asyncio.Task | None = None
-        # Numéro de séquence des `position_tick` de CE canal (réf. retour
-        # utilisateur "renforcer le logiciel pour les réseaux imparfaits") :
+        # Numéro de séquence des `position_tick` de CE canal :
         # incrémenté à chaque tick émis, jamais réinitialisé (y compris entre
         # deux vidéos). Le client compare ce numéro au précédent reçu — un
         # écart signale un tick perdu en silence (Wi-Fi imparfait) et
         # déclenche une resynchronisation REST immédiate au lieu d'attendre
         # le prochain cycle du filet de sécurité périodique (15s).
         self._tick_seq = 0
-        # Horloge de lecture vidéo (réf. plan 4.0, P2-2) : source de vérité de
+        # Horloge de lecture vidéo : source de vérité de
         # la position, indépendante de tout kiosque.
         self._clock = PlaybackClock()
-        # Horloge de la piste audio du mode coach (plan 4.0.1) : même modèle que
+        # Horloge de la piste audio du mode coach : même modèle que
         # la vidéo — la position est une fonction du temps, plus la dernière
         # valeur rapportée par un écran primaire.
         self._audio_clock = PlaybackClock()
@@ -129,8 +125,7 @@ class PlaybackManager:
         # Nombre d'écrans de diffusion connectés sur CE canal (fourni par la
         # couche WebSocket) : décide si un démarrage synchronisé est utile.
         self.display_counter: Callable[[str], int] = lambda channel: 0
-        # Fond d'ambiance de repli du cours/playlist EN COURS (réf. mission
-        # "associer un fond animé à chaque musique") : celui choisi au
+        # Fond d'ambiance de repli du cours/playlist EN COURS : celui choisi au
         # lancement (background_id du cours, ou None pour une playlist). Non
         # diffusé directement — sert de repli à `_track_background()` pour
         # les pistes qui n'ont pas de fond qui leur soit propre. Distinct de
@@ -149,7 +144,7 @@ class PlaybackManager:
             "playlist_index": None,
             "playlist_waiting_remaining": None,
             "current_background": None,
-            # Mode audio coach (Lot 8, réf. F10.3-F10.4)
+            # Mode audio coach
             "current_audio_course": None,
             "audio_tracks": None,
             "audio_track_index": None,
@@ -158,7 +153,7 @@ class PlaybackManager:
             "audio_chain_mode": "auto",
             "audio_chain_timer_seconds": settings.audio_chain_timer_seconds,
             "audio_chain_wait_remaining": None,
-            # Réf. CDC planning visuel (2026-09-17) §5.3 : distingue "lecture
+            # distingue "lecture
             # manuelle" d'un "reliquat d'une programmation encore en cours"
             # pour la détection de conflit de scheduler_manager._launch_target
             # — sans ce marqueur, la règle réseau "le manuel gagne toujours"
@@ -279,7 +274,7 @@ class PlaybackManager:
                             continue
                         await self._emit("position_tick")
                 elif is_audio_playing:
-                    # Audio coach : l'horloge serveur avance seule (plan 4.0.1) ;
+                    # Audio coach : l'horloge serveur avance seule ;
                     # heartbeat lent (la minuterie du coach s'interpole
                     # localement) et fin de piste enchaînée par le serveur si
                     # aucun écran ne la signale.
@@ -313,9 +308,9 @@ class PlaybackManager:
         return True
 
     def _clear_audio_coach(self):
-        """Sort du mode audio coach (réf. F10.4) — appelé par tout ce qui
+        """Sort du mode audio coach — appelé par tout ce qui
         prend le relais sur l'écran (cours vidéo, playlist, fond animé,
-        arrêt manuel). Ne s'applique PAS à la règle de priorité F10.7, qui
+        arrêt manuel). Ne s'applique PAS à la règle de priorité du mode coach, qui
         empêche au contraire une programmation automatique d'appeler ceci."""
         self._cancel_audio_chain_wait()
         self.state["current_audio_course"] = None
@@ -389,7 +384,7 @@ class PlaybackManager:
         self._clock.start(0.0, lead_ms=self._lead_ms(LOAD_LEAD_MS))
         self._last_heartbeat = time.monotonic()
 
-        # Démarrage de la session SQLite d'assiduité (réf. CDC V3.0.5 §2.3)
+        # Démarrage de la session SQLite d'assiduité
         self._current_session_id = await asyncio.to_thread(
             _db_start_session, video_id, self.channel, launch_type, duration_seconds or 0.0
         )
@@ -438,8 +433,7 @@ class PlaybackManager:
         )
 
     async def _run_waiting_period(self):
-        # Se retient elle-même (réf. correctif "tâche d'attente orpheline
-        # entre deux vidéos d'une playlist") : un garde-fou supplémentaire en
+        # Se retient elle-même : un garde-fou supplémentaire en
         # plus de l'ordonnancement corrigé dans video_ended() (le task est
         # désormais assigné à self._waiting_task avant tout await, pour
         # qu'une commande concurrente — skip_waiting/next_video/previous_video
@@ -488,7 +482,7 @@ class PlaybackManager:
         if next_idx < len(items):
             self.state["playlist_index"] = next_idx
             next_item = items[next_idx]
-            # Réf. "scheduled_launch" ci-dessus : relu AVANT l'appel qui va le
+            # relu AVANT l'appel qui va le
             # réécrire, pour que l'avance automatique/manuelle au sein d'une
             # MÊME playlist ne perde jamais l'origine "programmation" de la
             # lecture en cours.
@@ -600,9 +594,8 @@ class PlaybackManager:
             await self.stop(client_ts)
 
     async def play(self, client_ts: float | None = None):
-        # En mode coach (Lot 8), "Lecture" pilote la piste audio en cours
-        # plutôt que la vidéo — même bouton, comportement contextuel (UX5.1 :
-        # un seul état partagé, pas de mode de contrôle séparé par écran).
+        # En mode coach, "Lecture" pilote la piste audio en cours
+        # plutôt que la vidéo — même bouton, comportement contextuel (un seul état partagé, pas de mode de contrôle séparé par écran).
         if self.state["current_audio_course"] is not None:
             self.state["audio_playing"] = True
             if not self._audio_clock.running:
@@ -660,11 +653,9 @@ class PlaybackManager:
         await self._emit("stop", client_ts)
 
     async def load_background(self, background_id: int, title: str, is_image: bool = False, client_ts: float | None = None):
-        """Lance un fond animé en boucle infinie, plein écran, sans son (réf.
-        F9.2). Prend le relais immédiatement sur toute lecture en cours — pas
+        """Lance un fond animé en boucle infinie, plein écran, sans son. Prend le relais immédiatement sur toute lecture en cours — pas
         de compte à rebours, une boucle d'ambiance n'est pas un « lancement de
-        cours » (UX2.8 ne s'applique qu'aux vidéos de cours). `is_image`
-        (réf. mission "fond figé ou animé") : le kiosk rend une <img> figée
+        cours » (la règle ne s'applique qu'aux vidéos de cours). `is_image` : le kiosk rend une <img> figée
         plutôt qu'une <video> en boucle quand ce fond est une image fixe."""
         self._cancel_waiting()
         self._clear_audio_coach()
@@ -705,7 +696,7 @@ class PlaybackManager:
         """
         Rapport de la position réelle d'un écran (kiosque primaire).
 
-        Depuis le lot P2-2 la position est portée par l'horloge serveur
+        La position est portée par l'horloge serveur
         (`PlaybackClock`) : ce rapport N'EST PLUS la source de la position et
         ne la modifie plus (il en fixait l'âge et la précision, et sans écran
         primaire connecté le cours n'avançait pas). Il sert uniquement à :
@@ -727,7 +718,7 @@ class PlaybackManager:
             )
 
     # ------------------------------------------------------------------
-    # Mode audio coach (Lot 8, réf. F10.3/F10.4/UX4.5-4.9)
+    # Mode audio coach
     # ------------------------------------------------------------------
     async def load_audio_course(
         self,
@@ -743,10 +734,8 @@ class PlaybackManager:
         background_is_image: bool = False,
     ):
         """Lance un cours audio : bascule immédiate en mode coach, lecture de
-        la première piste (réf. F10.4 « lancer en 2 taps maximum » — le choix
-        du cours suffit, pas de tap Lecture supplémentaire nécessaire).
-        `current_background` est peuplé au même format que load_background()
-        (réf. mission "fond figé ou animé" du mode coach) : le kiosk n'a plus
+        la première piste.
+        `current_background` est peuplé au même format que load_background() : le kiosk n'a plus
         qu'UNE seule source de vérité pour rendre le fond, qu'on soit en mode
         "background" pur ou en mode coach avec fond d'ambiance."""
         self._cancel_waiting()
@@ -776,8 +765,7 @@ class PlaybackManager:
         self.state["audio_playing"] = False
         self.state["audio_position_seconds"] = 0.0
         self._audio_clock.reset()
-        # Fond RÉELLEMENT affiché pour la première piste (réf. mission
-        # "associer un fond animé à chaque musique") : peut différer du fond
+        # Fond RÉELLEMENT affiché pour la première piste : peut différer du fond
         # de repli ci-dessus si CETTE piste a son propre fond.
         self.state["current_background"] = self._track_background(tracks[0]) if tracks else None
         if chain_mode in ("auto", "manual"):
@@ -795,9 +783,7 @@ class PlaybackManager:
         chain_timer_seconds: float | None = None,
         client_ts: float | None = None,
     ):
-        """Lance une playlist audio ("édition mixée", réf. mission "playlists
-        spéciales... des musiques de plusieurs RPM différents, pas juste
-        plusieurs RPM collés") : une playlist est une séquence de PISTES
+        """Lance une playlist audio ("édition mixée") : une playlist est une séquence de PISTES
         individuelles, possiblement issues de plusieurs cours/programmes
         différents — traitée en mode coach exactement comme un cours normal
         dont les pistes auraient été choisies une par une, sans notion de
@@ -812,8 +798,7 @@ class PlaybackManager:
 
 
     def _track_background(self, track: dict) -> dict | None:
-        """Fond à afficher pour CETTE piste (réf. mission "associer un fond
-        animé à chaque musique") : le sien propre s'il en a un, sinon le fond
+        """Fond à afficher pour CETTE piste : le sien propre s'il en a un, sinon le fond
         de repli du cours/playlist (celui choisi au lancement, éventuellement
         aucun)."""
         background_id = track.get("background_id")
@@ -847,7 +832,7 @@ class PlaybackManager:
             await self._emit("audio_next_track", client_ts)
         else:
             # Dernière piste déjà atteinte : fin du cours, on reste affiché
-            # mais en pause (réf. F10.3, pas d'arrêt automatique du mode coach).
+            # mais en pause.
             self._cancel_audio_chain_wait()
             self.state["audio_playing"] = False
             self._audio_clock.pause()
@@ -861,7 +846,7 @@ class PlaybackManager:
             await self._emit("audio_previous_track", client_ts)
 
     async def audio_restart_track(self, client_ts: float | None = None):
-        """Relance la piste en cours depuis le début (réf. UX4.6)."""
+        """Relance la piste en cours depuis le début."""
         if self.state["audio_track_index"] is None:
             return
         self._cancel_audio_chain_wait()
@@ -873,7 +858,7 @@ class PlaybackManager:
         await self._emit("audio_restart_track", client_ts)
 
     async def audio_jump_to_track(self, index: int, client_ts: float | None = None):
-        """Saut direct à une piste depuis la liste (bottom sheet, réf. UX4.7)."""
+        """Saut direct à une piste depuis la liste (bottom sheet)."""
         if self._goto_track(index, client_ts):
             await self._emit("audio_jump_to_track", client_ts)
 
@@ -885,8 +870,7 @@ class PlaybackManager:
         client_ts: float | None = None,
     ):
         """Change (ou retire) le fond d'ambiance du mode coach EN COURS de
-        lecture (réf. mission "ajoute la possibilité d'afficher un fond
-        depuis le mode coach") — sans ça, le fond n'était fixé qu'au
+        lecture — sans ça, le fond n'était fixé qu'au
         lancement du cours (via l'attribut background_id persistant du
         cours), impossible à changer une fois la lecture démarrée."""
         if self.state["current_audio_course"] is None:
@@ -910,11 +894,11 @@ class PlaybackManager:
         await self._emit("audio_chain_timer", client_ts)
 
     async def audio_report_position(self, position_seconds: float):
-        """Même logique silencieuse que report_position (réf. Phase 5, P5),
+        """Même logique silencieuse que report_position,
         côté piste audio."""
         if self.state["current_audio_course"] is None:
             return
-        # Plan 4.0.1 : la position audio vient de l'horloge serveur ; ce rapport
+        # La position audio vient de l'horloge serveur ; ce rapport
         # ne la modifie plus (il en fixait l'âge et la précision).
         self._last_direct_report = time.monotonic()
 
@@ -945,8 +929,7 @@ class PlaybackManager:
     async def audio_track_ended(self, client_ts: float | None = None, track_index: int | None = None):
         """
         Fin naturelle d'une piste signalée par le kiosk (`<audio onEnded>`).
-        Trois comportements selon le mode d'enchaînement actif (réf. F10.3,
-        UX4.8) :
+        Trois comportements selon le mode d'enchaînement actif :
         - auto : piste suivante immédiatement ;
         - timer : attente `audio_chain_timer_seconds` puis piste suivante ;
         - manual : la piste reste arrêtée, le coach relance à la main.
@@ -957,7 +940,7 @@ class PlaybackManager:
         mode = self.state["audio_chain_mode"]
         idx = self.state["audio_track_index"]
 
-        # Idempotent (plan 4.0.1) : TOUS les écrans envoient la fin de piste, et
+        # Idempotent : TOUS les écrans envoient la fin de piste, et
         # le serveur peut l'avoir déjà enchaînée lui-même. Sans cette garde, le
         # signal tardif d'un second écran sautait une piste de plus en mode auto
         # (ou relançait l'attente en mode minuterie). `track_index` = la piste que
@@ -995,9 +978,7 @@ _managers: dict[str, PlaybackManager] = {}
 
 
 def init_playback_managers(broadcast: BroadcastFn) -> dict[str, PlaybackManager]:
-    """Crée les deux gestionnaires d'état, un par canal de diffusion (réf.
-    mission "tableaux de bord Câblé / Réseau" : deux lectures totalement
-    indépendantes, chacune avec sa playlist, sa position, son volume)."""
+    """Crée les deux gestionnaires d'état, un par canal de diffusion."""
     global _managers
     _managers = {channel: PlaybackManager(broadcast, channel) for channel in CHANNELS}
     return _managers

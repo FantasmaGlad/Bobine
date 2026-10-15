@@ -1,5 +1,4 @@
-"""État matériel des écrans externes et mode d'affichage câblé EFFECTIF
-(réf. plan 4.0, P1-1).
+"""État matériel des écrans externes et mode d'affichage câblé EFFECTIF.
 
 Avant ce module, `wired_display_mode` (`dual_screen`/`headless`) n'était qu'une
 préférence figée en base, jamais dérivée du matériel : brancher un

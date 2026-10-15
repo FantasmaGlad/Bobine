@@ -89,7 +89,7 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
 
         bg = import_background(temp_src, "Ambience MKV.mkv", ImportSource.watched_folder)
         self.assertIsNotNone(bg.id)
-        # Un conteneur MKV mal supporté doit être remuxé en MP4 (même règle que les cours, réf. F9.1/F3.5)
+        # Un conteneur MKV mal supporté doit être remuxé en MP4 (même règle que les cours)
         self.assertTrue(bg.file_path.endswith(".mp4"))
         self.assertTrue(os.path.exists(bg.file_path))
 
@@ -101,13 +101,13 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
 
         manager = PlaybackManager(mock_broadcast)
 
-        # Lancer un fond animé : bascule immédiate, sans compte à rebours (réf. F9.2)
+        # Lancer un fond animé : bascule immédiate, sans compte à rebours
         await manager.load_background(1, "Ambience Loop")
         self.assertEqual(manager.state["state"], "background")
         self.assertEqual(manager.state["current_background"], {"id": 1, "title": "Ambience Loop", "is_image": False})
         self.assertIsNone(manager.state["current_video"])
 
-        # Une programmation vidéo doit pouvoir prendre le relais sur un fond animé (F9.2 "prise de relais")
+        # Une programmation vidéo doit pouvoir prendre le relais sur un fond animé ("prise de relais")
         await manager.load(video_id=42, title="RPM 100", duration_seconds=2700.0)
         # Bascule directe en lecture : démarrage immédiat du cours
         # sans compte à rebours ni vidéo intermédiaire.
@@ -122,7 +122,7 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(manager.state["state"], "waiting")
         self.assertIsNone(manager.state["current_background"])
 
-        # Play/pause doivent rester des no-op pendant un fond animé (pas de notion de pause, réf. F9.2)
+        # Play/pause doivent rester des no-op pendant un fond animé (pas de notion de pause)
         await manager.load_background(3, "Test play/pause no-op")
         await manager.play()
         self.assertEqual(manager.state["state"], "background")

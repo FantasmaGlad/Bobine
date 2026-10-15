@@ -1,4 +1,4 @@
-"""Horloge de lecture serveur (plan 4.0, P2-2) : la position est une fonction
+"""Horloge de lecture serveur : la position est une fonction
 du temps, indépendante de tout kiosque."""
 
 import asyncio

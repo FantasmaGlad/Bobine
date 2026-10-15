@@ -1,5 +1,4 @@
-"""Profil vidéo « lisible partout » et version compatible navigateurs (lot F3
-du plan de compatibilité Firefox, docs/PLAN-COMPATIBILITE-FIREFOX.md).
+"""Profil vidéo « lisible partout » et version compatible navigateurs.
 
 Contexte : l'import d'un cours conserve le codec d'origine (H.264, HEVC, VP9 —
 cf. `video_utils.COMPATIBLE_COURSE_VIDEO_CODECS`) : c'est voulu pour la sortie

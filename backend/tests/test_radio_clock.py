@@ -1,4 +1,4 @@
-"""Horloge serveur du canal Radio (plan 4.0.1) : position fonction du temps,
+"""Horloge serveur du canal Radio : position fonction du temps,
 fin de piste idempotente, filet de sécurité serveur."""
 
 import asyncio

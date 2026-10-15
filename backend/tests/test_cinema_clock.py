@@ -1,4 +1,4 @@
-"""Horloge du cours /cinema lancé par ordre (plan 4.0.1) : créée par `launch`,
+"""Horloge du cours /cinema lancé par ordre : créée par `launch`,
 pilotée par play/pause/seek, détruite par `stop`, jamais jointe à une lecture locale."""
 
 import os

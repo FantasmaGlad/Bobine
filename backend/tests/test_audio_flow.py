@@ -141,14 +141,14 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
             {"id": 3, "number": 3, "title": "Sprint", "duration_seconds": 350.0},
         ]
 
-        # Lancement en 2 taps : le choix du cours suffit à démarrer la lecture (réf. F10.4)
+        # Lancement en 2 taps : le choix du cours suffit à démarrer la lecture
         await manager.load_audio_course(1, "RPM 110", "RPM", None, tracks)
         self.assertEqual(manager.state["state"], "coach_mode")
         # En pause par défaut à l'activation : au coach de cliquer sur play
         self.assertFalse(manager.state["audio_playing"])
         self.assertEqual(manager.state["audio_track_index"], 0)
 
-        # play/pause pilotent la piste audio en mode coach (même bouton que la vidéo, réf. UX5.1)
+        # play/pause pilotent la piste audio en mode coach (même bouton que la vidéo)
         await manager.play()
         self.assertTrue(manager.state["audio_playing"])
         await manager.pause()
@@ -163,13 +163,13 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         await manager.audio_previous_track()
         self.assertEqual(manager.state["audio_track_index"], 0)
 
-        # Relancer la piste au début (réf. UX4.6)
+        # Relancer la piste au début
         manager.state["audio_position_seconds"] = 120.0
         await manager.audio_restart_track()
         self.assertAlmostEqual(manager.state["audio_position_seconds"], 0.0, delta=0.5)  # horloge serveur : avance en temps réel
         self.assertTrue(manager.state["audio_playing"])
 
-        # Saut direct à une piste (bottom sheet, réf. UX4.7)
+        # Saut direct à une piste (bottom sheet)
         await manager.audio_jump_to_track(2)
         self.assertEqual(manager.state["audio_track_index"], 2)
 
@@ -237,7 +237,7 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         # Déclenchement direct de la programmation (simule l'heure H sans attendre APScheduler)
         await fire_schedule(schedule.id)
 
-        # Le mode coach ne doit PAS avoir été interrompu (réf. F10.7)
+        # Le mode coach ne doit PAS avoir été interrompu
         self.assertEqual(manager.state["state"], "coach_mode")
         self.assertEqual(manager.state["current_audio_course"]["id"], 1)
 
@@ -248,7 +248,7 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(pending.target_type, "video")
         self.assertEqual(pending.target_id, video.id)
 
-        # La programmation ponctuelle passée doit tout de même se désactiver (comportement F5.1 existant)
+        # La programmation ponctuelle passée doit tout de même se désactiver (comportement existant)
         self.db.refresh(schedule)
         self.assertFalse(schedule.active)
 

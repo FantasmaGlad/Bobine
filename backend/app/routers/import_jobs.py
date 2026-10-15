@@ -31,8 +31,7 @@ class ImportJobResponse(BaseModel):
 @router.get("", response_model=List[ImportJobResponse])
 def get_import_jobs():
     """
-    File d'attente des imports en direct (réf. mission "voir en direct les
-    importations et l'estimation d'où elles en sont") : uploads web ET
+    File d'attente des imports en direct : uploads web ET
     dossiers surveillés confondus, triés par ordre de création. Interrogé par
     polling depuis l'UI d'admin plutôt qu'un canal WebSocket dédié — ces
     tâches évoluent lentement (secondes à dizaines de minutes) comparé au

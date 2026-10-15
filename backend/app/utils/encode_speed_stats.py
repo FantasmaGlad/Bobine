@@ -1,5 +1,4 @@
-"""Historique de vitesse d'encodage ffmpeg (réf. mission "estimation de la
-durée d'importation et de réencodage") : mémorise, par couple (encodeur,
+"""Historique de vitesse d'encodage ffmpeg : mémorise, par couple (encodeur,
 palier de résolution), la vitesse moyenne réellement observée (en multiple du
 temps réel, ex. 2.5 = deux fois et demi plus vite que la durée de la vidéo)
 sur les imports précédents. Permet d'afficher une estimation AVANT même que

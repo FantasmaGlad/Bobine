@@ -38,9 +38,7 @@ _RESOLUTION_NUMBERS = {"144", "240", "360", "480", "720", "1080", "1440", "2160"
 def _guess_release(title: str) -> str | None:
     """
     Repère le nombre collé à un mot ("Rpm 101") plutôt que le premier chiffre
-    isolé trouvé n'importe où dans le titre (réf. bug "chiffre random
-    affiché sur la tablette" : `\\b\\d{1,3}\\b` seul pouvait accrocher un
-    numéro de piste ou de date au lieu de l'édition réelle).
+    isolé trouvé n'importe où dans le titre.
     """
     for word, number in re.findall(r"([A-Za-zÀ-ÖØ-öø-ÿ]+)[\s_-]+(\d{1,4})\b", title):
         is_year = len(number) == 4 and 1900 <= int(number) <= 2099
@@ -55,7 +53,7 @@ def wait_for_folder_to_stabilize(dir_path: str, stable_secs: int = 3, timeout: i
     Variante de `importer.wait_for_file_to_copy` pour un dossier entier :
     attend que la taille CUMULÉE de tous les fichiers qu'il contient cesse de
     changer (copie de plusieurs MP3 en cours dans le dossier surveillé des
-    cours audio, réf. F10.1).
+    cours audio).
     """
     last_total = -1
     stable_since = 0
@@ -96,12 +94,12 @@ def import_audio_course_from_files(
 ) -> AudioCourse:
     """
     Importe un cours audio à partir d'une liste de fichiers MP3 déjà présents
-    sur disque (réf. F10.1/F10.2) : les déplace dans un sous-dossier dédié de
+    sur disque : les déplace dans un sous-dossier dédié de
     `settings.audio_dir`, extrait durée/numéro/titre par piste (ffprobe +
     parsing du nom de fichier), crée le cours et ses pistes en base dans
     l'ordre déduit du nom de fichier (réordonnable ensuite depuis l'UI).
 
-    `job_id` (réf. mission "queue en direct des importations") : voir
+    `job_id` : voir
     `app.utils.importer.import_video` pour la même mécanique de suivi.
     """
     if not mp3_paths:
@@ -179,7 +177,7 @@ def import_audio_course_from_zip(
     release: str | None = None,
     job_id: str | None = None,
 ) -> AudioCourse:
-    """Extrait une archive ZIP d'un cours complet puis importe les MP3 qu'elle contient (réf. F10.1)."""
+    """Extrait une archive ZIP d'un cours complet puis importe les MP3 qu'elle contient."""
     update_job(job_id, stage="extracting")
     with tempfile.TemporaryDirectory() as tmp_dir:
         try:
@@ -205,8 +203,7 @@ def import_audio_course_from_zip(
 
 def import_audio_course_from_watched_folder(course_dir: str, job_id: str | None = None) -> AudioCourse:
     """
-    Importe un cours audio détecté par le watcher (réf. F10.1, import par
-    dossier surveillé) : le nom du sous-dossier devient le titre du cours,
+    Importe un cours audio détecté par le watcher : le nom du sous-dossier devient le titre du cours,
     tous les MP3 qu'il contient (à plat, non récursif) en deviennent les
     pistes.
     """

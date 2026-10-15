@@ -1,10 +1,10 @@
-"""État des écrans externes (plan 4.0, P1-1).
+"""État des écrans externes.
 
 Chaque plateforme (service Android, tray desktop, hotplug du Wyse) remonte ici
 le nombre d'écrans externes réellement connectés ; le mode d'affichage câblé
 effectif (`dual_screen`/`headless`) en est dérivé et diffusé à tous les écrans
 sans rechargement. Endpoint idempotent et tolérant : un rapport identique est
-accepté sans effet, et ne lève jamais d'erreur serveur (règle d'or §1.2).
+accepté sans effet, et ne lève jamais d'erreur serveur.
 """
 
 import logging

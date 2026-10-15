@@ -1,4 +1,4 @@
-"""Diffusion filtrée par canal (plan 4.0, P2-3) : un client n'est plus
+"""Diffusion filtrée par canal : un client n'est plus
 inondé des évènements des canaux qui ne le concernent pas."""
 
 import asyncio

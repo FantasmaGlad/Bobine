@@ -1,19 +1,16 @@
-"""Handler du profil `android` (app Chaquopy, cf. CDC docs/ARCHITECTURE.md,
-plan docs/plan-implementation-android.md Lot 12).
+"""Handler du profil `android` (app Chaquopy, voir docs/ARCHITECTURE.md).
 
 Contrairement aux autres profils, il n'existe PAS ici de superviseur léger
 (BobineTray, systemd --user) qui relance immédiatement le processus après
 `os._exit(0)` : le backend Python tourne intégré au même processus JVM que
-`MainActivity`/`BobineForegroundService` (Chaquopy). `START_STICKY` (Lot 6)
+`MainActivity`/`BobineForegroundService` (Chaquopy). `START_STICKY`
 donne une chance au système de relancer le `Service` après un kill, mais
 sans garantie de délai ni de relance de l'UI visible (`MainActivity`) —
 contrairement à un simple redémarrage de sous-processus sur desktop. Les
 trois appelants de `restart_services()` (réinitialisation complète, restauration
 de sauvegarde, remise à zéro d'usine) restent des actions admin délibérées et
 rares, jamais déclenchées par un enregistrement de réglage courant — ce choix
-reste donc le moins mauvais en l'absence d'un mécanisme de relance dédié
-(Lot 10 : Device Owner/exemption batterie serait l'endroit naturel pour
-fiabiliser ça, ex. relance programmée via AlarmManager avant la sortie).
+reste donc le moins mauvais en l'absence d'un mécanisme de relance dédié.
 NON TESTÉ sur matériel réel à ce stade — à valider avant de considérer ce
 chemin fiable en production.
 """
@@ -64,7 +61,7 @@ class AndroidHandler(ProfileHandler):
     def restart_services(self) -> None:
         logger.info(
             "Arrêt du process pour redémarrage (Android : relance non garantie, "
-            "START_STICKY du ForegroundService seulement — voir Lot 10)."
+            "START_STICKY du ForegroundService seulement)."
         )
         os._exit(0)
 

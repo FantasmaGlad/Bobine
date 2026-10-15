@@ -7,7 +7,7 @@ import uuid
 # lieu depuis leur connexion initiale, pour qu'ils se rechargent entièrement
 # au lieu de rester sur leur ancien bundle JS/HTML (cf. routers/playback.py).
 #
-# Avant PortabiliteCrossPlatformX Lot 0, cette valeur était calculée à partir
+# Auparavant, cette valeur était calculée à partir
 # du PID du processus parent + son instant de démarrage (lu dans
 # /proc/<pid>/stat) pour rester identique entre les 4 workers uvicorn d'un
 # même lancement, et partagée via Redis pour piloter la purge de l'état de

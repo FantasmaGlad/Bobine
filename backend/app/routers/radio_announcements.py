@@ -1,4 +1,4 @@
-"""Router des rappels Radio (réf. docs/cahier-des-charges-radio.md §7, lot L6).
+"""Router des rappels Radio.
 
 Annonces de bienséance intercalées dans la musique : import (fichier +
 description obligatoire), activation/retrait, règles de déclenchement (toutes
@@ -122,7 +122,7 @@ def list_announcements(db: Session = Depends(get_db)):
 def upload_announcement(
     file: UploadFile = File(...), description: str = Form(...), db: Session = Depends(get_db),
 ):
-    """Import synchrone (un seul fichier + description obligatoire, réf. D13) :
+    """Import synchrone (un seul fichier + description obligatoire) :
     pas de job d'arrière-plan, contrairement aux morceaux — le traitement
     ffprobe/ffmpeg d'un unique fichier reste rapide."""
     description = description.strip()
@@ -160,8 +160,7 @@ def _run_announcements_import_job(job_id: str, tmp_dir: Path, temp_paths: list[s
 
 @router.post("/announcements/upload-batch", response_model=ImportJobAccepted, status_code=202)
 def upload_announcements_batch(files: List[UploadFile] = File(...)):
-    """Import groupé (plusieurs fichiers ou dossier entier, réf. correctif
-    "import de dossiers pour les rappels") : traité en arrière-plan comme les
+    """Import groupé (plusieurs fichiers ou dossier entier) : traité en arrière-plan comme les
     morceaux — voir GET /api/import-jobs. Description dérivée automatiquement
     du nom de chaque fichier (décision actée), pas de champ description ici."""
     tmp_dir = Path(tempfile.mkdtemp(prefix="olmc_announcement_upload_"))
@@ -224,9 +223,9 @@ def delete_announcement(announcement_id: int, db: Session = Depends(get_db)):
 
 @router.post("/announcements/play-now")
 async def play_announcement_now(payload: PlayNowInput, db: Session = Depends(get_db)):
-    """Déclenchement manuel (réf. D11 « manuel ») — toujours en mode « duck »
-    (D12 : fondu immédiat, la musique continue). `announcement_id` nul = tirage
-    aléatoire parmi les rappels actifs (D13)."""
+    """Déclenchement manuel — toujours en mode « duck »
+    (fondu immédiat, la musique continue). `announcement_id` nul = tirage
+    aléatoire parmi les rappels actifs."""
     from app.radio_manager import get_radio_manager
 
     query = db.query(RadioAnnouncement).filter(RadioAnnouncement.enabled == True)  # noqa: E712
@@ -246,7 +245,7 @@ async def play_announcement_now(payload: PlayNowInput, db: Session = Depends(get
 
 
 # ---------------------------------------------------------------------------
-# Règles de déclenchement (réf. D11-D12)
+# Règles de déclenchement
 # ---------------------------------------------------------------------------
 @router.get("/announcement-rules", response_model=List[RadioAnnouncementRuleResponse])
 def list_rules(db: Session = Depends(get_db)):

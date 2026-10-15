@@ -7,16 +7,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Suivi de file d'import (réf. mission "voir en direct les importations et
-# l'estimation d'où elles en sont") : les imports (upload web ET dossier
+# Suivi de file d'import : les imports (upload web ET dossier
 # surveillé) tournent sur des exécuteurs à threads (app.utils.executors),
 # appelés depuis les threads des exécuteurs ET consultés depuis les threads
 # de requêtes HTTP (asyncio + threads combinés) — un simple dict protégé par
-# un verrou suffit pour un état partagé entre threads d'un même processus
-# (réf. PortabiliteCrossPlatformX, Lot 0 — avant la suppression de Redis,
-# cet état devait être visible de tous les workers uvicorn ; process unique
-# depuis ce lot, l'état en mémoire de CE processus est déjà visible de
-# toutes les requêtes).
+# un verrou suffit pour un état partagé entre threads d'un même processus.
 _lock = threading.Lock()
 _jobs: dict[str, dict] = {}
 _job_order: list[str] = []  # ids dans l'ordre de création (remplace le zset Redis)
@@ -83,8 +78,7 @@ def create_job(kind: str, filename: str, title: str | None = None, source: str =
         "eta_seconds": None,
         "speed": None,
         # Estimation initiale du réencodage, posée avant même le démarrage de
-        # ffmpeg (réf. mission "estimation de la durée d'importation et de
-        # réencodage", cf. video_utils.estimate_normalize_seconds) — écrasée
+        # ffmpeg — écrasée
         # par `eta_seconds` dès que la progression ffmpeg réelle démarre.
         "estimated_seconds": None,
         "created_at": now,
@@ -196,7 +190,7 @@ def get_job(job_id: str) -> dict | None:
 def list_jobs() -> list[dict]:
     """Tâches d'import récentes (en cours, ou terminées depuis moins de
     DONE_TTL_SECONDS), triées par ordre de création. Calcule aussi une
-    `queue_position` (réf. mission "estimation d'où elles en sont") : nombre
+    `queue_position` : nombre
     de tâches non terminées créées avant celle-ci — une ESTIMATION, pas la
     position exacte dans l'exécuteur ffmpeg mono-thread partagé
     (app.utils.executors.ffmpeg_executor) qui arbitre le vrai tour de rôle."""
@@ -211,8 +205,7 @@ def list_jobs() -> list[dict]:
         jobs = [dict(_jobs[job_id]) for job_id in _job_order]
 
     pending = [j for j in jobs if j["stage"] not in ("done", "error", "cancelled")]
-    # ETA de file cumulée (réf. mission "estimation de la durée d'importation
-    # et de réencodage") : pour chaque tâche non terminée, temps encore
+    # ETA de file cumulée : pour chaque tâche non terminée, temps encore
     # nécessaire pour ELLE-MÊME (l'ETA ffmpeg en direct si l'encodage est déjà
     # démarré, sinon l'estimation initiale posée en fin d'analyse, sinon 0
     # pour les étapes rapides sans estimation dédiée — copie, miniature,

@@ -15,7 +15,7 @@ def start_playback_session(
     total_duration_seconds: float = 0.0,
 ) -> int | None:
     """
-    Crée et persiste une nouvelle session de lecture pour le suivi d'assiduité (CDC V3.0.5 §2.3).
+    Crée et persiste une nouvelle session de lecture pour le suivi d'assiduité.
     Retourne l'ID de la session créée.
     """
     try:

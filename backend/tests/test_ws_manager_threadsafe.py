@@ -1,5 +1,4 @@
-"""Lot 15 (docs/audit-android-2026-09-11.md §5 étape 15.6) : couvre
-`ConnectionManager.broadcast_threadsafe`, le pont utilisé par les endpoints
+"""Couvre `ConnectionManager.broadcast_threadsafe`, le pont utilisé par les endpoints
 FastAPI SYNCHRONES (`def`, exécutés dans le threadpool) et les exécuteurs
 d'import (ffmpeg_executor/io_executor) pour diffuser un évènement WebSocket
 sans jamais appeler une coroutine directement depuis un thread qui n'est pas
@@ -87,7 +86,7 @@ def test_broadcast_actually_closes_a_client_that_times_out(monkeypatch):
     silencieusement muet (plus aucun `position_tick`), jusqu'au keepalive
     serveur (jusqu'à 90s). Reproduit et confirmé par un test en conditions
     réelles sur Wi-Fi (pas seulement en local, où le bug ne se manifestait
-    jamais) — voir docs/audit-android-2026-09-11.md.
+    jamais).
 
     Ce test vérifie directement le contrat requis : un client dont l'envoi
     dépasse le délai DOIT recevoir un appel à `close()` (pour que son

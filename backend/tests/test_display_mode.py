@@ -1,4 +1,4 @@
-"""Mode d'affichage câblé dérivé du matériel (plan 4.0, P1-1)."""
+"""Mode d'affichage câblé dérivé du matériel."""
 
 import os
 

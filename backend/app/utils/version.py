@@ -1,5 +1,5 @@
 """Source de vérité unique du numéro de version ET du commit courant de
-l'application (réf. mission "canal Stable/Bêta").
+l'application.
 
 Repose sur deux fichiers plats, `VERSION` et `COMMIT`, placés à la racine du
 dépôt en développement — même racine que `config.toml`, bundlés de la même

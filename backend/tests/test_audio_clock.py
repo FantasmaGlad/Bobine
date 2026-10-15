@@ -1,4 +1,4 @@
-"""Horloge serveur du mode coach (plan 4.0.1) : la position de la piste audio est
+"""Horloge serveur du mode coach : la position de la piste audio est
 une fonction du temps, la fin de piste est idempotente."""
 
 import asyncio

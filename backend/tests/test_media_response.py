@@ -1,7 +1,6 @@
 """Conformité HTTP des flux média (RFC 9110) : HEAD, Range, If-Range, 416,
 ETag. Régression réelle observée sur Firefox 157 : `HEAD /stream` renvoyait
-la page HTML 404 du frontend avec un statut 206 (cf.
-docs/PLAN-COMPATIBILITE-FIREFOX.md §4.3)."""
+la page HTML 404 du frontend avec un statut 206."""
 
 import os
 import sys

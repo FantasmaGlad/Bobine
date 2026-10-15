@@ -329,7 +329,7 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
         await manager.load(
             self.video1.id, self.video1.title, self.video1.duration_seconds, self.video1.program
         )
-        # La position vient désormais de l'horloge serveur (plan 4.0, P2-2) :
+        # La position vient désormais de l'horloge serveur :
         # on la déplace via l'API de lecture, plus en écrivant l'état.
         await manager.seek(42.0)
 
@@ -345,7 +345,7 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
 
         await fire_schedule(scheduled["id"])
 
-        # La programmation a pris la main (F5.3 : elle est prioritaire).
+        # La programmation a pris la main (elle est prioritaire).
         self.assertEqual(manager.state["current_video"]["id"], self.video2.id)
 
         # La lecture manuelle interrompue est mémorisée pour reprise.

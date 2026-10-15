@@ -1,4 +1,4 @@
-"""Détection des écrans externes et fenêtre projecteur desktop (plan 4.0, P1-3a).
+"""Détection des écrans externes et fenêtre projecteur desktop.
 Aucune dépendance à un affichage réel : énumération et lancement injectés."""
 
 import json
@@ -88,7 +88,7 @@ def test_choix_du_navigateur():
         environ={"ProgramFiles": r"C:\Program Files"},
     )
     assert found and found.endswith("chrome.exe")
-    # macOS : fenêtre native (P1-3b), jamais un navigateur piloté ici.
+    # macOS : fenêtre native, jamais un navigateur piloté ici.
     assert find_kiosk_browser("Darwin", which=lambda n: "/x") is None
 
 
@@ -274,7 +274,7 @@ def test_rapport_au_backend_rejoue_jusqu_au_succes_puis_cede_la_place_au_plus_re
 
 
 # ----------------------------------------------------------------------
-# Fenêtre native (macOS, plan 4.0 P1-3b, décision D4)
+# Fenêtre native (macOS, plan 4.0 P1-3b)
 # ----------------------------------------------------------------------
 from app.desktop.displays import build_native_projector_command, find_native_projector  # noqa: E402
 
