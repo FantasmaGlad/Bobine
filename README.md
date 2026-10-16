@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <b>New in 4.0.3 (beta) — Bobine now officially supports Firefox.</b><br>
+  <b>Recently added — Bobine now officially supports Firefox.</b><br>
   <sub>Admin interface and third-party players (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>) verified end to end on Firefox 157: resumable uploads, HTTP-compliant media streams, an automatic compatible-video fallback and a built-in browser diagnostic. Also: more reliable Stable/Beta updates, a smoother installer. <a href="#supported-browsers">Browser support</a></sub>
 </p>
 

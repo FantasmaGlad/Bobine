@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <b>Nouveau en 4.0.3 (bêta) — Bobine soutient officiellement Firefox.</b><br>
+  <b>Ajout récent — Bobine soutient officiellement Firefox.</b><br>
   <sub>Interface d'administration et lecteurs tiers (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>) vérifiés de bout en bout sur Firefox 157 : envois reprenables, flux média conformes HTTP, version vidéo compatible en repli automatique et diagnostic navigateur intégré. Aussi : mises à jour Stable/Bêta fiabilisées, installateur plus fluide. <a href="#navigateurs-supportés">Navigateurs supportés</a></sub>
 </p>
 
