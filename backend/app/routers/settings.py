@@ -55,6 +55,7 @@ from app.utils.deployment import (
     get_deployment_profile,
     get_profile_handler,
 )
+from app.utils.mdns import get_status as get_mdns_status
 from app.utils.version import get_app_version
 from app.utils.ws_manager import manager as ws_manager
 
@@ -298,6 +299,14 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
             "local_ip": _get_local_ip(),
             "port": runtime_settings.port,
             "mdns_url": "http://bobine.local",
+            # État RÉEL du répondeur mDNS embarqué ("ok"/"failed"/"disabled"
+            # [headless, avahi système]/"external" [desktop, avahi natif
+            # détecté]/"unavailable"/"pending") — avant ce champ, `mdns_url`
+            # ci-dessus était une chaîne figée affichée comme fonctionnelle
+            # même après un échec de publication, cause confirmée de
+            # "bobine.local ne se déclare pas bien, fallback IP obligatoire
+            # sans que rien ne le signale à l'avance".
+            "mdns_status": get_mdns_status().get("state"),
         },
         # Réglages du duck/fondu des rappels radio : consommés
         # par /radio pour le fondu musique pendant une annonce, ET pour le

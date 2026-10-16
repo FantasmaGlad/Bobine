@@ -8,6 +8,8 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.hardware.display.DisplayManager
+import android.net.ConnectivityManager
+import android.net.Network
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Handler
@@ -99,6 +101,24 @@ class BobineForegroundService : Service() {
     // requete : la decouverte doit rester possible en permanence, pas
     // seulement pendant une operation ponctuelle).
     private var multicastLock: WifiManager.MulticastLock? = null
+
+    // Re-acquisition du verrou multicast sur changement de reseau : une
+    // acquisition unique a onCreate() ne suffit pas toujours - certains
+    // pilotes radio (HyperOS/MIUI notamment, deja connus pour leur propre
+    // gestion Wi-Fi hors-AOSP) reinitialisent le filtrage multicast lors
+    // d'une reassociation (nouveau reseau, ou simple perte puis retour de
+    // connexion), laissant la decouverte mDNS (zeroconf, bobine.local)
+    // invisible depuis un autre appareil du Wi-Fi jusqu'au redemarrage
+    // complet du service - cause plausible de l'instabilite mDNS
+    // constatee en usage reel sur ce profil.
+    private var connectivityManager: ConnectivityManager? = null
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            Log.i(TAG, "Reseau disponible (network=$network) - re-acquisition du verrou multicast mDNS")
+            releaseMulticastLock()
+            acquireMulticastLock()
+        }
+    }
 
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(displayId: Int) {
@@ -256,6 +276,13 @@ class BobineForegroundService : Service() {
         // startPythonServerWhenStorageReady ci-dessous) plutot qu'apres.
         startForeground(NOTIFICATION_ID, buildNotification())
         acquireMulticastLock()
+        connectivityManager = (getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager).also {
+            try {
+                it.registerDefaultNetworkCallback(networkCallback)
+            } catch (e: Exception) {
+                Log.w(TAG, "Echec de l'enregistrement du callback reseau (re-acquisition multicast desactivee) : ${e.message}")
+            }
+        }
 
         startPythonServerWhenStorageReady()
 
@@ -334,6 +361,11 @@ class BobineForegroundService : Service() {
         currentPresentation = null
         releaseWakeLock()
         releaseMulticastLock()
+        try {
+            connectivityManager?.unregisterNetworkCallback(networkCallback)
+        } catch (e: Exception) {
+            Log.w(TAG, "Echec du desenregistrement du callback reseau : ${e.message}")
+        }
         super.onDestroy()
     }
 

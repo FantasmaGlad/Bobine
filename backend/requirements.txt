@@ -16,7 +16,7 @@ psutil
 # sur l'appliance headless sans effet, où ils ne sont simplement jamais
 # invoqués (cf. app/utils/mdns.py::_should_self_publish).
 pystray
-zeroconf
+zeroconf==0.151.3
 
 # pystray sur macOS (Lot 3) s'appuie sur AppKit/Foundation via pyobjc — sans
 # effet sur Windows/Linux (marqueur sys_platform), cf. packaging/macos/bobine.spec.
