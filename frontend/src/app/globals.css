@@ -2889,6 +2889,25 @@ a.status-pill:hover,
   text-transform: capitalize;
 }
 
+/* Planning sur largeur intermédiaire (desktop/laptop réduit, tablette
+   large — typiquement 900-1280px, une fois la sidebar déduite) : la somme
+   des 3 groupes de .schedule-toolbar (onglets canal, navigation semaine,
+   zoom + bascule vue + bouton création) dépasse la largeur disponible
+   AVANT le palier mobile ci-dessous, faisant passer tout le 3ᵉ groupe à la
+   ligne suivante malgré flex-wrap — jamais corrigé jusqu'ici, seul le cas
+   mobile (<900px) avait un correctif dédié. Allégement ciblé plutôt qu'un
+   wrap subi : libellés textuels des boutons Précédent/Suivant masqués
+   (icône seule suffit, `title` conserve l'accessibilité) et largeur
+   minimale de l'étiquette de semaine relâchée. */
+@media (max-width: 1280px) {
+  .week-nav-btn-text {
+    display: none;
+  }
+  .week-nav-label {
+    min-width: 0;
+  }
+}
+
 /* Planning sur téléphone : la
    barre d'outils (onglets canal, navigation semaine, bascule vue, bouton
    création) ne tient pas sur une largeur de téléphone en une seule ligne
@@ -2990,6 +3009,39 @@ a.status-pill:hover,
   background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
   outline: 2px dashed var(--accent-primary);
   outline-offset: -2px;
+}
+
+/* Bloc fantôme affiché pendant le survol en drag&drop depuis la
+   bibliothèque rapide : prévisualise la durée réelle (proportionnelle,
+   même échelle que les blocs programmés) et l'heure de dépôt calculée —
+   remplace le simple contour générique ci-dessus qui ne donnait aucun
+   aperçu du contenu glissé. */
+.schedule-timeline-ghost {
+  pointer-events: none;
+  border-radius: var(--radius-sm, 6px);
+  border: 2px dashed var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 8px;
+  overflow: hidden;
+}
+
+.schedule-timeline-ghost-time {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--accent-primary);
+}
+
+.schedule-timeline-ghost-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .schedule-timeline-hour-row {
@@ -4077,8 +4129,17 @@ a.status-pill:hover,
   background: var(--bg-surface);
 }
 
-.mobile-topbar-logo {
+.mobile-topbar-address {
   justify-self: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
 }
 
 .mobile-burger-btn {
@@ -7146,6 +7207,27 @@ a.status-pill:hover,
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* Miniature du palmarès : gabarit compact (ligne de tableau dense), même
+   recette que .cinema-all-thumb (conteneur fixe 16:9 + <img> en
+   object-fit:cover) mais réduite pour tenir dans une cellule. */
+.metrics-course-thumb {
+  position: relative;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 27px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-surface-elevated);
+}
+
+.metrics-course-thumb .card-thumbnail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .metrics-course-info {
