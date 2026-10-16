@@ -9,9 +9,18 @@ SignWith: contact@bobine.fit
 
 Origin: Bobine
 Label: Bobine
+Suite: canary
+Codename: canary
+Architectures: amd64
+Components: main
+Description: Depot officiel Bobine - Canal Canary (Rolling)
+SignWith: contact@bobine.fit
+
+Origin: Bobine
+Label: Bobine
 Suite: beta
 Codename: beta
 Architectures: amd64
 Components: main
-Description: Depot officiel Bobine - Canal Beta (Rolling)
+Description: Depot officiel Bobine - Canal Beta (Curated)
 SignWith: contact@bobine.fit
