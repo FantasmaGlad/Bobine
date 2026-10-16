@@ -440,6 +440,11 @@ Les noms de fichiers des artefacts Bêta sont **fixes** (`Bobine-Setup-beta.exe`
 - **État après redémarrage** : un service qui se relance pour appliquer la mise à jour ne peut pas écrire « terminé ». `update_orchestrator` enregistre l'empreinte `version|commit` avant la mise à jour et, au démarrage suivant, conclut « terminé » si elle a changé, « échec » sinon (`load_persisted_state_at_startup`). Aucun `force_reload` n'est diffusé au début du pipeline : les clients se rechargent d'eux-mêmes via le changement de `boot_id`.
 - **Headless** : retour arrière automatique (`git checkout` de la référence précédente) si l'installation des dépendances ou la compilation du frontend échoue ; délais allongés pour un Dell Wyse 5070.
 - **Android** : `AndroidHandler` obtient le contexte via `Python.getPlatform().getApplication()` (`PyApplication.context` n'existe pas — cause racine de l'échec « Impossible de déclencher la mise à jour Android »). `UpdateManager.kt` télécharge, vérifie l'empreinte, contrôle paquet/signature/`versionCode` (Android interdit tout retour en arrière sans désinstaller : message explicite plutôt que « application non installée »), puis propose l'installation via une notification qui porte directement l'intention d'installation. Il ne télécharge plus rien spontanément au lancement de l'application.
+- **Environnement assaini des sous-processus système (2026-10-16)** : `update_orchestrator.clean_subprocess_env()` retire (ou restaure depuis `LD_LIBRARY_PATH_ORIG`) le `LD_LIBRARY_PATH` que PyInstaller positionne pour `BobineBackend` lui-même, avant tout appel à un binaire système externe (`systemctl`, `dpkg`, `git`) — sans ça, `systemctl --user restart bobine.service` charge la `libcrypto.so.3` bundlée (plus ancienne) au lieu de celle de l'hôte et échoue avec un symbole OpenSSL manquant. Appliqué dans `run_checked()` et dans le `Popen` détaché de `restart_services()`.
+- **Redémarrage `.deb` non bloquant (2026-10-16)** : `apply_update()` du profil `linux-desktop` délègue désormais le redémarrage final à `restart_services()` (tâche détachée + `os._exit(0)` différé) plutôt que d'attendre un `systemctl --user restart` synchrone — ce process EST la cible du restart, et l'attendre bloquant l'exposait à être tué par systemd en plein milieu de l'attente.
+- **Verrou anti-double-instance (2026-10-16)** : `tray.py::_acquire_single_instance_lock()` (bind TCP exclusif sur un port dédié, portable Windows/Linux/macOS, relâché automatiquement par l'OS même en cas de crash) empêche deux `BobineTray` de superviser chacun leur propre arbre `BobineBackend` — `postinst` peut relancer Bobine par deux voies concurrentes après une mise à jour `.deb` (`systemctl --user restart` + repli `nohup` si son `pgrep` de contrôle s'exécute trop tôt), doublant la RAM utilisée le temps que le doublon soit détecté. Sentinelle `/tmp/bobine-self-update-in-progress` posée par `apply_update()` autour de `pkexec dpkg -i` : `packaging/linux/DEBIAN/prerm` ne tue plus `BobineBackend` quand c'est lui-même qui pilote la mise à jour en cours.
+- **Acquittement persisté de la notification (2026-10-16)** : `acknowledged_started_at` (champ serveur, `update_orchestrator.acknowledge_current()` / `POST /api/updates/acknowledge`) remplace l'ancien state React local `dismissed`, qui revenait à `null` — et faisait réapparaître la bannière — à chaque rechargement de page ou redémarrage de service déclenché par la mise à jour elle-même.
+- **Étape `verifying` effectivement émise (2026-10-16)** : `download_with_progress()` accepte un callback `on_verifying`, appelé juste avant la comparaison d'empreinte SHA-256 — cette étape, définie dans `UpdateStep` depuis le début, n'était jamais réellement signalée au frontend.
 
 ### Autorisation sudo restreinte & désinstallation depuis l'interface
 
@@ -482,6 +487,33 @@ Les noms de fichiers des artefacts Bêta sont **fixes** (`Bobine-Setup-beta.exe`
 ## 9. Exploitation & Découverte Réseau (Wyse)
 
 Sur le réseau local, la machine Wyse de production (`bobine-prod.local` / Dell Wyse 5070) reçoit son adresse IP via **DHCP**.
+
+### Découverte mDNS embarquée (`bobine.local`)
+
+`backend/app/utils/mdns.py` publie `bobine.local` via la bibliothèque `zeroconf` sur tous les
+profils sauf : l'appliance headless (`avahi-daemon`, configuré par `install.sh`, s'en charge déjà)
+et un Linux desktop où un `avahi-daemon` natif est détecté actif (`_avahi_daemon_active()`,
+présence du socket `/var/run/avahi-daemon/socket` — fréquent, dépendance usuelle de
+CUPS/NetworkManager) : publier en plus créerait un conflit de nom résolu silencieusement en
+`bobine-2.local` (RFC 6762).
+
+Boucle de fond (`_run_loop`), pas un enregistrement unique au démarrage :
+- **Re-annonce périodique** (5 min, `_REANNOUNCE_INTERVAL_SECONDS`) : si l'IP locale a changé
+  depuis la dernière annonce (DHCP, reconnexion Wi-Fi), `zc.update_service(...)` plutôt qu'un
+  `ServiceInfo` figé sur l'IP du tout premier enregistrement.
+- **Nouvelles tentatives à délai croissant** après un échec (`_RETRY_DELAYS_SECONDS`, 2s à 60s) —
+  jamais d'abandon silencieux définitif jusqu'au redémarrage du backend.
+- **État réel exposé** par `get_status()` (`"ok"`/`"failed"`/`"disabled"`/`"external"`/
+  `"unavailable"`/`"pending"`), relayé dans `GET /api/settings` → `network.mdns_status` et affiché
+  (icône d'avertissement) dans Réglages → Accès Réseau si `bobine.local` ne répond pas — avant ce
+  champ, l'URL mDNS était une chaîne statique affichée comme fonctionnelle même après un échec de
+  publication.
+
+Android : `BobineForegroundService.kt` doit détenir un `WifiManager.MulticastLock` pour que les
+paquets multicast (mDNS inclus) soient livrés au process applicatif — un
+`ConnectivityManager.NetworkCallback` le ré-acquiert à chaque `onAvailable` (changement de réseau,
+reconnexion) plutôt qu'une acquisition unique à `onCreate()`, certains pilotes radio
+réinitialisant le filtrage multicast à la reconnexion.
 
 ### Protocole de Découverte Réseau (Si l'IP change)
 
