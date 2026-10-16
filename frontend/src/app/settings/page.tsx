@@ -148,6 +148,13 @@ const PATH_LABEL_KEYS: Record<string, string> = {
   backgrounds_watch_dir: "settingsPage.paths.backgrounds_watch_dir",
   audio_dir: "settingsPage.paths.audio_dir",
   audio_watch_dir: "settingsPage.paths.audio_watch_dir",
+  radio_dir: "settingsPage.paths.radio_dir",
+  radio_watch_dir: "settingsPage.paths.radio_watch_dir",
+  radio_covers_dir: "settingsPage.paths.radio_covers_dir",
+  radio_announcements_dir: "settingsPage.paths.radio_announcements_dir",
+  branding_dir: "settingsPage.paths.branding_dir",
+  logs_dir: "settingsPage.paths.logs_dir",
+  subtitles_dir: "settingsPage.paths.subtitles_dir",
 };
 
 // Phrase à recopier pour armer la désinstallation (comparée sans casse/accent).
@@ -523,6 +530,38 @@ export default function SettingsPage() {
     }
   };
 
+  const handleCopyPath = async (p: string) => {
+    try {
+      await navigator.clipboard.writeText(p);
+      showToast(t("settingsPage.paths.pathCopied"));
+    } catch {
+      showToast(p);
+    }
+  };
+
+  const handleOpenPath = async (p: string) => {
+    try {
+      const res = await fetch(getApiUrl("/settings/open-path"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: p }),
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (res.ok) {
+        if (resData.status === "android") {
+          await navigator.clipboard.writeText(p).catch(() => {});
+          showToast(resData.message || t("settingsPage.paths.pathCopied"));
+        } else {
+          showToast(t("settingsPage.paths.folderOpened"));
+        }
+      } else {
+        showToast(resData.detail || "Impossible d'ouvrir le dossier", "error");
+      }
+    } catch {
+      showToast(t("common.networkError"), "error");
+    }
+  };
+
   const handleExportBackup = () => {
     setExportingBackup(true);
     const url = getApiUrl("/settings/backup/export");
@@ -604,6 +643,14 @@ export default function SettingsPage() {
     return <div className="live-empty">{t("settingsPage.loadError")}</div>;
   }
 
+  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   return (
     <div className="settings-page">
       {toast && (
@@ -620,9 +667,31 @@ export default function SettingsPage() {
         </div>
       )}
 
+      <div className="settings-nav-tabs sticky-glass-toolbar">
+        <a href="#section-appearance" className="settings-nav-tab" onClick={(e) => scrollToSection(e, "section-appearance")}>
+          <Icon name="palette" size={16} />
+          <span>{t("settingsPage.appearanceSection")}</span>
+        </a>
+        <a href="#section-display" className="settings-nav-tab" onClick={(e) => scrollToSection(e, "section-display")}>
+          <Icon name="tv" size={16} />
+          <span>{t("settingsPage.wiredDisplaySection")}</span>
+        </a>
+        <a href="#updates-section" className="settings-nav-tab" onClick={(e) => scrollToSection(e, "updates-section")}>
+          <Icon name="system_update" size={16} />
+          <span>{t("settingsPage.updatesSection")}</span>
+        </a>
+        <a href="#section-docs" className="settings-nav-tab" onClick={(e) => scrollToSection(e, "section-docs")}>
+          <Icon name="description" size={16} />
+          <span>{t("settingsPage.docSection")}</span>
+        </a>
+        <a href="#section-danger" className="settings-nav-tab danger" onClick={(e) => scrollToSection(e, "section-danger")}>
+          <Icon name="warning" size={16} />
+          <span>{t("settingsPage.dangerSection")}</span>
+        </a>
+      </div>
 
       {/* ---- Apparence : thèmes + langue ---- */}
-      <section className="live-block">
+      <section className="live-block" id="section-appearance">
         <h3><Icon name="palette" size={18} /> {t("settingsPage.appearanceSection")}</h3>
         <div className="form-group">
           <label className="form-label">{t("settingsPage.themeLabel")}</label>
@@ -691,7 +760,7 @@ export default function SettingsPage() {
       </section>
 
       {/* ---- Sortie câblée : Pupitre Studio (/grid) vs Headless (Écran physique & HDMI) ---- */}
-      <section className="live-block">
+      <section className="live-block" id="section-display">
         <h3><Icon name="tv" size={18} /> {t("settingsPage.wiredDisplaySection")}</h3>
         <p className="settings-hint" style={{ marginTop: "-8px", marginBottom: "16px" }}>
           {t("settingsPage.wiredDisplaySubtitle")}
@@ -1475,8 +1544,167 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* ---- Documentation : chemins (lecture seule) ---- */}
+      <section className="live-block" id="section-docs">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+          <h3 style={{ margin: 0 }}><Icon name="description" size={18} /> {t("settingsPage.docSection")}</h3>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ minHeight: "36px", padding: "4px 14px", fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: "6px" }}
+            onClick={() => fetchSettings(true)}
+            disabled={refreshingNetwork}
+          >
+            <Icon name="sync" size={16} className={refreshingNetwork ? "olc-spin" : ""} />
+            <span>{refreshingNetwork ? t("settingsPage.refreshingNetwork") : t("settingsPage.refreshNetwork")}</span>
+          </button>
+        </div>
+        <p className="settings-hint" style={{ marginTop: "4px" }}>{t("settingsPage.docHint")}</p>
+
+        {/* 1. Accès Local (boucle locale 127.0.0.1) */}
+        <div className="settings-doc-group">
+          <div className="settings-doc-header">
+            <Icon name="tv" size={18} />
+            <span>{t("settingsPage.paths.localHeading")}</span>
+          </div>
+          <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.localHint")}</p>
+          <div className="settings-paths">
+            {(data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS).map((page) => {
+              const localUrl = `http://127.0.0.1:${data.network.port}${page.path}`;
+              return (
+                <div key={`local-${page.path}`} className="settings-path-row">
+                  <span className="settings-path-key">{t(page.labelKey)}</span>
+                  <a href={localUrl} target="_blank" rel="noopener noreferrer" className="settings-path-link">
+                    {localUrl}
+                  </a>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 2. Accès Réseau (LAN / Wi-Fi) */}
+        <div className="settings-doc-group">
+          <div className="settings-doc-header">
+            <Icon name="wifi" size={18} />
+            <span>{t("settingsPage.paths.networkHeading")}</span>
+          </div>
+          <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.networkHint")}</p>
+          <div className="settings-paths">
+            <div className="settings-path-row">
+              <span className="settings-path-key">{t("settingsPage.paths.localIp")}</span>
+              {data.network.local_ip ? (
+                <a
+                  href={`http://${data.network.local_ip}:${data.network.port}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="settings-path-link"
+                >
+                  {`http://${data.network.local_ip}:${data.network.port}`}
+                </a>
+              ) : (
+                <span className="settings-path-val">{t("settingsPage.paths.localIpUnavailable")}</span>
+              )}
+            </div>
+            <div className="settings-path-row">
+              <span className="settings-path-key">{t("settingsPage.paths.mdnsUrl")}</span>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <a
+                  href={data.network.mdns_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="settings-path-link"
+                >
+                  {data.network.mdns_url}
+                </a>
+                {/* Reflète l'état RÉEL du répondeur mDNS (cf. backend
+                    utils/mdns.py::get_status) plutôt que d'afficher cette
+                    URL comme si elle fonctionnait toujours — "failed"/
+                    "unavailable" signifie que la découverte par IP directe
+                    ci-dessus reste le seul moyen fiable pour le moment. */}
+                {(data.network.mdns_status === "failed" || data.network.mdns_status === "unavailable") && (
+                  <span
+                    title={t("settingsPage.paths.mdnsUnavailableHint")}
+                    style={{ display: "inline-flex", alignItems: "center", color: "var(--accent-warning, #c77700)" }}
+                  >
+                    <Icon name="warning" size={14} />
+                  </span>
+                )}
+              </div>
+            </div>
+            {(data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS).map((page) => {
+              const netUrl = data.network.local_ip ? `http://${data.network.local_ip}:${data.network.port}${page.path}` : null;
+              return (
+                <div key={`net-${page.path}`} className="settings-path-row">
+                  <span className="settings-path-key">{t(page.labelKey)}</span>
+                  {netUrl ? (
+                    <a href={netUrl} target="_blank" rel="noopener noreferrer" className="settings-path-link">
+                      {netUrl}
+                    </a>
+                  ) : (
+                    <span className="settings-path-val">{t("settingsPage.paths.localIpUnavailable")}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 3. Données et Chemins système */}
+        <div className="settings-doc-group">
+          <div className="settings-doc-header">
+            <Icon name="folder" size={18} />
+            <span>{t("settingsPage.paths.systemHeading")}</span>
+          </div>
+          <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.systemHint")}</p>
+
+          <div style={{ margin: "8px 0 14px", padding: "10px 14px", borderRadius: "var(--radius-sm)", background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent)", display: "flex", alignItems: "center", gap: "10px" }}>
+            <Icon name="smartphone" size={18} color="var(--accent-primary)" />
+            <span style={{ fontSize: "0.85rem", lineHeight: 1.45, color: "var(--text-main)" }}>
+              {t("settingsPage.paths.androidStorageNote")}
+            </span>
+          </div>
+
+          <div className="settings-paths">
+            {Object.entries(data.paths).map(([key, value]) => {
+              const cleanPath = value.replace(/^sqlite:\/\/\//, "");
+              return (
+                <div key={key} className="settings-path-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+                  <span className="settings-path-key" style={{ minWidth: "180px" }}>{t(PATH_LABEL_KEYS[key] || key)}</span>
+                  <span className="settings-path-val" style={{ flex: 1, minWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={value}>
+                    {value}
+                  </span>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", flexShrink: 0, marginLeft: "auto" }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary olc-press"
+                      style={{ height: "30px", padding: "0 10px", fontSize: "0.78rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                      onClick={() => handleCopyPath(cleanPath)}
+                      title={t("settingsPage.paths.copyPath")}
+                    >
+                      <Icon name="content_copy" size={14} />
+                      <span>{t("settingsPage.paths.copyPath")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary olc-press"
+                      style={{ height: "30px", padding: "0 10px", fontSize: "0.78rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                      onClick={() => handleOpenPath(cleanPath)}
+                      title={t("settingsPage.paths.openFolder")}
+                    >
+                      <Icon name="folder_open" size={14} />
+                      <span>{t("settingsPage.paths.openFolder")}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* ---- Zone de danger : réinitialisation usine & désinstallation ---- */}
-      <section className="live-block settings-danger">
+      <section className="live-block settings-danger" id="section-danger">
         <h3 style={{ margin: "0 0 6px 0" }}>
           <Icon name="warning" size={18} /> {t("settingsPage.dangerSection")}
         </h3>
@@ -1544,114 +1772,6 @@ export default function SettingsPage() {
                   : "settingsPage.uninstallManualHintLinux",
               )}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ---- Documentation : chemins (lecture seule) ---- */}
-      <section className="live-block">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-          <h3 style={{ margin: 0 }}><Icon name="description" size={18} /> {t("settingsPage.docSection")}</h3>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            style={{ minHeight: "36px", padding: "4px 14px", fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: "6px" }}
-            onClick={() => fetchSettings(true)}
-            disabled={refreshingNetwork}
-          >
-            <Icon name="sync" size={16} className={refreshingNetwork ? "olc-spin" : ""} />
-            <span>{refreshingNetwork ? t("settingsPage.refreshingNetwork") : t("settingsPage.refreshNetwork")}</span>
-          </button>
-        </div>
-        <p className="settings-hint" style={{ marginTop: "4px" }}>{t("settingsPage.docHint")}</p>
-
-        {/* 1. Accès Local (boucle locale 127.0.0.1) */}
-        <div className="settings-doc-group">
-          <div className="settings-doc-header">
-            <Icon name="tv" size={18} />
-            <span>{t("settingsPage.paths.localHeading")}</span>
-          </div>
-          <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.localHint")}</p>
-          <div className="settings-paths">
-            {(data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS).map((page) => {
-              const localUrl = `http://127.0.0.1:${data.network.port}${page.path}`;
-              return (
-                <div key={`local-${page.path}`} className="settings-path-row">
-                  <span className="settings-path-key">{t(page.labelKey)}</span>
-                  <a href={localUrl} target="_blank" rel="noopener noreferrer" className="settings-path-link">
-                    {localUrl}
-                  </a>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 2. Accès Réseau (LAN / Wi-Fi) */}
-        <div className="settings-doc-group">
-          <div className="settings-doc-header">
-            <Icon name="wifi" size={18} />
-            <span>{t("settingsPage.paths.networkHeading")}</span>
-          </div>
-          <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.networkHint")}</p>
-          <div className="settings-paths">
-            <div className="settings-path-row">
-              <span className="settings-path-key">{t("settingsPage.paths.localIp")}</span>
-              <span className="settings-path-val">
-                {data.network.local_ip ? `http://${data.network.local_ip}:${data.network.port}` : t("settingsPage.paths.localIpUnavailable")}
-              </span>
-            </div>
-            <div className="settings-path-row">
-              <span className="settings-path-key">{t("settingsPage.paths.mdnsUrl")}</span>
-              <span className="settings-path-val" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                {data.network.mdns_url}
-                {/* Reflète l'état RÉEL du répondeur mDNS (cf. backend
-                    utils/mdns.py::get_status) plutôt que d'afficher cette
-                    URL comme si elle fonctionnait toujours — "failed"/
-                    "unavailable" signifie que la découverte par IP directe
-                    ci-dessus reste le seul moyen fiable pour le moment. */}
-                {(data.network.mdns_status === "failed" || data.network.mdns_status === "unavailable") && (
-                  <span
-                    title={t("settingsPage.paths.mdnsUnavailableHint")}
-                    style={{ display: "inline-flex", alignItems: "center", color: "var(--accent-warning, #c77700)" }}
-                  >
-                    <Icon name="warning" size={14} />
-                  </span>
-                )}
-              </span>
-            </div>
-            {(data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS).map((page) => {
-              const netUrl = data.network.local_ip ? `http://${data.network.local_ip}:${data.network.port}${page.path}` : null;
-              return (
-                <div key={`net-${page.path}`} className="settings-path-row">
-                  <span className="settings-path-key">{t(page.labelKey)}</span>
-                  {netUrl ? (
-                    <a href={netUrl} target="_blank" rel="noopener noreferrer" className="settings-path-link">
-                      {netUrl}
-                    </a>
-                  ) : (
-                    <span className="settings-path-val">{t("settingsPage.paths.localIpUnavailable")}</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 3. Données et Chemins système */}
-        <div className="settings-doc-group">
-          <div className="settings-doc-header">
-            <Icon name="folder" size={18} />
-            <span>{t("settingsPage.paths.systemHeading")}</span>
-          </div>
-          <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.systemHint")}</p>
-          <div className="settings-paths">
-            {Object.entries(data.paths).map(([key, value]) => (
-              <div key={key} className="settings-path-row">
-                <span className="settings-path-key">{t(PATH_LABEL_KEYS[key] || key)}</span>
-                <span className="settings-path-val">{value}</span>
-              </div>
-            ))}
           </div>
         </div>
       </section>

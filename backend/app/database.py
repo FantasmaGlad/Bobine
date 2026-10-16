@@ -113,6 +113,7 @@ def init_db():
         settings.radio_announcements_dir,
         settings.radio_watch_dir,
         settings.logs_dir,
+        settings.subtitles_dir,
     ]:
         Path(path_str).mkdir(parents=True, exist_ok=True)
 

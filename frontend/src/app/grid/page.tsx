@@ -781,7 +781,6 @@ export default function GridPage() {
         )}
 
         <div className="cinema-sections">
-          <p className="cinema-subtitle">{t("cinema.subtitle")}</p>
           {rows.length === 0 && videos.length > 0 && <p className="cinema-empty">{t("cinema.empty")}</p>}
 
           {rows.map(([programName, items], rowIndex) => (

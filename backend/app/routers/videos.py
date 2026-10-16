@@ -14,12 +14,19 @@ from fastapi import (
     Form,
     HTTPException,
 )
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db, SessionLocal
-from app.models import Video, ImportSource
+from app.models import Video, VideoSubtitle, ImportSource
 from app.config import settings
+from app.utils.subtitles import (
+    convert_srt_to_vtt,
+    detect_language_from_filename,
+    get_subtitles_directory,
+    LANGUAGE_MAP,
+)
 from app.utils.importer import import_video
 from app.utils.executors import ffmpeg_executor
 from app.utils.staged_uploads import receive_single_upload
@@ -74,6 +81,19 @@ class VideoResponse(BaseModel):
         orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
 
 
+class VideoSubtitleResponse(BaseModel):
+    id: int
+    video_id: int
+    language_code: str
+    language_label: str
+    format: str
+    vtt_url: str
+
+    class Config:
+        from_attributes = True
+        orm_mode = True
+
+
 class ImportJobAccepted(BaseModel):
     job_id: str
 
@@ -85,6 +105,8 @@ def _run_video_import_job(
     title: str | None,
     program: str | None,
     release: str | None,
+    description: str | None = None,
+    subtitle_temps: list[tuple[str, str]] | None = None,
 ) -> None:
     """
     Exécutée sur `ffmpeg_executor`.
@@ -107,14 +129,40 @@ def _run_video_import_job(
                     db_video.program = program
                 if release:
                     db_video.release = release
+                if description:
+                    db_video.description = description
                 db.commit()
                 result_id = db_video.id
+
+                # Traiter les sous-titres joints à l'import si fournis
+                if subtitle_temps:
+                    subtitles_dir = get_subtitles_directory()
+                    for sub_temp_path, sub_orig_name in subtitle_temps:
+                        try:
+                            lang_code, lang_label = detect_language_from_filename(sub_orig_name)
+                            raw_content = Path(sub_temp_path).read_text(encoding="utf-8", errors="replace")
+                            is_vtt = sub_orig_name.lower().endswith(".vtt") or raw_content.lstrip().startswith("WEBVTT")
+                            vtt_content = raw_content if is_vtt else convert_srt_to_vtt(raw_content)
+                            out_filename = f"{result_id}_{lang_code}_{uuid.uuid4().hex[:8]}.vtt"
+                            out_path = subtitles_dir / out_filename
+                            out_path.write_text(vtt_content, encoding="utf-8")
+                            sub = VideoSubtitle(
+                                video_id=result_id,
+                                language_code=lang_code,
+                                language_label=lang_label,
+                                file_path=str(out_path.resolve()),
+                                format="vtt",
+                            )
+                            db.add(sub)
+                            db.commit()
+                        except Exception as sub_err:
+                            logger.warning("Erreur import sous-titre joint %s pour video %s : %s", sub_orig_name, result_id, sub_err)
             else:
                 result_id = video.id
         finally:
             db.close()
 
-        # un
+        # Notification WebSocket : un
         # cours importé doit apparaître SANS délai sur /grid, /cinema et
         # /library déjà ouverts, pas seulement au prochain sondage (15s
         # sur /grid et /cinema, jamais sur /library). Exécuté hors boucle
@@ -133,6 +181,13 @@ def _run_video_import_job(
                 os.remove(temp_path)
             except Exception:
                 pass
+        if subtitle_temps:
+            for sub_temp_path, _ in subtitle_temps:
+                if os.path.exists(sub_temp_path):
+                    try:
+                        os.remove(sub_temp_path)
+                    except Exception:
+                        pass
 
 
 @router.post("/upload", response_model=ImportJobAccepted, status_code=202)
@@ -142,6 +197,8 @@ def upload_video(
     title: str | None = Form(None),
     program: str | None = Form(None),
     release: str | None = Form(None),
+    description: str | None = Form(None),
+    subtitles: List[UploadFile] = File(None),
 ):
     """
     Upload une vidéo en HTTP et enregistre une tâche d'import suivie en
@@ -152,8 +209,27 @@ def upload_video(
     # sinon multipart classique — comportement historique conservé.
     temp_path, filename = receive_single_upload(file, upload_id)
 
+    subtitle_temps: list[tuple[str, str]] = []
+    if subtitles:
+        for sub_file in subtitles:
+            if sub_file.filename:
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=f"_{sub_file.filename}")
+                shutil.copyfileobj(sub_file.file, tmp)
+                tmp.close()
+                subtitle_temps.append((tmp.name, sub_file.filename))
+
     job_id = create_job("video", filename, title or Path(filename).stem)
-    future = ffmpeg_executor.submit(_run_video_import_job, job_id, temp_path, filename, title, program, release)
+    future = ffmpeg_executor.submit(
+        _run_video_import_job,
+        job_id,
+        temp_path,
+        filename,
+        title,
+        program,
+        release,
+        description,
+        subtitle_temps,
+    )
     register_job_future(job_id, future)
     return {"job_id": job_id}
 
@@ -500,3 +576,126 @@ def manual_normalize(
     # plutôt que de démarrer un second processus ffmpeg en parallèle).
     ffmpeg_executor.submit(bg_normalize, video_id, compat["actions"], meta)
     return {"message": "La tâche de normalisation a été démarrée en tâche de fond."}
+
+
+@router.get("/{video_id}/subtitles", response_model=List[VideoSubtitleResponse])
+def list_subtitles(video_id: int, db: Session = Depends(get_db)):
+    """Liste les pistes de sous-titres associées à une vidéo."""
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Vidéo non trouvée")
+    items = []
+    for sub in video.subtitles:
+        items.append(
+            VideoSubtitleResponse(
+                id=sub.id,
+                video_id=sub.video_id,
+                language_code=sub.language_code,
+                language_label=sub.language_label,
+                format=sub.format,
+                vtt_url=f"/api/videos/{video_id}/subtitles/{sub.id}/vtt",
+            )
+        )
+    return items
+
+
+@router.post("/{video_id}/subtitles", response_model=VideoSubtitleResponse)
+async def upload_subtitle(
+    video_id: int,
+    file: UploadFile = File(...),
+    language_code: str | None = Form(None),
+    language_label: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    """Importe un fichier .srt ou .vtt pour une vidéo, le convertit en WebVTT si nécessaire et l'enregistre."""
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Vidéo non trouvée")
+
+    filename = file.filename or "subtitles.srt"
+    ext = Path(filename).suffix.lower()
+    if ext not in (".srt", ".vtt"):
+        raise HTTPException(status_code=400, detail="Seuls les formats .srt et .vtt sont acceptés.")
+
+    content_bytes = await file.read()
+    try:
+        content_str = content_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        content_str = content_bytes.decode("latin-1", errors="replace")
+
+    vtt_content = convert_srt_to_vtt(content_str)
+
+    # Détection automatique de la langue si non fournie
+    detected_code, detected_label = detect_language_from_filename(filename)
+    final_code = (language_code or detected_code).strip().lower()
+    final_label = language_label or LANGUAGE_MAP.get(final_code, detected_label)
+
+    subtitles_dir = get_subtitles_directory()
+    out_filename = f"video_{video_id}_{final_code}_{uuid.uuid4().hex[:8]}.vtt"
+    out_path = subtitles_dir / out_filename
+    out_path.write_text(vtt_content, encoding="utf-8")
+
+    sub = VideoSubtitle(
+        video_id=video_id,
+        language_code=final_code,
+        language_label=final_label,
+        file_path=str(out_path.resolve()),
+        format="vtt",
+    )
+    db.add(sub)
+    db.commit()
+    db.refresh(sub)
+
+    await ws_manager.broadcast({"type": "library_change"})
+
+    return VideoSubtitleResponse(
+        id=sub.id,
+        video_id=sub.video_id,
+        language_code=sub.language_code,
+        language_label=sub.language_label,
+        format=sub.format,
+        vtt_url=f"/api/videos/{video_id}/subtitles/{sub.id}/vtt",
+    )
+
+
+@router.delete("/{video_id}/subtitles/{subtitle_id}")
+async def delete_subtitle(video_id: int, subtitle_id: int, db: Session = Depends(get_db)):
+    """Supprime une piste de sous-titres sur disque et en base."""
+    sub = db.query(VideoSubtitle).filter(VideoSubtitle.id == subtitle_id, VideoSubtitle.video_id == video_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Piste de sous-titres non trouvée")
+
+    file_p = Path(sub.file_path)
+    if file_p.exists():
+        try:
+            file_p.unlink()
+        except Exception as e:
+            logger.warning("Impossible de supprimer le fichier VTT %s : %s", file_p, e)
+
+    db.delete(sub)
+    db.commit()
+
+    await ws_manager.broadcast({"type": "library_change"})
+    return {"status": "ok"}
+
+
+@router.get("/{video_id}/subtitles/{subtitle_id}/vtt")
+def get_subtitle_vtt(video_id: int, subtitle_id: int, db: Session = Depends(get_db)):
+    """Sert le fichier WebVTT pour les balises HTML5 <track> avec les bons en-têtes CORS et Content-Type."""
+    sub = db.query(VideoSubtitle).filter(VideoSubtitle.id == subtitle_id, VideoSubtitle.video_id == video_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Piste de sous-titres non trouvée")
+
+    file_p = Path(sub.file_path)
+    if not file_p.exists():
+        raise HTTPException(status_code=404, detail="Fichier de sous-titres manquant sur disque")
+
+    return FileResponse(
+        str(file_p),
+        media_type="text/vtt; charset=utf-8",
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=3600",
+        },
+    )
+

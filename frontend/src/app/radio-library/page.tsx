@@ -97,6 +97,7 @@ export default function RadioLibraryPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>(null);
   const [artistsOpen, setArtistsOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Sélection multiple + actions groupées
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -721,7 +722,20 @@ export default function RadioLibraryPage() {
           value={search} onChange={(e) => setSearch(e.target.value)}
         />
 
-        <div className="rl-sidebar-scroll">
+        <button
+          type="button"
+          className="btn btn-secondary rl-mobile-toggle"
+          onClick={() => setMobileSidebarOpen((v) => !v)}
+          style={{ width: "100%", marginBottom: "8px", fontSize: "0.85rem", justifyContent: "space-between" }}
+        >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+            <Icon name="tune" size={16} />
+            <span>{mobileSidebarOpen ? "Masquer filtres & playlists" : "Filtres, Playlists & Tags"}</span>
+          </span>
+          <span className="rl-nav-count">{playlists.length + tagsList.length}</span>
+        </button>
+
+        <div className={`rl-sidebar-scroll ${mobileSidebarOpen ? "open" : ""}`}>
           {navItem(filter === null, "library_music", t("radioLibrary.allTracks"), tracks.length, () => setFilter(null))}
 
           {/* Playlists */}
@@ -804,7 +818,7 @@ export default function RadioLibraryPage() {
         )}
 
         {selected.size === 0 ? (
-          <div className="rl-toolbar">
+          <div className="rl-toolbar sticky-glass-toolbar">
             <div className="rl-filter-chip">
               <Icon name={filter ? (filter.type === "tag" ? "label" : filter.type === "genre" ? "graphic_eq" : "person") : "library_music"} size={16} />
               <span>{filterLabel}</span>

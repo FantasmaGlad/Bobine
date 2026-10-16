@@ -110,252 +110,308 @@ export default function RadioRemotePage() {
 
   return (
     <div className="dashboard-container">
-      <div className="live-block">
-        <div className="live-header">
-          <h3>
-            <Icon name="graphic_eq" size={18} />
-            {t("radioRemote.title")}
-          </h3>
-          <span className={`status-pill ${connected ? "ok" : "down"}`}>
-            {!connected ? t("radioRemote.disconnected") : t(`radioRemote.stateLabels.${state.state}`)}
-          </span>
-        </div>
-
-        {state.playlist_name && (
+      <div className="live-block bento-hero-live" style={{ position: "relative", overflow: "hidden" }}>
+        {coverSrc && (
           <div
-            style={{
-              fontSize: "0.85rem",
-              color: "var(--accent-primary)",
-              fontWeight: 700,
-              background: "color-mix(in srgb, var(--accent-primary) 3%, transparent)",
-              padding: "10px 12px",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid color-mix(in srgb, var(--accent-primary) 15%, transparent)",
-              marginBottom: "12px",
-            }}
-          >
-            {t("radioRemote.playlistLabel", {
-              name: state.playlist_name,
-              index: (state.index ?? 0) + 1,
-              total: state.order.length,
-            })}
+            className="bento-hero-backdrop"
+            style={{ backgroundImage: `url(${coverSrc})`, opacity: 0.25 }}
+          />
+        )}
+
+        <div className="bento-hero-content">
+          <div className="live-header">
+            <h3>
+              <Icon name="graphic_eq" size={18} />
+              {t("radioRemote.title")}
+            </h3>
+            <span className={`status-pill ${connected ? "ok" : "down"}`}>
+              {!connected ? t("radioRemote.disconnected") : t(`radioRemote.stateLabels.${state.state}`)}
+            </span>
           </div>
-        )}
 
-        {currentTrack ? (
-          <>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-              {coverSrc ? (
-                <img
-                  src={coverSrc}
-                  alt=""
-                  style={{ width: "56px", height: "56px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "var(--bg-surface-elevated)" }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: "56px", height: "56px", borderRadius: "var(--radius-sm)", flexShrink: 0,
-                    background: "var(--bg-surface-hover)", display: "flex", alignItems: "center", justifyContent: "center",
-                  }}
-                >
-                  <Icon name="music_note" size={24} />
-                </div>
-              )}
-              <div>
-                <div className="live-title">{currentTrack.title}</div>
-                <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                  {currentTrack.artist || t("radioLibrary.unknownArtist")}
-                  {currentTrack.album ? ` — ${currentTrack.album}` : ""}
-                </div>
-              </div>
+          {state.playlist_name && (
+            <div
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--accent-primary)",
+                fontWeight: 700,
+                background: "color-mix(in srgb, var(--accent-primary) 6%, transparent)",
+                padding: "8px 14px",
+                borderRadius: "var(--radius-md)",
+                border: "1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent)",
+                width: "fit-content",
+              }}
+            >
+              {t("radioRemote.playlistLabel", {
+                name: state.playlist_name,
+                index: (state.index ?? 0) + 1,
+                total: state.order.length,
+              })}
             </div>
+          )}
 
-            <div className="live-progress">
-              <span className="live-time">{formatTime(displayPosition)}</span>
-              <input
-                type="range"
-                min={0}
-                max={duration || 0}
-                step={1}
-                value={displayPosition}
-                onChange={(e) => setSeekDragValue(Number(e.target.value))}
-                onMouseUp={(e) => {
-                  const value = Number((e.target as HTMLInputElement).value);
-                  sendCommand("radio_seek", { position_seconds: value });
-                  setSeekDragValue(null);
-                }}
-                className="seek-slider"
-              />
-              <span className="live-time">{formatTime(duration)}</span>
-            </div>
-
-            <div className="live-controls">
-              <button className="btn btn-secondary control-btn" onClick={() => sendCommand("stop")}>
-                <Icon name="stop" size={18} />
-                {t("radioRemote.stop")}
-              </button>
-              <button className="btn btn-secondary control-btn" onClick={() => sendCommand("radio_previous_track")} title={t("radioRemote.previousTrack")}>
-                <Icon name="skip_previous" size={18} filled />
-              </button>
-              <button className="btn btn-primary control-btn control-btn-main" onClick={handlePlayPause}>
-                <Icon name={state.playing ? "pause" : "play_arrow"} size={20} filled />
-                {state.playing ? t("radioRemote.pause") : t("radioRemote.play")}
-              </button>
-              <button className="btn btn-secondary control-btn" onClick={() => sendCommand("radio_next_track")} title={t("radioRemote.nextTrack")}>
-                <Icon name="skip_next" size={18} filled />
-              </button>
-              <button
-                className={`btn ${state.shuffle ? "btn-primary" : "btn-secondary"} control-btn`}
-                onClick={() => sendCommand("radio_set_shuffle", { on: !state.shuffle })}
-                title={t("radioRemote.shuffleLabel")}
-              >
-                <Icon name="shuffle" size={18} />
-              </button>
-              <button className={`btn ${state.repeat !== "off" ? "btn-primary" : "btn-secondary"} control-btn`} onClick={handleRepeatCycle} title={repeatLabel}>
-                <Icon name={state.repeat === "track" ? "repeat_one" : "repeat"} size={18} />
-              </button>
-            </div>
-
-            <div className="volume-row">
-              <span>{t("radioRemote.volume")}</span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={displayVolume}
-                onChange={(e) => {
-                  const value = Number(e.target.value);
-                  setVolumeDragValue(value);
-                  sendCommand("volume", { volume: value });
-                }}
-                onMouseUp={() => setVolumeDragValue(null)}
-                className="volume-slider"
-              />
-              <span className="volume-value">{displayVolume}%</span>
-            </div>
-          </>
-        ) : (
-          <div className="live-empty">{t("radioRemote.emptyNowPlaying")}</div>
-        )}
-      </div>
-
-      <div className="launch-block">
-        <h3>{t("radioRemote.loadPlaylistTitle")}</h3>
-        <div className="launch-row">
-          <select className="filter-select" style={{ flex: 1 }} value={selectedPlaylistId} onChange={(e) => setSelectedPlaylistId(e.target.value)}>
-            <option value="">{t("radioRemote.choosePlaylist")}</option>
-            {playlists.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.item_count} — {formatDuration(p.total_duration_seconds)})
-              </option>
-            ))}
-          </select>
-          <button className="btn btn-primary" onClick={handleLaunch} disabled={!selectedPlaylistId}>
-            <Icon name="play_arrow" size={16} filled />
-            {t("radioRemote.launch")}
-          </button>
-        </div>
-        <label style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-          <input type="checkbox" checked={shuffleOnLoad} onChange={(e) => setShuffleOnLoad(e.target.checked)} />
-          {t("radioRemote.shuffleOnLoad")}
-        </label>
-        {/* Lecture aléatoire de TOUTE la bibliothèque, sans playlist : indépendant du sélecteur ci-dessus. */}
-        <button className="btn btn-secondary" style={{ width: "100%", marginTop: "10px" }} onClick={() => sendCommand("radio_shuffle_all")}>
-          <Icon name="shuffle" size={16} />
-          {t("radioRemote.shuffleAll")}
-        </button>
-        {playlists.length === 0 && <p className="live-empty" style={{ marginTop: "12px" }}>{t("radioRemote.noPlaylists")}</p>}
-      </div>
-
-      <div className="live-block">
-        <div className="live-header">
-          <h3>{t("radioRemote.queueTitle")}</h3>
-        </div>
-        {queue.length === 0 ? (
-          <p className="live-empty">{t("radioRemote.queueEmpty")}</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {queue.map((track, i) => (
-              <div
-                key={`${track.id}-${i}`}
-                className="olc-card-hover"
-                style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "10px 12px", background: "var(--bg-surface-elevated)",
-                  borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)",
-                }}
-              >
-                <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>
-                  {track.title}
-                  <span style={{ fontWeight: 400, color: "var(--text-muted)" }}> — {track.artist || t("radioLibrary.unknownArtist")}</span>
-                </span>
-                <button
-                  className="btn btn-secondary"
-                  style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem" }}
-                  onClick={() => sendCommand("radio_remove_from_queue", { index: (state.index ?? -1) + 1 + i })}
-                >
-                  <Icon name="close" size={14} />
-                  {t("radioRemote.remove")}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <h3 style={{ marginTop: "18px" }}>{t("radioRemote.addToQueueTitle")}</h3>
-        <input
-          type="text"
-          className="filter-select"
-          style={{ width: "100%" }}
-          placeholder={t("radioRemote.addToQueueSearchPlaceholder")}
-          value={queueSearch}
-          onChange={(e) => setQueueSearch(e.target.value)}
-        />
-        {queueSearch.trim() && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px" }}>
-            {queueResults.length === 0 ? (
-              <p className="live-empty">{t("radioRemote.noSearchResults")}</p>
-            ) : (
-              queueResults.map((track) => (
-                <div
-                  key={track.id}
-                  className="olc-card-hover"
-                  style={{
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "10px 12px", background: "var(--bg-surface-elevated)",
-                    borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)",
-                  }}
-                >
-                  <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>
-                    {track.title}
-                    <span style={{ fontWeight: 400, color: "var(--text-muted)" }}> — {track.artist || t("radioLibrary.unknownArtist")}</span>
-                  </span>
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    <button
-                      className="btn btn-secondary"
-                      style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem" }}
-                      title={t("radioRemote.playNextHint")}
-                      onClick={() => sendCommand("radio_play_next", { track_id: track.id })}
-                    >
-                      <Icon name="playlist_play" size={14} />
-                      {t("radioRemote.playNext")}
-                    </button>
-                    <button
-                      className="btn btn-secondary"
-                      style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem" }}
-                      title={t("radioRemote.addToQueueHint")}
-                      onClick={() => sendCommand("radio_add_to_queue", { track_id: track.id })}
-                    >
-                      <Icon name="add" size={14} />
-                      {t("radioRemote.add")}
-                    </button>
+          {currentTrack ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: "18px", flexWrap: "wrap" }}>
+                {coverSrc ? (
+                  <img
+                    src={coverSrc}
+                    alt=""
+                    style={{
+                      width: "104px",
+                      height: "104px",
+                      objectFit: "cover",
+                      borderRadius: "var(--radius-md)",
+                      flexShrink: 0,
+                      background: "var(--bg-surface-elevated)",
+                      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+                      border: "1px solid var(--border-color)",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "104px",
+                      height: "104px",
+                      borderRadius: "var(--radius-md)",
+                      flexShrink: 0,
+                      background: "var(--bg-surface-elevated)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: "1px solid var(--border-color)",
+                    }}
+                  >
+                    <Icon name="music_note" size={44} style={{ opacity: 0.3 }} />
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="live-title" style={{ fontSize: "1.35rem", marginBottom: "4px" }}>
+                    {currentTrack.title}
+                  </div>
+                  <div style={{ fontSize: "0.95rem", color: "var(--text-muted)", fontWeight: 600 }}>
+                    {currentTrack.artist || t("radioLibrary.unknownArtist")}
+                    {currentTrack.album ? ` — ${currentTrack.album}` : ""}
                   </div>
                 </div>
-              ))
+              </div>
+
+              <div className="live-progress">
+                <span className="live-time">{formatTime(displayPosition)}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 0}
+                  step={1}
+                  value={displayPosition}
+                  onChange={(e) => setSeekDragValue(Number(e.target.value))}
+                  onMouseUp={(e) => {
+                    const value = Number((e.target as HTMLInputElement).value);
+                    sendCommand("radio_seek", { position_seconds: value });
+                    setSeekDragValue(null);
+                  }}
+                  className="seek-slider"
+                />
+                <span className="live-time">{formatTime(duration)}</span>
+              </div>
+
+              <div className="live-controls">
+                <button className="btn btn-secondary control-btn" onClick={() => sendCommand("stop")}>
+                  <Icon name="stop" size={18} />
+                  <span>{t("radioRemote.stop")}</span>
+                </button>
+                <button className="btn btn-secondary control-btn control-btn-icon" onClick={() => sendCommand("radio_previous_track")} title={t("radioRemote.previousTrack")}>
+                  <Icon name="skip_previous" size={20} filled />
+                </button>
+                <button className="btn btn-primary control-btn control-btn-main" onClick={handlePlayPause}>
+                  <Icon name={state.playing ? "pause" : "play_arrow"} size={22} filled />
+                  <span>{state.playing ? t("radioRemote.pause") : t("radioRemote.play")}</span>
+                </button>
+                <button className="btn btn-secondary control-btn control-btn-icon" onClick={() => sendCommand("radio_next_track")} title={t("radioRemote.nextTrack")}>
+                  <Icon name="skip_next" size={20} filled />
+                </button>
+                <button
+                  className={`btn ${state.shuffle ? "btn-primary" : "btn-secondary"} control-btn control-btn-pill`}
+                  onClick={() => sendCommand("radio_set_shuffle", { on: !state.shuffle })}
+                  title={t("radioRemote.shuffleLabel")}
+                >
+                  <Icon name="shuffle" size={16} />
+                  <span>Aléatoire</span>
+                </button>
+                <button
+                  className={`btn ${state.repeat !== "off" ? "btn-primary" : "btn-secondary"} control-btn control-btn-pill`}
+                  onClick={handleRepeatCycle}
+                  title={repeatLabel}
+                >
+                  <Icon name={state.repeat === "track" ? "repeat_one" : "repeat"} size={16} />
+                  <span>{repeatLabel}</span>
+                </button>
+              </div>
+
+              <div className="volume-row">
+                <span>{t("radioRemote.volume")}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={displayVolume}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    setVolumeDragValue(value);
+                    sendCommand("volume", { volume: value });
+                  }}
+                  onMouseUp={() => setVolumeDragValue(null)}
+                  className="volume-slider"
+                />
+                <span className="volume-value">{displayVolume}%</span>
+                <div className="volume-presets">
+                  {[25, 50, 75, 100].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className={`volume-preset-btn ${displayVolume === preset ? "active" : ""}`}
+                      onClick={() => {
+                        setVolumeDragValue(preset);
+                        sendCommand("volume", { volume: preset });
+                        setTimeout(() => setVolumeDragValue(null), 100);
+                      }}
+                    >
+                      {preset}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="live-empty">{t("radioRemote.emptyNowPlaying")}</div>
+          )}
+        </div>
+      </div>
+
+      <div className="dashboard-bento-grid">
+        <div className="bento-col-main">
+          <div className="launch-block">
+            <h3>{t("radioRemote.loadPlaylistTitle")}</h3>
+            <div className="launch-row">
+              <select className="filter-select" style={{ flex: 1 }} value={selectedPlaylistId} onChange={(e) => setSelectedPlaylistId(e.target.value)}>
+                <option value="">{t("radioRemote.choosePlaylist")}</option>
+                {playlists.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.item_count} — {formatDuration(p.total_duration_seconds)})
+                  </option>
+                ))}
+              </select>
+              <button className="btn btn-primary" onClick={handleLaunch} disabled={!selectedPlaylistId}>
+                <Icon name="play_arrow" size={16} filled />
+                {t("radioRemote.launch")}
+              </button>
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+              <input type="checkbox" checked={shuffleOnLoad} onChange={(e) => setShuffleOnLoad(e.target.checked)} />
+              {t("radioRemote.shuffleOnLoad")}
+            </label>
+            {/* Lecture aléatoire de TOUTE la bibliothèque, sans playlist : indépendant du sélecteur ci-dessus. */}
+            <button className="btn btn-secondary" style={{ width: "100%", marginTop: "12px" }} onClick={() => sendCommand("radio_shuffle_all")}>
+              <Icon name="shuffle" size={16} />
+              {t("radioRemote.shuffleAll")}
+            </button>
+            {playlists.length === 0 && <p className="live-empty" style={{ marginTop: "12px" }}>{t("radioRemote.noPlaylists")}</p>}
+          </div>
+        </div>
+
+        <div className="bento-col-side">
+          <div className="live-block">
+            <div className="live-header">
+              <h3>{t("radioRemote.queueTitle")}</h3>
+              {queue.length > 0 && <span className="status-pill neutral">{queue.length}</span>}
+            </div>
+            {queue.length === 0 ? (
+              <p className="live-empty">{t("radioRemote.queueEmpty")}</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "240px", overflowY: "auto", paddingRight: "4px" }}>
+                {queue.map((track, i) => (
+                  <div
+                    key={`${track.id}-${i}`}
+                    className="olc-card-hover"
+                    style={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      padding: "10px 12px", background: "var(--bg-surface-elevated)",
+                      borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)",
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: "0.88rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: "8px" }}>
+                      {track.title}
+                      <span style={{ fontWeight: 400, color: "var(--text-muted)" }}> — {track.artist || t("radioLibrary.unknownArtist")}</span>
+                    </span>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem", flexShrink: 0 }}
+                      onClick={() => sendCommand("radio_remove_from_queue", { index: (state.index ?? -1) + 1 + i })}
+                    >
+                      <Icon name="close" size={14} />
+                      {t("radioRemote.remove")}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <h3 style={{ marginTop: "18px" }}>{t("radioRemote.addToQueueTitle")}</h3>
+            <input
+              type="text"
+              className="filter-select"
+              style={{ width: "100%" }}
+              placeholder={t("radioRemote.addToQueueSearchPlaceholder")}
+              value={queueSearch}
+              onChange={(e) => setQueueSearch(e.target.value)}
+            />
+            {queueSearch.trim() && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px", maxHeight: "220px", overflowY: "auto" }}>
+                {queueResults.length === 0 ? (
+                  <p className="live-empty">{t("radioRemote.noSearchResults")}</p>
+                ) : (
+                  queueResults.map((track) => (
+                    <div
+                      key={track.id}
+                      className="olc-card-hover"
+                      style={{
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                        padding: "8px 12px", background: "var(--bg-surface-elevated)",
+                        borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)",
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, fontSize: "0.85rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: "8px" }}>
+                        {track.title}
+                        <span style={{ fontWeight: 400, color: "var(--text-muted)" }}> — {track.artist || t("radioLibrary.unknownArtist")}</span>
+                      </span>
+                      <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem" }}
+                          title={t("radioRemote.playNextHint")}
+                          onClick={() => sendCommand("radio_play_next", { track_id: track.id })}
+                        >
+                          <Icon name="playlist_play" size={14} />
+                          {t("radioRemote.playNext")}
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem" }}
+                          title={t("radioRemote.addToQueueHint")}
+                          onClick={() => sendCommand("radio_add_to_queue", { track_id: track.id })}
+                        >
+                          <Icon name="add" size={14} />
+                          {t("radioRemote.add")}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

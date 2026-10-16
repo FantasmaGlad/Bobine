@@ -373,9 +373,29 @@ export default function DashboardScreen({ channel }: Props) {
         </div>
       )}
 
+      {/* Sélecteur de sortie segmenté Câblé / Réseau avec animation de grossissement et état de sélection */}
+      <div className="outputs-channel-switch-bar">
+        <Link
+          href="/dashboard-cable"
+          className={`channel-switch-btn olc-press ${isCable ? "active" : ""}`}
+        >
+          <Icon name="cable" size={18} />
+          <span>{t("nav.dashboardCable")}</span>
+          {isCable && <span className="channel-switch-dot" />}
+        </Link>
+        <Link
+          href="/dashboard-network"
+          className={`channel-switch-btn olc-press ${!isCable ? "active" : ""}`}
+        >
+          <Icon name="wifi" size={18} />
+          <span>{t("nav.dashboardNetwork")}</span>
+          {!isCable && <span className="channel-switch-dot" />}
+        </Link>
+      </div>
+
       {/* Bascule kiosk/cinéma de CE canal. */}
       <div className="live-block channel-card">
-        <div className="live-header">
+        <div className="channel-card-left">
           <h3>
             <Icon name={isCable ? "cable" : "wifi"} size={18} />
             {isCable ? t("dashboard.liveCableTitle") : t("dashboard.liveNetworkTitle")}
@@ -398,441 +418,508 @@ export default function DashboardScreen({ channel }: Props) {
               : STATE_LABELS[state.state] ?? state.state}
           </span>
         </div>
-        <DisplayOutputSwitch
-          displayOutput={displayOutput}
-          onSetDisplayOutput={handleSetDisplayOutput}
-          label={isCable ? t("dashboard.displayOutputCableLabel") : t("dashboard.displayOutputNetworkLabel")}
-        />
-        {!isCable && (
-          // Écran explicitement rattaché au canal Réseau (lib/displayChannel.ts) :
-          // indispensable pour en ouvrir un sur la machine du serveur, où
-          // 127.0.0.1 désigne sinon le canal câblé.
-          <a
-            href={`/${displayOutput === "cinema" ? "cinema" : "kiosk"}?channel=network`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="status-pill"
-            style={{ textDecoration: "none" }}
-          >
-            {t("dashboard.openNetworkScreen")}
-          </a>
-        )}
+        <div className="channel-card-right">
+          <DisplayOutputSwitch
+            displayOutput={displayOutput}
+            onSetDisplayOutput={handleSetDisplayOutput}
+            label={isCable ? t("dashboard.displayOutputCableLabel") : t("dashboard.displayOutputNetworkLabel")}
+          />
+          {!isCable && (
+            // Écran explicitement rattaché au canal Réseau (lib/displayChannel.ts) :
+            // indispensable pour en ouvrir un sur la machine du serveur, où
+            // 127.0.0.1 désigne sinon le canal câblé.
+            <a
+              href={`/${displayOutput === "cinema" ? "cinema" : "kiosk"}?channel=network`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="status-pill"
+              style={{ textDecoration: "none" }}
+            >
+              {t("dashboard.openNetworkScreen")}
+            </a>
+          )}
+        </div>
       </div>
 
-      <div className="live-block">
-        <div className="live-header">
-          <h3>{t("dashboard.liveTitle")}</h3>
-          <p className="live-block-hint" style={{ margin: 0 }}>
-            {isCable ? t("dashboard.liveChannelHintCable") : t("dashboard.liveChannelHintNetwork")}
-          </p>
-        </div>
-
-        {channelCinema ? (
-          // Mode cinéma : la lecture est LOCALE à l'écran libre-service, mais
-          // la page /cinema du canal rapporte ce qu'elle joue et obéit aux
-          // commandes admin — play/pause/seek/stop relayés tels quels, sans passer
-          // par l'état de lecture partagé du serveur.
-          cinemaLive ? (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                <div className="live-title">{cinemaLive.title}</div>
-              </div>
-              <div className="live-progress">
-                <span className="live-time">{formatTime(cinemaSeekDrag ?? cinemaLive.position_seconds)}</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={cinemaLive.duration_seconds || 0}
-                  step={1}
-                  value={cinemaSeekDrag ?? cinemaLive.position_seconds}
-                  onChange={(e) => setCinemaSeekDrag(Number(e.target.value))}
-                  onMouseUp={(e) => {
-                    const value = Number((e.target as HTMLInputElement).value);
-                    sendCommand("cinema_command", { action: "seek", position_seconds: value });
-                    setCinemaSeekDrag(null);
-                  }}
-                  onTouchEnd={(e) => {
-                    const value = Number((e.target as HTMLInputElement).value);
-                    sendCommand("cinema_command", { action: "seek", position_seconds: value });
-                    setCinemaSeekDrag(null);
-                  }}
-                  className="seek-slider"
-                />
-                <span className="live-time">{formatTime(cinemaLive.duration_seconds)}</span>
-              </div>
-              <div className="live-controls">
-                <button
-                  className="btn btn-secondary control-btn"
-                  onClick={() => sendCommand("cinema_command", { action: "stop" })}
-                  title={t("dashboard.cinemaStopHint")}
-                >
-                  <Icon name="stop" size={18} />
-                  {t("dashboard.stop")}
-                </button>
-                <button
-                  className="btn btn-primary control-btn control-btn-main"
-                  onClick={handleCinemaPlayPause}
-                >
-                  <Icon name={cinemaLive.playing ? "pause" : "play_arrow"} size={20} filled />
-                  {cinemaLive.playing ? t("dashboard.pause") : t("dashboard.play")}
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="live-empty">{t("dashboard.cinemaNoPlayback")}</div>
-          )
-        ) : isActive ? (
-          <>
-            {/* Playlist Indicator & Quick Navigation */}
-            {state.playlist_name && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "color-mix(in srgb, var(--accent-primary) 3%, transparent)", padding: "10px 12px", borderRadius: "var(--radius-md)", border: "1px solid color-mix(in srgb, var(--accent-primary) 15%, transparent)", marginBottom: "12px" }}>
-                <span style={{ fontSize: "0.85rem", color: "var(--accent-primary)", fontWeight: 700 }}>
-                  {t("dashboard.playlistLabel", {
-                    name: state.playlist_name,
-                    index: (state.playlist_index ?? 0) + 1,
-                    total: state.playlist_items?.length ?? 0,
-                  })}
-                </span>
-                {state.playlist_items && state.playlist_index !== null && (
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button
-                      className="btn btn-secondary"
-                      style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "4px" }}
-                      onClick={() => sendCommand("previous_video")}
-                      disabled={state.playlist_index === 0}
-                      title={t("dashboard.previousCourse")}
-                    >
-                      <Icon name="skip_previous" size={16} />
-                      {t("dashboard.previousShort")}
-                    </button>
-                    <button
-                      className="btn btn-secondary"
-                      style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "4px" }}
-                      onClick={() => sendCommand("next_video")}
-                      disabled={state.playlist_index === state.playlist_items.length - 1}
-                      title={t("dashboard.nextCourse")}
-                    >
-                      {t("dashboard.nextShort")}
-                      <Icon name="skip_next" size={16} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* "À suivre" persistant pendant la lecture normale d'une playlist. */}
-            {state.playlist_name && state.state !== "playlist_waiting" && nextPlaylistItem && (
-              <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "12px" }}>
-                {t("dashboard.nextCourseLabel", { title: nextPlaylistItem.title })}
-              </div>
-            )}
-
-            {/* If in playlist wait transition, show dedicated overlay control */}
-            {state.state === "playlist_waiting" ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "center", justifyContent: "center", padding: "20px", background: "var(--bg-surface-hover)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)" }}>
-                <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>
-                  {t("dashboard.transitionRemaining")}
-                </span>
-                <span style={{ fontSize: "2.5rem", fontWeight: 900, color: "var(--accent-primary)", fontVariantNumeric: "tabular-nums" }}>
-                  {Math.ceil(state.playlist_waiting_remaining ?? 0)} s
-                </span>
-                {nextPlaylistItem ? (
-                  <span style={{ fontSize: "0.9rem", color: "var(--text-main)", fontWeight: 700, textAlign: "center" }}>
-                    {t("dashboard.nextCourseLabel", { title: nextPlaylistItem.title })}
-                  </span>
-                ) : (
-                  <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>
-                    {t("dashboard.playlistEnd")}
-                  </span>
-                )}
-                <div style={{ display: "flex", gap: "10px", width: "100%", marginTop: "8px" }}>
-                  <button
-                    className="btn btn-primary"
-                    style={{ flex: 1, height: "40px", fontSize: "0.85rem" }}
-                    onClick={() => sendCommand("skip_waiting")}
-                  >
-                    <Icon name="fast_forward" size={16} />
-                    {t("dashboard.launchImmediately")}
-                  </button>
-                  <button
-                    className="btn btn-secondary"
-                    style={{ height: "40px", padding: "0 16px", fontSize: "0.85rem" }}
-                    onClick={() => sendCommand("stop")}
-                  >
-                    <Icon name="stop" size={16} />
-                    {t("dashboard.stop")}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                  {state.state === "background" ? (
-                    (() => {
+      <div className="dashboard-bento-grid" style={channelCinema ? { gridTemplateColumns: "1fr" } : undefined}>
+        <div className="bento-col-main">
+          <div className="live-block bento-hero-live">
+            {!channelCinema && isActive && (() => {
+              const bgThumb =
+                state.state === "background"
+                  ? (() => {
                       const activeBg = backgrounds.find((b) => b.id === state.current_background?.id);
-                      const thumb = activeBg?.thumbnail_path ? getApiUrl(`/thumbnails/${activeBg.thumbnail_path.split("/").pop()}`) : null;
-                      return thumb ? (
-                        <img
-                          src={thumb}
-                          alt=""
-                          style={{ width: "88px", height: "50px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "var(--bg-surface-elevated)" }}
-                        />
-                      ) : (
-                        <div style={{ width: "88px", height: "50px", borderRadius: "var(--radius-sm)", background: "var(--bg-surface-elevated)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <Icon name="wallpaper" size={22} style={{ opacity: 0.5 }} />
-                        </div>
-                      );
+                      return activeBg?.thumbnail_path
+                        ? getApiUrl(`/thumbnails/${activeBg.thumbnail_path.split("/").pop()}`)
+                        : null;
                     })()
-                  ) : (
-                    state.current_video?.thumbnail_url && (
-                      <img
-                        src={getApiUrl(`/thumbnails/${state.current_video.thumbnail_url}`)}
-                        alt=""
-                        style={{ width: "88px", height: "50px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "var(--bg-surface-elevated)" }}
-                      />
-                    )
-                  )}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    <div className="live-title">
-                      {state.current_video?.title || (state.state === "background" ? state.current_background?.title : "")}
+                  : state.current_video?.thumbnail_url
+                  ? getApiUrl(`/thumbnails/${state.current_video.thumbnail_url}`)
+                  : null;
+              return bgThumb ? (
+                <div className="bento-hero-backdrop" style={{ backgroundImage: `url("${bgThumb}")` }} />
+              ) : null;
+            })()}
+            <div className="bento-hero-content">
+              <div className="live-header">
+                <h3>
+                  <Icon name="play_circle" size={18} />
+                  {t("dashboard.liveTitle")}
+                </h3>
+                <p className="live-block-hint" style={{ margin: 0 }}>
+                  {isCable ? t("dashboard.liveChannelHintCable") : t("dashboard.liveChannelHintNetwork")}
+                </p>
+              </div>
+
+              {channelCinema ? (
+                // Mode cinéma : la lecture est LOCALE à l'écran libre-service, mais
+                // la page /cinema du canal rapporte ce qu'elle joue et obéit aux
+                // commandes admin — play/pause/seek/stop relayés tels quels, sans passer
+                // par l'état de lecture partagé du serveur.
+                cinemaLive ? (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                      <div className="live-title">{cinemaLive.title}</div>
                     </div>
-                    {state.state === "background" && (
-                      <span style={{ fontSize: "0.8rem", color: "var(--accent-primary)", fontWeight: 700 }}>
-                        {t("dashboard.ambianceActive")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {state.state !== "background" && (
-                  <div className="live-progress">
-                    <span className="live-time">{formatTime(displayPosition)}</span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={duration || 0}
-                      step={1}
-                      value={displayPosition}
-                      onChange={(e) => setSeekDragValue(Number(e.target.value))}
-                      onMouseUp={(e) => {
-                        const value = Number((e.target as HTMLInputElement).value);
-                        sendCommand("seek", { position_seconds: value });
-                        setSeekDragValue(null);
-                      }}
-                      className="seek-slider"
-                    />
-                    <span className="live-time">{formatTime(duration)}</span>
-                  </div>
-                )}
-
-                <div className="live-controls">
-                  <button className="btn btn-secondary control-btn" onClick={() => sendCommand("stop")}>
-                    <Icon name="stop" size={18} />
-                    {state.state === "background" ? t("dashboard.quitAmbiance") : t("dashboard.stop")}
-                  </button>
-                  {state.state !== "background" && (
-                    <>
+                    <div className="live-progress">
+                      <span className="live-time">{formatTime(cinemaSeekDrag ?? cinemaLive.position_seconds)}</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={cinemaLive.duration_seconds || 0}
+                        step={1}
+                        value={cinemaSeekDrag ?? cinemaLive.position_seconds}
+                        onChange={(e) => setCinemaSeekDrag(Number(e.target.value))}
+                        onMouseUp={(e) => {
+                          const value = Number((e.target as HTMLInputElement).value);
+                          sendCommand("cinema_command", { action: "seek", position_seconds: value });
+                          setCinemaSeekDrag(null);
+                        }}
+                        onTouchEnd={(e) => {
+                          const value = Number((e.target as HTMLInputElement).value);
+                          sendCommand("cinema_command", { action: "seek", position_seconds: value });
+                          setCinemaSeekDrag(null);
+                        }}
+                        className="seek-slider"
+                      />
+                      <span className="live-time">{formatTime(cinemaLive.duration_seconds)}</span>
+                    </div>
+                    <div className="live-controls">
+                      <button
+                        className="btn btn-secondary control-btn"
+                        onClick={() => sendCommand("cinema_command", { action: "stop" })}
+                        title={t("dashboard.cinemaStopHint")}
+                      >
+                        <Icon name="stop" size={18} />
+                        {t("dashboard.stop")}
+                      </button>
                       <button
                         className="btn btn-primary control-btn control-btn-main"
-                        onClick={handlePlayPause}
+                        onClick={handleCinemaPlayPause}
                       >
-                        <Icon name={state.state === "playing" ? "pause" : "play_arrow"} size={20} filled />
-                        {state.state === "playing" ? t("dashboard.pause") : t("dashboard.play")}
+                        <Icon name={cinemaLive.playing ? "pause" : "play_arrow"} size={20} filled />
+                        {cinemaLive.playing ? t("dashboard.pause") : t("dashboard.play")}
                       </button>
-                      <div className="speed-group">
-                        {SPEED_OPTIONS.map((s) => (
+                    </div>
+                  </>
+                ) : (
+                  <div className="live-empty">{t("dashboard.cinemaNoPlayback")}</div>
+                )
+              ) : isActive ? (
+                <>
+                  {/* Playlist Indicator & Quick Navigation */}
+                  {state.playlist_name && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "color-mix(in srgb, var(--accent-primary) 3%, transparent)", padding: "10px 12px", borderRadius: "var(--radius-md)", border: "1px solid color-mix(in srgb, var(--accent-primary) 15%, transparent)", marginBottom: "12px" }}>
+                      <span style={{ fontSize: "0.85rem", color: "var(--accent-primary)", fontWeight: 700 }}>
+                        {t("dashboard.playlistLabel", {
+                          name: state.playlist_name,
+                          index: (state.playlist_index ?? 0) + 1,
+                          total: state.playlist_items?.length ?? 0,
+                        })}
+                      </span>
+                      {state.playlist_items && state.playlist_index !== null && (
+                        <div style={{ display: "flex", gap: "8px" }}>
                           <button
-                            key={s}
-                            className={`speed-btn ${state.speed === s ? "active" : ""}`}
-                            onClick={() => sendCommand("speed", { speed: s })}
+                            className="btn btn-secondary"
+                            style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "4px" }}
+                            onClick={() => sendCommand("previous_video")}
+                            disabled={state.playlist_index === 0}
+                            title={t("dashboard.previousCourse")}
                           >
-                            {s}x
+                            <Icon name="skip_previous" size={16} />
+                            {t("dashboard.previousShort")}
                           </button>
-                        ))}
+                          <button
+                            className="btn btn-secondary"
+                            style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem", display: "flex", alignItems: "center", gap: "4px" }}
+                            onClick={() => sendCommand("next_video")}
+                            disabled={state.playlist_index === state.playlist_items.length - 1}
+                            title={t("dashboard.nextCourse")}
+                          >
+                            {t("dashboard.nextShort")}
+                            <Icon name="skip_next" size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* "À suivre" persistant pendant la lecture normale d'une playlist. */}
+                  {state.playlist_name && state.state !== "playlist_waiting" && nextPlaylistItem && (
+                    <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "12px" }}>
+                      {t("dashboard.nextCourseLabel", { title: nextPlaylistItem.title })}
+                    </div>
+                  )}
+
+                  {/* If in playlist wait transition, show dedicated overlay control */}
+                  {state.state === "playlist_waiting" ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "center", justifyContent: "center", padding: "20px", background: "var(--bg-surface-hover)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)" }}>
+                      <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>
+                        {t("dashboard.transitionRemaining")}
+                      </span>
+                      <span style={{ fontSize: "2.5rem", fontWeight: 900, color: "var(--accent-primary)", fontVariantNumeric: "tabular-nums" }}>
+                        {Math.ceil(state.playlist_waiting_remaining ?? 0)} s
+                      </span>
+                      {nextPlaylistItem ? (
+                        <span style={{ fontSize: "0.9rem", color: "var(--text-main)", fontWeight: 700, textAlign: "center" }}>
+                          {t("dashboard.nextCourseLabel", { title: nextPlaylistItem.title })}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>
+                          {t("dashboard.playlistEnd")}
+                        </span>
+                      )}
+                      <div style={{ display: "flex", gap: "10px", width: "100%", marginTop: "8px" }}>
+                        <button
+                          className="btn btn-primary"
+                          style={{ flex: 1, height: "40px", fontSize: "0.85rem" }}
+                          onClick={() => sendCommand("skip_waiting")}
+                        >
+                          <Icon name="fast_forward" size={16} />
+                          {t("dashboard.launchImmediately")}
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ height: "40px", padding: "0 16px", fontSize: "0.85rem" }}
+                          onClick={() => sendCommand("stop")}
+                        >
+                          <Icon name="stop" size={16} />
+                          {t("dashboard.stop")}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                        {state.state === "background" ? (
+                          (() => {
+                            const activeBg = backgrounds.find((b) => b.id === state.current_background?.id);
+                            const thumb = activeBg?.thumbnail_path ? getApiUrl(`/thumbnails/${activeBg.thumbnail_path.split("/").pop()}`) : null;
+                            return thumb ? (
+                              <img
+                                src={thumb}
+                                alt=""
+                                style={{ width: "88px", height: "50px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "var(--bg-surface-elevated)" }}
+                              />
+                            ) : (
+                              <div style={{ width: "88px", height: "50px", borderRadius: "var(--radius-sm)", background: "var(--bg-surface-elevated)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <Icon name="wallpaper" size={22} style={{ opacity: 0.5 }} />
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          state.current_video?.thumbnail_url && (
+                            <img
+                              src={getApiUrl(`/thumbnails/${state.current_video.thumbnail_url}`)}
+                              alt=""
+                              style={{ width: "88px", height: "50px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "var(--bg-surface-elevated)" }}
+                            />
+                          )
+                        )}
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                          <div className="live-title">
+                            {state.current_video?.title || (state.state === "background" ? state.current_background?.title : "")}
+                          </div>
+                          {state.state === "background" && (
+                            <span style={{ fontSize: "0.8rem", color: "var(--accent-primary)", fontWeight: 700 }}>
+                              {t("dashboard.ambianceActive")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {state.state !== "background" && (
+                        <div className="live-progress">
+                          <span className="live-time">{formatTime(displayPosition)}</span>
+                          <input
+                            type="range"
+                            min={0}
+                            max={duration || 0}
+                            step={1}
+                            value={displayPosition}
+                            onChange={(e) => setSeekDragValue(Number(e.target.value))}
+                            onMouseUp={(e) => {
+                              const value = Number((e.target as HTMLInputElement).value);
+                              sendCommand("seek", { position_seconds: value });
+                              setSeekDragValue(null);
+                            }}
+                            className="seek-slider"
+                          />
+                          <span className="live-time">{formatTime(duration)}</span>
+                        </div>
+                      )}
+
+                      <div className="live-controls">
+                        <button className="btn btn-secondary control-btn" onClick={() => sendCommand("stop")}>
+                          <Icon name="stop" size={18} />
+                          {state.state === "background" ? t("dashboard.quitAmbiance") : t("dashboard.stop")}
+                        </button>
+                        {state.state !== "background" && (
+                          <>
+                            <button
+                              className="btn btn-primary control-btn control-btn-main"
+                              onClick={handlePlayPause}
+                            >
+                              <Icon name={state.state === "playing" ? "pause" : "play_arrow"} size={20} filled />
+                              {state.state === "playing" ? t("dashboard.pause") : t("dashboard.play")}
+                            </button>
+                            <div className="speed-group">
+                              {SPEED_OPTIONS.map((s) => (
+                                <button
+                                  key={s}
+                                  className={`speed-btn ${state.speed === s ? "active" : ""}`}
+                                  onClick={() => sendCommand("speed", { speed: s })}
+                                >
+                                  {s}x
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="volume-row">
+                        <span>{t("dashboard.volume")}</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={displayVolume}
+                          onChange={(e) => {
+                            const value = Number(e.target.value);
+                            setVolumeDragValue(value);
+                            sendCommand("volume", { volume: value });
+                          }}
+                          onMouseUp={() => setVolumeDragValue(null)}
+                          className="volume-slider"
+                        />
+                        <span className="volume-value">{displayVolume}%</span>
+                        <div className="volume-presets">
+                          {[25, 50, 75, 100].map((preset) => (
+                            <button
+                              key={preset}
+                              type="button"
+                              className={`volume-preset-btn olc-press ${displayVolume === preset ? "active" : ""}`}
+                              onClick={() => sendCommand("volume", { volume: preset })}
+                            >
+                              {preset}%
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </>
                   )}
+                </>
+              ) : (
+                <div className="live-empty">
+                  {t("dashboard.emptyLive")}
                 </div>
+              )}
+            </div>
+          </div>
 
-                <div className="volume-row">
-                  <span>{t("dashboard.volume")}</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={displayVolume}
-                    onChange={(e) => {
-                      const value = Number(e.target.value);
-                      setVolumeDragValue(value);
-                      sendCommand("volume", { volume: value });
-                    }}
-                    onMouseUp={() => setVolumeDragValue(null)}
-                    className="volume-slider"
-                  />
-                  <span className="volume-value">{displayVolume}%</span>
+          {/* Sections Bento dédiées : "Passer en mode coach" et "Diffuser un visuel"
+              Réservé au canal câblé pour le coach (anime la salle physique).
+              Diffuser un visuel reste disponible sur les deux canaux. */}
+          {!channelCinema && (
+            <div className="bento-actions-grid">
+              {isCable && (
+                <div className="live-block bento-action-card">
+                  <div className="bento-action-header">
+                    <div className="bento-action-icon coach">
+                      <Icon name="mic" size={20} />
+                    </div>
+                    <div>
+                      <h3 className="bento-action-title">{t("dashboard.coachCardTitle")}</h3>
+                    </div>
+                  </div>
+                  <p className="bento-action-desc">
+                    {t("dashboard.coachCardDesc")}
+                  </p>
+                  <Link
+                    href="/coach/"
+                    className="btn btn-primary bento-action-btn olc-press"
+                  >
+                    <Icon name="mic" size={16} />
+                    {t("dashboard.switchToCoach")}
+                  </Link>
                 </div>
-              </>
-            )}
-          </>
-        ) : (
-          <div className="live-empty">
-            {t("dashboard.emptyLive")}
-          </div>
-        )}
-      </div>
-
-      {/* Planning "à venir" : n'a de sens qu'en mode kiosk (la programmation
-          pilote l'écran) — sans objet en mode cinéma (libre-service), donc
-          masqué comme les autres blocs kiosk-only ci-dessous. */}
-      {!channelCinema && (
-        <div className="live-block">
-          <div className="live-header">
-            <h3>{t("dashboard.upcomingTitle")}</h3>
-            <a href={`/schedule/?channel=${channel}`} className="status-pill" style={{ textDecoration: "none" }}>
-              <Icon name="calendar_month" size={14} />
-              {t("dashboard.viewSchedule")}
-            </a>
-          </div>
-          {upcoming.length === 0 ? (
-            <p className="live-empty">{t("dashboard.noUpcoming")}</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {upcoming.map((o, idx) => (
-                <div
-                  key={`${o.schedule_id}-${idx}`}
-                  className="olc-card-hover"
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "10px 12px",
-                    background: "var(--bg-surface-elevated)",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--border-color)",
-                  }}
+              )}
+              <div className="live-block bento-action-card">
+                <div className="bento-action-header">
+                  <div className="bento-action-icon ambiance">
+                    <Icon name="wallpaper" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="bento-action-title">{t("dashboard.ambianceCardTitle")}</h3>
+                  </div>
+                </div>
+                <p className="bento-action-desc">
+                  {t("dashboard.ambianceCardDesc")}
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-secondary bento-action-btn olc-press"
+                  onClick={() => setShowAmbianceModal(true)}
+                  disabled={cinemaLocked}
                 >
-                  <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{o.title ?? t("dashboard.courseFallback")}</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "0.8rem", fontVariantNumeric: "tabular-nums" }}>
-                    {new Date(o.run_at).toLocaleString(language === "fr" ? "fr-FR" : "en-US", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                  </span>
+                  <Icon name="wallpaper" size={16} />
+                  {t("dashboard.launchAmbiance")}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Planning "à venir" : n'a de sens qu'en mode kiosk (la programmation
+              pilote l'écran) — sans objet en mode cinéma (libre-service), donc
+              masqué comme les autres blocs kiosk-only ci-dessous. */}
+          {!channelCinema && (
+            <div className="live-block">
+              <div className="live-header">
+                <h3>
+                  <Icon name="schedule" size={18} />
+                  {t("dashboard.upcomingTitle")}
+                </h3>
+                <a href={`/schedule/?channel=${channel}`} className="status-pill" style={{ textDecoration: "none" }}>
+                  <Icon name="calendar_month" size={14} />
+                  {t("dashboard.viewSchedule")}
+                </a>
+              </div>
+              {upcoming.length === 0 ? (
+                <p className="live-empty">{t("dashboard.noUpcoming")}</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {upcoming.map((o, idx) => (
+                    <div
+                      key={`${o.schedule_id}-${idx}`}
+                      className="olc-card-hover"
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "10px 12px",
+                        background: "var(--bg-surface-elevated)",
+                        borderRadius: "var(--radius-md)",
+                        border: "1px solid var(--border-color)",
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{o.title ?? t("dashboard.courseFallback")}</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "0.8rem", fontVariantNumeric: "tabular-nums" }}>
+                        {new Date(o.run_at).toLocaleString(language === "fr" ? "fr-FR" : "en-US", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
-      )}
 
-      {/* Raccourci mode coach : pilote l'écran kiosk, sans objet en mode
-          cinéma (l'écran affiche le libre-service) — masqué plutôt que juste
-          désactivé. Réservé au canal câblé (le coach
-          anime la salle physique) — pas de raccourci sur le tableau réseau.
-          Le raccourci "lancer un fond" a été retiré (non fonctionnel). */}
-      {!channelCinema && (
-        <div className="live-block">
-          <h3>{t("dashboard.shortcutsTitle")}</h3>
-          <div className="launch-row" style={{ flexWrap: "wrap", gap: "10px" }}>
-            {isCable && (
-              <Link href="/coach/" className="btn btn-primary" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "6px" }}>
-                <Icon name="mic" size={16} />
-                {t("dashboard.switchToCoach")}
-              </Link>
-            )}
-            <button
-              type="button"
-              className="btn btn-secondary olc-press"
-              style={{ display: "flex", alignItems: "center", gap: "6px" }}
-              onClick={() => setShowAmbianceModal(true)}
-              disabled={cinemaLocked}
-            >
-              <Icon name="wallpaper" size={16} />
-              {t("dashboard.launchAmbiance")}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Lancement de cours/playlist : action kiosk uniquement, sans objet
-          en mode cinéma (les adhérents choisissent eux-mêmes) — masqué. */}
-      {!channelCinema && (
-        <>
-          <div className="launch-block">
-            <h3>
-              <Icon name={isCable ? "cable" : "wifi"} size={18} />
-              {isCable ? t("dashboard.launchCourseCableTitle") : t("dashboard.launchCourseNetworkTitle")}
-            </h3>
-            <p className="launch-block-hint">
-              {isCable ? t("dashboard.launchCourseCableHint") : t("dashboard.launchCourseNetworkHint")}
-            </p>
-            <div className="launch-row">
-              <select
-                className="filter-select"
-                style={{ flex: 1 }}
-                value={selectedVideoId}
-                onChange={(e) => setSelectedVideoId(e.target.value)}
-              >
-                <option value="">{t("dashboard.chooseVideo")}</option>
-                {videos.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.title} {v.program ? `— ${v.program}` : ""} {v.release ? `#${v.release}` : ""}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="btn btn-primary"
-                onClick={handleLaunch}
-                disabled={!selectedVideoId || cinemaLocked}
-                title={cinemaLocked ? t("dashboard.channelCinemaLockedHint") : undefined}
-              >
-                <Icon name="play_arrow" size={16} filled />
-                {t("dashboard.launch")}
-              </button>
-            </div>
-            {videos.length === 0 && (
-              <p className="live-empty" style={{ marginTop: "12px" }}>{t("dashboard.noVideos")}</p>
-            )}
-            {cinemaLocked && (
-              <p className="live-empty" style={{ marginTop: "12px", color: "var(--accent-primary)" }}>
-                {t("dashboard.channelCinemaLockedHint")}
+        {/* Lancement de cours/playlist : action kiosk uniquement, sans objet
+            en mode cinéma (les adhérents choisissent eux-mêmes) — masqué. */}
+        {!channelCinema && (
+          <div className="bento-col-side">
+            <div className="launch-block">
+              <h3>
+                <Icon name={isCable ? "cable" : "wifi"} size={18} />
+                {isCable ? t("dashboard.launchCourseCableTitle") : t("dashboard.launchCourseNetworkTitle")}
+              </h3>
+              <p className="launch-block-hint">
+                {isCable ? t("dashboard.launchCourseCableHint") : t("dashboard.launchCourseNetworkHint")}
               </p>
-            )}
-          </div>
-
-          <div className="launch-block">
-            <h3>{t("dashboard.launchPlaylistTitle")}</h3>
-            <div className="launch-row">
-              <select
-                className="filter-select"
-                style={{ flex: 1 }}
-                value={selectedPlaylistId}
-                onChange={(e) => setSelectedPlaylistId(e.target.value)}
-              >
-                <option value="">{t("dashboard.choosePlaylist")}</option>
-                {playlists.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.item_count} cours — {formatDuration(p.total_duration_seconds)})
-                  </option>
-                ))}
-              </select>
-              <button
-                className="btn btn-primary"
-                onClick={handleLaunchPlaylist}
-                disabled={!selectedPlaylistId || cinemaLocked}
-                title={cinemaLocked ? t("dashboard.channelCinemaLockedHint") : undefined}
-              >
-                <Icon name="playlist_play" size={16} />
-                {t("dashboard.launch")}
-              </button>
+              <div className="launch-row">
+                <select
+                  className="filter-select"
+                  style={{ flex: 1 }}
+                  value={selectedVideoId}
+                  onChange={(e) => setSelectedVideoId(e.target.value)}
+                >
+                  <option value="">{t("dashboard.chooseVideo")}</option>
+                  {videos.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.title} {v.program ? `— ${v.program}` : ""} {v.release ? `#${v.release}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleLaunch}
+                  disabled={!selectedVideoId || cinemaLocked}
+                  title={cinemaLocked ? t("dashboard.channelCinemaLockedHint") : undefined}
+                >
+                  <Icon name="play_arrow" size={16} filled />
+                  {t("dashboard.launch")}
+                </button>
+              </div>
+              {videos.length === 0 && (
+                <p className="live-empty" style={{ marginTop: "12px" }}>{t("dashboard.noVideos")}</p>
+              )}
+              {cinemaLocked && (
+                <p className="live-empty" style={{ marginTop: "12px", color: "var(--accent-primary)" }}>
+                  {t("dashboard.channelCinemaLockedHint")}
+                </p>
+              )}
             </div>
-            {playlists.length === 0 && (
-              <p className="live-empty" style={{ marginTop: "12px" }}>
-                {t("dashboard.noPlaylists")}
-              </p>
-            )}
-          </div>
 
-        </>
-      )}
+            <div className="launch-block">
+              <h3>
+                <Icon name="playlist_play" size={18} />
+                {t("dashboard.launchPlaylistTitle")}
+              </h3>
+              <div className="launch-row">
+                <select
+                  className="filter-select"
+                  style={{ flex: 1 }}
+                  value={selectedPlaylistId}
+                  onChange={(e) => setSelectedPlaylistId(e.target.value)}
+                >
+                  <option value="">{t("dashboard.choosePlaylist")}</option>
+                  {playlists.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.item_count} cours — {formatDuration(p.total_duration_seconds)})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleLaunchPlaylist}
+                  disabled={!selectedPlaylistId || cinemaLocked}
+                  title={cinemaLocked ? t("dashboard.channelCinemaLockedHint") : undefined}
+                >
+                  <Icon name="playlist_play" size={16} />
+                  {t("dashboard.launch")}
+                </button>
+              </div>
+              {playlists.length === 0 && (
+                <p className="live-empty" style={{ marginTop: "12px" }}>
+                  {t("dashboard.noPlaylists")}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {showAmbianceModal && (
         <div className="modal-overlay" onClick={() => setShowAmbianceModal(false)}>

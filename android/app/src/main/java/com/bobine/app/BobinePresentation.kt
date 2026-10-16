@@ -58,6 +58,53 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
             }
         }
 
+        val rootLayout = android.widget.FrameLayout(context).apply {
+            setBackgroundColor(android.graphics.Color.parseColor("#0b0e14"))
+        }
+
+        val splashLayout = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            setBackgroundColor(android.graphics.Color.parseColor("#0b0e14"))
+            layoutParams = android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        val logoSizePx = (160 * context.resources.displayMetrics.density).toInt()
+        val logoView = android.widget.ImageView(context).apply {
+            setImageResource(R.drawable.bobine_splash_logo)
+            layoutParams = android.widget.LinearLayout.LayoutParams(logoSizePx, logoSizePx).apply {
+                bottomMargin = (24 * context.resources.displayMetrics.density).toInt()
+            }
+            adjustViewBounds = true
+        }
+        splashLayout.addView(logoView)
+
+        val progressBar = android.widget.ProgressBar(context).apply {
+            isIndeterminate = true
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = (16 * context.resources.displayMetrics.density).toInt()
+            }
+        }
+        splashLayout.addView(progressBar)
+
+        val statusText = android.widget.TextView(context).apply {
+            text = "Démarrage de Bobine..."
+            setTextColor(android.graphics.Color.parseColor("#94a3b8"))
+            textSize = 15f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = android.view.Gravity.CENTER
+        }
+        splashLayout.addView(statusText)
+
+        var hasLoadedSuccessfully = false
+        var lastPageFailed = false
+
         val webView = WebView(context)
         this.webView = webView
         webView.isFocusable = true
@@ -96,6 +143,10 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
             }
         }
         webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                lastPageFailed = false
+            }
+
             override fun onReceivedError(
                 view: WebView,
                 request: WebResourceRequest,
@@ -104,11 +155,33 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
                 // Meme raison que dans MainActivity : le serveur peut ne
                 // pas encore ecouter au tout premier affichage.
                 if (request.isForMainFrame) {
-                    handler.postDelayed({ view.loadUrl(CINEMA_URL) }, 500)
+                    lastPageFailed = true
+                    handler.postDelayed({
+                        if (!hasLoadedSuccessfully) {
+                            view.loadUrl(CINEMA_URL)
+                        }
+                    }, 400)
+                }
+            }
+
+            override fun onPageFinished(view: WebView, url: String?) {
+                if (!lastPageFailed && !hasLoadedSuccessfully && url != null && url.startsWith("http://127.0.0.1:8000")) {
+                    hasLoadedSuccessfully = true
+                    splashLayout.animate()
+                        .alpha(0f)
+                        .setDuration(350)
+                        .withEndAction {
+                            splashLayout.visibility = android.view.View.GONE
+                        }
                 }
             }
         }
-        setContentView(webView)
+        rootLayout.addView(webView, android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+        ))
+        rootLayout.addView(splashLayout)
+        setContentView(rootLayout)
         webView.loadUrl(CINEMA_URL)
         webView.onResume()
     }

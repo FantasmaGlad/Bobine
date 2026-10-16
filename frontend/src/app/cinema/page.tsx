@@ -17,6 +17,7 @@ import AppLogo from "@/components/AppLogo";
 import MarqueeText from "@/components/MarqueeText";
 import CourseRatingWidget from "@/components/CourseRatingWidget";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
+import { formatCleanDescription } from "@/lib/formatDescription";
 
 // Boutons de cours focalisables par la télécommande, dans l'ordre de lecture
 // (héros, puis rangées par programme, puis grille complète).
@@ -69,6 +70,7 @@ interface CinemaVideo {
   release: string | null;
   duration_seconds: number | null;
   thumbnail_path: string | null;
+  thumbnail_url?: string | null;
   width?: number | null;
   height?: number | null;
   codec?: string | null;
@@ -96,8 +98,9 @@ function formatClock(date: Date) {
 }
 
 function thumbnailUrl(video: CinemaVideo): string | null {
-  if (!video.thumbnail_path) return null;
-  const filename = video.thumbnail_path.split("/").pop();
+  const path = video.thumbnail_path || video.thumbnail_url;
+  if (!path) return null;
+  const filename = path.split("/").pop();
   return filename ? getApiUrl(`/thumbnails/${filename}`) : null;
 }
 
@@ -321,6 +324,47 @@ export default function CinemaPage() {
   const [phase, setPhase] = useState<Phase>("grid");
   const [selected, setSelected] = useState<CinemaVideo | null>(null);
 
+  // Sous-titres pour la lecture cinéma
+  const [subtitles, setSubtitles] = useState<Array<{ id: number; language_code: string; language_label: string; vtt_url: string }>>([]);
+  const [activeSubtitleId, setActiveSubtitleId] = useState<number | "off">("off");
+  const [showSubtitleMenu, setShowSubtitleMenu] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!selected) {
+      setSubtitles([]);
+      setActiveSubtitleId("off");
+      return;
+    }
+    fetch(getApiUrl(`/videos/${selected.id}/subtitles`))
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setSubtitles(data);
+        }
+      })
+      .catch(() => setSubtitles([]));
+  }, [selected?.id]);
+
+  const selectSubtitleTrack = useCallback((subId: number | "off") => {
+    setActiveSubtitleId(subId);
+    [deckARef.current, deckBRef.current].forEach((deck) => {
+      if (!deck) return;
+      for (let i = 0; i < deck.textTracks.length; i++) {
+        const track = deck.textTracks[i];
+        if (subId === "off") {
+          track.mode = "disabled";
+        } else {
+          const found = subtitles.find((s) => s.id === subId);
+          if (found && (track.language === found.language_code || track.label === found.language_label)) {
+            track.mode = "showing";
+          } else {
+            track.mode = "disabled";
+          }
+        }
+      }
+    });
+  }, [subtitles]);
+
   // Masquage des contrôles HDMI & mode passif :
   // En mode double écran ("dual_screen" sur sortie câblée physique), /grid
   // (écran tactile ou laptop) pilote tout — les contrôles de superposition
@@ -448,6 +492,16 @@ export default function CinemaPage() {
     };
     // libraryVersion : recharge immédiate sur `library_change`.
   }, [libraryVersion]);
+
+  // Synchronise les métadonnées de la vidéo sélectionnée (vignette, description) dès que la liste est chargée
+  useEffect(() => {
+    if (selected && (!selected.thumbnail_path || !selected.description)) {
+      const fresh = videos.find((v) => Number(v.id) === Number(selected.id));
+      if (fresh) {
+        setSelected((prev) => (prev ? { ...prev, ...fresh } : fresh));
+      }
+    }
+  }, [videos, selected]);
 
   const clearUpNextTask = () => {
     if (upNextTaskRef.current) clearInterval(upNextTaskRef.current);
@@ -992,7 +1046,7 @@ export default function CinemaPage() {
                   )}
                 </div>
                 {featured.description && (
-                  <p className="cinema-hero-description">{featured.description}</p>
+                  <p className="cinema-hero-description">{formatCleanDescription(featured.description)}</p>
                 )}
                 <div className="cinema-hero-actions">
                   <button className="cinema-hero-play" style={{ color: themeFg }} onClick={() => handleSelect(featured)}>
@@ -1073,7 +1127,6 @@ export default function CinemaPage() {
           )}
 
           <div className="cinema-sections">
-            <p className="cinema-subtitle">{t("cinema.subtitle")}</p>
             {rows.length === 0 && <p className="cinema-empty">{t("cinema.empty")}</p>}
 
             {rows.map(([programName, items], rowIndex) => (
@@ -1099,12 +1152,16 @@ export default function CinemaPage() {
       )}
 
       {/* Lecture vidéo plein écran via Double Décodeur A/B Deck Gapless */}
-      <div className={`cinema-layer cinema-video-layer ${isPlayingLayer ? "visible" : ""}`}>
+      <div
+        className={`cinema-layer cinema-video-layer ${isPlayingLayer ? "visible" : ""}`}
+        style={!isPlayingLayer ? { display: "none", pointerEvents: "none" } : undefined}
+      >
         <div className="cinema-deck-container">
           <video
             ref={deckARef}
             className={`cinema-deck cinema-deck-a ${activeDeck === "A" ? "deck-active" : "deck-idle"}`}
             preload="auto"
+            crossOrigin="anonymous"
             onTimeUpdate={(e) => {
               if (activeDeck !== "A" || e.currentTarget.seeking) return;
               const now = Date.now();
@@ -1135,11 +1192,22 @@ export default function CinemaPage() {
             }}
             onClick={handlePlayPause}
             playsInline
-          />
+          >
+            {subtitles.map((sub) => (
+              <track
+                key={sub.id}
+                kind="subtitles"
+                src={getApiUrl(sub.vtt_url)}
+                srcLang={sub.language_code}
+                label={sub.language_label}
+              />
+            ))}
+          </video>
           <video
             ref={deckBRef}
             className={`cinema-deck cinema-deck-b ${activeDeck === "B" ? "deck-active" : "deck-idle"}`}
             preload="auto"
+            crossOrigin="anonymous"
             onTimeUpdate={(e) => {
               if (activeDeck !== "B" || e.currentTarget.seeking) return;
               const now = Date.now();
@@ -1170,7 +1238,17 @@ export default function CinemaPage() {
             }}
             onClick={handlePlayPause}
             playsInline
-          />
+          >
+            {subtitles.map((sub) => (
+              <track
+                key={sub.id}
+                kind="subtitles"
+                src={getApiUrl(sub.vtt_url)}
+                srcLang={sub.language_code}
+                label={sub.language_label}
+              />
+            ))}
+          </video>
         </div>
         {needsTapToPlay && (
           <button className="cinema-tap-to-play" onClick={handlePlayPause}>
@@ -1182,46 +1260,93 @@ export default function CinemaPage() {
         {/* Écran de pause cinématique façon Netflix au centre de l'écran */}
         {isPlayingLayer && !isPlaying && !needsTapToPlay && (
           <div className="cinema-pause-overlay" onClick={handlePlayPause}>
-            <div className="cinema-pause-center" onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}>
-              <div className="cinema-pause-logo-wrap">
-                <AppLogo size={150} className="cinema-pause-logo" />
-              </div>
-              <button
-                className="cinema-pause-resume-btn"
-                onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}
-                title={t("cinema.play")}
-              >
-                <Icon name="play_arrow" size={46} filled />
-              </button>
-              <div className="cinema-pause-info">
-                <span className="cinema-pause-kicker">{t("cinema.pause")}</span>
-                <h2 className="cinema-pause-title">{selected?.title}</h2>
-                <div className="cinema-pause-meta-row">
-                  {selected?.program && (
-                    <span className="cinema-pause-badge" style={{ color: programAccent }}>
-                      {selected.program}
-                    </span>
+            <div className="cinema-pause-center" onClick={(e) => { e.stopPropagation(); }}>
+              {/* Colonne Média (Gauche) avec miniature */}
+              <div className="pause-media-col">
+                <div
+                  className="pause-thumb-wrap"
+                  onClick={handlePlayPause}
+                  title={t("cinema.play")}
+                >
+                  {selected && thumbnailUrl(selected) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumbnailUrl(selected)!}
+                      alt={selected.title}
+                      className="pause-thumb-img"
+                    />
+                  ) : (
+                    <div className="pause-thumb-fallback">
+                      <AppLogo size={90} className="pause-logo" />
+                    </div>
                   )}
-                  {selected?.release && (
-                    <span className="cinema-pause-year">{selected.release}</span>
-                  )}
-                  <span className="cinema-pause-time">
+                  <div className="pause-thumb-overlay-btn">
+                    <Icon name="play_arrow" size={48} filled />
+                  </div>
+                  <div className="pause-thumb-time">
                     {formatTime(displayPosition)} / {formatTime(duration)}
-                  </span>
-                  {getResolutionBadge(selected?.width, selected?.height, "HD") && (
-                    <span className="cinema-pause-badge-pill">
-                      {getResolutionBadge(selected?.width, selected?.height, "HD")}
-                    </span>
-                  )}
-                  {getAudioQualityBadge(selected?.audio_channels, selected?.audio_codec, "Stéréo 2.0") && (
-                    <span className="cinema-pause-badge-pill">
-                      {getAudioQualityBadge(selected?.audio_channels, selected?.audio_codec, "Stéréo 2.0")}
-                    </span>
-                  )}
+                  </div>
                 </div>
-                {selected?.description && (
-                  <p className="cinema-pause-description">{selected.description}</p>
+
+                <div className="pause-logo-mini-wrap">
+                  <AppLogo size={80} className="pause-logo" />
+                </div>
+              </div>
+
+              {/* Colonne Détails & Synopsis (Droite) */}
+              <div className="pause-details-col">
+                <div>
+                  <div className="pause-header-row">
+                    <span className="cinema-pause-kicker">{t("cinema.pause")}</span>
+                    {selected?.program && (
+                      <span className="cinema-pause-badge" style={{ color: programAccent }}>
+                        {selected.program}
+                      </span>
+                    )}
+                    {selected?.release && (
+                      <span className="cinema-pause-year">{selected.release}</span>
+                    )}
+                    {getResolutionBadge(selected?.width, selected?.height, "HD") && (
+                      <span className="cinema-pause-badge-pill">
+                        {getResolutionBadge(selected?.width, selected?.height, "HD")}
+                      </span>
+                    )}
+                    {getAudioQualityBadge(selected?.audio_channels, selected?.audio_codec, "Stéréo 2.0") && (
+                      <span className="cinema-pause-badge-pill">
+                        {getAudioQualityBadge(selected?.audio_channels, selected?.audio_codec, "Stéréo 2.0")}
+                      </span>
+                    )}
+                  </div>
+
+                  <h2 className="cinema-pause-title">{selected?.title}</h2>
+                </div>
+
+                {selected?.description ? (
+                  <div className="pause-description-scroll">
+                    <p className="cinema-pause-description-text">{formatCleanDescription(selected.description)}</p>
+                  </div>
+                ) : (
+                  <div style={{ flex: 1 }} />
                 )}
+
+                <div className="pause-actions-row">
+                  <button
+                    className="pause-resume-btn-pill"
+                    onClick={handlePlayPause}
+                    title={t("cinema.play")}
+                  >
+                    <Icon name="play_arrow" size={24} filled />
+                    <span>{t("cinema.play")}</span>
+                  </button>
+                  <button
+                    className="pause-back-btn-pill"
+                    onClick={handleBackToMenu}
+                    title={t("cinema.backToMenu")}
+                  >
+                    <Icon name="arrow_back" size={20} />
+                    <span>{t("cinema.backToMenu")}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1273,13 +1398,66 @@ export default function CinemaPage() {
               style={{ accentColor: programAccent }}
             />
             <span className="cinema-time">{formatTime(duration)}</span>
+
+            {/* Menu sélecteur de sous-titres Netflix style */}
+            {subtitles.length > 0 && (
+              <div className="cinema-subtitle-menu-wrap">
+                <button
+                  type="button"
+                  className={`cinema-ctl-btn cinema-ctl-round ${activeSubtitleId !== "off" ? "active" : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowSubtitleMenu((v) => !v);
+                  }}
+                  title={t("cinema.subtitles")}
+                >
+                  <Icon name="subtitles" size={24} />
+                </button>
+
+                {showSubtitleMenu && (
+                  <div className="cinema-subtitle-popover" onClick={(e) => e.stopPropagation()}>
+                    <div className="cinema-subtitle-header">
+                      {t("cinema.subtitles")}
+                    </div>
+                    <button
+                      type="button"
+                      className={`cinema-subtitle-option ${activeSubtitleId === "off" ? "active" : ""}`}
+                      onClick={() => {
+                        selectSubtitleTrack("off");
+                        setShowSubtitleMenu(false);
+                      }}
+                    >
+                      <span>{t("cinema.subtitlesOff")}</span>
+                      {activeSubtitleId === "off" && <Icon name="check" size={16} />}
+                    </button>
+                    {subtitles.map((sub) => (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        className={`cinema-subtitle-option ${activeSubtitleId === sub.id ? "active" : ""}`}
+                        onClick={() => {
+                          selectSubtitleTrack(sub.id);
+                          setShowSubtitleMenu(false);
+                        }}
+                      >
+                        <span>{sub.language_label}</span>
+                        {activeSubtitleId === sub.id && <Icon name="check" size={16} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         )}
       </div>
 
       {/* Fin de cours : suggestion "À suivre" avec notation 5 étoiles et autoplay annulable */}
-      <div className={`cinema-layer cinema-upnext ${isEnded ? "visible" : ""}`}>
+      <div
+        className={`cinema-layer cinema-upnext ${isEnded ? "visible" : ""}`}
+        style={!isEnded ? { display: "none", pointerEvents: "none" } : undefined}
+      >
         <div className="cinema-upnext-layout">
           {endedVideo && wiredDisplayMode === "headless" && (
             <div className="cinema-rating-container">

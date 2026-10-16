@@ -123,6 +123,56 @@ class MainActivity : AppCompatActivity() {
         // benefice (personne n'inspecte un kiosque de salle via USB).
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
 
+        // Conteneur racine avec écran de chargement statique (logo Bobine)
+        // Masque le temps de démarrage du serveur Python embarqué (1 à 2s)
+        // évitant l'affichage de l'erreur réseau standard d'Android ("net::ERR_CONNECTION_REFUSED").
+        val rootLayout = android.widget.FrameLayout(this).apply {
+            setBackgroundColor(android.graphics.Color.parseColor("#0b0e14"))
+        }
+
+        val splashLayout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            setBackgroundColor(android.graphics.Color.parseColor("#0b0e14"))
+            layoutParams = android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        val logoSizePx = (140 * resources.displayMetrics.density).toInt()
+        val logoView = android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.bobine_splash_logo)
+            layoutParams = android.widget.LinearLayout.LayoutParams(logoSizePx, logoSizePx).apply {
+                bottomMargin = (22 * resources.displayMetrics.density).toInt()
+            }
+            adjustViewBounds = true
+        }
+        splashLayout.addView(logoView)
+
+        val progressBar = android.widget.ProgressBar(this).apply {
+            isIndeterminate = true
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = (16 * resources.displayMetrics.density).toInt()
+            }
+        }
+        splashLayout.addView(progressBar)
+
+        val statusText = android.widget.TextView(this).apply {
+            text = "Démarrage de Bobine..."
+            setTextColor(android.graphics.Color.parseColor("#94a3b8"))
+            textSize = 14f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = android.view.Gravity.CENTER
+        }
+        splashLayout.addView(statusText)
+
+        var hasLoadedSuccessfully = false
+        var lastPageFailed = false
+
         val webView = WebView(this)
         this.webView = webView
         webView.settings.javaScriptEnabled = true
@@ -153,6 +203,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
         webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                lastPageFailed = false
+            }
+
             override fun shouldOverrideUrlLoading(
                 view: WebView,
                 request: WebResourceRequest
@@ -201,11 +255,34 @@ class MainActivity : AppCompatActivity() {
                 error: WebResourceError
             ) {
                 if (request.isForMainFrame) {
-                    handler.postDelayed({ view.loadUrl(initialUrl) }, 500)
+                    lastPageFailed = true
+                    // Ne pas révéler la page d'erreur blanche/brute du navigateur
+                    handler.postDelayed({
+                        if (!hasLoadedSuccessfully) {
+                            view.loadUrl(initialUrl)
+                        }
+                    }, 400)
+                }
+            }
+
+            override fun onPageFinished(view: WebView, url: String?) {
+                if (!lastPageFailed && !hasLoadedSuccessfully && url != null && url.startsWith("http://127.0.0.1:8000")) {
+                    hasLoadedSuccessfully = true
+                    splashLayout.animate()
+                        .alpha(0f)
+                        .setDuration(350)
+                        .withEndAction {
+                            splashLayout.visibility = android.view.View.GONE
+                        }
                 }
             }
         }
-        setContentView(webView)
+        rootLayout.addView(webView, android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+        ))
+        rootLayout.addView(splashLayout)
+        setContentView(rootLayout)
         webView.loadUrl(initialUrl)
     }
 

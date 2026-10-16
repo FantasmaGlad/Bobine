@@ -132,75 +132,90 @@ export default function LogsPage() {
 
   return (
     <div className="library-container">
-      <div className="view-toggle" style={{ width: "fit-content" }}>
-        <button className={`view-btn ${tab === "activity" ? "active" : ""}`} onClick={() => setTab("activity")}>
-          {t("logs.activityTab")}
-        </button>
-        <button className={`view-btn ${tab === "technical" ? "active" : ""}`} onClick={() => setTab("technical")}>
-          {t("logs.technicalTab")}
-        </button>
+      <div className="library-toolbar sticky-glass-toolbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+        <div className="view-toggle" style={{ width: "fit-content" }}>
+          <button className={`view-btn ${tab === "activity" ? "active" : ""}`} onClick={() => setTab("activity")}>
+            {t("logs.activityTab")}
+          </button>
+          <button className={`view-btn ${tab === "technical" ? "active" : ""}`} onClick={() => setTab("technical")}>
+            {t("logs.technicalTab")}
+          </button>
+        </div>
+
+        {tab === "activity" ? (
+          <div className="toolbar-filters" style={{ flexWrap: "wrap", gap: "8px" }}>
+            <select className="filter-select" value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="">{t("logs.allEventTypes")}</option>
+              {eventTypes.map((eventType) => (
+                <option key={eventType} value={eventType}>
+                  {EVENT_LABELS[eventType] || eventType}
+                </option>
+              ))}
+            </select>
+            <button className="btn btn-secondary" onClick={fetchActivity}>
+              {t("logs.refresh")}
+            </button>
+            <input
+              type="number"
+              min={1}
+              className="form-control"
+              style={{ width: "110px" }}
+              placeholder={t("logs.purgeRecentPlaceholder")}
+              title={t("logs.purgeRecentLabel")}
+              value={purgeCount}
+              onChange={(e) => setPurgeCount(e.target.value)}
+            />
+            <button
+              className="btn btn-secondary"
+              disabled={deleting || !purgeCount || Number(purgeCount) <= 0}
+              onClick={() =>
+                deleteActivity(
+                  { limit: Number(purgeCount) },
+                  t("logs.purgeRecentConfirm", { count: Number(purgeCount) })
+                )
+              }
+            >
+              {t("logs.purgeRecentButton")}
+            </button>
+            {selectedIds.length > 0 && (
+              <button
+                className="btn btn-danger"
+                disabled={deleting}
+                onClick={() =>
+                  deleteActivity(
+                    { ids: selectedIds },
+                    t("logs.deleteSelectionConfirm", { count: selectedIds.length })
+                  )
+                }
+              >
+                {t("logs.deleteSelection")} ({selectedIds.length})
+              </button>
+            )}
+            <button
+              className="btn btn-danger"
+              disabled={deleting || entries.length === 0}
+              onClick={() => deleteActivity({}, t("logs.clearActivityConfirm"))}
+            >
+              {t("logs.clearLogs")}
+            </button>
+          </div>
+        ) : (
+          <div className="toolbar-filters" style={{ gap: "8px" }}>
+            <button className="btn btn-secondary" onClick={fetchTechnical}>
+              {t("logs.refresh")}
+            </button>
+            <button className="btn btn-danger" disabled={deleting || !technicalLog} onClick={clearTechnicalLog}>
+              {t("logs.clearLogs")}
+            </button>
+            <a href={getApiUrl("/logs/technical/download")} download className="btn btn-secondary">
+              {t("logs.downloadFullLog")}
+            </a>
+          </div>
+        )}
       </div>
 
       {tab === "activity" ? (
         <>
-          <div className="library-toolbar">
-            <div className="toolbar-filters">
-              <select className="filter-select" value={filter} onChange={(e) => setFilter(e.target.value)}>
-                <option value="">{t("logs.allEventTypes")}</option>
-                {eventTypes.map((eventType) => (
-                  <option key={eventType} value={eventType}>
-                    {EVENT_LABELS[eventType] || eventType}
-                  </option>
-                ))}
-              </select>
-              <button className="btn btn-secondary" onClick={fetchActivity}>
-                {t("logs.refresh")}
-              </button>
-              <input
-                type="number"
-                min={1}
-                className="form-control"
-                style={{ width: "110px" }}
-                placeholder={t("logs.purgeRecentPlaceholder")}
-                title={t("logs.purgeRecentLabel")}
-                value={purgeCount}
-                onChange={(e) => setPurgeCount(e.target.value)}
-              />
-              <button
-                className="btn btn-secondary"
-                disabled={deleting || !purgeCount || Number(purgeCount) <= 0}
-                onClick={() =>
-                  deleteActivity(
-                    { limit: Number(purgeCount) },
-                    t("logs.purgeRecentConfirm", { count: Number(purgeCount) })
-                  )
-                }
-              >
-                {t("logs.purgeRecentButton")}
-              </button>
-              {selectedIds.length > 0 && (
-                <button
-                  className="btn btn-danger"
-                  disabled={deleting}
-                  onClick={() =>
-                    deleteActivity(
-                      { ids: selectedIds },
-                      t("logs.deleteSelectionConfirm", { count: selectedIds.length })
-                    )
-                  }
-                >
-                  {t("logs.deleteSelection")} ({selectedIds.length})
-                </button>
-              )}
-              <button
-                className="btn btn-danger"
-                disabled={deleting || entries.length === 0}
-                onClick={() => deleteActivity({}, t("logs.clearActivityConfirm"))}
-              >
-                {t("logs.clearLogs")}
-              </button>
-            </div>
-          </div>
           {deleteError && <p className="live-empty">{t("logs.deleteError")}</p>}
 
           {loading ? (
@@ -208,7 +223,7 @@ export default function LogsPage() {
           ) : entries.length === 0 ? (
             <div className="live-empty">{t("logs.noActivity")}</div>
           ) : (
-            <div className="table-wrapper">
+            <div className="table-wrapper glass-surface">
               <table className="videos-table">
                 <thead>
                   <tr>
@@ -249,25 +264,10 @@ export default function LogsPage() {
         </>
       ) : (
         <>
-          <div className="library-toolbar">
-            <div className="toolbar-filters">
-              <button className="btn btn-secondary" onClick={fetchTechnical}>
-                {t("logs.refresh")}
-              </button>
-              <button className="btn btn-danger" disabled={deleting || !technicalLog} onClick={clearTechnicalLog}>
-                {t("logs.clearLogs")}
-              </button>
-              <a href={getApiUrl("/logs/technical/download")} download className="btn btn-secondary">
-                {t("logs.downloadFullLog")}
-              </a>
-            </div>
-          </div>
           {deleteError && <p className="live-empty">{t("logs.deleteError")}</p>}
           <div
+            className="glass-surface"
             style={{
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-color)",
-              borderRadius: "var(--radius-lg)",
               padding: "16px",
               fontFamily: "monospace",
               fontSize: "0.75rem",

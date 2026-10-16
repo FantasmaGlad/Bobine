@@ -325,6 +325,13 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
             "backgrounds_watch_dir": runtime_settings.backgrounds_watch_dir,
             "audio_dir": runtime_settings.audio_dir,
             "audio_watch_dir": runtime_settings.audio_watch_dir,
+            "radio_dir": runtime_settings.radio_dir,
+            "radio_watch_dir": runtime_settings.radio_watch_dir,
+            "radio_covers_dir": runtime_settings.radio_covers_dir,
+            "radio_announcements_dir": runtime_settings.radio_announcements_dir,
+            "branding_dir": runtime_settings.branding_dir,
+            "logs_dir": runtime_settings.logs_dir,
+            "subtitles_dir": runtime_settings.subtitles_dir,
         },
     }
 
@@ -1250,4 +1257,45 @@ def set_laptop_lid(payload: LaptopLidPayload):
     if not success:
         raise HTTPException(status_code=500, detail="Impossible d'appliquer le réglage du capot")
     return {"has_lid": True, "prevent_sleep": payload.prevent_sleep}
+
+
+class OpenPathRequest(BaseModel):
+    path: str
+
+
+@router.post("/open-path")
+def open_path(payload: OpenPathRequest):
+    """Ouvre un dossier ou un fichier local dans le gestionnaire de fichiers natif de l'OS (xdg-open, explorer, open)."""
+    raw_path = payload.path.strip()
+    if raw_path.startswith("sqlite:///"):
+        raw_path = raw_path[len("sqlite:///"):]
+    target = Path(raw_path).expanduser().resolve()
+    if target.is_file():
+        target = target.parent
+
+    if sys.platform.startswith("android") or os.environ.get("BOBINE_ANDROID_DATA_DIR"):
+        return {
+            "status": "android",
+            "path": str(target),
+            "message": "Chemin système Android copié. Accessible via une application de gestion de fichiers ou connexion USB (MTP).",
+        }
+
+    if not target.exists():
+        try:
+            target.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            target = target.parent
+
+    try:
+        if sys.platform.startswith("linux"):
+            subprocess.Popen(["xdg-open", str(target)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", str(target)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        elif sys.platform == "win32":
+            os.startfile(str(target))
+        return {"status": "ok", "path": str(target)}
+    except Exception as e:
+        logger.warning("Échec de l'ouverture du dossier %s : %s", target, e)
+        raise HTTPException(status_code=500, detail=f"Impossible d'ouvrir le gestionnaire de fichiers : {e}")
+
 

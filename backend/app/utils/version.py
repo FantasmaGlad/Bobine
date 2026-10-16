@@ -24,7 +24,7 @@ from pathlib import Path
 
 from app.config import ROOT_DIR
 
-_FALLBACK_VERSION = "4.0.4"
+_FALLBACK_VERSION = "4.0.6~beta"
 _FALLBACK_COMMIT = "unknown"
 
 
@@ -99,7 +99,7 @@ def is_prerelease_version(version: str | None = None) -> bool:
     Bêta d'une Stable de MÊME numéro de base : sans ça, repasser en Stable
     depuis "4.0.2-beta" n'était jamais proposé (même base que la Stable)."""
     candidate = (version if version is not None else get_app_version()).strip().lstrip("vV")
-    return "-" in candidate
+    return "-" in candidate or "~" in candidate
 
 
 def _git_head_short() -> str | None:

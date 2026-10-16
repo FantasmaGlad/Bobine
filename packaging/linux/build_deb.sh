@@ -37,25 +37,24 @@ if ! command -v dpkg-deb >/dev/null 2>&1; then
 fi
 
 PYTHON_BIN="${REPO_DIR}/backend/.venv/bin/python"
-PYINSTALLER_BIN="${REPO_DIR}/backend/.venv/bin/pyinstaller"
 
-if [ ! -x "${PYINSTALLER_BIN}" ]; then
-    if command -v pyinstaller >/dev/null 2>&1; then
-        PYINSTALLER_BIN="$(command -v pyinstaller)"
-    else
-        echo "Erreur: pyinstaller est introuvable." >&2
-        exit 1
-    fi
+if [ -x "${PYTHON_BIN}" ]; then
+    PYINSTALLER_CMD=("${PYTHON_BIN}" -m PyInstaller)
+elif command -v pyinstaller >/dev/null 2>&1; then
+    PYINSTALLER_CMD=("$(command -v pyinstaller)")
+else
+    echo "Erreur: pyinstaller est introuvable." >&2
+    exit 1
 fi
 
 echo "=== [2/5] Vérification / Build du frontend Next.js ==="
 if [ ! -d "${REPO_DIR}/frontend/out" ]; then
     echo "Construction du frontend Next.js (export statique)..."
-    (cd "${REPO_DIR}/frontend" && npm ci && npm run build)
+    (cd "${REPO_DIR}/frontend" && npm run build)
 fi
 
 echo "=== [3/5] Compilation PyInstaller (BobineBackend + BobineTray) ==="
-(cd "${REPO_DIR}/backend" && "${PYINSTALLER_BIN}" --noconfirm "${SCRIPT_DIR}/bobine.spec")
+(cd "${REPO_DIR}/backend" && "${PYINSTALLER_CMD[@]}" --noconfirm "${SCRIPT_DIR}/bobine.spec")
 
 DIST_DIR="${REPO_DIR}/backend/dist/Bobine"
 if [ ! -f "${DIST_DIR}/BobineBackend" ] || [ ! -f "${DIST_DIR}/BobineTray" ]; then

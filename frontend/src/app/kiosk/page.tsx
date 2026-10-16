@@ -11,6 +11,7 @@ import { useKioskRemote } from "@/lib/useKioskRemote";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
+import { formatCleanDescription } from "@/lib/formatDescription";
 
 function getApiUrl(path: string) {
   if (typeof window !== "undefined" && window.location.port === "3000") {
@@ -38,6 +39,12 @@ function formatDuration(seconds: number) {
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+function getThumbnailSrc(thumb?: string | null): string | null {
+  if (!thumb) return null;
+  const filename = thumb.split("/").pop();
+  return filename ? getApiUrl(`/thumbnails/${filename}`) : null;
 }
 
 type OsdContent = { icon: string; label: string } | null;
@@ -462,6 +469,25 @@ export default function KioskPage() {
   );
 
   const { state, sendCommand, serverNow, isPrimary, displayOutputCable, displayOutputNetwork } = usePlaybackSocket(handleEvent, "kiosk", channel);
+
+  // Sous-titres pour la vidéo en cours de lecture
+  const [subtitles, setSubtitles] = useState<Array<{ id: number; language_code: string; language_label: string; vtt_url: string }>>([]);
+
+  useEffect(() => {
+    const videoId = state.current_video?.id;
+    if (!videoId) {
+      setSubtitles([]);
+      return;
+    }
+    fetch(getApiUrl(`/videos/${videoId}/subtitles`))
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setSubtitles(data);
+        }
+      })
+      .catch(() => setSubtitles([]));
+  }, [state.current_video?.id]);
   // Suit l'horloge de lecture serveur : démarrage simultané
   // des écrans et correction de dérive sans seek.
   useVideoClockFollower({
@@ -704,6 +730,7 @@ export default function KioskPage() {
         <video
           ref={videoRef}
           className="kiosk-video"
+          crossOrigin="anonymous"
           onTimeUpdate={handleTimeUpdate}
           onEnded={() => sendCommand("video_ended", { video_id: state.current_video?.id })}
           onClick={(e) => {
@@ -718,7 +745,18 @@ export default function KioskPage() {
           // câblé servi en loopback 127.0.0.1). Le <video> du cinéma l'a déjà.
           preload="auto"
           playsInline
-        />
+        >
+          {subtitles.map((sub, i) => (
+            <track
+              key={sub.id}
+              kind="subtitles"
+              src={getApiUrl(sub.vtt_url)}
+              srcLang={sub.language_code}
+              label={sub.language_label}
+              default={i === 0}
+            />
+          ))}
+        </video>
       </div>
 
       <div className={`kiosk-layer kiosk-video-layer ${backgroundLayerActive && !backgroundIsImage ? "visible" : ""}`}>
@@ -785,45 +823,93 @@ export default function KioskPage() {
       {isPaused && (
         // Écran de pause cinématique façon Netflix (logo au centre, ambiance sobre, métadonnées du cours)
         <div className="pause-overlay visible" onClick={() => sendCommand("play")}>
-          <div className="pause-center" onClick={(e) => { e.stopPropagation(); sendCommand("play"); }}>
-            <div className="pause-logo-wrap">
-              <AppLogo size={110} className="pause-logo" />
-            </div>
-            <button
-              className="pause-resume-btn"
-              onClick={(e) => { e.stopPropagation(); sendCommand("play"); }}
-              title={t("kiosk.resume")}
-            >
-              <Icon name="play_arrow" size={46} filled />
-            </button>
-            <div className="pause-info">
-              <span className="pause-kicker" style={{ color: programAccent }}>
-                {t("kiosk.pausedLabel")}
-              </span>
-              <h2 className="pause-title">{state.current_video?.title}</h2>
-              <div className="pause-meta-row">
-                {program && (
-                  <span className="pause-badge" style={{ color: programAccent }}>
-                    {program}
-                  </span>
-                )}
-                <span className="pause-time">
+          <div className="pause-center" onClick={(e) => { e.stopPropagation(); }}>
+            {/* Colonne Média (Gauche) avec miniature */}
+            <div className="pause-media-col">
+              <div
+                className="pause-thumb-wrap"
+                onClick={() => sendCommand("play")}
+                title={t("kiosk.resume")}
+              >
+                {(() => {
+                  const thumbSrc = getThumbnailSrc(state.current_video?.thumbnail_url || state.current_video?.thumbnail_path);
+                  return thumbSrc ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumbSrc}
+                      alt={state.current_video?.title || ""}
+                      className="pause-thumb-img"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <div className="pause-thumb-fallback">
+                      <AppLogo size={90} className="pause-logo" />
+                    </div>
+                  );
+                })()}
+                <div className="pause-thumb-overlay-btn">
+                  <Icon name="play_arrow" size={48} filled />
+                </div>
+                <div className="pause-thumb-time">
                   {formatTime(state.position_seconds)} / {formatTime(duration)}
-                </span>
-                {getResolutionBadge(state.current_video?.width, state.current_video?.height, "HD") && (
-                  <span className="pause-badge-pill">
-                    {getResolutionBadge(state.current_video?.width, state.current_video?.height, "HD")}
-                  </span>
-                )}
-                {getAudioQualityBadge(state.current_video?.audio_channels, state.current_video?.audio_codec, "Stéréo 2.0") && (
-                  <span className="pause-badge-pill">
-                    {getAudioQualityBadge(state.current_video?.audio_channels, state.current_video?.audio_codec, "Stéréo 2.0")}
-                  </span>
-                )}
+                </div>
               </div>
-              {state.current_video?.description && (
-                <p className="pause-description">{state.current_video.description}</p>
+
+              <div className="pause-logo-mini-wrap">
+                <AppLogo size={80} className="pause-logo" />
+              </div>
+            </div>
+
+            {/* Colonne Détails & Synopsis (Droite) */}
+            <div className="pause-details-col">
+              <div>
+                <div className="pause-header-row">
+                  <span className="pause-kicker" style={{ color: programAccent }}>
+                    {t("kiosk.pausedLabel")}
+                  </span>
+                  {program && (
+                    <span className="pause-badge" style={{ color: programAccent }}>
+                      {program}
+                    </span>
+                  )}
+                  {state.current_video?.release && (
+                    <span className="pause-year">{state.current_video.release}</span>
+                  )}
+                  {getResolutionBadge(state.current_video?.width, state.current_video?.height, "HD") && (
+                    <span className="pause-badge-pill">
+                      {getResolutionBadge(state.current_video?.width, state.current_video?.height, "HD")}
+                    </span>
+                  )}
+                  {getAudioQualityBadge(state.current_video?.audio_channels, state.current_video?.audio_codec, "Stéréo 2.0") && (
+                    <span className="pause-badge-pill">
+                      {getAudioQualityBadge(state.current_video?.audio_channels, state.current_video?.audio_codec, "Stéréo 2.0")}
+                    </span>
+                  )}
+                </div>
+
+                <h2 className="pause-title">{state.current_video?.title}</h2>
+              </div>
+
+              {state.current_video?.description ? (
+                <div className="pause-description-scroll">
+                  <p className="pause-description-text">{formatCleanDescription(state.current_video.description)}</p>
+                </div>
+              ) : (
+                <div style={{ flex: 1 }} />
               )}
+
+              <div className="pause-actions-row">
+                <button
+                  className="pause-resume-btn-pill"
+                  onClick={() => sendCommand("play")}
+                  title={t("kiosk.resume")}
+                >
+                  <Icon name="play_arrow" size={24} filled />
+                  <span>{t("kiosk.resume")}</span>
+                </button>
+              </div>
             </div>
           </div>
           <div className="pause-progress-track">

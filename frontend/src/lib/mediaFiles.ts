@@ -30,14 +30,33 @@ export function isVideoFile(file: File): boolean {
   return file.type.startsWith("video/") || VIDEO_EXTENSION_SET.has(fileExtension(file.name));
 }
 
+export const SUBTITLE_EXTENSIONS = ["srt", "vtt"] as const;
+export const SUBTITLE_ACCEPT = [".srt", ".vtt", "text/vtt", "application/x-subrip"].join(",");
+const SUBTITLE_EXTENSION_SET: ReadonlySet<string> = new Set(SUBTITLE_EXTENSIONS);
+
+export function isSubtitleFile(file: File): boolean {
+  return SUBTITLE_EXTENSION_SET.has(fileExtension(file.name));
+}
+
 export interface PartitionedFiles {
   accepted: File[];
+  subtitles: File[];
   rejected: File[];
 }
 
 export function partitionVideoFiles(files: File[]): PartitionedFiles {
   const accepted: File[] = [];
+  const subtitles: File[] = [];
   const rejected: File[] = [];
-  for (const file of files) (isVideoFile(file) ? accepted : rejected).push(file);
-  return { accepted, rejected };
+  for (const file of files) {
+    if (isVideoFile(file)) {
+      accepted.push(file);
+    } else if (isSubtitleFile(file)) {
+      subtitles.push(file);
+    } else {
+      rejected.push(file);
+    }
+  }
+  return { accepted, subtitles, rejected };
 }
+

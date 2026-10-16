@@ -137,6 +137,24 @@ export default function MobileRemote({
 
   return (
     <div className="mobile-remote">
+      {/* Switch segmenté Câblé / Réseau */}
+      <div className="outputs-channel-switch-bar mobile-switch-bar">
+        <Link
+          href="/dashboard-cable"
+          className={`channel-switch-btn olc-press ${channel === "cable" ? "active" : ""}`}
+        >
+          <Icon name="cable" size={16} />
+          <span>{t("nav.dashboardCable")}</span>
+        </Link>
+        <Link
+          href="/dashboard-network"
+          className={`channel-switch-btn olc-press ${channel === "network" ? "active" : ""}`}
+        >
+          <Icon name="wifi" size={16} />
+          <span>{t("nav.dashboardNetwork")}</span>
+        </Link>
+      </div>
+
       {connected && (
         <div className="mobile-remote-output olc-anim-in">
           {(!channel || channel === "cable") && (
@@ -292,7 +310,11 @@ export default function MobileRemote({
             </button>
             <button
               className="coach-btn coach-btn-main olc-press"
-              style={{ background: "var(--accent-primary)" }}
+              style={
+                !isActive || state.state === "background"
+                  ? undefined
+                  : { background: "var(--accent-primary)", color: "var(--accent-primary-fg)" }
+              }
               onClick={() => sendCommand(state.state === "playing" ? "pause" : "play")}
               disabled={!isActive || state.state === "background"}
             >
@@ -336,10 +358,12 @@ export default function MobileRemote({
           </div>
 
           <div className="mobile-remote-quick-row">
-            <button className="btn btn-secondary mobile-remote-quick-btn" onClick={() => setSheet("launch")}>
-              <Icon name="play_circle" size={18} />
-              {t("mobileRemote.launchQuickBtn")}
-            </button>
+            {isActive && (
+              <button className="btn btn-secondary mobile-remote-quick-btn" onClick={() => setSheet("launch")}>
+                <Icon name="play_circle" size={18} />
+                {t("mobileRemote.launchQuickBtn")}
+              </button>
+            )}
             {/* Mode coach réservé au canal câblé : la sortie réseau ne peut jamais s'en servir, le
                 bouton n'apparaît donc pas sur la vue dédiée au canal réseau. */}
             {channel !== "network" && (
@@ -355,8 +379,8 @@ export default function MobileRemote({
           {/* Planning DE CE CANAL. */}
           <a
             href={`/schedule/?channel=${channel ?? "cable"}`}
-            className="btn btn-secondary mobile-remote-quick-btn"
-            style={{ textDecoration: "none", width: "100%", marginTop: "10px" }}
+            className="btn btn-secondary"
+            style={{ textDecoration: "none", width: "100%", minHeight: "50px", flexShrink: 0, marginTop: "4px" }}
           >
             <Icon name="calendar_month" size={18} />
             {t("dashboard.viewSchedule")}
@@ -366,7 +390,7 @@ export default function MobileRemote({
 
       {sheet !== "none" && (
         <div className="coach-sheet-overlay" onClick={() => setSheet("none")}>
-          <div className="coach-sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="coach-sheet glass-floating" onClick={(e) => e.stopPropagation()}>
             <div className="coach-sheet-handle" />
             {(
               <>

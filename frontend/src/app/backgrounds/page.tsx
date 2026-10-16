@@ -382,7 +382,13 @@ export default function BackgroundsPage() {
   const isNetworkBgActive = networkState.state === "background";
 
   return (
-    <div className="library-container">
+    <div
+      className="library-container"
+      onDragEnter={handleDrag}
+      onDragOver={handleDrag}
+      onDragLeave={handleDrag}
+      onDrop={handleDrop}
+    >
       {toast && (
         <div className={`toast ${toast.type}`}>
           <span>{toast.message}</span>
@@ -390,13 +396,38 @@ export default function BackgroundsPage() {
       )}
 
       {/* En-tête de section Hub d'Ambiances */}
-      <div style={{ marginBottom: "20px" }}>
-        <h1 style={{ fontFamily: "var(--font-title)", fontSize: "1.6rem", fontWeight: 900, margin: "0 0 6px" }}>
-          {t("backgrounds.hubTitle")}
-        </h1>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", margin: 0, maxWidth: "680px" }}>
-          {t("backgrounds.hubSubtitle")}
-        </p>
+      <div className="library-header-bar" style={{ marginBottom: "8px" }}>
+        <div>
+          <h1 style={{ fontFamily: "var(--font-title)", fontSize: "1.5rem", fontWeight: 900, margin: "0 0 4px" }}>
+            {t("backgrounds.hubTitle")}
+          </h1>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", margin: 0, maxWidth: "680px" }}>
+            {t("backgrounds.hubSubtitle")}
+          </p>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={`${VIDEO_ACCEPT},image/*`}
+            multiple
+            style={{ display: "none" }}
+            onChange={(e) => {
+              if (e.target.files?.length) addPendingSpecs(Array.from(e.target.files));
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ height: "40px", padding: "0 16px", fontSize: "0.85rem" }}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Icon name="cloud_upload" size={18} />
+            <span>Importer</span>
+          </button>
+        </div>
       </div>
 
       {/* Bandeaux de statut si une ambiance est active en direct */}
@@ -439,7 +470,8 @@ export default function BackgroundsPage() {
         </div>
       )}
 
-      {/* Zone de téléversement Drag & Drop */}
+      {/* Zone de téléversement Drag & Drop — affichée au survol glisser-déposer ou quand des fichiers sont prêts */}
+      {(dragActive || pendingSpecs.length > 0) && (
       <div
         className={`upload-zone ${dragActive ? "drag-active" : ""}`}
         onDragEnter={handleDrag}
@@ -450,17 +482,6 @@ export default function BackgroundsPage() {
           if (pendingSpecs.length === 0 && fileInputRef.current) fileInputRef.current.click();
         }}
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={`${VIDEO_ACCEPT},image/*`}
-          multiple
-          style={{ display: "none" }}
-          onChange={(e) => {
-            if (e.target.files?.length) addPendingSpecs(Array.from(e.target.files));
-            e.target.value = "";
-          }}
-        />
         {pendingSpecs.length === 0 ? (
           <>
             <Icon name="cloud_upload" size={48} className="upload-icon" />
@@ -512,6 +533,7 @@ export default function BackgroundsPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Grille des cartes d'ambiance */}
       {loading ? (

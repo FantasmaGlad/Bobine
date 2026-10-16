@@ -187,6 +187,9 @@ class Settings(BaseSettings):
     # Logs : dossier dédié, séparé des données média.
     logs_dir: str = "data/logs"
 
+    # Sous-titres (.vtt / .srt) : dossier dédié
+    subtitles_dir: str = "data/subtitles"
+
     # Mode audio coach : réglage par défaut de la
     # minuterie entre pistes en mode "auto + minuterie".
     audio_chain_timer_seconds: int = 5
@@ -287,6 +290,7 @@ def load_settings() -> Settings:
         "radio_watch_dir",
         "branding_dir",
         "logs_dir",
+        "subtitles_dir",
     ]:
         path_str = getattr(settings, path_attr)
         path = Path(path_str)

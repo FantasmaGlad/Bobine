@@ -68,6 +68,7 @@ export default function RadioAnnouncementsPage() {
   const [uploadMode, setUploadMode] = useState<"file" | "folder">("file");
   const [dragActive, setDragActive] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState("");
+  const [showImportCard, setShowImportCard] = useState(false);
   const { uploads, addUploads } = useUploadManager();
   const seenDoneIds = useRef<Set<string>>(new Set());
 
@@ -327,7 +328,13 @@ export default function RadioAnnouncementsPage() {
     type === "every_n_tracks" ? "music_note" : type === "every_x_minutes" ? "timer" : "schedule";
 
   return (
-    <div className="ra-page">
+    <div
+      className="ra-page"
+      onDragEnter={handleDrag}
+      onDragOver={handleDrag}
+      onDragLeave={handleDrag}
+      onDrop={handleDrop}
+    >
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
 
       {/* En-tête */}
@@ -336,17 +343,45 @@ export default function RadioAnnouncementsPage() {
           <h1 className="ra-title"><Icon name="campaign" size={24} /> {t("radioAnnouncements.title")}</h1>
           <p className="ra-subtitle">{t("radioAnnouncements.subtitle")}</p>
         </div>
-        <button className="btn btn-primary ra-playnow" onClick={() => handlePlayNow()} disabled={announcements.filter((a) => a.enabled).length === 0}>
-          <Icon name="play_arrow" size={18} filled /> {t("radioAnnouncements.playNow")}
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowImportCard((v) => !v)}
+            style={{ height: "44px" }}
+          >
+            <Icon name="cloud_upload" size={18} />
+            <span>{showImportCard ? "Fermer l'import" : "Importer un rappel"}</span>
+          </button>
+          <button className="btn btn-primary ra-playnow" onClick={() => handlePlayNow()} disabled={announcements.filter((a) => a.enabled).length === 0}>
+            <Icon name="play_arrow" size={18} filled /> {t("radioAnnouncements.playNow")}
+          </button>
+        </div>
       </div>
 
       <div className="ra-grid">
         {/* -------- Colonne : rappels -------- */}
         <section className="ra-col">
-          {/* Import */}
+          {/* Import — affiché à la demande ou au glisser-déposer */}
+          {(showImportCard || dragActive || Boolean(selectedFileName)) && (
           <div className="ra-card">
-            <h3 className="ra-card-title"><Icon name="upload" size={18} /> {t("radioAnnouncements.importTitle")}</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <h3 className="ra-card-title" style={{ margin: 0 }}>
+                <Icon name="upload" size={18} /> {t("radioAnnouncements.importTitle")}
+              </h3>
+              <button
+                type="button"
+                className="close-btn"
+                style={{ padding: "4px" }}
+                onClick={() => {
+                  setShowImportCard(false);
+                  setSelectedFileName("");
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </div>
 
             <div
               className={`upload-zone ${dragActive ? "drag-active" : ""}`}
@@ -372,7 +407,7 @@ export default function RadioAnnouncementsPage() {
                 {t("radioAnnouncements.dropFileHint")}
               </p>
               {selectedFileName && (
-                <p style={{ fontSize: "0.8rem", fontWeight: 700, margin: "4px 0 0" }}>{selectedFileName}</p>
+                <p style={{ fontSize: "0.8rem", fontWeight: 700, margin: "4px 0 0", color: "var(--accent-primary)" }}>{selectedFileName}</p>
               )}
               <button
                 type="button"
@@ -405,6 +440,7 @@ export default function RadioAnnouncementsPage() {
               </div>
             )}
           </div>
+          )}
 
           {/* Liste des rappels */}
           <div className="ra-card">

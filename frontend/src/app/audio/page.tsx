@@ -492,23 +492,81 @@ export default function AudioLibraryPage() {
     return getApiUrl(`/thumbnails/${filename}`);
   };
 
+  const [showUploadZone, setShowUploadZone] = useState(false);
+
   return (
-    <div className={`library-container ${mode === "playlists" ? "playlists-mode" : ""}`}>
+    <div
+      className={`library-container ${mode === "playlists" ? "playlists-mode" : ""}`}
+      onDragEnter={mode === "courses" ? handleDrag : undefined}
+      onDragOver={mode === "courses" ? handleDrag : undefined}
+      onDragLeave={mode === "courses" ? handleDrag : undefined}
+      onDrop={mode === "courses" ? handleFileDrop : undefined}
+    >
       {/* Bascule Cours/Playlists : même langage visuel que le bascule
           grille/liste de la Bibliothèque vidéo (.view-toggle). */}
-      <div className="view-toggle" style={{ alignSelf: "flex-start" }}>
-        <button
-          className={`view-btn olc-press ${mode === "courses" ? "active" : ""}`}
-          onClick={() => setMode("courses")}
-        >
-          <Icon name="library_music" size={16} /> {t("audio.coursesTab")}
-        </button>
-        <button
-          className={`view-btn olc-press ${mode === "playlists" ? "active" : ""}`}
-          onClick={() => setMode("playlists")}
-        >
-          <Icon name="playlist_play" size={16} /> {t("audio.playlistsTab")}
-        </button>
+      <div className="library-header-bar">
+        <div className="view-toggle">
+          <button
+            className={`view-btn olc-press ${mode === "courses" ? "active" : ""}`}
+            onClick={() => setMode("courses")}
+          >
+            <Icon name="library_music" size={16} /> {t("audio.coursesTab")}
+          </button>
+          <button
+            className={`view-btn olc-press ${mode === "playlists" ? "active" : ""}`}
+            onClick={() => setMode("playlists")}
+          >
+            <Icon name="playlist_play" size={16} /> {t("audio.playlistsTab")}
+          </button>
+        </div>
+
+        {mode === "courses" && (
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={uploadMode === "zip" ? ".zip" : AUDIO_ACCEPT}
+              multiple={uploadMode === "files"}
+              style={{ display: "none" }}
+              onChange={(e) => {
+                handleFilesSelected(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            {/* Import d'un dossier complet : webkitdirectory n'est
+                pas dans le typage DOM standard de React, posé directement sur le
+                noeud DOM plutôt qu'en JSX typé. */}
+            <input
+              ref={(el) => {
+                folderInputRef.current = el;
+                // webkitdirectory/directory : attributs non typés par React/TS,
+                // posés directement sur le noeud DOM une fois monté.
+                if (el) {
+                  el.setAttribute("webkitdirectory", "");
+                  el.setAttribute("directory", "");
+                }
+              }}
+              type="file"
+              multiple
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                const relPath = (files[0] as (File & { webkitRelativePath?: string }) | undefined)?.webkitRelativePath;
+                handleFilesSelected(files, relPath ? relPath.split("/")[0] : null);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ height: "40px", padding: "0 16px", fontSize: "0.85rem" }}
+              onClick={() => setShowUploadZone((v) => !v)}
+            >
+              <Icon name="cloud_upload" size={18} />
+              <span>Importer</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {mode === "playlists" ? (
@@ -529,6 +587,7 @@ export default function AudioLibraryPage() {
         </div>
       )}
 
+      {(showUploadZone || dragActive || uploadFiles.length > 0 || uploadZip !== null) && (
       <div
         className={`upload-zone ${dragActive ? "drag-active" : ""}`}
         onDragEnter={handleDrag}
@@ -537,41 +596,6 @@ export default function AudioLibraryPage() {
         onDrop={handleFileDrop}
         onClick={() => uploadFiles.length === 0 && !uploadZip && fileInputRef.current?.click()}
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={uploadMode === "zip" ? ".zip" : AUDIO_ACCEPT}
-          multiple={uploadMode === "files"}
-          style={{ display: "none" }}
-          onChange={(e) => {
-            handleFilesSelected(e.target.files);
-            e.target.value = "";
-          }}
-        />
-        {/* Import d'un dossier complet : webkitdirectory n'est
-            pas dans le typage DOM standard de React, posé directement sur le
-            noeud DOM plutôt qu'en JSX typé. */}
-        <input
-          ref={(el) => {
-            folderInputRef.current = el;
-            // webkitdirectory/directory : attributs non typés par React/TS,
-            // posés directement sur le noeud DOM une fois monté.
-            if (el) {
-              el.setAttribute("webkitdirectory", "");
-              el.setAttribute("directory", "");
-            }
-          }}
-          type="file"
-          multiple
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const files = Array.from(e.target.files ?? []);
-            const relPath = (files[0] as (File & { webkitRelativePath?: string }) | undefined)?.webkitRelativePath;
-            handleFilesSelected(files, relPath ? relPath.split("/")[0] : null);
-            e.target.value = "";
-          }}
-        />
-
         {uploadFiles.length === 0 && !uploadZip ? (
           <>
             <div className="view-toggle" onClick={(e) => e.stopPropagation()} style={{ marginBottom: "8px" }}>
@@ -619,7 +643,7 @@ export default function AudioLibraryPage() {
               <input type="text" className="form-control" value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} />
             </div>
             <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
-              <div className="form-group" style={{ flex: 1 }}>
+              <div className="form-group" style={{ flex: 1, minWidth: 0 }}>
                 <label className="form-label">{t("audio.programLabel")}</label>
                 <input
                   type="text"
@@ -630,7 +654,7 @@ export default function AudioLibraryPage() {
                   onChange={(e) => setUploadProgram(e.target.value)}
                 />
               </div>
-              <div className="form-group" style={{ flex: 1 }}>
+              <div className="form-group" style={{ flex: 1, minWidth: 0 }}>
                 <label className="form-label">{t("audio.releaseLabel")}</label>
                 <input type="text" className="form-control" placeholder={t("audio.releasePlaceholder")} value={uploadRelease} onChange={(e) => setUploadRelease(e.target.value)} />
               </div>
@@ -664,6 +688,7 @@ export default function AudioLibraryPage() {
           </div>
         )}
       </div>
+      )}
 
       {loading ? (
         <div style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center", minHeight: "300px", color: "var(--text-muted)" }}>
@@ -743,7 +768,7 @@ export default function AudioLibraryPage() {
                   <input type="text" className="form-control" value={drawerTitle} onChange={(e) => setDrawerTitle(e.target.value)} required />
                 </div>
                 <div style={{ display: "flex", gap: "12px" }}>
-                  <div className="form-group" style={{ flex: 1 }}>
+                  <div className="form-group" style={{ flex: 1, minWidth: 0 }}>
                     <label className="form-label">{t("audio.programLabel")}</label>
                     <input
                       type="text"
@@ -754,7 +779,7 @@ export default function AudioLibraryPage() {
                       onChange={(e) => setDrawerProgram(e.target.value)}
                     />
                   </div>
-                  <div className="form-group" style={{ flex: 1 }}>
+                  <div className="form-group" style={{ flex: 1, minWidth: 0 }}>
                     <label className="form-label">{t("audio.releaseLabel")}</label>
                     <input type="text" className="form-control" value={drawerRelease} onChange={(e) => setDrawerRelease(e.target.value)} />
                   </div>

@@ -20,7 +20,9 @@ export interface PlaybackVideo {
   title: string;
   duration_seconds: number | null;
   program?: string | null;
+  release?: string | null;
   thumbnail_url?: string | null;
+  thumbnail_path?: string | null;
   description?: string | null;
   audio_channels?: number | null;
   audio_codec?: string | null;

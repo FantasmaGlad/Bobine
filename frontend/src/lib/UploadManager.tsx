@@ -90,6 +90,8 @@ export interface PendingUploadSpec {
   title: string;
   program?: string | null;
   release?: string | null;
+  description?: string | null;
+  subtitles?: File[];
 }
 
 export type UploadTaskStatus = "pending" | "uploading" | "processing" | "done" | "error";
@@ -210,6 +212,10 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     if (task.kind === "video" || task.kind === "audio_files" || task.kind === "audio_zip") {
       if (task.program) formData.append("program", task.program);
       if (task.release) formData.append("release", task.release);
+      if (task.description) formData.append("description", task.description);
+      if (task.subtitles && task.subtitles.length > 0) {
+        task.subtitles.forEach((sub) => formData.append("subtitles", sub));
+      }
     }
     return formData;
   };

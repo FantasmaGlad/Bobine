@@ -104,43 +104,86 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   // de la refonte.
   const footerLinks = footerNavLinkConfigs.map((link) => ({ ...link, label: t(link.labelKey) }));
 
-  // Regroupements dépliables (accordéon) :
-  // ouverts par défaut si la page courante est dans le groupe ; l'utilisateur
-  // peut ensuite plier/déplier à sa guise.
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-  const toggleGroup = (key: string) => setOpenGroups((g) => ({ ...g, [key]: !(g[key] ?? false) }));
+  // Regroupements dépliables (accordéon exclusif) :
+  // Lors de la navigation ou d'un clic d'accordéon, fermer les autres
+  // groupes pour garder l'arborescence fermée, lisible et propre.
+  const [activeGroup, setActiveGroup] = useState<string | null>(() => {
+    for (const entry of navEntries) {
+      if (isNavGroup(entry) && entry.children.some((c) => isNavLinkActive(pathname, c.href))) {
+        return entry.groupKey;
+      }
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    for (const entry of navEntries) {
+      if (isNavGroup(entry) && entry.children.some((c) => isNavLinkActive(pathname, c.href))) {
+        setActiveGroup(entry.groupKey);
+        return;
+      }
+    }
+  }, [pathname]);
+
+  const toggleGroup = (key: string) => {
+    setActiveGroup((curr) => (curr === key ? null : key));
+  };
+
+  const activeNavInfo = React.useMemo(() => {
+    for (const entry of navEntries) {
+      if (isNavGroup(entry)) {
+        const activeChild = entry.children.find((c) => isNavLinkActive(pathname, c.href));
+        if (activeChild) {
+          return { iconName: activeChild.iconName, label: t(activeChild.labelKey) };
+        }
+      } else {
+        const isActive = entry.href === "/" ? pathname === "/" : isNavLinkActive(pathname, entry.href);
+        if (isActive) {
+          return { iconName: entry.iconName, label: t(entry.labelKey) };
+        }
+      }
+    }
+    const activeFooter = footerLinks.find((l) => (l.href === "/" ? pathname === "/" : isNavLinkActive(pathname, l.href)));
+    if (activeFooter) {
+      return { iconName: activeFooter.iconName, label: activeFooter.label };
+    }
+    return null;
+  }, [pathname, t, footerLinks]);
 
   const renderNavEntries = (onNavigate?: () => void) =>
     navEntries.map((entry, i) => {
       if (isNavGroup(entry)) {
         const groupActive = entry.children.some((c) => isNavLinkActive(pathname, c.href));
-        const open = openGroups[entry.groupKey] ?? groupActive;
+        const open = activeGroup === entry.groupKey;
+        const groupLabel = t(entry.groupKey);
         return (
           <div key={entry.groupKey}>
             <button
               type="button"
-              className="nav-link olc-press"
-              style={{ width: "100%", background: "transparent", border: "none", cursor: "pointer", font: "inherit" }}
+              className={`nav-link olc-press ${groupActive ? "group-active" : ""}`}
               onClick={() => toggleGroup(entry.groupKey)}
               aria-expanded={open}
+              title={groupLabel}
             >
               <Icon name={entry.iconName} size={20} weight={500} />
-              <span style={{ flex: 1, textAlign: "left" }}>{t(entry.groupKey)}</span>
-              <Icon name={open ? "expand_more" : "chevron_right"} size={18} />
+              <span style={{ flex: 1, textAlign: "left" }}>{groupLabel}</span>
+              <Icon name={open ? "expand_more" : "chevron_right"} size={18} className="nav-group-chevron" />
             </button>
             {open && (
-              <div style={{ marginLeft: "22px", borderLeft: "1px solid var(--border-color)", paddingLeft: "8px" }}>
+              <div className="nav-group-children">
                 {entry.children.map((child) => {
                   const isActive = isNavLinkActive(pathname, child.href);
+                  const childLabel = t(child.labelKey);
                   return (
                     <Link
                       key={child.href}
                       href={child.href}
                       onClick={onNavigate}
                       className={`nav-link olc-press ${isActive ? "active" : ""}`}
+                      title={childLabel}
                     >
                       <Icon name={child.iconName} size={20} weight={500} />
-                      <span>{t(child.labelKey)}</span>
+                      <span>{childLabel}</span>
                     </Link>
                   );
                 })}
@@ -150,6 +193,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         );
       }
       const isActive = entry.href === "/" ? pathname === "/" : isNavLinkActive(pathname, entry.href);
+      const entryLabel = t(entry.labelKey);
       return (
         <Link
           key={entry.href}
@@ -157,9 +201,10 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           onClick={onNavigate}
           className={`nav-link olc-press olc-anim-in ${isActive ? "active" : ""}`}
           style={{ animationDelay: `${i * 30}ms` }}
+          title={entryLabel}
         >
           <Icon name={entry.iconName} size={20} weight={500} />
-          <span>{t(entry.labelKey)}</span>
+          <span>{entryLabel}</span>
         </Link>
       );
     });
@@ -218,6 +263,14 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           <button className="mobile-burger-btn olc-press" onClick={() => setDrawerOpen(true)} aria-label={t("nav.openMenu")}>
             <Icon name="menu" size={24} />
           </button>
+          <div className="mobile-topbar-center">
+            {activeNavInfo && (
+              <>
+                <Icon name={activeNavInfo.iconName} size={18} color="var(--accent-primary)" />
+                <span className="mobile-topbar-title">{activeNavInfo.label}</span>
+              </>
+            )}
+          </div>
           {/* IP/URL de CETTE terminaison plutôt que le logo (trop petit pour
               être utile ici) : un visiteur dépanné sur plusieurs terminaisons
               (câblé, réseau, kiosque) doit pouvoir identifier d'un coup
@@ -249,6 +302,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
                       href={link.href}
                       onClick={() => setDrawerOpen(false)}
                       className={`nav-link olc-press ${isActive ? "active" : ""}`}
+                      title={link.label}
                     >
                       <Icon name={link.iconName} size={20} />
                       <span>{link.label}</span>
@@ -287,6 +341,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
                 href={link.href}
                 className={`nav-link olc-press olc-anim-in ${isActive ? "active" : ""}`}
                 style={{ animationDelay: `${(navEntries.length + i) * 30}ms` }}
+                title={link.label}
               >
                 <Icon name={link.iconName} size={20} />
                 <span>{link.label}</span>

@@ -5,7 +5,7 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { videoStreamUrl } from "@/lib/clientCodecSupport";
 import WebRenditionPanel from "@/components/WebRenditionPanel";
 import { useUploadManager, PendingUploadSpec } from "@/lib/UploadManager";
-import { VIDEO_ACCEPT, partitionVideoFiles } from "@/lib/mediaFiles";
+import { VIDEO_ACCEPT, SUBTITLE_ACCEPT, partitionVideoFiles } from "@/lib/mediaFiles";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { parseMediaName } from "@/lib/parseMediaName";
 import Icon from "@/components/Icon";
@@ -16,6 +16,16 @@ import {
   formatFps,
   formatBitrate,
 } from "@/lib/videoBadges";
+import { formatCleanDescription } from "@/lib/formatDescription";
+
+interface VideoSubtitleItem {
+  id: number;
+  video_id: number;
+  language_code: string;
+  language_label: string;
+  format: string;
+  vtt_url: string;
+}
 
 interface Video {
   id: number;
@@ -67,6 +77,11 @@ export default function LibraryPage() {
   const [drawerRelease, setDrawerRelease] = useState<string>("");
   const [drawerDescription, setDrawerDescription] = useState<string>("");
   const [isSavingDrawer, setIsSavingDrawer] = useState<boolean>(false);
+
+  // Sous-titres pour le cours ouvert en Studio
+  const [studioSubtitles, setStudioSubtitles] = useState<VideoSubtitleItem[]>([]);
+  const [isLoadingSubtitles, setIsLoadingSubtitles] = useState<boolean>(false);
+  const subtitleInputRef = useRef<HTMLInputElement>(null);
 
   // Catégories (programmes) réellement présentes dans la bibliothèque, pour
   // alimenter les suggestions de saisie, le filtre et le regroupement — plus
@@ -301,7 +316,7 @@ export default function LibraryPage() {
     }
   };
 
-  // Handle video card/row click -> Open Drawer
+  // Handle video card/row click -> Open Course Studio
   const handleSelectVideo = (video: Video) => {
     setSelectedVideo(video);
     setDrawerTitle(video.title);
@@ -309,11 +324,66 @@ export default function LibraryPage() {
     setDrawerProgram(video.program || "");
     setDrawerRelease(video.release || "");
     setDrawerDescription(video.description || "");
+    fetchSubtitles(video.id);
+  };
+
+  const fetchSubtitles = async (videoId: number) => {
+    setIsLoadingSubtitles(true);
+    try {
+      const res = await fetch(getApiUrl(`/videos/${videoId}/subtitles`));
+      if (res.ok) {
+        const data = await res.json();
+        setStudioSubtitles(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      // ignorer
+    } finally {
+      setIsLoadingSubtitles(false);
+    }
+  };
+
+  const handleUploadSubtitle = async (file: File) => {
+    if (!selectedVideo) return;
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch(getApiUrl(`/videos/${selectedVideo.id}/subtitles`), {
+        method: "POST",
+        body,
+      });
+      if (res.ok) {
+        showToast("Sous-titre ajouté avec succès", "success");
+        fetchSubtitles(selectedVideo.id);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast(errData.detail || "Erreur d'import du sous-titre", "error");
+      }
+    } catch {
+      showToast("Erreur de connexion", "error");
+    }
+  };
+
+  const handleDeleteSubtitle = async (subId: number) => {
+    if (!selectedVideo) return;
+    try {
+      const res = await fetch(getApiUrl(`/videos/${selectedVideo.id}/subtitles/${subId}`), {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        showToast("Sous-titre supprimé", "success");
+        setStudioSubtitles((prev) => prev.filter((s) => s.id !== subId));
+      } else {
+        showToast("Erreur lors de la suppression", "error");
+      }
+    } catch {
+      showToast("Erreur de connexion", "error");
+    }
   };
 
   // Close details drawer
   const handleCloseDrawer = () => {
     setSelectedVideo(null);
+    setStudioSubtitles([]);
   };
 
   // Save Video Metadata from Drawer
@@ -334,7 +404,7 @@ export default function LibraryPage() {
           title: drawerTitle,
           program: finalProgram || null,
           release: drawerRelease || null,
-          description: drawerDescription.trim() || null,
+          description: formatCleanDescription(drawerDescription) || null,
         }),
       });
 
@@ -454,12 +524,25 @@ export default function LibraryPage() {
     acceptDroppedOrSelected(Array.from(e.dataTransfer.files));
   };
 
-  /** Ajoute les fichiers vidéo reconnus (type MIME OU extension, cf.
-   *  lib/mediaFiles.ts) et prévient explicitement pour les autres : un
-   *  fichier ignoré en silence est indiscernable d'un bug d'import. */
+  /** Ajoute les fichiers vidéo et sous-titres reconnus (type MIME OU extension, cf.
+   *  lib/mediaFiles.ts) et prévient explicitement pour les autres. */
   const acceptDroppedOrSelected = (files: File[]) => {
-    const { accepted, rejected } = partitionVideoFiles(files);
-    if (accepted.length > 0) addPendingSpecs(accepted);
+    const { accepted, subtitles, rejected } = partitionVideoFiles(files);
+    if (accepted.length > 0) {
+      addPendingSpecs(accepted, subtitles);
+    } else if (subtitles.length > 0) {
+      // Sous-titres déposés seuls : rattachés au premier cours en attente
+      setPendingSpecs((prev) => {
+        if (prev.length === 0) {
+          showToast("Veuillez d'abord sélectionner une vidéo pour lui associer ce sous-titre", "warning");
+          return prev;
+        }
+        const first = prev[0];
+        const updatedSubs = [...(first.subtitles ?? []), ...subtitles];
+        return [{ ...first, subtitles: updatedSubs }, ...prev.slice(1)];
+      });
+      showToast(`${subtitles.length} sous-titre(s) rattaché(s)`, "success");
+    }
     if (rejected.length > 0) {
       const names = rejected.slice(0, 3).map((f) => f.name).join(", ") + (rejected.length > 3 ? "…" : "");
       showToast(t("library.unsupportedFiles", { count: rejected.length, names }), "warning");
@@ -473,15 +556,27 @@ export default function LibraryPage() {
     e.target.value = "";
   };
 
-  /** Crée les PendingSpec avec métadonnées pré-remplies par heuristique.
-   *  Plus aucune catégorie codée en dur : si le nom de fichier contient une
-   *  catégorie DÉJÀ utilisée (mot-clé), on la propose ; sinon le champ reste
-   *  vide et l'utilisateur saisit/crée librement sa catégorie. */
-  const addPendingSpecs = (files: File[]) => {
+  /** Crée les PendingSpec avec métadonnées pré-remplies par heuristique et
+   *  rattachement automatique des sous-titres (.srt/.vtt) correspondants. */
+  const addPendingSpecs = (files: File[], droppedSubtitles: File[] = []) => {
     const known = availablePrograms;
     const specs = files.map((file) => {
       const { title, program, release } = parseMediaName(file.name, known);
-      return { key: Math.random().toString(36).slice(2), kind: "video" as const, file, title, program, release };
+      const baseStem = file.name.substring(0, file.name.lastIndexOf(".")).toLowerCase();
+      const matchedSubs = droppedSubtitles.filter((sub) => {
+        const subLower = sub.name.toLowerCase();
+        return subLower.startsWith(baseStem) || files.length === 1;
+      });
+      return {
+        key: Math.random().toString(36).slice(2),
+        kind: "video" as const,
+        file,
+        title,
+        program,
+        release,
+        description: "",
+        subtitles: matchedSubs,
+      };
     });
     setPendingSpecs((prev) => [...prev, ...specs]);
   };
@@ -496,7 +591,17 @@ export default function LibraryPage() {
 
   const submitPendingUploads = () => {
     if (pendingSpecs.length === 0) return;
-    addUploads(pendingSpecs.map(({ file, title, program, release }) => ({ kind: "video" as const, file, title, program, release })));
+    addUploads(
+      pendingSpecs.map(({ file, title, program, release, description, subtitles }) => ({
+        kind: "video" as const,
+        file,
+        title,
+        program,
+        release,
+        description: formatCleanDescription(description) || undefined,
+        subtitles,
+      }))
+    );
     setPendingSpecs([]);
   };
 
@@ -520,24 +625,56 @@ export default function LibraryPage() {
     return getApiUrl(`/thumbnails/${filename}`);
   };
 
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
   return (
-    <div className={`library-container ${mode === "playlists" ? "playlists-mode" : ""}`}>
+    <div
+      className={`library-container ${mode === "playlists" ? "playlists-mode" : ""}`}
+      onDragEnter={mode === "media" ? handleDrag : undefined}
+      onDragOver={mode === "media" ? handleDrag : undefined}
+      onDragLeave={mode === "media" ? handleDrag : undefined}
+      onDrop={mode === "media" ? handleDrop : undefined}
+    >
       {/* Bascule Médiathèque/Playlists : mêmes boutons que le bascule
           grille/liste ci-dessous (.view-toggle), pour rester dans le même
           langage visuel plutôt qu'introduire un nouveau composant d'onglet. */}
-      <div className="view-toggle" style={{ alignSelf: "flex-start" }}>
-        <button
-          className={`view-btn olc-press ${mode === "media" ? "active" : ""}`}
-          onClick={() => setMode("media")}
-        >
-          <Icon name="video_library" size={16} /> {t("library.mediaTab")}
-        </button>
-        <button
-          className={`view-btn olc-press ${mode === "playlists" ? "active" : ""}`}
-          onClick={() => setMode("playlists")}
-        >
-          <Icon name="playlist_play" size={16} /> {t("library.playlistsTab")}
-        </button>
+      <div className="library-header-bar">
+        <div className="view-toggle">
+          <button
+            className={`view-btn olc-press ${mode === "media" ? "active" : ""}`}
+            onClick={() => setMode("media")}
+          >
+            <Icon name="video_library" size={16} /> {t("library.mediaTab")}
+          </button>
+          <button
+            className={`view-btn olc-press ${mode === "playlists" ? "active" : ""}`}
+            onClick={() => setMode("playlists")}
+          >
+            <Icon name="playlist_play" size={16} /> {t("library.playlistsTab")}
+          </button>
+        </div>
+
+        {mode === "media" && (
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={VIDEO_ACCEPT}
+              multiple
+              style={{ display: "none" }}
+              onChange={handleFileChange}
+            />
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ height: "40px", padding: "0 16px", fontSize: "0.85rem" }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Icon name="cloud_upload" size={18} />
+              <span>Importer</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {mode === "playlists" ? (
@@ -562,7 +699,8 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Import / Upload Section */}
+      {/* Import / Upload Section — affichée uniquement au survol glisser-déposer ou quand des fichiers sont prêts */}
+      {(dragActive || pendingSpecs.length > 0) && (
       <div 
         className={`upload-zone ${dragActive ? "drag-active" : ""}`}
         onDragEnter={handleDrag}
@@ -575,15 +713,6 @@ export default function LibraryPage() {
           }
         }}
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={VIDEO_ACCEPT}
-          multiple
-          style={{ display: "none" }}
-          onChange={handleFileChange}
-        />
-
         {pendingSpecs.length === 0 ? (
           <>
             <Icon name="cloud_upload" size={48} className="upload-icon" />
@@ -598,33 +727,40 @@ export default function LibraryPage() {
             </p>
           </>
         ) : (
-          <div
+            <div
             onClick={(e) => e.stopPropagation()}
-            style={{ width: "100%", maxWidth: "560px", textAlign: "left" }}
+            style={{ width: "100%", maxWidth: "680px", textAlign: "left" }}
           >
             <h3 style={{ fontSize: "1.05rem", fontWeight: 800, marginBottom: "12px", color: "var(--accent-primary)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px" }}>
-              {pendingSpecs.length} fichier{pendingSpecs.length > 1 ? "s" : ""} sélectionné{pendingSpecs.length > 1 ? "s" : ""} — vérifiez les métadonnées
+              {pendingSpecs.length} fichier{pendingSpecs.length > 1 ? "s" : ""} sélectionné{pendingSpecs.length > 1 ? "s" : ""} — personnalisez les cours
             </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "320px", overflowY: "auto", paddingRight: "4px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "380px", overflowY: "auto", paddingRight: "4px" }}>
               {pendingSpecs.map((spec) => (
-                <div key={spec.key} style={{ background: "var(--bg-surface-hover)", borderRadius: "8px", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div key={spec.key} style={{ background: "var(--bg-surface-hover)", borderRadius: "12px", border: "1px solid var(--border-color)", padding: "12px 14px", display: "flex", flexDirection: "column", gap: "10px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={spec.file!.name}>
-                      {spec.file!.name} ({(spec.file!.size / (1024 * 1024)).toFixed(1)} Mo)
-                    </span>
-                    <button onClick={() => removePendingSpec(spec.key)} className="olc-press" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, display: "flex" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                      <Icon name="movie" size={18} style={{ color: "var(--accent-primary)", flexShrink: 0 }} />
+                      <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={spec.file!.name}>
+                        {spec.file!.name}
+                      </span>
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                        ({(spec.file!.size / (1024 * 1024)).toFixed(1)} Mo)
+                      </span>
+                    </div>
+                    <button onClick={() => removePendingSpec(spec.key)} className="olc-press" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, display: "flex", padding: "4px" }} title="Retirer ce fichier">
                       <Icon name="close" size={16} />
                     </button>
                   </div>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Titre"
-                    value={spec.title}
-                    onChange={(e) => updatePendingSpec(spec.key, { title: e.target.value })}
-                    style={{ padding: "6px 10px", fontSize: "0.85rem" }}
-                  />
-                  <div style={{ display: "flex", gap: "8px" }}>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 100px", gap: "8px" }}>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Titre du cours"
+                      value={spec.title}
+                      onChange={(e) => updatePendingSpec(spec.key, { title: e.target.value })}
+                      style={{ padding: "6px 10px", fontSize: "0.85rem" }}
+                    />
                     <input
                       type="text"
                       list="library-programs"
@@ -632,7 +768,7 @@ export default function LibraryPage() {
                       placeholder={t("library.programPlaceholder")}
                       value={spec.program ?? ""}
                       onChange={(e) => updatePendingSpec(spec.key, { program: e.target.value })}
-                      style={{ flex: 1, padding: "6px 8px", fontSize: "0.85rem" }}
+                      style={{ padding: "6px 8px", fontSize: "0.85rem" }}
                     />
                     <input
                       type="text"
@@ -640,8 +776,62 @@ export default function LibraryPage() {
                       placeholder={t("library.releasePlaceholderExample")}
                       value={spec.release ?? ""}
                       onChange={(e) => updatePendingSpec(spec.key, { release: e.target.value })}
-                      style={{ width: "80px", padding: "6px 8px", fontSize: "0.85rem" }}
+                      style={{ padding: "6px 8px", fontSize: "0.85rem" }}
                     />
+                  </div>
+
+                  {/* Synopsis / Description multi-lignes */}
+                  <textarea
+                    className="form-control"
+                    placeholder="Description / Synopsis du cours (optionnel, style Netflix...)"
+                    value={spec.description ?? ""}
+                    onChange={(e) => updatePendingSpec(spec.key, { description: e.target.value })}
+                    rows={2}
+                    style={{ fontSize: "0.82rem", resize: "vertical", minHeight: "52px", lineHeight: "1.4" }}
+                  />
+
+                  {/* Sous-titres attachés */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", paddingTop: "6px", borderTop: "1px dashed var(--border-color)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600 }}>Sous-titres :</span>
+                      {(!spec.subtitles || spec.subtitles.length === 0) ? (
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>Aucun</span>
+                      ) : (
+                        spec.subtitles.map((subFile, idx) => (
+                          <span key={idx} className="badge-pill" style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "rgba(var(--accent-primary-rgb, 99, 102, 241), 0.15)", border: "1px solid var(--accent-primary)", fontSize: "0.74rem", padding: "2px 8px" }}>
+                            <Icon name="subtitles" size={12} />
+                            <span>{subFile.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newSubs = (spec.subtitles ?? []).filter((_, i) => i !== idx);
+                                updatePendingSpec(spec.key, { subtitles: newSubs });
+                              }}
+                              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "0 2px" }}
+                            >
+                              <Icon name="close" size={12} />
+                            </button>
+                          </span>
+                        ))
+                      )}
+                    </div>
+                    <label className="btn btn-secondary olc-press" style={{ height: "26px", padding: "0 8px", fontSize: "0.74rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      <Icon name="add" size={14} />
+                      <span>Ajouter .srt</span>
+                      <input
+                        type="file"
+                        accept=".srt,.vtt,text/vtt,application/x-subrip"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const newSubs = [...(spec.subtitles ?? []), file];
+                            updatePendingSpec(spec.key, { subtitles: newSubs });
+                          }
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
                   </div>
                 </div>
               ))}
@@ -675,6 +865,7 @@ export default function LibraryPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Barre d'actions groupées */}
       {selectedIds.size > 0 && (
@@ -698,7 +889,7 @@ export default function LibraryPage() {
       )}
 
       {/* Toolbar / Search / Filters */}
-      <div className="library-toolbar">
+      <div className="library-toolbar sticky-glass-toolbar">
         <div className="toolbar-filters">
           <input
             type="text"
@@ -708,35 +899,46 @@ export default function LibraryPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
 
-          <select
-            className="filter-select"
-            value={programFilter}
-            onChange={(e) => setProgramFilter(e.target.value)}
+          <button
+            type="button"
+            className="btn btn-secondary mobile-filter-toggle-btn"
+            style={{ padding: "8px 12px", fontSize: "0.82rem" }}
+            onClick={() => setMobileFiltersOpen((v) => !v)}
           >
-            <option value="">{t("library.allPrograms")}</option>
-            {availablePrograms.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
+            <Icon name="tune" size={18} />
+          </button>
 
-          <input
-            type="text"
-            className="search-input"
-            style={{ width: "120px" }}
-            placeholder={t("library.releasePlaceholder")}
-            value={releaseFilter}
-            onChange={(e) => setReleaseFilter(e.target.value)}
-          />
+          <div className={`toolbar-secondary-filters ${mobileFiltersOpen ? "open" : ""}`}>
+            <select
+              className="filter-select"
+              value={programFilter}
+              onChange={(e) => setProgramFilter(e.target.value)}
+            >
+              <option value="">{t("library.allPrograms")}</option>
+              {availablePrograms.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
 
-          <select
-            className="filter-select"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-          >
-            <option value="imported_at">{t("library.sortImportDate")}</option>
-            <option value="title">{t("library.sortTitle")}</option>
-            <option value="duration">{t("library.sortDuration")}</option>
-          </select>
+            <input
+              type="text"
+              className="search-input"
+              style={{ width: "120px" }}
+              placeholder={t("library.releasePlaceholder")}
+              value={releaseFilter}
+              onChange={(e) => setReleaseFilter(e.target.value)}
+            />
+
+            <select
+              className="filter-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="imported_at">{t("library.sortImportDate")}</option>
+              <option value="title">{t("library.sortTitle")}</option>
+              <option value="duration">{t("library.sortDuration")}</option>
+            </select>
+          </div>
         </div>
 
         {/* Grid / List view toggle */}
@@ -817,10 +1019,10 @@ export default function LibraryPage() {
                         <div className="thumbnail-wrapper">
                           <input
                             type="checkbox"
+                            className="card-select-checkbox"
                             checked={isSelected}
                             onClick={(e) => e.stopPropagation()}
                             onChange={() => toggleSelected(video.id)}
-                            style={{ position: "absolute", top: "8px", left: "8px", zIndex: 2, width: "20px", height: "20px", cursor: "pointer" }}
                           />
                           {thumbSrc ? (
                             <img src={thumbSrc} alt={video.title} className="card-thumbnail" />
@@ -919,56 +1121,82 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Sliding Details Drawer */}
+      {/* Course Studio Modal (Zero-scroll 2-column layout) */}
       {selectedVideo && (
-        <>
-          <div className="detail-drawer-overlay" onClick={handleCloseDrawer} />
-          <div className="detail-drawer">
-            <div className="drawer-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--border-color)" }}>
-              <h3 style={{ fontSize: "1rem", fontWeight: 800, margin: 0, letterSpacing: "0.02em" }}>
-                {t("library.metadataSectionTitle")}
-              </h3>
-              <button className="close-btn" onClick={handleCloseDrawer} aria-label={t("common.close")}>
+        <div className="course-studio-overlay" onClick={handleCloseDrawer}>
+          <div className="course-studio-modal" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="course-studio-header">
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+                <div className="course-studio-icon-badge">
+                  <Icon name="movie_filter" size={22} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: 700, color: "var(--accent-primary)", letterSpacing: "0.08em" }}>
+                    Studio d&apos;édition du cours
+                  </div>
+                  <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {drawerTitle || selectedVideo.title}
+                  </h2>
+                </div>
+              </div>
+              <button className="close-btn olc-press" onClick={handleCloseDrawer} aria-label={t("common.close")}>
                 <Icon name="close" size={20} />
               </button>
             </div>
 
-            <div className="drawer-body">
-              {/* HTML5 video player streaming with range support */}
-              <div className="drawer-video-container">
-                <video
-                  key={selectedVideo.id}
-                  className="drawer-video"
-                  controls
-                  playsInline
-                  preload="metadata"
-                  src={videoStreamUrl(getApiUrl, selectedVideo.id)}
-                  poster={getThumbnailSrc(selectedVideo) || undefined}
-                />
-                <WebRenditionPanel key={selectedVideo.id} videoId={selectedVideo.id} />
-              </div>
+            {/* Body : 2 colonnes */}
+            <div className="course-studio-body">
+              {/* Colonne Gauche : Aperçu vidéo, miniature, specs techniques et actions média */}
+              <div className="course-studio-col-left">
+                <div className="drawer-video-container" style={{ borderRadius: "12px", overflow: "hidden" }}>
+                  <video
+                    key={selectedVideo.id}
+                    className="drawer-video"
+                    controls
+                    playsInline
+                    preload="metadata"
+                    crossOrigin="anonymous"
+                    src={videoStreamUrl(getApiUrl, selectedVideo.id)}
+                    poster={getThumbnailSrc(selectedVideo) || undefined}
+                  >
+                    {studioSubtitles.map((sub, i) => (
+                      <track
+                        key={sub.id}
+                        kind="subtitles"
+                        src={getApiUrl(sub.vtt_url)}
+                        srcLang={sub.language_code}
+                        label={sub.language_label}
+                        default={i === 0}
+                      />
+                    ))}
+                  </video>
+                  <WebRenditionPanel key={selectedVideo.id} videoId={selectedVideo.id} />
+                </div>
 
-              {/* Form edit metadata */}
-              <form className="drawer-form" onSubmit={handleSaveMetadata}>
-
-                <div className="form-group">
-                  <label className="form-label">{t("library.thumbnailFieldLabel")}</label>
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <div style={{ width: "96px", aspectRatio: "16/9", borderRadius: "var(--radius-sm)", overflow: "hidden", background: "var(--bg-surface-elevated)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {getThumbnailSrc(selectedVideo) ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={getThumbnailSrc(selectedVideo)!} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      ) : (
-                        <Icon name="movie" size={24} style={{ opacity: 0.25 }} />
-                      )}
-                    </div>
+                {/* Miniature & Changement */}
+                <div className="course-studio-thumb-row">
+                  <div className="course-studio-thumb-preview">
+                    {getThumbnailSrc(selectedVideo) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={getThumbnailSrc(selectedVideo)!} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <Icon name="movie" size={24} style={{ opacity: 0.3 }} />
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                      {t("library.thumbnailFieldLabel")}
+                    </span>
                     <button
                       type="button"
-                      className="btn btn-secondary"
+                      className="btn btn-secondary olc-press"
+                      style={{ height: "36px", fontSize: "0.82rem", alignSelf: "flex-start" }}
                       onClick={() => thumbnailInputRef.current?.click()}
                       disabled={isUploadingThumbnail}
                     >
-                      {isUploadingThumbnail ? t("common.saving") : t("library.changeThumbnail")}
+                      <Icon name="image" size={16} />
+                      <span>{isUploadingThumbnail ? t("common.saving") : t("library.changeThumbnail")}</span>
                     </button>
                     <input
                       ref={thumbnailInputRef}
@@ -984,135 +1212,209 @@ export default function LibraryPage() {
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">{t("library.courseTitleFieldLabel")}</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={drawerTitle}
-                    onChange={(e) => setDrawerTitle(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div style={{ display: "flex", gap: "12px" }}>
-                  <div className="form-group" style={{ flex: 1 }}>
-                    <label className="form-label">{t("library.programLabel")}</label>
-                    <input
-                      type="text"
-                      list="library-programs"
-                      className="form-control"
-                      value={drawerProgram}
-                      onChange={(e) => setDrawerProgram(e.target.value)}
-                      placeholder={t("library.programPlaceholder")}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ flex: 1 }}>
-                    <label className="form-label">{t("library.releaseLabel")}</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={drawerRelease}
-                      onChange={(e) => setDrawerRelease(e.target.value)}
-                      placeholder={t("library.releasePlaceholderExample")}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">{t("library.descriptionFieldLabel")}</label>
-                  <textarea
-                    className="form-control"
-                    rows={3}
-                    value={drawerDescription}
-                    onChange={(e) => setDrawerDescription(e.target.value)}
-                    placeholder={t("library.descriptionPlaceholder")}
-                    style={{ resize: "vertical", minHeight: "76px", lineHeight: "1.5" }}
-                  />
-                </div>
-
-                {/* Readonly info */}
-                <div style={{ background: "var(--bg-surface-hover)", padding: "12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "8px", fontSize: "0.85rem", marginTop: "8px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "var(--text-muted)" }}>{t("library.resolutionLabel")}</span>
-                    <span style={{ color: "var(--text-main)", fontWeight: 600 }}>
+                {/* Specs Bento */}
+                <div className="course-studio-specs-grid">
+                  <div className="course-studio-spec-item">
+                    <span className="spec-label">{t("library.resolutionLabel")}</span>
+                    <span className="spec-val">
                       {selectedVideo.width && selectedVideo.height ? `${selectedVideo.width}x${selectedVideo.height}` : t("library.unknownValue")}
                       {getResolutionBadge(selectedVideo.width, selectedVideo.height) ? ` (${getResolutionBadge(selectedVideo.width, selectedVideo.height)})` : ""}
                     </span>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "var(--text-muted)" }}>{t("library.audioQualityLabel")}</span>
-                    <span style={{ color: "var(--text-main)", fontWeight: 600 }}>
+                  <div className="course-studio-spec-item">
+                    <span className="spec-label">{t("library.audioQualityLabel")}</span>
+                    <span className="spec-val">
                       {getAudioQualityBadge(selectedVideo.audio_channels, selectedVideo.audio_codec)}
                     </span>
                   </div>
-                  {selectedVideo.fps ? (
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ color: "var(--text-muted)" }}>{t("library.framerateLabel")}</span>
-                      <span style={{ color: "var(--text-main)", fontWeight: 600 }}>{formatFps(selectedVideo.fps)}</span>
-                    </div>
-                  ) : null}
-                  {selectedVideo.bitrate_kbps ? (
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ color: "var(--text-muted)" }}>{t("library.bitrateLabel")}</span>
-                      <span style={{ color: "var(--text-main)", fontWeight: 600 }}>{formatBitrate(selectedVideo.bitrate_kbps)}</span>
-                    </div>
-                  ) : null}
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "var(--text-muted)" }}>{t("library.videoCodecLabel")}</span>
-                    <span style={{ color: "var(--text-main)", fontWeight: 600 }}>{selectedVideo.codec || t("library.unknownCodec")}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "var(--text-muted)" }}>{t("library.importSourceLabel")}</span>
-                    <span style={{ color: "var(--text-main)", fontWeight: 600, textTransform: "capitalize" }}>
-                      {selectedVideo.source === "upload" ? t("library.uploadSource") : t("library.watchedFolderSource")}
+                  <div className="course-studio-spec-item">
+                    <span className="spec-label">{t("library.framerateLabel")} / Codec</span>
+                    <span className="spec-val">
+                      {selectedVideo.fps ? formatFps(selectedVideo.fps) : "--"} • {selectedVideo.codec || "H264"}
                     </span>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ color: "var(--text-muted)" }}>{t("library.diskPathLabel")}</span>
-                    <span
-                      style={{ color: "var(--text-muted)", fontSize: "0.75rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "240px" }}
-                      title={selectedVideo.file_path}
-                    >
+                  <div className="course-studio-spec-item">
+                    <span className="spec-label">{t("library.bitrateLabel")}</span>
+                    <span className="spec-val">
+                      {selectedVideo.bitrate_kbps ? formatBitrate(selectedVideo.bitrate_kbps) : "--"}
+                    </span>
+                  </div>
+                  <div className="course-studio-spec-item" style={{ gridColumn: "span 2" }}>
+                    <span className="spec-label">Emplacement sur disque</span>
+                    <span className="spec-val" style={{ fontSize: "0.74rem", opacity: 0.8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={selectedVideo.file_path}>
                       {selectedVideo.file_path}
                     </span>
                   </div>
                 </div>
 
-                <div className="drawer-actions">
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    style={{ flex: 1, height: "48px" }}
-                    disabled={isSavingDrawer}
-                  >
-                    {isSavingDrawer ? t("common.saving") : t("common.save")}
-                  </button>
-
+                {/* Actions Média (Normalisation + Suppression) */}
+                <div style={{ display: "flex", gap: "10px", marginTop: "auto" }}>
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="btn btn-secondary olc-press"
                     onClick={handleNormalize}
-                    style={{ height: "48px" }}
+                    style={{ flex: 1, height: "40px", fontSize: "0.82rem" }}
                     title={t("library.normalizeTitle")}
                   >
-                    {t("library.normalize")}
+                    <Icon name="tune" size={16} />
+                    <span>{t("library.normalize")}</span>
                   </button>
-
                   <button
                     type="button"
-                    className="btn btn-danger"
+                    className="btn btn-danger olc-press"
                     onClick={() => triggerDelete(selectedVideo)}
-                    style={{ height: "48px" }}
+                    style={{ height: "40px", fontSize: "0.82rem", padding: "0 14px" }}
                   >
-                    {t("common.delete")}
+                    <Icon name="delete" size={16} />
+                    <span>{t("common.delete")}</span>
                   </button>
                 </div>
-              </form>
+              </div>
+
+              {/* Colonne Droite : Formulaire métadonnées & Sous-titres */}
+              <div className="course-studio-col-right">
+                <form onSubmit={handleSaveMetadata} style={{ display: "flex", flexDirection: "column", gap: "14px", height: "100%" }}>
+                  <div className="form-group">
+                    <label className="form-label">{t("library.courseTitleFieldLabel")}</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={drawerTitle}
+                      onChange={(e) => setDrawerTitle(e.target.value)}
+                      required
+                      placeholder="Ex: RPM 111 Masterclass"
+                      style={{ fontSize: "0.95rem", fontWeight: 600, padding: "10px 14px" }}
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", gap: "12px" }}>
+                    <div className="form-group" style={{ flex: 1, minWidth: 0 }}>
+                      <label className="form-label">{t("library.programLabel")}</label>
+                      <input
+                        type="text"
+                        list="library-programs"
+                        className="form-control"
+                        value={drawerProgram}
+                        onChange={(e) => setDrawerProgram(e.target.value)}
+                        placeholder={t("library.programPlaceholder")}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ width: "130px", minWidth: 0 }}>
+                      <label className="form-label">{t("library.releaseLabel")}</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={drawerRelease}
+                        onChange={(e) => setDrawerRelease(e.target.value)}
+                        placeholder={t("library.releasePlaceholderExample")}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ flex: "1 1 auto", minHeight: "120px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <label className="form-label">{t("library.descriptionFieldLabel")}</label>
+                      <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                        Style Netflix • Multi-lignes supporté
+                      </span>
+                    </div>
+                    <textarea
+                      className="form-control"
+                      value={drawerDescription}
+                      onChange={(e) => setDrawerDescription(e.target.value)}
+                      placeholder={t("library.descriptionPlaceholder")}
+                      style={{ resize: "vertical", minHeight: "110px", maxHeight: "200px", lineHeight: "1.5", fontSize: "0.88rem" }}
+                    />
+                  </div>
+
+                  {/* Section Sous-titres Studio */}
+                  <div className="course-studio-subtitles-section">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <Icon name="subtitles" size={18} style={{ color: "var(--accent-primary)" }} />
+                        <span style={{ fontSize: "0.82rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                          Sous-titres synchronisés
+                        </span>
+                        <span className="badge-pill" style={{ background: "rgba(255,255,255,0.08)", fontSize: "0.72rem", padding: "2px 6px" }}>
+                          {studioSubtitles.length} piste{studioSubtitles.length > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <input
+                          ref={subtitleInputRef}
+                          type="file"
+                          accept=".srt,.vtt,text/vtt,application/x-subrip"
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleUploadSubtitle(file);
+                            e.target.value = "";
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-secondary olc-press"
+                          style={{ height: "30px", padding: "0 10px", fontSize: "0.78rem" }}
+                          onClick={() => subtitleInputRef.current?.click()}
+                        >
+                          <Icon name="add" size={14} />
+                          <span>Ajouter (.srt, .vtt)</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {studioSubtitles.length === 0 ? (
+                      <div style={{ padding: "12px", textAlign: "center", background: "rgba(0,0,0,0.15)", borderRadius: "8px", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                        Aucun sous-titre pour ce cours. Glissez ou ajoutez un fichier .srt (ex: cours.fr.srt).
+                      </div>
+                    ) : (
+                      <div className="course-studio-subtitles-list">
+                        {studioSubtitles.map((sub) => (
+                          <div key={sub.id} className="course-studio-subtitle-tag">
+                            <span style={{ fontWeight: 800, textTransform: "uppercase", fontSize: "0.72rem", background: "var(--accent-primary)", color: "#fff", padding: "1px 5px", borderRadius: "4px" }}>
+                              {sub.language_code}
+                            </span>
+                            <span>{sub.language_label}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSubtitle(sub.id)}
+                              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "0 2px", display: "flex", alignItems: "center" }}
+                              title="Supprimer ce sous-titre"
+                            >
+                              <Icon name="close" size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Boutons validation / enregistrement */}
+                  <div style={{ display: "flex", gap: "10px", marginTop: "auto", paddingTop: "8px" }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary olc-press"
+                      onClick={handleCloseDrawer}
+                      style={{ height: "44px", padding: "0 18px", fontSize: "0.88rem" }}
+                    >
+                      {t("common.close")}
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary olc-press"
+                      style={{ flex: 1, height: "44px", fontSize: "0.88rem" }}
+                      disabled={isSavingDrawer}
+                    >
+                      <Icon name="save" size={18} />
+                      <span>{isSavingDrawer ? t("common.saving") : t("common.save")}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* Confirmation Delete Modal */}

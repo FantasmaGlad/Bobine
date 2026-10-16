@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
@@ -311,6 +311,7 @@ export default function SchedulePage() {
   const [dragOverMinutes, setDragOverMinutes] = useState<number | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(true);
   const [librarySearch, setLibrarySearch] = useState("");
+  const timelineScrollRef = useRef<HTMLDivElement | null>(null);
 
   const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
 
@@ -319,6 +320,15 @@ export default function SchedulePage() {
     const timer = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (viewMode === "week" || viewMode === "day") {
+      const targetScroll = Math.max(0, 450 * pxPerMinute - 20);
+      if (timelineScrollRef.current) {
+        timelineScrollRef.current.scrollTop = targetScroll;
+      }
+    }
+  }, [viewMode, channel, pxPerMinute]);
 
   const weekEndExclusive = useMemo(() => addDays(weekStart, 7), [weekStart]);
 
@@ -883,8 +893,25 @@ export default function SchedulePage() {
 
   const HOUR_HEIGHT = 60 * pxPerMinute;
 
+  const renderTimeAxis = () => (
+    <div className="schedule-timeline-time-axis">
+      <div className="schedule-axis-header">
+        <Icon name="schedule" size={16} />
+      </div>
+      <div className="schedule-timeline-axis-track" style={{ height: MINUTES_PER_DAY * pxPerMinute }}>
+        {Array.from({ length: 24 }, (_, hour) => (
+          <div key={hour} className="schedule-timeline-axis-hour" style={{ height: HOUR_HEIGHT }}>
+            <span>{`${hour.toString().padStart(2, "0")}:00`}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   const renderTimelineColumn = (day: Date, dayIndex: number, dayOccurrences: Occurrence[]) => {
     const isToday = isSameLocalDay(day, todayRef);
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const bands = dayOccurrences.filter((o) => getOccurrenceWindow(o).isBackgroundBand);
     const timedOccurrences = dayOccurrences.filter((o) => !getOccurrenceWindow(o).isBackgroundBand);
     const cutsPreviousKeys = computeCutsPrevious(timedOccurrences);
@@ -922,6 +949,15 @@ export default function SchedulePage() {
               <span className="schedule-timeline-hour-label">{`${hour.toString().padStart(2, "0")}:00`}</span>
             </div>
           ))}
+          {isToday && (
+            <div
+              className="schedule-timeline-now-line"
+              style={{ top: currentMinutes * pxPerMinute }}
+              title={t("schedule.today")}
+            >
+              <span className="schedule-timeline-now-dot" />
+            </div>
+          )}
           {timedOccurrences.map((o) => {
             const win = getOccurrenceWindow(o);
             return renderTimelineBlock(
@@ -972,7 +1008,7 @@ export default function SchedulePage() {
         </div>
       )}
 
-      <div className="schedule-toolbar">
+      <div className="schedule-toolbar sticky-glass-toolbar">
         {/* Onglets de canal : tout ce qui suit — calendrier,
             liste, créations — ne concerne que le canal sélectionné. */}
         <div className="view-toggle">
@@ -1006,39 +1042,39 @@ export default function SchedulePage() {
         </div>
         {viewMode === "day" ? (
           <div className="week-nav">
-            <button className="btn btn-secondary" onClick={goToPreviousDay} title={t("schedule.previousDayTitle")}>
+            <button className="btn btn-secondary btn-sm" onClick={goToPreviousDay} title={t("schedule.previousDayTitle")}>
               <Icon name="chevron_left" size={16} />
+              <span className="week-nav-btn-text">{t("schedule.previousWeekShort")}</span>
             </button>
-            <button className="btn btn-secondary" onClick={goToTodayDay}>
+            <button className="btn btn-secondary btn-sm" onClick={goToTodayDay}>
               {t("schedule.today")}
             </button>
-            <button className="btn btn-secondary" onClick={goToNextDay} title={t("schedule.nextDayTitle")}>
+            <button className="btn btn-secondary btn-sm" onClick={goToNextDay} title={t("schedule.nextDayTitle")}>
+              <span className="week-nav-btn-text">{t("schedule.nextWeekShort")}</span>
               <Icon name="chevron_right" size={16} />
             </button>
             <span className="week-nav-label">
               {DAY_LABELS_FULL[(dayViewDate.getDay() + 6) % 7]} {dayViewDate.toLocaleDateString(language === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "short" })}
             </span>
           </div>
-        ) : viewMode === "week" ? (
+        ) : (
           <div className="week-nav">
-            <button className="btn btn-secondary" onClick={goToPreviousWeek} title={t("schedule.previousWeekTitle")}>
+            <button className="btn btn-secondary btn-sm" onClick={goToPreviousWeek} title={t("schedule.previousWeekTitle")}>
               <Icon name="chevron_left" size={16} />
               <span className="week-nav-btn-text">{t("schedule.previousWeekShort")}</span>
             </button>
-            <button className="btn btn-secondary" onClick={goToToday}>
+            <button className="btn btn-secondary btn-sm" onClick={goToToday}>
               {t("schedule.today")}
             </button>
-            <button className="btn btn-secondary" onClick={goToNextWeek} title={t("schedule.nextWeekTitle")}>
+            <button className="btn btn-secondary btn-sm" onClick={goToNextWeek} title={t("schedule.nextWeekTitle")}>
               <span className="week-nav-btn-text">{t("schedule.nextWeekShort")}</span>
               <Icon name="chevron_right" size={16} />
             </button>
             <span className="week-nav-label">{formatWeekLabel(weekStart, language)}</span>
           </div>
-        ) : (
-          <div className="week-nav" />
         )}
 
-        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexShrink: 0 }}>
           {viewMode !== "list" && (
             <div className="view-toggle" title={t("schedule.zoomTitle")}>
               <button
@@ -1047,6 +1083,7 @@ export default function SchedulePage() {
                 onClick={() => setZoomIndex((z) => Math.max(0, z - 1))}
                 disabled={zoomIndex === 0}
                 title={t("schedule.zoomOutTitle")}
+                style={{ padding: "4px 8px" }}
               >
                 <Icon name="zoom_out" size={16} />
               </button>
@@ -1056,6 +1093,7 @@ export default function SchedulePage() {
                 onClick={() => setZoomIndex((z) => Math.min(ZOOM_LEVELS.length - 1, z + 1))}
                 disabled={zoomIndex === ZOOM_LEVELS.length - 1}
                 title={t("schedule.zoomInTitle")}
+                style={{ padding: "4px 8px" }}
               >
                 <Icon name="zoom_in" size={16} />
               </button>
@@ -1066,32 +1104,49 @@ export default function SchedulePage() {
               className={`view-btn olc-press ${viewMode === "day" ? "active" : ""}`}
               onClick={switchToDayView}
               title={t("schedule.dayView")}
+              style={{ padding: "4px 10px" }}
             >
-              <Icon name="view_day" size={18} />
+              <Icon name="view_day" size={17} />
             </button>
-            {/* Vue Semaine masquée sur mobile :
-                7 colonnes proportionnelles à la minute illisibles à cette
-                largeur — Jour + Liste couvrent le besoin sans ce compromis. */}
             {!isMobile && (
               <button
                 className={`view-btn olc-press ${viewMode === "week" ? "active" : ""}`}
                 onClick={() => setViewMode("week")}
                 title={t("schedule.weekView")}
+                style={{ padding: "4px 10px" }}
               >
-                <Icon name="calendar_view_week" size={18} />
+                <Icon name="calendar_view_week" size={17} />
               </button>
             )}
             <button
               className={`view-btn olc-press ${viewMode === "list" ? "active" : ""}`}
               onClick={() => setViewMode("list")}
               title={t("schedule.listView")}
+              style={{ padding: "4px 10px" }}
             >
-              <Icon name="view_list" size={18} />
+              <Icon name="view_list" size={17} />
             </button>
           </div>
-          <button className="btn btn-primary" onClick={() => openCreateDrawer()}>
+          {channel !== "radio" && (
+            <button
+              type="button"
+              className={`view-btn olc-press ${libraryOpen ? "active" : ""}`}
+              onClick={() => setLibraryOpen((open) => !open)}
+              title={t("schedule.quickLibrary")}
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px", height: "34px", padding: "0 10px", borderRadius: "var(--radius-sm)", flexShrink: 0 }}
+            >
+              <Icon name="video_library" size={16} />
+              <span className="hidden-sm">{t("nav.library")}</span>
+            </button>
+          )}
+          <button
+            className="btn btn-primary"
+            onClick={() => openCreateDrawer()}
+            style={{ height: "34px", padding: "0 12px", fontSize: "0.85rem", whiteSpace: "nowrap", flexShrink: 0 }}
+          >
             <Icon name="add" size={18} />
-            {t("schedule.newSchedule")}
+            <span className="schedule-btn-text-full">{t("schedule.newSchedule")}</span>
+            <span className="schedule-btn-text-short">{t("schedule.newScheduleShort")}</span>
           </button>
         </div>
       </div>
@@ -1103,21 +1158,25 @@ export default function SchedulePage() {
               {t("schedule.loadingSchedule")}
             </div>
           ) : viewMode === "week" ? (
-            <div className="schedule-timeline-scroll">
+            <div className="schedule-timeline-scroll" ref={timelineScrollRef}>
               <div className="schedule-timeline-week-grid">
-                {weekDays.map((day, index) => (
-                  <div key={index} className="schedule-timeline-week-col">
-                    <div className="schedule-day-header">
-                      <span className="schedule-day-header-name">{DAY_LABELS_FULL[index]}</span>
-                      <span className="schedule-day-header-date">{day.getDate()}</span>
+                {renderTimeAxis()}
+                {weekDays.map((day, index) => {
+                  const isDayToday = isSameLocalDay(day, todayRef);
+                  return (
+                    <div key={index} className={`schedule-timeline-week-col ${isDayToday ? "today" : ""}`}>
+                      <div className="schedule-day-header">
+                        <span className="schedule-day-header-name">{DAY_LABELS_FULL[index]}</span>
+                        <span className="schedule-day-header-date">{day.getDate()}</span>
+                      </div>
+                      {renderTimelineColumn(day, index, occurrencesByDay[index])}
                     </div>
-                    {renderTimelineColumn(day, index, occurrencesByDay[index])}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : viewMode === "day" ? (
-            <div className="schedule-timeline-scroll">
+            <div className="schedule-timeline-scroll" ref={timelineScrollRef}>
               <div className="schedule-timeline-day-single">
                 {renderTimelineColumn(
                   dayViewDate,
@@ -1157,7 +1216,7 @@ export default function SchedulePage() {
             radio : un seul type de cible (playlist radio), pas
             de bibliothèque vidéo/playlist à glisser-déposer ici. */}
         {libraryOpen && channel !== "radio" && (
-          <div className="library-picker" style={{ width: isMobile ? "100%" : "260px", height: "auto", flexShrink: 0 }}>
+          <div className="library-picker glass-floating" style={{ width: isMobile ? "100%" : "260px", height: "auto", flexShrink: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span className="form-label" style={{ margin: 0 }}>
                 {t("schedule.quickLibrary")}
@@ -1289,15 +1348,6 @@ export default function SchedulePage() {
               )}
             </div>
           </div>
-        )}
-        {!libraryOpen && channel !== "radio" && (
-          <button
-            className="btn btn-secondary"
-            style={isMobile ? { width: "100%" } : { writingMode: "vertical-rl", height: "100%" }}
-            onClick={() => setLibraryOpen(true)}
-          >
-            {t("schedule.libraryCollapsed")}
-          </button>
         )}
       </div>
 

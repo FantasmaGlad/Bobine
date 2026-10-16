@@ -97,6 +97,21 @@ class Video(Base):
     playlist_items: Mapped[list["PlaylistItem"]] = relationship(back_populates="video")
     ratings: Mapped[list["CourseRating"]] = relationship(back_populates="video", cascade="all, delete-orphan")
     playback_sessions: Mapped[list["PlaybackSession"]] = relationship(back_populates="video", cascade="all, delete-orphan")
+    subtitles: Mapped[list["VideoSubtitle"]] = relationship(back_populates="video", cascade="all, delete-orphan")
+
+
+class VideoSubtitle(Base):
+    __tablename__ = "video_subtitles"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"), index=True)
+    language_code: Mapped[str] = mapped_column(Text, default="fr")
+    language_label: Mapped[str] = mapped_column(Text, default="Français")
+    file_path: Mapped[str] = mapped_column(Text)
+    format: Mapped[str] = mapped_column(Text, default="vtt")
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+
+    video: Mapped["Video"] = relationship(back_populates="subtitles")
 
 
 class Background(Base):
