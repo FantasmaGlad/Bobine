@@ -47,6 +47,12 @@ interface DashboardMetrics {
   top_courses: CourseStat[];
 }
 
+function getThumbnailSrc(thumbnailPath: string | null): string | null {
+  if (!thumbnailPath) return null;
+  const filename = thumbnailPath.split("/").pop();
+  return filename ? `/api/thumbnails/${filename}` : null;
+}
+
 export default function MetricsCoursesPage() {
   const { t } = useAppSettings();
   const [period, setPeriod] = useState<"7d" | "30d" | "this_month" | "all">("7d");
@@ -323,6 +329,7 @@ export default function MetricsCoursesPage() {
                 {courses.map((course, idx) => {
                   const rank = idx + 1;
                   const rankClass = rank === 1 ? "rank-1" : rank === 2 ? "rank-2" : rank === 3 ? "rank-3" : "";
+                  const thumbSrc = getThumbnailSrc(course.thumbnail_path);
                   return (
                     <tr key={course.video_id}>
                       <td className="metrics-rank-cell">
@@ -330,6 +337,21 @@ export default function MetricsCoursesPage() {
                       </td>
                       <td>
                         <div className="metrics-course-cell">
+                          {/* Miniature + style/catégorie (déjà affiché via
+                              metrics-course-program) pour identifier un
+                              cours au coup d'œil dans le palmarès, même
+                              pattern que la Bibliothèque/le Planning
+                              (card-thumbnail 16:9 + repli icône). */}
+                          <div className="metrics-course-thumb">
+                            {thumbSrc ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={thumbSrc} alt="" className="card-thumbnail" />
+                            ) : (
+                              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <Icon name="movie" size={16} style={{ opacity: 0.25 }} />
+                              </div>
+                            )}
+                          </div>
                           <div className="metrics-course-info">
                             <span className="metrics-course-title">{course.title}</span>
                             <span className="metrics-course-program">{course.program || "Autre"}</span>
