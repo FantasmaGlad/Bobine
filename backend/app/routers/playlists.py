@@ -67,6 +67,10 @@ class PlaylistSummaryResponse(BaseModel):
     created_at: datetime
     item_count: int
     total_duration_seconds: float
+    # `Playlist` n'a pas de champ cover propre — miniature dérivée du 1er
+    # élément ayant une miniature, même convention que
+    # `scheduler_manager.resolve_target_display` (planning visuel).
+    thumbnail_path: str | None = None
 
     class Config:
         from_attributes = True
@@ -76,18 +80,24 @@ class PlaylistSummaryResponse(BaseModel):
 @router.get("", response_model=List[PlaylistSummaryResponse])
 def list_playlists(db: Session = Depends(get_db)):
     """
-    Liste toutes les playlists avec le nombre d'éléments et la durée totale.
+    Liste toutes les playlists avec le nombre d'éléments, la durée totale et
+    une miniature de repli (1er élément en ayant une).
     """
     playlists = db.query(Playlist).order_by(Playlist.name.asc()).all()
     response = []
     for p in playlists:
-        total_duration = sum((item.video.duration_seconds or 0.0) for item in p.items)
+        items = sorted(p.items, key=lambda it: it.position)
+        total_duration = sum((item.video.duration_seconds or 0.0) for item in items)
+        first_thumbnail = next(
+            (it.video.thumbnail_path for it in items if it.video and it.video.thumbnail_path), None
+        )
         response.append({
             "id": p.id,
             "name": p.name,
             "created_at": p.created_at,
-            "item_count": len(p.items),
+            "item_count": len(items),
             "total_duration_seconds": total_duration,
+            "thumbnail_path": first_thumbnail,
         })
     return response
 

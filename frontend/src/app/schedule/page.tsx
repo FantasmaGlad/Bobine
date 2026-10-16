@@ -17,6 +17,7 @@ interface VideoSummary {
   program: string | null;
   release: string | null;
   duration_seconds: number | null;
+  thumbnail_path: string | null;
 }
 
 interface PlaylistSummary {
@@ -24,6 +25,7 @@ interface PlaylistSummary {
   name: string;
   item_count: number;
   total_duration_seconds: number;
+  thumbnail_path: string | null;
 }
 
 interface RadioPlaylistSummary {
@@ -134,6 +136,12 @@ function formatDuration(seconds: number | null) {
   return `${mins} min`;
 }
 
+function minutesToHHMM(minutes: number): string {
+  const h = Math.floor(minutes / 60) % 24;
+  const m = Math.round(minutes % 60);
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+}
+
 // Timeline
 // proportionnelle à la durée réelle (vidéo/playlist) ou à la fenêtre
 // choisie (radio) — mêmes hypothèses que le backend (fenêtres radio jamais
@@ -174,13 +182,17 @@ function getOccurrenceWindow(o: Occurrence): OccurrenceWindow {
   return { startMin, durationMin, isBackgroundBand: false };
 }
 
+function getThumbnailSrc(thumbnailPath: string | null): string | null {
+  if (!thumbnailPath) return null;
+  const filename = thumbnailPath.split("/").pop();
+  return filename ? getApiUrl(`/thumbnails/${filename}`) : null;
+}
+
 function getOccurrenceThumbSrc(o: Occurrence): string | null {
   if (o.target_type === "radio_playlist") {
     return o.cover_track_id != null ? getApiUrl(`/radio/tracks/${o.cover_track_id}/cover`) : null;
   }
-  if (!o.thumbnail_path) return null;
-  const filename = o.thumbnail_path.split("/").pop();
-  return filename ? getApiUrl(`/thumbnails/${filename}`) : null;
+  return getThumbnailSrc(o.thumbnail_path);
 }
 
 /**
@@ -289,9 +301,14 @@ export default function SchedulePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [scheduleToDeleteId, setScheduleToDeleteId] = useState<number | null>(null);
 
-  // Glisser-déposer depuis la bibliothèque rapide
-  const [dragPayload, setDragPayload] = useState<{ type: TargetType; id: number } | null>(null);
+  // Glisser-déposer depuis la bibliothèque rapide — `durationMinutes` et
+  // `label` capturés au `dragstart` (pas re-dérivés à chaque `dragover`)
+  // alimentent le bloc fantôme proportionnel affiché pendant le survol.
+  const [dragPayload, setDragPayload] = useState<{ type: TargetType; id: number; durationMinutes: number; label: string } | null>(null);
   const [dragOverDay, setDragOverDay] = useState<number | null>(null);
+  // Minute du jour (0-1439) survolée pendant le drag, arrondie au 1/4 d'heure
+  // — null tant qu'aucun survol de zone de dépôt n'est en cours.
+  const [dragOverMinutes, setDragOverMinutes] = useState<number | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(true);
   const [librarySearch, setLibrarySearch] = useState("");
 
@@ -436,12 +453,23 @@ export default function SchedulePage() {
     setEditingOverrideCount(0);
   };
 
-  const openCreateDrawer = (presetDate?: Date, preset?: { type: TargetType; id: number }) => {
+  const openCreateDrawer = (
+    presetDate?: Date,
+    preset?: { type: TargetType; id: number },
+    exactTime = false
+  ) => {
     resetForm();
     setEditingId(null);
     if (presetDate) {
       const withTime = new Date(presetDate);
-      withTime.setHours(withTime.getHours() + 1, 0, 0, 0);
+      // Clic simple sur la timeline (pas d'heure précise à respecter) :
+      // arrondi à l'heure suivante, comportement historique. Dépôt
+      // glisser-déposer (`exactTime`) : l'heure/minute exacte du point de
+      // dépôt est déjà calculée par l'appelant (cf. handleDropOnDay) et ne
+      // doit pas être écrasée ici.
+      if (!exactTime) {
+        withTime.setHours(withTime.getHours() + 1, 0, 0, 0);
+      }
       setFormDateTime(toDatetimeLocalValue(withTime));
     }
     if (preset) {
@@ -642,9 +670,21 @@ export default function SchedulePage() {
   // Glisser-déposer bibliothèque -> jour
   // --------------------------------------------------------------------
   const handleDropOnDay = (dayIndex: number) => {
+    const minutes = dragOverMinutes;
     setDragOverDay(null);
+    setDragOverMinutes(null);
     if (!dragPayload) return;
-    openCreateDrawer(weekDays[dayIndex], dragPayload);
+    const dropDate = new Date(weekDays[dayIndex]);
+    if (minutes != null) {
+      // Heure/minute EXACTES du point de dépôt (calculées pendant le
+      // survol, cf. onDragOver ci-dessous) plutôt que de laisser
+      // l'utilisateur ressaisir manuellement l'heure dans le formulaire —
+      // corrige le constat "le drag and drop n'est pas intuitif" :
+      // déposer à 18h32 pré-remplit bien 18h32, pas une heure arrondie
+      // sans rapport avec l'endroit réellement visé.
+      dropDate.setHours(0, minutes, 0, 0);
+    }
+    openCreateDrawer(dropDate, dragPayload, minutes != null);
     setDragPayload(null);
   };
 
@@ -849,21 +889,32 @@ export default function SchedulePage() {
     const timedOccurrences = dayOccurrences.filter((o) => !getOccurrenceWindow(o).isBackgroundBand);
     const cutsPreviousKeys = computeCutsPrevious(timedOccurrences);
 
+    const isDragOverThisDay = dragOverDay === dayIndex && dragOverMinutes != null && dragPayload;
+
     return (
-      <div
-        key={dayIndex}
-        className={`schedule-timeline-column ${isToday ? "today" : ""}`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOverDay(dayIndex);
-        }}
-        onDragLeave={() => setDragOverDay(null)}
-        onDrop={() => handleDropOnDay(dayIndex)}
-      >
+      <div key={dayIndex} className={`schedule-timeline-column ${isToday ? "today" : ""}`}>
         <div
           className={`schedule-timeline-track ${dragOverDay === dayIndex ? "drag-over" : ""}`}
           style={{ height: MINUTES_PER_DAY * pxPerMinute }}
           onClick={() => openCreateDrawer(day)}
+          onDragOver={(e) => {
+            e.preventDefault();
+            const rect = e.currentTarget.getBoundingClientRect();
+            const rawMinutes = (e.clientY - rect.top) / pxPerMinute;
+            // Calé au 1/4 d'heure : un dépôt au pixel près serait
+            // illisible une fois reporté dans le formulaire (ex. "18:31"),
+            // et rien n'oblige une précision à la minute pour programmer un
+            // cours.
+            const snapped = Math.round(rawMinutes / 15) * 15;
+            const clamped = Math.min(Math.max(snapped, 0), MINUTES_PER_DAY - 15);
+            setDragOverDay(dayIndex);
+            setDragOverMinutes(clamped);
+          }}
+          onDragLeave={() => {
+            setDragOverDay(null);
+            setDragOverMinutes(null);
+          }}
+          onDrop={() => handleDropOnDay(dayIndex)}
         >
           {bands.map(renderBackgroundBand)}
           {Array.from({ length: 24 }, (_, hour) => (
@@ -886,6 +937,28 @@ export default function SchedulePage() {
               cutsPreviousKeys.has(occurrenceKey(o))
             );
           })}
+          {/* Bloc fantôme pendant le survol en drag : prévisualise la durée
+              réelle du média glissé (proportionnelle, même échelle
+              pxPerMinute que les blocs réels) et l'heure de dépôt calculée —
+              remplace le simple contour pointillé générique sur toute la
+              colonne, qui ne donnait aucun aperçu du contenu ni de l'heure
+              visée. */}
+          {isDragOverThisDay && (
+            <div
+              className="schedule-timeline-ghost"
+              style={{
+                position: "absolute",
+                top: dragOverMinutes! * pxPerMinute,
+                height: Math.max(dragPayload!.durationMinutes, MIN_BLOCK_MINUTES) * pxPerMinute,
+                left: 4,
+                right: 4,
+                zIndex: 2,
+              }}
+            >
+              <span className="schedule-timeline-ghost-time">{minutesToHHMM(dragOverMinutes!)}</span>
+              <span className="schedule-timeline-ghost-label">{dragPayload!.label}</span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -950,13 +1023,13 @@ export default function SchedulePage() {
           <div className="week-nav">
             <button className="btn btn-secondary" onClick={goToPreviousWeek} title={t("schedule.previousWeekTitle")}>
               <Icon name="chevron_left" size={16} />
-              {t("schedule.previousWeekShort")}
+              <span className="week-nav-btn-text">{t("schedule.previousWeekShort")}</span>
             </button>
             <button className="btn btn-secondary" onClick={goToToday}>
               {t("schedule.today")}
             </button>
             <button className="btn btn-secondary" onClick={goToNextWeek} title={t("schedule.nextWeekTitle")}>
-              {t("schedule.nextWeekShort")}
+              <span className="week-nav-btn-text">{t("schedule.nextWeekShort")}</span>
               <Icon name="chevron_right" size={16} />
             </button>
             <span className="week-nav-label">{formatWeekLabel(weekStart, language)}</span>
@@ -1105,35 +1178,112 @@ export default function SchedulePage() {
               {t("schedule.dragHint")}
             </p>
             <div className="library-picker-list">
-              {filteredVideos.map((v) => (
-                <div
-                  key={`v-${v.id}`}
-                  className="library-picker-item"
-                  draggable
-                  onDragStart={() => setDragPayload({ type: "video", id: v.id })}
-                >
-                  <span style={{ fontWeight: 700, fontSize: "0.8rem", color: "var(--text-main)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {v.title}
-                  </span>
-                  <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{formatDuration(v.duration_seconds)}</span>
-                </div>
-              ))}
-              {filteredPlaylists.map((p) => (
-                <div
-                  key={`p-${p.id}`}
-                  className="library-picker-item"
-                  draggable
-                  onDragStart={() => setDragPayload({ type: "playlist", id: p.id })}
-                >
-                  <span style={{ fontWeight: 700, fontSize: "0.8rem", color: "var(--text-main)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}>
-                    <Icon name="playlist_play" size={14} />
-                    {p.name}
-                  </span>
-                  <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{t("schedule.coursesCount", { count: p.item_count })}</span>
-                </div>
-              ))}
+              {/* Carte visuelle (miniature + titre + type/durée) plutôt
+                  qu'une ligne de texte brut sans affordance ni preview —
+                  répond au constat "il manque un style d'encadré avec
+                  prévu de la miniature, type du cours etc". Même patron
+                  `.picker-card` que la Bibliothèque/les playlists
+                  (VideoPlaylistManager), pour une cohérence visuelle avec
+                  le reste de l'app. `dataTransfer.setData` posé pour une
+                  conformité multi-navigateur (Firefox en particulier,
+                  cible de support officiel — cf. AGENTS.md §1.5) : sans
+                  lui, le drag natif peut ne pas s'amorcer sur certains
+                  navigateurs. Aucun `setDragImage` manuel : le navigateur
+                  utilise par défaut un instantané de cette carte, déjà une
+                  vraie preview visuelle (miniature incluse) sans code
+                  supplémentaire. */}
+              {filteredVideos.map((v) => {
+                const thumbSrc = getThumbnailSrc(v.thumbnail_path);
+                const durationMinutes = v.duration_seconds ? Math.max(v.duration_seconds / 60, MIN_BLOCK_MINUTES) : MIN_BLOCK_MINUTES;
+                return (
+                  <div
+                    key={`v-${v.id}`}
+                    className={`picker-card ${isMobile ? "always-show-add" : ""}`}
+                    draggable
+                    title={v.title}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("text/plain", String(v.id));
+                      setDragPayload({ type: "video", id: v.id, durationMinutes, label: v.title });
+                    }}
+                    onDragEnd={() => {
+                      setDragPayload(null);
+                      setDragOverDay(null);
+                      setDragOverMinutes(null);
+                    }}
+                  >
+                    <div className="thumbnail-wrapper">
+                      {thumbSrc ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={thumbSrc} alt="" className="card-thumbnail" />
+                      ) : (
+                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Icon name="movie" size={20} style={{ opacity: 0.25 }} />
+                        </div>
+                      )}
+                      <span className="card-duration" style={{ fontSize: "0.65rem", padding: "1px 4px" }}>
+                        {formatDuration(v.duration_seconds)}
+                      </span>
+                    </div>
+                    <div className="picker-card-content">
+                      <span className="picker-card-title">{v.title}</span>
+                      {v.program && (
+                        <div className="picker-card-meta">
+                          <span className="program-badge autre" style={{ fontSize: "0.55rem", padding: "1px 4px" }}>
+                            {v.program}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {filteredPlaylists.map((p) => {
+                const thumbSrc = getThumbnailSrc(p.thumbnail_path);
+                const durationMinutes = p.total_duration_seconds ? Math.max(p.total_duration_seconds / 60, MIN_BLOCK_MINUTES) : MIN_BLOCK_MINUTES;
+                return (
+                  <div
+                    key={`p-${p.id}`}
+                    className={`picker-card ${isMobile ? "always-show-add" : ""}`}
+                    draggable
+                    title={p.name}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("text/plain", String(p.id));
+                      setDragPayload({ type: "playlist", id: p.id, durationMinutes, label: p.name });
+                    }}
+                    onDragEnd={() => {
+                      setDragPayload(null);
+                      setDragOverDay(null);
+                      setDragOverMinutes(null);
+                    }}
+                  >
+                    <div className="thumbnail-wrapper">
+                      {thumbSrc ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={thumbSrc} alt="" className="card-thumbnail" />
+                      ) : (
+                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Icon name="playlist_play" size={20} style={{ opacity: 0.25 }} />
+                        </div>
+                      )}
+                      <span className="card-duration" style={{ fontSize: "0.65rem", padding: "1px 4px" }}>
+                        {formatDuration(p.total_duration_seconds)}
+                      </span>
+                    </div>
+                    <div className="picker-card-content">
+                      <span className="picker-card-title">
+                        <Icon name="playlist_play" size={12} /> {p.name}
+                      </span>
+                      <div className="picker-card-meta">
+                        <span className="release-badge" style={{ fontSize: "0.55rem", padding: "1px 4px" }}>
+                          {t("schedule.coursesCount", { count: p.item_count })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
               {filteredVideos.length === 0 && filteredPlaylists.length === 0 && (
-                <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "0.75rem", padding: "12px" }}>
+                <div style={{ gridColumn: "1 / -1", textAlign: "center", color: "var(--text-muted)", fontSize: "0.75rem", padding: "12px" }}>
                   {t("schedule.noResults")}
                 </div>
               )}
