@@ -4,6 +4,7 @@ choix de l'asset par profil (APK telephone vs Android TV), reconciliation de
 l'etat persiste apres un redemarrage reussi, telechargement verifie avec
 nouvelles tentatives."""
 
+import asyncio
 import hashlib
 import http.server
 import json
@@ -154,6 +155,35 @@ def test_terminal_states_are_left_untouched(state_file, monkeypatch):
     assert orch.get_status()["step"] == "failed" and orch.get_status()["error"] == "boom"
 
 
+# --- acquittement persiste de la notification (anti-boucle) ----------------
+# Non-regression du correctif "la notification de mise a jour apparait en
+# continu" : l'acquittement doit survivre a un rechargement de page (donc
+# etre lu depuis l'etat serveur, jamais un seul state React volatile).
+
+def test_acknowledge_persists_started_at_and_broadcasts(state_file, monkeypatch):
+    orch._state["started_at"] = 123.0
+    orch._state["acknowledged_started_at"] = None
+    broadcasted = {}
+
+    async def fake_broadcast(payload):
+        broadcasted.update(payload)
+
+    monkeypatch.setattr(orch.ws_manager, "broadcast", fake_broadcast)
+    result = asyncio.run(orch.acknowledge_current())
+
+    assert result["acknowledged_started_at"] == 123.0
+    assert broadcasted["acknowledged_started_at"] == 123.0
+    assert json.loads(state_file.read_text())["acknowledged_started_at"] == 123.0
+
+
+def test_acknowledge_is_a_noop_for_idle_state(state_file, monkeypatch):
+    orch._state["started_at"] = None
+    orch._state["acknowledged_started_at"] = None
+    monkeypatch.setattr(orch.ws_manager, "broadcast", lambda payload: asyncio.sleep(0))
+    result = asyncio.run(orch.acknowledge_current())
+    assert result["acknowledged_started_at"] is None
+
+
 # --- telechargement verifie ---------------------------------------------------
 
 class _Server:
@@ -205,6 +235,25 @@ def test_download_verifies_digest_and_renames_atomically(tmp_path, monkeypatch):
         server.close()
 
 
+def test_download_calls_on_verifying_before_digest_check(tmp_path, monkeypatch):
+    # Non-regression : l'etape "verifying" du wizard (cf. ACTIVE_STEPS cote
+    # frontend) doit etre emise exactement une fois, apres le telechargement
+    # complet mais avant la comparaison d'empreinte SHA-256.
+    monkeypatch.setattr(orch.time, "sleep", lambda *_: None)
+    payload = b"w" * 50_000
+    server = _Server(payload)
+    try:
+        dest = tmp_path / "f.bin"
+        calls = []
+        orch.download_with_progress(
+            server.url, dest, _digest(payload), on_verifying=lambda: calls.append("verifying"),
+        )
+        assert calls == ["verifying"]
+        assert dest.read_bytes() == payload
+    finally:
+        server.close()
+
+
 def test_download_retries_after_truncated_transfer(tmp_path, monkeypatch):
     monkeypatch.setattr(orch.time, "sleep", lambda *_: None)
     payload = b"y" * 300_000
@@ -234,3 +283,45 @@ def test_download_rejects_wrong_digest_and_leaves_nothing(tmp_path, monkeypatch)
 def test_download_without_digest_is_refused(tmp_path):
     with pytest.raises(RuntimeError, match="Empreinte"):
         orch.download_with_progress("http://127.0.0.1:1/x", tmp_path / "f.bin", None)
+
+
+# --- environnement assaini des sous-processus systeme ----------------------
+# Non-regression du correctif "systemctl: libcrypto.so.3: version
+# OPENSSL_3.4.0 not found" (LD_LIBRARY_PATH d'un build PyInstaller frozen
+# herite par un binaire systeme totalement etranger au bundle, cf.
+# clean_subprocess_env()).
+
+def test_clean_subprocess_env_strips_ld_library_path_without_original(monkeypatch):
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/usr/lib/bobine")
+    monkeypatch.delenv("LD_LIBRARY_PATH_ORIG", raising=False)
+    env = orch.clean_subprocess_env()
+    assert "LD_LIBRARY_PATH" not in env
+
+
+def test_clean_subprocess_env_restores_original_ld_library_path(monkeypatch):
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/usr/lib/bobine")
+    monkeypatch.setenv("LD_LIBRARY_PATH_ORIG", "/usr/lib/x86_64-linux-gnu")
+    env = orch.clean_subprocess_env()
+    assert env["LD_LIBRARY_PATH"] == "/usr/lib/x86_64-linux-gnu"
+    assert "LD_LIBRARY_PATH_ORIG" not in env
+
+
+def test_clean_subprocess_env_noop_when_unset(monkeypatch):
+    monkeypatch.delenv("LD_LIBRARY_PATH", raising=False)
+    monkeypatch.delenv("LD_LIBRARY_PATH_ORIG", raising=False)
+    env = orch.clean_subprocess_env()
+    assert "LD_LIBRARY_PATH" not in env
+
+
+def test_run_checked_uses_sanitized_env(monkeypatch):
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/usr/lib/bobine")
+    captured = {}
+    real_run = orch.subprocess.run
+
+    def spy_run(cmd, **kwargs):
+        captured.update(kwargs)
+        return real_run(cmd, **kwargs)
+
+    monkeypatch.setattr(orch.subprocess, "run", spy_run)
+    orch.run_checked(["true"])
+    assert "LD_LIBRARY_PATH" not in captured["env"]

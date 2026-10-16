@@ -22,6 +22,7 @@ from app.utils.deployment import (
     get_profile_handler,
 )
 from app.utils.update_orchestrator import (
+    acknowledge_current,
     get_status,
     is_running,
     report_external_event,
@@ -467,6 +468,16 @@ async def get_update_status() -> dict[str, Any]:
     jour planifiée se termine (cas concret : déclenchement à 3h du matin,
     personne devant l'écran)."""
     return get_status()
+
+
+@router.post("/acknowledge")
+async def acknowledge_update() -> dict[str, Any]:
+    """Acquitte le cycle de mise à jour courant (bannière/notification
+    fermée manuellement par l'utilisateur) — persisté côté serveur pour que
+    l'acquittement survive à un rechargement de page ou à un redémarrage de
+    service déclenché par la mise à jour elle-même, au lieu de réapparaître
+    en boucle (cf. `update_orchestrator.acknowledge_current`)."""
+    return await acknowledge_current()
 
 
 @router.post("/_android-callback")

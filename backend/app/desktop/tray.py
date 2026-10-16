@@ -17,6 +17,7 @@ import os
 import platform
 import plistlib
 import shutil
+import socket
 import subprocess
 import sys
 import threading
@@ -505,6 +506,42 @@ def is_backend_running() -> bool:
         return False
 
 
+# Port dédié, inutilisé ailleurs dans l'app, servant UNIQUEMENT de verrou
+# inter-process (jamais de connexion établie dessus).
+_SINGLE_INSTANCE_LOCK_PORT = 47_821
+_single_instance_socket: socket.socket | None = None
+
+
+def _acquire_single_instance_lock() -> bool:
+    """Empêche deux `BobineTray` de superviser chacun leur propre arbre
+    `BobineBackend` en parallèle — cause racine confirmée du pic RAM
+    observé pendant une mise à jour .deb (200 Mo → 1 Go+) :
+    `packaging/linux/DEBIAN/postinst` relance Bobine par deux voies
+    potentiellement concurrentes (`systemctl --user restart
+    bobine.service` PUIS, si son `pgrep` de contrôle s'exécute avant que
+    le premier ait eu le temps de répondre, un `nohup bobine &` de
+    secours). `is_backend_running()` seul ne suffit pas à s'en prémunir :
+    sa fenêtre de 1s peut tomber pile avant que le PREMIER backend ne soit
+    prêt à répondre, laissant le second lancement croire la voie libre.
+
+    Un bind TCP exclusif sur un port dédié sert de verrou inter-process
+    portable (Windows/Linux/macOS, sans dépendance supplémentaire) :
+    relâché automatiquement par l'OS si ce process meurt, même
+    brutalement — contrairement à un fichier PID, aucun nettoyage de
+    verrou périmé n'est nécessaire au redémarrage suivant."""
+    global _single_instance_socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind(("127.0.0.1", _SINGLE_INSTANCE_LOCK_PORT))
+    except OSError:
+        sock.close()
+        return False
+    # Référence gardée en vie pour toute la durée du process : jamais
+    # fermée explicitement, le verrou doit tenir jusqu'à la sortie.
+    _single_instance_socket = sock
+    return True
+
+
 def _open_browser_when_ready(open_fn, label: str, timeout_seconds: float = 20.0) -> None:
     """Attend que le backend réponde, puis déclenche `open_fn` (ouverture d'une
     URL classique via `webbrowser.open`, ou lancement du kiosque via
@@ -613,6 +650,17 @@ def run() -> None:
     # ouvre directement l'interface dans le navigateur sans lancer de doublon.
     if is_backend_running():
         logger.info("Bobine est déjà actif en arrière-plan. Ouverture de l'interface web.")
+        webbrowser.open(ADMIN_URL)
+        return
+
+    # Second garde-fou, complémentaire au précédent : `is_backend_running()`
+    # peut rater une instance en train de démarrer (health check pas encore
+    # prêt) — cf. `_acquire_single_instance_lock()`.
+    if not _acquire_single_instance_lock():
+        logger.info(
+            "Une autre instance de BobineTray supervise déjà le démarrage du backend "
+            "— ouverture de l'interface web sans lancer de doublon."
+        )
         webbrowser.open(ADMIN_URL)
         return
 

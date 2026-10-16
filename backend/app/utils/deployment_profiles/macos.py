@@ -86,6 +86,7 @@ class MacOSHandler(ProfileHandler):
         download_with_progress(
             download_url, dmg_path, asset_digest,
             on_progress=lambda pct: report("downloading", percent=pct, message=f"Téléchargement : {pct}%"),
+            on_verifying=lambda: report("verifying", message="Vérification de l'intégrité de l'image disque…"),
         )
 
         report("installing", message="Montage de l'image disque…")

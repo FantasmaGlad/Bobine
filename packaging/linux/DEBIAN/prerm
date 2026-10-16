@@ -2,6 +2,20 @@
 set -e
 
 if [ "$1" = "remove" ] || [ "$1" = "upgrade" ] || [ "$1" = "deconfigure" ]; then
+    # Mise à jour déclenchée par Bobine lui-même (pkexec dpkg -i lancé
+    # depuis LinuxDesktopHandler.apply_update()) : le process qui exécute
+    # CETTE commande dpkg EST BobineBackend, qui va se redémarrer
+    # proprement lui-même une fois dpkg terminé (cf. restart_services()) —
+    # le tuer ici l'interromprait en plein milieu de sa propre mise à
+    # jour, avant même qu'il ait pu se redémarrer (cause racine confirmée
+    # de l'instabilité observée du redémarrage automatique). Sentinelle
+    # posée par apply_update() juste avant `pkexec dpkg -i`, retirée juste
+    # après — absente pour un `apt upgrade`/`dpkg -i` lancé en dehors de
+    # l'application, où le kill préventif ci-dessous reste nécessaire.
+    if [ -f /tmp/bobine-self-update-in-progress ]; then
+        exit 0
+    fi
+
     # Marquer si Bobine était en cours d'exécution pour le relancer en postinst après mise à jour
     if pgrep -x BobineTray >/dev/null 2>&1 || pgrep -x BobineBackend >/dev/null 2>&1; then
         touch /run/bobine-restart-after-upgrade 2>/dev/null || touch /tmp/bobine-restart-after-upgrade 2>/dev/null || true

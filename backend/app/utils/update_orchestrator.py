@@ -24,6 +24,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import shutil
 import subprocess
 import time
@@ -64,6 +65,15 @@ _state: dict[str, Any] = {
     "started_at": None,
     "updated_at": None,
     "error": None,
+    # Horodatage du cycle ("started_at") acquitté par l'utilisateur (clic sur
+    # "fermer" la notification) — persisté côté SERVEUR, contrairement à
+    # l'ancien état `dismissed` purement React côté frontend qui revenait à
+    # `null` à chaque rechargement de page ou redémarrage de service déclenché
+    # par la mise à jour elle-même, faisant réapparaître la notification "en
+    # boucle" (cause racine confirmée). Repassé à `None` au début de chaque
+    # nouveau cycle (cf. `run_update_pipeline`) pour qu'un NOUVEAU "terminé"/
+    # "échoué" soit bien notifié même si le précédent avait été fermé.
+    "acknowledged_started_at": None,
     # Empreinte `version|commit` du code AVANT la mise à jour — voir
     # `load_persisted_state_at_startup()`. Interne : jamais exposée au client.
     "from_fingerprint": None,
@@ -178,6 +188,24 @@ async def report_external_event(
     await _set_state(step=step, message=message, error=error, percent=percent)
 
 
+async def acknowledge_current() -> dict[str, Any]:
+    """Marque le cycle de mise à jour COURANT (`started_at`) comme vu par
+    l'utilisateur — appelé par `POST /api/updates/acknowledge` quand la
+    notification/bannière est fermée manuellement. Persisté ici plutôt que
+    dans un state React volatile : survit à un rechargement de page et à un
+    redémarrage de service déclenché par la mise à jour elle-même (corrige
+    le constat "la notification réapparaît en boucle"). Diffusé en
+    WebSocket pour que tout autre client déjà connecté (ex. un second
+    onglet) ferme aussi sa propre bannière sans attendre sa reconnexion."""
+    _state["acknowledged_started_at"] = _state.get("started_at")
+    try:
+        await ws_manager.broadcast({"event": "update_progress", **_public_state()})
+    except Exception as e:
+        logger.warning(f"Échec de diffusion de l'acquittement de mise à jour : {e}")
+    _persist_state()
+    return _public_state()
+
+
 async def _set_state(**kwargs: Any) -> None:
     _state.update(kwargs)
     _state["updated_at"] = time.time()
@@ -203,6 +231,36 @@ def make_reporter(loop: asyncio.AbstractEventLoop) -> Callable[..., None]:
     return report
 
 
+def clean_subprocess_env() -> dict[str, str]:
+    """Environnement assaini pour tout sous-processus invoquant un binaire
+    SYSTÈME externe (systemctl, dpkg, git...) depuis ce process.
+
+    PyInstaller (mode onedir, cf. packaging/linux/bobine.spec) positionne
+    `LD_LIBRARY_PATH` sur son propre dossier d'installation pour que
+    l'exécutable frozen trouve ses bibliothèques embarquées (dont
+    `libssl.so.3`/`libcrypto.so.3`, bundlées pour le module `ssl` de
+    Python) — mais ce même `LD_LIBRARY_PATH` est hérité par tout
+    sous-processus lancé depuis ce process, y compris des binaires système
+    totalement indépendants (`systemctl` en particulier charge
+    `libsystemd-shared.so`, lui-même lié à OpenSSL). Une `libcrypto.so.3`
+    bundlée plus ancienne que celle attendue par l'hôte provoque alors un
+    échec au chargement dynamique (symbole de version manquant, ex.
+    `OPENSSL_3.4.0`), typiquement sur `systemctl --user restart
+    bobine.service` juste après une mise à jour .deb — cause racine
+    confirmée du rapport "Paquet installé avec succès, mais le redémarrage
+    automatique du service a échoué". PyInstaller restaure la valeur
+    ORIGINALE (pré-frozen) de la variable, si elle existait, dans
+    `LD_LIBRARY_PATH_ORIG` — on la réapplique ici, ou on supprime
+    entièrement la clé si l'hôte n'en avait pas."""
+    env = dict(os.environ)
+    original = env.pop("LD_LIBRARY_PATH_ORIG", None)
+    if original:
+        env["LD_LIBRARY_PATH"] = original
+    else:
+        env.pop("LD_LIBRARY_PATH", None)
+    return env
+
+
 def run_checked(
     cmd: list[str],
     cwd: Path | str | None = None,
@@ -212,9 +270,13 @@ def run_checked(
     stderr inclus) au lieu de laisser l'appelant oublier de vérifier
     `returncode` — corrige le constat récurrent "git checkout / systemctl
     restart jamais vérifié avant de continuer, y compris en cas
-    d'échec réel"."""
+    d'échec réel". Environnement systématiquement assaini (cf.
+    `clean_subprocess_env()`) : ce helper invoque aussi bien des binaires
+    système (`systemctl`, `dpkg`) que `git`, tous potentiellement affectés
+    par la pollution `LD_LIBRARY_PATH` d'un build PyInstaller frozen."""
     result = subprocess.run(
         cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout,
+        env=clean_subprocess_env(),
     )
     if result.returncode != 0:
         raise RuntimeError(
@@ -229,6 +291,7 @@ def download_with_progress(
     dest: Path,
     expected_digest: str | None,
     on_progress: Callable[[int], None] | None = None,
+    on_verifying: Callable[[], None] | None = None,
 ) -> None:
     """Téléchargement par blocs, avec timeout explicite (contrairement à
     l'ancien `urllib.request.urlretrieve` utilisé sans timeout sur les
@@ -249,7 +312,15 @@ def download_with_progress(
     (asset non retrouvé dans la release GitHub, ou champ `digest` manquant
     côté API) refuse le téléchargement plutôt que d'installer un binaire à
     privilèges élevés sans aucune vérification — mieux vaut rater une mise
-    à jour automatique qu'en exécuter une jamais vérifiée."""
+    à jour automatique qu'en exécuter une jamais vérifiée.
+
+    `on_verifying` : appelé juste avant la comparaison d'empreinte SHA-256,
+    une fois le téléchargement terminé — l'étape `UpdateStep` "verifying"
+    était définie dans le type mais jamais réellement émise par aucun
+    handler, cette vérification ayant lieu silencieusement ; sans cet
+    évènement intermédiaire, un wizard affichant la progression saute
+    directement de "téléchargement 100%" à "installation" sans transition
+    visible pour cette étape pourtant réelle."""
     if not expected_digest:
         raise RuntimeError(
             "Empreinte d'intégrité indisponible pour cet asset — "
@@ -280,6 +351,8 @@ def download_with_progress(
             f"Téléchargement impossible après {DOWNLOAD_ATTEMPTS} tentatives : {last_error}"
         )
 
+    if on_verifying:
+        on_verifying()
     actual = hasher.hexdigest().lower()
     expected = expected_digest.split(":")[-1].lower()
     if actual != expected:
@@ -362,6 +435,7 @@ async def run_update_pipeline(
             triggered_by=triggered_by,
             started_at=time.time(),
             error=None,
+            acknowledged_started_at=None,
             from_fingerprint=get_build_fingerprint(),
         )
         logger.info(

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Callable
 
 from app.utils.deployment import ProfileHandler, UpdateUnsupported
-from app.utils.update_orchestrator import download_with_progress, run_checked
+from app.utils.update_orchestrator import clean_subprocess_env, download_with_progress, run_checked
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +47,18 @@ class LinuxDesktopHandler(ProfileHandler):
 
     def restart_services(self) -> None:
         logger.info("Déclenchement du redémarrage du service bureau Linux (BobineTray ou systemd --user)...")
-        # Programme une tentative de relance systemd --user en tâche détachée
+        # Programme une tentative de relance systemd --user en tâche détachée.
+        # `env=clean_subprocess_env()` : ce sous-shell invoque `systemctl`,
+        # un binaire système totalement étranger au bundle PyInstaller — un
+        # `LD_LIBRARY_PATH` hérité de ce process frozen lui ferait charger
+        # la `libcrypto.so.3` embarquée au lieu de celle de l'hôte (cf.
+        # `update_orchestrator.clean_subprocess_env`, cause racine confirmée
+        # de l'échec `systemctl: ... version 'OPENSSL_3.4.0' not found`).
         cmd = "sleep 1 && (systemctl --user restart bobine.service || systemctl --user restart bobine || true)"
         try:
-            subprocess.Popen(["sh", "-c", cmd], start_new_session=True)
+            subprocess.Popen(
+                ["sh", "-c", cmd], start_new_session=True, env=clean_subprocess_env(),
+            )
         except Exception as e:
             logger.debug(f"Relance systemctl --user non disponible : {e}")
 
@@ -126,6 +134,7 @@ class LinuxDesktopHandler(ProfileHandler):
         download_with_progress(
             download_url, deb_file, asset_digest,
             on_progress=lambda pct: report("downloading", percent=pct, message=f"Téléchargement : {pct}%"),
+            on_verifying=lambda: report("verifying", message="Vérification de l'intégrité du paquet…"),
         )
 
         # Correctif de la cause racine "l'application ne redémarre jamais
@@ -141,27 +150,38 @@ class LinuxDesktopHandler(ProfileHandler):
         # que ce soit ni de dépendre de `postinst`. `postinst` reste un
         # filet de sécurité pour le cas d'un `apt upgrade` lancé en dehors
         # de l'application (cf. packaging/linux/DEBIAN/postinst).
+        # Sentinelle lue par `packaging/linux/DEBIAN/prerm` : sans elle, le
+        # script `prerm` de l'ANCIEN paquet (invoqué par `dpkg -i`
+        # ci-dessous, AVANT même que le nouveau soit déballé) tue ce
+        # process par nom (`killall BobineBackend`) en plein milieu de sa
+        # propre mise à jour — avant qu'il ait pu se redémarrer proprement
+        # via `restart_services()` juste après. `/tmp` est accessible en
+        # lecture par le `prerm` exécuté en root sous `pkexec` même si posé
+        # par ce process non-root.
+        self_update_sentinel = Path("/tmp/bobine-self-update-in-progress")
         report("installing", message="Installation du paquet (autorisation système requise)…")
         try:
+            self_update_sentinel.touch(exist_ok=True)
             run_checked(["pkexec", "dpkg", "-i", str(deb_file)], timeout=180)
         except Exception as e:
             raise RuntimeError(f"Échec de l'installation du paquet .deb : {e}") from e
         finally:
+            self_update_sentinel.unlink(missing_ok=True)
             try:
                 deb_file.unlink(missing_ok=True)
                 deb_file.parent.rmdir()
             except OSError:
                 pass
 
+        # Redémarrage via `restart_services()` (tâche détachée + `os._exit(0)`
+        # différé), PAS un `run_checked(["systemctl", "--user", "restart", ...])`
+        # synchrone comme auparavant : ce process EST la cible du restart — un
+        # `systemctl --user restart bobine.service` qui attend la fin de la
+        # commande dans CE process se fait tuer par systemd en plein milieu de
+        # l'attente (la phase "stop" du restart envoie SIGTERM à ce process
+        # avant que `subprocess.run()` n'ait pu retourner), ce qui pouvait
+        # interrompre la mise à jour avant que l'issue réelle soit connue —
+        # race condition indépendante du bug OpenSSL ci-dessus. Même pattern
+        # que le chemin "checkout git" un peu plus haut dans cette méthode.
         report("restarting", message="Redémarrage du service…")
-        try:
-            run_checked(["systemctl", "--user", "restart", "bobine.service"], timeout=20)
-        except Exception as e:
-            # Le paquet EST installé à ce stade (l'exception précédente
-            # aurait déjà interrompu l'exécution sinon) : un échec ICI est
-            # signalé clairement plutôt que silencieusement ignoré, mais ne
-            # doit pas laisser croire que la mise à jour elle-même a échoué.
-            raise RuntimeError(
-                f"Paquet installé avec succès, mais le redémarrage automatique du service a échoué "
-                f"({e}) — relancez Bobine manuellement pour appliquer la mise à jour."
-            ) from e
+        self.restart_services()

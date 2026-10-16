@@ -114,6 +114,7 @@ del "%~f0" > NUL 2>&1
         download_with_progress(
             download_url, installer_path, asset_digest,
             on_progress=lambda pct: report("downloading", percent=pct, message=f"Téléchargement : {pct}%"),
+            on_verifying=lambda: report("verifying", message="Vérification de l'intégrité de l'installeur…"),
         )
 
         tray_exe = _app_dir() / "BobineTray.exe"
