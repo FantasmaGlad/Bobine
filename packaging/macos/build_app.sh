@@ -20,9 +20,9 @@ VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
 
 # Version utilisée dans le NOM DU FICHIER .dmg — délibérément distincte de
 # VERSION : par défaut identique (builds
-# stables), mais la CI passe la valeur fixe "beta" pour le canal Bêta — un
-# seul nom de fichier stable dans le temps plutôt qu'un nouveau nom à chaque
-# reconstruction.
+# stables), mais la CI passe la valeur fixe "beta" ou "canary" selon le
+# canal rolling concerné — un seul nom de fichier stable dans le temps par
+# canal plutôt qu'un nouveau nom à chaque reconstruction.
 DMG_FILENAME_VERSION="${DMG_FILENAME_VERSION:-$VERSION}"
 DMG_NAME="Bobine-${DMG_FILENAME_VERSION}.dmg"
 

@@ -25,9 +25,9 @@
 #endif
 ; Version utilisée dans le NOM DU FICHIER de l'installeur — délibérément
 ; distincte de MyAppVersion : par défaut
-; identique (paquets stables), mais la CI passe la valeur fixe "beta" pour
-; le canal Bêta — un seul nom de fichier stable dans le temps plutôt qu'un
-; nouveau nom à chaque reconstruction,
+; identique (paquets stables), mais la CI passe la valeur fixe "beta" ou
+; "canary" selon le canal rolling concerné — un seul nom de fichier stable
+; dans le temps par canal plutôt qu'un nouveau nom à chaque reconstruction,
 ; pendant que MyAppVersion (affiché dans "Applications et fonctionnalités"
 ; Windows) reste la version réelle et précise.
 #ifndef MyOutputVersion

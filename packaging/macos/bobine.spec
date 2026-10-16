@@ -36,7 +36,7 @@ ICON_PATH = str(SPEC_DIR / "bobine.icns")
 # avant ce lot : BUNDLE() et Info.plist annonçaient "3.0.0" quelle que soit
 # la version réellement construite, découvert en même temps que le bug
 # analogue sur DEBIAN/control). La CI écrit VERSION avec le suffixe "-beta"
-# avant PyInstaller pour les builds du canal Bêta (cf. ci.yml).
+# ou "-canary" avant PyInstaller selon le canal rolling concerné (cf. ci.yml).
 APP_VERSION = (REPO_DIR / "VERSION").read_text(encoding="utf-8").strip()
 
 datas = [

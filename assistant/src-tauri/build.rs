@@ -2,9 +2,9 @@ use std::path::Path;
 
 /// Embarque la version et le commit de build dans le binaire. Lit `VERSION`/`COMMIT` à la racine du dépôt — mêmes fichiers
 /// que ceux lus par le backend Python (`app/utils/version.py`), écrits par
-/// la CI juste avant `cargo build` (VERSION suffixée "-beta" pour un build
-/// du canal Bêta, cf. ci.yml). Repli sur des valeurs de développement si
-/// absents (compilation locale hors CI).
+/// la CI juste avant `cargo build` (VERSION suffixée "-beta" ou "-canary"
+/// selon le canal rolling concerné, cf. ci.yml). Repli sur des valeurs de
+/// développement si absents (compilation locale hors CI).
 fn main() {
     tauri_build::build();
 

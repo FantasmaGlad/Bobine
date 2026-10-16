@@ -93,8 +93,8 @@ _DEFAULTS = {
     "language": "fr",
     "active_logo": "default",
     # Canal de mise à jour : "stable"
-    # par défaut pour tout le monde — rejoindre la bêta est un choix
-    # explicite, jamais l'état de départ d'une installation.
+    # par défaut pour tout le monde — rejoindre la bêta ou la canary est un
+    # choix explicite, jamais l'état de départ d'une installation.
     "update_channel": "stable",
     # Mode d'affichage câblé :
     # "headless" par défaut (desktop/laptop/wyse), "dual_screen" pour tablette.
@@ -127,7 +127,7 @@ _VALID_THEMES = {
     "beige", "lavande", "miel", "coco",
 }
 _VALID_ACTIVE_LOGOS = {"default", "custom"}
-_VALID_UPDATE_CHANNELS = {"stable", "beta"}
+_VALID_UPDATE_CHANNELS = {"stable", "beta", "canary"}
 _VALID_WIRED_DISPLAY_MODES = {"dual_screen", "headless"}
 
 # Sortie affichée par CANAL de diffusion : "câblé" (l'écran physiquement connecté au Wyse, en 127.0.0.1) et
@@ -277,9 +277,8 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "language": language,
         "has_custom_logo": has_custom,
         "active_logo": active_logo,
-        # Programme Bobine Beta : "stable"
-        # ou "beta", consommé par GET /api/updates/check pour choisir
-        # l'endpoint GitHub interrogé.
+        # Canal de mise à jour : "stable", "beta" ou "canary", consommé par
+        # GET /api/updates/check pour choisir l'endpoint GitHub interrogé.
         "update_channel": update_channel,
         # Mode d'affichage câblé :
         # "dual_screen" (pupitre tactile + vidéo HDMI) ou "headless" (cinéma autonome).
@@ -565,7 +564,7 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
                 if value == "custom" and not _logo_path().exists():
                     raise HTTPException(status_code=400, detail="Aucun logo personnalisé n'a été importé")
             if key == "update_channel" and value not in _VALID_UPDATE_CHANNELS:
-                raise HTTPException(status_code=400, detail="Canal de mise à jour invalide (attendu 'stable' ou 'beta')")
+                raise HTTPException(status_code=400, detail="Canal de mise à jour invalide (attendu 'stable', 'beta' ou 'canary')")
             if key == "display_mode_setting" and value not in VALID_DISPLAY_MODE_SETTINGS:
                 raise HTTPException(
                     status_code=400,
@@ -625,6 +624,7 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
         or "active_logo" in updates
         or "wired_display_mode" in updates
         or "display_mode_setting" in updates
+        or "update_channel" in updates
     ):
         await ws_manager.broadcast({
             "event": "settings_change",
@@ -633,6 +633,7 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
             "has_custom_logo": result["has_custom_logo"],
             "active_logo": result["active_logo"],
             "wired_display_mode": result["wired_display_mode"],
+            "update_channel": result["update_channel"],
         })
 
     # Diffusion dédiée display_mode_change sur canal "cable"

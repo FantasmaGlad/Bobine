@@ -10,7 +10,7 @@
 
 <p align="center">
   <b>Recently added — Bobine now officially supports Firefox.</b><br>
-  <sub>Admin interface and third-party players (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>) verified end to end on Firefox 157: resumable uploads, HTTP-compliant media streams, an automatic compatible-video fallback and a built-in browser diagnostic. Also: more reliable Stable/Beta updates, a smoother installer. <a href="#supported-browsers">Browser support</a></sub>
+  <sub>Admin interface and third-party players (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>) verified end to end on Firefox 157: resumable uploads, HTTP-compliant media streams, an automatic compatible-video fallback and a built-in browser diagnostic. Also: a new three-tier update system (Stable/Beta/Canary), a smoother installer. <a href="#supported-browsers">Browser support</a></sub>
 </p>
 
 **The open-source, self-hosted alternative to Les Mills Cinema, Wexer, and Screenly Anthias — professional offline-first video playout, digital signage, and scheduled group-fitness cinema for fitness clubs, gyms, and sports studios.**
@@ -23,7 +23,7 @@ Bobine turns any tablet, desktop PC, Mac, or low-cost dedicated mini PC into a c
 - **Audio Coach Mode & 24/7 Studio Radio**: Runs audio workouts over dynamic animated motion backgrounds and streams continuous club background music.
 - **100% Local-First & Sovereign**: Everything runs directly on your own hardware. Zero cloud dependencies, zero monthly subscriptions, zero telemetry, zero vendor lock-in — engineered for rock-solid 24/7 unattended playback even without internet.
 
-[Official Website](https://bobine.fit) · [Hardware Recommendations](https://bobine.fit/en/hardware) · [Documentation](https://bobine.fit/en/documentation) · [Français](README.fr.md) · [Technical Architecture](docs/ARCHITECTURE.en.md) · [Latest Release](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Beta Release](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
+[Official Website](https://bobine.fit) · [Hardware Recommendations](https://bobine.fit/en/hardware) · [Documentation](https://bobine.fit/en/documentation) · [Français](README.fr.md) · [Technical Architecture](docs/ARCHITECTURE.en.md) · [Latest Release](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Beta Release](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) · [Canary Release](https://github.com/FantasmaGlad/Bobine/releases/tag/canary)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 [![Release: v4.0.3](https://img.shields.io/badge/Release-v4.0.3-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
@@ -56,18 +56,32 @@ Install Bobine as a native application on your tablet, workstation, or studio PC
 | [![bobine.fit](https://img.shields.io/badge/bobine.fit-4285F4?style=flat-square&logo=data%3Aimage/svg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBkPSJNNDQgMjRjMCAxMS4wNDUtOC45NTUgMjAtMjAgMjAtNC41MiAwLTguNjgtMS41MDMtMTIuMDMtNC4wNDNsOS40NjctMTYuMzk0QTggOCAwIDAgMCAyNCAzMmM0LjQxOCAwIDgtMy41ODIgOC04eiIvPjxwYXRoIGZpbGw9IiNGQkMwMkQiIGQ9Ik00NCAyNEgyNGE4IDggMCAwIDAtNi45MjggNGwtOS40NjcgMTYuMzk0QTE5LjkyIDE5LjkyIDAgMCAxIDQgMjRDNCAxMy45ODcgMTEuMzg1IDUuNzA0IDIxLjAzNiA0LjIyTDMwLjUwMyAyMC42MUE3Ljk3IDcuOTcgMCAwIDAgMzIgMjR6Ii8%2BPHBhdGggZmlsbD0iI0U1MzkzNSIgZD0iTTI0IDRjNy40MDYgMCAxMy44NiA0LjAyNCAxNy4zIDEwLjAyN0wzMC41MDMgMjAuNjFBOCA4IDAgMCAwIDI0IDE2Yy0zLjE1NSAwLTUuOTE0IDEuODI2LTcuMjUgNC40OUw3LjI4NCA0LjA5NUMxMS44OTIgNC4wMzIgMTcuNjUgNCAyNCA0eiIvPjxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjI0IiByPSI2IiBmaWxsPSIjMTk3NkQyIi8%2BPC9zdmc%2B)](https://bobine.fit) | <sub>Web Portal</sub> | <sub>Universal</sub> | <sub>[**Visit bobine.fit**](https://bobine.fit)</sub> | **Official Website**<br><sub>Getting started guides, hardware recommendations & docs</sub> |
 | ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | <sub>Source & Binaries</sub> | <sub>Multi-OS</sub> | <sub>[**Browse GitHub Releases**](https://github.com/FantasmaGlad/Bobine/releases/latest)</sub> | **Releases & Source Code**<br><sub>Certified SHA-256 checksums, tarballs & full changelog</sub> |
 
-### Beta Program — Early Access
+### Beta & Canary Programs — Early Access
 
-Want to try upcoming features before they reach the stable release? Bobine ships a **Beta channel**: a single, always-current pre-release build, rebuilt from the latest development code — no need to track version numbers, an equal or newer stable release always supersedes it automatically, and you can switch back to Stable at any time with no data loss.
+<p align="center">
+  <img alt="Stable channel" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/Versions/Stable-cropped-1024.png" width="100"> &nbsp;&nbsp;
+  <img alt="Beta channel" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/Versions/Beta-cropped-1024.png" width="100"> &nbsp;&nbsp;
+  <img alt="Canary channel" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/Versions/Canary-cropped-1024.png" width="100">
+  <br>
+  <sub>Stable · Beta · Canary</sub>
+</p>
 
-[**Browse the Beta release**](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) — same platforms as above (`.exe`, `.deb`, `.dmg`, `bobine-assistant`, `install.sh`), file names suffixed `-beta` instead of a version number.
+Want to try upcoming features before they reach the stable release? Bobine ships two pre-release channels, in addition to Stable: **Beta**, a curated batch of features/fixes published manually by the maintainer when ready, and **Canary**, a single always-current build rebuilt automatically from the very latest commit on `main` — no curation at all. Neither requires tracking version numbers; an equal or newer stable release always supersedes either one automatically, and you can switch back to Stable at any time with no data loss.
 
-How to opt in permanently, so future updates keep offering Beta builds:
-- **Already installed** → Settings → Software Updates → "Bobine Beta Program", switch to Beta.
-- **Headless appliance installer** → `sudo ./install.sh --channel=beta`
-- **Bobine Assistant (remote install wizard)** → toggle "Bobine Beta Program" in the Options step.
+| Channel | Update cadence | Curation | Who it's for | Tag |
+| :--- | :--- | :--- | :--- | :---: |
+| **Stable** | One release per version, tagged | Fully tested | Production gym playout — the recommended default | `Vx.y.z` |
+| **Beta** | Batches, published manually when ready | Curated by the maintainer | Early adopters who want upcoming features without the daily churn | `beta` |
+| **Canary** | Every single commit to `main` | None — raw and immediate | Developers and power users who want the absolute latest, accept rough edges | `canary` |
 
-Full details on how the Beta channel works (update detection, downgrade behavior, release process): [Technical Architecture § Update Channel](docs/ARCHITECTURE.en.md#7-install-script--systemd-services).
+[**Browse the Beta release**](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) · [**Browse the Canary release**](https://github.com/FantasmaGlad/Bobine/releases/tag/canary) — same platforms as above (`.exe`, `.deb`, `.dmg`, `bobine-assistant`, `install.sh`), file names suffixed `-beta`/`-canary` instead of a version number.
+
+How to opt in permanently, so future updates keep offering Beta or Canary builds:
+- **Already installed** → Settings → Software Updates → "Update channel", switch to Beta or Canary.
+- **Headless appliance installer** → `sudo ./install.sh --channel=beta` or `--channel=canary`
+- **Bobine Assistant (remote install wizard)** → pick the channel in the Options step.
+
+Full details on how these channels work (update detection, downgrade behavior, release process): [Technical Architecture § Update Channel](docs/ARCHITECTURE.en.md#7-install-script--systemd-services).
 
 ---
 
@@ -225,7 +239,7 @@ Configure the official GPG-signed APT repository to install Bobine and automatic
 # 1. Official GPG keyring
 curl -fsSL https://apt.bobine.fit/bobine.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/bobine.gpg
 
-# 2. Add official APT repository (Stable channel; replace 'stable' with 'beta' for pre-releases)
+# 2. Add official APT repository (Stable channel; replace 'stable' with 'beta' or 'canary' for pre-releases)
 echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] https://apt.bobine.fit/ stable main" | sudo tee /etc/apt/sources.list.d/bobine.list
 
 # 3. Update & Install
@@ -298,8 +312,11 @@ Connect to the mini PC directly or via SSH as your standard non-root user and ru
 # Automated 1-line installation (stable channel):
 curl -fsSL https://bobine.fit/install.sh | bash
 
-# Same, but on the Beta channel (early access):
+# Same, but on the Beta channel (curated early access):
 curl -fsSL https://bobine.fit/install.sh | bash -s -- --channel=beta
+
+# Or the Canary channel (every commit on main, untested):
+curl -fsSL https://bobine.fit/install.sh | bash -s -- --channel=canary
 ```
 
 The script fetches the code into `~/Bobine` (installing `git`/`curl` first if the system is minimal), asks for `sudo` by itself, shows live progress with a spinner and per-step timings, waits for any running `unattended-upgrades`, fixes a drifted system clock, and finishes with the admin URL **and a QR code** to open it from a phone. Re-running it is safe: it updates an existing installation in place. Add `--dry-run` to preview every action.

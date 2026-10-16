@@ -237,11 +237,36 @@
               </label>
 
               <label class="toggle-card">
-                <div class="toggle-info">
-                  <span class="toggle-title">Programme Bobine Beta</span>
-                  <span class="toggle-desc">Accès anticipé aux fonctionnalités en cours de développement. Une version stable équivalente ou plus récente les remplace toujours automatiquement. Désactivé = canal Stable (recommandé).</span>
+                <div class="toggle-left">
+                  <img class="toggle-icon" src="assets/channel-stable.png" alt="">
+                  <div class="toggle-info">
+                    <span class="toggle-title">Canal de mise à jour — Stable</span>
+                    <span class="toggle-desc">Releases taguées et vérifiées. Recommandé.</span>
+                  </div>
                 </div>
-                <input type="checkbox" id="opt-beta-channel" class="toggle-input">
+                <input type="radio" name="update-channel" id="opt-channel-stable" class="toggle-input" value="stable" checked>
+              </label>
+
+              <label class="toggle-card">
+                <div class="toggle-left">
+                  <img class="toggle-icon" src="assets/channel-beta.png" alt="">
+                  <div class="toggle-info">
+                    <span class="toggle-title">Canal de mise à jour — Bêta</span>
+                    <span class="toggle-desc">Lots de fonctionnalités sélectionnés avant publication. Une version stable équivalente ou plus récente remplace toujours automatiquement la Bêta.</span>
+                  </div>
+                </div>
+                <input type="radio" name="update-channel" id="opt-channel-beta" class="toggle-input" value="beta">
+              </label>
+
+              <label class="toggle-card">
+                <div class="toggle-left">
+                  <img class="toggle-icon" src="assets/channel-canary.png" alt="">
+                  <div class="toggle-info">
+                    <span class="toggle-title">Canal de mise à jour — Canary</span>
+                    <span class="toggle-desc">Tout dernier commit de main, non testé, toujours le plus à jour. Une version stable équivalente ou plus récente remplace toujours automatiquement la Canary.</span>
+                  </div>
+                </div>
+                <input type="radio" name="update-channel" id="opt-channel-canary" class="toggle-input" value="canary">
               </label>
             </div>
 

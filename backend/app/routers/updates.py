@@ -37,16 +37,25 @@ router = APIRouter(prefix="/api/updates", tags=["updates"])
 GITHUB_REPO = "FantasmaGlad/Bobine"
 # "stable" n'interroge QUE /releases/latest, qui exclut structurellement les
 # pre-releases et brouillons côté API GitHub — aucun risque qu'un canal
-# stable voie jamais une bêta, même en cas de bug côté filtrage applicatif.
-# "beta" interroge un tag FIXE ("beta") — un seul fichier de release Bêta
-# sur GitHub, republié en place à chaque build plutôt qu'un nouveau tag par
-# itération. Voir .github/workflows/ci.yml, job
-# `release-beta` : force-déplace ce tag et republie dessus à chaque
-# déclenchement manuel.
+# stable voie jamais une bêta ou une canary, même en cas de bug côté
+# filtrage applicatif.
+# "beta" et "canary" interrogent chacun un tag FIXE ("beta"/"canary") — un
+# seul fichier de release par canal sur GitHub, republié en place à chaque
+# build plutôt qu'un nouveau tag par itération. Voir .github/workflows/ci.yml,
+# jobs `release-beta` (palier curé, publication manuelle) et `release-canary`
+# (rolling, publié à chaque push sur main) : chacun force-déplace son tag et
+# republie dessus à chaque déclenchement.
 _RELEASES_LATEST_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 _RELEASES_BETA_TAG_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/beta"
+_RELEASES_CANARY_TAG_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/canary"
 _COMMITS_URL = f"https://api.github.com/repos/{GITHUB_REPO}/commits"
-_VALID_CHANNELS = ("stable", "beta")
+# Canaux "rolling" : tag mobile comparé par COMMIT (cf. _rolling_tag_update),
+# par opposition au canal "stable" comparé par numéro de version sémantique.
+# Source de vérité unique pour "quels canaux partagent ce mécanisme" — y
+# ajouter un canal suffit à l'intégrer partout (recherche de release, cache,
+# comparaison de mises à jour).
+_ROLLING_RELEASE_URLS = {"beta": _RELEASES_BETA_TAG_URL, "canary": _RELEASES_CANARY_TAG_URL}
+_VALID_CHANNELS = ("stable", "beta", "canary")
 _STABLE_TAG_RE = re.compile(r"^V\d+\.\d+\.\d+$")
 _SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
 
@@ -58,6 +67,7 @@ _LOOKUP_ERROR_MESSAGES = {
     "offline": "Impossible de contacter les serveurs de mise à jour (hors ligne ou indisponible).",
     "rate_limited": "GitHub limite temporairement les vérifications depuis ce réseau — réessayez dans quelques minutes.",
     "not_found_beta": "Aucune version Bêta n'est publiée pour le moment — réessayez dans quelques minutes.",
+    "not_found_canary": "Aucune version Canary n'est publiée pour le moment — réessayez dans quelques minutes.",
     "not_found_stable": "Aucune version stable n'est publiée pour le moment.",
 }
 
@@ -129,18 +139,32 @@ def _git_lines(args: list[str], repo_dir: Path) -> list[str]:
         return []
 
 
+def _rolling_build_info(tag_name: str, commit: str) -> dict[str, Any]:
+    """Construit le résultat de `_get_local_version_info()` pour un build posé
+    sur un tag mobile (rolling) donné — factorisé pour servir aussi bien
+    "beta" que "canary" sans dupliquer la logique de version affichée."""
+    base = get_app_version().lstrip("vV")
+    version = f"V{base}" if "-" in base else f"V{base}-{tag_name}"
+    return {
+        "current_version": version, "current_tag": tag_name, "current_commit": commit,
+        "local_rolling_channel": tag_name,
+    }
+
+
 def _get_local_version_info() -> dict[str, Any]:
-    """Détermine la version, le commit et la NATURE (stable/bêta) du build local.
+    """Détermine la version, le commit et la NATURE (stable/bêta/canary) du
+    build local.
 
     N'exécute `git` que sur les profils dont le dossier d'installation est
     un vrai checkout (aujourd'hui : l'appliance headless seule) — un paquet
     figé (`.exe`, `.app`, `.deb`) n'a pas de `.git` et ces appels
     échoueraient systématiquement en pure perte.
 
-    `is_prerelease_build` distingue un build du canal Bêta d'une Stable de
-    même numéro de base : sans ça, un utilisateur Bêta qui repasse sur le
-    canal Stable ne se voyait JAMAIS proposer la Stable (même base, ou base
-    inférieure), contrairement à la promesse affichée dans Réglages."""
+    `local_rolling_channel` ("beta", "canary" ou None si Stable) distingue
+    un build non-Stable d'une Stable de même numéro de base : sans ça, un
+    utilisateur Bêta/Canary qui repasse sur le canal Stable ne se voyait
+    JAMAIS proposer la Stable (même base, ou base inférieure), contrairement
+    à la promesse affichée dans Réglages."""
     commit = get_app_commit()
     tag = get_app_tag()
     prerelease = is_prerelease_version(get_app_version())
@@ -148,7 +172,7 @@ def _get_local_version_info() -> dict[str, Any]:
     if not get_profile_handler().supports_git_versioning():
         return {
             "current_version": tag, "current_tag": tag, "current_commit": commit,
-            "is_prerelease_build": prerelease,
+            "local_rolling_channel": "beta" if prerelease else None,
         }
 
     repo_dir = Path(__file__).resolve().parent.parent.parent
@@ -157,25 +181,24 @@ def _get_local_version_info() -> dict[str, Any]:
         commit = head[0]
 
     # Tags posés EXACTEMENT sur le commit courant : seule source fiable pour
-    # savoir si ce checkout EST une Stable (tag strict Vx.y.z) ou la Bêta
-    # (tag mobile "beta") — `git describe` seul tranche arbitrairement
-    # quand les deux tags pointent le même commit (cas courant juste après
-    # la promotion d'une Bêta en Stable).
+    # savoir si ce checkout EST une Stable (tag strict Vx.y.z) ou un canal
+    # rolling (tag mobile "beta"/"canary") — `git describe` seul tranche
+    # arbitrairement quand plusieurs tags pointent le même commit (cas
+    # courant juste après la promotion d'une Bêta/Canary en Stable).
     tags_here = _git_lines(["tag", "--points-at", "HEAD"], repo_dir)
     stable_here = sorted((t for t in tags_here if _STABLE_TAG_RE.match(t)), key=_parse_version)
     if stable_here:
         version = stable_here[-1]
         return {
             "current_version": version, "current_tag": version, "current_commit": commit,
-            "is_prerelease_build": False,
+            "local_rolling_channel": None,
         }
-    if "beta" in tags_here:
-        base = get_app_version().lstrip("vV")
-        version = f"V{base}" if "-" in base else f"V{base}-beta"
-        return {
-            "current_version": version, "current_tag": "beta", "current_commit": commit,
-            "is_prerelease_build": True,
-        }
+    # Si les deux tags mobiles pointent le même commit (rare : juste après
+    # une promotion Canary -> Bêta), "beta" l'emporte — action la plus
+    # délibérée des deux (publication manuelle vs. automatique à chaque push).
+    for rolling_tag in ("beta", "canary"):
+        if rolling_tag in tags_here:
+            return _rolling_build_info(rolling_tag, commit)
 
     described = _git_lines(["describe", "--tags", "--always"], repo_dir)
     if described:
@@ -196,7 +219,7 @@ def _get_local_version_info() -> dict[str, Any]:
         "current_version": base_version,
         "current_tag": tag,
         "current_commit": commit,
-        "is_prerelease_build": False,
+        "local_rolling_channel": None,
     }
 
 
@@ -249,7 +272,7 @@ def _lookup_release_blocking(channel: str, force: bool) -> tuple[dict[str, Any] 
     if cached and not force and now - cached["checked_at"] < _DEDUPE_WINDOW_SECONDS:
         return cached["data"], None
 
-    url = _RELEASES_BETA_TAG_URL if channel == "beta" else _RELEASES_LATEST_URL
+    url = _ROLLING_RELEASE_URLS.get(channel, _RELEASES_LATEST_URL)
     try:
         status, data, etag = _github_get(url, cached["etag"] if cached else None)
     except urllib.error.HTTPError as e:
@@ -266,18 +289,18 @@ def _lookup_release_blocking(channel: str, force: bool) -> tuple[dict[str, Any] 
     if not isinstance(data, dict):
         return (cached["data"] if cached else None), "offline"
 
-    if channel == "beta" and not _SHA_RE.match((data.get("target_commitish") or "").lower()):
+    if channel in _ROLLING_RELEASE_URLS and not _SHA_RE.match((data.get("target_commitish") or "").lower()):
         # `target_commitish` peut valoir un nom de branche si la release a été
         # créée à la main sans `--target <sha>` : la comparaison de commits
         # déclarerait alors une mise à jour À CHAQUE vérification. On résout
-        # le commit réel derrière le tag fixe "beta".
+        # le commit réel derrière le tag mobile du canal ("beta" ou "canary").
         try:
-            _, commit_data, _ = _github_get(f"{_COMMITS_URL}/beta")
+            _, commit_data, _ = _github_get(f"{_COMMITS_URL}/{channel}")
             sha = (commit_data or {}).get("sha")
             if sha:
                 data["target_commitish"] = sha
         except Exception as e:
-            logger.info(f"Résolution du commit du tag beta impossible : {e}")
+            logger.info(f"Résolution du commit du tag {channel} impossible : {e}")
 
     _RELEASE_CACHE[channel] = {"data": data, "etag": etag, "checked_at": now}
     return data, None
@@ -300,14 +323,26 @@ def _short(sha: str | None, length: int = 7) -> str:
     return (sha or "")[:length]
 
 
-def _beta_has_update(local_commit: str, release_data: dict[str, Any]) -> bool:
-    """Le canal Bêta n'a pas de numéro de version qui avance à chaque build
-    (tag fixe "beta") — la comparaison porte donc sur le COMMIT plutôt que
-    sur une version sémantique."""
+def _commit_based_update(local_commit: str, release_data: dict[str, Any]) -> bool:
+    """Un canal rolling (Bêta curée ou Canary) n'a pas de numéro de version
+    qui avance à chaque build (tag fixe) — la comparaison porte donc sur le
+    COMMIT plutôt que sur une version sémantique. Partagé par tous les
+    canaux de `_ROLLING_RELEASE_URLS`."""
     remote_commit = _short(release_data.get("target_commitish"))
     if not remote_commit or local_commit in ("unknown", ""):
         return False
     return not remote_commit.startswith(local_commit) and not local_commit.startswith(remote_commit)
+
+
+def _rolling_tag_update(local_commit: str, release_data: dict[str, Any], tag_name: str) -> dict[str, Any]:
+    """Décision pour un canal rolling (Bêta curée ou Canary), paramétrée par
+    le nom du tag mobile concerné — voir `_commit_based_update`."""
+    remote_short = _short(release_data.get("target_commitish"))
+    return {
+        "has_update": _commit_based_update(local_commit, release_data),
+        "is_downgrade": False,
+        "latest_version": f"{tag_name} ({remote_short})" if remote_short else tag_name,
+    }
 
 
 def _evaluate_update(channel: str, local: dict[str, Any], release_data: dict[str, Any]) -> dict[str, Any]:
@@ -315,26 +350,22 @@ def _evaluate_update(channel: str, local: dict[str, Any], release_data: dict[str
     installer pour ce canal, et est-ce un retour en arrière ?
 
     Canal Stable : une version strictement plus récente est toujours
-    proposée. Si le build local est un build BÊTA, la Stable la plus récente
-    est proposée même quand elle est numériquement INFÉRIEURE (`is_downgrade`)
-    — c'est le geste "repasser en Stable à tout moment" promis dans
-    Réglages. Jamais appliquée automatiquement par la planification
-    (`run_scheduled_update_if_available`) : un retour en arrière reste
-    toujours un clic explicite.
+    proposée. Si le build local est un build Bêta/Canary, la Stable la plus
+    récente est proposée même quand elle est numériquement INFÉRIEURE
+    (`is_downgrade`) — c'est le geste "repasser en Stable à tout moment"
+    promis dans Réglages. Jamais appliquée automatiquement par la
+    planification (`run_scheduled_update_if_available`) : un retour en
+    arrière reste toujours un clic explicite.
 
-    Canal Bêta : comparaison de commits (cf. `_beta_has_update`)."""
-    if channel == "beta":
-        remote_short = _short(release_data.get("target_commitish"))
-        return {
-            "has_update": _beta_has_update(local["current_commit"], release_data),
-            "is_downgrade": False,
-            "latest_version": f"beta ({remote_short})" if remote_short else "beta",
-        }
+    Canaux Bêta/Canary (rolling) : comparaison de commits (cf.
+    `_rolling_tag_update`)."""
+    if channel in _ROLLING_RELEASE_URLS:
+        return _rolling_tag_update(local["current_commit"], release_data, channel)
     latest_tag = release_data.get("tag_name") or ""
     latest, current = _parse_version(latest_tag), _parse_version(local["current_version"])
     if latest > current:
         return {"has_update": True, "is_downgrade": False, "latest_version": latest_tag}
-    if local.get("is_prerelease_build") and latest != current:
+    if local.get("local_rolling_channel") and latest != current:
         return {"has_update": True, "is_downgrade": True, "latest_version": latest_tag}
     return {"has_update": False, "is_downgrade": False, "latest_version": latest_tag}
 
@@ -384,10 +415,11 @@ def _resolve_asset(
 async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Vérifie la disponibilité d'une nouvelle release officielle sur GitHub,
-    en respectant le canal choisi dans Réglages → Mises à jour (Stable ou
-    Bêta). Gère gracieusement le mode hors-ligne sans planter. `refresh`
-    contourne la fenêtre anti-doublon (clic explicite sur "Rechercher",
-    changement de canal) ; la requête reste conditionnelle (ETag).
+    en respectant le canal choisi dans Réglages → Mises à jour (Stable,
+    Bêta ou Canary). Gère gracieusement le mode hors-ligne sans planter.
+    `refresh` contourne la fenêtre anti-doublon (clic explicite sur
+    "Rechercher", changement de canal) ; la requête reste conditionnelle
+    (ETag).
     """
     local_info = _get_local_version_info()
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -403,7 +435,7 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
         "current_version": local_info["current_version"],
         "current_tag": local_info["current_tag"],
         "current_commit": local_info["current_commit"],
-        "local_build": "beta" if local_info["is_prerelease_build"] else "stable",
+        "local_build": local_info["local_rolling_channel"] or "stable",
         "deployment_profile": profile,
         "checked_at": now_iso,
     }
@@ -521,9 +553,10 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
 
     # Résout à nouveau la release cible au moment du clic (plutôt que de
     # faire confiance à une valeur envoyée par le client) : reflète toujours
-    # le canal Stable/Bêta courant, y compris si l'utilisateur l'a changé
-    # entre le dernier "Rechercher une mise à jour" et ce clic. `force=True`
-    # : jamais sur une réponse en cache vieille de plusieurs minutes.
+    # le canal Stable/Bêta/Canary courant, y compris si l'utilisateur l'a
+    # changé entre le dernier "Rechercher une mise à jour" et ce clic.
+    # `force=True` : jamais sur une réponse en cache vieille de plusieurs
+    # minutes.
     channel = _get_update_channel(db)
     release_data, error_code = await _fetch_release_for_channel(channel, force=True)
     if not release_data:
@@ -568,7 +601,7 @@ async def run_scheduled_update_if_available(db: Session) -> None:
     avant de déclencher quoi que ce soit — contrairement au bouton manuel,
     personne ne clique ici, donc pas de retour utilisateur immédiat en cas
     de "rien à faire" à gérer, juste un silence normal dans les journaux.
-    Un retour en arrière (Bêta -> Stable plus ancienne) n'est JAMAIS
+    Un retour en arrière (Bêta/Canary -> Stable plus ancienne) n'est JAMAIS
     déclenché sans clic : la planification n'installe que des mises à jour
     montantes."""
     handler = get_profile_handler()

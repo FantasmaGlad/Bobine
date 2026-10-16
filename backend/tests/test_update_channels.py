@@ -1,8 +1,9 @@
-"""Robustesse des mises a jour et de la gestion des canaux Stable/Beta :
-decision pure `_evaluate_update` (dont le retour en arriere Beta -> Stable),
-choix de l'asset par profil (APK telephone vs Android TV), reconciliation de
-l'etat persiste apres un redemarrage reussi, telechargement verifie avec
-nouvelles tentatives."""
+"""Robustesse des mises a jour et de la gestion des canaux de mise a jour
+Stable/Beta/Canary : decision pure `_evaluate_update` (dont le retour en
+arriere Beta/Canary -> Stable), migration DB du canal "beta" historique
+(rolling) vers "canary", choix de l'asset par profil (APK telephone vs
+Android TV), reconciliation de l'etat persiste apres un redemarrage reussi,
+telechargement verifie avec nouvelles tentatives."""
 
 import asyncio
 import hashlib
@@ -17,10 +18,10 @@ from app.routers import updates
 from app.utils import update_orchestrator as orch
 
 
-def _local(version: str, commit: str = "aaaaaaa", prerelease: bool = False) -> dict:
+def _local(version: str, commit: str = "aaaaaaa", local_rolling_channel: str | None = None) -> dict:
     return {
         "current_version": version, "current_tag": version,
-        "current_commit": commit, "is_prerelease_build": prerelease,
+        "current_commit": commit, "local_rolling_channel": local_rolling_channel,
     }
 
 
@@ -42,14 +43,24 @@ def test_stable_same_version_is_up_to_date():
 
 def test_beta_build_of_same_base_is_replaced_by_stable():
     # "4.0.2-beta" < "4.0.2" : promesse "une stable equivalente la remplace".
-    r = updates._evaluate_update("stable", _local("V4.0.2-beta", prerelease=True), _stable("V4.0.2"))
+    r = updates._evaluate_update("stable", _local("V4.0.2-beta", local_rolling_channel="beta"), _stable("V4.0.2"))
     assert r["has_update"] is True and r["is_downgrade"] is False
 
 
 def test_beta_build_ahead_of_stable_can_go_back_to_stable():
     # Repasser en Stable "a tout moment" : propose la stable anterieure,
     # marquee comme retour en arriere (jamais applique par la planification).
-    r = updates._evaluate_update("stable", _local("V4.0.3-beta", prerelease=True), _stable("V4.0.2"))
+    r = updates._evaluate_update("stable", _local("V4.0.3-beta", local_rolling_channel="beta"), _stable("V4.0.2"))
+    assert r == {"has_update": True, "is_downgrade": True, "latest_version": "V4.0.2"}
+
+
+def test_canary_build_of_same_base_is_replaced_by_stable():
+    r = updates._evaluate_update("stable", _local("V4.0.2-canary", local_rolling_channel="canary"), _stable("V4.0.2"))
+    assert r["has_update"] is True and r["is_downgrade"] is False
+
+
+def test_canary_build_ahead_of_stable_can_go_back_to_stable():
+    r = updates._evaluate_update("stable", _local("V4.0.3-canary", local_rolling_channel="canary"), _stable("V4.0.2"))
     assert r == {"has_update": True, "is_downgrade": True, "latest_version": "V4.0.2"}
 
 
@@ -70,6 +81,63 @@ def test_beta_channel_compares_commits_not_versions():
 def test_beta_channel_unknown_local_commit_never_claims_an_update():
     release = {"tag_name": "beta", "target_commitish": "c05011755e69136ce3d24655f4562c3a57e131e9"}
     assert updates._evaluate_update("beta", _local("V4.0.2", commit="unknown"), release)["has_update"] is False
+
+
+def test_canary_channel_compares_commits_not_versions():
+    release = {"tag_name": "canary", "target_commitish": "c05011755e69136ce3d24655f4562c3a57e131e9"}
+    same = updates._evaluate_update("canary", _local("V4.0.2", commit="c050117"), release)
+    assert same["has_update"] is False
+    other = updates._evaluate_update("canary", _local("V4.0.2", commit="deadbee"), release)
+    assert other["has_update"] is True and other["is_downgrade"] is False
+    assert other["latest_version"] == "canary (c050117)"
+
+
+def test_canary_channel_unknown_local_commit_never_claims_an_update():
+    release = {"tag_name": "canary", "target_commitish": "c05011755e69136ce3d24655f4562c3a57e131e9"}
+    assert updates._evaluate_update("canary", _local("V4.0.2", commit="unknown"), release)["has_update"] is False
+
+
+# --- migration DB du canal "beta" historique (rolling) vers "canary" -------
+
+def test_migrate_update_channel_beta_to_canary_rewrites_existing_value(tmp_path, monkeypatch):
+    from sqlalchemy import create_engine, text
+
+    from app import database as db_module
+
+    temp_engine = create_engine(f"sqlite:///{tmp_path / 'migrate.db'}")
+    with temp_engine.connect() as conn:
+        conn.execute(text("CREATE TABLE settings (key VARCHAR PRIMARY KEY, value VARCHAR NOT NULL)"))
+        conn.execute(text("INSERT INTO settings (key, value) VALUES ('update_channel', 'beta')"))
+        conn.commit()
+
+    monkeypatch.setattr(db_module, "engine", temp_engine)
+    monkeypatch.setattr(db_module, "_IS_SQLITE", True)
+    db_module._migrate_update_channel_beta_to_canary()
+
+    with temp_engine.connect() as conn:
+        value = conn.execute(text("SELECT value FROM settings WHERE key='update_channel'")).scalar()
+    assert value == "canary"
+
+
+def test_migrate_update_channel_beta_to_canary_is_a_noop_for_other_values(tmp_path, monkeypatch):
+    from sqlalchemy import create_engine, text
+
+    from app import database as db_module
+
+    temp_engine = create_engine(f"sqlite:///{tmp_path / 'migrate.db'}")
+    with temp_engine.connect() as conn:
+        conn.execute(text("CREATE TABLE settings (key VARCHAR PRIMARY KEY, value VARCHAR NOT NULL)"))
+        conn.execute(text("INSERT INTO settings (key, value) VALUES ('update_channel', 'stable')"))
+        conn.commit()
+
+    monkeypatch.setattr(db_module, "engine", temp_engine)
+    monkeypatch.setattr(db_module, "_IS_SQLITE", True)
+    db_module._migrate_update_channel_beta_to_canary()
+    db_module._migrate_update_channel_beta_to_canary()  # idempotent, deuxieme appel sans effet ni erreur
+
+    with temp_engine.connect() as conn:
+        value = conn.execute(text("SELECT value FROM settings WHERE key='update_channel'")).scalar()
+    assert value == "stable"
 
 
 # --- choix de l'asset ------------------------------------------------------

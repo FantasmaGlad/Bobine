@@ -6,7 +6,7 @@ Version anglaise : [SECURITY.md](../../SECURITY.md). Politique lisible par machi
 
 ## Versions prises en charge
 
-Les correctifs de sécurité sont publiés dans la dernière version stable et dans le canal Bêta (tag mobile `beta`, reconstruit depuis `main`). Le projet n'a qu'une seule branche de développement : les versions antérieures ne reçoivent pas de correctifs rétroportés. La mise à jour vers la dernière version stable est la remédiation prise en charge.
+Les correctifs de sécurité sont publiés dans la dernière version stable et dans le canal de mise à jour Canary (tag mobile `canary`, reconstruit depuis `main` à chaque push). Le canal Bêta (tag mobile `beta`, lots curés publiés manuellement) les reçoit au prochain lot, pas nécessairement immédiatement. Le projet n'a qu'une seule branche de développement : les versions antérieures ne reçoivent pas de correctifs rétroportés. La mise à jour vers la dernière version stable est la remédiation prise en charge.
 
 ## Signaler une vulnérabilité
 

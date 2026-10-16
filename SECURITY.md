@@ -6,7 +6,7 @@ French version: [docs/fr/SECURITY.md](docs/fr/SECURITY.md). Machine-readable pol
 
 ## Supported versions
 
-Security fixes are released in the latest stable version and in the Beta channel (mobile tag `beta`, rebuilt from `main`). The project has a single development branch: earlier releases do not receive backported fixes. Updating to the latest stable release is the supported remediation.
+Security fixes are released in the latest stable version and in the Canary channel (mobile tag `canary`, rebuilt from `main` on every push). The Beta channel (mobile tag `beta`, curated batches published manually) receives them whenever the next batch is cut, not necessarily immediately. The project has a single development branch: earlier releases do not receive backported fixes. Updating to the latest stable release is the supported remediation.
 
 ## Reporting a vulnerability
 

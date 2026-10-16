@@ -123,10 +123,11 @@ ${BOLD}OPTIONS${RESET}
   -h, --help          Affiche cette aide et quitte
   -V, --version       Affiche la version et quitte
   -l, --lang=fr|en    Langue de l'installateur (fr: Français, en: English)
-      --channel=stable|beta
+      --channel=stable|beta|canary
                         Canal de mise à jour (stable par défaut). Bêta donne un accès
-                        anticipé aux fonctionnalités en cours de développement — la
-                        prochaine version stable la remplace toujours automatiquement.
+                        anticipé à des lots de fonctionnalités choisis avant publication ;
+                        Canary suit chaque commit de main, non testé. Dans les deux cas,
+                        la prochaine version stable remplace toujours automatiquement.
   -y, --yes           Ne demande aucune confirmation (mode non-interactif)
   -v, --verbose       Mode verbeux : affiche l'intégralité des flux et logs de compilation en direct
   -q, --quiet         Mode silencieux : n'affiche que les erreurs et le bilan final
@@ -147,10 +148,11 @@ ${BOLD}OPTIONS${RESET}
 ${BOLD}EXEMPLES${RESET}
   curl -fsSL https://github.com/FantasmaGlad/Bobine/releases/latest/download/install.sh | bash
                                                 Installation en une commande : récupère le code, demande sudo si besoin
-  curl -fsSL https://github.com/FantasmaGlad/Bobine/releases/download/beta/install.sh | bash -s -- --channel=beta
+  curl -fsSL https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.sh | bash -s -- --channel=canary
   sudo ./${SCRIPT_NAME}                       Installation standard (interface épurée par défaut)
   sudo ./${SCRIPT_NAME} --lang=en             Installation en anglais
-  sudo ./${SCRIPT_NAME} --channel=beta        Rejoint le canal Bêta (accès anticipé)
+  sudo ./${SCRIPT_NAME} --channel=beta        Rejoint le canal Bêta (lots curés)
+  sudo ./${SCRIPT_NAME} --channel=canary      Rejoint le canal Canary (dernier commit, non testé)
   sudo ./${SCRIPT_NAME} -v                    Installation avec flux verbeux (logs détaillés en direct)
   sudo ./${SCRIPT_NAME} --no-kiosk            Backend seul, sur un serveur ou un poste de dev
   sudo ./${SCRIPT_NAME} --skip-packages       Réinstalle après un 'git pull' sans retoucher apt
@@ -248,17 +250,20 @@ select_installer_language() {
 
 select_installer_language
 
-# Canal de mise à jour : "stable" ou
-# "beta". Une réinstallation idempotente (--skip-packages après un 'git
-# pull', cf. en-tête du script) reprend le canal précédemment choisi plutôt
-# que de retomber sur stable à chaque relance — c'est aussi ce que
-# backend/app/utils/deployment_profiles/linux_headless.py lit pour que le
-# bouton "Mettre à jour" de Réglages reste cohérent avec ce choix CLI.
+# Canal de mise à jour : "stable",
+# "beta" ou "canary". Une réinstallation idempotente (--skip-packages après
+# un 'git pull', cf. en-tête du script) reprend le canal précédemment
+# choisi plutôt que de retomber sur stable à chaque relance. Ce choix n'est
+# PAS relu par le backend (qui a sa propre source de vérité, le réglage
+# `update_channel` en base, modifiable indépendamment depuis Réglages) : la
+# persistance ci-dessous ne sert qu'à cette CLI elle-même, pour les
+# relances/réinstallations ultérieures.
 select_update_channel() {
     if [[ -n "${UPDATE_CHANNEL:-}" ]]; then
         case "${UPDATE_CHANNEL,,}" in
-            beta*) UPDATE_CHANNEL="beta" ;;
-            *)     UPDATE_CHANNEL="stable" ;;
+            beta*)   UPDATE_CHANNEL="beta" ;;
+            canary*) UPDATE_CHANNEL="canary" ;;
+            *)       UPDATE_CHANNEL="stable" ;;
         esac
         return 0
     fi
@@ -273,13 +278,18 @@ select_update_channel() {
 
     printf '\n%s  Canal de mise à jour :%s\n' "$BOLD" "$RESET"
     printf '    %s1%s) Stable (par défaut, recommandé)\n' "$CYAN" "$RESET"
-    printf '    %s2%s) Bêta — accès anticipé aux fonctionnalités en cours de développement\n' "$CYAN" "$RESET"
+    printf '    %s2%s) Bêta — lots de fonctionnalités sélectionnés avant publication\n' "$CYAN" "$RESET"
+    printf '    %s3%s) Canary — tout dernier commit de main, non testé\n' "$CYAN" "$RESET"
     local default_choice="1"
-    [[ "${previous}" == "beta" ]] && default_choice="2"
+    case "${previous}" in
+        beta)   default_choice="2" ;;
+        canary) default_choice="3" ;;
+    esac
     local reply
-    read -r -p "$(printf '%s  Votre choix [1/2] (%s) : %s' "$YELLOW" "$default_choice" "$RESET")" reply </dev/tty || reply="${default_choice}"
+    read -r -p "$(printf '%s  Votre choix [1/2/3] (%s) : %s' "$YELLOW" "$default_choice" "$RESET")" reply </dev/tty || reply="${default_choice}"
     case "${reply:-$default_choice}" in
         2) UPDATE_CHANNEL="beta" ;;
+        3) UPDATE_CHANNEL="canary" ;;
         *) UPDATE_CHANNEL="stable" ;;
     esac
 }
@@ -606,10 +616,11 @@ bootstrap_standalone() {
         fi
     fi
 
-    # 5. Version : dernière Stable, ou tag mobile `beta`.
+    # 5. Version : dernière Stable, ou tag mobile `beta`/`canary` (nom de
+    # tag == nom de canal pour les deux canaux rolling).
     local ref=""
-    if [[ "${UPDATE_CHANNEL}" == "beta" ]]; then
-        user_out git -C "${dest}" rev-parse --verify -q refs/tags/beta >/dev/null 2>&1 && ref="beta"
+    if [[ "${UPDATE_CHANNEL}" == "beta" || "${UPDATE_CHANNEL}" == "canary" ]]; then
+        user_out git -C "${dest}" rev-parse --verify -q "refs/tags/${UPDATE_CHANNEL}" >/dev/null 2>&1 && ref="${UPDATE_CHANNEL}"
     else
         ref="$(user_out git -C "${dest}" tag --list 'V*' --sort=-v:refname 2>/dev/null | grep -E '^V[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
     fi
@@ -1010,29 +1021,29 @@ fi
 emit_event "\"event\":\"run_begin\",\"version\":\"${SCRIPT_VERSION}\",\"total\":${STEP_TOTAL},\"user\":\"$(_json_escape "${TARGET_USER}")\",\"repo\":\"$(_json_escape "${REPO_DIR}")\",\"log\":\"$(_json_escape "${LOG_FILE}")\",\"mode\":\"$($NO_KIOSK && echo server || echo kiosk)\",\"dry_run\":${DRY_RUN}"
 
 # ---------------------------------------------------------------------------
-step update-channel "Canal de mise à jour (Stable / Bêta)"
+step update-channel "Canal de mise à jour (Stable / Bêta / Canary)"
 # ---------------------------------------------------------------------------
 # Persiste le choix pour les relances idempotentes (cf. select_update_channel)
-# et pour que backend/app/utils/deployment_profiles/linux_headless.py reste
-# cohérent avec ce choix CLI quand le bouton "Mettre à jour" de Réglages est
-# utilisé ensuite.
+# de CETTE CLI uniquement — le backend a sa propre source de vérité
+# (réglage `update_channel` en base), non couplée à ce fichier.
 mkdir -p "${CONFIG_DIR}" 2>/dev/null || true
 write_file "${CONFIG_DIR}/update-channel" <<< "${UPDATE_CHANNEL}"
 
 if [[ -d "${REPO_DIR}/.git" ]]; then
-    # --force : le canal Bêta repose sur un tag UNIQUE et mobile ("beta",
-    # un seul fichier de release Bêta sur
+    # --force : les canaux Bêta et Canary reposent chacun sur un tag UNIQUE
+    # et mobile ("beta"/"canary", un seul fichier de release par canal sur
     # GitHub plutôt qu'un tag par itération) — sans --force, un `git fetch`
     # classique refuse de mettre à jour un tag local si le tag distant a
     # bougé depuis le dernier fetch.
     run git -C "${REPO_DIR}" fetch --tags --force
-    if [[ "${UPDATE_CHANNEL}" == "beta" ]]; then
+    if [[ "${UPDATE_CHANNEL}" == "beta" || "${UPDATE_CHANNEL}" == "canary" ]]; then
         # Tag fixe, pas de recherche : la CI republie toujours sous ce même
-        # nom (cf. .github/workflows/ci.yml, job release-beta). Peut ne pas
-        # exister encore (aucune bêta jamais publiée) — vérifié juste après,
-        # pas de recherche à faire ici contrairement à la branche stable.
-        if git -C "${REPO_DIR}" rev-parse --verify -q "refs/tags/beta" >/dev/null; then
-            TARGET_TAG="beta"
+        # nom (cf. .github/workflows/ci.yml, jobs release-beta/release-canary).
+        # Peut ne pas exister encore (aucune release jamais publiée sur ce
+        # canal) — vérifié juste après, pas de recherche à faire ici
+        # contrairement à la branche stable.
+        if git -C "${REPO_DIR}" rev-parse --verify -q "refs/tags/${UPDATE_CHANNEL}" >/dev/null; then
+            TARGET_TAG="${UPDATE_CHANNEL}"
         else
             TARGET_TAG=""
         fi

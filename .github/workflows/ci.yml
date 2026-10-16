@@ -18,14 +18,25 @@ on:
         description: >-
           Tag Stable à (re)publier (ex. V3.0.1) — republie manuellement une
           release stable sans pousser de tag. Laisser vide si publish_beta
-          est coché.
+          ou publish_canary est coché.
         required: false
       publish_beta:
         description: >-
-          Publier/mettre à jour la release Bêta (tag mobile unique "beta")
-          depuis la référence choisie ci-dessus (Use workflow from) — un seul
-          fichier de release Bêta sur GitHub, republié en place à chaque
-          déclenchement plutôt qu'un nouveau tag par itération.
+          Publier/mettre à jour la release Bêta curée (tag mobile unique
+          "beta") depuis la référence choisie ci-dessus (Use workflow from)
+          — un seul fichier de release Bêta sur GitHub, republié en place à
+          chaque déclenchement plutôt qu'un nouveau tag par itération.
+          Jamais automatique : seul un déclenchement manuel publie sur ce
+          canal (lots choisis par le mainteneur).
+        type: boolean
+        default: false
+      publish_canary:
+        description: >-
+          Publier/mettre à jour la release Canary (tag mobile unique
+          "canary", rolling) depuis la référence choisie ci-dessus — utile
+          pour republier sans nouveau commit (ex. après un correctif
+          d'infra CI). Un push direct sur main publie déjà automatiquement
+          sur ce canal ; cette case sert aux republications manuelles.
         type: boolean
         default: false
 
@@ -36,24 +47,31 @@ concurrency:
 
 jobs:
   # Résout la version et le CANAL une seule fois pour tous les jobs de
-  # packaging. Deux canaux structurellement
+  # packaging. Trois canaux structurellement
   # séparés :
   # - "stable" : déclenché par un tag Git Vx.y.z strict (pas de suffixe —
-  #   les tags -beta.N par itération sont abandonnés). Un nouveau tag/release
-  #   par version, comme avant : historique normal et attendu.
-  # - "beta"   : déclenché AUTOMATIQUEMENT à chaque push sur main (la Bêta
-  #   suit main en continu, cf. incident du 8 sept. où la release Bêta est
-  #   restée 6 commits en retard faute de republication manuelle), ou
-  #   manuellement (workflow_dispatch, case publish_beta cochée) depuis
-  #   n'importe quelle référence (choisie via "Use workflow from" dans l'UI
-  #   Actions — utile pour republier sans nouveau commit, ex. après un
-  #   correctif d'infra CI). Publie TOUJOURS sous le même tag mobile "beta"
-  #   — un seul fichier de release Bêta sur GitHub, jamais d'accumulation, republié en place par le job
-  #   release-beta à chaque déclenchement.
-  # Ni tag ni push sur main ni publish_beta (pull_request, push sur une autre
-  # branche) : CHANNEL="none" — les jobs de publication (release-stable,
-  # release-beta) ne se déclenchent pas, seuls les tests/builds de
-  # vérification tournent.
+  #   les tags -beta.N/-canary.N par itération sont abandonnés). Un nouveau
+  #   tag/release par version, comme avant : historique normal et attendu.
+  # - "canary" : déclenché AUTOMATIQUEMENT à chaque push sur main (la Canary
+  #   suit main en continu, cf. incident du 8 sept. où l'ancienne release
+  #   Bêta rolling est restée 6 commits en retard faute de republication
+  #   manuelle), ou manuellement (workflow_dispatch, case publish_canary
+  #   cochée) depuis n'importe quelle référence (choisie via "Use workflow
+  #   from" dans l'UI Actions — utile pour republier sans nouveau commit, ex.
+  #   après un correctif d'infra CI). Publie TOUJOURS sous le même tag mobile
+  #   "canary" — un seul fichier de release Canary sur GitHub, jamais
+  #   d'accumulation, republié en place par le job release-canary à chaque
+  #   déclenchement. Zéro curation : c'est le dernier commit de main, non
+  #   testé.
+  # - "beta"   : déclenché UNIQUEMENT manuellement (workflow_dispatch, case
+  #   publish_beta cochée) depuis la référence choisie par le mainteneur —
+  #   jamais automatiquement sur un simple push. Lots de fonctionnalités/
+  #   correctifs choisis, publiés quand le mainteneur le décide. Publie sous
+  #   le tag mobile "beta", republié en place par le job release-beta.
+  # Ni tag ni push sur main ni publish_beta/publish_canary (pull_request,
+  # push sur une autre branche) : CHANNEL="none" — les jobs de publication
+  # (release-stable, release-beta, release-canary) ne se déclenchent pas,
+  # seuls les tests/builds de vérification tournent.
   version:
     name: Resolve release version & channel
     runs-on: ubuntu-latest
@@ -82,8 +100,9 @@ jobs:
           fi
 
           if [ -n "${TAG_NAME}" ]; then
-            # Tag Stable strict Vx.y.z — plus de suffixe -beta./-rc. accepté
-            # ici (le canal Bêta n'utilise plus de tag par itération).
+            # Tag Stable strict Vx.y.z — plus de suffixe -beta./-canary./-rc.
+            # accepté ici (les canaux Bêta/Canary n'utilisent pas de tag par
+            # itération).
             TAG_VERSION="${TAG_NAME#v}"; TAG_VERSION="${TAG_VERSION#V}"
             if ! [[ "${TAG_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               echo "::error::Tag '${TAG_NAME}' invalide pour une release Stable (attendu Vx.y.z strict, ex. V3.0.1)."
@@ -95,20 +114,25 @@ jobs:
             fi
             CHANNEL="stable"
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.publish_beta }}" == "true" ]]; then
+            # Action la plus délibérée des deux cases à cocher : l'emporte si
+            # publish_beta ET publish_canary sont cochées par erreur.
             CHANNEL="beta"
             TAG_NAME="beta"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.publish_canary }}" == "true" ]]; then
+            CHANNEL="canary"
+            TAG_NAME="canary"
           elif [[ "${{ github.event_name }}" == "push" && "${GITHUB_REF}" == "refs/heads/main" ]]; then
             # Push direct sur main (hors tag) : republie automatiquement la
-            # Bêta à chaque commit, pour qu'elle ne prenne plus jamais de
+            # Canary à chaque commit, pour qu'elle ne prenne plus jamais de
             # retard sur main sans intervention manuelle.
-            CHANNEL="beta"
-            TAG_NAME="beta"
+            CHANNEL="canary"
+            TAG_NAME="canary"
           fi
 
-          if [ "${CHANNEL}" = "beta" ]; then
-            DISPLAY_VERSION="${BASE_VERSION}-beta"     # bundlé (VERSION), AppVersion Windows — cosmétique
-            DEB_VERSION="${BASE_VERSION}~beta"         # champ Version: du paquet .deb — syntaxe Debian (le '~' trie AVANT la version finale)
-            FILENAME_VERSION="beta"                    # nom de fichier FIXE (exe/dmg/deb) — jamais de '~', jamais de suffixe qui change à chaque build
+          if [ "${CHANNEL}" = "beta" ] || [ "${CHANNEL}" = "canary" ]; then
+            DISPLAY_VERSION="${BASE_VERSION}-${CHANNEL}"  # bundlé (VERSION), AppVersion Windows — cosmétique
+            DEB_VERSION="${BASE_VERSION}~${CHANNEL}"      # champ Version: du paquet .deb — syntaxe Debian (le '~' trie AVANT la version finale)
+            FILENAME_VERSION="${CHANNEL}"                 # nom de fichier FIXE (exe/dmg/deb) — jamais de '~', jamais de suffixe qui change à chaque build
           else
             DISPLAY_VERSION="${BASE_VERSION}"
             DEB_VERSION="${BASE_VERSION}"
@@ -254,7 +278,7 @@ jobs:
         working-directory: .
         run: |
           echo "${{ needs.version.outputs.commit_short }}" > COMMIT
-          if [ "${{ needs.version.outputs.channel }}" = "beta" ]; then
+          if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
             echo "${{ needs.version.outputs.display_version }}" > VERSION
           fi
       - name: Clippy (warnings = erreurs)
@@ -273,8 +297,8 @@ jobs:
 
   android-build:
     # Compile et signe l'APK Android (Chaquopy + FastAPI embarqué + binaire FFmpeg ARM64).
-    # Inclus dans les assets officiels des releases Stable (Bobine-x.y.z.apk) et Bêta (Bobine-beta.apk)
-    # à partir de la version 3.0.2.
+    # Inclus dans les assets officiels des releases Stable (Bobine-x.y.z.apk), Bêta (Bobine-beta.apk)
+    # et Canary (Bobine-canary.apk) à partir de la version 3.0.2.
     #
     # Ne fait PAS échouer la CI si les secrets de signature n'existent pas
     # encore (cf. ~/.bobine-signing/README.md sur la machine où la clé a
@@ -443,7 +467,7 @@ jobs:
         shell: bash
         run: |
           echo "${{ needs.version.outputs.commit_short }}" > COMMIT
-          if [ "${{ needs.version.outputs.channel }}" = "beta" ]; then
+          if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
             echo "${{ needs.version.outputs.display_version }}" > VERSION
           fi
       - name: Construire BobineBackend.exe + BobineTray.exe
@@ -526,7 +550,7 @@ jobs:
       - name: Identifiants de build (VERSION bundlée + COMMIT)
         run: |
           echo "${{ needs.version.outputs.commit_short }}" > COMMIT
-          if [ "${{ needs.version.outputs.channel }}" = "beta" ]; then
+          if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
             echo "${{ needs.version.outputs.display_version }}" > VERSION
           fi
       - name: Construire le paquet Debian (.deb)
@@ -596,7 +620,7 @@ jobs:
       - name: Identifiants de build (VERSION bundlée + COMMIT)
         run: |
           echo "${{ needs.version.outputs.commit_short }}" > COMMIT
-          if [ "${{ needs.version.outputs.channel }}" = "beta" ]; then
+          if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
             echo "${{ needs.version.outputs.display_version }}" > VERSION
           fi
       - name: Construire Bobine.app
@@ -726,12 +750,182 @@ jobs:
           prerelease: false
           generate_release_notes: false
 
-  # Publie/rafraîchit la release BÊTA — un seul tag mobile "beta", republié
-  # en place à chaque déclenchement manuel. Le tag
-  # est force-déplacé sur le commit courant ; les notes sont générées
-  # automatiquement (changelog depuis la dernière Stable), pas de fichier
-  # docs/releases/ à maintenir pour ce canal (il serait obsolète dès le
-  # commit suivant).
+  # Publie/rafraîchit la release CANARY — un seul tag mobile "canary",
+  # republié en place à chaque déclenchement (automatique à chaque push sur
+  # main, ou manuel). Le tag est force-déplacé sur le commit courant ; les
+  # notes sont générées automatiquement (changelog depuis la dernière
+  # Stable), pas de fichier docs/releases/ à maintenir pour ce canal (il
+  # serait obsolète dès le commit suivant). Zéro curation : dernier commit
+  # de main, non testé.
+  release-canary:
+    name: Publish/Update Canary Release
+    needs: [version, windows-build, linux-desktop-deb, macos-build, assistant-core, android-build]
+    if: needs.version.outputs.channel == 'canary'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create release assets directory
+        run: mkdir -p release-assets
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-windows-installer
+          path: release-assets
+      - name: Download Linux deb
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-deb
+          path: release-assets
+      - name: Download macOS dmg
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-macos-dmg
+          path: release-assets
+      - name: Download Linux assistant binary
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-assistant-linux
+          path: release-assets
+      - name: Download Android APK
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: bobine-android-apk
+          path: android-artifact
+      - name: Download Android TV APK
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: bobine-android-tv-apk
+          path: android-tv-artifact
+      - name: Prepare Android APK assets
+        run: |
+          if [ -d "android-artifact" ] && compgen -G "android-artifact/*.apk" > /dev/null; then
+            APK_SRC=$(ls android-artifact/*.apk | head -1)
+            cp "$APK_SRC" "release-assets/Bobine-canary.apk"
+            echo "Android APK copié : release-assets/Bobine-canary.apk"
+          else
+            echo "Aucun APK Android trouvé dans l'artefact."
+          fi
+          if [ -d "android-tv-artifact" ] && compgen -G "android-tv-artifact/*.apk" > /dev/null; then
+            APK_TV_SRC=$(ls android-tv-artifact/*.apk | head -1)
+            cp "$APK_TV_SRC" "release-assets/Bobine-TV-canary.apk"
+            echo "Android TV APK copié : release-assets/Bobine-TV-canary.apk"
+          else
+            echo "Aucun APK Android TV trouvé dans l'artefact."
+          fi
+      - name: Copy install script into release assets
+        run: cp install.sh release-assets/
+      - name: Inspect generated binary assets
+        run: ls -lh release-assets/
+      - name: Force-move the "canary" tag to the current commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f canary "${{ github.sha }}"
+          git push origin canary --force
+      - name: Generate rolling release notes (README-style layout + changelog since last Stable)
+        id: notes
+        run: |
+          # Bloc statique (bannière + intro + tableau de téléchargement) dans un
+          # heredoc ENTIÈREMENT quoté ('NOTES_EOF') : aucune substitution shell,
+          # donc tous les backticks/`$`/badges markdown restent littéraux sans
+          # avoir besoin d'être échappés un par un. __COMMIT__/__VERSION__ sont
+          # remplacés juste après par sed (valeurs courtes, sans caractère
+          # spécial pour sed : un SHA court et un "x.y.z"). Chaque ligne du
+          # heredoc est indentée pour respecter le bloc scalaire YAML `run: |`
+          # (l'indentation commune est retirée par le parseur YAML avant que
+          # bash ne voie le script — le fichier markdown généré, lui, n'a
+          # bien AUCUNE indentation, sans quoi Markdown le lirait comme un
+          # bloc de code).
+          cat > /tmp/canary-notes.md <<'NOTES_EOF'
+          <p align="center">
+            <img alt="Bobine" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/LogoBanniere.png" width="100%">
+          </p>
+
+          <p align="center">
+            <img alt="Bobine soutient Firefox — le renard Firefox et Baamix" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/FirefoxBaamix.png" width="320">
+          </p>
+
+          # Bobine — Canary (build automatique)
+
+          > **Bobine soutient Firefox.** Interface d'administration et lecteurs tiers (`/radio`, `/kiosk`, `/cinema`) vérifiés de bout en bout sur Firefox 157 : envois reprenables après coupure, flux média conformes HTTP, version vidéo compatible en repli automatique, diagnostic navigateur intégré. Cette release apporte aussi des mises à jour Stable/Bêta/Canary fiabilisées (dont le retour en Stable) et un installateur plus fluide.
+
+          Pre-release construite depuis le tout dernier commit de `main`, sans aucune curation — reconstruite automatiquement à chaque push et republiée **en place** sur ce même tag mobile `canary` (jamais un nouveau tag par itération). Une version stable équivalente ou plus récente la remplace toujours automatiquement.
+
+          Réservée aux utilisateurs ayant activé le canal Canary (Réglages → Mises à jour, `install.sh --channel=canary`, ou l'assistant Tauri). Pour un accès anticipé moins volatil, voir le [canal Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) (lots curés, publication manuelle).
+
+          **Basé sur** commit `__COMMIT__` · version à venir `__VERSION__`
+
+          ---
+
+          ## Téléchargement
+
+          | Plateforme | Format | Téléchargement direct |
+          | :--- | :---: | :--- |
+          | ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` | [**Bobine-Setup-canary.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-Setup-canary.exe) |
+          | ![Android](https://img.shields.io/badge/Android-34A853?style=flat-square&logo=android&logoColor=white) | `.apk` | [**Bobine-canary.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-canary.apk) |
+          | ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=androidtv&logoColor=white) | `.apk` | [**Bobine-TV-canary.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-TV-canary.apk) |
+          | ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` | [**bobine_canary_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine_canary_amd64.deb) |
+          | ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` | [**Bobine-canary.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-canary.dmg) |
+          | ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | Binaire natif | [**bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine-assistant) |
+          | ![Bash CLI](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | Script | [**install.sh**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.sh) — ou `sudo ./install.sh --channel=canary` sur une installation existante |
+
+          NOTES_EOF
+          sed -i "s/__COMMIT__/${{ needs.version.outputs.commit_short }}/; s/__VERSION__/${{ needs.version.outputs.base_version }}/" /tmp/canary-notes.md
+
+          # Bloc dynamique (changelog) ajouté à part, pas via sed : un message
+          # de commit peut contenir '/', '&' ou d'autres caractères qui
+          # casseraient une substitution sed, et un fence de code (```) rend le
+          # changelog bien plus lisible qu'un paragraphe brut (le Markdown
+          # fusionne des lignes consécutives sans ligne vide entre elles).
+          LAST_STABLE="$(git tag --list 'V*' --sort=-v:refname | grep -E '^V[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
+          if [ -n "${LAST_STABLE}" ]; then
+            CHANGELOG_HEADING="Changements depuis ${LAST_STABLE}"
+            CHANGELOG="$(git log "${LAST_STABLE}..HEAD" --oneline --no-merges | head -50)"
+          else
+            CHANGELOG_HEADING="Changements récents"
+            CHANGELOG="$(git log --oneline --no-merges | head -50)"
+          fi
+          {
+            echo "---"
+            echo ""
+            echo "## ${CHANGELOG_HEADING}"
+            echo ""
+            echo '```'
+            echo "${CHANGELOG}"
+            echo '```'
+            echo ""
+            echo "---"
+            echo ""
+            echo "Retour à la Stable à tout moment, sans perte de données : Réglages → Mises à jour logicielles → Canal de mise à jour → Stable."
+          } >> /tmp/canary-notes.md
+          echo "notes_path=/tmp/canary-notes.md" >> "$GITHUB_OUTPUT"
+      - name: Delete previous Canary release (assets get fully replaced, not merged)
+        run: gh release delete canary --yes || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Publish Canary release
+        run: |
+          gh release create canary release-assets/* \
+            --title "Bobine — Canary (build automatique)" \
+            --notes-file "${{ steps.notes.outputs.notes_path }}" \
+            --prerelease \
+            --target "${{ github.sha }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Publie/rafraîchit la release BÊTA (palier curé) — un seul tag mobile
+  # "beta", republié en place UNIQUEMENT sur déclenchement manuel
+  # (workflow_dispatch, jamais sur un simple push sur main — à la différence
+  # de Canary). Le mainteneur choisit la référence ("Use workflow from")
+  # quand un lot de fonctionnalités/correctifs est prêt à être partagé plus
+  # largement que sur Canary. Même mécanique de tag mobile et de notes
+  # générées automatiquement que Canary, juste un déclenchement différent.
   release-beta:
     name: Publish/Update Beta Release
     needs: [version, windows-build, linux-desktop-deb, macos-build, assistant-core, android-build]
@@ -828,11 +1022,11 @@ jobs:
 
           # Bobine — Bêta (build automatique)
 
-          > **Bobine soutient Firefox.** Interface d'administration et lecteurs tiers (`/radio`, `/kiosk`, `/cinema`) vérifiés de bout en bout sur Firefox 157 : envois reprenables après coupure, flux média conformes HTTP, version vidéo compatible en repli automatique, diagnostic navigateur intégré. Cette bêta apporte aussi des mises à jour Stable/Bêta fiabilisées (dont le retour en Stable) et un installateur plus fluide.
+          > **Bobine soutient Firefox.** Interface d'administration et lecteurs tiers (`/radio`, `/kiosk`, `/cinema`) vérifiés de bout en bout sur Firefox 157 : envois reprenables après coupure, flux média conformes HTTP, version vidéo compatible en repli automatique, diagnostic navigateur intégré. Cette bêta apporte aussi des mises à jour Stable/Bêta/Canary fiabilisées (dont le retour en Stable) et un installateur plus fluide.
 
-          Pre-release à accès anticipé aux fonctionnalités en cours de développement — reconstruite automatiquement à chaque publication et republiée **en place** sur ce même tag mobile `beta` (jamais un nouveau tag par itération). Une version stable équivalente ou plus récente la remplace toujours automatiquement.
+          Pre-release curée : un lot de fonctionnalités/correctifs sélectionné par le mainteneur, publié manuellement — plus testé que Canary (qui suit chaque commit de main), moins que Stable. Republiée **en place** sur ce même tag mobile `beta` (jamais un nouveau tag par itération) à chaque nouveau lot. Une version stable équivalente ou plus récente la remplace toujours automatiquement.
 
-          Réservée aux utilisateurs ayant activé le canal Bêta ("Programme Bobine Beta" dans Réglages → Mises à jour, `install.sh --channel=beta`, ou l'assistant Tauri).
+          Réservée aux utilisateurs ayant activé le canal Bêta (Réglages → Mises à jour, `install.sh --channel=beta`, ou l'assistant Tauri). Pour suivre chaque commit de main sans attendre un lot, voir le [canal Canary](https://github.com/FantasmaGlad/Bobine/releases/tag/canary).
 
           **Basé sur** commit `__COMMIT__` · version à venir `__VERSION__`
 
@@ -877,7 +1071,7 @@ jobs:
             echo ""
             echo "---"
             echo ""
-            echo "Retour à la Stable à tout moment, sans perte de données : Réglages → Mises à jour logicielles → « Programme Bobine Beta » → Stable."
+            echo "Retour à la Stable à tout moment, sans perte de données : Réglages → Mises à jour logicielles → Canal de mise à jour → Stable."
           } >> /tmp/beta-notes.md
           echo "notes_path=/tmp/beta-notes.md" >> "$GITHUB_OUTPUT"
       - name: Delete previous Beta release (assets get fully replaced, not merged)
@@ -895,24 +1089,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   # Met à jour automatiquement le dépôt APT officiel (apt.bobine.fit) sur gh-pages
-  # dès qu'une release Stable ou Bêta a été publiée avec succès.
+  # dès qu'une release Stable, Bêta ou Canary a été publiée avec succès.
   publish-apt-repo:
     name: Publish to APT Repository (apt.bobine.fit)
-    needs: [version, linux-desktop-deb, release-stable, release-beta]
+    needs: [version, linux-desktop-deb, release-stable, release-beta, release-canary]
     if: |
       always() &&
       !cancelled() &&
-      (needs.release-stable.result == 'success' || needs.release-beta.result == 'success')
+      (needs.release-stable.result == 'success' || needs.release-beta.result == 'success' || needs.release-canary.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     # Sérialise les publications sur gh-pages (groupe FIXE, pas ${{ github.ref
-    # }}) : un tag Vx.y.z (Stable) et un push sur main (Bêta, cf. fix
-    # précédent republiant la Bêta en continu) peuvent se déclencher à
-    # quelques secondes d'intervalle et courir en parallèle sur des refs
-    # différentes — sans ce verrou, les deux jobs checkoutent gh-pages en
-    # même temps et le second `git push` est rejeté.
-    # cancel-in-progress: false — les deux publications doivent aboutir,
+    # }}) : un tag Vx.y.z (Stable) et un push sur main (Canary, cf. fix
+    # précédent republiant l'ancienne Bêta rolling en continu) peuvent se
+    # déclencher à quelques secondes d'intervalle et courir en parallèle sur
+    # des refs différentes — sans ce verrou, les deux jobs checkoutent
+    # gh-pages en même temps et le second `git push` est rejeté.
+    # cancel-in-progress: false — toutes les publications doivent aboutir,
     # seulement l'une après l'autre.
     concurrency:
       group: publish-apt-repo
@@ -946,10 +1140,13 @@ jobs:
           echo "Mise à jour du dépôt APT pour le canal ${CHANNEL} avec ${DEB_FILE}"
 
           cd apt-repo
-          if [ "$CHANNEL" = "beta" ]; then
-            # Sur le canal bêta roulant, on retire l'ancien paquet pour ne garder que la dernière version
-            reprepro remove beta bobine || true
-            reprepro includedeb beta "../$DEB_FILE"
+          if [ "$CHANNEL" = "beta" ] || [ "$CHANNEL" = "canary" ]; then
+            # Canaux rolling (Bêta curée comme Canary) : on retire l'ancien
+            # paquet pour ne garder que la dernière version publiée sur ce
+            # canal, paramétré par $CHANNEL (déclaré dans conf/distributions
+            # sur gh-pages).
+            reprepro remove "$CHANNEL" bobine || true
+            reprepro includedeb "$CHANNEL" "../$DEB_FILE"
           else
             # Sur le canal stable
             reprepro includedeb stable "../$DEB_FILE"

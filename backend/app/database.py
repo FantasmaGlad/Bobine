@@ -127,6 +127,7 @@ def init_db():
     _migrate_add_missing_columns()
     _migrate_backfill_video_metadata()
     _migrate_backfill_audio_duration()
+    _migrate_update_channel_beta_to_canary()
 
 
 def _migrate_audio_playlist_items_to_tracks():
@@ -240,6 +241,40 @@ def _migrate_add_missing_columns():
                 logger.info(
                     f"Migration : colonne {table}.{column} déjà ajoutée par un autre worker, ignoré"
                 )
+
+
+def _migrate_update_channel_beta_to_canary():
+    """
+    Passage de 2 à 3 canaux de mise à jour (Stable/Bêta/Canary) : l'ancien
+    canal "beta" (rolling, republié à chaque push sur main) est renommé
+    "canary" ; "beta" désigne désormais un nouveau palier curé, publié
+    manuellement par lots. Réécrit silencieusement toute valeur DB
+    `update_channel="beta"` existante en "canary" — un utilisateur déjà sur
+    ce canal garde le même comportement (suivi continu de main) sous son
+    nouveau nom, sans jamais hériter par surprise du nouveau palier curé
+    qu'il n'a jamais choisi explicitement. Idempotent (UPDATE sans ligne
+    correspondante après la première exécution).
+    """
+    from sqlalchemy import text
+
+    if not _IS_SQLITE:
+        return
+
+    with engine.connect() as conn:
+        tables = {row[0] for row in conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='settings'"
+        ))}
+        if "settings" not in tables:
+            return
+        result = conn.execute(text(
+            "UPDATE settings SET value='canary' WHERE key='update_channel' AND value='beta'"
+        ))
+        conn.commit()
+        if result.rowcount:
+            logger.info(
+                f"Migration : canal de mise à jour 'beta' (rolling) renommé 'canary' "
+                f"({result.rowcount} réglage(s))"
+            )
 
 
 def _migrate_backfill_video_metadata():

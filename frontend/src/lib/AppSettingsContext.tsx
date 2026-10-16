@@ -49,6 +49,7 @@ export interface NetworkInfo {
 }
 
 export type ActiveLogo = "default" | "custom";
+export type UpdateChannel = "stable" | "beta" | "canary";
 export type WiredDisplayMode = "dual_screen" | "headless";
 /** Réglage administrateur : "auto" = dérivé des écrans externes réellement
  * connectés ; sinon forçage manuel. */
@@ -71,6 +72,10 @@ interface AppSettingsContextValue {
    * depuis son cache. */
   logoVersion: number;
   refreshBranding: () => void;
+  /** Canal de mise à jour courant (stable/beta/canary) — pilote entre autres
+   * l'illustration affichée par AppLogo (une par canal, cf.
+   * Assets/Images/Versions/). */
+  updateChannel: UpdateChannel;
   wiredDisplayMode: WiredDisplayMode;
   setWiredDisplayMode: (mode: WiredDisplayMode) => void;
   displayModeSetting: DisplayModeSetting;
@@ -106,6 +111,7 @@ const AppSettingsContext = createContext<AppSettingsContextValue>({
   setActiveLogo: () => {},
   logoVersion: 0,
   refreshBranding: () => {},
+  updateChannel: "stable",
   wiredDisplayMode: DEFAULT_WIRED_DISPLAY_MODE,
   setWiredDisplayMode: () => {},
   displayModeSetting: "auto",
@@ -149,6 +155,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const [displayModeSetting, setDisplayModeSettingState] = useState<DisplayModeSetting>("auto");
   const [displayExternalCount, setDisplayExternalCount] = useState<number | null>(null);
   const [network, setNetwork] = useState<NetworkInfo>(DEFAULT_NETWORK);
+  const [updateChannel, setUpdateChannel] = useState<UpdateChannel>("stable");
 
   const refreshBranding = useCallback(() => {
     fetch(getApiUrl("/settings"), { cache: "no-store" })
@@ -187,6 +194,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     }
     if (data.wired_display_mode === "dual_screen" || data.wired_display_mode === "headless") {
       setWiredDisplayModeState(data.wired_display_mode);
+    }
+    if (data.update_channel === "stable" || data.update_channel === "beta" || data.update_channel === "canary") {
+      setUpdateChannel(data.update_channel);
     }
     if (data.display_mode_setting === "auto" || data.display_mode_setting === "dual_screen" || data.display_mode_setting === "headless") {
       setDisplayModeSettingState(data.display_mode_setting);
@@ -295,6 +305,10 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             if (parsed.wired_display_mode === "dual_screen" || parsed.wired_display_mode === "headless") {
               // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setWiredDisplayModeState(parsed.wired_display_mode);
+            }
+            if (parsed.update_channel === "stable" || parsed.update_channel === "beta" || parsed.update_channel === "canary") {
+              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
+              setUpdateChannel(parsed.update_channel);
             }
           }
           if (parsed.event === "display_mode_change") {
@@ -432,8 +446,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       displayExternalCount,
       waitTimeBetweenCourses,
       network,
+      updateChannel,
     }),
-    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount, waitTimeBetweenCourses, network]
+    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount, waitTimeBetweenCourses, network, updateChannel]
   );
 
   return (

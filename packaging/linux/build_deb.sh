@@ -10,10 +10,11 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # Source de vérité unique : fichier
 # VERSION à la racine du dépôt. Surchargeable via l'environnement (CI passe
-# une valeur au format Debian, ex. "3.0.1~beta" pour le canal Bêta — le
-# tilde trie AVANT la version finale, cf. dpkg --compare-versions). C'est ce
-# qui va dans le champ Version: du paquet (DEBIAN/control ci-dessous), lu par
-# dpkg/apt — jamais dans le nom de fichier (cf. DEB_FILENAME_VERSION).
+# une valeur au format Debian, ex. "3.0.1~beta" ou "3.0.1~canary" selon le
+# canal — le tilde trie AVANT la version finale, cf. dpkg --compare-versions).
+# C'est ce qui va dans le champ Version: du paquet (DEBIAN/control
+# ci-dessous), lu par dpkg/apt — jamais dans le nom de fichier (cf.
+# DEB_FILENAME_VERSION).
 VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
 
 # Version utilisée dans le NOM DU FICHIER .deb — délibérément distincte de
@@ -22,9 +23,9 @@ VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
 # téléchargés (constaté en pratique), ce qui casserait la convention Debian
 # du nom de fichier pour toute version contenant un '~'. Par défaut identique
 # à VERSION (paquets stables, sans '~') ; la CI passe la valeur fixe "beta"
-# pour le canal Bêta — un seul nom de fichier stable dans le temps, jamais de
-# caractère problématique, et aucune accumulation de fichiers versionnés à
-# chaque reconstruction.
+# ou "canary" selon le canal rolling concerné — un seul nom de fichier stable
+# dans le temps par canal, jamais de caractère problématique, et aucune
+# accumulation de fichiers versionnés à chaque reconstruction.
 DEB_FILENAME_VERSION="${DEB_FILENAME_VERSION:-$VERSION}"
 PKG_NAME="bobine"
 ARCH="amd64"

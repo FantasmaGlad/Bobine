@@ -379,13 +379,17 @@ function kioskUrl() {
 // appel direct à l'API GitHub depuis le renderer. bobine-assistant embarque
 // désormais sa propre version/commit à la compilation (build.rs + commande
 // Tauri get_app_info), lus ici via invokeTauri — sans ça, un assistant
-// construit depuis le canal Bêta (donc déjà plus récent que la dernière
+// construit depuis le canal Canary (donc déjà plus récent que la dernière
 // Stable) se voyait proposer "une mise à jour" vers cette Stable, en réalité
 // PLUS ANCIENNE : bug corrigé en comparant enfin correctement les versions
 // au lieu d'annoncer inconditionnellement "la dernière release existe".
+// Volontairement limité à Stable/Canary (outil de développeur) : le palier
+// Bêta curé (lots manuels, cf. backend/app/routers/updates.py) n'y est pas
+// ajouté, pour ne pas réintroduire une ambiguïté "lequel de Bêta/Canary est
+// le plus récent" sur un binaire que seuls des développeurs installent.
 const ASSISTANT_UPDATE_DISMISSED_KEY = 'bobine-assistant-update-dismissed';
 const GITHUB_RELEASES_LATEST_URL = 'https://api.github.com/repos/FantasmaGlad/Bobine/releases/latest';
-const GITHUB_RELEASES_BETA_URL = 'https://api.github.com/repos/FantasmaGlad/Bobine/releases/tags/beta';
+const GITHUB_RELEASES_CANARY_URL = 'https://api.github.com/repos/FantasmaGlad/Bobine/releases/tags/canary';
 
 // Port JS du comparateur semver du backend (voir
 // backend/app/routers/updates.py::_parse_version — même précédence, à
@@ -459,9 +463,9 @@ async function checkAssistantUpdate() {
   renderAppVersionBadge(myVersion, myCommit);
 
   try {
-    const [stableRes, betaRes] = await Promise.allSettled([
+    const [stableRes, canaryRes] = await Promise.allSettled([
       fetch(GITHUB_RELEASES_LATEST_URL, { headers: { Accept: 'application/vnd.github+json' } }),
-      fetch(GITHUB_RELEASES_BETA_URL, { headers: { Accept: 'application/vnd.github+json' } }),
+      fetch(GITHUB_RELEASES_CANARY_URL, { headers: { Accept: 'application/vnd.github+json' } }),
     ]);
 
     let candidate = null;
@@ -482,20 +486,20 @@ async function checkAssistantUpdate() {
       }
     }
 
-    if (!candidate && betaRes.status === 'fulfilled' && betaRes.value.ok) {
-      const release = await betaRes.value.json();
+    if (!candidate && canaryRes.status === 'fulfilled' && canaryRes.value.ok) {
+      const release = await canaryRes.value.json();
       const remoteCommit = (release.target_commitish || '').slice(0, 7);
-      // La Bêta n'a pas de numéro de version qui avance à chaque build (tag
-      // fixe "beta") : comparaison par
-      // commit, comme côté backend (_beta_has_update).
+      // La Canary n'a pas de numéro de version qui avance à chaque build (tag
+      // fixe "canary") : comparaison par
+      // commit, comme côté backend (_commit_based_update).
       if (
         remoteCommit && myCommit && myCommit !== 'unknown' &&
         !remoteCommit.startsWith(myCommit) && !myCommit.startsWith(remoteCommit)
       ) {
         const asset = (release.assets || []).find((a) => a.name === 'bobine-assistant');
         candidate = {
-          key: `beta:${remoteCommit}`,
-          label: `Une nouvelle build Bêta de l'assistant est disponible (${remoteCommit}).`,
+          key: `canary:${remoteCommit}`,
+          label: `Une nouvelle build Canary de l'assistant est disponible (${remoteCommit}).`,
           downloadUrl: asset?.browser_download_url || release.html_url,
         };
       }
@@ -654,7 +658,7 @@ function renderSystemSpecs(spec) {
 async function startInstallationRun() {
   const isMock = document.getElementById('opt-mock').checked;
   const noKiosk = !document.getElementById('opt-kiosk').checked;
-  const channel = document.getElementById('opt-beta-channel').checked ? 'beta' : 'stable';
+  const channel = document.querySelector('input[name="update-channel"]:checked')?.value || 'stable';
   const rootPassword = document.getElementById('ssh-root-password')?.value || null;
 
   const params = {

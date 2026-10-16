@@ -772,6 +772,21 @@ body {
   accent-color: var(--accent-primary);
 }
 
+.toggle-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.toggle-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 /* Barre de progression */
 .progress-bar-container {
   display: flex;

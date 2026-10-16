@@ -23,7 +23,7 @@ Bobine transforme n'importe quelle tablette, PC de bureau, Mac ou mini PC dédi�
 - **Mode Audio Coach & Radio 24/7** : Anime les séances rythmées sur des boucles visuelles cinématiques et assure une ambiance musicale ininterrompue.
 - **100% Souverain & Local-first** : Aucune dépendance au cloud, zéro abonnement, zéro télémétrie, aucune connexion internet requise après installation — conçu pour une stabilité industrielle 24/7 sans interruption.
 
-[Site officiel](https://bobine.fit) · [Recommandations matérielles](https://bobine.fit/fr/materiel) · [Documentation web](https://bobine.fit/fr/documentation) · [English](README.md) · [Documentation technique](docs/ARCHITECTURE.md) · [Dernière version](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Release Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta)
+[Site officiel](https://bobine.fit) · [Recommandations matérielles](https://bobine.fit/fr/materiel) · [Documentation web](https://bobine.fit/fr/documentation) · [English](README.md) · [Documentation technique](docs/ARCHITECTURE.md) · [Dernière version](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Release Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) · [Release Canary](https://github.com/FantasmaGlad/Bobine/releases/tag/canary)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
 [![Version : v4.0.3](https://img.shields.io/badge/Release-v4.0.3-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
@@ -56,18 +56,32 @@ Installez Bobine en quelques secondes comme une application autonome sur votre t
 | [![bobine.fit](https://img.shields.io/badge/bobine.fit-4285F4?style=flat-square&logo=data%3Aimage/svg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBkPSJNNDQgMjRjMCAxMS4wNDUtOC45NTUgMjAtMjAgMjAtNC41MiAwLTguNjgtMS41MDMtMTIuMDMtNC4wNDNsOS40NjctMTYuMzk0QTggOCAwIDAgMCAyNCAzMmM0LjQxOCAwIDgtMy41ODIgOC04eiIvPjxwYXRoIGZpbGw9IiNGQkMwMkQiIGQ9Ik00NCAyNEgyNGE4IDggMCAwIDAtNi45MjggNGwtOS40NjcgMTYuMzk0QTE5LjkyIDE5LjkyIDAgMCAxIDQgMjRDNCAxMy45ODcgMTEuMzg1IDUuNzA0IDIxLjAzNiA0LjIyTDMwLjUwMyAyMC42MUE3Ljk3IDcuOTcgMCAwIDAgMzIgMjR6Ii8%2BPHBhdGggZmlsbD0iI0U1MzkzNSIgZD0iTTI0IDRjNy40MDYgMCAxMy44NiA0LjAyNCAxNy4zIDEwLjAyN0wzMC41MDMgMjAuNjFBOCA4IDAgMCAwIDI0IDE2Yy0zLjE1NSAwLTUuOTE0IDEuODI2LTcuMjUgNC40OUw3LjI4NCA0LjA5NUMxMS44OTIgNC4wMzIgMTcuNjUgNCAyNCA0eiIvPjxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjI0IiByPSI2IiBmaWxsPSIjMTk3NkQyIi8%2BPC9zdmc%2B)](https://bobine.fit) | <sub>Portail Web</sub> | <sub>Universel</sub> | <sub>[**Visiter bobine.fit**](https://bobine.fit)</sub> | **Site Officiel & Documentation**<br><sub>Guides de prise en main, conseils matériel et base de connaissances</sub> |
 | ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | <sub>Binaires & Sources</sub> | <sub>Multi-OS</sub> | <sub>[**Voir les Releases GitHub**](https://github.com/FantasmaGlad/Bobine/releases/latest)</sub> | **Releases & Code Source**<br><sub>Sommes de contrôle SHA-256 certifiées, archives et historique</sub> |
 
-### Programme Bêta — Accès anticipé
+### Programmes Bêta & Canary — Accès anticipé
 
-Envie d'essayer les prochaines fonctionnalités avant leur sortie stable ? Bobine propose un **canal Bêta** : une seule pre-release, toujours à jour, reconstruite depuis le code de développement le plus récent — aucun numéro de version à suivre, une version stable équivalente ou plus récente la remplace toujours automatiquement, et vous pouvez repasser en Stable à tout moment sans perte de données.
+<p align="center">
+  <img alt="Canal Stable" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/Versions/Stable-cropped-1024.png" width="100"> &nbsp;&nbsp;
+  <img alt="Canal Bêta" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/Versions/Beta-cropped-1024.png" width="100"> &nbsp;&nbsp;
+  <img alt="Canal Canary" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/Versions/Canary-cropped-1024.png" width="100">
+  <br>
+  <sub>Stable · Bêta · Canary</sub>
+</p>
 
-[**Voir la release Bêta**](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) — mêmes plateformes que ci-dessus (`.exe`, `.deb`, `.dmg`, `bobine-assistant`, `install.sh`), noms de fichiers suffixés `-beta` plutôt qu'un numéro de version.
+Envie d'essayer les prochaines fonctionnalités avant leur sortie stable ? En plus de Stable, Bobine propose deux canaux de mise à jour anticipée : **Bêta**, un lot de fonctionnalités/correctifs curé et publié manuellement par le mainteneur quand il est prêt, et **Canary**, une pre-release unique toujours à jour, reconstruite automatiquement depuis le tout dernier commit de `main` — zéro curation. Aucun des deux ne demande de suivre un numéro de version ; une version stable équivalente ou plus récente les remplace toujours automatiquement, et vous pouvez repasser en Stable à tout moment sans perte de données.
 
-Comment rejoindre le canal durablement, pour que les futures mises à jour continuent de proposer des builds Bêta :
-- **Déjà installé** → Réglages → Mises à jour logicielles → « Programme Bobine Beta », basculer sur Bêta.
-- **Installateur appliance headless** → `sudo ./install.sh --channel=beta`
-- **Bobine Assistant (assistant d'installation à distance)** → activer « Programme Bobine Beta » à l'étape Options.
+| Canal | Cadence de publication | Curation | Pour qui | Tag |
+| :--- | :--- | :--- | :--- | :---: |
+| **Stable** | Une release par version, taguée | Entièrement testée | Exploitation en salle de sport — le choix par défaut recommandé | `Vx.y.z` |
+| **Bêta** | Par lots, publiés manuellement quand prêts | Curée par le mainteneur | Premiers adoptants voulant les prochaines fonctionnalités sans le flux quotidien | `beta` |
+| **Canary** | À chaque commit sur `main` | Aucune — brute et immédiate | Développeurs et utilisateurs avancés voulant la toute dernière version, quitte aux aspérités | `canary` |
 
-Détails complets sur le fonctionnement du canal Bêta (détection de mise à jour, downgrade, processus de publication) : [Architecture Technique § Canal de mise à jour](docs/ARCHITECTURE.md#7-script-dinstallation--services-systemd).
+[**Voir la release Bêta**](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) · [**Voir la release Canary**](https://github.com/FantasmaGlad/Bobine/releases/tag/canary) — mêmes plateformes que ci-dessus (`.exe`, `.deb`, `.dmg`, `bobine-assistant`, `install.sh`), noms de fichiers suffixés `-beta`/`-canary` plutôt qu'un numéro de version.
+
+Comment rejoindre un canal durablement, pour que les futures mises à jour continuent de proposer des builds Bêta ou Canary :
+- **Déjà installé** → Réglages → Mises à jour logicielles → « Canal de mise à jour », basculer sur Bêta ou Canary.
+- **Installateur appliance headless** → `sudo ./install.sh --channel=beta` ou `--channel=canary`
+- **Bobine Assistant (assistant d'installation à distance)** → choisir le canal à l'étape Options.
+
+Détails complets sur le fonctionnement de ces canaux (détection de mise à jour, downgrade, processus de publication) : [Architecture Technique § Canal de mise à jour](docs/ARCHITECTURE.md#7-script-dinstallation--services-systemd).
 
 ---
 
@@ -225,7 +239,7 @@ Configurez le dépôt APT officiel signé cryptographiquement par GPG pour insta
 # 1. Clé publique GPG officielle
 curl -fsSL https://apt.bobine.fit/bobine.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/bobine.gpg
 
-# 2. Ajout du dépôt APT officiel (canal stable ; remplacer 'stable' par 'beta' pour les pré-versions)
+# 2. Ajout du dépôt APT officiel (canal stable ; remplacer 'stable' par 'beta' ou 'canary' pour les pré-versions)
 echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] https://apt.bobine.fit/ stable main" | sudo tee /etc/apt/sources.list.d/bobine.list
 
 # 3. Installation et mises à jour
@@ -298,8 +312,11 @@ Sur le mini PC (en direct ou par SSH), avec votre compte utilisateur normal (pas
 # Installation automatisée en 1 ligne (canal Stable) :
 curl -fsSL https://bobine.fit/install.sh | bash
 
-# Idem sur le canal Bêta (accès anticipé) :
+# Idem sur le canal Bêta (accès anticipé curé) :
 curl -fsSL https://bobine.fit/install.sh | bash -s -- --channel=beta
+
+# Ou le canal Canary (tout dernier commit de main, non testé) :
+curl -fsSL https://bobine.fit/install.sh | bash -s -- --channel=canary
 ```
 
 Le script récupère le code dans `~/Bobine` (en installant d'abord `git`/`curl` sur un système minimal), demande `sudo` tout seul, affiche une progression animée avec le temps de chaque étape, attend un éventuel `unattended-upgrades` en cours, corrige une horloge déréglée, puis termine par l'URL d'administration **et un code QR** pour l'ouvrir depuis un téléphone. Le relancer est sans risque : il met à jour une installation existante sur place. Ajoutez `--dry-run` pour prévisualiser chaque action.
