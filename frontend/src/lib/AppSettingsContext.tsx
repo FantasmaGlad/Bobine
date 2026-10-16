@@ -42,6 +42,12 @@ export const THEME_VALUES: Theme[] = [
   "coco",
 ];
 
+export interface NetworkInfo {
+  localIp: string | null;
+  port: number;
+  mdnsUrl: string;
+}
+
 export type ActiveLogo = "default" | "custom";
 export type WiredDisplayMode = "dual_screen" | "headless";
 /** Réglage administrateur : "auto" = dérivé des écrans externes réellement
@@ -72,6 +78,11 @@ interface AppSettingsContextValue {
   /** Nombre d'écrans externes détectés par la plateforme (null = aucun rapport). */
   displayExternalCount: number | null;
   waitTimeBetweenCourses: number;
+  /** IP LAN, port et URL mDNS de CET appareil — source déjà fiable pour la
+   * découverte réseau (`_get_local_ip()` côté backend), réutilisée pour
+   * l'en-tête mobile (IP/URL affichée à la place du logo) sans dupliquer
+   * d'appel réseau dédié : ce contexte interroge déjà `/api/settings`. */
+  network: NetworkInfo;
 }
 
 // "clair" : version claire du thème
@@ -81,6 +92,7 @@ interface AppSettingsContextValue {
 const DEFAULT_THEME: Theme = "clair";
 const DEFAULT_LANGUAGE: Language = "fr";
 const DEFAULT_WIRED_DISPLAY_MODE: WiredDisplayMode = "headless";
+const DEFAULT_NETWORK: NetworkInfo = { localIp: null, port: 8000, mdnsUrl: "http://bobine.local" };
 
 const AppSettingsContext = createContext<AppSettingsContextValue>({
   theme: DEFAULT_THEME,
@@ -100,6 +112,7 @@ const AppSettingsContext = createContext<AppSettingsContextValue>({
   setDisplayModeSetting: () => {},
   displayExternalCount: null,
   waitTimeBetweenCourses: 0,
+  network: DEFAULT_NETWORK,
 });
 
 export function useAppSettings() {
@@ -135,6 +148,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const [waitTimeBetweenCourses, setWaitTimeBetweenCourses] = useState<number>(0);
   const [displayModeSetting, setDisplayModeSettingState] = useState<DisplayModeSetting>("auto");
   const [displayExternalCount, setDisplayExternalCount] = useState<number | null>(null);
+  const [network, setNetwork] = useState<NetworkInfo>(DEFAULT_NETWORK);
 
   const refreshBranding = useCallback(() => {
     fetch(getApiUrl("/settings"), { cache: "no-store" })
@@ -180,6 +194,14 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     setDisplayExternalCount(typeof data.display_external_count === "number" ? data.display_external_count : null);
     if (typeof data.wait_time_between_courses === "number") {
       setWaitTimeBetweenCourses(data.wait_time_between_courses);
+    }
+    if (data.network && typeof data.network === "object") {
+      const net = data.network as { local_ip?: string | null; port?: number; mdns_url?: string };
+      setNetwork({
+        localIp: typeof net.local_ip === "string" ? net.local_ip : null,
+        port: typeof net.port === "number" ? net.port : DEFAULT_NETWORK.port,
+        mdnsUrl: typeof net.mdns_url === "string" ? net.mdns_url : DEFAULT_NETWORK.mdnsUrl,
+      });
     }
   }, []);
 
@@ -409,8 +431,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       setDisplayModeSetting,
       displayExternalCount,
       waitTimeBetweenCourses,
+      network,
     }),
-    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount, waitTimeBetweenCourses]
+    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount, waitTimeBetweenCourses, network]
   );
 
   return (

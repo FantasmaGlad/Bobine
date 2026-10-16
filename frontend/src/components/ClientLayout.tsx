@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useIsMobile } from "@/lib/useIsMobile";
@@ -39,7 +39,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const isMobile = useIsMobile();
-  const { t } = useAppSettings();
+  const { t, network } = useAppSettings();
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [updateAvailableVersion, setUpdateAvailableVersion] = useState<string | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState<boolean>(false);
@@ -70,9 +70,21 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     setDrawerOpen(false);
   }, [pathname]);
 
-  // Notification de mise à jour globale cliquable
+  // Notification de mise à jour globale cliquable — vérifiée UNE SEULE FOIS
+  // par chargement de page (`updateCheckedRef`), pas à chaque bascule entre
+  // une route plein écran et une route normale : ce composant reste monté
+  // en permanence, et `isFullscreenRoute` en dépendance seule refaisait un
+  // appel réseau (et pouvait rouvrir la bannière après une fermeture
+  // manuelle) à chaque aller-retour /cinema|/kiosk|/coach|/grid|/radio <->
+  // reste de l'admin — cause racine confirmée du constat "la notification
+  // apparaît en continu". La dépendance sur `isFullscreenRoute` est
+  // conservée pour permettre la toute première vérification une fois
+  // sortie d'une route plein écran, quand la page a été chargée
+  // directement dessus.
+  const updateCheckedRef = useRef(false);
   useEffect(() => {
-    if (isFullscreenRoute) return;
+    if (isFullscreenRoute || updateCheckedRef.current) return;
+    updateCheckedRef.current = true;
     fetch(getApiUrl("/updates/check"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((d) => {
@@ -206,7 +218,16 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           <button className="mobile-burger-btn olc-press" onClick={() => setDrawerOpen(true)} aria-label={t("nav.openMenu")}>
             <Icon name="menu" size={24} />
           </button>
-          <AppLogo size={32} className="mobile-topbar-logo" />
+          {/* IP/URL de CETTE terminaison plutôt que le logo (trop petit pour
+              être utile ici) : un visiteur dépanné sur plusieurs terminaisons
+              (câblé, réseau, kiosque) doit pouvoir identifier d'un coup
+              d'œil celle qu'il a sous les yeux. Source : `network.localIp`
+              (IP LAN réelle, déjà exposée par le backend pour la découverte
+              réseau), jamais `window.location` — un accès via `bobine.local`
+              ou `localhost` en dev afficherait une valeur non pertinente. */}
+          <span className="mobile-topbar-address" title={network.localIp ? `http://${network.localIp}:${network.port}/` : network.mdnsUrl}>
+            {network.localIp ? `${network.localIp}:${network.port}` : network.mdnsUrl.replace(/^https?:\/\//, "")}
+          </span>
         </header>
 
         <main className="mobile-page-content">{children}</main>

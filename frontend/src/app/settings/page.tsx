@@ -27,7 +27,7 @@ interface SettingsData {
   logs_retention_days?: number;
   deployment_profile: DeploymentProfile;
   paths: Record<string, string>;
-  network: { local_ip: string | null; port: number; mdns_url: string };
+  network: { local_ip: string | null; port: number; mdns_url: string; mdns_status: string | null };
   update_channel: "stable" | "beta";
   wired_display_mode: "dual_screen" | "headless";
   auto_update_enabled: "true" | "false";
@@ -168,6 +168,7 @@ export default function SettingsPage() {
   const [refreshingNetwork, setRefreshingNetwork] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showBetaConfirm, setShowBetaConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [showUninstall, setShowUninstall] = useState(false);
   const [uninstallConfirm, setUninstallConfirm] = useState("");
@@ -1213,7 +1214,7 @@ export default function SettingsPage() {
                 type="button"
                 className={`btn btn-sm ${data.update_channel === "beta" ? "btn-primary" : "btn-secondary"}`}
                 style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 16px", fontWeight: 700 }}
-                onClick={() => handleChannelChange("beta")}
+                onClick={() => { if (data.update_channel !== "beta") setShowBetaConfirm(true); }}
                 disabled={changingChannel}
               >
                 {t("settingsPage.betaBeta")}
@@ -1602,7 +1603,22 @@ export default function SettingsPage() {
             </div>
             <div className="settings-path-row">
               <span className="settings-path-key">{t("settingsPage.paths.mdnsUrl")}</span>
-              <span className="settings-path-val">{data.network.mdns_url}</span>
+              <span className="settings-path-val" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                {data.network.mdns_url}
+                {/* Reflète l'état RÉEL du répondeur mDNS (cf. backend
+                    utils/mdns.py::get_status) plutôt que d'afficher cette
+                    URL comme si elle fonctionnait toujours — "failed"/
+                    "unavailable" signifie que la découverte par IP directe
+                    ci-dessus reste le seul moyen fiable pour le moment. */}
+                {(data.network.mdns_status === "failed" || data.network.mdns_status === "unavailable") && (
+                  <span
+                    title={t("settingsPage.paths.mdnsUnavailableHint")}
+                    style={{ display: "inline-flex", alignItems: "center", color: "var(--accent-warning, #c77700)" }}
+                  >
+                    <Icon name="warning" size={14} />
+                  </span>
+                )}
+              </span>
             </div>
             {(data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS).map((page) => {
               const netUrl = data.network.local_ip ? `http://${data.network.local_ip}:${data.network.port}${page.path}` : null;
@@ -1650,6 +1666,27 @@ export default function SettingsPage() {
               <button type="button" className="btn btn-secondary" onClick={() => setShowResetConfirm(false)} disabled={resetting}>{t("common.cancel")}</button>
               <button type="button" className="btn btn-primary" style={{ backgroundColor: "var(--accent-error)" }} onClick={handleFullReset} disabled={resetting}>
                 {resetting ? t("settingsPage.syncResetInProgress") : t("settingsPage.syncResetButton")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---- Modale : confirmation du passage au canal Bêta ---- */}
+      {showBetaConfirm && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--text-main)" }}>{t("settingsPage.betaConfirmTitle")}</h3>
+            <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>{t("settingsPage.betaConfirmWarning")}</p>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowBetaConfirm(false)} disabled={changingChannel}>{t("common.cancel")}</button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={changingChannel}
+                onClick={() => { setShowBetaConfirm(false); handleChannelChange("beta"); }}
+              >
+                {t("settingsPage.betaConfirmButton")}
               </button>
             </div>
           </div>
