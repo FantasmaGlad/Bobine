@@ -86,10 +86,10 @@ présence du manifeste, puis affiche le `versionName` et le `versionCode` dans l
 
 ### Bundles de la version 5.0.0
 
-| Application | Fichier | Taille |
-|---|---|---:|
-| Bobine (téléphone et tablette) | [Bobine-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.aab) | 48,6 Mo |
-| Bobine TV (Android TV) | [Bobine-TV-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.aab) | 70,2 Mo |
+| Logo | Application | Identifiant | Appareils | Format | Taille | Téléchargement |
+|:---:|---|---|---|---|---:|---|
+| <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Bobine** | `com.bobine.app` | Téléphones, tablettes, Google Book | Bundle `.aab` (dépôt Google Play) | 48,6 Mo | [Bobine-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.aab) |
+| <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | **Bobine TV** | `com.bobine.app.tv` | Android TV, Google TV | Bundle `.aab` (dépôt Google Play) | 70,2 Mo | [Bobine-TV-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.aab) |
 
 ## 4. Numérotation des versions
 
