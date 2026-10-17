@@ -5,25 +5,41 @@
 </p>
 
 <p align="center">
+  <img alt="Google Book compatible avec Bobine" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/googlebooks.webp" width="480">
+</p>
+
+<p align="center">
   <img alt="Bobine soutient Firefox — le renard Firefox et Baamix, la mascotte de Bobine" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/FirefoxBaamix.png" width="320">
 </p>
 
 <p align="center">
-  <b>Ajout récent — Bobine soutient officiellement Firefox.</b><br>
-  <sub>Interface d'administration et lecteurs tiers (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>) vérifiés de bout en bout sur Firefox 157 : envois reprenables, flux média conformes HTTP, version vidéo compatible en repli automatique et diagnostic navigateur intégré. Aussi : mises à jour Stable/Bêta fiabilisées, installateur plus fluide. <a href="#navigateurs-supportés">Navigateurs supportés</a></sub>
+  <b>Ajout récent — Bobine soutient officiellement Firefox & l'architecture ARM64.</b><br>
+  <sub>Écosystème ARM64 natif (PC portables Snapdragon X, Linux ARM64, NVIDIA DGX Spark, Google Books), système à trois canaux (Stable/Bêta/Canary) et validation Firefox 157. <a href="#navigateurs-supportés">Navigateurs supportés</a></sub>
 </p>
-[Site officiel](https://bobine.fit) · [Recommandations matérielles](https://bobine.fit/fr/materiel) · [Documentation web](https://bobine.fit/fr/documentation) · [English](README.md) · [Documentation technique](docs/ARCHITECTURE.md) · [Dernière version](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Release Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) · [Release Canary](https://github.com/FantasmaGlad/Bobine/releases/tag/canary)
 
-[![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
-[![Version : v5.0.0](https://img.shields.io/badge/Release-v5.0.0-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
-[![Licence : AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-![Architecture : Local-first | 100% Hors-ligne](https://img.shields.io/badge/Architecture-Local--first%20%7C%20100%25%20Hors--ligne-success)
-![Confidentialité : Zéro télémétrie](https://img.shields.io/badge/Confidentialit%C3%A9-Z%C3%A9ro%20T%C3%A9l%C3%A9m%C3%A9trie-purple)
-![Vidéo : 4K 60fps Natif](https://img.shields.io/badge/Vid%C3%A9o-4K%2060fps%20Natif-orange)
-![Accélération matérielle : VA-API | VideoToolbox | MediaCodec | QSV](https://img.shields.io/badge/Acc%C3%A9l%C3%A9ration%20mat%C3%A9rielle-VA--API%20%7C%20VideoToolbox%20%7C%20MediaCodec%20%7C%20QSV-red)
-![Navigateurs : Firefox | Chrome | Edge | Safari](https://img.shields.io/badge/Navigateurs-Firefox%20%7C%20Chrome%20%7C%20Edge%20%7C%20Safari-FF7139?logo=firefoxbrowser&logoColor=white)
-[![Dépôt APT : apt.bobine.fit](https://img.shields.io/badge/D%C3%A9p%C3%B4t%20APT-apt.bobine.fit-A81D33?logo=debian&logoColor=white)](https://apt.bobine.fit)
-[![Contributions bienvenues](https://img.shields.io/badge/PRs-bienvenues-brightgreen.svg)](https://github.com/FantasmaGlad/Bobine/pulls)
+<p align="center">
+  <a href="https://bobine.fit"><b>Site officiel</b></a> &nbsp;·&nbsp;
+  <a href="https://bobine.fit/fr/materiel"><b>Recommandations matérielles</b></a> &nbsp;·&nbsp;
+  <a href="https://bobine.fit/fr/documentation"><b>Documentation web</b></a> &nbsp;·&nbsp;
+  <a href="README.md"><b>English</b></a> &nbsp;·&nbsp;
+  <a href="docs/ARCHITECTURE.md"><b>Documentation technique</b></a><br>
+  <a href="https://github.com/FantasmaGlad/Bobine/releases/latest"><b>Dernière version (v5.0.0)</b></a> &nbsp;·&nbsp;
+  <a href="https://github.com/FantasmaGlad/Bobine/releases/tag/beta"><b>Release Bêta</b></a> &nbsp;·&nbsp;
+  <a href="https://github.com/FantasmaGlad/Bobine/releases/tag/canary"><b>Release Canary</b></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml"><img src="https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/FantasmaGlad/Bobine/releases/latest"><img src="https://img.shields.io/badge/Release-v5.0.0-brightgreen" alt="Version : v5.0.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="Licence : AGPL-3.0"></a>
+  <img src="https://img.shields.io/badge/Architecture-Local--first%20%7C%20100%25%20Hors--ligne-success" alt="Architecture">
+  <img src="https://img.shields.io/badge/Confidentialit%C3%A9-Z%C3%A9ro%20T%C3%A9l%C3%A9m%C3%A9trie-purple" alt="Confidentialité">
+  <img src="https://img.shields.io/badge/Vid%C3%A9o-4K%2060fps%20Natif-orange" alt="Vidéo">
+  <img src="https://img.shields.io/badge/Acc%C3%A9l%C3%A9ration%20mat%C3%A9rielle-VA--API%20%7C%20VideoToolbox%20%7C%20MediaCodec%20%7C%20QSV-red" alt="Accélération matérielle">
+  <img src="https://img.shields.io/badge/Navigateurs-Firefox%20%7C%20Chrome%20%7C%20Edge%20%7C%20Safari-FF7139?logo=firefoxbrowser&logoColor=white" alt="Navigateurs">
+  <a href="https://apt.bobine.fit"><img src="https://img.shields.io/badge/D%C3%A9p%C3%B4t%20APT-apt.bobine.fit-A81D33?logo=debian&logoColor=white" alt="Dépôt APT"></a>
+  <a href="https://github.com/FantasmaGlad/Bobine/pulls"><img src="https://img.shields.io/badge/PRs-bienvenues-brightgreen.svg" alt="Contributions bienvenues"></a>
+</p>
 
 ---
 
