@@ -126,6 +126,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
              patch("app.routers.updates.get_deployment_profile", return_value="windows"), \
              patch("app.routers.updates.get_profile_handler") as mock_handler:
             mock_handler.return_value.can_auto_apply.return_value = True
+            mock_handler.return_value.is_store_managed.return_value = False
             res = await check_updates(db=SessionLocal())
             self.assertTrue(res["online"])
             self.assertTrue(res["has_update"])
@@ -138,6 +139,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
              patch("app.routers.updates.get_deployment_profile", return_value="linux-desktop"), \
              patch("app.routers.updates.get_profile_handler") as mock_handler:
             mock_handler.return_value.can_auto_apply.return_value = True
+            mock_handler.return_value.is_store_managed.return_value = False
             res = await check_updates(db=SessionLocal())
             self.assertEqual(res["asset_name"], "bobine_9.9.9_amd64.deb")
             self.assertTrue(res["download_url"].endswith(".deb"))
@@ -147,6 +149,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
              patch("app.routers.updates.get_deployment_profile", return_value="macos"), \
              patch("app.routers.updates.get_profile_handler") as mock_handler:
             mock_handler.return_value.can_auto_apply.return_value = False
+            mock_handler.return_value.is_store_managed.return_value = False
             res = await check_updates(db=SessionLocal())
             self.assertFalse(res["can_auto_apply"])
             self.assertEqual(res["asset_name"], "Bobine-9.9.9.dmg")
@@ -157,6 +160,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
              patch("app.routers.updates.get_deployment_profile", return_value="linux-headless"), \
              patch("app.routers.updates.get_profile_handler") as mock_handler:
             mock_handler.return_value.can_auto_apply.return_value = True
+            mock_handler.return_value.is_store_managed.return_value = False
             res = await check_updates(db=SessionLocal())
             self.assertTrue(res["can_auto_apply"])
 
