@@ -1,0 +1,40 @@
+Package: bobine
+Version: 5.0.0
+Architecture: arm64
+Maintainer: FantasmaGlad <fantacasino3012@gmail.com>
+Installed-Size: 135840
+Depends: ffmpeg
+Recommends: avahi-daemon
+Homepage: https://bobine.fit
+Priority: optional
+Section: video
+Filename: pool/main/b/bobine/bobine_5.0.0_arm64.deb
+Size: 47014598
+SHA256: 9284d70169f68b6372efd963cebe6acfe6e5dab4e74edd38320dcce1cf797ec1
+SHA1: 5c46f70ea13bc2dbc38b22dade0196b8c7b2075d
+MD5sum: 16f46443b8d7b077cc4af53c4709d970
+Description: Video and audio playout system for gym studios
+ Bobine is an autonomous multi-channel playout solution (wired HDMI video,
+ network screen, background radio, mobile remote and web administration)
+ designed for boutique gyms and fitness studios.
+ .
+ * **Editeur :** FantasmaGlad
+ .
+ * **Site web officiel :** https://bobine.fit
+ .
+ * **Code source & GitHub :** https://github.com/FantasmaGlad/Bobine
+ .
+ * **Licence :** GNU AGPL v3.0 (Affero General Public License)
+ .
+ * **Fonctionnalités clés :**
+ .
+   - Diffusion multi-canal synchrone (Câblé HDMI et Réseau)
+ .
+   - Mode Audio Coach avec minuteur et fonds visuels animés
+ .
+   - Canal Radio d'ambiance avec fondu sonore et rappels vocaux
+ .
+   - Kiosque automatique avec anti-veille native Screen Wake Lock
+ .
+   - Sauvegarde & Restauration universelles (ZIP) et remise à zéro usine
+

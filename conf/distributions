@@ -2,7 +2,7 @@ Origin: Bobine
 Label: Bobine
 Suite: stable
 Codename: stable
-Architectures: amd64
+Architectures: amd64 arm64
 Components: main
 Description: Depot officiel Bobine - Canal Stable
 SignWith: contact@bobine.fit
@@ -11,7 +11,7 @@ Origin: Bobine
 Label: Bobine
 Suite: canary
 Codename: canary
-Architectures: amd64
+Architectures: amd64 arm64
 Components: main
 Description: Depot officiel Bobine - Canal Canary (Rolling)
 SignWith: contact@bobine.fit
@@ -20,7 +20,7 @@ Origin: Bobine
 Label: Bobine
 Suite: beta
 Codename: beta
-Architectures: amd64
+Architectures: amd64 arm64
 Components: main
 Description: Depot officiel Bobine - Canal Beta (Curated)
 SignWith: contact@bobine.fit
