@@ -10,10 +10,10 @@ Vcs-Browser: https://github.com/FantasmaGlad/Bobine
 Priority: optional
 Section: video
 Filename: pool/main/b/bobine/bobine_5.0.0~canary_amd64.deb
-Size: 48901696
-SHA256: 8091003053f06d5de397178ea6673168098392626ed4b240784d789d43cd266d
-SHA1: 971cdb559ac8c6b2b6ed718ec745cd6b9ceca92b
-MD5sum: 64680562f66a3dca8dfcb104931f70d0
+Size: 48900586
+SHA256: 699979a2308ac54ac3548e9ed12d5aaec63012b4d8586a26c6e8f471d5e75bae
+SHA1: 178d4f61296de83073919738dfdce8c4b09fddbc
+MD5sum: 5e3118576326db29861a02bced5cdf93
 Description: Video and audio playout for gyms and fitness studios
  Bobine plays planned classes on the studio screen, offers a self-service
  cinema kiosk and background radio, and is driven from a phone or a browser
