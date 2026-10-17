@@ -1,0 +1,207 @@
+name: Google Play (AAB)
+
+# Construit les bundles Android (.aab) d'une version Stable, prêts pour la console Google Play :
+#   Bobine-<version>.aab     (com.bobine.app, téléphone et tablette)
+#   Bobine-TV-<version>.aab  (com.bobine.app.tv, Android TV)
+# Signés avec la clé de téléversement (la même que les APK) ; Google Play les re-signe avec sa clé de
+# distribution. Le numéro de version suit celui des APK (nombre de commits du tag), donc les mises à jour
+# successives restent acceptées par Play.
+#
+# Lancement : onglet Actions > « Google Play (AAB) » > Run workflow, en indiquant le tag (ex. V5.0.0).
+# Les fichiers sont téléchargeables dans l'artefact du run, et joints à la release GitHub si demandé.
+# Si le secret PLAY_SERVICE_ACCOUNT_JSON existe, les bundles sont aussi envoyés sur la piste « internal »
+# de Google Play en brouillon ; sinon l'envoi se fait à la main dans la console.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag Stable à publier (ex. V5.0.0)
+        required: true
+        type: string
+      attach_to_release:
+        description: Joindre les .aab à la release GitHub du tag
+        required: false
+        default: false
+        type: boolean
+      play_track:
+        description: Piste Google Play (utilisée seulement si le compte de service est configuré)
+        required: false
+        default: internal
+        type: choice
+        options: [internal, alpha, beta, production]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: play-aab-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  aab:
+    name: Bundles Google Play (${{ inputs.tag }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vérifier le format du tag
+        run: |
+          case "${{ inputs.tag }}" in
+            V[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::Le tag doit être une version Stable (ex. V5.0.0), pas ${{ inputs.tag }}"; exit 1 ;;
+          esac
+          case "${{ inputs.tag }}" in
+            *-beta*|*-canary*) echo "::error::Seules les versions Stable vont sur Google Play"; exit 1 ;;
+          esac
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+      - name: Résoudre la version
+        id: ref
+        run: |
+          TAG="${{ inputs.tag }}"
+          echo "version_name=${TAG#V}" >> "$GITHUB_OUTPUT"
+          echo "version_code=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
+          echo "commit_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fetch-depth: 0
+      - name: Vérifier que les secrets de signature sont configurés
+        id: check_secrets
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Secrets de signature Android absents (ANDROID_KEYSTORE_BASE64 etc.) — job ignoré, pas d'échec."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.check_secrets.outputs.configured == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Installer les dépendances npm (node_modules absent d'un checkout frais — la tâche Gradle buildFrontendStatic suppose qu'elles existent déjà)
+        if: steps.check_secrets.outputs.configured == 'true'
+        working-directory: frontend
+        run: npm ci
+      # Chaquopy cherche `python3.<x>` sur le PATH pour chaque version du
+      # projet : 3.13 (flavor mobile) et 3.11 (flavor TV).
+      - uses: actions/setup-python@v5
+        if: steps.check_secrets.outputs.configured == 'true'
+        with:
+          python-version: |
+            3.13
+            3.11
+      - uses: actions/setup-java@v4
+        if: steps.check_secrets.outputs.configured == 'true'
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        if: steps.check_secrets.outputs.configured == 'true'
+        with:
+          # le paquet legacy "tools" (installé par
+          # défaut par cette action, `packages: "tools platform-tools"`) a
+          # disparu du dépôt SDK Google ("Failed to find package 'tools'",
+          # exit code 1) — cassait tout le job avant même l'étape suivante,
+          # qui installe déjà les seuls paquets réellement utilisés
+          # (platforms;android-36, build-tools;36.1.0). platform-tools seul
+          # suffit ici.
+          packages: "platform-tools"
+      - name: Installer les plateformes/outils Android requis
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: sdkmanager "platforms;android-36" "build-tools;36.1.0" "ndk;28.2.13676358"
+      - name: Décoder le keystore depuis le secret
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "${{ runner.temp }}/bobine-release.keystore"
+      # Le backend embarqué compare ce commit à celui du canal Bêta/Canary
+      # pour proposer une mise à jour ; sans fichier COMMIT il vaut "unknown"
+      # et aucune mise à jour n'est jamais proposée sur ces canaux.
+      - name: Identifiants de build (COMMIT bundlé)
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: echo "${{ steps.ref.outputs.commit_short }}" > COMMIT
+      # Commit épinglé (et non la branche `main` du dépôt tiers) + empreintes
+      # SHA-256 : un binaire exécuté sur les appareils des utilisateurs ne doit
+      # jamais changer sans qu'on l'ait relu.
+      - name: Télécharger les binaires statiques ffmpeg/ffprobe ARM64 (Bionic NDK)
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: |
+          mkdir -p android/app/src/main/jniLibs/arm64-v8a
+          BASE_URL="https://raw.githubusercontent.com/hzw1199/Android-FFmpeg-Prebuilt/90231cc0105aef4f76926b911535f5eb73511b86/ffmpeg-8.1.1/bin"
+          cd android/app/src/main/jniLibs/arm64-v8a
+          curl -fL --retry 5 --retry-delay 5 -o libffmpeg.so "$BASE_URL/ffmpeg"
+          curl -fL --retry 5 --retry-delay 5 -o libffprobe.so "$BASE_URL/ffprobe"
+          echo "480defd776199b5434008565974de5bf99822371c3cd9c1f130fda2c57de6439  libffmpeg.so" | sha256sum -c -
+          echo "e66d481eb55af07282ea4efcdba5d18b564f809e9e40441dede7cc6ee9f88224  libffprobe.so" | sha256sum -c -
+          chmod +x libffmpeg.so libffprobe.so
+      # Aucun binaire 32 bits n'est publié par le dépôt tiers : compilation
+      # depuis les sources officielles (android/scripts/build_ffmpeg_armv7.sh),
+      # mise en cache tant que le script ne change pas.
+      - name: Cache des binaires ffmpeg/ffprobe armeabi-v7a
+        if: steps.check_secrets.outputs.configured == 'true'
+        id: ffmpeg_armv7_cache
+        uses: actions/cache@v4
+        with:
+          path: android/app/src/main/jniLibs/armeabi-v7a
+          key: ffmpeg-armv7-${{ hashFiles('android/scripts/build_ffmpeg_armv7.sh') }}
+      - name: Compiler ffmpeg/ffprobe armeabi-v7a (NDK r28c)
+        if: steps.check_secrets.outputs.configured == 'true' && steps.ffmpeg_armv7_cache.outputs.cache-hit != 'true'
+
+      - name: Construire les bundles (.aab)
+        if: steps.check_secrets.outputs.configured == 'true'
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/bobine-release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_VERSION_NAME: ${{ steps.ref.outputs.version_name }}
+          ANDROID_VERSION_CODE: ${{ steps.ref.outputs.version_code }}
+        run: ./gradlew :app:bundleMobileRelease :app:bundleTvRelease --no-daemon
+      - name: Nommer et vérifier les bundles
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: |
+          mkdir -p aab-out
+          cp android/app/build/outputs/bundle/mobileRelease/*.aab "aab-out/Bobine-${{ steps.ref.outputs.version_name }}.aab"
+          cp android/app/build/outputs/bundle/tvRelease/*.aab "aab-out/Bobine-TV-${{ steps.ref.outputs.version_name }}.aab"
+          for AAB in aab-out/*.aab; do
+            echo "Signature : $AAB"
+            jarsigner -verify "$AAB" | head -2
+            unzip -l "$AAB" | grep -q "base/manifest/AndroidManifest.xml"
+            echo "$(sha256sum "$AAB")"
+          done
+          # Le numéro de version des bundles doit dépasser celui de l'APK déjà installé chez les utilisateurs.
+          echo "versionName=${{ steps.ref.outputs.version_name }} versionCode=${{ steps.ref.outputs.version_code }}" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: steps.check_secrets.outputs.configured == 'true'
+        with:
+          name: bobine-play-aab-${{ steps.ref.outputs.version_name }}
+          path: aab-out/*.aab
+          if-no-files-found: error
+      - name: Joindre les bundles à la release GitHub
+        if: steps.check_secrets.outputs.configured == 'true' && inputs.attach_to_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.tag }}" aab-out/*.aab --clobber --repo "${{ github.repository }}"
+      - name: Vérifier la présence du compte de service Google Play
+        if: steps.check_secrets.outputs.configured == 'true'
+        id: play_secret
+        run: |
+          if [ -n "${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}" ]; then echo "configured=true" >> "$GITHUB_OUTPUT"; else echo "configured=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Envoyer l'application téléphone sur Google Play (brouillon)
+        if: steps.play_secret.outputs.configured == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.bobine.app
+          releaseFiles: aab-out/Bobine-${{ steps.ref.outputs.version_name }}.aab
+          track: ${{ inputs.play_track }}
+          status: draft
+      - name: Envoyer l'application Android TV sur Google Play (brouillon)
+        if: steps.play_secret.outputs.configured == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.bobine.app.tv
+          releaseFiles: aab-out/Bobine-TV-${{ steps.ref.outputs.version_name }}.aab
+          track: ${{ inputs.play_track }}
+          status: draft
