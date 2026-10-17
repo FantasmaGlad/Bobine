@@ -1014,7 +1014,7 @@ export default function AudioLibraryPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>Ambiance automatique du cours (par défaut)</div>
-                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Conserver l'ambiance globale choisie pour le cours entier</div>
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Conserver l&apos;ambiance globale choisie pour le cours entier</div>
                   </div>
                   {!selected?.tracks.find((t) => t.id === pickingTrackBackgroundId)?.background_id && (
                     <Icon name="check_circle" size={20} color="var(--accent-primary)" filled />

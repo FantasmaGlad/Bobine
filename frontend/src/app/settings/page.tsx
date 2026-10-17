@@ -98,24 +98,24 @@ interface ThemeSwatch {
 
 const THEME_SWATCHES: ThemeSwatch[] = [
   // --- Thèmes clairs ---
-  { value: "clair", labelKey: "settingsPage.themeLight", category: "clair", colors: ["#f8f9fa", "#f1f3f5", "#dc2626", "#111827"] },
+  { value: "clair", labelKey: "settingsPage.themeLight", category: "clair", colors: ["#f6f7f9", "#ffffff", "#e11d48", "#0f172a"] },
   { value: "charbon", labelKey: "settingsPage.themeCharbon", category: "clair", colors: ["#f4f4f5", "#e4e4e7", "#18181b", "#09090b"] },
-  { value: "miel", labelKey: "settingsPage.themeMiel", category: "clair", colors: ["#fdfbf5", "#fef7e7", "#b45309", "#291b07"] },
-  { value: "menthe", labelKey: "settingsPage.themeMenthe", category: "clair", colors: ["#f2f8f5", "#e5f2eb", "#047857", "#0e261a"] },
-  { value: "ciel", labelKey: "settingsPage.themeCiel", category: "clair", colors: ["#f0f6fa", "#e0edf6", "#0275b1", "#0a2233"] },
-  { value: "lavande", labelKey: "settingsPage.themeLavande", category: "clair", colors: ["#f6f5fc", "#eae7f7", "#6d28d9", "#1b1130"] },
-  { value: "beige", labelKey: "settingsPage.themeBeige", category: "clair", colors: ["#f7f4ed", "#eee7da", "#543320", "#261a12"] },
-  { value: "coco", labelKey: "settingsPage.themeCoco", category: "clair", colors: ["#faf6f2", "#f2e8de", "#6b2c0b", "#26170e"] },
+  { value: "miel", labelKey: "settingsPage.themeMiel", category: "clair", colors: ["#faf8f5", "#ffffff", "#d97706", "#18130c"] },
+  { value: "menthe", labelKey: "settingsPage.themeMenthe", category: "clair", colors: ["#f4f8f6", "#ffffff", "#059669", "#0c1d15"] },
+  { value: "ciel", labelKey: "settingsPage.themeCiel", category: "clair", colors: ["#f4f7fb", "#ffffff", "#0071e3", "#0b1929"] },
+  { value: "lavande", labelKey: "settingsPage.themeLavande", category: "clair", colors: ["#f7f6fb", "#ffffff", "#7c3aed", "#161126"] },
+  { value: "beige", labelKey: "settingsPage.themeBeige", category: "clair", colors: ["#f7f5f0", "#ffffff", "#9a5b25", "#1c1814"] },
+  { value: "coco", labelKey: "settingsPage.themeCoco", category: "clair", colors: ["#f8f5f2", "#ffffff", "#7c3a19", "#1f1510"] },
 
   // --- Thèmes sombres ---
-  { value: "les-mills-sombre", labelKey: "settingsPage.themeDark", category: "sombre", colors: ["#09090b", "#1a1a20", "#e4002b", "#ffffff"] },
-  { value: "charbon-sombre", labelKey: "settingsPage.themeCharbonSombre", category: "sombre", colors: ["#0d1014", "#1c222b", "#cbd5e1", "#f1f5f9"] },
-  { value: "automne", labelKey: "settingsPage.themeAutomne", category: "sombre", colors: ["#140c06", "#2a1b0f", "#f59e0b", "#fef3c7"] },
-  { value: "hiver", labelKey: "settingsPage.themeHiver", category: "sombre", colors: ["#041118", "#0e2634", "#06b6d4", "#ecfeff"] },
-  { value: "lune", labelKey: "settingsPage.themeLune", category: "sombre", colors: ["#090a16", "#181a38", "#4f46e5", "#e0e7ff"] },
-  { value: "chili", labelKey: "settingsPage.themeChili", category: "sombre", colors: ["#140507", "#2d0d12", "#e11d48", "#ffe4e6"] },
-  { value: "orchidee", labelKey: "settingsPage.themeOrchidee", category: "sombre", colors: ["#120516", "#2b0d35", "#9333ea", "#fdf4ff"] },
-  { value: "taupe", labelKey: "settingsPage.themeTaupe", category: "sombre", colors: ["#140e09", "#2d1f15", "#d97706", "#fafaf9"] },
+  { value: "les-mills-sombre", labelKey: "settingsPage.themeDark", category: "sombre", colors: ["#08090b", "#191c22", "#e4002b", "#f8fafc"] },
+  { value: "charbon-sombre", labelKey: "settingsPage.themeCharbonSombre", category: "sombre", colors: ["#0a0c10", "#1a202a", "#e2e8f0", "#f1f5f9"] },
+  { value: "automne", labelKey: "settingsPage.themeAutomne", category: "sombre", colors: ["#0b0908", "#201b16", "#f97316", "#faf8f5"] },
+  { value: "hiver", labelKey: "settingsPage.themeHiver", category: "sombre", colors: ["#070b0f", "#15202b", "#06b6d4", "#f4f9fc"] },
+  { value: "lune", labelKey: "settingsPage.themeLune", category: "sombre", colors: ["#080911", "#181c30", "#6366f1", "#f6f7fe"] },
+  { value: "chili", labelKey: "settingsPage.themeChili", category: "sombre", colors: ["#0b0809", "#20171a", "#f43f5e", "#fcf7f8"] },
+  { value: "orchidee", labelKey: "settingsPage.themeOrchidee", category: "sombre", colors: ["#09080d", "#1b1726", "#d946ef", "#faf7fc"] },
+  { value: "taupe", labelKey: "settingsPage.themeTaupe", category: "sombre", colors: ["#0b0a09", "#201d19", "#eab308", "#fafaf9"] },
 ];
 
 // Pages plein écran destinées à être ouvertes depuis un AUTRE appareil du

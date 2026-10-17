@@ -373,25 +373,9 @@ export default function DashboardScreen({ channel }: Props) {
         </div>
       )}
 
-      {/* Sélecteur de sortie segmenté Câblé / Réseau avec animation de grossissement et état de sélection */}
-      <div className="outputs-channel-switch-bar">
-        <Link
-          href="/dashboard-cable"
-          className={`channel-switch-btn olc-press ${isCable ? "active" : ""}`}
-        >
-          <Icon name="cable" size={18} />
-          <span>{t("nav.dashboardCable")}</span>
-          {isCable && <span className="channel-switch-dot" />}
-        </Link>
-        <Link
-          href="/dashboard-network"
-          className={`channel-switch-btn olc-press ${!isCable ? "active" : ""}`}
-        >
-          <Icon name="wifi" size={18} />
-          <span>{t("nav.dashboardNetwork")}</span>
-          {!isCable && <span className="channel-switch-dot" />}
-        </Link>
-      </div>
+      {/* Le choix du canal (Câblé/Réseau) se fait uniquement depuis la
+          barre latérale — un second sélecteur ici dupliquait exactement
+          cette navigation. */}
 
       {/* Bascule kiosk/cinéma de CE canal. */}
       <div className="live-block channel-card">

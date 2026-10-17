@@ -40,8 +40,8 @@ def _app_root() -> Path:
 
 @lru_cache(maxsize=1)
 def get_app_version() -> str:
-    """Numéro de version nu (ex. "3.0.5", ou "3.0.5-beta" sur un build du
-    canal Bêta), sans préfixe "V"."""
+    """Numéro de version nu (ex. "3.0.5", ou "3.0.5-canary" sur un build
+    d'un canal Bêta/Canary), sans préfixe "V"."""
     # 1. Variable d'environnement injectée par la plateforme (ex: Android BuildConfig.VERSION_NAME)
     env_ver = os.environ.get("BOBINE_VERSION", "").strip()
     if env_ver:
@@ -94,7 +94,7 @@ def get_app_tag() -> str:
 
 def is_prerelease_version(version: str | None = None) -> bool:
     """Vrai si la version porte un suffixe de pré-release ("4.0.3-beta") —
-    marque d'un build du canal Bêta (la CI écrit `<base>-beta` dans VERSION,
+    marque d'un build des canaux Bêta/Canary (la CI écrit `<base>-beta`/`<base>-canary` dans VERSION,
     cf. ci.yml, étape "Identifiants de build"). Sert à distinguer un build
     Bêta d'une Stable de MÊME numéro de base : sans ça, repasser en Stable
     depuis "4.0.2-beta" n'était jamais proposé (même base que la Stable)."""

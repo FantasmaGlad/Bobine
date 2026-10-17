@@ -28,7 +28,7 @@ VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
 # accumulation de fichiers versionnés à chaque reconstruction.
 DEB_FILENAME_VERSION="${DEB_FILENAME_VERSION:-$VERSION}"
 PKG_NAME="bobine"
-ARCH="amd64"
+ARCH="${ARCH:-$(dpkg --print-architecture)}"
 DEB_NAME="${PKG_NAME}_${DEB_FILENAME_VERSION}_${ARCH}.deb"
 
 echo "=== [1/5] Vérification de l'environnement ==="
@@ -128,6 +128,7 @@ cp "${SCRIPT_DIR}/DEBIAN/postrm" "${STAGING_DIR}/DEBIAN/postrm"
 # (le paquet publié s'annonçait "3.0.0" quelle que soit la version réelle,
 # cf. `dpkg -I` sur un ancien paquet).
 sed -i "s/^Version:.*/Version: ${VERSION}/" "${STAGING_DIR}/DEBIAN/control"
+sed -i "s/^Architecture:.*/Architecture: ${ARCH}/" "${STAGING_DIR}/DEBIAN/control"
 
 # Calcul dynamique de la taille installée pour le Centre d'applications
 INSTALLED_SIZE=$(du -sk "${STAGING_DIR}/usr" | awk '{print $1}')

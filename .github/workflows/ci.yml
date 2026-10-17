@@ -295,6 +295,43 @@ jobs:
           name: bobine-assistant-linux
           path: assistant/target/release/bobine-assistant
 
+  assistant-core-arm64:
+    name: Assistant core ARM64 (Rust)
+    runs-on: ubuntu-24.04-arm
+    needs: [version]
+    defaults:
+      run:
+        working-directory: assistant
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo (ARM64)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            assistant/target
+          key: cargo-${{ runner.os }}-arm64-${{ hashFiles('assistant/**/Cargo.toml', 'assistant/Cargo.lock') }}
+      - name: Install system dependencies (WebKitGTK & AppIndicator)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Identifiants de build (VERSION bundlée + COMMIT)
+        working-directory: .
+        run: |
+          echo "${{ needs.version.outputs.commit_short }}" > COMMIT
+          if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
+            echo "${{ needs.version.outputs.display_version }}" > VERSION
+          fi
+      - name: Build Bobine Assistant ARM64 (Linux aarch64 binary)
+        run: |
+          cargo build --release --bin bobine-assistant
+          cp target/release/bobine-assistant target/release/bobine-assistant-arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bobine-assistant-linux-arm64
+          path: assistant/target/release/bobine-assistant-arm64
+
   android-build:
     # Compile et signe l'APK Android (Chaquopy + FastAPI embarqué + binaire FFmpeg ARM64).
     # Inclus dans les assets officiels des releases Stable (Bobine-x.y.z.apk), Bêta (Bobine-beta.apk)
@@ -517,6 +554,101 @@ jobs:
           name: bobine-windows-installer
           path: dist-installer/*.exe
 
+  windows-build-arm64:
+    # Packaging Windows 11 ARM64 natif (PC Qualcomm Snapdragon X Elite / X Plus).
+    # Construit BobineBackend.exe + BobineTray.exe avec Python 3.12 ARM64 + PyInstaller,
+    # intègre les binaires statiques FFmpeg winarm64 et génère Bobine-Setup-*-arm64.exe.
+    name: Windows ARM64 packaging (PyInstaller + Inno Setup)
+    runs-on: windows-11-arm
+    needs: [version]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build du frontend (export statique)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: arm64
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Installer les dépendances Python + PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pyinstaller
+      - name: Identifiants de build (VERSION bundlée + COMMIT)
+        shell: bash
+        run: |
+          echo "${{ needs.version.outputs.commit_short }}" > COMMIT
+          if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
+            echo "${{ needs.version.outputs.display_version }}" > VERSION
+          fi
+      - name: Construire BobineBackend.exe + BobineTray.exe (ARM64)
+        working-directory: backend
+        run: pyinstaller ../packaging/windows/bobine.spec
+      - name: Fournir ffmpeg.exe/ffprobe.exe (build statique BtbN winarm64 avec repli win64)
+        shell: pwsh
+        run: |
+          $ffmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-winarm64-gpl.zip"
+          $ffmpegFallbackUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+          curl.exe -fL --retry 5 --retry-delay 5 "$ffmpegUrl" -o ffmpeg.zip
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "Repli sur le build FFmpeg win64..."
+              curl.exe -fL --retry 5 --retry-delay 5 "$ffmpegFallbackUrl" -o ffmpeg.zip
+          }
+          Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg-extracted
+          $bin = Get-ChildItem -Path ffmpeg-extracted -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1 -ExpandProperty DirectoryName
+          Copy-Item "$bin\ffmpeg.exe" backend\dist\Bobine\
+          Copy-Item "$bin\ffprobe.exe" backend\dist\Bobine\
+      - name: Vérifier que BobineBackend.exe démarre et répond à /api/health
+        working-directory: backend/dist/Bobine
+        shell: pwsh
+        run: |
+          $proc = Start-Process -FilePath ".\BobineBackend.exe" -RedirectStandardError "backend_err.log" -RedirectStandardOutput "backend_out.log" -PassThru
+          $ready = $false
+          for ($i = 0; $i -lt 20; $i++) {
+              Start-Sleep -Seconds 1
+              try {
+                  $response = Invoke-WebRequest -Uri "http://127.0.0.1:8000/api/health" -UseBasicParsing -TimeoutSec 2
+                  if ($response.StatusCode -eq 200) {
+                      $ready = $true
+                      Write-Host "Backend opérationnel : $($response.Content)"
+                      break
+                  }
+              } catch {
+                  # Attente de disponibilité
+              }
+          }
+          if (-not $ready) {
+              Write-Host "=== Backend stderr ==="
+              if (Test-Path "backend_err.log") { Get-Content "backend_err.log" }
+              Write-Host "=== Backend stdout ==="
+              if (Test-Path "backend_out.log") { Get-Content "backend_out.log" }
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+              exit 1
+          }
+          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+      - name: Compiler l'installeur ARM64 (Inno Setup)
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ISCC.exe -ErrorAction SilentlyContinue)) {
+              choco install innosetup -y --no-progress
+          }
+          $iscc = if (Get-Command ISCC.exe -ErrorAction SilentlyContinue) { "ISCC.exe" } elseif (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe") { "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" } else { "${env:ProgramFiles}\Inno Setup 6\ISCC.exe" }
+          & $iscc "/DMyAppVersion=${{ needs.version.outputs.display_version }}" "/DMyOutputVersion=${{ needs.version.outputs.filename_version }}" "/DMyOutputSuffix=-arm64" "packaging\windows\bobine.iss"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bobine-windows-installer-arm64
+          path: dist-installer/Bobine-Setup-*-arm64.exe
+
   linux-desktop-deb:
     # Packaging Linux non-headless (.deb).
     # Construit le frontend Next.js, les exécutables PyInstaller Linux
@@ -579,6 +711,69 @@ jobs:
         with:
           name: bobine-linux-deb
           path: dist-deb/*.deb
+
+  linux-desktop-deb-arm64:
+    # Packaging Linux ARM64 non-headless (.deb arm64).
+    # Construit le frontend Next.js, les exécutables PyInstaller Linux ARM64
+    # (BobineBackend + BobineTray), assemble l'arborescence Debian arm64 et valide
+    # l'intégrité et l'installation réelle du paquet .deb sur ubuntu-24.04-arm.
+    name: Linux desktop ARM64 packaging (.deb)
+    runs-on: ubuntu-24.04-arm
+    needs: [version]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build du frontend (export statique)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Installer les dépendances Python + PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pyinstaller
+      - name: Identifiants de build (VERSION bundlée + COMMIT)
+        run: |
+          echo "${{ needs.version.outputs.commit_short }}" > COMMIT
+          if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
+            echo "${{ needs.version.outputs.display_version }}" > VERSION
+          fi
+      - name: Construire le paquet Debian ARM64 (.deb)
+        env:
+          VERSION: ${{ needs.version.outputs.deb_version }}
+          DEB_FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
+        run: |
+          ./packaging/linux/build_deb.sh
+      - name: Inspecter et valider la structure du paquet .deb ARM64
+        run: |
+          dpkg-deb -I dist-deb/bobine_*_arm64.deb
+          dpkg-deb -c dist-deb/bobine_*_arm64.deb
+      - name: Tester l'installation réelle sur ubuntu-24.04-arm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ./dist-deb/bobine_*_arm64.deb
+          test -x /usr/bin/bobine
+          test -f /usr/share/applications/com.bobine.app.desktop
+          test -f /usr/share/metainfo/com.bobine.app.metainfo.xml
+          test -f /usr/lib/systemd/user/bobine.service
+          test -x /usr/lib/bobine/BobineBackend
+          test -x /usr/lib/bobine/BobineTray
+          test -f /usr/share/icons/hicolor/256x256/apps/bobine.png
+          test -f /usr/share/pixmaps/bobine.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bobine-linux-deb-arm64
+          path: dist-deb/bobine_*_arm64.deb
 
   macos-build:
     # PyInstaller ne cross-compile pas — ce
@@ -669,7 +864,7 @@ jobs:
   # et attendu sur la page GitHub Releases.
   release-stable:
     name: Publish Stable Release
-    needs: [version, windows-build, linux-desktop-deb, macos-build, assistant-core, android-build]
+    needs: [version, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build]
     if: needs.version.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     permissions:
@@ -683,10 +878,20 @@ jobs:
         with:
           name: bobine-windows-installer
           path: release-assets
+      - name: Download Windows ARM64 installer
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-windows-installer-arm64
+          path: release-assets
       - name: Download Linux deb
         uses: actions/download-artifact@v4
         with:
           name: bobine-linux-deb
+          path: release-assets
+      - name: Download Linux ARM64 deb
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-deb-arm64
           path: release-assets
       - name: Download macOS dmg
         uses: actions/download-artifact@v4
@@ -697,6 +902,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bobine-assistant-linux
+          path: release-assets
+      - name: Download Linux ARM64 assistant binary
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-assistant-linux-arm64
           path: release-assets
       - name: Download Android APK
         uses: actions/download-artifact@v4
@@ -759,7 +969,7 @@ jobs:
   # de main, non testé.
   release-canary:
     name: Publish/Update Canary Release
-    needs: [version, windows-build, linux-desktop-deb, macos-build, assistant-core, android-build]
+    needs: [version, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build]
     if: needs.version.outputs.channel == 'canary'
     runs-on: ubuntu-latest
     permissions:
@@ -775,10 +985,20 @@ jobs:
         with:
           name: bobine-windows-installer
           path: release-assets
+      - name: Download Windows ARM64 installer
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-windows-installer-arm64
+          path: release-assets
       - name: Download Linux deb
         uses: actions/download-artifact@v4
         with:
           name: bobine-linux-deb
+          path: release-assets
+      - name: Download Linux ARM64 deb
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-deb-arm64
           path: release-assets
       - name: Download macOS dmg
         uses: actions/download-artifact@v4
@@ -789,6 +1009,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bobine-assistant-linux
+          path: release-assets
+      - name: Download Linux ARM64 assistant binary
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-assistant-linux-arm64
           path: release-assets
       - name: Download Android APK
         uses: actions/download-artifact@v4
@@ -848,12 +1073,12 @@ jobs:
           </p>
 
           <p align="center">
-            <img alt="Bobine soutient Firefox — le renard Firefox et Baamix" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/FirefoxBaamix.png" width="320">
+            <img alt="Bobine — Canal Canary" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/Versions/Canary.png" width="220">
           </p>
 
           # Bobine — Canary (build automatique)
 
-          > **Bobine soutient Firefox.** Interface d'administration et lecteurs tiers (`/radio`, `/kiosk`, `/cinema`) vérifiés de bout en bout sur Firefox 157 : envois reprenables après coupure, flux média conformes HTTP, version vidéo compatible en repli automatique, diagnostic navigateur intégré. Cette release apporte aussi des mises à jour Stable/Bêta/Canary fiabilisées (dont le retour en Stable) et un installateur plus fluide.
+          > **Canal Canary (rolling).** Pre-release construite automatiquement depuis le tout dernier commit de `main`, sans aucune curation — pour les développeurs et utilisateurs avancés souhaitant suivre le développement au jour le jour. Une version stable équivalente ou plus récente la remplace toujours automatiquement.
 
           Pre-release construite depuis le tout dernier commit de `main`, sans aucune curation — reconstruite automatiquement à chaque push et republiée **en place** sur ce même tag mobile `canary` (jamais un nouveau tag par itération). Une version stable équivalente ou plus récente la remplace toujours automatiquement.
 
@@ -865,15 +1090,15 @@ jobs:
 
           ## Téléchargement
 
-          | Plateforme | Format | Téléchargement direct |
-          | :--- | :---: | :--- |
-          | ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` | [**Bobine-Setup-canary.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-Setup-canary.exe) |
-          | ![Android](https://img.shields.io/badge/Android-34A853?style=flat-square&logo=android&logoColor=white) | `.apk` | [**Bobine-canary.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-canary.apk) |
-          | ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=androidtv&logoColor=white) | `.apk` | [**Bobine-TV-canary.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-TV-canary.apk) |
-          | ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` | [**bobine_canary_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine_canary_amd64.deb) |
-          | ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` | [**Bobine-canary.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-canary.dmg) |
-          | ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | Binaire natif | [**bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine-assistant) |
-          | ![Bash CLI](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | Script | [**install.sh**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.sh) — ou `sudo ./install.sh --channel=canary` sur une installation existante |
+          | Plateforme | Format | Architecture | Téléchargement direct |
+          | :--- | :---: | :---: | :--- |
+          | ![](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` | x86-64 / ARM64 | [**Bobine-Setup-canary.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-Setup-canary.exe) (x86-64)<br>[**Bobine-Setup-canary-arm64.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-Setup-canary-arm64.exe) (ARM64 Snapdragon) |
+          | ![](https://img.shields.io/badge/Android-34A853?style=flat-square&logo=android&logoColor=white) | `.apk` | ARM64 | [**Bobine-canary.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-canary.apk) |
+          | ![](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=androidtv&logoColor=white) | `.apk` | ARM64 | [**Bobine-TV-canary.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-TV-canary.apk) |
+          | ![](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` | x86-64 / ARM64 | [**bobine_canary_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine_canary_amd64.deb) (amd64)<br>[**bobine_canary_arm64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine_canary_arm64.deb) (arm64) |
+          | ![](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` | Apple Silicon | [**Bobine-canary.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-canary.dmg) |
+          | ![](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | Binaire natif | x86-64 / ARM64 (Linux) | [**bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine-assistant) (x86-64)<br>[**bobine-assistant-arm64**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine-assistant-arm64) (ARM64) |
+          | ![](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | Script | x86-64 / ARM64 | [**install.sh**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.sh) — ou `sudo ./install.sh --channel=canary` sur une installation existante |
 
           NOTES_EOF
           sed -i "s/__COMMIT__/${{ needs.version.outputs.commit_short }}/; s/__VERSION__/${{ needs.version.outputs.base_version }}/" /tmp/canary-notes.md
@@ -928,7 +1153,7 @@ jobs:
   # générées automatiquement que Canary, juste un déclenchement différent.
   release-beta:
     name: Publish/Update Beta Release
-    needs: [version, windows-build, linux-desktop-deb, macos-build, assistant-core, android-build]
+    needs: [version, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build]
     if: needs.version.outputs.channel == 'beta'
     runs-on: ubuntu-latest
     permissions:
@@ -944,10 +1169,20 @@ jobs:
         with:
           name: bobine-windows-installer
           path: release-assets
+      - name: Download Windows ARM64 installer
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-windows-installer-arm64
+          path: release-assets
       - name: Download Linux deb
         uses: actions/download-artifact@v4
         with:
           name: bobine-linux-deb
+          path: release-assets
+      - name: Download Linux ARM64 deb
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-deb-arm64
           path: release-assets
       - name: Download macOS dmg
         uses: actions/download-artifact@v4
@@ -958,6 +1193,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bobine-assistant-linux
+          path: release-assets
+      - name: Download Linux ARM64 assistant binary
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-assistant-linux-arm64
           path: release-assets
       - name: Download Android APK
         uses: actions/download-artifact@v4
@@ -1017,12 +1257,12 @@ jobs:
           </p>
 
           <p align="center">
-            <img alt="Bobine soutient Firefox — le renard Firefox et Baamix" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/FirefoxBaamix.png" width="320">
+            <img alt="Bobine — Canal Bêta" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/Versions/Beta.png" width="220">
           </p>
 
-          # Bobine — Bêta (build automatique)
+          # Bobine — Bêta (lot curé)
 
-          > **Bobine soutient Firefox.** Interface d'administration et lecteurs tiers (`/radio`, `/kiosk`, `/cinema`) vérifiés de bout en bout sur Firefox 157 : envois reprenables après coupure, flux média conformes HTTP, version vidéo compatible en repli automatique, diagnostic navigateur intégré. Cette bêta apporte aussi des mises à jour Stable/Bêta/Canary fiabilisées (dont le retour en Stable) et un installateur plus fluide.
+          > **Canal Bêta (accès anticipé).** Lots de fonctionnalités et correctifs sélectionnés et testés avant leur passage en Stable — plus avancé que Stable, plus testé que Canary. Une version stable équivalente ou plus récente la remplace toujours automatiquement.
 
           Pre-release curée : un lot de fonctionnalités/correctifs sélectionné par le mainteneur, publié manuellement — plus testé que Canary (qui suit chaque commit de main), moins que Stable. Republiée **en place** sur ce même tag mobile `beta` (jamais un nouveau tag par itération) à chaque nouveau lot. Une version stable équivalente ou plus récente la remplace toujours automatiquement.
 
@@ -1034,15 +1274,15 @@ jobs:
 
           ## Téléchargement
 
-          | Plateforme | Format | Téléchargement direct |
-          | :--- | :---: | :--- |
-          | ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` | [**Bobine-Setup-beta.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-Setup-beta.exe) |
-          | ![Android](https://img.shields.io/badge/Android-34A853?style=flat-square&logo=android&logoColor=white) | `.apk` | [**Bobine-beta.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-beta.apk) |
-          | ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=androidtv&logoColor=white) | `.apk` | [**Bobine-TV-beta.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-TV-beta.apk) |
-          | ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` | [**bobine_beta_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine_beta_amd64.deb) |
-          | ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` | [**Bobine-beta.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-beta.dmg) |
-          | ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | Binaire natif | [**bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine-assistant) |
-          | ![Bash CLI](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | Script | [**install.sh**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/install.sh) — ou `sudo ./install.sh --channel=beta` sur une installation existante |
+          | Plateforme | Format | Architecture | Téléchargement direct |
+          | :--- | :---: | :---: | :--- |
+          | ![](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` | x86-64 / ARM64 | [**Bobine-Setup-beta.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-Setup-beta.exe) (x86-64)<br>[**Bobine-Setup-beta-arm64.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-Setup-beta-arm64.exe) (ARM64 Snapdragon) |
+          | ![](https://img.shields.io/badge/Android-34A853?style=flat-square&logo=android&logoColor=white) | `.apk` | ARM64 | [**Bobine-beta.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-beta.apk) |
+          | ![](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=androidtv&logoColor=white) | `.apk` | ARM64 | [**Bobine-TV-beta.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-TV-beta.apk) |
+          | ![](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` | x86-64 / ARM64 | [**bobine_beta_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine_beta_amd64.deb) (amd64)<br>[**bobine_beta_arm64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine_beta_arm64.deb) (arm64) |
+          | ![](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` | Apple Silicon | [**Bobine-beta.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-beta.dmg) |
+          | ![](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | Binaire natif | x86-64 / ARM64 (Linux) | [**bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine-assistant) (x86-64)<br>[**bobine-assistant-arm64**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine-assistant-arm64) (ARM64) |
+          | ![](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | Script | x86-64 / ARM64 | [**install.sh**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/install.sh) — ou `sudo ./install.sh --channel=beta` sur une installation existante |
 
           NOTES_EOF
           sed -i "s/__COMMIT__/${{ needs.version.outputs.commit_short }}/; s/__VERSION__/${{ needs.version.outputs.base_version }}/" /tmp/beta-notes.md
@@ -1081,7 +1321,7 @@ jobs:
       - name: Publish Beta release
         run: |
           gh release create beta release-assets/* \
-            --title "Bobine — Bêta (build automatique)" \
+            --title "Bobine — Bêta (lot curé)" \
             --notes-file "${{ steps.notes.outputs.notes_path }}" \
             --prerelease \
             --target "${{ github.sha }}"
@@ -1092,7 +1332,7 @@ jobs:
   # dès qu'une release Stable, Bêta ou Canary a été publiée avec succès.
   publish-apt-repo:
     name: Publish to APT Repository (apt.bobine.fit)
-    needs: [version, linux-desktop-deb, release-stable, release-beta, release-canary]
+    needs: [version, linux-desktop-deb, linux-desktop-deb-arm64, release-stable, release-beta, release-canary]
     if: |
       always() &&
       !cancelled() &&
@@ -1123,33 +1363,45 @@ jobs:
           ref: gh-pages
           path: apt-repo
 
-      - name: Download Linux deb artifact
+      - name: Download Linux deb artifact (amd64)
         uses: actions/download-artifact@v4
         with:
           name: bobine-linux-deb
+          path: deb-artifact
+
+      - name: Download Linux deb artifact (arm64)
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-deb-arm64
           path: deb-artifact
 
       - name: Import GPG Private Key
         run: |
           echo "${{ secrets.APT_GPG_PRIVATE_KEY }}" | gpg --batch --import
 
-      - name: Update reprepro repository
+      - name: Update reprepro repository (amd64 + arm64)
         run: |
           CHANNEL="${{ needs.version.outputs.channel }}"
-          DEB_FILE=$(ls deb-artifact/*.deb | head -1)
-          echo "Mise à jour du dépôt APT pour le canal ${CHANNEL} avec ${DEB_FILE}"
+          DEB_AMD64=$(ls deb-artifact/*_amd64.deb | head -1)
+          DEB_ARM64=$(ls deb-artifact/*_arm64.deb | head -1)
+          echo "Mise à jour du dépôt APT pour le canal ${CHANNEL} avec ${DEB_AMD64} et ${DEB_ARM64}"
 
           cd apt-repo
+          if [ -f "conf/distributions" ] && ! grep -q "arm64" conf/distributions; then
+            sed -i 's/^Architectures: amd64$/Architectures: amd64 arm64/' conf/distributions
+          fi
           if [ "$CHANNEL" = "beta" ] || [ "$CHANNEL" = "canary" ]; then
             # Canaux rolling (Bêta curée comme Canary) : on retire l'ancien
             # paquet pour ne garder que la dernière version publiée sur ce
             # canal, paramétré par $CHANNEL (déclaré dans conf/distributions
             # sur gh-pages).
             reprepro remove "$CHANNEL" bobine || true
-            reprepro includedeb "$CHANNEL" "../$DEB_FILE"
+            reprepro includedeb "$CHANNEL" "../$DEB_AMD64"
+            reprepro includedeb "$CHANNEL" "../$DEB_ARM64"
           else
             # Sur le canal stable
-            reprepro includedeb stable "../$DEB_FILE"
+            reprepro includedeb stable "../$DEB_AMD64"
+            reprepro includedeb stable "../$DEB_ARM64"
           fi
 
       - name: Commit and push changes to gh-pages
@@ -1157,7 +1409,7 @@ jobs:
           cd apt-repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add dists/ pool/
+          git add conf/ dists/ pool/
           if git diff --staged --quiet; then
             echo "Aucune modification à publier dans le dépôt APT."
           else

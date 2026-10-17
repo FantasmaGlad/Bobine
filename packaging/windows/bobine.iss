@@ -21,7 +21,7 @@
 ; repli codé en dur ci-dessous, utilisé uniquement lors d'une compilation
 ; manuelle sans ce define.
 #ifndef MyAppVersion
-  #define MyAppVersion "4.0.3"
+  #define MyAppVersion "5.0.0"
 #endif
 ; Version utilisée dans le NOM DU FICHIER de l'installeur — délibérément
 ; distincte de MyAppVersion : par défaut
@@ -32,6 +32,9 @@
 ; Windows) reste la version réelle et précise.
 #ifndef MyOutputVersion
   #define MyOutputVersion MyAppVersion
+#endif
+#ifndef MyOutputSuffix
+  #define MyOutputSuffix ""
 #endif
 #define MyAppPublisher "Bobine"
 #define MyAppURL "https://bobine.fit"
@@ -57,7 +60,7 @@ DefaultGroupName=Bobine
 ; ultérieurs de BobineTray, eux, tournent en utilisateur standard.
 PrivilegesRequired=admin
 OutputDir=..\..\dist-installer
-OutputBaseFilename=Bobine-Setup-{#MyOutputVersion}
+OutputBaseFilename=Bobine-Setup-{#MyOutputVersion}{#MyOutputSuffix}
 Compression=lzma2
 SolidCompression=yes
 ; Licence AGPL-3.0 du dépôt, affichée avant installation.

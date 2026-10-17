@@ -137,24 +137,9 @@ export default function MobileRemote({
 
   return (
     <div className="mobile-remote">
-      {/* Switch segmenté Câblé / Réseau */}
-      <div className="outputs-channel-switch-bar mobile-switch-bar">
-        <Link
-          href="/dashboard-cable"
-          className={`channel-switch-btn olc-press ${channel === "cable" ? "active" : ""}`}
-        >
-          <Icon name="cable" size={16} />
-          <span>{t("nav.dashboardCable")}</span>
-        </Link>
-        <Link
-          href="/dashboard-network"
-          className={`channel-switch-btn olc-press ${channel === "network" ? "active" : ""}`}
-        >
-          <Icon name="wifi" size={16} />
-          <span>{t("nav.dashboardNetwork")}</span>
-        </Link>
-      </div>
-
+      {/* Le choix du canal (Câblé/Réseau) se fait uniquement depuis la
+          barre latérale — un second sélecteur ici dupliquait exactement
+          cette navigation. */}
       {connected && (
         <div className="mobile-remote-output olc-anim-in">
           {(!channel || channel === "cable") && (

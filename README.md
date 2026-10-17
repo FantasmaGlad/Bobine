@@ -26,7 +26,7 @@ Bobine turns any tablet, desktop PC, Mac, or low-cost dedicated mini PC into a c
 [Official Website](https://bobine.fit) · [Hardware Recommendations](https://bobine.fit/en/hardware) · [Documentation](https://bobine.fit/en/documentation) · [Français](README.fr.md) · [Technical Architecture](docs/ARCHITECTURE.en.md) · [Latest Release](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Beta Release](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) · [Canary Release](https://github.com/FantasmaGlad/Bobine/releases/tag/canary)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
-[![Release: v4.0.3](https://img.shields.io/badge/Release-v4.0.3-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
+[![Release: v5.0.0](https://img.shields.io/badge/Release-v5.0.0-brightgreen)](https://github.com/FantasmaGlad/Bobine/releases/latest)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 ![Architecture: Local--first | 100% Offline](https://img.shields.io/badge/Architecture-Local--first%20%7C%20100%25%20Offline-success)
 ![Privacy: Zero Telemetry](https://img.shields.io/badge/Privacy-Zero%20Telemetry-purple)
@@ -44,17 +44,17 @@ Install Bobine as a native application on your tablet, workstation, or studio PC
 
 | Platform | Format | Architecture | Direct Download / Command | Target Profile & Key Features |
 | :--- | :---: | :---: | :---: | :--- |
-| ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Native Package)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Download Bobine-4.0.3.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V4.0.3/Bobine-4.0.3.apk)</sub> | **Android Tablets**<br><sub>Touch coach desk (`/grid`) + HDMI TV cinema (`/cinema`)</sub> |
-| ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=androidtv&logoColor=white) | <sub>`.apk`<br>*(Dedicated TV Package)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Download Bobine-TV-4.0.3.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V4.0.3/Bobine-TV-4.0.3.apk)</sub> | **Android TV & Google TV**<br><sub>Leanback TV launcher, D-Pad remote navigation, offline kiosk</sub> |
-| ![Windows 11](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installer)*</sub> | <sub>x86-64</sub> | <sub>[**Download Bobine-Setup-4.0.3.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/V4.0.3/Bobine-Setup-4.0.3.exe)</sub> | **Windows Desktops & Laptops**<br><sub>1-click installer, tray icon, clamshell mode without sleep</sub> |
-| ![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | <sub>`.deb`<br>*(Package & Repo)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>[**APT Repo apt.bobine.fit**](https://apt.bobine.fit)<br>[**bobine_4.0.3_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V4.0.3/bobine_4.0.3_amd64.deb)</sub> | **Linux Desktops & Repurposed PCs**<br><sub>Official `.deb` package and `apt.bobine.fit` repository updates</sub> |
-| ![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Disk Image)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Download Bobine-4.0.3.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V4.0.3/Bobine-4.0.3.dmg)</sub> | **MacBook, Mac mini & iMac**<br><sub>Drag-and-drop `.dmg`, Apple Silicon & Intel, menu bar companion</sub> |
-| ![iOS / iPadOS](https://img.shields.io/badge/iOS%20%2F%20iPadOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>iPadOS App<br>*(Explored Track)*</sub> | <sub>ARM64 (Apple Silicon)</sub> | <sub>*Explored track...*</sub> | **iPads & Apple Tablets (Explored Track)**<br><sub>Touch coach desk prototype with USB-C / Thunderbolt video output</sub> |
-| ![Bobine Assistant](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | <sub>Native Binary<br>*(Tauri 2)*</sub> | <sub>x86-64 (Linux)</sub> | <sub>[**Download bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/V4.0.3/bobine-assistant)</sub> | **Management Assistant (GUI)**<br><sub>Network auto-discovery, SSH remote deploy & update tool</sub> |
-| ![Bash CLI](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | <sub>Shell Script<br>*(Automated)*</sub> | <sub>x86-64</sub> | <sub>`curl -sSL https://bobine.fit/install.sh \| bash`</sub> | **Headless Dedicated Appliance**<br><sub>Automated 18-step install for bare-metal mini PCs (Debian 13)</sub> |
-| [![Tor Browser](https://img.shields.io/badge/Tor_Browser-7D4698?style=flat-square&logo=torbrowser&logoColor=white)](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/) | <sub>APT Repo & Mirror<br>*(Tor Network)*</sub> | <sub>x86-64<br>*(amd64)*</sub> | <sub>`curl -fsSL https://bobine.fit/install-tor.sh \| bash`<br>[**Tor Mirror (.onion)**](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/)<br>[**APT Repo (.onion)**](http://rzvwjat5pidtxtwzcsvew7yc5ugfjvzz432ecpn3s5mlch4cs7vvmqad.onion/)</sub> | **Tor Network (.onion)**<br><sub>Anonymous APT repo and website mirror without IP exposure</sub> |
-| [![bobine.fit](https://img.shields.io/badge/bobine.fit-4285F4?style=flat-square&logo=data%3Aimage/svg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBkPSJNNDQgMjRjMCAxMS4wNDUtOC45NTUgMjAtMjAgMjAtNC41MiAwLTguNjgtMS41MDMtMTIuMDMtNC4wNDNsOS40NjctMTYuMzk0QTggOCAwIDAgMCAyNCAzMmM0LjQxOCAwIDgtMy41ODIgOC04eiIvPjxwYXRoIGZpbGw9IiNGQkMwMkQiIGQ9Ik00NCAyNEgyNGE4IDggMCAwIDAtNi45MjggNGwtOS40NjcgMTYuMzk0QTE5LjkyIDE5LjkyIDAgMCAxIDQgMjRDNCAxMy45ODcgMTEuMzg1IDUuNzA0IDIxLjAzNiA0LjIyTDMwLjUwMyAyMC42MUE3Ljk3IDcuOTcgMCAwIDAgMzIgMjR6Ii8%2BPHBhdGggZmlsbD0iI0U1MzkzNSIgZD0iTTI0IDRjNy40MDYgMCAxMy44NiA0LjAyNCAxNy4zIDEwLjAyN0wzMC41MDMgMjAuNjFBOCA4IDAgMCAwIDI0IDE2Yy0zLjE1NSAwLTUuOTE0IDEuODI2LTcuMjUgNC40OUw3LjI4NCA0LjA5NUMxMS44OTIgNC4wMzIgMTcuNjUgNCAyNCA0eiIvPjxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjI0IiByPSI2IiBmaWxsPSIjMTk3NkQyIi8%2BPC9zdmc%2B)](https://bobine.fit) | <sub>Web Portal</sub> | <sub>Universal</sub> | <sub>[**Visit bobine.fit**](https://bobine.fit)</sub> | **Official Website**<br><sub>Getting started guides, hardware recommendations & docs</sub> |
-| ![GitHub](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | <sub>Source & Binaries</sub> | <sub>Multi-OS</sub> | <sub>[**Browse GitHub Releases**](https://github.com/FantasmaGlad/Bobine/releases/latest)</sub> | **Releases & Source Code**<br><sub>Certified SHA-256 checksums, tarballs & full changelog</sub> |
+| ![](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Native Package)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Download Bobine-5.0.0.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.apk)</sub> | **Android Tablets & Google Books (Aluminium OS)**<br><sub>Touch coach desk (`/grid`) + HDMI TV cinema (`/cinema`), soon on Google Play Store</sub> |
+| ![](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Dedicated TV Package)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Download Bobine-TV-5.0.0.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.apk)</sub> | **Android TV & Google TV**<br><sub>Leanback TV launcher, D-Pad remote navigation, offline kiosk</sub> |
+| ![](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installer)*</sub> | <sub>x86-64 & ARM64<br>*(Snapdragon)*</sub> | <sub>[**Bobine-Setup-5.0.0.exe (x86-64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-Setup-5.0.0.exe)<br>[**Bobine-Setup-5.0.0-arm64.exe (ARM64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-Setup-5.0.0-arm64.exe)</sub> | **Windows 11/10 PCs & Qualcomm Snapdragon ARM Laptops**<br><sub>Native x86-64 and ARM64 installer (Snapdragon X Elite / X Plus), tray icon, clamshell mode</sub> |
+| ![](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | <sub>`.deb`<br>*(Package & Repo)*</sub> | <sub>x86-64 *(amd64)*<br>& ARM64 *(arm64)*</sub> | <sub>[**APT Repo apt.bobine.fit**](https://apt.bobine.fit)<br>[**bobine_5.0.0_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/bobine_5.0.0_amd64.deb)<br>[**bobine_5.0.0_arm64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/bobine_5.0.0_arm64.deb)</sub> | **Linux Desktops, ARM64 Workstations & NVIDIA DGX Spark**<br><sub>Official `.deb` packages (`amd64` & `arm64`) and `apt.bobine.fit` repository updates</sub> |
+| ![](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Disk Image)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Download Bobine-5.0.0.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.dmg)</sub> | **MacBook, Mac mini & iMac**<br><sub>Drag-and-drop `.dmg`, Apple Silicon & Intel, menu bar companion</sub> |
+| ![](https://img.shields.io/badge/iOS%20%2F%20iPadOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>iPadOS App<br>*(Explored Track)*</sub> | <sub>ARM64 (Apple Silicon)</sub> | <sub>*Explored track...*</sub> | **iPads & Apple Tablets (Explored Track)**<br><sub>Touch coach desk prototype with USB-C / Thunderbolt video output</sub> |
+| ![](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | <sub>Native Binary<br>*(Tauri 2)*</sub> | <sub>x86-64 & ARM64<br>*(Linux)*</sub> | <sub>[**bobine-assistant (x86-64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/bobine-assistant)<br>[**bobine-assistant-arm64 (ARM64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/bobine-assistant-arm64)</sub> | **Management Assistant (GUI)**<br><sub>Network auto-discovery, SSH remote deploy & update tool</sub> |
+| ![](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | <sub>Shell Script<br>*(Automated)*</sub> | <sub>x86-64 & ARM64</sub> | <sub>`curl -sSL https://bobine.fit/install.sh \| bash`</sub> | **Headless Dedicated Appliance (x86-64 & ARM64)**<br><sub>Automated 18-step install for bare-metal mini PCs and ARM64 stations (Debian 13)</sub> |
+| [![](https://img.shields.io/badge/Tor_Browser-7D4698?style=flat-square&logo=torbrowser&logoColor=white)](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/) | <sub>APT Repo & Mirror<br>*(Tor Network)*</sub> | <sub>x86-64 & ARM64<br>*(amd64 / arm64)*</sub> | <sub>`curl -fsSL https://bobine.fit/install-tor.sh \| bash`<br>[**Tor Mirror (.onion)**](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/)<br>[**APT Repo (.onion)**](http://rzvwjat5pidtxtwzcsvew7yc5ugfjvzz432ecpn3s5mlch4cs7vvmqad.onion/)</sub> | **Tor Network (.onion)**<br><sub>Anonymous APT repo and website mirror without IP exposure</sub> |
+| [![](https://img.shields.io/badge/bobine.fit-4285F4?style=flat-square&logo=data%3Aimage/svg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBkPSJNNDQgMjRjMCAxMS4wNDUtOC45NTUgMjAtMjAgMjAtNC41MiAwLTguNjgtMS41MDMtMTIuMDMtNC4wNDNsOS40NjctMTYuMzk0QTggOCAwIDAgMCAyNCAzMmM0LjQxOCAwIDgtMy41ODIgOC04eiIvPjxwYXRoIGZpbGw9IiNGQkMwMkQiIGQ9Ik00NCAyNEgyNGE4IDggMCAwIDAtNi45MjggNGwtOS40NjcgMTYuMzk0QTE5LjkyIDE5LjkyIDAgMCAxIDQgMjRDNCAxMy45ODcgMTEuMzg1IDUuNzA0IDIxLjAzNiA0LjIyTDMwLjUwMyAyMC42MUE3Ljk3IDcuOTcgMCAwIDAgMzIgMjR6Ii8%2BPHBhdGggZmlsbD0iI0U1MzkzNSIgZD0iTTI0IDRjNy40MDYgMCAxMy44NiA0LjAyNCAxNy4zIDEwLjAyN0wzMC41MDMgMjAuNjFBOCA4IDAgMCAwIDI0IDE2Yy0zLjE1NSAwLTUuOTE0IDEuODI2LTcuMjUgNC40OUw3LjI4NCA0LjA5NUMxMS44OTIgNC4wMzIgMTcuNjUgNCAyNCA0eiIvPjxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjI0IiByPSI2IiBmaWxsPSIjMTk3NkQyIi8%2BPC9zdmc%2B)](https://bobine.fit) | <sub>Web Portal</sub> | <sub>Universal</sub> | <sub>[**Visit bobine.fit**](https://bobine.fit)</sub> | **Official Website**<br><sub>Getting started guides, hardware recommendations & docs</sub> |
+| ![](https://img.shields.io/badge/GitHub-Releases-181717?style=flat-square&logo=github&logoColor=white) | <sub>Source & Binaries</sub> | <sub>Multi-OS</sub> | <sub>[**Browse GitHub Releases**](https://github.com/FantasmaGlad/Bobine/releases/latest)</sub> | **Releases & Source Code**<br><sub>Certified SHA-256 checksums, tarballs & full changelog</sub> |
 
 ### Beta & Canary Programs — Early Access
 
@@ -123,17 +123,19 @@ Bobine is program-agnostic: class categories are free-form, so it fits any catal
 - **Screen Wake Lock API** — prevents screen sleep automatically during workouts and radio playback across all modern browsers.
 - **Hardware-accelerated transcoding** — native MediaCodec (Android), VideoToolbox (Apple Silicon M1-M4), VA-API (Linux), and QuickSync (Windows), with ultrafast CPU fallback.
 - **Full native quality (2K & 4K)** — strict preservation of ultra-high definition resolutions without downscaling, standardized into fast-start MP4.
-- **Reactive import cancellation & live ETA** — 1-click cancel (✕) with instant FFmpeg SIGTERM/SIGKILL, orphan temp file purge, and real-time remaining duration estimation.
+- **Reactive import cancellation & live ETA** — 1-click cancel (X) with instant FFmpeg SIGTERM/SIGKILL, orphan temp file purge, and real-time remaining duration estimation.
 - **Crisp 1080p thumbnails & fast seek** — Full HD previews on 4K displays and closed GOP keyframe intervals for instant playback seeking.
 
 ---
 
 ## Supported Hardware
 
-Bobine is lightweight, robust, and designed to run smoothly on a wide spectrum of modern, legacy, or refurbished hardware:
+Bobine is lightweight, robust, and designed to run smoothly on a wide spectrum of modern, legacy, or refurbished hardware (native **x86-64** and **ARM64** architectures):
 
-- **Laptops (Windows 11/10, macOS & Linux)**:
-  - **All PC Laptops**: HP Pavilion, Acer Aspire, Lenovo IdeaPad/ThinkPad, Dell Inspiron/Latitude, ASUS Vivobook, etc.
+- **Laptops (Windows 11/10 x86-64 & ARM64 Snapdragon, macOS, Linux & Google Books)**:
+  - **All x86-64 PC Laptops**: HP Pavilion, Acer Aspire, Lenovo IdeaPad/ThinkPad, Dell Inspiron/Latitude, ASUS Vivobook, etc.
+  - **Qualcomm Snapdragon ARM Laptops**: devices running **Windows 11 ARM64** (`Bobine-Setup-5.0.0-arm64.exe`) or **Linux ARM64** (`bobine_5.0.0_arm64.deb`) powered by **Qualcomm Snapdragon X Elite / X Plus** processors (Surface Laptop 7, Lenovo Yoga Slim 7x, ThinkPad T14s Gen 6, ASUS Vivobook S 15, Dell XPS 13 / Inspiron ARM, HP OmniBook X...).
+  - **Google Books (Google Book laptops / Aluminium OS)**: native support via the Android ARM64 application (`Bobine-5.0.0.apk`, and soon available natively on the Google Play Store) as well as via the built-in Debian Linux ARM64/x86-64 subsystem.
   - **Apple MacBook Range**: MacBook Air & MacBook Pro (Apple Silicon M1, M2, M3, M4, and Intel models).
   - **Two flexible operating modes**:
     - *Studio Console Mode (Dual Display)*: The laptop screen becomes an interactive control console (`/grid` with touch/trackpad/mouse) for selecting and managing classes, while the HDMI output streams clean full-screen video (`/cinema`) to the studio projector or TV with zero windows or cursor clutter.
@@ -146,12 +148,14 @@ Bobine is lightweight, robust, and designed to run smoothly on a wide spectrum o
   - *Two flexible operating modes*:
     - *Network Kiosk Client (Recommended & zero-config)*: Connects to your studio's primary Bobine server (PC, Mac, Mini PC, or Tablet on the same Wi-Fi/LAN) to deliver the interactive `/kiosk` UI, fully navigable with the original TV remote.
     - *Standalone Dedicated Server*: Runs the full Bobine backend engine locally (FastAPI + SQLite). **External storage requirement**: Due to limited onboard flash storage (4–8 GB eMMC), plug in a **USB 3.0 flash drive or external SSD** (FAT32/exFAT) via USB-OTG to store class media without filling up internal storage.
-- **Desktop PCs & Studio Workstations**:
-  - Any standard Windows or Linux tower / desktop PC (4 GB+ RAM).
+- **Desktop PCs, ARM64 Workstations & Studio Computers**:
+  - Any standard Windows or Linux x86-64 or ARM64 tower / desktop PC (4 GB+ RAM).
+  - **Linux ARM64 Workstations & Mini PCs**: **NVIDIA DGX Spark (Grace Blackwell GB10)**, NVIDIA Jetson Orin, Raspberry Pi 5 (8 GB / 16 GB), Orange Pi 5 Max, Radxa Rock 5B, etc. (via the `arm64` `.deb` package, `apt.bobine.fit` repo, `install.sh`, or `bobine-assistant-arm64`).
   - Apple **Mac Mini** & **iMac** (exceptionally quiet, compact playout machines for fitness studios).
 - **Dedicated Mini PCs & Thin Clients (Ideal for 24/7 autonomous gym setups)**:
-  - Affordable refurbished appliances: **Dell Wyse 5070**, **HP ProDesk 400/600 DM**, **Lenovo ThinkCentre Tiny**, **Beelink Mini S12/EQ12**, Intel NUC.
-  - 100% autonomous unattended Linux appliance (Debian 13) with auto-start, power-loss recovery and continuous playback without sleep.
+  - Affordable refurbished x86-64 appliances: **Dell Wyse 5070**, **HP ProDesk 400/600 DM**, **Lenovo ThinkCentre Tiny**, **Beelink Mini S12/EQ12**, Intel NUC.
+  - ARM64 Mini PCs & SBCs: **NVIDIA DGX Spark**, **Raspberry Pi 5**, **Orange Pi 5 Max**, **Radxa Rock 5B**.
+  - 100% autonomous unattended Linux appliance (Debian 13 x86-64 & ARM64) with auto-start, power-loss recovery and continuous playback without sleep.
 - **Screens, Projectors & Digital Displays**:
   - Any gym TV, large-format display, studio monitor, or projector connected via **HDMI**, **DisplayPort**, or **USB-C DisplayPort**.
   - Interactive touch screens via USB/HDMI for member self-service.
@@ -186,17 +190,17 @@ Hardware video decoding is browser- and OS-dependent (HEVC/AV1 in particular): w
 
 Bobine offers distinct deployment paths to match your exact setup:
 
-1. **Option 1: Native Applications (Simplest for tablets, PCs & laptops)**: Android (`.apk`), Windows 11/10 (`.exe`), Linux Desktop (`.deb` & APT repo), and macOS (`.dmg`). Installs with 1 click, runs completely offline, and integrates seamlessly with your operating system.
-2. **Option 2: Dedicated Headless Linux Appliance (Best for autonomous clubs & fine control)**: Turns a bare-metal mini PC (such as a Dell Wyse 5070) into a dedicated, unattended appliance booting directly into a locked full-screen X11 kiosk with automated power-loss recovery and anti-screensaver. Fast 1-line CLI install.
-3. **Option 3: Bobine Assistant, Graphical Installer (`assistant/`)**: A cross-platform graphical tool to discover, inspect, and deploy appliances over the local network via SSH.
+1. **Option 1: Native Applications (Simplest for tablets, PCs & laptops)**: Android & Google Books (`.apk`), Windows 11/10 x86-64 & ARM64 Snapdragon (`.exe`), Linux Desktop x86-64 & ARM64 (`.deb` & APT repo), and macOS (`.dmg`). Installs with 1 click, runs completely offline, and integrates seamlessly with your operating system.
+2. **Option 2: Dedicated Headless Linux Appliance (Best for autonomous clubs & fine control)**: Turns a bare-metal mini PC x86-64 (such as a Dell Wyse 5070) or ARM64 station (NVIDIA DGX Spark, Raspberry Pi 5, Orange Pi 5 Max) into a dedicated, unattended appliance booting directly into a locked full-screen X11 kiosk with automated power-loss recovery and anti-screensaver. Fast 1-line CLI install.
+3. **Option 3: Bobine Assistant, Graphical Installer (`assistant/`)**: A cross-platform graphical tool (x86-64 & ARM64) to discover, inspect, and deploy appliances over the local network via SSH.
 
 ---
 
-### Option 1 — Native Applications (Android, Windows, Linux & macOS)
+### Option 1 — Native Applications (Android, Google Books, Windows, Linux & macOS)
 
-#### On Android (Tablets & Touch Kiosks)
+#### On Android (Tablets & Touch Kiosks) and Google Books (Aluminium OS)
 
-1. **Download** [**`Bobine-4.0.2.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V4.0.2/Bobine-4.0.2.apk) directly on your Android tablet (or transfer via USB).
+1. **Download** [**`Bobine-5.0.0.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.apk) directly on your Android tablet or **Google Book (Aluminium OS)** laptop (soon available natively on the Google Play Store; on Google Books, you can also install the `.deb` package via the built-in Debian Linux ARM64/x86-64 subsystem).
 2. **Install the APK** (enable installation from unknown sources if prompted).
 3. **Launch Bobine**:
    - The persistent `ForegroundService` starts the embedded FastAPI backend (CPython 3.13 via Chaquopy) and automatically acquires an mDNS multicast lock.
@@ -206,7 +210,7 @@ Bobine offers distinct deployment paths to match your exact setup:
 
 #### On Android TV & Google TV (Streaming Boxes, Sticks & Smart TVs)
 
-1. **Download** [**`Bobine-TV-4.0.2.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V4.0.2/Bobine-TV-4.0.2.apk) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Download** [**`Bobine-TV-5.0.0.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.apk) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Install the APK on your TV or Streaming Box**:
    - Transfer the file via a USB flash drive (using a file manager like *AnExplorer* or *File Commander*), or wirelessly via tools such as *Send Files to TV* or *Downloader*.
    - Enable installation from unknown sources under *Settings → Security & Restrictions* on your TV.
@@ -215,9 +219,11 @@ Bobine offers distinct deployment paths to match your exact setup:
    - **Automatic Fullscreen TV UI**: Bobine automatically loads the TV-optimized kiosk UI (`/kiosk`), fully controllable with the standard D-Pad remote (arrow keys, center OK, Back key to return to previous views).
    - **Removable External Storage (Standalone Server Mode)**: When using the TV box as an autonomous, self-hosted server, plug in a USB 3.0 flash drive or external SSD formatted in FAT32 or exFAT. Bobine automatically detects and selects the external drive for media storage without filling up internal eMMC flash memory.
 
-#### On Windows (11, 10 or Windows IoT)
+#### On Windows (11, 10, Windows IoT & Qualcomm Snapdragon ARM PCs)
 
-1. **Download** [**`Bobine-Setup-4.0.2.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V4.0.2/Bobine-Setup-4.0.2.exe) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Download** the installer matching your processor architecture:
+   - **x86-64 PC (Intel / AMD)**: [**`Bobine-Setup-5.0.0.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-Setup-5.0.0.exe)
+   - **ARM64 PC (Qualcomm Snapdragon X Elite / X Plus)**: [**`Bobine-Setup-5.0.0-arm64.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-Setup-5.0.0-arm64.exe)
 2. **Run the installer** and follow the wizard (French/English selection, AGPL-3.0 license acceptance).
    - Installs Bobine into `Program Files\Bobine`.
    - Creates a **Desktop** shortcut with the official Bobine icon and adds an entry to the Start Menu.
@@ -231,10 +237,10 @@ Bobine offers distinct deployment paths to match your exact setup:
    - If Bobine is already running, clicking the Desktop icon instantly refocuses your browser without conflicting.
 4. **Access from other devices**: Open `http://bobine.local` from any tablet, smartphone, or PC connected to the same local Wi-Fi / LAN network. Application data (videos, SQLite database, logs) is securely stored in `%ProgramData%\Bobine`.
 
-#### On Linux Desktop (Debian, Ubuntu, Linux Mint & derivatives)
+#### On Linux Desktop (Debian, Ubuntu, Linux Mint & derivatives — x86-64 & ARM64)
 
-**Recommended Method — Official APT Repository ([apt.bobine.fit](https://apt.bobine.fit)):**
-Configure the official GPG-signed APT repository to install Bobine and automatically receive software updates via regular `sudo apt upgrade`:
+**Recommended Method — Official APT Repository ([apt.bobine.fit](https://apt.bobine.fit), `amd64` & `arm64` architectures):**
+Configure the official GPG-signed APT repository to install Bobine (on x86-64 PCs, Linux ARM Snapdragon laptops, **NVIDIA DGX Spark** workstations, Raspberry Pi 5, etc.) and automatically receive software updates via regular `sudo apt upgrade`:
 ```bash
 # 1. Official GPG keyring
 curl -fsSL https://apt.bobine.fit/bobine.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/bobine.gpg
@@ -260,10 +266,10 @@ curl -fsSL https://bobine.fit/install-tor.sh | bash
 ```
 
 **Alternative Method — Standalone `.deb` Package (Offline or 1-click install):**
-1. **Download** [**`bobine_4.0.2_amd64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V4.0.2/bobine_4.0.2_amd64.deb) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Download** [**`bobine_5.0.0_amd64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/bobine_5.0.0_amd64.deb) (x86-64 PC) or [**`bobine_5.0.0_arm64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/bobine_5.0.0_arm64.deb) (ARM64: NVIDIA DGX Spark, Snapdragon, Raspberry Pi 5, etc.).
 2. **Install the package** via the Ubuntu App Center / GNOME Software by double-clicking the file, or via the terminal:
    ```bash
-   sudo apt install ./bobine_*_amd64.deb
+   sudo apt install ./bobine_*.deb
    ```
    *(All runtime dependencies including `ffmpeg` are resolved automatically, and multi-resolution icons are integrated into the system theme).*
 
@@ -275,7 +281,7 @@ curl -fsSL https://bobine.fit/install-tor.sh | bash
 
 #### On macOS (Apple Silicon - M1/M2/M3/M4)
 
-1. **Download** [**`Bobine-4.0.2.dmg`**](https://github.com/FantasmaGlad/Bobine/releases/download/V4.0.2/Bobine-4.0.2.dmg) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Download** [**`Bobine-5.0.0.dmg`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.dmg) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Open the .dmg** and drag `Bobine.app` into your **Applications** folder.
 3. **Launch Bobine** from Applications, your **Desktop** (shortcut created automatically), or Spotlight.
    - *First launch*: Since Bobine is free open-source software without a paid Apple Developer certificate (not notarized), Gatekeeper will block the first launch. Depending on your macOS version you'll see one of two messages:
@@ -288,20 +294,20 @@ curl -fsSL https://bobine.fit/install-tor.sh | bash
 
 ### Dedicated Servers & Headless Appliances — Advanced Installation Methods
 
-For studios, fitness clubs, and integrators deploying autonomous 24/7 kiosks on dedicated low-cost mini PCs (Dell Wyse 5070, HP ProDesk DM...) without desktop overhead:
+For studios, fitness clubs, and integrators deploying autonomous 24/7 kiosks on dedicated low-cost x86-64 mini PCs (Dell Wyse 5070, HP ProDesk DM...) or Linux ARM64 workstations (**NVIDIA DGX Spark**, NVIDIA Jetson Orin, Raspberry Pi 5, Orange Pi 5 Max, Radxa Rock 5B) without desktop overhead:
 
 | Method | Type | Target Hardware | Deployment Process | Key Features |
 | :--- | :---: | :---: | :--- | :--- |
-| <img src="Assets/Images/bash.svg" width="20" height="20" valign="middle" alt="Bash"> **Bash Installer (CLI)** | <sub>Shell Script</sub> | <sub>Debian 13 (Mini PC)</sub> | <sub>`curl -sSL https://bobine.fit/install.sh \| bash`</sub> | <sub>• Full 18-step automated sequence</sub><br><sub>• Hardware VA-API 4K decoding (&lt; 8% CPU)</sub><br><sub>• Power-loss recovery & anti-screensaver</sub><br><sub>• Locked X11 fullscreen kiosk without screensaver</sub><br><sub>• Auto-healing systemd services</sub> |
-| <img src="Assets/Images/network.svg" width="20" height="20" valign="middle" alt="Network"> **Bobine Assistant (Tauri)** | <sub>Desktop App<br>*(Tauri 2)*</sub> | <sub>Windows, macOS & Linux</sub> | <sub>GUI wizard via SSH remote deployment</sub> | <sub>• Full network scan — every device (hostname, IP, OS, open ports)</sub><br><sub>• SSH via password, imported key file, or auto-detected local keys</sub><br><sub>• Live hardware audit (CPU, GPU, RAM, storage)</sub><br><sub>• 5-step guided visual orchestrator</sub> |
+| <img src="Assets/Images/bash.svg" width="20" height="20" valign="middle" alt="Bash"> **Bash Installer (CLI)** | <sub>Shell Script</sub> | <sub>Debian 13 (x86-64 & ARM64)</sub> | <sub>`curl -sSL https://bobine.fit/install.sh \| bash`</sub> | <sub>• Full 18-step automated sequence</sub><br><sub>• Hardware 4K decoding (&lt; 8% CPU)</sub><br><sub>• Power-loss recovery & anti-screensaver</sub><br><sub>• Locked X11 fullscreen kiosk without screensaver</sub><br><sub>• Auto-healing systemd services</sub> |
+| <img src="Assets/Images/network.svg" width="20" height="20" valign="middle" alt="Network"> **Bobine Assistant (Tauri)** | <sub>Desktop App<br>*(Tauri 2)*</sub> | <sub>Windows, macOS & Linux<br>*(x86-64 & ARM64)*</sub> | <sub>GUI wizard via SSH remote deployment</sub> | <sub>• Full network scan — every device (hostname, IP, OS, open ports)</sub><br><sub>• SSH via password, imported key file, or auto-detected local keys</sub><br><sub>• Live hardware audit (CPU, GPU, RAM, storage)</sub><br><sub>• 5-step guided visual orchestrator</sub> |
 
-#### Option 2 — Dedicated Headless Linux Appliance (Mini PC / Debian 13)
+#### Option 2 — Dedicated Headless Linux Appliance (Mini PC x86-64 & ARM64 / Debian 13)
 
 > **For studio operators seeking 100% independence, zero manual intervention, and fine hardware management.**  
-> This mode turns a low-cost refurbished mini PC (such as a Dell Wyse 5070, HP ProDesk DM, or Lenovo Tiny) into a dedicated 24/7 video appliance that boots straight into a full-screen hardware-accelerated kiosk without any desktop overhead.
+> This mode turns a low-cost refurbished x86-64 mini PC (such as a Dell Wyse 5070, HP ProDesk DM, or Lenovo Tiny) or an ARM64 workstation/SBC (**NVIDIA DGX Spark**, Raspberry Pi 5, Orange Pi 5 Max, Radxa Rock 5B) into a dedicated 24/7 video appliance that boots straight into a full-screen hardware-accelerated kiosk without any desktop overhead.
 
 ##### 1. Minimal Debian 13 Setup
-1. **Download** the Debian 13 "Trixie" *netinst* ISO (~700 MB) from <https://www.debian.org/download>.
+1. **Download** the Debian 13 "Trixie" *netinst* ISO (`amd64` or `arm64`, ~700 MB) from <https://www.debian.org/download>.
 2. **Flash it to a USB stick** (8 GB+) using [balenaEtcher](https://etcher.balena.io/) or `dd`.
 3. **Install on the mini PC**: In the software selection step, uncheck all desktop environments and keep only **SSH server** and **standard system utilities**.
 
@@ -336,7 +342,7 @@ The script fetches the code into `~/Bobine` (installing `git`/`curl` first if th
 
 > **Deploy your club appliances remotely from your own computer, without touching a terminal.**
 
-Located in [`assistant/`](assistant/) (available natively for **Windows**, **Linux**, and **macOS**), the **Bobine Assistant** desktop application guides the appliance deployment end to end:
+Located in [`assistant/`](assistant/) (available natively for **Windows**, **Linux x86-64** (`bobine-assistant`), **Linux ARM64** (`bobine-assistant-arm64`), and **macOS**), the **Bobine Assistant** desktop application guides the appliance deployment end to end:
 
 1. **Automated Network Discovery**: Probes every local network interface's `/24` subnet (Wi-Fi, Ethernet, VPN) to detect all reachable Bobine units.
 2. **Guided SSH Deployment**: Establishes a secure SSH connection, performs an automated hardware audit (CPU, GPU VA-API, RAM, storage), and runs `install.sh` inside an embedded live terminal emulator with a real-time progress bar.
