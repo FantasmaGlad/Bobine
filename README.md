@@ -87,6 +87,8 @@ How to opt in permanently, so future updates keep offering Beta or Canary builds
 
 Full details on how these channels work (update detection, downgrade behavior, release process): [Technical Architecture § Update Channel](docs/ARCHITECTURE.en.md#7-install-script--systemd-services).
 
+Dedicated pages: [Bobine Stable](https://bobine.fit/en/channels/stable) · [Bobine Beta](https://bobine.fit/en/channels/beta) · [Bobine Canary](https://bobine.fit/en/channels/canary) · [all update channels](https://bobine.fit/en/channels) · [what's new](https://bobine.fit/en/whats-new). Machine-readable current versions: [`latest.json`](https://bobine.fit/latest.json) and the [Atom feed](https://bobine.fit/feed.xml).
+
 ---
 
 **The open-source, self-hosted alternative to Les Mills Cinema, Wexer, and Screenly Anthias — professional offline-first video playout, digital signage, and scheduled group-fitness cinema for fitness clubs, gyms, and sports studios.**
@@ -216,6 +218,8 @@ Bobine offers distinct deployment paths to match your exact setup:
 
 #### On Android (Tablets & Touch Kiosks) and Google Books (Aluminium OS)
 
+See also [Bobine on Google Book](https://bobine.fit/en/google-book).
+
 1. **Download** [**`Bobine-5.0.0.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.apk) directly on your Android tablet or **Google Book (Aluminium OS)** laptop (soon available natively on the Google Play Store; on Google Books, you can also install the `.deb` package via the built-in Debian Linux ARM64/x86-64 subsystem).
 2. **Install the APK** (enable installation from unknown sources if prompted).
 3. **Launch Bobine**:
@@ -225,6 +229,8 @@ Bobine offers distinct deployment paths to match your exact setup:
    - Other devices on the same Wi-Fi can access the studio remote or admin panel at `http://bobine.local:8000`.
 
 #### On Android TV & Google TV (Streaming Boxes, Sticks & Smart TVs)
+
+See also the web page [Bobine on Android TV & Google TV](https://bobine.fit/en/android-tv) (download table and FAQ).
 
 1. **Download** [**`Bobine-TV-5.0.0.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.apk) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Install the APK on your TV or Streaming Box**:
@@ -269,6 +275,8 @@ sudo apt update && sudo apt install bobine
 ```
 
 **Secure Option — APT Repository over Tor (.onion):**
+
+Details and checks: [Bobine on Tor](https://bobine.fit/en/tor).
 To install and update Bobine with end-to-end privacy without revealing your facility's IP address:
 ```bash
 sudo apt install apt-transport-tor
@@ -445,6 +453,24 @@ Report vulnerabilities privately, never in a public issue: use [GitHub private v
 ## License
 
 Bobine is free software licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)** — see [`LICENSE`](LICENSE). If you run a modified version to provide a network service, you must make your modified source available under the same license.
+
+---
+
+## FAQ
+
+**What is Bobine?** An open-source (AGPL-3.0), self-hosted, offline-first video playout system for gyms and fitness studios: scheduled classes, an on-demand member kiosk, a coach console and 24/7 studio radio. It is a free alternative to Les Mills Cinema, Wexer and Screenly Anthias.
+
+**What is the latest version?** The current Stable, Beta and Canary versions are listed in [`latest.json`](https://bobine.fit/latest.json) and on [bobine.fit/en/whats-new](https://bobine.fit/en/whats-new), read straight from GitHub Releases.
+
+**Does it run on Android TV?** Yes, from Android 14: a dedicated `Bobine-TV` APK installs on Android TV and Google TV boxes and sticks, 32-bit and 64-bit ARM. See [Bobine on Android TV](https://bobine.fit/en/android-tv).
+
+**Does it run on a Google Book?** Yes, through the native Android app. See [Bobine on Google Book](https://bobine.fit/en/google-book).
+
+**What is Bobine Canary?** The rolling update channel, rebuilt on every commit to `main` with no curation. See [Bobine Canary](https://bobine.fit/en/channels/canary).
+
+**Can I install it over Tor?** Yes on Debian, Ubuntu and Mint: the APT repository and the website are also onion services. See [Bobine on Tor](https://bobine.fit/en/tor).
+
+**Does it need internet or an account?** No: after installation it runs fully offline, with no account and no telemetry.
 
 ---
 

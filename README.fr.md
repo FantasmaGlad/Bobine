@@ -87,6 +87,8 @@ Comment rejoindre un canal durablement, pour que les futures mises à jour conti
 
 Détails complets sur le fonctionnement de ces canaux (détection de mise à jour, downgrade, processus de publication) : [Architecture Technique § Canal de mise à jour](docs/ARCHITECTURE.md#7-script-dinstallation--services-systemd).
 
+Pages dédiées : [Bobine Stable](https://bobine.fit/fr/canaux/stable) · [Bobine Bêta](https://bobine.fit/fr/canaux/beta) · [Bobine Canary](https://bobine.fit/fr/canaux/canary) · [tous les canaux](https://bobine.fit/fr/canaux) · [nouveautés](https://bobine.fit/fr/nouveautes). Versions courantes lisibles par machine : [`latest.json`](https://bobine.fit/latest.json) et le [flux Atom](https://bobine.fit/feed.xml).
+
 ---
 
 **L'alternative open source et auto-hébergée à Les Mills Cinema, Wexer et Screenly Anthias — régie vidéo professionnelle, affichage dynamique et diffusion de cours collectifs 100% hors-ligne pour salles de sport et studios de fitness.**
@@ -216,6 +218,8 @@ Bobine propose différentes méthodes d'installation selon vos besoins et votre 
 
 #### Sur Android (Tablettes & Bornes Tactiles) et Google Books (Aluminium OS)
 
+Voir aussi [Bobine sur Google Book](https://bobine.fit/fr/google-book).
+
 1. **Téléchargez** [**`Bobine-5.0.0.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.apk) directement sur votre tablette ou votre ordinateur portable **Google Book (Aluminium OS)** (bientôt disponible nativement sur le Google Play Store ; sur Google Book, vous pouvez également installer le paquet `.deb` via le sous-système Linux Debian ARM64/x86-64).
 2. **Installez le fichier APK** (autorisez l'installation d'applications de sources inconnues si votre système vous le demande).
 3. **Lancez Bobine** :
@@ -225,6 +229,8 @@ Bobine propose différentes méthodes d'installation selon vos besoins et votre 
    - Les autres appareils connectés au Wi-Fi accèdent à la télécommande ou à l'administration via `http://bobine.local:8000`.
 
 #### Sur Android TV & Google TV (Box TV, Clés HDMI & Smart TV)
+
+Voir aussi la page web [Bobine sur Android TV & Google TV](https://bobine.fit/fr/android-tv) (tableau de téléchargement et FAQ).
 
 1. **Téléchargez** [**`Bobine-TV-5.0.0.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.apk) (ou depuis la [dernière release GitHub](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Installez l'APK sur votre téléviseur ou boîtier TV** :
@@ -269,6 +275,8 @@ sudo apt update && sudo apt install bobine
 ```
 
 **Option sécurisée — Dépôt APT via Tor (.onion) :**
+
+Détails et vérifications : [Bobine sur Tor](https://bobine.fit/fr/tor).
 Pour installer et mettre à jour Bobine de manière totalement confidentielle sans révéler l'adresse IP de votre salle :
 ```bash
 sudo apt install apt-transport-tor
@@ -445,6 +453,24 @@ Signalez les vulnérabilités en privé, jamais dans un ticket public : utilisez
 ## Licence
 
 Bobine est un logiciel libre sous licence **GNU Affero General Public License v3.0 (AGPL-3.0)** — voir [`LICENSE`](LICENSE). Si vous exploitez une version modifiée pour fournir un service en réseau, vous devez mettre à disposition le code source correspondant sous la même licence.
+
+---
+
+## FAQ
+
+**Qu'est-ce que Bobine ?** Une régie vidéo libre (AGPL-3.0), auto-hébergée et 100 % hors-ligne pour salles de sport et studios : cours planifiés, borne adhérent à la demande, console coach et radio d'ambiance 24/7. C'est une alternative gratuite à Les Mills Cinema, Wexer et Screenly Anthias.
+
+**Quelle est la dernière version ?** Les versions courantes Stable, Bêta et Canary figurent dans [`latest.json`](https://bobine.fit/latest.json) et sur [bobine.fit/fr/nouveautes](https://bobine.fit/fr/nouveautes), lues directement sur GitHub Releases.
+
+**Fonctionne-t-il sur Android TV ?** Oui, à partir d'Android 14 : un APK dédié `Bobine-TV` s'installe sur les box et clés Android TV et Google TV, en ARM 32 comme en 64 bits. Voir [Bobine sur Android TV](https://bobine.fit/fr/android-tv).
+
+**Fonctionne-t-il sur un Google Book ?** Oui, par l'application Android native. Voir [Bobine sur Google Book](https://bobine.fit/fr/google-book).
+
+**Qu'est-ce que Bobine Canary ?** Le canal de mise à jour rolling, reconstruit à chaque commit de `main` sans curation. Voir [Bobine Canary](https://bobine.fit/fr/canaux/canary).
+
+**Peut-on l'installer via Tor ?** Oui sur Debian, Ubuntu et Mint : le dépôt APT et le site sont aussi des services onion. Voir [Bobine sur Tor](https://bobine.fit/fr/tor).
+
+**Faut-il internet ou un compte ?** Non : après l'installation, tout fonctionne hors-ligne, sans compte ni télémétrie.
 
 ---
 
