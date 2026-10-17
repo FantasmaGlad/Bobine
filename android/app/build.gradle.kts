@@ -75,10 +75,9 @@ android {
         versionName = androidVersionName
 
         ndk {
-            // armeabi-v7a : boîtiers Android TV 32 bits (Xiaomi TV Box, Chromecast TV).
             // arm64-v8a : tablettes réelles & boîtiers 64 bits (checklist matérielle).
             // x86_64 : émulateur sur machine de développement x86_64.
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+            abiFilters += listOf("arm64-v8a", "x86_64")
         }
     }
 
