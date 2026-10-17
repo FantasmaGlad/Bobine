@@ -470,6 +470,29 @@ jobs:
         run: |
           scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/mobile/release/*.apk)" arm64-v8a x86_64
           scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/tv/release/*.apk)" armeabi-v7a arm64-v8a x86_64
+      # Bundles .aab pour Google Play (un par application : com.bobine.app et com.bobine.app.tv).
+      # Signés avec la clé de téléversement (la même que les APK) ; Google Play les re-signe avec la clé
+      # de distribution. Non bloquant : la publication des releases GitHub ne dépend pas de ce bundle.
+      # La publication sur la console reste manuelle tant qu'aucun compte de service Play n'est configuré.
+      - name: Construire les bundles Google Play (.aab)
+        if: steps.check_secrets.outputs.configured == 'true'
+        continue-on-error: true
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/bobine-release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_VERSION_NAME: ${{ needs.version.outputs.display_version }}
+          ANDROID_VERSION_CODE: ${{ steps.android_version.outputs.version_code }}
+        run: ./gradlew :app:bundleMobileRelease :app:bundleTvRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        if: steps.check_secrets.outputs.configured == 'true'
+        continue-on-error: true
+        with:
+          name: bobine-android-aab
+          path: android/app/build/outputs/bundle/*Release/*.aab
+          if-no-files-found: warn
       - name: Vérifier la signature des APKs produits
         if: steps.check_secrets.outputs.configured == 'true'
         run: |
