@@ -66,12 +66,12 @@ Installez Bobine en quelques secondes comme une application autonome sur votre t
   <sub>Stable · Bêta · Canary</sub>
 </p>
 
-Envie d'essayer les prochaines fonctionnalités avant leur sortie stable ? En plus de Stable, Bobine propose deux canaux de mise à jour anticipée : **Bêta**, un lot de fonctionnalités/correctifs curé et publié manuellement par le mainteneur quand il est prêt, et **Canary**, une pre-release unique toujours à jour, reconstruite automatiquement depuis le tout dernier commit de `main` — zéro curation. Aucun des deux ne demande de suivre un numéro de version ; une version stable équivalente ou plus récente les remplace toujours automatiquement, et vous pouvez repasser en Stable à tout moment sans perte de données.
+Envie d'essayer les prochaines fonctionnalités avant leur sortie stable ? En plus de Stable, Bobine propose deux canaux de mise à jour anticipée : **Bêta**, un lot de fonctionnalités/correctifs que je sélectionne et publie manuellement quand il est prêt, et **Canary**, une pre-release unique toujours à jour, reconstruite automatiquement depuis le tout dernier commit de `main` — zéro curation. Aucun des deux ne demande de suivre un numéro de version ; une version stable équivalente ou plus récente les remplace toujours automatiquement, et vous pouvez repasser en Stable à tout moment sans perte de données.
 
 | Canal | Cadence de publication | Curation | Pour qui | Tag |
 | :--- | :--- | :--- | :--- | :---: |
 | **Stable** | Une release par version, taguée | Entièrement testée | Exploitation en salle de sport — le choix par défaut recommandé | `Vx.y.z` |
-| **Bêta** | Par lots, publiés manuellement quand prêts | Curée par le mainteneur | Premiers adoptants voulant les prochaines fonctionnalités sans le flux quotidien | `beta` |
+| **Bêta** | Par lots, publiés manuellement quand prêts | Je la curate moi-même | Premiers adoptants voulant les prochaines fonctionnalités sans le flux quotidien | `beta` |
 | **Canary** | À chaque commit sur `main` | Aucune — brute et immédiate | Développeurs et utilisateurs avancés voulant la toute dernière version, quitte aux aspérités | `canary` |
 
 [**Voir la release Bêta**](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) · [**Voir la release Canary**](https://github.com/FantasmaGlad/Bobine/releases/tag/canary) — mêmes plateformes que ci-dessus (`.exe`, `.deb`, `.dmg`, `bobine-assistant`, `install.sh`), noms de fichiers suffixés `-beta`/`-canary` plutôt qu'un numéro de version.

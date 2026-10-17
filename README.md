@@ -66,12 +66,12 @@ Install Bobine as a native application on your tablet, workstation, or studio PC
   <sub>Stable · Beta · Canary</sub>
 </p>
 
-Want to try upcoming features before they reach the stable release? Bobine ships two pre-release channels, in addition to Stable: **Beta**, a curated batch of features/fixes published manually by the maintainer when ready, and **Canary**, a single always-current build rebuilt automatically from the very latest commit on `main` — no curation at all. Neither requires tracking version numbers; an equal or newer stable release always supersedes either one automatically, and you can switch back to Stable at any time with no data loss.
+Want to try upcoming features before they reach the stable release? Bobine ships two pre-release channels, in addition to Stable: **Beta**, a batch of features/fixes I curate and publish manually when ready, and **Canary**, a single always-current build rebuilt automatically from the very latest commit on `main` — no curation at all. Neither requires tracking version numbers; an equal or newer stable release always supersedes either one automatically, and you can switch back to Stable at any time with no data loss.
 
 | Channel | Update cadence | Curation | Who it's for | Tag |
 | :--- | :--- | :--- | :--- | :---: |
 | **Stable** | One release per version, tagged | Fully tested | Production gym playout — the recommended default | `Vx.y.z` |
-| **Beta** | Batches, published manually when ready | Curated by the maintainer | Early adopters who want upcoming features without the daily churn | `beta` |
+| **Beta** | Batches, published manually when ready | I curate it myself | Early adopters who want upcoming features without the daily churn | `beta` |
 | **Canary** | Every single commit to `main` | None — raw and immediate | Developers and power users who want the absolute latest, accept rough edges | `canary` |
 
 [**Browse the Beta release**](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) · [**Browse the Canary release**](https://github.com/FantasmaGlad/Bobine/releases/tag/canary) — same platforms as above (`.exe`, `.deb`, `.dmg`, `bobine-assistant`, `install.sh`), file names suffixed `-beta`/`-canary` instead of a version number.
