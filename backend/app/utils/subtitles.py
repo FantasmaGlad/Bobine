@@ -5,6 +5,24 @@ from pathlib import Path
 
 from app.config import settings
 
+MAX_SUBTITLE_BYTES = 2 * 1024 * 1024
+SUBTITLE_EXTENSIONS = (".srt", ".vtt")
+
+# Code de langue fourni par le client : sert à nommer le fichier sur disque,
+# il ne doit donc jamais pouvoir contenir de séparateur de chemin.
+_LANGUAGE_CODE_RE = re.compile(r"^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$")
+
+
+def normalize_language_code(raw: str) -> str | None:
+    code = (raw or "").strip().lower()
+    return code if _LANGUAGE_CODE_RE.match(code) else None
+
+
+def normalize_language_label(raw: str | None, fallback: str) -> str:
+    label = "".join(ch for ch in (raw or "") if ch.isprintable()).strip()[:40]
+    return label or fallback
+
+
 LANGUAGE_MAP: dict[str, str] = {
     "fr": "Français",
     "fra": "Français",

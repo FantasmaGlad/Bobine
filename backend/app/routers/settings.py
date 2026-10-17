@@ -38,6 +38,7 @@ from app.database import _IS_SQLITE, engine, get_db, init_db
 from app.models import Setting
 from app.playback_manager import get_playback_manager
 from app.utils.activity_log import log_activity
+from app.utils.android_runtime import is_android
 from app.utils.display_state import (
     DEFAULT_DISPLAY_MODE_SETTING,
     VALID_DISPLAY_MODE_SETTINGS,
@@ -1262,9 +1263,28 @@ class OpenPathRequest(BaseModel):
     path: str
 
 
+_OPENABLE_DIR_FIELDS = (
+    "media_dir", "watch_dir", "thumbnails_dir", "backgrounds_dir", "backgrounds_watch_dir",
+    "audio_dir", "audio_watch_dir", "radio_dir", "radio_watch_dir", "radio_covers_dir",
+    "radio_announcements_dir", "branding_dir", "logs_dir", "subtitles_dir",
+)
+
+
+def _openable_roots() -> list[Path]:
+    """Dossiers de données que l'interface propose d'ouvrir (cf. `paths` de
+    `GET /api/settings`) : l'endpoint est joignable par tout appareil du
+    réseau local, il ne doit pas servir à lancer un gestionnaire de fichiers
+    ou à créer des dossiers n'importe où sur la machine."""
+    roots = [Path(getattr(runtime_settings, field)).resolve() for field in _OPENABLE_DIR_FIELDS]
+    db_url = runtime_settings.database_url
+    if db_url.startswith("sqlite:///"):
+        roots.append(Path(db_url[len("sqlite:///"):]).resolve().parent)
+    return roots
+
+
 @router.post("/open-path")
 def open_path(payload: OpenPathRequest):
-    """Ouvre un dossier ou un fichier local dans le gestionnaire de fichiers natif de l'OS (xdg-open, explorer, open)."""
+    """Ouvre un dossier de données Bobine dans le gestionnaire de fichiers natif de l'OS (xdg-open, explorer, open)."""
     raw_path = payload.path.strip()
     if raw_path.startswith("sqlite:///"):
         raw_path = raw_path[len("sqlite:///"):]
@@ -1272,18 +1292,17 @@ def open_path(payload: OpenPathRequest):
     if target.is_file():
         target = target.parent
 
-    if sys.platform.startswith("android") or os.environ.get("BOBINE_ANDROID_DATA_DIR"):
+    if not any(target == root or root in target.parents for root in _openable_roots()):
+        raise HTTPException(status_code=403, detail="Ce chemin n'est pas un dossier de données de Bobine")
+    if not target.is_dir():
+        raise HTTPException(status_code=404, detail="Dossier introuvable")
+
+    if is_android():
         return {
             "status": "android",
             "path": str(target),
             "message": "Chemin système Android copié. Accessible via une application de gestion de fichiers ou connexion USB (MTP).",
         }
-
-    if not target.exists():
-        try:
-            target.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            target = target.parent
 
     try:
         if sys.platform.startswith("linux"):
@@ -1296,5 +1315,3 @@ def open_path(payload: OpenPathRequest):
     except Exception as e:
         logger.warning("Échec de l'ouverture du dossier %s : %s", target, e)
         raise HTTPException(status_code=500, detail=f"Impossible d'ouvrir le gestionnaire de fichiers : {e}")
-
-

@@ -22,10 +22,14 @@ from app.database import get_db, SessionLocal
 from app.models import Video, VideoSubtitle, ImportSource
 from app.config import settings
 from app.utils.subtitles import (
+    MAX_SUBTITLE_BYTES,
+    SUBTITLE_EXTENSIONS,
     convert_srt_to_vtt,
     detect_language_from_filename,
     get_subtitles_directory,
     LANGUAGE_MAP,
+    normalize_language_code,
+    normalize_language_label,
 )
 from app.utils.importer import import_video
 from app.utils.executors import ffmpeg_executor
@@ -212,11 +216,13 @@ def upload_video(
     subtitle_temps: list[tuple[str, str]] = []
     if subtitles:
         for sub_file in subtitles:
-            if sub_file.filename:
-                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=f"_{sub_file.filename}")
-                shutil.copyfileobj(sub_file.file, tmp)
-                tmp.close()
-                subtitle_temps.append((tmp.name, sub_file.filename))
+            sub_name = Path(sub_file.filename or "").name
+            if Path(sub_name).suffix.lower() not in SUBTITLE_EXTENSIONS:
+                continue
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=Path(sub_name).suffix.lower())
+            shutil.copyfileobj(sub_file.file, tmp)
+            tmp.close()
+            subtitle_temps.append((tmp.name, sub_name))
 
     job_id = create_job("video", filename, title or Path(filename).stem)
     future = ffmpeg_executor.submit(
@@ -386,6 +392,14 @@ def delete_video(video_id: int, db: Session = Depends(get_db)):
 
     # Suppression de la version web « lisible partout », s'il y en a une
     remove_web_file(video.web_path)
+
+    # Les lignes `video_subtitles` partent avec la vidéo (cascade), pas leurs
+    # fichiers WebVTT.
+    for sub in video.subtitles:
+        try:
+            Path(sub.file_path).unlink(missing_ok=True)
+        except Exception as e:
+            logger.warning(f"Impossible de supprimer le fichier de sous-titres {sub.file_path}: {e}")
 
     db.delete(video)
     db.commit()
@@ -617,7 +631,9 @@ async def upload_subtitle(
     if ext not in (".srt", ".vtt"):
         raise HTTPException(status_code=400, detail="Seuls les formats .srt et .vtt sont acceptés.")
 
-    content_bytes = await file.read()
+    content_bytes = await file.read(MAX_SUBTITLE_BYTES + 1)
+    if len(content_bytes) > MAX_SUBTITLE_BYTES:
+        raise HTTPException(status_code=413, detail="Fichier de sous-titres trop volumineux (2 Mo maximum).")
     try:
         content_str = content_bytes.decode("utf-8")
     except UnicodeDecodeError:
@@ -627,8 +643,10 @@ async def upload_subtitle(
 
     # Détection automatique de la langue si non fournie
     detected_code, detected_label = detect_language_from_filename(filename)
-    final_code = (language_code or detected_code).strip().lower()
-    final_label = language_label or LANGUAGE_MAP.get(final_code, detected_label)
+    final_code = normalize_language_code(language_code or detected_code)
+    if final_code is None:
+        raise HTTPException(status_code=400, detail="Code de langue invalide (ex. fr, en, pt-br).")
+    final_label = normalize_language_label(language_label, LANGUAGE_MAP.get(final_code, detected_label))
 
     subtitles_dir = get_subtitles_directory()
     out_filename = f"video_{video_id}_{final_code}_{uuid.uuid4().hex[:8]}.vtt"
