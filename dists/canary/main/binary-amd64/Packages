@@ -2,39 +2,32 @@ Package: bobine
 Version: 5.0.0~canary
 Architecture: amd64
 Maintainer: FantasmaGlad <fantacasino3012@gmail.com>
-Installed-Size: 133364
 Depends: ffmpeg
 Recommends: avahi-daemon
 Homepage: https://bobine.fit
+Bugs: https://github.com/FantasmaGlad/Bobine/issues
+Vcs-Browser: https://github.com/FantasmaGlad/Bobine
 Priority: optional
 Section: video
 Filename: pool/main/b/bobine/bobine_5.0.0~canary_amd64.deb
-Size: 48870050
-SHA256: 712ad99c69ad1604fc4613a6f471e347257ba98802c9a1129cfda0e581351034
-SHA1: d0e270fc0f63cd7202116202225496b9e3859055
-MD5sum: fcfbc922fff29e910fd0c42cc080113a
-Description: Video and audio playout system for gym studios
- Bobine is an autonomous multi-channel playout solution (wired HDMI video,
- network screen, background radio, mobile remote and web administration)
- designed for boutique gyms and fitness studios.
+Size: 48901304
+SHA256: 12bb5299c4b048cef427febf5a566f53b193d9824dbe29e2ce97f5913d1c8956
+SHA1: 5b3f6dda407da9da0ce879104eb3e3c734014465
+MD5sum: d90db85aa8123d1560c4c1a6b28bbea9
+Description: Video and audio playout for gyms and fitness studios
+ Bobine plays planned classes on the studio screen, offers a self-service
+ cinema kiosk and background radio, and is driven from a phone or a browser
+ on the local network. Everything runs on site: no subscription, no cloud.
  .
- * **Editeur :** FantasmaGlad
+ Main features:
+  - wired HDMI output and an independent network screen, kept in sync;
+  - class schedule with one-off and recurring sessions, playlists, subtitles
+    and chapters;
+  - coach mode with a timer and animated backgrounds;
+  - background radio with crossfade and voice announcements;
+  - mobile remote control and web administration;
+  - backup, restore and factory reset.
  .
- * **Site web officiel :** https://bobine.fit
- .
- * **Code source & GitHub :** https://github.com/FantasmaGlad/Bobine
- .
- * **Licence :** GNU AGPL v3.0 (Affero General Public License)
- .
- * **Fonctionnalités clés :**
- .
-   - Diffusion multi-canal synchrone (Câblé HDMI et Réseau)
- .
-   - Mode Audio Coach avec minuteur et fonds visuels animés
- .
-   - Canal Radio d'ambiance avec fondu sonore et rappels vocaux
- .
-   - Kiosque automatique avec anti-veille native Screen Wake Lock
- .
-   - Sauvegarde & Restauration universelles (ZIP) et remise à zéro usine
+ Licence: GNU AGPL v3.0 or later. Source code: https://github.com/FantasmaGlad/Bobine
+Installed-Size: 133472
 
