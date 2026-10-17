@@ -224,7 +224,7 @@ export default function LogsPage() {
             <div className="live-empty">{t("logs.noActivity")}</div>
           ) : (
             <div className="table-wrapper glass-surface">
-              <table className="videos-table">
+              <table className="videos-table responsive-table responsive-table--select">
                 <thead>
                   <tr>
                     <th style={{ width: "36px" }}>
@@ -250,11 +250,11 @@ export default function LogsPage() {
                           onChange={() => toggleSelected(entry.id)}
                         />
                       </td>
-                      <td style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                      <td data-label={t("logs.timestampHeader")} style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
                         {formatTimestamp(entry.timestamp, language)}
                       </td>
-                      <td style={{ fontWeight: 700 }}>{EVENT_LABELS[entry.event_type] || entry.event_type}</td>
-                      <td style={{ color: "var(--text-muted)" }}>{entry.detail || "—"}</td>
+                      <td data-label={t("logs.eventHeader")} style={{ fontWeight: 700 }}>{EVENT_LABELS[entry.event_type] || entry.event_type}</td>
+                      <td data-label={t("logs.detailHeader")} style={{ color: "var(--text-muted)" }}>{entry.detail || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

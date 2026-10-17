@@ -1,0 +1,453 @@
+/* Mise en page des écrans étroits (téléphone en portrait).
+   Chargée après globals.css : ces règles précisent le comportement sous 900 px
+   sans toucher à la mise en page bureau.
+
+   Règles de fond :
+   - un enfant flex ou une colonne de grille porte `min-width: 0`, sinon son
+     contenu élargit la page au lieu de se replier ;
+   - une hauteur fixe de barre d'outils tombe dès qu'elle passe sur plusieurs
+     lignes ;
+   - cible tactile minimale de 44 px (`--tap-min`). */
+
+:root {
+  --tap-min: 44px;
+  --sheet-radius: 22px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Studio d'édition du cours : feuille plein écran                      */
+/* ------------------------------------------------------------------ */
+@media (max-width: 900px) {
+  .course-studio-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+  .course-studio-modal {
+    max-width: none;
+    max-height: none;
+    height: 100dvh;
+    border-radius: 0;
+    border-width: 0;
+  }
+  .course-studio-header {
+    padding: 12px 16px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    flex-shrink: 0;
+    min-width: 0;
+  }
+  .course-studio-header h2,
+  .course-studio-header h3 {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .course-studio-body {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    align-content: start;
+    gap: 16px;
+    padding: 14px 16px calc(24px + env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+  }
+  .course-studio-col-left,
+  .course-studio-col-right {
+    min-width: 0;
+    min-height: auto;
+  }
+  /* Un enfant ne se comprime jamais : il pousse la hauteur de la colonne
+     (défilement du corps) au lieu de recouvrir son voisin. */
+  .course-studio-col-left > *,
+  .course-studio-col-right > * {
+    flex-shrink: 0;
+    min-width: 0;
+  }
+  .course-studio-modal .drawer-video-container {
+    width: 100%;
+  }
+  .course-studio-modal .drawer-video {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+  }
+  .course-studio-specs-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .course-studio-spec-item,
+  .course-studio-modal .form-control,
+  .course-studio-modal input,
+  .course-studio-modal textarea {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .course-studio-modal [class*="path"],
+  .course-studio-spec-item span {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Barres d'outils : plusieurs lignes, hauteur libre                    */
+/* ------------------------------------------------------------------ */
+@media (max-width: 860px) {
+  .schedule-toolbar {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px;
+    gap: 10px;
+  }
+  .schedule-toolbar > .view-toggle {
+    width: 100%;
+  }
+  .schedule-toolbar > .view-toggle .view-btn {
+    flex: 1;
+    justify-content: center;
+    min-height: 40px;
+  }
+  .schedule-toolbar .week-nav {
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+  }
+  .schedule-toolbar .week-nav .btn {
+    min-height: 40px;
+  }
+  .schedule-toolbar .week-nav-label {
+    order: 0;
+    width: auto;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .schedule-toolbar > div[style] {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  .schedule-toolbar > div[style] > .btn-primary {
+    flex: 1 1 auto;
+    min-height: 40px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Sélecteurs segmentés et barres de filtres : défilement horizontal    */
+/* ------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .view-toggle {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .view-toggle::-webkit-scrollbar {
+    display: none;
+  }
+  .view-toggle .view-btn {
+    flex-shrink: 0;
+    min-height: 38px;
+  }
+
+  .metrics-page,
+  .metrics-filters-bar,
+  .metrics-filter-group,
+  .metrics-kpis-grid {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .metrics-filters-bar {
+    padding: 12px;
+    gap: 12px;
+  }
+  .metrics-filter-group {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+  .metrics-filter-group .view-toggle {
+    flex: 1;
+    min-width: 0;
+  }
+  .metrics-kpis-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .metrics-kpi-card {
+    padding: 16px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Tableaux : une carte par ligne                                       */
+/* ------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .responsive-table thead {
+    display: none;
+  }
+  .responsive-table,
+  .responsive-table tbody,
+  .responsive-table tr,
+  .responsive-table td {
+    display: block;
+    width: 100%;
+  }
+  .responsive-table tr {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background: var(--bg-surface);
+  }
+  .responsive-table td {
+    border: 0;
+    padding: 4px 0;
+    overflow-wrap: anywhere;
+  }
+  .responsive-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Réglages : onglets de section et adresses                            */
+/* ------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .settings-nav-tabs {
+    padding: 6px 8px;
+    gap: 6px;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+  .settings-nav-tab {
+    min-height: var(--tap-min);
+    padding: 0 14px;
+  }
+
+  .settings-path-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+  .settings-path-key {
+    flex-shrink: 1;
+  }
+  .settings-path-link,
+  .settings-path-val {
+    min-width: 0 !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    font-size: 0.8rem;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Coach : le champ de recherche reste un champ                         */
+/* ------------------------------------------------------------------ */
+.coach-picker-search {
+  height: auto;
+  min-height: var(--tap-min);
+  max-height: 56px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Cibles tactiles                                                      */
+/* ------------------------------------------------------------------ */
+@media (pointer: coarse) {
+  .card-select-checkbox {
+    width: 28px;
+    height: 28px;
+  }
+  .speed-btn,
+  .volume-preset-btn,
+  .display-output-btn {
+    min-height: var(--tap-min);
+  }
+}
+
+@media (max-width: 640px) {
+  .responsive-table--select tr {
+    position: relative;
+    padding-left: 48px;
+  }
+  .responsive-table--select td:first-child {
+    position: absolute;
+    left: 14px;
+    top: 14px;
+    width: auto;
+  }
+
+  /* Bibliothèque en liste : vignette à gauche, titre puis programme, release,
+     durée sur une seconde ligne ; le format technique est masqué. */
+  .responsive-table--library tr {
+    display: grid;
+    grid-template-columns: 28px 88px auto auto minmax(0, 1fr);
+    column-gap: 10px;
+    row-gap: 6px;
+    align-items: center;
+  }
+  .responsive-table--library td {
+    padding: 0;
+    width: auto;
+  }
+  .responsive-table--library td:nth-child(1) { grid-column: 1; grid-row: 1 / span 2; }
+  .responsive-table--library td:nth-child(2) { grid-column: 2; grid-row: 1 / span 2; }
+  .responsive-table--library td:nth-child(3) { grid-column: 3 / -1; grid-row: 1; font-size: 1rem; }
+  .responsive-table--library td:nth-child(4) { grid-column: 3; grid-row: 2; }
+  .responsive-table--library td:nth-child(5) { grid-column: 4; grid-row: 2; font-size: 0.8rem; color: var(--text-muted); }
+  .responsive-table--library td:nth-child(6) { grid-column: 5; grid-row: 2; font-size: 0.8rem; color: var(--text-muted); text-align: right; }
+  .responsive-table--library td:nth-child(7) { display: none; }
+  .responsive-table--library .table-thumb {
+    width: 88px;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Réglages > Documentation : adresses sous un hôte unique              */
+/* ------------------------------------------------------------------ */
+.settings-paths--compact {
+  gap: 4px;
+}
+.settings-host-row,
+.settings-page-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.settings-host-row {
+  padding: 4px 4px 8px;
+}
+.settings-host-row .settings-path-link {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.settings-page-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  text-decoration: none;
+  color: inherit;
+}
+.settings-page-link:hover {
+  border-color: var(--accent-primary);
+}
+.settings-page-path {
+  flex-shrink: 0;
+  max-width: 55%;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.8rem;
+  color: var(--accent-primary);
+  text-align: right;
+}
+.settings-copy-btn {
+  flex-shrink: 0;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.settings-copy-btn:hover {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+/* Chemins système : étiquette, chemin tronqué, actions ; empilés sur mobile. */
+.settings-path-row--system {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.settings-path-row--system .settings-path-key {
+  min-width: 180px;
+}
+.settings-path-val--path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-path-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+@media (max-width: 640px) {
+  .settings-path-row--system {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding: 10px 12px;
+  }
+  .settings-path-row--system .settings-path-key {
+    min-width: 0;
+    flex: 1 1 100%;
+    font-weight: 700;
+  }
+  .settings-path-row--system .settings-path-val--path {
+    flex: 1 1 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 0.75rem;
+  }
+  .settings-path-actions {
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+  .settings-path-actions .btn {
+    flex: 1;
+    min-height: 40px;
+  }
+}
+
+/* Groupes repliables (Réglages > Documentation) */
+details.settings-doc-group > summary.settings-doc-header {
+  cursor: pointer;
+  list-style: none;
+  min-height: var(--tap-min);
+}
+details.settings-doc-group > summary.settings-doc-header::-webkit-details-marker {
+  display: none;
+}
+details.settings-doc-group > summary.settings-doc-header::after {
+  content: "";
+  margin-left: auto;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: rotate(45deg);
+  transition: transform var(--transition-fast);
+}
+details.settings-doc-group[open] > summary.settings-doc-header::after {
+  transform: rotate(-135deg);
+}
+.settings-host-row .settings-path-link {
+  text-align: left;
+}

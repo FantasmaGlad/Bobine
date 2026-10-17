@@ -1057,7 +1057,7 @@ export default function LibraryPage() {
       ) : (
         /* LIST VIEW */
         <div className="table-wrapper">
-          <table className="videos-table">
+          <table className="videos-table responsive-table responsive-table--library">
             <thead>
               <tr>
                 <th style={{ width: "36px" }}>

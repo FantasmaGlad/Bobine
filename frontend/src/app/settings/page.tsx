@@ -7,6 +7,8 @@ import type { Language } from "@/lib/i18n";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import MarkdownView from "@/components/MarkdownView";
+import AddressList from "@/components/AddressList";
+import { useIsMobile } from "@/lib/useIsMobile";
 
 // Profil de déploiement — détermine si
 // la zone Désinstaller propose une action directe (appliance headless) ou de
@@ -168,6 +170,7 @@ export default function SettingsPage() {
     hasCustomLogo, activeLogo, setActiveLogo, refreshBranding,
     wiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount,
   } = useAppSettings();
+  const isMobile = useIsMobile();
   const [data, setData] = useState<SettingsData | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1577,33 +1580,27 @@ export default function SettingsPage() {
         <p className="settings-hint" style={{ marginTop: "4px" }}>{t("settingsPage.docHint")}</p>
 
         {/* 1. Accès Local (boucle locale 127.0.0.1) */}
-        <div className="settings-doc-group">
-          <div className="settings-doc-header">
+        <details className="settings-doc-group" open={!isMobile}>
+          <summary className="settings-doc-header">
             <Icon name="tv" size={18} />
             <span>{t("settingsPage.paths.localHeading")}</span>
-          </div>
+          </summary>
           <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.localHint")}</p>
-          <div className="settings-paths">
-            {(data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS).map((page) => {
-              const localUrl = `http://127.0.0.1:${data.network.port}${page.path}`;
-              return (
-                <div key={`local-${page.path}`} className="settings-path-row">
-                  <span className="settings-path-key">{t(page.labelKey)}</span>
-                  <a href={localUrl} target="_blank" rel="noopener noreferrer" className="settings-path-link">
-                    {localUrl}
-                  </a>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+          <AddressList
+            base={`http://127.0.0.1:${data.network.port}`}
+            pages={data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS}
+            t={t}
+            onCopy={handleCopyPath}
+            copyLabel={t("settingsPage.paths.copyPath")}
+          />
+        </details>
 
         {/* 2. Accès Réseau (LAN / Wi-Fi) */}
-        <div className="settings-doc-group">
-          <div className="settings-doc-header">
+        <details className="settings-doc-group" open={true}>
+          <summary className="settings-doc-header">
             <Icon name="wifi" size={18} />
             <span>{t("settingsPage.paths.networkHeading")}</span>
-          </div>
+          </summary>
           <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.networkHint")}</p>
           <div className="settings-paths">
             <div className="settings-path-row">
@@ -1647,30 +1644,25 @@ export default function SettingsPage() {
                 )}
               </div>
             </div>
-            {(data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS).map((page) => {
-              const netUrl = data.network.local_ip ? `http://${data.network.local_ip}:${data.network.port}${page.path}` : null;
-              return (
-                <div key={`net-${page.path}`} className="settings-path-row">
-                  <span className="settings-path-key">{t(page.labelKey)}</span>
-                  {netUrl ? (
-                    <a href={netUrl} target="_blank" rel="noopener noreferrer" className="settings-path-link">
-                      {netUrl}
-                    </a>
-                  ) : (
-                    <span className="settings-path-val">{t("settingsPage.paths.localIpUnavailable")}</span>
-                  )}
-                </div>
-              );
-            })}
           </div>
-        </div>
+          {data.network.local_ip && (
+            <AddressList
+              base={`http://${data.network.local_ip}:${data.network.port}`}
+              pages={data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS}
+              t={t}
+              onCopy={handleCopyPath}
+              copyLabel={t("settingsPage.paths.copyPath")}
+              showHost={false}
+            />
+          )}
+        </details>
 
         {/* 3. Données et Chemins système */}
-        <div className="settings-doc-group">
-          <div className="settings-doc-header">
+        <details className="settings-doc-group" open={!isMobile}>
+          <summary className="settings-doc-header">
             <Icon name="folder" size={18} />
             <span>{t("settingsPage.paths.systemHeading")}</span>
-          </div>
+          </summary>
           <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.systemHint")}</p>
 
           <div style={{ margin: "8px 0 14px", padding: "10px 14px", borderRadius: "var(--radius-sm)", background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent)", display: "flex", alignItems: "center", gap: "10px" }}>
@@ -1684,12 +1676,12 @@ export default function SettingsPage() {
             {Object.entries(data.paths).map(([key, value]) => {
               const cleanPath = value.replace(/^sqlite:\/\/\//, "");
               return (
-                <div key={key} className="settings-path-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-                  <span className="settings-path-key" style={{ minWidth: "180px" }}>{t(PATH_LABEL_KEYS[key] || key)}</span>
-                  <span className="settings-path-val" style={{ flex: 1, minWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={value}>
+                <div key={key} className="settings-path-row settings-path-row--system">
+                  <span className="settings-path-key">{t(PATH_LABEL_KEYS[key] || key)}</span>
+                  <span className="settings-path-val settings-path-val--path" title={value}>
                     {value}
                   </span>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", flexShrink: 0, marginLeft: "auto" }}>
+                  <div className="settings-path-actions">
                     <button
                       type="button"
                       className="btn btn-secondary olc-press"
@@ -1715,7 +1707,7 @@ export default function SettingsPage() {
               );
             })}
           </div>
-        </div>
+        </details>
       </section>
 
       {/* ---- Zone de danger : réinitialisation usine & désinstallation ---- */}
