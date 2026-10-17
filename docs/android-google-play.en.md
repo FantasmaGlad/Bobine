@@ -17,6 +17,7 @@ published on Google Play. It is written for project maintainers; it is not a use
 1. [Overview](#1-overview)
 2. [Prerequisites](#2-prerequisites)
 3. [Building the bundles of a Stable release](#3-building-the-bundles-of-a-stable-release)
+   - [The Google Play build](#the-google-play-build)
 4. [Version numbering](#4-version-numbering)
 5. [Signing](#5-signing)
 6. [Publishing on Google Play](#6-publishing-on-google-play)
@@ -70,7 +71,8 @@ manually from GitHub.
    | Parameter | Value | Purpose |
    |---|---|---|
    | `tag` | `V5.0.0` (required) | Stable version to build. The code is that of this exact tag. |
-   | `attach_to_release` | `true` / `false` | Attaches the `.aab` files to the tag's GitHub release. |
+   | `source_ref` | empty, or `main` | Branch or tag to build. Empty: the tag itself. Lets you build the Play variant from `main` without moving the tag. |
+   | `attach_to_release` | `true` / `false` | Attaches the `.aab` files and the Play APKs to the tag's GitHub release (replacing files with the same name). |
    | `play_track` | `internal`, `alpha`, `beta`, `production` | Destination track, used **only** if `PLAY_SERVICE_ACCOUNT_JSON` is configured. |
 
 3. When the run ends, get the files from the `bobine-play-aab-<version>` artifact (and from the release
@@ -80,16 +82,37 @@ manually from GitHub.
    |---|---|
    | `Bobine-<version>.aab` | `com.bobine.app` |
    | `Bobine-TV-<version>.aab` | `com.bobine.app.tv` |
+   | `Bobine-<version>-play.apk` | `com.bobine.app` (APK equivalent to the bundle) |
+   | `Bobine-TV-<version>-play.apk` | `com.bobine.app.tv` (APK equivalent to the bundle) |
 
 The workflow rejects a Beta or Canary tag, checks each bundle's signature (`jarsigner`) and the
-presence of the manifest, then prints the `versionName` and `versionCode` in the run summary.
+presence of the manifest, checks that the Play APKs do not contain the `REQUEST_INSTALL_PACKAGES` permission, then prints the `versionName` and `versionCode` in the run summary.
 
-### Version 5.0.0 bundles
+### Google Play files of version 5.0.0
 
 | Logo | Application | ID | Devices | Format | Size | Download |
 |:---:|---|---|---|---|---:|---|
 | <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Bobine** | `com.bobine.app` | Phones, tablets, Google Book | `.aab` bundle (Google Play upload) | 48.6 MB | [Bobine-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.aab) |
+| <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Bobine** | `com.bobine.app` | Phones, tablets, Google Book | Play APK (testing and direct install) | — | [Bobine-5.0.0-play.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0-play.apk) |
 | <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | **Bobine TV** | `com.bobine.app.tv` | Android TV, Google TV | `.aab` bundle (Google Play upload) | 70.2 MB | [Bobine-TV-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.aab) |
+| <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | **Bobine TV** | `com.bobine.app.tv` | Android TV, Google TV | Play APK (testing and direct install) | — | [Bobine-TV-5.0.0-play.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0-play.apk) |
+
+## The Google Play build
+
+Google Play forbids an app distributed through the store from updating itself by any means other than
+the Play Store. The `.aab` bundles and the `-play.apk` files are therefore built with a dedicated
+variant (`play`, defined in `android/app/build.gradle.kts`):
+
+| Item | GitHub APK (`release`) | Google Play build (`play`) |
+|---|---|---|
+| `REQUEST_INSTALL_PACKAGES` permission | Present | **Removed** (`android/app/src/play/AndroidManifest.xml`) |
+| Built-in update (Settings > Updates) | Active, from GitHub releases | **Disabled**: a message says the Play Store handles updates |
+| Requests to GitHub for updates | Yes | None |
+| Signature | Upload key | Upload key (Google re-signs for distribution) |
+
+The `-play.apk` is the same build as the bundle: it lets you test on a device what Google Play users
+will receive. For a regular install outside Play, use the release APK (`Bobine-<version>.apk`), which
+keeps the built-in update.
 
 ## 4. Version numbering
 
@@ -137,7 +160,7 @@ be handled before going to production; they do not prejudge the outcome of the r
 | Device startup | `RECEIVE_BOOT_COMPLETED` | Optional feature, enabled by the user in Settings > Device startup. |
 | Display over other apps | `SYSTEM_ALERT_WINDOW` | Justify opening the screen at startup. |
 | Battery optimisation | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | Justify: continuous playback in the studio. |
-| App installation | `REQUEST_INSTALL_PACKAGES` | The built-in updater downloads APKs from GitHub. Google Play policy restricts this permission and updates outside Play: check whether the variant published on Play must remove it. |
+| App installation | `REQUEST_INSTALL_PACKAGES` | Removed from the Google Play build (see [The Google Play build](#the-google-play-build)): no declaration to fill in for this permission. |
 | Data and privacy | No telemetry, offline operation | "Data safety" form: no collection, no sharing. |
 
 ## 8. Updates on the user side

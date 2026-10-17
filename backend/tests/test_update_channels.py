@@ -393,3 +393,36 @@ def test_run_checked_uses_sanitized_env(monkeypatch):
     monkeypatch.setattr(orch.subprocess, "run", spy_run)
     orch.run_checked(["true"])
     assert "LD_LIBRARY_PATH" not in captured["env"]
+
+
+# --- build Google Play : mises a jour par la boutique -----------------------
+
+class _StoreHandler:
+    def is_store_managed(self) -> bool:
+        return True
+
+    def can_auto_apply(self) -> bool:
+        return False
+
+
+def test_store_managed_check_does_not_query_github(monkeypatch):
+    monkeypatch.setattr(updates, "get_profile_handler", lambda: _StoreHandler())
+    monkeypatch.setattr(updates, "_get_local_version_info", lambda: _local("V5.0.0"))
+    monkeypatch.setattr(updates, "_get_update_channel", lambda db: "stable")
+
+    async def _boom(*args, **kwargs):
+        raise AssertionError("aucune requete GitHub pour un build de boutique")
+
+    monkeypatch.setattr(updates, "_fetch_release_for_channel", _boom)
+    result = asyncio.run(updates.check_updates(refresh=True, db=None))
+    assert result["store_managed"] is True
+    assert result["has_update"] is False and result["can_auto_apply"] is False
+
+
+def test_store_managed_apply_is_refused(monkeypatch):
+    from fastapi import BackgroundTasks, HTTPException
+
+    monkeypatch.setattr(updates, "get_profile_handler", lambda: _StoreHandler())
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(updates.apply_update(BackgroundTasks(), db=None))
+    assert exc.value.status_code == 400

@@ -1,6 +1,7 @@
 name: Google Play (AAB)
 
-# Construit les bundles Android (.aab) d'une version Stable, prêts pour la console Google Play :
+# Construit le build Google Play (sans mise à jour intégrée ni autorisation d'installation de paquets)
+# d'une version Stable : bundles .aab pour la console, et APK équivalents pour les tests :
 #   Bobine-<version>.aab     (com.bobine.app, téléphone et tablette)
 #   Bobine-TV-<version>.aab  (com.bobine.app.tv, Android TV)
 # Signés avec la clé de téléversement (la même que les APK) ; Google Play les re-signe avec sa clé de
@@ -18,6 +19,11 @@ on:
       tag:
         description: Tag Stable à publier (ex. V5.0.0)
         required: true
+        type: string
+      source_ref:
+        description: Branche ou tag à construire (vide = le tag lui-même). Utile pour construire le build Play depuis main sans déplacer le tag.
+        required: false
+        default: ''
         type: string
       attach_to_release:
         description: Joindre les .aab à la release GitHub du tag
@@ -54,7 +60,7 @@ jobs:
           esac
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ inputs.source_ref || inputs.tag }}
           fetch-depth: 0
       - name: Résoudre la version
         id: ref
@@ -155,18 +161,29 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_VERSION_NAME: ${{ steps.ref.outputs.version_name }}
           ANDROID_VERSION_CODE: ${{ steps.ref.outputs.version_code }}
-        run: ./gradlew :app:bundleMobileRelease :app:bundleTvRelease --no-daemon
+        run: ./gradlew :app:bundleMobilePlay :app:bundleTvPlay :app:assembleMobilePlay :app:assembleTvPlay --no-daemon
       - name: Nommer et vérifier les bundles
         if: steps.check_secrets.outputs.configured == 'true'
         run: |
           mkdir -p aab-out
-          cp android/app/build/outputs/bundle/mobileRelease/*.aab "aab-out/Bobine-${{ steps.ref.outputs.version_name }}.aab"
-          cp android/app/build/outputs/bundle/tvRelease/*.aab "aab-out/Bobine-TV-${{ steps.ref.outputs.version_name }}.aab"
+          cp android/app/build/outputs/bundle/mobilePlay/*.aab "aab-out/Bobine-${{ steps.ref.outputs.version_name }}.aab"
+          cp android/app/build/outputs/bundle/tvPlay/*.aab "aab-out/Bobine-TV-${{ steps.ref.outputs.version_name }}.aab"
+          cp android/app/build/outputs/apk/mobile/play/*.apk "aab-out/Bobine-${{ steps.ref.outputs.version_name }}-play.apk"
+          cp android/app/build/outputs/apk/tv/play/*.apk "aab-out/Bobine-TV-${{ steps.ref.outputs.version_name }}-play.apk"
           for AAB in aab-out/*.aab; do
             echo "Signature : $AAB"
             jarsigner -verify "$AAB" | head -2
             unzip -l "$AAB" | grep -q "base/manifest/AndroidManifest.xml"
             echo "$(sha256sum "$AAB")"
+          done
+          # Le build Play ne doit pas contenir l'autorisation d'installation de paquets (politique Google Play).
+          AAPT2="$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | tail -1)"
+          for APK in aab-out/*-play.apk; do
+            echo "Autorisations : $APK"
+            if "$AAPT2" dump permissions "$APK" | grep -q REQUEST_INSTALL_PACKAGES; then
+              echo "::error::$APK contient REQUEST_INSTALL_PACKAGES"; exit 1
+            fi
+            echo "$(sha256sum "$APK")"
           done
           # Le numéro de version des bundles doit dépasser celui de l'APK déjà installé chez les utilisateurs.
           echo "versionName=${{ steps.ref.outputs.version_name }} versionCode=${{ steps.ref.outputs.version_code }}" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -174,13 +191,15 @@ jobs:
         if: steps.check_secrets.outputs.configured == 'true'
         with:
           name: bobine-play-aab-${{ steps.ref.outputs.version_name }}
-          path: aab-out/*.aab
+          path: |
+            aab-out/*.aab
+            aab-out/*-play.apk
           if-no-files-found: error
-      - name: Joindre les bundles à la release GitHub
+      - name: Joindre les bundles et les APK Play à la release GitHub
         if: steps.check_secrets.outputs.configured == 'true' && inputs.attach_to_release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ inputs.tag }}" aab-out/*.aab --clobber --repo "${{ github.repository }}"
+        run: gh release upload "${{ inputs.tag }}" aab-out/*.aab aab-out/*-play.apk --clobber --repo "${{ github.repository }}"
       - name: Vérifier la présence du compte de service Google Play
         if: steps.check_secrets.outputs.configured == 'true'
         id: play_secret

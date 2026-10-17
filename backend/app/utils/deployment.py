@@ -112,6 +112,11 @@ class ProfileHandler:
         échoueraient silencieusement à chaque appel."""
         return False
 
+    def is_store_managed(self) -> bool:
+        """True quand l'application vient d'une boutique (Google Play) : les mises à jour
+        passent alors par la boutique, jamais par la mise à jour intégrée."""
+        return False
+
     def can_auto_apply(self) -> bool:
         """True si ce profil permet l'application automatique d'une mise à jour."""
         return self.supports_git_versioning()

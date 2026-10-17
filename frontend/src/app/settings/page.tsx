@@ -56,6 +56,8 @@ interface UpdateInfo {
   published_at: string | null;
   html_url: string | null;
   can_auto_apply?: boolean;
+  /** Application installée depuis une boutique (Google Play) : les mises à jour passent par elle. */
+  store_managed?: boolean;
   download_url?: string | null;
   asset_name?: string | null;
   asset_size?: number | null;
@@ -1344,7 +1346,10 @@ export default function SettingsPage() {
           <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.autoUpdateToggleHint")}</p>
 
           {/* Résultat de la recherche */}
-          {updateInfo && (
+          {updateInfo?.store_managed && (
+            <p className="settings-hint olc-anim-in" style={{ margin: 0 }}>{t("settingsPage.storeManagedHint")}</p>
+          )}
+          {updateInfo && !updateInfo.store_managed && (
             <div className="olc-anim-in" style={{ marginTop: "4px" }}>
               {updateInfo.has_update ? (
                 <div

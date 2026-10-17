@@ -101,9 +101,21 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            buildConfigField("boolean", "STORE_BUILD", "false")
             if (hasReleaseSigningConfig) {
                 signingConfig = signingConfigs.getByName("release")
             }
+        }
+        // Variante destinée à Google Play : identique à la release, sans l'autorisation
+        // REQUEST_INSTALL_PACKAGES (src/play/AndroidManifest.xml) et sans mise à jour intégrée depuis GitHub,
+        // que la politique de Google Play interdit (les mises à jour passent par le Play Store).
+        create("play") {
+            initWith(getByName("release"))
+            matchingFallbacks += listOf("release")
+            buildConfigField("boolean", "STORE_BUILD", "true")
+        }
+        debug {
+            buildConfigField("boolean", "STORE_BUILD", "false")
         }
     }
 

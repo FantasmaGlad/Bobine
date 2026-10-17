@@ -92,8 +92,16 @@ class AndroidHandler(ProfileHandler):
     def supports_git_versioning(self) -> bool:
         return False
 
+    def is_store_managed(self) -> bool:
+        """Vrai pour le build Google Play (`BuildConfig.STORE_BUILD`, cf. build.gradle.kts)."""
+        try:
+            from java import jclass  # Chaquopy
+            return bool(jclass("com.bobine.app.BuildConfig").STORE_BUILD)
+        except Exception:
+            return False
+
     def can_auto_apply(self) -> bool:
-        return True
+        return not self.is_store_managed()
 
     def can_schedule_auto_apply(self) -> bool:
         # Le téléchargement/la vérification PEUVENT se déclencher sans
@@ -102,7 +110,7 @@ class AndroidHandler(ProfileHandler):
         # ci-dessous), décision produit délibérée et maintenue : jamais
         # d'installation silencieuse via PackageInstaller/Device Owner,
         # même si l'appareil dispose des privilèges nécessaires.
-        return True
+        return not self.is_store_managed()
 
     def apply_update(
         self,

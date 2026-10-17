@@ -429,10 +429,35 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
     now_iso = datetime.now(timezone.utc).isoformat()
     channel = _get_update_channel(db)
 
-    release_data, error_code = await _fetch_release_for_channel(channel, force=refresh)
-
     profile = get_deployment_profile()
     handler = get_profile_handler()
+
+    if handler.is_store_managed():
+        return {
+            "channel": channel,
+            "current_version": local_info["current_version"],
+            "current_tag": local_info["current_tag"],
+            "current_commit": local_info["current_commit"],
+            "local_build": local_info["local_rolling_channel"] or "stable",
+            "deployment_profile": profile,
+            "checked_at": now_iso,
+            "store_managed": True,
+            "online": True,
+            "error_code": None,
+            "latest_version": None,
+            "has_update": False,
+            "is_downgrade": False,
+            "release_title": None,
+            "release_notes": None,
+            "published_at": None,
+            "html_url": None,
+            "can_auto_apply": False,
+            "download_url": None,
+            "asset_name": None,
+            "asset_size": None,
+        }
+
+    release_data, error_code = await _fetch_release_for_channel(channel, force=refresh)
 
     base = {
         "channel": channel,
@@ -544,6 +569,11 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
     risque de deux installations concurrentes sur un double clic ou deux
     onglets ouverts)."""
     handler = get_profile_handler()
+    if handler.is_store_managed():
+        raise HTTPException(
+            status_code=400,
+            detail="Cette application est installée depuis une boutique : ses mises à jour passent par la boutique.",
+        )
     if not handler.can_auto_apply():
         raise HTTPException(
             status_code=400,
