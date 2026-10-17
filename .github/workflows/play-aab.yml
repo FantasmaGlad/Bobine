@@ -63,7 +63,6 @@ jobs:
           echo "version_name=${TAG#V}" >> "$GITHUB_OUTPUT"
           echo "version_code=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
           echo "commit_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-          fetch-depth: 0
       - name: Vérifier que les secrets de signature sont configurés
         id: check_secrets
         run: |
@@ -145,7 +144,7 @@ jobs:
           key: ffmpeg-armv7-${{ hashFiles('android/scripts/build_ffmpeg_armv7.sh') }}
       - name: Compiler ffmpeg/ffprobe armeabi-v7a (NDK r28c)
         if: steps.check_secrets.outputs.configured == 'true' && steps.ffmpeg_armv7_cache.outputs.cache-hit != 'true'
-
+        run: ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/28.2.13676358" android/scripts/build_ffmpeg_armv7.sh
       - name: Construire les bundles (.aab)
         if: steps.check_secrets.outputs.configured == 'true'
         working-directory: android
