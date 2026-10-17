@@ -1,10 +1,10 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: bobine
-Upstream-Contact: Bobine Team <fantacasino3012@gmail.com>
+Upstream-Contact: Bobine Team <clement.barillot@bobine.fit>
 Source: https://github.com/FantasmaGlad/Bobine
 
 Files: *
-Copyright: 2026 Bobine Team <fantacasino3012@gmail.com>
+Copyright: 2026 Bobine Team <clement.barillot@bobine.fit>
 License: AGPL-3.0-or-later
 
 License: AGPL-3.0-or-later

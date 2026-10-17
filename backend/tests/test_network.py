@@ -41,7 +41,7 @@ def test_noms_windows_et_macos(monkeypatch):
 
 
 def test_adresse_native_android_prioritaire(monkeypatch):
-    _fake(monkeypatch, [("wlan0", "192.168.1.49"), ("rmnet0", "10.50.1.2")], env="192.168.1.77")
+    _fake(monkeypatch, [("wlan0", "192.168.1.20"), ("rmnet0", "10.50.1.2")], env="192.168.1.77")
     assert network.primary_lan_ip() == "192.168.1.77"
 
 

@@ -3,7 +3,7 @@ Version: 0.0.0
 Section: video
 Priority: optional
 Architecture: amd64
-Maintainer: FantasmaGlad <fantacasino3012@gmail.com>
+Maintainer: FantasmaGlad <clement.barillot@bobine.fit>
 Depends: ffmpeg
 Recommends: avahi-daemon
 Homepage: https://bobine.fit
