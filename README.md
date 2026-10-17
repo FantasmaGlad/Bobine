@@ -131,7 +131,8 @@ Bobine is program-agnostic: class categories are free-form, so it fits any catal
 - **Video scheduling** — build a weekly timetable; classes start automatically at the right time on the right screen.
 - **On-demand cinema kiosk** — a member-facing full-screen browser to pick and start a class themselves with instant playback and power outage recovery.
 - **Two independent display outputs** — drive a wired screen (HDMI) and a networked screen separately, each with its own content.
-- **Mobile remote** — control playback (play, pause, seek, next) from any phone on the local network.
+- **Mobile remote** — control playback (play, pause, seek, next) from any phone on the local network: "Now playing" widget, launching a class with a preview (thumbnail, duration), subtitle choice and chapter jumps.
+- **Subtitles & chapters** — `.srt`/`.vtt` tracks in several languages per class, chapters imported (JSON, WebVTT or "05:00 Title" text) or extracted from the video file, progress marks and an on-screen banner.
 - **Universal input support (Gamepads, Remotes, Mouse, Touch)** — the member cinema (`/cinema`), coach grid (`/grid`), interactive kiosk (`/kiosk`), and radio screen (`/radio`) respond instantly to all devices: game controllers (Xbox, PlayStation, 8BitDo, Switch Pro via HTML5 Gamepad API), physical USB/Bluetooth media remotes (arrows, OK, back, play/pause, seek, volume), mouse, and touchscreens.
 - **Coach audio mode** — play audio-only classes over the room speakers with an animated or still visual background on screen.
 - **Built-in radio** — a Spotify-style 24/7 background-music player with crossfade, shuffle, repeat, and scheduled spoken reminders ("re-rack your weights", etc.).
