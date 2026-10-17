@@ -73,22 +73,28 @@ android {
         targetSdk = 36
         versionCode = androidVersionCode
         versionName = androidVersionName
-
-        ndk {
-            // arm64-v8a : tablettes réelles & boîtiers 64 bits (checklist matérielle).
-            // x86_64 : émulateur sur machine de développement x86_64.
-            abiFilters += listOf("arm64-v8a", "x86_64")
-        }
     }
 
     flavorDimensions += listOf("device")
     productFlavors {
         create("mobile") {
             dimension = "device"
+            ndk {
+                // arm64-v8a : tablettes réelles. x86_64 : émulateur de la machine de développement.
+                abiFilters += listOf("arm64-v8a", "x86_64")
+            }
         }
         create("tv") {
             dimension = "device"
             applicationIdSuffix = ".tv"
+            ndk {
+                // armeabi-v7a : beaucoup de boîtiers et clés Android TV (Chromecast avec Google TV,
+                // Xiaomi TV Stick/Box...) ont un processeur 64 bits mais un système 32 bits, dont la
+                // liste d'ABI n'est que armeabi-v7a : sans ce dossier natif, l'installation échoue
+                // avec INSTALL_FAILED_NO_MATCHING_ABIS. Chaquopy ne fournit armeabi-v7a que jusqu'à
+                // Python 3.11 (cf. chaquopy.productFlavors ci-dessous), d'où un APK TV universel unique.
+                abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+            }
         }
     }
 
@@ -210,6 +216,13 @@ chaquopy {
         getByName("main") {
             srcDir(pyStageDir.map { it.dir("backend") })
         }
+    }
+    productFlavors {
+        // Le runtime Python 3.12+ de Chaquopy n'existe qu'en arm64-v8a et x86_64 (vérifié sur
+        // Maven Central : com.chaquo.python:target:3.13.9-0 n'a pas d'artefact armeabi-v7a, alors
+        // que 3.11.10-0 en a un). Le flavor TV, qui doit couvrir les systèmes 32 bits, reste donc
+        // sur 3.11 ; le backend et les roues épinglées ci-dessous y sont compatibles.
+        getByName("tv") { version = "3.11" }
     }
     defaultConfig {
         // Python 3.13 : c'est la version majeure.mineure disponible sur cette

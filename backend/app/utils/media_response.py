@@ -31,7 +31,9 @@ from fastapi import HTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response, StreamingResponse
 
-_IS_ANDROID = hasattr(sys, "getandroidapilevel")
+from app.utils.android_runtime import is_android
+
+_IS_ANDROID = is_android()
 
 # 1 Mo sur Android (moins d'allers-retours à travers le démon FUSE du
 # stockage externe qu'à 128 Ko, mesurable sur un flux 4K/60 fps à haut

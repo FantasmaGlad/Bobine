@@ -39,6 +39,8 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from app.utils.android_runtime import is_android
+
 logger = logging.getLogger(__name__)
 
 MDNS_HOSTNAME = "bobine"
@@ -187,8 +189,9 @@ def _run_loop(port: int) -> None:
     while not _stop_event.is_set():
         try:
             announced_ip = _register_or_update(zc, port)
+            platform_label = "Android" if is_android() else platform.system()
             if _status.get("state") != "ok":
-                logger.info(f"mDNS : '{MDNS_HOSTNAME}.local' publié ({announced_ip}:{port}, profil {platform.system()}).")
+                logger.info(f"mDNS : '{MDNS_HOSTNAME}.local' publié ({announced_ip}:{port}, profil {platform_label}).")
             _set_status("ok")
             attempt = 0
             if _stop_event.wait(_REANNOUNCE_INTERVAL_SECONDS):

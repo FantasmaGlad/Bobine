@@ -10,6 +10,8 @@ except ImportError:  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3
     # uniquement). BaseSettings est intégré nativement à Pydantic v1, pas de paquet séparé.
     from pydantic import BaseSettings
 
+from app.utils.android_runtime import is_android
+
 # Repère du dossier racine du backend de l'application (racine de backend/
 # en développement). Sert aussi de racine par défaut pour le config.toml
 # livré (valeurs versionnées, lues quand /etc/bobine — ou son équivalent
@@ -41,6 +43,30 @@ def _data_root() -> Path:
     un utilisateur standard (et sujet à la translocation Gatekeeper) : données sous `~/Library/Application Support/Bobine`, la
     convention native macOS.
     Linux headless / dev : `ROOT_DIR` reste la racine de confort."""
+    if is_android():
+        # sans cette branche,
+        # ROOT_DIR (repli plus bas) pointe vers AssetFinder/app/, le dossier
+        # interne prive ou Chaquopy re-deploie les SOURCES PYTHON elles-memes
+        # a chaque mise a jour de l'app - y stocker des donnees utilisateur
+        # (videos, base de donnees...) les exposerait a un ecrasement
+        # accidentel, en plus d'etre invisible depuis un gestionnaire de
+        # fichiers. BobineForegroundService.kt transmet
+        # `context.getExternalFilesDir(null)` (stockage externe specifique a
+        # l'app, persiste entre mises a jour, visible via un gestionnaire de
+        # fichiers/MTP) a bobine_bootstrap.start_server_once(), qui le pose
+        # dans cette variable d'environnement avant le premier import de ce
+        # module. Testé via is_android() et non platform.system() : le
+        # runtime Python 3.11 du flavor TV répond "Linux", ce qui enverrait
+        # les données dans le home de l'application au lieu de ce dossier.
+        android_data_dir = os.environ.get("BOBINE_ANDROID_DATA_DIR")
+        if android_data_dir:
+            target = Path(android_data_dir)
+            try:
+                target.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
+            return target
+        return ROOT_DIR
     if platform.system() == "Windows":
         program_data = os.environ.get("ProgramData")
         if program_data:
@@ -57,27 +83,6 @@ def _data_root() -> Path:
             xdg_data = os.environ.get("XDG_DATA_HOME")
             base = Path(xdg_data) if xdg_data else Path.home() / ".local" / "share"
             target = base / "bobine"
-            try:
-                target.mkdir(parents=True, exist_ok=True)
-            except Exception:
-                pass
-            return target
-    elif platform.system() == "Android":
-        # sans cette branche,
-        # ROOT_DIR (repli plus bas) pointe vers AssetFinder/app/, le dossier
-        # interne prive ou Chaquopy re-deploie les SOURCES PYTHON elles-memes
-        # a chaque mise a jour de l'app - y stocker des donnees utilisateur
-        # (videos, base de donnees...) les exposerait a un ecrasement
-        # accidentel, en plus d'etre invisible depuis un gestionnaire de
-        # fichiers. BobineForegroundService.kt transmet
-        # `context.getExternalFilesDir(null)` (stockage externe specifique a
-        # l'app, persiste entre mises a jour, visible via un gestionnaire de
-        # fichiers/MTP) a bobine_bootstrap.start_server_once(), qui le pose
-        # dans cette variable d'environnement avant le premier import de ce
-        # module.
-        android_data_dir = os.environ.get("BOBINE_ANDROID_DATA_DIR")
-        if android_data_dir:
-            target = Path(android_data_dir)
             try:
                 target.mkdir(parents=True, exist_ok=True)
             except Exception:
@@ -105,7 +110,7 @@ def _android_internal_root() -> Path | None:
     séquentiels : le coût FUSE par octet y est négligeable comparé au coût
     par appel système qui domine pour une base SQLite à verrous fréquents).
     """
-    if platform.system() != "Android":
+    if not is_android():
         return None
     android_internal_dir = os.environ.get("BOBINE_ANDROID_INTERNAL_DIR")
     if not android_internal_dir:
@@ -138,7 +143,7 @@ def _global_config_path() -> Path:
             return Path(program_data) / "Bobine" / "config.toml"
     elif platform.system() == "Darwin":
         return Path.home() / "Library" / "Application Support" / "Bobine" / "config.toml"
-    elif platform.system() == "Linux":
+    elif platform.system() == "Linux" and not is_android():
         xdg_config = os.environ.get("XDG_CONFIG_HOME")
         user_config = (Path(xdg_config) if xdg_config else Path.home() / ".config") / "bobine" / "config.toml"
         if user_config.exists():

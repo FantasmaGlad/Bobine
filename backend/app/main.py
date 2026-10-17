@@ -31,6 +31,7 @@ from app.routers import (
     radio, radio_playlists, radio_announcements, settings as settings_router, logs, import_jobs,
     updates, metrics, display, uploads,
 )
+from app.utils.android_runtime import is_android
 from app.utils.media_response import build_media_response
 from app.utils.web_profile import choose_rendition, client_can_decode, parse_accept
 from app.utils.web_rendition import request_web_rendition
@@ -58,7 +59,7 @@ from app.utils.ws_manager import manager as ws_manager
 # "getandroidapilevel")` est le même test déjà utilisé plus bas dans ce
 # fichier pour le montage du frontend statique — attribut du build CPython
 # officiel pour Android, présent uniquement sous Chaquopy.
-_IS_ANDROID = hasattr(sys, "getandroidapilevel")
+_IS_ANDROID = is_android()
 
 
 # Log technique : mêmes messages que la console
@@ -423,7 +424,7 @@ app.mount("/api/branding", StaticFiles(directory=str(branding_path)), name="bran
 # la tâche Gradle `stagePythonSources` (android/app/build.gradle.kts)
 # place plutôt le frontend compilé en `frontend_out/`, sibling du paquet
 # `app/` lui-même (donc 2 `.parent`, pas 3).
-if hasattr(sys, "getandroidapilevel"):
+if _IS_ANDROID:
     frontend_out = Path(__file__).resolve().parent.parent / "frontend_out"
 elif getattr(sys, "frozen", False):
     if platform.system() == "Darwin":

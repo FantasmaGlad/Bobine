@@ -26,6 +26,12 @@ import shutil
 import sqlite3
 import threading
 
+# Ce module n'est importé que par l'application Android : marque la plateforme
+# pour `app.utils.android_runtime.is_android()`, car le runtime Python 3.11 du
+# flavor TV ne la révèle ni par `sys.getandroidapilevel` ni par
+# `platform.system()`.
+os.environ["BOBINE_PLATFORM"] = "android"
+
 _started = False
 _lock = threading.Lock()
 

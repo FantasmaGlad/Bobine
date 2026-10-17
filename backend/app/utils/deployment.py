@@ -13,6 +13,8 @@ import platform
 from pathlib import Path
 from typing import Callable, Literal
 
+from app.utils.android_runtime import is_android
+
 DeploymentProfile = Literal["linux-headless", "linux-desktop", "windows", "macos", "android"]
 
 # Artefacts posés par install.sh sur l'appliance headless : leur présence est ce qui distingue un
@@ -35,19 +37,18 @@ def get_deployment_profile() -> DeploymentProfile:
     la présence des artefacts d'`install.sh` distingue l'appliance headless
     du profil de bureau — les deux sont le même OS.
     """
+    # Android d'abord : Chaquopy 3.12+ répond "Android" à platform.system(),
+    # mais son runtime 3.11 (flavor TV, armeabi-v7a) répond "Linux" — sans ce
+    # test indépendant de la version, le profil retomberait sur
+    # "linux-desktop" (cf. android.py pour les comportements qui divergent :
+    # redémarrage, désinstallation, mise à jour APK).
+    if is_android():
+        return "android"
     system = platform.system()
     if system == "Windows":
         return "windows"
     if system == "Darwin":
         return "macos"
-    # Chaquopy : platform.system() renvoie bien "Android", pas "Linux", bien
-    # que le noyau sous-jacent en soit un - un test explicite est donc
-    # nécessaire ici, sans quoi ce cas tomberait dans le repli
-    # "linux-desktop" plus bas (fonctionnellement presque correct par
-    # accident jusqu'ici, mais fragile pour tout comportement futur qui
-    # devrait diverger, ex. redémarrage/désinstallation - cf. android.py).
-    if system == "Android":
-        return "android"
     if UNINSTALL_WRAPPER.exists() and SUDOERS_FILE.exists():
         return "linux-headless"
     return "linux-desktop"

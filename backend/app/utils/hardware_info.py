@@ -13,6 +13,8 @@ from typing import Any
 
 import psutil
 
+from app.utils.android_runtime import is_android
+
 logger = logging.getLogger(__name__)
 
 # Heure de démarrage du service backend
@@ -50,7 +52,7 @@ def shutil_which(cmd: str) -> bool:
 
 def is_android_system() -> bool:
     """Détecte si l'environnement d'exécution est Android (Chaquopy ou shell Android Linux)."""
-    return hasattr(sys, "getandroidapilevel") or (sys.platform.startswith("linux") and shutil_which("getprop"))
+    return is_android() or (sys.platform.startswith("linux") and shutil_which("getprop"))
 
 
 def _get_android_prop(prop_name: str) -> str:

@@ -28,7 +28,12 @@ from app.utils.update_orchestrator import (
     report_external_event,
     run_update_pipeline,
 )
-from app.utils.version import get_app_commit, get_app_tag, get_app_version, is_prerelease_version
+from app.utils.version import (
+    get_app_commit,
+    get_app_tag,
+    get_app_version,
+    rolling_channel_of_version,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -167,12 +172,11 @@ def _get_local_version_info() -> dict[str, Any]:
     à la promesse affichée dans Réglages."""
     commit = get_app_commit()
     tag = get_app_tag()
-    prerelease = is_prerelease_version(get_app_version())
 
     if not get_profile_handler().supports_git_versioning():
         return {
             "current_version": tag, "current_tag": tag, "current_commit": commit,
-            "local_rolling_channel": "beta" if prerelease else None,
+            "local_rolling_channel": rolling_channel_of_version(),
         }
 
     repo_dir = Path(__file__).resolve().parent.parent.parent
