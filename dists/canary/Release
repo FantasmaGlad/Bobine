@@ -2,19 +2,19 @@ Origin: Bobine
 Label: Bobine
 Suite: canary
 Codename: canary
-Date: Fri, 16 Oct 2026 21:10:47 UTC
+Date: Sat, 17 Oct 2026 07:04:46 UTC
 Architectures: amd64
 Components: main
 Description: Depot officiel Bobine - Canal Canary (Rolling)
 MD5Sum:
- 1729487d871325e54472448a64761195 1330 main/binary-amd64/Packages
- 99a0c14217615d5a4cfc5ef1913165c9 848 main/binary-amd64/Packages.gz
+ 9d1909b0c172dd3acb9aceac12cb19f1 1330 main/binary-amd64/Packages
+ 1f03bc8142deeb618bed5fa32c0e3b04 845 main/binary-amd64/Packages.gz
  e7cd5c2534ef09e46cdc4a88e1d14f8a 141 main/binary-amd64/Release
 SHA1:
- f122158ada59fb20e50a767b5346ef3960f84c72 1330 main/binary-amd64/Packages
- e06e8f4f731dbbd39e8a27ff16c9927ece4a3bb7 848 main/binary-amd64/Packages.gz
+ c88cbeb18863e7faf9d7b6338a61fb2176439ebf 1330 main/binary-amd64/Packages
+ 95d0f15108662205651c559b4f2f6789a8d0dfaf 845 main/binary-amd64/Packages.gz
  6af6be6aabbe342f577a9a459a3c2692f7f80be1 141 main/binary-amd64/Release
 SHA256:
- dc6f04ea0db4f0f7959d2541921ca6daeba17959886d4c7ce092fd22622f6477 1330 main/binary-amd64/Packages
- c640dfc47a73af764a70bd1238b306654dd33a2570da2e58fac9be53d9f71d88 848 main/binary-amd64/Packages.gz
+ a6b5d53b8a27cfa4872a162ba896924e24bfd391423f4f491b5f3f0e8e6587c1 1330 main/binary-amd64/Packages
+ b3185924a8a62f3d252883af522e2f8c60dab481b547d35cfb7e77b61c83311b 845 main/binary-amd64/Packages.gz
  57d80c0960f88db861e5c92edbfcadcb75935c3b0dcfa03b815364830ad95c2a 141 main/binary-amd64/Release
