@@ -13,6 +13,8 @@ import AppLogo from "@/components/AppLogo";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 import { formatCleanDescription } from "@/lib/formatDescription";
 import { subtitleSrc, useApplySubtitleMode, useVideoSubtitles } from "@/lib/subtitles";
+import { useVideoChapters } from "@/lib/chapters";
+import ChapterToast from "@/components/ChapterToast";
 
 function getApiUrl(path: string) {
   if (typeof window !== "undefined" && window.location.port === "3000") {
@@ -473,7 +475,8 @@ export default function KioskPage() {
 
   // Sous-titres pour la vidéo en cours de lecture
   const subtitles = useVideoSubtitles(state.current_video?.id, getApiUrl);
-  useApplySubtitleMode([videoRef], subtitles, null);
+  useApplySubtitleMode([videoRef], subtitles, state.subtitle ?? null);
+  const chapters = useVideoChapters(state.current_video?.id, getApiUrl);
   // Suit l'horloge de lecture serveur : démarrage simultané
   // des écrans et correction de dérive sans seek.
   useVideoClockFollower({
@@ -745,6 +748,8 @@ export default function KioskPage() {
           ))}
         </video>
       </div>
+
+      <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} />
 
       <div className={`kiosk-layer kiosk-video-layer ${backgroundLayerActive && !backgroundIsImage ? "visible" : ""}`}>
         <video ref={bgVideoRef} className="kiosk-video" loop muted playsInline autoPlay />

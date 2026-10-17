@@ -8,6 +8,10 @@ import DisplayOutputSwitch from "@/components/DisplayOutputSwitch";
 import Icon from "@/components/Icon";
 import CourseCard from "@/components/CourseCard";
 import Sheet from "@/components/Sheet";
+import SubtitlePicker from "@/components/SubtitlePicker";
+import ChapterList from "@/components/ChapterList";
+import ChapterTicks from "@/components/ChapterTicks";
+import { useVideoChapters } from "@/lib/chapters";
 import { courseThumbSrc, formatClock } from "@/lib/courseMeta";
 import { formatCleanDescription } from "@/lib/formatDescription";
 import { getAudioQualityBadge, getResolutionBadge } from "@/lib/videoBadges";
@@ -153,6 +157,8 @@ export default function MobileRemote({
   };
   const previewVideo = previewVideoId !== null ? videos.find((v) => v.id === previewVideoId) ?? null : null;
   const releaseLabel = (release: string) => t("mobileRemote.releaseShort", { release });
+  const kioskChapters = useVideoChapters(state.current_video?.id, getApiUrl);
+  const cinemaChapters = useVideoChapters(cinemaLive?.video_id, getApiUrl);
   const cinemaVideo = cinemaLive?.video_id ? videos.find((v) => v.id === cinemaLive.video_id) ?? null : null;
 
   const filteredVideos = videos.filter((v) => `${v.title} ${v.program ?? ""}`.toLowerCase().includes(launchSearch.toLowerCase()));
@@ -212,6 +218,7 @@ export default function MobileRemote({
                 }}
               />
               <div className="mobile-remote-progress">
+                <div className="chapter-seek">
                 <input
                   type="range"
                   min={0}
@@ -229,11 +236,18 @@ export default function MobileRemote({
                   }}
                   className="seek-slider mobile-remote-seek"
                 />
+                <ChapterTicks chapters={cinemaChapters} duration={cinemaLive.duration_seconds || 0} />
+                </div>
                 <div className="now-card__times">
                   <span>{formatTime(cinemaSeekDrag ?? cinemaLive.position_seconds)}</span>
                   <span>{formatTime(cinemaLive.duration_seconds)}</span>
                 </div>
               </div>
+              <ChapterList
+                chapters={cinemaChapters}
+                position={cinemaSeekDrag ?? cinemaLive.position_seconds}
+                onSeek={(seconds) => sendCommand("cinema_command", { action: "seek", position_seconds: seconds })}
+              />
             </div>
 
             <div className="mobile-remote-controls" style={{ marginTop: 0 }}>
@@ -289,6 +303,7 @@ export default function MobileRemote({
               </div>
             )}
             <div className="mobile-remote-progress">
+              <div className="chapter-seek">
               <input
                 type="range"
                 min={0}
@@ -307,11 +322,22 @@ export default function MobileRemote({
                 }}
                 className="seek-slider mobile-remote-seek"
               />
+              <ChapterTicks chapters={kioskChapters} duration={duration} />
+              </div>
               <div className="now-card__times">
                 <span>{formatTime(displayPosition)}</span>
                 <span>{formatTime(duration)}</span>
               </div>
             </div>
+            <ChapterList chapters={kioskChapters} position={displayPosition} onSeek={(seconds) => sendCommand("seek", { position_seconds: seconds })} />
+            {state.current_video && (
+              <SubtitlePicker
+                videoId={state.current_video.id}
+                subtitle={state.subtitle}
+                getApiUrl={getApiUrl}
+                onChange={(subtitle) => sendCommand("set_subtitle", { subtitle })}
+              />
+            )}
             {nextPlaylistItem && state.state !== "playlist_waiting" && (
               <div className="now-card__next">
                 {t("kiosk.nextCourseLabel")} {nextPlaylistItem.title}

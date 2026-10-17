@@ -19,6 +19,7 @@ import {
 import { formatCleanDescription } from "@/lib/formatDescription";
 import { subtitleSrc } from "@/lib/subtitles";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
+import ChapterEditor from "@/components/ChapterEditor";
 
 interface VideoSubtitleItem {
   id: number;
@@ -1389,6 +1390,14 @@ export default function LibraryPage() {
                       </div>
                     )}
                   </div>
+
+                  <ChapterEditor
+                    key={selectedVideo.id}
+                    videoId={selectedVideo.id}
+                    getApiUrl={getApiUrl}
+                    getCurrentTime={() => document.querySelector<HTMLVideoElement>(".course-studio-modal .drawer-video")?.currentTime ?? 0}
+                    onNotify={(message, type) => showToast(message, type)}
+                  />
 
                   {/* Boutons validation / enregistrement */}
                   <div style={{ display: "flex", gap: "10px", marginTop: "auto", paddingTop: "8px" }}>

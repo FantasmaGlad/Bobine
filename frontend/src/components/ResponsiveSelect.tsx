@@ -164,6 +164,7 @@ export default function ResponsiveSelect({
               {group ? <div className="sheet-group__title">{group}</div> : null}
               {items.map((option) => (
                 <button key={option.value} type="button" className={`sheet-option olc-press${option.value === value ? " is-selected" : ""}`} onClick={() => choose(option.value)}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- miniature servie par l'API locale, export statique */}
                   {option.thumbnail ? <img className="sheet-option__thumb" src={option.thumbnail} alt="" loading="lazy" /> : null}
                   <span className="sheet-option__text">
                     <span className="sheet-option__label">{option.label}</span>

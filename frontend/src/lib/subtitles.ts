@@ -24,6 +24,7 @@ export function useVideoSubtitles(
 
   useEffect(() => {
     if (!videoId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- remise à zéro quand le cours disparaît (état dérivé d'une requête externe)
       setTracks([]);
       return;
     }

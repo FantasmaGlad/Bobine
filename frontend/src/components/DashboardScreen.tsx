@@ -10,6 +10,10 @@ import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
 import MobileRemote from "@/components/MobileRemote";
 import DisplayOutputSwitch from "@/components/DisplayOutputSwitch";
 import Icon from "@/components/Icon";
+import SubtitlePicker from "@/components/SubtitlePicker";
+import ChapterList from "@/components/ChapterList";
+import ChapterTicks from "@/components/ChapterTicks";
+import { useVideoChapters } from "@/lib/chapters";
 
 interface VideoSummary {
   id: number;
@@ -170,6 +174,8 @@ export default function DashboardScreen({ channel }: Props) {
   // Même présentation qu'en kiosque : le rapport du cinéma ne porte que le
   // titre et l'identifiant, le reste vient de la bibliothèque déjà chargée.
   const cinemaVideo = cinemaLive?.video_id ? videos.find((v) => v.id === cinemaLive.video_id) ?? null : null;
+  const kioskChapters = useVideoChapters(state.current_video?.id, getApiUrl);
+  const cinemaChapters = useVideoChapters(cinemaLive?.video_id, getApiUrl);
   const cinemaThumb = cinemaVideo?.thumbnail_path ? getApiUrl(`/thumbnails/${cinemaVideo.thumbnail_path.split("/").pop()}`) : null;
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [selectedVideoId, setSelectedVideoId] = useState<string>("");
@@ -494,6 +500,7 @@ export default function DashboardScreen({ channel }: Props) {
                     </div>
                     <div className="live-progress">
                       <span className="live-time">{formatTime(cinemaSeekDrag ?? cinemaLive.position_seconds)}</span>
+                      <div className="chapter-seek">
                       <input
                         type="range"
                         min={0}
@@ -513,8 +520,16 @@ export default function DashboardScreen({ channel }: Props) {
                         }}
                         className="seek-slider"
                       />
+                      <ChapterTicks chapters={cinemaChapters} duration={cinemaLive.duration_seconds || 0} />
+                      </div>
                       <span className="live-time">{formatTime(cinemaLive.duration_seconds)}</span>
                     </div>
+                    <ChapterList
+                      chapters={cinemaChapters}
+                      position={cinemaSeekDrag ?? cinemaLive.position_seconds}
+                      onSeek={(seconds) => sendCommand("cinema_command", { action: "seek", position_seconds: seconds })}
+                      className="chapter-list--inline"
+                    />
                     <div className="live-controls">
                       <button
                         className="btn btn-secondary control-btn"
@@ -662,6 +677,7 @@ export default function DashboardScreen({ channel }: Props) {
                       {state.state !== "background" && (
                         <div className="live-progress">
                           <span className="live-time">{formatTime(displayPosition)}</span>
+                          <div className="chapter-seek">
                           <input
                             type="range"
                             min={0}
@@ -676,8 +692,28 @@ export default function DashboardScreen({ channel }: Props) {
                             }}
                             className="seek-slider"
                           />
+                          <ChapterTicks chapters={kioskChapters} duration={duration} />
+                          </div>
                           <span className="live-time">{formatTime(duration)}</span>
                         </div>
+                      )}
+
+                      {state.state !== "background" && state.current_video && (
+                        <SubtitlePicker
+                          videoId={state.current_video.id}
+                          subtitle={state.subtitle}
+                          getApiUrl={getApiUrl}
+                          onChange={(subtitle) => sendCommand("set_subtitle", { subtitle })}
+                          className="subtitle-picker--inline"
+                        />
+                      )}
+                      {state.state !== "background" && (
+                        <ChapterList
+                          chapters={kioskChapters}
+                          position={displayPosition}
+                          onSeek={(seconds) => sendCommand("seek", { position_seconds: seconds })}
+                          className="chapter-list--inline"
+                        />
                       )}
 
                       <div className="live-controls">

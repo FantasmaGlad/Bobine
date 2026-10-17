@@ -19,6 +19,9 @@ import CourseRatingWidget from "@/components/CourseRatingWidget";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 import { formatCleanDescription } from "@/lib/formatDescription";
 import { subtitleSrc, useApplySubtitleMode, useVideoSubtitles } from "@/lib/subtitles";
+import { useVideoChapters } from "@/lib/chapters";
+import ChapterTicks from "@/components/ChapterTicks";
+import ChapterToast from "@/components/ChapterToast";
 
 // Boutons de cours focalisables par la télécommande, dans l'ordre de lecture
 // (héros, puis rangées par programme, puis grille complète).
@@ -330,6 +333,7 @@ export default function CinemaPage() {
   const [showSubtitleMenu, setShowSubtitleMenu] = useState<boolean>(false);
   const subtitles = useVideoSubtitles(selected?.id, getApiUrl);
   useApplySubtitleMode([deckARef, deckBRef], subtitles, activeSubtitleId);
+  const chapters = useVideoChapters(selected?.id, getApiUrl);
 
   useEffect(() => {
     setActiveSubtitleId("off");
@@ -1329,6 +1333,8 @@ export default function CinemaPage() {
           </div>
         )}
 
+        <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} />
+
         {!hideControls && (
         <div className={`cinema-controls ${isPlayingLayer && (controlsVisible || !isPlaying) ? "visible" : ""}`}>
           {/* Correctif "mention du cours en double" : le titre était déjà
@@ -1350,6 +1356,7 @@ export default function CinemaPage() {
               <Icon name={isPlaying ? "pause" : "play_arrow"} size={30} filled />
             </button>
             <span className="cinema-time">{formatTime(displayPosition)}</span>
+            <div className="chapter-seek">
             <input
               type="range"
               className="cinema-seek"
@@ -1374,6 +1381,8 @@ export default function CinemaPage() {
               }}
               style={{ accentColor: programAccent }}
             />
+            <ChapterTicks chapters={chapters} duration={duration} />
+            </div>
             <span className="cinema-time">{formatTime(duration)}</span>
 
             {/* Menu sélecteur de sous-titres Netflix style */}

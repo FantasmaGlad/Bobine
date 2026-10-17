@@ -722,6 +722,8 @@ async def _handle_command(
         await manager.set_volume(params.get("volume", 100), client_ts)
     elif command == "speed":
         await manager.set_speed(params.get("speed", 1.0), client_ts)
+    elif command == "set_subtitle":
+        await manager.set_subtitle(params.get("subtitle"), client_ts)
     elif command == "next_video":
         await manager.next_video(client_ts)
     elif command == "previous_video":

@@ -67,6 +67,8 @@ export interface PlaybackAudioTrack {
 export interface PlaybackState {
   state: PlaybackStateValue;
   current_video: PlaybackVideo | null;
+  /** Sous-titres choisis depuis l'admin : null = piste par défaut, "off" = aucune, sinon identifiant de piste. */
+  subtitle?: number | "off" | null;
   position_seconds: number;
   volume: number;
   speed: number;

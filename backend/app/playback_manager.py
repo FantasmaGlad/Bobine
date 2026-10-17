@@ -135,6 +135,10 @@ class PlaybackManager:
         self.state: dict[str, Any] = {
             "state": PlaybackStateEnum.waiting.value,
             "current_video": None,
+            # Sous-titres du cours en cours, choisis depuis l'admin : None = piste
+            # par défaut (première importée), "off" = aucun, sinon identifiant
+            # d'une piste. Remis à None à chaque nouveau cours.
+            "subtitle": None,
             "position_seconds": 0.0,
             "volume": settings.volume_default,
             "speed": 1.0,
@@ -362,6 +366,7 @@ class PlaybackManager:
             self.state["playlist_index"] = None
             self.state["playlist_waiting_remaining"] = None
 
+        self.state["subtitle"] = None
         self.state["current_video"] = {
             "id": video_id,
             "title": title,
@@ -691,6 +696,17 @@ class PlaybackManager:
     async def set_volume(self, volume: float, client_ts: float | None = None):
         self.state["volume"] = max(0, min(100, int(volume)))
         await self._emit("volume", client_ts)
+
+    async def set_subtitle(self, subtitle: int | str | None, client_ts: float | None = None):
+        """Choix des sous-titres affichés par les kiosques du canal."""
+        if subtitle in ("off", None):
+            self.state["subtitle"] = subtitle
+        else:
+            try:
+                self.state["subtitle"] = int(subtitle)
+            except (TypeError, ValueError):
+                return
+        await self._emit("subtitle", client_ts)
 
     async def set_speed(self, speed: float, client_ts: float | None = None):
         self.state["speed"] = max(0.25, min(2.0, float(speed)))

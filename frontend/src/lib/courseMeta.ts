@@ -30,3 +30,14 @@ export function formatClock(seconds: number | null | undefined): string {
   const s = total % 60;
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
 }
+
+/** Secondes depuis « 90 », « 1:30 » ou « 1:02:03 » ; null si illisible. */
+export function parseClock(text: string): number | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  if (/^\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
+  const match = /^(?:(\d+):)?(\d{1,3}):(\d{2})(?:[.,](\d{1,3}))?$/.exec(trimmed);
+  if (!match) return null;
+  const [, h, m, s, ms] = match;
+  return Number(h ?? 0) * 3600 + Number(m) * 60 + Number(s) + (ms ? Number(`0.${ms}`) : 0);
+}

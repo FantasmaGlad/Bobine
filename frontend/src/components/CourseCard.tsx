@@ -49,6 +49,7 @@ export default function CourseCard({
       className={`course-card course-card--${variant}${selected ? " is-selected" : ""}${onClick ? " olc-press" : ""} ${className}`.trim()}
     >
       <span className="course-card__thumb">
+        {/* eslint-disable-next-line @next/next/no-img-element -- miniature servie par l'API locale, export statique */}
         {thumb ? <img src={thumb} alt="" loading="lazy" /> : <Icon name="movie" size={variant === "hero" ? 40 : 24} style={{ opacity: 0.35 }} />}
         {course.duration_seconds ? <span className="course-card__duration">{formatClock(course.duration_seconds)}</span> : null}
       </span>

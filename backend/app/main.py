@@ -29,7 +29,7 @@ from app.radio_manager import get_radio_manager
 from app.routers import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,
     radio, radio_playlists, radio_announcements, settings as settings_router, logs, import_jobs,
-    updates, metrics, display, uploads,
+    updates, metrics, display, uploads, chapters,
 )
 from app.utils.android_runtime import is_android
 from app.utils.media_response import build_media_response
@@ -159,6 +159,7 @@ app.add_middleware(
 
 # Enregistrement des routeurs
 app.include_router(videos.router)
+app.include_router(chapters.router)
 app.include_router(playback.router)
 app.include_router(playlists.router)
 app.include_router(schedule.router)

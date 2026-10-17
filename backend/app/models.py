@@ -98,6 +98,9 @@ class Video(Base):
     ratings: Mapped[list["CourseRating"]] = relationship(back_populates="video", cascade="all, delete-orphan")
     playback_sessions: Mapped[list["PlaybackSession"]] = relationship(back_populates="video", cascade="all, delete-orphan")
     subtitles: Mapped[list["VideoSubtitle"]] = relationship(back_populates="video", cascade="all, delete-orphan")
+    chapters: Mapped[list["VideoChapter"]] = relationship(
+        back_populates="video", cascade="all, delete-orphan", order_by="VideoChapter.position"
+    )
 
 
 class VideoSubtitle(Base):
@@ -112,6 +115,19 @@ class VideoSubtitle(Base):
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     video: Mapped["Video"] = relationship(back_populates="subtitles")
+
+
+class VideoChapter(Base):
+    __tablename__ = "video_chapters"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int] = mapped_column(default=0)
+    start_seconds: Mapped[float]
+    end_seconds: Mapped[float | None]
+    title: Mapped[str] = mapped_column(Text)
+
+    video: Mapped["Video"] = relationship(back_populates="chapters")
 
 
 class Background(Base):
