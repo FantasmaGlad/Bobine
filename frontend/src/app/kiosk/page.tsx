@@ -12,6 +12,7 @@ import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 import { formatCleanDescription } from "@/lib/formatDescription";
+import { subtitleSrc, useApplySubtitleMode, useVideoSubtitles } from "@/lib/subtitles";
 
 function getApiUrl(path: string) {
   if (typeof window !== "undefined" && window.location.port === "3000") {
@@ -471,23 +472,8 @@ export default function KioskPage() {
   const { state, sendCommand, serverNow, isPrimary, displayOutputCable, displayOutputNetwork } = usePlaybackSocket(handleEvent, "kiosk", channel);
 
   // Sous-titres pour la vidéo en cours de lecture
-  const [subtitles, setSubtitles] = useState<Array<{ id: number; language_code: string; language_label: string; vtt_url: string }>>([]);
-
-  useEffect(() => {
-    const videoId = state.current_video?.id;
-    if (!videoId) {
-      setSubtitles([]);
-      return;
-    }
-    fetch(getApiUrl(`/videos/${videoId}/subtitles`))
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setSubtitles(data);
-        }
-      })
-      .catch(() => setSubtitles([]));
-  }, [state.current_video?.id]);
+  const subtitles = useVideoSubtitles(state.current_video?.id, getApiUrl);
+  useApplySubtitleMode([videoRef], subtitles, null);
   // Suit l'horloge de lecture serveur : démarrage simultané
   // des écrans et correction de dérive sans seek.
   useVideoClockFollower({
@@ -750,7 +736,8 @@ export default function KioskPage() {
             <track
               key={sub.id}
               kind="subtitles"
-              src={getApiUrl(sub.vtt_url)}
+              data-subtitle-id={sub.id}
+              src={subtitleSrc(getApiUrl, sub.vtt_url)}
               srcLang={sub.language_code}
               label={sub.language_label}
               default={i === 0}

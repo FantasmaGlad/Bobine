@@ -17,6 +17,7 @@ import {
   formatBitrate,
 } from "@/lib/videoBadges";
 import { formatCleanDescription } from "@/lib/formatDescription";
+import { subtitleSrc } from "@/lib/subtitles";
 
 interface VideoSubtitleItem {
   id: number;
@@ -1164,7 +1165,7 @@ export default function LibraryPage() {
                       <track
                         key={sub.id}
                         kind="subtitles"
-                        src={getApiUrl(sub.vtt_url)}
+                        src={subtitleSrc(getApiUrl, sub.vtt_url)}
                         srcLang={sub.language_code}
                         label={sub.language_label}
                         default={i === 0}

@@ -18,6 +18,7 @@ import MarqueeText from "@/components/MarqueeText";
 import CourseRatingWidget from "@/components/CourseRatingWidget";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 import { formatCleanDescription } from "@/lib/formatDescription";
+import { subtitleSrc, useApplySubtitleMode, useVideoSubtitles } from "@/lib/subtitles";
 
 // Boutons de cours focalisables par la télécommande, dans l'ordre de lecture
 // (héros, puis rangées par programme, puis grille complète).
@@ -325,45 +326,18 @@ export default function CinemaPage() {
   const [selected, setSelected] = useState<CinemaVideo | null>(null);
 
   // Sous-titres pour la lecture cinéma
-  const [subtitles, setSubtitles] = useState<Array<{ id: number; language_code: string; language_label: string; vtt_url: string }>>([]);
   const [activeSubtitleId, setActiveSubtitleId] = useState<number | "off">("off");
   const [showSubtitleMenu, setShowSubtitleMenu] = useState<boolean>(false);
+  const subtitles = useVideoSubtitles(selected?.id, getApiUrl);
+  useApplySubtitleMode([deckARef, deckBRef], subtitles, activeSubtitleId);
 
   useEffect(() => {
-    if (!selected) {
-      setSubtitles([]);
-      setActiveSubtitleId("off");
-      return;
-    }
-    fetch(getApiUrl(`/videos/${selected.id}/subtitles`))
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setSubtitles(data);
-        }
-      })
-      .catch(() => setSubtitles([]));
+    setActiveSubtitleId("off");
   }, [selected?.id]);
 
   const selectSubtitleTrack = useCallback((subId: number | "off") => {
     setActiveSubtitleId(subId);
-    [deckARef.current, deckBRef.current].forEach((deck) => {
-      if (!deck) return;
-      for (let i = 0; i < deck.textTracks.length; i++) {
-        const track = deck.textTracks[i];
-        if (subId === "off") {
-          track.mode = "disabled";
-        } else {
-          const found = subtitles.find((s) => s.id === subId);
-          if (found && (track.language === found.language_code || track.label === found.language_label)) {
-            track.mode = "showing";
-          } else {
-            track.mode = "disabled";
-          }
-        }
-      }
-    });
-  }, [subtitles]);
+  }, []);
 
   // Masquage des contrôles HDMI & mode passif :
   // En mode double écran ("dual_screen" sur sortie câblée physique), /grid
@@ -1197,7 +1171,8 @@ export default function CinemaPage() {
               <track
                 key={sub.id}
                 kind="subtitles"
-                src={getApiUrl(sub.vtt_url)}
+                data-subtitle-id={sub.id}
+                src={subtitleSrc(getApiUrl, sub.vtt_url)}
                 srcLang={sub.language_code}
                 label={sub.language_label}
               />
@@ -1243,7 +1218,8 @@ export default function CinemaPage() {
               <track
                 key={sub.id}
                 kind="subtitles"
-                src={getApiUrl(sub.vtt_url)}
+                data-subtitle-id={sub.id}
+                src={subtitleSrc(getApiUrl, sub.vtt_url)}
                 srcLang={sub.language_code}
                 label={sub.language_label}
               />
