@@ -86,10 +86,8 @@ _WRITABLE_STRING_FIELDS = {
     "auto_web_rendition",
 }
 _DEFAULTS = {
-    # "clair" : version claire du thème
-    # Les Mills par défaut — même accent rouge (#e4002b) que
-    # "les-mills-sombre", premier écran vu à l'installation.
-    "theme": "clair",
+    # "lavande" : thème clair par défaut (nacre irisée et améthyste profonde).
+    "theme": "lavande",
     "language": "fr",
     "active_logo": "default",
     # Canal de mise à jour : "stable"

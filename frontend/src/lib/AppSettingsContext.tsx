@@ -90,11 +90,8 @@ interface AppSettingsContextValue {
   network: NetworkInfo;
 }
 
-// "clair" : version claire du thème
-// Les Mills par défaut (même accent rouge #e4002b que "les-mills-sombre",
-// cf. THEME_SWATCHES dans app/settings/page.tsx) — premier écran vu à
-// l'installation avant tout réglage utilisateur.
-const DEFAULT_THEME: Theme = "clair";
+// "lavande" : thème clair par défaut (nacre irisée et améthyste profonde) — premier écran vu à l'installation avant tout réglage utilisateur.
+const DEFAULT_THEME: Theme = "lavande";
 const DEFAULT_LANGUAGE: Language = "fr";
 const DEFAULT_WIRED_DISPLAY_MODE: WiredDisplayMode = "headless";
 const DEFAULT_NETWORK: NetworkInfo = { localIp: null, port: 8000, mdnsUrl: "http://bobine.local" };

@@ -12,17 +12,6 @@
   <b>Ajout récent — Bobine soutient officiellement Firefox.</b><br>
   <sub>Interface d'administration et lecteurs tiers (<code>/radio</code>, <code>/kiosk</code>, <code>/cinema</code>) vérifiés de bout en bout sur Firefox 157 : envois reprenables, flux média conformes HTTP, version vidéo compatible en repli automatique et diagnostic navigateur intégré. Aussi : mises à jour Stable/Bêta fiabilisées, installateur plus fluide. <a href="#navigateurs-supportés">Navigateurs supportés</a></sub>
 </p>
-
-**L'alternative open source et auto-hébergée à Les Mills Cinema, Wexer et Screenly Anthias — régie vidéo professionnelle, affichage dynamique et diffusion de cours collectifs 100% hors-ligne pour salles de sport et studios de fitness.**
-
-Bobine transforme n'importe quelle tablette, PC de bureau, Mac ou mini PC dédié bon marché en une véritable régie audiovisuelle autonome :
-- **Diffusion Cinéma 4K 60 fps & Moteur Gapless A/B Deck** : Planifie et diffuse des cours de fitness sur grand écran avec un catalogue immersif façon plateforme de streaming, un écran de pause moderne type Netflix, un double décodeur vidéo fluide éliminant tout écran noir, et une accélération matérielle complète multi-OS (VA-API, VideoToolbox, MediaCodec, QuickSync).
-- **Double canal indépendant & Mode Pupitre Studio** : Pilote simultanément et sans interférence un écran câblé (TV/projecteur HDMI) et un écran réseau (navigateurs LAN/Wi-Fi), ou associe un pupitre tactile coach (`/grid`) à l'écran de projection (`/cinema`).
-- **Borne adhérents & Système de Notation 5 Étoiles** : Permet aux membres de lancer des cours à la demande depuis une borne interactive verrouillée, de noter leur séance (1 à 5 étoiles) sur le pupitre ou sur grand écran à la télécommande/manette, ou de piloter la musique depuis leur smartphone via un simple QR code.
-- **Tableau de Bord Métriques & Télémétrie Matérielle** : Suivi complet de l'assiduité des séances, taux de complétion, histogramme d'affluence horaire 24h et supervision matérielle en direct (puissance en Watts, températures, charge CPU/GPU et RAM avec marque, technologie et fréquence max, et modèles des composants).
-- **Mode Audio Coach & Radio 24/7** : Anime les séances rythmées sur des boucles visuelles cinématiques et assure une ambiance musicale ininterrompue.
-- **100% Souverain & Local-first** : Aucune dépendance au cloud, zéro abonnement, zéro télémétrie, aucune connexion internet requise après installation — conçu pour une stabilité industrielle 24/7 sans interruption.
-
 [Site officiel](https://bobine.fit) · [Recommandations matérielles](https://bobine.fit/fr/materiel) · [Documentation web](https://bobine.fit/fr/documentation) · [English](README.md) · [Documentation technique](docs/ARCHITECTURE.md) · [Dernière version](https://github.com/FantasmaGlad/Bobine/releases/latest) · [Release Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) · [Release Canary](https://github.com/FantasmaGlad/Bobine/releases/tag/canary)
 
 [![CI](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/FantasmaGlad/Bobine/actions/workflows/ci.yml)
@@ -82,6 +71,18 @@ Comment rejoindre un canal durablement, pour que les futures mises à jour conti
 - **Bobine Assistant (assistant d'installation à distance)** → choisir le canal à l'étape Options.
 
 Détails complets sur le fonctionnement de ces canaux (détection de mise à jour, downgrade, processus de publication) : [Architecture Technique § Canal de mise à jour](docs/ARCHITECTURE.md#7-script-dinstallation--services-systemd).
+
+---
+
+**L'alternative open source et auto-hébergée à Les Mills Cinema, Wexer et Screenly Anthias — régie vidéo professionnelle, affichage dynamique et diffusion de cours collectifs 100% hors-ligne pour salles de sport et studios de fitness.**
+
+Bobine transforme n'importe quelle tablette, PC de bureau, Mac ou mini PC dédié bon marché en une véritable régie audiovisuelle autonome :
+- **Diffusion Cinéma 4K 60 fps & Moteur Gapless A/B Deck** : Planifie et diffuse des cours de fitness sur grand écran avec un catalogue immersif façon plateforme de streaming, un écran de pause moderne type Netflix, un double décodeur vidéo fluide éliminant tout écran noir, et une accélération matérielle complète multi-OS (VA-API, VideoToolbox, MediaCodec, QuickSync).
+- **Double canal indépendant & Mode Pupitre Studio** : Pilote simultanément et sans interférence un écran câblé (TV/projecteur HDMI) et un écran réseau (navigateurs LAN/Wi-Fi), ou associe un pupitre tactile coach (`/grid`) à l'écran de projection (`/cinema`).
+- **Borne adhérents & Système de Notation 5 Étoiles** : Permet aux membres de lancer des cours à la demande depuis une borne interactive verrouillée, de noter leur séance (1 à 5 étoiles) sur le pupitre ou sur grand écran à la télécommande/manette, ou de piloter la musique depuis leur smartphone via un simple QR code.
+- **Tableau de Bord Métriques & Télémétrie Matérielle** : Suivi complet de l'assiduité des séances, taux de complétion, histogramme d'affluence horaire 24h et supervision matérielle en direct (puissance en Watts, températures, charge CPU/GPU et RAM avec marque, technologie et fréquence max, et modèles des composants).
+- **Mode Audio Coach & Radio 24/7** : Anime les séances rythmées sur des boucles visuelles cinématiques et assure une ambiance musicale ininterrompue.
+- **100% Souverain & Local-first** : Aucune dépendance au cloud, zéro abonnement, zéro télémétrie, aucune connexion internet requise après installation — conçu pour une stabilité industrielle 24/7 sans interruption.
 
 ---
 
