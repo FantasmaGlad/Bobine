@@ -2,28 +2,52 @@
 <component type="desktop-application">
   <id>com.bobine.app</id>
   <name>Bobine</name>
-  <summary>Système de diffusion vidéo et audio pour salles de sport et studios</summary>
+  <summary>Video and audio playout for gyms and fitness studios</summary>
+  <summary xml:lang="fr">Régie vidéo et audio pour salles de sport et studios</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>AGPL-3.0-or-later</project_license>
   <developer id="com.bobine">
     <name>FantasmaGlad</name>
   </developer>
+  <icon type="stock">com.bobine.app</icon>
+  <icon type="remote" width="256" height="256">https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/logo_bobine_icon.png</icon>
   <description>
     <p>
-      Bobine est une solution de diffusion multi-canal autonome conçue spécialement pour les salles de sport, studios de fitness, hôtels et cinémas privés.
-    </p>
-    <p>
-      Fonctionnalités principales :
+      Bobine plays planned classes on the studio screen, offers a self-service cinema kiosk and a background radio, and is driven from a phone or a browser on the local network. Everything runs on site: no subscription, no cloud.
     </p>
     <ul>
-      <li>Diffusion vidéo multi-canal : canal câblé (HDMI plein écran) et canal réseau indépendant.</li>
-      <li>Écran d'attente animé et mode kiosque sécurisé avec anti-veille automatique.</li>
-      <li>Mode Audio Coach avec minuteur, musiques d'entraînement et fonds visuels animés.</li>
-      <li>Canal Radio d'ambiance avec fondu sonore et rappels vocaux.</li>
-      <li>Télécommande mobile tactile et panneau d'administration moderne accessibles en réseau local.</li>
-      <li>Sauvegarde, restauration universelle et réinitialisation usine intégrées.</li>
+      <li>Wired HDMI output and an independent network screen, kept in sync.</li>
+      <li xml:lang="fr">Sortie HDMI câblée et écran réseau indépendant, synchronisés.</li>
+      <li>Class schedule (one-off and recurring), playlists, subtitles and chapters.</li>
+      <li xml:lang="fr">Planning de cours (ponctuels et récurrents), playlists, sous-titres et chapitres.</li>
+      <li>Coach mode with a timer, music tracks and animated backgrounds.</li>
+      <li xml:lang="fr">Mode coach avec minuteur, musiques d'entraînement et fonds animés.</li>
+      <li>Background radio with crossfade and voice announcements.</li>
+      <li xml:lang="fr">Radio d'ambiance avec fondu sonore et annonces vocales.</li>
+      <li>Mobile remote control and web administration on the local network.</li>
+      <li xml:lang="fr">Télécommande mobile et administration web sur le réseau local.</li>
+      <li>Backup, restore and factory reset built in.</li>
+      <li xml:lang="fr">Sauvegarde, restauration et remise à zéro intégrées.</li>
     </ul>
+    <p xml:lang="fr">
+      Bobine diffuse les cours planifiés sur l'écran du studio, propose une borne cinéma en libre-service et une radio d'ambiance, et se pilote depuis un téléphone ou un navigateur du réseau local. Tout fonctionne sur place : ni abonnement, ni cloud.
+    </p>
   </description>
+  <branding>
+    <color type="primary" scheme_preference="light">#d9d4f5</color>
+    <color type="primary" scheme_preference="dark">#3b2a73</color>
+  </branding>
+  <provides>
+    <binary>bobine</binary>
+  </provides>
+  <keywords>
+    <keyword>fitness</keyword>
+    <keyword>gym</keyword>
+    <keyword>video</keyword>
+    <keyword>playout</keyword>
+    <keyword>kiosk</keyword>
+    <keyword>radio</keyword>
+  </keywords>
   <launchable type="desktop-id">com.bobine.app.desktop</launchable>
   <url type="homepage">https://bobine.fit</url>
   <url type="vcs-browser">https://github.com/FantasmaGlad/Bobine</url>
@@ -35,6 +59,11 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="5.0.0" date="2026-10-17">
+      <description>
+        <p>Version 5.0.0 : Android TV, interface mobile repensée (feuilles de sélection, carte du cours en cours, aperçu avant lancement), sous-titres et chapitres, choix des sous-titres depuis l'administration, adresse du réseau local correcte derrière un VPN.</p>
+      </description>
+    </release>
     <release version="4.0.1" date="2026-10-13">
       <description>
         <p>Version 4.0.1 : horloge de lecture pilotee par le serveur etendue a la piste audio du mode coach, a la radio et aux cours /cinema lances par ordre ; fin de piste idempotente (plus de piste sautee avec plusieurs ecrans) ; reponses de la telecommande en quelques millisecondes.</p>

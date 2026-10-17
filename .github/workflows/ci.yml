@@ -757,6 +757,11 @@ jobs:
           DEB_FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
         run: |
           ./packaging/linux/build_deb.sh
+      - name: Valider les métadonnées d'application (AppStream, .desktop)
+        run: |
+          sudo apt-get install -y --no-install-recommends appstream desktop-file-utils
+          appstreamcli validate --pedantic --no-net packaging/linux/bobine.metainfo.xml
+          desktop-file-validate packaging/linux/bobine.desktop
       - name: Inspecter et valider la structure du paquet .deb
         run: |
           dpkg-deb -I dist-deb/*.deb

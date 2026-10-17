@@ -94,9 +94,17 @@ chmod 0755 "${STAGING_DIR}/usr/bin/bobine"
 cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/usr/share/applications/com.bobine.app.desktop"
 cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/etc/xdg/autostart/com.bobine.app.desktop"
 
-# Métadonnées AppStream (pour le Centre d'applications Ubuntu, GNOME Software, Discover)
-cp "${SCRIPT_DIR}/bobine.metainfo.xml" "${STAGING_DIR}/usr/share/metainfo/com.bobine.app.metainfo.xml"
-cp "${SCRIPT_DIR}/bobine.metainfo.xml" "${STAGING_DIR}/usr/share/appdata/com.bobine.app.appdata.xml"
+# Métadonnées AppStream (pour le Centre d'applications Ubuntu, GNOME Software, Discover).
+# Le journal des versions reçoit l'entrée de la version construite si elle n'y figure pas encore.
+APPSTREAM_TMP="$(mktemp)"
+cp "${SCRIPT_DIR}/bobine.metainfo.xml" "${APPSTREAM_TMP}"
+APPSTREAM_VERSION="${VERSION//\~/-}"
+if ! grep -q "<release version=\"${APPSTREAM_VERSION}\"" "${APPSTREAM_TMP}"; then
+    sed -i "s|<releases>|<releases>\n    <release version=\"${APPSTREAM_VERSION}\" date=\"$(date -u +%F)\"/>|" "${APPSTREAM_TMP}"
+fi
+cp "${APPSTREAM_TMP}" "${STAGING_DIR}/usr/share/metainfo/com.bobine.app.metainfo.xml"
+cp "${APPSTREAM_TMP}" "${STAGING_DIR}/usr/share/appdata/com.bobine.app.appdata.xml"
+rm -f "${APPSTREAM_TMP}"
 
 # Informations de Licence / Copyright Debian standard
 cp "${SCRIPT_DIR}/copyright" "${STAGING_DIR}/usr/share/doc/bobine/copyright"

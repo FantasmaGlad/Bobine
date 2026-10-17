@@ -4,31 +4,23 @@ Section: video
 Priority: optional
 Architecture: amd64
 Maintainer: FantasmaGlad <fantacasino3012@gmail.com>
-Installed-Size: 106012
 Depends: ffmpeg
 Recommends: avahi-daemon
 Homepage: https://bobine.fit
-Description: Video and audio playout system for gym studios
- Bobine is an autonomous multi-channel playout solution (wired HDMI video,
- network screen, background radio, mobile remote and web administration)
- designed for boutique gyms and fitness studios.
+Bugs: https://github.com/FantasmaGlad/Bobine/issues
+Vcs-Browser: https://github.com/FantasmaGlad/Bobine
+Description: Video and audio playout for gyms and fitness studios
+ Bobine plays planned classes on the studio screen, offers a self-service
+ cinema kiosk and background radio, and is driven from a phone or a browser
+ on the local network. Everything runs on site: no subscription, no cloud.
  .
- * **Editeur :** FantasmaGlad
+ Main features:
+  - wired HDMI output and an independent network screen, kept in sync;
+  - class schedule with one-off and recurring sessions, playlists, subtitles
+    and chapters;
+  - coach mode with a timer and animated backgrounds;
+  - background radio with crossfade and voice announcements;
+  - mobile remote control and web administration;
+  - backup, restore and factory reset.
  .
- * **Site web officiel :** https://bobine.fit
- .
- * **Code source & GitHub :** https://github.com/FantasmaGlad/Bobine
- .
- * **Licence :** GNU AGPL v3.0 (Affero General Public License)
- .
- * **Fonctionnalités clés :**
- .
-   - Diffusion multi-canal synchrone (Câblé HDMI et Réseau)
- .
-   - Mode Audio Coach avec minuteur et fonds visuels animés
- .
-   - Canal Radio d'ambiance avec fondu sonore et rappels vocaux
- .
-   - Kiosque automatique avec anti-veille native Screen Wake Lock
- .
-   - Sauvegarde & Restauration universelles (ZIP) et remise à zéro usine
+ Licence: GNU AGPL v3.0 or later. Source code: https://github.com/FantasmaGlad/Bobine
