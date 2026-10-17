@@ -18,6 +18,7 @@ import {
 } from "@/lib/videoBadges";
 import { formatCleanDescription } from "@/lib/formatDescription";
 import { subtitleSrc } from "@/lib/subtitles";
+import ResponsiveSelect from "@/components/ResponsiveSelect";
 
 interface VideoSubtitleItem {
   id: number;
@@ -910,16 +911,13 @@ export default function LibraryPage() {
           </button>
 
           <div className={`toolbar-secondary-filters ${mobileFiltersOpen ? "open" : ""}`}>
-            <select
-              className="filter-select"
+            <ResponsiveSelect
               value={programFilter}
-              onChange={(e) => setProgramFilter(e.target.value)}
-            >
-              <option value="">{t("library.allPrograms")}</option>
-              {availablePrograms.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
+              onChange={setProgramFilter}
+              placeholder={t("library.allPrograms")}
+              title={t("library.allPrograms")}
+              options={availablePrograms.map((p) => ({ value: p, label: p }))}
+            />
 
             <input
               type="text"
@@ -930,15 +928,16 @@ export default function LibraryPage() {
               onChange={(e) => setReleaseFilter(e.target.value)}
             />
 
-            <select
-              className="filter-select"
+            <ResponsiveSelect
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
-              <option value="imported_at">{t("library.sortImportDate")}</option>
-              <option value="title">{t("library.sortTitle")}</option>
-              <option value="duration">{t("library.sortDuration")}</option>
-            </select>
+              onChange={setSortBy}
+              title={t("library.sortImportDate")}
+              options={[
+                { value: "imported_at", label: t("library.sortImportDate") },
+                { value: "title", label: t("library.sortTitle") },
+                { value: "duration", label: t("library.sortDuration") },
+              ]}
+            />
           </div>
         </div>
 
@@ -1483,12 +1482,14 @@ export default function LibraryPage() {
             <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--text-main)" }}>
               {t("library.addToPlaylistTitle", { count: selectedIds.size })}
             </h3>
-            <select className="form-control" value={bulkTargetPlaylistId} onChange={(e) => setBulkTargetPlaylistId(e.target.value)}>
-              <option value="">{t("library.choosePlaylist")}</option>
-              {playlists.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+            <ResponsiveSelect
+              className="form-control"
+              value={bulkTargetPlaylistId}
+              onChange={setBulkTargetPlaylistId}
+              placeholder={t("library.choosePlaylist")}
+              title={t("library.choosePlaylist")}
+              options={playlists.map((p) => ({ value: String(p.id), label: p.name }))}
+            />
             {playlists.length === 0 && (
               <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>
                 {t("library.noPlaylistsHint")}

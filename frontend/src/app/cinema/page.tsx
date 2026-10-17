@@ -889,6 +889,7 @@ export default function CinemaPage() {
       if (el?.seeking) return;
       sendCommand("cinema_report", {
         title: selected?.title ?? null,
+        video_id: selected?.id ?? null,
         program: selected?.program ?? null,
         position_seconds: el?.currentTime ?? 0,
         duration_seconds: selected?.duration_seconds ?? el?.duration ?? 0,

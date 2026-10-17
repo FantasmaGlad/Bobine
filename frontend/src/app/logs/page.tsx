@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
+import ResponsiveSelect from "@/components/ResponsiveSelect";
 
 interface ActivityLogEntry {
   id: number;
@@ -144,14 +145,13 @@ export default function LogsPage() {
 
         {tab === "activity" ? (
           <div className="toolbar-filters" style={{ flexWrap: "wrap", gap: "8px" }}>
-            <select className="filter-select" value={filter} onChange={(e) => setFilter(e.target.value)}>
-              <option value="">{t("logs.allEventTypes")}</option>
-              {eventTypes.map((eventType) => (
-                <option key={eventType} value={eventType}>
-                  {EVENT_LABELS[eventType] || eventType}
-                </option>
-              ))}
-            </select>
+            <ResponsiveSelect
+              value={filter}
+              onChange={setFilter}
+              placeholder={t("logs.allEventTypes")}
+              title={t("logs.allEventTypes")}
+              options={eventTypes.map((eventType) => ({ value: eventType, label: EVENT_LABELS[eventType] || eventType }))}
+            />
             <button className="btn btn-secondary" onClick={fetchActivity}>
               {t("logs.refresh")}
             </button>

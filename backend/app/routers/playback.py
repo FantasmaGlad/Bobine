@@ -175,6 +175,7 @@ def _build_playlist_video_items(playlist) -> list[dict]:
             "title": item.video.title,
             "duration_seconds": item.video.duration_seconds,
             "program": item.video.program,
+            "release": item.video.release,
             "thumbnail_url": _thumbnail_filename(item.video.thumbnail_path),
             "description": item.video.description,
             "audio_channels": item.video.audio_channels,
@@ -278,7 +279,7 @@ async def resume_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session =
                 raise HTTPException(status_code=404, detail="La vidéo programmée n'existe plus dans la bibliothèque")
             await manager.load(
                 video.id, video.title, video.duration_seconds, video.program,
-                thumbnail_url=_thumbnail_filename(video.thumbnail_path),
+                release=video.release, thumbnail_url=_thumbnail_filename(video.thumbnail_path),
                 description=video.description, audio_channels=video.audio_channels,
                 audio_codec=video.audio_codec, fps=video.fps, bitrate_kbps=video.bitrate_kbps,
                 width=video.width, height=video.height,
@@ -293,7 +294,7 @@ async def resume_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session =
             items_data = [
                 {
                     "id": i.video.id, "title": i.video.title, "duration_seconds": i.video.duration_seconds,
-                    "program": i.video.program, "thumbnail_url": _thumbnail_filename(i.video.thumbnail_path),
+                    "program": i.video.program, "release": i.video.release, "thumbnail_url": _thumbnail_filename(i.video.thumbnail_path),
                     "description": i.video.description, "audio_channels": i.video.audio_channels,
                     "audio_codec": i.video.audio_codec, "fps": i.video.fps, "bitrate_kbps": i.video.bitrate_kbps,
                     "width": i.video.width, "height": i.video.height,
@@ -314,7 +315,7 @@ async def resume_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session =
 
     await manager.load(
         video.id, video.title, video.duration_seconds, video.program,
-        thumbnail_url=_thumbnail_filename(video.thumbnail_path),
+        release=video.release, thumbnail_url=_thumbnail_filename(video.thumbnail_path),
         description=video.description, audio_channels=video.audio_channels,
         audio_codec=video.audio_codec, fps=video.fps, bitrate_kbps=video.bitrate_kbps,
         width=video.width, height=video.height,
@@ -563,7 +564,7 @@ async def _handle_command(
             return
         await manager.load(
             video.id, video.title, video.duration_seconds, video.program, client_ts,
-            thumbnail_url=_thumbnail_filename(video.thumbnail_path),
+            release=video.release, thumbnail_url=_thumbnail_filename(video.thumbnail_path),
             description=video.description, audio_channels=video.audio_channels,
             audio_codec=video.audio_codec, fps=video.fps, bitrate_kbps=video.bitrate_kbps,
             width=video.width, height=video.height,

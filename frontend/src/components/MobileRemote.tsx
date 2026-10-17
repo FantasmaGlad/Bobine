@@ -6,12 +6,24 @@ import type { CinemaRemoteState, PlaybackState } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import DisplayOutputSwitch from "@/components/DisplayOutputSwitch";
 import Icon from "@/components/Icon";
+import CourseCard from "@/components/CourseCard";
+import Sheet from "@/components/Sheet";
+import { courseThumbSrc, formatClock } from "@/lib/courseMeta";
+import { formatCleanDescription } from "@/lib/formatDescription";
+import { getAudioQualityBadge, getResolutionBadge } from "@/lib/videoBadges";
 
 interface VideoSummary {
   id: number;
   title: string;
   program: string | null;
+  release?: string | null;
   duration_seconds: number | null;
+  thumbnail_path?: string | null;
+  description?: string | null;
+  width?: number | null;
+  height?: number | null;
+  audio_channels?: number | null;
+  audio_codec?: string | null;
 }
 
 interface PlaylistSummary {
@@ -23,6 +35,7 @@ interface PlaylistSummary {
 interface BackgroundSummary {
   id: number;
   title: string;
+  thumbnail_path?: string | null;
 }
 
 interface MobileRemoteProps {
@@ -78,6 +91,8 @@ export default function MobileRemote({
   const { t } = useAppSettings();
   const [sheet, setSheet] = useState<"none" | "launch">("none");
   const [launchSearch, setLaunchSearch] = useState("");
+  const [launchTab, setLaunchTab] = useState<"videos" | "playlists" | "backgrounds">("videos");
+  const [previewVideoId, setPreviewVideoId] = useState<number | null>(null);
   const [holdingStop, setHoldingStop] = useState(false);
   const [seekDragValue, setSeekDragValue] = useState<number | null>(null);
   const [cinemaSeekDrag, setCinemaSeekDrag] = useState<number | null>(null);
@@ -131,7 +146,16 @@ export default function MobileRemote({
     }
   };
 
-  const filteredVideos = videos.filter((v) => v.title.toLowerCase().includes(launchSearch.toLowerCase()));
+  const closeLaunchSheet = () => {
+    setSheet("none");
+    setPreviewVideoId(null);
+    setLaunchSearch("");
+  };
+  const previewVideo = previewVideoId !== null ? videos.find((v) => v.id === previewVideoId) ?? null : null;
+  const releaseLabel = (release: string) => t("mobileRemote.releaseShort", { release });
+  const cinemaVideo = cinemaLive?.video_id ? videos.find((v) => v.id === cinemaLive.video_id) ?? null : null;
+
+  const filteredVideos = videos.filter((v) => `${v.title} ${v.program ?? ""}`.toLowerCase().includes(launchSearch.toLowerCase()));
   const filteredPlaylists = playlists.filter((p) => p.name.toLowerCase().includes(launchSearch.toLowerCase()));
   const filteredBackgrounds = backgrounds.filter((b) => b.title.toLowerCase().includes(launchSearch.toLowerCase()));
 
@@ -168,31 +192,47 @@ export default function MobileRemote({
         cinemaLive ? (
           // Structure en COLONNE, chaque bloc frère du suivant. Même squelette que la vue kiosk ci-dessous.
           <>
-            <div className="mobile-remote-now olc-anim-in">
-              <span className="mobile-remote-title">{cinemaLive.title}</span>
-            </div>
-
-            <div className="mobile-remote-progress">
-              <input
-                type="range"
-                min={0}
-                max={cinemaLive.duration_seconds || 0}
-                step={1}
-                value={cinemaSeekDrag ?? cinemaLive.position_seconds}
-                onChange={(e) => setCinemaSeekDrag(Number(e.target.value))}
-                onMouseUp={(e) => {
-                  sendCommand("cinema_command", { action: "seek", position_seconds: Number((e.target as HTMLInputElement).value) });
-                  setCinemaSeekDrag(null);
+            <div className="now-card olc-anim-in">
+              <div className="now-card__label">
+                <span className="is-live" />
+                {t("mobileRemote.nowPlayingCinema")}
+              </div>
+              <CourseCard
+                variant="hero"
+                getApiUrl={getApiUrl}
+                releaseLabel={releaseLabel}
+                fallbackProgram={t("mobileRemote.otherProgram")}
+                course={{
+                  id: cinemaVideo?.id ?? cinemaLive.video_id ?? 0,
+                  title: cinemaLive.title ?? cinemaVideo?.title ?? "",
+                  program: cinemaVideo?.program ?? cinemaLive.program,
+                  release: cinemaVideo?.release,
+                  duration_seconds: cinemaLive.duration_seconds || cinemaVideo?.duration_seconds,
+                  thumbnail_path: cinemaVideo?.thumbnail_path,
                 }}
-                onTouchEnd={(e) => {
-                  sendCommand("cinema_command", { action: "seek", position_seconds: Number((e.target as HTMLInputElement).value) });
-                  setCinemaSeekDrag(null);
-                }}
-                className="seek-slider mobile-remote-seek"
               />
-              <div className="mobile-remote-time-row">
-                <span>{formatTime(cinemaSeekDrag ?? cinemaLive.position_seconds)}</span>
-                <span>{formatTime(cinemaLive.duration_seconds)}</span>
+              <div className="mobile-remote-progress">
+                <input
+                  type="range"
+                  min={0}
+                  max={cinemaLive.duration_seconds || 0}
+                  step={1}
+                  value={cinemaSeekDrag ?? cinemaLive.position_seconds}
+                  onChange={(e) => setCinemaSeekDrag(Number(e.target.value))}
+                  onMouseUp={(e) => {
+                    sendCommand("cinema_command", { action: "seek", position_seconds: Number((e.target as HTMLInputElement).value) });
+                    setCinemaSeekDrag(null);
+                  }}
+                  onTouchEnd={(e) => {
+                    sendCommand("cinema_command", { action: "seek", position_seconds: Number((e.target as HTMLInputElement).value) });
+                    setCinemaSeekDrag(null);
+                  }}
+                  className="seek-slider mobile-remote-seek"
+                />
+                <div className="now-card__times">
+                  <span>{formatTime(cinemaSeekDrag ?? cinemaLive.position_seconds)}</span>
+                  <span>{formatTime(cinemaLive.duration_seconds)}</span>
+                </div>
               </div>
             </div>
 
@@ -230,52 +270,53 @@ export default function MobileRemote({
         </div>
       ) : (
         <>
-          {state.playlist_name && (
-            <div className="mobile-remote-playlist-badge olc-anim-in">
-              <span className="mobile-remote-playlist-name">{state.playlist_name}</span>
-              {nextPlaylistItem && state.state !== "playlist_waiting" && (
-                <span className="mobile-remote-playlist-next">
-                  {t("kiosk.nextCourseLabel")} {nextPlaylistItem.title}
-                </span>
-              )}
+          <div className="now-card olc-anim-in">
+            <div className="now-card__label">
+              <span className="is-live" />
+              {state.playlist_name ? state.playlist_name : t("mobileRemote.nowPlaying")}
             </div>
-          )}
-          <div className="mobile-remote-now olc-anim-in">
-            {state.current_video?.thumbnail_url && (
-              <img
-                src={getApiUrl(`/thumbnails/${state.current_video.thumbnail_url}`)}
-                alt=""
-                className="mobile-remote-thumb"
+            {state.current_video ? (
+              <CourseCard
+                variant="hero"
+                getApiUrl={getApiUrl}
+                releaseLabel={releaseLabel}
+                fallbackProgram={t("mobileRemote.otherProgram")}
+                course={state.current_video}
               />
+            ) : (
+              <div className="mobile-remote-now">
+                <span className="mobile-remote-title">{state.current_background?.title ?? ""}</span>
+              </div>
             )}
-            <span className="mobile-remote-title">
-              {state.current_video?.title || (state.state === "background" ? state.current_background?.title : "")}
-            </span>
-          </div>
-
-          <div className="mobile-remote-progress">
-            <input
-              type="range"
-              min={0}
-              max={duration || 0}
-              step={1}
-              value={displayPosition}
-              disabled={state.state === "background"}
-              onChange={(e) => setSeekDragValue(Number(e.target.value))}
-              onMouseUp={(e) => {
-                sendCommand("seek", { position_seconds: Number((e.target as HTMLInputElement).value) });
-                setSeekDragValue(null);
-              }}
-              onTouchEnd={(e) => {
-                sendCommand("seek", { position_seconds: Number((e.target as HTMLInputElement).value) });
-                setSeekDragValue(null);
-              }}
-              className="seek-slider mobile-remote-seek"
-            />
-            <div className="mobile-remote-time-row">
-              <span>{formatTime(displayPosition)}</span>
-              <span>{formatTime(duration)}</span>
+            <div className="mobile-remote-progress">
+              <input
+                type="range"
+                min={0}
+                max={duration || 0}
+                step={1}
+                value={displayPosition}
+                disabled={state.state === "background"}
+                onChange={(e) => setSeekDragValue(Number(e.target.value))}
+                onMouseUp={(e) => {
+                  sendCommand("seek", { position_seconds: Number((e.target as HTMLInputElement).value) });
+                  setSeekDragValue(null);
+                }}
+                onTouchEnd={(e) => {
+                  sendCommand("seek", { position_seconds: Number((e.target as HTMLInputElement).value) });
+                  setSeekDragValue(null);
+                }}
+                className="seek-slider mobile-remote-seek"
+              />
+              <div className="now-card__times">
+                <span>{formatTime(displayPosition)}</span>
+                <span>{formatTime(duration)}</span>
+              </div>
             </div>
+            {nextPlaylistItem && state.state !== "playlist_waiting" && (
+              <div className="now-card__next">
+                {t("kiosk.nextCourseLabel")} {nextPlaylistItem.title}
+              </div>
+            )}
           </div>
         </>
       )}
@@ -373,52 +414,138 @@ export default function MobileRemote({
         </>
       )}
 
-      {sheet !== "none" && (
-        <div className="coach-sheet-overlay" onClick={() => setSheet("none")}>
-          <div className="coach-sheet glass-floating" onClick={(e) => e.stopPropagation()}>
-            <div className="coach-sheet-handle" />
-            {(
-              <>
-                <h3 style={{ margin: "0 0 12px" }}>{t("mobileRemote.launchTitle")}</h3>
-                <input
-                  type="text"
-                  className="search-input"
-                  style={{ width: "100%", marginBottom: "12px" }}
-                  placeholder={t("mobileRemote.searchPlaceholder")}
-                  value={launchSearch}
-                  onChange={(e) => setLaunchSearch(e.target.value)}
-                />
-                <div className="coach-sheet-list">
-                  {filteredPlaylists.map((p) => (
-                    <button key={`pl-${p.id}`} className="coach-sheet-track olc-press" onClick={() => { sendCommand("load_playlist", { playlist_id: p.id }); setSheet("none"); }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: "8px" }}><Icon name="playlist_play" size={18} />{p.name}</span>
-                      <span style={{ color: "var(--text-muted)" }}>{t("mobileRemote.coursesCount", { count: p.item_count })}</span>
-                    </button>
-                  ))}
-                  {filteredBackgrounds.map((b) => (
-                    <button key={`bg-${b.id}`} className="coach-sheet-track olc-press" onClick={() => { sendCommand("load_background", { background_id: b.id }); setSheet("none"); }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: "8px" }}><Icon name="gradient" size={18} />{b.title}</span>
-                      <span style={{ color: "var(--text-muted)" }}>{t("mobileRemote.backgroundLabel")}</span>
-                    </button>
-                  ))}
-                  {filteredVideos.map((v) => (
-                    <button key={`v-${v.id}`} className="coach-sheet-track olc-press" onClick={() => { sendCommand("load", { video_id: v.id }); setSheet("none"); }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: "8px" }}><Icon name="movie" size={18} />{v.title}</span>
-                      <span style={{ color: "var(--text-muted)" }}>{v.program || t("mobileRemote.otherProgram")}</span>
-                    </button>
-                  ))}
-                  {filteredVideos.length === 0 && filteredPlaylists.length === 0 && filteredBackgrounds.length === 0 && (
-                    <p className="live-empty">{t("mobileRemote.noResults")}</p>
-                  )}
-                </div>
-                <button className="btn btn-secondary" style={{ height: "48px", marginTop: "12px" }} onClick={() => setSheet("none")}>
-                  {t("mobileRemote.close")}
-                </button>
-              </>
-            )}
+      <Sheet
+        open={sheet !== "none"}
+        onClose={closeLaunchSheet}
+        tall
+        closeLabel={t("mobileRemote.close")}
+        title={previewVideo ? t("mobileRemote.preview") : t("mobileRemote.launchTitle")}
+        header={
+          previewVideo ? undefined : (
+            <>
+              <input
+                type="search"
+                className="search-input sheet-search"
+                placeholder={t("mobileRemote.searchPlaceholder")}
+                value={launchSearch}
+                onChange={(e) => setLaunchSearch(e.target.value)}
+                autoComplete="off"
+                enterKeyHint="search"
+              />
+              <div className="view-toggle launch-tabs" style={{ marginTop: 10 }}>
+                {(
+                  [
+                    ["videos", t("mobileRemote.tabCourses"), filteredVideos.length],
+                    ["playlists", t("mobileRemote.tabPlaylists"), filteredPlaylists.length],
+                    ["backgrounds", t("mobileRemote.tabBackgrounds"), filteredBackgrounds.length],
+                  ] as const
+                ).map(([key, label, count]) => (
+                  <button key={key} type="button" className={`view-btn olc-press ${launchTab === key ? "active" : ""}`} onClick={() => setLaunchTab(key)}>
+                    {label} <span style={{ opacity: 0.6 }}>{count}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )
+        }
+        footer={
+          previewVideo ? (
+            <>
+              <button type="button" className="btn btn-secondary" onClick={() => setPreviewVideoId(null)}>
+                {t("mobileRemote.back")}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  sendCommand("load", { video_id: previewVideo.id });
+                  closeLaunchSheet();
+                }}
+              >
+                <Icon name="play_arrow" size={20} filled />
+                {t("mobileRemote.launchNow")}
+              </button>
+            </>
+          ) : undefined
+        }
+      >
+        {previewVideo ? (
+          <div className="launch-preview">
+            <CourseCard
+              variant="hero"
+              getApiUrl={getApiUrl}
+              releaseLabel={releaseLabel}
+              fallbackProgram={t("mobileRemote.otherProgram")}
+              course={previewVideo}
+            />
+            <div className="launch-preview__specs">
+              {getResolutionBadge(previewVideo.width, previewVideo.height) && <span>{getResolutionBadge(previewVideo.width, previewVideo.height)}</span>}
+              {getAudioQualityBadge(previewVideo.audio_channels, previewVideo.audio_codec, null) && (
+                <span>{getAudioQualityBadge(previewVideo.audio_channels, previewVideo.audio_codec, null)}</span>
+              )}
+              {previewVideo.duration_seconds ? <span>{formatClock(previewVideo.duration_seconds)}</span> : null}
+            </div>
+            {previewVideo.description ? <p className="launch-preview__description">{formatCleanDescription(previewVideo.description)}</p> : null}
           </div>
-        </div>
-      )}
+        ) : (
+          <>
+            {launchTab === "videos" &&
+              filteredVideos.map((v) => (
+                <CourseCard
+                  key={`v-${v.id}`}
+                  getApiUrl={getApiUrl}
+                  releaseLabel={releaseLabel}
+                  fallbackProgram={t("mobileRemote.otherProgram")}
+                  course={v}
+                  onClick={() => setPreviewVideoId(v.id)}
+                  trailing={<Icon name="chevron_right" size={20} style={{ alignSelf: "center", color: "var(--text-muted)" }} />}
+                />
+              ))}
+            {launchTab === "playlists" &&
+              filteredPlaylists.map((p) => (
+                <button
+                  key={`pl-${p.id}`}
+                  type="button"
+                  className="sheet-option olc-press"
+                  onClick={() => {
+                    sendCommand("load_playlist", { playlist_id: p.id });
+                    closeLaunchSheet();
+                  }}
+                >
+                  <Icon name="playlist_play" size={22} />
+                  <span className="sheet-option__text">
+                    <span className="sheet-option__label">{p.name}</span>
+                    <span className="sheet-option__sub">{t("mobileRemote.coursesCount", { count: p.item_count })}</span>
+                  </span>
+                </button>
+              ))}
+            {launchTab === "backgrounds" &&
+              filteredBackgrounds.map((b) => {
+                const thumb = courseThumbSrc(getApiUrl, { thumbnail_path: b.thumbnail_path });
+                return (
+                  <button
+                    key={`bg-${b.id}`}
+                    type="button"
+                    className="sheet-option olc-press"
+                    onClick={() => {
+                      sendCommand("load_background", { background_id: b.id });
+                      closeLaunchSheet();
+                    }}
+                  >
+                    {thumb ? <img className="sheet-option__thumb" src={thumb} alt="" loading="lazy" /> : <Icon name="gradient" size={22} />}
+                    <span className="sheet-option__text">
+                      <span className="sheet-option__label">{b.title}</span>
+                      <span className="sheet-option__sub">{t("mobileRemote.backgroundLabel")}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            {((launchTab === "videos" && filteredVideos.length === 0) ||
+              (launchTab === "playlists" && filteredPlaylists.length === 0) ||
+              (launchTab === "backgrounds" && filteredBackgrounds.length === 0)) && <p className="live-empty">{t("mobileRemote.noResults")}</p>}
+          </>
+        )}
+      </Sheet>
     </div>
   );
 }

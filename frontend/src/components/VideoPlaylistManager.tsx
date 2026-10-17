@@ -5,6 +5,7 @@ import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useIsMobile } from "@/lib/useIsMobile";
 import Icon from "@/components/Icon";
+import ResponsiveSelect from "@/components/ResponsiveSelect";
 
 interface Video {
   id: number;
@@ -732,17 +733,14 @@ export default function VideoPlaylistManager() {
                     value={videoSearch}
                     onChange={(e) => setVideoSearch(e.target.value)}
                   />
-                  <select
-                    className="filter-select"
-                    style={{ height: "32px", fontSize: "0.8rem", padding: "0 8px" }}
+                  <ResponsiveSelect
+                    style={{ minHeight: "32px", fontSize: "0.8rem", padding: "0 8px" }}
                     value={videoProgramFilter}
-                    onChange={(e) => setVideoProgramFilter(e.target.value)}
-                  >
-                    <option value="">{t("playlists.allProgramsShort")}</option>
-                    {availablePrograms.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
+                    onChange={setVideoProgramFilter}
+                    placeholder={t("playlists.allProgramsShort")}
+                    title={t("playlists.allProgramsShort")}
+                    options={availablePrograms.map((p) => ({ value: p, label: p }))}
+                  />
                 </div>
 
                 <div className="library-picker-list">

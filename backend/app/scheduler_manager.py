@@ -500,7 +500,7 @@ async def _launch_target(
             return
         thumb = video.thumbnail_path.split("/")[-1] if video.thumbnail_path else None
         await manager.load(
-            video.id, video.title, video.duration_seconds, video.program, thumbnail_url=thumb,
+            video.id, video.title, video.duration_seconds, video.program, thumbnail_url=thumb, release=video.release,
             description=video.description, audio_channels=video.audio_channels, audio_codec=video.audio_codec,
             fps=video.fps, bitrate_kbps=video.bitrate_kbps, width=video.width, height=video.height,
             launch_type="schedule", scheduled=True,
@@ -517,6 +517,7 @@ async def _launch_target(
                 "title": item.video.title,
                 "duration_seconds": item.video.duration_seconds,
                 "program": item.video.program,
+                "release": item.video.release,
                 "thumbnail_url": item.video.thumbnail_path.split("/")[-1] if item.video.thumbnail_path else None,
                 "description": item.video.description,
                 "audio_channels": item.video.audio_channels,

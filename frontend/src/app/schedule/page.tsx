@@ -5,6 +5,7 @@ import { useIsMobile } from "@/lib/useIsMobile";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
 import Icon from "@/components/Icon";
+import ResponsiveSelect from "@/components/ResponsiveSelect";
 
 type TargetType = "video" | "playlist" | "radio_playlist";
 type ScheduleTypeValue = "once" | "recurring";
@@ -728,40 +729,21 @@ export default function SchedulePage() {
           <>
             {replacingKey === key ? (
               <>
-                <select
-                  className="filter-select"
+                <ResponsiveSelect
                   value={replaceValue}
-                  onChange={(e) => setReplaceValue(e.target.value)}
-                  style={{ width: "100%", height: "26px", fontSize: "0.7rem" }}
-                >
-                  <option value="">{t("schedule.replaceWith")}</option>
-                  {o.target_type === "radio_playlist" ? (
-                    <optgroup label={t("schedule.radioPlaylistsGroup")}>
-                      {radioPlaylists.map((p) => (
-                        <option key={`rp-${p.id}`} value={`radio_playlist:${p.id}`}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ) : (
-                    <>
-                      <optgroup label={t("schedule.videosGroup")}>
-                        {videos.map((v) => (
-                          <option key={`v-${v.id}`} value={`video:${v.id}`}>
-                            {v.title}
-                          </option>
-                        ))}
-                      </optgroup>
-                      <optgroup label={t("schedule.playlistsGroup")}>
-                        {playlists.map((p) => (
-                          <option key={`p-${p.id}`} value={`playlist:${p.id}`}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    </>
-                  )}
-                </select>
+                  onChange={setReplaceValue}
+                  placeholder={t("schedule.replaceWith")}
+                  title={t("schedule.replaceWith")}
+                  style={{ width: "100%", minHeight: "26px", fontSize: "0.7rem" }}
+                  options={
+                    o.target_type === "radio_playlist"
+                      ? radioPlaylists.map((p) => ({ value: `radio_playlist:${p.id}`, label: p.name, group: t("schedule.radioPlaylistsGroup") }))
+                      : [
+                          ...videos.map((v) => ({ value: `video:${v.id}`, label: v.title, group: t("schedule.videosGroup") })),
+                          ...playlists.map((p) => ({ value: `playlist:${p.id}`, label: p.name, group: t("schedule.playlistsGroup") })),
+                        ]
+                  }
+                />
                 <button type="button" className="btn btn-primary" onClick={() => handleConfirmReplace(o)}>
                   {t("schedule.confirmReplace")}
                 </button>

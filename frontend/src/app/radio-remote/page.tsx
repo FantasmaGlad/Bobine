@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
 import { RadioEvent, RadioRepeatMode, useRadioSocket } from "@/lib/useRadioSocket";
+import ResponsiveSelect from "@/components/ResponsiveSelect";
 import Icon from "@/components/Icon";
 
 // Télécommande admin du canal radio : pilote le RadioPlaybackManager à distance (mobile + PC). Le
@@ -294,14 +295,18 @@ export default function RadioRemotePage() {
           <div className="launch-block">
             <h3>{t("radioRemote.loadPlaylistTitle")}</h3>
             <div className="launch-row">
-              <select className="filter-select" style={{ flex: 1 }} value={selectedPlaylistId} onChange={(e) => setSelectedPlaylistId(e.target.value)}>
-                <option value="">{t("radioRemote.choosePlaylist")}</option>
-                {playlists.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.item_count} — {formatDuration(p.total_duration_seconds)})
-                  </option>
-                ))}
-              </select>
+              <ResponsiveSelect
+                style={{ flex: 1, minWidth: 0 }}
+                value={selectedPlaylistId}
+                onChange={setSelectedPlaylistId}
+                placeholder={t("radioRemote.choosePlaylist")}
+                title={t("radioRemote.loadPlaylistTitle")}
+                options={playlists.map((p) => ({
+                  value: String(p.id),
+                  label: p.name,
+                  sublabel: `${p.item_count} — ${formatDuration(p.total_duration_seconds)}`,
+                }))}
+              />
               <button className="btn btn-primary" onClick={handleLaunch} disabled={!selectedPlaylistId}>
                 <Icon name="play_arrow" size={16} filled />
                 {t("radioRemote.launch")}

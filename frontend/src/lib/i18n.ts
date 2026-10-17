@@ -885,6 +885,15 @@ export const dictionaries: Record<Language, Dict> = {
       backgroundLabel: "Fond animé",
       otherProgram: "Autre",
       noResults: "Aucun résultat.",
+      nowPlaying: "En cours",
+      nowPlayingCinema: "En cours — mode cinéma",
+      tabCourses: "Cours",
+      tabPlaylists: "Playlists",
+      tabBackgrounds: "Fonds",
+      launchNow: "Lancer",
+      preview: "Aperçu",
+      back: "Retour",
+      releaseShort: "Rel. {{release}}",
     },
     logs: {
       eventLabels: {
@@ -2163,6 +2172,15 @@ export const dictionaries: Record<Language, Dict> = {
       backgroundLabel: "Background",
       otherProgram: "Other",
       noResults: "No results.",
+      nowPlaying: "Now playing",
+      nowPlayingCinema: "Now playing — cinema mode",
+      tabCourses: "Courses",
+      tabPlaylists: "Playlists",
+      tabBackgrounds: "Backgrounds",
+      launchNow: "Launch",
+      preview: "Preview",
+      back: "Back",
+      releaseShort: "Rel. {{release}}",
     },
     logs: {
       eventLabels: {

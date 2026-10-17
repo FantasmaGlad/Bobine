@@ -5,6 +5,7 @@ import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useIsMobile } from "@/lib/useIsMobile";
 import Icon from "@/components/Icon";
+import ResponsiveSelect from "@/components/ResponsiveSelect";
 
 interface AudioTrackSummary {
   id: number;
@@ -730,19 +731,16 @@ export default function AudioPlaylistManager() {
                                 {item.track.course_title} · {formatTrackDuration(item.track.duration_seconds)}
                               </span>
                             </div>
-                            <select
-                              className="filter-select"
-                              value={item.backgroundId ?? ""}
-                              onChange={(e) => handleSetTrackBackground(index, e.target.value ? Number(e.target.value) : null)}
-                              onClick={(e) => e.stopPropagation()}
-                              title={t("audioPlaylists.trackBackgroundLabel")}
-                              style={{ height: "22px", fontSize: "0.68rem", padding: "0 4px", marginTop: "3px", maxWidth: "180px" }}
-                            >
-                              <option value="">{t("audioPlaylists.trackBackgroundNone")}</option>
-                              {backgrounds.map((bg) => (
-                                <option key={bg.id} value={bg.id}>{bg.title}</option>
-                              ))}
-                            </select>
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <ResponsiveSelect
+                                value={item.backgroundId != null ? String(item.backgroundId) : ""}
+                                onChange={(value) => handleSetTrackBackground(index, value ? Number(value) : null)}
+                                placeholder={t("audioPlaylists.trackBackgroundNone")}
+                                title={t("audioPlaylists.trackBackgroundLabel")}
+                                style={{ minHeight: "22px", fontSize: "0.68rem", padding: "0 4px", marginTop: "3px", maxWidth: "180px" }}
+                                options={backgrounds.map((bg) => ({ value: String(bg.id), label: bg.title }))}
+                              />
+                            </div>
                           </div>
                           <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
                             <button
@@ -799,17 +797,14 @@ export default function AudioPlaylistManager() {
                     value={trackSearch}
                     onChange={(e) => setTrackSearch(e.target.value)}
                   />
-                  <select
-                    className="filter-select"
-                    style={{ height: "32px", fontSize: "0.8rem", padding: "0 8px" }}
+                  <ResponsiveSelect
+                    style={{ minHeight: "32px", fontSize: "0.8rem", padding: "0 8px" }}
                     value={trackProgramFilter}
-                    onChange={(e) => setTrackProgramFilter(e.target.value)}
-                  >
-                    <option value="">{t("audioPlaylists.allProgramsShort")}</option>
-                    {availablePrograms.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
+                    onChange={setTrackProgramFilter}
+                    placeholder={t("audioPlaylists.allProgramsShort")}
+                    title={t("audioPlaylists.allProgramsShort")}
+                    options={availablePrograms.map((p) => ({ value: p, label: p }))}
+                  />
                 </div>
 
                 <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px", paddingRight: "2px" }}>

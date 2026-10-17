@@ -451,3 +451,397 @@ details.settings-doc-group[open] > summary.settings-doc-header::after {
 .settings-host-row .settings-path-link {
   text-align: left;
 }
+
+/* ------------------------------------------------------------------ */
+/* Feuille (Sheet) : bas d'écran sur téléphone, fenêtre au-delà          */
+/* ------------------------------------------------------------------ */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg-main) 55%, rgba(0, 0, 0, 0.45));
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: fadeIn 0.18s ease-out;
+}
+.sheet-panel {
+  width: 100%;
+  max-width: 640px;
+  max-height: min(88dvh, 760px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-bottom: 0;
+  border-radius: var(--sheet-radius) var(--sheet-radius) 0 0;
+  padding: 8px 16px 0;
+  outline: none;
+  animation: olcSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sheet-panel--tall {
+  height: min(88dvh, 760px);
+}
+.sheet-handle {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-color);
+  margin: 4px 0 6px;
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--tap-min);
+}
+.sheet-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sheet-close {
+  flex-shrink: 0;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.sheet-sticky {
+  padding: 4px 0 10px;
+}
+.sheet-search {
+  width: 100%;
+  min-height: var(--tap-min);
+}
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 12px;
+}
+.sheet-footer {
+  display: flex;
+  gap: 10px;
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-surface);
+}
+.sheet-footer .btn {
+  flex: 1;
+  min-height: 52px;
+}
+.sheet-panel:not(:has(.sheet-footer)) .sheet-body {
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+@media (min-width: 700px) {
+  .sheet-overlay {
+    align-items: center;
+  }
+  .sheet-panel {
+    border-bottom: 1px solid var(--border-color);
+    border-radius: var(--sheet-radius);
+  }
+}
+
+.sheet-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sheet-group__title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 4px 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+  background: var(--bg-surface);
+}
+.sheet-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 8px 12px;
+  text-align: left;
+  color: var(--text-main);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font: inherit;
+}
+.sheet-option.is-selected {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 9%, var(--bg-surface-elevated));
+  color: var(--accent-primary);
+}
+.sheet-option__thumb {
+  width: 84px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: #000;
+  flex-shrink: 0;
+}
+.sheet-option__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sheet-option__label {
+  font-weight: 700;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+.sheet-option__label.is-placeholder {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.sheet-option__sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.sheet-option__meta {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* Déclencheur d'une liste déroulante en feuille */
+.select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: var(--tap-min);
+  text-align: left;
+  cursor: pointer;
+}
+.select-trigger__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.select-trigger__label.is-placeholder {
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ */
+/* Carte de cours : liste, aperçu, carte « en cours »                    */
+/* ------------------------------------------------------------------ */
+.course-card {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+  text-align: left;
+  color: var(--text-main);
+  font: inherit;
+}
+button.course-card {
+  cursor: pointer;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 8px;
+}
+button.course-card.is-selected {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 9%, var(--bg-surface-elevated));
+}
+.course-card__thumb {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--text-main) 10%, #000);
+}
+.course-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.course-card__duration {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.72);
+}
+.course-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+.course-card__title {
+  font-family: var(--font-title);
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.course-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.course-card__chip {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent);
+}
+.course-card__release {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.course-card--row .course-card__thumb {
+  width: 104px;
+}
+.course-card--row .course-card__title {
+  font-size: 0.95rem;
+}
+
+.course-card--hero {
+  flex-direction: column;
+  gap: 12px;
+}
+.course-card--hero .course-card__thumb {
+  width: 100%;
+}
+.course-card--hero .course-card__title {
+  font-size: 1.25rem;
+}
+
+/* Carte « en cours » de la télécommande : un seul bloc verre. */
+.now-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  background: var(--glass-card-bg);
+  border: 1px solid var(--glass-card-border);
+  backdrop-filter: var(--glass-card-blur);
+  -webkit-backdrop-filter: var(--glass-card-blur);
+  box-shadow: var(--glass-card-highlight), 0 8px 28px rgba(0, 0, 0, 0.08);
+}
+.now-card__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+}
+.now-card__label .is-live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+.now-card .course-card--hero .course-card__thumb {
+  border-radius: var(--radius-md);
+}
+.now-card__times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.now-card__next {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.now-card .mobile-remote-seek {
+  margin-top: 2px;
+}
+
+/* Aperçu avant lancement */
+.launch-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.launch-preview__description {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+  white-space: pre-line;
+}
+.launch-preview__specs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.launch-preview__specs span {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-elevated);
+}
+.launch-tabs {
+  display: flex;
+}
+.launch-tabs .view-btn {
+  flex: 1;
+  justify-content: center;
+  min-height: 40px;
+}

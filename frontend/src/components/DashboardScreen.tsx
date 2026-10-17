@@ -17,6 +17,12 @@ interface VideoSummary {
   program: string | null;
   release: string | null;
   duration_seconds: number | null;
+  thumbnail_path?: string | null;
+  description?: string | null;
+  width?: number | null;
+  height?: number | null;
+  audio_channels?: number | null;
+  audio_codec?: string | null;
 }
 
 interface PlaylistSummary {
@@ -161,6 +167,10 @@ export default function DashboardScreen({ channel }: Props) {
     sendCommand("cinema_command", { action: next ? "play" : "pause" });
   };
   const [videos, setVideos] = useState<VideoSummary[]>([]);
+  // Même présentation qu'en kiosque : le rapport du cinéma ne porte que le
+  // titre et l'identifiant, le reste vient de la bibliothèque déjà chargée.
+  const cinemaVideo = cinemaLive?.video_id ? videos.find((v) => v.id === cinemaLive.video_id) ?? null : null;
+  const cinemaThumb = cinemaVideo?.thumbnail_path ? getApiUrl(`/thumbnails/${cinemaVideo.thumbnail_path.split("/").pop()}`) : null;
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [selectedVideoId, setSelectedVideoId] = useState<string>("");
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string>("");
@@ -428,6 +438,9 @@ export default function DashboardScreen({ channel }: Props) {
       <div className="dashboard-bento-grid" style={channelCinema ? { gridTemplateColumns: "1fr" } : undefined}>
         <div className="bento-col-main">
           <div className="live-block bento-hero-live">
+            {channelCinema && cinemaThumb && cinemaLive && (
+              <div className="bento-hero-backdrop" style={{ backgroundImage: `url("${cinemaThumb}")` }} />
+            )}
             {!channelCinema && isActive && (() => {
               const bgThumb =
                 state.state === "background"
@@ -463,7 +476,21 @@ export default function DashboardScreen({ channel }: Props) {
                 cinemaLive ? (
                   <>
                     <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                      <div className="live-title">{cinemaLive.title}</div>
+                      {cinemaThumb ? (
+                        <img
+                          src={cinemaThumb}
+                          alt=""
+                          style={{ width: "88px", height: "50px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "var(--bg-surface-elevated)" }}
+                        />
+                      ) : null}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <div className="live-title">{cinemaLive.title}</div>
+                        {(cinemaVideo?.program || cinemaLive.program || cinemaVideo?.release) && (
+                          <span style={{ fontSize: "0.8rem", color: "var(--accent-primary)", fontWeight: 700 }}>
+                            {[cinemaVideo?.program ?? cinemaLive.program, cinemaVideo?.release ? `#${cinemaVideo.release}` : null].filter(Boolean).join(" · ")}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="live-progress">
                       <span className="live-time">{formatTime(cinemaSeekDrag ?? cinemaLive.position_seconds)}</span>
