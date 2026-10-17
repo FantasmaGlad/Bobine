@@ -40,10 +40,14 @@ on:
         type: boolean
         default: false
 
-# Annule les exécutions précédentes encore en cours sur la même référence.
+# Une pull request annule son exécution précédente. Un push (main, tag) ou un
+# déclenchement manuel, lui, n'est JAMAIS annulé : un job de publication
+# interrompu entre `gh release delete` et `gh release create` laisserait le
+# canal sans release. Les exécutions suivantes attendent leur tour (GitHub ne
+# garde que la plus récente en attente).
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Résout la version et le CANAL une seule fois pour tous les jobs de
@@ -220,13 +224,21 @@ jobs:
         run: tail -n 100 "$RUNNER_TEMP/backend.log"
 
   backend:
-    name: Backend checks (Python)
+    # 3.11 : runtime embarqué de l'APK Android TV (seul Python de Chaquopy à
+    # fournir armeabi-v7a). 3.12 : paquets de bureau. 3.13 : runtime de l'APK
+    # téléphone/tablette. Une syntaxe ou une API postérieure à 3.11 ne doit pas
+    # entrer sans casser ce job.
+    name: Backend checks (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install dependencies
@@ -333,7 +345,9 @@ jobs:
           path: assistant/target/release/bobine-assistant-arm64
 
   android-build:
-    # Compile et signe l'APK Android (Chaquopy + FastAPI embarqué + binaire FFmpeg ARM64).
+    # Compile et signe les APK Android (Chaquopy + FastAPI embarqué + binaires FFmpeg ARM).
+    # Téléphone/tablette : arm64-v8a (Python 3.13). Android TV : armeabi-v7a +
+    # arm64-v8a (Python 3.11, seul runtime Chaquopy disponible en 32 bits).
     # Inclus dans les assets officiels des releases Stable (Bobine-x.y.z.apk), Bêta (Bobine-beta.apk)
     # et Canary (Bobine-canary.apk) à partir de la version 3.0.2.
     #
@@ -373,10 +387,14 @@ jobs:
         if: steps.check_secrets.outputs.configured == 'true'
         working-directory: frontend
         run: npm ci
+      # Chaquopy cherche `python3.<x>` sur le PATH pour chaque version du
+      # projet : 3.13 (flavor mobile) et 3.11 (flavor TV).
       - uses: actions/setup-python@v5
         if: steps.check_secrets.outputs.configured == 'true'
         with:
-          python-version: "3.13"
+          python-version: |
+            3.13
+            3.11
       - uses: actions/setup-java@v4
         if: steps.check_secrets.outputs.configured == 'true'
         with:
@@ -395,7 +413,7 @@ jobs:
           packages: "platform-tools"
       - name: Installer les plateformes/outils Android requis
         if: steps.check_secrets.outputs.configured == 'true'
-        run: sdkmanager "platforms;android-36" "build-tools;36.1.0"
+        run: sdkmanager "platforms;android-36" "build-tools;36.1.0" "ndk;28.2.13676358"
       - name: Décoder le keystore depuis le secret
         if: steps.check_secrets.outputs.configured == 'true'
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "${{ runner.temp }}/bobine-release.keystore"
@@ -403,19 +421,39 @@ jobs:
         if: steps.check_secrets.outputs.configured == 'true'
         id: android_version
         run: echo "version_code=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
+      # Le backend embarqué compare ce commit à celui du canal Bêta/Canary
+      # pour proposer une mise à jour ; sans fichier COMMIT il vaut "unknown"
+      # et aucune mise à jour n'est jamais proposée sur ces canaux.
+      - name: Identifiants de build (COMMIT bundlé)
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: echo "${{ needs.version.outputs.commit_short }}" > COMMIT
+      # Commit épinglé (et non la branche `main` du dépôt tiers) + empreintes
+      # SHA-256 : un binaire exécuté sur les appareils des utilisateurs ne doit
+      # jamais changer sans qu'on l'ait relu.
       - name: Télécharger les binaires statiques ffmpeg/ffprobe ARM64 (Bionic NDK)
         if: steps.check_secrets.outputs.configured == 'true'
         run: |
           mkdir -p android/app/src/main/jniLibs/arm64-v8a
-          BASE_URL="https://raw.githubusercontent.com/hzw1199/Android-FFmpeg-Prebuilt/main/ffmpeg-8.1.1/bin"
-          if [ ! -f "android/app/src/main/jniLibs/arm64-v8a/libffmpeg.so" ]; then
-            curl -L -o "android/app/src/main/jniLibs/arm64-v8a/libffmpeg.so" "$BASE_URL/ffmpeg"
-            chmod +x "android/app/src/main/jniLibs/arm64-v8a/libffmpeg.so"
-          fi
-          if [ ! -f "android/app/src/main/jniLibs/arm64-v8a/libffprobe.so" ]; then
-            curl -L -o "android/app/src/main/jniLibs/arm64-v8a/libffprobe.so" "$BASE_URL/ffprobe"
-            chmod +x "android/app/src/main/jniLibs/arm64-v8a/libffprobe.so"
-          fi
+          BASE_URL="https://raw.githubusercontent.com/hzw1199/Android-FFmpeg-Prebuilt/90231cc0105aef4f76926b911535f5eb73511b86/ffmpeg-8.1.1/bin"
+          cd android/app/src/main/jniLibs/arm64-v8a
+          curl -fL --retry 5 --retry-delay 5 -o libffmpeg.so "$BASE_URL/ffmpeg"
+          curl -fL --retry 5 --retry-delay 5 -o libffprobe.so "$BASE_URL/ffprobe"
+          echo "480defd776199b5434008565974de5bf99822371c3cd9c1f130fda2c57de6439  libffmpeg.so" | sha256sum -c -
+          echo "e66d481eb55af07282ea4efcdba5d18b564f809e9e40441dede7cc6ee9f88224  libffprobe.so" | sha256sum -c -
+          chmod +x libffmpeg.so libffprobe.so
+      # Aucun binaire 32 bits n'est publié par le dépôt tiers : compilation
+      # depuis les sources officielles (android/scripts/build_ffmpeg_armv7.sh),
+      # mise en cache tant que le script ne change pas.
+      - name: Cache des binaires ffmpeg/ffprobe armeabi-v7a
+        if: steps.check_secrets.outputs.configured == 'true'
+        id: ffmpeg_armv7_cache
+        uses: actions/cache@v4
+        with:
+          path: android/app/src/main/jniLibs/armeabi-v7a
+          key: ffmpeg-armv7-${{ hashFiles('android/scripts/build_ffmpeg_armv7.sh') }}
+      - name: Compiler ffmpeg/ffprobe armeabi-v7a (NDK r28c)
+        if: steps.check_secrets.outputs.configured == 'true' && steps.ffmpeg_armv7_cache.outputs.cache-hit != 'true'
+        run: ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/28.2.13676358" android/scripts/build_ffmpeg_armv7.sh
       - name: Build + signature (Gradle)
         if: steps.check_secrets.outputs.configured == 'true'
         working-directory: android
@@ -427,6 +465,11 @@ jobs:
           ANDROID_VERSION_NAME: ${{ needs.version.outputs.display_version }}
           ANDROID_VERSION_CODE: ${{ steps.android_version.outputs.version_code }}
         run: ./gradlew :app:assembleMobileRelease :app:assembleTvRelease --no-daemon
+      - name: Vérifier les ABI natives des APKs (garde-fou INSTALL_FAILED_NO_MATCHING_ABIS)
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: |
+          scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/mobile/release/*.apk)" arm64-v8a x86_64
+          scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/tv/release/*.apk)" armeabi-v7a arm64-v8a x86_64
       - name: Vérifier la signature des APKs produits
         if: steps.check_secrets.outputs.configured == 'true'
         run: |
@@ -864,7 +907,7 @@ jobs:
   # et attendu sur la page GitHub Releases.
   release-stable:
     name: Publish Stable Release
-    needs: [version, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build]
+    needs: [version, backend, frontend, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build]
     if: needs.version.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     permissions:
@@ -938,6 +981,8 @@ jobs:
           fi
       - name: Copy install script into release assets
         run: cp install.sh release-assets/
+      - name: Vérifier la complétude des assets
+        run: scripts/ci/verify-release-assets.sh release-assets "${{ needs.version.outputs.filename_version }}"
       - name: Inspect generated binary assets
         run: ls -lh release-assets/
       - name: Select Release Notes Body
@@ -1045,6 +1090,8 @@ jobs:
           fi
       - name: Copy install script into release assets
         run: cp install.sh release-assets/
+      - name: Vérifier la complétude des assets
+        run: scripts/ci/verify-release-assets.sh release-assets canary
       - name: Inspect generated binary assets
         run: ls -lh release-assets/
       - name: Force-move the "canary" tag to the current commit
@@ -1094,7 +1141,7 @@ jobs:
           | :--- | :---: | :---: | :--- |
           | ![](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` | x86-64 / ARM64 | [**Bobine-Setup-canary.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-Setup-canary.exe) (x86-64)<br>[**Bobine-Setup-canary-arm64.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-Setup-canary-arm64.exe) (ARM64 Snapdragon) |
           | ![](https://img.shields.io/badge/Android-34A853?style=flat-square&logo=android&logoColor=white) | `.apk` | ARM64 | [**Bobine-canary.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-canary.apk) |
-          | ![](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=androidtv&logoColor=white) | `.apk` | ARM64 | [**Bobine-TV-canary.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-TV-canary.apk) |
+          | ![](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=androidtv&logoColor=white) | `.apk` | ARM 32/64 bits | [**Bobine-TV-canary.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-TV-canary.apk) |
           | ![](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` | x86-64 / ARM64 | [**bobine_canary_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine_canary_amd64.deb) (amd64)<br>[**bobine_canary_arm64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine_canary_arm64.deb) (arm64) |
           | ![](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` | Apple Silicon | [**Bobine-canary.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-canary.dmg) |
           | ![](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | Binaire natif | x86-64 / ARM64 (Linux) | [**bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine-assistant) (x86-64)<br>[**bobine-assistant-arm64**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine-assistant-arm64) (ARM64) |
@@ -1153,7 +1200,7 @@ jobs:
   # générées automatiquement que Canary, juste un déclenchement différent.
   release-beta:
     name: Publish/Update Beta Release
-    needs: [version, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build]
+    needs: [version, backend, frontend, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build]
     if: needs.version.outputs.channel == 'beta'
     runs-on: ubuntu-latest
     permissions:
@@ -1229,6 +1276,8 @@ jobs:
           fi
       - name: Copy install script into release assets
         run: cp install.sh release-assets/
+      - name: Vérifier la complétude des assets
+        run: scripts/ci/verify-release-assets.sh release-assets beta
       - name: Inspect generated binary assets
         run: ls -lh release-assets/
       - name: Force-move the "beta" tag to the current commit
@@ -1278,7 +1327,7 @@ jobs:
           | :--- | :---: | :---: | :--- |
           | ![](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` | x86-64 / ARM64 | [**Bobine-Setup-beta.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-Setup-beta.exe) (x86-64)<br>[**Bobine-Setup-beta-arm64.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-Setup-beta-arm64.exe) (ARM64 Snapdragon) |
           | ![](https://img.shields.io/badge/Android-34A853?style=flat-square&logo=android&logoColor=white) | `.apk` | ARM64 | [**Bobine-beta.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-beta.apk) |
-          | ![](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=androidtv&logoColor=white) | `.apk` | ARM64 | [**Bobine-TV-beta.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-TV-beta.apk) |
+          | ![](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=androidtv&logoColor=white) | `.apk` | ARM 32/64 bits | [**Bobine-TV-beta.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-TV-beta.apk) |
           | ![](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` | x86-64 / ARM64 | [**bobine_beta_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine_beta_amd64.deb) (amd64)<br>[**bobine_beta_arm64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine_beta_arm64.deb) (arm64) |
           | ![](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` | Apple Silicon | [**Bobine-beta.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-beta.dmg) |
           | ![](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | Binaire natif | x86-64 / ARM64 (Linux) | [**bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine-assistant) (x86-64)<br>[**bobine-assistant-arm64**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine-assistant-arm64) (ARM64) |
@@ -1400,6 +1449,13 @@ jobs:
             reprepro includedeb "$CHANNEL" "../$DEB_ARM64"
           else
             # Sur le canal stable
+            # Republication d'une même version Stable (correctif de build sans
+            # incrément) : reprepro refuse un paquet de même version mais
+            # d'empreinte différente, on retire donc d'abord l'ancien.
+            DEB_VERSION="$(dpkg-deb -f "../$DEB_AMD64" Version)"
+            if reprepro list stable bobine | grep -q " ${DEB_VERSION}\$"; then
+              reprepro remove stable bobine
+            fi
             reprepro includedeb stable "../$DEB_AMD64"
             reprepro includedeb stable "../$DEB_ARM64"
           fi
