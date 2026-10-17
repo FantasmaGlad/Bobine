@@ -11,6 +11,8 @@
          explicite (PROPERTY_SPECIAL_USE_FGS_SUBTYPE ci-dessous). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- relance du serveur et de l'ecran apres un redemarrage ou une mise a jour (BootReceiver) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- permission normale (accordee automatiquement a
          l'installation, pas de prompt runtime) - condition necessaire
@@ -53,6 +55,17 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Serveur de diffusion video local (backend Bobine + sortie HDMI)" />
         </service>
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true"
+            android:directBootAware="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Device Owner sans Lock Task. exported=true
              + BIND_DEVICE_ADMIN + l'intent-filter DEVICE_ADMIN_ENABLED

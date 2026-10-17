@@ -7,8 +7,10 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import androidx.core.content.FileProvider
 import org.json.JSONObject
@@ -73,6 +75,17 @@ object UpdateManager {
      */
     fun downloadAndInstall(context: Context, downloadUrl: String, expectedDigest: String) {
         val appContext = context.applicationContext
+        // Sans l'autorisation « Installer des applications inconnues », Android
+        // n'affiche qu'un écran de réglages puis abandonne l'installation sans
+        // rien expliquer : on la demande AVANT de télécharger 50 Mo.
+        if (!appContext.packageManager.canRequestPackageInstalls()) {
+            openUnknownSourcesSettings(appContext)
+            reportCallback(
+                "error",
+                "Autorisation requise : activez « Autoriser depuis cette source » pour Bobine dans l'écran Android qui vient de s'ouvrir, puis relancez la mise à jour.",
+            )
+            return
+        }
         Thread({
             try {
                 val expected = expectedDigest.substringAfter(':').lowercase()
@@ -86,6 +99,17 @@ object UpdateManager {
                 reportCallback("error", e.message ?: "Échec du téléchargement de l'APK.")
             }
         }, "bobine-update").start()
+    }
+
+    private fun openUnknownSourcesSettings(context: Context) {
+        try {
+            context.startActivity(
+                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Ouverture de l'ecran des sources inconnues impossible : ${e.message}")
+        }
     }
 
     /**

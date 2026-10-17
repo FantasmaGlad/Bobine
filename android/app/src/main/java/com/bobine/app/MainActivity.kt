@@ -114,6 +114,7 @@ class MainActivity : AppCompatActivity() {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         requestIgnoreBatteryOptimizations()
+        requestOverlayPermissionOnce()
         // Plus de telechargement spontane ici (cf. UpdateManager) : seulement
         // le menage d'un APK deja installe ou perime.
         UpdateManager.cleanupStaleDownloads(this)
@@ -141,14 +142,18 @@ class MainActivity : AppCompatActivity() {
         // Conteneur racine avec écran de chargement statique (logo Bobine)
         // Masque le temps de démarrage du serveur Python embarqué (1 à 2s)
         // évitant l'affichage de l'erreur réseau standard d'Android ("net::ERR_CONNECTION_REFUSED").
+        // Couleurs du thème choisi dans l'application (envoyées par l'interface web à chaque
+        // changement), pour que l'écran de chargement ne soit plus un noir fixe.
+        val themeColors = ThemeColors.load(this)
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(themeColors.background))
         val rootLayout = android.widget.FrameLayout(this).apply {
-            setBackgroundColor(android.graphics.Color.parseColor("#0b0e14"))
+            setBackgroundColor(themeColors.background)
         }
 
         val splashLayout = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             gravity = android.view.Gravity.CENTER
-            setBackgroundColor(android.graphics.Color.parseColor("#0b0e14"))
+            setBackgroundColor(themeColors.background)
             layoutParams = android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT
@@ -179,7 +184,7 @@ class MainActivity : AppCompatActivity() {
 
         val statusText = android.widget.TextView(this).apply {
             text = "Démarrage de Bobine..."
-            setTextColor(android.graphics.Color.parseColor("#94a3b8"))
+            setTextColor(themeColors.text)
             textSize = 14f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             gravity = android.view.Gravity.CENTER
@@ -191,6 +196,7 @@ class MainActivity : AppCompatActivity() {
 
         val webView = WebView(this)
         this.webView = webView
+        webView.addJavascriptInterface(NativeBridge(applicationContext), "BobineNative")
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
@@ -299,6 +305,9 @@ class MainActivity : AppCompatActivity() {
         ))
         rootLayout.addView(splashLayout)
         setContentView(rootLayout)
+        // Icones de la barre d'etat lisibles : sombres sur un theme clair, claires sur un theme sombre.
+        androidx.core.view.WindowCompat.getInsetsController(window, rootLayout).isAppearanceLightStatusBars =
+            androidx.core.graphics.ColorUtils.calculateLuminance(themeColors.background) > 0.5
         webView.loadUrl(initialUrl)
     }
 
@@ -380,6 +389,23 @@ class MainActivity : AppCompatActivity() {
                 handler.post { logoView.setImageResource(drawable) }
             }
         }.start()
+    }
+
+    /**
+     * Demande UNE fois la permission « afficher par-dessus d'autres applications », necessaire
+     * pour rouvrir l'ecran seul apres un redemarrage. Certains appareils (Android TV) n'ont pas
+     * cet ecran de reglages : le serveur redemarre quand meme, l'ecran s'ouvre au lancement.
+     */
+    private fun requestOverlayPermissionOnce() {
+        if (Settings.canDrawOverlays(this) || !StartOnBoot.isEnabled(this)) return
+        val prefs = getSharedPreferences("bobine_native", MODE_PRIVATE)
+        if (prefs.getBoolean("overlay_permission_asked", false)) return
+        prefs.edit().putBoolean("overlay_permission_asked", true).apply()
+        try {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Ecran de permission d'affichage indisponible sur cet appareil", e)
+        }
     }
 
     private fun requestIgnoreBatteryOptimizations() {

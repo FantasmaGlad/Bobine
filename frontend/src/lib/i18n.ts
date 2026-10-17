@@ -1057,6 +1057,11 @@ export const dictionaries: Record<Language, Dict> = {
       dangerHint: "Actions destructives et irréversibles. Manipulez avec précaution.",
       resetDataTitle: "Remise à zéro des données",
       resetDataAction: "Réinitialiser les données",
+      startOnBoot: {
+        title: "Démarrage de l'appareil",
+        hint: "Relance le serveur Bobine et ouvre l'écran quand l'appareil redémarre ou que l'application est mise à jour.",
+        label: "Lancer Bobine au démarrage de l'appareil",
+      },
       docSection: "Documentation",
       docHint: "Emplacements réels utilisés par l'application (lecture seule, définis à l'installation).",
       docPagesChannelNote: "Ces liens (via l'IP réseau) ouvrent le canal Réseau, indépendant du canal Câblé. Le canal Câblé n'est accessible qu'en local sur cette machine, à l'adresse http://127.0.0.1:{{port}}.",
@@ -2362,6 +2367,11 @@ export const dictionaries: Record<Language, Dict> = {
       dangerHint: "Destructive and irreversible actions. Proceed with caution.",
       resetDataTitle: "Reset Data",
       resetDataAction: "Reset Data",
+      startOnBoot: {
+        title: "Device startup",
+        hint: "Restarts the Bobine server and opens the screen when the device reboots or the app is updated.",
+        label: "Launch Bobine when the device starts",
+      },
       docSection: "Documentation",
       docHint: "Actual locations used by the app (read-only, set at install time).",
       docPagesChannelNote: "These links (via the LAN IP) open the Network channel, independent from the Cable channel. The Cable channel is only reachable locally on this machine, at http://127.0.0.1:{{port}}.",

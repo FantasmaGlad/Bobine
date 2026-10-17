@@ -8,6 +8,7 @@ import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import MarkdownView from "@/components/MarkdownView";
 import AddressList from "@/components/AddressList";
+import StartOnBootToggle from "@/components/StartOnBootToggle";
 import { useIsMobile } from "@/lib/useIsMobile";
 
 // Profil de déploiement — détermine si
@@ -1561,6 +1562,8 @@ export default function SettingsPage() {
           </div>
         </div>
       </section>
+
+      <StartOnBootToggle />
 
       {/* ---- Documentation : chemins (lecture seule) ---- */}
       <section className="live-block" id="section-docs">

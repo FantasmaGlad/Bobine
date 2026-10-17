@@ -1111,3 +1111,17 @@ button.course-card.is-selected {
 .chapter-list--inline {
   margin: 8px 0;
 }
+
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--tap-min);
+  font-weight: 600;
+  cursor: pointer;
+}
+.settings-toggle-row input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent-primary);
+}

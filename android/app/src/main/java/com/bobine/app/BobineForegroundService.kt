@@ -12,6 +12,9 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.provider.Settings
+import android.view.View
+import android.graphics.PixelFormat
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Handler
@@ -64,6 +67,9 @@ private const val PRESENTATION_SLOW_DELAY_MS = 5_000L
 class BobineForegroundService : Service() {
 
     companion object {
+        /** Demande au service d'ouvrir l'ecran (relance apres un redemarrage de l'appareil). */
+        const val EXTRA_LAUNCH_SCREEN = "launch_screen"
+
         var currentPresentation: BobinePresentation? = null
             private set
 
@@ -374,7 +380,56 @@ class BobineForegroundService : Service() {
         )
     }
 
+    /**
+     * Ouvre l'ecran apres un demarrage de l'appareil. Android 10+ refuse l'ouverture d'une
+     * activite depuis l'arriere-plan sauf si l'application a une fenetre visible : une fenetre
+     * superposee de 1 pixel (permission « afficher par-dessus d'autres applications ») suffit
+     * le temps du lancement.
+     */
+    private fun launchScreenFromBackground() {
+        val launch = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        if (!Settings.canDrawOverlays(this)) {
+            Log.w(TAG, "Permission d'affichage par-dessus les autres applications absente : l'ecran s'ouvrira au lancement manuel")
+            try {
+                startActivity(launch)
+            } catch (e: Exception) {
+                Log.w(TAG, "Ouverture de l'ecran refusee : ${e.message}")
+            }
+            return
+        }
+        val windowManager = getSystemService(WindowManager::class.java)
+        val anchor = View(this)
+        val params = WindowManager.LayoutParams(
+            1, 1,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+            PixelFormat.TRANSLUCENT,
+        )
+        try {
+            windowManager.addView(anchor, params)
+        } catch (e: Exception) {
+            Log.w(TAG, "Fenetre d'ancrage impossible : ${e.message}")
+        }
+        handler.postDelayed({
+            try {
+                startActivity(launch)
+                Log.i(TAG, "Ecran ouvert apres le demarrage")
+            } catch (e: Exception) {
+                Log.w(TAG, "Ouverture de l'ecran refusee : ${e.message}")
+            }
+            handler.postDelayed({
+                try {
+                    windowManager.removeView(anchor)
+                } catch (_: Exception) {
+                }
+            }, 4000)
+        }, 400)
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.getBooleanExtra(EXTRA_LAUNCH_SCREEN, false) == true) {
+            launchScreenFromBackground()
+        }
         // START_STICKY : le systeme relance le service (sans le dernier
         // Intent) s'il le tue pour recuperer de la memoire - ne remplace
         // pas l'exemption batterie, mais aide sur les kills

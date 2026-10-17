@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { translate, translateList, type Language } from "@/lib/i18n";
+import { pushThemeToNative } from "@/lib/nativeBridge";
 
 // "les-mills-sombre" est la clé interne historique du thème "Sombre" — conservée telle quelle pour ne rien casser sur
 // les installations existantes, seul le libellé affiché change.
@@ -346,6 +347,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     } catch {
       // ignore
     }
+    // Les variables du thème sont résolues à l'image suivante.
+    const frame = requestAnimationFrame(() => requestAnimationFrame(pushThemeToNative));
+    return () => cancelAnimationFrame(frame);
   }, [theme]);
 
   useEffect(() => {

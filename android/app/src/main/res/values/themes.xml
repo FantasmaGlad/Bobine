@@ -1,3 +1,7 @@
 <resources>
-    <style name="Theme.Bobine" parent="Theme.AppCompat.DayNight.NoActionBar" />
+    <style name="Theme.Bobine" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <!-- Fond avant le premier affichage : clair par defaut, sombre si le systeme l'est ;
+             MainActivity applique ensuite la couleur du theme choisi. -->
+        <item name="android:windowBackground">@color/bobine_window_background</item>
+    </style>
 </resources>
