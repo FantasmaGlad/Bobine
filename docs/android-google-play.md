@@ -1,49 +1,167 @@
-# Publier Bobine sur Google Play
+<p align="center">
+  <img alt="Bobine" src="../Assets/Images/LogoBanniere.png" width="70%">
+</p>
 
-Deux applications Android sont publiées : `com.bobine.app` (téléphone et tablette) et
-`com.bobine.app.tv` (Android TV). Google Play exige des bundles `.aab` ; les APK de la
-page de téléchargement restent distribués séparément.
+<h1 align="center">Bobine pour Android — Distribution et publication Google Play</h1>
 
-## Construire les bundles d'une version Stable
+<p align="center">
+  <a href="android-google-play.md">Français</a> · <a href="android-google-play.en.md">English</a>
+</p>
 
-1. GitHub > onglet **Actions** > **Google Play (AAB)** > **Run workflow**.
-2. Renseigner le tag Stable (par exemple `V5.0.0`). Cocher « Joindre les .aab à la release
-   GitHub » pour retrouver les fichiers sur la page de la release.
-3. À la fin du run, télécharger l'artefact `bobine-play-aab-<version>` : il contient
-   `Bobine-<version>.aab` et `Bobine-TV-<version>.aab`.
+Ce document décrit comment les applications Android de Bobine sont construites, signées, distribuées
+et publiées sur Google Play. Il s'adresse aux mainteneurs du projet ; ce n'est pas un guide
+d'utilisation (voir le [README](../README.fr.md) pour l'installation côté utilisateur).
 
-## Bundles de la version 5.0.0
+## Sommaire
 
-Construits depuis le tag `V5.0.0` et joints à sa release GitHub. Un `.aab` n'est pas installable
-sur un appareil : il sert uniquement à être téléversé sur la console Google Play.
+1. [Vue d'ensemble](#1-vue-densemble)
+2. [Prérequis](#2-prérequis)
+3. [Construire les bundles d'une version Stable](#3-construire-les-bundles-dune-version-stable)
+4. [Numérotation des versions](#4-numérotation-des-versions)
+5. [Signature](#5-signature)
+6. [Publier sur Google Play](#6-publier-sur-google-play)
+7. [Points à vérifier dans la console Play](#7-points-à-vérifier-dans-la-console-play)
+8. [Mises à jour côté utilisateur](#8-mises-à-jour-côté-utilisateur)
+9. [Dépannage](#9-dépannage)
 
-- [Bobine-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.aab) — `com.bobine.app` (téléphone et tablette)
-- [Bobine-TV-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.aab) — `com.bobine.app.tv` (Android TV)
+---
 
-Le workflow refuse un tag Bêta ou Canary, vérifie la signature de chaque bundle et affiche
-le `versionCode`. Celui-ci est le nombre de commits du tag, comme pour les APK : il croît à
-chaque version, ce qui permet à Google Play d'accepter les mises à jour successives.
+## 1. Vue d'ensemble
 
-## Envoyer sur Google Play
+Bobine publie **deux applications Android** à partir du même code source. Elles sont issues de
+deux variantes de build (*flavors*) et se distinguent par leur identifiant d'application : elles
+peuvent donc coexister sur un même appareil et disposent chacune de leur fiche sur Google Play.
 
-- **À la main** : console Google Play > l'application > Production (ou Test interne) >
-  Créer une version > téléverser le `.aab`. Faire de même pour l'application TV.
-- **Automatiquement** : créer un compte de service Google Cloud autorisé sur la console Play,
-  enregistrer sa clé JSON dans le secret GitHub `PLAY_SERVICE_ACCOUNT_JSON`, puis choisir la
-  piste dans le formulaire du workflow. Les bundles partent alors en **brouillon** : la
-  publication finale reste une validation manuelle dans la console.
+| Logo | Application | Identifiant | Appareils ciblés | Android minimum | Architectures | Installation directe | Google Play |
+|:---:|---|---|---|:---:|---|---|---|
+| <img alt="Bobine" src="../frontend/public/icon-192.png" width="56"> <br> ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Bobine** (téléphone et tablette) | `com.bobine.app` | Téléphones, tablettes, ordinateurs portables Google Book (Aluminium OS) | 14 (API 34) | `arm64-v8a`, `x86_64` | [Bobine-5.0.0.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.apk) | [Bobine-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.aab) |
+| <img alt="Bobine TV" src="../frontend/public/icon-192.png" width="56"> <br> ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | **Bobine TV** (Android TV et Google TV) | `com.bobine.app.tv` | Boîtiers et téléviseurs Android TV / Google TV, télécommande directionnelle | 14 (API 34) | `armeabi-v7a`, `arm64-v8a`, `x86_64` | [Bobine-TV-5.0.0.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.apk) | [Bobine-TV-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.aab) |
 
-## Signature
+> **APK et AAB : quelle différence ?** L'**APK** s'installe directement sur un appareil (page de
+> téléchargement, ADB). L'**AAB** (*Android App Bundle*) est le format de **dépôt** exigé par
+> Google Play : il n'est pas installable tel quel et sert uniquement à être téléversé dans la
+> console. Google Play en génère ensuite les APK adaptés à chaque appareil.
 
-Les bundles sont signés avec la clé de téléversement (secrets `ANDROID_KEYSTORE_BASE64`,
-`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`). Activer la
-signature par Google Play (App Signing) à la première publication : Google conserve la clé
-de distribution et ne demande que la clé de téléversement pour les versions suivantes.
+Chaque application embarque son propre serveur Bobine (CPython et FastAPI via Chaquopy) exécuté dans
+un service de premier plan : aucune connexion à un serveur distant n'est nécessaire.
 
-## Mises à jour des utilisateurs
+## 2. Prérequis
 
-Une application installée depuis Google Play se met à jour par le Play Store ; celle
-installée depuis un APK GitHub se met à jour depuis les Réglages de Bobine. Les deux
-installations ne sont pas interchangeables : la signature diffère (clé de distribution
-Google contre clé de téléversement). Pour passer de l'une à l'autre, désinstaller puis
-réinstaller après une sauvegarde (Réglages > Sauvegarde).
+| Élément | Détail |
+|---|---|
+| Compte Google Play Console | Compte développeur avec les deux fiches d'application créées (`com.bobine.app` et `com.bobine.app.tv`). |
+| Clé de téléversement | Keystore PKCS12 (alias `bobine`). Conservé hors du dépôt, sauvegardé hors de la machine de build. |
+| Secrets GitHub Actions | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. |
+| Secret facultatif | `PLAY_SERVICE_ACCOUNT_JSON` : clé d'un compte de service Google Cloud autorisé sur la console Play, pour l'envoi automatique. |
+| Version Stable | Un tag `Vx.y.z` existant (les versions Bêta et Canary ne sont jamais publiées sur Google Play). |
+
+> **Sauvegarde de la clé.** Sans la clé de téléversement, aucune mise à jour future ne pourra être
+> signée pour la fiche existante. Conservez le keystore et son mot de passe dans un coffre chiffré,
+> en deux endroits distincts. Ne les ajoutez jamais au dépôt.
+
+## 3. Construire les bundles d'une version Stable
+
+Le workflow [`play-aab.yml`](../.github/workflows/play-aab.yml) (**Google Play (AAB)**) se lance à la
+main depuis GitHub.
+
+1. Ouvrir l'onglet **Actions**, choisir **Google Play (AAB)**, puis **Run workflow**.
+2. Renseigner les paramètres :
+
+   | Paramètre | Valeur | Rôle |
+   |---|---|---|
+   | `tag` | `V5.0.0` (obligatoire) | Version Stable à construire. Le code est celui de ce tag exact. |
+   | `attach_to_release` | `true` / `false` | Joint les `.aab` à la release GitHub du tag. |
+   | `play_track` | `internal`, `alpha`, `beta`, `production` | Piste de destination, utilisée **uniquement** si `PLAY_SERVICE_ACCOUNT_JSON` est configuré. |
+
+3. À la fin du run, récupérer les fichiers dans l'artefact `bobine-play-aab-<version>` (et sur la
+   page de la release si `attach_to_release` est activé) :
+
+   | Fichier | Application |
+   |---|---|
+   | `Bobine-<version>.aab` | `com.bobine.app` |
+   | `Bobine-TV-<version>.aab` | `com.bobine.app.tv` |
+
+Le workflow refuse un tag Bêta ou Canary, vérifie la signature de chaque bundle (`jarsigner`) et la
+présence du manifeste, puis affiche le `versionName` et le `versionCode` dans le résumé du run.
+
+### Bundles de la version 5.0.0
+
+| Application | Fichier | Taille |
+|---|---|---:|
+| Bobine (téléphone et tablette) | [Bobine-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.aab) | 48,6 Mo |
+| Bobine TV (Android TV) | [Bobine-TV-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.aab) | 70,2 Mo |
+
+## 4. Numérotation des versions
+
+- **`versionName`** : le numéro du tag sans le `V` (`V5.0.0` donne `5.0.0`).
+- **`versionCode`** : le nombre de commits du tag. Il croît à chaque version, ce qui permet à Google
+  Play d'accepter les mises à jour successives, et il suit la même règle que les APK.
+
+Google Play refuse un bundle dont le `versionCode` n'est pas strictement supérieur à celui déjà
+publié sur la piste. Après un déplacement de tag vers un commit plus récent, le `versionCode`
+augmente : reconstruire alors les bundles avant tout nouveau téléversement.
+
+## 5. Signature
+
+Les bundles sont signés avec la **clé de téléversement** (les quatre secrets `ANDROID_KEY*`). Activez
+**Play App Signing** à la première publication : Google conserve la clé de distribution, et seule la
+clé de téléversement est ensuite demandée pour chaque version. En cas de perte de cette dernière, la
+console permet d'en enregistrer une nouvelle après vérification d'identité.
+
+## 6. Publier sur Google Play
+
+### Envoi manuel
+
+1. Console Google Play, choisir l'application.
+2. **Test interne** (recommandé pour un premier envoi) ou **Production**, puis **Créer une version**.
+3. Téléverser le `.aab` correspondant, renseigner les notes de version, enregistrer et lancer
+   l'examen.
+4. Répéter l'opération pour la seconde application.
+
+### Envoi automatique
+
+1. Créer un compte de service Google Cloud et l'autoriser dans la console Play (accès aux versions).
+2. Enregistrer sa clé JSON dans le secret GitHub `PLAY_SERVICE_ACCOUNT_JSON`.
+3. Lancer le workflow en choisissant la piste (`play_track`).
+
+Les bundles sont alors envoyés en **brouillon** : la mise en ligne finale reste une validation
+manuelle dans la console.
+
+## 7. Points à vérifier dans la console Play
+
+Google Play examine les autorisations sensibles et le mode de mise à jour des applications. Les
+points suivants sont à traiter avant la mise en production ; ils ne préjugent pas de la décision de
+l'examen.
+
+| Sujet | Autorisation ou fonction | À préparer |
+|---|---|---|
+| Service de premier plan | `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` | Déclaration du type d'usage et justification : le serveur Bobine doit rester actif pendant les cours. |
+| Démarrage de l'appareil | `RECEIVE_BOOT_COMPLETED` | Fonction facultative, activée par l'utilisateur dans Réglages > Démarrage de l'appareil. |
+| Affichage par-dessus d'autres applications | `SYSTEM_ALERT_WINDOW` | Justification de l'ouverture de l'écran au démarrage. |
+| Optimisation de batterie | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | Justification : lecture continue en salle. |
+| Installation d'applications | `REQUEST_INSTALL_PACKAGES` | Le programme de mise à jour intégré télécharge des APK depuis GitHub. La politique de Google Play restreint cette autorisation et les mises à jour hors de Play : vérifier si la variante publiée sur Play doit la retirer. |
+| Données et confidentialité | Aucune télémétrie, fonctionnement hors ligne | Formulaire « Sécurité des données » : aucune collecte, aucun partage. |
+
+## 8. Mises à jour côté utilisateur
+
+Une application installée depuis Google Play se met à jour par le Play Store ; celle installée depuis
+un APK GitHub se met à jour depuis les Réglages de Bobine. Les deux installations **ne sont pas
+interchangeables** : la signature diffère (clé de distribution Google contre clé de téléversement).
+Pour passer de l'une à l'autre, sauvegarder les données (Réglages > Sauvegarde), désinstaller, puis
+réinstaller.
+
+## 9. Dépannage
+
+| Symptôme | Cause probable | Action |
+|---|---|---|
+| La console refuse le bundle (« code de version déjà utilisé ») | `versionCode` non supérieur à celui déjà publié | Reconstruire depuis un tag plus récent. |
+| Le workflow s'arrête sur le format du tag | Tag Bêta, Canary ou mal formé | Utiliser un tag Stable `Vx.y.z`. |
+| Build ignoré avec un avertissement | Secrets `ANDROID_KEYSTORE_*` absents | Ajouter les secrets (section 2). |
+| Aucun envoi sur Play malgré le workflow réussi | `PLAY_SERVICE_ACCOUNT_JSON` non configuré | Envoi manuel (section 6) ou ajout du secret. |
+| Le bundle ne s'installe pas sur l'appareil | Un `.aab` n'est pas installable | Utiliser l'APK, ou téléverser le bundle sur Play. |
+
+## Documents associés
+
+- [Notes de version 5.0.0](releases/V5.0.0.md)
+- [Architecture technique](ARCHITECTURE.md) (section Android)
+- [README](../README.fr.md)
