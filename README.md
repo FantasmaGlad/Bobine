@@ -4,13 +4,12 @@
   <img alt="Bobine" src="Assets/Images/LogoBanniere.png" width="100%">
 </p>
 
-<p align="center">
-  <img alt="Google Book compatible avec Bobine" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/googlebooks.webp" width="480">
-</p>
-
-<p align="center">
-  <img alt="Bobine supports Firefox — the Firefox fox and Baamix, Bobine's mascot" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/FirefoxBaamix.png" width="320">
-</p>
+<table align="center">
+  <tr>
+    <td align="center" valign="middle"><img alt="Google Book compatible avec Bobine" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/googlebooks.webp" width="400"></td>
+    <td align="center" valign="middle"><img alt="Bobine supports Firefox — the Firefox fox and Baamix, Bobine's mascot" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/FirefoxBaamix.png" width="400"></td>
+  </tr>
+</table>
 
 <p align="center">
   <b>Recently added — Bobine now officially supports Firefox & ARM64 Architecture.</b><br>
@@ -50,7 +49,7 @@ Install Bobine as a native application on your tablet, workstation, or studio PC
 | Platform | Format | Architecture | Direct Download / Command | Target Profile & Key Features |
 | :--- | :---: | :---: | :---: | :--- |
 | ![](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Native Package)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Download Bobine-5.0.0.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.apk)</sub> | **Android Tablets & Google Books (Aluminium OS)**<br><sub>Touch coach desk (`/grid`) + HDMI TV cinema (`/cinema`), soon on Google Play Store</sub> |
-| ![](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Dedicated TV Package)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Download Bobine-TV-5.0.0.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.apk)</sub> | **Android TV & Google TV**<br><sub>Leanback TV launcher, D-Pad remote navigation, offline kiosk</sub> |
+| ![](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Dedicated TV Package)*</sub> | <sub>ARM 32 & 64-bit<br>*(armeabi-v7a, arm64-v8a)*</sub> | <sub>[**Download Bobine-TV-5.0.0.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.apk)</sub> | **Android TV & Google TV**<br><sub>Leanback TV launcher, D-Pad remote navigation, offline kiosk</sub> |
 | ![](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installer)*</sub> | <sub>x86-64 & ARM64<br>*(Snapdragon)*</sub> | <sub>[**Bobine-Setup-5.0.0.exe (x86-64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-Setup-5.0.0.exe)<br>[**Bobine-Setup-5.0.0-arm64.exe (ARM64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-Setup-5.0.0-arm64.exe)</sub> | **Windows 11/10 PCs & Qualcomm Snapdragon ARM Laptops**<br><sub>Native x86-64 and ARM64 installer (Snapdragon X Elite / X Plus), tray icon, clamshell mode</sub> |
 | ![](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | <sub>`.deb`<br>*(Package & Repo)*</sub> | <sub>x86-64 *(amd64)*<br>& ARM64 *(arm64)*</sub> | <sub>[**APT Repo apt.bobine.fit**](https://apt.bobine.fit)<br>[**bobine_5.0.0_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/bobine_5.0.0_amd64.deb)<br>[**bobine_5.0.0_arm64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/bobine_5.0.0_arm64.deb)</sub> | **Linux Desktops, ARM64 Workstations & NVIDIA DGX Spark**<br><sub>Official `.deb` packages (`amd64` & `arm64`) and `apt.bobine.fit` repository updates</sub> |
 | ![](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Disk Image)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Download Bobine-5.0.0.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.dmg)</sub> | **MacBook, Mac mini & iMac**<br><sub>Drag-and-drop `.dmg`, Apple Silicon & Intel, menu bar companion</sub> |

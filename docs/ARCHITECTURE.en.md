@@ -582,10 +582,17 @@ The FastAPI server (`backend/app/main.py`) dynamically mounts the static folder 
 | **Windows Desktop** | Windows 10/11 (`.exe` Inno Setup) | `%ProgramFiles%\Bobine\frontend\out\` | Default web browser on launch + a taskbar notification icon (systray). Supports Studio Desk mode (dual screen) or Headless (clamshell). |
 | **macOS Desktop** | macOS Apple Silicon (`.dmg` / `Bobine.app`) | `Bobine.app/Contents/Resources/frontend/out/` | Default web browser + a menu bar companion. Supports Studio Desk mode or closed-lid Clamshell. |
 | **Linux Desktop** | Debian/Ubuntu/Mint (`.deb` / `apt.bobine.fit`) | `/usr/lib/bobine/frontend/out/` | Default web browser + XDG systray. Supports Studio Desk mode or closed-lid Clamshell. |
-| **Android Tablet** | ARM64 tablets (`.apk`, Chaquopy) | Embedded assets `pyStage/backend/frontend_out/` | Dual hardware WebView: local touch screen (`/grid` or home) + external HDMI display (`/cinema`) |
+| **Android Tablet / Android TV** | ARM64 tablets (`.apk`, Chaquopy, Python 3.13); 32/64-bit ARM Android TV boxes (`Bobine-TV-*.apk`, Python 3.11) | Embedded assets `pyStage/backend/frontend_out/` | Dual hardware WebView: local touch screen (`/grid` or home) + external HDMI display (`/cinema`) |
 
 On the Android profile, data is split across **two storage roots** (`backend/app/config.py::_android_internal_root()`) — the SQLite database, thumbnails, logs, branding and radio cover art live on the app's **internal** storage (`context.filesDir`, native f2fs), while media (videos, backgrounds, audio, radio) stays on **external** storage (`context.getExternalFilesDir`, served over FUSE, visible from a file manager). An existing install is migrated automatically with no risk of data loss (copy, never a destructive move, with a `PRAGMA integrity_check` before use) on the first launch following an update — see `android/app/src/main/python/bobine_bootstrap.py`.
 | **GUI Assistant** | Linux x86_64 (`bobine-assistant`, Tauri 2 / Rust) | `assistant/ui/` (bundled into the Rust binary) | Native GTK WebKit window for mDNS discovery, LAN scanning and SSH deployment |
+
+**Android TV variant and 32-bit ABIs.** Many Android TV boxes and sticks (Chromecast with Google TV, Xiaomi TV Stick/Box) have a 64-bit CPU but a 32-bit system: their ABI list is `armeabi-v7a` only, and an APK without a native `lib/armeabi-v7a` folder fails there with `INSTALL_FAILED_NO_MATCHING_ABIS`. Chaquopy only ships the `armeabi-v7a` runtime up to Python 3.11 (Maven Central: `target:3.13.9-0` only has `arm64-v8a` and `x86_64`). The `tv` flavor therefore embeds Python **3.11** with the `armeabi-v7a`, `arm64-v8a` and `x86_64` ABIs (`chaquopy.productFlavors` in `android/app/build.gradle.kts`); the `mobile` flavor stays on Python 3.13 (`arm64-v8a`, `x86_64`). Things to know:
+
+- The 3.11 runtime answers neither `platform.system() == "Android"` nor `sys.getandroidapilevel`: every Android check goes through `app.utils.android_runtime.is_android()` (`BOBINE_PLATFORM` marker set by `bobine_bootstrap.py`, zygote variables `ANDROID_ROOT`/`ANDROID_DATA`, CPython 3.12+ signals). Never test `platform.system()` or `getandroidapilevel` on their own.
+- The backend must stay Python 3.11 compatible (no nested-quote f-strings, no later syntax or API): the CI `backend` job tests 3.11, 3.12 and 3.13.
+- `ffmpeg`/`ffprobe` for armeabi-v7a are built from the official sources (`android/scripts/build_ffmpeg_armv7.sh`, NDK r28c, LGPL build with MediaCodec) because no 32-bit binary is published; CI caches them.
+- `scripts/ci/verify-apk-abis.sh` checks each APK's ABIs and embedded binaries before publication.
 
 ### 10.3 Browser compatibility (Firefox / Gecko)
 
