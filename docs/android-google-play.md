@@ -12,6 +12,14 @@ page de téléchargement restent distribués séparément.
 3. À la fin du run, télécharger l'artefact `bobine-play-aab-<version>` : il contient
    `Bobine-<version>.aab` et `Bobine-TV-<version>.aab`.
 
+## Bundles de la version 5.0.0
+
+Construits depuis le tag `V5.0.0` et joints à sa release GitHub. Un `.aab` n'est pas installable
+sur un appareil : il sert uniquement à être téléversé sur la console Google Play.
+
+- [Bobine-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.aab) — `com.bobine.app` (téléphone et tablette)
+- [Bobine-TV-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.aab) — `com.bobine.app.tv` (Android TV)
+
 Le workflow refuse un tag Bêta ou Canary, vérifie la signature de chaque bundle et affiche
 le `versionCode`. Celui-ci est le nombre de commits du tag, comme pour les APK : il croît à
 chaque version, ce qui permet à Google Play d'accepter les mises à jour successives.
