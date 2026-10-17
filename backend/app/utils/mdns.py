@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import Any
 
 from app.utils.android_runtime import is_android
+from app.utils.network import primary_lan_ip
 
 logger = logging.getLogger(__name__)
 
@@ -113,20 +114,11 @@ def _should_self_publish() -> bool:
 
 
 def _local_ip() -> str | None:
-    """Même technique que `_get_local_ip` dans `routers/settings.py`
-    (connect() UDP sans envoi réel de paquet) — dupliquée ici à dessein :
-    ce module tourne dans son propre thread de fond, indépendant du cycle
-    de requêtes FastAPI, et ne doit dépendre d'aucun état de la couche
-    HTTP."""
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.settimeout(0.2)
-    try:
-        s.connect(("8.8.8.8", 80))
-        return s.getsockname()[0]
-    except OSError:
-        return None
-    finally:
-        s.close()
+    """Même choix d'adresse que `routers/settings.py::_get_local_ip` (module
+    partagé `utils/network.py`) : annoncer l'IP d'un VPN rendrait
+    `bobine.local` injoignable depuis le Wi-Fi. Ce module tourne dans son
+    propre thread de fond, indépendant du cycle de requêtes FastAPI."""
+    return primary_lan_ip()
 
 
 def _register_or_update(zc: Any, port: int) -> str:

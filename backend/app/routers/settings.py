@@ -5,7 +5,6 @@ import logging
 import os
 import re
 import shutil
-import socket
 import sqlite3
 import subprocess
 import sys
@@ -57,6 +56,7 @@ from app.utils.deployment import (
     get_profile_handler,
 )
 from app.utils.mdns import get_status as get_mdns_status
+from app.utils.network import lan_addresses, primary_lan_ip
 from app.utils.version import get_app_version
 from app.utils.ws_manager import manager as ws_manager
 
@@ -180,13 +180,12 @@ _LOCAL_IP_CACHE_TTL = 15.0  # Actualisation toutes les 15 secondes maximum
 
 
 def _get_local_ip() -> str | None:
-    """Astuce socket UDP classique (aucun paquet réellement envoyé) : IP de
-    l'interface que le système utiliserait pour joindre le LAN — équivalent
-    de `hostname -I` sans sous-processus ni dépendance externe. Aide à la
-    découverte réseau, en
+    """Adresse IPv4 du réseau local (Wi-Fi ou Ethernet) à afficher et à donner
+    aux autres appareils ; jamais celle d'un VPN ou du réseau mobile (cf.
+    `utils/network.py`). Équivalent de `hostname -I` sans sous-processus, en
     complément de la découverte mDNS (bobine.local, cf. install.sh).
 
-    Mise en cache avec TTL court (15s) pour éviter des appels socket répétés
+    Mise en cache avec TTL court (15s) pour éviter des énumérations répétées
     tout en permettant à l'IP de s'actualiser automatiquement lors d'un
     changement de réseau ou d'attribution DHCP sans redémarrer le serveur."""
     global _cached_local_ip, _cached_local_ip_time
@@ -194,17 +193,13 @@ def _get_local_ip() -> str | None:
     if _cached_local_ip is not None and (now - _cached_local_ip_time) < _LOCAL_IP_CACHE_TTL:
         return _cached_local_ip
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.settimeout(0.2)
-    try:
-        s.connect(("8.8.8.8", 80))
-        _cached_local_ip = s.getsockname()[0]
+    detected = primary_lan_ip()
+    if detected is not None:
+        _cached_local_ip = detected
         _cached_local_ip_time = now
-    except OSError:
+    else:
         _cached_local_ip = None
         _cached_local_ip_time = now - (_LOCAL_IP_CACHE_TTL - 3.0)
-    finally:
-        s.close()
     return _cached_local_ip
 
 
@@ -295,6 +290,7 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         # Aide à la découverte réseau, en complément de bobine.local (avahi, cf. install.sh).
         "network": {
             "local_ip": _get_local_ip(),
+            "local_ips": [{"ip": a.ip, "interface": a.interface} for a in lan_addresses()],
             "port": runtime_settings.port,
             "mdns_url": "http://bobine.local",
             # État RÉEL du répondeur mDNS embarqué ("ok"/"failed"/"disabled"

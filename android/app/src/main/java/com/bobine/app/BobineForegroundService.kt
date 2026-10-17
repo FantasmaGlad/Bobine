@@ -10,6 +10,8 @@ import android.content.Intent
 import android.hardware.display.DisplayManager
 import android.net.ConnectivityManager
 import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Handler
@@ -117,7 +119,31 @@ class BobineForegroundService : Service() {
             Log.i(TAG, "Reseau disponible (network=$network) - re-acquisition du verrou multicast mDNS")
             releaseMulticastLock()
             acquireMulticastLock()
+            publishLanAddress()
         }
+
+        override fun onLost(network: Network) {
+            publishLanAddress()
+        }
+    }
+
+    // Reseaux Wi-Fi et Ethernet, y compris quand un VPN ou le reseau mobile
+    // porte la route par defaut : l'adresse annoncee (bandeau, Reglages, mDNS)
+    // doit rester celle du LAN.
+    private fun newLanCallback() = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) = publishLanAddress()
+        override fun onLinkPropertiesChanged(network: Network, linkProperties: android.net.LinkProperties) = publishLanAddress()
+        override fun onLost(network: Network) = publishLanAddress()
+    }
+    // Un NetworkCallback ne peut etre enregistre qu'une fois : un par transport.
+    private val lanCallbacks = listOf(
+        NetworkCapabilities.TRANSPORT_WIFI to newLanCallback(),
+        NetworkCapabilities.TRANSPORT_ETHERNET to newLanCallback(),
+    )
+
+    private fun publishLanAddress() {
+        val manager = connectivityManager ?: return
+        LanAddress.publish(LanAddress.current(manager))
     }
 
     private val displayListener = object : DisplayManager.DisplayListener {
@@ -282,7 +308,15 @@ class BobineForegroundService : Service() {
             } catch (e: Exception) {
                 Log.w(TAG, "Echec de l'enregistrement du callback reseau (re-acquisition multicast desactivee) : ${e.message}")
             }
+            try {
+                for ((transport, callback) in lanCallbacks) {
+                    it.registerNetworkCallback(NetworkRequest.Builder().addTransportType(transport).build(), callback)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Echec de l'enregistrement du callback LAN : ${e.message}")
+            }
         }
+        publishLanAddress()
 
         startPythonServerWhenStorageReady()
 
@@ -363,6 +397,7 @@ class BobineForegroundService : Service() {
         releaseMulticastLock()
         try {
             connectivityManager?.unregisterNetworkCallback(networkCallback)
+            lanCallbacks.forEach { (_, callback) -> connectivityManager?.unregisterNetworkCallback(callback) }
         } catch (e: Exception) {
             Log.w(TAG, "Echec du desenregistrement du callback reseau : ${e.message}")
         }
