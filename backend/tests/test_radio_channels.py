@@ -202,5 +202,9 @@ def test_commande_ciblee_sur_une_sortie_ne_touche_pas_l_autre(client):
         ws.send_json({"command": "volume", "params": {"channel": "radio", "volume": 55}})
         # Le ping suivant garantit que les deux commandes ont été traitées (ordre WS).
         ws.send_json({"command": "pong", "params": {}})
-    assert cable.state["volume"] == 33
-    assert network.state["volume"] == 55
+    try:
+        assert cable.state["volume"] == 33
+        assert network.state["volume"] == 55
+    finally:
+        # Moteurs globaux : ne pas laisser ces volumes aux tests suivants.
+        cable.state["volume"] = network.state["volume"] = 100

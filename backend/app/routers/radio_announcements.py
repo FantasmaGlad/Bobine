@@ -79,8 +79,10 @@ class RadioAnnouncementRuleInput(BaseModel):
     interval_minutes: int | None = None
     times_of_day: List[str] | None = None
     enabled: bool = True
-    # Sortie concernée : "radio_cable", "radio_network" ou "both" (défaut : réseau).
-    target: str = "radio_network"
+    # Sortie concernée : "radio_cable", "radio_network" ou "both". Absente : réseau à la création
+    # (comportement d'avant les deux sorties), cible CONSERVÉE à la mise à jour — un client qui ne
+    # connaît pas ce champ (page en cache) ne doit pas ramener une règle câblée sur le réseau.
+    target: str | None = None
 
     @field_validator("times_of_day")
     @classmethod
@@ -110,7 +112,7 @@ def _rule_response(rule: RadioAnnouncementRule) -> dict:
 
 
 def _validate_rule_fields(data: RadioAnnouncementRuleInput) -> None:
-    if data.target not in (*RULE_TARGETS, LEGACY_RADIO_CHANNEL):
+    if data.target is not None and data.target not in (*RULE_TARGETS, LEGACY_RADIO_CHANNEL):
         raise HTTPException(
             status_code=400, detail="target invalide (attendu 'radio_cable', 'radio_network' ou 'both')"
         )
@@ -277,7 +279,7 @@ def create_rule(payload: RadioAnnouncementRuleInput, db: Session = Depends(get_d
         interval_minutes=payload.interval_minutes,
         times_of_day=json.dumps(payload.times_of_day) if payload.times_of_day else None,
         enabled=payload.enabled,
-        target=normalize_rule_target(payload.target),
+        target=normalize_rule_target(payload.target or "radio_network"),
     )
     db.add(rule)
     db.commit()
@@ -296,7 +298,8 @@ def update_rule(rule_id: int, payload: RadioAnnouncementRuleInput, db: Session =
     rule.interval_minutes = payload.interval_minutes
     rule.times_of_day = json.dumps(payload.times_of_day) if payload.times_of_day else None
     rule.enabled = payload.enabled
-    rule.target = normalize_rule_target(payload.target)
+    if payload.target is not None:
+        rule.target = normalize_rule_target(payload.target)
     db.commit()
     db.refresh(rule)
     return _rule_response(rule)

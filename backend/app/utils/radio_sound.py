@@ -12,6 +12,7 @@ des `dict`, donc sans dépendance à Pydantic v1/v2 (profil Android).
 """
 import json
 import logging
+import math
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -49,7 +50,9 @@ def _clamp_int(value: Any, low: int, high: int, fallback: int) -> int:
         return fallback
     if value != value:  # NaN
         return fallback
-    return max(low, min(high, int(round(value))))
+    # floor(x + 0.5) = Math.round de JavaScript (le round() de Python arrondit .5 au pair : 2,5
+    # donnerait 2 côté serveur et 3 côté lecteur pour la même valeur).
+    return max(low, min(high, math.floor(value + 0.5)))
 
 
 def _as_bool(value: Any, fallback: bool) -> bool:

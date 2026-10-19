@@ -671,6 +671,10 @@ export default function RadioScreenPage() {
 
   // Tiroir « Son » (égaliseur, basses, préréglages) : souris, tactile ou télécommande.
   const [soundOpen, setSoundOpen] = useState(false);
+  // Identité STABLE : la feuille ré-arme ses écouteurs et reprend le focus à chaque changement de
+  // `onClose` ; la page se rend chaque seconde (tick de position), une fonction recréée à chaque
+  // rendu volerait le focus au curseur en cours de réglage (clavier, télécommande).
+  const closeSound = useCallback(() => setSoundOpen(false), []);
 
   const handlePlayAnnouncement = () => sendCommand("radio_play_announcement", {});
 
@@ -834,7 +838,7 @@ export default function RadioScreenPage() {
           </div>
         </>
       )}
-      <Sheet open={soundOpen} onClose={() => setSoundOpen(false)} title={t("radioSound.title")} closeLabel={t("radioSound.close")}>
+      <Sheet open={soundOpen} onClose={closeSound} title={t("radioSound.title")} closeLabel={t("radioSound.close")}>
         <RadioSoundPanel sound={state.sound} sendCommand={sendCommand} />
       </Sheet>
     </div>

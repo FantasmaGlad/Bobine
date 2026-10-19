@@ -36,9 +36,10 @@ function readRequestedChannel(): RadioChannelId | null {
 
 export default function RadioRemotePage() {
   const { t } = useAppSettings();
-  // Valeur par défaut stable au rendu serveur (export statique), préférence appliquée après
-  // l'hydratation pour ne pas provoquer d'écart de rendu.
-  const [channel, setChannel] = useState<RadioChannelId>("radio_network");
+  // Sortie inconnue au rendu serveur (export statique) : la préférence locale est lue après
+  // l'hydratation, et le panneau n'est monté qu'ensuite — une seule connexion WebSocket, pas une
+  // première sur la sortie réseau aussitôt remplacée.
+  const [channel, setChannel] = useState<RadioChannelId | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture unique d'une préférence locale après hydratation
@@ -80,7 +81,7 @@ export default function RadioRemotePage() {
           {t("radioRemote.outputNetwork")}
         </button>
       </div>
-      <RadioRemotePanel key={channel} channel={channel} />
+      {channel && <RadioRemotePanel key={channel} channel={channel} />}
     </div>
   );
 }

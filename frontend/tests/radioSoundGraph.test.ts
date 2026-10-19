@@ -111,7 +111,9 @@ test("le préampli compense un relèvement et le limiteur devient actif puis tra
   chain.apply({ ...defaultSound(), bands: [6, 0, 0, 0, 0], bass_boost: 6, limiter: true });
   assert.ok(ctx.gains[0].gain.value < 1);
   assert.ok(ctx.compressors[0].ratio.value > 1);
-  chain.apply({ ...defaultSound(), limiter: false });
+  chain.apply({ ...defaultSound(), bands: [6, 0, 0, 0, 0], limiter: false });
+  assert.equal(ctx.compressors[0].ratio.value, 1);
+  chain.apply({ ...defaultSound(), limiter: true });
   assert.equal(ctx.gains[0].gain.value, 1);
   assert.equal(ctx.compressors[0].ratio.value, 1);
 });

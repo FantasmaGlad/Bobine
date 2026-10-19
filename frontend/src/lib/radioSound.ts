@@ -172,7 +172,7 @@ export function computePreamp(sound: RadioSoundSettings): number {
   return Math.pow(10, -cut / 20);
 }
 
-const LIMITER_ON: LimiterParams = { threshold: -6, knee: 6, ratio: 12, attack: 0.003, release: 0.25 };
+const LIMITER_ON: LimiterParams = { threshold: -3, knee: 2, ratio: 20, attack: 0.003, release: 0.15 };
 // Compresseur transparent (ratio 1, seuil à 0 dB) : le nœud reste dans le graphe sans agir.
 const LIMITER_OFF: LimiterParams = { threshold: 0, knee: 0, ratio: 1, attack: 0.003, release: 0.25 };
 
@@ -195,6 +195,9 @@ export function toGraphParams(sound: RadioSoundSettings): SoundGraphParams {
     bass: { type: "lowshelf", frequency: BASS_FREQUENCY, gain: active ? sound.bass_boost : 0, q: 0.7 },
     loudnessLow: { type: "lowshelf", frequency: LOUDNESS_LOW.frequency, gain: active && sound.loudness ? LOUDNESS_LOW.gain : 0, q: 0.7 },
     loudnessHigh: { type: "highshelf", frequency: LOUDNESS_HIGH.frequency, gain: active && sound.loudness ? LOUDNESS_HIGH.gain : 0, q: 0.7 },
-    limiter: active && sound.limiter ? LIMITER_ON : LIMITER_OFF,
+    // La protection n'agit QUE lorsque les réglages relèvent le son (risque d'écrêtage) : à plat, la
+    // musique reste STRICTEMENT inchangée — sans quoi activer la radio compresserait les crêtes de
+    // tous les morceaux, même sans aucun réglage d'égaliseur.
+    limiter: active && sound.limiter && peakBoostDb(sound) > 0 ? LIMITER_ON : LIMITER_OFF,
   };
 }

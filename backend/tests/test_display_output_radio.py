@@ -282,6 +282,9 @@ def test_les_regles_de_rappel_ont_une_cible_validee_et_ancienne_valeur_reseau(cl
     both = client.put(f"/api/radio/announcement-rules/{cable.json()['id']}", json={**base, "target": "both"})
     assert both.json()["target"] == "both"
     assert client.post("/api/radio/announcement-rules", json={**base, "target": "zzz"}).status_code == 400
+    # Mise à jour SANS cible (client en cache) : la cible existante est conservée.
+    kept = client.put(f"/api/radio/announcement-rules/{cable.json()['id']}", json={**base, "enabled": False})
+    assert kept.status_code == 200 and kept.json()["target"] == "both"
     listed = client.get("/api/radio/announcement-rules").json()
     assert {r["target"] for r in listed} == {"radio_network", "both"}
 

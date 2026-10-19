@@ -105,6 +105,14 @@ test("paramètres du graphe : fréquences, formes de filtres et gains reportés"
   assert.deepEqual(toGraphParams(s), p);
 });
 
+test("à plat, le limiteur reste transparent (la musique n'est pas modifiée)", () => {
+  assert.equal(toGraphParams(defaultSound()).limiter.ratio, 1);
+  // Dès qu'un réglage relève le son, la protection s'enclenche.
+  assert.ok(toGraphParams({ ...defaultSound(), bands: [5, 0, 0, 0, 0] }).limiter.ratio > 1);
+  // Une simple atténuation n'en a pas besoin.
+  assert.equal(toGraphParams({ ...defaultSound(), bands: [-5, -5, -5, -5, -5] }).limiter.ratio, 1);
+});
+
 test("loudness et limiteur désactivés : transparents", () => {
   const p = toGraphParams(clampSound({ loudness: false, limiter: false }));
   assert.equal(p.loudnessLow.gain, 0);
