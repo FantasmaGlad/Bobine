@@ -17,9 +17,6 @@ import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import java.net.HttpURLConnection
-import java.net.URL
-import org.json.JSONObject
 
 // 127.0.0.1 (PAS 127.0.0.2 comme l'ecran tactile, cf. MainActivity) :
 // isWiredDisplay() (frontend/src/lib/useDisplayOutputRedirect.ts) classe
@@ -29,7 +26,6 @@ import org.json.JSONObject
 // ?channel=cable EXPLICITE : la sortie HDMI est toujours le
 // canal cable, quel que soit le nom d'hote — voir lib/displayChannel.ts.
 private const val CINEMA_URL = "http://127.0.0.1:8000/cinema/?channel=cable"
-private const val PRESENTATION_SETTINGS_URL = "http://127.0.0.1:8000/api/settings"
 
 /**
  * rendu independant sur
@@ -78,14 +74,14 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
 
         val logoSizePx = (160 * context.resources.displayMetrics.density).toInt()
         val logoView = android.widget.ImageView(context).apply {
-            setImageResource(splashDrawableForChannel(null))
+            setImageResource(SplashChannel.initialDrawable(context))
             layoutParams = android.widget.LinearLayout.LayoutParams(logoSizePx, logoSizePx).apply {
                 bottomMargin = (24 * context.resources.displayMetrics.density).toInt()
             }
             adjustViewBounds = true
         }
         splashLayout.addView(logoView)
-        fetchUpdateChannelAndApplyPresentationSplashIcon(logoView)
+        SplashChannel.refreshFromBackendIfUnknown(context, logoView)
 
         val progressBar = android.widget.ProgressBar(context).apply {
             isIndeterminate = true
@@ -189,37 +185,6 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
         setContentView(rootLayout)
         webView.loadUrl(CINEMA_URL)
         webView.onResume()
-    }
-
-    /** Même logique que `MainActivity.fetchUpdateChannelAndApplySplashIcon`,
-     * dupliquée ici car cette Presentation a son propre cycle de vie et sa
-     * propre WebView — voir là-bas pour le détail des choix (tentatives
-     * répétées à court intervalle, purement cosmétique). */
-    private fun fetchUpdateChannelAndApplyPresentationSplashIcon(logoView: android.widget.ImageView) {
-        Thread {
-            var channel: String? = null
-            for (attempt in 1..4) {
-                try {
-                    val connection = URL(PRESENTATION_SETTINGS_URL).openConnection() as HttpURLConnection
-                    connection.connectTimeout = 800
-                    connection.readTimeout = 800
-                    if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-                        val body = connection.inputStream.bufferedReader().use { it.readText() }
-                        val value = JSONObject(body).optString("update_channel", "")
-                        if (value.isNotEmpty()) channel = value
-                    }
-                    connection.disconnect()
-                    if (channel != null) break
-                } catch (e: Exception) {
-                    // Backend pas encore prêt : nouvelle tentative ci-dessous.
-                }
-                Thread.sleep(300)
-            }
-            if (channel != null) {
-                val drawable = splashDrawableForChannel(channel)
-                handler.post { logoView.setImageResource(drawable) }
-            }
-        }.start()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

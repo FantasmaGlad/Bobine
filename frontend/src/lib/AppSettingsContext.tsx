@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { translate, translateList, type Language } from "@/lib/i18n";
-import { pushThemeToNative } from "@/lib/nativeBridge";
+import { pushThemeToNative, pushUpdateChannelToNative } from "@/lib/nativeBridge";
 
 // "les-mills-sombre" est la clé interne historique du thème "Sombre" — conservée telle quelle pour ne rien casser sur
 // les installations existantes, seul le libellé affiché change.
@@ -195,6 +195,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     }
     if (data.update_channel === "stable" || data.update_channel === "beta" || data.update_channel === "canary") {
       setUpdateChannel(data.update_channel);
+      pushUpdateChannelToNative(data.update_channel);
     }
     if (data.display_mode_setting === "auto" || data.display_mode_setting === "dual_screen" || data.display_mode_setting === "headless") {
       setDisplayModeSettingState(data.display_mode_setting);
@@ -307,6 +308,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             if (parsed.update_channel === "stable" || parsed.update_channel === "beta" || parsed.update_channel === "canary") {
               // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setUpdateChannel(parsed.update_channel);
+              pushUpdateChannelToNative(parsed.update_channel);
             }
           }
           if (parsed.event === "display_mode_change") {

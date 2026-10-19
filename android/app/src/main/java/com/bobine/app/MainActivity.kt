@@ -30,9 +30,6 @@ import android.webkit.WebViewClient
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import java.net.HttpURLConnection
-import java.net.URL
-import org.json.JSONObject
 
 // Revision du 2026-09-09 : l'ecran
 // tactile charge desormais /grid, pas /cinema - une grille de selection
@@ -47,18 +44,6 @@ private const val GRID_URL = "http://127.0.0.1:8000/grid/"
 // Sur Android TV / Google TV, l'ecran principal est le grand ecran de la TV.
 // On charge /kiosk par defaut, concu pour la navigation D-Pad a la telecommande.
 private const val KIOSK_URL = "http://127.0.0.1:8000/kiosk"
-private const val SETTINGS_URL = "http://127.0.0.1:8000/api/settings"
-
-/** Icône d'écran de démarrage (mascotte Baamix) selon le canal de mise à
- * jour courant — une ressource `bobine_splash_logo_<canal>` par canal (cf.
- * `drawable-nodpi/`, dérivées de `Assets/Images/Versions/`). Repli sur
- * "stable" si le canal n'est pas encore connu (backend pas encore prêt) ou
- * invalide. */
-fun splashDrawableForChannel(channel: String?): Int = when (channel) {
-    "beta" -> R.drawable.bobine_splash_logo_beta
-    "canary" -> R.drawable.bobine_splash_logo_canary
-    else -> R.drawable.bobine_splash_logo_stable
-}
 
 /**
  * Ecran tactile de la tablette ou affichage Leanback Android TV :
@@ -162,14 +147,14 @@ class MainActivity : AppCompatActivity() {
 
         val logoSizePx = (140 * resources.displayMetrics.density).toInt()
         val logoView = android.widget.ImageView(this).apply {
-            setImageResource(splashDrawableForChannel(null))
+            setImageResource(SplashChannel.initialDrawable(this@MainActivity))
             layoutParams = android.widget.LinearLayout.LayoutParams(logoSizePx, logoSizePx).apply {
                 bottomMargin = (22 * resources.displayMetrics.density).toInt()
             }
             adjustViewBounds = true
         }
         splashLayout.addView(logoView)
-        fetchUpdateChannelAndApplySplashIcon(logoView)
+        SplashChannel.refreshFromBackendIfUnknown(this, logoView)
 
         val progressBar = android.widget.ProgressBar(this).apply {
             isIndeterminate = true
@@ -353,44 +338,6 @@ class MainActivity : AppCompatActivity() {
     // HyperOS/MIUI est connu pour ignorer les mecanismes AOSP standards et
     // exiger des reglages constructeur additionnels, non automatisables
     // depuis l'app).
-    /**
-     * Interroge `/api/settings` en arrière-plan pour connaître le canal de
-     * mise à jour courant et poser l'icône d'écran de démarrage adaptée
-     * (mascotte Baamix par canal) — le backend embarqué (Chaquopy) n'est
-     * pas forcément prêt dès cet appel (d'où les tentatives répétées à
-     * court intervalle, même esprit que `BobineForegroundService.
-     * postDisplayState`), mais répond généralement en moins d'une seconde.
-     * Reste sur l'icône "stable" par défaut si aucune tentative n'aboutit
-     * dans la fenêtre impartie : purement cosmétique, jamais bloquant pour
-     * le reste du démarrage.
-     */
-    private fun fetchUpdateChannelAndApplySplashIcon(logoView: android.widget.ImageView) {
-        Thread {
-            var channel: String? = null
-            for (attempt in 1..4) {
-                try {
-                    val connection = URL(SETTINGS_URL).openConnection() as HttpURLConnection
-                    connection.connectTimeout = 800
-                    connection.readTimeout = 800
-                    if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-                        val body = connection.inputStream.bufferedReader().use { it.readText() }
-                        val value = JSONObject(body).optString("update_channel", "")
-                        if (value.isNotEmpty()) channel = value
-                    }
-                    connection.disconnect()
-                    if (channel != null) break
-                } catch (e: Exception) {
-                    // Backend pas encore prêt : nouvelle tentative ci-dessous.
-                }
-                Thread.sleep(300)
-            }
-            if (channel != null) {
-                val drawable = splashDrawableForChannel(channel)
-                handler.post { logoView.setImageResource(drawable) }
-            }
-        }.start()
-    }
-
     /**
      * Demande UNE fois la permission « afficher par-dessus d'autres applications », necessaire
      * pour rouvrir l'ecran seul apres un redemarrage. Certains appareils (Android TV) n'ont pas

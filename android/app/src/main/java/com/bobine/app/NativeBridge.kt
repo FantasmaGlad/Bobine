@@ -9,6 +9,7 @@ private const val PREFS = "bobine_native"
 private const val KEY_BG = "theme_bg"
 private const val KEY_FG = "theme_fg"
 private const val KEY_START_ON_BOOT = "start_on_boot"
+private const val KEY_UPDATE_CHANNEL = "update_channel"
 private val HEX_COLOR = Regex("^#[0-9a-fA-F]{6}$")
 
 /** Couleurs du thème choisi dans l'application, pour l'écran de chargement. */
@@ -35,6 +36,29 @@ object ThemeColors {
     }
 }
 
+/**
+ * Canal de mise à jour choisi dans l'application (stable, bêta, canary), pour l'écran de
+ * chargement. Même principe que [ThemeColors] : l'interface web envoie la valeur à chaque
+ * changement, et le démarrage la LIT de façon synchrone — le logo du bon canal s'affiche dès
+ * la première image, sans attendre le serveur Python embarqué (qui n'est pas encore prêt).
+ */
+object UpdateChannelPref {
+    private val VALID = setOf("stable", "beta", "canary")
+
+    /** Dernier canal connu, ou null avant tout premier envoi (premier lancement après installation). */
+    fun load(context: Context): String? =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_UPDATE_CHANNEL, null)
+            ?.takeIf { it in VALID }
+
+    /** Enregistre un canal valide ; toute autre valeur est ignorée (la préférence reste intacte). */
+    fun save(context: Context, channel: String) {
+        if (channel !in VALID) return
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(KEY_UPDATE_CHANNEL, channel).apply()
+    }
+}
+
 /** Réglage « lancer au démarrage de l'appareil » (activé par défaut sur Android TV). */
 object StartOnBoot {
     fun isEnabled(context: Context): Boolean =
@@ -48,11 +72,14 @@ object StartOnBoot {
 
 /**
  * Pont minimal exposé à l'interface web locale (`window.BobineNative`) : couleurs du
- * thème et réglage de démarrage. Aucune autre capacité n'est exposée.
+ * thème, canal de mise à jour (écran de chargement) et réglage de démarrage. Aucune autre capacité n'est exposée.
  */
 class NativeBridge(private val context: Context) {
     @JavascriptInterface
     fun setThemeColors(background: String, text: String) = ThemeColors.save(context, background, text)
+
+    @JavascriptInterface
+    fun setUpdateChannel(channel: String) = UpdateChannelPref.save(context, channel)
 
     @JavascriptInterface
     fun getStartOnBoot(): Boolean = StartOnBoot.isEnabled(context)
