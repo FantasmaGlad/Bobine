@@ -5,12 +5,13 @@ import { useIsMobile } from "@/lib/useIsMobile";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
 import Icon from "@/components/Icon";
+import { isRadioLane, parseScheduleChannel, type ScheduleChannel } from "@/lib/scheduleChannels";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 
 type TargetType = "video" | "playlist" | "radio_playlist";
 type ScheduleTypeValue = "once" | "recurring";
 type OverrideActionValue = "cancelled" | "replaced";
-type ChannelValue = "cable" | "network" | "radio";
+type ChannelValue = ScheduleChannel;
 
 interface VideoSummary {
   id: number;
@@ -246,8 +247,8 @@ export default function SchedulePage() {
   // directement sur un canal donné via ?channel= (liens des tableaux de bord).
   const [channel, setChannel] = useState<ChannelValue>(() => {
     if (typeof window === "undefined") return "cable";
-    const requested = new URLSearchParams(window.location.search).get("channel");
-    return requested === "network" || requested === "radio" ? requested : "cable";
+    // Ancien lien ?channel=radio : voie radio réseau (cf. lib/scheduleChannels.ts).
+    return parseScheduleChannel(new URLSearchParams(window.location.search).get("channel"));
   });
 
   // La vue Semaine (7 colonnes proportionnelles à la minute) n'est pas
@@ -332,6 +333,23 @@ export default function SchedulePage() {
   }, [viewMode, channel, pxPerMinute]);
 
   const weekEndExclusive = useMemo(() => addDays(weekStart, 7), [weekStart]);
+
+  // Sortie actuellement affichée par l'écran câblé : sert uniquement à avertir, sur la voie
+  // « radio câblée », qu'une programmation ne s'entendra pas tant que l'écran n'est pas en mode Radio.
+  const [cableOutput, setCableOutput] = useState<string | null>(null);
+  useEffect(() => {
+    if (channel !== "radio_cable") return;
+    let cancelled = false;
+    fetch(getApiUrl("/settings/display-output"), { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data.cable === "string") setCableOutput(data.cable);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [channel]);
 
   const fetchOccurrences = async (start: Date, end: Date) => {
     await Promise.resolve();
@@ -451,7 +469,7 @@ export default function SchedulePage() {
   const resetForm = () => {
     // Le canal radio n'a qu'un seul type de cible : pas de
     // toggle vidéo/playlist à afficher dans ce cas (cf. JSX du tiroir).
-    setFormTargetType(channel === "radio" ? "radio_playlist" : "video");
+    setFormTargetType(isRadioLane(channel) ? "radio_playlist" : "video");
     setFormTargetId("");
     setFormTargetSearch("");
     setFormScheduleType("once");
@@ -1013,13 +1031,22 @@ export default function SchedulePage() {
             {t("schedule.channelTabNetwork")}
           </button>
           <button
-            className={`view-btn olc-press ${channel === "radio" ? "active" : ""}`}
-            onClick={() => setChannel("radio")}
-            title={t("schedule.channelRadioTitle")}
+            className={`view-btn olc-press ${channel === "radio_cable" ? "active" : ""}`}
+            onClick={() => setChannel("radio_cable")}
+            title={t("schedule.channelRadioCableTitle")}
             style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 12px" }}
           >
             <Icon name="graphic_eq" size={16} />
-            {t("schedule.channelTabRadio")}
+            {t("schedule.channelTabRadioCable")}
+          </button>
+          <button
+            className={`view-btn olc-press ${channel === "radio_network" ? "active" : ""}`}
+            onClick={() => setChannel("radio_network")}
+            title={t("schedule.channelRadioNetworkTitle")}
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 12px" }}
+          >
+            <Icon name="graphic_eq" size={16} />
+            {t("schedule.channelTabRadioNetwork")}
           </button>
         </div>
         {viewMode === "day" ? (
@@ -1109,7 +1136,7 @@ export default function SchedulePage() {
               <Icon name="view_list" size={17} />
             </button>
           </div>
-          {channel !== "radio" && (
+          {!isRadioLane(channel) && (
             <button
               type="button"
               className={`view-btn olc-press ${libraryOpen ? "active" : ""}`}
@@ -1132,6 +1159,16 @@ export default function SchedulePage() {
           </button>
         </div>
       </div>
+
+      {/* Voie « radio câblée » alors que l'écran câblé n'est pas en mode Radio : la playlist d'une
+          programmation se charge en pause sans basculer l'écran (jamais de bascule implicite). */}
+      {channel === "radio_cable" && cableOutput !== null && cableOutput !== "radio" && (
+        <div className="interrupted-block" role="status">
+          <div className="interrupted-text">
+            <span className="interrupted-label">{t("schedule.radioCableInactiveHint")}</span>
+          </div>
+        </div>
+      )}
 
       <div className="schedule-body" style={{ flexDirection: isMobile ? "column" : "row", gap: "20px" }}>
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -1197,7 +1234,7 @@ export default function SchedulePage() {
             pleine plutôt que la colonne fixe du PC. Sans objet sur le canal
             radio : un seul type de cible (playlist radio), pas
             de bibliothèque vidéo/playlist à glisser-déposer ici. */}
-        {libraryOpen && channel !== "radio" && (
+        {libraryOpen && !isRadioLane(channel) && (
           <div className="library-picker glass-floating" style={{ width: isMobile ? "100%" : "260px", height: "auto", flexShrink: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span className="form-label" style={{ margin: 0 }}>
@@ -1349,12 +1386,12 @@ export default function SchedulePage() {
             <form onSubmit={handleSaveSchedule} className="drawer-body drawer-form">
               <div className="form-group">
                 <label className="form-label">
-                  {channel === "radio" ? t("schedule.radioPlaylistLabel") : t("schedule.targetLabel")}
+                  {isRadioLane(channel) ? t("schedule.radioPlaylistLabel") : t("schedule.targetLabel")}
                 </label>
                 {/* Le canal radio n'a qu'un seul type de cible (playlist
                     radio) : pas de toggle à afficher, contrairement
                     au câblé/réseau qui choisissent entre vidéo et playlist. */}
-                {channel !== "radio" && (
+                {!isRadioLane(channel) && (
                   <div className="speed-group" style={{ width: "100%" }}>
                     <button
                       type="button"
