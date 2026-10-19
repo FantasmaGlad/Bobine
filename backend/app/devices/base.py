@@ -38,6 +38,7 @@ CAPABILITY_KEYS = (
     "wifi_scan",
     "wifi_connect",
     "wifi_forget",
+    "system_settings",
 )
 
 
@@ -113,6 +114,9 @@ class DeviceDriver(ABC):
 
         Chaque appareil : address, name, paired, connected, trusted, rssi, kind, battery."""
 
+    async def bluetooth_request_permission(self) -> None:
+        """Demande l'autorisation système d'utiliser le Bluetooth (Android : « Appareils à proximité »)."""
+
     async def bluetooth_set_power(self, on: bool) -> None:
         raise DeviceError("unsupported", "Le Bluetooth ne peut pas être activé ici.", 501)
 
@@ -162,6 +166,11 @@ class DeviceDriver(ABC):
 
     async def wifi_forget(self, ssid: str) -> None:
         raise DeviceError("unsupported", "L'oubli d'un réseau Wi-Fi n'est pas possible ici.", 501)
+
+    # --- réglages du système -----------------------------------------------
+    async def open_system_settings(self, target: str) -> None:
+        """Ouvre l'écran de réglages du système (« wifi », « bluetooth », « sound ») sur la machine."""
+        raise DeviceError("unsupported", "Les réglages du système ne peuvent pas être ouverts depuis Bobine ici.", 501)
 
     async def wifi_interface_subnet(self) -> str | None:
         """Sous-réseau IPv4 (CIDR) de l'interface Wi-Fi, pour détecter un appareil connecté par ce seul réseau."""

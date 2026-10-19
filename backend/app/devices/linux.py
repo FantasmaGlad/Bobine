@@ -125,6 +125,7 @@ class LinuxDriver(DeviceDriver):
             if wifi_reason:
                 caps[key]["reason"] = wifi_reason
 
+        caps["system_settings"] = {"supported": False, "reason": "Non applicable sur ce système : utilisez cet écran."}
         self._probe_cache = (now, caps)
         return caps
 

@@ -290,6 +290,13 @@ async def bluetooth_status(_: Access = Depends(require_access)) -> dict[str, Any
     return await _guard(service.driver.bluetooth_status())
 
 
+@router.post("/bluetooth/permission")
+async def bluetooth_permission(_: Access = Depends(require_access)) -> dict[str, bool]:
+    """Android : affiche sur l'appareil la demande d'autorisation « Appareils à proximité »."""
+    await _guard(service.driver.bluetooth_request_permission())
+    return {"ok": True}
+
+
 @router.post("/bluetooth/power")
 async def bluetooth_power(payload: BluetoothPowerRequest, _: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, bool]:
     await _guard(service.driver.bluetooth_set_power(payload.on))
@@ -332,6 +339,24 @@ async def bluetooth_disconnect(payload: BluetoothAddressRequest, _: Access = Dep
 async def bluetooth_forget(payload: BluetoothAddressRequest, _: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, bool]:
     await _guard(service.driver.bluetooth_forget(payload.address))
     _log(db, "devices_bluetooth_forget", payload.address)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Réglages du système (Android : Wi-Fi, Bluetooth, son)
+# ---------------------------------------------------------------------------
+
+
+class SystemSettingsRequest(BaseModel):
+    target: str
+
+
+@router.post("/system-settings")
+async def open_system_settings(payload: SystemSettingsRequest, _: Access = Depends(require_access)) -> dict[str, bool]:
+    """Ouvre l'écran de réglages correspondant SUR la machine (pour l'écran local ou la télécommande)."""
+    if payload.target not in ("wifi", "bluetooth", "sound"):
+        raise _fail(400, "bad_target", "Réglage inconnu.")
+    await _guard(service.driver.open_system_settings(payload.target))
     return {"ok": True}
 
 

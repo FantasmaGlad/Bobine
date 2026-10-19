@@ -485,3 +485,12 @@ def test_event_is_a_data_free_signal(monkeypatch):
     svc.notify("wifi")
     svc.notify("wifi")  # rafale : dédoublonnée
     assert sent == [{"event": "devices_changed", "scope": "wifi"}]
+
+
+def test_system_settings_and_permission_routes(driver, local):
+    TestClient(app).post("/api/devices/admin/enable", json={"enabled": True})
+    client = TestClient(app)
+    assert client.post("/api/devices/system-settings", json={"target": "rm -rf"}).json()["detail"]["code"] == "bad_target"
+    unsupported = client.post("/api/devices/system-settings", json={"target": "wifi"})
+    assert unsupported.status_code == 501 and unsupported.json()["detail"]["code"] == "unsupported"
+    assert client.post("/api/devices/bluetooth/permission").status_code == 200  # no-op par défaut

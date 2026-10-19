@@ -24,6 +24,19 @@
          Intent.ACTION_VIEW (UpdateManager.kt) - la boite de dialogue de
          confirmation d'installation elle-meme reste toujours affichee. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Onglet Peripheriques : etat du Wi-Fi en lecture seule (permission normale, aucune demande a l'utilisateur).
+         Le nom du reseau (SSID) n'est PAS lu : il exigerait la localisation precise, permission sensible que
+         Bobine ne demande pas. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Bluetooth : permissions « Appareils a proximite » demandees a l'execution, seulement quand
+         l'utilisateur ouvre l'onglet Peripheriques. BLUETOOTH_SCAN est declaree neverForLocation : aucune
+         deduction de position, donc aucune permission de localisation. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <!-- Le Bluetooth est facultatif : boitiers Android TV et tablettes sans Bluetooth restent installables. -->
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
     <!-- Affichage Presentation sur ecran externe HDMI (mode bureau étendu) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
