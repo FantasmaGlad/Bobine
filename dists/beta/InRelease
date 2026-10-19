@@ -5,35 +5,44 @@ Origin: Bobine
 Label: Bobine
 Suite: beta
 Codename: beta
-Date: Fri, 16 Oct 2026 12:10:50 UTC
-Architectures: amd64
+Date: Mon, 19 Oct 2026 13:59:49 UTC
+Architectures: amd64 arm64
 Components: main
-Description: Depot officiel Bobine - Canal Beta (Rolling)
+Description: Depot officiel Bobine - Canal Beta (Curated)
 MD5Sum:
- e502a45901aa06937ddfb149dee8c7b5 1326 main/binary-amd64/Packages
- 9d543a1cc52621def2f8a8fe416af214 846 main/binary-amd64/Packages.gz
- 4e9d61f921811eec892d767f9346bd94 137 main/binary-amd64/Release
+ e2a409f13a5b19ca3865fd9ba86e5e2f 1345 main/binary-amd64/Packages
+ 13f7396e383446101c04de155c611116 796 main/binary-amd64/Packages.gz
+ d74fc5cdb03a37652327a1b03feb9003 137 main/binary-amd64/Release
+ 3cdaaeebb7c255eb27fe15648351fe81 1345 main/binary-arm64/Packages
+ 1227a3d3b9e3eebaa537425a2ccd9050 796 main/binary-arm64/Packages.gz
+ 2fbcb77bbc5056e6ac0712ddc8781571 137 main/binary-arm64/Release
 SHA1:
- ecf8faddc5dfe4e618bc4a256edc6cb00efb2d4c 1326 main/binary-amd64/Packages
- de6d6f84a4884d76c1708dae1b42d33fb5a2a0af 846 main/binary-amd64/Packages.gz
- 86f9121fae9dbe6f26cfdf16b475332ea4c5715c 137 main/binary-amd64/Release
+ 89be7e92ea86120e1c359d525de28fd498c378a9 1345 main/binary-amd64/Packages
+ 46fa2175e29c01d56d0a696b7cefb9590017f74d 796 main/binary-amd64/Packages.gz
+ 9d3092071524fb13f7f3b609e004d5d66e5b4a76 137 main/binary-amd64/Release
+ f0c69c4cd8702ae5565f3515b496cf531f26a7bc 1345 main/binary-arm64/Packages
+ ff4cd6b66e77a745e98a074d886411ef7ae431b7 796 main/binary-arm64/Packages.gz
+ e88b1fa9e359aa64d19b01fa9d386c3e3ac801f9 137 main/binary-arm64/Release
 SHA256:
- 116bc78dedec0de5bed2d0de9974451579f0f5e4560eaffad786b3afe3103616 1326 main/binary-amd64/Packages
- 0b8d663aaf3fcecbe3873ed2537baded6719bdf8474b8ad71a88795f1e39a84b 846 main/binary-amd64/Packages.gz
- aff5f63ae1ae3189fdc60f93f86620d6d66c572d9dc9a7db3d0aa522163ecbb0 137 main/binary-amd64/Release
+ 8994bb4855ce513fcba80169f481e5d7ddb24259956658cd43216e6c1bab8257 1345 main/binary-amd64/Packages
+ f7adf56b4c20a5ed2c3a4087cc615a78c899872144f43865ca7c77c132a0dc82 796 main/binary-amd64/Packages.gz
+ 1cd1b99df5c1d3edecbc44b57315c9360a692f90a65ae11fd97ef3b9e44973f9 137 main/binary-amd64/Release
+ bea5d70661c8e7e867dd160af1c9d287927b2db2a9575c2a256f19851fd4b6b1 1345 main/binary-arm64/Packages
+ 60aee37e0c79c42b2a60ff526c9797a5d48fa59e75bf195f7d214e8ead15d739 796 main/binary-arm64/Packages.gz
+ 4a8e6c481a0ff602746afe2e0c0b0b3ecacb56be5aa842b98991ad8640bb85a9 137 main/binary-arm64/Release
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAEBCgAdFiEElBtvUmpyWfRpTPS8G10YqXb6rRUFAmrSFEoACgkQG10YqXb6
-rRWofhAAh/vTNNCdiEBz3xXkRuHFox1PbZR1wyw9rQNWRJca7xejVs2a6c5Oe3kR
-1oKQYDeAyHHjdeoTZHe6zr6VEzUJ8/jH8RpCEHwlOnpZ0loLZoKM7zr386KUlAhm
-mP8zj2NMq8CAJLc7evFcDfGip9PqrdOUVx/a5bXnW71N7yGB4/lBGcyB57oa9HFe
-xyqtBnfMg18mZCYGdIV/b+s7bl1N/dHFVnUGNTDV/QbC7+QaFWEMtzf/e9SOHVVf
-KvyI6azgwLup8ujd2JZwlHyOkOJjAnKt0eGSvoZLVFdrIUL3cssUcaCEmiG0AfWm
-/Kb+7U7PDWROJ00zsAfqpZjaqNFyhg5G8y9bQ8od77gyKuqJoq67+OZqhlDdx0dW
-9SykG+LwxQVuT5vF0mcCu87NDIG3CK/iz4XKuKuaXdmgNxLw4+p10TRNPfNnZlv2
-8E9d7NBaldxV+NGOQB6LKex58cit06nlQkAT6urOWDpHhExAk8SlNqH7c1uvvkmj
-JLsat8VyGCsue/X8AaD4dAXRplxCmcPBOUs5PgqJL6uZkAfs1fOiKyMk6wxT25DK
-OnF4sBZ8jS995+sU8zJITY+lpGnfFXoOa3IZozUzaZZoWbPRnjXOGsg4snkCF0zy
-OYVsWk5ineCdHOYkyY2EKPLLDp7oO7Yquigk1REAOL1cHcO/plQ=
-=gC0E
+iQIzBAEBCgAdFiEElBtvUmpyWfRpTPS8G10YqXb6rRUFAmrWIlUACgkQG10YqXb6
+rRXrBA//X7PYgJiInM36QzXsDQVpBjLPASeno/oiEysehd11pcfWPil5sfH2T2QP
+39T9o91oh0gSpOF7kraZ8Hcr++abehUL+dvBDmiauK7MrUG8Smz+rcjFN/+50vzL
+QGNRdPdeciCvNZWNeAW2wE3RG512+IN44LQiPD20DYkOlArVZWjpjhGTPcK0nvMQ
+QRN51+NqYK5qWIRO+e9OmnfbaLTVVAwTY+VdSWw6uRuSzq1ERHjNyA8AnDRMDAVP
+jA1fTbq/i2W9/YRZYOzBAlczCVBE+ml5iRRiGYvpbNlI3EQZ9GPETHPotH2eTams
+Jw2DGOMACvRaI19cpI4BqnzsR715Z1l4viv9DysUCoi+m0FN9CFBR54m00LncG47
+CL+GfOcJwK4hUSY8JWH1JhX8hM9wn5nbhauAC6OWIx9jYv/Qx3BOCgnw1fUj82md
+LE01N6Hg+3qaAvxGn3KzEt006ooiTtI7KkGCBkuBs3wfxizm0SzareFqDVXVTNZc
+C8q63yfW6V1EJ9fXGM5as9zd/XN2AjBde+AMFFANWt2y5pFUMevyvMC4fL/O8o8x
+dR8xVCUlztlr5ygAyO1Uw2DLULGFPx1xLR3Zxh5Hp5P1X8Lav+xAVhVYP3szjqyG
+MQqVUIF2jZUMM52/LVp4XdHkSM6/7NchnucgkpldtUG5NBM5ofQ=
+=bipv
 -----END PGP SIGNATURE-----
