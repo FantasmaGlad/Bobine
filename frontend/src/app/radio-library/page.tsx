@@ -735,8 +735,6 @@ export default function RadioLibraryPage() {
     return "some";
   };
 
-  const filterLabel = filter ? filter.value : t("radioLibrary.allTracks");
-
   // ---- Rendu : carte morceau ----
   const trackCard = (track: RadioTrack) => {
     const isSel = selected.has(track.id);
@@ -812,6 +810,11 @@ export default function RadioLibraryPage() {
   const filterIcon = filter
     ? (filter.type === "tag" ? "label" : filter.type === "genre" ? "graphic_eq" : filter.type === "playlist" ? "queue_music" : filter.type === "album" ? "album" : "person")
     : "library_music";
+
+  // Téléphone : la barre de sections défile ; garde la section active visible.
+  useEffect(() => {
+    document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [section]);
 
   const sectionButton = (id: Section, icon: string, label: string, count?: number) => (
     <button

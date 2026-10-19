@@ -47,6 +47,11 @@ export default function DevicesPage() {
     try { if (next !== "security") window.localStorage.setItem(TAB_KEY, next); } catch { /* ignoré */ }
   };
 
+  // Téléphone : la barre de sections défile ; garde la section active visible.
+  useEffect(() => {
+    document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [tab, status?.access]);
+
   const loadStatus = useCallback(async () => {
     const result = await devicesRequest<DevicesStatus>("/status");
     if (result.ok) {

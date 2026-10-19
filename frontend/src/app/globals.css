@@ -9484,3 +9484,28 @@ video::cue {
   .rl-sections { width: 100%; }
   .rl-sections .display-output-buttons { width: 100%; }
 }
+
+/* Téléphone : la barre de sections défile horizontalement (une seule ligne), barres d'outils et lignes compactes. */
+@media (max-width: 720px) {
+  .rl-sections .display-output-buttons { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; border-radius: 999px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .rl-sections .display-output-buttons::-webkit-scrollbar { display: none; }
+  .rl-sections .display-output-btn { flex: 0 0 auto; white-space: nowrap; }
+  .rl-nav-card .channel-card-left { width: 100%; }
+  .dv-toolbar { padding: 8px 10px; gap: 8px; }
+  .dv-toolbar .rl-toolbar-spacer { display: none; }
+  .dv-toolbar .status-pill { max-width: 100%; white-space: normal; }
+  .dv-toolbar .btn { flex: 1 1 calc(50% - 8px); justify-content: center; padding: 8px 10px; font-size: 0.82rem; }
+  .dv-row { padding: 10px; gap: 10px; }
+  .dv-icon { width: 36px; height: 36px; }
+  .dv-text { flex: 1 1 0; }
+  .dv-actions { width: 100%; }
+  .dv-actions .btn { flex: 1 1 auto; justify-content: center; }
+  .dv-volume { flex: 1 1 100%; min-width: 0; }
+  .dv-note { padding: 10px; }
+  .dv-note > span { flex-basis: 100%; }
+  .dv-note .btn { flex: 1 1 auto; justify-content: center; }
+  .dv-passkey { display: block; margin: 6px 0 0; }
+  .dv-gate { padding: 24px 14px; margin: 8px 0; }
+  .dv-password .form-control { max-width: none; }
+}
