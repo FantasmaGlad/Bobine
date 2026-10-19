@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import { copyText } from "@/lib/clipboard";
 import {
   VideoProfilePreference,
   getAcceptedCodecs,
@@ -163,17 +164,7 @@ export default function BrowserCompatibility() {
       null,
       2,
     );
-    try {
-      await navigator.clipboard.writeText(report);
-    } catch {
-      // Presse-papiers indisponible hors contexte sécurisé : repli historique
-      const area = document.createElement("textarea");
-      area.value = report;
-      document.body.appendChild(area);
-      area.select();
-      document.execCommand("copy");
-      area.remove();
-    }
+    await copyText(report);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };

@@ -10,6 +10,7 @@ import MarkdownView from "@/components/MarkdownView";
 import AddressList from "@/components/AddressList";
 import StartOnBootToggle from "@/components/StartOnBootToggle";
 import { useIsMobile } from "@/lib/useIsMobile";
+import { copyText } from "@/lib/clipboard";
 
 // Profil de déploiement — détermine si
 // la zone Désinstaller propose une action directe (appliance headless) ou de
@@ -540,10 +541,11 @@ export default function SettingsPage() {
   };
 
   const handleCopyPath = async (p: string) => {
-    try {
-      await navigator.clipboard.writeText(p);
+    // « Copié » seulement si la copie a réellement réussi ; sinon l'adresse est affichée pour être
+    // copiée à la main (cf. lib/clipboard.ts : HTTP simple sur l'IP locale = pas d'API presse-papiers).
+    if (await copyText(p)) {
       showToast(t("settingsPage.paths.pathCopied"));
-    } catch {
+    } else {
       showToast(p);
     }
   };
@@ -558,7 +560,7 @@ export default function SettingsPage() {
       const resData = await res.json().catch(() => ({}));
       if (res.ok) {
         if (resData.status === "android") {
-          await navigator.clipboard.writeText(p).catch(() => {});
+          await copyText(p);
           showToast(resData.message || t("settingsPage.paths.pathCopied"));
         } else {
           showToast(t("settingsPage.paths.folderOpened"));
