@@ -57,29 +57,45 @@ export default function RadioRemotePage() {
 
   return (
     <div className="dashboard-container">
-      <div className="view-toggle" role="tablist" aria-label={t("radioRemote.outputTabs")}>
-        <button
-          role="tab"
-          aria-selected={channel === "radio_cable"}
-          className={`view-btn olc-press ${channel === "radio_cable" ? "active" : ""}`}
-          onClick={() => selectChannel("radio_cable")}
-          title={t("radioRemote.outputCableTitle")}
-          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 12px" }}
-        >
-          <Icon name="cable" size={16} />
-          {t("radioRemote.outputCable")}
-        </button>
-        <button
-          role="tab"
-          aria-selected={channel === "radio_network"}
-          className={`view-btn olc-press ${channel === "radio_network" ? "active" : ""}`}
-          onClick={() => selectChannel("radio_network")}
-          title={t("radioRemote.outputNetworkTitle")}
-          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 12px" }}
-        >
-          <Icon name="wifi" size={16} />
-          {t("radioRemote.outputNetwork")}
-        </button>
+      {/* Même barre que celle de la page « Sortie Câblé » (carte d'en-tête + commutateur en pilule) :
+          une seule apparence pour tous les choix de sortie. */}
+      <div className="live-block channel-card">
+        <div className="channel-card-left">
+          <h3>
+            <Icon name="graphic_eq" size={18} />
+            {t("radioRemote.title")}
+          </h3>
+          <span className="status-pill neutral">
+            {channel === "radio_cable" ? t("radioRemote.outputCable") : t("radioRemote.outputNetwork")}
+          </span>
+        </div>
+        <div className="channel-card-right">
+          <div className="display-output-switch" role="tablist" aria-label={t("radioRemote.outputTabs")}>
+            <span className="display-output-label">{t("radioRemote.outputTabs")}</span>
+            <div className="display-output-buttons">
+              <button
+                role="tab"
+                aria-selected={channel === "radio_cable"}
+                className={`display-output-btn olc-press ${channel === "radio_cable" ? "active" : ""}`}
+                onClick={() => selectChannel("radio_cable")}
+                title={t("radioRemote.outputCableTitle")}
+              >
+                <Icon name="cable" size={16} />
+                {t("radioRemote.outputCable")}
+              </button>
+              <button
+                role="tab"
+                aria-selected={channel === "radio_network"}
+                className={`display-output-btn olc-press ${channel === "radio_network" ? "active" : ""}`}
+                onClick={() => selectChannel("radio_network")}
+                title={t("radioRemote.outputNetworkTitle")}
+              >
+                <Icon name="wifi" size={16} />
+                {t("radioRemote.outputNetwork")}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
       {channel && <RadioRemotePanel key={channel} channel={channel} />}
     </div>
