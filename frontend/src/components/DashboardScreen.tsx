@@ -14,6 +14,8 @@ import Icon from "@/components/Icon";
 import SubtitlePicker from "@/components/SubtitlePicker";
 import ChapterList from "@/components/ChapterList";
 import ChapterTicks from "@/components/ChapterTicks";
+import ResponsiveSelect from "@/components/ResponsiveSelect";
+import { courseThumbSrc, formatClock as formatCourseClock } from "@/lib/courseMeta";
 import { useVideoChapters } from "@/lib/chapters";
 import type { DisplayOutput } from "@/lib/displayChannel";
 
@@ -36,6 +38,8 @@ interface PlaylistSummary {
   name: string;
   item_count: number;
   total_duration_seconds: number;
+  /** Miniature dérivée du 1er cours de la playlist (même convention que le planning). */
+  thumbnail_path?: string | null;
 }
 
 interface OccurrenceSummary {
@@ -921,19 +925,21 @@ export default function DashboardScreen({ channel }: Props) {
                 {isCable ? t("dashboard.launchCourseCableHint") : t("dashboard.launchCourseNetworkHint")}
               </p>
               <div className="launch-row">
-                <select
-                  className="filter-select"
-                  style={{ flex: 1 }}
+                {/* Sélecteur riche : aperçu du cours, programme, durée et recherche intégrée. */}
+                <ResponsiveSelect
+                  style={{ flex: 1, minWidth: 0 }}
                   value={selectedVideoId}
-                  onChange={(e) => setSelectedVideoId(e.target.value)}
-                >
-                  <option value="">{t("dashboard.chooseVideo")}</option>
-                  {videos.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.title} {v.program ? `— ${v.program}` : ""} {v.release ? `#${v.release}` : ""}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSelectedVideoId}
+                  placeholder={t("dashboard.chooseVideo")}
+                  title={t("dashboard.chooseVideo")}
+                  options={videos.map((v) => ({
+                    value: String(v.id),
+                    label: v.title,
+                    sublabel: [v.program, v.release ? `#${v.release}` : null].filter(Boolean).join(" · ") || undefined,
+                    thumbnail: courseThumbSrc(getApiUrl, v),
+                    meta: v.duration_seconds ? formatCourseClock(v.duration_seconds) : undefined,
+                  }))}
+                />
                 <button
                   className="btn btn-primary"
                   onClick={handleLaunch}
@@ -960,19 +966,20 @@ export default function DashboardScreen({ channel }: Props) {
                 {t("dashboard.launchPlaylistTitle")}
               </h3>
               <div className="launch-row">
-                <select
-                  className="filter-select"
-                  style={{ flex: 1 }}
+                <ResponsiveSelect
+                  style={{ flex: 1, minWidth: 0 }}
                   value={selectedPlaylistId}
-                  onChange={(e) => setSelectedPlaylistId(e.target.value)}
-                >
-                  <option value="">{t("dashboard.choosePlaylist")}</option>
-                  {playlists.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.item_count} cours — {formatDuration(p.total_duration_seconds)})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSelectedPlaylistId}
+                  placeholder={t("dashboard.choosePlaylist")}
+                  title={t("dashboard.choosePlaylist")}
+                  options={playlists.map((p) => ({
+                    value: String(p.id),
+                    label: p.name,
+                    sublabel: t("dashboard.playlistCourseCount", { count: p.item_count }),
+                    thumbnail: courseThumbSrc(getApiUrl, { thumbnail_path: p.thumbnail_path }),
+                    meta: formatDuration(p.total_duration_seconds),
+                  }))}
+                />
                 <button
                   className="btn btn-primary"
                   onClick={handleLaunchPlaylist}

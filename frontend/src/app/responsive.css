@@ -1125,3 +1125,75 @@ button.course-card.is-selected {
   height: 22px;
   accent-color: var(--accent-primary);
 }
+
+/* ------------------------------------------------------------------ */
+/* Liste déroulante riche (ResponsiveSelect) : aperçu, recherche      */
+/* ------------------------------------------------------------------ */
+.rs-trigger {
+  width: 100%;
+  min-width: 0;
+}
+.rs-trigger.has-preview {
+  min-height: 58px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.rs-trigger__selected {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+.rs-trigger__selected .sheet-option__thumb {
+  width: 76px;
+}
+.rs-trigger__selected .sheet-option__label,
+.rs-trigger__selected .sheet-option__sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rs-popover {
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg, 16px);
+  background: var(--bg-surface);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+.rs-popover__search {
+  flex-shrink: 0;
+}
+.rs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+}
+.rs-popover .sheet-option {
+  min-height: 52px;
+}
+.rs-popover .sheet-option__thumb {
+  width: 76px;
+}
+.sheet-option__thumb.is-square {
+  width: 48px;
+  aspect-ratio: 1 / 1;
+}
+.rs-popover .sheet-option__thumb.is-square,
+.rs-trigger__selected .sheet-option__thumb.is-square {
+  width: 48px;
+}
+.sheet-option.is-active:not(.is-selected) {
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-surface-elevated));
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-color));
+}

@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import Icon from "@/components/Icon";
+import ResponsiveSelect from "@/components/ResponsiveSelect";
 import { useUploadManager } from "@/lib/UploadManager";
 
 // Extensions audio acceptées (miroir de AUDIO_EXTENSIONS côté backend) : sert
@@ -340,13 +341,11 @@ export default function RadioAnnouncementsPage() {
       ? t("radioAnnouncements.targetBoth")
       : t("radioAnnouncements.targetNetwork");
 
-  const targetOptions = (
-    <>
-      <option value="radio_network">{t("radioAnnouncements.targetNetwork")}</option>
-      <option value="radio_cable">{t("radioAnnouncements.targetCable")}</option>
-      <option value="both">{t("radioAnnouncements.targetBoth")}</option>
-    </>
-  );
+  const targetOptions = [
+    { value: "radio_network", label: t("radioAnnouncements.targetNetwork") },
+    { value: "radio_cable", label: t("radioAnnouncements.targetCable") },
+    { value: "both", label: t("radioAnnouncements.targetBoth") },
+  ];
 
   const ruleIcon = (type: RuleType) =>
     type === "every_n_tracks" ? "music_note" : type === "every_x_minutes" ? "timer" : "schedule";
@@ -377,16 +376,14 @@ export default function RadioAnnouncementsPage() {
             <Icon name="cloud_upload" size={18} />
             <span>{showImportCard ? "Fermer l'import" : "Importer un rappel"}</span>
           </button>
-          <select
+          <ResponsiveSelect
             className="form-control"
-            style={{ height: "44px", width: "auto" }}
+            style={{ height: "44px", width: "auto", minWidth: "190px" }}
             value={playNowTarget}
-            onChange={(e) => setPlayNowTarget(e.target.value as RuleTarget)}
+            onChange={(value) => setPlayNowTarget(value as RuleTarget)}
             title={t("radioAnnouncements.playNowTargetTitle")}
-            aria-label={t("radioAnnouncements.playNowTargetTitle")}
-          >
-            {targetOptions}
-          </select>
+            options={targetOptions}
+          />
           <button className="btn btn-primary ra-playnow" onClick={() => handlePlayNow()} disabled={announcements.filter((a) => a.enabled).length === 0}>
             <Icon name="play_arrow" size={18} filled /> {t("radioAnnouncements.playNow")}
           </button>
@@ -570,16 +567,25 @@ export default function RadioAnnouncementsPage() {
             {/* Ajout d'une règle */}
             <div className="ra-add-rule">
               <span className="ra-field-label">{t("radioAnnouncements.addRuleTitle")}</span>
-              <select className="form-control" value={newRuleType} onChange={(e) => setNewRuleType(e.target.value as RuleType)}>
-                <option value="every_n_tracks">{t("radioAnnouncements.ruleTypeEveryNTracks")}</option>
-                <option value="every_x_minutes">{t("radioAnnouncements.ruleTypeEveryXMinutes")}</option>
-                <option value="fixed_times">{t("radioAnnouncements.ruleTypeFixedTimes")}</option>
-              </select>
+              <ResponsiveSelect
+                className="form-control"
+                value={newRuleType}
+                onChange={(value) => setNewRuleType(value as RuleType)}
+                title={t("radioAnnouncements.addRuleTitle")}
+                options={[
+                  { value: "every_n_tracks", label: t("radioAnnouncements.ruleTypeEveryNTracks") },
+                  { value: "every_x_minutes", label: t("radioAnnouncements.ruleTypeEveryXMinutes") },
+                  { value: "fixed_times", label: t("radioAnnouncements.ruleTypeFixedTimes") },
+                ]}
+              />
 
-              <select className="form-control" value={newRuleTarget} onChange={(e) => setNewRuleTarget(e.target.value as RuleTarget)}
-                title={t("radioAnnouncements.ruleTargetTitle")} aria-label={t("radioAnnouncements.ruleTargetTitle")}>
-                {targetOptions}
-              </select>
+              <ResponsiveSelect
+                className="form-control"
+                value={newRuleTarget}
+                onChange={(value) => setNewRuleTarget(value as RuleTarget)}
+                title={t("radioAnnouncements.ruleTargetTitle")}
+                options={targetOptions}
+              />
 
               {newRuleType === "every_n_tracks" && (
                 <input type="number" min={1} className="form-control" value={newNTracks}

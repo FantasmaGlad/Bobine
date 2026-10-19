@@ -9078,3 +9078,41 @@ video::cue {
   padding: 0 14px;
   font-size: 0.8rem;
 }
+
+/* ---- Recherche : autocomplétion et surlignage (SearchBox, Highlight, ResponsiveSelect) ---- */
+.search-mark {
+  background: color-mix(in srgb, var(--accent-primary) 22%, transparent);
+  color: inherit;
+  font-weight: 800;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+.search-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+}
+.search-suggestion {
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.search-suggestion.is-active {
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-surface-elevated));
+}

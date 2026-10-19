@@ -11,6 +11,7 @@ import AddressList from "@/components/AddressList";
 import StartOnBootToggle from "@/components/StartOnBootToggle";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { copyText } from "@/lib/clipboard";
+import ResponsiveSelect from "@/components/ResponsiveSelect";
 
 // Profil de déploiement — détermine si
 // la zone Désinstaller propose une action directe (appliance headless) ou de
@@ -762,10 +763,16 @@ export default function SettingsPage() {
 
         <div className="form-group" style={{ maxWidth: "320px" }}>
           <label className="form-label">{t("settingsPage.languageLabel")}</label>
-          <select className="form-control" value={language} onChange={(e) => setLanguage(e.target.value as Language)}>
-            <option value="fr">{t("settingsPage.languageFr")}</option>
-            <option value="en">{t("settingsPage.languageEn")}</option>
-          </select>
+          <ResponsiveSelect
+            className="form-control"
+            value={language}
+            onChange={(value) => setLanguage(value as Language)}
+            title={t("settingsPage.languageLabel")}
+            options={[
+              { value: "fr", label: t("settingsPage.languageFr") },
+              { value: "en", label: t("settingsPage.languageEn") },
+            ]}
+          />
           <p className="settings-hint">{t("settingsPage.languageHint")}</p>
         </div>
       </section>
