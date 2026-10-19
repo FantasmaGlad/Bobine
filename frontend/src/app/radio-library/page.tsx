@@ -6,6 +6,7 @@ import { useUploadManager } from "@/lib/UploadManager";
 import Icon from "@/components/Icon";
 import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
+import ResponsiveSelect from "@/components/ResponsiveSelect";
 
 // Bibliothèque musicale Radio — écran unique « vue d'ensemble » (refonte).
 // Barre latérale persistante (playlists / tags / genres / artistes, tous
@@ -57,7 +58,13 @@ interface ArtistEntry { name: string; track_count: number; album_count: number; 
 interface AlbumEntry { album: string; album_artist: string | null; track_count: number; year: number | null; cover_track_id: number | null; }
 interface TagEntry { id: number; name: string; track_count: number; }
 
-type Filter = { type: "artist" | "album" | "genre" | "tag"; value: string } | null;
+type Filter = { type: "artist" | "album" | "genre" | "tag" | "playlist"; value: string } | null;
+
+/** Sections de la barre de navigation horizontale. */
+type Section = "tracks" | "playlists" | "artists" | "tags" | "import";
+type SortKey = "recent" | "title" | "artist" | "duration";
+type ViewMode = "grid" | "list";
+const VIEW_STORAGE_KEY = "bobine.radioLibrary.view";
 
 interface ToastState { message: string; type: "success" | "error" | "warning"; }
 
@@ -90,7 +97,7 @@ export default function RadioLibraryPage() {
   const [tracks, setTracks] = useState<RadioTrack[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [artists, setArtists] = useState<ArtistEntry[]>([]);
-  const [, setAlbums] = useState<AlbumEntry[]>([]);
+  const [albums, setAlbums] = useState<AlbumEntry[]>([]);
   const [tagsList, setTagsList] = useState<TagEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -98,16 +105,38 @@ export default function RadioLibraryPage() {
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>(null);
-  const [artistsOpen, setArtistsOpen] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [section, setSection] = useState<Section>("tracks");
+  const [sortKey, setSortKey] = useState<SortKey>("recent");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [artistsView, setArtistsView] = useState<"artists" | "albums">("artists");
+  // Morceaux de la playlist utilisée comme filtre (chargés au clic sur « Voir les morceaux »).
+  const [playlistFilterIds, setPlaylistFilterIds] = useState<Set<number> | null>(null);
+
+  // Vue grille ou liste mémorisée par appareil (accès au stockage protégé : il peut être indisponible).
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture unique d'une préférence locale après hydratation
+      if (stored === "grid" || stored === "list") setViewMode(stored);
+    } catch {
+      // stockage indisponible : vue grille
+    }
+  }, []);
+  const chooseViewMode = (mode: ViewMode) => {
+    setViewMode(mode);
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, mode);
+    } catch {
+      // la préférence reste valable pour cette session
+    }
+  };
 
   // Sélection multiple + actions groupées
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkMenu, setBulkMenu] = useState<null | "tag" | "playlist">(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  // Import (modale)
-  const [importOpen, setImportOpen] = useState(false);
+  // Import (section « Importer »)
   // ZIP et pistes partagent désormais le même sélecteur générique
   // (détecté après coup à la sélection, cf. startFilesUpload) — seul le
   // dossier a encore besoin d'un mode dédié (sélecteur natif différent,
@@ -154,6 +183,8 @@ export default function RadioLibraryPage() {
   const seenDoneIds = useRef<Set<string>>(new Set());
 
   const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
+  // Imports radio en cours ou récents, affichés dans la section « Importer ».
+  const radioUploads = uploads.filter((u) => u.kind === "radio_files" || u.kind === "radio_zip").slice(-12).reverse();
 
   useEffect(() => {
     if (!toast) return;
@@ -256,7 +287,6 @@ export default function RadioLibraryPage() {
     }
     showToast(t("radioLibrary.importStarted"));
     if (fileInputRef.current) fileInputRef.current.value = "";
-    setImportOpen(false);
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -625,13 +655,23 @@ export default function RadioLibraryPage() {
       const res = await fetch(getApiUrl(`/radio/tags/${tag.id}`), { method: "DELETE" });
       if (res.ok) {
         showToast(t("radioLibrary.tagDeletedToast"));
-        if (filter?.type === "tag" && filter.value === tag.name) setFilter(null);
+        if (filter?.type === "tag" && filter.value === tag.name) clearFilter();
         refreshAll();
       } else showToast(t("radioLibrary.tagError"), "error");
     } catch { showToast(t("radioLibrary.tagError"), "error"); }
   };
 
-  const applyFilter = (f: Filter) => { setFilter(f); };
+  // Choisir un filtre (artiste, album, tag, style) bascule sur la section Morceaux, où il s'applique.
+  const applyFilter = (f: Filter) => { setFilter(f); setPlaylistFilterIds(null); setSection("tracks"); };
+
+  const filterByPlaylist = async (playlist: PlaylistSummary) => {
+    const detail = await fetchJson<PlaylistDetail | null>(`/radio/playlists/${playlist.id}`, null);
+    if (!detail) { showToast(t("radioLibrary.playlistError"), "error"); return; }
+    setPlaylistFilterIds(new Set(detail.items.map((i) => i.track.id)));
+    setFilter({ type: "playlist", value: playlist.name });
+    setSection("tracks");
+  };
+  const clearFilter = () => { setFilter(null); setPlaylistFilterIds(null); };
 
   // ---- Dérivés ----
   const genres = useMemo(() => {
@@ -653,9 +693,20 @@ export default function RadioLibraryPage() {
       if (filter.type === "album" && tr.album !== filter.value) return false;
       if (filter.type === "genre" && tr.genre !== filter.value) return false;
       if (filter.type === "tag" && !tr.tags.includes(filter.value)) return false;
+      if (filter.type === "playlist" && !(playlistFilterIds?.has(tr.id) ?? false)) return false;
     }
     return true;
-  }), [tracks, q, filter]);
+  }), [tracks, q, filter, playlistFilterIds]);
+
+  const sortedTracks = useMemo(() => {
+    const list = [...filteredTracks];
+    const byText = (a: string | null, b: string | null) => (a ?? "").localeCompare(b ?? "", "fr", { sensitivity: "base" });
+    if (sortKey === "title") list.sort((a, b) => byText(a.title, b.title));
+    else if (sortKey === "artist") list.sort((a, b) => byText(a.artist, b.artist) || byText(a.title, b.title));
+    else if (sortKey === "duration") list.sort((a, b) => (b.duration_seconds ?? 0) - (a.duration_seconds ?? 0));
+    else list.sort((a, b) => b.id - a.id);
+    return list;
+  }, [filteredTracks, sortKey]);
 
   const addableTracks = editingPlaylist
     ? tracks.filter((tr) => {
@@ -663,7 +714,7 @@ export default function RadioLibraryPage() {
       })
     : [];
 
-  const visibleIds = filteredTracks.map((tr) => tr.id);
+  const visibleIds = sortedTracks.map((tr) => tr.id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
   const toggleSelectAllVisible = () => {
     setSelected((prev) => {
@@ -724,217 +775,353 @@ export default function RadioLibraryPage() {
     );
   };
 
-  // Ligne cliquable de la barre latérale (filtre).
-  const navItem = (active: boolean, icon: string, label: string, count: number | null, onClick: () => void, extra?: React.ReactNode) => (
-    <div className={`rl-nav-item ${active ? "active" : ""}`} onClick={onClick}>
+  // Carte morceau en vue LISTE (dense, pour les grosses bibliothèques).
+  const trackRow = (track: RadioTrack) => {
+    const isSel = selected.has(track.id);
+    return (
+      <div key={track.id} className={`rl-list-row ${isSel ? "selected" : ""}`} onClick={() => openTrack(track)}>
+        <button
+          type="button"
+          className={`rl-list-check ${isSel ? "on" : ""}`}
+          title={t("radioLibrary.select")}
+          aria-pressed={isSel}
+          onClick={(e) => { e.stopPropagation(); toggleSelect(track.id); }}
+        >
+          <Icon name={isSel ? "check_circle" : "radio_button_unchecked"} size={20} filled={isSel} />
+        </button>
+        <span className="rl-list-cover">
+          {track.has_cover ? (
+            // eslint-disable-next-line @next/next/no-img-element -- pochette servie par l'API
+            <img src={trackCoverUrl(track.id)} alt="" loading="lazy" />
+          ) : <Icon name="music_note" size={18} style={{ opacity: 0.3 }} />}
+        </span>
+        <span className="rl-list-text">
+          <span className="rl-list-title">{track.title}</span>
+          <span className="rl-list-sub">{track.artist || t("radioLibrary.unknownArtist")}{track.album ? ` — ${track.album}` : ""}</span>
+        </span>
+        {track.genre ? <span className="rl-list-genre">{track.genre}</span> : <span className="rl-list-genre rl-list-genre--empty" />}
+        <span className="rl-list-tags">
+          {track.tags.slice(0, 2).map((tg) => <span key={tg} className="rl-card-tag">{tg}</span>)}
+          {track.tags.length > 2 && <span className="rl-card-tag">+{track.tags.length - 2}</span>}
+        </span>
+        <span className="rl-list-duration">{formatDuration(track.duration_seconds)}</span>
+      </div>
+    );
+  };
+
+  const filterIcon = filter
+    ? (filter.type === "tag" ? "label" : filter.type === "genre" ? "graphic_eq" : filter.type === "playlist" ? "queue_music" : filter.type === "album" ? "album" : "person")
+    : "library_music";
+
+  const sectionButton = (id: Section, icon: string, label: string, count?: number) => (
+    <button
+      key={id}
+      type="button"
+      role="tab"
+      aria-selected={section === id}
+      className={`display-output-btn olc-press ${section === id ? "active" : ""}`}
+      onClick={() => setSection(id)}
+    >
       <Icon name={icon} size={16} />
-      <span className="rl-nav-label" title={label}>{label}</span>
-      {count != null && <span className="rl-nav-count">{count}</span>}
-      {extra}
-    </div>
+      {label}
+      {count !== undefined && <span className="rl-tab-count">{count}</span>}
+    </button>
   );
 
   return (
-    <div className="radio-lib">
+    <div className="radio-lib radio-lib--tabs">
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
 
-      {/* ==================== BARRE LATÉRALE ==================== */}
-      <aside className="radio-lib-sidebar">
-        <div className="rl-sidebar-head">
-          <div>
-            <h2 className="rl-title">{t("radioLibrary.title")}</h2>
-            <p className="rl-subtitle">{t("radioLibrary.overviewSubtitle")}</p>
-          </div>
-          <button type="button" className="btn btn-primary rl-import-btn" onClick={() => setImportOpen(true)}>
-            <Icon name="cloud_upload" size={16} /> {t("radioLibrary.importButton")}
-          </button>
+      {/* ==================== BARRE DE NAVIGATION HORIZONTALE (même style que « Sortie Câblé ») ==================== */}
+      <div className="live-block channel-card rl-nav-card">
+        <div className="channel-card-left">
+          <h3>
+            <Icon name="library_music" size={18} />
+            {t("radioLibrary.title")}
+          </h3>
+          <span className="status-pill neutral">{t("radioLibrary.countLabel", { count: tracks.length })}</span>
         </div>
-
-        <SearchBox
-          className="search-input rl-search"
-          placeholder={t("radioLibrary.searchPlaceholder")}
-          value={search}
-          onChange={setSearch}
-          suggestions={trackSuggestions}
-        />
-
-        <button
-          type="button"
-          className="btn btn-secondary rl-mobile-toggle"
-          onClick={() => setMobileSidebarOpen((v) => !v)}
-          style={{ width: "100%", marginBottom: "8px", fontSize: "0.85rem", justifyContent: "space-between" }}
-        >
-          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-            <Icon name="tune" size={16} />
-            <span>{mobileSidebarOpen ? "Masquer filtres & playlists" : "Filtres, Playlists & Tags"}</span>
-          </span>
-          <span className="rl-nav-count">{playlists.length + tagsList.length}</span>
-        </button>
-
-        <div className={`rl-sidebar-scroll ${mobileSidebarOpen ? "open" : ""}`}>
-          {navItem(filter === null, "library_music", t("radioLibrary.allTracks"), tracks.length, () => setFilter(null))}
-
-          {/* Playlists */}
-          <div className="rl-section-head">
-            <span>{t("radioLibrary.playlistsTitle")}</span>
-            <span className="rl-nav-count">{playlists.length}</span>
-          </div>
-          <div className="rl-create-row">
-            <input type="text" className="form-control" placeholder={t("radioLibrary.newPlaylistPlaceholder")} value={newPlaylistName}
-              onChange={(e) => setNewPlaylistName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") createPlaylist(); }} />
-            <button type="button" className="btn btn-secondary" onClick={createPlaylist} title={t("radioLibrary.create")}><Icon name="add" size={16} /></button>
-          </div>
-          {playlists.length === 0 ? (
-            <p className="rl-empty-note">{t("radioLibrary.noPlaylists")}</p>
-          ) : playlists.map((p) => (
-            <div key={p.id} className="rl-nav-item" onClick={() => openPlaylist(p.id)}>
-              <Icon name={p.is_default ? "star" : "queue_music"} size={16} filled={p.is_default} />
-              <span className="rl-nav-label" title={p.name}>{p.name}</span>
-              <span className="rl-nav-count">{p.item_count}</span>
+        <div className="channel-card-right">
+          <div className="display-output-switch rl-sections" role="tablist" aria-label={t("radioLibrary.sectionsLabel")}>
+            <div className="display-output-buttons">
+              {sectionButton("tracks", "library_music", t("radioLibrary.sectionTracks"), tracks.length)}
+              {sectionButton("playlists", "queue_music", t("radioLibrary.sectionPlaylists"), playlists.length)}
+              {sectionButton("artists", "person", t("radioLibrary.sectionArtists"), artists.length)}
+              {sectionButton("tags", "label", t("radioLibrary.sectionTags"), tagsList.length + genres.length)}
+              {sectionButton("import", "cloud_upload", t("radioLibrary.sectionImport"))}
             </div>
-          ))}
-
-          {/* Tags */}
-          <div className="rl-section-head">
-            <span>{t("radioLibrary.tagsTitle")}</span>
-            <span className="rl-nav-count">{tagsList.length}</span>
           </div>
-          <div className="rl-create-row">
-            <input type="text" className="form-control" placeholder={t("radioLibrary.newTagPlaceholder")} value={newTagName}
-              onChange={(e) => setNewTagName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") createTag(); }} />
-            <button type="button" className="btn btn-secondary" onClick={createTag} title={t("radioLibrary.create")}><Icon name="add" size={16} /></button>
-          </div>
-          {tagsList.length === 0 ? (
-            <p className="rl-empty-note">{t("radioLibrary.noTags")}</p>
-          ) : tagsList.map((tag) => (
-            <div key={tag.id} className={`rl-nav-item ${filter?.type === "tag" && filter.value === tag.name ? "active" : ""}`} onClick={() => applyFilter({ type: "tag", value: tag.name })}>
-              <Icon name="label" size={16} />
-              <span className="rl-nav-label" title={tag.name}>{tag.name}</span>
-              <span className="rl-nav-count">{tag.track_count}</span>
-              <span className="rl-nav-actions">
-                <button type="button" title={t("radioLibrary.renameTag")} onClick={(e) => { e.stopPropagation(); renameTag(tag); }}><Icon name="edit" size={13} /></button>
-                <button type="button" title={t("radioLibrary.deleteTag")} onClick={(e) => { e.stopPropagation(); deleteTag(tag); }}><Icon name="delete" size={13} /></button>
-              </span>
-            </div>
-          ))}
-
-          {/* Genres */}
-          {genres.length > 0 && (
-            <>
-              <div className="rl-section-head"><span>{t("radioLibrary.genresTitle")}</span><span className="rl-nav-count">{genres.length}</span></div>
-              {genres.map((g) => navItem(
-                filter?.type === "genre" && filter.value === g.name, "graphic_eq", g.name, g.count,
-                () => applyFilter({ type: "genre", value: g.name }),
-              ))}
-            </>
-          )}
-
-          {/* Artistes (repliable) */}
-          {artists.length > 0 && (
-            <>
-              <div className="rl-section-head rl-collapsible" onClick={() => setArtistsOpen((o) => !o)}>
-                <Icon name={artistsOpen ? "expand_more" : "chevron_right"} size={16} />
-                <span>{t("radioLibrary.artistsTitle")}</span>
-                <span className="rl-nav-count">{artists.length}</span>
-              </div>
-              {artistsOpen && artists.map((a) => navItem(
-                filter?.type === "artist" && filter.value === a.name, "person", a.name, a.track_count,
-                () => applyFilter({ type: "artist", value: a.name }),
-              ))}
-            </>
-          )}
         </div>
-      </aside>
+      </div>
 
-      {/* ==================== ZONE PRINCIPALE ==================== */}
       <main className="radio-lib-main"
         onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag} onDrop={handleFileDrop}>
         {dragActive && (
           <div className="rl-drop-overlay"><Icon name="cloud_upload" size={40} /><span>{t("radioLibrary.dropHere")}</span></div>
         )}
 
-        {selected.size === 0 ? (
-          <div className="rl-toolbar sticky-glass-toolbar">
-            <div className="rl-filter-chip">
-              <Icon name={filter ? (filter.type === "tag" ? "label" : filter.type === "genre" ? "graphic_eq" : "person") : "library_music"} size={16} />
-              <span>{filterLabel}</span>
-              {filter && <button type="button" onClick={() => setFilter(null)} title={t("radioLibrary.clearFilter")}><Icon name="close" size={14} /></button>}
-            </div>
-            <span className="rl-count">{t("radioLibrary.countLabel", { count: filteredTracks.length })}</span>
-            <div className="rl-toolbar-spacer" />
-            {filteredTracks.length > 0 && (
-              <button type="button" className="btn btn-secondary" onClick={toggleSelectAllVisible}>
-                <Icon name="checklist" size={16} /> {allVisibleSelected ? t("radioLibrary.deselectAll") : t("radioLibrary.selectAll")}
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="rl-selection-bar">
-            <button type="button" className="rl-sel-close" onClick={clearSelection} title={t("radioLibrary.clearSelection")}><Icon name="close" size={18} /></button>
-            <span className="rl-sel-count">{t("radioLibrary.selectionCount", { count: selected.size })}</span>
-            <div className="rl-toolbar-spacer" />
-            <div className="rl-bulk-wrap">
-              <button type="button" className="btn btn-secondary" onClick={() => setBulkMenu(bulkMenu === "tag" ? null : "tag")}><Icon name="label" size={16} /> {t("radioLibrary.bulkTag")}</button>
-              {bulkMenu === "tag" && (
-                <div className="rl-popover" onClick={(e) => e.stopPropagation()}>
-                  <div className="rl-popover-title">{t("radioLibrary.bulkTagTitle")}</div>
-                  {tagsList.length === 0 ? <p className="rl-empty-note">{t("radioLibrary.noTags")}</p> : tagsList.map((tag) => {
-                    const st = selectionTagState(tag.name);
-                    return (
-                      <button key={tag.id} type="button" className="rl-popover-item" onClick={() => applyTagToSelection(tag.name, st !== "all")}>
-                        <Icon name={st === "all" ? "check_box" : st === "some" ? "indeterminate_check_box" : "check_box_outline_blank"} size={18} />
-                        <span>{tag.name}</span>
-                      </button>
-                    );
-                  })}
+        {/* ---------------- Section MORCEAUX ---------------- */}
+        {section === "tracks" && (
+          <>
+            {selected.size === 0 ? (
+              <div className="rl-toolbar sticky-glass-toolbar">
+                <div className="rl-search-wrap">
+                  <SearchBox
+                    className="search-input rl-search"
+                    placeholder={t("radioLibrary.searchPlaceholder")}
+                    value={search}
+                    onChange={setSearch}
+                    suggestions={trackSuggestions}
+                  />
                 </div>
-              )}
+                {filter && (
+                  <div className="rl-filter-chip">
+                    <Icon name={filterIcon} size={16} />
+                    <span>{filter.value}</span>
+                    <button type="button" onClick={clearFilter} title={t("radioLibrary.clearFilter")}><Icon name="close" size={14} /></button>
+                  </div>
+                )}
+                <span className="rl-count">{t("radioLibrary.countLabel", { count: sortedTracks.length })}</span>
+                <div className="rl-toolbar-spacer" />
+                <ResponsiveSelect
+                  className="filter-select"
+                  value={sortKey}
+                  onChange={(value) => setSortKey(value as SortKey)}
+                  title={t("radioLibrary.sortLabel")}
+                  searchable={false}
+                  options={[
+                    { value: "recent", label: t("radioLibrary.sortRecent") },
+                    { value: "title", label: t("radioLibrary.sortTitle") },
+                    { value: "artist", label: t("radioLibrary.sortArtist") },
+                    { value: "duration", label: t("radioLibrary.sortDuration") },
+                  ]}
+                />
+                <div className="view-toggle" role="group" aria-label={t("radioLibrary.viewLabel")}>
+                  <button type="button" className={`view-btn ${viewMode === "grid" ? "active" : ""}`} onClick={() => chooseViewMode("grid")} title={t("radioLibrary.viewGrid")} aria-pressed={viewMode === "grid"}>
+                    <Icon name="grid_view" size={16} />
+                  </button>
+                  <button type="button" className={`view-btn ${viewMode === "list" ? "active" : ""}`} onClick={() => chooseViewMode("list")} title={t("radioLibrary.viewList")} aria-pressed={viewMode === "list"}>
+                    <Icon name="view_list" size={16} />
+                  </button>
+                </div>
+                {sortedTracks.length > 0 && (
+                  <button type="button" className="btn btn-secondary" onClick={toggleSelectAllVisible}>
+                    <Icon name="checklist" size={16} /> {allVisibleSelected ? t("radioLibrary.deselectAll") : t("radioLibrary.selectAll")}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="rl-selection-bar">
+                <button type="button" className="rl-sel-close" onClick={clearSelection} title={t("radioLibrary.clearSelection")}><Icon name="close" size={18} /></button>
+                <span className="rl-sel-count">{t("radioLibrary.selectionCount", { count: selected.size })}</span>
+                <div className="rl-toolbar-spacer" />
+                <div className="rl-bulk-wrap">
+                  <button type="button" className="btn btn-secondary" onClick={() => setBulkMenu(bulkMenu === "tag" ? null : "tag")}><Icon name="label" size={16} /> {t("radioLibrary.bulkTag")}</button>
+                  {bulkMenu === "tag" && (
+                    <div className="rl-popover" onClick={(e) => e.stopPropagation()}>
+                      <div className="rl-popover-title">{t("radioLibrary.bulkTagTitle")}</div>
+                      {tagsList.length === 0 ? <p className="rl-empty-note">{t("radioLibrary.noTags")}</p> : tagsList.map((tag) => {
+                        const st = selectionTagState(tag.name);
+                        return (
+                          <button key={tag.id} type="button" className="rl-popover-item" onClick={() => applyTagToSelection(tag.name, st !== "all")}>
+                            <Icon name={st === "all" ? "check_box" : st === "some" ? "indeterminate_check_box" : "check_box_outline_blank"} size={18} />
+                            <span>{tag.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div className="rl-bulk-wrap">
+                  <button type="button" className="btn btn-secondary" onClick={() => setBulkMenu(bulkMenu === "playlist" ? null : "playlist")}><Icon name="playlist_add" size={16} /> {t("radioLibrary.bulkAddToPlaylist")}</button>
+                  {bulkMenu === "playlist" && (
+                    <div className="rl-popover" onClick={(e) => e.stopPropagation()}>
+                      <div className="rl-popover-title">{t("radioLibrary.addToPlaylistTitle")}</div>
+                      {playlists.length === 0 ? <p className="rl-empty-note">{t("radioLibrary.noPlaylists")}</p> : playlists.map((p) => (
+                        <button key={p.id} type="button" className="rl-popover-item" onClick={() => addSelectionToPlaylist(p.id)}>
+                          <Icon name={p.is_default ? "star" : "queue_music"} size={16} filled={p.is_default} />
+                          <span>{p.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button type="button" className="btn btn-danger" onClick={() => setBulkDeleteOpen(true)}><Icon name="delete" size={16} /> {t("radioLibrary.delete")}</button>
+              </div>
+            )}
+
+            {loading ? (
+              <div className="rl-center-note">{t("radioLibrary.loading")}</div>
+            ) : tracks.length === 0 ? (
+              <div className="rl-empty-state">
+                <Icon name="radio" size={40} style={{ opacity: 0.25, marginBottom: "8px" }} />
+                <p style={{ margin: 0, fontWeight: 600 }}>{t("radioLibrary.empty")}</p>
+                <button type="button" className="btn btn-primary" style={{ marginTop: "12px" }} onClick={() => setSection("import")}><Icon name="cloud_upload" size={16} /> {t("radioLibrary.importButton")}</button>
+              </div>
+            ) : sortedTracks.length === 0 ? (
+              <div className="rl-center-note">{t("radioLibrary.noResults")}</div>
+            ) : viewMode === "grid" ? (
+              <div className="videos-grid rl-grid">{sortedTracks.map(trackCard)}</div>
+            ) : (
+              <div className="rl-list">{sortedTracks.map(trackRow)}</div>
+            )}
+          </>
+        )}
+
+        {/* ---------------- Section PLAYLISTS ---------------- */}
+        {section === "playlists" && (
+          <>
+            <div className="rl-toolbar sticky-glass-toolbar">
+              <div className="rl-create-row rl-create-row--wide">
+                <input type="text" className="form-control" placeholder={t("radioLibrary.newPlaylistPlaceholder")} value={newPlaylistName}
+                  onChange={(e) => setNewPlaylistName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") createPlaylist(); }} />
+                <button type="button" className="btn btn-primary" onClick={createPlaylist} disabled={!newPlaylistName.trim()}>
+                  <Icon name="add" size={16} /> {t("radioLibrary.create")}
+                </button>
+              </div>
+              <div className="rl-toolbar-spacer" />
+              <span className="rl-count">{t("radioLibrary.playlistsCount", { count: playlists.length })}</span>
             </div>
-            <div className="rl-bulk-wrap">
-              <button type="button" className="btn btn-secondary" onClick={() => setBulkMenu(bulkMenu === "playlist" ? null : "playlist")}><Icon name="playlist_add" size={16} /> {t("radioLibrary.bulkAddToPlaylist")}</button>
-              {bulkMenu === "playlist" && (
-                <div className="rl-popover" onClick={(e) => e.stopPropagation()}>
-                  <div className="rl-popover-title">{t("radioLibrary.addToPlaylistTitle")}</div>
-                  {playlists.length === 0 ? <p className="rl-empty-note">{t("radioLibrary.noPlaylists")}</p> : playlists.map((p) => (
-                    <button key={p.id} type="button" className="rl-popover-item" onClick={() => addSelectionToPlaylist(p.id)}>
-                      <Icon name={p.is_default ? "star" : "queue_music"} size={16} filled={p.is_default} />
-                      <span>{p.name}</span>
+            {playlists.length === 0 ? (
+              <div className="rl-empty-state">
+                <Icon name="queue_music" size={40} style={{ opacity: 0.25, marginBottom: "8px" }} />
+                <p style={{ margin: 0, fontWeight: 600 }}>{t("radioLibrary.noPlaylists")}</p>
+              </div>
+            ) : (
+              <div className="rl-cards">
+                {playlists.map((p) => (
+                  <div key={p.id} className="rl-pcard" role="button" tabIndex={0} onClick={() => openPlaylist(p.id)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPlaylist(p.id); } }}>
+                    <div className="rl-pcard-cover">
+                      {p.cover_track_id != null ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- pochette servie par l'API
+                        <img src={trackCoverUrl(p.cover_track_id)} alt="" loading="lazy" />
+                      ) : <Icon name="queue_music" size={36} style={{ opacity: 0.3 }} />}
+                      {p.is_default && <span className="rl-pcard-star" title={t("radioLibrary.setDefault")}><Icon name="star" size={14} filled /></span>}
+                    </div>
+                    <div className="rl-pcard-body">
+                      <span className="rl-pcard-title" title={p.name}>{p.name}</span>
+                      <span className="rl-pcard-meta">
+                        {t("radioLibrary.itemsInPlaylist", { count: p.item_count })} · {formatDuration(p.total_duration_seconds)}
+                      </span>
+                      <span className="rl-pcard-badges">
+                        {outputDefaults?.radio_cable?.override_playlist_id === p.id && <span className="rl-card-tag"><Icon name="cable" size={11} /> {t("radioLibrary.outputCable")}</span>}
+                        {outputDefaults?.radio_network?.override_playlist_id === p.id && <span className="rl-card-tag"><Icon name="wifi" size={11} /> {t("radioLibrary.outputNetwork")}</span>}
+                      </span>
+                    </div>
+                    <div className="rl-pcard-actions">
+                      <button type="button" className="btn btn-secondary" onClick={(e) => { e.stopPropagation(); filterByPlaylist(p); }}>
+                        <Icon name="library_music" size={14} /> {t("radioLibrary.viewTracks")}
+                      </button>
+                      <button type="button" className="btn btn-secondary" onClick={(e) => { e.stopPropagation(); openPlaylist(p.id); }}>
+                        <Icon name="edit" size={14} /> {t("radioLibrary.editPlaylist")}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ---------------- Section ARTISTES & ALBUMS ---------------- */}
+        {section === "artists" && (
+          <>
+            <div className="rl-toolbar sticky-glass-toolbar">
+              <div className="view-toggle" role="group">
+                <button type="button" className={`view-btn ${artistsView === "artists" ? "active" : ""}`} onClick={() => setArtistsView("artists")}>
+                  <Icon name="person" size={16} /> {t("radioLibrary.artistsTitle")}
+                </button>
+                <button type="button" className={`view-btn ${artistsView === "albums" ? "active" : ""}`} onClick={() => setArtistsView("albums")}>
+                  <Icon name="album" size={16} /> {t("radioLibrary.albumsTitle")}
+                </button>
+              </div>
+              <div className="rl-toolbar-spacer" />
+              <span className="rl-count">{artistsView === "artists" ? artists.length : albums.length}</span>
+            </div>
+            {artistsView === "artists" ? (
+              artists.length === 0 ? <div className="rl-center-note">{t("radioLibrary.noResults")}</div> : (
+                <div className="rl-cards">
+                  {artists.map((a) => (
+                    <button key={a.name} type="button" className="rl-pcard rl-pcard--simple" onClick={() => applyFilter({ type: "artist", value: a.name })}>
+                      <div className="rl-pcard-cover rl-pcard-cover--round"><Icon name="person" size={32} style={{ opacity: 0.35 }} /></div>
+                      <div className="rl-pcard-body">
+                        <span className="rl-pcard-title" title={a.name}>{a.name}</span>
+                        <span className="rl-pcard-meta">{t("radioLibrary.itemsInPlaylist", { count: a.track_count })} · {t("radioLibrary.albumsCount", { count: a.album_count })}</span>
+                      </div>
                     </button>
                   ))}
                 </div>
-              )}
-            </div>
-            <button type="button" className="btn btn-danger" onClick={() => setBulkDeleteOpen(true)}><Icon name="delete" size={16} /> {t("radioLibrary.delete")}</button>
-          </div>
+              )
+            ) : albums.length === 0 ? <div className="rl-center-note">{t("radioLibrary.noResults")}</div> : (
+              <div className="rl-cards">
+                {albums.map((al) => (
+                  <button key={`${al.album}-${al.album_artist ?? ""}`} type="button" className="rl-pcard rl-pcard--simple" onClick={() => applyFilter({ type: "album", value: al.album })}>
+                    <div className="rl-pcard-cover">
+                      {al.cover_track_id != null ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- pochette servie par l'API
+                        <img src={trackCoverUrl(al.cover_track_id)} alt="" loading="lazy" />
+                      ) : <Icon name="album" size={36} style={{ opacity: 0.3 }} />}
+                    </div>
+                    <div className="rl-pcard-body">
+                      <span className="rl-pcard-title" title={al.album}>{al.album}</span>
+                      <span className="rl-pcard-meta">{al.album_artist || t("radioLibrary.unknownArtist")}{al.year ? ` · ${al.year}` : ""} · {t("radioLibrary.itemsInPlaylist", { count: al.track_count })}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
-        {/* Grille */}
-        {loading ? (
-          <div className="rl-center-note">{t("radioLibrary.loading")}</div>
-        ) : tracks.length === 0 ? (
-          <div className="rl-empty-state">
-            <Icon name="radio" size={40} style={{ opacity: 0.25, marginBottom: "8px" }} />
-            <p style={{ margin: 0, fontWeight: 600 }}>{t("radioLibrary.empty")}</p>
-            <button type="button" className="btn btn-primary" style={{ marginTop: "12px" }} onClick={() => setImportOpen(true)}><Icon name="cloud_upload" size={16} /> {t("radioLibrary.importButton")}</button>
-          </div>
-        ) : filteredTracks.length === 0 ? (
-          <div className="rl-center-note">{t("radioLibrary.noResults")}</div>
-        ) : (
-          <div className="videos-grid rl-grid">{filteredTracks.map(trackCard)}</div>
-        )}
-      </main>
-
-      {/* Ferme les popovers en cliquant ailleurs */}
-      {bulkMenu && <div className="rl-popover-scrim" onClick={() => setBulkMenu(null)} />}
-
-      {/* ==================== MODALE : import ==================== */}
-      {importOpen && (
-        <div className="modal-overlay" onClick={() => setImportOpen(false)}>
-          <div className="modal-content" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
-            <div className="drawer-header" style={{ padding: 0, marginBottom: "12px" }}>
-              <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0 }}>{t("radioLibrary.importTitle")}</h3>
-              <button className="close-btn" onClick={() => setImportOpen(false)}><Icon name="close" size={20} /></button>
+        {/* ---------------- Section TAGS & STYLES ---------------- */}
+        {section === "tags" && (
+          <>
+            <div className="rl-toolbar sticky-glass-toolbar">
+              <div className="rl-create-row rl-create-row--wide">
+                <input type="text" className="form-control" placeholder={t("radioLibrary.newTagPlaceholder")} value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") createTag(); }} />
+                <button type="button" className="btn btn-primary" onClick={createTag} disabled={!newTagName.trim()}>
+                  <Icon name="add" size={16} /> {t("radioLibrary.create")}
+                </button>
+              </div>
             </div>
+            <h4 className="rl-block-title">{t("radioLibrary.tagsTitle")} <span className="rl-nav-count">{tagsList.length}</span></h4>
+            {tagsList.length === 0 ? <p className="rl-empty-note">{t("radioLibrary.noTags")}</p> : (
+              <div className="rl-cards rl-cards--compact">
+                {tagsList.map((tag) => (
+                  <div key={tag.id} className="rl-tagcard">
+                    <button type="button" className="rl-tagcard-main" onClick={() => applyFilter({ type: "tag", value: tag.name })}>
+                      <Icon name="label" size={18} />
+                      <span className="rl-pcard-title" title={tag.name}>{tag.name}</span>
+                      <span className="rl-nav-count">{tag.track_count}</span>
+                    </button>
+                    <button type="button" className="rl-tagcard-btn" title={t("radioLibrary.renameTag")} onClick={() => renameTag(tag)}><Icon name="edit" size={15} /></button>
+                    <button type="button" className="rl-tagcard-btn" title={t("radioLibrary.deleteTag")} onClick={() => deleteTag(tag)}><Icon name="delete" size={15} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <h4 className="rl-block-title">{t("radioLibrary.genresTitle")} <span className="rl-nav-count">{genres.length}</span></h4>
+            {genres.length === 0 ? <p className="rl-empty-note">{t("radioLibrary.noGenres")}</p> : (
+              <div className="rl-cards rl-cards--compact">
+                {genres.map((g) => (
+                  <div key={g.name} className="rl-tagcard">
+                    <button type="button" className="rl-tagcard-main" onClick={() => applyFilter({ type: "genre", value: g.name })}>
+                      <Icon name="graphic_eq" size={18} />
+                      <span className="rl-pcard-title" title={g.name}>{g.name}</span>
+                      <span className="rl-nav-count">{g.count}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ---------------- Section IMPORTER ---------------- */}
+        {section === "import" && (
+          <div className="rl-import-section">
             <div className={`upload-zone ${dragActive ? "drag-active" : ""}`}
               onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag} onDrop={handleFileDrop}
               onClick={openFilesPicker}>
@@ -945,21 +1132,31 @@ export default function RadioLibraryPage() {
                 {t("radioLibrary.importCta")}
               </p>
               <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "2px 0 0" }}>{t("radioLibrary.importHint")}</p>
-              <button
-                type="button"
-                onClick={openFolderPicker}
-                style={{
-                  marginTop: "10px", background: "none", border: "none", padding: 0,
-                  color: "var(--accent-primary)", fontWeight: 700, fontSize: "0.8rem",
-                  cursor: "pointer", textDecoration: "underline",
-                }}
-              >
-                {t("radioLibrary.chooseFolder")}
-              </button>
+              <button type="button" onClick={openFolderPicker} className="rl-link-btn">{t("radioLibrary.chooseFolder")}</button>
             </div>
+            <h4 className="rl-block-title">{t("radioLibrary.importQueueTitle")}</h4>
+            {radioUploads.length === 0 ? (
+              <p className="rl-empty-note">{t("radioLibrary.importQueueEmpty")}</p>
+            ) : (
+              <div className="rl-list">
+                {radioUploads.map((u) => (
+                  <div key={u.id} className="rl-list-row">
+                    <span className="rl-list-cover"><Icon name={u.status === "done" ? "check_circle" : u.status === "error" ? "error" : "cloud_upload"} size={18} /></span>
+                    <span className="rl-list-text">
+                      <span className="rl-list-title">{u.title}</span>
+                      <span className="rl-list-sub">{u.status === "error" ? (u.error ?? t("radioLibrary.importError")) : t(`radioLibrary.importStatus.${u.status}`)}</span>
+                    </span>
+                    <span className="rl-list-duration">{u.status === "done" ? "100 %" : `${u.progress} %`}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </main>
+
+      {/* Ferme les popovers en cliquant ailleurs */}
+      {bulkMenu && <div className="rl-popover-scrim" onClick={() => setBulkMenu(null)} />}
 
       {/* ==================== DRAWER : édition d'un morceau ==================== */}
       {selectedTrack && (
