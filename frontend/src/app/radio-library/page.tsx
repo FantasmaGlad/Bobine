@@ -535,6 +535,34 @@ export default function RadioLibraryPage() {
     });
   };
 
+  // Ambiance par défaut PROPRE à chaque sortie radio (câblée, réseau) : un choix facultatif qui
+  // prime sur la playlist ★ « par défaut » (inchangée, elle reste le repli des deux sorties).
+  // La bibliothèque et les playlists restent uniques — seule la désignation est par sortie.
+  const [outputDefaults, setOutputDefaults] = useState<Record<string, { override_playlist_id: number | null; effective_playlist_id: number | null }> | null>(null);
+  const loadOutputDefaults = () => {
+    fetch(getApiUrl("/radio/default-playlist"), { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then(setOutputDefaults)
+      .catch(() => {});
+  };
+  useEffect(() => {
+    loadOutputDefaults();
+  }, []);
+  const toggleOutputDefault = async (radioChannel: "radio_cable" | "radio_network") => {
+    const current = editingPlaylistRef.current;
+    if (!current) return;
+    const isChosen = outputDefaults?.[radioChannel]?.override_playlist_id === current.id;
+    try {
+      const res = await fetch(getApiUrl("/radio/default-playlist"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel: radioChannel, playlist_id: isChosen ? null : current.id }),
+      });
+      if (res.ok) setOutputDefaults(await res.json());
+      else showToast(t("radioLibrary.playlistError"), "error");
+    } catch { showToast(t("radioLibrary.playlistError"), "error"); }
+  };
+
   const toggleDefault = () => {
     queuePlaylistMutation(async () => {
       const current = editingPlaylistRef.current;
@@ -1029,6 +1057,29 @@ export default function RadioLibraryPage() {
               <button type="button" className="rl-pl-star" onClick={() => setPlaylistToDelete({ id: editingPlaylist.id, name: editingPlaylist.name, is_default: editingPlaylist.is_default, item_count: editingPlaylist.items.length, total_duration_seconds: editingPlaylist.total_duration_seconds, cover_track_id: null })} title={t("radioLibrary.deletePlaylist")}>
                 <Icon name="delete" size={18} />
               </button>
+            </div>
+
+            <div className="rl-pl-outputs" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", padding: "0 16px 10px" }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 600 }} title={t("radioLibrary.outputDefaultHint")}>
+                {t("radioLibrary.outputDefaultLabel")}
+              </span>
+              {(["radio_cable", "radio_network"] as const).map((radioChannel) => {
+                const chosen = outputDefaults?.[radioChannel]?.override_playlist_id === editingPlaylist.id;
+                return (
+                  <button
+                    key={radioChannel}
+                    type="button"
+                    className={`btn ${chosen ? "btn-primary" : "btn-secondary"}`}
+                    style={{ height: "30px", padding: "0 12px", fontSize: "0.78rem" }}
+                    aria-pressed={chosen}
+                    title={t("radioLibrary.outputDefaultHint")}
+                    onClick={() => toggleOutputDefault(radioChannel)}
+                  >
+                    <Icon name={radioChannel === "radio_cable" ? "cable" : "wifi"} size={14} />
+                    {radioChannel === "radio_cable" ? t("radioLibrary.outputCable") : t("radioLibrary.outputNetwork")}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Recherche épinglée : ajouter un morceau ne fait plus défiler ni

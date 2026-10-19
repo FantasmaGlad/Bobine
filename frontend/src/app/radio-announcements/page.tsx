@@ -28,6 +28,10 @@ interface Announcement {
 
 type RuleType = "every_n_tracks" | "every_x_minutes" | "fixed_times";
 
+// Sortie radio visée : chaque sortie (câblée, réseau) a son propre moteur et ses propres
+// règles; le pool de rappels (fichiers) reste, lui, unique et partagé.
+type RuleTarget = "radio_cable" | "radio_network" | "both";
+
 interface Rule {
   id: number;
   rule_type: RuleType;
@@ -35,6 +39,7 @@ interface Rule {
   interval_minutes: number | null;
   times_of_day: string[] | null;
   enabled: boolean;
+  target: RuleTarget;
 }
 
 interface ToastState { message: string; type: "success" | "error" | "warning"; }
@@ -243,11 +248,14 @@ export default function RadioAnnouncementsPage() {
     setConfirmDeleteId(null);
   };
 
+  // Sortie où jouer un rappel « maintenant » (réseau par défaut, comme l'ancien poste unique).
+  const [playNowTarget, setPlayNowTarget] = useState<RuleTarget>("radio_network");
+
   const handlePlayNow = async (announcementId?: number) => {
     const res = await fetch(getApiUrl("/radio/announcements/play-now"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ announcement_id: announcementId ?? null }),
+      body: JSON.stringify({ announcement_id: announcementId ?? null, target: playNowTarget }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -258,13 +266,14 @@ export default function RadioAnnouncementsPage() {
   };
 
   const [newRuleType, setNewRuleType] = useState<RuleType>("every_n_tracks");
+  const [newRuleTarget, setNewRuleTarget] = useState<RuleTarget>("radio_network");
   const [newNTracks, setNewNTracks] = useState("5");
   const [newIntervalMinutes, setNewIntervalMinutes] = useState("30");
   const [newTimes, setNewTimes] = useState<string[]>([]);
   const [newTimeInput, setNewTimeInput] = useState("09:00");
 
   const handleAddRule = async () => {
-    const payload: Record<string, unknown> = { rule_type: newRuleType, enabled: true };
+    const payload: Record<string, unknown> = { rule_type: newRuleType, enabled: true, target: newRuleTarget };
     if (newRuleType === "every_n_tracks") payload.n_tracks = Number(newNTracks);
     if (newRuleType === "every_x_minutes") payload.interval_minutes = Number(newIntervalMinutes);
     if (newRuleType === "fixed_times") payload.times_of_day = newTimes;
@@ -290,7 +299,7 @@ export default function RadioAnnouncementsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         rule_type: rule.rule_type, n_tracks: rule.n_tracks, interval_minutes: rule.interval_minutes,
-        times_of_day: rule.times_of_day, enabled: !rule.enabled,
+        times_of_day: rule.times_of_day, enabled: !rule.enabled, target: rule.target,
       }),
     });
     if (res.ok) {
@@ -324,6 +333,21 @@ export default function RadioAnnouncementsPage() {
       ? `${rule.interval_minutes} min`
       : (rule.times_of_day || []).join(", ");
 
+  const targetLabel = (target: RuleTarget) =>
+    target === "radio_cable"
+      ? t("radioAnnouncements.targetCable")
+      : target === "both"
+      ? t("radioAnnouncements.targetBoth")
+      : t("radioAnnouncements.targetNetwork");
+
+  const targetOptions = (
+    <>
+      <option value="radio_network">{t("radioAnnouncements.targetNetwork")}</option>
+      <option value="radio_cable">{t("radioAnnouncements.targetCable")}</option>
+      <option value="both">{t("radioAnnouncements.targetBoth")}</option>
+    </>
+  );
+
   const ruleIcon = (type: RuleType) =>
     type === "every_n_tracks" ? "music_note" : type === "every_x_minutes" ? "timer" : "schedule";
 
@@ -353,6 +377,16 @@ export default function RadioAnnouncementsPage() {
             <Icon name="cloud_upload" size={18} />
             <span>{showImportCard ? "Fermer l'import" : "Importer un rappel"}</span>
           </button>
+          <select
+            className="form-control"
+            style={{ height: "44px", width: "auto" }}
+            value={playNowTarget}
+            onChange={(e) => setPlayNowTarget(e.target.value as RuleTarget)}
+            title={t("radioAnnouncements.playNowTargetTitle")}
+            aria-label={t("radioAnnouncements.playNowTargetTitle")}
+          >
+            {targetOptions}
+          </select>
           <button className="btn btn-primary ra-playnow" onClick={() => handlePlayNow()} disabled={announcements.filter((a) => a.enabled).length === 0}>
             <Icon name="play_arrow" size={18} filled /> {t("radioAnnouncements.playNow")}
           </button>
@@ -521,7 +555,7 @@ export default function RadioAnnouncementsPage() {
                     <div className="ra-rule-icon"><Icon name={ruleIcon(rule.rule_type)} size={18} /></div>
                     <div className="ra-rule-info">
                       <span className="ra-rule-type">{ruleLabel(rule.rule_type)}</span>
-                      <span className="ra-rule-detail">{ruleDetail(rule)}</span>
+                      <span className="ra-rule-detail">{ruleDetail(rule)} · {targetLabel(rule.target)}</span>
                     </div>
                     <label className="ra-switch" title={t("radioAnnouncements.enabledLabel")}>
                       <input type="checkbox" checked={rule.enabled} onChange={() => toggleRuleEnabled(rule)} />
@@ -540,6 +574,11 @@ export default function RadioAnnouncementsPage() {
                 <option value="every_n_tracks">{t("radioAnnouncements.ruleTypeEveryNTracks")}</option>
                 <option value="every_x_minutes">{t("radioAnnouncements.ruleTypeEveryXMinutes")}</option>
                 <option value="fixed_times">{t("radioAnnouncements.ruleTypeFixedTimes")}</option>
+              </select>
+
+              <select className="form-control" value={newRuleTarget} onChange={(e) => setNewRuleTarget(e.target.value as RuleTarget)}
+                title={t("radioAnnouncements.ruleTargetTitle")} aria-label={t("radioAnnouncements.ruleTargetTitle")}>
+                {targetOptions}
               </select>
 
               {newRuleType === "every_n_tracks" && (
