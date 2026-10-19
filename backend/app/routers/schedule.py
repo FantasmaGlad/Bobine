@@ -18,6 +18,7 @@ from app.models import (
     ScheduleType,
     Video,
 )
+from app.radio_manager import LEGACY_RADIO_CHANNEL, RADIO_CHANNELS, normalize_radio_channel
 from app.scheduler_manager import (
     ensure_utc,
     expand_occurrences,
@@ -31,9 +32,28 @@ from app.utils.activity_log import log_activity
 router = APIRouter(prefix="/api/schedule", tags=["schedule"])
 
 _TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
-# "radio" ajouté aux deux canaux existants (cable/network) —
-# 3e canal indépendant, même mécanisme de planning par canal.
-_CHANNELS = ("cable", "network", "radio")
+# Quatre voies de planning, chacune pilotant SON moteur : les canaux de diffusion
+# câblé/réseau et les deux sorties radio (radio_cable/radio_network). L'ancien
+# identifiant "radio" (voie radio unique d'avant les deux sorties) reste accepté
+# en entrée et désigne la sortie réseau.
+_CHANNELS = ("cable", "network", *RADIO_CHANNELS)
+
+
+def _normalize_channel(value: str | None) -> str | None:
+    """Voie de planning canonique, ou None si la valeur est absente/inconnue
+    (l'alias historique "radio" devient "radio_network")."""
+    if value == LEGACY_RADIO_CHANNEL:
+        return normalize_radio_channel(value)
+    return value if value in _CHANNELS else None
+
+
+def _storage_channel(value: str | None, target_type: ScheduleTargetType) -> str:
+    """Voie à enregistrer. Une cible radio vit toujours sur une voie radio ; toute
+    autre cible retombe sur le câblé quand la voie demandée est invalide."""
+    channel = _normalize_channel(value)
+    if target_type == ScheduleTargetType.radio_playlist:
+        return channel if channel in RADIO_CHANNELS else normalize_radio_channel(None)
+    return channel if channel in ("cable", "network") else "cable"
 
 
 # ---------------------------------------------------------------------------
@@ -208,8 +228,8 @@ def _to_response(db: Session, schedule: Schedule) -> dict:
 def list_schedules(channel: str | None = None, db: Session = Depends(get_db)):
     """Liste des programmations, filtrable par canal de diffusion."""
     query = db.query(Schedule)
-    if channel in _CHANNELS:
-        query = query.filter(Schedule.channel == channel)
+    if _normalize_channel(channel):
+        query = query.filter(Schedule.channel == _normalize_channel(channel))
     return [_to_response(db, s) for s in query.order_by(Schedule.id.desc()).all()]
 
 
@@ -224,8 +244,8 @@ def list_occurrences(start: datetime, end: datetime, channel: str | None = None,
     if end <= start:
         raise HTTPException(status_code=400, detail="La date de fin doit être postérieure à la date de début")
     query = db.query(Schedule).filter(Schedule.active == True)  # noqa: E712
-    if channel in _CHANNELS:
-        query = query.filter(Schedule.channel == channel)
+    if _normalize_channel(channel):
+        query = query.filter(Schedule.channel == _normalize_channel(channel))
     return expand_occurrences(db, query.all(), start, end)
 
 
@@ -239,8 +259,8 @@ def get_next_schedule(channel: str | None = None, db: Session = Depends(get_db))
     now = datetime.now(timezone.utc)
     horizon = now + timedelta(days=60)
     query = db.query(Schedule).filter(Schedule.active == True)  # noqa: E712
-    if channel in _CHANNELS:
-        query = query.filter(Schedule.channel == channel)
+    if _normalize_channel(channel):
+        query = query.filter(Schedule.channel == _normalize_channel(channel))
     schedules = query.all()
     occurrences = expand_occurrences(db, schedules, now, horizon)
     upcoming = next((o for o in occurrences if o["override_action"] != OverrideAction.cancelled), None)
@@ -269,7 +289,7 @@ async def create_schedule(data: ScheduleInput, db: Session = Depends(get_db)):
         run_at=run_at,
         recurrence_rule=recurrence_rule,
         active=data.active,
-        channel=data.channel if data.channel in _CHANNELS else "cable",
+        channel=_storage_channel(data.channel, data.target_type),
     )
     db.add(schedule)
     db.commit()
@@ -294,7 +314,7 @@ async def update_schedule(schedule_id: int, data: ScheduleInput, db: Session = D
     schedule.run_at = run_at
     schedule.recurrence_rule = recurrence_rule
     schedule.active = data.active
-    schedule.channel = data.channel if data.channel in _CHANNELS else "cable"
+    schedule.channel = _storage_channel(data.channel, data.target_type)
     db.commit()
     db.refresh(schedule)
     sync_schedule_job(schedule)
