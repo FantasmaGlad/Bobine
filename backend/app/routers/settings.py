@@ -744,13 +744,25 @@ async def set_display_output(payload: DisplayOutputUpdate, db: Session = Depends
         allowed = " ou ".join(f"'{o}'" for o in _DISPLAY_OUTPUTS_BY_CHANNEL[payload.channel])
         raise HTTPException(status_code=400, detail=f"Sortie invalide pour ce canal (attendu {allowed})")
 
-    previous_output = get_display_output_value(db, payload.channel)
-    key = _DISPLAY_OUTPUT_KEYS[payload.channel]
+    await apply_display_output(db, payload.channel, payload.output)
+    return {
+        "cable": get_display_output_value(db, "cable"),
+        "network": get_display_output_value(db, "network"),
+    }
+
+
+async def apply_display_output(db: Session, channel: str, output: str, *, activate_radio: bool = True) -> None:
+    """Applique une bascule de sortie DÉJÀ validée : persistance, arrêt de ce qui jouait sur le canal,
+    reprise ou pause du moteur radio câblé, diffusion aux clients. Partagée par l'endpoint admin et par
+    le planning (une programmation de la radio câblée ramène l'écran câblé sur Radio).
+    `activate_radio=False` : ne démarre pas l'ambiance du moteur radio (l'appelant charge sa propre playlist)."""
+    previous_output = get_display_output_value(db, channel)
+    key = _DISPLAY_OUTPUT_KEYS[channel]
     row = db.query(Setting).filter(Setting.key == key).first()
     if row:
-        row.value = payload.output
+        row.value = output
     else:
-        db.add(Setting(key=key, value=payload.output))
+        db.add(Setting(key=key, value=output))
     db.commit()
 
     # Bascule vers cinéma : coupe ce qui jouait côté kiosk sur CE canal plutôt
@@ -759,8 +771,8 @@ async def set_display_output(payload: DisplayOutputUpdate, db: Session = Depends
     # d'avancer, "En direct" affiché côté admin) et pouvait reprendre en
     # l'état si on rebasculait sur kiosk plus tard, en conflit avec ce que
     # l'utilisateur regarde alors en cinéma.
-    if payload.output in ("cinema", "radio"):
-        manager = get_playback_manager(payload.channel)
+    if output in ("cinema", "radio"):
+        manager = get_playback_manager(channel)
         current = manager.snapshot()
         if current["current_video"] or current["current_background"] or current["current_audio_course"]:
             title = (
@@ -771,21 +783,18 @@ async def set_display_output(payload: DisplayOutputUpdate, db: Session = Depends
             log_activity(db, "playback_stopped", title)
         await manager.stop()
 
-    if payload.channel == "cable":
+    if channel == "cable":
         # Radio sur la sortie câblée : le moteur radio câblé reprend (ou démarre
         # l'ambiance s'il était à l'arrêt) à l'arrivée, et se met en PAUSE au
         # départ — sans perdre sa file, pour une reprise instantanée au retour.
-        if payload.output == "radio":
-            await activate_radio_output(db, "radio_cable")
+        if output == "radio":
+            if activate_radio:
+                await activate_radio_output(db, "radio_cable")
         elif previous_output == "radio":
             await get_radio_manager("radio_cable").pause()
 
-    await ws_manager.broadcast({"event": "display_output", "channel": payload.channel, "output": payload.output})
-    logger.info(f"Sortie {payload.channel} basculée sur /{payload.output}")
-    return {
-        "cable": get_display_output_value(db, "cable"),
-        "network": get_display_output_value(db, "network"),
-    }
+    await ws_manager.broadcast({"event": "display_output", "channel": channel, "output": output})
+    logger.info(f"Sortie {channel} basculée sur /{output}")
 
 
 async def _run_full_reset():

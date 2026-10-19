@@ -133,8 +133,9 @@ def test_filtres_de_liste_par_voie_avec_alias(client):
     assert len(client.get("/api/schedule").json()) == 2
 
 
-def test_lancement_radio_reseau_demarre_et_radio_cable_hors_radio_charge_en_pause(client):
+def test_lancement_radio_reseau_demarre_et_radio_cable_ramene_l_ecran_cable_sur_radio(client):
     pid = _playlist()
+    assert client.get("/api/settings/display-output").json()["cable"] != "radio"
     db = SessionLocal()
     try:
         asyncio.run(_launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_network"))
@@ -143,10 +144,50 @@ def test_lancement_radio_reseau_demarre_et_radio_cable_hors_radio_charge_en_paus
         db.close()
     network, cable = get_radio_manager("radio_network"), get_radio_manager("radio_cable")
     assert network.state["state"] == "playing"
-    # La sortie câblée n'est pas sur Radio : chargée en pause, sans basculer la sortie.
-    assert cable.state["state"] == "paused" and cable.state["playing"] is False
-    assert cable.state["playlist_id"] == pid
+    # Une programmation de la radio câblée se fait ENTENDRE : l'écran câblé repasse sur Radio.
+    assert client.get("/api/settings/display-output").json()["cable"] == "radio"
+    assert cable.state["state"] == "playing" and cable.state["playlist_id"] == pid
+    assert client.get("/api/settings/display-output").json()["network"] != "radio"
+
+
+def test_la_bascule_planifiee_coupe_la_video_du_cable(client):
+    from app.playback_manager import get_playback_manager
+
+    pid = _playlist()
+    manager = get_playback_manager("cable")
+    asyncio.run(manager.load(1, "Cours", 600.0, None, None))
+    assert manager.snapshot()["current_video"]
+    db = SessionLocal()
+    try:
+        asyncio.run(_launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
+    finally:
+        db.close()
+    assert not get_playback_manager("cable").snapshot()["current_video"]
+
+
+def test_le_mode_coach_garde_la_priorite_sur_une_programmation_radio_cable(client):
+    from app.playback_manager import get_playback_manager
+
+    pid = _playlist()
+    manager = get_playback_manager("cable")
+    original = manager.snapshot
+
+    def coach_snapshot():
+        return {**original(), "state": "coach_mode"}
+
+    manager.snapshot = coach_snapshot  # type: ignore[method-assign]
+    try:
+        db = SessionLocal()
+        try:
+            asyncio.run(_launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
+        finally:
+            db.close()
+    finally:
+        manager.snapshot = original  # type: ignore[method-assign]
+    # Séance en direct : l'écran n'est pas basculé, la playlist est chargée en pause.
     assert client.get("/api/settings/display-output").json()["cable"] != "radio"
+    cable = get_radio_manager("radio_cable")
+    assert cable.state["state"] == "paused" and cable.state["playlist_id"] == pid
 
 
 def test_lancement_radio_cable_joue_quand_la_sortie_cable_est_sur_radio(client):

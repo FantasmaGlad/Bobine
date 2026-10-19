@@ -493,15 +493,23 @@ async def _launch_target(
         # 3e canal radio, sous-système totalement indépendant : aucune des règles de conflit câblé/réseau ci-dessous ne
         # s'applique — pas de mode coach, pas de "lecture manuelle en cours".
         radio_channel = normalize_radio_channel(channel)
-        # Une programmation « radio câblée » alors que l'écran câblé n'est pas
-        # sur Radio charge la playlist EN PAUSE (et le journalise) : elle ne
-        # bascule jamais la sortie d'elle-même, et ne tourne pas dans le vide.
-        paused = not _radio_output_is_audible(db, radio_channel)
-        if paused:
-            logger.info(
-                f"Programmation radio ({radio_channel}) : sortie non basculée sur Radio, "
-                "playlist chargée en pause"
-            )
+        # Une programmation « radio câblée » doit SE FAIRE ENTENDRE : si l'écran câblé n'est pas sur
+        # Radio, elle l'y ramène (comme un clic sur « Radio », la vidéo en cours est arrêtée — le
+        # dernier bloc qui démarre l'emporte, règle du planning). Seul le mode coach garde la priorité :
+        # on ne coupe jamais une séance en direct, la playlist est alors chargée en pause et journalisée.
+        paused = False
+        if not _radio_output_is_audible(db, radio_channel):
+            if get_playback_manager("cable").snapshot()["state"] == PlaybackStateEnum.coach_mode.value:
+                paused = True
+                logger.info(
+                    f"Programmation radio ({radio_channel}) : mode coach actif, playlist chargée en pause "
+                    "sans basculer l'écran câblé"
+                )
+            else:
+                from app.routers.settings import apply_display_output
+
+                logger.info(f"Programmation radio ({radio_channel}) : l'écran câblé passe sur Radio")
+                await apply_display_output(db, "cable", "radio", activate_radio=False)
         await _launch_radio_target(db, target_id, radio_channel, start_paused=paused)
         return
 
