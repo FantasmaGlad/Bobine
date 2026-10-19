@@ -15,6 +15,7 @@ import { useVideoChapters } from "@/lib/chapters";
 import { courseThumbSrc, formatClock } from "@/lib/courseMeta";
 import { formatCleanDescription } from "@/lib/formatDescription";
 import { getAudioQualityBadge, getResolutionBadge } from "@/lib/videoBadges";
+import type { DisplayOutput } from "@/lib/displayChannel";
 
 interface VideoSummary {
   id: number;
@@ -52,7 +53,7 @@ interface MobileRemoteProps {
   playlists: PlaylistSummary[];
   backgrounds: BackgroundSummary[];
   getApiUrl: (path: string) => string;
-  displayOutputCable: "kiosk" | "cinema" | null;
+  displayOutputCable: DisplayOutput | null;
   displayOutputNetwork: "kiosk" | "cinema" | null;
   /** Lecture en cours sur l'écran cinéma libre-service DE CE CANAL — même source que le bloc "En direct" du
    * PC admin (`cinemaLive` de `DashboardScreen`), null si rien ne joue ou si
@@ -61,7 +62,7 @@ interface MobileRemoteProps {
   /** Play/pause du cours cinéma avec état optimiste (géré par le parent, qui
    * détient l'état commandé-en-attente) : `cinemaLive.playing` reflète déjà l'état COMMANDÉ. */
   onCinemaPlayPause: () => void;
-  onSetDisplayOutput: (channel: "cable" | "network", output: "kiosk" | "cinema") => void;
+  onSetDisplayOutput: (channel: "cable" | "network", output: DisplayOutput) => void;
   /** Canal contrôlé par cette instance. Omis = comportement
    * historique (les deux canaux affichés ensemble), conservé pour "/". */
   channel?: "cable" | "network";

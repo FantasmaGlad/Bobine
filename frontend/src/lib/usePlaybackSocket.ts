@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clearCachesAndReload } from "@/lib/cacheReload";
-import { createPageClientId } from "@/lib/displayChannel";
+import { createPageClientId, type DisplayOutput } from "@/lib/displayChannel";
 import { type ClockAnchor } from "@/lib/playbackClock";
 import { ServerClockSync } from "@/lib/serverClockSync";
 
@@ -220,7 +220,9 @@ export function usePlaybackSocket(
   // l'évènement display_output ; null tant que la valeur initiale n'a pas
   // été chargée (évite une redirection intempestive au montage avant de
   // connaître la vraie valeur).
-  const [displayOutputCable, setDisplayOutputCable] = useState<"kiosk" | "cinema" | null>(null);
+  // Le câblé peut aussi valoir "radio" (l'écran câblé devient un poste radio) ; le réseau
+  // reste kiosk/cinéma (son poste radio s'ouvre par URL).
+  const [displayOutputCable, setDisplayOutputCable] = useState<DisplayOutput | null>(null);
   const [displayOutputNetwork, setDisplayOutputNetwork] = useState<"kiosk" | "cinema" | null>(null);
   // Verrou du mode cinéma : vrai brièvement après
   // qu'un "load"/"load_playlist" manuel a été rejeté par le backend, pour
@@ -393,9 +395,10 @@ export function usePlaybackSocket(
             // Bascule kiosk/cinéma décidée depuis l'admin, par canal : chaque
             // page (kiosk, cinema) décide elle-même si elle doit naviguer,
             // selon qu'elle tourne sur l'écran câblé ou sur le réseau.
-            if (parsed.output === "kiosk" || parsed.output === "cinema") {
-              if (parsed.channel === "cable") setDisplayOutputCable(parsed.output);
-              else if (parsed.channel === "network") setDisplayOutputNetwork(parsed.output);
+            if (parsed.channel === "cable" && (parsed.output === "kiosk" || parsed.output === "cinema" || parsed.output === "radio")) {
+              setDisplayOutputCable(parsed.output);
+            } else if (parsed.channel === "network" && (parsed.output === "kiosk" || parsed.output === "cinema")) {
+              setDisplayOutputNetwork(parsed.output);
             }
             return;
           }
@@ -605,7 +608,7 @@ export function usePlaybackSocket(
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
-        if (data.cable === "kiosk" || data.cable === "cinema") {
+        if (data.cable === "kiosk" || data.cable === "cinema" || data.cable === "radio") {
           setDisplayOutputCable((prev) => prev ?? data.cable);
         }
         if (data.network === "kiosk" || data.network === "cinema") {

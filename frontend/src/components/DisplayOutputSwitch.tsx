@@ -3,10 +3,11 @@
 import React from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import Icon from "@/components/Icon";
+import type { DisplayOutput } from "@/lib/displayChannel";
 
 interface DisplayOutputSwitchProps {
-  displayOutput: "kiosk" | "cinema" | null;
-  onSetDisplayOutput: (output: "kiosk" | "cinema") => void;
+  displayOutput: DisplayOutput | null;
+  onSetDisplayOutput: (output: DisplayOutput) => void;
   /** Libellé/infobulle spécifiques au canal — par défaut le texte générique historique. */
   label?: string;
   hint?: string;

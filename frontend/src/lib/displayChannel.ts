@@ -19,7 +19,11 @@
  *         du canal câblé, pas un appareil « réseau ») ;
  *       - `/cinema` = heuristique sur le nom d'hôte : boucle locale = câblé
  *         (kiosque Chromium du Wyse, `Presentation` HDMI Android), tout autre
- *         hôte (IP LAN, mDNS, téléphone d'adhérent) = réseau.
+ *         hôte (IP LAN, mDNS, téléphone d'adhérent) = réseau ;
+ *       - `/radio` = RÉSEAU, quel que soit l'hôte : `/radio` nu a toujours été
+ *         le poste radio réseau (favoris, onglets déjà ouverts). Aucune
+ *         heuristique de nom d'hôte pour la radio — la sortie câblée s'ouvre
+ *         explicitement par `/radio?channel=cable`.
  *
  * Le canal est rendu EXPLICITE dans l'URL dès la première redirection
  * (`buildOutputUrl`) : il ne dépend alors plus de la page qui le résout.
@@ -29,7 +33,14 @@ export type DisplayChannel = "cable" | "network";
 
 export type ChannelSource = "query" | "default";
 
-export type DisplayPage = "kiosk" | "cinema";
+export type DisplayPage = "kiosk" | "cinema" | "radio";
+
+/** Sortie affichée par un canal de diffusion : seul le câblé peut être basculé sur la
+ * radio (l'écran physique devient un poste radio) ; le réseau a déjà son poste par URL. */
+export type DisplayOutput = "kiosk" | "cinema" | "radio";
+
+/** Identifiant d'une sortie radio côté serveur : un moteur INDÉPENDANT par sortie. */
+export type RadioChannelId = "radio_cable" | "radio_network";
 
 export interface ResolvedChannel {
   channel: DisplayChannel;
@@ -53,6 +64,7 @@ export function resolveChannel(search: string, hostname: string, page: DisplayPa
   const explicit = parseChannelParam(search);
   if (explicit) return { channel: explicit, source: "query" };
   if (page === "kiosk") return { channel: "cable", source: "default" };
+  if (page === "radio") return { channel: "network", source: "default" };
   return { channel: isLoopbackHost(hostname) ? "cable" : "network", source: "default" };
 }
 
@@ -74,8 +86,56 @@ export function buildOutputUrl(target: DisplayPage, search: string, channel: Dis
  * appareil du réseau ne suit que les bascules décidées EN DIRECT, pour ne pas
  * éjecter quelqu'un qui ouvre volontairement /cinema.
  */
-export function shouldFollowInitialOutput(channel: DisplayChannel): boolean {
+export function shouldFollowInitialOutput(channel: DisplayChannel, page: DisplayPage = "kiosk"): boolean {
+  // La page radio ne suit QUE les bascules faites en direct : /radio?channel=cable ouvert à
+  // la main sur un autre appareil ne doit pas être éjecté vers /kiosk au montage (le
+  // kiosque du Wyse, lui, arrive par /kiosk et est redirigé vers la radio).
+  if (page === "radio") return false;
   return channel === "cable";
+}
+
+/** Moteur radio (côté serveur) correspondant à la sortie de diffusion d'un écran. */
+export function radioChannelId(channel: DisplayChannel): RadioChannelId {
+  return channel === "cable" ? "radio_cable" : "radio_network";
+}
+
+export interface OutputRedirectDecision {
+  /** Nouvelle « dernière valeur observée » pour le canal de cet appareil. */
+  seen: DisplayOutput | null;
+  /** URL de destination, ou null si la page doit rester où elle est. */
+  to: string | null;
+}
+
+/**
+ * Faut-il quitter la page courante pour suivre la sortie choisie par l'admin ? Logique
+ * PURE (testable) extraite du hook `useDisplayOutputRedirect`.
+ *
+ * - `previous` : dernière valeur observée (null = valeur initiale tout juste chargée).
+ * - Seul le câblé peut viser la radio ; une cible radio sur un autre canal est ignorée.
+ * - Un poste radio RÉSEAU ne suit jamais rien (c'est un lecteur dédié, pas un écran de
+ *   cours) ; un poste radio câblé quitte la page quand l'admin repasse en kiosk/cinéma.
+ */
+export function decideOutputRedirect(
+  current: DisplayPage,
+  search: string,
+  hostname: string,
+  cableOutput: DisplayOutput | null,
+  networkOutput: DisplayOutput | null,
+  previous: DisplayOutput | null,
+): OutputRedirectDecision {
+  const { channel } = resolveChannel(search, hostname, current);
+  const target = channel === "cable" ? cableOutput : networkOutput;
+  if (!target) return { seen: previous, to: null };
+
+  const seen = target;
+  if (target === "radio" && channel !== "cable") return { seen, to: null };
+  if (current === "radio" && channel !== "cable") return { seen, to: null };
+  if (target === current) return { seen, to: null };
+  // Un poste radio câblé ne repart que d'une sortie où il se trouvait EN PHASE (radio) : ouvert
+  // à la main alors que l'écran câblé est en kiosk, il ne suit pas les bascules kiosk <-> cinéma.
+  if (current === "radio" && previous !== "radio") return { seen, to: null };
+  if (!shouldFollowInitialOutput(channel, current) && previous === null) return { seen, to: null };
+  return { seen, to: buildOutputUrl(target, search, channel) };
 }
 
 /**

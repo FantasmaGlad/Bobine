@@ -2,11 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import {
-  buildOutputUrl,
+  decideOutputRedirect,
   isLoopbackHost,
   resolveChannel,
-  shouldFollowInitialOutput,
   type DisplayChannel,
+  type DisplayOutput,
   type DisplayPage,
 } from "@/lib/displayChannel";
 
@@ -27,7 +27,8 @@ export function isWiredDisplay(): boolean {
  * par /kiosk et /cinema.
  */
 export function getDisplayChannel(page: DisplayPage): DisplayChannel {
-  if (typeof window === "undefined") return "cable";
+  // Rendu serveur (export statique) : la radio est « réseau » par défaut, comme /radio nu.
+  if (typeof window === "undefined") return page === "radio" ? "network" : "cable";
   return resolveChannel(window.location.search, window.location.hostname, page).channel;
 }
 
@@ -42,31 +43,36 @@ export function getDisplayChannel(page: DisplayPage): DisplayChannel {
  * /cinema sur son téléphone y reste, même si le canal réseau est réglé sur
  * « kiosk ».
  *
+ * Sortie « radio » (câblé uniquement) : /kiosk et /cinema du canal câblé naviguent vers
+ * /radio?channel=cable quand l'admin bascule l'écran câblé sur Radio, et la page radio
+ * câblée repart vers kiosk/cinéma sur une bascule faite EN DIRECT (jamais au montage).
+ * Un poste radio réseau ne suit jamais rien. Décision dans `decideOutputRedirect`.
+ *
  * Correctif « 127.0.0.1 / canal Réseau » : la cible suivie est celle du canal
  * RÉSOLU de la page (et non du seul nom d'hôte), et la redirection conserve la
  * query string — donc `?channel=network`. Avant, un écran réseau ouvert en
  * 127.0.0.1 suivait la sortie du canal câblé puis perdait son paramètre.
  */
 export function useDisplayOutputRedirect(
-  current: "kiosk" | "cinema",
-  cableOutput: "kiosk" | "cinema" | null,
-  networkOutput: "kiosk" | "cinema" | null,
+  current: DisplayPage,
+  cableOutput: DisplayOutput | null,
+  networkOutput: DisplayOutput | null,
 ) {
   // Dernière valeur observée pour le canal de cet appareil : permet de
   // distinguer la valeur initiale (chargée du serveur au montage) d'un vrai
   // changement poussé par l'admin (suivi partout).
-  const lastSeenRef = useRef<"kiosk" | "cinema" | null>(null);
+  const lastSeenRef = useRef<DisplayOutput | null>(null);
 
   useEffect(() => {
-    const { channel } = resolveChannel(window.location.search, window.location.hostname, current);
-    const target = channel === "cable" ? cableOutput : networkOutput;
-    if (!target) return;
-
-    const previous = lastSeenRef.current;
-    lastSeenRef.current = target;
-
-    if (target === current) return;
-    if (!shouldFollowInitialOutput(channel) && previous === null) return;
-    window.location.replace(buildOutputUrl(target, window.location.search, channel));
+    const decision = decideOutputRedirect(
+      current,
+      window.location.search,
+      window.location.hostname,
+      cableOutput,
+      networkOutput,
+      lastSeenRef.current,
+    );
+    lastSeenRef.current = decision.seen;
+    if (decision.to) window.location.replace(decision.to);
   }, [cableOutput, networkOutput, current]);
 }

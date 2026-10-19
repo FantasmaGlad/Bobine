@@ -4,12 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { clearCachesAndReload } from "@/lib/cacheReload";
 import type { ClockAnchor } from "@/lib/playbackClock";
 import { ServerClockSync } from "@/lib/serverClockSync";
+import type { DisplayOutput, RadioChannelId } from "@/lib/displayChannel";
+import { defaultSound, type RadioSoundSettings } from "@/lib/radioSound";
 import type { ClockTarget } from "@/lib/useMediaClockFollower";
 
-/** état du 3e canal `radio`,
- * moteur INDÉPENDANT du câblé/réseau (RadioPlaybackManager côté backend).
+/** État d'UNE sortie radio (`radio_cable` ou `radio_network`) : un moteur INDÉPENDANT par
+ * sortie, distinct du câblé/réseau vidéo (RadioPlaybackManager côté backend).
  * Partage la même connexion WebSocket `/ws/playback` que usePlaybackSocket
- * (filtrée sur `channel: "radio"`), mais un vocabulaire d'état et de
+ * (filtrée sur le `channel` de la sortie), mais un vocabulaire d'état et de
  * commandes propre — pas de vidéo/cours, une playlist de morceaux. */
 
 export interface RadioTrackInfo {
@@ -50,6 +52,8 @@ export interface RadioState {
   crossfade_seconds: number;
   current_announcement: RadioAnnouncementInfo | null;
   tracks_since_announcement: number;
+  /** Réglages de son de la sortie (égaliseur, basses…), appliqués par le lecteur. */
+  sound: RadioSoundSettings;
 }
 
 const DEFAULT_STATE: RadioState = {
@@ -68,6 +72,7 @@ const DEFAULT_STATE: RadioState = {
   crossfade_seconds: 4,
   current_announcement: null,
   tracks_since_announcement: 0,
+  sound: defaultSound(),
   clock: null,
 };
 
@@ -84,7 +89,7 @@ export function selectRadioTarget(state: RadioState): ClockTarget {
 export interface RadioEvent {
   event: "state_change";
   cause: string;
-  channel: "radio";
+  channel: RadioChannelId;
   data: RadioState;
   client_ts?: number;
 }
@@ -109,16 +114,27 @@ const RESYNC_INTERVAL_MS = 15000;
 
 /**
  * @param onEvent  Callback appelé à chaque changement d'état reçu.
+ * @param channel  Sortie radio suivie : `radio_network` par défaut (ancien poste radio unique),
+ *                 `radio_cable` pour la sortie câblée. Chaque sortie a son propre moteur,
+ *                 son rôle primaire et ses évènements.
  * @param role     "kiosk" pour le poste /radio : envoie un identify
  *                 à la connexion et reçoit son statut primaire/miroir en
  *                 retour — seul le primaire a autorité pour rapporter
  *                 la position réelle de lecture. Omis pour une télécommande
  *                 (radio-remote), qui ne fait que refléter/commander l'état.
  */
-export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kiosk") {
+export function useRadioSocket(
+  onEvent?: (evt: RadioEvent) => void,
+  role?: "kiosk",
+  channel: RadioChannelId = "radio_network",
+) {
   const [state, setState] = useState<RadioState>(DEFAULT_STATE);
   const [connected, setConnected] = useState(false);
   const [isPrimary, setIsPrimary] = useState(false);
+  // Sortie affichée par l'écran CÂBLÉ (kiosk, cinéma ou radio) : null tant que la valeur
+  // initiale n'est pas chargée. Seule la radio câblée la suit, pour repartir vers kiosk/cinéma
+  // quand l'admin y rebascule l'écran câblé (cf. useDisplayOutputRedirect).
+  const [displayOutputCable, setDisplayOutputCable] = useState<DisplayOutput | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const pendingCommandsRef = useRef<{ payload: string; queuedAt: number }[]>([]);
   const onEventRef = useRef(onEvent);
@@ -158,10 +174,10 @@ export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kios
         // l'ouverture pour que le backend assigne le rôle primaire/miroir
         // avant tout report_position.
         // Abonnement de canal : n'écoute que les évènements radio.
-        ws.send(JSON.stringify({ command: "subscribe", params: { channels: ["radio"] } }));
+        ws.send(JSON.stringify({ command: "subscribe", params: { channels: [channel] } }));
         clockSyncRef.current.start(ws, () => wsRef.current === ws);
         if (role === "kiosk") {
-          ws.send(JSON.stringify({ command: "identify", params: { role: "kiosk", channel: "radio" } }));
+          ws.send(JSON.stringify({ command: "identify", params: { role: "kiosk", channel } }));
         }
         const now = Date.now();
         const pending = pendingCommandsRef.current.filter((p) => now - p.queuedAt < 5000);
@@ -194,15 +210,23 @@ export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kios
             setIsPrimary(true);
             return;
           }
-          // Évènements pertinents pour d'autres canaux (display_output,
-          // cinema_*...) : sans objet ici, ignorés.
+          if (parsed.event === "display_output") {
+            if (
+              parsed.channel === "cable" &&
+              (parsed.output === "kiosk" || parsed.output === "cinema" || parsed.output === "radio")
+            ) {
+              setDisplayOutputCable(parsed.output);
+            }
+            return;
+          }
+          // Autres évènements d'autres canaux de diffusion (cinema_*...) : sans objet ici, ignorés.
           if (parsed.event === "force_reload") {
             // Cf. usePlaybackSocket : vide les caches puis recharge (bouton
             // « Synchronisation des écrans » — nouveaux assets re-téléchargés).
             void clearCachesAndReload();
             return;
           }
-          if (parsed.event === "state_change" && parsed.channel === "radio") {
+          if (parsed.event === "state_change" && parsed.channel === channel) {
             setState(parsed.data);
             onEventRef.current?.(parsed as RadioEvent);
           }
@@ -235,18 +259,18 @@ export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kios
       clearTimeout(reconnectTimer);
       wsRef.current?.close();
     };
-  }, [role]);
+  }, [role, channel]);
 
   useEffect(() => {
     let cancelled = false;
     const resync = () => {
-      fetch(getApiUrl("/radio/state"), { cache: "no-store" })
+      fetch(getApiUrl(`/radio/state?channel=${channel}`), { cache: "no-store" })
         .then((res) => (res.ok ? res.json() : null))
         .then((data: RadioState | null) => {
           if (cancelled || !data) return;
           if (JSON.stringify(stateRef.current) === JSON.stringify(data)) return;
           setState(data);
-          onEventRef.current?.({ event: "state_change", cause: "sync", channel: "radio", data });
+          onEventRef.current?.({ event: "state_change", cause: "sync", channel, data });
         })
         .catch(() => {});
     };
@@ -255,13 +279,30 @@ export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kios
       cancelled = true;
       clearInterval(id);
     };
+  }, [channel]);
+
+  // Valeur initiale de la sortie câblée ; les changements suivants arrivent par `display_output`.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(getApiUrl("/settings/display-output"), { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        if (data.cable === "kiosk" || data.cable === "cinema" || data.cable === "radio") {
+          setDisplayOutputCable((prev) => prev ?? data.cable);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const sendCommand = useCallback((command: string, params: Record<string, unknown> = {}) => {
     const ws = wsRef.current;
     const payload = JSON.stringify({
       command,
-      params: { channel: "radio", ...params, client_ts: Date.now() },
+      params: { channel, ...params, client_ts: Date.now() },
     });
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(payload);
@@ -269,9 +310,9 @@ export function useRadioSocket(onEvent?: (evt: RadioEvent) => void, role?: "kios
     }
     pendingCommandsRef.current.push({ payload, queuedAt: Date.now() });
     if (pendingCommandsRef.current.length > 10) pendingCommandsRef.current.shift();
-  }, []);
+  }, [channel]);
 
   const serverNow = useCallback(() => clockSyncRef.current.serverNow(), []);
 
-  return { state, connected, sendCommand, isPrimary, serverNow };
+  return { state, connected, sendCommand, isPrimary, serverNow, displayOutputCable };
 }

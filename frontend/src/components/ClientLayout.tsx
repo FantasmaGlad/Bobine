@@ -12,6 +12,7 @@ import { navEntries, isNavGroup, footerNavLinks as footerNavLinkConfigs } from "
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import UpdateProgressOverlay from "@/components/UpdateProgressOverlay";
+import { isFullscreenPath } from "@/lib/fullscreenRoutes";
 
 function getApiUrl(path: string) {
   if (typeof window !== "undefined" && window.location.port === "3000") {
@@ -50,15 +51,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   // Son de clic : uniquement dans le studio admin, pas
   // sur l'écran cinéma/kiosk ni le mode coach (appels de hooks toujours
   // inconditionnels, seul `enabled` varie selon la route).
-  const isFullscreenRoute =
-    pathname === "/kiosk" || pathname === "/kiosk/" ||
-    pathname === "/cinema" || pathname === "/cinema/" ||
-    pathname === "/coach" || pathname === "/coach/" ||
-    pathname === "/grid" || pathname === "/grid/" ||
-    // Poste radio dédié : écran plein écran comme /kiosk, PAS
-    // de préfixe (pathname.startsWith) pour ne pas avaler /radio-library et
-    // /radio-remote, qui restent des pages d'admin normales.
-    pathname === "/radio" || pathname === "/radio/";
+  // Comparaison sur le pathname EXACT (lib/fullscreenRoutes.ts) : /radio est un poste de
+  // diffusion, /radio-library et /radio-remote restent des pages d'admin normales.
+  const isFullscreenRoute = isFullscreenPath(pathname);
   useClickSound(!isFullscreenRoute);
   // Anti-veille automatique (Screen Wake Lock API) sur les écrans de diffusion
   // et d'attente.

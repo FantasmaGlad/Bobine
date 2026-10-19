@@ -134,7 +134,10 @@ const PUBLIC_PAGE_KEYS: { path: string; labelKey: string }[] = [
   { path: "/kiosk?channel=network", labelKey: "settingsPage.paths.pageKioskNetwork" },
   { path: "/cinema", labelKey: "settingsPage.paths.pageCinema" },
   { path: "/coach", labelKey: "settingsPage.paths.pageCoach" },
-  { path: "/radio", labelKey: "settingsPage.paths.pageRadio" },
+  // Une radio par sortie de diffusion : chacune a son propre moteur (playlist, volume,
+  // rappels, planning, son). `/radio` nu reste un alias historique de la sortie réseau.
+  { path: "/radio?channel=cable", labelKey: "settingsPage.paths.pageRadioCable" },
+  { path: "/radio?channel=network", labelKey: "settingsPage.paths.pageRadioNetwork" },
 ];
 
 // /grid (écran tactile de sélection) : spécifique au profil

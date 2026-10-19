@@ -6,6 +6,9 @@ import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
 import { RadioEvent, RadioRepeatMode, RadioTrackInfo, selectRadioTarget, useRadioSocket } from "@/lib/useRadioSocket";
 import { useMediaClockFollower } from "@/lib/useMediaClockFollower";
 import { useKioskRemote } from "@/lib/useKioskRemote";
+import { radioChannelId } from "@/lib/displayChannel";
+import { detectAutoplayAllowed } from "@/lib/autoplayProbe";
+import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 
@@ -367,7 +370,19 @@ export default function RadioScreenPage() {
     loadDirect(track, data.position_seconds || 0, data.playing, isDucking ? duckSettingsRef.current.level : data.volume);
   };
 
-  const { state, connected, sendCommand, isPrimary, serverNow } = useRadioSocket(handleEvent, "kiosk");
+  // Sortie radio de CE poste : `?channel=cable|network` explicite d'abord, sinon réseau
+  // (`/radio` nu a toujours été le poste radio réseau). Chaque sortie a son propre moteur,
+  // son rôle primaire et ses évènements côté serveur.
+  const [displayChannel] = useState(() => getDisplayChannel("radio"));
+  const radioChannel = radioChannelId(displayChannel);
+  const { state, connected, sendCommand, isPrimary, serverNow, displayOutputCable } = useRadioSocket(
+    handleEvent,
+    "kiosk",
+    radioChannel,
+  );
+  // La radio de la sortie câblée repart vers kiosk/cinéma quand l'admin y rebascule l'écran
+  // câblé (jamais au montage, et jamais pour un poste radio réseau).
+  useDisplayOutputRedirect("radio", displayOutputCable, null);
   // Postes MIROIRS : suivent l'horloge serveur. Pas de suivi pendant un
   // rappel (état « announcing » : la musique y est gérée par le rappel).
   const activeMediaRef = useMemo(
@@ -612,6 +627,28 @@ export default function RadioScreenPage() {
     }
   };
 
+  // Déverrouillage automatique : sur une sortie câblée (kiosque du Wyse, HDMI Android, fenêtre
+  // projecteur) personne ne peut cliquer. Si le navigateur autorise déjà la lecture
+  // automatique (sonde par détection de fonctionnalité), le poste s'arme tout seul ; sinon
+  // l'overlay « Démarrer la radio » reste affiché (navigateur ordinaire). `probed` évite un
+  // flash de l'overlay pendant la sonde.
+  const [autoplayProbed, setAutoplayProbed] = useState(false);
+  const handleUnlockRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    handleUnlockRef.current = handleUnlock;
+  });
+  useEffect(() => {
+    let cancelled = false;
+    detectAutoplayAllowed().then((allowed) => {
+      if (cancelled) return;
+      if (allowed && !unlockedRef.current) handleUnlockRef.current();
+      setAutoplayProbed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handlePlayAnnouncement = () => sendCommand("radio_play_announcement", {});
 
   const currentTrack = state.current_track;
@@ -665,7 +702,7 @@ export default function RadioScreenPage() {
         </div>
       )}
 
-      {!unlocked && (
+      {autoplayProbed && !unlocked && (
         <div className="radio-unlock-overlay">
           <AppLogo className="radio-unlock-logo" />
           <div>

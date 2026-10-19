@@ -14,6 +14,7 @@ import SubtitlePicker from "@/components/SubtitlePicker";
 import ChapterList from "@/components/ChapterList";
 import ChapterTicks from "@/components/ChapterTicks";
 import { useVideoChapters } from "@/lib/chapters";
+import type { DisplayOutput } from "@/lib/displayChannel";
 
 interface VideoSummary {
   id: number;
@@ -300,7 +301,7 @@ export default function DashboardScreen({ channel }: Props) {
   // Bascule kiosk/cinéma de CE canal : le retour visuel vient de l'évènement
   // display_output rediffusé par le backend — toutes les interfaces admin
   // ouvertes se mettent à jour en même temps.
-  const handleSetDisplayOutput = (output: "kiosk" | "cinema") => {
+  const handleSetDisplayOutput = (output: DisplayOutput) => {
     fetch(getApiUrl("/settings/display-output"), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
