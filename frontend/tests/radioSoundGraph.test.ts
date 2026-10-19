@@ -120,8 +120,8 @@ test("le préampli compense un relèvement et le limiteur devient actif puis tra
 
 test("son neutre : tous les gains de filtres retombent à 0 dB", () => {
   const { ctx, chain } = build();
-  chain.apply({ ...applyPreset("cardio", defaultSound()), enabled: true });
+  chain.apply({ ...applyPreset("voice", defaultSound()), enabled: true });
   assert.ok(ctx.biquads.some((b) => b.gain.value !== 0));
-  chain.apply({ ...applyPreset("cardio", defaultSound()), enabled: false });
+  chain.apply({ ...applyPreset("voice", defaultSound()), enabled: false });
   assert.ok(ctx.biquads.every((b) => b.gain.value === 0));
 });

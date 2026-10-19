@@ -51,7 +51,7 @@ def client():
 def test_reglages_neutres_par_defaut_et_copie_independante():
     sound = default_sound()
     assert sound == {"enabled": True, "bands": [0, 0, 0, 0, 0], "bass_boost": 0,
-                     "loudness": False, "limiter": True, "preset": "flat"}
+                     "loudness": False, "limiter": True, "preset": None}
     sound["bands"][0] = 9
     assert default_sound()["bands"][0] == 0
 

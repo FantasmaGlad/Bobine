@@ -11,6 +11,7 @@ import {
   applyPreset,
   clampSound,
   defaultSound,
+  knownPresetId,
   matchingPreset,
   type RadioSoundSettings,
 } from "@/lib/radioSound";
@@ -79,7 +80,8 @@ export default function RadioSoundPanel({ sound, sendCommand, variant = "full" }
     commit({ ...merged, preset: matchingPreset(merged) });
   };
 
-  const activePreset = current.preset ?? matchingPreset(current);
+  // Un identifiant mémorisé qui n'existe plus (ancien préréglage) compte comme un réglage manuel.
+  const activePreset = knownPresetId(current.preset) ?? matchingPreset(current);
 
   return (
     <div className={`radio-sound-panel radio-sound-panel--${variant}`}>

@@ -33,7 +33,7 @@ export const DEFAULT_SOUND: RadioSoundSettings = {
   bass_boost: 0,
   loudness: false,
   limiter: true,
-  preset: "flat",
+  preset: null,
 };
 
 export function defaultSound(): RadioSoundSettings {
@@ -66,14 +66,21 @@ export interface SoundPreset {
   loudness: boolean;
 }
 
+/**
+ * Trois préréglages seulement : le son « à plat » n'en est pas un (c'est le bouton Réinitialiser ou
+ * l'interrupteur Son neutre). Les anciens identifiants éventuellement mémorisés (plat, aigus clairs,
+ * cardio…) ne correspondent plus à rien : l'interface les traite comme un réglage manuel.
+ */
 export const PRESETS: SoundPreset[] = [
-  { id: "flat", bands: [0, 0, 0, 0, 0], bass_boost: 0, loudness: false },
-  { id: "voice", bands: [-4, -2, 2, 4, 1], bass_boost: 0, loudness: false },
   { id: "bass", bands: [5, 3, 0, -1, 0], bass_boost: 4, loudness: false },
-  { id: "bright", bands: [-1, 0, 0, 3, 5], bass_boost: 0, loudness: false },
-  { id: "cardio", bands: [4, 2, 0, 2, 3], bass_boost: 3, loudness: true },
+  { id: "voice", bands: [-4, -2, 2, 4, 1], bass_boost: 0, loudness: false },
   { id: "soft", bands: [2, 1, 0, -2, -4], bass_boost: 0, loudness: false },
 ];
+
+/** Préréglage connu à partir d'un identifiant mémorisé, ou null (identifiant disparu ou absent). */
+export function knownPresetId(id: string | null | undefined): string | null {
+  return PRESETS.some((p) => p.id === id) ? (id as string) : null;
+}
 
 // ---------------------------------------------------------------------------
 // Bornage et préréglages

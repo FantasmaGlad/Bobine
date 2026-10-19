@@ -11,6 +11,7 @@ import {
   clampSound,
   computePreamp,
   defaultSound,
+  knownPresetId,
   matchingPreset,
   peakBoostDb,
   toGraphParams,
@@ -52,6 +53,7 @@ test("tous les préréglages sont dans les bornes et ont cinq bandes", () => {
     assert.ok(p.bass_boost >= 0 && p.bass_boost <= BASS_BOOST_MAX_DB, p.id);
   }
   assert.equal(new Set(PRESETS.map((p) => p.id)).size, PRESETS.length);
+  assert.deepEqual(PRESETS.map((p) => p.id), ["bass", "voice", "soft"]);
 });
 
 test("appliquer un préréglage change les gains et garde les interrupteurs", () => {
@@ -65,8 +67,10 @@ test("appliquer un préréglage change les gains et garde les interrupteurs", ()
 });
 
 test("un réglage identique à un préréglage est reconnu, sinon manuel", () => {
-  assert.equal(matchingPreset(applyPreset("cardio", defaultSound())), "cardio");
-  assert.equal(matchingPreset(defaultSound()), "flat");
+  assert.equal(matchingPreset(applyPreset("voice", defaultSound())), "voice");
+  assert.equal(matchingPreset(applyPreset("soft", defaultSound())), "soft");
+  // À plat : aucun préréglage (le son neutre n'en est pas un).
+  assert.equal(matchingPreset(defaultSound()), null);
   assert.equal(matchingPreset({ ...defaultSound(), bands: [1, 0, 0, 0, 0] }), null);
 });
 
@@ -118,4 +122,12 @@ test("loudness et limiteur désactivés : transparents", () => {
   assert.equal(p.loudnessLow.gain, 0);
   assert.equal(p.loudnessHigh.gain, 0);
   assert.equal(p.limiter.ratio, 1);
+});
+
+test("un ancien identifiant de préréglage disparu n'est plus reconnu", () => {
+  for (const old of ["flat", "bright", "cardio", "n'importe quoi", "", null, undefined]) {
+    assert.equal(knownPresetId(old as string | null | undefined), null, String(old));
+  }
+  for (const id of ["bass", "voice", "soft"]) assert.equal(knownPresetId(id), id);
+  assert.equal(defaultSound().preset, null);
 });

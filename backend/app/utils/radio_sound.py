@@ -35,7 +35,8 @@ DEFAULT_SOUND: dict[str, Any] = {
     "bass_boost": 0,
     "loudness": False,
     "limiter": True,
-    "preset": "flat",
+    # Aucun préréglage par défaut : le son neutre est le réglage « à plat », pas un préréglage.
+    "preset": None,
 }
 
 
