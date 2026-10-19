@@ -137,7 +137,7 @@ Bobine is program-agnostic: class categories are free-form, so it fits any catal
 - **Coach audio mode** — play audio-only classes over the room speakers with an animated or still visual background on screen.
 - **Built-in radio** — a Spotify-style 24/7 background-music player with crossfade, shuffle, repeat, and scheduled spoken reminders ("re-rack your weights", etc.).
 - **Two independent radio outputs** — the wired radio and the network radio each have their own playlist, volume, reminders and schedule: handy for running several radios in the room. A **Radio** switch on the wired output turns the physical screen into a radio station, on demand.
-- **Equalizer and bass** — 5-band equalizer, bass boost, loudness, overload protection and presets (Voice, Bass boost, Cardio / gym…), set per output, with no extra weight: processing is done by the player.
+- **Equalizer and bass** — 5-band equalizer, bass boost, loudness, overload protection and three presets (Bass Boost, Voice Boost, Soften), set per output, with no extra weight: processing is done by the player.
 - **Simple library management** — drag-and-drop import, bulk upload, free-form categories, grouped selection, per-file import progress, automatic thumbnails.
 - **Local-first and resilient** — automatic recovery after a reboot or power cut, and a health watchdog that restarts a dead component.
 - **Web admin + zero client install** — administer everything from a browser; member screens and remotes are just web pages.

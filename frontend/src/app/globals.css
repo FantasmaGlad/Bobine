@@ -9116,3 +9116,168 @@ video::cue {
 .search-suggestion.is-active {
   background: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-surface-elevated));
 }
+
+/* ---- File « À suivre » de la radio (RadioQueueList) ---- */
+.rq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+}
+.rq-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  position: relative;
+}
+.rq-row.is-dragging {
+  z-index: 2;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.3);
+  border-color: var(--accent-primary);
+  opacity: 0.96;
+}
+.rq-list.is-sorting {
+  user-select: none;
+}
+.rq-handle {
+  flex-shrink: 0;
+  width: 30px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: grab;
+  touch-action: none;
+}
+.rq-handle:hover,
+.rq-handle:focus-visible {
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+}
+.rq-row.is-dragging .rq-handle {
+  cursor: grabbing;
+}
+.rq-pos {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rq-cover {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+}
+.rq-cover--empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.rq-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.rq-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rq-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.rq-artist {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.rq-genre {
+  flex-shrink: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+}
+.rq-duration {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rq-remove {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.rq-remove:hover,
+.rq-remove:focus-visible {
+  color: #fff;
+  background: var(--accent-danger, #e5484d);
+}
+
+.rq-summary {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.rq-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+/* Sélecteur riche pleine largeur au-dessus du bouton de lancement (aperçu lisible dans une colonne étroite) */
+.launch-row--stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+.launch-row--stacked > .btn {
+  width: 100%;
+}

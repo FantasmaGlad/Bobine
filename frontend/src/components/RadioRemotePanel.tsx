@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
 import { RadioEvent, RadioRepeatMode, useRadioSocket } from "@/lib/useRadioSocket";
@@ -8,6 +8,10 @@ import type { RadioChannelId } from "@/lib/displayChannel";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import Icon from "@/components/Icon";
 import RadioSoundPanel from "@/components/RadioSoundPanel";
+import RadioQueueList from "@/components/RadioQueueList";
+import SearchBox from "@/components/SearchBox";
+import Highlight from "@/components/Highlight";
+import { rankByQuery } from "@/lib/searchText";
 
 // Télécommande d'UNE sortie radio (câblée ou réseau) : pilote le RadioPlaybackManager de la
 // sortie à distance (mobile + PC). Le lecteur réel est l'écran /radio?channel=… ; ce composant
@@ -24,6 +28,8 @@ interface RadioPlaylistSummary {
   is_default: boolean;
   item_count: number;
   total_duration_seconds: number;
+  /** Morceau dont la pochette illustre la playlist (1er morceau ayant une pochette). */
+  cover_track_id?: number | null;
 }
 
 interface RadioTrackSearchResult {
@@ -31,7 +37,9 @@ interface RadioTrackSearchResult {
   title: string;
   artist: string | null;
   album: string | null;
+  genre?: string | null;
   duration_seconds: number | null;
+  has_cover?: boolean;
 }
 
 function getApiUrl(path: string) {
@@ -77,7 +85,6 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
   const [seekDragValue, setSeekDragValue] = useState<number | null>(null);
   const [volumeDragValue, setVolumeDragValue] = useState<number | null>(null);
   const [queueSearch, setQueueSearch] = useState("");
-  const [queueResults, setQueueResults] = useState<RadioTrackSearchResult[]>([]);
 
   useEffect(() => {
     fetch(getApiUrl("/radio/playlists"), { cache: "no-store" })
@@ -86,21 +93,24 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
       .catch(() => setPlaylists([]));
   }, []);
 
+  // Bibliothèque chargée UNE fois et filtrée ici : la recherche du serveur compare les accents tels
+  // quels (« ete » ne trouvait pas « Été indien ») ; le filtre local (lib/searchText.ts) les ignore et
+  // fournit aussi l'autocomplétion sur toute la bibliothèque, pas seulement sur les derniers résultats.
+  const [allTracks, setAllTracks] = useState<RadioTrackSearchResult[]>([]);
   useEffect(() => {
-    const query = queueSearch.trim();
-    if (!query) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset volontaire quand la recherche est vidée
-      setQueueResults([]);
-      return;
-    }
-    const id = setTimeout(() => {
-      fetch(getApiUrl(`/radio/tracks?q=${encodeURIComponent(query)}`), { cache: "no-store" })
-        .then((res) => (res.ok ? res.json() : []))
-        .then((data: RadioTrackSearchResult[]) => setQueueResults(data.slice(0, 8)))
-        .catch(() => setQueueResults([]));
-    }, 250);
-    return () => clearTimeout(id);
-  }, [queueSearch]);
+    if (variant !== "full") return;
+    fetch(getApiUrl("/radio/tracks"), { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setAllTracks)
+      .catch(() => setAllTracks([]));
+  }, [variant]);
+  const queueResults = useMemo(
+    () =>
+      queueSearch.trim()
+        ? rankByQuery(allTracks, queueSearch, (track) => `${track.title} ${track.artist ?? ""} ${track.album ?? ""} ${track.genre ?? ""}`).slice(0, 8)
+        : [],
+    [allTracks, queueSearch],
+  );
 
   const currentTrack = state.current_track;
   const coverSrc = currentTrack?.cover_url ? getApiUrl(currentTrack.cover_url) : null;
@@ -108,6 +118,13 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
   const displayPosition = seekDragValue ?? livePosition;
   const displayVolume = volumeDragValue ?? state.volume;
   const queue = state.index !== null ? state.order.slice(state.index + 1) : [];
+  const queueSeconds = queue.reduce((total, track) => total + (track.duration_seconds ?? 0), 0);
+  // Textes proposés par l'autocomplétion : titres, artistes, albums et styles de toute la bibliothèque.
+  const queueSuggestions = useMemo(
+    () => allTracks.flatMap((track) => [track.title, track.artist, track.album, track.genre].filter((x): x is string => !!x)),
+    [allTracks],
+  );
+
 
   const handleLaunch = () => {
     if (!selectedPlaylistId) return;
@@ -309,7 +326,7 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
         <div className="bento-col-main">
           <div className="launch-block">
             <h3>{t("radioRemote.loadPlaylistTitle")}</h3>
-            <div className="launch-row">
+            <div className="launch-row launch-row--stacked">
               <ResponsiveSelect
                 style={{ flex: 1, minWidth: 0 }}
                 value={selectedPlaylistId}
@@ -319,7 +336,11 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
                 options={playlists.map((p) => ({
                   value: String(p.id),
                   label: p.name,
-                  sublabel: `${p.item_count} — ${formatDuration(p.total_duration_seconds)}`,
+                  sublabel: t("radioRemote.playlistTracksCount", { count: p.item_count }),
+                  // Pochette du 1er morceau illustré, durée totale à droite : aperçu avant de lancer.
+                  thumbnail: p.cover_track_id != null ? getApiUrl(`/radio/tracks/${p.cover_track_id}/cover`) : null,
+                  square: true,
+                  meta: formatDuration(p.total_duration_seconds),
                 }))}
               />
               <button className="btn btn-primary" onClick={handleLaunch} disabled={!selectedPlaylistId}>
@@ -356,66 +377,59 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
             {queue.length === 0 ? (
               <p className="live-empty">{t("radioRemote.queueEmpty")}</p>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "240px", overflowY: "auto", paddingRight: "4px" }}>
-                {queue.map((track, i) => (
-                  <div
-                    key={`${track.id}-${i}`}
-                    className="olc-card-hover"
-                    style={{
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                      padding: "10px 12px", background: "var(--bg-surface-elevated)",
-                      borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)",
-                    }}
-                  >
-                    <span style={{ fontWeight: 700, fontSize: "0.88rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: "8px" }}>
-                      {track.title}
-                      <span style={{ fontWeight: 400, color: "var(--text-muted)" }}> — {track.artist || t("radioLibrary.unknownArtist")}</span>
-                    </span>
-                    <button
-                      className="btn btn-secondary"
-                      style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem", flexShrink: 0 }}
-                      onClick={() => sendCommand("radio_remove_from_queue", { index: (state.index ?? -1) + 1 + i })}
-                    >
-                      <Icon name="close" size={14} />
-                      {t("radioRemote.remove")}
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <>
+                <p className="rq-summary">{t("radioRemote.queueSummary", { count: queue.length, duration: formatDuration(queueSeconds) })}</p>
+                {/* Pochette, titre, artiste, style, durée de chaque morceau; glisser-déposer pour réordonner. */}
+                <RadioQueueList
+                  tracks={queue}
+                  baseIndex={(state.index ?? -1) + 1}
+                  getApiUrl={getApiUrl}
+                  onRemove={(index) => sendCommand("radio_remove_from_queue", { index })}
+                  onMove={(from, to) => sendCommand("radio_move_in_queue", { from_index: from, to_index: to })}
+                />
+              </>
             )}
 
             <h3 style={{ marginTop: "18px" }}>{t("radioRemote.addToQueueTitle")}</h3>
-            <input
-              type="text"
+            {/* Recherche avec autocomplétion (titres, artistes, albums, styles des résultats) */}
+            <SearchBox
               className="filter-select"
-              style={{ width: "100%" }}
-              placeholder={t("radioRemote.addToQueueSearchPlaceholder")}
               value={queueSearch}
-              onChange={(e) => setQueueSearch(e.target.value)}
+              onChange={setQueueSearch}
+              suggestions={queueSuggestions}
+              placeholder={t("radioRemote.addToQueueSearchPlaceholder")}
             />
             {queueSearch.trim() && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px", maxHeight: "220px", overflowY: "auto" }}>
+              <div className="rq-results">
                 {queueResults.length === 0 ? (
                   <p className="live-empty">{t("radioRemote.noSearchResults")}</p>
                 ) : (
                   queueResults.map((track) => (
-                    <div
-                      key={track.id}
-                      className="olc-card-hover"
-                      style={{
-                        display: "flex", justifyContent: "space-between", alignItems: "center",
-                        padding: "8px 12px", background: "var(--bg-surface-elevated)",
-                        borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)",
-                      }}
-                    >
-                      <span style={{ fontWeight: 700, fontSize: "0.85rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: "8px" }}>
-                        {track.title}
-                        <span style={{ fontWeight: 400, color: "var(--text-muted)" }}> — {track.artist || t("radioLibrary.unknownArtist")}</span>
+                    <div key={track.id} className="rq-row">
+                      {track.has_cover ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- pochette servie par l'API locale, export statique
+                        <img className="rq-cover" src={getApiUrl(`/radio/tracks/${track.id}/cover`)} alt="" loading="lazy" />
+                      ) : (
+                        <span className="rq-cover rq-cover--empty" aria-hidden="true">
+                          <Icon name="music_note" size={20} style={{ opacity: 0.4 }} />
+                        </span>
+                      )}
+                      <span className="rq-text">
+                        <span className="rq-title">
+                          <Highlight text={track.title} query={queueSearch} />
+                        </span>
+                        <span className="rq-sub">
+                          <span className="rq-artist">
+                            <Highlight text={track.artist || t("radioLibrary.unknownArtist")} query={queueSearch} />
+                          </span>
+                          {track.genre ? <span className="rq-genre">{track.genre}</span> : null}
+                        </span>
                       </span>
+                      <span className="rq-duration">{formatTime(track.duration_seconds)}</span>
                       <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
                         <button
                           className="btn btn-secondary"
-                          style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem" }}
+                          style={{ height: "30px", padding: "0 10px", fontSize: "0.75rem" }}
                           title={t("radioRemote.playNextHint")}
                           onClick={() => sendCommand("radio_play_next", { track_id: track.id })}
                         >
@@ -424,7 +438,7 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
                         </button>
                         <button
                           className="btn btn-secondary"
-                          style={{ height: "28px", padding: "0 10px", fontSize: "0.75rem" }}
+                          style={{ height: "30px", padding: "0 10px", fontSize: "0.75rem" }}
                           title={t("radioRemote.addToQueueHint")}
                           onClick={() => sendCommand("radio_add_to_queue", { track_id: track.id })}
                         >

@@ -137,7 +137,7 @@ Bobine est agnostique aux programmes : les catégories de cours sont libres, il 
 - **Mode coach audio** — diffusez des cours audio sur les enceintes de la salle avec un fond visuel animé ou fixe à l'écran.
 - **Radio intégrée** — un lecteur de musique d'ambiance 24/7 façon Spotify, avec fondu enchaîné, aléatoire, répétition et rappels vocaux programmés (« replacez vos poids », etc.).
 - **Deux sorties radio indépendantes** — la radio câblée et la radio réseau ont chacune leur playlist, leur volume, leurs rappels et leur planning : de quoi gérer plusieurs radios dans la salle. Un interrupteur **Radio** sur la sortie câblée transforme l'écran physique en poste radio, à la demande.
-- **Égaliseur et basses** — égaliseur 5 bandes, renfort des basses, loudness, protection anti-saturation et préréglages (Voix, Basses renforcées, Cardio / salle…), réglés par sortie, sans alourdir : le traitement est fait par le lecteur.
+- **Égaliseur et basses** — égaliseur 5 bandes, renfort des basses, loudness, protection anti-saturation et trois préréglages (Bass Boost, Voix Boost, Adoucis), réglés par sortie, sans alourdir : le traitement est fait par le lecteur.
 - **Gestion de bibliothèque simple** — import par glisser-déposer, envoi en lot, catégories libres, sélection groupée, progression fichier par fichier, miniatures automatiques.
 - **Local-first et résilient** — reprise automatique après un redémarrage ou une coupure, et un chien de garde qui redémarre un composant mort.
 - **Admin web, zéro installation client** — tout s'administre depuis un navigateur ; les écrans adhérents et les télécommandes ne sont que des pages web.

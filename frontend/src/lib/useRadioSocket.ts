@@ -19,6 +19,8 @@ export interface RadioTrackInfo {
   title: string;
   artist: string | null;
   album: string | null;
+  /** Style musical (étiquette libre de la bibliothèque), absent d'un ancien état serveur. */
+  genre?: string | null;
   duration_seconds: number | null;
   cover_url: string | null;
 }
