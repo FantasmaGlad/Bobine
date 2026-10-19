@@ -59,6 +59,7 @@ export const navEntries: NavEntry[] = [
 ];
 
 export const footerNavLinks: NavLinkConfig[] = [
+  { href: "/devices", labelKey: "nav.devices", iconName: "devices" },
   { href: "/settings", labelKey: "nav.settings", iconName: "settings" },
   { href: "/logs", labelKey: "nav.logs", iconName: "receipt_long" },
 ];
