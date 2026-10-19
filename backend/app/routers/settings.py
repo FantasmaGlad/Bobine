@@ -36,6 +36,8 @@ from app.config import (
 from app.database import _IS_SQLITE, engine, get_db, init_db
 from app.models import Setting
 from app.playback_manager import get_playback_manager
+from app.radio_manager import get_radio_manager
+from app.scheduler_manager import activate_radio_output
 from app.utils.activity_log import log_activity
 from app.utils.android_runtime import is_android
 from app.utils.display_state import (
@@ -136,7 +138,13 @@ _VALID_WIRED_DISPLAY_MODES = {"dual_screen", "headless"}
 # cinéma, ou l'inverse. "kiosk" par défaut sur les deux canaux. Persisté en
 # base sous deux clés distinctes : survit aux redémarrages.
 _DISPLAY_OUTPUT_KEYS = {"cable": "display_output_cable", "network": "display_output_network"}
-_DISPLAY_OUTPUTS = ("kiosk", "cinema")
+# Sorties acceptées PAR canal de diffusion : seule la sortie câblée peut être
+# basculée sur la radio (l'écran physique devient un poste radio, à la demande) ;
+# le réseau a déjà son poste radio par URL (/radio?channel=network).
+_DISPLAY_OUTPUTS_BY_CHANNEL = {
+    "cable": ("kiosk", "cinema", "radio"),
+    "network": ("kiosk", "cinema"),
+}
 _DISPLAY_CHANNELS = ("cable", "network")
 
 
@@ -701,7 +709,9 @@ def get_display_output_value(db: Session, channel: str = "cable") -> str:
     """Valeur de sortie active pour un canal, réutilisable hors endpoint
     (verrouillage cinéma dans routers/playback.py)."""
     value = _get_db_value(db, _DISPLAY_OUTPUT_KEYS[channel])
-    if value in _DISPLAY_OUTPUTS:
+    # Une valeur explicitement stockée (y compris "radio" sur le câblé) l'emporte
+    # toujours sur la sortie dérivée du matériel ci-dessous.
+    if value in _DISPLAY_OUTPUTS_BY_CHANNEL[channel]:
         return value
     if channel == "cable":
         if get_deployment_profile() == "android" or get_effective_wired_display_mode(db) == "dual_screen":
@@ -723,16 +733,18 @@ def get_display_output(db: Session = Depends(get_db)) -> dict[str, str]:
 async def set_display_output(payload: DisplayOutputUpdate, db: Session = Depends(get_db)) -> dict[str, str]:
     """
     Bascule un canal (câblé ou réseau) entre kiosk et cinéma, indépendamment
-    de l'autre. L'application est instantanée : l'évènement est diffusé à
+    de l'autre. Le canal câblé peut aussi être basculé sur la radio. L'application est instantanée : l'évènement est diffusé à
     tous les clients WebSocket, et la page concernée (l'écran câblé pour le
     canal "cable", tout autre /kiosk ou /cinema du réseau pour "network")
     navigue d'elle-même vers l'autre page en le recevant.
     """
     if payload.channel not in _DISPLAY_CHANNELS:
         raise HTTPException(status_code=400, detail="Canal invalide (attendu 'cable' ou 'network')")
-    if payload.output not in _DISPLAY_OUTPUTS:
-        raise HTTPException(status_code=400, detail="Sortie invalide (attendu 'kiosk' ou 'cinema')")
+    if payload.output not in _DISPLAY_OUTPUTS_BY_CHANNEL[payload.channel]:
+        allowed = " ou ".join(f"'{o}'" for o in _DISPLAY_OUTPUTS_BY_CHANNEL[payload.channel])
+        raise HTTPException(status_code=400, detail=f"Sortie invalide pour ce canal (attendu {allowed})")
 
+    previous_output = get_display_output_value(db, payload.channel)
     key = _DISPLAY_OUTPUT_KEYS[payload.channel]
     row = db.query(Setting).filter(Setting.key == key).first()
     if row:
@@ -747,7 +759,7 @@ async def set_display_output(payload: DisplayOutputUpdate, db: Session = Depends
     # d'avancer, "En direct" affiché côté admin) et pouvait reprendre en
     # l'état si on rebasculait sur kiosk plus tard, en conflit avec ce que
     # l'utilisateur regarde alors en cinéma.
-    if payload.output == "cinema":
+    if payload.output in ("cinema", "radio"):
         manager = get_playback_manager(payload.channel)
         current = manager.snapshot()
         if current["current_video"] or current["current_background"] or current["current_audio_course"]:
@@ -758,6 +770,15 @@ async def set_display_output(payload: DisplayOutputUpdate, db: Session = Depends
             )
             log_activity(db, "playback_stopped", title)
         await manager.stop()
+
+    if payload.channel == "cable":
+        # Radio sur la sortie câblée : le moteur radio câblé reprend (ou démarre
+        # l'ambiance s'il était à l'arrêt) à l'arrivée, et se met en PAUSE au
+        # départ — sans perdre sa file, pour une reprise instantanée au retour.
+        if payload.output == "radio":
+            await activate_radio_output(db, "radio_cable")
+        elif previous_output == "radio":
+            await get_radio_manager("radio_cable").pause()
 
     await ws_manager.broadcast({"event": "display_output", "channel": payload.channel, "output": payload.output})
     logger.info(f"Sortie {payload.channel} basculée sur /{payload.output}")
