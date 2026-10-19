@@ -21,7 +21,7 @@
 ; repli codé en dur ci-dessous, utilisé uniquement lors d'une compilation
 ; manuelle sans ce define.
 #ifndef MyAppVersion
-  #define MyAppVersion "5.0.0"
+  #define MyAppVersion "5.0.1"
 #endif
 ; Version utilisée dans le NOM DU FICHIER de l'installeur — délibérément
 ; distincte de MyAppVersion : par défaut
