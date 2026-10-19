@@ -136,6 +136,8 @@ Bobine is program-agnostic: class categories are free-form, so it fits any catal
 - **Universal input support (Gamepads, Remotes, Mouse, Touch)** — the member cinema (`/cinema`), coach grid (`/grid`), interactive kiosk (`/kiosk`), and radio screen (`/radio`) respond instantly to all devices: game controllers (Xbox, PlayStation, 8BitDo, Switch Pro via HTML5 Gamepad API), physical USB/Bluetooth media remotes (arrows, OK, back, play/pause, seek, volume), mouse, and touchscreens.
 - **Coach audio mode** — play audio-only classes over the room speakers with an animated or still visual background on screen.
 - **Built-in radio** — a Spotify-style 24/7 background-music player with crossfade, shuffle, repeat, and scheduled spoken reminders ("re-rack your weights", etc.).
+- **Two independent radio outputs** — the wired radio and the network radio each have their own playlist, volume, reminders and schedule: handy for running several radios in the room. A **Radio** switch on the wired output turns the physical screen into a radio station, on demand.
+- **Equalizer and bass** — 5-band equalizer, bass boost, loudness, overload protection and presets (Voice, Bass boost, Cardio / gym…), set per output, with no extra weight: processing is done by the player.
 - **Simple library management** — drag-and-drop import, bulk upload, free-form categories, grouped selection, per-file import progress, automatic thumbnails.
 - **Local-first and resilient** — automatic recovery after a reboot or power cut, and a health watchdog that restarts a dead component.
 - **Web admin + zero client install** — administer everything from a browser; member screens and remotes are just web pages.
@@ -392,7 +394,7 @@ Bobine advertises itself over **mDNS (Zeroconf/Bonjour)** as `bobine.local`. If 
 - **Member cinema** — the wired screen shows a browse menu; members start a class themselves. New imports appear on it automatically.
 - **Networked screen** — a second, independent output; choose what each screen shows in *Settings → Display output*.
 - **Mobile remote** — open `http://bobine.local` on a phone; it adapts to a remote-control layout for staff.
-- **Radio** — open the radio screen on a dedicated device to play background music continuously; controlled from the admin *Radio* tab.
+- **Radio** — open `/radio?channel=network` on a dedicated device to play background music continuously (`/radio` remains an alias); `/radio?channel=cable` is the radio of the wired output, enabled by the *Radio* button of *Wired Output*. Control and sound settings from the admin *Radio* tab.
 - **Screen sync** — *Settings → Sync screens* clears every connected screen's cache and reloads it with the latest assets, and restarts the services.
 - **Backup & Restore** — from *Settings → Backup & Restore*, download a full ZIP archive of your SQLite database and configurations, or restore a previous backup directly from the browser.
 - **Factory Data Reset** — from *Settings → Danger Zone*, reset application data (SQLite database and media) while keeping the installed software.

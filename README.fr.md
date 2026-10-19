@@ -136,6 +136,8 @@ Bobine est agnostique aux programmes : les catégories de cours sont libres, il 
 - **Support universel des contrôles (Manettes, Télécommandes, Souris, Tactile)** — la borne cinéma adhérent, le pupitre studio, le kiosque et l'écran radio répondent immédiatement à tous les périphériques : manettes de jeu (Xbox, PlayStation, 8BitDo, Switch Pro via l'API Gamepad HTML5 standard), télécommandes physiques USB/Bluetooth à dongle (flèches, OK, retour, play/pause, pistes, volume), souris et écrans tactiles.
 - **Mode coach audio** — diffusez des cours audio sur les enceintes de la salle avec un fond visuel animé ou fixe à l'écran.
 - **Radio intégrée** — un lecteur de musique d'ambiance 24/7 façon Spotify, avec fondu enchaîné, aléatoire, répétition et rappels vocaux programmés (« replacez vos poids », etc.).
+- **Deux sorties radio indépendantes** — la radio câblée et la radio réseau ont chacune leur playlist, leur volume, leurs rappels et leur planning : de quoi gérer plusieurs radios dans la salle. Un interrupteur **Radio** sur la sortie câblée transforme l'écran physique en poste radio, à la demande.
+- **Égaliseur et basses** — égaliseur 5 bandes, renfort des basses, loudness, protection anti-saturation et préréglages (Voix, Basses renforcées, Cardio / salle…), réglés par sortie, sans alourdir : le traitement est fait par le lecteur.
 - **Gestion de bibliothèque simple** — import par glisser-déposer, envoi en lot, catégories libres, sélection groupée, progression fichier par fichier, miniatures automatiques.
 - **Local-first et résilient** — reprise automatique après un redémarrage ou une coupure, et un chien de garde qui redémarre un composant mort.
 - **Admin web, zéro installation client** — tout s'administre depuis un navigateur ; les écrans adhérents et les télécommandes ne sont que des pages web.
@@ -392,7 +394,7 @@ Bobine s'annonce en **mDNS (Zeroconf/Bonjour)** sous le nom `bobine.local`. Si v
 - **Cinéma adhérent** — l'écran câblé affiche un menu de sélection ; l'adhérent lance son cours. Les nouveaux imports y apparaissent automatiquement.
 - **Écran réseau** — une seconde sortie indépendante ; choisissez ce qu'affiche chaque écran dans *Paramètres → Sortie vidéo*.
 - **Télécommande mobile** — ouvrez `http://bobine.local` sur un téléphone ; l'affichage s'adapte en télécommande pour le staff.
-- **Radio** — ouvrez l'écran radio sur un appareil dédié pour diffuser la musique d'ambiance en continu ; pilotage depuis l'onglet *Radio* de l'admin.
+- **Radio** — ouvrez `/radio?channel=network` sur un appareil dédié pour diffuser la musique d'ambiance en continu (`/radio` reste un alias) ; `/radio?channel=cable` est la radio de la sortie câblée, activée par le bouton *Radio* de *Sortie Câblé*. Pilotage et réglages du son depuis l'onglet *Radio* de l'admin.
 - **Synchronisation des écrans** — *Paramètres → Synchronisation des écrans* vide le cache de chaque écran connecté, le recharge avec les derniers assets et redémarre les services.
 - **Sauvegarde & Restauration** — depuis *Paramètres → Sauvegarde & Restauration*, téléchargez une archive ZIP complète de votre base SQLite et de vos configurations, ou restaurez un fichier de sauvegarde précédent directement depuis le navigateur.
 - **Remise à zéro des données** — depuis *Paramètres → Zone de danger*, remettez à zéro les données de l'application (base SQLite et médias) tout en conservant le logiciel installé.
