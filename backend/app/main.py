@@ -49,6 +49,7 @@ from app.utils.radio_announcement_scheduler import (
     start_radio_announcement_scheduler,
     stop_radio_announcement_scheduler,
 )
+from app.utils.radio_sound import load_all_sounds_into_managers
 from app.utils.watcher import start_watcher, stop_watcher
 from app.utils.ws_manager import manager as ws_manager
 
@@ -126,6 +127,10 @@ async def lifespan(app: FastAPI):
     # cf. app/utils/mdns.py.
     start_mdns_responder(settings.port)
     # 24/7.
+    # Réglages de son persistés des deux sorties radio, chargés avant tout
+    # démarrage de lecture pour que le premier état diffusé les contienne.
+    with SessionLocal() as sound_db:
+        load_all_sounds_into_managers(sound_db)
     await autostart_default_radio_playlist()
     for playback_manager in get_all_playback_managers().values():
         playback_manager.start_position_broadcast_loop()

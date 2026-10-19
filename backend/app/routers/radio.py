@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 from typing import List
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -39,6 +39,31 @@ def get_radio_state(channel: str | None = None):
     from app.radio_manager import get_radio_manager
 
     return get_radio_manager(channel).snapshot()
+
+
+@router.get("/sound")
+def get_radio_sound(channel: str | None = None):
+    """Réglages de son courants d'UNE sortie radio (réseau par défaut) : même valeur
+    que le champ `sound` de l'état diffusé, pour les clients sans WebSocket."""
+    from app.radio_manager import get_radio_manager
+
+    return get_radio_manager(channel).state["sound"]
+
+
+@router.put("/sound")
+async def set_radio_sound(payload: dict = Body(...), channel: str | None = None, db: Session = Depends(get_db)):
+    """Modifie les réglages de son d'UNE sortie radio. Les valeurs hors plage sont
+    BORNÉES (jamais d'erreur) et les champs absents gardent leur valeur courante;
+    persisté puis diffusé aux lecteurs et télécommandes de la sortie. Même chemin que
+    la commande WebSocket `radio_set_sound`."""
+    from app.radio_manager import get_radio_manager
+    from app.utils.radio_sound import sanitize_sound, save_sound
+
+    manager = get_radio_manager(channel)
+    sound = sanitize_sound(payload, base=manager.state.get("sound"))
+    save_sound(db, manager.channel, sound)
+    await manager.set_sound(sound)
+    return sound
 
 
 class DefaultPlaylistInput(BaseModel):

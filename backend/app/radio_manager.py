@@ -17,6 +17,7 @@ from typing import Any, Awaitable, Callable
 
 from app.config import settings
 from app.utils.playback_clock import PlaybackClock
+from app.utils.radio_sound import default_sound
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,9 @@ class RadioPlaybackManager:
             # Compteur de la règle « toutes les N musiques »,
             # remis à zéro à chaque rappel joué, quel que soit son mode.
             "tracks_since_announcement": 0,
+            # Réglages de son de CETTE sortie (égaliseur, basses…) : appliqués par
+            # le lecteur, stockés/validés par utils/radio_sound.py.
+            "sound": default_sound(),
         }
 
     # ------------------------------------------------------------------
@@ -439,6 +443,13 @@ class RadioPlaybackManager:
     async def set_volume(self, volume: float, client_ts: float | None = None):
         self.state["volume"] = max(0, min(100, int(volume)))
         await self._emit("radio_volume", client_ts)
+
+    async def set_sound(self, sound: dict, client_ts: float | None = None):
+        """Applique des réglages de son DÉJÀ validés (cf. utils/radio_sound.py) et les
+        diffuse : le moteur reste sans accès à la base, la persistance est faite par
+        l'appelant."""
+        self.state["sound"] = sound
+        await self._emit("radio_sound_change", client_ts)
 
     async def set_shuffle(self, on: bool, client_ts: float | None = None):
         self.state["shuffle"] = bool(on)

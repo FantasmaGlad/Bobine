@@ -22,6 +22,7 @@ from app.radio_manager import (
     normalize_radio_channel, rule_targets_output,
 )
 from app.routers.settings import get_display_output_value
+from app.utils.radio_sound import sanitize_sound, save_sound
 from app.scheduler_manager import ensure_utc, resolve_target_title
 from app.utils.activity_log import log_activity
 from app.utils.boot_state import current_boot_id
@@ -972,6 +973,13 @@ async def _handle_radio_command(
         await manager.seek(float(params.get("position_seconds", 0)), client_ts)
     elif command == "volume":
         await manager.set_volume(params.get("volume", 100), client_ts)
+    elif command == "radio_set_sound":
+        # Réglages de son de CETTE sortie : bornés (jamais d'erreur sur une valeur
+        # aberrante), les champs absents gardent leur valeur courante; persistés
+        # puis diffusés avec l'état du moteur.
+        sound = sanitize_sound(params.get("sound"), base=manager.state.get("sound"))
+        save_sound(db, manager.channel, sound)
+        await manager.set_sound(sound, client_ts)
     elif command == "radio_set_shuffle":
         await manager.set_shuffle(bool(params.get("on")), client_ts)
     elif command == "radio_set_repeat":
