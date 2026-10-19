@@ -44,6 +44,25 @@ def normalize_radio_channel(value: Any) -> str:
     return DEFAULT_RADIO_CHANNEL
 
 
+# Sortie visée par une règle de rappel : une sortie précise ou les deux.
+RULE_TARGET_BOTH = "both"
+RULE_TARGETS = (*RADIO_CHANNELS, RULE_TARGET_BOTH)
+
+
+def normalize_rule_target(value: Any) -> str:
+    """Cible d'une règle de rappel. L'alias historique `radio` et toute valeur
+    inconnue retombent sur la sortie réseau (comportement d'avant les deux sorties)."""
+    if value == RULE_TARGET_BOTH:
+        return RULE_TARGET_BOTH
+    return normalize_radio_channel(value)
+
+
+def rule_targets_output(target: Any, radio_channel: str) -> bool:
+    """Vrai si une règle de rappel de cible `target` s'applique à la sortie `radio_channel`."""
+    normalized = normalize_rule_target(target)
+    return normalized == RULE_TARGET_BOTH or normalized == normalize_radio_channel(radio_channel)
+
+
 def is_radio_channel(value: Any) -> bool:
     """Vrai pour un identifiant de sortie radio, alias historique compris."""
     return value == LEGACY_RADIO_CHANNEL or value in RADIO_CHANNELS
@@ -229,10 +248,14 @@ class RadioPlaybackManager:
     # ------------------------------------------------------------------
     async def load_playlist(self, playlist_id: int, name: str, tracks: list[dict],
                             shuffle: bool | None = None, client_ts: float | None = None,
-                            repeat: str | None = None):
+                            repeat: str | None = None, start_paused: bool = False):
         """`repeat`, si fourni, force le mode de répétition APRÈS chargement
         (ambiance 24/7 par défaut et fenêtres de Planning radio, toutes deux
-        censées boucler plutôt que s'arrêter en silence en fin de playlist)."""
+        censées boucler plutôt que s'arrêter en silence en fin de playlist).
+        `start_paused` charge la playlist SANS la lancer : utilisé quand la
+        sortie ne diffuse pas la radio (sortie câblée sur kiosk/cinéma) — la
+        lecture reprendra à la bascule vers Radio plutôt que de tourner dans le
+        vide."""
         if shuffle is not None:
             self.state["shuffle"] = bool(shuffle)
         if repeat is not None:
@@ -245,14 +268,15 @@ class RadioPlaybackManager:
         self.state["order"] = order
         self.state["index"] = 0 if order else None
         self.state["position_seconds"] = 0.0
-        self.state["playing"] = bool(order)
-        self.state["state"] = "playing" if order else "idle"
+        playing = bool(order) and not start_paused
+        self.state["playing"] = playing
+        self.state["state"] = ("playing" if playing else "paused") if order else "idle"
         # Un rappel en cours (mode wait_end en particulier) n'a plus de sens
         # une fois la playlist remplacée.
         self.state["current_announcement"] = None
         self._deferred_advance_pending = False
         self._sync_current()
-        if order:
+        if playing:
             self._start_clock(0.0)
         else:
             self._clock.reset()

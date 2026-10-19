@@ -19,7 +19,7 @@ from app.utils.playback_clock import PlaybackClock
 from app.playback_manager import CHANNELS, DEFAULT_CHANNEL, get_playback_manager, init_playback_managers
 from app.radio_manager import (
     get_all_radio_managers, get_radio_manager, init_radio_managers, is_radio_channel,
-    normalize_radio_channel,
+    normalize_radio_channel, rule_targets_output,
 )
 from app.routers.settings import get_display_output_value
 from app.scheduler_manager import ensure_utc, resolve_target_title
@@ -527,14 +527,18 @@ async def _reject_if_cinema_locked(db: Session, command: str, websocket: WebSock
     # lecture DB sortie de la boucle — appelée par CHAQUE
     # commande load*, potentiellement en concurrence avec un flux vidéo
     # actif (stream_*) qui sature déjà le disque/FUSE.
-    if await run_in_threadpool(get_display_output_value, db, channel) != "cinema":
+    output = await run_in_threadpool(get_display_output_value, db, channel)
+    if output not in ("cinema", "radio"):
         return False
-    logger.info(f"Commande {command} ignorée : le canal '{channel}' est en mode cinéma (verrouillé)")
+    # Même logique pour la radio : sortie câblée basculée sur Radio = aucun écran
+    # vidéo pour afficher le lancement, il serait lui aussi « fantôme ».
+    reason = "cinema_locked" if output == "cinema" else "radio_locked"
+    logger.info(f"Commande {command} ignorée : le canal '{channel}' est en mode {output} (verrouillé)")
     if websocket is not None:
         try:
             await websocket.send_json({
                 "event": "command_rejected", "command": command,
-                "reason": "cinema_locked", "channel": channel,
+                "reason": reason, "channel": channel,
             })
         except Exception:
             pass
@@ -1043,6 +1047,10 @@ def _due_wait_end_announcement(db: Session, manager) -> RadioAnnouncement | None
         )
         .all()
     )
-    if not any(count >= (rule.n_tracks or 1) for rule in rules):
+    # Règles propres à la sortie de CE moteur (ou aux deux sorties) : le compteur
+    # `tracks_since_announcement` est lui-même par moteur.
+    if not any(
+        count >= (rule.n_tracks or 1) and rule_targets_output(rule.target, manager.channel) for rule in rules
+    ):
         return None
     return _resolve_announcement(db, None)

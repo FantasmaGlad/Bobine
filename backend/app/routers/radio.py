@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.models import RadioPlaylistItem, RadioTag, RadioTrack, radio_track_tags
+from app.models import RadioPlaylist, RadioPlaylistItem, RadioTag, RadioTrack, radio_track_tags
 from app.utils.executors import io_executor
 from app.utils.staged_uploads import receive_single_upload
 from app.utils.import_jobs import create_job, update_job
@@ -39,6 +39,46 @@ def get_radio_state(channel: str | None = None):
     from app.radio_manager import get_radio_manager
 
     return get_radio_manager(channel).snapshot()
+
+
+class DefaultPlaylistInput(BaseModel):
+    channel: str
+    # None = effacer le choix propre à la sortie (retour à la playlist `is_default`).
+    playlist_id: int | None = None
+
+
+@router.get("/default-playlist")
+def get_default_playlists(db: Session = Depends(get_db)):
+    """Ambiance par défaut de chaque sortie radio : le choix propre à la sortie
+    (None si aucun) et la playlist effectivement utilisée (choix propre, sinon
+    playlist marquée `is_default`, sinon None = toute la bibliothèque)."""
+    from app.radio_manager import RADIO_CHANNELS
+    from app.scheduler_manager import get_radio_default_playlist_override, resolve_radio_default_playlist
+
+    result = {}
+    for radio_channel in RADIO_CHANNELS:
+        effective = resolve_radio_default_playlist(db, radio_channel)
+        result[radio_channel] = {
+            "override_playlist_id": get_radio_default_playlist_override(db, radio_channel),
+            "effective_playlist_id": effective.id if effective else None,
+        }
+    return result
+
+
+@router.put("/default-playlist")
+def set_default_playlist(payload: DefaultPlaylistInput, db: Session = Depends(get_db)):
+    """Choisit l'ambiance par défaut d'UNE sortie radio (démarrage automatique,
+    fin de fenêtre de planning, bascule de la sortie câblée sur Radio)."""
+    from app.radio_manager import RADIO_CHANNELS
+    from app.scheduler_manager import set_radio_default_playlist_override
+
+    if payload.channel not in RADIO_CHANNELS:
+        raise HTTPException(status_code=400, detail="Sortie radio invalide (attendu 'radio_cable' ou 'radio_network')")
+    if payload.playlist_id is not None:
+        if not db.query(RadioPlaylist).filter(RadioPlaylist.id == payload.playlist_id).first():
+            raise HTTPException(status_code=404, detail="Playlist radio non trouvée")
+    set_radio_default_playlist_override(db, payload.channel, payload.playlist_id)
+    return get_default_playlists(db)
 
 
 # ---------------------------------------------------------------------------

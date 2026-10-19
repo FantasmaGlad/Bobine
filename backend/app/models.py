@@ -377,6 +377,10 @@ class RadioAnnouncementRule(Base):
     interval_minutes: Mapped[int | None]
     times_of_day: Mapped[str | None]
     enabled: Mapped[bool] = mapped_column(default=True)
+    # Sortie radio concernée par la règle : "radio_cable", "radio_network" ou
+    # "both". Les règles d'avant les deux sorties valent "radio_network" (c'est
+    # l'ancien poste radio unique) — le pool de rappels, lui, reste partagé.
+    target: Mapped[str] = mapped_column(default="radio_network", server_default="radio_network")
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
 
@@ -390,8 +394,10 @@ class Schedule(Base):
     recurrence_rule: Mapped[str | None]
     run_at: Mapped[datetime | None]
     active: Mapped[bool] = mapped_column(default=True)
-    # Canal de diffusion ciblé par cette programmation : "cable" ou "network" — chaque
-    # canal a son planning propre, déclenché sur SON état de lecture.
+    # Canal de diffusion ciblé par cette programmation : "cable", "network",
+    # "radio_cable" ou "radio_network" — chaque canal a son planning propre,
+    # déclenché sur SON état de lecture (l'ancien "radio" est migré vers
+    # "radio_network").
     channel: Mapped[str] = mapped_column(default="cable", server_default="cable")
 
     overrides: Mapped[list["ScheduleOverride"]] = relationship(

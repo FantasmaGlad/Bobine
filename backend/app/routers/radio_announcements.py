@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType
+from app.radio_manager import LEGACY_RADIO_CHANNEL, RULE_TARGETS, normalize_rule_target
 from app.utils.activity_log import log_activity
 from app.utils.executors import io_executor
 from app.utils.import_jobs import create_job, update_job
@@ -53,6 +54,9 @@ class RadioAnnouncementUpdate(BaseModel):
 
 class PlayNowInput(BaseModel):
     announcement_id: int | None = None
+    # Sortie radio où jouer le rappel : "radio_cable", "radio_network" ou "both".
+    # Absent = sortie réseau (comportement d'avant les deux sorties).
+    target: str | None = None
 
 
 class ImportJobAccepted(BaseModel):
@@ -66,6 +70,7 @@ class RadioAnnouncementRuleResponse(BaseModel):
     interval_minutes: int | None
     times_of_day: List[str] | None
     enabled: bool
+    target: str
 
 
 class RadioAnnouncementRuleInput(BaseModel):
@@ -74,6 +79,8 @@ class RadioAnnouncementRuleInput(BaseModel):
     interval_minutes: int | None = None
     times_of_day: List[str] | None = None
     enabled: bool = True
+    # Sortie concernée : "radio_cable", "radio_network" ou "both" (défaut : réseau).
+    target: str = "radio_network"
 
     @field_validator("times_of_day")
     @classmethod
@@ -98,10 +105,15 @@ def _rule_response(rule: RadioAnnouncementRule) -> dict:
         "interval_minutes": rule.interval_minutes,
         "times_of_day": json.loads(rule.times_of_day) if rule.times_of_day else None,
         "enabled": rule.enabled,
+        "target": normalize_rule_target(rule.target),
     }
 
 
 def _validate_rule_fields(data: RadioAnnouncementRuleInput) -> None:
+    if data.target not in (*RULE_TARGETS, LEGACY_RADIO_CHANNEL):
+        raise HTTPException(
+            status_code=400, detail="target invalide (attendu 'radio_cable', 'radio_network' ou 'both')"
+        )
     if data.rule_type == RadioAnnouncementRuleType.every_n_tracks and not data.n_tracks:
         raise HTTPException(status_code=400, detail="n_tracks est requis pour une règle « toutes les N musiques »")
     if data.rule_type == RadioAnnouncementRuleType.every_x_minutes and not data.interval_minutes:
@@ -226,7 +238,7 @@ async def play_announcement_now(payload: PlayNowInput, db: Session = Depends(get
     """Déclenchement manuel — toujours en mode « duck »
     (fondu immédiat, la musique continue). `announcement_id` nul = tirage
     aléatoire parmi les rappels actifs."""
-    from app.radio_manager import get_radio_manager
+    from app.radio_manager import RADIO_CHANNELS, RULE_TARGET_BOTH, get_radio_manager, normalize_rule_target
 
     query = db.query(RadioAnnouncement).filter(RadioAnnouncement.enabled == True)  # noqa: E712
     announcement = (
@@ -237,9 +249,12 @@ async def play_announcement_now(payload: PlayNowInput, db: Session = Depends(get
     if not announcement:
         raise HTTPException(status_code=404, detail="Aucun rappel disponible")
 
-    await get_radio_manager().play_announcement(
-        {"id": announcement.id, "description": announcement.description}, mode="duck",
-    )
+    target = normalize_rule_target(payload.target)
+    outputs = RADIO_CHANNELS if target == RULE_TARGET_BOTH else (target,)
+    for radio_channel in outputs:
+        await get_radio_manager(radio_channel).play_announcement(
+            {"id": announcement.id, "description": announcement.description}, mode="duck",
+        )
     log_activity(db, "radio_announcement_played", announcement.description)
     return {"id": announcement.id, "description": announcement.description}
 
@@ -262,6 +277,7 @@ def create_rule(payload: RadioAnnouncementRuleInput, db: Session = Depends(get_d
         interval_minutes=payload.interval_minutes,
         times_of_day=json.dumps(payload.times_of_day) if payload.times_of_day else None,
         enabled=payload.enabled,
+        target=normalize_rule_target(payload.target),
     )
     db.add(rule)
     db.commit()
@@ -280,6 +296,7 @@ def update_rule(rule_id: int, payload: RadioAnnouncementRuleInput, db: Session =
     rule.interval_minutes = payload.interval_minutes
     rule.times_of_day = json.dumps(payload.times_of_day) if payload.times_of_day else None
     rule.enabled = payload.enabled
+    rule.target = normalize_rule_target(payload.target)
     db.commit()
     db.refresh(rule)
     return _rule_response(rule)

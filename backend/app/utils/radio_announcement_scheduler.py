@@ -18,6 +18,7 @@ from tzlocal import get_localzone
 
 from app.database import SessionLocal
 from app.models import RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType
+from app.radio_manager import rule_targets_output
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +30,13 @@ _task: asyncio.Task | None = None
 # insensible aux sauts d'horloge) — initialisé au moment où la règle est VUE
 # pour la première fois plutôt qu'à 0, pour ne pas déclencher immédiatement
 # toutes les règles existantes au redémarrage du service.
-_last_minutes_fire: dict[int, float] = {}
+# Clé = (règle, sortie radio) : une règle « les deux sorties » déclenche
+# indépendamment sur chaque moteur.
+_last_minutes_fire: dict[tuple[int, str], float] = {}
 # Dernière minute déclenchée pour chaque règle « heures fixes » (clé
 # "YYYY-MM-DD HH:MM"), pour ne tirer qu'une fois par horaire programmé même
 # si la boucle repasse plusieurs fois dans la même minute.
-_last_fixed_fire: dict[int, str] = {}
+_last_fixed_fire: dict[tuple[int, str], str] = {}
 
 
 def start_radio_announcement_scheduler() -> None:
@@ -66,13 +69,15 @@ async def _loop() -> None:
 
 
 async def _check_rules() -> None:
-    from app.radio_manager import get_radio_manager
+    from app.radio_manager import get_all_radio_managers
 
-    try:
-        manager = get_radio_manager()
-    except RuntimeError:
-        return  # pas encore initialisé (tests unitaires isolés)
+    # Chaque sortie radio a son propre moteur : ses règles (cible = cette sortie
+    # ou « les deux ») sont évaluées et déclenchées indépendamment.
+    for manager in get_all_radio_managers().values():
+        await _check_rules_for(manager)
 
+
+async def _check_rules_for(manager) -> None:
     # Un rappel est déjà en cours (quel que soit son mode) : ne pas en
     # empiler un second par-dessus.
     if manager.state.get("current_announcement"):
@@ -80,16 +85,20 @@ async def _check_rules() -> None:
 
     db = SessionLocal()
     try:
-        rules = (
-            db.query(RadioAnnouncementRule)
-            .filter(
-                RadioAnnouncementRule.enabled == True,  # noqa: E712
-                RadioAnnouncementRule.rule_type.in_(
-                    [RadioAnnouncementRuleType.every_x_minutes, RadioAnnouncementRuleType.fixed_times]
-                ),
+        rules = [
+            rule
+            for rule in (
+                db.query(RadioAnnouncementRule)
+                .filter(
+                    RadioAnnouncementRule.enabled == True,  # noqa: E712
+                    RadioAnnouncementRule.rule_type.in_(
+                        [RadioAnnouncementRuleType.every_x_minutes, RadioAnnouncementRuleType.fixed_times]
+                    ),
+                )
+                .all()
             )
-            .all()
-        )
+            if rule_targets_output(rule.target, manager.channel)
+        ]
         if not rules:
             return
 
@@ -98,18 +107,19 @@ async def _check_rules() -> None:
         due_rule: RadioAnnouncementRule | None = None
 
         for rule in rules:
+            fire_key = (rule.id, manager.channel)
             if rule.rule_type == RadioAnnouncementRuleType.every_x_minutes:
-                last = _last_minutes_fire.setdefault(rule.id, now_monotonic)
+                last = _last_minutes_fire.setdefault(fire_key, now_monotonic)
                 if now_monotonic - last >= (rule.interval_minutes or 0) * 60:
-                    _last_minutes_fire[rule.id] = now_monotonic
+                    _last_minutes_fire[fire_key] = now_monotonic
                     due_rule = rule
                     break
             elif rule.rule_type == RadioAnnouncementRuleType.fixed_times:
                 times = json.loads(rule.times_of_day) if rule.times_of_day else []
                 hhmm = now_local.strftime("%H:%M")
-                fire_key = f"{now_local.date()} {hhmm}"
-                if hhmm in times and _last_fixed_fire.get(rule.id) != fire_key:
-                    _last_fixed_fire[rule.id] = fire_key
+                minute_key = f"{now_local.date()} {hhmm}"
+                if hhmm in times and _last_fixed_fire.get(fire_key) != minute_key:
+                    _last_fixed_fire[fire_key] = minute_key
                     due_rule = rule
                     break
 

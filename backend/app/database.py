@@ -128,6 +128,7 @@ def init_db():
     _migrate_backfill_video_metadata()
     _migrate_backfill_audio_duration()
     _migrate_update_channel_beta_to_canary()
+    _migrate_schedule_radio_channel_to_network()
 
 
 def _migrate_audio_playlist_items_to_tracks():
@@ -224,6 +225,9 @@ def _migrate_add_missing_columns():
         ("videos", "web_status", "VARCHAR"),
         # Télémétrie extensible : stockage JSON dynamique pour métriques futures
         ("system_metrics_history", "extra_data", "TEXT"),
+        # Sortie radio visée par une règle de rappel (les règles existantes
+        # restent sur la sortie réseau, l'ancien poste radio unique).
+        ("radio_announcement_rules", "target", "VARCHAR NOT NULL DEFAULT 'radio_network'"),
     ]
     with engine.connect() as conn:
         for table, column, ddl in wanted:
@@ -274,6 +278,36 @@ def _migrate_update_channel_beta_to_canary():
             logger.info(
                 f"Migration : canal de mise à jour 'beta' (rolling) renommé 'canary' "
                 f"({result.rowcount} réglage(s))"
+            )
+
+
+def _migrate_schedule_radio_channel_to_network():
+    """
+    Deux sorties radio (câblée et réseau) : l'ancienne voie de planning "radio"
+    désignait le poste radio unique, qui est aujourd'hui la sortie réseau.
+    Réécrit `schedules.channel='radio'` en 'radio_network' pour que les
+    programmations existantes continuent de piloter le même moteur. Idempotent
+    (UPDATE sans ligne correspondante après la première exécution).
+    """
+    from sqlalchemy import text
+
+    if not _IS_SQLITE:
+        return
+
+    with engine.connect() as conn:
+        tables = {row[0] for row in conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='schedules'"
+        ))}
+        if "schedules" not in tables:
+            return
+        result = conn.execute(text(
+            "UPDATE schedules SET channel='radio_network' WHERE channel='radio'"
+        ))
+        conn.commit()
+        if result.rowcount:
+            logger.info(
+                f"Migration : planning radio historique rattaché à la sortie réseau "
+                f"({result.rowcount} programmation(s))"
             )
 
 

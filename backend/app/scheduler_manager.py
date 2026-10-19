@@ -23,6 +23,7 @@ from app.models import (
     Video,
 )
 from app.playback_manager import PlaybackStateEnum, get_playback_manager
+from app.radio_manager import DEFAULT_RADIO_CHANNEL, get_all_radio_managers, get_radio_manager, normalize_radio_channel
 from app.utils.hardware_info import purge_expired_logs_and_metrics, record_hardware_snapshot
 
 logger = logging.getLogger(__name__)
@@ -304,13 +305,73 @@ def _radio_track_dict(track) -> dict:
     }
 
 
-async def _launch_radio_target(db: Session, playlist_id: int) -> None:
-    """Lance une playlist radio EN BOUCLE : utilisé aussi
+def radio_default_playlist_key(radio_channel: str) -> str:
+    """Clé `settings` de l'ambiance par défaut d'UNE sortie radio (aucune
+    migration de schéma : la table `settings` est une simple paire clé/valeur)."""
+    return f"radio_default_playlist_id_{normalize_radio_channel(radio_channel)}"
+
+
+def get_radio_default_playlist_override(db: Session, radio_channel: str) -> int | None:
+    """Identifiant de l'ambiance propre à la sortie, ou None si aucune n'a été choisie."""
+    row = db.query(Setting).filter(Setting.key == radio_default_playlist_key(radio_channel)).first()
+    if row is None or not row.value:
+        return None
+    try:
+        return int(row.value)
+    except (TypeError, ValueError):
+        return None
+
+
+def set_radio_default_playlist_override(db: Session, radio_channel: str, playlist_id: int | None) -> None:
+    """Enregistre (ou efface, avec None) l'ambiance propre à une sortie."""
+    key = radio_default_playlist_key(radio_channel)
+    row = db.query(Setting).filter(Setting.key == key).first()
+    if playlist_id is None:
+        if row is not None:
+            db.delete(row)
+    elif row is not None:
+        row.value = str(playlist_id)
+    else:
+        db.add(Setting(key=key, value=str(playlist_id)))
+    db.commit()
+
+
+def resolve_radio_default_playlist(db: Session, radio_channel: str) -> RadioPlaylist | None:
+    """Ambiance par défaut d'une sortie : le choix propre à la sortie s'il existe
+    encore, sinon la playlist marquée `is_default` (comportement d'avant les deux
+    sorties, donc aucune migration), sinon None (repli : toute la bibliothèque)."""
+    override_id = get_radio_default_playlist_override(db, radio_channel)
+    if override_id is not None:
+        playlist = db.query(RadioPlaylist).filter(RadioPlaylist.id == override_id).first()
+        if playlist is not None:
+            return playlist
+    return db.query(RadioPlaylist).filter(RadioPlaylist.is_default == True).first()  # noqa: E712
+
+
+def is_cable_output_radio(db: Session) -> bool:
+    """Vrai si la sortie câblée est actuellement basculée sur la radio."""
+    from app.routers.settings import get_display_output_value
+
+    return get_display_output_value(db, "cable") == "radio"
+
+
+def _radio_output_is_audible(db: Session, radio_channel: str) -> bool:
+    """La sortie réseau est toujours « audible » (n'importe quel appareil peut
+    ouvrir son poste) ; la sortie câblée ne diffuse la radio que lorsque
+    l'écran câblé est basculé sur Radio."""
+    if normalize_radio_channel(radio_channel) != "radio_cable":
+        return True
+    return is_cable_output_radio(db)
+
+
+async def _launch_radio_target(
+    db: Session, playlist_id: int, radio_channel: str = DEFAULT_RADIO_CHANNEL, *, start_paused: bool = False,
+) -> None:
+    """Lance une playlist radio EN BOUCLE sur UNE sortie : utilisé aussi
     bien par l'auto-boot (ambiance par défaut) que par une programmation
     Planning radio (fenêtre ou 24/7) — les deux doivent boucler plutôt que
-    s'arrêter en silence en fin de playlist."""
-    from app.radio_manager import get_radio_manager
-
+    s'arrêter en silence en fin de playlist. `start_paused` charge la playlist
+    sans la lancer (sortie qui ne diffuse pas la radio en ce moment)."""
     playlist = db.query(RadioPlaylist).filter(RadioPlaylist.id == playlist_id).first()
     if not playlist:
         logger.warning(f"Cible programmée introuvable : playlist radio {playlist_id}")
@@ -320,38 +381,72 @@ async def _launch_radio_target(db: Session, playlist_id: int) -> None:
     if not tracks:
         logger.warning(f"Playlist radio {playlist_id} vide, rien à lancer")
         return
-    await get_radio_manager().load_playlist(playlist.id, playlist.name, tracks, repeat="playlist")
+    await get_radio_manager(radio_channel).load_playlist(
+        playlist.id, playlist.name, tracks, repeat="playlist", start_paused=start_paused,
+    )
 
 
-async def _launch_radio_shuffle_all(db: Session) -> str | None:
+async def _launch_radio_shuffle_all(
+    db: Session, radio_channel: str = DEFAULT_RADIO_CHANNEL, *, start_paused: bool = False,
+) -> str | None:
     """Ambiance par défaut « de secours » : joue TOUTE la bibliothèque radio,
-    mélangée et en boucle infinie. Utilisé quand AUCUNE RadioPlaylist n'est
-    marquée `is_default`, pour ne jamais laisser la radio muette.
+    mélangée et en boucle infinie. Utilisé quand AUCUNE ambiance n'est définie
+    pour la sortie, pour ne jamais laisser la radio muette.
 
     Playlist VIRTUELLE (playlist_id=None, comme la commande `radio_shuffle_all`
     de routers/playback.py) : rien n'est persisté en base, la liste est
     recomposée à chaque lancement — elle reflète donc toujours l'état courant de
     la bibliothèque, sans playlist figée à resynchroniser à chaque import.
     Renvoie le nom lancé, ou None si la bibliothèque est vide."""
-    from app.radio_manager import get_radio_manager
-
     tracks = [_radio_track_dict(t) for t in db.query(RadioTrack).all()]
     if not tracks:
         return None
     # shuffle=True + repeat="playlist" : aléatoire ET boucle infinie (deux
     # réglages indépendants côté RadioPlaybackManager), comme `radio_shuffle_all`.
-    await get_radio_manager().load_playlist(
-        None, "Toute la bibliothèque", tracks, shuffle=True, repeat="playlist",
+    await get_radio_manager(radio_channel).load_playlist(
+        None, "Toute la bibliothèque", tracks, shuffle=True, repeat="playlist", start_paused=start_paused,
     )
     return "Toute la bibliothèque"
 
 
+async def start_radio_ambiance(
+    db: Session, radio_channel: str = DEFAULT_RADIO_CHANNEL, *, start_paused: bool = False,
+) -> str | None:
+    """Charge l'ambiance par défaut d'une sortie (choix propre à la sortie, sinon
+    playlist `is_default`, sinon toute la bibliothèque en aléatoire). Renvoie le
+    nom lancé, ou None si rien n'est disponible. Point UNIQUE partagé par
+    l'auto-démarrage, la fin de fenêtre de planning et la bascule de la sortie
+    câblée vers Radio."""
+    playlist = resolve_radio_default_playlist(db, radio_channel)
+    if playlist is not None:
+        await _launch_radio_target(db, playlist.id, radio_channel, start_paused=start_paused)
+        return playlist.name
+    return await _launch_radio_shuffle_all(db, radio_channel, start_paused=start_paused)
+
+
+async def activate_radio_output(db: Session, radio_channel: str) -> None:
+    """Rend une sortie radio audible : reprend une lecture en pause, ou démarre
+    l'ambiance si le moteur est à l'arrêt. Ne touche pas à une lecture en cours."""
+    manager = get_radio_manager(radio_channel)
+    state = manager.state["state"]
+    if state == "idle":
+        name = await start_radio_ambiance(db, radio_channel)
+        if name is None:
+            logger.info(f"Sortie {manager.channel} : bibliothèque radio vide, rien à lancer")
+    elif state == "paused":
+        await manager.play()
+
+
 async def autostart_default_radio_playlist() -> None:
-    """Auto-démarrage au boot : si le canal radio est au
-    repos et `radio_autostart_on_boot` est actif, charge la playlist
-    d'ambiance par défaut. À appeler une fois au démarrage du service — si
-    une lecture est déjà en cours (ex. relancée par une commande arrivée
-    entre-temps), l'état n'est plus "idle" et cet appel ne fait rien.
+    """Auto-démarrage au boot : si un moteur radio est au repos et
+    `radio_autostart_on_boot` est actif, charge son ambiance par défaut. À
+    appeler une fois au démarrage du service — si une lecture est déjà en
+    cours (ex. relancée par une commande arrivée entre-temps), l'état n'est
+    plus "idle" et cet appel ne fait rien.
+
+    La sortie réseau démarre comme avant. La sortie câblée ne démarre QUE si
+    l'écran câblé est basculé sur Radio : jamais de musique sans écran radio
+    pour la porter.
 
     CORRECTIF historique : avec 4 workers
     uvicorn, cette fonction était appelée par CHACUN à son propre démarrage,
@@ -360,45 +455,32 @@ async def autostart_default_radio_playlist() -> None:
     `docs/ARCHITECTURE.md` §2) : `main.py` n'appelle plus
     cette fonction qu'une seule fois, le problème ne peut plus se poser."""
     from app.config import settings as runtime_settings
-    from app.radio_manager import get_radio_manager
 
     if not runtime_settings.radio_autostart_on_boot:
         return
-    manager = get_radio_manager()
-    if manager.state["state"] != "idle":
-        return
     db = SessionLocal()
     try:
-        default_playlist = db.query(RadioPlaylist).filter(RadioPlaylist.is_default == True).first()  # noqa: E712
-        if default_playlist:
-            logger.info(f"Auto-démarrage radio : playlist d'ambiance par défaut « {default_playlist.name} »")
-            await _launch_radio_target(db, default_playlist.id)
-        else:
-            # Aucune playlist marquée par défaut : plutôt que de rester muet, on
-            # démarre toute la bibliothèque en aléatoire/boucle. Overridable : dès qu'une playlist est marquée `is_default`,
-            # la branche ci-dessus reprend la priorité au prochain démarrage.
-            if await _launch_radio_shuffle_all(db):
-                logger.info("Auto-démarrage radio : aucune playlist par défaut → toute la bibliothèque en aléatoire")
+        for radio_channel, manager in get_all_radio_managers().items():
+            if manager.state["state"] != "idle":
+                continue
+            if not _radio_output_is_audible(db, radio_channel):
+                continue
+            name = await start_radio_ambiance(db, radio_channel)
+            if name is not None:
+                logger.info(f"Auto-démarrage radio ({radio_channel}) : « {name} »")
             else:
-                logger.info("Auto-démarrage radio : bibliothèque vide, rien à lancer")
+                logger.info(f"Auto-démarrage radio ({radio_channel}) : bibliothèque vide, rien à lancer")
     finally:
         db.close()
 
 
-async def _revert_radio_to_default(db: Session) -> None:
-    """Fin de fenêtre radio : retour à la playlist d'ambiance
-    par défaut, ou arrêt si aucune n'est définie."""
-    from app.radio_manager import get_radio_manager
-
-    default_playlist = db.query(RadioPlaylist).filter(RadioPlaylist.is_default == True).first()  # noqa: E712
-    if default_playlist:
-        await _launch_radio_target(db, default_playlist.id)
-    else:
-        # Même repli qu'à l'auto-boot : fin de fenêtre radio → toute la
-        # bibliothèque en aléatoire plutôt que le silence ; stop seulement si la
-        # bibliothèque est vide.
-        if not await _launch_radio_shuffle_all(db):
-            await get_radio_manager().stop()
+async def _revert_radio_to_default(db: Session, radio_channel: str = DEFAULT_RADIO_CHANNEL) -> None:
+    """Fin de fenêtre radio : retour à l'ambiance par défaut de la sortie, ou
+    arrêt si rien n'est disponible (bibliothèque vide). Une sortie qui ne
+    diffuse pas la radio en ce moment est rechargée en pause."""
+    paused = not _radio_output_is_audible(db, radio_channel)
+    if await start_radio_ambiance(db, radio_channel, start_paused=paused) is None:
+        await get_radio_manager(radio_channel).stop()
 
 
 async def _launch_target(
@@ -409,7 +491,17 @@ async def _launch_target(
     if target_type == ScheduleTargetType.radio_playlist:
         # 3e canal radio, sous-système totalement indépendant : aucune des règles de conflit câblé/réseau ci-dessous ne
         # s'applique — pas de mode coach, pas de "lecture manuelle en cours".
-        await _launch_radio_target(db, target_id)
+        radio_channel = normalize_radio_channel(channel)
+        # Une programmation « radio câblée » alors que l'écran câblé n'est pas
+        # sur Radio charge la playlist EN PAUSE (et le journalise) : elle ne
+        # bascule jamais la sortie d'elle-même, et ne tourne pas dans le vide.
+        paused = not _radio_output_is_audible(db, radio_channel)
+        if paused:
+            logger.info(
+                f"Programmation radio ({radio_channel}) : sortie non basculée sur Radio, "
+                "playlist chargée en pause"
+            )
+        await _launch_radio_target(db, target_id, radio_channel, start_paused=paused)
         return
 
     manager = get_playback_manager(channel)
@@ -590,7 +682,7 @@ async def fire_schedule_end(schedule_id: int) -> None:
         schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
         if not schedule or not schedule.active:
             return
-        await _revert_radio_to_default(db)
+        await _revert_radio_to_default(db, normalize_radio_channel(schedule.channel))
     finally:
         db.close()
 
