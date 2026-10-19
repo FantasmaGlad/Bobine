@@ -18,6 +18,7 @@ from app.database import get_db
 from app.models import Setting
 from app.utils.activity_log import log_activity
 from app.utils.deployment import (
+    UpdateUnsupported,
     get_deployment_profile,
     get_profile_handler,
 )
@@ -433,7 +434,13 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
     handler = get_profile_handler()
 
     if handler.is_store_managed():
+        # État de la mise à jour côté Google Play (interrogation hors de la boucle d'évènements, délai borné).
+        try:
+            store = await asyncio.wait_for(asyncio.to_thread(handler.store_update_status), timeout=25)
+        except Exception:
+            store = {"state": "unavailable"}
         return {
+            "store": {"provider": "google_play", **store},
             "channel": channel,
             "current_version": local_info["current_version"],
             "current_tag": local_info["current_tag"],
@@ -558,6 +565,37 @@ async def android_update_callback(payload: AndroidUpdateCallback) -> dict[str, s
     else:
         await report_external_event("failed", message=payload.message, error=payload.message)
     return {"status": "ok"}
+
+
+async def _store_action(action: str) -> dict[str, Any]:
+    handler = get_profile_handler()
+    if not handler.is_store_managed():
+        raise HTTPException(status_code=400, detail="Cette installation ne vient pas d'une boutique.")
+    try:
+        result = await asyncio.wait_for(asyncio.to_thread(getattr(handler, action)), timeout=30)
+    except UpdateUnsupported as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except asyncio.TimeoutError as exc:
+        raise HTTPException(status_code=504, detail="Google Play n'a pas répondu à temps.") from exc
+    return {"ok": True, **{k: v for k, v in result.items() if k != "ok"}}
+
+
+@router.post("/store/start")
+async def store_start() -> dict[str, Any]:
+    """Build Google Play : lance la mise à jour par Google Play (téléchargement en arrière-plan)."""
+    return await _store_action("store_update_start")
+
+
+@router.post("/store/complete")
+async def store_complete() -> dict[str, Any]:
+    """Build Google Play : installe la mise à jour téléchargée (l'application redémarre)."""
+    return await _store_action("store_update_complete")
+
+
+@router.post("/store/open")
+async def store_open() -> dict[str, Any]:
+    """Build Google Play : ouvre la fiche de l'application dans Google Play."""
+    return await _store_action("store_open_listing")
 
 
 @router.post("/apply")

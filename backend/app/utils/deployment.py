@@ -117,6 +117,23 @@ class ProfileHandler:
         passent alors par la boutique, jamais par la mise à jour intégrée."""
         return False
 
+    def store_update_status(self) -> dict:
+        """État de la mise à jour proposée par la boutique (`state` : none, available, downloading,
+        downloaded, installing, failed, unavailable). Profils sans boutique : « unavailable »."""
+        return {"state": "unavailable"}
+
+    def store_update_start(self) -> dict:
+        """Lance la mise à jour via la boutique (interface de la boutique, jamais un APK téléchargé par Bobine)."""
+        raise UpdateUnsupported("Aucune boutique n'est associée à cette installation.")
+
+    def store_update_complete(self) -> dict:
+        """Installe une mise à jour déjà téléchargée par la boutique."""
+        raise UpdateUnsupported("Aucune boutique n'est associée à cette installation.")
+
+    def store_open_listing(self) -> dict:
+        """Ouvre la fiche de l'application dans la boutique."""
+        raise UpdateUnsupported("Aucune boutique n'est associée à cette installation.")
+
     def can_auto_apply(self) -> bool:
         """True si ce profil permet l'application automatique d'une mise à jour."""
         return self.supports_git_versioning()

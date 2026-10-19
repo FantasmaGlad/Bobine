@@ -45,6 +45,7 @@ class AndroidHandler(ProfileHandler):
     # rapporte l'issue par rappel HTTP (`/api/updates/_android-callback`) :
     # `apply_update()` retourne bien avant la fin réelle.
     async_completion = True
+    _store_managed: bool | None = None
 
     def asset_variant(self) -> str | None:
         """"tv" si l'application tourne sous le flavor Android TV
@@ -94,11 +95,55 @@ class AndroidHandler(ProfileHandler):
 
     def is_store_managed(self) -> bool:
         """Vrai pour le build Google Play (`BuildConfig.STORE_BUILD`, cf. build.gradle.kts)."""
+        if self._store_managed is not None:
+            return self._store_managed
         try:
             from java import jclass  # Chaquopy
-            return bool(jclass("com.bobine.app.BuildConfig").STORE_BUILD)
+            self._store_managed = bool(jclass("com.bobine.app.BuildConfig").STORE_BUILD)  # constante de build : lue une fois
         except Exception:
             return False
+        return self._store_managed
+
+    # --- Google Play (build « play ») : Google Play télécharge et installe, Bobine ne fait que le déclencher ---
+    @staticmethod
+    def _store_call(method: str) -> dict:
+        import json
+
+        from java import jclass  # Chaquopy
+
+        raw = getattr(jclass("com.bobine.app.StoreUpdates").INSTANCE, method)(_get_android_context())
+        data = json.loads(str(raw))
+        return data if isinstance(data, dict) else {"state": "unavailable"}
+
+    def store_update_status(self) -> dict:
+        if not self.is_store_managed():
+            return {"state": "unavailable"}
+        try:
+            return self._store_call("check")
+        except Exception:
+            logger.warning("Lecture de l'état de mise à jour Google Play impossible", exc_info=True)
+            return {"state": "unavailable"}
+
+    def _store_action(self, method: str) -> dict:
+        if not self.is_store_managed():
+            raise UpdateUnsupported("Cette installation ne vient pas de Google Play.")
+        try:
+            result = self._store_call(method)
+        except Exception as exc:
+            logger.warning("Action Google Play %s impossible", method, exc_info=True)
+            raise UpdateUnsupported("Google Play n'est pas joignable depuis cette application.") from exc
+        if result.get("error"):
+            raise UpdateUnsupported(str(result.get("message") or "Opération refusée par Google Play."))
+        return result
+
+    def store_update_start(self) -> dict:
+        return self._store_action("start")
+
+    def store_update_complete(self) -> dict:
+        return self._store_action("complete")
+
+    def store_open_listing(self) -> dict:
+        return self._store_action("openListing")
 
     def can_auto_apply(self) -> bool:
         return not self.is_store_managed()

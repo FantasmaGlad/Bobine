@@ -37,6 +37,16 @@ interface SettingsData {
   wired_display_mode: "dual_screen" | "headless";
   auto_update_enabled: "true" | "false";
   auto_update_time: string;
+  /** Build Google Play : les mises à jour passent par la boutique (pas de canaux GitHub ni d'installateur planifié). */
+  store_managed?: boolean;
+}
+
+/** État de la mise à jour côté Google Play (build « play » uniquement). */
+interface StoreInfo {
+  provider: "google_play";
+  state: "none" | "available" | "downloading" | "downloaded" | "installing" | "failed" | "unavailable";
+  version_code?: number | null;
+  message?: string;
 }
 
 
@@ -60,6 +70,7 @@ interface UpdateInfo {
   can_auto_apply?: boolean;
   /** Application installée depuis une boutique (Google Play) : les mises à jour passent par elle. */
   store_managed?: boolean;
+  store?: StoreInfo;
   download_url?: string | null;
   asset_name?: string | null;
   asset_size?: number | null;
@@ -204,6 +215,7 @@ export default function SettingsPage() {
   const [resettingData, setResettingData] = useState(false);
 
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [storeBusy, setStoreBusy] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [applyingUpdate, setApplyingUpdate] = useState(false);
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
@@ -380,6 +392,19 @@ export default function SettingsPage() {
       if (res.ok) {
         const info: UpdateInfo = await res.json();
         setUpdateInfo(info);
+        if (info.store_managed) {
+          // Build Google Play : l'état vient de Google Play, jamais des releases GitHub.
+          const state = info.store?.state;
+          if (state === "available") {
+            showToast(t("settingsPage.storeAvailable"), "warning", () => {
+              const el = document.getElementById("updates-section");
+              if (el) el.scrollIntoView({ behavior: "smooth" });
+            });
+          } else if (!silent) {
+            showToast(state === "none" ? t("settingsPage.storeUpToDate") : t("settingsPage.storeUnavailable"), state === "none" ? "success" : "warning");
+          }
+          return;
+        }
         // Un retour en arrière (Bêta -> Stable) est un choix de l'utilisateur,
         // pas une nouveauté : pas de toast d'alerte non sollicité à chaque
         // ouverture de la page, la carte ci-dessous suffit.
@@ -410,6 +435,34 @@ export default function SettingsPage() {
       setCheckingUpdate(false);
     }
   };
+
+  // Build Google Play : déclenche l'action demandée (mise à jour souple, installation, fiche Google Play).
+  const handleStoreAction = async (action: "start" | "complete" | "open") => {
+    setStoreBusy(true);
+    try {
+      const res = await fetch(getApiUrl(`/updates/store/${action}`), { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        showToast(typeof body?.detail === "string" ? body.detail : t("settingsPage.storeActionError"), "error");
+        return;
+      }
+      if (action === "start") showToast(t("settingsPage.storeStarted"), "success");
+      if (action !== "open") await checkForUpdates(true);
+    } catch {
+      showToast(t("settingsPage.storeActionError"), "error");
+    } finally {
+      setStoreBusy(false);
+    }
+  };
+
+  // Pendant le téléchargement par Google Play, relit l'état toutes les 5 s pour proposer « Redémarrer » dès qu'il est prêt.
+  const storeDownloading = updateInfo?.store?.state === "downloading";
+  useEffect(() => {
+    if (!storeDownloading) return;
+    const timer = setInterval(() => { void checkForUpdates(true); }, 5000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seule la présence d'un téléchargement en cours compte
+  }, [storeDownloading]);
 
   // Notification proactive : vérifie une fois à l'ouverture des Réglages, sans
   // attendre un clic manuel sur "Rechercher une mise à jour" — silencieux
@@ -1274,6 +1327,8 @@ export default function SettingsPage() {
             )}
           </div>
 
+          {!data.store_managed && (
+            <>
           {/* Canal de mise à jour */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
             <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
@@ -1324,7 +1379,50 @@ export default function SettingsPage() {
             </div>
           </div>
           <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.updateChannelHint")}</p>
+            </>
+          )}
 
+          {data.store_managed && (
+            <div className="olc-anim-in" style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", maxWidth: "620px" }}>
+              <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.storeManagedHint")}</p>
+              <div className="update-card-banner" style={{ borderLeft: "4px solid var(--accent-primary)", boxShadow: "var(--shadow-sm)", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700 }}>
+                  <Icon
+                    name={updateInfo?.store?.state === "available" || updateInfo?.store?.state === "downloaded" ? "system_update" : updateInfo?.store?.state === "failed" ? "error" : "check_circle"}
+                    size={18}
+                  />
+                  <span>
+                    {updateInfo?.store?.state === "none" && t("settingsPage.storeUpToDate")}
+                    {updateInfo?.store?.state === "available" && `${t("settingsPage.storeAvailable")}${updateInfo.store.version_code ? ` (build ${updateInfo.store.version_code})` : ""}`}
+                    {updateInfo?.store?.state === "downloading" && t("settingsPage.storeDownloading")}
+                    {updateInfo?.store?.state === "downloaded" && t("settingsPage.storeDownloaded")}
+                    {updateInfo?.store?.state === "installing" && t("settingsPage.storeInstalling")}
+                    {updateInfo?.store?.state === "failed" && t("settingsPage.storeFailed")}
+                    {(!updateInfo?.store || updateInfo.store.state === "unavailable") && (updateInfo?.store?.message || t("settingsPage.storeUnavailable"))}
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                  {updateInfo?.store?.state === "available" && (
+                    <button type="button" className="btn btn-primary" disabled={storeBusy} onClick={() => handleStoreAction("start")}>
+                      <Icon name="system_update" size={16} /> {t("settingsPage.storeUpdateButton")}
+                    </button>
+                  )}
+                  {updateInfo?.store?.state === "downloaded" && (
+                    <button type="button" className="btn btn-primary" disabled={storeBusy} onClick={() => handleStoreAction("complete")}>
+                      <Icon name="restart_alt" size={16} /> {t("settingsPage.storeRestartButton")}
+                    </button>
+                  )}
+                  <button type="button" className="btn btn-secondary" disabled={storeBusy} onClick={() => handleStoreAction("open")}>
+                    <Icon name="storefront" size={16} /> {t("settingsPage.storeOpenButton")}
+                  </button>
+                </div>
+              </div>
+              <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.storeAutoHint")}</p>
+              <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.storeBetaHint")}</p>
+            </div>
+          )}
+          {!data.store_managed && (
+            <>
           {/* Mise à jour automatique planifiée */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
             <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
@@ -1356,11 +1454,10 @@ export default function SettingsPage() {
             </div>
           )}
           <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.autoUpdateToggleHint")}</p>
+            </>
+          )}
 
           {/* Résultat de la recherche */}
-          {updateInfo?.store_managed && (
-            <p className="settings-hint olc-anim-in" style={{ margin: 0 }}>{t("settingsPage.storeManagedHint")}</p>
-          )}
           {updateInfo && !updateInfo.store_managed && (
             <div className="olc-anim-in" style={{ marginTop: "4px" }}>
               {updateInfo.has_update ? (

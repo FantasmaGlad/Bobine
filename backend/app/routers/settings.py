@@ -275,6 +275,8 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         # Désinstaller/Réinitialiser selon la plateforme, sans dupliquer la
         # logique de détection côté client.
         "deployment_profile": get_deployment_profile(),
+        # Build Google Play : les mises à jour passent par la boutique (Réglages adapte la section Mises à jour).
+        "store_managed": get_profile_handler().is_store_managed(),
         "theme": theme,
         "language": language,
         "has_custom_logo": has_custom,

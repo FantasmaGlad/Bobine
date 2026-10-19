@@ -317,4 +317,7 @@ dependencies {
     // registerForActivityResult/ActivityResultContracts (demande de la
     // permission POST_NOTIFICATIONS a l'execution).
     implementation("androidx.activity:activity-ktx:1.9.3")
+    // Mises à jour intégrées de Google Play : UNIQUEMENT dans le build « play » (la variante libre, hors
+    // Google, ne contient aucune bibliothèque Google). Chargée par réflexion depuis `StoreUpdates`.
+    "playImplementation"("com.google.android.play:app-update:2.1.0")
 }
