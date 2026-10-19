@@ -141,6 +141,9 @@ ${BOLD}OPTIONS${RESET}
       --progress=json Émet une ligne JSON par étape (sortie machine) pour l'assistant graphique.
                         Une ligne = un évènement {run_begin|step|run_end} ; le journal humain reste inchangé.
       --check         Diagnostic de l'installation existante, sans rien modifier
+      --reset-devices-pin
+                        Efface le code PIN de l'onglet Périphériques (présence physique requise) ; à redéfinir ensuite
+                        depuis l'écran local de la machine
       --uninstall     Arrête, désactive et retire tout ce que ce script a installé
       --purge         Avec --uninstall : retire aussi venv/, node_modules/, frontend/out/ et la config
       --purge-data    Avec --uninstall --purge : retire EN PLUS les médias importés (destructif, confirmation requise)
@@ -173,6 +176,7 @@ SKIP_BUILD=false
 AS_USER=""
 DO_CHECK=false
 DO_UNINSTALL=false
+DO_RESET_DEVICES_PIN=false
 DO_PURGE=false
 DO_PURGE_DATA=false
 VERBOSE=false
@@ -199,6 +203,7 @@ while [[ $# -gt 0 ]]; do
         --progress=*) PROGRESS="${1#*=}" ;;
         --progress) PROGRESS="${2:-}"; shift ;;
         --check) DO_CHECK=true ;;
+        --reset-devices-pin) DO_RESET_DEVICES_PIN=true ;;
         --uninstall) DO_UNINSTALL=true ;;
         --purge) DO_PURGE=true ;;
         --purge-data) DO_PURGE_DATA=true ;;
@@ -801,6 +806,26 @@ LOG_FILE="${LOG_DIR}/install-$(date +%Y%m%d-%H%M%S).log"
 exec 3>&1
 exec > >(tee -a "${LOG_FILE}") 2>&1
 
+# ---- Dispatch : réinitialisation du PIN « Périphériques » ----
+if $DO_RESET_DEVICES_PIN; then
+    DEVICES_DB="${REPO_DIR}/data/database.db"
+    if [[ ! -f "${DEVICES_DB}" ]]; then
+        echo "Base de données introuvable : ${DEVICES_DB}" >&2
+        exit 1
+    fi
+    "${REPO_DIR}/backend/.venv/bin/python" - "${DEVICES_DB}" <<'PY'
+import sqlite3
+import sys
+
+con = sqlite3.connect(sys.argv[1])
+con.execute("DELETE FROM settings WHERE key = 'devices_pin_hash'")
+con.commit()
+con.close()
+PY
+    echo "Code PIN des périphériques effacé. Redéfinissez-le depuis l'écran local (Périphériques)."
+    exit 0
+fi
+
 # ---- Dispatch : désinstallation ----
 if $DO_UNINSTALL; then
     banner
@@ -1205,6 +1230,12 @@ if $NO_KIOSK; then
 else
     run usermod -aG render,video "${TARGET_USER}"
     ok "${TARGET_USER} ajouté aux groupes render/video"
+    # Onglet Périphériques : BlueZ n'autorise l'accès D-Bus qu'aux membres du groupe « bluetooth »
+    # (le groupe n'existe que si le paquet bluez est installé : sans effet sinon).
+    if getent group bluetooth >/dev/null 2>&1; then
+        run usermod -aG bluetooth "${TARGET_USER}"
+        ok "${TARGET_USER} ajouté au groupe bluetooth"
+    fi
 
     # Autorise Xorg à démarrer depuis une session systemd (pas une console
     # physique classique) : nécessaire car le kiosk est lancé par un service,

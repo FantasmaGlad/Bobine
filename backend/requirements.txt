@@ -10,6 +10,9 @@ tzlocal
 aiofiles
 pillow
 psutil
+# Onglet Périphériques (Linux uniquement) : BlueZ par D-Bus, Python pur asynchrone. Chargé à la demande —
+# son absence rend simplement le Bluetooth « non pris en charge » (jamais une erreur au démarrage).
+dbus-fast; sys_platform == "linux"
 # Profils desktop (PortabiliteCrossPlatformX, Lot 1+) : BobineTray (icône de
 # zone de notification) et répondeur mDNS embarqué. Aucune dépendance
 # native (python-xlib est un client X11 pur Python) — s'installent aussi

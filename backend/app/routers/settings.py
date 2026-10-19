@@ -895,6 +895,30 @@ async def uninstall_system(payload: UninstallRequest, background_tasks: Backgrou
 # ---------------------------------------------------------------------------
 
 
+def _sanitized_db_bytes(db_path: Path) -> bytes:
+    """Copie cohérente de la base SANS les réglages secrets (empreinte du PIN « Périphériques ») :
+    restaurer une sauvegarde sur une autre machine ne doit pas y importer un PIN inconnu."""
+    from app.devices.security import SECRET_SETTING_KEYS
+
+    with tempfile.TemporaryDirectory(prefix="bobine_backup_") as tmp_dir:
+        copy_path = Path(tmp_dir) / "database.db"
+        src = sqlite3.connect(str(db_path))
+        dst = sqlite3.connect(str(copy_path))
+        try:
+            src.backup(dst)
+            marks = ",".join("?" for _ in SECRET_SETTING_KEYS)
+            try:
+                dst.execute(f"DELETE FROM settings WHERE key IN ({marks})", SECRET_SETTING_KEYS)
+                dst.commit()
+            except sqlite3.OperationalError:  # table absente : base vierge, rien à retirer
+                pass
+            dst.execute("VACUUM")  # purge physique des pages libérées
+        finally:
+            dst.close()
+            src.close()
+        return copy_path.read_bytes()
+
+
 @router.get("/backup/export")
 def export_backup() -> Response:
     """
@@ -927,7 +951,7 @@ def export_backup() -> Response:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("manifest.json", json.dumps(manifest, indent=2))
-        zf.write(db_path, arcname="database.db")
+        zf.writestr("database.db", _sanitized_db_bytes(db_path))
 
         cfg_path = _global_config_path()
         if cfg_path.exists():

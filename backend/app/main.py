@@ -29,7 +29,7 @@ from app.radio_manager import get_all_radio_managers
 from app.routers import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,
     radio, radio_playlists, radio_announcements, settings as settings_router, logs, import_jobs,
-    updates, metrics, display, uploads, chapters,
+    updates, metrics, display, uploads, chapters, devices,
 )
 from app.utils.android_runtime import is_android
 from app.utils.media_response import build_media_response
@@ -52,6 +52,7 @@ from app.utils.radio_announcement_scheduler import (
 from app.utils.radio_sound import load_all_sounds_into_managers
 from app.utils.watcher import start_watcher, stop_watcher
 from app.utils.ws_manager import manager as ws_manager
+from app.devices.service import service as devices_service
 
 # Profil Android : détecté une
 # fois au chargement du module, réutilisé par `health()` et par chaque
@@ -140,6 +141,9 @@ async def lifespan(app: FastAPI):
     # minutes / à heures fixes — la règle « toutes les N musiques » n'a rien
     # de temporel, elle est vérifiée à chaque fin de piste (routers/playback.py).
     start_radio_announcement_scheduler()
+    # Surveillance des périphériques (audio, Bluetooth, Wi-Fi) : inerte tant que la fonction est désactivée
+    # ou qu'aucun client n'écoute ; une panne du pilote n'affecte jamais la diffusion.
+    await devices_service.start()
     yield
     # Shutdown : arrêt propre du scheduler et du watcher.
     stop_scheduler()
@@ -149,6 +153,7 @@ async def lifespan(app: FastAPI):
     for radio_manager in get_all_radio_managers().values():
         radio_manager.stop_position_broadcast_loop()
     await stop_radio_announcement_scheduler()
+    await devices_service.stop()
     stop_mdns_responder()
 
 
@@ -183,6 +188,7 @@ app.include_router(import_jobs.router)
 app.include_router(uploads.router)
 app.include_router(updates.router)
 app.include_router(metrics.router)
+app.include_router(devices.router)
 
 
 _KIOSK_PROCESS_NAMES = ("chromium", "chromium-browser", "chrome", "msedge", "google chrome")
