@@ -139,6 +139,29 @@ export function decideOutputRedirect(
 }
 
 /**
+ * Faut-il (ré)évaluer la redirection ? Seule une valeur NOUVELLE de la sortie de CE canal
+ * peut faire naviguer la page : un changement de sortie de l'AUTRE canal ne la concerne pas.
+ *
+ * Correctif « canaux câblé et réseau plus indépendants » : l'effet de `useDisplayOutputRedirect`
+ * dépend des deux sorties ; quand l'admin basculait le canal CÂBLÉ, il se ré-exécutait aussi sur
+ * un appareil du RÉSEAU ouvert volontairement sur /kiosk (alors que le réseau est réglé sur
+ * « cinéma ») et l'éjectait vers /cinema, comme s'il suivait le câblé.
+ *
+ * - `lastSeen` : dernière valeur de la sortie de ce canal déjà évaluée (null = jamais évaluée) ;
+ * - première évaluation (ou sortie pas encore connue) : toujours permise.
+ */
+export function shouldEvaluateRedirect(
+  channel: DisplayChannel,
+  cableOutput: DisplayOutput | null,
+  networkOutput: DisplayOutput | null,
+  lastSeen: DisplayOutput | null,
+): boolean {
+  const target = channel === "cable" ? cableOutput : networkOutput;
+  if (!target) return false;
+  return lastSeen === null || target !== lastSeen;
+}
+
+/**
  * Identifiant de CETTE page de diffusion auprès du serveur (clé du rôle
  * primaire, cf. ws_manager.py). Un identifiant PAR CHARGEMENT de page — jamais
  * persisté : stocké en `localStorage` il était commun à tous les onglets de la

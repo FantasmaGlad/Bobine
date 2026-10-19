@@ -5,6 +5,7 @@ import {
   decideOutputRedirect,
   isLoopbackHost,
   resolveChannel,
+  shouldEvaluateRedirect,
   type DisplayChannel,
   type DisplayOutput,
   type DisplayPage,
@@ -64,6 +65,9 @@ export function useDisplayOutputRedirect(
   const lastSeenRef = useRef<DisplayOutput | null>(null);
 
   useEffect(() => {
+    // Seule la sortie de CE canal compte : un changement de l'autre canal ne doit jamais faire naviguer la page.
+    const { channel } = resolveChannel(window.location.search, window.location.hostname, current);
+    if (!shouldEvaluateRedirect(channel, cableOutput, networkOutput, lastSeenRef.current)) return;
     const decision = decideOutputRedirect(
       current,
       window.location.search,

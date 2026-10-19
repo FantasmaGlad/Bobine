@@ -151,3 +151,25 @@ test("redirection : comportement historique kiosk <-> cinéma inchangé", () => 
   assert.equal(decideOutputRedirect("cinema", "?channel=network", "192.168.1.20", "kiosk", "kiosk", null).to, null);
   assert.equal(decideOutputRedirect("cinema", "?channel=network", "192.168.1.20", "kiosk", "kiosk", "cinema").to, "/kiosk?channel=network");
 });
+
+test("un changement de sortie de l'AUTRE canal ne fait jamais naviguer un écran (canaux indépendants)", async () => {
+  const { decideOutputRedirect, shouldEvaluateRedirect } = await import("../src/lib/displayChannel.ts");
+  // Appareil du RÉSEAU ouvert volontairement sur /kiosk alors que le réseau est réglé sur « cinéma ».
+  const search = "?channel=network";
+  const first = decideOutputRedirect("kiosk", search, "192.168.1.50", "kiosk", "cinema", null);
+  assert.equal(first.to, null); // pas d'éjection au montage
+  // L'admin bascule le CÂBLÉ sur cinéma : l'effet se ré-exécute, mais la sortie du réseau n'a pas changé.
+  assert.equal(shouldEvaluateRedirect("network", "cinema", "cinema", first.seen), false);
+  // Sans ce garde-fou, la redirection partait vers /cinema (le réseau « suivait » le câblé) :
+  const buggy = decideOutputRedirect("kiosk", search, "192.168.1.50", "cinema", "cinema", first.seen);
+  assert.notEqual(buggy.to, null);
+  // Un VRAI changement de la sortie réseau, lui, doit toujours être suivi.
+  assert.equal(shouldEvaluateRedirect("network", "kiosk", "kiosk", first.seen), true);
+  const real = decideOutputRedirect("kiosk", search, "192.168.1.50", "kiosk", "kiosk", first.seen);
+  assert.equal(real.to, null);
+  const toCinema = decideOutputRedirect("kiosk", search, "192.168.1.50", "kiosk", "cinema", "kiosk");
+  assert.equal(toCinema.to, "/cinema?channel=network");
+  // Première évaluation, et sortie encore inconnue.
+  assert.equal(shouldEvaluateRedirect("cable", "cinema", null, null), true);
+  assert.equal(shouldEvaluateRedirect("cable", null, "cinema", null), false);
+});
