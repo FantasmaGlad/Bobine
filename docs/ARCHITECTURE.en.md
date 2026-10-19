@@ -19,6 +19,7 @@ This document is written for anyone who wants to **understand, operate, modify o
 3ter. [Universal Multi-OS Hardware Telemetry & Attendance Metrics](#3ter-universal-multi-os-hardware-telemetry--attendance-metrics)
 4. [Broadcast Channels & Playback Manager](#4-broadcast-channels--playback-manager)
 5. [Radio Module](#5-radio-module)
+5bis. [Devices (audio, Bluetooth, Wi-Fi)](#5bis-devices-audio-bluetooth-wi-fi)
 6. [Audio Coach Mode & Animated Backgrounds](#6-audio-coach-mode--animated-backgrounds)
 7. [Install Script & systemd Services](#7-install-script--systemd-services)
 8. [HTTP API & WebSocket Reference](#8-http-api--websocket-reference)
@@ -121,7 +122,7 @@ The backend runs as a single `uvicorn` process (`--workers 1`). Playback state (
 - `scheduler_manager.py`: `APScheduler`-based manager for time-based scheduling (recurrences, conflict detection, offsets, radio windows).
 - `models.py`: SQLAlchemy ORM declarations.
 - `config.py`: Dynamic configuration manager.
-- `routers/`: HTTP endpoints grouped by domain (`videos`, `backgrounds`, `playlists`, `audio`, `audio_playlists`, `schedule`, `playback`, `settings`, `logs`, `import_jobs`, `radio`, `radio_playlists`, `radio_announcements`).
+- `routers/`: HTTP endpoints grouped by domain (`videos`, `backgrounds`, `playlists`, `audio`, `audio_playlists`, `schedule`, `playback`, `settings`, `logs`, `import_jobs`, `radio`, `radio_playlists`, `radio_announcements`, `devices`); `devices/`: driver interface and the Linux, sidecar and Android drivers, PIN and service (§5bis).
 
 ---
 
@@ -359,6 +360,21 @@ A "Spotify-like" music subsystem **fully independent** from video courses/audio 
 
 ---
 
+## 5bis. Devices (audio, Bluetooth, Wi-Fi)
+
+`/devices` tab (5.1.0): management of the playing machine's devices, **off by default**.
+
+- **Driver interface** (`backend/app/devices/base.py`, `DeviceDriver`): audio, Bluetooth, Wi-Fi and system settings behind **declared capabilities** (`audio_list`, `bluetooth_pair`, `wifi_connect`…). The UI only shows what the OS allows; no OS error becomes a 500 (`DeviceError`: stable code + message, or `{"supported": false, "reason"}`).
+- **Drivers** (`registry.py` picks by deployment profile): `linux.py` (PipeWire through `pw-dump`/`wpctl`, BlueZ over D-Bus with `dbus-fast` and a pairing agent, NetworkManager through `nmcli` — passwords on standard input, never as an argument); `sidecar.py` + Rust crate `devices/` (`bobine-devices`, Windows and macOS: versioned JSON-RPC 2.0 over stdin/stdout, method allow-list, validated parameters, no port, started on demand, restarted after a crash); `android.py` + `DeviceBridge.kt` (audio outputs, Bluetooth, read-only Wi-Fi without SSID, links to Android settings). Tool-output parsers are pure and tested (`linux_parse.py`, `devices/src/parse.rs`).
+- **"Validated on hardware" guard**: Linux is validated for reading on real hardware; Windows and macOS stay blocked ("not supported") until `BOBINE_DEVICES_EXPERIMENTAL=1` is set.
+- **Security** (`security.py`): the local screen is trusted (127.0.0.1/::1 or an address of the machine); any other device enters a **6-digit PIN** (scrypt + salt, `settings.devices_pin_hash`, never returned by the API nor logged, excluded from backups), exchanged for an `HttpOnly; SameSite=Strict` cookie signed with HMAC, bound to the IP, sliding (15 min). 5 attempts per IP then a 1 to 15 min lockout. The PIN can only be set and the feature enabled from the local screen; reset without the old PIN from the local screen or `install.sh --reset-devices-pin`.
+- **Wi-Fi**: a new network's password is only accepted from the local screen; every connection or power-off arms an **automatic return to the previous network within 60 s** unless confirmed (`POST /api/devices/wifi/confirm`); a device reached through that same Wi-Fi must first acknowledge the warning (`acknowledge_disconnect`).
+- **Real time**: the `devices_changed` WebSocket event (`{scope: audio|bluetooth|wifi}`) carries **no data**; clients re-read the state over REST, behind the PIN. A watch loop (8 s, only while a client listens) detects outside changes.
+- **Android**: permissions limited to `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN` (`neverForLocation`) and `ACCESS_WIFI_STATE`, no location; the "Nearby devices" request is only shown on an explicit user action.
+- **Google Play** (`play` build): *Settings → Updates* goes through the In-App Updates API (`PlayUpdateProvider`, loaded by reflection from `StoreUpdates`: the free build contains no Google library); routes `POST /api/updates/store/{start,complete,open}`; `GET /api/settings` exposes `store_managed`.
+
+---
+
 ## 6. Audio Coach Mode & Animated Backgrounds Hub
 
 **Audio Coach** mode broadcasts audio courses (voice tracks / rhythmic music) over the room's sound system while projecting a dynamic, cinematic visual ambiance on the cabled (HDMI) screen.
@@ -488,6 +504,7 @@ Beta/Canary artifact filenames are **fixed** (`Bobine-Setup-beta.exe`/`Bobine-Se
 | **Updates** | `/api/updates` | `GET /updates/check` — queries GitHub Releases according to the current update channel (Stable/Beta/Canary, see §7) and deployment profile for the matching asset; `POST /updates/apply` — triggers `git checkout <tag>` + restart (headless profile only, 400 otherwise) |
 | **Imports** | `/api/import-jobs` | Import task queue (`GET /api/import-jobs` with percentage, ETA in seconds and speed) and reactive cancellation (`DELETE /api/import-jobs/{id}` with FFmpeg stop and purge) |
 | **Logs** | `/api/logs` | Viewing and downloading system logs |
+| **Devices** | `/api/devices` | `GET /status` (public: enabled, PIN set, access, capabilities once granted); `POST /session` / `DELETE /session` (PIN → cookie); local only: `POST /admin/enable`, `POST/DELETE /admin/pin`; behind access: `/audio` (`/default`, `/volume`), `/bluetooth` (`/power`, `/scan`, `/pair`, `/pairing/respond`, `/connect`, `/disconnect`, `/forget`, `/permission`), `/wifi` (`/scan`, `/power`, `/connect`, `/confirm`, `/forget`), `POST /system-settings` |
 | **Radio — Library** | `/api/radio` | Tracks (CRUD, artists/albums/tags), radio playlists, output state (`/api/radio/state?channel=radio_cable\|radio_network`), sound (`/api/radio/sound?channel=`), per-output default ambience (`/api/radio/default-playlist`) |
 | **Radio — Reminders** | `/api/radio/announcements`, `/api/radio/announcement-rules` | Announcements (import + description), trigger rules, manual trigger |
 | **Metrics & Attendance** | `/api/metrics` | Club-wide analytics (`GET /metrics/dashboard` with period/channel filters, satisfaction/completion/24h attendance KPIs, course ranking and hardware telemetry) and 5-star ratings (`POST /metrics/ratings`, `GET /metrics/ratings`) |
@@ -495,6 +512,7 @@ Beta/Canary artifact filenames are **fixed** (`Bobine-Setup-beta.exe`/`Bobine-Se
 ### WebSockets
 
 - **Client → server commands added in 4.0**: `subscribe` (`{channels: [...]}`, subscription to channel-scoped events), `time_sync` (`{t0}`, direct reply `{event: "time_sync", t0, server_ms}` used to estimate clock offset). Every `state_change` carries the `clock` anchor.
+- `devices_changed` (`{scope}`): data-free global event announcing an audio, Bluetooth or Wi-Fi change (§5bis).
 - `/ws/playback`: Real-time broadcast of playback state per channel — cabled, network **and radio** (`channel=radio_cable` or `radio_network`; the former `radio` is still accepted as input, same connection, `radio_*` command vocabulary specific to the music channel) — *position*, *duration*, *current media*, inter-course countdown. Also broadcasts `library_change` (a video import/modification/deletion — upload, watched folder, or title edit): `/grid`, `/cinema` and `/library` reload their list without waiting for their periodic poll.
 
 ---
@@ -562,7 +580,7 @@ Commits stay local until a machine with GitHub access (outside the Wyse's LAN) p
 
 Bobine is built on a **single, unified frontend interface** built with Next.js 16 (App Router) and statically exported (`npm run build` → `frontend/out`). This interface is shared and embedded identically across **every deployment profile**.
 
-### 10.1 Map of the Interface's 20 Routes (+ `/` redirecting to `/dashboard-cable`)
+### 10.1 Map of the Interface's 21 Routes (+ `/` redirecting to `/dashboard-cable`)
 
 | Category | Route(s) | Description & Multi-OS Specifics |
 |---|---|---|
@@ -577,6 +595,7 @@ Bobine is built on a **single, unified frontend interface** built with Next.js 1
 | | `/backgrounds` | Visual Ambiances Hub (Beta since 3.0.5): centralized management of 16:9 ambiance loops with hover video previews, direct broadcast to the Cabled and Network outputs, an immersive modal player and default-background configuration for coach courses. |
 | | `/audio`<br>`/audio-playlists` | Audio-coach library and playlist manager with a modal 16:9 visual ambiance selector and dynamic assignment. |
 | | `/playlists`<br>`/schedule`<br>`/logs` | Management of ordered lists, recurring time-based scheduling (APScheduler) and system log inspection. |
+| | `/devices` | Devices: the machine's audio, Bluetooth and Wi-Fi, PIN access when remote, Security section reserved to the local screen (§5bis). |
 | **Radio outputs** | `/radio?channel=cable`<br>`/radio?channel=network`<br>`/radio` (network alias)<br>`/radio-announcements`<br>`/radio-library`<br>`/radio-remote` | Independent continuous audio channel with Web Audio API music chaining, automatic ducking and courtesy voice reminders. |
 
 ---
