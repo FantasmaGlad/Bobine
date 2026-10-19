@@ -9313,3 +9313,125 @@ video::cue {
 :root[data-input-mode="remote"] input[type="range"]:focus {
   border-radius: 999px;
 }
+
+/* ============================================================
+   Écrans de diffusion — formats atypiques (TV 21:9, 4:3, 5:4, portrait,
+   1366×768, 1280×600...) et overscan des téléviseurs.
+   Les écrans plein cadre (/kiosk, /cinema, /radio) se dimensionnent en
+   `vmin` (le plus petit côté de l'écran) plutôt qu'en `rem`/`px` fixes ou en
+   `vw`/`vh` isolés : ainsi leur contenu tient TOUJOURS dans la fenêtre, quel
+   que soit le ratio. `--screen-safe-x/y` (marge réglée par ?safe=, cf.
+   lib/screenSafe.ts) recule les bords pour les téléviseurs qui rognent l'image.
+   Placé en FIN de fichier : surcharge volontairement les règles précédentes.
+   ============================================================ */
+.kiosk-root,
+.cinema-root,
+.radio-screen,
+.radio-unlock-overlay {
+  inset: var(--screen-safe-y, 0px) var(--screen-safe-x, 0px);
+}
+
+/* --- Radio : tout le contenu se dimensionne sur vmin --- */
+.radio-screen {
+  gap: clamp(8px, 2.6vmin, 40px);
+  padding: 3vmin 4vmin;
+  overflow: hidden auto;
+  scrollbar-width: none;
+}
+.radio-screen::-webkit-scrollbar { display: none; }
+.radio-screen-clock { font-size: clamp(3rem, 14vmin, 14rem); line-height: 1; }
+.radio-screen-idle-label { font-size: clamp(0.9rem, 2.4vmin, 2rem); margin-top: 0; }
+.radio-cover {
+  width: min(34vmin, 70vw);
+  height: min(34vmin, 70vw);
+  border-radius: clamp(10px, 2vmin, 28px);
+}
+.radio-meta-title { font-size: clamp(1.3rem, 4.2vmin, 4.4rem); line-height: 1.15; max-width: 92vw; }
+.radio-meta-artist { font-size: clamp(0.95rem, 2.6vmin, 2.4rem); }
+.radio-screen-progress { width: min(90vmin, 80vw); }
+.radio-screen-controls { gap: clamp(10px, 2.4vmin, 36px); }
+.radio-transport-btn { width: clamp(40px, 6.6vmin, 110px); height: clamp(40px, 6.6vmin, 110px); }
+.radio-transport-btn.main { width: clamp(52px, 9vmin, 150px); height: clamp(52px, 9vmin, 150px); }
+.radio-screen-volume { width: min(40vmin, 60vw); }
+.radio-screen-queue { width: min(90vmin, 80vw); max-height: 12vmin; }
+.radio-screen-queue-item { font-size: clamp(0.75rem, 1.9vmin, 1.5rem); }
+.radio-brand-logo { height: min(30vmin, 38vw); }
+.radio-unlock-logo { height: min(26vmin, 34vw); }
+.radio-unlock-overlay { padding: 4vmin; gap: clamp(12px, 3vmin, 40px); }
+.radio-unlock-btn { padding: clamp(12px, 2.4vmin, 28px) clamp(24px, 5vmin, 64px); font-size: clamp(1rem, 2.6vmin, 2rem); }
+.radio-announcement-banner { top: clamp(12px, 3vmin, 40px); max-width: 92vw; font-size: clamp(0.9rem, 2.2vmin, 1.8rem); }
+
+/* --- Kiosk : OSD, bandeau son, attente --- */
+.kiosk-osd {
+  bottom: calc(6vh + 1vmin);
+  max-width: 92vw;
+  padding: clamp(10px, 2vmin, 24px) clamp(18px, 4vmin, 48px);
+  font-size: clamp(1.1rem, 3vmin, 2.6rem);
+}
+.kiosk-unlock-audio {
+  bottom: calc(6vh + 1vmin);
+  max-width: 92vw;
+  padding: clamp(10px, 2vmin, 24px) clamp(18px, 4vmin, 48px);
+  font-size: clamp(1rem, 2.6vmin, 2.2rem);
+}
+.kiosk-clock { font-size: clamp(2.5rem, 8vmin, 9rem); }
+.kiosk-next-course { margin-top: clamp(12px, 3vmin, 40px); }
+.kiosk-next-course-label { font-size: clamp(0.85rem, 2vmin, 1.6rem); }
+.kiosk-next-course-title { font-size: clamp(1.4rem, 4vmin, 3.4rem); max-width: 92vw; }
+.kiosk-next-course-countdown { font-size: clamp(2rem, 5.6vmin, 5rem); }
+.kiosk-playlist-label { font-size: clamp(0.9rem, 2vmin, 1.6rem); }
+.kiosk-playlist-name { font-size: clamp(1.6rem, 4.6vmin, 4rem); max-width: 92vw; }
+.kiosk-playlist-countdown-number { font-size: clamp(4rem, 15vmin, 14rem); }
+.kiosk-waiting-sub { font-size: clamp(0.9rem, 2.2vmin, 1.8rem); }
+.cinema-empty-logo { height: min(28vmin, 36vw); }
+.cinema-empty-clock { font-size: clamp(3rem, 11vmin, 10rem); }
+.cinema-empty-message { font-size: clamp(1rem, 2.4vmin, 2rem); }
+.cinema-standby-logo { height: min(24vmin, 30vw); }
+.cinema-standby-clock { font-size: clamp(3rem, 12vmin, 11rem); }
+.cinema-standby-title { font-size: clamp(1.6rem, 5vmin, 4.4rem); }
+.cinema-standby-hint { font-size: clamp(1rem, 2.6vmin, 2.2rem); max-width: 90vw; }
+
+/* --- Pause (kiosk & cinéma) : la carte ne dépasse jamais l'écran --- */
+.pause-center,
+.cinema-pause-center {
+  width: min(92%, 960px);
+  max-width: 92vw;
+  max-height: min(94%, 94dvh);
+  padding: clamp(14px, 3vmin, 36px) clamp(16px, 3.4vmin, 40px);
+  gap: clamp(14px, 3vmin, 32px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.pause-center::-webkit-scrollbar,
+.cinema-pause-center::-webkit-scrollbar { display: none; }
+.pause-media-col { width: clamp(200px, 34%, 330px); }
+.pause-title,
+.cinema-pause-title { font-size: clamp(1.3rem, 4vmin, 2.4rem); }
+@media (max-height: 640px) and (min-width: 821px) {
+  .pause-description-scroll { display: none; }
+  .pause-logo-mini-wrap { display: none; }
+  .pause-media-col { justify-content: center; }
+}
+@media (max-height: 480px) {
+  .pause-media-col { width: clamp(150px, 28%, 240px); }
+  .pause-center, .cinema-pause-center { padding: 12px 16px; gap: 14px; }
+}
+
+/* --- Cinéma (vitrine) : le héros s'adapte aux écrans courts / très larges --- */
+.cinema-hero-content { max-height: calc(100% - 24px); overflow: hidden; }
+@media (min-width: 901px) and (max-height: 760px) {
+  .cinema-hero-content { margin: 14px 0 14px 4vw; padding: 20px 28px; gap: 10px; border-radius: 22px; }
+  .cinema-hero-description { display: none; }
+  .cinema-brand-logo { height: clamp(48px, 9vmin, 80px); }
+}
+@media (min-aspect-ratio: 2/1) {
+  .cinema-hero { min-height: 56vh; }
+  .cinema-hero-content { margin-left: 6vw; }
+}
+@media (min-width: 901px) {
+  .cinema-controls { padding: clamp(14px, 3vmin, 36px) clamp(18px, 4vmin, 48px); }
+}
+
+/* --- Racines plein écran : unités dynamiques (barres d'interface des navigateurs TV / Android) --- */
+.app-container { height: 100dvh; width: 100%; }
+.coach-screen { min-height: 100dvh; }

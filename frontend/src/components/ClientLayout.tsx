@@ -7,6 +7,7 @@ import { useIsMobile } from "@/lib/useIsMobile";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useAutoFullscreen } from "@/lib/useAutoFullscreen";
 import { useClickSound } from "@/lib/useClickSound";
+import { useScreenSafeMargin } from "@/lib/useScreenSafeMargin";
 import { useScreenWakeLock } from "@/lib/useScreenWakeLock";
 import { navEntries, isNavGroup, footerNavLinks as footerNavLinkConfigs } from "@/lib/navLinks";
 import Icon from "@/components/Icon";
@@ -59,6 +60,8 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   // Anti-veille automatique (Screen Wake Lock API) sur les écrans de diffusion
   // et d'attente.
   useScreenWakeLock(isFullscreenRoute);
+  // Marge de sécurité (overscan TV) propre à cet écran, réglée par ?safe=<0-10>.
+  useScreenSafeMargin(isFullscreenRoute);
   // Navigation à la télécommande dans toute l'administration et dans le coach. /cinema, /grid, /kiosk et
   // /radio gèrent déjà leurs propres touches (useKioskRemote) et ne l'activent pas.
   useDpadNavigation(!isFullscreenRoute || pathname === "/coach" || pathname === "/coach/");
