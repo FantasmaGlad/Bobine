@@ -154,6 +154,11 @@ export const dictionaries: Record<Language, Dict> = {
     radioRemote: {
       title: "Radio",
       subtitle: "Télécommande du canal radio — pilotez la lecture à distance.",
+      outputTabs: "Sortie radio",
+      outputCable: "Radio câblée",
+      outputCableTitle: "Radio de la sortie câblée (écran physiquement connecté) — /radio?channel=cable",
+      outputNetwork: "Radio réseau",
+      outputNetworkTitle: "Radio de la sortie réseau (tout autre appareil) — /radio?channel=network",
       disconnected: "Déconnecté",
       stateLabels: {
         idle: "Silence",
@@ -1466,6 +1471,11 @@ export const dictionaries: Record<Language, Dict> = {
     radioRemote: {
       title: "Radio",
       subtitle: "Radio channel remote — control playback from anywhere.",
+      outputTabs: "Radio output",
+      outputCable: "Wired radio",
+      outputCableTitle: "Radio of the wired output (physically connected screen) — /radio?channel=cable",
+      outputNetwork: "Network radio",
+      outputNetworkTitle: "Radio of the network output (any other device) — /radio?channel=network",
       disconnected: "Disconnected",
       stateLabels: {
         idle: "Silent",
