@@ -379,6 +379,17 @@ export default function DashboardScreen({ channel }: Props) {
           label={isCable ? t("dashboard.displayOutputCableLabel") : t("dashboard.displayOutputNetworkLabel")}
           allowRadio={isCable}
         />
+        {channelRadio && (
+          <a
+            href="/radio?channel=cable"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="status-pill"
+            style={{ textDecoration: "none" }}
+          >
+            {t("radioRemote.openPlayer")}
+          </a>
+        )}
         {!isCable && (
           // Écran explicitement rattaché au canal Réseau (lib/displayChannel.ts) :
           // indispensable pour en ouvrir un sur la machine du serveur, où

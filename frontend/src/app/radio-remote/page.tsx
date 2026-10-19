@@ -70,6 +70,17 @@ export default function RadioRemotePage() {
           </span>
         </div>
         <div className="channel-card-right">
+          {/* Ouvre le lecteur de la sortie choisie dans un nouvel onglet (même geste que « Ouvrir un écran
+              réseau » de Sortie Réseau) : /radio?channel=cable ou /radio?channel=network. */}
+          <a
+            href={`/radio?channel=${channel === "radio_cable" ? "cable" : "network"}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="status-pill"
+            style={{ textDecoration: "none" }}
+          >
+            {t("radioRemote.openPlayer")}
+          </a>
           <div className="display-output-switch" role="tablist" aria-label={t("radioRemote.outputTabs")}>
             <span className="display-output-label">{t("radioRemote.outputTabs")}</span>
             <div className="display-output-buttons">

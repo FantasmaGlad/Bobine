@@ -361,11 +361,8 @@ export default function RadioAnnouncementsPage() {
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
 
       {/* En-tête */}
-      <div className="ra-header">
-        <div>
-          <h1 className="ra-title"><Icon name="campaign" size={24} /> {t("radioAnnouncements.title")}</h1>
-          <p className="ra-subtitle">{t("radioAnnouncements.subtitle")}</p>
-        </div>
+      {/* Pas de titre ni de sous-titre : le menu latéral indique déjà la page; les actions restent à droite. */}
+      <div className="ra-header" style={{ justifyContent: "flex-end" }}>
         <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
           <button
             type="button"

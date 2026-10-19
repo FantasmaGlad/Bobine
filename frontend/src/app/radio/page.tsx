@@ -13,8 +13,6 @@ import { detectAutoplayAllowed } from "@/lib/autoplayProbe";
 import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
-import Sheet from "@/components/Sheet";
-import RadioSoundPanel from "@/components/RadioSoundPanel";
 
 // Écran du poste radio dédié : mise en page "type Spotify", lecteur PRIMAIRE (source de la
 // position rapportée au serveur, comme le kiosk câblé/réseau).
@@ -669,13 +667,6 @@ export default function RadioScreenPage() {
     };
   }, []);
 
-  // Tiroir « Son » (égaliseur, basses, préréglages) : souris, tactile ou télécommande.
-  const [soundOpen, setSoundOpen] = useState(false);
-  // Identité STABLE : la feuille ré-arme ses écouteurs et reprend le focus à chaque changement de
-  // `onClose` ; la page se rend chaque seconde (tick de position), une fonction recréée à chaque
-  // rendu volerait le focus au curseur en cours de réglage (clavier, télécommande).
-  const closeSound = useCallback(() => setSoundOpen(false), []);
-
   const handlePlayAnnouncement = () => sendCommand("radio_play_announcement", {});
 
   const currentTrack = state.current_track;
@@ -815,14 +806,6 @@ export default function RadioScreenPage() {
           </div>
 
           <div className="radio-screen-volume">
-            <button
-              className={`radio-transport-btn ${soundOpen ? "active" : ""}`}
-              onClick={() => setSoundOpen(true)}
-              title={t("radioSound.openHint")}
-              aria-label={t("radioSound.open")}
-            >
-              <Icon name="equalizer" size={20} />
-            </button>
             <Icon name="volume_up" size={18} />
             <input
               type="range"
@@ -838,9 +821,6 @@ export default function RadioScreenPage() {
           </div>
         </>
       )}
-      <Sheet open={soundOpen} onClose={closeSound} title={t("radioSound.title")} closeLabel={t("radioSound.close")}>
-        <RadioSoundPanel sound={state.sound} sendCommand={sendCommand} />
-      </Sheet>
     </div>
   );
 }
