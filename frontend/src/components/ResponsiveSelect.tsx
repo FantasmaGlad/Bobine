@@ -183,8 +183,8 @@ export default function ResponsiveSelect({
 
   // Sans champ de recherche, la liste reçoit le focus pour que le clavier la pilote.
   useEffect(() => {
-    if (open && !showSearch && !isMobile) listRef.current?.focus();
-  }, [open, showSearch, isMobile]);
+    if (open && anchor && !showSearch && !isMobile) listRef.current?.focus();
+  }, [open, anchor, showSearch, isMobile]);
 
   // L'élément actif reste visible pendant la navigation au clavier.
   useEffect(() => {
@@ -310,6 +310,9 @@ export default function ResponsiveSelect({
         if (!open && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
           event.preventDefault();
           openList();
+        } else if (open && event.key !== "Enter" && event.key !== " ") {
+          // Liste ouverte alors que le focus est encore sur le déclencheur : il pilote la liste.
+          handleKeyDown(event);
         }
       }}
       aria-haspopup="listbox"

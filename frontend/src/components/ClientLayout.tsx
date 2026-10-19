@@ -13,6 +13,7 @@ import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import UpdateProgressOverlay from "@/components/UpdateProgressOverlay";
 import { isFullscreenPath } from "@/lib/fullscreenRoutes";
+import { useDpadNavigation } from "@/lib/useDpadNavigation";
 
 function getApiUrl(path: string) {
   if (typeof window !== "undefined" && window.location.port === "3000") {
@@ -58,6 +59,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   // Anti-veille automatique (Screen Wake Lock API) sur les écrans de diffusion
   // et d'attente.
   useScreenWakeLock(isFullscreenRoute);
+  // Navigation à la télécommande dans toute l'administration et dans le coach. /cinema, /grid, /kiosk et
+  // /radio gèrent déjà leurs propres touches (useKioskRemote) et ne l'activent pas.
+  useDpadNavigation(!isFullscreenRoute || pathname === "/coach" || pathname === "/coach/");
 
   // La navigation ferme le tiroir mobile automatiquement.
   useEffect(() => {

@@ -9281,3 +9281,16 @@ video::cue {
 .launch-row--stacked > .btn {
   width: 100%;
 }
+
+/* ---- Navigation à la télécommande (useDpadNavigation) : halo net sur l'élément sélectionné ---- */
+:root[data-input-mode="remote"] :focus {
+  outline: 3px solid var(--accent-primary) !important;
+  outline-offset: 3px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+  position: relative;
+  z-index: 5;
+}
+:root[data-input-mode="remote"] input[type="range"]:focus {
+  border-radius: 999px;
+}
