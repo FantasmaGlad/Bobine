@@ -17,7 +17,10 @@ from app.models import (
 )
 from app.utils.playback_clock import PlaybackClock
 from app.playback_manager import CHANNELS, DEFAULT_CHANNEL, get_playback_manager, init_playback_managers
-from app.radio_manager import init_radio_manager, get_radio_manager
+from app.radio_manager import (
+    get_all_radio_managers, get_radio_manager, init_radio_managers, is_radio_channel,
+    normalize_radio_channel,
+)
 from app.routers.settings import get_display_output_value
 from app.scheduler_manager import ensure_utc, resolve_target_title
 from app.utils.activity_log import log_activity
@@ -46,15 +49,27 @@ playback_managers = init_playback_managers(ws_manager.broadcast)
 # sur le canal : un seul écran répond immédiatement.
 for _manager in playback_managers.values():
     _manager.display_counter = ws_manager.kiosk_count
-# 3e canal, radio : moteur de
-# lecture INDÉPENDANT, même broadcast partagé pour rester
-# sur la même connexion WebSocket que les deux canaux ci-dessus.
-radio_manager = init_radio_manager(ws_manager.broadcast)
-# Postes /radio connectés (démarrage synchronisé seulement à plusieurs) et filet
-# de sécurité serveur de fin de piste, qui doit passer par la MÊME règle que la
-# commande (rappels « toutes les N musiques »).
-radio_manager.display_counter = ws_manager.kiosk_count
-radio_manager.track_end_handler = lambda track_id: _radio_track_end_fallback(track_id)
+# Sorties radio : un moteur de lecture INDÉPENDANT par sortie (câblée et
+# réseau), même broadcast partagé pour rester sur la même connexion WebSocket
+# que les canaux de diffusion ci-dessus.
+radio_managers = init_radio_managers(ws_manager.broadcast)
+
+
+def _make_radio_track_end_fallback(radio_channel: str):
+    """Filet de sécurité serveur de fin de piste d'UNE sortie radio : il doit
+    passer par la MÊME règle que la commande (rappels « toutes les N
+    musiques »). Fabrique plutôt que lambda partagée : chaque moteur est lié à
+    SA sortie."""
+    async def _handler(track_id: int | None) -> None:
+        await _radio_track_end_fallback(radio_channel, track_id)
+    return _handler
+
+
+for _radio_channel, _radio_manager in radio_managers.items():
+    # Postes /radio connectés sur CETTE sortie (démarrage synchronisé seulement
+    # à plusieurs).
+    _radio_manager.display_counter = ws_manager.kiosk_count
+    _radio_manager.track_end_handler = _make_radio_track_end_fallback(_radio_channel)
 
 
 def _resolve_channel(value) -> str:
@@ -410,19 +425,20 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
                 "channel": channel,
                 "data": get_playback_manager(channel).snapshot(),
             })
-        # 3e canal radio, hors CHANNELS (cable/network) : envoyé
-        # à part, même mécanisme.
-        await websocket.send_json({
-            "event": "state_change",
-            "cause": "sync",
-            "channel": "radio",
-            "data": get_radio_manager().snapshot(),
-        })
+        # Sorties radio, hors CHANNELS (cable/network) : envoyées à part, même
+        # mécanisme, un état par moteur.
+        for radio_channel, radio_manager in get_all_radio_managers().items():
+            await websocket.send_json({
+                "event": "state_change",
+                "cause": "sync",
+                "channel": radio_channel,
+                "data": radio_manager.snapshot(),
+            })
         while True:
             message = await websocket.receive_json()
             # Identification du rôle du client.
             # Le kiosk envoie {"command": "identify", "params": {"role":
-            # "kiosk", "channel": "cable"|"network"|"radio", "client_id":
+            # "kiosk", "channel": "cable"|"network"|"radio_cable"|"radio_network", "client_id":
             # "..."}} dès l'ouverture de la connexion (et de nouveau si
             # promu primaire, cf. évènement "promoted_primary"). On enregistre
             # son rôle SUR SON CANAL et on lui retourne son statut
@@ -452,10 +468,15 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
                     if not is_kiosk:
                         is_kiosk = True
                         requested_channel = params.get("channel")
-                        # Le poste /radio est le lecteur primaire du 3e
-                        # canal, hors CHANNELS (cable/network) : _resolve_channel
-                        # le ferait retomber sur "cable" à tort.
-                        kiosk_channel = "radio" if requested_channel == "radio" else _resolve_channel(requested_channel)
+                        # Le poste /radio est le lecteur primaire d'UNE sortie
+                        # radio, hors CHANNELS (cable/network) : _resolve_channel
+                        # le ferait retomber sur "cable" à tort. L'alias
+                        # historique "radio" désigne la sortie réseau.
+                        kiosk_channel = (
+                            normalize_radio_channel(requested_channel)
+                            if is_radio_channel(requested_channel)
+                            else _resolve_channel(requested_channel)
+                        )
                         # Identifiant stable persistant côté client (localStorage) —
                         # repli sur l'identité de CETTE connexion si absent (vieux
                         # bundle frontend en cache), auquel cas le bail se comporte
@@ -544,11 +565,14 @@ async def _handle_command(
     # lui, agit toujours sur le canal déclaré à son identify. Absent ou
     # invalide = canal câblé (compatibilité anciens clients).
     raw_channel = params.get("channel") or default_channel
-    if raw_channel == "radio":
-        # 3e canal, moteur INDÉPENDANT : vocabulaire de
+    if is_radio_channel(raw_channel):
+        # Sortie radio, moteur INDÉPENDANT par sortie : vocabulaire de
         # commandes propre (radio_*), géré séparément plutôt que dans la
         # chaîne câblé/réseau ci-dessous.
-        await _handle_radio_command(command, params, client_ts, db, websocket, is_kiosk)
+        await _handle_radio_command(
+            command, params, client_ts, db, websocket, is_kiosk,
+            radio_channel=normalize_radio_channel(raw_channel),
+        )
         return
 
     channel = _resolve_channel(raw_channel)
@@ -877,23 +901,25 @@ async def _handle_radio_track_ended(manager, db, client_ts, track_id: int | None
         await manager.track_ended(client_ts, track_id=track_id)
 
 
-async def _radio_track_end_fallback(track_id: int | None) -> None:
+async def _radio_track_end_fallback(radio_channel: str, track_id: int | None) -> None:
     """Fin de piste déclenchée par l'horloge serveur (aucun poste ne l'a signalée) :
     même chemin que la commande, avec sa propre session de base de données."""
     from app.database import SessionLocal
 
     with SessionLocal() as db:
-        await _handle_radio_track_ended(radio_manager, db, None, track_id)
+        await _handle_radio_track_ended(get_radio_manager(radio_channel), db, None, track_id)
 
 
 async def _handle_radio_command(
     command: str, params: dict, client_ts, db: Session,
     websocket: WebSocket | None = None, is_kiosk: bool = False,
+    radio_channel: str | None = None,
 ) -> None:
-    """Commandes du canal radio : vocabulaire propre (radio_*), séparé de la chaîne câblé/
+    """Commandes d'une sortie radio : vocabulaire propre (radio_*), séparé de la chaîne câblé/
     réseau ci-dessus car le RadioPlaybackManager n'a pas la même sémantique
-    d'état (playlist de morceaux plutôt que vidéo/cours)."""
-    manager = get_radio_manager()
+    d'état (playlist de morceaux plutôt que vidéo/cours). `radio_channel`
+    désigne le moteur visé (sortie réseau si absent, comme l'ancien poste unique)."""
+    manager = get_radio_manager(radio_channel)
 
     if command == "load_radio_playlist":
         playlist_id = params.get("playlist_id")

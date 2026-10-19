@@ -4,6 +4,8 @@ import time
 
 from fastapi import WebSocket
 
+from app.radio_manager import LEGACY_RADIO_CHANNEL, normalize_radio_channel
+
 logger = logging.getLogger(__name__)
 
 # Keepalive : un ping toutes les 30s, un client sans pong dans les 20s qui
@@ -66,7 +68,7 @@ class ConnectionManager:
         # propre kiosk primaire (premier arrivé), source de la position de SA
         # lecture. Un kiosk câblé et un kiosk réseau ne se disputent jamais
         # le rôle.
-        self._kiosk_connections: dict[str, list[WebSocket]] = {"cable": [], "network": [], "radio": []}
+        self._kiosk_connections: dict[str, list[WebSocket]] = {"cable": [], "network": [], "radio_cable": [], "radio_network": []}
         # Canal déclaré par chaque kiosk à son identify (pour le retrait).
         self._kiosk_channel: dict[WebSocket, str] = {}
         # Identifiant stable côté client (persistant across reconnects) et
@@ -134,7 +136,12 @@ class ConnectionManager:
         """Déclare les canaux dont ce client veut les évènements propres à un
         canal. Liste vide = aucun (client qui n'écoute que les évènements
         globaux, p. ex. thème/langue)."""
-        self._subscriptions[websocket] = frozenset(str(c) for c in channels)
+        # L'alias historique "radio" (poste radio unique d'avant les deux sorties)
+        # est ramené à la sortie réseau : un client en cache qui s'abonne encore
+        # à "radio" reçoit les évènements de la sortie réseau.
+        self._subscriptions[websocket] = frozenset(
+            normalize_radio_channel(c) if c == LEGACY_RADIO_CHANNEL else str(c) for c in channels
+        )
 
     def _wants(self, websocket: WebSocket, message: dict) -> bool:
         subscribed = self._subscriptions.get(websocket)
@@ -176,6 +183,8 @@ class ConnectionManager:
         devient le primaire du canal. Reste une coroutine `async def` par
         cohérence avec ses appelants (aucune opération asynchrone réelle à
         l'intérieur depuis la suppression du bail Redis)."""
+        if channel == LEGACY_RADIO_CHANNEL:
+            channel = normalize_radio_channel(channel)
         if channel not in self._kiosk_connections:
             channel = "cable"
         kiosks = self._kiosk_connections[channel]
@@ -194,6 +203,8 @@ class ConnectionManager:
 
     def kiosk_count(self, channel: str) -> int:
         """Nombre d'écrans de diffusion (kiosques identifiés) sur ce canal."""
+        if channel == LEGACY_RADIO_CHANNEL:
+            channel = normalize_radio_channel(channel)
         return len(self._kiosk_connections.get(channel, []))
 
     def is_primary_kiosk(self, websocket: WebSocket) -> bool:

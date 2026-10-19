@@ -31,13 +31,14 @@ router = APIRouter(prefix="/api/radio", tags=["radio"])
 
 
 @router.get("/state")
-def get_radio_state():
-    """Snapshot ponctuel de l'état du canal radio, utile au
-    premier rendu de la télécommande admin avant connexion WebSocket —
+def get_radio_state(channel: str | None = None):
+    """Snapshot ponctuel de l'état d'UNE sortie radio (`radio_cable` ou
+    `radio_network`, réseau par défaut — l'alias historique `radio` est accepté),
+    utile au premier rendu de la télécommande admin avant connexion WebSocket —
     même rôle que GET /api/playback/state pour câblé/réseau."""
     from app.radio_manager import get_radio_manager
 
-    return get_radio_manager().snapshot()
+    return get_radio_manager(channel).snapshot()
 
 
 # ---------------------------------------------------------------------------

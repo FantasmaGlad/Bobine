@@ -22,7 +22,31 @@ logger = logging.getLogger(__name__)
 
 BroadcastFn = Callable[[dict], Awaitable[None]]
 
-RADIO_CHANNEL = "radio"
+# Deux moteurs radio INDÉPENDANTS, un par sortie de diffusion (même modèle que
+# les gestionnaires câblé/réseau de playback_manager.py) : la sortie câblée
+# (écran physiquement connecté) et la sortie réseau (tout autre appareil) ont
+# chacune leur playlist, file d'attente, position, volume, rappels et planning.
+RADIO_CHANNELS = ("radio_cable", "radio_network")
+# Identifiant historique du poste radio unique (avant les deux sorties) : il
+# désignait ce qui est aujourd'hui la sortie réseau. Il reste accepté en ENTRÉE
+# (anciens favoris, onglets ouverts, planning, clients en cache) et n'est
+# jamais émis.
+LEGACY_RADIO_CHANNEL = "radio"
+DEFAULT_RADIO_CHANNEL = "radio_network"
+
+
+def normalize_radio_channel(value: Any) -> str:
+    """Identifiant de sortie radio canonique : l'alias historique `radio` devient
+    `radio_network` ; toute valeur absente ou inconnue retombe sur le défaut.
+    Point UNIQUE de normalisation — aucune table de correspondance ailleurs."""
+    if value in RADIO_CHANNELS:
+        return value
+    return DEFAULT_RADIO_CHANNEL
+
+
+def is_radio_channel(value: Any) -> bool:
+    """Vrai pour un identifiant de sortie radio, alias historique compris."""
+    return value == LEGACY_RADIO_CHANNEL or value in RADIO_CHANNELS
 
 REPEAT_MODES = ("off", "playlist", "track")
 
@@ -40,8 +64,12 @@ PLAY_LEAD_MS = 150.0
 
 
 class RadioPlaybackManager:
-    def __init__(self, broadcast: BroadcastFn):
+    def __init__(self, broadcast: BroadcastFn, channel: str = DEFAULT_RADIO_CHANNEL):
         self._broadcast = broadcast
+        # Sortie radio que ce moteur pilote (`radio_cable` ou `radio_network`) :
+        # portée par chaque évènement émis pour que les clients ne réagissent
+        # qu'aux évènements de LEUR sortie.
+        self.channel = normalize_radio_channel(channel)
         self._last_direct_report = 0.0
         self._clock = PlaybackClock()
         # Nombre de postes /radio connectés (fourni par la couche WebSocket).
@@ -85,7 +113,7 @@ class RadioPlaybackManager:
     # ------------------------------------------------------------------
     def _lead_ms(self, nominal_ms: float) -> float:
         try:
-            return nominal_ms if self.display_counter(RADIO_CHANNEL) >= 2 else 0.0
+            return nominal_ms if self.display_counter(self.channel) >= 2 else 0.0
         except Exception:
             return 0.0
 
@@ -107,6 +135,7 @@ class RadioPlaybackManager:
     def snapshot(self) -> dict:
         self._refresh_position()
         snap = dict(self.state)
+        snap["channel"] = self.channel
         snap["clock"] = self._clock.to_dict()
         return snap
 
@@ -114,7 +143,7 @@ class RadioPlaybackManager:
         payload: dict[str, Any] = {
             "event": "state_change",
             "cause": cause,
-            "channel": RADIO_CHANNEL,
+            "channel": self.channel,
             "data": self.snapshot(),
         }
         if client_ts is not None:
@@ -466,16 +495,23 @@ class RadioPlaybackManager:
         self._last_direct_report = time.monotonic()
 
 
-_manager: RadioPlaybackManager | None = None
+_managers: dict[str, RadioPlaybackManager] = {}
 
 
-def init_radio_manager(broadcast: BroadcastFn) -> RadioPlaybackManager:
-    global _manager
-    _manager = RadioPlaybackManager(broadcast)
-    return _manager
+def init_radio_managers(broadcast: BroadcastFn) -> dict[str, RadioPlaybackManager]:
+    """Crée les deux moteurs radio, un par sortie."""
+    global _managers
+    _managers = {channel: RadioPlaybackManager(broadcast, channel) for channel in RADIO_CHANNELS}
+    return _managers
 
 
-def get_radio_manager() -> RadioPlaybackManager:
-    if _manager is None:
+def get_radio_manager(channel: str | None = None) -> RadioPlaybackManager:
+    """Moteur de la sortie demandée (alias historique accepté ; défaut : réseau)."""
+    manager = _managers.get(normalize_radio_channel(channel))
+    if manager is None:
         raise RuntimeError("RadioPlaybackManager non initialisé")
-    return _manager
+    return manager
+
+
+def get_all_radio_managers() -> dict[str, RadioPlaybackManager]:
+    return dict(_managers)

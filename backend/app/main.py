@@ -25,7 +25,7 @@ from app.config import settings
 from app.database import init_db, get_db, SessionLocal
 from app.models import AudioTrack, Background, RadioAnnouncement, RadioTrack, Setting, Video
 from app.playback_manager import get_all_playback_managers
-from app.radio_manager import get_radio_manager
+from app.radio_manager import get_all_radio_managers
 from app.routers import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,
     radio, radio_playlists, radio_announcements, settings as settings_router, logs, import_jobs,
@@ -129,7 +129,8 @@ async def lifespan(app: FastAPI):
     await autostart_default_radio_playlist()
     for playback_manager in get_all_playback_managers().values():
         playback_manager.start_position_broadcast_loop()
-    get_radio_manager().start_position_broadcast_loop()
+    for radio_manager in get_all_radio_managers().values():
+        radio_manager.start_position_broadcast_loop()
     # Règles temporelles des rappels : toutes les X
     # minutes / à heures fixes — la règle « toutes les N musiques » n'a rien
     # de temporel, elle est vérifiée à chaque fin de piste (routers/playback.py).
@@ -140,7 +141,8 @@ async def lifespan(app: FastAPI):
     stop_watcher()
     for playback_manager in get_all_playback_managers().values():
         playback_manager.stop_position_broadcast_loop()
-    get_radio_manager().stop_position_broadcast_loop()
+    for radio_manager in get_all_radio_managers().values():
+        radio_manager.stop_position_broadcast_loop()
     await stop_radio_announcement_scheduler()
     stop_mdns_responder()
 
