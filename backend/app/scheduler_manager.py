@@ -290,16 +290,17 @@ def expand_occurrences(
     return results
 
 
-def _radio_track_dict(track) -> dict:
-    """Même forme que routers/playback.py::_radio_track_dict — dupliqué
-    volontairement plutôt que partagé entre les deux modules (fonction
-    minuscule, évite un couplage supplémentaire sur un fichier partagé et
-    sensible)."""
+def radio_track_dict(track) -> dict:
+    """Forme d'une piste radio dans l'état du RadioPlaybackManager (`order`,
+    `current_track`, file d'attente) : source UNIQUE, partagée avec
+    routers/playback.py (les deux copies d'avant dérivaient l'une de l'autre).
+    Le style (`genre`) sert à l'affichage de la file « À suivre »."""
     return {
         "id": track.id,
         "title": track.title,
         "artist": track.artist,
         "album": track.album,
+        "genre": track.genre,
         "duration_seconds": track.duration_seconds,
         "cover_url": f"/radio/tracks/{track.id}/cover" if track.cover_path else None,
     }
@@ -377,7 +378,7 @@ async def _launch_radio_target(
         logger.warning(f"Cible programmée introuvable : playlist radio {playlist_id}")
         return
     sorted_items = sorted(playlist.items, key=lambda item: item.position)
-    tracks = [_radio_track_dict(item.track) for item in sorted_items if item.track]
+    tracks = [radio_track_dict(item.track) for item in sorted_items if item.track]
     if not tracks:
         logger.warning(f"Playlist radio {playlist_id} vide, rien à lancer")
         return
@@ -398,7 +399,7 @@ async def _launch_radio_shuffle_all(
     recomposée à chaque lancement — elle reflète donc toujours l'état courant de
     la bibliothèque, sans playlist figée à resynchroniser à chaque import.
     Renvoie le nom lancé, ou None si la bibliothèque est vide."""
-    tracks = [_radio_track_dict(t) for t in db.query(RadioTrack).all()]
+    tracks = [radio_track_dict(t) for t in db.query(RadioTrack).all()]
     if not tracks:
         return None
     # shuffle=True + repeat="playlist" : aléatoire ET boucle infinie (deux

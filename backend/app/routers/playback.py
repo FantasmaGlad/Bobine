@@ -23,7 +23,7 @@ from app.radio_manager import (
 )
 from app.routers.settings import get_display_output_value
 from app.utils.radio_sound import sanitize_sound, save_sound
-from app.scheduler_manager import ensure_utc, resolve_target_title
+from app.scheduler_manager import ensure_utc, radio_track_dict, resolve_target_title
 from app.utils.activity_log import log_activity
 from app.utils.boot_state import current_boot_id
 from app.utils.importer import is_image_background
@@ -871,19 +871,6 @@ async def _handle_command(
         logger.warning(f"Commande WebSocket inconnue reçue : {command}")
 
 
-def _radio_track_dict(track: RadioTrack) -> dict:
-    """Forme d'une piste radio dans l'état du RadioPlaybackManager (`order`,
-    `current_track`, file d'attente)."""
-    return {
-        "id": track.id,
-        "title": track.title,
-        "artist": track.artist,
-        "album": track.album,
-        "duration_seconds": track.duration_seconds,
-        "cover_url": f"/radio/tracks/{track.id}/cover" if track.cover_path else None,
-    }
-
-
 async def _handle_radio_track_ended(manager, db, client_ts, track_id: int | None) -> None:
     """Fin de piste radio, IDEMPOTENTE : chaque page /radio l'envoie, et le serveur
     peut l'avoir déjà enchaînée. Un signal périmé (autre piste que la courante) est
@@ -933,7 +920,7 @@ async def _handle_radio_command(
             logger.warning(f"Commande load_radio_playlist : playlist radio {playlist_id} introuvable")
             return
         sorted_items = sorted(playlist.items, key=lambda item: item.position)
-        tracks = [_radio_track_dict(item.track) for item in sorted_items if item.track]
+        tracks = [radio_track_dict(item.track) for item in sorted_items if item.track]
         # repeat="playlist" comme le chargement planifié "ambiance 24/7" : une radio n'a pas vocation à
         # s'arrêter en silence en fin de liste — correctif "le mode aléatoire
         # n'est pas infini" (shuffle et repeat sont deux réglages indépendants
@@ -946,7 +933,7 @@ async def _handle_radio_command(
         log_activity(db, "radio_playlist_started", playlist.name)
     elif command == "radio_shuffle_all":
         # Lecture aléatoire de TOUTE la bibliothèque, sans playlist : playlist_id=None, tous les morceaux mélangés à la volée.
-        tracks = [_radio_track_dict(t) for t in db.query(RadioTrack).all()]
+        tracks = [radio_track_dict(t) for t in db.query(RadioTrack).all()]
         if not tracks:
             logger.info("Commande radio_shuffle_all : bibliothèque radio vide")
             return
@@ -989,13 +976,18 @@ async def _handle_radio_command(
         if not track:
             logger.warning(f"Commande radio_add_to_queue : morceau {params.get('track_id')} introuvable")
             return
-        await manager.add_to_queue(_radio_track_dict(track), client_ts)
+        await manager.add_to_queue(radio_track_dict(track), client_ts)
     elif command == "radio_play_next":
         track = db.query(RadioTrack).filter(RadioTrack.id == params.get("track_id")).first()
         if not track:
             logger.warning(f"Commande radio_play_next : morceau {params.get('track_id')} introuvable")
             return
-        await manager.play_next(_radio_track_dict(track), client_ts)
+        await manager.play_next(radio_track_dict(track), client_ts)
+    elif command == "radio_move_in_queue":
+        # Réordonne la file « À suivre » (glisser-déposer) : seules les pistes À VENIR bougent.
+        await manager.move_in_order(
+            int(params.get("from_index", -1)), int(params.get("to_index", -1)), client_ts,
+        )
     elif command == "radio_remove_from_queue":
         await manager.remove_from_order(int(params.get("index", -1)), client_ts)
     elif command == "radio_track_ended":

@@ -495,6 +495,27 @@ class RadioPlaybackManager:
             self._sync_current()
         await self._emit("radio_queue_changed", client_ts)
 
+    async def move_in_order(self, from_index: int, to_index: int, client_ts: float | None = None):
+        """Déplace une piste de la file « À suivre » (glisser-déposer de l'admin).
+
+        Seules les pistes À VENIR (après la piste courante) peuvent bouger : l'historique et la
+        piste en cours restent en place, sinon la lecture changerait de piste sous les pieds de
+        l'auditoire. Indices hors file ou identiques : sans effet (pas d'évènement inutile).
+        `to_index` est borné à la file."""
+        order = self.state["order"]
+        cur = self.state["index"]
+        if cur is None or not order:
+            return
+        first = cur + 1
+        if not (first <= from_index < len(order)):
+            return
+        target = max(first, min(to_index, len(order) - 1))
+        if target == from_index:
+            return
+        order.insert(target, order.pop(from_index))
+        self.state["order"] = order
+        await self._emit("radio_queue_changed", client_ts)
+
     async def remove_from_order(self, index: int, client_ts: float | None = None):
         """Retire une piste de l'ordre de lecture (file d'attente)."""
         order = self.state["order"]
