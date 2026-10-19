@@ -9,6 +9,7 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
 import MobileRemote from "@/components/MobileRemote";
 import DisplayOutputSwitch from "@/components/DisplayOutputSwitch";
+import RadioRemotePanel from "@/components/RadioRemotePanel";
 import Icon from "@/components/Icon";
 import SubtitlePicker from "@/components/SubtitlePicker";
 import ChapterList from "@/components/ChapterList";
@@ -196,6 +197,8 @@ export default function DashboardScreen({ channel }: Props) {
   // n'observent jamais l'autre canal (zéro interférence).
   const displayOutput = isCable ? displayOutputCable : displayOutputNetwork;
   const channelCinema = displayOutput === "cinema";
+  // Seule la sortie câblée peut être basculée sur Radio (l'écran physique devient un poste radio).
+  const channelRadio = isCable && displayOutputCable === "radio";
 
   // Redirection automatique vers /coach lorsque le mode coach est actif sur le canal câblé
   useEffect(() => {
@@ -336,6 +339,60 @@ export default function DashboardScreen({ channel }: Props) {
     );
   }
 
+  // Carte d'en-tête du canal (état + interrupteur de sortie) : partagée entre la vue
+  // vidéo habituelle et la vue « sortie câblée en mode Radio ».
+  const channelCard = (
+    <div className="live-block channel-card">
+      <div className="channel-card-left">
+        <h3>
+          <Icon name={isCable ? "cable" : "wifi"} size={18} />
+          {isCable ? t("dashboard.liveCableTitle") : t("dashboard.liveNetworkTitle")}
+        </h3>
+        <span
+          className={`status-pill ${
+            !connected
+              ? "down state-offline"
+              : channelCinema || channelRadio
+              ? "neutral"
+              : state.state === "waiting"
+              ? "waiting state-waiting"
+              : "ok state-" + state.state
+          }`}
+        >
+          {!connected
+            ? t("dashboard.disconnected")
+            : channelRadio
+            ? t("dashboard.channelRadioActive")
+            : channelCinema
+            ? t("dashboard.channelCinemaActive")
+            : STATE_LABELS[state.state] ?? state.state}
+        </span>
+      </div>
+      <div className="channel-card-right">
+        <DisplayOutputSwitch
+          displayOutput={displayOutput}
+          onSetDisplayOutput={handleSetDisplayOutput}
+          label={isCable ? t("dashboard.displayOutputCableLabel") : t("dashboard.displayOutputNetworkLabel")}
+          allowRadio={isCable}
+        />
+        {!isCable && (
+          // Écran explicitement rattaché au canal Réseau (lib/displayChannel.ts) :
+          // indispensable pour en ouvrir un sur la machine du serveur, où
+          // 127.0.0.1 désigne sinon le canal câblé.
+          <a
+            href={`/${displayOutput === "cinema" ? "cinema" : "kiosk"}?channel=network`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="status-pill"
+            style={{ textDecoration: "none" }}
+          >
+            {t("dashboard.openNetworkScreen")}
+          </a>
+        )}
+      </div>
+    </div>
+  );
+
   if (isCable && state.state === "coach_mode") {
     return (
       <div className="dashboard-root" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "55vh", textAlign: "center", gap: "16px", padding: "40px 20px" }}>
@@ -354,6 +411,18 @@ export default function DashboardScreen({ channel }: Props) {
           <Icon name="mic" size={18} />
           {t("dashboard.joinCoachSession")}
         </Link>
+      </div>
+    );
+  }
+
+  // Sortie câblée basculée sur Radio : la bibliothèque vidéo n'a plus d'objet (aucun écran
+  // vidéo pour afficher un lancement). La page montre la télécommande radio PARTAGÉE du moteur
+  // radio câblé — la même que /radio-remote, jamais une copie de la bibliothèque.
+  if (channelRadio) {
+    return (
+      <div className="dashboard-container">
+        {channelCard}
+        <RadioRemotePanel key="radio_cable" channel="radio_cable" />
       </div>
     );
   }
@@ -394,53 +463,8 @@ export default function DashboardScreen({ channel }: Props) {
           barre latérale — un second sélecteur ici dupliquait exactement
           cette navigation. */}
 
-      {/* Bascule kiosk/cinéma de CE canal. */}
-      <div className="live-block channel-card">
-        <div className="channel-card-left">
-          <h3>
-            <Icon name={isCable ? "cable" : "wifi"} size={18} />
-            {isCable ? t("dashboard.liveCableTitle") : t("dashboard.liveNetworkTitle")}
-          </h3>
-          <span
-            className={`status-pill ${
-              !connected
-                ? "down state-offline"
-                : channelCinema
-                ? "neutral"
-                : state.state === "waiting"
-                ? "waiting state-waiting"
-                : "ok state-" + state.state
-            }`}
-          >
-            {!connected
-              ? t("dashboard.disconnected")
-              : channelCinema
-              ? t("dashboard.channelCinemaActive")
-              : STATE_LABELS[state.state] ?? state.state}
-          </span>
-        </div>
-        <div className="channel-card-right">
-          <DisplayOutputSwitch
-            displayOutput={displayOutput}
-            onSetDisplayOutput={handleSetDisplayOutput}
-            label={isCable ? t("dashboard.displayOutputCableLabel") : t("dashboard.displayOutputNetworkLabel")}
-          />
-          {!isCable && (
-            // Écran explicitement rattaché au canal Réseau (lib/displayChannel.ts) :
-            // indispensable pour en ouvrir un sur la machine du serveur, où
-            // 127.0.0.1 désigne sinon le canal câblé.
-            <a
-              href={`/${displayOutput === "cinema" ? "cinema" : "kiosk"}?channel=network`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="status-pill"
-              style={{ textDecoration: "none" }}
-            >
-              {t("dashboard.openNetworkScreen")}
-            </a>
-          )}
-        </div>
-      </div>
+      {/* Bascule kiosk/cinéma/radio de CE canal. */}
+      {channelCard}
 
       <div className="dashboard-bento-grid" style={channelCinema ? { gridTemplateColumns: "1fr" } : undefined}>
         <div className="bento-col-main">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { CinemaRemoteState, PlaybackState } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import DisplayOutputSwitch from "@/components/DisplayOutputSwitch";
+import RadioRemotePanel from "@/components/RadioRemotePanel";
 import Icon from "@/components/Icon";
 import CourseCard from "@/components/CourseCard";
 import Sheet from "@/components/Sheet";
@@ -108,13 +109,16 @@ export default function MobileRemote({
   // kiosk (lancer un cours/fond/playlist) n'ont pas de sens sur un canal en
   // libre-service — masquées plutôt que juste désactivées, remplacées par les infos/contrôles de l'écran cinéma.
   const channelCinema = (channel === "network" ? displayOutputNetwork : displayOutputCable) === "cinema";
+  // Sortie câblée basculée sur Radio : la télécommande montre la radio câblée (composant
+  // partagé, variante compacte) à la place des actions vidéo.
+  const channelRadio = channel !== "network" && displayOutputCable === "radio";
 
   // Si le canal bascule en cinéma pendant que la feuille de lancement est
   // ouverte, elle n'a plus lieu d'être (plus de bouton pour l'ouvrir non
   // plus, mais l'état pourrait déjà être ouvert au moment de la bascule).
   useEffect(() => {
-    if (channelCinema) setSheet("none");
-  }, [channelCinema]);
+    if (channelCinema || channelRadio) setSheet("none");
+  }, [channelCinema, channelRadio]);
 
   const isActive = state.current_video !== null || state.state === "playlist_waiting" || state.state === "background";
   const duration = state.current_video?.duration_seconds ?? 0;
@@ -178,6 +182,7 @@ export default function MobileRemote({
               displayOutput={displayOutputCable}
               onSetDisplayOutput={(output) => onSetDisplayOutput("cable", output)}
               label={t("dashboard.displayOutputCableLabel")}
+              allowRadio
             />
           )}
           {(!channel || channel === "network") && (
@@ -191,6 +196,8 @@ export default function MobileRemote({
       )}
       {!connected ? (
         <div className="mobile-remote-empty">{t("mobileRemote.connectingHint")}</div>
+      ) : channelRadio ? (
+        <RadioRemotePanel key="radio_cable" channel="radio_cable" variant="compact" />
       ) : channelCinema ? (
         // Mode cinéma : lecture LOCALE à l'écran libre-service, rapportée par
         // la page /cinema du canal (même source que le bloc "En direct" du PC
