@@ -5,44 +5,44 @@ Origin: Bobine
 Label: Bobine
 Suite: canary
 Codename: canary
-Date: Mon, 19 Oct 2026 14:59:08 UTC
+Date: Mon, 19 Oct 2026 18:19:23 UTC
 Architectures: amd64 arm64
 Components: main
 Description: Depot officiel Bobine - Canal Canary (Rolling)
 MD5Sum:
- ff2964577fcd0754aa6e0723f093b606 1349 main/binary-amd64/Packages
- 2ba0330bb3966159b3a60ce0e0f706d5 797 main/binary-amd64/Packages.gz
+ c1433b63138838257be0f32a3abf407d 1349 main/binary-amd64/Packages
+ f4a85828d760f62795ed259cfbc3cff1 799 main/binary-amd64/Packages.gz
  e7cd5c2534ef09e46cdc4a88e1d14f8a 141 main/binary-amd64/Release
- 8708e54c5ba01f680b0016fb278c6a3b 1349 main/binary-arm64/Packages
- cb7b4c3d15ef895632c1a8e9dd596c5d 797 main/binary-arm64/Packages.gz
+ a6e97f78ead5dd35c03e3a494d3036ad 1349 main/binary-arm64/Packages
+ 3d5a23d792862b9beeb7588f051fd2f4 796 main/binary-arm64/Packages.gz
  8bc53c1ca043ee20cf577e4ad8b9a6d5 141 main/binary-arm64/Release
 SHA1:
- 4cfeacdba28f43d5ca2ee1a02828dd28593c9005 1349 main/binary-amd64/Packages
- d5df97afb8e845815c1e6f18fb93f3d65ca2c1b2 797 main/binary-amd64/Packages.gz
+ 1a610bc931c88ef3136e42e421c55223cf958684 1349 main/binary-amd64/Packages
+ b816041277442dd02e0e17a3324fbcd6681e42e0 799 main/binary-amd64/Packages.gz
  6af6be6aabbe342f577a9a459a3c2692f7f80be1 141 main/binary-amd64/Release
- 655471290da03a97dfd014592779f1fd4e96568a 1349 main/binary-arm64/Packages
- 28c5584b79dc16232c1b38cd25a972d404196eb2 797 main/binary-arm64/Packages.gz
+ d9aab24ef797f7f3573e8bf18b5ec0e5cf3a366d 1349 main/binary-arm64/Packages
+ a963115f7d5b60c1777f36f3760daadea37c857e 796 main/binary-arm64/Packages.gz
  12c06aee73de290010b33860a1b7e5ba01440ac5 141 main/binary-arm64/Release
 SHA256:
- fbfaabb488b82cffa9175ac45f754ddfcd7a983230da87d085d6ecc4d1c34003 1349 main/binary-amd64/Packages
- 14b8e832173e0a3731fb73cf711d6038ed7966dfd75e24ef89ab3baef7c28a48 797 main/binary-amd64/Packages.gz
+ 6921138141ddcfed719481afbe659dfa49511f11274bc4d2d9ec8a3c073c22e1 1349 main/binary-amd64/Packages
+ 316b998333dd453ec714344f4e6dd46d5dc5e11d168aaec0d8e291e6611e7e1d 799 main/binary-amd64/Packages.gz
  57d80c0960f88db861e5c92edbfcadcb75935c3b0dcfa03b815364830ad95c2a 141 main/binary-amd64/Release
- 2aea189e1cfe9c9569fd0b026e355dc9c69a074dc928fccca5dfb83222ecd2f2 1349 main/binary-arm64/Packages
- 49735b76da73ebb6b90b35de36add2c66421465ee48ca4dcf85d6abbcbb6f3a0 797 main/binary-arm64/Packages.gz
+ 35c1a086d4d701d01b5a0f27c5deda6a04e033e4213ea5896b72944c24e802fd 1349 main/binary-arm64/Packages
+ cddda3f670a36bbafabc2c9148863620e0f0c591628147eaf38ae4360e9ca278 796 main/binary-arm64/Packages.gz
  77893804462ad43e40f09d55233a09b9c2c34ffda73f003a14da0ce0cd92654c 141 main/binary-arm64/Release
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAEBCgAdFiEElBtvUmpyWfRpTPS8G10YqXb6rRUFAmrWMDwACgkQG10YqXb6
-rRUBaA//Yre6MCdoA95HSIvbCIn2nZAMK30aHugfkJya6Xs5QzdLbymKV2v329Hp
-OWczoIrK77Xyxil8v4BImBfne8ivCBwV6x4PXNs5+mXNCVXz2/MPIkWMOokxh9hA
-4RtRcTcUsrz8a+6JDIhePIv4B4IsSs7cMFV0rBhnjJEuWF/xDN54KAnO51BTw0F6
-UjCMyvLwqe0peHmKS0onE8LYDSpbMYiYzbF4BOTTuMfDumAa1MytzOzHYSjnVYuF
-Bspf+amXa9AIZCVXbblA2Mi6ObGTQbgTMCC8KXx4/apTXG5zF00w2pyk2Kf2W4Bg
-VmGDTgiPmGhQ9dYwG/Z482kpVngC0L32H865rJfN7TJIe+d4aW6l5jhdAGyllEKs
-mIRhJ2hCBkSIHAO3CXdZvUNEfvJRr6dl2noXZYBLG8cAWLhB8SiM1f8NvX+aXxXv
-2rfaFX8cndcijFUm1P4O79RfaQw9YiIcpYyI0uqQLcSeL9SyjIPfcq5iuLxQhQV1
-uNRluEwwPAzODBZNMA5u7qVhG6U7uUgPYiMYYBaoraVRZPvVXg/oT6BtMQFZ0euo
-ZUUzlay8idcQOcn0tbJ9/zTFKN0aCuDD6wNYso/Pnvnuo2psjC9CKg2KdiLzmuvJ
-nc3PSCpb687pIg8OiJ4sNG4nWFFCgtV9X5HlaiXDcerUNTYrFTU=
-=UfYv
+iQIzBAEBCgAdFiEElBtvUmpyWfRpTPS8G10YqXb6rRUFAmrWXysACgkQG10YqXb6
+rRWWyw/+OT10km52U7FrtAqlgp6R+9+cNQ/ZvNLzIMkd9CWqtW9FYnMSBb1dCJDb
+Ze+FSbS2kBJ8+xhAAazB673GOYM2ugIUPbZOpRaWHJQDazNZ2JHJbY5DwqTTA2HA
+BZzGMxIi3lNFPLPvxOzFlh5ntrB5G8xWBfuCvntIBHmK2iIYP/qKrKuudQ9mqWMn
+vYeptn++3UMbT0hpWYOfSBdSxUoL0PtjO8CRL7VvLPDbafH3hA/xAe1bZd1SFYSy
+Sr5Klw1PqCa4kLJIJrhvVN4KUJhiKvNDa/V2XCQr43XVj8OhUA3NAVQaZUbdJSHg
+BR3IUa93+hqMk+ceLilDSYKQcIICiujKX3Y0jihvk/A7hlj1pjlMLFcygpkaSBbg
+tJomnaGx+OQi+6IUjnQEUvADNxlmuvrXGrmv8xsGNGFWzg088ip9p7JGEOl8qIJq
+QOfZFD8TAZSrsVC3jjHkigSvIVSL3MjpPPDIjB0hBto5qEPIOngLVqK656WM/sAZ
+DG6Qy52LDzFzB2ku7LdNgqv0/qfph61cnSYN59KTAoGfs4hDpUKL/+1tmNeP9teb
+36rI744Yxpfb2oIVLguNyx9tcI4FUIBvGQGpHKPy6Ydmsptuirb18MmIhnyjUvvy
+Nyd4IPQMNQw6r54Z8oYk5KAZmKcG8StPc8dP0Pkk4DTWDVzcbgs=
+=tMci
 -----END PGP SIGNATURE-----
