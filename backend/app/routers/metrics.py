@@ -337,10 +337,12 @@ def get_metrics_dashboard(
 @router.get("/hardware/history")
 def get_hardware_history(
     metric: str = Query("cpu", pattern="^[a-zA-Z0-9_]+$"),
-    period: str = Query("1h", pattern="^(1h|6h|24h|7d)$"),
+    period: str = Query("1h", pattern="^(1h|6h|24h|7d|30d|this_month|all)$"),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Historique temporel d'une métrique matérielle (1h, 6h, 24h, 7j) dynamique avec statistiques et points échantillonnés."""
+    """Historique temporel d'une métrique matérielle (1h, 6h, 24h, 7j, 30j, mois en cours, tout l'historique conservé)
+    avec statistiques et points échantillonnés. La profondeur réelle est bornée par la rétention des métriques
+    (réglage « logs_retention_days »)."""
     now = datetime.now(timezone.utc)
     if period == "1h":
         start_time = now - timedelta(hours=1)
@@ -348,15 +350,19 @@ def get_hardware_history(
         start_time = now - timedelta(hours=6)
     elif period == "24h":
         start_time = now - timedelta(hours=24)
+    elif period == "30d":
+        start_time = now - timedelta(days=30)
+    elif period == "this_month":
+        start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif period == "all":
+        start_time = None  # tout ce que la rétention a conservé
     else:  # "7d"
         start_time = now - timedelta(days=7)
 
-    records = (
-        db.query(SystemMetricsHistory)
-        .filter(SystemMetricsHistory.timestamp >= start_time)
-        .order_by(SystemMetricsHistory.timestamp.asc())
-        .all()
-    )
+    query = db.query(SystemMetricsHistory)
+    if start_time is not None:
+        query = query.filter(SystemMetricsHistory.timestamp >= start_time)
+    records = query.order_by(SystemMetricsHistory.timestamp.asc()).all()
 
     metric_meta = {
         "cpu": {"unit": "%", "label": "Charge CPU"},

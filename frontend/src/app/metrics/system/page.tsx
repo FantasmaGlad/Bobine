@@ -51,6 +51,8 @@ function formatBytes(bytes?: number): string {
 export default function MetricsSystemPage() {
   const { t } = useAppSettings();
   const [telemetry, setTelemetry] = useState<SystemTelemetry | null>(null);
+  // Même bandeau de période que « Cours » : il règle la profondeur de l'historique affiché au clic sur une carte.
+  const [period, setPeriod] = useState<"7d" | "30d" | "this_month" | "all">("7d");
   const [activeDrawer, setActiveDrawer] = useState<{
     metric: string;
     title: string;
@@ -96,15 +98,31 @@ export default function MetricsSystemPage() {
 
   return (
     <div className="metrics-page">
-      {/* En-tête épuré */}
-      <div className="metrics-section-header" style={{ marginBottom: "16px" }}>
-        <div>
-          <h3>
-            <Icon name="monitor_heart" size={22} /> {t("metricsPage.telemetryTitle")}
-          </h3>
-          <p className="metrics-section-subtitle">
-            Surveillance en direct des composants. Cliquez sur une métrique pour afficher son historique temporel.
-          </p>
+      {/* Bandeau de période, identique à celui de la page « Cours » */}
+      <div className="metrics-filters-bar" style={{ marginTop: 0 }}>
+        <div className="metrics-filter-group">
+          <span className="metrics-filter-label">
+            <Icon name="date_range" size={16} /> {t("metricsPage.periodLabel")} :
+          </span>
+          <div className="view-toggle">
+            {(
+              [
+                ["7d", "metricsPage.period7d"],
+                ["30d", "metricsPage.period30d"],
+                ["this_month", "metricsPage.periodMonth"],
+                ["all", "metricsPage.periodAll"],
+              ] as const
+            ).map(([value, key]) => (
+              <button
+                key={value}
+                type="button"
+                className={`view-btn ${period === value ? "active" : ""}`}
+                onClick={() => setPeriod(value)}
+              >
+                {t(key)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -295,6 +313,7 @@ export default function MetricsSystemPage() {
         <TelemetryHistoryDrawer
           isOpen={true}
           onClose={() => setActiveDrawer(null)}
+          rangePeriod={period}
           metric={activeDrawer.metric}
           title={activeDrawer.title}
           iconName={activeDrawer.iconName}

@@ -9,7 +9,28 @@ export interface TelemetryHistoryDrawerProps {
   metric: string;
   title: string;
   iconName: string;
+  /** Période choisie dans le bandeau de la page, appliquée au bouton « Période » du tiroir. */
+  rangePeriod?: "7d" | "30d" | "this_month" | "all";
 }
+
+type ApiPeriod = "1h" | "6h" | "24h" | "7d" | "30d" | "this_month" | "all";
+
+const RANGE_LABELS: Record<ApiPeriod, string> = {
+  "1h": "Dernière heure",
+  "6h": "Dernières 6 heures",
+  "24h": "Dernières 24 heures",
+  "7d": "Derniers 7 jours",
+  "30d": "Derniers 30 jours",
+  this_month: "Ce mois-ci",
+  all: "Tout l'historique conservé",
+};
+
+const RANGE_SHORT: Record<"7d" | "30d" | "this_month" | "all", string> = {
+  "7d": "7 j",
+  "30d": "30 j",
+  this_month: "Mois",
+  all: "Tout",
+};
 
 interface MetricPoint {
   timestamp: string;
@@ -35,9 +56,12 @@ export default function TelemetryHistoryDrawer({
   metric,
   title,
   iconName,
+  rangePeriod = "7d",
 }: TelemetryHistoryDrawerProps) {
   const gradientId = useId();
-  const [period, setPeriod] = useState<"1h" | "6h" | "24h" | "7d">("1h");
+  // « range » = la période du bandeau de la page (7 j, 30 j, mois en cours, tout l'historique conservé).
+  const [period, setPeriod] = useState<"1h" | "6h" | "24h" | "range">("range");
+  const apiPeriod: ApiPeriod = period === "range" ? rangePeriod : period;
   const [loading, setLoading] = useState(false);
   const [historyData, setHistoryData] = useState<HistoryResponse | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
@@ -46,7 +70,7 @@ export default function TelemetryHistoryDrawer({
     if (!metric) return;
     try {
       setLoading(true);
-      const res = await fetch(`/api/metrics/hardware/history?metric=${encodeURIComponent(metric)}&period=${period}`);
+      const res = await fetch(`/api/metrics/hardware/history?metric=${encodeURIComponent(metric)}&period=${apiPeriod}`);
       if (res.ok) {
         const data: HistoryResponse = await res.json();
         setHistoryData(data);
@@ -56,7 +80,7 @@ export default function TelemetryHistoryDrawer({
     } finally {
       setLoading(false);
     }
-  }, [metric, period]);
+  }, [metric, apiPeriod]);
 
   useEffect(() => {
     if (isOpen) {
@@ -136,7 +160,7 @@ export default function TelemetryHistoryDrawer({
   const formatTime = (isoString: string) => {
     try {
       const d = new Date(isoString);
-      if (period === "7d") {
+      if (apiPeriod !== "1h" && apiPeriod !== "6h" && apiPeriod !== "24h") {
         return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
       }
       return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -172,7 +196,7 @@ export default function TelemetryHistoryDrawer({
             <div>
               <h2 className="telemetry-drawer-title">{title}</h2>
               <span className="telemetry-drawer-subtitle">
-                {period === "1h" ? "Dernière heure" : period === "6h" ? "Dernières 6 heures" : period === "24h" ? "Dernières 24 heures" : "Derniers 7 jours"}
+                {RANGE_LABELS[apiPeriod]}
               </span>
             </div>
           </div>
@@ -188,7 +212,7 @@ export default function TelemetryHistoryDrawer({
 
         {/* Sélecteur de période temporelle */}
         <div className="telemetry-drawer-filters">
-          {(["1h", "6h", "24h", "7d"] as const).map((p) => (
+          {(["1h", "6h", "24h", "range"] as const).map((p) => (
             <button
               key={p}
               type="button"
@@ -196,7 +220,7 @@ export default function TelemetryHistoryDrawer({
               onClick={() => setPeriod(p)}
               disabled={loading}
             >
-              {p === "1h" ? "1 h" : p === "6h" ? "6 h" : p === "24h" ? "24 h" : "7 j"}
+              {p === "1h" ? "1 h" : p === "6h" ? "6 h" : p === "24h" ? "24 h" : RANGE_SHORT[rangePeriod]}
             </button>
           ))}
         </div>
