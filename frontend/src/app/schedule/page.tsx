@@ -8,6 +8,7 @@ import Icon from "@/components/Icon";
 import { isRadioLane, parseScheduleChannel, type ScheduleChannel } from "@/lib/scheduleChannels";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SearchBox from "@/components/SearchBox";
+import Highlight from "@/components/Highlight";
 import { matchesQuery } from "@/lib/searchText";
 
 type TargetType = "video" | "playlist" | "radio_playlist";
@@ -37,6 +38,9 @@ interface RadioPlaylistSummary {
   name: string;
   item_count: number;
   total_duration_seconds: number;
+  /** Morceau dont la pochette illustre la playlist (1er morceau ayant une pochette). */
+  cover_track_id?: number | null;
+  is_default?: boolean;
 }
 
 interface ScheduleDetail {
@@ -1167,7 +1171,7 @@ export default function SchedulePage() {
       {channel === "radio_cable" && cableOutput !== null && cableOutput !== "radio" && (
         <div className="interrupted-block" role="status">
           <div className="interrupted-text">
-            <span className="interrupted-label">{t("schedule.radioCableInactiveHint")}</span>
+            <span className="interrupted-label">{t("schedule.radioCableAutoSwitchHint")}</span>
           </div>
         </div>
       )}
@@ -1236,6 +1240,99 @@ export default function SchedulePage() {
             pleine plutôt que la colonne fixe du PC. Sans objet sur le canal
             radio : un seul type de cible (playlist radio), pas
             de bibliothèque vidéo/playlist à glisser-déposer ici. */}
+        {/* Playlists radio SUGGÉRÉES d'emblée (aucune recherche à faire) : cartes avec pochette, durée et
+            nombre de titres, à glisser sur un jour ou à toucher pour programmer — même principe que la
+            bibliothèque rapide des vidéos. */}
+        {libraryOpen && isRadioLane(channel) && (
+          <div className="library-picker glass-floating" style={{ width: isMobile ? "100%" : "260px", height: "auto", flexShrink: 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span className="form-label" style={{ margin: 0 }}>
+                {t("schedule.radioQuickLibrary")}
+              </span>
+              <button className="close-btn" onClick={() => setLibraryOpen(false)} title={t("schedule.hide")}>
+                <Icon name="close" size={16} />
+              </button>
+            </div>
+            <SearchBox
+              className="form-control"
+              placeholder={t("schedule.searchPlaceholder")}
+              value={librarySearch}
+              onChange={setLibrarySearch}
+              suggestions={radioPlaylists.map((p) => p.name)}
+              style={{ height: "32px", fontSize: "0.8rem" }}
+            />
+            <p style={{ fontSize: "0.7rem", color: "var(--text-dim)", margin: 0 }}>{t("schedule.radioDragHint")}</p>
+            <div className="library-picker-list">
+              {radioPlaylists
+                .filter((p) => matchesQuery(p.name, librarySearch))
+                .map((p) => {
+                  const cover = p.cover_track_id != null ? getApiUrl(`/radio/tracks/${p.cover_track_id}/cover`) : null;
+                  const durationMinutes = p.total_duration_seconds ? Math.max(p.total_duration_seconds / 60, MIN_BLOCK_MINUTES) : MIN_BLOCK_MINUTES;
+                  return (
+                    <div
+                      key={`rp-${p.id}`}
+                      className={`picker-card ${isMobile ? "always-show-add" : ""}`}
+                      draggable
+                      role="button"
+                      tabIndex={0}
+                      title={p.name}
+                      onClick={() => openCreateDrawer(undefined, { type: "radio_playlist", id: p.id })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openCreateDrawer(undefined, { type: "radio_playlist", id: p.id });
+                        }
+                      }}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("text/plain", String(p.id));
+                        setDragPayload({ type: "radio_playlist", id: p.id, durationMinutes, label: p.name });
+                      }}
+                      onDragEnd={() => {
+                        setDragPayload(null);
+                        setDragOverDay(null);
+                        setDragOverMinutes(null);
+                      }}
+                    >
+                      <div className="thumbnail-wrapper">
+                        {cover ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={cover} alt="" className="card-thumbnail" />
+                        ) : (
+                          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <Icon name="queue_music" size={20} style={{ opacity: 0.25 }} />
+                          </div>
+                        )}
+                        <span className="card-duration" style={{ fontSize: "0.65rem", padding: "1px 4px" }}>
+                          {formatDuration(p.total_duration_seconds)}
+                        </span>
+                      </div>
+                      <div className="picker-card-content">
+                        <span className="picker-card-title">
+                          <Icon name={p.is_default ? "star" : "queue_music"} size={12} /> {p.name}
+                        </span>
+                        <div className="picker-card-meta">
+                          <span className="release-badge" style={{ fontSize: "0.55rem", padding: "1px 4px" }}>
+                            {t("schedule.tracksCount", { count: p.item_count })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              {radioPlaylists.length === 0 && (
+                <div style={{ gridColumn: "1 / -1", textAlign: "center", color: "var(--text-muted)", fontSize: "0.75rem", padding: "12px" }}>
+                  {t("schedule.noRadioPlaylists")}
+                </div>
+              )}
+              {radioPlaylists.length > 0 && radioPlaylists.every((p) => !matchesQuery(p.name, librarySearch)) && (
+                <div style={{ gridColumn: "1 / -1", textAlign: "center", color: "var(--text-muted)", fontSize: "0.75rem", padding: "12px" }}>
+                  {t("schedule.noResults")}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {libraryOpen && !isRadioLane(channel) && (
           <div className="library-picker glass-floating" style={{ width: isMobile ? "100%" : "260px", height: "auto", flexShrink: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1429,11 +1526,58 @@ export default function SchedulePage() {
                   onChange={setFormTargetSearch}
                   suggestions={targetOptions.map((opt) => opt.label)}
                 />
-                <div className="library-picker-list" style={{ maxHeight: "160px" }}>
+                <div className="library-picker-list" style={{ maxHeight: isRadioLane(channel) ? "260px" : "160px" }}>
                   {targetOptions
                     .filter((opt) => matchesQuery(opt.label, formTargetSearch))
                     .map((opt) => {
                       const selected = String(opt.id) === formTargetId;
+                      const radioPlaylist = isRadioLane(channel) ? findRadioPlaylist(opt.id) : undefined;
+                      if (radioPlaylist) {
+                        // Playlist radio : pochette, durée et nombre de titres visibles AVANT toute recherche.
+                        const cover = radioPlaylist.cover_track_id != null ? getApiUrl(`/radio/tracks/${radioPlaylist.cover_track_id}/cover`) : null;
+                        return (
+                          <div
+                            key={opt.id}
+                            className="library-picker-item"
+                            role="option"
+                            aria-selected={selected}
+                            tabIndex={0}
+                            style={{
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "10px",
+                              borderColor: selected ? "var(--accent-primary)" : undefined,
+                              background: selected ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)" : undefined,
+                            }}
+                            onClick={() => setFormTargetId(String(opt.id))}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setFormTargetId(String(opt.id));
+                              }
+                            }}
+                          >
+                            {cover ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={cover} alt="" style={{ width: 44, height: 44, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
+                            ) : (
+                              <span style={{ width: 44, height: 44, borderRadius: 6, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--bg-surface-elevated)" }}>
+                                <Icon name="queue_music" size={20} style={{ opacity: 0.4 }} />
+                              </span>
+                            )}
+                            <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+                              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                <Highlight text={opt.label} query={formTargetSearch} />
+                              </span>
+                              <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                                {t("schedule.tracksCount", { count: radioPlaylist.item_count })} · {formatDuration(radioPlaylist.total_duration_seconds)}
+                              </span>
+                            </span>
+                            {selected && <Icon name="check" size={18} />}
+                          </div>
+                        );
+                      }
                       return (
                         <div
                           key={opt.id}
