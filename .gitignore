@@ -60,6 +60,7 @@ docs/patch.md
 
 # Composant natif du projecteur (macOS)
 projector/target/
+devices/target/
 
 # Banc de compatibilité navigateurs : session geckodriver locale
 scripts/browser-bench/.wd_session

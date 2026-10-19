@@ -72,6 +72,15 @@ else
     echo "Avertissement: cargo introuvable — le projecteur utilisera le navigateur par défaut." >&2
 fi
 
+echo "=== [3c/5] Sidecar des périphériques (audio, Bluetooth, Wi-Fi) ==="
+# Copié dans le bundle AVANT la signature ad-hoc ; sans lui, l'onglet Périphériques reste « non pris en charge ».
+if command -v cargo >/dev/null 2>&1; then
+    (cd "${REPO_DIR}/devices" && cargo build --release --locked)
+    cp "${REPO_DIR}/devices/target/release/bobine-devices" "${APP_PATH}/Contents/MacOS/bobine-devices"
+else
+    echo "Avertissement: cargo introuvable — l'onglet Périphériques sera indisponible." >&2
+fi
+
 echo "=== [4/5] Signature ad-hoc (requise par le noyau sur Apple Silicon) ==="
 # Sans ceci, macOS tue au lancement ("Killed: 9") tout binaire/bibliothèque
 # non signé sur Apple Silicon — l'exigence vient du noyau (AMFI), pas de

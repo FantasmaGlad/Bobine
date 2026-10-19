@@ -344,6 +344,35 @@ jobs:
           name: bobine-assistant-linux-arm64
           path: assistant/target/release/bobine-assistant-arm64
 
+  devices-sidecar:
+    # Sidecar Rust de l'onglet Périphériques (Windows/macOS) : protocole JSON-RPC, liste blanche de
+    # méthodes, analyseurs des sorties d'outils. Les binaires Windows/macOS sont construits et
+    # embarqués dans leurs jobs de packaging respectifs.
+    name: Devices sidecar (Rust)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: devices
+    env:
+      CARGO_NET_RETRY: "10"
+      CARGO_HTTP_TIMEOUT: "60"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            devices/target
+          key: cargo-devices-${{ runner.os }}-${{ hashFiles('devices/Cargo.toml', 'devices/Cargo.lock') }}
+      - name: Clippy
+        run: |
+          rustup component add clippy
+          cargo clippy --locked --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --locked
+
   android-build:
     # Compile et signe les APK Android (Chaquopy + FastAPI embarqué + binaires FFmpeg ARM).
     # Téléphone/tablette : arm64-v8a (Python 3.13). Android TV : armeabi-v7a +
@@ -576,6 +605,16 @@ jobs:
       - name: Construire BobineBackend.exe + BobineTray.exe
         working-directory: backend
         run: pyinstaller ../packaging/windows/bobine.spec
+      - name: Compiler le sidecar des périphériques (bobine-devices.exe)
+        working-directory: devices
+        shell: pwsh
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
+        run: |
+          cargo test --locked
+          cargo build --release --locked
+          Copy-Item "target\release\bobine-devices.exe" ..\backend\dist\Bobine\
       - name: Fournir ffmpeg.exe/ffprobe.exe (build statique BtbN, appelés par nom nu par le backend)
         shell: pwsh
         run: |
@@ -660,6 +699,17 @@ jobs:
       - name: Construire BobineBackend.exe + BobineTray.exe (ARM64)
         working-directory: backend
         run: pyinstaller ../packaging/windows/bobine.spec
+      - name: Compiler le sidecar des périphériques (ARM64, facultatif)
+        working-directory: devices
+        shell: pwsh
+        continue-on-error: true
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
+        run: |
+          cargo test --locked
+          cargo build --release --locked
+          Copy-Item "target\release\bobine-devices.exe" ..\backend\dist\Bobine\
       - name: Fournir ffmpeg.exe/ffprobe.exe (build statique BtbN winarm64 avec repli win64)
         shell: pwsh
         run: |
@@ -906,6 +956,15 @@ jobs:
           cargo test --locked
           cargo build --release --locked
           cp target/release/bobine-projector ../backend/dist/Bobine.app/Contents/MacOS/bobine-projector
+      - name: Tester et construire le sidecar des périphériques
+        working-directory: devices
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
+        run: |
+          cargo test --locked
+          cargo build --release --locked
+          cp target/release/bobine-devices ../backend/dist/Bobine.app/Contents/MacOS/bobine-devices
       - name: Vérifier la présence de l'icône dans le bundle
         run: test -f backend/dist/Bobine.app/Contents/Resources/bobine.icns
       - name: Signature ad-hoc (requise par le noyau sur Apple Silicon)
@@ -938,7 +997,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [version, frontend, firefox-smoke, backend, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build]
+    needs: [version, frontend, firefox-smoke, backend, devices-sidecar, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build]
     runs-on: ubuntu-latest
     steps:
       - name: Tous les contrôles sont verts

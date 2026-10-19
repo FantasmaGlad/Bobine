@@ -1,0 +1,21 @@
+[package]
+name = "bobine-devices"
+version = "0.1.0"
+edition = "2021"
+description = "Sidecar de gestion des peripheriques de Bobine (audio, Bluetooth, Wi-Fi) pour Windows et macOS : JSON-RPC 2.0 sur stdin/stdout, liste blanche de methodes, aucun port reseau."
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/FantasmaGlad/Bobine"
+publish = false
+
+[[bin]]
+name = "bobine-devices"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
