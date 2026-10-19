@@ -8993,3 +8993,88 @@ video::cue {
   background-color: rgba(0, 0, 0, 0.62);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
 }
+
+/* ---- Gestion du son d'une sortie radio (RadioSoundPanel) ---- */
+.radio-sound-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+.radio-sound-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.radio-sound-title {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+.radio-sound-presets,
+.radio-sound-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.radio-sound-chip {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.radio-sound-chip.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: var(--accent-foreground, #fff);
+}
+.radio-sound-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.radio-sound-bands {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.radio-sound-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 56px;
+  align-items: center;
+  gap: 10px;
+}
+.radio-sound-row-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.radio-sound-row-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.radio-sound-row .volume-slider {
+  width: 100%;
+  min-width: 0;
+}
+.radio-sound-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.radio-sound-reset {
+  margin-left: auto;
+  height: 34px;
+  padding: 0 14px;
+  font-size: 0.8rem;
+}

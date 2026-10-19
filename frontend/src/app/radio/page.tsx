@@ -7,10 +7,14 @@ import { RadioEvent, RadioRepeatMode, RadioTrackInfo, selectRadioTarget, useRadi
 import { useMediaClockFollower } from "@/lib/useMediaClockFollower";
 import { useKioskRemote } from "@/lib/useKioskRemote";
 import { radioChannelId } from "@/lib/displayChannel";
+import { createSoundChain, type SoundChain } from "@/lib/radioSoundGraph";
+import { defaultSound } from "@/lib/radioSound";
 import { detectAutoplayAllowed } from "@/lib/autoplayProbe";
 import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
+import Sheet from "@/components/Sheet";
+import RadioSoundPanel from "@/components/RadioSoundPanel";
 
 // Écran du poste radio dédié : mise en page "type Spotify", lecteur PRIMAIRE (source de la
 // position rapportée au serveur, comme le kiosk câblé/réseau).
@@ -82,6 +86,10 @@ export default function RadioScreenPage() {
   };
   const announcementGainRef = useRef<GainNode | null>(null);
   const graphReadyRef = useRef(false);
+  // Chaîne de son de la sortie (égaliseur, basses, loudness, limiteur) et derniers réglages
+  // reçus du serveur : le graphe peut être créé APRÈS leur arrivée (déverrouillage tardif).
+  const soundChainRef = useRef<SoundChain | null>(null);
+  const soundRef = useRef(defaultSound());
 
   const [unlocked, setUnlocked] = useState(false);
   const [lastCause, setLastCause] = useState("sync");
@@ -143,13 +151,17 @@ export default function RadioScreenPage() {
     if (!AudioContextClass) return; // navigateur sans Web Audio API : dégradation silencieuse (pas de fondu, l'enchaînement net de L3/L4 reste fonctionnel via onEnded)
     const ctx = new AudioContextClass();
     audioCtxRef.current = ctx;
+    // Toute la MUSIQUE (les deux slots du fondu enchaîné) passe par UNE chaîne de son avant la
+    // sortie ; les rappels vocaux la contournent (intelligibilité), cf. lib/radioSoundGraph.ts.
+    const soundChain = createSoundChain(ctx, ctx.destination, soundRef.current);
+    soundChainRef.current = soundChain;
     for (const slot of [0, 1] as Slot[]) {
       const el = getAudioEl(slot);
       if (!el) continue;
       el.volume = 1; // le volume réel passe désormais par le GainNode, jamais par l'élément
       const gain = ctx.createGain();
       gain.gain.value = slot === activeSlotRef.current ? initialVolume / 100 : 0;
-      gain.connect(ctx.destination);
+      gain.connect(soundChain.input);
       ctx.createMediaElementSource(el).connect(gain);
       setGainRef(slot, gain);
     }
@@ -380,6 +392,14 @@ export default function RadioScreenPage() {
     "kiosk",
     radioChannel,
   );
+  // Réglages de son de la sortie : appliqués à la chaîne dès qu'ils changent (clé JSON stable :
+  // l'objet `sound` est recréé à chaque évènement d'état, seul son contenu compte).
+  const soundKey = JSON.stringify(state.sound);
+  useEffect(() => {
+    soundRef.current = state.sound;
+    soundChainRef.current?.apply(state.sound);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `soundKey` résume le contenu de state.sound
+  }, [soundKey]);
   // La radio de la sortie câblée repart vers kiosk/cinéma quand l'admin y rebascule l'écran
   // câblé (jamais au montage, et jamais pour un poste radio réseau).
   useDisplayOutputRedirect("radio", displayOutputCable, null);
@@ -649,6 +669,9 @@ export default function RadioScreenPage() {
     };
   }, []);
 
+  // Tiroir « Son » (égaliseur, basses, préréglages) : souris, tactile ou télécommande.
+  const [soundOpen, setSoundOpen] = useState(false);
+
   const handlePlayAnnouncement = () => sendCommand("radio_play_announcement", {});
 
   const currentTrack = state.current_track;
@@ -788,6 +811,14 @@ export default function RadioScreenPage() {
           </div>
 
           <div className="radio-screen-volume">
+            <button
+              className={`radio-transport-btn ${soundOpen ? "active" : ""}`}
+              onClick={() => setSoundOpen(true)}
+              title={t("radioSound.openHint")}
+              aria-label={t("radioSound.open")}
+            >
+              <Icon name="equalizer" size={20} />
+            </button>
             <Icon name="volume_up" size={18} />
             <input
               type="range"
@@ -803,6 +834,9 @@ export default function RadioScreenPage() {
           </div>
         </>
       )}
+      <Sheet open={soundOpen} onClose={() => setSoundOpen(false)} title={t("radioSound.title")} closeLabel={t("radioSound.close")}>
+        <RadioSoundPanel sound={state.sound} sendCommand={sendCommand} />
+      </Sheet>
     </div>
   );
 }

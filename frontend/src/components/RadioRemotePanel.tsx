@@ -7,6 +7,7 @@ import { RadioEvent, RadioRepeatMode, useRadioSocket } from "@/lib/useRadioSocke
 import type { RadioChannelId } from "@/lib/displayChannel";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import Icon from "@/components/Icon";
+import RadioSoundPanel from "@/components/RadioSoundPanel";
 
 // Télécommande d'UNE sortie radio (câblée ou réseau) : pilote le RadioPlaybackManager de la
 // sortie à distance (mobile + PC). Le lecteur réel est l'écran /radio?channel=… ; ce composant
@@ -336,6 +337,12 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
               {t("radioRemote.shuffleAll")}
             </button>
             {playlists.length === 0 && <p className="live-empty" style={{ marginTop: "12px" }}>{t("radioRemote.noPlaylists")}</p>}
+          </div>
+
+          {/* Gestion du son de CETTE sortie : égaliseur, basses, préréglages. Appliqué par le
+              lecteur de la sortie (graphe Web Audio), réglages persistés par sortie. */}
+          <div className="live-block" style={{ marginTop: "16px" }}>
+            <RadioSoundPanel sound={state.sound} sendCommand={sendCommand} variant={variant} />
           </div>
         </div>
 
