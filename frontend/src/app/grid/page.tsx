@@ -12,6 +12,7 @@ import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import MarqueeText from "@/components/MarqueeText";
 import CourseRatingWidget from "@/components/CourseRatingWidget";
+import RadioRemotePanel from "@/components/RadioRemotePanel";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 
 // écran de sélection
@@ -633,6 +634,32 @@ export default function GridPage() {
               </a>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Sortie câblée basculée sur Radio : la sortie externe (HDMI) joue la radio câblée
+  // (/radio?channel=cable), il n'y a donc plus de cours à choisir. L'écran tactile devient la
+  // mini-télécommande du moteur radio câblé (la même que dans l'administration, variante
+  // compacte) — /grid garde ainsi son rôle : piloter la sortie câblée.
+  if (displayOutputCable === "radio") {
+    return (
+      <div className="grid-standby-root" style={{ overflowY: "auto", alignItems: "flex-start" }}>
+        <div className="dashboard-container" style={{ width: "100%", maxWidth: "920px", margin: "0 auto", padding: "20px" }}>
+          <div className="live-block" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+            <AppLogo size={40} className="grid-standby-logo" />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h3 style={{ margin: 0 }}>
+                <Icon name="radio" size={18} /> {t("radioRemote.gridRadioActiveTitle")}
+              </h3>
+              <p style={{ margin: "4px 0 0", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                {t("radioRemote.gridRadioActiveHint")}
+              </p>
+            </div>
+            <span className="grid-standby-clock">{formatClock(now)}</span>
+          </div>
+          <RadioRemotePanel key="radio_cable" channel="radio_cable" variant="compact" />
         </div>
       </div>
     );
