@@ -12,6 +12,7 @@ from app.utils.activity_log import log_activity
 from app.utils.video_utils import (
     extract_metadata,
     check_compatibility,
+    generate_placeholder_thumbnail,
     generate_thumbnail,
     normalize_video,
     read_mp4_duration_seconds,
@@ -349,6 +350,10 @@ def _import_background_image(src_path: str, original_filename: str, job_id: str 
             thumbnail_path = str(thumb_dest)
     except Exception as te:
         logger.error(f"Échec de la génération de miniature pour {dest_path}: {te}")
+        try:
+            thumbnail_path = generate_placeholder_thumbnail(settings.thumbnails_dir, Path(original_filename).stem)
+        except Exception as pe:
+            logger.error(f"Miniature de secours impossible pour {dest_path}: {pe}")
 
     update_job(job_id, stage="saving")
     db = SessionLocal()
@@ -479,7 +484,14 @@ def import_background(
             )
         except Exception as te:
             logger.error(f"Échec de la génération de miniature pour {dest_path}: {te}")
-            thumbnail_path = None
+            # Miniature de secours : le fond (et les cours audio qui l'utilisent) ne reste pas sans visuel.
+            try:
+                thumbnail_path = generate_placeholder_thumbnail(
+                    settings.thumbnails_dir, Path(original_filename).stem
+                )
+            except Exception as pe:
+                logger.error(f"Miniature de secours impossible pour {dest_path}: {pe}")
+                thumbnail_path = None
 
         if is_job_cancelled(job_id):
             raise JobCancelledError(f"Job {job_id} annulé")

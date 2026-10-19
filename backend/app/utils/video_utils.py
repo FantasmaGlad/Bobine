@@ -430,6 +430,12 @@ def generate_thumbnail(video_path: str, thumbnail_dir: str, duration: float | No
             subprocess.run(current_cmd, capture_output=True, text=True, check=True, timeout=FFMPEG_THUMBNAIL_TIMEOUT_SECONDS)
             if thumb_path.exists() and thumb_path.stat().st_size > 0:
                 return True
+        except subprocess.TimeoutExpired:
+            # Machine chargée (plusieurs encodages en parallèle sur un Wyse/une tablette) : un dépassement ne
+            # doit pas abandonner toute la génération — les essais suivants (début du fichier, plus rapides) restent possibles.
+            logger.error(f"ffmpeg thumbnail attempt timed out after {FFMPEG_THUMBNAIL_TIMEOUT_SECONDS}s: {video_path}")
+        except OSError as err:  # binaire ffmpeg introuvable ou non exécutable : inutile d'insister, mais jamais une exception brute
+            logger.error(f"ffmpeg thumbnail attempt could not start: {err}")
         except subprocess.CalledProcessError as err:
             if is_android and ("av1" in (err.stderr or "").lower() or "not implemented" in (err.stderr or "").lower()):
                 # Tentative avec le décodeur matériel MediaCodec
@@ -460,7 +466,39 @@ def generate_thumbnail(video_path: str, thumbnail_dir: str, duration: float | No
     if _try_run_thumb(cmd):
         return str(thumb_path)
 
+    # Dernier essai : nouvelle tentative au début du fichier après une courte pause (échec transitoire : disque
+    # saturé par un import voisin, fichier encore en cours d'écriture...).
+    time.sleep(1.0)
+    cmd[2] = "0.0"
+    if _try_run_thumb(cmd):
+        return str(thumb_path)
+
     raise ValueError("Impossible de générer la miniature avec ffmpeg : le fichier de sortie est vide ou inexistant.")
+
+
+def generate_placeholder_thumbnail(thumbnail_dir: str, title: str = "") -> str:
+    """Miniature de secours (dégradé sobre + initiale) quand ffmpeg ne parvient pas à en extraire une :
+    une carte de fond animé ou de cours audio n'apparaît ainsi jamais « cassée » (vide) dans l'interface.
+    Pillow uniquement — aucune dépendance à ffmpeg."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    width, height = 640, 360
+    image = Image.new("RGB", (width, height), (30, 34, 48))
+    draw = ImageDraw.Draw(image)
+    for y in range(height):  # dégradé vertical léger
+        shade = int(30 + 40 * y / height)
+        draw.line([(0, y), (width, y)], fill=(shade, shade + 4, shade + 22))
+    letter = next((c for c in (title or "") if c.isalnum()), "♪").upper()
+    try:
+        font = ImageFont.load_default(size=160)
+    except TypeError:  # Pillow ancien : police bitmap par défaut, plus petite
+        font = ImageFont.load_default()
+    box = draw.textbbox((0, 0), letter, font=font)
+    draw.text(((width - (box[2] - box[0])) / 2 - box[0], (height - (box[3] - box[1])) / 2 - box[1]), letter, fill=(205, 210, 235), font=font)
+    out = Path(thumbnail_dir) / f"thumb_{uuid.uuid4().hex}.jpg"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    image.save(out, "JPEG", quality=88)
+    return str(out)
 
 
 def _get_target_bitrate(width: int | None, height: int | None) -> str:

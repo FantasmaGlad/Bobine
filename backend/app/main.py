@@ -412,11 +412,39 @@ async def stream_radio_announcement(
     return await _range_stream_response(Path(announcement.file_path), request, content_type_for(announcement.file_path))
 
 
+class _EnsuredDirStaticFiles(StaticFiles):
+    """StaticFiles qui (re)crée son dossier avant de le contrôler : starlette lève sinon une RuntimeError
+    (HTTP 500) quand le dossier n'existe pas à la première requête (stockage amovible absent au démarrage,
+    remise à zéro, dossier purgé à la main). Une simple image ne doit jamais produire une 500."""
+
+    async def check_config(self) -> None:
+        try:
+            Path(self.directory).mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass  # stockage indisponible : traité ci-dessous
+
+        try:
+            await super().check_config()
+        except RuntimeError:
+            self.config_checked = False  # réessaiera à la requête suivante
+            raise
+
+    async def __call__(self, scope, receive, send) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        except RuntimeError as exc:
+            if scope.get("type") != "http" or "does not exist" not in str(exc):
+                raise
+            from starlette.responses import PlainTextResponse
+
+            await PlainTextResponse("Introuvable", status_code=404)(scope, receive, send)
+
+
 # Montage des dossiers statiques requis
 # Miniatures
 thumbnails_path = Path(settings.thumbnails_dir)
 thumbnails_path.mkdir(parents=True, exist_ok=True)
-app.mount("/api/thumbnails", StaticFiles(directory=str(thumbnails_path)), name="thumbnails")
+app.mount("/api/thumbnails", _EnsuredDirStaticFiles(directory=str(thumbnails_path)), name="thumbnails")
 
 # Branding (logo personnalisé) : DOIT être
 # monté avant le catch-all frontend ci-dessous, sinon la route serait masquée.
