@@ -924,7 +924,7 @@ export default function DashboardScreen({ channel }: Props) {
               <p className="launch-block-hint">
                 {isCable ? t("dashboard.launchCourseCableHint") : t("dashboard.launchCourseNetworkHint")}
               </p>
-              <div className="launch-row">
+              <div className="launch-row launch-row--stacked">
                 {/* Sélecteur riche : aperçu du cours, programme, durée et recherche intégrée. */}
                 <ResponsiveSelect
                   style={{ flex: 1, minWidth: 0 }}
@@ -965,7 +965,7 @@ export default function DashboardScreen({ channel }: Props) {
                 <Icon name="playlist_play" size={18} />
                 {t("dashboard.launchPlaylistTitle")}
               </h3>
-              <div className="launch-row">
+              <div className="launch-row launch-row--stacked">
                 <ResponsiveSelect
                   style={{ flex: 1, minWidth: 0 }}
                   value={selectedPlaylistId}

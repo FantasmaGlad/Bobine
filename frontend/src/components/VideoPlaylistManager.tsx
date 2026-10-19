@@ -6,6 +6,8 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useIsMobile } from "@/lib/useIsMobile";
 import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
+import SearchBox from "@/components/SearchBox";
+import { matchesQuery } from "@/lib/searchText";
 
 interface Video {
   id: number;
@@ -422,13 +424,11 @@ export default function VideoPlaylistManager() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
   }, [videos]);
 
-  const filteredPlaylists = playlists.filter((p) =>
-    p.name.toLowerCase().includes(playlistSearch.toLowerCase())
-  );
+  const filteredPlaylists = playlists.filter((p) => matchesQuery(p.name, playlistSearch));
 
   const filteredVideos = videos.filter((v) => {
     const matchesSearch =
-      v.title.toLowerCase().includes(videoSearch.toLowerCase()) ||
+      matchesQuery(`${v.title} ${v.program ?? ""}`, videoSearch) ||
       (v.release && v.release.includes(videoSearch));
     const matchesProgram = !videoProgramFilter || v.program === videoProgramFilter;
     return matchesSearch && matchesProgram;
@@ -467,12 +467,12 @@ export default function VideoPlaylistManager() {
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
-            <input
-              type="text"
+            <SearchBox
               className="form-control"
               placeholder={t("playlists.searchPlaceholder")}
               value={playlistSearch}
-              onChange={(e) => setPlaylistSearch(e.target.value)}
+              onChange={setPlaylistSearch}
+              suggestions={playlists.map((p) => p.name)}
               style={{ height: "38px", fontSize: "0.85rem" }}
             />
             <button className="btn btn-primary" onClick={handleCreateOpen} style={{ width: "100%", height: "38px" }}>
@@ -725,14 +725,16 @@ export default function VideoPlaylistManager() {
                 </div>
 
                 <div style={{ display: "flex", gap: "8px", flexWrap: isMobile ? "wrap" : "nowrap" }}>
-                  <input
-                    type="text"
-                    className="form-control"
-                    style={{ flex: 1, height: "32px", fontSize: "0.8rem", padding: "0 10px", minWidth: isMobile ? "100%" : undefined }}
-                    placeholder={t("playlists.videoSearchPlaceholder")}
-                    value={videoSearch}
-                    onChange={(e) => setVideoSearch(e.target.value)}
-                  />
+                  <div style={{ flex: 1, minWidth: isMobile ? "100%" : undefined }}>
+                    <SearchBox
+                      className="form-control"
+                      style={{ height: "32px", fontSize: "0.8rem", padding: "0 10px" }}
+                      placeholder={t("playlists.videoSearchPlaceholder")}
+                      value={videoSearch}
+                      onChange={setVideoSearch}
+                      suggestions={videos.flatMap((v) => (v.program ? [v.title, v.program] : [v.title]))}
+                    />
+                  </div>
                   <ResponsiveSelect
                     style={{ minHeight: "32px", fontSize: "0.8rem", padding: "0 8px" }}
                     value={videoProgramFilter}

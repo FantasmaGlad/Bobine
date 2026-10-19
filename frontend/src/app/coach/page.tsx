@@ -9,6 +9,8 @@ import { anchorPosition } from "@/lib/playbackClock";
 import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
 import { navLinks, footerNavLinks } from "@/lib/navLinks";
 import Icon from "@/components/Icon";
+import SearchBox from "@/components/SearchBox";
+import { matchesQuery } from "@/lib/searchText";
 
 interface AudioCourseSummary {
   id: number;
@@ -149,9 +151,11 @@ export default function CoachModePage() {
   const remaining = currentTrack?.duration_seconds
     ? Math.max(0, currentTrack.duration_seconds - localPos)
     : null;
-  const filteredCourses = courses.filter((c) => c.title.toLowerCase().includes(search.toLowerCase()));
+  // Autocomplétion : titres des cours et des playlists audio.
+  const searchSuggestions = [...courses.map((c) => c.title), ...audioPlaylists.map((p) => p.name)];
+  const filteredCourses = courses.filter((c) => matchesQuery(c.title, search));
 
-  const filteredAudioPlaylists = audioPlaylists.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredAudioPlaylists = audioPlaylists.filter((p) => matchesQuery(p.name, search));
 
   // Tap 2/2 : le choix du cours suffit à le lancer.
   const launchCourse = (courseId: number) => {
@@ -236,12 +240,12 @@ export default function CoachModePage() {
           <p className="coach-picker-subtitle">
             {connected ? t("coach.chooseCourseHint") : t("coach.connectingHint")}
           </p>
-          <input
-            type="text"
+          <SearchBox
             className="search-input coach-picker-search"
             placeholder={t("coach.searchPlaceholder")}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={setSearch}
+            suggestions={searchSuggestions}
           />
           {/* Onglet Cours isolés / Playlists audio : deux listes distinctes plutôt qu'une seule mélangée. */}
           <div className="coach-picker-tabs">

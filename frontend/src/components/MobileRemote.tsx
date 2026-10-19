@@ -17,6 +17,8 @@ import { courseThumbSrc, formatClock } from "@/lib/courseMeta";
 import { formatCleanDescription } from "@/lib/formatDescription";
 import { getAudioQualityBadge, getResolutionBadge } from "@/lib/videoBadges";
 import type { DisplayOutput } from "@/lib/displayChannel";
+import SearchBox from "@/components/SearchBox";
+import { matchesQuery } from "@/lib/searchText";
 
 interface VideoSummary {
   id: number;
@@ -166,9 +168,15 @@ export default function MobileRemote({
   const cinemaChapters = useVideoChapters(cinemaLive?.video_id, getApiUrl);
   const cinemaVideo = cinemaLive?.video_id ? videos.find((v) => v.id === cinemaLive.video_id) ?? null : null;
 
-  const filteredVideos = videos.filter((v) => `${v.title} ${v.program ?? ""}`.toLowerCase().includes(launchSearch.toLowerCase()));
-  const filteredPlaylists = playlists.filter((p) => p.name.toLowerCase().includes(launchSearch.toLowerCase()));
-  const filteredBackgrounds = backgrounds.filter((b) => b.title.toLowerCase().includes(launchSearch.toLowerCase()));
+  // Autocomplétion de la recherche « Lancer un cours » : cours, programmes, playlists, fonds.
+  const launchSuggestions = [
+    ...videos.flatMap((v) => (v.program ? [v.title, v.program] : [v.title])),
+    ...playlists.map((p) => p.name),
+    ...backgrounds.map((b) => b.title),
+  ];
+  const filteredVideos = videos.filter((v) => matchesQuery(`${v.title} ${v.program ?? ""}`, launchSearch));
+  const filteredPlaylists = playlists.filter((p) => matchesQuery(p.name, launchSearch));
+  const filteredBackgrounds = backgrounds.filter((b) => matchesQuery(b.title, launchSearch));
 
   return (
     <div className="mobile-remote">
@@ -457,14 +465,12 @@ export default function MobileRemote({
         header={
           previewVideo ? undefined : (
             <>
-              <input
-                type="search"
+              <SearchBox
                 className="search-input sheet-search"
                 placeholder={t("mobileRemote.searchPlaceholder")}
                 value={launchSearch}
-                onChange={(e) => setLaunchSearch(e.target.value)}
-                autoComplete="off"
-                enterKeyHint="search"
+                onChange={setLaunchSearch}
+                suggestions={launchSuggestions}
               />
               <div className="view-toggle launch-tabs" style={{ marginTop: 10 }}>
                 {(

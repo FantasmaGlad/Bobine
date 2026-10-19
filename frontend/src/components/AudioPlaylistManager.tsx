@@ -6,6 +6,8 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useIsMobile } from "@/lib/useIsMobile";
 import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
+import SearchBox from "@/components/SearchBox";
+import { matchesQuery } from "@/lib/searchText";
 
 interface AudioTrackSummary {
   id: number;
@@ -469,14 +471,11 @@ export default function AudioPlaylistManager() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
   }, [courses]);
 
-  const filteredPlaylists = playlists.filter((p) =>
-    p.name.toLowerCase().includes(playlistSearch.toLowerCase())
-  );
+  const filteredPlaylists = playlists.filter((p) => matchesQuery(p.name, playlistSearch));
 
   const filteredTracks = tracks.filter((tr) => {
     const matchesSearch =
-      tr.title.toLowerCase().includes(trackSearch.toLowerCase()) ||
-      tr.course_title.toLowerCase().includes(trackSearch.toLowerCase());
+      matchesQuery(tr.title, trackSearch) || matchesQuery(tr.course_title, trackSearch);
     const matchesProgram = !trackProgramFilter || tr.course_program === trackProgramFilter;
     return matchesSearch && matchesProgram;
   });
@@ -525,12 +524,12 @@ export default function AudioPlaylistManager() {
           </h3>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
-            <input
-              type="text"
+            <SearchBox
               className="form-control"
               placeholder={t("audioPlaylists.searchPlaceholder")}
               value={playlistSearch}
-              onChange={(e) => setPlaylistSearch(e.target.value)}
+              onChange={setPlaylistSearch}
+              suggestions={playlists.map((p) => p.name)}
               style={{ height: "38px", fontSize: "0.85rem" }}
             />
             <button className="btn btn-primary" onClick={handleCreateOpen} style={{ width: "100%", height: "38px" }}>
@@ -789,14 +788,16 @@ export default function AudioPlaylistManager() {
                 </div>
 
                 <div style={{ display: "flex", gap: "8px", flexWrap: isMobile ? "wrap" : "nowrap" }}>
-                  <input
-                    type="text"
-                    className="form-control"
-                    style={{ flex: 1, height: "32px", fontSize: "0.8rem", padding: "0 10px", minWidth: isMobile ? "100%" : undefined }}
-                    placeholder={t("audioPlaylists.courseSearchPlaceholder")}
-                    value={trackSearch}
-                    onChange={(e) => setTrackSearch(e.target.value)}
-                  />
+                  <div style={{ flex: 1, minWidth: isMobile ? "100%" : undefined }}>
+                    <SearchBox
+                      className="form-control"
+                      style={{ height: "32px", fontSize: "0.8rem", padding: "0 10px" }}
+                      placeholder={t("audioPlaylists.courseSearchPlaceholder")}
+                      value={trackSearch}
+                      onChange={setTrackSearch}
+                      suggestions={tracks.flatMap((tr) => [tr.title, tr.course_title])}
+                    />
+                  </div>
                   <ResponsiveSelect
                     style={{ minHeight: "32px", fontSize: "0.8rem", padding: "0 8px" }}
                     value={trackProgramFilter}

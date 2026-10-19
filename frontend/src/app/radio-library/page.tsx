@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useUploadManager } from "@/lib/UploadManager";
 import Icon from "@/components/Icon";
+import SearchBox from "@/components/SearchBox";
+import { matchesQuery } from "@/lib/searchText";
 
 // Bibliothèque musicale Radio — écran unique « vue d'ensemble » (refonte).
 // Barre latérale persistante (playlists / tags / genres / artistes, tous
@@ -638,9 +640,14 @@ export default function RadioLibraryPage() {
     return Array.from(map.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
   }, [tracks]);
 
-  const q = search.trim().toLowerCase();
+  // Autocomplétion : titres, artistes, albums et styles de toute la bibliothèque.
+  const trackSuggestions = useMemo(
+    () => tracks.flatMap((tr) => [tr.title, tr.artist, tr.album, tr.genre].filter((x): x is string => !!x)),
+    [tracks],
+  );
+  const q = search.trim();
   const filteredTracks = useMemo(() => tracks.filter((tr) => {
-    if (q && ![tr.title, tr.artist, tr.album].some((f) => (f ?? "").toLowerCase().includes(q))) return false;
+    if (q && !matchesQuery(`${tr.title} ${tr.artist ?? ""} ${tr.album ?? ""} ${tr.genre ?? ""}`, q)) return false;
     if (filter) {
       if (filter.type === "artist" && tr.artist !== filter.value && tr.album_artist !== filter.value) return false;
       if (filter.type === "album" && tr.album !== filter.value) return false;
@@ -652,8 +659,7 @@ export default function RadioLibraryPage() {
 
   const addableTracks = editingPlaylist
     ? tracks.filter((tr) => {
-        const s = addTrackSearch.trim().toLowerCase();
-        return !s || [tr.title, tr.artist, tr.album].some((f) => (f ?? "").toLowerCase().includes(s));
+        return matchesQuery(`${tr.title} ${tr.artist ?? ""} ${tr.album ?? ""}`, addTrackSearch);
       })
     : [];
 
@@ -744,10 +750,12 @@ export default function RadioLibraryPage() {
           </button>
         </div>
 
-        <input
-          type="text" className="search-input rl-search"
+        <SearchBox
+          className="search-input rl-search"
           placeholder={t("radioLibrary.searchPlaceholder")}
-          value={search} onChange={(e) => setSearch(e.target.value)}
+          value={search}
+          onChange={setSearch}
+          suggestions={trackSuggestions}
         />
 
         <button
@@ -1086,11 +1094,12 @@ export default function RadioLibraryPage() {
                 refermer quoi que ce soit, une seule liste défile en dessous. */}
             <div className="rl-pl-search-bar">
               <Icon name="search" size={18} style={{ opacity: 0.5 }} />
-              <input
-                type="text" className="rl-pl-search-input"
+              <SearchBox
+                className="rl-pl-search-input"
                 placeholder={t("radioLibrary.addTracksSearch")}
                 value={addTrackSearch}
-                onChange={(e) => setAddTrackSearch(e.target.value)}
+                onChange={setAddTrackSearch}
+                suggestions={trackSuggestions}
               />
               {addTrackSearch && (
                 <button type="button" className="rl-pl-search-clear" onClick={() => setAddTrackSearch("")}><Icon name="close" size={16} /></button>

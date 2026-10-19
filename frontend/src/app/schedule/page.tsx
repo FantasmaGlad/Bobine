@@ -7,6 +7,8 @@ import type { Language } from "@/lib/i18n";
 import Icon from "@/components/Icon";
 import { isRadioLane, parseScheduleChannel, type ScheduleChannel } from "@/lib/scheduleChannels";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
+import SearchBox from "@/components/SearchBox";
+import { matchesQuery } from "@/lib/searchText";
 
 type TargetType = "video" | "playlist" | "radio_playlist";
 type ScheduleTypeValue = "once" | "recurring";
@@ -435,8 +437,8 @@ export default function SchedulePage() {
     [formTargetType, videos, playlists, radioPlaylists]
   );
 
-  const filteredVideos = videos.filter((v) => v.title.toLowerCase().includes(librarySearch.toLowerCase()));
-  const filteredPlaylists = playlists.filter((p) => p.name.toLowerCase().includes(librarySearch.toLowerCase()));
+  const filteredVideos = videos.filter((v) => matchesQuery(v.title, librarySearch));
+  const filteredPlaylists = playlists.filter((p) => matchesQuery(p.name, librarySearch));
 
   // --------------------------------------------------------------------
   // Navigation semaine
@@ -1244,12 +1246,12 @@ export default function SchedulePage() {
                 <Icon name="close" size={16} />
               </button>
             </div>
-            <input
-              type="text"
+            <SearchBox
               className="form-control"
               placeholder={t("schedule.searchPlaceholder")}
               value={librarySearch}
-              onChange={(e) => setLibrarySearch(e.target.value)}
+              onChange={setLibrarySearch}
+              suggestions={[...videos.map((v) => v.title), ...playlists.map((p) => p.name)]}
               style={{ height: "32px", fontSize: "0.8rem" }}
             />
             <p style={{ fontSize: "0.7rem", color: "var(--text-dim)", margin: 0 }}>
@@ -1420,16 +1422,16 @@ export default function SchedulePage() {
               </div>
 
               <div className="form-group">
-                <input
-                  type="text"
+                <SearchBox
                   className="form-control"
                   placeholder={t("schedule.searchPlaceholder")}
                   value={formTargetSearch}
-                  onChange={(e) => setFormTargetSearch(e.target.value)}
+                  onChange={setFormTargetSearch}
+                  suggestions={targetOptions.map((opt) => opt.label)}
                 />
                 <div className="library-picker-list" style={{ maxHeight: "160px" }}>
                   {targetOptions
-                    .filter((opt) => opt.label.toLowerCase().includes(formTargetSearch.toLowerCase()))
+                    .filter((opt) => matchesQuery(opt.label, formTargetSearch))
                     .map((opt) => {
                       const selected = String(opt.id) === formTargetId;
                       return (

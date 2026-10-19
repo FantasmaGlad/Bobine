@@ -20,6 +20,7 @@ import { formatCleanDescription } from "@/lib/formatDescription";
 import { subtitleSrc } from "@/lib/subtitles";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import ChapterEditor from "@/components/ChapterEditor";
+import SearchBox from "@/components/SearchBox";
 
 interface VideoSubtitleItem {
   id: number;
@@ -229,6 +230,11 @@ export default function LibraryPage() {
   // Liste de suggestions = catégories du serveur ∪ celles des vidéos déjà
   // chargées (pour qu'une catégorie tout juste créée apparaisse sans attendre
   // un rechargement), triée sans casse.
+  // Autocomplétion de la recherche : titres et programmes des cours actuellement chargés.
+  const searchSuggestions = React.useMemo(
+    () => videos.flatMap((v) => (v.program ? [v.title, v.program] : [v.title])),
+    [videos],
+  );
   const availablePrograms = React.useMemo(() => {
     const set = new Set<string>(programs);
     for (const v of videos) if (v.program) set.add(v.program);
@@ -894,12 +900,12 @@ export default function LibraryPage() {
       {/* Toolbar / Search / Filters */}
       <div className="library-toolbar sticky-glass-toolbar">
         <div className="toolbar-filters">
-          <input
-            type="text"
+          <SearchBox
             className="search-input"
             placeholder={t("library.searchPlaceholder")}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={setSearch}
+            suggestions={searchSuggestions}
           />
 
           <button
