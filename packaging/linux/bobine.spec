@@ -7,6 +7,11 @@ from pathlib import Path
 
 block_cipher = None
 
+# Le serveur figé ne recharge pas les sources et ne lit pas de logs YAML.
+# dotenv reste requis à l’import de pydantic-settings, même sans fichier .env.
+# Les migrations SQLite sont intégrées à app.database, sans Alembic/Mako.
+runtime_excludes = ["yaml", "watchfiles", "alembic", "mako"]
+
 # Chemins relatifs à CE fichier .spec (packaging/linux/ -> repo)
 SPEC_DIR = Path(SPECPATH).resolve()
 REPO_DIR = SPEC_DIR.parent.parent
@@ -52,7 +57,7 @@ backend_analysis = Analysis(
     hiddenimports=hiddenimports,
     hookspath=[],
     runtime_hooks=[],
-    excludes=["pystray", "app.desktop"],
+    excludes=["pystray", "app.desktop", *runtime_excludes],
     cipher=block_cipher,
 )
 
@@ -68,6 +73,7 @@ tray_analysis = Analysis(
     ],
     hookspath=[],
     runtime_hooks=[],
+    excludes=runtime_excludes,
     cipher=block_cipher,
 )
 

@@ -25,7 +25,7 @@ fi
 
 entries="$(unzip -Z1 "${APK}")"
 for abi in "$@"; do
-    # x86_64 ne sert qu'à l'émulateur de développement : pas de ffmpeg embarqué.
+    # x86_64 (APK debug de l'émulateur de développement, jamais en release) : pas de ffmpeg embarqué.
     libs=(libpython3)
     [[ "${abi}" == x86_64 ]] || libs+=(libffmpeg.so libffprobe.so)
     for lib in "${libs[@]}"; do

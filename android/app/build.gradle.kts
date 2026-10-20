@@ -49,6 +49,11 @@ val fallbackVersionCode: Int = try {
 }
 val androidVersionCode: Int = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: fallbackVersionCode
 
+// Chaquopy lit les ABI dans les flavors, pas dans buildTypes.debug. Une option
+// dédiée ajoute x86_64 pour l'émulateur ; les variantes release/Play sont alors
+// désactivées, pour ne jamais distribuer cette tranche par inadvertance.
+val emulatorBuild = providers.gradleProperty("bobineEmulator").map { it.toBoolean() }.getOrElse(false)
+
 android {
     namespace = "com.bobine.app"
     // minSdk/targetSdk API 34-36, priorité
@@ -80,8 +85,10 @@ android {
         create("mobile") {
             dimension = "device"
             ndk {
-                // arm64-v8a : tablettes réelles. x86_64 : émulateur de la machine de développement.
-                abiFilters += listOf("arm64-v8a", "x86_64")
+                // arm64-v8a : tablettes réelles. x86_64 est réservé à l'émulateur,
+                // via -PbobineEmulator=true (seules les variantes debug restent disponibles).
+                abiFilters += listOf("arm64-v8a")
+                if (emulatorBuild) abiFilters += "x86_64"
             }
         }
         create("tv") {
@@ -93,7 +100,8 @@ android {
                 // liste d'ABI n'est que armeabi-v7a : sans ce dossier natif, l'installation échoue
                 // avec INSTALL_FAILED_NO_MATCHING_ABIS. Chaquopy ne fournit armeabi-v7a que jusqu'à
                 // Python 3.11 (cf. chaquopy.productFlavors ci-dessous), d'où un APK TV universel unique.
-                abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+                abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+                if (emulatorBuild) abiFilters += "x86_64"
             }
         }
     }
@@ -153,6 +161,12 @@ android {
     // Pas de bloc kotlinOptions { jvmTarget = ... } : DSL supprimee par le
     // support Kotlin integre d'AGP 9+ (constate en pratique). compileOptions ci-dessus suffit a fixer la
     // cible JVM 17 pour Kotlin comme pour Java.
+}
+
+androidComponents {
+    beforeVariants(selector().all()) { variant ->
+        if (emulatorBuild && variant.buildType != "debug") variant.enable = false
+    }
 }
 
 // mise en scène du vrai
@@ -270,7 +284,8 @@ chaquopy {
             // recupere le support WebSocket sans les extras bloquants.
             install("websockets")
             install("sqlalchemy==2.0.51")
-            install("alembic==1.18.5")
+            // Les migrations du serveur sont intégrées à app.database : aucun appel
+            // Alembic au runtime, ni besoin de son moteur de templates Mako dans l'APK.
             install("python-multipart==0.0.32")
             install("apscheduler==3.11.3")
             install("tzlocal==5.4.4")

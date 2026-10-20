@@ -1,11 +1,8 @@
 name: CI
 
 # Intégration continue Bobine : à chaque push sur main et à chaque pull request,
-# on vérifie que le frontend Next.js se construit et que le backend Python est
-# syntaxiquement valide avec ses dépendances résolues. Volontairement léger et
-# fiable pour un statut vert stable ; la suite de tests (backend/tests/, qui ne
-# requiert plus Redis) pourra être
-# ajoutée en tant que job séparé.
+# on construit le frontend et les paquets, on teste le backend sous trois
+# versions de Python, le navigateur Firefox et les composants natifs.
 
 on:
   push:
@@ -497,8 +494,8 @@ jobs:
       - name: Vérifier les ABI natives des APKs (garde-fou INSTALL_FAILED_NO_MATCHING_ABIS)
         if: steps.check_secrets.outputs.configured == 'true'
         run: |
-          scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/mobile/release/*.apk)" arm64-v8a x86_64
-          scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/tv/release/*.apk)" armeabi-v7a arm64-v8a x86_64
+          scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/mobile/release/*.apk)" arm64-v8a
+          scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/tv/release/*.apk)" armeabi-v7a arm64-v8a
       # Bundles .aab pour Google Play (un par application : com.bobine.app et com.bobine.app.tv).
       # Signés avec la clé de téléversement (la même que les APK) ; Google Play les re-signe avec la clé
       # de distribution. Non bloquant : la publication des releases GitHub ne dépend pas de ce bundle.
@@ -1115,10 +1112,10 @@ jobs:
   # notes sont générées automatiquement (changelog depuis la dernière
   # Stable), pas de fichier docs/releases/ à maintenir pour ce canal (il
   # serait obsolète dès le commit suivant). Zéro curation : dernier commit
-  # de main, non testé.
+  # de main, sans validation matérielle manuelle.
   release-canary:
     name: Publish/Update Canary Release
-    needs: [version, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build]
+    needs: [version, backend, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build]
     if: needs.version.outputs.channel == 'canary'
     runs-on: ubuntu-latest
     permissions:
@@ -1236,6 +1233,8 @@ jobs:
           Réservée aux utilisateurs ayant activé le canal Canary (Réglages → Mises à jour, `install.sh --channel=canary`, ou l'assistant Tauri). Pour un accès anticipé moins volatil, voir le [canal Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) (lots curés, publication manuelle).
 
           **Basé sur** commit `__COMMIT__` · version à venir `__VERSION__`
+
+          Le [lot d’optimisation 5.0.3 : mesures et limites de validation](https://github.com/FantasmaGlad/Bobine/blob/__COMMIT__/docs/performance-5.0.3.md) est documenté séparément. Les essais sur les appareils restent nécessaires avant sa promotion Stable.
 
           ---
 
