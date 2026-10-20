@@ -18,3 +18,4 @@ Chaque version **Stable** majeure ou marquante reçoit, en plus de son numéro `
 | Version | Nom de code | Date |
 | :--- | :--- | :--- |
 | V5.0.0 | Orchidée | 2026-10-17 |
+| V5.0.2 | Constellation | 2026-10-20 |

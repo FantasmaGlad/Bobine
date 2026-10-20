@@ -9951,3 +9951,30 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
 .view-toggle, .seg, .display-output-buttons {
   border-color: color-mix(in srgb, var(--text-main) 36%, transparent);
 }
+
+/* Télécommande radio sur téléphone : seul le switch reste en en-tête,
+   les commandes tiennent sur une ligne, en icônes. */
+@media (max-width: 720px) {
+  .radio-remote-head .channel-card-left,
+  .radio-remote-head .radio-remote-open { display: none; }
+  .radio-remote-head { justify-content: center; }
+  .radio-remote-head .channel-card-right { width: 100%; justify-content: center; }
+  .live-controls--icons { flex-wrap: nowrap; justify-content: space-between; gap: 6px; }
+  .live-controls--icons .control-label { display: none; }
+  .live-controls--icons .control-btn,
+  .live-controls--icons .control-btn-main,
+  .live-controls--icons .control-btn-pill {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    height: 46px;
+    padding: 0;
+    border-radius: var(--radius-md);
+  }
+  .live-controls--icons .control-btn-main { flex: 1.6 1 0; }
+}
+@media (max-width: 720px) {
+  .live-controls--icons ~ .volume-row { flex-wrap: wrap; }
+  .live-controls--icons ~ .volume-row .volume-presets { width: 100%; justify-content: space-between; }
+  .live-controls--icons ~ .volume-row .volume-preset-btn { flex: 1 1 0; }
+}

@@ -59,7 +59,7 @@ export default function RadioRemotePage() {
     <div className="dashboard-container">
       {/* Même barre que celle de la page « Sortie Câblé » (carte d'en-tête + commutateur en pilule) :
           une seule apparence pour tous les choix de sortie. */}
-      <div className="live-block channel-card">
+      <div className="live-block channel-card radio-remote-head">
         <div className="channel-card-left">
           <h3>
             <Icon name="graphic_eq" size={18} />
@@ -76,7 +76,7 @@ export default function RadioRemotePage() {
             href={`/radio?channel=${channel === "radio_cable" ? "cable" : "network"}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="status-pill"
+            className="status-pill radio-remote-open"
             style={{ textDecoration: "none" }}
           >
             {t("radioRemote.openPlayer")}

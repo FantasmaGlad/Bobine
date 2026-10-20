@@ -248,36 +248,40 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
                 <span className="live-time">{formatTime(duration)}</span>
               </div>
 
-              <div className="live-controls">
-                <button className="btn btn-secondary control-btn" onClick={() => sendCommand("stop")}>
+              <div className="live-controls live-controls--icons">
+                <button className="btn btn-secondary control-btn" onClick={() => sendCommand("stop")} aria-label={t("radioRemote.stop")} title={t("radioRemote.stop")}>
                   <Icon name="stop" size={18} />
-                  <span>{t("radioRemote.stop")}</span>
+                  <span className="control-label">{t("radioRemote.stop")}</span>
                 </button>
-                <button className="btn btn-secondary control-btn control-btn-icon" onClick={() => sendCommand("radio_previous_track")} title={t("radioRemote.previousTrack")}>
+                <button className="btn btn-secondary control-btn control-btn-icon" onClick={() => sendCommand("radio_previous_track")} title={t("radioRemote.previousTrack")} aria-label={t("radioRemote.previousTrack")}>
                   <Icon name="skip_previous" size={20} filled />
                 </button>
-                <button className="btn btn-primary control-btn control-btn-main" onClick={handlePlayPause}>
+                <button className="btn btn-primary control-btn control-btn-main" onClick={handlePlayPause} aria-label={state.playing ? t("radioRemote.pause") : t("radioRemote.play")} title={state.playing ? t("radioRemote.pause") : t("radioRemote.play")}>
                   <Icon name={state.playing ? "pause" : "play_arrow"} size={22} filled />
-                  <span>{state.playing ? t("radioRemote.pause") : t("radioRemote.play")}</span>
+                  <span className="control-label">{state.playing ? t("radioRemote.pause") : t("radioRemote.play")}</span>
                 </button>
-                <button className="btn btn-secondary control-btn control-btn-icon" onClick={() => sendCommand("radio_next_track")} title={t("radioRemote.nextTrack")}>
+                <button className="btn btn-secondary control-btn control-btn-icon" onClick={() => sendCommand("radio_next_track")} title={t("radioRemote.nextTrack")} aria-label={t("radioRemote.nextTrack")}>
                   <Icon name="skip_next" size={20} filled />
                 </button>
                 <button
                   className={`btn ${state.shuffle ? "btn-primary" : "btn-secondary"} control-btn control-btn-pill`}
                   onClick={() => sendCommand("radio_set_shuffle", { on: !state.shuffle })}
                   title={t("radioRemote.shuffleLabel")}
+                  aria-label={t("radioRemote.shuffleLabel")}
+                  aria-pressed={state.shuffle}
                 >
                   <Icon name="shuffle" size={16} />
-                  <span>Aléatoire</span>
+                  <span className="control-label">{t("radioRemote.shuffleLabel")}</span>
                 </button>
                 <button
                   className={`btn ${state.repeat !== "off" ? "btn-primary" : "btn-secondary"} control-btn control-btn-pill`}
                   onClick={handleRepeatCycle}
                   title={repeatLabel}
+                  aria-label={repeatLabel}
+                  aria-pressed={state.repeat !== "off"}
                 >
                   <Icon name={state.repeat === "track" ? "repeat_one" : "repeat"} size={16} />
-                  <span>{repeatLabel}</span>
+                  <span className="control-label">{repeatLabel}</span>
                 </button>
               </div>
 
