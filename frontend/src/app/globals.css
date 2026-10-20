@@ -9768,3 +9768,18 @@ video::cue {
 @keyframes dv-flash { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-primary) 70%, transparent); } 100% { box-shadow: 0 0 0 16px transparent; } }
 .dv-flash { animation: dv-flash 1.1s var(--ease-out) 2; }
 
+/* Petits écrans : navigation à défilement horizontal limitée à 3 onglets visibles, le suivant dépasse
+   (invitation à glisser), fondus aux bords et accroche collante sur l'onglet visé. */
+@media (max-width: 720px) {
+  .seg { container-type: inline-size; width: 100%; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; }
+  .seg--many .seg-track { min-width: max-content; }
+  .seg--many .seg-btn { flex: 0 0 calc((100cqw - 8px) / 3.4); scroll-snap-align: center; scroll-snap-stop: always; padding-left: 8px; padding-right: 8px; }
+  .seg--many[data-edge="start"] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 30px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 30px), transparent); }
+  .seg--many[data-edge="end"] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 30px); mask-image: linear-gradient(90deg, transparent, #000 30px); }
+  .seg--many[data-edge="middle"] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 30px, #000 calc(100% - 30px), transparent); mask-image: linear-gradient(90deg, transparent, #000 30px, #000 calc(100% - 30px), transparent); }
+
+  .dv-row--click { padding-right: 34px; }
+  .dv-chevron { position: absolute; right: 8px; top: 14px; margin-left: 0; }
+  .settings-nav-tabs { container-type: inline-size; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; }
+  .settings-nav-tab { flex: 0 0 calc((100cqw - 16px) / 3.4); justify-content: center; scroll-snap-align: center; scroll-snap-stop: always; padding-left: 8px; padding-right: 8px; }
+}
