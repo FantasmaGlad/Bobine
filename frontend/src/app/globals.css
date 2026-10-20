@@ -9974,7 +9974,19 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
   .live-controls--icons .control-btn-main { flex: 1.6 1 0; }
 }
 @media (max-width: 720px) {
-  .live-controls--icons ~ .volume-row { flex-wrap: wrap; }
-  .live-controls--icons ~ .volume-row .volume-presets { width: 100%; justify-content: space-between; }
-  .live-controls--icons ~ .volume-row .volume-preset-btn { flex: 1 1 0; }
+  /* Pas de volumes prédéfinis sur téléphone : le curseur suffit */
+  .live-controls--icons ~ .volume-row .volume-presets { display: none; }
+  /* Switch de sortie sans encadré : ni carte, ni pilule englobante */
+  .live-block.radio-remote-head {
+    background: transparent; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+    padding-block: 0;
+  }
+  .radio-remote-head .display-output-buttons {
+    background: transparent; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+    padding: 0; gap: 10px;
+  }
+  .radio-remote-head .display-output-btn:not(.active) {
+    border: 1px solid var(--btn-outline);
+    background: color-mix(in srgb, var(--bg-surface) 55%, transparent);
+  }
 }
