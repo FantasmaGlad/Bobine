@@ -40,12 +40,25 @@ import React, {
   useState,
 } from "react";
 import Icon from "@/components/Icon";
+import { useAppSettings } from "@/lib/AppSettingsContext";
 import {
   ChunkedUnsupportedError,
   UploadAbortedError,
+  UploadNoticeError,
   cancelChunkedUpload,
   uploadFileInChunks,
 } from "@/lib/chunkedUpload";
+import {
+  formatNotice,
+  isJobLost,
+  isServerSilent,
+  jobErrorNotice,
+  nextMissCount,
+  nextPollFailures,
+  phaseLabelKey,
+  type UploadNotice,
+  type UploadPhase,
+} from "@/lib/uploadFlow";
 
 const JOB_POLL_INTERVAL_MS = 1500;
 /** Fréquence maximale des mises à jour d'état pendant un transfert : chaque
@@ -126,6 +139,13 @@ export interface UploadTask extends PendingUploadSpec {
   /** Identifiant de l'élément créé (vidéo/fond/cours) une fois status === "done". */
   resultId?: number | null;
   error?: string;
+  /** Même erreur sous forme traduisible (clé i18n + paramètres) : affichée à la
+   *  place de `error` quand elle existe, `error` restant le texte de repli. */
+  errorNotice?: UploadNotice;
+  /** Étape visible pendant le transfert : connexion au serveur, puis envoi. */
+  phase?: UploadPhase;
+  /** Message d'état temporaire (reprise après coupure, serveur muet…). */
+  notice?: UploadNotice | null;
   xhr?: XMLHttpRequest;
   /** Annulation d'un transfert par morceaux en cours (équivalent de `xhr.abort()`). */
   abort?: () => void;
@@ -250,7 +270,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     (task: UploadTask, onDone: () => void, fallback: () => void) => {
       const controller = new AbortController();
       let sessionId: string | undefined;
-      updateTask(task.id, { status: "uploading", abort: () => controller.abort() });
+      updateTask(task.id, { status: "uploading", phase: "connecting", notice: null, abort: () => controller.abort() });
       const report = makeProgressReporter(task.id);
 
       (async () => {
@@ -259,6 +279,8 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
           signal: controller.signal,
           onSession: (id) => { sessionId = id; },
           onProgress: report,
+          onPhase: (phase) => updateTask(task.id, { phase }),
+          onNotice: (notice) => updateTask(task.id, { notice }),
         });
         sessionId = uploadId;
         const res = await fetch(getApiUrl(UPLOAD_ENDPOINTS[task.kind]), {
@@ -277,6 +299,8 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
           jobId: body.job_id,
           stage: "queued",
           stageLabel: "En attente",
+          phase: "processing",
+          notice: null,
           abort: undefined,
         });
         onDone();
@@ -294,7 +318,13 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
             return next;
           });
         } else {
-          updateTask(task.id, { status: "error", error: (err as Error).message || "Erreur lors de l'upload", abort: undefined });
+          updateTask(task.id, {
+            status: "error",
+            error: (err as Error).message || "Erreur lors de l'upload",
+            errorNotice: err instanceof UploadNoticeError ? { key: err.key, params: err.params } : undefined,
+            notice: null,
+            abort: undefined,
+          });
         }
         onDone();
       });
@@ -306,7 +336,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
   const runMultipartUpload = useCallback(
     (task: UploadTask, onDone: () => void) => {
       const xhr = new XMLHttpRequest();
-      updateTask(task.id, { status: "uploading", xhr });
+      updateTask(task.id, { status: "uploading", phase: "sending", notice: null, xhr });
 
       const report = makeProgressReporter(task.id);
       xhr.upload.addEventListener("progress", (e) => {
@@ -323,6 +353,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
               jobId: body.job_id,
               stage: "queued",
               stageLabel: "En attente",
+              phase: "processing",
             });
           } catch {
             // Réponse inattendue (ancienne version du backend ?) : on
@@ -453,18 +484,36 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
   // tâches (réencodage compris) peuvent durer bien plus longtemps qu'un XHR
   // ne reste ouvert — un intervalle léger suffit, pas besoin d'un canal
   // WebSocket dédié pour une progression qui évolue à l'échelle de la seconde.
+  //
+  // Deux silences à ne plus laisser passer (cf. lib/uploadFlow.ts) :
+  //  - la tâche n'apparaît plus dans la liste alors que le serveur répond (état
+  //    en mémoire perdu par un redémarrage, ou tâche expirée) : après
+  //    JOB_MISS_LIMIT sondages consécutifs, elle passe en erreur « perdue » ;
+  //  - le serveur ne répond plus du tout : un message le dit, sans conclure
+  //    qu'une tâche est perdue (une réponse HTTP en erreur n'est PAS une liste vide).
+  const missCountsRef = useRef<Map<string, number>>(new Map());
+  const pollFailuresRef = useRef(0);
   useEffect(() => {
     const interval = setInterval(() => {
       const processing = uploadsRef.current.filter((t) => t.status === "processing" && t.jobId);
-      if (processing.length === 0) return;
+      if (processing.length === 0) {
+        missCountsRef.current.clear();
+        pollFailuresRef.current = 0;
+        return;
+      }
       fetch(getApiUrl("/import-jobs"), { cache: "no-store" })
-        .then((res) => (res.ok ? res.json() : []))
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
         .then((jobs: Array<{
           id: string;
           stage: string;
           stage_label: string;
           queue_position: number | null;
           error: string | null;
+          error_code?: string | null;
+          error_params?: Record<string, unknown> | null;
           result_id: number | null;
           progress_percent: number | null;
           eta_seconds: number | null;
@@ -472,10 +521,32 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
           estimated_seconds: number | null;
           queue_eta_seconds: number | null;
         }>) => {
+          pollFailuresRef.current = nextPollFailures(pollFailuresRef.current, true);
           const byId = new Map(jobs.map((j) => [j.id, j]));
+          const misses = missCountsRef.current;
+          const stillProcessing = new Set(processing.map((t) => t.id));
+          for (const id of [...misses.keys()]) if (!stillProcessing.has(id)) misses.delete(id);
           processing.forEach((task) => {
             const job = task.jobId ? byId.get(task.jobId) : undefined;
-            if (!job) return;
+            const missCount = nextMissCount(misses.get(task.id), job !== undefined);
+            if (job) misses.delete(task.id);
+            else misses.set(task.id, missCount);
+            if (!job) {
+              if (isJobLost(missCount)) {
+                misses.delete(task.id);
+                updateTask(task.id, {
+                  status: "error",
+                  error: "Tâche perdue (serveur redémarré ou expirée).",
+                  errorNotice: { key: "uploads.errors.jobLost" },
+                  notice: null,
+                  queuePosition: null,
+                });
+              } else if (task.notice) {
+                updateTask(task.id, { notice: null });
+              }
+              return;
+            }
+            if (task.notice) updateTask(task.id, { notice: null });
             if (job.stage === "done") {
               updateTask(task.id, {
                 status: "done",
@@ -492,6 +563,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
                 stage: job.stage,
                 stageLabel: job.stage_label,
                 error: job.error || "Échec de l'import",
+                errorNotice: jobErrorNotice(job.error_code, job.error_params),
                 queuePosition: null,
               });
             } else if (job.stage === "cancelled") {
@@ -516,8 +588,17 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
           });
         })
         .catch(() => {
-          // Panne réseau/serveur passagère : on retentera au prochain tick,
-          // pas la peine de faire échouer l'affichage pour un poll manqué.
+          // Panne réseau/serveur : le suivi reprend au prochain tick. Après
+          // quelques échecs d'affilée, on le dit (sinon l'interface reste figée
+          // sans explication).
+          pollFailuresRef.current = nextPollFailures(pollFailuresRef.current, false);
+          if (isServerSilent(pollFailuresRef.current)) {
+            processing.forEach((task) => {
+              if (task.notice?.key !== "uploads.serverUnreachable") {
+                updateTask(task.id, { notice: { key: "uploads.serverUnreachable" } });
+              }
+            });
+          }
         });
     }, JOB_POLL_INTERVAL_MS);
     return () => clearInterval(interval);
@@ -574,6 +655,7 @@ function formatQueueSuffix(queuePosition: number | null | undefined, queueEtaSec
 
 function UploadFloatingPanel() {
   const { uploads, cancelUpload, clearCompleted } = useContext(UploadManagerContext)!;
+  const { t } = useAppSettings();
   const [minimized, setMinimized] = useState(false);
 
   const visible = uploads.length > 0;
@@ -687,9 +769,15 @@ function UploadFloatingPanel() {
               </div>
               <span style={{ color: "var(--text-dim)", fontSize: "0.72rem" }}>
                 {KIND_LABELS[task.kind]}
+                {/* Phase visible (Connexion / Envoi / Traitement) : sans elle, un
+                    envoi qui ne démarre pas ressemblait à une interface figée à 0 %. */}
+                {task.status === "uploading" && (
+                  <>{" — "}{t(phaseLabelKey(task.phase ?? "sending"))}</>
+                )}
                 {task.status === "processing" && (
                   <>
                     {" — "}
+                    {t(phaseLabelKey("processing"))}{" : "}
                     {task.stage === "normalizing" && typeof task.progressPercent === "number" ? (
                       <>
                         Réencodage ({task.progressPercent}%)
@@ -746,8 +834,15 @@ function UploadFloatingPanel() {
                   )}
                 </div>
               )}
+              {task.notice && (task.status === "uploading" || task.status === "processing") && (
+                <span role="status" data-testid="upload-notice" style={{ color: "var(--accent-warning)", fontSize: "0.75rem" }}>
+                  {formatNotice(t, task.notice)}
+                </span>
+              )}
               {task.status === "error" && task.error && (
-                <span style={{ color: "var(--accent-error)", fontSize: "0.78rem" }}>{task.error}</span>
+                <span role="alert" style={{ color: "var(--accent-error)", fontSize: "0.78rem" }}>
+                  {task.errorNotice ? formatNotice(t, task.errorNotice) : task.error}
+                </span>
               )}
             </div>
           ))}
