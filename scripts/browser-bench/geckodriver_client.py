@@ -33,6 +33,11 @@ def start(headless=True, width=1400, height=900):
     return value["capabilities"].get("browserVersion")
 
 
+def set_window_rect(width, height):
+    """Redimensionne la fenêtre (viewport ≈ taille demandée en mode headless)."""
+    _call("POST", f"/session/{_sid()}/window/rect", {"width": width, "height": height})
+
+
 def navigate(url):
     _call("POST", f"/session/{_sid()}/url", {"url": url})
 

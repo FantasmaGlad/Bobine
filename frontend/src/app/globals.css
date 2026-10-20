@@ -9635,6 +9635,29 @@ video::cue {
   .pin-key { width: 64px; height: 64px; }
 }
 
+/* ============================================================
+   Largeurs intermédiaires (barre latérale de navigateur, onglets
+   verticaux, fenêtres étroites) : les barres d'outils passent à la ligne
+   selon leur CONTENU, pas selon un seuil de largeur de fenêtre.
+   ============================================================ */
+.schedule-toolbar {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 52px;
+  max-height: none;
+  padding: 8px 14px;
+  row-gap: 8px;
+}
+.schedule-toolbar > * { min-width: 0; max-width: 100%; }
+.schedule-toolbar > .view-toggle { overflow-x: auto; scrollbar-width: none; }
+.schedule-toolbar > .view-toggle::-webkit-scrollbar { display: none; }
+.schedule-toolbar > div[style] { margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+.week-nav { flex-shrink: 1; flex-wrap: wrap; }
+.view-toggle { max-width: 100%; }
+.rl-nav-card .channel-card-right { min-width: 0; max-width: 100%; }
+.rl-nav-card .seg { flex: 0 1 auto; }
+.rl-nav-card .channel-card-left { min-width: 0; }
+
 /* Interface du PIN épurée : actions secondaires en liens discrets. */
 .dv-quiet-actions { display: flex; justify-content: center; margin-top: 4px; }
 .dv-link-btn--danger { color: var(--accent-danger, #d94a4a); }
