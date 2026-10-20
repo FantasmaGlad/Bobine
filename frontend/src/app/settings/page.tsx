@@ -9,6 +9,7 @@ import AppLogo from "@/components/AppLogo";
 import MarkdownView from "@/components/MarkdownView";
 import AddressList from "@/components/AddressList";
 import StartOnBootToggle from "@/components/StartOnBootToggle";
+import ImportDiagnosticsPanel from "@/components/ImportDiagnosticsPanel";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { copyText } from "@/lib/clipboard";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
@@ -1676,6 +1677,8 @@ export default function SettingsPage() {
           </div>
         </div>
       </section>
+
+      <ImportDiagnosticsPanel />
 
       <StartOnBootToggle />
 
