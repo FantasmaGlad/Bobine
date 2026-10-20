@@ -1,7 +1,7 @@
 /** Pont vers l'application Android (`window.BobineNative`), absent partout ailleurs. */
 export interface BobineNativeBridge {
   setThemeColors(background: string, text: string): void;
-  /** Accent du thème (spinner de chargement) ; absent des applications plus anciennes que la 5.1.1. */
+  /** Accent du thème (spinner de chargement) ; absent des applications plus anciennes que la 5.0.2. */
   setThemeAccent?(accent: string): void;
   /** Absent des applications Android plus anciennes que la 5.0.1 : toujours tester sa présence. */
   setUpdateChannel?(channel: string): void;

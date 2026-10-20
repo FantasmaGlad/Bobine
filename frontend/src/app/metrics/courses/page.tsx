@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import Icon from "@/components/Icon";
+import ScrollNav from "@/components/ScrollNav";
 
 interface RatingBreakdown {
   score: number;
@@ -95,7 +96,7 @@ export default function MetricsCoursesPage() {
           <span className="metrics-filter-label">
             <Icon name="date_range" size={16} /> {t("metricsPage.periodLabel")} :
           </span>
-          <div className="view-toggle">
+          <ScrollNav>
             <button
               type="button"
               className={`view-btn ${period === "7d" ? "active" : ""}`}
@@ -124,14 +125,14 @@ export default function MetricsCoursesPage() {
             >
               {t("metricsPage.periodAll")}
             </button>
-          </div>
+          </ScrollNav>
         </div>
 
         <div className="metrics-filter-group">
           <span className="metrics-filter-label">
             <Icon name="tune" size={16} /> {t("metricsPage.channelLabel")} :
           </span>
-          <div className="view-toggle">
+          <ScrollNav>
             <button
               type="button"
               className={`view-btn ${channel === "all" ? "active" : ""}`}
@@ -153,7 +154,7 @@ export default function MetricsCoursesPage() {
             >
               <Icon name="wifi" size={14} /> {t("metricsPage.channelNetwork")}
             </button>
-          </div>
+          </ScrollNav>
         </div>
       </div>
 

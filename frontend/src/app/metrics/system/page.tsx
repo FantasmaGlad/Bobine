@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import Icon from "@/components/Icon";
+import ScrollNav from "@/components/ScrollNav";
 import TelemetryHistoryDrawer from "@/components/TelemetryHistoryDrawer";
 
 interface SystemTelemetry {
@@ -104,7 +105,7 @@ export default function MetricsSystemPage() {
           <span className="metrics-filter-label">
             <Icon name="date_range" size={16} /> {t("metricsPage.periodLabel")} :
           </span>
-          <div className="view-toggle">
+          <ScrollNav>
             {(
               [
                 ["7d", "metricsPage.period7d"],
@@ -122,7 +123,7 @@ export default function MetricsSystemPage() {
                 {t(key)}
               </button>
             ))}
-          </div>
+          </ScrollNav>
         </div>
       </div>
 

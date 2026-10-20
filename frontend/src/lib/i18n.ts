@@ -699,6 +699,7 @@ export const dictionaries: Record<Language, Dict> = {
       issuePixel: "format de pixels 10 bits / 4:2:2",
     },
     library: {
+      filters: "Filtres",
       mediaTab: "Médiathèque",
       playlistsTab: "Playlists",
       fetchError: "Erreur lors de la récupération des vidéos",
@@ -2312,6 +2313,7 @@ export const dictionaries: Record<Language, Dict> = {
       issuePixel: "10-bit / 4:2:2 pixel format",
     },
     library: {
+      filters: "Filters",
       mediaTab: "Media Library",
       playlistsTab: "Playlists",
       fetchError: "Error while fetching videos",

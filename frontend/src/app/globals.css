@@ -2,10 +2,12 @@
 
 :root {
   /* Colors - Dark Theme (thème par défaut) */
-  --bg-main: #0a0a0a;
-  --bg-surface: #141414;
-  --bg-surface-elevated: #1e1e20;
-  --bg-surface-hover: #262629;
+  --bg-main: #141416;
+  --bg-surface: #1e1e21;
+  --bg-surface-elevated: #28282c;
+  --bg-surface-hover: #323237;
+  --hover-brightness: 1.12;
+  --press-brightness: 0.9;
 
   --text-main: #ffffff;
   --text-muted: #9ca3af;
@@ -58,19 +60,19 @@
     radial-gradient(circle at 14% 6%, color-mix(in srgb, var(--accent-primary) 16%, transparent) 0%, transparent 48%),
     radial-gradient(circle at 88% 22%, color-mix(in srgb, var(--accent-primary) 10%, transparent) 0%, transparent 54%),
     radial-gradient(circle at 50% 96%, color-mix(in srgb, var(--accent-primary) 7%, transparent) 0%, transparent 50%);
-  --glass-surface-bg: color-mix(in srgb, var(--bg-surface) 76%, rgba(255, 255, 255, 0.03));
-  --glass-surface-border: color-mix(in srgb, #ffffff 18%, var(--border-color));
-  --glass-surface-blur: 28px;
+  --glass-surface-bg: color-mix(in srgb, var(--bg-surface) 56%, transparent);
+  --glass-surface-border: color-mix(in srgb, #ffffff 13%, var(--border-color));
+  --glass-surface-blur: 30px;
   --glass-card-bg: linear-gradient(
     145deg,
-    color-mix(in srgb, var(--bg-surface-elevated) 82%, rgba(255, 255, 255, 0.05)) 0%,
-    color-mix(in srgb, var(--bg-surface) 74%, color-mix(in srgb, var(--accent-primary) 4%, transparent)) 100%
+    color-mix(in srgb, var(--bg-surface-elevated) 60%, transparent) 0%,
+    color-mix(in srgb, var(--bg-surface) 46%, transparent) 100%
   );
-  --glass-card-border: color-mix(in srgb, #ffffff 22%, var(--border-color));
-  --glass-card-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.22), inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
-  --glass-floating-bg: color-mix(in srgb, var(--bg-surface-elevated) 84%, rgba(255, 255, 255, 0.04));
-  --glass-floating-border: color-mix(in srgb, #ffffff 26%, var(--border-color));
-  --glass-floating-blur: 32px;
+  --glass-card-border: color-mix(in srgb, #ffffff 15%, var(--border-color));
+  --glass-card-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.13), inset 0 0 0 0.5px rgba(255, 255, 255, 0.05);
+  --glass-floating-bg: color-mix(in srgb, var(--bg-surface-elevated) 72%, transparent);
+  --glass-floating-border: color-mix(in srgb, #ffffff 18%, var(--border-color));
+  --glass-floating-blur: 34px;
 }
 
 /* ============================================================
@@ -91,20 +93,22 @@
 :root[data-theme="beige"],
 :root[data-theme="coco"] {
   --bg-ambient-mesh:
-    radial-gradient(circle at 12% 6%, color-mix(in srgb, var(--accent-primary) 9%, transparent) 0%, transparent 46%),
-    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--accent-primary) 6%, transparent) 0%, transparent 52%),
-    radial-gradient(circle at 50% 95%, color-mix(in srgb, var(--accent-primary) 4%, transparent) 0%, transparent 48%);
-  --glass-surface-bg: color-mix(in srgb, #ffffff 84%, var(--bg-main) 16%);
-  --glass-surface-border: color-mix(in srgb, #000000 15%, var(--border-color));
+    radial-gradient(circle at 12% 6%, color-mix(in srgb, var(--accent-primary) 14%, transparent) 0%, transparent 46%),
+    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--accent-primary) 10%, transparent) 0%, transparent 52%),
+    radial-gradient(circle at 50% 95%, color-mix(in srgb, var(--accent-primary) 7%, transparent) 0%, transparent 48%);
+  --glass-surface-bg: color-mix(in srgb, #ffffff 56%, transparent);
+  --glass-surface-border: color-mix(in srgb, #ffffff 70%, color-mix(in srgb, #000000 6%, transparent));
   --glass-card-bg: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.92) 0%,
-    color-mix(in srgb, #ffffff 82%, color-mix(in srgb, var(--accent-primary) 2%, var(--bg-main))) 100%
+    rgba(255, 255, 255, 0.68) 0%,
+    color-mix(in srgb, #ffffff 48%, color-mix(in srgb, var(--accent-primary) 3%, transparent)) 100%
   );
-  --glass-card-border: color-mix(in srgb, #000000 18%, var(--border-color));
-  --glass-card-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.96), inset 0 0 0 0.5px rgba(255, 255, 255, 0.65);
-  --glass-floating-bg: color-mix(in srgb, #ffffff 88%, var(--bg-main) 12%);
-  --glass-floating-border: color-mix(in srgb, #000000 20%, var(--border-color));
+  --glass-card-border: color-mix(in srgb, #ffffff 72%, color-mix(in srgb, #000000 8%, transparent));
+  --glass-card-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.85), inset 0 0 0 0.5px rgba(255, 255, 255, 0.5);
+  --glass-floating-bg: color-mix(in srgb, #ffffff 74%, transparent);
+  --glass-floating-border: color-mix(in srgb, #ffffff 75%, color-mix(in srgb, #000000 8%, transparent));
+  --hover-brightness: 0.96;
+  --press-brightness: 0.92;
 }
 
 /* Carmin — Rouge rubis Apple sur porcelaine immaculée (ex-Clair) */
@@ -116,7 +120,7 @@
 
   --text-main: #0f172a;
   --text-muted: #475569;
-  --text-dim: #64748b;
+  --text-dim: #617188;
 
   --border-color: #dde2ea;
   --border-focus: #e11d48;
@@ -159,9 +163,9 @@
   --text-dim: #73685a;
 
   --border-color: #e4ddd2;
-  --border-focus: #d97706;
+  --border-focus: #ab5e05;
 
-  --accent-primary: #d97706;
+  --accent-primary: #ab5e05;
   --accent-primary-fg: #ffffff;
   --accent-sprint: #8a5a00;
   --logo-filter: none;
@@ -179,9 +183,9 @@
   --text-dim: #5e766a;
 
   --border-color: #d5e2db;
-  --border-focus: #059669;
+  --border-focus: #04845c;
 
-  --accent-primary: #059669;
+  --accent-primary: #04845c;
   --accent-primary-fg: #ffffff;
   --accent-sprint: #8a5a00;
   --logo-filter: none;
@@ -274,154 +278,170 @@
 
 /* Onyx — Noir obsidienne et rouge signature Bobine (ex-Sombre) */
 :root[data-theme="les-mills-sombre"] {
-  --bg-main: #08090b;
-  --bg-surface: #111317;
-  --bg-surface-elevated: #191c22;
-  --bg-surface-hover: #232730;
+  --bg-main: #16191e;
+  --bg-surface: #21252d;
+  --bg-surface-elevated: #2c313b;
+  --bg-surface-hover: #363b49;
 
   --text-main: #f8fafc;
-  --text-muted: #9ca3af;
-  --text-dim: #717a88;
+  --text-muted: #abb1bb;
+  --text-dim: #8c94a0;
 
-  --border-color: #242832;
-  --border-focus: #e4002b;
+  --border-color: #333946;
+  --border-focus: #e1032d;
 
   --accent-primary: #e4002b;
   --accent-primary-fg: #ffffff;
   --logo-filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
+  --hover-brightness: 1.12;
+  --press-brightness: 0.9;
 }
 
 /* Graphite — Monochrome furtif, titane sombre et acier brossé (ex-Charbon Sombre) */
 :root[data-theme="charbon-sombre"] {
-  --bg-main: #0a0c10;
-  --bg-surface: #12161d;
-  --bg-surface-elevated: #1a202a;
-  --bg-surface-hover: #242c3a;
+  --bg-main: #171b24;
+  --bg-surface: #212834;
+  --bg-surface-elevated: #2b3444;
+  --bg-surface-hover: #354054;
 
   --text-main: #f1f5f9;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  --text-muted: #a9b5c6;
+  --text-dim: #8694a8;
 
-  --border-color: #232b38;
-  --border-focus: #94a3b8;
+  --border-color: #313c4e;
+  --border-focus: #8b9bb1;
 
   --accent-primary: #e2e8f0;
-  --accent-primary-fg: #0a0c10;
+  --accent-primary-fg: #171b24;
   --logo-filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
+  --hover-brightness: 1.12;
+  --press-brightness: 0.9;
 }
 
 /* Cuivre — Basalte volcanique et cuivre incandescent (ex-Automne) */
 :root[data-theme="automne"] {
-  --bg-main: #0b0908;
-  --bg-surface: #15120f;
-  --bg-surface-elevated: #201b16;
-  --bg-surface-hover: #2b241d;
+  --bg-main: #1e1916;
+  --bg-surface: #2b251f;
+  --bg-surface-elevated: #393128;
+  --bg-surface-hover: #453a2f;
 
   --text-main: #faf8f5;
-  --text-muted: #a89f96;
-  --text-dim: #7c736a;
+  --text-muted: #b7afa8;
+  --text-dim: #9b928b;
 
-  --border-color: #2c241d;
-  --border-focus: #f97316;
+  --border-color: #41362c;
+  --border-focus: #f67419;
 
   --accent-primary: #f97316;
-  --accent-primary-fg: #ffffff;
+  --accent-primary-fg: #1e1916;
   --logo-filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
+  --hover-brightness: 1.12;
+  --press-brightness: 0.9;
 }
 
 /* Abysse — Profondeur océanique et cyan arctique (ex-Hiver) */
 :root[data-theme="hiver"] {
-  --bg-main: #070b0f;
-  --bg-surface: #0e151d;
-  --bg-surface-elevated: #15202b;
-  --bg-surface-hover: #1d2b3a;
+  --bg-main: #121c25;
+  --bg-surface: #1b2836;
+  --bg-surface-elevated: #243648;
+  --bg-surface-hover: #2c4056;
 
   --text-main: #f4f9fc;
-  --text-muted: #93a8b8;
-  --text-dim: #677d8f;
+  --text-muted: #a3b5c3;
+  --text-dim: #8396a6;
 
-  --border-color: #1e2d3b;
-  --border-focus: #06b6d4;
+  --border-color: #2b3f52;
+  --border-focus: #09b4d1;
 
   --accent-primary: #06b6d4;
-  --accent-primary-fg: #041318;
+  --accent-primary-fg: #121c25;
   --logo-filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
+  --hover-brightness: 1.12;
+  --press-brightness: 0.9;
 }
 
 /* Indigo — Nuit stellaire et indigo électrique (ex-Lune) */
 :root[data-theme="lune"] {
-  --bg-main: #080911;
-  --bg-surface: #101322;
-  --bg-surface-elevated: #181c30;
-  --bg-surface-hover: #222742;
+  --bg-main: #131527;
+  --bg-surface: #1d223c;
+  --bg-surface-elevated: #272d4c;
+  --bg-surface-hover: #31385e;
 
   --text-main: #f6f7fe;
-  --text-muted: #9aa2bc;
-  --text-dim: #6e7691;
+  --text-muted: #a7aec5;
+  --text-dim: #8b91a7;
 
-  --border-color: #232842;
-  --border-focus: #6366f1;
+  --border-color: #303759;
+  --border-focus: #7f82f4;
 
-  --accent-primary: #6366f1;
-  --accent-primary-fg: #ffffff;
+  --accent-primary: #7f82f4;
+  --accent-primary-fg: #131527;
   --logo-filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
+  --hover-brightness: 1.12;
+  --press-brightness: 0.9;
 }
 
 /* Rubis — Obsidienne velours et rubis impérial (ex-Chili) */
 :root[data-theme="chili"] {
-  --bg-main: #0b0809;
-  --bg-surface: #151012;
-  --bg-surface-elevated: #20171a;
-  --bg-surface-hover: #2c1f24;
+  --bg-main: #1e1619;
+  --bg-surface: #2b2125;
+  --bg-surface-elevated: #39292f;
+  --bg-surface-hover: #453139;
 
   --text-main: #fcf7f8;
-  --text-muted: #ad9ca1;
-  --text-dim: #7f6e73;
+  --text-muted: #b9abaf;
+  --text-dim: #9b8b90;
 
-  --border-color: #2e2025;
-  --border-focus: #f43f5e;
+  --border-color: #432f36;
+  --border-focus: #f54b68;
 
-  --accent-primary: #f43f5e;
-  --accent-primary-fg: #ffffff;
+  --accent-primary: #f54b68;
+  --accent-primary-fg: #1e1619;
   --logo-filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
+  --hover-brightness: 1.12;
+  --press-brightness: 0.9;
 }
 
 /* Orchidée — Nuit cosmique et orchidée magnétique (Version 5.0 « Orchidée ») */
 :root[data-theme="orchidee"] {
-  --bg-main: #09080d;
-  --bg-surface: #12101a;
-  --bg-surface-elevated: #1b1726;
-  --bg-surface-hover: #252034;
+  --bg-main: #171521;
+  --bg-surface: #231f31;
+  --bg-surface-elevated: #2e2841;
+  --bg-surface-hover: #38314e;
 
   --text-main: #faf7fc;
-  --text-muted: #a39bb3;
-  --text-dim: #766e87;
+  --text-muted: #b1aabf;
+  --text-dim: #938ca2;
 
-  --border-color: #292238;
-  --border-focus: #d946ef;
+  --border-color: #39304e;
+  --border-focus: #d749ec;
 
   --accent-primary: #d946ef;
-  --accent-primary-fg: #ffffff;
+  --accent-primary-fg: #171521;
   --logo-filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
+  --hover-brightness: 1.12;
+  --press-brightness: 0.9;
 }
 
 /* Moka — Quartz fumé, cuir expresso et or champagne (ex-Taupe) */
 :root[data-theme="taupe"] {
-  --bg-main: #0b0a09;
-  --bg-surface: #151311;
-  --bg-surface-elevated: #201d19;
-  --bg-surface-hover: #2b2722;
+  --bg-main: #1d1b18;
+  --bg-surface: #2a2622;
+  --bg-surface-elevated: #38332c;
+  --bg-surface-hover: #433d35;
 
   --text-main: #fafaf9;
-  --text-muted: #a8a19a;
-  --text-dim: #7a736c;
+  --text-muted: #b7b1ac;
+  --text-dim: #99938d;
 
-  --border-color: #2c2722;
-  --border-focus: #eab308;
+  --border-color: #403932;
+  --border-focus: #e7b10b;
 
   --accent-primary: #eab308;
-  --accent-primary-fg: #141106;
+  --accent-primary-fg: #1d1b18;
   --logo-filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
+  --hover-brightness: 1.12;
+  --press-brightness: 0.9;
 }
 
 /* Base resets */
@@ -512,8 +532,8 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--glass-card-bg);
   backdrop-filter: blur(28px) saturate(200%);
   -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1.5px solid color-mix(in srgb, var(--accent-primary) 32%, var(--glass-card-border));
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4), inset 0 1px 1px 0 rgba(255, 255, 255, 0.22);
+  border: 1px solid var(--glass-card-border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1), inset 0 1px 1px 0 rgba(255, 255, 255, 0.16);
   border-radius: var(--radius-lg);
   padding: 14px 18px;
   transition: transform 0.2s ease, box-shadow var(--transition-normal), border-color var(--transition-normal);
@@ -6898,7 +6918,7 @@ video::cue {
   background: var(--accent-primary);
   color: var(--accent-primary-fg);
   border-color: color-mix(in srgb, var(--accent-primary-fg) 30%, transparent);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-primary) 45%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent-primary) 26%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.4);
 }
 
 .display-output-btn.active:hover {
@@ -9541,7 +9561,7 @@ video::cue {
 .dv-row.active.glass-interactive {
   border-color: color-mix(in srgb, var(--accent-primary) 70%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 55%, transparent),
-    0 6px 22px color-mix(in srgb, var(--accent-primary) 14%, transparent);
+    0 4px 14px color-mix(in srgb, var(--accent-primary) 8%, transparent);
   background-image: linear-gradient(0deg, color-mix(in srgb, var(--accent-primary) 8%, transparent), color-mix(in srgb, var(--accent-primary) 8%, transparent));
 }
 @media (hover: hover) and (pointer: fine) {
@@ -9569,7 +9589,7 @@ video::cue {
 .seg::-webkit-scrollbar { display: none; }
 .seg-track { position: relative; display: inline-flex; gap: 2px; padding: 4px; min-width: 100%; }
 .seg-indicator { position: absolute; top: 4px; bottom: 4px; left: 0; border-radius: 999px; background: var(--accent-primary);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-primary) 40%, transparent); pointer-events: none;
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent-primary) 24%, transparent); pointer-events: none;
   transition: transform var(--dur-slow) var(--ease-spring), width var(--dur-slow) var(--ease-spring); }
 .seg-btn { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 0 0 auto; white-space: nowrap;
   border: none; background: transparent; color: var(--text-muted); font-size: 0.84rem; font-weight: 700; padding: 8px 16px; border-radius: 999px; cursor: pointer;
@@ -9782,4 +9802,152 @@ video::cue {
   .dv-chevron { position: absolute; right: 8px; top: 14px; margin-left: 0; }
   .settings-nav-tabs { container-type: inline-size; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; }
   .settings-nav-tab { flex: 0 0 calc((100cqw - 16px) / 3.4); justify-content: center; scroll-snap-align: center; scroll-snap-stop: always; padding-left: 8px; padding-right: 8px; }
+}
+
+/* ============================================================
+   Retours visuels de base (5.0.2) : tout bouton a un survol, un appui et un
+   focus visibles, même sans règle dédiée. :where() = spécificité nulle : toute
+   règle propre à un composant l'emporte. Les composants déjà dotés de leurs
+   propres états sont exclus pour ne pas cumuler deux effets.
+   ============================================================ */
+:where(button, [role="button"], summary, a.btn):where(:not(:disabled):not([aria-disabled="true"]):not(.btn):not(.view-btn):not(.seg-btn):not(.pin-key):not(.dv-map-btn):not(.display-output-btn):not(.sheet-close):not(.glass-interactive)) {
+  cursor: pointer;
+  transition: transform var(--dur-fast, 160ms) var(--ease-out, ease-out), filter var(--dur-fast, 160ms) var(--ease-out, ease-out),
+    background-color var(--dur-fast, 160ms) var(--ease-out, ease-out), box-shadow var(--dur-fast, 160ms) var(--ease-out, ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  :where(button, [role="button"], summary, a.btn):where(:not(:disabled):not([aria-disabled="true"]):not(.btn):not(.view-btn):not(.seg-btn):not(.pin-key):not(.dv-map-btn):not(.display-output-btn):not(.sheet-close):not(.glass-interactive)):hover {
+    filter: brightness(var(--hover-brightness, 1.08));
+  }
+}
+:where(button, [role="button"], summary, a.btn):where(:not(:disabled):not([aria-disabled="true"]):not(.pin-key):not(.dv-map-btn)):active {
+  transform: scale(0.97);
+  filter: brightness(var(--press-brightness, 0.92));
+}
+:where([role="button"]:not(button)):where(:not([aria-disabled="true"])):active { transform: scale(0.988); }
+:where(button, [role="button"], summary, a.btn, [tabindex="0"]):focus-visible {
+  outline: 3px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(button, [role="button"], summary, a.btn):active { transform: none; }
+}
+/* Boutons à état « actif » (bascule de filtres) et sélecteurs enrichis. */
+.mobile-filter-toggle-btn.active { background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-surface-elevated)); border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent); color: var(--accent-primary); }
+
+/* ------------------------------------------------------------
+   Barre de recherche compacte (bibliothèque) : recherche, filtres et vue sur UNE ligne.
+   ------------------------------------------------------------ */
+@media (max-width: 768px) {
+  .library-toolbar { flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; }
+  .library-toolbar .toolbar-filters { display: contents; }
+  .library-toolbar .search-box { flex: 1 1 0; min-width: 0; order: 1; width: auto !important; }
+  .library-toolbar .mobile-filter-toggle-btn { order: 2; flex: 0 0 auto; width: 44px; padding: 0 !important; justify-content: center; }
+  .library-toolbar .view-toggle { order: 3; flex: 0 0 auto; }
+  .library-toolbar .toolbar-secondary-filters { order: 4; flex: 1 0 100%; }
+}
+
+/* ------------------------------------------------------------
+   Barres de choix à défilement horizontal (métriques, planning) : 3 choix visibles, le suivant
+   dépasse, fondus aux bords, accroche collante sur le choix visé — comme les onglets segmentés.
+   ------------------------------------------------------------ */
+@media (max-width: 720px) {
+  .scroll-nav { container-type: inline-size; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; overflow-x: auto; scrollbar-width: none; }
+  .scroll-nav::-webkit-scrollbar { display: none; }
+  .scroll-nav--many .view-btn { flex: 0 0 calc((100cqw - 6px) / 3.4); min-width: 0; justify-content: center; white-space: normal; text-align: center; line-height: 1.15; scroll-snap-align: center; scroll-snap-stop: always; padding-left: 8px; padding-right: 8px; }
+  .scroll-nav--many[data-edge="start"] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent); }
+  .scroll-nav--many[data-edge="end"] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 26px); mask-image: linear-gradient(90deg, transparent, #000 26px); }
+  .scroll-nav--many[data-edge="middle"] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 26px, #000 calc(100% - 26px), transparent); mask-image: linear-gradient(90deg, transparent, #000 26px, #000 calc(100% - 26px), transparent); }
+  .schedule-toolbar > .scroll-nav { width: 100%; }
+}
+
+/* ============================================================
+   Boutons : halo discret, contours marqués, thèmes clairs « verre »
+   (couche finale, l'emporte à spécificité égale)
+   ============================================================ */
+:root {
+  --btn-outline: color-mix(in srgb, var(--text-main) 44%, transparent);
+  --btn-outline-hover: color-mix(in srgb, var(--accent-primary) 70%, var(--text-main) 10%);
+  --glass-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.04) 48%, rgba(255, 255, 255, 0) 52%, rgba(0, 0, 0, 0.08) 100%);
+}
+
+/* Secondaires : contour net, ombre courte, plus de halo d'accent au survol */
+.btn-secondary:not(:disabled),
+.coach-btn:not(.coach-btn-main):not(:disabled),
+.radio-transport-btn:not(.main):not(.active) {
+  border: 1px solid var(--btn-outline);
+  box-shadow: var(--glass-edge), 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.btn-secondary:hover:not(:disabled),
+.coach-btn:not(.coach-btn-main):hover:not(:disabled),
+.radio-transport-btn:not(.main):not(.active):hover {
+  border-color: var(--btn-outline-hover);
+  box-shadow: var(--glass-edge), 0 4px 12px rgba(0, 0, 0, 0.10);
+}
+
+/* Principaux : ombre courte à peine teintée, liseré net */
+.btn-primary:not(:disabled),
+.btn-primary:hover:not(:disabled),
+.radio-transport-btn.main,
+.grid-now-playing-btn-main,
+.coach-btn-main {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 72%, #000000 28%),
+    0 3px 10px color-mix(in srgb, var(--accent-primary) 18%, transparent);
+}
+.btn-primary:hover:not(:disabled),
+.radio-transport-btn.main:hover {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 72%, #000000 28%),
+    0 5px 14px color-mix(in srgb, var(--accent-primary) 24%, transparent);
+}
+.btn-danger { border-color: color-mix(in srgb, var(--accent-error) 55%, transparent); }
+
+/* Thèmes clairs : verre translucide plutôt qu'aplat, dégradé non uniforme */
+:root[data-theme="clair"], :root[data-theme="charbon"], :root[data-theme="miel"], :root[data-theme="menthe"],
+:root[data-theme="ciel"], :root[data-theme="lavande"], :root[data-theme="beige"], :root[data-theme="coco"] {
+  --btn-outline: color-mix(in srgb, var(--text-main) 50%, transparent);
+  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.85), inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+}
+:root[data-theme="clair"] .btn-secondary:not(:disabled), :root[data-theme="charbon"] .btn-secondary:not(:disabled),
+:root[data-theme="miel"] .btn-secondary:not(:disabled), :root[data-theme="menthe"] .btn-secondary:not(:disabled),
+:root[data-theme="ciel"] .btn-secondary:not(:disabled), :root[data-theme="lavande"] .btn-secondary:not(:disabled),
+:root[data-theme="beige"] .btn-secondary:not(:disabled), :root[data-theme="coco"] .btn-secondary:not(:disabled),
+:root[data-theme="clair"] .coach-btn:not(.coach-btn-main):not(:disabled), :root[data-theme="charbon"] .coach-btn:not(.coach-btn-main):not(:disabled),
+:root[data-theme="miel"] .coach-btn:not(.coach-btn-main):not(:disabled), :root[data-theme="menthe"] .coach-btn:not(.coach-btn-main):not(:disabled),
+:root[data-theme="ciel"] .coach-btn:not(.coach-btn-main):not(:disabled), :root[data-theme="lavande"] .coach-btn:not(.coach-btn-main):not(:disabled),
+:root[data-theme="beige"] .coach-btn:not(.coach-btn-main):not(:disabled), :root[data-theme="coco"] .coach-btn:not(.coach-btn-main):not(:disabled) {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0.22) 100%);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(20px) saturate(170%);
+  box-shadow: var(--glass-edge), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+:root[data-theme="clair"] .btn-primary:not(:disabled), :root[data-theme="charbon"] .btn-primary:not(:disabled),
+:root[data-theme="miel"] .btn-primary:not(:disabled), :root[data-theme="menthe"] .btn-primary:not(:disabled),
+:root[data-theme="ciel"] .btn-primary:not(:disabled), :root[data-theme="lavande"] .btn-primary:not(:disabled),
+:root[data-theme="beige"] .btn-primary:not(:disabled), :root[data-theme="coco"] .btn-primary:not(:disabled) {
+  background-color: color-mix(in srgb, var(--accent-primary) 88%, transparent);
+  background-image: linear-gradient(165deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 55%, rgba(0, 0, 0, 0.10) 100%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+}
+
+/* Téléphone : le switch de sortie (câblée / réseau) se passe d'étiquette et se centre */
+@media (max-width: 720px) {
+  .display-output-switch { justify-content: center; width: 100%; }
+  .display-output-label {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  .display-output-buttons,
+  .rl-sections .display-output-buttons { justify-content: center; margin-inline: auto; }
+}
+
+/* Contours des champs et des surfaces interactives : au moins 3:1 (WCAG 1.4.11) */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+select, textarea {
+  border-color: color-mix(in srgb, var(--text-main) 42%, transparent);
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):focus,
+select:focus, textarea:focus { border-color: var(--border-focus); }
+.view-toggle, .seg, .display-output-buttons {
+  border-color: color-mix(in srgb, var(--text-main) 36%, transparent);
 }

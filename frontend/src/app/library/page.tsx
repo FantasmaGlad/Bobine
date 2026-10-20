@@ -910,8 +910,10 @@ export default function LibraryPage() {
 
           <button
             type="button"
-            className="btn btn-secondary mobile-filter-toggle-btn"
+            className={`btn btn-secondary mobile-filter-toggle-btn ${mobileFiltersOpen ? "active" : ""}`}
             style={{ padding: "8px 12px", fontSize: "0.82rem" }}
+            aria-expanded={mobileFiltersOpen}
+            aria-label={t("library.filters")}
             onClick={() => setMobileFiltersOpen((v) => !v)}
           >
             <Icon name="tune" size={18} />

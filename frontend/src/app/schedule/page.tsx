@@ -5,6 +5,7 @@ import { useIsMobile } from "@/lib/useIsMobile";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
 import Icon from "@/components/Icon";
+import ScrollNav from "@/components/ScrollNav";
 import { isRadioLane, parseScheduleChannel, type ScheduleChannel } from "@/lib/scheduleChannels";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SearchBox from "@/components/SearchBox";
@@ -1017,7 +1018,7 @@ export default function SchedulePage() {
       <div className="schedule-toolbar sticky-glass-toolbar">
         {/* Onglets de canal : tout ce qui suit — calendrier,
             liste, créations — ne concerne que le canal sélectionné. */}
-        <div className="view-toggle">
+        <ScrollNav>
           <button
             className={`view-btn olc-press ${channel === "cable" ? "active" : ""}`}
             onClick={() => setChannel("cable")}
@@ -1054,7 +1055,7 @@ export default function SchedulePage() {
             <Icon name="graphic_eq" size={16} />
             {t("schedule.channelTabRadioNetwork")}
           </button>
-        </div>
+        </ScrollNav>
         {viewMode === "day" ? (
           <div className="week-nav">
             <button className="btn btn-secondary btn-sm" onClick={goToPreviousDay} title={t("schedule.previousDayTitle")}>
