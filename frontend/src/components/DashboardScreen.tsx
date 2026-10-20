@@ -125,7 +125,7 @@ export default function DashboardScreen({ channel }: Props) {
   const [lastCause, setLastCause] = useState<string>("sync");
   const handlePlaybackEvent = (evt: PlaybackEvent) => setLastCause(evt.cause);
   const { state, connected, sendCommand, displayOutputCable, displayOutputNetwork, cinemaLocked, cinemaState } =
-    usePlaybackSocket(handlePlaybackEvent, undefined, channel);
+    usePlaybackSocket(handlePlaybackEvent, undefined, channel, undefined, "dashboard");
   const livePosition = useInterpolatedPosition(state.position_seconds, state.state === "playing", lastCause);
   // Glissement en cours sur la barre de position du bloc cinéma.
   const [cinemaSeekDrag, setCinemaSeekDrag] = useState<number | null>(null);

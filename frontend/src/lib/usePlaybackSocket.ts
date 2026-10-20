@@ -211,6 +211,8 @@ export function usePlaybackSocket(
   role?: "kiosk",
   channel: PlaybackChannel = "cable",
   onCinemaCommand?: (action: CinemaCommandAction, positionSeconds: number, videoId?: number, extra?: CinemaCommandExtra) => void,
+  /** Page qui utilise la connexion (« kiosk », « cinema », « grid », « dashboard », « coach ») : déclarée au serveur pour la carte des périphériques. */
+  page?: string,
 ) {
   const [state, setState] = useState<PlaybackState>(DEFAULT_STATE);
   const [connected, setConnected] = useState(false);
@@ -313,7 +315,7 @@ export function usePlaybackSocket(
         if (wsRef.current !== ws || ws.readyState !== WebSocket.OPEN) return;
         ws.send(JSON.stringify({
           command: "identify",
-          params: { role: "kiosk", channel, client_id: getPageKioskClientId() },
+          params: { role: "kiosk", channel, client_id: getPageKioskClientId(), ...(page ? { page } : {}) },
         }));
       };
 
@@ -348,6 +350,9 @@ export function usePlaybackSocket(
         // un nouvel identify immédiat.
         if (role === "kiosk") {
           sendIdentify();
+        } else if (page) {
+          // Page qui suit un canal sans en être l'écran : simple déclaration (aucun rôle primaire, aucun effet sur la lecture).
+          ws.send(JSON.stringify({ command: "identify", params: { role: "viewer", channel, page } }));
         }
         // Rejoue les commandes mises en file pendant la coupure (voir
         // sendCommand) — uniquement les fraîches, dans l'ordre d'émission.

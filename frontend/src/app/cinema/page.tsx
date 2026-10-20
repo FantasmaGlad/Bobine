@@ -409,6 +409,7 @@ export default function CinemaPage() {
     undefined,
     channel,
     (action, positionSeconds, videoId, extra) => cinemaCmdRef.current?.(action, positionSeconds, videoId, extra),
+    "cinema",
   );
   useDisplayOutputRedirect("cinema", displayOutputCable, displayOutputNetwork);
 

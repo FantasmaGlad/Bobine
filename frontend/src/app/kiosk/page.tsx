@@ -471,7 +471,7 @@ export default function KioskPage() {
     [showOsd, tryPlay]
   );
 
-  const { state, sendCommand, serverNow, isPrimary, displayOutputCable, displayOutputNetwork } = usePlaybackSocket(handleEvent, "kiosk", channel);
+  const { state, sendCommand, serverNow, isPrimary, displayOutputCable, displayOutputNetwork } = usePlaybackSocket(handleEvent, "kiosk", channel, undefined, "kiosk");
 
   // Sous-titres pour la vidéo en cours de lecture
   const subtitles = useVideoSubtitles(state.current_video?.id, getApiUrl);

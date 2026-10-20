@@ -63,7 +63,7 @@ export default function CoachModePage() {
   // — ce qui est justement le cas normal après un Stop — donc l'écran
   // restait bloqué sur le cours coach obsolète au lieu de revenir au picker.
   const [hasSynced, setHasSynced] = useState(false);
-  const { state: wsState, connected, sendCommand, serverNow } = usePlaybackSocket(() => setHasSynced(true));
+  const { state: wsState, connected, sendCommand, serverNow } = usePlaybackSocket(() => setHasSynced(true), undefined, "cable", undefined, "coach");
   const [courses, setCourses] = useState<AudioCourseSummary[]>([]);
   const [loading, setLoading] = useState(true);
   // Playlists audio ("éditions mixées") : onglet séparé du picker de

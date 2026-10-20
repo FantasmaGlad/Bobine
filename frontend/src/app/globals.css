@@ -9695,3 +9695,76 @@ video::cue {
 .dv-profile:disabled { opacity: 0.45; cursor: default; }
 .dv-profile.is-selected { color: var(--accent-primary); }
 @media (prefers-reduced-motion: reduce) { .dv-wave i { animation: none; transform: scaleY(0.7); } }
+
+/* ============================================================
+   Vue globale des périphériques : carte « système solaire » (SVG).
+   ============================================================ */
+.dv-map-wrap { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.dv-map-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; font-size: 0.8rem; color: var(--text-muted); padding: 0 4px; }
+.dv-legend-item { display: inline-flex; align-items: center; gap: 8px; }
+.dv-legend-count { margin-left: auto; color: var(--text-dim); }
+.dv-map-frame { position: relative; height: clamp(380px, 64vh, 680px); border-radius: var(--radius-lg); overflow: hidden; outline: none; touch-action: none;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--accent-primary) 9%, transparent), transparent 62%), var(--glass-card-bg, var(--bg-surface));
+  border: 1px solid var(--glass-surface-border, var(--border-color)); cursor: grab; }
+.dv-map-frame:active { cursor: grabbing; }
+.dv-map-frame:focus-visible { box-shadow: 0 0 0 3px var(--accent-primary); }
+.dv-map { display: block; user-select: none; -webkit-user-select: none; }
+.dv-ring { fill: none; stroke: color-mix(in srgb, var(--text-main) 14%, transparent); stroke-width: 1; stroke-dasharray: 2 8; }
+
+.dv-link { stroke: var(--text-muted); opacity: 0.5; transition: opacity var(--dur-base) var(--ease-out), stroke var(--dur-base) var(--ease-out); }
+.dv-link.active { stroke: var(--accent-primary); opacity: 0.8; }
+.dv-link.idle { opacity: 0.32; }
+.dv-link.dim { opacity: 0.08; }
+.dv-link.hot { opacity: 1; }
+@keyframes dv-flow { to { stroke-dashoffset: -52; } }
+:root:not([data-input-mode="remote"]) .dv-map .dv-link.active.dv-link--wifi,
+:root:not([data-input-mode="remote"]) .dv-map .dv-link.active.dv-link--bluetooth { animation: dv-flow 3.2s linear infinite; }
+
+.dv-node { cursor: pointer; outline: none; transition: opacity var(--dur-base) var(--ease-out); }
+.dv-node.dim { opacity: 0.22; }
+.dv-node.idle { opacity: 0.7; }
+.dv-node-disc { fill: var(--bg-surface-elevated); stroke: color-mix(in srgb, var(--text-main) 22%, transparent); stroke-width: 1.5;
+  transform-box: fill-box; transform-origin: center; transition: transform var(--dur-base) var(--ease-spring), stroke var(--dur-fast) var(--ease-out), fill var(--dur-fast) var(--ease-out); }
+.dv-node.active .dv-node-disc { stroke: var(--accent-primary); }
+.dv-node-halo { fill: none; stroke: var(--accent-primary); stroke-width: 2; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+.dv-node-icon { fill: var(--text-main); pointer-events: none; font-variation-settings: "FILL" 0, "wght" 400; }
+.dv-node-label { fill: var(--text-main); font-size: 12px; font-weight: 700; pointer-events: none; paint-order: stroke; stroke: var(--bg-main); stroke-width: 3px; stroke-linejoin: round; }
+.dv-node--machine .dv-node-disc { fill: var(--accent-primary); stroke: none; }
+.dv-node--machine .dv-node-icon { fill: var(--accent-primary-fg); }
+@media (hover: hover) and (pointer: fine) {
+  :root:not([data-input-mode="remote"]) .dv-node:hover .dv-node-disc { transform: scale(1.1); fill: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-surface-elevated)); }
+  :root:not([data-input-mode="remote"]) .dv-node--machine:hover .dv-node-disc { fill: var(--accent-primary); }
+}
+.dv-node:focus-visible .dv-node-halo, .dv-node.selected .dv-node-halo { opacity: 1; }
+.dv-node.selected .dv-node-disc { stroke-width: 3; }
+
+.dv-map-controls { position: absolute; left: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
+.dv-map-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-main);
+  background: color-mix(in srgb, var(--bg-surface) 75%, transparent); border: 1px solid color-mix(in srgb, var(--text-main) 16%, var(--border-color));
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast) var(--ease-out); }
+.dv-map-btn:hover { background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-surface)); }
+.dv-map-btn:active { transform: scale(0.92); }
+.dv-map-btn:focus-visible { outline: 3px solid var(--accent-primary); outline-offset: 2px; }
+.dv-map-empty { position: absolute; left: 0; right: 0; bottom: 14%; text-align: center; color: var(--text-muted); font-size: 0.9rem; margin: 0; padding: 0 20px; pointer-events: none; }
+
+.dv-map-panel { position: absolute; top: 12px; right: 12px; bottom: 12px; width: min(320px, calc(100% - 24px)); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 14px;
+  border-radius: var(--radius-md); cursor: default; animation: dv-panel-in var(--dur-slow) var(--ease-out) both;
+  background: var(--glass-floating-bg, var(--bg-surface)); border: 1px solid var(--glass-floating-border, var(--border-color));
+  backdrop-filter: blur(22px) saturate(170%); -webkit-backdrop-filter: blur(22px) saturate(170%); box-shadow: var(--glass-floating-shadow, 0 12px 32px rgba(0, 0, 0, 0.2)); }
+.dv-map-panel header { display: flex; align-items: center; gap: 10px; }
+.dv-map-panel header .dv-text { flex: 1 1 0; }
+.dv-map-conn { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-muted); }
+.dv-map-panel .dv-defs { grid-template-columns: 1fr 1fr; }
+@keyframes dv-panel-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
+@media (max-width: 720px) {
+  .dv-map-frame { height: clamp(340px, 58vh, 560px); }
+  .dv-map-panel { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; max-height: 56%; }
+  .dv-map-controls { bottom: auto; top: 10px; }
+  .dv-legend-count { margin-left: 0; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .dv-map-panel { animation: none; } .dv-link.active { animation: none !important; } }
+
+/* Raccourci depuis la carte : halo bref sur l'élément visé. */
+@keyframes dv-flash { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-primary) 70%, transparent); } 100% { box-shadow: 0 0 0 16px transparent; } }
+.dv-flash { animation: dv-flash 1.1s var(--ease-out) 2; }
+

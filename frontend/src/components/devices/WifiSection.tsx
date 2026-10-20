@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import { devicesRequest, secondsLeft, signalBars, wifiConnectPlan, type WifiNetwork, type WifiStatus } from "@/lib/devicesApi";
-import { errorText, openSystemSettings, useDevicesResource, type SectionProps } from "./common";
+import { errorText, openSystemSettings, useDevicesResource, useFocusFlash, type SectionProps } from "./common";
 
 interface AckRequest {
   kind: "connect" | "forget" | "power";
@@ -12,7 +12,7 @@ interface AckRequest {
   on?: boolean;
 }
 
-export default function WifiSection({ caps, local, refreshKey, notify, t }: SectionProps) {
+export default function WifiSection({ caps, local, refreshKey, notify, t, focusId, focusNonce }: SectionProps) {
   const { data, error, loading, reload } = useDevicesResource<WifiStatus>("/wifi", refreshKey);
   const [passwordFor, setPasswordFor] = useState<string | null>(null);
   const [password, setPassword] = useState("");
@@ -22,6 +22,7 @@ export default function WifiSection({ caps, local, refreshKey, notify, t }: Sect
   // Secondes écoulées depuis la dernière valeur reçue du serveur (compte à rebours local).
   const [elapsed, setElapsed] = useState(0);
 
+  useFocusFlash(focusId, focusNonce, !!data?.supported);
   const pending = data?.pending_change ?? null;
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- recale le compte à rebours sur la valeur reçue du serveur
@@ -108,7 +109,7 @@ export default function WifiSection({ caps, local, refreshKey, notify, t }: Sect
   const networkRow = (network: WifiNetwork) => {
     const plan = wifiConnectPlan(network, local);
     return (
-      <div key={network.ssid} className={`dv-row glass-interactive ${network.in_use ? "active" : ""}`}>
+      <div key={network.ssid} data-focus-id={network.ssid} className={`dv-row glass-interactive ${network.in_use ? "active" : ""}`}>
         <span className="dv-icon">
           <Icon name={network.signal >= 75 ? "signal_wifi_4_bar" : network.signal >= 50 ? "network_wifi_3_bar" : network.signal >= 25 ? "network_wifi_2_bar" : "network_wifi_1_bar"} size={22} />
         </span>

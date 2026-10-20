@@ -8,6 +8,7 @@ import { AccessGate, SecurityPanel } from "@/components/devices/AccessGate";
 import AudioSection from "@/components/devices/AudioSection";
 import BluetoothSection from "@/components/devices/BluetoothSection";
 import WifiSection from "@/components/devices/WifiSection";
+import MapSection from "@/components/devices/MapSection";
 import type { Notify, SectionProps } from "@/components/devices/common";
 import { devicesRequest, type DevicesStatus } from "@/lib/devicesApi";
 import { useDevicesEvents } from "@/lib/useDevicesEvents";
@@ -17,7 +18,7 @@ import { usePointerGlow } from "@/lib/usePointerGlow";
 // l'écran local est de confiance, tout autre appareil saisit un code PIN (voir docs/ARCHITECTURE.md).
 // Même barre de sections horizontale que la bibliothèque radio.
 
-type Tab = "audio" | "bluetooth" | "wifi" | "security";
+type Tab = "map" | "audio" | "bluetooth" | "wifi" | "security";
 const TAB_KEY = "bobine.devices.tab";
 
 interface ToastState { message: string; type: "success" | "error" | "warning"; }
@@ -28,7 +29,8 @@ export default function DevicesPage() {
   usePointerGlow(rootRef);
   const [status, setStatus] = useState<DevicesStatus | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [tab, setTab] = useState<Tab>("audio");
+  const [tab, setTab] = useState<Tab>("map");
+  const [focus, setFocus] = useState<{ id: string | null; nonce: number }>({ id: null, nonce: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState<ToastState | null>(null);
 
@@ -43,7 +45,7 @@ export default function DevicesPage() {
     try {
       const saved = window.localStorage.getItem(TAB_KEY);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- restaure la dernière section (stockage local du navigateur)
-      if (saved === "audio" || saved === "bluetooth" || saved === "wifi") setTab(saved);
+      if (saved === "map" || saved === "audio" || saved === "bluetooth" || saved === "wifi") setTab(saved);
     } catch { /* stockage indisponible */ }
   }, []);
   const chooseTab = (next: Tab) => {
@@ -82,7 +84,7 @@ export default function DevicesPage() {
   if (!status) return <div className="rl-center-note">{t("devices.loading")}</div>;
 
   const caps = status.capabilities ?? {};
-  const section: SectionProps = { caps, local: status.local, refreshKey, notify, t };
+  const section: SectionProps = { caps, local: status.local, refreshKey, notify, t, focusId: focus.id, focusNonce: focus.nonce };
   return (
     <div className="radio-lib radio-lib--tabs dv-page" ref={rootRef}>
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
@@ -104,7 +106,8 @@ export default function DevicesPage() {
                 value={tab}
                 onChange={(id) => chooseTab(id as Tab)}
                 tabs={[
-                  { id: "audio", icon: "speaker", label: t("devices.tabs.audio") },
+                  { id: "map", icon: "hub", label: t("devices.tabs.map") },
+                { id: "audio", icon: "speaker", label: t("devices.tabs.audio") },
                   { id: "bluetooth", icon: "bluetooth", label: t("devices.tabs.bluetooth") },
                   { id: "wifi", icon: "wifi", label: t("devices.tabs.wifi") },
                   ...(status.local ? [{ id: "security", icon: "shield", label: t("devices.tabs.security") }] : []),
@@ -121,6 +124,8 @@ export default function DevicesPage() {
       <main className="radio-lib-main">
         {status.access !== "granted" ? (
           <AccessGate status={status} onChanged={onChanged} notify={notify} t={t} />
+        ) : tab === "map" ? (
+          <MapSection refreshKey={refreshKey} t={t} onOpen={(next, ref) => { chooseTab(next); setFocus((f) => ({ id: ref, nonce: f.nonce + 1 })); }} />
         ) : tab === "audio" ? (
           <AudioSection {...section} />
         ) : tab === "bluetooth" ? (

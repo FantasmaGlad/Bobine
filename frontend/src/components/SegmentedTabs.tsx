@@ -21,11 +21,24 @@ interface Props {
 /**
  * Barre de sections segmentée avec un indicateur UNIQUE qui glisse d'un onglet à l'autre (transform +
  * largeur mesurée, pas de repeinture de chaque bouton). Défile horizontalement sur petit écran et garde
- * l'onglet actif visible ; flèches gauche/droite entre onglets.
+ * l'onglet actif visible ; flèches gauche/droite entre onglets. Sur téléphone, 3 onglets au plus sont affichés
+ * (le suivant dépasse un peu : invitation à glisser) et le défilement s'« accroche » sur l'onglet visé.
  */
 export default function SegmentedTabs({ tabs, value, onChange, ariaLabel, className = "" }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
+  // Bord atteint par le défilement : sert aux fondus d'indice « il y a d'autres onglets, glissez ».
+  const [edge, setEdge] = useState<"none" | "start" | "middle" | "end">("none");
+
+  const updateEdge = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    if (el.scrollWidth <= el.clientWidth + 1) setEdge("none");
+    else if (el.scrollLeft <= 2) setEdge("start");
+    else if (el.scrollLeft >= el.scrollWidth - el.clientWidth - 2) setEdge("end");
+    else setEdge("middle");
+  }, []);
 
   const measure = useCallback(() => {
     const track = trackRef.current;
@@ -33,7 +46,8 @@ export default function SegmentedTabs({ tabs, value, onChange, ariaLabel, classN
     if (!track || !active) return;
     setIndicator({ left: active.offsetLeft, width: active.offsetWidth });
     active.scrollIntoView({ inline: "center", block: "nearest" });
-  }, []);
+    updateEdge();
+  }, [updateEdge]);
 
   useLayoutEffect(() => {
     measure();
@@ -60,7 +74,15 @@ export default function SegmentedTabs({ tabs, value, onChange, ariaLabel, classN
   };
 
   return (
-    <div className={`seg ${className}`} role="tablist" aria-label={ariaLabel} onKeyDown={onKeyDown}>
+    <div
+      ref={scrollerRef}
+      className={`seg ${tabs.length > 3 ? "seg--many" : ""} ${className}`}
+      data-edge={edge}
+      role="tablist"
+      aria-label={ariaLabel}
+      onKeyDown={onKeyDown}
+      onScroll={updateEdge}
+    >
       <div className="seg-track" ref={trackRef}>
         {indicator && (
           <span className="seg-indicator" aria-hidden="true" style={{ width: indicator.width, transform: `translateX(${indicator.left}px)` }} />

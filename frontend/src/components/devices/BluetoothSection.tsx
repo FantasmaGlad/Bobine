@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import { bluetoothKindIcon, devicesRequest, splitBluetooth, type BluetoothDevice, type BluetoothStatus } from "@/lib/devicesApi";
-import { errorText, openSystemSettings, useDevicesResource, type SectionProps } from "./common";
+import { errorText, openSystemSettings, useDevicesResource, useFocusFlash, type SectionProps } from "./common";
 
-export default function BluetoothSection({ caps, refreshKey, notify, t }: SectionProps) {
+export default function BluetoothSection({ caps, refreshKey, notify, t, focusId, focusNonce }: SectionProps) {
   const { data, error, loading, reload } = useDevicesResource<BluetoothStatus>("/bluetooth", refreshKey);
   const [forgetting, setForgetting] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useFocusFlash(focusId, focusNonce, !!data?.supported);
   const discovering = data?.discovering === true;
   // Pendant une recherche, relit la liste toutes les 3 s (les nouveaux appareils arrivent au fil de l'eau).
   useEffect(() => {
@@ -63,7 +64,7 @@ export default function BluetoothSection({ caps, refreshKey, notify, t }: Sectio
   const can = (key: string) => caps[key]?.supported === true;
 
   const deviceRow = (device: BluetoothDevice) => (
-    <div key={device.address} className={`dv-row glass-interactive ${device.connected ? "active" : ""}`}>
+    <div key={device.address} data-focus-id={device.address} className={`dv-row glass-interactive ${device.connected ? "active" : ""}`}>
       <span className="dv-icon"><Icon name={bluetoothKindIcon(device.kind)} size={22} /></span>
       <span className="dv-text">
         <span className="dv-title">

@@ -10,6 +10,10 @@ export interface SectionProps {
   local: boolean;
   /** Incrémenté à chaque évènement `devices_changed` : déclenche une relecture. */
   refreshKey: number;
+  /** Raccourci depuis la carte : élément à mettre en évidence (adresse Bluetooth, SSID, identifiant de sortie). */
+  focusId?: string | null;
+  /** Change à chaque raccourci (même élément, nouveau clic). */
+  focusNonce?: number;
   notify: Notify;
   t: (key: string, params?: Record<string, string | number>) => string;
 }
@@ -58,4 +62,19 @@ export async function openSystemSettings(target: "wifi" | "bluetooth" | "sound",
   const result = await devicesRequest<{ ok: boolean }>("/system-settings", { body: { target } });
   if (result.ok) notify(t("devices.settingsOpened"), "success");
   else notify(errorText(result.error, t), "error");
+}
+
+/** Met en évidence (défilement + halo bref) l'élément `[data-focus-id]` visé par un raccourci de la carte. */
+export function useFocusFlash(focusId: string | null | undefined, nonce: number | undefined, ready: boolean) {
+  useEffect(() => {
+    if (!focusId || !ready) return;
+    const frame = requestAnimationFrame(() => {
+      const el = Array.from(document.querySelectorAll<HTMLElement>("[data-focus-id]")).find((node) => node.dataset.focusId === focusId);
+      if (!el) return;
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      el.classList.add("dv-flash");
+      setTimeout(() => el.classList.remove("dv-flash"), 2200);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusId, nonce, ready]);
 }

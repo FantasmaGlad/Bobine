@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import { audioDisplayName, audioKindIcon, devicesRequest, type AudioDevice, type AudioListing } from "@/lib/devicesApi";
 import AudioDetailSheet from "./AudioDetailSheet";
-import { errorText, openSystemSettings, useDevicesResource, type SectionProps } from "./common";
+import { errorText, openSystemSettings, useDevicesResource, useFocusFlash, type SectionProps } from "./common";
 
-export default function AudioSection({ caps, refreshKey, notify, t }: SectionProps) {
+export default function AudioSection({ caps, refreshKey, notify, t, focusId, focusNonce }: SectionProps) {
   const { data, error, loading, reload } = useDevicesResource<AudioListing>("/audio", refreshKey);
   const [draft, setDraft] = useState<Record<string, number>>({});
   const [openId, setOpenId] = useState<string | null>(null);
@@ -30,6 +30,15 @@ export default function AudioSection({ caps, refreshKey, notify, t }: SectionPro
       return next;
     });
   };
+
+  // Raccourci depuis la carte : ouvre directement le détail de la sortie visée.
+  useEffect(() => {
+    if (focusId && data?.devices?.some((d) => d.id === focusId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ouverture demandée par un raccourci externe (carte)
+      setOpenId(focusId);
+    }
+  }, [focusId, focusNonce, data]);
+  useFocusFlash(focusId, focusNonce, !!data?.supported);
 
   const canDefault = caps.audio_set_default?.supported;
   const canVolume = caps.audio_set_volume?.supported;
@@ -60,6 +69,7 @@ export default function AudioSection({ caps, refreshKey, notify, t }: SectionPro
         key={device.id}
         role="button"
         tabIndex={0}
+        data-focus-id={device.id}
         aria-label={t("devices.audio.openDetail", { name: audioDisplayName(device) })}
         className={`dv-row glass-interactive dv-row--click ${device.is_default ? "active" : ""} ${openId === device.id ? "is-selected" : ""} ${device.available ? "" : "off"}`}
         onClick={open}

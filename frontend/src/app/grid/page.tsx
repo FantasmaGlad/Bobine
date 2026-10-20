@@ -237,7 +237,7 @@ export default function GridPage() {
   // Toujours le canal câblé : /grid n'a de sens que pour piloter la sortie
   // câblée (ex. la sortie HDMI de la tablette Android) - pas de variante
   // réseau pour l'instant (périmètre volontairement limité).
-  const { state, sendCommand, displayOutputCable, cinemaState, libraryVersion } = usePlaybackSocket(undefined, undefined, "cable");
+  const { state, sendCommand, displayOutputCable, cinemaState, libraryVersion } = usePlaybackSocket(undefined, undefined, "cable", undefined, "grid");
 
   // Bascule automatique vers l'interface coach si le mode coach est actif sur le canal câblé
   // (valable aussi bien sur tablette que sur appliance avec écran en mode headless)
