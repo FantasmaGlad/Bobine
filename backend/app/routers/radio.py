@@ -14,7 +14,7 @@ from typing import List
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.config import settings
 from app.database import get_db
@@ -176,7 +176,11 @@ def list_tracks(
 ):
     """Liste filtrable des morceaux (vue « Morceaux » + filtres artiste/album/
     genre/tag des autres vues)."""
-    query = db.query(RadioTrack)
+    # `selectinload` : `_to_track_response` lit `track.tags` pour chaque ligne ;
+    # sans lui, SQLAlchemy émet un SELECT par morceau (N+1 : 5000 morceaux =
+    # 5001 requêtes, ~489 ms qui bloquent la boucle d'évènements contre ~54 ms
+    # avec une seule requête supplémentaire pour tous les tags).
+    query = db.query(RadioTrack).options(selectinload(RadioTrack.tags))
     if q:
         like = f"%{q.strip()}%"
         query = query.filter(

@@ -7,7 +7,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, contains_eager, joinedload, selectinload
 
 from app.database import get_db
 from app.models import AudioCourse, AudioTrack, Background
@@ -114,7 +114,14 @@ def _to_summary(course: AudioCourse) -> dict:
 
 @router.get("", response_model=List[AudioCourseResponse])
 def list_audio_courses(db: Session = Depends(get_db)):
-    courses = db.query(AudioCourse).order_by(AudioCourse.imported_at.desc()).all()
+    # `_to_summary` lit `course.tracks` et `course.background` : sans
+    # chargement groupé, 2 SELECT par cours (500 cours = 551 requêtes).
+    courses = (
+        db.query(AudioCourse)
+        .options(selectinload(AudioCourse.tracks), joinedload(AudioCourse.background))
+        .order_by(AudioCourse.imported_at.desc())
+        .all()
+    )
     return [_to_summary(c) for c in courses]
 
 
@@ -129,6 +136,9 @@ def list_all_tracks(db: Session = Depends(get_db)):
     tracks = (
         db.query(AudioTrack)
         .join(AudioCourse, AudioTrack.audio_course_id == AudioCourse.id)
+        # Le cours est déjà joint pour le tri : `contains_eager` le réutilise
+        # au lieu d'un SELECT par piste ; le fond (titre/type) est joint à part.
+        .options(contains_eager(AudioTrack.course), joinedload(AudioTrack.background))
         .order_by(AudioCourse.title.asc(), AudioTrack.position.asc())
         .all()
     )
@@ -168,7 +178,12 @@ def list_audio_programs(db: Session = Depends(get_db)):
 
 @router.get("/{course_id}", response_model=AudioCourseDetailResponse)
 def get_audio_course(course_id: int, db: Session = Depends(get_db)):
-    course = db.query(AudioCourse).filter(AudioCourse.id == course_id).first()
+    course = (
+        db.query(AudioCourse)
+        .options(selectinload(AudioCourse.tracks).joinedload(AudioTrack.background))
+        .filter(AudioCourse.id == course_id)
+        .first()
+    )
     if not course:
         raise HTTPException(status_code=404, detail="Cours audio non trouvé")
     return course

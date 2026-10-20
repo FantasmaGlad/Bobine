@@ -11,7 +11,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database import get_db
 from app.models import RadioPlaylist, RadioPlaylistItem, RadioTrack
@@ -103,8 +103,14 @@ def _detail(playlist: RadioPlaylist) -> dict:
     }
 
 
-def _get_or_404(playlist_id: int, db: Session) -> RadioPlaylist:
-    playlist = db.query(RadioPlaylist).filter(RadioPlaylist.id == playlist_id).first()
+def _get_or_404(playlist_id: int, db: Session, *, preload_tracks: bool = False) -> RadioPlaylist:
+    """`preload_tracks` : charge éléments + morceaux en 2 requêtes au lieu d'un
+    SELECT par morceau (lecture seule : les routes qui modifient les éléments
+    gardent le chargement paresseux, rechargé après leur `commit`)."""
+    query = db.query(RadioPlaylist)
+    if preload_tracks:
+        query = query.options(selectinload(RadioPlaylist.items).joinedload(RadioPlaylistItem.track))
+    playlist = query.filter(RadioPlaylist.id == playlist_id).first()
     if not playlist:
         raise HTTPException(status_code=404, detail="Playlist radio non trouvée")
     return playlist
@@ -123,7 +129,14 @@ def _replace_items(playlist: RadioPlaylist, track_ids: List[int], db: Session) -
 # ---------------------------------------------------------------------------
 @router.get("", response_model=List[RadioPlaylistSummaryResponse])
 def list_playlists(db: Session = Depends(get_db)):
-    playlists = db.query(RadioPlaylist).order_by(RadioPlaylist.is_default.desc(), RadioPlaylist.name.asc()).all()
+    # Éléments et morceaux chargés en 2 requêtes au total (voir
+    # `playlists.list_playlists`) au lieu d'un SELECT par playlist et par morceau.
+    playlists = (
+        db.query(RadioPlaylist)
+        .options(selectinload(RadioPlaylist.items).joinedload(RadioPlaylistItem.track))
+        .order_by(RadioPlaylist.is_default.desc(), RadioPlaylist.name.asc())
+        .all()
+    )
     out = []
     for p in playlists:
         items = sorted(p.items, key=lambda x: x.position)
@@ -142,7 +155,7 @@ def list_playlists(db: Session = Depends(get_db)):
 
 @router.get("/{playlist_id}", response_model=RadioPlaylistDetailResponse)
 def get_playlist(playlist_id: int, db: Session = Depends(get_db)):
-    return _detail(_get_or_404(playlist_id, db))
+    return _detail(_get_or_404(playlist_id, db, preload_tracks=True))
 
 
 @router.post("", response_model=RadioPlaylistDetailResponse)

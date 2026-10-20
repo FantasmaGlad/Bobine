@@ -4,7 +4,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database import get_db
 from app.models import AudioPlaylist, AudioPlaylistItem, AudioTrack, Background
@@ -118,7 +118,14 @@ def _validate_background_id(background_id: int | None, db: Session) -> None:
 def list_audio_playlists(db: Session = Depends(get_db)):
     """Liste toutes les playlists audio ("éditions mixées") avec le nombre
     de pistes et la durée totale."""
-    playlists = db.query(AudioPlaylist).order_by(AudioPlaylist.name.asc()).all()
+    # Éléments et pistes chargés en 2 requêtes au total (au lieu d'un SELECT
+    # par playlist et par piste : 5000 éléments = 5051 requêtes).
+    playlists = (
+        db.query(AudioPlaylist)
+        .options(selectinload(AudioPlaylist.items).joinedload(AudioPlaylistItem.track))
+        .order_by(AudioPlaylist.name.asc())
+        .all()
+    )
     response = []
     for p in playlists:
         total_duration = sum((item.track.duration_seconds or 0.0) for item in p.items)
@@ -134,7 +141,17 @@ def list_audio_playlists(db: Session = Depends(get_db)):
 
 @router.get("/{playlist_id}", response_model=AudioPlaylistDetailResponse)
 def get_audio_playlist(playlist_id: int, db: Session = Depends(get_db)):
-    playlist = db.query(AudioPlaylist).filter(AudioPlaylist.id == playlist_id).first()
+    playlist = (
+        db.query(AudioPlaylist)
+        .options(
+            selectinload(AudioPlaylist.items).options(
+                joinedload(AudioPlaylistItem.track).joinedload(AudioTrack.course),
+                joinedload(AudioPlaylistItem.background),
+            )
+        )
+        .filter(AudioPlaylist.id == playlist_id)
+        .first()
+    )
     if not playlist:
         raise HTTPException(status_code=404, detail="Playlist audio non trouvée")
 

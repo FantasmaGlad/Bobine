@@ -4,7 +4,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database import get_db
 from app.models import Playlist, PlaylistItem, Video
@@ -83,7 +83,14 @@ def list_playlists(db: Session = Depends(get_db)):
     Liste toutes les playlists avec le nombre d'éléments, la durée totale et
     une miniature de repli (1er élément en ayant une).
     """
-    playlists = db.query(Playlist).order_by(Playlist.name.asc()).all()
+    # Éléments et vidéos chargés en 2 requêtes au total : sans cela, chaque
+    # playlist déclenche un SELECT de ses éléments puis un SELECT par vidéo.
+    playlists = (
+        db.query(Playlist)
+        .options(selectinload(Playlist.items).joinedload(PlaylistItem.video))
+        .order_by(Playlist.name.asc())
+        .all()
+    )
     response = []
     for p in playlists:
         items = sorted(p.items, key=lambda it: it.position)
@@ -107,7 +114,12 @@ def get_playlist(playlist_id: int, db: Session = Depends(get_db)):
     """
     Détails d'une playlist avec ses éléments ordonnés et les métadonnées des vidéos associées.
     """
-    playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
+    playlist = (
+        db.query(Playlist)
+        .options(selectinload(Playlist.items).joinedload(PlaylistItem.video))
+        .filter(Playlist.id == playlist_id)
+        .first()
+    )
     if not playlist:
         raise HTTPException(status_code=404, detail="Playlist non trouvée")
 
