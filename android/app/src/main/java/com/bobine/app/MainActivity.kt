@@ -156,13 +156,17 @@ class MainActivity : AppCompatActivity() {
         splashLayout.addView(logoView)
         SplashChannel.refreshFromBackendIfUnknown(this, logoView)
 
-        val progressBar = android.widget.ProgressBar(this).apply {
-            isIndeterminate = true
+        val progressBar = ArcSpinnerView(
+            this,
+            SpinnerColors.arcColor(themeColors.accent, themeColors.text, themeColors.background),
+            themeColors.text,
+            if (isTv) 56 else 40,
+        ).apply {
             layoutParams = android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                bottomMargin = (16 * resources.displayMetrics.density).toInt()
+                bottomMargin = (18 * resources.displayMetrics.density).toInt()
             }
         }
         splashLayout.addView(progressBar)

@@ -83,13 +83,20 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
         splashLayout.addView(logoView)
         SplashChannel.refreshFromBackendIfUnknown(context, logoView)
 
-        val progressBar = android.widget.ProgressBar(context).apply {
-            isIndeterminate = true
+        // Fond et texte de la sortie HDMI sont fixes (sombre) ; seul l'accent suit le thème choisi.
+        val presentationBackground = android.graphics.Color.parseColor("#0b0e14")
+        val presentationText = android.graphics.Color.parseColor("#94a3b8")
+        val progressBar = ArcSpinnerView(
+            context,
+            SpinnerColors.arcColor(ThemeColors.load(context).accent, presentationText, presentationBackground),
+            presentationText,
+            56,
+        ).apply {
             layoutParams = android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                bottomMargin = (16 * context.resources.displayMetrics.density).toInt()
+                bottomMargin = (18 * context.resources.displayMetrics.density).toInt()
             }
         }
         splashLayout.addView(progressBar)

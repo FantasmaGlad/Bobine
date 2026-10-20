@@ -8,13 +8,15 @@ import android.webkit.JavascriptInterface
 private const val PREFS = "bobine_native"
 private const val KEY_BG = "theme_bg"
 private const val KEY_FG = "theme_fg"
+private const val KEY_ACCENT = "theme_accent"
 private const val KEY_START_ON_BOOT = "start_on_boot"
 private const val KEY_UPDATE_CHANNEL = "update_channel"
 private val HEX_COLOR = Regex("^#[0-9a-fA-F]{6}$")
 
 /** Couleurs du thème choisi dans l'application, pour l'écran de chargement. */
 object ThemeColors {
-    data class Pair(val background: Int, val text: Int)
+    /** `accent` : couleur d'accent du thème (spinner de chargement) ; à défaut, la couleur du texte. */
+    data class Pair(val background: Int, val text: Int, val accent: Int = text)
 
     /** Dernières couleurs envoyées par l'interface web ; à défaut, clair ou sombre selon le système. */
     fun load(context: Context): Pair {
@@ -22,11 +24,18 @@ object ThemeColors {
         val bg = prefs.getString(KEY_BG, null)
         val fg = prefs.getString(KEY_FG, null)
         if (bg != null && fg != null && HEX_COLOR.matches(bg) && HEX_COLOR.matches(fg)) {
-            return Pair(Color.parseColor(bg), Color.parseColor(fg))
+            val accent = prefs.getString(KEY_ACCENT, null)?.takeIf { HEX_COLOR.matches(it) }
+            return Pair(Color.parseColor(bg), Color.parseColor(fg), accent?.let { Color.parseColor(it) } ?: Color.parseColor(fg))
         }
         val night = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         return if (night) Pair(Color.parseColor("#0b0e14"), Color.parseColor("#94a3b8"))
         else Pair(Color.parseColor("#f6f7f9"), Color.parseColor("#5b5b6b"))
+    }
+
+    /** Accent du thème, envoyé à part (anciens JS : méthode absente, l'accent retombe sur le texte). */
+    fun saveAccent(context: Context, accent: String) {
+        if (!HEX_COLOR.matches(accent)) return
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_ACCENT, accent).apply()
     }
 
     fun save(context: Context, background: String, text: String) {
@@ -77,6 +86,9 @@ object StartOnBoot {
 class NativeBridge(private val context: Context) {
     @JavascriptInterface
     fun setThemeColors(background: String, text: String) = ThemeColors.save(context, background, text)
+
+    @JavascriptInterface
+    fun setThemeAccent(accent: String) = ThemeColors.saveAccent(context, accent)
 
     @JavascriptInterface
     fun setUpdateChannel(channel: String) = UpdateChannelPref.save(context, channel)
