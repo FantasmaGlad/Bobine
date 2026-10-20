@@ -108,7 +108,7 @@ export default function WifiSection({ caps, local, refreshKey, notify, t }: Sect
   const networkRow = (network: WifiNetwork) => {
     const plan = wifiConnectPlan(network, local);
     return (
-      <div key={network.ssid} className={`dv-row ${network.in_use ? "active" : ""}`}>
+      <div key={network.ssid} className={`dv-row glass-interactive ${network.in_use ? "active" : ""}`}>
         <span className="dv-icon">
           <Icon name={network.signal >= 75 ? "signal_wifi_4_bar" : network.signal >= 50 ? "network_wifi_3_bar" : network.signal >= 25 ? "network_wifi_2_bar" : "network_wifi_1_bar"} size={22} />
         </span>

@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import Icon from "@/components/Icon";
+import SegmentedTabs from "@/components/SegmentedTabs";
 import { AccessGate, SecurityPanel } from "@/components/devices/AccessGate";
 import AudioSection from "@/components/devices/AudioSection";
 import BluetoothSection from "@/components/devices/BluetoothSection";
@@ -10,6 +11,7 @@ import WifiSection from "@/components/devices/WifiSection";
 import type { Notify, SectionProps } from "@/components/devices/common";
 import { devicesRequest, type DevicesStatus } from "@/lib/devicesApi";
 import { useDevicesEvents } from "@/lib/useDevicesEvents";
+import { usePointerGlow } from "@/lib/usePointerGlow";
 
 // Périphériques : audio, Bluetooth et Wi-Fi de la machine qui diffuse. Fonction désactivée par défaut ;
 // l'écran local est de confiance, tout autre appareil saisit un code PIN (voir docs/ARCHITECTURE.md).
@@ -22,6 +24,8 @@ interface ToastState { message: string; type: "success" | "error" | "warning"; }
 
 export default function DevicesPage() {
   const { t } = useAppSettings();
+  const rootRef = useRef<HTMLDivElement>(null);
+  usePointerGlow(rootRef);
   const [status, setStatus] = useState<DevicesStatus | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [tab, setTab] = useState<Tab>("audio");
@@ -46,11 +50,6 @@ export default function DevicesPage() {
     setTab(next);
     try { if (next !== "security") window.localStorage.setItem(TAB_KEY, next); } catch { /* ignoré */ }
   };
-
-  // Téléphone : la barre de sections défile ; garde la section active visible.
-  useEffect(() => {
-    document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.scrollIntoView({ inline: "center", block: "nearest" });
-  }, [tab, status?.access]);
 
   const loadStatus = useCallback(async () => {
     const result = await devicesRequest<DevicesStatus>("/status");
@@ -84,45 +83,44 @@ export default function DevicesPage() {
 
   const caps = status.capabilities ?? {};
   const section: SectionProps = { caps, local: status.local, refreshKey, notify, t };
-  const tabButton = (id: Tab, icon: string, label: string) => (
-    <button key={id} type="button" role="tab" aria-selected={tab === id} className={`display-output-btn olc-press ${tab === id ? "active" : ""}`} onClick={() => chooseTab(id)}>
-      <Icon name={icon} size={16} /> {label}
-    </button>
-  );
-
   return (
-    <div className="radio-lib radio-lib--tabs dv-page">
+    <div className="radio-lib radio-lib--tabs dv-page" ref={rootRef}>
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
 
-      <div className="live-block channel-card rl-nav-card">
+      {status.access === "granted" && (
+        <div className="live-block channel-card rl-nav-card">
+          {tab !== "security" && (
         <div className="channel-card-left">
-          <h3><Icon name="devices" size={18} /> {t("devices.title")}</h3>
+              <h3><Icon name="devices" size={18} /> {t("devices.title")}</h3>
+              {status.access === "granted" && (
+                <span className="status-pill neutral" title={status.driver}>{t(`devices.platform.${status.platform}`)}</span>
+              )}
+            </div>
+        )}
           {status.access === "granted" && (
-            <span className="status-pill neutral" title={status.driver}>{t(`devices.platform.${status.platform}`)}</span>
+            <div className="channel-card-right">
+              <SegmentedTabs
+                ariaLabel={t("devices.sectionsLabel")}
+                value={tab}
+                onChange={(id) => chooseTab(id as Tab)}
+                tabs={[
+                  { id: "audio", icon: "speaker", label: t("devices.tabs.audio") },
+                  { id: "bluetooth", icon: "bluetooth", label: t("devices.tabs.bluetooth") },
+                  { id: "wifi", icon: "wifi", label: t("devices.tabs.wifi") },
+                  ...(status.local ? [{ id: "security", icon: "shield", label: t("devices.tabs.security") }] : []),
+                ]}
+              />
+              {!status.local && (
+                <button type="button" className="btn btn-secondary" onClick={logout}><Icon name="logout" size={14} /> {t("devices.access.logout")}</button>
+              )}
+            </div>
           )}
         </div>
-        {status.access === "granted" && (
-          <div className="channel-card-right">
-            <div className="display-output-switch rl-sections" role="tablist" aria-label={t("devices.sectionsLabel")}>
-              <div className="display-output-buttons">
-                {tabButton("audio", "speaker", t("devices.tabs.audio"))}
-                {tabButton("bluetooth", "bluetooth", t("devices.tabs.bluetooth"))}
-                {tabButton("wifi", "wifi", t("devices.tabs.wifi"))}
-                {status.local && tabButton("security", "shield", t("devices.tabs.security"))}
-              </div>
-            </div>
-            {!status.local && (
-              <button type="button" className="btn btn-secondary" onClick={logout}><Icon name="logout" size={14} /> {t("devices.access.logout")}</button>
-            )}
-          </div>
-        )}
-      </div>
+      )}
 
       <main className="radio-lib-main">
         {status.access !== "granted" ? (
-          <>
-            <AccessGate status={status} onChanged={onChanged} notify={notify} t={t} />
-          </>
+          <AccessGate status={status} onChanged={onChanged} notify={notify} t={t} />
         ) : tab === "audio" ? (
           <AudioSection {...section} />
         ) : tab === "bluetooth" ? (

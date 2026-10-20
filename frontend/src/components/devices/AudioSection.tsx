@@ -64,7 +64,7 @@ export default function AudioSection({ caps, refreshKey, notify, t }: SectionPro
           {devices.map((device: AudioDevice) => {
             const volume = draft[device.id] ?? Math.round((device.volume ?? 0) * 100);
             return (
-              <div key={device.id} className={`dv-row ${device.is_default ? "active" : ""} ${device.available ? "" : "off"}`}>
+              <div key={device.id} className={`dv-row glass-interactive ${device.is_default ? "active" : ""} ${device.available ? "" : "off"}`}>
                 <span className="dv-icon"><Icon name={audioKindIcon(device.kind)} size={22} /></span>
                 <span className="dv-text">
                   <span className="dv-title">

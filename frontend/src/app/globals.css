@@ -9477,20 +9477,12 @@ video::cue {
 .dv-pin-input { text-align: center; font-size: 1.4rem; letter-spacing: 0.4em; max-width: 280px; }
 .dv-error { color: var(--accent-danger, #d94a4a); font-weight: 700; margin: 0; }
 
-/* Barre de sections qui passe à la ligne sur petit écran : coins arrondis plutôt qu'une « pilule » étirée. */
-.rl-sections .display-output-buttons { border-radius: 22px; justify-content: center; }
 @media (max-width: 720px) {
   .rl-nav-card .channel-card-right { width: 100%; }
-  .rl-sections { width: 100%; }
-  .rl-sections .display-output-buttons { width: 100%; }
 }
 
 /* Téléphone : la barre de sections défile horizontalement (une seule ligne), barres d'outils et lignes compactes. */
 @media (max-width: 720px) {
-  .rl-sections .display-output-buttons { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; border-radius: 999px;
-    scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-  .rl-sections .display-output-buttons::-webkit-scrollbar { display: none; }
-  .rl-sections .display-output-btn { flex: 0 0 auto; white-space: nowrap; }
   .rl-nav-card .channel-card-left { width: 100%; }
   .dv-toolbar { padding: 8px 10px; gap: 8px; }
   .dv-toolbar .rl-toolbar-spacer { display: none; }
@@ -9509,3 +9501,141 @@ video::cue {
   .dv-gate { padding: 24px 14px; margin: 8px 0; }
   .dv-password .form-control { max-width: none; }
 }
+
+
+/* ============================================================
+   Interactions « verre premium » (5.1.1) : jetons de mouvement, survol
+   avec halo, sélection, onglets à indicateur glissant.
+   Seuls transform et opacity sont animés (léger sur Wyse et TV).
+   ============================================================ */
+:root {
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 160ms;
+  --dur-base: 220ms;
+  --dur-slow: 320ms;
+}
+
+.glass-interactive {
+  position: relative;
+  isolation: isolate;
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+}
+.glass-interactive::before {
+  /* halo qui suit le pointeur : actif seulement avec une souris précise (voir plus bas) */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  z-index: -1;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--accent-primary) 22%, transparent), transparent 70%);
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.glass-interactive:focus-visible {
+  outline: 3px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+.glass-interactive.is-selected,
+.dv-row.active.glass-interactive {
+  border-color: color-mix(in srgb, var(--accent-primary) 70%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 55%, transparent),
+    0 6px 22px color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  background-image: linear-gradient(0deg, color-mix(in srgb, var(--accent-primary) 8%, transparent), color-mix(in srgb, var(--accent-primary) 8%, transparent));
+}
+@media (hover: hover) and (pointer: fine) {
+  :root:not([data-input-mode="remote"]) .glass-interactive:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--accent-primary) 35%, transparent);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.14);
+  }
+  :root:not([data-input-mode="remote"]) .glass-interactive:hover::before { opacity: 1; }
+  :root:not([data-input-mode="remote"]) .glass-interactive:hover .dv-icon,
+  :root:not([data-input-mode="remote"]) .glass-interactive:hover .rl-list-cover {
+    background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-surface-elevated));
+    color: var(--accent-primary);
+  }
+}
+.dv-icon { transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out); }
+@media (prefers-reduced-motion: reduce) {
+  .glass-interactive, .glass-interactive::before, .seg-indicator { transition: none !important; transform: none !important; }
+}
+
+/* Onglets segmentés : un indicateur unique glisse sous l'onglet actif. */
+.seg { max-width: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-surface) 60%, transparent); border: 1px solid color-mix(in srgb, var(--text-main) 14%, var(--border-color));
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3); }
+.seg::-webkit-scrollbar { display: none; }
+.seg-track { position: relative; display: inline-flex; gap: 2px; padding: 4px; min-width: 100%; }
+.seg-indicator { position: absolute; top: 4px; bottom: 4px; left: 0; border-radius: 999px; background: var(--accent-primary);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-primary) 40%, transparent); pointer-events: none;
+  transition: transform var(--dur-slow) var(--ease-spring), width var(--dur-slow) var(--ease-spring); }
+.seg-btn { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 0 0 auto; white-space: nowrap;
+  border: none; background: transparent; color: var(--text-muted); font-size: 0.84rem; font-weight: 700; padding: 8px 16px; border-radius: 999px; cursor: pointer;
+  transition: color var(--dur-base) var(--ease-out); }
+.seg-btn:hover:not(.active) { color: var(--text-main); }
+.seg-btn.active { color: var(--accent-primary-fg); }
+.seg-btn:focus-visible { outline: 3px solid var(--accent-primary); outline-offset: 1px; }
+@media (max-width: 720px) {
+  .rl-nav-card .channel-card-right .seg { width: 100%; }
+}
+
+/* ============================================================
+   Code PIN en six bulles (Périphériques) + pavé en verre.
+   ============================================================ */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.dv-gate--pin { gap: 6px; padding: 34px 20px 26px; }
+.dv-gate-foot { max-width: 320px; margin-top: 8px; font-size: 0.72rem; opacity: 0.8; }
+.dv-link-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px; border-radius: 999px; transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out); }
+.dv-link-btn:hover { color: var(--text-main); background: var(--bg-surface-elevated); }
+
+.pin-entry { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.pin-dots { display: flex; gap: 16px; padding: 6px 0; }
+.pin-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--text-main) 38%, transparent);
+  background: transparent; transform: scale(1); transition: transform var(--dur-base) var(--ease-spring), background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), opacity var(--dur-base) var(--ease-out); }
+.pin-dot.next { border-color: var(--accent-primary); }
+.pin-dot.filled { background: var(--text-main); border-color: var(--text-main); transform: scale(1.18); }
+.pin-caption { margin: 0; min-height: 1.4em; font-size: 0.92rem; font-weight: 600; color: var(--text-muted); text-align: center; transition: color var(--dur-fast) var(--ease-out); }
+.pin-caption.is-error { color: var(--accent-danger, #d94a4a); }
+
+.pin-pad { display: grid; grid-template-columns: repeat(3, 72px); gap: 12px; margin-top: 8px; }
+.pin-key { width: 72px; height: 72px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--text-main) 14%, var(--border-color)); cursor: pointer;
+  font-size: 1.55rem; font-weight: 500; color: var(--text-main); display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--bg-surface) 55%, transparent); backdrop-filter: blur(14px) saturate(160%); -webkit-backdrop-filter: blur(14px) saturate(160%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 4px 14px rgba(0, 0, 0, 0.08);
+  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; user-select: none; }
+.pin-key--icon { background: transparent; border-color: transparent; box-shadow: none; backdrop-filter: none; color: var(--text-muted); }
+.pin-key:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-surface)); }
+.pin-key:active:not(:disabled) { transform: scale(0.92); background: color-mix(in srgb, var(--accent-primary) 28%, var(--bg-surface)); }
+.pin-key:focus-visible { outline: 3px solid var(--accent-primary); outline-offset: 2px; }
+.pin-key:disabled { opacity: 0.4; cursor: default; }
+
+/* États : erreur (secousse amortie + rouge), succès (éclatement vert), blocage (atténué). */
+.pin-error .pin-dots { animation: pin-shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+.pin-error .pin-dot.filled { background: var(--accent-danger, #d94a4a); border-color: var(--accent-danger, #d94a4a); }
+.pin-success .pin-dot.filled { background: #34c759; border-color: #34c759; animation: pin-pop 460ms var(--ease-spring) both; }
+.pin-success .pin-dot:nth-child(2) { animation-delay: 40ms; } .pin-success .pin-dot:nth-child(3) { animation-delay: 80ms; }
+.pin-success .pin-dot:nth-child(4) { animation-delay: 120ms; } .pin-success .pin-dot:nth-child(5) { animation-delay: 160ms; } .pin-success .pin-dot:nth-child(6) { animation-delay: 200ms; }
+.pin-locked .pin-dot { opacity: 0.35; }
+@keyframes pin-shake {
+  10%, 90% { transform: translateX(-2px); } 20%, 80% { transform: translateX(5px); }
+  30%, 50%, 70% { transform: translateX(-9px); } 40%, 60% { transform: translateX(9px); }
+}
+@keyframes pin-pop { 0% { transform: scale(1.18); } 45% { transform: scale(1.65); } 100% { transform: scale(1.18); } }
+.pin-slide { animation: pin-slide-in var(--dur-slow) var(--ease-out) both; }
+@keyframes pin-slide-in { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .pin-error .pin-dots, .pin-success .pin-dot.filled, .pin-slide { animation: none !important; }
+  .pin-error .pin-dot { border-color: var(--accent-danger, #d94a4a); }
+}
+@media (max-width: 380px) {
+  .pin-pad { grid-template-columns: repeat(3, 64px); gap: 10px; }
+  .pin-key { width: 64px; height: 64px; }
+}
+
+/* Interface du PIN épurée : actions secondaires en liens discrets. */
+.dv-quiet-actions { display: flex; justify-content: center; margin-top: 4px; }
+.dv-link-btn--danger { color: var(--accent-danger, #d94a4a); }
+.dv-page .dv-gate--pin { margin-top: 8vh; }

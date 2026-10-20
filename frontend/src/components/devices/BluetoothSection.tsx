@@ -63,7 +63,7 @@ export default function BluetoothSection({ caps, refreshKey, notify, t }: Sectio
   const can = (key: string) => caps[key]?.supported === true;
 
   const deviceRow = (device: BluetoothDevice) => (
-    <div key={device.address} className={`dv-row ${device.connected ? "active" : ""}`}>
+    <div key={device.address} className={`dv-row glass-interactive ${device.connected ? "active" : ""}`}>
       <span className="dv-icon"><Icon name={bluetoothKindIcon(device.kind)} size={22} /></span>
       <span className="dv-text">
         <span className="dv-title">

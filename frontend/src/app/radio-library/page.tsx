@@ -7,6 +7,8 @@ import Icon from "@/components/Icon";
 import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
+import SegmentedTabs from "@/components/SegmentedTabs";
+import { usePointerGlow } from "@/lib/usePointerGlow";
 
 // Bibliothèque musicale Radio — écran unique « vue d'ensemble » (refonte).
 // Barre latérale persistante (playlists / tags / genres / artistes, tous
@@ -93,6 +95,8 @@ const isAudioFile = (name: string) => AUDIO_EXTENSIONS.some((ext) => name.toLowe
 
 export default function RadioLibraryPage() {
   const { t } = useAppSettings();
+  const rootRef = useRef<HTMLDivElement>(null);
+  usePointerGlow(rootRef);
 
   const [tracks, setTracks] = useState<RadioTrack[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
@@ -777,7 +781,7 @@ export default function RadioLibraryPage() {
   const trackRow = (track: RadioTrack) => {
     const isSel = selected.has(track.id);
     return (
-      <div key={track.id} className={`rl-list-row ${isSel ? "selected" : ""}`} onClick={() => openTrack(track)}>
+      <div key={track.id} className={`rl-list-row glass-interactive ${isSel ? "selected is-selected" : ""}`} onClick={() => openTrack(track)}>
         <button
           type="button"
           className={`rl-list-check ${isSel ? "on" : ""}`}
@@ -811,28 +815,8 @@ export default function RadioLibraryPage() {
     ? (filter.type === "tag" ? "label" : filter.type === "genre" ? "graphic_eq" : filter.type === "playlist" ? "queue_music" : filter.type === "album" ? "album" : "person")
     : "library_music";
 
-  // Téléphone : la barre de sections défile ; garde la section active visible.
-  useEffect(() => {
-    document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.scrollIntoView({ inline: "center", block: "nearest" });
-  }, [section]);
-
-  const sectionButton = (id: Section, icon: string, label: string, count?: number) => (
-    <button
-      key={id}
-      type="button"
-      role="tab"
-      aria-selected={section === id}
-      className={`display-output-btn olc-press ${section === id ? "active" : ""}`}
-      onClick={() => setSection(id)}
-    >
-      <Icon name={icon} size={16} />
-      {label}
-      {count !== undefined && <span className="rl-tab-count">{count}</span>}
-    </button>
-  );
-
   return (
-    <div className="radio-lib radio-lib--tabs">
+    <div className="radio-lib radio-lib--tabs" ref={rootRef}>
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
 
       {/* ==================== BARRE DE NAVIGATION HORIZONTALE (même style que « Sortie Câblé ») ==================== */}
@@ -845,15 +829,18 @@ export default function RadioLibraryPage() {
           <span className="status-pill neutral">{t("radioLibrary.countLabel", { count: tracks.length })}</span>
         </div>
         <div className="channel-card-right">
-          <div className="display-output-switch rl-sections" role="tablist" aria-label={t("radioLibrary.sectionsLabel")}>
-            <div className="display-output-buttons">
-              {sectionButton("tracks", "library_music", t("radioLibrary.sectionTracks"), tracks.length)}
-              {sectionButton("playlists", "queue_music", t("radioLibrary.sectionPlaylists"), playlists.length)}
-              {sectionButton("artists", "person", t("radioLibrary.sectionArtists"), artists.length)}
-              {sectionButton("tags", "label", t("radioLibrary.sectionTags"), tagsList.length + genres.length)}
-              {sectionButton("import", "cloud_upload", t("radioLibrary.sectionImport"))}
-            </div>
-          </div>
+          <SegmentedTabs
+            ariaLabel={t("radioLibrary.sectionsLabel")}
+            value={section}
+            onChange={(id) => setSection(id as Section)}
+            tabs={[
+              { id: "tracks", icon: "library_music", label: t("radioLibrary.sectionTracks"), count: tracks.length },
+              { id: "playlists", icon: "queue_music", label: t("radioLibrary.sectionPlaylists"), count: playlists.length },
+              { id: "artists", icon: "person", label: t("radioLibrary.sectionArtists"), count: artists.length },
+              { id: "tags", icon: "label", label: t("radioLibrary.sectionTags"), count: tagsList.length + genres.length },
+              { id: "import", icon: "cloud_upload", label: t("radioLibrary.sectionImport") },
+            ]}
+          />
         </div>
       </div>
 
@@ -993,7 +980,7 @@ export default function RadioLibraryPage() {
             ) : (
               <div className="rl-cards">
                 {playlists.map((p) => (
-                  <div key={p.id} className="rl-pcard" role="button" tabIndex={0} onClick={() => openPlaylist(p.id)}
+                  <div key={p.id} className="rl-pcard glass-interactive" role="button" tabIndex={0} onClick={() => openPlaylist(p.id)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPlaylist(p.id); } }}>
                     <div className="rl-pcard-cover">
                       {p.cover_track_id != null ? (
@@ -1046,7 +1033,7 @@ export default function RadioLibraryPage() {
               artists.length === 0 ? <div className="rl-center-note">{t("radioLibrary.noResults")}</div> : (
                 <div className="rl-cards">
                   {artists.map((a) => (
-                    <button key={a.name} type="button" className="rl-pcard rl-pcard--simple" onClick={() => applyFilter({ type: "artist", value: a.name })}>
+                    <button key={a.name} type="button" className="rl-pcard rl-pcard--simple glass-interactive" onClick={() => applyFilter({ type: "artist", value: a.name })}>
                       <div className="rl-pcard-cover rl-pcard-cover--round"><Icon name="person" size={32} style={{ opacity: 0.35 }} /></div>
                       <div className="rl-pcard-body">
                         <span className="rl-pcard-title" title={a.name}>{a.name}</span>
@@ -1059,7 +1046,7 @@ export default function RadioLibraryPage() {
             ) : albums.length === 0 ? <div className="rl-center-note">{t("radioLibrary.noResults")}</div> : (
               <div className="rl-cards">
                 {albums.map((al) => (
-                  <button key={`${al.album}-${al.album_artist ?? ""}`} type="button" className="rl-pcard rl-pcard--simple" onClick={() => applyFilter({ type: "album", value: al.album })}>
+                  <button key={`${al.album}-${al.album_artist ?? ""}`} type="button" className="rl-pcard rl-pcard--simple glass-interactive" onClick={() => applyFilter({ type: "album", value: al.album })}>
                     <div className="rl-pcard-cover">
                       {al.cover_track_id != null ? (
                         // eslint-disable-next-line @next/next/no-img-element -- pochette servie par l'API
@@ -1093,7 +1080,7 @@ export default function RadioLibraryPage() {
             {tagsList.length === 0 ? <p className="rl-empty-note">{t("radioLibrary.noTags")}</p> : (
               <div className="rl-cards rl-cards--compact">
                 {tagsList.map((tag) => (
-                  <div key={tag.id} className="rl-tagcard">
+                  <div key={tag.id} className="rl-tagcard glass-interactive">
                     <button type="button" className="rl-tagcard-main" onClick={() => applyFilter({ type: "tag", value: tag.name })}>
                       <Icon name="label" size={18} />
                       <span className="rl-pcard-title" title={tag.name}>{tag.name}</span>
@@ -1109,7 +1096,7 @@ export default function RadioLibraryPage() {
             {genres.length === 0 ? <p className="rl-empty-note">{t("radioLibrary.noGenres")}</p> : (
               <div className="rl-cards rl-cards--compact">
                 {genres.map((g) => (
-                  <div key={g.name} className="rl-tagcard">
+                  <div key={g.name} className="rl-tagcard glass-interactive">
                     <button type="button" className="rl-tagcard-main" onClick={() => applyFilter({ type: "genre", value: g.name })}>
                       <Icon name="graphic_eq" size={18} />
                       <span className="rl-pcard-title" title={g.name}>{g.name}</span>
