@@ -29,7 +29,7 @@ from app.radio_manager import get_all_radio_managers
 from app.routers import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,
     radio, radio_playlists, radio_announcements, settings as settings_router, logs, import_jobs,
-    updates, metrics, display, uploads, chapters, devices,
+    updates, metrics, display, uploads, chapters, devices, diagnostics,
 )
 from app.utils.android_runtime import is_android
 from app.utils.http_compression import (
@@ -199,6 +199,7 @@ app.include_router(display.router)
 app.include_router(logs.router)
 app.include_router(import_jobs.router)
 app.include_router(uploads.router)
+app.include_router(diagnostics.router)
 app.include_router(updates.router)
 app.include_router(metrics.router)
 app.include_router(devices.router)
