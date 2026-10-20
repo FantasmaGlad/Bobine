@@ -12,7 +12,8 @@ from app.config import settings
 from app.database import SessionLocal
 from app.models import AudioCourse, AudioTrack
 from app.utils.activity_log import log_activity
-from app.utils.audio_utils import extract_audio_duration, parse_track_number_and_title
+from app.utils.audio_utils import parse_track_number_and_title
+from app.utils.media_metadata import extract_audio_duration
 from app.utils.import_jobs import update_job
 from app.utils.zip_safety import UnsafeZipError, safe_extract_zip
 

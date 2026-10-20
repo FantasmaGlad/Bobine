@@ -64,3 +64,6 @@ devices/target/
 
 # Banc de compatibilité navigateurs : session geckodriver locale
 scripts/browser-bench/.wd_session
+
+# Composant natif de métadonnées audio
+media/target/

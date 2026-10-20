@@ -151,6 +151,9 @@ jobs:
       - name: Compiler ffmpeg/ffprobe armeabi-v7a (NDK r28c)
         if: steps.check_secrets.outputs.configured == 'true' && steps.ffmpeg_armv7_cache.outputs.cache-hit != 'true'
         run: ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/28.2.13676358" android/scripts/build_ffmpeg_armv7.sh
+      - name: Compiler le composant audio Android (Bionic ARM64 et ARM32)
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/28.2.13676358" scripts/ci/build-media-android.sh
       - name: Construire les bundles (.aab)
         if: steps.check_secrets.outputs.configured == 'true'
         working-directory: android
@@ -185,6 +188,24 @@ jobs:
             fi
             echo "$(sha256sum "$APK")"
           done
+          scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/mobile/play/*.apk)" arm64-v8a
+          scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/tv/play/*.apk)" armeabi-v7a arm64-v8a
+          # Contrôler aussi les tranches natives finales des AAB, pas seulement les sorties Cargo.
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          for artifact in sorted(Path("aab-out").glob("*")):
+              if artifact.suffix not in (".apk", ".aab"):
+                  continue
+              prefix = "base/lib/" if artifact.suffix == ".aab" else "lib/"
+              expected = {"arm64-v8a", "armeabi-v7a"} if artifact.name.startswith("Bobine-TV-") else {"arm64-v8a"}
+              with zipfile.ZipFile(artifact) as archive:
+                  entries = archive.namelist()
+                  actual = {entry[len(prefix):].split("/", 1)[0] for entry in entries if entry.startswith(prefix) and entry.endswith(".so")}
+                  if actual != expected or any(f"{prefix}{abi}/libbobine_media.so" not in entries for abi in expected):
+                      raise SystemExit(f"ABI ou composant audio absent dans {artifact.name}")
+              print(f"{artifact.name}: ABI et composant audio vérifiés")
+          PY
           # Le numéro de version des bundles doit dépasser celui de l'APK déjà installé chez les utilisateurs.
           echo "versionName=${{ steps.ref.outputs.version_name }} versionCode=${{ steps.ref.outputs.version_code }}" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4

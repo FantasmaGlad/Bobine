@@ -19,11 +19,10 @@ from app.models import ImportSource, RadioAnnouncement, RadioCoverSource, RadioT
 from app.utils.activity_log import log_activity
 from app.utils.import_jobs import update_job
 from app.utils.zip_safety import UnsafeZipError, safe_extract_zip
+from app.utils.media_metadata import extract_embedded_cover, extract_radio_metadata
 from app.utils.radio_utils import (
     AUDIO_EXTENSIONS,
     clean_filename_label,
-    extract_embedded_cover,
-    extract_radio_metadata,
     needs_transcode,
     normalize_announcement_loudness,
     transcode_to_web,

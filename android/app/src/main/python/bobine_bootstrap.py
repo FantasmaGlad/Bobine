@@ -181,10 +181,15 @@ def start_server_once(external_files_dir=None, native_library_dir=None, internal
         if native_library_dir:
             ffmpeg_path = _os.path.join(native_library_dir, "libffmpeg.so")
             ffprobe_path = _os.path.join(native_library_dir, "libffprobe.so")
+            media_path = _os.path.join(native_library_dir, "libbobine_media.so")
             if _os.path.exists(ffmpeg_path):
                 _os.environ["BOBINE_FFMPEG_BIN"] = ffmpeg_path
             if _os.path.exists(ffprobe_path):
                 _os.environ["BOBINE_FFPROBE_BIN"] = ffprobe_path
+            # Discovery does not enable the experimental metadata path. The
+            # caller must still opt in with BOBINE_MEDIA_NATIVE=1.
+            if _os.path.isfile(media_path) and _os.access(media_path, _os.X_OK):
+                _os.environ["BOBINE_MEDIA_BIN"] = media_path
 
         import uvicorn
         from app.main import app
