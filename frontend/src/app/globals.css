@@ -9662,3 +9662,36 @@ video::cue {
 .dv-quiet-actions { display: flex; justify-content: center; margin-top: 4px; }
 .dv-link-btn--danger { color: var(--accent-danger, #d94a4a); }
 .dv-page .dv-gate--pin { margin-top: 8vh; }
+
+
+/* Détail d'une sortie audio (tiroir) */
+.dv-row--click { cursor: pointer; }
+.dv-chevron { color: var(--text-dim); display: flex; margin-left: auto; transition: transform var(--dur-base) var(--ease-out); }
+.dv-row--click:hover .dv-chevron { transform: translateX(3px); color: var(--accent-primary); }
+.dv-hidden { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.dv-hidden .dv-list { width: 100%; opacity: 0.8; }
+.dv-detail { display: flex; flex-direction: column; gap: 18px; padding: 4px 2px 12px; }
+.dv-detail-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dv-detail-block { display: flex; flex-direction: column; gap: 10px; }
+.dv-detail-block h4 { margin: 0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); font-weight: 800; }
+.dv-balance { display: flex; align-items: center; gap: 12px; }
+.dv-balance input[type="range"] { flex: 1; accent-color: var(--accent-primary); }
+.dv-balance-side { font-weight: 800; font-size: 0.85rem; color: var(--text-muted); min-width: 56px; text-align: center; }
+.dv-balance-read { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.85rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.dv-tone-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.dv-tone { justify-content: center; gap: 8px; min-height: 44px; }
+.dv-tone.playing { border-color: var(--accent-primary); color: var(--accent-primary); }
+.dv-wave { display: inline-flex; align-items: center; gap: 3px; height: 16px; }
+.dv-wave i { width: 3px; height: 100%; border-radius: 2px; background: currentColor; transform-origin: center; animation: dv-wave 700ms var(--ease-out) infinite alternate; }
+.dv-wave i:nth-child(2) { animation-delay: 120ms; } .dv-wave i:nth-child(3) { animation-delay: 240ms; } .dv-wave i:nth-child(4) { animation-delay: 360ms; }
+@keyframes dv-wave { from { transform: scaleY(0.25); } to { transform: scaleY(1); } }
+.dv-defs { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 18px; margin: 0; }
+.dv-defs > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dv-defs dt { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+.dv-defs dd { margin: 0; font-weight: 700; font-size: 0.92rem; overflow-wrap: anywhere; }
+.dv-profiles { display: flex; flex-direction: column; gap: 6px; }
+.dv-profile { display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left; padding: 10px 14px; border-radius: var(--radius-md);
+  background: var(--glass-card-bg, var(--bg-surface)); border: 1px solid transparent; color: var(--text-main); cursor: pointer; font: inherit; font-size: 0.9rem; font-weight: 600; }
+.dv-profile:disabled { opacity: 0.45; cursor: default; }
+.dv-profile.is-selected { color: var(--accent-primary); }
+@media (prefers-reduced-motion: reduce) { .dv-wave i { animation: none; transform: scaleY(0.7); } }

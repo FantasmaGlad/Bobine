@@ -40,6 +40,41 @@ export interface AudioDevice {
   volume: number | null;
   muted: boolean | null;
   available: boolean;
+  /** Nom personnalisé et masquage choisis dans Bobine (communs à toutes les plateformes). */
+  alias?: string | null;
+  hidden?: boolean;
+}
+
+export interface AudioProfile {
+  index: number;
+  name: string;
+  available: boolean;
+  active: boolean;
+}
+
+export interface AudioDetails {
+  supported: boolean;
+  reason?: string;
+  id: string;
+  name: string;
+  alias?: string | null;
+  hidden?: boolean;
+  state: string;
+  channels: number | null;
+  channel_map: string[];
+  sample_rate: number | null;
+  format: string | null;
+  latency_ms: number | null;
+  card: string | null;
+  bus: string;
+  api: string;
+  codec: string | null;
+  profile: AudioProfile | null;
+  profiles: AudioProfile[];
+  /** -1 (tout à gauche) … +1 (tout à droite) ; null si la sortie n'a pas de balance. */
+  balance: number | null;
+  level: number | null;
+  muted: boolean | null;
 }
 
 export interface AudioListing {
@@ -241,4 +276,53 @@ export function bluetoothKindIcon(kind: string): string {
 export function secondsLeft(pending: WifiPendingChange | null | undefined, elapsedSeconds: number): number {
   if (!pending) return 0;
   return Math.max(0, pending.seconds_left - Math.floor(elapsedSeconds));
+}
+
+// ---------------------------------------------------------------------------
+// Détail d'une sortie audio
+// ---------------------------------------------------------------------------
+
+/** Nom affiché d'une sortie : l'alias choisi dans Bobine, sinon le nom du système. */
+export function audioDisplayName(device: Pick<AudioDevice, "name" | "alias">): string {
+  return device.alias?.trim() || device.name;
+}
+
+/** Curseur −100…+100 → balance −1…+1, avec un cran au centre (±4 → 0). */
+export function balanceFromSlider(value: number): number {
+  const clamped = Math.max(-100, Math.min(100, value));
+  return Math.abs(clamped) <= 4 ? 0 : Math.round(clamped) / 100;
+}
+
+export function sliderFromBalance(balance: number): number {
+  return Math.round(Math.max(-1, Math.min(1, balance)) * 100);
+}
+
+export type BalanceSide = "left" | "right" | "center";
+
+/** Côté dominant et pourcentage de l'autre canal : « gauche 100 / droite 60 » se lit « droite à 60 % ». */
+export function describeBalance(balance: number): { side: BalanceSide; percent: number } {
+  if (Math.abs(balance) < 0.005) return { side: "center", percent: 100 };
+  return balance < 0
+    ? { side: "left", percent: Math.round((1 - -balance) * 100) }
+    : { side: "right", percent: Math.round((1 - balance) * 100) };
+}
+
+export function formatSampleRate(rate: number | null | undefined): string {
+  if (!rate) return "—";
+  return rate % 1000 === 0 ? `${rate / 1000} kHz` : `${(rate / 1000).toFixed(1)} kHz`;
+}
+
+export function formatLatency(ms: number | null | undefined): string {
+  if (ms === null || ms === undefined) return "—";
+  return ms >= 100 ? `${Math.round(ms)} ms` : `${ms.toFixed(1)} ms`;
+}
+
+/** Disposition des canaux : `FL, FR` → « Stéréo (G, D) » ; 6 canaux → « 6 canaux ». */
+export function describeChannels(count: number | null | undefined, map: string[]): string {
+  if (!count) return "—";
+  const short: Record<string, string> = { FL: "G", FR: "D", FC: "C", LFE: "LFE", RL: "AG", RR: "AD", SL: "G latéral", SR: "D latéral", MONO: "M" };
+  const labels = map.map((c) => short[c] ?? c);
+  if (count === 1) return "Mono";
+  if (count === 2) return labels.length ? `Stéréo (${labels.join(", ")})` : "Stéréo";
+  return `${count} canaux`;
 }

@@ -66,3 +66,31 @@ test("icônes et compte à rebours", () => {
   assert.equal(secondsLeft(pending, 500), 0);
   assert.equal(secondsLeft(null, 0), 0);
 });
+
+import { audioDisplayName, balanceFromSlider, describeBalance, describeChannels, formatLatency, formatSampleRate, sliderFromBalance } from "../src/lib/devicesApi.ts";
+
+test("détail audio : balance avec cran central, bornes et lecture", () => {
+  assert.equal(balanceFromSlider(0), 0);
+  assert.equal(balanceFromSlider(3), 0); // cran central
+  assert.equal(balanceFromSlider(-4), 0);
+  assert.equal(balanceFromSlider(-40), -0.4);
+  assert.equal(balanceFromSlider(250), 1); // borné
+  assert.equal(sliderFromBalance(0.6), 60);
+  assert.deepEqual(describeBalance(0), { side: "center", percent: 100 });
+  assert.deepEqual(describeBalance(-0.4), { side: "left", percent: 60 });
+  assert.deepEqual(describeBalance(1), { side: "right", percent: 0 });
+});
+
+test("détail audio : mises en forme", () => {
+  assert.equal(formatSampleRate(48000), "48 kHz");
+  assert.equal(formatSampleRate(44100), "44.1 kHz");
+  assert.equal(formatSampleRate(null), "—");
+  assert.equal(formatLatency(21.3), "21.3 ms");
+  assert.equal(formatLatency(341.3), "341 ms");
+  assert.equal(describeChannels(2, ["FL", "FR"]), "Stéréo (G, D)");
+  assert.equal(describeChannels(6, []), "6 canaux");
+  assert.equal(describeChannels(1, []), "Mono");
+  assert.equal(describeChannels(null, []), "—");
+  assert.equal(audioDisplayName({ name: "HDMI", alias: "  Projecteur " }), "Projecteur");
+  assert.equal(audioDisplayName({ name: "HDMI", alias: null }), "HDMI");
+});
