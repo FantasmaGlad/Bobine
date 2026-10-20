@@ -32,6 +32,14 @@ from app.routers import (
     updates, metrics, display, uploads, chapters, devices,
 )
 from app.utils.android_runtime import is_android
+from app.utils.http_compression import (
+    MIN_COMPRESSIBLE_SIZE,
+    ApiCompressionMiddleware,
+    add_vary_accept_encoding,
+    gzip_compress,
+    is_compressible_media_type,
+    request_allows_gzip,
+)
 from app.utils.media_response import build_media_response
 from app.utils.web_profile import choose_rendition, client_can_decode, parse_accept
 from app.utils.web_rendition import request_web_rendition
@@ -168,6 +176,11 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+# gzip des seules réponses JSON/texte de /api/* (jamais /stream, miniatures,
+# Range, WebSocket...) : voir app/utils/http_compression.py. Ajouté APRÈS le
+# CORS pour envelopper aussi ses en-têtes ; le frontend statique négocie lui-même
+# la compression (RevalidateStaticFiles) afin de garder son ETag par contenu.
+app.add_middleware(ApiCompressionMiddleware)
 
 # Enregistrement des routeurs
 app.include_router(videos.router)
@@ -496,7 +509,38 @@ class RevalidateStaticFiles(StaticFiles):
       légers uniquement — les médias passent par `app/utils/media_response.py`)
       et seule la comparaison `If-None-Match` est utilisée. Un client sans
       `If-None-Match` reçoit toujours le contenu complet (200).
+
+    Compression : les fichiers texte (HTML, JS, CSS, JSON, SVG) sont servis en
+    gzip quand le client l'accepte (2,7 Mo -> 0,76 Mo pour `frontend/out`). La
+    version gzip est une autre représentation : son ETag est `"<md5>-gzip"`
+    (jamais le même validateur que la version brute) et `Vary: Accept-Encoding`
+    est posé sur tout fichier compressible. Un client qui a déjà en cache la
+    version brute (`"<md5>"`) reçoit toujours un 304 tant que le contenu n'a pas
+    changé : le contenu est le même, seul l'encodage diffère. Les octets gzip
+    sont gardés en mémoire (clé = chemin + hash du contenu, donc invalidés par
+    tout changement de fichier) dans une limite de `_GZIP_CACHE_MAX_BYTES`.
+    Pas de gzip pour les requêtes `Range`, `HEAD` ou venant du bouclage
+    (cf. `request_allows_gzip`).
     """
+
+    _GZIP_CACHE_MAX_BYTES = 8 * 1024 * 1024
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._gzip_cache: dict[tuple[str, str], bytes] = {}
+        self._gzip_cache_bytes = 0
+
+    def _gzipped(self, full_path, content_hash: str, data: bytes) -> bytes:
+        key = (str(full_path), content_hash)
+        compressed = self._gzip_cache.get(key)
+        if compressed is None:
+            compressed = gzip_compress(data)
+            if self._gzip_cache_bytes + len(compressed) > self._GZIP_CACHE_MAX_BYTES:
+                self._gzip_cache.clear()
+                self._gzip_cache_bytes = 0
+            self._gzip_cache[key] = compressed
+            self._gzip_cache_bytes += len(compressed)
+        return compressed
 
     async def get_response(self, path: str, scope):
         # Un chemin /api/* qui n'a trouvé aucune route (méthode non déclarée,
@@ -510,16 +554,27 @@ class RevalidateStaticFiles(StaticFiles):
     def file_response(self, full_path, stat_result, scope, status_code: int = 200):
         request_headers = Headers(scope=scope)
         response = FileResponse(full_path, status_code=status_code, stat_result=stat_result)
+        data: bytes | None = None
+        content_hash = ""
         try:
             with open(full_path, "rb") as f:
-                content_hash = hashlib.md5(f.read(), usedforsecurity=False).hexdigest()
+                data = f.read()
+            content_hash = hashlib.md5(data, usedforsecurity=False).hexdigest()
             response.headers["etag"] = f'"{content_hash}"'
         except OSError:
             # Repli sur l'ETag mtime+size par défaut de Starlette si le
             # fichier n'est plus lisible entre le stat() et cette lecture
             # (rare course, ex. suppression concurrente) — ne doit jamais
-            # faire échouer la réponse.
+            # faire échouer la réponse (et pas de gzip dans ce cas : `data`
+            # reste None).
             pass
+        identity_etag = response.headers["etag"]
+
+        gzip_etag: str | None = None
+        if is_compressible_media_type(response.headers.get("content-type")):
+            add_vary_accept_encoding(response.headers)
+            if data is not None and len(data) >= MIN_COMPRESSIBLE_SIZE and request_allows_gzip(scope):
+                gzip_etag = f'"{content_hash}-gzip"'
 
         # Comparaison ETag SEULE (pas `self.is_not_modified()`, qui retombe
         # sur If-Modified-Since/Last-Modified quand If-None-Match est
@@ -527,10 +582,27 @@ class RevalidateStaticFiles(StaticFiles):
         # servait du contenu périmé). Absence d'If-None-Match == pas de
         # cache connu valide == contenu complet, jamais un 304 par défaut.
         if_none_match = request_headers.get("if-none-match")
-        if if_none_match and response.headers["etag"] in (
-            tag.strip().removeprefix("W/") for tag in if_none_match.split(",")
-        ):
-            response = NotModifiedResponse(response.headers)
+        if if_none_match:
+            client_tags = {tag.strip().removeprefix("W/") for tag in if_none_match.split(",")}
+            matched = next((tag for tag in (gzip_etag, identity_etag) if tag and tag in client_tags), None)
+            if matched:
+                response.headers["etag"] = matched
+                response = NotModifiedResponse(response.headers)
+                gzip_etag = None
+        if gzip_etag is not None:
+            headers = {
+                name: value
+                for name, value in response.headers.items()
+                # `accept-ranges` : la version gzip est servie d'un bloc.
+                if name not in ("content-length", "etag", "accept-ranges")
+            }
+            headers["etag"] = gzip_etag
+            headers["content-encoding"] = "gzip"
+            response = Response(
+                self._gzipped(full_path, content_hash, data),
+                status_code=status_code,
+                headers=headers,
+            )
         response.headers["Cache-Control"] = "no-cache"
         return response
 
