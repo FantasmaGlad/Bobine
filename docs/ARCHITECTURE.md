@@ -148,6 +148,15 @@ Le schéma de données est géré par **SQLAlchemy**. Il n'y a **pas d'Alembic a
 
 ---
 
+### 3.1 Profil Android : compatibilité Pydantic v1 et surveillance de dossiers
+
+Deux dépendances du backend n'existent pas sous forme utilisable sur Android (Chaquopy) ; le profil Android adopte donc des versions et des replis différents, sans fork du code :
+
+- **Pydantic v1 au lieu de v2.** Pydantic v2 repose sur `pydantic-core`, une extension native sans distribution Android. L'APK embarque `pydantic==1.10.26` avec `fastapi==0.99.1` (Starlette 0.27) ; les autres profils utilisent Pydantic v2. Le code doit rester valide dans les deux versions : `app/utils/_pydantic_compat.py` fournit un équivalent de `computed_field` pour la v1, `app/config.py` retombe sur le `BaseSettings` intégré à Pydantic v1 quand `pydantic_settings` est absent, et les classes `Config` des schémas de réponse portent à la fois `from_attributes = True` (v2) et `orm_mode = True` (v1, ignoré silencieusement par la v2).
+- **Surveillance de dossiers par interrogation périodique.** Le paquet `watchdog` n'a pas de distribution Android. `app/utils/watcher.py` importe `watchdog` s'il est présent et sinon `app/utils/_polling_observer.py`, qui liste chaque dossier surveillé toutes les 2 secondes (`os.listdir`) et signale les nouvelles entrées. C'est un sous-ensemble de l'API de `watchdog` (suffisant pour l'import de dossier, qui n'est pas sensible à la latence).
+
+Les commentaires du code qui renvoient à « ARCHITECTURE.md §3.1 » désignent cette sous-section. Toute modification touchant ces deux points doit être vérifiée avec Pydantic v1 (profil Android) et v2 (autres profils).
+
 ## 3bis. Pipeline d'importation, Accélération Matérielle Multi-OS & Annulation Réactive
 
 Bobine intègre un pipeline de traitement et d'ingestion multimédia unifié couvrant 4 flux d'importation distincts : les **vidéos de cours** (`/api/videos/upload` ou dossier `data/watched`), les **fonds animés** (`/api/backgrounds/upload` ou dossier `data/backgrounds_watched`), les **cours audio coach** (`/api/audio/upload` ou dossier `data/audio_watched`), et les **morceaux radio** (`/api/radio/upload` ou dossier `data/radio_watched`).

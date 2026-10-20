@@ -13,12 +13,14 @@
 # `app/config.py::ROOT_DIR` et `app/main.py::frontend_out` (branches
 # `platform.system() == "Darwin"`).
 #
-# NON TESTÉ sur une vraie machine macOS — écrit d'après :
+# Construit par le job CI `macos-build` (.github/workflows/ci.yml) et publié sous
+# forme de `.dmg` avec chaque release. Aucune validation sur un Mac réel n'est
+# consignée à ce jour pour ce paquet. Écrit d'après :
 #   - la documentation officielle PyInstaller (BUNDLE(), Info.plist,
 #     runtime-information.html) ;
-#   - le comportement documenté de `pystray._darwin` (AppKit/pyobjc) ;
-# à valider au premier passage du job CI `macos-build`
-# (.github/workflows/ci.yml) et lors d'un test manuel sur Mac réel.
+#   - le comportement documenté de `pystray._darwin` (AppKit/pyobjc).
+# Ne contient pas ffmpeg ni ffprobe : l'application les cherche dans le PATH puis
+# dans `/opt/homebrew/bin` et `/usr/local/bin` (voir `app/utils/ffmpeg_binaries.py`).
 
 import sys
 from pathlib import Path

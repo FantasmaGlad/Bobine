@@ -9,7 +9,7 @@ Chaque version **Stable** majeure ou marquante reçoit, en plus de son numéro `
 
 ## Convention
 
-- Un nom par version **Stable** seulement (jamais pour Bêta/Canary, qui n'ont pas de notes dédiées — cf. AGENTS.md §5.1 point 5).
+- Un nom par version **Stable** seulement (jamais pour Bêta/Canary, qui n'ont pas de notes dédiées : leurs notes sont générées automatiquement par la CI).
 - Un seul mot, en français, capitalisé, jamais réutilisé (vérifier ce tableau avant d'en choisir un nouveau).
 - Choisi au moment de rédiger les notes de version, pas avant — pas de nom réservé à l'avance pour une version pas encore sortie.
 

@@ -148,6 +148,15 @@ The data schema is managed by **SQLAlchemy**. There is **no active Alembic** in 
 
 ---
 
+### 3.1 Android profile: Pydantic v1 compatibility and folder watching
+
+Two backend dependencies have no usable distribution on Android (Chaquopy), so the Android profile uses different versions and fallbacks without forking the code:
+
+- **Pydantic v1 instead of v2.** Pydantic v2 relies on `pydantic-core`, a native extension with no Android distribution. The APK bundles `pydantic==1.10.26` with `fastapi==0.99.1` (Starlette 0.27); the other profiles use Pydantic v2. The code must stay valid under both: `app/utils/_pydantic_compat.py` provides a `computed_field` equivalent for v1, `app/config.py` falls back to the `BaseSettings` built into Pydantic v1 when `pydantic_settings` is missing, and the response-schema `Config` classes carry both `from_attributes = True` (v2) and `orm_mode = True` (v1, silently ignored by v2).
+- **Folder watching by periodic polling.** The `watchdog` package has no Android distribution. `app/utils/watcher.py` imports `watchdog` when available and otherwise `app/utils/_polling_observer.py`, which lists each watched folder every 2 seconds (`os.listdir`) and reports new entries. It implements a subset of the `watchdog` API (enough for folder import, which is not latency-sensitive).
+
+Code comments that refer to "ARCHITECTURE.md §3.1" point to this subsection. Any change touching these two points must be checked with Pydantic v1 (Android profile) and v2 (other profiles).
+
 ## 3bis. Import Pipeline, Multi-OS Hardware Acceleration & Reactive Cancellation
 
 Bobine has a unified media processing/ingestion pipeline covering 4 distinct import flows: **course videos** (`/api/videos/upload` or the `data/watched` folder), **animated backgrounds** (`/api/backgrounds/upload` or the `data/backgrounds_watched` folder), **audio coach courses** (`/api/audio/upload` or the `data/audio_watched` folder), and **radio tracks** (`/api/radio/upload` or the `data/radio_watched` folder).

@@ -4,9 +4,10 @@
 #
 # NE PEUT ÊTRE EXÉCUTÉ QUE SUR UNE VRAIE MACHINE macOS — PyInstaller ne
 # cross-compile pas (aucun bundle macOS ne peut être produit depuis Linux ou
-# Windows). NON TESTÉ dans cet état (écrit d'après la documentation
-# PyInstaller/Apple) ; à valider au premier passage du job CI `macos-build`
-# (.github/workflows/ci.yml) et lors d'un test manuel sur Mac réel.
+# Windows). Exécuté par le job CI `macos-build` (.github/workflows/ci.yml) à
+# chaque push ; aucune validation sur un Mac réel n'est consignée à ce jour.
+# Écrit d'après la documentation PyInstaller/Apple. Le `.dmg` produit n'embarque
+# ni ffmpeg ni ffprobe (voir `backend/app/utils/ffmpeg_binaries.py`).
 # ==============================================================================
 set -euo pipefail
 

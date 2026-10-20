@@ -1,7 +1,8 @@
 ; Installeur Windows de Bobine.
 ;
-; NON TESTÉ — écrit d'après la documentation Inno Setup (jrsoftware.org/ishelp),
-; à valider sur une vraie machine Windows avant toute distribution. Compile
+; Construit et publié par la CI (jobs windows-build et windows-build-arm64) avec
+; chaque release ; écrit d'après la documentation Inno Setup
+; (jrsoftware.org/ishelp). Compile
 ; avec ISCC.exe (Inno Setup 6+), après avoir construit
 ; packaging/windows/bobine.spec avec PyInstaller SUR WINDOWS (pas de
 ; cross-compilation possible) :

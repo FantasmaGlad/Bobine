@@ -1364,7 +1364,7 @@ export default function SchedulePage() {
                   (VideoPlaylistManager), pour une cohérence visuelle avec
                   le reste de l'app. `dataTransfer.setData` posé pour une
                   conformité multi-navigateur (Firefox en particulier,
-                  cible de support officiel — cf. AGENTS.md §1.5) : sans
+                  cible de support officiel) : sans
                   lui, le drag natif peut ne pas s'amorcer sur certains
                   navigateurs. Aucun `setDragImage` manuel : le navigateur
                   utilise par défaut un instantané de cette carte, déjà une

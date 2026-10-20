@@ -244,8 +244,8 @@ class PlaybackManager:
         self._audio_chain_wait_task = None
 
     def start_position_broadcast_loop(self):
-        """À appeler une fois au démarrage du worker (lifespan FastAPI, réf.
-        Phase 5). Diffuse la position à intervalle fixe pendant la lecture,
+        """À appeler une fois au démarrage du worker (lifespan FastAPI).
+        Diffuse la position à intervalle fixe pendant la lecture,
         plutôt qu'à chaque rapport silencieux du kiosk (cf. report_position)."""
         if self._position_broadcast_task is None or self._position_broadcast_task.done():
             self._position_broadcast_task = asyncio.create_task(self._position_broadcast_loop())
