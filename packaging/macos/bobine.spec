@@ -140,7 +140,15 @@ coll = COLLECT(
     tray_analysis.binaries,
     tray_analysis.zipfiles,
     tray_analysis.datas,
-    strip=False,
+    # strip=True : PyInstaller embarque sinon libpython et uvloop (extensions C)
+    # avec leurs symboles de débogage (libpython ~29 Mo, uvloop ~15,8 Mo ;
+    # mesure faite sur le bundle Linux de la 5.0.2 : 138 -> 74 Mo installé,
+    # ~46 -> ~31 Mo compressé). Le strip est appliqué par COLLECT, donc AVANT
+    # la signature ad-hoc de build_app.sh / ci.yml (`codesign --force --deep`),
+    # qui re-signe tout le bundle : aucune signature n'est invalidée.
+    # PyInstaller re-signe lui-même ad hoc chaque binaire qu'il vient de
+    # modifier sur Apple Silicon.
+    strip=True,
     upx=False,
     name="Bobine",
 )

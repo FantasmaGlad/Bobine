@@ -107,7 +107,13 @@ coll = COLLECT(
     tray_analysis.binaries,
     tray_analysis.zipfiles,
     tray_analysis.datas,
-    strip=False,
+    # strip=True : PyInstaller embarque sinon libpython et uvloop (extensions C)
+    # avec leurs symboles de débogage (libpython ~29 Mo, uvloop ~15,8 Mo).
+    # Mesuré sur la 5.0.2 : dossier installé 138 -> 74 Mo, paquet compressé
+    # ~46 -> ~31 Mo, et la copie strippée démarre et sert /api/health, le
+    # statique et /api/settings. Le strip est appliqué par COLLECT, donc avant
+    # toute étape postérieure à PyInstaller (signature, dpkg-deb, hdiutil).
+    strip=True,
     upx=False,
     name="Bobine",
 )
