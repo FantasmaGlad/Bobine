@@ -253,11 +253,14 @@ def clean_subprocess_env() -> dict[str, str]:
     `LD_LIBRARY_PATH_ORIG` — on la réapplique ici, ou on supprime
     entièrement la clé si l'hôte n'en avait pas."""
     env = dict(os.environ)
-    original = env.pop("LD_LIBRARY_PATH_ORIG", None)
-    if original:
-        env["LD_LIBRARY_PATH"] = original
-    else:
-        env.pop("LD_LIBRARY_PATH", None)
+    # Linux : LD_LIBRARY_PATH ; macOS : DYLD_LIBRARY_PATH ; AIX : LIBPATH.
+    # Le chargeur PyInstaller sauvegarde chacune sous « <nom>_ORIG » (même motif).
+    for name in ("LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "LIBPATH"):
+        original = env.pop(f"{name}_ORIG", None)
+        if original:
+            env[name] = original
+        else:
+            env.pop(name, None)
     return env
 
 

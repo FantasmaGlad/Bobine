@@ -17,6 +17,8 @@ class ImportJobResponse(BaseModel):
     stage: str
     stage_label: str
     error: str | None
+    error_code: str | None = None
+    error_params: dict | None = None
     result_id: int | None
     created_at: float
     updated_at: float

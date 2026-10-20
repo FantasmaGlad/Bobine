@@ -7,7 +7,14 @@ import time
 import platform
 from pathlib import Path
 
-from app.utils.ffmpeg_binaries import FFMPEG_BIN, FFPROBE_BIN
+from app.utils.ffmpeg_binaries import (
+    FFMPEG_BIN,
+    FFPROBE_BIN,
+    is_missing_tool_error,
+    media_subprocess_kwargs,
+    missing_tool_error,
+    with_nostdin,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +45,10 @@ def get_video_info(file_path: str) -> dict:
         file_path
     ]
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=FFPROBE_TIMEOUT_SECONDS)
+        res = subprocess.run(
+            cmd, capture_output=True, text=True, check=True, timeout=FFPROBE_TIMEOUT_SECONDS,
+            **media_subprocess_kwargs(),
+        )
         return json.loads(res.stdout)
     except subprocess.TimeoutExpired:
         logger.error(f"ffprobe : délai dépassé ({FFPROBE_TIMEOUT_SECONDS}s) pour {file_path}")
@@ -46,6 +56,15 @@ def get_video_info(file_path: str) -> dict:
     except subprocess.CalledProcessError as e:
         logger.error(f"ffprobe failed for {file_path}: {e.stderr}")
         raise ValueError(f"Impossible de lire le fichier vidéo avec ffprobe : {e.stderr}")
+    except OSError as e:
+        if is_missing_tool_error(e):
+            # Binaire absent/non exécutable : message explicite (avec l'aide
+            # d'installation du système) plutôt que « [Errno 2] … 'ffprobe' ».
+            missing = missing_tool_error("ffprobe", e)
+            logger.error(f"ffprobe ne peut pas être lancé ({FFPROBE_BIN}) : {e}")
+            raise missing from e
+        logger.error(f"Error running ffprobe for {file_path}: {e}")
+        raise ValueError(f"Erreur lors de la lecture des métadonnées : {str(e)}")
     except Exception as e:
         logger.error(f"Error running ffprobe for {file_path}: {e}")
         raise ValueError(f"Erreur lors de la lecture des métadonnées : {str(e)}")
@@ -427,21 +446,34 @@ def generate_thumbnail(video_path: str, thumbnail_dir: str, duration: float | No
 
     def _try_run_thumb(current_cmd: list[str]) -> bool:
         try:
-            subprocess.run(current_cmd, capture_output=True, text=True, check=True, timeout=FFMPEG_THUMBNAIL_TIMEOUT_SECONDS)
+            subprocess.run(
+                with_nostdin(current_cmd), capture_output=True, text=True, check=True,
+                timeout=FFMPEG_THUMBNAIL_TIMEOUT_SECONDS, **media_subprocess_kwargs(),
+            )
             if thumb_path.exists() and thumb_path.stat().st_size > 0:
                 return True
         except subprocess.TimeoutExpired:
             # Machine chargée (plusieurs encodages en parallèle sur un Wyse/une tablette) : un dépassement ne
             # doit pas abandonner toute la génération — les essais suivants (début du fichier, plus rapides) restent possibles.
             logger.error(f"ffmpeg thumbnail attempt timed out after {FFMPEG_THUMBNAIL_TIMEOUT_SECONDS}s: {video_path}")
-        except OSError as err:  # binaire ffmpeg introuvable ou non exécutable : inutile d'insister, mais jamais une exception brute
+        except OSError as err:
+            if is_missing_tool_error(err):
+                # Binaire ffmpeg introuvable ou non exécutable : inutile d'insister
+                # (les essais suivants échoueraient de la même façon, avec une
+                # pause d'une seconde en plus). L'appelant tolère l'échec de
+                # miniature (placeholder) ; le message, lui, est explicite.
+                logger.error(f"ffmpeg ne peut pas être lancé ({FFMPEG_BIN}) : {err}")
+                raise missing_tool_error("ffmpeg", err) from err
             logger.error(f"ffmpeg thumbnail attempt could not start: {err}")
         except subprocess.CalledProcessError as err:
             if is_android and ("av1" in (err.stderr or "").lower() or "not implemented" in (err.stderr or "").lower()):
                 # Tentative avec le décodeur matériel MediaCodec
                 cmd_retry = [FFMPEG_BIN, "-operating_rate", "1000", "-c:v", "av1_mediacodec"] + current_cmd[1:]
                 try:
-                    subprocess.run(cmd_retry, capture_output=True, text=True, check=True, timeout=FFMPEG_THUMBNAIL_TIMEOUT_SECONDS)
+                    subprocess.run(
+                        with_nostdin(cmd_retry), capture_output=True, text=True, check=True,
+                        timeout=FFMPEG_THUMBNAIL_TIMEOUT_SECONDS, **media_subprocess_kwargs(),
+                    )
                     if thumb_path.exists() and thumb_path.stat().st_size > 0:
                         return True
                 except Exception as e_ret:
@@ -738,18 +770,25 @@ def _run_ffmpeg_with_progress(
     if is_job_cancelled(job_id):
         raise JobCancelledError(f"Job {job_id} annulé avant le démarrage de FFmpeg")
 
-    full_cmd = list(cmd)
+    full_cmd = with_nostdin(cmd)
     if "-progress" not in full_cmd:
         full_cmd.extend(["-progress", "pipe:1", "-nostats"])
 
-    proc = subprocess.Popen(
-        full_cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        bufsize=1,
-        **_background_priority_popen_kwargs(),
-    )
+    try:
+        proc = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+            **media_subprocess_kwargs(),
+            **_background_priority_popen_kwargs(),
+        )
+    except OSError as err:
+        if is_missing_tool_error(err):
+            logger.error(f"ffmpeg ne peut pas être lancé ({full_cmd[0]}) : {err}")
+            raise missing_tool_error("ffmpeg", err) from err
+        raise
     _lower_process_priority(proc.pid)
     if job_id:
         register_job_process(job_id, proc)

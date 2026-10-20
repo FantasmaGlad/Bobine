@@ -11,7 +11,7 @@ import re
 import subprocess
 from typing import Any
 
-from app.utils.ffmpeg_binaries import FFPROBE_BIN
+from app.utils.ffmpeg_binaries import FFPROBE_BIN, media_subprocess_kwargs
 
 MAX_CHAPTERS = 200
 MAX_TITLE_LENGTH = 120
@@ -174,6 +174,7 @@ def read_embedded(file_path: str) -> list[dict[str, Any]]:
             text=True,
             timeout=_FFPROBE_TIMEOUT_SECONDS,
             check=True,
+            **media_subprocess_kwargs(),
         )
         data = json.loads(completed.stdout or "{}")
     except (OSError, subprocess.SubprocessError, json.JSONDecodeError):

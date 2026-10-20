@@ -73,6 +73,11 @@ def create_job(kind: str, filename: str, title: str | None = None, source: str =
         "stage": "queued",
         "stage_label": _STAGE_LABELS["queued"],
         "error": None,
+        # Code stable + paramètres quand l'erreur est reconnue (ex. ffmpeg
+        # introuvable) : le client la traduit dans sa langue ; `error` garde
+        # le texte français de repli.
+        "error_code": None,
+        "error_params": None,
         "result_id": None,
         "progress_percent": None,
         "eta_seconds": None,
@@ -174,6 +179,12 @@ def update_job(job_id: str | None, **fields) -> None:
         if job is None or _is_expired(job):
             return
         job.update(fields)
+        if fields.get("stage") == "error" and fields.get("error"):
+            from app.utils.ffmpeg_binaries import classify_error
+
+            classified = classify_error(str(fields["error"]))
+            if classified:
+                job["error_code"], job["error_params"] = classified
         if "stage" in fields:
             job["stage_label"] = _STAGE_LABELS.get(fields["stage"], fields["stage"])
         job["updated_at"] = time.time()
