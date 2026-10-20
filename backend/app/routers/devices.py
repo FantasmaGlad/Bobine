@@ -9,6 +9,7 @@ en réponse JSON structurée `{"detail": {"code", "message"}}`.
 from __future__ import annotations
 
 import ipaddress
+import json
 import logging
 from dataclasses import dataclass
 from typing import Any, Awaitable, TypeVar
@@ -247,9 +248,111 @@ class AudioVolumeRequest(BaseModel):
     muted: bool | None = None
 
 
+_AUDIO_META_KEY = "devices_audio_meta"
+_AUDIO_META_MAX = 200
+_ALIAS_MAX = 60
+
+
+def _load_audio_meta(db: Session) -> dict[str, dict[str, Any]]:
+    raw = _get_setting(db, _AUDIO_META_KEY)
+    try:
+        data = json.loads(raw) if raw else {}
+    except ValueError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _with_meta(entry: dict[str, Any], meta: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    info = meta.get(str(entry.get("id")), {})
+    return {**entry, "alias": info.get("alias") or None, "hidden": bool(info.get("hidden"))}
+
+
 @router.get("/audio")
-async def audio_list(_: Access = Depends(require_access)) -> dict[str, Any]:
-    return await _guard(service.driver.audio_list())
+async def audio_list(_: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
+    listing = await _guard(service.driver.audio_list())
+    if listing.get("supported"):
+        meta = _load_audio_meta(db)
+        listing = {**listing, "devices": [_with_meta(d, meta) for d in listing.get("devices", [])]}
+    return listing
+
+
+@router.get("/audio/details")
+async def audio_details(id: str, _: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
+    details = await _guard(service.driver.audio_details(id))
+    return _with_meta(details, _load_audio_meta(db)) if details.get("supported") else details
+
+
+class AudioBalanceRequest(BaseModel):
+    id: str
+    balance: float
+
+
+class AudioToneRequest(BaseModel):
+    id: str
+    channel: str
+
+
+class AudioProfileRequest(BaseModel):
+    id: str
+    index: int
+
+
+class AudioMetaRequest(BaseModel):
+    id: str
+    alias: str | None = None
+    hidden: bool | None = None
+
+
+@router.post("/audio/balance")
+async def audio_balance(payload: AudioBalanceRequest, _: Access = Depends(require_access)) -> dict[str, bool]:
+    if not (-1.0 <= payload.balance <= 1.0):
+        raise _fail(400, "bad_balance", "La balance doit être comprise entre -1 et 1.")
+    await _guard(service.driver.audio_set_balance(payload.id, payload.balance))
+    return {"ok": True}
+
+
+@router.post("/audio/test")
+async def audio_test(payload: AudioToneRequest, _: Access = Depends(require_access)) -> dict[str, bool]:
+    if payload.channel not in ("left", "right", "both"):
+        raise _fail(400, "bad_channel", "Canal de test inconnu.")
+    await _guard(service.driver.audio_test_tone(payload.id, payload.channel))
+    return {"ok": True}
+
+
+@router.post("/audio/profile")
+async def audio_profile(payload: AudioProfileRequest, _: Access = Depends(require_access)) -> dict[str, bool]:
+    await _guard(service.driver.audio_set_profile(payload.id, payload.index))
+    return {"ok": True}
+
+
+@router.put("/audio/meta")
+def audio_meta(payload: AudioMetaRequest, _: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Nom personnalisé et masquage d'une sortie : réglages de Bobine, communs à toutes les plateformes."""
+    if not payload.id or len(payload.id) > 256:
+        raise _fail(400, "bad_id", "Identifiant de sortie invalide.")
+    meta = _load_audio_meta(db)
+    entry = dict(meta.get(payload.id, {}))
+    if payload.alias is not None:
+        alias = payload.alias.strip()
+        if len(alias) > _ALIAS_MAX or any(ord(c) < 32 for c in alias):
+            raise _fail(400, "bad_alias", f"Le nom doit faire au plus {_ALIAS_MAX} caractères, sans caractère de contrôle.")
+        if alias:
+            entry["alias"] = alias
+        else:
+            entry.pop("alias", None)
+    if payload.hidden is not None:
+        if payload.hidden:
+            entry["hidden"] = True
+        else:
+            entry.pop("hidden", None)
+    if entry:
+        if payload.id not in meta and len(meta) >= _AUDIO_META_MAX:
+            raise _fail(400, "too_many", "Trop de sorties personnalisées.")
+        meta[payload.id] = entry
+    else:
+        meta.pop(payload.id, None)
+    _set_setting(db, _AUDIO_META_KEY, json.dumps(meta, ensure_ascii=False) if meta else None)
+    return {"ok": True, "alias": entry.get("alias"), "hidden": bool(entry.get("hidden"))}
 
 
 @router.post("/audio/default")

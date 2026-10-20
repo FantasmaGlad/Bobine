@@ -27,6 +27,10 @@ CAPABILITY_KEYS = (
     "audio_list",
     "audio_set_default",
     "audio_set_volume",
+    "audio_details",
+    "audio_balance",
+    "audio_test_tone",
+    "audio_profile",
     "bluetooth_status",
     "bluetooth_power",
     "bluetooth_scan",
@@ -105,6 +109,22 @@ class DeviceDriver(ABC):
 
     async def audio_set_volume(self, device_id: str, volume: float | None, muted: bool | None) -> None:
         raise DeviceError("unsupported", "Régler le volume système n'est pas possible sur cette plateforme.", 501)
+
+    async def audio_details(self, device_id: str) -> dict[str, Any]:
+        """Analyse d'une sortie : état, canaux, fréquence, format, latence, carte, profil, codec Bluetooth, balance.
+        `{"supported": False, "reason"}` quand la plateforme ne sait pas le dire."""
+        return unsupported("L'analyse détaillée d'une sortie audio n'est pas disponible sur cette plateforme.")
+
+    async def audio_set_balance(self, device_id: str, balance: float) -> None:
+        """Balance gauche/droite, de -1 (tout à gauche) à +1 (tout à droite), niveau maître conservé."""
+        raise DeviceError("unsupported", "La balance gauche/droite n'est pas réglable sur cette plateforme.", 501)
+
+    async def audio_test_tone(self, device_id: str, channel: str) -> None:
+        """Joue brièvement une tonalité de test (`left`, `right` ou `both`) sur cette sortie."""
+        raise DeviceError("unsupported", "Le son de test n'est pas disponible sur cette plateforme.", 501)
+
+    async def audio_set_profile(self, device_id: str, profile_index: int) -> None:
+        raise DeviceError("unsupported", "Le changement de profil audio n'est pas possible sur cette plateforme.", 501)
 
     # --- Bluetooth -------------------------------------------------------
     @abstractmethod

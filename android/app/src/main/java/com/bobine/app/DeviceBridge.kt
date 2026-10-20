@@ -103,6 +103,50 @@ object DeviceBridge {
         error("audio_failed", "Lecture des sorties audio impossible.")
     }
 
+    private fun encodingLabel(encoding: Int): String = when (encoding) {
+        android.media.AudioFormat.ENCODING_PCM_8BIT -> "PCM 8 bits"
+        android.media.AudioFormat.ENCODING_PCM_16BIT -> "PCM 16 bits"
+        android.media.AudioFormat.ENCODING_PCM_24BIT_PACKED -> "PCM 24 bits"
+        android.media.AudioFormat.ENCODING_PCM_32BIT -> "PCM 32 bits"
+        android.media.AudioFormat.ENCODING_PCM_FLOAT -> "PCM flottant"
+        android.media.AudioFormat.ENCODING_AC3 -> "Dolby Digital (AC-3)"
+        android.media.AudioFormat.ENCODING_E_AC3 -> "Dolby Digital Plus"
+        android.media.AudioFormat.ENCODING_DTS -> "DTS"
+        else -> "Encodage $encoding"
+    }
+
+    /** Analyse d'une sortie (formats annoncés par Android : fréquences, canaux, encodages). */
+    fun audioDetails(context: Context, id: String): String = try {
+        val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val device = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).firstOrNull { it.id.toString() == id }
+            ?: return error("not_found", "Cette sortie audio n'est plus disponible.")
+        val rates = device.sampleRates.filter { it > 0 }
+        val channels = device.channelCounts.maxOrNull()
+        JSONObject()
+            .put("supported", true)
+            .put("id", id)
+            .put("name", device.productName?.toString().orEmpty().ifBlank { "Sortie $id" })
+            .put("state", "unknown")
+            .put("channels", channels ?: JSONObject.NULL)
+            .put("channel_map", JSONArray())
+            .put("sample_rate", rates.maxOrNull() ?: JSONObject.NULL)
+            .put("format", device.encodings.takeIf { it.isNotEmpty() }?.joinToString(", ") { encodingLabel(it) } ?: JSONObject.NULL)
+            .put("latency_ms", JSONObject.NULL)
+            .put("card", device.address.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("bus", audioKind(device.type))
+            .put("api", "android")
+            .put("codec", JSONObject.NULL)
+            .put("profile", JSONObject.NULL)
+            .put("profiles", JSONArray())
+            .put("balance", JSONObject.NULL)
+            .put("level", JSONObject.NULL)
+            .put("muted", JSONObject.NULL)
+            .toString()
+    } catch (e: Exception) {
+        Log.w(TAG, "audioDetails", e)
+        error("audio_failed", "Analyse de la sortie audio impossible.")
+    }
+
     /** `volume` < 0 : inchangé ; `muted` : -1 inchangé, 0 son actif, 1 coupé. Agit sur le volume média du système. */
     fun audioSetVolume(context: Context, volume: Double, muted: Int): String = try {
         val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager

@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .base import DeviceDriver, DeviceError, no_capabilities, unsupported
+from .base import CAPABILITY_KEYS, DeviceDriver, DeviceError, no_capabilities, unsupported
 
 logger = logging.getLogger(__name__)
 
@@ -187,10 +187,15 @@ class SidecarDriver(DeviceDriver):
                     else:
                         self._hello = await self._exchange("hello", {}, _HELLO_TIMEOUT)
                         self._caps_at = time.monotonic()
-            caps = (self._hello or {}).get("capabilities") or {}
+            caps = dict((self._hello or {}).get("capabilities") or {})
         except DeviceError as exc:
             return no_capabilities(exc.message)
-        return caps or no_capabilities("Le composant de périphériques ne déclare aucune capacité.")
+        if not caps:
+            return no_capabilities("Le composant de périphériques ne déclare aucune capacité.")
+        # Fonctions ajoutées après la version du composant : absentes = non prises en charge (jamais « supposées »).
+        for key in CAPABILITY_KEYS:
+            caps.setdefault(key, {"supported": False, "reason": "Non disponible sur cette plateforme."})
+        return caps
 
     # ------------------------------------------------------------------ audio
     async def _list(self, method: str) -> dict[str, Any]:

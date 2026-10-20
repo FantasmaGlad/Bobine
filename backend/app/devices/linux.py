@@ -23,6 +23,9 @@ from typing import Any, Awaitable, Callable
 from .base import CAPABILITY_KEYS, DeviceDriver, DeviceError, unsupported
 from .linux_parse import (
     bluez_device_path,
+    channel_volumes_for_balance,
+    parse_audio_details,
+    tone_wav_bytes,
     is_valid_mac,
     parse_bluez_objects,
     parse_known_wifi,
@@ -88,6 +91,7 @@ class LinuxDriver(DeviceDriver):
         self._pending: dict[str, Any] | None = None
         self._pending_future: asyncio.Future[bool] | None = None
         self._pairing: dict[str, Any] | None = None
+        self._tone_lock = asyncio.Lock()
         self._probe_cache: tuple[float, dict[str, dict[str, Any]]] | None = None
         self._wifi_device_cache: tuple[float, dict[str, str] | None] = (0.0, None)
 
@@ -112,6 +116,14 @@ class LinuxDriver(DeviceDriver):
             caps[key] = {"supported": audio_reason is None}
             if audio_reason:
                 caps[key]["reason"] = audio_reason
+
+        if audio_reason is None:
+            caps["audio_details"] = {"supported": True}
+            for key, tool in (("audio_balance", "pw-cli"), ("audio_test_tone", "pw-play"), ("audio_profile", "wpctl")):
+                caps[key] = {"supported": True} if shutil.which(tool) else {"supported": False, "reason": f"L'outil {tool} n'est pas installé."}
+        else:
+            for key in ("audio_details", "audio_balance", "audio_test_tone", "audio_profile"):
+                caps[key] = {"supported": False, "reason": audio_reason}
 
         bt_reason = await self._probe_bluetooth()
         for key in ("bluetooth_status", "bluetooth_power", "bluetooth_scan", "bluetooth_pair", "bluetooth_connect", "bluetooth_forget"):
@@ -192,6 +204,74 @@ class LinuxDriver(DeviceDriver):
         devices = await asyncio.gather(*(with_volume(s) for s in data["sinks"]))
         devices.sort(key=lambda d: (not d["is_default"], d["name"].lower()))
         return {"supported": True, "devices": devices, "default_id": data["default_id"]}
+
+    async def _pw_dump_raw(self) -> list[dict[str, Any]]:
+        code, out, err = await self._run("pw-dump", timeout=8)
+        if code != 0:
+            raise DeviceError("audio_unavailable", (err.strip() or "PipeWire ne répond pas.")[:200], 502)
+        try:
+            data = json.loads(out)
+        except ValueError as exc:
+            raise DeviceError("audio_unavailable", "Réponse PipeWire illisible.", 502) from exc
+        return data if isinstance(data, list) else []
+
+    async def audio_details(self, device_id: str) -> dict[str, Any]:
+        reason = await self._probe_audio()
+        if reason:
+            return unsupported(reason)
+        details = parse_audio_details(await self._pw_dump_raw(), device_id)
+        if details is None:
+            raise DeviceError("not_found", "Cette sortie audio n'est plus disponible.", 404)
+        public = {k: v for k, v in details.items() if k not in ("device_pw_id", "node_pw_id", "channel_volumes")}
+        return {"supported": True, **public}
+
+    async def audio_set_balance(self, device_id: str, balance: float) -> None:
+        if not shutil.which("pw-cli"):
+            raise DeviceError("tool_missing", "L'outil pw-cli est introuvable : la balance n'est pas réglable.", 501)
+        details = parse_audio_details(await self._pw_dump_raw(), device_id)
+        if details is None:
+            raise DeviceError("not_found", "Cette sortie audio n'est plus disponible.", 404)
+        volumes = details["channel_volumes"]
+        if len(volumes) != 2:
+            raise DeviceError("unsupported", "La balance n'existe que pour une sortie stéréo.", 501)
+        left, right = channel_volumes_for_balance(volumes, balance)
+        code, _, err = await self._run("pw-cli", "set-param", str(details["node_pw_id"]), "Props", f"{{ channelVolumes: [{left:.6f}, {right:.6f}] }}", timeout=5)
+        if code != 0:
+            raise DeviceError("audio_failed", (err.strip() or "Réglage de la balance refusé.")[:200], 502)
+        self._emit("audio")
+
+    async def audio_test_tone(self, device_id: str, channel: str) -> None:
+        if channel not in ("left", "right", "both"):
+            raise DeviceError("bad_channel", "Canal de test inconnu.", 400)
+        if not shutil.which("pw-play"):
+            raise DeviceError("tool_missing", "L'outil pw-play est introuvable : le son de test n'est pas disponible.", 501)
+        if self._tone_lock.locked():
+            raise DeviceError("busy", "Un son de test est déjà en cours.", 409)
+        async with self._tone_lock:
+            details = parse_audio_details(await self._pw_dump_raw(), device_id)
+            if details is None:
+                raise DeviceError("not_found", "Cette sortie audio n'est plus disponible.", 404)
+            import tempfile
+
+            with tempfile.TemporaryDirectory(prefix="bobine_tone_") as tmp:
+                path = os.path.join(tmp, "tone.wav")
+                with open(path, "wb") as handle:
+                    handle.write(tone_wav_bytes(channel))
+                # Niveau du flux plafonné en plus de l'amplitude du fichier : un test ne doit jamais surprendre la salle.
+                code, _, err = await self._run("pw-play", "--target", device_id, "--volume", "0.5", path, timeout=6)
+            if code != 0:
+                raise DeviceError("audio_failed", (err.strip() or "Lecture du son de test impossible.")[:200], 502)
+
+    async def audio_set_profile(self, device_id: str, profile_index: int) -> None:
+        details = parse_audio_details(await self._pw_dump_raw(), device_id)
+        if details is None:
+            raise DeviceError("not_found", "Cette sortie audio n'est plus disponible.", 404)
+        if details.get("device_pw_id") is None or not any(p["index"] == profile_index and p["available"] for p in details["profiles"]):
+            raise DeviceError("bad_profile", "Profil audio indisponible pour cette sortie.", 400)
+        code, _, err = await self._run("wpctl", "set-profile", str(details["device_pw_id"]), str(profile_index), timeout=6)
+        if code != 0:
+            raise DeviceError("audio_failed", (err.strip() or "Changement de profil refusé.")[:200], 502)
+        self._emit("audio")
 
     async def _pw_id(self, device_id: str) -> int:
         data = await self._audio_sinks()

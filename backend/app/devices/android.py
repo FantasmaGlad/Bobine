@@ -28,6 +28,7 @@ _STATUS_BY_CODE = {
 }
 
 _NO_DEFAULT_SINK = "Android ne permet pas à une application de changer la sortie audio : utilisez les réglages du son."
+_NO_AUDIO_TOOLS = "Android ne permet pas à une application de régler la balance, de jouer un son de test ni de changer le profil d'une sortie."
 _NO_BT_CONNECT = "Android ne permet pas de connecter ou d'oublier un appareil déjà appairé : utilisez les réglages Bluetooth."
 _NO_WIFI = "Depuis Android 10, une application ne peut plus gérer le Wi-Fi : utilisez les réglages du système."
 
@@ -99,6 +100,9 @@ class AndroidDriver(DeviceDriver):
         caps["audio_list"] = dict(yes)
         caps["audio_set_volume"] = dict(yes)
         caps["audio_set_default"] = {"supported": False, "reason": _NO_DEFAULT_SINK}
+        caps["audio_details"] = dict(yes)
+        for key in ("audio_balance", "audio_test_tone", "audio_profile"):
+            caps[key] = {"supported": False, "reason": _NO_AUDIO_TOOLS}
         for key in ("bluetooth_status", "bluetooth_power", "bluetooth_scan", "bluetooth_pair"):
             caps[key] = dict(yes) if has_bt else {"supported": False, "reason": "Cet appareil n'a pas de Bluetooth."}
         for key in ("bluetooth_connect", "bluetooth_forget"):
@@ -117,6 +121,9 @@ class AndroidDriver(DeviceDriver):
         # Android n'a qu'un volume média global (celui de la sortie active), pas de volume par sortie.
         await self._call("audioSetVolume", -1.0 if volume is None else float(volume), -1 if muted is None else (1 if muted else 0))
         self._emit("audio")
+
+    async def audio_details(self, device_id: str) -> dict[str, Any]:
+        return await self._call("audioDetails", str(device_id))
 
     # ------------------------------------------------------------------ Bluetooth
     async def bluetooth_status(self) -> dict[str, Any]:
