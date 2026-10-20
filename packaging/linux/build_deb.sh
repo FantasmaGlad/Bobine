@@ -10,8 +10,9 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # Source de vérité unique : fichier
 # VERSION à la racine du dépôt. Surchargeable via l'environnement (CI passe
-# une valeur au format Debian, ex. "3.0.1~beta" ou "3.0.1~canary" selon le
-# canal — le tilde trie AVANT la version finale, cf. dpkg --compare-versions).
+# une valeur au format Debian, ex. "5.0.2+beta.41" ou "5.0.2+canary.42" selon
+# le canal — le '+' trie APRÈS la version de base et le compteur croît à chaque
+# build, cf. dpkg --compare-versions).
 # C'est ce qui va dans le champ Version: du paquet (DEBIAN/control
 # ci-dessous), lu par dpkg/apt — jamais dans le nom de fichier (cf.
 # DEB_FILENAME_VERSION).
@@ -98,7 +99,7 @@ cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/etc/xdg/autostart/com.bobine.a
 # Le journal des versions reçoit l'entrée de la version construite si elle n'y figure pas encore.
 APPSTREAM_TMP="$(mktemp)"
 cp "${SCRIPT_DIR}/bobine.metainfo.xml" "${APPSTREAM_TMP}"
-APPSTREAM_VERSION="${VERSION//\~/-}"
+APPSTREAM_VERSION="${VERSION//[~+]/-}"
 if ! grep -q "<release version=\"${APPSTREAM_VERSION}\"" "${APPSTREAM_TMP}"; then
     sed -i "s|<releases>|<releases>\n    <release version=\"${APPSTREAM_VERSION}\" date=\"$(date -u +%F)\"/>|" "${APPSTREAM_TMP}"
 fi

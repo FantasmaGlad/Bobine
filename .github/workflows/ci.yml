@@ -135,7 +135,7 @@ jobs:
 
           if [ "${CHANNEL}" = "beta" ] || [ "${CHANNEL}" = "canary" ]; then
             DISPLAY_VERSION="${BASE_VERSION}-${CHANNEL}"  # bundlé (VERSION), AppVersion Windows — cosmétique
-            DEB_VERSION="${BASE_VERSION}~${CHANNEL}"      # champ Version: du paquet .deb — syntaxe Debian (le '~' trie AVANT la version finale)
+            DEB_VERSION="${BASE_VERSION}+${CHANNEL}.${GITHUB_RUN_NUMBER}"  # champ Version: du paquet .deb — le '+' trie APRÈS la version de base (5.0.2 < 5.0.2+canary.7 < 5.0.3) et le compteur de run croît à chaque build
             FILENAME_VERSION="${CHANNEL}"                 # nom de fichier FIXE (exe/dmg/deb) — jamais de '~', jamais de suffixe qui change à chaque build
           else
             DISPLAY_VERSION="${BASE_VERSION}"
@@ -1564,12 +1564,31 @@ jobs:
             reprepro includedeb stable "../$DEB_ARM64"
           fi
 
+      - name: Purge des paquets non référencés du pool
+        run: |
+          # Le pool de gh-pages grossissait à chaque publication (un fichier .deb par
+          # version Bêta/Canary, jamais supprimé) jusqu'à dépasser la limite de 1 Go
+          # de GitHub Pages. On ne garde que les fichiers cités par un index Packages
+          # (un par canal et par architecture) : sans état, donc sans risque pour les
+          # autres canaux dont la base reprepro n'est pas conservée.
+          cd apt-repo
+          cat dists/*/main/binary-*/Packages | sed -n 's/^Filename: //p' | sort -u > ../referenced.txt
+          if [ ! -s ../referenced.txt ]; then
+            echo "Aucun index Packages lisible : purge ignorée."
+            exit 0
+          fi
+          find pool -type f | sort > ../pool-files.txt
+          comm -23 ../pool-files.txt ../referenced.txt > ../stale.txt
+          echo "$(wc -l < ../stale.txt) fichier(s) obsolète(s) retiré(s) du pool"
+          xargs -r -d '\n' rm -f -- < ../stale.txt
+          find pool -type d -empty -delete
+
       - name: Commit and push changes to gh-pages
         run: |
           cd apt-repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add conf/ dists/ pool/
+          git add -A conf/ dists/ pool/
           if git diff --staged --quiet; then
             echo "Aucune modification à publier dans le dépôt APT."
           else
