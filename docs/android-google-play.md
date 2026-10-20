@@ -35,8 +35,8 @@ peuvent donc coexister sur un même appareil et disposent chacune de leur fiche 
 
 | Logo | Application | Identifiant | Appareils ciblés | Android minimum | Architectures | Installation directe | Google Play |
 |:---:|---|---|---|:---:|---|---|---|
-| <img alt="Bobine" src="../frontend/public/icon-192.png" width="56"> <br> ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Bobine** (téléphone et tablette) | `com.bobine.app` | Téléphones, tablettes, ordinateurs portables Google Book (Aluminium OS) | 14 (API 34) | `arm64-v8a`, `x86_64` | [Bobine-5.0.0.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.apk) | [Bobine-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.aab) |
-| <img alt="Bobine TV" src="../frontend/public/icon-192.png" width="56"> <br> ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | **Bobine TV** (Android TV et Google TV) | `com.bobine.app.tv` | Boîtiers et téléviseurs Android TV / Google TV, télécommande directionnelle | 14 (API 34) | `armeabi-v7a`, `arm64-v8a`, `x86_64` | [Bobine-TV-5.0.0.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.apk) | [Bobine-TV-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.aab) |
+| <img alt="Bobine" src="../frontend/public/icon-192.png" width="56"> <br> ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Bobine** (téléphone et tablette) | `com.bobine.app` | Téléphones, tablettes, ordinateurs portables Google Book (Aluminium OS) | 14 (API 34) | `arm64-v8a`, `x86_64` | [Bobine-5.0.2.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-5.0.2.apk) | [Bobine-5.0.2.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-5.0.2.aab) |
+| <img alt="Bobine TV" src="../frontend/public/icon-192.png" width="56"> <br> ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | **Bobine TV** (Android TV et Google TV) | `com.bobine.app.tv` | Boîtiers et téléviseurs Android TV / Google TV, télécommande directionnelle | 14 (API 34) | `armeabi-v7a`, `arm64-v8a`, `x86_64` | [Bobine-TV-5.0.2.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-TV-5.0.2.apk) | [Bobine-TV-5.0.2.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-TV-5.0.2.aab) |
 
 > **APK et AAB : quelle différence ?** L'**APK** s'installe directement sur un appareil (page de
 > téléchargement, ADB). L'**AAB** (*Android App Bundle*) est le format de **dépôt** exigé par
@@ -70,7 +70,7 @@ main depuis GitHub.
 
    | Paramètre | Valeur | Rôle |
    |---|---|---|
-   | `tag` | `V5.0.0` (obligatoire) | Version Stable à construire. Le code est celui de ce tag exact. |
+   | `tag` | `V5.0.2` (obligatoire) | Version Stable à construire. Le code est celui de ce tag exact. |
    | `source_ref` | vide, ou `main` | Branche ou tag à construire. Vide : le tag lui-même. Permet de construire le build Play depuis `main` sans déplacer le tag. |
    | `attach_to_release` | `true` / `false` | Joint les `.aab` et les APK Play à la release GitHub du tag (remplace les fichiers de même nom). |
    | `play_track` | `internal`, `alpha`, `beta`, `production` | Piste de destination, utilisée **uniquement** si `PLAY_SERVICE_ACCOUNT_JSON` est configuré. |
@@ -88,14 +88,14 @@ main depuis GitHub.
 Le workflow refuse un tag Bêta ou Canary, vérifie la signature de chaque bundle (`jarsigner`) et la
 présence du manifeste, vérifie que les APK Play ne contiennent pas l'autorisation `REQUEST_INSTALL_PACKAGES`, puis affiche le `versionName` et le `versionCode` dans le résumé du run.
 
-### Fichiers Google Play de la version 5.0.0
+### Fichiers Google Play de la version 5.0.2
 
 | Logo | Application | Identifiant | Appareils | Format | Taille | Téléchargement |
 |:---:|---|---|---|---|---:|---|
-| <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Bobine** | `com.bobine.app` | Téléphones, tablettes, Google Book | Bundle `.aab` (dépôt Google Play) | 48,6 Mo | [Bobine-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0.aab) |
-| <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Bobine** | `com.bobine.app` | Téléphones, tablettes, Google Book | APK Play (test et installation directe) | — | [Bobine-5.0.0-play.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-5.0.0-play.apk) |
-| <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | **Bobine TV** | `com.bobine.app.tv` | Android TV, Google TV | Bundle `.aab` (dépôt Google Play) | 70,2 Mo | [Bobine-TV-5.0.0.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0.aab) |
-| <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | **Bobine TV** | `com.bobine.app.tv` | Android TV, Google TV | APK Play (test et installation directe) | — | [Bobine-TV-5.0.0-play.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.0/Bobine-TV-5.0.0-play.apk) |
+| <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Bobine** | `com.bobine.app` | Téléphones, tablettes, Google Book | Bundle `.aab` (dépôt Google Play) | 48,6 Mo | [Bobine-5.0.2.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-5.0.2.aab) |
+| <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | **Bobine** | `com.bobine.app` | Téléphones, tablettes, Google Book | APK Play (test et installation directe) | — | [Bobine-5.0.2-play.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-5.0.2-play.apk) |
+| <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | **Bobine TV** | `com.bobine.app.tv` | Android TV, Google TV | Bundle `.aab` (dépôt Google Play) | 70,2 Mo | [Bobine-TV-5.0.2.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-TV-5.0.2.aab) |
+| <img alt="Bobine" src="../frontend/public/icon-192.png" width="48"> <br> ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | **Bobine TV** | `com.bobine.app.tv` | Android TV, Google TV | APK Play (test et installation directe) | — | [Bobine-TV-5.0.2-play.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-TV-5.0.2-play.apk) |
 
 ## Le build Google Play
 
@@ -106,7 +106,7 @@ dédiée (`play`, définie dans `android/app/build.gradle.kts`) :
 | Élément | APK GitHub (`release`) | Build Google Play (`play`) |
 |---|---|---|
 | Autorisation `REQUEST_INSTALL_PACKAGES` | Présente | **Retirée** (`android/app/src/play/AndroidManifest.xml`) |
-| Mise à jour intégrée (Réglages > Mises à jour) | Active, depuis les releases GitHub | **Désactivée** : un message indique que le Play Store gère les mises à jour |
+| Mise à jour intégrée (Réglages > Mises à jour) | Active, depuis les releases GitHub | **Suit le processus Google Play** : état de la mise à jour, « Mettre à jour via Google Play », « Redémarrer pour installer », « Ouvrir Google Play » ; aucun APK n'est téléchargé ni installé |
 | Requête vers GitHub pour les mises à jour | Oui | Aucune |
 | Signature | Clé de téléversement | Clé de téléversement (Google re-signe pour la distribution) |
 
@@ -116,7 +116,7 @@ la release (`Bobine-<version>.apk`), qui conserve la mise à jour intégrée.
 
 ## 4. Numérotation des versions
 
-- **`versionName`** : le numéro du tag sans le `V` (`V5.0.0` donne `5.0.0`).
+- **`versionName`** : le numéro du tag sans le `V` (`V5.0.2` donne `5.0.2`).
 - **`versionCode`** : le nombre de commits du tag. Il croît à chaque version, ce qui permet à Google
   Play d'accepter les mises à jour successives, et il suit la même règle que les APK.
 
@@ -185,6 +185,6 @@ réinstaller.
 
 ## Documents associés
 
-- [Notes de version 5.0.0](releases/V5.0.0.md)
+- [Notes de version 5.0.2](releases/V5.0.2.md)
 - [Architecture technique](ARCHITECTURE.md) (section Android)
 - [README](../README.fr.md)
