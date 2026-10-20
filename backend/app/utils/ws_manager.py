@@ -90,6 +90,11 @@ class ConnectionManager:
         # `identify`). Une connexion SANS entrée reçoit tout (anciens bundles
         # frontend en cache : comportement historique, aucune régression).
         self._subscriptions: dict[WebSocket, frozenset[str]] = {}
+        # Page déclarée par chaque kiosk à son identify (« kiosk », « radio »...) et « spectateurs » : pages qui
+        # suivent un canal sans en être l'écran (cinéma, grille, tableaux de bord). Purement informatif (carte des
+        # périphériques) : aucun effet sur le rôle primaire/miroir ni sur la diffusion des évènements.
+        self._kiosk_page: dict[WebSocket, str] = {}
+        self._viewers: dict[WebSocket, dict[str, str]] = {}
         # boucle
         # asyncio principale, enregistrée une fois au démarrage
         # (`main.py::lifespan`) — permet à du code exécuté HORS boucle (un
@@ -128,6 +133,8 @@ class ConnectionManager:
             task.cancel()
         self._last_pong.pop(websocket, None)
         self._subscriptions.pop(websocket, None)
+        self._viewers.pop(websocket, None)
+        self._kiosk_page.pop(websocket, None)
         # Gestion du rôle kiosk : si ce kiosk était le primaire, promouvoir le suivant.
         asyncio.create_task(self._unregister_kiosk(websocket))
         logger.info(f"Client WebSocket déconnecté ({len(self.active_connections)} au total)")
@@ -200,6 +207,40 @@ class ConnectionManager:
             f"({len(kiosks)} kiosk(s) sur ce canal)"
         )
         return is_primary
+
+    def register_viewer(self, websocket: WebSocket, channel: str, page: str) -> None:
+        """Déclare une page qui suit un canal sans être son écran (cinéma, grille, tableau de bord)."""
+        if channel not in ("cable", "network"):
+            channel = "cable"
+        self._viewers[websocket] = {"channel": channel, "page": page[:24]}
+
+    def set_kiosk_page(self, websocket: WebSocket, page: str | None) -> None:
+        if page:
+            self._kiosk_page[websocket] = page[:24]
+
+    def client_snapshot(self) -> list[dict[str, object]]:
+        """Écrans et télécommandes connectés : canal, page, rôle (primaire, miroir, spectateur) et adresse du client,
+        regroupés quand ils ne diffèrent pas (`count`)."""
+        entries: list[tuple[str, str, str, str]] = []
+
+        def ip_of(ws: WebSocket) -> str:
+            client = getattr(ws, "client", None)
+            return str(client.host) if client else ""
+
+        for channel, kiosks in self._kiosk_connections.items():
+            for ws in kiosks:
+                page = self._kiosk_page.get(ws) or ("radio" if channel.startswith("radio") else "kiosk")
+                role = "primary" if self._kiosk_primary_status.get(ws) else "mirror"
+                entries.append((channel, page, role, ip_of(ws)))
+        for ws, info in self._viewers.items():
+            entries.append((info["channel"], info["page"], "viewer", ip_of(ws)))
+        grouped: dict[tuple[str, str, str, str], int] = {}
+        for entry in entries:
+            grouped[entry] = grouped.get(entry, 0) + 1
+        return [
+            {"channel": c, "page": p, "role": r, "ip": ip, "count": n}
+            for (c, p, r, ip), n in sorted(grouped.items())
+        ]
 
     def kiosk_count(self, channel: str) -> int:
         """Nombre d'écrans de diffusion (kiosques identifiés) sur ce canal."""

@@ -465,6 +465,11 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
             if message.get("command") == "identify":
                 params = message.get("params") or {}
                 role = params.get("role")
+                if role == "viewer":
+                    # Page qui suit un canal sans être son écran (cinéma, grille, tableau de bord) : simple
+                    # déclaration pour la carte des périphériques, sans rôle primaire ni effet sur la lecture.
+                    ws_manager.register_viewer(websocket, str(_resolve_channel(params.get("channel"))), str(params.get("page") or "viewer"))
+                    continue
                 if role == "kiosk":
                     if not is_kiosk:
                         is_kiosk = True
@@ -484,6 +489,7 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
                         # comme avant (pas de reprise cross-worker, sans régression).
                         kiosk_client_id = params.get("client_id") or f"conn-{id(websocket)}"
                     is_primary = await ws_manager.register_kiosk(websocket, kiosk_channel, kiosk_client_id)
+                    ws_manager.set_kiosk_page(websocket, params.get("page") if isinstance(params.get("page"), str) else None)
                     await websocket.send_json({
                         "event": "kiosk_role",
                         "is_primary": is_primary,

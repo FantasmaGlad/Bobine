@@ -446,6 +446,43 @@ async def bluetooth_forget(payload: BluetoothAddressRequest, _: Access = Depends
 
 
 # ---------------------------------------------------------------------------
+# Carte des périphériques
+# ---------------------------------------------------------------------------
+
+
+@router.get("/topology")
+async def topology(_: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Graphe machine → sorties audio, Bluetooth, Wi-Fi, Ethernet, écrans et télécommandes Bobine."""
+    import asyncio
+    import socket as _socket
+
+    from app.devices.topology import build_topology, ethernet_interfaces
+    from app.utils.ws_manager import manager as ws_manager
+
+    async def safe(coro):
+        try:
+            return await coro
+        except DeviceError:
+            return None
+        except Exception as exc:  # une source en panne n'empêche jamais la carte
+            logger.debug("Carte des périphériques : source indisponible (%s)", exc)
+            return None
+
+    driver = service.driver
+    audio, bluetooth, wifi = await asyncio.gather(safe(driver.audio_list()), safe(driver.bluetooth_status()), safe(driver.wifi_status()))
+    if audio and audio.get("supported"):
+        meta = _load_audio_meta(db)
+        audio = {**audio, "devices": [_with_meta(d, meta) for d in audio.get("devices", [])]}
+    wifi_subnet = await safe(driver.wifi_interface_subnet())
+    ethernets = ethernet_interfaces((wifi or {}).get("interface") if wifi else None)
+    machine = {"name": _socket.gethostname(), "platform": get_deployment_profile()}
+    return build_topology(
+        machine=machine, audio=audio, bluetooth=bluetooth, wifi=wifi, wifi_subnet=wifi_subnet, ethernets=ethernets,
+        clients=ws_manager.client_snapshot(), own_ips=security.own_ip_addresses(),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Réglages du système (Android : Wi-Fi, Bluetooth, son)
 # ---------------------------------------------------------------------------
 
