@@ -477,10 +477,10 @@ export default function CoachModePage() {
                   fontWeight: 700,
                   padding: "3px 8px",
                   borderRadius: "12px",
-                  background: "rgba(0, 0, 0, 0.6)",
-                  color: "rgba(255, 255, 255, 0.9)",
-                  backdropFilter: "blur(6px)",
-                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  background: "color-mix(in srgb, var(--ink) 60%, transparent)",
+                  color: "color-mix(in srgb, var(--specular) 90%, transparent)",
+                  backdropFilter: "blur(var(--blur-sm))",
+                  border: "1px solid color-mix(in srgb, var(--specular) 15%, transparent)",
                 }}
               >
                 {activeBgTitle || t("coach.soberScreenActive")}
@@ -497,7 +497,7 @@ export default function CoachModePage() {
                   {formatTime(localPos)} / {formatTime(currentTrack?.duration_seconds)}
                 </span>
               </div>
-              <div style={{ width: "100%", height: "4px", background: "rgba(255, 255, 255, 0.2)", borderRadius: "2px", overflow: "hidden" }}>
+              <div style={{ width: "100%", height: "4px", background: "color-mix(in srgb, var(--specular) 20%, transparent)", borderRadius: "2px", overflow: "hidden" }}>
                 <div style={{ width: `${audioProgress}%`, height: "100%", background: accent, transition: "width 0.25s linear" }} />
               </div>
             </div>
@@ -579,7 +579,7 @@ export default function CoachModePage() {
                             padding: "1px 5px",
                             fontSize: "0.68rem",
                             fontWeight: 800,
-                            boxShadow: "0 2px 6px rgba(0,0,0,0.5)",
+                            boxShadow: "0 2px 6px color-mix(in srgb, var(--ink) 50%, transparent)",
                           }}
                         >
                           Actif
@@ -590,7 +590,7 @@ export default function CoachModePage() {
                           position: "absolute",
                           bottom: 3,
                           right: 3,
-                          background: "rgba(0, 0, 0, 0.7)",
+                          background: "color-mix(in srgb, var(--ink) 70%, transparent)",
                           color: "#fff",
                           borderRadius: "3px",
                           padding: "1px 4px",

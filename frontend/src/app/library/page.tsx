@@ -807,7 +807,7 @@ export default function LibraryPage() {
                         <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>Aucun</span>
                       ) : (
                         spec.subtitles.map((subFile, idx) => (
-                          <span key={idx} className="badge-pill" style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "rgba(var(--accent-primary-rgb, 99, 102, 241), 0.15)", border: "1px solid var(--accent-primary)", fontSize: "0.74rem", padding: "2px 8px" }}>
+                          <span key={idx} className="badge-pill" style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "color-mix(in srgb, var(--accent-primary) 15%, transparent)", border: "1px solid var(--accent-primary)", fontSize: "0.74rem", padding: "2px 8px" }}>
                             <Icon name="subtitles" size={12} />
                             <span>{subFile.name}</span>
                             <button
@@ -1345,7 +1345,7 @@ export default function LibraryPage() {
                         <span style={{ fontSize: "0.82rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
                           Sous-titres synchronisés
                         </span>
-                        <span className="badge-pill" style={{ background: "rgba(255,255,255,0.08)", fontSize: "0.72rem", padding: "2px 6px" }}>
+                        <span className="badge-pill" style={{ background: "color-mix(in srgb, var(--specular) 8%, transparent)", fontSize: "0.72rem", padding: "2px 6px" }}>
                           {studioSubtitles.length} piste{studioSubtitles.length > 1 ? "s" : ""}
                         </span>
                       </div>
@@ -1374,7 +1374,7 @@ export default function LibraryPage() {
                     </div>
 
                     {studioSubtitles.length === 0 ? (
-                      <div style={{ padding: "12px", textAlign: "center", background: "rgba(0,0,0,0.15)", borderRadius: "8px", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                      <div style={{ padding: "12px", textAlign: "center", background: "color-mix(in srgb, var(--ink) 15%, transparent)", borderRadius: "8px", fontSize: "0.8rem", color: "var(--text-muted)" }}>
                         Aucun sous-titre pour ce cours. Glissez ou ajoutez un fichier .srt (ex: cours.fr.srt).
                       </div>
                     ) : (

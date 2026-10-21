@@ -675,7 +675,7 @@ function UploadFloatingPanel() {
         background: "var(--bg-surface-elevated)",
         border: "1px solid var(--border-color)",
         borderRadius: "12px",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+        boxShadow: "0 8px 32px color-mix(in srgb, var(--ink) 40%, transparent)",
         overflow: "hidden",
         fontFamily: "var(--font-body)",
         fontSize: "0.85rem",

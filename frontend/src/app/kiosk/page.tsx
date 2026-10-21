@@ -15,6 +15,8 @@ import { formatCleanDescription } from "@/lib/formatDescription";
 import { subtitleSrc, useApplySubtitleMode, useVideoSubtitles } from "@/lib/subtitles";
 import { useVideoChapters } from "@/lib/chapters";
 import ChapterToast from "@/components/ChapterToast";
+import VolumeOsd from "@/components/VolumeOsd";
+import { adjustMediaVolume, useVolumeHud, VOLUME_STEP } from "@/lib/volumeHud";
 
 function getApiUrl(path: string) {
   if (typeof window !== "undefined" && window.location.port === "3000") {
@@ -87,6 +89,9 @@ export default function KioskPage() {
   const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
   const [osd, setOsd] = useState<OsdContent>(null);
   const osdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Indicateur visuel du changement de volume
+  const [volumeHud, showVolumeHud] = useVolumeHud();
   const [now, setNow] = useState(new Date());
   // Offset en ms entre l'heure serveur et l'heure locale du navigateur. Utilisé pour corriger la dérive d'horloge de la TV kiosk
   // dont l'horloge système peut être décalée si NTP n'a pas encore synchro.
@@ -458,7 +463,7 @@ export default function KioskPage() {
         case "volume":
           if (video) applyVolume(video);
           if (audio) applyVolume(audio);
-          showOsd({ icon: "volume_up", label: `${data.volume}%` });
+          showVolumeHud({ level: data.volume / 100, muted: false });
           break;
         case "speed":
           // La vitesse nominale vient de l'ancre d'horloge (suiveur).
@@ -468,7 +473,7 @@ export default function KioskPage() {
           break;
       }
     },
-    [showOsd, tryPlay]
+    [showOsd, showVolumeHud, tryPlay]
   );
 
   const { state, sendCommand, serverNow, isPrimary, displayOutputCable, displayOutputNetwork } = usePlaybackSocket(handleEvent, "kiosk", channel, undefined, "kiosk");
@@ -592,29 +597,14 @@ export default function KioskPage() {
           sendCommand("seek", { position_seconds: Math.min(dur, cur + 10) });
         }
       },
-      onVolumeUp: () => {
-        const v = videoRef.current;
-        if (v) v.volume = Math.min(1, (v.volume ?? 1) + 0.1);
-        const a = audioRef.current;
-        if (a) a.volume = Math.min(1, (a.volume ?? 1) + 0.1);
-      },
-      onVolumeDown: () => {
-        const v = videoRef.current;
-        if (v) v.volume = Math.max(0, (v.volume ?? 1) - 0.1);
-        const a = audioRef.current;
-        if (a) a.volume = Math.max(0, (a.volume ?? 1) - 0.1);
-      },
+      onVolumeUp: () => showVolumeHud(adjustMediaVolume([videoRef.current, audioRef.current], VOLUME_STEP)),
+      onVolumeDown: () => showVolumeHud(adjustMediaVolume([videoRef.current, audioRef.current], -VOLUME_STEP)),
       onBack: () => {
         if (state.current_video || state.current_audio_course) {
           sendCommand("stop");
         }
       },
-      onMute: () => {
-        const v = videoRef.current;
-        if (v) v.muted = !v.muted;
-        const a = audioRef.current;
-        if (a) a.muted = !a.muted;
-      },
+      onMute: () => showVolumeHud(adjustMediaVolume([videoRef.current, audioRef.current], 0, true)),
     };
   });
 
@@ -923,6 +913,9 @@ export default function KioskPage() {
           {t("kiosk.unlockAudioLabel")}
         </button>
       )}
+
+      {/* Sidebar Volume OSD Glassmorphism (retour visuel TV & télécommande) */}
+      <VolumeOsd {...volumeHud} overVideo={Boolean(state.current_video)} />
     </div>
   );
 }

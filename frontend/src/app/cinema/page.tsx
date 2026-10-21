@@ -11,7 +11,8 @@ import type { CinemaCommandExtra } from "@/lib/usePlaybackSocket";
 import { getDisplayChannel, isWiredDisplay, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import { useHoverSound } from "@/lib/useHoverSound";
 import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
-import { useKioskRemote, moveDomFocus, moveDomFocus2D, activateDomFocus } from "@/lib/useKioskRemote";
+import { useKioskRemote, moveDomFocus2D, activateDomFocus, selectRemoteTarget } from "@/lib/useKioskRemote";
+import { adjustMediaVolume, useVolumeHud, VOLUME_STEP } from "@/lib/volumeHud";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import MarqueeText from "@/components/MarqueeText";
@@ -22,6 +23,7 @@ import { subtitleSrc, useApplySubtitleMode, useVideoSubtitles } from "@/lib/subt
 import { useVideoChapters } from "@/lib/chapters";
 import ChapterTicks from "@/components/ChapterTicks";
 import ChapterToast from "@/components/ChapterToast";
+import VolumeOsd from "@/components/VolumeOsd";
 
 // Boutons de cours focalisables par la télécommande, dans l'ordre de lecture
 // (héros, puis rangées par programme, puis grille complète).
@@ -323,6 +325,9 @@ export default function CinemaPage() {
   useEffect(() => {
     videoRef.current = activeDeck === "A" ? deckARef.current : deckBRef.current;
   }, [activeDeck]);
+
+  // Indicateur visuel du changement de volume
+  const [volumeHud, showVolumeHud] = useVolumeHud();
   const [endedVideo, setEndedVideo] = useState<CinemaVideo | null>(null);
   const [videos, setVideos] = useState<CinemaVideo[]>([]);
   const [phase, setPhase] = useState<Phase>("grid");
@@ -349,6 +354,8 @@ export default function CinemaPage() {
   // sont masqués et l'écran HDMI affiche une attente sobre lorsqu'aucun cours ne joue.
   // En mode classique / "headless", cet écran reste autonome avec ses contrôles et sa vitrine complète.
   const hideControls = wiredDisplayMode === "dual_screen" && isWiredDisplay();
+  const [userStandbyMode, setUserStandbyMode] = useState(false);
+  const effectiveHideControls = hideControls || userStandbyMode;
 
   // Horloge de l'écran d'attente « bibliothèque vide » (voir plus bas) :
   // quand aucun cours n'est disponible, la vitrine n'a ni héros ni logo et se
@@ -715,15 +722,44 @@ export default function CinemaPage() {
     setPosition(target);
     wakeControls();
   };
-  const changeLocalVolume = (delta: number) => {
-    const el = videoRef.current;
-    if (!el) return;
-    el.volume = Math.max(0, Math.min(1, (el.volume ?? 1) + delta));
+  const changeLocalVolume = useCallback((delta: number, toggleMute = false) => {
+    showVolumeHud(adjustMediaVolume([deckARef.current, deckBRef.current], delta, toggleMute));
     wakeControls();
+  }, [showVolumeHud, wakeControls]);
+
+  /** Sélectionne le bouton « Lecture » du héros et remonte tout en haut de la vitrine. */
+  const focusHero = () => {
+    const items = Array.from(document.querySelectorAll<HTMLElement>(CINEMA_GRID_CARDS));
+    const hero = items.find((el) => el.classList.contains("cinema-hero-play"));
+    if (hero) selectRemoteTarget(items, hero);
   };
+  const volumeKeys = {
+    onVolumeUp: () => changeLocalVolume(VOLUME_STEP),
+    onVolumeDown: () => changeLocalVolume(-VOLUME_STEP),
+    onMute: () => changeLocalVolume(0, true),
+  };
+
   useKioskRemote(() => {
     if (phase === "grid") {
+      if (userStandbyMode) {
+        // Veille choisie : n'importe quelle touche (hors volume) la quitte et rend la main à la vitrine.
+        const exitStandby = () => {
+          setUserStandbyMode(false);
+          setTimeout(focusHero, 50);
+        };
+        return {
+          ...volumeKeys,
+          onEnter: exitStandby,
+          onPlayPause: exitStandby,
+          onLeft: exitStandby,
+          onRight: exitStandby,
+          onUp: exitStandby,
+          onDown: exitStandby,
+          onBack: exitStandby,
+        };
+      }
       return {
+        ...volumeKeys,
         onLeft: () => moveDomFocus2D(CINEMA_GRID_CARDS, "left"),
         onRight: () => moveDomFocus2D(CINEMA_GRID_CARDS, "right"),
         onUp: () => moveDomFocus2D(CINEMA_GRID_CARDS, "up"),
@@ -732,31 +768,36 @@ export default function CinemaPage() {
         onNext: () => moveDomFocus2D(CINEMA_GRID_CARDS, "right"),
         onEnter: () => activateDomFocus(CINEMA_GRID_CARDS),
         onPlayPause: () => activateDomFocus(CINEMA_GRID_CARDS),
+        // Premier appui : retour en haut sur le héros ; appui suivant : écran d'attente.
+        onBack: () => {
+          if (window.scrollY > 0) focusHero();
+          else setUserStandbyMode(true);
+        },
       };
     }
     if (phase === "playing") {
       return {
-        onPlayPause: handlePlayPause,
+        ...volumeKeys,
         onEnter: handlePlayPause,
+        onPlayPause: handlePlayPause,
         onBack: handleBackToMenu,
         onLeft: () => seekBy(-10),
         onRight: () => seekBy(10),
-        onUp: () => changeLocalVolume(0.1),
-        onDown: () => changeLocalVolume(-0.1),
-        onVolumeUp: () => changeLocalVolume(0.1),
-        onVolumeDown: () => changeLocalVolume(-0.1),
+        onUp: volumeKeys.onVolumeUp,
+        onDown: volumeKeys.onVolumeDown,
         onPrev: () => seekBy(-30),
         onNext: () => seekBy(30),
       };
     }
     if (phase === "ended") {
       return {
+        ...volumeKeys,
         onEnter: () => { if (upNext) playImmediately(upNext); },
         onPlayPause: () => { if (upNext) playImmediately(upNext); },
         onBack: handleBackToMenu,
       };
     }
-    return {};
+    return volumeKeys;
   });
 
   // Commandes admin reçues du tableau de bord : appliquées à la lecture LOCALE de cet appareil.
@@ -976,8 +1017,8 @@ export default function CinemaPage() {
         </div>
       )}
 
-      {/* Écran d'attente cinéma TV (sur sortie HDMI pilotée depuis /grid) */}
-      {hideControls && showGrid && (
+      {/* Écran d'attente cinéma TV (sur sortie HDMI pilotée depuis /grid ou via mise en veille Retour télécommande) */}
+      {effectiveHideControls && showGrid && (
         <div className="cinema-standby-screen">
           <AppLogo size={96} className="cinema-standby-logo" />
           <span className="cinema-standby-clock" suppressHydrationWarning>{formatClock(now)}</span>
@@ -986,11 +1027,11 @@ export default function CinemaPage() {
         </div>
       )}
 
-      {/* Vitrine de sélection : héros + rangées par programme + grille complète (sur les profils avec contrôles) */}
-      {!hideControls && (
+      {/* Vitrine de sélection : héros + rangées par programme + grille complète */}
+      {!effectiveHideControls && (
         <div className={`cinema-layer cinema-grid-layer ${showGrid ? "visible" : ""}`}>
           {featured && (
-            <section className="cinema-hero">
+            <section className="cinema-hero" data-remote-scroll-top>
               {featuredThumb && (
                 <div className="cinema-hero-backdrop-wrap">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1471,7 +1512,7 @@ export default function CinemaPage() {
                 )}
                 <span
                   className="cinema-upnext-ring"
-                  style={{ background: `conic-gradient(var(--upnext-accent) ${upNextProgressDeg}deg, rgba(255,255,255,0.18) 0deg)` }}
+                  style={{ background: `conic-gradient(var(--upnext-accent) ${upNextProgressDeg}deg, color-mix(in srgb, var(--specular) 18%, transparent) 0deg)` }}
                 >
                   <span className="cinema-upnext-ring-inner">
                     <Icon name="play_arrow" size={34} filled />
@@ -1499,6 +1540,9 @@ export default function CinemaPage() {
           )}
         </div>
       </div>
+
+      {/* Sidebar Volume OSD Glassmorphism (retour visuel TV & télécommande) */}
+      <VolumeOsd {...volumeHud} overVideo={phase !== "grid"} />
     </div>
   );
 }

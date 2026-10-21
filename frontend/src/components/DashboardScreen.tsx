@@ -1082,7 +1082,7 @@ export default function DashboardScreen({ channel }: Props) {
                             position: "absolute",
                             bottom: "6px",
                             right: "6px",
-                            background: "rgba(0,0,0,0.7)",
+                            background: "color-mix(in srgb, var(--ink) 70%, transparent)",
                             color: "#fff",
                             fontSize: "0.7rem",
                             fontWeight: 700,

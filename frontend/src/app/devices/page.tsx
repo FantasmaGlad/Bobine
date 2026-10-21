@@ -90,34 +90,24 @@ export default function DevicesPage() {
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
 
       {status.access === "granted" && (
-        <div className="live-block channel-card rl-nav-card">
-          {tab !== "security" && (
-        <div className="channel-card-left">
-              <h3><Icon name="devices" size={18} /> {t("devices.title")}</h3>
-              {status.access === "granted" && (
-                <span className="status-pill neutral" title={status.driver}>{t(`devices.platform.${status.platform}`)}</span>
-              )}
-            </div>
-        )}
-          {status.access === "granted" && (
-            <div className="channel-card-right">
-              <SegmentedTabs
-                ariaLabel={t("devices.sectionsLabel")}
-                value={tab}
-                onChange={(id) => chooseTab(id as Tab)}
-                tabs={[
-                  { id: "map", icon: "hub", label: t("devices.tabs.map") },
+        <div className="live-block channel-card rl-nav-card rl-nav-card--centered">
+          <div className="channel-card-right">
+            <SegmentedTabs
+              ariaLabel={t("devices.sectionsLabel")}
+              value={tab}
+              onChange={(id) => chooseTab(id as Tab)}
+              tabs={[
+                { id: "map", icon: "hub", label: t("devices.tabs.map") },
                 { id: "audio", icon: "speaker", label: t("devices.tabs.audio") },
-                  { id: "bluetooth", icon: "bluetooth", label: t("devices.tabs.bluetooth") },
-                  { id: "wifi", icon: "wifi", label: t("devices.tabs.wifi") },
-                  ...(status.local ? [{ id: "security", icon: "shield", label: t("devices.tabs.security") }] : []),
-                ]}
-              />
-              {!status.local && (
-                <button type="button" className="btn btn-secondary" onClick={logout}><Icon name="logout" size={14} /> {t("devices.access.logout")}</button>
-              )}
-            </div>
-          )}
+                { id: "bluetooth", icon: "bluetooth", label: t("devices.tabs.bluetooth") },
+                { id: "wifi", icon: "wifi", label: t("devices.tabs.wifi") },
+                ...(status.local ? [{ id: "security", icon: "shield", label: t("devices.tabs.security") }] : []),
+              ]}
+            />
+            {!status.local && (
+              <button type="button" className="btn btn-secondary" onClick={logout}><Icon name="logout" size={14} /> {t("devices.access.logout")}</button>
+            )}
+          </div>
         </div>
       )}
 

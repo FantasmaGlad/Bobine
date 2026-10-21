@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import { devicesRequest, type DevicesStatus } from "@/lib/devicesApi";
-import { initialSetFlow, submitSetCode, type SetFlow } from "@/lib/pinEntry";
 import PinEntry, { type PinStatus } from "./PinEntry";
+import PinSetupFlow from "./PinSetupFlow";
+import { PairingClaimFlow, PairingCodeDisplay } from "./PairingPanels";
+import { pinLabels } from "./pinLabels";
 import { errorText, type SectionProps } from "./common";
 
 interface GateProps {
@@ -14,14 +16,6 @@ interface GateProps {
   t: SectionProps["t"];
 }
 
-function pinLabels(t: SectionProps["t"]) {
-  return {
-    group: t("devices.pin.group"),
-    delete: t("devices.pin.delete"),
-    filled: (count: number, total: number) => t("devices.pin.filled", { count, total }),
-  };
-}
-
 /** Écran affiché tant que l'accès n'est pas accordé : fonction désactivée, PIN à définir ou à saisir. */
 export function AccessGate({ status, onChanged, notify, t }: GateProps) {
   const [pinStatus, setPinStatus] = useState<PinStatus>("idle");
@@ -29,6 +23,7 @@ export function AccessGate({ status, onChanged, notify, t }: GateProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [lockedFor, setLockedFor] = useState(status.retry_after ?? 0);
   const [busy, setBusy] = useState(false);
+  const [creatingPin, setCreatingPin] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reprend le blocage annoncé par le serveur
@@ -51,6 +46,20 @@ export function AccessGate({ status, onChanged, notify, t }: GateProps) {
     setBusy(false);
     if (result.ok) onChanged();
     else notify(errorText(result.error, t), "error");
+  };
+
+  /** Première activation sur l'écran local : PIN d'abord, puis activation (jamais de fonction active sans PIN). */
+  const setPinAndEnable = async (pin: string): Promise<boolean> => {
+    setBusy(true);
+    const saved = await devicesRequest("/admin/pin", { body: { pin } });
+    const enabled = saved.ok ? await devicesRequest("/admin/enable", { body: { enabled: true } }) : saved;
+    setBusy(false);
+    if (enabled.ok) {
+      onChanged();
+      return true;
+    }
+    notify(errorText(enabled.error, t), "error");
+    return false;
   };
 
   const login = async (pin: string) => {
@@ -76,29 +85,41 @@ export function AccessGate({ status, onChanged, notify, t }: GateProps) {
     }, 520);
   };
 
-  if (status.access === "disabled") {
+  if (creatingPin && status.local) {
     return (
-      <div className="live-block dv-gate">
-        <Icon name="devices" size={40} style={{ opacity: 0.35 }} />
-        <h3>{t("devices.access.disabledTitle")}</h3>
-        <p className="settings-hint">{t("devices.access.disabledBody")}</p>
-        {status.local ? (
-          <button type="button" className="btn btn-primary" disabled={busy} onClick={enable}>
-            <Icon name="power_settings_new" size={16} /> {t("devices.access.enable")}
-          </button>
-        ) : (
-          <p className="settings-hint"><Icon name="lock" size={14} /> {t("devices.access.enableLocalOnly")}</p>
-        )}
+      <div className="live-block dv-gate dv-gate--pin">
+        <PinSetupFlow length={status.pin_length} onSubmit={setPinAndEnable} disabled={busy} t={t} />
+        <button type="button" className="dv-link-btn" onClick={() => setCreatingPin(false)}>{t("common.cancel")}</button>
       </div>
     );
   }
 
-  if (status.access === "pin_not_set") {
+  if (status.access === "disabled" || status.access === "pin_not_set") {
+    const disabled = status.access === "disabled";
+    const first = !status.pin_set; // aucun PIN : l'appairage par code est possible
     return (
       <div className="live-block dv-gate">
-        <Icon name="lock" size={40} style={{ opacity: 0.35 }} />
-        <h3>{t("devices.access.pinNotSetTitle")}</h3>
-        <p className="settings-hint">{t("devices.access.pinNotSetBody")}</p>
+        <Icon name={disabled ? "devices" : "lock"} size={40} style={{ opacity: 0.35 }} />
+        <h3>{t(disabled ? "devices.access.disabledTitle" : "devices.access.pinNotSetTitle")}</h3>
+        <p className="settings-hint">{t(disabled ? "devices.access.disabledBody" : "devices.access.pinNotSetBody")}</p>
+        {status.local ? (
+          <>
+            {status.pin_set ? (
+              <button type="button" className="btn btn-primary" disabled={busy} onClick={enable}>
+                <Icon name="power_settings_new" size={16} /> {t("devices.access.enable")}
+              </button>
+            ) : (
+              <button type="button" className="btn btn-primary" onClick={() => setCreatingPin(true)}>
+                <Icon name="lock" size={16} /> {t("devices.access.setPinButton")}
+              </button>
+            )}
+            {first && <PairingCodeDisplay t={t} />}
+          </>
+        ) : first ? (
+          <PairingClaimFlow pinLength={status.pin_length} onPaired={onChanged} notify={notify} t={t} />
+        ) : disabled ? (
+          <p className="settings-hint"><Icon name="lock" size={14} /> {t("devices.access.enableLocalOnly")}</p>
+        ) : null}
       </div>
     );
   }
@@ -122,9 +143,6 @@ export function AccessGate({ status, onChanged, notify, t }: GateProps) {
 
 /** Sécurité de la fonction — uniquement depuis l'écran local (présence physique). */
 export function SecurityPanel({ status, onChanged, notify, t }: GateProps) {
-  const [flow, setFlow] = useState<SetFlow>(initialSetFlow);
-  const [pinStatus, setPinStatus] = useState<PinStatus>("idle");
-  const [resetKey, setResetKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [confirmDisable, setConfirmDisable] = useState(false);
 
@@ -141,46 +159,15 @@ export function SecurityPanel({ status, onChanged, notify, t }: GateProps) {
     return false;
   };
 
-  const onComplete = async (code: string) => {
-    const result = submitSetCode(flow, code);
-    if (result.kind === "next") {
-      setFlow(result.flow);
-      setResetKey((k) => k + 1);
-    } else if (result.kind === "mismatch") {
-      setPinStatus("error");
-      setTimeout(() => {
-        setFlow(result.flow);
-        setPinStatus("idle");
-        setResetKey((k) => k + 1);
-      }, 520);
-    } else {
-      setPinStatus("success");
-      const saved = await call("/admin/pin", { body: { pin: result.pin } }, t("devices.security.pinSaved"));
-      setTimeout(() => {
-        setFlow(initialSetFlow);
-        setPinStatus("idle");
-        setResetKey((k) => k + 1);
-      }, saved ? 700 : 100);
-    }
-  };
-
-  const caption =
-    flow.mismatch ? t("devices.pin.mismatch") : flow.phase === "new" ? t("devices.pin.new") : t("devices.pin.confirm");
-
   return (
     <div className="dv-section">
       <div className="live-block dv-gate dv-gate--pin">
-        <div key={flow.phase} className="pin-slide">
-          <PinEntry
-            length={status.pin_length}
-            status={pinStatus}
-            caption={caption}
-            resetKey={resetKey}
-            disabled={busy}
-            onComplete={onComplete}
-            labels={pinLabels(t)}
-          />
-        </div>
+        <PinSetupFlow
+          length={status.pin_length}
+          disabled={busy}
+          onSubmit={(pin) => call("/admin/pin", { body: { pin } }, t("devices.security.pinSaved"))}
+          t={t}
+        />
         {status.pin_set && (
           <button type="button" className="dv-link-btn" disabled={busy} onClick={() => call("/admin/pin", { method: "DELETE" }, t("devices.security.pinCleared"))}>
             <Icon name="lock_open" size={14} /> {t("devices.security.clearPin")}

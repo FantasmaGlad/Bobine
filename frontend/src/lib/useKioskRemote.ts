@@ -33,6 +33,25 @@ export interface RemoteHandlers {
   onMute?: () => void;
 }
 
+/** KEYCODE_* d'Android TV → action de la télécommande (D-pad, volume, médias). */
+const ANDROID_TV_KEYCODES: Partial<Record<number, keyof RemoteHandlers>> = {
+  4: "onBack", // KEYCODE_BACK
+  19: "onUp", // KEYCODE_DPAD_UP
+  20: "onDown",
+  21: "onLeft",
+  22: "onRight",
+  23: "onEnter", // KEYCODE_DPAD_CENTER
+  66: "onEnter", // KEYCODE_ENTER
+  24: "onVolumeUp",
+  25: "onVolumeDown",
+  164: "onMute", // KEYCODE_VOLUME_MUTE
+  85: "onPlayPause", // KEYCODE_MEDIA_PLAY_PAUSE
+  126: "onPlayPause", // KEYCODE_MEDIA_PLAY
+  127: "onPlayPause", // KEYCODE_MEDIA_PAUSE
+  87: "onNext", // KEYCODE_MEDIA_NEXT
+  88: "onPrev", // KEYCODE_MEDIA_PREVIOUS
+};
+
 export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true) {
   const handlersRef = useRef(getHandlers);
   handlersRef.current = getHandlers;
@@ -62,7 +81,8 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
         case "Escape":
         case "Backspace":
         case "BrowserBack":
-        case "GoBack": action = h.onBack; break;
+        case "GoBack":
+        case "Back": action = h.onBack; break;
         case " ":
         case "Spacebar": action = h.onPlayPause ?? h.onEnter; break;
         case "MediaPlayPause":
@@ -85,7 +105,13 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
         case "VolumeDown": action = h.onVolumeDown; break;
         case "AudioVolumeMute":
         case "VolumeMute": action = h.onMute; break;
-        default: return;
+        default: {
+          // Android TV : la WebView ne renseigne pas toujours `key` pour la télécommande ; on retombe sur `keyCode`.
+          const mapped = ANDROID_TV_KEYCODES[e.keyCode];
+          if (!mapped) return;
+          action = h[mapped];
+          break;
+        }
       }
       if (action) {
         e.preventDefault();
@@ -201,6 +227,20 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
 /** Classe posée par la télécommande ou la manette sur l'élément sélectionné. */
 export const REMOTE_FOCUS_CLASS = "kiosk-remote-focus";
 
+/** Attribut qui marque l'en-tête d'une page : le sélectionner ramène la page tout en haut au lieu de le centrer. */
+export const REMOTE_SCROLL_TOP_ATTR = "data-remote-scroll-top";
+
+/** Sélectionne un élément pour la télécommande : marque, focus, puis défilement (en haut pour un en-tête de page). */
+export function selectRemoteTarget(items: HTMLElement[], el: HTMLElement): void {
+  for (const it of items) it.classList.toggle(REMOTE_FOCUS_CLASS, it === el);
+  el.focus();
+  if (el.closest(`[${REMOTE_SCROLL_TOP_ATTR}]`)) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } else {
+    el.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }
+}
+
 /**
  * Déplacement spatial bidirectionnel 2D (Haut / Bas / Gauche / Droite)
  * calculé à partir de la position visuelle géométrique des éléments dans le viewport.
@@ -221,10 +261,7 @@ export function moveDomFocus2D(
   if (currentIndex < 0 && active) currentIndex = items.indexOf(active);
 
   if (currentIndex < 0) {
-    const el = items[0];
-    for (const it of items) it.classList.toggle(REMOTE_FOCUS_CLASS, it === el);
-    el.focus();
-    el.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    selectRemoteTarget(items, items[0]);
     return;
   }
 
@@ -299,11 +336,7 @@ export function moveDomFocus2D(
       (currentIndex + (direction === "right" || direction === "down" ? 1 : -1) + items.length) % items.length
     ];
 
-  if (targetEl) {
-    for (const it of items) it.classList.toggle(REMOTE_FOCUS_CLASS, it === targetEl);
-    targetEl.focus();
-    targetEl.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
-  }
+  if (targetEl) selectRemoteTarget(items, targetEl);
 }
 
 /**
@@ -319,10 +352,7 @@ export function moveDomFocus(selector: string, direction: 1 | -1): void {
   let at = items.findIndex((el) => el.classList.contains(REMOTE_FOCUS_CLASS));
   if (at < 0 && active) at = items.indexOf(active);
   const next = at < 0 ? (direction === 1 ? 0 : items.length - 1) : (at + direction + items.length) % items.length;
-  const el = items[next];
-  for (const it of items) it.classList.toggle(REMOTE_FOCUS_CLASS, it === el);
-  el.focus();
-  el.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  selectRemoteTarget(items, items[next]);
 }
 
 /**

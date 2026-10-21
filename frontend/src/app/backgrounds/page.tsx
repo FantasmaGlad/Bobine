@@ -117,7 +117,7 @@ function BackgroundCard({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "4px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                boxShadow: "0 2px 8px color-mix(in srgb, var(--ink) 40%, transparent)",
               }}
             >
               <Icon name="bookmark" size={13} filled />
@@ -139,7 +139,7 @@ function BackgroundCard({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "4px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                boxShadow: "0 2px 8px color-mix(in srgb, var(--ink) 40%, transparent)",
               }}
             >
               <Icon name="cable" size={13} />
@@ -158,7 +158,7 @@ function BackgroundCard({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "4px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                boxShadow: "0 2px 8px color-mix(in srgb, var(--ink) 40%, transparent)",
               }}
             >
               <Icon name="wifi" size={13} />
@@ -173,7 +173,7 @@ function BackgroundCard({
             position: "absolute",
             bottom: 8,
             right: 8,
-            background: "rgba(0, 0, 0, 0.75)",
+            background: "color-mix(in srgb, var(--ink) 75%, transparent)",
             color: "#ffffff",
             padding: "2px 6px",
             borderRadius: "4px",

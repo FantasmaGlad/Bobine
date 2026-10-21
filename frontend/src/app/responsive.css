@@ -462,9 +462,9 @@ details.settings-doc-group[open] > summary.settings-doc-header::after {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: color-mix(in srgb, var(--bg-main) 55%, rgba(0, 0, 0, 0.45));
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: color-mix(in srgb, var(--bg-main) 55%, color-mix(in srgb, var(--ink) 45%, transparent));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
+  backdrop-filter: blur(var(--blur-sm));
   animation: fadeIn 0.18s ease-out;
 }
 .sheet-panel {
@@ -688,7 +688,7 @@ button.course-card.is-selected {
   overflow: hidden;
   aspect-ratio: 16 / 9;
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--text-main) 10%, #000);
+  background: color-mix(in srgb, var(--text-main) 10%, var(--ink));
 }
 .course-card__thumb img {
   width: 100%;
@@ -706,7 +706,7 @@ button.course-card.is-selected {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: #fff;
-  background: rgba(0, 0, 0, 0.72);
+  background: color-mix(in srgb, var(--ink) 72%, transparent);
 }
 .course-card__body {
   flex: 1;
@@ -770,9 +770,9 @@ button.course-card.is-selected {
   border-radius: var(--radius-lg);
   background: var(--glass-card-bg);
   border: 1px solid var(--glass-card-border);
-  backdrop-filter: var(--glass-card-blur);
-  -webkit-backdrop-filter: var(--glass-card-blur);
-  box-shadow: var(--glass-card-highlight), 0 8px 28px rgba(0, 0, 0, 0.08);
+  -webkit-backdrop-filter: blur(var(--glass-card-blur));
+  backdrop-filter: blur(var(--glass-card-blur));
+  box-shadow: var(--glass-card-highlight), 0 8px 28px color-mix(in srgb, var(--ink) 8%, transparent);
 }
 .now-card__label {
   display: flex;
@@ -1002,8 +1002,8 @@ button.course-card.is-selected {
   border-left: 4px solid var(--accent-primary);
   border-radius: var(--radius-md);
   color: #fff;
-  background: rgba(0, 0, 0, 0.62);
-  backdrop-filter: blur(6px);
+  background: color-mix(in srgb, var(--ink) 62%, transparent);
+  backdrop-filter: blur(var(--blur-sm));
   pointer-events: none;
   animation: fadeIn 0.3s ease-out;
 }
@@ -1164,7 +1164,7 @@ button.course-card.is-selected {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg, 16px);
   background: var(--bg-surface);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 18px 48px color-mix(in srgb, var(--ink) 28%, transparent);
   overflow: hidden;
 }
 .rs-popover__search {

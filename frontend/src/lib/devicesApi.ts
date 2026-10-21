@@ -28,6 +28,20 @@ export interface DevicesStatus {
   retry_after?: number;
 }
 
+export interface PairingStatus {
+  pin_set: boolean;
+  /** Nombre de chiffres du code d'association (défini par le serveur). */
+  code_length: number;
+  /** Renvoyé uniquement à l'écran local de la machine. */
+  code: string | null;
+  seconds_left: number;
+}
+
+export interface PairingCode {
+  code: string;
+  seconds_left: number;
+}
+
 export type AudioKind = "internal" | "hdmi" | "usb" | "jack" | "bluetooth" | "virtual" | "other";
 
 export interface AudioDevice {
@@ -200,6 +214,19 @@ export async function devicesRequest<T>(path: string, init?: { method?: string; 
   } catch {
     return { ok: false, error: { status: 0, code: "network", message: "", extra: {} } };
   }
+}
+
+export async function getPairingStatus(): Promise<ApiResult<PairingStatus>> {
+  return devicesRequest<PairingStatus>("/pairing/status");
+}
+
+/** Émet (ou renouvelle) le code d'association : écran local uniquement. */
+export async function generatePairingCode(): Promise<ApiResult<PairingCode>> {
+  return devicesRequest<PairingCode>("/pairing/generate", { method: "POST" });
+}
+
+export async function claimPairingCode(code: string, pin: string): Promise<ApiResult<{ ok: boolean; pin_set: boolean; enabled: boolean; session_minutes: number }>> {
+  return devicesRequest("/pairing/claim", { method: "POST", body: { code, pin } });
 }
 
 // ---------------------------------------------------------------------------

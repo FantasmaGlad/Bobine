@@ -197,7 +197,7 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
                       borderRadius: "var(--radius-md)",
                       flexShrink: 0,
                       background: "var(--bg-surface-elevated)",
-                      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+                      boxShadow: "0 8px 24px color-mix(in srgb, var(--ink) 35%, transparent)",
                       border: "1px solid var(--border-color)",
                     }}
                   />
