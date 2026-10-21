@@ -270,6 +270,7 @@ def driver():
         db.query(Setting).filter(Setting.key.in_(KEYS)).delete(synchronize_session=False)
         db.commit()
     security.sessions.revoke_all()
+    security.pairing_store.clear()
     security.rate_limiter = security.RateLimiter()
     import app.routers.devices as devices_router
     devices_router.security.rate_limiter = security.rate_limiter
@@ -494,3 +495,107 @@ def test_system_settings_and_permission_routes(driver, local):
     unsupported = client.post("/api/devices/system-settings", json={"target": "wifi"})
     assert unsupported.status_code == 501 and unsupported.json()["detail"]["code"] == "unsupported"
     assert client.post("/api/devices/bluetooth/permission").status_code == 200  # no-op par défaut
+
+
+class _Clock:
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def test_pairing_code_store_lifecycle():
+    clock = _Clock()
+    store = security.PairingCodeStore(ttl=10, clock=clock)
+    assert store.peek() is None
+    code = store.generate()
+    assert len(code) == security.PAIRING_CODE_LENGTH and code.isdigit()
+    peeked = store.peek()
+    assert peeked is not None and peeked[0] == code and 0 < peeked[1] <= 10
+    assert store.peek() == peeked  # lecture sans effet de bord
+    wrong = "000000" if code != "000000" else "111111"
+    assert not store.verify_and_consume(wrong)
+    assert store.peek() is not None
+    assert store.verify_and_consume(f"{code[:3]} {code[3:]}")  # séparateurs tolérés
+    assert store.peek() is None and not store.verify_and_consume(code)  # usage unique
+
+
+def test_pairing_code_expires():
+    clock = _Clock()
+    store = security.PairingCodeStore(ttl=10, clock=clock)
+    code = store.generate()
+    clock.now += 10
+    assert store.peek() is None
+    assert not store.verify_and_consume(code)
+
+
+def test_pairing_code_is_invalidated_after_too_many_failures():
+    store = security.PairingCodeStore(max_failed_claims=3)
+    code = store.generate()
+    wrong = "000000" if code != "000000" else "111111"
+    for _ in range(3):
+        assert not store.verify_and_consume(wrong)
+    assert store.peek() is None and not store.verify_and_consume(code)
+
+
+def _local_code(monkeypatch):
+    """Code émis comme le fait l'écran physique (requête locale)."""
+    monkeypatch.setattr("app.routers.devices.is_local_request", lambda req: True)
+    return TestClient(app).post("/api/devices/pairing/generate").json()["code"]
+
+
+def test_pairing_generate_is_local_only(driver):
+    res = remote("203.0.113.50").post("/api/devices/pairing/generate")
+    assert res.status_code == 403 and res.json()["detail"]["code"] == "local_only"
+    assert security.pairing_store.peek() is None
+
+
+def test_pairing_status_hides_code_from_remote_and_has_no_side_effect(driver, monkeypatch):
+    assert TestClient(app).get("/api/devices/pairing/status").json()["code"] is None  # rien d'émis
+    code = _local_code(monkeypatch)
+    monkeypatch.setattr("app.routers.devices.is_local_request", lambda req: False)
+    status = remote("203.0.113.50").get("/api/devices/pairing/status").json()
+    assert status["code"] is None and status["pin_set"] is False and status["seconds_left"] > 0
+    monkeypatch.setattr("app.routers.devices.is_local_request", lambda req: True)
+    local_status = TestClient(app).get("/api/devices/pairing/status").json()
+    assert local_status["code"] == code and local_status["code_length"] == security.PAIRING_CODE_LENGTH
+
+
+def test_pairing_claim_flow(driver, monkeypatch):
+    code = _local_code(monkeypatch)
+    monkeypatch.setattr("app.routers.devices.is_local_request", lambda req: False)
+    attacker = remote("203.0.113.50")
+    wrong = "000000" if code != "000000" else "111111"
+    bad = attacker.post("/api/devices/pairing/claim", json={"code": wrong, "pin": "987654"})
+    assert bad.status_code == 401 and bad.json()["detail"]["code"] == "bad_pairing_code"
+    short = attacker.post("/api/devices/pairing/claim", json={"code": code, "pin": "123"})
+    assert short.status_code == 400 and short.json()["detail"]["code"] == "bad_pin"
+    ok = attacker.post("/api/devices/pairing/claim", json={"code": code, "pin": "987654"})
+    assert ok.status_code == 200 and ok.json()["enabled"] is True
+    status = attacker.get("/api/devices/status").json()
+    assert status["access"] == "granted" and status["pin_set"] is True
+    # code à usage unique ; PIN existant : plus d'appairage, ni de nouveau code
+    assert attacker.post("/api/devices/pairing/claim", json={"code": code, "pin": "111111"}).status_code == 409
+    monkeypatch.setattr("app.routers.devices.is_local_request", lambda req: True)
+    again = TestClient(app).post("/api/devices/pairing/generate")
+    assert again.status_code == 409 and again.json()["detail"]["code"] == "pin_already_set"
+
+
+def test_pairing_claim_cannot_replace_an_existing_pin(driver, monkeypatch):
+    code = _local_code(monkeypatch)  # code émis AVANT la définition du PIN
+    assert TestClient(app).post("/api/devices/admin/pin", json={"pin": "123456"}).status_code == 200
+    monkeypatch.setattr("app.routers.devices.is_local_request", lambda req: False)
+    res = remote("203.0.113.50").post("/api/devices/pairing/claim", json={"code": code, "pin": "000111"})
+    assert res.status_code == 409 and res.json()["detail"]["code"] == "pin_already_set"
+
+
+def test_pairing_claim_is_rate_limited(driver, monkeypatch):
+    code = _local_code(monkeypatch)
+    monkeypatch.setattr("app.routers.devices.is_local_request", lambda req: False)
+    attacker = remote("203.0.113.77")
+    wrong = "000000" if code != "000000" else "111111"
+    statuses = [attacker.post("/api/devices/pairing/claim", json={"code": wrong, "pin": "987654"}).status_code
+                for _ in range(security.MAX_ATTEMPTS)]
+    assert statuses[-1] == 429
+    assert attacker.post("/api/devices/pairing/claim", json={"code": code, "pin": "987654"}).status_code == 429

@@ -20,6 +20,7 @@ import ipaddress
 import logging
 import re
 import secrets
+import threading
 import time
 from dataclasses import dataclass, field
 
@@ -234,3 +235,80 @@ class SessionStore:
 # Instances du processus (un serveur = un état).
 sessions = SessionStore()
 rate_limiter = RateLimiter()
+
+
+# ---------------------------------------------------------------------------
+# Appairage par code d'association (écran sans navigateur : Android TV)
+# ---------------------------------------------------------------------------
+
+PAIRING_CODE_LENGTH = 6
+PAIRING_CODE_TTL_SECONDS = 10 * 60
+# Essais ratés tolérés TOUS clients confondus avant d'invalider le code : le limiteur par IP ne
+# suffit pas contre plusieurs adresses ; 10 essais sur 10^6 codes laissent ~1 chance sur 100 000.
+PAIRING_MAX_FAILED_CLAIMS = 10
+
+
+@dataclass
+class _PairingEntry:
+    code: str
+    expires_at: float
+    failed_claims: int = 0
+
+
+class PairingCodeStore:
+    """Code d'association unique, à durée limitée, affiché UNIQUEMENT sur l'écran local.
+
+    Il prouve la présence devant la machine : il permet de définir le PIN depuis un autre appareil
+    quand l'écran local n'a pas de navigateur. Sûr entre threads (les routes synchrones de
+    FastAPI s'exécutent dans un pool)."""
+
+    def __init__(self, ttl: float = PAIRING_CODE_TTL_SECONDS, clock=time.monotonic,
+                 max_failed_claims: int = PAIRING_MAX_FAILED_CLAIMS) -> None:
+        self.ttl = ttl
+        self.clock = clock
+        self.max_failed_claims = max_failed_claims
+        self._lock = threading.Lock()
+        self._current: _PairingEntry | None = None
+
+    def _live(self) -> _PairingEntry | None:
+        entry = self._current
+        if entry is not None and entry.expires_at <= self.clock():
+            self._current = entry = None
+        return entry
+
+    def generate(self) -> str:
+        """Nouveau code, qui remplace le précédent."""
+        with self._lock:
+            code = f"{secrets.randbelow(10 ** PAIRING_CODE_LENGTH):0{PAIRING_CODE_LENGTH}d}"
+            self._current = _PairingEntry(code=code, expires_at=self.clock() + self.ttl)
+            return code
+
+    def peek(self) -> tuple[str, int] | None:
+        """(code, secondes restantes) du code valide, sans effet de bord ; None sinon."""
+        with self._lock:
+            entry = self._live()
+            if entry is None:
+                return None
+            return entry.code, max(1, int(entry.expires_at - self.clock()))
+
+    def verify_and_consume(self, code: str) -> bool:
+        """Vrai (usage unique) si le code est valide ; un échec compte contre le code lui-même."""
+        digits = re.sub(r"\D", "", code or "")
+        with self._lock:
+            entry = self._live()
+            if entry is None:
+                return False
+            if hmac.compare_digest(digits.encode(), entry.code.encode()):
+                self._current = None
+                return True
+            entry.failed_claims += 1
+            if entry.failed_claims >= self.max_failed_claims:
+                self._current = None
+            return False
+
+    def clear(self) -> None:
+        with self._lock:
+            self._current = None
+
+
+pairing_store = PairingCodeStore()

@@ -67,6 +67,27 @@ def _fail(status: int, code: str, message: str, **extra: Any) -> HTTPException:
     return HTTPException(status_code=status, detail={"code": code, "message": message, **extra})
 
 
+def _locked(seconds: int) -> HTTPException:
+    """429 « trop d'essais » (même forme pour le PIN et le code d'association)."""
+    return HTTPException(
+        status_code=429,
+        detail={"code": "locked", "message": f"Trop d'essais. Réessayez dans {seconds} s.", "retry_after": seconds},
+        headers={"Retry-After": str(seconds)},
+    )
+
+
+def _grant_session(response: Response, ip: str) -> None:
+    """Ouvre une session d'administration et pose son cookie."""
+    response.set_cookie(
+        security.SESSION_COOKIE,
+        security.sessions.create(ip),
+        max_age=int(security.SESSION_TTL_SECONDS),
+        httponly=True,
+        samesite="strict",
+        path="/api/devices",
+    )
+
+
 @dataclass
 class Access:
     local: bool
@@ -121,6 +142,11 @@ class PinRequest(BaseModel):
     pin: str
 
 
+class PairingClaimRequest(BaseModel):
+    code: str
+    pin: str
+
+
 @router.get("/status")
 async def get_status(request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
     enabled = _get_setting(db, security.SETTING_ENABLED) == "true"
@@ -155,6 +181,62 @@ async def get_status(request: Request, db: Session = Depends(get_db)) -> dict[st
     return result
 
 
+@router.get("/pairing/status")
+def get_pairing_status(request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """État de l'appairage, sans effet de bord. Le code n'est renvoyé qu'à l'écran local."""
+    pin_set = bool(_get_setting(db, security.SETTING_PIN_HASH))
+    current = security.pairing_store.peek() if not pin_set else None
+    local = is_local_request(request)
+    return {
+        "pin_set": pin_set,
+        "code_length": security.PAIRING_CODE_LENGTH,
+        "code": current[0] if current and local else None,
+        "seconds_left": current[1] if current else 0,
+    }
+
+
+@router.post("/pairing/generate")
+def generate_pairing_code(request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Émet (ou renouvelle) le code d'association. Écran local uniquement ; inutile une fois le PIN défini."""
+    require_local(request)
+    if _get_setting(db, security.SETTING_PIN_HASH):
+        raise _fail(409, "pin_already_set", "Un code PIN existe déjà : modifiez-le depuis l'écran local.")
+    code = security.pairing_store.generate()
+    return {"code": code, "seconds_left": security.PAIRING_CODE_TTL_SECONDS}
+
+
+@router.post("/pairing/claim")
+def claim_pairing_code(
+    payload: PairingClaimRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Définit le PIN et active la fonction depuis un appareil distant, sur preuve du code affiché sur l'écran local.
+
+    Réservé à la première configuration : un PIN existant ne peut être remplacé que depuis l'écran local."""
+    ip = _client_ip(request)
+    retry = security.rate_limiter.retry_after(ip)
+    if retry:
+        raise _locked(retry)
+    if _get_setting(db, security.SETTING_PIN_HASH):
+        raise _fail(409, "pin_already_set", "Un code PIN existe déjà : modifiez-le depuis l'écran local.")
+    if not security.is_valid_pin(payload.pin):
+        raise _fail(400, "bad_pin", f"Le code PIN doit comporter exactement {security.PIN_LENGTH} chiffres.")
+    if not security.pairing_store.verify_and_consume(payload.code):
+        lockout = security.rate_limiter.register_failure(ip)
+        _log(db, "devices_pairing_failed", f"IP {ip}")
+        if lockout:
+            raise _locked(lockout)
+        raise _fail(401, "bad_pairing_code", "Code d'association incorrect ou expiré. Vérifiez l'écran de la machine.")
+    security.rate_limiter.register_success(ip)
+    _set_setting(db, security.SETTING_PIN_HASH, security.hash_pin(payload.pin))
+    _set_setting(db, security.SETTING_ENABLED, "true")
+    _grant_session(response, ip)
+    _log(db, "devices_paired_with_code", f"IP {ip}")
+    return {"ok": True, "pin_set": True, "enabled": True, "session_minutes": int(security.SESSION_TTL_SECONDS // 60)}
+
+
 @router.post("/admin/enable")
 def set_enabled(payload: EnableRequest, request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
     require_local(request)
@@ -173,6 +255,7 @@ def set_pin(payload: PinRequest, request: Request, db: Session = Depends(get_db)
         raise _fail(400, "bad_pin", f"Le code PIN doit comporter exactement {security.PIN_LENGTH} chiffres.")
     _set_setting(db, security.SETTING_PIN_HASH, security.hash_pin(payload.pin))
     security.sessions.revoke_all()
+    security.pairing_store.clear()  # le code n'a plus d'objet une fois le PIN défini
     _log(db, "devices_pin_set", None)  # jamais la valeur
     return {"pin_set": True}
 
@@ -196,32 +279,16 @@ def open_session(payload: PinRequest, request: Request, response: Response, db: 
     ip = _client_ip(request)
     retry = security.rate_limiter.retry_after(ip)
     if retry:
-        raise HTTPException(
-            status_code=429,
-            detail={"code": "locked", "message": f"Trop d'essais. Réessayez dans {retry} s.", "retry_after": retry},
-            headers={"Retry-After": str(retry)},
-        )
+        raise _locked(retry)
     if not security.verify_pin(payload.pin, stored):
         lockout = security.rate_limiter.register_failure(ip)
         _log(db, "devices_login_failed", f"IP {ip}")
         if lockout:
             _log(db, "devices_login_locked", f"IP {ip} bloquée {lockout} s")
-            raise HTTPException(
-                status_code=429,
-                detail={"code": "locked", "message": f"Trop d'essais. Réessayez dans {lockout} s.", "retry_after": lockout},
-                headers={"Retry-After": str(lockout)},
-            )
+            raise _locked(lockout)
         raise _fail(401, "bad_pin", "Code PIN incorrect.", attempts_left=security.rate_limiter.attempts_left(ip))
     security.rate_limiter.register_success(ip)
-    token = security.sessions.create(ip)
-    response.set_cookie(
-        security.SESSION_COOKIE,
-        token,
-        max_age=int(security.SESSION_TTL_SECONDS),
-        httponly=True,
-        samesite="strict",
-        path="/api/devices",
-    )
+    _grant_session(response, ip)
     _log(db, "devices_login_ok", f"IP {ip}")
     return {"ok": True, "session_minutes": int(security.SESSION_TTL_SECONDS // 60)}
 
