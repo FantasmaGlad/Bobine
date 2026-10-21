@@ -69,6 +69,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Écran de télévision : télécommande à la place du tactile (voir [isTvDevice]). */
+    private val isTv: Boolean by lazy { isTvDevice(this) }
+
     private val handler = Handler(Looper.getMainLooper())
     // champ de classe
     // plutot qu'une simple val locale de onCreate() - necessaire pour
@@ -110,7 +113,6 @@ class MainActivity : AppCompatActivity() {
         // NullPointerException constatee en pratique). onWindowFocusChanged
         // ci-dessous s'en charge, garanti appele une fois la fenetre reelle.
 
-        val isTv = isTvDevice(this)
         if (isTv) {
             // Sur Android TV : neutralise la veille d'ecran Daydream / Ambient pendant l'utilisation de Bobine
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -373,7 +375,43 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Relaie une touche de la télécommande à l'interface Web (écran principal et sortie HDMI) sous la forme d'un
+     * évènement clavier standard, que `useKioskRemote` interprète comme au clavier ou à la manette.
+     */
+    private fun relayKeyToWeb(key: String, keyCode: Int, toPresentation: Boolean) {
+        val script = "window.dispatchEvent(new KeyboardEvent('keydown', " +
+            "{ key: '$key', code: '$key', keyCode: $keyCode, which: $keyCode, bubbles: true, cancelable: true }))"
+        webView?.evaluateJavascript(script, null)
+        if (toPresentation) BobineForegroundService.currentPresentation?.webView?.evaluateJavascript(script, null)
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Télécommande Android TV uniquement : sur téléphone et tablette, volume et Retour gardent leur
+        // comportement système. Le volume est réglé par l'interface Bobine (jauge latérale) ; le consommer ici
+        // évite aussi l'incrustation de volume du téléviseur par-dessus.
+        if (isTv) {
+            val webKey = when (event.keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP -> "AudioVolumeUp"
+                KeyEvent.KEYCODE_VOLUME_DOWN -> "AudioVolumeDown"
+                KeyEvent.KEYCODE_VOLUME_MUTE -> "AudioVolumeMute"
+                else -> null
+            }
+            if (webKey != null) {
+                if (event.action == KeyEvent.ACTION_DOWN) relayKeyToWeb(webKey, event.keyCode, toPresentation = true)
+                return true
+            }
+            // Retour : la WebView n'a pas d'historique dans une application à page unique ; l'évènement
+            // `Escape` laisse l'interface (modale, grille, veille) décider de la suite.
+            if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.action == KeyEvent.ACTION_DOWN) {
+                    if (webView?.canGoBack() == true) webView?.goBack()
+                    else relayKeyToWeb("Escape", 27, toPresentation = false)
+                }
+                return true
+            }
+        }
+
         // Priorite a l'interface locale tactile de la tablette (/grid) :
         // si MainActivity ou sa WebView consomme l'evenement (navigation, enter, play/pause),
         // on ne le deroute pas.
