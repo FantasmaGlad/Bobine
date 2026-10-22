@@ -34,12 +34,31 @@ du dépôt, avec le manifeste auquel leurs empreintes se rapportent.
 
 ## Couverture
 
-Avec tous les encodeurs disponibles, le générateur produit **55 fichiers audio** :
+Avec tous les encodeurs disponibles, le générateur produit **62 fichiers audio** :
 
 - MP3 CBR/VBR avec et sans en-tête Xing/Info ; FLAC, WAV, AAC brut, AAC/M4A,
   Vorbis/Ogg, Opus/Ogg, WMA et AIFF : quatre variantes par famille, soit 48 fichiers.
 - Quatre pochettes embarquées : JPEG opaque et PNG transparent dans MP3 et FLAC.
+- Une pochette JPEG et une PNG ensemble dans un MP3 (deux images attachées).
+- Deux MP3 **VBRI** : libmp3lame n'écrit que Xing/Info, `build_vbri_mp3` insère donc une
+  vraie trame VBRI (testée contre ffprobe) après le tag ID3 d'un MP3 CBR sans index.
+- Quatre fichiers à chemin atypique : sous-dossiers avec espaces, Unicode, crochets,
+  esperluette et apostrophe, double espace, nom de 195 caractères.
 - Trois corruptions : vide, octets arbitraires, en-tête ID3 tronqué.
+
+### Corpus à l'échelle
+
+`generate.py --scale N` ajoute N pistes uniques (graine fixe, donc reproductibles) :
+durées de 0,5 à 12 s, tags uniques, huit familles de formats, et `--cover-ratio`
+(0,25 par défaut) de MP3/FLAC portant une pochette. Un corpus où tous les fichiers
+ont la même durée masque les écarts qui dépendent du padding de l'encodeur : c'est
+ainsi qu'un écart de 52 ms (au-delà de la tolérance de 50 ms) sur les MP3 Xing, absent
+des 55 fichiers de 1,37 s, a été trouvé et corrigé. Utiliser `--scale 540` (602 fichiers)
+pour toute décision de parité et pour le banc `import_bench.py`.
+
+```bash
+backend/.venv/bin/python scripts/media-bench/generate.py /var/tmp/bobine-corpus-large --scale 540
+```
 
 Les variantes couvrent les tags absents, Unicode, champs vides, espaces, piste
 et disque sous forme `03/12`, date complète, année dans du texte et noms avec
@@ -53,9 +72,10 @@ devient jamais un fichier prétendument validé. Un corpus de moins de 40 fichie
 ne garantit pas à lui seul la disponibilité de toutes les familles optionnelles.
 Un échec initial de génération d’image interrompt immédiatement la commande.
 
-**Limites explicites :** pas de fixture VBRI (libmp3lame génère Xing/Info), de
-chemin contenant des octets non UTF-8, de fichier dépassant les limites mémoire,
-de MP3 avec plusieurs pochettes ou de permission inaccessible. Ces cas devront
+**Limites explicites :** pas de chemin contenant des octets non UTF-8 (un rapport JSON
+ne peut pas le porter ; le transport est testé séparément), de fichier dépassant les
+limites mémoire, ni de permission inaccessible. Les VBRI sont synthétisés, non produits
+par un vrai encodeur Fraunhofer. Ces cas devront
 être ajoutés avant d’affirmer leur prise en charge. Le comportement de collision
 de casse des tags est couvert par les tests simulant ffprobe ; un conteneur peut
 fusionner ces tags lors de son écriture et ne convient pas à ce test.
