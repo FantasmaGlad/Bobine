@@ -529,6 +529,11 @@ jobs:
       - name: Compiler ffmpeg/ffprobe armeabi-v7a (NDK r28c)
         if: steps.check_secrets.outputs.configured == 'true' && steps.ffmpeg_armv7_cache.outputs.cache-hit != 'true'
         run: ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/28.2.13676358" android/scripts/build_ffmpeg_armv7.sh
+      # Composant audio natif (Bionic ARM64 et ARM32, alignement 16 Kio vérifié par le script) : sans lui
+      # l'option « composant audio natif » des Réglages indique « absent » et l'import garde ffprobe/ffmpeg.
+      - name: Compiler le composant audio Android (Bionic ARM64 et ARM32)
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/28.2.13676358" scripts/ci/build-media-android.sh
       - name: Build + signature (Gradle)
         if: steps.check_secrets.outputs.configured == 'true'
         working-directory: android
