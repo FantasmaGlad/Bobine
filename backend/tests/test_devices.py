@@ -599,3 +599,37 @@ def test_pairing_claim_is_rate_limited(driver, monkeypatch):
                 for _ in range(security.MAX_ATTEMPTS)]
     assert statuses[-1] == 429
     assert attacker.post("/api/devices/pairing/claim", json={"code": code, "pin": "987654"}).status_code == 429
+
+
+def test_pairing_verify_tells_wrong_code_at_once_without_consuming(driver, monkeypatch):
+    code = _local_code(monkeypatch)
+    monkeypatch.setattr("app.routers.devices.is_local_request", lambda req: False)
+    attacker = remote("203.0.113.60")
+    wrong = "000000" if code != "000000" else "111111"
+    bad = attacker.post("/api/devices/pairing/verify", json={"code": wrong})
+    assert bad.status_code == 401 and bad.json()["detail"]["code"] == "bad_pairing_code"
+    good = attacker.post("/api/devices/pairing/verify", json={"code": code})
+    assert good.status_code == 200 and good.json() == {"ok": True}
+    assert security.pairing_store.peek() is not None  # non consommé : le PIN se choisit ensuite
+    claimed = attacker.post("/api/devices/pairing/claim", json={"code": code, "pin": "987654"})
+    assert claimed.status_code == 200
+
+
+def test_pairing_verify_is_rate_limited_and_burns_the_code(driver, monkeypatch):
+    code = _local_code(monkeypatch)
+    monkeypatch.setattr("app.routers.devices.is_local_request", lambda req: False)
+    wrong = "000000" if code != "000000" else "111111"
+    statuses = [remote(f"203.0.113.{80 + i}").post("/api/devices/pairing/verify", json={"code": wrong}).status_code
+                for i in range(security.PAIRING_MAX_FAILED_CLAIMS)]
+    assert set(statuses) == {401}
+    # même en changeant d'adresse, le code lui-même est invalidé après trop d'échecs
+    assert security.pairing_store.peek() is None
+    assert remote("203.0.113.99").post("/api/devices/pairing/verify", json={"code": code}).status_code == 401
+
+
+def test_pairing_verify_refused_once_pin_exists(driver, monkeypatch):
+    code = _local_code(monkeypatch)
+    assert TestClient(app).post("/api/devices/admin/pin", json={"pin": "123456"}).status_code == 200
+    monkeypatch.setattr("app.routers.devices.is_local_request", lambda req: False)
+    res = remote("203.0.113.61").post("/api/devices/pairing/verify", json={"code": code})
+    assert res.status_code == 409

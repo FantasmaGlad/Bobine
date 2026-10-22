@@ -291,20 +291,28 @@ class PairingCodeStore:
                 return None
             return entry.code, max(1, int(entry.expires_at - self.clock()))
 
-    def verify_and_consume(self, code: str) -> bool:
-        """Vrai (usage unique) si le code est valide ; un échec compte contre le code lui-même."""
+    def _match(self, code: str, consume: bool) -> bool:
         digits = re.sub(r"\D", "", code or "")
         with self._lock:
             entry = self._live()
             if entry is None:
                 return False
             if hmac.compare_digest(digits.encode(), entry.code.encode()):
-                self._current = None
+                if consume:
+                    self._current = None
                 return True
             entry.failed_claims += 1
             if entry.failed_claims >= self.max_failed_claims:
                 self._current = None
             return False
+
+    def verify_and_consume(self, code: str) -> bool:
+        """Vrai (usage unique) si le code est valide ; un échec compte contre le code lui-même."""
+        return self._match(code, consume=True)
+
+    def check(self, code: str) -> bool:
+        """Vrai si le code est valide, sans le consommer ; un échec compte contre le code comme à l'usage."""
+        return self._match(code, consume=False)
 
     def clear(self) -> None:
         with self._lock:

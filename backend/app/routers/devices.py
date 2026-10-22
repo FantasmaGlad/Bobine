@@ -147,6 +147,10 @@ class PairingClaimRequest(BaseModel):
     pin: str
 
 
+class PairingVerifyRequest(BaseModel):
+    code: str
+
+
 @router.get("/status")
 async def get_status(request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
     enabled = _get_setting(db, security.SETTING_ENABLED) == "true"
@@ -203,6 +207,27 @@ def generate_pairing_code(request: Request, db: Session = Depends(get_db)) -> di
         raise _fail(409, "pin_already_set", "Un code PIN existe déjà : modifiez-le depuis l'écran local.")
     code = security.pairing_store.generate()
     return {"code": code, "seconds_left": security.PAIRING_CODE_TTL_SECONDS}
+
+
+@router.post("/pairing/verify")
+def verify_pairing_code(payload: PairingVerifyRequest, request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Dit tout de suite si le code saisi est le bon, sans le consommer (le PIN se choisit ensuite).
+
+    Mêmes limites que l'usage : échecs comptés par IP et contre le code lui-même, donc pas de moyen plus rapide
+    de deviner le code qu'avec /pairing/claim."""
+    ip = _client_ip(request)
+    retry = security.rate_limiter.retry_after(ip)
+    if retry:
+        raise _locked(retry)
+    if _get_setting(db, security.SETTING_PIN_HASH):
+        raise _fail(409, "pin_already_set", "Un code PIN existe déjà : modifiez-le depuis l'écran local.")
+    if not security.pairing_store.check(payload.code):
+        lockout = security.rate_limiter.register_failure(ip)
+        _log(db, "devices_pairing_failed", f"IP {ip}")
+        if lockout:
+            raise _locked(lockout)
+        raise _fail(401, "bad_pairing_code", "Code d'association incorrect ou expiré. Vérifiez l'écran de la machine.")
+    return {"ok": True}
 
 
 @router.post("/pairing/claim")
