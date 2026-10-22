@@ -661,6 +661,14 @@ jobs:
           cargo test --locked
           cargo build --release --locked
           Copy-Item "target\release\bobine-devices.exe" ..\backend\dist\Bobine\
+      - name: Compiler et embarquer le composant audio natif (bobine-media.exe)
+        shell: pwsh
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
+        run: |
+          python scripts/ci/stage-media.py --dest backend\dist\Bobine
+          if (-not (Test-Path backend\dist\Bobine\bobine-media.exe)) { throw "bobine-media.exe manquant" }
       - name: Fournir ffmpeg.exe/ffprobe.exe (build statique BtbN, appelés par nom nu par le backend)
         shell: pwsh
         run: |
@@ -756,6 +764,14 @@ jobs:
           cargo test --locked
           cargo build --release --locked
           Copy-Item "target\release\bobine-devices.exe" ..\backend\dist\Bobine\
+      - name: Compiler et embarquer le composant audio natif (ARM64, facultatif)
+        shell: pwsh
+        continue-on-error: true
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
+        run: |
+          python scripts/ci/stage-media.py --dest backend\dist\Bobine
       - name: Fournir ffmpeg.exe/ffprobe.exe (build statique BtbN winarm64 avec repli win64)
         shell: pwsh
         run: |
@@ -847,6 +863,13 @@ jobs:
           if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
             echo "${{ needs.version.outputs.display_version }}" > VERSION
           fi
+      - name: Compiler et contrôler le composant audio natif (bobine-media)
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
+        run: |
+          mkdir -p "$RUNNER_TEMP/media-stage"
+          python3 scripts/ci/stage-media.py --dest "$RUNNER_TEMP/media-stage"
       - name: Construire le paquet Debian (.deb)
         env:
           VERSION: ${{ needs.version.outputs.deb_version }}
@@ -872,6 +895,8 @@ jobs:
           test -f /usr/lib/systemd/user/bobine.service
           test -x /usr/lib/bobine/BobineBackend
           test -x /usr/lib/bobine/BobineTray
+          test -x /usr/lib/bobine/bobine-media
+          python3 scripts/ci/stage-media.py --check /usr/lib/bobine/bobine-media
           test -f /usr/share/icons/hicolor/256x256/apps/bobine.png
           test -f /usr/share/pixmaps/bobine.png
       - uses: actions/upload-artifact@v4
@@ -915,6 +940,13 @@ jobs:
           if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
             echo "${{ needs.version.outputs.display_version }}" > VERSION
           fi
+      - name: Compiler et contrôler le composant audio natif (bobine-media)
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
+        run: |
+          mkdir -p "$RUNNER_TEMP/media-stage"
+          python3 scripts/ci/stage-media.py --dest "$RUNNER_TEMP/media-stage"
       - name: Construire le paquet Debian ARM64 (.deb)
         env:
           VERSION: ${{ needs.version.outputs.deb_version }}
@@ -935,6 +967,8 @@ jobs:
           test -f /usr/lib/systemd/user/bobine.service
           test -x /usr/lib/bobine/BobineBackend
           test -x /usr/lib/bobine/BobineTray
+          test -x /usr/lib/bobine/bobine-media
+          python3 scripts/ci/stage-media.py --check /usr/lib/bobine/bobine-media
           test -f /usr/share/icons/hicolor/256x256/apps/bobine.png
           test -f /usr/share/pixmaps/bobine.png
       - uses: actions/upload-artifact@v4
@@ -1011,6 +1045,11 @@ jobs:
           cargo test --locked
           cargo build --release --locked
           cp target/release/bobine-devices ../backend/dist/Bobine.app/Contents/MacOS/bobine-devices
+      - name: Compiler et embarquer le composant audio natif
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
+        run: python3 scripts/ci/stage-media.py --dest backend/dist/Bobine.app/Contents/MacOS
       - name: Vérifier la présence de l'icône dans le bundle
         run: test -f backend/dist/Bobine.app/Contents/Resources/bobine.icns
       - name: Signature ad-hoc (requise par le noyau sur Apple Silicon)

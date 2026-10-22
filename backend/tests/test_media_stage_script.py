@@ -41,3 +41,17 @@ def test_smoke_rejects_silent_wrong_and_unclean_executables(stage, tmp_path):
     unclean = script("unclean", 'read line; echo \'{"jsonrpc":"2.0","id":1,"result":{"protocol_version":1}}\'; cat >/dev/null; exit 3\n')
     with pytest.raises(RuntimeError, match="exit status 3"):
         stage.smoke(unclean)
+
+
+@pytest.mark.skipif(not BINARY.is_file(), reason="native release binary has not been built")
+def test_script_check_mode_reports_an_installed_executable(tmp_path):
+    import json
+    import subprocess
+
+    script = ROOT / "scripts" / "ci" / "stage-media.py"
+    done = subprocess.run([sys.executable, str(script), "--check", str(BINARY)], capture_output=True, text=True, timeout=30)
+    assert done.returncode == 0, done.stderr
+    assert json.loads(done.stdout)["protocol_version"] == 1
+    # Without --check, a destination directory is required.
+    missing = subprocess.run([sys.executable, str(script), "--dest", str(tmp_path / "absent")], capture_output=True, text=True, timeout=30)
+    assert missing.returncode != 0

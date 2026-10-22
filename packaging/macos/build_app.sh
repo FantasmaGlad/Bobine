@@ -82,6 +82,15 @@ else
     echo "Avertissement: cargo introuvable — l'onglet Périphériques sera indisponible." >&2
 fi
 
+echo "=== [3d/5] Composant audio natif (facultatif) ==="
+# Copié dans le bundle AVANT la signature ad-hoc ; absent, la lecture des tags passe par ffprobe/ffmpeg.
+if command -v cargo >/dev/null 2>&1; then
+    (cd "${REPO_DIR}/media" && cargo build --release --locked)
+    cp "${REPO_DIR}/media/target/release/bobine-media" "${APP_PATH}/Contents/MacOS/bobine-media"
+else
+    echo "Avertissement: cargo introuvable — bundle sans composant audio natif." >&2
+fi
+
 echo "=== [4/5] Signature ad-hoc (requise par le noyau sur Apple Silicon) ==="
 # Sans ceci, macOS tue au lancement ("Killed: 9") tout binaire/bibliothèque
 # non signé sur Apple Silicon — l'exigence vient du noyau (AMFI), pas de

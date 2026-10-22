@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """Build bobine-media for the host (or a target), check it, and stage it in a directory.
 
-This is the single step a packaging job would call to put the audio component next to
-BobineBackend (Linux/Windows) or inside the macOS bundle. It is not called by any
-packaging job yet: shipping the executable is a separate, explicit decision. Android
-uses scripts/ci/build-media-android.sh instead.
+This is the single step the packaging jobs call to put the audio component next to
+BobineBackend (Linux .deb, Windows) or inside the macOS bundle (Contents/MacOS). The
+component is optional for the application: a package built without it works, and the
+`media_native` setting then reports it as absent. Android uses
+scripts/ci/build-media-android.sh instead.
+
+`--check PATH` only starts an already installed executable (for example the one a package
+installed) and applies the same `hello` and exit-on-EOF checks.
 
 After copying, the staged executable is started and must answer `hello` with protocol
 version 1 and exit with status 0 when its stdin closes; a cross-compiled executable
@@ -54,13 +58,19 @@ def smoke(binary, timeout=5.0):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--dest", type=Path, required=True, help="existing directory that receives the executable")
+    parser.add_argument("--check", type=Path, help="start this executable, check hello and exit on EOF, print the summary")
+    parser.add_argument("--dest", type=Path, help="existing directory that receives the executable")
     parser.add_argument("--target", help="Rust target triple for a cross build")
     parser.add_argument("--skip-build", action="store_true", help="stage the executable that is already built")
     parser.add_argument("--no-smoke", action="store_true", help="do not run the staged executable (cross build)")
     args = parser.parse_args()
-    if not args.dest.is_dir():
-        parser.error("--dest must be an existing directory")
+    if args.check is not None:
+        hello = smoke(args.check)
+        print(json.dumps({"path": str(args.check), "bytes": args.check.stat().st_size, "protocol_version": hello["protocol_version"],
+                          "binary_version": hello["binary_version"], "formats": hello["formats"]}, indent=2))
+        return
+    if args.dest is None or not args.dest.is_dir():
+        parser.error("--dest must be an existing directory (or use --check)")
     manifest = ROOT / "media" / "Cargo.toml"
     if not args.skip_build:
         command = ["cargo", "build", "--release", "--locked", "--manifest-path", str(manifest)]

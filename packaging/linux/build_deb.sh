@@ -64,6 +64,18 @@ if [ ! -f "${DIST_DIR}/BobineBackend" ] || [ ! -f "${DIST_DIR}/BobineTray" ]; th
     exit 1
 fi
 
+# Composant audio natif (facultatif) : lu par BobineBackend à côté de son exécutable. Compilé en
+# amont (scripts/ci/stage-media.py) ; absent, le paquet reste complet et fonctionnel : la
+# lecture des tags et des pochettes passe alors par ffprobe/ffmpeg.
+MEDIA_BINARY="${BOBINE_MEDIA_BINARY:-${REPO_DIR}/media/target/release/bobine-media}"
+if [ -x "${MEDIA_BINARY}" ]; then
+    cp "${MEDIA_BINARY}" "${DIST_DIR}/bobine-media"
+    chmod 0755 "${DIST_DIR}/bobine-media"
+    echo "Composant audio natif inclus : ${MEDIA_BINARY}"
+else
+    echo "Composant audio natif absent : paquet sans bobine-media (repli ffprobe/ffmpeg)." >&2
+fi
+
 echo "=== [4/5] Assemblage de l'arborescence Debian ==="
 OUTPUT_DIR="${REPO_DIR}/dist-deb"
 STAGING_DIR="${OUTPUT_DIR}/bobine_${VERSION}_${ARCH}"
