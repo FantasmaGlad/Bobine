@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
-import { RadioEvent, RadioRepeatMode, RadioTrackInfo, selectRadioTarget, useRadioSocket } from "@/lib/useRadioSocket";
+import { RadioEvent, RadioTrackInfo, selectRadioTarget, useRadioSocket } from "@/lib/useRadioSocket";
 import { useMediaClockFollower } from "@/lib/useMediaClockFollower";
 import { useKioskRemote } from "@/lib/useKioskRemote";
 import { radioChannelId } from "@/lib/displayChannel";
@@ -51,7 +51,6 @@ function formatClock(date: Date | null) {
   return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
 }
 
-const REPEAT_CYCLE: RadioRepeatMode[] = ["off", "playlist", "track"];
 const DUCK_LEVEL_DEFAULT = 15;
 const DUCK_FADE_MS_DEFAULT = 1500;
 
@@ -667,19 +666,11 @@ export default function RadioScreenPage() {
     };
   }, []);
 
-  const handlePlayAnnouncement = () => sendCommand("radio_play_announcement", {});
-
   const currentTrack = state.current_track;
   const coverSrc = currentTrack?.cover_url ? getApiUrl(currentTrack.cover_url) : null;
   const duration = state.duration_seconds ?? currentTrack?.duration_seconds ?? 0;
 
   const handlePlayPause = () => sendCommand(state.playing ? "pause" : "play");
-  const handleRepeatCycle = () => {
-    const next = REPEAT_CYCLE[(REPEAT_CYCLE.indexOf(state.repeat) + 1) % REPEAT_CYCLE.length];
-    sendCommand("radio_set_repeat", { mode: next });
-  };
-  const repeatLabel =
-    state.repeat === "track" ? t("radioRemote.repeatTrack") : state.repeat === "playlist" ? t("radioRemote.repeatPlaylist") : t("radioRemote.repeatOff");
 
   // Télécommande à dongle USB : transport + volume au clavier/
   // touches média. Une touche étant un geste utilisateur, elle peut aussi
@@ -772,13 +763,6 @@ export default function RadioScreenPage() {
           </div>
 
           <div className="radio-screen-controls">
-            <button
-              className={`radio-transport-btn ${state.shuffle ? "active" : ""}`}
-              onClick={() => sendCommand("radio_set_shuffle", { on: !state.shuffle })}
-              title={t("radioRemote.shuffleLabel")}
-            >
-              <Icon name="shuffle" size={20} />
-            </button>
             <button className="radio-transport-btn" onClick={() => sendCommand("radio_previous_track")} title={t("radioRemote.previousTrack")}>
               <Icon name="skip_previous" size={22} filled />
             </button>
@@ -787,21 +771,6 @@ export default function RadioScreenPage() {
             </button>
             <button className="radio-transport-btn" onClick={() => sendCommand("radio_next_track")} title={t("radioRemote.nextTrack")}>
               <Icon name="skip_next" size={22} filled />
-            </button>
-            <button
-              className={`radio-transport-btn ${state.repeat !== "off" ? "active" : ""}`}
-              onClick={handleRepeatCycle}
-              title={repeatLabel}
-            >
-              <Icon name={state.repeat === "track" ? "repeat_one" : "repeat"} size={20} />
-            </button>
-            <button
-              className="radio-transport-btn"
-              onClick={handlePlayAnnouncement}
-              disabled={!!state.current_announcement}
-              title={t("radioAnnouncements.playNow")}
-            >
-              <Icon name="campaign" size={20} />
             </button>
           </div>
 
