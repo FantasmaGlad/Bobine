@@ -370,6 +370,55 @@ jobs:
       - name: Tests
         run: cargo test --locked
 
+  media-component:
+    # Composant natif d'inspection audio (bobine-media), opt-in et sans effet sur les paquets :
+    # compilé et testé sur chaque plateforme desktop avant tout embarquement. Ce job ne valide ni
+    # l'intégration dans les paquets ni un appareil ; l'Android est construit par play-aab.yml.
+    name: Media component (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # Windows ARM64 : même statut « facultatif » que le sidecar des périphériques (outillage Rust du
+    # runner non garanti) ; son résultat n'est pas une validation tant qu'il n'a pas tourné.
+    continue-on-error: ${{ matrix.experimental == true }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
+        include:
+          - os: windows-11-arm
+            experimental: true
+    defaults:
+      run:
+        shell: bash
+        working-directory: media
+    env:
+      CARGO_NET_RETRY: "10"
+      CARGO_HTTP_TIMEOUT: "60"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            media/target
+          key: cargo-media-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('media/Cargo.toml', 'media/Cargo.lock') }}
+      - name: Format et Clippy
+        run: |
+          rustup component add clippy rustfmt
+          cargo fmt --check
+          cargo clippy --locked --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --locked
+      - name: Licences des dépendances embarquées
+        if: runner.os == 'Linux' && runner.arch == 'X64'
+        working-directory: .
+        run: python3 scripts/ci/check-media-licenses.py
+      - name: Compiler et relever la taille
+        run: |
+          cargo build --release --locked
+          ls target/release/bobine-media* | grep -v '\.d$' | xargs wc -c
+
   android-build:
     # Compile et signe les APK Android (Chaquopy + FastAPI embarqué + binaires FFmpeg ARM).
     # Téléphone/tablette : arm64-v8a (Python 3.13). Android TV : armeabi-v7a +
@@ -994,7 +1043,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [version, frontend, firefox-smoke, backend, devices-sidecar, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build]
+    needs: [version, frontend, firefox-smoke, backend, devices-sidecar, media-component, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build]
     runs-on: ubuntu-latest
     steps:
       - name: Tous les contrôles sont verts
