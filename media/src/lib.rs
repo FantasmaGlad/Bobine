@@ -1,5 +1,13 @@
 //! Experimental, read-only media inspection over bounded JSON-RPC lines.
+mod aiff;
 mod audio;
+mod flac;
+mod image;
+mod mp3;
+mod mp4;
+mod ogg;
+mod vorbis;
+mod wav;
 
 use serde::Deserialize;
 use serde_json::{json, value::RawValue, Value};
@@ -91,7 +99,7 @@ pub fn dispatch(raw: &[u8]) -> Value {
                 "protocol_version":1,
                 "binary_version":env!("CARGO_PKG_VERSION"),
                 "profiles":["radio-v1","course-duration-v1"],
-                "formats":["mp3","flac","wav"],
+                "formats":audio::FORMATS,
                 "capabilities":{"probe_audio":true,"extract_cover":true,"experimental":true},
                 "limits":{"request_bytes":REQUEST_BYTES,"response_bytes":RESPONSE_BYTES,"cover_bytes":COVER_BYTES}
             }))

@@ -7,6 +7,7 @@ import logging
 import os
 from pathlib import Path
 import statistics
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -37,6 +38,10 @@ def capture(corpus, output, repeats):
         logging.getLogger("app.utils.audio_utils").setLevel(logging.CRITICAL)
         logging.getLogger("app.utils.radio_utils").setLevel(logging.CRITICAL)
         results = []
+        # Final JPEGs of the reference pipeline (ffmpeg, then Pillow) next to the report: the native
+        # cover pipeline is judged against them by compare.py without running ffmpeg a second time.
+        reference_covers = output.parent / "reference-covers"
+        reference_covers.mkdir(exist_ok=True)
         for entry in manifest["entries"]:
             path = (corpus / entry["path"]).resolve()
             if corpus not in path.parents:
@@ -64,6 +69,7 @@ def capture(corpus, output, repeats):
                 with Image.open(cover) as image:
                     observation["cover"].update({"format": image.format, "mode": image.mode, "size": list(image.size)})
                 observation["cover"]["sha256"] = hashlib.sha256(Path(cover).read_bytes()).hexdigest()
+                shutil.copyfile(cover, reference_covers / f"{entry['id']}.jpg")
             probe = subprocess.run([FFPROBE_BIN, "-v", "error", "-show_format", "-show_streams", "-of", "json", str(path)],
                                    capture_output=True, text=True, timeout=30)
             raw = json.loads(probe.stdout) if probe.returncode == 0 else None
