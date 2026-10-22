@@ -22,6 +22,8 @@ import threading
 import time
 from typing import Any, Sequence
 
+from app.utils import media_native
+
 logger = logging.getLogger(__name__)
 PROTOCOL_VERSION = 1
 MAX_REQUEST_BYTES = 64 * 1024
@@ -58,6 +60,7 @@ class _Generation:
     shutdown_lock: threading.Lock = field(default_factory=threading.Lock)
     threads: list[threading.Thread] = field(default_factory=list)
     formats: frozenset[str] = field(default_factory=frozenset)
+    version: str = ""
 
 
 def _valid_path(path: os.PathLike | str) -> str | None:
@@ -266,7 +269,9 @@ class MediaClient:
         reader.start()
         _remaining(deadline)
         try:
-            generation.formats = self._hello(self._exchange(generation, "hello", {}, deadline))
+            hello = self._exchange(generation, "hello", {}, deadline)
+            generation.formats = self._hello(hello)
+            generation.version = hello["binary_version"]
         except _NativeFailure as exc:
             # A business refusal before identification never authorizes reuse.
             raise _Failure("handshake") from exc
@@ -351,14 +356,17 @@ class MediaClient:
             raise _Failure("handshake")
         return frozenset(formats)
 
-    def _call(self, method: str, path: os.PathLike | str, profile: str | None, validate):
-        if (self._enabled if self._enabled is not None else os.environ.get("BOBINE_MEDIA_NATIVE") == "1") is not True:
-            self.last_failure = "disabled"
-            return None
-        valid = _valid_path(path)
-        if valid is None:
-            self.last_failure = "path"
-            return None
+    def _is_enabled(self) -> bool:
+        # An explicit constructor flag (tests, comparison bench) wins; otherwise the
+        # environment override and the persisted setting decide (see media_native).
+        return (self._enabled if self._enabled is not None else media_native.is_enabled()) is True
+
+    def _run(self, action):
+        """Run `action(generation, deadline)` on the single child, starting it if needed.
+
+        Every failure is recorded in `last_failure` and answered with None: the caller then
+        takes the historical path. A transport failure also discards the child.
+        """
         deadline = time.monotonic() + self.timeout
         if not self._serial.acquire(timeout=max(0.0, deadline - time.monotonic())):
             self.last_failure = "timeout"
@@ -374,10 +382,7 @@ class MediaClient:
                 generation = None
             if generation is None:
                 generation = self._spawn(deadline)
-            params = {"path": valid}
-            if profile is not None:
-                params["profile"] = profile
-            result = validate(self._exchange(generation, method, params, deadline))
+            result = action(generation, deadline)
             _remaining(deadline)
             self.last_failure = None
             return result
@@ -398,6 +403,34 @@ class MediaClient:
             return None
         finally:
             self._serial.release()
+
+    def _call(self, method: str, path: os.PathLike | str, profile: str | None, validate):
+        if not self._is_enabled():
+            self.last_failure = "disabled"
+            return None
+        valid = _valid_path(path)
+        if valid is None:
+            self.last_failure = "path"
+            return None
+
+        def action(generation: _Generation, deadline: float):
+            params = {"path": valid}
+            if profile is not None:
+                params["profile"] = profile
+            return validate(self._exchange(generation, method, params, deadline))
+
+        return self._run(action)
+
+    def check(self) -> dict | None:
+        """Start the component if needed and report what it announced, or None.
+
+        The settings page uses it to show the real state: it shares the child that imports
+        use, so a successful check costs one process start at most.
+        """
+        if not self._is_enabled():
+            self.last_failure = "disabled"
+            return None
+        return self._run(lambda generation, _deadline: {"binary_version": generation.version, "formats": sorted(generation.formats)})
 
     def probe_audio(self, path: os.PathLike | str, profile: str = "radio-v1") -> dict | None:
         if not isinstance(profile, str) or profile not in PROFILES:

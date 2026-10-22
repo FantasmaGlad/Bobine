@@ -186,8 +186,9 @@ def start_server_once(external_files_dir=None, native_library_dir=None, internal
                 _os.environ["BOBINE_FFMPEG_BIN"] = ffmpeg_path
             if _os.path.exists(ffprobe_path):
                 _os.environ["BOBINE_FFPROBE_BIN"] = ffprobe_path
-            # Discovery does not enable the experimental metadata path. The
-            # caller must still opt in with BOBINE_MEDIA_NATIVE=1.
+            # Discovery does not enable the experimental metadata path: the
+            # `media_native` setting (Réglages) does, since Android cannot set
+            # an environment variable. This only makes the executable reachable.
             if _os.path.isfile(media_path) and _os.access(media_path, _os.X_OK):
                 _os.environ["BOBINE_MEDIA_BIN"] = media_path
 

@@ -27,6 +27,7 @@ from fastapi import (
 )
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.config import (
     ROOT_DIR,
@@ -46,6 +47,7 @@ from app.utils.display_state import (
     effective_wired_display_mode,
     get_hardware_state,
 )
+from app.utils import media_native
 from app.utils.hardware_info import (
     get_storage_model,
     get_system_telemetry_payload,
@@ -86,7 +88,7 @@ _WRITABLE_NUMERIC_FIELDS = {
 _WRITABLE_STRING_FIELDS = {
     "theme", "language", "active_logo", "update_channel", "wired_display_mode",
     "display_mode_setting", "auto_update_enabled", "auto_update_time",
-    "auto_web_rendition",
+    "auto_web_rendition", "media_native",
 }
 _DEFAULTS = {
     # "lavande" : thème clair par défaut (nacre irisée et améthyste profonde).
@@ -117,6 +119,11 @@ _DEFAULTS = {
     # première lecture depuis un navigateur incapable de décoder l'original la
     # déclenche automatiquement (cf. main.py::stream_video).
     "auto_web_rendition": "false",
+    # Composant audio natif (expérimental) : désactivé par défaut. Il n'accélère que de
+    # nouveaux imports et n'altère aucune donnée existante ; tout échec retombe sur
+    # ffprobe/ffmpeg. La variable d'environnement BOBINE_MEDIA_NATIVE (1/0) reste un
+    # forçage prioritaire (cf. app/utils/media_native.py).
+    "media_native": media_native.DEFAULT_VALUE,
 }
 _AUTO_UPDATE_TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _LOGO_FILENAME = "logo.png"
@@ -171,6 +178,7 @@ class SettingsUpdate(BaseModel):
     auto_update_enabled: str | None = None
     auto_update_time: str | None = None
     auto_web_rendition: str | None = None
+    media_native: str | None = None
 
 
 def _get_db_value(db: Session, key: str) -> str | None:
@@ -297,6 +305,9 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "auto_update_enabled": auto_update_enabled,
         "auto_update_time": auto_update_time,
         "auto_web_rendition": _get_db_value(db, "auto_web_rendition") or _DEFAULTS["auto_web_rendition"],
+        # Composant audio natif : réglage persisté ("true"/"false") ; l'état réel (actif, repli,
+        # absent) et le forçage par l'environnement sont lus par GET /api/settings/media-native.
+        "media_native": "true" if media_native.parse_setting(_get_db_value(db, "media_native")) else "false",
         # Aide à la découverte réseau, en complément de bobine.local (avahi, cf. install.sh).
         "network": {
             "local_ip": _get_local_ip(),
@@ -524,6 +535,16 @@ def purge_logs_manual(retention_days: int | None = None, db: Session = Depends(g
 
 
 
+@router.get("/media-native")
+async def get_media_native_status() -> dict[str, Any]:
+    """État réel du composant audio natif : désactivé, actif, en repli ou absent.
+
+    Le contrôle lance le composant s'il est activé et ne l'est pas encore (au plus un
+    processus, celui que les imports utilisent) : il tourne hors de la boucle d'évènements.
+    """
+    return await run_in_threadpool(media_native.status)
+
+
 @router.put("")
 async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)) -> dict[str, Any]:
     # `.model_dump` (Pydantic v2) sauf sur le profil Android où `.dict` (v1)
@@ -584,6 +605,8 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
                 raise HTTPException(status_code=400, detail="auto_update_enabled invalide (attendu 'true' ou 'false')")
             if key == "auto_web_rendition" and value not in ("true", "false"):
                 raise HTTPException(status_code=400, detail="auto_web_rendition invalide (attendu 'true' ou 'false')")
+            if key == "media_native" and value not in ("true", "false"):
+                raise HTTPException(status_code=400, detail="media_native invalide (attendu 'true' ou 'false')")
             if key == "auto_update_time" and not _AUTO_UPDATE_TIME_RE.match(value):
                 raise HTTPException(status_code=400, detail="Heure de mise à jour automatique invalide (attendu 'HH:MM')")
 
@@ -603,6 +626,11 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
     db.commit()
     logger.info(f"Paramètres mis à jour : {updates}")
     result = get_settings(db)
+
+    if "media_native" in updates:
+        # Effet immédiat sur les prochains imports ; les imports en cours finissent avec le mode
+        # qu'ils ont commencé (aucun média n'est jamais perdu : repli sur ffprobe/ffmpeg).
+        media_native.configure(result["media_native"])
 
     if "auto_update_enabled" in updates or "auto_update_time" in updates:
         # Import différé : `scheduler_manager` importe déjà plusieurs

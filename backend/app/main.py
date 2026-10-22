@@ -44,6 +44,8 @@ from app.utils.media_response import build_media_response
 from app.utils.web_profile import choose_rendition, client_can_decode, parse_accept
 from app.utils.web_rendition import request_web_rendition
 from app.utils.radio_utils import content_type_for
+from app.utils import media_native
+from app.utils.media_sidecar import close_current_media_client
 from app.utils.update_orchestrator import load_persisted_state_at_startup
 from app.utils.version import get_app_version
 from app.scheduler_manager import (
@@ -140,6 +142,8 @@ async def lifespan(app: FastAPI):
     # démarrage de lecture pour que le premier état diffusé les contienne.
     with SessionLocal() as sound_db:
         load_all_sounds_into_managers(sound_db)
+        # Réglage du composant audio natif (désactivé par défaut) : lu avant tout import.
+        media_native.load_from_database(sound_db)
     await autostart_default_radio_playlist()
     for playback_manager in get_all_playback_managers().values():
         playback_manager.start_position_broadcast_loop()
@@ -163,6 +167,7 @@ async def lifespan(app: FastAPI):
     await stop_radio_announcement_scheduler()
     await devices_service.stop()
     stop_mdns_responder()
+    close_current_media_client()
 
 
 app = FastAPI(title="Bobine", version=get_app_version(), lifespan=lifespan)

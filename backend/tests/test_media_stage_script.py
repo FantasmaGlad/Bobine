@@ -21,7 +21,7 @@ def stage():
 @pytest.mark.skipif(not BINARY.is_file(), reason="native release binary has not been built")
 def test_real_binary_answers_hello_and_exits_on_eof(stage):
     result = stage.smoke(BINARY)
-    assert result["protocol_version"] == 1 and result["formats"] == ["mp3", "flac", "wav"]
+    assert result["protocol_version"] == 1 and result["formats"] == ["mp3", "flac", "wav", "m4a", "ogg", "opus", "aiff", "aif"]
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell stand-ins")
