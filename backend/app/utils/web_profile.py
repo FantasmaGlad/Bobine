@@ -63,10 +63,6 @@ def web_playback_issues(
     return issues
 
 
-def is_web_safe(issues: list[str]) -> bool:
-    return not issues
-
-
 def client_can_decode(issues: list[str], accept: set[str]) -> bool:
     """Vrai si un client ayant annoncé `accept` sait décoder le fichier.
     Les raisons `perf:*` ne comptent pas (cf. `web_playback_issues`)."""

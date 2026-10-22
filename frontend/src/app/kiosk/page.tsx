@@ -210,15 +210,10 @@ export default function KioskPage() {
 
   const handleEvent = useCallback(
     (evt: PlaybackEvent) => {
-      const { cause, data, client_ts } = evt;
+      const { cause, data } = evt;
       const video = videoRef.current;
       const bgVideo = bgVideoRef.current;
       const audio = audioRef.current;
-
-      if (client_ts) {
-        // Instrumentation de latence commande -> effet écran (cible < 500 ms).
-        console.log(`[latence] ${cause} appliqué en ${Date.now() - client_ts} ms`);
-      }
 
       const currentTrack =
         data.audio_tracks && data.audio_track_index !== null && data.audio_track_index !== undefined

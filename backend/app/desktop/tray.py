@@ -542,21 +542,6 @@ def _acquire_single_instance_lock() -> bool:
     return True
 
 
-def _open_browser_when_ready(open_fn, label: str, timeout_seconds: float = 20.0) -> None:
-    """Attend que le backend réponde, puis déclenche `open_fn` (ouverture d'une
-    URL classique via `webbrowser.open`, ou lancement du kiosque via
-    `launch_kiosk_browser`, qui a besoin de flags dédiés par OS)."""
-    deadline = time.time() + timeout_seconds
-    while time.time() < deadline:
-        if is_backend_running():
-            logger.info(f"Backend prêt — ouverture de {label}")
-            open_fn()
-            return
-        time.sleep(0.5)
-    logger.warning(f"Délai d'attente du backend dépassé — tentative d'ouverture de {label}")
-    open_fn()
-
-
 # État de la dernière vérification de mise à jour, lu par le libellé
 # dynamique de l'item de menu (cf. `update_menu_text` dans `run()`) et écrit
 # uniquement par `_check_for_update_once()` — un verrou suffit, la fréquence

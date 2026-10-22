@@ -92,16 +92,6 @@ def get_app_tag() -> str:
     return f"V{get_app_version()}"
 
 
-def is_prerelease_version(version: str | None = None) -> bool:
-    """Vrai si la version porte un suffixe de pré-release ("4.0.3-beta") —
-    marque d'un build des canaux Bêta/Canary (la CI écrit `<base>-beta`/`<base>-canary` dans VERSION,
-    cf. ci.yml, étape "Identifiants de build"). Sert à distinguer un build
-    Bêta d'une Stable de MÊME numéro de base : sans ça, repasser en Stable
-    depuis "4.0.2-beta" n'était jamais proposé (même base que la Stable)."""
-    candidate = (version if version is not None else get_app_version()).strip().lstrip("vV")
-    return "-" in candidate or "~" in candidate
-
-
 def rolling_channel_of_version(version: str | None = None) -> str | None:
     """Canal rolling ("beta" ou "canary") dont un build packagé porte le
     suffixe de version ("5.0.0-canary", "5.0.0~beta"), ou None pour une

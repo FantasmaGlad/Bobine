@@ -32,10 +32,6 @@ class RadioPlaylistInput(BaseModel):
     track_ids: List[int] = []
 
 
-class RadioPlaylistRename(BaseModel):
-    name: str
-
-
 class AddTrackInput(BaseModel):
     track_id: int
 

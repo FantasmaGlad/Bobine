@@ -15,7 +15,6 @@ sensible à la latence.
 
 import os
 import threading
-import time
 
 
 class _Event:

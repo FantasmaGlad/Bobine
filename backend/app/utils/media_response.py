@@ -21,7 +21,6 @@ Comportements couverts (testés dans backend/tests/test_media_response.py) :
 - `X-Content-Type-Options: nosniff` : le type annoncé fait foi.
 """
 
-import sys
 from email.utils import formatdate, parsedate_to_datetime
 from pathlib import Path
 from typing import Mapping

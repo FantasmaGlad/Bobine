@@ -5,7 +5,7 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { videoStreamUrl } from "@/lib/clientCodecSupport";
 import WebRenditionPanel from "@/components/WebRenditionPanel";
 import { useUploadManager, PendingUploadSpec } from "@/lib/UploadManager";
-import { VIDEO_ACCEPT, SUBTITLE_ACCEPT, partitionVideoFiles } from "@/lib/mediaFiles";
+import { VIDEO_ACCEPT, partitionVideoFiles } from "@/lib/mediaFiles";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { parseMediaName } from "@/lib/parseMediaName";
 import Icon from "@/components/Icon";
