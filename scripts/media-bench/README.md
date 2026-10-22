@@ -166,3 +166,31 @@ incluent le client réel ; la première requête comprend le démarrage et
 l’identification du processus. Ce sont des mesures locales, sans contrôle du
 cache ni import complet. Une comparaison sans divergence sur une partie du
 corpus ne certifie pas les formats dont l’analyse déclenche un repli.
+
+## Mesurer un import complet (B1.5)
+
+`import_bench.py` importe le même corpus par les vrais importeurs (radio ou cours audio)
+dans un processus Python neuf, avec un dossier de données et une base SQLite jetables et
+une copie du corpus (les importeurs déplacent les fichiers), une fois par mode
+(`reference` : ffprobe/ffmpeg ; `native` : `BOBINE_MEDIA_NATIVE=1` avec le binaire
+indiqué), plusieurs répétitions en alternant l'ordre des modes, cache « warm » et « cold ».
+
+```bash
+backend/.venv/bin/python scripts/media-bench/import_bench.py /var/tmp/bobine-corpus-large \
+  --binary media/target/release/bobine-media --output /var/tmp/bobine-corpus-large/import-bench.json --repeats 3
+backend/.venv/bin/python scripts/media-bench/import_bench.py /var/tmp/bobine-corpus-large \
+  --binary media/target/release/bobine-media --output /var/tmp/bobine-corpus-large/import-bench-course.json \
+  --kind course --cache warm
+```
+
+Le rapport donne, par mode et par état de cache : durée, CPU (processus et sous-processus
+terminés, composant natif compris), mémoire maximale (plus gros processus, somme de
+l'arbre, PSS sur Linux), nombre maximal de processus, octets écrits, appels au chemin de
+référence, et **compare les lignes importées des deux modes** (champs, durée à 50 ms,
+empreintes des pochettes). Le code de sortie est non nul s'il existe une différence.
+
+Limites : mesures de la machine qui exécute le script, jamais d'un appareil ; le cache
+« cold » est un `posix_fadvise` au mieux, sans droits root, et sans effet hors Linux ; ni
+annulation ni lecture simultanée ne sont exercées ; les fichiers que le composant refuse
+passent par le chemin de référence et coûtent les deux. L'importeur radio transcode les
+formats non lisibles par un navigateur (WMA, AIFF) avec ffmpeg quel que soit le mode.
