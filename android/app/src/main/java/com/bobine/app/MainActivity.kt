@@ -387,20 +387,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        // Télécommande Android TV uniquement : sur téléphone et tablette, volume et Retour gardent leur
-        // comportement système. Le volume est réglé par l'interface Bobine (jauge latérale) ; le consommer ici
-        // évite aussi l'incrustation de volume du téléviseur par-dessus.
+        // Télécommande Android TV uniquement : sur téléphone et tablette, Retour garde son comportement système.
+        // Le volume reste au téléviseur : certains (Xiaomi) le règlent et affichent leur jauge avant même que
+        // l'application voie la touche, donc la consommer ou la relayer ici réglait le son deux fois.
         if (isTv) {
-            val webKey = when (event.keyCode) {
-                KeyEvent.KEYCODE_VOLUME_UP -> "AudioVolumeUp"
-                KeyEvent.KEYCODE_VOLUME_DOWN -> "AudioVolumeDown"
-                KeyEvent.KEYCODE_VOLUME_MUTE -> "AudioVolumeMute"
-                else -> null
-            }
-            if (webKey != null) {
-                if (event.action == KeyEvent.ACTION_DOWN) relayKeyToWeb(webKey, event.keyCode, toPresentation = true)
-                return true
-            }
             // Retour : la WebView n'a pas d'historique dans une application à page unique ; l'évènement
             // `Escape` laisse l'interface (modale, grille, veille) décider de la suite.
             if (event.keyCode == KeyEvent.KEYCODE_BACK) {
