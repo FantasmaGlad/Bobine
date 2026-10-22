@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Icon from "@/components/Icon";
 import { claimPairingCode, generatePairingCode, getPairingStatus, verifyPairingCode } from "@/lib/devicesApi";
 import { useAppSettings } from "@/lib/AppSettingsContext";
@@ -71,7 +72,7 @@ export function PairingCodeDisplay({ t }: { t: SectionProps["t"] }) {
         <Icon name="key" size={16} /> {t(code ? "devices.access.pairingRegenerate" : "devices.access.pairingGenerate")}
       </button>
       {failed && <p className="settings-hint">{t("devices.access.pairingGenerateFailed")}</p>}
-      {code && (
+      {code && createPortal(
         <aside className="pairing-popup glass-floating" role="status" aria-live="polite">
           <button type="button" className="pairing-popup-close" onClick={() => setCode(null)} aria-label={t("common.close")}>
             <Icon name="close" size={16} />
@@ -79,7 +80,8 @@ export function PairingCodeDisplay({ t }: { t: SectionProps["t"] }) {
           <p className="settings-hint">{url ? t("devices.access.pairingHint", { url }) : t("devices.access.pairingHintNoUrl")}</p>
           <output className="pairing-code-value">{code.value}</output>
           <span className="pairing-code-timer">{t("devices.access.pairingExpiresIn", { time: clock(remaining) })}</span>
-        </aside>
+        </aside>,
+        document.body,
       )}
     </>
   );
