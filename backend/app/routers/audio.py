@@ -30,6 +30,8 @@ class AudioTrackResponse(BaseModel):
     background_id: int | None = None
     background_title: str | None = None
     background_is_image: bool = False
+    available: bool = True
+    external: bool = False
 
     class Config:
         from_attributes = True
@@ -45,6 +47,9 @@ class AudioCourseResponse(BaseModel):
     background_thumbnail_path: str | None = None
     track_count: int
     total_duration_seconds: float
+    available: bool = True
+    partially_available: bool = False
+    external: bool = False
 
     class Config:
         from_attributes = True
@@ -90,6 +95,7 @@ class AudioTrackWithCourseResponse(BaseModel):
     background_id: int | None = None
     background_title: str | None = None
     background_is_image: bool = False
+    available: bool = True
 
 
 class AudioTrackUpdate(BaseModel):
@@ -109,6 +115,9 @@ def _to_summary(course: AudioCourse) -> dict:
         "background_thumbnail_path": course.background_thumbnail_path,
         "track_count": len(course.tracks),
         "total_duration_seconds": sum(t.duration_seconds or 0.0 for t in course.tracks),
+        "available": course.available,
+        "partially_available": course.partially_available,
+        "external": course.external,
     }
 
 
@@ -151,6 +160,7 @@ def list_all_tracks(db: Session = Depends(get_db)):
             "course_id": t.course.id,
             "course_title": t.course.title,
             "course_program": t.course.program,
+            "available": t.available,
             "background_id": t.background_id,
             "background_title": t.background_title,
             "background_is_image": t.background_is_image,
@@ -355,7 +365,8 @@ def delete_audio_course(course_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Cours audio non trouvé")
 
     for track in course.tracks:
-        if track.file_path:
+        # Jamais de suppression de fichier sur un support externe : le cours quitte la bibliothèque, pas le support.
+        if track.file_path and track.storage_id is None:
             p = Path(track.file_path)
             if p.exists():
                 try:

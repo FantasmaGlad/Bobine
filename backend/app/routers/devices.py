@@ -31,6 +31,12 @@ router = APIRouter(prefix="/api/devices", tags=["devices"])
 
 T = TypeVar("T")
 
+# Préfixes d'API qui partagent la session PIN : périphériques et stockage externe (app/routers/storage.py).
+SESSION_COOKIES = (
+    (security.SESSION_COOKIE, "/api/devices"),
+    (security.STORAGE_SESSION_COOKIE, "/api/storage"),
+)
+
 
 # ---------------------------------------------------------------------------
 # Réglages et accès
@@ -78,14 +84,18 @@ def _locked(seconds: int) -> HTTPException:
 
 def _grant_session(response: Response, ip: str) -> None:
     """Ouvre une session d'administration et pose son cookie."""
-    response.set_cookie(
-        security.SESSION_COOKIE,
-        security.sessions.create(ip),
-        max_age=int(security.SESSION_TTL_SECONDS),
-        httponly=True,
-        samesite="strict",
-        path="/api/devices",
-    )
+    token = security.sessions.create(ip)
+    # Même session, un cookie par préfixe d'API protégé par le même PIN : le navigateur n'envoie un cookie qu'à son
+    # chemin, et deux cookies de même nom se gêneraient (le stockage externe a donc le sien, de même valeur).
+    for name, path in SESSION_COOKIES:
+        response.set_cookie(
+            name,
+            token,
+            max_age=int(security.SESSION_TTL_SECONDS),
+            httponly=True,
+            samesite="strict",
+            path=path,
+        )
 
 
 @dataclass
@@ -102,7 +112,8 @@ def require_access(request: Request, db: Session = Depends(get_db)) -> Access:
         return Access(local=True, ip=ip)
     if not _get_setting(db, security.SETTING_PIN_HASH):
         raise _fail(403, "pin_not_set", "Définissez d'abord un code PIN depuis l'écran local de la machine pour accéder aux périphériques à distance.")
-    if not security.sessions.validate(request.cookies.get(security.SESSION_COOKIE), ip):
+    token = request.cookies.get(security.SESSION_COOKIE) or request.cookies.get(security.STORAGE_SESSION_COOKIE)
+    if not security.sessions.validate(token, ip):
         raise _fail(401, "pin_required", "Saisissez le code PIN pour accéder aux périphériques.")
     return Access(local=False, ip=ip)
 
@@ -320,8 +331,9 @@ def open_session(payload: PinRequest, request: Request, response: Response, db: 
 
 @router.delete("/session")
 def close_session(request: Request, response: Response) -> dict[str, bool]:
-    security.sessions.revoke(request.cookies.get(security.SESSION_COOKIE))
-    response.delete_cookie(security.SESSION_COOKIE, path="/api/devices")
+    security.sessions.revoke(request.cookies.get(security.SESSION_COOKIE) or request.cookies.get(security.STORAGE_SESSION_COOKIE))
+    for name, path in SESSION_COOKIES:
+        response.delete_cookie(name, path=path)
     return {"ok": True}
 
 

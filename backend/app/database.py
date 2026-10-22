@@ -129,6 +129,19 @@ def init_db():
     _migrate_backfill_audio_duration()
     _migrate_update_channel_beta_to_canary()
     _migrate_schedule_radio_channel_to_network()
+    _migrate_storage_indexes()
+
+
+def _migrate_storage_indexes():
+    """Index sur `storage_id` (remappage par support au branchement) pour les bases antérieures à la colonne."""
+    from sqlalchemy import text
+
+    if not _IS_SQLITE:
+        return
+    with engine.connect() as conn:
+        for table in ("videos", "audio_tracks", "radio_tracks"):
+            conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_storage_id ON {table}(storage_id)"))
+        conn.commit()
 
 
 def _migrate_audio_playlist_items_to_tracks():
@@ -228,6 +241,13 @@ def _migrate_add_missing_columns():
         # Sortie radio visée par une règle de rappel (les règles existantes
         # restent sur la sortie réseau, l'ancien poste radio unique).
         ("radio_announcement_rules", "target", "VARCHAR NOT NULL DEFAULT 'radio_network'"),
+        # Stockage externe : média indexé sur un support (bibliothèque externe), voir app/storage/.
+        ("videos", "storage_id", "INTEGER REFERENCES external_volumes(id)"),
+        ("videos", "rel_path", "VARCHAR"),
+        ("audio_tracks", "storage_id", "INTEGER REFERENCES external_volumes(id)"),
+        ("audio_tracks", "rel_path", "VARCHAR"),
+        ("radio_tracks", "storage_id", "INTEGER REFERENCES external_volumes(id)"),
+        ("radio_tracks", "rel_path", "VARCHAR"),
     ]
     with engine.connect() as conn:
         for table, column, ddl in wanted:

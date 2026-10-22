@@ -113,6 +113,27 @@ def wait_for_file_to_copy(file_path: str, stable_secs: int = 3, timeout: int = 3
     return False
 
 
+def parse_title_program_release(original_filename: str) -> tuple[str, str | None, str | None]:
+    """Titre propre, programme (RPM, Sprint, The Trip) et release déduits du nom d'un fichier de cours.
+    Partagé entre l'import (copie locale) et l'indexation d'un support externe (lecture directe)."""
+    import re
+
+    title = Path(original_filename).stem.replace("_", " ").replace("-", " ")
+    program = None
+    release = None
+    title_upper = title.upper()
+    if "RPM" in title_upper:
+        program = "RPM"
+    elif "SPRINT" in title_upper:
+        program = "Sprint"
+    elif "TRIP" in title_upper or "THE TRIP" in title_upper:
+        program = "The Trip"
+    match = re.search(r"\b\d{1,3}\b", title)
+    if match:
+        release = match.group(0)
+    return title, program, release
+
+
 def import_video(src_path: str, original_filename: str, source: ImportSource, job_id: str | None = None) -> Video:
     """
     Gère le flux complet d'importation d'une vidéo :
@@ -226,26 +247,8 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
         update_job(job_id, stage="saving")
         db = SessionLocal()
         try:
-            # Génération d'un titre propre à partir du nom du fichier
-            title = Path(original_filename).stem.replace("_", " ").replace("-", " ")
-            
-            # Parsing simple du programme et de la release (RPM, Sprint, The Trip)
-            program = None
-            release = None
-            title_upper = title.upper()
-            
-            if "RPM" in title_upper:
-                program = "RPM"
-            elif "SPRINT" in title_upper:
-                program = "Sprint"
-            elif "TRIP" in title_upper or "THE TRIP" in title_upper:
-                program = "The Trip"
-            
-            # Extraction d'un nombre pour la release
-            import re
-            match = re.search(r'\b\d{1,3}\b', title)
-            if match:
-                release = match.group(0)
+            # Titre propre, programme et release déduits du nom du fichier
+            title, program, release = parse_title_program_release(original_filename)
 
             video = Video(
                 file_path=str(dest_path),

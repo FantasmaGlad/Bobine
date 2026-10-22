@@ -122,6 +122,8 @@ class RadioTrackResponse(BaseModel):
     duration_seconds: float | None
     has_cover: bool
     tags: List[str]
+    available: bool = True
+    external: bool = False
 
 
 class RadioTrackUpdate(BaseModel):
@@ -159,6 +161,8 @@ def _to_track_response(track: RadioTrack) -> dict:
         "duration_seconds": track.duration_seconds,
         "has_cover": track.cover_path is not None,
         "tags": sorted(t.name for t in track.tags),
+        "available": track.available,
+        "external": track.external,
     }
 
 
@@ -356,7 +360,8 @@ def delete_track(track_id: int, db: Session = Depends(get_db)):
     if not track:
         raise HTTPException(status_code=404, detail="Morceau non trouvé")
 
-    file_path = track.file_path
+    # Un morceau d'un support externe n'est retiré que de la bibliothèque : le fichier du support reste intact.
+    file_path = track.file_path if track.storage_id is None else None
     cover_path = track.cover_path
     # FK non appliquées par SQLite ici (cf. database.py) : on retire à la main
     # les items de playlist et les liens de tags référençant ce morceau.

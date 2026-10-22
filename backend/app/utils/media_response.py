@@ -150,14 +150,18 @@ async def build_media_response(
     async def body():
         # aiofiles : lecture disque non bloquante, la boucle d'évènements
         # reste disponible pour les autres requêtes pendant la diffusion.
-        async with aiofiles.open(file_path, "rb") as f:
-            await f.seek(start)
-            remaining = length
-            while remaining > 0:
-                chunk = await f.read(min(_READ_BLOCK_SIZE, remaining))
-                if not chunk:
-                    break
-                remaining -= len(chunk)
-                yield chunk
+        try:
+            async with aiofiles.open(file_path, "rb") as f:
+                await f.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = await f.read(min(_READ_BLOCK_SIZE, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+        except OSError:
+            # Support amovible arraché en pleine lecture (EIO/ENODEV) : la réponse s'arrête net, sans 500 ni trace bruyante.
+            return
 
     return StreamingResponse(body(), status_code=status, headers=headers)

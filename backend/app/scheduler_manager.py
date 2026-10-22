@@ -303,6 +303,8 @@ def radio_track_dict(track) -> dict:
         "genre": track.genre,
         "duration_seconds": track.duration_seconds,
         "cover_url": f"/radio/tracks/{track.id}/cover" if track.cover_path else None,
+        # Support externe : permet au moteur de sauter un morceau dont le support est débranché (registre en mémoire).
+        "storage_id": getattr(track, "storage_id", None),
     }
 
 
@@ -484,6 +486,19 @@ async def _revert_radio_to_default(db: Session, radio_channel: str = DEFAULT_RAD
         await get_radio_manager(radio_channel).stop()
 
 
+def _scheduled_target_unavailable(db: Session, target_type: ScheduleTargetType, target_id: int) -> bool:
+    """Vrai si la cible vidéo/playlist d'une programmation n'a AUCUN média lisible (support externe absent)."""
+    if target_type == ScheduleTargetType.video:
+        video = db.query(Video).filter(Video.id == target_id).first()
+        return video is not None and not video.available
+    if target_type == ScheduleTargetType.playlist:
+        playlist = db.query(Playlist).filter(Playlist.id == target_id).first()
+        if playlist is None or not playlist.items:
+            return False
+        return not any(item.video.available for item in playlist.items if item.video)
+    return False
+
+
 async def _launch_target(
     db: Session, target_type: ScheduleTargetType, target_id: int, channel: str = "cable"
 ) -> None:
@@ -515,6 +530,14 @@ async def _launch_target(
 
     manager = get_playback_manager(channel)
     current = manager.snapshot()
+
+    # Média sur un support externe débranché : on ne lance rien et on n'interrompt SURTOUT pas la lecture en cours.
+    if _scheduled_target_unavailable(db, target_type, target_id):
+        logger.warning(f"Programmation ({target_type.value} {target_id}) non lancée : support externe indisponible")
+        from app.utils.activity_log import log_activity
+
+        log_activity(db, "schedule_media_unavailable", f"{target_type.value} {target_id}")
+        return
 
     # Priorité au mode audio coach : contrairement au canal câblé, la
     # programmation n'est PAS prioritaire ici. Le coach anime un cours en
@@ -627,8 +650,10 @@ async def _launch_target(
                 "bitrate_kbps": item.video.bitrate_kbps,
                 "width": item.video.width,
                 "height": item.video.height,
+                "storage_id": item.video.storage_id,
             }
             for item in sorted_items
+            if item.video.available  # les médias d'un support débranché sont sautés
         ]
         await manager.load_playlist(playlist.id, playlist.name, items_data, scheduled=True)
 

@@ -28,7 +28,7 @@ from app.radio_manager import get_all_radio_managers
 from app.routers import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,
     radio, radio_playlists, radio_announcements, settings as settings_router, logs, import_jobs,
-    updates, metrics, display, uploads, chapters, devices, diagnostics,
+    updates, metrics, display, uploads, chapters, devices, diagnostics, storage,
 )
 from app.utils.android_runtime import is_android
 from app.utils.http_compression import (
@@ -62,6 +62,8 @@ from app.utils.radio_sound import load_all_sounds_into_managers
 from app.utils.watcher import start_watcher, stop_watcher
 from app.utils.ws_manager import manager as ws_manager
 from app.devices.service import service as devices_service
+from app.storage import availability as storage_availability
+from app.storage.service import service as storage_service
 
 # Profil Android : détecté une
 # fois au chargement du module, réutilisé par `health()` et par chaque
@@ -131,6 +133,9 @@ async def lifespan(app: FastAPI):
     # pas fini de démarrer, donc tout fichier orphelin trouvé ici provient
     # forcément d'un arrêt brutal du service lors d'une exécution précédente.
     reconcile_orphaned_media()
+    # Stockage externe : AVANT le watcher, le scheduler et la radio — tout média d'un support passe d'abord en
+    # « indisponible » (chemins d'attente), puis le premier instantané remappe les supports présents (≤ 10 s).
+    await storage_service.start()
     start_watcher()
     start_scheduler()
     # Best-effort, no-op sur l'appliance headless (avahi s'en charge déjà) —
@@ -165,6 +170,7 @@ async def lifespan(app: FastAPI):
         radio_manager.stop_position_broadcast_loop()
     await stop_radio_announcement_scheduler()
     await devices_service.stop()
+    await storage_service.stop()
     stop_mdns_responder()
     close_current_media_client()
 
@@ -207,6 +213,7 @@ app.include_router(diagnostics.router)
 app.include_router(updates.router)
 app.include_router(metrics.router)
 app.include_router(devices.router)
+app.include_router(storage.router)
 
 
 _KIOSK_PROCESS_NAMES = ("chromium", "chromium-browser", "chrome", "msedge", "google chrome")
@@ -287,12 +294,35 @@ def get_server_time():
     return {"server_ts": int(time.time() * 1000)}
 
 
-async def _range_stream_response(file_path: Path, request: Request, content_type: str) -> Response:
+def _storage_unavailable() -> HTTPException:
+    """503 structuré : le média est sur un support externe débranché (jamais une 500, jamais un 404 trompeur)."""
+    return HTTPException(
+        status_code=503,
+        detail={"code": "storage_unavailable", "message": "Ce média est sur un support externe actuellement débranché : rebranchez-le ou importez le média."},
+        headers={"Retry-After": "5"},
+    )
+
+
+async def _range_stream_response(
+    file_path: Path, request: Request, content_type: str, storage_id: int | None = None
+) -> Response:
     """Sert un fichier média avec support HTTP Range complet, en GET comme en
     HEAD — voir `app/utils/media_response.py` (RFC 9110 : plages, If-Range,
     ETag, 416). Partagé par tous les flux média (vidéos, fonds animés, pistes
-    audio, pochettes)."""
-    return await build_media_response(file_path, request.headers, request.method, content_type)
+    audio, pochettes). `storage_id` : média posé sur un support externe — hors
+    ligne ou disparu en cours de route, la réponse est un 503 clair."""
+    if storage_id is None:
+        return await build_media_response(file_path, request.headers, request.method, content_type)
+    if not storage_availability.is_online(storage_id):
+        raise _storage_unavailable()
+    storage_service.touch_storage(storage_id)
+    try:
+        return await build_media_response(file_path, request.headers, request.method, content_type)
+    except HTTPException as exc:
+        if exc.status_code == 404:  # fichier disparu alors que le support est « en ligne » : retrait brutal probable
+            storage_service.request_refresh()
+            raise _storage_unavailable() from exc
+        raise
 
 
 @app.api_route("/api/videos/{video_id}/stream", methods=["GET", "HEAD"])
@@ -327,7 +357,8 @@ async def stream_video(
             await run_in_threadpool(request_web_rendition, video.id)
 
     path = Path(video.web_path) if rendition == "web" else Path(video.file_path)
-    response = await _range_stream_response(path, request, "video/mp4")
+    # Version web = fichier INTERNE : lisible même support débranché ; l'original dépend du support.
+    response = await _range_stream_response(path, request, "video/mp4", video.storage_id if rendition != "web" else None)
     response.headers["X-Bobine-Rendition"] = rendition
     return response
 
@@ -387,7 +418,7 @@ async def stream_audio_track(
     track = await run_in_threadpool(lambda: db.query(AudioTrack).filter(AudioTrack.id == track_id).first())
     if not track:
         raise HTTPException(status_code=404, detail="Piste audio non trouvée")
-    return await _range_stream_response(Path(track.file_path), request, "audio/mpeg")
+    return await _range_stream_response(Path(track.file_path), request, content_type_for(track.file_path), track.storage_id)
 
 
 @app.api_route("/api/radio/tracks/{track_id}/stream", methods=["GET", "HEAD"])
@@ -401,7 +432,7 @@ async def stream_radio_track(
     track = await run_in_threadpool(lambda: db.query(RadioTrack).filter(RadioTrack.id == track_id).first())
     if not track:
         raise HTTPException(status_code=404, detail="Morceau non trouvé")
-    return await _range_stream_response(Path(track.file_path), request, content_type_for(track.file_path))
+    return await _range_stream_response(Path(track.file_path), request, content_type_for(track.file_path), track.storage_id)
 
 
 @app.api_route("/api/radio/tracks/{track_id}/cover", methods=["GET", "HEAD"])
