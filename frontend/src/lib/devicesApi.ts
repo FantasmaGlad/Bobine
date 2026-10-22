@@ -225,6 +225,11 @@ export async function generatePairingCode(): Promise<ApiResult<PairingCode>> {
   return devicesRequest<PairingCode>("/pairing/generate", { method: "POST" });
 }
 
+/** Dit tout de suite si le code saisi est le bon (sans le consommer) : l'erreur s'affiche avant le choix du PIN. */
+export async function verifyPairingCode(code: string): Promise<ApiResult<{ ok: boolean }>> {
+  return devicesRequest("/pairing/verify", { method: "POST", body: { code } });
+}
+
 export async function claimPairingCode(code: string, pin: string): Promise<ApiResult<{ ok: boolean; pin_set: boolean; enabled: boolean; session_minutes: number }>> {
   return devicesRequest("/pairing/claim", { method: "POST", body: { code, pin } });
 }

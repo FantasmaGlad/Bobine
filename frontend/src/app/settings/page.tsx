@@ -13,6 +13,7 @@ import ImportDiagnosticsPanel from "@/components/ImportDiagnosticsPanel";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { copyText } from "@/lib/clipboard";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
+import { loadMode, saveMode, type GlassMode } from "@/lib/glassQuality";
 
 // Profil de déploiement — détermine si
 // la zone Désinstaller propose une action directe (appliance headless) ou de
@@ -191,6 +192,11 @@ export default function SettingsPage() {
     wiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount,
   } = useAppSettings();
   const isMobile = useIsMobile();
+  const [glassMode, setGlassMode] = useState<GlassMode>("auto");
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- relit le réglage mémorisé dans le navigateur au montage
+    setGlassMode(loadMode());
+  }, []);
   const [data, setData] = useState<SettingsData | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -816,6 +822,23 @@ export default function SettingsPage() {
         </div>
 
         <div className="form-group" style={{ maxWidth: "320px" }}>
+          <label className="form-label">{t("settingsPage.glassLabel")}</label>
+          <ResponsiveSelect
+            className="form-control"
+            value={glassMode}
+            onChange={(value) => { setGlassMode(value as GlassMode); saveMode(value as GlassMode); }}
+            title={t("settingsPage.glassLabel")}
+            options={[
+              { value: "auto", label: t("settingsPage.glassAuto") },
+              { value: "full", label: t("settingsPage.glassFull") },
+              { value: "reduced", label: t("settingsPage.glassReduced") },
+              { value: "off", label: t("settingsPage.glassOff") },
+            ]}
+          />
+          <p className="settings-hint">{t("settingsPage.glassHint")}</p>
+        </div>
+
+        <div className="form-group" style={{ maxWidth: "320px" }}>
           <label className="form-label">{t("settingsPage.languageLabel")}</label>
           <ResponsiveSelect
             className="form-control"
@@ -1260,7 +1283,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  style={{ height: "38px", color: "var(--accent-error)" }}
+                  style={{ height: "38px", color: "var(--accent-error-text)" }}
                   onClick={() => {
                     if (window.confirm(t("settingsPage.logoDeleteConfirm"))) {
                       handleLogoReset();
@@ -1850,7 +1873,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ height: "42px", color: "var(--accent-error)", borderColor: "var(--accent-error)" }}
+                style={{ height: "42px", color: "var(--accent-error-text)", borderColor: "var(--accent-error)" }}
                 onClick={() => setShowResetData(true)}
               >
                 <Icon name="cleaning_services" size={16} /> {t("settingsPage.resetDataAction")}
@@ -1956,7 +1979,7 @@ export default function SettingsPage() {
       {showUninstall && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--accent-error)" }}>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--accent-error-text)" }}>
               <Icon name="delete_forever" size={20} /> {t("settingsPage.uninstallButton")}
             </h3>
             <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>{t("settingsPage.uninstallConfirmText")}</p>
@@ -2031,7 +2054,7 @@ export default function SettingsPage() {
       {showResetData && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--accent-error)" }}>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--accent-error-text)" }}>
               <Icon name="cleaning_services" size={20} /> {t("settingsPage.resetDataButton")}
             </h3>
             <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>

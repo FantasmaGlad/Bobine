@@ -111,7 +111,7 @@ export default function WebRenditionPanel({ videoId }: { videoId: number }) {
             )}
           </button>
         )}
-        {status === "error" && <span style={{ color: "var(--accent-error)", fontSize: "0.8rem" }}>{t("webRendition.failed")}</span>}
+        {status === "error" && <span style={{ color: "var(--accent-error-text)", fontSize: "0.8rem" }}>{t("webRendition.failed")}</span>}
         {message && <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{message}</span>}
       </div>
     </div>

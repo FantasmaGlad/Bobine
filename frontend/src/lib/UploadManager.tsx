@@ -840,7 +840,7 @@ function UploadFloatingPanel() {
                 </span>
               )}
               {task.status === "error" && task.error && (
-                <span role="alert" style={{ color: "var(--accent-error)", fontSize: "0.78rem" }}>
+                <span role="alert" style={{ color: "var(--accent-error-text)", fontSize: "0.78rem" }}>
                   {task.errorNotice ? formatNotice(t, task.errorNotice) : task.error}
                 </span>
               )}

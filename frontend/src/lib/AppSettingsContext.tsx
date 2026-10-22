@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { translate, translateList, type Language } from "@/lib/i18n";
 import { pushThemeToNative, pushUpdateChannelToNative } from "@/lib/nativeBridge";
+import { useGlassGovernor } from "@/lib/useGlassGovernor";
 
 // "les-mills-sombre" est la clé interne historique du thème "Sombre" — conservée telle quelle pour ne rien casser sur
 // les installations existantes, seul le libellé affiché change.
@@ -143,6 +144,7 @@ function getApiUrl(path: string) {
  * garder React et le DOM synchronisés ensuite et persister les changements.
  */
 export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
+  useGlassGovernor();
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
   const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE);
   const [hasCustomLogo, setHasCustomLogo] = useState(false);

@@ -121,8 +121,15 @@ for (const theme of THEMES) {
     for (const surface of ["bg-main", "bg-surface", "bg-surface-elevated"]) {
       assert.ok(ratio(c("var(--text-main)"), c(`var(--${surface})`)) >= 7, `text-main sur ${surface}`);
       assert.ok(ratio(c("var(--text-muted)"), c(`var(--${surface})`)) >= AA, `text-muted sur ${surface}`);
-      // text-dim sert d'indication discrète : exigé sur les fonds de page et de carte seulement.
-      if (surface !== "bg-surface-elevated") assert.ok(ratio(c("var(--text-dim)"), c(`var(--${surface})`)) >= AA, `text-dim sur ${surface}`);
+      assert.ok(ratio(c("var(--text-dim)"), c(`var(--${surface})`)) >= AA, `text-dim sur ${surface}`);
+    }
+  });
+
+  test(`${theme} : texte d'erreur lisible sur les surfaces`, () => {
+    const tinted = "color-mix(in srgb, var(--accent-error) 15%, var(--bg-surface-elevated))"; // encarts d'erreur teintés
+    for (const surface of ["var(--bg-main)", "var(--bg-surface)", "var(--bg-surface-elevated)", tinted]) {
+      const got = ratio(c("var(--accent-error-text)"), over(c(surface), c("var(--bg-main)")));
+      assert.ok(got >= AA, `accent-error-text sur ${surface} : ${got.toFixed(2)}`);
     }
   });
 

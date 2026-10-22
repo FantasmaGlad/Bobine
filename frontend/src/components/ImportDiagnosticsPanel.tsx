@@ -106,7 +106,7 @@ export default function ImportDiagnosticsPanel() {
       <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.importDiag.hint")}</p>
 
       {failed && (
-        <p role="alert" style={{ color: "var(--accent-error)", fontSize: "0.88rem" }}>{t("settingsPage.importDiag.loadError")}</p>
+        <p role="alert" style={{ color: "var(--accent-error-text)", fontSize: "0.88rem" }}>{t("settingsPage.importDiag.loadError")}</p>
       )}
 
       {report && (
