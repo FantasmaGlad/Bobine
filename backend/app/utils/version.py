@@ -24,7 +24,7 @@ from pathlib import Path
 
 from app.config import ROOT_DIR
 
-_FALLBACK_VERSION = "5.0.4"
+_FALLBACK_VERSION = "5.0.5"
 _FALLBACK_COMMIT = "unknown"
 
 
