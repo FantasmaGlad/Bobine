@@ -26,6 +26,7 @@ exercised here.
         --binary media/target/release/bobine-media --output /var/tmp/corpus/import-bench.json
 """
 import argparse
+import base64
 from collections import Counter
 import hashlib
 import json
@@ -39,7 +40,10 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cover_equivalence  # noqa: E402
 MODES = ("reference", "native")
+DROP_SYSTEM_CACHE = False
 
 
 def _tree_size(path):
@@ -101,11 +105,16 @@ def worker(spec):
     rows = []
     covers = []
     if spec["kind"] == "radio":
-        for track in imported:
-            rows.append({key: getattr(track, key) for key in ("title", "artist", "album", "album_artist", "track_number",
-                                                              "disc_number", "year", "genre", "duration_seconds")})
+        # Rows are created one after the other in staging order, so the id order is the input order:
+        # the position identifies the same source file in both modes.
+        for position, track in enumerate(sorted(imported, key=lambda item: item.id)):
+            row = {key: getattr(track, key) for key in ("title", "artist", "album", "album_artist", "track_number",
+                                                        "disc_number", "year", "genre", "duration_seconds")}
+            row["position"] = position
+            rows.append(row)
             if track.cover_path:
-                covers.append(hashlib.sha256(Path(track.cover_path).read_bytes()).hexdigest())
+                # The native cover pipeline is judged by cover_equivalence, not by identical bytes.
+                covers.append({"file": str(position), "data": base64.b64encode(Path(track.cover_path).read_bytes()).decode("ascii")})
     else:
         db = SessionLocal()
         try:
@@ -123,11 +132,19 @@ def worker(spec):
         "cpu_self_s": _cpu(after_self) - _cpu(before_self),
         "cpu_children_s": _cpu(after_children) - _cpu(before_children),
         "maxrss_self_kb": _peak_kb(after_self), "maxrss_largest_child_kb": _peak_kb(after_children),
-        "counts": dict(counts), "rows": rows, "cover_sha256": sorted(covers),
+        "counts": dict(counts), "rows": rows, "covers": covers,
     }, ensure_ascii=False), flush=True)
 
 
 # -------------------------------------------------------------------------- parent
+
+def _drop_system_cache():
+    """Really empty the page cache (Linux, root). The password comes from the environment, never from a file."""
+    password = os.environ.get("BOBINE_BENCH_SUDO_PASSWORD")
+    command = ["sudo", "-S", "-p", "", "sh", "-c", "sync; echo 3 > /proc/sys/vm/drop_caches"]
+    result = subprocess.run(command, input=(password or "") + "\n", capture_output=True, text=True, timeout=60)
+    return result.returncode == 0
+
 
 def _drop_cache(paths):
     if not hasattr(os, "posix_fadvise"):
@@ -195,6 +212,8 @@ def run_once(corpus, entries, kind, mode, cache, binary, workdir):
             names.append(target.name)
         staged_bytes = _tree_size(staging)
         cache_dropped = _drop_cache([staging / name for name in names]) if cache == "cold" else None
+        if cache == "cold" and DROP_SYSTEM_CACHE:
+            cache_dropped = "system" if _drop_system_cache() else "system-failed"
         environment = {key: value for key, value in os.environ.items()
                        if not key.startswith(("BOBINE_", "XDG_"))}
         environment.update({"BOBINE_USE_XDG": "1", "XDG_DATA_HOME": str(data), "XDG_CONFIG_HOME": str(run_dir / "config"),
@@ -243,8 +262,16 @@ def compare_rows(reference, native, tolerance=0.05):
                     problems.append(f"{left.get('title')}: duration {a} vs {b}")
             elif left[field] != right[field]:
                 problems.append(f"{left.get('title')}: {field} {left[field]!r} vs {right[field]!r}")
-    if reference.get("cover_sha256") != native.get("cover_sha256"):
-        problems.append("embedded cover files differ between modes")
+    ref_covers = {item["file"]: item["data"] for item in reference.get("covers", [])}
+    nat_covers = {item["file"]: item["data"] for item in native.get("covers", [])}
+    if set(ref_covers) != set(nat_covers):
+        problems.append(f"covers present: reference {len(ref_covers)}, native {len(nat_covers)}")
+    for name in sorted(set(ref_covers) & set(nat_covers)):
+        if ref_covers[name] == nat_covers[name]:
+            continue
+        measure = cover_equivalence.measure(base64.b64decode(ref_covers[name]), base64.b64decode(nat_covers[name]))
+        if not measure["equivalent"]:
+            problems.append(f"{name}: cover not equivalent {measure}")
     return problems
 
 
@@ -298,6 +325,8 @@ def main():
     parser.add_argument("--kind", choices=("radio", "course"), default="radio")
     parser.add_argument("--count", type=int, default=0, help="import only the first N manifest entries (default: all)")
     parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument("--drop-system-cache", action="store_true",
+                        help="cold runs empty the whole page cache through sudo (password in BOBINE_BENCH_SUDO_PASSWORD)")
     parser.add_argument("--cache", choices=("warm", "cold", "both"), default="both")
     parser.add_argument("--workdir", type=Path, default=Path("/var/tmp") if os.name != "nt" else Path(tempfile.gettempdir()),
                         help="disk-backed scratch directory (never a RAM-backed tmpfs for a fair disk measurement)")
@@ -317,6 +346,8 @@ def main():
     if len(entries) < 500:
         print(f"warning: {len(entries)} files; the B1.5 exit criterion asks for 500 or more", file=sys.stderr)
     caches = ("warm", "cold") if args.cache == "both" else (args.cache,)
+    global DROP_SYSTEM_CACHE
+    DROP_SYSTEM_CACHE = args.drop_system_cache
     runs = []
     for repeat in range(args.repeats):
         # Alternate the order so slow drift (thermal, background load) is not charged to one mode.
@@ -334,7 +365,7 @@ def main():
             differences.extend(f"[{cache}] {item}" for item in compare_rows(left, right))
     for run in runs:
         run.pop("rows")  # keep the report small; differences were computed above
-        run.pop("cover_sha256")
+        run["cover_count"] = len(run.pop("covers"))
     report = {
         "schema_version": 1, "kind": args.kind, "files": len(entries), "repeats": args.repeats,
         "platform": sys.platform, "python": sys.version.split()[0], "cpu_count": os.cpu_count(),
@@ -344,7 +375,7 @@ def main():
         "summary": summarize(runs), "differences": differences, "passed": not differences, "runs": runs,
         "limitations": [
             "Measured on the machine that ran the script; not a device validation",
-            "Cold cache is a best-effort fadvise on staged files and is unverified; labelled as such",
+            "Cold cache: `cache_drop_attempted` is `system` when the page cache was emptied through sudo, otherwise a best-effort fadvise on the staged files",
             "Peak PSS needs Linux smaps; elsewhere only RSS is available (shared pages counted per process)",
             "Cancellation and simultaneous playback are not exercised by this script",
             "Files that the native component declines run the reference path and cost both",

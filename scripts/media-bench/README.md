@@ -34,11 +34,12 @@ du dépôt, avec le manifeste auquel leurs empreintes se rapportent.
 
 ## Couverture
 
-Avec tous les encodeurs disponibles, le générateur produit **62 fichiers audio** :
+Avec tous les encodeurs disponibles, le générateur produit **les fichiers ci-dessous** (116 sans `--scale`, 656 avec `--scale 540`) :
 
 - MP3 CBR/VBR avec et sans en-tête Xing/Info ; FLAC, WAV, AAC brut, AAC/M4A,
   Vorbis/Ogg, Opus/Ogg, WMA et AIFF : quatre variantes par famille, soit 48 fichiers.
-- Quatre pochettes embarquées : JPEG opaque et PNG transparent dans MP3 et FLAC.
+- Pochettes embarquées : JPEG opaque et PNG transparent dans MP3, FLAC, M4A, Ogg Vorbis et Opus ; une galerie de 18 variétés d'image (progressif, niveaux de gris, 4:4:4, taille impaire, petit, grand, CMYK, EXIF pivoté ou droit, PNG RGB/RGBA/palette/gris/entrelacé…) dans un MP3 (Pillow requis, sinon ignorée et consignée).
+- Variantes de mise en page : ID3v2.4, ID3v1 final, création MP4 (année de repli), numérotation `5`, `0/9`, `0`.
 - Une pochette JPEG et une PNG ensemble dans un MP3 (deux images attachées).
 - Deux MP3 **VBRI** : libmp3lame n'écrit que Xing/Info, `build_vbri_mp3` insère donc une
   vraie trame VBRI (testée contre ffprobe) après le tag ID3 d'un MP3 CBR sans index.
@@ -49,8 +50,8 @@ Avec tous les encodeurs disponibles, le générateur produit **62 fichiers audio
 ### Corpus à l'échelle
 
 `generate.py --scale N` ajoute N pistes uniques (graine fixe, donc reproductibles) :
-durées de 0,5 à 12 s, tags uniques, huit familles de formats, et `--cover-ratio`
-(0,25 par défaut) de MP3/FLAC portant une pochette. Un corpus où tous les fichiers
+durées de 0,5 à 12 s, tags uniques, treize familles de formats (dont Opus, AIFF et trois MP3 CBR sans index à d'autres fréquences/canaux), et `--cover-ratio`
+(0,25 par défaut) des MP3, FLAC, M4A et Ogg portant une pochette. Un corpus où tous les fichiers
 ont la même durée masque les écarts qui dépendent du padding de l'encodeur : c'est
 ainsi qu'un écart de 52 ms (au-delà de la tolérance de 50 ms) sur les MP3 Xing, absent
 des 55 fichiers de 1,37 s, a été trouvé et corrigé. Utiliser `--scale 540` (602 fichiers)
@@ -155,10 +156,10 @@ une divergence sur une valeur native acceptée échoue également avec un code d
 sortie non nul. Le banc capture le motif du repli : il n’exécute pas à nouveau
 le traitement Python et ne mesure pas le coût de ce repli.
 
-Seule l’absence de pochette prouvée par le composant est validée. Une pochette
-présente peut légitimement demander le chemin Python avec `ambiguous_cover` ;
-des octets d’image natifs demanderaient une validation de normalisation
-complémentaire et font échouer ce banc tant qu’elle n’existe pas.
+Une pochette native (octets bruts) est jugée par `cover_equivalence.py` contre le JPEG final de
+la référence (`reference-covers/<id>.jpg`, écrit par `baseline.py`) : mêmes dimensions, PSNR >= 33 dB,
+erreur moyenne <= 4 ; sinon la comparaison échoue. Une pochette hors des familles acceptées demande
+le chemin de référence (`ambiguous_cover`).
 
 Le rapport conserve les empreintes des médias, du binaire, des utilitaires,
 du manifeste et de la référence avant/après. Une mutation échoue. Les temps
@@ -194,3 +195,27 @@ Limites : mesures de la machine qui exécute le script, jamais d'un appareil ; l
 annulation ni lecture simultanée ne sont exercées ; les fichiers que le composant refuse
 passent par le chemin de référence et coûtent les deux. L'importeur radio transcode les
 formats non lisibles par un navigateur (WMA, AIFF) avec ffmpeg quel que soit le mode.
+
+## Cache froid réel et pochettes
+
+`import_bench.py --drop-system-cache` vide vraiment le cache de pages avant chaque exécution « cold »
+(`sudo -S sh -c 'sync; echo 3 > /proc/sys/vm/drop_caches'`, mot de passe lu dans la variable
+d'environnement `BOBINE_BENCH_SUDO_PASSWORD`, jamais dans un fichier) ; le rapport indique
+`cache_drop_attempted: "system"`. Sans l'option, « cold » reste un `posix_fadvise` au mieux. Les pochettes importées
+sont comparées par `cover_equivalence.py` (la position de la ligne dans l'ordre d'import identifie le fichier source).
+
+## Exécuter le composant sur un appareil Android (adb)
+
+`device_probe.py` pousse l'exécutable dans `/data/local/tmp` (ni installation, ni autre modification), lui
+envoie par l'entrée standard les requêtes `probe_audio` (deux profils) et `extract_cover` d'un jeu de fichiers du corpus,
+et compare ses réponses à celles de l'exécutable de bureau (champs, durée, octets de pochette) ; il rapporte le temps du lot,
+le temps par requête, le pic de mémoire résidente (`VmHWM`) et la taille :
+
+```bash
+backend/.venv/bin/python scripts/media-bench/device_probe.py /var/tmp/bobine-corpus-large \
+  --binary android/app/src/main/jniLibs/armeabi-v7a/libbobine_media.so \
+  --reference media/target/release/bobine-media --adb 192.168.1.13:5555 --count 120 --output rapport.json
+```
+
+`--local` exécute `--binary` sur la machine (test du script). Cette mesure porte sur le composant seul : ni le Python embarqué,
+ni ffmpeg, ni le stockage de l'appareil ne sont impliqués ; ce n'est pas un import.

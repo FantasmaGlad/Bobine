@@ -205,6 +205,14 @@ Ces deux champs sont exposés par `GET /api/import-jobs` et affichés dans le pa
 
 ---
 
+### 6. Composant audio natif (`bobine-media`, expérimental, désactivé par défaut)
+
+Petit exécutable Rust (`media/`, protocole JSON-RPC sur stdin/stdout, aucun port, lecture seule) qui lit les tags, la durée et la pochette des **nouveaux** morceaux de la radio et des cours audio sans lancer ffprobe/ffmpeg pour chaque fichier. Formats lus : MP3 (index Xing/Info, VBRI, ou débit constant sans index), FLAC, WAV (avec INFO), M4A, Ogg Vorbis, Opus, AIFF ; tout le reste, et tout fichier hors du sous-ensemble prouvé identique à ffprobe (champs identiques, durée à 50 ms), passe par ffprobe/ffmpeg + Pillow comme avant. Les pochettes natives (octets bruts JPEG/PNG) sont mises en forme par Pillow ; leur équivalence avec le chemin ffmpeg est **définie** (mêmes dimensions, PSNR ≥ 33 dB, erreur moyenne ≤ 4) car ffmpeg ré-encode l'image : voir `media/README.md`. Aucune donnée existante n'est modifiée ni régénérée.
+
+- **Activation** : réglage `media_native` (Réglages → « Composant audio natif (expérimental) », `"false"` par défaut, seule voie sur Android) ; la variable `BOBINE_MEDIA_NATIVE` (`1` force, `0` désactive) est prioritaire (`app/utils/media_native.py`). `GET /api/settings/media-native` renvoie l'état réel : `disabled`, `active` (le composant répond à `hello`), `fallback` (présent mais inutilisable) ou `absent`.
+- **Livraison** : à côté de `BobineBackend` dans les `.deb` (amd64, arm64) et sur Windows, dans `Contents/MacOS` sur macOS, en `libbobine_media.so` (`nativeLibraryDir`) dans les APK Android ; l'appliance headless installée depuis git ne l'embarque pas. Un paquet sans le composant reste complet.
+- **Sûreté** : tout échec (absent, erreur de protocole, délai, format ou image hors périmètre) retombe sur le chemin historique ; aucun média n'est perdu.
+
 ## 3ter. Télémétrie Matérielle Universelle Multi-OS & Métriques d'Assiduité
 
 ### 1. Supervision Matérielle Universelle (`hardware_info.py`)
