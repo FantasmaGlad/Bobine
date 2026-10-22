@@ -30,7 +30,7 @@ A successful `result` has exactly this shape:
 {"status":"ok","profile":"radio-v1","format":"mp3","metadata":{"title":null,"artist":null,"album":null,"album_artist":null,"track_number":null,"disc_number":null,"year":null,"genre":null,"duration_seconds":1.37}}
 ```
 
-`format` is `mp3`, `flac` or `wav`; `profile` echoes the accepted profile. The nine metadata keys are always present, including for `course-duration-v1`. Text and integer values can be null; duration is a positive finite number in seconds. The caller consumes only duration for the course profile and retains its historical filename parsing. A null native title means no title tag, so the radio caller must apply its filename fallback. There is no mutation or filename parsing in this executable.
+`format` is `mp3`, `flac` or `wav`; `profile` echoes the accepted profile. The nine metadata keys are always present, including for `course-duration-v1`. Text and integer values can be null; duration is a positive finite number in seconds, equal to what ffprobe reports for the same file (MP3 encoder delay and padding included in that rule, see the README). The caller consumes only duration for the course profile and retains its historical filename parsing. A null native title means no title tag, so the radio caller must apply its filename fallback. There is no mutation or filename parsing in this executable.
 
 ## Image inspection
 
