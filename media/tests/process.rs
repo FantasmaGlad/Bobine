@@ -2,17 +2,23 @@ use serde_json::{json, Value};
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 struct Scratch(PathBuf);
 impl Scratch {
     fn new() -> Self {
+        // L'horloge de macOS est au plus fine à la microseconde : le compteur garantit un dossier distinct par test.
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let path =
-            std::env::temp_dir().join(format!("bobine-media-test-{}-{nonce}", std::process::id()));
+        let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "bobine-media-test-{}-{nonce}-{seq}",
+            std::process::id()
+        ));
         std::fs::create_dir(&path).unwrap();
         Self(path)
     }
