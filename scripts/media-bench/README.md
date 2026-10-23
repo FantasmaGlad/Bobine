@@ -1,7 +1,8 @@
 # Corpus et oracle audio
 
-Ce banc fige le comportement des utilitaires Python actuels avant tout
-remplacement de l’extraction audio. Il ne modifie aucun média utilisateur,
+Ce banc fige le comportement des utilitaires Python actuels (la méthode de
+référence) et sert d’oracle aux comparaisons avec le composant audio natif
+(`media/`, `compare.py`, `import_bench.py`). Il ne modifie aucun média utilisateur,
 n’ouvre aucune base de données et ne fait pas partie du paquet distribué.
 
 Le générateur utilise uniquement Python standard et `ffmpeg`. L’oracle utilise
@@ -54,7 +55,7 @@ durées de 0,5 à 12 s, tags uniques, treize familles de formats (dont Opus, AIF
 (0,25 par défaut) des MP3, FLAC, M4A et Ogg portant une pochette. Un corpus où tous les fichiers
 ont la même durée masque les écarts qui dépendent du padding de l'encodeur : c'est
 ainsi qu'un écart de 52 ms (au-delà de la tolérance de 50 ms) sur les MP3 Xing, absent
-des 55 fichiers de 1,37 s, a été trouvé et corrigé. Utiliser `--scale 540` (602 fichiers)
+des 55 fichiers de 1,37 s, a été trouvé et corrigé. Utiliser `--scale 540` (656 fichiers)
 pour toute décision de parité et pour le banc `import_bench.py`.
 
 ```bash
@@ -214,7 +215,7 @@ le temps par requête, le pic de mémoire résidente (`VmHWM`) et la taille :
 ```bash
 backend/.venv/bin/python scripts/media-bench/device_probe.py /var/tmp/bobine-corpus-large \
   --binary android/app/src/main/jniLibs/armeabi-v7a/libbobine_media.so \
-  --reference media/target/release/bobine-media --adb 192.168.1.13:5555 --count 120 --output rapport.json
+  --reference media/target/release/bobine-media --adb <ip-appareil>:5555 --count 120 --output rapport.json
 ```
 
 `--local` exécute `--binary` sur la machine (test du script). Cette mesure porte sur le composant seul : ni le Python embarqué,

@@ -97,8 +97,8 @@ silencieuses (compilation du frontend), et le code de sortie réel d'`install.sh
 est vérifié : un échec est désormais affiché (carte « L'installation n'a pas
 abouti » avec « Réessayer » et « Copier le journal »).
 
-En aperçu navigateur autonome (sans backend Tauri, `assistant-ui` : serveur statique
-sur `assistant/src`), `app.js` retombe sur un jeu de données factice
+En aperçu navigateur autonome (sans backend Tauri, via n'importe quel serveur statique
+servant `assistant/ui`), `app.js` retombe sur un jeu de données factice
 utilisant volontairement la plage documentaire réservée RFC 5737
 (`203.0.113.0/24`) — jamais une IP privée plausible — et affiche un bandeau
 d'avertissement permanent en haut de l'écran, pour qu'un résultat de

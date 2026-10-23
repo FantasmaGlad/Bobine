@@ -59,6 +59,11 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="5.0.2" date="2026-10-20">
+      <description>
+        <p>Version 5.0.2 : onglet Périphériques (audio, Bluetooth et Wi-Fi de la machine qui diffuse, vue globale en carte, accès par code PIN), deux sorties radio indépendantes (câblée et réseau) avec gestion du son, bibliothèque radio repensée, écrans de diffusion adaptés aux téléviseurs de format atypique, écran de chargement Android aux couleurs du thème.</p>
+      </description>
+    </release>
     <release version="5.0.0" date="2026-10-17">
       <description>
         <p>Version 5.0.0 : Android TV, interface mobile repensée (feuilles de sélection, carte du cours en cours, aperçu avant lancement), sous-titres et chapitres, choix des sous-titres depuis l'administration, adresse du réseau local correcte derrière un VPN.</p>

@@ -38,13 +38,15 @@ Maintainers review contributions in their own time. Making the review short is y
 
 ## Development setup
 
-Bobine has three components. Before opening a pull request, run locally the checks below for each component you touched. CI runs the same ones.
+Bobine has several components. Before opening a pull request, run locally the checks below for each component you touched. CI runs the same ones, except the frontend tests and type check, which are local only.
 
 | Component | Directory | Checks |
 |---|---|---|
-| Backend (Python, FastAPI, SQLite) | `backend/` | `python -m compileall -q backend/app scripts` then `python -m unittest discover -s backend/tests` (needs `ffmpeg`; CI uses Python 3.12) |
-| Frontend (Next.js, Node 22) | `frontend/` | `npm ci` then `npm run build` (CI). `npm run lint` is not enforced by CI and reports existing issues: do not introduce new ones in the code you touch |
+| Backend (Python, FastAPI, SQLite) | `backend/` | `python -m compileall -q backend/app scripts` then `python -m pytest backend/tests -q` with `PYTHONPATH=backend` (needs `ffmpeg`, `pytest` and `httpx`; CI runs Python 3.11, 3.12 and 3.13, so no syntax newer than 3.11) |
+| Frontend (Next.js, Node 22) | `frontend/` | `npm ci` then `npm run build` (CI); also `npx tsc --noEmit` and `npm test` (local). `npm run lint` is not enforced by CI and reports existing issues: do not introduce new ones in the code you touch |
 | Assistant (Rust, Tauri) | `assistant/` | `cargo clippy --workspace --all-targets -- -D warnings` then `cargo test --workspace` |
+| Devices sidecar (Rust) | `devices/` | `cargo clippy --locked --all-targets -- -D warnings` then `cargo test --locked` |
+| Native audio component (Rust) | `media/` | `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings` then `cargo test --locked`; `python3 scripts/ci/check-media-licenses.py --offline` for the dependency licenses |
 
 The data schema is managed by SQLAlchemy: tables are created at startup, and columns added to existing tables go through the idempotent micro-migrations of the database module (see the architecture document). A schema change must work on an existing database without data loss and be covered by a test. A pull request that breaks one of the CI jobs is not reviewed until it is green.
 
@@ -118,3 +120,4 @@ Bobine is released under the [GNU AGPL-3.0](LICENSE). By submitting a contributi
 | Date | Change |
 |---|---|
 | 2026-10-08 | Contribution guide adopted. |
+| 2026-10-23 | Checks aligned with CI: pytest, Python 3.11-3.13, Rust components `devices/` and `media/`, local-only frontend tests. |

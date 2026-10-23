@@ -2,7 +2,7 @@
 
 A read-only audio inspector. It is experimental and off by default in the application (setting `media_native`, see below). It does not open a network port, spawn a shell, decode audio, modify media or access a database. The existing ffprobe/ffmpeg path remains necessary for unsupported inputs and images.
 
-Build and check with `cargo test --locked`, `cargo clippy --all-targets -- -D warnings`, and `cargo build --release --locked`. Run `target/release/bobine-media`; send one JSON-RPC object per UTF-8 line on stdin. Responses are JSON only on stdout; EOF exits. A final line without a newline is accepted. Diagnostics never include input paths. Detailed protocol: [PROTOCOL.md](PROTOCOL.md).
+Build and check with `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo test --locked` and `cargo build --release --locked` (the same checks as the `media-component` CI job). Run `target/release/bobine-media`; send one JSON-RPC object per UTF-8 line on stdin. Responses are JSON only on stdout; EOF exits. A final line without a newline is accepted. Diagnostics never include input paths. Detailed protocol: [PROTOCOL.md](PROTOCOL.md).
 
 ## Experimental subset
 

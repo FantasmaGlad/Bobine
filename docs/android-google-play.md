@@ -86,7 +86,7 @@ main depuis GitHub.
    | `Bobine-TV-<version>-play.apk` | `com.bobine.app.tv` (APK équivalent au bundle) |
 
 Le workflow refuse un tag Bêta ou Canary, vérifie la signature de chaque bundle (`jarsigner`) et la
-présence du manifeste, vérifie que les APK Play ne contiennent pas l'autorisation `REQUEST_INSTALL_PACKAGES`, puis affiche le `versionName` et le `versionCode` dans le résumé du run.
+présence du manifeste, vérifie que les APK Play ne contiennent pas l'autorisation `REQUEST_INSTALL_PACKAGES`, vérifie les ABI natives (`arm64-v8a` pour Bobine, `armeabi-v7a` et `arm64-v8a` pour Bobine TV) et la présence du composant audio natif `libbobine_media.so` dans chacune (compilé par `scripts/ci/build-media-android.sh`), puis affiche le `versionName` et le `versionCode` dans le résumé du run. Le composant est désactivé par défaut dans l'application (Réglages → Composant audio natif) ; sa présence dans les paquets ne dit rien de son comportement sur un appareil réel, aucune mesure n'en ayant été faite.
 
 ### Fichiers Google Play de la version 5.0.2
 
