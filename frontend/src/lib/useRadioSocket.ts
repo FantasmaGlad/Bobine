@@ -6,6 +6,8 @@ import type { ClockAnchor } from "@/lib/playbackClock";
 import { ServerClockSync } from "@/lib/serverClockSync";
 import type { DisplayOutput, RadioChannelId } from "@/lib/displayChannel";
 import { defaultSound, type RadioSoundSettings } from "@/lib/radioSound";
+import { defaultMix, type RadioMix } from "@/lib/radioMix";
+import type { RadioRoute } from "@/lib/audioRoute";
 import type { ClockTarget } from "@/lib/useMediaClockFollower";
 
 /** État d'UNE sortie radio (`radio_cable` ou `radio_network`) : un moteur INDÉPENDANT par
@@ -56,6 +58,12 @@ export interface RadioState {
   tracks_since_announcement: number;
   /** Réglages de son de la sortie (égaliseur, basses…), appliqués par le lecteur. */
   sound: RadioSoundSettings;
+  /** Table de mixage de la sortie (musique, rappels, sortie), appliquée par le lecteur. */
+  mix: RadioMix;
+  /** Sortie audio choisie pour cette sortie radio (null = sortie par défaut), appliquée par le lecteur. */
+  route: RadioRoute | null;
+  /** Une interface de mixage est ouverte : le lecteur primaire mesure et rapporte ses niveaux. */
+  meter: boolean;
 }
 
 const DEFAULT_STATE: RadioState = {
@@ -75,6 +83,9 @@ const DEFAULT_STATE: RadioState = {
   current_announcement: null,
   tracks_since_announcement: 0,
   sound: defaultSound(),
+  mix: defaultMix(),
+  route: null,
+  meter: false,
   clock: null,
 };
 

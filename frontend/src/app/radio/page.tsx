@@ -8,7 +8,10 @@ import { useMediaClockFollower } from "@/lib/useMediaClockFollower";
 import { useKioskRemote } from "@/lib/useKioskRemote";
 import { radioChannelId } from "@/lib/displayChannel";
 import { createSoundChain, type SoundChain } from "@/lib/radioSoundGraph";
+import { createMixStage, type MixStage } from "@/lib/radioMixGraph";
+import { clampMix, defaultMix } from "@/lib/radioMix";
 import { defaultSound } from "@/lib/radioSound";
+import { useAudioRoute } from "@/lib/useAudioRoute";
 import { detectAutoplayAllowed } from "@/lib/autoplayProbe";
 import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import Icon from "@/components/Icon";
@@ -87,6 +90,10 @@ export default function RadioScreenPage() {
   // reçus du serveur : le graphe peut être créé APRÈS leur arrivée (déverrouillage tardif).
   const soundChainRef = useRef<SoundChain | null>(null);
   const soundRef = useRef(defaultSound());
+  // Étage de mixage (faders Musique / Rappels / Sortie, vumètres, porte du repli de route) et derniers réglages reçus.
+  const mixStageRef = useRef<MixStage | null>(null);
+  const mixRef = useRef(defaultMix());
+  const [graphReady, setGraphReady] = useState(false);
 
   const [unlocked, setUnlocked] = useState(false);
   const [lastCause, setLastCause] = useState("sync");
@@ -148,9 +155,12 @@ export default function RadioScreenPage() {
     if (!AudioContextClass) return; // navigateur sans Web Audio API : dégradation silencieuse (pas de fondu, l'enchaînement net de L3/L4 reste fonctionnel via onEnded)
     const ctx = new AudioContextClass();
     audioCtxRef.current = ctx;
-    // Toute la MUSIQUE (les deux slots du fondu enchaîné) passe par UNE chaîne de son avant la
-    // sortie ; les rappels vocaux la contournent (intelligibilité), cf. lib/radioSoundGraph.ts.
-    const soundChain = createSoundChain(ctx, ctx.destination, soundRef.current);
+    // Toute la MUSIQUE (les deux slots du fondu enchaîné) passe par UNE chaîne de son, puis par l'étage de mixage
+    // (lib/radioMixGraph.ts) avant la sortie ; les rappels vocaux contournent la chaîne de la musique (intelligibilité)
+    // et ont la leur, neutre par défaut.
+    const mixStage = createMixStage(ctx, ctx.destination, mixRef.current);
+    mixStageRef.current = mixStage;
+    const soundChain = createSoundChain(ctx, mixStage.musicInput, soundRef.current);
     soundChainRef.current = soundChain;
     for (const slot of [0, 1] as Slot[]) {
       const el = getAudioEl(slot);
@@ -167,11 +177,12 @@ export default function RadioScreenPage() {
       annEl.volume = 1;
       const annGain = ctx.createGain();
       annGain.gain.value = 1;
-      annGain.connect(ctx.destination);
+      annGain.connect(mixStage.announcementsInput);
       ctx.createMediaElementSource(annEl).connect(annGain);
       announcementGainRef.current = annGain;
     }
     graphReadyRef.current = true;
+    setGraphReady(true);
   };
 
   const setGainNow = (slot: Slot, value: number) => {
@@ -397,6 +408,30 @@ export default function RadioScreenPage() {
     soundChainRef.current?.apply(state.sound);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `soundKey` résume le contenu de state.sound
   }, [soundKey]);
+  // Table de mixage de la sortie (même principe : clé JSON stable, l'objet est recréé à chaque évènement d'état).
+  const mixKey = JSON.stringify(state.mix);
+  useEffect(() => {
+    mixRef.current = clampMix(state.mix);
+    mixStageRef.current?.apply(mixRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `mixKey` résume le contenu de state.mix
+  }, [mixKey]);
+  // Route audio de la sortie : appliquée au navigateur de CE poste, résultat rapporté au serveur.
+  useAudioRoute({ ctxRef: audioCtxRef, stageRef: mixStageRef, route: state.route ?? null, ready: graphReady, connected, sendCommand });
+  // Vumètre : mesuré (4 fois par seconde) et rapporté par le seul poste primaire, SEULEMENT tant qu'une interface de
+  // mixage le demande (`state.meter`) — aucun coût sinon.
+  useEffect(() => {
+    const stage = mixStageRef.current;
+    if (!graphReady || !stage || !state.meter || !isPrimary) return;
+    stage.setMetering(true);
+    const id = setInterval(() => {
+      const levels = stage.readLevels();
+      if (Object.keys(levels).length) sendCommand("radio_report_levels", { levels });
+    }, 250);
+    return () => {
+      clearInterval(id);
+      stage.setMetering(false);
+    };
+  }, [graphReady, state.meter, isPrimary, sendCommand]);
   // La radio de la sortie câblée repart vers kiosk/cinéma quand l'admin y rebascule l'écran
   // câblé (jamais au montage, et jamais pour un poste radio réseau).
   useDisplayOutputRedirect("radio", displayOutputCable, null);

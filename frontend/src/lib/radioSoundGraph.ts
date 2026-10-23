@@ -25,7 +25,7 @@ export interface SoundChain {
   apply: (sound: RadioSoundSettings, smooth?: boolean) => void;
 }
 
-function setParam(param: AudioParam, value: number, now: number, smooth: boolean): void {
+export function setParam(param: AudioParam, value: number, now: number, smooth: boolean): void {
   param.cancelScheduledValues(now);
   if (smooth) param.setTargetAtTime(value, now, SMOOTHING_TIME_CONSTANT);
   else param.setValueAtTime(value, now);

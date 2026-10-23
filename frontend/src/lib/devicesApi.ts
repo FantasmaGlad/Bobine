@@ -358,3 +358,107 @@ export function describeChannels(count: number | null | undefined, map: string[]
   if (count === 2) return labels.length ? `Stéréo (${labels.join(", ")})` : "Stéréo";
   return `${count} canaux`;
 }
+
+// ---------------------------------------------------------------------------
+// Routage audio par sortie radio (phase 2) et table de mixage (phase 3)
+// ---------------------------------------------------------------------------
+
+export type RadioOutputId = "radio_cable" | "radio_network";
+export const RADIO_OUTPUTS: RadioOutputId[] = ["radio_cable", "radio_network"];
+
+export interface RoutingRoute {
+  sink_id: string;
+  key: string;
+  label: string;
+  kind: AudioKind;
+  fallback: "default" | "mute";
+}
+
+export interface RoutingPlayer {
+  /** Lecteur ouvert sur la machine elle-même (le seul que le serveur peut aider à router). */
+  local: boolean;
+  primary: boolean;
+  /** Dernier résultat rapporté par ce lecteur (`applied`, `unsupported`, `insecure`, `needs_labels`, `no_match`, `muted`…). */
+  status: string | null;
+}
+
+export interface RoutingServerStatus {
+  status: "browser" | "waiting" | "moved" | "unchanged" | "released" | "no_stream" | "ambiguous" | "failed" | "unsupported";
+  app?: string;
+  detail?: string;
+  reason?: string;
+}
+
+export interface RoutingOutput {
+  channel: RadioOutputId;
+  route: RoutingRoute | null;
+  state: "default" | "routed" | "missing" | "unknown";
+  sink_id: string | null;
+  playing: boolean;
+  players: RoutingPlayer[];
+  server: RoutingServerStatus | null;
+}
+
+export interface RoutingView {
+  supported: boolean;
+  reason: string | null;
+  server_mechanism: CapabilityInfo;
+  fallbacks: Array<"default" | "mute">;
+  outputs: RoutingOutput[];
+}
+
+export type RoutingTone = "neutral" | "ok" | "info" | "warn" | "bad";
+
+export interface RoutingSummary {
+  tone: RoutingTone;
+  /** Clé de texte sous `devices.routing.status.`. */
+  key: string;
+  /** Seconde ligne éventuelle (ce que le serveur a tenté), même espace de clés. */
+  extra?: string;
+}
+
+const PLAYER_PROBLEMS: Record<string, string> = {
+  unsupported: "unsupported",
+  insecure: "insecure",
+  needs_labels: "needsLabels",
+  no_match: "noMatch",
+  error: "error",
+};
+
+/**
+ * Ce que l'administrateur doit lire d'une route : ce qui s'est RÉELLEMENT passé (rapports des lecteurs, action du
+ * serveur), jamais « appliqué » par défaut. Pure et testée.
+ */
+export function summarizeRouting(output: Pick<RoutingOutput, "route" | "state" | "players" | "server">): RoutingSummary {
+  const { route, state, players, server } = output;
+  if (!route) return { tone: "neutral", key: "none" };
+  if (state === "missing") return { tone: "warn", key: route.fallback === "mute" ? "missingMuted" : "missingDefault" };
+  if (players.some((p) => p.status === "applied")) return { tone: "ok", key: "appliedBrowser" };
+  if (server && (server.status === "moved" || server.status === "unchanged")) return { tone: "ok", key: "appliedServer" };
+  if (players.length === 0) return { tone: "info", key: "noPlayer" };
+  const ordered = [...players].sort((a, b) => Number(b.local) - Number(a.local) || Number(b.primary) - Number(a.primary));
+  const problem = ordered.map((p) => (p.status ? PLAYER_PROBLEMS[p.status] : undefined)).find(Boolean);
+  const extra = server && ["ambiguous", "failed", "no_stream"].includes(server.status)
+    ? (server.status === "no_stream" ? "serverNoStream" : server.status === "ambiguous" ? "serverAmbiguous" : "serverFailed")
+    : undefined;
+  if (problem) return { tone: problem === "error" ? "bad" : "warn", key: problem, extra };
+  // Rapports absents (lecteur qui n'a pas encore déverrouillé son audio) ou « par défaut » : en attente.
+  return { tone: "info", key: "pending", extra };
+}
+
+/** Le navigateur courant cache-t-il les noms de ses sorties audio ? (bouton « autoriser les noms de sortie ») */
+export function outputLabelsHidden(devices: Array<{ kind: string; label: string }>): boolean {
+  const outputs = devices.filter((d) => d.kind === "audiooutput");
+  return outputs.length > 0 && outputs.every((d) => !d.label);
+}
+
+export interface MixerOutput {
+  channel: RadioOutputId;
+  mix: unknown;
+  sound: unknown;
+  playing: boolean;
+}
+
+export interface MixerView {
+  outputs: MixerOutput[];
+}
