@@ -1,0 +1,46 @@
+#!/bin/sh
+# Autorisation limitée à un compte explicitement choisi par l'installation.
+set -eu
+[ "$(id -u)" -eq 0 ] || { echo 'Cette configuration nécessite les droits administrateur.' >&2; exit 1; }
+rule=/etc/polkit-1/rules.d/49-bobine-storage.rules
+case "${1:-}" in
+    remove)
+        rm -f "$rule"
+        ;;
+    configure)
+        account=${2:-}
+        case "$account" in ''|root|*[!a-zA-Z0-9_-]*) echo 'Compte de service absent ou invalide ; aucune autorisation ajoutée.' >&2; exit 1 ;; esac
+        getent passwd "$account" >/dev/null || exit 1
+        template=$(dirname "$0")/49-bobine-storage.rules.in
+        [ -f "$template" ] || template=/usr/share/bobine/49-bobine-storage.rules.in
+        mkdir -p /etc/polkit-1/rules.d
+        temporary=$(mktemp /etc/polkit-1/rules.d/.bobine-storage.XXXXXX)
+        trap 'rm -f "$temporary"' EXIT HUP INT TERM
+        sed "s/@BOBINE_USER@/$account/g" "$template" > "$temporary"
+        chmod 0644 "$temporary"
+        chown root:root "$temporary"
+        mv -f "$temporary" "$rule"
+        ;;
+    auto)
+        account=${SUDO_USER:-}
+        if [ -z "$account" ] || [ "$account" = root ]; then
+            account=$(systemctl show -p User --value bobine-backend.service 2>/dev/null || true)
+        fi
+        if [ -z "$account" ] || [ "$account" = root ]; then
+            # Une session graphique unique ; aucun choix arbitraire sur un poste partagé.
+            accounts=$(loginctl list-sessions --no-legend 2>/dev/null | while read -r session rest; do
+                active=$(loginctl show-session "$session" -p Active --value 2>/dev/null || true)
+                remote=$(loginctl show-session "$session" -p Remote --value 2>/dev/null || true)
+                if [ "$active" = yes ] && [ "$remote" = no ]; then
+                    loginctl show-session "$session" -p Name --value 2>/dev/null || true
+                fi
+            done | sort -u)
+            if [ "$(printf '%s\n' "$accounts" | sed '/^$/d' | wc -l)" -eq 1 ]; then account=$accounts; fi
+        fi
+        if [ -n "$account" ] && [ "$account" != root ]; then
+            exec "$0" configure "$account"
+        fi
+        echo 'Bobine : pour autoriser le stockage amovible, exécutez configure-storage-access configure <compte> avec les droits administrateur.' >&2
+        ;;
+    *) echo 'Usage: configure-storage-access configure <compte> | auto | remove' >&2; exit 2 ;;
+esac

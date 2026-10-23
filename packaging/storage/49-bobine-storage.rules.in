@@ -1,0 +1,23 @@
+// Le compte du service peut préparer les supports amovibles, jamais les disques système.
+polkit.addRule(function(action, subject) {
+    if (subject.user !== "@BOBINE_USER@" || action.lookup("drive.removable") !== "true") {
+        return polkit.Result.NOT_HANDLED;
+    }
+    var allowed = [
+        "org.freedesktop.udisks2.filesystem-mount",
+        "org.freedesktop.udisks2.filesystem-mount-other-seat",
+        "org.freedesktop.udisks2.filesystem-unmount-others",
+        "org.freedesktop.udisks2.filesystem-take-ownership",
+        "org.freedesktop.udisks2.modify-device",
+        "org.freedesktop.udisks2.modify-device-other-seat",
+        "org.freedesktop.udisks2.power-off-drive",
+        "org.freedesktop.udisks2.power-off-drive-other-seat",
+        "org.freedesktop.udisks2.ata-smart-update",
+        "org.freedesktop.udisks2.ata-standby",
+        "org.freedesktop.udisks2.ata-standby-other-seat"
+    ];
+    if (allowed.indexOf(action.id) !== -1) {
+        return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

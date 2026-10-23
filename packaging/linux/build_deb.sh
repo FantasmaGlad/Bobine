@@ -93,6 +93,11 @@ mkdir -p "${STAGING_DIR}/usr/share/metainfo"
 mkdir -p "${STAGING_DIR}/usr/share/appdata"
 mkdir -p "${STAGING_DIR}/usr/share/doc/bobine"
 
+mkdir -p "${STAGING_DIR}/usr/share/bobine"
+cp "${REPO_DIR}/packaging/storage/49-bobine-storage.rules.in" "${STAGING_DIR}/usr/share/bobine/"
+cp "${REPO_DIR}/packaging/storage/configure-storage-access" "${STAGING_DIR}/usr/lib/bobine/"
+chmod 0755 "${STAGING_DIR}/usr/lib/bobine/configure-storage-access"
+
 # Copie des binaires et assets de l'application
 cp -a "${DIST_DIR}/"* "${STAGING_DIR}/usr/lib/bobine/"
 

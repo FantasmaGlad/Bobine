@@ -716,3 +716,9 @@ On the Android profile, data is split across **two storage roots** (`backend/app
 ## 11. License
 
 Bobine is distributed under the **GNU AGPL-3.0** license (see [`LICENSE`](../LICENSE) at the repository root). Any way of making the software available, including via a network-accessible service, requires publishing the corresponding source code (including your modifications) under the same license.
+
+### Preparing removable drives
+
+On Linux, Storage offers a quick-format wizard: a plan bound to the disk identity, filesystem selection, the drive name typed back, explicit erasure confirmation and a mandatory administration PIN, including on the local screen. A PIN must be configured first. The server rejects internal or system drives, registered libraries, busy, encrypted and write-protected volumes. It checks identity again before writing and before cleanup after a failure. Formatting creates GPT and one aligned partition, then verifies the filesystem, label and new UUID, tests a small file and returns the volume to read-only mode. Quick formatting is not secure erasure.
+
+The installer and Debian package install udisks2, exFAT/ext4/FAT32/NTFS tools and MTP components. The polkit rule delegates only the required actions on drives reported as removable by udisks2, to the single account selected during installation. System-drive operations and secure erasure are excluded. If the package cannot identify a unique account, an administrator can run `sudo /usr/lib/bobine/configure-storage-access configure <account>`. Other programs running as this Unix account receive the same removable-drive permissions. Uninstalling removes the rule. Without a desktop, GVFS/MTP needs a user D-Bus session and does not work with every phone. Other platforms explicitly report formatting as unsupported.

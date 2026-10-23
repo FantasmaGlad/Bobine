@@ -2,6 +2,8 @@
 set -e
 
 if [ "$1" = "configure" ]; then
+    /usr/lib/bobine/configure-storage-access auto
+
     # Mise à jour de la base des applications de bureau
     if command -v update-desktop-database >/dev/null 2>&1; then
         update-desktop-database -q /usr/share/applications || true

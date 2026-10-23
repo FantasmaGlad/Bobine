@@ -149,6 +149,31 @@ for (const theme of THEMES) {
     }
   });
 
+  test(`${theme} : zone d'effacement du formatage (fond teinté par le jeton d'erreur) porte du texte AA`, () => {
+    const fill = /\.fmt-erase \{[^}]*?background:\s*([^;]+);/.exec(css)?.[1];
+    assert.ok(fill, "fond de .fmt-erase introuvable dans le CSS");
+    const surface = over(c(fill), c("var(--bg-main)"));
+    assert.ok(ratio(c("var(--text-main)"), surface) >= 7, "text-main sur la zone d'effacement");
+    assert.ok(ratio(c("var(--text-muted)"), surface) >= AA, "text-muted sur la zone d'effacement");
+    assert.ok(ratio(c("var(--accent-error-text)"), surface) >= AA, "titre d'erreur sur la zone d'effacement");
+  });
+
+  test(`${theme} : options et champs du formatage sur leur matériau composé`, () => {
+    const floating = onPage("var(--glass-floating-bg)", vars);
+    const card = vars["glass-card-bg"];
+    const stops = card.startsWith("linear-gradient(")
+      ? splitTopLevel(card.slice("linear-gradient(".length, -1)).slice(1).map((v) => v.replace(/\s+\d+%$/, ""))
+      : [card];
+    const normal = stops.map((stop) => over(c(stop), floating));
+    const selected = over(c("color-mix(in srgb, var(--accent-primary) 10%, var(--bg-surface-elevated))"), floating);
+    const chip = over(c("var(--glass-surface-bg)"), floating);
+    for (const surface of [...normal, selected, chip]) {
+      assert.ok(ratio(c("var(--text-main)"), surface) >= 7, "texte principal AAA sur les options");
+      assert.ok(ratio(c("var(--text-muted)"), surface) >= AA, "texte secondaire AA sur les options");
+      assert.ok(ratio(c("var(--control-outline)"), surface) >= NON_TEXT, "sélection visible sur les options");
+    }
+  });
+
   test(`${theme} : anneau de sélection et jauge distincts du fond (3:1)`, () => {
     const accent = c("var(--accent-primary)");
     assert.ok(ratio(accent, c("var(--bg-main)")) >= NON_TEXT, "anneau sur fond de page");

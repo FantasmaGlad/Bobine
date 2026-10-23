@@ -10247,3 +10247,34 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
   .st-bar-head .seg { width: 100%; }
   .st-entry { gap: 10px; }
 }
+
+/* ============================================================
+   Stockage externe : assistant « Préparer ce support » (formatage). Zone d'effacement teintée par le jeton d'erreur du thème
+   (contrastes contrôlés sur les 16 thèmes dans tests/themeContrast.test.ts), bouton danger sobre, uniquement des jetons.
+   ============================================================ */
+:root { --control-outline: color-mix(in srgb, var(--accent-primary) 65%, var(--text-main)); }
+.fmt-erase { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: var(--radius-md); color: var(--text-main);
+  background: color-mix(in srgb, var(--accent-error) 12%, var(--bg-surface-elevated));
+  border: 1px solid color-mix(in srgb, var(--accent-error) 40%, var(--border-color)); }
+.fmt-erase strong { color: var(--accent-error-text); }
+.fmt-options { display: flex; flex-direction: column; gap: 8px; }
+.fmt-option { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; min-height: 56px; border-radius: var(--radius-md); cursor: pointer;
+  background: var(--glass-card-bg); border: 1px solid var(--glass-surface-border, var(--border-color)); }
+.fmt-option input[type="radio"] { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--control-outline); cursor: pointer; flex-shrink: 0; }
+.fmt-option:has(input:checked) { border-color: var(--control-outline); background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-surface-elevated)); }
+.fmt-option:has(input:focus-visible) { outline: 3px solid var(--control-outline); outline-offset: 2px; }
+.fmt-option[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+.fmt-field { display: flex; flex-direction: column; gap: 6px; }
+.fmt-field .form-control { max-width: 360px; }
+.fmt-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.fmt-steps li { display: flex; align-items: center; gap: 10px; min-height: 32px; color: var(--text-main); }
+.fmt-steps li[data-state="pending"], .fmt-steps li[data-state="skipped"] { color: var(--text-muted); }
+.fmt-steps li[data-state="failed"] { color: var(--accent-error-text); font-weight: 700; }
+.fmt-steps li[data-state="running"] .material-symbols-outlined { animation: fmt-spin 1.2s linear infinite; color: var(--accent-primary); }
+.fmt-checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.fmt-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: var(--text-main);
+  background: var(--glass-surface-bg); border: 1px solid var(--glass-surface-border, var(--border-color)); }
+.fmt-chip[data-ok="false"] { color: var(--accent-error-text); border-color: color-mix(in srgb, var(--accent-error) 45%, transparent); }
+.fmt-count { font-variant-numeric: tabular-nums; }
+@keyframes fmt-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fmt-steps li[data-state="running"] .material-symbols-outlined { animation: none; } }

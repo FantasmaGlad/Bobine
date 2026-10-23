@@ -62,6 +62,9 @@ Installez Bobine en quelques secondes comme une application autonome sur votre t
 
 Les téléchargements ci-dessus visent la **Stable 5.0.2**. La **Canary actuelle (5.0.5)** porte les changements faits depuis : le lot d’optimisation 5.0.3, l’appairage par code, l’écran radio épuré, la qualité du verre adaptative et le composant audio natif expérimental. Rien de cela n’est encore validé sur de vrais appareils Android TV, Wyse, Windows ou macOS.
 
+
+L’assistant « Préparer ce support » de la Canary propose un formatage rapide Linux (exFAT, ext4, FAT32 ou NTFS), avec PIN obligatoire, confirmation du nom et vérification du résultat. Il refuse les disques internes/système, les supports occupés et les bibliothèques encore enregistrées. Le formatage efface le support sélectionné ; les autres plateformes ne le prennent pas en charge.
+
 ### Programmes Bêta & Canary — Accès anticipé
 
 <p align="center">

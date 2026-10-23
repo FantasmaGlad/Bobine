@@ -62,6 +62,9 @@ Install Bobine as a native application on your tablet, workstation, or studio PC
 
 The downloads above target **Stable 5.0.2**. The current **Canary (5.0.5)** carries the changes made since: the 5.0.3 optimization batch, pairing by code, the simplified radio screen, adaptive glass quality and the experimental native audio component. None of it is validated on real Android TV, Wyse, Windows or macOS devices yet.
 
+
+The Canary “Prepare this drive” wizard offers quick formatting on Linux (exFAT, ext4, FAT32 or NTFS), with a mandatory PIN, typed drive-name confirmation and result verification. It rejects internal/system disks, busy drives and registered libraries. Formatting erases the selected drive; other platforms do not support this operation.
+
 ### Beta & Canary Programs — Early Access
 
 <p align="center">

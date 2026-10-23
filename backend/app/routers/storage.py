@@ -12,13 +12,18 @@ import logging
 import re
 from typing import Any, Awaitable, TypeVar
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
+from app.database import get_db
+from app.devices import security
 from app.devices.base import DeviceError
-from app.routers.devices import Access, _fail, require_access
+from app.routers.devices import Access, _client_ip, _fail, _get_setting, _locked, require_access
 from app.storage import fsadvisor
+from app.storage.formatting.refusals import FormatRefusal
 from app.storage.paths import PathError
+from app.utils.activity_log import log_activity
 from app.storage.service import service
 from app.storage.transfer import TransferError
 
@@ -40,7 +45,7 @@ async def _guard(coro: Awaitable[T]) -> T:
     try:
         return await coro
     except DeviceError as exc:
-        raise _fail(exc.status, exc.code, exc.message) from exc
+        raise _fail(exc.status, exc.code, exc.message, **getattr(exc, "extra", {})) from exc
     except PathError as exc:
         raise _fail(exc.status, exc.code, exc.message) from exc
     except TransferError as exc:
@@ -203,3 +208,84 @@ async def portable_mount(device_id: str, _: Access = Depends(require_access)) ->
 @router.post("/portable/{device_id}/unmount")
 async def portable_unmount(device_id: str, _: Access = Depends(require_access)) -> dict[str, Any]:
     return await _guard(service.portable_unmount(_key(device_id)))
+
+
+# ---------------------------------------------------------------------------
+# Assistant de formatage : plan (lecture seule) puis exécution (jeton, confirmation, PIN, cascade de vérifications)
+# ---------------------------------------------------------------------------
+
+
+class FormatPlanRequest(BaseModel):
+    key: str = Field(max_length=80)
+    travels: list[str] = Field(default_factory=list, max_length=4)   # OS qui brancheront aussi le support (windows, macos, android)
+
+
+class FormatExecuteRequest(BaseModel):
+    key: str = Field(max_length=80)
+    token: str | None = Field(default=None, max_length=200)
+    fs: str = Field(max_length=16)
+    label: str = Field(max_length=80)
+    confirm: str = Field(default="", max_length=200)
+    acknowledged: bool = False
+    pin: str | None = Field(default=None, max_length=32)
+
+
+def _require_format_pin(request: Request, db: Session, pin: str | None) -> None:
+    """Dès qu'un PIN existe, TOUT formatage l'exige, y compris depuis l'écran local de confiance (jamais journalisé)."""
+    stored = _get_setting(db, security.SETTING_PIN_HASH)
+    if not stored:
+        raise _fail(403, "format_pin_not_set", "Définissez un code PIN depuis l’écran local avant de formater un support.")
+    ip = _client_ip(request)
+    retry = security.rate_limiter.retry_after(ip)
+    if retry:
+        raise _locked(retry)
+    if not pin:
+        raise _fail(401, "format_pin_required", "Saisissez le code PIN d'administration pour formater.")
+    if not security.verify_pin(pin, stored):
+        lockout = security.rate_limiter.register_failure(ip)
+        log_activity(db, "storage_format_refused", f"format_pin_invalid (IP {ip})")
+        if lockout:
+            raise _locked(lockout)
+        raise _fail(401, "format_pin_invalid", "Code PIN incorrect.", attempts_left=security.rate_limiter.attempts_left(ip))
+    security.rate_limiter.register_success(ip)
+
+
+@router.post("/format/plan")
+async def format_plan(payload: FormatPlanRequest, access: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Plan de formatage : n'écrit RIEN. Renvoie ce qui sera effacé, les formats possibles et un jeton court à usage unique."""
+    pin_required = bool(_get_setting(db, security.SETTING_PIN_HASH))
+    return await _guard(service.formatter.plan(_key(payload.key), owner=access.ip, travels=payload.travels, pin_required=pin_required))
+
+
+@router.post("/format/execute", status_code=202)
+async def format_execute(payload: FormatExecuteRequest, request: Request, access: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
+    _require_format_pin(request, db, payload.pin)
+    return await _guard(service.formatter.start(
+        _key(payload.key), token=payload.token, fs=payload.fs, label=payload.label, confirm_text=payload.confirm,
+        acknowledged=payload.acknowledged, owner=access.ip,
+    ))
+
+
+@router.get("/format/active")
+async def format_active(_: Access = Depends(require_access)) -> dict[str, Any]:
+    job = service.formatter.active()
+    return {"job": job.public() if job else None}
+
+
+@router.get("/format/jobs/{job_id}")
+async def format_job(job_id: str, _: Access = Depends(require_access)) -> dict[str, Any]:
+    if not _KEY.fullmatch(job_id):
+        raise _fail(404, "format_job_not_found", "Opération introuvable.")
+    return await _guard(_sync(lambda: service.formatter.job(job_id).public()))
+
+
+@router.delete("/format/jobs/{job_id}")
+async def format_cancel(job_id: str, _: Access = Depends(require_access)) -> dict[str, Any]:
+    """Annule AVANT le point de non-retour (aucun effacement n'a eu lieu) ; refusé ensuite."""
+    if not _KEY.fullmatch(job_id):
+        raise _fail(404, "format_job_not_found", "Opération introuvable.")
+    return await _guard(_sync(lambda: service.formatter.cancel(job_id)))
+
+
+async def _sync(fn: Any) -> Any:
+    return fn()
