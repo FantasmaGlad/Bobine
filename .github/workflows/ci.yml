@@ -1328,7 +1328,7 @@ jobs:
 
           **Basé sur** commit `__COMMIT__` · version à venir `__VERSION__`
 
-          Le [lot d’optimisation 5.0.3 : mesures et limites de validation](https://github.com/FantasmaGlad/Bobine/blob/__COMMIT__/docs/performance-5.0.3.md) est documenté séparément. Les essais sur les appareils restent nécessaires avant sa promotion Stable.
+          Le lot d’optimisation 5.0.3 est inclus. Les essais sur les appareils restent nécessaires avant sa promotion Stable.
 
           ---
 
