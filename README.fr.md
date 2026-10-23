@@ -7,7 +7,7 @@
 <table align="center">
   <tr>
     <td align="center" valign="middle"><img alt="Google Book compatible avec Bobine" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/googlebooks.webp" width="400"></td>
-    <td align="center" valign="middle"><img alt="Bobine soutient Firefox — le renard Firefox et Baamix, la mascotte de Bobine" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/FirefoxBaamix.png" width="400"></td>
+    <td align="center" valign="middle"><img alt="Baamix, la mascotte de Bobine, sur le logo Arch Linux" src="Assets/Images/Mascottes/ArchBaamix.webp" width="400" height="400"></td>
   </tr>
 </table>
 
