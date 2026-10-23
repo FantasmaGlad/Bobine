@@ -181,8 +181,9 @@ def main() -> int:
         key = found["key"]
         check("support de type image disque, exFAT, UUID connu", found["kind"] == "image" and found["fstype"] == "exfat" and found["uuid_known"])
         check("aucun chemin de périphérique ni point de montage exposé", "/dev/" not in json.dumps(found) and "/run/media" not in json.dumps(found))
-        system_disks = [v for v in volumes() if v["label"] not in ("BOBTEST",)]
-        check("aucun disque système ni autre support proposé", system_disks == [], str([v["name"] for v in system_disks]))
+        # Un autre support amovible réellement branché sur le poste est légitime ; seuls les disques fixes sont exclus.
+        system_disks = [v for v in volumes() if v["label"] != "BOBTEST" and not (v.get("transport") == "usb" or v.get("portable"))]
+        check("aucun disque système ou interne proposé", system_disks == [], str([v["name"] for v in system_disks]))
 
         # --- montage en lecture seule avec options sobres (le bureau a pu monter en lecture-écriture) ---
         desktop_opts = mount_options(device_a)
