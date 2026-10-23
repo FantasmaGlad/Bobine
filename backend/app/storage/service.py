@@ -33,7 +33,11 @@ SETTLE_SECONDS = 0.4         # laisse udev/udisks terminer avant de relire
 HEALTH_TTL = 600.0
 HEALTH_PERIOD = 6 * 3600.0
 STANDBY_RETRY = 1800.0
-MOUNT_RETRY = 60.0
+MOUNT_RETRY = 15.0
+MOUNT_SETTLE_TRIES = 4
+UNMOUNT_BUSY_TRIES = 4
+UNMOUNT_BUSY_SECONDS = 1.5
+MOUNT_SETTLE_SECONDS = 1.5
 RECENT_KEEP = 300.0
 _EVENT_MIN_GAP = 0.25
 
@@ -267,8 +271,9 @@ class StorageService:
                 continue
             settings = lib["settings"]
             mountpoint = vol.mountpoint if vol.mounted else None
-            if vol.mounted and settings.get("read_only") and vol.mounted_read_only is False and vol.key not in self._rw_lease and vol.key not in self._busy:
+            if vol.mounted and settings.get("read_only") and vol.mounted_read_only is False and vol.key not in self._rw_lease and vol.key not in self._busy and vol.dev_type != "loop":
                 # Le bureau monte tout en lecture-écriture : une bibliothèque doit rester en lecture seule (zéro écriture).
+                # Jamais pour une image disque : udisks libère le périphérique loop dès son démontage (`Autoclear`).
                 mountpoint = await self._attempt(self._remount(vol, writable=False, settings=settings)) or mountpoint
             elif not vol.mounted and settings.get("auto_mount_library") and time.monotonic() - self._mount_failures.get(vol.key, -MOUNT_RETRY) >= MOUNT_RETRY:
                 mountpoint = await self._attempt(self._mount_volume(vol, writable=False, settings=settings))
@@ -449,15 +454,23 @@ class StorageService:
     # ------------------------------------------------------------------ montage, démontage, retrait sûr
     async def _mount_volume(self, vol: Volume, *, writable: bool, settings: dict[str, Any]) -> str:
         options = longevity.mount_options(settings, writable=writable)
-        try:
-            mountpoint = await self.driver.mount(vol, options)
-        except DeviceError as exc:
-            if exc.code == "option_not_permitted":
-                mountpoint = await self.driver.mount(vol, ["rw" if writable else "ro"])
-            else:
+        mountpoint: str | None = None
+        for attempt in range(MOUNT_SETTLE_TRIES):
+            try:
+                mountpoint = await self.driver.mount(vol, options)
+                break
+            except DeviceError as exc:
+                if exc.code == "option_not_permitted":
+                    mountpoint = await self.driver.mount(vol, ["rw" if writable else "ro"])
+                    break
+                if exc.code == "unsupported_fs" and attempt + 1 < MOUNT_SETTLE_TRIES:
+                    # Support tout juste branché : udisks n'a pas fini d'identifier son système de fichiers.
+                    await asyncio.sleep(MOUNT_SETTLE_SECONDS)
+                    continue
                 if exc.code == "dirty":
                     self._dirty.add(vol.key)
                 raise
+        assert mountpoint is not None
         self._dirty.discard(vol.key)
         self._log("storage_mounted", f"{vol.display_name} ({'rw' if writable else 'ro'})")
         await self._refresh_soon()
@@ -475,7 +488,15 @@ class StorageService:
         if self._busy.get(vol.key):
             raise DeviceError("busy", "Un import ou un export utilise ce support : annulez-le ou attendez sa fin.", 409)
         await self._sync_now()
-        await self.driver.unmount(vol)
+        for attempt in range(UNMOUNT_BUSY_TRIES):
+            try:
+                await self.driver.unmount(vol)
+                return
+            except DeviceError as exc:
+                # Un indexeur du bureau (vignettes, recherche) garde parfois un support fraîchement monté quelques secondes.
+                if exc.code != "busy" or attempt + 1 == UNMOUNT_BUSY_TRIES:
+                    raise
+                await asyncio.sleep(UNMOUNT_BUSY_SECONDS)
 
     async def _remount(self, vol: Volume, *, writable: bool, settings: dict[str, Any]) -> str:
         await self._unmount_volume(vol)
@@ -814,7 +835,7 @@ class StorageService:
 
             info = await asyncio.to_thread(_register)
             settings = info["settings"]
-            if settings.get("read_only") and vol.mounted and vol.mounted_read_only is False:
+            if settings.get("read_only") and vol.mounted and vol.mounted_read_only is False and vol.dev_type != "loop":
                 await self._attempt(self._remount(vol, writable=False, settings=settings))
             elif not vol.mounted:
                 await self._attempt(self._mount_volume(vol, writable=False, settings=settings))

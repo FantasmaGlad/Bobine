@@ -40,7 +40,8 @@ class FakeStorageDriver(StorageDriver):
 
     # --- scénarios -----------------------------------------------------------------------------------------
     def plug(self, name: str, uuid: str | None, files: dict[str, bytes] | None = None, *, fstype: str = "exfat", kind: str = "usb",
-             label: str | None = None, mounted_rw: bool = False, rotational: bool | None = None, size: int = 64 * 10**9) -> Volume:
+             label: str | None = None, mounted_rw: bool = False, rotational: bool | None = None, size: int = 64 * 10**9,
+             dev_type: str = "part") -> Volume:
         disk = self.base / "disks" / (uuid or name)
         disk.mkdir(parents=True, exist_ok=True)
         for rel, data in (files or {}).items():
@@ -52,7 +53,7 @@ class FakeStorageDriver(StorageDriver):
             key = f"{key}-{name}1"
         vol = Volume(
             key=key, device=f"/dev/{name}1", name=f"{name}1", fs_uuid=uuid, label=label or name.upper(),
-            fstype=fstype, size_bytes=size, mountpoint=None, removable=True, hotplug=True, transport="usb", kind=kind, dev_type="part",
+            fstype=fstype, size_bytes=size, mountpoint=None, removable=True, hotplug=True, transport="usb", kind=kind, dev_type=dev_type,
             rotational=rotational, disk=name, discard_supported=kind in ("usb", "ssd"),
         )
         self.volumes[vol.key] = vol

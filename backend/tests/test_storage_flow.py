@@ -469,6 +469,20 @@ def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
     assert on_disk.exists() and on_disk.read_bytes() == media.video.read_bytes()  # le fichier de l'utilisateur est intact
 
 
+def test_disk_images_are_never_remounted_automatically(env):
+    """udisks libère un périphérique loop dès son démontage : remonter une image « en lecture seule » la ferait disparaître."""
+    image = env.driver.plug("loop5", "BBBB-0099", kind="image", dev_type="loop", mounted_rw=True)
+    usb = env.driver.plug("sdq", "BBBB-0098", mounted_rw=True)
+    env.refresh()
+    _register(env, image.key)
+    _register(env, usb.key)
+    env.refresh()
+    assert env.driver.unmount_calls == [usb.key]  # la clé USB est remontée en lecture seule, l'image est laissée telle quelle
+    assert vol_view(env, usb.key)["mounted_read_only"] is True and vol_view(env, image.key)["mounted_read_only"] is False
+    read_only = {i["id"]: i for i in vol_view(env, image.key)["longevity"]}["read_only"]
+    assert read_only["status"] == "inactive"  # dit honnêtement qu'elle n'est pas en lecture seule
+
+
 @needs_ffmpeg
 def test_unregister_requires_confirmation_and_never_deletes_files(env, media):
     vol = env.driver.plug("sda", "BBBB-0002", {"Cours/Rpm 102.mp4": media.video.read_bytes(), "Album stk/01 - a.mp3": media.audio.read_bytes()})
