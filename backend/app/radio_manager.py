@@ -18,6 +18,7 @@ from typing import Any, Awaitable, Callable
 from app.config import settings
 from app.storage.availability import media_available
 from app.utils.playback_clock import PlaybackClock
+from app.utils.radio_mix import default_mix
 from app.utils.radio_sound import default_sound
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,9 @@ TRACK_END_GRACE_SECONDS = 2.0
 # Démarrage synchronisé : seulement s'il y a au moins deux postes /radio à
 # caler entre eux (sinon réponse immédiate).
 PLAY_LEAD_MS = 150.0
+# Bail du vumètre : une interface de mixage le renouvelle toutes les quelques secondes tant qu'elle est ouverte ; sans
+# renouvellement le lecteur cesse de mesurer (aucun coût quand personne ne regarde).
+METER_LEASE_SECONDS = 12.0
 
 
 class RadioPlaybackManager:
@@ -130,7 +134,13 @@ class RadioPlaybackManager:
             # Réglages de son de CETTE sortie (égaliseur, basses…) : appliqués par
             # le lecteur, stockés/validés par utils/radio_sound.py.
             "sound": default_sound(),
+            # Table de mixage de la sortie (utils/radio_mix.py) et route audio choisie (devices/routing.py) : appliquées par
+            # le lecteur, publiées avec l'état comme le son. `meter` = un vumètre est ouvert (le lecteur mesure ses niveaux).
+            "mix": default_mix(),
+            "route": None,
+            "meter": False,
         }
+        self._meter_until = 0.0
 
     # ------------------------------------------------------------------
     # Diffusion
@@ -190,6 +200,7 @@ class RadioPlaybackManager:
         try:
             while True:
                 await asyncio.sleep(HEARTBEAT_SECONDS)
+                await self._expire_meter()
                 # L'horloge serveur avance seule : heartbeat tant qu'une piste
                 # est en lecture, qu'un poste /radio rapporte ou non.
                 if self.state["playing"]:
@@ -455,6 +466,35 @@ class RadioPlaybackManager:
         l'appelant."""
         self.state["sound"] = sound
         await self._emit("radio_sound_change", client_ts)
+
+    async def set_mix(self, mix: dict, client_ts: float | None = None):
+        """Applique une table de mixage DÉJÀ validée (cf. utils/radio_mix.py) et la diffuse ; persistance par l'appelant."""
+        self.state["mix"] = mix
+        await self._emit("radio_mix_change", client_ts)
+
+    async def set_route(self, route: dict | None) -> None:
+        """Publie la route audio de la sortie (devices/routing.py) ; sans effet, ni diffusion, si elle n'a pas changé."""
+        if self.state.get("route") == route:
+            return
+        self.state["route"] = route
+        await self._emit("radio_route_change")
+
+    async def request_meter(self) -> None:
+        """Une interface de mixage est ouverte : le lecteur doit mesurer ses niveaux pendant `METER_LEASE_SECONDS`."""
+        self._meter_until = time.monotonic() + METER_LEASE_SECONDS
+        if not self.state.get("meter"):
+            self.state["meter"] = True
+            await self._emit("radio_meter")
+
+    async def _expire_meter(self) -> None:
+        if self.state.get("meter") and time.monotonic() >= self._meter_until:
+            self.state["meter"] = False
+            await self._emit("radio_meter")
+
+    async def relay_levels(self, levels: dict[str, int]) -> None:
+        """Relaie les niveaux mesurés par le lecteur aux interfaces abonnées à cette sortie (évènement léger, sans état)."""
+        if levels and self.state.get("meter"):
+            await self._broadcast({"event": "radio_levels", "channel": self.channel, "levels": levels})
 
     async def set_shuffle(self, on: bool, client_ts: float | None = None):
         self.state["shuffle"] = bool(on)

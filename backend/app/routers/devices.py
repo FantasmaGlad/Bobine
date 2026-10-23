@@ -21,10 +21,15 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.devices import security
 from app.devices.base import DeviceError
+from app.devices.routing import FALLBACKS, describe_sink, load_routes, resolve_route, save_routes
 from app.devices.service import WIFI_CONFIRM_SECONDS, service
 from app.models import Setting
+from app.radio_manager import RADIO_CHANNELS, get_all_radio_managers, get_radio_manager
 from app.utils.activity_log import log_activity
 from app.utils.deployment import get_deployment_profile
+from app.utils.radio_mix import sanitize_mix, save_mix
+from app.utils.radio_sound import sanitize_sound, save_sound
+from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/devices", tags=["devices"])
@@ -584,6 +589,147 @@ async def topology(_: Access = Depends(require_access), db: Session = Depends(ge
         machine=machine, audio=audio, bluetooth=bluetooth, wifi=wifi, wifi_subnet=wifi_subnet, ethernets=ethernets,
         clients=ws_manager.client_snapshot(), own_ips=security.own_ip_addresses(),
     )
+
+
+# ---------------------------------------------------------------------------
+# Routage audio par sortie radio (phase 2)
+# ---------------------------------------------------------------------------
+
+
+class RoutingRequest(BaseModel):
+    channel: str
+    sink_id: str | None = None
+    fallback: str | None = None
+    clear: bool = False
+
+
+def _route_public(route: dict[str, Any] | None) -> dict[str, Any] | None:
+    if route is None:
+        return None
+    return {k: route[k] for k in ("sink_id", "key", "label", "kind", "fallback")}
+
+
+async def _routing_view(db: Session) -> dict[str, Any]:
+    """État du routage : pour chaque sortie radio, la route mémorisée, sa résolution actuelle, les lecteurs connectés
+    (avec ce qu'ils ont pu appliquer) et ce que le serveur a fait. Les adresses des lecteurs ne sortent pas d'ici."""
+    caps = await _guard(service.driver.capabilities())
+    audio_cap = caps.get("audio_list", {"supported": False})
+    sinks = await service.current_sinks()
+    routes = load_routes(db)
+    managers = get_all_radio_managers()
+    outputs: list[dict[str, Any]] = []
+    for channel in RADIO_CHANNELS:
+        route = routes.get(channel)
+        resolution = resolve_route(route, sinks)
+        players = [
+            {"local": security.is_local_client(str(p["ip"])), "primary": p["primary"], "status": (p["report"] or {}).get("status")}
+            for p in ws_manager.route_players(channel)
+        ]
+        manager = managers.get(channel)
+        outputs.append({
+            "channel": channel,
+            "route": _route_public(route),
+            "state": resolution["state"],
+            "sink_id": resolution["sink"]["id"] if resolution["sink"] else None,
+            "playing": bool(manager and manager.state.get("playing")),
+            "players": players,
+            "server": service.server_status(channel),
+        })
+    return {
+        "supported": bool(audio_cap.get("supported")),
+        "reason": audio_cap.get("reason") or None,
+        "server_mechanism": caps.get("audio_route_stream", {"supported": False}),
+        "fallbacks": list(FALLBACKS),
+        "outputs": outputs,
+    }
+
+
+@router.get("/routing")
+async def get_routing(_: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
+    return await _routing_view(db)
+
+
+@router.put("/routing")
+async def set_routing(payload: RoutingRequest, _: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Choisit (ou efface) la sortie audio d'une sortie radio, ou change son repli quand la sortie est absente."""
+    if payload.channel not in RADIO_CHANNELS:
+        raise _fail(400, "bad_channel", "Sortie radio inconnue.")
+    if payload.fallback is not None and payload.fallback not in FALLBACKS:
+        raise _fail(400, "bad_fallback", "Repli inconnu.")
+    routes = load_routes(db)
+    current = routes.get(payload.channel)
+    if payload.clear:
+        routes.pop(payload.channel, None)
+        detail = f"{payload.channel} -> défaut"
+    elif payload.sink_id:
+        sinks = await service.current_sinks()
+        if sinks is None:
+            raise _fail(501, "unsupported", "Le choix de la sortie audio n'est pas possible sur cette machine.")
+        entry = next((s for s in sinks if s.get("id") == payload.sink_id), None)
+        if entry is None:
+            raise _fail(404, "not_found", "Cette sortie audio n'est plus disponible.")
+        entry = _with_meta(entry, _load_audio_meta(db))
+        descriptor = describe_sink(entry)
+        descriptor["fallback"] = payload.fallback or (current or {}).get("fallback") or FALLBACKS[0]
+        routes[payload.channel] = descriptor
+        detail = f"{payload.channel} -> {descriptor['label']}"
+    elif payload.fallback is not None:
+        if current is None:
+            raise _fail(400, "no_route", "Aucune sortie n'est choisie pour cette sortie radio.")
+        routes[payload.channel] = {**current, "fallback": payload.fallback}
+        detail = f"{payload.channel} repli {payload.fallback}"
+    else:
+        raise _fail(400, "bad_request", "Indiquez une sortie audio, un repli ou l'effacement de la route.")
+    save_routes(db, routes)
+    _log(db, "devices_audio_route", detail[:120])
+    await service.reconcile_routes()
+    service.notify("routing")
+    return await _routing_view(db)
+
+
+# ---------------------------------------------------------------------------
+# Table de mixage applicative (phase 3)
+# ---------------------------------------------------------------------------
+
+
+class MixerRequest(BaseModel):
+    mix: dict | None = None
+    sound: dict | None = None
+
+
+def _mixer_view() -> dict[str, Any]:
+    outputs = []
+    for channel, manager in get_all_radio_managers().items():
+        outputs.append({
+            "channel": channel,
+            "mix": manager.state.get("mix"),
+            "sound": manager.state.get("sound"),
+            "playing": bool(manager.state.get("playing")),
+        })
+    return {"outputs": outputs}
+
+
+@router.get("/mixer")
+async def get_mixer(_: Access = Depends(require_access)) -> dict[str, Any]:
+    return _mixer_view()
+
+
+@router.put("/mixer/{channel}")
+async def set_mixer(channel: str, payload: MixerRequest, _: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Modifie le mixage et/ou l'égaliseur de la musique d'une sortie radio. Valeurs bornées sans erreur, champs absents
+    conservés, persistées puis diffusées au lecteur (mêmes règles que `PUT /api/radio/sound`)."""
+    if channel not in RADIO_CHANNELS:
+        raise _fail(404, "not_found", "Sortie radio inconnue.")
+    manager = get_radio_manager(channel)
+    if payload.sound is not None:
+        sound = sanitize_sound(payload.sound, base=manager.state.get("sound"))
+        save_sound(db, manager.channel, sound)
+        await manager.set_sound(sound)
+    if payload.mix is not None:
+        mix = sanitize_mix(payload.mix, base=manager.state.get("mix"))
+        save_mix(db, manager.channel, mix)
+        await manager.set_mix(mix)
+    return _mixer_view()
 
 
 # ---------------------------------------------------------------------------

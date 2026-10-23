@@ -31,6 +31,7 @@ CAPABILITY_KEYS = (
     "audio_balance",
     "audio_test_tone",
     "audio_profile",
+    "audio_route_stream",
     "bluetooth_status",
     "bluetooth_power",
     "bluetooth_scan",
@@ -125,6 +126,12 @@ class DeviceDriver(ABC):
 
     async def audio_set_profile(self, device_id: str, profile_index: int) -> None:
         raise DeviceError("unsupported", "Le changement de profil audio n'est pas possible sur cette plateforme.", 501)
+
+    async def audio_route_stream(self, sink_id: str | None) -> dict[str, Any]:
+        """Phase 2 (routage par sortie radio) : amène vers `sink_id` le flux audio du navigateur qui joue la radio
+        sur CETTE machine, ou le rend à la sortie par défaut (`None`). Ne déplace un flux que s'il est identifiable
+        sans ambiguïté. Renvoie `{"status": "moved"|"unchanged"|"released"|"no_stream"|"ambiguous"|"failed"}`."""
+        raise DeviceError("unsupported", "Le déplacement du flux audio d'une application n'est pas possible sur cette plateforme.", 501)
 
     # --- Bluetooth -------------------------------------------------------
     @abstractmethod

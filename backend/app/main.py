@@ -59,6 +59,8 @@ from app.utils.radio_announcement_scheduler import (
     stop_radio_announcement_scheduler,
 )
 from app.utils.radio_sound import load_all_sounds_into_managers
+from app.utils.radio_mix import load_all_mixes_into_managers
+from app.devices.routing import load_routes_into_managers
 from app.utils.watcher import start_watcher, stop_watcher
 from app.utils.ws_manager import manager as ws_manager
 from app.devices.service import service as devices_service
@@ -146,6 +148,8 @@ async def lifespan(app: FastAPI):
     # démarrage de lecture pour que le premier état diffusé les contienne.
     with SessionLocal() as sound_db:
         load_all_sounds_into_managers(sound_db)
+        load_all_mixes_into_managers(sound_db)
+        load_routes_into_managers(sound_db)
         # Réglage du composant audio natif (désactivé par défaut) : lu avant tout import.
         media_native.load_from_database(sound_db)
     await autostart_default_radio_playlist()
