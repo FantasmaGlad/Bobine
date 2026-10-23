@@ -131,7 +131,7 @@ export interface GraphLayout {
   height: number;
 }
 
-export const NODE_WIDTH = 214;
+export const NODE_WIDTH = 236;
 export const NODE_HEIGHT = 54;
 const ROW_GAP = 16;
 const COLUMN_GAP = 220;

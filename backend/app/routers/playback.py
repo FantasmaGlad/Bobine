@@ -1014,7 +1014,7 @@ async def _handle_radio_command(
         await manager.request_meter()
     elif command == "radio_report_levels":
         # Niveaux du vumètre : seul le lecteur primaire de la sortie les rapporte (comme la position).
-        if is_kiosk and websocket is not None and not ws_manager.is_primary_kiosk(websocket):
+        if websocket is None or not ws_manager.is_primary_kiosk(websocket):
             return
         await manager.relay_levels(sanitize_levels(params.get("levels")))
     elif command == "radio_set_shuffle":
