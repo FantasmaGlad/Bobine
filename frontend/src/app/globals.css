@@ -5306,7 +5306,7 @@ video::cue {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  /* les pages
+  /* Sans ce padding, les pages
      sans traitement mobile dédié (bibliothèque, paramètres, logs...)
      touchaient les bords de l'écran, aucune respiration nulle part. */
   padding: 16px;

@@ -33,7 +33,10 @@ export interface RemoteHandlers {
   onMute?: () => void;
 }
 
-/** KEYCODE_* d'Android TV → action de la télécommande (D-pad, volume, médias). */
+/**
+ * KEYCODE_* d'Android TV → action de la télécommande (D-pad, médias). Les codes volume (24, 25, 164) restent
+ * reconnus pour les claviers et dongles ; sur Android TV, `MainActivity` ne les relaie pas : le volume reste au téléviseur.
+ */
 const ANDROID_TV_KEYCODES: Partial<Record<number, keyof RemoteHandlers>> = {
   4: "onBack", // KEYCODE_BACK
   19: "onUp", // KEYCODE_DPAD_UP

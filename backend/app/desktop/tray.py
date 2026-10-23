@@ -543,7 +543,7 @@ def _acquire_single_instance_lock() -> bool:
 
 
 # État de la dernière vérification de mise à jour, lu par le libellé
-# dynamique de l'item de menu (cf. `update_menu_text` dans `run()`) et écrit
+# dynamique de l'item de menu (cf. `update_text` dans `run()`) et écrit
 # uniquement par `_check_for_update_once()` — un verrou suffit, la fréquence
 # d'accès est très faible (un poll toutes les UPDATE_POLL_INTERVAL_SECONDS,
 # un rendu de menu à chaque clic droit sur l'icône).

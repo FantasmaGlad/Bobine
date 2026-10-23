@@ -201,7 +201,7 @@ def _migrate_add_missing_columns():
     wanted = [
         ("schedules", "channel", "VARCHAR NOT NULL DEFAULT 'cable'"),
         ("playback_state", "channel", "VARCHAR NOT NULL DEFAULT 'cable'"),
-        # target_type/target_id (cause "coach_priority".7 mode audio
+        # target_type/target_id (cause "coach_priority", mode audio
         # coach) présents dans le modèle mais absents de cette
         # liste jusqu'ici : sur toute base créée avant leur ajout au modèle,
         # `create_all` ne les ajoute jamais (il ne modifie pas les tables

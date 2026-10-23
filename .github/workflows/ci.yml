@@ -371,9 +371,10 @@ jobs:
         run: cargo test --locked
 
   media-component:
-    # Composant natif d'inspection audio (bobine-media), opt-in et sans effet sur les paquets :
-    # compilé et testé sur chaque plateforme desktop avant tout embarquement. Ce job ne valide ni
-    # l'intégration dans les paquets ni un appareil ; l'Android est construit par play-aab.yml.
+    # Composant natif d'inspection audio (bobine-media), désactivé par défaut (réglage « media_native ») :
+    # formatage, clippy, tests et licences sur chaque plateforme desktop. L'embarquement dans les paquets
+    # deb, Windows et macOS est contrôlé par les jobs de packaging, celui des APK Android par `android-build`
+    # (et des AAB par play-aab.yml). Ce job ne valide aucun appareil réel.
     name: Media component (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     # Windows ARM64 : même statut « facultatif » que le sidecar des périphériques (outillage Rust du

@@ -11,7 +11,7 @@ interface VolumeOsdProps {
   overVideo?: boolean;
 }
 
-/** Indicateur de volume latéral (télécommande, clavier, manette) : verre aux jetons du thème, jauge et valeur (la sourdine se lit 0). */
+/** Indicateur de volume latéral (clavier, manette, télécommande à dongle) : verre aux jetons du thème, jauge et valeur (la sourdine se lit 0). */
 export default function VolumeOsd({ visible, level, muted = false, overVideo = false }: VolumeOsdProps) {
   const { t } = useAppSettings();
   const percent = muted ? 0 : Math.round(Math.max(0, Math.min(1, level)) * 100);
