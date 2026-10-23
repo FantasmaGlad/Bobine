@@ -13,10 +13,10 @@ Request:
 Result:
 
 ```json
-{"protocol_version":1,"binary_version":"0.1.0","profiles":["radio-v1","course-duration-v1"],"formats":["mp3","flac","wav"],"capabilities":{"probe_audio":true,"extract_cover":true,"experimental":true},"limits":{"request_bytes":65536,"response_bytes":8388608,"cover_bytes":4194304}}
+{"protocol_version":1,"binary_version":"0.1.0","profiles":["radio-v1","course-duration-v1"],"formats":["mp3","flac","wav","m4a","ogg","opus","aiff","aif"],"capabilities":{"probe_audio":true,"extract_cover":true,"experimental":true},"limits":{"request_bytes":65536,"response_bytes":8388608,"cover_bytes":4194304}}
 ```
 
-Capabilities mean that methods exist for the documented experimental subset. They do not imply production certification or extraction of embedded image bytes. Unsupported layouts always return errors.
+Capabilities mean that methods exist for the documented experimental subset. They do not imply production certification. `formats` lists the file extensions the executable may answer for; a given file of such an extension can still be outside the subset. Unsupported layouts always return errors.
 
 ## Audio inspection
 
@@ -30,7 +30,7 @@ A successful `result` has exactly this shape:
 {"status":"ok","profile":"radio-v1","format":"mp3","metadata":{"title":null,"artist":null,"album":null,"album_artist":null,"track_number":null,"disc_number":null,"year":null,"genre":null,"duration_seconds":1.37}}
 ```
 
-`format` is `mp3`, `flac` or `wav`; `profile` echoes the accepted profile. The nine metadata keys are always present, including for `course-duration-v1`. Text and integer values can be null; duration is a positive finite number in seconds. The caller consumes only duration for the course profile and retains its historical filename parsing. A null native title means no title tag, so the radio caller must apply its filename fallback. There is no mutation or filename parsing in this executable.
+`format` is the lowercase file extension, one of the advertised `formats`; `profile` echoes the accepted profile. The nine metadata keys are always present, including for `course-duration-v1`. Text and integer values can be null; duration is a positive finite number in seconds, equal to what ffprobe reports for the same file (MP3 encoder delay and padding included in that rule, see the README). The caller consumes only duration for the course profile and retains its historical filename parsing. A null native title means no title tag, so the radio caller must apply its filename fallback. There is no mutation or filename parsing in this executable.
 
 ## Image inspection
 
@@ -38,7 +38,7 @@ A successful `result` has exactly this shape:
 {"jsonrpc":"2.0","id":3,"method":"extract_cover","params":{"path":"/corpus/01_intro.mp3","profile":"radio-v1"}}
 ```
 
-A supported file with no image returns `{"status":"ok","cover":null}`. An embedded image currently returns `ambiguous_cover` and must use the reference image pipeline. The future non-null representation is reserved as `{mime,bytes,data_base64}` with JPEG/PNG and strict decoded size checks; it is not currently emitted. Image normalization and JPEG output remain the caller's responsibility.
+A supported file with no image returns `{"status":"ok","cover":null}` (a proven absence). A file with exactly one embedded picture that is structurally inside the accepted families returns `{"status":"ok","cover":{"mime":"image/jpeg","bytes":N,"data_base64":"..."}}`: the raw embedded bytes, never decoded or re-encoded by the executable (`mime` is `image/jpeg` or `image/png`, `bytes` at most `cover_bytes`, standard padded Base64). The accepted families are 8-bit JPEG (baseline, extended or progressive; 1 or 3 components; upright, with no Adobe marker) and non-interlaced 8-bit PNG without animation or EXIF; the MIME type the container declares must agree with the bytes; at most 40 million pixels. Anything else (several pictures, another format, CMYK, a rotated EXIF orientation, 16-bit or interlaced PNG, a declared type that contradicts the bytes) returns `ambiguous_cover` and the caller uses the reference pipeline. Image normalization and JPEG output remain the caller's responsibility; the cover equivalence the caller relies on is defined in the README.
 
 ## Errors
 

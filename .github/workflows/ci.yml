@@ -370,6 +370,56 @@ jobs:
       - name: Tests
         run: cargo test --locked
 
+  media-component:
+    # Composant natif d'inspection audio (bobine-media), désactivé par défaut (réglage « media_native ») :
+    # formatage, clippy, tests et licences sur chaque plateforme desktop. L'embarquement dans les paquets
+    # deb, Windows et macOS est contrôlé par les jobs de packaging, celui des APK Android par `android-build`
+    # (et des AAB par play-aab.yml). Ce job ne valide aucun appareil réel.
+    name: Media component (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # Windows ARM64 : même statut « facultatif » que le sidecar des périphériques (outillage Rust du
+    # runner non garanti) ; son résultat n'est pas une validation tant qu'il n'a pas tourné.
+    continue-on-error: ${{ matrix.experimental == true }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
+        include:
+          - os: windows-11-arm
+            experimental: true
+    defaults:
+      run:
+        shell: bash
+        working-directory: media
+    env:
+      CARGO_NET_RETRY: "10"
+      CARGO_HTTP_TIMEOUT: "60"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            media/target
+          key: cargo-media-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('media/Cargo.toml', 'media/Cargo.lock') }}
+      - name: Format et Clippy
+        run: |
+          rustup component add clippy rustfmt
+          cargo fmt --check
+          cargo clippy --locked --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --locked
+      - name: Licences des dépendances embarquées
+        if: runner.os == 'Linux' && runner.arch == 'X64'
+        working-directory: .
+        run: python3 scripts/ci/check-media-licenses.py
+      - name: Compiler et relever la taille
+        run: |
+          cargo build --release --locked
+          ls target/release/bobine-media* | grep -v '\.d$' | xargs wc -c
+
   android-build:
     # Compile et signe les APK Android (Chaquopy + FastAPI embarqué + binaires FFmpeg ARM).
     # Téléphone/tablette : arm64-v8a (Python 3.13). Android TV : armeabi-v7a +
@@ -480,6 +530,11 @@ jobs:
       - name: Compiler ffmpeg/ffprobe armeabi-v7a (NDK r28c)
         if: steps.check_secrets.outputs.configured == 'true' && steps.ffmpeg_armv7_cache.outputs.cache-hit != 'true'
         run: ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/28.2.13676358" android/scripts/build_ffmpeg_armv7.sh
+      # Composant audio natif (Bionic ARM64 et ARM32, alignement 16 Kio vérifié par le script) : sans lui
+      # l'option « composant audio natif » des Réglages indique « absent » et l'import garde ffprobe/ffmpeg.
+      - name: Compiler le composant audio Android (Bionic ARM64 et ARM32)
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/28.2.13676358" scripts/ci/build-media-android.sh
       - name: Build + signature (Gradle)
         if: steps.check_secrets.outputs.configured == 'true'
         working-directory: android
@@ -612,6 +667,14 @@ jobs:
           cargo test --locked
           cargo build --release --locked
           Copy-Item "target\release\bobine-devices.exe" ..\backend\dist\Bobine\
+      - name: Compiler et embarquer le composant audio natif (bobine-media.exe)
+        shell: pwsh
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
+        run: |
+          python scripts/ci/stage-media.py --dest backend\dist\Bobine
+          if (-not (Test-Path backend\dist\Bobine\bobine-media.exe)) { throw "bobine-media.exe manquant" }
       - name: Fournir ffmpeg.exe/ffprobe.exe (build statique BtbN, appelés par nom nu par le backend)
         shell: pwsh
         run: |
@@ -707,6 +770,14 @@ jobs:
           cargo test --locked
           cargo build --release --locked
           Copy-Item "target\release\bobine-devices.exe" ..\backend\dist\Bobine\
+      - name: Compiler et embarquer le composant audio natif (ARM64, facultatif)
+        shell: pwsh
+        continue-on-error: true
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
+        run: |
+          python scripts/ci/stage-media.py --dest backend\dist\Bobine
       - name: Fournir ffmpeg.exe/ffprobe.exe (build statique BtbN winarm64 avec repli win64)
         shell: pwsh
         run: |
@@ -798,6 +869,13 @@ jobs:
           if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
             echo "${{ needs.version.outputs.display_version }}" > VERSION
           fi
+      - name: Compiler et contrôler le composant audio natif (bobine-media)
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
+        run: |
+          mkdir -p "$RUNNER_TEMP/media-stage"
+          python3 scripts/ci/stage-media.py --dest "$RUNNER_TEMP/media-stage"
       - name: Construire le paquet Debian (.deb)
         env:
           VERSION: ${{ needs.version.outputs.deb_version }}
@@ -823,6 +901,8 @@ jobs:
           test -f /usr/lib/systemd/user/bobine.service
           test -x /usr/lib/bobine/BobineBackend
           test -x /usr/lib/bobine/BobineTray
+          test -x /usr/lib/bobine/bobine-media
+          python3 scripts/ci/stage-media.py --check /usr/lib/bobine/bobine-media
           test -f /usr/share/icons/hicolor/256x256/apps/bobine.png
           test -f /usr/share/pixmaps/bobine.png
       - uses: actions/upload-artifact@v4
@@ -866,6 +946,13 @@ jobs:
           if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
             echo "${{ needs.version.outputs.display_version }}" > VERSION
           fi
+      - name: Compiler et contrôler le composant audio natif (bobine-media)
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
+        run: |
+          mkdir -p "$RUNNER_TEMP/media-stage"
+          python3 scripts/ci/stage-media.py --dest "$RUNNER_TEMP/media-stage"
       - name: Construire le paquet Debian ARM64 (.deb)
         env:
           VERSION: ${{ needs.version.outputs.deb_version }}
@@ -886,6 +973,8 @@ jobs:
           test -f /usr/lib/systemd/user/bobine.service
           test -x /usr/lib/bobine/BobineBackend
           test -x /usr/lib/bobine/BobineTray
+          test -x /usr/lib/bobine/bobine-media
+          python3 scripts/ci/stage-media.py --check /usr/lib/bobine/bobine-media
           test -f /usr/share/icons/hicolor/256x256/apps/bobine.png
           test -f /usr/share/pixmaps/bobine.png
       - uses: actions/upload-artifact@v4
@@ -962,6 +1051,11 @@ jobs:
           cargo test --locked
           cargo build --release --locked
           cp target/release/bobine-devices ../backend/dist/Bobine.app/Contents/MacOS/bobine-devices
+      - name: Compiler et embarquer le composant audio natif
+        env:
+          CARGO_NET_RETRY: "10"
+          CARGO_HTTP_TIMEOUT: "60"
+        run: python3 scripts/ci/stage-media.py --dest backend/dist/Bobine.app/Contents/MacOS
       - name: Vérifier la présence de l'icône dans le bundle
         run: test -f backend/dist/Bobine.app/Contents/Resources/bobine.icns
       - name: Signature ad-hoc (requise par le noyau sur Apple Silicon)
@@ -994,7 +1088,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [version, frontend, firefox-smoke, backend, devices-sidecar, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build]
+    needs: [version, frontend, firefox-smoke, backend, devices-sidecar, media-component, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build]
     runs-on: ubuntu-latest
     steps:
       - name: Tous les contrôles sont verts

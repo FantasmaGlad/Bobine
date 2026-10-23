@@ -4,7 +4,6 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -14,7 +13,6 @@ from app.utils.hardware_info import get_system_telemetry_payload
 from app.utils.playback_session_tracker import (
     close_playback_session,
     start_playback_session,
-    update_playback_session_progress,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,15 +25,6 @@ class RatingCreate(BaseModel):
     rating: int = Field(..., ge=1, le=5)
     channel: str = "cable"
     source: str = "grid"
-
-
-class RatingResponse(BaseModel):
-    id: int
-    video_id: int
-    rating: int
-    channel: str
-    source: str
-    created_at: datetime
 
 
 class SessionStartRequest(BaseModel):

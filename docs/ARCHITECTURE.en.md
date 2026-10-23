@@ -1,6 +1,6 @@
 # Bobine — Technical Architecture & Developer Reference
 
-> **Bilingual document**: this file must be kept in sync with its French version ([`ARCHITECTURE.md`](ARCHITECTURE.md)) — last synchronized: 2026-09-13.
+> **Bilingual document**: this file must be kept in sync with its French version ([`ARCHITECTURE.md`](ARCHITECTURE.md)) — last synchronized: 2026-10-23.
 
 > Technical reference. For a user-oriented presentation (what Bobine is for, guided installation, getting started), see the **[README](../README.md)** (`README.fr.md` for French).
 
@@ -39,7 +39,7 @@ This document is written for anyone who wants to **understand, operate, modify o
 - **Android Portability (`android/`)**: native Android application (Kotlin + embedded CPython via [Chaquopy](https://chaquopy.com/)), `minSdk 34` / `targetSdk 36` (Android 14-16, API 36 / Xiaomi Pad 8). Hardware dual-display via `DisplayManager` and `Presentation` (touch screen on `/grid` with no sidebar, external HDMI output via a USB-C dock on `/cinema` with a "Waiting for a class" idle screen), persistent `ForegroundService`, ARM64 NDK r28c binaries (native Bionic `ffmpeg`/`ffprobe`, 16 KB page size) with `av1_mediacodec` hardware decoding and ultra-fast `h264_mediacodec` encoding.
 - **Installation & tooling**: `install.sh` (idempotent **Bash**: dynamic hardware detection, APT remediation, `--as-user`, machine-readable `--progress=json` output, §7); **graphical installation assistant** (`assistant/`, a **Tauri / Rust** desktop app, `/24` scan of every local network interface and SSH orchestration — see [`assistant/README.md`](../assistant/README.md)).
 
-**Repository languages**: **Python** (FastAPI backend), **TypeScript/React** (Next.js frontend), **Kotlin** (Android app), **Bash** (`install.sh`), **Rust** (core of the installation assistant). **Continuous Integration** (GitHub Actions, `.github/workflows/ci.yml`) on every push/PR: frontend build, backend syntax check, assistant `cargo clippy` + `cargo test`, Android APK build and signing, and `install.sh` sanity checks (syntax + step-counter consistency).
+**Repository languages**: **Python** (FastAPI backend), **TypeScript/React** (Next.js frontend), **Kotlin** (Android app), **Bash** (`install.sh`), **Rust** (core of the installation assistant). **Continuous Integration** (GitHub Actions, `.github/workflows/ci.yml`) on every push/PR: frontend build, Firefox smoke tests (geckodriver), backend syntax check and `pytest` (Python 3.11, 3.12 and 3.13), `cargo clippy` + `cargo test` for the assistant, the devices component (`devices/`) and the native audio component (`media/`, four platforms, plus a license check), Android APK build and signing, `install.sh` sanity checks (syntax + step-counter consistency), then the Windows, Linux (`.deb`) and macOS packages. Frontend tests (`npm test`) and type checking (`npx tsc --noEmit`) run locally: CI only builds the frontend.
 
 ### Local Development
 
@@ -66,8 +66,14 @@ npm run dev             # available at http://localhost:3000
 # Python syntax check (AST)
 backend/.venv/bin/python -c "import ast; ast.parse(open('backend/app/main.py').read())"
 
-# Frontend type check (TypeScript)
-cd frontend && npx tsc --noEmit
+# Backend tests
+cd backend && python -m pytest -q
+
+# Frontend type check and tests (TypeScript)
+cd frontend && npx tsc --noEmit && npm test
+
+# Native audio component (Rust) — same checks as CI
+cd media && cargo fmt --check && cargo clippy --locked --all-targets -- -D warnings && cargo test --locked
 
 # Installation assistant core tests (Rust) — same checks as CI
 cd assistant && cargo test --workspace
@@ -122,7 +128,7 @@ The backend runs as a single `uvicorn` process (`--workers 1`). Playback state (
 - `scheduler_manager.py`: `APScheduler`-based manager for time-based scheduling (recurrences, conflict detection, offsets, radio windows).
 - `models.py`: SQLAlchemy ORM declarations.
 - `config.py`: Dynamic configuration manager.
-- `routers/`: HTTP endpoints grouped by domain (`videos`, `backgrounds`, `playlists`, `audio`, `audio_playlists`, `schedule`, `playback`, `settings`, `logs`, `import_jobs`, `radio`, `radio_playlists`, `radio_announcements`, `devices`); `devices/`: driver interface and the Linux, sidecar and Android drivers, PIN and service (§5bis).
+- `routers/`: HTTP endpoints grouped by domain (`videos`, `backgrounds`, `playlists`, `audio`, `audio_playlists`, `schedule`, `playback`, `settings`, `logs`, `import_jobs`, `radio`, `radio_playlists`, `radio_announcements`, `devices`, `chapters`, `metrics`, `updates`, `uploads`, `display`, `diagnostics`); `devices/`: driver interface and the Linux, sidecar and Android drivers, PIN and service (§5bis).
 
 ---
 
@@ -204,6 +210,14 @@ The FFmpeg telemetry from §1 (`progress_percent`, `eta_seconds`, `speed`) only 
 Both fields are exposed by `GET /api/import-jobs` and displayed in the floating upload panel (`UploadManager.tsx`): `~X min (estimate)` during analysis/copy, then `(N ahead, ~X min total)` while a task waits its turn.
 
 ---
+
+### 6. Native audio component (`bobine-media`, experimental, off by default)
+
+A small Rust executable (`media/`, JSON-RPC over stdin/stdout, no port, read-only) that reads the tags, duration and cover art of **new** radio tracks and audio courses without starting ffprobe/ffmpeg for each file. Formats read: MP3 (Xing/Info index, VBRI, or constant bitrate without index), FLAC, WAV (with INFO), M4A, Ogg Vorbis, Opus, AIFF; everything else, and any file outside the subset proven identical to ffprobe (same fields, duration within 50 ms), goes through ffprobe/ffmpeg + Pillow as before. Native covers (raw JPEG/PNG bytes) are shaped by Pillow; their equivalence with the ffmpeg path is **defined** (same dimensions, PSNR ≥ 33 dB, mean error ≤ 4) because ffmpeg re-encodes the image: see `media/README.md`. No existing data is modified or regenerated.
+
+- **Activation**: the `media_native` setting (Settings → "Native audio component (experimental)", `"false"` by default, the only way on Android); the `BOBINE_MEDIA_NATIVE` variable (`1` forces on, `0` forces off) takes priority (`app/utils/media_native.py`). `GET /api/settings/media-native` returns the real state: `disabled`, `active` (the component answers `hello`), `fallback` (present but unusable) or `absent`.
+- **Delivery**: next to `BobineBackend` in the `.deb` packages (amd64, arm64) and on Windows, in `Contents/MacOS` on macOS, as `libbobine_media.so` (`nativeLibraryDir`) in the Android APKs; the headless appliance installed from git does not ship it. A package without the component stays complete.
+- **Safety**: any failure (missing, protocol error, timeout, format or image outside the subset) falls back to the historical path; no media is ever lost.
 
 ## 3ter. Universal Multi-OS Hardware Telemetry & Attendance Metrics
 
@@ -324,13 +338,14 @@ The **cabled display mode is no longer a frozen preference**: each platform repo
 
 | Profile | Detection | Action |
 |---|---|---|
-| **Android** | `DisplayListener` (add, remove, **change**), private displays excluded | `Presentation` → `/cinema/?channel=cable`; 15 fast retries then one try every 5 s **with no give-up**; state reported at start, on every change, then every 60 s |
-| **Windows** | `EnumDisplayMonitors` (ctypes), 2 s stabilized polling | Edge/Chrome kiosk, dedicated throwaway profile, `--window-position` of the external monitor |
-| **Linux Desktop** | `xrandr --listmonitors` (X11 / XWayland) | Chromium kiosk, dedicated profile; best-effort positioning under Wayland (`--ozone-platform=x11`) |
+| **Android** | `DisplayListener` (add, remove, **change**), private displays excluded | `Presentation` → `/cinema/?channel=cable`; priority activity token (`MainActivity.activeActivity`) and `TYPE_APPLICATION_OVERLAY` fallback (`SYSTEM_ALERT_WINDOW`) to rule out any `BadTokenException`; 15 fast retries then one try every 5 s **with no give-up**; state reported at start, on every change, then every 60 s |
+| **Windows** | `EnumDisplayMonitors` (ctypes), 2 s stabilized polling | Native `bobine-projector.exe` window (WebView2) if available; falls back to an Edge/Chrome kiosk with a dedicated profile, `--new-window`, `--window-position` and `--start-fullscreen` |
+| **Linux Desktop** | `xrandr --listmonitors` (X11 / XWayland) | Native `bobine-projector` window (WebKitGTK) if available; falls back to a Chromium kiosk with a dedicated profile, `--new-window`, `--start-fullscreen` and, under Wayland, `--ozone-platform=x11` |
 | **macOS** | `system_profiler SPDisplaysDataType` | Native `bobine-projector` window (`projector/`, WKWebView) which picks the external screen itself; falls back to the default browser if absent |
 | **Wyse Appliance** | udev DRM rule → `bobine-display-hotplug` (sysfs, 3 s debounce) | `try-restart bobine-kiosk` only when the set of connected outputs changes; reuses the boot-time `xrandr` logic; **reports no external screen** (its output IS the standalone display) |
 
-Desktop implementation: `backend/app/desktop/displays.py` (enumeration, `DisplayWatcher`, `ProjectorWindow`, `DisplayOrchestrator`, tested without a display).
+Desktop implementation: `backend/app/desktop/displays.py` (enumeration, `DisplayWatcher`, `ProjectorWindow`, `DisplayOrchestrator`, multi-OS lookup `find_native_projector`, tested without a display).
+Active output: in `backend/app/routers/settings.py`, the default value of the cabled channel is automatically derived to `"cinema"` as soon as the effective hardware mode is `"dual_screen"`, preventing the untimely redirect of `/cinema` to `/kiosk` when an extended screen is plugged in.
 
 ### Gapless A/B Deck Video Engine (`/cinema`) & 5-Star Rating
 
@@ -360,7 +375,7 @@ A "Spotify-like" music subsystem **fully independent** from video courses/audio 
 - **Two independent radio outputs (5.0.1)**: `/radio?channel=cable` (wired output, played by the physical screen when it is switched to Radio) and `/radio?channel=network` (network output, any device); a bare `/radio` remains an alias of the network output (single rule in `lib/displayChannel.ts`, no hostname heuristic). Each output has its own engine, its own WebSocket primary role and its own events (`channel` = `radio_cable` or `radio_network`). The music library, playlists and reminder pool stay **unique**; specific to each output: playback state, default ambience (`radio_default_playlist_id_<output>` setting, else the `is_default` playlist, else the whole library), auto-start (the wired engine only starts if the wired screen is on Radio), reminder rules (`target` column: `radio_cable`, `radio_network` or `both`) and schedule (four lanes: wired, network, wired radio, network radio; former `radio` rows migrate to `radio_network`). A wired radio schedule while the screen is not on Radio loads its playlist paused, without switching the screen. The remote (`RadioRemotePanel`) is a single component mounted in `/radio-remote` (Wired / Network tabs), in the "Wired Output" page in Radio mode and in `/grid` (compact variant). The player arms itself when the browser allows autoplay (`AudioContext` probe, feature detection): essential on wired outputs where nobody can click.
 - **Sound management (5.0.1)**: 5-band graphic equalizer (60 Hz, 230 Hz, 910 Hz, 3.6 kHz, 14 kHz, ±12 dB), bass boost (0 to +12 dB), loudness, overload protection (limiter, only active when the settings raise the sound) and three presets (Bass Boost, Voice Boost, Soften; flat sound is the Reset button, not a preset). Processing is done **in the player** (`lib/radioSoundGraph.ts`: a single 9-node Web Audio chain for all the music, automatic anti-clipping preamp, smoothed changes); voice reminders bypass it. The server (`utils/radio_sound.py`) clamps without errors, persists per output (`radio_sound_<output>` in `settings`) and broadcasts the settings in the engine state (`sound` field, `radio_set_sound` WebSocket command, `GET/PUT /api/radio/sound?channel=`). UI: `RadioSoundPanel` (inside the radio remote, hence also the Wired Output page in radio mode and `/grid`).
 - **"Up next" queue (5.0.1)**: `RadioQueueList` shows cover, title, artist, style (`genre`, carried in each track's state) and duration, with drag-and-drop through pointer events (mouse, touch, pen) and keyboard arrows. The `radio_move_in_queue` WebSocket command (`from_index`, `to_index`) reorders only upcoming tracks (`RadioPlaybackManager.move_in_order`: the current track and the history never move). Dropdowns (`ResponsiveSelect`) are rich (preview, detail, duration, built-in search) and every search field goes through `lib/searchText.ts` (case and accents ignored, words in any order) with autocomplete (`SearchBox`).
-- **Surfaces**: `/radio` (the dedicated station's screen — display + controls, opened manually in a browser, no systemd kiosk service), the admin "Radio" tab (remote control on `/radio-remote`), "Radio Audio Track" (library on `/radio-library`), "Reminders" (announcements on `/radio-announcements`), and a 3rd "Radio" tab on the Schedule page (`/schedule/?channel=radio`). Outside of playback (idle screen + "Start radio" overlay), the station displays a **full-screen big logo** (opaque theme background); unlocking the station **does not start any music** unless a radio is actually active (`idle` state), to avoid desyncing the admin interface.
+- **Surfaces**: `/radio` (the dedicated station's screen — display + controls, opened manually in a browser, no systemd kiosk service), the admin "Radio" tab (remote control on `/radio-remote`), "Radio Audio Track" (library on `/radio-library`), "Reminders" (announcements on `/radio-announcements`), and a 3rd "Radio" tab on the Schedule page (`/schedule/?channel=radio`). The `/radio` screen is kept minimal because it is driven with the remote's arrows (left / right: previous / next track, up / down: volume): cover, title, progress, previous / play-pause / next and volume. Shuffle and repeat stay in the web remote (`/radio-remote`, `RadioRemotePanel`), the manual trigger of a reminder on the reminders page (`/radio-announcements`). Outside of playback (idle screen + "Start radio" overlay), the station displays a **full-screen big logo** (opaque theme background); unlocking the station **does not start any music** unless a radio is actually active (`idle` state), to avoid desyncing the admin interface.
 - **Library**: import of every audio format (automatic transcoding of what the browser can't play), extracted (ID3) or manual cover art, browsing by artist/album/tags. The admin "Radio Audio Track" screen (`/radio-library`) is an **overview**: a filter sidebar (playlists / tags / genres / artists), a multi-select grid with bulk actions (tagging, adding to a playlist), editable tag chips, a drag-and-drop playlist editor.
 - **Playback**: continuous, queue, shuffle, repeat (track/playlist), **crossfade** (Web Audio API — two `<audio>` elements routed through a `MediaElementAudioSourceNode → GainNode → destination` graph, fade started client-side ahead of server confirmation).
 - **Reminders**: courtesy announcements with a description, trigger rules (every N tracks / every X minutes / at fixed times / manual), inserted either at the end of the current track or via an immediate fade ("duck" — reuses the same Web Audio graph as the crossfade). Every reminder is **loudness-normalized on import** (`ffmpeg loudnorm` EBU R128, 2 passes, -10 LUFS target) so it's heard at least as loud as the music. Dedicated admin screen (`/radio-announcements`): import, activation, rules, manual trigger.
@@ -381,8 +396,8 @@ A "Spotify-like" music subsystem **fully independent** from video courses/audio 
 - **Audio output detail** (5.0.2): a click opens a drawer (`AudioDetailSheet`) — level, left/right **balance** (PipeWire: `pw-cli set-param … Props channelVolumes`, cubic volumes, master level kept), per-channel **test sound** (WAV generated in memory, `pw-play --target`, capped, one at a time), **analysis** (`pw-dump`: state, channels, rate, format, latency, card, Bluetooth codec), **profile** (`wpctl set-profile`), custom name and hiding (`settings.devices_audio_meta`, shared by every platform). Capabilities `audio_details`, `audio_balance`, `audio_test_tone`, `audio_profile`; routes `GET /audio/details`, `POST /audio/balance|test|profile`, `PUT /audio/meta`. Android: basic analysis only.
 - **Overview** (5.0.2): `GET /api/devices/topology` builds a graph (`devices/topology.py`, pure and tested) — machine at the center, audio outputs, Bluetooth devices, Wi-Fi, Ethernet (psutil, virtual interfaces excluded), Bobine screens and remotes. A client's link medium is deduced from its address (the machine itself, the Wi-Fi subnet, the Ethernet subnet, otherwise local network). Server side, `identify` accepts `page` for kiosks and a `viewer` role (cinema, grid, dashboard, coach) kept in a separate `ws_manager` registry (`client_snapshot`) with **no effect** on the primary role or on events. UI side: deterministic orbital layout (`lib/deviceMap.ts`, no simulation), SVG with pan, zoom (wheel, pinch), hover and a detail panel with a shortcut to the device's tab (`focus`).
 - **PIN and interactions** (5.0.2): six-bubble entry (`PinEntry`, pure logic `lib/pinEntry.ts`), two-step definition by a single component (`PinSetupFlow`, shared by the Security section, local activation and remote pairing); motion tokens `--ease-*`, `.glass-interactive` class (halo driven by `usePointerGlow`, fine pointer only, off in remote mode and reduced motion), `SegmentedTabs` with a sliding indicator. Toolbars wrap by content (`scripts/browser-bench/overflow_audit.py` as a guard). Android: `ArcSpinnerView` spinner in the theme colors (`BobineNative.setThemeAccent`).
-- **Android TV remote and volume**: on a television only (`MainActivity.isTvDevice()`), `MainActivity` relays the volume and Back keys to the interface as keyboard events `AudioVolumeUp|Down|Mute` and `Escape` (phones and tablets keep the system behaviour); `useKioskRemote` also recognises Android `keyCode`s (`ANDROID_TV_KEYCODES` table). The volume of the page's videos and tracks is set by `lib/volumeHud.ts` (`VOLUME_STEP`, `adjustMediaVolume`, `useVolumeHud`) and displayed by `VolumeOsd`, without blur while a video plays. On `/cinema`, Back scrolls to the hero, then opens the standby screen.
-- **Glass and style tokens** (`globals.css`): all glass goes through tokens — blur scale `--blur-xs…2xl` multiplied by `--blur-scale`, `--saturate-soft|rich`, `--glass-surface|card|floating-*`, scrims `--scrim*`, neutrals `--ink` and `--specular` for shadows and highlights (via `color-mix`). `prefers-reduced-transparency` sets blur to 0 and replaces glass surfaces with the theme's solid surfaces. Writing rule: `-webkit-backdrop-filter` BEFORE `backdrop-filter` (the minifier keeps only the last of two identical declarations; in the opposite order Chrome, Edge and Firefox get no blur). Guards: `frontend/tests/glassTokens.test.ts` (no hardcoded value, no undefined variable, prefix order) and `frontend/tests/themeContrast.test.ts` (contrast of the 16 themes computed on the real tokens). Measurement: a still page costs nothing, scrolling lists of blurred cards costs GPU time (60 cards: about +5 points of occupancy and +1 W on a recent integrated GPU at 1080p).
+- **Android TV remote and volume**: on a television only (`MainActivity.isTvDevice()`), `MainActivity` relays the Back key to the interface as an `Escape` keyboard event (phones and tablets keep the system behaviour). **Volume is left to the television**: some models (Xiaomi) set the sound and show their own gauge before the app sees the key, so relaying it changed the sound twice; Bobine neither consumes nor relays the volume keys on Android TV. `useKioskRemote` also recognises Android `keyCode`s (`ANDROID_TV_KEYCODES` table, volume included for keyboards and dongles). With a keyboard, gamepad or dongle, the volume of the page's videos and tracks is set by `lib/volumeHud.ts` (`VOLUME_STEP`, `adjustMediaVolume`, `useVolumeHud`) and displayed by `VolumeOsd`, without blur while a video plays. On `/cinema`, Back scrolls to the hero, then opens the standby screen.
+- **Glass and style tokens** (`globals.css`): all glass goes through tokens — blur scale `--blur-xs…2xl` multiplied by `--blur-scale`, `--saturate-soft|rich`, `--glass-surface|card|floating-*`, scrims `--scrim*`, neutrals `--ink` and `--specular` for shadows and highlights (via `color-mix`). `prefers-reduced-transparency` sets blur to 0 and replaces glass surfaces with the theme's solid surfaces. Writing rule: `-webkit-backdrop-filter` BEFORE `backdrop-filter` (the minifier keeps only the last of two identical declarations; in the opposite order Chrome, Edge and Firefox get no blur). **Legibility**: `--text-dim` is tuned theme by theme to reach AA contrast on the three surfaces, and `--accent-error-text` (a mix of `--accent-error` and the theme's text) replaces the raw error accent for any error text. **Adaptive glass quality** (`lib/glassQuality.ts`, `lib/useGlassGovernor.ts`, mounted by `AppSettingsContext`): the `--blur-scale` is no longer fixed. In "Automatic" mode the governor measures frame times while scrolling and drops one step (full 1, reduced 0.5, no blur 0) when the 75th percentile exceeds 24 ms over 45 frames; the chosen step is remembered in the browser (`bobine.glass.step`) and never rises on its own. "Full", "Reduced" and "No blur" are an explicit choice (Settings → Appearance → "Glass quality", `bobine.glass.mode`); the system "reduce transparency" setting still takes priority. Guards: `frontend/tests/glassTokens.test.ts` (no hardcoded value, no undefined variable, prefix order, no hardcoded status color), `frontend/tests/themeContrast.test.ts` (AA contrast of the 16 themes computed on the real tokens: text, error text, primary button, floating glass, ring and gauge), `frontend/tests/glassQuality.test.ts` (governor steps) and `frontend/tests/volumeHud.test.ts` (volume step and mute). Measurement: a still page costs nothing, scrolling lists of blurred cards costs GPU time (60 cards: about +5 points of occupancy and +1 W on a recent integrated GPU at 1080p).
 - **Wi-Fi**: a new network's password is only accepted from the local screen; every connection or power-off arms an **automatic return to the previous network within 60 s** unless confirmed (`POST /api/devices/wifi/confirm`); a device reached through that same Wi-Fi must first acknowledge the warning (`acknowledge_disconnect`).
 - **Real time**: the `devices_changed` WebSocket event (`{scope: audio|bluetooth|wifi}`) carries **no data**; clients re-read the state over REST, behind the PIN. A watch loop (8 s, only while a client listens) detects outside changes.
 - **Android**: permissions limited to `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN` (`neverForLocation`) and `ACCESS_WIFI_STATE`, no location; the "Nearby devices" request is only shown on an explicit user action.
@@ -515,11 +530,13 @@ Beta/Canary artifact filenames are **fixed** (`Bobine-Setup-beta.exe`/`Bobine-Se
 | **Schedule** | `/api/schedule` | Schedulers, occurrences and exceptions |
 | **Playback** | `/api/playback` | Playback control (play, pause, seek, stop, resume) |
 | **Displays** | `/api/display` | `GET/PUT /display/state`: number of external screens reported by each platform and the effective cabled display mode (see "Plug-and-Play HDMI Projection") |
-| **Settings** | `/api/settings` | Dynamic configuration (playback/theme/language/`deployment_profile`/`update_channel`), video output, storage space (`/settings/storage`), screen sync (`POST /settings/system/reset` — clears caches + reload + restarts services), universal ZIP backup & restore (`/settings/system/backup`, `/settings/system/restore`), and factory reset or machine uninstall (`POST /settings/system/reset-data`, `POST /settings/system/uninstall`, confirmation phrase required) |
+| **Settings** | `/api/settings` | Dynamic configuration (playback/theme/language/`deployment_profile`/`update_channel`), video output, storage space (`/settings/storage`), screen sync (`POST /settings/system/reset` — clears caches + reload + restarts services), universal ZIP backup & restore (`/settings/system/backup`, `/settings/system/restore`), and factory reset or machine uninstall (`POST /settings/system/reset-data`, `POST /settings/system/uninstall`, confirmation phrase required), real state of the native audio component (`GET /settings/media-native`: `disabled`, `active`, `fallback` or `absent`, §3bis) |
 | **Updates** | `/api/updates` | `GET /updates/check` — queries GitHub Releases according to the current update channel (Stable/Beta/Canary, see §7) and deployment profile for the matching asset; `POST /updates/apply` — triggers `git checkout <tag>` + restart (headless profile only, 400 otherwise) |
 | **Imports** | `/api/import-jobs` | Import task queue (`GET /api/import-jobs` with percentage, ETA in seconds and speed) and reactive cancellation (`DELETE /api/import-jobs/{id}` with FFmpeg stop and purge) |
+| **Uploads** | `/api/uploads` | Resumable chunked upload: `POST` (name, size, fingerprint → `upload_id`, offset), `GET /{id}` (resume), `PATCH /{id}` (`Upload-Offset` header, binary body), `DELETE /{id}`; the usual import then receives `upload_id` instead of the file |
+| **Import diagnostics** | `/api/diagnostics` | `GET /diagnostics/import`: ffmpeg/ffprobe binaries, temporary, staging and media folders, executors, suspicious tasks and findings (Settings → Import diagnostics) |
 | **Logs** | `/api/logs` | Viewing and downloading system logs |
-| **Devices** | `/api/devices` | `GET /status` (public: enabled, PIN set, access, capabilities once granted); `POST /session` / `DELETE /session` (PIN → cookie); local only: `POST /admin/enable`, `POST/DELETE /admin/pin`, `POST /pairing/generate`; public (first setup): `GET /pairing/status`, `POST /pairing/claim`; behind access: `/audio` (`/default`, `/volume`), `/bluetooth` (`/power`, `/scan`, `/pair`, `/pairing/respond`, `/connect`, `/disconnect`, `/forget`, `/permission`), `/wifi` (`/scan`, `/power`, `/connect`, `/confirm`, `/forget`), `POST /system-settings` |
+| **Devices** | `/api/devices` | `GET /status` (public: enabled, PIN set, access, capabilities once granted); `POST /session` / `DELETE /session` (PIN → cookie); local only: `POST /admin/enable`, `POST/DELETE /admin/pin`, `POST /pairing/generate`; public (first setup): `GET /pairing/status`, `POST /pairing/verify` (checks the code at once without consuming it), `POST /pairing/claim`; behind access: `/audio` (`/default`, `/volume`), `/bluetooth` (`/power`, `/scan`, `/pair`, `/pairing/respond`, `/connect`, `/disconnect`, `/forget`, `/permission`), `/wifi` (`/scan`, `/power`, `/connect`, `/confirm`, `/forget`), `POST /system-settings` |
 | **Radio — Library** | `/api/radio` | Tracks (CRUD, artists/albums/tags), radio playlists, output state (`/api/radio/state?channel=radio_cable\|radio_network`), sound (`/api/radio/sound?channel=`), per-output default ambience (`/api/radio/default-playlist`) |
 | **Radio — Reminders** | `/api/radio/announcements`, `/api/radio/announcement-rules` | Announcements (import + description), trigger rules, manual trigger |
 | **Metrics & Attendance** | `/api/metrics` | Club-wide analytics (`GET /metrics/dashboard` with period/channel filters, satisfaction/completion/24h attendance KPIs, course ranking and hardware telemetry) and 5-star ratings (`POST /metrics/ratings`, `GET /metrics/ratings`) |
@@ -535,6 +552,32 @@ Beta/Canary artifact filenames are **fixed** (`Bobine-Setup-beta.exe`/`Bobine-Se
 ## 9. Operations & Network Discovery (Wyse)
 
 On the local network, the production Wyse machine (`bobine-prod.local` / Dell Wyse 5070) gets its IP address via **DHCP**.
+
+### Embedded mDNS discovery (`bobine.local`)
+
+`backend/app/utils/mdns.py` publishes `bobine.local` through the `zeroconf` library on every
+profile except: the headless appliance (`avahi-daemon`, configured by `install.sh`, already
+handles it) and a Linux desktop where a native `avahi-daemon` is detected as active
+(`_avahi_daemon_active()`, presence of the `/var/run/avahi-daemon/socket` socket — common, a usual
+dependency of CUPS/NetworkManager): publishing as well would create a name conflict silently
+resolved as `bobine-2.local` (RFC 6762).
+
+A background loop (`_run_loop`), not a single registration at startup:
+- **Periodic re-announcement** (5 min, `_REANNOUNCE_INTERVAL_SECONDS`): if the local IP changed
+  since the last announcement (DHCP, Wi-Fi reconnection), `zc.update_service(...)` rather than a
+  `ServiceInfo` frozen on the IP of the very first registration.
+- **Retries with growing delays** after a failure (`_RETRY_DELAYS_SECONDS`, 2 s to 60 s) —
+  never a definitive silent give-up until the backend restarts.
+- **Real state exposed** by `get_status()` (`"ok"`/`"failed"`/`"disabled"`/`"external"`/
+  `"unavailable"`/`"pending"`), relayed in `GET /api/settings` → `network.mdns_status` and shown
+  (warning icon) in Settings → Network Access if `bobine.local` does not answer — before this
+  field, the mDNS URL was a static string displayed as working even after a publication failure.
+
+Android: `BobineForegroundService.kt` must hold a `WifiManager.MulticastLock` so that multicast
+packets (mDNS included) are delivered to the application process — a
+`ConnectivityManager.NetworkCallback` re-acquires it on every `onAvailable` (network change,
+reconnection) rather than a single acquisition in `onCreate()`, some radio drivers resetting the
+multicast filtering on reconnection.
 
 ### Network Discovery Protocol (If the IP Changes)
 
@@ -595,7 +638,7 @@ Commits stay local until a machine with GitHub access (outside the Wyse's LAN) p
 
 Bobine is built on a **single, unified frontend interface** built with Next.js 16 (App Router) and statically exported (`npm run build` → `frontend/out`). This interface is shared and embedded identically across **every deployment profile**.
 
-### 10.1 Map of the Interface's 21 Routes (+ `/` redirecting to `/dashboard-cable`)
+### 10.1 Map of the Interface's 22 Routes (+ `/` redirecting to `/dashboard-cable`)
 
 | Category | Route(s) | Description & Multi-OS Specifics |
 |---|---|---|

@@ -73,16 +73,6 @@ def os_key() -> str:
     return "linux"
 
 
-def ffmpeg_command(*args: str) -> list[str]:
-    """Commande ffmpeg avec `-nostdin` : sans lui, ffmpeg lit le terminal/tube
-    d'entrée du processus parent (interprète `q`, `?`, etc.) et peut rester
-    bloqué ou se comporter de façon imprévisible lancé depuis un service, un
-    LaunchAgent ou une application empaquetée. (ffprobe n'accepte PAS cette
-    option — vérifié avec ffprobe 8.0 : « Option not found » — il reçoit
-    seulement `stdin=DEVNULL`, voir `media_subprocess_kwargs`.)"""
-    return [FFMPEG_BIN, "-nostdin", *args]
-
-
 def with_nostdin(cmd: list[str]) -> list[str]:
     """`cmd` (ffmpeg) avec `-nostdin` juste après le binaire ; idempotent."""
     if len(cmd) > 1 and cmd[1] == "-nostdin":

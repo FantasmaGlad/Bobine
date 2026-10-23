@@ -201,7 +201,7 @@ def _migrate_add_missing_columns():
     wanted = [
         ("schedules", "channel", "VARCHAR NOT NULL DEFAULT 'cable'"),
         ("playback_state", "channel", "VARCHAR NOT NULL DEFAULT 'cable'"),
-        # target_type/target_id (cause "coach_priority".7 mode audio
+        # target_type/target_id (cause "coach_priority", mode audio
         # coach) présents dans le modèle mais absents de cette
         # liste jusqu'ici : sur toute base créée avant leur ajout au modèle,
         # `create_all` ne les ajoute jamais (il ne modifie pas les tables
@@ -398,46 +398,3 @@ def _migrate_backfill_audio_duration():
                 logger.info(f"Migration : durée enrichie pour {updated} piste(s) audio/radio")
     except Exception as e:
         logger.warning(f"Avertissement lors de la rétro-migration des durées audio : {e}")
-
-
-def reset_database_connection(new_url: str):
-    """
-    Permet de réinitialiser dynamiquement la connexion SQL (principalement pour
-    isoler les bases SQLite de chaque suite de tests au sein du même processus pytest).
-    """
-    import os
-    from app.config import reload_settings, settings
-    os.environ["BOBINE_DATABASE_URL"] = new_url
-    reload_settings()
-
-    global engine, SessionLocal, _IS_SQLITE
-    resolved_url = settings.database_url
-    _IS_SQLITE = resolved_url.startswith("sqlite")
-    connect_args = {}
-    if _IS_SQLITE:
-        connect_args["check_same_thread"] = False
-
-    engine = create_engine(
-        resolved_url,
-        connect_args=connect_args,
-        pool_size=5,
-        max_overflow=5,
-        pool_timeout=30,
-        pool_recycle=3600,
-    )
-
-    @event.listens_for(engine, "connect")
-    def _set_sqlite_pragma(dbapi_connection, connection_record):
-        if not _IS_SQLITE:
-            return
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")
-        cursor.execute("PRAGMA synchronous=NORMAL")
-        cursor.execute("PRAGMA cache_size=-64000")
-        cursor.execute("PRAGMA busy_timeout=30000")
-        cursor.close()
-
-    SessionLocal.configure(
-        bind=engine
-    )
-

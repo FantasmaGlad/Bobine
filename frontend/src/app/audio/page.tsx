@@ -99,13 +99,6 @@ interface BackgroundOption {
   is_image?: boolean;
 }
 
-interface AudioPlaylistSummary {
-  id: number;
-  name: string;
-  item_count: number;
-  total_duration_seconds: number;
-}
-
 interface ToastState {
   message: string;
   type: "success" | "error" | "warning";

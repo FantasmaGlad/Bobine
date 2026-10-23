@@ -1,39 +1,66 @@
-use crate::{MediaError, COVER_BYTES};
+//! Shared parts of the container readers, and the entry point that selects one.
+//!
+//! Every container reader is a strict whitelist: it understands one layout, reproduces
+//! the tags and the duration ffprobe reports for it, and answers `unsupported`,
+//! `ambiguous_metadata` or `ambiguous_cover` for anything else so that the caller runs
+//! the reference path. A reader never guesses.
+
+use crate::image;
+use crate::{aiff, flac, mp3, mp4, ogg, wav, MediaError};
 use lofty::config::{apply_global_options, GlobalOptions, ParseOptions, ParsingMode};
 use lofty::file::{AudioFile, FileType};
 use lofty::probe::Probe;
 use serde_json::{json, Value};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
-const MAX_FILE_BYTES: u64 = 512 * 1024 * 1024;
-const MAX_METADATA_BYTES: usize = 4 * 1024 * 1024;
-const MAX_TEXT_BYTES: usize = 64 * 1024;
+pub(crate) const MAX_FILE_BYTES: u64 = 512 * 1024 * 1024;
+pub(crate) const MAX_METADATA_BYTES: usize = 4 * 1024 * 1024;
+pub(crate) const MAX_TEXT_BYTES: usize = 64 * 1024;
 const MAX_READ_BYTES: usize = 16 * 1024 * 1024;
+/// A file whose frames are walked end to end (MP3 without an index) may be read once in full.
+pub(crate) const MAX_CHAIN_BYTES: u64 = 128 * 1024 * 1024;
+/// Delay and padding are 12-bit sample counts: 2 x 4095 samples at 22.05 kHz at most.
+const MAX_GAPLESS_TRIM_SECONDS: f64 = 0.4;
 
-type Result<T> = std::result::Result<T, MediaError>;
+pub(crate) type Result<T> = std::result::Result<T, MediaError>;
 
-fn corrupt() -> MediaError {
+pub(crate) fn corrupt() -> MediaError {
     MediaError::new("corrupt", "Invalid or truncated audio data")
 }
-fn unsupported() -> MediaError {
+pub(crate) fn unsupported() -> MediaError {
     MediaError::new(
         "unsupported",
         "Audio layout is outside the experimental subset",
     )
 }
-fn ambiguous() -> MediaError {
+pub(crate) fn ambiguous() -> MediaError {
     MediaError::new(
         "ambiguous_metadata",
         "Metadata cannot be mapped without ambiguity",
     )
 }
-fn limit() -> MediaError {
+pub(crate) fn ambiguous_cover() -> MediaError {
+    MediaError::new(
+        "ambiguous_cover",
+        "Embedded images require the reference image pipeline",
+    )
+}
+/// A picture that cannot be handed over keeps its reference pipeline, unless a size limit
+/// is what stopped the inspection.
+pub(crate) fn cover_error(error: MediaError) -> MediaError {
+    if error.reason == "limit_exceeded" {
+        error
+    } else {
+        ambiguous_cover()
+    }
+}
+pub(crate) fn limit() -> MediaError {
     MediaError::new("limit_exceeded", "Media inspection limit exceeded")
 }
-fn read_exact(reader: &mut impl Read, bytes: &mut [u8]) -> Result<()> {
+pub(crate) fn read_exact(reader: &mut impl Read, bytes: &mut [u8]) -> Result<()> {
     reader.read_exact(bytes).map_err(|error| {
         if error.kind() == io::ErrorKind::Other {
             limit()
@@ -43,16 +70,53 @@ fn read_exact(reader: &mut impl Read, bytes: &mut [u8]) -> Result<()> {
     })
 }
 
+/// How the duration of a scanned file is obtained.
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub(crate) enum Duration {
+    /// Lofty's reading is equivalent to the reference (FLAC, simple PCM WAV).
+    #[default]
+    Lofty,
+    /// The reference rule computed by this crate, which Lofty's raw reading must bracket.
+    Checked(f64),
+    /// The reference rule computed by this crate, verified against ffprobe on the corpus.
+    Exact(f64),
+}
+
+/// A picture announced by the container: the type it declares, if any, and its bytes.
+#[derive(Debug)]
+pub(crate) struct Picture {
+    pub declared: Option<String>,
+    pub data: Vec<u8>,
+}
+
 #[derive(Default, Debug)]
-struct Layout {
-    tags: HashMap<String, String>,
-    cover: bool,
+pub(crate) struct Layout {
+    pub tags: HashMap<String, String>,
+    /// Number of attached pictures. Only one is eligible for the native cover path.
+    pub pictures: usize,
+    /// The first picture, kept only when the reader was asked for it.
+    pub picture: Option<Picture>,
+    pub duration: Duration,
+}
+
+impl Layout {
+    pub(crate) fn add_picture(
+        &mut self,
+        want: bool,
+        picture: impl FnOnce() -> Result<Picture>,
+    ) -> Result<()> {
+        self.pictures += 1;
+        if want && self.pictures == 1 {
+            self.picture = Some(picture()?);
+        }
+        Ok(())
+    }
 }
 
 /// A cumulative read budget supplements Lofty's per-item allocation bound.
-struct BudgetReader<R> {
-    inner: R,
-    remaining: usize,
+pub(crate) struct BudgetReader<R> {
+    pub(crate) inner: R,
+    pub(crate) remaining: usize,
 }
 impl<R: Read> Read for BudgetReader<R> {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
@@ -73,6 +137,40 @@ impl<R: Seek> Seek for BudgetReader<R> {
         self.inner.seek(position)
     }
 }
+
+#[derive(Clone, Copy, PartialEq)]
+enum Kind {
+    Mp3,
+    Flac,
+    Wav,
+    Mp4,
+    Ogg,
+    Aiff,
+}
+
+impl Kind {
+    fn of(extension: &str) -> Option<Self> {
+        Some(match extension {
+            "mp3" => Self::Mp3,
+            "flac" => Self::Flac,
+            "wav" => Self::Wav,
+            "m4a" => Self::Mp4,
+            "ogg" | "opus" => Self::Ogg,
+            "aiff" | "aif" => Self::Aiff,
+            _ => return None,
+        })
+    }
+    fn lofty(self) -> Option<FileType> {
+        match self {
+            Self::Mp3 => Some(FileType::Mpeg),
+            Self::Flac => Some(FileType::Flac),
+            Self::Wav => Some(FileType::Wav),
+            _ => None,
+        }
+    }
+}
+
+pub(crate) const FORMATS: [&str; 8] = ["mp3", "flac", "wav", "m4a", "ogg", "opus", "aiff", "aif"];
 
 pub(crate) fn inspect(path: &str, profile: &str, cover_only: bool) -> Result<Value> {
     let path = Path::new(path);
@@ -101,12 +199,7 @@ pub(crate) fn inspect(path: &str, profile: &str, cover_only: bool) -> Result<Val
         .and_then(|extension| extension.to_str())
         .map(str::to_ascii_lowercase)
         .ok_or_else(unsupported)?;
-    let kind = match format.as_str() {
-        "mp3" => FileType::Mpeg,
-        "flac" => FileType::Flac,
-        "wav" => FileType::Wav,
-        _ => return Err(unsupported()),
-    };
+    let kind = Kind::of(&format).ok_or_else(unsupported)?;
     let file =
         File::open(path).map_err(|_| MediaError::new("unreadable", "Media file cannot be read"))?;
     let opened = file.metadata().map_err(|_| corrupt())?;
@@ -119,22 +212,66 @@ pub(crate) fn inspect(path: &str, profile: &str, cover_only: bool) -> Result<Val
             "Media changed during inspection",
         ));
     }
+    let chain = if kind == Kind::Mp3 && opened.len() <= MAX_CHAIN_BYTES {
+        opened.len() as usize
+    } else {
+        0
+    };
     let mut reader = BufReader::new(BudgetReader {
         inner: file,
-        remaining: MAX_READ_BYTES,
+        remaining: MAX_READ_BYTES + chain,
     });
+    let length = opened.len();
     let layout = match kind {
-        FileType::Mpeg => scan_mp3(&mut reader, opened.len())?,
-        FileType::Flac => scan_flac(&mut reader, opened.len())?,
-        FileType::Wav => scan_wav(&mut reader, opened.len())?,
+        Kind::Mp3 => mp3::scan(&mut reader, length, cover_only)?,
+        Kind::Flac => flac::scan(&mut reader, length, cover_only)?,
+        Kind::Wav => wav::scan(&mut reader, length)?,
+        Kind::Mp4 => mp4::scan(&mut reader, length, cover_only)?,
+        Kind::Ogg => ogg::scan(&mut reader, length, cover_only)?,
+        Kind::Aiff => aiff::scan(&mut reader, length)?,
+    };
+    let duration = match (layout.duration, kind.lofty()) {
+        (Duration::Exact(seconds), _) => positive(seconds)?,
+        (Duration::Checked(reference), Some(file_type)) => {
+            let parsed = lofty_duration(&mut reader, file_type)?;
+            // The reference (ffprobe) removes the encoder delay and padding announced in the
+            // LAME tag; Lofty reports the raw frame count. Two independent readings must agree
+            // within the largest plausible trim before the reference rule is trusted.
+            if !reference.is_finite() || reference <= 0.0 {
+                return Err(corrupt());
+            }
+            if parsed - reference < -0.001 || parsed - reference > MAX_GAPLESS_TRIM_SECONDS {
+                return Err(ambiguous());
+            }
+            reference
+        }
+        (Duration::Lofty, Some(file_type)) => lofty_duration(&mut reader, file_type)?,
         _ => return Err(unsupported()),
     };
-    if cover_only && layout.cover {
+    let after = reader.get_ref().inner.metadata().map_err(|_| corrupt())?;
+    if after.len() != opened.len() || after.modified().ok() != opened.modified().ok() {
         return Err(MediaError::new(
-            "ambiguous_cover",
-            "Embedded images require the reference image pipeline",
+            "unreadable",
+            "Media changed during inspection",
         ));
     }
+    if cover_only {
+        return Ok(json!({"status":"ok","cover":cover(&layout)?}));
+    }
+    Ok(
+        json!({"status":"ok","profile":profile,"format":format,"metadata":metadata(&layout.tags, duration)}),
+    )
+}
+
+fn positive(seconds: f64) -> Result<f64> {
+    if seconds.is_finite() && seconds > 0.0 {
+        Ok(seconds)
+    } else {
+        Err(corrupt())
+    }
+}
+
+fn lofty_duration(reader: &mut BufReader<BudgetReader<File>>, file_type: FileType) -> Result<f64> {
     reader.rewind().map_err(|_| corrupt())?;
     // These options are thread-local; apply them on every entry, including threaded tests.
     apply_global_options(
@@ -148,7 +285,7 @@ pub(crate) fn inspect(path: &str, profile: &str, cover_only: bool) -> Result<Val
         .implicit_conversions(false)
         .read_tags(false)
         .read_cover_art(false);
-    let tagged = Probe::with_file_type(&mut reader, kind)
+    let tagged = Probe::with_file_type(&mut *reader, file_type)
         .options(options)
         .read()
         .map_err(|_| {
@@ -158,26 +295,24 @@ pub(crate) fn inspect(path: &str, profile: &str, cover_only: bool) -> Result<Val
                 corrupt()
             }
         })?;
-    let duration = tagged.properties().duration().as_secs_f64();
-    if !duration.is_finite() || duration <= 0.0 {
-        return Err(corrupt());
-    }
-    let after = reader.get_ref().inner.metadata().map_err(|_| corrupt())?;
-    if after.len() != opened.len() || after.modified().ok() != opened.modified().ok() {
-        return Err(MediaError::new(
-            "unreadable",
-            "Media changed during inspection",
-        ));
-    }
-    if cover_only {
-        return Ok(json!({"status":"ok","cover":null}));
-    }
-    Ok(
-        json!({"status":"ok","profile":profile,"format":format,"metadata":metadata(&layout.tags, duration)}),
-    )
+    positive(tagged.properties().duration().as_secs_f64())
 }
 
-fn insert(tags: &mut HashMap<String, String>, key: &str, value: String) -> Result<()> {
+/// `null` is a proven absence; one structurally accepted picture is handed over as raw bytes.
+fn cover(layout: &Layout) -> Result<Value> {
+    match (layout.pictures, &layout.picture) {
+        (0, _) => Ok(Value::Null),
+        (1, Some(picture)) => {
+            let mime = image::classify(&picture.data, picture.declared.as_deref())?;
+            Ok(
+                json!({"mime":mime,"bytes":picture.data.len(),"data_base64":image::base64_encode(&picture.data)}),
+            )
+        }
+        _ => Err(ambiguous_cover()),
+    }
+}
+
+pub(crate) fn insert(tags: &mut HashMap<String, String>, key: &str, value: String) -> Result<()> {
     if value.len() > MAX_TEXT_BYTES || value.contains('\0') {
         return Err(limit());
     }
@@ -204,384 +339,6 @@ fn insert(tags: &mut HashMap<String, String>, key: &str, value: String) -> Resul
         return Err(ambiguous());
     }
     Ok(())
-}
-
-fn syncsafe(bytes: &[u8]) -> Result<usize> {
-    if bytes.len() != 4 || bytes.iter().any(|byte| byte & 0x80 != 0) {
-        return Err(corrupt());
-    }
-    Ok(bytes
-        .iter()
-        .fold(0, |size, byte| (size << 7) | usize::from(*byte)))
-}
-
-fn decode_text(bytes: &[u8]) -> Result<String> {
-    let (&encoding, bytes) = bytes.split_first().ok_or_else(corrupt)?;
-    let text = match encoding {
-        0 => bytes.iter().map(|byte| char::from(*byte)).collect(),
-        3 => String::from_utf8(bytes.to_vec()).map_err(|_| corrupt())?,
-        1 | 2 => {
-            let (little, bytes) = if encoding == 1 {
-                if bytes.starts_with(&[0xff, 0xfe]) {
-                    (true, &bytes[2..])
-                } else if bytes.starts_with(&[0xfe, 0xff]) {
-                    (false, &bytes[2..])
-                } else {
-                    return Err(unsupported());
-                }
-            } else {
-                (false, bytes)
-            };
-            if bytes.len() % 2 != 0 {
-                return Err(corrupt());
-            }
-            let units = bytes.as_chunks::<2>().0.iter().map(|unit| {
-                if little {
-                    u16::from_le_bytes([unit[0], unit[1]])
-                } else {
-                    u16::from_be_bytes([unit[0], unit[1]])
-                }
-            });
-            char::decode_utf16(units)
-                .collect::<std::result::Result<String, _>>()
-                .map_err(|_| corrupt())?
-        }
-        _ => return Err(unsupported()),
-    };
-    // A trailing terminator is ordinary; multiple text values need an explicit merge policy.
-    let text = text.trim_end_matches('\0').to_owned();
-    if text.contains('\0') {
-        return Err(ambiguous());
-    }
-    Ok(text)
-}
-
-fn scan_mp3<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<Layout> {
-    if file_len < 16 {
-        return Err(corrupt());
-    }
-    // ID3v1/APE coexistence is deliberately not merged with ID3v2.
-    let tail_len = file_len.min(160) as usize;
-    reader
-        .seek(SeekFrom::End(-(tail_len as i64)))
-        .map_err(|_| corrupt())?;
-    let mut tail = vec![0; tail_len];
-    read_exact(reader, &mut tail)?;
-    if (tail_len >= 128 && &tail[tail_len - 128..tail_len - 125] == b"TAG")
-        || tail.windows(8).any(|chunk| chunk == b"APETAGEX")
-    {
-        return Err(ambiguous());
-    }
-    reader.rewind().map_err(|_| corrupt())?;
-    let mut header = [0; 10];
-    read_exact(reader, &mut header)?;
-    let mut layout = Layout::default();
-    let mut audio_offset = 0;
-    if &header[..3] == b"ID3" {
-        let version = header[3];
-        if !matches!(version, 3 | 4) || header[4] != 0 || header[5] != 0 {
-            return Err(unsupported());
-        }
-        let size = syncsafe(&header[6..10])?;
-        if size > MAX_METADATA_BYTES {
-            return Err(limit());
-        }
-        if size as u64 + 14 > file_len {
-            return Err(corrupt());
-        }
-        let mut content = vec![0; size];
-        read_exact(reader, &mut content)?;
-        let mut cursor = 0;
-        let mut seen = HashSet::new();
-        while cursor < content.len() {
-            if content[cursor..].iter().all(|byte| *byte == 0) {
-                break;
-            }
-            if content.len() - cursor < 10 {
-                return Err(corrupt());
-            }
-            let frame = &content[cursor..cursor + 10];
-            if frame[..4]
-                .iter()
-                .any(|byte| !byte.is_ascii_uppercase() && !byte.is_ascii_digit())
-                || frame[8..10] != [0, 0]
-            {
-                return Err(unsupported());
-            }
-            let size = if version == 4 {
-                syncsafe(&frame[4..8])?
-            } else {
-                u32::from_be_bytes(frame[4..8].try_into().map_err(|_| corrupt())?) as usize
-            };
-            let end = cursor
-                .checked_add(10)
-                .and_then(|start| start.checked_add(size))
-                .filter(|end| *end <= content.len())
-                .ok_or_else(corrupt)?;
-            let key = match &frame[..4] {
-                b"TIT2" => "title",
-                b"TPE1" => "artist",
-                b"TALB" => "album",
-                b"TPE2" => "album_artist",
-                b"TRCK" => "track",
-                b"TPOS" => "disc",
-                b"TDRC" | b"TYER" => "date",
-                b"TCON" => "genre",
-                b"TSSE" => "encoder",
-                b"APIC" => "picture",
-                _ => return Err(unsupported()),
-            };
-            if !seen.insert(key) {
-                return Err(ambiguous());
-            }
-            let data = &content[cursor + 10..end];
-            if key == "picture" {
-                if data.len() > COVER_BYTES {
-                    return Err(limit());
-                }
-                layout.cover = true;
-            } else {
-                if data.len() > MAX_TEXT_BYTES {
-                    return Err(limit());
-                }
-                let value = decode_text(data)?;
-                if key == "genre"
-                    && (value.starts_with('(')
-                        || value.chars().any(|character| character.is_ascii_digit()))
-                {
-                    return Err(ambiguous());
-                }
-                if key != "encoder" {
-                    insert(&mut layout.tags, key, value)?;
-                }
-            }
-            cursor = end;
-        }
-        audio_offset = 10 + size as u64;
-    }
-    reader
-        .seek(SeekFrom::Start(audio_offset))
-        .map_err(|_| corrupt())?;
-    let mut audio = [0; 4];
-    read_exact(reader, &mut audio)?;
-    // MPEG Layer III only, not a file disguised by its extension or leading junk.
-    if audio[0] != 0xff || audio[1] & 0xe0 != 0xe0 || audio[1] & 6 != 2 {
-        return Err(corrupt());
-    }
-    // Lofty's bitrate estimate diverges strongly for VBR without an index.
-    // Require an explicit Xing/Info frame; VBRI and missing-index inputs use the oracle.
-    let mpeg1 = (audio[1] >> 3) & 3 == 3;
-    let mono = audio[3] >> 6 == 3;
-    let side_info = match (mpeg1, mono) {
-        (true, true) => 17,
-        (true, false) => 32,
-        (false, true) => 9,
-        (false, false) => 17,
-    };
-    let crc = if audio[1] & 1 == 0 { 2 } else { 0 };
-    reader
-        .seek(SeekFrom::Start(audio_offset + 4 + crc + side_info))
-        .map_err(|_| corrupt())?;
-    let mut index = [0; 4];
-    read_exact(reader, &mut index)?;
-    if !matches!(&index, b"Xing" | b"Info") {
-        return Err(unsupported());
-    }
-    Ok(layout)
-}
-
-fn scan_flac<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<Layout> {
-    let mut magic = [0; 4];
-    read_exact(reader, &mut magic)?;
-    if &magic != b"fLaC" {
-        return Err(unsupported());
-    }
-    let mut layout = Layout::default();
-    let mut position = 4_u64;
-    let mut total = 0_usize;
-    let mut comments_seen = false;
-    for block_index in 0..128 {
-        let mut header = [0; 4];
-        read_exact(reader, &mut header)?;
-        let kind = header[0] & 0x7f;
-        let size =
-            (usize::from(header[1]) << 16) | (usize::from(header[2]) << 8) | usize::from(header[3]);
-        position += 4 + size as u64;
-        total += size;
-        if position > file_len {
-            return Err(corrupt());
-        }
-        if total > MAX_METADATA_BYTES {
-            return Err(limit());
-        }
-        if block_index == 0 && (kind != 0 || size != 34) {
-            return Err(corrupt());
-        }
-        match kind {
-            0 if block_index == 0 => {
-                reader
-                    .seek(SeekFrom::Current(size as i64))
-                    .map_err(|_| corrupt())?;
-            }
-            1 | 3 => {
-                reader
-                    .seek(SeekFrom::Current(size as i64))
-                    .map_err(|_| corrupt())?;
-            }
-            4 => {
-                if comments_seen {
-                    return Err(ambiguous());
-                }
-                comments_seen = true;
-                if size > MAX_TEXT_BYTES {
-                    return Err(limit());
-                }
-                let mut content = vec![0; size];
-                read_exact(reader, &mut content)?;
-                read_vorbis(&content, &mut layout.tags)?;
-            }
-            6 => {
-                layout.cover = true;
-                reader
-                    .seek(SeekFrom::Current(size as i64))
-                    .map_err(|_| corrupt())?;
-            }
-            _ => return Err(unsupported()),
-        }
-        if header[0] & 0x80 != 0 {
-            if position >= file_len {
-                return Err(corrupt());
-            }
-            return Ok(layout);
-        }
-    }
-    Err(limit())
-}
-
-fn read_vorbis(content: &[u8], tags: &mut HashMap<String, String>) -> Result<()> {
-    fn take<'a>(content: &mut &'a [u8], size: usize) -> Result<&'a [u8]> {
-        if content.len() < size {
-            return Err(corrupt());
-        }
-        let (head, tail) = content.split_at(size);
-        *content = tail;
-        Ok(head)
-    }
-    fn number(content: &mut &[u8]) -> Result<usize> {
-        Ok(u32::from_le_bytes(take(content, 4)?.try_into().map_err(|_| corrupt())?) as usize)
-    }
-    let mut input = content;
-    let vendor_len = number(&mut input)?;
-    take(&mut input, vendor_len)?;
-    let count = number(&mut input)?;
-    if count > 256 {
-        return Err(limit());
-    }
-    for _ in 0..count {
-        let length = number(&mut input)?;
-        let item = std::str::from_utf8(take(&mut input, length)?).map_err(|_| corrupt())?;
-        let (key, value) = item.split_once('=').ok_or_else(corrupt)?;
-        let key = key.to_ascii_lowercase();
-        match key.as_str() {
-            "title" | "artist" | "author" | "performer" | "album" | "album_artist"
-            | "albumartist" | "band" | "track" | "tracknumber" | "disc" | "discnumber" | "disk"
-            | "date" | "year" | "originalyear" | "creation_time" | "genre" => {
-                insert(tags, &key, value.to_owned())?
-            }
-            "encoder" | "comment" | "description" | "copyright" => {}
-            _ => return Err(unsupported()),
-        }
-    }
-    if !input.is_empty() {
-        return Err(corrupt());
-    }
-    Ok(())
-}
-
-fn scan_wav<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<Layout> {
-    let mut header = [0; 12];
-    read_exact(reader, &mut header)?;
-    if &header[..4] != b"RIFF" || &header[8..12] != b"WAVE" {
-        return Err(unsupported());
-    }
-    let declared = u64::from(u32::from_le_bytes(
-        header[4..8].try_into().map_err(|_| corrupt())?,
-    )) + 8;
-    if declared != file_len {
-        return Err(unsupported());
-    }
-    let mut position = 12;
-    let mut format_seen = false;
-    let mut data_seen = false;
-    let mut metadata_bytes = 0;
-    for _ in 0..128 {
-        if position == file_len {
-            return if format_seen && data_seen {
-                Ok(Layout::default())
-            } else {
-                Err(corrupt())
-            };
-        }
-        let mut chunk = [0; 8];
-        read_exact(reader, &mut chunk)?;
-        let size = u32::from_le_bytes(chunk[4..8].try_into().map_err(|_| corrupt())?) as usize;
-        position += 8 + size as u64 + (size % 2) as u64;
-        if position > file_len {
-            return Err(corrupt());
-        }
-        match &chunk[..4] {
-            b"fmt " => {
-                if format_seen || !matches!(size, 16 | 18) {
-                    return Err(unsupported());
-                }
-                format_seen = true;
-                let mut format = vec![0; size];
-                read_exact(reader, &mut format)?;
-                if format[..2] != [1, 0] {
-                    return Err(unsupported());
-                }
-                if size == 18 && format[16..18] != [0, 0] {
-                    return Err(unsupported());
-                }
-            }
-            b"data" => {
-                if data_seen || !format_seen || size == 0 {
-                    return Err(corrupt());
-                }
-                data_seen = true;
-                reader
-                    .seek(SeekFrom::Current(size as i64))
-                    .map_err(|_| corrupt())?;
-            }
-            b"LIST" => {
-                metadata_bytes += size;
-                if metadata_bytes > MAX_TEXT_BYTES {
-                    return Err(limit());
-                }
-                let mut content = vec![0; size];
-                read_exact(reader, &mut content)?;
-                // INFO can hold title/artist tags; only an encoder-only list is unambiguous here.
-                if size < 12 || &content[..4] != b"INFO" || &content[4..8] != b"ISFT" {
-                    return Err(unsupported());
-                }
-                let length =
-                    u32::from_le_bytes(content[8..12].try_into().map_err(|_| corrupt())?) as usize;
-                if 12 + length + length % 2 != size {
-                    return Err(unsupported());
-                }
-            }
-            b"JUNK" | b"PAD " => {
-                reader
-                    .seek(SeekFrom::Current(size as i64))
-                    .map_err(|_| corrupt())?;
-            }
-            _ => return Err(unsupported()),
-        }
-        if !size.is_multiple_of(2) {
-            reader.seek(SeekFrom::Current(1)).map_err(|_| corrupt())?;
-        }
-    }
-    Err(limit())
 }
 
 fn first<'a>(tags: &'a HashMap<String, String>, aliases: &[&str]) -> Option<&'a str> {
@@ -633,34 +390,6 @@ mod tests {
     use super::*;
     use std::io::Cursor;
 
-    fn pcm() -> Vec<u8> {
-        let mut bytes = Vec::new();
-        bytes.extend_from_slice(b"RIFF");
-        bytes.extend_from_slice(&(36_u32 + 8000).to_le_bytes());
-        bytes.extend_from_slice(b"WAVEfmt ");
-        bytes.extend_from_slice(&16_u32.to_le_bytes());
-        bytes.extend_from_slice(&1_u16.to_le_bytes());
-        bytes.extend_from_slice(&1_u16.to_le_bytes());
-        bytes.extend_from_slice(&8000_u32.to_le_bytes());
-        bytes.extend_from_slice(&8000_u32.to_le_bytes());
-        bytes.extend_from_slice(&1_u16.to_le_bytes());
-        bytes.extend_from_slice(&8_u16.to_le_bytes());
-        bytes.extend_from_slice(b"data");
-        bytes.extend_from_slice(&8000_u32.to_le_bytes());
-        bytes.resize(8044, 128);
-        bytes
-    }
-
-    #[test]
-    fn wav_layout_accepts_pcm_rejects_truncation_and_disguised_input() {
-        let bytes = pcm();
-        assert!(scan_wav(&mut Cursor::new(&bytes), bytes.len() as u64).is_ok());
-        assert!(scan_wav(&mut Cursor::new(&bytes[..50]), 50).is_err());
-        let mut invalid = bytes.clone();
-        invalid[20] = 3;
-        assert!(scan_wav(&mut Cursor::new(&invalid), invalid.len() as u64).is_err());
-    }
-
     #[test]
     fn mapping_matches_ascii_numeric_and_alias_rules() {
         assert_eq!(leading_int(Some("005/12")), Some(5));
@@ -680,15 +409,6 @@ mod tests {
     }
 
     #[test]
-    fn text_values_reject_invalid_and_ambiguous_encodings() {
-        assert_eq!(decode_text(&[3, b'A', 0]).unwrap(), "A");
-        assert_eq!(decode_text(&[1, 0xff, 0xfe, 0xe9, 0]).unwrap(), "é");
-        assert!(decode_text(&[3, b'A', 0, b'B']).is_err());
-        assert!(decode_text(&[3, 0xff]).is_err());
-        assert!(syncsafe(&[0xff, 0, 0, 0]).is_err());
-    }
-
-    #[test]
     fn duplicate_tags_are_ambiguous_and_budget_is_cumulative() {
         let mut tags = HashMap::new();
         insert(&mut tags, "title", "A".into()).unwrap();
@@ -704,14 +424,26 @@ mod tests {
     }
 
     #[test]
-    fn mp3_requires_explicit_index_instead_of_vbr_bitrate_estimation() {
-        let mut bytes = vec![0; 100];
-        bytes[..4].copy_from_slice(&[0xff, 0xfb, 0x90, 0]);
-        assert_eq!(
-            scan_mp3(&mut Cursor::new(&bytes), 100).unwrap_err().reason,
-            "unsupported"
-        );
-        bytes[36..40].copy_from_slice(b"Info");
-        assert!(scan_mp3(&mut Cursor::new(&bytes), 100).is_ok());
+    fn cover_is_absent_single_or_refused() {
+        let jpeg = {
+            let mut bytes = vec![0xff, 0xd8, 0xff, 0xc0, 0, 11, 8, 0, 4, 0, 4, 1, 1, 0x11, 0];
+            bytes.extend_from_slice(&[0xff, 0xda, 0, 2, 0xff, 0xd9]);
+            bytes
+        };
+        let mut layout = Layout::default();
+        assert!(cover(&layout).unwrap().is_null());
+        layout
+            .add_picture(true, || {
+                Ok(Picture {
+                    declared: Some("image/jpeg".into()),
+                    data: jpeg.clone(),
+                })
+            })
+            .unwrap();
+        let value = cover(&layout).unwrap();
+        assert_eq!(value["mime"], "image/jpeg");
+        assert_eq!(value["bytes"], jpeg.len());
+        layout.add_picture(true, || unreachable!()).unwrap();
+        assert_eq!(cover(&layout).unwrap_err().reason, "ambiguous_cover");
     }
 }

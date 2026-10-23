@@ -27,6 +27,7 @@ from fastapi import (
 )
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.config import (
     ROOT_DIR,
@@ -46,6 +47,7 @@ from app.utils.display_state import (
     effective_wired_display_mode,
     get_hardware_state,
 )
+from app.utils import media_native
 from app.utils.hardware_info import (
     get_storage_model,
     get_system_telemetry_payload,
@@ -86,7 +88,7 @@ _WRITABLE_NUMERIC_FIELDS = {
 _WRITABLE_STRING_FIELDS = {
     "theme", "language", "active_logo", "update_channel", "wired_display_mode",
     "display_mode_setting", "auto_update_enabled", "auto_update_time",
-    "auto_web_rendition",
+    "auto_web_rendition", "media_native",
 }
 _DEFAULTS = {
     # "lavande" : thème clair par défaut (nacre irisée et améthyste profonde).
@@ -117,6 +119,11 @@ _DEFAULTS = {
     # première lecture depuis un navigateur incapable de décoder l'original la
     # déclenche automatiquement (cf. main.py::stream_video).
     "auto_web_rendition": "false",
+    # Composant audio natif (expérimental) : désactivé par défaut. Il n'accélère que de
+    # nouveaux imports et n'altère aucune donnée existante ; tout échec retombe sur
+    # ffprobe/ffmpeg. La variable d'environnement BOBINE_MEDIA_NATIVE (1/0) reste un
+    # forçage prioritaire (cf. app/utils/media_native.py).
+    "media_native": media_native.DEFAULT_VALUE,
 }
 _AUTO_UPDATE_TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _LOGO_FILENAME = "logo.png"
@@ -171,6 +178,7 @@ class SettingsUpdate(BaseModel):
     auto_update_enabled: str | None = None
     auto_update_time: str | None = None
     auto_web_rendition: str | None = None
+    media_native: str | None = None
 
 
 def _get_db_value(db: Session, key: str) -> str | None:
@@ -297,6 +305,9 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "auto_update_enabled": auto_update_enabled,
         "auto_update_time": auto_update_time,
         "auto_web_rendition": _get_db_value(db, "auto_web_rendition") or _DEFAULTS["auto_web_rendition"],
+        # Composant audio natif : réglage persisté ("true"/"false") ; l'état réel (actif, repli,
+        # absent) et le forçage par l'environnement sont lus par GET /api/settings/media-native.
+        "media_native": "true" if media_native.parse_setting(_get_db_value(db, "media_native")) else "false",
         # Aide à la découverte réseau, en complément de bobine.local (avahi, cf. install.sh).
         "network": {
             "local_ip": _get_local_ip(),
@@ -427,79 +438,6 @@ def get_storage() -> dict[str, Any]:
     }
 
 
-_last_cpu_time: float = 0.0
-_last_proc_ticks: int = 0
-
-
-def _get_system_usage_values() -> tuple[float, int, int, float]:
-    """Retourne (cpu_percent, memory_total_bytes, memory_used_bytes, memory_percent).
-    Sous Android (API 34+), l'accès à /proc/stat est bloqué par SELinux pour les
-    applications du domaine untrusted_app, faisant échouer psutil.cpu_percent
-    avec PermissionError. Cette fonction utilise psutil en priorité, avec repli
-    gracieux sur /proc/meminfo et la mesure CPU du processus (/proc/self/stat)."""
-    global _last_cpu_time, _last_proc_ticks
-    cpu_percent = 0.0
-    mem_total = 0
-    mem_used = 0
-    mem_percent = 0.0
-
-    # 1. CPU
-    try:
-        cpu_percent = float(psutil.cpu_percent(interval=0.1))
-    except Exception:
-        try:
-            proc = psutil.Process()
-            cpu_percent = float(proc.cpu_percent(interval=0.1))
-        except Exception:
-            try:
-                with open("/proc/self/stat", "r") as f:
-                    parts = f.read().split()
-                    utime = int(parts[13])
-                    stime = int(parts[14])
-                    total_ticks = utime + stime
-                now = datetime.now(timezone.utc).timestamp()
-                clk_tck = os.sysconf(os.sysconf_names.get("SC_CLK_TCK", 100)) if hasattr(os, "sysconf") else 100
-                cpu_count = os.cpu_count() or 1
-                if _last_cpu_time > 0 and now > _last_cpu_time:
-                    delta_sec = now - _last_cpu_time
-                    delta_ticks = total_ticks - _last_proc_ticks
-                    if delta_sec > 0 and delta_ticks >= 0:
-                        pct = (delta_ticks / clk_tck) / delta_sec / cpu_count * 100.0
-                        cpu_percent = round(min(100.0, max(0.0, pct)), 1)
-                _last_cpu_time = now
-                _last_proc_ticks = total_ticks
-            except Exception:
-                cpu_percent = 0.0
-
-    # 2. Mémoire
-    try:
-        memory = psutil.virtual_memory()
-        mem_total = memory.total
-        mem_used = memory.total - memory.available
-        mem_percent = memory.percent
-    except Exception:
-        try:
-            meminfo: dict[str, int] = {}
-            with open("/proc/meminfo", "r") as f:
-                for line in f:
-                    parts = line.split(":")
-                    if len(parts) == 2:
-                        k = parts[0].strip()
-                        v = parts[1].strip().split()[0]
-                        meminfo[k] = int(v) * 1024
-            total = meminfo.get("MemTotal", 0)
-            available = meminfo.get("MemAvailable", meminfo.get("MemFree", 0))
-            used = max(0, total - available)
-            pct = round((used / total) * 100, 1) if total > 0 else 0.0
-            mem_total = total
-            mem_used = used
-            mem_percent = pct
-        except Exception:
-            pass
-
-    return cpu_percent, mem_total, mem_used, mem_percent
-
-
 @router.get("/system")
 def get_system_usage() -> dict[str, Any]:
     """Charge CPU, GPU, RAM, Températures, Puissance (W), Modèles des composants et Runtime."""
@@ -522,6 +460,16 @@ def purge_logs_manual(retention_days: int | None = None, db: Session = Depends(g
     )
     return {"message": "Purge effectuée avec succès", "details": purged, "retention_days": retention_days}
 
+
+
+@router.get("/media-native")
+async def get_media_native_status() -> dict[str, Any]:
+    """État réel du composant audio natif : désactivé, actif, en repli ou absent.
+
+    Le contrôle lance le composant s'il est activé et ne l'est pas encore (au plus un
+    processus, celui que les imports utilisent) : il tourne hors de la boucle d'évènements.
+    """
+    return await run_in_threadpool(media_native.status)
 
 
 @router.put("")
@@ -584,6 +532,8 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
                 raise HTTPException(status_code=400, detail="auto_update_enabled invalide (attendu 'true' ou 'false')")
             if key == "auto_web_rendition" and value not in ("true", "false"):
                 raise HTTPException(status_code=400, detail="auto_web_rendition invalide (attendu 'true' ou 'false')")
+            if key == "media_native" and value not in ("true", "false"):
+                raise HTTPException(status_code=400, detail="media_native invalide (attendu 'true' ou 'false')")
             if key == "auto_update_time" and not _AUTO_UPDATE_TIME_RE.match(value):
                 raise HTTPException(status_code=400, detail="Heure de mise à jour automatique invalide (attendu 'HH:MM')")
 
@@ -603,6 +553,11 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
     db.commit()
     logger.info(f"Paramètres mis à jour : {updates}")
     result = get_settings(db)
+
+    if "media_native" in updates:
+        # Effet immédiat sur les prochains imports ; les imports en cours finissent avec le mode
+        # qu'ils ont commencé (aucun média n'est jamais perdu : repli sur ffprobe/ffmpeg).
+        media_native.configure(result["media_native"])
 
     if "auto_update_enabled" in updates or "auto_update_time" in updates:
         # Import différé : `scheduler_manager` importe déjà plusieurs

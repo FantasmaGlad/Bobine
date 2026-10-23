@@ -1,8 +1,9 @@
 # Banc de compatibilité navigateurs (Firefox / Gecko)
 
-Outils jetables, sans dépendance (bibliothèque standard Python + JavaScript
-injecté), utilisés pour établir les mesures de
-compatibilité Firefox. Ils ne font jamais partie du build de Bobine.
+Outils sans dépendance (bibliothèque standard Python + JavaScript injecté),
+utilisés pour établir les mesures de compatibilité Firefox et, pour
+`e2e_firefox.py`, comme tests de fumée de la CI. Ils ne font jamais partie du
+build de Bobine.
 
 | Fichier | Rôle |
 |---|---|
@@ -11,6 +12,9 @@ compatibilité Firefox. Ils ne font jamais partie du build de Bobine.
 | `support-matrix.js` | Matrice de support navigateur : codecs (`canPlayType` / `MediaSource`), API Web, fonctions CSS. |
 | `playtest.js` | Lit `arguments[0]` (URL d'un flux) 8 s dans un `<video>` et rapporte images décodées / perdues, état, erreur. |
 | `throttle_proxy.py` | Proxy TCP qui limite le débit montant et ajoute de la latence (simule un Wi-Fi de salle). |
+| `run_test_backend.py` | Lance un backend de TEST isolé (sans publication mDNS), sur le port 8078 par défaut. |
+| `e2e_firefox.py` | Banc de bout en bout : pilote un vrai Firefox contre l'instance de test (le job `firefox-smoke` de la CI le lance). |
+| `overflow_audit.py` | Audit de débordement horizontal des pages d'administration à plusieurs largeurs de fenêtre. |
 
 ## Mise en route
 

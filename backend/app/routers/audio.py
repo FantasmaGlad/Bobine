@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, contains_eager, joinedload, selectinload
 
 from app.database import get_db
-from app.models import AudioCourse, AudioTrack, Background
+from app.models import AudioCourse, AudioTrack
 from app.utils.audio_importer import import_audio_course_from_files, import_audio_course_from_zip
 from app.utils.executors import io_executor
 from app.utils.staged_uploads import receive_single_upload

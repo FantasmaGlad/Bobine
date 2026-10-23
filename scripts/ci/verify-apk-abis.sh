@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Vérifie qu'un APK déclare exactement les ABI natives attendues et que chacune
-# embarque Python, et ffmpeg/ffprobe sur les ABI ARM.
+# embarque Python, et ffmpeg/ffprobe/composant audio natif sur les ABI ARM.
 #
 # Garde-fou d'une régression déjà survenue : un APK Android TV sans dossier
 # lib/armeabi-v7a s'installe sur les appareils 64 bits mais échoue avec
@@ -27,7 +27,7 @@ entries="$(unzip -Z1 "${APK}")"
 for abi in "$@"; do
     # x86_64 (APK debug de l'émulateur de développement, jamais en release) : pas de ffmpeg embarqué.
     libs=(libpython3)
-    [[ "${abi}" == x86_64 ]] || libs+=(libffmpeg.so libffprobe.so)
+    [[ "${abi}" == x86_64 ]] || libs+=(libffmpeg.so libffprobe.so libbobine_media.so)
     for lib in "${libs[@]}"; do
         if ! grep -q "^lib/${abi}/${lib}" <<<"${entries}"; then
             echo "::error::${APK} : lib/${abi}/${lib}* absent"

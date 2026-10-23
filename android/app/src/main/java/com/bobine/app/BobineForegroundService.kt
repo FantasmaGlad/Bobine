@@ -49,10 +49,9 @@ private const val PRESENTATION_FAST_DELAY_MS = 500L
 private const val PRESENTATION_SLOW_DELAY_MS = 5_000L
 
 /**
- * porte le backend Python
- * et la `Presentation` HDMI, DECOUPLE du cycle de vie de
- * `MainActivity` - c'est ce qui permet au cours de continuer de jouer sur
- * la sortie HDMI meme si l'app est fermee depuis le multitache.
+ * Service au premier plan qui porte le backend Python et la `Presentation` HDMI, DÉCOUPLÉ du cycle de vie de
+ * `MainActivity` : c'est ce qui permet au cours de continuer de jouer sur la sortie HDMI même si l'application
+ * est fermée depuis le multitâche.
  *
  * L'exemption batterie est demandee via la boite de dialogue systeme
  * standard (`MainActivity.requestIgnoreBatteryOptimizations`, appelee une
@@ -60,7 +59,7 @@ private const val PRESENTATION_SLOW_DELAY_MS = 5_000L
  * Owner - fiabilite inter-OEM non confirmee (HyperOS/MIUI notamment
  * ignore les mecanismes AOSP standards). Le redemarrage apres un "kill"
  * complet du processus par le systeme reste en revanche non garanti
- * (`onTaskRemoved` fait de son mieux mais un ForegroundService seul reste
+ * (`START_STICKY` en fait la demande, mais un ForegroundService seul reste
  * soumis aux politiques d'economie d'energie agressives de certains
  * constructeurs).
  */
@@ -283,17 +282,14 @@ class BobineForegroundService : Service() {
 
     @Volatile private var reportGeneration = 0
 
-    // compte les tentatives
-    // de demarrage differe du serveur Python quand getExternalFilesDir()
-    // renvoie encore null (stockage pas encore monte au demarrage a froid -
-    // rare mais deja observe sur d'autres apps Android en Direct Boot ou
-    // juste apres un redemarrage). Avant ce lot, une valeur null etait
-    // transmise telle quelle a bobine_bootstrap.py, qui retombait
-    // SILENCIEUSEMENT sur le dossier interne prive AssetFinder/app/
-    // (ecrase par Chaquopy a chaque mise a jour) - source
-    // probable des disparitions de bibliotheque rapportees (donnees ecrites
-    // dans la mauvaise base le temps de cette fenetre, jusqu'au prochain
-    // redemarrage du service).
+    // Compte les tentatives de démarrage différé du serveur Python quand
+    // getExternalFilesDirs() ne renvoie encore rien (stockage pas encore monté
+    // au démarrage à froid, en Direct Boot ou juste après un redémarrage).
+    // Sans ce garde-fou, une valeur nulle serait transmise telle quelle à
+    // bobine_bootstrap.py, qui retomberait SILENCIEUSEMENT sur le dossier
+    // interne privé AssetFinder/app/ (écrasé par Chaquopy à chaque mise à jour) :
+    // source probable de disparitions de bibliothèque (données écrites dans la
+    // mauvaise base jusqu'au prochain redémarrage du service).
     private var storageRetries = 0
 
     override fun onCreate() {
@@ -339,11 +335,10 @@ class BobineForegroundService : Service() {
     }
 
     private fun startPythonServerWhenStorageReady() {
-        // stockage externe specifique a l'app (persiste entre mises
-        // a jour, visible via un gestionnaire de fichiers/MTP) - reserve
-        // aux MEDIAS (gros fichiers, voir
-        // bobine_bootstrap.py). PAS le dossier interne AssetFinder/app/ ou
-        // Chaquopy redeploie les sources Python elles-memes.
+        // Stockage externe propre à l'application (persiste entre les mises à
+        // jour, visible depuis un gestionnaire de fichiers/MTP), réservé aux
+        // MÉDIAS (gros fichiers, voir bobine_bootstrap.py). Pas le dossier
+        // interne AssetFinder/app/, où Chaquopy redéploie les sources Python.
         val externalFilesDirs = ContextCompat.getExternalFilesDirs(applicationContext, null).filterNotNull()
         if (externalFilesDirs.isEmpty()) {
             storageRetries++
@@ -365,14 +360,13 @@ class BobineForegroundService : Service() {
             externalFilesDirs.first().absolutePath
         }
 
-        // dossier PRIVE
-        // de l'app sur le stockage interne (f2fs natif, jamais FUSE) - base
-        // SQLite, miniatures, logs, branding, pochettes radio.
+        // Dossier PRIVÉ de l'application sur le stockage interne (f2fs natif,
+        // jamais FUSE) : base SQLite, miniatures, logs, branding, pochettes radio.
         val internalFilesDir = applicationContext.filesDir.absolutePath
-        // dossier natif de l'app (seul emplacement d'ou Android 10+
-        // autorise l'execution d'un binaire embarque, contrainte W^X) -
-        // c'est la ou les jniLibs/<abi>/lib{ffmpeg,ffprobe}.so finissent
-        // apres installation.
+        // Dossier natif de l'application (seul emplacement d'où Android 10+
+        // autorise l'exécution d'un binaire embarqué, contrainte W^X) : c'est
+        // là que les jniLibs/<abi>/ (libffmpeg.so, libffprobe.so,
+        // libbobine_media.so) finissent après installation.
         val nativeLibraryDir = applicationContext.applicationInfo.nativeLibraryDir
         val py = Python.getInstance()
         py.getModule("bobine_bootstrap").callAttr(
@@ -476,23 +470,21 @@ class BobineForegroundService : Service() {
             return
         }
         if (presentation != null || presentationAttemptInFlight) return
-        // displayId 0 = ecran interne de la tablette (jamais une sortie
-        // HDMI) - une seule Presentation a la fois attendue
-        // ici (un seul dock/sortie externe par appareil dans ce cas
-        // d'usage). Voir externalDisplays() pour le filtrage des ecrans prives.
+        // displayId 0 = écran interne de la tablette (jamais une sortie HDMI) ;
+        // une seule Presentation à la fois est attendue ici (un seul dock ou
+        // sortie externe par appareil). Voir externalDisplays() pour le
+        // filtrage des écrans privés.
         val external = externalDisplays().firstOrNull() ?: return
 
-        // `Display` peut apparaitre dans DisplayManager.getDisplays() avant
-        // que WindowManagerService ait fini d'enregistrer son propre
-        // DisplayContent - Presentation.show() leve alors
-        // InvalidDisplayException ("the specified display can not be
-        // found"). Constate de facon systematique et reproductible sur
-        // l'emulateur juste apres le demarrage du service, y
-        // compris apres un branchement a chaud simule - plausible aussi
-        // sur un vrai branchement HDMI a chaud, pas seulement un artefact
-        // d'emulateur. Repli en reessai avec un court delai plutot qu'un
-        // crash : le redemarrage automatique START_STICKY masquait ce bug
-        // sans le corriger (l'app plantait puis se retablissait seule).
+        // Un `Display` peut apparaître dans DisplayManager.getDisplays() avant
+        // que WindowManagerService ait fini d'enregistrer son DisplayContent :
+        // Presentation.show() lève alors InvalidDisplayException ("the specified
+        // display can not be found"). Constaté de façon reproductible sur
+        // l'émulateur juste après le démarrage du service, branchement à chaud
+        // simulé compris ; plausible aussi sur un vrai branchement HDMI à chaud.
+        // Repli : nouvel essai après un court délai plutôt qu'un crash (le
+        // redémarrage START_STICKY masquait ce bug sans le corriger : l'app
+        // plantait puis se rétablissait seule).
         val presentationContext = getPresentationContext()
         presentationAttemptInFlight = true
         try {

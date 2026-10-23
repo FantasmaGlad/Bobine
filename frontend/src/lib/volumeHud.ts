@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** Pas d'une pression de touche volume (télécommande, clavier, manette). */
+/** Pas d'une pression de touche volume (clavier, manette, télécommande à dongle ; sur Android TV le volume reste au téléviseur). */
 export const VOLUME_STEP = 0.05;
 /** Durée d'affichage de l'indicateur après la dernière action. */
 export const VOLUME_HUD_MS = 1800;

@@ -31,7 +31,6 @@ export function isVideoFile(file: File): boolean {
 }
 
 export const SUBTITLE_EXTENSIONS = ["srt", "vtt"] as const;
-export const SUBTITLE_ACCEPT = [".srt", ".vtt", "text/vtt", "application/x-subrip"].join(",");
 const SUBTITLE_EXTENSION_SET: ReadonlySet<string> = new Set(SUBTITLE_EXTENSIONS);
 
 export function isSubtitleFile(file: File): boolean {

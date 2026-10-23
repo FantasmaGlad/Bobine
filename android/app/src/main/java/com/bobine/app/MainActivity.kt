@@ -330,20 +330,6 @@ class MainActivity : AppCompatActivity() {
         if (hasFocus) applyImmersiveFullscreen()
     }
 
-    // sans exemption
-    // Doze/optimisation batterie, le systeme peut ralentir/suspendre le
-    // ForegroundService apres une longue inactivite ecran (le service
-    // reste demarre, mais son travail de fond - reseau, timers - peut
-    // etre differe). REQUEST_IGNORE_BATTERY_OPTIMIZATIONS est une
-    // permission normale (pas de prompt) mais l'action elle-meme affiche
-    // TOUJOURS une boite de dialogue systeme une fois - acceptable ici
-    // (demande unique a l'installation initiale, pas a chaque demarrage,
-    // cf. isIgnoringBatteryOptimizations ci-dessous), contrairement a un
-    // contournement silencieux via Device Owner dont l'existence n'a pas
-    // ete confirmee de facon fiable inter-OEM ( -
-    // HyperOS/MIUI est connu pour ignorer les mecanismes AOSP standards et
-    // exiger des reglages constructeur additionnels, non automatisables
-    // depuis l'app).
     /**
      * Demande UNE fois la permission « afficher par-dessus d'autres applications », necessaire
      * pour rouvrir l'ecran seul apres un redemarrage. Certains appareils (Android TV) n'ont pas
@@ -361,6 +347,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Demande l'exemption d'optimisation batterie (Doze) : sans elle, le système peut ralentir ou suspendre le
+     * `ForegroundService` après une longue inactivité de l'écran (le service reste démarré, mais son travail de
+     * fond, réseau et minuteries, peut être différé). La permission est « normale » (aucune invite), mais l'action
+     * affiche toujours une fois une boîte de dialogue système : acceptable ici, la demande n'ayant lieu qu'à
+     * l'installation. Un contournement silencieux par Device Owner n'est pas fiable d'un constructeur à l'autre
+     * (HyperOS/MIUI ignore les mécanismes standards d'AOSP et exige des réglages propres, non automatisables).
+     */
     private fun requestIgnoreBatteryOptimizations() {
         val powerManager = getSystemService(PowerManager::class.java)
         if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {

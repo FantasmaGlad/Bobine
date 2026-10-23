@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import BrowserCompatibility from "@/components/BrowserCompatibility";
+import MediaNativeSetting from "@/components/MediaNativeSetting";
 import { useAppSettings, type Theme } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
 import Icon from "@/components/Icon";
@@ -1612,6 +1613,9 @@ export default function SettingsPage() {
 
       {/* ---- Compatibilité navigateur (diagnostic local) ---- */}
       <BrowserCompatibility />
+
+      {/* ---- Composant audio natif (expérimental, désactivé par défaut) ---- */}
+      <MediaNativeSetting />
 
       {/* ---- Sauvegarde & Restauration universelle ---- */}
       <section className="live-block">

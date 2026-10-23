@@ -12,6 +12,8 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cover_equivalence  # noqa: E402
 EXPECTED_FALLBACKS = frozenset(("unsupported", "corrupt", "ambiguous_metadata", "ambiguous_cover", "limit_exceeded"))
 
 
@@ -42,6 +44,7 @@ def compare(corpus, baseline_path, binary, output, repeats):
     source_paths = {"binary": binary, "manifest": manifest_path, "baseline": baseline_path,
                     "radio_utils.py": ROOT / "backend/app/utils/radio_utils.py",
                     "audio_utils.py": ROOT / "backend/app/utils/audio_utils.py",
+                    "media_metadata.py": ROOT / "backend/app/utils/media_metadata.py",
                     "media_sidecar.py": ROOT / "backend/app/utils/media_sidecar.py"}
     source_before = {name: sha(path) for name, path in source_paths.items()}
     summaries = {profile: Counter() for profile in ("radio", "course", "cover")}
@@ -53,6 +56,8 @@ def compare(corpus, baseline_path, binary, output, repeats):
         sys.path.insert(0, str(ROOT / "backend"))
         from app.utils.media_sidecar import MediaClient
         from app.utils.radio_utils import clean_filename_label
+        from app.utils.media_metadata import render_cover
+        reference_covers = baseline_path.parent / "reference-covers"
         client = MediaClient(command=[str(binary)], enabled=True)
         try:
             for entry in manifest["entries"]:
@@ -78,11 +83,19 @@ def compare(corpus, baseline_path, binary, output, repeats):
                             if profile == "cover":
                                 outcome["value"] = {"present": value.data is not None, "mime": value.mime,
                                                     "sha256": hashlib.sha256(value.data).hexdigest() if value.data is not None else None}
+                                if value.data is not None:
+                                    outcome["raw"] = value.data
                             else:
                                 if profile == "radio" and value["title"] is None:
                                     value["title"] = clean_filename_label(str(path))
                                 outcome["value"] = value if profile == "radio" else value["duration_seconds"]
                         outcomes.append(outcome)
+                    for item in outcomes:
+                        item_raw = item.pop("raw", None)
+                        item["_raw"] = item_raw
+                    raw = outcomes[0].pop("_raw")
+                    for item in outcomes[1:]:
+                        item.pop("_raw", None)
                     current = outcomes[0]
                     if any(item != current for item in outcomes[1:]):
                         differences.append({"id": identity, "profile": profile, "field": "repeat_stability"})
@@ -98,8 +111,15 @@ def compare(corpus, baseline_path, binary, output, repeats):
                     actual = current["value"]
                     if profile == "cover":
                         if actual["present"]:
-                            # Raw image output is not the normalized ffmpeg/Pillow contract.
-                            differences.append({"id": identity, "profile": profile, "field": "native_cover_not_validated"})
+                            reference_file = reference_covers / f"{identity}.jpg"
+                            if not reference["cover"]["present"] or not reference_file.is_file():
+                                differences.append({"id": identity, "profile": profile, "field": "cover_without_reference"})
+                            else:
+                                measure = cover_equivalence.measure(reference_file.read_bytes(), render_cover(raw))
+                                current["equivalence"] = measure
+                                summaries[profile]["equivalent" if measure["equivalent"] else "not_equivalent"] += 1
+                                if not measure["equivalent"]:
+                                    differences.append({"id": identity, "profile": profile, "field": "cover_equivalence", "measure": measure})
                         elif reference["cover"]["present"]:
                             differences.append({"id": identity, "profile": profile, "field": "false_absence"})
                         continue
@@ -138,7 +158,7 @@ def compare(corpus, baseline_path, binary, output, repeats):
               "passed": not differences and not unexpected,
               "limitations": ["Experimental native subset only; fallbacks are not native coverage",
                               "Fallback reasons are observed; reference fallback execution is not timed here",
-                              "Only proven cover absence is compared; native image bytes need separate normalization parity",
+                              "A native cover is judged by cover_equivalence.py (same size, PSNR >= 33 dB, MAE <= 4), not byte for byte",
                               "Development host only; no device or end-to-end import validation",
                               "Times include the actual client; first request includes process startup and handshake"]}
     with output.open("x", encoding="utf-8") as handle:
