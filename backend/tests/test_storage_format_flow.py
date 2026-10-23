@@ -63,6 +63,19 @@ def env(tmp_path, monkeypatch):
     security.rate_limiter._by_ip.clear()
     driver = FakeStorageDriver(tmp_path / "fake")
     service = StorageService(lambda: driver)
+    # Le pilote simule un disque distinct : son dossier ne doit pas hériter du st_dev de la machine CI.
+    def device_numbers(paths):
+        result = {}
+        for path in paths:
+            if Path(path).is_relative_to(tmp_path):
+                result[path] = 987654321
+            else:
+                try:
+                    result[path] = os.stat(path).st_dev
+                except OSError:
+                    pass
+        return result
+    monkeypatch.setattr(service.formatter, "_device_numbers", device_numbers)
     service.formatter.tokens = PlanTokens(min_age=0.0)           # le délai de réflexion a son propre test
     monkeypatch.setattr("app.main.storage_service", service)
     monkeypatch.setattr("app.routers.storage.service", service)

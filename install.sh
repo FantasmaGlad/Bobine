@@ -648,7 +648,7 @@ fi
 # Cohérence garantie par la CI (job « install.sh sanity ») qui compare cette
 # valeur à `grep -cE '^\s*step ' install.sh` : un ajout d'étape sans mise à jour
 # ici casse le build (et fausserait le pourcentage de --progress=json).
-STEP_TOTAL=18
+STEP_TOTAL=19
 STEP_CUR=0
 STEP_START_TS=0
 CURRENT_STEP_TITLE=""
