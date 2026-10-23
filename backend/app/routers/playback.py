@@ -93,6 +93,20 @@ class InterruptedStateResponse(BaseModel):
     target_id: int | None = None
 
 
+async def _reject_unavailable(websocket, command: str, channel: str, title: str | None, db) -> None:
+    """Média d'un support externe débranché : la commande est refusée proprement (jamais une erreur) et journalisée."""
+    logger.info(f"Commande {command} refusée : « {title} » est sur un support externe indisponible")
+    await run_in_threadpool(log_activity, db, "media_unavailable", title)
+    if websocket is not None:
+        try:
+            await websocket.send_json({
+                "event": "command_rejected", "command": command,
+                "reason": "storage_unavailable", "channel": channel,
+            })
+        except Exception:
+            pass
+
+
 def _thumbnail_filename(thumbnail_path: str | None) -> str | None:
     """Nom de fichier seul (pas le chemin disque complet) pour reconstruire
     l'URL `/api/thumbnails/<fichier>` côté client.3 vignette du
@@ -122,6 +136,8 @@ def _build_audio_course_item(course: AudioCourse, db: Session) -> dict:
 
     tracks = []
     for t in sorted(course.tracks, key=lambda t: t.position):
+        if not t.available:
+            continue  # piste d'un support externe débranché : sautée
         track_bg_id = getattr(t, "background_id", None)
         track_bg_title = None
         track_bg_is_image = False
@@ -177,6 +193,7 @@ def _build_audio_playlist_tracks(audio_playlist) -> list[dict]:
             "background_is_image": is_image_background(item.background.file_path) if item.background else False,
         }
         for item in sorted_items
+        if item.track.available  # piste d'un support externe débranché : sautée
     ]
 
 
@@ -198,10 +215,12 @@ def _build_playlist_video_items(playlist) -> list[dict]:
             "audio_codec": item.video.audio_codec,
             "fps": item.video.fps,
             "bitrate_kbps": item.video.bitrate_kbps,
+            "storage_id": item.video.storage_id,
             "width": item.video.width,
             "height": item.video.height,
         }
         for item in sorted_items
+        if item.video.available  # support externe débranché : élément sauté
     ]
 
 
@@ -597,6 +616,9 @@ async def _handle_command(
         if not video:
             logger.warning(f"Commande load : vidéo {video_id} introuvable")
             return
+        if not video.available:
+            await _reject_unavailable(websocket, command, channel, video.title, db)
+            return
         await manager.load(
             video.id, video.title, video.duration_seconds, video.program, client_ts,
             release=video.release, thumbnail_url=_thumbnail_filename(video.thumbnail_path),
@@ -635,6 +657,9 @@ async def _handle_command(
         course = await run_in_threadpool(lambda: db.query(AudioCourse).filter(AudioCourse.id == course_id).first())
         if not course:
             logger.warning(f"Commande load_audio_course : cours audio {course_id} introuvable")
+            return
+        if not await run_in_threadpool(lambda: course.available):
+            await _reject_unavailable(websocket, command, channel, course.title, db)
             return
         await _load_audio_course_into_manager(
             course, manager, db,
@@ -731,6 +756,9 @@ async def _handle_command(
             logger.warning(f"Commande load_playlist : playlist {playlist_id} introuvable")
             return
         items_data = await run_in_threadpool(_build_playlist_video_items, playlist)
+        if not items_data and await run_in_threadpool(lambda: bool(playlist.items)):
+            await _reject_unavailable(websocket, command, channel, playlist.name, db)
+            return
         await manager.load_playlist(
             playlist.id, playlist.name, items_data, client_ts
         )
@@ -926,7 +954,7 @@ async def _handle_radio_command(
             logger.warning(f"Commande load_radio_playlist : playlist radio {playlist_id} introuvable")
             return
         sorted_items = sorted(playlist.items, key=lambda item: item.position)
-        tracks = [radio_track_dict(item.track) for item in sorted_items if item.track]
+        tracks = [radio_track_dict(item.track) for item in sorted_items if item.track and item.track.available]
         # repeat="playlist" comme le chargement planifié "ambiance 24/7" : une radio n'a pas vocation à
         # s'arrêter en silence en fin de liste — correctif "le mode aléatoire
         # n'est pas infini" (shuffle et repeat sont deux réglages indépendants
@@ -939,7 +967,7 @@ async def _handle_radio_command(
         log_activity(db, "radio_playlist_started", playlist.name)
     elif command == "radio_shuffle_all":
         # Lecture aléatoire de TOUTE la bibliothèque, sans playlist : playlist_id=None, tous les morceaux mélangés à la volée.
-        tracks = [radio_track_dict(t) for t in db.query(RadioTrack).all()]
+        tracks = [radio_track_dict(t) for t in db.query(RadioTrack).all() if t.available]
         if not tracks:
             logger.info("Commande radio_shuffle_all : bibliothèque radio vide")
             return
@@ -982,11 +1010,17 @@ async def _handle_radio_command(
         if not track:
             logger.warning(f"Commande radio_add_to_queue : morceau {params.get('track_id')} introuvable")
             return
+        if not track.available:
+            logger.info("Commande radio_add_to_queue refusée : morceau sur un support externe indisponible")
+            return
         await manager.add_to_queue(radio_track_dict(track), client_ts)
     elif command == "radio_play_next":
         track = db.query(RadioTrack).filter(RadioTrack.id == params.get("track_id")).first()
         if not track:
             logger.warning(f"Commande radio_play_next : morceau {params.get('track_id')} introuvable")
+            return
+        if not track.available:
+            logger.info("Commande radio_play_next refusée : morceau sur un support externe indisponible")
             return
         await manager.play_next(radio_track_dict(track), client_ts)
     elif command == "radio_move_in_queue":

@@ -7,6 +7,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 
+from app.storage.availability import media_available  # noqa: E402  (registre en mémoire, sans dépendance)
+
 
 class Base(DeclarativeBase):
     pass
@@ -54,6 +56,48 @@ class RadioAnnouncementRuleType(str, enum.Enum):
     fixed_times = "fixed_times"
 
 
+class ExternalVolume(Base):
+    """Support externe enregistré comme « bibliothèque » : identifié par l'UUID de son système de
+    fichiers (jamais par son point de montage, qui change à chaque branchement). Les médias qu'il porte
+    sont indexés dans `videos` / `audio_tracks` / `radio_tracks` (colonnes `storage_id` + `rel_path`) ;
+    la base, les miniatures, les pochettes et les caches restent TOUJOURS sur le stockage interne."""
+    __tablename__ = "external_volumes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    fs_uuid: Mapped[str] = mapped_column(unique=True)
+    label: Mapped[str | None]
+    nickname: Mapped[str | None]
+    fstype: Mapped[str | None]
+    size_bytes: Mapped[int | None]
+    kind: Mapped[str] = mapped_column(default="other")
+    enabled: Mapped[bool] = mapped_column(default=True)
+    # Réglages de longévité propres au support (JSON), complétés par `app.storage.longevity.DEFAULTS`.
+    settings: Mapped[str | None] = mapped_column(Text)
+    # Octets écrits PAR BOBINE sur ce support depuis l'enregistrement (export) : alimente les avertissements d'usure.
+    bytes_written: Mapped[int] = mapped_column(default=0)
+    last_mount_path: Mapped[str | None]
+    last_seen_at: Mapped[datetime | None]
+    last_health: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+
+
+class StorageImport(Base):
+    """Trace d'un média déjà importé depuis un support (ou un appareil portable) vers le stockage local.
+
+    Sert à rendre une relance d'import idempotente (« reprise propre ») : un fichier de même chemin, taille et date
+    sur le même support n'est pas copié deux fois. Ne contient aucun chemin local de destination."""
+    __tablename__ = "storage_imports"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[str] = mapped_column(index=True)  # UUID du support ou identifiant d'appareil portable
+    rel_path: Mapped[str] = mapped_column(Text)
+    size_bytes: Mapped[int]
+    mtime_ns: Mapped[int]
+    kind: Mapped[str]  # video | audio_course | radio
+    local_id: Mapped[int | None]
+    imported_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+
+
 class Video(Base):
     __tablename__ = "videos"
 
@@ -83,6 +127,18 @@ class Video(Base):
     web_status: Mapped[str | None]
     imported_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     source: Mapped[ImportSource]
+    # Média posé sur un support externe (lecture directe) : `file_path` est le chemin courant (ou un chemin
+    # d'attente `external://…` quand le support est absent), `rel_path` le chemin relatif au support.
+    storage_id: Mapped[int | None] = mapped_column(ForeignKey("external_volumes.id"), index=True)
+    rel_path: Mapped[str | None]
+
+    @property
+    def available(self) -> bool:
+        return media_available(self.storage_id)
+
+    @property
+    def external(self) -> bool:
+        return self.storage_id is not None
 
     @property
     def web_issues(self) -> list[str]:
@@ -166,6 +222,19 @@ class AudioCourse(Base):
     def background_thumbnail_path(self) -> str | None:
         return self.background.thumbnail_path if self.background else None
 
+    @property
+    def available(self) -> bool:
+        """Vrai si au moins une piste est lisible ; `partially_available` signale les cours dont des pistes manquent."""
+        return not self.tracks or any(t.available for t in self.tracks)
+
+    @property
+    def partially_available(self) -> bool:
+        return any(not t.available for t in self.tracks) and any(t.available for t in self.tracks)
+
+    @property
+    def external(self) -> bool:
+        return any(t.storage_id is not None for t in self.tracks)
+
 
 class AudioTrack(Base):
     __tablename__ = "audio_tracks"
@@ -178,9 +247,19 @@ class AudioTrack(Base):
     duration_seconds: Mapped[float | None]
     position: Mapped[int]
     background_id: Mapped[int | None] = mapped_column(ForeignKey("backgrounds.id"), nullable=True)
+    storage_id: Mapped[int | None] = mapped_column(ForeignKey("external_volumes.id"), index=True)
+    rel_path: Mapped[str | None]
 
     course: Mapped[AudioCourse] = relationship(back_populates="tracks")
     background: Mapped["Background | None"] = relationship()
+
+    @property
+    def available(self) -> bool:
+        return media_available(self.storage_id)
+
+    @property
+    def external(self) -> bool:
+        return self.storage_id is not None
 
     @property
     def background_title(self) -> str | None:
@@ -299,6 +378,16 @@ class RadioTrack(Base):
     cover_source: Mapped[RadioCoverSource] = mapped_column(default=RadioCoverSource.none)
     source: Mapped[ImportSource]
     imported_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    storage_id: Mapped[int | None] = mapped_column(ForeignKey("external_volumes.id"), index=True)
+    rel_path: Mapped[str | None]
+
+    @property
+    def available(self) -> bool:
+        return media_available(self.storage_id)
+
+    @property
+    def external(self) -> bool:
+        return self.storage_id is not None
 
     tags: Mapped[list["RadioTag"]] = relationship(secondary=radio_track_tags, back_populates="tracks")
 

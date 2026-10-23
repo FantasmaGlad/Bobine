@@ -21,6 +21,7 @@ Comportements couverts (testés dans backend/tests/test_media_response.py) :
 - `X-Content-Type-Options: nosniff` : le type annoncé fait foi.
 """
 
+import asyncio
 from email.utils import formatdate, parsedate_to_datetime
 from pathlib import Path
 from typing import Mapping
@@ -150,14 +151,29 @@ async def build_media_response(
     async def body():
         # aiofiles : lecture disque non bloquante, la boucle d'évènements
         # reste disponible pour les autres requêtes pendant la diffusion.
-        async with aiofiles.open(file_path, "rb") as f:
-            await f.seek(start)
+        # Fermeture BLINDÉE : quand le client coupe (Range, lecteur qui change de piste), Starlette annule le flux
+        # pendant `yield` ; sans `shield`, l'annulation interrompait aussi `close()` et laissait le fichier ouvert —
+        # fatal pour un support externe (démontage « occupé » tant que le processus tient le descripteur).
+        handle = await aiofiles.open(file_path, "rb")
+        try:
+            await handle.seek(start)
             remaining = length
             while remaining > 0:
-                chunk = await f.read(min(_READ_BLOCK_SIZE, remaining))
+                chunk = await handle.read(min(_READ_BLOCK_SIZE, remaining))
                 if not chunk:
                     break
                 remaining -= len(chunk)
                 yield chunk
+        except OSError:
+            # Support amovible arraché en pleine lecture (EIO/ENODEV) : la réponse s'arrête net, sans 500 ni trace bruyante.
+            return
+        finally:
+            closing = asyncio.ensure_future(handle.close())
+            try:
+                await asyncio.shield(closing)
+            except asyncio.CancelledError:
+                pass  # la fermeture se termine seule ; l'annulation de la requête suit son cours
+            except OSError:
+                pass
 
     return StreamingResponse(body(), status_code=status, headers=headers)

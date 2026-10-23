@@ -16,6 +16,7 @@ import time
 from typing import Any, Awaitable, Callable
 
 from app.config import settings
+from app.storage.availability import media_available
 from app.utils.playback_clock import PlaybackClock
 from app.utils.radio_sound import default_sound
 
@@ -231,21 +232,25 @@ class RadioPlaybackManager:
             self.state["duration_seconds"] = None
 
     def _advance_index(self) -> bool:
-        """Avance à la piste suivante en respectant repeat=playlist/shuffle.
-        Renvoie False si fin atteinte sans répétition (rien à jouer ensuite)."""
+        """Avance à la piste suivante en respectant repeat=playlist/shuffle, en SAUTANT les morceaux d'un support
+        externe débranché (registre en mémoire). Renvoie False si fin atteinte sans répétition (rien à jouer ensuite)."""
         order = self.state["order"]
         if not order:
             return False
-        i = (self.state["index"] or 0) + 1
-        if i >= len(order):
-            if self.state["repeat"] == "playlist":
-                if self.state["shuffle"]:
-                    random.shuffle(order)
-                i = 0
-            else:
-                return False
-        self.state["index"] = i
-        return True
+        i = self.state["index"] or 0
+        for _ in range(len(order) + 1):
+            i += 1
+            if i >= len(order):
+                if self.state["repeat"] == "playlist":
+                    if self.state["shuffle"]:
+                        random.shuffle(order)
+                    i = 0
+                else:
+                    return False
+            if media_available(order[i].get("storage_id")):
+                self.state["index"] = i
+                return True
+        return False
 
     # ------------------------------------------------------------------
     # Commandes
@@ -264,7 +269,7 @@ class RadioPlaybackManager:
             self.state["shuffle"] = bool(shuffle)
         if repeat is not None:
             self.state["repeat"] = repeat
-        order = list(tracks)
+        order = [t for t in tracks if media_available(t.get("storage_id"))]
         if self.state["shuffle"]:
             random.shuffle(order)
         self.state["playlist_id"] = playlist_id

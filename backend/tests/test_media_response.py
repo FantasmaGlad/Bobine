@@ -178,3 +178,56 @@ def test_head_on_a_missing_media_resource_is_404_not_html():
         r = c.head(url)
         assert r.status_code == 404
         assert "text/html" not in r.headers.get("content-type", "")
+
+
+def _open_fds_on(path) -> int:
+    base = os.path.realpath(path)
+    count = 0
+    for fd in os.listdir("/proc/self/fd"):
+        try:
+            if os.path.realpath(os.readlink(f"/proc/self/fd/{fd}")) == base:
+                count += 1
+        except OSError:
+            pass
+    return count
+
+
+@pytest.mark.skipif(not os.path.isdir("/proc/self/fd"), reason="Linux uniquement")
+def test_stream_released_when_client_stops_early(tmp_path):
+    """Régression : un client qui coupe en cours de flux (annulation pendant `yield`) laissait le fichier ouvert, ce qui
+    empêchait de démonter un support externe (« occupé »). Garde-fou : le cas réel (uvicorn + coupure du client) est
+    reproduit de bout en bout par scripts/storage-real-test.py (démontage refusé « occupé » avant le correctif)."""
+    import asyncio
+
+    media = tmp_path / "gros.mp4"
+    media.write_bytes(os.urandom(2 * 1024 * 1024))
+
+    async def scenario():
+        response = await build_media_response(media, {}, "GET", "video/mp4")
+        iterator = response.body_iterator
+        first = await iterator.__anext__()
+        assert first and _open_fds_on(media) == 1
+        task = asyncio.ensure_future(iterator.aclose())
+        await task
+        assert _open_fds_on(media) == 0
+
+        # Annulation de la tâche de diffusion pendant la lecture : même résultat.
+        response = await build_media_response(media, {}, "GET", "video/mp4")
+        iterator = response.body_iterator
+
+        async def consume():
+            async for _ in iterator:
+                await asyncio.sleep(0.05)
+
+        consumer = asyncio.ensure_future(consume())
+        await asyncio.sleep(0.12)
+        consumer.cancel()
+        try:
+            await consumer
+        except asyncio.CancelledError:
+            pass
+        await iterator.aclose()
+        await asyncio.sleep(0.05)
+        assert _open_fds_on(media) == 0
+
+    asyncio.run(scenario())

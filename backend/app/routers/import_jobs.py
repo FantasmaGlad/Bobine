@@ -28,6 +28,13 @@ class ImportJobResponse(BaseModel):
     speed: str | None = None
     estimated_seconds: float | None = None
     queue_eta_seconds: int | None = None
+    # Transferts depuis un support externe (import, indexation, export) : progression par octets et fichiers, bilan final.
+    bytes_total: int | None = None
+    bytes_done: int | None = None
+    files_total: int | None = None
+    files_done: int | None = None
+    current_file: str | None = None
+    details: dict | None = None
 
 
 @router.get("", response_model=List[ImportJobResponse])

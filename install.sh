@@ -1129,6 +1129,8 @@ else
         gnupg \
         sudo \
         avahi-daemon \
+        udisks2 \
+        smartmontools \
         nftables \
         alsa-utils \
         pipewire \

@@ -5,6 +5,7 @@ import time
 from typing import Any, Awaitable, Callable
 
 from app.config import settings
+from app.storage.availability import media_available
 from app.utils.playback_clock import PlaybackClock
 
 logger = logging.getLogger(__name__)
@@ -487,6 +488,9 @@ class PlaybackManager:
             return
 
         next_idx = idx + 1
+        # Support externe débranché entre-temps : les éléments indisponibles sont sautés (registre en mémoire).
+        while next_idx < len(items) and not media_available(items[next_idx].get("storage_id")):
+            next_idx += 1
         if next_idx < len(items):
             self.state["playlist_index"] = next_idx
             next_item = items[next_idx]

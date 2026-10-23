@@ -20,6 +20,7 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 4. [Canaux de diffusion & Gestionnaire de lecture](#4-canaux-de-diffusion--gestionnaire-de-lecture)
 5. [Module Radio](#5-module-radio)
 5bis. [Périphériques (audio, Bluetooth, Wi-Fi)](#5bis-périphériques-audio-bluetooth-wi-fi)
+5ter. [Stockage externe](#5ter-stockage-externe-clés-usb-disques-cartes-sd-téléphones)
 6. [Mode Audio Coach & Fonds animés](#6-mode-audio-coach--fonds-animés)
 7. [Script d'installation & Services systemd](#7-script-dinstallation--services-systemd)
 8. [Référence API HTTP & WebSockets](#8-référence-api-http--websockets)
@@ -405,6 +406,19 @@ Onglet `/devices` (5.0.2) : gestion des périphériques de la machine qui diffus
 - **Google Play** (build `play`) : *Réglages → Mises à jour* passe par l'API In-App Updates (`PlayUpdateProvider`, chargée par réflexion depuis `StoreUpdates` : la version libre ne contient aucune bibliothèque Google) ; routes `POST /api/updates/store/{start,complete,open}` ; `GET /api/settings` expose `store_managed`.
 
 ---
+
+## 5ter. Stockage externe (clés USB, disques, cartes SD, téléphones)
+
+Page `/storage` (Linux de bureau et appliance ; Android, Windows et macOS : pilote nul explicite, le conseiller de format reste disponible). Même accès que les périphériques (§5bis) : désactivé par défaut, écran local de confiance, PIN pour les autres (cookie `bobine_storage_session` de même valeur, chemin `/api/storage`).
+
+- **Détection à chaud** (`backend/app/storage/`) : inventaire `lsblk -J -b` + options de montage de `/proc/self/mountinfo`, relu à chaque signal D-Bus d'udisks2 (`dbus-fast`) avec une interrogation de secours (5 s sans signaux, 20 s avec). Jamais proposés : disques portant un montage système, disques internes fixes, volumes qui contiennent (ou sont contenus dans) un dossier de données de Bobine, squashfs/swap/RAID/LVM ; les volumes chiffrés sont signalés, pas utilisables. Les actions revalident le support dans l'inventaire courant : le client n'envoie jamais de chemin de périphérique.
+- **Montage sans privilèges** : `udisksctl` (polkit, jamais `sudo`). Lecture seule par défaut, options `noatime,nodiratime,noexec` ; `sync` et `discard` ne sont jamais demandés. Retrait sûr : `sync`, démontage, extinction (`power-off`). États : prêt, occupé, retrait, débranché ; un retrait brutal est signalé comme tel.
+- **Explorateur** : chemins relatifs au support uniquement (pas de `..`, pas de chemin absolu), liens symboliques suivis seulement s'ils restent dans le volume, parcours borné et paginé, aucun décodage de média à la navigation.
+- **Deux usages** : *Importer* copie dans le dossier temporaire interne (vérification de la taille et du SHA-256, reprise après coupure, annulation, espace libre contrôlé) puis passe par les importeurs existants ; la source n'est jamais modifiée. *Utiliser comme extension* enregistre le support par l'**UUID de son système de fichiers** et indexe ses médias (`storage_id` + `rel_path` sur `videos`, `audio_tracks`, `radio_tracks`) sans les copier : lecture directe, base, miniatures et caches restent sur le stockage interne. Un support absent rend ses médias *indisponibles* (jamais supprimés) : `503 storage_unavailable` à la lecture, éléments sautés par les playlists, le planning et la radio ; au rebranchement (même UUID, autre point de montage) les chemins sont remappés.
+- **Longévité** : réglages par support, visibles et désactivables (lecture seule, `noatime`, `noexec`, veille des disques rotatifs, suivi SMART), état réel affiché (« actif », « indisponible : droits administrateur requis »…). TRIM et `hdparm` exigent les droits d'administrateur : Bobine lit l'état du minuteur `fstrim` du système au lieu de le simuler. Compteur d'octets écrits par Bobine et avertissements d'usure ; rapport SMART (`smartctl -j`, pont USB-SATA essayé) quand le système le permet, sinon « sans SMART ».
+- **Appareils portables** (MTP, PTP, AFC) via GVFS (`gio mount`) : lecture seule, import uniquement ; sans GVFS, l'aide d'installation est affichée.
+- **Conseiller de format** (`fsadvisor.py`, texte FR/EN) : selon l'OS de Bobine et ceux qui brancheront le support (ext4, NTFS, APFS/HFS+, exFAT, FAT32). Il décrit la procédure, il ne formate jamais.
+- **Test réel sans root** : `backend/.venv/bin/python scripts/storage-real-test.py` fabrique des images exFAT, les expose avec `udisksctl loop-setup` et vérifie détection, montage, import, bibliothèque, retrait et rebranchement.
 
 ## 6. Mode Audio Coach & Hub d'Ambiances Visuelles
 

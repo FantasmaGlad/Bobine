@@ -37,6 +37,8 @@ PIN_LENGTH = 6
 _PIN_RE = re.compile(rf"^\d{{{PIN_LENGTH}}}$")
 
 SESSION_COOKIE = "bobine_devices_session"
+# Même session, cookie propre au préfixe `/api/storage` (le chemin du premier est `/api/devices`).
+STORAGE_SESSION_COOKIE = "bobine_storage_session"
 SESSION_TTL_SECONDS = 15 * 60
 MAX_ATTEMPTS = 5
 LOCKOUT_BASE_SECONDS = 60

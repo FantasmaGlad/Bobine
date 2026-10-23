@@ -79,6 +79,9 @@ class VideoResponse(BaseModel):
     web_safe: bool = True
     web_issues: List[str] = []
     web_status: str | None = None
+    # Support externe (lecture directe) : `external` = posé sur un support, `available` = lisible maintenant.
+    available: bool = True
+    external: bool = False
 
     class Config:
         from_attributes = True
@@ -320,7 +323,8 @@ def update_video(video_id: int, payload: VideoUpdate, db: Session = Depends(get_
     # Si le titre change, renommer physiquement le fichier sur disque
     if payload.title is not None and payload.title != video.title:
         old_path = Path(video.file_path)
-        if old_path.exists():
+        # Jamais de renommage physique sur un support externe (lecture seule : le titre ne change qu'en base).
+        if old_path.exists() and video.storage_id is None:
             import re
             # Tenter de conserver le même UUID s'il est présent dans le nom de fichier actuel
             match = re.match(r"^video_([a-f0-9]{32})_(.+)$", old_path.name)
@@ -372,8 +376,9 @@ def delete_video(video_id: int, db: Session = Depends(get_db)):
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
 
-    # Suppression du fichier vidéo
-    if video.file_path:
+    # Suppression du fichier vidéo — JAMAIS sur un support externe : retirer le cours de la bibliothèque
+    # n'efface rien sur le support (lecture seule, c'est le fichier de l'utilisateur).
+    if video.file_path and video.storage_id is None:
         p = Path(video.file_path)
         if p.exists():
             try:
@@ -569,6 +574,11 @@ def manual_normalize(
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
+    if video.storage_id is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "external_read_only", "message": "Ce cours est sur un support externe (lecture seule) : importez-le d'abord pour le convertir, ou créez sa version lisible partout."},
+        )
 
     # Extraire les infos réelles pour vérifier les besoins
     try:
