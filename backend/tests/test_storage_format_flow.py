@@ -524,22 +524,25 @@ def test_replacement_after_partition_table_is_never_formatted_or_wiped(env):
 
 def test_new_volume_stays_locked_until_format_verification_finishes(env, monkeypatch):
     import asyncio
+    import threading
     manager = env.service.formatter
     verify = manager._verify
+    entered = threading.Event()
+    resume = threading.Event()
     async def delayed_verify(*args):
-        await asyncio.sleep(0.6)
+        entered.set()
+        assert await asyncio.to_thread(resume.wait, 10), "verification was not released"
         return await verify(*args)
     monkeypatch.setattr(manager, "_verify", delayed_verify)
     job_id = execute(env, good_plan(env)["token"]).json()["job_id"]
-    deadline = time.monotonic() + 5
-    new = None
-    while time.monotonic() < deadline:
+    try:
+        assert entered.wait(5), "verification did not start"
+        # Le faux pilote peut changer pendant refresh() : attendre le point de
+        # vérification, puis utiliser l'inventaire effectivement publié par le service.
         env.refresh()
-        new = next((v for v in env.driver.volumes.values() if v.fs_uuid.startswith("NEW")), None)
-        if new:
-            break
-        time.sleep(0.02)
-    assert new is not None
-    assert env.client.post(f"/api/storage/volumes/{new.key}/mount", json={"mode": "rw"}).status_code == 409
-    assert env.client.post(f"/api/storage/volumes/{new.key}/eject").status_code == 409
+        new = next(v for v in env.service._by_key.values() if v.fs_uuid.startswith("NEW"))
+        assert env.client.post(f"/api/storage/volumes/{new.key}/mount", json={"mode": "rw"}).status_code == 409
+        assert env.client.post(f"/api/storage/volumes/{new.key}/eject").status_code == 409
+    finally:
+        resume.set()
     assert wait_format(env, job_id)["state"] == "done"
