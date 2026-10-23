@@ -22,6 +22,8 @@ from app.radio_manager import (
     normalize_radio_channel, rule_targets_output,
 )
 from app.routers.settings import get_display_output_value
+from app.devices.service import PLAYER_ROUTE_STATUSES, service as devices_service
+from app.utils.radio_mix import sanitize_levels
 from app.utils.radio_sound import sanitize_sound, save_sound
 from app.scheduler_manager import ensure_utc, radio_track_dict, resolve_target_title
 from app.utils.activity_log import log_activity
@@ -1001,6 +1003,20 @@ async def _handle_radio_command(
         sound = sanitize_sound(params.get("sound"), base=manager.state.get("sound"))
         save_sound(db, manager.channel, sound)
         await manager.set_sound(sound, client_ts)
+    elif command == "radio_report_route":
+        # Résultat de l'application de la route audio par ce lecteur (lib/audioRoute.ts) : mémorisé tel quel pour
+        # l'interface Périphériques et pour décider si le serveur doit déplacer le flux. Valeur inconnue = « error ».
+        status = params.get("status") if params.get("status") in PLAYER_ROUTE_STATUSES else "error"
+        if websocket is not None and ws_manager.set_route_report(websocket, {"status": status}):
+            devices_service.note_player_report(manager.channel)
+    elif command == "radio_meter":
+        # Une interface de mixage est ouverte : le lecteur mesure ses niveaux (bail de quelques secondes, renouvelé par l'interface).
+        await manager.request_meter()
+    elif command == "radio_report_levels":
+        # Niveaux du vumètre : seul le lecteur primaire de la sortie les rapporte (comme la position).
+        if websocket is None or not ws_manager.is_primary_kiosk(websocket):
+            return
+        await manager.relay_levels(sanitize_levels(params.get("levels")))
     elif command == "radio_set_shuffle":
         await manager.set_shuffle(bool(params.get("on")), client_ts)
     elif command == "radio_set_repeat":

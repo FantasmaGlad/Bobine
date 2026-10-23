@@ -43,7 +43,7 @@ BROADCAST_SEND_TIMEOUT_SECONDS = 3.0
 # rien (le coût croît avec le nombre d'écrans). Les autres évènements
 # (`display_output`, `settings_change`, `force_reload`, `ping`…) concernent tout
 # le monde et ne sont jamais filtrés.
-CHANNEL_SCOPED_EVENTS = frozenset({"state_change", "cinema_state", "cinema_command"})
+CHANNEL_SCOPED_EVENTS = frozenset({"state_change", "cinema_state", "cinema_command", "radio_levels"})
 
 
 class ConnectionManager:
@@ -95,6 +95,9 @@ class ConnectionManager:
         # périphériques) : aucun effet sur le rôle primaire/miroir ni sur la diffusion des évènements.
         self._kiosk_page: dict[WebSocket, str] = {}
         self._viewers: dict[WebSocket, dict[str, str]] = {}
+        # Dernier résultat de routage audio rapporté par chaque lecteur /radio (devices/routing.py) : en mémoire, retiré à la
+        # déconnexion du lecteur (un lecteur parti ne doit plus compter).
+        self._route_reports: dict[WebSocket, dict[str, str]] = {}
         # boucle
         # asyncio principale, enregistrée une fois au démarrage
         # (`main.py::lifespan`) — permet à du code exécuté HORS boucle (un
@@ -135,6 +138,7 @@ class ConnectionManager:
         self._subscriptions.pop(websocket, None)
         self._viewers.pop(websocket, None)
         self._kiosk_page.pop(websocket, None)
+        self._route_reports.pop(websocket, None)
         # Gestion du rôle kiosk : si ce kiosk était le primaire, promouvoir le suivant.
         asyncio.create_task(self._unregister_kiosk(websocket))
         logger.info(f"Client WebSocket déconnecté ({len(self.active_connections)} au total)")
@@ -241,6 +245,26 @@ class ConnectionManager:
             {"channel": c, "page": p, "role": r, "ip": ip, "count": n}
             for (c, p, r, ip), n in sorted(grouped.items())
         ]
+
+    def set_route_report(self, websocket: WebSocket, report: dict[str, str]) -> bool:
+        """Mémorise le résultat de routage d'un lecteur /radio identifié ; faux (ignoré) pour toute autre connexion."""
+        if websocket not in self._kiosk_channel:
+            return False
+        self._route_reports[websocket] = report
+        return True
+
+    def route_players(self, channel: str) -> list[dict[str, object]]:
+        """Lecteurs /radio connectés pour une sortie radio, avec leur adresse, leur rôle et leur dernier rapport de routage."""
+        players: list[dict[str, object]] = []
+        for ws in self._kiosk_connections.get(channel, []):
+            client = getattr(ws, "client", None)
+            players.append({
+                "ip": str(client.host) if client else "",
+                "primary": bool(self._kiosk_primary_status.get(ws)),
+                "page": self._kiosk_page.get(ws) or "radio",
+                "report": self._route_reports.get(ws),
+            })
+        return players
 
     def kiosk_count(self, channel: str) -> int:
         """Nombre d'écrans de diffusion (kiosques identifiés) sur ce canal."""

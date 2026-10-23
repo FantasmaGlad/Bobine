@@ -29,6 +29,7 @@ _STATUS_BY_CODE = {
 
 _NO_DEFAULT_SINK = "Android ne permet pas à une application de changer la sortie audio : utilisez les réglages du son."
 _NO_AUDIO_TOOLS = "Android ne permet pas à une application de régler la balance, de jouer un son de test ni de changer le profil d'une sortie."
+_NO_ROUTE = "Android choisit lui-même la sortie du son : le routage de la radio n'est pas possible depuis Bobine."
 _NO_BT_CONNECT = "Android ne permet pas de connecter ou d'oublier un appareil déjà appairé : utilisez les réglages Bluetooth."
 _NO_WIFI = "Depuis Android 10, une application ne peut plus gérer le Wi-Fi : utilisez les réglages du système."
 
@@ -103,6 +104,7 @@ class AndroidDriver(DeviceDriver):
         caps["audio_details"] = dict(yes)
         for key in ("audio_balance", "audio_test_tone", "audio_profile"):
             caps[key] = {"supported": False, "reason": _NO_AUDIO_TOOLS}
+        caps["audio_route_stream"] = {"supported": False, "reason": _NO_ROUTE}
         for key in ("bluetooth_status", "bluetooth_power", "bluetooth_scan", "bluetooth_pair"):
             caps[key] = dict(yes) if has_bt else {"supported": False, "reason": "Cet appareil n'a pas de Bluetooth."}
         for key in ("bluetooth_connect", "bluetooth_forget"):

@@ -24,7 +24,9 @@ from .base import CAPABILITY_KEYS, DeviceDriver, DeviceError, unsupported
 from .linux_parse import (
     bluez_device_path,
     channel_volumes_for_balance,
+    choose_browser_stream,
     parse_audio_details,
+    parse_output_streams,
     tone_wav_bytes,
     is_valid_mac,
     parse_bluez_objects,
@@ -92,6 +94,9 @@ class LinuxDriver(DeviceDriver):
         self._pending_future: asyncio.Future[bool] | None = None
         self._pairing: dict[str, Any] | None = None
         self._tone_lock = asyncio.Lock()
+        # Flux d'application que Bobine a déplacés (id PipeWire → sortie visée) : pour les rendre à la sortie par défaut.
+        self._moved_streams: dict[int, str] = {}
+        self._route_lock = asyncio.Lock()
         self._probe_cache: tuple[float, dict[str, dict[str, Any]]] | None = None
         self._wifi_device_cache: tuple[float, dict[str, str] | None] = (0.0, None)
 
@@ -119,10 +124,10 @@ class LinuxDriver(DeviceDriver):
 
         if audio_reason is None:
             caps["audio_details"] = {"supported": True}
-            for key, tool in (("audio_balance", "pw-cli"), ("audio_test_tone", "pw-play"), ("audio_profile", "wpctl")):
+            for key, tool in (("audio_balance", "pw-cli"), ("audio_test_tone", "pw-play"), ("audio_profile", "wpctl"), ("audio_route_stream", "pw-metadata")):
                 caps[key] = {"supported": True} if shutil.which(tool) else {"supported": False, "reason": f"L'outil {tool} n'est pas installé."}
         else:
-            for key in ("audio_details", "audio_balance", "audio_test_tone", "audio_profile"):
+            for key in ("audio_details", "audio_balance", "audio_test_tone", "audio_profile", "audio_route_stream"):
                 caps[key] = {"supported": False, "reason": audio_reason}
 
         bt_reason = await self._probe_bluetooth()
@@ -272,6 +277,48 @@ class LinuxDriver(DeviceDriver):
         if code != 0:
             raise DeviceError("audio_failed", (err.strip() or "Changement de profil refusé.")[:200], 502)
         self._emit("audio")
+
+    async def _output_streams(self) -> list[dict[str, Any]]:
+        return parse_output_streams(await self._pw_dump_raw())
+
+    async def audio_route_stream(self, sink_id: str | None) -> dict[str, Any]:
+        """Déplace le flux du navigateur qui joue la radio vers `sink_id` (`pw-metadata … target.object`), puis VÉRIFIE par
+        `pw-dump` que le flux est bien relié à cette sortie ; sinon retour arrière. `None` rend les flux déplacés par Bobine
+        à la sortie par défaut. Un seul flux de navigateur en lecture, sinon rien n'est déplacé (voir `choose_browser_stream`)."""
+        if not shutil.which("pw-metadata"):
+            raise DeviceError("tool_missing", "L'outil pw-metadata est introuvable : le routage système n'est pas disponible.", 501)
+        async with self._route_lock:
+            streams = await self._output_streams()
+            if sink_id is None:
+                return await self._release_streams(streams)
+            await self._pw_id(sink_id)  # 404 si la sortie a disparu
+            verdict, stream = choose_browser_stream(streams)
+            if stream is None:
+                return {"status": "ambiguous" if verdict == "ambiguous" else "no_stream"}
+            if stream["sink"] == sink_id:  # déjà au bon endroit (déplacé par Bobine plus tôt, ou choix de l'utilisateur) : on n'y touche pas
+                return {"status": "unchanged", "app": stream["app"]}
+            code, _, err = await self._run("pw-metadata", "-n", "default", str(stream["id"]), "target.object", sink_id, "Spa:String", timeout=5)
+            if code != 0:
+                return {"status": "failed", "app": stream["app"], "detail": (err.strip() or "pw-metadata a échoué.")[:200]}
+            for _ in range(8):  # WirePlumber relie le flux à la nouvelle sortie en quelques dizaines de millisecondes
+                await asyncio.sleep(0.25)
+                moved = next((s for s in await self._output_streams() if s["id"] == stream["id"]), None)
+                if moved is not None and moved["sink"] == sink_id:
+                    self._moved_streams[stream["id"]] = sink_id
+                    self._emit("audio")
+                    return {"status": "moved", "app": stream["app"]}
+            await self._run("pw-metadata", "-n", "default", "-d", str(stream["id"]), "target.object", timeout=5)
+            return {"status": "failed", "app": stream["app"], "detail": "Le flux n'a pas rejoint la sortie demandée."}
+
+    async def _release_streams(self, streams: list[dict[str, Any]]) -> dict[str, Any]:
+        alive = {s["id"] for s in streams}
+        released = 0
+        for stream_id in list(self._moved_streams):
+            if stream_id in alive:
+                code, _, _ = await self._run("pw-metadata", "-n", "default", "-d", str(stream_id), "target.object", timeout=5)
+                released += 1 if code == 0 else 0
+            self._moved_streams.pop(stream_id, None)
+        return {"status": "released" if released else "unchanged"}
 
     async def _pw_id(self, device_id: str) -> int:
         data = await self._audio_sinks()

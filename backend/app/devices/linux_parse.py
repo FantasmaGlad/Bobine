@@ -86,6 +86,61 @@ def parse_pw_dump(data: list[dict[str, Any]]) -> dict[str, Any]:
     return {"sinks": sinks, "default_id": default_name}
 
 
+# ---------------------------------------------------------------------------
+# Flux de lecture des applications (phase 2 : routage de la radio vers une sortie)
+# ---------------------------------------------------------------------------
+
+# Navigateurs susceptibles de jouer le lecteur /radio. PipeWire ne donne ni l'onglet ni l'URL : seule l'application
+# est identifiable, d'où la prudence de `choose_browser_stream`.
+_BROWSER_RE = re.compile(r"(chrom|firefox|brave|vivaldi|opera|msedge|microsoft-edge|epiphany|librewolf|waterfox|falkon|qutebrowser)", re.I)
+
+
+def parse_output_streams(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Flux de lecture (`Stream/Output/Audio`) d'un `pw-dump` : identifiant, application, état et sortie à laquelle
+    chacun est relié (`sink`, nom de nœud PipeWire, ou None s'il n'est relié à aucune)."""
+    names = {obj["id"]: _props(obj).get("node.name") for obj in data if str(obj.get("type", "")).endswith("Interface:Node")}
+    linked: dict[int, int] = {}
+    for obj in data:
+        if str(obj.get("type", "")).endswith("Interface:Link"):
+            props = _props(obj)
+            out, inp = props.get("link.output.node"), props.get("link.input.node")
+            if isinstance(out, int) and isinstance(inp, int):
+                linked[out] = inp
+    streams: list[dict[str, Any]] = []
+    for obj in data:
+        if not str(obj.get("type", "")).endswith("Interface:Node"):
+            continue
+        props = _props(obj)
+        if props.get("media.class") != "Stream/Output/Audio":
+            continue
+        app = str(props.get("application.name") or "")
+        binary = str(props.get("application.process.binary") or "")
+        streams.append(
+            {
+                "id": obj["id"],
+                "name": str(props.get("node.name") or ""),
+                "app": app,
+                "binary": binary,
+                "browser": bool(_BROWSER_RE.search(f"{binary} {app}")),
+                "state": str((obj.get("info") or {}).get("state") or ""),
+                "sink": names.get(linked.get(obj["id"])),
+            }
+        )
+    return streams
+
+
+def choose_browser_stream(streams: list[dict[str, Any]]) -> tuple[str, dict[str, Any] | None]:
+    """Le flux du navigateur qui joue la radio : `("one", flux)` s'il y a EXACTEMENT un flux de navigateur en lecture,
+    `("none", None)` s'il n'y en a aucun, `("ambiguous", None)` sinon. Jamais de devinette : déplacer le flux d'un
+    autre onglet (vidéo, autre radio) serait pire que ne rien déplacer."""
+    running = [s for s in streams if s["browser"] and s["state"] == "running"]
+    if not running:
+        return "none", None
+    if len(running) > 1:
+        return "ambiguous", None
+    return "one", running[0]
+
+
 _VOLUME_RE = re.compile(r"Volume:\s*([0-9.]+)(?:\s*\[(MUTED)\])?")
 
 

@@ -9,16 +9,19 @@ import AudioSection from "@/components/devices/AudioSection";
 import BluetoothSection from "@/components/devices/BluetoothSection";
 import WifiSection from "@/components/devices/WifiSection";
 import MapSection from "@/components/devices/MapSection";
+import MixerSection from "@/components/devices/MixerSection";
+import RoutingSection from "@/components/devices/RoutingSection";
 import type { Notify, SectionProps } from "@/components/devices/common";
 import { devicesRequest, type DevicesStatus } from "@/lib/devicesApi";
 import { useDevicesEvents } from "@/lib/useDevicesEvents";
+import { useRadioFeed } from "@/lib/useRadioFeed";
 import { usePointerGlow } from "@/lib/usePointerGlow";
 
 // Périphériques : audio, Bluetooth et Wi-Fi de la machine qui diffuse. Fonction désactivée par défaut ;
 // l'écran local est de confiance, tout autre appareil saisit un code PIN (voir docs/ARCHITECTURE.md).
 // Même barre de sections horizontale que la bibliothèque radio.
 
-type Tab = "map" | "audio" | "bluetooth" | "wifi" | "security";
+type Tab = "map" | "audio" | "bluetooth" | "wifi" | "routing" | "mixer" | "security";
 const TAB_KEY = "bobine.devices.tab";
 
 interface ToastState { message: string; type: "success" | "error" | "warning"; }
@@ -45,7 +48,7 @@ export default function DevicesPage() {
     try {
       const saved = window.localStorage.getItem(TAB_KEY);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- restaure la dernière section (stockage local du navigateur)
-      if (saved === "map" || saved === "audio" || saved === "bluetooth" || saved === "wifi") setTab(saved);
+      if (saved === "map" || saved === "audio" || saved === "bluetooth" || saved === "wifi" || saved === "routing" || saved === "mixer") setTab(saved);
     } catch { /* stockage indisponible */ }
   }, []);
   const chooseTab = (next: Tab) => {
@@ -80,6 +83,10 @@ export default function DevicesPage() {
     onChanged();
   };
 
+  // Flux temps réel des sorties radio : seulement pour le graphe et la table de mixage ; le vumètre (mesure par le lecteur)
+  // uniquement quand la table de mixage est affichée.
+  const radioFeed = useRadioFeed(status?.access === "granted" && (tab === "routing" || tab === "mixer"), status?.access === "granted" && tab === "mixer");
+
   if (loadError && !status) return <div className="rl-center-note">{t("devices.errors.network")}</div>;
   if (!status) return <div className="rl-center-note">{t("devices.loading")}</div>;
 
@@ -101,6 +108,8 @@ export default function DevicesPage() {
                 { id: "audio", icon: "speaker", label: t("devices.tabs.audio") },
                 { id: "bluetooth", icon: "bluetooth", label: t("devices.tabs.bluetooth") },
                 { id: "wifi", icon: "wifi", label: t("devices.tabs.wifi") },
+                { id: "routing", icon: "alt_route", label: t("devices.tabs.routing") },
+                { id: "mixer", icon: "instant_mix", label: t("devices.tabs.mixer") },
                 ...(status.local ? [{ id: "security", icon: "shield", label: t("devices.tabs.security") }] : []),
               ]}
             />
@@ -122,6 +131,10 @@ export default function DevicesPage() {
           <BluetoothSection {...section} />
         ) : tab === "wifi" ? (
           <WifiSection {...section} />
+        ) : tab === "routing" ? (
+          <RoutingSection {...section} feed={radioFeed} />
+        ) : tab === "mixer" ? (
+          <MixerSection {...section} feed={radioFeed} />
         ) : (
           <SecurityPanel status={status} onChanged={onChanged} notify={notify} t={t} />
         )}

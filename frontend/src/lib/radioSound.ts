@@ -179,9 +179,9 @@ export function computePreamp(sound: RadioSoundSettings): number {
   return Math.pow(10, -cut / 20);
 }
 
-const LIMITER_ON: LimiterParams = { threshold: -3, knee: 2, ratio: 20, attack: 0.003, release: 0.15 };
+export const LIMITER_ON: LimiterParams = { threshold: -3, knee: 2, ratio: 20, attack: 0.003, release: 0.15 };
 // Compresseur transparent (ratio 1, seuil à 0 dB) : le nœud reste dans le graphe sans agir.
-const LIMITER_OFF: LimiterParams = { threshold: 0, knee: 0, ratio: 1, attack: 0.003, release: 0.25 };
+export const LIMITER_OFF: LimiterParams = { threshold: 0, knee: 0, ratio: 1, attack: 0.003, release: 0.25 };
 
 /**
  * Traduit des réglages en paramètres de chaque nœud du graphe. Son neutre (`enabled=false`) =
