@@ -15,6 +15,7 @@ import AppLogo from "@/components/AppLogo";
 import UpdateProgressOverlay from "@/components/UpdateProgressOverlay";
 import { isFullscreenPath } from "@/lib/fullscreenRoutes";
 import { useDpadNavigation } from "@/lib/useDpadNavigation";
+import { isPlugEvent, useStorageEvents, type StorageEvent } from "@/lib/useStorageEvents";
 
 function getApiUrl(path: string) {
   if (typeof window !== "undefined" && window.location.port === "3000") {
@@ -46,6 +47,8 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [updateAvailableVersion, setUpdateAvailableVersion] = useState<string | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState<boolean>(false);
+  // Branchement ou retrait d'un support externe, où que l'on soit dans l'administration (sans nom : l'évènement n'en porte pas).
+  const [plugEvent, setPlugEvent] = useState<"added" | "removed" | "abrupt" | null>(null);
   // demande le
   // plein écran navigateur dès le premier tap (le remote/coach mobile n'a
   // aucune raison de garder la barre d'adresse visible).
@@ -211,6 +214,35 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       );
     });
 
+  const onStorageEvent = React.useCallback((event: StorageEvent) => {
+    if (!isPlugEvent(event)) return;
+    setPlugEvent(event.changes.includes("removed_abruptly") ? "abrupt" : event.changes.includes("removed") ? "removed" : "added");
+  }, []);
+  useStorageEvents(onStorageEvent, !isFullscreenRoute && !pathname.startsWith("/storage"));
+  useEffect(() => {
+    if (!plugEvent) return;
+    const timer = setTimeout(() => setPlugEvent(null), 7000);
+    return () => clearTimeout(timer);
+  }, [plugEvent]);
+
+  const renderPlugToast = () => {
+    if (!plugEvent || pathname.startsWith("/storage")) return null;
+    const message = plugEvent === "added" ? t("storage.pluggedBare") : plugEvent === "abrupt" ? t("storage.abruptBare") : t("storage.unpluggedBare");
+    return (
+      <div
+        className={`toast ${plugEvent === "abrupt" ? "error" : "warning"} clickable olc-press olc-anim-in`}
+        style={{ cursor: "pointer", zIndex: 1000, bottom: updateAvailableVersion && !updateDismissed ? 96 : undefined }}
+        onClick={() => { setPlugEvent(null); router.push("/storage"); }}
+        role="button"
+        tabIndex={0}
+        title={t("storage.goTo")}
+      >
+        <Icon name="usb" size={18} />
+        <span>{message}</span>
+      </div>
+    );
+  };
+
   const renderUpdateToast = () => {
     if (!updateAvailableVersion || updateDismissed || pathname === "/settings" || pathname.startsWith("/settings/")) {
       return null;
@@ -316,6 +348,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           </>
         )}
         {renderUpdateToast()}
+        {renderPlugToast()}
         <UpdateProgressOverlay />
       </div>
     );
@@ -360,6 +393,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         <main className="page-content">{children}</main>
       </div>
       {renderUpdateToast()}
+      {renderPlugToast()}
       <UpdateProgressOverlay />
     </div>
   );
