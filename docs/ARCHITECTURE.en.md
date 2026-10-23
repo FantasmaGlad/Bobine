@@ -20,6 +20,7 @@ This document is written for anyone who wants to **understand, operate, modify o
 4. [Broadcast Channels & Playback Manager](#4-broadcast-channels--playback-manager)
 5. [Radio Module](#5-radio-module)
 5bis. [Devices (audio, Bluetooth, Wi-Fi)](#5bis-devices-audio-bluetooth-wi-fi)
+5ter. [External storage](#5ter-external-storage-usb-drives-disks-sd-cards-phones)
 6. [Audio Coach Mode & Animated Backgrounds](#6-audio-coach-mode--animated-backgrounds)
 7. [Install Script & systemd Services](#7-install-script--systemd-services)
 8. [HTTP API & WebSocket Reference](#8-http-api--websocket-reference)
@@ -404,6 +405,19 @@ A "Spotify-like" music subsystem **fully independent** from video courses/audio 
 - **Google Play** (`play` build): *Settings → Updates* goes through the In-App Updates API (`PlayUpdateProvider`, loaded by reflection from `StoreUpdates`: the free build contains no Google library); routes `POST /api/updates/store/{start,complete,open}`; `GET /api/settings` exposes `store_managed`.
 
 ---
+
+## 5ter. External storage (USB drives, disks, SD cards, phones)
+
+`/storage` page (desktop Linux and appliance; Android, Windows and macOS get an explicit null driver, the format advisor still works). Same access as devices (§5bis): disabled by default, trusted local screen, PIN for the others (`bobine_storage_session` cookie with the same value, path `/api/storage`).
+
+- **Hot-plug detection** (`backend/app/storage/`): `lsblk -J -b` inventory plus mount options from `/proc/self/mountinfo`, re-read on every udisks2 D-Bus signal (`dbus-fast`) with a polling fallback (5 s without signals, 20 s with). Never offered: disks carrying a system mount, fixed internal disks, volumes that contain (or sit inside) a Bobine data folder, squashfs/swap/RAID/LVM; encrypted volumes are reported, not usable. Every action re-validates the drive against the current inventory: the client never sends a device path.
+- **Unprivileged mounting**: `udisksctl` (polkit, never `sudo`). Read-only by default, `noatime,nodiratime,noexec` options; `sync` and `discard` are never requested. Safe removal: `sync`, unmount, power off. States: ready, busy, removing, unplugged; a sudden pull-out is reported as such.
+- **Explorer**: drive-relative paths only (no `..`, no absolute path), symlinks followed only when they stay inside the volume, bounded and paginated walk, no media decoding while browsing.
+- **Two uses**: *Import* copies into the internal temporary folder (size and SHA-256 verification, resume after interruption, cancellation, free-space check) then goes through the existing importers; the source is never modified. *Use as extension* registers the drive by its **filesystem UUID** and indexes its media (`storage_id` + `rel_path` on `videos`, `audio_tracks`, `radio_tracks`) without copying: direct playback, database, thumbnails and caches stay on internal storage. A missing drive makes its media *unavailable* (never deleted): `503 storage_unavailable` on playback, items skipped by playlists, schedule and radio; when plugged back (same UUID, other mount point) paths are remapped.
+- **Longevity**: per-drive settings, visible and switchable (read-only, `noatime`, `noexec`, spinning-disk standby, SMART monitoring), real status shown ("active", "unavailable: administrator rights required"...). TRIM and `hdparm` need administrator rights: Bobine reads the system `fstrim` timer instead of faking it. Counter of bytes written by Bobine and wear warnings; SMART report (`smartctl -j`, USB-SATA bridge retried) when the system allows it, otherwise "no SMART".
+- **Portable devices** (MTP, PTP, AFC) through GVFS (`gio mount`): read-only, import only; without GVFS the install help is shown.
+- **Format advisor** (`fsadvisor.py`, FR/EN text): according to Bobine's OS and the OSes that will plug the drive (ext4, NTFS, APFS/HFS+, exFAT, FAT32). It describes the procedure, it never formats.
+- **Real test without root**: `backend/.venv/bin/python scripts/storage-real-test.py` builds exFAT images, exposes them with `udisksctl loop-setup` and checks detection, mounting, import, library, removal and re-plugging.
 
 ## 6. Audio Coach Mode & Animated Backgrounds Hub
 

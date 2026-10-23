@@ -126,7 +126,9 @@ export const dictionaries: Record<Language, Dict> = {
         stopConfirm: "Retirer de la bibliothèque ({{count}} éléments)",
         stopped: "Support retiré de la bibliothèque.",
         started: "Support enregistré.",
-        count: "{{videos}} cours · {{tracks}} pistes",
+        videos: "{{count}} cours",
+        tracks: "{{count}} pistes",
+        empty: "Aucun élément ajouté",
       },
       details: {
         health: "Santé",
@@ -179,7 +181,7 @@ export const dictionaries: Record<Language, Dict> = {
           standby: "Veille du disque",
           smart: "Suivi de santé",
         },
-        status: { applied: "Actif", inactive: "En attente", disabled: "Désactivé", unavailable: "Indisponible" },
+        status: { applied: "Actif", inactive: "Pas encore actif", disabled: "Désactivé", unavailable: "Indisponible" },
         reasons: {
           not_mounted: "support fermé",
           mounted_without_option: "ouvert autrement par l'ordinateur",
@@ -1881,7 +1883,9 @@ export const dictionaries: Record<Language, Dict> = {
         stopConfirm: "Remove from the library ({{count}} items)",
         stopped: "Drive removed from the library.",
         started: "Drive registered.",
-        count: "{{videos}} courses · {{tracks}} tracks",
+        videos: "{{count}} courses",
+        tracks: "{{count}} tracks",
+        empty: "Nothing added yet",
       },
       details: {
         health: "Health",
@@ -1934,7 +1938,7 @@ export const dictionaries: Record<Language, Dict> = {
           standby: "Disk sleep",
           smart: "Health tracking",
         },
-        status: { applied: "Active", inactive: "Waiting", disabled: "Off", unavailable: "Unavailable" },
+        status: { applied: "Active", inactive: "Not active yet", disabled: "Off", unavailable: "Unavailable" },
         reasons: {
           not_mounted: "drive closed",
           mounted_without_option: "opened otherwise by the computer",

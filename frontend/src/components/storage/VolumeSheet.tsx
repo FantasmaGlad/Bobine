@@ -4,7 +4,7 @@ import { useState } from "react";
 import Icon from "@/components/Icon";
 import Sheet from "@/components/Sheet";
 import {
-  encodeKey, formatBytes, fsLabel, healthWarningKeys, longevitySummary, overallTone, STANDBY_CHOICES, storageRequest,
+  encodeKey, formatBytes, fsLabel, healthWarningKeys, longevitySummary, overallTone, STANDBY_CHOICES, storageRequest, visibleNotes,
   type Health, type LongevityItem, type LongevitySettings, type StorageVolume,
 } from "@/lib/storageApi";
 import { storageErrorText, tr, type StorageCtx } from "./common";
@@ -81,6 +81,9 @@ export default function VolumeSheet({ volume, onClose, onChanged, onAdvice, t, l
     else notify(storageErrorText(result.error, t, lang), "error");
   };
 
+  const videos = library?.stats?.videos ?? 0;
+  const tracks = (library?.stats?.audio_tracks ?? 0) + (library?.stats?.radio_tracks ?? 0);
+  const libraryCount = [videos ? t("storage.extension.videos", { count: videos }) : "", tracks ? t("storage.extension.tracks", { count: tracks }) : ""].filter(Boolean).join(" · ") || t("storage.extension.empty");
   const total = (library?.stats?.videos ?? 0) + (library?.stats?.audio_tracks ?? 0) + (library?.stats?.radio_tracks ?? 0);
   const healthTitle = tone === "critical" ? t("storage.details.healthCritical") : tone === "warning" ? t("storage.details.healthWarning")
     : shownHealth?.available ? t("storage.details.healthOk") : t("storage.details.healthUnknown");
@@ -109,8 +112,8 @@ export default function VolumeSheet({ volume, onClose, onChanged, onAdvice, t, l
             <span className="dv-text">
               <span className="dv-title">{t(`storage.verdict.${volume.assessment.verdict}`)} · {fsLabel(volume.fstype)}</span>
               <span className="dv-sub">{tr(t, `storage.fsReasons.${volume.assessment.reason}`)}</span>
-              {volume.assessment.notes.length > 0 && (
-                <span className="dv-sub">{volume.assessment.notes.slice(0, 3).map((n) => tr(t, `storage.fsNotes.${n}`)).filter(Boolean).join(" · ")}</span>
+              {visibleNotes(volume.assessment).length > 0 && (
+                <span className="dv-sub">{visibleNotes(volume.assessment).map((n) => tr(t, `storage.fsNotes.${n}`)).filter(Boolean).join(" · ")}</span>
               )}
             </span>
             <span className="dv-actions"><button type="button" className="btn btn-secondary" onClick={onAdvice}><Icon name="help" size={16} /> {t("storage.details.formatAdvice")}</button></span>
@@ -198,7 +201,7 @@ export default function VolumeSheet({ volume, onClose, onChanged, onAdvice, t, l
             <div className="dv-row">
               <span className="dv-icon"><Icon name="hard_drive" size={22} /></span>
               <span className="dv-text">
-                <span className="dv-title">{t("storage.extension.count", { videos: library?.stats?.videos ?? 0, tracks: (library?.stats?.audio_tracks ?? 0) + (library?.stats?.radio_tracks ?? 0) })}</span>
+                <span className="dv-title">{libraryCount}</span>
               </span>
               <span className="dv-actions">
                 {confirmStop ? (

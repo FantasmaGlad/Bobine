@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   adviceQuery, breadcrumbs, diffVolumes, formatBytes, fsLabel, isFinished, isSelectable, jobPercent, joinPath, longevitySummary,
-  overallTone, primaryAction, selectableEntries, selectionBytes, statusIcon, suggestKind, toggleSelection, volumeIcon, volumeStatus,
+  overallTone, primaryAction, selectableEntries, selectionBytes, statusIcon, suggestKind, toggleSelection, visibleNotes, volumeIcon, volumeStatus,
   type BrowseEntry, type LongevityItem, type StorageVolume,
 } from "../src/lib/storageApi.ts";
 import { isPlugEvent } from "../src/lib/useStorageEvents.ts";
@@ -186,4 +186,10 @@ test("le titre d'une page ne répète pas le libellé de navigation", () => {
   const nav = dictionaries.fr.nav as Dict;
   assert.equal(nav.storage, "Stockage externe");
   for (const [key, text] of Object.entries(fr)) assert.notEqual(text, nav.storage, `${key} répète le libellé de navigation`);
+});
+
+test("conséquences affichées : jamais une phrase déjà dite par la raison", () => {
+  assert.deepEqual(visibleNotes({ reason: "exfat_no_journal", notes: ["no_journal_unplug_risk", "no_unix_permissions", "no_file_limit", "flash_write_wear", "prefer_read_only"] }), ["no_unix_permissions", "no_file_limit", "flash_write_wear"]);
+  assert.deepEqual(visibleNotes({ reason: "fat_limits", notes: ["no_journal_unplug_risk", "file_limit_4gib"] }), ["no_journal_unplug_risk"]);
+  assert.deepEqual(visibleNotes({ reason: "works", notes: ["a", "b", "c", "d"] }), ["a", "b", "c"]);
 });

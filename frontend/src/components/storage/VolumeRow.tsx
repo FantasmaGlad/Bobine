@@ -44,7 +44,7 @@ export function VolumeRow({ volume, busy, onExplore, onMore, t, lang }: VolumePr
             <Icon name={busy ? "sync" : "folder_open"} size={18} className={busy ? "olc-spin" : ""} /> {busy ? t("storage.opening") : t("storage.explore")}
           </button>
         )}
-        <button type="button" className="btn btn-secondary" onClick={onMore} aria-label={t("storage.more")} title={t("storage.more")}><Icon name="more_horiz" size={18} /></button>
+        <button type="button" className="btn btn-secondary st-more" onClick={onMore} aria-label={t("storage.more")} title={t("storage.more")}><Icon name="more_horiz" size={18} /></button>
       </span>
     </div>
   );

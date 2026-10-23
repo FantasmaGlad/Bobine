@@ -13,8 +13,7 @@ import os
 import uuid
 from typing import Any
 
-from app.storage import paths
-from app.storage.transfer import KIND_TO_MEDIA, Plan, Unit, UnitFile
+from app.storage.transfer import Plan, Unit
 
 logger = logging.getLogger(__name__)
 

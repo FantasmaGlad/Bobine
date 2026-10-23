@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import Sheet from "@/components/Sheet";
-import { adviceQuery, fsLabel, OS_CHOICES, storageRequest, type FormatAdvice, type OsChoice } from "@/lib/storageApi";
+import { adviceQuery, fsLabel, OS_CHOICES, storageRequest, visibleNotes, type FormatAdvice, type OsChoice } from "@/lib/storageApi";
 import { storageErrorText, tr, type StorageCtx } from "./common";
 
 interface Props extends StorageCtx {
@@ -75,10 +75,10 @@ export default function FormatAdvisor({ open, onClose, t, lang, notify }: Props)
               <strong>{t("storage.advisor.result", { fs: fsLabel(advice.fstype) })}</strong>
               <br />
               {tr(t, `storage.fsReasons.${advice.reason}`)}
-              {advice.notes.length > 0 && (
+              {visibleNotes(advice).length > 0 && (
                 <>
                   <br />
-                  <span className="dv-sub">{advice.notes.map((n) => tr(t, `storage.fsNotes.${n}`)).filter(Boolean).join(" · ")}</span>
+                  <span className="dv-sub">{visibleNotes(advice).map((n) => tr(t, `storage.fsNotes.${n}`)).filter(Boolean).join(" · ")}</span>
                 </>
               )}
             </span>

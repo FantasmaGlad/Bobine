@@ -164,7 +164,9 @@ export default function StoragePage() {
         ) : (
           <div className="dv-section">
             {showJobs && <TransferStatus {...ctx} jobIds={jobIds} modes={modes} onDone={() => void reload()} />}
-            {volumes.length === 0 && phones.length === 0 ? (
+            {!listing ? (
+              <div className="rl-center-note">{t("storage.loading")}</div>
+            ) : volumes.length === 0 && phones.length === 0 ? (
               <div className="rl-empty-state">
                 <Icon name="usb" size={40} style={{ opacity: 0.25, marginBottom: "8px" }} />
                 <p style={{ margin: 0, fontWeight: 600 }}>{t("storage.empty")}</p>

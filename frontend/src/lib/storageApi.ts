@@ -418,3 +418,18 @@ export function fsLabel(fstype: string | null | undefined): string {
     default: return fstype as string;
   }
 }
+
+/** Conséquences à afficher sous le verdict : celles que la raison ne dit pas déjà (aucune phrase répétée). */
+export function visibleNotes(assessment: Pick<Assessment, "reason" | "notes">, limit = 3): string[] {
+  const redundant: Record<string, string[]> = {
+    exfat_no_journal: ["no_journal_unplug_risk", "prefer_read_only"],
+    fat_limits: ["file_limit_4gib"],
+    exfat_travel: ["no_file_limit"],
+    linux_only: ["journal_unplug_ok", "unix_permissions", "no_file_limit"],
+    windows_only: ["journal_unplug_ok", "no_file_limit"],
+    dirty: ["dirty_repair_first"],
+    not_readable_elsewhere: ["not_readable_elsewhere"],
+  };
+  const skip = new Set(redundant[assessment.reason] ?? []);
+  return assessment.notes.filter((n) => !skip.has(n)).slice(0, limit);
+}

@@ -48,7 +48,7 @@ export default function Explorer({ volumeKey, name, portable, canExtend, registe
   const load = useCallback(
     async (target: string, offset = 0) => {
       setLoading(true);
-      const query = new URLSearchParams({ path: target, offset: String(offset), limit: String(PAGE) });
+      const query = new URLSearchParams({ path: target, offset: String(offset), limit: String(PAGE), media_only: "true" });
       const result = await storageRequest<BrowseResult>(`/volumes/${encodeKey(volumeKey)}/browse?${query}`);
       setLoading(false);
       if (!result.ok) {
