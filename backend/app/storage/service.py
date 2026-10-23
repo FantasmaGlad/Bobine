@@ -22,6 +22,7 @@ from app.devices.base import DeviceError
 from app.storage import availability, fsadvisor, health, library, longevity, paths, transfer
 from app.storage.drivers.base import StorageDriver
 from app.storage.drivers.registry import build_storage_driver
+from app.storage.formatting.manager import FormatManager
 from app.storage.lsblk import duplicate_uuids
 from app.storage.types import Inventory, Volume, volume_public
 
@@ -84,6 +85,8 @@ class StorageService:
         self._written_unregistered: dict[str, int] = {}
         self._last_event: dict[str, float] = {}
         self._last_maintenance = 0.0
+        self._formatting: set[str] = set()   # volumes d'un support en cours de formatage (aucune autre action n'y touche)
+        self.formatter = FormatManager(self)
 
     # ------------------------------------------------------------------ pilote
     @property
@@ -232,7 +235,7 @@ class StorageService:
         for key, old in previous.items():
             if key in current:
                 continue
-            abrupt = old.mounted and key not in self._ejecting
+            abrupt = old.mounted and key not in self._ejecting and key not in self._formatting
             changes.append("removed_abruptly" if abrupt else "removed")
             self._log("storage_removed_abruptly" if abrupt else "storage_removed", old.display_name)
             self._recent.append({"key": key, "name": old.display_name, "at": now, "abrupt": abrupt})
@@ -312,10 +315,14 @@ class StorageService:
         return None
 
     # ------------------------------------------------------------------ résolution
-    def _need(self, key: str) -> Volume:
+    def _need(self, key: str, *, format_job: str | None = None) -> Volume:
         vol = self._by_key.get(key)
         if vol is None:
             raise DeviceError("volume_not_found", "Support introuvable : il a peut-être été retiré.", 404)
+        active = self.formatter.active()
+        formatting_disk = active is not None and vol.disk == active.disk_name
+        if (key in self._formatting or formatting_disk) and (active is None or format_job != active.id):
+            raise DeviceError("busy", "Ce support est en cours de préparation (formatage) : attendez la fin.", 409)
         return vol
 
     def _settings_for(self, vol: Volume) -> dict[str, Any]:
@@ -409,7 +416,7 @@ class StorageService:
 
     async def _view(self, vol: Volume, lib: dict[str, Any] | None, duplicates: set[str], facts: dict[str, Any]) -> dict[str, Any]:
         settings = lib["settings"] if lib else await self._effective_settings(vol)
-        state = "ejecting" if vol.key in self._ejecting else "busy" if self._busy.get(vol.key) else "mounted" if vol.mounted else "present"
+        state = "formatting" if vol.key in self._formatting else "ejecting" if vol.key in self._ejecting else "busy" if self._busy.get(vol.key) else "mounted" if vol.mounted else "present"
         assessment = fsadvisor.assess_filesystem(vol.fstype, media=_media_for_kind(vol.kind), dirty=vol.key in self._dirty)
         usage = None
         if vol.mountpoint:
@@ -502,11 +509,11 @@ class StorageService:
         await self._unmount_volume(vol)
         return await self._mount_volume(vol, writable=writable, settings=settings)
 
-    async def mount(self, key: str, mode: str = "ro") -> dict[str, Any]:
+    async def mount(self, key: str, mode: str = "ro", *, _format_job: str | None = None) -> dict[str, Any]:
         if mode not in ("ro", "rw"):
             raise DeviceError("bad_mode", "Mode de montage inconnu.", 400)
         async with self._lock:
-            vol = self._need(key)
+            vol = self._need(key, format_job=_format_job)
             settings = await self._effective_settings(vol)
             writable = mode == "rw"
             if writable:

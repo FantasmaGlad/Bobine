@@ -17,6 +17,7 @@ from typing import Any, Callable
 
 from app.devices.base import DeviceError  # même forme d'erreur structurée que l'API des périphériques
 from app.storage.health import unavailable
+from app.storage.formatting.model import DiskInfo, FormatSpec
 from app.storage.types import Inventory, Volume
 
 ChangeCallback = Callable[[str], None]
@@ -30,6 +31,7 @@ CAPABILITY_KEYS = (
     "trim",          # TRIM déclenché par Bobine
     "standby",       # mise en veille des disques rotatifs
     "portable",      # téléphones, tablettes (MTP/PTP/AFC)
+    "format",        # assistant de formatage (table GPT + partition + système de fichiers, sans privilèges)
 )
 
 __all__ = ["StorageDriver", "NullStorageDriver", "DeviceError", "CAPABILITY_KEYS", "unavailable"]
@@ -87,6 +89,29 @@ class StorageDriver(ABC):
     async def facts(self) -> dict[str, Any]:
         """Faits machine pour le rapport de longévité (root, minuteur TRIM...)."""
         return {"is_root": False, "fstrim_timer_enabled": None, "standby_supported": False}
+
+    # --- formatage (action destructive : voir app/storage/formatting/) -------------------------------------------
+    async def disks(self) -> list[DiskInfo]:
+        """Disques entiers avec partitions, relus à chaque appel (jamais un cache)."""
+        return []
+
+    async def format_support(self) -> dict[str, Any]:
+        """`{"supported": bool, "reason": str|None, "tools": {système de fichiers: outil présent}}`."""
+        return {"supported": False, "reason": "Le formatage n'est pas pris en charge sur cette plateforme.", "tools": {}}
+
+    async def unmount_device(self, device_path: str) -> None:
+        raise DeviceError("unsupported", "Le démontage n'est pas possible sur cette plateforme.", 501)
+
+    async def create_partition_table(self, disk: DiskInfo) -> None:
+        raise DeviceError("unsupported", "Le formatage n'est pas possible sur cette plateforme.", 501)
+
+    async def create_partition_and_format(self, disk: DiskInfo, spec: FormatSpec) -> str:
+        """Crée la partition alignée et son système de fichiers ; renvoie le chemin du nouveau périphérique."""
+        raise DeviceError("unsupported", "Le formatage n'est pas possible sur cette plateforme.", 501)
+
+    async def wipe_disk(self, disk: DiskInfo) -> None:
+        """Retire les signatures (table de partitions comprise) : retour à un support vierge après un échec."""
+        raise DeviceError("unsupported", "Le formatage n'est pas possible sur cette plateforme.", 501)
 
     # --- appareils portables (téléphones, tablettes) -------------------------------------------------------
     async def portable_status(self) -> dict[str, Any]:

@@ -648,7 +648,7 @@ fi
 # Cohérence garantie par la CI (job « install.sh sanity ») qui compare cette
 # valeur à `grep -cE '^\s*step ' install.sh` : un ajout d'étape sans mise à jour
 # ici casse le build (et fausserait le pourcentage de --progress=json).
-STEP_TOTAL=18
+STEP_TOTAL=19
 STEP_CUR=0
 STEP_START_TS=0
 CURRENT_STEP_TITLE=""
@@ -857,6 +857,7 @@ if $DO_UNINSTALL; then
     run rm -f /etc/wireplumber/wireplumber.conf.d/51-fix-jack-autoport.conf
     run rm -f /etc/systemd/system/powertop.service.d/10-audio-nopowersave.conf
     run rm -f /usr/local/bin/bobine
+    run rm -f /etc/polkit-1/rules.d/49-bobine-storage.rules
     run rm -f /usr/local/sbin/bobine-uninstall
     if command -v nft >/dev/null 2>&1; then
         run nft delete table ip olmc_redirect 2>/dev/null || true
@@ -1131,6 +1132,15 @@ else
         avahi-daemon \
         udisks2 \
         smartmontools \
+        exfatprogs \
+        e2fsprogs \
+        dosfstools \
+        ntfs-3g \
+        gvfs-backends \
+        gvfs-fuse \
+        libmtp-runtime \
+        polkitd \
+        dbus-user-session \
         nftables \
         alsa-utils \
         pipewire \
@@ -1399,6 +1409,10 @@ ok "désinstalleur '/usr/local/sbin/bobine-uninstall' installé"
 step_done
 
 # ---------------------------------------------------------------------------
+step storage-access "Autorisation des supports amovibles"
+run sh "${REPO_DIR}/packaging/storage/configure-storage-access" configure "${TARGET_USER}"
+step_done
+
 step backend-service "Service systemd — backend FastAPI"
 # ---------------------------------------------------------------------------
 write_file /etc/systemd/system/bobine-backend.service <<EOF

@@ -8,7 +8,7 @@
 import { parseApiError, type ApiError, type ApiResult } from "./devicesApi.ts";
 
 export type VolumeKind = "usb" | "sd" | "hdd" | "ssd" | "image" | "other";
-export type VolumeState = "present" | "mounted" | "busy" | "ejecting" | "offline";
+export type VolumeState = "present" | "mounted" | "busy" | "ejecting" | "offline" | "formatting";
 export type MediaKind = "video" | "audio" | "image" | "subtitle";
 export type TransferKind = "video" | "audio_course" | "radio";
 export type Verdict = "recommended" | "acceptable" | "discouraged" | "unknown";
@@ -268,7 +268,7 @@ export type StatusId = "ready" | "busy" | "ejecting" | "offline" | "attention";
 export function volumeStatus(volume: Pick<StorageVolume, "state" | "connected" | "health" | "library">): StatusId {
   if (!volume.connected || volume.state === "offline") return "offline";
   if (volume.state === "ejecting") return "ejecting";
-  if (volume.state === "busy") return "busy";
+  if (volume.state === "busy" || volume.state === "formatting") return "busy";
   const tone = overallTone(volume);
   return tone === "warning" || tone === "critical" ? "attention" : "ready";
 }
@@ -297,7 +297,7 @@ export type PrimaryAction = "explore" | null;
 
 /** UNE action principale par support : explorer ; rien tant qu'il est débranché ou en cours de retrait. */
 export function primaryAction(volume: Pick<StorageVolume, "state" | "connected">): PrimaryAction {
-  if (!volume.connected || volume.state === "offline" || volume.state === "ejecting") return null;
+  if (!volume.connected || volume.state === "offline" || volume.state === "ejecting" || volume.state === "formatting") return null;
   return "explore";
 }
 
@@ -432,4 +432,156 @@ export function visibleNotes(assessment: Pick<Assessment, "reason" | "notes">, l
   };
   const skip = new Set(redundant[assessment.reason] ?? []);
   return assessment.notes.filter((n) => !skip.has(n)).slice(0, limit);
+}
+
+// ---------------------------------------------------------------------------
+// Assistant de formatage (« Préparer ce support ») : types de l'API et aides PURES (testées dans tests/)
+// ---------------------------------------------------------------------------
+
+export type FormatFs = "ext4" | "exfat" | "vfat" | "ntfs";
+export const FORMAT_FILESYSTEMS: readonly FormatFs[] = ["ext4", "exfat", "vfat", "ntfs"];
+export type FormatStepId = "unmount" | "recheck" | "table" | "format" | "settle" | "readback" | "mount_ro" | "write_test" | "back_ro" | "health";
+export type FormatStepState = "pending" | "running" | "ok" | "warn" | "skipped" | "failed";
+export type FormatOutcome = "verified" | "verified_with_warnings" | "unchanged" | "erased_blank" | "partial_unknown" | "unverified";
+
+export interface FormatOption {
+  fs: FormatFs;
+  available: boolean;
+  unavailable: string | null;
+  install_package: string | null;
+  verdict: Verdict;
+  reason: string;
+  notes: string[];
+  max_file_gib: number | null;
+  label_max: number;
+  label: string;
+  recommended: boolean;
+  cluster_bytes: number | null;
+}
+
+export interface FormatContentVolume {
+  label: string | null;
+  fstype: string | null;
+  size_bytes: number;
+  readable?: boolean;
+  files?: number;
+  dirs?: number;
+  truncated?: boolean;
+  bytes_used?: number;
+  media?: { video: number; audio: number };
+  root?: Array<{ name: string; type: "dir" | "file" }>;
+  root_truncated?: boolean;
+}
+
+export interface FormatPlan {
+  token: string;
+  expires_in: number;
+  min_wait: number;
+  pin_required: boolean;
+  target: {
+    key: string; name: string; size_bytes: number; kind: VolumeKind; transport: string | null; vendor: string | null; model: string | null; table: string | null;
+    partitions: Array<{ label: string | null; fstype: string | null; size_bytes: number; mounted: boolean }>;
+  };
+  content: { volumes: FormatContentVolume[]; bytes_used: number };
+  erases: { partitions: number; files: number; truncated: boolean; unreadable: boolean };
+  recommended: FormatFs;
+  options: FormatOption[];
+  confirm: { mode: "name" | "serial_tail" | "model" | "word"; expected: string };
+  quick_only: boolean;
+}
+
+export interface FormatJob {
+  job_id: string;
+  state: "running" | "done" | "failed" | "cancelled";
+  stage: string;
+  outcome: FormatOutcome | null;
+  percent: number;
+  steps: Array<{ id: FormatStepId; state: FormatStepState }>;
+  can_cancel: boolean;
+  point_of_no_return: boolean;
+  error: { code: string; message: string } | null;
+  report: {
+    ok?: boolean;
+    checks?: Array<{ id: string; ok: boolean }>;
+    filesystem?: string;
+    label?: string;
+    size_bytes?: number;
+    mounted_read_only?: boolean | null;
+    health?: { available: boolean; status?: Tone; reason?: string | null };
+    params?: { cluster_bytes?: number; reserved_blocks?: number; free_bytes?: number };
+  } | null;
+  fs: FormatFs;
+  label: string;
+}
+
+/** Les OS qui brancheront aussi le support, déduits de la seule question posée à l'utilisateur (Windows / Mac ?). */
+export function formatTravels(travelsToWindowsOrMac: boolean): string[] {
+  return travelsToWindowsOrMac ? ["windows", "macos"] : [];
+}
+
+/** Format présélectionné : celui du conseiller s'il est disponible, sinon le premier disponible. */
+export function defaultFormat(plan: Pick<FormatPlan, "recommended" | "options">): FormatFs | null {
+  const options = plan.options.filter((o) => o.available);
+  return (options.find((o) => o.fs === plan.recommended) ?? options[0])?.fs ?? null;
+}
+
+/** Étiquette acceptable pour ce format ? Renvoie le code d'erreur (traduit par `storage.format.label.*`) ou null. */
+export function labelProblem(fs: FormatFs, raw: string): "empty" | "too_long" | "chars" | null {
+  const text = raw.trim();
+  if (!text) return "empty";
+  if (/[\x00-\x1f\x7f/\\"]/.test(text)) return "chars";
+  if (fs === "vfat" && (/[*?.,;:|+=<>[\]]/.test(text) || !/^[\x20-\x7e]+$/.test(text))) return "chars";
+  const limit = fs === "ext4" ? 16 : fs === "ntfs" ? 32 : 11;
+  const size = fs === "ext4" ? new TextEncoder().encode(text).length : [...text].length;
+  return size > limit ? "too_long" : null;
+}
+
+/** Secondes restantes avant que la confirmation soit possible (délai de réflexion, jamais négatif). */
+export function reflectionLeft(startedAtMs: number, nowMs: number, waitSeconds: number): number {
+  return Math.max(0, Math.ceil(waitSeconds - (nowMs - startedAtMs) / 1000));
+}
+
+export interface ConfirmInput {
+  typed: string;
+  expected: string;
+  acknowledged: boolean;
+  secondsLeft: number;
+  pinRequired: boolean;
+  pin: string;
+  labelOk: boolean;
+}
+
+/** Le bouton d'effacement n'est actif qu'après : saisie exacte du nom, case cochée, délai écoulé, PIN saisi si exigé. Jamais un simple clic. */
+export function canConfirmFormat(input: ConfirmInput): boolean {
+  const same = input.typed.normalize("NFC").trim().toLocaleLowerCase() === input.expected.normalize("NFC").trim().toLocaleLowerCase();
+  return same && input.typed.trim() !== "" && input.acknowledged && input.secondsLeft <= 0 && input.labelOk && (!input.pinRequired || /^\d{6}$/.test(input.pin));
+}
+
+/** Étapes affichées avec leur état ; l'effacement commence à « table » (point de non-retour). */
+export const FORMAT_STEP_ORDER: readonly FormatStepId[] = ["unmount", "recheck", "table", "format", "settle", "readback", "mount_ro", "write_test", "back_ro", "health"];
+
+export function stepIcon(state: FormatStepState): string {
+  return state === "ok" ? "check_circle" : state === "running" ? "progress_activity" : state === "failed" ? "error" : state === "warn" ? "warning" : state === "skipped" ? "remove" : "radio_button_unchecked";
+}
+
+/** Un travail est terminé quand il n'est plus « running ». */
+export function formatFinished(job: Pick<FormatJob, "state">): boolean {
+  return job.state !== "running";
+}
+
+/** Peut-on fermer la fenêtre sans perdre le suivi ? Jamais pendant l'effacement ni la vérification. */
+export function canLeaveWizard(job: Pick<FormatJob, "state" | "point_of_no_return"> | null): boolean {
+  return !job || job.state !== "running";
+}
+
+/** Code d'erreur d'une étiquette ou d'un refus → clé de texte. */
+export function refusalKey(code: string): string {
+  return `storage.format.refusal.${code}`;
+}
+
+export const FORMAT_SESSION_KEYS = ["format_token_missing", "format_token_unknown", "format_token_expired", "format_token_used", "format_token_owner", "format_identity_changed"] as const;
+
+/** Ces refus imposent de refaire un plan (jeton périmé ou support qui a changé). */
+export function needsNewPlan(code: string): boolean {
+  return (FORMAT_SESSION_KEYS as readonly string[]).includes(code);
 }

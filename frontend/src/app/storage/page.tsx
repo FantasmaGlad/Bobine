@@ -7,12 +7,13 @@ import { AccessGate } from "@/components/devices/AccessGate";
 import type { Notify } from "@/components/devices/common";
 import Explorer from "@/components/storage/Explorer";
 import FormatAdvisor from "@/components/storage/FormatAdvisor";
+import FormatWizard from "@/components/storage/FormatWizard";
 import TransferStatus from "@/components/storage/TransferStatus";
 import VolumeSheet from "@/components/storage/VolumeSheet";
 import { PortableRow, VolumeRow } from "@/components/storage/VolumeRow";
 import { storageErrorText } from "@/components/storage/common";
 import { devicesRequest, type DevicesStatus } from "@/lib/devicesApi";
-import { diffVolumes, encodeKey, storageRequest, type PortableListing, type StorageVolume, type VolumeListing } from "@/lib/storageApi";
+import { diffVolumes, encodeKey, storageRequest, type FormatJob, type PortableListing, type StorageVolume, type VolumeListing } from "@/lib/storageApi";
 import { useStorageEvents } from "@/lib/useStorageEvents";
 import { usePointerGlow } from "@/lib/usePointerGlow";
 
@@ -36,6 +37,7 @@ export default function StoragePage() {
   const [explorer, setExplorer] = useState<OpenSource | null>(null);
   const [sheetKey, setSheetKey] = useState<string | null>(null);
   const [advisor, setAdvisor] = useState(false);
+  const [formatTarget, setFormatTarget] = useState<{ key: string; name: string; resume?: FormatJob | null } | null>(null);
   const [jobIds, setJobIds] = useState<string[]>([]);
   const [modes, setModes] = useState<Record<string, "import" | "index" | "export">>({});
   const previous = useRef<StorageVolume[] | null>(null);
@@ -88,6 +90,14 @@ export default function StoragePage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial d'une ressource externe (API)
     void reload();
   }, [granted, reload]);
+
+  // Une préparation déjà en cours (page rechargée, autre écran) est reprise là où elle en est.
+  useEffect(() => {
+    if (!granted) return;
+    void storageRequest<{ job: FormatJob | null }>("/format/active").then((result) => {
+      if (result.ok && result.data.job) setFormatTarget({ key: result.data.job.job_id, name: result.data.job.label, resume: result.data.job });
+    });
+  }, [granted]);
 
   // Branchements et retraits arrivent en direct (WebSocket, sans aucune donnée) ; l'état est relu par REST derrière le PIN.
   useStorageEvents((event) => { if (event.scope !== "jobs") void reload(); }, granted);
@@ -190,7 +200,18 @@ export default function StoragePage() {
         )}
       </main>
 
-      <VolumeSheet {...ctx} volume={sheetVolume} onClose={() => setSheetKey(null)} onChanged={() => void reload()} onAdvice={() => setAdvisor(true)} />
+      <VolumeSheet
+        {...ctx}
+        volume={sheetVolume}
+        onClose={() => setSheetKey(null)}
+        onChanged={() => void reload()}
+        onAdvice={() => setAdvisor(true)}
+        onPrepare={() => {
+          if (sheetVolume) setFormatTarget({ key: sheetVolume.key, name: sheetVolume.name });
+          setSheetKey(null);
+        }}
+      />
+      <FormatWizard {...ctx} target={formatTarget} onClose={() => setFormatTarget(null)} onChanged={() => void reload()} />
       <FormatAdvisor {...ctx} open={advisor} onClose={() => setAdvisor(false)} />
     </div>
   );

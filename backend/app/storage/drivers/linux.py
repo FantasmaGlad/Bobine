@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 import logging
 import os
 import re
@@ -19,6 +20,9 @@ from typing import Any, Awaitable, Callable
 
 from app.devices.linux import run_command
 from app.storage import health, portable
+from app.storage.formatting.disks import DISK_COLUMNS, DISK_COLUMNS_FALLBACK, parse_disks
+from app.storage.formatting.model import DiskInfo, FormatSpec
+from app.storage.formatting.options import SPECS
 from app.storage.lsblk import LSBLK_COLUMNS, parse_lsblk, parse_mountinfo
 from app.storage.types import Inventory, Volume
 
@@ -30,6 +34,8 @@ CommandResult = tuple[int, str, str]
 Runner = Callable[..., Awaitable[CommandResult]]
 
 _UDISKS = "org.freedesktop.UDisks2"
+_UDISKS_ROOT = "/org/freedesktop/UDisks2"
+FORMAT_TIMEOUT = 300.0
 _PROBE_TTL = 30.0
 _MOUNTED_AT = re.compile(r"[Mm]ounted .+? at (.+?)\.?\s*$", re.M)
 _ALREADY_AT = re.compile(r"already mounted at [`'\"]?(.+?)['\"]?\.?\s*$", re.M)
@@ -57,6 +63,21 @@ def classify_udisks_error(message: str) -> tuple[str, int, str]:
     if "no such" in low or "not found" in low or "no object" in low:
         return "device_removed", 404, "Le support a été retiré."
     return "mount_failed", 502, "Le système n'a pas pu exécuter cette opération."
+
+
+def classify_dbus_error(name: str, message: str) -> DeviceError:
+    """Erreur D-Bus de udisks2 -> erreur structurée (le texte brut, qui contient des chemins système, reste dans le journal)."""
+    logger.info("udisks2 : %s %s", name, message)
+    low = (name + " " + message).lower()
+    if "notauthorized" in low or "not authorized" in low or "authentication" in low:
+        return DeviceError("format_not_authorized", "Le système refuse cette opération (autorisation polkit manquante pour ce compte).", 403)
+    if "devicebusy" in low or "busy" in low:
+        return DeviceError("format_busy_mounted", "Le support est encore utilisé par un autre programme : fermez-le puis recommencez.", 409)
+    if "notsupported" in low or "not supported" in low or "no such" in low and "program" in low:
+        return DeviceError("format_tool_missing", "Un composant du système manque pour formater (outil de ce format).", 501)
+    if "optionnotpermitted" in low:
+        return DeviceError("option_not_permitted", "Le système refuse une option de formatage.", 400)
+    return DeviceError("format_failed", "Le système n'a pas pu exécuter le formatage.", 502)
 
 
 class LinuxStorageDriver(StorageDriver):
@@ -159,6 +180,10 @@ class LinuxStorageDriver(StorageDriver):
         caps["standby"] = {"supported": facts["standby_supported"]}
         if not facts["standby_supported"]:
             caps["standby"]["reason"] = "Aucun moyen de mettre un disque en veille sans droits (udisks2 ou hdparm requis)."
+        fmt = await self.format_support()
+        caps["format"] = {"supported": fmt["supported"]}
+        if not fmt["supported"]:
+            caps["format"]["reason"] = fmt["reason"]
         portable_ok = shutil.which("gio") is not None
         caps["portable"] = {"supported": portable_ok}
         if not portable_ok:
@@ -333,6 +358,107 @@ class LinuxStorageDriver(StorageDriver):
         if code != 0:
             raise DeviceError("trim_failed", "TRIM a échoué : " + _stderr(err), 502)
         return out.strip()
+
+    # ------------------------------------------------------------------ formatage (udisks2, sans privilèges)
+    async def _udisks_call(self, path: str, interface: str, member: str, signature: str, body: list[Any], *, timeout: float = FORMAT_TIMEOUT) -> Any:
+        """Appel D-Bus de udisks2 (dbus-fast) ; une erreur devient un `DeviceError` à code stable, jamais une exception brute."""
+        try:
+            from dbus_fast import BusType, Message, MessageType
+            from dbus_fast.aio import MessageBus
+        except ImportError as exc:
+            raise DeviceError("format_tool_missing", "Le composant D-Bus (dbus-fast) est absent.", 501) from exc
+        bus = None
+        try:
+            bus = await asyncio.wait_for(MessageBus(bus_type=BusType.SYSTEM).connect(), timeout=10.0)
+            reply = await asyncio.wait_for(
+                bus.call(Message(destination=_UDISKS, path=path, interface=interface, member=member, signature=signature, body=body)),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError as exc:
+            raise DeviceError("format_failed", "Le système n'a pas répondu à temps.", 504) from exc
+        except Exception as exc:  # noqa: BLE001 - tout échec de bus devient une erreur structurée
+            if isinstance(exc, DeviceError):
+                raise
+            raise DeviceError("format_failed", "Le service udisks2 est injoignable.", 502) from exc
+        finally:
+            if bus is not None:
+                try:
+                    bus.disconnect()
+                except Exception:  # noqa: BLE001
+                    pass
+        if reply.message_type == MessageType.ERROR:
+            raise classify_dbus_error(reply.error_name or "", str(reply.body[0]) if reply.body else "")
+        return reply.body
+
+    async def disks(self) -> list[DiskInfo]:
+        try:
+            code, out, err = await self._run("lsblk", "-J", "-b", "-o", DISK_COLUMNS, timeout=8.0)
+            if code != 0 or not out.strip():
+                code, out, err = await self._run("lsblk", "-J", "-b", "-o", DISK_COLUMNS_FALLBACK, timeout=8.0)
+        except DeviceError:
+            raise
+        if code != 0 or not out.strip():
+            raise DeviceError("inventory_failed", "Impossible de lister les disques : " + _stderr(err), 502)
+        try:
+            disks = parse_disks(out, is_sd_card=self._is_sd)
+            result = []
+            for disk in disks:
+                try:
+                    with open(f"/sys/class/block/{disk.name}/diskseq", encoding="ascii") as handle:
+                        sequence = handle.read().strip()
+                except OSError:
+                    sequence = None
+                result.append(replace(disk, diskseq=sequence))
+            return result
+        except (ValueError, KeyError, TypeError) as exc:
+            raise DeviceError("inventory_failed", f"Réponse lsblk illisible : {exc}", 502) from exc
+
+    async def format_support(self) -> dict[str, Any]:
+        tools = {fs: any(shutil.which(t) for t in spec.tools) for fs, spec in SPECS.items()}
+        reason = await self._probe_udisks()
+        if reason is None:
+            try:
+                import dbus_fast  # noqa: F401
+            except ImportError:
+                reason = "Le composant D-Bus (dbus-fast) est absent."
+        if reason is None and not shutil.which("lsblk"):
+            reason = "L'outil lsblk (util-linux) n'est pas installé."
+        return {"supported": reason is None and any(tools.values()), "reason": reason, "tools": tools}
+
+    async def unmount_device(self, device_path: str) -> None:
+        code, out, err = await self._run("udisksctl", "unmount", "-b", device_path, "--no-user-interaction", timeout=60.0)
+        if code != 0:
+            text = (out + "\n" + err).strip()
+            if "NotMounted" in text:
+                return
+            error_code, status, message = classify_udisks_error(text)
+            raise DeviceError(error_code, message, status)
+
+    @staticmethod
+    def _block_path(disk_path: str) -> str:
+        return f"{_UDISKS_ROOT}/block_devices/{os.path.basename(disk_path)}"
+
+    async def create_partition_table(self, disk: DiskInfo) -> None:
+        await self._udisks_call(self._block_path(disk.path), "org.freedesktop.UDisks2.Block", "Format", "sa{sv}", ["gpt", {}])
+
+    async def create_partition_and_format(self, disk: DiskInfo, spec: FormatSpec) -> str:
+        from dbus_fast import Variant
+
+        options: dict[str, Any] = {"auth.no_user_interaction": Variant("b", True), "label": Variant("s", spec.label), "mkfs-args": Variant("as", list(spec.mkfs_args))}
+        if spec.take_ownership:
+            options["take-ownership"] = Variant("b", True)
+        body = await self._udisks_call(
+            self._block_path(disk.path), "org.freedesktop.UDisks2.PartitionTable", "CreatePartitionAndFormat", "ttssa{sv}sa{sv}",
+            [spec.offset_bytes, 0, spec.partition_guid, spec.partition_name, {}, spec.udisks_type, options],
+        )
+        created = str(body[0]) if body else ""
+        name = created.rsplit("/", 1)[-1]
+        if not name:
+            raise DeviceError("format_failed", "La partition créée n'a pas pu être identifiée.", 502)
+        return f"/dev/{name}"
+
+    async def wipe_disk(self, disk: DiskInfo) -> None:
+        await self._udisks_call(self._block_path(disk.path), "org.freedesktop.UDisks2.Block", "Format", "sa{sv}", ["empty", {}])
 
     # ------------------------------------------------------------------ appareils portables (GVFS)
     def _gvfs_env_dir(self) -> str:

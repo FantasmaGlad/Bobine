@@ -2,6 +2,8 @@
 set -e
 
 if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+    rm -f /etc/polkit-1/rules.d/49-bobine-storage.rules
+
     if command -v update-desktop-database >/dev/null 2>&1; then
         update-desktop-database -q /usr/share/applications || true
     fi

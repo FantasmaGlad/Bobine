@@ -4,8 +4,8 @@ Section: video
 Priority: optional
 Architecture: amd64
 Maintainer: FantasmaGlad <clement.barillot@bobine.fit>
-Depends: ffmpeg
-Recommends: avahi-daemon, udisks2, smartmontools, gvfs-backends, gvfs-fuse
+Depends: ffmpeg, udisks2, smartmontools, exfatprogs, e2fsprogs, dosfstools, ntfs-3g, gvfs-backends, gvfs-fuse, libmtp-runtime, polkitd, dbus-user-session
+Recommends: avahi-daemon
 Homepage: https://bobine.fit
 Bugs: https://github.com/FantasmaGlad/Bobine/issues
 Vcs-Browser: https://github.com/FantasmaGlad/Bobine

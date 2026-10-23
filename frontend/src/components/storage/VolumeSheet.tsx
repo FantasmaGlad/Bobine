@@ -14,6 +14,7 @@ interface Props extends StorageCtx {
   onClose: () => void;
   onChanged: () => void;
   onAdvice: () => void;
+  onPrepare: () => void;
 }
 
 const TOGGLES: Array<{ id: LongevityItem["id"]; setting: keyof LongevitySettings }> = [
@@ -28,7 +29,7 @@ function itemStatusIcon(status: LongevityItem["status"]): string {
 }
 
 /** Options d'un support : santé, protection (repliée, valeurs recommandées déjà appliquées), format, retrait sûr. */
-export default function VolumeSheet({ volume, onClose, onChanged, onAdvice, t, lang, notify }: Props) {
+export default function VolumeSheet({ volume, onClose, onChanged, onAdvice, onPrepare, t, lang, notify }: Props) {
   const [busy, setBusy] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
   const [confirmStop, setConfirmStop] = useState(false);
@@ -194,6 +195,19 @@ export default function VolumeSheet({ volume, onClose, onChanged, onAdvice, t, l
               })}
             </div>
           </details>
+        )}
+
+        {volume.connected && volume.state !== "formatting" && (
+          <div className="dv-detail-block">
+            <div className="dv-row">
+              <span className="dv-icon"><Icon name="cleaning_services" size={22} /></span>
+              <span className="dv-text">
+                <span className="dv-title">{t("storage.format.entryTitle")}</span>
+                <span className="dv-sub">{t("storage.format.entryHint")}</span>
+              </span>
+              <span className="dv-actions"><button type="button" className="btn btn-danger" disabled={busy || volume.state === "busy"} onClick={onPrepare}>{t("storage.format.entryTitle")}</button></span>
+            </div>
+          </div>
         )}
 
         {registered && (
