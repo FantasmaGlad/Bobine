@@ -103,7 +103,7 @@ Bobine delivers uncompromised native performance and verified compatibility acro
 > [!NOTE]
 > **Independent Hardware Recommendations & Equipment Shop**: Bobine has **no commercial partnerships, sponsorships, or brand affiliations** with device manufacturers: these are strictly independent recommendations tested and proven for reliable 24/7 fitness studio and gym operations.
 >
-> 🛒 **Recommendation Shop**: Explore our complete curated selection of tested playout units, cabling, and studio kits at [**bobine.fit/en/materiel**](https://bobine.fit/en/materiel).
+> **Recommendation Shop**: Explore our complete curated selection of tested playout units, cabling, and studio kits at [**bobine.fit/en/materiel**](https://bobine.fit/en/materiel).
 
 | System / Recommended Ecosystem | Description & Capabilities | Official Website |
 | :--- | :--- | :---: |
@@ -118,7 +118,7 @@ Bobine delivers uncompromised native performance and verified compatibility acro
 
 Beyond operating system environments, here are the popular device categories and brands extensively tested and recommended for Bobine:
 
-- 🖥️ **Mini PCs & 24/7 Playout Appliances** *(Discreet, fanless or whisper-quiet, low energy consumption)*:
+- **Mini PCs & 24/7 Playout Appliances** *(Discreet, fanless or whisper-quiet, low energy consumption)*:
   - **Dell**: Wyse 5070 (reference fanless ultra-economical Debian 13 appliance), OptiPlex Micro (3000, 5000, 7000 series).
   - **HP**: ProDesk Mini, EliteDesk Mini.
   - **Lenovo**: ThinkCentre Tiny (M70q, M90q, ThinkCentre neo).
@@ -126,25 +126,25 @@ Beyond operating system environments, here are the popular device categories and
   - **Minisforum & GEEKOM**: Minisforum UM series (Ryzen), GEEKOM IT13 Max (Intel Core Ultra).
   - **ASUS & Intel**: ASUS NUC, Intel NUC (compact 10x10 cm square form factor).
   - **ARM64 SBCs**: Raspberry Pi 5 (8 GB / 16 GB), Orange Pi 5 Max, NVIDIA DGX Spark (Grace Blackwell GB10), Jetson Orin.
-- 💻 **Laptops & Mobile Workstations** *(Touch console `/grid` dual-screen or rack clamshell playout)*:
+- **Laptops & Mobile Workstations** *(Touch console `/grid` dual-screen or rack clamshell playout)*:
   - **Framework Laptop**: Framework Laptop 13 & 16 (10/10 repairability index, modular hot-swappable HDMI cards, AMD Ryzen, Intel Core Ultra, Snapdragon X Elite ARM64).
   - **Apple**: MacBook Air & MacBook Pro (Apple Silicon M1, M2, M3, M4), Mac mini M4 / M4 Pro.
   - **Lenovo**: ThinkPad (T, X, E, L series), IdeaPad Slim, Yoga.
   - **Dell**: XPS 13 / 15 / 16, Latitude, Inspiron.
   - **HP & ASUS**: HP EliteBook, ProBook, OmniBook; ASUS Zenbook OLED, Vivobook S 15.
-- 📺 **TV Boxes & Playout Media Players** *(Affordable large-screen streaming via Android TV / Google TV)*:
+- **TV Boxes & Playout Media Players** *(Affordable large-screen streaming via Android TV / Google TV)*:
   - **Google**: Google TV Streamer 4K, Chromecast with Google TV (HD & 4K).
   - **Xiaomi**: Xiaomi TV Box S (2nd Gen) 4K, Xiaomi TV Stick 4K.
   - **Nokia & Strong**: Nokia Streaming Box 8000 / 8010, Strong LEAP-S3.
   - **NVIDIA**: Nvidia Shield TV & Shield TV Pro.
-- 📱 **Tablets & Touch Kiosks** *(Coach touch console `/grid`, interactive member kiosk `/kiosk`, and remote voting)*:
+- **Tablets & Touch Kiosks** *(Coach touch console `/grid`, interactive member kiosk `/kiosk`, and remote voting)*:
   - **Samsung**: Galaxy Tab S9 / S10 Lite / S11 Ultra, Galaxy Tab A9+.
   - **Xiaomi**: Xiaomi Pad 6 / 7 / 8 (studio reference tablet with USB-C DisplayPort output).
   - **Lenovo**: Lenovo Idea Tab 11", Tab P11 / P12 Pro.
   - **Google Books**: Chromebooks with Google Play Store and touch screen (HP Chromebook x360, Acer Spin, Lenovo Duet, ASUS Chromebook Flip).
   - **Apple**: iPad (10th gen, iPad Air, iPad Pro) via fullscreen Safari / PWA.
 
-> 💡 *Find configuration guides, verified HDMI/USB-C cables, and wall-mount brackets in our [hardware recommendation shop](https://bobine.fit/en/materiel).*
+> *Technical note: Find configuration guides, verified HDMI/USB-C cables, and wall-mount brackets in our [hardware recommendation shop](https://bobine.fit/en/materiel).*
 
 
 The Canary “Prepare this drive” wizard offers quick formatting on Linux (exFAT, ext4, FAT32 or NTFS), with a mandatory PIN, typed drive-name confirmation and result verification. It rejects internal/system disks, busy drives and registered libraries. Formatting erases the selected drive; other platforms do not support this operation.

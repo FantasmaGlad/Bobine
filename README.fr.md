@@ -103,7 +103,7 @@ Bobine garantit une compatibilité totale et sans compromis sur l'ensemble des d
 > [!NOTE]
 > **Indépendance des recommandations & Boutique matérielle** : Bobine n'a **aucun partenariat commercial, sponsoring ou contrat de marque** avec les constructeurs : ce sont des recommandations matérielles strictement indépendantes et éprouvées sur le terrain pour la diffusion 24/7 en salle de sport et studio de fitness.
 >
-> 🛒 **Boutique de recommandations** : Retrouvez l'ensemble de notre sélection d'appareils, câblages et kits régie testés sur [**bobine.fit/fr/materiel**](https://bobine.fit/fr/materiel).
+> **Boutique de recommandations** : Retrouvez l'ensemble de notre sélection d'appareils, câblages et kits régie testés sur [**bobine.fit/fr/materiel**](https://bobine.fit/fr/materiel).
 
 | Système / Écosystème Recommandé | Description & Prise en charge | Site officiel |
 | :--- | :--- | :---: |
@@ -118,7 +118,7 @@ Bobine garantit une compatibilité totale et sans compromis sur l'ensemble des d
 
 En complément des systèmes d'exploitation, voici les catégories et marques d'appareils populaires testées et recommandées pour une régie Bobine :
 
-- 🖥️ **Mini PC & Boîtiers Kiosque 24/7** *(Diffusion discrète, silencieuse et basse consommation)* :
+- **Mini PC & Boîtiers Kiosque 24/7** *(Diffusion discrète, silencieuse et basse consommation)* :
   - **Dell** : Wyse 5070 (appliance de référence fanless ultra-économique sous Debian 13), OptiPlex Micro (3000, 5000, 7000).
   - **HP** : ProDesk Mini, EliteDesk Mini.
   - **Lenovo** : ThinkCentre Tiny (M70q, M90q, ThinkCentre neo).
@@ -126,25 +126,25 @@ En complément des systèmes d'exploitation, voici les catégories et marques d'
   - **Minisforum & GEEKOM** : Minisforum UM series (Ryzen), GEEKOM IT13 Max (Intel Core Ultra).
   - **ASUS & Intel** : ASUS NUC, Intel NUC (formats carrés compacts 10x10 cm).
   - **SBC ARM64** : Raspberry Pi 5 (8 Go / 16 Go), Orange Pi 5 Max, NVIDIA DGX Spark (Grace Blackwell GB10), Jetson Orin.
-- 💻 **PC Portables & Stations Mobiles** *(Mode pupitre double écran tactile `/grid` ou clamshell régie)* :
+- **PC Portables & Stations Mobiles** *(Mode pupitre double écran tactile `/grid` ou clamshell régie)* :
   - **Framework Laptop** : Framework Laptop 13 & 16 (châssis modulaire réparable indice 10/10, cartes HDMI interchangeables, AMD Ryzen, Intel Core Ultra, Snapdragon X Elite ARM64).
   - **Apple** : MacBook Air & MacBook Pro (Apple Silicon M1, M2, M3, M4), Mac mini M4 / M4 Pro.
   - **Lenovo** : ThinkPad (séries T, X, E, L), IdeaPad Slim, Yoga.
   - **Dell** : XPS 13 / 15 / 16, Latitude, Inspiron.
   - **HP & ASUS** : HP EliteBook, ProBook, OmniBook ; ASUS Zenbook OLED, Vivobook S 15.
-- 📺 **Box TV & Lecteurs Multimédia de Salle** *(Diffusion directe grand écran via Android TV / Google TV)* :
+- **Box TV & Lecteurs Multimédia de Salle** *(Diffusion directe grand écran via Android TV / Google TV)* :
   - **Google** : Google TV Streamer 4K, Chromecast avec Google TV (HD & 4K).
   - **Xiaomi** : Xiaomi TV Box S (2nd Gen) 4K, Xiaomi TV Stick 4K.
   - **Nokia & Strong** : Nokia Streaming Box 8000 / 8010, Strong LEAP-S3.
   - **NVIDIA** : Nvidia Shield TV & Shield TV Pro.
-- 📱 **Tablettes & Bornes Tactiles** *(Console coach tactile `/grid`, borne interactive adhérents `/kiosk` et télécommande)* :
+- **Tablettes & Bornes Tactiles** *(Console coach tactile `/grid`, borne interactive adhérents `/kiosk` et télécommande)* :
   - **Samsung** : Galaxy Tab S9 / S10 Lite / S11 Ultra, Galaxy Tab A9+.
   - **Xiaomi** : Xiaomi Pad 6 / 7 / 8 (tablette de référence studio avec sortie USB-C DisplayPort).
   - **Lenovo** : Lenovo Idea Tab 11", Tab P11 / P12 Pro.
   - **Google Books** : Chromebooks avec Google Play Store et écran tactile (HP Chromebook x360, Acer Spin, Lenovo Duet, ASUS Chromebook Flip).
   - **Apple** : iPad (10e génération, iPad Air, iPad Pro) en affichage plein écran Safari / PWA.
 
-> 💡 *Retrouvez les guides de configuration, kits de câblage HDMI/USB-C et supports muraux sur notre [boutique de recommandations matérielles](https://bobine.fit/fr/materiel).*
+> *Note technique : Retrouvez les guides de configuration, kits de câblage HDMI/USB-C et supports muraux sur notre [boutique de recommandations matérielles](https://bobine.fit/fr/materiel).*
 
 
 L’assistant « Préparer ce support » de la Canary propose un formatage rapide Linux (exFAT, ext4, FAT32 ou NTFS), avec PIN obligatoire, confirmation du nom et vérification du résultat. Il refuse les disques internes/système, les supports occupés et les bibliothèques encore enregistrées. Le formatage efface le support sélectionné ; les autres plateformes ne le prennent pas en charge.
