@@ -4,8 +4,7 @@ Ce test ne vérifie pas un comportement : il échoue quand une des implémentati
 mécanisme diverge des autres, avant que la divergence n'atteigne une release. Guide du
 mécanisme : Assets/Images/channel-icons/README.md.
 
-  - même liste de canaux dans le backend, le générateur, le frontend, Android et le paquetage ;
-  - même règle « canal du build d'après le suffixe de version » dans Python, shell et Gradle ;
+  - la liste des canaux vient du registre unique (voir test_release_channels_wiring.py) ;
   - fichiers générés présents, à jour et attribués au bon canal ;
   - chaque plateforme embarque / installe l'icône qu'il faut (specs PyInstaller, paquets
     Linux, Inno Setup, ressources Android).
@@ -21,24 +20,11 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
+from app import release_channel
 from app.desktop import channel_icon
-from app.utils.version import RELEASE_CHANNELS, build_channel_of_version
 
 REPO = Path(__file__).resolve().parents[2]
-CHANNELS = list(RELEASE_CHANNELS)
-
-# Version -> canal du build. Table partagée par toutes les implémentations de la règle.
-VERSION_CASES = {
-    "5.0.5": "stable",
-    "V5.0.5": "stable",
-    "5.0.5-beta": "beta",
-    "5.0.5-canary": "canary",
-    "5.0.5~beta": "beta",
-    "5.0.5+canary.42": "canary",  # champ Version: d'un .deb (shell uniquement : pas une VERSION)
-    "5.0.5-nightly": "stable",
-    "5.0.5-rc1": "stable",
-}
-
+CHANNELS = list(release_channel.CHANNEL_IDS)
 
 def _read(relative: str) -> str:
     return (REPO / relative).read_text(encoding="utf-8")
@@ -60,63 +46,6 @@ def generator():
 @pytest.fixture(scope="module")
 def spec_helper():
     return _load_module("bobine_packaging_channel", "packaging/common/channel.py")
-
-
-# --- Registre des canaux ------------------------------------------------------------------
-
-
-def test_registre_identique_dans_le_generateur_et_le_helper_de_paquetage(generator, spec_helper):
-    assert list(generator.CHANNELS) == CHANNELS
-    assert list(spec_helper.CHANNELS) == CHANNELS
-    assert generator.DEFAULT_CHANNEL == spec_helper.DEFAULT_CHANNEL == "stable"
-
-
-def test_registre_identique_dans_le_frontend():
-    source = _read("frontend/src/lib/releaseChannel.ts")
-    declared = re.search(r"RELEASE_CHANNELS\s*=\s*\[([^\]]+)\]", source).group(1)
-    assert re.findall(r'"(\w+)"', declared) == CHANNELS
-
-
-def test_registre_identique_dans_android():
-    gradle = _read("android/app/build.gradle.kts")
-    assert re.search(r"releaseChannels\s*=\s*listOf\(([^)]*)\)", gradle).group(1).replace('"', "").replace(" ", "").split(",") == CHANNELS
-    prefs = _read("android/app/src/main/java/com/bobine/app/NativeBridge.kt")
-    assert re.findall(r'"(\w+)"', re.search(r"VALID\s*=\s*setOf\(([^)]*)\)", prefs).group(1)) == CHANNELS
-    splash = _read("android/app/src/main/java/com/bobine/app/SplashChannel.kt")
-    for channel in CHANNELS:
-        assert f"R.drawable.bobine_splash_logo_{channel}" in splash
-
-
-def test_registre_identique_dans_le_shell_de_paquetage():
-    assert re.search(r"\(beta\|canary\)", _read("packaging/common/channel.sh"))
-
-
-# --- Règle « canal du build d'après la version » -------------------------------------------
-
-
-@pytest.mark.parametrize(("version", "expected"), [(v, c) for v, c in VERSION_CASES.items() if "+" not in v])
-def test_regle_du_canal_du_build_python(version, expected, spec_helper):
-    assert build_channel_of_version(version) == expected
-    assert spec_helper.channel_of_version(version) == expected
-
-
-@pytest.mark.skipif(shutil.which("bash") is None, reason="bash absent")
-@pytest.mark.parametrize(("version", "expected"), list(VERSION_CASES.items()))
-def test_regle_du_canal_du_build_shell(version, expected):
-    out = subprocess.run(
-        ["bash", "-c", f'source "{REPO}/packaging/common/channel.sh"; bobine_channel_of_version "$1"', "_", version],
-        capture_output=True, text=True, check=True,
-    ).stdout.strip()
-    assert out == expected
-
-
-def test_regle_du_canal_du_build_gradle():
-    """Gradle n'est pas exécutable ici : on vérifie que la règle y est écrite comme en Python
-    (suffixe après « - » ou « ~ », seuls beta et canary reconnus, sinon stable)."""
-    gradle = _read("android/app/build.gradle.kts")
-    assert "replace('~', '-').substringAfter('-', \"\")" in gradle
-    assert 'listOf("beta", "canary")' in gradle
-    assert '?: "stable"' in gradle
 
 
 # --- Fichiers générés -----------------------------------------------------------------------

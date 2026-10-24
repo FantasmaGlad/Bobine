@@ -731,9 +731,9 @@ Sur le profil Android, les données sont réparties sur **deux racines de stocka
 Chaque canal a sa propre icône (ruban argent, bleu ou or). Deux mécanismes distincts, détaillés dans [`Assets/Images/channel-icons/README.md`](../Assets/Images/channel-icons/README.md) :
 
 - **Canal du build**, déduit du suffixe de `VERSION` (`-beta`, `-canary`, sinon Stable) : icône du lanceur et du tiroir d'applications Android, bannière Android TV, exécutables et installeur Windows, bundle macOS, lanceur Linux (`.deb`, `.rpm`, Arch). Elle change quand le build du canal est installé.
-- **Canal choisi** dans les Réglages (`update_channel`) : barre système (relue toutes les 15 secondes par `app/desktop/channel_icon.py`), logo et favicon de l'interface, écran de démarrage Android. Elle change à chaud.
+- **Canal choisi** dans les Réglages (`update_channel`), qui par défaut est le canal d'installation (une installation Canary propose les mises à jour Canary) : barre système (relue toutes les 15 secondes par `app/desktop/channel_icon.py`), logo et favicon de l'interface, écran de démarrage Android. Elle change à chaud.
 
-Source unique : `Assets/Images/channel-icons/`. Tous les dérivés sont produits par `scripts/generate_channel_icons.py` ; `backend/tests/test_channel_icons_wiring.py` échoue si un dérivé est périmé ou si une plateforme diverge.
+Registre unique des canaux : `backend/app/release_channel.py`. Source unique des icônes : `Assets/Images/channel-icons/`. Tous les dérivés sont produits par `scripts/generate_channel_icons.py` ; `backend/tests/test_channel_icons_wiring.py` échoue si un dérivé est périmé ou si une plateforme diverge.
 
 ---
 

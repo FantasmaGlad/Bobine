@@ -33,9 +33,17 @@ Dépendance : Pillow. `backend/tests/test_channel_icons_wiring.py` (lancé par l
 
 Pourquoi : changer de canal dans les Réglages installe le build de l'autre canal (APK, installeur, paquet distincts), qui apporte sa propre icône. Une icône de lanceur modifiable à chaud (alias d'activité Android, surcharge dans le dossier utilisateur Linux) ferait disparaître des raccourcis épinglés selon les lanceurs ; elle n'apporterait rien de plus.
 
-**Canal du build** : déduit du suffixe de `VERSION`, que la CI écrit avant la construction (`5.0.5-beta`, `5.0.5-canary`), sinon Stable. La même règle existe à quatre endroits, vérifiés par le test de câblage : `backend/app/utils/version.py` (`build_channel_of_version`), `packaging/common/channel.py` (specs PyInstaller ; le `.iss` de l'installeur Windows reprend l'icône choisie par le spec), `packaging/common/channel.sh` (paquets Linux) et `android/app/build.gradle.kts` (`bobineChannel`, forçable avec `-PbobineChannel=<canal>`).
+**Une seule règle, un seul registre** : `backend/app/release_channel.py` (bibliothèque standard uniquement) déclare les canaux et implémente la règle. Il est importé par le backend (réglages, mises à jour, barre système) et chargé par son chemin par les outils de construction (specs PyInstaller, scripts de paquetage via `packaging/common/channel.py`, générateur d'icônes). Gradle/Kotlin et le frontend en reçoivent des fichiers **générés** (`android/release-channels.json`, `frontend/src/lib/releaseChannels.generated.ts`) par `python3 scripts/sync_release_channels.py` ; `--check` échoue s'ils sont périmés. `backend/tests/test_release_channels_wiring.py` interdit à un consommateur de réécrire une liste ou une règle de canaux.
 
-**Canal choisi** : réglage `update_channel` du backend (`GET /api/settings`). La barre système le relit toutes les 15 secondes (`backend/app/desktop/channel_icon.py`) ; l'interface le reçoit par WebSocket (`frontend/src/lib/releaseChannel.ts`) et le transmet à Android (`UpdateChannelPref`).
+Trois notions :
+
+- **canal du build** : suffixe de `VERSION` que la CI écrit avant la construction (`5.0.5-beta`, `5.0.5-canary`, `5.0.5+canary.42` pour un paquet Debian), sinon Stable. Il fixe les icônes de lanceur, d'installeur et d'exécutable.
+- **canal d'installation** : celui que l'utilisateur a rejoint en installant. C'est le canal du build ; pour une installation depuis les sources (`install.sh`, appliance), le canal enregistré dans `/etc/bobine/update-channel` (ignoré par un build figé, qui a déjà tranché).
+- **canal effectif** : celui des mises à jour proposées et de toutes les icônes affichées. Sans choix de l'utilisateur, c'est le canal d'installation (aucune ligne n'est écrite en base : « pas de ligne » signifie « suivre l'installation ») ; un choix explicite dans les Réglages l'emporte toujours. `GET /api/settings` expose `update_channel`, `update_channel_source` (`user` ou `install`) et `install_channel`.
+
+**Google Play** : un build distribué par la boutique est verrouillé sur la Stable (`resolve_update_channel`, `update_channel_source = locked`) : il ne se met à jour que par le Play Store, qui ne publie que des Stables (`play-aab.yml` refuse les versions `-beta` et `-canary`), le sélecteur de canal est masqué, `PUT /api/settings` refuse un autre canal (409) et toutes ses icônes restent celles de la Stable, même si un réglage Canary est restauré depuis une sauvegarde.
+
+Une installation Canary propose donc les mises à jour Canary et affiche toutes les icônes Canary d'emblée, sur Android, Windows, macOS et Linux, avec la possibilité de changer de canal.
 
 ## Fichiers générés
 
@@ -54,10 +62,11 @@ Le dépôt du site (BobineWeb) garde ses propres copies dans `public/images/chan
 
 ## Ajouter un canal
 
-1. Déposer `bobine-channel-<canal>.png` (512 x 512) ici.
-2. Ajouter le nom dans `CHANNELS` de `scripts/generate_channel_icons.py` et dans `VERSIONS_NAMES`, puis régénérer.
-3. L'ajouter à `RELEASE_CHANNELS` (`backend/app/utils/version.py`), `RELEASE_CHANNELS` (`frontend/src/lib/releaseChannel.ts`), `CHANNELS` (`packaging/common/channel.py`), `releaseChannels` (`android/app/build.gradle.kts`), `VALID` (`NativeBridge.kt`) et la branche `when` de `SplashChannel.kt` ; adapter la regex de `channel.sh`, `channel.py` et `rolling_channel_of_version`.
-4. Lancer `pytest backend/tests/test_channel_icons_wiring.py` : chaque oubli est signalé par un test nommé.
+1. Ajouter une entrée à `CHANNELS` dans `backend/app/release_channel.py` (id, suffixe de version, tag de release).
+2. Déposer `bobine-channel-<canal>.png` (512 x 512) ici.
+3. Ajouter la ressource d'écran de démarrage Android et sa branche `when` dans `SplashChannel.kt` (le registre ne peut pas énumérer des ressources compilées).
+4. `python3 scripts/sync_release_channels.py && python3 scripts/generate_channel_icons.py`.
+5. `pytest backend/tests/test_release_channels_wiring.py backend/tests/test_channel_icons_wiring.py` : chaque oubli est signalé par un test nommé.
 
 ## Ajouter une cible
 

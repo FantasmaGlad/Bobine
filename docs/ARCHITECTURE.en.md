@@ -724,9 +724,9 @@ On the Android profile, data is split across **two storage roots** (`backend/app
 Each release channel has its own icon (silver, blue or gold ribbon). Two separate mechanisms, detailed in [`Assets/Images/channel-icons/README.md`](../Assets/Images/channel-icons/README.md) (French):
 
 - **Build channel**, derived from the `VERSION` suffix (`-beta`, `-canary`, otherwise Stable): Android launcher and app-drawer icon, Android TV banner, Windows executables and installer, macOS bundle, Linux launcher (`.deb`, `.rpm`, Arch). It changes when the channel's build is installed.
-- **Selected channel** in Settings (`update_channel`): system tray (re-read every 15 seconds by `app/desktop/channel_icon.py`), web UI logo and favicon, Android splash screen. It changes live.
+- **Selected channel** in Settings (`update_channel`), which defaults to the channel the app was installed from (a Canary install offers Canary updates): system tray (re-read every 15 seconds by `app/desktop/channel_icon.py`), web UI logo and favicon, Android splash screen. It changes live.
 
-Single source: `Assets/Images/channel-icons/`. Every derived file is produced by `scripts/generate_channel_icons.py`; `backend/tests/test_channel_icons_wiring.py` fails if a derived file is stale or a platform drifts.
+Single channel registry: `backend/app/release_channel.py`. Single icon source: `Assets/Images/channel-icons/`. Every derived file is produced by `scripts/generate_channel_icons.py`; `backend/tests/test_channel_icons_wiring.py` fails if a derived file is stale or a platform drifts.
 
 ---
 
