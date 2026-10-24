@@ -1,7 +1,6 @@
 package com.bobine.app
 
 import android.content.Context
-import android.content.res.Configuration
 import android.graphics.Color
 import android.webkit.JavascriptInterface
 
@@ -18,7 +17,17 @@ object ThemeColors {
     /** `accent` : couleur d'accent du thème (spinner de chargement) ; à défaut, la couleur du texte. */
     data class Pair(val background: Int, val text: Int, val accent: Int = text)
 
-    /** Dernières couleurs envoyées par l'interface web ; à défaut, clair ou sombre selon le système. */
+    /**
+     * Thème par défaut tant que l'interface web n'a rien envoyé (premier lancement) : « lavande »,
+     * le thème clair par défaut de l'application (valeurs de `:root[data-theme="lavande"]` dans
+     * frontend/src/app/globals.css : `--bg-main`, `--text-main`, `--accent-primary`). Indépendant du
+     * mode sombre du système : l'écran de chargement et l'interface ouvrent sur le même thème.
+     */
+    private const val DEFAULT_BACKGROUND = "#f7f6fb"
+    private const val DEFAULT_TEXT = "#161126"
+    private const val DEFAULT_ACCENT = "#7c3aed"
+
+    /** Dernières couleurs envoyées par l'interface web ; à défaut, le thème lavande. */
     fun load(context: Context): Pair {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val bg = prefs.getString(KEY_BG, null)
@@ -27,9 +36,7 @@ object ThemeColors {
             val accent = prefs.getString(KEY_ACCENT, null)?.takeIf { HEX_COLOR.matches(it) }
             return Pair(Color.parseColor(bg), Color.parseColor(fg), accent?.let { Color.parseColor(it) } ?: Color.parseColor(fg))
         }
-        val night = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        return if (night) Pair(Color.parseColor("#0b0e14"), Color.parseColor("#94a3b8"))
-        else Pair(Color.parseColor("#f6f7f9"), Color.parseColor("#5b5b6b"))
+        return Pair(Color.parseColor(DEFAULT_BACKGROUND), Color.parseColor(DEFAULT_TEXT), Color.parseColor(DEFAULT_ACCENT))
     }
 
     /** Accent du thème, envoyé à part (anciens JS : méthode absente, l'accent retombe sur le texte). */
