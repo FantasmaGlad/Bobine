@@ -76,6 +76,8 @@ else
     echo "Composant audio natif absent : paquet sans bobine-media (repli ffprobe/ffmpeg)." >&2
 fi
 
+python3 "${REPO_DIR}/packaging/common/sanitize_elf.py" "${DIST_DIR}"
+
 echo "=== [4/5] Assemblage de l'arborescence Debian ==="
 OUTPUT_DIR="${REPO_DIR}/dist-deb"
 STAGING_DIR="${OUTPUT_DIR}/bobine_${VERSION}_${ARCH}"

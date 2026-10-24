@@ -885,6 +885,8 @@ jobs:
           VERSION: ${{ needs.version.outputs.deb_version }}
           DEB_FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
         run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends patchelf
           ./packaging/linux/build_deb.sh
       - name: Valider les métadonnées d'application (AppStream, .desktop)
         run: |
@@ -962,6 +964,8 @@ jobs:
           VERSION: ${{ needs.version.outputs.deb_version }}
           DEB_FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
         run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends patchelf
           ./packaging/linux/build_deb.sh
       - name: Inspecter et valider la structure du paquet .deb ARM64
         run: |
@@ -1089,10 +1093,45 @@ jobs:
   # et attendu sur la page GitHub Releases.
   # Statut unique à exiger dans la protection de la branche main : vert seulement si tous les
   # contrôles de validation (hors publication) sont verts.
+  linux-packages:
+    name: Paquets Fedora et Arch (${{ matrix.arch }})
+    needs: [version, linux-desktop-deb, linux-desktop-deb-arm64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            artifact: bobine-linux-deb
+          - arch: aarch64
+            artifact: bobine-linux-deb-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: deb-input
+      - name: Outils de contrôle des archives
+        run: sudo apt-get update && sudo apt-get install -y rpm zstd
+      - name: Construire et vérifier les paquets
+        env:
+          FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
+        run: |
+          deb="$(find deb-input -name '*.deb' | head -1)"
+          bash scripts/ci/build-linux-packages.sh "$deb" '${{ matrix.arch }}'
+          bash scripts/ci/check-package-parity.sh "$deb" "$(find dist-rpm -name '*.rpm' | head -1)" "$(find dist-arch -name '*.pkg.tar.zst' | head -1)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bobine-linux-packages-${{ matrix.arch }}
+          path: |
+            dist-rpm/*.rpm
+            dist-arch/*.pkg.tar.zst
+
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [version, frontend, firefox-smoke, backend, devices-sidecar, media-component, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build]
+    needs: [version, frontend, firefox-smoke, backend, devices-sidecar, media-component, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, linux-packages]
     runs-on: ubuntu-latest
     steps:
       - name: Tous les contrôles sont verts
@@ -1104,9 +1143,44 @@ jobs:
             [ "$r" = "success" ] || { echo "::error::un contrôle a échoué ou a été ignoré ($r)"; exit 1; }
           done
 
+  linux-package-signing:
+    name: Signer les paquets Linux publiables
+    needs: [version, ci-ok, linux-packages]
+    if: github.event_name != 'pull_request' && contains(fromJSON('["stable","beta","canary"]'), needs.version.outputs.channel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bobine-linux-packages-*
+          merge-multiple: true
+          path: package-assets
+      - name: Installer les outils de signature
+        run: sudo apt-get update && sudo apt-get install -y rpm gnupg
+      - name: Importer la clé et signer
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          GNUPGHOME: ${{ runner.temp }}/bobine-signing
+        run: |
+          install -d -m 0700 "$GNUPGHOME"
+          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+          bash scripts/ci/sign-linux-packages.sh package-assets
+          gpg --batch --armor --export B77D96D72F84F36ACAA3F8729CBF497D829EE15A > package-assets/bobine.gpg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bobine-linux-packages-signed
+          path: package-assets/
+      - name: Retirer la clé privée du runner
+        if: always()
+        env:
+          GNUPGHOME: ${{ runner.temp }}/bobine-signing
+        run: |
+          gpgconf --kill gpg-agent || true
+          rm -rf "$GNUPGHOME"
+
   release-stable:
     name: Publish Stable Release
-    needs: [version, backend, frontend, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build]
+    needs: [version, backend, frontend, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     permissions:
@@ -1178,6 +1252,13 @@ jobs:
           else
             echo "Aucun APK Android TV trouvé dans l'artefact."
           fi
+      - name: Télécharger les paquets Fedora et Arch
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-packages-signed
+          path: package-assets
+      - name: Rassembler les paquets Linux
+        run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
       - name: Copy install script into release assets
         run: cp install.sh release-assets/
       - name: Vérifier la complétude des assets
@@ -1213,7 +1294,7 @@ jobs:
   # de main, sans validation matérielle manuelle.
   release-canary:
     name: Publish/Update Canary Release
-    needs: [version, backend, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build]
+    needs: [version, backend, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'canary'
     runs-on: ubuntu-latest
     permissions:
@@ -1287,6 +1368,13 @@ jobs:
           else
             echo "Aucun APK Android TV trouvé dans l'artefact."
           fi
+      - name: Télécharger les paquets Fedora et Arch
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-packages-signed
+          path: package-assets
+      - name: Rassembler les paquets Linux
+        run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
       - name: Copy install script into release assets
         run: cp install.sh release-assets/
       - name: Vérifier la complétude des assets
@@ -1401,7 +1489,7 @@ jobs:
   # générées automatiquement que Canary, juste un déclenchement différent.
   release-beta:
     name: Publish/Update Beta Release
-    needs: [version, backend, frontend, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build]
+    needs: [version, backend, frontend, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'beta'
     runs-on: ubuntu-latest
     permissions:
@@ -1475,6 +1563,13 @@ jobs:
           else
             echo "Aucun APK Android TV trouvé dans l'artefact."
           fi
+      - name: Télécharger les paquets Fedora et Arch
+        uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-packages-signed
+          path: package-assets
+      - name: Rassembler les paquets Linux
+        run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
       - name: Copy install script into release assets
         run: cp install.sh release-assets/
       - name: Vérifier la complétude des assets
@@ -1693,4 +1788,63 @@ jobs:
             git push origin gh-pages
           fi
 
+
+
+  publish-linux-packages:
+    name: Publier les dépôts Linux (packages.bobine.fit)
+    needs: [version, linux-package-signing, release-stable, release-beta, release-canary]
+    if: |
+      always() && !cancelled() && needs.linux-package-signing.result == 'success' &&
+      (needs.release-stable.result == 'success' || needs.release-beta.result == 'success' || needs.release-canary.result == 'success')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-linux-packages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: FantasmaGlad/bobine-packages
+          ref: gh-pages
+          path: package-repo
+          ssh-key: ${{ secrets.PACKAGES_DEPLOY_KEY }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-packages-signed
+          path: package-assets
+      - name: Installer les outils de dépôt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm gnupg createrepo-c
+          docker pull archlinux:latest
+      - name: Préparer et vérifier les dépôts signés (RPM et Arch)
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          GNUPGHOME: ${{ runner.temp }}/bobine-signing
+          CHANNEL: ${{ needs.version.outputs.channel }}
+        run: |
+          install -d -m 0700 "$GNUPGHOME"
+          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+          rpm --import package-assets/bobine.gpg
+          bash scripts/ci/prepare-package-repository.sh rpm "$CHANNEL" package-assets package-repo
+          bash scripts/ci/prepare-package-repository.sh arch "$CHANNEL" package-assets package-repo
+      - name: Publier sur gh-pages sans écraser les pages vitrines
+        env:
+          CHANNEL: ${{ needs.version.outputs.channel }}
+        run: |
+          cd package-repo
+          git config user.name fanta
+          git config user.email 193235053+FantasmaGlad@users.noreply.github.com
+          git add -A -- fedora/ arch/ bobine.gpg bobine-*.repo
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(packages): actualiser les dépôts Fedora et Arch ($CHANNEL)"
+            git push origin gh-pages
+          fi
+      - name: Retirer la clé privée du runner
+        if: always()
+        env:
+          GNUPGHOME: ${{ runner.temp }}/bobine-signing
+        run: |
+          gpgconf --kill gpg-agent || true
+          rm -rf "$GNUPGHOME"
 
