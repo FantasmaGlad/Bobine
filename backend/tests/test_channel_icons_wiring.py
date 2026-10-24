@@ -124,7 +124,7 @@ def test_nom_de_fichier_d_icone_du_tray_identique_au_helper_de_paquetage(spec_he
 
 def test_icone_d_executable_windows_et_du_bundle_macos_suivent_le_canal_du_build():
     windows = _read("packaging/windows/bobine.spec")
-    assert 'f"bobine-{BUILD_CHANNEL}.ico"' in windows and 'stage_icon(Path(ICON_PATH), Path(WORKPATH), "bobine.ico")' in windows
+    assert 'f"bobine-{BUILD_CHANNEL}.ico"' in windows and 'stage_icon(Path(ICON_PATH), Path(workpath), "bobine.ico")' in windows
     macos = _read("packaging/macos/bobine.spec")
     assert 'f"bobine-{BUILD_CHANNEL}.icns"' in macos and '"bobine.icns"' in macos
     assert '"CFBundleIconFile": "bobine.icns"' in macos
@@ -178,3 +178,14 @@ def test_android_fournit_icone_et_banniere_pour_chaque_canal():
     # Le fond et la forme adaptative restent communs : un seul ic_launcher.xml, aucune copie par canal.
     assert (REPO / "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml").exists()
     assert not list((REPO / "android/app/src").glob("channel-*/res/mipmap-anydpi-v26"))
+
+
+@pytest.mark.parametrize("platform,extension", [("windows", "ico"), ("macos", "icns")])
+def test_preparation_des_specs_avec_les_globales_documentees_de_pyinstaller(platform, extension, tmp_path, monkeypatch):
+    """Exécute la préparation réelle du spec avant l'analyse dépendante de l'OS."""
+    monkeypatch.syspath_prepend(str(REPO / "packaging/common"))
+    prefix = _read(f"packaging/{platform}/bobine.spec").split("backend_analysis = Analysis(", 1)[0]
+    namespace = {"SPECPATH": str(REPO / f"packaging/{platform}"), "workpath": str(tmp_path)}
+    exec(compile(prefix, f"{platform}.spec", "exec"), namespace)
+    staged = tmp_path / f"bobine.{extension}"
+    assert staged.read_bytes() == (REPO / f"packaging/{platform}/bobine-stable.{extension}").read_bytes()

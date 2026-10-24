@@ -45,7 +45,7 @@ import channel  # noqa: E402
 BUILD_CHANNEL = channel.build_channel(REPO_DIR)
 # Copiée sous un nom fixe : Info.plist (CFBundleIconFile) et la CI attendent « bobine.icns »
 # quel que soit le canal.
-ICON_PATH = channel.stage_icon(SPEC_DIR / f"bobine-{BUILD_CHANNEL}.icns", Path(WORKPATH), "bobine.icns")
+ICON_PATH = channel.stage_icon(SPEC_DIR / f"bobine-{BUILD_CHANNEL}.icns", Path(workpath), "bobine.icns")
 
 # Numéro de version du bundle — lu
 # dynamiquement depuis VERSION, jamais recopié en dur ici (c'était le cas

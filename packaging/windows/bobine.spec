@@ -41,7 +41,7 @@ datas = [
     # app.desktop.channel_icon.icon_candidates() les cherche à côté de l'exécutable.
     *channel.runtime_icon_datas(REPO_DIR),
     # Même nom d'installation quel que soit le canal : {app}\bobine.ico.
-    (channel.stage_icon(Path(ICON_PATH), Path(WORKPATH), "bobine.ico"), "."),
+    (channel.stage_icon(Path(ICON_PATH), Path(workpath), "bobine.ico"), "."),
     # Numéro de version bundlé — lu au
     # runtime par app.utils.version.get_app_version() à côté de l'exécutable,
     # même mécanisme que config.toml ci-dessus.
