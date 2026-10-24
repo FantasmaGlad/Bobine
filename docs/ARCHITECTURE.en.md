@@ -753,3 +753,7 @@ Devices provides a routing graph and a mixer for both radio outputs. Each output
 It authenticates the expected key, signed metadata, indexes and binary SHA-256 checksums. Eight corrupted repository variants must be rejected. `latest.json` and `mirror-packages.json` are written only after all checks succeed. The verifier is checked out from an immutable BobineWeb revision reviewed in the workflow. Published content must remain below 950 million bytes.
 
 APT metadata expires after 365 days for Stable and 30 days for rolling channels. Each publication refreshes its channel; channels must be republished before expiry. Pages deploys verified artifacts without Git history in the deployed content. Signature checks and container installation tests do not replace graphical hardware validation.
+
+### Signed checksums for release files
+
+Every release (Stable, Beta, Canary) ships `SHA256SUMS`, the list of SHA-256 checksums of all its files, and `SHA256SUMS.asc`, its detached signature made with the key that already signs the package repositories. `scripts/ci/sign-release-checksums.sh` produces the pair in an ephemeral keyring removed from the runner at the end of the job; `scripts/ci/verify-release-assets.sh` rejects a release in which an expected file is missing from the list or a checksum differs. To verify a download: `gpg --verify SHA256SUMS.asc SHA256SUMS`, then `sha256sum -c --ignore-missing SHA256SUMS`. This signature does not replace vendor code signing: the Windows and macOS installers are not signed by Microsoft nor notarized by Apple.

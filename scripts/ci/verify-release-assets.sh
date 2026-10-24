@@ -40,6 +40,8 @@ expected=(
     "bobine-assistant"
     "bobine-assistant-arm64"
     "install.sh"
+    "SHA256SUMS"
+    "SHA256SUMS.asc"
 )
 
 missing=()
@@ -56,4 +58,10 @@ if (( ${#missing[@]} > 0 )); then
     ls -l "${DIR}"
     exit 1
 fi
+# SHA256SUMS doit lister chaque fichier attendu avec son empreinte réelle (la signature est vérifiée à sa production).
+for name in "${expected[@]}"; do
+    case "${name}" in SHA256SUMS|SHA256SUMS.asc) continue ;; esac
+    grep -qE "^[0-9a-f]{64}  ${name//./\\.}$" "${DIR}/SHA256SUMS" || { echo "::error::${name} absent de SHA256SUMS"; exit 1; }
+done
+(cd "${DIR}" && sha256sum --check --strict SHA256SUMS > /dev/null) || { echo "::error::SHA256SUMS ne correspond pas aux fichiers"; exit 1; }
 echo "Tous les assets attendus (${#expected[@]}) sont présents pour '${S}'."
