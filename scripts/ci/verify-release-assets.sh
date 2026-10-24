@@ -15,11 +15,23 @@ set -euo pipefail
 DIR="${1:?dossier des assets}"
 S="${2:?suffixe de version (5.0.0, beta ou canary)}"
 
+# Les canaux mobiles ont un nom constant ; les stables gardent le pkgrel natif.
+case "$S" in
+    beta|canary) package_version="$S" ;;
+    *) package_version="${S}-1" ;;
+esac
+
 expected=(
     "Bobine-Setup-${S}.exe"
     "Bobine-Setup-${S}-arm64.exe"
     "bobine_${S}_amd64.deb"
     "bobine_${S}_arm64.deb"
+    "bobine-${package_version}.x86_64.rpm"
+    "bobine-${package_version}.aarch64.rpm"
+    "bobine-${package_version}-x86_64.pkg.tar.zst"
+    "bobine-${package_version}-aarch64.pkg.tar.zst"
+    "bobine-${package_version}-x86_64.pkg.tar.zst.sig"
+    "bobine-${package_version}-aarch64.pkg.tar.zst.sig"
     "Bobine-${S}.dmg"
     "Bobine-${S}.apk"
     "Bobine-TV-${S}.apk"
