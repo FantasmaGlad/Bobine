@@ -5,17 +5,31 @@
  *
  * Les fichiers (/logo-<canal>.png, /favicon-<canal>.png) sont générés par
  * scripts/generate_channel_icons.py à partir de Assets/Images/channel-icons/ (guide :
- * le README de ce dossier). Ajouter un canal = l'ajouter ici, dans le générateur et dans
- * backend/app/utils/version.py ; backend/tests/test_channel_icons_wiring.py échoue si
- * une implémentation diverge.
+ * le README de ce dossier). Ajouter un canal commence dans backend/app/release_channel.py ;
+ * backend/tests/test_release_channels_wiring.py échoue si un consommateur diverge.
  */
 
-export const RELEASE_CHANNELS = ["stable", "beta", "canary"] as const;
+import { DEFAULT_RELEASE_CHANNEL, RELEASE_CHANNELS, ROLLING_RELEASE_CHANNELS } from "./releaseChannels.generated.ts";
+
+// Liste générée depuis le registre du backend (scripts/sync_release_channels.py) : jamais écrite ici.
+export { DEFAULT_RELEASE_CHANNEL, RELEASE_CHANNELS, ROLLING_RELEASE_CHANNELS };
 export type UpdateChannel = (typeof RELEASE_CHANNELS)[number];
-export const DEFAULT_RELEASE_CHANNEL: UpdateChannel = "stable";
 
 export function isReleaseChannel(value: unknown): value is UpdateChannel {
   return typeof value === "string" && (RELEASE_CHANNELS as readonly string[]).includes(value);
+}
+
+/**
+ * Canal « rolling » (Bêta, Canary) : release mobile republiée en place, comparée par commit. Le
+ * rejoindre demande une confirmation ; en revenir vers la Stable n'en demande pas.
+ */
+export function isRollingReleaseChannel(channel: UpdateChannel): boolean {
+  return (ROLLING_RELEASE_CHANNELS as readonly string[]).includes(channel);
+}
+
+/** Suffixe des clés de traduction d'un canal : `settingsPage.updateChannel<Suffixe>` (Stable, Beta, Canary). */
+export function channelI18nSuffix(channel: UpdateChannel): string {
+  return channel.charAt(0).toUpperCase() + channel.slice(1);
 }
 
 /** Illustration du canal (mascotte, 512 px) : logo de l'application, sélecteur de canal. */

@@ -1,8 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { dictionaries } from "../src/lib/i18n.ts";
 import {
   applyChannelFavicon,
   channelFaviconUrl,
+  channelI18nSuffix,
+  isRollingReleaseChannel,
+  ROLLING_RELEASE_CHANNELS,
   channelLogoUrl,
   DEFAULT_RELEASE_CHANNEL,
   isReleaseChannel,
@@ -62,4 +66,22 @@ test("sans lien d'icône dans la page, un lien est créé", () => {
   assert.equal(head.length, 1);
   assert.equal(head[0].rel, "icon");
   assert.equal(head[0].href, "/favicon-canary.png");
+});
+
+test("chaque canal du registre a ses libellés dans les deux langues, et un avertissement s'il est rolling", () => {
+  const texts = dictionaries as unknown as Record<string, { settingsPage: Record<string, string> }>;
+  for (const language of ["fr", "en"]) {
+    for (const channel of RELEASE_CHANNELS) {
+      const suffix = channelI18nSuffix(channel);
+      assert.ok(texts[language].settingsPage[`updateChannel${suffix}`], `${language}: updateChannel${suffix}`);
+      if (isRollingReleaseChannel(channel)) {
+        assert.ok(texts[language].settingsPage[`updateChannelConfirmWarning${suffix}`], `${language}: updateChannelConfirmWarning${suffix}`);
+      }
+    }
+  }
+});
+
+test("les canaux rolling sont ceux du registre, hors Stable", () => {
+  assert.deepEqual([...ROLLING_RELEASE_CHANNELS], ["beta", "canary"]);
+  assert.ok(!isRollingReleaseChannel(DEFAULT_RELEASE_CHANNEL));
 });

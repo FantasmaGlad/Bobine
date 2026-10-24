@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import BrowserCompatibility from "@/components/BrowserCompatibility";
 import MediaNativeSetting from "@/components/MediaNativeSetting";
 import { useAppSettings, type Theme } from "@/lib/AppSettingsContext";
-import { channelLogoUrl } from "@/lib/releaseChannel";
+import { channelI18nSuffix, channelLogoUrl, isRollingReleaseChannel, RELEASE_CHANNELS, type UpdateChannel } from "@/lib/releaseChannel";
 import type { Language } from "@/lib/i18n";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
@@ -37,7 +37,7 @@ interface SettingsData {
   deployment_profile: DeploymentProfile;
   paths: Record<string, string>;
   network: { local_ip: string | null; port: number; mdns_url: string; mdns_status: string | null };
-  update_channel: "stable" | "beta" | "canary";
+  update_channel: UpdateChannel;
   wired_display_mode: "dual_screen" | "headless";
   auto_update_enabled: "true" | "false";
   auto_update_time: string;
@@ -56,7 +56,7 @@ interface StoreInfo {
 
 interface UpdateInfo {
   online: boolean;
-  channel?: "stable" | "beta" | "canary";
+  channel?: UpdateChannel;
   current_version: string;
   current_tag: string;
   current_commit: string;
@@ -65,8 +65,8 @@ interface UpdateInfo {
   /** Vrai quand la version proposée est ANTÉRIEURE à celle installée
    * (retour Bêta/Canary -> Stable demandé explicitement via le sélecteur de canal). */
   is_downgrade?: boolean;
-  error_code?: "offline" | "rate_limited" | "not_found_beta" | "not_found_canary" | "not_found_stable" | null;
-  local_build?: "stable" | "beta" | "canary";
+  error_code?: "offline" | "rate_limited" | `not_found_${UpdateChannel}` | null;
+  local_build?: UpdateChannel;
   release_title: string | null;
   release_notes: string | null;
   published_at: string | null;
@@ -206,7 +206,7 @@ export default function SettingsPage() {
   const [refreshingNetwork, setRefreshingNetwork] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [confirmingChannel, setConfirmingChannel] = useState<"beta" | "canary" | null>(null);
+  const [confirmingChannel, setConfirmingChannel] = useState<UpdateChannel | null>(null);
   const [resetting, setResetting] = useState(false);
   const [showUninstall, setShowUninstall] = useState(false);
   const [uninstallConfirm, setUninstallConfirm] = useState("");
@@ -540,7 +540,7 @@ export default function SettingsPage() {
   // aussitôt checkForUpdates() pour que la carte "Mises à jour" reflète tout
   // de suite le nouveau canal plutôt que de garder l'ancien résultat affiché
   // jusqu'au prochain clic manuel sur "Rechercher une mise à jour".
-  const handleChannelChange = async (channel: "stable" | "beta" | "canary") => {
+  const handleChannelChange = async (channel: UpdateChannel) => {
     if (!data || data.update_channel === channel || changingChannel) return;
     setChangingChannel(true);
     try {
@@ -551,7 +551,7 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         setData(await res.json());
-        showToast(t(channel === "stable" ? "settingsPage.updateChannelLeft" : "settingsPage.updateChannelJoined", { channel: t(`settingsPage.updateChannel${channel === "beta" ? "Beta" : "Canary"}`) }));
+        showToast(t(isRollingReleaseChannel(channel) ? "settingsPage.updateChannelJoined" : "settingsPage.updateChannelLeft", { channel: t(`settingsPage.updateChannel${channelI18nSuffix(channel)}`) }));
         checkForUpdates();
       } else {
         const err = await res.json().catch(() => ({}));
@@ -1369,39 +1369,23 @@ export default function SettingsPage() {
                 background: "var(--bg-surface-elevated)",
               }}
             >
-              <button
-                type="button"
-                className={`btn btn-sm ${data.update_channel === "stable" ? "btn-primary" : "btn-secondary"}`}
-                style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 14px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "6px" }}
-                onClick={() => handleChannelChange("stable")}
-                disabled={changingChannel}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={channelLogoUrl("stable")} alt="" width={18} height={18} style={{ borderRadius: "4px" }} />
-                {t("settingsPage.updateChannelStable")}
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${data.update_channel === "beta" ? "btn-primary" : "btn-secondary"}`}
-                style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 14px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "6px" }}
-                onClick={() => { if (data.update_channel !== "beta") setConfirmingChannel("beta"); }}
-                disabled={changingChannel}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={channelLogoUrl("beta")} alt="" width={18} height={18} style={{ borderRadius: "4px" }} />
-                {t("settingsPage.updateChannelBeta")}
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${data.update_channel === "canary" ? "btn-primary" : "btn-secondary"}`}
-                style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 14px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "6px" }}
-                onClick={() => { if (data.update_channel !== "canary") setConfirmingChannel("canary"); }}
-                disabled={changingChannel}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={channelLogoUrl("canary")} alt="" width={18} height={18} style={{ borderRadius: "4px" }} />
-                {t("settingsPage.updateChannelCanary")}
-              </button>
+              {RELEASE_CHANNELS.map((channel) => (
+                <button
+                  key={channel}
+                  type="button"
+                  className={`btn btn-sm ${data.update_channel === channel ? "btn-primary" : "btn-secondary"}`}
+                  style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 14px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  onClick={() => {
+                    if (!isRollingReleaseChannel(channel)) handleChannelChange(channel);
+                    else if (data.update_channel !== channel) setConfirmingChannel(channel);
+                  }}
+                  disabled={changingChannel}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={channelLogoUrl(channel)} alt="" width={18} height={18} style={{ borderRadius: "4px" }} />
+                  {t(`settingsPage.updateChannel${channelI18nSuffix(channel)}`)}
+                </button>
+              ))}
             </div>
           </div>
           <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.updateChannelHint")}</p>
@@ -1953,17 +1937,17 @@ export default function SettingsPage() {
           <div className="modal-content">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={`/logo-${confirmingChannel}.png`}
+              src={channelLogoUrl(confirmingChannel)}
               alt=""
               width={72}
               height={72}
               style={{ display: "block", margin: "0 auto", borderRadius: "var(--radius-md)" }}
             />
             <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--text-main)", textAlign: "center" }}>
-              {t("settingsPage.updateChannelConfirmTitle", { channel: t(`settingsPage.updateChannel${confirmingChannel === "beta" ? "Beta" : "Canary"}`) })}
+              {t("settingsPage.updateChannelConfirmTitle", { channel: t(`settingsPage.updateChannel${channelI18nSuffix(confirmingChannel)}`) })}
             </h3>
             <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-              {t(`settingsPage.updateChannelConfirmWarning${confirmingChannel === "beta" ? "Beta" : "Canary"}`)}
+              {t(`settingsPage.updateChannelConfirmWarning${channelI18nSuffix(confirmingChannel)}`)}
             </p>
             <div className="modal-actions">
               <button type="button" className="btn btn-secondary" onClick={() => setConfirmingChannel(null)} disabled={changingChannel}>{t("common.cancel")}</button>
@@ -1973,7 +1957,7 @@ export default function SettingsPage() {
                 disabled={changingChannel}
                 onClick={() => { const channel = confirmingChannel; setConfirmingChannel(null); handleChannelChange(channel); }}
               >
-                {t("settingsPage.updateChannelConfirmButton", { channel: t(`settingsPage.updateChannel${confirmingChannel === "beta" ? "Beta" : "Canary"}`) })}
+                {t("settingsPage.updateChannelConfirmButton", { channel: t(`settingsPage.updateChannel${channelI18nSuffix(confirmingChannel)}`) })}
               </button>
             </div>
           </div>
