@@ -30,6 +30,7 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 8. [Référence API HTTP & WebSockets](#8-référence-api-http--websockets)
 9. [Exploitation & Découverte Réseau (Wyse)](#9-exploitation--découverte-réseau-wyse)
 10. [Matrice des interfaces & compatibilité multi-plateforme](#10-matrice-des-interfaces--compatibilité-multi-plateforme)
+10bis. [Icônes par canal de version](#10bis-icônes-par-canal-de-version-stable-bêta-canary)
 11. [Licence](#11-licence)
 
 ---
@@ -722,6 +723,17 @@ Sur le profil Android, les données sont réparties sur **deux racines de stocka
 - Banc de mesure reproductible : [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
 
 <br clear="left"/>
+
+---
+
+## 10bis. Icônes par canal de version (Stable, Bêta, Canary)
+
+Chaque canal a sa propre icône (ruban argent, bleu ou or). Deux mécanismes distincts, détaillés dans [`Assets/Images/channel-icons/README.md`](../Assets/Images/channel-icons/README.md) :
+
+- **Canal du build**, déduit du suffixe de `VERSION` (`-beta`, `-canary`, sinon Stable) : icône du lanceur et du tiroir d'applications Android, bannière Android TV, exécutables et installeur Windows, bundle macOS, lanceur Linux (`.deb`, `.rpm`, Arch). Elle change quand le build du canal est installé.
+- **Canal choisi** dans les Réglages (`update_channel`) : barre système (relue toutes les 15 secondes par `app/desktop/channel_icon.py`), logo et favicon de l'interface, écran de démarrage Android. Elle change à chaud.
+
+Source unique : `Assets/Images/channel-icons/`. Tous les dérivés sont produits par `scripts/generate_channel_icons.py` ; `backend/tests/test_channel_icons_wiring.py` échoue si un dérivé est périmé ou si une plateforme diverge.
 
 ---
 

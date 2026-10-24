@@ -30,6 +30,7 @@ This document is written for anyone who wants to **understand, operate, modify o
 8. [HTTP API & WebSocket Reference](#8-http-api--websocket-reference)
 9. [Operations & Network Discovery (Wyse)](#9-operations--network-discovery-wyse)
 10. [Interface Matrix & Multi-Platform Compatibility](#10-interface-matrix--multi-platform-compatibility)
+10bis. [Per-channel icons](#10bis-per-channel-icons-stable-beta-canary)
 11. [License](#11-license)
 
 ---
@@ -715,6 +716,17 @@ On the Android profile, data is split across **two storage roots** (`backend/app
 - Reproducible measurement bench: [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
 
 <br clear="left"/>
+
+---
+
+## 10bis. Per-channel icons (Stable, Beta, Canary)
+
+Each release channel has its own icon (silver, blue or gold ribbon). Two separate mechanisms, detailed in [`Assets/Images/channel-icons/README.md`](../Assets/Images/channel-icons/README.md) (French):
+
+- **Build channel**, derived from the `VERSION` suffix (`-beta`, `-canary`, otherwise Stable): Android launcher and app-drawer icon, Android TV banner, Windows executables and installer, macOS bundle, Linux launcher (`.deb`, `.rpm`, Arch). It changes when the channel's build is installed.
+- **Selected channel** in Settings (`update_channel`): system tray (re-read every 15 seconds by `app/desktop/channel_icon.py`), web UI logo and favicon, Android splash screen. It changes live.
+
+Single source: `Assets/Images/channel-icons/`. Every derived file is produced by `scripts/generate_channel_icons.py`; `backend/tests/test_channel_icons_wiring.py` fails if a derived file is stale or a platform drifts.
 
 ---
 
