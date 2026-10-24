@@ -109,7 +109,7 @@ function ChannelMixer({ channel, mix, sound, playing, routeLabel, levels, t, onP
     </div>
   );
   return (
-    <section className="mx-channel" aria-label={t(`devices.map.channels.${channel}`)} data-focus-id={channel}>
+    <section className="mx-channel glass-interactive" aria-label={t(`devices.map.channels.${channel}`)} data-focus-id={channel}>
       <header className="mx-channel-head">
         <span className="dv-icon"><Icon name="radio" size={22} /></span>
         <span className="dv-text">

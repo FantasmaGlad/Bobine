@@ -350,7 +350,7 @@ function initWizard() {
     const button = e.currentTarget;
     try {
       await navigator.clipboard.writeText(text);
-      button.textContent = 'Journal copié ✓';
+      button.textContent = 'Journal copié';
     } catch {
       button.textContent = 'Copie impossible — sélectionnez le journal à la main';
     }

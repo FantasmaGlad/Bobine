@@ -60,13 +60,13 @@ class AudioMetadataContractTests(unittest.TestCase):
 
     def test_alias_priority_and_value_parsing(self):
         with self.probe({"format": {"tags": {
-            "title": "  Été 東京 🎵  ", "artist": " ", "author": "  Author ", "performer": "Performer",
+            "title": "  Été 東京 Ω  ", "artist": " ", "author": "  Author ", "performer": "Performer",
             "album": " Album ", "album_artist": " ", "ALBUMARTIST": " Ensemble ", "band": "Band",
             "track": "003/12", "tracknumber": "9", "disk": "02/04", "date": "recorded in 1999-07",
             "year": "2024", "genre": " Synthetic ",
         }}}):
             self.assertEqual(extract_radio_metadata("file.mp3"), {
-                "title": "Été 東京 🎵", "artist": "Author", "album": "Album", "album_artist": "Ensemble",
+                "title": "Été 東京 Ω", "artist": "Author", "album": "Album", "album_artist": "Ensemble",
                 "track_number": 3, "disc_number": 2, "year": 1999, "genre": "Synthetic", "duration_seconds": None,
             })
 

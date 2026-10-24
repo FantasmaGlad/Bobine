@@ -1673,126 +1673,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-  # Met à jour automatiquement le dépôt APT officiel (apt.bobine.fit) sur gh-pages
-  # dès qu'une release Stable, Bêta ou Canary a été publiée avec succès.
-  publish-apt-repo:
-    name: Publish to APT Repository (apt.bobine.fit)
-    needs: [version, linux-desktop-deb, linux-desktop-deb-arm64, release-stable, release-beta, release-canary]
-    if: |
-      always() &&
-      !cancelled() &&
-      (needs.release-stable.result == 'success' || needs.release-beta.result == 'success' || needs.release-canary.result == 'success')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    # Sérialise les publications sur gh-pages (groupe FIXE, pas ${{ github.ref
-    # }}) : un tag Vx.y.z (Stable) et un push sur main (Canary, cf. fix
-    # précédent republiant l'ancienne Bêta rolling en continu) peuvent se
-    # déclencher à quelques secondes d'intervalle et courir en parallèle sur
-    # des refs différentes — sans ce verrou, les deux jobs checkoutent
-    # gh-pages en même temps et le second `git push` est rejeté.
-    # cancel-in-progress: false — toutes les publications doivent aboutir,
-    # seulement l'une après l'autre.
-    concurrency:
-      group: publish-apt-repo
-      cancel-in-progress: false
-    steps:
-      - name: Install reprepro
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y reprepro
-
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: apt-repo
-
-      - name: Download Linux deb artifact (amd64)
-        uses: actions/download-artifact@v4
-        with:
-          name: bobine-linux-deb
-          path: deb-artifact
-
-      - name: Download Linux deb artifact (arm64)
-        uses: actions/download-artifact@v4
-        with:
-          name: bobine-linux-deb-arm64
-          path: deb-artifact
-
-      - name: Import GPG Private Key
-        run: |
-          echo "${{ secrets.APT_GPG_PRIVATE_KEY }}" | gpg --batch --import
-
-      - name: Update reprepro repository (amd64 + arm64)
-        run: |
-          CHANNEL="${{ needs.version.outputs.channel }}"
-          DEB_AMD64=$(ls deb-artifact/*_amd64.deb | head -1)
-          DEB_ARM64=$(ls deb-artifact/*_arm64.deb | head -1)
-          echo "Mise à jour du dépôt APT pour le canal ${CHANNEL} avec ${DEB_AMD64} et ${DEB_ARM64}"
-
-          cd apt-repo
-          if [ -f "conf/distributions" ] && ! grep -q "arm64" conf/distributions; then
-            sed -i 's/^Architectures: amd64$/Architectures: amd64 arm64/' conf/distributions
-          fi
-          if [ "$CHANNEL" = "beta" ] || [ "$CHANNEL" = "canary" ]; then
-            # Canaux rolling (Bêta curée comme Canary) : on retire l'ancien
-            # paquet pour ne garder que la dernière version publiée sur ce
-            # canal, paramétré par $CHANNEL (déclaré dans conf/distributions
-            # sur gh-pages).
-            reprepro remove "$CHANNEL" bobine || true
-            reprepro includedeb "$CHANNEL" "../$DEB_AMD64"
-            reprepro includedeb "$CHANNEL" "../$DEB_ARM64"
-          else
-            # Sur le canal stable
-            # Republication d'une même version Stable (correctif de build sans
-            # incrément) : reprepro refuse un paquet de même version mais
-            # d'empreinte différente, on retire donc d'abord l'ancien.
-            DEB_VERSION="$(dpkg-deb -f "../$DEB_AMD64" Version)"
-            if reprepro list stable bobine | grep -q " ${DEB_VERSION}\$"; then
-              reprepro remove stable bobine
-            fi
-            reprepro includedeb stable "../$DEB_AMD64"
-            reprepro includedeb stable "../$DEB_ARM64"
-          fi
-
-      - name: Purge des paquets non référencés du pool
-        run: |
-          # Le pool de gh-pages grossissait à chaque publication (un fichier .deb par
-          # version Bêta/Canary, jamais supprimé) jusqu'à dépasser la limite de 1 Go
-          # de GitHub Pages. On ne garde que les fichiers cités par un index Packages
-          # (un par canal et par architecture) : sans état, donc sans risque pour les
-          # autres canaux dont la base reprepro n'est pas conservée.
-          cd apt-repo
-          cat dists/*/main/binary-*/Packages | sed -n 's/^Filename: //p' | sort -u > ../referenced.txt
-          if [ ! -s ../referenced.txt ]; then
-            echo "Aucun index Packages lisible : purge ignorée."
-            exit 0
-          fi
-          find pool -type f | sort > ../pool-files.txt
-          comm -23 ../pool-files.txt ../referenced.txt > ../stale.txt
-          echo "$(wc -l < ../stale.txt) fichier(s) obsolète(s) retiré(s) du pool"
-          xargs -r -d '\n' rm -f -- < ../stale.txt
-          find pool -type d -empty -delete
-
-      - name: Commit and push changes to gh-pages
-        run: |
-          cd apt-repo
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A conf/ dists/ pool/
-          if git diff --staged --quiet; then
-            echo "Aucune modification à publier dans le dépôt APT."
-          else
-            git commit -m "chore(apt): mise à jour du dépôt APT (${{ needs.version.outputs.channel }})"
-            git push origin gh-pages
-          fi
-
-
-
   publish-linux-packages:
     name: Publier les dépôts Linux (packages.bobine.fit)
-    needs: [version, linux-package-signing, release-stable, release-beta, release-canary]
+    needs: [version, linux-desktop-deb, linux-desktop-deb-arm64, linux-package-signing, release-stable, release-beta, release-canary]
     if: |
       always() && !cancelled() && needs.linux-package-signing.result == 'success' &&
       (needs.release-stable.result == 'success' || needs.release-beta.result == 'success' || needs.release-canary.result == 'success')
@@ -1812,12 +1695,20 @@ jobs:
         with:
           name: bobine-linux-packages-signed
           path: package-assets
+      - uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-deb
+          path: package-assets
+      - uses: actions/download-artifact@v4
+        with:
+          name: bobine-linux-deb-arm64
+          path: package-assets
       - name: Installer les outils de dépôt
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm gnupg createrepo-c
+          sudo apt-get install -y reprepro rpm gnupg createrepo-c
           docker pull archlinux:latest
-      - name: Préparer et vérifier les dépôts signés (RPM et Arch)
+      - name: Préparer et vérifier les dépôts signés (Debian, RPM et Arch)
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
           GNUPGHOME: ${{ runner.temp }}/bobine-signing
@@ -1826,6 +1717,7 @@ jobs:
           install -d -m 0700 "$GNUPGHOME"
           printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
           rpm --import package-assets/bobine.gpg
+          bash scripts/ci/prepare-package-repository.sh deb "$CHANNEL" package-assets package-repo
           bash scripts/ci/prepare-package-repository.sh rpm "$CHANNEL" package-assets package-repo
           bash scripts/ci/prepare-package-repository.sh arch "$CHANNEL" package-assets package-repo
       - name: Publier sur gh-pages sans écraser les pages vitrines
@@ -1835,9 +1727,9 @@ jobs:
           cd package-repo
           git config user.name fanta
           git config user.email 193235053+FantasmaGlad@users.noreply.github.com
-          git add -A -- fedora/ arch/ bobine.gpg bobine-*.repo
+          git add -A -- debian/ fedora/ arch/ bobine.gpg
           if ! git diff --cached --quiet; then
-            git commit -m "chore(packages): actualiser les dépôts Fedora et Arch ($CHANNEL)"
+            git commit -m "chore(packages): actualiser les depots debian, fedora et arch ($CHANNEL)"
             git push origin gh-pages
           fi
       - name: Retirer la clé privée du runner

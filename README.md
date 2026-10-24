@@ -52,15 +52,15 @@ Install Bobine as a native application on your tablet, workstation, or studio PC
 
 | Platform | Format | Architecture | Direct Download / Command | Target Profile & Key Features |
 | :--- | :---: | :---: | :---: | :--- |
-| ![](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Native Package)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Download Bobine-5.0.2.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-5.0.2.apk)</sub> | **Android Tablets, Google Books & ARM Kiosks**<br><sub>Touch coach desk (`/grid`) + HDMI TV cinema (`/cinema`), soon on Google Play Store</sub> |
-| ![](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Dedicated TV Package)*</sub> | <sub>ARM 32 & 64-bit<br>*(armeabi-v7a, arm64-v8a)*</sub> | <sub>[**Download Bobine-TV-5.0.2.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-TV-5.0.2.apk)</sub> | **Android TV & Google TV**<br><sub>Leanback TV launcher, D-Pad remote navigation, offline kiosk</sub> |
-| ![](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installer)*</sub> | <sub>x86-64 & ARM64<br>*(Snapdragon)*</sub> | <sub>[**Bobine-Setup-5.0.2.exe (x86-64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-Setup-5.0.2.exe)<br>[**Bobine-Setup-5.0.2-arm64.exe (ARM64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-Setup-5.0.2-arm64.exe)</sub> | **Windows 11/10 PCs & Qualcomm Snapdragon ARM Laptops**<br><sub>Native x86-64 and ARM64 installer (Snapdragon X Elite / X Plus), tray icon, clamshell mode</sub> |
-| [![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white)](https://www.debian.org/) [![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com/)<br>[![Linux Mint](https://img.shields.io/badge/Linux%20Mint-386D20?style=flat-square&logo=linuxmint&logoColor=white)](https://linuxmint.com/) [![Pop!_OS](https://img.shields.io/badge/Pop%21__OS-287D86?style=flat-square&logo=popos&logoColor=white)](https://system76.com/pop)<br>[![Zorin OS](https://img.shields.io/badge/Zorin%20OS-0969A2?style=flat-square&logo=zorin&logoColor=white)](https://zorin.com/os/) | <sub>`.deb`<br>APT</sub> | <sub>x86-64 (`amd64`)<br>ARM64 (`arm64`)</sub> | <sub>[**APT Repository**](https://packages.bobine.fit/debian/)<br>[**bobine_5.0.2_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/bobine_5.0.2_amd64.deb)<br>[**bobine_5.0.2_arm64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/bobine_5.0.2_arm64.deb)</sub> | **Debian, Ubuntu and derivatives**<br><sub>Packages available via [packages.bobine.fit/debian/](https://packages.bobine.fit/debian/). Native amd64 and arm64 support with automated apt updates.</sub> |
-| [![Fedora](https://img.shields.io/badge/Fedora-294172?style=flat-square&logo=fedora&logoColor=white)](https://fedoraproject.org/) [![Nobara](https://img.shields.io/badge/Nobara-303030?style=flat-square&logo=nobaralinux&logoColor=white)](https://nobaraproject.org/) | <sub>`.rpm`<br>DNF</sub> | <sub>x86-64 (`x86_64`)<br>ARM64 (`aarch64`)</sub> | <sub>[**DNF Repository**](https://packages.bobine.fit/fedora/)<br>[**bobine-5.0.2-1.x86_64.rpm**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/bobine-5.0.2-1.x86_64.rpm)<br>[**bobine-5.0.2-1.aarch64.rpm**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/bobine-5.0.2-1.aarch64.rpm)</sub> | **Fedora, Nobara and RPM derivatives**<br><sub>Packages available via [packages.bobine.fit/fedora/](https://packages.bobine.fit/fedora/). GPG-signed DNF repository, 1-command install via \`sudo dnf install bobine\`.</sub> |
-| [![Arch Linux](https://img.shields.io/badge/Arch%20Linux-126B96?style=flat-square&logo=archlinux&logoColor=white)](https://archlinux.org/) [![EndeavourOS](https://img.shields.io/badge/EndeavourOS-5540A5?style=flat-square&logo=endeavouros&logoColor=white)](https://endeavouros.com/)<br>[![CachyOS](https://img.shields.io/badge/CachyOS-006655?style=flat-square&logo=cachyos&logoColor=white)](https://cachyos.org/) [![Manjaro](https://img.shields.io/badge/Manjaro-176D49?style=flat-square&logo=manjaro&logoColor=white)](https://manjaro.org/) | <sub>`.pkg.tar.zst`<br>pacman</sub> | <sub>x86-64 (`x86_64`)<br>ARM64 (`aarch64`)</sub> | <sub>[**Pacman Repository**](https://packages.bobine.fit/arch/)<br>[**bobine-5.0.2-1-x86_64.pkg.tar.zst**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/bobine-5.0.2-1-x86_64.pkg.tar.zst)<br>[**bobine-5.0.2-1-aarch64.pkg.tar.zst**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/bobine-5.0.2-1-aarch64.pkg.tar.zst)</sub> | **Arch Linux, EndeavourOS, CachyOS & derivatives**<br><sub>Packages available via [packages.bobine.fit/arch/](https://packages.bobine.fit/arch/). Signed pacman database, continuous rolling updates via \`pacman -Syu bobine\`.</sub> |
-| ![](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Disk Image)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Download Bobine-5.0.2.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-5.0.2.dmg)</sub> | **MacBook, Mac mini & iMac**<br><sub>Drag-and-drop `.dmg`, Apple Silicon & Intel, menu bar companion</sub> |
+| ![](https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Native Package)*</sub> | <sub>ARM64<br>*(arm64-v8a)*</sub> | <sub>[**Download Bobine-5.0.5.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-5.0.5.apk)</sub> | **Android Tablets, Google Books & ARM Kiosks**<br><sub>Touch coach desk (`/grid`) + HDMI TV cinema (`/cinema`), Snapdragon 8 Gen 2 / 8 Gen 3 / 8 Elite, soon on Google Play Store</sub> |
+| ![](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | <sub>`.apk`<br>*(Dedicated TV Package)*</sub> | <sub>ARM 32 & 64-bit<br>*(armeabi-v7a, arm64-v8a)*</sub> | <sub>[**Download Bobine-TV-5.0.5.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-TV-5.0.5.apk)</sub> | **Android TV & Google TV**<br><sub>Leanback TV launcher, D-Pad remote navigation, offline kiosk</sub> |
+| ![](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | <sub>`.exe`<br>*(Installer)*</sub> | <sub>x86-64 & ARM64<br>*(Snapdragon)*</sub> | <sub>[**Bobine-Setup-5.0.5.exe (x86-64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-Setup-5.0.5.exe)<br>[**Bobine-Setup-5.0.5-arm64.exe (ARM64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-Setup-5.0.5-arm64.exe)</sub> | **Windows 11/10 PCs & Qualcomm Snapdragon ARM Laptops**<br><sub>Native x86-64 and ARM64 installer (Snapdragon X Elite / X Plus), tray icon, clamshell mode</sub> |
+| [![Debian](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white)](https://www.debian.org/) [![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com/)<br>[![Linux Mint](https://img.shields.io/badge/Linux%20Mint-386D20?style=flat-square&logo=linuxmint&logoColor=white)](https://linuxmint.com/) [![Pop!_OS](https://img.shields.io/badge/Pop%21__OS-287D86?style=flat-square&logo=popos&logoColor=white)](https://system76.com/pop)<br>[![Zorin OS](https://img.shields.io/badge/Zorin%20OS-0969A2?style=flat-square&logo=zorin&logoColor=white)](https://zorin.com/os/) | <sub>`.deb`<br>APT</sub> | <sub>x86-64 (`amd64`)<br>ARM64 (`arm64`)</sub> | <sub>[**APT Repository**](https://packages.bobine.fit/debian/)<br>[**bobine_5.0.5_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/bobine_5.0.5_amd64.deb)<br>[**bobine_5.0.5_arm64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/bobine_5.0.5_arm64.deb)</sub> | **Debian, Ubuntu and derivatives**<br><sub>Packages available via [packages.bobine.fit/debian/](https://packages.bobine.fit/debian/). Native amd64 and arm64 support with automated apt updates.</sub> |
+| [![Fedora](https://img.shields.io/badge/Fedora-294172?style=flat-square&logo=fedora&logoColor=white)](https://fedoraproject.org/) [![Nobara](https://img.shields.io/badge/Nobara-303030?style=flat-square&logo=nobaralinux&logoColor=white)](https://nobaraproject.org/) | <sub>`.rpm`<br>DNF</sub> | <sub>x86-64 (`x86_64`)<br>ARM64 (`aarch64`)</sub> | <sub>[**DNF Repository**](https://packages.bobine.fit/fedora/)<br>[**bobine-5.0.5-1.x86_64.rpm**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/bobine-5.0.5-1.x86_64.rpm)<br>[**bobine-5.0.5-1.aarch64.rpm**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/bobine-5.0.5-1.aarch64.rpm)</sub> | **Fedora, Nobara and RPM derivatives**<br><sub>Packages available via [packages.bobine.fit/fedora/](https://packages.bobine.fit/fedora/). GPG-signed DNF repository, 1-command install via \`sudo dnf install bobine\`.</sub> |
+| [![Arch Linux](https://img.shields.io/badge/Arch%20Linux-126B96?style=flat-square&logo=archlinux&logoColor=white)](https://archlinux.org/) [![EndeavourOS](https://img.shields.io/badge/EndeavourOS-5540A5?style=flat-square&logo=endeavouros&logoColor=white)](https://endeavouros.com/)<br>[![CachyOS](https://img.shields.io/badge/CachyOS-006655?style=flat-square&logo=cachyos&logoColor=white)](https://cachyos.org/) [![Manjaro](https://img.shields.io/badge/Manjaro-176D49?style=flat-square&logo=manjaro&logoColor=white)](https://manjaro.org/) | <sub>`.pkg.tar.zst`<br>pacman</sub> | <sub>x86-64 (`x86_64`)<br>ARM64 (`aarch64`)</sub> | <sub>[**Pacman Repository**](https://packages.bobine.fit/arch/)<br>[**bobine-5.0.5-1-x86_64.pkg.tar.zst**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/bobine-5.0.5-1-x86_64.pkg.tar.zst)<br>[**bobine-5.0.5-1-aarch64.pkg.tar.zst**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/bobine-5.0.5-1-aarch64.pkg.tar.zst)</sub> | **Arch Linux, EndeavourOS, CachyOS & derivatives**<br><sub>Packages available via [packages.bobine.fit/arch/](https://packages.bobine.fit/arch/). Signed pacman database, continuous rolling updates via \`pacman -Syu bobine\`.</sub> |
+| ![](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>`.dmg`<br>*(Disk Image)*</sub> | <sub>Apple Silicon<br>*(arm64)*</sub> | <sub>[**Download Bobine-5.0.5.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-5.0.5.dmg)</sub> | **MacBook, Mac mini & iMac**<br><sub>Drag-and-drop `.dmg`, Apple Silicon & Intel, menu bar companion</sub> |
 | ![](https://img.shields.io/badge/iOS%20%2F%20iPadOS-000000?style=flat-square&logo=apple&logoColor=white) | <sub>iPadOS App<br>*(Explored Track)*</sub> | <sub>ARM64 (Apple Silicon)</sub> | <sub>*Explored track...*</sub> | **iPads & Apple Tablets (Explored Track)**<br><sub>Touch coach desk prototype with USB-C / Thunderbolt video output</sub> |
-| ![](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | <sub>Native Binary<br>*(Tauri 2)*</sub> | <sub>x86-64 & ARM64<br>*(Linux)*</sub> | <sub>[**bobine-assistant (x86-64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/bobine-assistant)<br>[**bobine-assistant-arm64 (ARM64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/bobine-assistant-arm64)</sub> | **Management Assistant (GUI)**<br><sub>Network auto-discovery, SSH remote deploy & update tool</sub> |
+| ![](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | <sub>Native Binary<br>*(Tauri 2)*</sub> | <sub>x86-64 & ARM64<br>*(Linux)*</sub> | <sub>[**bobine-assistant (x86-64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/bobine-assistant)<br>[**bobine-assistant-arm64 (ARM64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/bobine-assistant-arm64)</sub> | **Management Assistant (GUI)**<br><sub>Network auto-discovery, SSH remote deploy & update tool</sub> |
 | ![](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | <sub>Shell Script<br>*(Automated)*</sub> | <sub>x86-64 & ARM64</sub> | <sub>`curl -sSL https://bobine.fit/install.sh \| bash`</sub> | **Headless Dedicated Appliance (x86-64 & ARM64)**<br><sub>Automated install for bare-metal mini PCs and ARM64 stations (Debian 13)</sub> |
 | [![](https://img.shields.io/badge/Tor_Browser-7D4698?style=flat-square&logo=torbrowser&logoColor=white)](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/) | <sub>APT Repo & Mirror<br>*(Tor Network)*</sub> | <sub>x86-64 & ARM64<br>*(amd64 / arm64)*</sub> | <sub>`curl -fsSL https://bobine.fit/install-tor.sh \| bash`<br>[**Tor Mirror (.onion)**](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/)<br>[**APT Repo (.onion)**](http://rzvwjat5pidtxtwzcsvew7yc5ugfjvzz432ecpn3s5mlch4cs7vvmqad.onion/)</sub> | **Tor Network (.onion)**<br><sub>Anonymous APT repo and website mirror without IP exposure</sub> |
 | [![](https://img.shields.io/badge/bobine.fit-4285F4?style=flat-square&logo=data%3Aimage/svg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4Ij48cGF0aCBmaWxsPSIjNENBRjUwIiBkPSJNNDQgMjRjMCAxMS4wNDUtOC45NTUgMjAtMjAgMjAtNC41MiAwLTguNjgtMS41MDMtMTIuMDMtNC4wNDNsOS40NjctMTYuMzk0QTggOCAwIDAgMCAyNCAzMmM0LjQxOCAwIDgtMy41ODIgOC04eiIvPjxwYXRoIGZpbGw9IiNGQkMwMkQiIGQ9Ik00NCAyNEgyNGE4IDggMCAwIDAtNi45MjggNGwtOS40NjcgMTYuMzk0QTE5LjkyIDE5LjkyIDAgMCAxIDQgMjRDNCAxMy45ODcgMTEuMzg1IDUuNzA0IDIxLjAzNiA0LjIyTDMwLjUwMyAyMC42MUE3Ljk3IDcuOTcgMCAwIDAgMzIgMjR6Ii8%2BPHBhdGggZmlsbD0iI0U1MzkzNSIgZD0iTTI0IDRjNy40MDYgMCAxMy44NiA0LjAyNCAxNy4zIDEwLjAyN0wzMC41MDMgMjAuNjFBOCA4IDAgMCAwIDI0IDE2Yy0zLjE1NSAwLTUuOTE0IDEuODI2LTcuMjUgNC40OUw3LjI4NCA0LjA5NUMxMS44OTIgNC4wMzIgMTcuNjUgNCAyNCA0eiIvPjxjaXJjbGUgY3g9IjI0IiBjeT0iMjQiIHI9IjgiIGZpbGw9IiNGRkYiLz48Y2lyY2xlIGN4PSIyNCIgY3k9IjI0IiByPSI2IiBmaWxsPSIjMTk3NkQyIi8%2BPC9zdmc%2B)](https://bobine.fit) | <sub>Web Portal</sub> | <sub>Universal</sub> | <sub>[**Visit bobine.fit**](https://bobine.fit)</sub> | **Official Website**<br><sub>Getting started guides, hardware recommendations & docs</sub> |
@@ -253,14 +253,14 @@ Bobine is lightweight, robust, and designed to run smoothly on a wide spectrum o
 - **Laptops (Modular Framework Laptops, Windows 11/10 PCs x86-64 & ARM64 Snapdragon, macOS, Linux & Google Books)**:
   - **Framework Laptop (modular and repairable laptops from [Framework](https://frame.work/))**: optimal hardware and cross-OS compatibility under **Linux** (Debian, Ubuntu, Fedora, Arch Linux) and **Windows 11** (x86-64 and ARM). Full hardware video acceleration across **AMD Ryzen** chips (Radeon 780M / 880M RDNA3/3.5 APUs with ultra-smooth VA-API decoding), **Intel Core Ultra** processors (Meteor Lake / Arrow Lake with QuickSync Video) and **Qualcomm Snapdragon X Elite / X Plus** processors (native ARM64 architecture, Adreno VPU, exceptional energy efficiency for cool 24/7 continuous operation). Modular architecture perfectly suited for studio playout cabinets (hot-swappable HDMI, USB-C and Gigabit Ethernet expansion cards). See [Framework Laptop](https://frame.work/).
   - **All x86-64 PC Laptops**: HP Pavilion, Acer Aspire, Lenovo IdeaPad/ThinkPad, Dell Inspiron/Latitude, ASUS Vivobook, etc.
-  - **Qualcomm Snapdragon ARM Laptops**: devices running **Windows 11 ARM64** (`Bobine-Setup-5.0.2-arm64.exe`) or **Linux ARM64** (`bobine_5.0.2_arm64.deb`) powered by **Qualcomm Snapdragon X Elite / X Plus** processors (Surface Laptop 7, Lenovo Yoga Slim 7x, ThinkPad T14s Gen 6, ASUS Vivobook S 15, Dell XPS 13 / Inspiron ARM, HP OmniBook X...).
-  - **Google Books (Google Book laptops / Aluminium OS)**: native support via the Android ARM64 application (`Bobine-5.0.2.apk`, and soon available natively on the Google Play Store) as well as via the built-in Debian Linux ARM64/x86-64 subsystem.
+  - **Qualcomm Snapdragon ARM Laptops**: devices running **Windows 11 ARM64** (`Bobine-Setup-5.0.5-arm64.exe`) or **Linux ARM64** (`bobine_5.0.5_arm64.deb`) powered by **Qualcomm Snapdragon X Elite / X Plus** processors (Surface Laptop 7, Lenovo Yoga Slim 7x, ThinkPad T14s Gen 6, ASUS Vivobook S 15, Dell XPS 13 / Inspiron ARM, HP OmniBook X...). See also [Bobine on PC & Computers](https://bobine.fit/en/ordinateur).
+  - **Google Books (Google Book laptops / Aluminium OS)**: native support via the Android ARM64 application (`Bobine-5.0.5.apk`, and soon available natively on the Google Play Store) as well as via the built-in Debian Linux ARM64/x86-64 subsystem (MediaTek Kompanio, Qualcomm Snapdragon 7c/8c, Intel Core/N100).
   - **Apple MacBook Range**: MacBook Air & MacBook Pro (Apple Silicon M1, M2, M3, M4, and Intel models).
   - **Two flexible operating modes**:
     - *Studio Console Mode (Dual Display)*: The laptop screen becomes an interactive control console (`/grid` with touch/trackpad/mouse) for selecting and managing classes, while the HDMI output streams clean full-screen video (`/cinema`) to the studio projector or TV with zero windows or cursor clutter.
     - *Headless Clamshell Mode*: The laptop sits closed in a rack or equipment cabinet, streaming uninterrupted full-screen playback to the TV without sleeping, remotely controlled via any smartphone (`/mobile` or `/coach`).
 - **Android Tablets & ARM Touch Kiosks (All-in-One Touch Playout)**:
-  - **Xiaomi Pad 8** (official reference tablet, validated on testbeds and in real gym conditions), **Xiaomi Pad 6 & 7**, Samsung Galaxy Tab S-series, Lenovo Tab P-series (ARM64 devices featuring USB-C DisplayPort alternate mode to HDMI).
+  - **Xiaomi Pad 8** (official reference tablet, validated on testbeds and in real gym conditions), **Xiaomi Pad 6 & 7**, Samsung Galaxy Tab S-series (S8, S9, S10), Lenovo Tab P-series (ARM64 devices powered by **Qualcomm Snapdragon 8 Gen 2, 8 Gen 3, 8 Elite, 8s Gen 3, 7+ Gen 3**, **MediaTek Dimensity 9300+ / 8300**, or **Google Tensor G3/G4** featuring USB-C DisplayPort alternate mode to HDMI).
   - *Two modes available*: Interactive touch console (`/grid` on tablet + clean `/cinema` on TV/projector), or Headless mode featuring a clean standby screen with an instant toggle switch.
 - **Android TV, Google TV & Media Streaming Boxes (Direct-to-TV Playout)**:
   - **Chromecast with Google TV** (HD / 4K), **Nvidia Shield TV / Pro**, **Xiaomi TV Box S (2nd Gen)**, **Nokia Streaming Box 8000/8010**, **Strong Leap-S3**, smart TVs running Android TV & Google TV (Sony, Philips, TCL, Hisense...).
@@ -269,7 +269,7 @@ Bobine is lightweight, robust, and designed to run smoothly on a wide spectrum o
     - *Standalone Dedicated Server*: Runs the full Bobine backend engine locally (FastAPI + SQLite). **External storage requirement**: Due to limited onboard flash storage (4–8 GB eMMC), plug in a **USB 3.0 flash drive or external SSD** (FAT32/exFAT) via USB-OTG to store class media without filling up internal storage.
 - **Desktop PCs, ARM64 Workstations & Studio Computers**:
   - Any standard Windows or Linux x86-64 or ARM64 tower / desktop PC (4 GB+ RAM).
-  - **Linux ARM64 Workstations & Mini PCs**: **NVIDIA DGX Spark (Grace Blackwell GB10)**, NVIDIA Jetson Orin, Raspberry Pi 5 (8 GB / 16 GB), Orange Pi 5 Max, Radxa Rock 5B, etc. (via the `arm64` `.deb` package, `apt.bobine.fit` repo, `install.sh`, or `bobine-assistant-arm64`).
+  - **Linux ARM64 Workstations & Mini PCs**: **NVIDIA DGX Spark (Grace Blackwell GB10)**, NVIDIA Jetson Orin, Raspberry Pi 5 (8 GB / 16 GB), Orange Pi 5 Max, Radxa Rock 5B, etc. (via the `arm64` `.deb`/`.rpm`/`.pkg.tar.zst` packages, unified `packages.bobine.fit` repo, `install.sh`, or `bobine-assistant-arm64`).
   - Apple **Mac Mini** & **iMac** (exceptionally quiet, compact playout machines for fitness studios).
 - **Dedicated Mini PCs & Thin Clients (Ideal for 24/7 autonomous gym setups)**:
   - Affordable refurbished x86-64 appliances: **Dell Wyse 5070**, **HP ProDesk 400/600 DM**, **Lenovo ThinkCentre Tiny**, **Beelink Mini S12/EQ12**, Intel NUC.
@@ -311,7 +311,7 @@ Hardware video decoding is browser- and OS-dependent (HEVC/AV1 in particular): w
 
 Bobine offers distinct deployment paths to match your exact setup:
 
-1. **Option 1: Native Applications (Simplest for tablets, PCs & laptops)**: Android & Google Books (`.apk`), Windows 11/10 x86-64 & ARM64 Snapdragon (`.exe`), Linux Desktop x86-64 & ARM64 (`.deb` & APT repo), and macOS (`.dmg`). Installs with 1 click, runs completely offline, and integrates seamlessly with your operating system.
+1. **Option 1: Native Applications (Simplest for tablets, PCs & laptops)**: Android & Google Books (`.apk`), Windows 11/10 x86-64 & ARM64 Snapdragon (`.exe`), Linux Desktop x86-64 & ARM64 (`.deb`, `.rpm`, `.pkg.tar.zst` & signed repos on `packages.bobine.fit`), and macOS (`.dmg`). Installs with 1 click, runs completely offline, and integrates seamlessly with your operating system.
 2. **Option 2: Dedicated Headless Linux Appliance (Best for autonomous clubs & fine control)**: Turns a bare-metal mini PC x86-64 (such as a Dell Wyse 5070) or ARM64 station (NVIDIA DGX Spark, Raspberry Pi 5, Orange Pi 5 Max) into a dedicated, unattended appliance booting directly into a locked full-screen X11 kiosk with automated power-loss recovery and anti-screensaver. Fast 1-line CLI install.
 3. **Option 3: Bobine Assistant, Graphical Installer (`assistant/`)**: A cross-platform graphical tool (x86-64 & ARM64) to discover, inspect, and deploy appliances over the local network via SSH.
 
@@ -323,7 +323,7 @@ Bobine offers distinct deployment paths to match your exact setup:
 
 See also [Bobine on Google Book](https://bobine.fit/en/google-book).
 
-1. **Download** [**`Bobine-5.0.2.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-5.0.2.apk) directly on your Android tablet or **Google Book (Aluminium OS)** laptop (soon available natively on the Google Play Store; on Google Books, you can also install the `.deb` package via the built-in Debian Linux ARM64/x86-64 subsystem).
+1. **Download** [**`Bobine-5.0.5.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-5.0.5.apk) directly on your Android tablet or **Google Book (Aluminium OS)** laptop (soon available natively on the Google Play Store; on Google Books, you can also install the `.deb` package via the built-in Debian Linux ARM64/x86-64 subsystem).
 2. **Install the APK** (enable installation from unknown sources if prompted).
 3. **Launch Bobine**:
    - The persistent `ForegroundService` starts the embedded FastAPI backend (CPython 3.13 via Chaquopy) and automatically acquires an mDNS multicast lock.
@@ -335,7 +335,7 @@ See also [Bobine on Google Book](https://bobine.fit/en/google-book).
 
 See also the web page [Bobine on Android TV & Google TV](https://bobine.fit/en/android-tv) (download table and FAQ).
 
-1. **Download** [**`Bobine-TV-5.0.2.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-TV-5.0.2.apk) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Download** [**`Bobine-TV-5.0.5.apk`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-TV-5.0.5.apk) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Install the APK on your TV or Streaming Box**:
    - Transfer the file via a USB flash drive (using a file manager like *AnExplorer* or *File Commander*), or wirelessly via tools such as *Send Files to TV* or *Downloader*.
    - Enable installation from unknown sources under *Settings → Security & Restrictions* on your TV.
@@ -347,8 +347,8 @@ See also the web page [Bobine on Android TV & Google TV](https://bobine.fit/en/a
 #### On Windows (11, 10, Windows IoT & Qualcomm Snapdragon ARM PCs)
 
 1. **Download** the installer matching your processor architecture:
-   - **x86-64 PC (Intel / AMD)**: [**`Bobine-Setup-5.0.2.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-Setup-5.0.2.exe)
-   - **ARM64 PC (Qualcomm Snapdragon X Elite / X Plus)**: [**`Bobine-Setup-5.0.2-arm64.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-Setup-5.0.2-arm64.exe)
+   - **x86-64 PC (Intel / AMD)**: [**`Bobine-Setup-5.0.5.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-Setup-5.0.5.exe)
+   - **ARM64 PC (Qualcomm Snapdragon X Elite / X Plus)**: [**`Bobine-Setup-5.0.5-arm64.exe`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-Setup-5.0.5-arm64.exe)
 2. **Run the installer** and follow the wizard (French/English selection, AGPL-3.0 license acceptance).
    - Installs Bobine into `Program Files\Bobine`.
    - Creates a **Desktop** shortcut with the official Bobine icon and adds an entry to the Start Menu.
@@ -362,20 +362,30 @@ See also the web page [Bobine on Android TV & Google TV](https://bobine.fit/en/a
    - If Bobine is already running, clicking the Desktop icon instantly refocuses your browser without conflicting.
 4. **Access from other devices**: Open `http://bobine.local` from any tablet, smartphone, or PC connected to the same local Wi-Fi / LAN network. Application data (videos, SQLite database, logs) is securely stored in `%ProgramData%\Bobine`.
 
-#### On Linux Desktop (Debian, Ubuntu, Linux Mint & derivatives — x86-64 & ARM64)
+#### On Linux Desktop (Debian, Ubuntu, Fedora, Arch Linux & derivatives — x86-64 & ARM64)
 
-**Recommended Method — Official APT Repository ([apt.bobine.fit](https://apt.bobine.fit), `amd64` & `arm64` architectures):**
-Configure the official GPG-signed APT repository to install Bobine (on x86-64 PCs, Linux ARM Snapdragon laptops, **NVIDIA DGX Spark** workstations, Raspberry Pi 5, etc.) and automatically receive software updates via regular `sudo apt upgrade`:
-```bash
-# 1. Official GPG keyring
-curl -fsSL https://apt.bobine.fit/bobine.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/bobine.gpg
+**Recommended Method — Official GPG-Signed Repositories ([packages.bobine.fit](https://packages.bobine.fit), `x86_64` & `arm64` architectures):**
+Configure the official repository for your distribution to install Bobine and automatically receive software updates:
 
-# 2. Add official APT repository (Stable channel; replace 'stable' with 'beta' or 'canary' for pre-releases)
-echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] https://apt.bobine.fit/ stable main" | sudo tee /etc/apt/sources.list.d/bobine.list
-
-# 3. Update & Install
-sudo apt update && sudo apt install bobine
-```
+- **Debian, Ubuntu, Linux Mint, Pop!_OS, Zorin OS (`.deb` APT)**:
+  ```bash
+  curl -fsSL https://packages.bobine.fit/bobine.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/bobine.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] https://packages.bobine.fit/debian/ stable main" | sudo tee /etc/apt/sources.list.d/bobine.list
+  sudo apt update && sudo apt install bobine
+  ```
+- **Fedora, Nobara, RHEL, AlmaLinux, Rocky Linux (`.rpm` DNF)**:
+  ```bash
+  sudo rpm --import https://packages.bobine.fit/bobine.gpg
+  sudo dnf config-manager addrepo --from-repofile=https://packages.bobine.fit/fedora/bobine-stable.repo
+  sudo dnf install bobine
+  ```
+- **Arch Linux, EndeavourOS, CachyOS, Manjaro (`.pkg.tar.zst` Pacman)**:
+  ```bash
+  curl -fsSL https://packages.bobine.fit/bobine.gpg | sudo pacman-key --add -
+  sudo pacman-key --lsign-key B77D96D72F84F36ACAA3F8729CBF497D829EE15A
+  printf '\n[bobine]\nServer = https://packages.bobine.fit/arch/stable/$arch\n' | sudo tee -a /etc/pacman.conf
+  sudo pacman -Syu bobine
+  ```
 
 **Secure Option — APT Repository over Tor (.onion):**
 
@@ -392,9 +402,9 @@ Or via the automated script (Tor-routed GPG fingerprint validation):
 curl -fsSL https://bobine.fit/install-tor.sh | bash
 ```
 
-**Alternative Method — Standalone `.deb` Package (Offline or 1-click install):**
-1. **Download** [**`bobine_5.0.2_amd64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/bobine_5.0.2_amd64.deb) (x86-64 PC) or [**`bobine_5.0.2_arm64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/bobine_5.0.2_arm64.deb) (ARM64: NVIDIA DGX Spark, Snapdragon, Raspberry Pi 5, etc.).
-2. **Install the package** via the Ubuntu App Center / GNOME Software by double-clicking the file, or via the terminal:
+**Alternative Method — Standalone `.deb` / `.rpm` / `.pkg.tar.zst` Packages (Offline or 1-click install):**
+1. **Download** [**`bobine_5.0.5_amd64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/bobine_5.0.5_amd64.deb) (x86-64 PC) or [**`bobine_5.0.5_arm64.deb`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/bobine_5.0.5_arm64.deb) (ARM64: NVIDIA DGX Spark, Snapdragon, Raspberry Pi 5, etc.), or the matching `.rpm` / `.pkg.tar.zst` archive.
+2. **Install the package** via the App Center / GNOME Software by double-clicking the file, or via the terminal:
    ```bash
    sudo apt install ./bobine_*.deb
    ```
@@ -408,7 +418,7 @@ curl -fsSL https://bobine.fit/install-tor.sh | bash
 
 #### On macOS (Apple Silicon - M1/M2/M3/M4)
 
-1. **Download** [**`Bobine-5.0.2.dmg`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.2/Bobine-5.0.2.dmg) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
+1. **Download** [**`Bobine-5.0.5.dmg`**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-5.0.5.dmg) (or from the [latest GitHub release](https://github.com/FantasmaGlad/Bobine/releases/latest)).
 2. **Open the .dmg** and drag `Bobine.app` into your **Applications** folder.
 3. **Launch Bobine** from Applications, your **Desktop** (shortcut created automatically), or Spotlight.
    - *First launch*: Since Bobine is free open-source software without a paid Apple Developer certificate (not notarized), Gatekeeper will block the first launch. Depending on your macOS version you'll see one of two messages:

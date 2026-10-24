@@ -63,7 +63,7 @@ def test_missing_binary_is_a_clean_error(tmp_path, monkeypatch):
 
 
 def test_placeholder_is_a_valid_jpeg_even_for_odd_titles(tmp_path):
-    for title in ("Ambiance forêt", "", "🎵🎵", "日本語"):
+    for title in ("Ambiance forêt", "", "---", "日本語"):
         out = video_utils.generate_placeholder_thumbnail(str(tmp_path / "sub"), title)
         with Image.open(out) as img:
             assert img.format == "JPEG" and img.size == (640, 360)

@@ -62,11 +62,11 @@ else
     BOLD=""; DIM=""; RESET=""; WHITE=""; RED=""; GREEN=""; YELLOW=""; BLUE=""; CYAN=""
 fi
 
-ICON_OK="${GREEN}✓${RESET}"
-ICON_FAIL="${RED}✗${RESET}"
-ICON_WARN="${YELLOW}⚠${RESET}"
-ICON_SKIP="${DIM}⤫${RESET}"
-ICON_INFO="${BLUE}→${RESET}"
+ICON_OK="${GREEN}[OK]${RESET}"
+ICON_FAIL="${RED}[ERREUR]${RESET}"
+ICON_WARN="${YELLOW}[ATTENTION]${RESET}"
+ICON_SKIP="${DIM}[-]${RESET}"
+ICON_INFO="${BLUE}->${RESET}"
 
 INSTALL_LANG=""
 
@@ -358,7 +358,7 @@ _spin_wait() {
     return 0
 }
 
-log()  { $QUIET && return 0; printf '\n%s%s▸%s %s\n' "$BOLD" "$CYAN" "$RESET" "$*"; }
+log()  { $QUIET && return 0; printf '\n%s%s>%s %s\n' "$BOLD" "$CYAN" "$RESET" "$*"; }
 ok()   { $QUIET && return 0; printf '  %s %s\n' "$ICON_OK" "$*"; }
 warn() { printf '  %s %s%s%s\n' "$ICON_WARN" "$YELLOW" "$*" "$RESET" >&2; }
 err()  { printf '  %s %s%s%s\n' "$ICON_FAIL" "$RED" "$*" "$RESET" >&2; }
@@ -920,39 +920,39 @@ do_check() {
     for unit in "${UNITS[@]}"; do
         if systemctl list-unit-files "${unit}.service" &>/dev/null; then
             if systemctl is-active --quiet "${unit}.service"; then
-                box_line "  ✓ ${unit}  actif"
+                box_line "  [OK] ${unit}  actif"
             else
-                box_line "  ✗ ${unit}  $(systemctl is-active "${unit}.service" 2>/dev/null || echo inconnu)"
+                box_line "  [ERREUR] ${unit}  $(systemctl is-active "${unit}.service" 2>/dev/null || echo inconnu)"
             fi
         else
-            box_line "  ⤫ ${unit}  non installé"
+            box_line "  [-] ${unit}  non installé"
         fi
     done
     box_mid
     if curl -fsS -o /dev/null -m 3 "http://127.0.0.1:${port}/api/health" 2>/dev/null; then
-        box_line "  ✓ API backend répond (port ${port})"
+        box_line "  [OK] API backend répond (port ${port})"
     else
-        box_line "  ✗ API backend injoignable (port ${port})"
+        box_line "  [ERREUR] API backend injoignable (port ${port})"
     fi
     if [[ -d "${FRONTEND_DIR}/out" ]]; then
-        box_line "  ✓ build frontend présent ($(date -r "${FRONTEND_DIR}/out" '+%d/%m %H:%M' 2>/dev/null || echo date-inconnue))"
+        box_line "  [OK] build frontend présent ($(date -r "${FRONTEND_DIR}/out" '+%d/%m %H:%M' 2>/dev/null || echo date-inconnue))"
     else
-        box_line "  ✗ build frontend absent"
+        box_line "  [ERREUR] build frontend absent"
     fi
-    [[ -d "${VENV_DIR}" ]] && box_line "  ✓ environnement Python présent" || box_line "  ✗ environnement Python absent"
+    [[ -d "${VENV_DIR}" ]] && box_line "  [OK] environnement Python présent" || box_line "  [ERREUR] environnement Python absent"
     # Même vérification qu'en fin d'installation, rejouable à tout moment sans
     # réinstaller quoi que ce soit.
     if ! $NO_KIOSK; then
         box_mid
         if command -v aplay >/dev/null 2>&1 && aplay -l 2>/dev/null | grep -q '^card '; then
-            box_line "  ✓ audio : $(aplay -l 2>/dev/null | grep -c '^card ') carte(s) détectée(s)"
+            box_line "  [OK] audio : $(aplay -l 2>/dev/null | grep -c '^card ') carte(s) détectée(s)"
         else
-            box_line "  ✗ audio : aucune carte détectée (aplay -l)"
+            box_line "  [ERREUR] audio : aucune carte détectée (aplay -l)"
         fi
         if command -v vainfo >/dev/null 2>&1 && vainfo 2>&1 | grep -qi 'VAProfileH264'; then
-            box_line "  ✓ décodage matériel H.264 (VA-API) disponible"
+            box_line "  [OK] décodage matériel H.264 (VA-API) disponible"
         else
-            box_line "  ⚠ décodage matériel indisponible — repli logiciel (voir vainfo)"
+            box_line "  [ATTENTION] décodage matériel indisponible — repli logiciel (voir vainfo)"
         fi
     fi
     if git -C "${REPO_DIR}" rev-parse --short HEAD &>/dev/null; then
@@ -960,7 +960,7 @@ do_check() {
         rev=$(git -C "${REPO_DIR}" rev-parse --short HEAD)
         dirty=$(git -C "${REPO_DIR}" status --porcelain 2>/dev/null | wc -l)
         [[ "$dirty" -gt 0 ]] && extra="  (+${dirty} fichiers modifiés)"
-        box_line "  → révision ${rev}${extra}"
+        box_line "  -> révision ${rev}${extra}"
     fi
     box_bottom
     echo

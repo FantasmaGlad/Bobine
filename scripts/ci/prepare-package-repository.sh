@@ -1,17 +1,82 @@
 #!/usr/bin/env bash
 # Régénère uniquement le canal demandé ; les pages, jeux et autres canaux sont conservés.
-# Dépendances : createrepo_c, rpmkeys, GnuPG, Docker (repo-add officiel Arch).
+# Dépendances : reprepro, createrepo_c, rpmkeys, GnuPG, Docker (repo-add officiel Arch).
 set -euo pipefail
 export LC_ALL=C
-family="${1:?rpm ou arch}"; channel="${2:?stable, beta ou canary}"
+family="${1:?deb, rpm ou arch}"; channel="${2:?stable, beta ou canary}"
 packages=$(realpath "${3:?paquets signés}"); destination=$(realpath "${4:?copie du dépôt Pages}")
-case "$family" in rpm|arch) ;; *) exit 2 ;; esac
+case "$family" in deb|rpm|arch) ;; *) exit 2 ;; esac
 case "$channel" in stable|beta|canary) ;; *) exit 2 ;; esac
 [ "$destination" != / ] && [ "$destination" != "$packages" ] || exit 2
 fingerprint="${BOBINE_SIGNING_FINGERPRINT:-B77D96D72F84F36ACAA3F8729CBF497D829EE15A}"
 [[ "$fingerprint" =~ ^[A-F0-9]{40}$ ]] || exit 2
 gpg --batch --armor --export "$fingerprint" > "$destination/bobine.gpg"
 test -s "$destination/bobine.gpg"
+
+if [ "$family" = deb ]; then
+    debian_dir="$destination/debian"
+    [ ! -L "$debian_dir" ] || exit 2
+    mkdir -p "$debian_dir/conf"
+    if [ ! -f "$debian_dir/conf/distributions" ]; then
+        cat > "$debian_dir/conf/distributions" <<EOF
+Origin: Bobine
+Label: Bobine Official Repository
+Codename: stable
+Architectures: amd64 arm64
+Components: main
+Description: Depot APT officiel pour Bobine (canal Stable)
+SignWith: ${fingerprint: -16}
+
+Origin: Bobine
+Label: Bobine Official Repository (Beta)
+Codename: beta
+Architectures: amd64 arm64
+Components: main
+Description: Depot APT officiel pour Bobine (canal Beta)
+SignWith: ${fingerprint: -16}
+
+Origin: Bobine
+Label: Bobine Official Repository (Canary)
+Codename: canary
+Architectures: amd64 arm64
+Components: main
+Description: Depot APT officiel pour Bobine (canal Canary)
+SignWith: ${fingerprint: -16}
+EOF
+    elif ! grep -q "arm64" "$debian_dir/conf/distributions"; then
+        sed -i 's/^Architectures: amd64$/Architectures: amd64 arm64/' "$debian_dir/conf/distributions"
+    fi
+    mapfile -d '' deb_amd64_matches < <(find "$packages" -type f -name "*_amd64.deb" -print0)
+    mapfile -d '' deb_arm64_matches < <(find "$packages" -type f -name "*_arm64.deb" -print0)
+    [ "${#deb_amd64_matches[@]}" = 1 ] && [ "${#deb_arm64_matches[@]}" = 1 ] || { echo "Deux paquets deb (amd64 et arm64) attendus." >&2; exit 1; }
+    deb_amd64="${deb_amd64_matches[0]}"
+    deb_arm64="${deb_arm64_matches[0]}"
+    if [ "$channel" = beta ] || [ "$channel" = canary ]; then
+        reprepro -b "$debian_dir" remove "$channel" bobine || true
+        reprepro -b "$debian_dir" includedeb "$channel" "$deb_amd64"
+        reprepro -b "$debian_dir" includedeb "$channel" "$deb_arm64"
+    else
+        deb_version="$(dpkg-deb -f "$deb_amd64" Version)"
+        if reprepro -b "$debian_dir" list stable bobine | grep -q " ${deb_version}\$"; then
+            reprepro -b "$debian_dir" remove stable bobine
+        fi
+        reprepro -b "$debian_dir" includedeb stable "$deb_amd64"
+        reprepro -b "$debian_dir" includedeb stable "$deb_arm64"
+    fi
+    cat "$debian_dir"/dists/*/main/binary-*/Packages | sed -n 's/^Filename: //p' | sort -u > "$debian_dir/.referenced.txt"
+    if [ -s "$debian_dir/.referenced.txt" ]; then
+        (
+            cd "$debian_dir"
+            find pool -type f | sort > .pool-files.txt
+            comm -23 .pool-files.txt .referenced.txt | xargs -r -d '\n' rm -f --
+            find pool -type d -empty -delete
+        )
+    fi
+    rm -f "$debian_dir/.referenced.txt" "$debian_dir/.pool-files.txt"
+    gpg --batch --verify "$debian_dir/dists/$channel/InRelease"
+    exit 0
+fi
+
 for arch in x86_64 aarch64; do
     if [ "$family" = rpm ]; then
         sub_dir="fedora"
@@ -67,4 +132,6 @@ gpgkey=https://packages.bobine.fit/bobine.gpg
 EOF
         cp "$destination/fedora/bobine-$suite.repo" "$destination/bobine-$suite.repo"
     done
+    cp "$destination/fedora/bobine-stable.repo" "$destination/fedora/bobine.repo"
+    cp "$destination/fedora/bobine-stable.repo" "$destination/bobine.repo"
 fi

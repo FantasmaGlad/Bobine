@@ -520,7 +520,7 @@ def generate_placeholder_thumbnail(thumbnail_dir: str, title: str = "") -> str:
     for y in range(height):  # dégradé vertical léger
         shade = int(30 + 40 * y / height)
         draw.line([(0, y), (width, y)], fill=(shade, shade + 4, shade + 22))
-    letter = next((c for c in (title or "") if c.isalnum()), "♪").upper()
+    letter = next((c for c in (title or "") if c.isalnum()), "M").upper()
     try:
         font = ImageFont.load_default(size=160)
     except TypeError:  # Pillow ancien : police bitmap par défaut, plus petite

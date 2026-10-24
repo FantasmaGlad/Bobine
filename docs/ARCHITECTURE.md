@@ -1,10 +1,14 @@
+<p align="center">
+  <img alt="Bobine" src="../Assets/Images/LogoBanniere.png" width="75%">
+</p>
+
 # Bobine — Architecture technique & référence développeur
 
-> **Bilinguisme** : ce document doit être maintenu en parallèle de sa version anglaise ([`ARCHITECTURE.en.md`](ARCHITECTURE.en.md)) — dernière synchronisation : 2026-10-23.
+> **Bilinguisme** : ce document doit être maintenu en parallèle de sa version anglaise ([`ARCHITECTURE.en.md`](ARCHITECTURE.en.md)) — dernière synchronisation : 2026-10-24.
 
 > Référence technique. Pour une présentation orientée utilisateur (à quoi sert Bobine, installation guidée, prise en main), voir le **[README](../README.md)** (`README.fr.md` pour le français).
 
-Diffusion, planification et pilotage de vidéos de cours en salle, sur mini PC dédié. Serveur FastAPI mono-processus + SQLite, kiosque Chromium X11, interface d'administration et télécommande mobile Next.js.
+Diffusion, planification et pilotage de vidéos de cours en salle, sur mini PC dédié, poste de bureau ou tablette. Serveur FastAPI mono-processus + SQLite, kiosque Chromium X11, interface d'administration et télécommande mobile Next.js.
 
 Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier ou déployer** le système Bobine : il décrit l'architecture réellement en place (pas une intention), le contrat réseau, le modèle de données, ainsi que la configuration d'exploitation sur mini PC dédié.
 
@@ -104,13 +108,13 @@ La configuration est chargée selon l'ordre de priorité suivant :
 
 ```
 ┌─────────────┐      HTTP / WebSockets      ┌─────────────────────────────────┐
-│  Frontend   │ ───────────────────────────►│        Backend FastAPI          │
+│  Frontend   │ --------------------------->│        Backend FastAPI          │
 │  Next.js    │                             │    (uvicorn, mono-processus)    │
-│ (Kiosque /  │◀─────────────────────────── │  app/routers/* → playback_mgr   │
+│ (Kiosque /  │<--------------------------- │  app/routers/* → playback_mgr   │
 │  Admin /    │                             └─────────────────────────────────┘
 │ Mobile Remote)│                                    │
 └─────────────┘                                    │
-                                                   ▼
+                                                   v
                                           ┌──────────────┐
                                           │    SQLite    │
                                           │ (database.db)│
@@ -129,7 +133,7 @@ Le backend tourne en un seul processus `uvicorn` (`--workers 1`). L'état de lec
 - `scheduler_manager.py` : Gestionnaire `APScheduler` de la programmation horaire (récurrences, détections de conflits, décalages, fenêtres radio).
 - `models.py` : Déclarations SQLAlchemy ORM.
 - `config.py` : Gestionnaire de configuration dynamique.
-- `routers/` : Endpoints HTTP groupés par domaine (`videos`, `backgrounds`, `playlists`, `audio`, `audio_playlists`, `schedule`, `playback`, `settings`, `logs`, `import_jobs`, `radio`, `radio_playlists`, `radio_announcements`, `devices`, `chapters`, `metrics`, `updates`, `uploads`, `display`, `diagnostics`) ; `devices/` : interface de pilote et pilotes Linux, sidecar, Android, PIN et service (§5bis).
+- `routers/` : Endpoints HTTP groupés par domaine (`videos`, `backgrounds`, `playlists`, `audio`, `audio_playlists`, `schedule`, `playback`, `settings`, `logs`, `import_jobs`, `radio`, `radio_playlists`, `radio_announcements`, `devices`, `storage`, `chapters`, `metrics`, `updates`, `uploads`, `display`, `diagnostics`) ; `devices/` : interface de pilote et pilotes Linux, sidecar, Android, PIN et service (§5bis).
 
 ---
 
@@ -178,10 +182,10 @@ Toute importation déclenchée par upload web ou par le surveillant de fichiers 
 ### 2. Accélération matérielle multi-OS intégrale (`video_utils.py`)
 
 Le moteur de normalisation exploite un pipeline d'accélération matérielle complet à 3 paliers automatiques (Full Hardware direct VRAM → Hybride GPU → Repli CPU) adapté dynamiquement au profil système (`get_deployment_profile()`) et au silicium graphique :
-- **Linux Bureau & Appliance Wyse (Intel QuickSync / AMD VA-API)** : Palier 1 Full HW via détection automatique du nœud de rendu DRM (`_find_vaapi_device()`), décodage direct en surfaces VA-API (`-hwaccel vaapi -hwaccel_output_format vaapi`), formatage GPU `scale_vaapi=format=nv12` et encodage matériel `h264_vaapi`. Traitement 100% interne à la VRAM sans transit RAM-PCIe, réduisant la charge CPU de plus de 93% (élimination des pics de 30W). En cas de flux non géré, bascule automatique vers le Palier 2 Hybride (`-vf "format=nv12,hwupload"`).
-- **Android (SoC Qualcomm Snapdragon / MediaTek)** : Décodage matériel proactif cadencé par `-operating_rate 1000 -c:v <codec>_mediacodec` (AV1, HEVC, VP9, H.264) et encodage matériel natif `h264_mediacodec` (`-pix_fmt nv12 -b:v <bitrate>`). Vitesse constatée sur tablette Xiaomi Pad 8 : de **4.2x à 5.1x** temps réel.
-- **macOS (Apple Silicon M1 à M4 & Intel)** : Décodage matériel direct `-hwaccel videotoolbox` et encodage matériel `h264_videotoolbox` (`-q:v 65 -pix_fmt yuv420p`), conversion ultra-rapide sans solliciter les cœurs CPU.
-- **Windows (Intel QuickSync)** : Décodage matériel `-hwaccel qsv -hwaccel_output_format qsv` et encodage `h264_qsv` (`-preset fast`).
+- **Linux Bureau & Appliance Wyse (Intel QuickSync N100/N200/Core Ultra/Celeron / AMD Radeon VA-API)** : Palier 1 Full HW via détection automatique du nœud de rendu DRM (`_find_vaapi_device()`), décodage direct en surfaces VA-API (`-hwaccel vaapi -hwaccel_output_format vaapi`), formatage GPU `scale_vaapi=format=nv12` et encodage matériel `h264_vaapi`. Traitement 100% interne à la VRAM sans transit RAM-PCIe, réduisant la charge CPU de plus de 93% (élimination des pics de 30W). En cas de flux non géré, bascule automatique vers le Palier 2 Hybride (`-vf "format=nv12,hwupload"`).
+- **Android & Google Books (Qualcomm Snapdragon 8 Gen 2 / 8 Gen 3 / 8 Elite / 8s Gen 3 / 7+ Gen 3, MediaTek Dimensity / Kompanio, Google Tensor G2–G4)** : Décodage matériel proactif cadencé par `-operating_rate 1000 -c:v <codec>_mediacodec` (AV1, HEVC, VP9, H.264) et encodage matériel natif `h264_mediacodec` (`-pix_fmt nv12 -b:v <bitrate>`). Vitesse constatée sur tablette Xiaomi Pad 8 : de **4.2x à 5.1x** temps réel.
+- **macOS (Apple Silicon M1, M2, M3, M4 Pro/Max & Intel)** : Décodage matériel direct `-hwaccel videotoolbox` et encodage matériel `h264_videotoolbox` (`-q:v 65 -pix_fmt yuv420p`), conversion ultra-rapide sans solliciter les cœurs CPU.
+- **Windows (Intel QuickSync, AMD Radeon & Qualcomm Snapdragon X Elite / X Plus ARM64)** : Décodage matériel `-hwaccel qsv -hwaccel_output_format qsv` et encodage `h264_qsv` (`-preset fast`).
 - **Repli universel (Palier 3)** : si l'accélération matérielle échoue ou n'est pas disponible (ex. serveur headless sans GPU), repli automatique transparent sur `libx264 -preset veryfast` sans interruption de la tâche.
 - **Intervalle de trames clés resserré** : toutes les vidéos normalisées (quel que soit l'encodeur) reçoivent `-g 60` (`-keyint_min 60` en repli logiciel), soit une trame clé toutes les ~2s à 30 im/s — garantit une avance/retour rapide fiable et évite qu'un seek admin vers une position hors keyframe ne laisse le décodeur bloqué (cf. §4, « Récupération d'un décodeur vidéo bloqué »).
 
@@ -197,7 +201,7 @@ Bobine respecte strictement la fidélité des médias sources :
 
 ### 4. Annulation réactive & Nettoyage atomique
 
-- **Arrêt immédiat** : un clic sur la croix (✕) dans le panneau flottant d'upload émet un appel `DELETE /api/import-jobs/{job_id}`.
+- **Arrêt immédiat** : un clic sur le bouton de fermeture dans le panneau flottant d'upload émet un appel `DELETE /api/import-jobs/{job_id}`.
 - **Interruption du processus** : `cancel_job()` signale l'annulation atomique, envoie un signal `SIGTERM` (puis `SIGKILL` de sécurité sous 1.5s) au sous-processus FFmpeg enregistré, et annule le `Future` du pool de threads.
 - **Purge intégrale** : l'interruption lève `JobCancelledError`, entraînant la suppression immédiate des fichiers de destination partiels (`dest_path`, miniatures temporaires) sans aucune écriture en base de données.
 - **Nettoyage préventif au démarrage** : le backend scanne les répertoires médias au lancement pour supprimer les reliquats temporaires orphelins laissés par une coupure d'alimentation brutale.
@@ -659,7 +663,7 @@ Les commits restent locaux jusqu'à ce qu'une machine avec accès GitHub (hors L
 
 Bobine repose sur une **interface frontend unique et unifiée** construite avec Next.js 16 (App Router) et exportée statiquement (`npm run build` → `frontend/out`). Cette interface est partagée et embarquée de manière identique sur **tous les profils de déploiement**.
 
-### 10.1 Cartographie des 22 routes de l'interface (+ `/` redirigeant vers `/dashboard-cable`)
+### 10.1 Cartographie des 23 routes de l'interface (+ `/` redirigeant vers `/dashboard-cable`)
 
 | Catégorie | Route(s) | Description & Particularités multi-OS |
 |---|---|---|
@@ -669,12 +673,13 @@ Bobine repose sur une **interface frontend unique et unifiée** construite avec 
 | **Régies & Contrôle** | `/dashboard-cable`<br>`/dashboard-network` | Tableaux de bord de contrôle indépendant pour les canaux Câblé et Réseau (déclenchement direct, reprise, volume, diffusion d'ambiance visuelle 1-clic) équipés d'une barre de bascule segmentée Câblé / Réseau animée (grossissement au survol, lueur de sélection spéculaire). Redirection automatique transparente de `/dashboard-cable` vers `/coach` lorsque le mode coach est actif. |
 | **Console Régie Coach** | `/coach` | Console régie studio responsive : double colonne sur tablette paysage et desktop avec lecteur tactile surdimensionné, minuteur, playlist déroulante intégrée, **Stage Monitor 16:9** (retour HDMI direct de salle) et **Palette tactile d'ambiances 16:9** avec switch live 1-clic. Version compacte monoposte avec tiroirs tactiles sur mobile. |
 | **Administration** | `/settings` | Gestionnaire de configuration : 16 thèmes (dont la paire minérale « Charbon » / « Charbon Sombre », clair et sombre, certifiés WCAG AA/AAA), sélecteur de mode d'affichage câblé (Pupitre Studio double écran vs Headless), actualisation réseau dynamique (polling 15s + bouton manuel), supervision complète (CPU, GPU, RAM, Stockage, Puissance en W, Températures, Uptime), sauvegarde/restauration ZIP. |
-| | `/metrics`<br>`/metrics/courses`<br>`/metrics/system` | Tableau de bord analytique et assiduité (Bêta 3.0.5) : 4 indicateurs clés (satisfaction moyenne 5★, taux de complétion ≥90%, volume de diffusion en heures, nombre de séances), histogramme 24h d'affluence horaire CSS pur, palmarès des cours plébiscités, télémétrie matérielle temps réel, base EAV et tiroir d'historique (1h, 6h, 24h, 7j). |
+| | `/metrics`<br>`/metrics/courses`<br>`/metrics/system` | Tableau de bord analytique et assiduité (Bêta 3.0.5) : 4 indicateurs clés (satisfaction moyenne sur 5 étoiles, taux de complétion ≥90%, volume de diffusion en heures, nombre de séances), histogramme 24h d'affluence horaire CSS pur, palmarès des cours plébiscités, télémétrie matérielle temps réel, base EAV et tiroir d'historique (1h, 6h, 24h, 7j). |
 | | `/library` | Bibliothèque vidéo avec métadonnées, durée et upload universel de miniatures personnalisées (`PUT /api/videos/{id}/thumbnail` via Pillow, sans dépendance ffmpeg). |
 | | `/backgrounds` | Hub d'Ambiances Visuelles (Bêta 3.0.5) : gestion centralisée des boucles d'ambiance 16:9 avec prévisualisations vidéo au survol, projection directe sur sorties Câblée et Réseau, lecteur modal immersif et configuration du fond par défaut pour les cours coach. |
 | | `/audio`<br>`/audio-playlists` | Bibliothèque audio coach et gestionnaire de playlists avec sélecteur visuel d'ambiance 16:9 modal et assignation dynamique. |
 | | `/playlists`<br>`/schedule`<br>`/logs` | Gestion des listes ordonnées, programmation horaire récurrente (APScheduler) et inspection des journaux système. |
-| | `/devices` | Périphériques : audio, Bluetooth et Wi-Fi de la machine, accès par PIN à distance, section Sécurité réservée à l'écran local (§5bis). |
+| | `/devices` | Périphériques : vue globale en carte, audio, routage par sortie radio, table de mixage, Bluetooth et Wi-Fi de la machine, accès par PIN à distance, section Sécurité réservée à l'écran local (§5bis). |
+| | `/storage` | Stockage externe : détection à chaud des clés USB, disques externes, cartes SD et téléphones (MTP/PTP), explorateur de fichiers, import direct, extension de bibliothèque et assistant de préparation/formatage (§5ter). |
 | **Sorties radio** | `/radio?channel=cable`<br>`/radio?channel=network`<br>`/radio` (alias réseau)<br>`/radio-announcements`<br>`/radio-library`<br>`/radio-remote` | Canal sonore continu indépendant avec enchaînement musical Web Audio API, ducking automatique et rappels vocaux de bienséance. |
 
 ---
@@ -686,10 +691,10 @@ Le serveur FastAPI (`backend/app/main.py`) monte dynamiquement le dossier statiq
 | Profil | Cible & Format | Emplacement frontend servi | Consommateur principal de l'UI |
 |---|---|---|---|
 | **Headless Appliance** | Dell Wyse / Mini PC (`install.sh`, Debian 13) | `frontend/out/` (relatif au dépôt) | Kiosque Chromium X11 (`/kiosk` et/ou `/cinema`) + navigateur distant pour l'admin |
-| **Windows Desktop** | Windows 10/11 (`.exe` Inno Setup) | `%ProgramFiles%\Bobine\frontend\out\` | Navigateur web par défaut au lancement + icône de notification en barre des tâches (systray). Supporte le mode Pupitre Studio (double écran) ou Headless (clamshell). |
-| **macOS Desktop** | macOS Apple Silicon (`.dmg` / `Bobine.app`) | `Bobine.app/Contents/Resources/frontend/out/` | Navigateur web par défaut + menu bar companion. Supporte le mode Pupitre Studio ou Clamshell capot fermé. |
-| **Linux Desktop** | Debian/Ubuntu/Mint (`.deb` / `apt.bobine.fit`) | `/usr/lib/bobine/frontend/out/` | Navigateur web par défaut + systray XDG. Supporte le mode Pupitre Studio ou Clamshell capot fermé. |
-| **Tablette Android / Android TV** | Tablettes ARM64 (`.apk`, Chaquopy, Python 3.13) ; boîtiers Android TV ARM 32/64 bits (`Bobine-TV-*.apk`, Python 3.11) | Assets embarqués `pyStage/backend/frontend_out/` | Double WebView matérielle : tactile local (`/grid` ou accueil) + affichage externe HDMI (`/cinema`) |
+| **Windows Desktop** | Windows 10/11 x86_64 & ARM64 Snapdragon (`.exe` Inno Setup) | `%ProgramFiles%\Bobine\frontend\out\` | Navigateur web par défaut au lancement + icône de notification en barre des tâches (systray). Supporte le mode Pupitre Studio (double écran) ou Headless (clamshell). |
+| **macOS Desktop** | macOS Apple Silicon M1–M4 (`.dmg` / `Bobine.app`) | `Bobine.app/Contents/Resources/frontend/out/` | Navigateur web par défaut + menu bar companion. Supporte le mode Pupitre Studio ou Clamshell capot fermé. |
+| **Linux Desktop** | Debian/Ubuntu/Mint (`.deb`), Fedora/RHEL (`.rpm`), Arch/Manjaro/CachyOS (`.pkg.tar.zst`) en x86_64 & ARM64 (`packages.bobine.fit`) | `/usr/lib/bobine/frontend/out/` | Navigateur web par défaut + systray XDG. Supporte le mode Pupitre Studio ou Clamshell capot fermé. |
+| **Tablette Android / Android TV** | Tablettes ARM64 Snapdragon 8 Gen 2/3 / Dimensity / Tensor (`.apk`, Chaquopy, Python 3.13) ; boîtiers Android TV ARM 32/64 bits (`Bobine-TV-*.apk`, Python 3.11) | Assets embarqués `pyStage/backend/frontend_out/` | Double WebView matérielle : tactile local (`/grid` ou accueil) + affichage externe HDMI (`/cinema`) |
 
 Sur le profil Android, les données sont réparties sur **deux racines de stockage** distinctes (`backend/app/config.py::_android_internal_root()`) — la base SQLite, les miniatures, les logs, le branding et les pochettes radio vivent sur le stockage **interne** de l'app (`context.filesDir`, f2fs natif) tandis que les médias (vidéos, fonds, audio, radio) restent sur le stockage **externe** (`context.getExternalFilesDir`, servi par FUSE, visible depuis un gestionnaire de fichiers). Une installation existante est migrée automatiquement et sans risque de perte (copie, jamais de déplacement destructif, vérification `PRAGMA integrity_check` avant utilisation) au premier démarrage qui suit une mise à jour — cf. `android/app/src/main/python/bobine_bootstrap.py`.
 | **Assistant GUI** | Linux x86_64 (`bobine-assistant`, Tauri 2 / Rust) | `assistant/ui/` (intégré au binaire Rust) | Fenêtre native GTK WebKit pour la découverte mDNS, scan LAN et déploiement SSH |

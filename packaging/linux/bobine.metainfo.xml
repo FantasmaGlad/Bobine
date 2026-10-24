@@ -59,6 +59,11 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="5.0.5" date="2026-10-24">
+      <description>
+        <p>Version 5.0.5 : gestion du stockage externe à chaud (clés USB, disques externes, cartes SD et téléphones MTP/PTP avec explorateur, import direct, extension de bibliothèque et assistant de préparation/formatage), routage audio par sortie radio et table de mixage dédiée, appairage distant par code à 6 chiffres, dépôts Linux officiels unifiés sur packages.bobine.fit (Debian APT, Fedora RPM, Arch Linux Pacman) en x86_64 et ARM64, et composant audio natif Rust bobine-media.</p>
+      </description>
+    </release>
     <release version="5.0.2" date="2026-10-20">
       <description>
         <p>Version 5.0.2 : onglet Périphériques (audio, Bluetooth et Wi-Fi de la machine qui diffuse, vue globale en carte, accès par code PIN), deux sorties radio indépendantes (câblée et réseau) avec gestion du son, bibliothèque radio repensée, écrans de diffusion adaptés aux téléviseurs de format atypique, écran de chargement Android aux couleurs du thème.</p>
@@ -101,7 +106,7 @@
     </release>
     <release version="3.0.2" date="2026-09-09">
       <description>
-        <p>Version 3.0.2 : Sortie officielle de l'application native Android (.apk) avec double affichage tactile/HDMI et serveur embarqué, réencodage avec accélération matérielle multi-OS (MediaCodec, VideoToolbox, VA-API), politique stricte de conservation intégrale des résolutions 2K/4K sans sous-échantillonnage, annulation réactive d'importation (croix ✕ avec arrêt immédiat et purge), estimation de durée en direct (ETA), miniatures 1080p et navigation temporelle fluide.</p>
+        <p>Version 3.0.2 : Sortie officielle de l'application native Android (.apk) avec double affichage tactile/HDMI et serveur embarqué, réencodage avec accélération matérielle multi-OS (MediaCodec, VideoToolbox, VA-API), politique stricte de conservation intégrale des résolutions 2K/4K sans sous-échantillonnage, annulation réactive d'importation (bouton de fermeture avec arrêt immédiat et purge), estimation de durée en direct (ETA), miniatures 1080p et navigation temporelle fluide.</p>
       </description>
     </release>
     <release version="3.0.1" date="2026-09-08">

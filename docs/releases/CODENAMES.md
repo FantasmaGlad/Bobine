@@ -19,3 +19,4 @@ Chaque version **Stable** majeure ou marquante reçoit, en plus de son numéro `
 | :--- | :--- | :--- |
 | V5.0.0 | Orchidée | 2026-10-17 |
 | V5.0.2 | Constellation | 2026-10-20 |
+| V5.0.5 | Résonance | 2026-10-24 |

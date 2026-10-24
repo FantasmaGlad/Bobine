@@ -1,16 +1,17 @@
-"""Handler du profil `linux-desktop` (app de bureau Linux, paquet .deb).
+"""Handler du profil `linux-desktop` (app de bureau Linux : .deb, .rpm ou .pkg.tar.zst).
 
 Dans ce profil, Bobine tourne en session utilisateur (lancé au login par le
 fichier .desktop autostart ou l'unité systemd utilisateur) avec BobineTray
 comme superviseur local (cf. `backend/app/desktop/tray.py`).
 `restart_services()` se contente de mettre fin au process courant (`os._exit(0)`) :
 c'est le superviseur (BobineTray ou `Restart=always` systemd --user) qui le relance.
-La désinstallation est déléguée au gestionnaire de paquets de la distribution
-(`apt remove bobine`).
+La mise à jour et la désinstallation s'adaptent automatiquement au format de paquet
+de la distribution (`dpkg/apt`, `rpm/dnf` ou `pacman`).
 """
 
 import logging
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -22,6 +23,51 @@ from app.utils.update_orchestrator import clean_subprocess_env, download_with_pr
 logger = logging.getLogger(__name__)
 
 _NOOP_REPORT: Callable[..., None] = lambda *a, **k: None  # noqa: E731
+
+
+def detect_linux_package_format() -> str:
+    """Détecte le format de paquet Linux ayant installé Bobine (ou celui natif
+    de la distribution hôte) : `.deb`, `.rpm` ou `.pkg.tar.zst`."""
+    env_override = os.environ.get("BOBINE_LINUX_PKG_FORMAT", "").strip().lower()
+    if env_override in (".deb", "deb"):
+        return ".deb"
+    if env_override in (".rpm", "rpm"):
+        return ".rpm"
+    if env_override in (".pkg.tar.zst", "arch", "pacman"):
+        return ".pkg.tar.zst"
+
+    env = clean_subprocess_env()
+    for probe_cmd, ext in (
+        (["dpkg", "-s", "bobine"], ".deb"),
+        (["rpm", "-q", "bobine"], ".rpm"),
+        (["pacman", "-Qi", "bobine"], ".pkg.tar.zst"),
+    ):
+        if shutil.which(probe_cmd[0]):
+            try:
+                res = subprocess.run(
+                    probe_cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=3,
+                    env=env,
+                )
+                if res.returncode == 0:
+                    return ext
+            except Exception:
+                pass
+
+    if Path("/etc/arch-release").exists():
+        return ".pkg.tar.zst"
+    if Path("/etc/fedora-release").exists() or Path("/etc/redhat-release").exists():
+        return ".rpm"
+    if Path("/etc/debian_version").exists():
+        return ".deb"
+
+    if shutil.which("pacman") and not shutil.which("dpkg"):
+        return ".pkg.tar.zst"
+    if (shutil.which("dnf") or shutil.which("rpm")) and not shutil.which("dpkg"):
+        return ".rpm"
+    return ".deb"
 
 
 class LinuxDesktopHandler(ProfileHandler):
@@ -81,11 +127,28 @@ class LinuxDesktopHandler(ProfileHandler):
             cmd = "sleep 1 && pkexec ./install.sh --uninstall --purge --purge-data -y"
             subprocess.Popen(["sh", "-c", cmd], cwd=repo_dir, start_new_session=True)
         else:
-            cmd = "sleep 1 && (pkexec apt-get remove -y bobine || pkexec dpkg -P bobine || pkexec dpkg -r bobine)"
-            subprocess.Popen(["sh", "-c", cmd], start_new_session=True)
+            pkg_fmt = detect_linux_package_format()
+            if pkg_fmt == ".pkg.tar.zst":
+                cmd = "sleep 1 && (pkexec pacman -Rns --noconfirm bobine || pkexec pacman -R --noconfirm bobine)"
+            elif pkg_fmt == ".rpm":
+                cmd = "sleep 1 && (pkexec dnf remove -y bobine || pkexec rpm -e bobine)"
+            else:
+                cmd = "sleep 1 && (pkexec apt-get remove -y bobine || pkexec dpkg -P bobine || pkexec dpkg -r bobine)"
+            subprocess.Popen(["sh", "-c", cmd], start_new_session=True, env=clean_subprocess_env())
         logger.info("Désinstallation Linux desktop déclenchée en tâche de fond via pkexec.")
 
     def uninstall_instructions(self) -> str:
+        pkg_fmt = detect_linux_package_format()
+        if pkg_fmt == ".pkg.tar.zst":
+            return (
+                "Pour désinstaller Bobine manuellement, exécutez dans un terminal : "
+                "sudo pacman -Rns bobine."
+            )
+        if pkg_fmt == ".rpm":
+            return (
+                "Pour désinstaller Bobine manuellement, exécutez dans un terminal : "
+                "sudo dnf remove bobine (ou utilisez votre logithèque habituelle)."
+            )
         return (
             "Pour désinstaller Bobine manuellement, exécutez dans un terminal : "
             "sudo apt remove bobine (ou utilisez votre logithèque habituelle)."
@@ -123,65 +186,57 @@ class LinuxDesktopHandler(ProfileHandler):
             self.restart_services()
             return
 
-        # Environnement paquet installé .deb
+        # Environnement paquet installé (.deb, .rpm ou .pkg.tar.zst)
         if not download_url:
             raise UpdateUnsupported(
-                "Aucun lien de téléchargement disponible pour mettre à jour le paquet Linux (.deb)."
+                "Aucun lien de téléchargement disponible pour mettre à jour le paquet Linux."
             )
 
-        deb_file = Path(tempfile.mkdtemp(prefix="bobine-update-")) / "bobine_update.deb"
-        report("downloading", percent=0, message="Téléchargement du paquet .deb…")
+        url_lower = download_url.lower().split("?", 1)[0]
+        if url_lower.endswith(".pkg.tar.zst"):
+            pkg_ext = ".pkg.tar.zst"
+        elif url_lower.endswith(".rpm"):
+            pkg_ext = ".rpm"
+        elif url_lower.endswith(".deb"):
+            pkg_ext = ".deb"
+        else:
+            pkg_ext = detect_linux_package_format()
+
+        pkg_file = Path(tempfile.mkdtemp(prefix="bobine-update-")) / f"bobine_update{pkg_ext}"
+        report("downloading", percent=0, message=f"Téléchargement du paquet {pkg_ext}…")
         download_with_progress(
-            download_url, deb_file, asset_digest,
+            download_url, pkg_file, asset_digest,
             on_progress=lambda pct: report("downloading", percent=pct, message=f"Téléchargement : {pct}%"),
             on_verifying=lambda: report("verifying", message="Vérification de l'intégrité du paquet…"),
         )
 
-        # Correctif de la cause racine "l'application ne redémarre jamais
-        # après une mise à jour .deb" : l'ANCIEN code lançait `pkexec dpkg -i`
-        # en tâche détachée (fire-and-forget, résultat jamais lu) et
-        # déléguait la relance à `postinst` du paquet, qui devine
-        # l'utilisateur à relancer via la variable d'environnement
-        # `$SUDO_USER` — variable que `pkexec` NE positionne JAMAIS
-        # (contrairement à `sudo`). Ce process Python tourne DÉJÀ comme
-        # l'utilisateur de la session (seule l'installation du paquet exige
-        # une élévation via `pkexec`, pas ce process lui-même) : il connaît
-        # donc directement qui relancer, sans avoir besoin de deviner quoi
-        # que ce soit ni de dépendre de `postinst`. `postinst` reste un
-        # filet de sécurité pour le cas d'un `apt upgrade` lancé en dehors
-        # de l'application (cf. packaging/linux/DEBIAN/postinst).
-        # Sentinelle lue par `packaging/linux/DEBIAN/prerm` : sans elle, le
-        # script `prerm` de l'ANCIEN paquet (invoqué par `dpkg -i`
-        # ci-dessous, AVANT même que le nouveau soit déballé) tue ce
-        # process par nom (`killall BobineBackend`) en plein milieu de sa
-        # propre mise à jour — avant qu'il ait pu se redémarrer proprement
-        # via `restart_services()` juste après. `/tmp` est accessible en
-        # lecture par le `prerm` exécuté en root sous `pkexec` même si posé
-        # par ce process non-root.
+        # Sentinelle lue par `packaging/linux/DEBIAN/prerm`, `packaging/rpm/bobine.spec` (%pre)
+        # et `packaging/arch/bobine.install` (_bobine_stop) : sans elle, le script de pré-mise à jour
+        # de l'ANCIEN paquet tue ce process par nom avant qu'il ait pu se redémarrer proprement
+        # via `restart_services()` juste après.
         self_update_sentinel = Path("/tmp/bobine-self-update-in-progress")
         report("installing", message="Installation du paquet (autorisation système requise)…")
         try:
             self_update_sentinel.touch(exist_ok=True)
-            run_checked(["pkexec", "dpkg", "-i", str(deb_file)], timeout=180)
+            if pkg_ext == ".pkg.tar.zst":
+                run_checked(["pkexec", "pacman", "-U", "--noconfirm", str(pkg_file)], timeout=180)
+            elif pkg_ext == ".rpm":
+                if shutil.which("dnf"):
+                    run_checked(["pkexec", "dnf", "install", "-y", str(pkg_file)], timeout=180)
+                else:
+                    run_checked(["pkexec", "rpm", "-Uvh", "--replacepkgs", str(pkg_file)], timeout=180)
+            else:
+                run_checked(["pkexec", "dpkg", "-i", str(pkg_file)], timeout=180)
         except Exception as e:
-            raise RuntimeError(f"Échec de l'installation du paquet .deb : {e}") from e
+            raise RuntimeError(f"Échec de l'installation du paquet {pkg_ext} : {e}") from e
         finally:
             self_update_sentinel.unlink(missing_ok=True)
             try:
-                deb_file.unlink(missing_ok=True)
-                deb_file.parent.rmdir()
+                pkg_file.unlink(missing_ok=True)
+                pkg_file.parent.rmdir()
             except OSError:
                 pass
 
-        # Redémarrage via `restart_services()` (tâche détachée + `os._exit(0)`
-        # différé), PAS un `run_checked(["systemctl", "--user", "restart", ...])`
-        # synchrone comme auparavant : ce process EST la cible du restart — un
-        # `systemctl --user restart bobine.service` qui attend la fin de la
-        # commande dans CE process se fait tuer par systemd en plein milieu de
-        # l'attente (la phase "stop" du restart envoie SIGTERM à ce process
-        # avant que `subprocess.run()` n'ait pu retourner), ce qui pouvait
-        # interrompre la mise à jour avant que l'issue réelle soit connue —
-        # race condition indépendante du bug OpenSSL ci-dessus. Même pattern
-        # que le chemin "checkout git" un peu plus haut dans cette méthode.
-        report("restarting", message="Redémarrage du service…")
+        report("restarting", message="Redémarrage de Bobine…")
         self.restart_services()
+

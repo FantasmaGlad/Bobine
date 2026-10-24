@@ -1,10 +1,14 @@
+<p align="center">
+  <img alt="Bobine" src="../Assets/Images/LogoBanniere.png" width="75%">
+</p>
+
 # Bobine — Technical Architecture & Developer Reference
 
-> **Bilingual document**: this file must be kept in sync with its French version ([`ARCHITECTURE.md`](ARCHITECTURE.md)) — last synchronized: 2026-10-23.
+> **Bilingual document**: this file must be kept in sync with its French version ([`ARCHITECTURE.md`](ARCHITECTURE.md)) — last synchronized: 2026-10-24.
 
 > Technical reference. For a user-oriented presentation (what Bobine is for, guided installation, getting started), see the **[README](../README.md)** (`README.fr.md` for French).
 
-Playback, scheduling and control of class videos in a gym, on a dedicated mini PC. Single-process FastAPI server + SQLite, Chromium X11 kiosk, Next.js admin interface and mobile remote control.
+Playback, scheduling and control of class videos in a gym, on a dedicated mini PC, desktop workstation or tablet. Single-process FastAPI server + SQLite, Chromium X11 kiosk, Next.js admin interface and mobile remote control.
 
 This document is written for anyone who wants to **understand, operate, modify or deploy** the Bobine system: it describes the architecture as it actually stands (not an intention), the network contract, the data model, and the operating configuration on a dedicated mini PC.
 
@@ -104,13 +108,13 @@ Configuration is loaded in the following priority order:
 
 ```
 ┌─────────────┐      HTTP / WebSockets      ┌─────────────────────────────────┐
-│  Frontend   │ ───────────────────────────►│        Backend FastAPI          │
+│  Frontend   │ --------------------------->│        Backend FastAPI          │
 │  Next.js    │                             │    (uvicorn, single-process)    │
-│ (Kiosk /    │◀─────────────────────────── │  app/routers/* → playback_mgr   │
+│ (Kiosk /    │<--------------------------- │  app/routers/* → playback_mgr   │
 │  Admin /    │                             └─────────────────────────────────┘
 │ Mobile Remote)│                                    │
 └─────────────┘                                    │
-                                                   ▼
+                                                   v
                                           ┌──────────────┐
                                           │    SQLite    │
                                           │ (database.db)│
@@ -129,7 +133,7 @@ The backend runs as a single `uvicorn` process (`--workers 1`). Playback state (
 - `scheduler_manager.py`: `APScheduler`-based manager for time-based scheduling (recurrences, conflict detection, offsets, radio windows).
 - `models.py`: SQLAlchemy ORM declarations.
 - `config.py`: Dynamic configuration manager.
-- `routers/`: HTTP endpoints grouped by domain (`videos`, `backgrounds`, `playlists`, `audio`, `audio_playlists`, `schedule`, `playback`, `settings`, `logs`, `import_jobs`, `radio`, `radio_playlists`, `radio_announcements`, `devices`, `chapters`, `metrics`, `updates`, `uploads`, `display`, `diagnostics`); `devices/`: driver interface and the Linux, sidecar and Android drivers, PIN and service (§5bis).
+- `routers/`: HTTP endpoints grouped by domain (`videos`, `backgrounds`, `playlists`, `audio`, `audio_playlists`, `schedule`, `playback`, `settings`, `logs`, `import_jobs`, `radio`, `radio_playlists`, `radio_announcements`, `devices`, `storage`, `chapters`, `metrics`, `updates`, `uploads`, `display`, `diagnostics`); `devices/`: driver interface and the Linux, sidecar and Android drivers, PIN and service (§5bis).
 
 ---
 
@@ -178,10 +182,10 @@ Every import triggered by a web upload or by the file watcher (`watchdog` / `Pol
 ### 2. Full Multi-OS Hardware Acceleration (`video_utils.py`)
 
 The normalization engine uses a full 3-tier automatic hardware-acceleration pipeline (Full Hardware direct-VRAM → Hybrid GPU → CPU fallback) adapted dynamically to the system profile (`get_deployment_profile()`) and the graphics silicon:
-- **Linux Desktop & Wyse Appliance (Intel QuickSync / AMD VA-API)**: Tier 1 Full HW via automatic DRM render-node detection (`_find_vaapi_device()`), direct decoding into VA-API surfaces (`-hwaccel vaapi -hwaccel_output_format vaapi`), GPU formatting `scale_vaapi=format=nv12` and hardware `h264_vaapi` encoding. Processing stays 100% inside VRAM with no RAM-PCIe transit, cutting CPU load by more than 93% (eliminating the 30W spikes). If a stream isn't supported, automatic fallback to Tier 2 Hybrid (`-vf "format=nv12,hwupload"`).
-- **Android (Qualcomm Snapdragon / MediaTek SoC)**: Proactive hardware decoding paced with `-operating_rate 1000 -c:v <codec>_mediacodec` (AV1, HEVC, VP9, H.264) and native hardware encoding `h264_mediacodec` (`-pix_fmt nv12 -b:v <bitrate>`). Speed observed on a Xiaomi Pad 8: **4.2x to 5.1x** real time.
-- **macOS (Apple Silicon M1 to M4 & Intel)**: Direct hardware decoding `-hwaccel videotoolbox` and hardware encoding `h264_videotoolbox` (`-q:v 65 -pix_fmt yuv420p`), ultra-fast conversion without stressing the CPU cores.
-- **Windows (Intel QuickSync)**: Hardware decoding `-hwaccel qsv -hwaccel_output_format qsv` and `h264_qsv` encoding (`-preset fast`).
+- **Linux Desktop & Wyse Appliance (Intel QuickSync N100/N200/Core Ultra/Celeron / AMD Radeon VA-API)**: Tier 1 Full HW via automatic DRM render-node detection (`_find_vaapi_device()`), direct decoding into VA-API surfaces (`-hwaccel vaapi -hwaccel_output_format vaapi`), GPU formatting `scale_vaapi=format=nv12` and hardware `h264_vaapi` encoding. Processing stays 100% inside VRAM with no RAM-PCIe transit, cutting CPU load by more than 93% (eliminating the 30W spikes). If a stream isn't supported, automatic fallback to Tier 2 Hybrid (`-vf "format=nv12,hwupload"`).
+- **Android & Google Books (Qualcomm Snapdragon 8 Gen 2 / 8 Gen 3 / 8 Elite / 8s Gen 3 / 7+ Gen 3, MediaTek Dimensity / Kompanio, Google Tensor G2–G4)**: Proactive hardware decoding paced with `-operating_rate 1000 -c:v <codec>_mediacodec` (AV1, HEVC, VP9, H.264) and native hardware encoding `h264_mediacodec` (`-pix_fmt nv12 -b:v <bitrate>`). Speed observed on a Xiaomi Pad 8: **4.2x to 5.1x** real time.
+- **macOS (Apple Silicon M1, M2, M3, M4 Pro/Max & Intel)**: Direct hardware decoding `-hwaccel videotoolbox` and hardware encoding `h264_videotoolbox` (`-q:v 65 -pix_fmt yuv420p`), ultra-fast conversion without stressing the CPU cores.
+- **Windows (Intel QuickSync, AMD Radeon & Qualcomm Snapdragon X Elite / X Plus ARM64)**: Hardware decoding `-hwaccel qsv -hwaccel_output_format qsv` and `h264_qsv` encoding (`-preset fast`).
 - **Universal fallback (Tier 3)**: if hardware acceleration fails or is unavailable (e.g. a headless server with no GPU), transparent automatic fallback to `libx264 -preset veryfast` with no task interruption.
 - **Tightened keyframe interval**: every normalized video (regardless of encoder) gets `-g 60` (`-keyint_min 60` on the software fallback), i.e. one keyframe roughly every 2s at 30 fps — this guarantees reliable fast-forward/rewind and prevents an admin seek to an off-keyframe position from leaving the decoder stuck (see §4, "Recovering from a stuck video decoder").
 
@@ -197,7 +201,7 @@ Bobine strictly respects source media fidelity:
 
 ### 4. Reactive Cancellation & Atomic Cleanup
 
-- **Immediate stop**: clicking the cross (✕) in the floating upload panel issues a `DELETE /api/import-jobs/{job_id}` call.
+- **Immediate stop**: clicking the close button in the floating upload panel issues a `DELETE /api/import-jobs/{job_id}` call.
 - **Process interruption**: `cancel_job()` flags the atomic cancellation, sends `SIGTERM` (then a safety `SIGKILL` after 1.5s) to the registered FFmpeg subprocess, and cancels the thread-pool `Future`.
 - **Full purge**: the interruption raises `JobCancelledError`, causing immediate deletion of partial destination files (`dest_path`, temporary thumbnails) with no database write at all.
 - **Preventive startup cleanup**: on launch, the backend scans the media directories to remove orphaned temporary leftovers from an abrupt power loss.
@@ -652,7 +656,7 @@ Commits stay local until a machine with GitHub access (outside the Wyse's LAN) p
 
 Bobine is built on a **single, unified frontend interface** built with Next.js 16 (App Router) and statically exported (`npm run build` → `frontend/out`). This interface is shared and embedded identically across **every deployment profile**.
 
-### 10.1 Map of the Interface's 22 Routes (+ `/` redirecting to `/dashboard-cable`)
+### 10.1 Map of the Interface's 23 Routes (+ `/` redirecting to `/dashboard-cable`)
 
 | Category | Route(s) | Description & Multi-OS Specifics |
 |---|---|---|
@@ -662,12 +666,13 @@ Bobine is built on a **single, unified frontend interface** built with Next.js 1
 | **Control & Dashboards** | `/dashboard-cable`<br>`/dashboard-network` | Independent control dashboards for the Cabled and Network channels (direct trigger, resume, volume, one-click ambiance broadcast) equipped with an animated segmented Cable / Network switch bar (hover scale effect, specular selection glow). Automatic, transparent redirect from `/dashboard-cable` to `/coach` when Coach mode is active. |
 | **Coach Control Console** | `/coach` | Responsive studio control console: two columns on a landscape tablet and desktop with an oversized touch player, timer, integrated dropdown playlist, a **16:9 Stage Monitor** (live HDMI feed from the room) and a **16:9 touch ambiance palette** with a live 1-tap switch. Compact single-pane version with touch drawers on mobile. |
 | **Administration** | `/settings` | Configuration manager: 16 themes (including the mineral "Charbon" / "Charbon Sombre" pair, light and dark, WCAG AA/AAA certified), cabled display mode selector (dual-screen Studio Desk vs Headless), dynamic network refresh (15s polling + manual button), full monitoring (CPU, GPU, RAM, Storage, Power in W, Temperatures, Uptime), ZIP backup/restore. |
-| | `/metrics`<br>`/metrics/courses`<br>`/metrics/system` | Analytics and attendance dashboard (Beta since 3.0.5): 4 key indicators (average 5★ satisfaction, ≥90% completion rate, broadcast volume in hours, number of sessions), a pure-CSS 24h hourly attendance histogram, ranking of favorite courses, real-time hardware telemetry, an EAV database and a history drawer (1h, 6h, 24h, 7d). |
+| | `/metrics`<br>`/metrics/courses`<br>`/metrics/system` | Analytics and attendance dashboard (Beta since 3.0.5): 4 key indicators (average 5-star satisfaction, ≥90% completion rate, broadcast volume in hours, number of sessions), a pure-CSS 24h hourly attendance histogram, ranking of favorite courses, real-time hardware telemetry, an EAV database and a history drawer (1h, 6h, 24h, 7d). |
 | | `/library` | Video library with metadata, duration and universal custom thumbnail upload (`PUT /api/videos/{id}/thumbnail` via Pillow, no ffmpeg dependency). |
 | | `/backgrounds` | Visual Ambiances Hub (Beta since 3.0.5): centralized management of 16:9 ambiance loops with hover video previews, direct broadcast to the Cabled and Network outputs, an immersive modal player and default-background configuration for coach courses. |
 | | `/audio`<br>`/audio-playlists` | Audio-coach library and playlist manager with a modal 16:9 visual ambiance selector and dynamic assignment. |
 | | `/playlists`<br>`/schedule`<br>`/logs` | Management of ordered lists, recurring time-based scheduling (APScheduler) and system log inspection. |
-| | `/devices` | Devices: the machine's audio, Bluetooth and Wi-Fi, PIN access when remote, Security section reserved to the local screen (§5bis). |
+| | `/devices` | Devices: global map view, audio, per-radio-output routing, mixer console, Bluetooth and Wi-Fi of the machine, PIN access when remote, Security section reserved to the local screen (§5bis). |
+| | `/storage` | External storage: hot-plug detection of USB drives, external disks, SD cards and phones (MTP/PTP), file explorer, direct import, library extension and preparation/formatting wizard (§5ter). |
 | **Radio outputs** | `/radio?channel=cable`<br>`/radio?channel=network`<br>`/radio` (network alias)<br>`/radio-announcements`<br>`/radio-library`<br>`/radio-remote` | Independent continuous audio channel with Web Audio API music chaining, automatic ducking and courtesy voice reminders. |
 
 ---
@@ -679,10 +684,10 @@ The FastAPI server (`backend/app/main.py`) dynamically mounts the static folder 
 | Profile | Target & Format | Frontend Location Served | Main UI Consumer |
 |---|---|---|---|
 | **Headless Appliance** | Dell Wyse / Mini PC (`install.sh`, Debian 13) | `frontend/out/` (relative to the repository) | Chromium X11 kiosk (`/kiosk` and/or `/cinema`) + a remote browser for admin |
-| **Windows Desktop** | Windows 10/11 (`.exe` Inno Setup) | `%ProgramFiles%\Bobine\frontend\out\` | Default web browser on launch + a taskbar notification icon (systray). Supports Studio Desk mode (dual screen) or Headless (clamshell). |
-| **macOS Desktop** | macOS Apple Silicon (`.dmg` / `Bobine.app`) | `Bobine.app/Contents/Resources/frontend/out/` | Default web browser + a menu bar companion. Supports Studio Desk mode or closed-lid Clamshell. |
-| **Linux Desktop** | Debian/Ubuntu/Mint (`.deb` / `apt.bobine.fit`) | `/usr/lib/bobine/frontend/out/` | Default web browser + XDG systray. Supports Studio Desk mode or closed-lid Clamshell. |
-| **Android Tablet / Android TV** | ARM64 tablets (`.apk`, Chaquopy, Python 3.13); 32/64-bit ARM Android TV boxes (`Bobine-TV-*.apk`, Python 3.11) | Embedded assets `pyStage/backend/frontend_out/` | Dual hardware WebView: local touch screen (`/grid` or home) + external HDMI display (`/cinema`) |
+| **Windows Desktop** | Windows 10/11 x86_64 & ARM64 Snapdragon (`.exe` Inno Setup) | `%ProgramFiles%\Bobine\frontend\out\` | Default web browser on launch + a taskbar notification icon (systray). Supports Studio Desk mode (dual screen) or Headless (clamshell). |
+| **macOS Desktop** | macOS Apple Silicon M1–M4 (`.dmg` / `Bobine.app`) | `Bobine.app/Contents/Resources/frontend/out/` | Default web browser + a menu bar companion. Supports Studio Desk mode or closed-lid Clamshell. |
+| **Linux Desktop** | Debian/Ubuntu/Mint (`.deb`), Fedora/RHEL (`.rpm`), Arch/Manjaro/CachyOS (`.pkg.tar.zst`) on x86_64 & ARM64 (`packages.bobine.fit`) | `/usr/lib/bobine/frontend/out/` | Default web browser + XDG systray. Supports Studio Desk mode or closed-lid Clamshell. |
+| **Android Tablet / Android TV** | ARM64 tablets Snapdragon 8 Gen 2/3 / Dimensity / Tensor (`.apk`, Chaquopy, Python 3.13); 32/64-bit ARM Android TV boxes (`Bobine-TV-*.apk`, Python 3.11) | Embedded assets `pyStage/backend/frontend_out/` | Dual hardware WebView: local touch screen (`/grid` or home) + external HDMI display (`/cinema`) |
 
 On the Android profile, data is split across **two storage roots** (`backend/app/config.py::_android_internal_root()`) — the SQLite database, thumbnails, logs, branding and radio cover art live on the app's **internal** storage (`context.filesDir`, native f2fs), while media (videos, backgrounds, audio, radio) stays on **external** storage (`context.getExternalFilesDir`, served over FUSE, visible from a file manager). An existing install is migrated automatically with no risk of data loss (copy, never a destructive move, with a `PRAGMA integrity_check` before use) on the first launch following an update — see `android/app/src/main/python/bobine_bootstrap.py`.
 | **GUI Assistant** | Linux x86_64 (`bobine-assistant`, Tauri 2 / Rust) | `assistant/ui/` (bundled into the Rust binary) | Native GTK WebKit window for mDNS discovery, LAN scanning and SSH deployment |

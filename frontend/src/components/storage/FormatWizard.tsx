@@ -242,7 +242,7 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
             {plan.options.map((o) => {
               const notes = visibleNotes({ reason: o.reason, notes: o.notes.filter((n) => n !== "quick_format_only") }, 3);
               return (
-                <label key={o.fs} className="fmt-option" aria-disabled={!o.available}>
+                <label key={o.fs} className="fmt-option glass-interactive" aria-disabled={!o.available}>
                   <input type="radio" name="fmt-fs" checked={fs === o.fs} disabled={!o.available} onChange={() => choose(o)} />
                   <span className="dv-text">
                     <span className="dv-title">

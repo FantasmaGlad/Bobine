@@ -173,6 +173,29 @@ def test_desktop_profiles_pick_their_extension():
     assert updates._resolve_asset("macos", _RELEASE_ASSETS)["download_url"] is None
 
 
+def test_multi_distro_and_multi_arch_asset_resolution():
+    full_release = {
+        "assets": [
+            {"name": "Bobine-Setup-5.0.5.exe", "browser_download_url": "u/win-x64.exe", "size": 10, "digest": "sha256:1"},
+            {"name": "Bobine-Setup-5.0.5-arm64.exe", "browser_download_url": "u/win-arm64.exe", "size": 11, "digest": "sha256:2"},
+            {"name": "bobine_5.0.5_amd64.deb", "browser_download_url": "u/deb-amd64.deb", "size": 12, "digest": "sha256:3"},
+            {"name": "bobine_5.0.5_arm64.deb", "browser_download_url": "u/deb-arm64.deb", "size": 13, "digest": "sha256:4"},
+            {"name": "bobine-5.0.5-1.x86_64.rpm", "browser_download_url": "u/rpm-x64.rpm", "size": 14, "digest": "sha256:5"},
+            {"name": "bobine-5.0.5-1.aarch64.rpm", "browser_download_url": "u/rpm-arm64.rpm", "size": 15, "digest": "sha256:6"},
+            {"name": "bobine-5.0.5-1-x86_64.pkg.tar.zst", "browser_download_url": "u/arch-x64.pkg.tar.zst", "size": 16, "digest": "sha256:7"},
+            {"name": "bobine-5.0.5-1-aarch64.pkg.tar.zst", "browser_download_url": "u/arch-arm64.pkg.tar.zst", "size": 17, "digest": "sha256:8"},
+        ]
+    }
+    assert updates._resolve_asset("windows", full_release, arch="x86_64")["download_url"] == "u/win-x64.exe"
+    assert updates._resolve_asset("windows", full_release, arch="arm64")["download_url"] == "u/win-arm64.exe"
+    assert updates._resolve_asset("linux-desktop", full_release, arch="x86_64", linux_ext=".deb")["download_url"] == "u/deb-amd64.deb"
+    assert updates._resolve_asset("linux-desktop", full_release, arch="arm64", linux_ext=".deb")["download_url"] == "u/deb-arm64.deb"
+    assert updates._resolve_asset("linux-desktop", full_release, arch="x86_64", linux_ext=".rpm")["download_url"] == "u/rpm-x64.rpm"
+    assert updates._resolve_asset("linux-desktop", full_release, arch="arm64", linux_ext=".rpm")["download_url"] == "u/rpm-arm64.rpm"
+    assert updates._resolve_asset("linux-desktop", full_release, arch="x86_64", linux_ext=".pkg.tar.zst")["download_url"] == "u/arch-x64.pkg.tar.zst"
+    assert updates._resolve_asset("linux-desktop", full_release, arch="arm64", linux_ext=".pkg.tar.zst")["download_url"] == "u/arch-arm64.pkg.tar.zst"
+
+
 # --- reconciliation de l'etat apres redemarrage -----------------------------
 
 @pytest.fixture

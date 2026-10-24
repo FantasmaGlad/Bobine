@@ -246,7 +246,7 @@ def generate(output, ffmpeg, scale=0, cover_ratio=0.25):
     ]
     variants = [
         ("absent", {}, "01 - No_tags"),
-        ("unicode", {"title": "Été 東京 🎵", "artist": "Björk synthétique", "album": "À demain"}, "éspace 東京"),
+        ("unicode", {"title": "Été 東京 Ω", "artist": "Björk synthétique", "album": "À demain"}, "éspace 東京"),
         ("numbers", {"title": "Numbers", "track": "03/12", "disc": "02/04", "date": "2024-06-17",
                      "album_artist": "Ensemble", "genre": "Synthetic"}, "03_numbers"),
         ("atypical", {"title": "  Padded title  ", "artist": "", "date": "recorded in 1999"}, "-leading [brackets] & quote's"),

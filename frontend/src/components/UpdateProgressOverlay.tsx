@@ -29,7 +29,7 @@ const ACTIVE_STEPS: UpdateStep[] = [
 ];
 
 // Sous-ensemble d'ACTIVE_STEPS affiché comme un mini-stepper façon
-// "installeur wizard" (✓ fait / ● en cours / ○ à venir) — "awaiting_user_
+// "installeur wizard" (fait / en cours / à venir) — "awaiting_user_
 // confirmation" (spécifique Android : attente d'un tap sur l'appareil, pas
 // une étape séquentielle du pipeline) garde son affichage textuel seul,
 // sans entrer dans cette séquence linéaire.
@@ -164,7 +164,7 @@ export default function UpdateProgressOverlay() {
     }
   })();
 
-  // Mini-stepper "installeur wizard" : chaque étape passée affiche un ✓,
+  // Mini-stepper "installeur wizard" : chaque étape passée affiche une coche SVG,
   // l'étape en cours un point plein, les suivantes un cercle vide — répond
   // au constat "pas assez d'informations visuelles sur ce qu'il se passe
   // pendant l'installation d'une mise à jour". Affiché pendant les étapes

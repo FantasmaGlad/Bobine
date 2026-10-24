@@ -572,7 +572,7 @@ export default function RadioLibraryPage() {
   };
 
   // Ambiance par défaut PROPRE à chaque sortie radio (câblée, réseau) : un choix facultatif qui
-  // prime sur la playlist ★ « par défaut » (inchangée, elle reste le repli des deux sorties).
+  // prime sur la playlist « par défaut » (inchangée, elle reste le repli des deux sorties).
   // La bibliothèque et les playlists restent uniques — seule la désignation est par sortie.
   const [outputDefaults, setOutputDefaults] = useState<Record<string, { override_playlist_id: number | null; effective_playlist_id: number | null }> | null>(null);
   const loadOutputDefaults = () => {

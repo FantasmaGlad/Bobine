@@ -683,7 +683,7 @@ export const dictionaries: Record<Language, Dict> = {
     radioLibrary: {
       title: "Piste Audio Radio",
       outputDefaultLabel: "Ambiance par défaut pour :",
-      outputDefaultHint: "Choisit cette playlist comme ambiance de la sortie (démarrage, fin de fenêtre de planning, bascule de l'écran câblé sur Radio). Sans choix propre, la playlist ★ par défaut est utilisée.",
+      outputDefaultHint: "Choisit cette playlist comme ambiance de la sortie (démarrage, fin de fenêtre de planning, bascule de l'écran câblé sur Radio). Sans choix propre, la playlist par défaut est utilisée.",
       outputCable: "Radio câblée",
       outputNetwork: "Radio réseau",
       searchPlaceholder: "Rechercher un titre, un artiste, un album…",
@@ -2646,7 +2646,7 @@ export const dictionaries: Record<Language, Dict> = {
     radioLibrary: {
       title: "Radio Audio Tracks",
       outputDefaultLabel: "Default ambience for:",
-      outputDefaultHint: "Sets this playlist as the output's ambience (startup, end of a schedule window, wired screen switched to Radio). Without its own choice, the ★ default playlist is used.",
+      outputDefaultHint: "Sets this playlist as the output's ambience (startup, end of a schedule window, wired screen switched to Radio). Without its own choice, the default playlist is used.",
       outputCable: "Wired radio",
       outputNetwork: "Network radio",
       searchPlaceholder: "Search a title, artist, album…",
