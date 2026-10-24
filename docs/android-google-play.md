@@ -177,6 +177,11 @@ interchangeables** : la signature diffère (clé de distribution Google contre c
 Pour passer de l'une à l'autre, sauvegarder les données (Réglages > Sauvegarde), désinstaller, puis
 réinstaller.
 
+**Canaux** : l'application Google Play est verrouillée sur le canal Stable (le workflow de publication
+refuse toute version `-beta` ou `-canary`). Le sélecteur de canal est masqué dans les Réglages, le serveur
+refuse un autre canal et toutes les icônes restent celles de la Stable. Les canaux Bêta et Canary ne
+existent que pour les APK téléchargés depuis GitHub, qui proposent par défaut le canal dont ils viennent.
+
 ## 9. Dépannage
 
 | Symptôme | Cause probable | Action |

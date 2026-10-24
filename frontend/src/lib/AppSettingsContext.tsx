@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { translate, translateList, type Language } from "@/lib/i18n";
 import { pushThemeToNative, pushUpdateChannelToNative } from "@/lib/nativeBridge";
+import { applyChannelFavicon, DEFAULT_RELEASE_CHANNEL, isReleaseChannel, type UpdateChannel } from "@/lib/releaseChannel";
 import { useGlassGovernor } from "@/lib/useGlassGovernor";
 
 // "les-mills-sombre" est la clé interne historique du thème "Sombre" — conservée telle quelle pour ne rien casser sur
@@ -51,7 +52,7 @@ export interface NetworkInfo {
 }
 
 export type ActiveLogo = "default" | "custom";
-export type UpdateChannel = "stable" | "beta" | "canary";
+export type { UpdateChannel };
 export type WiredDisplayMode = "dual_screen" | "headless";
 /** Réglage administrateur : "auto" = dérivé des écrans externes réellement
  * connectés ; sinon forçage manuel. */
@@ -75,8 +76,7 @@ interface AppSettingsContextValue {
   logoVersion: number;
   refreshBranding: () => void;
   /** Canal de mise à jour courant (stable/beta/canary) — pilote entre autres
-   * l'illustration affichée par AppLogo (une par canal, cf.
-   * Assets/Images/Versions/). */
+   * l'illustration affichée par AppLogo et le favicon (cf. lib/releaseChannel.ts). */
   updateChannel: UpdateChannel;
   wiredDisplayMode: WiredDisplayMode;
   setWiredDisplayMode: (mode: WiredDisplayMode) => void;
@@ -110,7 +110,7 @@ const AppSettingsContext = createContext<AppSettingsContextValue>({
   setActiveLogo: () => {},
   logoVersion: 0,
   refreshBranding: () => {},
-  updateChannel: "stable",
+  updateChannel: DEFAULT_RELEASE_CHANNEL,
   wiredDisplayMode: DEFAULT_WIRED_DISPLAY_MODE,
   setWiredDisplayMode: () => {},
   displayModeSetting: "auto",
@@ -155,7 +155,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const [displayModeSetting, setDisplayModeSettingState] = useState<DisplayModeSetting>("auto");
   const [displayExternalCount, setDisplayExternalCount] = useState<number | null>(null);
   const [network, setNetwork] = useState<NetworkInfo>(DEFAULT_NETWORK);
-  const [updateChannel, setUpdateChannel] = useState<UpdateChannel>("stable");
+  const [updateChannel, setUpdateChannel] = useState<UpdateChannel>(DEFAULT_RELEASE_CHANNEL);
 
   const refreshBranding = useCallback(() => {
     fetch(getApiUrl("/settings"), { cache: "no-store" })
@@ -195,7 +195,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     if (data.wired_display_mode === "dual_screen" || data.wired_display_mode === "headless") {
       setWiredDisplayModeState(data.wired_display_mode);
     }
-    if (data.update_channel === "stable" || data.update_channel === "beta" || data.update_channel === "canary") {
+    if (isReleaseChannel(data.update_channel)) {
       setUpdateChannel(data.update_channel);
       pushUpdateChannelToNative(data.update_channel);
     }
@@ -307,7 +307,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
               // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setWiredDisplayModeState(parsed.wired_display_mode);
             }
-            if (parsed.update_channel === "stable" || parsed.update_channel === "beta" || parsed.update_channel === "canary") {
+            if (isReleaseChannel(parsed.update_channel)) {
               // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setUpdateChannel(parsed.update_channel);
               pushUpdateChannelToNative(parsed.update_channel);
@@ -364,6 +364,11 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       // ignore
     }
   }, [language]);
+
+  // Onglet du navigateur aux couleurs du canal choisi (cf. lib/releaseChannel.ts).
+  useEffect(() => {
+    applyChannelFavicon(document, updateChannel);
+  }, [updateChannel]);
 
   const persist = useCallback((payload: Record<string, string | boolean>) => {
     fetch(getApiUrl("/settings"), {

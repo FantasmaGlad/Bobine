@@ -29,6 +29,7 @@ from pathlib import Path
 import pystray
 from PIL import Image
 
+from app.desktop import channel_icon
 from app.desktop.displays import (
     REPORT_REFRESH_SECONDS,
     DisplayOrchestrator,
@@ -332,41 +333,31 @@ def _open_initial_displays(timeout_seconds: float = 20.0) -> None:
     launch_kiosk_browser(KIOSK_URL)
 
 
-_ICON_FILENAME = "logo_bobine_icon.png"
+def _fetch_settings() -> dict | None:
+    """Réglages du backend local (délai court : appelé à chaque cycle de la boucle de statut)."""
+    request = urllib.request.Request(f"{ADMIN_URL}/api/settings", headers={"Accept": "application/json"})
+    with urllib.request.urlopen(request, timeout=1.0) as response:
+        return json.loads(response.read().decode())
 
 
-def _load_icon_image() -> Image.Image:
-    """Cherche l'asset d'icône à côté de l'exécutable une fois empaqueté
-    (PyInstaller, cf. `packaging/windows/bobine.spec` — `contents_directory
-    = "."` y garantit une arborescence plate, sans sous-dossier
-    `_internal`), avec repli sur le chemin du dépôt en développement, puis
-    un repli minimal généré si aucun des deux n'est trouvé.
+def _detect_current_channel() -> str:
+    """Canal de mise à jour choisi (stable, beta, canary) — cf. app.desktop.channel_icon."""
+    return channel_icon.detect_channel(_fetch_settings)
 
-    macOS : un bundle `.app` place l'exécutable dans
-    `Contents/MacOS/` mais peut placer les `datas` du spec dans
-    `Contents/Resources/` plutôt qu'à plat à côté — le second candidat
-    `.parent.parent / "Resources"` couvre ce cas sans rien casser sur
-    Windows/Linux (chemin simplement absent, ignoré)."""
+
+def _load_icon_image(channel: str | None = None) -> Image.Image:
+    """Icône de la barre système du canal donné (par défaut, le canal courant).
+
+    Les emplacements cherchés (à côté de l'exécutable une fois empaqueté — PyInstaller,
+    cf. `packaging/*/bobine.spec`, `contents_directory = "."` y garantit une arborescence
+    plate —, `Contents/Resources/` pour un bundle macOS, puis le dépôt en développement)
+    sont définis par `channel_icon.icon_candidates`. Les trois icônes de canal sont
+    embarquées par les spec PyInstaller (cf. packaging/common/channel.py)."""
+    if channel is None:
+        channel = _detect_current_channel()
     exe_dir = Path(sys.executable).resolve().parent
-    candidates = [
-        exe_dir / _ICON_FILENAME,
-        exe_dir.parent / "Resources" / _ICON_FILENAME,
-        Path(__file__).resolve().parent.parent.parent.parent / "Assets" / "Images" / _ICON_FILENAME,
-    ]
-    for path in candidates:
-        if path and path.exists():
-            try:
-                img = Image.open(path).convert("RGBA")
-                bbox = img.getbbox()
-                cropped = img.crop(bbox) if bbox else img
-                cw, ch = cropped.size
-                max_dim = max(cw, ch)
-                square = Image.new("RGBA", (max_dim, max_dim), (0, 0, 0, 0))
-                square.paste(cropped, ((max_dim - cw) // 2, (max_dim - ch) // 2))
-                return square.resize((64, 64), Image.Resampling.LANCZOS)
-            except Exception:
-                pass
-    return Image.new("RGBA", (64, 64), (15, 110, 116, 255))
+    images_dir = Path(__file__).resolve().parent.parent.parent.parent / "Assets" / "Images"
+    return channel_icon.load_tray_image(channel, channel_icon.icon_candidates(channel, exe_dir, images_dir))
 
 
 _LAUNCH_AGENT_LABEL = "com.bobine.app"
@@ -603,8 +594,18 @@ def _update_status_poll_loop(icon: "pystray.Icon") -> None:
     jour planifiée à 3h du matin n'avait AUCUN moyen de se signaler à un
     utilisateur qui n'a pas de navigateur ouvert sur Réglages à ce moment-là."""
     last_notified_started_at = None
+    current_channel = _detect_current_channel()
     while True:
         time.sleep(UPDATE_STATUS_POLL_INTERVAL_SECONDS)
+        # Rafraîchissement automatique de l'icône si le canal a changé
+        detected_channel = _detect_current_channel()
+        if detected_channel != current_channel:
+            current_channel = detected_channel
+            try:
+                icon.icon = _load_icon_image(detected_channel)
+            except Exception as e:
+                logger.debug(f"Mise à jour icône tray ({detected_channel}): {e}")
+
         try:
             req = urllib.request.Request(UPDATES_STATUS_URL, headers={"User-Agent": "BobineTray"})
             with urllib.request.urlopen(req, timeout=4) as resp:

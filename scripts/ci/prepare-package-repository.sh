@@ -3,10 +3,11 @@
 # Dépendances : reprepro, createrepo_c, rpmkeys, GnuPG, Docker (repo-add officiel Arch).
 set -euo pipefail
 export LC_ALL=C
-family="${1:?deb, rpm ou arch}"; channel="${2:?stable, beta ou canary}"
+family="${1:?deb, rpm ou arch}"; channel="${2:?canal (stable, beta, canary...)}"
 packages=$(realpath "${3:?paquets signés}"); destination=$(realpath "${4:?copie du dépôt Pages}")
 case "$family" in deb|rpm|arch) ;; *) exit 2 ;; esac
-case "$channel" in stable|beta|canary) ;; *) exit 2 ;; esac
+# Canaux valides : le registre unique (backend/app/release_channel.py), pas une liste recopiée ici.
+python3 "$(dirname "$0")/../../packaging/common/channel.py" is-channel "$channel" || exit 2
 [ "$destination" != / ] && [ "$destination" != "$packages" ] || exit 2
 fingerprint="${BOBINE_SIGNING_FINGERPRINT:-B77D96D72F84F36ACAA3F8729CBF497D829EE15A}"
 [[ "$fingerprint" =~ ^[A-F0-9]{40}$ ]] || exit 2

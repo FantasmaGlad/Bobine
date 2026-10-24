@@ -266,6 +266,43 @@ jobs:
         env:
           PYTHONPATH: backend
 
+  backend-android-compat:
+    name: Backend Android (Pydantic v1, Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Installer le profil FastAPI/Pydantic Android
+        run: |
+          python - <<'PYTHON'
+          from pathlib import Path
+          import os, re
+          requirements = Path("backend/requirements.txt").read_text().splitlines()
+          # BaseSettings est intégré à Pydantic v1 ; pydantic-settings exige v2.
+          requirements = [line for line in requirements if line.strip() != "pydantic-settings"]
+          gradle = Path("android/app/build.gradle.kts").read_text()
+          for package in ("pydantic", "fastapi"):
+              requirements.append(re.search(r'install\("(' + package + r'==[^"\n]+)"\)', gradle).group(1))
+          requirements += ["httpx==0.24.1", "pytest"]
+          Path(os.environ["RUNNER_TEMP"], "android-backend.txt").write_text("\n".join(requirements))
+          PYTHON
+          python -m pip install -r "$RUNNER_TEMP/android-backend.txt"
+      - name: Importer l'application et vérifier les requêtes de stockage
+        run: |
+          python -c 'import pydantic, fastapi; assert pydantic.VERSION == "1.10.26"; assert fastapi.__version__ == "0.99.1"; import app.main'
+          python -m pytest backend/tests/test_pydantic_v1_compat.py backend/tests/test_storage_http_compat.py -q
+        env:
+          PYTHONPATH: backend
+          BOBINE_USE_XDG: "1"
+          XDG_DATA_HOME: ${{ runner.temp }}/android-backend/data
+          XDG_CONFIG_HOME: ${{ runner.temp }}/android-backend/config
+
   assistant-core:
     name: Assistant core (Rust)
     runs-on: ubuntu-latest
@@ -595,6 +632,72 @@ jobs:
         with:
           name: bobine-android-tv-apk
           path: android/app/build/outputs/apk/tv/release/*.apk
+
+  android-startup:
+    name: Android APK startup (${{ matrix.flavor }}, emulator x86_64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs: [version]
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor: [mobile, tv]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - uses: actions/setup-python@v5
+        with:
+          python-version: |
+            3.13
+            3.11
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - run: sdkmanager "platforms;android-36" "build-tools;36.1.0"
+      - name: Construire l'APK de test avec le backend embarqué
+        working-directory: android
+        env:
+          ANDROID_VERSION_NAME: ${{ needs.version.outputs.display_version }}
+        run: |
+          if [ "${{ matrix.flavor }}" = "mobile" ]; then
+            ./gradlew :app:assembleMobileDebug -PbobineEmulator=true --no-daemon
+          else
+            ./gradlew :app:assembleTvDebug -PbobineEmulator=true --no-daemon
+          fi
+      - name: Activer KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # Les runners Linux x86_64 accélèrent une image x86_64. Cette variante
+      # debug vérifie Chaquopy/le service réel ; les APK ARM signés restent
+      # contrôlés séparément par android-build et la recette sur matériel.
+      - name: Installer, démarrer et interroger le serveur dans l'APK
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader -noaudio -no-boot-anim -camera-back none
+          script: scripts/ci/smoke-android-apk.sh "${{ matrix.flavor }}"
+      - name: Conserver le diagnostic de démarrage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-startup-${{ matrix.flavor }}
+          path: android-startup-logs/
+          if-no-files-found: warn
 
   install-script:
     name: install.sh sanity
@@ -1131,7 +1234,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [version, frontend, firefox-smoke, backend, devices-sidecar, media-component, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, linux-packages]
+    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, linux-packages]
     runs-on: ubuntu-latest
     steps:
       - name: Tous les contrôles sont verts
@@ -1180,7 +1283,7 @@ jobs:
 
   release-stable:
     name: Publish Stable Release
-    needs: [version, backend, frontend, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     permissions:
@@ -1294,7 +1397,7 @@ jobs:
   # de main, sans validation matérielle manuelle.
   release-canary:
     name: Publish/Update Canary Release
-    needs: [version, backend, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'canary'
     runs-on: ubuntu-latest
     permissions:
@@ -1489,7 +1592,7 @@ jobs:
   # générées automatiquement que Canary, juste un déclenchement différent.
   release-beta:
     name: Publish/Update Beta Release
-    needs: [version, backend, frontend, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'beta'
     runs-on: ubuntu-latest
     permissions:

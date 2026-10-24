@@ -23,6 +23,7 @@ from app.routers.devices import Access, _client_ip, _fail, _get_setting, _locked
 from app.storage import fsadvisor
 from app.storage.formatting.refusals import FormatRefusal
 from app.storage.paths import PathError
+from app.utils._pydantic_compat import list_max_items
 from app.utils.activity_log import log_activity
 from app.storage.service import service
 from app.storage.transfer import TransferError
@@ -66,14 +67,14 @@ class Selection(BaseModel):
 
 
 class TransferRequest(BaseModel):
-    entries: list[Selection] = Field(max_length=500)
+    entries: list[Selection] = list_max_items(500)
     kind: str
     force: bool = False
 
 
 class ExportRequest(BaseModel):
     kind: str
-    ids: list[int] = Field(max_length=2000)
+    ids: list[int] = list_max_items(2000)
     dest: str | None = Field(default=None, max_length=1024)
 
 
@@ -90,7 +91,9 @@ class SettingsRequest(BaseModel):
     auto_mount_library: bool | None = None
 
     def values(self) -> dict[str, Any]:
-        return {k: v for k, v in self.model_dump().items() if v is not None}
+        # `.model_dump` (Pydantic v2) sauf sur le profil Android où `.dict` (v1), comme settings.py.
+        dump = getattr(self, "model_dump", None) or self.dict
+        return {k: v for k, v in dump().items() if v is not None}
 
 
 @router.get("/status")
@@ -217,7 +220,7 @@ async def portable_unmount(device_id: str, _: Access = Depends(require_access)) 
 
 class FormatPlanRequest(BaseModel):
     key: str = Field(max_length=80)
-    travels: list[str] = Field(default_factory=list, max_length=4)   # OS qui brancheront aussi le support (windows, macos, android)
+    travels: list[str] = list_max_items(4, default_factory=list)  # OS qui brancheront aussi le support (windows, macos, android)
 
 
 class FormatExecuteRequest(BaseModel):

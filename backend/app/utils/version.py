@@ -92,16 +92,6 @@ def get_app_tag() -> str:
     return f"V{get_app_version()}"
 
 
-def rolling_channel_of_version(version: str | None = None) -> str | None:
-    """Canal rolling ("beta" ou "canary") dont un build packagé porte le
-    suffixe de version ("5.0.0-canary", "5.0.0~beta"), ou None pour une
-    Stable. Un suffixe inconnu n'est rattaché à aucun canal plutôt que
-    deviné : l'appelant le traite alors comme une Stable."""
-    candidate = (version if version is not None else get_app_version()).strip().lstrip("vV")
-    suffix = candidate.replace("~", "-").partition("-")[2].lower()
-    return suffix if suffix in ("beta", "canary") else None
-
-
 def _git_head_short() -> str | None:
     """Commit HEAD court du checkout git qui contient l'application, ou None
     (profils packagés sans `.git`, git absent, délai dépassé). Jamais mis en

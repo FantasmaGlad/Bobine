@@ -30,6 +30,7 @@ This document is written for anyone who wants to **understand, operate, modify o
 8. [HTTP API & WebSocket Reference](#8-http-api--websocket-reference)
 9. [Operations & Network Discovery (Wyse)](#9-operations--network-discovery-wyse)
 10. [Interface Matrix & Multi-Platform Compatibility](#10-interface-matrix--multi-platform-compatibility)
+10bis. [Per-channel icons](#10bis-per-channel-icons-stable-beta-canary)
 11. [License](#11-license)
 
 ---
@@ -166,7 +167,9 @@ Two backend dependencies have no usable distribution on Android (Chaquopy), so t
 - **Pydantic v1 instead of v2.** Pydantic v2 relies on `pydantic-core`, a native extension with no Android distribution. The APK bundles `pydantic==1.10.26` with `fastapi==0.99.1` (Starlette 0.27); the other profiles use Pydantic v2. The code must stay valid under both: `app/utils/_pydantic_compat.py` provides a `computed_field` equivalent for v1, `app/config.py` falls back to the `BaseSettings` built into Pydantic v1 when `pydantic_settings` is missing, and the response-schema `Config` classes carry both `from_attributes = True` (v2) and `orm_mode = True` (v1, silently ignored by v2).
 - **Folder watching by periodic polling.** The `watchdog` package has no Android distribution. `app/utils/watcher.py` imports `watchdog` when available and otherwise `app/utils/_polling_observer.py`, which lists each watched folder every 2 seconds (`os.listdir`) and reports new entries. It implements a subset of the `watchdog` API (enough for folder import, which is not latency-sensitive).
 
-Code comments that refer to "ARCHITECTURE.md §3.1" point to this subsection. Any change touching these two points must be checked with Pydantic v1 (Android profile) and v2 (other profiles).
+Code comments that refer to "ARCHITECTURE.md §3.1" point to this subsection. Any change touching these two points must be checked with Pydantic v1 (Android profile) and v2 (other profiles). Two v2-only constructs prevent the Android server from starting and are rejected by `backend/tests/test_pydantic_v1_compat.py`: `Field(max_length=…)` on a list (use `list_max_items` from `_pydantic_compat.py`) and calling `.model_dump()` or `.model_validate()` directly (go through `getattr(obj, "model_dump", None) or obj.dict`, as `routers/settings.py` does).
+
+The `backend-android-compat` CI job installs the FastAPI/Pydantic versions declared in Gradle on Python 3.11 and 3.13, imports `app.main` and exercises the storage endpoints using the Starlette 0.27-compatible `TestClient` (`httpx==0.24.1`). It checks selection decoding, partial settings, HTTP 422 list limits and the OpenAPI schema. `android-startup` builds the mobile/TV debug variants with `-PbobineEmulator=true` and installs them in an x86_64 API 35 emulator: the actual Chaquopy service must serve `/api/health` (working SQLite), `/api/settings` and the bundled frontend. These checks gate `ci-ok` and all three release channels without signing secrets. Distribution ARM APKs retain their separate build/signature checks; the x86_64 emulator does not replace testing on real ARM devices. Run `scripts/ci/smoke-android-apk.sh mobile|tv [path.apk]` to repeat the startup check on a disposable emulator only.
 
 ## 3bis. Import Pipeline, Multi-OS Hardware Acceleration & Reactive Cancellation
 
@@ -715,6 +718,17 @@ On the Android profile, data is split across **two storage roots** (`backend/app
 - Reproducible measurement bench: [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
 
 <br clear="left"/>
+
+---
+
+## 10bis. Per-channel icons (Stable, Beta, Canary)
+
+Each release channel has its own icon (silver, blue or gold ribbon). Two separate mechanisms, detailed in [`Assets/Images/channel-icons/README.md`](../Assets/Images/channel-icons/README.md) (French):
+
+- **Build channel**, derived from the `VERSION` suffix (`-beta`, `-canary`, otherwise Stable): Android launcher and app-drawer icon, Android TV banner, Windows executables and installer, macOS bundle, Linux launcher (`.deb`, `.rpm`, Arch). It changes when the channel's build is installed.
+- **Selected channel** in Settings (`update_channel`), which defaults to the channel the app was installed from (a Canary install offers Canary updates): system tray (re-read every 15 seconds by `app/desktop/channel_icon.py`), web UI logo and favicon, Android splash screen. It changes live.
+
+Single channel registry: `backend/app/release_channel.py`. Single icon source: `Assets/Images/channel-icons/`. Every derived file is produced by `scripts/generate_channel_icons.py`; `backend/tests/test_channel_icons_wiring.py` fails if a derived file is stale or a platform drifts.
 
 ---
 

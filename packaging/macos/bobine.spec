@@ -36,7 +36,16 @@ runtime_excludes = ["yaml", "watchfiles", "alembic", "mako"]
 SPEC_DIR = Path(SPECPATH).resolve()
 REPO_DIR = SPEC_DIR.parent.parent
 BACKEND_DIR = REPO_DIR / "backend"
-ICON_PATH = str(SPEC_DIR / "bobine.icns")
+
+# Canal du build (suffixe de VERSION) : fixe l'icône du bundle ; les trois icônes de canal de
+# la barre de menus sont embarquées dans Contents/Resources (cf. packaging/common/channel.py).
+sys.path.insert(0, str(SPEC_DIR.parent / "common"))
+import channel  # noqa: E402
+
+BUILD_CHANNEL = channel.build_channel(REPO_DIR)
+# Copiée sous un nom fixe : Info.plist (CFBundleIconFile) et la CI attendent « bobine.icns »
+# quel que soit le canal.
+ICON_PATH = channel.stage_icon(SPEC_DIR / f"bobine-{BUILD_CHANNEL}.icns", Path(workpath), "bobine.icns")
 
 # Numéro de version du bundle — lu
 # dynamiquement depuis VERSION, jamais recopié en dur ici (c'était le cas
@@ -48,7 +57,7 @@ APP_VERSION = (REPO_DIR / "VERSION").read_text(encoding="utf-8").strip()
 
 datas = [
     (str(REPO_DIR / "config.toml"), "."),
-    (str(REPO_DIR / "Assets" / "Images" / "logo_bobine_icon.png"), "."),
+    *channel.runtime_icon_datas(REPO_DIR),
     # Numéro de version bundlé — relocalisé
     # sous Contents/Resources/ comme config.toml ci-dessus, lu au runtime par
     # app.utils.version.get_app_version() (ROOT_DIR y pointe déjà sur macOS).

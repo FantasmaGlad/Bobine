@@ -1,0 +1,21 @@
+{
+  "_comment": "Généré par scripts/sync_release_channels.py depuis backend/app/release_channel.py — ne pas modifier.",
+  "default": "stable",
+  "channels": [
+    {
+      "id": "stable",
+      "versionSuffix": null,
+      "releaseTag": null
+    },
+    {
+      "id": "beta",
+      "versionSuffix": "beta",
+      "releaseTag": "beta"
+    },
+    {
+      "id": "canary",
+      "versionSuffix": "canary",
+      "releaseTag": "canary"
+    }
+  ]
+}
