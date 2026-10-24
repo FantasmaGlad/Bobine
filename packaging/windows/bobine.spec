@@ -27,13 +27,21 @@ SPEC_DIR = Path(SPECPATH).resolve()
 REPO_DIR = SPEC_DIR.parent.parent
 BACKEND_DIR = REPO_DIR / "backend"
 
+# Canal du build (suffixe de VERSION) : fixe l'icône des exécutables ; les trois icônes de
+# canal de la barre système sont embarquées (cf. packaging/common/channel.py).
+sys.path.insert(0, str(SPEC_DIR.parent / "common"))
+import channel  # noqa: E402
+
+BUILD_CHANNEL = channel.build_channel(REPO_DIR)
+ICON_PATH = str(SPEC_DIR / f"bobine-{BUILD_CHANNEL}.ico")
+
 datas = [
     (str(REPO_DIR / "config.toml"), "."),
-    # Nom gardé tel quel (PyInstaller ne renomme pas les fichiers de
-    # `datas`) — app.desktop.tray._load_icon_image() cherche ce nom exact
-    # à côté de l'exécutable.
-    (str(REPO_DIR / "Assets" / "Images" / "logo_bobine_icon.png"), "."),
-    (str(SPEC_DIR / "bobine.ico"), "."),
+    # Noms gardés tels quels (PyInstaller ne renomme pas les fichiers de `datas`) —
+    # app.desktop.channel_icon.icon_candidates() les cherche à côté de l'exécutable.
+    *channel.runtime_icon_datas(REPO_DIR),
+    # Même nom d'installation quel que soit le canal : {app}\bobine.ico.
+    (channel.stage_icon(Path(ICON_PATH), Path(WORKPATH), "bobine.ico"), "."),
     # Numéro de version bundlé — lu au
     # runtime par app.utils.version.get_app_version() à côté de l'exécutable,
     # même mécanisme que config.toml ci-dessus.
@@ -95,7 +103,6 @@ tray_pyz = PYZ(tray_analysis.pure, tray_analysis.zipped_data, cipher=block_ciphe
 # app/desktop/tray.py (_load_icon_image) une fois figé : tout à côté de
 # l'exécutable, (pas de sous-dossier à
 # connaître en plus).
-ICON_PATH = str(SPEC_DIR / "bobine.ico")
 
 backend_exe = EXE(
     backend_pyz,

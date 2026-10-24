@@ -13,6 +13,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 LINUX_DIR="${REPO_DIR}/packaging/linux"
+# shellcheck source=packaging/common/channel.sh
+source "${SCRIPT_DIR}/channel.sh"
 
 DIST_DIR="${1:?dossier PyInstaller (dist/Bobine)}"
 DEST="${2:?dossier de destination}"
@@ -61,17 +63,8 @@ rm -f "${APPSTREAM_TMP}"
 cp "${LINUX_DIR}/copyright" "${DEST}/usr/share/doc/bobine/copyright"
 cp "${LINUX_DIR}/bobine.service" "${DEST}/usr/lib/systemd/user/bobine.service"
 
-ICONS_SRC="${LINUX_DIR}/icons"
-if [ -d "${ICONS_SRC}/hicolor" ]; then
-    cp -a "${ICONS_SRC}/hicolor" "${DEST}/usr/share/icons/"
-fi
-if [ -f "${ICONS_SRC}/pixmaps/bobine.png" ]; then
-    cp "${ICONS_SRC}/pixmaps/bobine.png" "${DEST}/usr/share/pixmaps/bobine.png"
-    cp "${ICONS_SRC}/pixmaps/com.bobine.app.png" "${DEST}/usr/share/pixmaps/com.bobine.app.png" 2>/dev/null || true
-elif [ -f "${REPO_DIR}/Assets/Images/logo_bobine_icon.png" ]; then
-    cp "${REPO_DIR}/Assets/Images/logo_bobine_icon.png" "${DEST}/usr/share/pixmaps/bobine.png"
-    cp "${REPO_DIR}/Assets/Images/logo_bobine_icon.png" "${DEST}/usr/share/pixmaps/com.bobine.app.png"
-fi
+# Icône du lanceur : celle du canal du build (cf. packaging/common/channel.sh).
+install_channel_icons "$(bobine_channel_of_version "${VERSION}")" "${LINUX_DIR}/icons" "${DEST}"
 
 # Permissions : mêmes règles que le .deb.
 find "${DEST}" -type d -exec chmod 0755 {} +
