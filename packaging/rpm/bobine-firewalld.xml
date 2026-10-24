@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<service>
+  <short>Bobine</short>
+  <description>Interface web et télécommande de Bobine sur le réseau local (port 8000). Ce fichier ne change aucune règle par lui-même : il faut l'activer explicitement (firewall-cmd --add-service=bobine).</description>
+  <port protocol="tcp" port="8000"/>
+</service>
