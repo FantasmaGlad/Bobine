@@ -40,6 +40,9 @@
     <!-- Affichage Presentation sur ecran externe HDMI (mode bureau étendu) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <!-- android:icon / roundIcon : le calque avant de ic_launcher_foreground est celui du canal du
+         build (stable, beta, canary), fourni par src/channel-<canal>/res via bobineChannel dans
+         app/build.gradle.kts ; le fond et la forme adaptative sont communs (res/mipmap-anydpi-v26). -->
     <application
         android:name="com.chaquo.python.android.PyApplication"
         android:allowBackup="false"

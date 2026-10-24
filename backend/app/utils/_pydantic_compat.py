@@ -30,3 +30,17 @@ except ImportError:  # Pydantic v1 (profil Android)
                 if isinstance(attr, property) and getattr(attr.fget, "__is_computed_field__", False):
                     data[name] = getattr(self, name)
             return data
+
+
+def list_max_items(limit: int, **kwargs):
+    """`Field(...)` plafonnant la taille d'une LISTE, valable en Pydantic v1 comme en v2.
+
+    Le plafond de taille d'une liste s'écrit `max_length` en v2 et `max_items` en v1 ; v1 refuse
+    `max_length` sur une liste (« constraints are set but not enforced ») au moment de l'import
+    du module, ce qui empêchait tout le serveur Android de démarrer. Les `str` n'ont pas ce
+    problème : `max_length` y est valable dans les deux versions."""
+    from pydantic import VERSION, Field
+
+    if VERSION.startswith("1."):
+        return Field(max_items=limit, **kwargs)
+    return Field(max_length=limit, **kwargs)

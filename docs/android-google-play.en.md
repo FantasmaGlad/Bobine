@@ -174,6 +174,8 @@ updates from Bobine's Settings. The two installations are **not interchangeable*
 differs (Google's distribution key versus the upload key). To switch from one to the other, back up the
 data (Settings > Backup), uninstall, then reinstall.
 
+**Channels**: the Google Play app is locked to the Stable channel (the publishing workflow refuses any `-beta` or `-canary` version). The channel selector is hidden in Settings, the server refuses any other channel and every icon stays the Stable one. The Beta and Canary channels only exist for APKs downloaded from GitHub, which offer the channel they came from by default.
+
 ## 9. Troubleshooting
 
 | Symptom | Likely cause | Action |

@@ -30,6 +30,7 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 8. [Référence API HTTP & WebSockets](#8-référence-api-http--websockets)
 9. [Exploitation & Découverte Réseau (Wyse)](#9-exploitation--découverte-réseau-wyse)
 10. [Matrice des interfaces & compatibilité multi-plateforme](#10-matrice-des-interfaces--compatibilité-multi-plateforme)
+10bis. [Icônes par canal de version](#10bis-icônes-par-canal-de-version-stable-bêta-canary)
 11. [Licence](#11-licence)
 
 ---
@@ -166,7 +167,7 @@ Deux dépendances du backend n'existent pas sous forme utilisable sur Android (C
 - **Pydantic v1 au lieu de v2.** Pydantic v2 repose sur `pydantic-core`, une extension native sans distribution Android. L'APK embarque `pydantic==1.10.26` avec `fastapi==0.99.1` (Starlette 0.27) ; les autres profils utilisent Pydantic v2. Le code doit rester valide dans les deux versions : `app/utils/_pydantic_compat.py` fournit un équivalent de `computed_field` pour la v1, `app/config.py` retombe sur le `BaseSettings` intégré à Pydantic v1 quand `pydantic_settings` est absent, et les classes `Config` des schémas de réponse portent à la fois `from_attributes = True` (v2) et `orm_mode = True` (v1, ignoré silencieusement par la v2).
 - **Surveillance de dossiers par interrogation périodique.** Le paquet `watchdog` n'a pas de distribution Android. `app/utils/watcher.py` importe `watchdog` s'il est présent et sinon `app/utils/_polling_observer.py`, qui liste chaque dossier surveillé toutes les 2 secondes (`os.listdir`) et signale les nouvelles entrées. C'est un sous-ensemble de l'API de `watchdog` (suffisant pour l'import de dossier, qui n'est pas sensible à la latence).
 
-Les commentaires du code qui renvoient à « ARCHITECTURE.md §3.1 » désignent cette sous-section. Toute modification touchant ces deux points doit être vérifiée avec Pydantic v1 (profil Android) et v2 (autres profils).
+Les commentaires du code qui renvoient à « ARCHITECTURE.md §3.1 » désignent cette sous-section. Toute modification touchant ces deux points doit être vérifiée avec Pydantic v1 (profil Android) et v2 (autres profils). Deux constructions valables seulement en v2 empêchent le serveur Android de démarrer et sont refusées par `backend/tests/test_pydantic_v1_compat.py` : `Field(max_length=…)` sur une liste (utiliser `list_max_items` de `_pydantic_compat.py`) et l'appel direct de `.model_dump()` ou `.model_validate()` (passer par `getattr(objet, "model_dump", None) or objet.dict`, comme `routers/settings.py`).
 
 ## 3bis. Pipeline d'importation, Accélération Matérielle Multi-OS & Annulation Réactive
 
@@ -722,6 +723,17 @@ Sur le profil Android, les données sont réparties sur **deux racines de stocka
 - Banc de mesure reproductible : [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
 
 <br clear="left"/>
+
+---
+
+## 10bis. Icônes par canal de version (Stable, Bêta, Canary)
+
+Chaque canal a sa propre icône (ruban argent, bleu ou or). Deux mécanismes distincts, détaillés dans [`Assets/Images/channel-icons/README.md`](../Assets/Images/channel-icons/README.md) :
+
+- **Canal du build**, déduit du suffixe de `VERSION` (`-beta`, `-canary`, sinon Stable) : icône du lanceur et du tiroir d'applications Android, bannière Android TV, exécutables et installeur Windows, bundle macOS, lanceur Linux (`.deb`, `.rpm`, Arch). Elle change quand le build du canal est installé.
+- **Canal choisi** dans les Réglages (`update_channel`), qui par défaut est le canal d'installation (une installation Canary propose les mises à jour Canary) : barre système (relue toutes les 15 secondes par `app/desktop/channel_icon.py`), logo et favicon de l'interface, écran de démarrage Android. Elle change à chaud.
+
+Registre unique des canaux : `backend/app/release_channel.py`. Source unique des icônes : `Assets/Images/channel-icons/`. Tous les dérivés sont produits par `scripts/generate_channel_icons.py` ; `backend/tests/test_channel_icons_wiring.py` échoue si un dérivé est périmé ou si une plateforme diverge.
 
 ---
 

@@ -4,7 +4,7 @@
 //! `AudioDeviceCmdlets` (Get-/Set-AudioDevice) permet de choisir la sortie audio et le volume ; sans lui,
 //! la liste des sorties est en lecture seule.
 //!
-//! ⚠ NON VALIDÉ sur un PC Windows réel : les analyseurs (`parse.rs`) sont testés sur des sorties
+//! ATTENTION : NON VALIDÉ sur un PC Windows réel : les analyseurs (`parse.rs`) sont testés sur des sorties
 //! représentatives (anglais et français) ; le comportement réel reste à confirmer (lots P0 / P5).
 
 use crate::exec::{run, run_with_env, Output};

@@ -39,9 +39,9 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover" as const,
-  // "clair" : couleur de fond du thème
-  // clair par défaut, cf. THEME_SWATCHES dans app/settings/page.tsx.
-  themeColor: "#f8f9fa",
+  // Couleur de fond du thème par défaut « lavande » (clair), cf. THEME_SWATCHES dans
+  // app/settings/page.tsx et DEFAULT_THEME dans lib/AppSettingsContext.tsx.
+  themeColor: "#f7f6fb",
 };
 
 export default function RootLayout({
@@ -52,7 +52,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      data-theme="clair"
+      data-theme="lavande"
       className={`${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >

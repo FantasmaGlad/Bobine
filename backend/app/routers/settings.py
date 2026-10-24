@@ -39,6 +39,7 @@ from app.models import Setting
 from app.playback_manager import get_playback_manager
 from app.radio_manager import get_radio_manager
 from app.scheduler_manager import activate_radio_output
+from app import release_channel
 from app.utils.activity_log import log_activity
 from app.utils.android_runtime import is_android
 from app.utils.display_state import (
@@ -58,6 +59,7 @@ from app.utils.deployment import (
     UNINSTALL_WRAPPER,
     get_deployment_profile,
     get_profile_handler,
+    resolve_update_channel,
 )
 from app.utils.mdns import get_status as get_mdns_status
 from app.utils.network import lan_addresses, primary_lan_ip
@@ -95,10 +97,10 @@ _DEFAULTS = {
     "theme": "lavande",
     "language": "fr",
     "active_logo": "default",
-    # Canal de mise à jour : "stable"
-    # par défaut pour tout le monde — rejoindre la bêta ou la canary est un
-    # choix explicite, jamais l'état de départ d'une installation.
-    "update_channel": "stable",
+    # Canal de mise à jour : jamais lu d'ici. Sans choix explicite de l'utilisateur, le canal
+    # effectif est celui de l'installation (release_channel.resolve) ; l'entrée n'existe que pour
+    # l'ensemble des clés de réglages connues ci-dessus.
+    "update_channel": release_channel.DEFAULT_CHANNEL,
     # Mode d'affichage câblé :
     # "headless" par défaut (desktop/laptop/wyse), "dual_screen" pour tablette.
     "wired_display_mode": "headless",
@@ -135,7 +137,6 @@ _VALID_THEMES = {
     "beige", "lavande", "miel", "coco",
 }
 _VALID_ACTIVE_LOGOS = {"default", "custom"}
-_VALID_UPDATE_CHANNELS = {"stable", "beta", "canary"}
 _VALID_WIRED_DISPLAY_MODES = {"dual_screen", "headless"}
 
 # Sortie affichée par CANAL de diffusion : "câblé" (l'écran physiquement connecté au Wyse, en 127.0.0.1) et
@@ -260,7 +261,8 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
     active_logo = _get_db_value(db, "active_logo") or _DEFAULTS["active_logo"]
     if active_logo == "custom" and not has_custom:
         active_logo = "default"
-    update_channel = _get_db_value(db, "update_channel") or _DEFAULTS["update_channel"]
+    # Pas de ligne en base = aucun choix : on suit le canal d'installation (cf. app/release_channel.py).
+    channel_choice = resolve_update_channel(_get_db_value(db, "update_channel"))
     display_mode_setting = get_display_mode_setting(db)
     wired_display_mode = get_effective_wired_display_mode(db)
     auto_update_enabled = _get_db_value(db, "auto_update_enabled") or _DEFAULTS["auto_update_enabled"]
@@ -291,7 +293,10 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "active_logo": active_logo,
         # Canal de mise à jour : "stable", "beta" ou "canary", consommé par
         # GET /api/updates/check pour choisir l'endpoint GitHub interrogé.
-        "update_channel": update_channel,
+        "update_channel": channel_choice.effective,
+        # Origine : "user" (choix explicite dans les Réglages) ou "install" (canal d'installation).
+        "update_channel_source": channel_choice.source,
+        "install_channel": channel_choice.install,
         # Mode d'affichage câblé :
         # "dual_screen" (pupitre tactile + vidéo HDMI) ou "headless" (cinéma autonome).
         "wired_display_mode": wired_display_mode,
@@ -516,8 +521,11 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
                     raise HTTPException(status_code=400, detail="Logo actif invalide (attendu 'default' ou 'custom')")
                 if value == "custom" and not _logo_path().exists():
                     raise HTTPException(status_code=400, detail="Aucun logo personnalisé n'a été importé")
-            if key == "update_channel" and value not in _VALID_UPDATE_CHANNELS:
-                raise HTTPException(status_code=400, detail="Canal de mise à jour invalide (attendu 'stable', 'beta' ou 'canary')")
+            if key == "update_channel" and get_profile_handler().is_store_managed() and value != release_channel.DEFAULT_CHANNEL:
+                raise HTTPException(status_code=409, detail="Cette installation est gérée par une boutique : seul le canal Stable est disponible.")
+            if key == "update_channel" and value not in release_channel.CHANNEL_IDS:
+                expected = ", ".join(f"'{channel_id}'" for channel_id in release_channel.CHANNEL_IDS)
+                raise HTTPException(status_code=400, detail=f"Canal de mise à jour invalide (attendu l'un de : {expected})")
             if key == "display_mode_setting" and value not in VALID_DISPLAY_MODE_SETTINGS:
                 raise HTTPException(
                     status_code=400,

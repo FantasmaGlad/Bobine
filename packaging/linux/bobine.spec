@@ -17,9 +17,14 @@ SPEC_DIR = Path(SPECPATH).resolve()
 REPO_DIR = SPEC_DIR.parent.parent
 BACKEND_DIR = REPO_DIR / "backend"
 
+# Les trois icônes de canal de la barre système sont embarquées à plat à côté de l'exécutable
+# (cf. packaging/common/channel.py) ; l'icône du lanceur, elle, vient du paquet (channel.sh).
+sys.path.insert(0, str(SPEC_DIR.parent / "common"))
+import channel  # noqa: E402
+
 datas = [
     (str(REPO_DIR / "config.toml"), "."),
-    (str(REPO_DIR / "Assets" / "Images" / "logo_bobine_icon.png"), "."),
+    *channel.runtime_icon_datas(REPO_DIR),
     # Numéro de version bundlé — lu au
     # runtime par app.utils.version.get_app_version() à côté de l'exécutable,
     # même mécanisme que config.toml ci-dessus.

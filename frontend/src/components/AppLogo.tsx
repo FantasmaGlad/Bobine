@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import { channelLogoUrl } from "@/lib/releaseChannel";
 
 interface AppLogoProps {
   size?: number;
@@ -18,8 +19,8 @@ function getApiUrl(path: string) {
 /**
  * Logo de l'application : celui personnalisé uploadé depuis Paramètres si
  * présent, sinon l'illustration Baamix du canal de mise à jour courant
- * (une par canal — /public/logo-{stable,beta,canary}.png, dérivées de
- * Assets/Images/Versions/). `size` est la HAUTEUR affichée (px) ; le
+ * (une par canal — channelLogoUrl, cf. lib/releaseChannel.ts ; fichiers générés par
+ * scripts/generate_channel_icons.py). `size` est la HAUTEUR affichée (px) ; le
  * bandeau par défaut fait ~2,34× cette hauteur en largeur. Si `size` est
  * omis, aucune hauteur inline n'est posée : c'est alors la classe CSS
  * (`className`) qui pilote la taille — utile pour un logo responsive (ex.
@@ -37,7 +38,7 @@ export default function AppLogo({ size, className }: AppLogoProps) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={useCustom ? `${getApiUrl("/branding/logo.png")}?v=${logoVersion}` : `/logo-${updateChannel}.png`}
+      src={useCustom ? `${getApiUrl("/branding/logo.png")}?v=${logoVersion}` : channelLogoUrl(updateChannel)}
       alt="Bobine"
       // Les illustrations par canal sont en couleur (mascotte Baamix) et ne
       // doivent PAS hériter du filtre --logo-filter (recoloration monochrome

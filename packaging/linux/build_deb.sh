@@ -7,6 +7,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+# shellcheck source=packaging/common/channel.sh
+source "${REPO_DIR}/packaging/common/channel.sh"
 
 # Source de vérité unique : fichier
 # VERSION à la racine du dépôt. Surchargeable via l'environnement (CI passe
@@ -132,18 +134,9 @@ cp "${SCRIPT_DIR}/copyright" "${STAGING_DIR}/usr/share/doc/bobine/copyright"
 # Service systemd utilisateur
 cp "${SCRIPT_DIR}/bobine.service" "${STAGING_DIR}/usr/lib/systemd/user/bobine.service"
 
-# Icônes de l'application (multi-résolution hicolor + fallback pixmaps)
-ICONS_SRC="${SCRIPT_DIR}/icons"
-if [ -d "${ICONS_SRC}/hicolor" ]; then
-    cp -a "${ICONS_SRC}/hicolor" "${STAGING_DIR}/usr/share/icons/"
-fi
-if [ -f "${ICONS_SRC}/pixmaps/bobine.png" ]; then
-    cp "${ICONS_SRC}/pixmaps/bobine.png" "${STAGING_DIR}/usr/share/pixmaps/bobine.png"
-    cp "${ICONS_SRC}/pixmaps/com.bobine.app.png" "${STAGING_DIR}/usr/share/pixmaps/com.bobine.app.png" 2>/dev/null || true
-elif [ -f "${REPO_DIR}/Assets/Images/logo_bobine_icon.png" ]; then
-    cp "${REPO_DIR}/Assets/Images/logo_bobine_icon.png" "${STAGING_DIR}/usr/share/pixmaps/bobine.png"
-    cp "${REPO_DIR}/Assets/Images/logo_bobine_icon.png" "${STAGING_DIR}/usr/share/pixmaps/com.bobine.app.png"
-fi
+# Icônes de l'application (multi-résolution hicolor + fallback pixmaps) : celles du canal du
+# build, déduit de la version du paquet (cf. packaging/common/channel.sh).
+install_channel_icons "$(bobine_channel_of_version "${VERSION}")" "${SCRIPT_DIR}/icons" "${STAGING_DIR}"
 
 # Métadonnées et scripts de maintenance Debian
 cp "${SCRIPT_DIR}/DEBIAN/control" "${STAGING_DIR}/DEBIAN/control"

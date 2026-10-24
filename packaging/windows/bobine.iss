@@ -12,7 +12,7 @@
 ;
 ; Source de vérité de la disposition attendue : dist/Bobine/ (généré par
 ; PyInstaller, cf. bobine.spec) doit contenir BobineBackend.exe,
-; BobineTray.exe, config.toml, logo_bobine_icon.png et frontend/out/ à plat
+; BobineTray.exe, config.toml, logo_bobine_icon*.png, bobine.ico et frontend/out/ à plat
 ; (pas de sous-dossier _internal — cf. contents_directory="." dans le spec).
 
 #define MyAppName "Bobine"
@@ -66,7 +66,10 @@ Compression=lzma2
 SolidCompression=yes
 ; Licence AGPL-3.0 du dépôt, affichée avant installation.
 LicenseFile=..\..\LICENSE
-SetupIconFile=bobine.ico
+; Icône de l'installeur : celle du canal du build, que bobine.spec a choisie d'après le suffixe
+; de VERSION et copiée sous le nom fixe bobine.ico dans le dossier PyInstaller (une seule
+; décision, prise par le .spec ; ISPP n'a donc aucune règle de canal à dupliquer).
+SetupIconFile={#MyDistDir}\bobine.ico
 UninstallDisplayIcon={app}\BobineTray.exe
 CloseApplications=yes
 CloseApplicationsFilter=*Bobine*.exe
@@ -93,7 +96,7 @@ Type: files; Name: "{app}\*.dll"
 [Files]
 ; Tout le dossier de sortie PyInstaller, à plat (cf. bobine.spec,
 ; contents_directory=".") : les deux exécutables, config.toml,
-; logo_bobine_icon.png, frontend/out/ et les dépendances Python figées.
+; logo_bobine_icon*.png (une par canal), frontend/out/ et les dépendances Python figées.
 Source: "{#MyDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]

@@ -2,7 +2,7 @@
 //! optionnels détectés au démarrage : `SwitchAudioSource` (sortie audio par défaut) et `blueutil`
 //! (pilotage Bluetooth). Sans eux, l'audio par défaut et le Bluetooth restent en lecture seule.
 //!
-//! ⚠ NON VALIDÉ sur un Mac réel : les analyseurs (`parse.rs`) sont testés sur des sorties
+//! ATTENTION : NON VALIDÉ sur un Mac réel : les analyseurs (`parse.rs`) sont testés sur des sorties
 //! représentatives ; le comportement réel reste à confirmer (lot P0 / P5 du cahier des charges).
 
 use crate::exec::{run, tool_exists, Output};
@@ -295,7 +295,7 @@ impl Platform for MacOs {
             "wifi.connect" => {
                 let device = self.wifi_device()?;
                 let mut args = vec!["-setairportnetwork", device.as_str(), s("ssid")];
-                // ⚠ networksetup n'accepte le mot de passe qu'en argument (visible brièvement dans `ps`,
+                // ATTENTION : networksetup n'accepte le mot de passe qu'en argument (visible brièvement dans `ps`,
                 // sur cette machine seulement) ; il n'existe pas d'entrée standard équivalente.
                 if let Some(pw) = params
                     .get("password")
