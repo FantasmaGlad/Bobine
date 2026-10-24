@@ -21,6 +21,7 @@ Principe de câblage (détail dans le README ci-dessus) :
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,11 +31,14 @@ from PIL import Image, ImageChops
 REPO_DIR = Path(__file__).resolve().parent.parent
 SOURCE_DIR = REPO_DIR / "Assets" / "Images" / "channel-icons"
 
-# Ordre = ordre d'affichage. Toute modification de cette liste doit être répercutée
-# dans les autres implémentations (le test backend/tests/test_channel_icons_wiring.py
-# vérifie qu'aucune ne diverge : backend, frontend, Android, assistant).
-CHANNELS = ("stable", "beta", "canary")
-DEFAULT_CHANNEL = "stable"
+# Liste des canaux : le registre unique backend/app/release_channel.py (chargé par son chemin,
+# sans importer le backend). Ajouter un canal commence là-bas.
+_spec = importlib.util.spec_from_file_location("bobine_release_channel", REPO_DIR / "backend" / "app" / "release_channel.py")
+_registry = importlib.util.module_from_spec(_spec)
+sys.modules[_spec.name] = _registry  # requis par @dataclass
+_spec.loader.exec_module(_registry)
+CHANNELS = _registry.CHANNEL_IDS
+DEFAULT_CHANNEL = _registry.DEFAULT_CHANNEL
 
 # Cadrage : part du carré occupée par la plus grande dimension du dessin.
 FULL_FILL = 0.90        # icônes de bureau (hicolor, ico, icns, tray)
@@ -59,7 +63,6 @@ BANNER_SIZE = (640, 360)
 BANNER_ICON_BOX = (54, 87, 156, 186)        # x, y, largeur, hauteur
 BANNER_WORDMARK_ORIGIN = (212, 132)
 
-VERSIONS_NAMES = {"stable": "Stable", "beta": "Beta", "canary": "Canary"}
 
 
 @dataclass(frozen=True)
@@ -158,7 +161,7 @@ def outputs_for_channel(channel: str) -> list[Output]:
 
     # Visuels des README et des notes de version (dossier historique « Versions »).
     versions = resized(master, VERSIONS_SIZE)
-    name = VERSIONS_NAMES[channel]
+    name = channel.capitalize()  # Stable, Beta, Canary (noms historiques des visuels de README)
     outputs.append(Output(f"Assets/Images/Versions/{name}.png", versions))
     outputs.append(Output(f"Assets/Images/Versions/{name}-cropped-1024.png", versions))
 

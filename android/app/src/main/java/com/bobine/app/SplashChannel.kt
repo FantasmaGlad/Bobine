@@ -13,7 +13,7 @@ private const val SETTINGS_URL = "http://127.0.0.1:8000/api/settings"
 /**
  * Icône d'écran de démarrage (mascotte Baamix) selon le canal de mise à jour courant — une
  * ressource `bobine_splash_logo_<canal>` par canal (cf. `drawable-nodpi/`, générées par
- * `scripts/generate_channel_icons.py`). Repli sur « stable » si le canal est inconnu ou invalide.
+ * `scripts/generate_channel_icons.py`). Repli sur « stable » si le canal est inconnu ou invalide (jamais pour un canal enregistré).
  * L'icône du LANCEUR, elle, est fixée à la construction : voir `bobineChannel` dans `app/build.gradle.kts`.
  */
 fun splashDrawableForChannel(channel: String?): Int = when (channel) {
@@ -36,8 +36,17 @@ fun splashDrawableForChannel(channel: String?): Int = when (channel) {
 object SplashChannel {
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    /** Icône à afficher dès la première image : dernier canal connu, « stable » au tout premier lancement. */
-    fun initialDrawable(context: Context): Int = splashDrawableForChannel(UpdateChannelPref.load(context))
+    /**
+     * Icône à afficher dès la première image : dernier canal connu ; au tout premier lancement, le
+     * canal par lequel cet APK a été publié (`BuildConfig.BUILD_CHANNEL`) — un APK Canary ouvre sur
+     * l'icône Canary, pas sur Stable, comme le serveur embarqué qui propose ce même canal par défaut.
+     * Un build Google Play est verrouillé sur la Stable, comme le serveur (cf. resolve_update_channel).
+     */
+    fun initialDrawable(context: Context): Int =
+        splashDrawableForChannel(
+            if (BuildConfig.STORE_BUILD) BuildConfig.DEFAULT_RELEASE_CHANNEL
+            else UpdateChannelPref.load(context) ?: BuildConfig.BUILD_CHANNEL,
+        )
 
     /**
      * Repli pour le TOUT PREMIER lancement (aucune préférence encore reçue de l'interface web) :

@@ -59,7 +59,8 @@ object ThemeColors {
  * la première image, sans attendre le serveur Python embarqué (qui n'est pas encore prêt).
  */
 object UpdateChannelPref {
-    private val VALID = setOf("stable", "beta", "canary")
+    // Canaux du registre (android/release-channels.json) via BuildConfig, jamais une liste recopiée.
+    private val VALID: Set<String> = BuildConfig.RELEASE_CHANNELS.split(",").toSet()
 
     /** Dernier canal connu, ou null avant tout premier envoi (premier lancement après installation). */
     fun load(context: Context): String? =

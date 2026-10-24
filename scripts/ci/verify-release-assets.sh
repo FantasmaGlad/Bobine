@@ -9,17 +9,19 @@
 # silencieusement sur un lien mort.
 #
 # Usage : verify-release-assets.sh <dossier> <suffixe>
-#   <suffixe> : numéro de version d'une Stable (5.0.0), ou "beta" / "canary".
+#   <suffixe> : numéro de version d'une Stable (5.0.0), ou l'identifiant d'un canal rolling (beta, canary).
 set -euo pipefail
 
 DIR="${1:?dossier des assets}"
 S="${2:?suffixe de version (5.0.0, beta ou canary)}"
 
 # Les canaux mobiles ont un nom constant ; les stables gardent le pkgrel natif.
-case "$S" in
-    beta|canary) package_version="$S" ;;
-    *) package_version="${S}-1" ;;
-esac
+# « Canal mobile » = canal rolling du registre (backend/app/release_channel.py).
+if python3 "$(dirname "$0")/../../packaging/common/channel.py" is-rolling "$S"; then
+    package_version="$S"
+else
+    package_version="${S}-1"
+fi
 
 expected=(
     "Bobine-Setup-${S}.exe"

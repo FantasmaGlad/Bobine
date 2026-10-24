@@ -7,14 +7,12 @@
 #   RPM    : Version=BASE, Release=1 (stable) ou 1.<canal>.<run> (plus de segments = plus récent)
 #   pacman : pkgver=BASE, pkgrel=1 (stable) ou 1.<run>  (un suffixe alphabétique trierait AVANT
 #            la base dans libalpm, d'où le sous-numéro purement numérique)
+BOBINE_VERSION_SH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# La règle (formes acceptées, canaux reconnus) n'est pas réécrite en shell : elle vient du registre
+# unique backend/app/release_channel.py (parse_package_version), via channel.py. Prérequis : python3.
 split_bobine_version() {
-    local v="$1"
-    if [[ "$v" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\+(beta|canary)\.([0-9]+)$ ]]; then
-        BASE_VERSION="${BASH_REMATCH[1]}"; CHANNEL="${BASH_REMATCH[2]}"; RUN="${BASH_REMATCH[3]}"
-    elif [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        BASE_VERSION="$v"; CHANNEL="stable"; RUN=""
-    else
-        echo "Erreur: version '${v}' non reconnue (attendu x.y.z ou x.y.z+beta.N / x.y.z+canary.N)." >&2
-        return 1
-    fi
+    local parsed
+    parsed="$(python3 "${BOBINE_VERSION_SH_DIR}/channel.py" split-version "$1")" || return 1
+    read -r BASE_VERSION CHANNEL RUN <<< "${parsed}"
 }

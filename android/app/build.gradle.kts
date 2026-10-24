@@ -36,19 +36,29 @@ val hasReleaseSigningConfig = listOf(androidKeystorePath, androidKeystorePasswor
 val rootVersionFile = rootProject.projectDir.resolve("../VERSION")
 val fallbackVersionName = if (rootVersionFile.exists()) rootVersionFile.readText().trim() else "4.0.3"
 val androidVersionName: String = System.getenv("ANDROID_VERSION_NAME") ?: fallbackVersionName
-// Canal du BUILD (stable, beta, canary) : fixe l'icône du lanceur et la bannière Android TV
-// compilées dans l'APK. Même règle que backend/app/utils/version.py::build_channel_of_version
-// (suffixe de la version : "5.0.5-canary", "5.0.5-beta", sinon Stable), sans variable CI en
-// plus : ANDROID_VERSION_NAME porte déjà ce suffixe. `-PbobineChannel=<canal>` le force pour
-// essayer une autre icône en local. Les ressources vivent dans src/channel-<canal>/res et
-// src/tv-channel-<canal>/res (générées par scripts/generate_channel_icons.py) ; l'écran de
-// démarrage, lui, embarque les trois canaux et suit le canal choisi à l'exécution (SplashChannel).
-val releaseChannels = listOf("stable", "beta", "canary")
+// Registre des canaux (Stable, Bêta, Canary) : android/release-channels.json, GÉNÉRÉ par
+// scripts/sync_release_channels.py depuis backend/app/release_channel.py (source unique, aucune
+// liste ni règle recopiée ici). Le canal du BUILD fixe l'icône du lanceur et la bannière Android TV
+// compilées dans l'APK, et le canal proposé par défaut au premier lancement.
+// Règle (identique à release_channel.rolling_channel_of_version) : « x.y.z », puis « -suffixe »
+// ou « ~suffixe » ; tout autre suffixe, ou aucun, donne le canal par défaut. ANDROID_VERSION_NAME
+// porte déjà ce suffixe (cf. ci.yml). `-PbobineChannel=<canal>` le force pour essayer une autre icône.
+@Suppress("UNCHECKED_CAST")
+val releaseChannelRegistry = groovy.json.JsonSlurper()
+    .parse(rootProject.projectDir.resolve("release-channels.json")) as Map<String, Any?>
+@Suppress("UNCHECKED_CAST")
+val releaseChannelEntries = releaseChannelRegistry["channels"] as List<Map<String, Any?>>
+val releaseChannels: List<String> = releaseChannelEntries.map { it["id"] as String }
+val defaultReleaseChannel: String = releaseChannelRegistry["default"] as String
 val bobineChannel: String = (
     providers.gradleProperty("bobineChannel").orNull
-        ?: androidVersionName.trim().trimStart('v', 'V').replace('~', '-').substringAfter('-', "").lowercase()
-            .takeIf { it in listOf("beta", "canary") }
-        ?: "stable"
+        ?: run {
+            val suffixes = releaseChannelEntries.mapNotNull { it["versionSuffix"] as String? }.joinToString("|") { Regex.escape(it) }
+            val match = Regex("^v?\\d+\\.\\d+\\.\\d+[-~]($suffixes)$", RegexOption.IGNORE_CASE).find(androidVersionName.trim())
+            val suffix = match?.groupValues?.get(1)?.lowercase()
+            releaseChannelEntries.firstOrNull { it["versionSuffix"] == suffix && suffix != null }?.get("id") as String?
+        }
+        ?: defaultReleaseChannel
     ).also { channel ->
         require(channel in releaseChannels) { "bobineChannel '$channel' inconnu (attendu : $releaseChannels)" }
     }
@@ -94,6 +104,13 @@ android {
         targetSdk = 36
         versionCode = androidVersionCode
         versionName = androidVersionName
+        // Canal par lequel cet APK a été publié : canal proposé par défaut tant que l'utilisateur
+        // n'en a pas choisi un (écran de démarrage du premier lancement, cf. SplashChannel) ; le
+        // serveur embarqué applique la même règle via BOBINE_VERSION (default_update_channel).
+        buildConfigField("String", "BUILD_CHANNEL", "\"$bobineChannel\"")
+        // Canaux valides, séparés par des virgules (UpdateChannelPref) : même registre, aucune liste Kotlin.
+        buildConfigField("String", "RELEASE_CHANNELS", "\"${releaseChannels.joinToString(",")}\"")
+        buildConfigField("String", "DEFAULT_RELEASE_CHANNEL", "\"$defaultReleaseChannel\"")
     }
 
     flavorDimensions += listOf("device")
