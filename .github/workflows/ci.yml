@@ -1794,6 +1794,11 @@ jobs:
           ref: gh-pages
           path: package-repo
           ssh-key: ${{ secrets.PACKAGES_DEPLOY_KEY }}
+      - uses: actions/checkout@v4
+        with:
+          repository: FantasmaGlad/BobineWeb
+          ref: 726451fea1cee0c58292e365a07e46fcee594cef
+          path: package-verification
       - uses: actions/download-artifact@v4
         with:
           name: bobine-linux-packages-signed
@@ -1823,6 +1828,13 @@ jobs:
           bash scripts/ci/prepare-package-repository.sh deb "$CHANNEL" package-assets package-repo
           bash scripts/ci/prepare-package-repository.sh rpm "$CHANNEL" package-assets package-repo
           bash scripts/ci/prepare-package-repository.sh arch "$CHANNEL" package-assets package-repo
+      - name: Vérifier toute la chaîne APT, DNF et Pacman avant publication
+        run: |
+          python3 package-verification/deploy/onion/verify-packages.py package-repo
+          python3 package-verification/deploy/onion/test-verify-packages.py package-repo
+          size=$(du -sb --exclude=.git package-repo | cut -f1)
+          echo "Taille du site de paquets : $size octets"
+          test "$size" -lt 950000000
       - name: Publier sur gh-pages sans écraser les pages vitrines
         env:
           CHANNEL: ${{ needs.version.outputs.channel }}
@@ -1830,7 +1842,7 @@ jobs:
           cd package-repo
           git config user.name fanta
           git config user.email 193235053+FantasmaGlad@users.noreply.github.com
-          git add -A -- debian/ fedora/ arch/ bobine.gpg
+          git add -A -- debian/ fedora/ arch/ bobine.gpg latest.json mirror-packages.json
           if ! git diff --cached --quiet; then
             git commit -m "chore(packages): actualiser les depots debian, fedora et arch ($CHANNEL)"
             git push origin gh-pages

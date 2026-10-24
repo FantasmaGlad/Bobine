@@ -38,10 +38,8 @@ fi
 # lui-même — sinon l'ancienne logique d'installation s'appliquerait à du code
 # plus récent.
 SELF_SHA="$([[ -f "${SELF_PATH}" ]] && sha256sum "${SELF_PATH}" 2>/dev/null | cut -d' ' -f1 || true)"
-# Source de vérité unique du numéro de version : fichier VERSION à la racine du dépôt, lu ici et par les scripts de
-# packaging (packaging/linux/build_deb.sh, packaging/macos/build_app.sh) —
-# repli "3.0.4" si le fichier est absent (ex. script copié isolément).
-SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "4.0.3")"
+# VERSION décrit le code installé ; le repli sert au script distribué seul.
+SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "5.0.5")"
 # Déplacé ici (auparavant défini beaucoup plus bas, avec le reste du bloc
 # "Cible") : nécessaire tôt pour select_update_channel(), qui lit/écrit le
 # canal choisi (${CONFIG_DIR}/update-channel) avant même l'exécution du

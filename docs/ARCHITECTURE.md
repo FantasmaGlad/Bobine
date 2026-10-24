@@ -753,3 +753,11 @@ L'installateur et le paquet Debian installent udisks2, les outils exFAT/ext4/FAT
 ### Routage et mixage des sorties radio
 
 Périphériques propose un graphe de routage et une table de mixage pour les deux sorties radio. Chaque sortie conserve une destination stable, un repli configurable (sortie par défaut ou silence), les gains et sourdines Musique/Rappels/Sortie, les solos et les égaliseurs. Le lecteur applique les réglages avec Web Audio et rapporte le résultat réel du routage. Les vumètres ne mesurent que pendant la consultation de la table. Sur Linux, le repli PipeWire ne déplace qu'un flux de navigateur local identifié sans ambiguïté et vérifie la liaison obtenue. Les fonctionnalités indisponibles sont signalées, sans les présenter comme appliquées. Le graphe fonctionne aussi au clavier/télécommande (sélection source, puis sortie). L'audio vidéo est représenté mais ne dispose pas de tranche de mixage ; il conserve sa sortie par défaut.
+
+### Vérification de la publication des dépôts Linux
+
+Le job `publish-linux-packages` appartient à la même chaîne de livraison que les builds Android, Windows, macOS et Linux. Les paquets `.deb` amd64 et arm64 sont installés par APT dans les jobs de construction. Après signature et génération des dépôts, un vérificateur partagé avec le miroir Tor contrôle les 18 combinaisons APT/DNF/Pacman, Stable/Bêta/Canary et architectures, avant tout push de publication.
+
+Le vérificateur authentifie la clé attendue, les métadonnées signées, les index et les sommes SHA-256 des binaires. Huit altérations réelles doivent être refusées. `latest.json` et `mirror-packages.json` sont produits uniquement après succès. Le code du vérificateur est récupéré depuis une révision immuable de BobineWeb ; sa mise à jour se fait par revue de la référence dans le workflow. La taille publiée est limitée à 950 millions d’octets pour garder une marge sous la limite de Pages.
+
+Les métadonnées APT portent une expiration : 365 jours pour Stable, 30 jours pour les canaux mobiles. Une publication rafraîchit le canal concerné ; les canaux doivent être republiés avant expiration. La mise en ligne Pages utilise un artefact vérifié, sans historique Git dans le contenu déployé. Les tests de signatures et d’installation en conteneurs ne remplacent pas les validations graphiques sur matériel.

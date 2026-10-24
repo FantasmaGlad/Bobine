@@ -27,6 +27,7 @@ Architectures: amd64 arm64
 Components: main
 Description: Depot APT officiel pour Bobine (canal Stable)
 SignWith: ${fingerprint: -16}
+ValidFor: 365d
 
 Origin: Bobine
 Label: Bobine Official Repository (Beta)
@@ -35,6 +36,7 @@ Architectures: amd64 arm64
 Components: main
 Description: Depot APT officiel pour Bobine (canal Beta)
 SignWith: ${fingerprint: -16}
+ValidFor: 30d
 
 Origin: Bobine
 Label: Bobine Official Repository (Canary)
@@ -43,10 +45,24 @@ Architectures: amd64 arm64
 Components: main
 Description: Depot APT officiel pour Bobine (canal Canary)
 SignWith: ${fingerprint: -16}
+ValidFor: 30d
 EOF
     elif ! grep -q "arm64" "$debian_dir/conf/distributions"; then
         sed -i 's/^Architectures: amd64$/Architectures: amd64 arm64/' "$debian_dir/conf/distributions"
     fi
+    # Les dépôts existants reçoivent la même durée que les nouvelles installations.
+    python3 - "$debian_dir/conf/distributions" <<'PYCONFIG'
+import pathlib
+import sys
+config = pathlib.Path(sys.argv[1])
+blocks = []
+for block in config.read_text().strip().split("\n\n"):
+    lines = [line for line in block.splitlines() if not line.startswith("ValidFor:")]
+    stable = "Codename: stable" in lines
+    lines.append("ValidFor: 365d" if stable else "ValidFor: 30d")
+    blocks.append("\n".join(lines))
+config.write_text("\n\n".join(blocks) + "\n")
+PYCONFIG
     mapfile -d '' deb_amd64_matches < <(find "$packages" -type f -name "*_amd64.deb" -print0)
     mapfile -d '' deb_arm64_matches < <(find "$packages" -type f -name "*_arm64.deb" -print0)
     [ "${#deb_amd64_matches[@]}" = 1 ] && [ "${#deb_arm64_matches[@]}" = 1 ] || { echo "Deux paquets deb (amd64 et arm64) attendus." >&2; exit 1; }
