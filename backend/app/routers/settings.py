@@ -61,7 +61,7 @@ from app.utils.deployment import (
 )
 from app.utils.mdns import get_status as get_mdns_status
 from app.utils.network import lan_addresses, primary_lan_ip
-from app.utils.version import get_app_version
+from app.utils.version import RELEASE_CHANNELS, get_app_version
 from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
@@ -135,7 +135,7 @@ _VALID_THEMES = {
     "beige", "lavande", "miel", "coco",
 }
 _VALID_ACTIVE_LOGOS = {"default", "custom"}
-_VALID_UPDATE_CHANNELS = {"stable", "beta", "canary"}
+_VALID_UPDATE_CHANNELS = set(RELEASE_CHANNELS)
 _VALID_WIRED_DISPLAY_MODES = {"dual_screen", "headless"}
 
 # Sortie affichée par CANAL de diffusion : "câblé" (l'écran physiquement connecté au Wyse, en 127.0.0.1) et

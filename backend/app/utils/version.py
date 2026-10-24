@@ -92,6 +92,20 @@ def get_app_tag() -> str:
     return f"V{get_app_version()}"
 
 
+# Canaux de diffusion, dans l'ordre d'affichage. Liste unique côté backend ; les autres
+# implémentations (frontend, Android, générateur d'icônes) la reprennent et
+# backend/tests/test_channel_icons_wiring.py vérifie qu'elles ne divergent pas.
+RELEASE_CHANNELS: tuple[str, ...] = ("stable", "beta", "canary")
+DEFAULT_RELEASE_CHANNEL = "stable"
+
+
+def normalize_release_channel(value: object) -> str | None:
+    """Canal valide (minuscules, sans espaces) ou None : jamais de repli silencieux, c'est
+    à l'appelant de choisir `DEFAULT_RELEASE_CHANNEL` ou de refuser la valeur."""
+    candidate = str(value).strip().lower() if value is not None else ""
+    return candidate if candidate in RELEASE_CHANNELS else None
+
+
 def rolling_channel_of_version(version: str | None = None) -> str | None:
     """Canal rolling ("beta" ou "canary") dont un build packagé porte le
     suffixe de version ("5.0.0-canary", "5.0.0~beta"), ou None pour une
@@ -100,6 +114,13 @@ def rolling_channel_of_version(version: str | None = None) -> str | None:
     candidate = (version if version is not None else get_app_version()).strip().lstrip("vV")
     suffix = candidate.replace("~", "-").partition("-")[2].lower()
     return suffix if suffix in ("beta", "canary") else None
+
+
+def build_channel_of_version(version: str | None = None) -> str:
+    """Canal du BUILD installé : « beta » ou « canary » d'après le suffixe de version, sinon
+    « stable ». C'est la règle qui fixe les icônes de lanceur, d'installeur et d'exécutable
+    (packaging/common/channel.py, android/app/build.gradle.kts en appliquent la même)."""
+    return rolling_channel_of_version(version) or DEFAULT_RELEASE_CHANNEL
 
 
 def _git_head_short() -> str | None:

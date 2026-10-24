@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import BrowserCompatibility from "@/components/BrowserCompatibility";
 import MediaNativeSetting from "@/components/MediaNativeSetting";
 import { useAppSettings, type Theme } from "@/lib/AppSettingsContext";
+import { channelLogoUrl } from "@/lib/releaseChannel";
 import type { Language } from "@/lib/i18n";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
@@ -1376,7 +1377,7 @@ export default function SettingsPage() {
                 disabled={changingChannel}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-stable.png" alt="" width={18} height={18} style={{ borderRadius: "4px" }} />
+                <img src={channelLogoUrl("stable")} alt="" width={18} height={18} style={{ borderRadius: "4px" }} />
                 {t("settingsPage.updateChannelStable")}
               </button>
               <button
@@ -1387,7 +1388,7 @@ export default function SettingsPage() {
                 disabled={changingChannel}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-beta.png" alt="" width={18} height={18} style={{ borderRadius: "4px" }} />
+                <img src={channelLogoUrl("beta")} alt="" width={18} height={18} style={{ borderRadius: "4px" }} />
                 {t("settingsPage.updateChannelBeta")}
               </button>
               <button
@@ -1398,7 +1399,7 @@ export default function SettingsPage() {
                 disabled={changingChannel}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-canary.png" alt="" width={18} height={18} style={{ borderRadius: "4px" }} />
+                <img src={channelLogoUrl("canary")} alt="" width={18} height={18} style={{ borderRadius: "4px" }} />
                 {t("settingsPage.updateChannelCanary")}
               </button>
             </div>

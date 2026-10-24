@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { translate, translateList, type Language } from "@/lib/i18n";
 import { pushThemeToNative, pushUpdateChannelToNative } from "@/lib/nativeBridge";
+import { applyChannelFavicon, type UpdateChannel } from "@/lib/releaseChannel";
 import { useGlassGovernor } from "@/lib/useGlassGovernor";
 
 // "les-mills-sombre" est la clé interne historique du thème "Sombre" — conservée telle quelle pour ne rien casser sur
@@ -51,7 +52,7 @@ export interface NetworkInfo {
 }
 
 export type ActiveLogo = "default" | "custom";
-export type UpdateChannel = "stable" | "beta" | "canary";
+export type { UpdateChannel };
 export type WiredDisplayMode = "dual_screen" | "headless";
 /** Réglage administrateur : "auto" = dérivé des écrans externes réellement
  * connectés ; sinon forçage manuel. */
@@ -75,8 +76,7 @@ interface AppSettingsContextValue {
   logoVersion: number;
   refreshBranding: () => void;
   /** Canal de mise à jour courant (stable/beta/canary) — pilote entre autres
-   * l'illustration affichée par AppLogo (une par canal, cf.
-   * Assets/Images/Versions/). */
+   * l'illustration affichée par AppLogo et le favicon (cf. lib/releaseChannel.ts). */
   updateChannel: UpdateChannel;
   wiredDisplayMode: WiredDisplayMode;
   setWiredDisplayMode: (mode: WiredDisplayMode) => void;
@@ -364,6 +364,11 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       // ignore
     }
   }, [language]);
+
+  // Onglet du navigateur aux couleurs du canal choisi (cf. lib/releaseChannel.ts).
+  useEffect(() => {
+    applyChannelFavicon(document, updateChannel);
+  }, [updateChannel]);
 
   const persist = useCallback((payload: Record<string, string | boolean>) => {
     fetch(getApiUrl("/settings"), {
