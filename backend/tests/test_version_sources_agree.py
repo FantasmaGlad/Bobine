@@ -6,8 +6,6 @@ VERSION est introuvable (script copié isolément, compilation manuelle) : ils n
 jour tout seuls, donc ce test échoue à la préparation d'une release tant qu'ils ne sont pas alignés
 (le commit « chore(release): préparer la version X » doit tous les toucher).
 
-Non couvert : le repli « 4.0.3 » d'install.sh (copie identique dans le dépôt du site, synchronisée par la
-refonte web) ; il ne sert que si VERSION est absent à côté du script, pour un simple affichage.
 """
 
 import re
@@ -43,3 +41,7 @@ def test_repli_de_gradle():
 def test_derniere_release_du_metainfo_appstream():
     first = re.search(r'<release version="([^"]+)"', _read("packaging/linux/bobine.metainfo.xml")).group(1)
     assert first == CURRENT
+
+
+def test_repli_de_l_installeur_autonome():
+    assert re.search(r'SCRIPT_VERSION=.*echo "([^\"]+)"', _read("install.sh")).group(1) == CURRENT

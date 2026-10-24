@@ -745,3 +745,11 @@ The installer and Debian package install udisks2, exFAT/ext4/FAT32/NTFS tools an
 ### Radio output routing and mixing
 
 Devices provides a routing graph and a mixer for both radio outputs. Each output retains a stable destination, a configurable fallback (default output or silence), Music/Announcements/Master gains and mute controls, solos and equalizers. The player applies settings through Web Audio and reports the actual routing result. Meters only run while the mixer is viewed. On Linux, the PipeWire fallback moves only an unambiguous local browser stream and verifies the resulting connection. Unsupported capabilities are reported explicitly. The graph also supports keyboard/remote selection of a source followed by an output. Video audio is shown without a mixer strip and keeps the default output.
+
+### Linux repository publication verification
+
+`publish-linux-packages` is part of the same delivery pipeline as the Android, Windows, macOS and Linux builds. The amd64 and arm64 `.deb` build jobs install their output through APT. After repository generation, the verifier shared with the Tor mirror checks all 18 APT/DNF/Pacman, Stable/Beta/Canary and architecture combinations before publication.
+
+It authenticates the expected key, signed metadata, indexes and binary SHA-256 checksums. Eight corrupted repository variants must be rejected. `latest.json` and `mirror-packages.json` are written only after all checks succeed. The verifier is checked out from an immutable BobineWeb revision reviewed in the workflow. Published content must remain below 950 million bytes.
+
+APT metadata expires after 365 days for Stable and 30 days for rolling channels. Each publication refreshes its channel; channels must be republished before expiry. Pages deploys verified artifacts without Git history in the deployed content. Signature checks and container installation tests do not replace graphical hardware validation.
