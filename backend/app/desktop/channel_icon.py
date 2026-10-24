@@ -8,7 +8,7 @@ Deux notions de canal coexistent et ne doivent pas être confondues :
   - le canal CHOISI par l'utilisateur (réglage `update_channel`, modifiable à chaud) : il
     pilote ce module, donc l'icône de la barre système, le logo de l'interface, le favicon
     et l'écran de démarrage Android ;
-  - le canal du BUILD installé (suffixe de `VERSION`, cf. `app.utils.version.build_channel_of_version`) :
+  - le canal du BUILD installé (suffixe de `VERSION`, cf. `app.release_channel.build_channel_of_version`) :
     il fixe l'icône du lanceur, de l'installeur et de l'exécutable, décidée à la construction
     (packaging/common/channel.py, packaging/common/channel.sh).
 """
@@ -21,17 +21,12 @@ from pathlib import Path
 
 from PIL import Image
 
-from app.utils.version import DEFAULT_RELEASE_CHANNEL, normalize_release_channel
+from app import release_channel
 
 logger = logging.getLogger(__name__)
 
 # Icône « sans canal » : Stable, aussi dernier recours quand l'icône du canal est introuvable.
 DEFAULT_ICON_FILENAME = "logo_bobine_icon.png"
-
-# Canal écrit UNE SEULE FOIS par install.sh (Linux) : indice de dernier recours quand le
-# backend ne répond pas encore, jamais une source de vérité (il n'est pas mis à jour quand
-# l'utilisateur change de canal dans les Réglages).
-INSTALL_CHANNEL_HINT = Path("/etc/bobine/update-channel")
 
 TRAY_ICON_SIZE = 64
 
@@ -42,24 +37,19 @@ def channel_icon_filename(channel: str) -> str:
 
 def detect_channel(
     fetch_settings: Callable[[], dict | None],
-    hint_file: Path = INSTALL_CHANNEL_HINT,
+    hint_file: Path = release_channel.INSTALL_HINT_PATH,
 ) -> str:
-    """Canal choisi : réglage du backend en premier (source de vérité), puis indice
-    d'installation, puis Stable. Ne lève jamais : la barre système ne doit pas dépendre
-    de l'état du backend."""
+    """Canal choisi : réglage du backend en premier (source de vérité : choix explicite ou, à
+    défaut, canal d'installation), puis, backend injoignable, le canal d'installation du build
+    (`release_channel.install_channel`). Ne lève jamais : la barre système ne doit pas dépendre de l'état
+    du backend, et une Canary démarre donc avec l'icône Canary avant même que le serveur réponde."""
     try:
         settings = fetch_settings()
     except Exception as exc:  # backend pas prêt, redémarrage, port occupé...
         logger.debug("Canal de mise à jour illisible via l'API : %s", exc)
         settings = None
-    channel = normalize_release_channel((settings or {}).get("update_channel"))
-    if channel:
-        return channel
-    try:
-        channel = normalize_release_channel(hint_file.read_text(encoding="utf-8"))
-    except OSError:
-        channel = None
-    return channel or DEFAULT_RELEASE_CHANNEL
+    channel = release_channel.normalize((settings or {}).get("update_channel"))
+    return channel or release_channel.install_channel(hint_file=hint_file)
 
 
 def icon_candidates(channel: str, exe_dir: Path, images_dir: Path) -> list[Path]:

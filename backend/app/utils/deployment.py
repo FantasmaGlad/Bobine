@@ -13,6 +13,7 @@ import platform
 from pathlib import Path
 from typing import Callable, Literal
 
+from app import release_channel
 from app.utils.android_runtime import is_android
 
 DeploymentProfile = Literal["linux-headless", "linux-desktop", "windows", "macos", "android"]
@@ -202,3 +203,12 @@ def get_profile_handler() -> ProfileHandler:
             from app.utils.deployment_profiles.linux_headless import LinuxHeadlessHandler
             _handler = LinuxHeadlessHandler()
     return _handler
+
+
+def resolve_update_channel(stored: object) -> release_channel.ChannelChoice:
+    """Canal effectif de CETTE installation (cf. release_channel.resolve), point d'entrée unique des
+    réglages et des mises à jour. Un build distribué par une boutique (Google Play) est verrouillé
+    sur la Stable : il ne se met à jour que par la boutique, qui ne publie que la Stable, et son
+    icône reste celle de la Stable quel que soit le réglage (restauré d'une sauvegarde, par exemple)."""
+    locked = release_channel.DEFAULT_CHANNEL if get_profile_handler().is_store_managed() else None
+    return release_channel.resolve(stored, locked=locked)

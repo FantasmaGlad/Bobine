@@ -7,13 +7,8 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
+from app import release_channel
 from app.desktop import channel_icon
-from app.utils.version import (
-    DEFAULT_RELEASE_CHANNEL,
-    RELEASE_CHANNELS,
-    build_channel_of_version,
-    normalize_release_channel,
-)
 
 
 def _settings(channel):
@@ -38,7 +33,7 @@ def test_indice_d_installation_utilise_quand_le_backend_ne_repond_pas(tmp_path):
 
 @pytest.mark.parametrize("answer", [None, {}, {"update_channel": "nightly"}, {"update_channel": 3}])
 def test_reponse_inutilisable_retombe_sur_l_indice_puis_stable(tmp_path, answer):
-    assert channel_icon.detect_channel(lambda: answer, tmp_path / "absent") == DEFAULT_RELEASE_CHANNEL
+    assert channel_icon.detect_channel(lambda: answer, tmp_path / "absent") == release_channel.DEFAULT_CHANNEL
 
 
 def test_indice_invalide_ignore(tmp_path):
@@ -90,19 +85,3 @@ def test_fichier_illisible_saute_vers_le_candidat_suivant(tmp_path):
 def test_icone_de_repli_quand_aucun_fichier(tmp_path):
     image = channel_icon.load_tray_image("stable", channel_icon.icon_candidates("stable", tmp_path, tmp_path))
     assert image.size == (channel_icon.TRAY_ICON_SIZE,) * 2
-
-
-@pytest.mark.parametrize(
-    ("version", "expected"),
-    [("5.0.5", "stable"), ("5.0.5-beta", "beta"), ("V5.0.5-canary", "canary"), ("5.0.5~beta", "beta"),
-     ("5.0.5-rc1", "stable"), ("", "stable")],
-)
-def test_canal_du_build_deduit_du_suffixe_de_version(version, expected):
-    assert build_channel_of_version(version) == expected
-
-
-def test_registre_des_canaux():
-    assert RELEASE_CHANNELS == ("stable", "beta", "canary")
-    assert normalize_release_channel(" CANARY ") == "canary"
-    assert normalize_release_channel("nightly") is None
-    assert normalize_release_channel(None) is None

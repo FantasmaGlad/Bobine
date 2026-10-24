@@ -21,6 +21,7 @@ from app.utils.deployment import (
     UpdateUnsupported,
     get_deployment_profile,
     get_profile_handler,
+    resolve_update_channel,
 )
 from app.utils.update_orchestrator import (
     acknowledge_current,
@@ -29,11 +30,11 @@ from app.utils.update_orchestrator import (
     report_external_event,
     run_update_pipeline,
 )
+from app import release_channel
 from app.utils.version import (
     get_app_commit,
     get_app_tag,
     get_app_version,
-    rolling_channel_of_version,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,16 +53,16 @@ GITHUB_REPO = "FantasmaGlad/Bobine"
 # (rolling, publié à chaque push sur main) : chacun force-déplace son tag et
 # republie dessus à chaque déclenchement.
 _RELEASES_LATEST_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-_RELEASES_BETA_TAG_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/beta"
-_RELEASES_CANARY_TAG_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/canary"
 _COMMITS_URL = f"https://api.github.com/repos/{GITHUB_REPO}/commits"
 # Canaux "rolling" : tag mobile comparé par COMMIT (cf. _rolling_tag_update),
 # par opposition au canal "stable" comparé par numéro de version sémantique.
-# Source de vérité unique pour "quels canaux partagent ce mécanisme" — y
-# ajouter un canal suffit à l'intégrer partout (recherche de release, cache,
-# comparaison de mises à jour).
-_ROLLING_RELEASE_URLS = {"beta": _RELEASES_BETA_TAG_URL, "canary": _RELEASES_CANARY_TAG_URL}
-_VALID_CHANNELS = ("stable", "beta", "canary")
+# Dérivés du registre des canaux (app/release_channel.py), source de vérité unique : y
+# ajouter un canal suffit à l'intégrer partout (recherche de release, cache, comparaison).
+_ROLLING_RELEASE_URLS = {
+    channel.id: f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/{channel.release_tag}"
+    for channel in release_channel.CHANNELS
+    if channel.rolling
+}
 _STABLE_TAG_RE = re.compile(r"^V\d+\.\d+\.\d+$")
 _SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
 
@@ -103,8 +104,8 @@ class AndroidUpdateCallback(BaseModel):
 
 def _get_update_channel(db: Session) -> str:
     row = db.query(Setting).filter(Setting.key == "update_channel").first()
-    channel = row.value if row else None
-    return channel if channel in _VALID_CHANNELS else "stable"
+    # Réglage absent ou invalide : le canal par lequel l'application a été installée.
+    return resolve_update_channel(row.value if row else None).effective
 
 
 def _parse_version(version_str: str) -> tuple[tuple[int, int, int], tuple]:
@@ -145,15 +146,15 @@ def _git_lines(args: list[str], repo_dir: Path) -> list[str]:
         return []
 
 
-def _rolling_build_info(tag_name: str, commit: str) -> dict[str, Any]:
+def _rolling_build_info(channel: release_channel.ReleaseChannel, commit: str) -> dict[str, Any]:
     """Construit le résultat de `_get_local_version_info()` pour un build posé
-    sur un tag mobile (rolling) donné — factorisé pour servir aussi bien
-    "beta" que "canary" sans dupliquer la logique de version affichée."""
+    sur le tag mobile (rolling) d'un canal — factorisé pour servir tous les
+    canaux rolling du registre sans dupliquer la logique de version affichée."""
     base = get_app_version().lstrip("vV")
-    version = f"V{base}" if "-" in base else f"V{base}-{tag_name}"
+    version = f"V{base}" if "-" in base else f"V{base}-{channel.version_suffix}"
     return {
-        "current_version": version, "current_tag": tag_name, "current_commit": commit,
-        "local_rolling_channel": tag_name,
+        "current_version": version, "current_tag": channel.release_tag, "current_commit": commit,
+        "local_rolling_channel": channel.id,
     }
 
 
@@ -166,7 +167,7 @@ def _get_local_version_info() -> dict[str, Any]:
     figé (`.exe`, `.app`, `.deb`) n'a pas de `.git` et ces appels
     échoueraient systématiquement en pure perte.
 
-    `local_rolling_channel` ("beta", "canary" ou None si Stable) distingue
+    `local_rolling_channel` (id d'un canal rolling du registre, ou None si Stable) distingue
     un build non-Stable d'une Stable de même numéro de base : sans ça, un
     utilisateur Bêta/Canary qui repasse sur le canal Stable ne se voyait
     JAMAIS proposer la Stable (même base, ou base inférieure), contrairement
@@ -177,7 +178,7 @@ def _get_local_version_info() -> dict[str, Any]:
     if not get_profile_handler().supports_git_versioning():
         return {
             "current_version": tag, "current_tag": tag, "current_commit": commit,
-            "local_rolling_channel": rolling_channel_of_version(),
+            "local_rolling_channel": release_channel.rolling_channel_of_version(),
         }
 
     repo_dir = Path(__file__).resolve().parent.parent.parent
@@ -187,7 +188,7 @@ def _get_local_version_info() -> dict[str, Any]:
 
     # Tags posés EXACTEMENT sur le commit courant : seule source fiable pour
     # savoir si ce checkout EST une Stable (tag strict Vx.y.z) ou un canal
-    # rolling (tag mobile "beta"/"canary") — `git describe` seul tranche
+    # rolling (tag mobile du canal) — `git describe` seul tranche
     # arbitrairement quand plusieurs tags pointent le même commit (cas
     # courant juste après la promotion d'une Bêta/Canary en Stable).
     tags_here = _git_lines(["tag", "--points-at", "HEAD"], repo_dir)
@@ -198,12 +199,12 @@ def _get_local_version_info() -> dict[str, Any]:
             "current_version": version, "current_tag": version, "current_commit": commit,
             "local_rolling_channel": None,
         }
-    # Si les deux tags mobiles pointent le même commit (rare : juste après
-    # une promotion Canary -> Bêta), "beta" l'emporte — action la plus
-    # délibérée des deux (publication manuelle vs. automatique à chaque push).
-    for rolling_tag in ("beta", "canary"):
-        if rolling_tag in tags_here:
-            return _rolling_build_info(rolling_tag, commit)
+    # Si plusieurs tags mobiles pointent le même commit (rare : juste après une promotion
+    # Canary -> Bêta), le premier du registre l'emporte (Bêta : publication manuelle, donc
+    # l'action la plus délibérée, avant la Canary automatique à chaque push).
+    for channel in release_channel.CHANNELS:
+        if channel.rolling and channel.release_tag in tags_here:
+            return _rolling_build_info(channel, commit)
 
     described = _git_lines(["describe", "--tags", "--always"], repo_dir)
     if described:
@@ -497,7 +498,7 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
             "current_version": local_info["current_version"],
             "current_tag": local_info["current_tag"],
             "current_commit": local_info["current_commit"],
-            "local_build": local_info["local_rolling_channel"] or "stable",
+            "local_build": local_info["local_rolling_channel"] or release_channel.DEFAULT_CHANNEL,
             "deployment_profile": profile,
             "checked_at": now_iso,
             "store_managed": True,
@@ -523,7 +524,7 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
         "current_version": local_info["current_version"],
         "current_tag": local_info["current_tag"],
         "current_commit": local_info["current_commit"],
-        "local_build": local_info["local_rolling_channel"] or "stable",
+        "local_build": local_info["local_rolling_channel"] or release_channel.DEFAULT_CHANNEL,
         "deployment_profile": profile,
         "checked_at": now_iso,
     }

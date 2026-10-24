@@ -9,7 +9,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.utils import android_runtime, deployment
-from app.utils.version import rolling_channel_of_version
+from app.release_channel import rolling_channel_of_version
 
 
 @pytest.fixture
