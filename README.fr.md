@@ -98,15 +98,53 @@ Bobine garantit une compatibilité totale et sans compromis sur l'ensemble des d
 | <img src="Assets/Icons/distros/cachyos.svg" width="22" height="22" alt="CachyOS"> **CachyOS** | Noyau optimisé x86-64-v3/v4 et ordonnanceur BORE ultra-réactif | [cachyos.org](https://cachyos.org/) |
 | <img src="Assets/Icons/distros/manjaro.svg" width="22" height="22" alt="Manjaro Linux"> **Manjaro Linux** | Distribution grand public avec cycle de release stabilisé | [manjaro.org](https://manjaro.org/) |
 
-#### 4. Systèmes d'Exploitation & Partenaires Matériels
-| Système / Matériel | Description & Prise en charge | Site officiel |
+#### 4. Systèmes d'Exploitation & Appareils Compatibles Recommandés
+
+> [!NOTE]
+> **Indépendance des recommandations & Boutique matérielle** : Bobine n'a **aucun partenariat commercial, sponsoring ou contrat de marque** avec les constructeurs : ce sont des recommandations matérielles strictement indépendantes et éprouvées sur le terrain pour la diffusion 24/7 en salle de sport et studio de fitness.
+>
+> 🛒 **Boutique de recommandations** : Retrouvez l'ensemble de notre sélection d'appareils, câblages et kits régie testés sur [**bobine.fit/fr/materiel**](https://bobine.fit/fr/materiel).
+
+| Système / Écosystème Recommandé | Description & Prise en charge | Site officiel |
 | :--- | :--- | :---: |
-| <img src="Assets/Icons/os/framework.svg" width="22" height="22" alt="Framework"> **Framework Laptop** | Laptops modulaires et réparables (puces AMD Ryzen, Intel Core Ultra, Qualcomm Snapdragon ARM64) | [frame.work](https://frame.work/) |
+| <img src="Assets/Icons/os/framework.svg" width="22" height="22" alt="Framework"> **Framework Laptop** | Laptops modulaires et réparables (puces AMD Ryzen, Intel Core Ultra, Qualcomm Snapdragon ARM64) recommandés pour leur durabilité | [frame.work](https://frame.work/) |
 | <img src="Assets/Icons/os/windows.svg" width="22" height="22" alt="Windows"> **Windows 11 / 10** | Installeur natif autonome x86-64 et portables Qualcomm Snapdragon X ARM64 | [microsoft.com/windows](https://www.microsoft.com/windows) |
 | <img src="Assets/Icons/os/apple.svg" width="22" height="22" alt="Apple"> **macOS** | Image disque `.dmg` universelle Apple Silicon (M1–M4) et processeurs Intel | [apple.com/macos](https://www.apple.com/macos/) |
 | <img src="Assets/Icons/os/android.svg" width="22" height="22" alt="Android"> **Android & Android TV** | Application tactile tablettes coach, Google Books et box Android TV / Google TV | [android.com](https://www.android.com/) |
 | <img src="Assets/Icons/os/tor.svg" width="22" height="22" alt="Tor"> **Réseau Tor (.onion)** | Dépôt APT anonyme et miroir statique sans exposition d'adresses IP | [torproject.org](https://www.torproject.org/) |
 | <img src="Assets/Icons/os/linux.svg" width="22" height="22" alt="Linux"> **Linux Appliance (Debian 13)** | Appliance kiosque dédiée pour mini PC régie 24/7 (Dell Wyse 5070, DGX Spark, etc.) | [kernel.org](https://kernel.org/) |
+
+##### Appareils & Marques Populaires Recommandés
+
+En complément des systèmes d'exploitation, voici les catégories et marques d'appareils populaires testées et recommandées pour une régie Bobine :
+
+- 🖥️ **Mini PC & Boîtiers Kiosque 24/7** *(Diffusion discrète, silencieuse et basse consommation)* :
+  - **Dell** : Wyse 5070 (appliance de référence fanless ultra-économique sous Debian 13), OptiPlex Micro (3000, 5000, 7000).
+  - **HP** : ProDesk Mini, EliteDesk Mini.
+  - **Lenovo** : ThinkCentre Tiny (M70q, M90q, ThinkCentre neo).
+  - **NiPoGi & MeLE** : NiPoGi E1 (Intel N150), E3B (AMD Ryzen 5), H1 (Ryzen 7), MeLE Overclock 4C (fanless ultra-plat).
+  - **Minisforum & GEEKOM** : Minisforum UM series (Ryzen), GEEKOM IT13 Max (Intel Core Ultra).
+  - **ASUS & Intel** : ASUS NUC, Intel NUC (formats carrés compacts 10x10 cm).
+  - **SBC ARM64** : Raspberry Pi 5 (8 Go / 16 Go), Orange Pi 5 Max, NVIDIA DGX Spark (Grace Blackwell GB10), Jetson Orin.
+- 💻 **PC Portables & Stations Mobiles** *(Mode pupitre double écran tactile `/grid` ou clamshell régie)* :
+  - **Framework Laptop** : Framework Laptop 13 & 16 (châssis modulaire réparable indice 10/10, cartes HDMI interchangeables, AMD Ryzen, Intel Core Ultra, Snapdragon X Elite ARM64).
+  - **Apple** : MacBook Air & MacBook Pro (Apple Silicon M1, M2, M3, M4), Mac mini M4 / M4 Pro.
+  - **Lenovo** : ThinkPad (séries T, X, E, L), IdeaPad Slim, Yoga.
+  - **Dell** : XPS 13 / 15 / 16, Latitude, Inspiron.
+  - **HP & ASUS** : HP EliteBook, ProBook, OmniBook ; ASUS Zenbook OLED, Vivobook S 15.
+- 📺 **Box TV & Lecteurs Multimédia de Salle** *(Diffusion directe grand écran via Android TV / Google TV)* :
+  - **Google** : Google TV Streamer 4K, Chromecast avec Google TV (HD & 4K).
+  - **Xiaomi** : Xiaomi TV Box S (2nd Gen) 4K, Xiaomi TV Stick 4K.
+  - **Nokia & Strong** : Nokia Streaming Box 8000 / 8010, Strong LEAP-S3.
+  - **NVIDIA** : Nvidia Shield TV & Shield TV Pro.
+- 📱 **Tablettes & Bornes Tactiles** *(Console coach tactile `/grid`, borne interactive adhérents `/kiosk` et télécommande)* :
+  - **Samsung** : Galaxy Tab S9 / S10 Lite / S11 Ultra, Galaxy Tab A9+.
+  - **Xiaomi** : Xiaomi Pad 6 / 7 / 8 (tablette de référence studio avec sortie USB-C DisplayPort).
+  - **Lenovo** : Lenovo Idea Tab 11", Tab P11 / P12 Pro.
+  - **Google Books** : Chromebooks avec Google Play Store et écran tactile (HP Chromebook x360, Acer Spin, Lenovo Duet, ASUS Chromebook Flip).
+  - **Apple** : iPad (10e génération, iPad Air, iPad Pro) en affichage plein écran Safari / PWA.
+
+> 💡 *Retrouvez les guides de configuration, kits de câblage HDMI/USB-C et supports muraux sur notre [boutique de recommandations matérielles](https://bobine.fit/fr/materiel).*
 
 
 L’assistant « Préparer ce support » de la Canary propose un formatage rapide Linux (exFAT, ext4, FAT32 ou NTFS), avec PIN obligatoire, confirmation du nom et vérification du résultat. Il refuse les disques internes/système, les supports occupés et les bibliothèques encore enregistrées. Le formatage efface le support sélectionné ; les autres plateformes ne le prennent pas en charge.
@@ -210,7 +248,7 @@ Bobine est agnostique aux programmes : les catégories de cours sont libres, il 
 
 ## Matériel supporté
 
-Bobine est un logiciel léger et optimisé, conçu pour fonctionner avec fluidité sur une très large gamme d'équipements existants, neufs ou reconditionnés (architectures **x86-64** et **ARM64** natives) :
+Bobine est un logiciel léger et optimisé, conçu pour fonctionner avec fluidité sur une très large gamme d'équipements neufs, reconditionnés ou existants (architectures **x86-64** et **ARM64** natives). Bobine ne dispose d'aucun partenariat constructeur : nos recommandations sont 100% indépendantes et sélectionnées pour leur fiabilité en club. Découvrez toutes les références et accessoires testés sur notre [**boutique matérielle recommandée**](https://bobine.fit/fr/materiel) :
 
 - **Ordinateurs portables (Framework Laptop modulaires, PC Windows 11/10 x86-64 & ARM64 Snapdragon, macOS, Linux et Google Books)** :
   - **Framework Laptop (ordinateurs portables modulaires et réparables [Framework](https://frame.work/))** : compatibilité matérielle et inter-OS optimale sous **Linux** (Debian, Ubuntu, Fedora, Arch Linux) et **Windows 11** (x86-64 et ARM). Accélération graphique matérielle complète sur puces **AMD Ryzen** (APU Radeon 780M / 880M RDNA3/3.5 avec décodage fluide VA-API), processeurs **Intel Core Ultra** (Meteor Lake / Arrow Lake avec QuickSync Video) et puces **Qualcomm Snapdragon X Elite / X Plus** (architecture ARM64 native, Adreno VPU, efficacité énergétique record pour un fonctionnement 24/7 sans surchauffe). Architecture modulaire idéale pour les régies de club de fitness (cartes d'extension HDMI, USB-C et Ethernet interchangeables à chaud). Voir [Framework Laptop](https://frame.work/).
