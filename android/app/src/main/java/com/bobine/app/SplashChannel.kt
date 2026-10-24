@@ -12,8 +12,9 @@ private const val SETTINGS_URL = "http://127.0.0.1:8000/api/settings"
 
 /**
  * Icône d'écran de démarrage (mascotte Baamix) selon le canal de mise à jour courant — une
- * ressource `bobine_splash_logo_<canal>` par canal (cf. `drawable-nodpi/`, dérivées de
- * `Assets/Images/Versions/`). Repli sur « stable » si le canal est inconnu ou invalide.
+ * ressource `bobine_splash_logo_<canal>` par canal (cf. `drawable-nodpi/`, générées par
+ * `scripts/generate_channel_icons.py`). Repli sur « stable » si le canal est inconnu ou invalide.
+ * L'icône du LANCEUR, elle, est fixée à la construction : voir `bobineChannel` dans `app/build.gradle.kts`.
  */
 fun splashDrawableForChannel(channel: String?): Int = when (channel) {
     "beta" -> R.drawable.bobine_splash_logo_beta

@@ -36,6 +36,22 @@ val hasReleaseSigningConfig = listOf(androidKeystorePath, androidKeystorePasswor
 val rootVersionFile = rootProject.projectDir.resolve("../VERSION")
 val fallbackVersionName = if (rootVersionFile.exists()) rootVersionFile.readText().trim() else "4.0.3"
 val androidVersionName: String = System.getenv("ANDROID_VERSION_NAME") ?: fallbackVersionName
+// Canal du BUILD (stable, beta, canary) : fixe l'icône du lanceur et la bannière Android TV
+// compilées dans l'APK. Même règle que backend/app/utils/version.py::build_channel_of_version
+// (suffixe de la version : "5.0.5-canary", "5.0.5-beta", sinon Stable), sans variable CI en
+// plus : ANDROID_VERSION_NAME porte déjà ce suffixe. `-PbobineChannel=<canal>` le force pour
+// essayer une autre icône en local. Les ressources vivent dans src/channel-<canal>/res et
+// src/tv-channel-<canal>/res (générées par scripts/generate_channel_icons.py) ; l'écran de
+// démarrage, lui, embarque les trois canaux et suit le canal choisi à l'exécution (SplashChannel).
+val releaseChannels = listOf("stable", "beta", "canary")
+val bobineChannel: String = (
+    providers.gradleProperty("bobineChannel").orNull
+        ?: androidVersionName.trim().trimStart('v', 'V').replace('~', '-').substringAfter('-', "").lowercase()
+            .takeIf { it in listOf("beta", "canary") }
+        ?: "stable"
+    ).also { channel ->
+        require(channel in releaseChannels) { "bobineChannel '$channel' inconnu (attendu : $releaseChannels)" }
+    }
 val fallbackVersionCode: Int = try {
     val process = ProcessBuilder("git", "rev-list", "--count", "HEAD")
         .directory(rootProject.projectDir)
@@ -104,6 +120,13 @@ android {
                 if (emulatorBuild) abiFilters += "x86_64"
             }
         }
+    }
+
+    // Icône de lanceur et bannière TV du canal du build (cf. bobineChannel plus haut).
+    // (après productFlavors : le jeu de sources « tv » n'existe qu'une fois le flavor déclaré)
+    sourceSets {
+        getByName("main").res.srcDir("src/channel-$bobineChannel/res")
+        getByName("tv").res.srcDir("src/tv-channel-$bobineChannel/res")
     }
 
     buildTypes {
