@@ -1875,6 +1875,9 @@ jobs:
           bash scripts/ci/prepare-package-repository.sh arch "$CHANNEL" package-assets package-repo
       - name: Vérifier toute la chaîne APT, DNF et Pacman avant publication
         run: |
+          # Les index sont produits avec sudo : sans changement de propriétaire, le noyau refuse les liens physiques que le
+          # jeu de corruptions crée pour copier le dépôt (EPERM sur bobine.db.tar.gz).
+          sudo chown -R "$(id -u):$(id -g)" package-repo
           python3 package-verification/deploy/onion/verify-packages.py package-repo
           python3 package-verification/deploy/onion/test-verify-packages.py package-repo
           size=$(du -sb --exclude=.git package-repo | cut -f1)
