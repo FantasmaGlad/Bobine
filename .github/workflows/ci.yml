@@ -1364,6 +1364,21 @@ jobs:
         run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
       - name: Copy install script into release assets
         run: cp install.sh release-assets/
+      - name: Signer la liste des empreintes (SHA256SUMS)
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          GNUPGHOME: ${{ runner.temp }}/bobine-signing
+        run: |
+          install -d -m 0700 "$GNUPGHOME"
+          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+          bash scripts/ci/sign-release-checksums.sh release-assets
+      - name: Retirer la clé privée du runner
+        if: always()
+        env:
+          GNUPGHOME: ${{ runner.temp }}/bobine-signing
+        run: |
+          gpgconf --kill gpg-agent || true
+          rm -rf "$GNUPGHOME"
       - name: Vérifier la complétude des assets
         run: scripts/ci/verify-release-assets.sh release-assets "${{ needs.version.outputs.filename_version }}"
       - name: Inspect generated binary assets
@@ -1480,6 +1495,21 @@ jobs:
         run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
       - name: Copy install script into release assets
         run: cp install.sh release-assets/
+      - name: Signer la liste des empreintes (SHA256SUMS)
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          GNUPGHOME: ${{ runner.temp }}/bobine-signing
+        run: |
+          install -d -m 0700 "$GNUPGHOME"
+          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+          bash scripts/ci/sign-release-checksums.sh release-assets
+      - name: Retirer la clé privée du runner
+        if: always()
+        env:
+          GNUPGHOME: ${{ runner.temp }}/bobine-signing
+        run: |
+          gpgconf --kill gpg-agent || true
+          rm -rf "$GNUPGHOME"
       - name: Vérifier la complétude des assets
         run: scripts/ci/verify-release-assets.sh release-assets canary
       - name: Inspect generated binary assets
@@ -1675,6 +1705,21 @@ jobs:
         run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
       - name: Copy install script into release assets
         run: cp install.sh release-assets/
+      - name: Signer la liste des empreintes (SHA256SUMS)
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          GNUPGHOME: ${{ runner.temp }}/bobine-signing
+        run: |
+          install -d -m 0700 "$GNUPGHOME"
+          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+          bash scripts/ci/sign-release-checksums.sh release-assets
+      - name: Retirer la clé privée du runner
+        if: always()
+        env:
+          GNUPGHOME: ${{ runner.temp }}/bobine-signing
+        run: |
+          gpgconf --kill gpg-agent || true
+          rm -rf "$GNUPGHOME"
       - name: Vérifier la complétude des assets
         run: scripts/ci/verify-release-assets.sh release-assets beta
       - name: Inspect generated binary assets
