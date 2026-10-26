@@ -252,8 +252,7 @@ jobs:
         run: python -m compileall -q backend/app scripts
       - name: Install system dependencies (ffmpeg)
         # Comme le job Firefox, les tests CPU n’installent pas les modèles ASR
-        # ni les pilotes recommandés. Borner aussi les attentes du miroir APT.
-        timeout-minutes: 10
+        # ni les pilotes recommandés. Le miroir peut rester lent même sans eux.
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg
