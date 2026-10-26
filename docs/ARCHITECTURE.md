@@ -765,3 +765,28 @@ Les métadonnées APT portent une expiration : 365 jours pour Stable, 30 jours p
 ### Empreintes signées des fichiers de release
 
 Chaque release (Stable, Bêta, Canary) joint `SHA256SUMS`, la liste des empreintes SHA-256 de tous ses fichiers, et `SHA256SUMS.asc`, sa signature détachée par la clé qui signe déjà les dépôts de paquets. `scripts/ci/sign-release-checksums.sh` produit le couple dans un trousseau éphémère retiré du runner à la fin du job ; `scripts/ci/verify-release-assets.sh` refuse une release dont un fichier attendu est absent de la liste ou dont une empreinte diffère. Pour vérifier un téléchargement : `gpg --verify SHA256SUMS.asc SHA256SUMS`, puis `sha256sum -c --ignore-missing SHA256SUMS`. Cette signature ne remplace pas la signature de code des fabricants : les installateurs Windows et macOS ne sont pas signés par Microsoft ni notarisés par Apple.
+
+
+### Flux de publication du logiciel et des sites
+
+```mermaid
+flowchart TD
+  Source[Bobine : version et canal] --> CI[Tests et builds multi-plateformes]
+  CI --> Release[Release GitHub et SHA256SUMS signés]
+  Release --> Packages[Index APT DNF Pacman signés et vérifiés]
+  Packages --> Pages[bobine-packages : GitHub Pages]
+  Packages --> Dispatch[Notification bobine-release]
+  Dispatch --> Mirror[BobineWeb : export onion-site]
+  Mirror --> Tor[Synchronisation atomique du miroir Tor]
+  Pages --> Tor
+  Release --> Web[BobineWeb : données de release et installateur vérifié]
+  Web --> Deploy[CI puis déploiement Vercel et Cloudflare]
+  Deploy --> Probe[Sondes HTTPS et contrôle du digest servi]
+  Tor --> TorProbe[Sonde publique Tor et signatures des dépôts]
+```
+
+Le job `notify-web-release` ne s’exécute qu’après la publication réussie des dépôts Linux, elle-même conditionnée à la création d’une release et aux vérifications de signatures. Il envoie à BobineWeb l’événement `bobine-release`, le canal et la révision publiés. Le miroir est reconstruit depuis la branche principale de BobineWeb ; les métadonnées de l’événement ne servent jamais de référence de checkout ou de commande. Le serveur Tor récupère les branches de publication et vérifie les dépôts avant de basculer vers la nouvelle génération. Une erreur conserve la copie précédente.
+
+La notification inter-dépôts exige le secret `BOBINE_WEB_DISPATCH_TOKEN` dans Bobine : jeton à permissions fines limité au seul dépôt BobineWeb, avec `Contents: write`, ou jeton d’installation équivalent d’une GitHub App. Le jeton automatique du dépôt Bobine ne donne pas accès en écriture à BobineWeb. Si ce secret n’est pas configuré, le job émet un avertissement explicite et le rafraîchissement quotidien du miroir reste actif. Il ne faut pas réutiliser une clé de signature, une clé SSH de paquets ou un jeton général de compte pour ce rôle.
+
+Le site principal lit les releases avec revalidation. À chaque build, l’installateur Stable est récupéré depuis l’asset GitHub et son digest est vérifié ; après publication, la sonde compare le fichier HTTP servi à sa provenance. Le contrôle quotidien compare la Stable annoncée, la dernière release Stable et `Bobine/VERSION`, et exige les assets Windows, Android, macOS, Debian, RPM et Arch attendus. Les sondes valident leur origine avant toute requête authentifiée. Le site de signalement de vulnérabilités suit une publication statique distincte, avec contrôle de la clé publique, de `security.txt` et de sa signature.
