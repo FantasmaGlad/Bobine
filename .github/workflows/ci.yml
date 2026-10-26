@@ -86,6 +86,8 @@ jobs:
       commit_short: ${{ steps.resolve.outputs.commit_short }}
     steps:
       - uses: actions/checkout@v4
+      - name: Vérifier la notification du site web sans réseau
+        run: python3 scripts/ci/test-notify-web-release.py
       - name: Résoudre version, canal et identifiants de build
         id: resolve
         run: |
@@ -1903,3 +1905,19 @@ jobs:
           gpgconf --kill gpg-agent || true
           rm -rf "$GNUPGHOME"
 
+
+  notify-web-release:
+    name: Notifier le miroir web après publication
+    needs: [version, publish-linux-packages]
+    if: ${{ always() && !cancelled() && needs.publish-linux-packages.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Envoyer bobine-release à BobineWeb
+        env:
+          BOBINE_WEB_DISPATCH_TOKEN: ${{ secrets.BOBINE_WEB_DISPATCH_TOKEN }}
+          RELEASE_CHANNEL: ${{ needs.version.outputs.channel }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: bash scripts/ci/notify-web-release.sh
