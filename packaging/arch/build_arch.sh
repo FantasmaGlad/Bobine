@@ -4,7 +4,7 @@
 # le même que celui du .deb. Aucune compilation : makepkg ne fait qu'emballer.
 #
 # Environnement :
-#   VERSION                version de build (défaut : fichier VERSION), p. ex. 5.0.5+canary.42
+#   VERSION                version de build (défaut : fichier VERSION), p. ex. 5.0.6~0.canary.42
 #   PKG_FILENAME_VERSION   "beta"/"canary" => bobine-<canal>-<arch>.pkg.tar.zst ; vide => nom natif
 #   PKG_ARCH               architecture du paquet : x86_64 ou aarch64 (défaut : uname -m). Un paquet
 #                          aarch64 peut être assemblé sur x86_64 (aucun code n'est exécuté) à partir
@@ -41,7 +41,7 @@ case "${PKG_ARCH}" in
 esac
 OUTPUT_DIR="${OUTPUT_DIR:-${REPO_DIR}/dist-arch}"
 split_bobine_version "${VERSION}"
-if [ "${CHANNEL}" = "stable" ]; then PKGREL="1"; else PKGREL="1.${RUN}"; fi
+PKGREL="1"
 
 echo "=== [1/4] Vérification de l'environnement ==="
 command -v makepkg >/dev/null 2>&1 || { echo "Erreur: makepkg est requis (Arch Linux : pacman -S base-devel)." >&2; exit 1; }
@@ -68,7 +68,7 @@ cp /etc/makepkg.conf "${MAKEPKG_CONF}"
 mkdir -p "${WORK}/out"
 (
     cd "${WORK}/pkg"
-    BOBINE_PKGVER="${BASE_VERSION}" BOBINE_PKGREL="${PKGREL}" \
+    BOBINE_PKGVER="${ARCH_VERSION}" BOBINE_PKGREL="${PKGREL}" \
         makepkg --config "${MAKEPKG_CONF}" --nodeps --noconfirm --force
 )
 

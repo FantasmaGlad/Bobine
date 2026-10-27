@@ -178,11 +178,21 @@ def test_assistant_d_installation_propose_exactement_les_canaux_du_registre():
 
 def test_ci_publie_exactement_les_canaux_du_registre():
     ci = _read(".github/workflows/ci.yml")
-    assigned = set(re.findall(r'^\s*CHANNEL="([a-z]+)"', ci, re.M)) - {"none"}
+    resolver = _load("ci_release_resolver", "scripts/ci/resolve-release.py")
+    assert "python3 scripts/ci/resolve-release.py" in ci
+    assigned = {
+        resolver.resolve("5.0.6", "workflow_dispatch", "refs/heads/main", **intent)["channel"]
+        for intent in ({"tag": "V5.0.6"}, {"beta": True}, {"canary": True})
+    }
     assert assigned == set(release_channel.CHANNEL_IDS)
     for listing in re.findall(r"fromJSON\('(\[[^']*\])'\)", ci):
         if "canary" in listing:
             assert re.findall(r'"([a-z]+)"', listing) == list(release_channel.CHANNEL_IDS)
     play = _read(".github/workflows/play-aab.yml")
-    refused = set(re.findall(r"\*-([a-z]+)\*", play))
-    assert refused == {c.version_suffix for c in release_channel.CHANNELS if c.version_suffix}, "Google Play : seules les Stables sont publiées"
+    assert "python .workflow-tools/scripts/ci/resolve-play-version.py" in play
+    play_resolver = _load("play_version_resolver", "scripts/ci/resolve-play-version.py")
+    assert play_resolver.resolve("V5.0.6", "5.0.6") == "5.0.6"
+    for channel in release_channel.CHANNELS:
+        if channel.rolling:
+            with pytest.raises(ValueError):
+                play_resolver.resolve(f"V5.0.6-{channel.version_suffix}", "5.0.6")

@@ -12,7 +12,7 @@
 BOBINE_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # bobine_channel_of_version <version> : affiche stable, beta ou canary.
-# Formes acceptées : 5.0.5 · 5.0.5+canary.42 (champ Version: Debian) · 5.0.5-beta (fichier VERSION)
+# Formes acceptées : 5.0.5 · 5.0.6~0.canary.42 (champ Version: Debian) · 5.0.5-beta (fichier VERSION)
 # · 5.0.5~beta. Tout autre suffixe est traité comme Stable, jamais deviné. La règle n'est pas
 # réécrite en shell : elle est appliquée par backend/app/release_channel.py (via channel.py).
 bobine_channel_of_version() {

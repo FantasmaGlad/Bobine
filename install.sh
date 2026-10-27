@@ -39,7 +39,7 @@ fi
 # plus récent.
 SELF_SHA="$([[ -f "${SELF_PATH}" ]] && sha256sum "${SELF_PATH}" 2>/dev/null | cut -d' ' -f1 || true)"
 # VERSION décrit le code installé ; le repli sert au script distribué seul.
-SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "5.0.5")"
+SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "5.0.6")"
 # Déplacé ici (auparavant défini beaucoup plus bas, avec le reste du bloc
 # "Cible") : nécessaire tôt pour select_update_channel(), qui lit/écrit le
 # canal choisi (${CONFIG_DIR}/update-channel) avant même l'exécution du

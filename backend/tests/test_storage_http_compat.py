@@ -59,3 +59,17 @@ def test_storage_openapi_exposes_list_limits():
     schema = app.openapi()["components"]["schemas"]
     assert schema["TransferRequest"]["properties"]["entries"]["maxItems"] == 500
     assert schema["ExportRequest"]["properties"]["ids"]["maxItems"] == 2000
+
+
+def test_openapi_has_unique_operation_ids_and_keeps_head_routes():
+    from app.main import app
+    schema = app.openapi()
+    operations = [operation["operationId"] for path in schema["paths"].values()
+                  for operation in path.values() if isinstance(operation, dict) and "operationId" in operation]
+    assert len(operations) == len(set(operations))
+    for path in ("/api/videos/{video_id}/stream", "/api/backgrounds/{background_id}/stream",
+                 "/api/audio/tracks/{track_id}/stream", "/api/radio/tracks/{track_id}/stream",
+                 "/api/radio/tracks/{track_id}/cover", "/api/radio/announcements/{announcement_id}/stream"):
+        assert "get" in schema["paths"][path]
+        assert "head" not in schema["paths"][path]
+        assert any(getattr(route, "path", None) == path and "HEAD" in getattr(route, "methods", set()) for route in app.routes)

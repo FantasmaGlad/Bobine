@@ -67,6 +67,9 @@ def _cleanup_db():
         for model in (Video, AudioTrack, RadioTrack):
             for row in db.query(model).filter(model.storage_id.isnot(None)).all():
                 db.delete(row)
+        # SessionLocal disables autoflush: complete ORM deletes before a bulk
+        # query can delete the same test video a second time.
+        db.flush()
         db.query(Video).filter(Video.title.like("__stk_%")).delete(synchronize_session=False)
         db.query(AudioCourse).filter(AudioCourse.title.like("%stk%")).delete(synchronize_session=False)
         db.query(StorageImport).delete()

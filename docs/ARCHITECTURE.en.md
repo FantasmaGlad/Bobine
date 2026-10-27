@@ -756,3 +756,6 @@ APT metadata expires after 365 days for Stable and 30 days for rolling channels.
 ### Signed checksums for release files
 
 Every release (Stable, Beta, Canary) ships `SHA256SUMS`, the list of SHA-256 checksums of all its files, and `SHA256SUMS.asc`, its detached signature made with the key that already signs the package repositories. `scripts/ci/sign-release-checksums.sh` produces the pair in an ephemeral keyring removed from the runner at the end of the job; `scripts/ci/verify-release-assets.sh` rejects a release in which an expected file is missing from the list or a checksum differs. To verify a download: `gpg --verify SHA256SUMS.asc SHA256SUMS`, then `sha256sum -c --ignore-missing SHA256SUMS`. This signature does not replace vendor code signing: the Windows and macOS installers are not signed by Microsoft nor notarized by Apple.
+
+
+Tool versions, dependency constraints, native Canary/Beta/Stable ordering and the qualification procedure are documented in [BUILD_TOOLCHAINS.md](BUILD_TOOLCHAINS.md). Android and desktop Python dependency profiles remain separate.

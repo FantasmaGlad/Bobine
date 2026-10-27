@@ -5,8 +5,8 @@
 # packaging/arch/build_arch.sh, qui fournit BOBINE_PKGVER / BOBINE_PKGREL et la source
 # (arborescence FHS produite par packaging/common/stage_root.sh).
 #
-# Versions : pkgver = x.y.z ; pkgrel = 1 (Stable) ou 1.<run> (Bêta/Canary) — voir
-# packaging/common/version.sh pour l'ordre (identique à celui du .deb).
+# Versions : pkgver = x.y.zalpha.N (Canary), x.y.zbeta.N (Bêta) ou x.y.z (Stable),
+# pkgrel = 1. L'ordre est vérifié avec libalpm/vercmp (packaging/common/version.sh).
 
 pkgname=bobine
 pkgver=${BOBINE_PKGVER:-0.0.0}

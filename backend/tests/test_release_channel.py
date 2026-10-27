@@ -250,3 +250,22 @@ def test_verrou_inactif_hors_boutique(db, installed_as_canary, monkeypatch):
     monkeypatch.setattr(deployment, "get_profile_handler", lambda: _Direct())
     assert deployment.resolve_update_channel(None).effective == "canary"
     assert deployment.resolve_update_channel("beta").source == "user"
+
+
+@pytest.mark.parametrize("channel,build,debian,rpm,arch", [
+    ("stable", None, "5.0.6", "1", "5.0.6"),
+    ("canary", "42", "5.0.6~0.canary.42", "0.1.canary.42", "5.0.6alpha.42"),
+    ("beta", "9", "5.0.6~1.beta.9", "0.2.beta.9", "5.0.6beta.9"),
+])
+def test_native_package_formats_share_the_release_channel(channel, build, debian, rpm, arch):
+    version = release_channel.package_version("5.0.6", channel, build)
+    assert (version.debian, version.rpm_release, version.arch_version) == (debian, rpm, arch)
+    parsed = release_channel.parse_package_version(debian)
+    assert (parsed.base, parsed.channel, parsed.build) == (version.base, version.channel, version.build)
+    assert release_channel.build_channel_of_version(debian) == channel
+
+
+@pytest.mark.parametrize("version", ["5.0.6~1.canary.42", "5.0.6~0.beta.42", "5.0.6~0.canary.0", "5.0.6~beta.42"])
+def test_malformed_native_package_versions_are_rejected(version):
+    with pytest.raises(ValueError):
+        release_channel.parse_package_version(version)

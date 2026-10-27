@@ -12,10 +12,10 @@ mkdir -p "$root/dist-rpm" "$root/dist-arch"
 engine="${CONTAINER_ENGINE:-docker}"
 "$engine" run --rm --network=host -v "$root:/src:ro" -v "$work/bundle:/input:ro" -v "$root/dist-rpm:/output" \
     -e VERSION -e RPM_FILENAME_VERSION -e RPM_ARCH="$arch" -e BOBINE_DIST_DIR=/input/usr/lib/bobine -e OUTPUT_DIR=/output \
-    fedora:latest bash -c 'dnf -y -q install rpm-build desktop-file-utils patchelf python3 && /src/packaging/rpm/build_rpm.sh'
+    fedora:latest bash -c 'dnf -y -q install rpm-build desktop-file-utils patchelf python3 && python3 /src/scripts/ci/test-package-versions.py --family rpm && /src/packaging/rpm/build_rpm.sh'
 "$engine" run --rm --network=host -v "$root:/src:ro" -v "$work/bundle:/input:ro" -v "$root/dist-arch:/output" \
     -e VERSION -e PKG_FILENAME_VERSION -e PKG_ARCH="$arch" -e BOBINE_DIST_DIR=/input/usr/lib/bobine -e OUTPUT_DIR=/output \
-    archlinux:latest bash -c 'pacman -Syu --noconfirm --needed base-devel zstd patchelf python && /src/packaging/arch/build_arch.sh'
+    archlinux:latest bash -c 'pacman -Syu --noconfirm --needed base-devel zstd patchelf python && python /src/scripts/ci/test-package-versions.py --family arch && /src/packaging/arch/build_arch.sh'
 args=(); [ "$arch" = x86_64 ] || args+=(--no-install)
 "$engine" run --rm --network=host -v "$root:/src:ro" -v "$root/dist-rpm:/output:ro" fedora:latest \
     bash -c 'dnf -y -q install desktop-file-utils && /src/packaging/rpm/test_rpm.sh "$1" "${2:-}"' -- "/output/$(basename "$(find "$root/dist-rpm" -name "*.$arch.rpm" | head -1)")" "${args[@]}"

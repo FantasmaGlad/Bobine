@@ -34,7 +34,7 @@ val hasReleaseSigningConfig = listOf(androidKeystorePath, androidKeystorePasswor
 // developpement uniquement, jamais installe comme mise a jour d'une
 // version CI reelle).
 val rootVersionFile = rootProject.projectDir.resolve("../VERSION")
-val fallbackVersionName = if (rootVersionFile.exists()) rootVersionFile.readText().trim() else "5.0.5"
+val fallbackVersionName = if (rootVersionFile.exists()) rootVersionFile.readText().trim() else "5.0.6"
 val androidVersionName: String = System.getenv("ANDROID_VERSION_NAME") ?: fallbackVersionName
 // Registre des canaux (Stable, Bêta, Canary) : android/release-channels.json, GÉNÉRÉ par
 // scripts/sync_release_channels.py depuis backend/app/release_channel.py (source unique, aucune
@@ -80,12 +80,17 @@ val androidVersionCode: Int = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull
 // désactivées, pour ne jamais distribuer cette tranche par inadvertance.
 val emulatorBuild = providers.gradleProperty("bobineEmulator").map { it.toBoolean() }.getOrElse(false)
 
+@Suppress("UNCHECKED_CAST")
+val androidToolchain = groovy.json.JsonSlurper()
+    .parse(rootProject.projectDir.resolve("toolchain.json")) as Map<String, Any?>
+
 android {
     namespace = "com.bobine.app"
     // minSdk/targetSdk API 34-36, priorité
     // donnée à l'avenir plutôt qu'à la compatibilité descendante. compileSdk 36
     // correspond à la tablette pilote réelle (Xiaomi Pad 8, Android 16).
-    compileSdk = 36
+    compileSdk = (androidToolchain["compile_sdk"] as Number).toInt()
+    buildToolsVersion = androidToolchain["build_tools"] as String
 
     if (hasReleaseSigningConfig) {
         signingConfigs {
@@ -100,8 +105,8 @@ android {
 
     defaultConfig {
         applicationId = "com.bobine.app"
-        minSdk = 34
-        targetSdk = 36
+        minSdk = (androidToolchain["min_sdk"] as Number).toInt()
+        targetSdk = (androidToolchain["compile_sdk"] as Number).toInt()
         versionCode = androidVersionCode
         versionName = androidVersionName
         // Canal par lequel cet APK a été publié : canal proposé par défaut tant que l'utilisateur
@@ -322,7 +327,7 @@ chaquopy {
             // websockets ET httptools/uvloop (ces deux derniers sans
             // distribution Android) - installer websockets seul
             // recupere le support WebSocket sans les extras bloquants.
-            install("websockets")
+            install("websockets==17.3")
             install("sqlalchemy==2.0.51")
             // Les migrations du serveur sont intégrées à app.database : aucun appel
             // Alembic au runtime, ni besoin de son moteur de templates Mako dans l'APK.
@@ -335,7 +340,7 @@ chaquopy {
             // executant reellement app.main sur un emulateur
             // (ZoneInfoNotFoundError via scheduler_manager -> tzlocal).
             // Absent de backend/requirements.txt car inutile ailleurs.
-            install("tzdata")
+            install("tzdata==2026.5")
             install("aiofiles==25.1.0")
             // pillow==12.3.0 (version desktop) indisponible pour Android -
             // seule la 11.0.0 existe sur l'index Chaquopy (confirme en

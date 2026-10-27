@@ -73,6 +73,7 @@ def test_broadcast_threadsafe_delivers_message_from_another_thread():
 
     loop.call_soon_threadsafe(loop.stop)
     loop_thread.join(timeout=5)
+    loop.close()
 
     assert received == [{"event": "library_change", "reason": "video_updated"}]
 
@@ -135,3 +136,34 @@ def test_broadcast_actually_closes_a_client_that_times_out(monkeypatch):
         assert fast.received == [{"event": "position_tick"}]
 
     asyncio.run(_run())
+
+
+def test_broadcast_does_not_create_a_coroutine_on_stopped_or_closed_loop(monkeypatch):
+    manager = ConnectionManager()
+    loop = asyncio.new_event_loop()
+    manager.bind_loop(loop)
+    def unexpected_broadcast(message):
+        raise AssertionError("a stopped loop cannot accept a broadcast")
+    monkeypatch.setattr(manager, "broadcast", unexpected_broadcast)
+    try:
+        manager.broadcast_threadsafe({"event": "shutdown"})
+    finally:
+        loop.close()
+    manager.broadcast_threadsafe({"event": "shutdown"})
+
+
+def test_broadcast_closes_coroutine_if_loop_closes_during_submission(monkeypatch):
+    from unittest.mock import Mock
+    manager = ConnectionManager()
+    loop = Mock()
+    loop.is_closed.return_value = False
+    loop.is_running.return_value = True
+    manager.bind_loop(loop)
+    coroutine = Mock()
+    monkeypatch.setattr(manager, "broadcast", lambda message: coroutine)
+    def reject_submission(coro, target):
+        assert coro is coroutine and target is loop
+        raise RuntimeError("Event loop is closed")
+    monkeypatch.setattr(asyncio, "run_coroutine_threadsafe", reject_submission)
+    manager.broadcast_threadsafe({"event": "shutdown"})
+    coroutine.close.assert_called_once_with()

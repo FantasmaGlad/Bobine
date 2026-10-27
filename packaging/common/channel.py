@@ -7,9 +7,9 @@ son chemin (il n'importe que la bibliothèque standard). Ce module en est l'adap
   - les `.spec` PyInstaller (windows, macos, linux) :
         sys.path.insert(0, str(SPEC_DIR.parent / "common")); import channel
   - les scripts shell de paquetage, via la ligne de commande :
-        python3 packaging/common/channel.py channel-of-version 5.0.5+canary.42   ->  canary
+        python3 packaging/common/channel.py channel-of-version 5.0.6~0.canary.42   ->  canary
         python3 packaging/common/channel.py build-channel [dépôt]                ->  canal de VERSION
-        python3 packaging/common/channel.py split-version 5.0.5+canary.42        ->  « base canal numéro »
+        python3 packaging/common/channel.py split-version 5.0.6~0.canary.42        ->  « base canal numéro »
         python3 packaging/common/channel.py is-channel canary                    ->  code 0 si c'est un canal
         python3 packaging/common/channel.py is-rolling beta                      ->  code 0 si c'est un canal rolling
 
@@ -97,6 +97,14 @@ def _main(argv: list[str]) -> int:
             print(f"Erreur: {exc}", file=sys.stderr)
             return 1
         print(parsed.base, parsed.channel, parsed.build or "")
+        return 0
+    if len(argv) == 3 and argv[1] == "package-fields":
+        try:
+            parsed = _registry(str(REPO_DIR)).parse_package_version(argv[2])
+        except ValueError as exc:
+            print(f"Erreur: {exc}", file=sys.stderr)
+            return 1
+        print(parsed.base, parsed.channel, parsed.build or "0", parsed.rpm_release, parsed.arch_version)
         return 0
     if len(argv) == 3 and argv[1] == "is-channel":
         return 0 if _registry(str(REPO_DIR)).normalize(argv[2]) == argv[2] else 1
