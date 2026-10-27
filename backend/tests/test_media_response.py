@@ -196,7 +196,7 @@ def _open_fds_on(path) -> int:
 def test_stream_released_when_client_stops_early(tmp_path):
     """Régression : un client qui coupe en cours de flux (annulation pendant `yield`) laissait le fichier ouvert, ce qui
     empêchait de démonter un support externe (« occupé »). Garde-fou : le cas réel (uvicorn + coupure du client) est
-    reproduit de bout en bout par scripts/storage-real-test.py (démontage refusé « occupé » avant le correctif)."""
+    reproduit de bout en bout lors de la recette locale (démontage refusé « occupé » avant le correctif)."""
     import asyncio
 
     media = tmp_path / "gros.mp4"

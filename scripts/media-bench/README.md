@@ -204,19 +204,3 @@ formats non lisibles par un navigateur (WMA, AIFF) avec ffmpeg quel que soit le 
 d'environnement `BOBINE_BENCH_SUDO_PASSWORD`, jamais dans un fichier) ; le rapport indique
 `cache_drop_attempted: "system"`. Sans l'option, « cold » reste un `posix_fadvise` au mieux. Les pochettes importées
 sont comparées par `cover_equivalence.py` (la position de la ligne dans l'ordre d'import identifie le fichier source).
-
-## Exécuter le composant sur un appareil Android (adb)
-
-`device_probe.py` pousse l'exécutable dans `/data/local/tmp` (ni installation, ni autre modification), lui
-envoie par l'entrée standard les requêtes `probe_audio` (deux profils) et `extract_cover` d'un jeu de fichiers du corpus,
-et compare ses réponses à celles de l'exécutable de bureau (champs, durée, octets de pochette) ; il rapporte le temps du lot,
-le temps par requête, le pic de mémoire résidente (`VmHWM`) et la taille :
-
-```bash
-backend/.venv/bin/python scripts/media-bench/device_probe.py /var/tmp/bobine-corpus-large \
-  --binary android/app/src/main/jniLibs/armeabi-v7a/libbobine_media.so \
-  --reference media/target/release/bobine-media --adb <ip-appareil>:5555 --count 120 --output rapport.json
-```
-
-`--local` exécute `--binary` sur la machine (test du script). Cette mesure porte sur le composant seul : ni le Python embarqué,
-ni ffmpeg, ni le stockage de l'appareil ne sont impliqués ; ce n'est pas un import.
