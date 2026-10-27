@@ -10,7 +10,7 @@ name: Google Play (AAB)
 #
 # Lancement : onglet Actions > « Google Play (AAB) » > Run workflow, en indiquant le tag (ex. V5.0.0).
 # Les fichiers sont téléchargeables dans l'artefact du run, et joints à la release GitHub si demandé.
-# Si le secret PLAY_SERVICE_ACCOUNT_JSON existe, les bundles sont aussi envoyés sur la piste « internal »
+# Avec upload_to_play explicite et le secret PLAY_SERVICE_ACCOUNT_JSON, les bundles sont envoyés sur la piste choisie
 # de Google Play en brouillon ; sinon l'envoi se fait à la main dans la console.
 
 on:
@@ -27,6 +27,11 @@ on:
         type: string
       attach_to_release:
         description: Joindre les .aab à la release GitHub du tag
+        required: false
+        default: false
+        type: boolean
+      upload_to_play:
+        description: Envoyer les bundles sur Google Play (brouillons, compte de service requis)
         required: false
         default: false
         type: boolean
@@ -231,11 +236,21 @@ jobs:
       - name: Vérifier la présence du compte de service Google Play
         if: steps.check_secrets.outputs.configured == 'true'
         id: play_secret
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          UPLOAD_TO_PLAY: ${{ inputs.upload_to_play }}
         run: |
-          if [ -n "${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}" ]; then echo "configured=true" >> "$GITHUB_OUTPUT"; else echo "configured=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -n "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          elif [ "$UPLOAD_TO_PLAY" = true ]; then
+            echo "::error::Google Play upload requested without a service account"
+            exit 1
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Envoyer l'application téléphone sur Google Play (brouillon)
-        if: steps.play_secret.outputs.configured == 'true'
-        uses: r0adkll/upload-google-play@v1
+        if: inputs.upload_to_play && steps.play_secret.outputs.configured == 'true'
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.bobine.app
@@ -243,8 +258,8 @@ jobs:
           track: ${{ inputs.play_track }}
           status: draft
       - name: Envoyer l'application Android TV sur Google Play (brouillon)
-        if: steps.play_secret.outputs.configured == 'true'
-        uses: r0adkll/upload-google-play@v1
+        if: inputs.upload_to_play && steps.play_secret.outputs.configured == 'true'
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.bobine.app.tv
