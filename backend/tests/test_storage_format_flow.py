@@ -2,7 +2,7 @@
 exécution, annulation, échec et retour à l'état vierge, vérification après coup, accès (PIN), journal sans secret.
 
 Aucun matériel : les « disques » sont des dossiers (voir storage_fakes.py). Le test réel sur image disque est un script
-séparé (scripts/storage-format-real-test.py)."""
+séparé, réservé à la recette locale."""
 
 import dataclasses
 import os

@@ -9,12 +9,9 @@ build de Bobine.
 |---|---|
 | `geckodriver_client.py` | Client WebDriver W3C minimal (pilote Firefox via `geckodriver`). |
 | `monitor.js` | Moniteur de réactivité injecté dans la page : retard de la boucle d'évènements (`setInterval` 25 ms) et écarts entre frames (`requestAnimationFrame`) → `window.__mon`. |
-| `support-matrix.js` | Matrice de support navigateur : codecs (`canPlayType` / `MediaSource`), API Web, fonctions CSS. |
-| `playtest.js` | Lit `arguments[0]` (URL d'un flux) 8 s dans un `<video>` et rapporte images décodées / perdues, état, erreur. |
 | `throttle_proxy.py` | Proxy TCP qui limite le débit montant et ajoute de la latence (simule un Wi-Fi de salle). |
 | `run_test_backend.py` | Lance un backend de TEST isolé (sans publication mDNS), sur le port 8078 par défaut. |
 | `e2e_firefox.py` | Banc de bout en bout : pilote un vrai Firefox contre l'instance de test (le job `firefox-smoke` de la CI le lance). |
-| `overflow_audit.py` | Audit de débordement horizontal des pages d'administration à plusieurs largeurs de fenêtre. |
 
 ## Mise en route
 
@@ -44,7 +41,6 @@ wd.execute(open("scripts/browser-bench/monitor.js").read())
 wd.send_keys(wd.find("input[type=file]"), "/home/vous/medias/a.mp4\n/home/vous/medias/b.mp4")
 # ... cliquer « Lancer N uploads », puis relire window.__mon
 print(wd.execute("return window.__mon"))
-print(wd.execute(open("scripts/browser-bench/support-matrix.js").read()))
 ```
 
 ## Limites connues du banc

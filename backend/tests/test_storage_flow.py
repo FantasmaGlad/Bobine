@@ -2,7 +2,7 @@
 disponibilité (arrachage, rebranchement à un autre point de montage), garde-fous, longévité.
 
 Aucun matériel ni root : un pilote factice simule les supports (voir storage_fakes.py). Le test réel sur image
-disque (udisks2) est un script séparé (scripts/storage-real-test.sh)."""
+disque (udisks2) relève de la recette locale séparée."""
 
 import hashlib
 import os
