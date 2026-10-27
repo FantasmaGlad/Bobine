@@ -251,9 +251,11 @@ jobs:
       - name: Syntax check (compile all sources)
         run: python -m compileall -q backend/app scripts
       - name: Install system dependencies (ffmpeg)
+        # Comme le job Firefox, les tests CPU n’installent pas les modèles ASR
+        # ni les pilotes recommandés. Le miroir peut rester lent même sans eux.
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y --no-install-recommends ffmpeg
       # pytest (et non `unittest discover`) : c'est la commande documentée
       # et `unittest` ignore les tests écrits en simples
       # fonctions (suivi de séquence, horloge de lecture, diffusion par canal,
