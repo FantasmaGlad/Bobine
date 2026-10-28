@@ -42,6 +42,9 @@ class ReleaseChannel:
     # Tag GitHub mobile (republié en place) d'un canal « rolling », comparé par commit ;
     # None pour la Stable, comparée par numéro de version sémantique.
     release_tag: str | None
+    # Ordre natif des préversions, indépendant de l'ordre d'affichage du sélecteur.
+    package_order: int | None = None
+    arch_suffix: str | None = None
 
     @property
     def rolling(self) -> bool:
@@ -51,8 +54,8 @@ class ReleaseChannel:
 # Ordre = ordre d'affichage. Le premier est le canal par défaut de dernier recours.
 CHANNELS: tuple[ReleaseChannel, ...] = (
     ReleaseChannel(id="stable", version_suffix=None, release_tag=None),
-    ReleaseChannel(id="beta", version_suffix="beta", release_tag="beta"),
-    ReleaseChannel(id="canary", version_suffix="canary", release_tag="canary"),
+    ReleaseChannel(id="beta", version_suffix="beta", release_tag="beta", package_order=1, arch_suffix="beta"),
+    ReleaseChannel(id="canary", version_suffix="canary", release_tag="canary", package_order=0, arch_suffix="alpha"),
 )
 CHANNEL_IDS: tuple[str, ...] = tuple(channel.id for channel in CHANNELS)
 DEFAULT_CHANNEL: str = CHANNELS[0].id
@@ -98,7 +101,11 @@ def rolling_channel_of_version(version: str | None = None) -> str | None:
     candidate = (version if version is not None else _current_version()).strip()
     match = _VERSION_PATTERN.match(candidate)
     if not match:
-        return None
+        try:
+            package = parse_package_version(candidate)
+        except ValueError:
+            return None
+        return package.channel if package.build else None
     suffix = (match.group(1) or match.group(2)).lower()
     return next((c.id for c in CHANNELS if c.version_suffix == suffix), None)
 
@@ -164,22 +171,57 @@ class PackageVersion:
     channel: str        # canal du paquet
     build: str | None   # numéro de build d'un paquet rolling (« 42 »), None pour une Stable
 
+    @property
+    def debian(self) -> str:
+        if self.build is None:
+            return self.base
+        return f"{self.base}~{get(self.channel).package_order}.{self.channel}.{self.build}"
 
-_PACKAGE_VERSION = re.compile(r"^(\d+\.\d+\.\d+)(?:\+([a-z]+)\.(\d+))?$")
+    @property
+    def rpm_release(self) -> str:
+        if self.build is None:
+            return "1"
+        return f"0.{get(self.channel).package_order + 1}.{self.channel}.{self.build}"
+
+    @property
+    def arch_version(self) -> str:
+        if self.build is None:
+            return self.base
+        return f"{self.base}{get(self.channel).arch_suffix}.{self.build}"
+
+
+_PACKAGE_VERSION = re.compile(r"^(\d+\.\d+\.\d+)(?:\+([a-z]+)\.(\d+)|~(\d+)\.([a-z]+)\.(\d+))?$")
 
 
 def parse_package_version(version: str) -> PackageVersion:
-    """Décompose la version d'un paquet Debian/RPM/Arch (« 5.0.5 » ou « 5.0.5+canary.42 ») en
-    version de base, canal et numéro de build ; ValueError si elle n'a pas cette forme ou si le
+    """Décompose la version de construction (« 5.0.6 » ou « 5.0.6~0.canary.42 ») en
+    version de base, canal et numéro de build. Accepte aussi l'ancienne forme +canal.N
+    pour relire les paquets déjà distribués. ValueError si elle n'a pas cette forme ou si le
     suffixe n'est pas un canal rolling du registre (les scripts de paquetage refusent alors de
     construire plutôt que de publier sous un mauvais canal)."""
     match = _PACKAGE_VERSION.match(version.strip())
     if not match:
-        raise ValueError(f"version de paquet '{version}' non reconnue (attendu x.y.z ou x.y.z+<canal>.N)")
-    base, suffix, build = match.groups()
+        raise ValueError(f"version de paquet '{version}' non reconnue (attendu x.y.z ou x.y.z~<rang>.<canal>.N)")
+    base, legacy_suffix, legacy_build, rank, suffix, build = match.groups()
+    suffix, build = suffix or legacy_suffix, build or legacy_build
     if suffix is None:
         return PackageVersion(base=base, channel=DEFAULT_CHANNEL, build=None)
     channel = next((c.id for c in CHANNELS if c.version_suffix == suffix.lower()), None)
     if channel is None:
         raise ValueError(f"version de paquet '{version}' : '{suffix}' n'est pas un canal rolling ({', '.join(ROLLING_CHANNEL_IDS)})")
+    if rank is not None and rank != str(get(channel).package_order):
+        raise ValueError(f"rang de préversion incohérent pour '{channel}'")
+    if int(build) <= 0:
+        raise ValueError("le numéro de build doit être strictement positif")
     return PackageVersion(base=base, channel=channel, build=build)
+
+
+def package_version(base: str, channel: str, build: str | None = None) -> PackageVersion:
+    """Une seule traduction des identités produit vers les formats natifs des trois distributions."""
+    if not re.fullmatch(r"\d+\.\d+\.\d+", base) or normalize(channel) != channel:
+        raise ValueError("version de base ou canal invalide")
+    if channel == DEFAULT_CHANNEL:
+        return PackageVersion(base, channel, None)
+    if build is None or not re.fullmatch(r"[1-9]\d*", str(build)):
+        raise ValueError("un build positif est requis pour un canal rolling")
+    return PackageVersion(base, channel, str(build))

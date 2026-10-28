@@ -73,6 +73,7 @@ def test_broadcast_threadsafe_delivers_message_from_another_thread():
 
     loop.call_soon_threadsafe(loop.stop)
     loop_thread.join(timeout=5)
+    loop.close()
 
     assert received == [{"event": "library_change", "reason": "video_updated"}]
 
@@ -135,3 +136,50 @@ def test_broadcast_actually_closes_a_client_that_times_out(monkeypatch):
         assert fast.received == [{"event": "position_tick"}]
 
     asyncio.run(_run())
+
+
+def test_broadcast_does_not_create_a_coroutine_on_stopped_or_closed_loop(monkeypatch):
+    manager = ConnectionManager()
+    loop = asyncio.new_event_loop()
+    manager.bind_loop(loop)
+    def unexpected_broadcast(message):
+        raise AssertionError("a stopped loop cannot accept a broadcast")
+    monkeypatch.setattr(manager, "broadcast", unexpected_broadcast)
+    try:
+        manager.broadcast_threadsafe({"event": "shutdown"})
+    finally:
+        loop.close()
+    manager.broadcast_threadsafe({"event": "shutdown"})
+
+
+def test_broadcast_never_creates_coroutine_if_loop_stops_after_running_check(monkeypatch):
+    from unittest.mock import Mock
+    manager = ConnectionManager()
+    loop = asyncio.new_event_loop()
+    manager.bind_loop(loop)
+    broadcast = Mock(side_effect=AssertionError("callback must be discarded"))
+    monkeypatch.setattr(manager, "broadcast", broadcast)
+    # Reproduce the race deterministically: is_running saw a running loop,
+    # but shutdown stops it before the thread-safe callback gets executed.
+    monkeypatch.setattr(loop, "is_running", lambda: True)
+    try:
+        manager.broadcast_threadsafe({"event": "shutdown"})
+    finally:
+        monkeypatch.setattr(loop, "is_running", lambda: False)
+        loop.close()
+    broadcast.assert_not_called()
+
+
+def test_broadcast_handles_loop_closed_during_submission(monkeypatch, caplog):
+    from unittest.mock import Mock
+    manager = ConnectionManager()
+    loop = Mock()
+    loop.is_closed.return_value = False
+    loop.is_running.return_value = True
+    loop.call_soon_threadsafe.side_effect = RuntimeError("Event loop is closed")
+    manager.bind_loop(loop)
+    broadcast = Mock()
+    monkeypatch.setattr(manager, "broadcast", broadcast)
+    manager.broadcast_threadsafe({"event": "shutdown"})
+    broadcast.assert_not_called()
+    assert "échec de programmation" in caplog.text

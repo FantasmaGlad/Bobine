@@ -59,6 +59,12 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="5.0.6" date="2026-10-27">
+      <description>
+        <p>Development cycle 5.0.6: verified build toolchains and consistent Canary, Beta and Stable package ordering.</p>
+        <p xml:lang="fr">Cycle de développement 5.0.6 : outillage de compilation vérifié et ordre des paquets Canary, Bêta et Stable cohérent.</p>
+      </description>
+    </release>
     <release version="5.0.5" date="2026-10-24">
       <description>
         <p>Version 5.0.5 : gestion du stockage externe à chaud (clés USB, disques externes, cartes SD et téléphones MTP/PTP avec explorateur, import direct, extension de bibliothèque et assistant de préparation/formatage), routage audio par sortie radio et table de mixage dédiée, appairage distant par code à 6 chiffres, dépôts Linux officiels unifiés sur packages.bobine.fit (Debian APT, Fedora RPM, Arch Linux Pacman) en x86_64 et ARM64, et composant audio natif Rust bobine-media.</p>

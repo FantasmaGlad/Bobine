@@ -14,7 +14,12 @@ APK="${1:?chemin de la cible APK}"
 shift
 (( $# > 0 )) || { echo "Au moins une ABI attendue" >&2; exit 2; }
 
-AAPT2="$(ls "${ANDROID_HOME:?ANDROID_HOME requis}"/build-tools/*/aapt2 | sort -V | tail -1)"
+if [ -n "${BOBINE_ANDROID_BUILD_TOOLS:-}" ]; then
+    AAPT2="${BOBINE_ANDROID_BUILD_TOOLS}/aapt2"
+else
+    BUILD_TOOLS="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["build_tools"])' "$(dirname "$0")/../../android/toolchain.json")"
+    AAPT2="${ANDROID_HOME:?ANDROID_HOME requis}/build-tools/${BUILD_TOOLS}/aapt2"
+fi
 declared="$("${AAPT2}" dump badging "${APK}" | sed -n "s/^native-code: //p" | tr -d "'" | tr ' ' '\n' | sort)"
 expected="$(printf '%s\n' "$@" | sort)"
 

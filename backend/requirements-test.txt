@@ -1,0 +1,10 @@
+# Outils de contrôle, hors dépendances applicatives distribuées.
+pytest==9.1.1
+httpx==0.28.1
+# Transitives des outils de test, distinctes du runtime livré.
+certifi==2026.10.23
+httpcore==1.0.9
+iniconfig==2.3.1
+packaging==26.3
+pluggy==1.7.0
+pygments==2.21.0

@@ -4,7 +4,7 @@
 # (x86_64 ou aarch64) à partir de l'arbre PyInstaller — le même que celui du .deb.
 #
 # Environnement :
-#   VERSION               version de build (défaut : fichier VERSION), p. ex. 5.0.5+canary.42
+#   VERSION               version de build (défaut : fichier VERSION), p. ex. 5.0.6~0.canary.42
 #   RPM_FILENAME_VERSION  suffixe du fichier produit : "beta"/"canary" => bobine-<canal>.<arch>.rpm ;
 #                         vide => nom RPM natif (stable : bobine-<V>-1.<arch>.rpm)
 #   BOBINE_DIST_DIR       arbre PyInstaller (défaut backend/dist/Bobine) ; BOBINE_BUILD_DIST=1 le construit
@@ -29,7 +29,7 @@ case "${RPM_ARCH}" in
 esac
 OUTPUT_DIR="${OUTPUT_DIR:-${REPO_DIR}/dist-rpm}"
 split_bobine_version "${VERSION}"
-if [ "${CHANNEL}" = "stable" ]; then RELEASE="1"; else RELEASE="1.${CHANNEL}.${RUN}"; fi
+RELEASE="${RPM_RELEASE}"
 
 echo "=== [1/5] Vérification de l'environnement ==="
 command -v rpmbuild >/dev/null 2>&1 || { echo "Erreur: rpmbuild est requis (dnf install rpm-build)." >&2; exit 1; }

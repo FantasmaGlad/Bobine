@@ -329,7 +329,8 @@ async def _range_stream_response(
         raise
 
 
-@app.api_route("/api/videos/{video_id}/stream", methods=["GET", "HEAD"])
+@app.head("/api/videos/{video_id}/stream", include_in_schema=False)
+@app.get("/api/videos/{video_id}/stream")
 async def stream_video(
     video_id: int,
     request: Request,
@@ -394,7 +395,8 @@ _IMAGE_CONTENT_TYPES = {
 }
 
 
-@app.api_route("/api/backgrounds/{background_id}/stream", methods=["GET", "HEAD"])
+@app.head("/api/backgrounds/{background_id}/stream", include_in_schema=False)
+@app.get("/api/backgrounds/{background_id}/stream")
 async def stream_background(
     background_id: int,
     request: Request,
@@ -413,7 +415,8 @@ async def stream_background(
     return await _range_stream_response(Path(background.file_path), request, content_type)
 
 
-@app.api_route("/api/audio/tracks/{track_id}/stream", methods=["GET", "HEAD"])
+@app.head("/api/audio/tracks/{track_id}/stream", include_in_schema=False)
+@app.get("/api/audio/tracks/{track_id}/stream")
 async def stream_audio_track(
     track_id: int,
     request: Request,
@@ -425,7 +428,8 @@ async def stream_audio_track(
     return await _range_stream_response(Path(track.file_path), request, content_type_for(track.file_path), track.storage_id)
 
 
-@app.api_route("/api/radio/tracks/{track_id}/stream", methods=["GET", "HEAD"])
+@app.head("/api/radio/tracks/{track_id}/stream", include_in_schema=False)
+@app.get("/api/radio/tracks/{track_id}/stream")
 async def stream_radio_track(
     track_id: int,
     request: Request,
@@ -439,7 +443,8 @@ async def stream_radio_track(
     return await _range_stream_response(Path(track.file_path), request, content_type_for(track.file_path), track.storage_id)
 
 
-@app.api_route("/api/radio/tracks/{track_id}/cover", methods=["GET", "HEAD"])
+@app.head("/api/radio/tracks/{track_id}/cover", include_in_schema=False)
+@app.get("/api/radio/tracks/{track_id}/cover")
 async def stream_radio_cover(
     track_id: int,
     request: Request,
@@ -452,7 +457,8 @@ async def stream_radio_cover(
     return await _range_stream_response(Path(track.cover_path), request, "image/jpeg")
 
 
-@app.api_route("/api/radio/announcements/{announcement_id}/stream", methods=["GET", "HEAD"])
+@app.head("/api/radio/announcements/{announcement_id}/stream", include_in_schema=False)
+@app.get("/api/radio/announcements/{announcement_id}/stream")
 async def stream_radio_announcement(
     announcement_id: int,
     request: Request,

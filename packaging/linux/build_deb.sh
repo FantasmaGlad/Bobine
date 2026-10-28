@@ -12,7 +12,7 @@ source "${REPO_DIR}/packaging/common/channel.sh"
 
 # Source de vérité unique : fichier
 # VERSION à la racine du dépôt. Surchargeable via l'environnement (CI passe
-# une valeur au format Debian, ex. "5.0.2+beta.41" ou "5.0.2+canary.42" selon
+# une valeur au format Debian, ex. "5.0.6~1.beta.41" ou "5.0.6~0.canary.42" selon
 # le canal — le '+' trie APRÈS la version de base et le compteur croît à chaque
 # build, cf. dpkg --compare-versions).
 # C'est ce qui va dans le champ Version: du paquet (DEBIAN/control

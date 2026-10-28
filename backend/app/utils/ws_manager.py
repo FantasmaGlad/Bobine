@@ -117,11 +117,18 @@ class ConnectionManager:
         `io_executor`). Ne lève jamais — même philosophie que `broadcast()`
         lui-même, un échec de diffusion ne doit jamais faire échouer
         l'opération qui l'accompagne."""
-        if self._loop is None:
+        loop = self._loop
+        if loop is None or loop.is_closed() or not loop.is_running():
             return
+        # Create the coroutine only once the callback actually runs on the
+        # target loop. Shutdown can discard a queued callback without leaking
+        # an unawaited coroutine, even if it stops just after is_running().
+        def send_on_loop() -> None:
+            loop.create_task(self.broadcast(message))
+
         try:
-            asyncio.run_coroutine_threadsafe(self.broadcast(message), self._loop)
-        except Exception:
+            loop.call_soon_threadsafe(send_on_loop)
+        except RuntimeError:
             logger.warning("broadcast_threadsafe : échec de programmation sur la boucle", exc_info=True)
 
     async def connect(self, websocket: WebSocket):

@@ -10,7 +10,7 @@ name: Google Play (AAB)
 #
 # Lancement : onglet Actions > « Google Play (AAB) » > Run workflow, en indiquant le tag (ex. V5.0.0).
 # Les fichiers sont téléchargeables dans l'artefact du run, et joints à la release GitHub si demandé.
-# Si le secret PLAY_SERVICE_ACCOUNT_JSON existe, les bundles sont aussi envoyés sur la piste « internal »
+# Avec upload_to_play explicite et le secret PLAY_SERVICE_ACCOUNT_JSON, les bundles sont envoyés sur la piste choisie
 # de Google Play en brouillon ; sinon l'envoi se fait à la main dans la console.
 
 on:
@@ -27,6 +27,11 @@ on:
         type: string
       attach_to_release:
         description: Joindre les .aab à la release GitHub du tag
+        required: false
+        default: false
+        type: boolean
+      upload_to_play:
+        description: Envoyer les bundles sur Google Play (brouillons, compte de service requis)
         required: false
         default: false
         type: boolean
@@ -49,36 +54,35 @@ jobs:
     name: Bundles Google Play (${{ inputs.tag }})
     runs-on: ubuntu-latest
     steps:
-      - name: Vérifier le format du tag
-        run: |
-          case "${{ inputs.tag }}" in
-            V[0-9]*.[0-9]*.[0-9]*) ;;
-            *) echo "::error::Le tag doit être une version Stable (ex. V5.0.0), pas ${{ inputs.tag }}"; exit 1 ;;
-          esac
-          case "${{ inputs.tag }}" in
-            *-beta*|*-canary*) echo "::error::Seules les versions Stable vont sur Google Play"; exit 1 ;;
-          esac
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_ref || inputs.tag }}
           fetch-depth: 0
+      # Les outils appartiennent à la révision du workflow, même si source_ref
+      # choisit un ancien tag qui ne contient pas encore ces scripts.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .workflow-tools
+          sparse-checkout: |
+            scripts/ci
+            android/toolchain.json
+            rust-toolchain.toml
+          persist-credentials: false
       - name: Résoudre la version
         id: ref
-        run: |
-          TAG="${{ inputs.tag }}"
-          echo "version_name=${TAG#V}" >> "$GITHUB_OUTPUT"
-          echo "version_code=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
-          echo "commit_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          PLAY_TAG: ${{ inputs.tag }}
+        run: python .workflow-tools/scripts/ci/resolve-play-version.py
       - name: Vérifier que les secrets de signature sont configurés
         id: check_secrets
-        run: |
-          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::Secrets de signature Android absents (ANDROID_KEYSTORE_BASE64 etc.) — job ignoré, pas d'échec."
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-          fi
-      - uses: actions/setup-node@v4
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: python .workflow-tools/scripts/ci/check-android-signing.py
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: steps.check_secrets.outputs.configured == 'true'
         with:
           node-version: 22
@@ -90,18 +94,18 @@ jobs:
         run: npm ci
       # Chaquopy cherche `python3.<x>` sur le PATH pour chaque version du
       # projet : 3.13 (flavor mobile) et 3.11 (flavor TV).
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         if: steps.check_secrets.outputs.configured == 'true'
         with:
           python-version: |
             3.13
             3.11
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         if: steps.check_secrets.outputs.configured == 'true'
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         if: steps.check_secrets.outputs.configured == 'true'
         with:
           # le paquet legacy "tools" (installé par
@@ -114,7 +118,7 @@ jobs:
           packages: "platform-tools"
       - name: Installer les plateformes/outils Android requis
         if: steps.check_secrets.outputs.configured == 'true'
-        run: sdkmanager "platforms;android-36" "build-tools;36.1.0" "ndk;28.2.13676358"
+        run: python .workflow-tools/scripts/ci/setup-android-sdk.py
       - name: Décoder le keystore depuis le secret
         if: steps.check_secrets.outputs.configured == 'true'
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "${{ runner.temp }}/bobine-release.keystore"
@@ -144,16 +148,22 @@ jobs:
       - name: Cache des binaires ffmpeg/ffprobe armeabi-v7a
         if: steps.check_secrets.outputs.configured == 'true'
         id: ffmpeg_armv7_cache
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: android/app/src/main/jniLibs/armeabi-v7a
           key: ffmpeg-armv7-${{ hashFiles('android/scripts/build_ffmpeg_armv7.sh') }}
       - name: Compiler ffmpeg/ffprobe armeabi-v7a (NDK r28c)
         if: steps.check_secrets.outputs.configured == 'true' && steps.ffmpeg_armv7_cache.outputs.cache-hit != 'true'
-        run: ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/28.2.13676358" android/scripts/build_ffmpeg_armv7.sh
+        run: android/scripts/build_ffmpeg_armv7.sh
+      - name: Sélectionner le compilateur Rust du workflow
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: |
+          RUST_VERSION="$(python3 -c 'import tomllib; print(tomllib.load(open(".workflow-tools/rust-toolchain.toml", "rb"))["toolchain"]["channel"])')"
+          rustup toolchain install "$RUST_VERSION" --profile minimal
+          echo "RUSTUP_TOOLCHAIN=$RUST_VERSION" >> "$GITHUB_ENV"
       - name: Compiler le composant audio Android (Bionic ARM64 et ARM32)
         if: steps.check_secrets.outputs.configured == 'true'
-        run: ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/28.2.13676358" scripts/ci/build-media-android.sh
+        run: scripts/ci/build-media-android.sh
       - name: Construire les bundles (.aab)
         if: steps.check_secrets.outputs.configured == 'true'
         working-directory: android
@@ -174,41 +184,26 @@ jobs:
           cp android/app/build/outputs/apk/mobile/play/*.apk "aab-out/Bobine-${{ steps.ref.outputs.version_name }}-play.apk"
           cp android/app/build/outputs/apk/tv/play/*.apk "aab-out/Bobine-TV-${{ steps.ref.outputs.version_name }}-play.apk"
           for AAB in aab-out/*.aab; do
-            echo "Signature : $AAB"
-            jarsigner -verify "$AAB" | head -2
-            unzip -l "$AAB" | grep -q "base/manifest/AndroidManifest.xml"
-            echo "$(sha256sum "$AAB")"
+            sha256sum "$AAB"
           done
           # Le build Play ne doit pas contenir l'autorisation d'installation de paquets (politique Google Play).
-          AAPT2="$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | tail -1)"
+          AAPT2="$BOBINE_ANDROID_BUILD_TOOLS/aapt2"
+          python3 .workflow-tools/scripts/ci/verify-android-bundles.py "aab-out/Bobine-${{ steps.ref.outputs.version_name }}.aab"
+          python3 .workflow-tools/scripts/ci/verify-android-bundles.py "aab-out/Bobine-TV-${{ steps.ref.outputs.version_name }}.aab" --tv
           for APK in aab-out/*-play.apk; do
-            echo "Autorisations : $APK"
-            if "$AAPT2" dump permissions "$APK" | grep -q REQUEST_INSTALL_PACKAGES; then
+            "$BOBINE_ANDROID_BUILD_TOOLS/apksigner" verify --print-certs "$APK"
+            "$BOBINE_ANDROID_BUILD_TOOLS/zipalign" -c -P 16 4 "$APK"
+            permissions="$("$AAPT2" dump permissions "$APK")"
+            if grep -q REQUEST_INSTALL_PACKAGES <<< "$permissions"; then
               echo "::error::$APK contient REQUEST_INSTALL_PACKAGES"; exit 1
             fi
             echo "$(sha256sum "$APK")"
           done
-          scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/mobile/play/*.apk)" arm64-v8a
-          scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/tv/play/*.apk)" armeabi-v7a arm64-v8a
-          # Contrôler aussi les tranches natives finales des AAB, pas seulement les sorties Cargo.
-          python3 - <<'PY'
-          from pathlib import Path
-          import zipfile
-          for artifact in sorted(Path("aab-out").glob("*")):
-              if artifact.suffix not in (".apk", ".aab"):
-                  continue
-              prefix = "base/lib/" if artifact.suffix == ".aab" else "lib/"
-              expected = {"arm64-v8a", "armeabi-v7a"} if artifact.name.startswith("Bobine-TV-") else {"arm64-v8a"}
-              with zipfile.ZipFile(artifact) as archive:
-                  entries = archive.namelist()
-                  actual = {entry[len(prefix):].split("/", 1)[0] for entry in entries if entry.startswith(prefix) and entry.endswith(".so")}
-                  if actual != expected or any(f"{prefix}{abi}/libbobine_media.so" not in entries for abi in expected):
-                      raise SystemExit(f"ABI ou composant audio absent dans {artifact.name}")
-              print(f"{artifact.name}: ABI et composant audio vérifiés")
-          PY
+          .workflow-tools/scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/mobile/play/*.apk)" arm64-v8a
+          .workflow-tools/scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/tv/play/*.apk)" armeabi-v7a arm64-v8a
           # Le numéro de version des bundles doit dépasser celui de l'APK déjà installé chez les utilisateurs.
           echo "versionName=${{ steps.ref.outputs.version_name }} versionCode=${{ steps.ref.outputs.version_code }}" | tee -a "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.check_secrets.outputs.configured == 'true'
         with:
           name: bobine-play-aab-${{ steps.ref.outputs.version_name }}
@@ -224,11 +219,21 @@ jobs:
       - name: Vérifier la présence du compte de service Google Play
         if: steps.check_secrets.outputs.configured == 'true'
         id: play_secret
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          UPLOAD_TO_PLAY: ${{ inputs.upload_to_play }}
         run: |
-          if [ -n "${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}" ]; then echo "configured=true" >> "$GITHUB_OUTPUT"; else echo "configured=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -n "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          elif [ "$UPLOAD_TO_PLAY" = true ]; then
+            echo "::error::Google Play upload requested without a service account"
+            exit 1
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Envoyer l'application téléphone sur Google Play (brouillon)
-        if: steps.play_secret.outputs.configured == 'true'
-        uses: r0adkll/upload-google-play@v1
+        if: inputs.upload_to_play && steps.play_secret.outputs.configured == 'true'
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.bobine.app
@@ -236,8 +241,8 @@ jobs:
           track: ${{ inputs.play_track }}
           status: draft
       - name: Envoyer l'application Android TV sur Google Play (brouillon)
-        if: steps.play_secret.outputs.configured == 'true'
-        uses: r0adkll/upload-google-play@v1
+        if: inputs.upload_to_play && steps.play_secret.outputs.configured == 'true'
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.bobine.app.tv
