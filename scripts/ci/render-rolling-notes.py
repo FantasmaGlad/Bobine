@@ -25,6 +25,12 @@ SIGNING_FINGERPRINT = "B77D96D72F84F36ACAA3F8729CBF497D829EE15A"
 LABELS = {"canary": "Canary", "beta": "Bêta"}
 
 
+def glibc_floor() -> str:
+    """Plancher de glibc annoncé des paquets (packaging/common/MIN_GLIBC) ; valeur courante tant que ce fichier n'existe pas."""
+    path = ROOT / "packaging/common/MIN_GLIBC"
+    return path.read_text(encoding="utf-8").strip() if path.exists() else "2.38"
+
+
 def badge(label: str, logo: str, color: str = "white") -> str:
     return f"![](https://img.shields.io/badge/{label}?style=flat-square&logo={logo}&logoColor={color})"
 
@@ -32,8 +38,7 @@ def badge(label: str, logo: str, color: str = "white") -> str:
 DEBIAN_FAMILY = " ".join([badge("Debian-A81D33", "debian"), badge("Ubuntu-E95420", "ubuntu"),
                           badge("Linux%20Mint-386D20", "linuxmint"), badge("Pop%21__OS-287D86", "popos"),
                           badge("Zorin%20OS-0969A2", "zorin")])
-RPM_FAMILY = " ".join([badge("Fedora-294172", "fedora"), badge("Nobara-303030", "nobaralinux"),
-                       badge("RHEL-EE0000", "redhat")])
+RPM_FAMILY = " ".join([badge("Fedora-294172", "fedora"), badge("Nobara-303030", "nobaralinux")])
 ARCH_FAMILY = " ".join([badge("Arch%20Linux-126B96", "archlinux"), badge("EndeavourOS-5540A5", "endeavouros"),
                         badge("CachyOS-006655", "cachyos"), badge("Manjaro-176D49", "manjaro")])
 
@@ -42,24 +47,28 @@ FAMILIES = """\
 
 Dépôts signés GPG de [packages.bobine.fit](https://packages.bobine.fit), canal @L@ : les mises à jour arrivent par le gestionnaire de paquets de la distribution.
 
+Les binaires exigent **glibc @G@ ou plus récente** : Debian 12, Ubuntu 22.04 LTS et RHEL 9 (et dérivés) ne sont pas pris en charge. La CI installe les paquets sur Ubuntu 24.04 (x86-64 et ARM64), Fedora et Arch Linux (x86-64) ; les autres distributions utilisent les mêmes paquets et ne sont pas testées séparément.
+
 | Famille | Distributions | Format et gestionnaire | Dépôt du canal | Architectures |
 | :--- | :--- | :---: | :--- | :---: |
-| Debian et dérivés | Debian 13 et 12, Ubuntu 24.04 et 22.04 LTS, Linux Mint, Pop!_OS, Zorin OS, Raspberry Pi OS | `.deb` · APT | `https://packages.bobine.fit/debian/`, suite `@C@` | `amd64`, `arm64` |
-| Fedora et dérivés RPM | Fedora, Nobara, RHEL, AlmaLinux, Rocky Linux, openSUSE (Leap, Tumbleweed ; Zypper / RPM) | `.rpm` · DNF | `https://packages.bobine.fit/fedora/bobine-@C@.repo` | `x86_64`, `aarch64` |
+| Debian et dérivés | Debian 13 et plus récent, Ubuntu 24.04 LTS et plus récent, Linux Mint, Pop!_OS, Zorin OS et Raspberry Pi OS basés sur ces versions | `.deb` · APT | `https://packages.bobine.fit/debian/`, suite `@C@` | `amd64`, `arm64` |
+| Fedora et dérivés RPM | Fedora, Nobara ; RHEL, AlmaLinux et Rocky Linux 10 et plus récent (non testés en CI) | `.rpm` · DNF | `https://packages.bobine.fit/fedora/bobine-@C@.repo` | `x86_64`, `aarch64` |
 | Arch Linux et dérivés | Arch Linux (et Arch Linux ARM), EndeavourOS, CachyOS, Manjaro | `.pkg.tar.zst` · pacman | `https://packages.bobine.fit/arch/@C@/$arch` | `x86_64`, `aarch64` |
 
 ### Installer depuis le dépôt (méthode recommandée)
 
-- **Debian, Ubuntu, Linux Mint, Pop!_OS, Zorin OS (APT)** :
+- **Debian 13+, Ubuntu 24.04+, Linux Mint, Pop!_OS, Zorin OS (APT)** :
   ```bash
   curl -fsSL https://packages.bobine.fit/bobine.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/bobine.gpg
   echo "deb [signed-by=/etc/apt/keyrings/bobine.gpg] https://packages.bobine.fit/debian/ @C@ main" | sudo tee /etc/apt/sources.list.d/bobine.list
   sudo apt update && sudo apt install bobine
   ```
-- **Fedora, Nobara, RHEL, AlmaLinux, Rocky Linux (DNF)** :
+- **Fedora, Nobara, RHEL 10+, AlmaLinux 10+, Rocky Linux 10+ (DNF)** :
   ```bash
   sudo rpm --import https://packages.bobine.fit/bobine.gpg
+  # Fedora 41+ (DNF 5)
   sudo dnf config-manager addrepo --from-repofile=https://packages.bobine.fit/fedora/bobine-@C@.repo
+  # Fedora 40 et antérieures, famille RHEL (DNF 4) : sudo dnf config-manager --add-repo https://packages.bobine.fit/fedora/bobine-@C@.repo
   sudo dnf install bobine
   ```
 - **Arch Linux, EndeavourOS, CachyOS, Manjaro (pacman)** :
@@ -140,8 +149,8 @@ def render(channel: str, manifests: bool = True) -> str:
     if manifests:
         text += INTEGRITY
     spaced = " ".join(SIGNING_FINGERPRINT[i:i + 4] for i in range(0, 40, 4))
-    return (text.replace("@C@", channel).replace("@L@", label).replace("@FINGERPRINT@", SIGNING_FINGERPRINT)
-            .replace("@SPACED@", spaced))
+    return (text.replace("@C@", channel).replace("@L@", label).replace("@G@", glibc_floor())
+            .replace("@FINGERPRINT@", SIGNING_FINGERPRINT).replace("@SPACED@", spaced))
 
 
 def main(argv: list[str]) -> int:

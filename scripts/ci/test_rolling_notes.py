@@ -53,6 +53,15 @@ class RollingNotesTests(unittest.TestCase):
                     self.assertIn(expected, notes)
                 self.assertNotIn("@", re.sub(r"[\w.+-]+@[\w.-]+", "", notes), "unreplaced placeholder")
 
+    def test_notes_state_the_glibc_floor_and_promise_nothing_untested(self):
+        for channel in self.channels:
+            with self.subTest(channel=channel):
+                notes = renderer.render(channel)
+                self.assertIn(f"glibc {renderer.glibc_floor()} ou plus récente", notes)
+                self.assertIn("--add-repo", notes, "DNF 4 needs its own command")
+                for promised in ("Debian 13 et 12", "24.04 et 22.04", "openSUSE", "Zypper"):
+                    self.assertNotIn(promised, notes)
+
     def test_tables_are_well_formed(self):
         for channel in self.channels:
             with self.subTest(channel=channel):
