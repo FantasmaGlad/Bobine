@@ -1861,8 +1861,7 @@ export default function SettingsPage() {
             <div>
               <button
                 type="button"
-                className="btn btn-secondary"
-                style={{ height: "42px", color: "var(--accent-error-text)", borderColor: "var(--accent-error)" }}
+                className="btn btn-danger"
                 onClick={() => setShowResetData(true)}
               >
                 <Icon name="cleaning_services" size={16} /> {t("settingsPage.resetDataAction")}
@@ -1892,7 +1891,6 @@ export default function SettingsPage() {
               <button
                 type="button"
                 className="btn btn-danger"
-                style={{ height: "42px" }}
                 onClick={() => setShowUninstall(true)}
               >
                 <Icon name="delete_forever" size={16} /> {t("settingsPage.uninstallAction")}

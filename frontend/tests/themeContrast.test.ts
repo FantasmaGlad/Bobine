@@ -237,3 +237,76 @@ for (const theme of THEMES) {
     assert.ok(warn >= NON_TEXT, `icône d'état « attention » : ${warn.toFixed(2)}`);
   });
 }
+
+// Chaque combinaison des extrêmes du maillage forme une enveloppe conservative,
+// même lorsque les centres des dégradés ne se croisent pas.
+const LIGHT_THEMES = new Set(["clair", "charbon", "miel", "menthe", "ciel", "lavande", "beige", "coco"]);
+function resolveToken(expr: string, vars: Record<string, string>): string {
+  const match = /^var\(--([\w-]+)\)$/.exec(expr);
+  return match ? resolveToken(vars[match[1]], vars) : expr;
+}
+function gradientStops(expr: string, vars: Record<string, string>): string[] {
+  const value = resolveToken(expr, vars);
+  return /^(linear|radial)-gradient\(/.test(value)
+    ? splitTopLevel(value.slice(value.indexOf("(") + 1, -1)).slice(1).map(v => v.replace(/\s+[\d.]+%$/, ""))
+    : [value];
+}
+function contentSurfaces(vars: Record<string, string>): Rgba[] {
+  const layers = splitTopLevel(resolveToken(declaration(".page-content", "background-image"), vars));
+  let surfaces = [evaluate(declaration(".page-content", "background-color"), vars)];
+  for (const layer of layers.reverse()) {
+    surfaces = surfaces.flatMap(below => gradientStops(layer, vars).map(stop => over(evaluate(stop, vars), below)));
+  }
+  return surfaces;
+}
+// Matrice saturate() de CSS Filter Effects appliquée au fond avant le verre.
+function saturateBackdrop(c: Rgba, amount: number): Rgba {
+  const y = .213 * c.r + .715 * c.g + .072 * c.b;
+  const channel = (v: number) => Math.max(0, Math.min(255, y + amount * (v - y)));
+  return { r: channel(c.r), g: channel(c.g), b: channel(c.b), a: c.a };
+}
+for (const theme of THEMES) {
+  const vars = themeVars(theme);
+  const c = (expr: string) => evaluate(expr, vars);
+  test(`${theme} : contenu et verre sur le maillage composé`, () => {
+    assert.equal(declaration(".mobile-page-content", "background-color"), declaration(".page-content", "background-color"));
+    const surfaces = contentSurfaces(vars);
+    const saturation = parseFloat(vars["saturate-rich"]) / 100;
+    const glass = surfaces.flatMap(bg => gradientStops("var(--glass-card-bg)", vars)
+      .map(stop => over(c(stop), saturateBackdrop(bg, saturation))));
+    // Les thèmes clairs gardent leur matériau historique : égalité vérifiée ci-dessous.
+    // Les seuils composés portent ici sur les huit surfaces sombres modifiées.
+    // Le mode système sans transparence remplace les cartes par ce fond opaque.
+    for (const bg of LIGHT_THEMES.has(theme) ? [] : [...surfaces, ...glass, c("var(--bg-surface-elevated)")]) {
+      for (const [token, min] of [["text-main", 7], ["text-muted", AA], ["content-text-dim", AA]] as const) {
+        const got = ratio(c(`var(--${token})`), bg);
+        assert.ok(got >= min, `${token} : ${got.toFixed(2)} < ${min}`);
+      }
+    }
+    if (LIGHT_THEMES.has(theme)) {
+      assert.deepEqual(c("var(--bg-content)"), c("var(--bg-main)"));
+      assert.equal(resolveToken("var(--bg-content-mesh)", vars), resolveToken("var(--bg-ambient-mesh)", vars));
+      assert.deepEqual(c("var(--content-text-dim)"), c("var(--text-dim)"));
+      assert.equal(resolveToken(declaration(".mobile-page-content", "background-image"), vars), "none");
+    } else {
+      assert.ok(lum(c("var(--bg-content)")) > lum(c("var(--bg-main)")), "contenu plus clair que la coque");
+      assert.equal(resolveToken(declaration(".mobile-page-content", "background-image"), vars), resolveToken(declaration(".page-content", "background-image"), vars));
+    }
+  });
+  test(`${theme} : danger, texte et commandes sur les fonds réels`, () => {
+    const panel = over(c(declaration(".settings-danger", "background")), c("var(--bg-content)"));
+    const card = over(c(declaration(".settings-danger-card", "background")), panel);
+    const dangerText = c(declaration(".settings-danger h3", "color"));
+    for (const bg of [panel, card]) {
+      assert.ok(ratio(c("var(--text-main)"), bg) >= 7, "texte principal");
+      assert.ok(ratio(c("var(--text-muted)"), bg) >= AA, `aide et commandes : ${ratio(c("var(--text-muted)"), bg).toFixed(2)}`);
+      assert.ok(ratio(dangerText, bg) >= AA, `titres rouges : ${ratio(dangerText, bg).toFixed(2)}`);
+    }
+    for (const selector of [".settings-danger .btn-danger", ".settings-danger .btn-danger:hover:not(:disabled)", ".settings-danger .btn-danger:active:not(:disabled)"]) {
+      const bg = over(c(declaration(selector, "background")), card);
+      const fg = c(declaration(".settings-danger .btn-danger", "color"));
+      assert.ok(ratio(fg, bg) >= AA, `${selector} : ${ratio(fg, bg).toFixed(2)}`);
+      assert.ok(ratio(dangerText, card) >= NON_TEXT, "bordure et focus sur la carte");
+    }
+  });
+}

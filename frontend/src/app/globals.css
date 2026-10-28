@@ -67,6 +67,23 @@
     radial-gradient(circle at 14% 6%, color-mix(in srgb, var(--accent-primary) 16%, transparent) 0%, transparent 48%),
     radial-gradient(circle at 88% 22%, color-mix(in srgb, var(--accent-primary) 10%, transparent) 0%, transparent 54%),
     radial-gradient(circle at 50% 96%, color-mix(in srgb, var(--accent-primary) 7%, transparent) 0%, transparent 50%);
+  /* Le contenu gagne un palier de lumière sans modifier les matériaux du menu.
+     Le maillage reste discret pour préserver le contraste du texte secondaire. */
+  --bg-content: color-mix(in srgb, var(--bg-surface) 70%, var(--bg-surface-elevated));
+  --content-mesh-accent: var(--accent-primary);
+  --bg-content-mesh:
+    radial-gradient(circle at 14% 6%, color-mix(in srgb, var(--content-mesh-accent) 9%, transparent) 0%, transparent 48%),
+    radial-gradient(circle at 88% 22%, color-mix(in srgb, var(--content-mesh-accent) 5%, transparent) 0%, transparent 54%),
+    radial-gradient(circle at 50% 96%, color-mix(in srgb, var(--content-mesh-accent) 3%, transparent) 0%, transparent 50%);
+  --bg-mobile-content-mesh: var(--bg-content-mesh);
+  --content-text-dim: color-mix(in srgb, var(--text-dim) 80%, var(--text-main));
+  /* Surfaces opaques : la teinte de danger ne dépend pas du verre placé dessous. */
+  --danger-panel-bg: color-mix(in srgb, var(--accent-error) 9%, var(--bg-surface));
+  --danger-card-bg: color-mix(in srgb, var(--accent-error) 12%, var(--bg-surface));
+  --danger-text: color-mix(in srgb, var(--accent-error) 55%, var(--text-main));
+  --danger-action-bg: color-mix(in srgb, var(--accent-error) 16%, var(--bg-surface));
+  --danger-action-hover-bg: color-mix(in srgb, var(--accent-error) 22%, var(--bg-surface));
+  --danger-action-active-bg: color-mix(in srgb, var(--accent-error) 28%, var(--bg-surface));
   --glass-surface-bg: color-mix(in srgb, var(--bg-surface) 56%, transparent);
   --glass-surface-border: color-mix(in srgb, var(--specular) 13%, var(--border-color));
   --glass-surface-blur: var(--blur-xl);
@@ -146,6 +163,10 @@
 :root[data-theme="lavande"],
 :root[data-theme="beige"],
 :root[data-theme="coco"] {
+  --bg-content: var(--bg-main);
+  --bg-content-mesh: var(--bg-ambient-mesh);
+  --bg-mobile-content-mesh: none;
+  --content-text-dim: var(--text-dim);
   --bg-ambient-mesh:
     radial-gradient(circle at 12% 6%, color-mix(in srgb, var(--accent-primary) 14%, transparent) 0%, transparent 46%),
     radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--accent-primary) 10%, transparent) 0%, transparent 52%),
@@ -355,6 +376,8 @@
 
 /* Graphite — Monochrome furtif, titane sombre et acier brossé (ex-Charbon Sombre) */
 :root[data-theme="charbon-sombre"] {
+  /* L'accent acier très clair ne doit pas blanchir les surfaces de contenu. */
+  --content-mesh-accent: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-content));
   --bg-main: #171b24;
   --bg-surface: #212834;
   --bg-surface-elevated: #2b3444;
@@ -1052,11 +1075,13 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Page Container wrapper */
 .page-content {
+  --text-dim: var(--content-text-dim);
   flex-grow: 1;
   overflow-y: auto;
   padding: 28px 32px;
   position: relative;
-  background-image: var(--bg-ambient-mesh);
+  background-color: var(--bg-content);
+  background-image: var(--bg-content-mesh);
   background-attachment: local;
 }
 
@@ -5304,6 +5329,10 @@ video::cue {
 }
 
 .mobile-page-content {
+  --text-dim: var(--content-text-dim);
+  background-color: var(--bg-content);
+  background-image: var(--bg-mobile-content-mesh);
+  background-attachment: local;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -7512,14 +7541,23 @@ video::cue {
   margin-top: auto;
 }
 
-/* Zone de danger */
-.settings-danger { border-color: color-mix(in srgb, var(--accent-error) 45%, var(--border-color)); }
-.settings-danger h3 { color: var(--accent-error-text); }
+/* Zone de danger : même intention visuelle pour les deux actions, sans changer
+   leurs confirmations. Les fonds opaques gardent le contraste en verre réduit. */
+.settings-danger {
+  background: var(--danger-panel-bg);
+  border-color: var(--danger-text);
+}
+.settings-danger:hover {
+  border-color: var(--danger-text);
+  transform: none;
+}
+.settings-danger h3 { color: var(--danger-text); }
+.settings-danger .settings-hint { color: var(--text-muted); }
 .settings-danger-group { display: flex; flex-direction: column; gap: 20px; margin-top: 16px; }
 .settings-danger-card {
   padding: 20px 22px;
-  background: color-mix(in srgb, var(--accent-error) 3.5%, var(--bg-surface));
-  border: 1px solid color-mix(in srgb, var(--accent-error) 22%, var(--border-color));
+  background: var(--danger-card-bg);
+  border: 1px solid var(--danger-text);
   border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
@@ -7529,7 +7567,7 @@ video::cue {
   margin: 0;
   font-size: 1.02rem;
   font-weight: 700;
-  color: var(--text-main);
+  color: var(--danger-text);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -7544,8 +7582,30 @@ video::cue {
   font-size: 0.82rem;
   color: var(--text-muted);
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
-  opacity: 0.9;
+  overflow-wrap: anywhere;
   margin-top: 2px;
+}
+.settings-danger .btn-danger {
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+  background: var(--danger-action-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-text);
+}
+.settings-danger .btn-danger:hover:not(:disabled) {
+  background: var(--danger-action-hover-bg);
+  border-color: var(--danger-text);
+  transform: none;
+}
+.settings-danger .btn-danger:active:not(:disabled) {
+  background: var(--danger-action-active-bg);
+  transform: none;
+  filter: none;
+}
+.settings-danger .btn-danger:focus-visible {
+  outline: 3px solid var(--danger-text);
+  outline-offset: 3px;
 }
 .settings-uninstall-list { margin: 4px 0 8px; padding-left: 18px; display: flex; flex-direction: column; gap: 4px;
   font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }
