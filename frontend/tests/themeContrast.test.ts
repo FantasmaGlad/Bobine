@@ -269,7 +269,6 @@ for (const theme of THEMES) {
   const vars = themeVars(theme);
   const c = (expr: string) => evaluate(expr, vars);
   test(`${theme} : contenu et verre sur le maillage composé`, () => {
-    assert.equal(declaration(".mobile-page-content", "background-color"), declaration(".page-content", "background-color"));
     const surfaces = contentSurfaces(vars);
     const saturation = parseFloat(vars["saturate-rich"]) / 100;
     const glass = surfaces.flatMap(bg => gradientStops("var(--glass-card-bg)", vars)
@@ -288,8 +287,12 @@ for (const theme of THEMES) {
       assert.equal(resolveToken("var(--bg-content-mesh)", vars), resolveToken("var(--bg-ambient-mesh)", vars));
       assert.deepEqual(c("var(--content-text-dim)"), c("var(--text-dim)"));
       assert.equal(resolveToken(declaration(".mobile-page-content", "background-image"), vars), "none");
+      // Le parent mobile porte déjà le maillage historique : ne pas l'occulter.
+      assert.equal(c(declaration(".mobile-page-content", "background-color")).a, 0);
+      assert.equal(declaration(".mobile-app-container", "background-image"), "var(--bg-ambient-mesh)");
     } else {
       assert.ok(lum(c("var(--bg-content)")) > lum(c("var(--bg-main)")), "contenu plus clair que la coque");
+      assert.deepEqual(c(declaration(".mobile-page-content", "background-color")), c(declaration(".page-content", "background-color")));
       assert.equal(resolveToken(declaration(".mobile-page-content", "background-image"), vars), resolveToken(declaration(".page-content", "background-image"), vars));
     }
   });
