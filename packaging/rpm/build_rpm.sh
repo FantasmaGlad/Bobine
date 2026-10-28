@@ -18,6 +18,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck source=../common/version.sh
 source "${SCRIPT_DIR}/../common/version.sh"
+# shellcheck source=../common/glibc_floor.sh
+source "${SCRIPT_DIR}/../common/glibc_floor.sh"
 
 VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
 RPM_ARCH="${RPM_ARCH:-$(uname -m)}"
@@ -45,13 +47,9 @@ cp "${SCRIPT_DIR}/bobine-firewalld.xml" "${WORK}/rpmbuild/SOURCES/"
 cp "${SCRIPT_DIR}/bobine.spec" "${WORK}/rpmbuild/SPECS/"
 
 echo "=== [3/5] Version glibc minimale exigée par les binaires embarqués ==="
-# Plus haut symbole GLIBC_x.y référencé par un exécutable ou une bibliothèque ELF de l'arbre.
-GLIBC_MIN="$(
-    find "${DIST_DIR}" -type f \( -perm -u+x -o -name '*.so*' \) -print0 \
-    | xargs -0 -r grep -aoh -E 'GLIBC_[0-9]+\.[0-9]+(\.[0-9]+)?' 2>/dev/null \
-    | sed 's/^GLIBC_//' | sort -uV | tail -n1
-)"
-GLIBC_MIN="${GLIBC_MIN:-2.17}"
+# Plancher annoncé (packaging/common/MIN_GLIBC), identique à celui du .deb ; la construction échoue si les
+# binaires embarqués exigent davantage.
+GLIBC_MIN="$(bobine_glibc_check "${DIST_DIR}")"
 echo "glibc >= ${GLIBC_MIN}"
 
 echo "=== [4/5] rpmbuild (${RPM_ARCH}) ==="
