@@ -76,6 +76,7 @@
     radial-gradient(circle at 88% 22%, color-mix(in srgb, var(--content-mesh-accent) 5%, transparent) 0%, transparent 54%),
     radial-gradient(circle at 50% 96%, color-mix(in srgb, var(--content-mesh-accent) 3%, transparent) 0%, transparent 50%);
   --bg-mobile-content-mesh: var(--bg-content-mesh);
+  --bg-mobile-content: var(--bg-content);
   --content-text-dim: color-mix(in srgb, var(--text-dim) 80%, var(--text-main));
   /* Surfaces opaques : la teinte de danger ne dépend pas du verre placé dessous. */
   --danger-panel-bg: color-mix(in srgb, var(--accent-error) 9%, var(--bg-surface));
@@ -166,6 +167,9 @@
   --bg-content: var(--bg-main);
   --bg-content-mesh: var(--bg-ambient-mesh);
   --bg-mobile-content-mesh: none;
+  /* Le maillage clair mobile est porté par .mobile-app-container : le contenu
+     doit rester transparent pour ne pas masquer ce matériau hérité. */
+  --bg-mobile-content: transparent;
   --content-text-dim: var(--text-dim);
   --bg-ambient-mesh:
     radial-gradient(circle at 12% 6%, color-mix(in srgb, var(--accent-primary) 14%, transparent) 0%, transparent 46%),
@@ -5330,7 +5334,7 @@ video::cue {
 
 .mobile-page-content {
   --text-dim: var(--content-text-dim);
-  background-color: var(--bg-content);
+  background-color: var(--bg-mobile-content);
   background-image: var(--bg-mobile-content-mesh);
   background-attachment: local;
   flex: 1;
