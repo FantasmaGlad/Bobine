@@ -890,14 +890,25 @@ jobs:
           name: bobine-windows-installer-arm64
           path: dist-installer/Bobine-Setup-*-arm64.exe
 
-  linux-desktop-deb:
-    # Packaging Linux non-headless (.deb).
+  linux-deb:
+    # Paquet APT (.deb) Linux non-headless, amd64 et arm64 : un seul job à matrice, les deux architectures suivent exactement les mêmes étapes.
+    # Les paquets DNF et pacman en sont dérivés par le job linux-packages.
     # Construit le frontend Next.js, les exécutables PyInstaller Linux
     # (BobineBackend + BobineTray), assemble l'arborescence Debian et valide
-    # l'intégrité et l'installation réelle du paquet .deb sur ubuntu-latest.
-    name: Linux desktop packaging (.deb)
-    runs-on: ubuntu-latest
+    # l'intégrité et l'installation réelle du paquet .deb sur un runner de l'architecture visée.
+    name: Paquet APT (.deb ${{ matrix.deb_arch }})
+    runs-on: ${{ matrix.runner }}
     needs: [version]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - deb_arch: amd64
+            runner: ubuntu-latest
+            artifact: bobine-linux-deb
+          - deb_arch: arm64
+            runner: ubuntu-24.04-arm
+            artifact: bobine-linux-deb-arm64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -945,18 +956,19 @@ jobs:
           sudo apt-get install -y --no-install-recommends patchelf
           ./packaging/linux/build_deb.sh
       - name: Valider les métadonnées d'application (AppStream, .desktop)
+        if: matrix.deb_arch == 'amd64'
         run: |
           sudo apt-get install -y --no-install-recommends appstream desktop-file-utils
           appstreamcli validate --pedantic --no-net packaging/linux/bobine.metainfo.xml
           desktop-file-validate packaging/linux/bobine.desktop
       - name: Inspecter et valider la structure du paquet .deb
         run: |
-          dpkg-deb -I dist-deb/*.deb
-          dpkg-deb -c dist-deb/*.deb
-      - name: Tester l'installation réelle sur ubuntu-latest
+          dpkg-deb -I dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
+          dpkg-deb -c dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
+      - name: Tester l'installation réelle (${{ matrix.runner }})
         run: |
           sudo apt-get update
-          sudo apt-get install -y ./dist-deb/*.deb
+          sudo apt-get install -y ./dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
           test -x /usr/bin/bobine
           test -f /usr/share/applications/com.bobine.app.desktop
           test -f /usr/share/metainfo/com.bobine.app.metainfo.xml
@@ -969,85 +981,9 @@ jobs:
           test -f /usr/share/pixmaps/bobine.png
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: bobine-linux-deb
-          path: dist-deb/*.deb
-
-  linux-desktop-deb-arm64:
-    # Packaging Linux ARM64 non-headless (.deb arm64).
-    # Construit le frontend Next.js, les exécutables PyInstaller Linux ARM64
-    # (BobineBackend + BobineTray), assemble l'arborescence Debian arm64 et valide
-    # l'intégrité et l'installation réelle du paquet .deb sur ubuntu-24.04-arm.
-    name: Linux desktop ARM64 packaging (.deb)
-    runs-on: ubuntu-24.04-arm
-    needs: [version]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Build du frontend (export statique)
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run build
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: |
-            backend/requirements*.txt
-            backend/constraints-desktop.txt
-      - name: Installer les dépendances Python + PyInstaller
-        run: |
-          python -m pip install pip==26.2.2
-          python -m pip install -r backend/requirements.txt
-          python -m pip install -r backend/requirements-build.txt
-          python -m pip check
-      - name: Identifiants de build (VERSION bundlée + COMMIT)
-        run: |
-          echo "${{ needs.version.outputs.commit_short }}" > COMMIT
-          if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
-            echo "${{ needs.version.outputs.display_version }}" > VERSION
-          fi
-      - name: Compiler et contrôler le composant audio natif (bobine-media)
-        env:
-          CARGO_NET_RETRY: "10"
-          CARGO_HTTP_TIMEOUT: "60"
-        run: |
-          mkdir -p "$RUNNER_TEMP/media-stage"
-          python3 scripts/ci/stage-media.py --dest "$RUNNER_TEMP/media-stage"
-      - name: Construire le paquet Debian ARM64 (.deb)
-        env:
-          VERSION: ${{ needs.version.outputs.deb_version }}
-          DEB_FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends patchelf
-          ./packaging/linux/build_deb.sh
-      - name: Inspecter et valider la structure du paquet .deb ARM64
-        run: |
-          dpkg-deb -I dist-deb/bobine_*_arm64.deb
-          dpkg-deb -c dist-deb/bobine_*_arm64.deb
-      - name: Tester l'installation réelle sur ubuntu-24.04-arm
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ./dist-deb/bobine_*_arm64.deb
-          test -x /usr/bin/bobine
-          test -f /usr/share/applications/com.bobine.app.desktop
-          test -f /usr/share/metainfo/com.bobine.app.metainfo.xml
-          test -f /usr/lib/systemd/user/bobine.service
-          test -x /usr/lib/bobine/BobineBackend
-          test -x /usr/lib/bobine/BobineTray
-          test -x /usr/lib/bobine/bobine-media
-          python3 scripts/ci/stage-media.py --check /usr/lib/bobine/bobine-media
-          test -f /usr/share/icons/hicolor/256x256/apps/bobine.png
-          test -f /usr/share/pixmaps/bobine.png
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: bobine-linux-deb-arm64
-          path: dist-deb/bobine_*_arm64.deb
+          name: ${{ matrix.artifact }}
+          path: dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
+          if-no-files-found: error
 
   macos-build:
     # PyInstaller ne cross-compile pas — ce
@@ -1156,8 +1092,8 @@ jobs:
   # Statut unique à exiger dans la protection de la branche main : vert seulement si tous les
   # contrôles de validation (hors publication) sont verts.
   linux-packages:
-    name: Paquets Fedora et Arch (${{ matrix.arch }})
-    needs: [version, linux-desktop-deb, linux-desktop-deb-arm64]
+    name: Paquets DNF et pacman (${{ matrix.arch }})
+    needs: [version, linux-deb]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -1193,7 +1129,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, linux-packages]
+    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages]
     runs-on: ubuntu-latest
     steps:
       - name: Tous les contrôles sont verts
@@ -1242,7 +1178,7 @@ jobs:
 
   release-stable:
     name: Publish Stable Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     permissions:
@@ -1371,7 +1307,7 @@ jobs:
   # de main, sans validation matérielle manuelle.
   release-canary:
     name: Publish/Update Canary Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'canary'
     runs-on: ubuntu-latest
     permissions:
@@ -1581,7 +1517,7 @@ jobs:
   # générées automatiquement que Canary, juste un déclenchement différent.
   release-beta:
     name: Publish/Update Beta Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-desktop-deb, linux-desktop-deb-arm64, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'beta'
     runs-on: ubuntu-latest
     permissions:
@@ -1782,7 +1718,7 @@ jobs:
 
   publish-linux-packages:
     name: Publier les dépôts Linux (packages.bobine.fit)
-    needs: [version, linux-desktop-deb, linux-desktop-deb-arm64, linux-package-signing, release-stable, release-beta, release-canary]
+    needs: [version, linux-deb, linux-package-signing, release-stable, release-beta, release-canary]
     if: |
       always() && !cancelled() && needs.linux-package-signing.result == 'success' &&
       (needs.release-stable.result == 'success' || needs.release-beta.result == 'success' || needs.release-canary.result == 'success')
@@ -1819,7 +1755,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y reprepro rpm gnupg createrepo-c
-          docker pull archlinux:latest
+          . scripts/ci/container-images.sh
+          docker pull "$ARCH_IMAGE"
       - name: Préparer et vérifier les dépôts signés (Debian, RPM et Arch)
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
