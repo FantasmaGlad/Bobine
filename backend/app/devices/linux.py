@@ -72,11 +72,16 @@ async def run_command(*args: str, timeout: float = 10.0, stdin: str | None = Non
         out, err = await asyncio.wait_for(
             proc.communicate(stdin.encode() if stdin is not None else None), timeout=timeout
         )
-    except asyncio.TimeoutError as exc:
+    except (asyncio.TimeoutError, asyncio.CancelledError) as exc:
         try:
             proc.kill()
         except ProcessLookupError:
             pass
+        # Killing alone leaves the pipe transports attached to this loop.
+        # Drain and reap before timeout/shutdown can close the event loop.
+        await proc.communicate()
+        if isinstance(exc, asyncio.CancelledError):
+            raise
         raise DeviceError("timeout", f"{args[0]} n'a pas répondu dans le délai imparti.", 504) from exc
     return proc.returncode or 0, out.decode(errors="replace"), err.decode(errors="replace")
 

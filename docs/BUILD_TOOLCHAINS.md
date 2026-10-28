@@ -27,6 +27,11 @@ All four Android signing secrets are required together. A pull request without
 any signing secrets can run the remaining checks, but cannot qualify signed
 artifacts. Partial signing configuration always fails.
 
+Bundle verification uses strict JAR signature checks: self-signed upload
+certificates may have no public CA chain, but added unsigned entries, modified
+signed entries and duplicate ZIP paths fail validation. This proves signature
+coverage, not a trust decision for an arbitrary third-party certificate.
+
 The pinned AGP/Chaquopy combination is retained because it is inside Chaquopy's
 published compatibility range. Gradle 10 and a Pydantic v2 migration for Android
 are separate changes. Pydantic v1 configuration and desktop TestClient deprecation
@@ -81,3 +86,12 @@ hardware acceptance remains necessary for release promotion. The current macOS
 workflow builds for its runner architecture; it does not prove Intel hardware
 compatibility. Linux containers and system packages follow their distribution
 repositories, so these pins do not claim bit-for-bit reproducible installers.
+
+Build success is separate from security acceptance. The Android Pydantic v1
+profile retains legacy FastAPI/Starlette dependencies with published advisories;
+GTK-related glib 0.18.5 also remains in the Linux GUI dependency graphs. These
+findings require a separate compatibility and exposure assessment before Stable
+promotion. Pinning these versions does not resolve their security advisories.
+
+The implementation rationale, review order and qualification limits are collected
+in [the 5.0.6 review summary](reviews/5.0.6-outillage.md).

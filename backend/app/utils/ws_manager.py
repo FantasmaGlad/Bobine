@@ -120,13 +120,15 @@ class ConnectionManager:
         loop = self._loop
         if loop is None or loop.is_closed() or not loop.is_running():
             return
-        coroutine = self.broadcast(message)
+        # Create the coroutine only once the callback actually runs on the
+        # target loop. Shutdown can discard a queued callback without leaking
+        # an unawaited coroutine, even if it stops just after is_running().
+        def send_on_loop() -> None:
+            loop.create_task(self.broadcast(message))
+
         try:
-            asyncio.run_coroutine_threadsafe(coroutine, loop)
-        except Exception:
-            # Shutdown may close the loop between the check and submission.
-            # Submission then owns no task: release the unawaited coroutine here.
-            coroutine.close()
+            loop.call_soon_threadsafe(send_on_loop)
+        except RuntimeError:
             logger.warning("broadcast_threadsafe : échec de programmation sur la boucle", exc_info=True)
 
     async def connect(self, websocket: WebSocket):

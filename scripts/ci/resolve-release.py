@@ -36,9 +36,9 @@ def resolve(base, event, ref, tag="", beta=False, canary=False, run="1", commit=
         raise ValueError("Requested tag differs from the workflow reference")
     stable_tag = tag or ref_tag
     if stable_tag:
-        if not re.fullmatch(r"[vV]?\d+\.\d+\.\d+", stable_tag):
+        if not re.fullmatch(r"V\d+\.\d+\.\d+", stable_tag):
             raise ValueError("Stable tags must be Vx.y.z, without pre-release iteration suffixes")
-        if stable_tag.lstrip("vV") != base:
+        if stable_tag[1:] != base:
             raise ValueError("Stable tag differs from VERSION")
         channel, tag_name = "stable", stable_tag
     elif beta or canary:

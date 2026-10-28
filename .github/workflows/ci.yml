@@ -220,7 +220,7 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install -r backend/requirements-test.txt
       - name: Run test suite (pytest)
-        run: python -m pytest backend/tests -q
+        run: python -m pytest backend/tests -q -W error::RuntimeWarning -W error::pytest.PytestUnraisableExceptionWarning
         env:
           PYTHONPATH: backend
       - name: Relever le graphe Python installé

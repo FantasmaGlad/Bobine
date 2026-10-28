@@ -35,7 +35,7 @@ class ReleaseResolutionTests(unittest.TestCase):
                 self.resolve(**values)
 
     def test_invalid_tags_and_version_mismatch_are_rejected(self):
-        for tag in ("V5.0.5", "V5.0.6-beta.1", "V5.0.6-rc.1", "canary", "V5.0.6\n", "V5.0.6;echo bad"):
+        for tag in ("5.0.6", "v5.0.6", "V5.0.5", "V5.0.6-beta.1", "V5.0.6-rc.1", "canary", "V5.0.6\n", "V5.0.6;echo bad"):
             with self.subTest(tag=tag), self.assertRaises(ValueError):
                 self.resolve(tag=tag)
 

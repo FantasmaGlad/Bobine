@@ -184,40 +184,23 @@ jobs:
           cp android/app/build/outputs/apk/mobile/play/*.apk "aab-out/Bobine-${{ steps.ref.outputs.version_name }}-play.apk"
           cp android/app/build/outputs/apk/tv/play/*.apk "aab-out/Bobine-TV-${{ steps.ref.outputs.version_name }}-play.apk"
           for AAB in aab-out/*.aab; do
-            echo "Signature : $AAB"
-            jarsigner -verify "$AAB" | head -2
-            unzip -l "$AAB" | grep -q "base/manifest/AndroidManifest.xml"
-            echo "$(sha256sum "$AAB")"
+            sha256sum "$AAB"
           done
           # Le build Play ne doit pas contenir l'autorisation d'installation de paquets (politique Google Play).
           AAPT2="$BOBINE_ANDROID_BUILD_TOOLS/aapt2"
           python3 .workflow-tools/scripts/ci/verify-android-bundles.py "aab-out/Bobine-${{ steps.ref.outputs.version_name }}.aab"
           python3 .workflow-tools/scripts/ci/verify-android-bundles.py "aab-out/Bobine-TV-${{ steps.ref.outputs.version_name }}.aab" --tv
           for APK in aab-out/*-play.apk; do
-            echo "Autorisations : $APK"
-            if "$AAPT2" dump permissions "$APK" | grep -q REQUEST_INSTALL_PACKAGES; then
+            "$BOBINE_ANDROID_BUILD_TOOLS/apksigner" verify --print-certs "$APK"
+            "$BOBINE_ANDROID_BUILD_TOOLS/zipalign" -c -P 16 4 "$APK"
+            permissions="$("$AAPT2" dump permissions "$APK")"
+            if grep -q REQUEST_INSTALL_PACKAGES <<< "$permissions"; then
               echo "::error::$APK contient REQUEST_INSTALL_PACKAGES"; exit 1
             fi
             echo "$(sha256sum "$APK")"
           done
           .workflow-tools/scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/mobile/play/*.apk)" arm64-v8a
           .workflow-tools/scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/tv/play/*.apk)" armeabi-v7a arm64-v8a
-          # Contrôler aussi les tranches natives finales des AAB, pas seulement les sorties Cargo.
-          python3 - <<'PY'
-          from pathlib import Path
-          import zipfile
-          for artifact in sorted(Path("aab-out").glob("*")):
-              if artifact.suffix not in (".apk", ".aab"):
-                  continue
-              prefix = "base/lib/" if artifact.suffix == ".aab" else "lib/"
-              expected = {"arm64-v8a", "armeabi-v7a"} if artifact.name.startswith("Bobine-TV-") else {"arm64-v8a"}
-              with zipfile.ZipFile(artifact) as archive:
-                  entries = archive.namelist()
-                  actual = {entry[len(prefix):].split("/", 1)[0] for entry in entries if entry.startswith(prefix) and entry.endswith(".so")}
-                  if actual != expected or any(f"{prefix}{abi}/libbobine_media.so" not in entries for abi in expected):
-                      raise SystemExit(f"ABI ou composant audio absent dans {artifact.name}")
-              print(f"{artifact.name}: ABI et composant audio vérifiés")
-          PY
           # Le numéro de version des bundles doit dépasser celui de l'APK déjà installé chez les utilisateurs.
           echo "versionName=${{ steps.ref.outputs.version_name }} versionCode=${{ steps.ref.outputs.version_code }}" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -137,10 +137,18 @@ class DevicesService:
         self.schedule_reconcile()
 
     async def stop(self) -> None:
-        for task in (self._monitor, self._wifi_timer, self._reconcile_task):
-            if task is not None and not task.done():
-                task.cancel()
+        tasks = [task for task in (self._monitor, self._wifi_timer, self._reconcile_task)
+                 if task is not None and not task.done()]
+        for task in tasks:
+            task.cancel()
         self._monitor = self._wifi_timer = self._reconcile_task = None
+        # Cancellation is cooperative: let monitors finish their subprocess
+        # cleanup before stopping the driver and closing the application loop.
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    logger.debug("Arrêt d'une tâche de périphériques : %s", result)
         if self._driver is not None:
             try:
                 await self._driver.stop()

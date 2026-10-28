@@ -152,18 +152,34 @@ def test_broadcast_does_not_create_a_coroutine_on_stopped_or_closed_loop(monkeyp
     manager.broadcast_threadsafe({"event": "shutdown"})
 
 
-def test_broadcast_closes_coroutine_if_loop_closes_during_submission(monkeypatch):
+def test_broadcast_never_creates_coroutine_if_loop_stops_after_running_check(monkeypatch):
+    from unittest.mock import Mock
+    manager = ConnectionManager()
+    loop = asyncio.new_event_loop()
+    manager.bind_loop(loop)
+    broadcast = Mock(side_effect=AssertionError("callback must be discarded"))
+    monkeypatch.setattr(manager, "broadcast", broadcast)
+    # Reproduce the race deterministically: is_running saw a running loop,
+    # but shutdown stops it before the thread-safe callback gets executed.
+    monkeypatch.setattr(loop, "is_running", lambda: True)
+    try:
+        manager.broadcast_threadsafe({"event": "shutdown"})
+    finally:
+        monkeypatch.setattr(loop, "is_running", lambda: False)
+        loop.close()
+    broadcast.assert_not_called()
+
+
+def test_broadcast_handles_loop_closed_during_submission(monkeypatch, caplog):
     from unittest.mock import Mock
     manager = ConnectionManager()
     loop = Mock()
     loop.is_closed.return_value = False
     loop.is_running.return_value = True
+    loop.call_soon_threadsafe.side_effect = RuntimeError("Event loop is closed")
     manager.bind_loop(loop)
-    coroutine = Mock()
-    monkeypatch.setattr(manager, "broadcast", lambda message: coroutine)
-    def reject_submission(coro, target):
-        assert coro is coroutine and target is loop
-        raise RuntimeError("Event loop is closed")
-    monkeypatch.setattr(asyncio, "run_coroutine_threadsafe", reject_submission)
+    broadcast = Mock()
+    monkeypatch.setattr(manager, "broadcast", broadcast)
     manager.broadcast_threadsafe({"event": "shutdown"})
-    coroutine.close.assert_called_once_with()
+    broadcast.assert_not_called()
+    assert "échec de programmation" in caplog.text
