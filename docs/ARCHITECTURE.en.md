@@ -25,7 +25,7 @@ This document is written for anyone who wants to **understand, operate, modify o
 5. [Radio Module](#5-radio-module)
 5bis. [Devices (audio, Bluetooth, Wi-Fi)](#5bis-devices-audio-bluetooth-wi-fi)
 5ter. [External storage](#5ter-external-storage-usb-drives-disks-sd-cards-phones)
-6. [Audio Coach Mode & Animated Backgrounds](#6-audio-coach-mode--animated-backgrounds)
+6. [Audio Coach Mode & Animated Backgrounds Hub](#6-audio-coach-mode--animated-backgrounds-hub)
 7. [Install Script & systemd Services](#7-install-script--systemd-services)
 8. [HTTP API & WebSocket Reference](#8-http-api--websocket-reference)
 9. [Operations & Network Discovery (Wyse)](#9-operations--network-discovery-wyse)
@@ -526,7 +526,7 @@ Beta/Canary artifact filenames are **fixed** (`Bobine-Setup-beta.exe`/`Bobine-Se
 - **Download**: `.part` file, three attempts, free-space check, atomic rename only after the digest is verified.
 - **State after a restart**: a service that restarts itself to apply the update cannot write "done". `update_orchestrator` records the `version|commit` fingerprint before the update and, at the next startup, concludes "done" if it changed and "failed" otherwise (`load_persisted_state_at_startup`). No `force_reload` is broadcast at the start of the pipeline: clients reload themselves through the `boot_id` change.
 - **Headless**: automatic rollback (`git checkout` of the previous ref) if the dependency install or the frontend build fails; longer timeouts for a Dell Wyse 5070.
-- **Android**: `AndroidHandler` gets its context via `Python.getPlatform().getApplication()` (`PyApplication.context` does not exist — the root cause of "Impossible de déclencher la mise à jour Android"). `UpdateManager.kt` downloads, verifies the digest, checks package/signature/`versionCode` (Android forbids any downgrade without uninstalling: an explicit message instead of "app not installed"), then offers the install through a notification that carries the install intent directly. It no longer downloads anything spontaneously at app launch.
+- **Android**: `AndroidHandler` gets its context via `Python.getPlatform().getApplication()` (`PyApplication.context` does not exist — the root cause of "Unable to trigger the Android update"). `UpdateManager.kt` downloads, verifies the digest, checks package/signature/`versionCode` (Android forbids any downgrade without uninstalling: an explicit message instead of "app not installed"), then offers the install through a notification that carries the install intent directly. It no longer downloads anything spontaneously at app launch.
 
 ### Restricted sudo Authorization & Uninstall from the Interface
 
@@ -759,5 +759,29 @@ APT metadata expires after 365 days for Stable and 30 days for rolling channels.
 
 Every release (Stable, Beta, Canary) ships `SHA256SUMS`, the list of SHA-256 checksums of all its files, and `SHA256SUMS.asc`, its detached signature made with the key that already signs the package repositories. `scripts/ci/sign-release-checksums.sh` produces the pair in an ephemeral keyring removed from the runner at the end of the job; `scripts/ci/verify-release-assets.sh` rejects a release in which an expected file is missing from the list or a checksum differs. To verify a download: `gpg --verify SHA256SUMS.asc SHA256SUMS`, then `sha256sum -c --ignore-missing SHA256SUMS`. This signature does not replace vendor code signing: the Windows and macOS installers are not signed by Microsoft nor notarized by Apple.
 
+
+### Software and site publication flow
+
+```mermaid
+flowchart TD
+  Source[Bobine: version and channel] --> CI[Multi-platform tests and builds]
+  CI --> Release[GitHub release and signed SHA256SUMS]
+  Release --> Packages[Signed and verified APT, DNF and Pacman indexes]
+  Packages --> Pages[bobine-packages: GitHub Pages]
+  Packages --> Dispatch[bobine-release notification]
+  Dispatch --> Mirror[BobineWeb: onion-site export]
+  Mirror --> Tor[Atomic Tor mirror synchronization]
+  Pages --> Tor
+  Release --> Web[BobineWeb: release data and verified installer]
+  Web --> Deploy[CI, then Vercel and Cloudflare deployment]
+  Deploy --> Probe[HTTPS probes and served-digest check]
+  Tor --> TorProbe[Public Tor probe and repository signatures]
+```
+
+The `notify-web-release` job runs only after the Linux repositories have been published successfully, which in turn requires a release to have been created and the signature checks to have passed. It sends BobineWeb the `bobine-release` event, the channel and the published revision. The mirror is rebuilt from BobineWeb's main branch; event metadata is never used as a checkout reference or as a command. The Tor server fetches the publication branches and verifies the repositories before switching to the new generation. An error keeps the previous copy.
+
+The cross-repository notification requires the `BOBINE_WEB_DISPATCH_TOKEN` secret in Bobine: a fine-grained token limited to the BobineWeb repository alone, with `Contents: write`, or an equivalent GitHub App installation token. The automatic token of the Bobine repository does not grant write access to BobineWeb. If the secret is not configured, the job emits an explicit warning and the daily mirror refresh stays active. A signing key, a package SSH key or a general account token must not be reused for this role.
+
+The main site reads releases with revalidation. At each build, the Stable installer is fetched from the GitHub asset and its digest is verified; after publication, the probe compares the HTTP file actually served with its provenance. The daily check compares the announced Stable, the latest Stable release and `Bobine/VERSION`, and requires the expected Windows, Android, macOS, Debian, RPM and Arch assets. Probes validate their origin before any authenticated request. The vulnerability-reporting site follows a separate static publication, with checks of the public key, of `security.txt` and of its signature.
 
 Tool versions, dependency constraints, native Canary/Beta/Stable ordering and the qualification procedure are documented in [BUILD_TOOLCHAINS.md](BUILD_TOOLCHAINS.md). Android and desktop Python dependency profiles remain separate.
