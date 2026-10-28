@@ -39,7 +39,7 @@ peuvent donc coexister sur un même appareil et disposent chacune de leur fiche 
 | <img alt="Bobine TV" src="../frontend/public/icon-192.png" width="56"> <br> ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | **Bobine TV** (Android TV et Google TV) | `com.bobine.app.tv` | Boîtiers et téléviseurs Android TV / Google TV, télécommande directionnelle | 14 (API 34) | `armeabi-v7a`, `arm64-v8a` | [Bobine-TV-5.0.5.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-TV-5.0.5.apk) | [Bobine-TV-5.0.5.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-TV-5.0.5.aab) |
 
 <p align="center">
-  <img alt="Bobine Android" src="../Assets/Images/AndroidRelease.png" width="82%">
+  <img alt="Bobine Android" src="../Assets/Images/AndroidRelease.png" width="360">
 </p>
 
 > **APK et AAB : quelle différence ?** L'**APK** s'installe directement sur un appareil (page de
@@ -74,10 +74,11 @@ main depuis GitHub.
 
    | Paramètre | Valeur | Rôle |
    |---|---|---|
-   | `tag` | `V5.0.5` (obligatoire) | Version Stable à construire. Le code est celui de ce tag exact. |
-   | `source_ref` | vide, ou `main` | Branche ou tag à construire. Vide : le tag lui-même. Permet de construire le build Play depuis `main` sans déplacer le tag. |
+   | `tag` | `V5.0.5` (obligatoire) | Version Stable à construire. Sans `source_ref`, le code est celui de ce tag exact. |
+   | `source_ref` | vide, ou `main` | Branche ou tag à construire. Vide : le tag lui-même. Le fichier `VERSION` de la source doit correspondre au tag demandé ; `main` ne convient que si sa version correspond. |
    | `attach_to_release` | `true` / `false` | Joint les `.aab` et les APK Play à la release GitHub du tag (remplace les fichiers de même nom). |
-   | `play_track` | `internal`, `alpha`, `beta`, `production` | Piste de destination, utilisée **uniquement** si `PLAY_SERVICE_ACCOUNT_JSON` est configuré. |
+   | `upload_to_play` | `false` (défaut) / `true` | Autorise explicitement le téléversement ; exige aussi `PLAY_SERVICE_ACCOUNT_JSON`. |
+   | `play_track` | `internal`, `alpha`, `beta`, `production` | Piste de destination, utilisée **uniquement** si `upload_to_play=true` et `PLAY_SERVICE_ACCOUNT_JSON` est configuré. |
 
 3. À la fin du run, récupérer les fichiers dans l'artefact `bobine-play-aab-<version>` (et sur la
    page de la release si `attach_to_release` est activé) :
@@ -89,8 +90,8 @@ main depuis GitHub.
    | `Bobine-<version>-play.apk` | `com.bobine.app` (APK équivalent au bundle) |
    | `Bobine-TV-<version>-play.apk` | `com.bobine.app.tv` (APK équivalent au bundle) |
 
-Le workflow refuse un tag Bêta ou Canary, vérifie la signature de chaque bundle (`jarsigner`) et la
-présence du manifeste, vérifie que les APK Play ne contiennent pas l'autorisation `REQUEST_INSTALL_PACKAGES`, vérifie les ABI natives (`arm64-v8a` pour Bobine, `armeabi-v7a` et `arm64-v8a` pour Bobine TV) et la présence du composant audio natif `libbobine_media.so` dans chacune (compilé par `scripts/ci/build-media-android.sh`), puis affiche le `versionName` et le `versionCode` dans le résumé du run. Le composant est désactivé par défaut dans l'application (Réglages → Composant audio natif) ; sa présence dans les paquets ne dit rien de son comportement sur un appareil réel, aucune mesure n'en ayant été faite.
+Le workflow refuse un tag Bêta ou Canary, vérifie strictement la signature de chaque bundle (`jarsigner`), refuse les entrées non signées ou dupliquées et contrôle la
+présence du manifeste, vérifie les signatures APK et leur alignement 16 Ko, puis vérifie que les APK Play ne contiennent pas l'autorisation `REQUEST_INSTALL_PACKAGES`, vérifie les ABI natives (`arm64-v8a` pour Bobine, `armeabi-v7a` et `arm64-v8a` pour Bobine TV) et la présence du composant audio natif `libbobine_media.so` dans chacune (compilé par `scripts/ci/build-media-android.sh`), puis affiche le `versionName` et le `versionCode` dans le résumé du run. Le composant est désactivé par défaut dans l'application (Réglages → Composant audio natif) ; sa présence dans les paquets ne dit rien de son comportement sur un appareil réel, aucune mesure n'en ayant été faite.
 
 ### Fichiers Google Play de la version 5.0.5
 
@@ -121,12 +122,12 @@ la release (`Bobine-<version>.apk`), qui conserve la mise à jour intégrée.
 ## 4. Numérotation des versions
 
 - **`versionName`** : le numéro du tag sans le `V` (`V5.0.2` donne `5.0.2`).
-- **`versionCode`** : le nombre de commits du tag. Il croît à chaque version, ce qui permet à Google
+- **`versionCode`** : le nombre de commits de la source sélectionnée (le tag par défaut). Il croît à chaque version, ce qui permet à Google
   Play d'accepter les mises à jour successives, et il suit la même règle que les APK.
 
 Google Play refuse un bundle dont le `versionCode` n'est pas strictement supérieur à celui déjà
-publié sur la piste. Après un déplacement de tag vers un commit plus récent, le `versionCode`
-augmente : reconstruire alors les bundles avant tout nouveau téléversement.
+publié sur la piste. Un tag Stable publié reste immuable : pour une nouvelle mise à jour, préparer
+une nouvelle version et un nouveau tag, puis reconstruire les bundles.
 
 ## 5. Signature
 
@@ -149,7 +150,7 @@ console permet d'en enregistrer une nouvelle après vérification d'identité.
 
 1. Créer un compte de service Google Cloud et l'autoriser dans la console Play (accès aux versions).
 2. Enregistrer sa clé JSON dans le secret GitHub `PLAY_SERVICE_ACCOUNT_JSON`.
-3. Lancer le workflow en choisissant la piste (`play_track`).
+3. Lancer le workflow avec `upload_to_play=true` et choisir la piste (`play_track`).
 
 Les bundles sont alors envoyés en **brouillon** : la mise en ligne finale reste une validation
 manuelle dans la console.
@@ -189,7 +190,7 @@ existent que pour les APK téléchargés depuis GitHub, qui proposent par défau
 | La console refuse le bundle (« code de version déjà utilisé ») | `versionCode` non supérieur à celui déjà publié | Reconstruire depuis un tag plus récent. |
 | Le workflow s'arrête sur le format du tag | Tag Bêta, Canary ou mal formé | Utiliser un tag Stable `Vx.y.z`. |
 | Build ignoré avec un avertissement | Secrets `ANDROID_KEYSTORE_*` absents | Ajouter les secrets (section 2). |
-| Aucun envoi sur Play malgré le workflow réussi | `PLAY_SERVICE_ACCOUNT_JSON` non configuré | Envoi manuel (section 6) ou ajout du secret. |
+| Aucun envoi sur Play malgré le workflow réussi | `upload_to_play=false` ou `PLAY_SERVICE_ACCOUNT_JSON` non configuré | Envoi manuel (section 6) ou ajout du secret. |
 | Le bundle ne s'installe pas sur l'appareil | Un `.aab` n'est pas installable | Utiliser l'APK, ou téléverser le bundle sur Play. |
 
 ## Documents associés

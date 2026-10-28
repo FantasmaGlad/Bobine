@@ -39,7 +39,7 @@ has its own Google Play listing.
 | <img alt="Bobine TV" src="../frontend/public/icon-192.png" width="56"> <br> ![Android TV](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=android&logoColor=white) | **Bobine TV** (Android TV and Google TV) | `com.bobine.app.tv` | Android TV / Google TV boxes and TVs, D-pad remote | 14 (API 34) | `armeabi-v7a`, `arm64-v8a` | [Bobine-TV-5.0.5.apk](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-TV-5.0.5.apk) | [Bobine-TV-5.0.5.aab](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.5/Bobine-TV-5.0.5.aab) |
 
 <p align="center">
-  <img alt="Bobine Android" src="../Assets/Images/AndroidRelease.png" width="82%">
+  <img alt="Bobine Android" src="../Assets/Images/AndroidRelease.png" width="360">
 </p>
 
 > **APK vs AAB.** An **APK** installs directly on a device (download page, ADB). An **AAB**
@@ -74,10 +74,11 @@ manually from GitHub.
 
    | Parameter | Value | Purpose |
    |---|---|---|
-   | `tag` | `V5.0.5` (required) | Stable version to build. The code is that of this exact tag. |
-   | `source_ref` | empty, or `main` | Branch or tag to build. Empty: the tag itself. Lets you build the Play variant from `main` without moving the tag. |
+   | `tag` | `V5.0.5` (required) | Stable version to build. Without `source_ref`, the code is that of this exact tag. |
+   | `source_ref` | empty, or `main` | Branch or tag to build. Empty: the tag itself. The source `VERSION` file must match the requested tag; `main` is valid only when its version matches. |
    | `attach_to_release` | `true` / `false` | Attaches the `.aab` files and the Play APKs to the tag's GitHub release (replacing files with the same name). |
-   | `play_track` | `internal`, `alpha`, `beta`, `production` | Destination track, used **only** if `PLAY_SERVICE_ACCOUNT_JSON` is configured. |
+   | `upload_to_play` | `false` (default) / `true` | Explicitly enables upload; also requires `PLAY_SERVICE_ACCOUNT_JSON`. |
+   | `play_track` | `internal`, `alpha`, `beta`, `production` | Destination track, used **only** if `upload_to_play=true` and `PLAY_SERVICE_ACCOUNT_JSON` is configured. |
 
 3. When the run ends, get the files from the `bobine-play-aab-<version>` artifact (and from the release
    page if `attach_to_release` is on):
@@ -89,8 +90,8 @@ manually from GitHub.
    | `Bobine-<version>-play.apk` | `com.bobine.app` (APK equivalent to the bundle) |
    | `Bobine-TV-<version>-play.apk` | `com.bobine.app.tv` (APK equivalent to the bundle) |
 
-The workflow rejects a Beta or Canary tag, checks each bundle's signature (`jarsigner`) and the
-presence of the manifest, checks that the Play APKs do not contain the `REQUEST_INSTALL_PACKAGES` permission, checks the native ABIs (`arm64-v8a` for Bobine, `armeabi-v7a` and `arm64-v8a` for Bobine TV) and that the native audio component `libbobine_media.so` is present in each (built by `scripts/ci/build-media-android.sh`), then prints the `versionName` and `versionCode` in the run summary. The component is off by default in the app (Settings → Native audio component); its presence in the packages says nothing about its behaviour on a real device, none having been measured.
+The workflow rejects a Beta or Canary tag, strictly checks each bundle's signature (`jarsigner`), rejects unsigned or duplicate entries and checks the
+presence of the manifest, verifies APK signatures and 16 KB alignment, then checks that the Play APKs do not contain the `REQUEST_INSTALL_PACKAGES` permission, checks the native ABIs (`arm64-v8a` for Bobine, `armeabi-v7a` and `arm64-v8a` for Bobine TV) and that the native audio component `libbobine_media.so` is present in each (built by `scripts/ci/build-media-android.sh`), then prints the `versionName` and `versionCode` in the run summary. The component is off by default in the app (Settings → Native audio component); its presence in the packages says nothing about its behaviour on a real device, none having been measured.
 
 ### Google Play files of version 5.0.5
 
@@ -121,12 +122,12 @@ keeps the built-in update.
 ## 4. Version numbering
 
 - **`versionName`**: the tag number without the `V` (`V5.0.2` gives `5.0.2`).
-- **`versionCode`**: the number of commits of the tag. It grows with every release, which lets Google
+- **`versionCode`**: the number of commits of the selected source (the tag by default). It grows with every release, which lets Google
   Play accept successive updates, and it follows the same rule as the APKs.
 
 Google Play rejects a bundle whose `versionCode` is not strictly greater than the one already
-published on the track. After moving a tag to a more recent commit the `versionCode` increases:
-rebuild the bundles before any new upload.
+published on the track. A published Stable tag stays immutable: prepare a new version and a new
+tag for an update, then rebuild the bundles.
 
 ## 5. Signing
 
@@ -148,7 +149,7 @@ after identity verification.
 
 1. Create a Google Cloud service account and authorise it in the Play Console (release access).
 2. Store its JSON key in the `PLAY_SERVICE_ACCOUNT_JSON` GitHub secret.
-3. Run the workflow and choose the track (`play_track`).
+3. Run the workflow with `upload_to_play=true` and choose the track (`play_track`).
 
 The bundles are then uploaded as a **draft**: the final release remains a manual confirmation in the
 console.
@@ -183,7 +184,7 @@ data (Settings > Backup), uninstall, then reinstall.
 | The console rejects the bundle ("version code already used") | `versionCode` not greater than the one already published | Rebuild from a more recent tag. |
 | The workflow stops on the tag format | Beta, Canary or malformed tag | Use a Stable `Vx.y.z` tag. |
 | Build skipped with a warning | `ANDROID_KEYSTORE_*` secrets missing | Add the secrets (section 2). |
-| Nothing sent to Play although the workflow succeeded | `PLAY_SERVICE_ACCOUNT_JSON` not configured | Manual upload (section 6) or add the secret. |
+| Nothing sent to Play although the workflow succeeded | `upload_to_play=false` or `PLAY_SERVICE_ACCOUNT_JSON` not configured | Manual upload (section 6) or add the secret. |
 | The bundle will not install on the device | An `.aab` is not installable | Use the APK, or upload the bundle to Play. |
 
 ## Related documents
