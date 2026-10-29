@@ -985,6 +985,10 @@ jobs:
           python3 scripts/ci/stage-media.py --check /usr/lib/bobine/bobine-media
           test -f /usr/share/icons/hicolor/256x256/apps/bobine.png
           test -f /usr/share/pixmaps/bobine.png
+      - name: Lancer l'application installée (BobineBackend, /api/health)
+        run: bash scripts/ci/smoke-installed-backend.sh
+      - name: Vérifier que apt refuse le paquet sur Debian 12 et Ubuntu 22.04 (plancher glibc)
+        run: bash scripts/ci/test-glibc-floor.sh deb dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ matrix.artifact }}
@@ -1128,6 +1132,10 @@ jobs:
           deb="$(find deb-input -name '*.deb' | head -1)"
           bash scripts/ci/build-linux-packages.sh "$deb" '${{ matrix.arch }}'
           bash scripts/ci/check-package-parity.sh "$deb" "$(find dist-rpm -name '*.rpm' | head -1)" "$(find dist-arch -name '*.pkg.tar.zst' | head -1)"
+      # x86_64 : build-linux-packages.sh a installé et lancé le rpm (Fedora) et le paquet Arch ; l'aarch64 l'est par linux-rpm-aarch64.
+      - name: Vérifier que dnf refuse le rpm sur AlmaLinux 9 (plancher glibc)
+        if: matrix.arch == 'x86_64'
+        run: bash scripts/ci/test-glibc-floor.sh rpm "$(find dist-rpm -name '*.x86_64.rpm' | head -1)"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: bobine-linux-packages-${{ matrix.arch }}
@@ -1135,10 +1143,33 @@ jobs:
             dist-rpm/*.rpm
             dist-arch/*.pkg.tar.zst
 
+  linux-rpm-aarch64:
+    # Le rpm aarch64 est construit sur ubuntu-latest (l'image Arch officielle n'existe qu'en x86_64) puis installé et lancé ici,
+    # dans un conteneur Fedora arm64 sur un runner arm64. Le paquet Arch aarch64 reste sans installation (voir container-images.sh).
+    name: Paquet DNF aarch64 installé et lancé (Fedora arm64)
+    needs: [linux-packages]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: bobine-linux-packages-aarch64
+          path: rpm-input
+      - name: Installer et lancer le rpm dans Fedora arm64
+        run: |
+          . scripts/ci/container-images.sh
+          rpm="$(find rpm-input -name '*.aarch64.rpm' | head -1)"
+          test -n "$rpm"
+          docker run --rm -v "$PWD:/src:ro" -v "$PWD/$(dirname "$rpm"):/pkg:ro" "$FEDORA_IMAGE" \
+            bash -c 'test "$(uname -m)" = aarch64 && dnf -y -q install desktop-file-utils && /src/packaging/rpm/test_rpm.sh "$1"' -- "/pkg/$(basename "$rpm")"
+      - name: Vérifier que dnf refuse le rpm sur AlmaLinux 9 arm64 (plancher glibc)
+        run: bash scripts/ci/test-glibc-floor.sh rpm "$(find rpm-input -name '*.aarch64.rpm' | head -1)"
+
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages]
+    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages, linux-rpm-aarch64]
     runs-on: ubuntu-latest
     steps:
       - name: Tous les contrôles sont verts
