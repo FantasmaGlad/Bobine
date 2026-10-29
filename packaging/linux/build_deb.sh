@@ -9,6 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # shellcheck source=packaging/common/channel.sh
 source "${REPO_DIR}/packaging/common/channel.sh"
+# shellcheck source=packaging/common/glibc_floor.sh
+source "${REPO_DIR}/packaging/common/glibc_floor.sh"
 
 # Source de vérité unique : fichier
 # VERSION à la racine du dépôt. Surchargeable via l'environnement (CI passe
@@ -150,6 +152,13 @@ cp "${SCRIPT_DIR}/DEBIAN/postrm" "${STAGING_DIR}/DEBIAN/postrm"
 # cf. `dpkg -I` sur un ancien paquet).
 sed -i "s/^Version:.*/Version: ${VERSION}/" "${STAGING_DIR}/DEBIAN/control"
 sed -i "s/^Architecture:.*/Architecture: ${ARCH}/" "${STAGING_DIR}/DEBIAN/control"
+
+# Plancher glibc : apt doit refuser d'installer Bobine sur une distribution dont la glibc est trop ancienne
+# (Ubuntu 22.04, Debian 12) au lieu de l'installer pour qu'il échoue au lancement. La valeur annoncée est
+# packaging/common/MIN_GLIBC ; la construction échoue si les binaires embarqués exigent davantage.
+GLIBC_MIN="$(bobine_glibc_check "${DIST_DIR}")"
+bobine_deb_require_glibc "${STAGING_DIR}/DEBIAN/control" "${GLIBC_MIN}"
+echo "Dépendance libc6 (>= ${GLIBC_MIN}) ajoutée au paquet."
 
 # Calcul dynamique de la taille installée pour le Centre d'applications
 INSTALLED_SIZE=$(du -sk "${STAGING_DIR}/usr" | awk '{print $1}')
