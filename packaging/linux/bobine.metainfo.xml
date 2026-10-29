@@ -59,6 +59,12 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="5.0.7" date="2026-10-29">
+      <description>
+        <p>Version 5.0.7 "Aurora": installed apps are launched in CI on every platform, Linux packages declare the glibc 2.38 floor, package repositories are kept fresh and re-signed weekly, and the listening port falls back to a free one when 8000 is taken.</p>
+        <p xml:lang="fr">Version 5.0.7 « Aurora » : l'application installée est lancée en CI sur chaque plateforme, les paquets Linux déclarent le plancher glibc 2.38, les dépôts sont rafraîchis et re-signés chaque semaine, et le port d'écoute bascule sur un port libre quand 8000 est occupé.</p>
+      </description>
+    </release>
     <release version="5.0.6" date="2026-10-27">
       <description>
         <p>Development cycle 5.0.6: verified build toolchains and consistent Canary, Beta and Stable package ordering.</p>
