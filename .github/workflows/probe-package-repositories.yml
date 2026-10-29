@@ -1,0 +1,29 @@
+name: Sonde des dépôts de paquets
+
+# Lecture seule, aucun secret : chaque jour, vérifie les dépôts publiés (packages.bobine.fit) : signature de chaque suite APT,
+# marge de Valid-Until d'au moins 7 jours, réponse de chaque paquet, et pour les canaux glissants égalité du .deb du dépôt avec
+# l'asset de la release. Un échec envoie un courriel GitHub : c'est le signal d'une suite qui va expirer ou d'un dépôt en retard.
+
+on:
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Contrôler les dépôts publiés
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Lire les assets des releases Canary et Beta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/releases/tags/canary > "$RUNNER_TEMP/canary.json"
+          gh api repos/${{ github.repository }}/releases/tags/beta > "$RUNNER_TEMP/beta.json"
+      - name: Contrôler les dépôts
+        run: python3 scripts/ci/probe-package-repositories.py --release canary="$RUNNER_TEMP/canary.json" --release beta="$RUNNER_TEMP/beta.json"

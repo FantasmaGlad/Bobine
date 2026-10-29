@@ -8,7 +8,7 @@ packages=$(realpath "${3:?paquets signés}"); destination=$(realpath "${4:?copie
 case "$family" in deb|rpm|arch) ;; *) exit 2 ;; esac
 . "$(dirname "$0")/container-images.sh"
 # Canaux valides : le registre unique (backend/app/release_channel.py), pas une liste recopiée ici.
-python3"$(dirname "$0")/../../packaging/common/channel.py" is-channel "$channel" || exit 2
+python3 "$(dirname "$0")/../../packaging/common/channel.py" is-channel "$channel" || exit 2
 [ "$destination" != / ] && [ "$destination" != "$packages" ] || exit 2
 fingerprint="${BOBINE_SIGNING_FINGERPRINT:-B77D96D72F84F36ACAA3F8729CBF497D829EE15A}"
 [[ "$fingerprint" =~ ^[A-F0-9]{40}$ ]] || exit 2
@@ -37,7 +37,7 @@ Architectures: amd64 arm64
 Components: main
 Description: Depot APT officiel pour Bobine (canal Beta)
 SignWith: ${fingerprint: -16}
-ValidFor: 30d
+ValidFor: 365d
 
 Origin: Bobine
 Label: Bobine Official Repository (Canary)
@@ -51,19 +51,8 @@ EOF
     elif ! grep -q "arm64" "$debian_dir/conf/distributions"; then
         sed -i 's/^Architectures: amd64$/Architectures: amd64 arm64/' "$debian_dir/conf/distributions"
     fi
-    # Les dépôts existants reçoivent la même durée que les nouvelles installations.
-    python3 - "$debian_dir/conf/distributions" <<'PYCONFIG'
-import pathlib
-import sys
-config = pathlib.Path(sys.argv[1])
-blocks = []
-for block in config.read_text().strip().split("\n\n"):
-    lines = [line for line in block.splitlines() if not line.startswith("ValidFor:")]
-    stable = "Codename: stable" in lines
-    lines.append("ValidFor: 365d" if stable else "ValidFor: 30d")
-    blocks.append("\n".join(lines))
-config.write_text("\n\n".join(blocks) + "\n")
-PYCONFIG
+    # Les dépôts existants reçoivent la même durée que les nouvelles installations (apt-validity.py : un an, 30 jours pour la Canary).
+    python3 "$(dirname "$0")/apt-validity.py" apply "$debian_dir/conf/distributions"
     mapfile -d '' deb_amd64_matches < <(find "$packages" -type f -name "*_amd64.deb" -print0)
     mapfile -d '' deb_arm64_matches < <(find "$packages" -type f -name "*_arm64.deb" -print0)
     [ "${#deb_amd64_matches[@]}" = 1 ] && [ "${#deb_arm64_matches[@]}" = 1 ] || { echo "Deux paquets deb (amd64 et arm64) attendus." >&2; exit 1; }
