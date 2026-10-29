@@ -1516,20 +1516,9 @@ jobs:
 
           ---
 
-          ## Téléchargement
-
-          | Plateforme | Format | Architecture | Téléchargement direct |
-          | :--- | :---: | :---: | :--- |
-          | ![](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` | x86-64 / ARM64 | [**Bobine-Setup-canary.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-Setup-canary.exe) (x86-64)<br>[**Bobine-Setup-canary-arm64.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-Setup-canary-arm64.exe) (ARM64 Snapdragon) |
-          | ![](https://img.shields.io/badge/Android-34A853?style=flat-square&logo=android&logoColor=white) | `.apk` | ARM64 | [**Bobine-canary.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-canary.apk) |
-          | ![](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=androidtv&logoColor=white) | `.apk` | ARM 32/64 bits | [**Bobine-TV-canary.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-TV-canary.apk) |
-          | ![](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` | x86-64 / ARM64 | [**bobine_canary_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine_canary_amd64.deb) (amd64)<br>[**bobine_canary_arm64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine_canary_arm64.deb) (arm64) |
-          | ![](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` | Apple Silicon | [**Bobine-canary.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/Bobine-canary.dmg) |
-          | ![](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | Binaire natif | x86-64 / ARM64 (Linux) | [**bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine-assistant) (x86-64)<br>[**bobine-assistant-arm64**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/bobine-assistant-arm64) (ARM64) |
-          | ![](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | Script | x86-64 / ARM64 | [**install.sh**](https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.sh) — ou `sudo ./install.sh --channel=canary` sur une installation existante |
-
           NOTES_EOF
           sed -i "s/__COMMIT__/${{ needs.version.outputs.commit_short }}/; s/__VERSION__/${{ needs.version.outputs.base_version }}/" /tmp/canary-notes.md
+          python3 scripts/ci/render-rolling-notes.py canary >> /tmp/canary-notes.md
 
           # Bloc dynamique (changelog) ajouté à part, pas via sed : un message
           # de commit peut contenir '/', '&' ou d'autres caractères qui
@@ -1724,20 +1713,9 @@ jobs:
 
           ---
 
-          ## Téléchargement
-
-          | Plateforme | Format | Architecture | Téléchargement direct |
-          | :--- | :---: | :---: | :--- |
-          | ![](https://img.shields.io/badge/Windows_11-0078D4?style=flat-square&logo=windows11&logoColor=white) | `.exe` | x86-64 / ARM64 | [**Bobine-Setup-beta.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-Setup-beta.exe) (x86-64)<br>[**Bobine-Setup-beta-arm64.exe**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-Setup-beta-arm64.exe) (ARM64 Snapdragon) |
-          | ![](https://img.shields.io/badge/Android-34A853?style=flat-square&logo=android&logoColor=white) | `.apk` | ARM64 | [**Bobine-beta.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-beta.apk) |
-          | ![](https://img.shields.io/badge/Android_TV-009688?style=flat-square&logo=androidtv&logoColor=white) | `.apk` | ARM 32/64 bits | [**Bobine-TV-beta.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-TV-beta.apk) |
-          | ![](https://img.shields.io/badge/Debian-A81D33?style=flat-square&logo=debian&logoColor=white) ![](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white) | `.deb` | x86-64 / ARM64 | [**bobine_beta_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine_beta_amd64.deb) (amd64)<br>[**bobine_beta_arm64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine_beta_arm64.deb) (arm64) |
-          | ![](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white) | `.dmg` | Apple Silicon | [**Bobine-beta.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/Bobine-beta.dmg) |
-          | ![](https://img.shields.io/badge/Bobine_Assistant-FFC131?style=flat-square&logo=tauri&logoColor=black) | Binaire natif | x86-64 / ARM64 (Linux) | [**bobine-assistant**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine-assistant) (x86-64)<br>[**bobine-assistant-arm64**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/bobine-assistant-arm64) (ARM64) |
-          | ![](https://img.shields.io/badge/Bash_CLI-4EAA25?style=flat-square&logo=gnubash&logoColor=white) | Script | x86-64 / ARM64 | [**install.sh**](https://github.com/FantasmaGlad/Bobine/releases/download/beta/install.sh) — ou `sudo ./install.sh --channel=beta` sur une installation existante |
-
           NOTES_EOF
           sed -i "s/__COMMIT__/${{ needs.version.outputs.commit_short }}/; s/__VERSION__/${{ needs.version.outputs.base_version }}/" /tmp/beta-notes.md
+          python3 scripts/ci/render-rolling-notes.py beta >> /tmp/beta-notes.md
 
           # Bloc dynamique (changelog) ajouté à part, pas via sed : un message
           # de commit peut contenir '/', '&' ou d'autres caractères qui
