@@ -1818,14 +1818,7 @@ jobs:
         env:
           CHANNEL: ${{ needs.version.outputs.channel }}
         run: |
-          cd package-repo
-          git config user.name fanta
-          git config user.email 193235053+FantasmaGlad@users.noreply.github.com
-          git add -A -- debian/ fedora/ arch/ bobine.gpg latest.json mirror-packages.json
-          if ! git diff --cached --quiet; then
-            git commit -m "chore(packages): actualiser les depots debian, fedora et arch ($CHANNEL)"
-            git push origin gh-pages
-          fi
+          bash scripts/ci/commit-package-repository.sh package-repo "chore(packages): actualiser les depots debian, fedora et arch ($CHANNEL)"
       - name: Retirer la clé privée du runner
         if: always()
         env:
