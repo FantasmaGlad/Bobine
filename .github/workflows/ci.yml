@@ -38,6 +38,12 @@ on:
         type: boolean
         default: false
 
+# Droits du jeton réduits au strict nécessaire pour tous les jobs ; les jobs
+# de publication (release-*) et de notification les élargissent ou les
+# précisent eux-mêmes.
+permissions:
+  contents: read
+
 # Une pull request annule son exécution précédente. Un push (main, tag) ou un
 # déclenchement manuel, lui, n'est JAMAIS annulé : un job de publication
 # interrompu entre `gh release delete` et `gh release create` laisserait le
@@ -190,6 +196,7 @@ jobs:
     # entrer sans casser ce job.
     name: Backend checks (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -282,6 +289,7 @@ jobs:
   assistant-core:
     name: Assistant core (Rust)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [version]
     defaults:
       run:
@@ -326,6 +334,7 @@ jobs:
   assistant-core-arm64:
     name: Assistant core ARM64 (Rust)
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
     needs: [version]
     defaults:
       run:
@@ -372,6 +381,7 @@ jobs:
     # embarqués dans leurs jobs de packaging respectifs.
     name: Devices sidecar (Rust)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: devices
@@ -404,6 +414,7 @@ jobs:
     # (et des AAB par play-aab.yml). Ce job ne valide aucun appareil réel.
     name: Media component (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     # Chaque architecture de paquet doit passer les mêmes contrôles bloquants.
     strategy:
       fail-fast: false
@@ -455,6 +466,7 @@ jobs:
     # toujours. Une PR externe sans secret conserve les contrôles de démarrage debug.
     name: Android (Chaquopy) — build & sign
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -718,6 +730,7 @@ jobs:
     # à surveiller de près au premier déclenchement.
     name: Windows packaging (PyInstaller + Inno Setup)
     runs-on: windows-latest
+    timeout-minutes: 45
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -821,6 +834,7 @@ jobs:
     # intègre les binaires statiques FFmpeg winarm64 et génère Bobine-Setup-*-arm64.exe.
     name: Windows ARM64 packaging (PyInstaller + Inno Setup)
     runs-on: windows-11-arm
+    timeout-minutes: 60
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -932,6 +946,7 @@ jobs:
     # l'intégrité et l'installation réelle du paquet .deb sur un runner de l'architecture visée.
     name: Paquet APT (.deb ${{ matrix.deb_arch }})
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     needs: [version]
     strategy:
       fail-fast: false
@@ -1041,6 +1056,7 @@ jobs:
     # avertissement Gatekeeper.
     name: macOS packaging (PyInstaller + dmg)
     runs-on: macos-latest
+    timeout-minutes: 45
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1232,6 +1248,7 @@ jobs:
     needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'stable'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
@@ -1363,6 +1380,7 @@ jobs:
     needs: [version, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'canary'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
@@ -1563,6 +1581,7 @@ jobs:
     needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'beta'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
@@ -1756,6 +1775,7 @@ jobs:
       always() && !cancelled() && needs.linux-package-signing.result == 'success' &&
       (needs.release-stable.result == 'success' || needs.release-beta.result == 'success' || needs.release-canary.result == 'success')
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     concurrency:
       group: publish-linux-packages
       cancel-in-progress: false

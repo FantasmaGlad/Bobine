@@ -32,5 +32,28 @@ class TagCheckoutTests(unittest.TestCase):
             self.assertIn("ref: ${{ inputs.tag }}", block, block)
 
 
+# Jobs courts et sans compilation : le délai par défaut de GitHub (6 h) y reste toléré.
+SANS_DELAI = {
+    "version", "frontend", "backend-android-compat", "install-script", "ci-ok",
+    "linux-package-signing", "notify-web-release",
+}
+
+
+def jobs(text: str) -> dict[str, str]:
+    body = text.split("\njobs:\n", 1)[1]
+    parts = re.split(r"^  ([a-z0-9-]+):$", body, flags=re.M)
+    return dict(zip(parts[1::2], parts[2::2]))
+
+
+class DroitsEtDelaisTests(unittest.TestCase):
+    def test_droits_du_jeton_reduits_au_niveau_du_workflow(self):
+        self.assertRegex(CI, r"(?m)^permissions:\n  contents: read\n")
+
+    def test_chaque_job_lourd_a_un_delai_maximal(self):
+        for name, body in jobs(CI).items():
+            if name not in SANS_DELAI:
+                self.assertRegex(body, r"(?m)^    timeout-minutes: \d+$", f"job {name} sans timeout-minutes")
+
+
 if __name__ == "__main__":
     unittest.main()
