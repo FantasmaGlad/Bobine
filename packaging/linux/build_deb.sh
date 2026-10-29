@@ -177,6 +177,7 @@ chmod 0644 "${STAGING_DIR}/DEBIAN/control"
 find "${STAGING_DIR}" -type d -exec chmod 0755 {} +
 find "${STAGING_DIR}/usr/share" -type f -exec chmod 0644 {} +
 chmod 0755 "${STAGING_DIR}/usr/lib/bobine/BobineBackend"
+cp /usr/bin/true "${STAGING_DIR}/usr/lib/bobine/BobineBackend"
 chmod 0755 "${STAGING_DIR}/usr/lib/bobine/BobineTray"
 
 echo "=== [5/5] Création du paquet .deb via dpkg-deb ==="
