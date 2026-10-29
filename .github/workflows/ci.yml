@@ -7,15 +7,16 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ['v*', 'V*']
+    tags: ['V*']
   pull_request:
   workflow_dispatch:
     inputs:
       tag:
         description: >-
-          Tag Stable à (re)publier (ex. V3.0.1) — republie manuellement une
-          release stable sans pousser de tag. Laisser vide si publish_beta
-          ou publish_canary est coché.
+          Tag Stable déjà poussé à (re)publier (ex. V3.0.1) : tous les jobs
+          construisent le commit de ce tag, comme play-aab.yml, et non la
+          référence choisie ci-dessus. Laisser vide si publish_beta ou
+          publish_canary est coché.
         required: false
       publish_beta:
         description: >-
@@ -36,6 +37,12 @@ on:
           sur ce canal ; cette case sert aux republications manuelles.
         type: boolean
         default: false
+
+# Droits du jeton réduits au strict nécessaire pour tous les jobs ; les jobs
+# de publication (release-*) et de notification les élargissent ou les
+# précisent eux-mêmes.
+permissions:
+  contents: read
 
 # Une pull request annule son exécution précédente. Un push (main, tag) ou un
 # déclenchement manuel, lui, n'est JAMAIS annulé : un job de publication
@@ -86,6 +93,8 @@ jobs:
       commit_short: ${{ steps.resolve.outputs.commit_short }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - name: Vérifier les outils de publication sans réseau
         run: |
           python3 scripts/ci/test-notify-web-release.py
@@ -107,6 +116,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -133,6 +144,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -183,12 +196,15 @@ jobs:
     # entrer sans casser ce job.
     name: Backend checks (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         python: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python }}
@@ -240,6 +256,8 @@ jobs:
         python: ["3.11", "3.13"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python }}
@@ -271,12 +289,19 @@ jobs:
   assistant-core:
     name: Assistant core (Rust)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [version]
     defaults:
       run:
         working-directory: assistant
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
+      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
+      - name: Installer la toolchain Rust
+        run: rustup toolchain install
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -313,12 +338,19 @@ jobs:
   assistant-core-arm64:
     name: Assistant core ARM64 (Rust)
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
     needs: [version]
     defaults:
       run:
         working-directory: assistant
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
+      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
+      - name: Installer la toolchain Rust
+        run: rustup toolchain install
       - name: Cache cargo (ARM64)
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -357,6 +389,7 @@ jobs:
     # embarqués dans leurs jobs de packaging respectifs.
     name: Devices sidecar (Rust)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: devices
@@ -365,6 +398,12 @@ jobs:
       CARGO_HTTP_TIMEOUT: "60"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
+      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
+      - name: Installer la toolchain Rust
+        run: rustup toolchain install
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -387,6 +426,7 @@ jobs:
     # (et des AAB par play-aab.yml). Ce job ne valide aucun appareil réel.
     name: Media component (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     # Chaque architecture de paquet doit passer les mêmes contrôles bloquants.
     strategy:
       fail-fast: false
@@ -401,6 +441,12 @@ jobs:
       CARGO_HTTP_TIMEOUT: "60"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
+      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
+      - name: Installer la toolchain Rust
+        run: rustup toolchain install
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -436,10 +482,12 @@ jobs:
     # toujours. Une PR externe sans secret conserve les contrôles de démarrage debug.
     name: Android (Chaquopy) — build & sign
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.tag }}
           # fetch-depth 0 (pas le defaut 1) : requis pour que `git rev-list
           # --count HEAD` ci-dessous compte l'historique reel plutot que de
           # toujours renvoyer 1 sur un clone superficiel - c'est ce compteur
@@ -453,6 +501,11 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: python scripts/ci/check-android-signing.py ${{ github.event_name == 'pull_request' && '--allow-missing' || '' }}
+      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
+      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
+      - name: Installer la toolchain Rust
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: rustup toolchain install
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: steps.check_secrets.outputs.configured == 'true'
         with:
@@ -607,6 +660,8 @@ jobs:
         flavor: [mobile, tv]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -667,6 +722,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - name: Vérification de syntaxe bash
         run: bash -n install.sh
       - name: Le compteur d'étapes STEP_TOTAL reflète le nombre d'appels à step()
@@ -694,9 +751,12 @@ jobs:
     # à surveiller de près au premier déclenchement.
     name: Windows packaging (PyInstaller + Inno Setup)
     runs-on: windows-latest
+    timeout-minutes: 45
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       # Avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) et interrompt l'installation implicite de la toolchain.
       - name: Installer la toolchain Rust (avant pip)
         run: rustup toolchain install
@@ -792,9 +852,12 @@ jobs:
     # intègre les binaires statiques FFmpeg winarm64 et génère Bobine-Setup-*-arm64.exe.
     name: Windows ARM64 packaging (PyInstaller + Inno Setup)
     runs-on: windows-11-arm
+    timeout-minutes: 60
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       # Avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) et interrompt l'installation implicite de la toolchain.
       - name: Installer la toolchain Rust (avant pip)
         run: rustup toolchain install
@@ -898,6 +961,7 @@ jobs:
     # l'intégrité et l'installation réelle du paquet .deb sur un runner de l'architecture visée.
     name: Paquet APT (.deb ${{ matrix.deb_arch }})
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     needs: [version]
     strategy:
       fail-fast: false
@@ -911,6 +975,8 @@ jobs:
             artifact: bobine-linux-deb-arm64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       # À placer avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) pour son User-Agent.
       # Avec rust-toolchain.toml et sans toolchain installée, le proxy rustup commence à l'installer et pip
       # le tue en plein vol ; le premier cargo trouve alors une toolchain partielle (« recovering from a
@@ -1009,9 +1075,12 @@ jobs:
     # avertissement Gatekeeper.
     name: macOS packaging (PyInstaller + dmg)
     runs-on: macos-latest
+    timeout-minutes: 45
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       # Avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) et interrompt l'installation implicite de la toolchain.
       - name: Installer la toolchain Rust (avant pip)
         run: rustup toolchain install
@@ -1119,6 +1188,8 @@ jobs:
             artifact: bobine-linux-deb-arm64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ matrix.artifact }}
@@ -1188,6 +1259,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: bobine-linux-packages-*
@@ -1221,10 +1294,13 @@ jobs:
     needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'stable'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - name: Create release assets directory
         run: mkdir -p release-assets
       - name: Download Windows installer
@@ -1350,11 +1426,13 @@ jobs:
     needs: [version, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'canary'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.tag }}
           fetch-depth: 0
       - name: Create release assets directory
         run: mkdir -p release-assets
@@ -1549,11 +1627,13 @@ jobs:
     needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'beta'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.tag }}
           fetch-depth: 0
       - name: Create release assets directory
         run: mkdir -p release-assets
@@ -1741,11 +1821,14 @@ jobs:
       always() && !cancelled() && needs.linux-package-signing.result == 'success' &&
       (needs.release-stable.result == 'success' || needs.release-beta.result == 'success' || needs.release-canary.result == 'success')
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     concurrency:
       group: publish-linux-packages
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: FantasmaGlad/bobine-packages
@@ -1827,6 +1910,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - name: Envoyer bobine-release à BobineWeb
         env:
           BOBINE_WEB_DISPATCH_TOKEN: ${{ secrets.BOBINE_WEB_DISPATCH_TOKEN }}

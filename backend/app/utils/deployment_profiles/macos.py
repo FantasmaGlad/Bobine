@@ -4,14 +4,19 @@ Comme Windows et Linux de bureau : BobineTray supervise BobineBackend en
 process enfant, aucun équivalent de service système (launchd géré par
 l'utilisateur via LaunchAgent, pas de daemon root). `restart_services()`
 se contente de mettre fin au process courant (`os._exit(0)`) : c'est
-BobineTray (relancé lui-même par launchd si le LaunchAgent a `KeepAlive`
-actif) qui le relance. La désinstallation est manuelle (glisser
-`Bobine.app` vers la Corbeille), comme toute app macOS non distribuée par
-le Mac App Store.
+BobineTray, le superviseur, qui relance le backend. Le LaunchAgent
+(`KeepAlive` sur sortie non nulle seulement) ne relance jamais le tray après
+cette sortie. Après une mise à jour, ce superviseur est encore le process de
+l'ANCIENNE version (seuls les fichiers du bundle ont été remplacés) :
+`relaunch_application()` redémarre donc tout le bundle, comme le script de
+mise à jour du profil Windows relance BobineTray.exe. La désinstallation est
+manuelle (glisser `Bobine.app` vers la Corbeille), comme toute app macOS non
+distribuée par le Mac App Store.
 """
 
 import logging
 import os
+import stat
 import subprocess
 import tempfile
 from pathlib import Path
@@ -26,6 +31,39 @@ _NOOP_REPORT: Callable[..., None] = lambda *a, **k: None  # noqa: E731
 
 _APP_PATH = Path("/Applications/Bobine.app")
 
+# Exécuté par un process détaché : l'ancien tray et l'ancien backend vont
+# disparaître, rien d'autre ne peut relancer l'application. Les chemins et PID
+# arrivent par l'environnement (jamais dans la ligne de commande) : `pkill -f`
+# comparerait sinon le motif à ce script lui-même et le tuerait.
+_RELAUNCH_SCRIPT = """#!/bin/sh
+# Le backend qui a lancé ce script se termine juste après (os._exit).
+n=0
+while kill -0 "$BOBINE_BACKEND_PID" 2>/dev/null && [ "$n" -lt 40 ]; do sleep 0.5; n=$((n+1)); done
+# Tray d'abord : le superviseur ne relance plus de backend de l'ancienne version.
+kill -TERM "$BOBINE_TRAY_PID" 2>/dev/null
+pkill -TERM -f "$BOBINE_BACKEND_BIN" 2>/dev/null
+n=0
+while { kill -0 "$BOBINE_TRAY_PID" 2>/dev/null || pgrep -f "$BOBINE_BACKEND_BIN" >/dev/null 2>&1; } && [ "$n" -lt 20 ]; do
+    sleep 0.5; n=$((n+1))
+done
+kill -KILL "$BOBINE_TRAY_PID" 2>/dev/null
+pkill -KILL -f "$BOBINE_BACKEND_BIN" 2>/dev/null
+open "$BOBINE_APP"
+rm -f "$0"
+"""
+
+
+def _is_bobine_tray(pid: int) -> bool:
+    """Le parent du backend est-il bien BobineTray ? Hors bundle (développement,
+    uvicorn lancé à la main), le parent est un shell qu'il ne faut pas tuer."""
+    try:
+        res = subprocess.run(
+            ["ps", "-o", "comm=", "-p", str(pid)], capture_output=True, text=True, timeout=5, check=True
+        )
+    except Exception:
+        return False
+    return Path(res.stdout.strip()).name == "BobineTray"
+
 
 class MacOSHandler(ProfileHandler):
     profile = "macos"
@@ -34,6 +72,36 @@ class MacOSHandler(ProfileHandler):
         logger.info("Arrêt du process pour redémarrage (relance attendue de BobineTray/LaunchAgent).")
         # Sortie immédiate après l'envoi de la réponse HTTP de reset / mise à jour
         os._exit(0)
+
+    def relaunch_application(self) -> None:
+        """Redémarre tout le bundle (tray + backend) depuis les fichiers
+        fraîchement installés ; repli sur `restart_services()` (le tray relance
+        alors le seul backend) quand le tray parent est introuvable ou que le
+        script ne peut pas être lancé."""
+        tray_pid = os.getppid()
+        if not _is_bobine_tray(tray_pid):
+            logger.warning("Parent du backend différent de BobineTray : relance du seul backend.")
+            self.restart_services()
+            return
+        try:
+            script_path = Path(tempfile.gettempdir()) / "bobine_relaunch_runner.sh"
+            script_path.write_text(_RELAUNCH_SCRIPT, encoding="utf-8")
+            script_path.chmod(script_path.stat().st_mode | stat.S_IXUSR)
+            subprocess.Popen(
+                ["sh", str(script_path)],
+                env={
+                    **os.environ,
+                    "BOBINE_APP": str(_APP_PATH),
+                    "BOBINE_BACKEND_BIN": str(_APP_PATH / "Contents" / "MacOS" / "BobineBackend"),
+                    "BOBINE_TRAY_PID": str(tray_pid),
+                    "BOBINE_BACKEND_PID": str(os.getpid()),
+                },
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                start_new_session=True, close_fds=True,
+            )
+        except Exception:
+            logger.exception("Script de relance macOS impossible à lancer : relance du seul backend.")
+        self.restart_services()
 
     def can_self_uninstall(self) -> bool:
         return True
@@ -136,4 +204,4 @@ class MacOSHandler(ProfileHandler):
                 pass
 
         report("restarting", message="Redémarrage…")
-        self.restart_services()
+        self.relaunch_application()

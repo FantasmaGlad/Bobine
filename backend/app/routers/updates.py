@@ -54,6 +54,7 @@ GITHUB_REPO = "FantasmaGlad/Bobine"
 # republie dessus à chaque déclenchement.
 _RELEASES_LATEST_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 _COMMITS_URL = f"https://api.github.com/repos/{GITHUB_REPO}/commits"
+_COMPARE_URL = f"https://api.github.com/repos/{GITHUB_REPO}/compare"
 # Canaux "rolling" : tag mobile comparé par COMMIT (cf. _rolling_tag_update),
 # par opposition au canal "stable" comparé par numéro de version sémantique.
 # Dérivés du registre des canaux (app/release_channel.py), source de vérité unique : y
@@ -376,6 +377,72 @@ def _evaluate_update(channel: str, local: dict[str, Any], release_data: dict[str
     return {"has_update": False, "is_downgrade": False, "latest_version": latest_tag}
 
 
+# Distance en commits entre le build installé et la cible, par couple (commit
+# local, référence cible) : un SHA ou un tag de Stable ne change jamais de
+# contenu, la réponse de GitHub est donc définitive (un échec n'est PAS mis en
+# cache).
+_COMMIT_DISTANCE_CACHE: dict[tuple[str, str], int] = {}
+
+_ANDROID_DOWNGRADE_MESSAGE = (
+    "Cette version est plus ancienne que celle installée : Android interdit tout retour "
+    "en arrière sans désinstaller l'application, ce qui effacerait ses données. "
+    "Patientez jusqu'à la prochaine version de ce canal."
+)
+
+
+def _release_target_ref(release_data: dict[str, Any]) -> str | None:
+    """Référence git à comparer au build local : le SHA de la release s'il est
+    connu (tag mobile d'un canal rolling), sinon son tag (Stable)."""
+    commitish = (release_data.get("target_commitish") or "").lower()
+    if _SHA_RE.match(commitish):
+        return commitish
+    tag = release_data.get("tag_name") or ""
+    return tag or None
+
+
+def _commit_distance_blocking(local_commit: str, ref: str) -> int | None:
+    """Écart signé en commits entre la cible `ref` et le build local
+    (`ahead_by - behind_by` de l'API de comparaison GitHub), `None` si
+    inconnu. Sur un build de la CI, le versionCode Android vaut
+    `git rev-list --count` : le signe de cet écart est donc celui de
+    (versionCode cible - versionCode installé), sans télécharger l'APK."""
+    key = (local_commit, ref)
+    if key in _COMMIT_DISTANCE_CACHE:
+        return _COMMIT_DISTANCE_CACHE[key]
+    try:
+        _, data, _ = _github_get(f"{_COMPARE_URL}/{local_commit}...{ref}")
+        ahead, behind = (data or {}).get("ahead_by"), (data or {}).get("behind_by")
+        if not isinstance(ahead, int) or not isinstance(behind, int):
+            return None
+    except Exception as e:
+        logger.info(f"Comparaison de commits {local_commit}...{ref} indisponible : {e}")
+        return None
+    _COMMIT_DISTANCE_CACHE[key] = ahead - behind
+    return ahead - behind
+
+
+async def _refuse_android_downgrade(
+    profile: str, local: dict[str, Any], release_data: dict[str, Any], evaluation: dict[str, Any]
+) -> dict[str, Any]:
+    """Android refuse d'installer un APK dont le versionCode est inférieur à
+    celui installé (`UpdateManager.validatePackage`), mais seulement APRÈS le
+    téléchargement de 46 à 69 Mo : passer de Canary (la plus récente) à Bêta
+    ou Stable s'annonçait donc comme une mise à jour. On compare les commits
+    avant de la proposer ; si la comparaison est impossible (hors ligne,
+    commit local inconnu), l'évaluation est laissée telle quelle et la
+    validation après téléchargement reste le dernier garde-fou."""
+    if profile != "android" or not evaluation["has_update"]:
+        return evaluation
+    local_commit, ref = local.get("current_commit") or "", _release_target_ref(release_data)
+    if local_commit in ("", "unknown") or not ref:
+        return evaluation
+    loop = asyncio.get_running_loop()
+    distance = await loop.run_in_executor(None, _commit_distance_blocking, local_commit, ref)
+    if distance is None or distance >= 0:
+        return evaluation
+    return {**evaluation, "has_update": False, "is_downgrade": True, "downgrade_blocked": True}
+
+
 def _asset_matches_variant(name: str, variant: str | None) -> bool:
     """Android publie deux APK par release (`Bobine-<v>.apk` pour téléphone/
     tablette, `Bobine-TV-<v>.apk` pour Android TV, `applicationId` différents)
@@ -550,7 +617,9 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
 
     latest_tag = release_data.get("tag_name") or ""
     html_url = release_data.get("html_url") or f"https://github.com/{GITHUB_REPO}/releases"
-    evaluation = _evaluate_update(channel, local_info, release_data)
+    evaluation = await _refuse_android_downgrade(
+        profile, local_info, release_data, _evaluate_update(channel, local_info, release_data)
+    )
 
     asset = _resolve_asset(profile, release_data, handler.asset_variant())
     # Profil sans checkout git : sans asset (ni empreinte) pour CE profil
@@ -578,6 +647,7 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
         "download_url": asset["download_url"] or html_url,
         "asset_name": asset["asset_name"],
         "asset_size": asset["asset_size"],
+        **({"message": _ANDROID_DOWNGRADE_MESSAGE} if evaluation.get("downgrade_blocked") else {}),
     }
 
 
@@ -691,12 +761,17 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
         )
     # Un retour en arrière (is_downgrade) est accepté ICI — c'est l'action
     # explicite du bouton — mais pas un clic sur une version déjà installée.
-    evaluation = _evaluate_update(channel, _get_local_version_info(), release_data)
+    local_info = _get_local_version_info()
+    profile = get_deployment_profile()
+    evaluation = await _refuse_android_downgrade(
+        profile, local_info, release_data, _evaluate_update(channel, local_info, release_data)
+    )
+    if evaluation.get("downgrade_blocked"):
+        raise HTTPException(status_code=400, detail=_ANDROID_DOWNGRADE_MESSAGE)
     if not evaluation["has_update"]:
         raise HTTPException(status_code=400, detail="Aucune mise à jour à appliquer : la version installée est déjà la bonne.")
 
     target_tag = release_data.get("tag_name") or None
-    profile = get_deployment_profile()
     asset = _resolve_asset(profile, release_data, handler.asset_variant())
     if not handler.supports_git_versioning():
         if not asset["download_url"]:
@@ -736,12 +811,15 @@ async def run_scheduled_update_if_available(db: Session) -> None:
     release_data, _ = await _fetch_release_for_channel(channel, force=True)
     if not release_data:
         return
-    evaluation = _evaluate_update(channel, _get_local_version_info(), release_data)
+    local_info = _get_local_version_info()
+    profile = get_deployment_profile()
+    evaluation = await _refuse_android_downgrade(
+        profile, local_info, release_data, _evaluate_update(channel, local_info, release_data)
+    )
     if not evaluation["has_update"] or evaluation["is_downgrade"]:
         return
 
     target_tag = release_data.get("tag_name") or None
-    profile = get_deployment_profile()
     asset = _resolve_asset(profile, release_data, handler.asset_variant())
     if not handler.supports_git_versioning() and not (asset["download_url"] and asset["asset_digest"]):
         logger.warning("Mise à jour planifiée ignorée : paquet ou empreinte introuvable pour ce profil dans la release.")

@@ -35,6 +35,33 @@ updates:
         patterns:
           - "*"
 
+  - package-ecosystem: "cargo"
+    directory: "/devices"
+    schedule:
+      interval: "weekly"
+    groups:
+      devices-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "cargo"
+    directory: "/media"
+    schedule:
+      interval: "weekly"
+    groups:
+      media-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "cargo"
+    directory: "/projector"
+    schedule:
+      interval: "weekly"
+    groups:
+      projector-dependencies:
+        patterns:
+          - "*"
+
   - package-ecosystem: "gradle"
     directory: "/android"
     schedule:

@@ -76,12 +76,11 @@ manually from GitHub.
    |---|---|---|
    | `tag` | `V5.0.5` (required) | Stable version to build. Without `source_ref`, the code is that of this exact tag. |
    | `source_ref` | empty, or `main` | Branch or tag to build. Empty: the tag itself. The source `VERSION` file must match the requested tag; `main` is valid only when its version matches. |
-   | `attach_to_release` | `true` / `false` | Attaches the `.aab` files and the Play APKs to the tag's GitHub release (replacing files with the same name). |
    | `upload_to_play` | `false` (default) / `true` | Explicitly enables upload; also requires `PLAY_SERVICE_ACCOUNT_JSON`. |
    | `play_track` | `internal`, `alpha`, `beta`, `production` | Destination track, used **only** if `upload_to_play=true` and `PLAY_SERVICE_ACCOUNT_JSON` is configured. |
 
-3. When the run ends, get the files from the `bobine-play-aab-<version>` artifact (and from the release
-   page if `attach_to_release` is on):
+3. When the run ends, get the files from the `bobine-play-aab-<version>` artifact (they are never
+   attached to the GitHub release):
 
    | File | Application |
    |---|---|
@@ -91,7 +90,7 @@ manually from GitHub.
    | `Bobine-TV-<version>-play.apk` | `com.bobine.app.tv` (APK equivalent to the bundle) |
 
 The workflow rejects a Beta or Canary tag, strictly checks each bundle's signature (`jarsigner`), rejects unsigned or duplicate entries and checks the
-presence of the manifest, verifies APK signatures and 16 KB alignment, then checks that the Play APKs do not contain the `REQUEST_INSTALL_PACKAGES` permission, checks the native ABIs (`arm64-v8a` for Bobine, `armeabi-v7a` and `arm64-v8a` for Bobine TV) and that the native audio component `libbobine_media.so` is present in each (built by `scripts/ci/build-media-android.sh`), then prints the `versionName` and `versionCode` in the run summary. The component is off by default in the app (Settings → Native audio component); its presence in the packages says nothing about its behaviour on a real device, none having been measured.
+presence of the manifest, verifies APK signatures and 16 KB alignment (the archive, then the ELF segments of every native library: Python, ffmpeg, ffprobe and the audio component), then checks that the Play APKs do not contain the `REQUEST_INSTALL_PACKAGES` permission, checks the native ABIs (`arm64-v8a` for Bobine, `armeabi-v7a` and `arm64-v8a` for Bobine TV) and that the native audio component `libbobine_media.so` is present in each (built by `scripts/ci/build-media-android.sh`), then prints the `versionName` and `versionCode` in the run summary. The component is off by default in the app (Settings → Native audio component); its presence in the packages says nothing about its behaviour on a real device, none having been measured.
 
 ### Google Play files of version 5.0.5
 

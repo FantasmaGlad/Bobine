@@ -93,3 +93,7 @@ build_target armv7-linux-androideabi armeabi-v7a armv7a-linux-androideabi ARMV7_
 if [[ "${EMULATOR}" == 1 ]]; then
     build_target x86_64-linux-android x86_64 x86_64-linux-android X86_64_LINUX_ANDROID
 fi
+# Tout ce que Gradle va empaqueter, pas seulement le composant construit ici :
+# ffmpeg et ffprobe viennent d'un binaire tiers (ARM64) et d'une compilation à
+# part (ARM32), l'alignement 16 Kio ne leur est garanti par aucun réglage de ce script.
+python3 "${SCRIPT_DIR}/check-elf-alignment.py" --dir "${REPO_DIR}/android/app/src/main/jniLibs"
