@@ -288,8 +288,21 @@ def test_kotlin_endpoint_reads_the_file_the_backend_writes():
 
 # --- consommateurs du fichier d'exécution ----------------------------------------
 
-def test_tray_urls_follow_the_published_port(monkeypatch):
-    from app.desktop import tray
+@pytest.fixture
+def tray(monkeypatch):
+    """Module du tray importé avec un `pystray` factice : le vrai exige un serveur
+    d'affichage (X11) à l'import, absent des exécuteurs de CI."""
+    import importlib
+    import sys
+    from unittest.mock import MagicMock
+    monkeypatch.setitem(sys.modules, "pystray", MagicMock())
+    monkeypatch.delitem(sys.modules, "app.desktop.tray", raising=False)
+    module = importlib.import_module("app.desktop.tray")
+    yield module
+    sys.modules.pop("app.desktop.tray", None)
+
+
+def test_tray_urls_follow_the_published_port(monkeypatch, tray):
     monkeypatch.setattr(port_mod, "preferred_port", lambda: 8000)
     assert tray._admin_url() == "http://127.0.0.1:8000"
     port_mod.write_runtime_file(8003, 8000)
@@ -300,8 +313,7 @@ def test_tray_urls_follow_the_published_port(monkeypatch):
     assert tray._display_state_url() == "http://127.0.0.1:8003/api/display/state"
 
 
-def test_tray_dev_backend_command_goes_through_the_shared_launcher(monkeypatch, tmp_path):
-    from app.desktop import tray
+def test_tray_dev_backend_command_goes_through_the_shared_launcher(monkeypatch, tmp_path, tray):
     monkeypatch.setattr(tray.sys, "executable", str(tmp_path / "python"))
     command = tray._backend_command()
     assert command[0] == str(tmp_path / "python")
