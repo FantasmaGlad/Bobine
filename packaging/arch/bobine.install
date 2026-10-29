@@ -64,7 +64,7 @@ _bobine_relaunch() {
 post_install() {
     /usr/lib/bobine/configure-storage-access auto
     _bobine_shortcuts
-    echo ">> Bobine : interface web sur http://localhost:8000 (le port n'est PAS ouvert dans le pare-feu automatiquement)."
+    echo ">> Bobine : interface web sur http://localhost:8000 par défaut (le port n'est PAS ouvert dans le pare-feu automatiquement ; si 8000 est occupé, Bobine prend un port de repli indiqué dans son journal)."
 }
 
 pre_upgrade() {

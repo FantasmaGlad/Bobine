@@ -97,11 +97,22 @@ Configuration is loaded in the following priority order:
 | `database.database_url` | `sqlite:///data/database.db` | SQLite connection URL |
 | `media.media_dir` | `data/videos` | Storage for imported videos |
 | `media.watch_dir` | `data/watched` | Folder watched for automatic import |
-| `server.host` / `port` | `0.0.0.0:8000` | Backend HTTP listen address |
+| `server.host` / `port` | `0.0.0.0:8000` | Backend HTTP listen address; `port` is the **preferred** port (`BOBINE_PORT`), see "Listen port and fallback" |
 | `playback.wait_time_between_courses` | `0` | Inter-course delay (s) |
 | `playback.volume_default` | `100` | Default volume (0-100) |
 
 > **Upload temp files**: on startup the backend forces `tempfile.tempdir` to `data/tmp` (next to the media), instead of `/tmp`. On the Wyse, `/tmp` is an in-RAM tmpfs (~3.8 GB) that a large video/audio import would saturate (`OSError: No space left on device`, surfaced client-side as "There was an error parsing the body") even though the media disk has dozens of GB free.
+
+### Listen port and fallback
+
+The port is no longer hard-coded in the launchers (`backend/run_backend.py`, `app/desktop/tray.py`, Android's `bobine_bootstrap.py`, `install.sh`, `scripts/watchdog.sh`, Kotlin constants): they all go through `backend/app/utils/port.py`.
+
+- **Preferred port**: `settings.port` (8000 by default; `BOBINE_PORT` or `config.toml`). While it is free nothing changes: firewall, bookmarks, mDNS and documentation stay on 8000.
+- **Fallback** (`resolve_port()`): if the preferred port is busy, the next 10 ports are tried, then a system-assigned port. Startup therefore no longer fails in a restart loop when another application holds 8000.
+- **Strict mode**: `BOBINE_PORT_STRICT=1` disables the fallback; startup fails with a clear message (log and standard error). `install.sh` sets it in `bobine-backend.service`: on the appliance, the 80 → port redirection, bookmarks and firewall assume a deterministic port.
+- **Runtime file**: the port actually used is written atomically to `backend-runtime.json` (port, pid, preferred port, fallback flag) at the data root, and removed on shutdown. A file whose pid no longer exists is ignored. It is the source of truth for the other processes: the desktop tray (administration, kiosk and projector URLs, health probes), Android's Kotlin code (`BackendEndpoint`, in the application's internal storage) and `scripts/watchdog.sh`. The API publishes it as `network.port` in `GET /api/settings` and the mDNS announcement in the service record.
+- **Firewall**: the Windows rule (Inno Setup) is bound to the `BobineBackend.exe` program, not to a port number, and covers the fallback port; the provided firewalld service only opens 8000 (open the fallback port by hand). When the fallback is used, the backend log and a tray notification say so.
+- **Limit**: the "is this port free?" probe and uvicorn's bind are not atomic; if another process takes the port in between, the backend exits and its supervisor (tray, systemd, Android service) restarts it, which resolves the port again.
 
 ---
 
@@ -482,11 +493,11 @@ When launched outside a Bobine checkout (`curl | bash` pipe, or a lone copied fi
 
 ### systemd Services Created
 
-- `bobine-backend.service`: FastAPI Uvicorn API on port 8000 (single-process, `--workers 1`). `Restart=always`.
+- `bobine-backend.service`: FastAPI Uvicorn API (single-process, `--workers 1`) started by `backend/run_backend.py` on the `config.toml` port (8000 by default), in strict mode (`BOBINE_PORT_STRICT=1`, no fallback). `Restart=always`.
 - `bobine-kiosk.service`: Full-screen Chromium kiosk mode on `xinit` (X11). `Restart=always`.
 - `bobine-audio-guard.service`: AUDIO-only guard — a oneshot that mutes Master/Speaker/Headphone at boot and shutdown (silence outside the kiosk session), overridden by `kiosk-xinitrc` once it's ready. Watches nothing else.
 - `bobine-watchdog.timer` + `bobine-watchdog.service`: HEALTH watchdog. The timer triggers `scripts/watchdog.sh` (`OnBootSec=90s`, then every 30s) which polls `GET /api/health` and **automatically restarts a dead component**: if `/api/health` doesn't respond 200 → restarts `bobine-backend`; if the kiosk service is enabled but no Chromium process exists → restarts `bobine-kiosk`. Complements `Restart=always` (which handles *process* death) for *logical* failures (backend alive but database locked, Chromium frozen, etc.).
-- `bobine-redirect.service`: nftables redirect from port 80 to 8000.
+- `bobine-redirect.service`: nftables redirect from port 80 to the backend port (8000 by default).
 - `bobine-cpu-governor.service`: a oneshot that sets the CPU governor to `performance` on every boot (the installer's `tuning` step).
 
 **Health check** — `GET /api/health` returns `{"status": "ok"|"degraded", "components": {"database", "kiosk"}}`, with HTTP `200` if the database responds, `503` otherwise (the kiosk's state is indicative and doesn't affect the HTTP status code). This is the endpoint consumed by the watchdog above and by any external monitoring.

@@ -20,7 +20,7 @@ Le kiosque de référence de Bobine reste **Chromium** (appliance headless, voir
 | Windows | `C:\Program Files\Mozilla Firefox\distribution\policies.json` |
 | macOS | `/Applications/Firefox.app/Contents/Resources/distribution/policies.json` |
 
-Adaptez la liste `Allow` si votre serveur utilise un autre nom ou port. Lancer
+Adaptez la liste `Allow` si votre serveur utilise un autre nom ou port (ce fichier ne prévoit que le port 8000 : si Bobine a pris un port de repli, ajoutez-le). Lancer
 ensuite par exemple : `firefox --kiosk http://localhost:8000/kiosk`.
 Vérification : `about:policies` doit lister les politiques actives.
 

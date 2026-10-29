@@ -109,10 +109,12 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"; Tasks: des
 Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"; Parameters: "--startup"
 
 [Run]
-; Règle de pare-feu pour le port d'écoute backend (0.0.0.0:8000, requis
-; par la télécommande mobile depuis n'importe quel appareil du LAN :
+; Règle de pare-feu pour le port d'écoute backend (0.0.0.0, 8000 par défaut,
+; requis par la télécommande mobile depuis n'importe quel appareil du LAN :
 ; sans cette règle, la télécommande mobile peut simplement ne pas
-; fonctionner). `netsh` est natif Windows, aucune dépendance externe.
+; fonctionner). La règle est liée au PROGRAMME (BobineBackend.exe), pas à un
+; numéro de port : elle couvre aussi le port de repli que le backend prend si
+; le port configuré est occupé (cf. backend/app/utils/port.py). `netsh` est natif Windows, aucune dépendance externe.
 ; Échec toléré (`flags: runhidden skipifsilent"; ...`) : mieux vaut une
 ; installation qui continue sans la règle qu'un installeur qui échoue
 ; entièrement sur cette seule étape.

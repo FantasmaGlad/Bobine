@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <service>
   <short>Bobine</short>
-  <description>Interface web et télécommande de Bobine sur le réseau local (port 8000). Ce fichier ne change aucune règle par lui-même : il faut l'activer explicitement (firewall-cmd --add-service=bobine).</description>
+  <description>Interface web et télécommande de Bobine sur le réseau local (port 8000, le port par défaut). Ce fichier ne change aucune règle par lui-même : il faut l'activer explicitement (firewall-cmd --add-service=bobine). Il n'ouvre que 8000 : si Bobine prend un port de repli parce que 8000 est occupé (indiqué dans le journal du backend et par l'API, champ network.port), ouvrez ce port à la main (firewall-cmd --add-port=PORT/tcp).</description>
   <port protocol="tcp" port="8000"/>
 </service>
