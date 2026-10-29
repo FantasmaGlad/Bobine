@@ -40,6 +40,7 @@ from app.utils.http_compression import (
     request_allows_gzip,
 )
 from app.utils.media_response import build_media_response
+from app.utils.port import active_port
 from app.utils.web_profile import choose_rendition, client_can_decode, parse_accept
 from app.utils.web_rendition import request_web_rendition
 from app.utils.radio_utils import content_type_for
@@ -142,7 +143,7 @@ async def lifespan(app: FastAPI):
     start_scheduler()
     # Best-effort, no-op sur l'appliance headless (avahi s'en charge déjà) —
     # cf. app/utils/mdns.py.
-    start_mdns_responder(settings.port)
+    start_mdns_responder(active_port())
     # 24/7.
     # Réglages de son persistés des deux sorties radio, chargés avant tout
     # démarrage de lecture pour que le premier état diffusé les contienne.

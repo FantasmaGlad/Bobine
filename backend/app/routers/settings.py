@@ -49,6 +49,7 @@ from app.utils.display_state import (
     get_hardware_state,
 )
 from app.utils import media_native
+from app.utils.port import active_port
 from app.utils.hardware_info import (
     get_storage_model,
     get_system_telemetry_payload,
@@ -317,7 +318,7 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "network": {
             "local_ip": _get_local_ip(),
             "local_ips": [{"ip": a.ip, "interface": a.interface} for a in lan_addresses()],
-            "port": runtime_settings.port,
+            "port": active_port(),
             "mdns_url": "http://bobine.local",
             # État RÉEL du répondeur mDNS embarqué ("ok"/"failed"/"disabled"
             # [headless, avahi système]/"external" [desktop, avahi natif

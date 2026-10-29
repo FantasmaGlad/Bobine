@@ -8,7 +8,10 @@
 //! l'ecran externe, avec lecture automatique autorisee.
 //!
 //! Lance et arrete par le tray de Bobine :
-//!   bobine-projector --url http://127.0.0.1:8000/cinema/?channel=cable [--monitor external|primary|<index>]
+//!   bobine-projector --url http://127.0.0.1:<port>/cinema/?channel=cable [--monitor external|primary|<index>]
+//!
+//! `<port>` est celui que le backend a réellement publie (fichier d'execution lu par le tray, qui
+//! compose l'URL a chaque ouverture) : il peut differer du port configure si celui-ci etait occupe.
 //!
 //! Le decodage video suit le moteur du systeme (VideoToolbox sur macOS). La
 //! logique de choix de l'ecran est pure (`select_monitor`) et testee.

@@ -791,7 +791,21 @@ BACKEND_DIR="${REPO_DIR}/backend"
 FRONTEND_DIR="${REPO_DIR}/frontend"
 VENV_DIR="${BACKEND_DIR}/.venv"
 CONFIG_FILE="${CONFIG_DIR}/config.toml"
-SERVICE_PORT=8000
+# Port d'écoute : celui de /etc/bobine/config.toml si l'administrateur l'a déjà fixé (relance de
+# l'installateur), sinon 8000. Sur l'appliance le port est déterministe (BOBINE_PORT_STRICT=1 dans
+# l'unité du backend) : la redirection 80 -> port, les signets et la documentation supposent ce port.
+configured_port() {
+    local value=""
+    if [[ -r "${CONFIG_FILE}" ]]; then
+        value=$(sed -nE 's/^[[:space:]]*port[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' "${CONFIG_FILE}" | head -n1)
+    fi
+    if [[ "${value}" =~ ^[0-9]+$ ]] && (( value >= 1 && value <= 65535 )); then
+        echo "${value}"
+    else
+        echo 8000
+    fi
+}
+SERVICE_PORT="$(configured_port)"
 KIOSK_URL="http://127.0.0.1:${SERVICE_PORT}/kiosk"
 UNITS=(bobine-backend bobine-kiosk bobine-audio-guard bobine-redirect bobine-watchdog)
 
@@ -905,11 +919,8 @@ do_check() {
     banner
     log "Diagnostic de l'installation"
 
-    local port="${SERVICE_PORT}"
-    if [[ -f "${CONFIG_FILE}" ]]; then
-        port=$(grep -E '^port' "${CONFIG_FILE}" 2>/dev/null | sed -E 's/[^0-9]*([0-9]+).*/\1/' || echo "${SERVICE_PORT}")
-        [[ -z "$port" ]] && port="${SERVICE_PORT}"
-    fi
+    local port
+    port="$(configured_port)"
 
     echo
     box_top
@@ -1423,7 +1434,13 @@ Type=simple
 User=${TARGET_USER}
 Group=${TARGET_USER}
 WorkingDirectory=${BACKEND_DIR}
-ExecStart=${VENV_DIR}/bin/uvicorn app.main:app --host 0.0.0.0 --port ${SERVICE_PORT} --workers 1
+# Même point d'entrée que les applications de bureau (résolution du port partagée). Le port est
+# déterministe sur l'appliance : BOBINE_PORT_STRICT=1 interdit le repli sur un autre port (la
+# redirection 80 -> ${SERVICE_PORT} et le pare-feu supposent ce port) ; si ${SERVICE_PORT} est occupé, le
+# démarrage échoue avec un message clair dans le journal (journalctl -u bobine-backend).
+Environment=BOBINE_PORT=${SERVICE_PORT}
+Environment=BOBINE_PORT_STRICT=1
+ExecStart=${VENV_DIR}/bin/python ${BACKEND_DIR}/run_backend.py
 Restart=always
 RestartSec=2
 # Reprise après coupure électrique : démarrage automatique au boot via

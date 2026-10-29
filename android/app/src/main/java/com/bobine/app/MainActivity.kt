@@ -40,10 +40,12 @@ import androidx.core.content.ContextCompat
 // separation, la tablette aurait aussi redecode/rejoue la meme video que
 // l'ecran HDMI des qu'un cours demarre (les deux chargeaient /cinema,
 // qui ne distingue aucun role primaire/miroir dans son rendu).
-private const val GRID_URL = "http://127.0.0.1:8000/grid/"
+private const val GRID_PATH = "/grid/"
 // Sur Android TV / Google TV, l'ecran principal est le grand ecran de la TV.
 // On charge /kiosk par defaut, concu pour la navigation D-Pad a la telecommande.
-private const val KIOSK_URL = "http://127.0.0.1:8000/kiosk"
+private const val KIOSK_PATH = "/kiosk"
+// Delai entre deux lectures du port publie par le serveur embarque (cf. BackendEndpoint).
+private const val BACKEND_POLL_MS = 200L
 
 /**
  * Ecran tactile de la tablette ou affichage Leanback Android TV :
@@ -73,6 +75,8 @@ class MainActivity : AppCompatActivity() {
     private val isTv: Boolean by lazy { isTvDevice(this) }
 
     private val handler = Handler(Looper.getMainLooper())
+    // Prochain essai de chargement planifie tant que le serveur n'a pas publie son port.
+    private var loadRetry = Runnable { }
     // champ de classe
     // plutot qu'une simple val locale de onCreate() - necessaire pour
     // relayer onResume()/onPause() de l'Activity vers la WebView
@@ -117,7 +121,7 @@ class MainActivity : AppCompatActivity() {
             // Sur Android TV : neutralise la veille d'ecran Daydream / Ambient pendant l'utilisation de Bobine
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
-        val initialUrl = if (isTv) KIOSK_URL else GRID_URL
+        val initialPath = if (isTv) KIOSK_PATH else GRID_PATH
 
         // Debug uniquement (build debug) : console JS visible dans logcat
         // (tag "WebViewConsole") et inspection chrome://inspect. Restreint
@@ -272,14 +276,14 @@ class MainActivity : AppCompatActivity() {
                     // Ne pas révéler la page d'erreur blanche/brute du navigateur
                     handler.postDelayed({
                         if (!hasLoadedSuccessfully) {
-                            view.loadUrl(initialUrl)
+                            loadWhenBackendReady(initialPath)
                         }
                     }, 400)
                 }
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
-                if (!lastPageFailed && !hasLoadedSuccessfully && url != null && url.startsWith("http://127.0.0.1:8000")) {
+                if (!lastPageFailed && !hasLoadedSuccessfully && url != null && BackendEndpoint.isBackendUrl(this@MainActivity, url)) {
                     hasLoadedSuccessfully = true
                     splashLayout.animate()
                         .alpha(0f)
@@ -299,7 +303,24 @@ class MainActivity : AppCompatActivity() {
         // Icones de la barre d'etat lisibles : sombres sur un theme clair, claires sur un theme sombre.
         androidx.core.view.WindowCompat.getInsetsController(window, rootLayout).isAppearanceLightStatusBars =
             androidx.core.graphics.ColorUtils.calculateLuminance(themeColors.background) > 0.5
-        webView.loadUrl(initialUrl)
+        loadWhenBackendReady(initialPath)
+    }
+
+    /**
+     * Charge [path] dès que le serveur embarqué a publié son port (cf. [BackendEndpoint]) : tant
+     * qu'il ne l'a pas fait, l'écran de chargement reste affiché et on réessaie, ce qui remplace
+     * l'ancienne erreur « connexion refusée » du tout premier affichage. Un seul réessai planifié à
+     * la fois.
+     */
+    private fun loadWhenBackendReady(path: String) {
+        handler.removeCallbacks(loadRetry)
+        val url = BackendEndpoint.url(this, path)
+        if (url != null) {
+            webView?.loadUrl(url)
+        } else {
+            loadRetry = Runnable { loadWhenBackendReady(path) }
+            handler.postDelayed(loadRetry, BACKEND_POLL_MS)
+        }
     }
 
     override fun onResume() {
@@ -315,6 +336,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        handler.removeCallbacks(loadRetry)
         if (activeActivity?.get() === this) {
             activeActivity = null
         }

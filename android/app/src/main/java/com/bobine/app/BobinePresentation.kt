@@ -25,7 +25,9 @@ import android.webkit.WebViewClient
 // exactement comme le canal Cable existant sur mini PC x86.
 // ?channel=cable EXPLICITE : la sortie HDMI est toujours le
 // canal cable, quel que soit le nom d'hote — voir lib/displayChannel.ts.
-private const val CINEMA_URL = "http://127.0.0.1:8000/cinema/?channel=cable"
+private const val CINEMA_PATH = "/cinema/?channel=cable"
+// Delai entre deux lectures du port publie par le serveur embarque (cf. BackendEndpoint).
+private const val BACKEND_POLL_MS = 200L
 
 /**
  * rendu independant sur
@@ -166,14 +168,14 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
                     lastPageFailed = true
                     handler.postDelayed({
                         if (!hasLoadedSuccessfully) {
-                            view.loadUrl(CINEMA_URL)
+                            loadWhenBackendReady()
                         }
                     }, 400)
                 }
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
-                if (!lastPageFailed && !hasLoadedSuccessfully && url != null && url.startsWith("http://127.0.0.1:8000")) {
+                if (!lastPageFailed && !hasLoadedSuccessfully && url != null && BackendEndpoint.isBackendUrl(context, url)) {
                     hasLoadedSuccessfully = true
                     splashLayout.animate()
                         .alpha(0f)
@@ -190,8 +192,23 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
         ))
         rootLayout.addView(splashLayout)
         setContentView(rootLayout)
-        webView.loadUrl(CINEMA_URL)
+        loadWhenBackendReady()
         webView.onResume()
+    }
+
+    // Charge /cinema des que le serveur embarque a publie son port (cf. BackendEndpoint) ; l'ecran
+    // de chargement reste affiche d'ici la. Un seul essai planifie a la fois.
+    private var loadRetry = Runnable { }
+
+    private fun loadWhenBackendReady() {
+        handler.removeCallbacks(loadRetry)
+        val url = BackendEndpoint.url(context, CINEMA_PATH)
+        if (url != null) {
+            webView?.loadUrl(url)
+        } else {
+            loadRetry = Runnable { loadWhenBackendReady() }
+            handler.postDelayed(loadRetry, BACKEND_POLL_MS)
+        }
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -216,6 +233,7 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
     }
 
     override fun onStop() {
+        handler.removeCallbacks(loadRetry)
         webView?.onPause()
         super.onStop()
     }

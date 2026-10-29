@@ -39,37 +39,67 @@ from app.desktop.displays import (
     list_monitors,
 )
 
+from app.utils.port import DEFAULT_PORT, read_runtime
+
 logger = logging.getLogger(__name__)
 
 
-def _resolve_admin_port() -> int:
-    """Port réellement configuré (`config.toml`/`BOBINE_PORT`), pas le 8000
-    par défaut codé en dur — trouvé lors d'un audit multi-plateforme
-    (2026-09-11) : `app.config` (même paquet `app`, aucun import circulaire
-    avec ce module) expose déjà cette valeur, jamais lue ici jusqu'à présent
-    — un utilisateur changeant le port dans sa configuration voyait le bouton
-    « Administration » et le kiosque du tray continuer de pointer vers 8000
-    en silence. Repli sur 8000 si `app.config` échoue à charger pour
-    n'importe quelle raison (ce module reste un point d'entrée standalone,
-    packagé séparément par PyInstaller — jamais bloquer le tray pour ça)."""
+def _admin_port() -> int:
+    """Port du backend à joindre : celui qu'il a réellement publié dans son
+    fichier d'exécution (`app.utils.port`, il peut avoir pris un port de repli
+    si le port configuré était occupé), sinon le port configuré
+    (`config.toml`/`BOBINE_PORT`) — jamais un port figé. Trouvé lors d'un audit
+    multi-plateforme (2026-09-11) : un utilisateur changeant le port dans sa
+    configuration voyait le bouton « Administration » et le kiosque du tray
+    pointer ailleurs en silence. Lu à chaque appel, pas à l'import : le backend
+    est relancé par le superviseur et peut changer de port. Repli sur le
+    port par défaut si `app.utils.port` échoue à charger pour n'importe quelle
+    raison (ce module reste un point d'entrée standalone, packagé séparément par
+    PyInstaller — jamais bloquer le tray pour ça)."""
     try:
-        from app.config import settings
-        return int(settings.port)
+        from app.utils.port import current_port
+        return int(current_port())
     except Exception:
-        return 8000
+        return DEFAULT_PORT
 
 
-ADMIN_URL = f"http://127.0.0.1:{_resolve_admin_port()}"
-KIOSK_URL = f"{ADMIN_URL}/kiosk"
-GRID_URL = f"{ADMIN_URL}/grid"
-CINEMA_URL = f"{ADMIN_URL}/cinema"
-HEALTH_URL = f"{ADMIN_URL}/api/health"
-DISPLAY_STATE_URL = f"{ADMIN_URL}/api/display/state"
+def _admin_url() -> str:
+    return f"http://127.0.0.1:{_admin_port()}"
+
+
+def _kiosk_url() -> str:
+    return f"{_admin_url()}/kiosk"
+
+
+def _grid_url() -> str:
+    return f"{_admin_url()}/grid"
+
+
+def _cinema_url() -> str:
+    return f"{_admin_url()}/cinema"
+
+
+def _health_url() -> str:
+    return f"{_admin_url()}/api/health"
+
+
+def _display_state_url() -> str:
+    return f"{_admin_url()}/api/display/state"
+
+
 # ?channel=cable EXPLICITE : l'écran projecteur est toujours le canal câblé
 # (cf. frontend/src/lib/displayChannel.ts).
-PROJECTOR_URL = f"{ADMIN_URL}/cinema/?channel=cable"
-UPDATES_CHECK_URL = f"{ADMIN_URL}/api/updates/check"
-UPDATES_STATUS_URL = f"{ADMIN_URL}/api/updates/status"
+def _projector_url() -> str:
+    return f"{_admin_url()}/cinema/?channel=cable"
+
+
+def _updates_check_url() -> str:
+    return f"{_admin_url()}/api/updates/check"
+
+
+def _updates_status_url() -> str:
+    return f"{_admin_url()}/api/updates/status"
+
 
 # Supervision "logique" (process vivant mais /api/health en échec de façon
 # répétée) — complète la supervision "process mort" de BackendSupervisor,
@@ -99,16 +129,14 @@ def _backend_command() -> list[str]:
     cherche l'exécutable frère `BobineBackend(.exe)` à côté de celui-ci. En
     développement (ni l'un ni l'autre trouvé), retombe sur `uvicorn` via
     l'interpréteur courant — ce qui rend ce module directement testable
-    sans packaging, y compris hors Windows."""
+    sans packaging, y compris hors Windows : `run_backend.py` est le même point
+    d'entrée que celui figé par PyInstaller, donc la même résolution du port."""
     exe_dir = Path(sys.executable).resolve().parent
     for name in ("BobineBackend.exe", "BobineBackend"):
         candidate = exe_dir / name
         if candidate.exists():
             return [str(candidate)]
-    return [
-        sys.executable, "-m", "uvicorn", "app.main:app",
-        "--host", "0.0.0.0", "--port", "8000", "--workers", "1",
-    ]
+    return [sys.executable, str(Path(__file__).resolve().parents[2] / "run_backend.py")]
 
 
 class BackendSupervisor:
@@ -171,7 +199,7 @@ class BackendSupervisor:
                 consecutive_failures = 0
                 continue
             try:
-                with urllib.request.urlopen(HEALTH_URL, timeout=5) as resp:
+                with urllib.request.urlopen(_health_url(), timeout=5) as resp:
                     ok = resp.status == 200
             except Exception:
                 ok = False
@@ -240,7 +268,7 @@ def launch_kiosk_browser(url: str | None = None) -> None:
       `.app`, pas des exécutables nus sur le PATH) + anti-veille `caffeinate`
       attachée après coup (cf. `_caffeinate_after_launch`).
     - Repli universel : navigateur par défaut."""
-    target_url = url or KIOSK_URL
+    target_url = url or _kiosk_url()
     system = platform.system()
     kiosk_args = ["--kiosk", "--autoplay-policy=no-user-gesture-required", target_url]
 
@@ -286,7 +314,7 @@ def launch_kiosk_browser(url: str | None = None) -> None:
 def _get_wired_display_mode() -> str:
     """Lit le mode d'affichage câblé configuré depuis le backend local (/api/settings)."""
     try:
-        req = urllib.request.Request(f"{ADMIN_URL}/api/settings", headers={"User-Agent": "BobineTray"})
+        req = urllib.request.Request(f"{_admin_url()}/api/settings", headers={"User-Agent": "BobineTray"})
         with urllib.request.urlopen(req, timeout=2) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return data.get("wired_display_mode", "headless")
@@ -316,7 +344,7 @@ def _open_initial_displays(timeout_seconds: float = 20.0) -> None:
                 f"Backend prêt — mode d'affichage câblé : {mode}, écran externe détecté : {has_external}"
             )
             if has_external or mode == "dual_screen":
-                webbrowser.open(GRID_URL if mode == "dual_screen" else ADMIN_URL)
+                webbrowser.open(_grid_url() if mode == "dual_screen" else _admin_url())
                 if not has_external and mode == "dual_screen":
                     # Pupitre forcé sans projecteur branché : la fenêtre
                     # /cinema sera ouverte par l'orchestrateur dès qu'un écran
@@ -324,18 +352,18 @@ def _open_initial_displays(timeout_seconds: float = 20.0) -> None:
                     logger.info("Mode double écran sans écran externe : en attente d'un projecteur")
             else:
                 logger.info("Mode autonome (aucun écran externe) : Administration + Kiosque")
-                webbrowser.open(ADMIN_URL)
-                launch_kiosk_browser(KIOSK_URL)
+                webbrowser.open(_admin_url())
+                launch_kiosk_browser(_kiosk_url())
             return
         time.sleep(0.5)
     logger.warning("Délai d'attente du backend dépassé — ouverture par défaut")
-    webbrowser.open(ADMIN_URL)
-    launch_kiosk_browser(KIOSK_URL)
+    webbrowser.open(_admin_url())
+    launch_kiosk_browser(_kiosk_url())
 
 
 def _fetch_settings() -> dict | None:
     """Réglages du backend local (délai court : appelé à chaque cycle de la boucle de statut)."""
-    request = urllib.request.Request(f"{ADMIN_URL}/api/settings", headers={"Accept": "application/json"})
+    request = urllib.request.Request(f"{_admin_url()}/api/settings", headers={"Accept": "application/json"})
     with urllib.request.urlopen(request, timeout=1.0) as response:
         return json.loads(response.read().decode())
 
@@ -490,7 +518,7 @@ def _ensure_desktop_shortcut() -> None:
 def is_backend_running() -> bool:
     """Vérifie si une instance du backend Bobine répond déjà sur /api/health."""
     try:
-        req = urllib.request.Request(HEALTH_URL, headers={"User-Agent": "BobineTray"})
+        req = urllib.request.Request(_health_url(), headers={"User-Agent": "BobineTray"})
         with urllib.request.urlopen(req, timeout=1) as resp:
             return resp.status == 200
     except Exception:
@@ -547,7 +575,7 @@ def _check_for_update_once() -> None:
     profil de déploiement) et met à jour `_update_state`. Best-effort :
     aucune exception ne doit jamais faire tomber le tray."""
     try:
-        req = urllib.request.Request(UPDATES_CHECK_URL, headers={"User-Agent": "BobineTray"})
+        req = urllib.request.Request(_updates_check_url(), headers={"User-Agent": "BobineTray"})
         with urllib.request.urlopen(req, timeout=6) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         with _update_lock:
@@ -585,6 +613,31 @@ def _notify_best_effort(icon: "pystray.Icon", title: str, message: str) -> None:
         logger.debug(f"Notification native indisponible ({title!r}) : {e}")
 
 
+def _port_fallback_notice(icon: "pystray.Icon", wait_seconds: float = 120.0) -> None:
+    """Signale clairement que le backend écoute sur un port de repli (le port
+    configuré était occupé). La règle de pare-feu Windows (Inno Setup) est liée
+    au programme et couvre ce port ; le service firewalld fourni n'ouvre que le port
+    par défaut : sans ce message, les autres appareils du réseau ne comprendraient
+    pas pourquoi l'adresse habituelle ne répond plus. Une seule notification par
+    démarrage du tray ; le journal du backend porte le même avertissement."""
+    deadline = time.time() + wait_seconds
+    while time.time() < deadline:
+        info = read_runtime()
+        if info:
+            if info.get("fallback"):
+                port, preferred = info["port"], info.get("preferred", DEFAULT_PORT)
+                logger.warning("Backend sur le port de repli %s (port %s occupé)", port, preferred)
+                _notify_best_effort(
+                    icon,
+                    "Bobine — port de repli",
+                    f"Le port {preferred} est occupé : Bobine écoute sur le port {port}. "
+                    f"Autres appareils : http://<adresse>:{port}."
+                    + ("" if platform.system() == "Windows" else f" Si un pare-feu est actif, ouvrez ce port (firewalld : {DEFAULT_PORT} seulement)."),
+                )
+            return
+        time.sleep(1.0)
+
+
 def _update_status_poll_loop(icon: "pystray.Icon") -> None:
     """Suit la progression d'une mise à jour déjà en cours (déclenchée
     manuellement depuis Réglages, OU automatiquement par la planification
@@ -607,7 +660,7 @@ def _update_status_poll_loop(icon: "pystray.Icon") -> None:
                 logger.debug(f"Mise à jour icône tray ({detected_channel}): {e}")
 
         try:
-            req = urllib.request.Request(UPDATES_STATUS_URL, headers={"User-Agent": "BobineTray"})
+            req = urllib.request.Request(_updates_status_url(), headers={"User-Agent": "BobineTray"})
             with urllib.request.urlopen(req, timeout=4) as resp:
                 status = json.loads(resp.read().decode("utf-8"))
         except Exception:
@@ -636,7 +689,7 @@ def run() -> None:
     # ouvre directement l'interface dans le navigateur sans lancer de doublon.
     if is_backend_running():
         logger.info("Bobine est déjà actif en arrière-plan. Ouverture de l'interface web.")
-        webbrowser.open(ADMIN_URL)
+        webbrowser.open(_admin_url())
         return
 
     # Second garde-fou, complémentaire au précédent : `is_backend_running()`
@@ -647,7 +700,7 @@ def run() -> None:
             "Une autre instance de BobineTray supervise déjà le démarrage du backend "
             "— ouverture de l'interface web sans lancer de doublon."
         )
-        webbrowser.open(ADMIN_URL)
+        webbrowser.open(_admin_url())
         return
 
     _ensure_launch_agent_macos()
@@ -682,8 +735,8 @@ def run() -> None:
             _set_display_always_on(True)
 
     display_orchestrator = DisplayOrchestrator(
-        DISPLAY_STATE_URL,
-        ProjectorWindow(PROJECTOR_URL, after_launch=_keep_awake_while_projecting),
+        _display_state_url,
+        ProjectorWindow(_projector_url, after_launch=_keep_awake_while_projecting),
         ready_check=is_backend_running,
     )
     display_watcher = DisplayWatcher(display_orchestrator.handle_change)
@@ -697,13 +750,13 @@ def run() -> None:
     threading.Thread(target=_refresh_display_report_loop, daemon=True, name="bobine-display-refresh").start()
 
     def on_open_admin(icon, item):
-        webbrowser.open(ADMIN_URL)
+        webbrowser.open(_admin_url())
 
     def on_open_grid(icon, item):
-        webbrowser.open(GRID_URL)
+        webbrowser.open(_grid_url())
 
     def on_open_cinema(icon, item):
-        webbrowser.open(CINEMA_URL)
+        webbrowser.open(_cinema_url())
 
     def on_open_kiosk(icon, item):
         launch_kiosk_browser()
@@ -756,6 +809,7 @@ def run() -> None:
     )
 
     icon = pystray.Icon("bobine", _load_icon_image(), "Bobine", menu=menu)
+    threading.Thread(target=_port_fallback_notice, args=(icon,), daemon=True, name="bobine-tray-port-notice").start()
     threading.Thread(
         target=_update_status_poll_loop, args=(icon,), daemon=True, name="bobine-tray-update-status",
     ).start()

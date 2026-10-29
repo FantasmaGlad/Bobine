@@ -5,8 +5,10 @@
 #
 # Usage : smoke-macos-backend.sh <BobineBackend> [--home DIR] [--log-dir DIR] [--attempts N]
 # --home isole les données : le backend les range sous ~/Library/Application Support/Bobine,
-# HOME est donc redéfini pour le seul processus lancé. Le port 8000 est imposé par
-# backend/run_backend.py : la sonde refuse de démarrer s'il est déjà occupé.
+# HOME est donc redéfini pour le seul processus lancé. Le port d'écoute n'est pas imposé : la sonde
+# choisit un port libre (--port N pour en forcer un), le transmet par BOBINE_PORT avec
+# BOBINE_PORT_STRICT=1 (aucun repli silencieux), sonde ce port et, avec --home, vérifie que le
+# fichier d'exécution du backend publie bien ce port.
 set -euo pipefail
 
 exe="${1:?chemin de BobineBackend requis}"
@@ -14,12 +16,13 @@ shift
 home_dir=""
 log_dir=""
 attempts=20
-port=8000
+port=""
 while (( $# > 0 )); do
   case "$1" in
     --home) home_dir="${2:?}"; shift 2 ;;
     --log-dir) log_dir="${2:?}"; shift 2 ;;
     --attempts) attempts="${2:?}"; shift 2 ;;
+    --port) port="${2:?}"; shift 2 ;;
     *) echo "Option inconnue : $1" >&2; exit 2 ;;
   esac
 done
@@ -36,6 +39,11 @@ fi
 err_log="$log_dir/backend_err.log"
 out_log="$log_dir/backend_out.log"
 rm -f "$err_log" "$out_log"
+
+if [[ -z "$port" ]]; then
+  port="$(python3 -c 'import socket; s = socket.socket(); s.bind(("0.0.0.0", 0)); print(s.getsockname()[1])')"
+fi
+export BOBINE_PORT="$port" BOBINE_PORT_STRICT=1
 
 listeners() { lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true; }
 if [[ -n "$(listeners)" ]]; then
@@ -79,8 +87,16 @@ for _ in $(seq 1 "$attempts"); do
       reason="la réponse ne vient pas du processus lancé (écouteur $listener, lancé $pid)"
       break
     fi
+    if [[ -n "$home_dir" ]]; then
+      runtime_file="$home_dir/Library/Application Support/Bobine/backend-runtime.json"
+      published="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["port"])' "$runtime_file" 2>/dev/null || true)"
+      if [[ "$published" != "$port" ]]; then
+        reason="le fichier d'exécution $runtime_file publie '$published' au lieu de $port"
+        break
+      fi
+    fi
     ready=1
-    echo "Backend opérationnel ($exe) : $body"
+    echo "Backend opérationnel sur le port $port ($exe) : $body"
     break
   fi
 done

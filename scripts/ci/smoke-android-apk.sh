@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Démarre le vrai service Chaquopy et attend une base SQLite opérationnelle.
 # Usage : smoke-android-apk.sh mobile|tv [chemin.apk] ; émulateur jetable uniquement.
+# Le port d'écoute n'est pas imposé : le serveur embarqué choisit son port et le publie dans
+# files/backend-runtime.json (app/utils/port.py). La sonde le lit par `run-as` (APK de debug),
+# redirige CE port et sonde l'API par là. Le repli sur un port libre n'est pas exercé ici : seul
+# le port publié par le serveur est sondé.
 set -euo pipefail
 flavor="${1:?flavor mobile ou tv requis}"
 case "$flavor" in
@@ -28,10 +32,21 @@ adb shell am force-stop com.bobine.app.tv
 adb install --no-streaming -r -g "$apk"
 adb shell pm clear "$package"
 adb logcat -c
-port=$(adb forward tcp:0 tcp:8000)
 adb shell am start -W -n "$package/com.bobine.app.MainActivity"
+device_port=""
 for _ in $(seq 1 120); do
-  if curl --max-time 2 -fsS "http://127.0.0.1:$port/api/health" > "$logs/health-$flavor.json" 2>/dev/null; then
+  if [[ -z "$device_port" ]]; then
+    device_port=$(adb shell "run-as $package cat files/backend-runtime.json" 2>/dev/null | tr -d '\r' | python3 -c 'import json,sys
+try:
+    print(int(json.load(sys.stdin)["port"]))
+except Exception:
+    pass' || true)
+    if [[ -n "$device_port" ]]; then
+      port=$(adb forward tcp:0 "tcp:$device_port")
+      echo "Le serveur embarqué écoute sur le port $device_port de l'appareil."
+    fi
+  fi
+  if [[ -n "${port:-}" ]] && curl --max-time 2 -fsS "http://127.0.0.1:$port/api/health" > "$logs/health-$flavor.json" 2>/dev/null; then
     python3 -c 'import json,sys; p=json.load(open(sys.argv[1])); assert p["status"] == "ok" and p["components"]["database"] == "ok", p' "$logs/health-$flavor.json"
     # L'API et le frontend embarqué doivent tous deux être servis par l'APK.
     curl --max-time 10 -fsS "http://127.0.0.1:$port/api/settings" > "$logs/settings-$flavor.json"
@@ -42,5 +57,8 @@ for _ in $(seq 1 120); do
   fi
   sleep 2
 done
+if [[ -z "$device_port" ]]; then
+  echo "Le serveur embarqué n'a publié aucun port (files/backend-runtime.json absent ou illisible)." >&2
+fi
 echo "Le serveur embarqué n'est pas devenu opérationnel dans le délai prévu." >&2
 exit 1

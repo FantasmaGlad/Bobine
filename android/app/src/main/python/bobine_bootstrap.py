@@ -194,6 +194,12 @@ def start_server_once(external_files_dir=None, native_library_dir=None, internal
 
         import uvicorn
         from app.main import app
+        from app.utils.port import acquire_listen_port, release_port
+
+        # Port d'ecoute : celui de la configuration s'il est libre, sinon un port
+        # de repli ; publie dans backend-runtime.json (dossier interne), que le
+        # code Kotlin lit via BackendEndpoint. Jamais un numero fige ici.
+        listen_port = acquire_listen_port()
 
         # keepalive HTTP
         # allongé (Chromium/WebView ré-ouvrait une connexion TCP entre deux
@@ -204,10 +210,13 @@ def start_server_once(external_files_dir=None, native_library_dir=None, internal
         # indépendants n'apportaient rien) ; concurrence plafonnée à une
         # valeur adaptée à un usage salle (pas un service public), pour
         # limiter le nombre de tâches concurrentes sur un CPU mobile.
-        uvicorn.run(
-            app, host="0.0.0.0", port=8000, workers=1,
-            timeout_keep_alive=75, ws_ping_interval=None, ws_ping_timeout=None,
-            limit_concurrency=64,
-        )
+        try:
+            uvicorn.run(
+                app, host="0.0.0.0", port=listen_port, workers=1,
+                timeout_keep_alive=75, ws_ping_interval=None, ws_ping_timeout=None,
+                limit_concurrency=64,
+            )
+        finally:
+            release_port()
 
     threading.Thread(target=_run, daemon=True).start()

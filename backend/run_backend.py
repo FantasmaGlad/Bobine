@@ -1,6 +1,6 @@
 """Point d'entrée figé par PyInstaller en `BobineBackend.exe` (cf.
 `packaging/windows/bobine.spec`). Équivalent de
-`uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1` en
+`uvicorn app.main:app --host 0.0.0.0 --port <port> --workers 1` en
 développement, mais invoqué programmatiquement : `python -m uvicorn`
 dépend d'un point d'entrée console-script qui n'existe plus une fois le
 tout figé dans un seul exécutable.
@@ -14,8 +14,15 @@ constaté à l'exécution réelle). Un objet d'app importé directement reste
 valide avec `workers=1` (aucun rechargement à chaud ni sous-process
 supplémentaire à réimporter — seul `workers > 1` exige une chaîne, pour
 que chaque worker puisse réimporter l'app dans son propre process).
+
+Le port d'écoute n'est plus figé : `acquire_listen_port()` (app/utils/port.py)
+renvoie le port configuré (`settings.port`) s'il est libre, sinon un port de
+repli, et le publie dans le fichier d'exécution lu par la barre d'état.
+`BOBINE_PORT_STRICT=1` interdit le repli : le démarrage échoue avec un message
+clair (appliance systemd).
 """
 
+import logging
 import multiprocessing
 import os
 import sys
@@ -32,6 +39,7 @@ if sys.stdin is None:
 import uvicorn
 
 from app.main import app
+from app.utils.port import PortUnavailableError, acquire_listen_port, release_port
 
 if __name__ == "__main__":
     # No-op sur Linux/hors gel (cf. doc Python) ; requis sur Windows/macOS
@@ -40,4 +48,15 @@ if __name__ == "__main__":
     # garde-fou provoquerait un boot loop silencieux si jamais le cas se
     # présentait — coût nul de le poser dès maintenant).
     multiprocessing.freeze_support()
-    uvicorn.run(app, host="0.0.0.0", port=8000, workers=1)
+    try:
+        listen_port = acquire_listen_port()
+    except PortUnavailableError as exc:
+        # Journal technique (déjà configuré par app.main) ET flux d'erreur :
+        # le superviseur (systemd, barre d'état) lit l'un ou l'autre.
+        logging.getLogger("app.run_backend").error("%s", exc)
+        print(f"Bobine : démarrage impossible. {exc}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        uvicorn.run(app, host="0.0.0.0", port=listen_port, workers=1)
+    finally:
+        release_port()
