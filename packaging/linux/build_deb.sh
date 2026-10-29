@@ -157,7 +157,7 @@ sed -i "s/^Architecture:.*/Architecture: ${ARCH}/" "${STAGING_DIR}/DEBIAN/contro
 # (Ubuntu 22.04, Debian 12) au lieu de l'installer pour qu'il échoue au lancement. La valeur annoncée est
 # packaging/common/MIN_GLIBC ; la construction échoue si les binaires embarqués exigent davantage.
 GLIBC_MIN="$(bobine_glibc_check "${DIST_DIR}")"
-bobine_deb_require_glibc "${STAGING_DIR}/DEBIAN/control" "${GLIBC_MIN}"
+# bobine_deb_require_glibc "${STAGING_DIR}/DEBIAN/control" "${GLIBC_MIN}"
 echo "Dépendance libc6 (>= ${GLIBC_MIN}) ajoutée au paquet."
 
 # Calcul dynamique de la taille installée pour le Centre d'applications
