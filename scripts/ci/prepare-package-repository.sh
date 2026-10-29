@@ -8,7 +8,7 @@ packages=$(realpath "${3:?paquets signés}"); destination=$(realpath "${4:?copie
 case "$family" in deb|rpm|arch) ;; *) exit 2 ;; esac
 . "$(dirname "$0")/container-images.sh"
 # Canaux valides : le registre unique (backend/app/release_channel.py), pas une liste recopiée ici.
-python3"$(dirname "$0")/../../packaging/common/channel.py" is-channel "$channel" || exit 2
+python3 "$(dirname "$0")/../../packaging/common/channel.py" is-channel "$channel" || exit 2
 [ "$destination" != / ] && [ "$destination" != "$packages" ] || exit 2
 fingerprint="${BOBINE_SIGNING_FINGERPRINT:-B77D96D72F84F36ACAA3F8729CBF497D829EE15A}"
 [[ "$fingerprint" =~ ^[A-F0-9]{40}$ ]] || exit 2
