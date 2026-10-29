@@ -32,7 +32,6 @@ Requires:       /usr/bin/ffmpeg
 Requires:       /usr/bin/ffprobe
 # Le bundle est construit sur une base glibc récente : refuser l'installation plutôt
 # que de planter au lancement (valeur calculée au build, voir build_rpm.sh).
-Requires:       glibc >= %{bobine_glibc}
 Recommends:     avahi
 Recommends:     udisks2
 Recommends:     smartmontools
