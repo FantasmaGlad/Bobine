@@ -697,6 +697,9 @@ jobs:
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) et interrompt l'installation implicite de la toolchain.
+      - name: Installer la toolchain Rust (avant pip)
+        run: rustup toolchain install
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -795,6 +798,9 @@ jobs:
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) et interrompt l'installation implicite de la toolchain.
+      - name: Installer la toolchain Rust (avant pip)
+        run: rustup toolchain install
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -911,6 +917,12 @@ jobs:
             artifact: bobine-linux-deb-arm64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # À placer avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) pour son User-Agent.
+      # Avec rust-toolchain.toml et sans toolchain installée, le proxy rustup commence à l'installer et pip
+      # le tue en plein vol ; le premier cargo trouve alors une toolchain partielle (« recovering from a
+      # partially installed toolchain », parfois « detected conflict: 'bin/cargo-clippy' »).
+      - name: Installer la toolchain Rust (avant pip)
+        run: rustup toolchain install
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -1002,6 +1014,9 @@ jobs:
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) et interrompt l'installation implicite de la toolchain.
+      - name: Installer la toolchain Rust (avant pip)
+        run: rustup toolchain install
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
