@@ -238,8 +238,15 @@ def _source_label() -> str:
     return {"Linux": "linux", "Windows": "windows", "Darwin": "macos"}.get(platform.system(), "linux")
 
 
+def _resolve_url(url: "str | Callable[[], str]") -> str:
+    """Les URL du backend peuvent être données sous forme d'appelable : le port
+    du backend est publié à son démarrage (il peut avoir pris un port de repli)
+    et change si le superviseur le relance, donc il est relu à chaque usage."""
+    return url() if callable(url) else url
+
+
 def report_display_state(
-    state_url: str,
+    state_url: "str | Callable[[], str]",
     count: int,
     resolution: str | None = None,
     *,
@@ -265,7 +272,7 @@ def report_display_state(
             return False
         try:
             request = urllib.request.Request(
-                state_url, data=payload, method="PUT",
+                _resolve_url(state_url), data=payload, method="PUT",
                 headers={"Content-Type": "application/json", "User-Agent": "BobineTray"},
             )
             with urlopen(request, timeout=5) as response:
@@ -404,7 +411,7 @@ class ProjectorWindow:
 
     def __init__(
         self,
-        url: str,
+        url: "str | Callable[[], str]",
         browser_finder: Callable[[], str | None] = find_kiosk_browser,
         popen: Callable[..., "subprocess.Popen"] = subprocess.Popen,
         profile_factory: Callable[[], str] = lambda: tempfile.mkdtemp(prefix="bobine-projector-"),
@@ -437,9 +444,10 @@ class ProjectorWindow:
         self.close()
         profile_dir: str | None = None
         native = self._native_finder()
+        url = _resolve_url(self._url)
         if native:
             # Fenêtre native (macOS) : pas de navigateur, pas de profil.
-            command = build_native_projector_command(native, self._url)
+            command = build_native_projector_command(native, url)
         else:
             browser = self._browser_finder()
             if not browser:
@@ -447,7 +455,7 @@ class ProjectorWindow:
                 return False
             profile_dir = self._profile_factory()
             wayland = os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland"
-            command = build_projector_command(browser, self._url, monitor, profile_dir, wayland=wayland)
+            command = build_projector_command(browser, url, monitor, profile_dir, wayland=wayland)
         try:
             self._process = self._popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as exc:
@@ -540,7 +548,7 @@ class DisplayOrchestrator:
 
     def __init__(
         self,
-        state_url: str,
+        state_url: "str | Callable[[], str]",
         projector: ProjectorWindow,
         reporter: Callable[..., bool] = report_display_state,
         ready_check: Callable[[], bool] = lambda: True,

@@ -8,7 +8,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import org.json.JSONObject
 
-private const val SETTINGS_URL = "http://127.0.0.1:8000/api/settings"
+private const val SETTINGS_PATH = "/api/settings"
 
 /**
  * Icône d'écran de démarrage (mascotte Baamix) selon le canal de mise à jour courant — une
@@ -61,7 +61,13 @@ object SplashChannel {
             var channel: String? = null
             for (attempt in 1..4) {
                 try {
-                    val connection = URL(SETTINGS_URL).openConnection() as HttpURLConnection
+                    // Port pas encore publie : meme traitement qu'un serveur pas pret (nouvel essai).
+                    val url = BackendEndpoint.url(appContext, SETTINGS_PATH)
+                    if (url == null) {
+                        Thread.sleep(300)
+                        continue
+                    }
+                    val connection = URL(url).openConnection() as HttpURLConnection
                     connection.connectTimeout = 800
                     connection.readTimeout = 800
                     if (connection.responseCode == HttpURLConnection.HTTP_OK) {

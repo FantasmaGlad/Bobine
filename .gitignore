@@ -22,6 +22,7 @@ node_modules/
 /logs/
 /data/
 backend/data/
+backend/backend-runtime.json
 /VideoTest/
 
 # IDE & Éditeurs

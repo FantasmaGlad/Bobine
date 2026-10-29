@@ -16,9 +16,29 @@
 # (journal systemd via `logger`, tag "bobine-watchdog").
 set -u
 
-HEALTH_URL="http://127.0.0.1:8000/api/health"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="${BOBINE_CONFIG_FILE:-/etc/bobine/config.toml}"
+RUNTIME_FILE="${BOBINE_RUNTIME_FILE:-${SCRIPT_DIR}/../backend/backend-runtime.json}"
 
 log() { logger -t bobine-watchdog "$*" 2>/dev/null || true; }
+
+# Port d'écoute du backend : celui que le processus vivant a publié dans son fichier d'exécution,
+# sinon celui de la configuration (/etc/bobine/config.toml, écrit par install.sh), sinon 8000.
+backend_port() {
+    local port="" pid=""
+    if [ -r "${RUNTIME_FILE}" ]; then
+        port="$(sed -nE 's/.*"port"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "${RUNTIME_FILE}" | head -n1)"
+        pid="$(sed -nE 's/.*"pid"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "${RUNTIME_FILE}" | head -n1)"
+        if [ -z "${pid}" ] || ! kill -0 "${pid}" 2>/dev/null; then
+            port=""
+        fi
+    fi
+    if [ -z "${port}" ] && [ -r "${CONFIG_FILE}" ]; then
+        port="$(sed -nE 's/^[[:space:]]*port[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' "${CONFIG_FILE}" | head -n1)"
+    fi
+    echo "${port:-8000}"
+}
+HEALTH_URL="http://127.0.0.1:$(backend_port)/api/health"
 
 # 1) Backend ------------------------------------------------------------------
 code="$(curl -s -o /dev/null -m 5 -w '%{http_code}' "${HEALTH_URL}" 2>/dev/null || echo 000)"

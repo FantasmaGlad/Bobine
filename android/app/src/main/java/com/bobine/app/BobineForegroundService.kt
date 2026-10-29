@@ -34,7 +34,7 @@ import java.net.URL
 private const val NOTIFICATION_CHANNEL_ID = "bobine_service"
 private const val NOTIFICATION_ID = 1
 private const val TAG = "BobineForegroundService"
-private const val DISPLAY_STATE_URL = "http://127.0.0.1:8000/api/display/state"
+private const val DISPLAY_STATE_PATH = "/api/display/state"
 // Re-émission périodique de l'état des écrans : le rapport
 // côté backend est volontairement gardé en mémoire (un fait matériel
 // instantané) ; si le serveur Python redémarre sans que le service le fasse,
@@ -234,7 +234,10 @@ class BobineForegroundService : Service() {
     private fun postDisplayState(count: Int, resolution: String?, generation: Int, attempt: Int) {
         if (generation != reportGeneration) return // un etat plus recent a pris le relais
         try {
-            val connection = URL(DISPLAY_STATE_URL).openConnection() as HttpURLConnection
+            // Port pas encore publie par le serveur : meme traitement qu'un serveur injoignable (nouvel essai).
+            val url = BackendEndpoint.url(applicationContext, DISPLAY_STATE_PATH)
+                ?: throw java.io.IOException("serveur embarque pas encore pret")
+            val connection = URL(url).openConnection() as HttpURLConnection
             connection.requestMethod = "PUT"
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json")

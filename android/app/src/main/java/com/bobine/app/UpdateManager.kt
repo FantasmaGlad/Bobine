@@ -31,7 +31,7 @@ private const val TAG = "UpdateManager"
 // restait bloque sur "telechargement en cours" indefiniment, meme apres un
 // succes ou un echec reel. Utilise 127.0.0.1 (pas 127.0.0.2) : ceci n'est
 // pas une requete de l'ecran tactile, les deux atteignent le meme serveur.
-private const val UPDATE_CALLBACK_URL = "http://127.0.0.1:8000/api/updates/_android-callback"
+private const val UPDATE_CALLBACK_PATH = "/api/updates/_android-callback"
 
 private const val UPDATE_NOTIFICATION_CHANNEL_ID = "bobine_updates"
 private const val UPDATE_NOTIFICATION_ID = 1001
@@ -81,6 +81,7 @@ object UpdateManager {
         if (!appContext.packageManager.canRequestPackageInstalls()) {
             openUnknownSourcesSettings(appContext)
             reportCallback(
+                appContext,
                 "error",
                 "Autorisation requise : activez « Autoriser depuis cette source » pour Bobine dans l'écran Android qui vient de s'ouvrir, puis relancez la mise à jour.",
             )
@@ -92,11 +93,11 @@ object UpdateManager {
                 if (expected.length != 64) throw UpdateRejected("Empreinte SHA-256 invalide reçue du serveur.")
                 val apk = fetchVerifiedApk(appContext, downloadUrl, expected)
                 validatePackage(appContext, apk)
-                reportCallback("downloaded", "APK vérifié — confirmez l'installation sur l'appareil.")
+                reportCallback(appContext, "downloaded", "APK vérifié — confirmez l'installation sur l'appareil.")
                 Handler(Looper.getMainLooper()).post { offerInstall(appContext, apk) }
             } catch (e: Exception) {
                 Log.e(TAG, "Erreur téléchargement ou vérification de l'APK : ${e.message}", e)
-                reportCallback("error", e.message ?: "Échec du téléchargement de l'APK.")
+                reportCallback(appContext, "error", e.message ?: "Échec du téléchargement de l'APK.")
             }
         }, "bobine-update").start()
     }
@@ -152,7 +153,7 @@ object UpdateManager {
         var lastError: IOException? = null
         for (attempt in 1..MAX_DOWNLOAD_ATTEMPTS) {
             try {
-                downloadTo(part, url)
+                downloadTo(context, part, url)
                 val actual = sha256(part)
                 if (actual != expectedSha256) {
                     part.delete()
@@ -173,7 +174,7 @@ object UpdateManager {
         throw IOException("Téléchargement impossible après $MAX_DOWNLOAD_ATTEMPTS tentatives : ${lastError?.message}")
     }
 
-    private fun downloadTo(part: File, url: String) {
+    private fun downloadTo(context: Context, part: File, url: String) {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.connectTimeout = CONNECT_TIMEOUT_MS
         connection.readTimeout = READ_TIMEOUT_MS
@@ -208,7 +209,7 @@ object UpdateManager {
                             if (percent != lastPercent && now - lastReportAt >= 1000) {
                                 lastPercent = percent
                                 lastReportAt = now
-                                reportCallback("progress", "Téléchargement : $percent %", percent)
+                                reportCallback(context, "progress", "Téléchargement : $percent %", percent)
                             }
                         }
                     }
@@ -335,9 +336,11 @@ object UpdateManager {
      * routers/updates.py::android_update_callback) — best-effort, une
      * defaillance de ce rappel ne doit jamais empecher la mise a jour
      * elle-meme de se poursuivre. */
-    private fun reportCallback(status: String, message: String, percent: Int? = null) {
+    private fun reportCallback(context: Context, status: String, message: String, percent: Int? = null) {
         try {
-            val connection = URL(UPDATE_CALLBACK_URL).openConnection() as HttpURLConnection
+            val url = BackendEndpoint.url(context, UPDATE_CALLBACK_PATH)
+                ?: throw java.io.IOException("serveur embarque pas encore pret")
+            val connection = URL(url).openConnection() as HttpURLConnection
             connection.requestMethod = "POST"
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json")
