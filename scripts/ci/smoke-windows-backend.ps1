@@ -3,8 +3,10 @@ Sonde de santé du backend Windows : lance BobineBackend.exe, attend HTTP 200 su
 arrête le processus et libère le port. Partagée par les jobs windows-build et windows-build-arm64
 (sonde de l'arborescence PyInstaller, puis de l'application installée par Inno Setup).
 
-Le port est imposé par backend/run_backend.py (8000) : la sonde refuse de démarrer si un autre
-processus écoute déjà dessus, et vérifie que le processus lancé est bien celui qui répond.
+Le port d'écoute n'est pas imposé : sans -Port, la sonde choisit un port libre, le transmet par
+BOBINE_PORT avec BOBINE_PORT_STRICT=1 (aucun repli silencieux), refuse de démarrer si un autre
+processus écoute déjà dessus et vérifie que le processus lancé est bien celui qui répond.
+Avec -DataRoot, elle contrôle aussi que le fichier d'exécution du backend publie ce port.
 -DataRoot isole les données : le backend les range sous %ProgramData%\Bobine, la variable est donc
 redéfinie pour le seul processus lancé.
 #>
@@ -13,7 +15,7 @@ param(
     [Parameter(Mandatory)][string]$Exe,
     [string]$LogDir,
     [string]$DataRoot,
-    [int]$Port = 8000,
+    [int]$Port = 0,
     [int]$Attempts = 20
 )
 $ErrorActionPreference = 'Stop'
@@ -22,6 +24,13 @@ function Get-PortListeners([int]$Number) {
     [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() |
         Where-Object { $_.Port -eq $Number }
 }
+
+function Get-FreePort {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, 0)
+    $listener.Start()
+    try { ([System.Net.IPEndPoint]$listener.LocalEndpoint).Port } finally { $listener.Stop() }
+}
+if ($Port -eq 0) { $Port = Get-FreePort }
 
 $Exe = (Resolve-Path -LiteralPath $Exe).Path
 if (-not $LogDir) { $LogDir = Split-Path -Parent $Exe }
@@ -35,6 +44,10 @@ if (Get-PortListeners $Port) {
 }
 
 $previousProgramData = $env:ProgramData
+$previousPort = $env:BOBINE_PORT
+$previousStrict = $env:BOBINE_PORT_STRICT
+$env:BOBINE_PORT = "$Port"
+$env:BOBINE_PORT_STRICT = '1'
 if ($DataRoot) {
     New-Item -ItemType Directory -Force -Path $DataRoot | Out-Null
     $env:ProgramData = $DataRoot
@@ -44,6 +57,8 @@ try {
         -RedirectStandardError $errLog -RedirectStandardOutput $outLog -PassThru
 } finally {
     $env:ProgramData = $previousProgramData
+    $env:BOBINE_PORT = $previousPort
+    $env:BOBINE_PORT_STRICT = $previousStrict
 }
 
 $ready = $false
@@ -62,8 +77,17 @@ for ($i = 0; $i -lt $Attempts; $i++) {
                 $reason = "la réponse ne vient pas du binaire attendu ($running au lieu de $Exe)"
                 break
             }
+            if ($DataRoot) {
+                $runtimeFile = Join-Path $DataRoot 'Bobine\backend-runtime.json'
+                $published = $null
+                try { $published = (Get-Content -Raw -LiteralPath $runtimeFile | ConvertFrom-Json).port } catch { }
+                if ($published -ne $Port) {
+                    $reason = "le fichier d'exécution $runtimeFile publie '$published' au lieu de $Port"
+                    break
+                }
+            }
             $ready = $true
-            Write-Host "Backend opérationnel ($Exe) : $($response.Content)"
+            Write-Host "Backend opérationnel sur le port $Port ($Exe) : $($response.Content)"
             break
         }
     } catch {
