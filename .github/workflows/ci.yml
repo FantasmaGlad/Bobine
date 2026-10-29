@@ -7,15 +7,16 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ['v*', 'V*']
+    tags: ['V*']
   pull_request:
   workflow_dispatch:
     inputs:
       tag:
         description: >-
-          Tag Stable à (re)publier (ex. V3.0.1) — republie manuellement une
-          release stable sans pousser de tag. Laisser vide si publish_beta
-          ou publish_canary est coché.
+          Tag Stable déjà poussé à (re)publier (ex. V3.0.1) : tous les jobs
+          construisent le commit de ce tag, comme play-aab.yml, et non la
+          référence choisie ci-dessus. Laisser vide si publish_beta ou
+          publish_canary est coché.
         required: false
       publish_beta:
         description: >-
@@ -86,6 +87,8 @@ jobs:
       commit_short: ${{ steps.resolve.outputs.commit_short }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - name: Vérifier les outils de publication sans réseau
         run: |
           python3 scripts/ci/test-notify-web-release.py
@@ -107,6 +110,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -133,6 +138,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -189,6 +196,8 @@ jobs:
         python: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python }}
@@ -240,6 +249,8 @@ jobs:
         python: ["3.11", "3.13"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python }}
@@ -277,6 +288,8 @@ jobs:
         working-directory: assistant
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -319,6 +332,8 @@ jobs:
         working-directory: assistant
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - name: Cache cargo (ARM64)
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -365,6 +380,8 @@ jobs:
       CARGO_HTTP_TIMEOUT: "60"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -401,6 +418,8 @@ jobs:
       CARGO_HTTP_TIMEOUT: "60"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -440,6 +459,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.tag }}
           # fetch-depth 0 (pas le defaut 1) : requis pour que `git rev-list
           # --count HEAD` ci-dessous compte l'historique reel plutot que de
           # toujours renvoyer 1 sur un clone superficiel - c'est ce compteur
@@ -607,6 +627,8 @@ jobs:
         flavor: [mobile, tv]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -667,6 +689,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - name: Vérification de syntaxe bash
         run: bash -n install.sh
       - name: Le compteur d'étapes STEP_TOTAL reflète le nombre d'appels à step()
@@ -697,6 +721,8 @@ jobs:
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       # Avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) et interrompt l'installation implicite de la toolchain.
       - name: Installer la toolchain Rust (avant pip)
         run: rustup toolchain install
@@ -798,6 +824,8 @@ jobs:
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       # Avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) et interrompt l'installation implicite de la toolchain.
       - name: Installer la toolchain Rust (avant pip)
         run: rustup toolchain install
@@ -917,6 +945,8 @@ jobs:
             artifact: bobine-linux-deb-arm64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       # À placer avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) pour son User-Agent.
       # Avec rust-toolchain.toml et sans toolchain installée, le proxy rustup commence à l'installer et pip
       # le tue en plein vol ; le premier cargo trouve alors une toolchain partielle (« recovering from a
@@ -1014,6 +1044,8 @@ jobs:
     needs: [version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       # Avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) et interrompt l'installation implicite de la toolchain.
       - name: Installer la toolchain Rust (avant pip)
         run: rustup toolchain install
@@ -1121,6 +1153,8 @@ jobs:
             artifact: bobine-linux-deb-arm64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ matrix.artifact }}
@@ -1163,6 +1197,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: bobine-linux-packages-*
@@ -1200,6 +1236,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - name: Create release assets directory
         run: mkdir -p release-assets
       - name: Download Windows installer
@@ -1330,6 +1368,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.tag }}
           fetch-depth: 0
       - name: Create release assets directory
         run: mkdir -p release-assets
@@ -1529,6 +1568,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.tag }}
           fetch-depth: 0
       - name: Create release assets directory
         run: mkdir -p release-assets
@@ -1721,6 +1761,8 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: FantasmaGlad/bobine-packages
@@ -1802,6 +1844,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - name: Envoyer bobine-release à BobineWeb
         env:
           BOBINE_WEB_DISPATCH_TOKEN: ${{ secrets.BOBINE_WEB_DISPATCH_TOKEN }}
