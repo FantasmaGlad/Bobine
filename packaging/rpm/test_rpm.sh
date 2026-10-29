@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Contrôles du paquet RPM, à lancer DANS un conteneur Fedora (root) :
-#   rpm -qlp, rpmlint, installation réelle (dnf), présence des fichiers, désinstallation.
+#   rpm -qlp, rpmlint, installation réelle (dnf), présence des fichiers, lancement du backend installé, désinstallation.
 # Usage : test_rpm.sh <fichier.rpm> [--no-install]
 set -euo pipefail
 RPM_FILE="${1:?fichier .rpm}"
@@ -34,6 +34,8 @@ test -f /usr/lib/firewalld/services/bobine.xml
 if [ -e /usr/lib/bobine/bobine-media ]; then test -x /usr/lib/bobine/bobine-media; fi
 rpm -V bobine
 desktop-file-validate /usr/share/applications/com.bobine.app.desktop
+echo "=== lancement de l'application installée ==="
+"$(dirname "${BASH_SOURCE[0]}")/../../scripts/ci/smoke-installed-backend.sh"
 echo "=== réinstallation (mise à jour sur place) ==="
 dnf -y reinstall "${RPM_FILE}"
 echo "=== désinstallation ==="

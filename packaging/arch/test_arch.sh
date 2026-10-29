@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Contrôles du paquet Arch, à lancer DANS un conteneur archlinux (root) :
-#   pacman -Qip/-Qlp, namcap, installation réelle (pacman -U), fichiers, désinstallation.
+#   pacman -Qip/-Qlp, namcap, installation réelle (pacman -U), fichiers, lancement du backend installé, désinstallation.
 # Usage : test_arch.sh <fichier.pkg.tar.zst> [--no-install]   (--no-install : paquet d'une autre architecture)
 set -euo pipefail
 PKG_FILE="${1:?fichier .pkg.tar.zst}"
@@ -47,6 +47,8 @@ if [ -e /usr/lib/bobine/bobine-media ]; then test -x /usr/lib/bobine/bobine-medi
 if ! pacman -Qkk bobine 2>&1 | tee /tmp/qkk.out | tail -n 3; then
     grep -E 'warning: bobine: ' /tmp/qkk.out | grep -v '/usr/share/doc' && { echo "fichiers manquants/altérés"; exit 1; }
 fi
+echo "=== lancement de l'application installée ==="
+"$(dirname "${BASH_SOURCE[0]}")/../../scripts/ci/smoke-installed-backend.sh"
 echo "=== réinstallation ==="
 pacman -U --noconfirm "${PKG_FILE}"
 echo "=== désinstallation ==="
