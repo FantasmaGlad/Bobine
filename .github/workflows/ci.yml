@@ -1224,6 +1224,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: bobine-linux-packages-aarch64
@@ -1557,7 +1559,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -f canary "${{ github.sha }}"
-          git push origin canary --force
+          # GITHUB_TOKEN ne peut pas mettre à jour une référence dont le diff touche .github/workflows ("workflows permission") :
+          # le tag est supprimé puis recréé, la création sur un commit existant n'étant pas une mise à jour.
+          git push origin ":refs/tags/canary" || true
+          git push origin canary
       - name: Generate rolling release notes (README-style layout + changelog since last Stable)
         id: notes
         if: steps.guard.outputs.publish == 'true'
@@ -1776,7 +1781,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -f beta "${{ github.sha }}"
-          git push origin beta --force
+          # GITHUB_TOKEN ne peut pas mettre à jour une référence dont le diff touche .github/workflows ("workflows permission") :
+          # le tag est supprimé puis recréé, la création sur un commit existant n'étant pas une mise à jour.
+          git push origin ":refs/tags/beta" || true
+          git push origin beta
       - name: Generate rolling release notes (README-style layout + changelog since last Stable)
         id: notes
         if: steps.guard.outputs.publish == 'true'
