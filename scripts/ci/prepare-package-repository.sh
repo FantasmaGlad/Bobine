@@ -6,8 +6,9 @@ export LC_ALL=C
 family="${1:?deb, rpm ou arch}"; channel="${2:?canal (stable, beta, canary...)}"
 packages=$(realpath "${3:?paquets signés}"); destination=$(realpath "${4:?copie du dépôt Pages}")
 case "$family" in deb|rpm|arch) ;; *) exit 2 ;; esac
+. "$(dirname "$0")/container-images.sh"
 # Canaux valides : le registre unique (backend/app/release_channel.py), pas une liste recopiée ici.
-python3 "$(dirname "$0")/../../packaging/common/channel.py" is-channel "$channel" || exit 2
+python3"$(dirname "$0")/../../packaging/common/channel.py" is-channel "$channel" || exit 2
 [ "$destination" != / ] && [ "$destination" != "$packages" ] || exit 2
 fingerprint="${BOBINE_SIGNING_FINGERPRINT:-B77D96D72F84F36ACAA3F8729CBF497D829EE15A}"
 [[ "$fingerprint" =~ ^[A-F0-9]{40}$ ]] || exit 2
@@ -124,7 +125,7 @@ for arch in x86_64 aarch64; do
         gpg --batch --verify "$target/repodata/repomd.xml.asc" "$target/repodata/repomd.xml"
     else
         cp "$package.sig" "$target/"
-        "${CONTAINER_ENGINE:-docker}" run --rm --network=none -v "$target:/repo" archlinux:latest \
+        "${CONTAINER_ENGINE:-docker}" run --rm --network=none -v "$target:/repo" "$ARCH_IMAGE" \
             bash -ec 'repo-add /repo/bobine.db.tar.gz /repo/*.pkg.tar.zst'
         for name in bobine.db bobine.files; do
             gpg --batch --yes --local-user "$fingerprint" --detach-sign "$target/$name.tar.gz"
