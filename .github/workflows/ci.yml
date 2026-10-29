@@ -298,6 +298,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
+      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
+      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
+      - name: Installer la toolchain Rust
+        run: rustup toolchain install
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -343,6 +347,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
+      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
+      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
+      - name: Installer la toolchain Rust
+        run: rustup toolchain install
       - name: Cache cargo (ARM64)
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -392,6 +400,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
+      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
+      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
+      - name: Installer la toolchain Rust
+        run: rustup toolchain install
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -431,6 +443,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
+      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
+      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
+      - name: Installer la toolchain Rust
+        run: rustup toolchain install
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -485,6 +501,11 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: python scripts/ci/check-android-signing.py ${{ github.event_name == 'pull_request' && '--allow-missing' || '' }}
+      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
+      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
+      - name: Installer la toolchain Rust
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: rustup toolchain install
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: steps.check_secrets.outputs.configured == 'true'
         with:

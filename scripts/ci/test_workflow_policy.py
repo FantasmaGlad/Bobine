@@ -64,5 +64,23 @@ class PlayBundlesTests(unittest.TestCase):
         self.assertRegex(PLAY, r"(?m)^    timeout-minutes: \d+$")
 
 
+class ToolchainRustTests(unittest.TestCase):
+    JOBS_RUST = (
+        "assistant-core", "assistant-core-arm64", "devices-sidecar", "media-component", "android-build",
+        "windows-build", "windows-build-arm64", "macos-build",
+    )
+
+    def test_chaque_job_qui_appelle_cargo_installe_la_toolchain_avant(self):
+        parts = jobs(CI)
+        self.assertIn("rustup toolchain install", parts["linux-deb"])  # cargo y est lancé par les scripts de paquet
+        for name in self.JOBS_RUST:
+            body = parts[name]
+            install = body.find("rustup toolchain install")
+            self.assertGreaterEqual(install, 0, f"job {name} sans rustup toolchain install")
+            appel = re.search(r"(?m)^[^#\n]*(\bcargo (build|clippy|test|fmt)\b|build-media-android\.sh)", body)
+            self.assertIsNotNone(appel, f"job {name} sans appel à cargo : liste obsolète")
+            self.assertLess(install, appel.start(), f"job {name} : cargo avant l'installation de la toolchain")
+
+
 if __name__ == "__main__":
     unittest.main()
