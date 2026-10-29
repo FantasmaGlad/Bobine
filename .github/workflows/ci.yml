@@ -755,39 +755,36 @@ jobs:
         shell: pwsh
         run: packaging/windows/stage-ffmpeg.ps1 -Architecture x64
       - name: Vérifier que BobineBackend.exe démarre et répond à /api/health
-        working-directory: backend/dist/Bobine
         shell: pwsh
-        run: |
-          $proc = Start-Process -FilePath ".\BobineBackend.exe" -RedirectStandardError "backend_err.log" -RedirectStandardOutput "backend_out.log" -PassThru
-          $ready = $false
-          for ($i = 0; $i -lt 20; $i++) {
-              Start-Sleep -Seconds 1
-              try {
-                  $response = Invoke-WebRequest -Uri "http://127.0.0.1:8000/api/health" -UseBasicParsing -TimeoutSec 2
-                  if ($response.StatusCode -eq 200) {
-                      $ready = $true
-                      Write-Host "Backend opérationnel : $($response.Content)"
-                      break
-                  }
-              } catch {
-                  # Attente de disponibilité
-              }
-          }
-          if (-not $ready) {
-              Write-Host "=== Backend stderr ==="
-              if (Test-Path "backend_err.log") { Get-Content "backend_err.log" }
-              Write-Host "=== Backend stdout ==="
-              if (Test-Path "backend_out.log") { Get-Content "backend_out.log" }
-              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-              exit 1
-          }
-          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        # Journaux et données hors de dist/Bobine : Inno Setup embarque tout ce dossier.
+        run: scripts/ci/smoke-windows-backend.ps1 -Exe backend\dist\Bobine\BobineBackend.exe -LogDir "$env:RUNNER_TEMP\bobine-dist-logs" -DataRoot "$env:RUNNER_TEMP\bobine-dist-data"
       - name: Compiler l'installeur (Inno Setup, préinstallé sur windows-latest)
         run: ISCC.exe /DMyAppVersion=${{ needs.version.outputs.display_version }} /DMyOutputVersion=${{ needs.version.outputs.filename_version }} packaging\windows\bobine.iss
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: bobine-windows-installer
           path: dist-installer/*.exe
+      # Cycle de vie réel de l'installeur : installation silencieuse, arborescence, lancement du backend installé, désinstallation.
+      - name: Installer Bobine-Setup en silence (dossier de test, journal conservé)
+        shell: pwsh
+        env:
+          FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
+        run: scripts/ci/smoke-windows-installer.ps1 -Action Install -Installer "dist-installer\Bobine-Setup-$env:FILENAME_VERSION.exe" -InstallDir "$env:RUNNER_TEMP\bobine-installed" -LogDir "$env:RUNNER_TEMP\bobine-installer-logs"
+      - name: Vérifier l'arborescence installée
+        shell: pwsh
+        env:
+          DISPLAY_VERSION: ${{ needs.version.outputs.display_version }}
+        run: scripts/ci/smoke-windows-installer.ps1 -Action Verify -InstallDir "$env:RUNNER_TEMP\bobine-installed" -LogDir "$env:RUNNER_TEMP\bobine-installer-logs" -DistDir backend\dist\Bobine -ExpectedVersion $env:DISPLAY_VERSION
+      - name: Lancer le backend installé et sonder /api/health
+        shell: pwsh
+        run: scripts/ci/smoke-windows-backend.ps1 -Exe "$env:RUNNER_TEMP\bobine-installed\BobineBackend.exe" -LogDir "$env:RUNNER_TEMP\bobine-installer-logs" -DataRoot "$env:RUNNER_TEMP\bobine-installed-data"
+      - name: Désinstaller en silence et vérifier le retrait
+        shell: pwsh
+        run: scripts/ci/smoke-windows-installer.ps1 -Action Uninstall -InstallDir "$env:RUNNER_TEMP\bobine-installed" -LogDir "$env:RUNNER_TEMP\bobine-installer-logs"
+      - name: Journaux de l'installeur et du backend installé
+        if: failure()
+        shell: pwsh
+        run: scripts/ci/smoke-windows-installer.ps1 -Action Logs -InstallDir "$env:RUNNER_TEMP\bobine-installed" -LogDir "$env:RUNNER_TEMP\bobine-installer-logs"
 
   windows-build-arm64:
     # Packaging Windows 11 ARM64 natif (PC Qualcomm Snapdragon X Elite / X Plus).
@@ -856,33 +853,9 @@ jobs:
         shell: pwsh
         run: packaging/windows/stage-ffmpeg.ps1 -Architecture arm64
       - name: Vérifier que BobineBackend.exe démarre et répond à /api/health
-        working-directory: backend/dist/Bobine
         shell: pwsh
-        run: |
-          $proc = Start-Process -FilePath ".\BobineBackend.exe" -RedirectStandardError "backend_err.log" -RedirectStandardOutput "backend_out.log" -PassThru
-          $ready = $false
-          for ($i = 0; $i -lt 20; $i++) {
-              Start-Sleep -Seconds 1
-              try {
-                  $response = Invoke-WebRequest -Uri "http://127.0.0.1:8000/api/health" -UseBasicParsing -TimeoutSec 2
-                  if ($response.StatusCode -eq 200) {
-                      $ready = $true
-                      Write-Host "Backend opérationnel : $($response.Content)"
-                      break
-                  }
-              } catch {
-                  # Attente de disponibilité
-              }
-          }
-          if (-not $ready) {
-              Write-Host "=== Backend stderr ==="
-              if (Test-Path "backend_err.log") { Get-Content "backend_err.log" }
-              Write-Host "=== Backend stdout ==="
-              if (Test-Path "backend_out.log") { Get-Content "backend_out.log" }
-              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-              exit 1
-          }
-          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        # Journaux et données hors de dist/Bobine : Inno Setup embarque tout ce dossier.
+        run: scripts/ci/smoke-windows-backend.ps1 -Exe backend\dist\Bobine\BobineBackend.exe -LogDir "$env:RUNNER_TEMP\bobine-dist-logs" -DataRoot "$env:RUNNER_TEMP\bobine-dist-data"
       - name: Compiler l'installeur ARM64 (Inno Setup)
         shell: pwsh
         run: |
@@ -895,6 +868,27 @@ jobs:
         with:
           name: bobine-windows-installer-arm64
           path: dist-installer/Bobine-Setup-*-arm64.exe
+      # Cycle de vie réel de l'installeur : installation silencieuse, arborescence, lancement du backend installé, désinstallation.
+      - name: Installer Bobine-Setup en silence (dossier de test, journal conservé)
+        shell: pwsh
+        env:
+          FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
+        run: scripts/ci/smoke-windows-installer.ps1 -Action Install -Installer "dist-installer\Bobine-Setup-$env:FILENAME_VERSION-arm64.exe" -InstallDir "$env:RUNNER_TEMP\bobine-installed" -LogDir "$env:RUNNER_TEMP\bobine-installer-logs"
+      - name: Vérifier l'arborescence installée
+        shell: pwsh
+        env:
+          DISPLAY_VERSION: ${{ needs.version.outputs.display_version }}
+        run: scripts/ci/smoke-windows-installer.ps1 -Action Verify -InstallDir "$env:RUNNER_TEMP\bobine-installed" -LogDir "$env:RUNNER_TEMP\bobine-installer-logs" -DistDir backend\dist\Bobine -ExpectedVersion $env:DISPLAY_VERSION
+      - name: Lancer le backend installé et sonder /api/health
+        shell: pwsh
+        run: scripts/ci/smoke-windows-backend.ps1 -Exe "$env:RUNNER_TEMP\bobine-installed\BobineBackend.exe" -LogDir "$env:RUNNER_TEMP\bobine-installer-logs" -DataRoot "$env:RUNNER_TEMP\bobine-installed-data"
+      - name: Désinstaller en silence et vérifier le retrait
+        shell: pwsh
+        run: scripts/ci/smoke-windows-installer.ps1 -Action Uninstall -InstallDir "$env:RUNNER_TEMP\bobine-installed" -LogDir "$env:RUNNER_TEMP\bobine-installer-logs"
+      - name: Journaux de l'installeur et du backend installé
+        if: failure()
+        shell: pwsh
+        run: scripts/ci/smoke-windows-installer.ps1 -Action Logs -InstallDir "$env:RUNNER_TEMP\bobine-installed" -LogDir "$env:RUNNER_TEMP\bobine-installer-logs"
 
   linux-deb:
     # Paquet APT (.deb) Linux non-headless, amd64 et arm64 : un seul job à matrice, les deux architectures suivent exactement les mêmes étapes.
@@ -1082,13 +1076,8 @@ jobs:
       - name: Signature ad-hoc (requise par le noyau sur Apple Silicon)
         run: codesign --force --deep -s - backend/dist/Bobine.app
       - name: Vérifier que BobineBackend démarre et répond à /api/health
-        working-directory: backend/dist/Bobine.app/Contents/MacOS
-        run: |
-          ./BobineBackend &
-          PID=$!
-          sleep 5
-          curl -sf http://127.0.0.1:8000/api/health
-          kill "$PID"
+        # Journaux et données hors du bundle : le dmg embarque Bobine.app, déjà signé.
+        run: scripts/ci/smoke-macos-backend.sh backend/dist/Bobine.app/Contents/MacOS/BobineBackend --home "$RUNNER_TEMP/bobine-dist-home" --log-dir "$RUNNER_TEMP/bobine-dist-logs"
       - name: Créer le .dmg (hdiutil)
         env:
           DMG_FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
@@ -1101,6 +1090,11 @@ jobs:
         with:
           name: bobine-macos-dmg
           path: dist-dmg/*.dmg
+      # Montage réel du dmg : copie de Bobine.app, signature du bundle copié, lancement de son backend, démontage.
+      - name: Monter le .dmg, copier Bobine.app et lancer son backend
+        env:
+          DMG_FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
+        run: scripts/ci/smoke-macos-dmg.sh "dist-dmg/Bobine-${DMG_FILENAME_VERSION}.dmg" "$RUNNER_TEMP/bobine-dmg"
 
   # Publie une release STABLE — un tag Vx.y.z par version, historique normal
   # et attendu sur la page GitHub Releases.
