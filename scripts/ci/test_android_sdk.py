@@ -48,7 +48,9 @@ class AndroidSdkTests(unittest.TestCase):
 
     def test_pinned_config_is_valid(self):
         config = sdk.read_config(sdk.DEFAULT_CONFIG)
-        self.assertEqual(config["compile_sdk"], 36)
+        self.assertEqual(config["compile_sdk"], 37)
+        self.assertEqual(config["target_sdk"], 36)
+        self.assertEqual(config["platform"], "android-37.0")
         self.assertEqual(config["min_sdk"], 34)
 
     def test_config_rejects_url_or_path_in_archive(self):
