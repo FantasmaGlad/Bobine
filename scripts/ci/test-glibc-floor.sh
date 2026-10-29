@@ -50,7 +50,14 @@ echo "Refus attendu : « $2 »."
 status=0
 for image in "${images[@]}"; do
     echo "=== $family sur $image ==="
-    "$engine" run --rm -v "$(cd "$(dirname "$file")" && pwd):/pkg:ro" "$image" \
-        bash -c "$inner" -- "/pkg/$(basename "$file")" "$expected" "$floor" || status=1
+    # Un miroir de distribution peut répondre vide ou se bloquer : trois essais bornés à dix minutes chacun, un vrai défaut
+    # échoue les trois fois.
+    ok=0
+    for attempt in 1 2 3; do
+        if timeout 600 "$engine" run --rm -v "$(cd "$(dirname "$file")" && pwd):/pkg:ro" "$image" \
+            bash -c "$inner" -- "/pkg/$(basename "$file")" "$expected" "$floor"; then ok=1; break; fi
+        echo "Essai $attempt/3 sans succès sur $image." >&2
+    done
+    [ "$ok" -eq 1 ] || status=1
 done
 exit "$status"

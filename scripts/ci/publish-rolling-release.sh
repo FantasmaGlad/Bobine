@@ -35,5 +35,6 @@ fi
 while IFS= read -r name; do
     [ -n "$name" ] && [ ! -e "$dir/$name" ] && gh release delete-asset "$tag" "$name" --yes
 done <<< "$lookup"
-gh release edit "$tag" --title "$title" --notes-file "$notes" --prerelease
+# Déplacer le tag (suppression puis recréation) fait repasser la release en brouillon : on la republie ici.
+gh release edit "$tag" --title "$title" --notes-file "$notes" --prerelease --draft=false
 echo "Release $tag mise à jour en place : ${#assets[@]} assets."
