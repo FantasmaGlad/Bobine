@@ -20,6 +20,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from app.utils.android_runtime import is_android
+
 
 def _resolve_binary(env_var: str, binary_name: str) -> str:
     # 1. Variable d'environnement explicite (Android Chaquopy, conteneurs)
@@ -64,7 +66,7 @@ FFPROBE_BIN = _resolve_binary("BOBINE_FFPROBE_BIN", "ffprobe")
 def os_key() -> str:
     """Système courant sous l'une des quatre clés utilisées par les messages
     d'aide : « macos », « windows », « linux », « android »."""
-    if hasattr(sys, "getandroidapilevel"):
+    if is_android():
         return "android"
     if sys.platform == "darwin":
         return "macos"
