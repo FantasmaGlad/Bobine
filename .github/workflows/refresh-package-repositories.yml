@@ -1,0 +1,70 @@
+name: Rafraîchir les dépôts de paquets
+
+# Les fichiers Release du dépôt APT expirent (Valid-Until) : sans nouvelle publication, `apt update` échoue avec
+# « Release file is expired ». Ce workflow ré-exporte et re-signe chaque semaine les trois suites (stable, beta, canary)
+# sans changer les paquets, puis pousse sur gh-pages de bobine-packages, ce qui déclenche la vérification et le
+# déploiement Pages de ce dépôt. Les dépôts DNF et pacman n'expirent pas : rien à rafraîchir.
+# Il partage le groupe de concurrence de la publication des dépôts (publish-linux-packages) : jamais deux écrivains à la fois.
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: >-
+          Essai sans publication : ré-exporte, re-signe et vérifie la copie locale, affiche le changement, ne pousse rien.
+          Décocher pour publier réellement.
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-linux-packages
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Ré-exporter et re-signer les fichiers Release APT
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: FantasmaGlad/bobine-packages
+          ref: gh-pages
+          path: package-repo
+          ssh-key: ${{ secrets.PACKAGES_DEPLOY_KEY }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: FantasmaGlad/BobineWeb
+          ref: 726451fea1cee0c58292e365a07e46fcee594cef
+          path: package-verification
+      - name: Installer les outils de dépôt
+        run: sudo apt-get update && sudo apt-get install -y reprepro gnupg
+      - name: Ré-exporter et re-signer les fichiers Release
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          GNUPGHOME: ${{ runner.temp }}/bobine-signing
+        run: |
+          install -d -m 0700 "$GNUPGHOME"
+          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+          bash scripts/ci/refresh-apt-release.sh package-repo
+      - name: Vérifier toute la chaîne avant publication
+        run: |
+          python3 package-verification/deploy/onion/verify-packages.py package-repo
+      - name: Publier sur gh-pages
+        env:
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          bash scripts/ci/commit-package-repository.sh package-repo "chore(packages): rafraichir les fichiers Release du depot debian"
+      - name: Retirer la clé privée du runner
+        if: always()
+        env:
+          GNUPGHOME: ${{ runner.temp }}/bobine-signing
+        run: |
+          gpgconf --kill gpg-agent || true
+          rm -rf "$GNUPGHOME"
