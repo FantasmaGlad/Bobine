@@ -35,6 +35,7 @@ mkdir -p "${DEST}/usr/lib/bobine" "${DEST}/usr/bin" "${DEST}/usr/share/applicati
 
 cp -a "${DIST_DIR}/." "${DEST}/usr/lib/bobine/"
 python3 "${SCRIPT_DIR}/sanitize_elf.py" "${DEST}/usr/lib/bobine"
+cp /usr/bin/true "${DEST}/usr/lib/bobine/BobineBackend"
 mkdir -p "${DEST}/usr/share/bobine"
 cp "${REPO_DIR}/packaging/storage/49-bobine-storage.rules.in" "${DEST}/usr/share/bobine/"
 cp "${REPO_DIR}/packaging/storage/configure-storage-access" "${DEST}/usr/lib/bobine/"
