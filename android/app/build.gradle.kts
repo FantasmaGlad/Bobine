@@ -34,7 +34,7 @@ val hasReleaseSigningConfig = listOf(androidKeystorePath, androidKeystorePasswor
 // developpement uniquement, jamais installe comme mise a jour d'une
 // version CI reelle).
 val rootVersionFile = rootProject.projectDir.resolve("../VERSION")
-val fallbackVersionName = if (rootVersionFile.exists()) rootVersionFile.readText().trim() else "5.0.6"
+val fallbackVersionName = if (rootVersionFile.exists()) rootVersionFile.readText().trim() else "5.0.7"
 val androidVersionName: String = System.getenv("ANDROID_VERSION_NAME") ?: fallbackVersionName
 // Registre des canaux (Stable, Bêta, Canary) : android/release-channels.json, GÉNÉRÉ par
 // scripts/sync_release_channels.py depuis backend/app/release_channel.py (source unique, aucune
