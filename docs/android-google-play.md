@@ -76,12 +76,11 @@ main depuis GitHub.
    |---|---|---|
    | `tag` | `V5.0.5` (obligatoire) | Version Stable à construire. Sans `source_ref`, le code est celui de ce tag exact. |
    | `source_ref` | vide, ou `main` | Branche ou tag à construire. Vide : le tag lui-même. Le fichier `VERSION` de la source doit correspondre au tag demandé ; `main` ne convient que si sa version correspond. |
-   | `attach_to_release` | `true` / `false` | Joint les `.aab` et les APK Play à la release GitHub du tag (remplace les fichiers de même nom). |
    | `upload_to_play` | `false` (défaut) / `true` | Autorise explicitement le téléversement ; exige aussi `PLAY_SERVICE_ACCOUNT_JSON`. |
    | `play_track` | `internal`, `alpha`, `beta`, `production` | Piste de destination, utilisée **uniquement** si `upload_to_play=true` et `PLAY_SERVICE_ACCOUNT_JSON` est configuré. |
 
-3. À la fin du run, récupérer les fichiers dans l'artefact `bobine-play-aab-<version>` (et sur la
-   page de la release si `attach_to_release` est activé) :
+3. À la fin du run, récupérer les fichiers dans l'artefact `bobine-play-aab-<version>` (ils ne sont
+   jamais joints à la release GitHub) :
 
    | Fichier | Application |
    |---|---|

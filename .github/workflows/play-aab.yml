@@ -9,7 +9,7 @@ name: Google Play (AAB)
 # successives restent acceptées par Play.
 #
 # Lancement : onglet Actions > « Google Play (AAB) » > Run workflow, en indiquant le tag (ex. V5.0.0).
-# Les fichiers sont téléchargeables dans l'artefact du run, et joints à la release GitHub si demandé.
+# Les fichiers sont téléchargeables dans l'artefact du run ; ils ne sont jamais joints à la release GitHub.
 # Avec upload_to_play explicite et le secret PLAY_SERVICE_ACCOUNT_JSON, les bundles sont envoyés sur la piste choisie
 # de Google Play en brouillon ; sinon l'envoi se fait à la main dans la console.
 
@@ -25,11 +25,6 @@ on:
         required: false
         default: ''
         type: string
-      attach_to_release:
-        description: Joindre les .aab à la release GitHub du tag
-        required: false
-        default: false
-        type: boolean
       upload_to_play:
         description: Envoyer les bundles sur Google Play (brouillons, compte de service requis)
         required: false
@@ -43,7 +38,7 @@ on:
         options: [internal, alpha, beta, production]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: play-aab-${{ inputs.tag }}
@@ -53,6 +48,7 @@ jobs:
   aab:
     name: Bundles Google Play (${{ inputs.tag }})
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -211,11 +207,6 @@ jobs:
             aab-out/*.aab
             aab-out/*-play.apk
           if-no-files-found: error
-      - name: Joindre les bundles et les APK Play à la release GitHub
-        if: steps.check_secrets.outputs.configured == 'true' && inputs.attach_to_release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ inputs.tag }}" aab-out/*.aab aab-out/*-play.apk --clobber --repo "${{ github.repository }}"
       - name: Vérifier la présence du compte de service Google Play
         if: steps.check_secrets.outputs.configured == 'true'
         id: play_secret

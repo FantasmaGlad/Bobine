@@ -76,12 +76,11 @@ manually from GitHub.
    |---|---|---|
    | `tag` | `V5.0.5` (required) | Stable version to build. Without `source_ref`, the code is that of this exact tag. |
    | `source_ref` | empty, or `main` | Branch or tag to build. Empty: the tag itself. The source `VERSION` file must match the requested tag; `main` is valid only when its version matches. |
-   | `attach_to_release` | `true` / `false` | Attaches the `.aab` files and the Play APKs to the tag's GitHub release (replacing files with the same name). |
    | `upload_to_play` | `false` (default) / `true` | Explicitly enables upload; also requires `PLAY_SERVICE_ACCOUNT_JSON`. |
    | `play_track` | `internal`, `alpha`, `beta`, `production` | Destination track, used **only** if `upload_to_play=true` and `PLAY_SERVICE_ACCOUNT_JSON` is configured. |
 
-3. When the run ends, get the files from the `bobine-play-aab-<version>` artifact (and from the release
-   page if `attach_to_release` is on):
+3. When the run ends, get the files from the `bobine-play-aab-<version>` artifact (they are never
+   attached to the GitHub release):
 
    | File | Application |
    |---|---|

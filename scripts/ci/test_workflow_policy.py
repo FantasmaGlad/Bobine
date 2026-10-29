@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+PLAY = (ROOT / ".github/workflows/play-aab.yml").read_text(encoding="utf-8")
 CI = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
 RESOLVE = (ROOT / "scripts/ci/resolve-release.py").read_text(encoding="utf-8")
 
@@ -53,6 +54,14 @@ class DroitsEtDelaisTests(unittest.TestCase):
         for name, body in jobs(CI).items():
             if name not in SANS_DELAI:
                 self.assertRegex(body, r"(?m)^    timeout-minutes: \d+$", f"job {name} sans timeout-minutes")
+
+
+class PlayBundlesTests(unittest.TestCase):
+    def test_les_bundles_play_ne_sont_jamais_publies_sur_la_release(self):
+        for interdit in ("attach_to_release", "gh release", "contents: write"):
+            self.assertNotIn(interdit, PLAY)
+        self.assertRegex(PLAY, r"(?m)^permissions:\n  contents: read\n")
+        self.assertRegex(PLAY, r"(?m)^    timeout-minutes: \d+$")
 
 
 if __name__ == "__main__":
