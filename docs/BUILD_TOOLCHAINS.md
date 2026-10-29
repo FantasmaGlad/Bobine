@@ -45,9 +45,9 @@ Beta before Stable. Build numbers also increase numerically within a channel.
 
 | Product build | Debian Version | RPM Version-Release | Arch pkgver-pkgrel |
 | --- | --- | --- | --- |
-| Canary build 42 | `5.0.6~0.canary.42` | `5.0.6-0.1.canary.42` | `5.0.6alpha.42-1` |
-| Beta build 7 | `5.0.6~1.beta.7` | `5.0.6-0.2.beta.7` | `5.0.6beta.7-1` |
-| Stable | `5.0.6` | `5.0.6-1` | `5.0.6-1` |
+| Canary build 42 | `5.0.7~0.canary.42` | `5.0.7-0.1.canary.42` | `5.0.7alpha.42-1` |
+| Beta build 7 | `5.0.7~1.beta.7` | `5.0.7-0.2.beta.7` | `5.0.7beta.7-1` |
+| Stable | `5.0.7` | `5.0.7-1` | `5.0.7-1` |
 
 The registry `backend/app/release_channel.py` derives these formats. Older
 `5.0.5+canal.N` versions remain readable. The new base 5.0.6 is necessary for
@@ -61,7 +61,7 @@ channel. A Stable tag must match `VERSION` and contain no iteration suffix.
 Manual publication inputs are mutually exclusive. Play additionally checks that
 the requested Stable version matches the selected source checkout; selecting an
 old source still uses the SDK and version-validation tools from the workflow's
-own revision. Preparing 5.0.6 on main does not change the last published Stable.
+own revision. Preparing 5.0.7 on main does not change the last published Stable.
 
 ## Updating and qualifying the toolchains
 
