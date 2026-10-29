@@ -538,7 +538,7 @@ jobs:
           # disparu du dépôt SDK Google ("Failed to find package 'tools'",
           # exit code 1) — cassait tout le job avant même l'étape suivante,
           # qui installe déjà les seuls paquets réellement utilisés
-          # (platforms;android-36, build-tools;36.1.0). platform-tools seul
+          # (platforms;android-37.0, build-tools;37.0.0). platform-tools seul
           # suffit ici.
           packages: "platform-tools"
       - name: Installer les plateformes/outils Android requis

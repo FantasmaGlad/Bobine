@@ -86,9 +86,9 @@ val androidToolchain = groovy.json.JsonSlurper()
 
 android {
     namespace = "com.bobine.app"
-    // minSdk/targetSdk API 34-36, priorité
-    // donnée à l'avenir plutôt qu'à la compatibilité descendante. compileSdk 36
-    // correspond à la tablette pilote réelle (Xiaomi Pad 8, Android 16).
+    // minSdk 34, targetSdk 36 (tablette pilote réelle : Xiaomi Pad 8, Android 16), priorité
+    // donnée à l'avenir plutôt qu'à la compatibilité descendante. compileSdk 37 est exigé par androidx.core 1.19 ;
+    // il ne change pas le comportement à l'exécution tant que targetSdk reste à 36 (toolchain.json).
     compileSdk = (androidToolchain["compile_sdk"] as Number).toInt()
     buildToolsVersion = androidToolchain["build_tools"] as String
 
@@ -106,7 +106,7 @@ android {
     defaultConfig {
         applicationId = "com.bobine.app"
         minSdk = (androidToolchain["min_sdk"] as Number).toInt()
-        targetSdk = (androidToolchain["compile_sdk"] as Number).toInt()
+        targetSdk = (androidToolchain["target_sdk"] as Number).toInt()
         versionCode = androidVersionCode
         versionName = androidVersionName
         // Canal par lequel cet APK a été publié : canal proposé par défaut tant que l'utilisateur
@@ -372,8 +372,8 @@ chaquopy {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.15.0")
-    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.core:core-ktx:1.19.1")
+    implementation("androidx.appcompat:appcompat:1.8.0")
     // registerForActivityResult/ActivityResultContracts (demande de la
     // permission POST_NOTIFICATIONS a l'execution).
     implementation("androidx.activity:activity-ktx:1.9.3")

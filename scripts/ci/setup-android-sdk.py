@@ -41,8 +41,10 @@ def read_config(path: Path) -> dict:
         raise ValueError("Missing official NDK checksum/size")
     if not re.fullmatch(r"\d+\.\d+\.\d+", config["build_tools"]):
         raise ValueError("Invalid build-tools version")
-    if not 23 <= config["min_sdk"] <= config["compile_sdk"] <= 99:
+    if not 23 <= config["min_sdk"] <= config["target_sdk"] <= config["compile_sdk"] <= 99:
         raise ValueError("Invalid SDK levels")
+    if not re.fullmatch(rf"android-{config['compile_sdk']}(\.\d+)?", config["platform"]):
+        raise ValueError("Invalid platform directory name")
     return config
 
 
@@ -154,8 +156,8 @@ def prepare(sdk: Path, config: dict, check_only: bool, skip_ndk: bool, ndk_only:
             manager = shutil.which("sdkmanager")
             if manager is None:
                 raise ValueError("sdkmanager is missing")
-            subprocess.run([manager, f"--sdk_root={sdk}", f"platforms;android-{config['compile_sdk']}", f"build-tools;{config['build_tools']}"], check=True)
-        if not (sdk / f"platforms/android-{config['compile_sdk']}/android.jar").is_file():
+            subprocess.run([manager, f"--sdk_root={sdk}", f"platforms;{config['platform']}", f"build-tools;{config['build_tools']}"], check=True)
+        if not (sdk / f"platforms/{config['platform']}/android.jar").is_file():
             raise ValueError("Pinned Android platform is missing")
         for name in ("aapt2", "apksigner", "zipalign"):
             path = build_tools / name

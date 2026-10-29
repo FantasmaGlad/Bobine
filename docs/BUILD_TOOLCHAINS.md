@@ -12,7 +12,7 @@ version differ. The npm and Cargo crate versions are separate technical versions
 | Desktop/headless Python | Python 3.12 for packages; syntax and backend tests on 3.11, 3.12 and 3.13 | `backend/requirements.txt` with `constraints-desktop.txt`, `pip check`, complete pytest suite |
 | Python tooling | `backend/requirements-test.txt`, `backend/requirements-build.txt` | Versioned test and PyInstaller dependencies, installed dependency reports in CI |
 | Android | JDK 17, Gradle 9.7.1 with distribution SHA-256, AGP 9.2.1, Chaquopy 17.0.0 | SDK preparation, signed APKs and AABs, ABI and APK alignment checks |
-| Android SDK/NDK | `android/toolchain.json`: API 36, build tools 36.1.0, NDK r28c | Official archive size/checksum, ZIP CRC, extracted revision and executable LLVM tools |
+| Android SDK/NDK | `android/toolchain.json`: compileSdk 37 (plateforme android-37.0), targetSdk 36, build tools 37.0.0, NDK r28c | Official archive size/checksum, ZIP CRC, extracted revision and executable LLVM tools |
 | Android Python | Mobile 3.13, TV 3.11; exact pip requirements in `android/app/build.gradle.kts` | Both flavors build; separate FastAPI 0.99.1/Pydantic 1.10.26 compatibility tests on both Python versions |
 | Native components | `rust-toolchain.toml` (1.99.1), each `Cargo.lock`, `cargo --locked` | Clippy and tests on target runners; media license gate; Android ELF architecture and 16 KiB alignment |
 | Windows FFmpeg | `packaging/windows/ffmpeg.lock.json` | Immutable archive, SHA-256, PE architecture and actual FFmpeg/FFprobe startup on x64 and ARM64 |
