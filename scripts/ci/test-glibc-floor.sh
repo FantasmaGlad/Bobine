@@ -3,7 +3,9 @@
 # packaging/common/MIN_GLIBC doit REFUSER le paquet, et pour cette raison. Échoue si le paquet est accepté, ou refusé
 # pour une autre raison (dépendance manquante, architecture) : un refus étranger ne prouverait rien.
 #   deb : Debian 12 et Ubuntu 22.04, `apt-get install ./bobine.deb` doit citer « libc6 (>= <plancher>) » ;
-#   rpm : AlmaLinux 9 (RHEL 9), `dnf install bobine.rpm` doit citer « glibc >= <plancher> ».
+#   rpm : AlmaLinux 9 (RHEL 9), `rpm -U --test bobine.rpm` doit citer « glibc >= <plancher> ». C'est le même contrôle de
+#         dépendances que celui de dnf, sans les métadonnées des miroirs : sur les exécuteurs ARM64 de GitHub, dnf pouvait
+#         rester bloqué près de trente minutes sur un miroir lent.
 # Usage : test-glibc-floor.sh deb|rpm <fichier>   (Docker ou Podman ; les images suivent l'architecture de la machine)
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -23,7 +25,7 @@ case "$family" in
     rpm)
         images=("$ALMA9_IMAGE")
         expected="glibc >= $floor"
-        install='dnf -y install "$1"'
+        install='rpm -U --test "$1"'
         installed='rpm -q bobine'
         ;;
     *) echo "Erreur: famille inconnue ($family)." >&2; exit 2 ;;
