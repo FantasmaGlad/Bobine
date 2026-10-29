@@ -80,5 +80,18 @@ class ScheduledRefreshTests(unittest.TestCase):
         self.assertEqual(order, sorted(order))
 
 
+class HealthProbeTests(unittest.TestCase):
+    PROBE = (ROOT / ".github/workflows/probe-package-repositories.yml").read_text(encoding="utf-8")
+
+    def test_it_runs_every_day_without_any_secret(self):
+        self.assertRegex(self.PROBE, r"schedule:\n\s+- cron: '\d+ \d+ \* \* \*'")
+        self.assertNotIn("secrets.", self.PROBE)
+        self.assertIn("contents: read", self.PROBE)
+
+    def test_it_compares_both_rolling_channels_with_their_release(self):
+        for channel in ("canary", "beta"):
+            self.assertIn(f'--release {channel}="$RUNNER_TEMP/{channel}.json"', self.PROBE)
+
+
 if __name__ == "__main__":
     unittest.main()
