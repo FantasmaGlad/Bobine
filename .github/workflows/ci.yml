@@ -39,9 +39,9 @@ on:
 
 # Une pull request annule son exécution précédente. Un push (main, tag) ou un
 # déclenchement manuel, lui, n'est JAMAIS annulé : un job de publication
-# interrompu entre `gh release delete` et `gh release create` laisserait le
-# canal sans release. Les exécutions suivantes attendent leur tour (GitHub ne
-# garde que la plus récente en attente).
+# interrompu en pleine mise à jour laisserait la release d'un canal à moitié
+# remplacée. Les exécutions suivantes attendent leur tour (GitHub ne garde que
+# la plus récente en attente).
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -1328,6 +1328,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # Une seule publication Canary à la fois, même entre références ou relances : la garde de monotonie lit un tag stable.
+    concurrency:
+      group: publish-canary-release
+      cancel-in-progress: false
+    outputs:
+      published: ${{ steps.guard.outputs.publish }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1425,7 +1431,25 @@ jobs:
         run: scripts/ci/verify-release-assets.sh release-assets canary
       - name: Inspect generated binary assets
         run: ls -lh release-assets/
+      - name: Refuser de publier un build plus ancien que celui déjà publié
+        id: guard
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          git fetch --no-tags origin main
+          # Le tag mobile est relu à distance : absent (rc 2) à la première publication, toute autre erreur arrête la publication.
+          rc=0; git ls-remote --exit-code --tags origin canary > /dev/null || rc=$?
+          case "$rc" in
+            0) git fetch --force --no-tags origin "refs/tags/canary:refs/tags/canary" ;;
+            2) ;;
+            *) exit "$rc" ;;
+          esac
+          # Depuis main, le commit doit être la tête de main ; une republication manuelle depuis une autre branche reste permise.
+          tip=(); [ "$GITHUB_REF" = refs/heads/main ] && tip=(--require-tip origin/main)
+          python3 scripts/ci/rolling-guard.py --tag canary --sha "${{ github.sha }}" --event "$EVENT_NAME" --attempt "$RUN_ATTEMPT" "${tip[@]}"
       - name: Force-move the "canary" tag to the current commit
+        if: steps.guard.outputs.publish == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -1433,6 +1457,7 @@ jobs:
           git push origin canary --force
       - name: Generate rolling release notes (README-style layout + changelog since last Stable)
         id: notes
+        if: steps.guard.outputs.publish == 'true'
         run: |
           # Bloc statique (bannière + intro + tableau de téléchargement) dans un
           # heredoc ENTIÈREMENT quoté ('NOTES_EOF') : aucune substitution shell,
@@ -1499,17 +1524,13 @@ jobs:
             echo "Retour à la Stable à tout moment, sans perte de données : Réglages → Mises à jour logicielles → Canal de mise à jour → Stable."
           } >> /tmp/canary-notes.md
           echo "notes_path=/tmp/canary-notes.md" >> "$GITHUB_OUTPUT"
-      - name: Delete previous Canary release (assets get fully replaced, not merged)
-        run: gh release delete canary --yes || true
-        env:
-          GH_TOKEN: ${{ github.token }}
+      # Mise à jour en place : la release n'est jamais supprimée (pas de 404, pas de canal vide si l'envoi échoue).
       - name: Publish Canary release
-        run: |
-          gh release create canary release-assets/* \
-            --title "Bobine — Canary (build automatique)" \
-            --notes-file "${{ steps.notes.outputs.notes_path }}" \
-            --prerelease \
-            --target "${{ github.sha }}"
+        if: steps.guard.outputs.publish == 'true'
+        run: >-
+          bash scripts/ci/publish-rolling-release.sh canary release-assets
+          "Bobine — Canary (build automatique)"
+          "${{ steps.notes.outputs.notes_path }}" "${{ github.sha }}"
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -1527,6 +1548,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # Une seule publication Beta à la fois, même entre références ou relances : la garde de monotonie lit un tag stable.
+    concurrency:
+      group: publish-beta-release
+      cancel-in-progress: false
+    outputs:
+      published: ${{ steps.guard.outputs.publish }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1624,7 +1651,22 @@ jobs:
         run: scripts/ci/verify-release-assets.sh release-assets beta
       - name: Inspect generated binary assets
         run: ls -lh release-assets/
+      - name: Refuser de publier un build plus ancien que celui déjà publié
+        id: guard
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          # Le tag mobile est relu à distance : absent (rc 2) à la première publication, toute autre erreur arrête la publication.
+          rc=0; git ls-remote --exit-code --tags origin beta > /dev/null || rc=$?
+          case "$rc" in
+            0) git fetch --force --no-tags origin "refs/tags/beta:refs/tags/beta" ;;
+            2) ;;
+            *) exit "$rc" ;;
+          esac
+          python3 scripts/ci/rolling-guard.py --tag beta --sha "${{ github.sha }}" --event "$EVENT_NAME" --attempt "$RUN_ATTEMPT"
       - name: Force-move the "beta" tag to the current commit
+        if: steps.guard.outputs.publish == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -1632,6 +1674,7 @@ jobs:
           git push origin beta --force
       - name: Generate rolling release notes (README-style layout + changelog since last Stable)
         id: notes
+        if: steps.guard.outputs.publish == 'true'
         run: |
           # Bloc statique (bannière + intro + tableau de téléchargement) dans un
           # heredoc ENTIÈREMENT quoté ('NOTES_EOF') : aucune substitution shell,
@@ -1696,17 +1739,13 @@ jobs:
             echo "Retour à la Stable à tout moment, sans perte de données : Réglages → Mises à jour logicielles → Canal de mise à jour → Stable."
           } >> /tmp/beta-notes.md
           echo "notes_path=/tmp/beta-notes.md" >> "$GITHUB_OUTPUT"
-      - name: Delete previous Beta release (assets get fully replaced, not merged)
-        run: gh release delete beta --yes || true
-        env:
-          GH_TOKEN: ${{ github.token }}
+      # Mise à jour en place : la release n'est jamais supprimée (pas de 404, pas de canal vide si l'envoi échoue).
       - name: Publish Beta release
-        run: |
-          gh release create beta release-assets/* \
-            --title "Bobine — Bêta (lot curé)" \
-            --notes-file "${{ steps.notes.outputs.notes_path }}" \
-            --prerelease \
-            --target "${{ github.sha }}"
+        if: steps.guard.outputs.publish == 'true'
+        run: >-
+          bash scripts/ci/publish-rolling-release.sh beta release-assets
+          "Bobine — Bêta (lot curé)"
+          "${{ steps.notes.outputs.notes_path }}" "${{ github.sha }}"
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -1715,7 +1754,9 @@ jobs:
     needs: [version, linux-deb, linux-package-signing, release-stable, release-beta, release-canary]
     if: |
       always() && !cancelled() && needs.linux-package-signing.result == 'success' &&
-      (needs.release-stable.result == 'success' || needs.release-beta.result == 'success' || needs.release-canary.result == 'success')
+      (needs.release-stable.result == 'success' ||
+       (needs.release-beta.result == 'success' && needs.release-beta.outputs.published == 'true') ||
+       (needs.release-canary.result == 'success' && needs.release-canary.outputs.published == 'true'))
     runs-on: ubuntu-latest
     concurrency:
       group: publish-linux-packages
