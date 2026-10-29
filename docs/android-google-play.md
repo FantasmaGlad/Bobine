@@ -90,7 +90,7 @@ main depuis GitHub.
    | `Bobine-TV-<version>-play.apk` | `com.bobine.app.tv` (APK équivalent au bundle) |
 
 Le workflow refuse un tag Bêta ou Canary, vérifie strictement la signature de chaque bundle (`jarsigner`), refuse les entrées non signées ou dupliquées et contrôle la
-présence du manifeste, vérifie les signatures APK et leur alignement 16 Ko, puis vérifie que les APK Play ne contiennent pas l'autorisation `REQUEST_INSTALL_PACKAGES`, vérifie les ABI natives (`arm64-v8a` pour Bobine, `armeabi-v7a` et `arm64-v8a` pour Bobine TV) et la présence du composant audio natif `libbobine_media.so` dans chacune (compilé par `scripts/ci/build-media-android.sh`), puis affiche le `versionName` et le `versionCode` dans le résumé du run. Le composant est désactivé par défaut dans l'application (Réglages → Composant audio natif) ; sa présence dans les paquets ne dit rien de son comportement sur un appareil réel, aucune mesure n'en ayant été faite.
+présence du manifeste, vérifie les signatures APK et leur alignement 16 Ko (archive, puis segments ELF de chaque bibliothèque native : Python, ffmpeg, ffprobe et composant audio), puis vérifie que les APK Play ne contiennent pas l'autorisation `REQUEST_INSTALL_PACKAGES`, vérifie les ABI natives (`arm64-v8a` pour Bobine, `armeabi-v7a` et `arm64-v8a` pour Bobine TV) et la présence du composant audio natif `libbobine_media.so` dans chacune (compilé par `scripts/ci/build-media-android.sh`), puis affiche le `versionName` et le `versionCode` dans le résumé du run. Le composant est désactivé par défaut dans l'application (Réglages → Composant audio natif) ; sa présence dans les paquets ne dit rien de son comportement sur un appareil réel, aucune mesure n'en ayant été faite.
 
 ### Fichiers Google Play de la version 5.0.5
 

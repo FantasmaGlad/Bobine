@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Vérifie qu'un APK déclare exactement les ABI natives attendues et que chacune
-# embarque Python, et ffmpeg/ffprobe/composant audio natif sur les ABI ARM.
+# embarque Python, et ffmpeg/ffprobe/composant audio natif sur les ABI ARM,
+# puis que toutes les bibliothèques natives de lib/<abi>/ (Python, ffmpeg,
+# ffprobe, composant audio, Chaquopy) ont leurs segments LOAD alignés sur 16 Kio
+# (check-elf-alignment.py ; bloquant pour arm64-v8a).
 #
 # Garde-fou d'une régression déjà survenue : un APK Android TV sans dossier
 # lib/armeabi-v7a s'installe sur les appareils 64 bits mais échoue avec
@@ -40,4 +43,5 @@ for abi in "$@"; do
         fi
     done
 done
+python3 "$(dirname "$0")/check-elf-alignment.py" --apk "${APK}"
 echo "${APK} : ABI [$(echo "${declared}" | xargs)] avec ses binaires embarqués."
