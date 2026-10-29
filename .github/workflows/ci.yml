@@ -1167,7 +1167,7 @@ jobs:
           . scripts/ci/container-images.sh
           rpm="$(find rpm-input -name '*.aarch64.rpm' | head -1)"
           test -n "$rpm"
-          docker run --rm -v "$PWD:/src:ro" -v "$(dirname "$rpm"):/pkg:ro" "$FEDORA_IMAGE" \
+          docker run --rm -v "$PWD:/src:ro" -v "$PWD/$(dirname "$rpm"):/pkg:ro" "$FEDORA_IMAGE" \
             bash -c 'test "$(uname -m)" = aarch64 && dnf -y -q install desktop-file-utils && /src/packaging/rpm/test_rpm.sh "$1"' -- "/pkg/$(basename "$rpm")"
       - name: Vérifier que dnf refuse le rpm sur AlmaLinux 9 arm64 (plancher glibc)
         run: bash scripts/ci/test-glibc-floor.sh rpm "$(find rpm-input -name '*.aarch64.rpm' | head -1)"
