@@ -25,7 +25,7 @@ This document is written for anyone who wants to **understand, operate, modify o
 5. [Radio Module](#5-radio-module)
 5bis. [Devices (audio, Bluetooth, Wi-Fi)](#5bis-devices-audio-bluetooth-wi-fi)
 5ter. [External storage](#5ter-external-storage-usb-drives-disks-sd-cards-phones)
-6. [Audio Coach Mode & Animated Backgrounds](#6-audio-coach-mode--animated-backgrounds)
+6. [Audio Coach Mode & Animated Backgrounds Hub](#6-audio-coach-mode--animated-backgrounds-hub)
 7. [Install Script & systemd Services](#7-install-script--systemd-services)
 8. [HTTP API & WebSocket Reference](#8-http-api--websocket-reference)
 9. [Operations & Network Discovery (Wyse)](#9-operations--network-discovery-wyse)
@@ -187,7 +187,7 @@ Every import triggered by a web upload or by the file watcher (`watchdog` / `Pol
 The normalization engine uses a full 3-tier automatic hardware-acceleration pipeline (Full Hardware direct-VRAM → Hybrid GPU → CPU fallback) adapted dynamically to the system profile (`get_deployment_profile()`) and the graphics silicon:
 - **Linux Desktop & Wyse Appliance (Intel QuickSync N100/N200/Core Ultra/Celeron / AMD Radeon VA-API)**: Tier 1 Full HW via automatic DRM render-node detection (`_find_vaapi_device()`), direct decoding into VA-API surfaces (`-hwaccel vaapi -hwaccel_output_format vaapi`), GPU formatting `scale_vaapi=format=nv12` and hardware `h264_vaapi` encoding. Processing stays 100% inside VRAM with no RAM-PCIe transit, cutting CPU load by more than 93% (eliminating the 30W spikes). If a stream isn't supported, automatic fallback to Tier 2 Hybrid (`-vf "format=nv12,hwupload"`).
 - **Android & Google Books (Qualcomm Snapdragon 8 Gen 2 / 8 Gen 3 / 8 Elite / 8s Gen 3 / 7+ Gen 3, MediaTek Dimensity / Kompanio, Google Tensor G2–G4)**: Proactive hardware decoding paced with `-operating_rate 1000 -c:v <codec>_mediacodec` (AV1, HEVC, VP9, H.264) and native hardware encoding `h264_mediacodec` (`-pix_fmt nv12 -b:v <bitrate>`). Speed observed on a Xiaomi Pad 8: **4.2x to 5.1x** real time.
-- **macOS (Apple Silicon M1, M2, M3, M4 Pro/Max & Intel)**: Direct hardware decoding `-hwaccel videotoolbox` and hardware encoding `h264_videotoolbox` (`-q:v 65 -pix_fmt yuv420p`), ultra-fast conversion without stressing the CPU cores.
+- **macOS (Apple Silicon M1, M2, M3, M4 Pro/Max)**: Direct hardware decoding `-hwaccel videotoolbox` and hardware encoding `h264_videotoolbox` (`-q:v 65 -pix_fmt yuv420p`), ultra-fast conversion without stressing the CPU cores.
 - **Windows (Intel QuickSync, AMD Radeon & Qualcomm Snapdragon X Elite / X Plus ARM64)**: Hardware decoding `-hwaccel qsv -hwaccel_output_format qsv` and `h264_qsv` encoding (`-preset fast`).
 - **Universal fallback (Tier 3)**: if hardware acceleration fails or is unavailable (e.g. a headless server with no GPU), transparent automatic fallback to `libx264 -preset veryfast` with no task interruption.
 - **Tightened keyframe interval**: every normalized video (regardless of encoder) gets `-g 60` (`-keyint_min 60` on the software fallback), i.e. one keyframe roughly every 2s at 30 fps — this guarantees reliable fast-forward/rewind and prevents an admin seek to an off-keyframe position from leaving the decoder stuck (see §4, "Recovering from a stuck video decoder").
@@ -526,7 +526,7 @@ Beta/Canary artifact filenames are **fixed** (`Bobine-Setup-beta.exe`/`Bobine-Se
 - **Download**: `.part` file, three attempts, free-space check, atomic rename only after the digest is verified.
 - **State after a restart**: a service that restarts itself to apply the update cannot write "done". `update_orchestrator` records the `version|commit` fingerprint before the update and, at the next startup, concludes "done" if it changed and "failed" otherwise (`load_persisted_state_at_startup`). No `force_reload` is broadcast at the start of the pipeline: clients reload themselves through the `boot_id` change.
 - **Headless**: automatic rollback (`git checkout` of the previous ref) if the dependency install or the frontend build fails; longer timeouts for a Dell Wyse 5070.
-- **Android**: `AndroidHandler` gets its context via `Python.getPlatform().getApplication()` (`PyApplication.context` does not exist — the root cause of "Impossible de déclencher la mise à jour Android"). `UpdateManager.kt` downloads, verifies the digest, checks package/signature/`versionCode` (Android forbids any downgrade without uninstalling: an explicit message instead of "app not installed"), then offers the install through a notification that carries the install intent directly. It no longer downloads anything spontaneously at app launch.
+- **Android**: `AndroidHandler` gets its context via `Python.getPlatform().getApplication()` (`PyApplication.context` does not exist — the root cause of "Unable to trigger the Android update"). `UpdateManager.kt` downloads, verifies the digest, checks package/signature/`versionCode` (Android forbids any downgrade without uninstalling: an explicit message instead of "app not installed"), then offers the install through a notification that carries the install intent directly. It no longer downloads anything spontaneously at app launch.
 
 ### Restricted sudo Authorization & Uninstall from the Interface
 
@@ -690,7 +690,7 @@ The FastAPI server (`backend/app/main.py`) dynamically mounts the static folder 
 | **Headless Appliance** | Dell Wyse / Mini PC (`install.sh`, Debian 13) | `frontend/out/` (relative to the repository) | Chromium X11 kiosk (`/kiosk` and/or `/cinema`) + a remote browser for admin |
 | **Windows Desktop** | Windows 10/11 x86_64 & ARM64 Snapdragon (`.exe` Inno Setup) | `%ProgramFiles%\Bobine\frontend\out\` | Default web browser on launch + a taskbar notification icon (systray). Supports Studio Desk mode (dual screen) or Headless (clamshell). |
 | **macOS Desktop** | macOS Apple Silicon M1–M4 (`.dmg` / `Bobine.app`) | `Bobine.app/Contents/Resources/frontend/out/` | Default web browser + a menu bar companion. Supports Studio Desk mode or closed-lid Clamshell. |
-| **Linux Desktop** | Debian/Ubuntu/Mint (`.deb`), Fedora/RHEL (`.rpm`), Arch/Manjaro/CachyOS (`.pkg.tar.zst`) on x86_64 & ARM64 (`packages.bobine.fit`) | `/usr/lib/bobine/frontend/out/` | Default web browser + XDG systray. Supports Studio Desk mode or closed-lid Clamshell. |
+| **Linux Desktop** | Debian 13+/Ubuntu 24.04+/Mint (`.deb`), Fedora (`.rpm`), Arch/Manjaro/CachyOS (`.pkg.tar.zst`) on x86_64 & ARM64, glibc 2.38 or newer (`packages.bobine.fit`) | `/usr/lib/bobine/frontend/out/` | Default web browser + XDG systray. Supports Studio Desk mode or closed-lid Clamshell. |
 | **Android Tablet / Android TV** | ARM64 tablets Snapdragon 8 Gen 2/3 / Dimensity / Tensor (`.apk`, Chaquopy, Python 3.13); 32/64-bit ARM Android TV boxes (`Bobine-TV-*.apk`, Python 3.11) | Embedded assets `pyStage/backend/frontend_out/` | Dual hardware WebView: local touch screen (`/grid` or home) + external HDMI display (`/cinema`) |
 
 On the Android profile, data is split across **two storage roots** (`backend/app/config.py::_android_internal_root()`) — the SQLite database, thumbnails, logs, branding and radio cover art live on the app's **internal** storage (`context.filesDir`, native f2fs), while media (videos, backgrounds, audio, radio) stays on **external** storage (`context.getExternalFilesDir`, served over FUSE, visible from a file manager). An existing install is migrated automatically with no risk of data loss (copy, never a destructive move, with a `PRAGMA integrity_check` before use) on the first launch following an update — see `android/app/src/main/python/bobine_bootstrap.py`.
@@ -759,5 +759,29 @@ APT metadata expires after 365 days for Stable and 30 days for rolling channels.
 
 Every release (Stable, Beta, Canary) ships `SHA256SUMS`, the list of SHA-256 checksums of all its files, and `SHA256SUMS.asc`, its detached signature made with the key that already signs the package repositories. `scripts/ci/sign-release-checksums.sh` produces the pair in an ephemeral keyring removed from the runner at the end of the job; `scripts/ci/verify-release-assets.sh` rejects a release in which an expected file is missing from the list or a checksum differs. To verify a download: `gpg --verify SHA256SUMS.asc SHA256SUMS`, then `sha256sum -c --ignore-missing SHA256SUMS`. This signature does not replace vendor code signing: the Windows and macOS installers are not signed by Microsoft nor notarized by Apple.
 
+
+### Software and site publication flow
+
+```mermaid
+flowchart TD
+  Source[Bobine: version and channel] --> CI[Multi-platform tests and builds]
+  CI --> Release[GitHub release and signed SHA256SUMS]
+  Release --> Packages[Signed and verified APT, DNF and Pacman indexes]
+  Packages --> Pages[bobine-packages: GitHub Pages]
+  Packages --> Dispatch[bobine-release notification]
+  Dispatch --> Mirror[BobineWeb: onion-site export]
+  Mirror --> Tor[Atomic Tor mirror synchronization]
+  Pages --> Tor
+  Release --> Web[BobineWeb: release data and verified installer]
+  Web --> Deploy[CI, then Vercel and Cloudflare deployment]
+  Deploy --> Probe[HTTPS probes and served-digest check]
+  Tor --> TorProbe[Public Tor probe and repository signatures]
+```
+
+The `notify-web-release` job runs only after the Linux repositories have been published successfully, which in turn requires a release to have been created and the signature checks to have passed. It sends BobineWeb the `bobine-release` event, the channel and the published revision. The mirror is rebuilt from BobineWeb's main branch; event metadata is never used as a checkout reference or as a command. The Tor server fetches the publication branches and verifies the repositories before switching to the new generation. An error keeps the previous copy.
+
+The cross-repository notification requires the `BOBINE_WEB_DISPATCH_TOKEN` secret in Bobine: a fine-grained token limited to the BobineWeb repository alone, with `Contents: write`, or an equivalent GitHub App installation token. The automatic token of the Bobine repository does not grant write access to BobineWeb. If the secret is not configured, the job emits an explicit warning and the daily mirror refresh stays active. A signing key, a package SSH key or a general account token must not be reused for this role.
+
+The main site reads releases with revalidation. At each build, the Stable installer is fetched from the GitHub asset and its digest is verified; after publication, the probe compares the HTTP file actually served with its provenance. The daily check compares the announced Stable, the latest Stable release and `Bobine/VERSION`, and requires the expected Windows, Android, macOS, Debian, RPM and Arch assets. Probes validate their origin before any authenticated request. The vulnerability-reporting site follows a separate static publication, with checks of the public key, of `security.txt` and of its signature.
 
 Tool versions, dependency constraints, native Canary/Beta/Stable ordering and the qualification procedure are documented in [BUILD_TOOLCHAINS.md](BUILD_TOOLCHAINS.md). Android and desktop Python dependency profiles remain separate.
