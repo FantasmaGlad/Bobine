@@ -188,6 +188,6 @@ data (Settings > Backup), uninstall, then reinstall.
 
 ## Related documents
 
-- [Release notes 5.0.2](releases/V5.0.2.md)
+- [Release notes 5.0.7](releases/V5.0.7.md)
 - [Technical architecture](ARCHITECTURE.en.md) (Android section)
 - [README](../README.md)

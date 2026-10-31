@@ -4,13 +4,13 @@
 
 # Bobine — Architecture technique & référence développeur
 
-> **Bilinguisme** : ce document doit être maintenu en parallèle de sa version anglaise ([`ARCHITECTURE.en.md`](ARCHITECTURE.en.md)) — dernière synchronisation : 2026-10-24.
+<p align="center">
+  <a href="ARCHITECTURE.md">Français</a> · <a href="ARCHITECTURE.en.md">English</a>
+</p>
 
 > Référence technique. Pour une présentation orientée utilisateur (à quoi sert Bobine, installation guidée, prise en main), voir le **[README](../README.md)** (`README.fr.md` pour le français).
 
 Diffusion, planification et pilotage de vidéos de cours en salle, sur mini PC dédié, poste de bureau ou tablette. Serveur FastAPI mono-processus + SQLite, kiosque Chromium X11, interface d'administration et télécommande mobile Next.js.
-
-Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier ou déployer** le système Bobine : il décrit l'architecture réellement en place (pas une intention), le contrat réseau, le modèle de données, ainsi que la configuration d'exploitation sur mini PC dédié.
 
 ---
 
@@ -39,518 +39,289 @@ Ce document est écrit pour quiconque souhaite **comprendre, exploiter, modifier
 
 ### Stack technique
 
-- **Backend** : Python 3.11+, [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` (mono-processus, cf. §2), [SQLAlchemy](https://www.sqlalchemy.org/), SQLite (`data/database.db`), `APScheduler` (planification), `watchdog` (surveillance des dossiers d'import), `ffmpeg` avec **accélération matérielle multi-OS** (`h264_mediacodec` sur Android, `h264_videotoolbox` sur macOS Apple Silicon/Intel, `h264_vaapi` sur Linux avec pilote Intel QuickSync ou AMD Mesa, `h264_qsv` sur Windows avec pilote Intel QuickSync, repli universel `libx264`), Web Audio API (crossfade radio, côté navigateur). Politique stricte de conservation intégrale des flux 2K et 4K sans sous-échantillonnage.
-- **Frontend** : [Next.js](https://nextjs.org/) 16 (App Router, export statique servi par le backend en production), React 19, TypeScript, CSS Vanilla (global + design tokens, **16 thèmes de couleurs** commutables à chaud via `:root[data-theme=…]`, dont la paire minérale « Charbon » / « Charbon Sombre » certifiée WCAG AA/AAA, design system Apple Glassmorphism avec flou spéculaire de 28px, micro-interactions tactiles haptiques et bordures dynamiques à fort contraste, accordéons de navigation latérale mutuellement exclusifs et grille Bento asymétrique pour les actions directes), PWA (`manifest.json`), WebSockets, glisser-déposer natif (HTML5), Web Audio API.
-- **Exploitation & Kiosque** : Debian 13 (Trixie), Chromium en mode kiosque (X11 / `xinit`), `systemd` (services backend, kiosque, garde audio, chien de garde), `avahi-daemon` (découverte mDNS).
-- **Portabilité Android (`android/`)** : application native Android (Kotlin + CPython embarqué via [Chaquopy](https://chaquopy.com/)), `minSdk 34` / `targetSdk 36` (Android 14-16, API 36 / Xiaomi Pad 8). Double affichage matériel via `DisplayManager` et `Presentation` (écran tactile sur `/grid` sans sidebar, sortie HDMI externe via dock USB-C sur `/cinema` avec écran de veille « En attente d'un cours »), `ForegroundService` persistant, binaires ARM64 NDK r28c (`ffmpeg`/`ffprobe` Bionic natifs, taille de page de 16 Ko) avec décodage matériel `av1_mediacodec` et encodage `h264_mediacodec` ultra-rapide.
-- **Installation & outils** : `install.sh` (**Bash** idempotent : détection matérielle dynamique, remédiation APT, `--as-user`, sortie machine `--progress=json`, §7) ; **assistant d'installation graphique** (`assistant/`, application de bureau **Tauri / Rust**, balayage `/24` de chaque interface réseau locale et orchestration SSH — cf. [`assistant/README.md`](../assistant/README.md)).
-
-**Langages du dépôt** : **Python** (backend FastAPI), **TypeScript/React** (frontend Next.js), **Kotlin** (application Android), **Bash** (`install.sh`), **Rust** (cœur de l'assistant d'installation). **Intégration continue** (GitHub Actions, `.github/workflows/ci.yml`) à chaque push/PR : build du frontend, tests de fumée Firefox (geckodriver), contrôle de syntaxe et `pytest` du backend (Python 3.11, 3.12 et 3.13), `cargo clippy` + `cargo test` de l'assistant, du composant des périphériques (`devices/`) et du composant audio natif (`media/`, quatre plateformes, plus contrôle des licences), build et signature APK Android, vérification de bon fonctionnement de `install.sh` (syntaxe + cohérence du compteur d'étapes), puis les paquets Windows, Linux (`.deb`) et macOS. Les tests du frontend (`npm test`) et le typage (`npx tsc --noEmit`) se lancent en local : la CI ne fait que le build du frontend.
+- **Backend** : Python 3.11+, [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` (`--workers 1`), [SQLAlchemy](https://www.sqlalchemy.org/), SQLite (`data/database.db`), `APScheduler` (planification), `watchdog` (surveillance des dossiers d'import), `ffmpeg` avec accélération matérielle multi-OS (`h264_mediacodec` sur Android, `h264_videotoolbox` sur macOS, `h264_vaapi` sur Linux, `h264_qsv` sur Windows, repli `libx264`). Conservation intégrale des flux 2K et 4K sans sous-échantillonnage.
+- **Frontend** : [Next.js](https://nextjs.org/) 16 (App Router, export statique servi par le backend en production), React 19, TypeScript, CSS Vanilla (16 thèmes commutables à chaud via `:root[data-theme=…]`, dont « Charbon » / « Charbon Sombre », contrôlés par tests de contraste WCAG AA), PWA, WebSockets, Web Audio API.
+- **Exploitation & Kiosque** : Debian 13 (Trixie), Chromium en mode kiosque (X11 / `xinit`), `systemd`, `avahi-daemon` (découverte mDNS).
+- **Portabilité Android (`android/`)** : Kotlin + CPython embarqué via [Chaquopy](https://chaquopy.com/), `minSdk 34` / `targetSdk 36` (`compileSdk 37`). Double affichage matériel via `DisplayManager` et `Presentation` (écran tactile `/grid` + sortie HDMI `/cinema`), `ForegroundService` persistant, binaires NDK r28c (`ffmpeg`/`ffprobe`, alignement page 16 Ko).
+- **Installation & outils** : `install.sh` (Bash idempotent, §7) ; assistant graphique (`assistant/`, Tauri 2 / Rust — voir [`assistant/README.md`](../assistant/README.md)) ; composants natifs Rust `devices/` et `media/`.
 
 ### Développements locaux
 
-**Préréquis** : Node.js ≥ 20, Python ≥ 3.11.
+**Prérequis** : Node.js ≥ 20, Python ≥ 3.11.
 
 ```bash
-# 1. Backend (FastAPI) — port 8001 en dev (voir note ci-dessous)
-cd backend
-python3 -m venv .venv && source .venv/bin/activate
+# 1. Backend (FastAPI) — port 8001 en dev
+cd backend && python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 
 # 2. Frontend (Next.js)
-cd frontend
-npm install
-npm run dev             # accessible sur http://localhost:3000
+cd frontend && npm install && npm run dev   # http://localhost:3000
 ```
 
-> **Piège de développement (port)** : servi par `next dev` sur `:3000`, le frontend route ses appels API/WebSocket vers `localhost:8001` (cf. `getApiUrl`/`getWsUrl`) — d'où le backend sur **8001** en développement. Alternative sans ce décalage, pratique pour vérifier le rendu réel : `cd frontend && npm run build` (export statique dans `frontend/out`) puis lancer le backend sur `:8000` — il sert lui-même `frontend/out` à `/` (même origine `/api`), il suffit alors de naviguer sur `http://localhost:8000/<route>/`.
+> **Port de dev** : `next dev` sur `:3000` route ses appels API/WebSocket vers `localhost:8001` (`getApiUrl`/`getWsUrl`). Pour tester le rendu intégré sur une seule origine : `cd frontend && npm run build` puis lancer le backend sur `:8000` (qui sert `frontend/out` à `/`).
 
-**Validation rapide avant commit** :
+**Validation avant commit** :
 
 ```bash
-# Vérification de syntaxe Python (AST)
-backend/.venv/bin/python -c "import ast; ast.parse(open('backend/app/main.py').read())"
-
-# Tests du backend
 cd backend && python -m pytest -q
-
-# Typage et tests du frontend (TypeScript)
 cd frontend && npx tsc --noEmit && npm test
-
-# Composant audio natif (Rust) — mêmes contrôles qu'en CI
 cd media && cargo fmt --check && cargo clippy --locked --all-targets -- -D warnings && cargo test --locked
-
-# Tests du cœur de l'assistant d'installation (Rust) — mêmes contrôles qu'en CI
 cd assistant && cargo test --workspace
 ```
 
 ### Configuration (`config.toml`)
 
-La configuration est chargée selon l'ordre de priorité suivant :
-1. Variables d'environnement préfixées `BOBINE_` (priorité maximale).
-2. `/etc/bobine/config.toml` (production, écrit par `install.sh`).
-3. `config.toml` à la racine du dépôt (développement).
+Ordre de priorité : (1) variables `BOBINE_*`, (2) `/etc/bobine/config.toml` (production), (3) `config.toml` à la racine du dépôt.
 
 | Clé | Défaut | Rôle |
 |---|---|---|
 | `database.database_url` | `sqlite:///data/database.db` | URL de connexion SQLite |
-| `media.media_dir` | `data/videos` | Stockage des vidéos importées |
-| `media.watch_dir` | `data/watched` | Dossier surveillé pour import automatique |
-| `server.host` / `port` | `0.0.0.0:8000` | Écoute HTTP du backend ; `port` est le port **préféré** (`BOBINE_PORT`), voir « Port d'écoute et repli » |
+| `media.media_dir` / `watch_dir` | `data/videos` / `data/watched` | Stockage des vidéos et dossier d'import automatique |
+| `server.host` / `port` | `0.0.0.0:8000` | Écoute HTTP du backend (`port` préféré, voir ci-dessous) |
 | `playback.wait_time_between_courses` | `0` | Délai d'inter-cours (s) |
 | `playback.volume_default` | `100` | Volume par défaut (0-100) |
 
-> **Fichiers temporaires d'upload** : le backend force `tempfile.tempdir` sur `data/tmp` (à côté des médias) au démarrage, au lieu de `/tmp`. Sur le Wyse, `/tmp` est un tmpfs en RAM (~3,8 Go) qu'un gros import vidéo/audio saturait (`OSError: No space left on device`, remonté côté client en « There was an error parsing the body ») alors que le disque média a des dizaines de Go libres.
+> **Fichiers temporaires** : `tempfile.tempdir` est forcé sur `data/tmp` (disque média) au lieu de `/tmp` (tmpfs RAM de ~3,8 Go sur mini PC).
 
 ### Port d'écoute et repli
 
-Le port n'est plus codé en dur dans les lanceurs (`backend/run_backend.py`, `app/desktop/tray.py`, `bobine_bootstrap.py` d'Android, `install.sh`, `scripts/watchdog.sh`, constantes Kotlin) : tous passent par `backend/app/utils/port.py`.
+Tous les lanceurs (`backend/run_backend.py`, `app/desktop/tray.py`, `bobine_bootstrap.py`, `install.sh`, `scripts/watchdog.sh`, Kotlin) passent par `backend/app/utils/port.py` :
 
-- **Port préféré** : `settings.port` (8000 par défaut ; `BOBINE_PORT` ou `config.toml`). Tant qu'il est libre, rien ne change : pare-feu, signets, mDNS et documentation restent sur 8000.
-- **Repli** (`resolve_port()`) : si le port préféré est occupé, les 10 ports suivants sont essayés, puis un port attribué par le système. Le démarrage n'échoue donc plus en boucle de relance quand une autre application tient 8000.
-- **Mode strict** : `BOBINE_PORT_STRICT=1` supprime le repli ; le démarrage échoue avec un message clair (journal et erreur standard). `install.sh` le pose dans `bobine-backend.service` : sur l'appliance, la redirection 80 → port, les signets et le pare-feu supposent un port déterministe.
-- **Fichier d'exécution** : le port réellement utilisé est écrit de façon atomique dans `backend-runtime.json` (port, pid, port préféré, indicateur de repli) à la racine des données, puis supprimé à l'arrêt. Un fichier dont le pid n'existe plus est ignoré. C'est la source de vérité des autres processus : la barre d'état du bureau (URL de l'administration, du kiosque, du projecteur, sondes de santé), le code Kotlin d'Android (`BackendEndpoint`, dans le stockage interne de l'application) et `scripts/watchdog.sh`. L'API le publie dans `network.port` de `GET /api/settings` et l'annonce mDNS dans l'enregistrement du service.
-- **Pare-feu** : la règle Windows (Inno Setup) est liée au programme `BobineBackend.exe`, pas à un numéro de port, et couvre le port de repli ; le service firewalld fourni n'ouvre que 8000 (le port de repli est à ouvrir à la main). Quand le repli est utilisé, le journal du backend et une notification de la barre d'état l'indiquent.
-- **Limite** : le sondage « ce port est-il libre ? » et la liaison par uvicorn ne sont pas atomiques ; si un autre processus prend le port entre les deux, le backend s'arrête et le superviseur (barre d'état, systemd, service Android) le relance, ce qui refait la résolution.
+- **Port préféré** : `settings.port` (8000 par défaut).
+- **Repli (`resolve_port()`)** : si 8000 est occupé, essaie les 10 ports suivants puis un port éphémère de l'OS.
+- **Mode strict (`BOBINE_PORT_STRICT=1`)** : désactive le repli (utilisé par `bobine-backend.service` sur l'appliance où la redirection nftables 80 → 8000 exige un port fixe).
+- **Fichier d'exécution (`backend-runtime.json`)** : écrit atomiquement à la racine des données (`port`, `pid`, `preferred_port`, `fallback`), lu par la barre d'état desktop, Android (`BackendEndpoint`), `watchdog.sh`, `GET /api/settings` (`network.port`) et l'annonce mDNS.
 
 ---
 
 ## 2. Architecture générale
 
 ```
-┌─────────────┐      HTTP / WebSockets      ┌─────────────────────────────────┐
-│  Frontend   │ --------------------------->│        Backend FastAPI          │
-│  Next.js    │                             │    (uvicorn, mono-processus)    │
-│ (Kiosque /  │<--------------------------- │  app/routers/* → playback_mgr   │
-│  Admin /    │                             └─────────────────────────────────┘
-│Télécommande)│                                      │
-└─────────────┘                                    │
-                                                   v
-                                          ┌──────────────┐
-                                          │    SQLite    │
-                                          │ (database.db)│
-                                          └──────────────┘
+┌──────────────┐     HTTP / WebSockets     ┌─────────────────────────────────┐
+│   Frontend   │ ------------------------> │         Backend FastAPI         │
+│   Next.js    │ <------------------------ │    (uvicorn, mono-processus)    │
+└──────────────┘                           └─────────────────────────────────┘
+                                                            │
+                                                            v
+                                                   ┌─────────────────┐
+                                                   │ SQLite (WAL db) │
+                                                   └─────────────────┘
 ```
 
-Le backend tourne en un seul processus `uvicorn` (`--workers 1`). L'état de lecture (position, playlist, planning) vit directement en mémoire de ce processus et est diffusé aux clients connectés via WebSocket ; aucun bus d'état externe n'est nécessaire pour rester synchronisé.
-
-> **Historique (avant le passage en mono-processus)** : le backend tournait avec 4 workers `uvicorn` sous le même processus maître, et Redis servait de bus d'état partagé (position de lecture, verrous de tick, synchronisation de planning) et de canal Pub/Sub inter-workers — chaque worker exécutant sa propre copie du `lifespan` et de l'`AsyncIOScheduler`, une action à effet de bord (auto-démarrage radio, déclenchement d'une programmation) devait être protégée par un verrou distribué pour n'avoir lieu qu'une fois. Le passage au mono-processus supprime cette classe entière de problèmes par construction : il n'existe plus qu'une seule copie de chaque état, plus de course entre workers à arbitrer.
+Le backend tourne en un seul processus `uvicorn` (`--workers 1`). L'état de lecture (position, playlist, planning) vit en mémoire et est diffusé via WebSocket sans bus externe.
 
 ### Arborescence backend (`backend/app/`)
 
-- `main.py` : Entrée de l'application FastAPI, initialisation des routes, des événements de démarrage (`boot_state.py`) et du serveur d'assets statiques.
-- `playback_manager.py` : Moteur de lecture multi-canal câblé/réseau (gestion de l'état `PLAYING`, `PAUSED`, `IDLE`, minutage et reprise).
-- `radio_manager.py` : Moteur de lecture du canal Radio (§5) — état INDÉPENDANT de `playback_manager.py` (playlist de morceaux, pas vidéo/cours), même connexion WebSocket.
-- `scheduler_manager.py` : Gestionnaire `APScheduler` de la programmation horaire (récurrences, détections de conflits, décalages, fenêtres radio).
-- `models.py` : Déclarations SQLAlchemy ORM.
-- `config.py` : Gestionnaire de configuration dynamique.
-- `routers/` : Endpoints HTTP groupés par domaine (`videos`, `backgrounds`, `playlists`, `audio`, `audio_playlists`, `schedule`, `playback`, `settings`, `logs`, `import_jobs`, `radio`, `radio_playlists`, `radio_announcements`, `devices`, `storage`, `chapters`, `metrics`, `updates`, `uploads`, `display`, `diagnostics`) ; `devices/` : interface de pilote et pilotes Linux, sidecar, Android, PIN et service (§5bis).
+- `main.py` : Entrée FastAPI, initialisation (`boot_state.py`), montage statique (`RevalidateStaticFiles`) et compression HTTP (`http_compression.py`).
+- `playback_manager.py` : Moteur de lecture vidéo/audio coach multi-canal (`cable`, `network`), horloge serveur (`playback_clock.py`) et reprise sur interruption.
+- `radio_manager.py` : Moteur indépendant pour les deux sorties radio (`radio_cable`, `radio_network`).
+- `scheduler_manager.py` : Planification horaire `APScheduler` et purge périodique des métriques/journaux.
+- `models.py` & `database.py` : ORM SQLAlchemy et micro-migrations idempotentes (`_migrate_add_missing_columns`).
+- `routers/` : Endpoints HTTP par domaine (`videos`, `backgrounds`, `playlists`, `audio`, `audio_playlists`, `schedule`, `playback`, `settings`, `logs`, `import_jobs`, `radio`, `radio_playlists`, `radio_announcements`, `devices`, `storage`, `chapters`, `metrics`, `updates`, `uploads`, `display`, `diagnostics`).
+- `devices/` & `storage/` : Pilotes matériels multi-OS (Linux PipeWire/BlueZ/nmcli/udisks2, sidecar Rust Windows/macOS, pont Kotlin Android) et sécurité par PIN (§5bis, §5ter).
 
 ---
 
 ## 3. Modèle de données & Persistance SQLite
 
-Le schéma de données est géré par **SQLAlchemy**. Il n'y a **pas d'Alembic actif** dans ce projet (le dossier `alembic/versions/` n'existe pas : seuls `alembic.ini`, `alembic/env.py` et `alembic/README` sont présents) : les tables sont créées par `Base.metadata.create_all()` au démarrage, et l'ajout de colonnes sur des tables existantes passe par des micro-migrations idempotentes dans `database.py::_migrate_add_missing_columns`. Stockage dans un fichier SQLite unique (`data/database.db`).
+Schéma géré par **SQLAlchemy** (`Base.metadata.create_all()` au démarrage + micro-migrations dans `database.py` ; aucun Alembic actif au runtime).
 
 ### Entités principales
 
-- `videos` / `backgrounds` : Métadonnées des médias (durée, résolution, codec, description/synopsis, fps, bitrate, canaux audio et codec audio, vignettes générées dans `data/thumbnails`).
-- `video_subtitles` : Sous-titres multilingues associés aux cours vidéo (`video_id`, `language_code`, `language_label`, `file_path`, `format`), stockés en WebVTT standardisé (`data/subtitles/`) avec conversion automatique des fichiers `.srt` importés.
-- `playlists` & `playlist_items` : Playlists de cours vidéo ordonnées.
-- `audio_courses` & `audio_tracks` : Cours audio importés et leurs pistes associées.
-- `audio_playlists` & `audio_playlist_items` : Éditions mixées audio coach avec attribution de fond visuel par piste.
-- `schedules` & `schedule_overrides` : Programmations récurrentes ou ponctuelles, avec gestion des exceptions d'occurrences (annulation, remplacement).
-- `playback_state` : État de lecture persisté par canal (*Câblé* et *Réseau*), incluant la sauvegarde des actions interrompues pour la reprise automatique.
-- `playback_sessions` : Sessions d'assiduité et d'écoute par canal et type de lancement, durée jouée, durée totale et statut d'achèvement (`completed = True` si progression ≥ 90%).
-- `course_ratings` : Évaluations de satisfaction 5 étoiles (score 1 à 5) recueillies sur le pupitre coach `/grid` ou grand écran `/cinema` avec horodatage UTC et canal.
-- `settings` : Clés/valeurs des paramètres modifiables à chaud depuis l'interface admin.
-- `activity_log` : Journal des événements fonctionnels et techniques du système.
-- `radio_tracks`, `radio_tags`, `radio_playlists` & `radio_playlist_items` : Bibliothèque musicale et playlists du module Radio (§5) — sous-système indépendant des cours vidéo/audio coach.
-- `radio_announcements` & `radio_announcement_rules` : Rappels de bienséance (annonces) et leurs règles de déclenchement.
-
----
+- `videos` / `backgrounds` : Métadonnées médias, pistes de sous-titres (`video_subtitles` en WebVTT) et chapitres (`video_chapters`).
+- `playlists` / `playlist_items` & `audio_courses` / `audio_tracks` / `audio_playlists` : Listes de lecture vidéo et cours audio coach.
+- `schedules` & `schedule_overrides` : Programmations hebdomadaires ou ponctuelles sur 4 voies (`cable`, `network`, `radio_cable`, `radio_network`).
+- `playback_state` & `playback_sessions` : État persisté par canal et historique des séances diffusées (`completed = True` à ≥ 90 %).
+- `course_ratings` & `system_metrics_logs` : Notes 5 étoiles des séances et télémétrie matérielle EAV (`watts`, `cpu`, `ram`, `temp_cpu`, etc.).
+- `radio_tracks`, `radio_tags`, `radio_playlists`, `radio_announcements`, `radio_announcement_rules` : Bibliothèque musicale et règles de rappels vocaux.
+- `settings` & `activity_log` : Paramètres clés/valeurs modifiables à chaud et journal d'événements.
 
 ### 3.1 Profil Android : compatibilité Pydantic v1 et surveillance de dossiers
 
-Deux dépendances du backend n'existent pas sous forme utilisable sur Android (Chaquopy) ; le profil Android adopte donc des versions et des replis différents, sans fork du code :
-
-- **Pydantic v1 au lieu de v2.** Pydantic v2 repose sur `pydantic-core`, une extension native sans distribution Android. L'APK embarque `pydantic==1.10.26` avec `fastapi==0.99.1` (Starlette 0.27) ; les autres profils utilisent Pydantic v2. Le code doit rester valide dans les deux versions : `app/utils/_pydantic_compat.py` fournit un équivalent de `computed_field` pour la v1, `app/config.py` retombe sur le `BaseSettings` intégré à Pydantic v1 quand `pydantic_settings` est absent, et les classes `Config` des schémas de réponse portent à la fois `from_attributes = True` (v2) et `orm_mode = True` (v1, ignoré silencieusement par la v2).
-- **Surveillance de dossiers par interrogation périodique.** Le paquet `watchdog` n'a pas de distribution Android. `app/utils/watcher.py` importe `watchdog` s'il est présent et sinon `app/utils/_polling_observer.py`, qui liste chaque dossier surveillé toutes les 2 secondes (`os.listdir`) et signale les nouvelles entrées. C'est un sous-ensemble de l'API de `watchdog` (suffisant pour l'import de dossier, qui n'est pas sensible à la latence).
-
-Les commentaires du code qui renvoient à « ARCHITECTURE.md §3.1 » désignent cette sous-section. Toute modification touchant ces deux points doit être vérifiée avec Pydantic v1 (profil Android) et v2 (autres profils). Deux constructions valables seulement en v2 empêchent le serveur Android de démarrer et sont refusées par `backend/tests/test_pydantic_v1_compat.py` : `Field(max_length=…)` sur une liste (utiliser `list_max_items` de `_pydantic_compat.py`) et l'appel direct de `.model_dump()` ou `.model_validate()` (passer par `getattr(objet, "model_dump", None) or objet.dict`, comme `routers/settings.py`).
-
-La CI `backend-android-compat` installe les versions FastAPI/Pydantic du fichier Gradle sur Python 3.11 et 3.13, importe `app.main` et exerce les endpoints de stockage avec le `TestClient` compatible Starlette 0.27 (`httpx==0.24.1`). Elle vérifie la conversion des sélections, les réglages partiels, les refus HTTP 422 au-delà des plafonds et le schéma OpenAPI. `android-startup` construit séparément les variantes debug mobile/TV avec `-PbobineEmulator=true`, puis les installe dans un émulateur x86_64 API 35 : le service Chaquopy doit servir `/api/health` (SQLite opérationnel), `/api/settings` et le frontend embarqué. Ces contrôles bloquent `ci-ok` et les trois canaux de publication. Ils ne dépendent pas des secrets de signature. Les APK ARM de distribution gardent leur propre build/signature ; l'émulateur x86_64 ne remplace pas une recette sur appareil ARM réel. Le test de démarrage peut être relancé avec `scripts/ci/smoke-android-apk.sh mobile|tv [chemin.apk]`, uniquement sur un émulateur jetable.
-
-## 3bis. Pipeline d'importation, Accélération Matérielle Multi-OS & Annulation Réactive
-
-Bobine intègre un pipeline de traitement et d'ingestion multimédia unifié couvrant 4 flux d'importation distincts : les **vidéos de cours** (`/api/videos/upload` ou dossier `data/watched`), les **fonds animés** (`/api/backgrounds/upload` ou dossier `data/backgrounds_watched`), les **cours audio coach** (`/api/audio/upload` ou dossier `data/audio_watched`), et les **morceaux radio** (`/api/radio/upload` ou dossier `data/radio_watched`).
-
-### 1. File d'attente centralisée & Télémétrie en temps réel (`import_jobs.py`)
-
-Toute importation déclenchée par upload web ou par le surveillant de fichiers (`watchdog` / `PollingObserver`) génère un job unique suivi dans `app/utils/import_jobs.py` :
-- **États successifs** : `uploading` → `normalizing` (ou `transcoding`) → `thumbnail` → `done` (ou `error` / `cancelled`).
-- **Télémétrie continue FFmpeg** : invocation avec `-progress pipe:1 -nostats`. Un thread d'arrière-plan dédié consomme `stderr` en continu pour prévenir tout blocage de buffer. L'avancement extrait en direct la vitesse de conversion (`speed`, ex. `4.2x`), le pourcentage d'avancement (`progress_percent`) et l'estimation de durée restante (`eta_seconds`).
-- **Consultation API** : `GET /api/import-jobs` expose la liste ordonnée des jobs actifs et terminés récents avec leur progression détaillée pour le polling de l'interface d'administration.
-
-### 2. Accélération matérielle multi-OS intégrale (`video_utils.py`)
-
-Le moteur de normalisation exploite un pipeline d'accélération matérielle complet à 3 paliers automatiques (Tout matériel, VRAM directe → Hybride GPU → Repli CPU) adapté dynamiquement au profil système (`get_deployment_profile()`) et au silicium graphique :
-- **Linux Bureau & Appliance Wyse (Intel QuickSync N100/N200/Core Ultra/Celeron / AMD Radeon VA-API)** : Palier 1 tout matériel via détection automatique du nœud de rendu DRM (`_find_vaapi_device()`), décodage direct en surfaces VA-API (`-hwaccel vaapi -hwaccel_output_format vaapi`), formatage GPU `scale_vaapi=format=nv12` et encodage matériel `h264_vaapi`. Traitement 100% interne à la VRAM sans transit RAM-PCIe, réduisant la charge CPU de plus de 93% (élimination des pics de 30W). En cas de flux non géré, bascule automatique vers le Palier 2 Hybride (`-vf "format=nv12,hwupload"`).
-- **Android & Google Books (Qualcomm Snapdragon 8 Gen 2 / 8 Gen 3 / 8 Elite / 8s Gen 3 / 7+ Gen 3, MediaTek Dimensity / Kompanio, Google Tensor G2–G4)** : Décodage matériel proactif cadencé par `-operating_rate 1000 -c:v <codec>_mediacodec` (AV1, HEVC, VP9, H.264) et encodage matériel natif `h264_mediacodec` (`-pix_fmt nv12 -b:v <bitrate>`). Vitesse constatée sur tablette Xiaomi Pad 8 : de **4.2x à 5.1x** temps réel.
-- **macOS (Apple Silicon M1, M2, M3, M4 Pro/Max)** : Décodage matériel direct `-hwaccel videotoolbox` et encodage matériel `h264_videotoolbox` (`-q:v 65 -pix_fmt yuv420p`), conversion ultra-rapide sans solliciter les cœurs CPU.
-- **Windows (Intel QuickSync, AMD Radeon & Qualcomm Snapdragon X Elite / X Plus ARM64)** : Décodage matériel `-hwaccel qsv -hwaccel_output_format qsv` et encodage `h264_qsv` (`-preset fast`).
-- **Repli universel (Palier 3)** : si l'accélération matérielle échoue ou n'est pas disponible (ex. serveur headless sans GPU), repli automatique transparent sur `libx264 -preset veryfast` sans interruption de la tâche.
-- **Intervalle de trames clés resserré** : toutes les vidéos normalisées (quel que soit l'encodeur) reçoivent `-g 60` (`-keyint_min 60` en repli logiciel), soit une trame clé toutes les ~2s à 30 im/s — garantit une avance/retour rapide fiable et évite qu'un seek admin vers une position hors keyframe ne laisse le décodeur bloqué (cf. §4, « Récupération d'un décodeur vidéo bloqué »).
-
-### 3. Règle d'or : Conservation intégrale de la qualité source (Zéro dégradation)
-
-Bobine respecte strictement la fidélité des médias sources :
-- **Aucun sous-échantillonnage destructif** : les résolutions natives 2K (1440p) et 4K (2160p) ne sont jamais réduites en 1080p.
-- **Débits cibles adaptatifs haute fidélité** (`_get_target_bitrate`) :
-  - **4K UHD (≥ 2160p)** : 28 Mbps (bitrate max 35 Mbps)
-  - **2K QHD (≥ 1440p)** : 14 Mbps (bitrate max 18 Mbps)
-  - **1080p FHD (≥ 1080p)** : 6 Mbps (bitrate max 8 Mbps)
-  - **720p HD** : 3.5 Mbps (bitrate max 4.5 Mbps)
-
-### 4. Annulation réactive & Nettoyage atomique
-
-- **Arrêt immédiat** : un clic sur le bouton de fermeture dans le panneau flottant d'upload émet un appel `DELETE /api/import-jobs/{job_id}`.
-- **Interruption du processus** : `cancel_job()` signale l'annulation atomique, envoie un signal `SIGTERM` (puis `SIGKILL` de sécurité sous 1.5s) au sous-processus FFmpeg enregistré, et annule le `Future` du pool de threads.
-- **Purge intégrale** : l'interruption lève `JobCancelledError`, entraînant la suppression immédiate des fichiers de destination partiels (`dest_path`, miniatures temporaires) sans aucune écriture en base de données.
-- **Nettoyage préventif au démarrage** : le backend scanne les répertoires médias au lancement pour supprimer les reliquats temporaires orphelins laissés par une coupure d'alimentation brutale.
-
-### 5. Estimation de durée avant démarrage & file d'attente (`encode_speed_stats.py`)
-
-La télémétrie FFmpeg du §1 (`progress_percent`, `eta_seconds`, `speed`) n'existe qu'une fois le réencodage réellement démarré — les étapes qui précèdent (attente en file, analyse du fichier, copie) n'affichaient auparavant qu'un indicateur « en cours » sans durée. Deux estimations complètent désormais cette télémétrie :
-- **Estimation initiale par tâche** (`estimated_seconds`) : posée dès la fin de l'analyse du fichier (avant le lancement de FFmpeg), calculée à partir de la durée de la vidéo source divisée par une vitesse moyenne (`x` temps réel) observée historiquement pour le couple (encodeur matériel, palier de résolution 4K/2K/1080p) courant. Cette moyenne mobile est persistée dans la table `settings` (clé `encode_speed_stats:<encodeur>:<palier>`) et affinée après chaque réencodage réussi ; tant qu'aucun échantillon n'existe, un repère par défaut prudent est utilisé par encodeur. Purement indicative, elle est écrasée par `eta_seconds` dès que la progression FFmpeg réelle démarre.
-- **Estimation cumulée de file d'attente** (`queue_eta_seconds`) : pour une tâche donnée, somme du temps restant estimé (ETA en direct si déjà en cours de réencodage, sinon estimation initiale) de toutes les tâches non terminées placées avant elle, plus son propre temps restant. Calculée dans `list_jobs()`, au même titre que `queue_position` — une estimation, pas une garantie.
-
-Ces deux champs sont exposés par `GET /api/import-jobs` et affichés dans le panneau flottant d'upload (`UploadManager.tsx`) : `~X min (estimation)` pendant l'analyse/la copie, puis `(N devant, ~X min au total)` tant qu'une tâche attend son tour.
+- **Pydantic v1 (`1.10.26`) sur Android, Pydantic v2 ailleurs** : `pydantic-core` n'ayant pas de roue Android Chaquopy, le code partage `app/utils/_pydantic_compat.py` (`list_max_items`, `computed_field`, `orm_mode = True` + `from_attributes = True`). Sont interdits et bloqués par `backend/tests/test_pydantic_v1_compat.py` : `Field(max_length=…)` sur une liste et l'appel direct de `.model_dump()` / `.model_validate()`.
+- **Surveillance de dossiers (`app/utils/watcher.py`)** : utilise `watchdog` sur desktop/appliance et retombe sur `_polling_observer.py` (scan toutes les 2 s) sur Android.
+- **Vérification CI** : les jobs `backend-android-compat` (Python 3.11/3.13 avec Starlette 0.27) et `android-startup` (émulateur x86_64 API 35 via `scripts/ci/smoke-android-apk.sh`) valident ce contrat à chaque PR.
 
 ---
 
+## 3bis. Pipeline d'importation, Accélération Matérielle Multi-OS & Annulation Réactive
+
+Couvre les 4 flux d'ingestion : vidéos (`/api/videos/upload`), fonds (`/api/backgrounds/upload`), audio coach (`/api/audio/upload`) et radio (`/api/radio/upload`), ainsi que les téléversements par morceaux reprenables (`/api/uploads`, `staged_uploads.py`).
+
+### 1. File d'attente centralisée & Télémétrie en temps réel (`import_jobs.py`)
+
+Chaque import crée une tâche suivie (`uploading` → `normalizing` → `thumbnail` → `done` / `error` / `cancelled`). FFmpeg est lancé avec `-progress pipe:1 -nostats` ; `GET /api/import-jobs` expose le pourcentage, la vitesse (`speed`) et le temps restant (`eta_seconds`).
+
+### 2. Accélération matérielle multi-OS intégrale (`video_utils.py`)
+
+Pipeline automatique à 3 paliers (1. Matériel VRAM directe → 2. Hybride GPU → 3. Repli CPU `libx264 -preset veryfast`), avec intervalle de trames clés fixé à `-g 60` (~2 s) pour garantir un seek instantané :
+- **Linux** : `h264_vaapi` via `/dev/dri/renderD*` (Intel QuickSync / AMD Mesa).
+- **Android** : décodage `<codec>_mediacodec` et encodage `h264_mediacodec`.
+- **macOS** : `h264_videotoolbox`.
+- **Windows** : `h264_qsv`.
+
+### 3. Règle d'or : Conservation intégrale de la qualité source (Zéro dégradation)
+
+Aucun sous-échantillonnage des flux 2K (1440p) ou 4K (2160p). Débits cibles (`_get_target_bitrate`) : 4K = 28 Mbps (max 35), 2K = 14 Mbps (max 18), 1080p = 6 Mbps (max 8), 720p = 3,5 Mbps (max 4,5). Pour les navigateurs ne décodant pas HEVC/AV1, une variante H.264 8 bits ≤ 1080p est générée à la demande (`web_profile.py`, `?accept=`) sans toucher au fichier original.
+
+### 4. Annulation réactive & Nettoyage atomique
+
+`DELETE /api/import-jobs/{job_id}` appelle `cancel_job()`, envoie `SIGTERM` puis `SIGKILL` au sous-processus FFmpeg et purge immédiatement les fichiers partiels sans écriture en base. Au démarrage, les fichiers temporaires orphelins sont nettoyés.
+
+### 5. Estimation de durée avant démarrage & file d'attente (`encode_speed_stats.py`)
+
+Avant même le démarrage de FFmpeg, `estimated_seconds` et `queue_eta_seconds` sont calculés à partir de la moyenne mobile de vitesse persistée dans `settings` par couple `(encodeur, palier de résolution)`.
+
 ### 6. Composant audio natif (`bobine-media`, expérimental, désactivé par défaut)
 
-Petit exécutable Rust (`media/`, protocole JSON-RPC sur stdin/stdout, aucun port, lecture seule) qui lit les tags, la durée et la pochette des **nouveaux** morceaux de la radio et des cours audio sans lancer ffprobe/ffmpeg pour chaque fichier. Formats lus : MP3 (index Xing/Info, VBRI, ou débit constant sans index), FLAC, WAV (avec INFO), M4A, Ogg Vorbis, Opus, AIFF ; tout le reste, et tout fichier hors du sous-ensemble prouvé identique à ffprobe (champs identiques, durée à 50 ms), passe par ffprobe/ffmpeg + Pillow comme avant. Les pochettes natives (octets bruts JPEG/PNG) sont mises en forme par Pillow ; leur équivalence avec le chemin ffmpeg est **définie** (mêmes dimensions, PSNR ≥ 33 dB, erreur moyenne ≤ 4) car ffmpeg ré-encode l'image : voir `media/README.md`. Aucune donnée existante n'est modifiée ni régénérée.
+Exécutable Rust (`media/`, JSON-RPC sur stdin/stdout, lecture seule, voir [`media/README.md`](../media/README.md)) lisant tags, durée et pochette des nouveaux fichiers MP3, FLAC, WAV, M4A, Ogg Vorbis, Opus et AIFF sans lancer `ffprobe`/`ffmpeg`. Activé via le réglage `media_native` ou `BOBINE_MEDIA_NATIVE=1` (`GET /api/settings/media-native`). Tout fichier hors périmètre retombe automatiquement sur `ffprobe`/`ffmpeg` + Pillow.
 
-- **Activation** : réglage `media_native` (Réglages → « Composant audio natif (expérimental) », `"false"` par défaut, seule voie sur Android) ; la variable `BOBINE_MEDIA_NATIVE` (`1` force, `0` désactive) est prioritaire (`app/utils/media_native.py`). `GET /api/settings/media-native` renvoie l'état réel : `disabled`, `active` (le composant répond à `hello`), `fallback` (présent mais inutilisable) ou `absent`.
-- **Livraison** : à côté de `BobineBackend` dans les `.deb` (amd64, arm64) et sur Windows, dans `Contents/MacOS` sur macOS, en `libbobine_media.so` (`nativeLibraryDir`) dans les APK Android ; l'appliance headless installée depuis git ne l'embarque pas. Un paquet sans le composant reste complet.
-- **Sûreté** : tout échec (absent, erreur de protocole, délai, format ou image hors périmètre) retombe sur le chemin historique ; aucun média n'est perdu.
+---
 
 ## 3ter. Télémétrie Matérielle Universelle Multi-OS & Métriques d'Assiduité
 
 ### 1. Supervision Matérielle Universelle (`hardware_info.py`)
 
-Bobine embarque un module d'introspection matérielle de bas niveau (`backend/app/utils/hardware_info.py`) exposé par `GET /api/settings/system` et consommé par le panneau Réglages (`/settings`) et le tableau de bord (`/metrics`). Afin de garantir une restitution fidèle et professionnelle (sans codes techniques bruts, sans architecture générique `aarch64` ni étiquettes vagues), le module résout les dénominations commerciales complètes et audite les composants physiques réels sur les 5 profils d'exécution :
-
-- **Processeur (CPU)** :
-  - *Android ARM64* : lecture des propriétés système AOSP `ro.soc.model` (ex: `Snapdragon 8 Elite`, `Dimensity 9300`) et repli sur `ro.board.platform` ou `/proc/cpuinfo`.
-  - *Linux Bureau & Wyse sans écran* : extraction du modèle commercial depuis `/proc/cpuinfo` (`model name`), nettoyage regex des suffixes superflus (`(R)`, `(TM)`, fréquences redondantes).
-  - *macOS Bureau* : appel `sysctl -n machdep.cpu.brand_string` (ex: `Apple M3 Pro`, `Intel Core i7`).
-  - *Windows Bureau* : requête directe dans le Registre Windows `HKLM\HARDWARE\DESCRIPTION\System\CentralProcessor\0\ProcessorNameString` (ultra-rapide, sans spawn de processus).
-- **Puce Graphique (GPU)** :
-  - *Android ARM64* : identification de la puce Adreno via les nœuds sysfs du pilote graphique Qualcomm `/sys/class/kgsl/kgsl-3d0/gpu_model` (ex: `Qualcomm Adreno 825`), ou nœuds Mali pour SoC MediaTek.
-  - *Linux Bureau & Wyse sans écran* : parcours sysfs DRM `/sys/class/drm/card*/device/` avec résolution du nom via `udevadm` ou extraction `lspci` (Intel UHD/Iris Xe, AMD Radeon Graphics, Nvidia GeForce) avec nettoyage des parenthèses vides.
-  - *macOS Bureau* : interrogation `system_profiler SPDisplaysDataType`.
-  - *Windows Bureau* : requête PowerShell `Get-CimInstance Win32_VideoController` non bloquante avec timeout strict (1,5s).
-- **Mémoire Vive (RAM)** :
-  - Restitution de la capacité totale et utilisée (en Go et %), ainsi que des métadonnées constructeur : marque/fabricant (Samsung, Micron, SK Hynix, Crucial, Corsair), technologie de mémoire (LPDDR5X, LPDDR5, DDR5, DDR4, LPDDR4X) et fréquence d'horloge maximale (ex: 8533 MT/s, 6400 MHz).
-  - *Android* : diagnostic via `/proc/meminfo`, propriétés de plateforme et sysfs mémoire.
-  - *Linux / Wyse* : inspection SMBIOS non-root via `udevadm info -p /devices/virtual/dmi/id` ou `dmidecode -t memory` si disponible.
-  - *macOS* : `system_profiler SPMemoryDataType`.
-  - *Windows* : requête WMI `Win32_PhysicalMemory` (Manufacturer, SMBIOSMemoryType, Speed).
-- **Stockage Principal** :
-  - Identification commerciale du disque système (ex: `Samsung SSD 990 PRO 2TB`, `Western Digital WD Black SN850X`, `Stockage Flash UFS 4.0 256 Go` sous Android).
-  - Calcul de l'espace total, libre et pourcentage d'occupation via `shutil.disk_usage()` (ou `StatFs` sous Android).
-  - *Linux / Wyse* : nœuds sysfs `/sys/block/<disk>/device/model` et `lsblk`.
-  - *Android* : inspection du type de bus eMMC / UFS (`/sys/block/sda/device/model` ou `mmcblk0`).
-- **Puissance Électrique en Watts (W) & Énergie Cumulée (Wh)** :
-  - Mesure instantanée de la consommation électrique globale en direct :
-  - *Linux x86 / Wyse* : lecture de l'interface Intel/AMD RAPL (Running Average Power Limit) sous `/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj` avec échantillonnage différentiel sur 100 ms.
-  - *Ordinateurs portables / Tablettes / Mac sur batterie* : calcul instantané `P = U * I` via les capteurs de batterie (sysfs `/sys/class/power_supply/`, `AppleSmartBattery` sous macOS via `ioreg`).
-  - *Sur secteur (maintien batterie et chargeur AC)* :
-    - Sur ordinateur portable Linux : priorisation des capteurs matériels APU/GPU/SoC (`hwmon` `amdgpu` ou RAPL) sur la sonde de batterie `BAT1` (qui rapporterait un faux courant de fuite de 0.05 W une fois la batterie pleine).
-    - Sur Android (Chaquopy) : détection de l'état branché (`plugged > 0` ou statut `CHARGING`/`FULL`). En maintien à 100%, le courant chimique aux bornes de la batterie étant de 0 µA, la puissance active réelle est calculée à partir du profil thermique/énergétique du SoC et du scaling de charge CPU instantanée (3.2W de base + scaling CPU dynamique).
-    - Sur macOS : détection via `ioreg -rc AppleSmartBattery` (`Watts` direct ou `ExternalConnected`).
-    - Sur Windows : interrogation de l'état AC via `Get-CimInstance Win32_Battery`.
-  - *Énergie Cumulée & Puissance Moyenne* : intégration trapézoïdale continue de la puissance instantanée au fil du temps (`cumulative_energy_wh = ∫ P dt`), exposée en Watt-heures (Wh) aux côtés de la puissance moyenne (`average_power_watts`).
-- **Températures CPU et GPU (°C)** :
-  - Lecture des capteurs thermiques matériels sous `/sys/class/thermal/thermal_zone*` et `/sys/class/hwmon/`.
-  - Sous Android, ciblage spécifique des zones CPU et GPU Adreno `/sys/class/kgsl/kgsl-3d0/temp`.
-- **Temps d'activité (Uptime & Runtime)** :
-  - Uptime du système d'exploitation et runtime continu du serveur Bobine (depuis l'initialisation de l'instance FastAPI).
+Exposée par `GET /api/settings/system` sur les 5 profils (Linux, Wyse, Windows, macOS, Android) avec résolution des noms commerciaux :
+- **CPU & GPU** : `/proc/cpuinfo` et sysfs DRM/`lspci` sous Linux, registre Windows et `Win32_VideoController` sous Windows, `sysctl` et `system_profiler` sous macOS, propriétés `ro.soc.model` et `/sys/class/kgsl/` sous Android.
+- **RAM & Stockage** : capacité, fabricant, type (DDR4/DDR5/LPDDR5X), fréquence et modèle de SSD/UFS.
+- **Puissance (W), Énergie (Wh) & Températures (°C)** : compteur RAPL (`intel-rapl`), sondes `hwmon`/`power_supply`, `AppleSmartBattery` ou profil énergétique SoC Android, avec intégration trapézoïdale en Wh (`cumulative_energy_wh`) et capteurs thermiques CPU/GPU.
 
 ### 2. Moteur de Métriques d'Assiduité, Télémétrie Système & Rétention (`/metrics`)
 
-- **Découplage Modulaire de l'Interface (`/metrics`)** :
-  - La section Métriques est découpée en deux espaces distincts et ergonomiques :
-    - **Cours & Assiduité (`/metrics/courses`)** : KPIs de séances, taux de complétion, durée de visionnage, histogramme d'affluence horaire 24h et palmarès des cours les plus suivis et les mieux notés.
-    - **Système & Matériel (`/metrics/system`)** : surveillance en direct de la machine (CPU, RAM, Disque, Températures CPU/GPU, Puissance électrique en W, Énergie cumulée en Wh, Runtime serveur et Uptime OS).
-  - **Tiroir Latéral d'Historique (`TelemetryHistoryDrawer.tsx`)** :
-    - Clic direct sur n'importe quelle carte métrique pour déployer un tiroir latéral animé depuis la droite avec courbe temporelle interactive (SVG responsive).
-    - Filtres temporels rapides : **1 heure**, **6 heures**, **24 heures** et **7 jours**.
-    - Affichage des extrêmes (minimum, maximum, moyenne) et horodatage dynamique.
-- **Base de Données Dynamique & Évolutive (`SystemMetricLog`)** :
-  - Table SQLite `system_metrics_logs` conçue selon un schéma extensible EAV (`metric_type`, `value`, `unit`, `recorded_at`), acceptant sans migration lourde toute nouvelle sonde matérielle future (watts, cpu, ram, disque, temp_cpu, temp_gpu, etc.).
-  - Échantillonnage automatique et non bloquant orchestré par `scheduler_manager.py`.
-- **Rétention Configurable & Purge Automatique (`logs_retention_days`)** :
-  - Délai de conservation des journaux et des métriques matérielles paramétrable dans Paramètres (`GET`/`PUT /api/settings`, champ `logs_retention_days`, défaut : 7 jours).
-  - Tâche de fond périodique (`_cleanup_old_logs_and_metrics`) purgeant atomiquement les enregistrements antérieurs au seuil configuré.
-- **Collecte des Sessions (`playback_sessions`)** : traçage de chaque séance vidéo diffusée (id du cours, titre, canal, déclencheur manuel/planning, durée visionnée, durée totale, flag `completed` calculé à ≥90%).
-- **Notation de Satisfaction (`course_ratings`)** : recueil des avis 1 à 5 étoiles après diffusion :
-  - Affichage contextuel : sur le pupitre coach (`/grid`) dans le conteneur du cours terminé en mode double écran ; sur grand écran (`/cinema` HDMI) en mode headless.
-  - Barre de décompte d'auto-fermeture (5 minutes / 300 s) continue et fluide, synchronisée sur l'horloge système.
-  - Harmonisation chromatique intégrale : étoiles d'évaluation, jauges et icône d'alimentation (éclair et unité Watt) synchronisées sur la variable CSS du thème actif (`var(--accent-primary)`).
-- **Tableau de Bord Analytique (`GET /api/metrics/dashboard`)** :
-  - 4 indicateurs clés (Satisfaction moyenne /5, Taux de complétion %, Durée totale de diffusion en heures, Nombre de séances).
-  - Histogramme d'affluence sur 24 heures (CSS Grid pur, détection automatique de l'heure de pointe).
-  - Classement des cours les plus diffusés et les mieux notés.
+- **Deux vues dédiées** : `/metrics/courses` (satisfaction /5, taux de complétion, durée diffusée, histogramme 24 h, palmarès des cours) et `/metrics/system` (cartes temps réel + tiroir d'historique SVG `TelemetryHistoryDrawer.tsx` sur 1 h, 6 h, 24 h et 7 j).
+- **Rétention (`logs_retention_days`)** : purge automatique des journaux et métriques au-delà du délai configuré (défaut : 7 jours).
 
 ---
 
 ## 4. Canaux de diffusion & Gestionnaire de lecture
 
-Le système pilote deux canaux de diffusion vidéo **strictement indépendants**, plus un 3ᵉ canal musical (§5) :
-
-1. **Canal Câblé (`channel=cable`)** : Canal d'affichage principal relié à la sortie vidéo physique du mini PC (écran salle / kiosque).
-2. **Canal Réseau (`channel=network`)** : Canal secondaire destiné à la diffusion réseau ou aux écrans auxiliaires.
-3. **Sorties radio (`radio_cable`, `radio_network`)** : musique continue, totalement indépendante des deux canaux vidéo. **Un moteur par sortie** (`radio_manager.py`, sur le modèle des gestionnaires câblé/réseau) : la radio câblée et la radio réseau ont chacune leur playlist, file d'attente, volume, rappels, planning et réglages de son. L'ancien identifiant `radio` reste accepté en entrée et désigne la sortie réseau. **La sortie câblée peut être basculée sur Radio à la demande** (cf. ci-dessous et §5) ; le réseau a déjà son poste radio par URL.
-
-Chaque écran affiche `/kiosk` ou `/cinema` selon la sortie choisie par l'admin (`/api/settings/display-output`, ex. câble → `cinema`, réseau → `kiosk`). **La sortie câblée accepte aussi `radio`** (l'écran physique devient un poste radio, `/radio?channel=cable`) : la vidéo, le fond ou le cours audio en cours est arrêté, le moteur radio câblé reprend (ou démarre l'ambiance par défaut), et le retour vers kiosk/cinéma le met en pause sans perdre sa file. Le réseau refuse `radio`. `/kiosk` et `/cinema` du canal câblé suivent cette bascule (la requête `?channel=` est conservée), y compris au démarrage ; la page radio câblée ne repart que sur une bascule faite en direct. Tant que l'écran câblé est en mode Radio, les lancements vidéo sur le câblé sont refusés (`command_rejected`, raison `radio_locked`). L'écran câblé (`127.0.0.1`, détecté par `isWiredDisplay()`) suit toujours sa sortie stockée ; le canal d'un écran est explicite via `?channel=` (cf. « Identité de canal » ci-dessous). **Le pupitre studio `/grid` pilote exclusivement le canal câblé (HDMI)** : il n'y a pas d'interface `/grid` pour le canal réseau (qui se pilote depuis `/dashboard-network`). **Bibliothèque vide** : `/cinema` affiche un écran d'attente plein écran (grand logo + heure + « Aucun cours disponible ») au lieu d'un écran noir ; `/kiosk` a son propre écran d'attente (horloge + prochain cours). Les **catégories de cours** sont des libellés **libres** (plus de RPM/Sprint/The Trip figés) : saisie avec suggestions des catégories déjà utilisées, filtre et regroupement dynamiques.
-
-**Contrôles universels : Télécommandes physiques, Claviers, Souris, Tactile et Manettes de jeu** (réf. hook `useKioskRemote` & HTML5 Gamepad API) : L'ensemble des interfaces de diffusion et de régie (`/cinema`, `/grid`, `/kiosk`, `/radio`) réagissent de manière cohérente à l'ensemble des périphériques d'entrée :
-- **Télécommandes USB & Bluetooth** : dongles de présentation, télécommandes multimédias et "air remotes" reconnus en claviers HID standards.
-- **Manettes de jeu (Gamepads)** : manettes Xbox, PlayStation (DualShock / DualSense), 8BitDo, Nintendo Switch Pro et manettes USB/BT génériques prises en charge nativement via la standard **HTML5 Gamepad API** (`navigator.getGamepads()`). D-Pad et stick analogique gauche pour la navigation, boutons A/Croix pour lancer/valider, B/Rond pour retour, X/Y/Start pour Play/Pause, L1/R1 pour saut temporel et L2/R2 pour le volume.
-- **Tactile & Souris** : activation directe des cartes au clic/toucher, réveil au toucher des contrôles en lecture, bouton pause interactif et barre de défilement.
-- **Navigation spatiale 2D (`moveDomFocus2D`)** : calcul géométrique continu dans le viewport pour déplacer le curseur de sélection de carte en carte (haut, bas, gauche, droite) avec halo lumineux dynamique (`.kiosk-remote-focus`).
+Deux canaux vidéo indépendants (`cable` sur sortie physique HDMI, `network` sur navigateurs distants) et deux sorties radio (`radio_cable`, `radio_network`).
+- **Sortie câblée (`/api/settings/display-output`)** : affiche `/kiosk`, `/cinema` ou `/radio?channel=cable`. Le pupitre `/grid` pilote exclusivement le canal câblé.
+- **Contrôles universels (`useKioskRemote`)** : télécommandes USB/Bluetooth HID, manettes de jeu (HTML5 Gamepad API), souris et tactile avec navigation spatiale 2D (`moveDomFocus2D`).
 
 ### Reprise après interruption (Règle de résilience)
 
-Lorsqu'une programmation automatique (`scheduler`) doit démarrer alors qu'une lecture manuelle est en cours :
-1. Le `playback_manager` interrompt la lecture manuelle et sauvegarde la position exacte et l'identifiant du média dans `playback_state`.
-2. Le cours programmé s'exécute.
-3. À la fin de la programmation, l'interface propose automatiquement la **reprise à la seconde près** du cours interrompu.
+Lorsqu'un cours planifié démarre pendant une séance manuelle, `playback_manager` sauvegarde le média et sa position exacte dans `playback_state` et propose la reprise à la seconde près en fin de créneau.
 
 ### Récupération et fluidité de lecture (`/kiosk`, `/cinema`)
 
-Sur certains décodeurs matériels (MediaCodec sur Android, VA-API sur Linux/Wyse), un seek vers une position hors keyframe à chaud pouvait laisser le pipeline vidéo désynchronisé ou bloqué sur la dernière image décodée alors que la piste audio continuait d'avancer. Plusieurs protections complémentaires et coordonnées couvrent ce cas dans `/kiosk` et `/cinema` :
-1. **Seeks protégés et synchronisation pause/seeked** : toute assignation de `currentTime` passe par `seekWhenReady()`. Si l'élément est en cours de lecture, il est temporairement mis en pause pour figer l'horloge audio avant le saut temporel, puis relancé uniquement à la réception de l'événement `seeked` (avec timeout de secours à 1200 ms). Cela garantit que l'audio ne devance pas la reconstitution du GOP vidéo.
-2. **Garde anti-réentrance** : interdiction de déclencher un nouveau seek tant que `el.seeking` est actif, évitant l'écrasement perpétuel du buffer décodeur.
-3. **Période de grâce après seek (3 500 ms)** : sur les kiosques miroirs (réseau ou multi-écrans), les recalages périodiques de `position_tick` sont ignorés pendant 3,5 secondes après un seek pour laisser les tampons et l'affichage se stabiliser.
-4. **Détection douce de décrochage sans saccade** : remplacement des watchdogs agressifs par une vérification non-destructive de gel prolongé (> 7,5s consécutives sans progression de l'horloge hors chargement/seek), déclenchant une relance propre `.play()` sans cycle artificiel de pause/seek saccadé.
-5. **Protection anti-rebond (1,5s) et lissage temporel monotone sur `/grid`** : élimination des doubles commandes accidentelles au lancement de cours et affichage d'un temps de lecture régulier seconde par seconde sans saut arrière dû aux aléas de paquets réseau.
+Protections coordonnées : (1) `seekWhenReady()` fige l'horloge audio en pause jusqu'à l'événement `seeked` (timeout 1,2 s) ; (2) garde anti-réentrance tant que `el.seeking` est vrai ; (3) grâce de 3,5 s après seek sur les kiosques miroirs ; (4) détection douce de gel (> 7,5 s) relançant `.play()` sans saccade ; (5) anti-rebond (1,5 s) sur `/grid`.
 
 ### Identité de canal et horloge de lecture serveur (4.0)
 
-**Identité de canal explicite** (`frontend/src/lib/displayChannel.ts`, règle unique partagée par `/kiosk` et `/cinema`) : le paramètre d'URL `?channel=cable|network` est prioritaire ; sans lui, `/kiosk` reste câblé (décision historique : une TV sur IP LAN reste un écran câblé) et `/cinema` déduit son canal du nom d'hôte (`127.0.0.1` = câblé). La redirection kiosque ↔ cinéma **conserve** `?channel=` — avant la 4.0 elle le supprimait, ce qui reclassait « câblé » un écran réseau ouvert sur la machine du serveur. Un écran « Réseau » sur la machine du serveur s'ouvre donc via `/kiosk?channel=network` (lien dans le tableau de bord Réseau et dans Réglages). L'identifiant de kiosque est généré **par chargement de page** (plus de `localStorage` partagé entre onglets, qui rendait plusieurs onglets locaux « primaires »).
-
-**Horloge de lecture pilotée par le serveur** (`backend/app/utils/playback_clock.py`, `PlaybackManager`) : la position d'un cours est une fonction du temps, `position(t) = position_ancre + (t − instant_ancre) × vitesse`, et non plus la dernière valeur rapportée par un kiosque. Chaque état diffusé porte l'ancre `clock = { pos, at_ms, rate, running }` ; `at_ms` peut être **dans le futur** (démarrage synchronisé : 400 ms au chargement, 150 ms pour play/seek) **uniquement s'il y a au moins deux écrans** de diffusion sur le canal ; avec un seul écran, aucun délai (réponse immédiate). L'ancre porte aussi une `epoch`, incrémentée à chaque ordre (démarrage, pause, seek, vitesse, arrêt). Conséquences : la position avance **sans aucun kiosque connecté** ; le tick de position passe de 4 Hz à un **heartbeat de 1 Hz** ; `report_position` ne sert plus qu'au suivi d'assiduité ; `video_ended` est **idempotent** (porte le `video_id` : tous les écrans l'envoient) et le serveur termine lui-même un cours dépassé de sa durée + 3 s.
-
-**Suivi côté écran** (`lib/playbackClock.ts`, `lib/useVideoClockFollower.ts`) : l'écran estime son décalage avec l'horloge serveur par `time_sync` (aller-retour sur la WebSocket, médiane des échantillons au plus petit RTT), puis amène son `<video>` sur la position cible — **avant l'instant de départ** : en pause à la bonne position, `play()` à l'instant exact ; **en lecture** : dérive < 80 ms ignorée, au-delà `playbackRate` ajusté de ±5 % (**sans `seek`**, donc sans réinitialiser le décodeur matériel), un seul `seek` si la dérive dépasse 2 s (délai de grâce 1,5 s, 4 s minimum entre deux seeks). Un **ordre explicite** (changement d'`epoch` : télécommande, `/grid`, planning) est appliqué immédiatement — seek dès 0,3 s d'écart, sans délai de grâce ni anti-boucle : deux seeks +10 s enchaînés à la télécommande s'exécutent chacun aussitôt. Cible de précision : **< 100 ms** entre écrans du canal Réseau. Latences mesurées (navigateur et backend réels, en local) : chargement d'un cours ≈ 150 ms, pause 1 ms, play 2-4 ms, seek 6-8 ms.
-
-**Diffusion filtrée par canal** : chaque client s'abonne (`subscribe`) ; le serveur n'envoie les évènements propres à un canal (`state_change`, `cinema_state`, `cinema_command`) qu'à ses abonnés. Les évènements globaux (`display_output`, `settings_change`, `display_mode_change`, `force_reload`, `update_progress`) ne sont jamais filtrés ; un client sans abonnement (ancien bundle en cache) reçoit tout.
+- **Identité (`frontend/src/lib/displayChannel.ts`)** : `?channel=cable|network` est prioritaire et conservé lors des redirections `/kiosk` ↔ `/cinema`.
+- **Horloge serveur (`playback_clock.py`)** : diffuse une ancre `clock = { pos, at_ms, rate, running, epoch }` avec heartbeat à 1 Hz. Les écrans (`useVideoClockFollower.ts`) estiment leur décalage via `time_sync` et corrigent toute dérive > 80 ms par ajustement doux de `playbackRate` (±5 %) sans réinitialiser le décodeur matériel.
 
 ### Projection HDMI prête à l'emploi (4.0)
 
-Le **mode d'affichage câblé n'est plus une préférence figée** : chaque plateforme remonte le nombre d'écrans externes réellement connectés (`PUT /api/display/state`, idempotent, rejouable), le backend en déduit le mode effectif (`dual_screen` dès qu'un écran externe existe, sinon `headless`) et le diffuse (`display_mode_change`). Le réglage `display_mode_setting` vaut `auto` par défaut ; `dual_screen`/`headless` forcent le mode. Le rapport matériel est gardé **en mémoire** (fait instantané, jamais persisté) et ré-émis périodiquement.
+Chaque plateforme remonte le nombre d'écrans externes connectés (`PUT /api/display/state`) ; le backend bascule automatiquement entre `dual_screen` (pupitre `/grid` + projecteur `/cinema`) et `headless` (sauf forçage manuel dans `display_mode_setting`).
 
 | Profil | Détection | Action |
 |---|---|---|
-| **Android** | `DisplayListener` (ajout, retrait, **modification**), écrans privés exclus | `Presentation` → `/cinema/?channel=cable` ; token d'activité prioritaire (`MainActivity.activeActivity`) et repli `TYPE_APPLICATION_OVERLAY` (`SYSTEM_ALERT_WINDOW`) pour éliminer tout `BadTokenException` ; 15 essais rapides puis un essai / 5 s **sans abandon** ; état rapporté au démarrage, à chaque changement, puis toutes les 60 s |
-| **Windows** | `EnumDisplayMonitors` (ctypes), sondage 2 s stabilisé | Fenêtre native `bobine-projector.exe` (WebView2) si disponible ; repli Edge/Chrome kiosque avec profil dédié, `--new-window`, `--window-position` et `--start-fullscreen` |
-| **Linux Bureau** | `xrandr --listmonitors` (X11 / XWayland) | Fenêtre native `bobine-projector` (WebKitGTK) si disponible ; repli Chromium kiosque avec profil dédié, `--new-window`, `--start-fullscreen` et sous Wayland `--ozone-platform=x11` |
-| **macOS** | `system_profiler SPDisplaysDataType` | Fenêtre native `bobine-projector` (`projector/`, WKWebView), écran externe choisi par la fenêtre elle-même ; repli navigateur par défaut si absente |
-| **Appliance Wyse** | Règle udev DRM → `bobine-display-hotplug` (sysfs, anti-rebond 3 s) | `try-restart bobine-kiosk` uniquement si l'ensemble des sorties connectées change ; la logique `xrandr` de démarrage est réutilisée ; **ne rapporte aucun écran externe** (sa sortie EST l'affichage autonome) |
-
-Implémentation desktop : `backend/app/desktop/displays.py` (énumération, `DisplayWatcher`, `ProjectorWindow`, `DisplayOrchestrator`, recherche multi-OS `find_native_projector`, testés sans affichage).
-Sortie active : dans `backend/app/routers/settings.py`, la valeur par défaut du canal câblé est automatiquement dérivée vers `"cinema"` dès que le mode matériel effectif est `"dual_screen"`, empêchant la redirection intempestive de `/cinema` vers `/kiosk` lors du branchement d'un écran étendu.
-
+| **Android** | `DisplayListener` | `Presentation` native sur `/cinema/?channel=cable` |
+| **Windows / Linux / macOS** | `EnumDisplayMonitors` / `xrandr` / `system_profiler` (`displays.py`) | Binaire natif `bobine-projector` (`projector/`, WebView2 / WebKitGTK / WKWebView) ou fenêtre navigateur kiosque dédiée |
+| **Appliance Wyse** | Règle udev DRM → `bobine-display-hotplug` | `try-restart bobine-kiosk` au changement de sortie |
 
 ### Double Décodeur Vidéo A/B sans coupure (`/cinema`) & Notation 5 Étoiles
 
-- **Moteur Vidéo A/B sans coupure** : sur Chromium et WebView Android, l'assignation d'un nouveau `video.src` entraîne la destruction du pipeline de décodage matériel et génère un écran noir de 200 à 600 ms. Bobine monte désormais **deux éléments `<video>` permanents dans le DOM** (`deckARef` et `deckBRef`) au sein d'un conteneur `.cinema-deck-container`. Le décodeur actif joue en direct (`opacity: 1`, `zIndex: 2`), tandis que le cours suivant ou l'écran de veille est préchargé en coulisses sur le décodeur en attente (`opacity: 0`, `zIndex: 1`, `preload="auto"`). Dès confirmation de `canplay`, un fondu enchaîné matériel CSS (`opacity 0.4s ease`) s'opère sans le moindre clignotement ni flash noir.
-- **Système de Notation 5 Étoiles** : à la fin naturelle d'un cours ou dès franchissement de 95% de progression, le widget de pilotage sur `/grid` (pupitre coach) ou l'écran cinématique de fin de cours sur `/cinema` (grand écran) propose une carte d'évaluation tactile et physique à 5 étoiles (Google Icons `star` / `star_outline`). Contrôlable à la télécommande multimédia, manette de jeu, souris ou tactile, avec décompte d'auto-fermeture de 5 minutes (300 s). Les avis sont persistés en base SQLite (`course_ratings`).
-- **Sessions de Lecture & Assiduité** : chaque diffusion vidéo est tracée dans la table `playback_sessions` avec le canal, le type de déclencheur, la durée exacte visionnée et le flag `completed` (vrai si ≥ 90% du cours a été suivi), alimentant le tableau de bord `/metrics`.
+- **Moteur A/B Deck** : deux éléments `<video>` permanents (`deckARef`, `deckBRef`) préchargent le cours suivant ou la boucle d'attente en arrière-plan et enchaînent par fondu CSS (`0.4s`) dès `canplay`, éliminant tout écran noir.
+- **Notation 5 étoiles** : proposée à ≥ 95 % d'un cours sur `/grid` (mode double écran) ou `/cinema` (mode headless) avec auto-fermeture à 300 s.
 
 ### Studio Modal de Cours sans défilement (`/library`) & Sous-titres Synchronisés
 
-- **Studio Modal sans défilement** : L'édition d'un cours vidéo dans la bibliothèque (`/library`) se fait dans un canevas Studio 2 colonnes sans défilement vertical (`.course-studio-modal`). La colonne gauche intègre un lecteur 16:9 interactif avec prévisualisation des sous-titres, sélecteur de miniature, specs techniques en grille Bento (résolution, codec, fps, débit, chemins disques) et actions système (normalisation manuelle, suppression). La colonne droite regroupe le titre, les métadonnées de programme et release, le synopsis multi-lignes étendu et le gestionnaire de sous-titres synchronisés.
-- **Pipeline et Gestionnaire de Sous-titres (`app/utils/subtitles.py`)** : Prise en charge native des fichiers `.srt` et `.vtt`. Détection automatique de la langue d'après le nom de fichier (`cours.fr.srt` $\to$ Français), conversion automatique SRT en WebVTT standardisé (normalisation des horodatages virgule/point, UTF-8, en-tête `WEBVTT`) et exposition via `GET /api/videos/{id}/subtitles/{sub_id}/vtt` avec en-têtes CORS (`Access-Control-Allow-Origin: *`).
-- **Diffusion Synchronisée Sous-titres Cinéma & Kiosque** : Rendu des sous-titres via éléments `<track kind="subtitles">` sur les décodeurs A et B. Sélecteur interactif type Netflix dans la régie cinéma (`.cinema-subtitle-popover`) et styles typographiques haute lisibilité (`video::cue` avec arrière-plan sombre translucide et bordures adoucies).
-- **Sous-titres : URL de piste et choix depuis l'administration** : l'API renvoie `vtt_url` déjà préfixé par `/api` ; `frontend/src/lib/subtitles.ts` (`subtitleSrc`) retire ce préfixe avant `getApiUrl`, faute de quoi la piste visait `/api/api/...` et restait vide (`readyState 3`). Le mode de chaque `<track>` est forcé (`applySubtitleMode`) car l'attribut `default` n'est pas fiable sur un `<video>` réutilisé d'un cours à l'autre. La commande WebSocket `set_subtitle` (`{track_id | "off"}`) mémorise le choix dans l'état de lecture (`subtitle`), diffusé aux écrans ; le tableau de bord et la télécommande mobile s'en servent pour sélectionner la piste affichée sur `/kiosk` et `/cinema`.
-- **Chapitres de cours (`app/utils/chapters.py`, `routers/chapters.py`)** : table `video_chapters` (début, fin, titre, 200 chapitres maximum, titres de 120 caractères). `GET/PUT /api/videos/{id}/chapters` lisent et remplacent la liste ; `POST .../chapters/import` accepte JSON (`{"chapters": [{"start", "end"?, "title"}]}` ou liste nue, titre éventuellement localisé), WebVTT de type chapitres ou texte « 05:00 Titre » (format reconnu d'après le contenu) ; `POST .../chapters/from-file` extrait les chapitres incorporés au fichier avec FFprobe ; `GET .../chapters/export` rend le JSON d'import. Une erreur de lecture est renvoyée avec la ligne en cause et ne modifie rien. Côté interface : `ChapterEditor` (bibliothèque), `ChapterTicks` (repères sur la progression), `ChapterList` (saut), `ChapterToast` (bandeau au changement de chapitre sur `/kiosk` et `/cinema`).
-- **Adresse réseau présentée (`app/utils/network.py`)** : `primary_lan_ip()` énumère les interfaces actives, écarte les interfaces virtuelles (VPN, conteneurs, machines virtuelles, réseau mobile) et préfère une adresse privée de Wi-Fi puis d'Ethernet ; l'ancienne méthode (socket UDP vers 8.8.8.8) renvoyait l'interface de la route par défaut, donc l'adresse du VPN. Sur Android, la couche native lit l'adresse Wi-Fi/Ethernet via `ConnectivityManager` et la transmet par la variable d'environnement `BOBINE_LAN_IP`. `GET /api/settings` expose `network.local_ip` et `network.local_ips` ; l'annonce mDNS utilise le même choix.
-- **Android : démarrage avec l'appareil et mises à jour** : `BootReceiver` (`BOOT_COMPLETED`, `QUICKBOOT_POWERON`, `MY_PACKAGE_REPLACED`) relance le service de premier plan quand l'option Réglages → « Démarrage de l'appareil » est active (pont JavaScript `BobineNative`). Le lancement de l'écran depuis l'arrière-plan reste soumis aux restrictions d'Android (autorisation « Afficher par-dessus d'autres applications », réinitialisée à chaque redémarrage sur certains boîtiers Android TV). Le build Google Play (type `play`, `BuildConfig.STORE_BUILD`) retire `REQUEST_INSTALL_PACKAGES` et désactive la mise à jour intégrée (`ProfileHandler.is_store_managed()`, `/api/updates/check` renvoie `store_managed`). `UpdateManager` vérifie `canRequestPackageInstalls()` avant de télécharger et ouvre le réglage « sources inconnues » au besoin. Le splash et la barre d'état reprennent les couleurs du thème choisi, et le splash affiche le logo du canal de mise à jour (Stable, Bêta, Canary) : l'interface les pousse au pont natif (`setThemeColors`, `setUpdateChannel`, valeur venue du serveur uniquement) et le démarrage les relit de façon synchrone, sans attendre le backend embarqué (`SplashChannel`, partagé par l'écran tactile et la sortie HDMI ; l'interrogation de `/api/settings` ne sert plus que pour le tout premier lancement).
-- **Interface téléphone** : `responsive.css` regroupe les règles mobiles (studio en feuille plein écran, tableaux en cartes, onglets de réglages). `Sheet` et `ResponsiveSelect` remplacent les listes déroulantes par des feuilles avec recherche sur écran étroit (sélecteur natif sur ordinateur) ; `MobileRemote` porte le widget « En cours » et la feuille « Lancer un cours » (onglets Cours / Playlists / Fonds, aperçu avec miniature et durée).
-- **Menu de Pause Netflix** : Lors de la mise en pause sur grand écran (`/cinema`), l'interface déploie un panneau cinématique 2 colonnes paysage : vignette du cours avec bouton de reprise et horloge sur la gauche, métadonnées complètes, badges de qualité et synopsis intégral défilant avec fluidité sur la droite.
-- **Écran de démarrage statique Android** : Pour éliminer tout flash d'erreur HTTP transitoire (1 à 2 secondes) au lancement de l'application Android ou lors de l'initialisation de la sortie secondaire HDMI (`BobinePresentation`), un splash screen natif avec logo Bobine et indicateur de chargement masque la vue web jusqu'à ce que le backend FastAPI embarqué réponde avec succès (`onPageFinished`), assurant une transition visuelle fluide et élégante.
+- **Édition de cours (`/library`)** : modale 2 colonnes sans défilement vertical avec lecteur 16:9, vignette, chapitres (`video_chapters`, import/export JSON/VTT/texte ou extraction FFprobe via `/api/videos/{id}/chapters`) et sous-titres `.srt`/`.vtt` convertis en WebVTT (`app/utils/subtitles.py`) et sélectionnables à chaud (`set_subtitle`).
+- **Adresse LAN (`app/utils/network.py`)** : `primary_lan_ip()` écarte les interfaces virtuelles (VPN, conteneurs) au profit du Wi-Fi ou de l'Ethernet physique.
 
 ---
 
 ## 5. Module Radio
 
-Sous-système musical « type Spotify » **totalement indépendant** des cours vidéo/audio coach (canal `radio` dédié, tables `radio_*`, gestionnaire d'état `radio_manager.py`) — bibliothèque, playlists, lecture continue, crossfade et rappels sonores.
-
-- **Deux sorties radio indépendantes (5.0.1)** : `/radio?channel=cable` (sortie câblée, jouée par l'écran physique quand il est basculé sur Radio) et `/radio?channel=network` (sortie réseau, n'importe quel appareil) ; `/radio` nu reste un alias de la sortie réseau (règle unique dans `lib/displayChannel.ts`, sans heuristique de nom d'hôte). Chaque sortie a son propre moteur, son rôle primaire WebSocket et ses évènements (`channel` = `radio_cable` ou `radio_network`). La bibliothèque musicale, les playlists et le pool de rappels restent **uniques** ; sont propres à chaque sortie : l'état de lecture, l'ambiance par défaut (réglage `radio_default_playlist_id_<sortie>`, sinon la playlist `is_default`, sinon toute la bibliothèque), le démarrage auto (le moteur câblé ne démarre que si l'écran câblé est sur Radio), les règles de rappel (colonne `target` : `radio_cable`, `radio_network` ou `both`) et le planning (quatre voies : câblé, réseau, radio câblée, radio réseau ; les anciennes lignes `radio` migrent vers `radio_network`). Une programmation de la radio câblée alors que l'écran n'est pas sur Radio charge sa playlist en pause, sans basculer l'écran. La télécommande (`RadioRemotePanel`) est un composant unique monté dans `/radio-remote` (onglets Câblée / Réseau), dans la page « Sortie Câblé » en mode Radio et dans `/grid` (variante compacte). Le lecteur s'arme tout seul quand le navigateur autorise la lecture automatique (sonde `AudioContext`, détection de fonctionnalité) : indispensable sur les sorties câblées où personne ne peut cliquer.
-- **Gestion du son (5.0.1)** : égaliseur graphique 5 bandes (60 Hz, 230 Hz, 910 Hz, 3,6 kHz, 14 kHz, ±12 dB), renfort des basses (0 à +12 dB), loudness, protection anti-saturation (limiteur, actif seulement quand les réglages relèvent le son) et trois préréglages (Renfort des basses, Renfort des voix, Adoucis ; le son à plat est le bouton Réinitialiser, pas un préréglage). Le traitement est fait **dans le lecteur** (`lib/radioSoundGraph.ts` : une seule chaîne Web Audio de 9 nœuds pour toute la musique, préampli automatique anti-écrêtage, changements lissés) ; les rappels vocaux la contournent. Le serveur (`utils/radio_sound.py`) borne sans erreur, persiste par sortie (`radio_sound_<sortie>` dans `settings`) et diffuse les réglages dans l'état du moteur (champ `sound`, commande WebSocket `radio_set_sound`, `GET/PUT /api/radio/sound?channel=`). Interface : `RadioSoundPanel` (dans la télécommande radio, donc aussi la page Sortie Câblé en mode radio et `/grid`).
-- **File « À suivre » (5.0.1)** : `RadioQueueList` affiche pochette, titre, artiste, style (`genre`, transmis dans l'état de chaque piste) et durée, avec glisser-déposer par évènements « pointer » (souris, toucher, stylet) et flèches au clavier. La commande WebSocket `radio_move_in_queue` (`from_index`, `to_index`) réordonne les seules pistes à venir (`RadioPlaybackManager.move_in_order` : la piste courante et l'historique ne bougent jamais). Les listes déroulantes (`ResponsiveSelect`) sont riches (aperçu, détail, durée, recherche intégrée) et tous les champs de recherche passent par `lib/searchText.ts` (casse et accents ignorés, mots dans n'importe quel ordre) avec autocomplétion (`SearchBox`).
-- **Surfaces** : `/radio` (écran du poste dédié — affichage + contrôles, ouvert à la main dans un navigateur, pas de service kiosk systemd), onglet admin « Radio » (télécommande à distance sur `/radio-remote`), « Piste Audio Radio » (bibliothèque sur `/radio-library`), « Rappels » (annonces sur `/radio-announcements`), et un 3ᵉ onglet « Radio » sur la page Planning (`/schedule/?channel=radio`). L'écran `/radio` est épuré, car il se pilote à la télécommande aux flèches (gauche / droite : piste précédente / suivante, haut / bas : volume) : pochette, titre, progression, précédent / lecture-pause / suivant et volume. Lecture aléatoire et boucle restent dans la télécommande web (`/radio-remote`, `RadioRemotePanel`), le déclenchement manuel d'un rappel dans la page des rappels (`/radio-announcements`). Hors diffusion (écran d'attente + overlay « Démarrer la radio »), le poste affiche un **grand logo plein écran** (fond opaque du thème) ; déverrouiller le poste **ne lance aucune musique** tant qu'aucune radio n'est réellement active (état `idle`), pour ne pas désynchroniser l'interface admin.
-- **Bibliothèque** : import tous formats audio (transcodage automatique de ce que le navigateur ne lit pas), pochettes extraites (ID3) ou manuelles, navigation par artiste/album/tags. L'écran admin « Piste Audio Radio » (`/radio-library`) est une **vue d'ensemble** : barre latérale de filtres (playlists / tags / genres / artistes), grille à sélection multiple avec actions groupées (taguer, ajouter à une playlist), tags éditables en chips, éditeur de playlist en glisser-déposer.
-- **Lecture** : continue, file d'attente, lecture aléatoire, répétition (piste/playlist), **crossfade** (Web Audio API — deux `<audio>` routés dans un graphe `MediaElementAudioSourceNode → GainNode → destination`, fondu démarré côté client en avance sur la confirmation serveur).
-- **Rappels** : annonces de bienséance avec description, règles de déclenchement (toutes les N musiques / toutes les X minutes / à heures fixes / manuel), insertion en attente de fin de piste ou par fondu immédiat (« duck » — réutilise le même graphe Web Audio que le crossfade). Chaque rappel est **normalisé en loudness à l'import** (`ffmpeg loudnorm` EBU R128, 2 passes, cible -10 LUFS) pour s'entendre au moins aussi fort que la musique. Écran d'admin dédié (`/radio-announcements`) : import, activation, règles, déclenchement manuel.
-- **24/7 & Planning** : une playlist marquée par défaut (`is_default`) tourne en boucle en permanence ; auto-démarrage au boot (`radio_autostart_on_boot`). **Sans aucune playlist par défaut, le repli joue toute la bibliothèque en aléatoire et en boucle** (playlist virtuelle « Toute la bibliothèque », `playlist_id=None`, recomposée à chaque lancement donc toujours à jour avec la bibliothèque) : la radio n'est jamais muette au démarrage sans qu'il faille créer une playlist ; définir une `is_default` reprend la priorité. Le Planning peut y superposer des fenêtres horaires récurrentes (option 24/7) qui, en fin de fenêtre, reviennent à l'ambiance par défaut — ou, à défaut, à ce même repli bibliothèque plutôt qu'au silence.
-- **Config** (`radio_dir`, `radio_covers_dir`, `radio_announcements_dir`, `radio_watch_dir`, `radio_volume_default`, `radio_crossfade_seconds`, `radio_announcement_duck_level`, `radio_announcement_fade_ms`, `radio_autostart_on_boot`) : voir `config.py` — dossiers unifiés sous `${REPO_DIR}/data` par `install.sh` comme le reste des médias.
+Sous-système musical indépendant (`radio_manager.py`, tables `radio_*`) avec **deux sorties autonomes** : `/radio?channel=cable` (sortie câblée) et `/radio?channel=network` (alias `/radio`).
+- **Traitement audio Web Audio API (`lib/radioSoundGraph.ts`)** : crossfade entre pistes, égaliseur 5 bandes, renfort des basses, loudness, limiteur anti-saturation et 3 préréglages persistés par sortie (`GET/PUT /api/radio/sound?channel=`).
+- **Rappels vocaux (`/radio-announcements`)** : normalisés à `-10 LUFS` (`ffmpeg loudnorm` EBU R128) à l'import, déclenchés toutes les N pistes, toutes les X minutes, à heure fixe ou manuellement, avec atténuation (« ducking ») de la musique.
+- **Continuité 24/7** : joue la playlist par défaut de la sortie ou, à défaut, toute la bibliothèque en lecture aléatoire continue.
 
 ---
 
 ## 5bis. Périphériques (audio, Bluetooth, Wi-Fi)
 
-Onglet `/devices` (5.0.2) : gestion des périphériques de la machine qui diffuse, **désactivée par défaut**.
-
-- **Interface de pilote** (`backend/app/devices/base.py`, `DeviceDriver`) : audio, Bluetooth, Wi-Fi et réglages du système derrière des **capacités déclarées** (`audio_list`, `bluetooth_pair`, `wifi_connect`…). L'interface n'affiche que ce que l'OS permet ; aucune erreur d'OS ne devient une 500 (`DeviceError` : code stable + message, ou `{"supported": false, "reason"}`).
-- **Pilotes** (`registry.py` choisit selon le profil de déploiement) : `linux.py` (PipeWire par `pw-dump`/`wpctl`, BlueZ par D-Bus avec `dbus-fast` et un agent d'appairage, NetworkManager par `nmcli` — mots de passe sur l'entrée standard, jamais en argument) ; `sidecar.py` + crate Rust `devices/` (`bobine-devices`, Windows et macOS : JSON-RPC 2.0 sur stdin/stdout, versionné, liste blanche de méthodes, paramètres validés, aucun port, lancé à la demande, relancé après panne) ; `android.py` + `DeviceBridge.kt` (sorties audio, Bluetooth, Wi-Fi en lecture seule sans SSID, liens vers les réglages d'Android). Les analyseurs de sorties d'outils sont purs et testés (`linux_parse.py`, `devices/src/parse.rs`).
-- **Garde-fou « validé sur matériel »** : Linux est validé en lecture sur matériel réel ; Windows et macOS restent bloqués (« non pris en charge ») tant que `BOBINE_DEVICES_EXPERIMENTAL=1` n'est pas défini.
-- **Sécurité** (`security.py`) : écran local de confiance (127.0.0.1/::1 ou une adresse de la machine) ; tout autre appareil saisit un **PIN à 6 chiffres** (scrypt + sel, `settings.devices_pin_hash`, jamais renvoyé par l'API ni journalisé, exclu des sauvegardes), échangé contre un cookie `HttpOnly; SameSite=Strict` signé en HMAC, lié à l'IP, glissant (15 min). 5 essais par IP puis blocage de 1 à 15 min. Le PIN ne se définit et la fonction ne s'active que depuis l'écran local, ou depuis un autre appareil sur preuve du code d'association affiché sur cet écran (ci-dessous) ; réinitialisation sans ancien PIN depuis l'écran local ou `install.sh --reset-devices-pin`.
-- **Appairage par code** (écran local sans navigateur, ex. Android TV) : `PairingCodeStore` (`security.py`) émet un code à 6 chiffres (`secrets.randbelow`), valable 10 minutes, à usage unique, comparé en temps constant et invalidé après 10 essais ratés tous clients confondus (en plus du limiteur par IP). `POST /api/devices/pairing/generate` (écran local uniquement) l'émet ; `GET /pairing/status` n'a aucun effet de bord et ne renvoie le code qu'à l'écran local ; `POST /pairing/verify` (`{code}`) dit tout de suite si le code est bon sans le consommer (mêmes limites d'essais : l'erreur s'affiche avant le choix du PIN) ; `POST /pairing/claim` (`{code, pin}`) définit le PIN, active la fonction et ouvre la session. Réservé à la première configuration : si un PIN existe, `generate` et `claim` répondent 409 `pin_already_set` (le PIN se change depuis l'écran local). Interface : `PairingCodeDisplay` sur l'écran local (bouton « Générer le code d'appairage » ; le code n'est jamais émis automatiquement, il s'affiche dans une pastille en haut à droite avec l'adresse à ouvrir et le minuteur, jusqu'à expiration), `PairingClaimFlow` sur l'appareil distant.
-- **Détail d'une sortie audio** (5.0.2) : un clic ouvre un tiroir (`AudioDetailSheet`) — niveau, **balance** gauche/droite (PipeWire : `pw-cli set-param … Props channelVolumes`, volumes cubiques, niveau maître conservé), **son de test** par canal (WAV généré en mémoire, `pw-play --target`, plafonné, un seul à la fois), **analyse** (`pw-dump` : état, canaux, fréquence, format, latence, carte, codec Bluetooth), **profil** (`wpctl set-profile`), nom personnalisé et masquage (`settings.devices_audio_meta`, communs à toutes les plateformes). Capacités `audio_details`, `audio_balance`, `audio_test_tone`, `audio_profile` ; routes `GET /audio/details`, `POST /audio/balance|test|profile`, `PUT /audio/meta`. Android : analyse de base seulement.
-- **Vue globale** (5.0.2) : `GET /api/devices/topology` assemble un graphe (`devices/topology.py`, pur et testé) — machine au centre, sorties audio, appareils Bluetooth, Wi-Fi, Ethernet (psutil, hors interfaces virtuelles), écrans et télécommandes Bobine. Le moyen de liaison d'un client est déduit de son adresse (machine elle-même, sous-réseau du Wi-Fi, de l'Ethernet, sinon réseau local). Côté serveur, `identify` accepte `page` pour les kiosks et un rôle `viewer` (cinéma, grille, tableau de bord, coach) enregistré dans un registre séparé de `ws_manager` (`client_snapshot`) **sans effet** sur le rôle primaire ni sur les évènements. Côté interface : disposition orbitale déterministe (`lib/deviceMap.ts`, aucune simulation), SVG avec déplacement, zoom (molette, pincement), survol et panneau de détail avec raccourci vers l'onglet de l'appareil (`focus`).
-- **PIN et interactions** (5.0.2) : saisie en six bulles (`PinEntry`, logique pure `lib/pinEntry.ts`), définition en deux temps par un seul composant (`PinSetupFlow`, partagé par la section Sécurité, l'activation locale et l'appairage distant) ; jetons de mouvement `--ease-*`, classe `.glass-interactive` (halo piloté par `usePointerGlow`, souris précise seulement, désactivé en mode télécommande et mouvement réduit), onglets `SegmentedTabs` à indicateur glissant. Les barres d'outils passent à la ligne selon leur contenu. Android : spinner `ArcSpinnerView` aux couleurs du thème (`BobineNative.setThemeAccent`).
-- **Télécommande Android TV et volume** : sur un téléviseur seulement (`MainActivity.isTvDevice()`), `MainActivity` relaie la touche Retour à l'interface sous forme d'évènement clavier `Escape` (téléphones et tablettes gardent le comportement du système). **Le volume reste au téléviseur** : certains modèles (Xiaomi) règlent le son et affichent leur jauge avant que l'application voie la touche, donc la relayer réglait le son deux fois ; Bobine ne consomme ni ne relaie les touches volume sur Android TV. `useKioskRemote` reconnaît aussi les `keyCode` Android (table `ANDROID_TV_KEYCODES`, volume compris pour les claviers et dongles). Au clavier, à la manette ou au dongle, le volume des vidéos et pistes de la page est réglé par `lib/volumeHud.ts` (`VOLUME_STEP`, `adjustMediaVolume`, `useVolumeHud`) et affiché par `VolumeOsd`, sans flou quand une vidéo joue. Sur `/cinema`, Retour remonte au héros puis ouvre l'écran d'attente.
-- **Verre et jetons de style** (`globals.css`) : tout le verre passe par des jetons — échelle de flou `--blur-xs…2xl` multipliée par `--blur-scale`, `--saturate-soft|rich`, `--glass-surface|card|floating-*`, voiles `--scrim*`, neutres `--ink` et `--specular` pour les ombres et reflets (via `color-mix`). `prefers-reduced-transparency` met le flou à 0 et remplace les surfaces de verre par les surfaces pleines du thème. Règle d'écriture : `-webkit-backdrop-filter` AVANT `backdrop-filter` (le minifieur ne garde que la dernière de deux déclarations identiques ; dans l'ordre inverse Chrome, Edge et Firefox n'ont aucun flou). **Lisibilité** : `--text-dim` est réglé thème par thème pour atteindre le contraste AA sur les trois surfaces, et `--accent-error-text` (un mélange de `--accent-error` et du texte du thème) remplace l'accent d'erreur brut pour tout texte d'erreur. **Qualité du verre adaptative** (`lib/glassQuality.ts`, `lib/useGlassGovernor.ts`, monté par `AppSettingsContext`) : l'échelle `--blur-scale` n'est plus figée. En mode « Automatique », le gouverneur mesure la durée des images pendant un défilement et descend d'un palier (complet 1, réduit 0,5, sans flou 0) si le 75ᵉ centile dépasse 24 ms sur 45 images ; le palier retenu est mémorisé dans le navigateur (`bobine.glass.step`) et ne remonte jamais seul. Les modes « Complet », « Réduit » et « Sans flou » sont un choix explicite (Paramètres → Apparence → « Qualité du verre », `bobine.glass.mode`) ; le réglage système « transparence réduite » reste prioritaire. Garde-fous : `frontend/tests/glassTokens.test.ts` (aucune valeur figée, aucune variable non définie, ordre des préfixes, aucune couleur de statut figée), `frontend/tests/themeContrast.test.ts` (contraste AA des 16 thèmes calculé sur les vrais jetons : textes, texte d'erreur, bouton principal, verre flottant, anneau et jauge), `frontend/tests/glassQuality.test.ts` (paliers du gouverneur) et `frontend/tests/volumeHud.test.ts` (pas et sourdine du volume). Mesure : une page immobile ne coûte rien, le défilement de listes de cartes floutées coûte du GPU (60 cartes : environ +5 points d'occupation et +1 W sur un GPU intégré récent à 1080p).
-
-- **Contenu et danger (5.0.6)** : les huit thèmes sombres utilisent `--bg-content`, `--bg-content-mesh` et `--content-text-dim` dans `.page-content` et `.mobile-page-content` ; les jetons du menu et les huit fonds clairs restent inchangés. Graphite atténue son accent acier dans le maillage. La zone de danger dispose de surfaces opaques `--danger-*`, titres et bordures rouges, actions de 44 px minimum et focus dédié ; les confirmations et autorisations restent celles des API existantes. Les tests calculent les extrêmes du maillage superposés au verre et à son filtre de saturation : texte principal ≥7:1 et secondaire ≥4,5:1 sur les huit contenus sombres modifiés, textes de danger ≥4,5:1 et contrôles ≥3:1 dans les 16 thèmes. Ces mesures ciblées ne constituent pas une certification générale WCAG. Voir la [synthèse de revue](reviews/5.0.6-themes.md).
-- **Wi-Fi** : le mot de passe d'un nouveau réseau n'est accepté que depuis l'écran local ; toute connexion ou coupure arme un **retour automatique à l'ancien réseau sous 60 s** sauf confirmation (`POST /api/devices/wifi/confirm`) ; un appareil joint par ce même Wi-Fi doit d'abord acquitter l'avertissement (`acknowledge_disconnect`).
-- **Temps réel** : l'évènement WebSocket `devices_changed` (`{scope: audio|bluetooth|wifi}`) ne porte **aucune donnée** ; les clients relisent l'état par REST, derrière le PIN. Une boucle de surveillance (8 s, seulement si un client écoute) détecte les changements extérieurs.
-- **Android** : permissions limitées à `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN` (`neverForLocation`) et `ACCESS_WIFI_STATE`, aucune localisation ; la demande « Appareils à proximité » n'est affichée que sur action explicite de l'utilisateur.
-- **Google Play** (build `play`) : *Réglages → Mises à jour* passe par l'API In-App Updates (`PlayUpdateProvider`, chargée par réflexion depuis `StoreUpdates` : la version libre ne contient aucune bibliothèque Google) ; routes `POST /api/updates/store/{start,complete,open}` ; `GET /api/settings` expose `store_managed`.
+Onglet `/devices` (**désactivé par défaut**) :
+- **Pilotes (`backend/app/devices/`)** : `linux.py` (PipeWire `pw-dump`/`wpctl`, BlueZ D-Bus, NetworkManager `nmcli`), `sidecar.py` + crate Rust `devices/` (`bobine-devices` sur Windows/macOS, expérimental sous `BOBINE_DEVICES_EXPERIMENTAL=1`), `android.py` + `DeviceBridge.kt`.
+- **Sécurité & Appairage (`security.py`)** : l'écran local (`127.0.0.1`) est de confiance ; tout appareil distant doit saisir un **PIN à 6 chiffres** (scrypt + cookie `HttpOnly; SameSite=Strict`) ou, lors de la première configuration d'un écran sans navigateur (Android TV), réclamer le **code d'appairage à usage unique** affiché sur l'écran local (`POST /api/devices/pairing/{generate,verify,claim}`). Tout changement de Wi-Fi arme un retour automatique à l'ancien réseau sous 60 s sans confirmation (`POST /api/devices/wifi/confirm`).
+- **Carte orbitale & Table de mixage** : `GET /api/devices/topology` expose la topologie des sorties audio, Bluetooth, Wi-Fi, Ethernet et écrans connectés ; l'onglet inclut également le graphe de routage et la table de mixage des deux sorties radio.
+- **Jetons de verre et contraste (`globals.css`)** : surfaces contrôlées par `--blur-*`, `--glass-*` et gouverneur adaptatif `useGlassGovernor.ts` ; vérifiés par `frontend/tests/glassTokens.test.ts` et `themeContrast.test.ts`.
 
 ---
 
 ## 5ter. Stockage externe (clés USB, disques, cartes SD, téléphones)
 
-Page `/storage` (Linux de bureau et appliance ; Android, Windows et macOS : pilote nul explicite, le conseiller de format reste disponible). Même accès que les périphériques (§5bis) : désactivé par défaut, écran local de confiance, PIN pour les autres (cookie `bobine_storage_session` de même valeur, chemin `/api/storage`).
+Page `/storage` (Linux desktop et appliance ; conseiller de format `fsadvisor.py` disponible partout), protégée par le même PIN que `/devices` :
+- **Détection et montage sans privilèges (`backend/app/storage/`)** : inventaire `lsblk` + signaux D-Bus `udisks2`, montage via `udisksctl` (polkit, lecture seule par défaut `noatime,nodiratime,noexec`), exclusion stricte des disques système ou internes.
+- **Deux modes** : *Importer* (copie vérifiée SHA-256 vers le stockage interne) ou *Utiliser comme extension* (indexation directe par UUID du système de fichiers avec remappage automatique au rebranchement).
+- **Préparation de support** : assistant de formatage rapide sous Linux (GPT + exFAT, ext4, FAT32 ou NTFS) exigeant un PIN configuré et la saisie du nom du volume.
 
-- **Détection à chaud** (`backend/app/storage/`) : inventaire `lsblk -J -b` + options de montage de `/proc/self/mountinfo`, relu à chaque signal D-Bus d'udisks2 (`dbus-fast`) avec une interrogation de secours (5 s sans signaux, 20 s avec). Jamais proposés : disques portant un montage système, disques internes fixes, volumes qui contiennent (ou sont contenus dans) un dossier de données de Bobine, squashfs/swap/RAID/LVM ; les volumes chiffrés sont signalés, pas utilisables. Les actions revalident le support dans l'inventaire courant : le client n'envoie jamais de chemin de périphérique.
-- **Montage sans privilèges** : `udisksctl` (polkit, jamais `sudo`). Lecture seule par défaut, options `noatime,nodiratime,noexec` ; `sync` et `discard` ne sont jamais demandés. Retrait sûr : `sync`, démontage, extinction (`power-off`). États : prêt, occupé, retrait, débranché ; un retrait brutal est signalé comme tel.
-- **Explorateur** : chemins relatifs au support uniquement (pas de `..`, pas de chemin absolu), liens symboliques suivis seulement s'ils restent dans le volume, parcours borné et paginé, aucun décodage de média à la navigation.
-- **Deux usages** : *Importer* copie dans le dossier temporaire interne (vérification de la taille et du SHA-256, reprise après coupure, annulation, espace libre contrôlé) puis passe par les importeurs existants ; la source n'est jamais modifiée. *Utiliser comme extension* enregistre le support par l'**UUID de son système de fichiers** et indexe ses médias (`storage_id` + `rel_path` sur `videos`, `audio_tracks`, `radio_tracks`) sans les copier : lecture directe, base, miniatures et caches restent sur le stockage interne. Un support absent rend ses médias *indisponibles* (jamais supprimés) : `503 storage_unavailable` à la lecture, éléments sautés par les playlists, le planning et la radio ; au rebranchement (même UUID, autre point de montage) les chemins sont remappés.
-- **Longévité** : réglages par support, visibles et désactivables (lecture seule, `noatime`, `noexec`, veille des disques rotatifs, suivi SMART), état réel affiché (« actif », « indisponible : droits administrateur requis »…). TRIM et `hdparm` exigent les droits d'administrateur : Bobine lit l'état du minuteur `fstrim` du système au lieu de le simuler. Compteur d'octets écrits par Bobine et avertissements d'usure ; rapport SMART (`smartctl -j`, pont USB-SATA essayé) quand le système le permet, sinon « sans SMART ».
-- **Appareils portables** (MTP, PTP, AFC) via GVFS (`gio mount`) : lecture seule, import uniquement ; sans GVFS, l'aide d'installation est affichée.
-- **Conseiller de format** (`fsadvisor.py`, texte FR/EN) : selon l'OS de Bobine et ceux qui brancheront le support (ext4, NTFS, APFS/HFS+, exFAT, FAT32). Il décrit la procédure, il ne formate jamais.
+---
 
 ## 6. Mode Audio Coach & Hub d'Ambiances Visuelles
 
-Le mode **Audio Coach** permet de diffuser des cours audio (pistes vocales / musique rythmée) sur l'équipement sonore de la salle tout en projetant une ambiance visuelle dynamique et cinématique sur l'écran câblé (HDMI).
-
-- **Console Régie Coach (`/coach`)** : Console de pilotage studio réactive et tactile.
-  - **Sur tablette paysage et ordinateur (>= 900px)** : Disposition double colonne asymétrique ergonomique.
-    - *Colonne gauche* : Informations de piste, barre de progression interactive, minuteur de repos/exercice, contrôles de transport tactiles surdimensionnés, curseur de volume réactif, boutons de bouclage/enchaînement, et playlist intégrée déroulante avec saut direct de piste.
-    - *Colonne droite* : **Moniteur de scène 16:9** (retour vidéo en direct du flux HDMI de salle avec vidéo, pochette ou halo cinématique sobre, et incrustation en direct du titre et de la progression) surmontant une **Palette tactile d'ambiances 16:9** permettant de commuter l'ambiance visuelle projetée en direct en 1 touche sans rupture sonore.
-  - **Sur smartphone et écran compact (< 900px)** : Interface monoposte épurée avec tiroirs tactiles rétractables (*feuilles inférieures*) pour la sélection rapide des pistes et des ambiances visuelles.
-- **Redirection automatique vers la régie** : Dès que le mode Coach est activé sur la borne, toute ouverture ou navigation vers le tableau de bord câblé (`/dashboard-cable`) redirige automatiquement et instantanément vers `/coach`, assurant une coordination sans friction pour tout le personnel ou le coach intervenant depuis un terminal mobile ou un poste déporté.
-- **Hub d'Ambiances Visuelles (`/backgrounds`)** : Espace centralisé dédié à la gestion des boucles d'ambiance visuelle 16:9. Fini l'ancien commutateur non intuitif : chaque carte propose une prévisualisation vidéo en survol dynamique, des badges de diffusion en direct (« Sur Câblé », « Sur Réseau », « Par défaut Coach »), un lecteur modal immersif complet, des boutons de diffusion immédiate 1-clic hors séance, et la possibilité d'assigner l'ambiance par défaut (`default_coach_background_id`).
-- **Sélecteur Visuel Audio (`/audio`)** : L'assignation d'ambiance dans la bibliothèque audio s'effectue via une carte 16:9 interactive ouvrant une galerie visuelle de sélection avec miniatures, remplaçant l'ancien menu textuel.
-- **Minuteur d'enchaînement (`audio_chain_timer_seconds`)** : Délai de transition configurable entre deux pistes audio (modifiable depuis `/api/settings`).
-- **Persistance et Repli** : Persistance du réglage `default_coach_background_id` dans la table SQLite `settings`. Tout cours audio sans fond spécifique attribué hérite automatiquement de l'ambiance par défaut configurée.
+- **Console Régie Coach (`/coach`)** : interface double colonne sur tablette/ordinateur (contrôles tactiles, minuteur et playlist à gauche ; moniteur de scène 16:9 et palette d'ambiances visuelles 16:9 commutable en 1 clic à droite). Redirection automatique de `/dashboard-cable` vers `/coach` lorsque le mode Coach est actif.
+- **Hub d'Ambiances (`/backgrounds`)** : gestion des boucles vidéo 16:9 avec aperçu au survol, diffusion directe Câblé/Réseau et choix du fond par défaut (`default_coach_background_id`).
 
 ---
 
 ## 7. Script d'installation & Services systemd
 
-L'installation de production s'effectue via le script shell idempotent `install.sh` sur Debian 13 (Trixie).
+L'installation de l'appliance dédiée sur Debian 13 (Trixie) s'effectue via `install.sh` :
 
 ```bash
-# Installation complète sur la machine cible
 sudo ./install.sh
-
-# Ou en une commande, sans dépôt local (le script récupère le code lui-même)
+# Ou en une commande (amorçage automatique dans ~/Bobine) :
 curl -fsSL https://bobine.fit/install.sh | bash
 ```
-
-Lancé hors d'une copie de Bobine (tube `curl | bash`, ou fichier copié seul), `install.sh` **s'amorce** (`bootstrap_standalone`) : il demande `sudo` de lui-même (sans `sudo -E`, qui exige un droit `SETENV`), installe `git`/`curl` si le système est minimal, clone le dépôt (clone allégé `--filter=blob:none`) dans `~<compte>/Bobine` à la dernière Stable — ou au tag mobile du canal choisi (`beta`/`canary`) avec `--channel=beta|canary` —, puis se relance depuis ce dépôt. Les questions de langue et de canal se posent sur `/dev/tty` même quand le script arrive par un tube, et sont sautées sans terminal (CI, SSH sans PTY). Avant toute modification, `preflight_network` corrige une horloge dérivée (pile CMOS à plat : sans cela les certificats TLS sont « pas encore valides » et apt échoue) et vérifie l'accès à GitHub avec un message précis. Les appels apt attendent le verrou `unattended-upgrades` (`DPkg::Lock::Timeout`) et réessaient (`Acquire::Retries`). Les étapes longues affichent un indicateur animé (dernière ligne utile du journal + temps écoulé) sur un vrai terminal ; l'écran final donne l'IP du réseau local et un code QR (`qrencode`) pour ouvrir l'administration depuis un téléphone. Si le checkout du canal remplace `install.sh` par une autre version, il se relance une fois depuis la nouvelle (garde `BOBINE_REEXEC`). Le CI exécute l'amorçage en `--dry-run` via un tube (régression historique : `${BASH_SOURCE[0]}` non défini sous `set -u` faisait planter la commande annoncée dans le README avant tout message).
 
 ### Options d'installation (`sudo ./install.sh --help`)
 
 | Option | Description |
 |---|---|
-| `--no-kiosk` | Installation du backend seul (sans Chromium X11 / audio) |
-| `--dry-run` | Prévisualisation des actions sans modification |
-| `--check` | Diagnostic de l'installation existante |
-| `--skip-packages` | Mise à jour du projet (après déploiement du code, §9) sans réinstaller les paquets `apt` |
-| `--skip-build` | Ne reconstruit pas le frontend Next.js |
-| `--as-user LOGIN` | Compte cible quand le script tourne en **root direct** (Debian **sans sudo**, lancé via `su -`) — cf. ci-dessous |
-| `--channel=stable\|beta\|canary` | Canal de mise à jour (défaut `stable`) — cf. « Canal de mise à jour » ci-dessous |
-| `--progress=json` | Sortie **machine** : une ligne JSON par évènement (`run_begin` / `step` `start\|ok\|skip\|error` / `run_end`) sur le **fd 3**, pour piloter une barre de progression (assistant graphique). Le journal humain reste inchangé — cf. « Assistant d'installation » ci-dessous |
-| `--uninstall [--purge] [--purge-data]` | Désinstallation progressive du système |
+| `--no-kiosk` | Installe le backend seul (sans Chromium X11 / audio) |
+| `--dry-run` / `--check` | Prévisualisation sans modification / diagnostic de l'installation |
+| `--skip-packages` / `--skip-build` | Saute la réinstallation `apt` / la compilation Next.js |
+| `--as-user LOGIN` | Compte cible lorsque lancé en root direct sur un Debian minimal sans `sudo` |
+| `--channel=stable\|beta\|canary` | Canal de mise à jour (défaut : `stable`) |
+| `--progress=json` | Flux JSON sur le descripteur `fd 3` pour l'assistant graphique Tauri |
+| `--uninstall [--purge] [--purge-data]` | Désinstallation propre (et suppression des médias avec `--purge-data`) |
 
-**Détection matérielle dynamique** : l'installateur ne suppose plus un GPU Intel. Il détecte le GPU (`lspci`) et le CPU (`lscpu`) et installe les paquets adaptés — **Intel** : `intel-media-va-driver-non-free` (repli `i965-va-driver`) ; **AMD/Ryzen** : `mesa-va-drivers` + `firmware-amd-graphics` ; **NVIDIA** : décodage logiciel + avertissement — plus le **microcode** (`amd64-microcode`/`intel-microcode`) et le firmware Wi-Fi si une interface sans fil est présente. Les paquets non libres exigeant des composants APT absents (`non-free`, `non-free-firmware`, séparés depuis Debian 12) sont gérés en **activant ces composants** au besoin (sauvegarde `.bobine.bak` des sources).
-
-**Audio** : `alsa-utils` (`amixer`/`aplay`/`alsactl`) et la pile `pipewire`/`pipewire-pulse`/`wireplumber`/`pulseaudio-utils` sont installés systématiquement — sans eux, la configuration WirePlumber écrite plus bas (commutation automatique de prise jack, anti-sifflement) et les commandes `amixer`/`pactl` de `kiosk-xinitrc`/`bobine-audio-mute.sh` échouaient silencieusement sur un Debian minimal (netinst). Une étape **`capabilities`**, en fin d'installation (et rejouable via `--check`), vérifie que l'audio (`aplay -l`) et le décodage matériel VA-API (`vainfo`, profil H.264) fonctionnent réellement plutôt que de supposer que la configuration a suffi.
-
-**Optimisations système** (étape `tuning`) : gouverneur CPU réglé sur `performance` (`bobine-cpu-governor.service`, machine branchée secteur en continu) et journal systemd plafonné à 200 Mo (`/etc/systemd/journald.conf.d/bobine.conf`) — la mise en veille d'écran (DPMS/screensaver X11) est déjà désactivée dans `kiosk-xinitrc` depuis une version antérieure.
-
-**Privilèges — deux chemins** : soit `sudo ./install.sh` depuis un compte normal (le script refuse d'être root sans compte cible) ; soit, sur un Debian minimal **sans sudo** (mot de passe root défini à l'install, utilisateur non-sudoer), en **root direct** via `su - -c "\$PWD/install.sh --as-user <login> -y"`. Le script installe alors `sudo` et pose la règle sudoers restreinte, de sorte que les boutons « Synchronisation » / « Désinstaller » de l'admin fonctionnent ensuite. Les commandes exécutées « en tant que l'utilisateur » (venv, pip, build) passent par `sudo -u` si présent, sinon `runuser`.
+`install.sh` détecte dynamiquement le GPU (Intel VA-API, AMD Mesa, ou repli logiciel), installe PipeWire/WirePlumber, vérifie `aplay -l` et `vainfo` (étape `capabilities`), règle le gouverneur CPU sur `performance` et plafonne `journald` à 200 Mo.
 
 ### Services Systemd créés
 
-- `bobine-backend.service` : API FastAPI Uvicorn (mono-processus, `--workers 1`) lancée par `backend/run_backend.py` sur le port de `config.toml` (8000 par défaut), en mode strict (`BOBINE_PORT_STRICT=1`, aucun repli). `Restart=always`.
-- `bobine-kiosk.service` : Mode Kiosque Chromium plein écran sur `xinit` (X11). `Restart=always`.
-- `bobine-audio-guard.service` : garde AUDIO uniquement — oneshot qui coupe Master/Speaker/Headphone au boot et à l'arrêt (silence hors session kiosque), recouverts par `kiosk-xinitrc` une fois prêt. Ne surveille rien d'autre.
-- `bobine-watchdog.timer` + `bobine-watchdog.service` : chien de garde de SANTÉ. Le timer déclenche `scripts/watchdog.sh` (`OnBootSec=90s`, puis toutes les 30 s) qui consomme `GET /api/health` et **redémarre automatiquement un composant mort** : si `/api/health` ne répond pas 200 → relance de `bobine-backend` ; si le service kiosk est activé mais qu'aucun processus Chromium n'est présent → relance de `bobine-kiosk`. Complète `Restart=always` (mort du *processus*) pour les défaillances *logiques* (backend vivant mais base verrouillée, Chromium gelé…).
-- `bobine-redirect.service` : Redirection nftables du port 80 vers le port du backend (8000 par défaut).
-- `bobine-cpu-governor.service` : oneshot qui règle le gouverneur CPU sur `performance` à chaque démarrage (étape `tuning` de l'installateur).
-
-**Contrôle de santé** — `GET /api/health` renvoie `{"status": "ok"|"degraded", "components": {"database", "kiosk"}}`, avec HTTP `200` si la base répond, sinon `503` (l'état du kiosque est indicatif et n'affecte pas le code HTTP). C'est le point consommé par le watchdog ci-dessus et par toute supervision externe.
-
-Pas de service dédié pour le canal Radio (cf. §5) : `/radio` s'ouvre à la main dans un navigateur, sur le même backend.
+- `bobine-backend.service` : Uvicorn mono-processus sur le port 8000 (`BOBINE_PORT_STRICT=1`, `Restart=always`).
+- `bobine-kiosk.service` : Kiosque Chromium plein écran sous X11 (`xinit`, `Restart=always`).
+- `bobine-audio-guard.service` : Coupe les sorties audio au démarrage/arrêt hors session kiosque.
+- `bobine-watchdog.timer` + `.service` : Sonde `GET /api/health` toutes les 30 s (`scripts/watchdog.sh`) et relance tout composant gelé.
+- `bobine-redirect.service` & `bobine-cpu-governor.service` : Redirection nftables `80 → 8000` et profil CPU `performance`.
 
 ### Assistant d'installation graphique
 
-Une application graphique autonome (`assistant/`, développée avec **Tauri 2 / Rust**) tourne sur le **poste de l'administrateur** (Windows, macOS ou Linux), localise le mini PC sur le LAN (balayage de chaque interface réseau locale avec son vrai masque, de /24 à /22, résultats en direct, table ARP et nom `bobine.local` en renfort), s'y connecte en SSH, audite le matériel, puis **déroule `install.sh`** avec une barre de progression et un suivi temps réel des journaux d'installation. `install.sh` reste la **source de vérité unique** — l'assistant l'**orchestre**, il ne réimplémente rien. Détails complets et instructions de compilation : [`assistant/README.md`](../assistant/README.md).
-
-Le scan réseau affiche **tous** les appareils qui répondent (pas seulement les cibles Bobine) — nom d'hôte, IP, indice d'OS, ports ouverts — pour qu'un utilisateur préparant un déploiement headless reconnaisse sa borne au milieu du reste du réseau. `install.sh` est embarqué dans l'assistant à la compilation et téléversé sur la cible (`bash /tmp/…`) : aucun dépôt, `git` ni `curl` préalable n'est nécessaire sur la borne, et l'hôte peut être saisi par nom (`bobine.local`). Le code de sortie réel du script est vérifié et un échec est affiché avec « Réessayer » et « Copier le journal ». L'authentification SSH accepte, en plus du mot de passe, une clé privée importée explicitement via un sélecteur de fichier natif (`tauri-plugin-dialog`).
+Application de bureau autonome (`assistant/`, **Tauri 2 / Rust**) : balaye les sous-réseaux locaux (`/24` à `/22`), identifie les machines, s'y connecte en SSH (mot de passe ou clé privée), audite le matériel et exécute `install.sh --progress=json` avec suivi en direct (voir [`assistant/README.md`](../assistant/README.md)).
 
 ### Canal de mise à jour (Stable / Bêta / Canary)
 
-Trois canaux, choisis à l'installation (`install.sh --channel=stable|beta|canary`, ou dans le wizard de l'assistant Tauri) puis modifiables à tout moment depuis Réglages → Mises à jour (sélecteur « Canal de mise à jour ») :
-
-- **Stable** (défaut) : `GET /api/updates/check` interroge `/repos/.../releases/latest` — exclut structurellement les pre-releases côté API GitHub, donc ce canal ne peut jamais en recevoir une, même en cas de bug applicatif. Chaque version stable a son propre tag `Vx.y.z` et sa propre entrée sur GitHub Releases (historique normal).
-- **Canary** : interroge `/repos/.../releases/tags/canary` — un tag **unique et mobile**, republié en place à **chaque push sur `main`**, zéro curation (dernier commit, non testé). C'est l'ancien canal `beta` (rolling), renommé le 2026-10-16.
-- **Bêta** : interroge `/repos/.../releases/tags/beta` — même mécanique de tag unique et mobile, mais republié **uniquement sur déclenchement manuel** du mainteneur (jamais sur un simple push) : un lot de fonctionnalités/correctifs choisi, plus testé que Canary.
-
-Pour Bêta comme pour Canary, la détection de mise à jour compare le **commit** installé au commit visé par le tag du canal (`target_commitish`) — il n'y a pas de numéro de version qui avance à chaque build sur ces deux canaux. Une version stable équivalente ou plus récente remplace toujours la bêta/canary suivie.
-
-Le choix est persisté (réglage `update_channel` en base pour le backend ; `/etc/bobine/update-channel` pour `install.sh`, non relu par le backend — deux sources de vérité indépendantes) et pilote aussi `apply_update()` du profil headless (bouton « Mettre à jour ») : `git checkout <tag>` plutôt qu'un `git pull --ff-only`, ce qui permet un vrai retour arrière (downgrade) vers un tag antérieur — et suit correctement un tag mobile (`git fetch --tags --force`).
-
-Côté publication (`.github/workflows/ci.yml`) : le job `version` calcule à la fois le numéro de version (source de vérité unique : le fichier `VERSION` à la racine du dépôt) et le **canal**, structurellement séparés à partir de là :
-- un tag `Vx.y.z` strict poussé → `release-stable` (nouvelle entrée GitHub Releases, `prerelease: false`, notes tirées de `docs/releases/<TAG>.md`, qui doit exister) ;
-- un push direct sur `main` (hors tag), ou un déclenchement manuel (`workflow_dispatch`, case *publish_canary* cochée, depuis n'importe quelle référence — utile pour republier sans nouveau commit) → `release-canary` (force-déplace le tag `canary` sur le commit courant, met à jour en place l'unique release Canary — jamais supprimée, donc aucun 404 au téléchargement — avec des notes générées automatiquement : changelog depuis le dernier tag stable). Une garde refuse de publier un build plus ancien que celui déjà publié, ou un commit qui n'est plus la tête de `main` : relancer un ancien run ne fait donc pas reculer le canal. La Canary suit donc `main` en continu, sans jamais prendre de retard ;
-- un déclenchement manuel UNIQUEMENT (`workflow_dispatch`, case *publish_beta* cochée) → `release-beta`, même mécanique que `release-canary` sur le tag `beta`, jamais sur un simple push.
-
-Les noms de fichiers des artefacts Bêta/Canary sont **fixes** (`Bobine-Setup-beta.exe`/`Bobine-Setup-canary.exe`, `Bobine-beta.dmg`/`Bobine-canary.dmg`, `bobine_beta_amd64.deb`/`bobine_canary_amd64.deb`) — jamais de version ni de caractère `~` dedans (GitHub Releases réécrit silencieusement `~` en `.` dans les noms d'assets téléchargés). Le numéro de version *interne* (affiché dans l'app, champ `Version:` du paquet Debian) reste précis : `VERSION`/`COMMIT` sont bundlés dans chaque paquet (mêmes `datas` PyInstaller que `config.toml`) et lus au runtime par `app.utils.version` — y compris sur les profils packagés (Windows/macOS/Linux desktop), qui n'ont pas de `.git` pour se renseigner autrement.
+Trois canaux configurables à l'installation ou dans *Réglages → Mises à jour* (`update_channel`) :
+- **Stable** (`Vx.y.z`) : interroge `/releases/latest` (exclut toute pre-release).
+- **Bêta** (`beta`) : tag mobile republié manuellement par lots validés.
+- **Canary** (`canary`) : tag mobile republié automatiquement à chaque commit sur `main` (noms d'artefacts fixes suffixés `-beta` / `-canary`).
 
 #### Robustesse du pipeline de mise à jour
 
-- **Retour en Stable** : quand le build local est une Bêta/Canary (version `x.y.z-beta`/`x.y.z-canary`, ou checkout headless posé exactement sur le tag `beta`/`canary`), choisir le canal Stable propose la dernière Stable même si elle est numériquement inférieure — `GET /api/updates/check` renvoie alors `is_downgrade: true` et Réglages affiche « Revenir à la version Stable ». La planification quotidienne n'applique **jamais** un retour arrière : seul le bouton le fait.
-- **Interrogation GitHub** : réponse mise en cache par canal avec `ETag` (une requête conditionnelle `304` ne consomme pas le quota partagé du réseau), repli sur la dernière réponse connue pendant la courte fenêtre où la CI supprime puis recrée la release `beta`/`canary`, et codes d'erreur distincts (`offline`, `rate_limited`, `not_found_*`) au lieu d'un « hors ligne » générique. `?refresh=1` contourne la fenêtre anti-doublon (clic explicite, changement de canal).
-- **Choix de l'asset** : par profil (extension) et, sur Android, par variante (`Bobine-<v>.apk` téléphone/tablette vs `Bobine-TV-<v>.apk`, deux `applicationId` distincts). Empreinte SHA-256 obligatoire (fail-closed) sur tous les profils non-git, Android compris.
-- **Téléchargement** : fichier `.part`, trois tentatives, contrôle de l'espace disque, renommage atomique seulement après vérification de l'empreinte.
-- **État après redémarrage** : un service qui se relance pour appliquer la mise à jour ne peut pas écrire « terminé ». `update_orchestrator` enregistre l'empreinte `version|commit` avant la mise à jour et, au démarrage suivant, conclut « terminé » si elle a changé, « échec » sinon (`load_persisted_state_at_startup`). Aucun `force_reload` n'est diffusé au début du pipeline : les clients se rechargent d'eux-mêmes via le changement de `boot_id`.
-- **Sans écran** : retour arrière automatique (`git checkout` de la référence précédente) si l'installation des dépendances ou la compilation du frontend échoue ; délais allongés pour un Dell Wyse 5070.
-- **Android** : `AndroidHandler` obtient le contexte via `Python.getPlatform().getApplication()` (`PyApplication.context` n'existe pas — cause racine de l'échec « Impossible de déclencher la mise à jour Android »). `UpdateManager.kt` télécharge, vérifie l'empreinte, contrôle paquet/signature/`versionCode` (Android interdit tout retour en arrière sans désinstaller : message explicite plutôt que « application non installée »), puis propose l'installation via une notification qui porte directement l'intention d'installation. Il ne télécharge plus rien spontanément au lancement de l'application.
-- **Environnement assaini des sous-processus système (2026-10-16)** : `update_orchestrator.clean_subprocess_env()` retire (ou restaure depuis `LD_LIBRARY_PATH_ORIG`) le `LD_LIBRARY_PATH` que PyInstaller positionne pour `BobineBackend` lui-même, avant tout appel à un binaire système externe (`systemctl`, `dpkg`, `git`) — sans ça, `systemctl --user restart bobine.service` charge la `libcrypto.so.3` bundlée (plus ancienne) au lieu de celle de l'hôte et échoue avec un symbole OpenSSL manquant. Appliqué dans `run_checked()` et dans le `Popen` détaché de `restart_services()`.
-- **Redémarrage `.deb` non bloquant (2026-10-16)** : `apply_update()` du profil `linux-desktop` délègue désormais le redémarrage final à `restart_services()` (tâche détachée + `os._exit(0)` différé) plutôt que d'attendre un `systemctl --user restart` synchrone — ce process EST la cible du restart, et l'attendre bloquant l'exposait à être tué par systemd en plein milieu de l'attente.
-- **Verrou anti-double-instance (2026-10-16)** : `tray.py::_acquire_single_instance_lock()` (bind TCP exclusif sur un port dédié, portable Windows/Linux/macOS, relâché automatiquement par l'OS même en cas de crash) empêche deux `BobineTray` de superviser chacun leur propre arbre `BobineBackend` — `postinst` peut relancer Bobine par deux voies concurrentes après une mise à jour `.deb` (`systemctl --user restart` + repli `nohup` si son `pgrep` de contrôle s'exécute trop tôt), doublant la RAM utilisée le temps que le doublon soit détecté. Sentinelle `/tmp/bobine-self-update-in-progress` posée par `apply_update()` autour de `pkexec dpkg -i` : `packaging/linux/DEBIAN/prerm` ne tue plus `BobineBackend` quand c'est lui-même qui pilote la mise à jour en cours.
-- **Acquittement persisté de la notification (2026-10-16)** : `acknowledged_started_at` (champ serveur, `update_orchestrator.acknowledge_current()` / `POST /api/updates/acknowledge`) remplace l'ancien state React local `dismissed`, qui revenait à `null` — et faisait réapparaître la bannière — à chaque rechargement de page ou redémarrage de service déclenché par la mise à jour elle-même.
-- **Étape `verifying` effectivement émise (2026-10-16)** : `download_with_progress()` accepte un callback `on_verifying`, appelé juste avant la comparaison d'empreinte SHA-256 — cette étape, définie dans `UpdateStep` depuis le début, n'était jamais réellement signalée au frontend.
+- **Vérification & Téléchargement** : mise en cache `ETag`, téléchargement en `.part` avec 3 tentatives, vérification obligatoire de l'empreinte SHA-256 (`SHA256SUMS`) avant renommage atomique, et retour en Stable autorisé depuis Bêta/Canary (`is_downgrade: true`).
+- **Isolation & Redémarrage** : nettoyage de `LD_LIBRARY_PATH` (`clean_subprocess_env()`) avant d'appeler `systemctl`/`dpkg`/`git`, redémarrage détaché non bloquant (`restart_services()`), verrou TCP d'instance unique dans `tray.py` et confirmation d'application au redémarrage suivant via `boot_state.py`.
 
 ### Autorisation sudo restreinte & désinstallation depuis l'interface
 
-`install.sh` écrit `/etc/sudoers.d/bobine` autorisant **sans mot de passe, et uniquement**, deux actions déclenchées depuis l'admin :
-
-- le **redémarrage** des services (`systemctl restart`) — bouton « Synchronisation des écrans » (Paramètres → Maintenance) : chaque écran connecté **vide son cache navigateur** puis se recharge (re-télécharge les nouveaux assets), et le backend + le kiosque sont relancés. À utiliser après une mise à jour des médias ou en cas de comportement bloqué ;
-- l'enveloppe de **désinstallation** `/usr/local/sbin/bobine-uninstall` — bouton « Désinstaller » (Paramètres → **Zone de danger**). L'enveloppe détache la remise à zéro via `systemd-run` (pour survivre à l'arrêt du service backend) puis exécute `install.sh --uninstall --purge --purge-data -y` : arrêt/suppression des services + config `/etc` + application + venv + **toutes les données** (les paquets `apt` partagés sont conservés). L'UI exige de recopier la phrase « DÉSINSTALLER » ; hors machine installée (poste de dev), l'endpoint refuse proprement.
+`/etc/sudoers.d/bobine` n'autorise sans mot de passe que le redémarrage des services (bouton *Synchronisation des écrans*) et l'enveloppe `/usr/local/sbin/bobine-uninstall` (bouton *Désinstaller* dans la *Zone de danger*).
 
 ---
 
@@ -560,181 +331,74 @@ Les noms de fichiers des artefacts Bêta/Canary sont **fixes** (`Bobine-Setup-be
 
 | Domaine | Préfixe | Description |
 |---|---|---|
-| **Vidéos** | `/api/videos` | Import, liste, détail, normalisation, suppression et catégories distinctes (`/videos/programs`) |
-| **Sous-titres & Chapitres** | `/api/videos/{id}/subtitles`, `/api/videos/{id}/chapters` | Pistes `.srt`/`.vtt` (diffusion `GET .../subtitles/{sub_id}/vtt`) ; chapitres (`GET/PUT`, `POST .../import`, `POST .../from-file`, `GET .../export`) |
-| **Playlists Vidéo** | `/api/playlists` | Gestion des playlists vidéo (CRUD, relecture) |
-| **Fonds Animés** | `/api/backgrounds` | Gestion de la bibliothèque de boucles visuelles |
-| **Audio Coach** | `/api/audio` | Import de cours audio (MP3/ZIP), gestion des pistes |
-| **Playlists Audio** | `/api/audio-playlists` | Playlists mixtes audio coach avec fonds |
-| **Planning** | `/api/schedule` | Programmateurs, occurrences et exceptions |
-| **Lecture** | `/api/playback` | Contrôle de la lecture (play, pause, seek, stop, reprise) |
-| **Écrans** | `/api/display` | `GET/PUT /display/state` : nombre d'écrans externes remonté par chaque plateforme et mode d'affichage câblé effectif (cf. « Projection HDMI prête à l'emploi ») |
-| **Paramètres** | `/api/settings` | Configuration dynamique (lecture/thème/langue/`deployment_profile`/`update_channel`), sortie vidéo, espace de stockage (`/settings/storage`), synchronisation des écrans (`POST /settings/system/reset` — vidage des caches + rechargement + relance des services), sauvegarde & restauration universelles ZIP (`/settings/system/backup`, `/settings/system/restore`), et réinitialisation usine ou désinstallation machine (`POST /settings/system/reset-data`, `POST /settings/system/uninstall`, phrase de confirmation requise), état réel du composant audio natif (`GET /settings/media-native` : `disabled`, `active`, `fallback` ou `absent`, §3bis) |
-| **Mises à jour** | `/api/updates` | `GET /updates/check` — interroge GitHub Releases selon le canal de mise à jour courant (Stable/Bêta/Canary, cf. §7) et le profil de déploiement pour l'asset adapté ; `POST /updates/apply` — déclenche `git checkout <tag>` + redémarrage (profil headless uniquement, 400 sinon) |
-| **Imports** | `/api/import-jobs` | File d'attente des tâches d'importation (`GET /api/import-jobs` avec pourcentage, ETA en secondes et vitesse) et annulation réactive (`DELETE /api/import-jobs/{id}` avec arrêt FFmpeg et purge) |
-| **Téléversements** | `/api/uploads` | Téléversement par morceaux reprenable : `POST` (nom, taille, empreinte → `upload_id`, décalage), `GET /{id}` (reprise), `PATCH /{id}` (en-tête `Upload-Offset`, corps binaire), `DELETE /{id}` ; l'import habituel reçoit ensuite `upload_id` à la place du fichier |
-| **Diagnostic d'import** | `/api/diagnostics` | `GET /diagnostics/import` : binaires ffmpeg/ffprobe, dossiers temporaire, de transfert et des médias, exécuteurs, tâches suspectes et constats (Réglages → Diagnostic de l'import) |
-| **Logs** | `/api/logs` | Consultation et téléchargement des journaux système |
-| **Périphériques** | `/api/devices` | `GET /status` (public : activation, PIN défini, accès, capacités une fois accordé) ; `POST /session` / `DELETE /session` (PIN → cookie) ; local uniquement : `POST /admin/enable`, `POST/DELETE /admin/pin`, `POST /pairing/generate` ; publics (première configuration) : `GET /pairing/status`, `POST /pairing/verify` (contrôle immédiat du code sans le consommer), `POST /pairing/claim` ; derrière l'accès : `/audio` (`/default`, `/volume`), `/bluetooth` (`/power`, `/scan`, `/pair`, `/pairing/respond`, `/connect`, `/disconnect`, `/forget`, `/permission`), `/wifi` (`/scan`, `/power`, `/connect`, `/confirm`, `/forget`), `POST /system-settings` |
-| **Radio — Bibliothèque** | `/api/radio` | Morceaux (CRUD, artistes/albums/tags), playlists radio, état d'une sortie (`/api/radio/state?channel=radio_cable\|radio_network`), son (`/api/radio/sound?channel=`), ambiance par défaut par sortie (`/api/radio/default-playlist`) |
-| **Radio — Rappels** | `/api/radio/announcements`, `/api/radio/announcement-rules` | Annonces (import + description), règles de déclenchement, déclenchement manuel |
-| **Métriques & Assiduité** | `/api/metrics` | Synthèse analytique du club (`GET /metrics/dashboard` avec filtres période et canal, KPIs satisfaction, complétion, affluence horaire 24h, classement des cours et télémétrie matérielle) et notation 5 étoiles (`POST /metrics/ratings`, `GET /metrics/ratings`) |
+| **Vidéos, Sous-titres & Chapitres** | `/api/videos` | CRUD vidéos, `/videos/programs`, `/videos/{id}/subtitles` (`.srt`/`.vtt`) et `/videos/{id}/chapters` |
+| **Playlists & Fonds** | `/api/playlists`, `/api/backgrounds` | Gestion des playlists vidéo et des boucles visuelles 16:9 |
+| **Audio Coach** | `/api/audio`, `/api/audio-playlists` | Cours audio et playlists mixtes avec fond visuel associé |
+| **Planning & Lecture** | `/api/schedule`, `/api/playback`, `/api/display` | Programmation horaire, contrôle de lecture (`play`, `pause`, `seek`, `stop`) et état des écrans externes (`/display/state`) |
+| **Radio** | `/api/radio` | Bibliothèque musicale, playlists, état et égaliseur par sortie (`radio_cable`, `radio_network`), annonces et règles |
+| **Imports & Téléversements** | `/api/import-jobs`, `/api/uploads`, `/api/diagnostics` | File d'importation FFmpeg, téléversement par morceaux reprenable et diagnostic d'import |
+| **Périphériques & Stockage** | `/api/devices`, `/api/storage` | Topologie, audio/table de mixage, Bluetooth, Wi-Fi, appairage par PIN/code et supports USB/SD externes |
+| **Paramètres, Mises à jour & Métriques** | `/api/settings`, `/api/updates`, `/api/metrics`, `/api/logs`, `/api/health` | Configuration, sauvegarde/restauration ZIP, vérification/application des mises à jour, statistiques d'assiduité, télémétrie matérielle et santé |
 
 ### WebSockets
 
-- **Commandes client → serveur ajoutées en 4.0** : `subscribe` (`{channels: [...]}`, abonnement aux évènements propres à un canal), `time_sync` (`{t0}`, réponse directe `{event: "time_sync", t0, server_ms}` pour estimer le décalage d'horloge). Chaque `state_change` porte l'ancre d'horloge `clock`.
-- `devices_changed` (`{scope}`) : évènement global sans donnée annonçant un changement d'audio, de Bluetooth ou de Wi-Fi (§5bis).
-- `/ws/playback` : Diffusion en temps réel de l'état de lecture par canal — câblé, réseau **et radio** (`channel=radio_cable` ou `radio_network` ; l'ancien `radio` reste accepté en entrée, même connexion, vocabulaire de commandes `radio_*` propre au canal musical) — *position*, *durée*, *média courant*, décompte inter-cours. Diffuse aussi `library_change` (import/modification/suppression d'une vidéo — upload, dossier surveillé ou édition de titre) : `/grid`, `/cinema` et `/library` rechargent leur liste sans attendre leur sondage périodique.
+`/ws/playback` diffuse en temps réel l'état de chaque canal (`cable`, `network`, `radio_cable`, `radio_network`) avec l'ancre d'horloge `clock`, gère l'abonnement ciblé (`subscribe`), la synchronisation temporelle (`time_sync`), et notifie les changements de bibliothèque (`library_change`) et de périphériques (`devices_changed`).
 
 ---
 
 ## 9. Exploitation & Découverte Réseau (Wyse)
 
-Sur le réseau local, la machine Wyse de production (`bobine-prod.local` / Dell Wyse 5070) reçoit son adresse IP via **DHCP**.
-
 ### Découverte mDNS embarquée (`bobine.local`)
 
-`backend/app/utils/mdns.py` publie `bobine.local` via la bibliothèque `zeroconf` sur tous les
-profils sauf : l'appliance headless (`avahi-daemon`, configuré par `install.sh`, s'en charge déjà)
-et un Linux desktop où un `avahi-daemon` natif est détecté actif (`_avahi_daemon_active()`,
-présence du socket `/var/run/avahi-daemon/socket` — fréquent, dépendance usuelle de
-CUPS/NetworkManager) : publier en plus créerait un conflit de nom résolu silencieusement en
-`bobine-2.local` (RFC 6762).
-
-Boucle de fond (`_run_loop`), pas un enregistrement unique au démarrage :
-- **Re-annonce périodique** (5 min, `_REANNOUNCE_INTERVAL_SECONDS`) : si l'IP locale a changé
-  depuis la dernière annonce (DHCP, reconnexion Wi-Fi), `zc.update_service(...)` plutôt qu'un
-  `ServiceInfo` figé sur l'IP du tout premier enregistrement.
-- **Nouvelles tentatives à délai croissant** après un échec (`_RETRY_DELAYS_SECONDS`, 2s à 60s) —
-  jamais d'abandon silencieux définitif jusqu'au redémarrage du backend.
-- **État réel exposé** par `get_status()` (`"ok"`/`"failed"`/`"disabled"`/`"external"`/
-  `"unavailable"`/`"pending"`), relayé dans `GET /api/settings` → `network.mdns_status` et affiché
-  (icône d'avertissement) dans Réglages → Accès Réseau si `bobine.local` ne répond pas — avant ce
-  champ, l'URL mDNS était une chaîne statique affichée comme fonctionnelle même après un échec de
-  publication.
-
-Android : `BobineForegroundService.kt` doit détenir un `WifiManager.MulticastLock` pour que les
-paquets multicast (mDNS inclus) soient livrés au process applicatif — un
-`ConnectivityManager.NetworkCallback` le ré-acquiert à chaque `onAvailable` (changement de réseau,
-reconnexion) plutôt qu'une acquisition unique à `onCreate()`, certains pilotes radio
-réinitialisant le filtrage multicast à la reconnexion.
+`backend/app/utils/mdns.py` annonce `bobine.local` via `zeroconf` sur tous les profils dépourvus d'`avahi-daemon` actif, avec ré-annonce périodique (5 min), suivi des changements d'IP DHCP, maintien du `MulticastLock` sous Android et exposition de l'état réel dans `GET /api/settings` (`network.mdns_status`).
 
 ### Protocole de Découverte Réseau (Si l'IP change)
 
-1. **Test sur l'adresse courante ou le nom mDNS** (exemple d'IP documentaire ci-dessous, à remplacer par l'adresse réelle du site) :
-   ```bash
-   curl -s --connect-timeout 2 http://192.0.2.10:8000/api/settings
-   curl -s --connect-timeout 2 http://bobine-prod.local:8000/api/settings
-   ```
-2. **Scan Nmap automatique du sous-réseau** (si l'IP n'est pas joignable) :
-   ```bash
-   SUBNET=$(ip route | grep default | awk '{print $3}' | cut -d. -f1-3).0/24
-   nmap -p 8000 --open "$SUBNET" -oG - | grep "8000/open"
-   ```
+```bash
+curl -s --connect-timeout 2 http://bobine.local:8000/api/settings
+# Ou scan du sous-réseau local :
+SUBNET=$(ip route | grep default | awk '{print $3}' | cut -d. -f1-3).0/24
+nmap -p 8000 --open "$SUBNET" -oG - | grep "8000/open"
+```
 
 ### Commandes d'Exploitation à Distance (SSH)
 
 ```bash
-# Vérifier l'état des services systemd sur la Wyse
 ssh fanta@<WYSE_IP> "systemctl status bobine-backend bobine-kiosk"
 ```
 
 ### Déploiement sur la Wyse
 
-**Attention : `git pull` ne fonctionne PAS sur la Wyse** : son réseau bloque GitHub entièrement (ports 22 **et** 443 vers github.com). Le dépôt `/home/fanta/Bobine` sur la Wyse **n'est pas un clone git** — le déploiement se fait par copie (`rsync`) depuis un poste de dev sur le même réseau local, jamais par `git pull` sur la machine cible elle-même.
-
-```bash
-# 1. Depuis le poste de dev, sur le même LAN que la Wyse — toujours en
-#    --dry-run d'abord, vérifier qu'aucune ligne "deleting" ne touche data/ :
-rsync -a --delete --dry-run \
-  --exclude='.git/' --exclude='data/' --exclude='backend/data/' --exclude='backend/.venv/' \
-  --exclude='frontend/node_modules/' --exclude='frontend/.next/' --exclude='frontend/out/' \
-  --exclude='__pycache__/' --exclude='*.pyc' --exclude='*.db*' --exclude='*.log' \
-  --exclude='backend/.pytest_cache/' --exclude='VideoTest/' \
-  ./ fanta@<WYSE_IP>:/home/fanta/Bobine/
-# (puis sans --dry-run une fois vérifié)
-
-# 2. Sur la Wyse : si le déploiement ajoute/modifie des dossiers média, des
-#    réglages de config.toml ou des services systemd, relancer l'installateur
-#    (idempotent, ne touche jamais data/ hors --uninstall --purge-data) :
-ssh fanta@<WYSE_IP> "cd /home/fanta/Bobine && sudo ./install.sh --skip-packages -y"
-# Pour un changement de CODE SEUL (aucun nouveau dossier/réglage/service),
-# un simple rebuild suffit à la place de l'étape ci-dessus :
-#   ssh fanta@<WYSE_IP> "cd /home/fanta/Bobine/frontend && npm run build"
-
-# 3. install.sh ne redémarre PAS un service déjà actif : redémarrage explicite
-#    pour charger le nouveau code (ces deux commandes sont NOPASSWD) :
-ssh fanta@<WYSE_IP> "sudo -n systemctl restart bobine-backend.service && sudo -n systemctl restart bobine-kiosk.service"
-
-# 4. Vérifier : santé de l'API, services actifs, espace disque de data/ inchangé
-ssh fanta@<WYSE_IP> "curl -s localhost:8000/api/health; systemctl is-active bobine-backend bobine-kiosk; du -sh /home/fanta/Bobine/data"
-```
-
-Les commits restent locaux jusqu'à ce qu'une machine avec accès GitHub (hors LAN de la Wyse) les pousse sur `origin/main` — le déploiement ne dépend jamais de ce push.
+La Wyse de production ne clonant pas directement depuis GitHub, les mises à jour locales hors réseau se poussent par `rsync` (en excluant `.git/`, `data/`, `.venv/`, `node_modules/`), suivies de `sudo ./install.sh --skip-packages -y` et du redémarrage de `bobine-backend.service` et `bobine-kiosk.service`.
 
 ---
 
 ## 10. Matrice des interfaces & compatibilité multi-plateforme
 
-Bobine repose sur une **interface frontend unique et unifiée** construite avec Next.js 16 (App Router) et exportée statiquement (`npm run build` → `frontend/out`). Cette interface est partagée et embarquée de manière identique sur **tous les profils de déploiement**.
-
 ### 10.1 Cartographie des 23 routes de l'interface (+ `/` redirigeant vers `/dashboard-cable`)
 
-| Catégorie | Route(s) | Description & Particularités multi-OS |
+| Catégorie | Route(s) | Rôle principal |
 |---|---|---|
-| **Diffusion & Kiosque** | `/kiosk` | Kiosque automatique plein écran (programmation, inter-cours, démarrage direct sans délai). Horloge avec `suppressHydrationWarning`, synchronisation réseau (`/api/time`), overlay de pause cinématique Netflix avec vignette média et description normalisée. |
-| | `/cinema` | Vitrine de sélection « Apple TV » avec héros en glassmorphism centré, rangées par catégorie, télécommande HID et **Moteur Vidéo A/B sans coupure** (double décodeur sans écran noir). Écran de pause Netflix avec miniature interactive, description défilable sans rupture de phrase, et sélecteur de pistes de sous-titres (.vtt / .srt) translucide aux couleurs du thème. En mode Pupitre Studio double écran (`dual_screen`), l'écran externe affiche un écran de veille passif *« En attente d'un cours »* pendant que la sélection s'opère sur la console tactile `/grid` ; en mode sans écran (`headless`), l'écran externe présente directement la grille interactive complète. Notation 5 étoiles sur l'écran de fin. |
-| | `/grid` | Interface de sélection tactile et régie dédiée (tablettes Android, ordinateurs portables en mode Pupitre Studio). **Pilote exclusivement le canal câblé (HDMI)** (aucun équivalent réseau, administré via `/dashboard-network`). Supporte la navigation tactile, souris, télécommandes HID et manettes de jeu avec anti-rebond et lissage monotone du temps. Évaluation 5 étoiles tactile à la fin du cours (cf. § 10.2 ci-dessous). |
-| **Régies & Contrôle** | `/dashboard-cable`<br>`/dashboard-network` | Tableaux de bord de contrôle indépendant pour les canaux Câblé et Réseau (déclenchement direct, reprise, volume, diffusion d'ambiance visuelle 1-clic) équipés d'une barre de bascule segmentée Câblé / Réseau animée (grossissement au survol, lueur de sélection spéculaire). Redirection automatique transparente de `/dashboard-cable` vers `/coach` lorsque le mode coach est actif. |
-| **Console Régie Coach** | `/coach` | Console régie studio responsive : double colonne sur tablette paysage et desktop avec lecteur tactile surdimensionné, minuteur, playlist déroulante intégrée, **Moniteur de scène 16:9** (retour HDMI direct de salle) et **Palette tactile d'ambiances 16:9** avec bascule en direct en 1 clic. Version compacte monoposte avec tiroirs tactiles sur mobile. |
-| **Administration** | `/settings` | Gestionnaire de configuration : 16 thèmes (dont la paire minérale « Charbon » / « Charbon Sombre », clair et sombre, certifiés WCAG AA/AAA), sélecteur de mode d'affichage câblé (Pupitre Studio double écran vs sans écran), actualisation réseau dynamique (polling 15s + bouton manuel), supervision complète (CPU, GPU, RAM, Stockage, Puissance en W, Températures, Uptime), sauvegarde/restauration ZIP. |
-| | `/metrics`<br>`/metrics/courses`<br>`/metrics/system` | Tableau de bord analytique et assiduité (Bêta 3.0.5) : 4 indicateurs clés (satisfaction moyenne sur 5 étoiles, taux de complétion ≥90%, volume de diffusion en heures, nombre de séances), histogramme 24h d'affluence horaire CSS pur, palmarès des cours plébiscités, télémétrie matérielle temps réel, base EAV et tiroir d'historique (1h, 6h, 24h, 7j). |
-| | `/library` | Bibliothèque vidéo avec métadonnées, durée et upload universel de miniatures personnalisées (`PUT /api/videos/{id}/thumbnail` via Pillow, sans dépendance ffmpeg). |
-| | `/backgrounds` | Hub d'Ambiances Visuelles (Bêta 3.0.5) : gestion centralisée des boucles d'ambiance 16:9 avec prévisualisations vidéo au survol, projection directe sur sorties Câblée et Réseau, lecteur modal immersif et configuration du fond par défaut pour les cours coach. |
-| | `/audio`<br>`/audio-playlists` | Bibliothèque audio coach et gestionnaire de playlists avec sélecteur visuel d'ambiance 16:9 modal et assignation dynamique. |
-| | `/playlists`<br>`/schedule`<br>`/logs` | Gestion des listes ordonnées, programmation horaire récurrente (APScheduler) et inspection des journaux système. |
-| | `/devices` | Périphériques : vue globale en carte, audio, routage par sortie radio, table de mixage, Bluetooth et Wi-Fi de la machine, accès par PIN à distance, section Sécurité réservée à l'écran local (§5bis). |
-| | `/storage` | Stockage externe : détection à chaud des clés USB, disques externes, cartes SD et téléphones (MTP/PTP), explorateur de fichiers, import direct, extension de bibliothèque et assistant de préparation/formatage (§5ter). |
-| **Sorties radio** | `/radio?channel=cable`<br>`/radio?channel=network`<br>`/radio` (alias réseau)<br>`/radio-announcements`<br>`/radio-library`<br>`/radio-remote` | Canal sonore continu indépendant avec enchaînement musical Web Audio API, ducking automatique et rappels vocaux de bienséance. |
-
----
+| **Diffusion & Salle** | `/kiosk`, `/cinema`, `/grid` | Borne automatique plein écran (`/kiosk`), vitrine à la demande à double décodeur A/B (`/cinema`), et pupitre tactile coach pilotant la sortie HDMI (`/grid`). |
+| **Régies & Coach** | `/dashboard-cable`, `/dashboard-network`, `/coach` | Tableaux de bord de diffusion Câblé/Réseau et console Audio Coach double colonne avec retour vidéo 16:9 (`/coach`). |
+| **Bibliothèques & Planning** | `/library`, `/playlists`, `/backgrounds`, `/audio`, `/audio-playlists`, `/schedule` | Gestion des vidéos, sous-titres, chapitres, playlists, boucles d'ambiance, cours audio et grille horaire hebdomadaire. |
+| **Radio 24/7** | `/radio`, `/radio-remote`, `/radio-library`, `/radio-announcements` | Écran radio TV (`/radio?channel=cable\|network`), télécommande web avec égaliseur, bibliothèque musicale et rappels vocaux. |
+| **Administration & Système** | `/settings`, `/metrics` (`/courses`, `/system`), `/devices`, `/storage`, `/logs` | Paramètres et 16 thèmes, statistiques d'assiduité et télémétrie matérielle, périphériques audio/BT/Wi-Fi, stockage USB et journaux. |
 
 ### 10.2 Intégration et montage par profil de déploiement
 
-Le serveur FastAPI (`backend/app/main.py`) monte dynamiquement le dossier statique selon le profil exécuté via la classe `RevalidateStaticFiles` (injectant `Cache-Control: no-cache` pour forcer la revalidation ETag et éviter tout gel heuristique du cache HTTP) :
-
-| Profil | Cible & Format | Emplacement frontend servi | Consommateur principal de l'UI |
+| Profil | Cible & Format | Emplacement frontend servi | Particularités d'exécution |
 |---|---|---|---|
-| **Appliance sans écran** | Dell Wyse / Mini PC (`install.sh`, Debian 13) | `frontend/out/` (relatif au dépôt) | Kiosque Chromium X11 (`/kiosk` et/ou `/cinema`) + navigateur distant pour l'admin |
-| **Windows Bureau** | Windows 10/11 x86_64 & ARM64 Snapdragon (`.exe` Inno Setup) | `%ProgramFiles%\Bobine\frontend\out\` | Navigateur web par défaut au lancement + icône de notification en barre des tâches (systray). Supporte le mode Pupitre Studio (double écran) ou sans écran (capot fermé). |
-| **macOS Bureau** | macOS Apple Silicon M1–M4 (`.dmg` / `Bobine.app`) | `Bobine.app/Contents/Resources/frontend/out/` | Navigateur web par défaut + compagnon de barre des menus. Supporte le mode Pupitre Studio ou capot fermé. |
-| **Linux Bureau** | Debian 13+/Ubuntu 24.04+/Mint (`.deb`), Fedora (`.rpm`), Arch/Manjaro/CachyOS (`.pkg.tar.zst`) en x86_64 & ARM64, glibc 2.38 ou plus récente (`packages.bobine.fit`) | `/usr/lib/bobine/frontend/out/` | Navigateur web par défaut + systray XDG. Supporte le mode Pupitre Studio ou capot fermé. |
-| **Tablette Android / Android TV** | Tablettes ARM64 Snapdragon 8 Gen 2/3 / Dimensity / Tensor (`.apk`, Chaquopy, Python 3.13) ; boîtiers Android TV ARM 32/64 bits (`Bobine-TV-*.apk`, Python 3.11) | Assets embarqués `pyStage/backend/frontend_out/` | Double WebView matérielle : tactile local (`/grid` ou accueil) + affichage externe HDMI (`/cinema`) |
-
-Sur le profil Android, les données sont réparties sur **deux racines de stockage** distinctes (`backend/app/config.py::_android_internal_root()`) — la base SQLite, les miniatures, les logs, le branding et les pochettes radio vivent sur le stockage **interne** de l'app (`context.filesDir`, f2fs natif) tandis que les médias (vidéos, fonds, audio, radio) restent sur le stockage **externe** (`context.getExternalFilesDir`, servi par FUSE, visible depuis un gestionnaire de fichiers). Une installation existante est migrée automatiquement et sans risque de perte (copie, jamais de déplacement destructif, vérification `PRAGMA integrity_check` avant utilisation) au premier démarrage qui suit une mise à jour — cf. `android/app/src/main/python/bobine_bootstrap.py`.
-| **Assistant GUI** | Linux x86_64 (`bobine-assistant`, Tauri 2 / Rust) | `assistant/ui/` (intégré au binaire Rust) | Fenêtre native GTK WebKit pour la découverte mDNS, scan LAN et déploiement SSH |
-
-**Compression HTTP** (`backend/app/utils/http_compression.py`) : le JSON/texte de `/api/*` et les fichiers texte du frontend sont servis en gzip quand le client l'accepte (`frontend/out` 2,7 Mo → 0,77 Mo ; JSON de 5000 pistes 1,04 Mo → 30 Ko). Jamais compressés : flux `/stream`, miniatures, branding, WebSocket, requêtes `Range`/`HEAD`, réponses déjà encodées ou portant un `ETag`/`Content-Disposition`, et les clients de bouclage (kiosque local, WebView Android : aucun octet à économiser). Le statique garde son ETag par contenu : la variante gzip porte l'ETag `"<md5>-gzip"` (représentation distincte, `Vary: Accept-Encoding`), et un client ayant en cache la version brute reçoit toujours un 304 tant que le contenu est inchangé.
-
-**Dépendances des paquets autonomes.** Les builds PyInstaller excluent les outils de rechargement (`watchfiles`), de configuration YAML (`yaml`) et de migration Alembic/Mako, absents du chemin d’exécution de Bobine. `dotenv` reste embarqué : `pydantic-settings` l’importe même sans fichier `.env`. Les dépendances de développement restent disponibles dans le dépôt. Android n’embarque plus Alembic/Mako ; les micro-migrations de `app.database` restent inchangées.
-
-**Variante Android TV et ABI 32 bits.** Beaucoup de boîtiers et clés Android TV (Chromecast avec Google TV, Xiaomi TV Stick/Box) ont un processeur 64 bits mais un système 32 bits : leur liste d'ABI est `armeabi-v7a` seule, et un APK sans dossier natif `lib/armeabi-v7a` y échoue avec `INSTALL_FAILED_NO_MATCHING_ABIS`. Chaquopy ne fournit le runtime `armeabi-v7a` que jusqu'à Python 3.11 (Maven Central : `target:3.13.9-0` n'a que `arm64-v8a` et `x86_64`). Le flavor `tv` embarque donc Python **3.11** avec les ABI `armeabi-v7a` et `arm64-v8a` (`chaquopy.productFlavors` dans `android/app/build.gradle.kts`) ; le flavor `mobile` reste en Python 3.13 (`arm64-v8a`). La tranche `x86_64` (émulateur de développement, 7,1 Mo sans ffmpeg) n'est plus livrée en release : elle s’ajoute avec `./gradlew assembleMobileDebug -PbobineEmulator=true` (ou `assembleTvDebug`). Cette option désactive les variantes release/Play ; les builds ordinaires, y compris debug sur matériel ARM, restent ARM uniquement. Conséquences à connaître :
-
-- Le runtime 3.11 ne répond ni `platform.system() == "Android"` ni `sys.getandroidapilevel` : toute détection d'Android passe par `app.utils.android_runtime.is_android()` (marqueur `BOBINE_PLATFORM` posé par `bobine_bootstrap.py`, variables du zygote `ANDROID_ROOT`/`ANDROID_DATA`, signaux CPython 3.12+). Ne jamais tester `platform.system()` ou `getandroidapilevel` seuls.
-- Le backend doit rester compatible Python 3.11 (pas de f-string aux guillemets imbriqués, ni de syntaxe ou d'API postérieure) : le job `backend` de la CI le teste en 3.11, 3.12 et 3.13.
-- `ffmpeg`/`ffprobe` armeabi-v7a sont compilés depuis les sources officielles (`android/scripts/build_ffmpeg_armv7.sh`, NDK r28c, build LGPL avec MediaCodec) car aucun binaire 32 bits n'est publié ; la CI les met en cache.
-- `scripts/ci/verify-apk-abis.sh` contrôle les ABI et binaires embarqués de chaque APK avant publication.
+| **Appliance sans écran** | Debian 13 (`install.sh`) | `frontend/out/` | Kiosque Chromium X11 + administration web LAN |
+| **Windows Bureau** | Windows 10/11 `x86_64` & `ARM64` (`.exe`) | `%ProgramFiles%\Bobine\frontend\out\` | Icône systray, pare-feu lié à `BobineBackend.exe`, projecteur natif WebView2 |
+| **macOS Bureau** | macOS Apple Silicon M1–M4 (`.dmg`) | `Bobine.app/Contents/Resources/frontend/out/` | Barre des menus, LaunchAgent, projecteur natif WKWebView |
+| **Linux Bureau** | `.deb`, `.rpm`, `.pkg.tar.zst` (`x86_64` & `arm64`, **glibc 2.38+**) | `/usr/lib/bobine/frontend/out/` | Systray XDG, projecteur WebKitGTK, montage USB polkit |
+| **Android & Android TV** | Tablettes ARM64 (`Bobine-*.apk`, Python 3.13) & TV ARM 32/64 bits (`Bobine-TV-*.apk`, Python 3.11) | `pyStage/backend/frontend_out/` | Base SQLite en stockage interne `filesDir` (f2fs), médias en stockage externe, détection via `is_android()` |
+| **Assistant GUI** | Linux `x86_64` & `arm64` (`bobine-assistant`) | `assistant/ui/` | Application native Tauri 2 / Rust pour scan LAN et déploiement SSH |
 
 ### 10.3 Compatibilité navigateurs (Firefox / Gecko)
 
-<img src="../Assets/Images/firefox.svg" alt="Firefox" width="40" align="left" hspace="10" /> Bobine soutient le projet Firefox : l'interface d'administration et les lecteurs ouverts depuis d'autres appareils (`/radio`, `/kiosk`, `/cinema`, `/coach`) ciblent Firefox (version courante, précédente et ESR ; bureau et Android) au même titre que les moteurs Chromium et WebKit.
-
-- **Règle d'ingénierie** : détection de fonctionnalités uniquement (jamais `navigator.userAgent`) ; aucun code spécifique à un navigateur.
-- **Vérifié sur Firefox 157** : WebSocket, XHR/`FormData` (upload), `Range` (206, plage suffixe), CORS, Web Audio, Gamepad, Wake Lock, `requestVideoFrameCallback`, `webkitdirectory`, Cache API. Lecture H.264 (jusqu'à 1080p60 à 60 Mbit/s) sans image perdue ; HEVC/AV1 dépendent de l'OS et du matériel.
-- **Livré en 4.0.3** : flux média conformes RFC 9110 (`HEAD`, `Range`, `If-Range`, `416`, `ETag` — `app/utils/media_response.py` ; plus aucun `/api/*` ne renvoie du HTML) ; **téléversement par morceaux reprenable** (`/api/uploads`, `app/utils/staged_uploads.py`, client `frontend/src/lib/chunkedUpload.ts`) ; filtre de dépôt par extension ; `ffmpeg` à priorité réduite sur les profils où le navigateur partage la machine ; **version web « lisible partout »** (H.264 8 bits ≤ 1080p, `app/utils/web_profile.py`, négociation `?accept=` sur `/api/videos/{id}/stream`, original jamais modifié) ; Réglages → Compatibilité navigateur.
-- **Reste ouvert** : HTTPS local optionnel (Wake Lock et Gamepad exigent un contexte sécurisé — `http://<ip>` du LAN) ; mesures Windows/macOS/Android/ESR.
-- **Crash/lag d'import signalé** : identifié par le mainteneur comme une fuite mémoire d'un autre logiciel du poste, hors Bobine (cohérent avec nos mesures : rien de reproduit avec 31 fichiers / 1,5 Go, lien limité à 32 Mbit/s, 2 cœurs).
-- Banc de mesure reproductible : [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
+<img src="../Assets/Images/firefox.svg" alt="Firefox" width="40" align="left" hspace="10" /> Toutes les interfaces d'administration et de lecture ciblent **Mozilla Firefox** (courant et ESR, bureau et Android) au même titre que Chrome, Edge, Safari, Brave et Tor Browser. Règle : détection de fonctionnalités uniquement (jamais de `userAgent`), flux conformes RFC 9110 (`Range`, `If-Range`, `ETag`), et banc de test reproductible dans [`scripts/browser-bench/`](../scripts/browser-bench/README.md).
 
 <br clear="left"/>
 
@@ -742,42 +406,32 @@ Sur le profil Android, les données sont réparties sur **deux racines de stocka
 
 ## 10bis. Icônes par canal de version (Stable, Bêta, Canary)
 
-Chaque canal a sa propre icône (ruban argent, bleu ou or). Deux mécanismes distincts, détaillés dans [`Assets/Images/channel-icons/README.md`](../Assets/Images/channel-icons/README.md) :
-
-- **Canal du build**, déduit du suffixe de `VERSION` (`-beta`, `-canary`, sinon Stable) : icône du lanceur et du tiroir d'applications Android, bannière Android TV, exécutables et installeur Windows, bundle macOS, lanceur Linux (`.deb`, `.rpm`, Arch). Elle change quand le build du canal est installé.
-- **Canal choisi** dans les Réglages (`update_channel`), qui par défaut est le canal d'installation (une installation Canary propose les mises à jour Canary) : barre système (relue toutes les 15 secondes par `app/desktop/channel_icon.py`), logo et favicon de l'interface, écran de démarrage Android. Elle change à chaud.
-
-Registre unique des canaux : `backend/app/release_channel.py`. Source unique des icônes : `Assets/Images/channel-icons/`. Tous les dérivés sont produits par `scripts/generate_channel_icons.py` ; `backend/tests/test_channel_icons_wiring.py` échoue si un dérivé est périmé ou si une plateforme diverge.
+Chaque canal possède son propre ruban (argent, bleu, or), détaillé dans [`Assets/Images/channel-icons/README.md`](../Assets/Images/channel-icons/README.md) :
+- **Canal du build** (dérivé de `VERSION`) : icônes d'application Android/TV, Windows, macOS et paquets Linux.
+- **Canal choisi** (`update_channel`) : icône de barre système (`channel_icon.py`), logo/favicon web et splash Android.
+Source unique : `Assets/Images/channel-icons/` et `scripts/generate_channel_icons.py` (vérifiés par `test_channel_icons_wiring.py`).
 
 ---
 
 ## 11. Licence
 
-Bobine est distribué sous licence **GNU AGPL-3.0** (voir [`LICENSE`](../LICENSE) à la racine). Toute mise à disposition du logiciel, y compris via un service accessible en réseau, impose de publier le code source correspondant (y compris vos modifications) sous la même licence.
-
+Bobine est distribué sous licence **GNU AGPL-3.0** (voir [`LICENSE`](../LICENSE)).
 
 ### Préparation des supports amovibles
 
-La page Stockage propose un assistant de formatage rapide sous Linux : plan lié à l'identité du disque, choix du système de fichiers, saisie du nom du support, confirmation de l'effacement et PIN d'administration obligatoire, même sur l'écran local. Un PIN doit être configuré avant toute exécution. Le serveur refuse les disques internes ou système, les volumes enregistrés comme bibliothèque, les supports occupés, chiffrés ou protégés en écriture. Il revérifie l'identité avant l'écriture et avant toute remise à zéro en cas d'échec. L'opération crée une table GPT et une partition alignée ; une vérification relit le format, l'étiquette et l'UUID, puis teste un petit fichier et remet le volume en lecture seule. Le formatage rapide ne constitue pas un effacement sécurisé.
-
-L'installateur et le paquet Debian installent udisks2, les outils exFAT/ext4/FAT32/NTFS et les composants MTP. La règle polkit ne délègue que les actions nécessaires sur les supports identifiés comme amovibles par udisks2, au seul compte choisi à l'installation. Les actions sur les disques système et l'effacement sécurisé restent exclus. Si le paquet ne peut déterminer un compte unique, l'administrateur peut utiliser `sudo /usr/lib/bobine/configure-storage-access configure <compte>`. Ce compte peut administrer les supports amovibles depuis ses autres programmes également : la délégation s'applique au compte Unix. La désinstallation retire la règle. En session sans bureau, GVFS/MTP requiert une session D-Bus utilisateur et n'est pas garanti pour tous les téléphones. Les autres plateformes indiquent explicitement l'absence de prise en charge du formatage.
+Sous Linux, la page `/storage` permet le formatage rapide (GPT + exFAT, ext4, FAT32 ou NTFS) des seuls supports amovibles identifiés par `udisks2`, après saisie du nom du volume et du PIN d'administration. Une règle polkit dédiée délègue ces opérations au compte choisi à l'installation (`configure-storage-access`).
 
 ### Routage et mixage des sorties radio
 
-Périphériques propose un graphe de routage et une table de mixage pour les deux sorties radio. Chaque sortie conserve une destination stable, un repli configurable (sortie par défaut ou silence), les gains et sourdines Musique/Rappels/Sortie, les solos et les égaliseurs. Le lecteur applique les réglages avec Web Audio et rapporte le résultat réel du routage. Les vumètres ne mesurent que pendant la consultation de la table. Sur Linux, le repli PipeWire ne déplace qu'un flux de navigateur local identifié sans ambiguïté et vérifie la liaison obtenue. Les fonctionnalités indisponibles sont signalées, sans les présenter comme appliquées. Le graphe fonctionne aussi au clavier/télécommande (sélection source, puis sortie). L'audio vidéo est représenté mais ne dispose pas de tranche de mixage ; il conserve sa sortie par défaut.
+L'onglet `/devices` fournit un graphe de routage et une table de mixage Web Audio pour `radio_cable` et `radio_network` (gains Musique/Rappels/Master, sourdines, solos, égaliseurs et liaison PipeWire sur Linux).
 
 ### Vérification de la publication des dépôts Linux
 
-Le job `publish-linux-packages` appartient à la même chaîne de livraison que les builds Android, Windows, macOS et Linux. Les paquets `.deb` amd64 et arm64 sont installés par APT dans les jobs de construction. Après signature et génération des dépôts, un vérificateur partagé avec le miroir Tor contrôle les 18 combinaisons APT/DNF/Pacman, Stable/Bêta/Canary et architectures, avant tout push de publication.
-
-Le vérificateur authentifie la clé attendue, les métadonnées signées, les index et les sommes SHA-256 des binaires. Huit altérations réelles doivent être refusées. `latest.json` et `mirror-packages.json` sont produits uniquement après succès. Le code du vérificateur est récupéré depuis une révision immuable de BobineWeb ; sa mise à jour se fait par revue de la référence dans le workflow. La taille publiée est limitée à 950 millions d’octets pour garder une marge sous la limite de Pages.
-
-Les métadonnées APT portent une expiration : 365 jours pour Stable et Bêta, 30 jours pour Canary. Une publication rafraîchit le canal concerné, et un workflow planifié chaque semaine (`refresh-package-repositories.yml`) ré-exporte et re-signe les fichiers Release des trois canaux sans changer aucun paquet. Une sonde quotidienne en lecture seule (`probe-package-repositories.yml`) échoue, et prévient donc le mainteneur par courriel, quand une suite a moins de 7 jours de validité, qu'une signature est fausse, qu'un paquet ne répond pas ou que le dépôt d'un canal glissant diffère de sa release. La poussée finale sur `gh-pages` se rebase et se rejoue si un autre écrivain a poussé entre-temps. La mise en ligne Pages utilise un artefact vérifié, sans historique Git dans le contenu déployé. Les tests de signatures et d’installation en conteneurs ne remplacent pas les validations graphiques sur matériel.
+Le job `publish-linux-packages` génère, signe et vérifie les 18 combinaisons APT/DNF/Pacman × Stable/Bêta/Canary × `x86_64`/`arm64` (`scripts/ci/prepare-package-repository.sh`) avant publication sur `packages.bobine.fit`. Un workflow hebdomadaire (`refresh-package-repositories.yml`) rafraîchit les signatures APT et une sonde quotidienne (`probe-package-repositories.yml`) contrôle leur validité.
 
 ### Empreintes signées des fichiers de release
 
-Chaque release (Stable, Bêta, Canary) joint `SHA256SUMS`, la liste des empreintes SHA-256 de tous ses fichiers, et `SHA256SUMS.asc`, sa signature détachée par la clé qui signe déjà les dépôts de paquets. `scripts/ci/sign-release-checksums.sh` produit le couple dans un trousseau éphémère retiré du runner à la fin du job ; `scripts/ci/verify-release-assets.sh` refuse une release dont un fichier attendu est absent de la liste ou dont une empreinte diffère. Pour vérifier un téléchargement : `gpg --verify SHA256SUMS.asc SHA256SUMS`, puis `sha256sum -c --ignore-missing SHA256SUMS`. Cette signature ne remplace pas la signature de code des fabricants : les installateurs Windows et macOS ne sont pas signés par Microsoft ni notarisés par Apple.
-
+Chaque release publie `SHA256SUMS` et sa signature détachée `SHA256SUMS.asc` (`sign-release-checksums.sh`, contrôlés par `verify-release-assets.sh`). Vérification : `gpg --verify SHA256SUMS.asc SHA256SUMS && sha256sum -c --ignore-missing SHA256SUMS`.
 
 ### Flux de publication du logiciel et des sites
 
@@ -797,11 +451,4 @@ flowchart TD
   Tor --> TorProbe[Sonde publique Tor et signatures des dépôts]
 ```
 
-Le job `notify-web-release` ne s’exécute qu’après la publication réussie des dépôts Linux, elle-même conditionnée à la création d’une release et aux vérifications de signatures. Il envoie à BobineWeb l’événement `bobine-release`, le canal et la révision publiés. Le miroir est reconstruit depuis la branche principale de BobineWeb ; les métadonnées de l’événement ne servent jamais de référence de checkout ou de commande. Le serveur Tor récupère les branches de publication et vérifie les dépôts avant de basculer vers la nouvelle génération. Une erreur conserve la copie précédente.
-
-La notification inter-dépôts exige le secret `BOBINE_WEB_DISPATCH_TOKEN` dans Bobine : jeton à permissions fines limité au seul dépôt BobineWeb, avec `Contents: write`, ou jeton d’installation équivalent d’une GitHub App. Le jeton automatique du dépôt Bobine ne donne pas accès en écriture à BobineWeb. Si ce secret n’est pas configuré, le job émet un avertissement explicite et le rafraîchissement quotidien du miroir reste actif. Il ne faut pas réutiliser une clé de signature, une clé SSH de paquets ou un jeton général de compte pour ce rôle.
-
-Le site principal lit les releases avec revalidation. À chaque build, l’installateur Stable est récupéré depuis l’asset GitHub et son digest est vérifié ; après publication, la sonde compare le fichier HTTP servi à sa provenance. Le contrôle quotidien compare la Stable annoncée, la dernière release Stable et `Bobine/VERSION`, et exige les assets Windows, Android, macOS, Debian, RPM et Arch attendus. Les sondes valident leur origine avant toute requête authentifiée. Le site de signalement de vulnérabilités suit une publication statique distincte, avec contrôle de la clé publique, de `security.txt` et de sa signature.
-
-
-Les versions des outils, les contraintes de dépendances, l’ordre natif Canary/Bêta/Stable et la procédure de qualification sont décrits dans [BUILD_TOOLCHAINS.md](BUILD_TOOLCHAINS.md). Les profils Python Android et desktop restent séparés.
+Les versions des outils de compilation et la procédure de qualification sont décrites dans [`BUILD_TOOLCHAINS.md`](BUILD_TOOLCHAINS.md) ; la configuration de publication Google Play figure dans [`android-google-play.md`](android-google-play.md).

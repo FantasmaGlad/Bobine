@@ -194,6 +194,6 @@ existent que pour les APK téléchargés depuis GitHub, qui proposent par défau
 
 ## Documents associés
 
-- [Notes de version 5.0.2](releases/V5.0.2.md)
+- [Notes de version 5.0.7](releases/V5.0.7.md)
 - [Architecture technique](ARCHITECTURE.md) (section Android)
 - [README](../README.fr.md)

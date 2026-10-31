@@ -92,6 +92,3 @@ profile retains legacy FastAPI/Starlette dependencies with published advisories;
 GTK-related glib 0.18.5 also remains in the Linux GUI dependency graphs. These
 findings require a separate compatibility and exposure assessment before Stable
 promotion. Pinning these versions does not resolve their security advisories.
-
-The implementation rationale, review order and qualification limits are collected
-in [the 5.0.6 review summary](reviews/5.0.6-outillage.md).
