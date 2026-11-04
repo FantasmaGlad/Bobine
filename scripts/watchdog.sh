@@ -23,7 +23,7 @@ RUNTIME_FILE="${BOBINE_RUNTIME_FILE:-${SCRIPT_DIR}/../backend/backend-runtime.js
 log() { logger -t bobine-watchdog "$*" 2>/dev/null || true; }
 
 # Port d'écoute du backend : celui que le processus vivant a publié dans son fichier d'exécution,
-# sinon celui de la configuration (/etc/bobine/config.toml, écrit par install.sh), sinon 8000.
+# sinon celui de la configuration (/etc/bobine/config.toml, écrit par install.sh), sinon 1903.
 backend_port() {
     local port="" pid=""
     if [ -r "${RUNTIME_FILE}" ]; then
@@ -36,7 +36,7 @@ backend_port() {
     if [ -z "${port}" ] && [ -r "${CONFIG_FILE}" ]; then
         port="$(sed -nE 's/^[[:space:]]*port[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' "${CONFIG_FILE}" | head -n1)"
     fi
-    echo "${port:-8000}"
+    echo "${port:-1903}"
 }
 HEALTH_URL="http://127.0.0.1:$(backend_port)/api/health"
 

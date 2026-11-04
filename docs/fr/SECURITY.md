@@ -65,7 +65,7 @@ Ce sont des objectifs et non des engagements contractuels : le projet n'a qu'un 
 
 ## Périmètre
 
-Dans le périmètre : le logiciel Bobine et ses installateurs (`install.sh`, `install-tor.sh`, paquets Windows, macOS, Linux et Android), le site `bobine.fit` et ses routes serveur, le dépôt APT `apt.bobine.fit` et sa chaîne de signature, ainsi que les miroirs Tor du site et du dépôt.
+Dans le périmètre : le logiciel Bobine et ses installateurs (`install.sh`, `install-tor.sh`, paquets Windows, macOS, Linux et Android), le site `bobine.fit` et ses routes serveur, les dépôts de paquets `packages.bobine.fit` et leur chaîne de signature, ainsi que les miroirs Tor du site et du dépôt.
 
 Hors périmètre : les failles des services tiers (Vercel, Cloudflare, GitHub, Amazon, AliExpress, Hugging Face, OpenRouter, Resend), l'ingénierie sociale et le hameçonnage, l'accès physique, les attaques par déni de service, les tests de charge et les scans automatisés massifs, les constats sans impact démontrable, et les erreurs de contenu ou de traduction.
 
@@ -78,7 +78,7 @@ Une recherche menée de bonne foi dans le périmètre ci-dessus ne fera l'objet 
 Le dépôt APT est signé par une clé de signature dédiée, distincte de la clé de réception ci-dessus et jamais utilisée pour recevoir des rapports.
 
 ```bash
-curl -fsSL https://apt.bobine.fit/bobine.gpg | gpg --show-keys --fingerprint
+curl -fsSL https://packages.bobine.fit/bobine.gpg | gpg --show-keys --fingerprint
 # clé principale : B77D 96D7 2F84 F36A CAA3  F872 9CBF 497D 829E E15A
 # sous-clé de signature : 941B 6F52 6A72 59F4 694C  F4BC 1B5D 18A9 76FA AD15
 ```
@@ -90,7 +90,7 @@ Le script `install-tor.sh` épingle l'empreinte de la clé principale et s'arrê
 | Date | Modification |
 |---|---|
 | 2026-10-07 | Publication de la politique avec une première clé de réception (`8208 FFD3 F7AB 4DD3 6B0A CDD8 4726 A378 F683 265A`). |
-| 2026-10-07 | Première clé révoquée et retirée le jour même, quelques heures après sa publication, car sa phrase secrète était inutilisable. Aucun rapport n'avait été reçu et la clé privée n'a jamais été exposée. La clé publique révoquée, avec sa signature de révocation, est publiée dans [`docs/security/revoked/`](../security/revoked/bobine-security-8208FFD3F7AB4DD3-REVOKED.asc). |
+| 2026-10-07 | Première clé révoquée et retirée le jour même, quelques heures après sa publication, car sa phrase secrète était inutilisable. Aucun rapport n'avait été reçu et la clé privée n'a jamais été exposée. |
 | 2026-10-07 | Création et publication de la clé de réception actuelle `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2`. Signature de `security.txt` avec cette clé. |
 | 2026-10-08 | Publication du site de divulgation dédié <https://security.bobine.fit> et de l'empreinte dans le DNS de `bobine.fit`. Une vérification quotidienne contrôle que tous les canaux servent la même empreinte. |
 

@@ -27,8 +27,8 @@ pub struct DiscoveredDevice {
     pub ip: String,
     pub hostname: Option<String>,
     pub ssh_open: bool,
-    /// Le port 8000 répond ET `/api/health` a la forme d'un backend Bobine
-    /// (un simple port 8000 ouvert peut être n'importe quel serveur de dev).
+    /// Le port 1903 (8000 sur une appliance installée avant la 5.1.0) répond ET `/api/health` a la forme d'un backend Bobine
+    /// (un simple port ouvert peut être n'importe quel serveur de dev).
     pub bobine_open: bool,
     pub open_ports: Vec<u16>,
     pub os_hint: Option<String>,
@@ -57,7 +57,7 @@ struct ScanProgress {
 
 /// Ports usuels sondés sur chaque hôte (HTTP/S, SSH, partage Windows, bureau
 /// à distance, AirPlay/Bonjour, Bobine, impression réseau).
-const COMMON_PORTS: [u16; 9] = [22, 80, 443, 445, 3389, 5000, 7000, 8000, 9100];
+const COMMON_PORTS: [u16; 10] = [22, 80, 443, 445, 1903, 3389, 5000, 7000, 8000, 9100];
 
 /// Port pratiquement toujours fermé (9, "discard") : une connexion *refusée*
 /// rapidement (RST) prouve qu'un hôte existe à cette IP même sans AUCUN
@@ -169,7 +169,7 @@ async fn read_ssh_banner(stream: TcpStream) -> String {
     }
 }
 
-/// Le port 8000 est-il bien un backend Bobine ? `GET /api/health` renvoie un
+/// Ce port est-il bien un backend Bobine ? `GET /api/health` renvoie un
 /// JSON listant les `components` (base de données, kiosque) — signature
 /// suffisante pour ne pas prendre n'importe quel serveur de dev pour une borne.
 async fn confirm_bobine(mut stream: TcpStream) -> bool {
@@ -224,8 +224,8 @@ async fn probe_host(sockets: Arc<Semaphore>, ip: Ipv4Addr) -> Option<DiscoveredD
                 open_ports.push(port);
                 if port == 22 {
                     ssh_banner = Some(read_ssh_banner(stream).await);
-                } else if port == 8000 {
-                    bobine_open = confirm_bobine(stream).await;
+                } else if port == 1903 || port == 8000 {
+                    bobine_open = confirm_bobine(stream).await || bobine_open;
                 }
             }
             ProbeOutcome::Refused => alive = true,
@@ -308,7 +308,7 @@ fn read_arp_table() -> HashMap<Ipv4Addr, String> {
 /// supplémentaire quand plusieurs appareils répondent.
 async fn resolve_bobine_local() -> Option<Ipv4Addr> {
     let lookup = tokio::task::spawn_blocking(|| {
-        ("bobine.local", 8000u16)
+        ("bobine.local", 1903u16)
             .to_socket_addrs()
             .ok()?
             .find_map(|addr| match addr.ip() {

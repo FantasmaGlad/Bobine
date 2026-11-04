@@ -76,7 +76,7 @@ test("verre : l'échelle de flous et les neutres sont définis", () => {
 });
 
 test("composants de verre récents : uniquement des jetons", () => {
-  for (const selector of [".volume-osd", ".pairing-code-value"]) {
+  for (const selector of [".volume-osd"]) {
     const block = new RegExp(`${selector.replace(".", "\\.")} \\{([^}]*)\\}`).exec(css)?.[1];
     assert.ok(block, `${selector} introuvable`);
     assert.ok(!/#[0-9a-f]{3,8}\b/i.test(block), `${selector} : couleur figée`);

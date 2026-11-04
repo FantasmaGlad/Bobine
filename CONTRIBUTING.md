@@ -38,12 +38,12 @@ Maintainers review contributions in their own time. Making the review short is y
 
 ## Development setup
 
-Bobine has several components. Before opening a pull request, run locally the checks below for each component you touched. CI runs the same ones, except the frontend tests and type check, which are local only.
+Bobine has several components. Before opening a pull request, run locally the checks below for each component you touched. CI runs the same ones, except the frontend type check, which is local only.
 
 | Component | Directory | Checks |
 |---|---|---|
 | Backend (Python, FastAPI, SQLite) | `backend/` | `python -m compileall -q backend/app scripts` then `python -m pytest backend/tests -q` with `PYTHONPATH=backend` (needs `ffmpeg`, `pytest` and `httpx`; CI runs Python 3.11, 3.12 and 3.13, so no syntax newer than 3.11) |
-| Frontend (Next.js, Node 22) | `frontend/` | `npm ci` then `npm run build` (CI); also `npx tsc --noEmit` and `npm test` (local). `npm run lint` is not enforced by CI and reports existing issues: do not introduce new ones in the code you touch |
+| Frontend (Next.js, Node 22) | `frontend/` | `npm ci` then `npm run build` (CI); `npm test` (CI); also `npx tsc --noEmit` (local). `npm run lint` is not enforced by CI and reports existing issues: do not introduce new ones in the code you touch |
 | Assistant (Rust, Tauri) | `assistant/` | `cargo clippy --workspace --all-targets -- -D warnings` then `cargo test --workspace` |
 | Devices sidecar (Rust) | `devices/` | `cargo clippy --locked --all-targets -- -D warnings` then `cargo test --locked` |
 | Native audio component (Rust) | `media/` | `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings` then `cargo test --locked`; `python3 scripts/ci/check-media-licenses.py --offline` for the dependency licenses |

@@ -362,7 +362,7 @@ mod tests {
     #[test]
     fn run_end_ok_forces_hundred_percent() {
         let mut st = ProgressState::new();
-        st.feed_line(r#"{"bobine":1,"event":"run_end","status":"ok","pct":100,"total":15,"healthy":true,"url":"http://bobine.local","port":8000,"dry_run":false}"#);
+        st.feed_line(r#"{"bobine":1,"event":"run_end","status":"ok","pct":100,"total":15,"healthy":true,"url":"http://bobine.local","port":1903,"dry_run":false}"#);
         assert_eq!(st.phase, Phase::Succeeded);
         assert_eq!(st.pct, 100);
         assert_eq!(st.end.as_ref().unwrap().healthy, Some(true));

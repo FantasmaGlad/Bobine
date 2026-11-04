@@ -2,7 +2,7 @@
 Usage : python3 throttle_proxy.py <Mo/s> <latence_ms> [port_ecoute] [port_cible]"""
 import asyncio, sys
 LISTEN = int(sys.argv[3]) if len(sys.argv) > 3 else 8079
-TARGET = int(sys.argv[4]) if len(sys.argv) > 4 else 8000
+TARGET = int(sys.argv[4]) if len(sys.argv) > 4 else 1903
 RATE, LAT = int(float(sys.argv[1]) * 1_000_000), float(sys.argv[2]) / 1000
 async def pipe(r, w, rate=None):
     try:

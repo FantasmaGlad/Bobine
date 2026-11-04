@@ -23,7 +23,7 @@ export function isPlugEvent(event: StorageEvent): boolean {
 
 /**
  * Écoute les évènements `storage_changed` du serveur (comme `useDevicesEvents`). Ils ne portent AUCUNE donnée :
- * l'appelant relit l'état par REST, derrière le contrôle d'accès (PIN). Reconnexion automatique à attente croissante.
+ * l'appelant relit l'état par REST. Reconnexion automatique à attente croissante.
  */
 export function useStorageEvents(onChange: (event: StorageEvent) => void, enabled = true): void {
   const callbackRef = useRef(onChange);

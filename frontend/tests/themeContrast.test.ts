@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 /**
- * Garde-fou des 16 thèmes : les jetons du CSS (pas des copies) sont résolus, mélangés et comparés.
+ * Garde-fou des 15 thèmes : les jetons du CSS (pas des copies) sont résolus, mélangés et comparés.
  * Toute nouvelle surface posée sur ces jetons hérite de la vérification ; un thème ajouté est testé d'office.
  */
 const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
@@ -71,8 +71,10 @@ function evaluate(expr: string, vars: Record<string, string>): Rgba {
       const m = /^(.*?)\s+([\d.]+)%$/.exec(s);
       return m ? { color: m[1], p: +m[2] / 100 } : { color: s, p: undefined };
     };
-    let { color: ca, p: pa } = pct(c1);
-    let { color: cb, p: pb } = pct(c2);
+    const { color: ca, p: firstA } = pct(c1);
+    const { color: cb, p: firstB } = pct(c2);
+    let pa = firstA;
+    let pb = firstB;
     if (pa === undefined && pb === undefined) pa = pb = 0.5;
     else if (pa === undefined) pa = 1 - (pb as number);
     else if (pb === undefined) pb = 1 - pa;
@@ -109,8 +111,8 @@ function onPage(expr: string, vars: Record<string, string>): Rgba {
 const AA = 4.5;
 const NON_TEXT = 3;
 
-test("les 16 thèmes sont couverts", () => {
-  assert.equal(THEMES.length, 16);
+test("les 15 thèmes sont couverts", () => {
+  assert.equal(THEMES.length, 15);
 });
 
 for (const theme of THEMES) {

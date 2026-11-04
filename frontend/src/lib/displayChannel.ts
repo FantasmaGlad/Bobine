@@ -165,7 +165,7 @@ export function shouldEvaluateRedirect(
  * Identifiant de CETTE page de diffusion auprès du serveur (clé du rôle
  * primaire, cf. ws_manager.py). Un identifiant PAR CHARGEMENT de page — jamais
  * persisté : stocké en `localStorage` il était commun à tous les onglets de la
- * même origine (127.0.0.1:8000) et le serveur les prenait tous pour le même
+ * même origine (127.0.0.1:1903) et le serveur les prenait tous pour le même
  * kiosque, donc tous « primaires ». Les reconnexions WebSocket d'une même page
  * réutilisent la valeur gardée en mémoire par l'appelant.
  */

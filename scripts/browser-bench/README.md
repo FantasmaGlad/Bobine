@@ -38,7 +38,7 @@ import geckodriver_client as wd
 print(wd.start(headless=True))                    # version de Firefox
 wd.navigate("http://127.0.0.1:8078/library/")
 wd.execute(open("scripts/browser-bench/monitor.js").read())
-wd.send_keys(wd.find("input[type=file]"), "/home/vous/medias/a.mp4\n/home/vous/medias/b.mp4")
+wd.send_keys(wd.find("input[type=file]"), "/chemin/vers/a.mp4\n/chemin/vers/b.mp4")
 # ... cliquer « Lancer N uploads », puis relire window.__mon
 print(wd.execute("return window.__mon"))
 ```

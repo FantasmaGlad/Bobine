@@ -11,7 +11,7 @@ function getWsUrl(): string {
 
 /**
  * Écoute les évènements `devices_changed` (audio, bluetooth, wifi) du serveur et appelle `onChange(scope)`.
- * L'évènement ne porte AUCUNE donnée : l'appelant relit l'état par REST, derrière le contrôle d'accès (PIN).
+ * L'évènement ne porte AUCUNE donnée : l'appelant relit l'état par REST.
  * Connexion légère : abonnement à aucun canal de lecture (seuls les évènements globaux arrivent),
  * reconnexion automatique avec attente croissante, réponse aux ping du serveur.
  */

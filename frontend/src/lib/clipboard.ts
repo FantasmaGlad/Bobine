@@ -2,7 +2,7 @@
  * Copie dans le presse-papiers, y compris sur une page servie en HTTP simple.
  *
  * Cause du défaut corrigé (« copier » dans Réglages ne copiait pas l'URL) : Bobine est surtout ouvert
- * par son adresse IP locale (`http://192.168.1.x:8000`), un contexte NON sécurisé où
+ * par son adresse IP locale (`http://192.168.1.x:1903`), un contexte NON sécurisé où
  * `navigator.clipboard` n'existe pas. L'appel échouait en silence (un simple message à l'écran) et le
  * presse-papiers gardait son ancien contenu — par exemple l'adresse de la page d'administration
  * qu'on venait de copier dans la barre du navigateur. Repli : sélection d'un champ temporaire et

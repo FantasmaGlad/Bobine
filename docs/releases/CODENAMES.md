@@ -21,3 +21,4 @@ Chaque version **Stable** majeure ou marquante reçoit, en plus de son numéro `
 | V5.0.2 | Constellation | 2026-10-20 |
 | V5.0.5 | Résonance | 2026-10-24 |
 | V5.0.7 | Aurora | 2026-10-29 |
+| V5.1.0 | Coco | Canary 2026-11-04, Stable à venir |

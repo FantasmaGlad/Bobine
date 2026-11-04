@@ -218,7 +218,7 @@ pub fn os_hint_from_ports(ports: &[u16]) -> Option<String> {
         Some("Apple (AirPlay)".to_string())
     } else if ports.contains(&9100) {
         Some("Imprimante réseau".to_string())
-    } else if ports.contains(&8000) {
+    } else if ports.contains(&1903) || ports.contains(&8000) {
         Some("Bobine (sans SSH)".to_string())
     } else if ports.contains(&80) || ports.contains(&443) {
         Some("Appareil avec interface web".to_string())
@@ -283,6 +283,7 @@ mod tests {
             Some("Windows / Partage Samba".to_string())
         );
         assert_eq!(os_hint_from_ports(&[9100]), Some("Imprimante réseau".to_string()));
+        assert_eq!(os_hint_from_ports(&[1903]), Some("Bobine (sans SSH)".to_string()));
         assert_eq!(os_hint_from_ports(&[8000]), Some("Bobine (sans SSH)".to_string()));
         assert_eq!(os_hint_from_ports(&[443]), Some("Appareil avec interface web".to_string()));
         assert_eq!(os_hint_from_ports(&[]), None);

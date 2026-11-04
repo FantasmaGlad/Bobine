@@ -11,7 +11,7 @@ export interface StorageCtx {
   notify: Notify;
 }
 
-/** Message lisible d'une erreur d'API : texte propre au stockage, puis texte des périphériques (PIN...), puis message du serveur. */
+/** Message lisible d'une erreur d'API : texte propre au stockage, puis texte des périphériques, puis message du serveur. */
 export function storageErrorText(error: ApiError, t: T, lang: Lang = "fr"): string {
   const own = `storage.errors.${error.code}`;
   const params: Record<string, string | number> = {};

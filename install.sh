@@ -39,7 +39,7 @@ fi
 # plus récent.
 SELF_SHA="$([[ -f "${SELF_PATH}" ]] && sha256sum "${SELF_PATH}" 2>/dev/null | cut -d' ' -f1 || true)"
 # VERSION décrit le code installé ; le repli sert au script distribué seul.
-SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "5.0.7")"
+SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "5.1.0")"
 # Déplacé ici (auparavant défini beaucoup plus bas, avec le reste du bloc
 # "Cible") : nécessaire tôt pour select_update_channel(), qui lit/écrit le
 # canal choisi (${CONFIG_DIR}/update-channel) avant même l'exécution du
@@ -139,9 +139,6 @@ ${BOLD}OPTIONS${RESET}
       --progress=json Émet une ligne JSON par étape (sortie machine) pour l'assistant graphique.
                         Une ligne = un évènement {run_begin|step|run_end} ; le journal humain reste inchangé.
       --check         Diagnostic de l'installation existante, sans rien modifier
-      --reset-devices-pin
-                        Efface le code PIN de l'onglet Périphériques (présence physique requise) ; à redéfinir ensuite
-                        depuis l'écran local de la machine
       --uninstall     Arrête, désactive et retire tout ce que ce script a installé
       --purge         Avec --uninstall : retire aussi venv/, node_modules/, frontend/out/ et la config
       --purge-data    Avec --uninstall --purge : retire EN PLUS les médias importés (destructif, confirmation requise)
@@ -174,7 +171,6 @@ SKIP_BUILD=false
 AS_USER=""
 DO_CHECK=false
 DO_UNINSTALL=false
-DO_RESET_DEVICES_PIN=false
 DO_PURGE=false
 DO_PURGE_DATA=false
 VERBOSE=false
@@ -201,7 +197,6 @@ while [[ $# -gt 0 ]]; do
         --progress=*) PROGRESS="${1#*=}" ;;
         --progress) PROGRESS="${2:-}"; shift ;;
         --check) DO_CHECK=true ;;
-        --reset-devices-pin) DO_RESET_DEVICES_PIN=true ;;
         --uninstall) DO_UNINSTALL=true ;;
         --purge) DO_PURGE=true ;;
         --purge-data) DO_PURGE_DATA=true ;;
@@ -792,7 +787,7 @@ FRONTEND_DIR="${REPO_DIR}/frontend"
 VENV_DIR="${BACKEND_DIR}/.venv"
 CONFIG_FILE="${CONFIG_DIR}/config.toml"
 # Port d'écoute : celui de /etc/bobine/config.toml si l'administrateur l'a déjà fixé (relance de
-# l'installateur), sinon 8000. Sur l'appliance le port est déterministe (BOBINE_PORT_STRICT=1 dans
+# l'installateur), sinon 1903. Sur l'appliance le port est déterministe (BOBINE_PORT_STRICT=1 dans
 # l'unité du backend) : la redirection 80 -> port, les signets et la documentation supposent ce port.
 configured_port() {
     local value=""
@@ -802,7 +797,7 @@ configured_port() {
     if [[ "${value}" =~ ^[0-9]+$ ]] && (( value >= 1 && value <= 65535 )); then
         echo "${value}"
     else
-        echo 8000
+        echo 1903
     fi
 }
 SERVICE_PORT="$(configured_port)"
@@ -817,26 +812,6 @@ LOG_FILE="${LOG_DIR}/install-$(date +%Y%m%d-%H%M%S).log"
 # atteignent ainsi l'assistant (même canal SSH) sans être écrits au journal.
 exec 3>&1
 exec > >(tee -a "${LOG_FILE}") 2>&1
-
-# ---- Dispatch : réinitialisation du PIN « Périphériques » ----
-if $DO_RESET_DEVICES_PIN; then
-    DEVICES_DB="${REPO_DIR}/data/database.db"
-    if [[ ! -f "${DEVICES_DB}" ]]; then
-        echo "Base de données introuvable : ${DEVICES_DB}" >&2
-        exit 1
-    fi
-    "${REPO_DIR}/backend/.venv/bin/python" - "${DEVICES_DB}" <<'PY'
-import sqlite3
-import sys
-
-con = sqlite3.connect(sys.argv[1])
-con.execute("DELETE FROM settings WHERE key = 'devices_pin_hash'")
-con.commit()
-con.close()
-PY
-    echo "Code PIN des périphériques effacé. Redéfinissez-le depuis l'écran local (Périphériques)."
-    exit 0
-fi
 
 # ---- Dispatch : désinstallation ----
 if $DO_UNINSTALL; then
@@ -1863,7 +1838,7 @@ step mdns-redirect "URL locale (mDNS) & redirection du port 80"
 #   hostname de la machine ;
 # - une règle nftables redirige le port 80 entrant vers le port applicatif,
 #   pour une URL sans numéro de port depuis téléphone/PC. L'URL historique
-#   http://<IP>:8000 reste fonctionnelle.
+#   http://<IP>:1903 reste fonctionnelle.
 log "Publication du nom mDNS 'bobine.local' (avahi)"
 if $DRY_RUN; then
     echo "  ${DIM}[dry-run]${RESET} configurerait avahi-daemon.conf (host-name, IPv6 désactivé)"
@@ -1889,7 +1864,7 @@ else
 fi
 # Le service peut être masqué sur une installation Debian durcie : démasqué
 # explicitement (unité + socket) avant activation. Échec toléré : le mDNS est
-# un confort, l'accès par http://<IP>:8000 reste toujours valable.
+# un confort, l'accès par http://<IP>:1903 reste toujours valable.
 run systemctl unmask avahi-daemon.service avahi-daemon.socket >/dev/null 2>&1 || true
 
 # Cas traité : « bobine.local » injoignable après un redémarrage complet, alors que
@@ -1913,7 +1888,7 @@ run systemctl daemon-reload
 run systemctl enable avahi-daemon >/dev/null 2>&1 || true
 if ! $DRY_RUN && ! systemctl restart avahi-daemon; then
     warn "Impossible de démarrer avahi-daemon : l'URL bobine.local ne sera pas publiée."
-    warn "L'accès par adresse IP (http://<IP-du-Wyse>:8000) reste fonctionnel."
+    warn "L'accès par adresse IP (http://<IP-du-Wyse>:${SERVICE_PORT}) reste fonctionnel."
 else
     ok "avahi-daemon actif"
 fi

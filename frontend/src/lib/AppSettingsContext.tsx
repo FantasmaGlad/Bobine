@@ -6,10 +6,7 @@ import { pushThemeToNative, pushUpdateChannelToNative } from "@/lib/nativeBridge
 import { applyChannelFavicon, DEFAULT_RELEASE_CHANNEL, isReleaseChannel, type UpdateChannel } from "@/lib/releaseChannel";
 import { useGlassGovernor } from "@/lib/useGlassGovernor";
 
-// "les-mills-sombre" est la clé interne historique du thème "Sombre" — conservée telle quelle pour ne rien casser sur
-// les installations existantes, seul le libellé affiché change.
 export type Theme =
-  | "les-mills-sombre"
   | "clair"
   | "lune"
   | "menthe"
@@ -27,7 +24,6 @@ export type Theme =
   | "coco";
 
 export const THEME_VALUES: Theme[] = [
-  "les-mills-sombre",
   "clair",
   "lune",
   "menthe",
@@ -96,7 +92,7 @@ interface AppSettingsContextValue {
 const DEFAULT_THEME: Theme = "lavande";
 const DEFAULT_LANGUAGE: Language = "fr";
 const DEFAULT_WIRED_DISPLAY_MODE: WiredDisplayMode = "headless";
-const DEFAULT_NETWORK: NetworkInfo = { localIp: null, port: 8000, mdnsUrl: "http://bobine.local" };
+const DEFAULT_NETWORK: NetworkInfo = { localIp: null, port: 1903, mdnsUrl: "http://bobine.local" };
 
 const AppSettingsContext = createContext<AppSettingsContextValue>({
   theme: DEFAULT_THEME,
@@ -221,7 +217,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       const cachedTheme = localStorage.getItem("olc-theme") as Theme | null;
       const cachedLanguage = localStorage.getItem("olc-language") as Language | null;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronise l'état avec le cache localStorage au montage, même motif que le chargement initial ailleurs dans le projet (library/playlists/schedule)
-      if (cachedTheme) setThemeState(cachedTheme);
+      if (cachedTheme && THEME_VALUES.includes(cachedTheme)) setThemeState(cachedTheme);
+      else if (cachedTheme) localStorage.removeItem("olc-theme");
       if (cachedLanguage) setLanguageState(cachedLanguage);
     } catch {
       // localStorage indisponible (navigation privée stricte, ou WebView

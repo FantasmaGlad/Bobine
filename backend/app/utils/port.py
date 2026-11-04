@@ -1,9 +1,9 @@
 """Port d'écoute du backend : résolution unique avec repli dynamique, et
 publication du port réellement utilisé.
 
-Le port PRÉFÉRÉ reste `settings.port` (8000 par défaut, `BOBINE_PORT` ou
+Le port PRÉFÉRÉ reste `settings.port` (1903 par défaut, `BOBINE_PORT` ou
 `config.toml`) : le pare-feu (règle Inno Setup, firewalld), l'annonce mDNS, les
-signets et la documentation continuent de parler de 8000, et rien ne change
+signets et la documentation continuent de parler de 1903, et rien ne change
 tant que ce port est libre. Quand il est occupé (autre application, ancienne
 instance de Bobine qui s'arrête encore, deuxième session utilisateur sur la
 même machine), `resolve_port()` essaie les `FALLBACK_SPAN` ports suivants puis
@@ -12,8 +12,8 @@ boucle de relance.
 
 `BOBINE_PORT_STRICT=1` supprime ce repli : le démarrage échoue avec un message
 clair. À utiliser là où le port doit être déterministe — typiquement
-l'appliance systemd, où la redirection 80 → 8000 (`bobine-redirect.service`),
-le pare-feu et les signets supposent 8000.
+l'appliance systemd, où la redirection 80 → 1903 (`bobine-redirect.service`),
+le pare-feu et les signets supposent 1903.
 
 Le port réellement utilisé est écrit de façon atomique dans un fichier
 d'exécution du dossier de données (`backend-runtime.json` : port, pid), supprimé
@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 # Port préféré quand rien d'autre n'est configuré. Doit rester égal au défaut de
 # `Settings.port` (app/config.py) ; les installeurs, le pare-feu et la
 # documentation s'appuient sur cette valeur.
-DEFAULT_PORT = 8000
+DEFAULT_PORT = 1903
 # Nombre de ports consécutifs essayés après le port préféré avant de demander
 # un port libre au système.
 FALLBACK_SPAN = 10
@@ -70,7 +70,7 @@ def is_strict() -> bool:
 
 
 def preferred_port() -> int:
-    """Port préféré : `settings.port` (`BOBINE_PORT`, `config.toml`), sinon 8000."""
+    """Port préféré : `settings.port` (`BOBINE_PORT`, `config.toml`), sinon 1903."""
     try:
         from app.config import settings
         return int(settings.port)

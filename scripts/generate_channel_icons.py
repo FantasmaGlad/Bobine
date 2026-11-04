@@ -4,14 +4,13 @@
 Source de vérité unique : `Assets/Images/channel-icons/bobine-channel-<canal>.png`
 (512 x 512, RGBA, fond transparent) et `banner-wordmark.png` (texte « obine » de la
 bannière Android TV). Tout le reste est DÉRIVÉ et ne se modifie jamais à la main :
-relancer ce script. Le guide complet (ajouter un canal, ajouter une cible) est dans
-`Assets/Images/channel-icons/README.md`.
+relancer ce script. Ajouter un canal commence dans `backend/app/release_channel.py`.
 
     python3 scripts/generate_channel_icons.py            # écrit tous les fichiers
     python3 scripts/generate_channel_icons.py --check    # échoue si un fichier est périmé
     python3 scripts/generate_channel_icons.py --list     # liste les fichiers produits
 
-Principe de câblage (détail dans le README ci-dessus) :
+Principe de câblage :
   - icône de lanceur / d'installeur / d'exécutable : fixée À LA CONSTRUCTION par le
     canal du build (suffixe de `VERSION` : `-beta`, `-canary`, sinon Stable) ;
   - icônes affichées dans l'application (barre système, logo, favicon, écran de

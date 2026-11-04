@@ -1,7 +1,6 @@
 """API « Stockage externe » (`/api/storage/*`) : supports amovibles, appareils portables, bibliothèque externe, longévité.
 
-Contrôle d'accès IDENTIQUE à celui des périphériques (`routers/devices.py::require_access`) : fonction désactivée par
-défaut (403), écran local de confiance, PIN pour tout autre appareil (403 `pin_not_set`, 401 `pin_required`).
+Même provenance que les périphériques (`routers/devices.py::require_access`) : ouvert à tout le réseau local de confiance.
 Les erreurs sont toujours structurées `{"detail": {"code", "message", ...}}` : aucune erreur d'OS ne devient une 500,
 et aucun chemin hors des volumes montés n'est jamais exposé (le client n'envoie que des chemins RELATIFS au support).
 """
@@ -17,9 +16,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.devices import security
 from app.devices.base import DeviceError
-from app.routers.devices import Access, _client_ip, _fail, _get_setting, _locked, require_access
+from app.routers.devices import Access, _fail, require_access
 from app.storage import fsadvisor
 from app.storage.formatting.refusals import FormatRefusal
 from app.storage.paths import PathError
@@ -214,7 +212,7 @@ async def portable_unmount(device_id: str, _: Access = Depends(require_access)) 
 
 
 # ---------------------------------------------------------------------------
-# Assistant de formatage : plan (lecture seule) puis exécution (jeton, confirmation, PIN, cascade de vérifications)
+# Assistant de formatage : plan (lecture seule) puis exécution (jeton, confirmation, cascade de vérifications)
 # ---------------------------------------------------------------------------
 
 
@@ -230,39 +228,16 @@ class FormatExecuteRequest(BaseModel):
     label: str = Field(max_length=80)
     confirm: str = Field(default="", max_length=200)
     acknowledged: bool = False
-    pin: str | None = Field(default=None, max_length=32)
-
-
-def _require_format_pin(request: Request, db: Session, pin: str | None) -> None:
-    """Dès qu'un PIN existe, TOUT formatage l'exige, y compris depuis l'écran local de confiance (jamais journalisé)."""
-    stored = _get_setting(db, security.SETTING_PIN_HASH)
-    if not stored:
-        raise _fail(403, "format_pin_not_set", "Définissez un code PIN depuis l’écran local avant de formater un support.")
-    ip = _client_ip(request)
-    retry = security.rate_limiter.retry_after(ip)
-    if retry:
-        raise _locked(retry)
-    if not pin:
-        raise _fail(401, "format_pin_required", "Saisissez le code PIN d'administration pour formater.")
-    if not security.verify_pin(pin, stored):
-        lockout = security.rate_limiter.register_failure(ip)
-        log_activity(db, "storage_format_refused", f"format_pin_invalid (IP {ip})")
-        if lockout:
-            raise _locked(lockout)
-        raise _fail(401, "format_pin_invalid", "Code PIN incorrect.", attempts_left=security.rate_limiter.attempts_left(ip))
-    security.rate_limiter.register_success(ip)
 
 
 @router.post("/format/plan")
 async def format_plan(payload: FormatPlanRequest, access: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
     """Plan de formatage : n'écrit RIEN. Renvoie ce qui sera effacé, les formats possibles et un jeton court à usage unique."""
-    pin_required = bool(_get_setting(db, security.SETTING_PIN_HASH))
-    return await _guard(service.formatter.plan(_key(payload.key), owner=access.ip, travels=payload.travels, pin_required=pin_required))
+    return await _guard(service.formatter.plan(_key(payload.key), owner=access.ip, travels=payload.travels))
 
 
 @router.post("/format/execute", status_code=202)
 async def format_execute(payload: FormatExecuteRequest, request: Request, access: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
-    _require_format_pin(request, db, payload.pin)
     return await _guard(service.formatter.start(
         _key(payload.key), token=payload.token, fs=payload.fs, label=payload.label, confirm_text=payload.confirm,
         acknowledged=payload.acknowledged, owner=access.ip,

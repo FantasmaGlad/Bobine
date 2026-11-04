@@ -53,9 +53,8 @@ Avec tous les encodeurs disponibles, le générateur produit **les fichiers ci-d
 `generate.py --scale N` ajoute N pistes uniques (graine fixe, donc reproductibles) :
 durées de 0,5 à 12 s, tags uniques, treize familles de formats (dont Opus, AIFF et trois MP3 CBR sans index à d'autres fréquences/canaux), et `--cover-ratio`
 (0,25 par défaut) des MP3, FLAC, M4A et Ogg portant une pochette. Un corpus où tous les fichiers
-ont la même durée masque les écarts qui dépendent du padding de l'encodeur : c'est
-ainsi qu'un écart de 52 ms (au-delà de la tolérance de 50 ms) sur les MP3 Xing, absent
-des 55 fichiers de 1,37 s, a été trouvé et corrigé. Utiliser `--scale 540` (656 fichiers)
+ont la même durée masque les écarts qui dépendent du padding de l'encodeur (par exemple
+sur les MP3 Xing). Utiliser `--scale 540` (656 fichiers)
 pour toute décision de parité et pour le banc `import_bench.py`.
 
 ```bash

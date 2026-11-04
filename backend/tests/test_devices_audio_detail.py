@@ -207,13 +207,12 @@ def api(monkeypatch):
     service.set_driver(driver)
     monkeypatch.setattr("app.routers.devices.is_local_request", lambda request: True)
     with SessionLocal() as db:
-        db.query(Setting).filter(Setting.key.in_(("devices_enabled", "devices_audio_meta"))).delete(synchronize_session=False)
-        db.add(Setting(key="devices_enabled", value="true"))
+        db.query(Setting).filter(Setting.key == "devices_audio_meta").delete(synchronize_session=False)
         db.commit()
     yield TestClient(app), driver
     service.set_driver(None)
     with SessionLocal() as db:
-        db.query(Setting).filter(Setting.key.in_(("devices_enabled", "devices_audio_meta"))).delete(synchronize_session=False)
+        db.query(Setting).filter(Setting.key == "devices_audio_meta").delete(synchronize_session=False)
         db.commit()
 
 

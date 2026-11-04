@@ -1,7 +1,7 @@
 """API « Périphériques » : audio, Bluetooth, Wi-Fi (voir app/devices/).
 
-Contrôle d'accès (app/devices/security.py) : fonction désactivée par défaut ; l'écran local est de
-confiance, tout autre appareil doit présenter un code PIN d'administration (session par cookie).
+Accessible à tout appareil du réseau local, réputé de confiance. L'écran local n'est distingué que pour ce qui le
+concerne physiquement (déplacement d'un flux audio, risque de couper le Wi-Fi par lequel on agit).
 Aucune erreur d'OS ne devient une 500 : `DeviceError` et toute exception inattendue sont convertis
 en réponse JSON structurée `{"detail": {"code", "message"}}`.
 """
@@ -14,12 +14,12 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Awaitable, TypeVar
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.devices import security
+from app.devices import locality
 from app.devices.base import DeviceError
 from app.devices.routing import FALLBACKS, describe_sink, load_routes, resolve_route, save_routes
 from app.devices.service import WIFI_CONFIRM_SECONDS, service
@@ -36,15 +36,9 @@ router = APIRouter(prefix="/api/devices", tags=["devices"])
 
 T = TypeVar("T")
 
-# Préfixes d'API qui partagent la session PIN : périphériques et stockage externe (app/routers/storage.py).
-SESSION_COOKIES = (
-    (security.SESSION_COOKIE, "/api/devices"),
-    (security.STORAGE_SESSION_COOKIE, "/api/storage"),
-)
-
 
 # ---------------------------------------------------------------------------
-# Réglages et accès
+# Réglages et provenance
 # ---------------------------------------------------------------------------
 
 
@@ -71,36 +65,11 @@ def _client_ip(request: Request) -> str:
 
 def is_local_request(request: Request) -> bool:
     """Requête venant de la machine elle-même (écran physique). Les en-têtes X-Forwarded-* sont ignorés."""
-    return security.is_local_client(_client_ip(request))
+    return locality.is_local_client(_client_ip(request))
 
 
 def _fail(status: int, code: str, message: str, **extra: Any) -> HTTPException:
     return HTTPException(status_code=status, detail={"code": code, "message": message, **extra})
-
-
-def _locked(seconds: int) -> HTTPException:
-    """429 « trop d'essais » (même forme pour le PIN et le code d'association)."""
-    return HTTPException(
-        status_code=429,
-        detail={"code": "locked", "message": f"Trop d'essais. Réessayez dans {seconds} s.", "retry_after": seconds},
-        headers={"Retry-After": str(seconds)},
-    )
-
-
-def _grant_session(response: Response, ip: str) -> None:
-    """Ouvre une session d'administration et pose son cookie."""
-    token = security.sessions.create(ip)
-    # Même session, un cookie par préfixe d'API protégé par le même PIN : le navigateur n'envoie un cookie qu'à son
-    # chemin, et deux cookies de même nom se gêneraient (le stockage externe a donc le sien, de même valeur).
-    for name, path in SESSION_COOKIES:
-        response.set_cookie(
-            name,
-            token,
-            max_age=int(security.SESSION_TTL_SECONDS),
-            httponly=True,
-            samesite="strict",
-            path=path,
-        )
 
 
 @dataclass
@@ -109,23 +78,9 @@ class Access:
     ip: str
 
 
-def require_access(request: Request, db: Session = Depends(get_db)) -> Access:
-    if _get_setting(db, security.SETTING_ENABLED) != "true":
-        raise _fail(403, "devices_disabled", "La gestion des périphériques est désactivée. Activez-la depuis l'écran local.")
-    ip = _client_ip(request)
-    if is_local_request(request):
-        return Access(local=True, ip=ip)
-    if not _get_setting(db, security.SETTING_PIN_HASH):
-        raise _fail(403, "pin_not_set", "Définissez d'abord un code PIN depuis l'écran local de la machine pour accéder aux périphériques à distance.")
-    token = request.cookies.get(security.SESSION_COOKIE) or request.cookies.get(security.STORAGE_SESSION_COOKIE)
-    if not security.sessions.validate(token, ip):
-        raise _fail(401, "pin_required", "Saisissez le code PIN pour accéder aux périphériques.")
-    return Access(local=False, ip=ip)
-
-
-def require_local(request: Request) -> None:
-    if not is_local_request(request):
-        raise _fail(403, "local_only", "Cette opération n'est possible que depuis l'écran local de la machine.")
+def require_access(request: Request) -> Access:
+    """Provenance de la requête ; ne refuse jamais (réseau local de confiance)."""
+    return Access(local=is_local_request(request), ip=_client_ip(request))
 
 
 async def _guard(coro: Awaitable[T]) -> T:
@@ -146,200 +101,19 @@ def _log(db: Session, event: str, detail: str | None = None) -> None:
 
 
 # ---------------------------------------------------------------------------
-# État public, activation, PIN, session
+# État
 # ---------------------------------------------------------------------------
 
 
-class EnableRequest(BaseModel):
-    enabled: bool
-
-
-class PinRequest(BaseModel):
-    pin: str
-
-
-class PairingClaimRequest(BaseModel):
-    code: str
-    pin: str
-
-
-class PairingVerifyRequest(BaseModel):
-    code: str
-
-
 @router.get("/status")
-async def get_status(request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
-    enabled = _get_setting(db, security.SETTING_ENABLED) == "true"
-    pin_set = bool(_get_setting(db, security.SETTING_PIN_HASH))
-    local = is_local_request(request)
-    authenticated = local or (pin_set and security.sessions.validate(request.cookies.get(security.SESSION_COOKIE), _client_ip(request)))
-    if not enabled:
-        access = "disabled"
-    elif authenticated:
-        access = "granted"
-    elif not pin_set:
-        access = "pin_not_set"
-    else:
-        access = "pin_required"
-    result: dict[str, Any] = {
-        "enabled": enabled,
-        "pin_set": pin_set,
-        "pin_length": security.PIN_LENGTH,
-        "local": local,
-        "access": access,
+async def get_status(request: Request) -> dict[str, Any]:
+    return {
+        "local": is_local_request(request),
         "platform": get_deployment_profile(),
         "driver": service.driver.name,
-        "session_minutes": int(security.SESSION_TTL_SECONDS // 60),
         "wifi_confirm_seconds": WIFI_CONFIRM_SECONDS,
+        "capabilities": await _guard(service.driver.capabilities()),
     }
-    if access == "granted":
-        result["capabilities"] = await _guard(service.driver.capabilities())
-    elif access == "pin_required":
-        retry = security.rate_limiter.retry_after(_client_ip(request))
-        if retry:
-            result["retry_after"] = retry
-    return result
-
-
-@router.get("/pairing/status")
-def get_pairing_status(request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """État de l'appairage, sans effet de bord. Le code n'est renvoyé qu'à l'écran local."""
-    pin_set = bool(_get_setting(db, security.SETTING_PIN_HASH))
-    current = security.pairing_store.peek() if not pin_set else None
-    local = is_local_request(request)
-    return {
-        "pin_set": pin_set,
-        "code_length": security.PAIRING_CODE_LENGTH,
-        "code": current[0] if current and local else None,
-        "seconds_left": current[1] if current else 0,
-    }
-
-
-@router.post("/pairing/generate")
-def generate_pairing_code(request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Émet (ou renouvelle) le code d'association. Écran local uniquement ; inutile une fois le PIN défini."""
-    require_local(request)
-    if _get_setting(db, security.SETTING_PIN_HASH):
-        raise _fail(409, "pin_already_set", "Un code PIN existe déjà : modifiez-le depuis l'écran local.")
-    code = security.pairing_store.generate()
-    return {"code": code, "seconds_left": security.PAIRING_CODE_TTL_SECONDS}
-
-
-@router.post("/pairing/verify")
-def verify_pairing_code(payload: PairingVerifyRequest, request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Dit tout de suite si le code saisi est le bon, sans le consommer (le PIN se choisit ensuite).
-
-    Mêmes limites que l'usage : échecs comptés par IP et contre le code lui-même, donc pas de moyen plus rapide
-    de deviner le code qu'avec /pairing/claim."""
-    ip = _client_ip(request)
-    retry = security.rate_limiter.retry_after(ip)
-    if retry:
-        raise _locked(retry)
-    if _get_setting(db, security.SETTING_PIN_HASH):
-        raise _fail(409, "pin_already_set", "Un code PIN existe déjà : modifiez-le depuis l'écran local.")
-    if not security.pairing_store.check(payload.code):
-        lockout = security.rate_limiter.register_failure(ip)
-        _log(db, "devices_pairing_failed", f"IP {ip}")
-        if lockout:
-            raise _locked(lockout)
-        raise _fail(401, "bad_pairing_code", "Code d'association incorrect ou expiré. Vérifiez l'écran de la machine.")
-    return {"ok": True}
-
-
-@router.post("/pairing/claim")
-def claim_pairing_code(
-    payload: PairingClaimRequest,
-    request: Request,
-    response: Response,
-    db: Session = Depends(get_db),
-) -> dict[str, Any]:
-    """Définit le PIN et active la fonction depuis un appareil distant, sur preuve du code affiché sur l'écran local.
-
-    Réservé à la première configuration : un PIN existant ne peut être remplacé que depuis l'écran local."""
-    ip = _client_ip(request)
-    retry = security.rate_limiter.retry_after(ip)
-    if retry:
-        raise _locked(retry)
-    if _get_setting(db, security.SETTING_PIN_HASH):
-        raise _fail(409, "pin_already_set", "Un code PIN existe déjà : modifiez-le depuis l'écran local.")
-    if not security.is_valid_pin(payload.pin):
-        raise _fail(400, "bad_pin", f"Le code PIN doit comporter exactement {security.PIN_LENGTH} chiffres.")
-    if not security.pairing_store.verify_and_consume(payload.code):
-        lockout = security.rate_limiter.register_failure(ip)
-        _log(db, "devices_pairing_failed", f"IP {ip}")
-        if lockout:
-            raise _locked(lockout)
-        raise _fail(401, "bad_pairing_code", "Code d'association incorrect ou expiré. Vérifiez l'écran de la machine.")
-    security.rate_limiter.register_success(ip)
-    _set_setting(db, security.SETTING_PIN_HASH, security.hash_pin(payload.pin))
-    _set_setting(db, security.SETTING_ENABLED, "true")
-    _grant_session(response, ip)
-    _log(db, "devices_paired_with_code", f"IP {ip}")
-    return {"ok": True, "pin_set": True, "enabled": True, "session_minutes": int(security.SESSION_TTL_SECONDS // 60)}
-
-
-@router.post("/admin/enable")
-def set_enabled(payload: EnableRequest, request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
-    require_local(request)
-    _set_setting(db, security.SETTING_ENABLED, "true" if payload.enabled else "false")
-    if not payload.enabled:
-        security.sessions.revoke_all()
-    _log(db, "devices_enabled" if payload.enabled else "devices_disabled", None)
-    return {"enabled": payload.enabled}
-
-
-@router.post("/admin/pin")
-def set_pin(payload: PinRequest, request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Définit ou remplace le PIN — uniquement depuis l'écran local (présence physique, sans ancien PIN)."""
-    require_local(request)
-    if not security.is_valid_pin(payload.pin):
-        raise _fail(400, "bad_pin", f"Le code PIN doit comporter exactement {security.PIN_LENGTH} chiffres.")
-    _set_setting(db, security.SETTING_PIN_HASH, security.hash_pin(payload.pin))
-    security.sessions.revoke_all()
-    security.pairing_store.clear()  # le code n'a plus d'objet une fois le PIN défini
-    _log(db, "devices_pin_set", None)  # jamais la valeur
-    return {"pin_set": True}
-
-
-@router.delete("/admin/pin")
-def clear_pin(request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
-    require_local(request)
-    _set_setting(db, security.SETTING_PIN_HASH, None)
-    security.sessions.revoke_all()
-    _log(db, "devices_pin_cleared", None)
-    return {"pin_set": False}
-
-
-@router.post("/session")
-def open_session(payload: PinRequest, request: Request, response: Response, db: Session = Depends(get_db)) -> dict[str, Any]:
-    if _get_setting(db, security.SETTING_ENABLED) != "true":
-        raise _fail(403, "devices_disabled", "La gestion des périphériques est désactivée.")
-    stored = _get_setting(db, security.SETTING_PIN_HASH)
-    if not stored:
-        raise _fail(403, "pin_not_set", "Aucun code PIN n'est défini : définissez-en un depuis l'écran local.")
-    ip = _client_ip(request)
-    retry = security.rate_limiter.retry_after(ip)
-    if retry:
-        raise _locked(retry)
-    if not security.verify_pin(payload.pin, stored):
-        lockout = security.rate_limiter.register_failure(ip)
-        _log(db, "devices_login_failed", f"IP {ip}")
-        if lockout:
-            _log(db, "devices_login_locked", f"IP {ip} bloquée {lockout} s")
-            raise _locked(lockout)
-        raise _fail(401, "bad_pin", "Code PIN incorrect.", attempts_left=security.rate_limiter.attempts_left(ip))
-    security.rate_limiter.register_success(ip)
-    _grant_session(response, ip)
-    _log(db, "devices_login_ok", f"IP {ip}")
-    return {"ok": True, "session_minutes": int(security.SESSION_TTL_SECONDS // 60)}
-
-
-@router.delete("/session")
-def close_session(request: Request, response: Response) -> dict[str, bool]:
-    security.sessions.revoke(request.cookies.get(security.SESSION_COOKIE) or request.cookies.get(security.STORAGE_SESSION_COOKIE))
-    for name, path in SESSION_COOKIES:
-        response.delete_cookie(name, path=path)
-    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------
@@ -587,7 +361,7 @@ async def topology(_: Access = Depends(require_access), db: Session = Depends(ge
     machine = {"name": _socket.gethostname(), "platform": get_deployment_profile()}
     return build_topology(
         machine=machine, audio=audio, bluetooth=bluetooth, wifi=wifi, wifi_subnet=wifi_subnet, ethernets=ethernets,
-        clients=ws_manager.client_snapshot(), own_ips=security.own_ip_addresses(),
+        clients=ws_manager.client_snapshot(), own_ips=locality.own_ip_addresses(),
     )
 
 
@@ -622,7 +396,7 @@ async def _routing_view(db: Session) -> dict[str, Any]:
         route = routes.get(channel)
         resolution = resolve_route(route, sinks)
         players = [
-            {"local": security.is_local_client(str(p["ip"])), "primary": p["primary"], "status": (p["report"] or {}).get("status")}
+            {"local": locality.is_local_client(str(p["ip"])), "primary": p["primary"], "status": (p["report"] or {}).get("status")}
             for p in ws_manager.route_players(channel)
         ]
         manager = managers.get(channel)
@@ -779,7 +553,7 @@ async def _reached_via_wifi(request: Request, access: Access) -> bool:
     if not subnet:
         return False
     try:
-        return ipaddress.ip_address(security._normalize_ip(access.ip) or access.ip) in ipaddress.ip_network(subnet)
+        return ipaddress.ip_address(locality.normalize_ip(access.ip) or access.ip) in ipaddress.ip_network(subnet)
     except ValueError:
         return False
 

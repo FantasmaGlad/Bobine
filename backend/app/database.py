@@ -130,6 +130,7 @@ def init_db():
     _migrate_update_channel_beta_to_canary()
     _migrate_schedule_radio_channel_to_network()
     _migrate_storage_indexes()
+    _migrate_drop_devices_access_settings()
 
 
 def _migrate_storage_indexes():
@@ -265,6 +266,27 @@ def _migrate_add_missing_columns():
                 logger.info(
                     f"Migration : colonne {table}.{column} déjà ajoutée par un autre worker, ignoré"
                 )
+
+
+def _migrate_drop_devices_access_settings():
+    """Retire les réglages de l'ancien contrôle d'accès des périphériques (empreinte de PIN, interrupteur
+    d'activation) : l'onglet est ouvert à tout le réseau local de confiance. Idempotent."""
+    from sqlalchemy import text
+
+    if not _IS_SQLITE:
+        return
+    with engine.connect() as conn:
+        tables = {row[0] for row in conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='settings'"
+        ))}
+        if "settings" not in tables:
+            return
+        result = conn.execute(text(
+            "DELETE FROM settings WHERE key IN ('devices_pin_hash', 'devices_enabled')"
+        ))
+        conn.commit()
+        if result.rowcount:
+            logger.info(f"Migration : {result.rowcount} réglage(s) d'accès aux périphériques retiré(s)")
 
 
 def _migrate_update_channel_beta_to_canary():

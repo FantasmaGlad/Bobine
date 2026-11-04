@@ -31,8 +31,8 @@ test("étiquette : limites propres à chaque format", () => {
   assert.equal(labelProblem("vfat", "é"), "chars");
 });
 
-test("confirmation forte : nom exact, case cochée, délai écoulé, PIN si exigé ; jamais un simple clic", () => {
-  const base = { typed: "CLUB", expected: "CLUB", acknowledged: true, secondsLeft: 0, pinRequired: false, pin: "", labelOk: true };
+test("confirmation forte : nom exact, case cochée, délai écoulé ; jamais un simple clic", () => {
+  const base = { typed: "CLUB", expected: "CLUB", acknowledged: true, secondsLeft: 0, labelOk: true };
   assert.equal(canConfirmFormat(base), true);
   assert.equal(canConfirmFormat({ ...base, typed: " club " }), true);              // insensible à la casse et aux espaces autour
   assert.equal(canConfirmFormat({ ...base, typed: "" }), false);
@@ -40,10 +40,7 @@ test("confirmation forte : nom exact, case cochée, délai écoulé, PIN si exig
   assert.equal(canConfirmFormat({ ...base, acknowledged: false }), false);
   assert.equal(canConfirmFormat({ ...base, secondsLeft: 1 }), false);
   assert.equal(canConfirmFormat({ ...base, labelOk: false }), false);
-  assert.equal(canConfirmFormat({ ...base, pinRequired: true, pin: "" }), false);
-  assert.equal(canConfirmFormat({ ...base, pinRequired: true, pin: "12345" }), false);
-  assert.equal(canConfirmFormat({ ...base, pinRequired: true, pin: "123456" }), true);
-  assert.equal(canConfirmFormat({ typed: "", expected: "", acknowledged: true, secondsLeft: 0, pinRequired: false, pin: "", labelOk: true }), false);
+  assert.equal(canConfirmFormat({ typed: "", expected: "", acknowledged: true, secondsLeft: 0, labelOk: true }), false);
 });
 
 test("délai de réflexion : décompte en secondes entières, jamais négatif", () => {
@@ -57,7 +54,7 @@ test("questions du parcours : Windows ou Mac, refus qui imposent un nouveau plan
   assert.deepEqual(formatTravels(false), []);
   assert.deepEqual(formatTravels(true), ["windows", "macos"]);
   for (const code of ["format_token_expired", "format_token_used", "format_token_unknown", "format_identity_changed"]) assert.equal(needsNewPlan(code), true, code);
-  for (const code of ["format_pin_invalid", "format_in_use", "format_confirmation_mismatch"]) assert.equal(needsNewPlan(code), false, code);
+  for (const code of ["format_in_use", "format_confirmation_mismatch"]) assert.equal(needsNewPlan(code), false, code);
   assert.equal(refusalKey("format_in_use"), "storage.format.refusal.format_in_use");
 });
 
@@ -90,7 +87,7 @@ test("chaque code de refus du serveur est traduit en français et en anglais", (
     "format_system_disk", "format_bobine_data", "format_library_registered", "format_in_use", "format_busy_operation", "format_read_only", "format_encrypted_stack",
     "format_image_not_allowed", "format_too_small", "format_fs_unavailable", "format_fs_unknown", "format_label_invalid", "format_confirmation_mismatch",
     "format_ack_missing", "format_too_early", "format_token_missing", "format_token_unknown", "format_token_expired", "format_token_used", "format_token_owner",
-    "format_identity_changed", "format_pin_required", "format_pin_invalid", "format_not_authorized", "format_busy_mounted", "format_cannot_cancel",
+    "format_identity_changed", "format_not_authorized", "format_busy_mounted", "format_cannot_cancel",
     "format_job_not_found", "format_failed",
   ];
   const fr = (dictionaries.fr.storage as Dict).format as Dict;

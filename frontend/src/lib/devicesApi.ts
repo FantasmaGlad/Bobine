@@ -1,11 +1,8 @@
 /**
  * Client de l'API « Périphériques » (`/api/devices/*`) et aides PURES (testables, `frontend/tests/`).
  *
- * Toutes les erreurs de l'API sont structurées : `{"detail": {"code", "message", ...}}` — jamais une
- * 500. Les requêtes portent le cookie de session PIN (`credentials: "include"`).
+ * Toutes les erreurs de l'API sont structurées : `{"detail": {"code", "message", ...}}` — jamais une 500.
  */
-
-export type AccessState = "disabled" | "pin_not_set" | "pin_required" | "granted";
 
 export interface CapabilityInfo {
   supported: boolean;
@@ -15,31 +12,11 @@ export interface CapabilityInfo {
 export type Capabilities = Record<string, CapabilityInfo>;
 
 export interface DevicesStatus {
-  enabled: boolean;
-  pin_set: boolean;
-  pin_length: number;
   local: boolean;
-  access: AccessState;
   platform: string;
   driver: string;
-  session_minutes: number;
   wifi_confirm_seconds: number;
-  capabilities?: Capabilities;
-  retry_after?: number;
-}
-
-export interface PairingStatus {
-  pin_set: boolean;
-  /** Nombre de chiffres du code d'association (défini par le serveur). */
-  code_length: number;
-  /** Renvoyé uniquement à l'écran local de la machine. */
-  code: string | null;
-  seconds_left: number;
-}
-
-export interface PairingCode {
-  code: string;
-  seconds_left: number;
+  capabilities: Capabilities;
 }
 
 export type AudioKind = "internal" | "hdmi" | "usb" | "jack" | "bluetooth" | "virtual" | "other";
@@ -199,7 +176,6 @@ export async function devicesRequest<T>(path: string, init?: { method?: string; 
       method: init?.method ?? (init?.body !== undefined ? "POST" : "GET"),
       headers: init?.body !== undefined ? { "Content-Type": "application/json" } : undefined,
       body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
-      credentials: "include",
       cache: "no-store",
     });
     const text = await res.text();
@@ -216,37 +192,9 @@ export async function devicesRequest<T>(path: string, init?: { method?: string; 
   }
 }
 
-export async function getPairingStatus(): Promise<ApiResult<PairingStatus>> {
-  return devicesRequest<PairingStatus>("/pairing/status");
-}
-
-/** Émet (ou renouvelle) le code d'association : écran local uniquement. */
-export async function generatePairingCode(): Promise<ApiResult<PairingCode>> {
-  return devicesRequest<PairingCode>("/pairing/generate", { method: "POST" });
-}
-
-/** Dit tout de suite si le code saisi est le bon (sans le consommer) : l'erreur s'affiche avant le choix du PIN. */
-export async function verifyPairingCode(code: string): Promise<ApiResult<{ ok: boolean }>> {
-  return devicesRequest("/pairing/verify", { method: "POST", body: { code } });
-}
-
-export async function claimPairingCode(code: string, pin: string): Promise<ApiResult<{ ok: boolean; pin_set: boolean; enabled: boolean; session_minutes: number }>> {
-  return devicesRequest("/pairing/claim", { method: "POST", body: { code, pin } });
-}
-
 // ---------------------------------------------------------------------------
 // Aides pures
 // ---------------------------------------------------------------------------
-
-/** Un code PIN valide : exactement `length` chiffres. */
-export function isValidPin(pin: string, length = 6): boolean {
-  return new RegExp(`^\\d{${length}}$`).test(pin);
-}
-
-/** Garde uniquement les chiffres, bornés à `length` (saisie du PIN). */
-export function sanitizePin(raw: string, length = 6): string {
-  return raw.replace(/\D/g, "").slice(0, length);
-}
 
 /** Nombre de barres (0-4) pour un niveau de signal 0-100. */
 export function signalBars(signal: number): number {

@@ -47,6 +47,7 @@ pub struct ProgressUpdate {
     pub phase: String,
     pub error_message: Option<String>,
     pub access_url: Option<String>,
+    pub access_port: Option<u16>,
 }
 
 fn progress_to_update(state: &ProgressState) -> ProgressUpdate {
@@ -69,6 +70,7 @@ fn progress_to_update(state: &ProgressState) -> ProgressUpdate {
         .map(|f| format!("Échec à l'étape {} ({}) : {}", f.index, f.slug, f.title));
 
     let access_url = state.end.as_ref().and_then(|e| e.url.clone());
+    let access_port = state.end.as_ref().and_then(|e| e.port);
 
     ProgressUpdate {
         pct: state.pct,
@@ -79,6 +81,7 @@ fn progress_to_update(state: &ProgressState) -> ProgressUpdate {
         phase: phase_str.to_string(),
         error_message,
         access_url,
+        access_port,
     }
 }
 
@@ -163,7 +166,7 @@ async fn run_mock_installation(app: tauri::AppHandle) -> Result<(), String> {
         r#"{"bobine":1,"event":"step","status":"start","step":9,"total":14,"pct":92,"slug":"healthcheck","title":"Contrôle d'intégrité final (/api/health)"}"#,
         "[INFO] Sonde API /api/health réussie (200 OK).",
         r#"{"bobine":1,"event":"step","status":"ok","step":9,"total":14,"pct":100,"slug":"healthcheck","title":"Contrôle d'intégrité final (/api/health)"}"#,
-        r#"{"bobine":1,"event":"run_end","status":"ok","pct":100,"total":14,"healthy":true,"url":"http://bobine.local:8000","port":8000}"#,
+        r#"{"bobine":1,"event":"run_end","status":"ok","pct":100,"total":14,"healthy":true,"url":"http://bobine.local:1903","port":1903}"#,
     ];
 
     let mut state = ProgressState::new();
