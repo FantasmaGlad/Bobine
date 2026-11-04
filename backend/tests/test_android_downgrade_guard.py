@@ -185,3 +185,34 @@ def test_planification_telecharge_une_mise_a_jour_montante(monkeypatch, android_
     monkeypatch.setattr(updates, "log_activity", lambda *a, **k: None)
     asyncio.run(updates.run_scheduled_update_if_available(db=None))
     assert len(lances) == 1
+
+
+def test_planification_reportee_pendant_une_lecture(monkeypatch, android_beta):
+    _comparaison(monkeypatch, ahead=2)
+    lances = []
+
+    async def pipeline(*a):
+        lances.append(a)
+
+    monkeypatch.setattr(updates, "run_update_pipeline", pipeline)
+    monkeypatch.setattr(updates, "log_activity", lambda *a, **k: None)
+    monkeypatch.setattr(updates, "_something_is_playing", lambda: True)
+    asyncio.run(updates.run_scheduled_update_if_available(db=None))
+    assert lances == []
+
+
+def test_detection_de_lecture_video_et_radio(monkeypatch):
+    from app import playback_manager, radio_manager
+
+    class Fake:
+        def __init__(self, state):
+            self.state = state
+
+    monkeypatch.setattr(playback_manager, "get_all_playback_managers", lambda: {"cable": Fake({"state": "idle"})})
+    monkeypatch.setattr(radio_manager, "get_all_radio_managers", lambda: {"radio_cable": Fake({"state": "idle"})})
+    assert updates._something_is_playing() is False
+    monkeypatch.setattr(playback_manager, "get_all_playback_managers", lambda: {"cable": Fake({"state": "playing"})})
+    assert updates._something_is_playing() is True
+    monkeypatch.setattr(playback_manager, "get_all_playback_managers", lambda: {"cable": Fake({"state": "idle"})})
+    monkeypatch.setattr(radio_manager, "get_all_radio_managers", lambda: {"radio_cable": Fake({"state": "playing"})})
+    assert updates._something_is_playing() is True

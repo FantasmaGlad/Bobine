@@ -28,6 +28,9 @@ export interface RemoteHandlers {
   onNext?: () => void;
   /** Piste/élément précédent (média Prev / Page↑ / L1). */
   onPrev?: () => void;
+  /** Touches de chaîne (ChannelUp / ChannelDown) : chapitre suivant ou précédent quand l'écran en a. */
+  onChapterNext?: () => void;
+  onChapterPrev?: () => void;
   onVolumeUp?: () => void;
   onVolumeDown?: () => void;
   onMute?: () => void;
@@ -99,6 +102,8 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
         case "MediaTrackPrevious":
         case "Rewind":
         case "MediaRewind": action = h.onPrev; break;
+        case "ChannelUp": action = h.onChapterNext ?? h.onNext; break;
+        case "ChannelDown": action = h.onChapterPrev ?? h.onPrev; break;
         case "PageDown": action = h.onNext ?? h.onDown; break;
         case "PageUp": action = h.onPrev ?? h.onUp; break;
         case "MediaStop": action = h.onBack; break;

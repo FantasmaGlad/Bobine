@@ -6043,10 +6043,13 @@ video::cue {
 }
 
 /* --- Héros "À la une" (Authentique style Apple TV / VisionOS) --- */
+/* Héros plein écran : le cours vedette occupe tout l'écran, la grille arrive au défilement. La marge suit la zone
+   sûre des téléviseurs (overscan) et des encoches. */
 .cinema-hero {
   position: relative;
-  min-height: 52vh;
-  max-height: 60vh;
+  min-height: 100dvh;
+  padding: max(4vh, env(safe-area-inset-top)) max(4vw, env(safe-area-inset-right)) max(6vh, env(safe-area-inset-bottom)) max(4vw, env(safe-area-inset-left));
+  box-sizing: border-box;
   display: flex;
   align-items: stretch;
   justify-content: space-between;
@@ -9556,7 +9559,6 @@ video::cue {
   .cinema-brand-logo { height: clamp(48px, 9vmin, 80px); }
 }
 @media (min-aspect-ratio: 2/1) {
-  .cinema-hero { min-height: 56vh; }
   .cinema-hero-content { margin-left: 6vw; }
 }
 @media (min-width: 901px) {
@@ -9953,6 +9955,7 @@ video::cue {
   filter: brightness(var(--press-brightness, 0.92));
 }
 :where([role="button"]:not(button)):where(:not([aria-disabled="true"])):active { transform: scale(0.988); }
+:where(*):focus:not(:focus-visible) { outline: none; }
 :where(button, [role="button"], summary, a.btn, [tabindex="0"]):focus-visible {
   outline: 3px solid var(--accent-primary);
   outline-offset: 2px;
@@ -10281,3 +10284,33 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
 .fmt-count { font-variant-numeric: tabular-nums; }
 @keyframes fmt-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .fmt-steps li[data-state="running"] .material-symbols-outlined { animation: none; } }
+
+/* Languette d'invitation au défilement, en bas du héros ; animée par transform seulement. */
+.cinema-scroll-hint {
+  position: absolute;
+  left: 50%;
+  bottom: max(2vh, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-main) 55%, transparent);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  animation: cinema-hint-bob 2.4s ease-in-out infinite;
+}
+.cinema-scroll-hint[hidden] { display: none; }
+@keyframes cinema-hint-bob {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, 6px); }
+}
+@media (max-width: 900px) { .cinema-scroll-hint { display: none; } }
+@media (prefers-reduced-motion: reduce) { .cinema-scroll-hint { animation: none; } }

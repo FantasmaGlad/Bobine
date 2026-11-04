@@ -39,6 +39,8 @@ function isNavLinkActive(pathname: string, href: string): boolean {
   return pathname === href || pathname === `${href}/` || pathname.startsWith(`${href}/`);
 }
 
+const UPDATE_TOAST_MS = 8000;
+
 export default function ClientLayout({ children }: ClientLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -47,6 +49,13 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [updateAvailableVersion, setUpdateAvailableVersion] = useState<string | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState<boolean>(false);
+  // L'annonce d'une nouvelle version se referme seule après 8 s : sur un grand écran, elle masquerait sinon les
+  // commandes. Elle reste accessible dans Réglages.
+  useEffect(() => {
+    if (!updateAvailableVersion || updateDismissed) return;
+    const timer = setTimeout(() => setUpdateDismissed(true), UPDATE_TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [updateAvailableVersion, updateDismissed]);
   // Branchement ou retrait d'un support externe, où que l'on soit dans l'administration (sans nom : l'évènement n'en porte pas).
   const [plugEvent, setPlugEvent] = useState<"added" | "removed" | "abrupt" | null>(null);
   // demande le

@@ -20,7 +20,7 @@ import CourseRatingWidget from "@/components/CourseRatingWidget";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 import { formatCleanDescription } from "@/lib/formatDescription";
 import { subtitleSrc, useApplySubtitleMode, useVideoSubtitles } from "@/lib/subtitles";
-import { useVideoChapters } from "@/lib/chapters";
+import { chapterJumpTarget, useVideoChapters } from "@/lib/chapters";
 import ChapterTicks from "@/components/ChapterTicks";
 import ChapterToast from "@/components/ChapterToast";
 import VolumeOsd from "@/components/VolumeOsd";
@@ -339,6 +339,8 @@ export default function CinemaPage() {
   const subtitles = useVideoSubtitles(selected?.id, getApiUrl);
   useApplySubtitleMode([deckARef, deckBRef], subtitles, activeSubtitleId);
   const chapters = useVideoChapters(selected?.id, getApiUrl);
+  // Languette « Découvrir les cours » du héros plein écran : retirée dès que la grille défile.
+  const [heroScrolled, setHeroScrolled] = useState(false);
 
   useEffect(() => {
     setActiveSubtitleId("off");
@@ -713,6 +715,13 @@ export default function CinemaPage() {
   // pilote ni matériel : la télécommande émet des touches clavier/média que
   // Chromium délivre en `keydown`. Voir useKioskRemote.
   // ------------------------------------------------------------------
+  const jumpChapter = (direction: "next" | "prev") => {
+    const el = videoRef.current;
+    if (!el) return;
+    const target = chapterJumpTarget(chapters, el.currentTime || 0, direction);
+    if (target !== null) seekBy(target - (el.currentTime || 0));
+  };
+
   const seekBy = (delta: number) => {
     const el = videoRef.current;
     if (!el) return;
@@ -787,6 +796,8 @@ export default function CinemaPage() {
         onDown: volumeKeys.onVolumeDown,
         onPrev: () => seekBy(-30),
         onNext: () => seekBy(30),
+        onChapterNext: () => jumpChapter("next"),
+        onChapterPrev: () => jumpChapter("prev"),
       };
     }
     if (phase === "ended") {
@@ -1029,7 +1040,10 @@ export default function CinemaPage() {
 
       {/* Vitrine de sélection : héros + rangées par programme + grille complète */}
       {!effectiveHideControls && (
-        <div className={`cinema-layer cinema-grid-layer ${showGrid ? "visible" : ""}`}>
+        <div
+          className={`cinema-layer cinema-grid-layer ${showGrid ? "visible" : ""}`}
+          onScroll={(e) => { if (!heroScrolled && e.currentTarget.scrollTop > 24) setHeroScrolled(true); }}
+        >
           {featured && (
             <section className="cinema-hero" data-remote-scroll-top>
               {featuredThumb && (
@@ -1076,6 +1090,16 @@ export default function CinemaPage() {
                   </button>
                 </div>
               </div>
+              <button
+                type="button"
+                className="cinema-scroll-hint"
+                tabIndex={-1}
+                hidden={heroScrolled}
+                onClick={() => document.querySelector(".cinema-sections")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              >
+                <span>{t("cinema.discoverCourses")}</span>
+                <Icon name="expand_more" size={26} />
+              </button>
 
               {nowPlaying && (
                 <section className="grid-now-playing">
