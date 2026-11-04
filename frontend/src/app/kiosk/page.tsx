@@ -776,7 +776,7 @@ export default function KioskPage() {
               </span>
               <h1 className="coach-stage-track-title">{currentTrack.title}</h1>
               <div className="coach-stage-progress-track">
-                <div className="coach-stage-progress-fill" style={{ width: `${audioTrackProgress}%` }} />
+                <div className="coach-stage-progress-fill" style={{ transform: `scaleX(${audioTrackProgress / 100})` }} />
               </div>
               <div className="coach-stage-meta-row">
                 <span className="coach-stage-time">{formatTime(state.audio_position_seconds)}</span>
@@ -890,7 +890,7 @@ export default function KioskPage() {
             </div>
           </div>
           <div className="pause-progress-track">
-            <div className="pause-progress-fill" style={{ width: `${pauseProgressPercent}%` }} />
+            <div className="pause-progress-fill" style={{ transform: `scaleX(${pauseProgressPercent / 100})` }} />
           </div>
         </div>
       )}

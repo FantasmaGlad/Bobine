@@ -98,7 +98,7 @@ export default function TransferStatus({ jobIds, modes, onDone, t }: Props) {
               </span>
               {!finished && (
                 <span className="st-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? undefined}>
-                  <span style={{ width: `${percent ?? 8}%` }} />
+                  <span style={{ transform: `scaleX(${(percent ?? 8) / 100})` }} />
                 </span>
               )}
             </span>
