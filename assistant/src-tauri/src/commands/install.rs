@@ -47,6 +47,7 @@ pub struct ProgressUpdate {
     pub phase: String,
     pub error_message: Option<String>,
     pub access_url: Option<String>,
+    pub access_port: Option<u16>,
 }
 
 fn progress_to_update(state: &ProgressState) -> ProgressUpdate {
@@ -69,6 +70,7 @@ fn progress_to_update(state: &ProgressState) -> ProgressUpdate {
         .map(|f| format!("Échec à l'étape {} ({}) : {}", f.index, f.slug, f.title));
 
     let access_url = state.end.as_ref().and_then(|e| e.url.clone());
+    let access_port = state.end.as_ref().and_then(|e| e.port);
 
     ProgressUpdate {
         pct: state.pct,
@@ -79,6 +81,7 @@ fn progress_to_update(state: &ProgressState) -> ProgressUpdate {
         phase: phase_str.to_string(),
         error_message,
         access_url,
+        access_port,
     }
 }
 

@@ -88,6 +88,9 @@ function escapeHtml(str) {
 const state = {
   currentStep: 1,
   selectedTarget: null,
+  // Port Bobine de la cible : celui vu au scan (1903, ou 8000 sur une appliance installée avant la 5.1.0),
+  // puis celui annoncé par install.sh en fin d'installation.
+  selectedBobinePort: null,
   selectedKeyPath: null,
   systemInspection: null,
   installSuccessOpened: false,
@@ -367,7 +370,7 @@ function initWizard() {
 
 function adminUrl() {
   const target = state.selectedTarget || '10.0.0.30';
-  return `http://${target}:1903`;
+  return `http://${target}:${state.selectedBobinePort || 1903}`;
 }
 
 function kioskUrl() {
@@ -610,7 +613,7 @@ function buildDeviceRow(dev, animate = false) {
     <button class="btn btn-secondary btn-sm select-btn">Sélectionner</button>
   `;
   row.querySelector('.select-btn').addEventListener('click', () => {
-    selectTarget(dev.ip);
+    selectTarget(dev.ip, dev.open_ports);
     goToStep(2);
   });
   return row;
@@ -634,8 +637,9 @@ function hideScanProgress() {
   if (box) box.style.display = 'none';
 }
 
-function selectTarget(ip) {
+function selectTarget(ip, openPorts = []) {
   state.selectedTarget = ip;
+  state.selectedBobinePort = openPorts.includes(1903) ? 1903 : openPorts.includes(8000) ? 8000 : null;
   document.getElementById('ssh-host').value = ip;
   document.getElementById('global-status-dot').className = 'status-dot connected';
   document.getElementById('global-status-text').textContent = `Cible : ${ip}`;
@@ -738,6 +742,8 @@ function listenTauriEvents() {
       showInstallFailure(update.error_message || "Une étape de l'installation a échoué.");
       return;
     }
+
+    if (update.access_port) state.selectedBobinePort = update.access_port;
 
     if (update.phase === 'succeeded' || update.pct >= 100) {
       document.getElementById('install-title-heading').textContent = 'Installation terminée !';

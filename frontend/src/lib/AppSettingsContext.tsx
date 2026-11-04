@@ -217,7 +217,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       const cachedTheme = localStorage.getItem("olc-theme") as Theme | null;
       const cachedLanguage = localStorage.getItem("olc-language") as Language | null;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronise l'état avec le cache localStorage au montage, même motif que le chargement initial ailleurs dans le projet (library/playlists/schedule)
-      if (cachedTheme) setThemeState(cachedTheme);
+      if (cachedTheme && THEME_VALUES.includes(cachedTheme)) setThemeState(cachedTheme);
+      else if (cachedTheme) localStorage.removeItem("olc-theme");
       if (cachedLanguage) setLanguageState(cachedLanguage);
     } catch {
       // localStorage indisponible (navigation privée stricte, ou WebView

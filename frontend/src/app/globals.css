@@ -353,7 +353,7 @@
 }
 
 /* ------------------------------------------------------------
-   THÈMES SOMBRES (8)
+   THÈMES SOMBRES (7)
    Base obsidienne profonde à typographie neutre haute lisibilité
    ------------------------------------------------------------ */
 
@@ -10251,7 +10251,7 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
 
 /* ============================================================
    Stockage externe : assistant « Préparer ce support » (formatage). Zone d'effacement teintée par le jeton d'erreur du thème
-   (contrastes contrôlés sur les 16 thèmes dans tests/themeContrast.test.ts), bouton danger sobre, uniquement des jetons.
+   (contrastes contrôlés sur les 15 thèmes dans tests/themeContrast.test.ts), bouton danger sobre, uniquement des jetons.
    ============================================================ */
 :root { --control-outline: color-mix(in srgb, var(--accent-primary) 65%, var(--text-main)); }
 .fmt-erase { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: var(--radius-md); color: var(--text-main);

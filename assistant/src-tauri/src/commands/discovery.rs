@@ -225,7 +225,7 @@ async fn probe_host(sockets: Arc<Semaphore>, ip: Ipv4Addr) -> Option<DiscoveredD
                 if port == 22 {
                     ssh_banner = Some(read_ssh_banner(stream).await);
                 } else if port == 1903 || port == 8000 {
-                    bobine_open = confirm_bobine(stream).await;
+                    bobine_open = confirm_bobine(stream).await || bobine_open;
                 }
             }
             ProbeOutcome::Refused => alive = true,

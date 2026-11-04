@@ -1888,7 +1888,7 @@ run systemctl daemon-reload
 run systemctl enable avahi-daemon >/dev/null 2>&1 || true
 if ! $DRY_RUN && ! systemctl restart avahi-daemon; then
     warn "Impossible de démarrer avahi-daemon : l'URL bobine.local ne sera pas publiée."
-    warn "L'accès par adresse IP (http://<IP-du-Wyse>:1903) reste fonctionnel."
+    warn "L'accès par adresse IP (http://<IP-du-Wyse>:${SERVICE_PORT}) reste fonctionnel."
 else
     ok "avahi-daemon actif"
 fi
