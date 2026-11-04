@@ -1,4 +1,4 @@
-"""Stockage externe : API protégée, montage/retrait, explorateur sûr, import vérifié, bibliothèque externe,
+"""Stockage externe : API ouverte au réseau local, montage/retrait, explorateur sûr, import vérifié, bibliothèque externe,
 disponibilité (arrachage, rebranchement à un autre point de montage), garde-fous, longévité.
 
 Aucun matériel ni root : un pilote factice simule les supports (voir storage_fakes.py). Le test réel sur image
@@ -22,7 +22,6 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import SessionLocal, init_db  # noqa: E402
-from app.devices import security  # noqa: E402
 from app.devices.base import DeviceError  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import (  # noqa: E402
@@ -42,7 +41,7 @@ from storage_fakes import FakeStorageDriver  # noqa: E402
 
 HAS_FFMPEG = shutil.which("ffmpeg") is not None and shutil.which("ffprobe") is not None
 needs_ffmpeg = pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg indisponible")
-KEYS = (security.SETTING_ENABLED, security.SETTING_PIN_HASH, "storage_defaults")
+KEYS = ("storage_defaults",)
 
 
 def _sha(path) -> str:
@@ -92,14 +91,6 @@ def _purge_local(model, condition) -> None:
         db.commit()
 
 
-def _enable(pin: str | None = None) -> None:
-    with SessionLocal() as db:
-        db.add(Setting(key=security.SETTING_ENABLED, value="true"))
-        if pin:
-            db.add(Setting(key=security.SETTING_PIN_HASH, value=security.hash_pin(pin)))
-        db.commit()
-
-
 @pytest.fixture()
 def env(tmp_path, monkeypatch):
     """Application complète (cycle de vie compris) avec un service de stockage neuf et un pilote factice ; écran local."""
@@ -109,8 +100,6 @@ def env(tmp_path, monkeypatch):
     service = StorageService(lambda: driver)
     monkeypatch.setattr("app.main.storage_service", service)
     monkeypatch.setattr("app.routers.storage.service", service)
-    monkeypatch.setattr("app.routers.devices.is_local_request", lambda request: True)
-    _enable()
     with TestClient(app) as client:
         ns = SimpleNamespace(client=client, driver=driver, service=service, tmp=tmp_path)
         ns.refresh = lambda: client.portal.call(service.refresh)
@@ -140,56 +129,6 @@ def wait_job(client, job_id, timeout=90):
 
 def codes(response):
     return response.json()["detail"]["code"]
-
-
-# ---------------------------------------------------------------------------------------------------------
-# Contrôle d'accès : identique aux périphériques
-# ---------------------------------------------------------------------------------------------------------
-
-@pytest.fixture()
-def gate(tmp_path, monkeypatch):
-    init_db()
-    _cleanup_db()
-    driver = FakeStorageDriver(tmp_path / "fake")
-    service = StorageService(lambda: driver)
-    monkeypatch.setattr("app.routers.storage.service", service)
-    yield SimpleNamespace(service=service, driver=driver)
-    _cleanup_db()
-
-
-def remote(host="203.0.113.9"):
-    return TestClient(app, client=(host, 50000))
-
-
-def test_disabled_by_default_blocks_the_whole_api(gate):
-    for method, path in (("get", "/api/storage/status"), ("get", "/api/storage/volumes"), ("get", "/api/storage/volumes/u-x/browse"),
-                         ("post", "/api/storage/volumes/u-x/mount"), ("get", "/api/storage/advisor/format"), ("get", "/api/storage/portable")):
-        response = getattr(remote(), method)(path, **({"json": {}} if method == "post" else {}))
-        assert response.status_code == 403 and codes(response) == "devices_disabled", path
-
-
-def test_remote_needs_pin_then_cookie_scoped_to_storage(gate):
-    _enable("123456")
-    client = remote()
-    assert codes(client.get("/api/storage/volumes")) == "pin_required" and client.get("/api/storage/volumes").status_code == 401
-    assert client.post("/api/devices/session", json={"pin": "000000"}).status_code == 401
-    ok = client.post("/api/devices/session", json={"pin": "123456"})
-    cookies = ok.headers.get_list("set-cookie")
-    assert any("bobine_storage_session" in c and "Path=/api/storage" in c and "HttpOnly" in c and "SameSite=strict" in c for c in cookies)
-    assert any("bobine_devices_session" in c and "Path=/api/devices" in c for c in cookies)
-    assert client.get("/api/storage/volumes").status_code == 200
-    # Une autre adresse ne peut pas réutiliser la session (liée à l'IP).
-    stolen = remote("203.0.113.77")
-    stolen.cookies.set("bobine_storage_session", client.cookies.get("bobine_storage_session", path="/api/storage"), path="/api/storage")
-    assert stolen.get("/api/storage/volumes").status_code == 401
-    client.delete("/api/devices/session")
-    assert client.get("/api/storage/volumes").status_code == 401
-
-
-def test_remote_without_pin_is_refused_with_explanation(gate):
-    _enable()
-    response = remote().get("/api/storage/volumes")
-    assert response.status_code == 403 and codes(response) == "pin_not_set"
 
 
 # ---------------------------------------------------------------------------------------------------------

@@ -168,8 +168,8 @@ mod tests {
 
     #[test]
     fn parse_url_et_ecran_par_defaut() {
-        let parsed = parse_args(&a(&["p", "--url", "http://127.0.0.1:8000/cinema/?channel=cable"])).unwrap();
-        assert_eq!(parsed.url, "http://127.0.0.1:8000/cinema/?channel=cable");
+        let parsed = parse_args(&a(&["p", "--url", "http://127.0.0.1:1903/cinema/?channel=cable"])).unwrap();
+        assert_eq!(parsed.url, "http://127.0.0.1:1903/cinema/?channel=cable");
         assert_eq!(parsed.monitor, MonitorChoice::External);
     }
 

@@ -40,7 +40,7 @@ async function invokeTauri(cmd, args = {}) {
   if (cmd === 'scan_network') {
     await new Promise(r => setTimeout(r, 1200));
     return [
-      { ip: '203.0.113.10', hostname: 'exemple-borne-bobine.local', ssh_open: true, bobine_open: true, open_ports: [22, 8000], os_hint: 'Debian 13 (exemple)', is_wyse_or_bobine: true, mac: '02:00:5e:00:53:10', seen_via: 'ports' },
+      { ip: '203.0.113.10', hostname: 'exemple-borne-bobine.local', ssh_open: true, bobine_open: true, open_ports: [22, 1903], os_hint: 'Debian 13 (exemple)', is_wyse_or_bobine: true, mac: '02:00:5e:00:53:10', seen_via: 'ports' },
       { ip: '203.0.113.20', hostname: 'exemple-poste-admin.local', ssh_open: true, bobine_open: false, open_ports: [22], os_hint: 'Linux (exemple)', is_wyse_or_bobine: false, mac: null, seen_via: 'ports' },
       { ip: '203.0.113.30', hostname: null, ssh_open: false, bobine_open: false, open_ports: [], os_hint: null, is_wyse_or_bobine: false, mac: '02:00:5e:00:53:30', seen_via: 'arp' }
     ];
@@ -367,7 +367,7 @@ function initWizard() {
 
 function adminUrl() {
   const target = state.selectedTarget || '10.0.0.30';
-  return `http://${target}:8000`;
+  return `http://${target}:1903`;
 }
 
 function kioskUrl() {

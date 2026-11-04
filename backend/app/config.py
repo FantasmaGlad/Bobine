@@ -201,7 +201,7 @@ class Settings(BaseSettings):
 
     # Réseau & Serveur
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = 1903
 
     # Paramètres de lecture par défaut
     wait_time_between_courses: int = 0

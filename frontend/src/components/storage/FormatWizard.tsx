@@ -38,8 +38,6 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
   const [label, setLabel] = useState("");
   const [typed, setTyped] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState(0);
   const [now, setNow] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -118,8 +116,6 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
   const toConfirm = () => {
     setTyped("");
     setAcknowledged(false);
-    setPin("");
-    setPinError(null);
     const start = Date.now();
     setStartedAt(start);
     setNow(start);
@@ -129,9 +125,8 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
   const execute = async () => {
     if (!plan || !fs) return;
     setBusy(true);
-    setPinError(null);
     const result = await storageRequest<{ job_id: string }>("/format/execute", {
-      body: { key: target.key, token: plan.token, fs, label: label.trim(), confirm: typed, acknowledged, pin: plan.pin_required ? pin : undefined },
+      body: { key: target.key, token: plan.token, fs, label: label.trim(), confirm: typed, acknowledged },
     });
     setBusy(false);
     if (result.ok) {
@@ -141,9 +136,7 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
       setStage("running");
       return;
     }
-    if (result.error.code === "format_pin_required" || result.error.code === "format_pin_invalid" || result.error.code === "locked") {
-      setPinError(refusalText(result.error));
-    } else if (needsNewPlan(result.error.code) || result.error.code === "format_not_found") {
+    if (needsNewPlan(result.error.code) || result.error.code === "format_not_found") {
       setRefusal(result.error);
       setStage("refused");
     } else {
@@ -275,7 +268,7 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
       </div>
     );
   } else if (stage === "confirm" && plan && fs) {
-    const ready = canConfirmFormat({ typed, expected: plan.confirm.expected, acknowledged, secondsLeft, pinRequired: plan.pin_required, pin, labelOk: !labelIssue });
+    const ready = canConfirmFormat({ typed, expected: plan.confirm.expected, acknowledged, secondsLeft, labelOk: !labelIssue });
     body = (
       <div className="dv-detail">
         <div className="fmt-erase" role="alert">
@@ -290,13 +283,6 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
           <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} />
           <span>{t("storage.format.ack")}</span>
         </label>
-        {plan.pin_required && (
-          <div className="fmt-field">
-            <label htmlFor="fmt-pin" className="dv-title">{t("storage.format.pin")}</label>
-            <input id="fmt-pin" className="form-control dv-pin-input" inputMode="numeric" type="password" maxLength={6} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} autoComplete="off" />
-            {pinError && <span className="dv-error" role="alert">{pinError}</span>}
-          </div>
-        )}
         {secondsLeft > 0 && <p className="dv-sub fmt-count" role="status">{t("storage.format.wait", { count: secondsLeft })}</p>}
       </div>
     );

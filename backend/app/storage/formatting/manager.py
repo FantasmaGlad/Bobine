@@ -190,7 +190,7 @@ class FormatManager:
         return FormatRefusal(bad.code or "format_failed", **extra)
 
     # ------------------------------------------------------------------ phase 1 : plan (aucune écriture)
-    async def plan(self, key: str, *, owner: str, travels: list[str], pin_required: bool) -> dict[str, Any]:
+    async def plan(self, key: str, *, owner: str, travels: list[str]) -> dict[str, Any]:
         support = await self.svc.driver.format_support()
         vol, disk, disks = await self._resolve(key)
         ctx = await self._context(disk, support)
@@ -227,7 +227,6 @@ class FormatManager:
             "token": token,
             "expires_in": int(self.tokens.ttl),
             "min_wait": int(self.tokens.min_age),
-            "pin_required": pin_required,
             "checks": [{"id": c.id, "ok": c.ok} for c in checks],
             "target": {
                 "key": key, "name": disk.display_name, "size_bytes": disk.size_bytes, "kind": disk.kind, "transport": disk.transport,
@@ -295,7 +294,7 @@ class FormatManager:
     async def start(self, key: str, *, token: str | None, fs: str, label: str, confirm_text: str, acknowledged: bool, owner: str) -> dict[str, Any]:
         """Valide la demande, rejoue la cascade sur un inventaire frais, puis lance l'opération. Rien n'est écrit avant.
 
-        Tout refus est journalisé (code seulement : jamais de jeton, de PIN, de numéro de série ni de chemin)."""
+        Tout refus est journalisé (code seulement : jamais de jeton, de numéro de série ni de chemin)."""
         try:
             return await self._start(key, token=token, fs=fs, label=label, confirm_text=confirm_text, acknowledged=acknowledged, owner=owner)
         except FormatRefusal as exc:

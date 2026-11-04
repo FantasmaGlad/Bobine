@@ -30,7 +30,7 @@
 
 ## Why Bobine?
 
-Group-fitness rooms and cycling studios run pre-recorded video classes ("virtual classes") on large screens or projectors. Proprietary solutions like Les Mills Cinema, Wexer Virtual, or Fitness On Demand require monthly subscriptions per screen, closed catalogs, and a permanent internet connection.
+Group-fitness rooms and cycling studios run pre-recorded video classes ("virtual classes") on large screens or projectors. Proprietary solutions require monthly subscriptions per screen, closed catalogs, and a permanent internet connection.
 
 **Bobine gives your studio the same cinema-grade experience — free of charge, without any subscription, and under your full control:**
 
@@ -68,7 +68,7 @@ Install Bobine as a native application on your tablet, computer, or mini PC (or 
 - **24/7 Club Radio & Voice Reminders (`/radio`)** — Built-in music player with automatic crossfade, 5-band equalizer, playlists, and scheduled spoken announcements (e.g., *"Please re-rack your weights"*).
 - **Two Independent Display & Radio Outputs** — Drive a wired HDMI screen and a secondary network screen simultaneously with separate content.
 - **Attendance Metrics (`/metrics`)** — Track class completion rates, 5-star member feedback, peak studio hours, and device health locally.
-- **16 Color Themes** — Light and dark high-contrast themes (including the Apple-inspired *Charbon* palette) adaptable to bright reception areas or dark cycling rooms.
+- **15 Color Themes** — Light and dark high-contrast themes (including the Apple-inspired *Charbon* palette) adaptable to bright reception areas or dark cycling rooms.
 
 ---
 
@@ -79,7 +79,7 @@ Install Bobine as a native application on your tablet, computer, or mini PC (or 
    ```text
    http://bobine.local
    ```
-   *(Or `http://127.0.0.1:8000` directly on the host machine).*
+   *(Or `http://127.0.0.1:1903` directly on the host machine).*
 3. **Import your first videos or music tracks** by drag-and-drop in the **Library** tab, then launch a class or set up your weekly **Schedule**.
 
 All web interfaces work out of the box on **Mozilla Firefox**, **Google Chrome**, **Microsoft Edge**, **Apple Safari**, **Brave**, and **Tor Browser** with zero client installation.

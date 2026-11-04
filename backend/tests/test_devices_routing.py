@@ -17,7 +17,6 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import SessionLocal, init_db  # noqa: E402
-from app.devices import security  # noqa: E402
 from app.devices.base import CAPABILITY_KEYS, DeviceDriver, DeviceError, NullDriver  # noqa: E402
 from app.devices.linux import LinuxDriver  # noqa: E402
 from app.devices.linux_parse import choose_browser_stream, parse_output_streams  # noqa: E402
@@ -38,7 +37,7 @@ from app.main import app  # noqa: E402
 from app.models import Setting  # noqa: E402
 from app.radio_manager import get_radio_manager  # noqa: E402
 
-KEYS = (security.SETTING_ENABLED, security.SETTING_PIN_HASH, ROUTES_SETTING, "devices_audio_meta")
+KEYS = (ROUTES_SETTING, "devices_audio_meta")
 
 SPEAKER = {"id": "alsa_output.speaker", "name": "Haut-parleurs", "description": "Ryzen HD Audio", "kind": "internal", "is_default": True, "available": True}
 JBL = {"id": "bluez_output.88_92_CC_9C_41_0E.1", "name": "JBL Live 770NC", "description": "JBL Live", "kind": "bluetooth", "is_default": False, "available": True}
@@ -359,10 +358,8 @@ def routing_env():
     ws._route_reports.clear()  # noqa: SLF001
 
 
-def _enable_and_route(channel="radio_cable", sink=JBL, fallback="default"):
+def _route(channel="radio_cable", sink=JBL, fallback="default"):
     with SessionLocal() as db:
-        db.add(Setting(key=security.SETTING_ENABLED, value="true"))
-        db.commit()
         save_routes(db, {channel: describe_sink(sink) | {"fallback": fallback}})
 
 
@@ -380,7 +377,7 @@ def _add_player(channel, host="127.0.0.1", primary=True, status=None):
 
 def test_reconciliation_publie_l_etat_et_suit_la_reconnexion(routing_env):
     fresh, driver = routing_env
-    _enable_and_route()
+    _route()
     asyncio.run(fresh.reconcile_routes())
     assert get_radio_manager("radio_cable").state["route"]["state"] == "routed"
     assert get_radio_manager("radio_network").state["route"] is None
@@ -392,19 +389,9 @@ def test_reconciliation_publie_l_etat_et_suit_la_reconnexion(routing_env):
     assert get_radio_manager("radio_cable").state["route"]["state"] == "routed"
 
 
-def test_fonction_desactivee_aucune_route_publiee_ni_appliquee(routing_env):
-    fresh, driver = routing_env
-    with SessionLocal() as db:
-        save_routes(db, {"radio_cable": describe_sink(JBL)})  # route mémorisée, mais la fonction n'est pas activée
-    _add_player("radio_cable")
-    get_radio_manager("radio_cable").state["playing"] = True
-    asyncio.run(fresh.reconcile_routes())
-    assert get_radio_manager("radio_cable").state["route"] is None and driver.routed == []
-
-
 def test_liste_des_sorties_indisponible_route_inconnue_sans_erreur(routing_env):
     fresh, driver = routing_env
-    _enable_and_route()
+    _route()
 
     async def boom():
         raise DeviceError("audio_unavailable", "PipeWire ne répond pas", 502)
@@ -416,7 +403,7 @@ def test_liste_des_sorties_indisponible_route_inconnue_sans_erreur(routing_env):
 
 def test_le_serveur_deplace_le_flux_d_un_lecteur_local_qui_joue(routing_env):
     fresh, driver = routing_env
-    _enable_and_route()
+    _route()
     _add_player("radio_cable", status="unsupported")
     get_radio_manager("radio_cable").state["playing"] = True
     asyncio.run(fresh.reconcile_routes())
@@ -431,7 +418,7 @@ def test_le_serveur_deplace_le_flux_d_un_lecteur_local_qui_joue(routing_env):
 
 def test_le_serveur_ne_touche_pas_a_ce_que_le_navigateur_a_applique(routing_env):
     fresh, driver = routing_env
-    _enable_and_route()
+    _route()
     _add_player("radio_cable", status="applied")
     get_radio_manager("radio_cable").state["playing"] = True
     asyncio.run(fresh.reconcile_routes())
@@ -440,7 +427,7 @@ def test_le_serveur_ne_touche_pas_a_ce_que_le_navigateur_a_applique(routing_env)
 
 def test_lecteur_distant_ou_radio_a_l_arret_le_serveur_n_agit_pas(routing_env):
     fresh, driver = routing_env
-    _enable_and_route()
+    _route()
     _add_player("radio_cable", host="203.0.113.9", status="unsupported")  # lecteur sur un autre appareil
     get_radio_manager("radio_cable").state["playing"] = True
     asyncio.run(fresh.reconcile_routes())
@@ -454,8 +441,6 @@ def test_lecteur_distant_ou_radio_a_l_arret_le_serveur_n_agit_pas(routing_env):
 def test_deux_sorties_qui_jouent_en_local_c_est_ambigu_rien_n_est_deplace(routing_env):
     fresh, driver = routing_env
     with SessionLocal() as db:
-        db.add(Setting(key=security.SETTING_ENABLED, value="true"))
-        db.commit()
         save_routes(db, {"radio_cable": describe_sink(JBL), "radio_network": describe_sink(HDMI)})
     for channel in ("radio_cable", "radio_network"):
         _add_player(channel, status="insecure")
@@ -468,7 +453,7 @@ def test_deux_sorties_qui_jouent_en_local_c_est_ambigu_rien_n_est_deplace(routin
 def test_pilote_sans_capacite_le_statut_est_non_pris_en_charge(routing_env):
     fresh, driver = routing_env
     driver.route_cap = False
-    _enable_and_route()
+    _route()
     _add_player("radio_cable", status="unsupported")
     get_radio_manager("radio_cable").state["playing"] = True
     asyncio.run(fresh.reconcile_routes())
@@ -477,7 +462,7 @@ def test_pilote_sans_capacite_le_statut_est_non_pris_en_charge(routing_env):
 
 def test_une_panne_du_pilote_ne_leve_jamais_et_ne_touche_pas_a_la_lecture(routing_env):
     fresh, driver = routing_env
-    _enable_and_route()
+    _route()
     _add_player("radio_cable", status="unsupported")
     manager = get_radio_manager("radio_cable")
     manager.state["playing"] = True
@@ -503,9 +488,6 @@ def api(routing_env, monkeypatch):
 
     monkeypatch.setattr(devices_router, "service", fresh)
     monkeypatch.setattr(service_module, "service", fresh)
-    security.sessions.revoke_all()
-    security.rate_limiter = security.RateLimiter()
-    devices_router.security.rate_limiter = security.rate_limiter
     return fresh, driver
 
 
@@ -513,31 +495,9 @@ def _local(monkeypatch):
     monkeypatch.setattr("app.routers.devices.is_local_request", lambda request: True)
 
 
-def test_acces_desactive_pin_requis_et_session(api, monkeypatch):
-    client = TestClient(app, client=("203.0.113.7", 50000))
-    assert client.get("/api/devices/routing").json()["detail"]["code"] == "devices_disabled"
-    assert client.get("/api/devices/mixer").json()["detail"]["code"] == "devices_disabled"
-    with SessionLocal() as db:
-        db.add(Setting(key=security.SETTING_ENABLED, value="true"))
-        db.commit()
-    assert client.get("/api/devices/routing").json()["detail"]["code"] == "pin_not_set"
-    with SessionLocal() as db:
-        db.add(Setting(key=security.SETTING_PIN_HASH, value=security.hash_pin("123456")))
-        db.commit()
-    for call in (lambda: client.get("/api/devices/routing"), lambda: client.put("/api/devices/routing", json={"channel": "radio_cable", "clear": True}),
-                 lambda: client.get("/api/devices/mixer"), lambda: client.put("/api/devices/mixer/radio_cable", json={"mix": {}})):
-        response = call()
-        assert response.status_code == 401 and response.json()["detail"]["code"] == "pin_required"
-    assert client.post("/api/devices/session", json={"pin": "123456"}).status_code == 200
-    assert client.get("/api/devices/routing").status_code == 200
-
-
 def test_choix_effacement_et_repli_d_une_route(api, monkeypatch):
     fresh, driver = api
     _local(monkeypatch)
-    with SessionLocal() as db:
-        db.add(Setting(key=security.SETTING_ENABLED, value="true"))
-        db.commit()
     client = TestClient(app)
     view = client.get("/api/devices/routing").json()
     assert view["supported"] is True and [o["channel"] for o in view["outputs"]] == ["radio_cable", "radio_network"]
@@ -564,9 +524,6 @@ def test_choix_effacement_et_repli_d_une_route(api, monkeypatch):
 def test_alias_de_bobine_utilise_pour_l_affichage_de_la_route(api, monkeypatch):
     fresh, driver = api
     _local(monkeypatch)
-    with SessionLocal() as db:
-        db.add(Setting(key=security.SETTING_ENABLED, value="true"))
-        db.commit()
     client = TestClient(app)
     assert client.put("/api/devices/audio/meta", json={"id": JBL["id"], "alias": "Enceinte du fond"}).status_code == 200
     route = client.put("/api/devices/routing", json={"channel": "radio_network", "sink_id": JBL["id"]}).json()["outputs"][1]["route"]
@@ -578,9 +535,6 @@ def test_alias_de_bobine_utilise_pour_l_affichage_de_la_route(api, monkeypatch):
 def test_erreurs_structurees_jamais_de_500(api, monkeypatch):
     fresh, driver = api
     _local(monkeypatch)
-    with SessionLocal() as db:
-        db.add(Setting(key=security.SETTING_ENABLED, value="true"))
-        db.commit()
     client = TestClient(app)
 
     def code(response):
@@ -607,9 +561,6 @@ def test_pilote_nul_vue_non_prise_en_charge(api, monkeypatch):
     fresh, _ = api
     fresh.set_driver(NullDriver("Pas ici."))
     _local(monkeypatch)
-    with SessionLocal() as db:
-        db.add(Setting(key=security.SETTING_ENABLED, value="true"))
-        db.commit()
     client = TestClient(app)
     view = client.get("/api/devices/routing").json()
     assert view["supported"] is False and view["reason"] == "Pas ici." and view["server_mechanism"]["supported"] is False
@@ -625,9 +576,6 @@ def test_pilote_nul_vue_non_prise_en_charge(api, monkeypatch):
 def test_le_rapport_du_lecteur_est_memorise_borne_et_retire_a_la_deconnexion(api, monkeypatch):
     fresh, driver = api
     _local(monkeypatch)
-    with SessionLocal() as db:
-        db.add(Setting(key=security.SETTING_ENABLED, value="true"))
-        db.commit()
     client = TestClient(app)
     from app.routers import playback as playback_router
 

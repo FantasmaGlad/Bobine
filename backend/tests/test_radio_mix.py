@@ -14,7 +14,6 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import SessionLocal, init_db  # noqa: E402
-from app.devices import security  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Setting  # noqa: E402
 from app.radio_manager import METER_LEASE_SECONDS, RadioPlaybackManager, get_radio_manager  # noqa: E402
@@ -31,7 +30,7 @@ from app.utils.radio_mix import (  # noqa: E402
 )
 from app.utils.radio_sound import default_sound  # noqa: E402
 
-KEYS = ("radio_mix_radio_cable", "radio_mix_radio_network", "radio_sound_radio_cable", "radio_sound_radio_network", security.SETTING_ENABLED)
+KEYS = ("radio_mix_radio_cable", "radio_mix_radio_network", "radio_sound_radio_cable", "radio_sound_radio_network")
 
 
 def test_reglages_neutres_et_copie_independante():
@@ -116,9 +115,6 @@ def test_persistance_aller_retour_et_json_corrompu():
 def api(monkeypatch):
     _clean()
     monkeypatch.setattr("app.routers.devices.is_local_request", lambda request: True)
-    with SessionLocal() as db:
-        db.add(Setting(key=security.SETTING_ENABLED, value="true"))
-        db.commit()
     yield TestClient(app)
     _clean()
 

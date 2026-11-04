@@ -163,7 +163,7 @@ async fn run_mock_installation(app: tauri::AppHandle) -> Result<(), String> {
         r#"{"bobine":1,"event":"step","status":"start","step":9,"total":14,"pct":92,"slug":"healthcheck","title":"Contrôle d'intégrité final (/api/health)"}"#,
         "[INFO] Sonde API /api/health réussie (200 OK).",
         r#"{"bobine":1,"event":"step","status":"ok","step":9,"total":14,"pct":100,"slug":"healthcheck","title":"Contrôle d'intégrité final (/api/health)"}"#,
-        r#"{"bobine":1,"event":"run_end","status":"ok","pct":100,"total":14,"healthy":true,"url":"http://bobine.local:8000","port":8000}"#,
+        r#"{"bobine":1,"event":"run_end","status":"ok","pct":100,"total":14,"healthy":true,"url":"http://bobine.local:1903","port":1903}"#,
     ];
 
     let mut state = ProgressState::new();

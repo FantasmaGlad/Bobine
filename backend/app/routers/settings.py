@@ -130,10 +130,8 @@ _DEFAULTS = {
 }
 _AUTO_UPDATE_TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _LOGO_FILENAME = "logo.png"
-# "les-mills-sombre" est la clé interne historique du thème "Sombre" — inchangée pour ne rien casser sur les
-# installations existantes, seul son libellé affiché change côté frontend.
 _VALID_THEMES = {
-    "les-mills-sombre", "clair", "lune", "menthe", "automne", "hiver",
+    "clair", "lune", "menthe", "automne", "hiver",
     "chili", "ciel", "orchidee", "taupe", "charbon", "charbon-sombre",
     "beige", "lavande", "miel", "coco",
 }
@@ -256,7 +254,10 @@ async def broadcast_display_mode(db: Session) -> str:
 
 @router.get("")
 def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
-    theme = _get_db_value(db, "theme") or _DEFAULTS["theme"]
+    theme = _get_db_value(db, "theme")
+    if theme not in _VALID_THEMES:
+        # Thème retiré ou valeur restaurée d'une ancienne sauvegarde : le thème par défaut s'applique.
+        theme = _DEFAULTS["theme"]
     language = _get_db_value(db, "language") or _DEFAULTS["language"]
     has_custom = _logo_path().exists()
     active_logo = _get_db_value(db, "active_logo") or _DEFAULTS["active_logo"]
@@ -288,6 +289,8 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "deployment_profile": get_deployment_profile(),
         # Build Google Play : les mises à jour passent par la boutique (Réglages adapte la section Mises à jour).
         "store_managed": get_profile_handler().is_store_managed(),
+        # Faux sur Android et macOS : la planification n'y est pas proposée, la mise à jour reste manuelle.
+        "auto_update_supported": get_profile_handler().can_schedule_auto_apply(),
         "theme": theme,
         "language": language,
         "has_custom_logo": has_custom,
@@ -862,22 +865,13 @@ async def uninstall_system(payload: UninstallRequest, background_tasks: Backgrou
 
 
 def _sanitized_db_bytes(db_path: Path) -> bytes:
-    """Copie cohérente de la base SANS les réglages secrets (empreinte du PIN « Périphériques ») :
-    restaurer une sauvegarde sur une autre machine ne doit pas y importer un PIN inconnu."""
-    from app.devices.security import SECRET_SETTING_KEYS
-
+    """Copie cohérente de la base, compactée."""
     with tempfile.TemporaryDirectory(prefix="bobine_backup_") as tmp_dir:
         copy_path = Path(tmp_dir) / "database.db"
         src = sqlite3.connect(str(db_path))
         dst = sqlite3.connect(str(copy_path))
         try:
             src.backup(dst)
-            marks = ",".join("?" for _ in SECRET_SETTING_KEYS)
-            try:
-                dst.execute(f"DELETE FROM settings WHERE key IN ({marks})", SECRET_SETTING_KEYS)
-                dst.commit()
-            except sqlite3.OperationalError:  # table absente : base vierge, rien à retirer
-                pass
             dst.execute("VACUUM")  # purge physique des pages libérées
         finally:
             dst.close()

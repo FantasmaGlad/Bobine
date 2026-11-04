@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import Icon from "@/components/Icon";
-import { AccessGate } from "@/components/devices/AccessGate";
 import type { Notify } from "@/components/devices/common";
 import Explorer from "@/components/storage/Explorer";
 import FormatAdvisor from "@/components/storage/FormatAdvisor";
@@ -17,7 +16,7 @@ import { diffVolumes, encodeKey, storageRequest, type FormatJob, type PortableLi
 import { useStorageEvents } from "@/lib/useStorageEvents";
 import { usePointerGlow } from "@/lib/usePointerGlow";
 
-// Stockage externe : supports amovibles et téléphones. Même accès que les périphériques (PIN, écran local de confiance).
+// Stockage externe : supports amovibles et téléphones. Tout appareil du réseau local de confiance y accède directement.
 // Une liste, UNE action principale par support (Explorer), puis Importer ou Utiliser comme extension ; le reste est dans « Options ».
 
 interface ToastState { message: string; type: "success" | "error" | "warning"; }
@@ -61,8 +60,6 @@ export default function StoragePage() {
     void loadStatus();
   }, [loadStatus]);
 
-  const granted = status?.access === "granted";
-
   const reload = useCallback(async () => {
     const [volumes, phones] = await Promise.all([storageRequest<VolumeListing>("/volumes"), storageRequest<PortableListing>("/portable")]);
     if (volumes.ok) {
@@ -77,37 +74,28 @@ export default function StoragePage() {
         else if (removed) notify(t("storage.unplugged", { name: removed.name }), "success");
         else if (diff.added[0]) notify(t("storage.plugged", { name: diff.added[0] }), "success");
       }
-    } else if (volumes.error.code === "pin_required" || volumes.error.code === "devices_disabled" || volumes.error.code === "pin_not_set") {
-      void loadStatus();
     } else {
       notify(storageErrorText(volumes.error, t, lang), "error");
     }
     if (phones.ok) setPortable(phones.data);
-  }, [notify, t, lang, loadStatus]);
+  }, [notify, t, lang]);
 
   useEffect(() => {
-    if (!granted) return;
+    if (!status) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial d'une ressource externe (API)
     void reload();
-  }, [granted, reload]);
+  }, [status, reload]);
 
   // Une préparation déjà en cours (page rechargée, autre écran) est reprise là où elle en est.
   useEffect(() => {
-    if (!granted) return;
+    if (!status) return;
     void storageRequest<{ job: FormatJob | null }>("/format/active").then((result) => {
       if (result.ok && result.data.job) setFormatTarget({ key: result.data.job.job_id, name: result.data.job.label, resume: result.data.job });
     });
-  }, [granted]);
+  }, [status]);
 
-  // Branchements et retraits arrivent en direct (WebSocket, sans aucune donnée) ; l'état est relu par REST derrière le PIN.
-  useStorageEvents((event) => { if (event.scope !== "jobs") void reload(); }, granted);
-
-  const onChanged = useCallback(() => { void loadStatus(); void reload(); }, [loadStatus, reload]);
-
-  const logout = async () => {
-    await devicesRequest("/session", { method: "DELETE" });
-    onChanged();
-  };
+  // Branchements et retraits arrivent en direct (WebSocket, sans aucune donnée) ; l'état est relu par REST.
+  useStorageEvents((event) => { if (event.scope !== "jobs") void reload(); }, !!status);
 
   const openVolume = async (volume: StorageVolume) => {
     setOpening(volume.key);
@@ -154,9 +142,7 @@ export default function StoragePage() {
       {toast && <div className={`toast ${toast.type}`} role="status"><span>{toast.message}</span></div>}
 
       <main className="radio-lib-main">
-        {!granted ? (
-          <AccessGate status={status} onChanged={onChanged} notify={notify} t={t} />
-        ) : explorer ? (
+        {explorer ? (
           <>
             <Explorer
               {...ctx}
@@ -194,7 +180,6 @@ export default function StoragePage() {
             <div className="dv-quiet-actions">
               <button type="button" className="dv-link-btn" onClick={() => setAdvisor(true)}><Icon name="help" size={14} /> {t("storage.details.formatAdvice")}</button>
               <button type="button" className="dv-link-btn" onClick={() => void reload()}><Icon name="refresh" size={14} /> {t("storage.refresh")}</button>
-              {!status.local && <button type="button" className="dv-link-btn" onClick={logout}><Icon name="logout" size={14} /> {t("devices.access.logout")}</button>}
             </div>
           </div>
         )}

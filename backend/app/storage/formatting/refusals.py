@@ -38,8 +38,6 @@ REFUSALS: dict[str, tuple[int, str]] = {
     "format_token_used": (409, "Cette autorisation a déjà servi : recommencez la préparation."),
     "format_token_owner": (409, "Cette autorisation a été délivrée à un autre appareil : recommencez la préparation."),
     "format_identity_changed": (409, "Le support a changé depuis le plan (branchement, retrait ou remplacement) : rien n'a été effacé, recommencez."),
-    "format_pin_required": (401, "Saisissez le code PIN d'administration pour formater."),
-    "format_pin_invalid": (401, "Code PIN incorrect."),
     "format_not_authorized": (403, "Le système refuse cette opération (autorisation polkit manquante pour ce compte)."),
     "format_busy_mounted": (409, "Le support est encore utilisé par un autre programme (gestionnaire de fichiers, lecture) : fermez-le puis recommencez. Rien n'a été effacé."),
     "format_cannot_cancel": (409, "Trop tard pour annuler : l'effacement a commencé."),

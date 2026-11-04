@@ -22,7 +22,7 @@
 ; repli codé en dur ci-dessous, utilisé uniquement lors d'une compilation
 ; manuelle sans ce define.
 #ifndef MyAppVersion
-  #define MyAppVersion "5.0.7"
+  #define MyAppVersion "5.1.0"
 #endif
 ; Version utilisée dans le NOM DU FICHIER de l'installeur — délibérément
 ; distincte de MyAppVersion : par défaut
@@ -109,7 +109,7 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"; Tasks: des
 Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"; Parameters: "--startup"
 
 [Run]
-; Règle de pare-feu pour le port d'écoute backend (0.0.0.0, 8000 par défaut,
+; Règle de pare-feu pour le port d'écoute backend (0.0.0.0, 1903 par défaut,
 ; requis par la télécommande mobile depuis n'importe quel appareil du LAN :
 ; sans cette règle, la télécommande mobile peut simplement ne pas
 ; fonctionner). La règle est liée au PROGRAMME (BobineBackend.exe), pas à un

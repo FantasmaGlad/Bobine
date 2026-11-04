@@ -3,9 +3,7 @@ import assert from "node:assert/strict";
 import {
   audioKindIcon,
   bluetoothKindIcon,
-  isValidPin,
   parseApiError,
-  sanitizePin,
   secondsLeft,
   signalBars,
   splitBluetooth,
@@ -13,20 +11,13 @@ import {
   type BluetoothDevice,
 } from "../src/lib/devicesApi.ts";
 
-test("PIN : six chiffres exactement, saisie nettoyée", () => {
-  assert.equal(isValidPin("012345"), true);
-  for (const bad of ["12345", "1234567", "12a456", "", " 12345"]) assert.equal(isValidPin(bad), false, bad);
-  assert.equal(sanitizePin("12-34 56789"), "123456");
-  assert.equal(sanitizePin("abc"), "");
-});
-
 test("erreurs de l'API : détail structuré, texte simple ou absent", () => {
-  assert.deepEqual(parseApiError(403, { detail: { code: "pin_not_set", message: "Définissez", extra_field: 1 } }), {
-    status: 403, code: "pin_not_set", message: "Définissez", extra: { extra_field: 1 },
+  assert.deepEqual(parseApiError(409, { detail: { code: "busy", message: "Occupé", extra_field: 1 } }), {
+    status: 409, code: "busy", message: "Occupé", extra: { extra_field: 1 },
   });
   assert.equal(parseApiError(400, { detail: "Message simple" }).message, "Message simple");
   assert.equal(parseApiError(500, null).code, "error");
-  assert.equal(parseApiError(429, { detail: { code: "locked", message: "x", retry_after: 60 } }).extra.retry_after, 60);
+  assert.equal(parseApiError(429, { detail: { code: "timeout", message: "x", retry_after: 60 } }).extra.retry_after, 60);
 });
 
 test("barres de signal", () => {

@@ -60,7 +60,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 cd frontend && npm install && npm run dev   # http://localhost:3000
 ```
 
-> **Dev port**: `next dev` on `:3000` routes its API/WebSocket calls to `localhost:8001` (`getApiUrl`/`getWsUrl`). To test the integrated single-origin build: `cd frontend && npm run build`, then start the backend on `:8000` (which serves `frontend/out` at `/`).
+> **Dev port**: `next dev` on `:3000` routes its API/WebSocket calls to `localhost:8001` (`getApiUrl`/`getWsUrl`). To test the integrated single-origin build: `cd frontend && npm run build`, then start the backend on `:1903` (which serves `frontend/out` at `/`).
 
 **Validation before committing**:
 
@@ -79,7 +79,7 @@ Priority order: (1) `BOBINE_*` environment variables, (2) `/etc/bobine/config.to
 |---|---|---|
 | `database.database_url` | `sqlite:///data/database.db` | SQLite connection URL |
 | `media.media_dir` / `watch_dir` | `data/videos` / `data/watched` | Video storage and watched auto-import folder |
-| `server.host` / `port` | `0.0.0.0:8000` | Backend HTTP listen address (preferred `port`, see below) |
+| `server.host` / `port` | `0.0.0.0:1903` | Backend HTTP listen address (preferred `port`, see below) |
 | `playback.wait_time_between_courses` | `0` | Inter-course delay (s) |
 | `playback.volume_default` | `100` | Default volume (0-100) |
 
@@ -89,9 +89,9 @@ Priority order: (1) `BOBINE_*` environment variables, (2) `/etc/bobine/config.to
 
 All launchers (`backend/run_backend.py`, `app/desktop/tray.py`, `bobine_bootstrap.py`, `install.sh`, `scripts/watchdog.sh`, Kotlin) resolve their port through `backend/app/utils/port.py`:
 
-- **Preferred port**: `settings.port` (8000 by default).
-- **Fallback (`resolve_port()`)**: if 8000 is busy, tries the next 10 ports, then an OS-assigned port.
-- **Strict mode (`BOBINE_PORT_STRICT=1`)**: disables fallback (used by `bobine-backend.service` on the appliance where the nftables 80 → 8000 redirect requires a fixed port).
+- **Preferred port**: `settings.port` (1903 by default).
+- **Fallback (`resolve_port()`)**: if 1903 is busy, tries the next 10 ports, then an OS-assigned port.
+- **Strict mode (`BOBINE_PORT_STRICT=1`)**: disables fallback (used by `bobine-backend.service` on the appliance where the nftables 80 → 1903 redirect requires a fixed port).
 - **Runtime file (`backend-runtime.json`)**: atomically written at the data root (`port`, `pid`, `preferred_port`, `fallback`), read by the desktop tray, Android (`BackendEndpoint`), `watchdog.sh`, `GET /api/settings` (`network.port`) and the mDNS service record.
 
 ---
@@ -120,7 +120,7 @@ The backend runs as a single `uvicorn` process (`--workers 1`). Playback state (
 - `scheduler_manager.py`: `APScheduler` time-based scheduler and periodic log/metric retention cleanup.
 - `models.py` & `database.py`: SQLAlchemy ORM models and idempotent startup micro-migrations (`_migrate_add_missing_columns`).
 - `routers/`: HTTP endpoints grouped by domain (`videos`, `backgrounds`, `playlists`, `audio`, `audio_playlists`, `schedule`, `playback`, `settings`, `logs`, `import_jobs`, `radio`, `radio_playlists`, `radio_announcements`, `devices`, `storage`, `chapters`, `metrics`, `updates`, `uploads`, `display`, `diagnostics`).
-- `devices/` & `storage/`: Cross-platform hardware drivers (Linux PipeWire/BlueZ/nmcli/udisks2, Windows/macOS Rust sidecar, Android Kotlin bridge) and PIN security (§5bis, §5ter).
+- `devices/` & `storage/`: Cross-platform hardware drivers (Linux PipeWire/BlueZ/nmcli/udisks2, Windows/macOS Rust sidecar, Android Kotlin bridge) (§5bis, §5ter).
 
 ---
 
@@ -250,17 +250,17 @@ Independent music subsystem (`radio_manager.py`, `radio_*` tables) with **two au
 
 `/devices` tab (**disabled by default**):
 - **Drivers (`backend/app/devices/`)**: `linux.py` (PipeWire `pw-dump`/`wpctl`, BlueZ D-Bus, NetworkManager `nmcli`), `sidecar.py` + Rust crate `devices/` (`bobine-devices` on Windows/macOS, experimental behind `BOBINE_DEVICES_EXPERIMENTAL=1`), `android.py` + `DeviceBridge.kt`.
-- **Security & Pairing (`security.py`)**: the local screen (`127.0.0.1`) is trusted; any remote device must enter a **6-digit PIN** (scrypt + `HttpOnly; SameSite=Strict` cookie) or, during initial setup of a browserless screen (Android TV), claim the **single-use pairing code** shown on the local screen (`POST /api/devices/pairing/{generate,verify,claim}`). Every Wi-Fi change arms a 60 s automatic rollback unless confirmed (`POST /api/devices/wifi/confirm`).
+- **Access (`locality.py`)**: Bobine runs on a trusted local network; any device on it opens Devices and Storage without a code. The local screen is only told apart for what physically concerns it (local browser audio stream, the Wi-Fi link in use). Every Wi-Fi change arms a 60 s automatic rollback unless confirmed (`POST /api/devices/wifi/confirm`).
 - **Orbital Map & Mixer**: `GET /api/devices/topology` exposes the graph of audio outputs, Bluetooth devices, Wi-Fi, Ethernet and connected screens; the tab also provides the routing graph and Web Audio mixer for both radio outputs (Music/Announcements/Master gains, mute, solo, equalizers, PipeWire stream linking on Linux).
 
 ---
 
 ## 5ter. External storage (USB drives, disks, SD cards, phones)
 
-`/storage` page (Linux desktop and appliance; format advisor `fsadvisor.py` available everywhere), protected by the same PIN as `/devices`:
+`/storage` page (Linux desktop and appliance; format advisor `fsadvisor.py` available everywhere), open to the trusted local network like `/devices`:
 - **Hot-plug detection & unprivileged mounting (`backend/app/storage/`)**: `lsblk` inventory + `udisks2` D-Bus signals, mounted via `udisksctl` (polkit, read-only by default `noatime,nodiratime,noexec`), strictly excluding internal or system disks.
 - **Two modes**: *Import* (SHA-256 verified copy into internal storage) or *Use as extension* (direct indexing by filesystem UUID with automatic path remapping when re-plugged).
-- **Drive preparation**: quick-format wizard on Linux (GPT + exFAT, ext4, FAT32 or NTFS), restricted to removable drives reported by `udisks2`, requiring a configured PIN and typed drive-name confirmation; a dedicated polkit rule (`configure-storage-access`) delegates these operations to the install account.
+- **Drive preparation**: quick-format wizard on Linux (GPT + exFAT, ext4, FAT32 or NTFS), restricted to removable drives reported by `udisks2`, requiring typed drive-name confirmation; a dedicated polkit rule (`configure-storage-access`) delegates these operations to the install account.
 
 ---
 
@@ -297,11 +297,11 @@ curl -fsSL https://bobine.fit/install.sh | bash
 
 ### systemd Services Created
 
-- `bobine-backend.service`: single-process Uvicorn on port 8000 (`BOBINE_PORT_STRICT=1`, `Restart=always`).
+- `bobine-backend.service`: single-process Uvicorn on port 1903 (`BOBINE_PORT_STRICT=1`, `Restart=always`).
 - `bobine-kiosk.service`: fullscreen Chromium kiosk on X11 (`xinit`, `Restart=always`).
 - `bobine-audio-guard.service`: mutes audio outputs at boot/shutdown outside the kiosk session.
 - `bobine-watchdog.timer` + `.service`: polls `GET /api/health` every 30 s (`scripts/watchdog.sh`) and restarts any dead or frozen component.
-- `bobine-redirect.service` & `bobine-cpu-governor.service`: nftables `80 → 8000` redirect and `performance` CPU governor.
+- `bobine-redirect.service` & `bobine-cpu-governor.service`: nftables `80 → 1903` redirect and `performance` CPU governor.
 
 ### Graphical Installation Assistant
 
@@ -337,7 +337,7 @@ Three channels selectable at install time or in *Settings → Software Updates* 
 | **Schedule & Playback** | `/api/schedule`, `/api/playback`, `/api/display` | Recurring schedules, playback transport (`play`, `pause`, `seek`, `stop`) and external display state (`/display/state`) |
 | **Radio** | `/api/radio` | Music library, playlists, per-output state and equalizer (`radio_cable`, `radio_network`), announcements and rules |
 | **Imports & Uploads** | `/api/import-jobs`, `/api/uploads`, `/api/diagnostics` | FFmpeg import queue, resumable chunked uploads and import diagnostics |
-| **Devices & Storage** | `/api/devices`, `/api/storage` | Topology, audio/mixer, Bluetooth, Wi-Fi, PIN/code pairing and external USB/SD drives |
+| **Devices & Storage** | `/api/devices`, `/api/storage` | Topology, audio/mixer, Bluetooth, Wi-Fi and external USB/SD drives |
 | **Settings, Updates & Metrics** | `/api/settings`, `/api/updates`, `/api/metrics`, `/api/logs`, `/api/health` | Configuration, ZIP backup/restore, update checks/install, attendance analytics, hardware telemetry and health |
 
 ### WebSockets
@@ -355,10 +355,10 @@ Three channels selectable at install time or in *Settings → Software Updates* 
 ### Finding a device whose IP changed
 
 ```bash
-curl -s --connect-timeout 2 http://bobine.local:8000/api/settings
+curl -s --connect-timeout 2 http://bobine.local:1903/api/settings
 # Or scan the local subnet:
 SUBNET=$(ip route | grep default | awk '{print $3}' | cut -d. -f1-3).0/24
-nmap -p 8000 --open "$SUBNET" -oG - | grep "8000/open"
+nmap -p 1903 --open "$SUBNET" -oG - | grep "1903/open"
 ```
 
 ---
@@ -373,7 +373,7 @@ nmap -p 8000 --open "$SUBNET" -oG - | grep "8000/open"
 | **Dashboards & Coach** | `/dashboard-cable`, `/dashboard-network`, `/coach` | Cable/Network control dashboards and two-column Audio Coach console with 16:9 stage monitor (`/coach`). |
 | **Libraries & Schedule** | `/library`, `/playlists`, `/backgrounds`, `/audio`, `/audio-playlists`, `/schedule` | Management of videos, subtitles, chapters, playlists, visual loops, audio courses, and the weekly timetable. |
 | **24/7 Radio** | `/radio`, `/radio-remote`, `/radio-library`, `/radio-announcements` | TV radio screen (`/radio?channel=cable\|network`), web remote with equalizer, music library, and voice reminders. |
-| **Admin & System** | `/settings`, `/metrics` (`/courses`, `/system`), `/devices`, `/storage`, `/logs` | Settings and 16 themes, attendance analytics and hardware telemetry, audio/BT/Wi-Fi devices, USB storage, and logs. |
+| **Admin & System** | `/settings`, `/metrics` (`/courses`, `/system`), `/devices`, `/storage`, `/logs` | Settings and 15 themes, attendance analytics and hardware telemetry, audio/BT/Wi-Fi devices, USB storage, and logs. |
 
 ### 10.2 Mounting & Integration per Deployment Profile
 

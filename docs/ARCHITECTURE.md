@@ -41,7 +41,7 @@ Diffusion, planification et pilotage de vidéos de cours en salle, sur mini PC d
 ### Stack technique
 
 - **Backend** : Python 3.11+, [FastAPI](https://fastapi.tiangolo.com/) + `uvicorn` (`--workers 1`), [SQLAlchemy](https://www.sqlalchemy.org/), SQLite (`data/database.db`), `APScheduler` (planification), `watchdog` (surveillance des dossiers d'import), `ffmpeg` avec accélération matérielle multi-OS (`h264_mediacodec` sur Android, `h264_videotoolbox` sur macOS, `h264_vaapi` sur Linux, `h264_qsv` sur Windows, repli `libx264`). Conservation intégrale des flux 2K et 4K sans sous-échantillonnage.
-- **Frontend** : [Next.js](https://nextjs.org/) 16 (App Router, export statique servi par le backend en production), React 19, TypeScript, CSS Vanilla (16 thèmes commutables à chaud via `:root[data-theme=…]`, dont « Charbon » / « Charbon Sombre », contrôlés par tests de contraste WCAG AA), PWA, WebSockets, Web Audio API.
+- **Frontend** : [Next.js](https://nextjs.org/) 16 (App Router, export statique servi par le backend en production), React 19, TypeScript, CSS Vanilla (15 thèmes commutables à chaud via `:root[data-theme=…]`, dont « Charbon » / « Charbon Sombre », contrôlés par tests de contraste WCAG AA), PWA, WebSockets, Web Audio API.
 - **Exploitation & Kiosque** : Debian 13 (Trixie), Chromium en mode kiosque (X11 / `xinit`), `systemd`, `avahi-daemon` (découverte mDNS).
 - **Portabilité Android (`android/`)** : Kotlin + CPython embarqué via [Chaquopy](https://chaquopy.com/), `minSdk 34` / `targetSdk 36` (`compileSdk 37`). Double affichage matériel via `DisplayManager` et `Presentation` (écran tactile `/grid` + sortie HDMI `/cinema`), `ForegroundService` persistant, binaires NDK r28c (`ffmpeg`/`ffprobe`, alignement page 16 Ko).
 - **Installation & outils** : `install.sh` (Bash idempotent, §7) ; assistant graphique (`assistant/`, Tauri 2 / Rust — voir [`assistant/README.md`](../assistant/README.md)) ; composants natifs Rust `devices/` et `media/`.
@@ -60,7 +60,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 cd frontend && npm install && npm run dev   # http://localhost:3000
 ```
 
-> **Port de dev** : `next dev` sur `:3000` route ses appels API/WebSocket vers `localhost:8001` (`getApiUrl`/`getWsUrl`). Pour tester le rendu intégré sur une seule origine : `cd frontend && npm run build` puis lancer le backend sur `:8000` (qui sert `frontend/out` à `/`).
+> **Port de dev** : `next dev` sur `:3000` route ses appels API/WebSocket vers `localhost:8001` (`getApiUrl`/`getWsUrl`). Pour tester le rendu intégré sur une seule origine : `cd frontend && npm run build` puis lancer le backend sur `:1903` (qui sert `frontend/out` à `/`).
 
 **Validation avant commit** :
 
@@ -79,7 +79,7 @@ Ordre de priorité : (1) variables `BOBINE_*`, (2) `/etc/bobine/config.toml` (pr
 |---|---|---|
 | `database.database_url` | `sqlite:///data/database.db` | URL de connexion SQLite |
 | `media.media_dir` / `watch_dir` | `data/videos` / `data/watched` | Stockage des vidéos et dossier d'import automatique |
-| `server.host` / `port` | `0.0.0.0:8000` | Écoute HTTP du backend (`port` préféré, voir ci-dessous) |
+| `server.host` / `port` | `0.0.0.0:1903` | Écoute HTTP du backend (`port` préféré, voir ci-dessous) |
 | `playback.wait_time_between_courses` | `0` | Délai d'inter-cours (s) |
 | `playback.volume_default` | `100` | Volume par défaut (0-100) |
 
@@ -89,9 +89,9 @@ Ordre de priorité : (1) variables `BOBINE_*`, (2) `/etc/bobine/config.toml` (pr
 
 Tous les lanceurs (`backend/run_backend.py`, `app/desktop/tray.py`, `bobine_bootstrap.py`, `install.sh`, `scripts/watchdog.sh`, Kotlin) passent par `backend/app/utils/port.py` :
 
-- **Port préféré** : `settings.port` (8000 par défaut).
-- **Repli (`resolve_port()`)** : si 8000 est occupé, essaie les 10 ports suivants puis un port éphémère de l'OS.
-- **Mode strict (`BOBINE_PORT_STRICT=1`)** : désactive le repli (utilisé par `bobine-backend.service` sur l'appliance où la redirection nftables 80 → 8000 exige un port fixe).
+- **Port préféré** : `settings.port` (1903 par défaut).
+- **Repli (`resolve_port()`)** : si 1903 est occupé, essaie les 10 ports suivants puis un port éphémère de l'OS.
+- **Mode strict (`BOBINE_PORT_STRICT=1`)** : désactive le repli (utilisé par `bobine-backend.service` sur l'appliance où la redirection nftables 80 → 1903 exige un port fixe).
 - **Fichier d'exécution (`backend-runtime.json`)** : écrit atomiquement à la racine des données (`port`, `pid`, `preferred_port`, `fallback`), lu par la barre d'état desktop, Android (`BackendEndpoint`), `watchdog.sh`, `GET /api/settings` (`network.port`) et l'annonce mDNS.
 
 ---
@@ -120,7 +120,7 @@ Le backend tourne en un seul processus `uvicorn` (`--workers 1`). L'état de lec
 - `scheduler_manager.py` : Planification horaire `APScheduler` et purge périodique des métriques/journaux.
 - `models.py` & `database.py` : ORM SQLAlchemy et micro-migrations idempotentes (`_migrate_add_missing_columns`).
 - `routers/` : Endpoints HTTP par domaine (`videos`, `backgrounds`, `playlists`, `audio`, `audio_playlists`, `schedule`, `playback`, `settings`, `logs`, `import_jobs`, `radio`, `radio_playlists`, `radio_announcements`, `devices`, `storage`, `chapters`, `metrics`, `updates`, `uploads`, `display`, `diagnostics`).
-- `devices/` & `storage/` : Pilotes matériels multi-OS (Linux PipeWire/BlueZ/nmcli/udisks2, sidecar Rust Windows/macOS, pont Kotlin Android) et sécurité par PIN (§5bis, §5ter).
+- `devices/` & `storage/` : Pilotes matériels multi-OS (Linux PipeWire/BlueZ/nmcli/udisks2, sidecar Rust Windows/macOS, pont Kotlin Android) (§5bis, §5ter).
 
 ---
 
@@ -250,17 +250,17 @@ Sous-système musical indépendant (`radio_manager.py`, tables `radio_*`) avec *
 
 Onglet `/devices` (**désactivé par défaut**) :
 - **Pilotes (`backend/app/devices/`)** : `linux.py` (PipeWire `pw-dump`/`wpctl`, BlueZ D-Bus, NetworkManager `nmcli`), `sidecar.py` + crate Rust `devices/` (`bobine-devices` sur Windows/macOS, expérimental sous `BOBINE_DEVICES_EXPERIMENTAL=1`), `android.py` + `DeviceBridge.kt`.
-- **Sécurité & Appairage (`security.py`)** : l'écran local (`127.0.0.1`) est de confiance ; tout appareil distant doit saisir un **PIN à 6 chiffres** (scrypt + cookie `HttpOnly; SameSite=Strict`) ou, lors de la première configuration d'un écran sans navigateur (Android TV), réclamer le **code d'appairage à usage unique** affiché sur l'écran local (`POST /api/devices/pairing/{generate,verify,claim}`). Tout changement de Wi-Fi arme un retour automatique à l'ancien réseau sous 60 s sans confirmation (`POST /api/devices/wifi/confirm`).
+- **Accès (`locality.py`)** : Bobine fonctionne sur un réseau local de confiance ; tout appareil du réseau ouvre Périphériques et Stockage sans code. L'écran local n'est distingué que pour ce qui le concerne physiquement (flux audio du navigateur local, Wi-Fi par lequel on agit). Tout changement de Wi-Fi arme un retour automatique à l'ancien réseau sous 60 s sans confirmation (`POST /api/devices/wifi/confirm`).
 - **Carte orbitale & Table de mixage** : `GET /api/devices/topology` expose la topologie des sorties audio, Bluetooth, Wi-Fi, Ethernet et écrans connectés ; l'onglet inclut aussi le graphe de routage et la table de mixage Web Audio des deux sorties radio (gains Musique/Rappels/Master, sourdines, solos, égaliseurs, liaison PipeWire sous Linux).
 
 ---
 
 ## 5ter. Stockage externe (clés USB, disques, cartes SD, téléphones)
 
-Page `/storage` (Linux desktop et appliance ; conseiller de format `fsadvisor.py` disponible partout), protégée par le même PIN que `/devices` :
+Page `/storage` (Linux desktop et appliance ; conseiller de format `fsadvisor.py` disponible partout), ouverte au réseau local de confiance comme `/devices` :
 - **Détection et montage sans privilèges (`backend/app/storage/`)** : inventaire `lsblk` + signaux D-Bus `udisks2`, montage via `udisksctl` (polkit, lecture seule par défaut `noatime,nodiratime,noexec`), exclusion stricte des disques système ou internes.
 - **Deux modes** : *Importer* (copie vérifiée SHA-256 vers le stockage interne) ou *Utiliser comme extension* (indexation directe par UUID du système de fichiers avec remappage automatique au rebranchement).
-- **Préparation de support** : assistant de formatage rapide sous Linux (GPT + exFAT, ext4, FAT32 ou NTFS), limité aux supports amovibles signalés par `udisks2`, exigeant un PIN configuré et la saisie du nom du volume ; une règle polkit dédiée (`configure-storage-access`) délègue ces opérations au compte choisi à l'installation.
+- **Préparation de support** : assistant de formatage rapide sous Linux (GPT + exFAT, ext4, FAT32 ou NTFS), limité aux supports amovibles signalés par `udisks2`, exigeant la saisie du nom du volume ; une règle polkit dédiée (`configure-storage-access`) délègue ces opérations au compte choisi à l'installation.
 
 ---
 
@@ -297,11 +297,11 @@ curl -fsSL https://bobine.fit/install.sh | bash
 
 ### Services Systemd créés
 
-- `bobine-backend.service` : Uvicorn mono-processus sur le port 8000 (`BOBINE_PORT_STRICT=1`, `Restart=always`).
+- `bobine-backend.service` : Uvicorn mono-processus sur le port 1903 (`BOBINE_PORT_STRICT=1`, `Restart=always`).
 - `bobine-kiosk.service` : Kiosque Chromium plein écran sous X11 (`xinit`, `Restart=always`).
 - `bobine-audio-guard.service` : Coupe les sorties audio au démarrage/arrêt hors session kiosque.
 - `bobine-watchdog.timer` + `.service` : Sonde `GET /api/health` toutes les 30 s (`scripts/watchdog.sh`) et relance tout composant gelé.
-- `bobine-redirect.service` & `bobine-cpu-governor.service` : Redirection nftables `80 → 8000` et profil CPU `performance`.
+- `bobine-redirect.service` & `bobine-cpu-governor.service` : Redirection nftables `80 → 1903` et profil CPU `performance`.
 
 ### Assistant d'installation graphique
 
@@ -337,7 +337,7 @@ Trois canaux configurables à l'installation ou dans *Réglages → Mises à jou
 | **Planning & Lecture** | `/api/schedule`, `/api/playback`, `/api/display` | Programmation horaire, contrôle de lecture (`play`, `pause`, `seek`, `stop`) et état des écrans externes (`/display/state`) |
 | **Radio** | `/api/radio` | Bibliothèque musicale, playlists, état et égaliseur par sortie (`radio_cable`, `radio_network`), annonces et règles |
 | **Imports & Téléversements** | `/api/import-jobs`, `/api/uploads`, `/api/diagnostics` | File d'importation FFmpeg, téléversement par morceaux reprenable et diagnostic d'import |
-| **Périphériques & Stockage** | `/api/devices`, `/api/storage` | Topologie, audio/table de mixage, Bluetooth, Wi-Fi, appairage par PIN/code et supports USB/SD externes |
+| **Périphériques & Stockage** | `/api/devices`, `/api/storage` | Topologie, audio/table de mixage, Bluetooth, Wi-Fi et supports USB/SD externes |
 | **Paramètres, Mises à jour & Métriques** | `/api/settings`, `/api/updates`, `/api/metrics`, `/api/logs`, `/api/health` | Configuration, sauvegarde/restauration ZIP, vérification/application des mises à jour, statistiques d'assiduité, télémétrie matérielle et santé |
 
 ### WebSockets
@@ -355,10 +355,10 @@ Trois canaux configurables à l'installation ou dans *Réglages → Mises à jou
 ### Retrouver un appareil dont l'IP a changé
 
 ```bash
-curl -s --connect-timeout 2 http://bobine.local:8000/api/settings
+curl -s --connect-timeout 2 http://bobine.local:1903/api/settings
 # Ou scan du sous-réseau local :
 SUBNET=$(ip route | grep default | awk '{print $3}' | cut -d. -f1-3).0/24
-nmap -p 8000 --open "$SUBNET" -oG - | grep "8000/open"
+nmap -p 1903 --open "$SUBNET" -oG - | grep "1903/open"
 ```
 
 ---
@@ -373,7 +373,7 @@ nmap -p 8000 --open "$SUBNET" -oG - | grep "8000/open"
 | **Régies & Coach** | `/dashboard-cable`, `/dashboard-network`, `/coach` | Tableaux de bord de diffusion Câblé/Réseau et console Audio Coach double colonne avec retour vidéo 16:9 (`/coach`). |
 | **Bibliothèques & Planning** | `/library`, `/playlists`, `/backgrounds`, `/audio`, `/audio-playlists`, `/schedule` | Gestion des vidéos, sous-titres, chapitres, playlists, boucles d'ambiance, cours audio et grille horaire hebdomadaire. |
 | **Radio 24/7** | `/radio`, `/radio-remote`, `/radio-library`, `/radio-announcements` | Écran radio TV (`/radio?channel=cable\|network`), télécommande web avec égaliseur, bibliothèque musicale et rappels vocaux. |
-| **Administration & Système** | `/settings`, `/metrics` (`/courses`, `/system`), `/devices`, `/storage`, `/logs` | Paramètres et 16 thèmes, statistiques d'assiduité et télémétrie matérielle, périphériques audio/BT/Wi-Fi, stockage USB et journaux. |
+| **Administration & Système** | `/settings`, `/metrics` (`/courses`, `/system`), `/devices`, `/storage`, `/logs` | Paramètres et 15 thèmes, statistiques d'assiduité et télémétrie matérielle, périphériques audio/BT/Wi-Fi, stockage USB et journaux. |
 
 ### 10.2 Intégration et montage par profil de déploiement
 

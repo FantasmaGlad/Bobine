@@ -2,9 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import Icon from "@/components/Icon";
 import SegmentedTabs from "@/components/SegmentedTabs";
-import { AccessGate, SecurityPanel } from "@/components/devices/AccessGate";
 import AudioSection from "@/components/devices/AudioSection";
 import BluetoothSection from "@/components/devices/BluetoothSection";
 import WifiSection from "@/components/devices/WifiSection";
@@ -17,11 +15,11 @@ import { useDevicesEvents } from "@/lib/useDevicesEvents";
 import { useRadioFeed } from "@/lib/useRadioFeed";
 import { usePointerGlow } from "@/lib/usePointerGlow";
 
-// Périphériques : audio, Bluetooth et Wi-Fi de la machine qui diffuse. Fonction désactivée par défaut ;
-// l'écran local est de confiance, tout autre appareil saisit un code PIN (voir docs/ARCHITECTURE.md).
+// Périphériques : audio, Bluetooth et Wi-Fi de la machine qui diffuse. Tout appareil du réseau local de confiance
+// y accède directement (voir docs/ARCHITECTURE.md).
 // Même barre de sections horizontale que la bibliothèque radio.
 
-type Tab = "map" | "audio" | "bluetooth" | "wifi" | "routing" | "mixer" | "security";
+type Tab = "map" | "audio" | "bluetooth" | "wifi" | "routing" | "mixer";
 const TAB_KEY = "bobine.devices.tab";
 
 interface ToastState { message: string; type: "success" | "error" | "warning"; }
@@ -53,7 +51,7 @@ export default function DevicesPage() {
   }, []);
   const chooseTab = (next: Tab) => {
     setTab(next);
-    try { if (next !== "security") window.localStorage.setItem(TAB_KEY, next); } catch { /* ignoré */ }
+    try { window.localStorage.setItem(TAB_KEY, next); } catch { /* ignoré */ }
   };
 
   const loadStatus = useCallback(async () => {
@@ -71,21 +69,11 @@ export default function DevicesPage() {
   }, [loadStatus]);
 
   // Évènements temps réel : relit les sections affichées (les évènements ne portent aucune donnée).
-  useDevicesEvents(() => setRefreshKey((k) => k + 1), status?.access === "granted");
-
-  const onChanged = useCallback(() => {
-    setRefreshKey((k) => k + 1);
-    void loadStatus();
-  }, [loadStatus]);
-
-  const logout = async () => {
-    await devicesRequest("/session", { method: "DELETE" });
-    onChanged();
-  };
+  useDevicesEvents(() => setRefreshKey((k) => k + 1), !!status);
 
   // Flux temps réel des sorties radio : seulement pour le graphe et la table de mixage ; le vumètre (mesure par le lecteur)
   // uniquement quand la table de mixage est affichée.
-  const radioFeed = useRadioFeed(status?.access === "granted" && (tab === "routing" || tab === "mixer"), status?.access === "granted" && tab === "mixer");
+  const radioFeed = useRadioFeed(!!status && (tab === "routing" || tab === "mixer"), !!status && tab === "mixer");
 
   if (loadError && !status) return <div className="rl-center-note">{t("devices.errors.network")}</div>;
   if (!status) return <div className="rl-center-note">{t("devices.loading")}</div>;
@@ -96,34 +84,26 @@ export default function DevicesPage() {
     <div className="radio-lib radio-lib--tabs dv-page" ref={rootRef}>
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
 
-      {status.access === "granted" && (
-        <div className="live-block channel-card rl-nav-card rl-nav-card--centered">
-          <div className="channel-card-right">
-            <SegmentedTabs
-              ariaLabel={t("devices.sectionsLabel")}
-              value={tab}
-              onChange={(id) => chooseTab(id as Tab)}
-              tabs={[
-                { id: "map", icon: "hub", label: t("devices.tabs.map") },
-                { id: "audio", icon: "speaker", label: t("devices.tabs.audio") },
-                { id: "bluetooth", icon: "bluetooth", label: t("devices.tabs.bluetooth") },
-                { id: "wifi", icon: "wifi", label: t("devices.tabs.wifi") },
-                { id: "routing", icon: "alt_route", label: t("devices.tabs.routing") },
-                { id: "mixer", icon: "instant_mix", label: t("devices.tabs.mixer") },
-                ...(status.local ? [{ id: "security", icon: "shield", label: t("devices.tabs.security") }] : []),
-              ]}
-            />
-            {!status.local && (
-              <button type="button" className="btn btn-secondary" onClick={logout}><Icon name="logout" size={14} /> {t("devices.access.logout")}</button>
-            )}
-          </div>
+      <div className="live-block channel-card rl-nav-card rl-nav-card--centered">
+        <div className="channel-card-right">
+          <SegmentedTabs
+            ariaLabel={t("devices.sectionsLabel")}
+            value={tab}
+            onChange={(id) => chooseTab(id as Tab)}
+            tabs={[
+              { id: "map", icon: "hub", label: t("devices.tabs.map") },
+              { id: "audio", icon: "speaker", label: t("devices.tabs.audio") },
+              { id: "bluetooth", icon: "bluetooth", label: t("devices.tabs.bluetooth") },
+              { id: "wifi", icon: "wifi", label: t("devices.tabs.wifi") },
+              { id: "routing", icon: "alt_route", label: t("devices.tabs.routing") },
+              { id: "mixer", icon: "instant_mix", label: t("devices.tabs.mixer") },
+            ]}
+          />
         </div>
-      )}
+      </div>
 
       <main className="radio-lib-main">
-        {status.access !== "granted" ? (
-          <AccessGate status={status} onChanged={onChanged} notify={notify} t={t} />
-        ) : tab === "map" ? (
+        {tab === "map" ? (
           <MapSection refreshKey={refreshKey} t={t} onOpen={(next, ref) => { chooseTab(next); setFocus((f) => ({ id: ref, nonce: f.nonce + 1 })); }} />
         ) : tab === "audio" ? (
           <AudioSection {...section} />
@@ -133,10 +113,8 @@ export default function DevicesPage() {
           <WifiSection {...section} />
         ) : tab === "routing" ? (
           <RoutingSection {...section} feed={radioFeed} />
-        ) : tab === "mixer" ? (
-          <MixerSection {...section} feed={radioFeed} />
         ) : (
-          <SecurityPanel status={status} onChanged={onChanged} notify={notify} t={t} />
+          <MixerSection {...section} feed={radioFeed} />
         )}
       </main>
     </div>

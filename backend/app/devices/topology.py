@@ -2,7 +2,7 @@
 connu — sorties audio, appareils Bluetooth, Wi-Fi, Ethernet, écrans et télécommandes Bobine connectés.
 
 `build_topology` est PUR (testable sans matériel). Les adresses IP des clients n'apparaissent que dans cette
-réponse, protégée comme tout `/api/devices/*` (PIN).
+réponse, comme tout `/api/devices/*`.
 """
 
 from __future__ import annotations

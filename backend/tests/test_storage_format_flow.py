@@ -1,5 +1,5 @@
 """Assistant de formatage de bout en bout avec un pilote factice : API, plan (aucune écriture), jeton, cascade de refus,
-exécution, annulation, échec et retour à l'état vierge, vérification après coup, accès (PIN), journal sans secret.
+exécution, annulation, échec et retour à l'état vierge, vérification après coup, journal sans secret.
 
 Aucun matériel : les « disques » sont des dossiers (voir storage_fakes.py). Le test réel sur image disque est un script
 séparé, réservé à la recette locale."""
@@ -19,7 +19,6 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import SessionLocal, init_db  # noqa: E402
-from app.devices import security  # noqa: E402
 from app.devices.base import DeviceError  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import ActivityLog, ExternalVolume, Setting, StorageImport, Video  # noqa: E402
@@ -30,7 +29,7 @@ from app.storage.service import StorageService  # noqa: E402
 
 from storage_fakes import FakeStorageDriver  # noqa: E402
 
-KEYS = (security.SETTING_ENABLED, security.SETTING_PIN_HASH, "storage_defaults")
+KEYS = ("storage_defaults",)
 GIB = 1024 ** 3
 
 
@@ -46,21 +45,12 @@ def _cleanup_db():
     availability.set_online({})
 
 
-def _enable(pin=None):
-    with SessionLocal() as db:
-        db.add(Setting(key=security.SETTING_ENABLED, value="true"))
-        if pin:
-            db.add(Setting(key=security.SETTING_PIN_HASH, value=security.hash_pin(pin)))
-        db.commit()
-
-
 @pytest.fixture()
 def env(tmp_path, monkeypatch):
     init_db()
     _cleanup_db()
     monkeypatch.delenv("BOBINE_STORAGE_FORMAT_ONLY", raising=False)
     monkeypatch.delenv("BOBINE_STORAGE_FORMAT_IMAGES", raising=False)
-    security.rate_limiter._by_ip.clear()
     driver = FakeStorageDriver(tmp_path / "fake")
     service = StorageService(lambda: driver)
     # Le pilote simule un disque distinct : son dossier ne doit pas hériter du st_dev de la machine CI.
@@ -79,10 +69,8 @@ def env(tmp_path, monkeypatch):
     service.formatter.tokens = PlanTokens(min_age=0.0)           # le délai de réflexion a son propre test
     monkeypatch.setattr("app.main.storage_service", service)
     monkeypatch.setattr("app.routers.storage.service", service)
-    monkeypatch.setattr("app.routers.devices.is_local_request", lambda request: True)
     monkeypatch.setattr("app.storage.formatting.manager.UNMOUNT_PAUSE", 0.01)
     monkeypatch.setattr("app.storage.formatting.manager.SETTLE_SECONDS", 3.0)
-    _enable("123456")
     with TestClient(app) as client:
         ns = SimpleNamespace(client=client, driver=driver, service=service, tmp=tmp_path)
         ns.refresh = lambda: client.portal.call(service.refresh)
@@ -98,7 +86,7 @@ def plan(env, key=None, travels=None, **kw):
 
 
 def execute(env, token, **overrides):
-    body = {"key": env.key, "token": token, "fs": "exfat", "label": "Salle1", "confirm": "CLUB", "acknowledged": True, "pin": "123456"}
+    body = {"key": env.key, "token": token, "fs": "exfat", "label": "Salle1", "confirm": "CLUB", "acknowledged": True}
     body.update(overrides)
     return env.client.post("/api/storage/format/execute", json=body)
 
@@ -144,7 +132,7 @@ def test_plan_writes_nothing_and_informs_before_the_decision(env):
     assert by_fs["vfat"]["verdict"] == "discouraged" and "file_limit_4gib" in by_fs["vfat"]["notes"]
     assert body["confirm"] == {"mode": "name", "expected": "CLUB"}
     assert body["quick_only"] is True and body["alignment_bytes"] == 1024 * 1024
-    assert body["expires_in"] == 120 and len(body["token"]) >= 30 and body["pin_required"] is True
+    assert body["expires_in"] == 120 and len(body["token"]) >= 30
     assert [c["id"] for c in body["checks"]][:4] == ["platform", "present", "allowed", "not_system"] and all(c["ok"] for c in body["checks"])
     text = str(body)
     assert "/dev/" not in text and "SNSDB" not in text                                      # ni chemin de périphérique ni numéro de série
@@ -389,7 +377,7 @@ def test_only_one_destructive_operation_at_a_time(env):
     second_token = good_plan(env, key=other)["token"]
     first = execute(env, first_token)
     assert first.status_code == 202
-    second = env.client.post("/api/storage/format/execute", json={"key": other, "token": second_token, "fs": "exfat", "label": "B", "confirm": "AUTRE", "acknowledged": True, "pin": "123456"})
+    second = env.client.post("/api/storage/format/execute", json={"key": other, "token": second_token, "fs": "exfat", "label": "B", "confirm": "AUTRE", "acknowledged": True})
     assert second.status_code == 409 and code(second) == "format_busy_operation"
     assert code(plan(env, key=other)) == "format_busy_operation"
     assert env.client.get("/api/storage/format/active").json()["job"]["job_id"] == first.json()["job_id"]
@@ -399,7 +387,7 @@ def test_only_one_destructive_operation_at_a_time(env):
     # pendant l'opération, les autres actions sur le support sont refusées
     env.driver.format_delay = 0.5
     token = good_plan(env, key=other)["token"]
-    running = env.client.post("/api/storage/format/execute", json={"key": other, "token": token, "fs": "exfat", "label": "B", "confirm": "AUTRE", "acknowledged": True, "pin": "123456"}).json()["job_id"]
+    running = env.client.post("/api/storage/format/execute", json={"key": other, "token": token, "fs": "exfat", "label": "B", "confirm": "AUTRE", "acknowledged": True}).json()["job_id"]
     assert env.client.post(f"/api/storage/volumes/{other}/mount", json={"mode": "rw"}).status_code == 409
     assert env.client.post(f"/api/storage/volumes/{other}/eject").status_code == 409
     wait_format(env, running)
@@ -448,67 +436,18 @@ def test_support_that_vanishes_before_the_last_check_aborts_with_nothing_written
     assert env.driver.ops == []
 
 
-# ------------------------------------------------------------------------------------------------ accès : PIN, journal
-def test_pin_is_required_for_any_format_even_on_the_trusted_local_screen(env):
-    _enable_pin(env, "123456")
-    assert good_plan(env)["pin_required"] is True
-    token = good_plan(env)["token"]
-    assert code(execute(env, token, pin=None)) == "format_pin_required" and execute(env, token, pin=None).status_code == 401
-    wrong = execute(env, token, pin="000000")
-    assert wrong.status_code == 401 and code(wrong) == "format_pin_invalid" and wrong.json()["detail"]["attempts_left"] == 4
-    assert env.driver.ops == []
-    ok = execute(env, token, pin="123456")                                                   # le jeton n'a pas été brûlé par les refus de PIN
-    assert ok.status_code == 202
-    wait_format(env, ok.json()["job_id"])
-
-
-def test_wrong_pins_lock_the_requester_out(env):
-    _enable_pin(env, "123456")
-    token = good_plan(env)["token"]
-    statuses = [execute(env, token, pin="111111").status_code for _ in range(6)]
-    assert statuses[:4] == [401] * 4 and 429 in statuses[4:]
-    assert execute(env, token, pin="123456").status_code == 429 and env.driver.ops == []
-
-
-def test_remote_without_session_cannot_reach_the_format_api(env, monkeypatch):
-    monkeypatch.setattr("app.routers.devices.is_local_request", lambda request: False)
-    _enable_pin(env, "123456")
-    client = TestClient(app, client=("203.0.113.9", 50000))
-    assert client.post("/api/storage/format/plan", json={"key": env.key}).status_code == 401
-    assert client.post("/api/storage/format/execute", json={"key": env.key, "fs": "exfat", "label": "A"}).status_code == 401
-    assert client.get("/api/storage/format/active").status_code == 401
-    assert client.delete("/api/storage/format/jobs/x").status_code == 401
-
-
-def _enable_pin(env, pin):
-    with SessionLocal() as db:
-        db.merge(Setting(key=security.SETTING_PIN_HASH, value=security.hash_pin(pin)))
-        db.commit()
-
-
+# ------------------------------------------------------------------------------------------------ journal
 def test_activity_log_traces_the_operation_without_any_secret(env):
-    _enable_pin(env, "654321")
     token = good_plan(env)["token"]
-    execute(env, token, pin="000000")
-    job = wait_format(env, execute(env, token, pin="654321").json()["job_id"])
+    job = wait_format(env, execute(env, token).json()["job_id"])
     assert job["state"] == "done"
-    execute(env, token, pin="654321")                                                        # jeton déjà utilisé : refus journalisé
+    execute(env, token)                                                                      # jeton déjà utilisé : refus journalisé
     with SessionLocal() as db:
         rows = db.query(ActivityLog).filter(ActivityLog.event_type.like("storage_format_%")).all()
         text = " ".join(f"{r.event_type} {r.detail}" for r in rows)
     kinds = {r.event_type for r in rows}
     assert {"storage_format_started", "storage_format_done", "storage_format_refused"} <= kinds
-    assert token not in text and "654321" not in text and "SNSDB" not in text and "/dev/" not in text
-
-
-def test_format_requires_a_configured_pin_even_locally(env):
-    with SessionLocal() as db:
-        db.query(Setting).filter(Setting.key == security.SETTING_PIN_HASH).delete()
-        db.commit()
-    token = good_plan(env)["token"]
-    response = execute(env, token)
-    assert response.status_code == 403 and code(response) == "format_pin_not_set"
-    assert env.driver.ops == []
+    assert token not in text and "SNSDB" not in text and "/dev/" not in text
 
 
 def test_replacement_after_partition_table_is_never_formatted_or_wiped(env):

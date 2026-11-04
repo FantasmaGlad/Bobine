@@ -78,7 +78,7 @@ Robustesse du balayage :
 - **Table ARP** (`/proc/net/arp`, `arp -a`) lue après le balayage : révèle les
   appareils dont tous les ports sont filtrés et fournit l'adresse MAC.
 - **Nom `bobine.local`** résolu par le système : trouve la borne même hors des
-  réseaux balayés (relais mDNS) ; `/api/health` confirme qu'un port 8000 est
+  réseaux balayés (relais mDNS) ; `/api/health` confirme qu'un port 1903 est
   bien un backend Bobine et non un serveur de dev quelconque.
 - **« Scanner un autre réseau »** (`192.168.2.0/24`) pour un VLAN, un réseau
   invité ou un second routeur ; l'état vide liste les causes usuelles

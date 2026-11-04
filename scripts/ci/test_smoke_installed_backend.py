@@ -21,7 +21,7 @@ HEALTHY = """\
             self.wfile.write(b"{}")
         def log_message(self, *args):
             pass
-    http.server.HTTPServer(("127.0.0.1", 8000), Handler).serve_forever()
+    http.server.HTTPServer(("127.0.0.1", 1903), Handler).serve_forever()
 """
 UNHEALTHY = """\
     import http.server
@@ -31,17 +31,17 @@ UNHEALTHY = """\
             self.end_headers()
         def log_message(self, *args):
             pass
-    http.server.HTTPServer(("127.0.0.1", 8000), Handler).serve_forever()
+    http.server.HTTPServer(("127.0.0.1", 1903), Handler).serve_forever()
 """
 EXITS = "    raise SystemExit(0)\n"
 
 
-def port_8000_is_free() -> bool:
+def port_1903_is_free() -> bool:
     with socket.socket() as probe:
-        return probe.connect_ex(("127.0.0.1", 8000)) != 0
+        return probe.connect_ex(("127.0.0.1", 1903)) != 0
 
 
-@unittest.skipUnless(sys.platform.startswith("linux") and port_8000_is_free(), "Linux et port 8000 libre requis")
+@unittest.skipUnless(sys.platform.startswith("linux") and port_1903_is_free(), "Linux et port 1903 libre requis")
 class SmokeInstalledBackendTests(unittest.TestCase):
     def run_smoke(self, body: str, attempts: int = 8) -> subprocess.CompletedProcess:
         with tempfile.TemporaryDirectory() as tmp:
@@ -73,7 +73,7 @@ class SmokeInstalledBackendTests(unittest.TestCase):
     def test_busy_port_is_refused(self):
         with socket.socket() as occupant:
             occupant.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            occupant.bind(("127.0.0.1", 8000))
+            occupant.bind(("127.0.0.1", 1903))
             occupant.listen()
             result = self.run_smoke(HEALTHY)
         self.assertNotEqual(result.returncode, 0)

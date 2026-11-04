@@ -212,6 +212,10 @@ class _StoreProfile:
     def is_store_managed():
         return True
 
+    @staticmethod
+    def can_schedule_auto_apply():
+        return False
+
 
 @pytest.fixture()
 def store_build(monkeypatch):

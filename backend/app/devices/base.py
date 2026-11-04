@@ -17,7 +17,7 @@ from typing import Any, Callable
 
 # Évènement émis par un pilote quand son état change de lui-même (branchement, appairage...).
 # Le service le relaie en WebSocket sous forme de simple signal (sans données) : les clients
-# relisent ensuite l'état par REST, derrière le contrôle d'accès (PIN) du routeur.
+# relisent ensuite l'état par REST.
 ChangeCallback = Callable[[str], None]
 
 SCOPES = ("audio", "bluetooth", "wifi")

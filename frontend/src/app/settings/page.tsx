@@ -41,6 +41,7 @@ interface SettingsData {
   wired_display_mode: "dual_screen" | "headless";
   auto_update_enabled: "true" | "false";
   auto_update_time: string;
+  auto_update_supported?: boolean;
   /** Build Google Play : les mises à jour passent par la boutique (pas de canaux GitHub ni d'installateur planifié). */
   store_managed?: boolean;
 }
@@ -130,7 +131,6 @@ const THEME_SWATCHES: ThemeSwatch[] = [
   { value: "coco", labelKey: "settingsPage.themeCoco", category: "clair", colors: ["#f8f5f2", "#ffffff", "#7c3a19", "#1f1510"] },
 
   // --- Thèmes sombres ---
-  { value: "les-mills-sombre", labelKey: "settingsPage.themeDark", category: "sombre", colors: ["#08090b", "#191c22", "#e4002b", "#f8fafc"] },
   { value: "charbon-sombre", labelKey: "settingsPage.themeCharbonSombre", category: "sombre", colors: ["#0a0c10", "#1a202a", "#e2e8f0", "#f1f5f9"] },
   { value: "automne", labelKey: "settingsPage.themeAutomne", category: "sombre", colors: ["#0b0908", "#201b16", "#f97316", "#faf8f5"] },
   { value: "hiver", labelKey: "settingsPage.themeHiver", category: "sombre", colors: ["#070b0f", "#15202b", "#06b6d4", "#f4f9fc"] },
@@ -1431,7 +1431,7 @@ export default function SettingsPage() {
               <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.storeBetaHint")}</p>
             </div>
           )}
-          {!data.store_managed && (
+          {!data.store_managed && data.auto_update_supported !== false && (
             <>
           {/* Mise à jour automatique planifiée */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>

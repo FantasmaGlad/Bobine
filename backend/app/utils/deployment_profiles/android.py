@@ -149,13 +149,11 @@ class AndroidHandler(ProfileHandler):
         return not self.is_store_managed()
 
     def can_schedule_auto_apply(self) -> bool:
-        # Le téléchargement/la vérification PEUVENT se déclencher sans
-        # supervision (planification quotidienne) — seule l'installation
-        # finale exige un tap de confirmation Android (cf. apply_update
-        # ci-dessous), décision produit délibérée et maintenue : jamais
-        # d'installation silencieuse via PackageInstaller/Device Owner,
-        # même si l'appareil dispose des privilèges nécessaires.
-        return not self.is_store_managed()
+        # Pas de mise à jour planifiée sur Android ni Android TV : l'installation exige un tap de
+        # confirmation (jamais d'installation silencieuse par PackageInstaller ou Device Owner), donc
+        # une planification ne ferait que télécharger un APK et laisser une boîte de dialogue sans
+        # personne devant l'écran. La recherche, la notification et le bouton manuel restent actifs.
+        return False
 
     def apply_update(
         self,

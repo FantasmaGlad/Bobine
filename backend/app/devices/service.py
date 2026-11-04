@@ -1,7 +1,7 @@
 """Service des périphériques : pilote unique du processus, évènements WebSocket, filet de sécurité Wi-Fi.
 
 Les évènements WebSocket `devices_changed` ne portent AUCUNE donnée (juste la portée : audio,
-bluetooth, wifi) : les clients relisent l'état par REST, derrière le contrôle d'accès (PIN).
+bluetooth, wifi) : les clients relisent l'état par REST.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from typing import Any, Callable
 from app.utils.activity_log import log_activity
 from app.utils.ws_manager import manager as ws_manager
 
-from . import security
+from . import locality
 from .base import DeviceDriver, DeviceError
 from .registry import build_driver
 from .routing import load_routes, player_route_state, resolve_route
@@ -195,9 +195,7 @@ class DevicesService:
 
         try:
             with SessionLocal() as db:
-                enabled_row = db.query(Setting).filter(Setting.key == security.SETTING_ENABLED).first()
-                enabled = bool(enabled_row and enabled_row.value == "true")
-                routes = load_routes(db) if enabled else {}
+                routes = load_routes(db)
             self._has_routes = bool(routes)
             sinks = await self.current_sinks() if routes else None
             for channel, manager in get_all_radio_managers().items():
@@ -222,7 +220,7 @@ class DevicesService:
         candidates: list[tuple[str, dict[str, Any]]] = []
         for channel, manager in managers.items():
             route = routes.get(channel)
-            local = [p for p in ws_manager.route_players(channel) if security.is_local_client(str(p["ip"]))]
+            local = [p for p in ws_manager.route_players(channel) if locality.is_local_client(str(p["ip"]))]
             if route is None or not local:
                 self._server_status.pop(channel, None)
                 continue

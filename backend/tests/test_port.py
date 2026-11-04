@@ -135,8 +135,8 @@ def test_preferred_port_comes_from_settings(monkeypatch):
     assert port_mod.preferred_port() == 8123
 
 
-def test_default_preferred_port_stays_8000():
-    assert port_mod.DEFAULT_PORT == 8000
+def test_default_preferred_port_is_1903():
+    assert port_mod.DEFAULT_PORT == 1903
     from app.config import Settings
     fields = getattr(Settings, "model_fields", None) or Settings.__fields__
     assert fields["port"].default == port_mod.DEFAULT_PORT
@@ -250,9 +250,9 @@ def test_active_port_defaults_to_the_preferred_port(monkeypatch):
     assert port_mod.active_port() == 8042
 
 
-# --- câblage : plus de 8000 littéral dans les lanceurs --------------------------
+# --- câblage : aucun port littéral dans les lanceurs --------------------------
 
-_PORT_LITERAL = re.compile(r"(?<![\d.\-])8000(?![\d\-])")
+_PORT_LITERAL = re.compile(r"(?<![\d.\-])(?:8000|1903)(?![\d\-])")
 
 _WIRED_FILES = [
     "backend/run_backend.py",
@@ -263,14 +263,14 @@ _WIRED_FILES = [
 
 
 @pytest.mark.parametrize("relative", _WIRED_FILES)
-def test_no_hardcoded_8000_in_launchers(relative):
+def test_no_hardcoded_port_in_launchers(relative):
     source = (REPO_ROOT / relative).read_text(encoding="utf-8")
     offenders = [
         f"{relative}:{number}: {line.strip()}"
         for number, line in enumerate(source.splitlines(), 1)
         if _PORT_LITERAL.search(line)
     ]
-    assert not offenders, "port 8000 codé en dur :\n" + "\n".join(offenders)
+    assert not offenders, "port codé en dur :\n" + "\n".join(offenders)
 
 
 def test_launchers_use_the_shared_resolution():

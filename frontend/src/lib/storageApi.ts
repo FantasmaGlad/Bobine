@@ -1,8 +1,8 @@
 /**
  * Client de l'API « Stockage externe » (`/api/storage/*`) et aides PURES (testables, `frontend/tests/`).
  *
- * Même accès que les périphériques (PIN, écran local de confiance) et mêmes erreurs structurées
- * `{"detail": {"code", "message", ...}}` : jamais de 500. Le client n'envoie que des chemins RELATIFS au support.
+ * Mêmes erreurs structurées que les périphériques `{"detail": {"code", "message", ...}}` : jamais de 500.
+ * Le client n'envoie que des chemins RELATIFS au support.
  */
 
 import { parseApiError, type ApiError, type ApiResult } from "./devicesApi.ts";
@@ -477,7 +477,6 @@ export interface FormatPlan {
   token: string;
   expires_in: number;
   min_wait: number;
-  pin_required: boolean;
   target: {
     key: string; name: string; size_bytes: number; kind: VolumeKind; transport: string | null; vendor: string | null; model: string | null; table: string | null;
     partitions: Array<{ label: string | null; fstype: string | null; size_bytes: number; mounted: boolean }>;
@@ -546,15 +545,13 @@ export interface ConfirmInput {
   expected: string;
   acknowledged: boolean;
   secondsLeft: number;
-  pinRequired: boolean;
-  pin: string;
   labelOk: boolean;
 }
 
-/** Le bouton d'effacement n'est actif qu'après : saisie exacte du nom, case cochée, délai écoulé, PIN saisi si exigé. Jamais un simple clic. */
+/** Le bouton d'effacement n'est actif qu'après : saisie exacte du nom, case cochée et délai écoulé. Jamais un simple clic. */
 export function canConfirmFormat(input: ConfirmInput): boolean {
   const same = input.typed.normalize("NFC").trim().toLocaleLowerCase() === input.expected.normalize("NFC").trim().toLocaleLowerCase();
-  return same && input.typed.trim() !== "" && input.acknowledged && input.secondsLeft <= 0 && input.labelOk && (!input.pinRequired || /^\d{6}$/.test(input.pin));
+  return same && input.typed.trim() !== "" && input.acknowledged && input.secondsLeft <= 0 && input.labelOk;
 }
 
 /** Étapes affichées avec leur état ; l'effacement commence à « table » (point de non-retour). */

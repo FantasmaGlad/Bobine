@@ -8,7 +8,7 @@
     "NoDefaultBookmarks": true,
     "Permissions": {
       "Autoplay": {
-        "Allow": ["http://localhost:8000", "http://127.0.0.1:8000", "http://bobine.local:8000"],
+        "Allow": ["http://localhost:1903", "http://127.0.0.1:1903", "http://bobine.local:1903"],
         "Default": "block-audio",
         "BlockNewRequests": false
       }

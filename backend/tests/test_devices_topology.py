@@ -10,12 +10,11 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.database import SessionLocal, init_db  # noqa: E402
+from app.database import init_db  # noqa: E402
 from app.devices.base import DeviceDriver  # noqa: E402
 from app.devices.service import service  # noqa: E402
 from app.devices.topology import build_topology, client_medium, ethernet_interfaces  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import Setting  # noqa: E402
 from app.utils.ws_manager import ConnectionManager  # noqa: E402
 
 AUDIO = {"supported": True, "devices": [
@@ -175,15 +174,8 @@ def api(monkeypatch):
     init_db()
     service.set_driver(FakeDriver())
     monkeypatch.setattr("app.routers.devices.is_local_request", lambda request: True)
-    with SessionLocal() as db:
-        db.query(Setting).filter(Setting.key.in_(("devices_enabled", "devices_audio_meta"))).delete(synchronize_session=False)
-        db.add(Setting(key="devices_enabled", value="true"))
-        db.commit()
     yield TestClient(app)
     service.set_driver(None)
-    with SessionLocal() as db:
-        db.query(Setting).filter(Setting.key.in_(("devices_enabled", "devices_audio_meta"))).delete(synchronize_session=False)
-        db.commit()
 
 
 def test_topology_route_and_viewer_identify(api):
@@ -198,11 +190,3 @@ def test_topology_route_and_viewer_identify(api):
     from app.utils.ws_manager import manager
 
     assert manager.kiosk_count("network") == 0
-
-
-def test_topology_requires_access(monkeypatch):
-    init_db()
-    with SessionLocal() as db:
-        db.query(Setting).filter(Setting.key == "devices_enabled").delete(synchronize_session=False)
-        db.commit()
-    assert TestClient(app).get("/api/devices/topology").status_code == 403
