@@ -157,7 +157,7 @@ ${BOLD}EXEMPLES${RESET}
   sudo ./${SCRIPT_NAME} --dry-run             Prévisualise toutes les actions sans rien changer
   sudo ./${SCRIPT_NAME} --check               Vérifie l'état des services et affiche un résumé
   sudo ./${SCRIPT_NAME} --uninstall --purge   Désinstalle complètement (conserve les médias importés)
-  su - -c "\$PWD/${SCRIPT_NAME} --as-user fanta -y"   Machine SANS sudo : install en root direct pour le compte 'fanta'
+  su - -c "\$PWD/${SCRIPT_NAME} --as-user <login> -y"   Machine SANS sudo : install en root direct pour le compte <login>
 
 Journal complet de chaque exécution : /var/log/bobine/install-*.log
 EOF
@@ -761,7 +761,7 @@ else
     echo
     err "Impossible de déterminer le compte cible."
     err "Lance via 'sudo ./${SCRIPT_NAME}' depuis ton compte normal,"
-    err "ou en root (su -) avec '--as-user <login>' — ex. su - -c \"\$PWD/${SCRIPT_NAME} --as-user fanta -y\"."
+    err "ou en root (su -) avec '--as-user <login>' — ex. su - -c \"\$PWD/${SCRIPT_NAME} --as-user <login> -y\"."
     exit 1
 fi
 

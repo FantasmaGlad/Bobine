@@ -137,7 +137,7 @@ fn scrub_secret(s: &mut str) {
 async fn run_mock_installation(app: tauri::AppHandle) -> Result<(), String> {
     // Évènements réels enregistrés lors d'une exécution de install.sh
     let fixture_lines = vec![
-        r#"{"bobine":1,"event":"run_begin","version":"1.0.0","total":14,"user":"fanta","repo":"/home/fanta/Bobine","log":"/var/log/bobine.log","mode":"kiosk"}"#,
+        r#"{"bobine":1,"event":"run_begin","version":"1.0.0","total":14,"user":"alice","repo":"/home/alice/Bobine","log":"/var/log/bobine.log","mode":"kiosk"}"#,
         "Bobine — Déploiement de la solution sur mini PC",
         r#"{"bobine":1,"event":"step","status":"start","step":1,"total":14,"pct":0,"slug":"preflight","title":"Vérification des prérequis système"}"#,
         "[INFO] Vérification Debian 13 Trixie... OK",

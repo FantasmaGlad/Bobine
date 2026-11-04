@@ -1605,8 +1605,6 @@ jobs:
 
           **Basé sur** commit `__COMMIT__` · version à venir `__VERSION__`
 
-          Le lot d’optimisation 5.0.3 est inclus. Les essais sur les appareils restent nécessaires avant sa promotion Stable.
-
           ---
 
           NOTES_EOF

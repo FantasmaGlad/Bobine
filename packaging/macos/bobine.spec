@@ -161,7 +161,7 @@ coll = COLLECT(
     # avec leurs symboles de débogage (libpython ~29 Mo, uvloop ~15,8 Mo ;
     # mesure faite sur le bundle Linux de la 5.0.2 : 138 -> 74 Mo installé,
     # ~46 -> ~31 Mo compressé). Le strip est appliqué par COLLECT, donc AVANT
-    # la signature ad-hoc de build_app.sh / ci.yml (`codesign --force --deep`),
+    # la signature ad-hoc du job macos-build de ci.yml (`codesign --force --deep`),
     # qui re-signe tout le bundle : aucune signature n'est invalidée.
     # PyInstaller re-signe lui-même ad hoc chaque binaire qu'il vient de
     # modifier sur Apple Silicon.

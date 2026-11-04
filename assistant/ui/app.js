@@ -48,7 +48,7 @@ async function invokeTauri(cmd, args = {}) {
   if (cmd === 'test_ssh_connection') {
     await new Promise(r => setTimeout(r, 800));
     return {
-      host: args.creds?.host || '10.0.0.30',
+      host: args.creds?.host || '203.0.113.10',
       os_name: 'Debian GNU/Linux 13 (trixie)',
       is_debian: true,
       is_debian_13: true,
@@ -369,7 +369,7 @@ function initWizard() {
 }
 
 function adminUrl() {
-  const target = state.selectedTarget || '10.0.0.30';
+  const target = state.selectedTarget || '203.0.113.10';
   return `http://${target}:${state.selectedBobinePort || 1903}`;
 }
 
@@ -666,7 +666,7 @@ async function startInstallationRun() {
   const rootPassword = document.getElementById('ssh-root-password')?.value || null;
 
   const params = {
-    host: state.selectedTarget || '10.0.0.30',
+    host: state.selectedTarget || '203.0.113.10',
     port: parseInt(document.getElementById('ssh-port').value, 10) || 22,
     username: document.getElementById('ssh-username').value.trim(),
     password: document.getElementById('ssh-password').value || null,

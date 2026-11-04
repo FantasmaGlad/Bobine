@@ -28,7 +28,7 @@ def disk(name="sdb", parts=None, **kw):
 
 
 def ctx(d, **kw):
-    return GuardContext(supported=True, disk=d, protected_paths=["/home/fanta/.local/share/bobine"], **kw)
+    return GuardContext(supported=True, disk=d, protected_paths=["/home/alice/.local/share/bobine"], **kw)
 
 
 def refusal_code(c):
@@ -130,7 +130,7 @@ def test_every_refusal_has_its_clear_code():
     assert refusal_code(ctx(disk("sdz", transport="sata", removable=False, hotplug=True))) == "format_internal_disk"   # HOTPLUG seul ne suffit pas
     assert refusal_code(ctx(disk("sdy", transport=None, removable=False, hotplug=False))) == "format_not_removable"
     # dossiers de données de Bobine : même chemin, chemin contenu, chemin contenant, même périphérique
-    for mount in ("/home/fanta/.local/share/bobine", "/home/fanta/.local/share/bobine/media", "/home/fanta"):
+    for mount in ("/home/alice/.local/share/bobine", "/home/alice/.local/share/bobine/media", "/home/alice"):
         assert refusal_code(ctx(disk(parts=[part(mounts=[mount])]))) == "format_bobine_data", mount
     same_device = GuardContext(disk=disk(parts=[part(mounts=["/mnt/x"])]), protected_paths=["/srv/elsewhere"], protected_devs=frozenset({77}), mount_devs={"/mnt/x": 77})
     assert refusal_code(same_device) == "format_bobine_data"
@@ -162,7 +162,7 @@ def test_cascade_order_system_before_removable_and_first_failure_wins():
     system = disk("nvme0n1", transport="nvme", removable=False, hotplug=False, parts=[part("nvme0n1p2", "ext4", mounts=["/"])])
     assert refusal_code(ctx(system)) == "format_system_disk"
     # plusieurs refus : le premier de la cascade est opposé
-    many = disk(read_only=True, parts=[part(fstype="LVM2_member", mounts=["/home/fanta/.local/share/bobine/x"])])
+    many = disk(read_only=True, parts=[part(fstype="LVM2_member", mounts=["/home/alice/.local/share/bobine/x"])])
     assert refusal_code(ctx(many, in_use=True)) == "format_bobine_data"
 
 
