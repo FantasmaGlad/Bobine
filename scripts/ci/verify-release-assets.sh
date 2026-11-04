@@ -40,6 +40,7 @@ expected=(
     "bobine-assistant"
     "bobine-assistant-arm64"
     "install.sh"
+    "install.ps1"
     "SHA256SUMS"
     "SHA256SUMS.asc"
 )
