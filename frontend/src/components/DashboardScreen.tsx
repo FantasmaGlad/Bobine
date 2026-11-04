@@ -124,7 +124,7 @@ export default function DashboardScreen({ channel }: Props) {
   // useInterpolatedPosition.
   const [lastCause, setLastCause] = useState<string>("sync");
   const handlePlaybackEvent = (evt: PlaybackEvent) => setLastCause(evt.cause);
-  const { state, connected, sendCommand, displayOutputCable, displayOutputNetwork, cinemaLocked, cinemaState } =
+  const { state, connected, sendCommand, displayOutputCable, displayOutputNetwork, cinemaLocked, lockedReason, cinemaState } =
     usePlaybackSocket(handlePlaybackEvent, undefined, channel, undefined, "dashboard");
   const livePosition = useInterpolatedPosition(state.position_seconds, state.state === "playing", lastCause);
   // Glissement en cours sur la barre de position du bloc cinéma.
@@ -965,8 +965,8 @@ export default function DashboardScreen({ channel }: Props) {
                 <p className="live-empty" style={{ marginTop: "12px" }}>{t("dashboard.noVideos")}</p>
               )}
               {cinemaLocked && (
-                <p className="live-empty" style={{ marginTop: "12px", color: "var(--accent-primary)" }}>
-                  {t("dashboard.channelCinemaLockedHint")}
+                <p className="live-empty" role="alert" style={{ marginTop: "12px", color: "var(--accent-primary)" }}>
+                  {t(lockedReason === "radio" ? "dashboard.channelRadioLockedHint" : "dashboard.channelCinemaLockedHint")}
                 </p>
               )}
             </div>

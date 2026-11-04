@@ -795,6 +795,21 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
     }
 
 
+def _something_is_playing() -> bool:
+    """Vrai si un canal vidéo ou une sortie radio joue : une mise à jour planifiée ne coupe jamais une séance."""
+    from app.playback_manager import PlaybackStateEnum, get_all_playback_managers
+    from app.radio_manager import get_all_radio_managers
+
+    try:
+        playback, radios = get_all_playback_managers(), get_all_radio_managers()
+    except RuntimeError:  # moteurs pas encore initialisés : rien ne peut jouer
+        return False
+    for manager in playback.values():
+        if manager.state.get("state") == PlaybackStateEnum.playing.value or manager.state.get("audio_playing"):
+            return True
+    return any(radio.state.get("state") == "playing" for radio in radios.values())
+
+
 async def run_scheduled_update_if_available(db: Session) -> None:
     """Appelée par `scheduler_manager` au créneau planifié (Réglages → Mise
     à jour automatique). Vérifie d'abord qu'une mise à jour existe RÉELLEMENT
@@ -806,6 +821,9 @@ async def run_scheduled_update_if_available(db: Session) -> None:
     montantes."""
     handler = get_profile_handler()
     if not handler.can_schedule_auto_apply() or is_running():
+        return
+    if _something_is_playing():
+        logger.info("Mise à jour planifiée reportée : une lecture est en cours.")
         return
     channel = _get_update_channel(db)
     release_data, _ = await _fetch_release_for_channel(channel, force=True)

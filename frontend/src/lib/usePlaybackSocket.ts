@@ -230,6 +230,8 @@ export function usePlaybackSocket(
   // qu'un "load"/"load_playlist" manuel a été rejeté par le backend, pour
   // que l'admin affiche un avertissement. Se réinitialise seul.
   const [cinemaLocked, setCinemaLocked] = useState(false);
+  // Raison du dernier refus de lancement : sortie câblée en mode cinéma (libre-service) ou basculée sur la radio.
+  const [lockedReason, setLockedReason] = useState<"cinema" | "radio" | null>(null);
   const cinemaLockedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // isPrimary : vrai si ce kiosk est le kiosk primaire (seul autorisé à
   // envoyer report_position). Toujours false pour les télécommandes/admin.
@@ -413,7 +415,8 @@ export function usePlaybackSocket(
             // câblée est en mode cinéma. N'arrive qu'au client émetteur (pas
             // de broadcast), donc uniquement pertinent pour l'admin qui a
             // cliqué "Lancer".
-            if (parsed.reason === "cinema_locked") {
+            if (parsed.reason === "cinema_locked" || parsed.reason === "radio_locked") {
+              setLockedReason(parsed.reason === "radio_locked" ? "radio" : "cinema");
               setCinemaLocked(true);
               if (cinemaLockedTimerRef.current) clearTimeout(cinemaLockedTimerRef.current);
               cinemaLockedTimerRef.current = setTimeout(() => setCinemaLocked(false), 5000);
@@ -650,7 +653,7 @@ export function usePlaybackSocket(
 
   return {
     state, connected, sendCommand, serverNow, isPrimary, displayOutputCable, displayOutputNetwork,
-    cinemaLocked, cinemaState, libraryVersion,
+    cinemaLocked, lockedReason, cinemaState, libraryVersion,
   };
 }
 

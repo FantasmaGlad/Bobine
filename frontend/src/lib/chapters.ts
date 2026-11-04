@@ -48,3 +48,15 @@ export function chapterIndexAt(chapters: Chapter[], position: number): number {
   }
   return index;
 }
+
+/**
+ * Position où sauter pour le chapitre suivant ou précédent (touches de chaîne de la télécommande), ou `null` si rien
+ * ne change. « Précédent » revient d'abord au début du chapitre en cours quand on y est depuis plus de 3 s.
+ */
+export function chapterJumpTarget(chapters: Chapter[], position: number, direction: "next" | "prev"): number | null {
+  if (!chapters.length) return null;
+  const index = chapterIndexAt(chapters, position);
+  if (direction === "next") return index + 1 < chapters.length ? chapters[index + 1].start_seconds : null;
+  if (index >= 0 && position - chapters[index].start_seconds > 3) return chapters[index].start_seconds;
+  return index >= 1 ? chapters[index - 1].start_seconds : 0;
+}
