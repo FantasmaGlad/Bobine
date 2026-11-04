@@ -57,6 +57,18 @@ Install Bobine as a native application on your tablet, computer, or mini PC (or 
 | <img src="Assets/Images/bash.svg" width="18" height="18" valign="middle" alt="Appliance"> **Dedicated Mini PC** *(Debian 13)* | Shell Script<br>*(Automated)* | x86-64 & ARM64 | `curl -fsSL https://bobine.fit/install.sh \| bash`<br>[**bobine-assistant (x86-64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-assistant)<br>[**bobine-assistant-arm64 (ARM64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-assistant-arm64) | **Autonomous 24/7 Playout Appliance**<br>Turns any low-cost mini PC into an autonomous kiosk with auto-login, HDMI-CEC screen automation, and network recovery |
 | <img src="Assets/Icons/os/tor.svg" width="18" height="18" valign="middle" alt="Tor"> **Tor Network (.onion)** | Linux Packages Mirror & Site<br>*(Tor Network)* | x86-64 & ARM64 | `curl -fsSL https://bobine.fit/install-tor.sh \| bash`<br>[**Tor Mirror (.onion)**](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/)<br>[**Packages Mirror (.onion)**](http://rzvwjat5pidtxtwzcsvew7yc5ugfjvzz432ecpn3s5mlch4cs7vvmqad.onion/) | **Anonymous Installation (.onion)**<br>Install and receive signed updates for Debian, Fedora, and Arch Linux anonymously without exposing the gym's public IP address |
 
+
+### One-command install
+
+| | Platform | Command | Through Tor |
+| :---: | :--- | :--- | :--- |
+| <img src="Assets/Icons/os/windows.svg" width="18" height="18" alt="Windows"> | **Windows** x64 & ARM64 (PowerShell) | `irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 \| iex` | PowerShell 7 with Tor Browser open: `& ([scriptblock]::Create((irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 -Proxy socks5://127.0.0.1:9150))) -Tor` |
+| <img src="Assets/Icons/tools/homebrew.svg" width="18" height="18" alt="Homebrew"> | **macOS** Apple Silicon (Homebrew) | `brew install --cask fantasmaglad/bobine/bobine` | `ALL_PROXY=socks5h://127.0.0.1:9050 brew install --cask fantasmaglad/bobine/bobine` |
+| <img src="Assets/Icons/os/linux.svg" width="18" height="18" alt="Linux"> | **Linux** Debian, Fedora, Arch (signed repositories) | [packages.bobine.fit](https://packages.bobine.fit) | `curl --socks5-hostname 127.0.0.1:9050 -fsSL http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/install-tor.sh \| bash` |
+| <img src="Assets/Images/bash.svg" width="18" height="18" alt="Mini PC"> | **Mini PC appliance** (Debian 13) | `curl -fsSL https://bobine.fit/install.sh \| bash` | script fetched from the onion mirror: `curl --socks5-hostname 127.0.0.1:9050 -fsSL http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/install.sh \| bash` (the installation itself then uses the regular network) |
+
+The Windows script installs the Stable release by default (`-Channel beta` or `-Channel canary` otherwise) and checks the SHA-256 digest before installing. Through Tor, GitHub and Homebrew see a Tor exit instead of your address; the Linux packages and their signing key are served by the onion mirror itself.
+
 ---
 
 ## Key Features
