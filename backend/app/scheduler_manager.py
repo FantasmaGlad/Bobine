@@ -455,7 +455,7 @@ async def autostart_default_radio_playlist() -> None:
     uvicorn, cette fonction était appelée par CHACUN à son propre démarrage,
     calculant chacun son propre tirage aléatoire — d'où des changements de
     piste qui semblaient incessants. Process unique (voir
-    `docs/ARCHITECTURE.md` §2) : `main.py` n'appelle plus
+    `docs/ARCHITECTURE.md` §1) : `main.py` n'appelle plus
     cette fonction qu'une seule fois, le problème ne peut plus se poser."""
     from app.config import settings as runtime_settings
 
@@ -665,7 +665,7 @@ async def fire_schedule(schedule_id: int) -> None:
     dédoublonnait ce déclenchement entre les 4 workers uvicorn, chacun ayant
     son propre AsyncIOScheduler armé sur la même règle cron. Process unique
     désormais : un seul AsyncIOScheduler existe, plus de doublon possible
-    par construction (voir `docs/ARCHITECTURE.md` §2)."""
+    par construction (voir `docs/ARCHITECTURE.md` §1)."""
     db = SessionLocal()
     try:
         schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
