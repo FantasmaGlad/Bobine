@@ -3,7 +3,6 @@ import re
 import time
 import uuid
 import shutil
-import zipfile
 import logging
 import tempfile
 from pathlib import Path
@@ -15,11 +14,11 @@ from app.utils.activity_log import log_activity
 from app.utils.audio_utils import parse_track_number_and_title
 from app.utils.media_metadata import extract_audio_duration
 from app.utils.import_jobs import update_job
-from app.utils.zip_safety import UnsafeZipError, safe_extract_zip
+from app.utils.zip_safety import InvalidArchiveError, UnsafeZipError, safe_extract_archive
 
 logger = logging.getLogger(__name__)
 
-AUDIO_EXTENSIONS = {".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg"}
+AUDIO_EXTENSIONS = {".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg", ".oga", ".opus"}
 
 
 def _guess_program(title: str) -> str | None:
@@ -182,10 +181,9 @@ def import_audio_course_from_zip(
     update_job(job_id, stage="extracting")
     with tempfile.TemporaryDirectory() as tmp_dir:
         try:
-            with zipfile.ZipFile(zip_path, "r") as zf:
-                safe_extract_zip(zf, Path(tmp_dir))
-        except zipfile.BadZipFile:
-            raise ValueError("L'archive ZIP est invalide ou corrompue.")
+            safe_extract_archive(Path(zip_path), Path(tmp_dir))
+        except InvalidArchiveError:
+            raise
         except UnsafeZipError as e:
             raise ValueError(str(e))
         finally:

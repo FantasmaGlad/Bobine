@@ -96,3 +96,9 @@ test("les clés uploads.* existent en français et en anglais", () => {
     assert.equal(typeof lookup(dictionaries.en, key), "string", `en manquant : ${key}`);
   }
 });
+
+test("archives d'import reconnues à leur nom, ZIP et tar", async () => {
+  const { isArchiveName } = await import("../src/lib/mediaFiles.ts");
+  for (const name of ["cours.zip", "Cours.TAR.GZ", "a.tgz", "b.tar.xz", "c.tar.bz2", "d.tar"]) assert.ok(isArchiveName(name), name);
+  for (const name of ["piste.mp3", "archive.7z", "x.gz"]) assert.ok(!isArchiveName(name), name);
+});

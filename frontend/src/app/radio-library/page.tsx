@@ -9,6 +9,7 @@ import { matchesQuery } from "@/lib/searchText";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import { usePointerGlow } from "@/lib/usePointerGlow";
+import { ARCHIVE_ACCEPT, isArchiveName } from "@/lib/mediaFiles";
 
 // Bibliothèque musicale Radio — écran unique « vue d'ensemble » (refonte).
 // Barre latérale persistante (playlists / tags / genres / artistes, tous
@@ -280,7 +281,7 @@ export default function RadioLibraryPage() {
       // L'endpoint /radio/tracks/upload accepte une liste — un fichier par
       // requête crée un job d'import distinct, donc un suivi 1-par-1.
       addUploads(files.map((f) => ({ kind: "radio_files" as const, files: [f], title: f.name })));
-    } else if (files.length === 1 && files[0].name.toLowerCase().endsWith(".zip")) {
+    } else if (files.length === 1 && isArchiveName(files[0].name)) {
       // Une seule archive ZIP sélectionnée/déposée : détectée automatiquement,
       // pas besoin d'un mode dédié.
       addUploads([{ kind: "radio_zip", file: files[0], title: files[0].name }]);
@@ -1115,7 +1116,7 @@ export default function RadioLibraryPage() {
             <div className={`upload-zone ${dragActive ? "drag-active" : ""}`}
               onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag} onDrop={handleFileDrop}
               onClick={openFilesPicker}>
-              <input ref={fileInputRef} type="file" accept="audio/*,.zip" multiple
+              <input ref={fileInputRef} type="file" accept={`audio/*,${ARCHIVE_ACCEPT}`} multiple
                 style={{ display: "none" }} onChange={(e) => startFilesUpload(e.target.files)} />
               <Icon name="cloud_upload" size={44} className="upload-icon" />
               <p style={{ fontSize: "1rem", fontWeight: 800, color: "var(--text-main)", margin: "10px 0 0" }}>

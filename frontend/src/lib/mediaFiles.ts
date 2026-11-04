@@ -59,3 +59,11 @@ export function partitionVideoFiles(files: File[]): PartitionedFiles {
   return { accepted, subtitles, rejected };
 }
 
+/** Archives d'import acceptées (mêmes extensions que `ARCHIVE_EXTENSIONS` côté serveur, qui reconnaît le format au contenu). */
+export const ARCHIVE_EXTENSIONS = [".zip", ".tar", ".tar.gz", ".tgz", ".tar.xz", ".txz", ".tar.bz2", ".tbz2"] as const;
+export const ARCHIVE_ACCEPT = ARCHIVE_EXTENSIONS.join(",");
+
+export function isArchiveName(name: string): boolean {
+  const lower = name.toLowerCase();
+  return ARCHIVE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
