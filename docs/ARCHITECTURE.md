@@ -28,10 +28,11 @@ Diffusion, planification et pilotage de vidéos de cours en salle, sur mini PC d
 6. [Mode Audio Coach & Hub d'Ambiances Visuelles](#6-mode-audio-coach--hub-dambiances-visuelles)
 7. [Script d'installation & Services systemd](#7-script-dinstallation--services-systemd)
 8. [Référence API HTTP & WebSockets](#8-référence-api-http--websockets)
-9. [Exploitation & Découverte Réseau (Wyse)](#9-exploitation--découverte-réseau-wyse)
+9. [Découverte réseau](#9-découverte-réseau)
 10. [Matrice des interfaces & compatibilité multi-plateforme](#10-matrice-des-interfaces--compatibilité-multi-plateforme)
 10bis. [Icônes par canal de version](#10bis-icônes-par-canal-de-version-stable-bêta-canary)
-11. [Licence](#11-licence)
+11. [Publication et vérification](#11-publication-et-vérification)
+12. [Licence](#12-licence)
 
 ---
 
@@ -209,12 +210,12 @@ Lorsqu'un cours planifié démarre pendant une séance manuelle, `playback_manag
 
 Protections coordonnées : (1) `seekWhenReady()` fige l'horloge audio en pause jusqu'à l'événement `seeked` (timeout 1,2 s) ; (2) garde anti-réentrance tant que `el.seeking` est vrai ; (3) grâce de 3,5 s après seek sur les kiosques miroirs ; (4) détection douce de gel (> 7,5 s) relançant `.play()` sans saccade ; (5) anti-rebond (1,5 s) sur `/grid`.
 
-### Identité de canal et horloge de lecture serveur (4.0)
+### Identité de canal et horloge de lecture serveur
 
 - **Identité (`frontend/src/lib/displayChannel.ts`)** : `?channel=cable|network` est prioritaire et conservé lors des redirections `/kiosk` ↔ `/cinema`.
 - **Horloge serveur (`playback_clock.py`)** : diffuse une ancre `clock = { pos, at_ms, rate, running, epoch }` avec heartbeat à 1 Hz. Les écrans (`useVideoClockFollower.ts`) estiment leur décalage via `time_sync` et corrigent toute dérive > 80 ms par ajustement doux de `playbackRate` (±5 %) sans réinitialiser le décodeur matériel.
 
-### Projection HDMI prête à l'emploi (4.0)
+### Projection HDMI prête à l'emploi
 
 Chaque plateforme remonte le nombre d'écrans externes connectés (`PUT /api/display/state`) ; le backend bascule automatiquement entre `dual_screen` (pupitre `/grid` + projecteur `/cinema`) et `headless` (sauf forçage manuel dans `display_mode_setting`).
 
@@ -250,8 +251,7 @@ Sous-système musical indépendant (`radio_manager.py`, tables `radio_*`) avec *
 Onglet `/devices` (**désactivé par défaut**) :
 - **Pilotes (`backend/app/devices/`)** : `linux.py` (PipeWire `pw-dump`/`wpctl`, BlueZ D-Bus, NetworkManager `nmcli`), `sidecar.py` + crate Rust `devices/` (`bobine-devices` sur Windows/macOS, expérimental sous `BOBINE_DEVICES_EXPERIMENTAL=1`), `android.py` + `DeviceBridge.kt`.
 - **Sécurité & Appairage (`security.py`)** : l'écran local (`127.0.0.1`) est de confiance ; tout appareil distant doit saisir un **PIN à 6 chiffres** (scrypt + cookie `HttpOnly; SameSite=Strict`) ou, lors de la première configuration d'un écran sans navigateur (Android TV), réclamer le **code d'appairage à usage unique** affiché sur l'écran local (`POST /api/devices/pairing/{generate,verify,claim}`). Tout changement de Wi-Fi arme un retour automatique à l'ancien réseau sous 60 s sans confirmation (`POST /api/devices/wifi/confirm`).
-- **Carte orbitale & Table de mixage** : `GET /api/devices/topology` expose la topologie des sorties audio, Bluetooth, Wi-Fi, Ethernet et écrans connectés ; l'onglet inclut également le graphe de routage et la table de mixage des deux sorties radio.
-- **Jetons de verre et contraste (`globals.css`)** : surfaces contrôlées par `--blur-*`, `--glass-*` et gouverneur adaptatif `useGlassGovernor.ts` ; vérifiés par `frontend/tests/glassTokens.test.ts` et `themeContrast.test.ts`.
+- **Carte orbitale & Table de mixage** : `GET /api/devices/topology` expose la topologie des sorties audio, Bluetooth, Wi-Fi, Ethernet et écrans connectés ; l'onglet inclut aussi le graphe de routage et la table de mixage Web Audio des deux sorties radio (gains Musique/Rappels/Master, sourdines, solos, égaliseurs, liaison PipeWire sous Linux).
 
 ---
 
@@ -260,7 +260,7 @@ Onglet `/devices` (**désactivé par défaut**) :
 Page `/storage` (Linux desktop et appliance ; conseiller de format `fsadvisor.py` disponible partout), protégée par le même PIN que `/devices` :
 - **Détection et montage sans privilèges (`backend/app/storage/`)** : inventaire `lsblk` + signaux D-Bus `udisks2`, montage via `udisksctl` (polkit, lecture seule par défaut `noatime,nodiratime,noexec`), exclusion stricte des disques système ou internes.
 - **Deux modes** : *Importer* (copie vérifiée SHA-256 vers le stockage interne) ou *Utiliser comme extension* (indexation directe par UUID du système de fichiers avec remappage automatique au rebranchement).
-- **Préparation de support** : assistant de formatage rapide sous Linux (GPT + exFAT, ext4, FAT32 ou NTFS) exigeant un PIN configuré et la saisie du nom du volume.
+- **Préparation de support** : assistant de formatage rapide sous Linux (GPT + exFAT, ext4, FAT32 ou NTFS), limité aux supports amovibles signalés par `udisks2`, exigeant un PIN configuré et la saisie du nom du volume ; une règle polkit dédiée (`configure-storage-access`) délègue ces opérations au compte choisi à l'installation.
 
 ---
 
@@ -346,13 +346,13 @@ Trois canaux configurables à l'installation ou dans *Réglages → Mises à jou
 
 ---
 
-## 9. Exploitation & Découverte Réseau (Wyse)
+## 9. Découverte réseau
 
 ### Découverte mDNS embarquée (`bobine.local`)
 
 `backend/app/utils/mdns.py` annonce `bobine.local` via `zeroconf` sur tous les profils dépourvus d'`avahi-daemon` actif, avec ré-annonce périodique (5 min), suivi des changements d'IP DHCP, maintien du `MulticastLock` sous Android et exposition de l'état réel dans `GET /api/settings` (`network.mdns_status`).
 
-### Protocole de Découverte Réseau (Si l'IP change)
+### Retrouver un appareil dont l'IP a changé
 
 ```bash
 curl -s --connect-timeout 2 http://bobine.local:8000/api/settings
@@ -360,16 +360,6 @@ curl -s --connect-timeout 2 http://bobine.local:8000/api/settings
 SUBNET=$(ip route | grep default | awk '{print $3}' | cut -d. -f1-3).0/24
 nmap -p 8000 --open "$SUBNET" -oG - | grep "8000/open"
 ```
-
-### Commandes d'Exploitation à Distance (SSH)
-
-```bash
-ssh fanta@<WYSE_IP> "systemctl status bobine-backend bobine-kiosk"
-```
-
-### Déploiement sur la Wyse
-
-La Wyse de production ne clonant pas directement depuis GitHub, les mises à jour locales hors réseau se poussent par `rsync` (en excluant `.git/`, `data/`, `.venv/`, `node_modules/`), suivies de `sudo ./install.sh --skip-packages -y` et du redémarrage de `bobine-backend.service` et `bobine-kiosk.service`.
 
 ---
 
@@ -413,27 +403,11 @@ Source unique : `Assets/Images/channel-icons/` et `scripts/generate_channel_icon
 
 ---
 
-## 11. Licence
-
-Bobine est distribué sous licence **GNU AGPL-3.0** (voir [`LICENSE`](../LICENSE)).
-
-### Préparation des supports amovibles
-
-Sous Linux, la page `/storage` permet le formatage rapide (GPT + exFAT, ext4, FAT32 ou NTFS) des seuls supports amovibles identifiés par `udisks2`, après saisie du nom du volume et du PIN d'administration. Une règle polkit dédiée délègue ces opérations au compte choisi à l'installation (`configure-storage-access`).
-
-### Routage et mixage des sorties radio
-
-L'onglet `/devices` fournit un graphe de routage et une table de mixage Web Audio pour `radio_cable` et `radio_network` (gains Musique/Rappels/Master, sourdines, solos, égaliseurs et liaison PipeWire sur Linux).
-
-### Vérification de la publication des dépôts Linux
+## 11. Publication et vérification
 
 Le job `publish-linux-packages` génère, signe et vérifie les 18 combinaisons APT/DNF/Pacman × Stable/Bêta/Canary × `x86_64`/`arm64` (`scripts/ci/prepare-package-repository.sh`) avant publication sur `packages.bobine.fit`. Un workflow hebdomadaire (`refresh-package-repositories.yml`) rafraîchit les signatures APT et une sonde quotidienne (`probe-package-repositories.yml`) contrôle leur validité.
 
-### Empreintes signées des fichiers de release
-
 Chaque release publie `SHA256SUMS` et sa signature détachée `SHA256SUMS.asc` (`sign-release-checksums.sh`, contrôlés par `verify-release-assets.sh`). Vérification : `gpg --verify SHA256SUMS.asc SHA256SUMS && sha256sum -c --ignore-missing SHA256SUMS`.
-
-### Flux de publication du logiciel et des sites
 
 ```mermaid
 flowchart TD
@@ -441,8 +415,7 @@ flowchart TD
   CI --> Release[Release GitHub et SHA256SUMS signés]
   Release --> Packages[Index APT DNF Pacman signés et vérifiés]
   Packages --> Pages[bobine-packages : GitHub Pages]
-  Packages --> Dispatch[Notification bobine-release]
-  Dispatch --> Mirror[BobineWeb : export onion-site]
+  Release --> Mirror[BobineWeb : export onion-site]
   Mirror --> Tor[Synchronisation atomique du miroir Tor]
   Pages --> Tor
   Release --> Web[BobineWeb : données de release et installateur vérifié]
@@ -451,4 +424,10 @@ flowchart TD
   Tor --> TorProbe[Sonde publique Tor et signatures des dépôts]
 ```
 
-Les versions des outils de compilation et la procédure de qualification sont décrites dans [`BUILD_TOOLCHAINS.md`](BUILD_TOOLCHAINS.md) ; la configuration de publication Google Play figure dans [`android-google-play.md`](android-google-play.md).
+Les versions des outils de compilation et leur qualification sont décrites dans [`BUILD_TOOLCHAINS.md`](BUILD_TOOLCHAINS.md).
+
+---
+
+## 12. Licence
+
+Bobine est distribué sous licence **GNU AGPL-3.0** (voir [`LICENSE`](../LICENSE)).

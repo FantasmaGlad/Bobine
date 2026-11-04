@@ -28,10 +28,11 @@ Playback, scheduling and control of class videos in a gym, on a dedicated mini P
 6. [Audio Coach Mode & Animated Backgrounds Hub](#6-audio-coach-mode--animated-backgrounds-hub)
 7. [Install Script & systemd Services](#7-install-script--systemd-services)
 8. [HTTP API & WebSocket Reference](#8-http-api--websocket-reference)
-9. [Operations & Network Discovery (Wyse)](#9-operations--network-discovery-wyse)
+9. [Network Discovery](#9-network-discovery)
 10. [Interface Matrix & Multi-Platform Compatibility](#10-interface-matrix--multi-platform-compatibility)
 10bis. [Per-channel icons](#10bis-per-channel-icons-stable-beta-canary)
-11. [License](#11-license)
+11. [Publication & Verification](#11-publication--verification)
+12. [License](#12-license)
 
 ---
 
@@ -209,12 +210,12 @@ When a scheduled class starts during a manual session, `playback_manager` saves 
 
 Coordinated safeguards: (1) `seekWhenReady()` pauses the audio clock until `seeked` fires (1.2 s safety timeout); (2) anti-reentrancy guard while `el.seeking` is true; (3) 3.5 s grace period after a seek on mirror kiosks; (4) soft stall detection (> 7.5 s freeze) triggering a clean `.play()`; (5) 1.5 s debounce on `/grid`.
 
-### Channel Identity & Server-Driven Playback Clock (4.0)
+### Channel Identity & Server-Driven Playback Clock
 
 - **Channel identity (`frontend/src/lib/displayChannel.ts`)**: `?channel=cable|network` takes precedence and is preserved across `/kiosk` ↔ `/cinema` redirects.
 - **Server clock (`playback_clock.py`)**: broadcasts a `clock = { pos, at_ms, rate, running, epoch }` anchor with a 1 Hz heartbeat. Screens (`useVideoClockFollower.ts`) estimate their offset via `time_sync` and correct drift > 80 ms by smoothly adjusting `playbackRate` (±5%) without resetting the hardware decoder.
 
-### Plug-and-Play HDMI Projection (4.0)
+### Plug-and-Play HDMI Projection
 
 Each platform reports the number of connected external displays (`PUT /api/display/state`); the backend automatically derives `dual_screen` (`/grid` touch desk + `/cinema` projector) or `headless` (unless overridden by `display_mode_setting`).
 
@@ -250,8 +251,7 @@ Independent music subsystem (`radio_manager.py`, `radio_*` tables) with **two au
 `/devices` tab (**disabled by default**):
 - **Drivers (`backend/app/devices/`)**: `linux.py` (PipeWire `pw-dump`/`wpctl`, BlueZ D-Bus, NetworkManager `nmcli`), `sidecar.py` + Rust crate `devices/` (`bobine-devices` on Windows/macOS, experimental behind `BOBINE_DEVICES_EXPERIMENTAL=1`), `android.py` + `DeviceBridge.kt`.
 - **Security & Pairing (`security.py`)**: the local screen (`127.0.0.1`) is trusted; any remote device must enter a **6-digit PIN** (scrypt + `HttpOnly; SameSite=Strict` cookie) or, during initial setup of a browserless screen (Android TV), claim the **single-use pairing code** shown on the local screen (`POST /api/devices/pairing/{generate,verify,claim}`). Every Wi-Fi change arms a 60 s automatic rollback unless confirmed (`POST /api/devices/wifi/confirm`).
-- **Orbital Map & Mixer**: `GET /api/devices/topology` exposes the graph of audio outputs, Bluetooth devices, Wi-Fi, Ethernet and connected screens; the tab also provides the routing graph and mixer console for both radio outputs.
-- **Glass tokens & contrast (`globals.css`)**: glass surfaces use `--blur-*`, `--glass-*` and the adaptive `useGlassGovernor.ts` governor; guarded by `frontend/tests/glassTokens.test.ts` and `themeContrast.test.ts`.
+- **Orbital Map & Mixer**: `GET /api/devices/topology` exposes the graph of audio outputs, Bluetooth devices, Wi-Fi, Ethernet and connected screens; the tab also provides the routing graph and Web Audio mixer for both radio outputs (Music/Announcements/Master gains, mute, solo, equalizers, PipeWire stream linking on Linux).
 
 ---
 
@@ -260,7 +260,7 @@ Independent music subsystem (`radio_manager.py`, `radio_*` tables) with **two au
 `/storage` page (Linux desktop and appliance; format advisor `fsadvisor.py` available everywhere), protected by the same PIN as `/devices`:
 - **Hot-plug detection & unprivileged mounting (`backend/app/storage/`)**: `lsblk` inventory + `udisks2` D-Bus signals, mounted via `udisksctl` (polkit, read-only by default `noatime,nodiratime,noexec`), strictly excluding internal or system disks.
 - **Two modes**: *Import* (SHA-256 verified copy into internal storage) or *Use as extension* (direct indexing by filesystem UUID with automatic path remapping when re-plugged).
-- **Drive preparation**: quick-format wizard on Linux (GPT + exFAT, ext4, FAT32 or NTFS) requiring a configured PIN and typed drive-name confirmation.
+- **Drive preparation**: quick-format wizard on Linux (GPT + exFAT, ext4, FAT32 or NTFS), restricted to removable drives reported by `udisks2`, requiring a configured PIN and typed drive-name confirmation; a dedicated polkit rule (`configure-storage-access`) delegates these operations to the install account.
 
 ---
 
@@ -346,13 +346,13 @@ Three channels selectable at install time or in *Settings → Software Updates* 
 
 ---
 
-## 9. Operations & Network Discovery (Wyse)
+## 9. Network Discovery
 
 ### Embedded mDNS discovery (`bobine.local`)
 
 `backend/app/utils/mdns.py` advertises `bobine.local` via `zeroconf` on every profile where no system `avahi-daemon` is already running, with periodic 5-minute re-announcements, DHCP IP tracking, Android `MulticastLock` renewal, and live status in `GET /api/settings` (`network.mdns_status`).
 
-### Network Discovery Protocol (If the IP Changes)
+### Finding a device whose IP changed
 
 ```bash
 curl -s --connect-timeout 2 http://bobine.local:8000/api/settings
@@ -360,16 +360,6 @@ curl -s --connect-timeout 2 http://bobine.local:8000/api/settings
 SUBNET=$(ip route | grep default | awk '{print $3}' | cut -d. -f1-3).0/24
 nmap -p 8000 --open "$SUBNET" -oG - | grep "8000/open"
 ```
-
-### Remote Operations Commands (SSH)
-
-```bash
-ssh fanta@<WYSE_IP> "systemctl status bobine-backend bobine-kiosk"
-```
-
-### Deploying to the Wyse
-
-When the production Wyse appliance operates on an isolated LAN without GitHub access, updates are pushed via `rsync` (excluding `.git/`, `data/`, `.venv/`, `node_modules/`), followed by `sudo ./install.sh --skip-packages -y` and restarting `bobine-backend.service` and `bobine-kiosk.service`.
 
 ---
 
@@ -413,27 +403,11 @@ Single source: `Assets/Images/channel-icons/` and `scripts/generate_channel_icon
 
 ---
 
-## 11. License
-
-Bobine is distributed under the **GNU AGPL-3.0** license (see [`LICENSE`](../LICENSE)).
-
-### Preparing removable drives
-
-On Linux, `/storage` offers a quick-format wizard (GPT + exFAT, ext4, FAT32 or NTFS) restricted to removable drives reported by `udisks2`, requiring typed drive-name confirmation and the administration PIN. A dedicated polkit rule delegates these operations to the install account (`configure-storage-access`).
-
-### Radio output routing and mixing
-
-The `/devices` tab provides a routing graph and Web Audio mixer for `radio_cable` and `radio_network` (Music/Announcements/Master gains, mute, solo, equalizers, and PipeWire stream linking on Linux).
-
-### Linux repository publication verification
+## 11. Publication & Verification
 
 The `publish-linux-packages` job generates, signs, and verifies all 18 APT/DNF/Pacman × Stable/Beta/Canary × `x86_64`/`arm64` combinations (`scripts/ci/prepare-package-repository.sh`) before publishing to `packages.bobine.fit`. A weekly workflow (`refresh-package-repositories.yml`) refreshes APT signatures and a daily probe (`probe-package-repositories.yml`) monitors validity.
 
-### Signed checksums for release files
-
 Every release ships `SHA256SUMS` and its detached signature `SHA256SUMS.asc` (`sign-release-checksums.sh`, verified by `verify-release-assets.sh`). Verification: `gpg --verify SHA256SUMS.asc SHA256SUMS && sha256sum -c --ignore-missing SHA256SUMS`.
-
-### Software and site publication flow
 
 ```mermaid
 flowchart TD
@@ -441,8 +415,7 @@ flowchart TD
   CI --> Release[GitHub release and signed SHA256SUMS]
   Release --> Packages[Signed and verified APT, DNF and Pacman indexes]
   Packages --> Pages[bobine-packages: GitHub Pages]
-  Packages --> Dispatch[bobine-release notification]
-  Dispatch --> Mirror[BobineWeb: onion-site export]
+  Release --> Mirror[BobineWeb: onion-site export]
   Mirror --> Tor[Atomic Tor mirror synchronization]
   Pages --> Tor
   Release --> Web[BobineWeb: release data and verified installer]
@@ -451,4 +424,10 @@ flowchart TD
   Tor --> TorProbe[Public Tor probe and repository signatures]
 ```
 
-Compiler toolchains and qualification steps are documented in [`BUILD_TOOLCHAINS.md`](BUILD_TOOLCHAINS.md); Google Play publishing is documented in [`android-google-play.en.md`](android-google-play.en.md).
+Compiler toolchains and their qualification are documented in [`BUILD_TOOLCHAINS.md`](BUILD_TOOLCHAINS.md).
+
+---
+
+## 12. License
+
+Bobine is distributed under the **GNU AGPL-3.0** license (see [`LICENSE`](../LICENSE)).
