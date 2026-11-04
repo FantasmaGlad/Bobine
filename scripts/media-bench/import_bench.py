@@ -142,7 +142,8 @@ def _drop_system_cache():
     """Really empty the page cache (Linux, root). The password comes from the environment, never from a file."""
     password = os.environ.get("BOBINE_BENCH_SUDO_PASSWORD")
     command = ["sudo", "-S", "-p", "", "sh", "-c", "sync; echo 3 > /proc/sys/vm/drop_caches"]
-    result = subprocess.run(command, input=(password or "") + "\n", capture_output=True, text=True, timeout=60)
+    env = {key: value for key, value in os.environ.items() if key != "BOBINE_BENCH_SUDO_PASSWORD"}
+    result = subprocess.run(command, input=(password or "") + "\n", capture_output=True, text=True, timeout=60, env=env)
     return result.returncode == 0
 
 

@@ -1,7 +1,6 @@
 # Runtime desktop/headless résolu par la CI 40510466876 (Python 3.11–3.13).
 # Contraintes séparées du profil Chaquopy/FastAPI v1. Mettre à jour avec la matrice CI.
 aiofiles==25.1.0
-alembic==1.20.1
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.15.1
@@ -13,7 +12,6 @@ h11==0.16.0
 httptools==0.9.0
 idna==3.20
 ifaddr==0.2.0
-mako==1.4.3
 markupsafe==3.0.4
 opentelemetry-api==1.45.1
 pillow==13.0.0

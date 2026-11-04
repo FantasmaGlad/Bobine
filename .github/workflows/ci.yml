@@ -727,6 +727,12 @@ jobs:
           ref: ${{ inputs.tag }}
       - name: Vérification de syntaxe bash
         run: bash -n install.sh
+      - name: Vérification de syntaxe du script PowerShell
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD/packaging/windows/install.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors; exit 1 }
       - name: Le compteur d'étapes STEP_TOTAL reflète le nombre d'appels à step()
         run: |
           declared=$(grep -oE '^STEP_TOTAL=[0-9]+' install.sh | head -1 | cut -d= -f2)
@@ -1377,7 +1383,7 @@ jobs:
       - name: Rassembler les paquets Linux
         run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
       - name: Copy install script into release assets
-        run: cp install.sh release-assets/
+        run: cp install.sh packaging/windows/install.ps1 release-assets/
       - name: Signer la liste des empreintes (SHA256SUMS)
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
@@ -1393,6 +1399,8 @@ jobs:
         run: |
           gpgconf --kill gpg-agent || true
           rm -rf "$GNUPGHOME"
+      - name: Manifestes winget (joints à la release, soumission manuelle)
+        run: python3 scripts/ci/winget-manifests.py release-assets/SHA256SUMS "${{ needs.version.outputs.tag_name }}" release-assets
       - name: Vérifier la complétude des assets
         run: scripts/ci/verify-release-assets.sh release-assets "${{ needs.version.outputs.filename_version }}"
       - name: Inspect generated binary assets
@@ -1516,7 +1524,7 @@ jobs:
       - name: Rassembler les paquets Linux
         run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
       - name: Copy install script into release assets
-        run: cp install.sh release-assets/
+        run: cp install.sh packaging/windows/install.ps1 release-assets/
       - name: Signer la liste des empreintes (SHA256SUMS)
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
@@ -1596,8 +1604,6 @@ jobs:
           Réservée aux utilisateurs ayant activé le canal Canary (Réglages → Mises à jour, `install.sh --channel=canary`, ou l'assistant Tauri). Pour un accès anticipé moins volatil, voir le [canal Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) (lots curés, publication manuelle).
 
           **Basé sur** commit `__COMMIT__` · version à venir `__VERSION__`
-
-          Le lot d’optimisation 5.0.3 est inclus. Les essais sur les appareils restent nécessaires avant sa promotion Stable.
 
           ---
 
@@ -1741,7 +1747,7 @@ jobs:
       - name: Rassembler les paquets Linux
         run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
       - name: Copy install script into release assets
-        run: cp install.sh release-assets/
+        run: cp install.sh packaging/windows/install.ps1 release-assets/
       - name: Signer la liste des empreintes (SHA256SUMS)
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}

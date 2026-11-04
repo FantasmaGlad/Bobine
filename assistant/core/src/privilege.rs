@@ -57,7 +57,7 @@ mod tests {
     fn sudoer_with_sudo_uses_sudo() {
         let d = decide(&SudoProbe { sudo_installed: true, user_is_sudoer: true });
         assert_eq!(d, PrivilegeDecision::UseSudo);
-        assert_eq!(elevation_for(d, "fanta"), Elevation::Sudo);
+        assert_eq!(elevation_for(d, "alice"), Elevation::Sudo);
     }
 
     #[test]
@@ -65,8 +65,8 @@ mod tests {
         let d = decide(&SudoProbe { sudo_installed: false, user_is_sudoer: false });
         assert_eq!(d, PrivilegeDecision::BootstrapSuAsUser);
         assert_eq!(
-            elevation_for(d, "fanta"),
-            Elevation::SuRoot { as_user: "fanta".to_string() }
+            elevation_for(d, "alice"),
+            Elevation::SuRoot { as_user: "alice".to_string() }
         );
     }
 

@@ -178,7 +178,7 @@ mod tests {
 
             // Même si on donne un mot de passe qui échoue (ou rejeté par le serveur),
             // authenticate_session doit automatiquement se replier sur l'agent ou les clés locales
-            let res = authenticate_session(&sess, "fanta", Some("un_faux_mot_de_passe"), None);
+            let res = authenticate_session(&sess, "alice", Some("un_faux_mot_de_passe"), None);
             assert!(res.is_ok(), "L'authentification par repli sur clé devrait réussir : {:?}", res);
             assert!(sess.authenticated());
         }

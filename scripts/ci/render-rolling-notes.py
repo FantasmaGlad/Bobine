@@ -136,6 +136,8 @@ def render(channel: str, manifests: bool = True) -> str:
          f"{link('bobine-assistant')} (x86-64)<br>{link('bobine-assistant-arm64')} (ARM64)"),
         (badge("Bash_CLI-4EAA25", "gnubash"), "Script", "x86-64 & ARM64",
          f"{link('install.sh')}<br>ou `sudo ./install.sh --channel={channel}` sur une installation existante"),
+        (badge("PowerShell-5391FE", "powershell"), "Script", "Windows x64 & ARM64",
+         f"{link('install.ps1')}<br>installe le `.exe` du canal après contrôle SHA-256"),
     ]
     if manifests:
         rows.append(("Intégrité", "Manifeste signé", "Tous les fichiers",

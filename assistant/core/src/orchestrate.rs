@@ -193,23 +193,23 @@ mod tests {
     #[test]
     fn sudo_command_is_readable_when_safe() {
         let cmd = build_remote_command(
-            "/home/fanta/Bobine/install.sh",
+            "/home/alice/Bobine/install.sh",
             &InstallOptions::assistant_default(),
             &Elevation::Sudo,
         );
-        assert_eq!(cmd, "sudo /home/fanta/Bobine/install.sh -y --progress=json --channel=stable");
+        assert_eq!(cmd, "sudo /home/alice/Bobine/install.sh -y --progress=json --channel=stable");
     }
 
     #[test]
     fn su_root_injects_as_user_and_wraps() {
         let cmd = build_remote_command(
-            "/home/fanta/Bobine/install.sh",
+            "/home/alice/Bobine/install.sh",
             &InstallOptions::assistant_default(),
-            &Elevation::SuRoot { as_user: "fanta".to_string() },
+            &Elevation::SuRoot { as_user: "alice".to_string() },
         );
         assert_eq!(
             cmd,
-            "su - -c '/home/fanta/Bobine/install.sh --as-user fanta -y --progress=json --channel=stable'"
+            "su - -c '/home/alice/Bobine/install.sh --as-user alice -y --progress=json --channel=stable'"
         );
     }
 
@@ -260,11 +260,11 @@ mod tests {
             "bash",
             "/tmp/bobine-install-1.sh",
             &InstallOptions::assistant_default(),
-            &Elevation::SuRoot { as_user: "fanta".to_string() },
+            &Elevation::SuRoot { as_user: "alice".to_string() },
         );
         assert_eq!(
             su,
-            "su - -c 'bash /tmp/bobine-install-1.sh --as-user fanta -y --progress=json --channel=stable'"
+            "su - -c 'bash /tmp/bobine-install-1.sh --as-user alice -y --progress=json --channel=stable'"
         );
     }
 }
