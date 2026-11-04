@@ -43,31 +43,65 @@ Group-fitness rooms and cycling studios run pre-recorded video classes ("virtual
 
 ## Download & Install
 
-Install Bobine as a native application on your tablet, computer, or mini PC (or visit [**bobine.fit/en/download**](https://bobine.fit/en/download)):
+Native application for computers, tablets, TVs and mini PCs. Stable 5.0.7 below; every channel and file on [**bobine.fit/en/download**](https://bobine.fit/en/download).
 
-| Platform | Format | Architecture | Direct Download / Command | Target Profile & Key Features |
-| :--- | :---: | :---: | :---: | :--- |
-| <img src="Assets/Icons/os/windows.svg" width="18" height="18" valign="middle" alt="Windows"> **Windows 11 & 10** | `.exe`<br>*(Installer)* | x86-64 & ARM64<br>*(Snapdragon)* | [**Bobine-Setup-5.0.7.exe (x86-64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/Bobine-Setup-5.0.7.exe)<br>[**Bobine-Setup-5.0.7-arm64.exe (ARM64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/Bobine-Setup-5.0.7-arm64.exe) | **Windows 11/10 Desktop PCs & Snapdragon ARM Laptops**<br>Native x86-64 and ARM64 installer (Snapdragon X Elite / X Plus), system tray companion, clamshell mode |
-| <img src="Assets/Icons/os/apple.svg" width="18" height="18" valign="middle" alt="macOS"> **macOS** *(Apple Silicon)* | `.dmg`<br>*(Disk Image)* | ARM64<br>*(Apple Silicon)* | [**Bobine-5.0.7.dmg**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/Bobine-5.0.7.dmg) | **MacBook, Mac mini & iMac (M1–M4)**<br>Drag-and-drop `.dmg`, native Apple Silicon hardware acceleration, menu bar companion |
-| <img src="Assets/Icons/distros/debian.svg" width="18" height="18" valign="middle" alt="Debian"> **Debian & Ubuntu** | `.deb`<br>APT | amd64 & arm64 | [**APT Repository**](https://packages.bobine.fit/debian/)<br>[**bobine_5.0.7_amd64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine_5.0.7_amd64.deb)<br>[**bobine_5.0.7_arm64.deb**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine_5.0.7_arm64.deb) | **Debian 13+, Ubuntu 24.04+, Linux Mint, Pop!_OS, Zorin OS**<br>Native `.deb` packages via [packages.bobine.fit/debian/](https://packages.bobine.fit/debian/), automated apt updates (requires glibc 2.38 or newer) |
-| <img src="Assets/Icons/distros/fedora.svg" width="18" height="18" valign="middle" alt="Fedora"> **Fedora & RHEL** | `.rpm`<br>DNF | x86_64 & aarch64 | [**DNF Repository**](https://packages.bobine.fit/fedora/)<br>[**bobine-5.0.7-1.x86_64.rpm**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-5.0.7-1.x86_64.rpm)<br>[**bobine-5.0.7-1.aarch64.rpm**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-5.0.7-1.aarch64.rpm) | **Fedora 39–41, Nobara, RHEL, AlmaLinux, Rocky Linux**<br>Signed RPM repository via [packages.bobine.fit/fedora/](https://packages.bobine.fit/fedora/), fast DNF installation (glibc 2.38+) |
-| <img src="Assets/Icons/distros/arch.svg" width="18" height="18" valign="middle" alt="Arch"> **Arch Linux** | `.pkg.tar.zst`<br>pacman | x86_64 & aarch64 | [**Pacman Repository**](https://packages.bobine.fit/arch/)<br>[**bobine-5.0.7-1-x86_64.pkg.tar.zst**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-5.0.7-1-x86_64.pkg.tar.zst)<br>[**bobine-5.0.7-1-aarch64.pkg.tar.zst**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-5.0.7-1-aarch64.pkg.tar.zst) | **Arch Linux, EndeavourOS, CachyOS, Manjaro**<br>Signed pacman repository via [packages.bobine.fit/arch/](https://packages.bobine.fit/arch/), continuous rolling updates (glibc 2.38+) |
-| <img src="Assets/Icons/os/android.svg" width="18" height="18" valign="middle" alt="Android"> **Android & Google Book** | `.apk`<br>*(Native App)* | ARM64<br>*(arm64-v8a)* | [**Bobine-5.0.7.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/Bobine-5.0.7.apk) | **Android Tablets, Google Books & ARM Kiosks**<br>Touch coach desk (`/grid`) + clean fullscreen HDMI cinema (`/cinema`), Qualcomm Snapdragon 8 Gen 2 / 8 Gen 3 / 8 Elite |
-| <img src="Assets/Icons/os/androidtv.svg" width="18" height="18" valign="middle" alt="Android TV"> **Android TV & Google TV** | `.apk`<br>*(TV App)* | ARM 32 & 64-bit<br>*(v7a & v8a)* | [**Bobine-TV-5.0.7.apk**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/Bobine-TV-5.0.7.apk) | **Smart TVs, Projectors & Streaming Boxes**<br>Leanback TV launcher, TV remote D-Pad navigation, offline cinema kiosk |
-| <img src="Assets/Images/bash.svg" width="18" height="18" valign="middle" alt="Appliance"> **Dedicated Mini PC** *(Debian 13)* | Shell Script<br>*(Automated)* | x86-64 & ARM64 | `curl -fsSL https://bobine.fit/install.sh \| bash`<br>[**bobine-assistant (x86-64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-assistant)<br>[**bobine-assistant-arm64 (ARM64)**](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-assistant-arm64) | **Autonomous 24/7 Playout Appliance**<br>Turns any low-cost mini PC into an autonomous kiosk with auto-login, HDMI-CEC screen automation, and network recovery |
-| <img src="Assets/Icons/os/tor.svg" width="18" height="18" valign="middle" alt="Tor"> **Tor Network (.onion)** | Linux Packages Mirror & Site<br>*(Tor Network)* | x86-64 & ARM64 | `curl -fsSL https://bobine.fit/install-tor.sh \| bash`<br>[**Tor Mirror (.onion)**](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/)<br>[**Packages Mirror (.onion)**](http://rzvwjat5pidtxtwzcsvew7yc5ugfjvzz432ecpn3s5mlch4cs7vvmqad.onion/) | **Anonymous Installation (.onion)**<br>Install and receive signed updates for Debian, Fedora, and Arch Linux anonymously without exposing the gym's public IP address |
-
+| | Platform | Download | Requirements |
+| :---: | :--- | :--- | :--- |
+| <img src="Assets/Icons/os/windows.svg" width="20" height="20" alt="Windows"> | **Windows** 10 & 11 | [x64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/Bobine-Setup-5.0.7.exe) · [ARM64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/Bobine-Setup-5.0.7-arm64.exe) | `.exe` installer, Snapdragon supported |
+| <img src="Assets/Icons/os/apple.svg" width="20" height="20" alt="macOS"> | **macOS** | [Apple Silicon](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/Bobine-5.0.7.dmg) | M1 or newer, `.dmg` |
+| <img src="Assets/Icons/distros/debian.svg" width="20" height="20" alt="Debian"> | **Debian, Ubuntu** | [APT](https://packages.bobine.fit/debian/) · [amd64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine_5.0.7_amd64.deb) · [arm64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine_5.0.7_arm64.deb) | glibc 2.38+ (Debian 13, Ubuntu 24.04) |
+| <img src="Assets/Icons/distros/fedora.svg" width="20" height="20" alt="Fedora"> | **Fedora, RHEL** | [DNF](https://packages.bobine.fit/fedora/) · [x86_64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-5.0.7-1.x86_64.rpm) · [aarch64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-5.0.7-1.aarch64.rpm) | glibc 2.38+ |
+| <img src="Assets/Icons/distros/arch.svg" width="20" height="20" alt="Arch Linux"> | **Arch Linux** | [pacman](https://packages.bobine.fit/arch/) · [x86_64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-5.0.7-1-x86_64.pkg.tar.zst) · [aarch64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-5.0.7-1-aarch64.pkg.tar.zst) | glibc 2.38+ |
+| <img src="Assets/Icons/os/android.svg" width="20" height="20" alt="Android"> | **Android** | [APK](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/Bobine-5.0.7.apk) | Android 14+, ARM64 |
+| <img src="Assets/Icons/os/androidtv.svg" width="20" height="20" alt="Android TV"> | **Android TV, Google TV** | [APK TV](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/Bobine-TV-5.0.7.apk) | ARM 32 and 64-bit |
+| <img src="Assets/Images/bash.svg" width="20" height="20" alt="Mini PC"> | **Mini PC appliance** | [install.sh](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/install.sh) · [assistant x64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-assistant) · [ARM64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-assistant-arm64) | Debian 13 |
+| <img src="Assets/Icons/os/tor.svg" width="20" height="20" alt="Tor"> | **Tor (.onion)** | [website](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/) · [packages](http://rzvwjat5pidtxtwzcsvew7yc5ugfjvzz432ecpn3s5mlch4cs7vvmqad.onion/) | Tor Browser or tor |
 
 ### One-command install
 
-| | Platform | Command | Through Tor |
-| :---: | :--- | :--- | :--- |
-| <img src="Assets/Icons/os/windows.svg" width="18" height="18" alt="Windows"> | **Windows** x64 & ARM64 (PowerShell) | `irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 \| iex` | PowerShell 7 with Tor Browser open: `& ([scriptblock]::Create((irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 -Proxy socks5://127.0.0.1:9150))) -Tor` |
-| <img src="Assets/Icons/tools/homebrew.svg" width="18" height="18" alt="Homebrew"> | **macOS** Apple Silicon (Homebrew) | `brew install --cask fantasmaglad/bobine/bobine` | `ALL_PROXY=socks5h://127.0.0.1:9050 brew install --cask fantasmaglad/bobine/bobine` |
-| <img src="Assets/Icons/os/linux.svg" width="18" height="18" alt="Linux"> | **Linux** Debian, Fedora, Arch (signed repositories) | [packages.bobine.fit](https://packages.bobine.fit) | `curl --socks5-hostname 127.0.0.1:9050 -fsSL http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/install-tor.sh \| bash` |
-| <img src="Assets/Images/bash.svg" width="18" height="18" alt="Mini PC"> | **Mini PC appliance** (Debian 13) | `curl -fsSL https://bobine.fit/install.sh \| bash` | script fetched from the onion mirror: `curl --socks5-hostname 127.0.0.1:9050 -fsSL http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/install.sh \| bash` (the installation itself then uses the regular network) |
+<img src="Assets/Icons/tools/powershell.svg" width="20" height="20" alt="PowerShell"> Windows (PowerShell): installs Stable after checking its SHA-256 digest (`-Channel beta` or `-Channel canary` otherwise).
 
-The Windows script installs the Stable release by default (`-Channel beta` or `-Channel canary` otherwise) and checks the SHA-256 digest before installing. Through Tor, GitHub and Homebrew see a Tor exit instead of your address; the Linux packages and their signing key are served by the onion mirror itself.
+```powershell
+irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 | iex
+```
+
+Through Tor (PowerShell 7, Tor Browser open; `-TorPort 9050` for the tor service):
+
+```powershell
+& ([scriptblock]::Create((irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 -Proxy socks5://127.0.0.1:9150))) -Tor
+```
+
+<img src="Assets/Icons/tools/homebrew.svg" width="20" height="20" alt="Homebrew"> macOS (Homebrew):
+
+```bash
+brew install --cask fantasmaglad/bobine/bobine
+```
+
+Through Tor:
+
+```bash
+ALL_PROXY=socks5h://127.0.0.1:9050 brew install --cask fantasmaglad/bobine/bobine
+```
+
+<img src="Assets/Icons/os/linux.svg" width="20" height="20" alt="Linux"> Linux: signed repositories, instructions on [packages.bobine.fit](https://packages.bobine.fit). Through Tor, repositories and signing key over the onion mirror:
+
+```bash
+curl --socks5-hostname 127.0.0.1:9050 -fsSL http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/install-tor.sh | bash
+```
+
+<img src="Assets/Images/bash.svg" width="20" height="20" alt="Mini PC"> Mini PC appliance (Debian 13):
+
+```bash
+curl -fsSL https://bobine.fit/install.sh | bash
+```
+
+Script fetched from the onion mirror (the installation itself then uses the regular network):
+
+```bash
+curl --socks5-hostname 127.0.0.1:9050 -fsSL http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/install.sh | bash
+```
+
+<img src="Assets/Icons/os/tor.svg" width="20" height="20" alt="Tor"> Through Tor, GitHub and Homebrew see a Tor exit instead of your address.
 
 ---
 
