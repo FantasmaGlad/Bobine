@@ -210,7 +210,7 @@ export default function CourseRatingWidget({
           <div className="course-rating-progress-bar">
             <div
               className="course-rating-progress-fill"
-              style={{ width: `${progressPercent}%` }}
+              style={{ transform: `scaleX(${progressPercent / 100})` }}
             />
           </div>
         </div>

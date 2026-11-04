@@ -24,7 +24,7 @@ function MeterBar({ level, label }: { level: number | undefined; label: string }
   const value = level ?? 0;
   return (
     <div className="mx-meter" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value}>
-      <div className={`mx-meter-fill${value >= 92 ? " is-hot" : ""}`} style={{ width: `${value}%` }} />
+      <div className={`mx-meter-fill${value >= 92 ? " is-hot" : ""}`} style={{ transform: `scaleX(${value / 100})` }} />
     </div>
   );
 }

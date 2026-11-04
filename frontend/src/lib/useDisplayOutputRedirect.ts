@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   decideOutputRedirect,
   isLoopbackHost,
@@ -63,6 +64,7 @@ export function useDisplayOutputRedirect(
   // distinguer la valeur initiale (chargée du serveur au montage) d'un vrai
   // changement poussé par l'admin (suivi partout).
   const lastSeenRef = useRef<DisplayOutput | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     // Seule la sortie de CE canal compte : un changement de l'autre canal ne doit jamais faire naviguer la page.
@@ -77,6 +79,7 @@ export function useDisplayOutputRedirect(
       lastSeenRef.current,
     );
     lastSeenRef.current = decision.seen;
-    if (decision.to) window.location.replace(decision.to);
-  }, [cableOutput, networkOutput, current]);
+    // Navigation côté client : pas de rechargement complet ni d'écran blanc entre kiosque, cinéma et radio.
+    if (decision.to) router.replace(decision.to);
+  }, [cableOutput, networkOutput, current, router]);
 }

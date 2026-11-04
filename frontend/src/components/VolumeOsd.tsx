@@ -24,7 +24,7 @@ export default function VolumeOsd({ visible, level, muted = false, overVideo = f
       aria-label={muted ? t("common.volumeMuted") : t("common.volumeLevel", { percent })}
     >
       <div className="volume-osd-track">
-        <div className="volume-osd-fill" style={{ height: `${percent}%` }} />
+        <div className="volume-osd-fill" style={{ transform: `scaleY(${percent / 100})` }} />
       </div>
       <span className="volume-osd-value">{percent}</span>
     </div>
