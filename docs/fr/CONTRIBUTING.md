@@ -38,12 +38,12 @@ Les mainteneurs relisent les contributions sur leur temps. Rendre la revue court
 
 ## Environnement de développement
 
-Bobine comporte plusieurs composants. Avant d'ouvrir une demande de fusion, lancez localement les vérifications ci-dessous pour chaque composant que vous avez touché. La CI exécute les mêmes, sauf les tests et le typage du frontend, qui restent locaux.
+Bobine comporte plusieurs composants. Avant d'ouvrir une demande de fusion, lancez localement les vérifications ci-dessous pour chaque composant que vous avez touché. La CI exécute les mêmes, sauf le typage du frontend, qui reste local.
 
 | Composant | Dossier | Vérifications |
 |---|---|---|
 | Backend (Python, FastAPI, SQLite) | `backend/` | `python -m compileall -q backend/app scripts` puis `python -m pytest backend/tests -q` avec `PYTHONPATH=backend` (nécessite `ffmpeg`, `pytest` et `httpx` ; la CI utilise Python 3.11, 3.12 et 3.13, donc aucune syntaxe postérieure à 3.11) |
-| Frontend (Next.js, Node 22) | `frontend/` | `npm ci` puis `npm run build` (CI) ; aussi `npx tsc --noEmit` et `npm test` (local). `npm run lint` n'est pas imposé par la CI et signale des problèmes existants : n'en introduisez pas de nouveaux dans le code que vous touchez |
+| Frontend (Next.js, Node 22) | `frontend/` | `npm ci` puis `npm run build` (CI) ; `npm test` (CI) ; aussi `npx tsc --noEmit` (local). `npm run lint` n'est pas imposé par la CI et signale des problèmes existants : n'en introduisez pas de nouveaux dans le code que vous touchez |
 | Assistant (Rust, Tauri) | `assistant/` | `cargo clippy --workspace --all-targets -- -D warnings` puis `cargo test --workspace` |
 | Sidecar des périphériques (Rust) | `devices/` | `cargo clippy --locked --all-targets -- -D warnings` puis `cargo test --locked` |
 | Composant audio natif (Rust) | `media/` | `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings` puis `cargo test --locked` ; `python3 scripts/ci/check-media-licenses.py --offline` pour les licences des dépendances |

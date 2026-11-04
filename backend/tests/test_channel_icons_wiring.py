@@ -2,7 +2,7 @@
 
 Ce test ne vérifie pas un comportement : il échoue quand une des implémentations du
 mécanisme diverge des autres, avant que la divergence n'atteigne une release. Guide du
-mécanisme : Assets/Images/channel-icons/README.md.
+mécanisme : scripts/generate_channel_icons.py.
 
   - la liste des canaux vient du registre unique (voir test_release_channels_wiring.py) ;
   - fichiers générés présents, à jour et attribués au bon canal ;

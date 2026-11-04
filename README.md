@@ -64,7 +64,7 @@ Install Bobine as a native application on your tablet, computer, or mini PC (or 
 - **Weekly Class Timetable** — Schedule your group classes across the week; workouts start automatically on time on the right screen.
 - **Interactive Member Kiosk (`/kiosk` & `/cinema`)** — Let members browse your catalog by category and start a class on demand using a touch screen, TV remote, gamepad, or mouse, with gapless transitions and 5-star session ratings.
 - **Studio Coach Desk (`/grid` & `/coach`)** — Connect a laptop or Android tablet to your room's HDMI display: the coach controls classes, chapters, subtitles, and audio from the touch screen while members only see clean fullscreen video on the projector.
-- **Smartphone Remote Control** — Scan a local QR code from any phone on the studio Wi-Fi to pause, seek, switch subtitles, or launch a workout without installing an app.
+- **Smartphone Remote Control** — Open `http://bobine.local` from any phone on the studio Wi-Fi to pause, seek, switch subtitles, or launch a workout without installing an app.
 - **24/7 Club Radio & Voice Reminders (`/radio`)** — Built-in music player with automatic crossfade, 5-band equalizer, playlists, and scheduled spoken announcements (e.g., *"Please re-rack your weights"*).
 - **Two Independent Display & Radio Outputs** — Drive a wired HDMI screen and a secondary network screen simultaneously with separate content.
 - **Attendance Metrics (`/metrics`)** — Track class completion rates, 5-star member feedback, peak studio hours, and device health locally.

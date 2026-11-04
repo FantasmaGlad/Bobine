@@ -65,7 +65,7 @@ Ce sont des objectifs et non des engagements contractuels : le projet n'a qu'un 
 
 ## Périmètre
 
-Dans le périmètre : le logiciel Bobine et ses installateurs (`install.sh`, `install-tor.sh`, paquets Windows, macOS, Linux et Android), le site `bobine.fit` et ses routes serveur, le dépôt APT `apt.bobine.fit` et sa chaîne de signature, ainsi que les miroirs Tor du site et du dépôt.
+Dans le périmètre : le logiciel Bobine et ses installateurs (`install.sh`, `install-tor.sh`, paquets Windows, macOS, Linux et Android), le site `bobine.fit` et ses routes serveur, les dépôts de paquets `packages.bobine.fit` et leur chaîne de signature, ainsi que les miroirs Tor du site et du dépôt.
 
 Hors périmètre : les failles des services tiers (Vercel, Cloudflare, GitHub, Amazon, AliExpress, Hugging Face, OpenRouter, Resend), l'ingénierie sociale et le hameçonnage, l'accès physique, les attaques par déni de service, les tests de charge et les scans automatisés massifs, les constats sans impact démontrable, et les erreurs de contenu ou de traduction.
 
@@ -78,7 +78,7 @@ Une recherche menée de bonne foi dans le périmètre ci-dessus ne fera l'objet 
 Le dépôt APT est signé par une clé de signature dédiée, distincte de la clé de réception ci-dessus et jamais utilisée pour recevoir des rapports.
 
 ```bash
-curl -fsSL https://apt.bobine.fit/bobine.gpg | gpg --show-keys --fingerprint
+curl -fsSL https://packages.bobine.fit/bobine.gpg | gpg --show-keys --fingerprint
 # clé principale : B77D 96D7 2F84 F36A CAA3  F872 9CBF 497D 829E E15A
 # sous-clé de signature : 941B 6F52 6A72 59F4 694C  F4BC 1B5D 18A9 76FA AD15
 ```

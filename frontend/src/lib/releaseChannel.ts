@@ -4,8 +4,7 @@
  * de canal passe par ici, jamais par une URL écrite en dur.
  *
  * Les fichiers (/logo-<canal>.png, /favicon-<canal>.png) sont générés par
- * scripts/generate_channel_icons.py à partir de Assets/Images/channel-icons/ (guide :
- * le README de ce dossier). Ajouter un canal commence dans backend/app/release_channel.py ;
+ * scripts/generate_channel_icons.py à partir de Assets/Images/channel-icons/. Ajouter un canal commence dans backend/app/release_channel.py ;
  * backend/tests/test_release_channels_wiring.py échoue si un consommateur diverge.
  */
 

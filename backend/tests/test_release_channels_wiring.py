@@ -7,7 +7,7 @@ de canaux au lieu de la lire, ou qu'un fichier généré est périmé.
                     ├── android/release-channels.json ──── Gradle ──── BuildConfig ──── Kotlin
                     └── frontend/src/lib/releaseChannels.generated.ts ──── interface web
 
-Guide : Assets/Images/channel-icons/README.md.
+Guide : scripts/generate_channel_icons.py.
 """
 
 import importlib.util
