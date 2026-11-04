@@ -10,7 +10,6 @@ import os
 import shutil
 import tempfile
 import uuid
-import zipfile
 from pathlib import Path
 
 from app.config import settings
@@ -18,7 +17,7 @@ from app.database import SessionLocal
 from app.models import ImportSource, RadioAnnouncement, RadioCoverSource, RadioTrack
 from app.utils.activity_log import log_activity
 from app.utils.import_jobs import update_job
-from app.utils.zip_safety import UnsafeZipError, safe_extract_zip
+from app.utils.zip_safety import InvalidArchiveError, UnsafeZipError, safe_extract_archive
 from app.utils.media_metadata import extract_embedded_cover, extract_radio_metadata
 from app.utils.radio_utils import (
     AUDIO_EXTENSIONS,
@@ -119,10 +118,9 @@ def import_radio_tracks_from_zip(zip_path: str, job_id: str | None = None) -> li
     update_job(job_id, stage="extracting")
     with tempfile.TemporaryDirectory() as tmp_dir:
         try:
-            with zipfile.ZipFile(zip_path, "r") as zf:
-                safe_extract_zip(zf, Path(tmp_dir))
-        except zipfile.BadZipFile:
-            raise ValueError("L'archive ZIP est invalide ou corrompue.")
+            safe_extract_archive(Path(zip_path), Path(tmp_dir))
+        except InvalidArchiveError:
+            raise
         except UnsafeZipError as e:
             raise ValueError(str(e))
         finally:

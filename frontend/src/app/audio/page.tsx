@@ -4,11 +4,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useUploadManager } from "@/lib/UploadManager";
 import { parseMediaName } from "@/lib/parseMediaName";
+import { ARCHIVE_ACCEPT, isArchiveName } from "@/lib/mediaFiles";
 import Icon from "@/components/Icon";
 import AudioPlaylistManager from "@/components/AudioPlaylistManager";
 
 const AUDIO_EXTENSIONS = [".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg"];
-const AUDIO_ACCEPT = ".mp3,.m4a,.wav,.aac,.flac,.ogg,audio/*";
+const AUDIO_ACCEPT = ".mp3,.m4a,.wav,.aac,.flac,.ogg,.oga,.opus,audio/*";
 
 const isAudioFile = (f: File) => {
   const lower = f.name.toLowerCase();
@@ -372,7 +373,7 @@ export default function AudioLibraryPage() {
   const handleFilesSelected = (files: FileList | File[] | null, folderNameHint?: string | null) => {
     if (!files || files.length === 0) return;
     if (uploadMode === "zip") {
-      const zip = Array.from(files).find((f) => f.name.toLowerCase().endsWith(".zip")) || files[0];
+      const zip = Array.from(files).find((f) => isArchiveName(f.name)) || files[0];
       setUploadZip(zip);
       const { title, program, release } = parseMediaName(zip.name, programs);
       setUploadTitle(title);
@@ -518,7 +519,7 @@ export default function AudioLibraryPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept={uploadMode === "zip" ? ".zip" : AUDIO_ACCEPT}
+              accept={uploadMode === "zip" ? ARCHIVE_ACCEPT : AUDIO_ACCEPT}
               multiple={uploadMode === "files"}
               style={{ display: "none" }}
               onChange={(e) => {
