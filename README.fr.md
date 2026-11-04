@@ -68,7 +68,8 @@ irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 
 Par Tor (PowerShell 7, Tor Browser ouvert ; `-TorPort 9050` pour le service tor) :
 
 ```powershell
-& ([scriptblock]::Create((irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 -Proxy socks5://127.0.0.1:9150))) -Tor
+$script = irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 -Proxy socks5://127.0.0.1:9150
+& ([scriptblock]::Create($script)) -Tor
 ```
 
 <img src="Assets/Icons/tools/homebrew.svg" width="20" height="20" alt="Homebrew"> macOS (Homebrew) :
