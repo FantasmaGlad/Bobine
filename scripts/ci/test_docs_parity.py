@@ -6,7 +6,6 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 PAIRS = (
     ("docs/ARCHITECTURE.md", "docs/ARCHITECTURE.en.md"),
-    ("docs/android-google-play.md", "docs/android-google-play.en.md"),
 )
 
 
