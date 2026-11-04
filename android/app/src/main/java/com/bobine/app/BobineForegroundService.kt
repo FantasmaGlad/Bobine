@@ -109,6 +109,12 @@ class BobineForegroundService : Service() {
     // seulement pendant une operation ponctuelle).
     private var multicastLock: WifiManager.MulticastLock? = null
 
+    // Verrou Wi-Fi a faible latence : sans lui, la radio passe en economie d'energie entre deux
+    // paquets, ce qui allonge la latence du WebSocket et coupe des flux sur le reseau local. Le
+    // systeme ne l'applique que quand l'application est au premier plan et l'ecran allume (cas de
+    // la TV et de l'ecran de diffusion) ; il n'exige que WAKE_LOCK, permission normale.
+    private var wifiLock: WifiManager.WifiLock? = null
+
     // Re-acquisition du verrou multicast sur changement de reseau : une
     // acquisition unique a onCreate() ne suffit pas toujours - certains
     // pilotes radio (HyperOS/MIUI notamment, deja connus pour leur propre
@@ -124,6 +130,7 @@ class BobineForegroundService : Service() {
             Log.i(TAG, "Reseau disponible (network=$network) - re-acquisition du verrou multicast mDNS")
             releaseMulticastLock()
             acquireMulticastLock()
+            acquireWifiLock()
             publishLanAddress()
         }
 
@@ -307,6 +314,7 @@ class BobineForegroundService : Service() {
         // startPythonServerWhenStorageReady ci-dessous) plutot qu'apres.
         startForeground(NOTIFICATION_ID, buildNotification())
         acquireMulticastLock()
+        acquireWifiLock()
         connectivityManager = (getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager).also {
             try {
                 it.registerDefaultNetworkCallback(networkCallback)
@@ -447,6 +455,7 @@ class BobineForegroundService : Service() {
         currentPresentation = null
         releaseWakeLock()
         releaseMulticastLock()
+        releaseWifiLock()
         try {
             connectivityManager?.unregisterNetworkCallback(networkCallback)
             lanCallbacks.forEach { (_, callback) -> connectivityManager?.unregisterNetworkCallback(callback) }
@@ -546,6 +555,24 @@ class BobineForegroundService : Service() {
     private fun releaseMulticastLock() {
         multicastLock?.let { if (it.isHeld) it.release() }
         multicastLock = null
+    }
+
+    private fun acquireWifiLock() {
+        if (wifiLock?.isHeld == true) return
+        try {
+            val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "Bobine:faible-latence").apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Verrou Wi-Fi a faible latence indisponible", e)
+        }
+    }
+
+    private fun releaseWifiLock() {
+        wifiLock?.let { if (it.isHeld) it.release() }
+        wifiLock = null
     }
 
     private fun createNotificationChannel() {
