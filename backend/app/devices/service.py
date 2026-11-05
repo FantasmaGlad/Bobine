@@ -190,7 +190,6 @@ class DevicesService:
         """Résout les routes mémorisées contre les sorties actuelles, publie l'état « route » aux lecteurs de chaque sortie
         radio, puis laisse le serveur déplacer un flux quand c'est possible et nécessaire. Ne lève jamais."""
         from app.database import SessionLocal
-        from app.models import Setting
         from app.radio_manager import get_all_radio_managers
 
         try:

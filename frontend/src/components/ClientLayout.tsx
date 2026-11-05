@@ -53,9 +53,10 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   // commandes. Elle reste accessible dans Réglages.
   useEffect(() => {
     if (!updateAvailableVersion || updateDismissed) return;
+    if (pathname === "/settings" || pathname.startsWith("/settings/")) return;
     const timer = setTimeout(() => setUpdateDismissed(true), UPDATE_TOAST_MS);
     return () => clearTimeout(timer);
-  }, [updateAvailableVersion, updateDismissed]);
+  }, [updateAvailableVersion, updateDismissed, pathname]);
   // Branchement ou retrait d'un support externe, où que l'on soit dans l'administration (sans nom : l'évènement n'en porte pas).
   const [plugEvent, setPlugEvent] = useState<"added" | "removed" | "abrupt" | null>(null);
   // demande le

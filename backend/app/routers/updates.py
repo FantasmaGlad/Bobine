@@ -805,9 +805,10 @@ def _something_is_playing() -> bool:
     except RuntimeError:  # moteurs pas encore initialisés : rien ne peut jouer
         return False
     for manager in playback.values():
-        if manager.state.get("state") == PlaybackStateEnum.playing.value or manager.state.get("audio_playing"):
+        state = manager.state.get("state")
+        if state in (PlaybackStateEnum.playing.value, PlaybackStateEnum.coach_mode.value) or manager.state.get("audio_playing"):
             return True
-    return any(radio.state.get("state") == "playing" for radio in radios.values())
+    return any(radio.state.get("state") in ("playing", "announcing") for radio in radios.values())
 
 
 async def run_scheduled_update_if_available(db: Session) -> None:

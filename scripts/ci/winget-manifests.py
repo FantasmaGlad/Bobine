@@ -15,6 +15,11 @@ DESCRIPTION = "Offline-first video playout for gyms and studios: scheduled class
 DESCRIPTION_FR = "Régie vidéo hors ligne pour salles de sport : cours programmés sur écrans, projecteurs et téléviseurs."
 
 
+def yaml_scalar(value: str) -> str:
+    """Guillemets simples YAML : une description contenant « : » reste une chaîne."""
+    return "'" + value.replace("'", "''") + "'"
+
+
 def read_sums(path: Path) -> dict[str, str]:
     sums = {}
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -53,9 +58,9 @@ def manifests(sums: dict[str, str], tag: str) -> dict[str, str]:
         + installer("arm64", f"Bobine-Setup-{version}-arm64.exe")
         + "ManifestType: installer\n" + foot,
         f"{IDENTIFIER}.locale.en-US.yaml": head + "PackageLocale: en-US\n" + about
-        + f"ShortDescription: {DESCRIPTION}\nManifestType: defaultLocale\n" + foot,
+        + f"ShortDescription: {yaml_scalar(DESCRIPTION)}\nManifestType: defaultLocale\n" + foot,
         f"{IDENTIFIER}.locale.fr-FR.yaml": head + "PackageLocale: fr-FR\n" + about
-        + f"ShortDescription: {DESCRIPTION_FR}\nManifestType: locale\n" + foot,
+        + f"ShortDescription: {yaml_scalar(DESCRIPTION_FR)}\nManifestType: locale\n" + foot,
     }
 
 

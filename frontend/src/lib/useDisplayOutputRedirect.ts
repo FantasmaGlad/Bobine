@@ -24,6 +24,19 @@ export function isWiredDisplay(): boolean {
 }
 
 /**
+ * Query de la page vers laquelle `useDisplayOutputRedirect` vient de naviguer. Next met `window.location` à jour
+ * après le rendu de la page d'arrivée : sans cette retenue, elle lirait l'ancienne query et figerait le mauvais
+ * canal (un kiosque câblé basculé sur la radio deviendrait le poste radio réseau).
+ */
+let pendingSearch: string | null = null;
+
+function currentSearch(): string {
+  if (pendingSearch !== null && pendingSearch !== window.location.search) return pendingSearch;
+  pendingSearch = null;
+  return window.location.search;
+}
+
+/**
  * Canal de diffusion de CETTE page : `?channel=` explicite d'abord, sinon le
  * défaut historique de la page (cf. displayChannel.ts). Règle UNIQUE partagée
  * par /kiosk et /cinema.
@@ -31,7 +44,7 @@ export function isWiredDisplay(): boolean {
 export function getDisplayChannel(page: DisplayPage): DisplayChannel {
   // Rendu serveur (export statique) : la radio est « réseau » par défaut, comme /radio nu.
   if (typeof window === "undefined") return page === "radio" ? "network" : "cable";
-  return resolveChannel(window.location.search, window.location.hostname, page).channel;
+  return resolveChannel(currentSearch(), window.location.hostname, page).channel;
 }
 
 /**
@@ -68,11 +81,12 @@ export function useDisplayOutputRedirect(
 
   useEffect(() => {
     // Seule la sortie de CE canal compte : un changement de l'autre canal ne doit jamais faire naviguer la page.
-    const { channel } = resolveChannel(window.location.search, window.location.hostname, current);
+    const search = currentSearch();
+    const { channel } = resolveChannel(search, window.location.hostname, current);
     if (!shouldEvaluateRedirect(channel, cableOutput, networkOutput, lastSeenRef.current)) return;
     const decision = decideOutputRedirect(
       current,
-      window.location.search,
+      search,
       window.location.hostname,
       cableOutput,
       networkOutput,
@@ -80,6 +94,9 @@ export function useDisplayOutputRedirect(
     );
     lastSeenRef.current = decision.seen;
     // Navigation côté client : pas de rechargement complet ni d'écran blanc entre kiosque, cinéma et radio.
-    if (decision.to) router.replace(decision.to);
+    if (decision.to) {
+      pendingSearch = new URL(decision.to, window.location.origin).search;
+      router.replace(decision.to);
+    }
   }, [cableOutput, networkOutput, current, router]);
 }

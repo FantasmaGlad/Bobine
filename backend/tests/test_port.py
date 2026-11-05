@@ -142,6 +142,12 @@ def test_default_preferred_port_is_1903():
     assert fields["port"].default == port_mod.DEFAULT_PORT
 
 
+@pytest.mark.parametrize("bad", [0, -1, 65536, 70000])
+def test_invalid_port_is_rejected_without_a_traceback(bad):
+    with pytest.raises(port_mod.PortUnavailableError, match="invalide"):
+        port_mod.resolve_port(bad)
+
+
 # --- fichier d'exécution -------------------------------------------------------
 
 def test_runtime_file_is_written_atomically_with_port_and_pid(tmp_path):
@@ -278,6 +284,7 @@ def test_launchers_use_the_shared_resolution():
     bootstrap = (REPO_ROOT / "android/app/src/main/python/bobine_bootstrap.py").read_text(encoding="utf-8")
     assert "acquire_listen_port" in run_backend and "release_port" in run_backend
     assert "acquire_listen_port" in bootstrap and "release_port" in bootstrap
+    assert "host=settings.host" in run_backend and "host=settings.host" in bootstrap
 
 
 def test_kotlin_endpoint_reads_the_file_the_backend_writes():

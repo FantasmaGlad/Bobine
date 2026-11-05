@@ -955,7 +955,7 @@ export default function DashboardScreen({ channel }: Props) {
                   className="btn btn-primary"
                   onClick={handleLaunch}
                   disabled={!selectedVideoId || cinemaLocked}
-                  title={cinemaLocked ? t("dashboard.channelCinemaLockedHint") : undefined}
+                  title={cinemaLocked ? t(lockedReason === "radio" ? "dashboard.channelRadioLockedHint" : "dashboard.channelCinemaLockedHint") : undefined}
                 >
                   <Icon name="play_arrow" size={16} filled />
                   {t("dashboard.launch")}
@@ -995,7 +995,7 @@ export default function DashboardScreen({ channel }: Props) {
                   className="btn btn-primary"
                   onClick={handleLaunchPlaylist}
                   disabled={!selectedPlaylistId || cinemaLocked}
-                  title={cinemaLocked ? t("dashboard.channelCinemaLockedHint") : undefined}
+                  title={cinemaLocked ? t(lockedReason === "radio" ? "dashboard.channelRadioLockedHint" : "dashboard.channelCinemaLockedHint") : undefined}
                 >
                   <Icon name="playlist_play" size={16} />
                   {t("dashboard.launch")}

@@ -56,6 +56,8 @@ const ANDROID_TV_KEYCODES: Partial<Record<number, keyof RemoteHandlers>> = {
   127: "onPlayPause", // KEYCODE_MEDIA_PAUSE
   87: "onNext", // KEYCODE_MEDIA_NEXT
   88: "onPrev", // KEYCODE_MEDIA_PREVIOUS
+  166: "onChapterNext", // KEYCODE_CHANNEL_UP
+  167: "onChapterPrev", // KEYCODE_CHANNEL_DOWN
 };
 
 export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true) {
@@ -117,7 +119,9 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
           // Android TV : la WebView ne renseigne pas toujours `key` pour la télécommande ; on retombe sur `keyCode`.
           const mapped = ANDROID_TV_KEYCODES[e.keyCode];
           if (!mapped) return;
-          action = h[mapped];
+          action = mapped === "onChapterNext" ? (h.onChapterNext ?? h.onNext)
+            : mapped === "onChapterPrev" ? (h.onChapterPrev ?? h.onPrev)
+            : h[mapped];
           break;
         }
       }

@@ -38,6 +38,7 @@ if sys.stdin is None:
 
 import uvicorn
 
+from app.config import settings
 from app.main import app
 from app.utils.port import PortUnavailableError, acquire_listen_port, release_port
 
@@ -57,6 +58,6 @@ if __name__ == "__main__":
         print(f"Bobine : démarrage impossible. {exc}", file=sys.stderr)
         sys.exit(1)
     try:
-        uvicorn.run(app, host="0.0.0.0", port=listen_port, workers=1)
+        uvicorn.run(app, host=settings.host, port=listen_port, workers=1)
     finally:
         release_port()

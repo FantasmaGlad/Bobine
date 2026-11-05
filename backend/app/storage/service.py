@@ -2,7 +2,7 @@
 
 Un seul service par processus (comme `app/devices/service.py`). Les évènements `storage_changed` ne portent
 AUCUN nom ni chemin (juste la portée et la nature du changement) : les clients relisent l'état par REST,
-derrière le contrôle d'accès (PIN). `library_change` (raison `storage_availability`) invite les pages de
+ouvert au réseau local de confiance. `library_change` (raison `storage_availability`) invite les pages de
 médias à se relire quand des éléments deviennent (in)disponibles.
 """
 

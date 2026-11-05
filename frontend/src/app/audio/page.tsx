@@ -8,7 +8,7 @@ import { ARCHIVE_ACCEPT, isArchiveName } from "@/lib/mediaFiles";
 import Icon from "@/components/Icon";
 import AudioPlaylistManager from "@/components/AudioPlaylistManager";
 
-const AUDIO_EXTENSIONS = [".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg"];
+const AUDIO_EXTENSIONS = [".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg", ".oga", ".opus"];
 const AUDIO_ACCEPT = ".mp3,.m4a,.wav,.aac,.flac,.ogg,.oga,.opus,audio/*";
 
 const isAudioFile = (f: File) => {
