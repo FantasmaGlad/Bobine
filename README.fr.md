@@ -59,13 +59,21 @@ Application native pour ordinateurs, tablettes, téléviseurs et mini PC. Versio
 
 ### Installation en une commande
 
-<img src="Assets/Icons/tools/powershell.svg" width="20" height="20" alt="PowerShell"> Windows (PowerShell) : installe la Stable après contrôle de son empreinte SHA-256 (sinon `-Channel beta` ou `-Channel canary`).
+<img src="Assets/Icons/tools/powershell.svg" width="20" height="20" alt="PowerShell"> Windows (PowerShell) : installe la Stable après contrôle de son empreinte SHA-256.
 
 ```powershell
 irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 | iex
 ```
 
-Par Tor (PowerShell 7, Tor Browser ouvert ; `-TorPort 9050` pour le service tor) :
+Sur Windows PowerShell 5.1 avec un .NET antérieur à 4.7, exécutez `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12` avant `irm` ; le script ne peut pas changer la version TLS de la requête qui le télécharge.
+
+Autre canal (le pipe ne transmet pas les paramètres) :
+
+```powershell
+& ([scriptblock]::Create((irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1))) -Channel beta
+```
+
+Par Tor (PowerShell 7.2+, Tor Browser ouvert ; `-TorPort 9050` pour le service tor) :
 
 ```powershell
 $script = irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 -Proxy socks5://127.0.0.1:9150

@@ -97,7 +97,7 @@ jobs:
           ref: ${{ inputs.tag }}
       - name: Vérifier les outils de publication sans réseau
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends reprepro
+          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends reprepro python3-yaml
           python3 scripts/ci/test-notify-web-release.py
           python3 -m unittest discover -s scripts/ci -p 'test_*.py' -q
           python3 scripts/ci/test-package-versions.py --family debian
@@ -1383,7 +1383,15 @@ jobs:
       - name: Rassembler les paquets Linux
         run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
       - name: Copy install script into release assets
-        run: cp install.sh packaging/windows/install.ps1 release-assets/
+        run: |
+          cp install.sh release-assets/
+          if [ -f packaging/windows/install.ps1 ]; then cp packaging/windows/install.ps1 release-assets/; fi
+      - name: Manifestes winget (joints à la release, soumission manuelle)
+        run: |
+          if [ -f scripts/ci/winget-manifests.py ]; then
+            (cd release-assets && sha256sum Bobine-Setup-*.exe) > "$RUNNER_TEMP/winget-SHA256SUMS"
+            python3 scripts/ci/winget-manifests.py "$RUNNER_TEMP/winget-SHA256SUMS" "${{ needs.version.outputs.tag_name }}" release-assets
+          fi
       - name: Signer la liste des empreintes (SHA256SUMS)
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
@@ -1399,8 +1407,6 @@ jobs:
         run: |
           gpgconf --kill gpg-agent || true
           rm -rf "$GNUPGHOME"
-      - name: Manifestes winget (joints à la release, soumission manuelle)
-        run: python3 scripts/ci/winget-manifests.py release-assets/SHA256SUMS "${{ needs.version.outputs.tag_name }}" release-assets
       - name: Vérifier la complétude des assets
         run: scripts/ci/verify-release-assets.sh release-assets "${{ needs.version.outputs.filename_version }}"
       - name: Inspect generated binary assets
@@ -1524,7 +1530,9 @@ jobs:
       - name: Rassembler les paquets Linux
         run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
       - name: Copy install script into release assets
-        run: cp install.sh packaging/windows/install.ps1 release-assets/
+        run: |
+          cp install.sh release-assets/
+          if [ -f packaging/windows/install.ps1 ]; then cp packaging/windows/install.ps1 release-assets/; fi
       - name: Signer la liste des empreintes (SHA256SUMS)
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
@@ -1747,7 +1755,9 @@ jobs:
       - name: Rassembler les paquets Linux
         run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
       - name: Copy install script into release assets
-        run: cp install.sh packaging/windows/install.ps1 release-assets/
+        run: |
+          cp install.sh release-assets/
+          if [ -f packaging/windows/install.ps1 ]; then cp packaging/windows/install.ps1 release-assets/; fi
       - name: Signer la liste des empreintes (SHA256SUMS)
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}

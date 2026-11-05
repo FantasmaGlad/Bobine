@@ -6,6 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import yaml
+
 SCRIPT = Path(__file__).with_name("winget-manifests.py")
 spec = importlib.util.spec_from_file_location("winget_manifests", SCRIPT)
 winget = importlib.util.module_from_spec(spec)
@@ -27,6 +29,7 @@ class WingetManifestTests(unittest.TestCase):
         self.assertEqual(len(files), 4)
         for content in files.values():
             self.assertTrue(content.startswith("PackageIdentifier: FantasmaGlad.Bobine\nPackageVersion: 9.9.9\n"))
+            self.assertIsInstance(yaml.safe_load(content), dict, "manifeste YAML invalide")
 
     def test_missing_installer_and_rolling_tag_are_refused(self):
         with self.assertRaises(SystemExit):

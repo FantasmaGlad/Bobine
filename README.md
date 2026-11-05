@@ -59,13 +59,21 @@ Native application for computers, tablets, TVs and mini PCs. Stable 5.0.7 below;
 
 ### One-command install
 
-<img src="Assets/Icons/tools/powershell.svg" width="20" height="20" alt="PowerShell"> Windows (PowerShell): installs Stable after checking its SHA-256 digest (`-Channel beta` or `-Channel canary` otherwise).
+<img src="Assets/Icons/tools/powershell.svg" width="20" height="20" alt="PowerShell"> Windows (PowerShell): installs Stable after checking its SHA-256 digest.
 
 ```powershell
 irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 | iex
 ```
 
-Through Tor (PowerShell 7, Tor Browser open; `-TorPort 9050` for the tor service):
+On Windows PowerShell 5.1 with a .NET runtime older than 4.7, run `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12` before `irm`; the script cannot change the TLS version of the request that downloads it.
+
+Another channel (the pipe does not forward parameters):
+
+```powershell
+& ([scriptblock]::Create((irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1))) -Channel beta
+```
+
+Through Tor (PowerShell 7.2+, Tor Browser open; `-TorPort 9050` for the tor service):
 
 ```powershell
 $script = irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 -Proxy socks5://127.0.0.1:9150
