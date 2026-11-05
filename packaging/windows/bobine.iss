@@ -60,6 +60,8 @@ DefaultGroupName=Bobine
 ; %ProgramData%\Bobine (première installation) ; les lancements
 ; ultérieurs de BobineTray, eux, tournent en utilisateur standard.
 PrivilegesRequired=admin
+; Le dossier de Bobine rejoint le PATH (commande `bobine`) : les terminaux ouverts ensuite le voient.
+ChangesEnvironment=yes
 OutputDir=..\..\dist-installer
 OutputBaseFilename=Bobine-Setup-{#MyOutputVersion}{#MyOutputSuffix}
 Compression=lzma2
@@ -98,6 +100,10 @@ Type: files; Name: "{app}\*.dll"
 ; contents_directory=".") : les deux exécutables, config.toml,
 ; logo_bobine_icon*.png (une par canal), frontend/out/ et les dépendances Python figées.
 Source: "{#MyDistDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+
+[Registry]
+; Commande `bobine` (bobine.exe, console) disponible dans tout terminal ; ajout seulement s'il manque.
+Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Check: NeedsAddPath(ExpandConstant('{app}'))
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"
@@ -142,6 +148,40 @@ begin
   // Termine les processus Bobine actifs pour liberer les verrous de fichiers
   // lors d'une mise a jour ou reinstallation par-dessus une version existante
   Exec('taskkill.exe', '/F /IM BobineTray.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/F /IM bobine.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec('taskkill.exe', '/F /IM BobineBackend.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := '';
+end;
+
+const
+  EnvironmentKey = 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment';
+
+function NeedsAddPath(Dir: String): Boolean;
+var
+  Paths: String;
+begin
+  if not RegQueryStringValue(HKLM, EnvironmentKey, 'Path', Paths) then
+  begin
+    Result := True;
+    exit;
+  end;
+  Result := Pos(';' + Uppercase(Dir) + ';', ';' + Uppercase(Paths) + ';') = 0;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Paths, Dir: String;
+  Position: Integer;
+begin
+  // Retire le dossier de Bobine du PATH, sans toucher aux autres entrées.
+  if CurUninstallStep <> usPostUninstall then
+    exit;
+  if not RegQueryStringValue(HKLM, EnvironmentKey, 'Path', Paths) then
+    exit;
+  Dir := ExpandConstant('{app}');
+  Position := Pos(';' + Uppercase(Dir), Uppercase(Paths));
+  if Position = 0 then
+    exit;
+  Delete(Paths, Position, Length(Dir) + 1);
+  RegWriteExpandStringValue(HKLM, EnvironmentKey, 'Path', Paths);
 end;

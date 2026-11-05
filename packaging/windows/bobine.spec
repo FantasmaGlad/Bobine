@@ -94,7 +94,20 @@ tray_analysis = Analysis(
     cipher=block_cipher,
 )
 
+# Commande `bobine` : exécutable console (BobineTray.exe n'a pas de console, ses sorties seraient perdues).
+cli_analysis = Analysis(
+    [str(BACKEND_DIR / "run_cli.py")],
+    pathex=[str(BACKEND_DIR)],
+    datas=[],
+    hiddenimports=[],
+    hookspath=[],
+    runtime_hooks=[],
+    excludes=["pystray", "app.desktop", *runtime_excludes],
+    cipher=block_cipher,
+)
+
 backend_pyz = PYZ(backend_analysis.pure, backend_analysis.zipped_data, cipher=block_cipher)
+cli_pyz = PYZ(cli_analysis.pure, cli_analysis.zipped_data, cipher=block_cipher)
 tray_pyz = PYZ(tray_analysis.pure, tray_analysis.zipped_data, cipher=block_cipher)
 
 # contents_directory="." : désactive le sous-dossier "_internal" introduit
@@ -126,7 +139,18 @@ tray_exe = EXE(
     icon=ICON_PATH,
 )
 
-# COLLECT unique : les deux exécutables et leurs dépendances partagées
+cli_exe = EXE(
+    cli_pyz,
+    cli_analysis.scripts,
+    [],
+    exclude_binaries=True,
+    name="bobine",
+    console=True,
+    contents_directory=".",
+    icon=ICON_PATH,
+)
+
+# COLLECT unique : les trois exécutables et leurs dépendances partagées
 # atterrissent dans le MÊME dossier dist/Bobine/, comme prévu (Inno Setup
 # copie ce dossier tel quel).
 coll = COLLECT(
@@ -138,6 +162,10 @@ coll = COLLECT(
     tray_analysis.binaries,
     tray_analysis.zipfiles,
     tray_analysis.datas,
+    cli_exe,
+    cli_analysis.binaries,
+    cli_analysis.zipfiles,
+    cli_analysis.datas,
     strip=False,
     upx=False,
     name="Bobine",
