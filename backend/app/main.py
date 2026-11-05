@@ -46,6 +46,8 @@ from app.utils.port import active_port
 from app.utils.web_profile import choose_rendition, client_can_decode, parse_accept
 from app.utils.web_rendition import request_web_rendition
 from app.utils.radio_utils import content_type_for
+from app import config_files
+from app.routers import config_files as config_files_router
 from app.utils import media_native, port80, tor_proxy
 from app.utils.media_sidecar import close_current_media_client
 from app.utils.update_orchestrator import load_persisted_state_at_startup
@@ -148,6 +150,8 @@ async def lifespan(app: FastAPI):
     start_mdns_responder(active_port())
     if get_profile_handler().tries_port80_redirect():
         await port80.start(active_port())
+    # Copie lisible de la configuration (dossier `config/` des données), à jour dès le démarrage.
+    config_files.schedule_mirror()
     # 24/7.
     # Réglages de son persistés des deux sorties radio, chargés avant tout
     # démarrage de lecture pour que le premier état diffusé les contienne.
@@ -199,6 +203,7 @@ app.add_middleware(
     expose_headers=["*"],
 )
 app.add_middleware(SameOriginGuard, allowed_origins=dev_origins())
+app.add_middleware(config_files.ConfigMirrorTrigger)
 # gzip des seules réponses JSON/texte de /api/* (jamais /stream, miniatures,
 # Range, WebSocket...) : voir app/utils/http_compression.py. Ajouté APRÈS le
 # CORS pour envelopper aussi ses en-têtes ; le frontend statique négocie lui-même
@@ -227,6 +232,7 @@ app.include_router(updates.router)
 app.include_router(metrics.router)
 app.include_router(devices.router)
 app.include_router(storage.router)
+app.include_router(config_files_router.router)
 # En dernier : ses routes génériques `/api/radio/{output}/{action}` ne doivent masquer aucune route existante.
 app.include_router(playback.command_router)
 

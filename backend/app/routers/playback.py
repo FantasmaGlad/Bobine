@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from sqlalchemy import func
 
+from app import config_files
 from app.database import get_db
 from app.models import (
     AudioCourse, AudioPlaylist, Background, PlaybackState,
@@ -1000,6 +1001,7 @@ async def _handle_radio_command(
         sound = sanitize_sound(params.get("sound"), base=manager.state.get("sound"))
         save_sound(db, manager.channel, sound)
         await manager.set_sound(sound, client_ts)
+        config_files.schedule_mirror()
     elif command == "radio_report_route":
         # Résultat de l'application de la route audio par ce lecteur (lib/audioRoute.ts) : mémorisé tel quel pour
         # l'interface Périphériques et pour décider si le serveur doit déplacer le flux. Valeur inconnue = « error ».
