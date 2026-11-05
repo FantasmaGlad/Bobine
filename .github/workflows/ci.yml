@@ -165,8 +165,14 @@ jobs:
           cache-dependency-path: |
             backend/requirements*.txt
             backend/constraints-desktop.txt
+      - name: Paquets ffmpeg en cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/ffmpeg-debs
+          key: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-${{ env.ImageVersion }}
+          restore-keys: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-
       - name: Install ffmpeg
-        run: sudo apt-get $APT_OPTIONS update && sudo apt-get $APT_OPTIONS install -y --no-install-recommends ffmpeg
+        run: scripts/ci/install-ffmpeg.sh ~/ffmpeg-debs
       - name: Build frontend
         working-directory: frontend
         run: |
@@ -227,12 +233,15 @@ jobs:
         run: python -m pip check
       - name: Syntax check (compile all sources)
         run: python -m compileall -q backend/app scripts
+      - name: Paquets ffmpeg en cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/ffmpeg-debs
+          key: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-${{ env.ImageVersion }}
+          restore-keys: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-
       - name: Install system dependencies (ffmpeg)
-        # Comme le job Firefox, les tests CPU n’installent pas les modèles ASR
-        # ni les pilotes recommandés. Le miroir peut rester lent même sans eux.
-        run: |
-          sudo apt-get $APT_OPTIONS update
-          sudo apt-get $APT_OPTIONS install -y --no-install-recommends ffmpeg
+        # Comme le job Firefox, les tests CPU n’installent pas les modèles ASR ni les pilotes recommandés.
+        run: scripts/ci/install-ffmpeg.sh ~/ffmpeg-debs
       # pytest (et non `unittest discover`) : c'est la commande documentée
       # et `unittest` ignore les tests écrits en simples
       # fonctions (suivi de séquence, horloge de lecture, diffusion par canal,
