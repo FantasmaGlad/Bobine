@@ -54,8 +54,29 @@ Native application for computers, tablets, TVs and mini PCs. Stable 5.0.7 below;
 | <img src="Assets/Icons/distros/arch.svg" width="20" height="20" valign="middle" alt="Arch Linux"> **Arch Linux** | [pacman](https://packages.bobine.fit/arch/) · [x86_64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-5.0.7-1-x86_64.pkg.tar.zst) · [aarch64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-5.0.7-1-aarch64.pkg.tar.zst) | glibc 2.38+ |
 | <img src="Assets/Icons/os/android.svg" width="20" height="20" valign="middle" alt="Android"> **Android** | [APK](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/Bobine-5.0.7.apk) | Android 14+, ARM64 |
 | <img src="Assets/Icons/os/androidtv.svg" width="20" height="20" valign="middle" alt="Android TV"> **Android TV, Google TV** | [APK TV](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/Bobine-TV-5.0.7.apk) | ARM 32 and 64-bit |
-| <img src="Assets/Images/bash.svg" width="20" height="20" valign="middle" alt="Mini PC"> **Mini PC appliance** | [install.sh](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/install.sh) · [assistant x64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-assistant) · [ARM64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-assistant-arm64) | Debian 13 |
 | <img src="Assets/Icons/os/tor.svg" width="20" height="20" valign="middle" alt="Tor"> **Tor (.onion)** | [website](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/) · [packages](http://rzvwjat5pidtxtwzcsvew7yc5ugfjvzz432ecpn3s5mlch4cs7vvmqad.onion/) | Tor Browser or tor |
+
+Same packages on derivatives (glibc 2.38+): <img src="Assets/Icons/distros/linuxmint.svg" width="16" height="16" valign="middle" alt="Linux Mint" title="Linux Mint"> Linux Mint · <img src="Assets/Icons/distros/popos.svg" width="16" height="16" valign="middle" alt="Pop!_OS" title="Pop!_OS"> Pop!_OS · <img src="Assets/Icons/distros/zorin.svg" width="16" height="16" valign="middle" alt="Zorin OS" title="Zorin OS"> Zorin OS · <img src="Assets/Icons/distros/raspberrypi.svg" width="16" height="16" valign="middle" alt="Raspberry Pi OS" title="Raspberry Pi OS"> Raspberry Pi OS · <img src="Assets/Icons/distros/nobara.svg" width="16" height="16" valign="middle" alt="Nobara" title="Nobara"> Nobara · <img src="Assets/Icons/distros/rhel.svg" width="16" height="16" valign="middle" alt="RHEL" title="RHEL"> RHEL 10+ · <img src="Assets/Icons/distros/almalinux.svg" width="16" height="16" valign="middle" alt="AlmaLinux" title="AlmaLinux"> AlmaLinux 10+ · <img src="Assets/Icons/distros/rockylinux.svg" width="16" height="16" valign="middle" alt="Rocky Linux" title="Rocky Linux"> Rocky Linux 10+ · <img src="Assets/Icons/distros/endeavouros.svg" width="16" height="16" valign="middle" alt="EndeavourOS" title="EndeavourOS"> EndeavourOS · <img src="Assets/Icons/distros/cachyos.svg" width="16" height="16" valign="middle" alt="CachyOS" title="CachyOS"> CachyOS · <img src="Assets/Icons/distros/manjaro.svg" width="16" height="16" valign="middle" alt="Manjaro" title="Manjaro"> Manjaro
+
+### Mini PC appliance
+
+Turns a mini PC (Debian 13, x64 or ARM64) into a dedicated Bobine player: it starts straight into the fullscreen kiosk on its HDMI screen and resumes on its own after a power cut.
+
+- **From your computer, with the setup assistant**: it finds the mini PC on your network, connects to it over SSH and installs everything with a progress bar. Assistant for Linux: [x64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-assistant) · [ARM64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/bobine-assistant-arm64).
+- **Directly on the mini PC**, in a terminal ([install.sh](https://github.com/FantasmaGlad/Bobine/releases/download/V5.0.7/install.sh)):
+
+  ```bash
+  curl -fsSL https://bobine.fit/install.sh | bash
+  ```
+
+- **Script fetched through Tor** from the onion mirror (the installation itself then uses the regular network):
+
+  ```bash
+  onion=http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion
+  curl --socks5-hostname 127.0.0.1:9050 -fsSL "$onion/install.sh" | bash
+  ```
+
+Requirements: minimal Debian 13 install with SSH enabled, on the same network as your computer.
 
 ### One-command install
 
@@ -70,13 +91,15 @@ On Windows PowerShell 5.1 with a .NET runtime older than 4.7, run `[Net.ServiceP
 Another channel (the pipe does not forward parameters):
 
 ```powershell
-& ([scriptblock]::Create((irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1))) -Channel beta
+$u = 'https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1'
+& ([scriptblock]::Create((irm $u))) -Channel beta
 ```
 
 Through Tor (PowerShell 7.2+, Tor Browser open; `-TorPort 9050` for the tor service):
 
 ```powershell
-$script = irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 -Proxy socks5://127.0.0.1:9150
+$u = 'https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1'
+$script = irm $u -Proxy socks5://127.0.0.1:9150
 & ([scriptblock]::Create($script)) -Tor
 ```
 
@@ -95,19 +118,8 @@ ALL_PROXY=socks5h://127.0.0.1:9050 brew install --cask fantasmaglad/bobine/bobin
 <img src="Assets/Icons/os/linux.svg" width="20" height="20" alt="Linux"> Linux: signed repositories, instructions on [packages.bobine.fit](https://packages.bobine.fit). Through Tor, repositories and signing key over the onion mirror:
 
 ```bash
-curl --socks5-hostname 127.0.0.1:9050 -fsSL http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/install-tor.sh | bash
-```
-
-<img src="Assets/Images/bash.svg" width="20" height="20" alt="Mini PC"> Mini PC appliance (Debian 13):
-
-```bash
-curl -fsSL https://bobine.fit/install.sh | bash
-```
-
-Script fetched from the onion mirror (the installation itself then uses the regular network):
-
-```bash
-curl --socks5-hostname 127.0.0.1:9050 -fsSL http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/install.sh | bash
+onion=http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion
+curl --socks5-hostname 127.0.0.1:9050 -fsSL "$onion/install-tor.sh" | bash
 ```
 
 <img src="Assets/Icons/os/tor.svg" width="20" height="20" alt="Tor"> Through Tor, GitHub and Homebrew see a Tor exit instead of your address.
@@ -119,7 +131,7 @@ curl --socks5-hostname 127.0.0.1:9050 -fsSL http://bobinedaoki42tt33rxacmtaab2gx
 - **Weekly Class Timetable** — Schedule your group classes across the week; workouts start automatically on time on the right screen.
 - **Interactive Member Kiosk (`/kiosk` & `/cinema`)** — Let members browse your catalog by category and start a class on demand using a touch screen, TV remote, gamepad, or mouse, with gapless transitions and 5-star session ratings.
 - **Studio Coach Desk (`/grid` & `/coach`)** — Connect a laptop or Android tablet to your room's HDMI display: the coach controls classes, chapters, subtitles, and audio from the touch screen while members only see clean fullscreen video on the projector.
-- **Smartphone Remote Control** — Open `http://bobine.local` from any phone on the studio Wi-Fi to pause, seek, switch subtitles, or launch a workout without installing an app.
+- **Smartphone Remote Control** — Open `http://bobine.local:1903` from any phone on the studio Wi-Fi to pause, seek, switch subtitles, or launch a workout without installing an app.
 - **24/7 Club Radio & Voice Reminders (`/radio`)** — Built-in music player with automatic crossfade, 5-band equalizer, playlists, and scheduled spoken announcements (e.g., *"Please re-rack your weights"*).
 - **Two Independent Display & Radio Outputs** — Drive a wired HDMI screen and a secondary network screen simultaneously with separate content.
 - **Attendance Metrics (`/metrics`)** — Track class completion rates, 5-star member feedback, peak studio hours, and device health locally.
@@ -132,9 +144,9 @@ curl --socks5-hostname 127.0.0.1:9050 -fsSL http://bobinedaoki42tt33rxacmtaab2gx
 1. **Install and launch Bobine** on your computer, tablet, or mini PC.
 2. **Open the interface** from any browser on the same Wi-Fi / Ethernet network:
    ```text
-   http://bobine.local
+   http://bobine.local:1903
    ```
-   *(Or `http://127.0.0.1:1903` directly on the host machine).*
+   *(Or `http://127.0.0.1:1903` directly on the host machine; without the port on the mini PC appliance. Every address of the device is listed in Settings → Documentation.)*
 3. **Import your first videos or music tracks** by drag-and-drop in the **Library** tab, then launch a class or set up your weekly **Schedule**.
 
 All web interfaces work out of the box on **Mozilla Firefox**, **Google Chrome**, **Microsoft Edge**, **Apple Safari**, **Brave**, and **Tor Browser** with zero client installation.
