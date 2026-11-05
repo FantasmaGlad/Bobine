@@ -39,8 +39,9 @@ def dev_origins() -> tuple[str, ...]:
 
 
 def allowed_host_names() -> frozenset[str]:
-    """Noms de la machine et noms déclarés dans `BOBINE_ALLOWED_HOSTS` (liste séparée par des virgules)."""
-    names = {socket.gethostname(), socket.getfqdn()}
+    """Nom de la machine et noms déclarés dans `BOBINE_ALLOWED_HOSTS` (liste séparée par des virgules).
+    Pas de `socket.getfqdn()` : sa résolution inverse peut bloquer le démarrage plusieurs dizaines de secondes."""
+    names = {socket.gethostname()}
     names.update(os.environ.get("BOBINE_ALLOWED_HOSTS", "").split(","))
     return frozenset(name.strip().lower().rstrip(".") for name in names if name and name.strip())
 
