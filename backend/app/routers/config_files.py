@@ -3,11 +3,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
-from app import config_files
+from app import config_apply, config_files
 from app.database import get_db
 
 router = APIRouter(prefix="/api/config", tags=["config"])
@@ -34,3 +34,24 @@ async def export_config_file(name: str, db: Session = Depends(get_db)) -> dict[s
             detail={"code": "unknown_config_file", "message": f"{name} inconnu.", "allowed": list(config_files.BUILDERS)},
         )
     return await run_in_threadpool(builder, db)
+
+
+@router.post("/apply")
+async def apply_config(
+    payload: dict[str, Any] = Body(...),
+    dry_run: bool = Query(True),
+    include_machine: bool = Query(False),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Applique un ou plusieurs fichiers (`{"files": {"settings.json": {...}}}`) en une seule transaction. Par défaut
+    un essai à blanc (`dry_run=true`) : rien n'est écrit, l'écart est renvoyé. `machine.json` n'est appliqué qu'avec
+    `include_machine=true`. 422 `invalid_config` avec la liste complète des erreurs : rien n'a été écrit."""
+    files = payload.get("files")
+    if not isinstance(files, dict) or not files:
+        raise HTTPException(status_code=400, detail={"code": "no_files", "message": "Aucun fichier fourni (« files »)."})
+    try:
+        return await config_apply.apply(db, files, dry_run=dry_run, include_machine=include_machine)
+    except config_apply.ConfigErrors as exc:
+        raise HTTPException(
+            status_code=422, detail={"code": "invalid_config", "message": "Rien n'a été appliqué.", "errors": exc.errors},
+        ) from exc

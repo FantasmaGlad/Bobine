@@ -521,18 +521,28 @@ async def get_media_native_status() -> dict[str, Any]:
 
 @router.put("")
 async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)) -> dict[str, Any]:
-    # `.model_dump` (Pydantic v2) sauf sur le profil Android où `.dict` (v1)
-    # est le seul disponible.
-    dump = getattr(payload, "model_dump", None) or payload.dict
-    updates = dump(exclude_unset=True)
+    updates = settings_updates(payload)
     if not updates:
         raise HTTPException(status_code=400, detail="Aucun paramètre fourni")
+    stage_settings(updates, db)
+    db.commit()
+    logger.info(f"Paramètres mis à jour : {updates}")
+    return await after_settings_change(updates, db)
 
-    # Compatibilité : un ancien client qui écrit `wired_display_mode` exprime un
-    # choix MANUEL de l'administrateur -> forçage du mode.
+
+def settings_updates(payload: SettingsUpdate) -> dict[str, Any]:
+    """Champs fournis, convertis par le modèle ; `wired_display_mode` (ancien client) vaut choix manuel du mode."""
+    # `.model_dump` (Pydantic v2) sauf sur le profil Android où `.dict` (v1) est le seul disponible.
+    dump = getattr(payload, "model_dump", None) or payload.dict
+    updates = dump(exclude_unset=True)
     if updates.get("wired_display_mode") and "display_mode_setting" not in updates:
         updates["display_mode_setting"] = updates["wired_display_mode"]
+    return updates
 
+
+def stage_settings(updates: dict[str, Any], db: Session) -> None:
+    """Valide puis écrit les réglages dans la session SANS valider la transaction (l'appelant le fait), pour que la
+    route et l'application des fichiers de configuration partagent les mêmes règles. Lève `HTTPException`."""
     for key, value in updates.items():
         if value is None:
             if key == "default_coach_background_id":
@@ -605,15 +615,14 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
         else:
             db.add(Setting(key=key, value=stored_value))
 
-        # Effet immédiat sur le process en cours pour les champs numériques
-        # (le singleton `runtime_settings` est un objet mutable partagé par
-        # tout le backend : playback_manager, scheduler_manager, etc. lisent
-        # ses attributs directement à chaque usage, pas seulement au démarrage).
-        if key in _WRITABLE_NUMERIC_FIELDS and hasattr(runtime_settings, key):
-            setattr(runtime_settings, key, int(value))
 
-    db.commit()
-    logger.info(f"Paramètres mis à jour : {updates}")
+async def after_settings_change(updates: dict[str, Any], db: Session) -> dict[str, Any]:
+    """Effets à chaud de réglages déjà enregistrés ; renvoie les réglages effectifs."""
+    for key, value in updates.items():
+        # Le singleton `runtime_settings` est partagé par tout le backend (playback_manager, scheduler_manager...),
+        # qui lit ses attributs à chaque usage, pas seulement au démarrage.
+        if key in _WRITABLE_NUMERIC_FIELDS and hasattr(runtime_settings, key) and value is not None:
+            setattr(runtime_settings, key, int(value))
     result = get_settings(db)
 
     if "media_native" in updates:
