@@ -12,7 +12,6 @@
   <a href="https://bobine.fit/fr"><b>Site officiel</b></a> &nbsp;·&nbsp;
   <a href="https://bobine.fit/fr/telechargement"><b>Télécharger</b></a> &nbsp;·&nbsp;
   <a href="https://bobine.fit/fr/documentation"><b>Documentation utilisateur</b></a> &nbsp;·&nbsp;
-  <a href="https://bobine.fit/fr/materiel/aliexpress"><b>Matériel recommandé</b></a> &nbsp;·&nbsp;
   <a href="README.md"><b>English</b></a> &nbsp;·&nbsp;
   <a href="docs/ARCHITECTURE.md"><b>Architecture technique</b></a>
 </p>
@@ -168,7 +167,7 @@ Bobine propose trois canaux de mise à jour, modifiables à tout moment dans **R
 ## Documentation & Guides matériel
 
 - **Guide utilisateur & FAQ** : [bobine.fit/fr/documentation](https://bobine.fit/fr/documentation)
-- **Sélection matérielle indépendante** *(mini PC, tablettes, box TV, adaptateurs HDMI)* : [bobine.fit/fr/materiel/aliexpress](https://bobine.fit/fr/materiel/aliexpress)
+- **Compatibilité matérielle** *(mini PC, PC portables, tablettes, box TV)* : [bobine.fit/fr/telechargement](https://bobine.fit/fr/telechargement)
 - **Portail des paquets Linux** *(instructions APT, DNF, Pacman)* : [packages.bobine.fit/fr/](https://packages.bobine.fit/fr/)
 - **Architecture technique & Référence API** : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 

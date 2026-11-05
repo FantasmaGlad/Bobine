@@ -67,7 +67,7 @@ Ce sont des objectifs et non des engagements contractuels : le projet n'a qu'un 
 
 Dans le périmètre : le logiciel Bobine et ses installateurs (`install.sh`, `install-tor.sh`, paquets Windows, macOS, Linux et Android), le site `bobine.fit` et ses routes serveur, les dépôts de paquets `packages.bobine.fit` et leur chaîne de signature, ainsi que les miroirs Tor du site et du dépôt.
 
-Hors périmètre : les failles des services tiers (Vercel, Cloudflare, GitHub, Amazon, AliExpress, Hugging Face, OpenRouter, Resend), l'ingénierie sociale et le hameçonnage, l'accès physique, les attaques par déni de service, les tests de charge et les scans automatisés massifs, les constats sans impact démontrable, et les erreurs de contenu ou de traduction.
+Hors périmètre : les failles des services tiers (Vercel, Cloudflare, GitHub, Hugging Face, OpenRouter, Resend), l'ingénierie sociale et le hameçonnage, l'accès physique, les attaques par déni de service, les tests de charge et les scans automatisés massifs, les constats sans impact démontrable, et les erreurs de contenu ou de traduction.
 
 ## Recherche de bonne foi
 

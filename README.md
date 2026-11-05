@@ -12,7 +12,6 @@
   <a href="https://bobine.fit"><b>Official Website</b></a> &nbsp;·&nbsp;
   <a href="https://bobine.fit/en/download"><b>Downloads</b></a> &nbsp;·&nbsp;
   <a href="https://bobine.fit/en/documentation"><b>User Documentation</b></a> &nbsp;·&nbsp;
-  <a href="https://bobine.fit/en/hardware/aliexpress"><b>Recommended Hardware</b></a> &nbsp;·&nbsp;
   <a href="README.fr.md"><b>Français</b></a> &nbsp;·&nbsp;
   <a href="docs/ARCHITECTURE.en.md"><b>Technical Architecture</b></a>
 </p>
@@ -168,7 +167,7 @@ Bobine offers three update channels, switchable anytime in **Settings → Softwa
 ## Documentation & Hardware Guides
 
 - **User Guide & FAQ**: [bobine.fit/en/documentation](https://bobine.fit/en/documentation)
-- **Independent Hardware Guide** *(mini PCs, tablets, TV boxes, HDMI adapters)*: [bobine.fit/en/hardware/aliexpress](https://bobine.fit/en/hardware/aliexpress)
+- **Hardware Compatibility** *(mini PCs, laptops, tablets, TV boxes)*: [bobine.fit/en/download](https://bobine.fit/en/download)
 - **Linux Package Portal** *(APT, DNF, Pacman instructions)*: [packages.bobine.fit](https://packages.bobine.fit)
 - **Technical Architecture & API Reference**: [docs/ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md)
 

@@ -67,7 +67,7 @@ These are objectives, not contractual commitments: the project has a single main
 
 In scope: the Bobine software and its installers (`install.sh`, `install-tor.sh`, Windows, macOS, Linux and Android packages), the website `bobine.fit` and its server routes, the Linux package repositories `packages.bobine.fit` (APT, DNF and Pacman) and their signing chain, and the Tor mirrors of the site and of the repository.
 
-Out of scope: flaws in third-party services (Vercel, Cloudflare, GitHub, Amazon, AliExpress, Hugging Face, OpenRouter, Resend), social engineering and phishing, physical access, denial-of-service attacks, load tests and mass automated scans, findings without demonstrable impact, and content or translation errors.
+Out of scope: flaws in third-party services (Vercel, Cloudflare, GitHub, Hugging Face, OpenRouter, Resend), social engineering and phishing, physical access, denial-of-service attacks, load tests and mass automated scans, findings without demonstrable impact, and content or translation errors.
 
 ## Good-faith research
 
