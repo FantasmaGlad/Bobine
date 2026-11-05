@@ -9,7 +9,6 @@ import tempfile
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-import psutil
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,6 +41,7 @@ from app.utils.http_compression import (
 from app.utils.origin_guard import SameOriginGuard, dev_origins
 from app.utils.media_response import build_media_response
 from app.utils.deployment import get_profile_handler
+from app.utils.health import kiosk_process_alive
 from app.utils.port import active_port
 from app.utils.web_profile import choose_rendition, client_can_decode, parse_accept
 from app.utils.web_rendition import request_web_rendition
@@ -237,28 +237,6 @@ app.include_router(config_files_router.router)
 app.include_router(playback.command_router)
 
 
-_KIOSK_PROCESS_NAMES = ("chromium", "chromium-browser", "chrome", "msedge", "google chrome")
-
-
-def _kiosk_process_alive() -> str:
-    """Présence d'un processus de navigateur kiosque sur la machine (le
-    backend tourne sur le même hôte). `psutil` (déjà une dépendance du
-    projet) remplace `pgrep` — absent de Windows — ; fonctionne à l'identique sur
-    Linux/Windows/macOS. Le nom de process macOS de Chrome est "Google
-    Chrome" (avec espace) — `"google chrome"` couvre ce cas après le
-    `.lower()` ci-dessous ; sans lui, aucun préfixe ne matchait "google
-    chrome" et le kiosque macOS aurait toujours été rapporté "down". "unknown" si l'énumération des process échoue (rare — droits
-    insuffisants)."""
-    try:
-        for proc in psutil.process_iter(["name"]):
-            proc_name = (proc.info.get("name") or "").lower()
-            if any(proc_name.startswith(name) for name in _KIOSK_PROCESS_NAMES):
-                return "ok"
-    except Exception:
-        return "unknown"
-    return "down"
-
-
 @app.get("/api/health")
 async def health():
     """Contrôle de santé lisible par machine, consommé par le chien de garde
@@ -288,12 +266,12 @@ async def health():
     # requêtes en vol.
     components["database"] = await run_in_threadpool(_check_database)
 
-    # `_kiosk_process_alive()` énumère TOUS les processus du système
+    # `kiosk_process_alive()` énumère TOUS les processus du système
     # (`psutil.process_iter`) — non pertinent sur Android (aucun kiosque
-    # Chromium à détecter, cf. `_kiosk_process_alive` ci-dessus) et
+    # Chromium à détecter, cf. `app/utils/health.py`) et
     # coûteux sous SELinux Android (chaque `/proc/<pid>` refusé lève une
     # exception interceptée)..
-    components["kiosk"] = "n/a" if _IS_ANDROID else await run_in_threadpool(_kiosk_process_alive)
+    components["kiosk"] = "n/a" if _IS_ANDROID else await run_in_threadpool(kiosk_process_alive)
 
     healthy = components["database"] == "ok"
     payload = {"status": "ok" if healthy else "degraded", "components": components}
