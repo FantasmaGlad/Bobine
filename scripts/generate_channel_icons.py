@@ -2,7 +2,8 @@
 """Génère toutes les icônes dérivées des icônes de canal (Stable, Bêta, Canary).
 
 Source de vérité unique : `Assets/Images/channel-icons/bobine-channel-<canal>.png`
-(512 x 512, RGBA, fond transparent) et `banner-wordmark.png` (texte « obine » de la
+(512 x 512, RGBA, fond transparent), `assistant-channel-<canal>.png` (1024 x 1024, icône de
+l'assistant d'installation) et `banner-wordmark.png` (texte « obine » de la
 bannière Android TV). Tout le reste est DÉRIVÉ et ne se modifie jamais à la main :
 relancer ce script. Ajouter un canal commence dans `backend/app/release_channel.py`.
 
@@ -73,18 +74,38 @@ class Output:
     fmt: str = "PNG"
 
 
-def master_path(channel: str) -> Path:
-    return SOURCE_DIR / f"bobine-channel-{channel}.png"
+def master_path(channel: str, kind: str = "bobine") -> Path:
+    return SOURCE_DIR / f"{kind}-channel-{channel}.png"
 
 
-def load_master(channel: str) -> Image.Image:
-    path = master_path(channel)
+def load_master(channel: str, kind: str = "bobine", size: int = 512) -> Image.Image:
+    path = master_path(channel, kind)
     if not path.exists():
         raise FileNotFoundError(f"Icône source absente : {path.relative_to(REPO_DIR)}")
     image = Image.open(path).convert("RGBA")
-    if image.size != (512, 512):
-        raise ValueError(f"{path.name} doit mesurer 512 x 512 (trouvé {image.size[0]} x {image.size[1]})")
+    if image.size != (size, size):
+        raise ValueError(f"{path.name} doit mesurer {size} x {size} (trouvé {image.size[0]} x {image.size[1]})")
     return image
+
+
+def assistant_outputs(channel: str) -> list[Output]:
+    """Icônes de l'application d'installation (Tauri) : un jeu par canal, celui du canal par défaut aussi à la
+    racine de `icons/`, que lit `tauri.conf.json` ; la CI d'un canal Bêta ou Canary pointe vers son dossier."""
+    desktop = fit_on_square(load_master(channel, "assistant", ICNS_CANVAS), ICNS_CANVAS, FULL_FILL)
+    roots = [f"assistant/src-tauri/icons/{channel}"]
+    if channel == DEFAULT_CHANNEL:
+        roots.append("assistant/src-tauri/icons")
+    outputs: list[Output] = []
+    for root in roots:
+        outputs += [
+            Output(f"{root}/32x32.png", resized(desktop, 32)),
+            Output(f"{root}/128x128.png", resized(desktop, 128)),
+            Output(f"{root}/128x128@2x.png", resized(desktop, 256)),
+            Output(f"{root}/icon.png", resized(desktop, 512)),
+            Output(f"{root}/icon.ico", desktop, "ICO"),
+            Output(f"{root}/icon.icns", desktop, "ICNS"),
+        ]
+    return outputs
 
 
 def fit_on_square(source: Image.Image, size: int, fill: float) -> Image.Image:
@@ -174,6 +195,7 @@ def all_outputs(channels: tuple[str, ...] = CHANNELS) -> list[Output]:
     result: list[Output] = []
     for channel in channels:
         result.extend(outputs_for_channel(channel))
+        result.extend(assistant_outputs(channel))
     return result
 
 
