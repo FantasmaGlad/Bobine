@@ -31,16 +31,13 @@ def glibc_floor() -> str:
     return path.read_text(encoding="utf-8").strip() if path.exists() else "2.38"
 
 
-def badge(label: str, logo: str, color: str = "white") -> str:
-    return f"![](https://img.shields.io/badge/{label}?style=flat-square&logo={logo}&logoColor={color})"
+ASSETS = f"https://raw.githubusercontent.com/{REPOSITORY}/main/Assets"
 
 
-DEBIAN_FAMILY = " ".join([badge("Debian-A81D33", "debian"), badge("Ubuntu-E95420", "ubuntu"),
-                          badge("Linux%20Mint-386D20", "linuxmint"), badge("Pop%21__OS-287D86", "popos"),
-                          badge("Zorin%20OS-0969A2", "zorin")])
-RPM_FAMILY = " ".join([badge("Fedora-294172", "fedora"), badge("Nobara-303030", "nobaralinux")])
-ARCH_FAMILY = " ".join([badge("Arch%20Linux-126B96", "archlinux"), badge("EndeavourOS-5540A5", "endeavouros"),
-                        badge("CachyOS-006655", "cachyos"), badge("Manjaro-176D49", "manjaro")])
+def logo(path: str, alt: str) -> str:
+    """Logo officiel servi par le dépôt (même source que le README)."""
+    return f'<img src="{ASSETS}/{path}" width="20" height="20" valign="middle" alt="{alt}">'
+
 
 FAMILIES = """\
 ## Distributions Linux et méthodes d'installation
@@ -49,11 +46,11 @@ Dépôts signés GPG de [packages.bobine.fit](https://packages.bobine.fit), cana
 
 Les binaires exigent **glibc @G@ ou plus récente** : Debian 12, Ubuntu 22.04 LTS et RHEL 9 (et dérivés) ne sont pas pris en charge. La CI installe les paquets sur Ubuntu 24.04 (x86-64 et ARM64), Fedora et Arch Linux (x86-64) ; les autres distributions utilisent les mêmes paquets et ne sont pas testées séparément.
 
-| Famille | Distributions | Format et gestionnaire | Dépôt du canal | Architectures |
-| :--- | :--- | :---: | :--- | :---: |
-| Debian et dérivés | Debian 13 et plus récent, Ubuntu 24.04 LTS et plus récent, Linux Mint, Pop!_OS, Zorin OS et Raspberry Pi OS basés sur ces versions | `.deb` · APT | `https://packages.bobine.fit/debian/`, suite `@C@` | `amd64`, `arm64` |
-| Fedora et dérivés RPM | Fedora, Nobara ; RHEL, AlmaLinux et Rocky Linux 10 et plus récent (non testés en CI) | `.rpm` · DNF | `https://packages.bobine.fit/fedora/bobine-@C@.repo` | `x86_64`, `aarch64` |
-| Arch Linux et dérivés | Arch Linux (et Arch Linux ARM), EndeavourOS, CachyOS, Manjaro | `.pkg.tar.zst` · pacman | `https://packages.bobine.fit/arch/@C@/$arch` | `x86_64`, `aarch64` |
+| Famille | Distributions | Dépôt du canal @L@ |
+| :--- | :--- | :--- |
+| Debian · APT | Debian 13+, Ubuntu 24.04+, Linux Mint, Pop!_OS, Zorin OS, Raspberry Pi OS | `packages.bobine.fit/debian/`, suite `@C@` (amd64, arm64) |
+| Fedora · DNF | Fedora, Nobara ; RHEL, AlmaLinux, Rocky Linux 10+ (non testés en CI) | `packages.bobine.fit/fedora/bobine-@C@.repo` (x86_64, aarch64) |
+| Arch · pacman | Arch Linux et Arch Linux ARM, EndeavourOS, CachyOS, Manjaro | `packages.bobine.fit/arch/@C@/$arch` (x86_64, aarch64) |
 
 ### Installer depuis le dépôt (méthode recommandée)
 
@@ -115,38 +112,37 @@ def render(channel: str, manifests: bool = True) -> str:
     def link(name: str, text: str | None = None) -> str:
         return f"[**{text or name}**]({base}/{name})"
 
-    debs = [f"bobine_{channel}_amd64.deb", f"bobine_{channel}_arm64.deb"]
-    rpms = [f"bobine-{channel}.x86_64.rpm", f"bobine-{channel}.aarch64.rpm"]
-    archs = [f"bobine-{channel}-x86_64.pkg.tar.zst", f"bobine-{channel}-aarch64.pkg.tar.zst"]
+    def short(name: str, text: str) -> str:
+        return f"[{text}]({base}/{name})"
+
     rows = [
-        (badge("Android_TV-009688", "android"), "`.apk`", "ARM 32 & 64 bits<br>*(armeabi-v7a, arm64-v8a)*",
-         link(f"Bobine-TV-{channel}.apk")),
-        (badge("Android-3DDC84", "android"), "`.apk`", "ARM64<br>*(arm64-v8a)*", link(f"Bobine-{channel}.apk")),
-        (badge("Windows_11-0078D4", "windows11"), "`.exe`", "x86-64 & ARM64<br>*(Intel, AMD, Snapdragon X)*",
-         f"{link(f'Bobine-Setup-{channel}.exe')} (x86-64)<br>{link(f'Bobine-Setup-{channel}-arm64.exe')} (ARM64)"),
-        (DEBIAN_FAMILY, "`.deb` (APT)", "x86-64 *(amd64)*<br>& ARM64 *(arm64)*",
-         f"[**Dépôt APT, canal {label}**]({PACKAGES}/debian/)<br>{link(debs[0])}<br>{link(debs[1])}"),
-        (RPM_FAMILY, "`.rpm` (DNF)", "x86-64 *(x86_64)*<br>& ARM64 *(aarch64)*",
-         f"[**Dépôt DNF, canal {label}**]({PACKAGES}/fedora/)<br>{link(rpms[0])}<br>{link(rpms[1])}"),
-        (ARCH_FAMILY, "`.pkg.tar.zst` (pacman)", "x86-64 *(x86_64)*<br>& ARM64 *(aarch64)*",
-         f"[**Dépôt pacman, canal {label}**]({PACKAGES}/arch/)"
-         + "".join(f"<br>{link(name)} ([signature]({base}/{name}.sig))" for name in archs)),
-        (badge("macOS-000000", "apple"), "`.dmg`", "Apple Silicon *(M1-M4)*", link(f"Bobine-{channel}.dmg")),
-        (badge("Bobine%20Assistant-FFC131", "tauri", "black"), "Binaire natif", "x86-64 & ARM64<br>*(Linux)*",
-         f"{link('bobine-assistant')} (x86-64)<br>{link('bobine-assistant-arm64')} (ARM64)"),
-        (badge("Bash_CLI-4EAA25", "gnubash"), "Script", "x86-64 & ARM64",
-         f"{link('install.sh')}<br>ou `sudo ./install.sh --channel={channel}` sur une installation existante"),
-        (badge("PowerShell-5391FE", "powershell"), "Script", "Windows x64 & ARM64",
-         f"{link('install.ps1')}<br>installe le `.exe` du canal après contrôle SHA-256"),
+        (logo("Icons/os/windows.svg", "Windows"), "**Windows** 10, 11",
+         f"{short(f'Bobine-Setup-{channel}.exe', 'x64')} · {short(f'Bobine-Setup-{channel}-arm64.exe', 'ARM64')}"
+         f" · {short('install.ps1', 'install.ps1')}", "installeur `.exe`, Snapdragon pris en charge"),
+        (logo("Icons/os/apple.svg", "macOS"), "**macOS**", short(f"Bobine-{channel}.dmg", "Apple Silicon"), "M1 ou plus récent"),
+        (logo("Icons/distros/debian.svg", "Debian"), "**Debian, Ubuntu**",
+         f"[APT]({PACKAGES}/debian/) · {short(f'bobine_{channel}_amd64.deb', 'amd64')} · {short(f'bobine_{channel}_arm64.deb', 'arm64')}",
+         "glibc @G@+"),
+        (logo("Icons/distros/fedora.svg", "Fedora"), "**Fedora, RHEL**",
+         f"[DNF]({PACKAGES}/fedora/) · {short(f'bobine-{channel}.x86_64.rpm', 'x86_64')} · {short(f'bobine-{channel}.aarch64.rpm', 'aarch64')}",
+         "glibc @G@+"),
+        (logo("Icons/distros/arch.svg", "Arch Linux"), "**Arch Linux**",
+         f"[pacman]({PACKAGES}/arch/) · {short(f'bobine-{channel}-x86_64.pkg.tar.zst', 'x86_64')} ({short(f'bobine-{channel}-x86_64.pkg.tar.zst.sig', 'sig')})"
+         f" · {short(f'bobine-{channel}-aarch64.pkg.tar.zst', 'aarch64')} ({short(f'bobine-{channel}-aarch64.pkg.tar.zst.sig', 'sig')})",
+         "glibc @G@+"),
+        (logo("Icons/os/android.svg", "Android"), "**Android**", short(f"Bobine-{channel}.apk", "APK"), "Android 14+, ARM64"),
+        (logo("Icons/os/androidtv.svg", "Android TV"), "**Android TV**", short(f"Bobine-TV-{channel}.apk", "APK TV"), "ARM 32 et 64 bits"),
+        (logo("Images/bash.svg", "Mini PC"), "**Mini PC dédié**",
+         f"{short('install.sh', 'install.sh')} · {short('bobine-assistant', 'assistant x64')} · {short('bobine-assistant-arm64', 'ARM64')}",
+         f"Debian 13 ; `sudo ./install.sh --channel={channel}`"),
     ]
     if manifests:
-        rows.append(("Intégrité", "Manifeste signé", "Tous les fichiers",
-                     f"{link('SHA256SUMS')}<br>{link('SHA256SUMS.asc', 'SHA256SUMS.asc (signature GPG)')}"))
+        rows.append(("", "**Intégrité**", f"{short('SHA256SUMS', 'SHA256SUMS')} · {short('SHA256SUMS.asc', 'signature')}",
+                     "voir plus bas"))
 
-    lines = ["## Téléchargement", "",
-             "| Plateforme & environnement | Format | Architecture | Téléchargement direct & dépôts |",
-             "| :--- | :---: | :---: | :--- |"]
-    lines += [f"| {platform} | <sub>{fmt}</sub> | <sub>{arch}</sub> | <sub>{links}</sub> |" for platform, fmt, arch, links in rows]
+    lines = ["## Téléchargement", "", f"Canal {label}. Commandes en une ligne, y compris par Tor : [README](https://github.com/{REPOSITORY}/blob/main/README.fr.md#installation-en-une-commande).", "",
+             "| Plateforme | Fichiers | Prérequis |", "| :--- | :--- | :--- |"]
+    lines += [f"| {icon + ' ' if icon else ''}{platform} | {links} | {need} |" for icon, platform, links, need in rows]
     text = "\n".join(lines) + "\n\n" + FAMILIES
     if manifests:
         text += INTEGRITY
