@@ -42,6 +42,10 @@ interface SettingsData {
   auto_update_enabled: "true" | "false";
   auto_update_time: string;
   auto_update_supported?: boolean;
+  /** Faux sur l'appliance et en boutique : une partie du trafic de mise à jour ne passerait pas par Tor. */
+  update_tor_supported?: boolean;
+  update_tor?: "true" | "false";
+  update_tor_proxy?: string;
   /** Build Google Play : les mises à jour passent par la boutique (pas de canaux GitHub ni d'installateur planifié). */
   store_managed?: boolean;
 }
@@ -514,7 +518,33 @@ export default function SettingsPage() {
     }
   };
 
-  const handleAutoUpdateChange = async (patch: { auto_update_enabled?: "true" | "false"; auto_update_time?: string }) => {
+  const [torCheck, setTorCheck] = useState<{ ok: boolean; source?: string; error?: string } | null>(null);
+  const [torChecking, setTorChecking] = useState(false);
+  const handleTorCheck = async () => {
+    if (!data) return;
+    setTorChecking(true);
+    setTorCheck(null);
+    try {
+      const res = await fetch(getApiUrl("/updates/tor-check"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proxy: data.update_tor_proxy }),
+      });
+      const body = await res.json().catch(() => ({}));
+      setTorCheck(res.ok ? body : { ok: false, error: body.detail || t("settingsPage.saveError") });
+    } catch {
+      setTorCheck({ ok: false, error: t("common.networkError") });
+    } finally {
+      setTorChecking(false);
+    }
+  };
+
+  const handleAutoUpdateChange = async (patch: {
+    auto_update_enabled?: "true" | "false";
+    auto_update_time?: string;
+    update_tor?: "true" | "false";
+    update_tor_proxy?: string;
+  }) => {
     if (!data) return;
     try {
       const res = await fetch(getApiUrl("/settings"), {
@@ -1389,6 +1419,53 @@ export default function SettingsPage() {
             </div>
           </div>
           <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.updateChannelHint")}</p>
+          {data.update_tor_supported && (
+            <>
+              {/* Mises à jour par Tor */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
+                <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
+                  {t("settingsPage.updateTorLabel")}
+                </span>
+                <label className="ra-switch" title={t("settingsPage.updateTorLabel")}>
+                  <input
+                    type="checkbox"
+                    checked={data.update_tor === "true"}
+                    onChange={(e) => handleAutoUpdateChange({ update_tor: e.target.checked ? "true" : "false" })}
+                  />
+                  <span className="ra-switch-track" />
+                </label>
+              </div>
+              {data.update_tor === "true" && (
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                  <label htmlFor="update-tor-proxy" className="form-label" style={{ margin: 0 }}>
+                    {t("settingsPage.updateTorProxyLabel")}
+                  </label>
+                  <input
+                    id="update-tor-proxy"
+                    type="text"
+                    className="form-control"
+                    style={{ maxWidth: "200px" }}
+                    value={data.update_tor_proxy ?? ""}
+                    spellCheck={false}
+                    onChange={(e) => setData({ ...data, update_tor_proxy: e.target.value })}
+                    onBlur={(e) => handleAutoUpdateChange({ update_tor_proxy: e.target.value.trim() })}
+                  />
+                  <button type="button" className="btn btn-secondary btn-sm" disabled={torChecking} onClick={handleTorCheck}>
+                    <Icon name={torChecking ? "sync" : "verified_user"} size={16} className={torChecking ? "olc-spin" : ""} />
+                    {t(torChecking ? "settingsPage.updateTorChecking" : "settingsPage.updateTorCheck")}
+                  </button>
+                  {torCheck && (
+                    <span role="status" style={{ color: torCheck.ok ? "var(--accent-success, #2e7d32)" : "var(--accent-warning, #c77700)" }}>
+                      {torCheck.ok
+                        ? t(torCheck.source === "on_demand" ? "settingsPage.updateTorOkOnDemand" : "settingsPage.updateTorOk")
+                        : t("settingsPage.updateTorFailed", { error: torCheck.error ?? "" })}
+                    </span>
+                  )}
+                </div>
+              )}
+              <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.updateTorHint")}</p>
+            </>
+          )}
             </>
           )}
 

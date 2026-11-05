@@ -216,6 +216,10 @@ class _StoreProfile:
     def can_schedule_auto_apply():
         return False
 
+    @staticmethod
+    def supports_update_over_tor():
+        return False
+
 
 @pytest.fixture()
 def store_build(monkeypatch):

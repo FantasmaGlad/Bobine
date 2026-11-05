@@ -576,7 +576,8 @@ def _check_for_update_once() -> None:
     aucune exception ne doit jamais faire tomber le tray."""
     try:
         req = urllib.request.Request(_updates_check_url(), headers={"User-Agent": "BobineTray"})
-        with urllib.request.urlopen(req, timeout=6) as resp:
+        # Délai large : avec les mises à jour par Tor, le backend peut d'abord lancer Tor avant d'interroger GitHub.
+        with urllib.request.urlopen(req, timeout=180) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         with _update_lock:
             _update_state["has_update"] = bool(data.get("has_update"))

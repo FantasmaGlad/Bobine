@@ -25,7 +25,7 @@ from fastapi import (
     Response,
     UploadFile,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
@@ -48,7 +48,7 @@ from app.utils.display_state import (
     effective_wired_display_mode,
     get_hardware_state,
 )
-from app.utils import media_native
+from app.utils import media_native, tor_proxy
 from app.utils.port import active_port
 from app.utils.hardware_info import (
     get_storage_model,
@@ -91,7 +91,7 @@ _WRITABLE_NUMERIC_FIELDS = {
 _WRITABLE_STRING_FIELDS = {
     "theme", "language", "active_logo", "update_channel", "wired_display_mode",
     "display_mode_setting", "auto_update_enabled", "auto_update_time",
-    "auto_web_rendition", "media_native",
+    "auto_web_rendition", "media_native", "update_tor", "update_tor_proxy",
 }
 _DEFAULTS = {
     # "lavande" : thème clair par défaut (nacre irisée et améthyste profonde).
@@ -116,6 +116,8 @@ _DEFAULTS = {
     # planifiées à cette heure (cf. `_periodic_purge_logs`).
     "auto_update_enabled": "false",
     "auto_update_time": "03:00",
+    "update_tor": "false",
+    "update_tor_proxy": tor_proxy.DEFAULT_PROXY,
     # Version web « lisible partout » : désactivée par
     # défaut — c'est un réencodage ffmpeg (plusieurs minutes sur un CPU
     # modeste) que l'administrateur choisit d'activer ; quand elle l'est, la
@@ -179,6 +181,8 @@ class SettingsUpdate(BaseModel):
     auto_update_time: str | None = None
     auto_web_rendition: str | None = None
     media_native: str | None = None
+    update_tor: str | None = None
+    update_tor_proxy: str | None = Field(default=None, max_length=80)
 
 
 def _get_db_value(db: Session, key: str) -> str | None:
@@ -291,6 +295,10 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "store_managed": get_profile_handler().is_store_managed(),
         # Faux sur Android et macOS : la planification n'y est pas proposée, la mise à jour reste manuelle.
         "auto_update_supported": get_profile_handler().can_schedule_auto_apply(),
+        # Faux sur l'appliance et en boutique : une partie du trafic de mise à jour ne passerait pas par Tor.
+        "update_tor_supported": get_profile_handler().supports_update_over_tor(),
+        "update_tor": "true" if _get_db_value(db, "update_tor") == "true" else "false",
+        "update_tor_proxy": _get_db_value(db, "update_tor_proxy") or _DEFAULTS["update_tor_proxy"],
         "theme": theme,
         "language": language,
         "has_custom_logo": has_custom,
@@ -546,6 +554,18 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
                 raise HTTPException(status_code=400, detail="auto_web_rendition invalide (attendu 'true' ou 'false')")
             if key == "media_native" and value not in ("true", "false"):
                 raise HTTPException(status_code=400, detail="media_native invalide (attendu 'true' ou 'false')")
+            if key == "update_tor" and value not in ("true", "false"):
+                raise HTTPException(status_code=400, detail="update_tor invalide (attendu 'true' ou 'false')")
+            if key == "update_tor" and value == "true" and not get_profile_handler().supports_update_over_tor():
+                raise HTTPException(
+                    status_code=409,
+                    detail="Mises à jour par Tor indisponibles sur ce profil : une partie du téléchargement ne passerait pas par Tor.",
+                )
+            if key == "update_tor_proxy":
+                try:
+                    tor_proxy.parse_proxy(value)
+                except ValueError as exc:
+                    raise HTTPException(status_code=400, detail=str(exc)) from exc
             if key == "auto_update_time" and not _AUTO_UPDATE_TIME_RE.match(value):
                 raise HTTPException(status_code=400, detail="Heure de mise à jour automatique invalide (attendu 'HH:MM')")
 
@@ -570,6 +590,9 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
         # Effet immédiat sur les prochains imports ; les imports en cours finissent avec le mode
         # qu'ils ont commencé (aucun média n'est jamais perdu : repli sur ffprobe/ffmpeg).
         media_native.configure(result["media_native"])
+
+    if "update_tor" in updates or "update_tor_proxy" in updates:
+        tor_proxy.configure(result["update_tor"] == "true", result["update_tor_proxy"])
 
     if "auto_update_enabled" in updates or "auto_update_time" in updates:
         # Import différé : `scheduler_manager` importe déjà plusieurs
