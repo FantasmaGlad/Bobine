@@ -173,15 +173,18 @@ var
   Paths, Dir: String;
   Position: Integer;
 begin
-  // Retire le dossier de Bobine du PATH, sans toucher aux autres entrées.
+  // Retire le dossier de Bobine du PATH, entrée exacte seulement (un dossier voisin comme ...\Bobine2 reste), sans
+  // toucher aux autres entrées.
   if CurUninstallStep <> usPostUninstall then
     exit;
   if not RegQueryStringValue(HKLM, EnvironmentKey, 'Path', Paths) then
     exit;
   Dir := ExpandConstant('{app}');
-  Position := Pos(';' + Uppercase(Dir), Uppercase(Paths));
+  Paths := ';' + Paths + ';';
+  Position := Pos(';' + Uppercase(Dir) + ';', Uppercase(Paths));
   if Position = 0 then
     exit;
   Delete(Paths, Position, Length(Dir) + 1);
+  Paths := Copy(Paths, 2, Length(Paths) - 2);
   RegWriteExpandStringValue(HKLM, EnvironmentKey, 'Path', Paths);
 end;
