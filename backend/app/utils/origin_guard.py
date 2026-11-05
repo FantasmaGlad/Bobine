@@ -25,8 +25,9 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 DEFAULT_DEV_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 _DEFAULT_PORTS = {"http": 80, "https": 443, "ws": 80, "wss": 443}
-# Suffixes jamais délégués dans le DNS public : un tiers ne peut pas les faire résoudre vers une adresse de son choix.
-_PRIVATE_SUFFIXES = (".local", ".localhost", ".onion", ".internal", ".home.arpa", ".lan", ".home", ".localdomain")
+# Suffixes qu'un tiers ne peut pas faire résoudre vers une adresse de son choix : noms jamais délégués dans le DNS
+# public, et noms MagicDNS de Tailscale (résolus par le seul réseau privé virtuel).
+_PRIVATE_SUFFIXES = (".local", ".localhost", ".onion", ".internal", ".home.arpa", ".lan", ".home", ".localdomain", ".ts.net")
 
 
 def dev_origins() -> tuple[str, ...]:

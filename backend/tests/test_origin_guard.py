@@ -62,6 +62,7 @@ def test_is_same_origin(origin, host, scheme, expected):
     [
         ("192.168.1.20", True), ("fe80::1", True), ("[fe80::1]", True), ("localhost", True), ("wyse", True),
         ("bobine.local", True), ("Bobine.Local.", True), ("abc.onion", True), ("tv.home.arpa", True), ("wyse.lan", True),
+        ("wyse.tail1234.ts.net", True),
         ("evil.example", False), ("192.168.1.20.nip.io", False), ("bobine.local.evil.example", False),
         ("salle.exemple.fr", False),
     ],
