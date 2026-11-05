@@ -59,7 +59,7 @@ Application native pour ordinateurs, tablettes, téléviseurs et mini PC. Versio
 
 ### Installation en une commande
 
-<img src="Assets/Icons/tools/powershell.svg" width="20" height="20" alt="PowerShell"> Windows (PowerShell) : installe la Stable après contrôle de son empreinte SHA-256.
+<img src="Assets/Icons/tools/powershell.svg" width="20" height="20" alt="PowerShell"> Windows (PowerShell) : installe la Stable après contrôle de la signature de `SHA256SUMS` et de son empreinte SHA-256, sans gpg.
 
 ```powershell
 irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 | iex

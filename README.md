@@ -59,7 +59,7 @@ Native application for computers, tablets, TVs and mini PCs. Stable 5.0.7 below;
 
 ### One-command install
 
-<img src="Assets/Icons/tools/powershell.svg" width="20" height="20" alt="PowerShell"> Windows (PowerShell): installs Stable after checking its SHA-256 digest.
+<img src="Assets/Icons/tools/powershell.svg" width="20" height="20" alt="PowerShell"> Windows (PowerShell): installs Stable after checking the `SHA256SUMS` signature and its SHA-256 digest, without gpg.
 
 ```powershell
 irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 | iex

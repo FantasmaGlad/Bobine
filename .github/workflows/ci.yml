@@ -101,6 +101,7 @@ jobs:
           python3 scripts/ci/test-notify-web-release.py
           python3 -m unittest discover -s scripts/ci -p 'test_*.py' -q
           python3 scripts/ci/test-package-versions.py --family debian
+          if [ -f scripts/ci/test-install-signature.ps1 ]; then pwsh -NoProfile -File scripts/ci/test-install-signature.ps1; fi
       - name: Résoudre version, canal et identifiants de build
         id: resolve
         env:
@@ -1400,6 +1401,7 @@ jobs:
           install -d -m 0700 "$GNUPGHOME"
           printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
           bash scripts/ci/sign-release-checksums.sh release-assets
+          if [ -f scripts/ci/test-install-signature.ps1 ]; then pwsh -NoProfile -File scripts/ci/test-install-signature.ps1 release-assets; fi
       - name: Retirer la clé privée du runner
         if: always()
         env:
@@ -1541,6 +1543,7 @@ jobs:
           install -d -m 0700 "$GNUPGHOME"
           printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
           bash scripts/ci/sign-release-checksums.sh release-assets
+          if [ -f scripts/ci/test-install-signature.ps1 ]; then pwsh -NoProfile -File scripts/ci/test-install-signature.ps1 release-assets; fi
       - name: Retirer la clé privée du runner
         if: always()
         env:
@@ -1766,6 +1769,7 @@ jobs:
           install -d -m 0700 "$GNUPGHOME"
           printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
           bash scripts/ci/sign-release-checksums.sh release-assets
+          if [ -f scripts/ci/test-install-signature.ps1 ]; then pwsh -NoProfile -File scripts/ci/test-install-signature.ps1 release-assets; fi
       - name: Retirer la clé privée du runner
         if: always()
         env:
