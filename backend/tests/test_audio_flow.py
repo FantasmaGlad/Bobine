@@ -57,6 +57,12 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
                 shutil.rmtree(p)
 
     def setUp(self):
+        # Certains tests remplacent les gestionnaires de lecture globaux (diffusion factice) : ceux de l'application
+        # sont remis ensuite, sinon les tests WebSocket suivants ne reçoivent plus aucun état.
+        from app import playback_manager as playback_manager_module
+
+        saved_managers = dict(playback_manager_module._managers)
+        self.addCleanup(lambda: playback_manager_module._managers.update(saved_managers))
         init_db()
         self.db = SessionLocal()
         self.scratch = Path(settings.audio_watch_dir) / "_scratch"

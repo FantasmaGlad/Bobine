@@ -227,6 +227,8 @@ app.include_router(updates.router)
 app.include_router(metrics.router)
 app.include_router(devices.router)
 app.include_router(storage.router)
+# En dernier : ses routes génériques `/api/radio/{output}/{action}` ne doivent masquer aucune route existante.
+app.include_router(playback.command_router)
 
 
 _KIOSK_PROCESS_NAMES = ("chromium", "chromium-browser", "chrome", "msedge", "google chrome")

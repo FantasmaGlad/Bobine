@@ -1,8 +1,9 @@
 import logging
 import time
 from datetime import datetime
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Body, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -95,18 +96,26 @@ class InterruptedStateResponse(BaseModel):
     target_id: int | None = None
 
 
-async def _reject_unavailable(websocket, command: str, channel: str, title: str | None, db) -> None:
+class CommandRejected(Exception):
+    """Commande refusée sans rien changer. `reason` est le vocabulaire de l'évènement WebSocket `command_rejected`
+    (`cinema_locked`, `radio_locked`, `coach_cable_only`, `storage_unavailable`, `not_found`, `invalid_params`,
+    `empty_library`, `unknown_command`) ; `status` est la réponse de la façade REST."""
+
+    def __init__(self, reason: str, channel: str, message: str, status: int = 409) -> None:
+        super().__init__(message)
+        self.reason, self.channel, self.message, self.status = reason, channel, message, status
+
+
+async def _reject_unavailable(command: str, channel: str, title: str | None, db) -> None:
     """Média d'un support externe débranché : la commande est refusée proprement (jamais une erreur) et journalisée."""
     logger.info(f"Commande {command} refusée : « {title} » est sur un support externe indisponible")
     await run_in_threadpool(log_activity, db, "media_unavailable", title)
-    if websocket is not None:
-        try:
-            await websocket.send_json({
-                "event": "command_rejected", "command": command,
-                "reason": "storage_unavailable", "channel": channel,
-            })
-        except Exception:
-            pass
+    raise CommandRejected("storage_unavailable", channel, f"« {title} » est sur un support externe indisponible.", 503)
+
+
+def _not_found(command: str, channel: str, what: str) -> CommandRejected:
+    logger.warning(f"Commande {command} : {what} introuvable")
+    return CommandRejected("not_found", channel, f"{what} introuvable.", 404)
 
 
 def _thumbnail_filename(thumbnail_path: str | None) -> str | None:
@@ -516,9 +525,19 @@ async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
                         "is_primary": is_primary,
                     })
                 continue
-            await _handle_command(
-                message, db, websocket, is_kiosk=is_kiosk, default_channel=kiosk_channel
-            )
+            try:
+                await execute_command(message, db, websocket, is_kiosk=is_kiosk, default_channel=kiosk_channel)
+            except CommandRejected as rejected:
+                # Refus renvoyé au seul émetteur (jamais diffusé) : l'admin qui a cliqué peut l'afficher.
+                await websocket.send_json({
+                    "event": "command_rejected", "command": message.get("command"),
+                    "reason": rejected.reason, "channel": rejected.channel,
+                })
+            except WebSocketDisconnect:
+                raise
+            except Exception as e:
+                # Une commande en échec ne coupe pas la connexion de l'écran ou du tableau de bord qui l'a envoyée.
+                logger.error(f"Commande WebSocket {message.get('command')} en échec : {e}", exc_info=True)
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)
     except Exception as e:
@@ -543,7 +562,7 @@ def _log_track_if_changed(db: Session, manager, index_before: int | None) -> Non
         log_activity(db, "audio_track_started", tracks[index_after]["title"])
 
 
-async def _reject_if_cinema_locked(db: Session, command: str, websocket: WebSocket | None, channel: str) -> bool:
+async def _ensure_not_locked(db: Session, command: str, channel: str) -> None:
     """
     Verrou du mode cinéma, PAR CANAL : un lancement manuel cible désormais l'état de lecture d'UN
     canal précis. Si CE canal est en mode cinéma (libre-service), sa lecture
@@ -557,20 +576,28 @@ async def _reject_if_cinema_locked(db: Session, command: str, websocket: WebSock
     # actif (stream_*) qui sature déjà le disque/FUSE.
     output = await run_in_threadpool(get_display_output_value, db, channel)
     if output not in ("cinema", "radio"):
-        return False
+        return
     # Même logique pour la radio : sortie câblée basculée sur Radio = aucun écran
     # vidéo pour afficher le lancement, il serait lui aussi « fantôme ».
     reason = "cinema_locked" if output == "cinema" else "radio_locked"
     logger.info(f"Commande {command} ignorée : le canal '{channel}' est en mode {output} (verrouillé)")
-    if websocket is not None:
-        try:
-            await websocket.send_json({
-                "event": "command_rejected", "command": command,
-                "reason": reason, "channel": channel,
-            })
-        except Exception:
-            pass
-    return True
+    raise CommandRejected(reason, channel, f"Le canal {channel} affiche le mode {output} : aucun écran vidéo ne montrerait ce lancement.")
+
+
+async def execute_command(
+    message: dict,
+    db: Session,
+    websocket: WebSocket | None = None,
+    is_kiosk: bool = False,
+    default_channel: str = DEFAULT_CHANNEL,
+) -> None:
+    """Point d'entrée unique d'une commande de lecture, commun au WebSocket et à la façade REST. Lève
+    `CommandRejected` ; un paramètre de mauvais type devient un refus `invalid_params`, pas une erreur."""
+    try:
+        await _handle_command(message, db, websocket, is_kiosk=is_kiosk, default_channel=default_channel)
+    except (TypeError, ValueError) as exc:
+        raw_channel = (message.get("params") or {}).get("channel") or default_channel
+        raise CommandRejected("invalid_params", str(raw_channel), f"Paramètres invalides : {exc}", 422) from exc
 
 
 async def _handle_command(
@@ -611,16 +638,13 @@ async def _handle_command(
     manager = get_playback_manager(channel)
 
     if command == "load":
-        if await _reject_if_cinema_locked(db, command, websocket, channel):
-            return
+        await _ensure_not_locked(db, command, channel)
         video_id = params.get("video_id")
         video = await run_in_threadpool(lambda: db.query(Video).filter(Video.id == video_id).first())
         if not video:
-            logger.warning(f"Commande load : vidéo {video_id} introuvable")
-            return
+            raise _not_found(command, channel, f"Vidéo {video_id}")
         if not video.available:
-            await _reject_unavailable(websocket, command, channel, video.title, db)
-            return
+            await _reject_unavailable(command, channel, video.title, db)
         await manager.load(
             video.id, video.title, video.duration_seconds, video.program, client_ts,
             release=video.release, thumbnail_url=_thumbnail_filename(video.thumbnail_path),
@@ -633,8 +657,7 @@ async def _handle_command(
         background_id = params.get("background_id")
         background = await run_in_threadpool(lambda: db.query(Background).filter(Background.id == background_id).first())
         if not background:
-            logger.warning(f"Commande load_background : fond animé {background_id} introuvable")
-            return
+            raise _not_found(command, channel, f"Fond animé {background_id}")
         await manager.load_background(
             background.id, background.title, is_image_background(background.file_path), client_ts
         )
@@ -644,25 +667,14 @@ async def _handle_command(
         # ça n'a pas de sens sur le canal réseau — la commande y est rejetée.
         if channel != "cable":
             logger.info("Commande load_audio_course ignorée : le mode coach est réservé au canal câblé")
-            if websocket is not None:
-                try:
-                    await websocket.send_json({
-                        "event": "command_rejected", "command": command,
-                        "reason": "coach_cable_only", "channel": channel,
-                    })
-                except Exception:
-                    pass
-            return
-        if await _reject_if_cinema_locked(db, command, websocket, channel):
-            return
+            raise CommandRejected("coach_cable_only", channel, "Le mode coach est réservé au canal câblé.")
+        await _ensure_not_locked(db, command, channel)
         course_id = params.get("audio_course_id")
         course = await run_in_threadpool(lambda: db.query(AudioCourse).filter(AudioCourse.id == course_id).first())
         if not course:
-            logger.warning(f"Commande load_audio_course : cours audio {course_id} introuvable")
-            return
+            raise _not_found(command, channel, f"Cours audio {course_id}")
         if not await run_in_threadpool(lambda: course.available):
-            await _reject_unavailable(websocket, command, channel, course.title, db)
-            return
+            await _reject_unavailable(command, channel, course.title, db)
         await _load_audio_course_into_manager(
             course, manager, db,
             chain_mode=params.get("chain_mode"),
@@ -675,24 +687,14 @@ async def _handle_command(
         # réservé au canal câblé.
         if channel != "cable":
             logger.info("Commande load_audio_playlist ignorée : le mode coach est réservé au canal câblé")
-            if websocket is not None:
-                try:
-                    await websocket.send_json({
-                        "event": "command_rejected", "command": command,
-                        "reason": "coach_cable_only", "channel": channel,
-                    })
-                except Exception:
-                    pass
-            return
-        if await _reject_if_cinema_locked(db, command, websocket, channel):
-            return
+            raise CommandRejected("coach_cable_only", channel, "Le mode coach est réservé au canal câblé.")
+        await _ensure_not_locked(db, command, channel)
         audio_playlist_id = params.get("audio_playlist_id")
         audio_playlist = await run_in_threadpool(
             lambda: db.query(AudioPlaylist).filter(AudioPlaylist.id == audio_playlist_id).first()
         )
         if not audio_playlist:
-            logger.warning(f"Commande load_audio_playlist : playlist audio {audio_playlist_id} introuvable")
-            return
+            raise _not_found(command, channel, f"Playlist audio {audio_playlist_id}")
         # `item.track`/
         # `item.background` sont des relations ORM paresseuses — chaque
         # accès peut déclencher sa propre requête SQL synchrone. Regroupées
@@ -713,8 +715,7 @@ async def _handle_command(
         if background_id:
             background = db.query(Background).filter(Background.id == background_id).first()
             if not background:
-                logger.warning(f"Commande audio_set_background : fond animé {background_id} introuvable")
-                return
+                raise _not_found(command, channel, f"Fond animé {background_id}")
             title, is_image = background.title, is_image_background(background.file_path)
         await manager.audio_set_background(background_id, title, is_image, client_ts)
     elif command == "audio_next_track":
@@ -750,17 +751,14 @@ async def _handle_command(
         # changé, seul cas où une NOUVELLE piste a réellement été lancée.
         await run_in_threadpool(_log_track_if_changed, db, manager, index_before)
     elif command == "load_playlist":
-        if await _reject_if_cinema_locked(db, command, websocket, channel):
-            return
+        await _ensure_not_locked(db, command, channel)
         playlist_id = params.get("playlist_id")
         playlist = await run_in_threadpool(lambda: db.query(Playlist).filter(Playlist.id == playlist_id).first())
         if not playlist:
-            logger.warning(f"Commande load_playlist : playlist {playlist_id} introuvable")
-            return
+            raise _not_found(command, channel, f"Playlist {playlist_id}")
         items_data = await run_in_threadpool(_build_playlist_video_items, playlist)
         if not items_data and await run_in_threadpool(lambda: bool(playlist.items)):
-            await _reject_unavailable(websocket, command, channel, playlist.name, db)
-            return
+            await _reject_unavailable(command, channel, playlist.name, db)
         await manager.load_playlist(
             playlist.id, playlist.name, items_data, client_ts
         )
@@ -863,8 +861,7 @@ async def _handle_command(
         # profil desktop existant, sans effet tant que /grid n'est pas utilisé.
         action = params.get("action")
         if action not in ("play", "pause", "seek", "stop", "launch"):
-            logger.warning(f"cinema_command : action inconnue {action}")
-            return
+            raise CommandRejected("invalid_params", channel, f"Action cinéma inconnue : {action} (play, pause, seek, stop, launch).", 422)
 
         # Gestion des sessions de lecture sur commande directe
         if action == "launch" and params.get("video_id"):
@@ -905,6 +902,7 @@ async def _handle_command(
         await ws_manager.broadcast(cmd_payload)
     else:
         logger.warning(f"Commande WebSocket inconnue reçue : {command}")
+        raise CommandRejected("unknown_command", channel, f"Commande inconnue : {command}.", 400)
 
 
 async def _handle_radio_track_ended(manager, db, client_ts, track_id: int | None) -> None:
@@ -953,8 +951,7 @@ async def _handle_radio_command(
         playlist_id = params.get("playlist_id")
         playlist = db.query(RadioPlaylist).filter(RadioPlaylist.id == playlist_id).first()
         if not playlist:
-            logger.warning(f"Commande load_radio_playlist : playlist radio {playlist_id} introuvable")
-            return
+            raise _not_found(command, manager.channel, f"Playlist radio {playlist_id}")
         sorted_items = sorted(playlist.items, key=lambda item: item.position)
         tracks = [radio_track_dict(item.track) for item in sorted_items if item.track and item.track.available]
         # repeat="playlist" comme le chargement planifié "ambiance 24/7" : une radio n'a pas vocation à
@@ -972,7 +969,7 @@ async def _handle_radio_command(
         tracks = [radio_track_dict(t) for t in db.query(RadioTrack).all() if t.available]
         if not tracks:
             logger.info("Commande radio_shuffle_all : bibliothèque radio vide")
-            return
+            raise CommandRejected("empty_library", manager.channel, "La bibliothèque radio ne contient aucun morceau disponible.")
         # repeat="playlist" : même correctif que load_radio_playlist ci-dessus
         # — "toute la bibliothèque en aléatoire" doit boucler indéfiniment, pas
         # s'arrêter après un seul passage.
@@ -1024,20 +1021,16 @@ async def _handle_radio_command(
     elif command == "radio_add_to_queue":
         track = db.query(RadioTrack).filter(RadioTrack.id == params.get("track_id")).first()
         if not track:
-            logger.warning(f"Commande radio_add_to_queue : morceau {params.get('track_id')} introuvable")
-            return
+            raise _not_found(command, manager.channel, f"Morceau {params.get('track_id')}")
         if not track.available:
-            logger.info("Commande radio_add_to_queue refusée : morceau sur un support externe indisponible")
-            return
+            await _reject_unavailable(command, manager.channel, track.title, db)
         await manager.add_to_queue(radio_track_dict(track), client_ts)
     elif command == "radio_play_next":
         track = db.query(RadioTrack).filter(RadioTrack.id == params.get("track_id")).first()
         if not track:
-            logger.warning(f"Commande radio_play_next : morceau {params.get('track_id')} introuvable")
-            return
+            raise _not_found(command, manager.channel, f"Morceau {params.get('track_id')}")
         if not track.available:
-            logger.info("Commande radio_play_next refusée : morceau sur un support externe indisponible")
-            return
+            await _reject_unavailable(command, manager.channel, track.title, db)
         await manager.play_next(radio_track_dict(track), client_ts)
     elif command == "radio_move_in_queue":
         # Réordonne la file « À suivre » (glisser-déposer) : seules les pistes À VENIR bougent.
@@ -1061,8 +1054,7 @@ async def _handle_radio_command(
         # mode « duck », null = tirage aléatoire.
         announcement = _resolve_announcement(db, params.get("announcement_id"))
         if not announcement:
-            logger.warning("Commande radio_play_announcement : aucun rappel disponible")
-            return
+            raise _not_found(command, manager.channel, "Rappel")
         await manager.play_announcement(
             {"id": announcement.id, "description": announcement.description}, mode="duck", client_ts=client_ts,
         )
@@ -1079,6 +1071,7 @@ async def _handle_radio_command(
         await manager.report_position(float(params.get("position_seconds", 0)))
     else:
         logger.warning(f"Commande radio WebSocket inconnue reçue : {command}")
+        raise CommandRejected("unknown_command", manager.channel, f"Commande radio inconnue : {command}.", 400)
 
 
 def _resolve_announcement(db: Session, announcement_id) -> RadioAnnouncement | None:
@@ -1110,3 +1103,78 @@ def _due_wait_end_announcement(db: Session, manager) -> RadioAnnouncement | None
     ):
         return None
     return _resolve_announcement(db, None)
+
+
+# ---------------------------------------------------------------------------
+# Façade REST : les mêmes commandes que le WebSocket, pour la CLI et les agents (aucune logique propre).
+# Routeur inclus en dernier par main.py : `/api/radio/{output}/{action}` capterait sinon des routes existantes
+# de même forme (`/api/radio/tracks/upload`, `/api/radio/announcements/play-now`...).
+# ---------------------------------------------------------------------------
+
+command_router = APIRouter(tags=["playback"])
+
+# Rapports d'un écran (position, fins de média, niveaux, route audio) : l'autorité en revient à l'écran primaire
+# connecté par WebSocket ; les accepter d'un client REST fausserait l'état. Ils restent hors de la façade.
+PLAYBACK_ACTIONS = (
+    "load", "load_playlist", "load_background", "load_audio_course", "load_audio_playlist", "play", "pause", "stop",
+    "seek", "speed", "volume", "set_subtitle", "next_video", "previous_video", "skip_waiting", "audio_set_background",
+    "audio_next_track", "audio_previous_track", "audio_restart_track", "audio_jump_to_track", "audio_set_chain_mode",
+    "audio_set_chain_timer", "cinema_command",
+)
+RADIO_ACTIONS = (
+    "load_radio_playlist", "radio_shuffle_all", "play", "pause", "stop", "radio_next_track", "radio_previous_track",
+    "radio_jump_to_track", "radio_seek", "volume", "radio_set_sound", "radio_meter", "radio_set_shuffle",
+    "radio_set_repeat", "radio_add_to_queue", "radio_play_next", "radio_move_in_queue", "radio_remove_from_queue",
+    "radio_play_announcement",
+)
+RADIO_OUTPUTS = {"cable": "radio_cable", "network": "radio_network"}
+
+
+def _rejection_http(command: str, rejected: CommandRejected) -> HTTPException:
+    headers = {"Retry-After": "30"} if rejected.status == 503 else None
+    return HTTPException(
+        status_code=rejected.status,
+        detail={"code": rejected.reason, "message": rejected.message, "command": command, "channel": rejected.channel},
+        headers=headers,
+    )
+
+
+def _unknown(kind: str, value: str, allowed) -> HTTPException:
+    return HTTPException(
+        status_code=404,
+        detail={"code": f"unknown_{kind}", "message": f"{value} inconnu.", "allowed": list(allowed)},
+    )
+
+
+@command_router.post("/api/playback/{channel}/{action}")
+async def playback_action(
+    channel: str, action: str, params: dict[str, Any] | None = Body(default=None), db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Commande de lecture d'un canal (`cable`, `network`) ; corps JSON : les paramètres de la commande WebSocket.
+    Réponse : l'état du canal après la commande."""
+    if channel not in CHANNELS:
+        raise _unknown("channel", channel, CHANNELS)
+    if action not in PLAYBACK_ACTIONS:
+        raise _unknown("action", action, PLAYBACK_ACTIONS)
+    try:
+        await execute_command({"command": action, "params": {**(params or {}), "channel": channel}}, db)
+    except CommandRejected as rejected:
+        raise _rejection_http(action, rejected) from rejected
+    return {"channel": channel, "state": get_playback_manager(channel).snapshot()}
+
+
+@command_router.post("/api/radio/{output}/{action}")
+async def radio_action(
+    output: str, action: str, params: dict[str, Any] | None = Body(default=None), db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Commande d'une sortie radio (`cable`, `network`) ; même contrat que `/api/playback/{channel}/{action}`."""
+    radio_channel = RADIO_OUTPUTS.get(output)
+    if radio_channel is None:
+        raise _unknown("output", output, RADIO_OUTPUTS)
+    if action not in RADIO_ACTIONS:
+        raise _unknown("action", action, RADIO_ACTIONS)
+    try:
+        await execute_command({"command": action, "params": {**(params or {}), "channel": radio_channel}}, db)
+    except CommandRejected as rejected:
+        raise _rejection_http(action, rejected) from rejected
+    return {"output": output, "state": get_radio_manager(radio_channel).snapshot()}

@@ -60,6 +60,12 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
                 pass
 
     def setUp(self):
+        # Les tests de programmation remplacent les gestionnaires de lecture globaux (diffusion factice) : ceux de
+        # l'application sont remis ensuite, sinon les tests WebSocket suivants ne reçoivent plus aucun état.
+        from app import playback_manager as playback_manager_module
+
+        saved_managers = dict(playback_manager_module._managers)
+        self.addCleanup(lambda: playback_manager_module._managers.update(saved_managers))
         self.db = SessionLocal()
         self.video1 = Video(
             file_path="data/test_videos/schedule_video1.mp4",
