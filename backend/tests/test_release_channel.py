@@ -220,6 +220,10 @@ class _StoreProfile:
     def supports_update_over_tor():
         return False
 
+    @staticmethod
+    def has_system_port80_redirect():
+        return False
+
 
 @pytest.fixture()
 def store_build(monkeypatch):

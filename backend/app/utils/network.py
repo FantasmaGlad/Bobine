@@ -132,6 +132,33 @@ def lan_addresses() -> list[LanAddress]:
     return found
 
 
+# Réseaux privés virtuels par lesquels un appareil peut joindre Bobine (« Wi-Fi de confiance », VPN compris).
+_VPN_MARKERS = ("tailscale", "wg", "wireguard", "zerotier", "zt", "tun", "utun", "openvpn", "vpn", "nord", "proton", "mullvad", "hamachi")
+
+
+def _is_vpn_interface(name: str) -> bool:
+    lowered = name.lower()
+    return any(lowered.startswith(marker) if len(marker) <= 3 else marker in lowered for marker in _VPN_MARKERS)
+
+
+def access_addresses() -> list[dict[str, str]]:
+    """Adresses par lesquelles un autre appareil peut joindre Bobine : réseau local (Wi-Fi, Ethernet) puis VPN.
+    Contrairement à `lan_addresses()`, qui cherche L'adresse du réseau local, les VPN sont inclus : ils servent aux
+    liens d'accès affichés dans Réglages et renvoyés par l'API."""
+    found = [{"ip": item.ip, "interface": item.interface, "kind": "lan"} for item in lan_addresses()]
+    known = {item["ip"] for item in found}
+    for name, ip in _enumerate_ipv4():
+        try:
+            address = ipaddress.ip_address(ip)
+        except ValueError:
+            continue
+        if ip in known or address.is_loopback or address.is_link_local or not _is_vpn_interface(name):
+            continue
+        known.add(ip)
+        found.append({"ip": ip, "interface": name, "kind": "vpn"})
+    return found
+
+
 def _route_ip() -> str | None:
     """Dernier recours : interface de la route par défaut (peut être un VPN)."""
     probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
