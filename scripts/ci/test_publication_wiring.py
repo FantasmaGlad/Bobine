@@ -59,7 +59,7 @@ class PackageRepositoryPublicationTests(unittest.TestCase):
         self.assertNotIn("git push origin gh-pages", text)
 
     def test_the_repository_tests_have_the_tool_they_need(self):
-        self.assertIn("apt-get install -y -qq --no-install-recommends reprepro", job("version"))
+        self.assertIn("apt-get $APT_OPTIONS install -y -qq --no-install-recommends reprepro", job("version"))
 
 
 class ScheduledRefreshTests(unittest.TestCase):

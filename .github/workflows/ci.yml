@@ -53,6 +53,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Un miroir apt qui cale laisse apt attendre jusqu'au délai du job : abandon d'un transfert muet après 30 s,
+# puis nouvel essai.
+env:
+  APT_OPTIONS: -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
+
 jobs:
   # Résout la version et le CANAL une seule fois pour tous les jobs de
   # packaging. Trois canaux structurellement
@@ -97,10 +102,11 @@ jobs:
           ref: ${{ inputs.tag }}
       - name: Vérifier les outils de publication sans réseau
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends reprepro python3-yaml
+          sudo apt-get $APT_OPTIONS update -qq && sudo apt-get $APT_OPTIONS install -y -qq --no-install-recommends reprepro python3-yaml
           python3 scripts/ci/test-notify-web-release.py
           python3 -m unittest discover -s scripts/ci -p 'test_*.py' -q
           python3 scripts/ci/test-package-versions.py --family debian
+          if [ -f scripts/ci/test-install-signature.ps1 ]; then pwsh -NoProfile -File scripts/ci/test-install-signature.ps1; fi
       - name: Résoudre version, canal et identifiants de build
         id: resolve
         env:
@@ -159,8 +165,14 @@ jobs:
           cache-dependency-path: |
             backend/requirements*.txt
             backend/constraints-desktop.txt
+      - name: Paquets ffmpeg en cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/ffmpeg-debs
+          key: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-${{ env.ImageVersion }}
+          restore-keys: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-
       - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+        run: scripts/ci/install-ffmpeg.sh ~/ffmpeg-debs
       - name: Build frontend
         working-directory: frontend
         run: |
@@ -221,12 +233,15 @@ jobs:
         run: python -m pip check
       - name: Syntax check (compile all sources)
         run: python -m compileall -q backend/app scripts
+      - name: Paquets ffmpeg en cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/ffmpeg-debs
+          key: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-${{ env.ImageVersion }}
+          restore-keys: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-
       - name: Install system dependencies (ffmpeg)
-        # Comme le job Firefox, les tests CPU n’installent pas les modèles ASR
-        # ni les pilotes recommandés. Le miroir peut rester lent même sans eux.
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg
+        # Comme le job Firefox, les tests CPU n’installent pas les modèles ASR ni les pilotes recommandés.
+        run: scripts/ci/install-ffmpeg.sh ~/ffmpeg-debs
       # pytest (et non `unittest discover`) : c'est la commande documentée
       # et `unittest` ignore les tests écrits en simples
       # fonctions (suivi de séquence, horloge de lecture, diffusion par canal,
@@ -313,8 +328,8 @@ jobs:
           key: cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml', 'assistant/**/Cargo.toml', 'assistant/Cargo.lock') }}
       - name: Install system dependencies (WebKitGTK & AppIndicator)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get $APT_OPTIONS update
+          sudo apt-get $APT_OPTIONS install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: Identifiants de build (VERSION bundlée + COMMIT)
         working-directory: .
         run: |
@@ -362,8 +377,8 @@ jobs:
           key: cargo-${{ runner.os }}-arm64-${{ hashFiles('rust-toolchain.toml', 'assistant/**/Cargo.toml', 'assistant/Cargo.lock') }}
       - name: Install system dependencies (WebKitGTK & AppIndicator)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get $APT_OPTIONS update
+          sudo apt-get $APT_OPTIONS install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: Identifiants de build (VERSION bundlée + COMMIT)
         working-directory: .
         run: |
@@ -1031,13 +1046,13 @@ jobs:
           VERSION: ${{ needs.version.outputs.deb_version }}
           DEB_FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends patchelf
+          sudo apt-get $APT_OPTIONS update
+          sudo apt-get $APT_OPTIONS install -y --no-install-recommends patchelf
           ./packaging/linux/build_deb.sh
       - name: Valider les métadonnées d'application (AppStream, .desktop)
         if: matrix.deb_arch == 'amd64'
         run: |
-          sudo apt-get install -y --no-install-recommends appstream desktop-file-utils
+          sudo apt-get $APT_OPTIONS install -y --no-install-recommends appstream desktop-file-utils
           appstreamcli validate --pedantic --no-net packaging/linux/bobine.metainfo.xml
           desktop-file-validate packaging/linux/bobine.desktop
       - name: Inspecter et valider la structure du paquet .deb
@@ -1046,8 +1061,8 @@ jobs:
           dpkg-deb -c dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
       - name: Tester l'installation réelle (${{ matrix.runner }})
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ./dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
+          sudo apt-get $APT_OPTIONS update
+          sudo apt-get $APT_OPTIONS install -y ./dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
           test -x /usr/bin/bobine
           test -f /usr/share/applications/com.bobine.app.desktop
           test -f /usr/share/metainfo/com.bobine.app.metainfo.xml
@@ -1202,7 +1217,7 @@ jobs:
           name: ${{ matrix.artifact }}
           path: deb-input
       - name: Outils de contrôle des archives
-        run: sudo apt-get update && sudo apt-get install -y rpm zstd
+        run: sudo apt-get $APT_OPTIONS update && sudo apt-get $APT_OPTIONS install -y rpm zstd
       - name: Construire et vérifier les paquets
         env:
           FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
@@ -1276,7 +1291,7 @@ jobs:
           merge-multiple: true
           path: package-assets
       - name: Installer les outils de signature
-        run: sudo apt-get update && sudo apt-get install -y rpm gnupg
+        run: sudo apt-get $APT_OPTIONS update && sudo apt-get $APT_OPTIONS install -y rpm gnupg
       - name: Importer la clé et signer
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
@@ -1400,6 +1415,7 @@ jobs:
           install -d -m 0700 "$GNUPGHOME"
           printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
           bash scripts/ci/sign-release-checksums.sh release-assets
+          if [ -f scripts/ci/test-install-signature.ps1 ]; then pwsh -NoProfile -File scripts/ci/test-install-signature.ps1 release-assets; fi
       - name: Retirer la clé privée du runner
         if: always()
         env:
@@ -1541,6 +1557,7 @@ jobs:
           install -d -m 0700 "$GNUPGHOME"
           printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
           bash scripts/ci/sign-release-checksums.sh release-assets
+          if [ -f scripts/ci/test-install-signature.ps1 ]; then pwsh -NoProfile -File scripts/ci/test-install-signature.ps1 release-assets; fi
       - name: Retirer la clé privée du runner
         if: always()
         env:
@@ -1766,6 +1783,7 @@ jobs:
           install -d -m 0700 "$GNUPGHOME"
           printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
           bash scripts/ci/sign-release-checksums.sh release-assets
+          if [ -f scripts/ci/test-install-signature.ps1 ]; then pwsh -NoProfile -File scripts/ci/test-install-signature.ps1 release-assets; fi
       - name: Retirer la clé privée du runner
         if: always()
         env:
@@ -1920,8 +1938,8 @@ jobs:
           path: package-assets
       - name: Installer les outils de dépôt
         run: |
-          sudo apt-get update
-          sudo apt-get install -y reprepro rpm gnupg createrepo-c
+          sudo apt-get $APT_OPTIONS update
+          sudo apt-get $APT_OPTIONS install -y reprepro rpm gnupg createrepo-c
           . scripts/ci/container-images.sh
           docker pull "$ARCH_IMAGE"
       - name: Préparer et vérifier les dépôts signés (Debian, RPM et Arch)

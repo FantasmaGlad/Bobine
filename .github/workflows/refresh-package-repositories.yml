@@ -25,6 +25,11 @@ concurrency:
   group: publish-linux-packages
   cancel-in-progress: false
 
+# Un miroir apt qui cale laisse apt attendre jusqu'au délai du job : abandon d'un transfert muet après 30 s,
+# puis nouvel essai.
+env:
+  APT_OPTIONS: -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
+
 jobs:
   refresh:
     name: Ré-exporter et re-signer les fichiers Release APT
@@ -44,7 +49,7 @@ jobs:
           ref: 726451fea1cee0c58292e365a07e46fcee594cef
           path: package-verification
       - name: Installer les outils de dépôt
-        run: sudo apt-get update && sudo apt-get install -y reprepro gnupg
+        run: sudo apt-get $APT_OPTIONS update && sudo apt-get $APT_OPTIONS install -y reprepro gnupg
       - name: Ré-exporter et re-signer les fichiers Release
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
