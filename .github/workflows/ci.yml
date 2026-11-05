@@ -172,7 +172,9 @@ jobs:
           key: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-${{ env.ImageVersion }}
           restore-keys: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-
       - name: Install ffmpeg
-        run: scripts/ci/install-ffmpeg.sh ~/ffmpeg-debs
+        run: |
+          scripts/ci/apt-install-cached.sh ~/ffmpeg-debs ffmpeg
+          ffmpeg -hide_banner -version | head -n 1
       - name: Build frontend
         working-directory: frontend
         run: |
@@ -241,7 +243,9 @@ jobs:
           restore-keys: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-
       - name: Install system dependencies (ffmpeg)
         # Comme le job Firefox, les tests CPU n’installent pas les modèles ASR ni les pilotes recommandés.
-        run: scripts/ci/install-ffmpeg.sh ~/ffmpeg-debs
+        run: |
+          scripts/ci/apt-install-cached.sh ~/ffmpeg-debs ffmpeg
+          ffmpeg -hide_banner -version | head -n 1
       # pytest (et non `unittest discover`) : c'est la commande documentée
       # et `unittest` ignore les tests écrits en simples
       # fonctions (suivi de séquence, horloge de lecture, diffusion par canal,
@@ -1059,11 +1063,17 @@ jobs:
         run: |
           dpkg-deb -I dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
           dpkg-deb -c dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
+      - name: Dépendances du paquet en cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/deb-deps
+          key: deb-deps-${{ matrix.runner }}-${{ env.ImageVersion }}
+          restore-keys: deb-deps-${{ matrix.runner }}-
       - name: Tester l'installation réelle (${{ matrix.runner }})
         run: |
-          sudo apt-get $APT_OPTIONS update
-          sudo apt-get $APT_OPTIONS install -y ./dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
+          scripts/ci/apt-install-cached.sh ~/deb-deps ./dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
           test -x /usr/bin/bobine
+          /usr/bin/bobine --version | grep -q '^bobine '
           test -f /usr/share/applications/com.bobine.app.desktop
           test -f /usr/share/metainfo/com.bobine.app.metainfo.xml
           test -f /usr/lib/systemd/user/bobine.service

@@ -1354,21 +1354,19 @@ step_done
 # ---------------------------------------------------------------------------
 step cli-tool "Script de contrôle CLI 'bobine'"
 # ---------------------------------------------------------------------------
-write_file /usr/local/bin/bobine <<'EOF'
+# start, stop, restart et journal pilotent les services ; toute autre commande (status, diagnose, logs, playback,
+# config...) passe à la CLI de Bobine, qui interroge l'API comme l'interface.
+write_file /usr/local/bin/bobine <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 SERVICES=(bobine-backend.service bobine-kiosk.service)
 
-case "${1:-}" in
-    start)   sudo systemctl start "${SERVICES[@]}" ;;
-    stop)    sudo systemctl stop "${SERVICES[@]}" ;;
-    restart) sudo systemctl restart "${SERVICES[@]}" ;;
-    status)  systemctl status "${SERVICES[@]}" --no-pager ;;
-    logs)    journalctl -u bobine-backend -u bobine-kiosk -f ;;
-    *)
-        echo "Usage: bobine {start|stop|restart|status|logs}"
-        exit 1
-        ;;
+case "\${1:-}" in
+    start)   sudo systemctl start "\${SERVICES[@]}" ;;
+    stop)    sudo systemctl stop "\${SERVICES[@]}" ;;
+    restart) sudo systemctl restart "\${SERVICES[@]}" ;;
+    journal) journalctl -u bobine-backend -u bobine-kiosk -f ;;
+    *)       exec "${VENV_DIR}/bin/python" "${BACKEND_DIR}/run_cli.py" "\$@" ;;
 esac
 EOF
 run chmod +x /usr/local/bin/bobine
@@ -2112,7 +2110,7 @@ if ! $NO_KIOSK; then
 fi
 box_line "  Config     ${CONFIG_FILE}"
 box_line "  Journal    ${LOG_FILE}"
-box_line "  Contrôle   bobine {start|stop|restart|status|logs}"
+box_line "  Contrôle   bobine {start|stop|restart|journal}, puis bobine --help"
 box_line "  Diagnostic sudo ./${SCRIPT_NAME} --check"
 if ! $NO_KIOSK && ! $DRY_RUN; then
     box_mid

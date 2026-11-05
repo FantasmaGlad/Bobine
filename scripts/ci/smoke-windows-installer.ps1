@@ -39,6 +39,11 @@ function Test-FirewallRule {
     return ($LASTEXITCODE -eq 0)
 }
 
+function Test-MachinePath([string]$Dir) {
+    $paths = [Environment]::GetEnvironmentVariable('Path', 'Machine') -split ';'
+    return [bool]($paths | Where-Object { $_.TrimEnd('\') -ieq $Dir.TrimEnd('\') })
+}
+
 function Invoke-Silent([string]$File, [string[]]$Arguments, [string]$What) {
     # Les messages de l'installeur et du désinstalleur passent par le journal /LOG, pas par la console.
     $process = Start-Process -FilePath $File -ArgumentList $Arguments -Wait -PassThru
@@ -77,7 +82,7 @@ switch ($Action) {
                 }
             }
         }
-        foreach ($required in 'BobineBackend.exe', 'BobineTray.exe', 'bobine-devices.exe', 'unins000.exe', 'unins000.dat') {
+        foreach ($required in 'BobineBackend.exe', 'BobineTray.exe', 'bobine.exe', 'bobine-devices.exe', 'unins000.exe', 'unins000.dat') {
             if (-not (Test-Path -LiteralPath (Join-Path $installRoot $required) -PathType Leaf)) {
                 $problems.Add("fichier obligatoire absent : $required")
             }
@@ -96,6 +101,13 @@ switch ($Action) {
         }
         if (-not (Test-FirewallRule)) { $problems.Add('règle de pare-feu "Bobine" absente') }
         if (-not (Test-Path -LiteralPath $startupShortcut)) { $problems.Add("raccourci de démarrage absent : $startupShortcut") }
+        if (-not (Test-MachinePath $installRoot)) { $problems.Add("$installRoot absent du PATH système (commande bobine)") }
+        $cli = Join-Path $installRoot 'bobine.exe'
+        if (Test-Path -LiteralPath $cli) {
+            $version = (& $cli --version 2>&1 | Out-String).Trim()
+            Write-Host "Commande bobine : $version (code $LASTEXITCODE)"
+            if ($LASTEXITCODE -ne 0 -or $version -notmatch '^bobine ') { $problems.Add("bobine.exe --version a échoué : $version") }
+        }
 
         if ($problems.Count -gt 0) {
             $problems | ForEach-Object { Write-Host "ERREUR : $_" }
@@ -121,6 +133,7 @@ switch ($Action) {
         if (Get-UninstallEntry) { $problems.Add('la clé de désinstallation existe encore') }
         if (Test-FirewallRule) { $problems.Add('la règle de pare-feu "Bobine" existe encore') }
         if (Test-Path -LiteralPath $startupShortcut) { $problems.Add("le raccourci de démarrage existe encore : $startupShortcut") }
+        if (Test-MachinePath $InstallDir) { $problems.Add("$InstallDir est resté dans le PATH système") }
         if ($problems.Count -gt 0) {
             $problems | ForEach-Object { Write-Host "ERREUR : $_" }
             throw "Désinstallation incomplète ($($problems.Count) reste(s))"

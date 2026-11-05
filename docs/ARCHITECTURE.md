@@ -74,6 +74,10 @@ Appliance : `curl -fsSL https://bobine.fit/install.sh | bash` (options : `sudo .
 
 - REST sous `/api` (vidéos, playlists, planning, lecture, radio, imports, réglages, mises à jour, périphériques, stockage, santé). Schéma : `/openapi.json`.
 - WebSocket `/ws/playback` : état de chaque canal avec son horloge, synchronisation du temps, changements de bibliothèque et de périphériques.
+- Lecture par REST : `POST /api/playback/{canal}/{action}` et `POST /api/radio/{sortie}/{action}`, mêmes commandes que le WebSocket ; refus typés (409, 404, 422, 503).
+- Configuration en fichiers JSON, un par type de réglage : `GET /api/config/export`, `POST /api/config/apply` (essai à blanc par défaut, tout ou rien) ; copie lisible dans le dossier `config/` des données.
+- Diagnostic : `GET /api/diagnostics/system` (constats `{code, severity, message, remedy}`) ; journaux : `GET /api/logs` (`source`, `level`, `since`, `limit`, horodatages UTC).
+- Commande `bobine`, sur les mêmes routes, en local ou avec `--host` : `bobine status`, `bobine diagnose`, `bobine logs --level warning`, `bobine playback cable pause`, `bobine config export <dossier>`, `bobine config apply <dossier> --yes`. `--json` pour une sortie lisible par machine ; codes de sortie : 0 succès, 1 problème, 2 usage, 3 injoignable, 4 refus. Windows : `bobine.exe`, dans le `PATH`.
 
 ## 9. Licence
 
