@@ -18,7 +18,8 @@ export interface ParsedMediaName {
 }
 
 export function parseMediaName(rawName: string, knownPrograms: string[] = []): ParsedMediaName {
-  const nameWithoutExt = rawName.replace(/\.[a-z0-9]{2,5}$/i, "");
+  // Extension composée des archives tar compressées : la retirer d'un bloc, sinon le titre garde « tar ».
+  const nameWithoutExt = rawName.replace(/\.tar\.(?:gz|xz|bz2)$/i, "").replace(/\.[a-z0-9]{2,5}$/i, "");
   const cleaned = nameWithoutExt.replace(/[_.]+/g, " ").trim();
 
   const pattern = /([A-Za-zÀ-ÖØ-öø-ÿ]+)[\s-]+(\d{1,4})\b/g;

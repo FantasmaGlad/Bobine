@@ -738,6 +738,7 @@ export default function CinemaPage() {
 
   /** Sélectionne le bouton « Lecture » du héros et remonte tout en haut de la vitrine. */
   const focusHero = () => {
+    document.querySelector<HTMLElement>(".cinema-grid-layer")?.scrollTo({ top: 0, behavior: "smooth" });
     const items = Array.from(document.querySelectorAll<HTMLElement>(CINEMA_GRID_CARDS));
     const hero = items.find((el) => el.classList.contains("cinema-hero-play"));
     if (hero) selectRemoteTarget(items, hero);
@@ -779,7 +780,7 @@ export default function CinemaPage() {
         onPlayPause: () => activateDomFocus(CINEMA_GRID_CARDS),
         // Premier appui : retour en haut sur le héros ; appui suivant : écran d'attente.
         onBack: () => {
-          if (window.scrollY > 0) focusHero();
+          if ((document.querySelector<HTMLElement>(".cinema-grid-layer")?.scrollTop ?? 0) > 0) focusHero();
           else setUserStandbyMode(true);
         },
       };

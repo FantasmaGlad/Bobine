@@ -52,15 +52,20 @@ def safe_extract_tar(tf: tarfile.TarFile, dest_dir: Path) -> None:
             raise UnsafeZipError(f"Archive invalide : le membre « {member.name} » n'est ni un fichier ni un dossier.")
     for member in members:
         target = dest_dir / member.name
-        if member.isdir():
-            target.mkdir(parents=True, exist_ok=True)
-            continue
-        target.parent.mkdir(parents=True, exist_ok=True)
-        source = tf.extractfile(member)
-        if source is None:
-            continue
-        with source, open(target, "wb") as out:
-            shutil.copyfileobj(source, out, 1024 * 1024)
+        try:
+            if member.isdir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            source = tf.extractfile(member)
+            if source is None:
+                continue
+            with source, open(target, "wb") as out:
+                shutil.copyfileobj(source, out, 1024 * 1024)
+        except OSError as exc:
+            raise InvalidArchiveError(
+                f"L'archive est invalide ou n'a pas pu être extraite : membre « {member.name} »."
+            ) from exc
 
 
 def safe_extract_archive(path: Path, dest_dir: Path) -> None:
