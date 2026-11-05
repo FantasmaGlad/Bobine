@@ -64,7 +64,13 @@ def _client_ip(request: Request) -> str:
 
 
 def is_local_request(request: Request) -> bool:
-    """Requête venant de la machine elle-même (écran physique). Les en-têtes X-Forwarded-* sont ignorés."""
+    """Requête venant de la machine elle-même (écran physique).
+
+    Ce module ne lit que l'adresse du pair TCP. Uvicorn peut toutefois réécrire `request.client.host`
+    depuis `X-Forwarded-For` quand la requête arrive par un proxy de confiance (`forwarded_allow_ips`,
+    boucle locale par défaut) ; un proxy local qui n'ajoute pas cet en-tête fait donc passer tous ses
+    clients pour l'écran local.
+    """
     return locality.is_local_client(_client_ip(request))
 
 

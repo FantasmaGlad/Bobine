@@ -193,6 +193,7 @@ def start_server_once(external_files_dir=None, native_library_dir=None, internal
                 _os.environ["BOBINE_MEDIA_BIN"] = media_path
 
         import uvicorn
+        from app.config import settings
         from app.main import app
         from app.utils.port import acquire_listen_port, release_port
 
@@ -212,7 +213,7 @@ def start_server_once(external_files_dir=None, native_library_dir=None, internal
         # limiter le nombre de tâches concurrentes sur un CPU mobile.
         try:
             uvicorn.run(
-                app, host="0.0.0.0", port=listen_port, workers=1,
+                app, host=settings.host, port=listen_port, workers=1,
                 timeout_keep_alive=75, ws_ping_interval=None, ws_ping_timeout=None,
                 limit_concurrency=64,
             )

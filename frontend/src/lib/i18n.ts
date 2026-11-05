@@ -416,7 +416,6 @@ export const dictionaries: Record<Language, Dict> = {
       errors: {
         generic: "L'opération n'a pas pu aboutir.",
         network: "Impossible de joindre le serveur.",
-        local_only: "Cette opération n'est possible que depuis l'écran local de la machine.",
         password_local_only: "Le mot de passe Wi-Fi ne peut être saisi que sur l'écran local de la machine.",
         change_pending: "Un changement de Wi-Fi attend sa confirmation.",
         unsupported: "Cette fonction n'est pas prise en charge sur cette machine.",
@@ -2333,7 +2332,6 @@ export const dictionaries: Record<Language, Dict> = {
       errors: {
         generic: "The operation could not be completed.",
         network: "Cannot reach the server.",
-        local_only: "This can only be done from the machine's local screen.",
         password_local_only: "The Wi-Fi password can only be typed on the machine's local screen.",
         change_pending: "A Wi-Fi change is waiting for confirmation.",
         unsupported: "This feature is not supported on this machine.",

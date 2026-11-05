@@ -11,11 +11,9 @@ import logging
 import re
 from typing import Any, Awaitable, TypeVar
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
 
-from app.database import get_db
 from app.devices.base import DeviceError
 from app.routers.devices import Access, _fail, require_access
 from app.storage import fsadvisor
@@ -231,13 +229,13 @@ class FormatExecuteRequest(BaseModel):
 
 
 @router.post("/format/plan")
-async def format_plan(payload: FormatPlanRequest, access: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
+async def format_plan(payload: FormatPlanRequest, access: Access = Depends(require_access)) -> dict[str, Any]:
     """Plan de formatage : n'écrit RIEN. Renvoie ce qui sera effacé, les formats possibles et un jeton court à usage unique."""
     return await _guard(service.formatter.plan(_key(payload.key), owner=access.ip, travels=payload.travels))
 
 
 @router.post("/format/execute", status_code=202)
-async def format_execute(payload: FormatExecuteRequest, request: Request, access: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
+async def format_execute(payload: FormatExecuteRequest, access: Access = Depends(require_access)) -> dict[str, Any]:
     return await _guard(service.formatter.start(
         _key(payload.key), token=payload.token, fs=payload.fs, label=payload.label, confirm_text=payload.confirm,
         acknowledged=payload.acknowledged, owner=access.ip,

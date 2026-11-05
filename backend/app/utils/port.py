@@ -117,6 +117,13 @@ def resolve_port(preferred: int | None = None, *, strict: bool | None = None) ->
     strict, lève `PortUnavailableError` si le préféré est occupé."""
     wanted = preferred_port() if preferred is None else int(preferred)
     strict = is_strict() if strict is None else strict
+    if not 1 <= wanted <= 65535:
+        # `socket.bind` lève OverflowError hors de cette plage ; sans ce contrôle le lanceur
+        # meurt sur un traceback, et systemd le relance en boucle.
+        raise PortUnavailableError(
+            f"Le port d'écoute {wanted} est invalide : indiquez une valeur entre 1 et 65535 "
+            f"(BOBINE_PORT ou config.toml)."
+        )
 
     error = _bind_error(wanted)
     if error is None:
