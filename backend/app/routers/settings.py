@@ -795,6 +795,10 @@ async def apply_display_output(db: Session, channel: str, output: str, *, activa
     else:
         db.add(Setting(key=key, value=output))
     db.commit()
+    # La copie lisible de la configuration suit aussi les bascules décidées par le planning, sans requête HTTP.
+    from app import config_files
+
+    config_files.schedule_mirror()
 
     # Bascule vers cinéma : coupe ce qui jouait côté kiosk sur CE canal plutôt
     # que de le laisser tourner en arrière-plan sans écran pour l'afficher —

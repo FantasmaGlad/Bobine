@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 from fastapi import HTTPException
+from fastapi.concurrency import run_in_threadpool
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app import config_files
@@ -129,6 +131,14 @@ def _list(ctx: _Context, file: str, document: dict, key: str) -> list:
     return value
 
 
+def _flag(ctx: _Context, file: str, label: str, value: Any) -> bool:
+    """Booléen JSON strict : la chaîne « false » ne doit pas valoir vrai par simple vérité Python."""
+    if not isinstance(value, bool):
+        ctx.fail(file, f"{label} doit être un booléen (true ou false)")
+        return False
+    return value
+
+
 # --- un applicateur par fichier --------------------------------------------------------------------------------------
 
 def _apply_settings(ctx: _Context, file: str, document: dict) -> None:
@@ -138,6 +148,9 @@ def _apply_settings(ctx: _Context, file: str, document: dict) -> None:
     if not isinstance(body, dict):
         ctx.fail(file, "« settings » doit être un objet")
         return
+    unknown = sorted(set(body) - set(config_files.PORTABLE_SETTINGS) - {"default_coach_background", "radio"})
+    for key in unknown:
+        ctx.fail(file, f"réglage inconnu : {key}")
     values: dict[str, Any] = {}
     for key in config_files.PORTABLE_SETTINGS:
         if key in body:
@@ -147,15 +160,27 @@ def _apply_settings(ctx: _Context, file: str, document: dict) -> None:
         background = _background(ctx, file, body["default_coach_background"])
         values["default_coach_background_id"] = background.id if background else 0
     _stage(ctx, file, values, SettingsUpdate, settings_updates, stage_settings, after_settings_change)
-    radio = body.get("radio") or {}
+    radio_value = body.get("radio")
+    if radio_value is None:
+        radio = {}
+    elif not isinstance(radio_value, dict):
+        ctx.fail(file, "« radio » doit être un objet")
+        radio = {}
+    else:
+        radio = radio_value
+    for key in sorted(set(radio) - set(_START_ONLY_RADIO)):
+        ctx.fail(file, f"réglage radio inconnu : {key}")
     for key, setting_key in _START_ONLY_RADIO.items():
         if key in radio:
             value = radio[key]
             if not isinstance(value, int) or isinstance(value, bool) or value < 0:
                 ctx.fail(file, f"radio.{key} doit être un entier positif")
                 continue
-            _write_setting(ctx.db, setting_key, str(value))
-            ctx.restart_required.append(f"radio.{key}")
+            from app.config import settings as runtime_settings
+
+            if value != config_files._stored_int(ctx.db, setting_key, getattr(runtime_settings, setting_key)):
+                _write_setting(ctx.db, setting_key, str(value))
+                ctx.restart_required.append(f"radio.{key}")
 
 
 def _stage(ctx, file, values, model, to_updates, stage, after) -> None:
@@ -197,6 +222,11 @@ def _apply_machine(ctx: _Context, file: str, document: dict) -> None:
     if not isinstance(body, dict):
         ctx.fail(file, "« machine » doit être un objet")
         return
+    unknown = sorted(set(body) - {
+        "display_mode", "media_native", "update_tor", "update_tor_proxy", "audio_routes", "audio_outputs", "storage",
+    })
+    for key in unknown:
+        ctx.fail(file, f"réglage machine inconnu : {key}")
     values: dict[str, Any] = {}
     for source, target in (("display_mode", "display_mode_setting"), ("media_native", "media_native"),
                            ("update_tor", "update_tor"), ("update_tor_proxy", "update_tor_proxy")):
@@ -301,7 +331,11 @@ def _apply_video_playlists(ctx: _Context, file: str, document: dict) -> None:
     if not _names(ctx, file, entries):
         return
     for entry in entries:
-        videos = [_video(ctx, file, ref) for ref in entry.get("videos") or []]
+        videos_refs = entry.get("videos")
+        if not isinstance(videos_refs, list):
+            ctx.fail(file, f"playlist « {entry['name']} » : « videos » doit être une liste")
+            continue
+        videos = [_video(ctx, file, ref) for ref in videos_refs]
         _replace_playlist(ctx, file, Playlist, entry["name"], lambda videos=videos: [
             PlaylistItem(video_id=v.id, position=i) for i, v in enumerate(videos) if v is not None
         ])
@@ -312,8 +346,12 @@ def _apply_audio_playlists(ctx: _Context, file: str, document: dict) -> None:
     if not _names(ctx, file, entries):
         return
     for entry in entries:
+        tracks = entry.get("tracks")
+        if not isinstance(tracks, list):
+            ctx.fail(file, f"playlist « {entry['name']} » : « tracks » doit être une liste")
+            continue
         resolved = [(_audio_track(ctx, file, item.get("track") or {}), _background(ctx, file, item.get("background")))
-                    for item in entry.get("tracks") or []]
+                    for item in tracks]
         _replace_playlist(ctx, file, AudioPlaylist, entry["name"], lambda resolved=resolved: [
             AudioPlaylistItem(audio_track_id=t.id, position=i, background_id=b.id if b else None)
             for i, (t, b) in enumerate(resolved) if t is not None
@@ -324,16 +362,22 @@ def _apply_radio_playlists(ctx: _Context, file: str, document: dict) -> None:
     entries = _list(ctx, file, document, "playlists")
     if not _names(ctx, file, entries):
         return
-    defaults = [e["name"] for e in entries if e.get("default")]
+    defaults = [e["name"] for e in entries if e.get("default") is True]
     if len(defaults) > 1:
         ctx.fail(file, f"une seule playlist d'ambiance par défaut ({', '.join(defaults)})")
     for entry in entries:
-        tracks = [_radio_track(ctx, file, ref) for ref in entry.get("tracks") or []]
+        tracks_refs = entry.get("tracks")
+        if not isinstance(tracks_refs, list):
+            ctx.fail(file, f"playlist « {entry['name']} » : « tracks » doit être une liste")
+            continue
+        tracks = [_radio_track(ctx, file, ref) for ref in tracks_refs]
         playlist = _replace_playlist(ctx, file, RadioPlaylist, entry["name"], lambda tracks=tracks: [
             RadioPlaylistItem(radio_track_id=t.id, position=i) for i, t in enumerate(tracks) if t is not None
         ])
         if "default" in entry:
-            playlist.is_default = bool(entry["default"])
+            playlist.is_default = _flag(
+                ctx, file, f"« default » de la playlist « {entry['name']} »", entry["default"],
+            )
     if len(defaults) == 1:
         for other in ctx.db.query(RadioPlaylist).filter(RadioPlaylist.name != defaults[0]).all():
             other.is_default = False
@@ -365,7 +409,9 @@ def _apply_announcements(ctx: _Context, file: str, document: dict) -> None:
         candidates = ctx.db.query(RadioAnnouncement).filter(RadioAnnouncement.description == (entry or {}).get("description")).all()
         announcement = _pick(ctx, file, "annonce", candidates, entry or {}, lambda a: a.file_path)
         if announcement is not None and "enabled" in entry:
-            announcement.enabled = bool(entry["enabled"])
+            announcement.enabled = _flag(
+                ctx, file, f"« enabled » de l'annonce « {entry.get('description')} »", entry["enabled"],
+            )
 
 
 def _apply_announcement_rules(ctx: _Context, file: str, document: dict) -> None:
@@ -389,7 +435,8 @@ def _apply_announcement_rules(ctx: _Context, file: str, document: dict) -> None:
         if rule_type == RadioAnnouncementRuleType.fixed_times and (not times or not all(isinstance(t, str) and _TIME_RE.match(t) for t in times)):
             ctx.fail(file, "times_of_day (liste d'horaires HH:MM) requis pour fixed_times")
         rules.append(RadioAnnouncementRule(
-            rule_type=rule_type, target=target, enabled=bool(entry.get("enabled", True)),
+            rule_type=rule_type, target=target,
+            enabled=_flag(ctx, file, "« enabled » de la règle", entry.get("enabled", True)),
             n_tracks=entry.get("n_tracks"), interval_minutes=entry.get("interval_minutes"),
             times_of_day=json.dumps(times) if times else None,
         ))
@@ -428,8 +475,10 @@ def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> N
         if (target[0] == ScheduleTargetType.radio_playlist) != radio:
             ctx.fail(file, f"cible {target[0].value} impossible sur le canal {channel}")
             continue
-        schedule = Schedule(target_type=target[0], target_id=target[1], channel=channel,
-                            active=bool(entry.get("active", True)))
+        schedule = Schedule(
+            target_type=target[0], target_id=target[1], channel=channel,
+            active=_flag(ctx, file, "« active » de la programmation", entry.get("active", True)),
+        )
         if entry.get("type") == "once":
             try:
                 schedule.schedule_type, schedule.run_at = ScheduleType.once, ensure_utc(datetime.fromisoformat(entry["run_at"]))
@@ -495,8 +544,22 @@ APPLIERS: dict[str, Callable[[_Context, str, dict], None]] = {
        for c in config_files.SCHEDULE_CHANNELS},
     "machine.json": _apply_machine,
 }
-# Ordre d'application : les playlists avant le planning et les réglages qui les citent.
-ORDER = list(config_files.BUILDERS)
+# Ordre d'application : les playlists avant les réglages et le planning qui les citent. `radio-outputs.json` vient
+# après `playlists-radio.json` : son ambiance par défaut se désigne par un nom, qui doit déjà exister (ou venir d'être
+# créé dans la même transaction).
+ORDER = [
+    "settings.json",
+    "display-outputs.json",
+    "playlists-video.json",
+    "playlists-audio.json",
+    "playlists-radio.json",
+    "radio-outputs.json",
+    "radio-tags.json",
+    "announcements.json",
+    "announcement-rules.json",
+    *[f"schedule-{channel.replace('_', '-')}.json" for channel in config_files.SCHEDULE_CHANNELS],
+    "machine.json",
+]
 
 
 def _diff(name: str, before: dict, wanted: dict) -> list[str]:
@@ -512,7 +575,20 @@ def _diff(name: str, before: dict, wanted: dict) -> list[str]:
 
 async def apply(db: Session, files: dict[str, Any], *, dry_run: bool, include_machine: bool) -> dict[str, Any]:
     """Valide et applique `{nom de fichier: document}` ; lève `ConfigErrors` (rien n'est écrit) si un élément est
-    invalide. Renvoie l'écart par fichier, ce qui a été ignoré et ce qui demande un redémarrage."""
+    invalide. Renvoie l'écart par fichier, ce qui a été ignoré et ce qui demande un redémarrage. La validation et
+    l'écriture tournent hors de la boucle d'événements : un gros document ne fige ni les flux ni les écrans ; seuls
+    les effets à chaud (diffusions, moteurs) reviennent sur la boucle."""
+    result, effects = await run_in_threadpool(_validate_and_write, db, files, dry_run, include_machine)
+    for effect in effects:
+        await effect(db)
+    if not dry_run:
+        config_files.schedule_mirror()
+    return result
+
+
+def _validate_and_write(
+    db: Session, files: dict[str, Any], dry_run: bool, include_machine: bool,
+) -> tuple[dict[str, Any], list[Callable[[Session], Awaitable[None]]]]:
     unknown = sorted(set(files) - set(APPLIERS))
     if unknown:
         raise ConfigErrors([f"fichier inconnu : {name}" for name in unknown])
@@ -534,7 +610,13 @@ async def apply(db: Session, files: dict[str, Any], *, dry_run: bool, include_ma
             continue
         changes[name] = _diff(name, config_files.BUILDERS[name](db), document)
         with db.no_autoflush:
-            APPLIERS[name](ctx, name, document)
+            try:
+                APPLIERS[name](ctx, name, document)
+            except (AttributeError, IndexError, KeyError, TypeError, ValueError, SQLAlchemyError) as exc:
+                # Un document JSON mal typé (liste au lieu d'objet, chaîne au lieu d'entier...) est une erreur de
+                # validation : il ne doit jamais produire un 500. La transaction est annulée plus bas comme pour
+                # toute autre erreur.
+                ctx.fail(name, f"document invalide : {exc}")
         if not ctx.errors:
             # Rendus visibles dans la transaction (non validée) : un fichier suivant peut citer ce qui vient d'être créé.
             try:
@@ -553,12 +635,10 @@ async def apply(db: Session, files: dict[str, Any], *, dry_run: bool, include_ma
         db.rollback()
     else:
         db.commit()
-        for effect in ctx.effects:
-            await effect(db)
-        config_files.schedule_mirror()
-    return {
+    result = {
         "applied": not dry_run,
         "changes": {name: lines for name, lines in changes.items() if lines},
         "skipped": skipped,
         "restart_required": sorted(set(ctx.restart_required)),
     }
+    return result, ([] if dry_run else ctx.effects)

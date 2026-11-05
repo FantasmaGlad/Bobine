@@ -126,3 +126,37 @@ def test_api_refusal_lists_errors(single_names):
     assert answer.status_code == 422 and "« kind »" in answer.json()["detail"]["errors"][0]
     preview = client.post("/api/config/apply", json={"files": {"settings.json": _export()["settings.json"]}})
     assert preview.status_code == 200 and preview.json()["applied"] is False
+
+
+def test_default_ambiance_can_name_a_playlist_created_in_the_same_batch(single_names):
+    files = _export()
+    files["playlists-radio.json"]["playlists"].append({"name": "Mardi", "default": False, "tracks": []})
+    files["radio-outputs.json"]["outputs"]["radio_cable"]["default_playlist"] = "Mardi"
+    assert _apply({name: files[name] for name in ("radio-outputs.json", "playlists-radio.json")})["applied"]
+
+
+@pytest.mark.parametrize("name, mutate, message", [
+    ("announcements.json", lambda d: d.update(announcements=["bouteille"]), "document invalide"),
+    ("playlists-video.json", lambda d: d["playlists"][0].update(video=d["playlists"][0].pop("videos")), "« videos » doit être une liste"),
+    ("settings.json", lambda d: d["settings"].update(volume_defaut=42), "réglage inconnu : volume_defaut"),
+    ("announcements.json", lambda d: d["announcements"][0].update(enabled="false"), "doit être un booléen"),
+])
+def test_malformed_documents_are_refused_not_crashing(single_names, name, mutate, message):
+    document = _export()[name]
+    mutate(document)
+    client = TestClient(app)
+    answer = client.post("/api/config/apply?dry_run=false", json={"files": {name: document}})
+    assert answer.status_code == 422
+    assert message in " ".join(answer.json()["detail"]["errors"])
+    with SessionLocal() as db:
+        assert db.query(Playlist).filter(Playlist.name == "Lundi soir").one().items
+
+
+def test_start_only_radio_settings_come_back_in_the_export(single_names):
+    files = _export()
+    wanted = files["settings.json"]["settings"]["radio"]["crossfade_seconds"] + 1
+    files["settings.json"]["settings"]["radio"]["crossfade_seconds"] = wanted
+    result = _apply({"settings.json": files["settings.json"]})
+    assert result["restart_required"] == ["radio.crossfade_seconds"]
+    assert _export()["settings.json"]["settings"]["radio"]["crossfade_seconds"] == wanted
+    assert _apply({"settings.json": _export()["settings.json"]}, dry_run=True)["changes"] == {}

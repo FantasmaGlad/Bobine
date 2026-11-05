@@ -107,6 +107,19 @@ def _typed(key: str, value: Any) -> Any:
     return value == "true" if key in _BOOLEAN_SETTINGS and isinstance(value, str) else value
 
 
+def _stored_int(db: Session, key: str, fallback: int) -> int:
+    """Valeur entière persistée dans la table `settings`, ou `fallback` (config.toml) si la ligne est absente ou illisible."""
+    from app.models import Setting
+
+    row = db.query(Setting).filter(Setting.key == key).first()
+    if row is None or not row.value:
+        return fallback
+    try:
+        return int(row.value)
+    except (TypeError, ValueError):
+        return fallback
+
+
 def build_settings(db: Session) -> dict[str, Any]:
     from app.config import settings as runtime_settings
 
@@ -114,11 +127,15 @@ def build_settings(db: Session) -> dict[str, Any]:
     body = {key: _typed(key, values.get(key)) for key in PORTABLE_SETTINGS}
     background_id = values.get("default_coach_background_id")
     body["default_coach_background"] = background_ref(db.get(Background, background_id)) if background_id else None
-    # Lus au démarrage seulement : une modification prend effet au prochain lancement de Bobine.
+    # Lus au démarrage seulement : leur valeur effective dans le processus n'est actualisée qu'au prochain lancement.
+    # Le fichier décrit la valeur PERSISTÉE, pas celle du singleton : après une application, l'export doit renvoyer le
+    # réglage appliqué (sinon l'aller-retour export → application → export perd la modification).
     body["radio"] = {
-        "volume_default": runtime_settings.radio_volume_default,
-        "crossfade_seconds": runtime_settings.radio_crossfade_seconds,
-        "announcement_duck_level": runtime_settings.radio_announcement_duck_level,
+        "volume_default": _stored_int(db, "radio_volume_default", runtime_settings.radio_volume_default),
+        "crossfade_seconds": _stored_int(db, "radio_crossfade_seconds", runtime_settings.radio_crossfade_seconds),
+        "announcement_duck_level": _stored_int(
+            db, "radio_announcement_duck_level", runtime_settings.radio_announcement_duck_level,
+        ),
     }
     return _document("settings", {"settings": body})
 
