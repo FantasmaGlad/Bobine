@@ -39,6 +39,7 @@ from app.utils.http_compression import (
     is_compressible_media_type,
     request_allows_gzip,
 )
+from app.utils.origin_guard import SameOriginGuard, dev_origins
 from app.utils.media_response import build_media_response
 from app.utils.port import active_port
 from app.utils.web_profile import choose_rendition, client_can_decode, parse_accept
@@ -182,15 +183,16 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Bobine", version=get_app_version(), lifespan=lifespan)
 
-# Configuration CORS pour le développement
+# Le frontend est servi par ce même serveur : seul le serveur de développement est une origine tierce admise.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=list(dev_origins()),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
+app.add_middleware(SameOriginGuard, allowed_origins=dev_origins())
 # gzip des seules réponses JSON/texte de /api/* (jamais /stream, miniatures,
 # Range, WebSocket...) : voir app/utils/http_compression.py. Ajouté APRÈS le
 # CORS pour envelopper aussi ses en-têtes ; le frontend statique négocie lui-même
