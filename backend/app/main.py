@@ -45,7 +45,7 @@ from app.utils.port import active_port
 from app.utils.web_profile import choose_rendition, client_can_decode, parse_accept
 from app.utils.web_rendition import request_web_rendition
 from app.utils.radio_utils import content_type_for
-from app.utils import media_native
+from app.utils import media_native, tor_proxy
 from app.utils.media_sidecar import close_current_media_client
 from app.utils.update_orchestrator import load_persisted_state_at_startup
 from app.utils.version import get_app_version
@@ -154,6 +154,7 @@ async def lifespan(app: FastAPI):
         load_routes_into_managers(sound_db)
         # Réglage du composant audio natif (désactivé par défaut) : lu avant tout import.
         media_native.load_from_database(sound_db)
+        tor_proxy.load_from_database(sound_db)
     await autostart_default_radio_playlist()
     for playback_manager in get_all_playback_managers().values():
         playback_manager.start_position_broadcast_loop()
@@ -178,6 +179,7 @@ async def lifespan(app: FastAPI):
     await devices_service.stop()
     await storage_service.stop()
     stop_mdns_responder()
+    tor_proxy.shutdown()
     close_current_media_client()
 
 

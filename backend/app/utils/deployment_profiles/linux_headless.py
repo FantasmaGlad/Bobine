@@ -83,6 +83,9 @@ class LinuxHeadlessHandler(ProfileHandler):
     def supports_git_versioning(self) -> bool:
         return True
 
+    def supports_update_over_tor(self) -> bool:
+        return False
+
     def can_schedule_auto_apply(self) -> bool:
         # Cible de production principale, checkout + réinstallation des
         # dépendances + reconstruction du frontend + vérification du

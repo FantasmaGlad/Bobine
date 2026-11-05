@@ -11,11 +11,12 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Setting
+from app.utils import tor_proxy
 from app.utils.activity_log import log_activity
 from app.utils.deployment import (
     UpdateUnsupported,
@@ -241,6 +242,9 @@ def _get_local_version_info() -> dict[str, Any]:
 # resservie au lieu d'afficher "hors ligne".
 _RELEASE_CACHE: dict[str, dict[str, Any]] = {}
 _DEDUPE_WINDOW_SECONDS = 10.0
+# Tor actif : une recherche automatique (chargement d'une page, tray) réutilise le dernier résultat une heure, pour
+# ne lancer Tor que rarement ; le bouton « Rechercher » (force) interroge toujours GitHub.
+_TOR_DEDUPE_WINDOW_SECONDS = 3600.0
 _GITHUB_TIMEOUT_SECONDS = 6.0
 
 
@@ -257,7 +261,7 @@ def _github_get(url: str, etag: str | None = None) -> tuple[int, dict[str, Any] 
         headers["If-None-Match"] = etag
     req = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=_GITHUB_TIMEOUT_SECONDS) as resp:
+        with tor_proxy.urlopen(req, timeout=tor_proxy.request_timeout(_GITHUB_TIMEOUT_SECONDS)) as resp:
             return resp.status, json.loads(resp.read().decode("utf-8")), resp.headers.get("ETag")
     except urllib.error.HTTPError as e:
         if e.code == 304:
@@ -276,7 +280,8 @@ def _classify_http_error(channel: str, e: urllib.error.HTTPError) -> str:
 def _lookup_release_blocking(channel: str, force: bool) -> tuple[dict[str, Any] | None, str | None]:
     cached = _RELEASE_CACHE.get(channel)
     now = time.monotonic()
-    if cached and not force and now - cached["checked_at"] < _DEDUPE_WINDOW_SECONDS:
+    window = _TOR_DEDUPE_WINDOW_SECONDS if tor_proxy.is_enabled() else _DEDUPE_WINDOW_SECONDS
+    if cached and not force and now - cached["checked_at"] < window:
         return cached["data"], None
 
     url = _ROLLING_RELEASE_URLS.get(channel, _RELEASES_LATEST_URL)
@@ -649,6 +654,24 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
         "asset_size": asset["asset_size"],
         **({"message": _ANDROID_DOWNGRADE_MESSAGE} if evaluation.get("downgrade_blocked") else {}),
     }
+
+
+class TorCheckRequest(BaseModel):
+    # Adresse à essayer avant de l'enregistrer ; absente : le réglage en vigueur.
+    proxy: str | None = Field(default=None, max_length=80)
+
+
+@router.post("/tor-check")
+async def tor_check(payload: TorCheckRequest) -> dict[str, Any]:
+    """Vérifie par le service de contrôle de Tor que les mises à jour sortiraient bien par Tor. `source` :
+    `existing` (proxy déjà ouvert) ou `on_demand` (Tor lancé par Bobine, arrêté après quelques minutes)."""
+    proxy = payload.proxy
+    if proxy is not None:
+        try:
+            tor_proxy.parse_proxy(proxy)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return await asyncio.to_thread(tor_proxy.check, proxy)
 
 
 @router.get("/status")

@@ -18,6 +18,8 @@ import java.io.File
 import java.io.IOException
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.net.URL
 import java.security.MessageDigest
 
@@ -71,9 +73,10 @@ object UpdateManager {
     /**
      * Point d'entree appele par le backend Python (profil Android,
      * `AndroidHandler.apply_update`). Rend la main immediatement : tout
-     * progres/echec est rapporte via [reportCallback].
+     * progres/echec est rapporte via [reportCallback]. [socksProxy] (`hôte:port`, Orbot) : téléchargement par Tor,
+     * sans repli direct ; nul : connexion directe.
      */
-    fun downloadAndInstall(context: Context, downloadUrl: String, expectedDigest: String) {
+    fun downloadAndInstall(context: Context, downloadUrl: String, expectedDigest: String, socksProxy: String?) {
         val appContext = context.applicationContext
         // Sans l'autorisation « Installer des applications inconnues », Android
         // n'affiche qu'un écran de réglages puis abandonne l'installation sans
@@ -91,7 +94,7 @@ object UpdateManager {
             try {
                 val expected = expectedDigest.substringAfter(':').lowercase()
                 if (expected.length != 64) throw UpdateRejected("Empreinte SHA-256 invalide reçue du serveur.")
-                val apk = fetchVerifiedApk(appContext, downloadUrl, expected)
+                val apk = fetchVerifiedApk(appContext, downloadUrl, expected, socksProxy)
                 validatePackage(appContext, apk)
                 reportCallback(appContext, "downloaded", "APK vérifié — confirmez l'installation sur l'appareil.")
                 Handler(Looper.getMainLooper()).post { offerInstall(appContext, apk) }
@@ -140,7 +143,7 @@ object UpdateManager {
 
     // --- Telechargement -----------------------------------------------------
 
-    private fun fetchVerifiedApk(context: Context, url: String, expectedSha256: String): File {
+    private fun fetchVerifiedApk(context: Context, url: String, expectedSha256: String, socksProxy: String?): File {
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
         val target = File(dir, APK_FILE_NAME)
         // Fichier deja telecharge ET verifie lors d'une tentative precedente
@@ -153,7 +156,7 @@ object UpdateManager {
         var lastError: IOException? = null
         for (attempt in 1..MAX_DOWNLOAD_ATTEMPTS) {
             try {
-                downloadTo(context, part, url)
+                downloadTo(context, part, url, socksProxy)
                 val actual = sha256(part)
                 if (actual != expectedSha256) {
                     part.delete()
@@ -174,8 +177,9 @@ object UpdateManager {
         throw IOException("Téléchargement impossible après $MAX_DOWNLOAD_ATTEMPTS tentatives : ${lastError?.message}")
     }
 
-    private fun downloadTo(context: Context, part: File, url: String) {
-        val connection = URL(url).openConnection() as HttpURLConnection
+    private fun downloadTo(context: Context, part: File, url: String, socksProxy: String?) {
+        val connection = (if (socksProxy == null) URL(url).openConnection() else URL(url).openConnection(socksProxyOf(socksProxy)))
+            as HttpURLConnection
         connection.connectTimeout = CONNECT_TIMEOUT_MS
         connection.readTimeout = READ_TIMEOUT_MS
         connection.instanceFollowRedirects = true
@@ -331,6 +335,12 @@ object UpdateManager {
     }
 
     // --- Rappel vers le backend ----------------------------------------------
+
+    private fun socksProxyOf(address: String): Proxy {
+        val host = address.substringBeforeLast(':').trim('[', ']')
+        val port = address.substringAfterLast(':').toIntOrNull() ?: throw UpdateRejected("Adresse du proxy Tor invalide : $address")
+        return Proxy(Proxy.Type.SOCKS, InetSocketAddress(host, port))
+    }
 
     /** Signale progression/issue a l'orchestrateur Python (cf.
      * routers/updates.py::android_update_callback) — best-effort, une
