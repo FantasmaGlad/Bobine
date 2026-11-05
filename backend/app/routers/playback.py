@@ -1130,6 +1130,7 @@ RADIO_ACTIONS = (
     "radio_play_announcement",
 )
 RADIO_OUTPUTS = {"cable": "radio_cable", "network": "radio_network"}
+_KIND_LABELS = {"channel": "Canal", "output": "Sortie radio", "action": "Action"}
 
 
 def _rejection_http(command: str, rejected: CommandRejected) -> HTTPException:
@@ -1144,7 +1145,7 @@ def _rejection_http(command: str, rejected: CommandRejected) -> HTTPException:
 def _unknown(kind: str, value: str, allowed) -> HTTPException:
     return HTTPException(
         status_code=404,
-        detail={"code": f"unknown_{kind}", "message": f"{value} inconnu.", "allowed": list(allowed)},
+        detail={"code": f"unknown_{kind}", "message": f"{_KIND_LABELS[kind]} inconnu(e) : {value}.", "allowed": list(allowed)},
     )
 
 
