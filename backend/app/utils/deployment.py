@@ -135,6 +135,15 @@ class ProfileHandler:
         """Ouvre la fiche de l'application dans la boutique."""
         raise UpdateUnsupported("Aucune boutique n'est associée à cette installation.")
 
+    def has_system_port80_redirect(self) -> bool:
+        """True si le système redirige déjà le port 80 vers Bobine (règle nftables de l'appliance, `install.sh`)."""
+        return False
+
+    def tries_port80_redirect(self) -> bool:
+        """True si Bobine peut tenter d'écouter lui-même le port 80 pour rediriger (postes de bureau ; jamais sur
+        l'appliance, déjà redirigée par le système, ni sur Android, où les ports inférieurs à 1024 sont interdits)."""
+        return not self.has_system_port80_redirect()
+
     def supports_update_over_tor(self) -> bool:
         """True si TOUT le trafic d'une mise à jour peut passer par Tor (recherche et téléchargement par
         `tor_proxy`). Faux sur l'appliance (pip et npm téléchargent en direct pendant la reconstruction) et pour

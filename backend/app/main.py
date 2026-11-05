@@ -41,11 +41,12 @@ from app.utils.http_compression import (
 )
 from app.utils.origin_guard import SameOriginGuard, dev_origins
 from app.utils.media_response import build_media_response
+from app.utils.deployment import get_profile_handler
 from app.utils.port import active_port
 from app.utils.web_profile import choose_rendition, client_can_decode, parse_accept
 from app.utils.web_rendition import request_web_rendition
 from app.utils.radio_utils import content_type_for
-from app.utils import media_native, tor_proxy
+from app.utils import media_native, port80, tor_proxy
 from app.utils.media_sidecar import close_current_media_client
 from app.utils.update_orchestrator import load_persisted_state_at_startup
 from app.utils.version import get_app_version
@@ -145,6 +146,8 @@ async def lifespan(app: FastAPI):
     # Best-effort, no-op sur l'appliance headless (avahi s'en charge déjà) —
     # cf. app/utils/mdns.py.
     start_mdns_responder(active_port())
+    if get_profile_handler().tries_port80_redirect():
+        await port80.start(active_port())
     # 24/7.
     # Réglages de son persistés des deux sorties radio, chargés avant tout
     # démarrage de lecture pour que le premier état diffusé les contienne.
@@ -179,6 +182,7 @@ async def lifespan(app: FastAPI):
     await devices_service.stop()
     await storage_service.stop()
     stop_mdns_responder()
+    await port80.stop()
     tor_proxy.shutdown()
     close_current_media_client()
 

@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import sqlite3
+import socket
 import subprocess
 import sys
 import tempfile
@@ -48,7 +49,7 @@ from app.utils.display_state import (
     effective_wired_display_mode,
     get_hardware_state,
 )
-from app.utils import media_native, tor_proxy
+from app.utils import media_native, port80, tor_proxy
 from app.utils.port import active_port
 from app.utils.hardware_info import (
     get_storage_model,
@@ -63,7 +64,7 @@ from app.utils.deployment import (
     resolve_update_channel,
 )
 from app.utils.mdns import get_status as get_mdns_status
-from app.utils.network import lan_addresses, primary_lan_ip
+from app.utils.network import access_addresses, lan_addresses, primary_lan_ip
 from app.utils.version import get_app_version
 from app.utils.ws_manager import manager as ws_manager
 
@@ -183,6 +184,30 @@ class SettingsUpdate(BaseModel):
     media_native: str | None = None
     update_tor: str | None = None
     update_tor_proxy: str | None = Field(default=None, max_length=80)
+
+
+def _port80_redirect() -> bool:
+    return get_profile_handler().has_system_port80_redirect() or port80.is_active()
+
+
+def _mdns_host() -> str:
+    """Nom réellement publié : `bobine.local` par le répondeur de Bobine ou l'avahi de l'appliance ; sur un Linux de
+    bureau dont l'avahi système tient déjà le rôle (état « external »), c'est le nom de la machine qui est publié."""
+    if get_mdns_status().get("state") == "external":
+        return f"{socket.gethostname().split('.')[0].lower()}.local"
+    return "bobine.local"
+
+
+def _mdns_url() -> str:
+    return f"http://{_mdns_host()}" if _port80_redirect() else f"http://{_mdns_host()}:{active_port()}"
+
+
+def _access_links() -> list[dict[str, str]]:
+    port = active_port()
+    links = [{"kind": "loopback", "interface": "", "url": f"http://127.0.0.1:{port}"}]
+    links += [{"kind": item["kind"], "interface": item["interface"], "url": f"http://{item['ip']}:{port}"} for item in access_addresses()]
+    links.append({"kind": "mdns", "interface": "", "url": _mdns_url()})
+    return links
 
 
 def _get_db_value(db: Session, key: str) -> str | None:
@@ -330,7 +355,12 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
             "local_ip": _get_local_ip(),
             "local_ips": [{"ip": a.ip, "interface": a.interface} for a in lan_addresses()],
             "port": active_port(),
-            "mdns_url": "http://bobine.local",
+            # Sans numéro de port seulement là où le port 80 renvoie réellement vers Bobine.
+            "mdns_url": _mdns_url(),
+            "port80_redirect": _port80_redirect(),
+            # Liens d'accès complets, les mêmes pour Réglages, l'API et la CLI : boucle locale, chaque adresse du
+            # réseau local et des VPN, puis bobine.local.
+            "access": _access_links(),
             # État RÉEL du répondeur mDNS embarqué ("ok"/"failed"/"disabled"
             # [headless, avahi système]/"external" [desktop, avahi natif
             # détecté]/"unavailable"/"pending") — avant ce champ, `mdns_url`

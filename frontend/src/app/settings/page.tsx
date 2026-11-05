@@ -36,7 +36,16 @@ interface SettingsData {
   logs_retention_days?: number;
   deployment_profile: DeploymentProfile;
   paths: Record<string, string>;
-  network: { local_ip: string | null; port: number; mdns_url: string; mdns_status: string | null };
+  network: {
+    local_ip: string | null;
+    port: number;
+    mdns_url: string;
+    mdns_status: string | null;
+    /** Vrai si le port 80 renvoie réellement vers Bobine (adresse courte valable). */
+    port80_redirect?: boolean;
+    /** Liens d'accès complets (mêmes données que l'API) : boucle locale, réseau local, VPN, bobine.local. */
+    access?: { kind: "loopback" | "lan" | "vpn" | "mdns"; interface: string; url: string }[];
+  };
   update_channel: UpdateChannel;
   wired_display_mode: "dual_screen" | "headless";
   auto_update_enabled: "true" | "false";
@@ -1811,58 +1820,37 @@ export default function SettingsPage() {
             <span>{t("settingsPage.paths.networkHeading")}</span>
           </summary>
           <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.networkHint")}</p>
-          <div className="settings-paths">
-            <div className="settings-path-row">
-              <span className="settings-path-key">{t("settingsPage.paths.localIp")}</span>
-              {data.network.local_ip ? (
-                <a
-                  href={`http://${data.network.local_ip}:${data.network.port}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="settings-path-link"
-                >
-                  {`http://${data.network.local_ip}:${data.network.port}`}
-                </a>
-              ) : (
-                <span className="settings-path-val">{t("settingsPage.paths.localIpUnavailable")}</span>
-              )}
-            </div>
-            <div className="settings-path-row">
-              <span className="settings-path-key">{t("settingsPage.paths.mdnsUrl")}</span>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <a
-                  href={data.network.mdns_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="settings-path-link"
-                >
-                  {data.network.mdns_url}
-                </a>
-                {/* Reflète l'état RÉEL du répondeur mDNS (cf. backend
-                    utils/mdns.py::get_status) plutôt que d'afficher cette
-                    URL comme si elle fonctionnait toujours — "failed"/
-                    "unavailable" signifie que la découverte par IP directe
-                    ci-dessus reste le seul moyen fiable pour le moment. */}
-                {(data.network.mdns_status === "failed" || data.network.mdns_status === "unavailable") && (
-                  <span
-                    title={t("settingsPage.paths.mdnsUnavailableHint")}
-                    style={{ display: "inline-flex", alignItems: "center", color: "var(--accent-warning, #c77700)" }}
-                  >
-                    <Icon name="warning" size={14} />
-                  </span>
-                )}
+          {(data.network.access ?? []).filter((link) => link.kind === "lan" || link.kind === "vpn").length === 0 && (
+            <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.localIpUnavailable")}</p>
+          )}
+          {(data.network.access ?? [])
+            .filter((link) => link.kind !== "loopback")
+            .map((link) => (
+              <div key={link.url} style={{ marginTop: "10px" }}>
+                <div className="settings-path-key" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Icon name={link.kind === "vpn" ? "vpn_lock" : link.kind === "mdns" ? "dns" : "lan"} size={16} />
+                  {link.kind === "mdns"
+                    ? t("settingsPage.paths.mdnsUrl")
+                    : t(link.kind === "vpn" ? "settingsPage.paths.vpnAddress" : "settingsPage.paths.localIp", { name: link.interface })}
+                  {/* État RÉEL du répondeur mDNS (backend utils/mdns.py::get_status) : « failed »/« unavailable »
+                      signifie que seules les adresses IP ci-dessus sont fiables pour le moment. */}
+                  {link.kind === "mdns" && (data.network.mdns_status === "failed" || data.network.mdns_status === "unavailable") && (
+                    <span title={t("settingsPage.paths.mdnsUnavailableHint")} style={{ display: "inline-flex", color: "var(--accent-warning, #c77700)" }}>
+                      <Icon name="warning" size={14} />
+                    </span>
+                  )}
+                </div>
+                <AddressList
+                  base={link.url}
+                  pages={data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS}
+                  t={t}
+                  onCopy={handleCopyPath}
+                  copyLabel={t("settingsPage.paths.copyPath")}
+                />
               </div>
-            </div>
-          </div>
-          {data.network.local_ip && (
-            <AddressList
-              base={`http://${data.network.local_ip}:${data.network.port}`}
-              pages={data.deployment_profile === "android" ? [...ANDROID_PAGE_KEYS, ...PUBLIC_PAGE_KEYS] : PUBLIC_PAGE_KEYS}
-              t={t}
-              onCopy={handleCopyPath}
-              copyLabel={t("settingsPage.paths.copyPath")}
-              showHost={false}
-            />
+            ))}
+          {data.network.port80_redirect === false && (
+            <p className="settings-hint" style={{ margin: "8px 0 0" }}>{t("settingsPage.paths.portRequiredHint", { port: String(data.network.port) })}</p>
           )}
         </details>
 

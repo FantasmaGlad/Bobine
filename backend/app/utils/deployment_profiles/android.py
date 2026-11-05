@@ -150,6 +150,9 @@ class AndroidHandler(ProfileHandler):
     def can_auto_apply(self) -> bool:
         return not self.is_store_managed()
 
+    def tries_port80_redirect(self) -> bool:
+        return False
+
     def can_schedule_auto_apply(self) -> bool:
         # Pas de mise à jour planifiée sur Android ni Android TV : l'installation exige un tap de
         # confirmation (jamais d'installation silencieuse par PackageInstaller ou Device Owner), donc
