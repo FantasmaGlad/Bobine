@@ -248,7 +248,7 @@ def load_settings() -> Settings:
             with open(config_path, "rb") as f:
                 config_data = tomllib.load(f)
         except Exception as e:
-            print(f"Erreur lors du chargement de la configuration TOML: {e}")
+            print(f"Erreur lors du chargement de la configuration TOML: {e}", file=sys.stderr)
 
     # Aplatir le fichier TOML imbriqué si nécessaire
     flat_config = {}

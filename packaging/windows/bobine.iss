@@ -156,6 +156,25 @@ end;
 const
   EnvironmentKey = 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment';
 
+function NormalizeDir(Dir: String): String;
+begin
+  // Une entrée de PATH peut avoir été saisie avec une barre finale ; la racine d'un lecteur (C:\) la garde.
+  Result := Dir;
+  while (Length(Result) > 3) and (Copy(Result, Length(Result), 1) = '\') do
+    Delete(Result, Length(Result), 1);
+end;
+
+function PathEntryPosition(Paths, Dir: String): Integer;
+var
+  Haystack, Needle: String;
+begin
+  Needle := Uppercase(NormalizeDir(Dir));
+  Haystack := ';' + Uppercase(Paths) + ';';
+  Result := Pos(';' + Needle + ';', Haystack);
+  if Result = 0 then
+    Result := Pos(';' + Needle + '\;', Haystack);
+end;
+
 function NeedsAddPath(Dir: String): Boolean;
 var
   Paths: String;
@@ -165,26 +184,29 @@ begin
     Result := True;
     exit;
   end;
-  Result := Pos(';' + Uppercase(Dir) + ';', ';' + Uppercase(Paths) + ';') = 0;
+  Result := PathEntryPosition(Paths, Dir) = 0;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   Paths, Dir: String;
-  Position: Integer;
+  Position, EntryLength: Integer;
 begin
   // Retire le dossier de Bobine du PATH, entrée exacte seulement (un dossier voisin comme ...\Bobine2 reste), sans
-  // toucher aux autres entrées.
+  // toucher aux autres entrées. Une barre finale dans le PATH ne doit pas empêcher le retrait.
   if CurUninstallStep <> usPostUninstall then
     exit;
   if not RegQueryStringValue(HKLM, EnvironmentKey, 'Path', Paths) then
     exit;
   Dir := ExpandConstant('{app}');
-  Paths := ';' + Paths + ';';
-  Position := Pos(';' + Uppercase(Dir) + ';', Uppercase(Paths));
+  Position := PathEntryPosition(Paths, Dir);
   if Position = 0 then
     exit;
-  Delete(Paths, Position, Length(Dir) + 1);
+  Paths := ';' + Paths + ';';
+  EntryLength := Length(NormalizeDir(Dir)) + 1;
+  if Copy(Paths, Position + EntryLength, 1) = '\' then
+    EntryLength := EntryLength + 1;
+  Delete(Paths, Position, EntryLength);
   Paths := Copy(Paths, 2, Length(Paths) - 2);
   RegWriteExpandStringValue(HKLM, EnvironmentKey, 'Path', Paths);
 end;

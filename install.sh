@@ -1366,7 +1366,7 @@ case "\${1:-}" in
     stop)    sudo systemctl stop "\${SERVICES[@]}" ;;
     restart) sudo systemctl restart "\${SERVICES[@]}" ;;
     journal) journalctl -u bobine-backend -u bobine-kiosk -f ;;
-    *)       cd "${BACKEND_DIR}" && exec "${VENV_DIR}/bin/python" -m app.cli "\$@" ;;
+    *)       exec "${VENV_DIR}/bin/python" "${BACKEND_DIR}/run_cli.py" "\$@" ;;
 esac
 EOF
 run chmod +x /usr/local/bin/bobine
@@ -2110,7 +2110,7 @@ if ! $NO_KIOSK; then
 fi
 box_line "  Config     ${CONFIG_FILE}"
 box_line "  Journal    ${LOG_FILE}"
-box_line "  Contrôle   bobine {start|stop|restart|status|logs}"
+box_line "  Contrôle   bobine {start|stop|restart|journal}, puis bobine --help"
 box_line "  Diagnostic sudo ./${SCRIPT_NAME} --check"
 if ! $NO_KIOSK && ! $DRY_RUN; then
     box_mid

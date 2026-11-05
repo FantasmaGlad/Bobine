@@ -22,7 +22,7 @@ class Recorder:
         self.calls = []
         self.responses = responses or {}
 
-    def __call__(self, client, method, path, *, query=None, body=None):
+    def __call__(self, client, method, path, *, query=None, body=None, **kwargs):
         self.calls.append((method, path, query, body))
         for (m, p), payload in self.responses.items():
             if m == method and p == path:
@@ -70,6 +70,25 @@ def test_parameters_reach_the_route_typed(recorder):
     assert recorder.calls[2][2]["level"] == "warning" and recorder.calls[2][2]["since"] == "2026-11-05T08:00:00Z"
 
 
+def test_settings_get_unknown_key_is_an_error(monkeypatch, capsys):
+    monkeypatch.setenv("BOBINE_PORT", "1903")
+    monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: {"theme": "ciel"})
+    assert cli.main(["settings", "get", "absente"]) == cli.EXIT_ERROR
+    captured = capsys.readouterr()
+    assert captured.out == "" and "réglage inconnu" in captured.err
+    assert cli.main(["settings", "get", "theme"]) == cli.EXIT_OK
+    assert capsys.readouterr().out == "ciel\n"
+
+
+def test_config_export_to_a_file_is_a_clear_error(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("BOBINE_PORT", "1903")
+    monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: {"files": {"settings.json": {}}})
+    target = tmp_path / "destination"
+    target.write_text("déjà un fichier", encoding="utf-8")
+    assert cli.main(["config", "export", str(target)]) == cli.EXIT_ERROR
+    assert "écriture impossible" in capsys.readouterr().err
+
+
 def test_config_apply_is_a_dry_run_without_yes(recorder, tmp_path):
     (tmp_path / "settings.json").write_text('{"schema": 1, "kind": "settings", "settings": {}}', encoding="utf-8")
     cli.main(["config", "apply", str(tmp_path)])
@@ -77,6 +96,28 @@ def test_config_apply_is_a_dry_run_without_yes(recorder, tmp_path):
     assert recorder.calls[0][2] == {"dry_run": "true", "include_machine": "false"}
     assert recorder.calls[1][2] == {"dry_run": "false", "include_machine": "true"}
     assert set(recorder.calls[0][3]["files"]) == {"settings.json"}
+
+
+def test_no_argument_prints_the_help(capsys):
+    assert cli.main([]) == cli.EXIT_USAGE
+    captured = capsys.readouterr()
+    assert "usage: bobine" in captured.out and captured.err == ""
+
+
+def test_global_options_are_kept_before_the_subcommand():
+    """`bobine --host ... status` doit viser la machine demandée, pas la machine locale."""
+    args = cli.build_parser().parse_args(["--host", "192.0.2.1", "--port", "1234", "--json", "status"])
+    assert (args.host, args.port, args.json) == ("192.0.2.1", 1234, True)
+
+
+def test_invalid_ports_are_usage_errors(monkeypatch, capsys):
+    monkeypatch.setenv("BOBINE_PORT", "abc")
+    assert cli.main(["status"]) == cli.EXIT_USAGE
+    assert "BOBINE_PORT invalide" in capsys.readouterr().err
+    monkeypatch.setenv("BOBINE_PORT", "1903")
+    assert cli.main(["status", "--port", "0"]) == cli.EXIT_USAGE
+    assert "port invalide" in capsys.readouterr().err
+    assert cli.main(["status", "--port", "70000"]) == cli.EXIT_USAGE
 
 
 def test_exit_codes(recorder, capsys):
@@ -109,12 +150,48 @@ def test_server_answers_map_to_exit_codes(monkeypatch, capsys, raised, code, mes
     assert captured.out == "" and message in captured.err
 
 
+def test_health_503_reports_a_problem_not_a_refusal(monkeypatch, capsys):
+    monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: {"status": "degraded"} if path == "/api/health" else {"state": "waiting"})
+    assert cli.main(["status", "--port", "1903"]) == cli.EXIT_ERROR
+    assert "degraded" in capsys.readouterr().out
+
+
+def test_non_json_success_is_a_clear_error(monkeypatch, capsys):
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc_info):
+            return False
+
+        def read(self):
+            return b"<html>portail captif</html>"
+
+    monkeypatch.setattr(cli.urllib.request, "urlopen", lambda *args, **kwargs: Response())
+    assert cli.main(["status", "--port", "1903"]) == cli.EXIT_ERROR
+    captured = capsys.readouterr()
+    assert captured.out == "" and "non JSON" in captured.err
+
+
 def test_json_goes_to_stdout_and_details_to_stderr(recorder, capsys):
     cli.main(["status", "--json", "-vv"])
     captured = capsys.readouterr()
     assert json.loads(captured.out)["health"] == {"status": "ok"}
     cli.main(["status", "-q"])
     assert capsys.readouterr().out == ""
+
+
+def test_launcher_recognizes_global_options_before_the_command():
+    import run_tray
+
+    assert run_tray._is_cli_invocation(["--host", "192.0.2.1", "status"])
+    assert run_tray._is_cli_invocation(["--json", "status"])
+    assert run_tray._is_cli_invocation(["-vv", "logs"])
+    assert not run_tray._is_cli_invocation(["--startup"])
+    assert not run_tray._is_cli_invocation(["--minimized"])
+    assert not run_tray._is_cli_invocation(["-psn_0_12345"])
 
 
 def test_launcher_dispatches_without_loading_the_tray():
