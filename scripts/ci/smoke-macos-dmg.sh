@@ -43,6 +43,13 @@ done
 [[ -f "$copy_dir/Bobine.app/Contents/Resources/bobine.icns" ]] || { echo "bobine.icns absent du bundle copié" >&2; exit 1; }
 codesign --verify --deep --strict --verbose=1 "$copy_dir/Bobine.app"
 
+# La commande `bobine` du cask Homebrew est un lien symbolique vers BobineTray : elle doit répondre par ce lien.
+mkdir -p "$work/bin"
+ln -sf "$copy_dir/Bobine.app/Contents/MacOS/BobineTray" "$work/bin/bobine"
+cli_version="$("$work/bin/bobine" --version)"
+echo "Commande bobine : $cli_version"
+[[ "$cli_version" == "bobine "* ]] || { echo "bobine --version inattendu : $cli_version" >&2; exit 1; }
+
 "$here/smoke-macos-backend.sh" "$backend" --home "$work/home" --log-dir "$work/logs"
 
 cleanup
