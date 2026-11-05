@@ -1,8 +1,10 @@
 import logging
+import os
 import re
+from contextlib import ExitStack
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, List
+from typing import Any, BinaryIO, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import PlainTextResponse
@@ -57,22 +59,39 @@ def _parse_since(value: str | None) -> datetime | None:
     return parsed
 
 
-def _technical_files() -> list[Path]:
+def _open_technical_files(stack: ExitStack) -> list[BinaryIO]:
+    """Fichier courant puis archives, tous ouverts AVANT toute lecture : une rotation pendant la lecture renomme les
+    fichiers mais ne change pas ce qu'un descripteur ouvert lit (pas de doublon) ; un fichier disparu est ignoré."""
     base = Path(settings.technical_log_path)
-    return [p for p in [base, *(base.with_name(f"{base.name}.{i}") for i in range(1, _ARCHIVES + 1))] if p.exists()]
+    handles = []
+    for path in [base, *(base.with_name(f"{base.name}.{i}") for i in range(1, _ARCHIVES + 1))]:
+        try:
+            handles.append(stack.enter_context(open(path, "rb")))
+        except OSError:
+            continue
+    return handles
 
 
-def _parse_technical(path: Path) -> tuple[list[dict[str, Any]], int]:
+def _parse_technical(handle: BinaryIO) -> tuple[list[dict[str, Any]], int]:
     """Entrées d'un fichier, dans l'ordre du fichier ; les lignes de suite (traces) rejoignent l'entrée précédente."""
-    with open(path, "rb") as handle:
-        handle.seek(max(0, path.stat().st_size - _MAX_FILE_BYTES))
-        text = handle.read().decode("utf-8", errors="replace")
+    handle.seek(max(0, os.fstat(handle.fileno()).st_size - _MAX_FILE_BYTES))
+    text = handle.read().decode("utf-8", errors="replace")
     entries: list[dict[str, Any]] = []
     orphans = 0
+    previous: datetime | None = None
     for line in text.splitlines():
         match = _LINE_RE.match(line)
         if match:
-            stamp = datetime.strptime(f"{match[1]}.{match[2]}", "%Y-%m-%d %H:%M:%S.%f").astimezone()  # heure locale
+            naive = datetime.strptime(f"{match[1]}.{match[2]}", "%Y-%m-%d %H:%M:%S.%f")
+            stamp = naive.astimezone()  # heure locale, premier passage (fold=0)
+            if previous is not None and stamp < previous:
+                # Heure locale répétée au retour à l'heure d'hiver : le premier passage situe
+                # l'horodatage avant la ligne précédente ; le second passage (fold=1) le remet
+                # dans l'ordre du fichier.
+                later = naive.replace(fold=1).astimezone()
+                if later > previous:
+                    stamp = later
+            previous = stamp
             entries.append({"time": stamp, "level": match[3].lower(), "category": match[4], "message": match[5]})
         elif entries:
             entries[-1]["message"] += "\n" + line
@@ -115,22 +134,23 @@ def read_logs(
             entries.append({"timestamp": _utc_iso(stamp), "level": "info", "category": row.event_type, "message": row.detail or ""})
     else:
         done = False
-        for path in _technical_files():
-            parsed, orphans = _parse_technical(path)
-            skipped += orphans
-            for entry in reversed(parsed):
-                if start is not None and entry["time"] < start:
-                    done = True  # fichiers et entrées sont chronologiques : tout le reste est plus ancien
+        with ExitStack() as stack:
+            for handle in _open_technical_files(stack):
+                parsed, orphans = _parse_technical(handle)
+                skipped += orphans
+                for entry in reversed(parsed):
+                    if start is not None and entry["time"] < start:
+                        done = True  # fichiers et entrées sont chronologiques : tout le reste est plus ancien
+                        break
+                    if LEVELS.index(entry["level"]) < threshold:
+                        continue
+                    if len(entries) == limit:
+                        truncated = done = True
+                        break
+                    entries.append({"timestamp": _utc_iso(entry["time"]), "level": entry["level"],
+                                    "category": entry["category"], "message": entry["message"]})
+                if done:
                     break
-                if LEVELS.index(entry["level"]) < threshold:
-                    continue
-                if len(entries) == limit:
-                    truncated = done = True
-                    break
-                entries.append({"timestamp": _utc_iso(entry["time"]), "level": entry["level"],
-                                "category": entry["category"], "message": entry["message"]})
-            if done:
-                break
     return {
         "schema": 1,
         "generated_at": _utc_iso(datetime.now(timezone.utc)),

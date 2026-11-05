@@ -58,12 +58,16 @@ def test_a_failing_probe_is_unknown_not_an_error(client, monkeypatch):
     assert answer.status_code == 200
     network = next(c for c in answer.json()["checks"] if c["name"] == "network")
     assert network["status"] == "unknown" and "illisible" in network["detail"]
+    if not answer.json()["problems"]:
+        assert answer.json()["status"] == "unknown"
 
 
 # --- journaux ---------------------------------------------------------------------------------------------------------
 
 @pytest.fixture()
 def technical_log(tmp_path, monkeypatch):
+    if not hasattr(time, "tzset"):
+        pytest.skip("heure locale non pilotable par TZ sur cette plateforme")
     previous = os.environ.get("TZ")
     os.environ["TZ"] = "Europe/Paris"
     time.tzset()
@@ -126,3 +130,43 @@ def test_activity_log_shares_the_same_shape(client):
     assert set(entry) == {"timestamp", "level", "category", "message"} and entry["timestamp"].endswith("Z")
     assert client.get("/api/logs?source=activity&level=error").json()["entries"] == []
     assert datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00")).tzinfo is not None
+
+
+def test_repeated_local_hour_keeps_utc_order(client, technical_log, tmp_path):
+    """Le retour à l'heure d'hiver répète 02:00-03:00 : les deux passages doivent rester en UTC et dans l'ordre."""
+    (tmp_path / "technical.log.1").unlink()
+    (tmp_path / "technical.log").write_text(
+        "2026-10-25 02:30:00,000 INFO app.main: premier passage\n"
+        "2026-10-25 02:59:00,000 INFO app.main: fin du premier passage\n"
+        "2026-10-25 02:00:00,000 INFO app.main: début du second passage\n"
+        "2026-10-25 02:10:00,000 INFO app.main: second passage\n"
+        "2026-10-25 02:30:00,000 INFO app.main: fin du second passage\n",
+        encoding="utf-8",
+    )
+    answer = client.get("/api/logs?limit=10").json()
+    assert [e["timestamp"] for e in answer["entries"]] == [
+        "2026-10-25T01:30:00.000Z", "2026-10-25T01:10:00.000Z", "2026-10-25T01:00:00.000Z",
+        "2026-10-25T00:59:00.000Z", "2026-10-25T00:30:00.000Z",
+    ]
+    recent = client.get("/api/logs", params={"since": "2026-10-25T01:05:00Z"}).json()
+    assert [e["timestamp"] for e in recent["entries"]] == ["2026-10-25T01:30:00.000Z", "2026-10-25T01:10:00.000Z"]
+
+
+def test_rotation_while_reading_neither_duplicates_nor_fails(client, technical_log, tmp_path, monkeypatch):
+    from app.routers import logs
+
+    original = logs._parse_technical
+    rotated = []
+
+    def rotate_then_parse(handle):
+        if not rotated:  # le serveur fait tourner ses journaux juste après l'ouverture
+            rotated.append(True)
+            (tmp_path / "technical.log.1").replace(tmp_path / "technical.log.2")
+            (tmp_path / "technical.log").replace(tmp_path / "technical.log.1")
+        return original(handle)
+
+    monkeypatch.setattr(logs, "_parse_technical", rotate_then_parse)
+    answer = client.get("/api/logs?limit=50")
+    assert answer.status_code == 200
+    messages = [e["message"] for e in answer.json()["entries"]]
+    assert len(messages) == len(set(messages)) == 4

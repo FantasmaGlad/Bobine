@@ -222,7 +222,7 @@ def _probe_kiosk(report: _Report) -> None:
     from app.utils.health import kiosk_process_alive
 
     if get_profile_handler().profile != "linux-headless":
-        report.check("kiosk", "not_applicable", "pas de kiosque sur ce profil")
+        report.check("kiosk", "not_applicable", "pas de kiosque séparé à superviser sur ce profil")
         return
     state = kiosk_process_alive()
     if state == "down":
@@ -239,8 +239,9 @@ def _probe_port(report: _Report) -> None:
     port, wanted = active_port(), int(runtime.get("preferred") or preferred_port())
     if port != wanted:
         report.problem("port", "port_fallback", "warning",
-                       f"Bobine écoute sur le port {port} : le port {wanted} était déjà pris au démarrage.",
-                       f"Libérer le port {wanted} puis redémarrer Bobine, ou utiliser les adresses de Réglages → Documentation.")
+                       f"Bobine écoute sur le port {port} : le port {wanted} n'était pas disponible au démarrage.",
+                       f"Libérer le port {wanted} ou en choisir un autre (BOBINE_PORT), puis redémarrer Bobine ; "
+                       "les adresses à jour sont dans Réglages → Documentation.")
 
 
 def _probe_network(report: _Report) -> None:
@@ -325,8 +326,10 @@ async def _probe_storage(report: _Report) -> None:
     except Exception as exc:  # noqa: BLE001
         report.check("storage", "unknown", f"{type(exc).__name__}: {exc}")
         return
-    if status.get("error"):
-        report.problem("storage", "storage_driver_error", "warning", f"Supports externes : {status['error']}.",
+    error = status.get("error")
+    if error:
+        detail = error.get("message") if isinstance(error, dict) else str(error)
+        report.problem("storage", "storage_driver_error", "warning", f"Supports externes : {detail}.",
                        "Vérifier le service de montage du système et les droits de Bobine sur les supports.")
     else:
         report.check("storage", "ok")
@@ -334,7 +337,8 @@ async def _probe_storage(report: _Report) -> None:
 
 @router.get("/system")
 async def system_diagnostics() -> dict:
-    """État de santé de Bobine : `status` (`ok`, `warning`, `critical`), `problems` triés par gravité, chacun
+    """État de santé de Bobine : `status` (`ok`, `warning`, `critical`, ou `unknown` si une sonde n'a pas pu répondre
+    sans qu'aucun problème soit trouvé), `problems` triés par gravité, chacun
     `{code, severity, message, remedy}` avec un code stable, et `checks` (chaque sonde, même saine)."""
     from datetime import datetime, timezone
 
@@ -355,6 +359,9 @@ async def system_diagnostics() -> dict:
     report.problems.sort(key=lambda p: SEVERITIES.index(p["severity"]))
     severities = {p["severity"] for p in report.problems}
     status = "critical" if "critical" in severities else "warning" if "warning" in severities else "ok"
+    if status == "ok" and any(check["status"] == "unknown" for check in report.checks):
+        # Aucun problème trouvé, mais au moins une sonde n'a pas pu répondre : « ok » serait une affirmation fausse.
+        status = "unknown"
     return {
         "schema": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),

@@ -172,9 +172,12 @@ def probe_tool(bin_path: str) -> dict:
         if not info["executable"]:
             info["error"] = "non exécutable"
             return info
-        res = subprocess.run(
-            [resolved, "-version"], capture_output=True, text=True, timeout=5, **media_subprocess_kwargs()
-        )
+        kwargs = media_subprocess_kwargs()
+        if os.name == "nt":
+            # Backend lancé sans console (CREATE_NO_WINDOW, cf. app/desktop/tray.py) :
+            # sans ce drapeau, chaque sonde ouvrirait une fenêtre console pour le binaire fils.
+            kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        res = subprocess.run([resolved, "-version"], capture_output=True, text=True, timeout=5, **kwargs)
         first = (res.stdout or "").splitlines()[0] if res.stdout else ""
         info["version"] = first[:120] or None
         if res.returncode != 0:
