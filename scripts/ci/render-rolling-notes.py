@@ -36,7 +36,7 @@ ASSETS = f"https://raw.githubusercontent.com/{REPOSITORY}/main/Assets"
 
 def logo(path: str, alt: str) -> str:
     """Logo officiel servi par le dépôt (même source que le README)."""
-    return f'<img src="{ASSETS}/{path}" width="20" height="20" alt="{alt}">'
+    return f'<img src="{ASSETS}/{path}" width="20" height="20" valign="middle" alt="{alt}">'
 
 
 FAMILIES = """\
@@ -141,8 +141,8 @@ def render(channel: str, manifests: bool = True) -> str:
                      "voir plus bas"))
 
     lines = ["## Téléchargement", "", f"Canal {label}. Commandes en une ligne, y compris par Tor : [README](https://github.com/{REPOSITORY}/blob/main/README.fr.md#installation-en-une-commande).", "",
-             "| | Plateforme | Fichiers | Prérequis |", "| :---: | :--- | :--- | :--- |"]
-    lines += [f"| {icon} | {platform} | {links} | {need} |" for icon, platform, links, need in rows]
+             "| Plateforme | Fichiers | Prérequis |", "| :--- | :--- | :--- |"]
+    lines += [f"| {icon + ' ' if icon else ''}{platform} | {links} | {need} |" for icon, platform, links, need in rows]
     text = "\n".join(lines) + "\n\n" + FAMILIES
     if manifests:
         text += INTEGRITY
