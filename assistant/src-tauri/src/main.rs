@@ -15,7 +15,7 @@ use commands::update::{check_assistant_update, install_assistant_update};
 use commands::version::get_app_info;
 
 fn main() {
-    // `bobine-assistant scan|inspect|install|version` : ligne de commande, sans ouvrir de fenêtre.
+    // `bobine-assistant scan|host-key|inspect|install|update|version` : ligne de commande, sans ouvrir de fenêtre.
     let args: Vec<String> = std::env::args().collect();
     if cli::is_invocation(&args) {
         std::process::exit(cli::main(args));
@@ -35,6 +35,11 @@ fn main() {
             trust_ssh_host_key,
             install_assistant_update
         ])
-        .run(tauri::generate_context!())
+        .run(context())
         .expect("Erreur lors de l'exécution de l'assistant Bobine");
+}
+
+/// Configuration et ressources embarquées, partagées par l'interface et `bobine-assistant update`.
+pub(crate) fn context() -> tauri::Context<tauri::Wry> {
+    tauri::generate_context!()
 }

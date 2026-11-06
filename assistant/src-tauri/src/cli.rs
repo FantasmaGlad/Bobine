@@ -33,7 +33,7 @@ pub const EXIT_UNREACHABLE: i32 = 3;
 pub const EXIT_REFUSED: i32 = 4;
 
 /// Sous-commandes reconnues : leur présence en argument lance la ligne de commande au lieu de la fenêtre.
-pub const COMMANDS: [&str; 5] = ["scan", "host-key", "inspect", "install", "version"];
+pub const COMMANDS: [&str; 6] = ["scan", "host-key", "inspect", "install", "update", "version"];
 
 #[derive(Parser, Debug)]
 #[command(name = "bobine-assistant", about = "Installer Bobine sur un mini PC du réseau, sans interface.", version = env!("BOBINE_VERSION"))]
@@ -95,8 +95,24 @@ enum Command {
         #[arg(long)]
         yes: bool,
     },
+    /// Mise à jour de l'assistant lui-même (même vérification de signature que l'interface).
+    Update {
+        #[command(subcommand)]
+        action: UpdateAction,
+    },
     /// Version de l'assistant.
     Version,
+}
+
+#[derive(Subcommand, Debug)]
+enum UpdateAction {
+    /// Chercher une version plus récente sur le canal de ce build.
+    Check,
+    /// Télécharger, vérifier et installer la version plus récente (exige --yes) ; relancer ensuite l'assistant.
+    Apply {
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(clap::Args, Debug)]
@@ -160,6 +176,11 @@ impl Events for Console {
                 "[{:>3} %] {}",
                 payload["pct"].as_u64().unwrap_or(0),
                 payload["step_title"].as_str().unwrap_or_default()
+            ),
+            "assistant-update-progress" => eprint!(
+                "\rTéléchargement : {} Mo{}",
+                payload["downloaded"].as_u64().unwrap_or(0) / 1_048_576,
+                payload["total"].as_u64().map(|t| format!(" / {} Mo", t / 1_048_576)).unwrap_or_default()
             ),
             "scan_progress" => eprint!(
                 "\rSondage : {}/{} adresses, {} trouvée(s)",
@@ -235,6 +256,7 @@ fn run(cli: Cli) -> Result<(), AssistantError> {
             }
             Ok(())
         }
+        Command::Update { action } => update(action, &console, cli.json),
         Command::HostKey { host, port } => {
             let info = host_key(&host, port)?;
             if cli.json {
@@ -315,6 +337,60 @@ fn run(cli: Cli) -> Result<(), AssistantError> {
     }
 }
 
+/// Le greffon de mise à jour exige une application Tauri : construite ici sans fenêtre, jamais lancée. Il lui faut une
+/// session graphique sous Linux (l'assistant est une application de bureau).
+fn update(action: UpdateAction, console: &Console, json: bool) -> Result<(), AssistantError> {
+    use tauri_plugin_updater::UpdaterExt;
+
+    if let UpdateAction::Apply { yes: false } = action {
+        return Err(AssistantError::Usage("La mise à jour remplace l'assistant : relancez avec --yes pour confirmer.".to_string()));
+    }
+    let mut context = crate::context();
+    context.config_mut().app.windows.clear();
+    let app = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .build(context)
+        .map_err(|e| AssistantError::Failed(format!("Initialisation de l'assistant impossible (session graphique requise) : {e}")))?;
+    let current = app.package_info().version.to_string();
+    let updater = app.updater().map_err(|e| AssistantError::Failed(e.to_string()))?;
+    tauri::async_runtime::block_on(async {
+        let update = updater.check().await.map_err(|e| AssistantError::Unreachable(e.to_string()))?;
+        let Some(update) = update else {
+            if json {
+                out!("{}", json!({ "available": false, "current": current }));
+            } else {
+                out!("Bobine Assistant {current} est à jour.");
+            }
+            return Ok(());
+        };
+        if let UpdateAction::Check = action {
+            if json {
+                out!("{}", json!({ "available": true, "current": current, "version": update.version }));
+            } else {
+                out!("Bobine Assistant {} est disponible (installée : {current}).", update.version);
+            }
+            return Ok(());
+        }
+        let mut downloaded = 0u64;
+        update
+            .download_and_install(
+                |chunk, total| {
+                    downloaded += chunk as u64;
+                    console.send("assistant-update-progress", json!({ "downloaded": downloaded, "total": total }));
+                },
+                || {},
+            )
+            .await
+            .map_err(|e| AssistantError::Failed(e.to_string()))?;
+        if json {
+            out!("{}", json!({ "event": "done", "data": { "ok": true, "version": update.version } }));
+        } else {
+            eprintln!("Bobine Assistant {} installé : relancez-le.", update.version);
+        }
+        Ok(())
+    })
+}
+
 /// `--trust-host-key` : enregistre la clé de la cible si son empreinte est celle donnée.
 fn trust(target: &Target) -> Result<(), AssistantError> {
     if let Some(fingerprint) = target.trust_host_key.as_deref() {
@@ -391,6 +467,7 @@ mod tests {
         assert_eq!(main(args(&["bobine-assistant", "install"])), EXIT_USAGE);
         assert_eq!(main(args(&["bobine-assistant", "install", "--host", "203.0.113.10", "--channel", "nightly"])), EXIT_USAGE);
         assert_eq!(main(args(&["bobine-assistant", "install", "--host", "203.0.113.10", "--user", "admin"])), EXIT_USAGE);
+        assert_eq!(main(args(&["bobine-assistant", "update", "apply"])), EXIT_USAGE);
         assert_eq!(main(args(&["bobine-assistant", "version"])), EXIT_OK);
     }
 
