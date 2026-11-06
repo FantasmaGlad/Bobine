@@ -1,5 +1,8 @@
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+#[cfg(desktop)]
+use tauri::Emitter;
+use tauri::AppHandle;
+#[cfg(desktop)]
 use tauri_plugin_updater::UpdaterExt;
 
 /// Mise à jour de l'assistant lui-même, par le greffon officiel de Tauri : `latest.json` de la release de son canal
@@ -14,6 +17,7 @@ pub struct AssistantUpdate {
     pub notes: Option<String>,
 }
 
+#[cfg(desktop)]
 #[derive(Debug, Clone, Serialize)]
 struct Progress {
     downloaded: u64,
@@ -22,6 +26,7 @@ struct Progress {
 
 /// Message d'une recherche de mise à jour en échec ; une copie hors paquet (binaire brut, compilation locale) ne trouve
 /// pas son installeur dans `latest.json` : elle se met à jour par un paquet, pas toute seule.
+#[cfg(desktop)]
 pub(crate) fn describe(error: tauri_plugin_updater::Error) -> String {
     match error {
         tauri_plugin_updater::Error::TargetNotFound(_) | tauri_plugin_updater::Error::TargetsNotFound(_) => {
@@ -33,6 +38,7 @@ pub(crate) fn describe(error: tauri_plugin_updater::Error) -> String {
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn check_assistant_update(app: AppHandle) -> Result<AssistantUpdate, String> {
     let current = app.package_info().version.to_string();
@@ -50,6 +56,7 @@ pub async fn check_assistant_update(app: AppHandle) -> Result<AssistantUpdate, S
 
 /// Télécharge, vérifie, installe puis relance l'assistant ; la progression part en événements
 /// `assistant-update-progress` (octets reçus, taille totale si connue).
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn install_assistant_update(app: AppHandle) -> Result<(), String> {
     let update = app
@@ -72,4 +79,25 @@ pub async fn install_assistant_update(app: AppHandle) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?;
     app.restart();
+}
+
+/// Sur Android, l'assistant se met à jour en installant le nouvel APK, comme toute application.
+#[cfg(mobile)]
+const MOBILE_UPDATE: &str = "Sur Android, l'assistant se met à jour en installant le nouvel APK depuis la release de l'assistant.";
+
+#[cfg(mobile)]
+#[tauri::command]
+pub async fn check_assistant_update(app: AppHandle) -> Result<AssistantUpdate, String> {
+    Ok(AssistantUpdate {
+        available: false,
+        current: app.package_info().version.to_string(),
+        version: None,
+        notes: Some(MOBILE_UPDATE.to_string()),
+    })
+}
+
+#[cfg(mobile)]
+#[tauri::command]
+pub async fn install_assistant_update(_app: AppHandle) -> Result<(), String> {
+    Err(MOBILE_UPDATE.to_string())
 }

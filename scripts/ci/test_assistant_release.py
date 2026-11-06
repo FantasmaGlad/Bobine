@@ -33,6 +33,7 @@ class AssistantReleaseTests(unittest.TestCase):
                     f"Bobine-Assistant-Setup-{suffix}.exe",
                     f"Bobine-Assistant-Setup-{suffix}-arm64.exe",
                     f"Bobine-Assistant-{suffix}-arm64.dmg",
+                    f"Bobine-Assistant-{suffix}.apk",
                     f"bobine-assistant_{suffix}_amd64.deb",
                     f"bobine-assistant_{suffix}_arm64.deb",
                     f"bobine-assistant-{suffix}.x86_64.rpm",
@@ -41,17 +42,18 @@ class AssistantReleaseTests(unittest.TestCase):
                 self.assertEqual(linked, expected)
 
     def test_bobine_release_refuses_assistant_installers(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            directory = Path(tmp)
-            script = (HERE / "verify-release-assets.sh").read_text(encoding="utf-8")
-            block = re.search(r"expected=\((.*?)\n\)", script, re.S).group(1)
-            for name in re.findall(r'"([^"]+)"', block):
-                (directory / name.replace("${S}", "canary").replace("${package_version}", "canary")).write_text("x")
-            (directory / "Bobine-Assistant-Setup-canary.exe").write_text("x")
-            result = subprocess.run(["bash", str(HERE / "verify-release-assets.sh"), str(directory), "canary"],
-                                    capture_output=True, text=True)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("assistant", result.stdout + result.stderr)
+        for stray in ("Bobine-Assistant-Setup-canary.exe", "Bobine-Assistant-canary.apk"):
+            with self.subTest(stray=stray), tempfile.TemporaryDirectory() as tmp:
+                directory = Path(tmp)
+                script = (HERE / "verify-release-assets.sh").read_text(encoding="utf-8")
+                block = re.search(r"expected=\((.*?)\n\)", script, re.S).group(1)
+                for name in re.findall(r'"([^"]+)"', block):
+                    (directory / name.replace("${S}", "canary").replace("${package_version}", "canary")).write_text("x")
+                (directory / stray).write_text("x")
+                result = subprocess.run(["bash", str(HERE / "verify-release-assets.sh"), str(directory), "canary"],
+                                        capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("assistant", result.stdout + result.stderr)
 
 
     def test_latest_json_lists_each_installable_package_with_its_signature(self):

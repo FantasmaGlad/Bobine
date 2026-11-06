@@ -22,6 +22,9 @@ pub struct RunInstallParams {
     /// du wizard jusqu'à l'installation elle-même).
     #[serde(default)]
     pub key_path: Option<String>,
+    /// Voir `SshCredentials::local_keys`.
+    #[serde(default)]
+    pub local_keys: bool,
     pub root_password: Option<String>,
     pub elevation_strategy: String,
     pub script_path: Option<String>,
@@ -32,6 +35,14 @@ pub struct RunInstallParams {
     /// "stable", "beta" ou "canary", relayé tel quel à `install.sh --channel=<...>`.
     #[serde(default = "default_channel")]
     pub channel: String,
+}
+
+/// Mots de passe effacés de la mémoire à la fin de l'installation.
+impl Drop for RunInstallParams {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.password);
+        zeroize::Zeroize::zeroize(&mut self.root_password);
+    }
 }
 
 fn default_channel() -> String {
@@ -203,7 +214,7 @@ pub async fn start_installation(app: tauri::AppHandle, mut params: RunInstallPar
 }
 
 /// Installation complète sur la cible (bloquante) : partagée par l'interface et par `bobine-assistant install`.
-pub fn run_installation(events: &dyn Events, params: RunInstallParams) -> Result<(), AssistantError> {
+pub fn run_installation(events: &dyn Events, mut params: RunInstallParams) -> Result<(), AssistantError> {
     if params.mock_replay {
         return run_mock_installation(events).map_err(AssistantError::from);
     }
@@ -214,6 +225,7 @@ pub fn run_installation(events: &dyn Events, params: RunInstallParams) -> Result
             &params.username,
             params.password.as_deref(),
             params.key_path.as_deref(),
+            params.local_keys,
         )?;
 
         // Script fourni explicitement (copie locale déjà présente sur la
@@ -244,7 +256,7 @@ pub fn run_installation(events: &dyn Events, params: RunInstallParams) -> Result
         // interactive avant de continuer (voir en-tête d'orchestrate.rs).
         // On le sort de `params` une bonne fois pour n'en garder qu'une
         // seule copie en mémoire, à écraser en fin de fonction.
-        let mut root_password = params.root_password;
+        let mut root_password = params.root_password.take();
         if needs_root_password && root_password.as_deref().is_none_or(|p| p.trim().is_empty()) {
             return Err(AssistantError::Failed(
                 "Le mot de passe root est requis pour lancer l'installation via « su - » sur cette machine, mais aucun mot de passe n'a été fourni.".to_string(),

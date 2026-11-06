@@ -554,6 +554,111 @@ jobs:
           path: dist-assistant/
           if-no-files-found: error
 
+  assistant-android:
+    # APK de l'assistant (ARM64, ARM 32 bits, x86_64) signée de la clé Android de Bobine, lancée sur émulateur. Sans les
+    # secrets (PR externe), APK non signée, signée d'une clé jetable pour l'essai seulement.
+    name: Assistant Android (APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: [version]
+    env:
+      ASSISTANT_VERSION: ${{ (needs.version.outputs.channel == 'beta' || needs.version.outputs.channel == 'canary') && format('{0}+{1}.{2}', needs.version.outputs.base_version, needs.version.outputs.channel, github.run_number) || needs.version.outputs.base_version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          # versionCode : nombre de commits, strictement croissant comme pour l'APK de Bobine.
+          fetch-depth: 0
+      - name: Vérifier que les secrets de signature sont configurés
+        id: check_secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: python scripts/ci/check-android-signing.py ${{ github.event_name == 'pull_request' && '--allow-missing' || '' }}
+      - name: Installer la toolchain Rust et les cibles Android
+        run: |
+          rustup toolchain install
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+      - name: Cache cargo
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            assistant/target
+          key: cargo-assistant-android-${{ hashFiles('rust-toolchain.toml', 'assistant/**/Cargo.toml', 'assistant/Cargo.lock') }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools
+      - name: Installer les plateformes/outils Android requis
+        run: python scripts/ci/setup-android-sdk.py
+      - name: Identifiants de build (VERSION + COMMIT)
+        run: |
+          echo "${{ needs.version.outputs.commit_short }}" > COMMIT
+          echo "$ASSISTANT_VERSION" > VERSION
+      - name: Décoder le keystore depuis le secret
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "${{ runner.temp }}/bobine-release.keystore"
+      - name: Construire l'APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ steps.check_secrets.outputs.configured == 'true' && format('{0}/bobine-release.keystore', runner.temp) || '' }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ steps.check_secrets.outputs.configured == 'true' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
+          ANDROID_KEY_ALIAS: ${{ steps.check_secrets.outputs.configured == 'true' && secrets.ANDROID_KEY_ALIAS || '' }}
+          ANDROID_KEY_PASSWORD: ${{ steps.check_secrets.outputs.configured == 'true' && secrets.ANDROID_KEY_PASSWORD || '' }}
+        run: |
+          channel="${{ needs.version.outputs.channel }}"
+          [ "$channel" = none ] && channel=stable
+          NDK_HOME="$ANDROID_NDK_HOME" python assistant/scripts/build_android.py --channel "$channel" \
+            --version "$ASSISTANT_VERSION" --version-code "$(git rev-list --count HEAD)" \
+            --filename-version "${{ needs.version.outputs.filename_version }}" --out dist-assistant
+          rm -f "${{ runner.temp }}/bobine-release.keystore"
+          # Une publication exige l'APK signée de la clé de Bobine.
+          if [ "${{ needs.version.outputs.channel }}" != none ]; then
+            "$BOBINE_ANDROID_BUILD_TOOLS/apksigner" verify dist-assistant/*.apk
+          fi
+          apk=$(ls dist-assistant/*.apk)
+          abis=$("$BOBINE_ANDROID_BUILD_TOOLS/aapt2" dump badging "$apk" | sed -n "s/^native-code: //p" | tr -d "'")
+          [ "$abis" = "arm64-v8a armeabi-v7a x86_64" ] || { echo "::error::ABI de l'APK : [$abis]"; exit 1; }
+          python3 scripts/ci/check-elf-alignment.py --apk "$apk" --enforce-abi arm64-v8a
+      - name: Activer KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Installer et lancer sur émulateur
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader -noaudio -no-boot-anim -camera-back none
+          script: scripts/ci/smoke-assistant-apk.sh "$(ls dist-assistant/*.apk)"
+      - name: Conserver le diagnostic de démarrage
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: assistant-android-startup
+          path: assistant-android-logs/
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: assistant-packages-Android
+          path: dist-assistant/
+          if-no-files-found: error
+
   devices-sidecar:
     # Sidecar Rust de l'onglet Périphériques (Windows/macOS) : protocole JSON-RPC, liste blanche de
     # méthodes, analyseurs des sorties d'outils. Les binaires Windows/macOS sont construits et
@@ -1425,7 +1530,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, assistant-core, assistant-core-arm64, assistant-bundle, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages, linux-rpm-aarch64]
+    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, assistant-core, assistant-core-arm64, assistant-bundle, assistant-android, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages, linux-rpm-aarch64]
     runs-on: ubuntu-latest
     steps:
       - name: Tous les contrôles sont verts
@@ -2062,9 +2167,9 @@ jobs:
   # (assistant-Vx.y.z, assistant-beta, assistant-canary), publiée après celle de Bobine ; la Stable n'est jamais « Latest ».
   publish-assistant:
     name: Publish assistant release
-    needs: [version, assistant-bundle, release-stable, release-canary, release-beta]
+    needs: [version, assistant-bundle, assistant-android, release-stable, release-canary, release-beta]
     if: >-
-      always() && needs.assistant-bundle.result == 'success' && (
+      always() && needs.assistant-bundle.result == 'success' && needs.assistant-android.result == 'success' && (
         needs.release-stable.result == 'success' ||
         (needs.release-canary.result == 'success' && needs.release-canary.outputs.published == 'true') ||
         (needs.release-beta.result == 'success' && needs.release-beta.outputs.published == 'true'))

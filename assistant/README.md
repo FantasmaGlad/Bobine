@@ -9,7 +9,8 @@ de progression en temps réel.
 - **`core/` — bibliothèque `bobine-installer-core`** : livrée. Logique **pure**
   et testable (aucune E/S), fondation de l'IHM. Couverte par `cargo test`.
 - **`src-tauri/` + `ui/` — Application graphique Tauri 2** : livrée et multi-plateforme.
-  Fonctionne nativement sur **Linux** (WebKitGTK), **Windows** (WebView2) et **macOS** (WebKit).
+  Fonctionne nativement sur **Linux** (WebKitGTK), **Windows** (WebView2), **macOS** (WebKit) et **Android** 7 et
+  plus (WebView du système).
   Scan `/24` complet du sous-réseau (tous les appareils qui répondent, pas
   seulement les cibles Bobine — voir §Scan réseau), authentification SSH par
   mot de passe, agent, clés `~/.ssh/` usuelles ou clé importée explicitement,
@@ -52,6 +53,17 @@ Tauri et range les paquets sous des noms stables : `bobine-assistant_<version>_a
 `Bobine-Assistant-<version>-arm64.dmg` sous macOS ; en ARM64 aussi pour Linux (`_arm64.deb`, `.aarch64.rpm`) et Windows (`-arm64.exe`). La CI les construit, les installe et les lance sur les trois
 systèmes (job `assistant-bundle`).
 
+L'APK Android (ARM64, ARM 32 bits et x86_64 dans un seul fichier) se construit avec le SDK et le NDK Android
+(`NDK_HOME`) et les cibles Rust `aarch64-linux-android`, `armv7-linux-androideabi` et `x86_64-linux-android` :
+
+```bash
+python3 scripts/build_android.py --channel stable --version-code 1 --out dist
+```
+
+Elle est signée de la clé Android de Bobine quand `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`,
+`ANDROID_KEY_ALIAS` et `ANDROID_KEY_PASSWORD` sont définies (`Bobine-Assistant-<version>.apk`). La CI la lance sur un
+émulateur (job `assistant-android`). Le projet Gradle vit dans `src-tauri/gen/android`.
+
 Le test d'intégration [`core/tests/replay_fixture.rs`](core/tests/replay_fixture.rs)
 rejoue un flux `--progress=json` **réel** capturé depuis `install.sh`
 ([`fixtures/install-events.jsonl`](core/tests/fixtures/install-events.jsonl)) :
@@ -66,7 +78,7 @@ Le même exécutable se pilote sans fenêtre : tout ce que fait l'interface pass
 bobine-assistant scan [--subnet 192.168.2.0/24]
 bobine-assistant host-key --host bobine.local
 bobine-assistant inspect --host bobine.local --user admin \
-  [--key ~/.ssh/id_ed25519] [--trust-host-key SHA256:…]
+  [--key ~/.ssh/id_ed25519 | --local-keys] [--trust-host-key SHA256:…]
 bobine-assistant install --host bobine.local --user admin --channel stable --yes
 bobine-assistant update check
 bobine-assistant update apply --yes
@@ -145,14 +157,17 @@ démonstration ne puisse jamais être confondu avec un vrai scan réseau.
 `authenticate_session` (`src-tauri/src/commands/ssh_auth.rs`) essaie, dans
 l'ordre : la clé importée explicitement (bouton « Importer une clé SSH », un
 sélecteur de fichier natif via `tauri-plugin-dialog`), le mot de passe saisi
-(direct puis clavier-interactif/PAM), l'agent SSH local, puis les clés
-usuelles de `~/.ssh/` (`id_ed25519`, `id_rsa`, `id_ecdsa`...). Le mot de passe
+(direct puis clavier-interactif/PAM), puis, seulement si l'utilisateur l'autorise (case de l'étape 2,
+`--local-keys` en ligne de commande), l'agent SSH local et les clés usuelles de `~/.ssh/` (`id_ed25519`, `id_rsa`,
+`id_ecdsa`). Les mots de passe sont effacés de la mémoire dès que la connexion ou l'installation est terminée. Le mot de passe
 sert aussi de passphrase de déchiffrement si la clé importée en réclame une.
 Aucun mot de passe ni contenu de clé n'est jamais journalisé.
 
-## Compatibilité Linux, Windows & macOS
+## Compatibilité Linux, Windows, macOS & Android
 
 L'Assistant d'installation est conçu pour s'exécuter directement depuis le poste de l'administrateur, quel que soit son système d'exploitation :
 - **Linux** : binaire natif GTK3/WebKitGTK, exécutable autonome (`build_linux.sh`) ou paquets `.deb` et `.rpm`.
 - **Windows** : installateur NSIS, par utilisateur, sans droits d'administrateur ; OpenSSL compilé avec l'assistant.
 - **macOS** (Apple Silicon) : `Bobine Assistant.app` dans une image `.dmg`, signature ad hoc ; OpenSSL compilé avec l'assistant.
+- **Android** 7 et plus (téléphone, tablette, téléviseur) : APK signée, OpenSSL compilé avec l'assistant ; pas de mise à
+  jour intégrée, la nouvelle APK s'installe par-dessus l'ancienne.

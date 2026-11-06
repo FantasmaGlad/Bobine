@@ -2,7 +2,7 @@
 <html lang="fr" data-theme="clair">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Bobine — Assistant d'installation</title>
   <link rel="stylesheet" href="style.css?v=99">
 </head>
@@ -147,9 +147,13 @@
                     </svg>
                     <span>Importer une clé SSH</span>
                   </button>
-                  <span id="ssh-key-filename" class="key-filename-hint">Aucune clé importée — mot de passe, agent SSH ou clés ~/.ssh/ courantes utilisés automatiquement</span>
+                  <span id="ssh-key-filename" class="key-filename-hint">Aucune clé importée</span>
                   <button type="button" id="btn-clear-ssh-key" class="btn-text" style="display: none;">Retirer</button>
                 </div>
+                <label class="local-keys-row" id="local-keys-row">
+                  <input type="checkbox" id="opt-local-keys">
+                  <span>Essayer aussi mon agent SSH et mes clés de ~/.ssh</span>
+                </label>
               </div>
             </div>
 

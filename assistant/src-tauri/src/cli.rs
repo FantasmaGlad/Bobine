@@ -125,9 +125,12 @@ struct Target {
     /// Utilisateur SSH (défaut : variable USER).
     #[arg(long)]
     user: Option<String>,
-    /// Clé privée SSH (sinon : agent SSH, puis clés usuelles de ~/.ssh).
+    /// Clé privée SSH.
     #[arg(long, value_name = "FICHIER")]
     key: Option<String>,
+    /// Essayer aussi l'agent SSH et les clés usuelles de ~/.ssh (jamais sans cette option).
+    #[arg(long)]
+    local_keys: bool,
     /// Lire le mot de passe SSH sur l'entrée standard (sinon BOBINE_SSH_PASSWORD).
     #[arg(long)]
     password_stdin: bool,
@@ -299,7 +302,7 @@ fn run(cli: Cli) -> Result<(), AssistantError> {
             }
             trust(&target)?;
             let mut input = std::io::stdin().lock();
-            let creds = credentials(&target, &mut input)?;
+            let mut creds = credentials(&target, &mut input)?;
             let root_password = if root_password_stdin {
                 Some(read_line(&mut input, "mot de passe root")?)
             } else {
@@ -313,11 +316,12 @@ fn run(cli: Cli) -> Result<(), AssistantError> {
                 Elevation::Auto => inspect(creds.clone())?.privilege_decision,
             };
             let params = RunInstallParams {
-                host: creds.host,
+                host: std::mem::take(&mut creds.host),
                 port: creds.port,
-                username: creds.username,
-                password: creds.password,
-                key_path: creds.key_path,
+                username: std::mem::take(&mut creds.username),
+                password: creds.password.take(),
+                key_path: creds.key_path.take(),
+                local_keys: creds.local_keys,
                 root_password,
                 elevation_strategy,
                 script_path: script,
@@ -417,7 +421,7 @@ fn credentials(target: &Target, input: &mut impl BufRead) -> Result<SshCredentia
     } else {
         std::env::var("BOBINE_SSH_PASSWORD").ok().filter(|p| !p.is_empty())
     };
-    Ok(SshCredentials { host: target.host.clone(), port: target.port, username, password, key_path: target.key.clone() })
+    Ok(SshCredentials { host: target.host.clone(), port: target.port, username, password, key_path: target.key.clone(), local_keys: target.local_keys })
 }
 
 /// Texte venu du réseau (nom d'hôte, journal de la cible) sans caractères de contrôle ni de direction : il ne peut ni

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Vérifie les assets d'une release de l'assistant d'installation (tags assistant-Vx.y.z, assistant-beta,
 # assistant-canary) avant publication : un paquet par système, sa signature de mise à jour (.sig), l'archive de mise à jour
-# macOS et latest.json, chacun listé dans SHA256SUMS avec sa vraie empreinte, rien d'autre.
+# macOS, l'APK Android (sans mise à jour intégrée) et latest.json, chacun listé dans SHA256SUMS avec sa vraie empreinte, rien d'autre.
 # Les paquets de l'assistant ne vont jamais dans une release de Bobine : la mise à jour intégrée des installations
 # existantes y prend le premier .exe, .deb ou .dmg de la bonne architecture.
 #
@@ -19,6 +19,7 @@ expected=(
     "Bobine-Assistant-Setup-${S}.exe"
     "Bobine-Assistant-Setup-${S}-arm64.exe"
     "Bobine-Assistant-${S}-arm64.dmg"
+    "Bobine-Assistant-${S}.apk"
     "bobine-assistant_${S}_amd64.deb.sig"
     "bobine-assistant_${S}_arm64.deb.sig"
     "bobine-assistant-${S}.x86_64.rpm.sig"

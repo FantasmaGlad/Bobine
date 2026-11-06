@@ -2,3 +2,10 @@
 [workspace]
 resolver = "2"
 members = ["core", "src-tauri"]
+
+# Paquets publiés (bureau et Android) : sans symboles de débogage, optimisés pour la taille.
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+opt-level = "s"

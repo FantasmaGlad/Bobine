@@ -19,6 +19,16 @@ pub struct SshCredentials {
     /// repli automatique sur ~/.ssh/.
     #[serde(default)]
     pub key_path: Option<String>,
+    /// Accord de l'utilisateur pour essayer l'agent SSH et les clés de `~/.ssh` (voir `ssh_auth.rs`).
+    #[serde(default)]
+    pub local_keys: bool,
+}
+
+/// Mot de passe effacé de la mémoire dès que les identifiants ne servent plus.
+impl Drop for SshCredentials {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.password);
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,11 +66,12 @@ pub(crate) fn open_ssh_session(
     username: &str,
     password: Option<&str>,
     key_path: Option<&str>,
+    local_keys: bool,
 ) -> Result<Session, AssistantError> {
     let sess = connect(host, port).map_err(AssistantError::Unreachable)?;
     // Avant tout secret : la clé d'hôte doit déjà être connue (voir host_key.rs).
     super::host_key::require_known(&sess, host.trim(), port)?;
-    super::ssh_auth::authenticate_session(&sess, username, password, key_path).map_err(AssistantError::Refused)?;
+    super::ssh_auth::authenticate_session(&sess, username, password, key_path, local_keys).map_err(AssistantError::Refused)?;
     Ok(sess)
 }
 
@@ -154,7 +165,7 @@ pub async fn test_ssh_connection(creds: SshCredentials) -> Result<SystemInspecti
 
 /// Connexion SSH puis audit de la cible (système, architecture, élévation, matériel) : partagé par l'interface et
 /// par `bobine-assistant inspect`.
-pub fn inspect(creds: SshCredentials) -> Result<SystemInspection, AssistantError> {
+pub fn inspect(mut creds: SshCredentials) -> Result<SystemInspection, AssistantError> {
     {
         let sess = open_ssh_session(
             &creds.host,
@@ -162,6 +173,7 @@ pub fn inspect(creds: SshCredentials) -> Result<SystemInspection, AssistantError
             &creds.username,
             creds.password.as_deref(),
             creds.key_path.as_deref(),
+            creds.local_keys,
         )?;
 
         // 1. Détection OS
@@ -218,7 +230,7 @@ pub fn inspect(creds: SshCredentials) -> Result<SystemInspection, AssistantError
             .unwrap_or_else(|_| "iGPU / Accélération graphique standard".to_string());
 
         Ok(SystemInspection {
-            host: creds.host,
+            host: std::mem::take(&mut creds.host),
             os_name: os_pretty,
             is_debian,
             is_debian_13,

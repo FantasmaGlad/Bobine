@@ -27,6 +27,8 @@ def render(channel: str, bobine_tag: str, suffix: str) -> str:
          "signature ad hoc : autoriser l'ouverture au premier lancement"),
         ("**Debian, Ubuntu**", f"{link(f'bobine-assistant_{suffix}_amd64.deb', 'amd64')} · {link(f'bobine-assistant_{suffix}_arm64.deb', 'arm64')}",
          "`sudo apt install ./bobine-assistant_*.deb`"),
+        ("**Android** 7 et plus", link(f"Bobine-Assistant-{suffix}.apk", f"Bobine-Assistant-{suffix}.apk"),
+         "téléphone, tablette ou téléviseur ; se met à jour en installant la nouvelle APK"),
         ("**Fedora, RHEL**", f"{link(f'bobine-assistant-{suffix}.x86_64.rpm', 'x86_64')} · {link(f'bobine-assistant-{suffix}.aarch64.rpm', 'aarch64')}",
          "`sudo dnf install ./bobine-assistant-*.rpm`"),
     ]
