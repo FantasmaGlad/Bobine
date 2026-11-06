@@ -1430,7 +1430,7 @@ jobs:
 
   release-stable:
     name: Publish Stable Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, assistant-bundle, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1476,6 +1476,12 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: bobine-assistant-linux-arm64
+          path: release-assets
+      - name: Download assistant packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: assistant-packages-*
+          merge-multiple: true
           path: release-assets
       - name: Download Android APK
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -1571,7 +1577,7 @@ jobs:
   # de main, sans validation matérielle manuelle.
   release-canary:
     name: Publish/Update Canary Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, assistant-bundle, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'canary'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1624,6 +1630,12 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: bobine-assistant-linux-arm64
+          path: release-assets
+      - name: Download assistant packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: assistant-packages-*
+          merge-multiple: true
           path: release-assets
       - name: Download Android APK
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -1797,7 +1809,7 @@ jobs:
   # générées automatiquement que Canary, juste un déclenchement différent.
   release-beta:
     name: Publish/Update Beta Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, assistant-bundle, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'beta'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1850,6 +1862,12 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: bobine-assistant-linux-arm64
+          path: release-assets
+      - name: Download assistant packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: assistant-packages-*
+          merge-multiple: true
           path: release-assets
       - name: Download Android APK
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2

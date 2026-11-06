@@ -132,9 +132,13 @@ def render(channel: str, manifests: bool = True) -> str:
          "glibc @G@+"),
         (logo("Icons/os/android.svg", "Android"), "**Android**", short(f"Bobine-{channel}.apk", "APK"), "Android 14+, ARM64"),
         (logo("Icons/os/androidtv.svg", "Android TV"), "**Android TV**", short(f"Bobine-TV-{channel}.apk", "APK TV"), "ARM 32 et 64 bits"),
-        (logo("Images/bash.svg", "Mini PC"), "**Mini PC dédié**",
-         f"{short('install.sh', 'install.sh')} · {short('bobine-assistant', 'assistant x64')} · {short('bobine-assistant-arm64', 'ARM64')}",
+        (logo("Images/bash.svg", "Mini PC"), "**Mini PC dédié**", short('install.sh', 'install.sh'),
          f"Debian 13 ; `sudo ./install.sh --channel={channel}`"),
+        ("", "**Assistant d'installation**",
+         f"{short(f'Bobine-Assistant-Setup-{channel}.exe', 'Windows')} · {short(f'Bobine-Assistant-{channel}-arm64.dmg', 'macOS')}"
+         f" · {short(f'bobine-assistant_{channel}_amd64.deb', '.deb')} · {short(f'bobine-assistant-{channel}.x86_64.rpm', '.rpm')}"
+         f" · {short('bobine-assistant', 'Linux x64')} · {short('bobine-assistant-arm64', 'ARM64')}",
+         "installe un mini PC dédié par SSH"),
     ]
     if manifests:
         rows.append(("", "**Intégrité**", f"{short('SHA256SUMS', 'SHA256SUMS')} · {short('SHA256SUMS.asc', 'signature')}",
