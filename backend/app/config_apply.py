@@ -878,10 +878,19 @@ def _strip_uids(value: Any) -> Any:
     return value
 
 
+def _without_links(document: dict) -> dict:
+    links = ("chapters", "chapters_source", "chapters_file", "subtitles", "subtitle_files")
+    return {**document, "videos": [{k: v for k, v in entry.items() if k not in links} if isinstance(entry, dict) else entry
+                                  for entry in document.get("videos") or []]}
+
+
 def _diff(name: str, before: dict, wanted: dict) -> list[str]:
     ignored = ("warnings", "prune", "schema")
     clean = {k: v for k, v in wanted.items() if k not in ignored}
     current = {k: v for k, v in before.items() if k not in ignored}
+    if name == "library/videos.json":
+        # Liens vers les chapitres et sous-titres : informatifs, jamais appliqués, donc absents de l'écart.
+        clean, current = _without_links(clean), _without_links(current)
     if '"uid"' not in json.dumps(clean):
         # Document de la version 5.1, sans `uid` : l'écart ne porte pas sur les identifiants.
         current = _strip_uids(current)

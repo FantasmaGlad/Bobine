@@ -19,8 +19,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db, SessionLocal
-from app.models import Video, VideoSubtitle, ImportSource
+from app.models import ImportSource, Schedule, ScheduleTargetType, Video, VideoSubtitle
+from app.scheduler_manager import remove_schedule_job
 from app.config import settings
+from app.utils import chapters as chapter_utils
 from app.utils.subtitles import (
     MAX_SUBTITLE_BYTES,
     SUBTITLE_EXTENSIONS,
@@ -373,38 +375,37 @@ def delete_video(video_id: int, db: Session = Depends(get_db)):
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
 
-    # Suppression du fichier vidéo — JAMAIS sur un support externe : retirer le cours de la bibliothèque
-    # n'efface rien sur le support (lecture seule, c'est le fichier de l'utilisateur).
+    # Fichiers à effacer APRÈS la validation de la base : une suppression refusée ne doit pas laisser une entrée sans
+    # fichier. JAMAIS sur un support externe : retirer le cours de la bibliothèque n'efface rien sur le support (lecture
+    # seule, c'est le fichier de l'utilisateur).
+    files: list[tuple[str, str]] = []
     if video.file_path and video.storage_id is None:
-        p = Path(video.file_path)
-        if p.exists():
-            try:
-                os.remove(p)
-            except Exception as e:
-                logger.error(f"Impossible de supprimer le fichier média {p}: {e}")
-
-    # Suppression de la miniature
+        files.append(("fichier média", video.file_path))
     if video.thumbnail_path:
-        p = Path(video.thumbnail_path)
-        if p.exists():
-            try:
-                os.remove(p)
-            except Exception as e:
-                logger.error(f"Impossible de supprimer la miniature {p}: {e}")
+        files.append(("miniature", video.thumbnail_path))
+    files += [("fichier de sous-titres", sub.file_path) for sub in video.subtitles]  # les lignes partent par cascade
 
-    # Suppression de la version web « lisible partout », s'il y en a une
-    remove_web_file(video.web_path)
-
-    # Les lignes `video_subtitles` partent avec la vidéo (cascade), pas leurs
-    # fichiers WebVTT.
-    for sub in video.subtitles:
-        try:
-            Path(sub.file_path).unlink(missing_ok=True)
-        except Exception as e:
-            logger.warning(f"Impossible de supprimer le fichier de sous-titres {sub.file_path}: {e}")
-
+    # La vidéo quitte les playlists et le planning qui la citaient (sans cela, la ligne de playlist orpheline faisait
+    # échouer la suppression).
+    for item in list(video.playlist_items):
+        db.delete(item)
+    schedules = db.query(Schedule).filter(Schedule.target_type == ScheduleTargetType.video, Schedule.target_id == video.id).all()
+    schedule_ids = [schedule.id for schedule in schedules]
+    for schedule in schedules:
+        db.delete(schedule)
+    web_path = video.web_path
+    chapter_utils.drop_source(video)
     db.delete(video)
     db.commit()
+    for schedule_id in schedule_ids:
+        remove_schedule_job(schedule_id)
+
+    remove_web_file(web_path)
+    for label, path in files:
+        try:
+            Path(path).unlink(missing_ok=True)
+        except Exception as e:
+            logger.error(f"Impossible de supprimer le {label} {path}: {e}")
     ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "video_deleted"})
     return {"message": "Vidéo supprimée avec succès"}
 

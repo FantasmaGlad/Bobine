@@ -336,10 +336,29 @@ def _ordered(db: Session, model, *keys):
 
 def build_library_videos(db: Session) -> dict[str, Any]:
     videos = _ordered(db, Video, Video.title)
-    return _document("library-videos", {"videos": [{
+    return _document("library-videos", {"videos": [_video_entry(v) for v in videos]})
+
+
+def _linked_file(path: str | None) -> dict[str, str] | None:
+    return {"file": Path(path).name, "path": path} if path else None
+
+
+def _video_entry(v: Video) -> dict[str, Any]:
+    """Métadonnées modifiables, plus les liens (informatifs, jamais appliqués) vers les chapitres et sous-titres :
+    `chapters` / `subtitles` disent s'il y en a ; `chapters_file` et `subtitle_files` donnent le chemin du fichier
+    importé (`chapters_source` : `file`, `embedded` ou `manual`)."""
+    subtitles = sorted(v.subtitles, key=lambda s: (s.language_code, s.id))
+    return {
         "uid": v.uid, "title": v.title, "program": v.program, "release": v.release, "description": v.description,
         "file": _file_name(v.file_path),
-    } for v in videos]})
+        "chapters": bool(v.chapters), "chapters_source": v.chapters_source if v.chapters else None,
+        "chapters_file": _linked_file(v.chapters_file) if v.chapters else None,
+        "subtitles": bool(subtitles),
+        "subtitle_files": [
+            {"language": s.language_code, "label": s.language_label, "format": s.format, **(_linked_file(s.file_path) or {})}
+            for s in subtitles
+        ],
+    }
 
 
 def build_library_audio(db: Session) -> dict[str, Any]:

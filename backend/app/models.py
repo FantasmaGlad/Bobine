@@ -143,6 +143,9 @@ class Video(UidMixin, Base):
     # `web_status` : None | "pending" | "ready" | "error".
     web_path: Mapped[str | None]
     web_status: Mapped[str | None]
+    # Origine des chapitres : "file" (fichier importé, copie dans `chapters_file`), "embedded" (lus dans la vidéo), "manual".
+    chapters_source: Mapped[str | None] = mapped_column(Text, default=None)
+    chapters_file: Mapped[str | None] = mapped_column(Text, default=None)
     imported_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     source: Mapped[ImportSource]
     # Média posé sur un support externe (lecture directe) : `file_path` est le chemin courant (ou un chemin

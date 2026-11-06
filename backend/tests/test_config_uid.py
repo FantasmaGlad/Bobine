@@ -4,6 +4,7 @@ métadonnées des médias, noms plats de la version 5.1."""
 import asyncio
 import copy
 import os
+from datetime import datetime, timezone
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
@@ -16,7 +17,7 @@ from app import config_apply, config_files  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 from app.models import (  # noqa: E402
     AudioCourse, Playlist, RadioAnnouncement, RadioAnnouncementRule, RadioPlaylist, RadioTag, RadioTrack, Schedule,
-    ScheduleOverride, Video,
+    ScheduleOverride, ScheduleTargetType, ScheduleType, Video,
 )
 from test_config_apply import _apply, _export, _quiet_effects, single_names  # noqa: E402,F401
 from test_config_files import library  # noqa: E402,F401
@@ -231,3 +232,139 @@ def test_export_apply_export_is_identical_with_all_files(single_names):
     first = _export()
     _apply(first)
     assert _export() == first
+
+
+# --- liens vers les fichiers de chapitres et de sous-titres ------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def _no_leftover_links():
+    from app.models import VideoChapter, VideoSubtitle
+
+    def clean():
+        with SessionLocal() as db:
+            db.query(VideoSubtitle).delete()
+            db.query(VideoChapter).delete()
+            db.commit()
+
+    clean()
+    yield
+    clean()
+
+
+@pytest.fixture()
+def data_dirs(tmp_path, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "subtitles_dir", str(tmp_path / "subtitles"))
+    return tmp_path
+
+
+def _video_entry():
+    with SessionLocal() as db:
+        return config_files.build_library_videos(db)["videos"][0]
+
+
+def test_library_links_chapters_and_subtitles_when_none_exist(single_names):
+    entry = _video_entry()
+    assert entry["chapters"] is False and entry["chapters_file"] is None and entry["chapters_source"] is None
+    assert entry["subtitles"] is False and entry["subtitle_files"] == []
+
+
+def test_imported_chapter_file_is_linked_with_its_path(single_names, data_dirs):
+    from pathlib import Path
+
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with SessionLocal() as db:
+        video_id = db.query(Video).one().id
+    client = TestClient(app)
+    answer = client.post(f"/api/videos/{video_id}/chapters/import", files={"file": ("chapitres cours.txt", "00:00 Intro\n05:00 Corps\n".encode())})
+    assert answer.status_code == 200, answer.text
+    entry = _video_entry()
+    assert entry["chapters"] is True and entry["chapters_source"] == "file"
+    linked = Path(entry["chapters_file"]["path"])
+    assert linked.exists() and linked.read_text(encoding="utf-8").startswith("00:00 Intro")
+    assert entry["chapters_file"]["file"] == linked.name and linked.name.endswith("chapitres_cours.txt")
+    # Une modification à la main : les chapitres ne viennent plus du fichier, sa copie disparaît.
+    client.put(f"/api/videos/{video_id}/chapters", json={"chapters": [{"start_seconds": 0, "title": "Seul"}]})
+    entry = _video_entry()
+    assert entry["chapters"] is True and entry["chapters_source"] == "manual" and entry["chapters_file"] is None
+    assert not linked.exists()
+    # Tout retirer : `chapters` redevient faux.
+    client.put(f"/api/videos/{video_id}/chapters", json={"chapters": []})
+    assert _video_entry()["chapters"] is False
+
+
+def test_deleting_a_video_removes_the_chapter_copy(single_names, data_dirs):
+    from pathlib import Path
+
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with SessionLocal() as db:
+        video_id = db.query(Video).one().id
+    client = TestClient(app)
+    client.post(f"/api/videos/{video_id}/chapters/import", files={"file": ("c.txt", b"00:00 A\n01:00 B\n")})
+    path = Path(_video_entry()["chapters_file"]["path"])
+    assert path.exists()
+    assert client.delete(f"/api/videos/{video_id}").status_code == 200
+    assert not path.exists()
+
+
+def test_subtitle_files_are_linked(single_names, data_dirs):
+    from pathlib import Path
+
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with SessionLocal() as db:
+        video_id = db.query(Video).one().id
+    client = TestClient(app)
+    vtt = b"WEBVTT\n\n00:00:00.000 --> 00:00:02.000\nBonjour\n"
+    answer = client.post(f"/api/videos/{video_id}/subtitles", files={"file": ("cours.fr.vtt", vtt)}, data={"language_code": "fr", "language_label": "Français"})
+    assert answer.status_code == 200, answer.text
+    entry = _video_entry()
+    assert entry["subtitles"] is True and len(entry["subtitle_files"]) == 1
+    sub = entry["subtitle_files"][0]
+    assert sub["language"] == "fr" and sub["format"] and Path(sub["path"]).exists() and sub["file"] == Path(sub["path"]).name
+
+
+def test_links_are_informational_and_never_applied_nor_in_the_diff(single_names, data_dirs):
+    files = _export()
+    document = files["library/videos.json"]
+    document["videos"][0]["chapters"] = True
+    document["videos"][0]["chapters_file"] = {"file": "x.txt", "path": "/etc/passwd"}
+    document["videos"][0]["subtitle_files"] = [{"language": "fr", "file": "y.vtt", "path": "/etc/shadow"}]
+    result = _apply({"library/videos.json": document})
+    assert result["changes"] == {}
+    entry = _video_entry()
+    assert entry["chapters"] is False and entry["chapters_file"] is None and entry["subtitle_files"] == []
+
+
+def test_deleting_a_video_used_by_a_playlist_and_a_schedule_works(data_dirs, tmp_path, single_names):
+    """Régression : la ligne de playlist orpheline faisait échouer la suppression, après l'effacement des fichiers."""
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    from app.models import PlaylistItem
+
+    media = tmp_path / "rpm.mp4"
+    media.write_bytes(b"x")
+    with SessionLocal() as db:
+        video = db.query(Video).one()
+        video.file_path = str(media)
+        video_id = video.id
+        db.add(Schedule(target_type=ScheduleTargetType.video, target_id=video_id, schedule_type=ScheduleType.once,
+                        run_at=datetime(2031, 1, 1, tzinfo=timezone.utc), channel="cable"))
+        db.commit()
+        assert db.query(PlaylistItem).count() == 1
+    assert TestClient(app).delete(f"/api/videos/{video_id}").status_code == 200
+    assert not media.exists()
+    with SessionLocal() as db:
+        assert db.query(Video).count() == 0 and db.query(PlaylistItem).count() == 0
+        assert db.query(Schedule).filter(Schedule.target_type == ScheduleTargetType.video).count() == 0
+        assert db.query(Playlist).count() == 1  # la playlist reste, seulement sans cette vidéo

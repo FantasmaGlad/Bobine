@@ -271,6 +271,9 @@ def _migrate_add_missing_columns():
         ("videos", "pix_fmt", "VARCHAR"),
         ("videos", "web_path", "VARCHAR"),
         ("videos", "web_status", "VARCHAR"),
+        # Origine des chapitres et copie du fichier importé (liens indiqués dans library/videos.json).
+        ("videos", "chapters_source", "TEXT"),
+        ("videos", "chapters_file", "TEXT"),
         # Télémétrie extensible : stockage JSON dynamique pour métriques futures
         ("system_metrics_history", "extra_data", "TEXT"),
         # Sortie radio visée par une règle de rappel (les règles existantes
