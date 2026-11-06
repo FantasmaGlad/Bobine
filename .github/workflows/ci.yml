@@ -1430,7 +1430,7 @@ jobs:
 
   release-stable:
     name: Publish Stable Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, assistant-bundle, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1476,12 +1476,6 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: bobine-assistant-linux-arm64
-          path: release-assets
-      - name: Download assistant packages
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: assistant-packages-*
-          merge-multiple: true
           path: release-assets
       - name: Download Android APK
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -1577,7 +1571,7 @@ jobs:
   # de main, sans validation matérielle manuelle.
   release-canary:
     name: Publish/Update Canary Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, assistant-bundle, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'canary'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1630,12 +1624,6 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: bobine-assistant-linux-arm64
-          path: release-assets
-      - name: Download assistant packages
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: assistant-packages-*
-          merge-multiple: true
           path: release-assets
       - name: Download Android APK
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -1809,7 +1797,7 @@ jobs:
   # générées automatiquement que Canary, juste un déclenchement différent.
   release-beta:
     name: Publish/Update Beta Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, assistant-bundle, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'beta'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1862,12 +1850,6 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: bobine-assistant-linux-arm64
-          path: release-assets
-      - name: Download assistant packages
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: assistant-packages-*
-          merge-multiple: true
           path: release-assets
       - name: Download Android APK
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -2028,6 +2010,76 @@ jobs:
           "${{ steps.notes.outputs.notes_path }}" "${{ github.sha }}"
         env:
           GH_TOKEN: ${{ github.token }}
+
+  # Release de l'assistant d'installation, à part de celle de Bobine : la mise à jour intégrée des installations existantes
+  # prend le premier .exe, .deb ou .dmg de la bonne architecture d'une release de Bobine. Une seule release par canal
+  # (assistant-Vx.y.z, assistant-beta, assistant-canary), publiée après celle de Bobine ; la Stable n'est jamais « Latest ».
+  publish-assistant:
+    name: Publish assistant release
+    needs: [version, assistant-bundle, release-stable, release-canary, release-beta]
+    if: >-
+      always() && needs.assistant-bundle.result == 'success' && (
+        needs.release-stable.result == 'success' ||
+        (needs.release-canary.result == 'success' && needs.release-canary.outputs.published == 'true') ||
+        (needs.release-beta.result == 'success' && needs.release-beta.outputs.published == 'true'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    concurrency:
+      group: publish-assistant-${{ needs.version.outputs.channel }}
+      cancel-in-progress: false
+    env:
+      CHANNEL: ${{ needs.version.outputs.channel }}
+      TAG: assistant-${{ needs.version.outputs.tag_name }}
+      SUFFIX: ${{ needs.version.outputs.filename_version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: assistant-packages-*
+          merge-multiple: true
+          path: assistant-assets
+      - name: Signer la liste des empreintes (SHA256SUMS)
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          GNUPGHOME: ${{ runner.temp }}/bobine-signing
+        run: |
+          install -d -m 0700 "$GNUPGHOME"
+          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+          bash scripts/ci/sign-release-checksums.sh assistant-assets
+          gpgconf --kill gpg-agent || true
+          rm -rf "$GNUPGHOME"
+      - name: Vérifier la complétude des assets
+        run: bash scripts/ci/verify-assistant-assets.sh assistant-assets "$SUFFIX"
+      - name: Notes de la release
+        run: python3 scripts/ci/render-assistant-notes.py "$CHANNEL" "${{ needs.version.outputs.tag_name }}" "$SUFFIX" > "$RUNNER_TEMP/assistant-notes.md"
+      - name: Placer le tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$CHANNEL" = stable ]; then
+            # Un tag Stable ne bouge jamais : créé s'il manque, accepté s'il désigne déjà ce commit.
+            if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+              remote=$(git ls-remote origin "refs/tags/$TAG^{}" "refs/tags/$TAG" | awk 'NR==1 {print $1}')
+              [ "$remote" = "$GITHUB_SHA" ] || { echo "::error::$TAG existe déjà sur un autre commit" >&2; exit 1; }
+            else
+              git tag "$TAG" "$GITHUB_SHA" && git push origin "refs/tags/$TAG"
+            fi
+          else
+            git tag -f "$TAG" "$GITHUB_SHA"
+            git push --force origin "refs/tags/$TAG"
+          fi
+      - name: Publier
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_KIND: ${{ needs.version.outputs.channel == 'stable' && 'stable-secondaire' || 'glissant' }}
+        run: >-
+          bash scripts/ci/publish-rolling-release.sh "$TAG" assistant-assets
+          "Bobine Assistant ${{ needs.version.outputs.channel == 'stable' && needs.version.outputs.base_version || needs.version.outputs.channel }}"
+          "$RUNNER_TEMP/assistant-notes.md" "$GITHUB_SHA"
 
   publish-linux-packages:
     name: Publier les dépôts Linux (packages.bobine.fit)

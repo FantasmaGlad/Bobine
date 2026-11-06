@@ -39,10 +39,6 @@ expected=(
     "Bobine-TV-${S}.apk"
     "bobine-assistant"
     "bobine-assistant-arm64"
-    "bobine-assistant_${S}_amd64.deb"
-    "bobine-assistant-${S}.x86_64.rpm"
-    "Bobine-Assistant-Setup-${S}.exe"
-    "Bobine-Assistant-${S}-arm64.dmg"
     "install.sh"
     "install.ps1"
     "SHA256SUMS"
@@ -61,6 +57,13 @@ if (( ${#missing[@]} > 0 )); then
     echo "::error::Assets de release manquants ou vides dans ${DIR} : ${missing[*]}"
     echo "Contenu réel :"
     ls -l "${DIR}"
+    exit 1
+fi
+# Les paquets de l'assistant ont leur propre release : dans celle de Bobine, la mise à jour intégrée des installations
+# existantes pourrait prendre son installeur (premier .exe, .deb ou .dmg de la bonne architecture).
+stray=$(cd "${DIR}" && ls -1 | grep -iE '^bobine-assistant.*\.(exe|deb|rpm|dmg)$' || true)
+if [[ -n "${stray}" ]]; then
+    echo "::error::paquets de l'assistant dans une release de Bobine : ${stray//$'\n'/ }"
     exit 1
 fi
 # SHA256SUMS doit lister chaque fichier attendu avec son empreinte réelle (la signature est vérifiée à sa production).
