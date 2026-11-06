@@ -1,0 +1,4 @@
+[Bobine]
+title=Bobine
+description=Interface web et télécommande de Bobine sur le réseau local : port 1903, repli 1904 à 1913, ancien port 8000, redirection du port 80 vers le port réel.
+ports=80,8000/tcp|1903:1913/tcp

@@ -1,0 +1,24 @@
+#!/bin/sh
+# Accès à Bobine depuis le réseau local dans ufw (Debian, Ubuntu, Arch) : `open` à l'installation, `close` avant la
+# désinstallation. Le profil « Bobine » (/etc/ufw/applications.d/bobine) n'est ouvert qu'aux réseaux privés et VPN
+# (RFC 1918, CGNAT de Tailscale, IPv6 locales), jamais à Internet. Les règles sont ajoutées même si ufw est éteint :
+# elles s'appliquent dès son activation. Sans ufw, rien n'est fait. Fedora : service firewalld « bobine ».
+set -e
+action="${1:?open ou close}"
+command -v ufw >/dev/null 2>&1 || exit 0
+networks="10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10 fc00::/7 fe80::/10"
+case "$action" in
+    open)
+        ufw app update Bobine >/dev/null 2>&1 || true
+        for network in $networks; do
+            # Une règle IPv6 échoue si IPv6 est désactivé dans ufw : les autres sont gardées.
+            ufw allow from "$network" to any app Bobine comment "Bobine (réseau local)" >/dev/null 2>&1 || true
+        done
+        ;;
+    close)
+        for network in $networks; do
+            ufw delete allow from "$network" to any app Bobine >/dev/null 2>&1 || true
+        done
+        ;;
+    *) exit 2 ;;
+esac

@@ -103,6 +103,9 @@ mkdir -p "${STAGING_DIR}/usr/share/bobine"
 cp "${REPO_DIR}/packaging/storage/49-bobine-storage.rules.in" "${STAGING_DIR}/usr/share/bobine/"
 cp "${REPO_DIR}/packaging/storage/configure-storage-access" "${STAGING_DIR}/usr/lib/bobine/"
 chmod 0755 "${STAGING_DIR}/usr/lib/bobine/configure-storage-access"
+# Pare-feu : profil ufw « Bobine » et script d'ouverture aux réseaux locaux (postinst, prerm).
+install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.ufw" "${STAGING_DIR}/etc/ufw/applications.d/bobine"
+install -m 0755 "${REPO_DIR}/packaging/linux/firewall/configure-firewall" "${STAGING_DIR}/usr/lib/bobine/configure-firewall"
 
 # Copie des binaires et assets de l'application
 cp -a "${DIST_DIR}/"* "${STAGING_DIR}/usr/lib/bobine/"

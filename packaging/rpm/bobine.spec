@@ -34,17 +34,15 @@ Requires:       /usr/bin/ffprobe
 # que de planter au lancement (valeur calculée au build, voir build_rpm.sh).
 Requires:       glibc >= %{bobine_glibc}
 Recommends:     avahi
+# Outils de stockage externe facultatifs : le backend signale l'absence de chacun (fonction indisponible) au lieu
+# d'empêcher l'installation ou la mise à jour.
 Recommends:     udisks2
 Recommends:     smartmontools
-Requires:       udisks2
-Requires:       smartmontools
-Requires:       exfatprogs
-Requires:       e2fsprogs
-Requires:       dosfstools
-Requires:       ntfs-3g
-Requires:       polkit
 Recommends:     exfatprogs
-Recommends:     polkit
+Recommends:     e2fsprogs
+Recommends:     dosfstools
+Recommends:     ntfs-3g
+Requires:       polkit
 Recommends:     gvfs
 Recommends:     gvfs-mtp
 Recommends:     gvfs-fuse
@@ -180,6 +178,7 @@ exit 0
 /usr/share/pixmaps/bobine.png
 /usr/share/pixmaps/com.bobine.app.png
 /usr/lib/firewalld/services/bobine.xml
+%config(noreplace) /etc/ufw/applications.d/bobine
 
 %changelog
 * Fri Oct 23 2026 FantasmaGlad <193235053+FantasmaGlad@users.noreply.github.com> - %{bobine_version}-%{bobine_release}

@@ -39,6 +39,9 @@ mkdir -p "${DEST}/usr/share/bobine"
 cp "${REPO_DIR}/packaging/storage/49-bobine-storage.rules.in" "${DEST}/usr/share/bobine/"
 cp "${REPO_DIR}/packaging/storage/configure-storage-access" "${DEST}/usr/lib/bobine/"
 chmod 0755 "${DEST}/usr/lib/bobine/configure-storage-access"
+# Pare-feu : profil ufw « Bobine » et script d'ouverture aux réseaux locaux (Arch ; Fedora passe par firewalld).
+install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.ufw" "${DEST}/etc/ufw/applications.d/bobine"
+install -m 0755 "${REPO_DIR}/packaging/linux/firewall/configure-firewall" "${DEST}/usr/lib/bobine/configure-firewall"
 
 cat > "${DEST}/usr/bin/bobine" <<'WRAP'
 #!/bin/sh
