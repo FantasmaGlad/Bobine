@@ -1,0 +1,16 @@
+"""Réseaux de confiance de Bobine : l'unique liste, lue par la garde réseau (`network_guard`) et rappelée par les
+pare-feu des installateurs (`packaging/linux/firewall/configure-firewall`, `packaging/windows/bobine.iss`,
+`backend/app/utils/firewall.py`). `backend/tests/test_local_networks.py` échoue si l'un d'eux s'en écarte.
+"""
+from __future__ import annotations
+
+import ipaddress
+
+# Réseaux privés (RFC 1918), lien local IPv4, 100.64.0.0/10 (Tailscale et CGNAT), IPv6 locales uniques et lien local.
+FIREWALL_NETWORKS = (
+    "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16", "100.64.0.0/10", "fc00::/7", "fe80::/10",
+)
+# La boucle locale s'y ajoute pour la garde, mais n'a pas à figurer dans un pare-feu.
+LOOPBACK_NETWORKS = ("127.0.0.0/8", "::1/128")
+
+TRUSTED_NETWORKS = tuple(ipaddress.ip_network(n) for n in FIREWALL_NETWORKS + LOOPBACK_NETWORKS)

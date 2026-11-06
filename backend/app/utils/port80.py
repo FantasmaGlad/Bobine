@@ -12,6 +12,9 @@ import asyncio
 import logging
 from urllib.parse import urlsplit
 
+from app.utils.network_guard import allowed_networks, is_allowed_client
+from app.utils.origin_guard import is_trusted_host_name
+
 logger = logging.getLogger(__name__)
 
 REDIRECT_PORT = 80
@@ -32,6 +35,8 @@ def redirect_location(host_header: str, target: str, port: int) -> str:
         hostname = urlsplit(f"//{host_header}").hostname or "bobine.local"
     except ValueError:
         hostname = "bobine.local"
+    if not is_trusted_host_name(hostname):
+        hostname = "bobine.local"  # jamais un nom choisi par l'appelant : pas de redirection vers un site tiers
     if ":" in hostname:
         hostname = f"[{hostname}]"
     path = target if target.startswith("/") else "/"
@@ -40,6 +45,9 @@ def redirect_location(host_header: str, target: str, port: int) -> str:
 
 async def _handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     try:
+        peer = writer.get_extra_info("peername")
+        if peer and not is_allowed_client(str(peer[0]), allowed_networks()):
+            return  # même refus que la garde de l'API : rien pour un client venu d'Internet
         head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=_READ_TIMEOUT)
         if len(head) > _HEADER_LIMIT:
             return

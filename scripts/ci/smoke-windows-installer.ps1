@@ -105,7 +105,7 @@ switch ($Action) {
         if ($rules.Count -ne 1) { $problems.Add("$($rules.Count) règles de pare-feu « Bobine », 1 attendue") }
         foreach ($rule in $rules) {
             $remote = @(($rule | Get-NetFirewallAddressFilter).RemoteAddress)
-            if ($remote -contains 'Any' -or -not ($remote -contains 'LocalSubnet')) {
+            if ($remote -contains 'Any' -or -not ($remote -contains '10.0.0.0/8' -or $remote -contains '10.0.0.0-10.255.255.255')) {
                 $problems.Add("règle de pare-feu ouverte au-delà du réseau local : $($remote -join ', ')")
             }
         }

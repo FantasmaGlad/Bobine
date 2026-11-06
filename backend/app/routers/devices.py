@@ -23,6 +23,7 @@ from app.devices import locality
 from app.devices.base import DeviceError
 from app.devices.routing import FALLBACKS, describe_sink, load_routes, resolve_route, save_routes
 from app.devices.service import WIFI_CONFIRM_SECONDS, service
+from app.utils.network_guard import has_forwarding_headers
 from app.models import Setting
 from app.radio_manager import RADIO_CHANNELS, get_all_radio_managers, get_radio_manager
 from app.utils.activity_log import log_activity
@@ -66,11 +67,15 @@ def _client_ip(request: Request) -> str:
 def is_local_request(request: Request) -> bool:
     """Requête venant de la machine elle-même (écran physique).
 
-    Ce module ne lit que l'adresse du pair TCP. Uvicorn peut toutefois réécrire `request.client.host`
-    depuis `X-Forwarded-For` quand la requête arrive par un proxy de confiance (`forwarded_allow_ips`,
-    boucle locale par défaut) ; un proxy local qui n'ajoute pas cet en-tête fait donc passer tous ses
-    clients pour l'écran local.
+    Uvicorn ne réécrit pas l'adresse du pair (`proxy_headers=False`). Un proxy local fait pourtant passer
+    ses clients pour la machine : une requête relayée (en-tête de relais) ou adressée à un nom `.onion`
+    (service Tor, qui arrive par la boucle locale) n'est donc jamais « locale ».
     """
+    if has_forwarding_headers(request.scope.get("headers") or ()):
+        return False
+    host = (request.headers.get("host") or "").rsplit(":", 1)[0].strip("[]").lower()
+    if host.endswith(".onion"):
+        return False
     return locality.is_local_client(_client_ip(request))
 
 

@@ -59,10 +59,42 @@ def test_http_and_websocket_from_internet_refused():
     response = client.get("/api/state")
     assert response.status_code == 403
     assert response.json()["detail"]["code"] == "public_client"
+    # Le message ASGI est une fermeture 1008 ; uvicorn la traduit en 403 lors de la poignée de main.
     with pytest.raises(WebSocketDisconnect) as closed:
         with client.websocket_connect("/ws") as socket:
             socket.receive_text()
     assert closed.value.code == 1008
+
+
+@pytest.mark.parametrize("headers", [
+    {"X-Forwarded-For": "8.8.8.8"},
+    {"X-Forwarded-For": "192.168.1.9, 8.8.8.8"},
+    {"X-Forwarded-For": "nimportequoi"},
+    {"X-Forwarded-For": ""},
+    {"X-Real-IP": "1.1.1.1"},
+    {"CF-Connecting-IP": "2a01:4f8::1"},
+    {"Forwarded": "for=8.8.8.8;proto=https"},
+    {"Forwarded": 'for="[2a01:4f8::1]:443"'},
+    {"Forwarded": "for=unknown"},
+    {"Forwarded": "by=10.0.0.1"},
+])
+@pytest.mark.parametrize("peer", ["127.0.0.1", "172.17.0.1", "192.168.1.10"])
+def test_relayed_public_or_unreadable_client_refused(peer, headers):
+    assert _app(peer).get("/api/state", headers=headers).status_code == 403
+
+
+@pytest.mark.parametrize("headers", [
+    {"X-Forwarded-For": "192.168.1.9"},
+    {"X-Forwarded-For": "10.0.0.2:5000, 100.64.1.1"},
+    {"Forwarded": "for=192.168.1.9;proto=http"},
+    {"Forwarded": 'for="[fd7a:115c:a1e0::1]:443"'},
+])
+def test_relayed_local_client_passes(headers):
+    assert _app("127.0.0.1").get("/api/state", headers=headers).status_code == 200
+
+
+def test_headers_never_widen_access():
+    assert _app("8.8.8.8").get("/api/state", headers={"X-Forwarded-For": "127.0.0.1"}).status_code == 403
 
 
 def test_http_and_websocket_from_lan_pass():
@@ -74,3 +106,36 @@ def test_http_and_websocket_from_lan_pass():
 
 def test_guard_is_outermost_middleware():
     assert real_app.user_middleware[0].cls is LocalNetworkGuard
+
+
+def test_real_app_refuses_public_client():
+    """L'application complète, avec ses montages statiques et ses routeurs, pas une application d'essai."""
+    client = TestClient(real_app, client=("8.8.8.8", 50000))
+    for path in ("/api/state", "/", "/api/videos"):
+        assert client.get(path).status_code == 403
+    assert TestClient(real_app, client=("8.8.8.8", 50000)).get("/api/state", headers={"X-Forwarded-For": "192.168.1.2"}).status_code == 403
+
+
+def test_uvicorn_does_not_rewrite_peer():
+    from pathlib import Path
+
+    import app.main  # noqa: F401  (le point d'entrée lance uvicorn depuis run_backend.py)
+
+    source = (Path(__file__).resolve().parents[1] / "run_backend.py").read_text(encoding="utf-8")
+    assert "proxy_headers=False" in source
+
+
+@pytest.mark.parametrize("headers, expected", [
+    ([(b"host", b"192.168.1.5:8000")], True),
+    ([(b"host", b"abcdef.onion")], False),
+    ([(b"host", b"abcdef.onion:80")], False),
+    ([(b"host", b"bobine.local"), (b"x-forwarded-for", b"192.168.1.9")], False),
+    ([(b"host", b"bobine.local"), (b"forwarded", b"for=10.0.0.2")], False),
+])
+def test_local_screen_rights_need_a_direct_clean_request(headers, expected):
+    from starlette.requests import Request
+
+    from app.routers.devices import is_local_request
+
+    request = Request({"type": "http", "client": ("127.0.0.1", 5000), "headers": headers})
+    assert is_local_request(request) is expected
