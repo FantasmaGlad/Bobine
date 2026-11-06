@@ -48,7 +48,11 @@ def manifests(sums: dict[str, str], tag: str) -> dict[str, str]:
         f"PackageUrl: https://bobine.fit\nLicense: AGPL-3.0\nLicenseUrl: https://github.com/{REPO}/blob/main/LICENSE\n"
         f"ReleaseNotesUrl: https://github.com/{REPO}/releases/tag/{tag}\n"
     )
-    return {
+    def schema(kind: str) -> str:
+        # winget-pkgs refuse un manifeste sans cette ligne (SchemaHeaderNotFound).
+        return f"# yaml-language-server: $schema=https://aka.ms/winget-manifest.{kind}.{MANIFEST_VERSION}.schema.json\n\n"
+
+    documents = {
         f"{IDENTIFIER}.yaml": head + "DefaultLocale: en-US\nManifestType: version\n" + foot,
         f"{IDENTIFIER}.installer.yaml": head
         + "InstallerType: inno\nScope: machine\nUpgradeBehavior: install\n"
@@ -62,6 +66,11 @@ def manifests(sums: dict[str, str], tag: str) -> dict[str, str]:
         f"{IDENTIFIER}.locale.fr-FR.yaml": head + "PackageLocale: fr-FR\n" + about
         + f"ShortDescription: {yaml_scalar(DESCRIPTION_FR)}\nManifestType: locale\n" + foot,
     }
+    kinds = {
+        f"{IDENTIFIER}.yaml": "version", f"{IDENTIFIER}.installer.yaml": "installer",
+        f"{IDENTIFIER}.locale.en-US.yaml": "defaultLocale", f"{IDENTIFIER}.locale.fr-FR.yaml": "locale",
+    }
+    return {name: schema(kinds[name]) + body for name, body in documents.items()}
 
 
 def main() -> None:

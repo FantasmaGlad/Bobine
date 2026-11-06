@@ -28,8 +28,18 @@ class WingetManifestTests(unittest.TestCase):
         self.assertIn("Architecture: arm64\n    InstallerUrl: https://github.com/FantasmaGlad/Bobine/releases/download/V9.9.9/Bobine-Setup-9.9.9-arm64.exe\n    InstallerSha256: " + "B" * 64, installer)
         self.assertEqual(len(files), 4)
         for content in files.values():
-            self.assertTrue(content.startswith("PackageIdentifier: FantasmaGlad.Bobine\nPackageVersion: 9.9.9\n"))
+            self.assertIn("\n\nPackageIdentifier: FantasmaGlad.Bobine\nPackageVersion: 9.9.9\n", content)
             self.assertIsInstance(yaml.safe_load(content), dict, "manifeste YAML invalide")
+
+    def test_each_manifest_starts_with_its_schema_header(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            sums = Path(tmp) / "SHA256SUMS"
+            sums.write_text(SUMS, encoding="utf-8")
+            files = winget.manifests(winget.read_sums(sums), "V9.9.9")
+        for name, kind in (("FantasmaGlad.Bobine.yaml", "version"), ("FantasmaGlad.Bobine.installer.yaml", "installer"),
+                           ("FantasmaGlad.Bobine.locale.en-US.yaml", "defaultLocale"),
+                           ("FantasmaGlad.Bobine.locale.fr-FR.yaml", "locale")):
+            self.assertTrue(files[name].startswith(f"# yaml-language-server: $schema=https://aka.ms/winget-manifest.{kind}.1.12.0.schema.json\n"))
 
     def test_missing_installer_and_rolling_tag_are_refused(self):
         with self.assertRaises(SystemExit):
