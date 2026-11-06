@@ -31,9 +31,12 @@ class AssistantReleaseTests(unittest.TestCase):
                 # Liste indépendante du vérificateur : si un paquet manque des deux côtés, le test doit le voir.
                 expected = {
                     f"Bobine-Assistant-Setup-{suffix}.exe",
+                    f"Bobine-Assistant-Setup-{suffix}-arm64.exe",
                     f"Bobine-Assistant-{suffix}-arm64.dmg",
                     f"bobine-assistant_{suffix}_amd64.deb",
+                    f"bobine-assistant_{suffix}_arm64.deb",
                     f"bobine-assistant-{suffix}.x86_64.rpm",
+                    f"bobine-assistant-{suffix}.aarch64.rpm",
                 }
                 self.assertEqual(linked, expected)
 
@@ -58,7 +61,7 @@ class AssistantReleaseTests(unittest.TestCase):
                 (directory / name).write_text(f"signature de {name}" if name.endswith(".sig") else "x")
             data = latest.manifest(directory, "assistant-canary", "5.1.1+canary.412")
             self.assertEqual(data["version"], "5.1.1+canary.412")
-            self.assertEqual(set(data["platforms"]), {"windows-x86_64", "darwin-aarch64", "linux-x86_64-deb", "linux-x86_64-rpm"})
+            self.assertEqual(set(data["platforms"]), {"windows-x86_64", "windows-aarch64", "darwin-aarch64", "linux-x86_64-deb", "linux-x86_64-rpm", "linux-aarch64-deb", "linux-aarch64-rpm"})
             deb = data["platforms"]["linux-x86_64-deb"]
             self.assertEqual(deb["url"], "https://github.com/FantasmaGlad/Bobine/releases/download/assistant-canary/bobine-assistant_canary_amd64.deb")
             self.assertEqual(deb["signature"], "signature de bobine-assistant_canary_amd64.deb.sig")

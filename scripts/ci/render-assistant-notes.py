@@ -21,13 +21,13 @@ def render(channel: str, bobine_tag: str, suffix: str) -> str:
         return f"[{text}]({base}/{name})"
 
     rows = [
-        ("**Windows** x64", link(f"Bobine-Assistant-Setup-{suffix}.exe", f"Bobine-Assistant-Setup-{suffix}.exe"),
+        ("**Windows**", f"{link(f'Bobine-Assistant-Setup-{suffix}.exe', 'x64')} · {link(f'Bobine-Assistant-Setup-{suffix}-arm64.exe', 'ARM64')}",
          "installation par utilisateur, sans droits d'administrateur"),
         ("**macOS** Apple Silicon", link(f"Bobine-Assistant-{suffix}-arm64.dmg", f"Bobine-Assistant-{suffix}-arm64.dmg"),
          "signature ad hoc : autoriser l'ouverture au premier lancement"),
-        ("**Debian, Ubuntu**", link(f"bobine-assistant_{suffix}_amd64.deb", f"bobine-assistant_{suffix}_amd64.deb"),
+        ("**Debian, Ubuntu**", f"{link(f'bobine-assistant_{suffix}_amd64.deb', 'amd64')} · {link(f'bobine-assistant_{suffix}_arm64.deb', 'arm64')}",
          "`sudo apt install ./bobine-assistant_*.deb`"),
-        ("**Fedora, RHEL**", link(f"bobine-assistant-{suffix}.x86_64.rpm", f"bobine-assistant-{suffix}.x86_64.rpm"),
+        ("**Fedora, RHEL**", f"{link(f'bobine-assistant-{suffix}.x86_64.rpm', 'x86_64')} · {link(f'bobine-assistant-{suffix}.aarch64.rpm', 'aarch64')}",
          "`sudo dnf install ./bobine-assistant-*.rpm`"),
     ]
     lines = [
