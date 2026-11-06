@@ -8,6 +8,7 @@ mod events;
 
 use commands::discovery::scan_network;
 use commands::connection::test_ssh_connection;
+use commands::host_key::{ssh_host_key, trust_ssh_host_key};
 use commands::install::start_installation;
 use commands::ssh_auth::pick_ssh_key_file;
 use commands::update::{check_assistant_update, install_assistant_update};
@@ -30,6 +31,8 @@ fn main() {
             get_app_info,
             pick_ssh_key_file,
             check_assistant_update,
+            ssh_host_key,
+            trust_ssh_host_key,
             install_assistant_update
         ])
         .run(tauri::generate_context!())

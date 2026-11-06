@@ -163,7 +163,10 @@ async fn connect_probe(sockets: &Semaphore, ip: Ipv4Addr, port: u16) -> ProbeOut
 
 /// Lit la bannière SSH (ex. "SSH-2.0-OpenSSH_9.2p1 Debian-2+deb12u3").
 async fn read_ssh_banner(stream: TcpStream) -> String {
-    let mut reader = BufReader::new(stream);
+    // Une bannière SSH tient en quelques centaines d'octets. Borner la lecture
+    // empêche un appareil du LAN d'envoyer une ligne sans fin et d'épuiser la
+    // mémoire de l'assistant pendant le scan.
+    let mut reader = BufReader::new(stream.take(4096));
     let mut line = String::new();
     match timeout(Duration::from_millis(500), reader.read_line(&mut line)).await {
         Ok(Ok(_)) if !line.trim().is_empty() => line.trim().to_string(),
@@ -277,6 +280,22 @@ fn build_device(
     }
 }
 
+fn arp_program() -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        let root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
+        std::path::Path::new(&root).join("System32").join("arp.exe")
+    }
+    #[cfg(not(windows))]
+    {
+        ["/usr/sbin/arp", "/sbin/arp", "/usr/bin/arp"]
+            .iter()
+            .map(std::path::PathBuf::from)
+            .find(|p| p.is_file())
+            .unwrap_or_else(|| "/usr/sbin/arp".into())
+    }
+}
+
 /// Table de voisinage ARP du poste (IP -> MAC). Lue APRÈS le balayage : le
 /// noyau y inscrit tout hôte qui a répondu à la résolution ARP, même si
 /// TOUS ses ports sont filtrés (pare-feu qui ignore les paquets) — cas où
@@ -288,7 +307,9 @@ fn read_arp_table() -> HashMap<Ipv4Addr, String> {
             return parse_proc_net_arp(&content).into_iter().collect();
         }
     }
-    let mut command = std::process::Command::new("arp");
+    // Chemin absolu : un `arp` placé plus tôt dans le PATH (ou dans le dossier courant sous Windows) ne doit pas
+    // s'exécuter pendant le scan.
+    let mut command = std::process::Command::new(arp_program());
     command.arg("-a");
     #[cfg(windows)]
     {

@@ -14,6 +14,7 @@ use serde_json::{json, Value};
 
 use crate::commands::connection::{inspect, SshCredentials};
 use crate::commands::discovery::scan;
+use crate::commands::host_key::{host_key, trust_host_key};
 use crate::commands::install::{run_installation, RunInstallParams};
 use crate::error::AssistantError;
 use crate::events::Events;
@@ -32,7 +33,7 @@ pub const EXIT_UNREACHABLE: i32 = 3;
 pub const EXIT_REFUSED: i32 = 4;
 
 /// Sous-commandes reconnues : leur présence en argument lance la ligne de commande au lieu de la fenêtre.
-pub const COMMANDS: [&str; 4] = ["scan", "inspect", "install", "version"];
+pub const COMMANDS: [&str; 5] = ["scan", "host-key", "inspect", "install", "version"];
 
 #[derive(Parser, Debug)]
 #[command(name = "bobine-assistant", about = "Installer Bobine sur un mini PC du réseau, sans interface.", version = env!("BOBINE_VERSION"))]
@@ -51,6 +52,14 @@ enum Command {
         /// Adresse ou réseau à sonder (192.168.2.10 ou 192.168.2.0/24) ; défaut : réseaux des interfaces actives.
         #[arg(long)]
         subnet: Option<String>,
+    },
+    /// Empreinte et statut de la clé d'hôte SSH de la cible (connue, inconnue, changée), sans s'authentifier.
+    HostKey {
+        /// Adresse IP ou nom de la cible.
+        #[arg(long)]
+        host: String,
+        #[arg(long, default_value_t = 22)]
+        port: u16,
     },
     /// Se connecter en SSH et auditer la cible (système, architecture, élévation, matériel).
     Inspect {
@@ -106,6 +115,10 @@ struct Target {
     /// Lire le mot de passe SSH sur l'entrée standard (sinon BOBINE_SSH_PASSWORD).
     #[arg(long)]
     password_stdin: bool,
+    /// Faire confiance à une cible inconnue dont la clé a cette empreinte (SHA256:…, donnée par `host-key`) ;
+    /// une clé qui a changé reste refusée.
+    #[arg(long, value_name = "EMPREINTE")]
+    trust_host_key: Option<String>,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug)]
@@ -142,7 +155,7 @@ impl Events for Console {
             return;
         }
         match name {
-            "install_log" => eprintln!("{}", payload.as_str().unwrap_or_default()),
+            "install_log" => eprintln!("{}", printable(payload.as_str().unwrap_or_default())),
             "install_progress" => eprintln!(
                 "[{:>3} %] {}",
                 payload["pct"].as_u64().unwrap_or(0),
@@ -212,7 +225,7 @@ fn run(cli: Cli) -> Result<(), AssistantError> {
                     out!(
                         "{:<16} {:<28} {}{}{}",
                         device.ip,
-                        device.hostname.as_deref().unwrap_or("-"),
+                        printable(device.hostname.as_deref().unwrap_or("-")),
                         if device.bobine_open { "Bobine " } else { "" },
                         if device.ssh_open { "SSH " } else { "" },
                         if ports.is_empty() { String::new() } else { format!("(ports {})", ports.join(", ")) },
@@ -222,7 +235,22 @@ fn run(cli: Cli) -> Result<(), AssistantError> {
             }
             Ok(())
         }
+        Command::HostKey { host, port } => {
+            let info = host_key(&host, port)?;
+            if cli.json {
+                out!("{}", serde_json::to_string_pretty(&info).unwrap_or_default());
+            } else {
+                let status = match info.status.as_str() {
+                    "known" => "connue",
+                    "changed" => "CHANGÉE : connexion refusée",
+                    _ => "inconnue",
+                };
+                out!("{} {}  ({status}, {})", info.key_type, info.fingerprint, info.known_hosts);
+            }
+            Ok(())
+        }
         Command::Inspect { target } => {
+            trust(&target)?;
             let mut input = std::io::stdin().lock();
             let creds = credentials(&target, &mut input)?;
             let report = inspect(creds)?;
@@ -247,6 +275,7 @@ fn run(cli: Cli) -> Result<(), AssistantError> {
                     "L'installation modifie la cible : relancez avec --yes pour confirmer.".to_string(),
                 ));
             }
+            trust(&target)?;
             let mut input = std::io::stdin().lock();
             let creds = credentials(&target, &mut input)?;
             let root_password = if root_password_stdin {
@@ -286,6 +315,14 @@ fn run(cli: Cli) -> Result<(), AssistantError> {
     }
 }
 
+/// `--trust-host-key` : enregistre la clé de la cible si son empreinte est celle donnée.
+fn trust(target: &Target) -> Result<(), AssistantError> {
+    if let Some(fingerprint) = target.trust_host_key.as_deref() {
+        trust_host_key(&target.host, target.port, fingerprint)?;
+    }
+    Ok(())
+}
+
 fn credentials(target: &Target, input: &mut impl BufRead) -> Result<SshCredentials, AssistantError> {
     let username = target
         .user
@@ -300,6 +337,14 @@ fn credentials(target: &Target, input: &mut impl BufRead) -> Result<SshCredentia
         std::env::var("BOBINE_SSH_PASSWORD").ok().filter(|p| !p.is_empty())
     };
     Ok(SshCredentials { host: target.host.clone(), port: target.port, username, password, key_path: target.key.clone() })
+}
+
+/// Texte venu du réseau (nom d'hôte, journal de la cible) sans caractères de contrôle ni de direction : il ne peut ni
+/// piloter le terminal (séquences ANSI, OSC) ni réordonner visuellement la ligne (U+202E...).
+fn printable(text: &str) -> String {
+    text.chars()
+        .filter(|c| !c.is_control() && !matches!(*c, '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}'))
+        .collect()
 }
 
 fn read_line(input: &mut impl BufRead, what: &str) -> Result<String, AssistantError> {
@@ -362,6 +407,12 @@ mod tests {
         // Port 9 de la boucle locale : connexion refusée immédiatement, sans réseau.
         let code = main(args(&["bobine-assistant", "inspect", "--host", "127.0.0.1", "--port", "9", "--user", "admin"]));
         assert_eq!(code, EXIT_UNREACHABLE);
+    }
+
+    #[test]
+    fn network_text_cannot_drive_the_terminal() {
+        assert_eq!(printable("borne\u{1b}]0;titre\u{7}\u{202E}gpj.exe"), "borne]0;titregpj.exe");
+        assert_eq!(printable("[INFO] Étape 3/14 terminée"), "[INFO] Étape 3/14 terminée");
     }
 
     #[test]

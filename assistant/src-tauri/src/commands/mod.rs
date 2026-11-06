@@ -4,3 +4,4 @@ pub mod connection;
 pub mod install;
 pub mod version;
 pub mod update;
+pub mod host_key;

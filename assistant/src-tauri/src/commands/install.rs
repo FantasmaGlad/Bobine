@@ -7,7 +7,7 @@ use crate::error::AssistantError;
 use crate::events::Events;
 
 use bobine_installer_core::orchestrate::{
-    build_remote_command, build_remote_command_via, Elevation, InstallOptions as CoreOptions,
+    build_remote_command, build_remote_command_via, shell_quote, Elevation, InstallOptions as CoreOptions,
 };
 use bobine_installer_core::progress::{classify_line, LineKind, Phase, ProgressState};
 
@@ -193,7 +193,10 @@ fn run_mock_installation(events: &dyn Events) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams) -> Result<(), String> {
+pub async fn start_installation(app: tauri::AppHandle, mut params: RunInstallParams) -> Result<(), String> {
+    // L'interface n'envoie jamais de script : une page compromise ne doit pas pouvoir faire exécuter en root un
+    // fichier arbitraire de la cible. Seule la ligne de commande (`--script`) en désigne un.
+    params.script_path = None;
     tokio::task::spawn_blocking(move || run_installation(&app, params).map_err(String::from))
         .await
         .map_err(|e| format!("Erreur d'exécution de tâche : {e}"))?
@@ -384,16 +387,23 @@ pub fn run_installation(events: &dyn Events, params: RunInstallParams) -> Result
         if uploaded {
             // Ménage du script téléversé (best-effort).
             if let Ok(mut cleanup) = sess.channel_session() {
-                let _ = cleanup.exec(&format!("rm -f {}", script));
+                let _ = cleanup.exec(&format!("rm -f {}", shell_quote(&script)));
                 let _ = cleanup.wait_close();
             }
         }
 
         result?;
-        if exit_code != 0 && state.phase != Phase::Succeeded {
+        // Le code de sortie fait foi : un `run_end` de succès ne masque pas un échec réel (script tué, sudo refusé,
+        // sortie falsifiée par la cible), et un `run_end` absent est aussi un échec.
+        if exit_code != 0 {
             return Err(AssistantError::Failed(format!(
                 "L'installation s'est interrompue (code de sortie {exit_code}). Consultez le journal ci-dessus et /var/log/bobine/ sur la borne."
             )));
+        }
+        if state.phase != Phase::Succeeded {
+            return Err(AssistantError::Failed(
+                "L'installation s'est terminée sans annoncer sa réussite (run_end). Consultez le journal ci-dessus.".to_string(),
+            ));
         }
         Ok(())
     }

@@ -202,6 +202,7 @@ dependencies = [
 name = "bobine-assistant"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "bobine-installer-core",
  "clap",
  "dns-lookup",

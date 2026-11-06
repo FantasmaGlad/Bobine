@@ -58,12 +58,14 @@ pub(crate) fn open_ssh_session(
     key_path: Option<&str>,
 ) -> Result<Session, AssistantError> {
     let sess = connect(host, port).map_err(AssistantError::Unreachable)?;
+    // Avant tout secret : la clé d'hôte doit déjà être connue (voir host_key.rs).
+    super::host_key::require_known(&sess, host.trim(), port)?;
     super::ssh_auth::authenticate_session(&sess, username, password, key_path).map_err(AssistantError::Refused)?;
     Ok(sess)
 }
 
 /// Connexion TCP et négociation SSH, avant toute authentification.
-fn connect(host: &str, port: u16) -> Result<Session, String> {
+pub(crate) fn connect(host: &str, port: u16) -> Result<Session, String> {
     let host = host.trim();
     if host.is_empty() {
         return Err("Adresse de la borne manquante : sélectionnez-la dans le scan ou saisissez son IP.".to_string());
@@ -133,7 +135,10 @@ fn run_remote_exec(sess: &Session, cmd: &str) -> Result<String, String> {
         .exec(cmd)
         .map_err(|e| format!("Erreur exécution commande '{cmd}' : {e}"))?;
     let mut output = String::new();
-    channel
+    // Borne la sortie d'une commande distante : un serveur qui répond sans
+    // fin ne doit pas faire grossir la mémoire de l'assistant indéfiniment.
+    (&mut channel)
+        .take(4 * 1024 * 1024)
         .read_to_string(&mut output)
         .map_err(|e| format!("Erreur lecture sortie : {e}"))?;
     channel.wait_close().ok();

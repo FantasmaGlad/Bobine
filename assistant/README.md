@@ -64,7 +64,8 @@ Le même exécutable se pilote sans fenêtre : tout ce que fait l'interface pass
 
 ```bash
 bobine-assistant scan [--subnet 192.168.2.0/24]
-bobine-assistant inspect --host bobine.local --user admin [--key ~/.ssh/id_ed25519]
+bobine-assistant host-key --host bobine.local
+bobine-assistant inspect --host bobine.local --user admin [--key ~/.ssh/id_ed25519] [--trust-host-key SHA256:…]
 bobine-assistant install --host bobine.local --user admin --channel stable --yes
 bobine-assistant version
 ```
@@ -75,6 +76,10 @@ bobine-assistant version
   l'entrée standard avec `--password-stdin` puis `--root-password-stdin`.
 - `install` exige `--yes` ; `--elevation auto` (défaut) choisit sudo ou su d'après l'audit, comme l'interface ;
   `--simulate` rejoue une installation enregistrée sans toucher la cible.
+- Clé d'hôte SSH vérifiée avant tout mot de passe, contre `~/.ssh/known_hosts` (ou `BOBINE_SSH_KNOWN_HOSTS`) : une
+  machine inconnue n'est acceptée qu'après confirmation de son empreinte (`SHA256:…`, comparable à
+  `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` sur la borne) — question de l'interface, ou
+  `--trust-host-key` ; une clé qui a changé est toujours refusée (`ssh-keygen -R <hôte>` après une réinstallation).
 - Codes de sortie, comme la commande `bobine` : 0 succès, 1 échec, 2 usage, 3 cible injoignable, 4 authentification
   refusée.
 
