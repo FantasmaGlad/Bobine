@@ -38,6 +38,7 @@ from app.utils.http_compression import (
     is_compressible_media_type,
     request_allows_gzip,
 )
+from app.utils.network_guard import LocalNetworkGuard
 from app.utils.origin_guard import SameOriginGuard, dev_origins
 from app.utils.media_response import build_media_response
 from app.utils.deployment import get_profile_handler
@@ -209,6 +210,8 @@ app.add_middleware(config_files.ConfigMirrorTrigger)
 # CORS pour envelopper aussi ses en-têtes ; le frontend statique négocie lui-même
 # la compression (RevalidateStaticFiles) afin de garder son ETag par contenu.
 app.add_middleware(ApiCompressionMiddleware)
+# Ajoutée en dernier, donc exécutée en premier : un client venu d'Internet n'atteint rien.
+app.add_middleware(LocalNetworkGuard)
 
 # Enregistrement des routeurs
 app.include_router(videos.router)

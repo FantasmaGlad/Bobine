@@ -67,6 +67,8 @@ These are objectives, not contractual commitments: the project has a single main
 
 In scope: the Bobine software and its installers (`install.sh`, `install-tor.sh`, Windows, macOS, Linux and Android packages), the website `bobine.fit` and its server routes, the Linux package repositories `packages.bobine.fit` (APT, DNF and Pacman) and their signing chain, and the Tor mirrors of the site and of the repository.
 
+Trust model: Bobine has no accounts; only the local network is trusted. The server refuses any connection from a public address (private networks, link-local and 100.64.0.0/10 are accepted; more can be added with `BOBINE_ALLOWED_NETWORKS`), refuses requests sent by a web page from another origin, and the installers only open the firewall to private networks. Bypassing any of these barriers is in scope.
+
 Out of scope: flaws in third-party services (Vercel, Cloudflare, GitHub, Hugging Face, OpenRouter, Resend), social engineering and phishing, physical access, denial-of-service attacks, load tests and mass automated scans, findings without demonstrable impact, and content or translation errors.
 
 ## Good-faith research
