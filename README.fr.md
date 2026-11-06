@@ -82,7 +82,7 @@ Prérequis : Debian 13 minimale avec SSH activé, sur le même réseau que votre
 <img src="Assets/Icons/tools/powershell.svg" width="20" height="20" alt="PowerShell"> Windows (PowerShell) : installe la Stable après contrôle de la signature de `SHA256SUMS` et de son empreinte SHA-256, sans gpg.
 
 ```powershell
-irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 | iex
+irm https://bobine.fit/install.ps1 | iex
 ```
 
 Sur Windows PowerShell 5.1 avec un .NET antérieur à 4.7, exécutez `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12` avant `irm` ; le script ne peut pas changer la version TLS de la requête qui le télécharge.
@@ -90,14 +90,13 @@ Sur Windows PowerShell 5.1 avec un .NET antérieur à 4.7, exécutez `[Net.Servi
 Autre canal (le pipe ne transmet pas les paramètres) :
 
 ```powershell
-$u = 'https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1'
-& ([scriptblock]::Create((irm $u))) -Channel beta
+& ([scriptblock]::Create((irm https://bobine.fit/install.ps1))) -Channel beta
 ```
 
 Par Tor (PowerShell 7.2+, Tor Browser ouvert ; `-TorPort 9050` pour le service tor) :
 
 ```powershell
-$u = 'https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1'
+$u = 'https://github.com/FantasmaGlad/Bobine/releases/latest/download/install.ps1'
 $script = irm $u -Proxy socks5://127.0.0.1:9150
 & ([scriptblock]::Create($script)) -Tor
 ```

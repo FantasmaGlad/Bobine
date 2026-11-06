@@ -82,7 +82,7 @@ Requirements: minimal Debian 13 install with SSH enabled, on the same network as
 <img src="Assets/Icons/tools/powershell.svg" width="20" height="20" alt="PowerShell"> Windows (PowerShell): installs Stable after checking the `SHA256SUMS` signature and its SHA-256 digest, without gpg.
 
 ```powershell
-irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 | iex
+irm https://bobine.fit/install.ps1 | iex
 ```
 
 On Windows PowerShell 5.1 with a .NET runtime older than 4.7, run `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12` before `irm`; the script cannot change the TLS version of the request that downloads it.
@@ -90,14 +90,13 @@ On Windows PowerShell 5.1 with a .NET runtime older than 4.7, run `[Net.ServiceP
 Another channel (the pipe does not forward parameters):
 
 ```powershell
-$u = 'https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1'
-& ([scriptblock]::Create((irm $u))) -Channel beta
+& ([scriptblock]::Create((irm https://bobine.fit/install.ps1))) -Channel beta
 ```
 
 Through Tor (PowerShell 7.2+, Tor Browser open; `-TorPort 9050` for the tor service):
 
 ```powershell
-$u = 'https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1'
+$u = 'https://github.com/FantasmaGlad/Bobine/releases/latest/download/install.ps1'
 $script = irm $u -Proxy socks5://127.0.0.1:9150
 & ([scriptblock]::Create($script)) -Tor
 ```
