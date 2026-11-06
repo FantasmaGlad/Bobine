@@ -75,7 +75,7 @@ def test_parameters_reach_the_route_typed(recorder):
 def test_settings_get_unknown_key_is_an_error(monkeypatch, capsys):
     monkeypatch.setenv("BOBINE_PORT", "1903")
     monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: {"theme": "ciel"})
-    assert cli.main(["settings", "get", "absente"]) == cli.EXIT_ERROR
+    assert cli.main(["settings", "get", "absente"]) == cli.EXIT_USAGE
     captured = capsys.readouterr()
     assert captured.out == "" and "réglage inconnu" in captured.err
     assert cli.main(["settings", "get", "theme"]) == cli.EXIT_OK
@@ -476,3 +476,85 @@ def test_playback_and_radio_status_read_the_snapshot(recorder, capsys):
     assert cli.main(["radio", "network", "status", "--json"]) == cli.EXIT_OK
     assert recorder.calls[1][:3] == ("GET", "/api/radio/state", {"channel": "radio_network"})
     assert json.loads(capsys.readouterr().out) == {"playing": True}
+
+
+# --- hygiène du client (étape 1 du plan de parité) --------------------------------------------------------------------
+
+def test_path_segments_are_quoted(recorder):
+    cli.main(["imports", "cancel", "../playlists/1?x=1"])
+    assert recorder.calls[0][1] == "/api/import-jobs/..%2Fplaylists%2F1%3Fx%3D1"
+    cli.main(["playback", "cable", "pa/use"])
+    assert recorder.calls[1][1] == "/api/playback/cable/pa%2Fuse"
+
+
+def test_unexpected_response_shape_is_a_message_not_a_traceback(monkeypatch, capsys):
+    monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: None)
+    assert cli.main(["--port", "1903", "library", "list"]) == cli.EXIT_ERROR
+    err = capsys.readouterr().err
+    assert "réponse inattendue" in err and "Traceback" not in err
+
+
+@pytest.mark.parametrize("status, code", [(400, 2), (422, 2), (403, 4), (404, 4), (409, 4), (503, 4), (500, 1)])
+def test_http_statuses_map_to_stable_exit_codes(monkeypatch, status, code):
+    class Response:
+        def __init__(self, body=b"{}"): self.body = body; self.status = status
+        def read(self): return self.body
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    def fake(req, timeout=None):
+        raise urllib.error.HTTPError(req.full_url, status, "x", {}, io.BytesIO(b'{"detail": "non"}'))
+
+    monkeypatch.setattr(cli.urllib.request, "urlopen", fake)
+    assert cli.main(["--port", "1903", "settings", "get"]) == code
+
+
+def test_timeout_option_and_environment(monkeypatch):
+    seen = {}
+
+    def fake(req, timeout=None):
+        seen["timeout"] = timeout
+        raise OSError("fermé")
+
+    monkeypatch.setattr(cli.urllib.request, "urlopen", fake)
+    cli.main(["--port", "1903", "--timeout", "7", "status"])
+    assert seen["timeout"] == 7
+    monkeypatch.setenv("BOBINE_TIMEOUT", "11")
+    cli.main(["--port", "1903", "status"])
+    assert seen["timeout"] == 11
+    cli.main(["--port", "1903", "status", "--timeout", "3.5"])
+    assert seen["timeout"] == 3.5
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "abc", "99999"])
+def test_invalid_timeout_is_a_usage_error(recorder, value):
+    assert cli.main(["--port", "1903", "--timeout", value, "status"]) == cli.EXIT_USAGE
+
+
+def test_settings_set_json_is_the_server_answer(monkeypatch, capsys):
+    monkeypatch.setattr(cli.Client, "request", lambda self, m, p, **kw: {"language": "en", "language_restart_required": True})
+    cli.main(["--port", "1903", "--json", "settings", "set", "language=en"])
+    assert json.loads(capsys.readouterr().out)["language_restart_required"] is True
+    cli.main(["--port", "1903", "settings", "set", "language=en"])
+    assert "redémarrage" in capsys.readouterr().out
+
+
+def test_unknown_setting_is_a_usage_error(recorder):
+    recorder.responses[("GET", "/api/settings")] = {"theme": "lune"}
+    assert cli.main(["--port", "1903", "settings", "get", "zzz"]) == cli.EXIT_USAGE
+
+
+def test_duplicate_config_file_names_are_refused(tmp_path):
+    (tmp_path / "a").mkdir(); (tmp_path / "b").mkdir()
+    for folder in ("a", "b"):
+        (tmp_path / folder / "settings.json").write_text("{}", encoding="utf-8")
+    with pytest.raises(cli.CliError) as error:
+        cli._read_documents([str(tmp_path / "a"), str(tmp_path / "b")])
+    assert error.value.code == cli.EXIT_USAGE
+
+
+def test_recurring_schedule_shows_its_days(monkeypatch, capsys):
+    monkeypatch.setattr(cli.Client, "request", lambda self, m, p, **kw: [
+        {"id": 1, "channel": "cable", "time_of_day": "09:30", "days_of_week": [0, 2], "target_title": "Cours", "active": True}])
+    cli.main(["--port", "1903", "schedule", "list"])
+    assert "lun,mer 09:30" in capsys.readouterr().out

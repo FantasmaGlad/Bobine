@@ -2,8 +2,9 @@
 
 Client HTTP de l'API (mêmes routes que l'interface, aucune logique propre), bibliothèque standard seulement : la
 commande démarre vite et marche aussi sur l'appliance. Sortie minimale par défaut, `-v` et `-vv` pour le détail sur
-stderr, `--json` pour la réponse brute sur stdout. Codes de sortie : 0 succès, 1 erreur ou problème trouvé, 2 usage,
-3 Bobine injoignable, 4 refus (canal verrouillé, élément introuvable...).
+stderr, `--json` pour la réponse de l'API sur stdout (`status`, qui fait deux requêtes, rend `health` et `playback`). Codes
+de sortie : 0 succès, 1 erreur ou problème trouvé, 2 usage (400, 422), 3 Bobine injoignable, 4 refus (403, 404, 409, 503 :
+canal verrouillé, élément introuvable...).
 """
 from __future__ import annotations
 
@@ -21,7 +22,8 @@ from typing import Any
 
 EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_UNREACHABLE, EXIT_REFUSED = 0, 1, 2, 3, 4
 COMMANDS = ("status", "diagnose", "library", "playlists", "schedule", "devices", "storage", "metrics", "imports", "display", "logs", "playback", "radio", "config", "settings", "update", "version")
-_REFUSAL_STATUSES = {404, 409, 503}
+_REFUSAL_STATUSES = {403, 404, 409, 503}
+DEFAULT_TIMEOUT = 30.0
 
 
 class CliError(Exception):
@@ -51,8 +53,13 @@ class Output:
             print(human)
 
 
+def segment(value: object) -> str:
+    """Un identifiant inséré dans un chemin d'URL : jamais de `/`, `?`, `#` ou `..` pris pour de la structure."""
+    return urllib.parse.quote(str(value), safe="")
+
+
 class Client:
-    def __init__(self, host: str, port: int, out: Output, timeout: float = 30.0) -> None:
+    def __init__(self, host: str, port: int, out: Output, timeout: float = DEFAULT_TIMEOUT) -> None:
         self.base = f"http://{host}:{port}"
         self.out, self.timeout = out, timeout
 
@@ -142,7 +149,7 @@ def cmd_library(client: Client, out: Output, args: argparse.Namespace) -> int:
             lines.append(f"{video.get('id')}  {video.get('title')}{suffix}")
         out.result(videos, "\n".join(lines))
         return EXIT_OK
-    video = client.request("GET", f"/api/videos/{args.video_id}")
+    video = client.request("GET", f"/api/videos/{segment(args.video_id)}")
     out.result(video, f"{video.get('id')}  {video.get('title')}")
     return EXIT_OK
 
@@ -153,7 +160,7 @@ def cmd_playlists(client: Client, out: Output, args: argparse.Namespace) -> int:
         lines = [f"{p.get('id')}  {p.get('name')} ({p.get('item_count', 0)} élément(s))" for p in playlists]
         out.result(playlists, "\n".join(lines))
         return EXIT_OK
-    playlist = client.request("GET", f"/api/playlists/{args.playlist_id}")
+    playlist = client.request("GET", f"/api/playlists/{segment(args.playlist_id)}")
     lines = [f"{playlist.get('id')}  {playlist.get('name')}"]
     for item in playlist.get("items", []):
         video = item.get("video") or {}
@@ -168,6 +175,9 @@ def cmd_schedule(client: Client, out: Output, args: argparse.Namespace) -> int:
         lines = []
         for schedule in schedules:
             when = schedule.get("time_of_day") or schedule.get("run_at") or "?"
+            if schedule.get("days_of_week") and schedule.get("time_of_day"):
+                names = ("lun", "mar", "mer", "jeu", "ven", "sam", "dim")
+                when = ",".join(names[d] for d in schedule["days_of_week"] if isinstance(d, int) and 0 <= d < 7) + " " + when
             state = "actif" if schedule.get("active") else "inactif"
             lines.append(
                 f"#{schedule.get('id')}  {schedule.get('channel')}  {when}  "
@@ -182,7 +192,7 @@ def cmd_schedule(client: Client, out: Output, args: argparse.Namespace) -> int:
         else:
             out.result(upcoming, f"{upcoming.get('run_at')}  {upcoming.get('title')}")
         return EXIT_OK
-    schedule = client.request("GET", f"/api/schedule/{args.schedule_id}")
+    schedule = client.request("GET", f"/api/schedule/{segment(args.schedule_id)}")
     lines = [
         f"#{schedule.get('id')}  {schedule.get('channel')}  {schedule.get('target_title') or schedule.get('target_type')}",
         f"  type={schedule.get('schedule_type')} actif={schedule.get('active')} "
@@ -194,7 +204,7 @@ def cmd_schedule(client: Client, out: Output, args: argparse.Namespace) -> int:
 
 def cmd_devices(client: Client, out: Output, args: argparse.Namespace) -> int:
     action = args.devices_action
-    payload = client.request("GET", f"/api/devices/{action}")
+    payload = client.request("GET", f"/api/devices/{segment(action)}")
     if action == "status":
         lines = [
             f"{payload.get('platform')} / {payload.get('driver')}  "
@@ -235,7 +245,7 @@ def cmd_storage(client: Client, out: Output, args: argparse.Namespace) -> int:
     action = args.storage_action
     if action == "browse":
         key = urllib.parse.quote(args.key, safe="")
-        payload = client.request("GET", f"/api/storage/volumes/{key}/browse", query={
+        payload = client.request("GET", f"/api/storage/volumes/{segment(key)}/browse", query={
             "path": args.path, "limit": args.limit,
         })
         lines = [f"{payload.get('path') or '/'} ({payload.get('total', 0)} élément(s))"]
@@ -245,7 +255,7 @@ def cmd_storage(client: Client, out: Output, args: argparse.Namespace) -> int:
         ]
         out.result(payload, "\n".join(lines))
         return EXIT_OK
-    payload = client.request("GET", f"/api/storage/{action}")
+    payload = client.request("GET", f"/api/storage/{segment(action)}")
     if action == "status":
         lines = [
             f"{payload.get('driver')}  prêt={payload.get('ready')}  "
@@ -307,7 +317,7 @@ def cmd_imports(client: Client, out: Output, args: argparse.Namespace) -> int:
         out.result(jobs, "\n".join(lines))
         return EXIT_OK
     if args.imports_action == "cancel":
-        payload = client.request("DELETE", f"/api/import-jobs/{args.job_id}")
+        payload = client.request("DELETE", f"/api/import-jobs/{segment(args.job_id)}")
         out.result(payload, f"Tâche {args.job_id} annulée.")
         return EXIT_OK
     report = client.request("GET", "/api/diagnostics/import")
@@ -360,7 +370,7 @@ def cmd_playback(client: Client, out: Output, args: argparse.Namespace) -> int:
         state = payload.get("state") or payload.get("playing")
         out.result(payload, f"{args.target} : {state if state is not None else 'inconnu'}")
         return EXIT_OK
-    payload = client.request("POST", f"{prefix}/{args.target}/{args.action}", body=parse_params(args.params))
+    payload = client.request("POST", f"{prefix}/{segment(args.target)}/{segment(args.action)}", body=parse_params(args.params))
     state = payload.get("state") or {}
     out.result(payload, f"{args.target} : {state.get('state', 'ok')}")
     return EXIT_OK
@@ -372,6 +382,8 @@ def _read_documents(paths: list[str]) -> dict[str, Any]:
         path = Path(raw)
         targets = sorted(path.glob("*.json")) if path.is_dir() else [path]
         for target in targets:
+            if target.name in files:
+                raise CliError(f"deux fichiers nommés {target.name} : l'un écraserait l'autre (le nom désigne le type de réglage).", EXIT_USAGE)
             try:
                 files[target.name] = json.loads(target.read_text(encoding="utf-8"))
             except (OSError, ValueError) as exc:
@@ -423,15 +435,18 @@ def cmd_settings(client: Client, out: Output, args: argparse.Namespace) -> int:
     if args.settings_action == "get":
         settings = client.request("GET", "/api/settings")
         if args.key and args.key not in settings:
-            raise CliError(f"réglage inconnu : {args.key}", EXIT_ERROR)
+            raise CliError(f"réglage inconnu : {args.key}", EXIT_USAGE)
         value = settings if not args.key else settings[args.key]
         out.result(value, json.dumps(value, ensure_ascii=False, indent=2) if not isinstance(value, str) else value)
         return EXIT_OK
     changes = parse_params(args.pairs)
     # Les réglages booléens se stockent en texte « true » ou « false » côté serveur.
     body = {k: ("true" if v else "false") if isinstance(v, bool) else v for k, v in changes.items()}
-    client.request("PUT", "/api/settings", body=body)
-    out.result(body, "Réglage(s) enregistré(s) : " + ", ".join(body))
+    saved = client.request("PUT", "/api/settings", body=body)
+    message = "Réglage(s) enregistré(s) : " + ", ".join(body)
+    if isinstance(saved, dict) and saved.get("language_restart_required"):
+        message += "\nLa langue s'applique au redémarrage de Bobine."
+    out.result(saved if saved is not None else body, message)
     return EXIT_OK
 
 
@@ -465,6 +480,17 @@ def local_version() -> str:
 
 # --- analyse des arguments -------------------------------------------------------------------------------------------
 
+def _timeout(args: argparse.Namespace) -> float:
+    raw = args.timeout if args.timeout is not None else os.environ.get("BOBINE_TIMEOUT")
+    try:
+        value = float(raw) if raw not in (None, "") else DEFAULT_TIMEOUT
+    except ValueError:
+        raise CliError(f"délai invalide : {raw!r} (secondes, par exemple 10).", EXIT_USAGE) from None
+    if not 0 < value <= 3600:
+        raise CliError(f"délai invalide : {value:g} (entre 0 et 3600 secondes).", EXIT_USAGE)
+    return value
+
+
 def _default_port() -> int:
     """Port à joindre quand `--port` n'est pas fourni : `BOBINE_PORT`, sinon le port réel de la machine locale."""
     raw = os.environ.get("BOBINE_PORT")
@@ -494,6 +520,8 @@ def _add_common_options(parser: argparse.ArgumentParser, *, suppress_defaults: b
     default = argparse.SUPPRESS if suppress_defaults else None
     parser.add_argument("--host", default=default, help="machine à piloter (défaut : 127.0.0.1, ou BOBINE_HOST)")
     parser.add_argument("--port", type=int, default=default, help="port de Bobine (défaut : port réel de la machine locale, ou BOBINE_PORT)")
+    parser.add_argument("--timeout", type=float, default=default, metavar="SECONDES",
+                        help=f"délai d'une requête (défaut : {DEFAULT_TIMEOUT:g} s, ou BOBINE_TIMEOUT)")
     parser.add_argument("--json", action="store_true", default=argparse.SUPPRESS if suppress_defaults else False,
                         help="réponse JSON brute sur stdout")
     parser.add_argument("-v", "--verbose", action="count", default=argparse.SUPPRESS if suppress_defaults else 0,
@@ -670,7 +698,7 @@ def main(argv: list[str] | None = None) -> int:
         port = args.port if args.port is not None else _default_port()
         if not 1 <= port <= 65535:
             raise CliError(f"port invalide : {port} (1 à 65535).", EXIT_USAGE)
-        client = Client(host, port, out)
+        client = Client(host, port, out, _timeout(args))
         return args.run(client, out, args)
     except CliError as exc:
         if out.json and exc.payload is not None:
@@ -679,6 +707,12 @@ def main(argv: list[str] | None = None) -> int:
         return exc.code
     except KeyboardInterrupt:
         return 130
+    except (TypeError, AttributeError, KeyError, IndexError, ValueError) as exc:
+        # Réponse 200 de forme inattendue (vide, `null`, champ absent) : un message, pas une traceback.
+        out.log(1, f"{type(exc).__name__} : {exc}")
+        print(f"bobine : réponse inattendue de Bobine ({type(exc).__name__}). Relancez avec -v pour le détail ; "
+              "la version de la commande et celle du serveur diffèrent peut-être.", file=sys.stderr)
+        return EXIT_ERROR
 
 
 if __name__ == "__main__":
