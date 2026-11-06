@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_UNREACHABLE, EXIT_REFUSED = 0, 1, 2, 3, 4
-COMMANDS = ("status", "diagnose", "logs", "playback", "radio", "config", "settings", "update", "version")
+COMMANDS = ("status", "diagnose", "library", "playlists", "schedule", "devices", "storage", "metrics", "imports", "display", "logs", "playback", "radio", "config", "settings", "update", "version")
 _REFUSAL_STATUSES = {404, 409, 503}
 
 
@@ -95,7 +95,7 @@ class Client:
                 message = message + "\n" + "\n".join(f"  - {e}" for e in errors)
             code = EXIT_REFUSED if status in _REFUSAL_STATUSES else EXIT_USAGE if status in (400, 422) else EXIT_ERROR
             raise CliError(f"Refusé ({status}) : {message}", code, payload)
-        if not isinstance(payload, dict):
+        if payload is not None and not isinstance(payload, (dict, list)):
             raise CliError(f"réponse non JSON ({status}) de {url} : {raw[:200]!r}", EXIT_ERROR, payload)
         return payload
 
@@ -130,6 +130,206 @@ def cmd_status(client: Client, out: Output, args: argparse.Namespace) -> int:
     return EXIT_OK if health.get("status") == "ok" else EXIT_ERROR
 
 
+def cmd_library(client: Client, out: Output, args: argparse.Namespace) -> int:
+    if args.library_action == "list":
+        videos = client.request("GET", "/api/videos", query={
+            "search": args.search, "program": args.program, "sort_by": args.sort_by, "order": args.order,
+        })
+        lines = []
+        for video in videos:
+            duration = video.get("duration_seconds")
+            suffix = f" ({duration / 60:.0f} min)" if duration else ""
+            lines.append(f"{video.get('id')}  {video.get('title')}{suffix}")
+        out.result(videos, "\n".join(lines))
+        return EXIT_OK
+    video = client.request("GET", f"/api/videos/{args.video_id}")
+    out.result(video, f"{video.get('id')}  {video.get('title')}")
+    return EXIT_OK
+
+
+def cmd_playlists(client: Client, out: Output, args: argparse.Namespace) -> int:
+    if args.playlists_action == "list":
+        playlists = client.request("GET", "/api/playlists")
+        lines = [f"{p.get('id')}  {p.get('name')} ({p.get('item_count', 0)} élément(s))" for p in playlists]
+        out.result(playlists, "\n".join(lines))
+        return EXIT_OK
+    playlist = client.request("GET", f"/api/playlists/{args.playlist_id}")
+    lines = [f"{playlist.get('id')}  {playlist.get('name')}"]
+    for item in playlist.get("items", []):
+        video = item.get("video") or {}
+        lines.append(f"  {video.get('id')}  {video.get('title')}")
+    out.result(playlist, "\n".join(lines))
+    return EXIT_OK
+
+
+def cmd_schedule(client: Client, out: Output, args: argparse.Namespace) -> int:
+    if args.schedule_action == "list":
+        schedules = client.request("GET", "/api/schedule", query={"channel": args.channel})
+        lines = []
+        for schedule in schedules:
+            when = schedule.get("time_of_day") or schedule.get("run_at") or "?"
+            state = "actif" if schedule.get("active") else "inactif"
+            lines.append(
+                f"#{schedule.get('id')}  {schedule.get('channel')}  {when}  "
+                f"{schedule.get('target_title') or schedule.get('target_type')}  {state}"
+            )
+        out.result(schedules, "\n".join(lines))
+        return EXIT_OK
+    if args.schedule_action == "next":
+        upcoming = client.request("GET", "/api/schedule/next", query={"channel": args.channel})
+        if upcoming is None:
+            out.result(None, "Aucune occurrence à venir.")
+        else:
+            out.result(upcoming, f"{upcoming.get('run_at')}  {upcoming.get('title')}")
+        return EXIT_OK
+    schedule = client.request("GET", f"/api/schedule/{args.schedule_id}")
+    lines = [
+        f"#{schedule.get('id')}  {schedule.get('channel')}  {schedule.get('target_title') or schedule.get('target_type')}",
+        f"  type={schedule.get('schedule_type')} actif={schedule.get('active')} "
+        f"jours={schedule.get('days_of_week')} heure={schedule.get('time_of_day')} début={schedule.get('run_at')}",
+    ]
+    out.result(schedule, "\n".join(lines))
+    return EXIT_OK
+
+
+def cmd_devices(client: Client, out: Output, args: argparse.Namespace) -> int:
+    action = args.devices_action
+    payload = client.request("GET", f"/api/devices/{action}")
+    if action == "status":
+        lines = [
+            f"{payload.get('platform')} / {payload.get('driver')}  "
+            f"local={'oui' if payload.get('local') else 'non'}"
+        ]
+    elif action == "audio":
+        if not payload.get("supported"):
+            lines = [payload.get("reason") or "Sorties audio non disponibles."]
+        else:
+            devices = payload.get("devices", [])
+            lines = [f"{len(devices)} sortie(s) audio, défaut : {payload.get('default_id') or '-'}"]
+            lines += [f"  {d.get('id')}  {d.get('name')}{' (défaut)' if d.get('is_default') else ''}" for d in devices]
+    elif action == "bluetooth":
+        if not payload.get("supported"):
+            lines = [payload.get("reason") or "Bluetooth non disponible."]
+        else:
+            devices = payload.get("devices", [])
+            lines = [f"powered={payload.get('powered')} discovering={payload.get('discovering')} ({len(devices)} appareil(s))"]
+            lines += [f"  {d.get('address')}  {d.get('name')}{' connecté' if d.get('connected') else ''}" for d in devices]
+    elif action == "wifi":
+        if not payload.get("supported"):
+            lines = [payload.get("reason") or "Wi-Fi non disponible."]
+        else:
+            current = payload.get("current") or {}
+            lines = [f"enabled={payload.get('enabled')}  ssid={current.get('ssid') or '-'}  ip={current.get('ip') or '-'}"]
+            lines += [f"  {n.get('ssid')}  {n.get('signal')}%" for n in payload.get("networks", [])]
+    else:
+        counts = payload.get("counts") or {}
+        lines = [
+            f"{len(payload.get('nodes', []))} nœud(s), {len(payload.get('links', []))} lien(s)  "
+            f"audio={counts.get('audio', 0)} bluetooth={counts.get('bluetooth', 0)} écrans={counts.get('screens', 0)}"
+        ]
+    out.result(payload, "\n".join(lines))
+    return EXIT_OK
+
+
+def cmd_storage(client: Client, out: Output, args: argparse.Namespace) -> int:
+    action = args.storage_action
+    if action == "browse":
+        key = urllib.parse.quote(args.key, safe="")
+        payload = client.request("GET", f"/api/storage/volumes/{key}/browse", query={
+            "path": args.path, "limit": args.limit,
+        })
+        lines = [f"{payload.get('path') or '/'} ({payload.get('total', 0)} élément(s))"]
+        lines += [
+            f"  {entry.get('type')}  {entry.get('path') or entry.get('name')}  {entry.get('size') or '-'}"
+            for entry in payload.get("entries", [])
+        ]
+        out.result(payload, "\n".join(lines))
+        return EXIT_OK
+    payload = client.request("GET", f"/api/storage/{action}")
+    if action == "status":
+        lines = [
+            f"{payload.get('driver')}  prêt={payload.get('ready')}  "
+            f"libre={payload.get('free_local_bytes')} o"
+        ]
+    elif action == "volumes":
+        volumes = payload.get("volumes", [])
+        lines = [f"{len(volumes)} support(s)"]
+        lines += [f"  {v.get('key')}  {v.get('name')}  {v.get('state')}" for v in volumes]
+    else:
+        devices = payload.get("devices", [])
+        lines = [f"{len(devices)} appareil(s) portable(s)"]
+        lines += [f"  {d.get('id')}  {d.get('name')}  {d.get('state')}" for d in devices]
+    out.result(payload, "\n".join(lines))
+    return EXIT_OK
+
+
+def cmd_metrics(client: Client, out: Output, args: argparse.Namespace) -> int:
+    if args.metrics_action == "dashboard":
+        payload = client.request("GET", "/api/metrics/dashboard", query={
+            "period": args.period, "channel": args.channel,
+        })
+        kpis = payload.get("kpis") or {}
+        completion = kpis.get("completion") or {}
+        broadcast = kpis.get("broadcast") or {}
+        sessions = kpis.get("sessions") or {}
+        lines = [
+            f"période={payload.get('period')} canal={payload.get('channel')}",
+            f"  sessions={sessions.get('total', 0)} terminées={completion.get('completed_sessions', 0)} "
+            f"({completion.get('rate', 0)} %) diffusé={broadcast.get('total_hours', 0)} h",
+        ]
+    elif args.metrics_action == "system":
+        payload = client.request("GET", "/api/settings/system")
+        lines = [
+            f"CPU {payload.get('cpu_percent')} % ({payload.get('cpu_temp_c')} °C)  "
+            f"RAM {payload.get('memory_percent')} %  GPU {payload.get('gpu_percent')} %  "
+            f"puissance {payload.get('power_watts')} W",
+        ]
+    else:
+        payload = client.request("GET", "/api/metrics/hardware/history", query={
+            "metric": args.metric, "period": args.period,
+        })
+        lines = [
+            f"{payload.get('label')} : {payload.get('current')} {payload.get('unit')}  "
+            f"min={payload.get('min')} max={payload.get('max')} moyenne={payload.get('avg')} "
+            f"({payload.get('count', 0)} point(s))",
+        ]
+    out.result(payload, "\n".join(lines))
+    return EXIT_OK
+
+
+def cmd_imports(client: Client, out: Output, args: argparse.Namespace) -> int:
+    if args.imports_action == "list":
+        jobs = client.request("GET", "/api/import-jobs")
+        lines = [
+            f"{job.get('id')}  {job.get('stage')}  {job.get('filename')}  {job.get('progress_percent') or 0} %"
+            for job in jobs
+        ]
+        out.result(jobs, "\n".join(lines))
+        return EXIT_OK
+    if args.imports_action == "cancel":
+        payload = client.request("DELETE", f"/api/import-jobs/{args.job_id}")
+        out.result(payload, f"Tâche {args.job_id} annulée.")
+        return EXIT_OK
+    report = client.request("GET", "/api/diagnostics/import")
+    problems = report.get("problems") or []
+    lines = [f"constat : {problem}" for problem in problems] or ["Aucun problème détecté."]
+    out.result(report, "\n".join(lines))
+    return EXIT_ERROR if problems else EXIT_OK
+
+
+def cmd_display(client: Client, out: Output, args: argparse.Namespace) -> int:
+    if args.display_action == "get":
+        payload = client.request("GET", "/api/settings/display-output")
+    else:
+        if args.channel == "network" and args.output == "radio":
+            raise CliError("la sortie radio n'est disponible que sur le canal câblé", EXIT_USAGE)
+        payload = client.request("PUT", "/api/settings/display-output", body={
+            "channel": args.channel, "output": args.output,
+        })
+    out.result(payload, f"câblé={payload.get('cable')}  réseau={payload.get('network')}")
+    return EXIT_OK
+
+
 def cmd_diagnose(client: Client, out: Output, args: argparse.Namespace) -> int:
     report = client.request("GET", "/api/diagnostics/system")
     colors = {"critical": "red", "warning": "yellow", "info": "dim"}
@@ -154,6 +354,12 @@ def cmd_logs(client: Client, out: Output, args: argparse.Namespace) -> int:
 
 def cmd_playback(client: Client, out: Output, args: argparse.Namespace) -> int:
     prefix = "/api/playback" if args.command == "playback" else "/api/radio"
+    channel = args.target if args.command == "playback" else f"radio_{args.target}"
+    if args.action == "status":
+        payload = client.request("GET", f"{prefix}/state", query={"channel": channel})
+        state = payload.get("state") or payload.get("playing")
+        out.result(payload, f"{args.target} : {state if state is not None else 'inconnu'}")
+        return EXIT_OK
     payload = client.request("POST", f"{prefix}/{args.target}/{args.action}", body=parse_params(args.params))
     state = payload.get("state") or {}
     out.result(payload, f"{args.target} : {state.get('state', 'ok')}")
@@ -314,6 +520,76 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("status", parents=[sub_common], help="santé et lecture en cours").set_defaults(run=cmd_status)
     sub.add_parser("diagnose", parents=[sub_common], help="diagnostic typé (code de sortie 1 si un problème est trouvé)").set_defaults(run=cmd_diagnose)
+
+    library = sub.add_parser("library", parents=[sub_common], help="bibliothèque vidéo")
+    library_sub = library.add_subparsers(dest="library_action", required=True)
+    library_list = library_sub.add_parser("list", parents=[sub_common], help="lister les vidéos")
+    library_list.add_argument("--search")
+    library_list.add_argument("--program")
+    library_list.add_argument("--sort-by", dest="sort_by", choices=("imported_at", "title", "duration"), default="imported_at")
+    library_list.add_argument("--order", choices=("asc", "desc"), default="desc")
+    library_get = library_sub.add_parser("get", parents=[sub_common], help="détail d'une vidéo")
+    library_get.add_argument("video_id", type=int)
+    library.set_defaults(run=cmd_library)
+    playlists = sub.add_parser("playlists", parents=[sub_common], help="playlists vidéo")
+    playlists_sub = playlists.add_subparsers(dest="playlists_action", required=True)
+    playlists_sub.add_parser("list", parents=[sub_common], help="lister les playlists")
+    playlists_get = playlists_sub.add_parser("get", parents=[sub_common], help="détail d'une playlist")
+    playlists_get.add_argument("playlist_id", type=int)
+    playlists.set_defaults(run=cmd_playlists)
+    schedule = sub.add_parser("schedule", parents=[sub_common], help="planning de diffusion")
+    schedule_sub = schedule.add_subparsers(dest="schedule_action", required=True)
+    channels = ("cable", "network", "radio_cable", "radio_network")
+    schedule_list = schedule_sub.add_parser("list", parents=[sub_common], help="lister les programmations")
+    schedule_list.add_argument("--channel", choices=channels)
+    schedule_next = schedule_sub.add_parser("next", parents=[sub_common], help="prochaine occurrence")
+    schedule_next.add_argument("--channel", choices=channels)
+    schedule_get = schedule_sub.add_parser("get", parents=[sub_common], help="détail d'une programmation")
+    schedule_get.add_argument("schedule_id", type=int)
+    schedule.set_defaults(run=cmd_schedule)
+    devices = sub.add_parser("devices", parents=[sub_common], help="périphériques de la machine")
+    devices_sub = devices.add_subparsers(dest="devices_action", required=True)
+    for name, help_text in (
+        ("status", "état du pilote"), ("audio", "sorties audio"), ("bluetooth", "Bluetooth"),
+        ("wifi", "Wi-Fi"), ("topology", "carte des périphériques"),
+    ):
+        devices_sub.add_parser(name, parents=[sub_common], help=help_text)
+    devices.set_defaults(run=cmd_devices)
+    storage = sub.add_parser("storage", parents=[sub_common], help="stockage externe")
+    storage_sub = storage.add_subparsers(dest="storage_action", required=True)
+    for name, help_text in (
+        ("status", "état du service de stockage"), ("volumes", "supports amovibles"), ("portable", "téléphones"),
+    ):
+        storage_sub.add_parser(name, parents=[sub_common], help=help_text)
+    storage_browse = storage_sub.add_parser("browse", parents=[sub_common], help="parcourir un support")
+    storage_browse.add_argument("key")
+    storage_browse.add_argument("--path", default="")
+    storage_browse.add_argument("--limit", type=int, default=200)
+    storage.set_defaults(run=cmd_storage)
+    metrics = sub.add_parser("metrics", parents=[sub_common], help="métriques et télémétrie")
+    metrics_sub = metrics.add_subparsers(dest="metrics_action", required=True)
+    metrics_dashboard = metrics_sub.add_parser("dashboard", parents=[sub_common], help="tableau de bord")
+    metrics_dashboard.add_argument("--period", choices=("7d", "30d", "this_month", "all"), default="30d")
+    metrics_dashboard.add_argument("--channel", choices=("all", "cable", "network"), default="all")
+    metrics_sub.add_parser("system", parents=[sub_common], help="télémétrie matérielle courante")
+    metrics_history = metrics_sub.add_parser("history", parents=[sub_common], help="historique d'une métrique")
+    metrics_history.add_argument("--metric", default="cpu")
+    metrics_history.add_argument("--period", choices=("1h", "6h", "24h", "7d", "30d", "this_month", "all"), default="1h")
+    metrics.set_defaults(run=cmd_metrics)
+    imports = sub.add_parser("imports", parents=[sub_common], help="file d'import et chaîne d'import")
+    imports_sub = imports.add_subparsers(dest="imports_action", required=True)
+    imports_sub.add_parser("list", parents=[sub_common], help="tâches d'import en cours et récentes")
+    imports_cancel = imports_sub.add_parser("cancel", parents=[sub_common], help="annuler une tâche")
+    imports_cancel.add_argument("job_id")
+    imports_sub.add_parser("diagnose", parents=[sub_common], help="diagnostic de la chaîne d'import")
+    imports.set_defaults(run=cmd_imports)
+    display = sub.add_parser("display", parents=[sub_common], help="sortie affichée par canal")
+    display_sub = display.add_subparsers(dest="display_action", required=True)
+    display_sub.add_parser("get", parents=[sub_common], help="lire les sorties câblé et réseau")
+    display_set = display_sub.add_parser("set", parents=[sub_common], help="basculer un canal")
+    display_set.add_argument("channel", choices=("cable", "network"))
+    display_set.add_argument("output", choices=("kiosk", "cinema", "radio"))
+    display.set_defaults(run=cmd_display)
 
     logs = sub.add_parser("logs", parents=[sub_common], help="journaux")
     logs.add_argument("--source", choices=("technical", "activity"), default="technical")
