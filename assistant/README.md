@@ -65,7 +65,8 @@ Le même exécutable se pilote sans fenêtre : tout ce que fait l'interface pass
 ```bash
 bobine-assistant scan [--subnet 192.168.2.0/24]
 bobine-assistant host-key --host bobine.local
-bobine-assistant inspect --host bobine.local --user admin [--key ~/.ssh/id_ed25519] [--trust-host-key SHA256:…]
+bobine-assistant inspect --host bobine.local --user admin \
+  [--key ~/.ssh/id_ed25519] [--trust-host-key SHA256:…]
 bobine-assistant install --host bobine.local --user admin --channel stable --yes
 bobine-assistant update check
 bobine-assistant update apply --yes
