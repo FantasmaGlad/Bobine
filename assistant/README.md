@@ -49,7 +49,7 @@ python3 scripts/bundle.py --channel stable --out dist
 `scripts/bundle.py` prend la version dans `VERSION` et les icônes dans `src-tauri/icons/<canal>/`, épingle la CLI
 Tauri et range les paquets sous des noms stables : `bobine-assistant_<version>_amd64.deb` et
 `bobine-assistant-<version>.x86_64.rpm` sous Linux, `Bobine-Assistant-Setup-<version>.exe` (NSIS) sous Windows,
-`Bobine-Assistant-<version>-arm64.dmg` sous macOS. La CI les construit, les installe et les lance sur les trois
+`Bobine-Assistant-<version>-arm64.dmg` sous macOS ; en ARM64 aussi pour Linux (`_arm64.deb`, `.aarch64.rpm`) et Windows (`-arm64.exe`). La CI les construit, les installe et les lance sur les trois
 systèmes (job `assistant-bundle`).
 
 Le test d'intégration [`core/tests/replay_fixture.rs`](core/tests/replay_fixture.rs)

@@ -417,8 +417,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-24.04, label: Linux x64 }
+          - { os: ubuntu-24.04, label: Linux x64, deb: amd64, rpm: x86_64 }
+          - { os: ubuntu-24.04-arm, label: Linux arm64, deb: arm64, rpm: aarch64 }
           - { os: windows-latest, label: Windows x64 }
+          - { os: windows-11-arm, label: Windows arm64 }
           - { os: macos-latest, label: macOS arm64 }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -461,7 +463,11 @@ jobs:
           # Hors publication (PR), le canal vaut « none » : icônes de la Stable.
           channel="${{ needs.version.outputs.channel }}"
           # OpenSSL se configure avec le Perl natif de Windows, pas celui de Git Bash (msys), qu'il ne reconnaît pas.
-          if [ "$RUNNER_OS" = Windows ]; then export OPENSSL_SRC_PERL='C:\Strawberry\perl\bin\perl.exe'; fi
+          if [ "$RUNNER_OS" = Windows ]; then
+            # L'image Windows ARM64 n'a pas toujours Strawberry Perl.
+            [ -f /c/Strawberry/perl/bin/perl.exe ] || choco install strawberryperl -y --no-progress
+            export OPENSSL_SRC_PERL='C:\Strawberry\perl\bin\perl.exe'
+          fi
           [ "$channel" = none ] && channel=stable
           python assistant/scripts/bundle.py --channel "$channel" --version "$ASSISTANT_VERSION" --filename-version "${{ needs.version.outputs.filename_version }}" --out dist-assistant
           # Une publication exige les signatures : sans elles, la mise à jour automatique refuserait chaque paquet.
@@ -471,14 +477,14 @@ jobs:
       - name: Installer et lancer (Linux)
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get $APT_OPTIONS install -y ./dist-assistant/bobine-assistant_*_amd64.deb
+          sudo apt-get $APT_OPTIONS install -y ./dist-assistant/bobine-assistant_*_${{ matrix.deb }}.deb
           test -x /usr/bin/bobine-assistant
           test -f /usr/share/icons/hicolor/128x128/apps/bobine-assistant.png
           # Ligne de commande : même exécutable, sans fenêtre.
           bobine-assistant --json version | grep -q '"version"'
           set +e; bobine-assistant install --host 203.0.113.10 --user essai; rc=$?; set -e
           [ "$rc" -eq 2 ] || { echo "install sans --yes : code $rc, 2 attendu" >&2; exit 1; }
-          rpm -qip dist-assistant/bobine-assistant-*.x86_64.rpm
+          rpm -qip dist-assistant/bobine-assistant-*.${{ matrix.rpm }}.rpm
           # Toujours vivant au bout de 10 s : timeout le tue (124), un plantage au démarrage rend un autre code.
           set +e; xvfb-run -a timeout 10 bobine-assistant; rc=$?; set -e
           [ "$rc" -eq 124 ] || { echo "l'assistant s'est arrêté au démarrage (code $rc)" >&2; exit 1; }
@@ -490,7 +496,7 @@ jobs:
           # `rpm -qip` ne valide ni les dépendances ni les scripts : le rpm est pourtant ce que l'updater installe sur
           # Fedora. L'installer dans l'image Fedora, comme le job linux-rpm-aarch64 le fait pour Bobine.
           . scripts/ci/container-images.sh
-          rpm_file=$(basename "$(ls dist-assistant/bobine-assistant-*.x86_64.rpm)")
+          rpm_file=$(basename "$(ls dist-assistant/bobine-assistant-*.${{ matrix.rpm }}.rpm)")
           docker run --rm -v "$PWD/dist-assistant:/pkg:ro" "$FEDORA_IMAGE" \
             bash -c 'dnf -y -q install "/pkg/$1" && test -x /usr/bin/bobine-assistant && rpm -q bobine-assistant' -- "$rpm_file"
       - name: Installer, lancer et désinstaller (Windows)
@@ -530,7 +536,7 @@ jobs:
           kill "$pid"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: assistant-packages-${{ runner.os }}
+          name: assistant-packages-${{ runner.os }}-${{ runner.arch }}
           path: dist-assistant/
           if-no-files-found: error
 

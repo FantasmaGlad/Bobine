@@ -18,15 +18,18 @@ REPOSITORY = "FantasmaGlad/Bobine"
 # Clé du greffon -> motif du paquet publié (cf. assistant/scripts/bundle.py).
 PLATFORMS = {
     "windows-x86_64": "Bobine-Assistant-Setup-{s}.exe",
+    "windows-aarch64": "Bobine-Assistant-Setup-{s}-arm64.exe",
     "darwin-aarch64": "Bobine-Assistant-{s}-arm64.app.tar.gz",
     "linux-x86_64-deb": "bobine-assistant_{s}_amd64.deb",
     "linux-x86_64-rpm": "bobine-assistant-{s}.x86_64.rpm",
+    "linux-aarch64-deb": "bobine-assistant_{s}_arm64.deb",
+    "linux-aarch64-rpm": "bobine-assistant-{s}.aarch64.rpm",
 }
 
 
 def suffix_of(directory: Path) -> str:
     """Suffixe des noms de fichiers (5.1.1, beta ou canary), lu sur l'installeur Windows."""
-    found = sorted(directory.glob("Bobine-Assistant-Setup-*.exe"))
+    found = sorted(p for p in directory.glob("Bobine-Assistant-Setup-*.exe") if not p.name.endswith("-arm64.exe"))
     if len(found) != 1:
         raise SystemExit(f"installeur Windows de l'assistant introuvable ou multiple dans {directory}")
     return found[0].name.removeprefix("Bobine-Assistant-Setup-").removesuffix(".exe")
