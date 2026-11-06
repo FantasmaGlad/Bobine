@@ -517,8 +517,10 @@ def test_export_writes_temporarily_then_returns_to_read_only_and_counts_bytes(en
     exported = env.driver.disk_dir(vol.key) / "Sauvegarde" / "Bobine" / "__stk_Export.mp4"
     assert exported.exists() and _sha(exported) == _sha(local) and local.exists()
     assert not list((env.driver.disk_dir(vol.key) / "Sauvegarde" / "Bobine").glob(".bobine-*"))  # pas de temporaire oublié
+    # Le volume cesse d'être « occupé » avant son remontage (le démontage refuse un volume occupé) : attendre le
+    # retour en lecture seule lui-même, pas la fin de l'état occupé.
     deadline = time.time() + 10
-    while time.time() < deadline and vol_view(env, vol.key)["state"] == "busy":
+    while time.time() < deadline and vol_view(env, vol.key)["mounted_read_only"] is not True:
         time.sleep(0.2)
     view = vol_view(env, vol.key)
     assert view["mounted_read_only"] is True  # retour automatique en lecture seule

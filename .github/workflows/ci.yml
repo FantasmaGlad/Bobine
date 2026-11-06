@@ -403,6 +403,111 @@ jobs:
           name: bobine-assistant-linux-arm64
           path: assistant/target/release/bobine-assistant-arm64
 
+  # Paquets de l'assistant d'installation (L8) : construits avec l'icône du canal, installés puis lancés sur chaque
+  # système. Publication dans les releases : lot suivant.
+  assistant-bundle:
+    name: Assistant packages (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    needs: [version]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, label: Linux x64 }
+          - { os: windows-latest, label: Windows x64 }
+          - { os: macos-latest, label: macOS arm64 }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Installer la toolchain Rust
+        shell: bash
+        run: rustup toolchain install
+      - name: Cache cargo
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            assistant/target
+          key: cargo-bundle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml', 'assistant/**/Cargo.toml', 'assistant/Cargo.lock') }}
+      - name: Dépendances système (WebKitGTK)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get $APT_OPTIONS update
+          sudo apt-get $APT_OPTIONS install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm xvfb
+      - name: Identifiants de build (VERSION + COMMIT)
+        shell: bash
+        run: |
+          echo "${{ needs.version.outputs.commit_short }}" > COMMIT
+          if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
+            echo "${{ needs.version.outputs.display_version }}" > VERSION
+          fi
+      - name: Construire les paquets
+        shell: bash
+        run: |
+          # Hors publication (PR), le canal vaut « none » : icônes de la Stable.
+          channel="${{ needs.version.outputs.channel }}"
+          # OpenSSL se configure avec le Perl natif de Windows, pas celui de Git Bash (msys), qu'il ne reconnaît pas.
+          if [ "$RUNNER_OS" = Windows ]; then export OPENSSL_SRC_PERL='C:\Strawberry\perl\bin\perl.exe'; fi
+          [ "$channel" = none ] && channel=stable
+          python assistant/scripts/bundle.py --channel "$channel" --filename-version "${{ needs.version.outputs.filename_version }}" --out dist-assistant
+      - name: Installer et lancer (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get $APT_OPTIONS install -y ./dist-assistant/bobine-assistant_*_amd64.deb
+          test -x /usr/bin/bobine-assistant
+          test -f /usr/share/icons/hicolor/128x128/apps/bobine-assistant.png
+          rpm -qip dist-assistant/bobine-assistant-*.x86_64.rpm
+          # Toujours vivant au bout de 10 s : timeout le tue (124), un plantage au démarrage rend un autre code.
+          set +e; xvfb-run -a timeout 10 bobine-assistant; rc=$?; set -e
+          [ "$rc" -eq 124 ] || { echo "l'assistant s'est arrêté au démarrage (code $rc)" >&2; exit 1; }
+          sudo apt-get $APT_OPTIONS remove -y bobine-assistant
+          test ! -e /usr/bin/bobine-assistant
+      - name: Installer, lancer et désinstaller (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist-assistant -Filter 'Bobine-Assistant-Setup-*.exe' | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/S' -Wait
+          $dir = Join-Path $env:LOCALAPPDATA 'Bobine Assistant'
+          $exe = Get-ChildItem $dir -Filter '*.exe' | Where-Object { $_.Name -notlike 'uninstall*' } | Select-Object -First 1
+          if (-not $exe) { throw "exécutable absent de $dir" }
+          $app = Start-Process $exe.FullName -PassThru
+          Start-Sleep -Seconds 10
+          if ($app.HasExited) { throw "l'assistant s'est arrêté au démarrage (code $($app.ExitCode))" }
+          Stop-Process -Id $app.Id -Force
+          Start-Sleep -Seconds 2
+          Start-Process (Join-Path $dir 'uninstall.exe') -ArgumentList '/S' -Wait
+          Start-Sleep -Seconds 5
+          if (Test-Path $exe.FullName) { throw "désinstallation incomplète : $($exe.FullName)" }
+      - name: Monter et lancer (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          dmg=$(ls dist-assistant/Bobine-Assistant-*.dmg)
+          hdiutil attach "$dmg" -readonly -nobrowse -noautoopen -mountpoint "$RUNNER_TEMP/assistant-dmg"
+          ditto "$RUNNER_TEMP/assistant-dmg/Bobine Assistant.app" "$RUNNER_TEMP/Bobine Assistant.app"
+          hdiutil detach "$RUNNER_TEMP/assistant-dmg"
+          codesign --verify --deep --strict "$RUNNER_TEMP/Bobine Assistant.app"
+          test -f "$RUNNER_TEMP/Bobine Assistant.app/Contents/Resources/icon.icns"
+          binary=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$RUNNER_TEMP/Bobine Assistant.app/Contents/Info.plist")
+          "$RUNNER_TEMP/Bobine Assistant.app/Contents/MacOS/$binary" & pid=$!
+          sleep 10
+          kill -0 "$pid" || { echo "l'assistant s'est arrêté au démarrage" >&2; exit 1; }
+          kill "$pid"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: assistant-packages-${{ runner.os }}
+          path: dist-assistant/
+          if-no-files-found: error
+
   devices-sidecar:
     # Sidecar Rust de l'onglet Périphériques (Windows/macOS) : protocole JSON-RPC, liste blanche de
     # méthodes, analyseurs des sorties d'outils. Les binaires Windows/macOS sont construits et
