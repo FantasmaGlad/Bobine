@@ -15,9 +15,16 @@ bobine-installer-core = { path = "../core" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
-ssh2 = "0.9"
 if-addrs = "0.15"
 dns-lookup = "4"
+
+# libssh2 a besoin d'OpenSSL : celui du système sous Linux, compilé avec l'assistant sous Windows et macOS, qui n'en
+# fournissent pas d'utilisable.
+[target.'cfg(target_os = "linux")'.dependencies]
+ssh2 = "0.9"
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+ssh2 = { version = "0.9", features = ["vendored-openssl"] }
 
 [features]
 default = []

@@ -41,7 +41,16 @@ cargo test --workspace
 
 # 3. Lancer en mode développement Tauri
 npx @tauri-apps/cli dev
+
+# 4. Construire les paquets du système courant, avec l'icône d'un canal
+python3 scripts/bundle.py --channel stable --out dist
 ```
+
+`scripts/bundle.py` prend la version dans `VERSION` et les icônes dans `src-tauri/icons/<canal>/`, épingle la CLI
+Tauri et range les paquets sous des noms stables : `bobine-assistant_<version>_amd64.deb` et
+`bobine-assistant-<version>.x86_64.rpm` sous Linux, `Bobine-Assistant-Setup-<version>.exe` (NSIS) sous Windows,
+`Bobine-Assistant-<version>-arm64.dmg` sous macOS. La CI les construit, les installe et les lance sur les trois
+systèmes (job `assistant-bundle`).
 
 Le test d'intégration [`core/tests/replay_fixture.rs`](core/tests/replay_fixture.rs)
 rejoue un flux `--progress=json` **réel** capturé depuis `install.sh`
@@ -115,6 +124,6 @@ Aucun mot de passe ni contenu de clé n'est jamais journalisé.
 ## Compatibilité Linux, Windows & macOS
 
 L'Assistant d'installation est conçu pour s'exécuter directement depuis le poste de l'administrateur, quel que soit son système d'exploitation :
-- **Linux** : binaire natif GTK3/WebKitGTK, exécutable autonome ou paquet `.deb` via `assistant/build_linux.sh`.
-- **Windows** : exécutable `.exe` / installateur `.msi` via `npx @tauri-apps/cli build`.
-- **macOS** : bundle `.app` / image disque `.dmg` via `npx @tauri-apps/cli build`.
+- **Linux** : binaire natif GTK3/WebKitGTK, exécutable autonome (`build_linux.sh`) ou paquets `.deb` et `.rpm`.
+- **Windows** : installateur NSIS, par utilisateur, sans droits d'administrateur ; OpenSSL compilé avec l'assistant.
+- **macOS** (Apple Silicon) : `Bobine Assistant.app` dans une image `.dmg`, signature ad hoc ; OpenSSL compilé avec l'assistant.
