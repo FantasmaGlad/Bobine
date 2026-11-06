@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: FantasmaGlad/BobineWeb
-          ref: 726451fea1cee0c58292e365a07e46fcee594cef
+          ref: 9051a451b39639c875fa5cc84897e79f7639d278
           path: package-verification
       - name: Installer les outils de dépôt
         run: sudo apt-get $APT_OPTIONS update && sudo apt-get $APT_OPTIONS install -y reprepro gnupg

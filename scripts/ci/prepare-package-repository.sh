@@ -5,6 +5,10 @@ set -euo pipefail
 export LC_ALL=C
 family="${1:?deb, rpm ou arch}"; channel="${2:?canal (stable, beta, canary...)}"
 packages=$(realpath "${3:?paquets signés}"); destination=$(realpath "${4:?copie du dépôt Pages}")
+# 5e argument facultatif : paquets de l'assistant d'installation (bobine-assistant, .deb et .rpm), publiés à côté de
+# bobine dans le même canal ; absent, le dépôt garde la version de l'assistant déjà publiée.
+assistant=""
+[ -n "${5:-}" ] && assistant=$(realpath "$5")
 case "$family" in deb|rpm|arch) ;; *) exit 2 ;; esac
 . "$(dirname "$0")/container-images.sh"
 # Canaux valides : le registre unique (backend/app/release_channel.py), pas une liste recopiée ici.
@@ -53,8 +57,8 @@ EOF
     fi
     # Les dépôts existants reçoivent la même durée que les nouvelles installations (apt-validity.py : un an, 30 jours pour la Canary).
     python3 "$(dirname "$0")/apt-validity.py" apply "$debian_dir/conf/distributions"
-    mapfile -d '' deb_amd64_matches < <(find "$packages" -type f -name "*_amd64.deb" -print0)
-    mapfile -d '' deb_arm64_matches < <(find "$packages" -type f -name "*_arm64.deb" -print0)
+    mapfile -d '' deb_amd64_matches < <(find "$packages" -type f -name "bobine_*_amd64.deb" -print0)
+    mapfile -d '' deb_arm64_matches < <(find "$packages" -type f -name "bobine_*_arm64.deb" -print0)
     [ "${#deb_amd64_matches[@]}" = 1 ] && [ "${#deb_arm64_matches[@]}" = 1 ] || { echo "Deux paquets deb (amd64 et arm64) attendus." >&2; exit 1; }
     deb_amd64="${deb_amd64_matches[0]}"
     deb_arm64="${deb_arm64_matches[0]}"
@@ -69,6 +73,15 @@ EOF
         fi
         reprepro -b "$debian_dir" includedeb stable "$deb_amd64"
         reprepro -b "$debian_dir" includedeb stable "$deb_arm64"
+    fi
+    if [ -n "$assistant" ]; then
+        mapfile -d '' assistant_debs < <(find "$assistant" -type f -name "bobine-assistant_*.deb" -print0)
+        [ "${#assistant_debs[@]}" = 2 ] || { echo "Deux paquets deb de l'assistant (amd64 et arm64) attendus." >&2; exit 1; }
+        # Une même version republiée (relance) remplace la précédente ; une nouvelle version la remplace aussi.
+        reprepro -b "$debian_dir" remove "$channel" bobine-assistant || true
+        for deb in "${assistant_debs[@]}"; do
+            reprepro -b "$debian_dir" includedeb "$channel" "$deb"
+        done
     fi
     cat "$debian_dir"/dists/*/main/binary-*/Packages | sed -n 's/^Filename: //p' | sort -u > "$debian_dir/.referenced.txt"
     if [ -s "$debian_dir/.referenced.txt" ]; then
@@ -95,9 +108,21 @@ for arch in x86_64 aarch64; do
     target="$destination/$sub_dir/$channel/$arch"
     # Aucun chemin de nettoyage ne vient du contenu d'un paquet.
     [ ! -L "$destination/$sub_dir" ] && [ ! -L "$destination/$sub_dir/$channel" ] && [ ! -L "$target" ] || exit 2
-    mapfile -d '' matches < <(find "$packages" -type f -name "*$suffix" -print0)
+    mapfile -d '' matches < <(find "$packages" -type f -name "bobine-*$suffix" ! -name "bobine-assistant-*" -print0)
     [ "${#matches[@]}" = 1 ] || { echo "Un paquet $family/$arch attendu." >&2; exit 1; }
     package="${matches[0]}"
+    extra=()
+    if [ -n "$assistant" ] && [ "$family" = rpm ]; then
+        mapfile -d '' extra < <(find "$assistant" -type f -name "bobine-assistant-*$suffix" -print0)
+        [ "${#extra[@]}" = 1 ] || { echo "Un paquet rpm/$arch de l'assistant attendu." >&2; exit 1; }
+    elif [ "$family" = rpm ] && [ -d "$target" ]; then
+        # Sans nouveaux paquets de l'assistant, garder celui déjà publié dans ce canal.
+        mapfile -d '' extra < <(find "$target" -maxdepth 1 -type f -name "bobine-assistant-*$suffix" -print0)
+        if [ "${#extra[@]}" -gt 0 ]; then
+            keep=$(mktemp -d); cp "${extra[@]}" "$keep/"
+            mapfile -d '' extra < <(find "$keep" -type f -print0)
+        fi
+    fi
     if [ "$family" = rpm ]; then
         verification=$(rpmkeys --checksig "$package")
         echo "$verification"
@@ -108,6 +133,12 @@ for arch in x86_64 aarch64; do
     rm -rf "$target"
     mkdir -p "$target"
     cp "$package" "$target/"
+    for rpm_package in "${extra[@]}"; do
+        verification=$(rpmkeys --checksig "$rpm_package")
+        echo "$verification"
+        [[ "$verification" == *"digests signatures OK"* ]] || exit 1
+        cp "$rpm_package" "$target/"
+    done
     if [ "$family" = rpm ]; then
         createrepo_c "$target"
         gpg --batch --yes --local-user "$fingerprint" --armor --detach-sign "$target/repodata/repomd.xml"

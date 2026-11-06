@@ -459,9 +459,23 @@ jobs:
           # Signature des paquets de mise à jour : absente pour une PR venue d'un fork (aucun secret), alors rien n'est signé.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Clé des dépôts : le .rpm est signé en OpenPGP pour DNF avant sa signature de mise à jour (même fichier dans la
+          # release et dans packages.bobine.fit). Importée dans un GNUPGHOME éphémère, effacé à la fin de l'étape.
+          APT_GPG_PRIVATE_KEY: ${{ runner.os == 'Linux' && secrets.APT_GPG_PRIVATE_KEY || '' }}
+          GNUPGHOME: ${{ runner.temp }}/assistant-signing
         run: |
           # Hors publication (PR), le canal vaut « none » : icônes de la Stable.
           channel="${{ needs.version.outputs.channel }}"
+          gpg_sign=()
+          if [ -n "$APT_GPG_PRIVATE_KEY" ]; then
+            fingerprint=B77D96D72F84F36ACAA3F8729CBF497D829EE15A
+            install -d -m 0700 "$GNUPGHOME"
+            trap 'gpgconf --kill gpg-agent 2>/dev/null || true; rm -rf "$GNUPGHOME"' EXIT
+            printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+            gpg --batch --armor --export "$fingerprint" > "$RUNNER_TEMP/bobine.gpg"
+            rpm --import "$RUNNER_TEMP/bobine.gpg"
+            gpg_sign=(--gpg-sign "$fingerprint")
+          fi
           # OpenSSL se configure avec le Perl natif de Windows, pas celui de Git Bash (msys), qu'il ne reconnaît pas.
           if [ "$RUNNER_OS" = Windows ]; then
             # L'image Windows ARM64 n'a pas toujours Strawberry Perl.
@@ -469,7 +483,7 @@ jobs:
             export OPENSSL_SRC_PERL='C:\Strawberry\perl\bin\perl.exe'
           fi
           [ "$channel" = none ] && channel=stable
-          python assistant/scripts/bundle.py --channel "$channel" --version "$ASSISTANT_VERSION" --filename-version "${{ needs.version.outputs.filename_version }}" --out dist-assistant
+          python assistant/scripts/bundle.py --channel "$channel" --version "$ASSISTANT_VERSION" --filename-version "${{ needs.version.outputs.filename_version }}" --out dist-assistant "${gpg_sign[@]}"
           # Une publication exige les signatures : sans elles, la mise à jour automatique refuserait chaque paquet.
           if [ "${{ needs.version.outputs.channel }}" != none ] && ! ls dist-assistant/*.sig > /dev/null 2>&1; then
             echo "::error::paquets de l'assistant non signés (secret TAURI_SIGNING_PRIVATE_KEY absent ?)"; exit 1
@@ -2077,6 +2091,11 @@ jobs:
           path: assistant-assets
       - name: Manifeste de mise à jour (latest.json)
         run: python3 scripts/ci/render-assistant-latest.py assistant-assets "$TAG" "$ASSISTANT_VERSION"
+      - name: Manifestes winget (Stable)
+        if: needs.version.outputs.channel == 'stable'
+        run: |
+          (cd assistant-assets && sha256sum Bobine-Assistant-Setup-*.exe) > "$RUNNER_TEMP/winget-assistant-SHA256SUMS"
+          python3 scripts/ci/winget-manifests.py "$RUNNER_TEMP/winget-assistant-SHA256SUMS" "$TAG" assistant-assets
       - name: Signer la liste des empreintes (SHA256SUMS)
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
@@ -2159,7 +2178,7 @@ jobs:
 
   publish-linux-packages:
     name: Publier les dépôts Linux (packages.bobine.fit)
-    needs: [version, linux-deb, linux-package-signing, release-stable, release-beta, release-canary]
+    needs: [version, linux-deb, linux-package-signing, release-stable, release-beta, release-canary, assistant-bundle]
     if: |
       always() && !cancelled() && needs.linux-package-signing.result == 'success' &&
       (needs.release-stable.result == 'success' ||
@@ -2183,7 +2202,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: FantasmaGlad/BobineWeb
-          ref: 726451fea1cee0c58292e365a07e46fcee594cef
+          ref: 9051a451b39639c875fa5cc84897e79f7639d278
           path: package-verification
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -2197,6 +2216,14 @@ jobs:
         with:
           name: bobine-linux-deb-arm64
           path: package-assets
+      # Paquets de l'assistant (.deb et .rpm signés, x64 et ARM64), à côté de bobine dans le même canal ; un échec de leur
+      # construction ne bloque pas la publication de Bobine : le dépôt garde alors l'assistant déjà publié.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.assistant-bundle.result == 'success'
+        with:
+          pattern: assistant-packages-Linux-*
+          merge-multiple: true
+          path: assistant-assets
       - name: Installer les outils de dépôt
         run: |
           sudo apt-get $APT_OPTIONS update
@@ -2212,8 +2239,10 @@ jobs:
           install -d -m 0700 "$GNUPGHOME"
           printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
           rpm --import package-assets/bobine.gpg
-          bash scripts/ci/prepare-package-repository.sh deb "$CHANNEL" package-assets package-repo
-          bash scripts/ci/prepare-package-repository.sh rpm "$CHANNEL" package-assets package-repo
+          assistant=""
+          [ -d assistant-assets ] && assistant=assistant-assets
+          bash scripts/ci/prepare-package-repository.sh deb "$CHANNEL" package-assets package-repo $assistant
+          bash scripts/ci/prepare-package-repository.sh rpm "$CHANNEL" package-assets package-repo $assistant
           bash scripts/ci/prepare-package-repository.sh arch "$CHANNEL" package-assets package-repo
       - name: Vérifier toute la chaîne APT, DNF et Pacman avant publication
         run: |

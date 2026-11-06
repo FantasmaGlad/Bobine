@@ -32,6 +32,13 @@ expected=(
     "SHA256SUMS.asc"
 )
 
+# Une Stable joint aussi ses manifestes winget (FantasmaGlad.BobineAssistant), soumis à winget-pkgs par le mainteneur.
+if [[ "$S" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    for manifest in "" .installer .locale.en-US .locale.fr-FR; do
+        expected+=("FantasmaGlad.BobineAssistant${manifest}.yaml")
+    done
+fi
+
 for name in "${expected[@]}"; do
     [[ -s "${DIR}/${name}" ]] || { echo "::error::asset de l'assistant manquant ou vide : ${name}"; ls -l "${DIR}"; exit 1; }
 done
