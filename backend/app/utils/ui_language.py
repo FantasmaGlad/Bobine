@@ -29,9 +29,9 @@ def set_served(language: str | None) -> str:
 
 def build_dir(root: Path, language: str) -> Path:
     """Dossier de l'export de `language` ; à défaut, la racine (export unique d'une version antérieure)."""
-    candidate = root / language
-    if (candidate / "index.html").exists():
-        return candidate
+    for name in (language, *(other for other in LANGUAGES if other != language)):
+        if (root / name / "index.html").exists():
+            return root / name  # export d'une autre langue plutôt qu'une page 404 (construction partielle)
     return root
 
 

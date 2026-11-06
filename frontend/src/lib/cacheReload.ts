@@ -11,7 +11,12 @@
  * bien re-téléchargé). Toute erreur est avalée : le rechargement doit avoir
  * lieu quoi qu'il arrive.
  */
+let reloading = false;
+
 export async function clearCachesAndReload(): Promise<void> {
+  // Plusieurs écouteurs (réglages, lecture, radio) peuvent demander le rechargement au même redémarrage.
+  if (reloading) return;
+  reloading = true;
   try {
     if (typeof window !== "undefined" && "caches" in window) {
       const keys = await caches.keys();

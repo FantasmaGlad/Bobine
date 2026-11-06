@@ -10,6 +10,8 @@ const staging = join(root, "out-build");
 const only = process.argv.slice(2);
 const languages = only.length ? only : ["fr", "en"];
 
+// Jamais d'export d'un ancien build à la racine de out/ : le backend le servirait aux deux langues.
+rmSync(join(root, "out"), { recursive: true, force: true });
 rmSync(staging, { recursive: true, force: true });
 mkdirSync(staging, { recursive: true });
 for (const language of languages) {
@@ -21,6 +23,7 @@ for (const language of languages) {
   });
   if (run.status !== 0) {
     rmSync(staging, { recursive: true, force: true });
+    rmSync(join(root, "out"), { recursive: true, force: true });
     process.exit(run.status ?? 1);
   }
   if (!existsSync(join(root, "out", "index.html"))) {

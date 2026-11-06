@@ -38,3 +38,25 @@ test("mêmes paramètres {{...}} et mêmes longueurs de liste dans les deux lang
     if (Array.isArray(value) && Array.isArray(other)) assert.equal(other.length, value.length, `liste différente : ${key}`);
   }
 });
+
+test("toute clé littérale utilisée par t(\"...\") existe dans le dictionnaire", async () => {
+  const { readdirSync, readFileSync, statSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { lookupPath } = await import("../src/lib/i18n/core.ts");
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name);
+      if (statSync(path).isDirectory()) walk(path);
+      else if (/\.(ts|tsx)$/.test(name) && !path.includes(`${"/"}i18n${"/"}`)) files.push(path);
+    }
+  };
+  walk(join(import.meta.dirname, "..", "src"));
+  const missing: string[] = [];
+  for (const file of files) {
+    for (const match of readFileSync(file, "utf8").matchAll(/\bt(?:List)?\(\s*"([A-Za-z0-9_.]+)"/g)) {
+      if (lookupPath(dictionaries.fr, match[1]) === undefined) missing.push(`${file.split("/src/")[1]} : ${match[1]}`);
+    }
+  }
+  assert.deepEqual(missing, [], "clés utilisées mais absentes de fr.ts");
+});

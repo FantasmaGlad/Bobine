@@ -100,3 +100,35 @@ def test_restart_endpoint_restarts_the_service(client, monkeypatch):
     response = client.post("/api/settings/system/restart")
     assert response.status_code == 200 and response.json() == {"status": "restarting"}
     assert calls == ["restart"]
+
+
+def test_lifespan_serves_the_stored_language():
+    from app.database import SessionLocal
+    from app.models import Setting
+
+    def stored(value):
+        with SessionLocal() as db:
+            db.query(Setting).filter(Setting.key == "language").delete(synchronize_session=False)
+            if value:
+                db.add(Setting(key="language", value=value))
+            db.commit()
+
+    try:
+        for language in ("en", "fr"):
+            stored(language)
+            with TestClient(app):  # un démarrage du service : le lifespan relit la langue enregistrée
+                assert ui_language.served() == language
+    finally:
+        stored(None)
+        ui_language.set_served("fr")
+
+
+def test_partial_build_falls_back_to_the_other_language(tmp_path):
+    _export(tmp_path, "fr", "bonjour")
+    assert ui_language.build_dir(tmp_path, "en") == tmp_path / "fr"
+
+
+def test_restart_endpoint_is_logged(client, monkeypatch):
+    monkeypatch.setattr(get_profile_handler().__class__, "restart_services", lambda self: None)
+    client.post("/api/settings/system/restart")
+    assert any("Redémarrage demandé" in entry.get("message", "") for entry in client.get("/api/logs", params={"source": "activity"}).json().get("entries", []))

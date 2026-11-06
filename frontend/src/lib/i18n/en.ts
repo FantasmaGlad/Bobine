@@ -1897,6 +1897,7 @@ export const dictionary: Dict = {
     rating5: "Excellent",
   },
   metricsPage: {
+    emptyCourses: "No course playback recorded yet.",
     periodLabel: "Period",
     period7d: "Last 7 days",
     period30d: "Last 30 days",

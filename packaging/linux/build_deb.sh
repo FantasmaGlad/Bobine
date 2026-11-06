@@ -54,7 +54,7 @@ else
 fi
 
 echo "=== [2/5] Vérification / Build du frontend Next.js ==="
-if [ ! -d "${REPO_DIR}/frontend/out" ]; then
+if [ ! -f "${REPO_DIR}/frontend/out/fr/index.html" ] || [ ! -f "${REPO_DIR}/frontend/out/en/index.html" ]; then
     echo "Construction du frontend Next.js (export statique)..."
     (cd "${REPO_DIR}/frontend" && npm run build)
 fi

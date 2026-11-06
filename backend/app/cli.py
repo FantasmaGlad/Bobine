@@ -430,8 +430,11 @@ def cmd_settings(client: Client, out: Output, args: argparse.Namespace) -> int:
     changes = parse_params(args.pairs)
     # Les réglages booléens se stockent en texte « true » ou « false » côté serveur.
     body = {k: ("true" if v else "false") if isinstance(v, bool) else v for k, v in changes.items()}
-    client.request("PUT", "/api/settings", body=body)
-    out.result(body, "Réglage(s) enregistré(s) : " + ", ".join(body))
+    saved = client.request("PUT", "/api/settings", body=body)
+    message = "Réglage(s) enregistré(s) : " + ", ".join(body)
+    if isinstance(saved, dict) and saved.get("language_restart_required"):
+        message += "\nLa langue s'applique au prochain redémarrage de Bobine (POST /api/settings/system/restart)."
+    out.result(body, message)
     return EXIT_OK
 
 

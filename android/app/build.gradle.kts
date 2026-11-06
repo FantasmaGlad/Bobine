@@ -239,6 +239,9 @@ val buildFrontend = tasks.register<Exec>("buildFrontendStatic") {
     inputs.dir(workingDir.resolve("src"))
     inputs.file(workingDir.resolve("package.json"))
     inputs.file(workingDir.resolve("next.config.ts"))
+    inputs.file(workingDir.resolve("tsconfig.json"))
+    // Un export par langue (out/fr, out/en) : le script de construction fait partie des entrées.
+    inputs.dir(workingDir.resolve("scripts"))
     outputs.dir(workingDir.resolve("out"))
 }
 

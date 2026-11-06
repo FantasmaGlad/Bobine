@@ -224,6 +224,13 @@ export default function SettingsPage() {
       const res = await fetch(getApiUrl("/settings/system/restart"), { method: "POST" });
       setRestartMessage(t(res.ok ? "settingsPage.languageRestarting" : "settingsPage.languageRestartFailed"));
       if (!res.ok) setRestarting(false);
+      else {
+        // Sans relance observable (poste de développement), la page ne se recharge jamais : on rend la main.
+        window.setTimeout(() => {
+          setRestarting(false);
+          setRestartMessage(t("settingsPage.languageRestartFailed"));
+        }, 30000);
+      }
     } catch {
       setRestartMessage(t("settingsPage.languageRestartFailed"));
       setRestarting(false);
