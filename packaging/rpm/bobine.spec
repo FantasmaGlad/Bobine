@@ -23,7 +23,6 @@ Summary:        Video and audio playout for gyms and fitness studios
 License:        AGPL-3.0-or-later
 URL:            https://bobine.fit
 Source0:        bobine-root.tar
-Source1:        bobine-firewalld.xml
 AutoReqProv:    no
 
 # ffmpeg complet : « ffmpeg » de RPM Fusion, ou « ffmpeg-free » (codecs limités) des
@@ -34,22 +33,19 @@ Requires:       /usr/bin/ffprobe
 # que de planter au lancement (valeur calculée au build, voir build_rpm.sh).
 Requires:       glibc >= %{bobine_glibc}
 Recommends:     avahi
+# Outils de stockage externe facultatifs : le backend signale l'absence de chacun (fonction indisponible) au lieu
+# d'empêcher l'installation ou la mise à jour.
 Recommends:     udisks2
 Recommends:     smartmontools
-Requires:       udisks2
-Requires:       smartmontools
-Requires:       exfatprogs
-Requires:       e2fsprogs
-Requires:       dosfstools
-Requires:       ntfs-3g
-Requires:       polkit
 Recommends:     exfatprogs
-Recommends:     polkit
+Recommends:     e2fsprogs
+Recommends:     dosfstools
+Recommends:     ntfs-3g
+Requires:       polkit
 Recommends:     gvfs
 Recommends:     gvfs-mtp
 Recommends:     gvfs-fuse
 Suggests:       chromium
-Suggests:       firewalld
 
 %description
 Bobine plays planned classes on the studio screen, offers a self-service
@@ -75,7 +71,6 @@ Source code: https://github.com/FantasmaGlad/Bobine
 rm -rf %{buildroot}
 mkdir -p %{buildroot}
 tar -xf %{SOURCE0} -C %{buildroot}
-install -D -m 0644 %{SOURCE1} %{buildroot}%{_prefix}/lib/firewalld/services/bobine.xml
 
 %pre
 # Mise à jour (deux versions installées simultanément) : arrêter Bobine AVANT le
@@ -92,6 +87,7 @@ exit 0
 
 %post
 /usr/lib/bobine/configure-storage-access auto
+/usr/lib/bobine/configure-firewall open || true
 # Raccourci sur le Bureau de l'utilisateur qui a lancé dnf via sudo.
 if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
     USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
@@ -144,7 +140,7 @@ fi
 exit 0
 
 %preun
-if [ "$1" = 0 ]; then /usr/lib/bobine/configure-storage-access remove; fi
+if [ "$1" = 0 ]; then /usr/lib/bobine/configure-storage-access remove; /usr/lib/bobine/configure-firewall close || true; fi
 # Désinstallation complète uniquement ($1 = 0) : arrêt des processus Bobine.
 if [ "$1" -eq 0 ]; then
     pkill -x BobineTray >/dev/null 2>&1 || true
@@ -180,6 +176,7 @@ exit 0
 /usr/share/pixmaps/bobine.png
 /usr/share/pixmaps/com.bobine.app.png
 /usr/lib/firewalld/services/bobine.xml
+%config(noreplace) /etc/ufw/applications.d/bobine
 
 %changelog
 * Fri Oct 23 2026 FantasmaGlad <193235053+FantasmaGlad@users.noreply.github.com> - %{bobine_version}-%{bobine_release}

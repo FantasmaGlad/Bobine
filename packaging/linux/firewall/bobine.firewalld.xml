@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<service>
+  <short>Bobine</short>
+  <description>Interface web et télécommande de Bobine sur le réseau local : port 1903, repli 1904 à 1913, redirection du port 80 vers le port réel. Le paquet l'ouvre aux réseaux privés et VPN (règles riches posées par /usr/lib/bobine/configure-firewall), jamais à Internet.</description>
+  <port protocol="tcp" port="1903-1913"/>
+  <port protocol="tcp" port="80"/>
+</service>

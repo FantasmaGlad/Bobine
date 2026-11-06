@@ -1,15 +1,19 @@
 #!/bin/sh
 set -e
 
+if [ "$1" = "remove" ]; then
+    /usr/lib/bobine/configure-firewall close || true
+fi
+
 if [ "$1" = "remove" ] || [ "$1" = "upgrade" ] || [ "$1" = "deconfigure" ]; then
-    # Mise à jour déclenchée par Bobine lui-même (pkexec dpkg -i lancé
+    # Mise à jour déclenchée par Bobine lui-même (pkexec apt-get install lancé
     # depuis LinuxDesktopHandler.apply_update()) : le process qui exécute
     # CETTE commande dpkg EST BobineBackend, qui va se redémarrer
     # proprement lui-même une fois dpkg terminé (cf. restart_services()) —
     # le tuer ici l'interromprait en plein milieu de sa propre mise à
     # jour, avant même qu'il ait pu se redémarrer (cause racine confirmée
     # de l'instabilité observée du redémarrage automatique). Sentinelle
-    # posée par apply_update() juste avant `pkexec dpkg -i`, retirée juste
+    # posée par apply_update() juste avant `pkexec apt-get install`, retirée juste
     # après — absente pour un `apt upgrade`/`dpkg -i` lancé en dehors de
     # l'application, où le kill préventif ci-dessous reste nécessaire.
     if [ -f /tmp/bobine-self-update-in-progress ]; then

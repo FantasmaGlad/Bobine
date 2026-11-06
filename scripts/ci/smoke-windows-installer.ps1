@@ -100,6 +100,15 @@ switch ($Action) {
             }
         }
         if (-not (Test-FirewallRule)) { $problems.Add('règle de pare-feu "Bobine" absente') }
+        # Une seule règle (pas de copie à chaque mise à jour), limitée aux réseaux locaux : jamais « Any ».
+        $rules = @(Get-NetFirewallRule -DisplayName 'Bobine' -ErrorAction SilentlyContinue)
+        if ($rules.Count -ne 1) { $problems.Add("$($rules.Count) règles de pare-feu « Bobine », 1 attendue") }
+        foreach ($rule in $rules) {
+            $remote = @(($rule | Get-NetFirewallAddressFilter).RemoteAddress)
+            if ($remote -contains 'Any' -or -not ($remote -contains 'LocalSubnet')) {
+                $problems.Add("règle de pare-feu ouverte au-delà du réseau local : $($remote -join ', ')")
+            }
+        }
         if (-not (Test-Path -LiteralPath $startupShortcut)) { $problems.Add("raccourci de démarrage absent : $startupShortcut") }
         if (-not (Test-MachinePath $installRoot)) { $problems.Add("$installRoot absent du PATH système (commande bobine)") }
         $cli = Join-Path $installRoot 'bobine.exe'

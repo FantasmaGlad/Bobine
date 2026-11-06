@@ -225,6 +225,13 @@ class LinuxDesktopHandler(ProfileHandler):
                     run_checked(["pkexec", "dnf", "install", "-y", str(pkg_file)], timeout=180)
                 else:
                     run_checked(["pkexec", "rpm", "-Uvh", "--replacepkgs", str(pkg_file)], timeout=180)
+            elif shutil.which("apt-get"):
+                # apt-get installe aussi les dépendances que la nouvelle version ajoute, et répare un paquet laissé
+                # « non configuré » par une tentative précédente : `dpkg -i` échouait sur toute dépendance absente
+                # (smartmontools, par exemple). `--allow-downgrades` garde le comportement de dpkg pour un retour
+                # de canal.
+                run_checked(["pkexec", "env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y",
+                             "--allow-downgrades", str(pkg_file)], timeout=900)
             else:
                 run_checked(["pkexec", "dpkg", "-i", str(pkg_file)], timeout=180)
         except Exception as e:

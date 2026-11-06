@@ -846,6 +846,10 @@ if $DO_UNINSTALL; then
     run rm -f /usr/local/bin/bobine
     run rm -f /etc/polkit-1/rules.d/49-bobine-storage.rules
     run rm -f /usr/local/sbin/bobine-uninstall
+    if [ -f "${REPO_DIR}/packaging/linux/firewall/configure-firewall" ]; then
+        run sh "${REPO_DIR}/packaging/linux/firewall/configure-firewall" close || true
+    fi
+    run rm -f /etc/ufw/applications.d/bobine /usr/lib/firewalld/services/bobine.xml
     if command -v nft >/dev/null 2>&1; then
         run nft delete table ip olmc_redirect 2>/dev/null || true
     fi
@@ -1919,6 +1923,15 @@ ExecStop=/usr/sbin/nft delete table ip olmc_redirect
 WantedBy=multi-user.target
 EOF
 ok "redirection du port 80 configurée"
+
+# Pare-feu : si ufw ou firewalld est présent, accès ouvert aux réseaux locaux et VPN seulement (mêmes profil, service
+# et script que les paquets Linux). Sans pare-feu installé (Debian minimale), rien à faire.
+if command -v ufw >/dev/null 2>&1 || command -v firewall-cmd >/dev/null 2>&1; then
+    run install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.ufw" /etc/ufw/applications.d/bobine
+    run install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.firewalld.xml" /usr/lib/firewalld/services/bobine.xml
+    run sh "${REPO_DIR}/packaging/linux/firewall/configure-firewall" open
+    ok "pare-feu ouvert aux réseaux locaux (ufw ou firewalld)"
+fi
 step_done
 
 # ---------------------------------------------------------------------------

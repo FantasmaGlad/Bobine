@@ -63,8 +63,9 @@ _bobine_relaunch() {
 
 post_install() {
     /usr/lib/bobine/configure-storage-access auto
+    /usr/lib/bobine/configure-firewall open || true
     _bobine_shortcuts
-    echo ">> Bobine : interface web sur http://localhost:1903 par défaut (le port n'est PAS ouvert dans le pare-feu automatiquement ; si 1903 est occupé, Bobine prend un port de repli indiqué dans son journal)."
+    echo ">> Bobine : interface web sur http://localhost:1903. Avec ufw, le profil « Bobine » est ouvert aux réseaux locaux ; avec un autre pare-feu, ouvrir 1903/tcp (repli 1904 à 1913) pour le réseau local."
 }
 
 pre_upgrade() {
@@ -73,12 +74,14 @@ pre_upgrade() {
 
 post_upgrade() {
     /usr/lib/bobine/configure-storage-access auto
+    /usr/lib/bobine/configure-firewall open || true
     _bobine_shortcuts
     _bobine_relaunch
 }
 
 pre_remove() {
     /usr/lib/bobine/configure-storage-access remove
+    /usr/lib/bobine/configure-firewall close || true
     pkill -x BobineTray >/dev/null 2>&1 || true
     pkill -x BobineBackend >/dev/null 2>&1 || true
 }
