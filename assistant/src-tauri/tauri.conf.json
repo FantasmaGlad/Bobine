@@ -27,7 +27,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["deb", "appimage"],
+    "targets": [
+      "deb",
+      "appimage"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -42,9 +45,20 @@
     "longDescription": "Assistant graphique permettant de découvrir, configurer et déployer les bornes Bobine en SSH.",
     "linux": {
       "deb": {
-        "depends": ["libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37"],
+        "depends": [
+          "libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37"
+        ],
         "section": "utils"
       }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBQjNEMjc2ODdFN0Q4RDIKUldUUzJPZUhkdEt6K3RxWDlSTXVGQ2dBQy9HU0lQYnZlZDBnNk1tdVNnTkNDdEE0ekdtSUt3cTUK",
+      "endpoints": [
+        "https://github.com/FantasmaGlad/Bobine/releases/download/assistant-stable/latest.json"
+      ],
+      "requireSignedVersion": true
     }
   }
 }

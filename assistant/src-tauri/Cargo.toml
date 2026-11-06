@@ -17,6 +17,7 @@ serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 if-addrs = "0.15"
 dns-lookup = "4"
+tauri-plugin-updater = "2"
 
 # libssh2 a besoin d'OpenSSL : celui du système sous Linux, compilé avec l'assistant sous Windows et macOS, qui n'en
 # fournissent pas d'utilisable.

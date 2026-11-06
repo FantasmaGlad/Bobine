@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Publie ou met à jour la release d'un canal glissant (canary, beta) EN PLACE : la release n'est jamais supprimée, donc plus de
 # 404 de 30 à 60 secondes à chaque publication, et un échec ne laisse plus le canal sans release. Les assets du même nom sont
-# remplacés (--clobber), les assets qui ne font plus partie du lot sont retirés, puis titre et notes sont mis à jour. SHA256SUMS et
-# sa signature sont envoyés en dernier. Seul le remplacement d'un asset donné est indisponible, le temps de son envoi.
+# remplacés (--clobber), les assets qui ne font plus partie du lot sont retirés, puis titre et notes sont mis à jour. La liste
+# des empreintes est envoyée après les paquets, et le manifeste de mise à jour `latest.json` en dernier : il ne doit pas annoncer
+# des signatures pendant que les paquets qu'elles couvrent sont encore en cours de remplacement. Seul le remplacement d'un
+# asset donné est indisponible, le temps de son envoi.
 # Usage : publish-rolling-release.sh <tag> <dossier des assets> <titre> <fichier de notes> [commit cible]
 # RELEASE_KIND=stable-secondaire : release Stable d'un produit annexe (l'assistant, tag assistant-Vx.y.z), publiée sans
 # marque de préversion mais jamais « Latest », que lisent le site, install.ps1, le cask et winget pour Bobine.
@@ -21,9 +23,14 @@ shopt -s nullglob
 assets=("$dir"/*)
 [ "${#assets[@]}" -gt 0 ] || { echo "Aucun asset à publier." >&2; exit 2; }
 checksums=()
+manifest=()
 others=()
 for asset in "${assets[@]}"; do
-    case "$(basename "$asset")" in SHA256SUMS|SHA256SUMS.asc) checksums+=("$asset") ;; *) others+=("$asset") ;; esac
+    case "$(basename "$asset")" in
+        SHA256SUMS|SHA256SUMS.asc) checksums+=("$asset") ;;
+        latest.json) manifest+=("$asset") ;;
+        *) others+=("$asset") ;;
+    esac
 done
 
 if ! lookup=$(gh release view "$tag" --json assets --jq '.assets[].name' 2>&1); then
@@ -32,13 +39,16 @@ if ! lookup=$(gh release view "$tag" --json assets --jq '.assets[].name' 2>&1); 
         *"release not found"*) ;;
         *) echo "$lookup" >&2; exit 1 ;;
     esac
-    gh release create "$tag" "${others[@]}" "${checksums[@]}" \
+    gh release create "$tag" "${others[@]}" "${checksums[@]}" "${manifest[@]}" \
         --title "$title" --notes-file "$notes" "${kind[@]}" ${target:+--target "$target"}
     exit 0
 fi
 
 [ "${#others[@]}" -eq 0 ] || gh release upload "$tag" "${others[@]}" --clobber
 [ "${#checksums[@]}" -eq 0 ] || gh release upload "$tag" "${checksums[@]}" --clobber
+# Le manifeste de mise à jour est publié en dernier : sinon il annoncerait des signatures pendant que les paquets
+# qu'elles couvrent sont encore en cours de remplacement.
+[ "${#manifest[@]}" -eq 0 ] || gh release upload "$tag" "${manifest[@]}" --clobber
 while IFS= read -r name; do
     [ -n "$name" ] && [ ! -e "$dir/$name" ] && gh release delete-asset "$tag" "$name" --yes
 done <<< "$lookup"

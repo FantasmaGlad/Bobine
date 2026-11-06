@@ -67,6 +67,9 @@ async function invokeTauri(cmd, args = {}) {
   if (cmd === 'get_app_info') {
     return { version: '0.0.0-dev', commit: 'preview' };
   }
+  if (cmd === 'check_assistant_update') {
+    return { available: false, current: '0.0.0-dev', version: null, notes: null };
+  }
   if (cmd === 'pick_ssh_key_file') {
     await new Promise(r => setTimeout(r, 400));
     return '/home/exemple/.ssh/cle_exemple_ed25519';
@@ -377,72 +380,10 @@ function kioskUrl() {
   return `${adminUrl()}/kiosk`;
 }
 
-// Notification "nouvelle version de l'assistant disponible" : l'assistant Tauri
-// n'a pas de backend local à interroger (contrairement à BobineTray) —
-// appel direct à l'API GitHub depuis le renderer. bobine-assistant embarque
-// désormais sa propre version/commit à la compilation (build.rs + commande
-// Tauri get_app_info), lus ici via invokeTauri — sans ça, un assistant
-// construit depuis le canal Canary (donc déjà plus récent que la dernière
-// Stable) se voyait proposer "une mise à jour" vers cette Stable, en réalité
-// PLUS ANCIENNE : bug corrigé en comparant enfin correctement les versions
-// au lieu d'annoncer inconditionnellement "la dernière release existe".
-// Volontairement limité à Stable/Canary (outil de développeur) : le palier
-// Bêta curé (lots manuels, cf. backend/app/routers/updates.py) n'y est pas
-// ajouté, pour ne pas réintroduire une ambiguïté "lequel de Bêta/Canary est
-// le plus récent" sur un binaire que seuls des développeurs installent.
+// Mise à jour de l'assistant lui-même (commandes Rust `check_assistant_update` et `install_assistant_update`, greffon
+// de mise à jour de Tauri) : version lue dans `latest.json` de la release du canal de ce build, paquet vérifié par sa
+// signature avant installation, puis relance. Une version écartée par « Plus tard » n'est plus proposée.
 const ASSISTANT_UPDATE_DISMISSED_KEY = 'bobine-assistant-update-dismissed';
-const GITHUB_RELEASES_LATEST_URL = 'https://api.github.com/repos/FantasmaGlad/Bobine/releases/latest';
-const GITHUB_RELEASES_CANARY_URL = 'https://api.github.com/repos/FantasmaGlad/Bobine/releases/tags/canary';
-
-// Port JS du comparateur semver du backend (voir
-// backend/app/routers/updates.py::_parse_version — même précédence, à
-// maintenir synchronisée si l'une des deux implémentations évolue) : à base
-// MAJOR.MINOR.PATCH égale, une version SANS pre-release est toujours
-// postérieure à une version AVEC pre-release ; deux pre-releases se
-// comparent identifiant par identifiant (numérique si possible, sinon
-// lexical — un identifiant numérique a une précédence inférieure à un
-// alphanumérique, comme le veut semver).
-function parseVersionForCompare(versionStr) {
-  let s = (versionStr || '').trim();
-  if (s[0] === 'v' || s[0] === 'V') s = s.slice(1);
-  const dashIdx = s.indexOf('-');
-  const basePart = dashIdx === -1 ? s : s.slice(0, dashIdx);
-  const prereleasePart = dashIdx === -1 ? '' : s.slice(dashIdx + 1);
-  const baseNumbers = (basePart.match(/\d+/g) || []).slice(0, 3).map(Number);
-  while (baseNumbers.length < 3) baseNumbers.push(0);
-  const identifiers = prereleasePart
-    ? prereleasePart.split('.').filter(Boolean).map((part) => (/^\d+$/.test(part) ? { n: Number(part) } : { s: part }))
-    : null;
-  return { base: baseNumbers, identifiers };
-}
-
-function compareIdentifier(a, b) {
-  const aIsNum = 'n' in a;
-  const bIsNum = 'n' in b;
-  if (aIsNum && bIsNum) return a.n - b.n;
-  if (aIsNum !== bIsNum) return aIsNum ? -1 : 1;
-  return a.s < b.s ? -1 : a.s > b.s ? 1 : 0;
-}
-
-// > 0 si a postérieure à b, < 0 si antérieure, 0 si égales.
-function compareVersions(aStr, bStr) {
-  const a = parseVersionForCompare(aStr);
-  const b = parseVersionForCompare(bStr);
-  for (let i = 0; i < 3; i++) {
-    if (a.base[i] !== b.base[i]) return a.base[i] - b.base[i];
-  }
-  if (!a.identifiers && !b.identifiers) return 0;
-  if (!a.identifiers) return 1;
-  if (!b.identifiers) return -1;
-  const len = Math.max(a.identifiers.length, b.identifiers.length);
-  for (let i = 0; i < len; i++) {
-    if (i >= a.identifiers.length) return -1;
-    if (i >= b.identifiers.length) return 1;
-    const c = compareIdentifier(a.identifiers[i], b.identifiers[i]);
-    if (c !== 0) return c;
-  }
-  return 0;
-}
 
 function renderAppVersionBadge(version, commit) {
   const badge = document.getElementById('app-version-badge');
@@ -453,91 +394,66 @@ function renderAppVersionBadge(version, commit) {
 }
 
 async function checkAssistantUpdate() {
-  let myVersion = null;
-  let myCommit = null;
   try {
     const info = await invokeTauri('get_app_info', {});
-    myVersion = info?.version || null;
-    myCommit = info?.commit || null;
+    renderAppVersionBadge(info?.version, info?.commit);
   } catch {
-    return;
+    // Version illisible : le badge reste masqué, la recherche de mise à jour continue.
   }
-  if (!myVersion) return;
-  renderAppVersionBadge(myVersion, myCommit);
 
+  let update;
   try {
-    const [stableRes, canaryRes] = await Promise.allSettled([
-      fetch(GITHUB_RELEASES_LATEST_URL, { headers: { Accept: 'application/vnd.github+json' } }),
-      fetch(GITHUB_RELEASES_CANARY_URL, { headers: { Accept: 'application/vnd.github+json' } }),
-    ]);
-
-    let candidate = null;
-
-    if (stableRes.status === 'fulfilled' && stableRes.value.ok) {
-      const release = await stableRes.value.json();
-      const tag = release.tag_name;
-      // Seule comparaison fiable pour la Stable : semver complet (cf.
-      // compareVersions) — jamais "une release existe donc c'est une
-      // mise à jour" comme avant ce correctif.
-      if (tag && compareVersions(tag, myVersion) > 0) {
-        const asset = (release.assets || []).find((a) => a.name === 'bobine-assistant');
-        candidate = {
-          key: `stable:${tag}`,
-          label: `Bobine Assistant ${tag} (Stable) est disponible.`,
-          downloadUrl: asset?.browser_download_url || release.html_url,
-        };
-      }
-    }
-
-    if (!candidate && canaryRes.status === 'fulfilled' && canaryRes.value.ok) {
-      const release = await canaryRes.value.json();
-      const remoteCommit = (release.target_commitish || '').slice(0, 7);
-      // La Canary n'a pas de numéro de version qui avance à chaque build (tag
-      // fixe "canary") : comparaison par
-      // commit, comme côté backend (_commit_based_update).
-      if (
-        remoteCommit && myCommit && myCommit !== 'unknown' &&
-        !remoteCommit.startsWith(myCommit) && !myCommit.startsWith(remoteCommit)
-      ) {
-        const asset = (release.assets || []).find((a) => a.name === 'bobine-assistant');
-        candidate = {
-          key: `canary:${remoteCommit}`,
-          label: `Une nouvelle build Canary de l'assistant est disponible (${remoteCommit}).`,
-          downloadUrl: asset?.browser_download_url || release.html_url,
-        };
-      }
-    }
-
-    if (!candidate) return;
-
-    let dismissedKey = null;
-    try {
-      dismissedKey = localStorage.getItem(ASSISTANT_UPDATE_DISMISSED_KEY);
-    } catch {
-      // localStorage indisponible (mode privé strict) : tant pis, pas de mémorisation.
-    }
-    if (candidate.key === dismissedKey) return;
-
-    const banner = document.getElementById('assistant-update-banner');
-    const text = document.getElementById('assistant-update-text');
-    if (!banner || !text) return;
-    text.textContent = candidate.label;
-    banner.style.display = 'flex';
-
-    document.getElementById('btn-assistant-update-download').onclick = () => {
-      window.open(candidate.downloadUrl, '_blank');
-    };
-    document.getElementById('btn-assistant-update-dismiss').onclick = () => {
-      banner.style.display = 'none';
-      try {
-        localStorage.setItem(ASSISTANT_UPDATE_DISMISSED_KEY, candidate.key);
-      } catch {
-        // idem : pas bloquant si indisponible.
-      }
-    };
+    update = await invokeTauri('check_assistant_update', {});
   } catch {
-    // Hors ligne ou API GitHub indisponible : silencieux, comme le reste de l'assistant.
+    return; // Hors ligne ou release du canal indisponible : silencieux, comme le reste de l'assistant.
   }
+  if (!update?.available || !update.version) return;
+
+  let dismissed = null;
+  try {
+    dismissed = localStorage.getItem(ASSISTANT_UPDATE_DISMISSED_KEY);
+  } catch {
+    // localStorage indisponible (mode privé strict) : pas de mémorisation.
+  }
+  if (dismissed === update.version) return;
+
+  const banner = document.getElementById('assistant-update-banner');
+  const text = document.getElementById('assistant-update-text');
+  const install = document.getElementById('btn-assistant-update-install');
+  const dismiss = document.getElementById('btn-assistant-update-dismiss');
+  if (!banner || !text || !install || !dismiss) return;
+  text.textContent = `Bobine Assistant ${update.version} est disponible (version installée : ${update.current}).`;
+  banner.style.display = 'flex';
+
+  install.onclick = async () => {
+    install.disabled = true;
+    dismiss.disabled = true;
+    text.textContent = `Téléchargement de Bobine Assistant ${update.version}…`;
+    const listen = window.__TAURI__?.event?.listen;
+    let unlisten = null;
+    try {
+      if (listen) {
+        unlisten = await listen('assistant-update-progress', (event) => {
+          const { downloaded, total } = event.payload || {};
+          if (total) text.textContent = `Téléchargement : ${Math.floor((100 * downloaded) / total)} %`;
+        });
+      }
+      await invokeTauri('install_assistant_update', {}); // relance l'assistant en cas de succès
+    } catch (error) {
+      unlisten?.();
+      text.textContent = `La mise à jour a échoué : ${error}. Bobine n'est pas touché ; réessayez plus tard.`;
+      install.disabled = false;
+      dismiss.disabled = false;
+    }
+  };
+  dismiss.onclick = () => {
+    banner.style.display = 'none';
+    try {
+      localStorage.setItem(ASSISTANT_UPDATE_DISMISSED_KEY, update.version);
+    } catch {
+      // idem : pas bloquant si indisponible.
+    }
+  };
 }
 
 function goToStep(stepNumber) {

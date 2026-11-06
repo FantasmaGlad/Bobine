@@ -3,3 +3,4 @@ pub mod ssh_auth;
 pub mod connection;
 pub mod install;
 pub mod version;
+pub mod update;
