@@ -27,10 +27,15 @@ class AssistantReleaseTests(unittest.TestCase):
         for channel, tag, suffix in (("stable", "V5.1.1", "5.1.1"), ("beta", "beta", "beta"), ("canary", "canary", "canary")):
             with self.subTest(channel=channel):
                 text = notes.render(channel, tag, suffix)
-                linked = set(re.findall(rf"releases/download/assistant-{tag}/([^)\s]+)", text))
-                # Les signatures, l'archive de mise à jour macOS et latest.json ne servent qu'à la mise à jour automatique.
-                downloads = {n for n in required(suffix) if not n.endswith((".sig", ".app.tar.gz", "latest.json"))}
-                self.assertEqual(linked, downloads)
+                linked = set(re.findall(rf"releases/download/assistant-{re.escape(tag)}/([^)\s]+)", text))
+                # Liste indépendante du vérificateur : si un paquet manque des deux côtés, le test doit le voir.
+                expected = {
+                    f"Bobine-Assistant-Setup-{suffix}.exe",
+                    f"Bobine-Assistant-{suffix}-arm64.dmg",
+                    f"bobine-assistant_{suffix}_amd64.deb",
+                    f"bobine-assistant-{suffix}.x86_64.rpm",
+                }
+                self.assertEqual(linked, expected)
 
     def test_bobine_release_refuses_assistant_installers(self):
         with tempfile.TemporaryDirectory() as tmp:

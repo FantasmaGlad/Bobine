@@ -434,15 +434,17 @@ async function checkAssistantUpdate() {
     dismiss.disabled = true;
     text.textContent = `Téléchargement de Bobine Assistant ${update.version}…`;
     const listen = window.__TAURI__?.event?.listen;
-    if (listen) {
-      listen('assistant-update-progress', (event) => {
-        const { downloaded, total } = event.payload || {};
-        if (total) text.textContent = `Téléchargement : ${Math.floor((100 * downloaded) / total)} %`;
-      });
-    }
+    let unlisten = null;
     try {
+      if (listen) {
+        unlisten = await listen('assistant-update-progress', (event) => {
+          const { downloaded, total } = event.payload || {};
+          if (total) text.textContent = `Téléchargement : ${Math.floor((100 * downloaded) / total)} %`;
+        });
+      }
       await invokeTauri('install_assistant_update', {}); // relance l'assistant en cas de succès
     } catch (error) {
+      unlisten?.();
       text.textContent = `La mise à jour a échoué : ${error}. Bobine n'est pas touché ; réessayez plus tard.`;
       install.disabled = false;
       dismiss.disabled = false;

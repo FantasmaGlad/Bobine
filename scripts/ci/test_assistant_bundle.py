@@ -30,6 +30,25 @@ class AssistantBundleTests(unittest.TestCase):
         for path in override["bundle"]["icon"]:
             self.assertTrue((bundle.ASSISTANT / "src-tauri" / path).is_file(), path)
 
+    def test_signature_binds_the_version(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            package = Path(tmp) / "bobine-assistant_5.1.1_amd64.deb"
+            package.write_bytes(b"deb")
+            commands = []
+            original = bundle.subprocess.run
+
+            def fake_run(command, check):
+                commands.append(command)
+                package.with_name(package.name + ".sig").write_text("signature")
+
+            bundle.subprocess.run = fake_run
+            try:
+                bundle.sign([package], "/usr/bin/npx", "5.1.1")
+            finally:
+                bundle.subprocess.run = original
+            self.assertIn("--app-version", commands[0])
+            self.assertIn("5.1.1", commands[0])
+
     def test_exactly_one_package_per_extension(self):
         with tempfile.TemporaryDirectory() as tmp:
             produced, out = Path(tmp) / "bundle", Path(tmp) / "out"

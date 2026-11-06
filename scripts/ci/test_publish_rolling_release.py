@@ -62,6 +62,14 @@ class PublishRollingReleaseTests(unittest.TestCase):
         self.assertNotIn("SHA256SUMS", uploads[0])
         self.assertTrue(calls[-1].startswith("release edit canary --title Titre --notes-file"))
 
+    def test_the_update_manifest_is_published_after_the_packages(self):
+        (self.assets / "latest.json").write_text("{}")
+        result, calls = self.run_script(existing=["Bobine-canary.apk", "bobine_canary_amd64.deb", "SHA256SUMS", "SHA256SUMS.asc"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        uploads = [call for call in calls if call.startswith("release upload")]
+        self.assertEqual(len(uploads), 3)
+        self.assertIn("latest.json", uploads[-1])
+
     def test_assets_that_left_the_lot_are_removed(self):
         result, calls = self.run_script(existing=["Bobine-canary.apk", "old-asset.rpm"])
         self.assertEqual(result.returncode, 0, result.stderr)

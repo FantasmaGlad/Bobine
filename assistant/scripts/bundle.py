@@ -12,7 +12,8 @@ Usage : bundle.py --channel stable|beta|canary --out DOSSIER [--filename-version
 - CLI Tauri épinglée (`TAURI_CLI`), même version mineure que la caisse `tauri` du `Cargo.lock` ;
 - mise à jour automatique : l'assistant lit `latest.json` dans la release de son canal (`UPDATE_ENDPOINT`). Quand
   `TAURI_SIGNING_PRIVATE_KEY` est fourni (publication, jamais une PR), chaque paquet que l'assistant sait installer
-  reçoit sa signature `.sig`, et macOS son archive de mise à jour `.app.tar.gz`.
+  reçoit sa signature `.sig`, et macOS son archive de mise à jour `.app.tar.gz`. La signature est liée à la version
+  (`--app-version`) : `requireSignedVersion` refuse un manifeste qui annoncerait une autre version que celle signée.
 """
 from __future__ import annotations
 
@@ -103,11 +104,19 @@ def collect(bundle_dir: Path, names: dict[str, str], out: Path) -> list[Path]:
     return written
 
 
-def sign(paths: list[Path], npx: str) -> None:
-    """Signe avec la clé de mise à jour (`TAURI_SIGNING_PRIVATE_KEY` et son mot de passe, lus par la CLI Tauri)."""
+def sign(paths: list[Path], npx: str, version: str) -> None:
+    """Signe chaque paquet avec la clé de mise à jour, en liant la signature à `version`.
+
+    `tauri build` signe déjà les artefacts de mise à jour avec la version, mais ce script les recopie puis les signe
+    de nouveau : sans `--app-version`, la signature publiée ne porterait plus la version et `requireSignedVersion` ne
+    pourrait pas être activé.
+    """
     for path in paths:
         if path.name.endswith(SIGNED_EXTENSIONS):
-            subprocess.run([npx, "--yes", TAURI_CLI, "signer", "sign", str(path)], check=True)
+            subprocess.run(
+                [npx, "--yes", TAURI_CLI, "signer", "sign", "--app-version", version, str(path)],
+                check=True,
+            )
             if not path.with_name(path.name + ".sig").is_file():
                 raise SystemExit(f"signature absente pour {path.name}")
 
@@ -140,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
     names = target_names(system, arch, filename_version) | (updater_names(system, arch, filename_version) if signing else {})
     written = collect(bundle_dir, names, args.out)
     if signing:
-        sign(written, npx)
+        sign(written, npx, version)
     for path in sorted(args.out.iterdir()):
         print(f"{path.name} ({path.stat().st_size / 1_048_576:.1f} Mio)")
     return 0

@@ -484,6 +484,15 @@ jobs:
           [ "$rc" -eq 124 ] || { echo "l'assistant s'est arrêté au démarrage (code $rc)" >&2; exit 1; }
           sudo apt-get $APT_OPTIONS remove -y bobine-assistant
           test ! -e /usr/bin/bobine-assistant
+      - name: Installer le rpm (Fedora)
+        if: runner.os == 'Linux'
+        run: |
+          # `rpm -qip` ne valide ni les dépendances ni les scripts : le rpm est pourtant ce que l'updater installe sur
+          # Fedora. L'installer dans l'image Fedora, comme le job linux-rpm-aarch64 le fait pour Bobine.
+          . scripts/ci/container-images.sh
+          rpm_file=$(basename "$(ls dist-assistant/bobine-assistant-*.x86_64.rpm)")
+          docker run --rm -v "$PWD/dist-assistant:/pkg:ro" "$FEDORA_IMAGE" \
+            bash -c 'dnf -y -q install "/pkg/$1" && test -x /usr/bin/bobine-assistant && rpm -q bobine-assistant' -- "$rpm_file"
       - name: Installer, lancer et désinstaller (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -1396,7 +1405,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, assistant-core, assistant-core-arm64, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages, linux-rpm-aarch64]
+    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, assistant-core, assistant-core-arm64, assistant-bundle, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages, linux-rpm-aarch64]
     runs-on: ubuntu-latest
     steps:
       - name: Tous les contrôles sont verts
@@ -2080,17 +2089,24 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Le commit publié est celui du checkout (inputs.tag), pas la référence choisie pour un workflow_dispatch.
+          target=$(git rev-parse HEAD)
           if [ "$CHANNEL" = stable ]; then
             # Un tag Stable ne bouge jamais : créé s'il manque, accepté s'il désigne déjà ce commit.
             if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
-              remote=$(git ls-remote origin "refs/tags/$TAG^{}" "refs/tags/$TAG" | awk 'NR==1 {print $1}')
-              [ "$remote" = "$GITHUB_SHA" ] || { echo "::error::$TAG existe déjà sur un autre commit" >&2; exit 1; }
+              # Un tag annoté expose le commit qu'il désigne sur la ligne ^{} ; un tag léger n'en a pas.
+              remote=$(git ls-remote origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')
+              [ -n "$remote" ] || remote=$(git ls-remote origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')
+              [ "$remote" = "$target" ] || { echo "::error::$TAG existe déjà sur un autre commit" >&2; exit 1; }
             else
-              git tag "$TAG" "$GITHUB_SHA" && git push origin "refs/tags/$TAG"
+              git tag "$TAG" "$target" && git push origin "refs/tags/$TAG"
             fi
           else
-            git tag -f "$TAG" "$GITHUB_SHA"
-            git push --force origin "refs/tags/$TAG"
+            git tag -f "$TAG" "$target"
+            # GITHUB_TOKEN refuse de déplacer un tag dont le diff touche .github/workflows : supprimer puis recréer la
+            # référence, comme release-canary et release-beta.
+            git push origin ":refs/tags/$TAG" || true
+            git push origin "refs/tags/$TAG"
           fi
       - name: Publier
         env:
@@ -2099,7 +2115,7 @@ jobs:
         run: >-
           bash scripts/ci/publish-rolling-release.sh "$TAG" assistant-assets
           "Bobine Assistant ${{ needs.version.outputs.channel == 'stable' && needs.version.outputs.base_version || needs.version.outputs.channel }}"
-          "$RUNNER_TEMP/assistant-notes.md" "$GITHUB_SHA"
+          "$RUNNER_TEMP/assistant-notes.md" "$(git rev-parse HEAD)"
       # La Stable a un tag par version : l'adresse fixe que lit l'assistant Stable est la release assistant-stable, qui ne
       # porte que le latest.json de la dernière Stable (ses liens visent assistant-Vx.y.z).
       - name: Pointeur de mise à jour Stable (assistant-stable)
@@ -2108,13 +2124,32 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_KIND: stable-secondaire
         run: |
+          target=$(git rev-parse HEAD)
+          # Une relance d'une ancienne Stable ne doit pas faire reculer le pointeur : les nouvelles installations
+          # recevraient cette ancienne version jusqu'à la Stable suivante.
+          current_version=""
+          if gh release view assistant-stable > /dev/null 2>&1; then
+            if gh release download assistant-stable --pattern latest.json --output "$RUNNER_TEMP/current-latest.json" --clobber > /dev/null 2>&1; then
+              current_version=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$RUNNER_TEMP/current-latest.json")
+            fi
+          fi
+          if [ -n "$current_version" ] && ! python3 -c 'import sys
+          a = tuple(int(part) for part in sys.argv[1].split("+", 1)[0].split("."))
+          b = tuple(int(part) for part in sys.argv[2].split("+", 1)[0].split("."))
+          sys.exit(0 if b > a else 1)' "$current_version" "$ASSISTANT_VERSION"; then
+            echo "assistant-stable annonce déjà $current_version : $ASSISTANT_VERSION ne le remplace pas."
+            exit 0
+          fi
           mkdir -p "$RUNNER_TEMP/assistant-stable"
           cp assistant-assets/latest.json "$RUNNER_TEMP/assistant-stable/"
           printf '%s\n' "Manifeste de mise à jour de Bobine Assistant Stable : pointe vers la release [$TAG](https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG)." > "$RUNNER_TEMP/assistant-stable-notes.md"
-          git tag -f assistant-stable "$GITHUB_SHA"
-          git push --force origin refs/tags/assistant-stable
+          # Même contournement que pour les canaux glissants : GITHUB_TOKEN ne peut pas déplacer une référence dont le
+          # diff touche .github/workflows.
+          git tag -f assistant-stable "$target"
+          git push origin ":refs/tags/assistant-stable" || true
+          git push origin "refs/tags/assistant-stable"
           bash scripts/ci/publish-rolling-release.sh assistant-stable "$RUNNER_TEMP/assistant-stable" \
-            "Bobine Assistant — mise à jour Stable" "$RUNNER_TEMP/assistant-stable-notes.md" "$GITHUB_SHA"
+            "Bobine Assistant — mise à jour Stable" "$RUNNER_TEMP/assistant-stable-notes.md" "$target"
 
   publish-linux-packages:
     name: Publier les dépôts Linux (packages.bobine.fit)
