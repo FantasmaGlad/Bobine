@@ -354,7 +354,12 @@ fn update(action: UpdateAction, console: &Console, json: bool) -> Result<(), Ass
     let current = app.package_info().version.to_string();
     let updater = app.updater().map_err(|e| AssistantError::Failed(e.to_string()))?;
     tauri::async_runtime::block_on(async {
-        let update = updater.check().await.map_err(|e| AssistantError::Unreachable(e.to_string()))?;
+        let update = updater.check().await.map_err(|e| match e {
+            tauri_plugin_updater::Error::TargetNotFound(_) | tauri_plugin_updater::Error::TargetsNotFound(_) => {
+                AssistantError::Failed(crate::commands::update::describe(e))
+            }
+            other => AssistantError::Unreachable(other.to_string()),
+        })?;
         let Some(update) = update else {
             if json {
                 out!("{}", json!({ "available": false, "current": current }));
