@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./responsive.css";
 import ClientLayout from "@/components/ClientLayout";
-import { UI_LANGUAGE } from "@/lib/i18n";
+import { translate, UI_LANGUAGE } from "@/lib/i18n";
 import { AppSettingsProvider } from "@/lib/AppSettingsContext";
 import { InlineScript } from "@/components/InlineScript";
 import { UploadManagerProvider } from "@/lib/UploadManager";
@@ -27,7 +27,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Bobine - Administration",
-  description: "Système de cinéma automatisé pour vos cours en salle",
+  description: translate("app.metaDescription"),
   manifest: "/manifest.json",
 };
 

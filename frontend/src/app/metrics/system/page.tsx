@@ -134,9 +134,9 @@ export default function MetricsSystemPage() {
           className="metrics-telemetry-item interactive"
           role="button"
           tabIndex={0}
-          onClick={() => openDrawer("cpu", "Charge CPU", "memory")}
-          onKeyDown={(e) => handleKeyDown(e, "cpu", "Charge CPU", "memory")}
-          aria-label="Afficher l'historique de la charge CPU"
+          onClick={() => openDrawer("cpu", t("metricsPage.drawerCpu"), "memory")}
+          onKeyDown={(e) => handleKeyDown(e, "cpu", t("metricsPage.drawerCpu"), "memory")}
+          aria-label={t("metricsPage.ariaCpu")}
         >
           <div className="metrics-telemetry-item-head">
             <span className="metrics-telemetry-name">{t("metricsPage.cpu")}</span>
@@ -156,7 +156,7 @@ export default function MetricsSystemPage() {
             )}
           </div>
           <span className="metrics-telemetry-cta">
-            Historique <Icon name="chevron_right" size={14} />
+            {t("metricsPage.history")} <Icon name="chevron_right" size={14} />
           </span>
         </div>
 
@@ -165,9 +165,9 @@ export default function MetricsSystemPage() {
           className="metrics-telemetry-item interactive"
           role="button"
           tabIndex={0}
-          onClick={() => openDrawer("gpu", "Charge GPU", "videogame_asset")}
-          onKeyDown={(e) => handleKeyDown(e, "gpu", "Charge GPU", "videogame_asset")}
-          aria-label="Afficher l'historique de la puce graphique"
+          onClick={() => openDrawer("gpu", t("metricsPage.drawerGpu"), "videogame_asset")}
+          onKeyDown={(e) => handleKeyDown(e, "gpu", t("metricsPage.drawerGpu"), "videogame_asset")}
+          aria-label={t("metricsPage.ariaGpu")}
         >
           <div className="metrics-telemetry-item-head">
             <span className="metrics-telemetry-name">{t("metricsPage.gpu")}</span>
@@ -187,7 +187,7 @@ export default function MetricsSystemPage() {
             )}
           </div>
           <span className="metrics-telemetry-cta">
-            Historique <Icon name="chevron_right" size={14} />
+            {t("metricsPage.history")} <Icon name="chevron_right" size={14} />
           </span>
         </div>
 
@@ -196,9 +196,9 @@ export default function MetricsSystemPage() {
           className="metrics-telemetry-item interactive"
           role="button"
           tabIndex={0}
-          onClick={() => openDrawer("memory", "Utilisation RAM", "developer_board")}
-          onKeyDown={(e) => handleKeyDown(e, "memory", "Utilisation RAM", "developer_board")}
-          aria-label="Afficher l'historique de la mémoire vive"
+          onClick={() => openDrawer("memory", t("metricsPage.drawerRam"), "developer_board")}
+          onKeyDown={(e) => handleKeyDown(e, "memory", t("metricsPage.drawerRam"), "developer_board")}
+          aria-label={t("metricsPage.ariaRam")}
         >
           <div className="metrics-telemetry-item-head">
             <span className="metrics-telemetry-name">{t("metricsPage.ram")}</span>
@@ -208,9 +208,9 @@ export default function MetricsSystemPage() {
           </div>
           <span
             className="metrics-telemetry-component-name"
-            title={telemetry?.ram_model || (telemetry?.ram_type ? `${telemetry.ram_brand ? telemetry.ram_brand + " " : ""}${telemetry.ram_type}${telemetry.ram_freq ? " " + telemetry.ram_freq : ""}` : "Mémoire vive")}
+            title={telemetry?.ram_model || (telemetry?.ram_type ? `${telemetry.ram_brand ? telemetry.ram_brand + " " : ""}${telemetry.ram_type}${telemetry.ram_freq ? " " + telemetry.ram_freq : ""}` : t("metricsPage.ramFallback"))}
           >
-            {telemetry?.ram_model || (telemetry?.ram_type ? `${telemetry.ram_brand ? telemetry.ram_brand + " " : ""}${telemetry.ram_type}${telemetry.ram_freq ? " " + telemetry.ram_freq : ""}` : "Mémoire vive")}
+            {telemetry?.ram_model || (telemetry?.ram_type ? `${telemetry.ram_brand ? telemetry.ram_brand + " " : ""}${telemetry.ram_type}${telemetry.ram_freq ? " " + telemetry.ram_freq : ""}` : t("metricsPage.ramFallback"))}
           </span>
           <div className="metrics-telemetry-metric-val">
             <span className="metrics-telemetry-big-num">
@@ -221,7 +221,7 @@ export default function MetricsSystemPage() {
             </span>
           </div>
           <span className="metrics-telemetry-cta">
-            Historique <Icon name="chevron_right" size={14} />
+            {t("metricsPage.history")} <Icon name="chevron_right" size={14} />
           </span>
         </div>
 
@@ -230,9 +230,9 @@ export default function MetricsSystemPage() {
           className="metrics-telemetry-item interactive"
           role="button"
           tabIndex={0}
-          onClick={() => openDrawer("storage", "Occupation Stockage", "storage")}
-          onKeyDown={(e) => handleKeyDown(e, "storage", "Occupation Stockage", "storage")}
-          aria-label="Afficher l'historique du stockage principal"
+          onClick={() => openDrawer("storage", t("metricsPage.drawerStorage"), "storage")}
+          onKeyDown={(e) => handleKeyDown(e, "storage", t("metricsPage.drawerStorage"), "storage")}
+          aria-label={t("metricsPage.ariaStorage")}
         >
           <div className="metrics-telemetry-item-head">
             <span className="metrics-telemetry-name">{t("metricsPage.storage")}</span>
@@ -248,11 +248,11 @@ export default function MetricsSystemPage() {
               {usedStoragePct.toFixed(0)}%
             </span>
             <span className="metrics-telemetry-temp">
-              {formatBytes(freeStorage)} libres sur {formatBytes(totalStorage)}
+              {t("metricsPage.storageFree", { free: formatBytes(freeStorage), total: formatBytes(totalStorage) })}
             </span>
           </div>
           <span className="metrics-telemetry-cta">
-            Historique <Icon name="chevron_right" size={14} />
+            {t("metricsPage.history")} <Icon name="chevron_right" size={14} />
           </span>
         </div>
 
@@ -261,20 +261,20 @@ export default function MetricsSystemPage() {
           className="metrics-telemetry-item interactive"
           role="button"
           tabIndex={0}
-          onClick={() => openDrawer("power", "Puissance consommée", "bolt")}
-          onKeyDown={(e) => handleKeyDown(e, "power", "Puissance consommée", "bolt")}
-          aria-label="Afficher l'historique de la puissance et de l'énergie consommée"
+          onClick={() => openDrawer("power", t("metricsPage.drawerPower"), "bolt")}
+          onKeyDown={(e) => handleKeyDown(e, "power", t("metricsPage.drawerPower"), "bolt")}
+          aria-label={t("metricsPage.ariaPower")}
         >
           <div className="metrics-telemetry-item-head">
-            <span className="metrics-telemetry-name">{t("metricsPage.power")} & Énergie</span>
+            <span className="metrics-telemetry-name">{t("metricsPage.powerAndEnergy")}</span>
             <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
               <Icon name="bolt" size={24} />
             </div>
           </div>
           <span className="metrics-telemetry-component-name">
             {telemetry?.runtime?.cumulative_energy_wh != null
-              ? `Cumul: ${telemetry.runtime.cumulative_energy_wh.toFixed(1)} Wh · Moy: ${telemetry.runtime.average_power_watts != null ? telemetry.runtime.average_power_watts.toFixed(1) + " W" : "--"}`
-              : "Alimentation système"}
+              ? t("metricsPage.energySummary", { total: telemetry.runtime.cumulative_energy_wh.toFixed(1), average: telemetry.runtime.average_power_watts != null ? telemetry.runtime.average_power_watts.toFixed(1) + " W" : "--" })
+              : t("metricsPage.systemPower")}
           </span>
           <div className="metrics-telemetry-metric-val">
             <span className="metrics-telemetry-big-num" style={{ color: "var(--accent-primary)" }}>
@@ -282,7 +282,7 @@ export default function MetricsSystemPage() {
             </span>
           </div>
           <span className="metrics-telemetry-cta">
-            Historique <Icon name="chevron_right" size={14} />
+            {t("metricsPage.history")} <Icon name="chevron_right" size={14} />
           </span>
         </div>
 
@@ -295,14 +295,14 @@ export default function MetricsSystemPage() {
             </div>
           </div>
           <span className="metrics-telemetry-component-name">
-            Uptime Système : {telemetry?.runtime?.uptime_formatted || "--"}
+            {t("metricsPage.systemUptime", { value: telemetry?.runtime?.uptime_formatted || "--" })}
           </span>
           <div className="metrics-telemetry-metric-val">
             <span className="metrics-telemetry-big-num" style={{ fontSize: "1.4rem", color: "var(--accent-primary)" }}>
               {telemetry?.runtime?.app_runtime_formatted || "--"}
             </span>
             <span className="metrics-telemetry-temp">
-              Service Bobine
+              {t("metricsPage.bobineService")}
             </span>
           </div>
           <div style={{ marginTop: "auto" }} />

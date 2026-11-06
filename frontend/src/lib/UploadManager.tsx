@@ -41,6 +41,7 @@ import React, {
 } from "react";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import { translate } from "@/lib/i18n";
 import {
   ChunkedUnsupportedError,
   UploadAbortedError,
@@ -290,7 +291,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          throw new Error(body.detail || "Erreur lors de l'import");
+          throw new Error(body.detail || translate("uploadManager.importError"));
         }
         const body = await res.json().catch(() => ({}));
         updateTask(task.id, {
@@ -320,7 +321,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
         } else {
           updateTask(task.id, {
             status: "error",
-            error: (err as Error).message || "Erreur lors de l'upload",
+            error: (err as Error).message || translate("uploadManager.uploadError"),
             errorNotice: err instanceof UploadNoticeError ? { key: err.key, params: err.params } : undefined,
             notice: null,
             abort: undefined,
@@ -361,7 +362,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
             updateTask(task.id, { status: "done", progress: 100 });
           }
         } else {
-          let errMsg = "Erreur lors de l'upload";
+          let errMsg = translate("uploadManager.uploadError");
           try {
             const body = JSON.parse(xhr.responseText);
             errMsg = body.detail || errMsg;
@@ -374,7 +375,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
       });
 
       xhr.addEventListener("error", () => {
-        updateTask(task.id, { status: "error", error: "Erreur réseau" });
+        updateTask(task.id, { status: "error", error: translate("common.networkError") });
         onDone();
       });
 
@@ -536,7 +537,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
                 misses.delete(task.id);
                 updateTask(task.id, {
                   status: "error",
-                  error: "Tâche perdue (serveur redémarré ou expirée).",
+                  error: translate("uploadManager.taskLost"),
                   errorNotice: { key: "uploads.errors.jobLost" },
                   notice: null,
                   queuePosition: null,
@@ -562,7 +563,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
                 status: "error",
                 stage: job.stage,
                 stageLabel: job.stage_label,
-                error: job.error || "Échec de l'import",
+                error: job.error || translate("uploadManager.importFailed"),
                 errorNotice: jobErrorNotice(job.error_code, job.error_params),
                 queuePosition: null,
               });
@@ -626,14 +627,14 @@ export function useUploadManager(): UploadManagerContextValue {
 // Panneau flottant (bas-droit, persistant entre navigations)
 // ---------------------------------------------------------------------------
 
-const KIND_LABELS: Record<UploadKind, string> = {
-  video: "Cours",
-  background: "Fond animé",
-  audio_files: "Cours audio",
-  audio_zip: "Cours audio",
-  radio_files: "Musique radio",
-  radio_zip: "Musique radio",
-  radio_announcement_files: "Rappels radio",
+const KIND_LABEL_KEYS: Record<UploadKind, string> = {
+  video: "uploadManager.kindVideo",
+  background: "uploadManager.kindBackground",
+  audio_files: "uploadManager.kindAudio",
+  audio_zip: "uploadManager.kindAudio",
+  radio_files: "uploadManager.kindRadio",
+  radio_zip: "uploadManager.kindRadio",
+  radio_announcement_files: "uploadManager.kindAnnouncements",
 };
 
 function formatEta(seconds: number | null | undefined): string | null {
@@ -698,8 +699,8 @@ function UploadFloatingPanel() {
         <span style={{ fontWeight: 700, color: "var(--text-main)", display: "flex", alignItems: "center", gap: "8px" }}>
           <Icon name="upload" size={16} />
           {active.length > 0
-            ? `${active.length} import${active.length > 1 ? "s" : ""} en cours`
-            : `${completed.length} import${completed.length > 1 ? "s" : ""} terminé${completed.length > 1 ? "s" : ""}`}
+            ? t(active.length > 1 ? "uploadManager.activeMany" : "uploadManager.activeOne", { count: active.length })
+            : t(completed.length > 1 ? "uploadManager.doneMany" : "uploadManager.doneOne", { count: completed.length })}
         </span>
         <span style={{ color: "var(--text-muted)", fontSize: "0.75rem", display: "flex", alignItems: "center" }}>
           <Icon name={minimized ? "expand_less" : "expand_more"} size={16} />
@@ -749,7 +750,7 @@ function UploadFloatingPanel() {
                   {(task.status === "uploading" || task.status === "pending" || task.status === "processing") && (
                     <button
                       onClick={() => cancelUpload(task.id)}
-                      title="Annuler l'importation"
+                      title={t("uploadManager.cancelImport")}
                       style={{
                         background: "none",
                         border: "none",
@@ -768,7 +769,7 @@ function UploadFloatingPanel() {
                 </div>
               </div>
               <span style={{ color: "var(--text-dim)", fontSize: "0.72rem" }}>
-                {KIND_LABELS[task.kind]}
+                {t(KIND_LABEL_KEYS[task.kind])}
                 {/* Phase visible (Connexion / Envoi / Traitement) : sans elle, un
                     envoi qui ne démarre pas ressemblait à une interface figée à 0 %. */}
                 {task.status === "uploading" && (
@@ -780,7 +781,7 @@ function UploadFloatingPanel() {
                     {t(phaseLabelKey("processing"))}{" : "}
                     {task.stage === "normalizing" && typeof task.progressPercent === "number" ? (
                       <>
-                        Réencodage ({task.progressPercent}%)
+                        {t("uploadManager.reencoding", { percent: task.progressPercent })}
                         {/* FFmpeg émet sa
                             première ligne de progression quasi immédiatement (souvent avant
                             eta_seconds, qui nécessite une ligne "speed=" préalable) — sans repli
@@ -861,7 +862,7 @@ function UploadFloatingPanel() {
                 padding: "4px 0",
               }}
             >
-              Effacer les terminés
+              {t("uploadManager.clearDone")}
             </button>
           )}
         </div>

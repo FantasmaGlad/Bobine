@@ -29,6 +29,8 @@ import { loadMode, saveMode, type GlassMode } from "@/lib/glassQuality";
 type DeploymentProfile = "linux-headless" | "linux-desktop" | "windows" | "macos" | "android";
 
 interface SettingsData {
+  /** Faux sur Android : le redémarrage n'y est pas relancé de façon garantie. */
+  restart_guaranteed?: boolean;
   wait_time_between_courses: number;
   volume_default: number;
   audio_chain_timer_seconds: number;
@@ -633,7 +635,7 @@ export default function SettingsPage() {
         body: JSON.stringify({ logs_retention_days: days }),
       });
       if (res.ok) {
-        showToast("Rétention des logs enregistrée", "success");
+        showToast(t("settingsPage.retentionSaved"), "success");
       } else {
         showToast(t("settingsPage.saveError"), "error");
       }
@@ -643,7 +645,7 @@ export default function SettingsPage() {
   };
 
   const handlePurgeLogs = async () => {
-    if (!window.confirm("Purger définitivement les journaux et historiques de métriques plus anciens que la période configurée ?")) return;
+    if (!window.confirm(t("settingsPage.purgeConfirm"))) return;
     setIsPurgingLogs(true);
     try {
       const res = await fetch(getApiUrl("/settings/logs/purge"), { method: "POST" });
@@ -651,7 +653,7 @@ export default function SettingsPage() {
       if (res.ok) {
         const details = body.details;
         const msg = details
-          ? `Nettoyage terminé : ${details.purged_logs} logs et ${details.purged_metrics} métriques supprimés.`
+          ? t("settingsPage.purgeDone", { logs: details.purged_logs, metrics: details.purged_metrics })
           : (body.message || t("settingsPage.logsPurgedSuccess"));
         showToast(msg, "success");
       } else {
@@ -690,7 +692,7 @@ export default function SettingsPage() {
           showToast(t("settingsPage.paths.folderOpened"));
         }
       } else {
-        showToast(resData.detail || "Impossible d'ouvrir le dossier", "error");
+        showToast(resData.detail || t("settingsPage.openFolderError"), "error");
       }
     } catch {
       showToast(t("common.networkError"), "error");
@@ -920,6 +922,7 @@ export default function SettingsPage() {
               <button type="button" className="btn btn-secondary" onClick={() => void restartNow()} disabled={restarting}>
                 {t("settingsPage.languageRestartNow")}
               </button>
+              {data && data.restart_guaranteed === false && <span>{t("settingsPage.restartNotGuaranteed")}</span>}
               {restartMessage && <span>{restartMessage}</span>}
             </div>
           )}

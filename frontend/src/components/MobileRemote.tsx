@@ -520,8 +520,8 @@ export default function MobileRemote({
             />
             <div className="launch-preview__specs">
               {getResolutionBadge(previewVideo.width, previewVideo.height) && <span>{getResolutionBadge(previewVideo.width, previewVideo.height)}</span>}
-              {getAudioQualityBadge(previewVideo.audio_channels, previewVideo.audio_codec, null) && (
-                <span>{getAudioQualityBadge(previewVideo.audio_channels, previewVideo.audio_codec, null)}</span>
+              {getAudioQualityBadge(previewVideo.audio_channels, previewVideo.audio_codec, null, t) && (
+                <span>{getAudioQualityBadge(previewVideo.audio_channels, previewVideo.audio_codec, null, t)}</span>
               )}
               {previewVideo.duration_seconds ? <span>{formatClock(previewVideo.duration_seconds)}</span> : null}
             </div>

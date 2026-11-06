@@ -98,7 +98,7 @@ def test_restart_endpoint_restarts_the_service(client, monkeypatch):
         return None
     monkeypatch.setattr("app.routers.settings.asyncio.sleep", no_wait)
     response = client.post("/api/settings/system/restart")
-    assert response.status_code == 200 and response.json() == {"status": "restarting"}
+    assert response.status_code == 200 and response.json()["status"] == "restarting"
     assert calls == ["restart"]
 
 
@@ -132,3 +132,37 @@ def test_restart_endpoint_is_logged(client, monkeypatch):
     monkeypatch.setattr(get_profile_handler().__class__, "restart_services", lambda self: None)
     client.post("/api/settings/system/restart")
     assert any("Redémarrage demandé" in entry.get("message", "") for entry in client.get("/api/logs", params={"source": "activity"}).json().get("entries", []))
+
+
+def test_restart_reports_whether_a_relaunch_is_guaranteed(client, monkeypatch):
+    from app.utils.deployment_profiles.android import AndroidHandler
+    from app.utils.deployment_profiles.linux_desktop import LinuxDesktopHandler
+
+    assert LinuxDesktopHandler().restart_is_guaranteed() is True
+    assert AndroidHandler().restart_is_guaranteed() is False
+    monkeypatch.setattr(get_profile_handler().__class__, "restart_services", lambda self: None)
+    monkeypatch.setattr(get_profile_handler().__class__, "restart_is_guaranteed", lambda self: False)
+    assert client.post("/api/settings/system/restart").json()["restart_guaranteed"] is False
+    assert client.get("/api/settings").json()["restart_guaranteed"] is False
+
+
+def test_shared_assets_are_served_for_both_languages(tmp_path):
+    _export(tmp_path, "fr", "bonjour")
+    _export(tmp_path, "en", "hello")
+    (tmp_path / "_shared" / "_next").mkdir(parents=True)
+    (tmp_path / "_shared" / "_next" / "app.js").write_text("commun", encoding="utf-8")
+    (tmp_path / "en" / "only.txt").write_text("anglais", encoding="utf-8")
+    site = TestClient(ui_language.LanguageFrontend(tmp_path, StaticFiles))
+    try:
+        for language in ("fr", "en"):
+            ui_language.set_served(language)
+            assert site.get("/_next/app.js").text == "commun"
+        ui_language.set_served("fr")
+        from starlette.exceptions import HTTPException
+
+        with pytest.raises(HTTPException) as missing:  # fichier propre à l'autre langue
+            site.get("/only.txt")
+        assert missing.value.status_code == 404
+        assert site.get("/").status_code == 200
+    finally:
+        ui_language.set_served("fr")

@@ -89,6 +89,11 @@ class ProfileHandler:
         à la fois par le bouton Réinitialiser et après une mise à jour."""
         raise NotImplementedError
 
+    def restart_is_guaranteed(self) -> bool:
+        """Vrai si un superviseur (systemd, BobineTray, LaunchAgent) relance le backend après `restart_services()`.
+        Faux sur Android : le backend y vit dans le processus de l'application, qui sort sans relance garantie."""
+        return True
+
     def can_self_uninstall(self) -> bool:
         """True si `start_uninstall()` peut réellement déclencher la
         désinstallation depuis le backend lui-même. False si ce profil

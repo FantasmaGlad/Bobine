@@ -44,7 +44,7 @@ function detectFeatures(): FeatureRow[] {
     { label: "MediaCapabilities", supported: "mediaCapabilities" in navigator },
     { label: "requestVideoFrameCallback", supported: "requestVideoFrameCallback" in video },
     { label: "Fullscreen API", supported: !!document.documentElement.requestFullscreen },
-    { label: "Dossier glissé (webkitdirectory)", supported: "webkitdirectory" in document.createElement("input") },
+    { label: "Folder drop (webkitdirectory)", supported: "webkitdirectory" in document.createElement("input") },
   ];
 }
 

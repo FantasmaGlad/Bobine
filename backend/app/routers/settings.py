@@ -339,6 +339,8 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         # Langue de l'export servi depuis le démarrage : si elle diffère de `language`, un redémarrage est requis.
         "ui_language": ui_language.served(),
         "language_restart_required": language != ui_language.served(),
+        # Faux sur Android : le redémarrage y arrête l'application sans relance garantie.
+        "restart_guaranteed": get_profile_handler().restart_is_guaranteed(),
         "simplified_ui": "true" if _get_db_value(db, "simplified_ui") == "true" else "false",
         "has_custom_logo": has_custom,
         "active_logo": active_logo,
@@ -883,11 +885,11 @@ async def _run_restart():
 
 
 @router.post("/system/restart")
-async def restart_system(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, str]:
+async def restart_system(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, str | bool]:
     """Redémarrage simple (sans effacer de données), par exemple pour appliquer un changement de langue."""
     log_activity(db, "settings", "Redémarrage demandé")
     background_tasks.add_task(_run_restart)
-    return {"status": "restarting"}
+    return {"status": "restarting", "restart_guaranteed": get_profile_handler().restart_is_guaranteed()}
 
 
 @router.post("/system/reset")

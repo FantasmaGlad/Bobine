@@ -658,14 +658,14 @@ export default function AudioLibraryPage() {
                 uploadFiles.length > 1 ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                     <span style={{ fontWeight: 700, color: "var(--accent-primary)" }}>
-                      {uploadFiles.length} pistes audio sélectionnées
+                      {t("audio.tracksSelected", { count: uploadFiles.length })}
                     </span>
                     <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                      Elles seront regroupées en 1 seul cours audio avec {uploadFiles.length} pistes
+                      {t("audio.tracksGrouped", { count: uploadFiles.length })}
                     </span>
                   </div>
                 ) : (
-                  <span>1 piste audio sélectionnée · 1 cours audio</span>
+                  <span>{t("audio.oneTrackSelected")}</span>
                 )
               ) : (
                 t("audio.zipArchiveLabel", { name: uploadZip?.name ?? "" })
@@ -827,7 +827,7 @@ export default function AudioLibraryPage() {
                       </div>
                       <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                         {selectedBg
-                          ? (selectedBg.is_image ? "Image fixe personnalisée" : "Boucle vidéo personnalisée")
+                          ? (selectedBg.is_image ? t("audio.customStillImage") : t("audio.customVideoLoop"))
                           : defaultBg
                           ? t("backgrounds.defaultClubAmbiance")
                           : t("backgrounds.noBackgroundAmbiance")}
@@ -898,7 +898,7 @@ export default function AudioLibraryPage() {
                             setPickingTrackBackgroundId(track.id);
                             setShowBackgroundPicker(true);
                           }}
-                          title={trackBg ? `Ambiance piste : ${trackBg.title}` : "Lier une ambiance à cette piste"}
+                          title={trackBg ? t("audio.trackAmbiance", { title: trackBg.title }) : t("audio.linkAmbiance")}
                         >
                           <Icon name={trackBg ? (trackBg.is_image ? "image" : "videocam") : "wallpaper"} size={14} />
                           <span style={{ maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -964,12 +964,12 @@ export default function AudioLibraryPage() {
               <div>
                 <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 800 }}>
                   {pickingTrackBackgroundId
-                    ? `Ambiance de la piste`
+                    ? t("audio.trackAmbianceTitle")
                     : t("dashboard.chooseAmbiance")}
                 </h3>
                 {pickingTrackBackgroundId && (
                   <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                    Cette ambiance visuelle sera lancée automatiquement dès que cette piste débute
+                    {t("audio.ambianceAutoStart")}
                   </span>
                 )}
               </div>
@@ -1007,8 +1007,8 @@ export default function AudioLibraryPage() {
                     <Icon name="auto_awesome" size={20} color="var(--accent-primary)" />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>Ambiance automatique du cours (par défaut)</div>
-                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Conserver l&apos;ambiance globale choisie pour le cours entier</div>
+                    <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{t("audio.courseAmbianceDefault")}</div>
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{t("audio.courseAmbianceKeep")}</div>
                   </div>
                   {!selected?.tracks.find((t) => t.id === pickingTrackBackgroundId)?.background_id && (
                     <Icon name="check_circle" size={20} color="var(--accent-primary)" filled />
@@ -1088,7 +1088,7 @@ export default function AudioLibraryPage() {
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{t("backgrounds.noBackgroundAmbiance")}</div>
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Afficher un écran sobre sans boucle visuelle</div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{t("audio.plainScreen")}</div>
                     </div>
                     {!defaultBg && !drawerBackgroundId && <Icon name="check_circle" size={20} color="var(--accent-primary)" filled />}
                   </div>

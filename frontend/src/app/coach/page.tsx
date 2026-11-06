@@ -355,7 +355,7 @@ export default function CoachModePage() {
 
           {/* Commandes de lecture principales */}
           <div className="coach-controls-grid">
-            <button className="coach-btn olc-press" onClick={() => sendCommand("audio_previous_track")} disabled={trackIndex <= 0} title="Précédent">
+            <button className="coach-btn olc-press" onClick={() => sendCommand("audio_previous_track")} disabled={trackIndex <= 0} title={t("common.previous")}>
               <Icon name="skip_previous" size={28} filled />
             </button>
             <button
@@ -428,7 +428,7 @@ export default function CoachModePage() {
             title={t("coach.disableCoachMode")}
           >
             <Icon name="power_settings_new" size={20} />
-            <span>Quitter le mode coach</span>
+            <span>{t("coach.exitMode")}</span>
           </button>
         </div>
 
@@ -582,7 +582,7 @@ export default function CoachModePage() {
                             boxShadow: "0 2px 6px color-mix(in srgb, var(--ink) 50%, transparent)",
                           }}
                         >
-                          Actif
+                          {t("common.active")}
                         </span>
                       )}
                       <span

@@ -361,14 +361,14 @@ export default function LibraryPage() {
         body,
       });
       if (res.ok) {
-        showToast("Sous-titre ajouté avec succès", "success");
+        showToast(t("library.subtitleAdded"), "success");
         fetchSubtitles(selectedVideo.id);
       } else {
         const errData = await res.json().catch(() => ({}));
-        showToast(errData.detail || "Erreur d'import du sous-titre", "error");
+        showToast(errData.detail || t("library.subtitleImportError"), "error");
       }
     } catch {
-      showToast("Erreur de connexion", "error");
+      showToast(t("common.networkError"), "error");
     }
   };
 
@@ -379,13 +379,13 @@ export default function LibraryPage() {
         method: "DELETE",
       });
       if (res.ok) {
-        showToast("Sous-titre supprimé", "success");
+        showToast(t("library.subtitleDeleted"), "success");
         setStudioSubtitles((prev) => prev.filter((s) => s.id !== subId));
       } else {
-        showToast("Erreur lors de la suppression", "error");
+        showToast(t("library.subtitleDeleteError"), "error");
       }
     } catch {
-      showToast("Erreur de connexion", "error");
+      showToast(t("common.networkError"), "error");
     }
   };
 
@@ -543,14 +543,14 @@ export default function LibraryPage() {
       // Sous-titres déposés seuls : rattachés au premier cours en attente
       setPendingSpecs((prev) => {
         if (prev.length === 0) {
-          showToast("Veuillez d'abord sélectionner une vidéo pour lui associer ce sous-titre", "warning");
+          showToast(t("library.subtitleNeedsVideo"), "warning");
           return prev;
         }
         const first = prev[0];
         const updatedSubs = [...(first.subtitles ?? []), ...subtitles];
         return [{ ...first, subtitles: updatedSubs }, ...prev.slice(1)];
       });
-      showToast(`${subtitles.length} sous-titre(s) rattaché(s)`, "success");
+      showToast(t("library.subtitlesAttached", { count: subtitles.length }), "success");
     }
     if (rejected.length > 0) {
       const names = rejected.slice(0, 3).map((f) => f.name).join(", ") + (rejected.length > 3 ? "…" : "");
@@ -732,7 +732,7 @@ export default function LibraryPage() {
               {t("library.uploadFormatsHint")}
             </p>
             <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "4px" }}>
-              Plusieurs fichiers acceptés simultanément
+              {t("library.multipleFilesHint")}
             </p>
           </>
         ) : (
@@ -741,7 +741,7 @@ export default function LibraryPage() {
             style={{ width: "100%", maxWidth: "680px", textAlign: "left" }}
           >
             <h3 style={{ fontSize: "1.05rem", fontWeight: 800, marginBottom: "12px", color: "var(--accent-primary)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px" }}>
-              {pendingSpecs.length} fichier{pendingSpecs.length > 1 ? "s" : ""} sélectionné{pendingSpecs.length > 1 ? "s" : ""} — personnalisez les cours
+              {t(pendingSpecs.length > 1 ? "library.filesSelectedMany" : "library.filesSelectedOne", { count: pendingSpecs.length })}
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "380px", overflowY: "auto", paddingRight: "4px" }}>
               {pendingSpecs.map((spec) => (
@@ -756,7 +756,7 @@ export default function LibraryPage() {
                         ({(spec.file!.size / (1024 * 1024)).toFixed(1)} Mo)
                       </span>
                     </div>
-                    <button onClick={() => removePendingSpec(spec.key)} className="olc-press" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, display: "flex", padding: "4px" }} title="Retirer ce fichier">
+                    <button onClick={() => removePendingSpec(spec.key)} className="olc-press" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, display: "flex", padding: "4px" }} title={t("library.removeFile")}>
                       <Icon name="close" size={16} />
                     </button>
                   </div>
@@ -765,7 +765,7 @@ export default function LibraryPage() {
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Titre du cours"
+                      placeholder={t("library.courseTitlePlaceholder")}
                       value={spec.title}
                       onChange={(e) => updatePendingSpec(spec.key, { title: e.target.value })}
                       style={{ padding: "6px 10px", fontSize: "0.85rem" }}
@@ -852,7 +852,7 @@ export default function LibraryPage() {
                 onClick={submitPendingUploads}
                 style={{ flex: 1, height: "44px" }}
               >
-                Lancer {pendingSpecs.length} upload{pendingSpecs.length > 1 ? "s" : ""}
+                {t(pendingSpecs.length > 1 ? "library.startUploadsMany" : "library.startUploadsOne", { count: pendingSpecs.length })}
               </button>
               <button
                 type="button"
@@ -1142,7 +1142,7 @@ export default function LibraryPage() {
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: 700, color: "var(--accent-primary)", letterSpacing: "0.08em" }}>
-                    Studio d&apos;édition du cours
+                    {t("library.studioTitle")}
                   </div>
                   <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {drawerTitle || selectedVideo.title}
@@ -1233,7 +1233,7 @@ export default function LibraryPage() {
                   <div className="course-studio-spec-item">
                     <span className="spec-label">{t("library.audioQualityLabel")}</span>
                     <span className="spec-val">
-                      {getAudioQualityBadge(selectedVideo.audio_channels, selectedVideo.audio_codec)}
+                      {getAudioQualityBadge(selectedVideo.audio_channels, selectedVideo.audio_codec, undefined, t)}
                     </span>
                   </div>
                   <div className="course-studio-spec-item">
@@ -1249,7 +1249,7 @@ export default function LibraryPage() {
                     </span>
                   </div>
                   <div className="course-studio-spec-item" style={{ gridColumn: "span 2" }}>
-                    <span className="spec-label">Emplacement sur disque</span>
+                    <span className="spec-label">{t("library.diskLocation")}</span>
                     <span className="spec-val" style={{ fontSize: "0.74rem", opacity: 0.8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={selectedVideo.file_path}>
                       {selectedVideo.file_path}
                     </span>
@@ -1325,7 +1325,7 @@ export default function LibraryPage() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <label className="form-label">{t("library.descriptionFieldLabel")}</label>
                       <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                        Style Netflix • Multi-lignes supporté
+                        {t("library.subtitleStyleNote")}
                       </span>
                     </div>
                     <textarea
@@ -1343,10 +1343,10 @@ export default function LibraryPage() {
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <Icon name="subtitles" size={18} style={{ color: "var(--accent-primary)" }} />
                         <span style={{ fontSize: "0.82rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                          Sous-titres synchronisés
+                          {t("library.syncedSubtitles")}
                         </span>
                         <span className="badge-pill" style={{ background: "color-mix(in srgb, var(--specular) 8%, transparent)", fontSize: "0.72rem", padding: "2px 6px" }}>
-                          {studioSubtitles.length} piste{studioSubtitles.length > 1 ? "s" : ""}
+                          {t(studioSubtitles.length > 1 ? "library.tracksMany" : "library.tracksOne", { count: studioSubtitles.length })}
                         </span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -1375,7 +1375,7 @@ export default function LibraryPage() {
 
                     {studioSubtitles.length === 0 ? (
                       <div style={{ padding: "12px", textAlign: "center", background: "color-mix(in srgb, var(--ink) 15%, transparent)", borderRadius: "8px", fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                        Aucun sous-titre pour ce cours. Glissez ou ajoutez un fichier .srt (ex: cours.fr.srt).
+                        {t("library.noSubtitles")}
                       </div>
                     ) : (
                       <div className="course-studio-subtitles-list">
@@ -1389,7 +1389,7 @@ export default function LibraryPage() {
                               type="button"
                               onClick={() => handleDeleteSubtitle(sub.id)}
                               style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "0 2px", display: "flex", alignItems: "center" }}
-                              title="Supprimer ce sous-titre"
+                              title={t("library.deleteSubtitle")}
                             >
                               <Icon name="close" size={14} />
                             </button>

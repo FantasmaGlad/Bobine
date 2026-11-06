@@ -107,7 +107,7 @@ export default function AudioDetailSheet({ device, caps, notify, t, onClose, onC
   const rows: [string, string][] = details
     ? [
         [t("devices.audio.detail.state"), t(`devices.audio.detail.states.${details.state}`) === `devices.audio.detail.states.${details.state}` ? details.state : t(`devices.audio.detail.states.${details.state}`)],
-        [t("devices.audio.detail.channels"), describeChannels(details.channels, details.channel_map)],
+        [t("devices.audio.detail.channels"), describeChannels(details.channels, details.channel_map, t)],
         [t("devices.audio.detail.rate"), formatSampleRate(details.sample_rate)],
         [t("devices.audio.detail.format"), details.format ?? "—"],
         [t("devices.audio.detail.latency"), formatLatency(details.latency_ms)],

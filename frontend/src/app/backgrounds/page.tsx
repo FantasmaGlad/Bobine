@@ -191,7 +191,7 @@ function BackgroundCard({
         </h4>
         <div className="card-meta-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span className="release-badge" style={{ fontSize: "0.75rem" }}>
-            {bg.is_image ? "Image" : "Vidéo"}
+            {bg.is_image ? t("backgrounds.kindImage") : t("backgrounds.kindVideo")}
           </span>
           <button
             type="button"
@@ -495,7 +495,7 @@ export default function BackgroundsPage() {
         ) : (
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "560px", textAlign: "left" }}>
             <h3 style={{ fontSize: "1.05rem", fontWeight: 800, marginBottom: "12px", color: "var(--accent-primary)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px" }}>
-              {pendingSpecs.length} fichier{pendingSpecs.length > 1 ? "s" : ""} sélectionné{pendingSpecs.length > 1 ? "s" : ""}
+              {t(pendingSpecs.length > 1 ? "backgrounds.filesSelectedMany" : "backgrounds.filesSelectedOne", { count: pendingSpecs.length })}
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "320px", overflowY: "auto", paddingRight: "4px" }}>
               {pendingSpecs.map((spec) => (
@@ -621,7 +621,7 @@ export default function BackgroundsPage() {
             >
               <div>
                 <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.75rem" }}>{t("backgrounds.formatLabel")}</span>
-                <strong style={{ color: "var(--text-main)" }}>{inspectingBg.is_image ? "Image fixe" : "Boucle vidéo"}</strong>
+                <strong style={{ color: "var(--text-main)" }}>{inspectingBg.is_image ? t("backgrounds.stillImage") : t("backgrounds.videoLoop")}</strong>
               </div>
               <div>
                 <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.75rem" }}>{t("backgrounds.durationLabel")}</span>
@@ -632,7 +632,7 @@ export default function BackgroundsPage() {
               <div>
                 <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.75rem" }}>Mode Coach</span>
                 <strong style={{ color: defaultCoachBgId === inspectingBg.id ? "var(--accent-primary)" : "var(--text-muted)" }}>
-                  {defaultCoachBgId === inspectingBg.id ? "Par défaut" : "Optionnel"}
+                  {defaultCoachBgId === inspectingBg.id ? t("backgrounds.isDefault") : t("backgrounds.isOptional")}
                 </strong>
               </div>
             </div>
@@ -647,7 +647,7 @@ export default function BackgroundsPage() {
                   onClick={() => handleToggleDefaultCoach(inspectingBg.id)}
                 >
                   <Icon name={defaultCoachBgId === inspectingBg.id ? "bookmark_remove" : "bookmark_add"} size={18} />
-                  {defaultCoachBgId === inspectingBg.id ? "Retirer fond par défaut Coach" : t("backgrounds.setAsDefaultCoach")}
+                  {defaultCoachBgId === inspectingBg.id ? t("backgrounds.unsetDefaultCoach") : t("backgrounds.setAsDefaultCoach")}
                 </button>
               </div>
 

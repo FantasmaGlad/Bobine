@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { shareIdenticalAssets } from "./share-assets.mjs";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -32,6 +33,10 @@ for (const language of languages) {
   }
   cpSync(join(root, "out"), join(staging, language), { recursive: true });
 }
+if (languages.length > 1) {
+  const shared = shareIdenticalAssets(staging, languages);
+  console.log(`Fichiers communs mutualisés : ${shared.files} (${(shared.bytes / 1024).toFixed(0)} Ko économisés par paquet)`);
+}
 rmSync(join(root, "out"), { recursive: true, force: true });
 renameSync(staging, join(root, "out"));
-console.log(`Exports construits : ${languages.join(", ")} (out/<langue>)`);
+console.log(`Exports construits : ${languages.join(", ")} (out/<langue>, out/_shared)`);

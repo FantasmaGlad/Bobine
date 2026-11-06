@@ -68,6 +68,12 @@ class AndroidHandler(ProfileHandler):
         )
         os._exit(0)
 
+    def restart_is_guaranteed(self) -> bool:
+        # Aucune relance explicite et sûre n'a pu être éprouvée sans appareil : un Intent programmé depuis un processus
+        # qui sort est soumis aux limites de démarrage en arrière-plan (Android 10+) et aux politiques des
+        # constructeurs. START_STICKY reste le seul mécanisme, sans garantie de délai.
+        return False
+
     def can_self_uninstall(self) -> bool:
         return True
 

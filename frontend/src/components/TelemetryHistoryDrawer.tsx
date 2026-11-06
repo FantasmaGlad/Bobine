@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useId } from "react";
 import Icon from "@/components/Icon";
+import { useAppSettings } from "@/lib/AppSettingsContext";
 
 export interface TelemetryHistoryDrawerProps {
   isOpen: boolean;
@@ -15,21 +16,21 @@ export interface TelemetryHistoryDrawerProps {
 
 type ApiPeriod = "1h" | "6h" | "24h" | "7d" | "30d" | "this_month" | "all";
 
-const RANGE_LABELS: Record<ApiPeriod, string> = {
-  "1h": "Dernière heure",
-  "6h": "Dernières 6 heures",
-  "24h": "Dernières 24 heures",
-  "7d": "Derniers 7 jours",
-  "30d": "Derniers 30 jours",
-  this_month: "Ce mois-ci",
-  all: "Tout l'historique conservé",
+const RANGE_LABEL_KEYS: Record<ApiPeriod, string> = {
+  "1h": "telemetryDrawer.range1h",
+  "6h": "telemetryDrawer.range6h",
+  "24h": "telemetryDrawer.range24h",
+  "7d": "telemetryDrawer.range7d",
+  "30d": "telemetryDrawer.range30d",
+  this_month: "telemetryDrawer.rangeMonth",
+  all: "telemetryDrawer.rangeAll",
 };
 
-const RANGE_SHORT: Record<"7d" | "30d" | "this_month" | "all", string> = {
-  "7d": "7 j",
-  "30d": "30 j",
-  this_month: "Mois",
-  all: "Tout",
+const RANGE_SHORT_KEYS: Record<"7d" | "30d" | "this_month" | "all", string> = {
+  "7d": "telemetryDrawer.short7d",
+  "30d": "telemetryDrawer.short30d",
+  this_month: "telemetryDrawer.shortMonth",
+  all: "telemetryDrawer.shortAll",
 };
 
 interface MetricPoint {
@@ -58,6 +59,8 @@ export default function TelemetryHistoryDrawer({
   iconName,
   rangePeriod = "7d",
 }: TelemetryHistoryDrawerProps) {
+  const { t, language } = useAppSettings();
+  const locale = language === "fr" ? "fr-FR" : "en-US";
   const gradientId = useId();
   // « range » = la période du bandeau de la page (7 j, 30 j, mois en cours, tout l'historique conservé).
   const [period, setPeriod] = useState<"1h" | "6h" | "24h" | "range">("range");
@@ -161,9 +164,9 @@ export default function TelemetryHistoryDrawer({
     try {
       const d = new Date(isoString);
       if (apiPeriod !== "1h" && apiPeriod !== "6h" && apiPeriod !== "24h") {
-        return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+        return d.toLocaleDateString(locale, { weekday: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
       }
-      return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+      return d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
     } catch {
       return isoString;
     }
@@ -185,7 +188,7 @@ export default function TelemetryHistoryDrawer({
         className="telemetry-drawer"
         role="dialog"
         aria-modal="true"
-        aria-label={`Historique ${title}`}
+        aria-label={t("telemetryDrawer.ariaHistory", { title })}
       >
         {/* En-tête du tiroir */}
         <div className="telemetry-drawer-header">
@@ -196,7 +199,7 @@ export default function TelemetryHistoryDrawer({
             <div>
               <h2 className="telemetry-drawer-title">{title}</h2>
               <span className="telemetry-drawer-subtitle">
-                {RANGE_LABELS[apiPeriod]}
+                {t(RANGE_LABEL_KEYS[apiPeriod])}
               </span>
             </div>
           </div>
@@ -204,7 +207,7 @@ export default function TelemetryHistoryDrawer({
             type="button"
             className="close-btn"
             onClick={onClose}
-            aria-label="Fermer le tiroir"
+            aria-label={t("telemetryDrawer.close")}
           >
             <Icon name="close" size={20} />
           </button>
@@ -220,7 +223,7 @@ export default function TelemetryHistoryDrawer({
               onClick={() => setPeriod(p)}
               disabled={loading}
             >
-              {p === "1h" ? "1 h" : p === "6h" ? "6 h" : p === "24h" ? "24 h" : RANGE_SHORT[rangePeriod]}
+              {p === "1h" ? t("telemetryDrawer.short1h") : p === "6h" ? t("telemetryDrawer.short6h") : p === "24h" ? t("telemetryDrawer.short24h") : t(RANGE_SHORT_KEYS[rangePeriod])}
             </button>
           ))}
         </div>
@@ -228,25 +231,25 @@ export default function TelemetryHistoryDrawer({
         {/* Synthèse des statistiques clés */}
         <div className="telemetry-stats-grid">
           <div className="telemetry-stat-card">
-            <span className="telemetry-stat-label">Actuel</span>
+            <span className="telemetry-stat-label">{t("telemetryDrawer.current")}</span>
             <span className="telemetry-stat-val" style={{ color: "var(--accent-primary)" }}>
               {curVal.toFixed(1)} <small>{unit}</small>
             </span>
           </div>
           <div className="telemetry-stat-card">
-            <span className="telemetry-stat-label">Moyenne</span>
+            <span className="telemetry-stat-label">{t("telemetryDrawer.average")}</span>
             <span className="telemetry-stat-val">
               {avgVal.toFixed(1)} <small>{unit}</small>
             </span>
           </div>
           <div className="telemetry-stat-card">
-            <span className="telemetry-stat-label">Min</span>
+            <span className="telemetry-stat-label">{t("telemetryDrawer.min")}</span>
             <span className="telemetry-stat-val">
               {minVal.toFixed(1)} <small>{unit}</small>
             </span>
           </div>
           <div className="telemetry-stat-card">
-            <span className="telemetry-stat-label">Max</span>
+            <span className="telemetry-stat-label">{t("telemetryDrawer.max")}</span>
             <span className="telemetry-stat-val">
               {maxVal.toFixed(1)} <small>{unit}</small>
             </span>
@@ -257,7 +260,7 @@ export default function TelemetryHistoryDrawer({
         <div className="telemetry-chart-container">
           <div className="telemetry-chart-head">
             <span className="telemetry-chart-caption">
-              Évolution temporelle
+              {t("telemetryDrawer.evolution")}
             </span>
             {hoveredPoint && (
               <span className="telemetry-chart-hover-pill">
@@ -397,7 +400,7 @@ export default function TelemetryHistoryDrawer({
         <div className="telemetry-drawer-footer">
           <Icon name="info" size={16} />
           <span>
-            Échantillonnage continu automatique toutes les 60 secondes. Conservation paramétrable dans Réglages.
+            {t("telemetryDrawer.footer")}
           </span>
         </div>
       </aside>
