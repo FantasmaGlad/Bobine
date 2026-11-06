@@ -104,6 +104,20 @@ def collect(bundle_dir: Path, names: dict[str, str], out: Path) -> list[Path]:
     return written
 
 
+def gpg_sign_rpm(paths: list[Path], fingerprint: str) -> None:
+    """Signe les `.rpm` en OpenPGP (exigé par DNF dans packages.bobine.fit) AVANT leur signature de mise à jour : le même
+    fichier sert à la release et au dépôt. Même commande que `scripts/ci/sign-linux-packages.sh` pour Bobine."""
+    gpg = shutil.which("gpg")
+    for path in paths:
+        if path.suffix != ".rpm":
+            continue
+        subprocess.run(["rpmsign", "--define", f"_gpg_name {fingerprint}", "--define", f"_openpgp_sign_id {fingerprint}",
+                        "--define", f"__gpg {gpg}", "--addsign", str(path)], check=True)
+        check = subprocess.run(["rpmkeys", "--checksig", str(path)], check=True, capture_output=True, text=True).stdout
+        if "digests signatures OK" not in check:
+            raise SystemExit(f"signature OpenPGP invalide pour {path.name} : {check.strip()}")
+
+
 def sign(paths: list[Path], npx: str, version: str) -> None:
     """Signe chaque paquet avec la clé de mise à jour, en liant la signature à `version`.
 
@@ -127,6 +141,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--filename-version", help="version dans les noms de fichiers (défaut : VERSION, ou le canal)")
     parser.add_argument("--version", help="version du paquet (défaut : VERSION)")
+    parser.add_argument("--gpg-sign", metavar="EMPREINTE", help="signer les .rpm avec cette clé OpenPGP (déjà importée)")
     args = parser.parse_args(argv)
 
     version = args.version or (REPO / "VERSION").read_text(encoding="utf-8").strip()
@@ -148,6 +163,8 @@ def main(argv: list[str] | None = None) -> int:
 
     names = target_names(system, arch, filename_version) | (updater_names(system, arch, filename_version) if signing else {})
     written = collect(bundle_dir, names, args.out)
+    if args.gpg_sign:
+        gpg_sign_rpm(written, args.gpg_sign)
     if signing:
         sign(written, npx, version)
     for path in sorted(args.out.iterdir()):

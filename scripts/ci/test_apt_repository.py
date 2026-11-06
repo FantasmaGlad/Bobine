@@ -40,6 +40,13 @@ class AptRepositoryTests(unittest.TestCase):
             (tree / "DEBIAN").mkdir(parents=True)
             (tree / "DEBIAN/control").write_text(f"Package: bobine\nVersion: 1.0-1\nArchitecture: {architecture}\nSection: misc\nPriority: optional\nMaintainer: t <t@example.org>\nDescription: test\n")
             subprocess.run(["dpkg-deb", "--build", str(tree), str(cls.packages / f"bobine_1.0-1_{architecture}.deb")], check=True, capture_output=True)
+        cls.assistant = base / "assistant"
+        cls.assistant.mkdir()
+        for architecture in ("amd64", "arm64"):
+            tree = base / f"assistant-{architecture}"
+            (tree / "DEBIAN").mkdir(parents=True)
+            (tree / "DEBIAN/control").write_text(f"Package: bobine-assistant\nVersion: 1.0+canary.7\nArchitecture: {architecture}\nSection: utils\nPriority: optional\nMaintainer: t <t@example.org>\nDescription: test\n")
+            subprocess.run(["dpkg-deb", "--build", str(tree), str(cls.assistant / f"bobine-assistant_canary_{architecture}.deb")], check=True, capture_output=True)
 
     def setUp(self):
         self.pages = Path(self.directory.name, f"pages-{self.id().rsplit('.', 1)[-1]}")
@@ -69,6 +76,21 @@ class AptRepositoryTests(unittest.TestCase):
         for channel, days in (("stable", 365), ("beta", 365), ("canary", 30)):
             expires = time.mktime(time.strptime(self.fields(channel)["Valid-Until"], "%a, %d %b %Y %H:%M:%S %Z")) - time.timezone
             self.assertAlmostEqual((expires - time.time()) / 86400, days, delta=1, msg=channel)
+
+    def packages_index(self, channel, architecture):
+        return (self.debian / "dists" / channel / "main" / f"binary-{architecture}" / "Packages").read_text()
+
+    def test_assistant_is_published_beside_bobine_and_kept_without_new_packages(self):
+        result = self.run_script(PREPARE, "deb", "canary", str(self.packages), str(self.pages), str(self.assistant))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for architecture in ("amd64", "arm64"):
+            index = self.packages_index("canary", architecture)
+            self.assertIn("Package: bobine\n", index)
+            self.assertIn("Package: bobine-assistant\nVersion: 1.0+canary.7", index)
+        # Une publication de Bobine seule (construction de l'assistant en échec) garde l'assistant déjà publié.
+        self.prepare("canary")
+        self.assertIn("Package: bobine-assistant\n", self.packages_index("canary", "amd64"))
+        self.assertTrue(list((self.debian / "pool").rglob("bobine-assistant_*.deb")))
 
     def test_unknown_channel_is_refused(self):
         result = self.run_script(PREPARE, "deb", "nightly", str(self.packages), str(self.pages))
