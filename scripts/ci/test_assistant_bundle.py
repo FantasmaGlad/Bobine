@@ -20,8 +20,12 @@ class AssistantBundleTests(unittest.TestCase):
         self.assertEqual(bundle.target_names("macos", "arm64", "5.1.0"), {".dmg": "Bobine-Assistant-5.1.0-arm64.dmg"})
 
     def test_channel_icons_and_version(self):
-        override = bundle.config_override("5.1.1-canary", "canary")
-        self.assertEqual(override["version"], "5.1.1-canary")
+        override = bundle.config_override("5.1.1+canary.7", "canary")
+        self.assertEqual(override["version"], "5.1.1+canary.7")
+        self.assertEqual(override["plugins"]["updater"]["endpoints"],
+                         ["https://github.com/FantasmaGlad/Bobine/releases/download/assistant-canary/latest.json"])
+        self.assertFalse(override["bundle"]["createUpdaterArtifacts"])
+        self.assertTrue(bundle.config_override("5.1.1", "stable", True)["bundle"]["createUpdaterArtifacts"])
         self.assertTrue(all(path.startswith("icons/canary/") for path in override["bundle"]["icon"]))
         for path in override["bundle"]["icon"]:
             self.assertTrue((bundle.ASSISTANT / "src-tauri" / path).is_file(), path)

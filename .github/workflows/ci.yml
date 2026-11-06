@@ -410,6 +410,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     needs: [version]
+    env:
+      # Version strictement croissante d'un build glissant à l'autre : la mise à jour automatique n'en propose pas d'autre.
+      ASSISTANT_VERSION: ${{ (needs.version.outputs.channel == 'beta' || needs.version.outputs.channel == 'canary') && format('{0}+{1}.{2}', needs.version.outputs.base_version, needs.version.outputs.channel, github.run_number) || needs.version.outputs.base_version }}
     strategy:
       fail-fast: false
       matrix:
@@ -447,18 +450,24 @@ jobs:
         shell: bash
         run: |
           echo "${{ needs.version.outputs.commit_short }}" > COMMIT
-          if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
-            echo "${{ needs.version.outputs.display_version }}" > VERSION
-          fi
+          echo "$ASSISTANT_VERSION" > VERSION
       - name: Construire les paquets
         shell: bash
+        env:
+          # Signature des paquets de mise à jour : absente pour une PR venue d'un fork (aucun secret), alors rien n'est signé.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           # Hors publication (PR), le canal vaut « none » : icônes de la Stable.
           channel="${{ needs.version.outputs.channel }}"
           # OpenSSL se configure avec le Perl natif de Windows, pas celui de Git Bash (msys), qu'il ne reconnaît pas.
           if [ "$RUNNER_OS" = Windows ]; then export OPENSSL_SRC_PERL='C:\Strawberry\perl\bin\perl.exe'; fi
           [ "$channel" = none ] && channel=stable
-          python assistant/scripts/bundle.py --channel "$channel" --filename-version "${{ needs.version.outputs.filename_version }}" --out dist-assistant
+          python assistant/scripts/bundle.py --channel "$channel" --version "$ASSISTANT_VERSION" --filename-version "${{ needs.version.outputs.filename_version }}" --out dist-assistant
+          # Une publication exige les signatures : sans elles, la mise à jour automatique refuserait chaque paquet.
+          if [ "${{ needs.version.outputs.channel }}" != none ] && ! ls dist-assistant/*.sig > /dev/null 2>&1; then
+            echo "::error::paquets de l'assistant non signés (secret TAURI_SIGNING_PRIVATE_KEY absent ?)"; exit 1
+          fi
       - name: Installer et lancer (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -2033,6 +2042,7 @@ jobs:
       CHANNEL: ${{ needs.version.outputs.channel }}
       TAG: assistant-${{ needs.version.outputs.tag_name }}
       SUFFIX: ${{ needs.version.outputs.filename_version }}
+      ASSISTANT_VERSION: ${{ (needs.version.outputs.channel == 'beta' || needs.version.outputs.channel == 'canary') && format('{0}+{1}.{2}', needs.version.outputs.base_version, needs.version.outputs.channel, github.run_number) || needs.version.outputs.base_version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -2042,6 +2052,8 @@ jobs:
           pattern: assistant-packages-*
           merge-multiple: true
           path: assistant-assets
+      - name: Manifeste de mise à jour (latest.json)
+        run: python3 scripts/ci/render-assistant-latest.py assistant-assets "$TAG" "$ASSISTANT_VERSION"
       - name: Signer la liste des empreintes (SHA256SUMS)
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
@@ -2080,6 +2092,21 @@ jobs:
           bash scripts/ci/publish-rolling-release.sh "$TAG" assistant-assets
           "Bobine Assistant ${{ needs.version.outputs.channel == 'stable' && needs.version.outputs.base_version || needs.version.outputs.channel }}"
           "$RUNNER_TEMP/assistant-notes.md" "$GITHUB_SHA"
+      # La Stable a un tag par version : l'adresse fixe que lit l'assistant Stable est la release assistant-stable, qui ne
+      # porte que le latest.json de la dernière Stable (ses liens visent assistant-Vx.y.z).
+      - name: Pointeur de mise à jour Stable (assistant-stable)
+        if: needs.version.outputs.channel == 'stable'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_KIND: stable-secondaire
+        run: |
+          mkdir -p "$RUNNER_TEMP/assistant-stable"
+          cp assistant-assets/latest.json "$RUNNER_TEMP/assistant-stable/"
+          printf '%s\n' "Manifeste de mise à jour de Bobine Assistant Stable : pointe vers la release [$TAG](https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG)." > "$RUNNER_TEMP/assistant-stable-notes.md"
+          git tag -f assistant-stable "$GITHUB_SHA"
+          git push --force origin refs/tags/assistant-stable
+          bash scripts/ci/publish-rolling-release.sh assistant-stable "$RUNNER_TEMP/assistant-stable" \
+            "Bobine Assistant — mise à jour Stable" "$RUNNER_TEMP/assistant-stable-notes.md" "$GITHUB_SHA"
 
   publish-linux-packages:
     name: Publier les dépôts Linux (packages.bobine.fit)
