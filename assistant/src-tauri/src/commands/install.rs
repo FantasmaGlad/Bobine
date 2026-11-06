@@ -3,7 +3,8 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use ssh2::Session;
-use tauri::Emitter;
+use crate::error::AssistantError;
+use crate::events::Events;
 
 use bobine_installer_core::orchestrate::{
     build_remote_command, build_remote_command_via, Elevation, InstallOptions as CoreOptions,
@@ -134,7 +135,7 @@ fn scrub_secret(s: &mut str) {
 }
 
 /// Simulation d'installation basée sur la fixture réelle enregistrée
-async fn run_mock_installation(app: tauri::AppHandle) -> Result<(), String> {
+fn run_mock_installation(events: &dyn Events) -> Result<(), String> {
     // Évènements réels enregistrés lors d'une exécution de install.sh
     let fixture_lines = vec![
         r#"{"bobine":1,"event":"run_begin","version":"1.0.0","total":14,"user":"alice","repo":"/home/alice/Bobine","log":"/var/log/bobine.log","mode":"kiosk"}"#,
@@ -172,18 +173,18 @@ async fn run_mock_installation(app: tauri::AppHandle) -> Result<(), String> {
     let mut state = ProgressState::new();
 
     for line in fixture_lines {
-        tokio::time::sleep(Duration::from_millis(150)).await;
+        std::thread::sleep(Duration::from_millis(150));
         match classify_line(line) {
             LineKind::Event(ref ev) => {
                 state.apply(ev);
                 let update = progress_to_update(&state);
-                app.emit("install_progress", update).ok();
+                crate::events::send(events, "install_progress", &update);
             }
             LineKind::Log => {
-                app.emit("install_log", line.to_string()).ok();
+                crate::events::send(events, "install_log", &line.to_string());
             }
             LineKind::Malformed(err) => {
-                app.emit("install_log", format!("[WARN] Évènement malformé : {err}")).ok();
+                crate::events::send(events, "install_log", &format!("[WARN] Évènement malformé : {err}"));
             }
         }
     }
@@ -193,11 +194,17 @@ async fn run_mock_installation(app: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams) -> Result<(), String> {
-    if params.mock_replay {
-        return run_mock_installation(app).await;
-    }
+    tokio::task::spawn_blocking(move || run_installation(&app, params).map_err(String::from))
+        .await
+        .map_err(|e| format!("Erreur d'exécution de tâche : {e}"))?
+}
 
-    tokio::task::spawn_blocking(move || {
+/// Installation complète sur la cible (bloquante) : partagée par l'interface et par `bobine-assistant install`.
+pub fn run_installation(events: &dyn Events, params: RunInstallParams) -> Result<(), AssistantError> {
+    if params.mock_replay {
+        return run_mock_installation(events).map_err(AssistantError::from);
+    }
+    {
         let sess = super::connection::open_ssh_session(
             &params.host,
             params.port,
@@ -213,7 +220,7 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
             Some(path) => (path, false),
             None => {
                 let remote = remote_script_path();
-                app.emit("install_log", "> Envoi de l'installateur sur la cible…".to_string()).ok();
+                crate::events::send(events, "install_log", &"> Envoi de l'installateur sur la cible…".to_string());
                 upload_install_script(&sess, &remote)?;
                 (remote, true)
             }
@@ -236,9 +243,9 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
         // seule copie en mémoire, à écraser en fin de fonction.
         let mut root_password = params.root_password;
         if needs_root_password && root_password.as_deref().is_none_or(|p| p.trim().is_empty()) {
-            return Err(
+            return Err(AssistantError::Failed(
                 "Le mot de passe root est requis pour lancer l'installation via « su - » sur cette machine, mais aucun mot de passe n'a été fourni.".to_string(),
-            );
+            ));
         }
 
         let opts = CoreOptions {
@@ -254,7 +261,7 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
         } else {
             build_remote_command(&script, &opts, &elevation)
         };
-        app.emit("install_log", format!("> Exécution distante : {cmd}")).ok();
+        crate::events::send(events, "install_log", &format!("> Exécution distante : {cmd}"));
 
         let mut channel = sess
             .channel_session()
@@ -329,17 +336,13 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
                             LineKind::Event(ref ev) => {
                                 state.apply(ev);
                                 let update = progress_to_update(&state);
-                                app.emit("install_progress", update).ok();
+                                crate::events::send(events, "install_progress", &update);
                             }
                             LineKind::Log => {
-                                app.emit("install_log", line.to_string()).ok();
+                                crate::events::send(events, "install_log", &line.to_string());
                             }
                             LineKind::Malformed(err) => {
-                                app.emit(
-                                    "install_log",
-                                    format!("[ATTENTION] Évènement malformé : {err}"),
-                                )
-                                .ok();
+                                crate::events::send(events, "install_log", &format!("[ATTENTION] Évènement malformé : {err}"));
                             }
                         }
                     }
@@ -388,12 +391,10 @@ pub async fn start_installation(app: tauri::AppHandle, params: RunInstallParams)
 
         result?;
         if exit_code != 0 && state.phase != Phase::Succeeded {
-            return Err(format!(
+            return Err(AssistantError::Failed(format!(
                 "L'installation s'est interrompue (code de sortie {exit_code}). Consultez le journal ci-dessus et /var/log/bobine/ sur la borne."
-            ));
+            )));
         }
         Ok(())
-    })
-    .await
-    .map_err(|e| format!("Erreur d'exécution de tâche : {e}"))?
+    }
 }

@@ -1,7 +1,10 @@
 // Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod cli;
 mod commands;
+mod error;
+mod events;
 
 use commands::discovery::scan_network;
 use commands::connection::test_ssh_connection;
@@ -11,6 +14,12 @@ use commands::update::{check_assistant_update, install_assistant_update};
 use commands::version::get_app_info;
 
 fn main() {
+    // `bobine-assistant scan|inspect|install|version` : ligne de commande, sans ouvrir de fenêtre.
+    let args: Vec<String> = std::env::args().collect();
+    if cli::is_invocation(&args) {
+        std::process::exit(cli::main(args));
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())

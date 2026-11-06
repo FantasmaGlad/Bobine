@@ -4,6 +4,8 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use ssh2::Session;
 
+use crate::error::AssistantError;
+
 use bobine_installer_core::privilege::{decide, elevation_for, PrivilegeDecision, SudoProbe};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,7 +56,14 @@ pub(crate) fn open_ssh_session(
     username: &str,
     password: Option<&str>,
     key_path: Option<&str>,
-) -> Result<Session, String> {
+) -> Result<Session, AssistantError> {
+    let sess = connect(host, port).map_err(AssistantError::Unreachable)?;
+    super::ssh_auth::authenticate_session(&sess, username, password, key_path).map_err(AssistantError::Refused)?;
+    Ok(sess)
+}
+
+/// Connexion TCP et négociation SSH, avant toute authentification.
+fn connect(host: &str, port: u16) -> Result<Session, String> {
     let host = host.trim();
     if host.is_empty() {
         return Err("Adresse de la borne manquante : sélectionnez-la dans le scan ou saisissez son IP.".to_string());
@@ -98,8 +107,6 @@ pub(crate) fn open_ssh_session(
     // sans eux, une box ou un Wi-Fi qui purge les connexions inactives la
     // coupait en plein milieu.
     sess.set_keepalive(true, 15);
-
-    super::ssh_auth::authenticate_session(&sess, username, password, key_path)?;
     Ok(sess)
 }
 
@@ -135,7 +142,15 @@ fn run_remote_exec(sess: &Session, cmd: &str) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn test_ssh_connection(creds: SshCredentials) -> Result<SystemInspection, String> {
-    tokio::task::spawn_blocking(move || {
+    tokio::task::spawn_blocking(move || inspect(creds).map_err(String::from))
+        .await
+        .map_err(|e| format!("Erreur de tâche asynchrone : {e}"))?
+}
+
+/// Connexion SSH puis audit de la cible (système, architecture, élévation, matériel) : partagé par l'interface et
+/// par `bobine-assistant inspect`.
+pub fn inspect(creds: SshCredentials) -> Result<SystemInspection, AssistantError> {
+    {
         let sess = open_ssh_session(
             &creds.host,
             creds.port,
@@ -216,7 +231,5 @@ pub async fn test_ssh_connection(creds: SshCredentials) -> Result<SystemInspecti
             disk_free_gb,
             gpu_info: if gpu_info.is_empty() { "Graphismes intégrés".to_string() } else { gpu_info },
         })
-    })
-    .await
-    .map_err(|e| format!("Erreur de tâche asynchrone : {e}"))?
+    }
 }

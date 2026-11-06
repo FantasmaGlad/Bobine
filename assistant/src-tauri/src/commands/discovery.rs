@@ -4,7 +4,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
+
+use crate::events::Events;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 use tokio::sync::Semaphore;
@@ -321,6 +323,11 @@ async fn resolve_bobine_local() -> Option<Ipv4Addr> {
 
 #[tauri::command]
 pub async fn scan_network(app: AppHandle, custom_subnet: Option<String>) -> Result<Vec<DiscoveredDevice>, String> {
+    scan(&app, custom_subnet).await
+}
+
+/// Balayage des réseaux locaux (ou du réseau saisi) : partagé par l'interface et par `bobine-assistant scan`.
+pub async fn scan(events: &dyn Events, custom_subnet: Option<String>) -> Result<Vec<DiscoveredDevice>, String> {
     let mut plan = plan_from_interfaces();
 
     if let Some(spec) = custom_subnet.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
@@ -370,17 +377,13 @@ pub async fn scan_network(app: AppHandle, custom_subnet: Option<String>) -> Resu
     while let Some(joined) = tasks.join_next().await {
         done += 1;
         if let Ok(Some(device)) = joined {
-            app.emit("scan_device", &device).ok();
+            crate::events::send(events, "scan_device", &device);
             results.push(device);
         }
         // Au plus ~8 mises à jour par seconde : fluide sans noyer l'IHM.
         if last_emit.elapsed() >= Duration::from_millis(120) || done == total {
             last_emit = Instant::now();
-            app.emit(
-                "scan_progress",
-                ScanProgress { done, total, found: results.len(), networks: network_labels.clone() },
-            )
-            .ok();
+            crate::events::send(events, "scan_progress", &ScanProgress { done, total, found: results.len(), networks: network_labels.clone() });
         }
     }
 
@@ -399,7 +402,7 @@ pub async fn scan_network(app: AppHandle, custom_subnet: Option<String>) -> Resu
         if scanned.contains(ip) && !known.contains(ip) {
             let mut device = build_device(*ip, None, false, false, Vec::new(), None, "arp");
             device.mac = Some(mac.clone());
-            app.emit("scan_device", &device).ok();
+            crate::events::send(events, "scan_device", &device);
             results.push(device);
         }
     }
@@ -419,7 +422,7 @@ pub async fn scan_network(app: AppHandle, custom_subnet: Option<String>) -> Resu
                     Some("Bobine (bobine.local)".to_string()), "mdns",
                 );
                 device.is_wyse_or_bobine = true;
-                app.emit("scan_device", &device).ok();
+                crate::events::send(events, "scan_device", &device);
                 results.push(device);
             }
         }
@@ -457,10 +460,6 @@ pub async fn scan_network(app: AppHandle, custom_subnet: Option<String>) -> Resu
             })
     });
 
-    app.emit(
-        "scan_progress",
-        ScanProgress { done: total, total, found: results.len(), networks: network_labels },
-    )
-    .ok();
+    crate::events::send(events, "scan_progress", &ScanProgress { done: total, total, found: results.len(), networks: network_labels });
     Ok(results)
 }
