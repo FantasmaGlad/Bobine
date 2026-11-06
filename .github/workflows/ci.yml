@@ -455,6 +455,8 @@ jobs:
         run: |
           # Hors publication (PR), le canal vaut « none » : icônes de la Stable.
           channel="${{ needs.version.outputs.channel }}"
+          # OpenSSL se configure avec le Perl natif de Windows, pas celui de Git Bash (msys), qu'il ne reconnaît pas.
+          if [ "$RUNNER_OS" = Windows ]; then export OPENSSL_SRC_PERL='C:\Strawberry\perl\bin\perl.exe'; fi
           [ "$channel" = none ] && channel=stable
           python assistant/scripts/bundle.py --channel "$channel" --filename-version "${{ needs.version.outputs.filename_version }}" --out dist-assistant
       - name: Installer et lancer (Linux)

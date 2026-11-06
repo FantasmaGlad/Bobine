@@ -49,6 +49,9 @@ def config_override(version: str, channel: str) -> dict:
         "bundle": {
             "icon": [f"{icons}/32x32.png", f"{icons}/128x128.png", f"{icons}/128x128@2x.png",
                      f"{icons}/icon.icns", f"{icons}/icon.ico"],
+            # Signature ad hoc de toute l'application : sans elle, seul le binaire porte la signature de l'éditeur de
+            # liens et `codesign --verify --strict` refuse le bundle.
+            "macOS": {"signingIdentity": "-"},
         },
     }
 
