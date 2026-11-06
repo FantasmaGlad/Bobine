@@ -59,6 +59,13 @@ if (( ${#missing[@]} > 0 )); then
     ls -l "${DIR}"
     exit 1
 fi
+# Les paquets de l'assistant ont leur propre release : dans celle de Bobine, la mise à jour intégrée des installations
+# existantes pourrait prendre son installeur (premier .exe, .deb ou .dmg de la bonne architecture).
+stray=$(cd "${DIR}" && ls -1 | grep -iE '^bobine-assistant.*\.(exe|deb|rpm|dmg)$' || true)
+if [[ -n "${stray}" ]]; then
+    echo "::error::paquets de l'assistant dans une release de Bobine : ${stray//$'\n'/ }"
+    exit 1
+fi
 # SHA256SUMS doit lister chaque fichier attendu avec son empreinte réelle (la signature est vérifiée à sa production).
 for name in "${expected[@]}"; do
     case "${name}" in SHA256SUMS|SHA256SUMS.asc) continue ;; esac

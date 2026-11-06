@@ -133,7 +133,8 @@ def render(channel: str, manifests: bool = True) -> str:
         (logo("Icons/os/android.svg", "Android"), "**Android**", short(f"Bobine-{channel}.apk", "APK"), "Android 14+, ARM64"),
         (logo("Icons/os/androidtv.svg", "Android TV"), "**Android TV**", short(f"Bobine-TV-{channel}.apk", "APK TV"), "ARM 32 et 64 bits"),
         (logo("Images/bash.svg", "Mini PC"), "**Mini PC dédié**",
-         f"{short('install.sh', 'install.sh')} · {short('bobine-assistant', 'assistant x64')} · {short('bobine-assistant-arm64', 'ARM64')}",
+         f"{short('install.sh', 'install.sh')} · {short('bobine-assistant', 'assistant x64')} · {short('bobine-assistant-arm64', 'ARM64')}"
+         f" · [assistant Windows, macOS, .deb, .rpm](https://github.com/{REPOSITORY}/releases/tag/assistant-{channel})",
          f"Debian 13 ; `sudo ./install.sh --channel={channel}`"),
     ]
     if manifests:

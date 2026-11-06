@@ -37,10 +37,12 @@ class PublishRollingReleaseTests(unittest.TestCase):
         self.published = root / "published.txt"
         self.published.write_text("")
 
-    def run_script(self, existing=None, view_error=None):
+    def run_script(self, existing=None, view_error=None, kind=None):
         if existing is not None:
             self.published.write_text("\n".join(existing) + "\n")
         environment = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}", FAKE_GH_LOG=str(self.log), FAKE_GH_ASSETS=str(self.published))
+        if kind:
+            environment["RELEASE_KIND"] = kind
         if view_error:
             environment["FAKE_GH_VIEW_ERROR"] = view_error
         result = subprocess.run(["bash", str(SCRIPT), "canary", str(self.assets), "Titre", str(self.notes), "abc123"],
@@ -87,6 +89,20 @@ class PublishRollingReleaseTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertEqual(calls, [])
 
+
+    def test_a_secondary_stable_is_never_a_prerelease_nor_latest(self):
+        result, calls = self.run_script(view_error="release not found", kind="stable-secondaire")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        create = next(call for call in calls if call.startswith("release create"))
+        self.assertIn("--prerelease=false --latest=false", create)
+        result, calls = self.run_script(existing=["Bobine-canary.apk"], kind="stable-secondaire")
+        edit = next(call for call in calls if call.startswith("release edit"))
+        self.assertIn("--latest=false", edit)
+        self.assertNotIn("--prerelease ", edit + " ")
+
+    def test_an_unknown_kind_is_refused(self):
+        result, _ = self.run_script(existing=[], kind="autre")
+        self.assertEqual(result.returncode, 2)
 
 if __name__ == "__main__":
     unittest.main()

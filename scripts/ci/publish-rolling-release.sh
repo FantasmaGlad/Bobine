@@ -4,9 +4,16 @@
 # remplacés (--clobber), les assets qui ne font plus partie du lot sont retirés, puis titre et notes sont mis à jour. SHA256SUMS et
 # sa signature sont envoyés en dernier. Seul le remplacement d'un asset donné est indisponible, le temps de son envoi.
 # Usage : publish-rolling-release.sh <tag> <dossier des assets> <titre> <fichier de notes> [commit cible]
+# RELEASE_KIND=stable-secondaire : release Stable d'un produit annexe (l'assistant, tag assistant-Vx.y.z), publiée sans
+# marque de préversion mais jamais « Latest », que lisent le site, install.ps1, le cask et winget pour Bobine.
 # Dépendances : gh, GH_TOKEN (ou gh déjà authentifié). Le tag doit déjà pointer sur le commit publié.
 set -euo pipefail
 export LC_ALL=C
+case "${RELEASE_KIND:-glissant}" in
+    glissant) kind=(--prerelease) ;;
+    stable-secondaire) kind=(--prerelease=false --latest=false) ;;
+    *) echo "RELEASE_KIND inconnu : ${RELEASE_KIND}" >&2; exit 2 ;;
+esac
 tag="${1:?tag mobile (canary ou beta)}"; dir="${2:?dossier des assets}"; title="${3:?titre}"; notes="${4:?fichier de notes}"
 target="${5:-}"
 [ -d "$dir" ] && [ -s "$notes" ] || { echo "Assets ou notes introuvables." >&2; exit 2; }
@@ -26,7 +33,7 @@ if ! lookup=$(gh release view "$tag" --json assets --jq '.assets[].name' 2>&1); 
         *) echo "$lookup" >&2; exit 1 ;;
     esac
     gh release create "$tag" "${others[@]}" "${checksums[@]}" \
-        --title "$title" --notes-file "$notes" --prerelease ${target:+--target "$target"}
+        --title "$title" --notes-file "$notes" "${kind[@]}" ${target:+--target "$target"}
     exit 0
 fi
 
@@ -36,5 +43,5 @@ while IFS= read -r name; do
     [ -n "$name" ] && [ ! -e "$dir/$name" ] && gh release delete-asset "$tag" "$name" --yes
 done <<< "$lookup"
 # Déplacer le tag (suppression puis recréation) fait repasser la release en brouillon : on la republie ici.
-gh release edit "$tag" --title "$title" --notes-file "$notes" --prerelease --draft=false
+gh release edit "$tag" --title "$title" --notes-file "$notes" "${kind[@]}" --draft=false
 echo "Release $tag mise à jour en place : ${#assets[@]} assets."
