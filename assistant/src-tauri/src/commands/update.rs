@@ -20,10 +20,23 @@ struct Progress {
     total: Option<u64>,
 }
 
+/// Message d'une recherche de mise à jour en échec ; une copie hors paquet (binaire brut, compilation locale) ne trouve
+/// pas son installeur dans `latest.json` : elle se met à jour par un paquet, pas toute seule.
+pub(crate) fn describe(error: tauri_plugin_updater::Error) -> String {
+    match error {
+        tauri_plugin_updater::Error::TargetNotFound(_) | tauri_plugin_updater::Error::TargetsNotFound(_) => {
+            "Cette copie de l'assistant n'est pas installée par un paquet (.deb, .rpm, installeur Windows ou macOS) : \
+             elle ne peut pas se mettre à jour seule. Installez le paquet de votre système depuis la release de l'assistant."
+                .to_string()
+        }
+        other => other.to_string(),
+    }
+}
+
 #[tauri::command]
 pub async fn check_assistant_update(app: AppHandle) -> Result<AssistantUpdate, String> {
     let current = app.package_info().version.to_string();
-    let update = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?;
+    let update = app.updater().map_err(|e| e.to_string())?.check().await.map_err(describe)?;
     Ok(match update {
         Some(update) => AssistantUpdate {
             available: true,
@@ -44,7 +57,7 @@ pub async fn install_assistant_update(app: AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?
         .check()
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(describe)?
         .ok_or_else(|| "Aucune mise à jour disponible.".to_string())?;
     let mut downloaded = 0u64;
     let emitter = app.clone();
