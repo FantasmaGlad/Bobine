@@ -5,6 +5,12 @@ edition = "2021"
 description = "Assistant d'installation graphique et télécommande de bureau Bobine (Tauri 2)"
 license = "AGPL-3.0-or-later"
 
+# Bibliothèque partagée par le binaire de bureau (`src/main.rs`) et l'application Android (point d'entrée mobile de
+# `src/lib.rs`, chargé par le projet Gradle de `gen/android`).
+[lib]
+name = "bobine_assistant_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -17,12 +23,16 @@ serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 if-addrs = "0.15"
 dns-lookup = "4"
-tauri-plugin-updater = "2"
 clap = { version = "4", features = ["derive"] }
 base64 = "0.22"
+zeroize = "1"
 
-# libssh2 a besoin d'OpenSSL : celui du système sous Linux, compilé avec l'assistant sous Windows et macOS, qui n'en
-# fournissent pas d'utilisable.
+# Mise à jour intégrée sur ordinateur seulement : sur Android, l'APK se remplace comme toute application.
+[target.'cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))'.dependencies]
+tauri-plugin-updater = "2"
+
+# libssh2 a besoin d'OpenSSL : celui du système sous Linux, compilé avec l'assistant sous Windows, macOS et Android,
+# qui n'en fournissent pas d'utilisable (pour Rust, Android n'est pas `linux`).
 [target.'cfg(target_os = "linux")'.dependencies]
 ssh2 = "0.9"
 

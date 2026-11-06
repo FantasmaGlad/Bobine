@@ -125,6 +125,7 @@ function recall(key) {
 
 function init() {
   renderPreviewModeBanner();
+  if (/Android/i.test(navigator.userAgent)) document.documentElement.classList.add('is-android');
   const savedUser = recall('sshUsername');
   const userField = document.getElementById('ssh-username');
   if (savedUser && userField && !userField.value) userField.value = savedUser;
@@ -267,7 +268,7 @@ function initWizard() {
 
   btnClearKey.addEventListener('click', () => {
     state.selectedKeyPath = null;
-    keyFilenameHint.textContent = 'Aucune clé importée — mot de passe, agent SSH ou clés ~/.ssh/ courantes utilisés automatiquement';
+    keyFilenameHint.textContent = 'Aucune clé importée';
     keyFilenameHint.classList.remove('has-key');
     btnClearKey.style.display = 'none';
   });
@@ -314,6 +315,7 @@ function initWizard() {
       username,
       password: document.getElementById('ssh-password').value || null,
       key_path: state.selectedKeyPath || null,
+      local_keys: document.getElementById('opt-local-keys').checked,
     };
 
     try {
@@ -462,6 +464,13 @@ async function checkAssistantUpdate() {
 
 // Clé d'hôte SSH vérifiée avant tout envoi de mot de passe (host_key.rs) : une machine inconnue n'est enregistrée
 // qu'après confirmation de son empreinte ; une clé qui a changé est refusée (une autre machine peut usurper la borne).
+// Fichier de clé d'hôte d'OpenSSH qui porte ce type (`/etc/ssh/ssh_host_<type>_key.pub`).
+function hostKeyFile(keyType) {
+  if (keyType.startsWith('ecdsa')) return 'ecdsa';
+  if (keyType === 'ssh-rsa' || keyType.startsWith('rsa')) return 'rsa';
+  return 'ed25519';
+}
+
 async function ensureTrustedHost(host, port) {
   const key = await invokeTauri('ssh_host_key', { host, port });
   if (key.status === 'known') return true;
@@ -470,7 +479,7 @@ async function ensureTrustedHost(host, port) {
   }
   const message = `Première connexion à ${host} : vérifiez que l'empreinte de sa clé SSH est bien celle de la borne.\n\n`
     + `${key.key_type}\n${key.fingerprint}\n\n`
-    + `Sur la borne : ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub\n\nFaire confiance à cette machine ?`;
+    + `Sur la borne : ssh-keygen -lf /etc/ssh/ssh_host_${hostKeyFile(key.key_type)}_key.pub\n\nFaire confiance à cette machine ?`;
   const ask = window.__TAURI__?.dialog?.ask;
   const accepted = ask
     ? await ask(message, { title: 'Nouvelle machine', kind: 'warning', okLabel: 'Faire confiance', cancelLabel: 'Annuler' })
@@ -611,6 +620,7 @@ async function startInstallationRun() {
     username: document.getElementById('ssh-username').value.trim(),
     password: document.getElementById('ssh-password').value || null,
     key_path: state.selectedKeyPath || null,
+    local_keys: document.getElementById('opt-local-keys').checked,
     root_password: rootPassword,
     elevation_strategy: state.systemInspection?.privilege_decision || 'sudo',
     script_path: null,

@@ -61,7 +61,7 @@ if (( ${#missing[@]} > 0 )); then
 fi
 # Les paquets de l'assistant ont leur propre release : dans celle de Bobine, la mise à jour intégrée des installations
 # existantes pourrait prendre son installeur (premier .exe, .deb ou .dmg de la bonne architecture).
-stray=$(cd "${DIR}" && ls -1 | grep -iE '^bobine-assistant.*\.(exe|deb|rpm|dmg)$' || true)
+stray=$(cd "${DIR}" && ls -1 | grep -iE '^bobine-assistant.*\.(exe|deb|rpm|dmg|apk)$' || true)
 if [[ -n "${stray}" ]]; then
     echo "::error::paquets de l'assistant dans une release de Bobine : ${stray//$'\n'/ }"
     exit 1

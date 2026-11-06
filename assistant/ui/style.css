@@ -70,6 +70,9 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
+  /* Barres système d'Android (état, navigation) : contenu jamais dessous. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 .app-header {
@@ -663,6 +666,21 @@ body {
   flex-wrap: wrap;
 }
 
+.local-keys-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* Android : ni agent SSH ni dossier ~/.ssh. */
+.is-android .local-keys-row {
+  display: none;
+}
+
 .key-filename-hint {
   font-size: 0.8rem;
   color: var(--text-dim);
@@ -733,7 +751,7 @@ body {
 }
 
 .alert-box.alert-error p {
-  color: #ffb4ab;
+  color: var(--text-main);
 }
 
 /* Options */
@@ -988,6 +1006,34 @@ body {
   color: var(--text-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
+/* Téléphone (Android, ou fenêtre étroite) : une colonne, étapes défilantes, boutons pleine largeur. */
+@media (max-width: 640px) {
+  .app-header { height: 56px; padding: 0 16px; }
+  .brand-logo { height: 30px; }
+  .brand-tag { display: none; }
+  .app-content { padding: 16px; }
+  .wizard-stepper {
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-bottom: 16px;
+    gap: 8px;
+  }
+  .wizard-stepper::-webkit-scrollbar { display: none; }
+  .step-item { flex-shrink: 0; }
+  .step-item:not(.active) .step-label { display: none; }
+  .step-line { width: 16px; flex-shrink: 0; }
+  .wizard-card { padding: 20px 16px; border-radius: var(--radius-md); box-shadow: none; }
+  .pane-header h2 { font-size: 1.2rem; }
+  .discovery-controls, .manual-input-group { flex-direction: column; align-items: stretch; }
+  .discovery-controls .btn, .manual-input-group .btn { width: 100%; }
+  .form-grid, .spec-cards-grid { grid-template-columns: 1fr; }
+  .step-actions { flex-direction: column-reverse; }
+  .step-actions .btn { width: 100%; }
+  .update-banner { flex-direction: column; align-items: stretch; }
+  .app-version-badge { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .device-row.device-enter { animation: none; }
   .scan-progress-fill { transition: none; }

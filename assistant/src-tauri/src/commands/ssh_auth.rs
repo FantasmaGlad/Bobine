@@ -21,8 +21,11 @@ impl<'a> ssh2::KeyboardInteractivePrompt for SimplePasswordPrompt<'a> {
 ///    reste puisque choisie sciemment.
 /// 2. Mot de passe direct (si renseigné)
 /// 3. Authentification clavier-interactive / PAM (si mot de passe renseigné)
-/// 4. Agent SSH local (`ssh-agent`)
-/// 5. Fichiers de clés SSH courantes dans `~/.ssh/` (`id_ed25519`, `id_rsa`, `id_ecdsa`, etc.)
+/// 4. Agent SSH local (`ssh-agent`), seulement si `local_keys`
+/// 5. Clés courantes de `~/.ssh/` (`id_ed25519`, `id_rsa`, `id_ecdsa`), seulement si `local_keys`
+///
+/// Agent et clés personnelles ne sont présentés qu'avec l'accord explicite de l'utilisateur (case de l'étape 2,
+/// `--local-keys` en ligne de commande) : une machine ne reçoit jamais d'office toutes ses identités.
 ///
 /// Si toutes les méthodes échouent, renvoie un message d'erreur clair et contextuel
 /// (en particulier si le serveur distant refuse explicitement les mots de passe).
@@ -31,6 +34,7 @@ pub fn authenticate_session(
     username: &str,
     password: Option<&str>,
     key_path: Option<&str>,
+    local_keys: bool,
 ) -> Result<(), String> {
     let supported = sess.auth_methods(username).unwrap_or("");
     let password_clean = password.filter(|p| !p.trim().is_empty());
@@ -75,14 +79,15 @@ pub fn authenticate_session(
         }
     }
 
-    // 3. Tenter l'agent SSH (ssh-agent)
-    let _ = sess.userauth_agent(username);
-    if sess.authenticated() {
-        return Ok(());
+    // 3. Agent SSH, puis 4. clés usuelles de ~/.ssh/, avec l'accord de l'utilisateur
+    if local_keys {
+        let _ = sess.userauth_agent(username);
+        if sess.authenticated() {
+            return Ok(());
+        }
     }
-
-    // 4. Tenter les clés SSH locales usuelles dans ~/.ssh/
-    if let Ok(home) = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
+    let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).ok().filter(|_| local_keys);
+    if let Some(home) = home {
         let ssh_dir = PathBuf::from(home).join(".ssh");
         let key_candidates = [
             "id_ed25519",
@@ -126,7 +131,7 @@ pub fn authenticate_session(
         ))
     } else {
         Err(format!(
-            "Aucun mot de passe fourni et aucune clé SSH locale autorisée par le serveur. Méthodes acceptées : [{supported}]."
+            "Aucun mot de passe ni clé acceptés par le serveur. Méthodes acceptées : [{supported}]. Importez une clé, ou autorisez l'agent SSH et les clés de ~/.ssh."
         ))
     }
 }
@@ -178,7 +183,7 @@ mod tests {
 
             // Même si on donne un mot de passe qui échoue (ou rejeté par le serveur),
             // authenticate_session doit automatiquement se replier sur l'agent ou les clés locales
-            let res = authenticate_session(&sess, "alice", Some("un_faux_mot_de_passe"), None);
+            let res = authenticate_session(&sess, "alice", Some("un_faux_mot_de_passe"), None, false);
             assert!(res.is_ok(), "L'authentification par repli sur clé devrait réussir : {:?}", res);
             assert!(sess.authenticated());
         }
@@ -193,7 +198,7 @@ mod tests {
             sess.set_tcp_stream(tcp);
             sess.handshake().unwrap();
 
-            let res = authenticate_session(&sess, "utilisateur_inexistant_xyz", Some("password123"), None);
+            let res = authenticate_session(&sess, "utilisateur_inexistant_xyz", Some("password123"), None, false);
             assert!(res.is_err());
             let err = res.unwrap_err();
             println!("Message d'erreur obtenu : {err}");
