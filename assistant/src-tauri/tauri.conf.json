@@ -57,7 +57,8 @@
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBQjNEMjc2ODdFN0Q4RDIKUldUUzJPZUhkdEt6K3RxWDlSTXVGQ2dBQy9HU0lQYnZlZDBnNk1tdVNnTkNDdEE0ekdtSUt3cTUK",
       "endpoints": [
         "https://github.com/FantasmaGlad/Bobine/releases/download/assistant-stable/latest.json"
-      ]
+      ],
+      "requireSignedVersion": true
     }
   }
 }

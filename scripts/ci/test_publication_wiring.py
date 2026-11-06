@@ -40,6 +40,9 @@ class RollingReleaseTests(unittest.TestCase):
             groups.append(group.group(1))
         self.assertEqual(len(set(groups)), 2)
 
+    def test_les_paquets_de_l_assistant_bloquent_le_controle_agrege(self):
+        self.assertIn("assistant-bundle", job("ci-ok"))
+
     def test_only_the_canary_must_be_the_tip_of_main_and_only_from_main(self):
         canary, beta = job("release-canary"), job("release-beta")
         self.assertIn("--require-tip origin/main", canary)
@@ -91,6 +94,16 @@ class HealthProbeTests(unittest.TestCase):
     def test_it_compares_both_rolling_channels_with_their_release(self):
         for channel in ("canary", "beta"):
             self.assertIn(f'--release {channel}="$RUNNER_TEMP/{channel}.json"', self.PROBE)
+
+
+class AssistantPublicationWiringTests(unittest.TestCase):
+    def test_les_tags_de_l_assistant_ne_sont_pas_deplaces_par_force(self):
+        text = job("publish-assistant")
+        self.assertIn("target=$(git rev-parse HEAD)", text)
+        self.assertIn('git push origin ":refs/tags/$TAG" || true', text)
+        self.assertIn('git push origin ":refs/tags/assistant-stable" || true', text)
+        self.assertNotIn("--force", text)
+        self.assertNotIn("$GITHUB_SHA", text)
 
 
 if __name__ == "__main__":
