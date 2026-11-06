@@ -2,7 +2,7 @@ import enum
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import Column, ForeignKey, Integer, Table, Text
+from sqlalchemy import Column, ForeignKey, Integer, String, Table, Text, event
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
@@ -12,6 +12,23 @@ from app.storage.availability import media_available  # noqa: E402  (registre en
 
 class Base(DeclarativeBase):
     pass
+
+
+class UidMixin:
+    """Identifiant stable, propre à l'objet et jamais modifié (`vid_…`, `pl_…`, `sch_…`) : les fichiers de configuration
+    JSON l'utilisent pour reconnaître un objet quand son titre, son nom ou son fichier changent. Distinct de `id`, qui
+    reste une clé locale à cette base. Posé à l'insertion (`new_uid`), jamais réécrit."""
+
+    __uid_prefix__ = "x"
+    uid: Mapped[str | None] = mapped_column(String(32), unique=True, index=True, nullable=True)
+
+
+@event.listens_for(Base, "before_insert", propagate=True)
+def _give_uid(mapper, connection, target) -> None:
+    if isinstance(target, UidMixin) and not target.uid:
+        from app.utils.uid import new_uid
+
+        target.uid = new_uid(target.__uid_prefix__)
 
 
 class ImportSource(str, enum.Enum):
@@ -98,7 +115,8 @@ class StorageImport(Base):
     imported_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
 
-class Video(Base):
+class Video(UidMixin, Base):
+    __uid_prefix__ = "vid"
     __tablename__ = "videos"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -186,7 +204,8 @@ class VideoChapter(Base):
     video: Mapped["Video"] = relationship(back_populates="chapters")
 
 
-class Background(Base):
+class Background(UidMixin, Base):
+    __uid_prefix__ = "bg"
     __tablename__ = "backgrounds"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -203,7 +222,8 @@ class Background(Base):
         return Path(self.file_path).suffix.lower() in IMAGE_EXTENSIONS
 
 
-class AudioCourse(Base):
+class AudioCourse(UidMixin, Base):
+    __uid_prefix__ = "crs"
     __tablename__ = "audio_courses"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -236,7 +256,8 @@ class AudioCourse(Base):
         return any(t.storage_id is not None for t in self.tracks)
 
 
-class AudioTrack(Base):
+class AudioTrack(UidMixin, Base):
+    __uid_prefix__ = "trk"
     __tablename__ = "audio_tracks"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -272,7 +293,8 @@ class AudioTrack(Base):
         return Path(self.background.file_path).suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
 
 
-class Playlist(Base):
+class Playlist(UidMixin, Base):
+    __uid_prefix__ = "pl"
     __tablename__ = "playlists"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -296,7 +318,8 @@ class PlaylistItem(Base):
     video: Mapped[Video] = relationship(back_populates="playlist_items")
 
 
-class AudioPlaylist(Base):
+class AudioPlaylist(UidMixin, Base):
+    __uid_prefix__ = "apl"
     """Playlist spéciale composée de pistes individuelles piochées dans
     n'importe quel cours audio :
     une "édition mixée" est une séquence de PISTES (pas de cours entiers
@@ -353,7 +376,8 @@ radio_track_tags = Table(
 )
 
 
-class RadioTrack(Base):
+class RadioTrack(UidMixin, Base):
+    __uid_prefix__ = "rtk"
     """Un morceau de musique de la bibliothèque radio. Les
     champs de navigation (artiste/album/album_artist/genre) alimentent les vues
     « artiste/album » et « tags/genres » par regroupement dérivé — pas de tables
@@ -392,7 +416,8 @@ class RadioTrack(Base):
     tags: Mapped[list["RadioTag"]] = relationship(secondary=radio_track_tags, back_populates="tracks")
 
 
-class RadioTag(Base):
+class RadioTag(UidMixin, Base):
+    __uid_prefix__ = "tag"
     """Étiquette libre applicable aux morceaux radio :
     ambiance, tempo, occasion… saisie/gérée depuis l'admin, indépendante du
     `genre` ID3 porté par le morceau."""
@@ -404,7 +429,8 @@ class RadioTag(Base):
     tracks: Mapped[list["RadioTrack"]] = relationship(secondary=radio_track_tags, back_populates="tags")
 
 
-class RadioPlaylist(Base):
+class RadioPlaylist(UidMixin, Base):
+    __uid_prefix__ = "rpl"
     """Playlist radio créée à la main. `is_default` désigne la
     playlist d'ambiance qui tourne en boucle 24/7 : une seule à la
     fois, garantie applicativement (aucune contrainte SQL). `cover_path` est
@@ -434,7 +460,8 @@ class RadioPlaylistItem(Base):
     track: Mapped[RadioTrack] = relationship()
 
 
-class RadioAnnouncement(Base):
+class RadioAnnouncement(UidMixin, Base):
+    __uid_prefix__ = "ann"
     """Rappel de bienséance intercalé dans la musique : fichier
     audio + `description` OBLIGATOIRE (le texte dit par l'annonce, pour gérer
     facilement le pool depuis l'admin). `enabled` retire un rappel du tirage
@@ -449,7 +476,8 @@ class RadioAnnouncement(Base):
     imported_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
 
-class RadioAnnouncementRule(Base):
+class RadioAnnouncementRule(UidMixin, Base):
+    __uid_prefix__ = "rul"
     """Règle de déclenchement des rappels. Les règles définissent
     QUAND déclencher ; le rappel joué est tiré AU HASARD parmi les
     `radio_announcements` actifs.
@@ -473,7 +501,8 @@ class RadioAnnouncementRule(Base):
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
 
-class Schedule(Base):
+class Schedule(UidMixin, Base):
+    __uid_prefix__ = "sch"
     __tablename__ = "schedules"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -494,7 +523,8 @@ class Schedule(Base):
     )
 
 
-class ScheduleOverride(Base):
+class ScheduleOverride(UidMixin, Base):
+    __uid_prefix__ = "ovr"
     __tablename__ = "schedule_overrides"
 
     id: Mapped[int] = mapped_column(primary_key=True)

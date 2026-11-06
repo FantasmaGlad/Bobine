@@ -131,6 +131,36 @@ def init_db():
     _migrate_schedule_radio_channel_to_network()
     _migrate_storage_indexes()
     _migrate_drop_devices_access_settings()
+    _migrate_add_uids()
+
+
+def _migrate_add_uids():
+    """Identifiant stable (`uid`) des objets existants : colonne, valeur pour chaque ligne, puis index unique.
+
+    Idempotent. Les nouvelles lignes reçoivent le leur à l'insertion (`app.models.UidMixin`)."""
+    from sqlalchemy import text
+
+    from app.models import UidMixin
+    from app.utils.uid import new_uid
+
+    if not _IS_SQLITE:
+        return
+    with engine.connect() as conn:
+        for mapper in Base.registry.mappers:
+            cls = mapper.class_
+            if not issubclass(cls, UidMixin):
+                continue
+            table = cls.__tablename__
+            columns = {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))}
+            if "uid" not in columns:
+                try:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN uid VARCHAR(32)"))
+                except OperationalError:
+                    pass  # colonne créée entre-temps
+            for (row_id,) in conn.execute(text(f"SELECT id FROM {table} WHERE uid IS NULL")).fetchall():
+                conn.execute(text(f"UPDATE {table} SET uid = :uid WHERE id = :id"), {"uid": new_uid(cls.__uid_prefix__), "id": row_id})
+            conn.execute(text(f"CREATE UNIQUE INDEX IF NOT EXISTS ix_{table}_uid ON {table}(uid)"))
+        conn.commit()
 
 
 def _migrate_storage_indexes():
