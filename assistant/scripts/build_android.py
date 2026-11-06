@@ -74,6 +74,8 @@ def sign(unsigned: Path, out: Path) -> None:
                     "--ks-pass", "env:ANDROID_KEYSTORE_PASSWORD",
                     "--ks-key-alias", os.environ["ANDROID_KEY_ALIAS"],
                     "--key-pass", "env:ANDROID_KEY_PASSWORD",
+                    # Schéma v4 (`.idsig` à côté) : réservé à l'installation incrémentale par adb, inutile au téléchargement.
+                    "--v4-signing-enabled", "false",
                     "--out", str(out), str(aligned)], check=True)
     aligned.unlink()
     subprocess.run([str(tools / "apksigner"), "verify", "--print-certs", str(out)], check=True)
