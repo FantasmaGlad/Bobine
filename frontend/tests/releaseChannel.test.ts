@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { dictionaries } from "../src/lib/i18n.ts";
+import { dictionaries } from "../src/lib/i18n/all.ts";
 import {
   applyChannelFavicon,
   channelFaviconUrl,

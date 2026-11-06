@@ -42,6 +42,7 @@ from app.radio_manager import get_radio_manager
 from app.scheduler_manager import activate_radio_output
 from app import release_channel
 from app.utils.activity_log import log_activity
+from app.utils import ui_language
 from app.utils.android_runtime import is_android
 from app.utils.display_state import (
     DEFAULT_DISPLAY_MODE_SETTING,
@@ -92,9 +93,11 @@ _WRITABLE_NUMERIC_FIELDS = {
 _WRITABLE_STRING_FIELDS = {
     "theme", "language", "active_logo", "update_channel", "wired_display_mode",
     "display_mode_setting", "auto_update_enabled", "auto_update_time",
-    "auto_web_rendition", "media_native", "update_tor", "update_tor_proxy",
+    "auto_web_rendition", "media_native", "update_tor", "update_tor_proxy", "simplified_ui",
 }
 _DEFAULTS = {
+    # Interface simplifiée (M28) : masque coach, métriques et journaux. Réglage portable de settings.json.
+    "simplified_ui": "false",
     # "lavande" : thème clair par défaut (nacre irisée et améthyste profonde).
     "theme": "lavande",
     "language": "fr",
@@ -184,6 +187,7 @@ class SettingsUpdate(BaseModel):
     media_native: str | None = None
     update_tor: str | None = None
     update_tor_proxy: str | None = Field(default=None, max_length=80)
+    simplified_ui: str | None = None
 
 
 def _port80_redirect() -> bool:
@@ -213,6 +217,12 @@ def _access_links() -> list[dict[str, str]]:
 def _get_db_value(db: Session, key: str) -> str | None:
     row = db.query(Setting).filter(Setting.key == key).first()
     return row.value if row else None
+
+
+def stored_language(db: Session) -> str:
+    """Langue enregistrée (valeur par défaut `fr`) ; l'export servi est celui de cette langue au démarrage."""
+    value = _get_db_value(db, "language")
+    return value if value in ui_language.LANGUAGES else ui_language.DEFAULT_LANGUAGE
 
 
 def _logo_path() -> Path:
@@ -326,6 +336,10 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "update_tor_proxy": _get_db_value(db, "update_tor_proxy") or _DEFAULTS["update_tor_proxy"],
         "theme": theme,
         "language": language,
+        # Langue de l'export servi depuis le démarrage : si elle diffère de `language`, un redémarrage est requis.
+        "ui_language": ui_language.served(),
+        "language_restart_required": language != ui_language.served(),
+        "simplified_ui": "true" if _get_db_value(db, "simplified_ui") == "true" else "false",
         "has_custom_logo": has_custom,
         "active_logo": active_logo,
         # Canal de mise à jour : "stable", "beta" ou "canary", consommé par
@@ -566,6 +580,8 @@ def stage_settings(updates: dict[str, Any], db: Session) -> None:
         elif key in _WRITABLE_STRING_FIELDS and value is not None:
             if key == "language" and value not in ("fr", "en"):
                 raise HTTPException(status_code=400, detail="Langue invalide (attendu 'fr' ou 'en')")
+            if key == "simplified_ui" and value not in ("true", "false"):
+                raise HTTPException(status_code=400, detail="Interface simplifiée invalide (attendu 'true' ou 'false')")
             if key == "theme" and value not in _VALID_THEMES:
                 raise HTTPException(status_code=400, detail=f"Thème invalide (attendu l'un de : {', '.join(sorted(_VALID_THEMES))})")
             if key == "active_logo":
@@ -659,11 +675,14 @@ async def after_settings_change(updates: dict[str, Any], db: Session) -> dict[st
         or "wired_display_mode" in updates
         or "display_mode_setting" in updates
         or "update_channel" in updates
+        or "simplified_ui" in updates
     ):
         await ws_manager.broadcast({
             "event": "settings_change",
             "theme": result["theme"],
             "language": result["language"],
+            "ui_language": result["ui_language"],
+            "simplified_ui": result["simplified_ui"],
             "has_custom_logo": result["has_custom_logo"],
             "active_logo": result["active_logo"],
             "wired_display_mode": result["wired_display_mode"],
@@ -854,6 +873,20 @@ async def _run_full_reset():
     await asyncio.sleep(1.0)
 
     get_profile_handler().restart_services()
+
+
+async def _run_restart():
+    """Redémarre le service après l'envoi de la réponse. Les écrans ouverts se reconnectent, voient un autre
+    `boot_id` et se rechargent seuls : ils reçoivent alors l'export de la langue enregistrée."""
+    await asyncio.sleep(1.0)
+    get_profile_handler().restart_services()
+
+
+@router.post("/system/restart")
+async def restart_system(background_tasks: BackgroundTasks) -> dict[str, str]:
+    """Redémarrage simple (sans effacer de données), par exemple pour appliquer un changement de langue."""
+    background_tasks.add_task(_run_restart)
+    return {"status": "restarting"}
 
 
 @router.post("/system/reset")

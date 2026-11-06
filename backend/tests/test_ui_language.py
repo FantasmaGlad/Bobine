@@ -1,0 +1,102 @@
+"""Un export statique par langue : celui de la langue enregistrée est servi, le changement demande un redémarrage."""
+import os
+
+os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
+os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
+os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
+os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
+
+import pytest
+from fastapi.testclient import TestClient
+from starlette.staticfiles import StaticFiles
+
+from app.main import app
+from app.utils import ui_language
+from app.utils.deployment import get_profile_handler
+
+
+def _export(root, language=None, text="x"):
+    folder = root / language if language else root
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "index.html").write_text(f"<html lang='{language or 'fr'}'>{text}</html>", encoding="utf-8")
+
+
+def test_each_language_is_served_from_its_own_export(tmp_path):
+    _export(tmp_path, "fr", "bonjour")
+    _export(tmp_path, "en", "hello")
+    site = TestClient(ui_language.LanguageFrontend(tmp_path, StaticFiles))
+    try:
+        ui_language.set_served("fr")
+        assert "bonjour" in site.get("/").text
+        ui_language.set_served("en")
+        assert "hello" in site.get("/").text
+        ui_language.set_served("de")  # inconnue : retour au français
+        assert ui_language.served() == "fr" and "bonjour" in site.get("/").text
+    finally:
+        ui_language.set_served("fr")
+
+
+def test_single_export_of_an_older_build_is_still_served(tmp_path):
+    _export(tmp_path, None, "ancien")
+    assert ui_language.build_dir(tmp_path, "en") == tmp_path
+    ui_language.set_served("en")
+    try:
+        assert "ancien" in TestClient(ui_language.LanguageFrontend(tmp_path, StaticFiles)).get("/").text
+    finally:
+        ui_language.set_served("fr")
+
+
+@pytest.fixture()
+def client():
+    from app.database import SessionLocal
+    from app.models import Setting
+
+    def clean():
+        with SessionLocal() as db:
+            db.query(Setting).filter(Setting.key.in_(("language", "simplified_ui"))).delete(synchronize_session=False)
+            db.commit()
+
+    with TestClient(app) as test_client:
+        clean()
+        ui_language.set_served("fr")
+        yield test_client
+        clean()
+        ui_language.set_served("fr")
+
+
+def test_language_change_requires_a_restart(client):
+    settings = client.get("/api/settings").json()
+    assert settings["language"] == "fr" and settings["ui_language"] == "fr" and settings["language_restart_required"] is False
+    client.put("/api/settings", json={"language": "en"})
+    settings = client.get("/api/settings").json()
+    assert settings["language"] == "en" and settings["ui_language"] == "fr" and settings["language_restart_required"] is True
+
+
+def test_startup_serves_the_stored_language(client):
+    from app.database import SessionLocal
+    from app.routers import settings as settings_router
+
+    client.put("/api/settings", json={"language": "en"})
+    with SessionLocal() as db:
+        assert settings_router.stored_language(db) == "en"
+    client.put("/api/settings", json={"language": "fr"})
+    with SessionLocal() as db:
+        assert settings_router.stored_language(db) == "fr"
+
+
+def test_simplified_ui_setting_roundtrip_and_validation(client):
+    assert client.get("/api/settings").json()["simplified_ui"] == "false"
+    assert client.put("/api/settings", json={"simplified_ui": "true"}).status_code == 200
+    assert client.get("/api/settings").json()["simplified_ui"] == "true"
+    assert client.put("/api/settings", json={"simplified_ui": "peut-etre"}).status_code == 400
+
+
+def test_restart_endpoint_restarts_the_service(client, monkeypatch):
+    calls = []
+    monkeypatch.setattr(get_profile_handler().__class__, "restart_services", lambda self: calls.append("restart"))
+    async def no_wait(_seconds):
+        return None
+    monkeypatch.setattr("app.routers.settings.asyncio.sleep", no_wait)
+    response = client.post("/api/settings/system/restart")
+    assert response.status_code == 200 and response.json() == {"status": "restarting"}
+    assert calls == ["restart"]

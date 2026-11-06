@@ -39,9 +39,9 @@ SCHEDULE_CHANNELS = ("cable", "network", "radio_cable", "radio_network")
 PORTABLE_SETTINGS = (
     "theme", "language", "active_logo", "update_channel", "auto_update_enabled", "auto_update_time",
     "wait_time_between_courses", "volume_default", "audio_chain_timer_seconds", "logs_retention_days",
-    "radio_announcement_fade_ms", "auto_web_rendition",
+    "radio_announcement_fade_ms", "auto_web_rendition", "simplified_ui",
 )
-_BOOLEAN_SETTINGS = {"auto_update_enabled", "auto_web_rendition", "media_native", "update_tor"}
+_BOOLEAN_SETTINGS = {"auto_update_enabled", "auto_web_rendition", "media_native", "update_tor", "simplified_ui"}
 
 
 # --- références lisibles ---------------------------------------------------------------------------------------------

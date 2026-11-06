@@ -4,7 +4,7 @@ import {
   canConfirmFormat, canLeaveWizard, defaultFormat, formatFinished, formatTravels, labelProblem, needsNewPlan, primaryAction, reflectionLeft, refusalKey,
   stepIcon, volumeStatus, FORMAT_STEP_ORDER, type FormatOption, type FormatPlan,
 } from "../src/lib/storageApi.ts";
-import { dictionaries } from "../src/lib/i18n.ts";
+import { dictionaries } from "../src/lib/i18n/all.ts";
 
 const option = (fs: FormatOption["fs"], available = true): FormatOption => ({
   fs, available, unavailable: available ? null : "tool_missing", install_package: null, verdict: "acceptable", reason: "works", notes: [], max_file_gib: null,

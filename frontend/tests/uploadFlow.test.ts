@@ -4,7 +4,7 @@ import {
   JOB_MISS_LIMIT, POLL_FAILURE_LIMIT, backoffMs, formatNotice, isJobLost, isServerSilent, jobErrorNotice,
   nextMissCount, nextPollFailures, phaseLabelKey, retryNotice,
 } from "../src/lib/uploadFlow.ts";
-import { dictionaries, translate } from "../src/lib/i18n.ts";
+import { dictionaries, translate } from "../src/lib/i18n/all.ts";
 
 test("une tâche absente n'est perdue qu'après plusieurs sondages consécutifs", () => {
   let misses = 0;

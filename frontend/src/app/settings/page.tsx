@@ -202,7 +202,7 @@ const normalizePhrase = (s: string) => s.trim().toUpperCase().replace(/É/g, "E"
 
 export default function SettingsPage() {
   const {
-    theme, language, setTheme, setLanguage, t,
+    theme, language, storedLanguage, languagePending, simplifiedUi, setSimplifiedUi, setTheme, setLanguage, t,
     hasCustomLogo, activeLogo, setActiveLogo, refreshBranding,
     wiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount,
   } = useAppSettings();
@@ -214,6 +214,21 @@ export default function SettingsPage() {
   }, []);
   const [data, setData] = useState<SettingsData | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const [restartMessage, setRestartMessage] = useState<string | null>(null);
+  // Redémarrage simple : les écrans ouverts se reconnectent, voient un autre boot_id et se rechargent seuls.
+  const restartNow = async () => {
+    setRestarting(true);
+    setRestartMessage(null);
+    try {
+      const res = await fetch(getApiUrl("/settings/system/restart"), { method: "POST" });
+      setRestartMessage(t(res.ok ? "settingsPage.languageRestarting" : "settingsPage.languageRestartFailed"));
+      if (!res.ok) setRestarting(false);
+    } catch {
+      setRestartMessage(t("settingsPage.languageRestartFailed"));
+      setRestarting(false);
+    }
+  };
   const [loading, setLoading] = useState(true);
 
   const [refreshingNetwork, setRefreshingNetwork] = useState(false);
@@ -883,7 +898,7 @@ export default function SettingsPage() {
           <label className="form-label">{t("settingsPage.languageLabel")}</label>
           <ResponsiveSelect
             className="form-control"
-            value={language}
+            value={storedLanguage}
             onChange={(value) => setLanguage(value as Language)}
             title={t("settingsPage.languageLabel")}
             options={[
@@ -892,6 +907,26 @@ export default function SettingsPage() {
             ]}
           />
           <p className="settings-hint">{t("settingsPage.languageHint")}</p>
+          {languagePending && (
+            <div className="settings-hint" role="status" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+              <span>{t("settingsPage.languagePending", { language: storedLanguage === "fr" ? t("settingsPage.languageFr") : t("settingsPage.languageEn") })}</span>
+              <button type="button" className="btn btn-secondary" onClick={() => void restartNow()} disabled={restarting}>
+                {t("settingsPage.languageRestartNow")}
+              </button>
+              {restartMessage && <span>{restartMessage}</span>}
+            </div>
+          )}
+        </div>
+
+        <div className="form-group" style={{ maxWidth: "520px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+            <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>{t("settingsPage.simplifiedUiLabel")}</span>
+            <label className="ra-switch" title={t("settingsPage.simplifiedUiLabel")}>
+              <input type="checkbox" checked={simplifiedUi} onChange={(e) => setSimplifiedUi(e.target.checked)} />
+              <span className="ra-switch-track" />
+            </label>
+          </div>
+          <p className="settings-hint">{t("settingsPage.simplifiedUiHint")}</p>
         </div>
       </section>
 

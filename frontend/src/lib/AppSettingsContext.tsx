@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { translate, translateList, type Language } from "@/lib/i18n";
+import { clearCachesAndReload } from "@/lib/cacheReload";
+import { translate, translateList, UI_LANGUAGE, type Language } from "@/lib/i18n";
 import { pushThemeToNative, pushUpdateChannelToNative } from "@/lib/nativeBridge";
 import { applyChannelFavicon, DEFAULT_RELEASE_CHANNEL, isReleaseChannel, type UpdateChannel } from "@/lib/releaseChannel";
 import { useGlassGovernor } from "@/lib/useGlassGovernor";
@@ -56,7 +57,15 @@ export type DisplayModeSetting = "auto" | WiredDisplayMode;
 
 interface AppSettingsContextValue {
   theme: Theme;
+  /** Langue de cet export (fixée à la compilation) : toujours celle des textes affichés. */
   language: Language;
+  /** Langue enregistrée dans Réglages ; elle ne s'applique qu'au redémarrage suivant. */
+  storedLanguage: Language;
+  /** Vrai quand la langue enregistrée diffère de celle affichée : un redémarrage est requis. */
+  languagePending: boolean;
+  /** Interface simplifiée (M28) : masque coach, métriques et journaux. */
+  simplifiedUi: boolean;
+  setSimplifiedUi: (value: boolean) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
   tList: (key: string) => string[];
   setTheme: (theme: Theme) => void;
@@ -96,7 +105,11 @@ const DEFAULT_NETWORK: NetworkInfo = { localIp: null, port: 1903, mdnsUrl: "http
 
 const AppSettingsContext = createContext<AppSettingsContextValue>({
   theme: DEFAULT_THEME,
-  language: DEFAULT_LANGUAGE,
+  language: UI_LANGUAGE,
+  storedLanguage: DEFAULT_LANGUAGE,
+  languagePending: false,
+  simplifiedUi: false,
+  setSimplifiedUi: () => {},
   t: (key) => key,
   tList: () => [],
   setTheme: () => {},
@@ -142,7 +155,10 @@ function getApiUrl(path: string) {
 export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
   useGlassGovernor();
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
-  const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE);
+  // `language` (celle des textes) est fixée par l'export ; seule la langue enregistrée évolue.
+  const language: Language = UI_LANGUAGE;
+  const [storedLanguage, setLanguageState] = useState<Language>(UI_LANGUAGE);
+  const [simplifiedUi, setSimplifiedUiState] = useState(false);
   const [hasCustomLogo, setHasCustomLogo] = useState(false);
   const [activeLogo, setActiveLogoState] = useState<ActiveLogo>("default");
   const [logoVersion, setLogoVersion] = useState(0);
@@ -181,6 +197,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     if (data.language === "fr" || data.language === "en") {
       setLanguageState(data.language);
     }
+    if (data.simplified_ui === "true" || data.simplified_ui === "false") {
+      setSimplifiedUiState(data.simplified_ui === "true");
+    }
     if (typeof data.has_custom_logo === "boolean") {
       setHasCustomLogo(data.has_custom_logo);
       setLogoVersion((v) => v + 1);
@@ -215,11 +234,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     try {
       const cachedTheme = localStorage.getItem("olc-theme") as Theme | null;
-      const cachedLanguage = localStorage.getItem("olc-language") as Language | null;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronise l'état avec le cache localStorage au montage, même motif que le chargement initial ailleurs dans le projet (library/playlists/schedule)
       if (cachedTheme && THEME_VALUES.includes(cachedTheme)) setThemeState(cachedTheme);
       else if (cachedTheme) localStorage.removeItem("olc-theme");
-      if (cachedLanguage) setLanguageState(cachedLanguage);
     } catch {
       // localStorage indisponible (navigation privée stricte, ou WebView
       // Android sans DOM Storage activé : confirmé en pratique que `window.localStorage`
@@ -265,6 +282,10 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     let cancelled = false;
     let ws: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout>;
+    // Identifiant du lancement du backend vu à la première connexion : un autre, après une reconnexion, signifie un
+    // redémarrage (changement de langue appliqué, mise à jour). L'écran se recharge alors seul et reçoit l'export
+    // de la langue enregistrée, comme les pages qui suivent déjà la lecture (usePlaybackSocket).
+    let bootId: string | null = null;
 
     const connect = () => {
       if (cancelled || typeof window === "undefined") return;
@@ -281,6 +302,11 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             ws?.send(JSON.stringify({ command: "pong" }));
             return;
           }
+          if (parsed.event === "boot_id") {
+            if (bootId === null) bootId = parsed.boot_id;
+            else if (bootId !== parsed.boot_id) void clearCachesAndReload();
+            return;
+          }
           if (parsed.event === "settings_change") {
             if (THEME_VALUES.includes(parsed.theme)) {
               // eslint-disable-next-line react-hooks/set-state-in-effect -- réaction à un évènement externe temps réel, pas un calcul dérivable au rendu
@@ -289,6 +315,10 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             if (parsed.language === "fr" || parsed.language === "en") {
               // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setLanguageState(parsed.language);
+            }
+            if (parsed.simplified_ui === "true" || parsed.simplified_ui === "false") {
+              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
+              setSimplifiedUiState(parsed.simplified_ui === "true");
             }
             if (typeof parsed.has_custom_logo === "boolean") {
               // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
@@ -355,11 +385,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     document.documentElement.lang = language;
-    try {
-      localStorage.setItem("olc-language", language);
-    } catch {
-      // ignore
-    }
   }, [language]);
 
   // Onglet du navigateur aux couleurs du canal choisi (cf. lib/releaseChannel.ts).
@@ -387,6 +412,14 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     (value: Language) => {
       setLanguageState(value);
       persist({ language: value });
+    },
+    [persist]
+  );
+
+  const setSimplifiedUi = useCallback(
+    (value: boolean) => {
+      setSimplifiedUiState(value);
+      persist({ simplified_ui: value ? "true" : "false" });
     },
     [persist]
   );
@@ -420,11 +453,11 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   );
 
   const t = useCallback(
-    (key: string, params?: Record<string, string | number>) => translate(language, key, params),
-    [language]
+    (key: string, params?: Record<string, string | number>) => translate(key, params),
+    []
   );
 
-  const tList = useCallback((key: string) => translateList(language, key), [language]);
+  const tList = useCallback((key: string) => translateList(key), []);
 
   // useMemo : avant l'ajout du branding/toggle, AppLogo
   // était un <img> statique sans hook, jamais concerné. Il consomme
@@ -437,6 +470,10 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     () => ({
       theme,
       language,
+      storedLanguage,
+      languagePending: storedLanguage !== language,
+      simplifiedUi,
+      setSimplifiedUi,
       t,
       tList,
       setTheme,
@@ -455,7 +492,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       network,
       updateChannel,
     }),
-    [theme, language, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount, waitTimeBetweenCourses, network, updateChannel]
+    [theme, language, storedLanguage, simplifiedUi, setSimplifiedUi, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount, waitTimeBetweenCourses, network, updateChannel]
   );
 
   return (
