@@ -376,16 +376,25 @@ def cmd_playback(client: Client, out: Output, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+# Familles de l'arborescence de la configuration (`bobine config export`) : un sous-dossier passé seul garde son préfixe.
+CONFIG_FAMILIES = ("outputs", "library", "playlists", "schedule", "radio")
+
+
 def _read_documents(paths: list[str]) -> dict[str, Any]:
     files: dict[str, Any] = {}
     for raw in paths:
         path = Path(raw)
-        targets = sorted(path.glob("*.json")) if path.is_dir() else [path]
+        targets = sorted(path.rglob("*.json")) if path.is_dir() else [path]
         for target in targets:
-            if target.name in files:
-                raise CliError(f"deux fichiers nommés {target.name} : l'un écraserait l'autre (le nom désigne le type de réglage).", EXIT_USAGE)
+            # Dans un dossier, le nom est le chemin relatif (`playlists/video.json`) ; un fichier seul garde son nom.
+            name = target.relative_to(path).as_posix() if path.is_dir() else target.name
+            base = path if path.is_dir() else target.parent
+            if "/" not in name and base.name in CONFIG_FAMILIES and name != "settings.json":
+                name = f"{base.name}/{name}"  # un sous-dossier de l'arborescence (playlists/, schedule/…) passé seul
+            if name in files:
+                raise CliError(f"deux fichiers nommés {name} : l'un écraserait l'autre (le nom désigne le type de réglage).", EXIT_USAGE)
             try:
-                files[target.name] = json.loads(target.read_text(encoding="utf-8"))
+                files[name] = json.loads(target.read_text(encoding="utf-8"))
             except (OSError, ValueError) as exc:
                 raise CliError(f"{target} illisible : {exc}", EXIT_USAGE) from exc
     if not files:
@@ -395,16 +404,21 @@ def _read_documents(paths: list[str]) -> dict[str, Any]:
 
 def cmd_config(client: Client, out: Output, args: argparse.Namespace) -> int:
     if args.config_action == "export":
-        exported = client.request("GET", "/api/config/export")["files"]
         if args.name:
-            exported = {args.name: exported[args.name]} if args.name in exported else None
-            if exported is None:
+            # Le serveur connaît les noms de l'arborescence et les noms plats de la version 5.1.
+            document = client.request("GET", "/api/config/export/" + urllib.parse.quote(args.name.replace("\\", "/"), safe="/"),
+                                      accept_status=frozenset({404}))
+            if not isinstance(document, dict) or "kind" not in document:
                 raise CliError(f"fichier inconnu : {args.name}", EXIT_USAGE)
+            exported = {args.name: document}
+        else:
+            exported = client.request("GET", "/api/config/export")["files"]
         if args.directory:
             target = Path(args.directory)
             try:
                 target.mkdir(parents=True, exist_ok=True)
                 for name, document in exported.items():
+                    (target / name).parent.mkdir(parents=True, exist_ok=True)
                     (target / name).write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             except OSError as exc:
                 raise CliError(f"écriture impossible dans {target} : {exc}", EXIT_ERROR) from exc

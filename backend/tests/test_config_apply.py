@@ -69,12 +69,12 @@ def test_dry_run_reports_the_difference_and_writes_nothing(single_names):
 
 def test_playlists_are_created_and_referenced_by_name(single_names, _quiet_effects):
     files = _export()
-    files["playlists-video.json"]["playlists"].append({"name": "Mardi", "videos": [{"title": "RPM 110", "file": "rpm-110.mp4"}]})
-    files["schedule-network.json"]["schedules"] = [{
+    files["playlists/video.json"]["playlists"].append({"name": "Mardi", "videos": [{"title": "RPM 110", "file": "rpm-110.mp4"}]})
+    files["schedule/network.json"]["schedules"] = [{
         "target": {"type": "playlist", "name": "Mardi"}, "type": "recurring", "active": True,
         "recurrence": {"days_of_week": [1], "time": "19:00"},
     }]
-    _apply({name: files[name] for name in ("playlists-video.json", "schedule-network.json")})
+    _apply({name: files[name] for name in ("playlists/video.json", "schedule/network.json")})
     with SessionLocal() as db:
         mardi = db.query(Playlist).filter(Playlist.name == "Mardi").one()
         assert [item.video.title for item in mardi.items] == ["RPM 110"]
@@ -85,31 +85,40 @@ def test_playlists_are_created_and_referenced_by_name(single_names, _quiet_effec
 
 def test_all_or_nothing_with_every_error_listed(single_names):
     files = _export()
-    files["playlists-video.json"]["playlists"].append({"name": "Nouvelle", "videos": []})
+    files["playlists/video.json"]["playlists"].append({"name": "Nouvelle", "videos": []})
     files["settings.json"]["settings"]["theme"] = "pas-un-theme"
-    files["announcements.json"]["announcements"] = [{"description": "Inconnue", "enabled": False}]
-    files["schedule-cable.json"]["schedules"][0]["recurrence"]["time"] = "25:00"
+    files["library/announcements.json"]["announcements"] = [{"description": "Inconnue", "enabled": False}]
+    files["schedule/cable.json"]["schedules"][0]["recurrence"]["time"] = "25:00"
     with pytest.raises(config_apply.ConfigErrors) as refused:
         _apply(files)
     joined = " | ".join(refused.value.errors)
-    for expected in ("settings.json", "announcements.json", "schedule-cable.json"):
+    for expected in ("settings.json", "library/announcements.json", "schedule/cable.json"):
         assert expected in joined
     with SessionLocal() as db:
         assert db.query(Playlist).filter(Playlist.name == "Nouvelle").first() is None
 
 
 def test_ambiguous_names_are_refused(library):  # noqa: F811
+    legacy = _export()["schedule/cable.json"]
+    for entry in legacy["schedules"]:
+        entry.pop("uid", None)
+        entry["target"].pop("uid", None)  # document de la 5.1 : seul le nom désigne la playlist
     with pytest.raises(config_apply.ConfigErrors) as refused:
-        _apply({"schedule-cable.json": _export()["schedule-cable.json"]})
+        _apply({"schedule/cable.json": legacy})
     assert "plusieurs playlists « Lundi soir »" in " ".join(refused.value.errors)
+
+
+def test_a_uid_disambiguates_two_playlists_with_the_same_name(library):  # noqa: F811
+    result = _apply({"schedule/cable.json": _export()["schedule/cable.json"]})
+    assert result["changes"] == {}
 
 
 def test_announcements_toggle_and_machine_file_needs_consent(single_names):
     files = _export()
-    files["announcements.json"]["announcements"][0]["enabled"] = False
+    files["library/announcements.json"]["announcements"][0]["enabled"] = False
     with SessionLocal() as db:
         machine = config_files.build_machine(db)
-    result = _apply({"announcements.json": files["announcements.json"], "machine.json": machine})
+    result = _apply({"library/announcements.json": files["library/announcements.json"], "machine.json": machine})
     assert result["skipped"] == ["machine.json"]
     with SessionLocal() as db:
         assert db.query(RadioAnnouncement).one().enabled is False
@@ -130,16 +139,16 @@ def test_api_refusal_lists_errors(single_names):
 
 def test_default_ambiance_can_name_a_playlist_created_in_the_same_batch(single_names):
     files = _export()
-    files["playlists-radio.json"]["playlists"].append({"name": "Mardi", "default": False, "tracks": []})
-    files["radio-outputs.json"]["outputs"]["radio_cable"]["default_playlist"] = "Mardi"
-    assert _apply({name: files[name] for name in ("radio-outputs.json", "playlists-radio.json")})["applied"]
+    files["playlists/radio.json"]["playlists"].append({"name": "Mardi", "default": False, "tracks": []})
+    files["outputs/radio.json"]["outputs"]["radio_cable"]["default_playlist"] = "Mardi"
+    assert _apply({name: files[name] for name in ("outputs/radio.json", "playlists/radio.json")})["applied"]
 
 
 @pytest.mark.parametrize("name, mutate, message", [
-    ("announcements.json", lambda d: d.update(announcements=["bouteille"]), "document invalide"),
-    ("playlists-video.json", lambda d: d["playlists"][0].update(video=d["playlists"][0].pop("videos")), "« videos » doit être une liste"),
+    ("library/announcements.json", lambda d: d.update(announcements=["bouteille"]), "document invalide"),
+    ("playlists/video.json", lambda d: d["playlists"][0].update(video=d["playlists"][0].pop("videos")), "« videos » doit être une liste"),
     ("settings.json", lambda d: d["settings"].update(volume_defaut=42), "réglage inconnu : volume_defaut"),
-    ("announcements.json", lambda d: d["announcements"][0].update(enabled="false"), "doit être un booléen"),
+    ("library/announcements.json", lambda d: d["announcements"][0].update(enabled="false"), "doit être un booléen"),
 ])
 def test_malformed_documents_are_refused_not_crashing(single_names, name, mutate, message):
     document = _export()[name]

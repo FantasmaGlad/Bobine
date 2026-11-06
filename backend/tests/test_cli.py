@@ -558,3 +558,12 @@ def test_recurring_schedule_shows_its_days(monkeypatch, capsys):
         {"id": 1, "channel": "cable", "time_of_day": "09:30", "days_of_week": [0, 2], "target_title": "Cours", "active": True}])
     cli.main(["--port", "1903", "schedule", "list"])
     assert "lun,mer 09:30" in capsys.readouterr().out
+
+def test_config_documents_keep_their_place_in_the_tree(tmp_path):
+    (tmp_path / "playlists").mkdir()
+    (tmp_path / "playlists" / "video.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "settings.json").write_text("{}", encoding="utf-8")
+    assert sorted(cli._read_documents([str(tmp_path)])) == ["playlists/video.json", "settings.json"]
+    assert sorted(cli._read_documents([str(tmp_path / "playlists")])) == ["playlists/video.json"]
+    assert sorted(cli._read_documents([str(tmp_path / "playlists" / "video.json")])) == ["playlists/video.json"]
+    assert sorted(cli._read_documents([str(tmp_path / "settings.json")])) == ["settings.json"]

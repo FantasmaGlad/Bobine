@@ -1,13 +1,26 @@
-"""Configuration de Bobine en fichiers JSON lisibles, un fichier par type de réglage.
+"""Configuration de Bobine en fichiers JSON lisibles, rangés par famille.
+
+```
+manifest.json            index : version, identifiant de l'installation, fichiers et nombre d'entrées
+settings.json            réglages communs à toutes les installations
+machine.json             ce qui ne vaut que pour cette machine (écrans, sorties audio, Tor, supports)
+outputs/                 display.json, radio.json
+library/                 videos.json, audio.json, radio.json, backgrounds.json, announcements.json (métadonnées)
+playlists/               video.json, audio.json, radio.json
+schedule/                cable.json, network.json, radio-cable.json, radio-network.json
+radio/                   tags.json, announcement-rules.json
+```
 
 Chaque fichier porte `schema` et `kind` et se suffit à lui-même : on peut le lire, le comparer, le modifier à la main
-puis le réappliquer seul. Les objets se désignent par leur nom ou leurs métadonnées (titre, programme, nom de fichier),
-jamais par un identifiant interne, qui change d'une installation à l'autre. Les médias (vidéos, cours, morceaux,
-annonces) ne sont pas transportés : les fichiers y font référence. `machine.json` regroupe ce qui ne vaut que pour cette
-machine (écrans, sorties audio, composant natif, Tor, supports).
+puis le réappliquer seul. Chaque objet porte un `uid` (`vid_3f9a1c07b2de`) : identifiant stable, jamais modifié, qui
+survit au renommage et voyage d'une installation à l'autre. Titre, nom ou fichier se modifient librement ; à
+l'application, l'objet se reconnaît par son `uid`, à défaut par son nom ou ses métadonnées. Les médias eux-mêmes
+(vidéos, cours, morceaux, annonces) ne sont pas transportés : le fichier `library/` décrit leurs métadonnées, jamais
+leur contenu, et ne crée ni ne supprime de média.
 
 Une copie à jour est écrite dans le dossier `config/` des données de Bobine après chaque modification : c'est un instantané pour lire et
-déboguer, jamais relu automatiquement.
+déboguer, jamais relu automatiquement. Les noms plats de la version 5.1 (`playlists-video.json`, `schedule-cable.json`…)
+restent acceptés à l'application et traduits (`canonical_name`).
 """
 from __future__ import annotations
 
@@ -32,8 +45,51 @@ from app.models import (
 
 logger = logging.getLogger(__name__)
 
-SCHEMA = 1
+SCHEMA = 2
+ACCEPTED_SCHEMAS = (1, 2)
 SCHEDULE_CHANNELS = ("cable", "network", "radio_cable", "radio_network")
+
+
+def schedule_path(channel: str) -> str:
+    return f"schedule/{channel.replace('_', '-')}.json"
+
+
+# Nom de fichier (chemin relatif) -> `kind` du document.
+KINDS: dict[str, str] = {
+    "manifest.json": "manifest",
+    "settings.json": "settings",
+    "machine.json": "machine",
+    "outputs/display.json": "display-outputs",
+    "outputs/radio.json": "radio-outputs",
+    "library/videos.json": "library-videos",
+    "library/audio.json": "library-audio",
+    "library/radio.json": "library-radio",
+    "library/backgrounds.json": "library-backgrounds",
+    "library/announcements.json": "announcements",
+    "playlists/video.json": "playlists-video",
+    "playlists/audio.json": "playlists-audio",
+    "playlists/radio.json": "playlists-radio",
+    **{schedule_path(c): f"schedule-{c.replace('_', '-')}" for c in SCHEDULE_CHANNELS},
+    "radio/tags.json": "radio-tags",
+    "radio/announcement-rules.json": "announcement-rules",
+}
+# Noms plats de la version 5.1, toujours acceptés.
+LEGACY_NAMES: dict[str, str] = {
+    "display-outputs.json": "outputs/display.json",
+    "radio-outputs.json": "outputs/radio.json",
+    "announcements.json": "library/announcements.json",
+    "playlists-video.json": "playlists/video.json",
+    "playlists-audio.json": "playlists/audio.json",
+    "playlists-radio.json": "playlists/radio.json",
+    **{f"schedule-{c.replace('_', '-')}.json": schedule_path(c) for c in SCHEDULE_CHANNELS},
+    "radio-tags.json": "radio/tags.json",
+    "announcement-rules.json": "radio/announcement-rules.json",
+}
+
+
+def canonical_name(name: str) -> str:
+    """Nom d'un fichier dans l'arborescence actuelle (traduit les noms plats de la version 5.1)."""
+    return LEGACY_NAMES.get(name.replace("\\", "/"), name.replace("\\", "/"))
 
 # Réglages communs à toutes les installations, tels que l'interface les affiche (valeurs effectives).
 PORTABLE_SETTINGS = (
@@ -51,25 +107,26 @@ def _file_name(path: str | None) -> str | None:
 
 
 def video_ref(video: Video) -> dict[str, Any]:
-    return {"title": video.title, "program": video.program, "release": video.release, "file": _file_name(video.file_path)}
+    return {"uid": video.uid, "title": video.title, "program": video.program, "release": video.release, "file": _file_name(video.file_path)}
 
 
 def background_ref(background: Background | None) -> dict[str, Any] | None:
     if background is None:
         return None
-    return {"title": background.title, "file": _file_name(background.file_path)}
+    return {"uid": background.uid, "title": background.title, "file": _file_name(background.file_path)}
 
 
 def audio_track_ref(track: AudioTrack) -> dict[str, Any]:
     course = track.course
     return {
-        "course": {"title": course.title, "program": course.program, "release": course.release},
+        "uid": track.uid,
+        "course": {"uid": course.uid, "title": course.title, "program": course.program, "release": course.release},
         "number": track.number, "title": track.title, "file": _file_name(track.file_path),
     }
 
 
 def radio_track_ref(track: RadioTrack) -> dict[str, Any]:
-    return {"title": track.title, "artist": track.artist, "album": track.album, "file": _file_name(track.file_path)}
+    return {"uid": track.uid, "title": track.title, "artist": track.artist, "album": track.album, "file": _file_name(track.file_path)}
 
 
 def _target_ref(db: Session, target_type: ScheduleTargetType | None, target_id: int | None) -> dict[str, Any] | None:
@@ -80,7 +137,7 @@ def _target_ref(db: Session, target_type: ScheduleTargetType | None, target_id: 
         return {"type": "video", "video": video_ref(video) if video else None}
     model = Playlist if target_type == ScheduleTargetType.playlist else RadioPlaylist
     playlist = db.get(model, target_id)
-    return {"type": target_type.value, "name": playlist.name if playlist else None}
+    return {"type": target_type.value, "uid": playlist.uid if playlist else None, "name": playlist.name if playlist else None}
 
 
 def _duplicates(names) -> list[str]:
@@ -184,7 +241,7 @@ def build_radio_outputs(db: Session) -> dict[str, Any]:
 
 def build_video_playlists(db: Session) -> dict[str, Any]:
     playlists = db.query(Playlist).order_by(Playlist.name).all()
-    body = [{"name": p.name, "videos": [video_ref(item.video) for item in p.items if item.video]} for p in playlists]
+    body = [{"uid": p.uid, "name": p.name, "videos": [video_ref(item.video) for item in p.items if item.video]} for p in playlists]
     duplicates = _duplicates(p.name for p in playlists)
     return _document("playlists-video", {"playlists": body}, [f"playlist en double : {n}" for n in duplicates])
 
@@ -192,7 +249,7 @@ def build_video_playlists(db: Session) -> dict[str, Any]:
 def build_audio_playlists(db: Session) -> dict[str, Any]:
     playlists = db.query(AudioPlaylist).order_by(AudioPlaylist.name).all()
     body = [{
-        "name": p.name,
+        "uid": p.uid, "name": p.name,
         "tracks": [
             {"track": audio_track_ref(item.track), "background": background_ref(item.background)}
             for item in p.items if item.track
@@ -205,7 +262,7 @@ def build_audio_playlists(db: Session) -> dict[str, Any]:
 def build_radio_playlists(db: Session) -> dict[str, Any]:
     playlists = db.query(RadioPlaylist).order_by(RadioPlaylist.name).all()
     body = [{
-        "name": p.name, "default": bool(p.is_default),
+        "uid": p.uid, "name": p.name, "default": bool(p.is_default),
         "tracks": [radio_track_ref(item.track) for item in p.items if item.track],
     } for p in playlists]
     duplicates = _duplicates(p.name for p in playlists)
@@ -213,7 +270,7 @@ def build_radio_playlists(db: Session) -> dict[str, Any]:
 
 
 def build_radio_tags(db: Session) -> dict[str, Any]:
-    tags = [tag.name for tag in db.query(RadioTag).order_by(RadioTag.name).all()]
+    tags = [{"uid": tag.uid, "name": tag.name} for tag in db.query(RadioTag).order_by(RadioTag.name).all()]
     tracks = db.query(RadioTrack).filter(RadioTrack.tags.any()).order_by(RadioTrack.title).all()
     assignments = [{"track": radio_track_ref(t), "tags": sorted(tag.name for tag in t.tags)} for t in tracks]
     return _document("radio-tags", {"tags": tags, "assignments": assignments})
@@ -221,7 +278,7 @@ def build_radio_tags(db: Session) -> dict[str, Any]:
 
 def build_announcements(db: Session) -> dict[str, Any]:
     announcements = db.query(RadioAnnouncement).order_by(RadioAnnouncement.description).all()
-    body = [{"description": a.description, "file": _file_name(a.file_path), "enabled": bool(a.enabled)} for a in announcements]
+    body = [{"uid": a.uid, "description": a.description, "file": _file_name(a.file_path), "enabled": bool(a.enabled)} for a in announcements]
     return _document("announcements", {"announcements": body})
 
 
@@ -229,7 +286,7 @@ def build_announcement_rules(db: Session) -> dict[str, Any]:
     rules = db.query(RadioAnnouncementRule).order_by(RadioAnnouncementRule.created_at).all()
     body = []
     for rule in rules:
-        entry: dict[str, Any] = {"type": rule.rule_type.value, "target": rule.target, "enabled": bool(rule.enabled)}
+        entry: dict[str, Any] = {"uid": rule.uid, "type": rule.rule_type.value, "target": rule.target, "enabled": bool(rule.enabled)}
         if rule.n_tracks is not None:
             entry["n_tracks"] = rule.n_tracks
         if rule.interval_minutes is not None:
@@ -253,6 +310,7 @@ def build_schedule(db: Session, channel: str) -> dict[str, Any]:
     body = []
     for schedule in schedules:
         entry: dict[str, Any] = {
+            "uid": schedule.uid,
             "target": _target_ref(db, schedule.target_type, schedule.target_id),
             "type": schedule.schedule_type.value,
             "active": bool(schedule.active),
@@ -263,6 +321,7 @@ def build_schedule(db: Session, channel: str) -> dict[str, Any]:
             entry["recurrence"] = json.loads(schedule.recurrence_rule)
         if schedule.overrides:
             entry["overrides"] = [{
+                "uid": override.uid,
                 "date": override.occurrence_date.date().isoformat(),
                 "action": override.action.value,
                 "replacement": _target_ref(db, override.replacement_target_type, override.replacement_target_id),
@@ -271,23 +330,86 @@ def build_schedule(db: Session, channel: str) -> dict[str, Any]:
     return _document(f"schedule-{channel.replace('_', '-')}", {"channel": channel, "schedules": body})
 
 
+def _ordered(db: Session, model, *keys):
+    return db.query(model).order_by(*keys, model.id).all()
+
+
+def build_library_videos(db: Session) -> dict[str, Any]:
+    videos = _ordered(db, Video, Video.title)
+    return _document("library-videos", {"videos": [{
+        "uid": v.uid, "title": v.title, "program": v.program, "release": v.release, "description": v.description,
+        "file": _file_name(v.file_path),
+    } for v in videos]})
+
+
+def build_library_audio(db: Session) -> dict[str, Any]:
+    from app.models import AudioCourse
+
+    courses = _ordered(db, AudioCourse, AudioCourse.title)
+    return _document("library-audio", {"courses": [{
+        "uid": c.uid, "title": c.title, "program": c.program, "release": c.release,
+        "tracks": [{"uid": t.uid, "number": t.number, "title": t.title, "file": _file_name(t.file_path)}
+                   for t in sorted(c.tracks, key=lambda t: (t.number or 0, t.id))],
+    } for c in courses]})
+
+
+def build_library_radio(db: Session) -> dict[str, Any]:
+    tracks = _ordered(db, RadioTrack, RadioTrack.title)
+    return _document("library-radio", {"tracks": [{
+        "uid": t.uid, "title": t.title, "artist": t.artist, "album": t.album, "album_artist": t.album_artist,
+        "genre": t.genre, "track_number": t.track_number, "disc_number": t.disc_number, "year": t.year,
+        "file": _file_name(t.file_path),
+    } for t in tracks]})
+
+
+def build_library_backgrounds(db: Session) -> dict[str, Any]:
+    backgrounds = _ordered(db, Background, Background.title)
+    return _document("library-backgrounds", {"backgrounds": [
+        {"uid": b.uid, "title": b.title, "file": _file_name(b.file_path)} for b in backgrounds]})
+
+
 BUILDERS: dict[str, Callable[[Session], dict[str, Any]]] = {
     "settings.json": build_settings,
-    "display-outputs.json": build_display_outputs,
-    "radio-outputs.json": build_radio_outputs,
-    "playlists-video.json": build_video_playlists,
-    "playlists-audio.json": build_audio_playlists,
-    "playlists-radio.json": build_radio_playlists,
-    "radio-tags.json": build_radio_tags,
-    "announcements.json": build_announcements,
-    "announcement-rules.json": build_announcement_rules,
-    **{f"schedule-{c.replace('_', '-')}.json": (lambda db, c=c: build_schedule(db, c)) for c in SCHEDULE_CHANNELS},
     "machine.json": build_machine,
+    "outputs/display.json": build_display_outputs,
+    "outputs/radio.json": build_radio_outputs,
+    "library/videos.json": build_library_videos,
+    "library/audio.json": build_library_audio,
+    "library/radio.json": build_library_radio,
+    "library/backgrounds.json": build_library_backgrounds,
+    "library/announcements.json": build_announcements,
+    "playlists/video.json": build_video_playlists,
+    "playlists/audio.json": build_audio_playlists,
+    "playlists/radio.json": build_radio_playlists,
+    **{schedule_path(c): (lambda db, c=c: build_schedule(db, c)) for c in SCHEDULE_CHANNELS},
+    "radio/tags.json": build_radio_tags,
+    "radio/announcement-rules.json": build_announcement_rules,
 }
 
 
+def instance_uid(db: Session) -> str | None:
+    from app.models import Setting
+
+    row = db.query(Setting).filter(Setting.key == "instance_uid").first()
+    return row.value if row else None
+
+
+def build_manifest(db: Session, documents: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    from app.utils.version import get_app_version
+
+    def count(document: dict[str, Any]) -> int | None:
+        lists = [value for key, value in document.items() if isinstance(value, list) and key != "warnings"]
+        return len(lists[0]) if lists else None
+
+    return _document("manifest", {
+        "app_version": get_app_version(), "instance": instance_uid(db),
+        "files": {name: count(document) for name, document in documents.items()},
+    })
+
+
 def export_all(db: Session) -> dict[str, dict[str, Any]]:
-    return {name: builder(db) for name, builder in BUILDERS.items()}
+    documents = {name: builder(db) for name, builder in BUILDERS.items()}
+    return {"manifest.json": build_manifest(db, documents), **documents}
 
 
 def dumps(document: dict[str, Any]) -> str:
@@ -320,13 +442,14 @@ def write_mirror() -> int:
     written = 0
     for name, document in documents.items():
         path = target / name
+        path.parent.mkdir(parents=True, exist_ok=True)
         content = dumps(document)
         try:
             if path.read_text(encoding="utf-8") == content:
                 continue
         except OSError:
             pass
-        handle, temporary = tempfile.mkstemp(dir=target, prefix=f".{name}.", suffix=".tmp")
+        handle, temporary = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
         try:
             with os.fdopen(handle, "w", encoding="utf-8") as out:
                 out.write(content)
@@ -335,6 +458,8 @@ def write_mirror() -> int:
             Path(temporary).unlink(missing_ok=True)
             raise
         written += 1
+    for legacy in LEGACY_NAMES:  # noms plats de la version 5.1 : remplacés par l'arborescence
+        (target / legacy).unlink(missing_ok=True)
     return written
 
 

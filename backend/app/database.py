@@ -2,6 +2,8 @@ import logging
 import time
 from pathlib import Path
 
+import uuid
+
 from sqlalchemy import create_engine, event
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
@@ -160,6 +162,8 @@ def _migrate_add_uids():
             for (row_id,) in conn.execute(text(f"SELECT id FROM {table} WHERE uid IS NULL")).fetchall():
                 conn.execute(text(f"UPDATE {table} SET uid = :uid WHERE id = :id"), {"uid": new_uid(cls.__uid_prefix__), "id": row_id})
             conn.execute(text(f"CREATE UNIQUE INDEX IF NOT EXISTS ix_{table}_uid ON {table}(uid)"))
+        # Identifiant de cette installation, repris dans `manifest.json` de la configuration exportée.
+        conn.execute(text("INSERT OR IGNORE INTO settings (key, value) VALUES ('instance_uid', :uid)"), {"uid": uuid.uuid4().hex[:16]})
         conn.commit()
 
 
