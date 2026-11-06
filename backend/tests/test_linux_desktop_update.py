@@ -24,7 +24,8 @@ def test_deb_is_installed_by_apt_get_with_its_dependencies(handler, monkeypatch)
     monkeypatch.setattr(linux_desktop.shutil, "which", lambda name: f"/usr/bin/{name}" if name == "apt-get" else None)
     update.apply_update(download_url="https://example.org/bobine_5.1.1_amd64.deb")
     command = calls[0]
-    assert command[:6] == ["pkexec", "env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y"]
+    assert command[:5] == ["pkexec", "sh", "-c", linux_desktop._SENTINEL_SCRIPT, "sh"]
+    assert command[5:11] == ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", "--allow-downgrades"]
     assert "--allow-downgrades" in command and command[-1].endswith("bobine_update.deb")
 
 
@@ -32,4 +33,9 @@ def test_dpkg_remains_only_without_apt_get(handler, monkeypatch):
     update, calls = handler
     monkeypatch.setattr(linux_desktop.shutil, "which", lambda name: None)
     update.apply_update(download_url="https://example.org/bobine_5.1.1_amd64.deb")
-    assert calls[0][:3] == ["pkexec", "dpkg", "-i"]
+    assert calls[0][5:8] == ["dpkg", "-i", calls[0][-1]]
+
+
+def test_sentinel_is_created_by_root_in_run_not_tmp():
+    assert linux_desktop.SELF_UPDATE_SENTINEL.startswith("/run/")
+    assert "/tmp/" not in linux_desktop._SENTINEL_SCRIPT

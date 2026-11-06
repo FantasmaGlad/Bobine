@@ -70,6 +70,15 @@ def detect_linux_package_format() -> str:
     return ".deb"
 
 
+SELF_UPDATE_SENTINEL = "/run/bobine-self-update-in-progress"
+_SENTINEL_SCRIPT = f'touch {SELF_UPDATE_SENTINEL}; trap "rm -f {SELF_UPDATE_SENTINEL}" EXIT; "$@"'
+
+
+def _as_root(command: list[str]) -> list[str]:
+    """`pkexec` + commande, entourée de la sentinelle lue par les scripts du paquet (prerm, %pre, pre_upgrade)."""
+    return ["pkexec", "sh", "-c", _SENTINEL_SCRIPT, "sh", *command]
+
+
 class LinuxDesktopHandler(ProfileHandler):
     profile = "linux-desktop"
 
@@ -214,30 +223,29 @@ class LinuxDesktopHandler(ProfileHandler):
         # et `packaging/arch/bobine.install` (_bobine_stop) : sans elle, le script de pré-mise à jour
         # de l'ANCIEN paquet tue ce process par nom avant qu'il ait pu se redémarrer proprement
         # via `restart_services()` juste après.
-        self_update_sentinel = Path("/tmp/bobine-self-update-in-progress")
+        # Posée par la commande root elle-même, dans /run (root seul) : un utilisateur local ne peut pas la
+        # créer d'avance pour empêcher l'arrêt de l'ancienne version pendant une mise à jour d'administrateur.
         report("installing", message="Installation du paquet (autorisation système requise)…")
         try:
-            self_update_sentinel.touch(exist_ok=True)
             if pkg_ext == ".pkg.tar.zst":
-                run_checked(["pkexec", "pacman", "-U", "--noconfirm", str(pkg_file)], timeout=180)
+                run_checked(_as_root(["pacman", "-U", "--noconfirm", str(pkg_file)]), timeout=180)
             elif pkg_ext == ".rpm":
                 if shutil.which("dnf"):
-                    run_checked(["pkexec", "dnf", "install", "-y", str(pkg_file)], timeout=180)
+                    run_checked(_as_root(["dnf", "install", "-y", str(pkg_file)]), timeout=180)
                 else:
-                    run_checked(["pkexec", "rpm", "-Uvh", "--replacepkgs", str(pkg_file)], timeout=180)
+                    run_checked(_as_root(["rpm", "-Uvh", "--replacepkgs", str(pkg_file)]), timeout=180)
             elif shutil.which("apt-get"):
                 # apt-get installe aussi les dépendances que la nouvelle version ajoute, et répare un paquet laissé
                 # « non configuré » par une tentative précédente : `dpkg -i` échouait sur toute dépendance absente
                 # (smartmontools, par exemple). `--allow-downgrades` garde le comportement de dpkg pour un retour
                 # de canal.
-                run_checked(["pkexec", "env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y",
-                             "--allow-downgrades", str(pkg_file)], timeout=900)
+                run_checked(_as_root(["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y",
+                                      "--allow-downgrades", str(pkg_file)]), timeout=900)
             else:
-                run_checked(["pkexec", "dpkg", "-i", str(pkg_file)], timeout=180)
+                run_checked(_as_root(["dpkg", "-i", str(pkg_file)]), timeout=180)
         except Exception as e:
             raise RuntimeError(f"Échec de l'installation du paquet {pkg_ext} : {e}") from e
         finally:
-            self_update_sentinel.unlink(missing_ok=True)
             try:
                 pkg_file.unlink(missing_ok=True)
                 pkg_file.parent.rmdir()

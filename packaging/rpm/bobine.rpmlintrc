@@ -1,7 +1,7 @@
 # Filtres rpmlint de Bobine — chacun est justifié ; le reste doit rester à zéro erreur.
 
-# La sentinelle de mise à jour interne (/tmp/bobine-self-update-in-progress) est posée par
-# l'application elle-même (même protocole que le prerm du .deb) : lecture seule dans les scriptlets.
+# La sentinelle de mise à jour interne (/run/bobine-self-update-in-progress) est posée par
+# la commande root de la mise à jour interne (même protocole que le prerm du .deb) : lecture seule dans les scriptlets.
 addFilter("use-tmp-in-")
 addFilter("dangerous-command-in-")
 
