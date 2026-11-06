@@ -616,10 +616,10 @@ def _notify_best_effort(icon: "pystray.Icon", title: str, message: str) -> None:
 
 def _port_fallback_notice(icon: "pystray.Icon", wait_seconds: float = 120.0) -> None:
     """Signale clairement que le backend écoute sur un port de repli (le port
-    configuré était occupé). La règle de pare-feu Windows (Inno Setup) est liée
-    au programme et couvre ce port ; le service firewalld fourni n'ouvre que le port
-    par défaut : sans ce message, les autres appareils du réseau ne comprendraient
-    pas pourquoi l'adresse habituelle ne répond plus. Une seule notification par
+    configuré était occupé). Les règles de pare-feu des installeurs couvrent ce port
+    (Windows : liée au programme ; Linux : profil ufw et service firewalld sur toute la plage de repli) :
+    sans ce message, les autres appareils du réseau ne comprendraient pas pourquoi
+    l'adresse habituelle ne répond plus. Une seule notification par
     démarrage du tray ; le journal du backend porte le même avertissement."""
     deadline = time.time() + wait_seconds
     while time.time() < deadline:

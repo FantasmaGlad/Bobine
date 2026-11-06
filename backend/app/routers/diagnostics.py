@@ -257,6 +257,22 @@ def _probe_network(report: _Report) -> None:
                        "Utiliser l'adresse IP de Réglages → Documentation ; vérifier le pare-feu (port 5353 UDP).")
 
 
+def _probe_firewall(report: _Report) -> None:
+    from app.utils import firewall
+
+    state = firewall.status()
+    if state["state"] == "blocked":
+        report.problem("firewall", "firewall_blocks_bobine", "warning",
+                       "Le pare-feu de macOS bloque les connexions entrantes vers Bobine : seul ce poste y accède.",
+                       f"Dans un Terminal : {state['remedy']}")
+    elif state["state"] == "rule_missing":
+        report.problem("firewall", "firewall_rule_missing", "warning",
+                       "La règle de pare-feu Windows « Bobine » est absente : les autres appareils du réseau ne joignent pas Bobine.",
+                       state["remedy"])
+    elif state["state"] == "not_checked":
+        report.check("firewall", "ok", state.get("reason"))
+
+
 def _probe_media_tools(report: _Report) -> None:
     for tool, binary in (("ffmpeg", ffmpeg_binaries.FFMPEG_BIN), ("ffprobe", ffmpeg_binaries.FFPROBE_BIN)):
         info = ffmpeg_binaries.probe_tool(binary)
@@ -350,7 +366,7 @@ async def system_diagnostics() -> dict:
         for name, function in (
             ("database", _probe_database), ("kiosk", _probe_kiosk), ("port", _probe_port), ("network", _probe_network),
             ("media_tools", _probe_media_tools), ("disk", _probe_disks), ("imports", _probe_imports),
-            ("updates", _probe_updates), ("media_native", _probe_media_native),
+            ("updates", _probe_updates), ("media_native", _probe_media_native), ("firewall", _probe_firewall),
         ):
             report.probe(name, function)
 

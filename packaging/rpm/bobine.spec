@@ -23,7 +23,6 @@ Summary:        Video and audio playout for gyms and fitness studios
 License:        AGPL-3.0-or-later
 URL:            https://bobine.fit
 Source0:        bobine-root.tar
-Source1:        bobine-firewalld.xml
 AutoReqProv:    no
 
 # ffmpeg complet : « ffmpeg » de RPM Fusion, ou « ffmpeg-free » (codecs limités) des
@@ -47,7 +46,6 @@ Recommends:     gvfs
 Recommends:     gvfs-mtp
 Recommends:     gvfs-fuse
 Suggests:       chromium
-Suggests:       firewalld
 
 %description
 Bobine plays planned classes on the studio screen, offers a self-service
@@ -73,7 +71,6 @@ Source code: https://github.com/FantasmaGlad/Bobine
 rm -rf %{buildroot}
 mkdir -p %{buildroot}
 tar -xf %{SOURCE0} -C %{buildroot}
-install -D -m 0644 %{SOURCE1} %{buildroot}%{_prefix}/lib/firewalld/services/bobine.xml
 
 %pre
 # Mise à jour (deux versions installées simultanément) : arrêter Bobine AVANT le
@@ -90,6 +87,7 @@ exit 0
 
 %post
 /usr/lib/bobine/configure-storage-access auto
+/usr/lib/bobine/configure-firewall open || true
 # Raccourci sur le Bureau de l'utilisateur qui a lancé dnf via sudo.
 if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
     USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
@@ -142,7 +140,7 @@ fi
 exit 0
 
 %preun
-if [ "$1" = 0 ]; then /usr/lib/bobine/configure-storage-access remove; fi
+if [ "$1" = 0 ]; then /usr/lib/bobine/configure-storage-access remove; /usr/lib/bobine/configure-firewall close || true; fi
 # Désinstallation complète uniquement ($1 = 0) : arrêt des processus Bobine.
 if [ "$1" -eq 0 ]; then
     pkill -x BobineTray >/dev/null 2>&1 || true

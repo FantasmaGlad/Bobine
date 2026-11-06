@@ -121,10 +121,12 @@ Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"; Parameters
 ; fonctionner). La règle est liée au PROGRAMME (BobineBackend.exe), pas à un
 ; numéro de port : elle couvre aussi le port de repli que le backend prend si
 ; le port configuré est occupé (cf. backend/app/utils/port.py). `netsh` est natif Windows, aucune dépendance externe.
-; Échec toléré (`flags: runhidden skipifsilent"; ...`) : mieux vaut une
-; installation qui continue sans la règle qu'un installeur qui échoue
-; entièrement sur cette seule étape.
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""Bobine"" dir=in action=allow program=""{app}\BobineBackend.exe"" enable=yes profile=any"; Flags: runhidden; StatusMsg: "Configuration du pare-feu…"
+; Ouverte aux réseaux locaux et VPN seulement (sous-réseau local, RFC 1918, 100.64.0.0/10 de Tailscale, IPv6
+; locales), jamais à Internet : mêmes plages que configure-firewall sous Linux. L'ancienne règle est retirée d'abord,
+; sinon chaque mise à jour en ajouterait une copie. Échec toléré : mieux vaut une installation qui continue sans la
+; règle qu'un installeur qui échoue entièrement sur cette seule étape.
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Bobine"""; Flags: runhidden
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""Bobine"" dir=in action=allow program=""{app}\BobineBackend.exe"" enable=yes profile=any remoteip=LocalSubnet,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10,fc00::/7,fe80::/10"; Flags: runhidden; StatusMsg: "Configuration du pare-feu…"
 ; Lance BobineTray (qui démarre lui-même BobineBackend)
 ; immédiatement après l'installation, sans attendre la prochaine session.
 Filename: "{app}\BobineTray.exe"; Description: "Lancer Bobine"; Flags: postinstall nowait skipifsilent

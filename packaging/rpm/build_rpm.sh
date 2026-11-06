@@ -43,7 +43,6 @@ trap 'rm -rf "${WORK}"' EXIT
 mkdir -p "${WORK}/rpmbuild/"{SOURCES,SPECS,BUILD,RPMS,SRPMS,BUILDROOT}
 "${SCRIPT_DIR}/../common/stage_root.sh" "${DIST_DIR}" "${WORK}/root" "${VERSION}"
 tar --owner=0 --group=0 --numeric-owner -cf "${WORK}/rpmbuild/SOURCES/bobine-root.tar" -C "${WORK}/root" .
-cp "${SCRIPT_DIR}/bobine-firewalld.xml" "${WORK}/rpmbuild/SOURCES/"
 cp "${SCRIPT_DIR}/bobine.spec" "${WORK}/rpmbuild/SPECS/"
 
 echo "=== [3/5] Version glibc minimale exigée par les binaires embarqués ==="
