@@ -4,7 +4,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
+
+use crate::events::Events;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 use tokio::sync::Semaphore;
@@ -161,7 +163,10 @@ async fn connect_probe(sockets: &Semaphore, ip: Ipv4Addr, port: u16) -> ProbeOut
 
 /// Lit la bannière SSH (ex. "SSH-2.0-OpenSSH_9.2p1 Debian-2+deb12u3").
 async fn read_ssh_banner(stream: TcpStream) -> String {
-    let mut reader = BufReader::new(stream);
+    // Une bannière SSH tient en quelques centaines d'octets. Borner la lecture
+    // empêche un appareil du LAN d'envoyer une ligne sans fin et d'épuiser la
+    // mémoire de l'assistant pendant le scan.
+    let mut reader = BufReader::new(stream.take(4096));
     let mut line = String::new();
     match timeout(Duration::from_millis(500), reader.read_line(&mut line)).await {
         Ok(Ok(_)) if !line.trim().is_empty() => line.trim().to_string(),
@@ -275,6 +280,22 @@ fn build_device(
     }
 }
 
+fn arp_program() -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        let root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
+        std::path::Path::new(&root).join("System32").join("arp.exe")
+    }
+    #[cfg(not(windows))]
+    {
+        ["/usr/sbin/arp", "/sbin/arp", "/usr/bin/arp"]
+            .iter()
+            .map(std::path::PathBuf::from)
+            .find(|p| p.is_file())
+            .unwrap_or_else(|| "/usr/sbin/arp".into())
+    }
+}
+
 /// Table de voisinage ARP du poste (IP -> MAC). Lue APRÈS le balayage : le
 /// noyau y inscrit tout hôte qui a répondu à la résolution ARP, même si
 /// TOUS ses ports sont filtrés (pare-feu qui ignore les paquets) — cas où
@@ -286,7 +307,9 @@ fn read_arp_table() -> HashMap<Ipv4Addr, String> {
             return parse_proc_net_arp(&content).into_iter().collect();
         }
     }
-    let mut command = std::process::Command::new("arp");
+    // Chemin absolu : un `arp` placé plus tôt dans le PATH (ou dans le dossier courant sous Windows) ne doit pas
+    // s'exécuter pendant le scan.
+    let mut command = std::process::Command::new(arp_program());
     command.arg("-a");
     #[cfg(windows)]
     {
@@ -321,6 +344,11 @@ async fn resolve_bobine_local() -> Option<Ipv4Addr> {
 
 #[tauri::command]
 pub async fn scan_network(app: AppHandle, custom_subnet: Option<String>) -> Result<Vec<DiscoveredDevice>, String> {
+    scan(&app, custom_subnet).await
+}
+
+/// Balayage des réseaux locaux (ou du réseau saisi) : partagé par l'interface et par `bobine-assistant scan`.
+pub async fn scan(events: &dyn Events, custom_subnet: Option<String>) -> Result<Vec<DiscoveredDevice>, String> {
     let mut plan = plan_from_interfaces();
 
     if let Some(spec) = custom_subnet.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
@@ -370,17 +398,13 @@ pub async fn scan_network(app: AppHandle, custom_subnet: Option<String>) -> Resu
     while let Some(joined) = tasks.join_next().await {
         done += 1;
         if let Ok(Some(device)) = joined {
-            app.emit("scan_device", &device).ok();
+            crate::events::send(events, "scan_device", &device);
             results.push(device);
         }
         // Au plus ~8 mises à jour par seconde : fluide sans noyer l'IHM.
         if last_emit.elapsed() >= Duration::from_millis(120) || done == total {
             last_emit = Instant::now();
-            app.emit(
-                "scan_progress",
-                ScanProgress { done, total, found: results.len(), networks: network_labels.clone() },
-            )
-            .ok();
+            crate::events::send(events, "scan_progress", &ScanProgress { done, total, found: results.len(), networks: network_labels.clone() });
         }
     }
 
@@ -399,7 +423,7 @@ pub async fn scan_network(app: AppHandle, custom_subnet: Option<String>) -> Resu
         if scanned.contains(ip) && !known.contains(ip) {
             let mut device = build_device(*ip, None, false, false, Vec::new(), None, "arp");
             device.mac = Some(mac.clone());
-            app.emit("scan_device", &device).ok();
+            crate::events::send(events, "scan_device", &device);
             results.push(device);
         }
     }
@@ -419,7 +443,7 @@ pub async fn scan_network(app: AppHandle, custom_subnet: Option<String>) -> Resu
                     Some("Bobine (bobine.local)".to_string()), "mdns",
                 );
                 device.is_wyse_or_bobine = true;
-                app.emit("scan_device", &device).ok();
+                crate::events::send(events, "scan_device", &device);
                 results.push(device);
             }
         }
@@ -457,10 +481,6 @@ pub async fn scan_network(app: AppHandle, custom_subnet: Option<String>) -> Resu
             })
     });
 
-    app.emit(
-        "scan_progress",
-        ScanProgress { done: total, total, found: results.len(), networks: network_labels },
-    )
-    .ok();
+    crate::events::send(events, "scan_progress", &ScanProgress { done: total, total, found: results.len(), networks: network_labels });
     Ok(results)
 }

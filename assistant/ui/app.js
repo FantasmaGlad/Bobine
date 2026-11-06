@@ -67,6 +67,9 @@ async function invokeTauri(cmd, args = {}) {
   if (cmd === 'get_app_info') {
     return { version: '0.0.0-dev', commit: 'preview' };
   }
+  if (cmd === 'ssh_host_key') {
+    return { host: args.host, port: args.port, fingerprint: 'SHA256:exemple', key_type: 'ssh-ed25519', status: 'known', known_hosts: '' };
+  }
   if (cmd === 'check_assistant_update') {
     return { available: false, current: '0.0.0-dev', version: null, notes: null };
   }
@@ -314,16 +317,17 @@ function initWizard() {
     };
 
     try {
+      if (!(await ensureTrustedHost(creds.host, creds.port))) return;
       const inspection = await invokeTauri('test_ssh_connection', { creds });
       state.systemInspection = inspection;
       renderSystemSpecs(inspection);
       goToStep(3);
     } catch (err) {
       if (sshErrorBanner && sshErrorDesc) {
-        sshErrorDesc.textContent = err;
+        sshErrorDesc.textContent = err?.message || err;
         sshErrorBanner.style.display = 'block';
       } else {
-        alert(`Erreur de connexion SSH : ${err}`);
+        alert(`Erreur de connexion SSH : ${err?.message || err}`);
       }
     } finally {
       connectSpinner.classList.remove('spinning');
@@ -454,6 +458,26 @@ async function checkAssistantUpdate() {
       // idem : pas bloquant si indisponible.
     }
   };
+}
+
+// Clé d'hôte SSH vérifiée avant tout envoi de mot de passe (host_key.rs) : une machine inconnue n'est enregistrée
+// qu'après confirmation de son empreinte ; une clé qui a changé est refusée (une autre machine peut usurper la borne).
+async function ensureTrustedHost(host, port) {
+  const key = await invokeTauri('ssh_host_key', { host, port });
+  if (key.status === 'known') return true;
+  if (key.status === 'changed') {
+    throw new Error(`La clé d'hôte de ${host} a changé (${key.fingerprint}) : connexion refusée. Si la borne a été réinstallée, retirez l'ancienne entrée avec « ssh-keygen -R ${host} », puis recommencez.`);
+  }
+  const message = `Première connexion à ${host} : vérifiez que l'empreinte de sa clé SSH est bien celle de la borne.\n\n`
+    + `${key.key_type}\n${key.fingerprint}\n\n`
+    + `Sur la borne : ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub\n\nFaire confiance à cette machine ?`;
+  const ask = window.__TAURI__?.dialog?.ask;
+  const accepted = ask
+    ? await ask(message, { title: 'Nouvelle machine', kind: 'warning', okLabel: 'Faire confiance', cancelLabel: 'Annuler' })
+    : window.confirm(message);
+  if (!accepted) throw new Error("Connexion annulée : l'empreinte de la machine n'a pas été confirmée.");
+  await invokeTauri('trust_ssh_host_key', { host, port, fingerprint: key.fingerprint });
+  return true;
 }
 
 function goToStep(stepNumber) {
@@ -661,7 +685,9 @@ function listenTauriEvents() {
 
     if (update.access_port) state.selectedBobinePort = update.access_port;
 
-    if (update.phase === 'succeeded' || update.pct >= 100) {
+    // Seul `run_end` (phase succeeded) vaut succès : un simple `pct: 100`
+    // peut précéder un échec réel, et le code de sortie distant fait foi.
+    if (update.phase === 'succeeded') {
       document.getElementById('install-title-heading').textContent = 'Installation terminée !';
       document.getElementById('install-success-card').style.display = 'flex';
 

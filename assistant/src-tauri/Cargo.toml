@@ -18,6 +18,8 @@ tokio = { version = "1", features = ["full"] }
 if-addrs = "0.15"
 dns-lookup = "4"
 tauri-plugin-updater = "2"
+clap = { version = "4", features = ["derive"] }
+base64 = "0.22"
 
 # libssh2 a besoin d'OpenSSL : celui du système sous Linux, compilé avec l'assistant sous Windows et macOS, qui n'en
 # fournissent pas d'utilisable.
@@ -26,6 +28,9 @@ ssh2 = "0.9"
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 ssh2 = { version = "0.9", features = ["vendored-openssl"] }
+
+[target."cfg(windows)".dependencies]
+windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
 
 [features]
 default = []

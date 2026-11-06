@@ -57,6 +57,34 @@ rejoue un flux `--progress=json` **réel** capturé depuis `install.sh`
 ([`fixtures/install-events.jsonl`](core/tests/fixtures/install-events.jsonl)) :
 garde-fou contre toute divergence entre l'émetteur et le parseur.
 
+## Ligne de commande
+
+Le même exécutable se pilote sans fenêtre : tout ce que fait l'interface passe par les mêmes fonctions
+(`discovery::scan`, `connection::inspect`, `install::run_installation`).
+
+```bash
+bobine-assistant scan [--subnet 192.168.2.0/24]
+bobine-assistant host-key --host bobine.local
+bobine-assistant inspect --host bobine.local --user admin [--key ~/.ssh/id_ed25519] [--trust-host-key SHA256:…]
+bobine-assistant install --host bobine.local --user admin --channel stable --yes
+bobine-assistant update check
+bobine-assistant update apply --yes
+bobine-assistant version
+```
+
+- `--json` : résultat JSON sur stdout ; pendant `install`, un événement JSON par ligne (`install_progress`,
+  `install_log`, puis `done` ou `error`).
+- Mots de passe : jamais en argument. `BOBINE_SSH_PASSWORD` et `BOBINE_ROOT_PASSWORD`, ou une ligne chacun sur
+  l'entrée standard avec `--password-stdin` puis `--root-password-stdin`.
+- `install` exige `--yes` ; `--elevation auto` (défaut) choisit sudo ou su d'après l'audit, comme l'interface ;
+  `--simulate` rejoue une installation enregistrée sans toucher la cible.
+- Clé d'hôte SSH vérifiée avant tout mot de passe, contre `~/.ssh/known_hosts` (ou `BOBINE_SSH_KNOWN_HOSTS`) : une
+  machine inconnue n'est acceptée qu'après confirmation de son empreinte (`SHA256:…`, comparable à
+  `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` sur la borne) — question de l'interface, ou
+  `--trust-host-key` ; une clé qui a changé est toujours refusée (`ssh-keygen -R <hôte>` après une réinstallation).
+- Codes de sortie, comme la commande `bobine` : 0 succès, 1 échec, 2 usage, 3 cible injoignable, 4 authentification
+  refusée.
+
 ## Scan réseau
 
 Le bouton « Lancer le scan réseau » sonde le réseau de **chaque interface

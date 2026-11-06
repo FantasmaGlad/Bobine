@@ -474,6 +474,10 @@ jobs:
           sudo apt-get $APT_OPTIONS install -y ./dist-assistant/bobine-assistant_*_amd64.deb
           test -x /usr/bin/bobine-assistant
           test -f /usr/share/icons/hicolor/128x128/apps/bobine-assistant.png
+          # Ligne de commande : même exécutable, sans fenêtre.
+          bobine-assistant --json version | grep -q '"version"'
+          set +e; bobine-assistant install --host 203.0.113.10 --user essai; rc=$?; set -e
+          [ "$rc" -eq 2 ] || { echo "install sans --yes : code $rc, 2 attendu" >&2; exit 1; }
           rpm -qip dist-assistant/bobine-assistant-*.x86_64.rpm
           # Toujours vivant au bout de 10 s : timeout le tue (124), un plantage au démarrage rend un autre code.
           set +e; xvfb-run -a timeout 10 bobine-assistant; rc=$?; set -e
@@ -498,6 +502,9 @@ jobs:
           $dir = Join-Path $env:LOCALAPPDATA 'Bobine Assistant'
           $exe = Get-ChildItem $dir -Filter '*.exe' | Where-Object { $_.Name -notlike 'uninstall*' } | Select-Object -First 1
           if (-not $exe) { throw "exécutable absent de $dir" }
+          # Ligne de commande : l'exécutable sans console se rattache à celle du terminal (tube pour attendre la fin).
+          $version = & $exe.FullName --json version | Out-String
+          if ($version -notmatch '"version"') { throw "bobine-assistant --json version : sortie inattendue ($version)" }
           $app = Start-Process $exe.FullName -PassThru
           Start-Sleep -Seconds 10
           if ($app.HasExited) { throw "l'assistant s'est arrêté au démarrage (code $($app.ExitCode))" }
@@ -516,6 +523,7 @@ jobs:
           codesign --verify --deep --strict "$RUNNER_TEMP/Bobine Assistant.app"
           test -f "$RUNNER_TEMP/Bobine Assistant.app/Contents/Resources/icon.icns"
           binary=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$RUNNER_TEMP/Bobine Assistant.app/Contents/Info.plist")
+          "$RUNNER_TEMP/Bobine Assistant.app/Contents/MacOS/$binary" --json version | grep -q '"version"'
           "$RUNNER_TEMP/Bobine Assistant.app/Contents/MacOS/$binary" & pid=$!
           sleep 10
           kill -0 "$pid" || { echo "l'assistant s'est arrêté au démarrage" >&2; exit 1; }
