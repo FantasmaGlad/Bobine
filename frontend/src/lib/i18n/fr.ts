@@ -1740,6 +1740,16 @@ export const dictionary: Dict = {
     uninstallManualHintAndroid: "Méthode manuelle : Appui long sur l'icône Bobine > Désinstaller",
     uninstallManualHintHeadless: "Méthode manuelle : sudo ./install.sh --uninstall",
     categoriesLabel: "Catégories de réglages",
+    timing: {
+      title: "Minutage et volume",
+      intro: "Valeurs de départ de la lecture. Un champ s'enregistre quand vous le quittez ou validez avec Entrée.",
+      wait_time_between_courses: { label: "Attente entre deux cours", hint: "Pause avant le cours suivant d'une playlist, de {min} à {max} {unit}." },
+      volume_default: { label: "Volume de départ", hint: "Volume d'un canal au démarrage, de {min} à {max} {unit}." },
+      audio_chain_timer_seconds: { label: "Minuterie des pistes audio", hint: "Durée avant la piste suivante en mode minuterie, de {min} à {max} {unit}." },
+      radio_announcement_fade_ms: { label: "Fondu des rappels radio", hint: "Durée du fondu de la musique pendant un rappel, de {min} à {max} {unit}." },
+      saved: "Enregistré.",
+      invalid: "Valeur refusée : entier de {min} à {max} {unit}.",
+    },
     searchPlaceholder: "Rechercher un réglage",
     searchNone: "Aucun réglage ne correspond à cette recherche.",
     cat: {

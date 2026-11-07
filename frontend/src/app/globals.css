@@ -6833,6 +6833,10 @@ video::cue {
 .rl-nav-card { align-items: center; flex-wrap: wrap; gap: 12px; }
 /* Une section masquée (catégorie non choisie des Réglages) ne doit jamais être réaffichée par une règle de mise en page. */
 .live-block[hidden] { display: none !important; }
+.settings-timing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 4px 24px; }
+.settings-timing-field { display: flex; align-items: center; gap: 10px; }
+.settings-timing-field .form-control { max-width: 160px; }
+.settings-timing-unit { color: var(--text-muted); font-size: 0.9rem; }
 .settings-search-row { display: flex; justify-content: center; margin: 4px 0 18px; }
 .settings-search {
   display: flex; align-items: center; gap: 10px; width: min(100%, 520px); box-sizing: border-box;

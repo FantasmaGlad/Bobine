@@ -1740,6 +1740,16 @@ export const dictionary: Dict = {
     uninstallManualHintAndroid: "Manual method: Long-press Bobine icon > Uninstall",
     uninstallManualHintHeadless: "Manual method: sudo ./install.sh --uninstall",
     categoriesLabel: "Setting categories",
+    timing: {
+      title: "Timing and volume",
+      intro: "Starting values for playback. A field is saved when you leave it or press Enter.",
+      wait_time_between_courses: { label: "Wait between courses", hint: "Pause before the next course of a playlist, from {min} to {max} {unit}." },
+      volume_default: { label: "Starting volume", hint: "Volume of a channel at startup, from {min} to {max} {unit}." },
+      audio_chain_timer_seconds: { label: "Audio track timer", hint: "Time before the next track in timer mode, from {min} to {max} {unit}." },
+      radio_announcement_fade_ms: { label: "Radio announcement fade", hint: "Music fade duration during an announcement, from {min} to {max} {unit}." },
+      saved: "Saved.",
+      invalid: "Value refused: whole number from {min} to {max} {unit}.",
+    },
     searchPlaceholder: "Search settings",
     searchNone: "No setting matches this search.",
     cat: {

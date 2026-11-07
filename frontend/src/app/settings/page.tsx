@@ -6,6 +6,7 @@ import MediaNativeSetting from "@/components/MediaNativeSetting";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import PageNav from "@/components/PageNav";
+import PlaybackTimingSettings from "@/components/PlaybackTimingSettings";
 import { DEFAULT_SETTINGS_CATEGORY, SETTINGS_CATEGORIES, categoryOfSection, matchCategories, type SettingsCategoryId } from "@/lib/settingsCategories";
 import { paletteOf, THEME_MODES, THEMES, type ThemeMode } from "@/lib/themePalettes";
 import { channelI18nSuffix, channelLogoUrl, isRollingReleaseChannel, RELEASE_CHANNELS, type UpdateChannel } from "@/lib/releaseChannel";
@@ -1709,6 +1710,7 @@ export default function SettingsPage() {
 
       {/* ---- Compatibilité navigateur (diagnostic local) ---- */}
       <div id="section-playback" hidden={!shows("section-playback")}>
+      <PlaybackTimingSettings />
       <BrowserCompatibility />
 
       {/* ---- Composant audio natif (expérimental, désactivé par défaut) ---- */}

@@ -25,6 +25,15 @@ DASHBOARD_PERIODS = ("7d", "30d", "this_month", "all")
 HISTORY_PERIODS = ("1h", "6h", "24h", "7d", "30d", "this_month", "all")
 DASHBOARD_CHANNELS = ("all",) + CHANNELS
 
+# Bornes des réglages numériques de lecture : (minimum, maximum). Le serveur les refuse hors de ces bornes ; la page
+# Réglages (frontend/src/lib/settingsBounds.ts, parité vérifiée par un test) les reprend pour ses champs.
+SETTING_BOUNDS = {
+    "wait_time_between_courses": (0, 3600),     # secondes d'attente entre deux cours d'une playlist
+    "volume_default": (0, 100),                  # pourcentage
+    "audio_chain_timer_seconds": (0, 86400),    # secondes entre deux pistes en mode minuterie
+    "radio_announcement_fade_ms": (0, 10000),   # fondu d'un rappel radio, en millisecondes
+}
+
 # Journaux.
 LOG_LEVELS = ("debug", "info", "warning", "error", "critical")
 LOG_SOURCES = ("technical", "activity")

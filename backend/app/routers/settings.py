@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.api_contract import CHANNELS, DISPLAY_OUTPUTS_BY_CHANNEL
+from app.api_contract import CHANNELS, DISPLAY_OUTPUTS_BY_CHANNEL, SETTING_BOUNDS
 from app.config import (
     ROOT_DIR,
     _global_config_path,
@@ -593,6 +593,9 @@ def stage_settings(updates: dict[str, Any], db: Session) -> None:
                     stored_value = ""
             elif value < 0:
                 raise HTTPException(status_code=400, detail=f"{key} doit être positif")
+            elif key in SETTING_BOUNDS and not SETTING_BOUNDS[key][0] <= value <= SETTING_BOUNDS[key][1]:
+                low, high = SETTING_BOUNDS[key]
+                raise HTTPException(status_code=400, detail=f"{key} doit être compris entre {low} et {high}")
         elif key in _WRITABLE_STRING_FIELDS and value is not None:
             if key == "language" and value not in ("fr", "en"):
                 raise HTTPException(status_code=400, detail="Langue invalide (attendu 'fr' ou 'en')")
