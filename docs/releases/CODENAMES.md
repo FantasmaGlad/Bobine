@@ -4,7 +4,7 @@ Chaque version **Stable** majeure ou marquante reçoit, en plus de son numéro `
 
 ## Où il apparaît
 
-- **Titre de `docs/releases/Vx.y.z.md`** : `# Bobine Vx.y.z « Nom » — <sous-titre>` (voir `V5.0.7.md` pour l'exemple).
+- **Titre de `docs/releases/Vx.y.z.md`** : `# Bobine Vx.y.z « Nom » — <sous-titre>` (voir `V5.1.0.md` pour l'exemple).
 - Nulle part ailleurs pour l'instant : ni dans `VERSION`, ni dans l'API, ni dans l'interface. Le nom de code est un repère éditorial pour les notes de version et la communication, pas une donnée fonctionnelle — pas de dérive à craindre sur `_parse_version()`/`_rolling_build_info()` si ce fichier n'est jamais lu par du code.
 
 ## Convention
