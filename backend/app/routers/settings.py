@@ -30,6 +30,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
+from app.api_contract import CHANNELS, DISPLAY_OUTPUTS_BY_CHANNEL
 from app.config import (
     ROOT_DIR,
     _global_config_path,
@@ -154,11 +155,8 @@ _DISPLAY_OUTPUT_KEYS = {"cable": "display_output_cable", "network": "display_out
 # Sorties acceptées PAR canal de diffusion : seule la sortie câblée peut être
 # basculée sur la radio (l'écran physique devient un poste radio, à la demande) ;
 # le réseau a déjà son poste radio par URL (/radio?channel=network).
-_DISPLAY_OUTPUTS_BY_CHANNEL = {
-    "cable": ("kiosk", "cinema", "radio"),
-    "network": ("kiosk", "cinema"),
-}
-_DISPLAY_CHANNELS = ("cable", "network")
+_DISPLAY_OUTPUTS_BY_CHANNEL = DISPLAY_OUTPUTS_BY_CHANNEL
+_DISPLAY_CHANNELS = CHANNELS
 
 
 class DisplayOutputUpdate(BaseModel):

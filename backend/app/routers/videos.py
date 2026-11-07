@@ -9,6 +9,7 @@ from typing import List
 from fastapi import (
     APIRouter,
     Depends,
+    Query,
     UploadFile,
     File,
     Form,
@@ -19,6 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db, SessionLocal
+from app.api_contract import SORT_ORDERS, VIDEO_SORT_FIELDS, regex
 from app.models import ImportSource, Schedule, ScheduleTargetType, Video, VideoSubtitle
 from app.scheduler_manager import remove_schedule_job
 from app.config import settings
@@ -250,8 +252,8 @@ def list_videos(
     search: str | None = None,
     program: str | None = None,
     release: str | None = None,
-    sort_by: str = "imported_at",
-    order: str = "desc",
+    sort_by: str = Query("imported_at", pattern=regex(VIDEO_SORT_FIELDS)),
+    order: str = Query("desc", pattern=regex(SORT_ORDERS)),
     db: Session = Depends(get_db),
 ):
     """

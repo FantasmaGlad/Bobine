@@ -1104,19 +1104,8 @@ command_router = APIRouter(tags=["playback"])
 
 # Rapports d'un écran (position, fins de média, niveaux, route audio) : l'autorité en revient à l'écran primaire
 # connecté par WebSocket ; les accepter d'un client REST fausserait l'état. Ils restent hors de la façade.
-PLAYBACK_ACTIONS = (
-    "load", "load_playlist", "load_background", "load_audio_course", "load_audio_playlist", "play", "pause", "stop",
-    "seek", "speed", "volume", "set_subtitle", "next_video", "previous_video", "skip_waiting", "audio_set_background",
-    "audio_next_track", "audio_previous_track", "audio_restart_track", "audio_jump_to_track", "audio_set_chain_mode",
-    "audio_set_chain_timer", "cinema_command",
-)
-RADIO_ACTIONS = (
-    "load_radio_playlist", "radio_shuffle_all", "play", "pause", "stop", "radio_next_track", "radio_previous_track",
-    "radio_jump_to_track", "radio_seek", "volume", "radio_set_sound", "radio_meter", "radio_set_shuffle",
-    "radio_set_repeat", "radio_add_to_queue", "radio_play_next", "radio_move_in_queue", "radio_remove_from_queue",
-    "radio_play_announcement",
-)
-RADIO_OUTPUTS = {"cable": "radio_cable", "network": "radio_network"}
+# Les actions et les sorties de la façade viennent de app.api_contract (partagées avec la commande bobine).
+from app.api_contract import PLAYBACK_ACTIONS, RADIO_ACTIONS, RADIO_OUTPUTS  # noqa: E402
 _KIND_MESSAGES = {"channel": "Canal inconnu", "output": "Sortie radio inconnue", "action": "Action inconnue"}
 
 

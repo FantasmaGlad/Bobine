@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api_contract import SCHEDULE_CHANNELS
 from app.database import get_db
 from app.models import (
     OverrideAction,
@@ -36,7 +37,7 @@ _TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 # câblé/réseau et les deux sorties radio (radio_cable/radio_network). L'ancien
 # identifiant "radio" (voie radio unique d'avant les deux sorties) reste accepté
 # en entrée et désigne la sortie réseau.
-_CHANNELS = ("cable", "network", *RADIO_CHANNELS)
+_CHANNELS = SCHEDULE_CHANNELS
 
 
 def _normalize_channel(value: str | None) -> str | None:
