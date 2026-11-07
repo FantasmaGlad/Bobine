@@ -331,6 +331,22 @@ def _probe_updates(report: _Report) -> None:
         report.check("tor", "not_checked", "Tor actif pour les mises à jour : POST /api/updates/tor-check pour le tester")
 
 
+def _probe_honeypot(report: _Report) -> None:
+    from app.utils import honeypot
+
+    state = honeypot.status()
+    if not state["armed"]:
+        return
+    if state["triggered"]:
+        report.problem("honeypot", "honeypot_triggered", "critical",
+                       "Le fichier leurre de l'appliance a été créé : quelqu'un ou quelque chose a suivi la consigne déposée "
+                       "dans le dossier de contrôle.",
+                       "Vérifier les accès à cette machine (journal d'activité « intrusion_suspected », connexions SSH, "
+                       "dernières commandes), puis supprimer le fichier bom.txt du dossier leurre une fois l'examen fait.")
+    else:
+        report.check("honeypot", "ok", "leurre en place, intact")
+
+
 def _probe_media_native(report: _Report) -> None:
     from app.utils import media_native
 
@@ -375,6 +391,7 @@ async def system_diagnostics() -> dict:
             ("database", _probe_database), ("kiosk", _probe_kiosk), ("port", _probe_port), ("network", _probe_network),
             ("media_tools", _probe_media_tools), ("disk", _probe_disks), ("imports", _probe_imports),
             ("updates", _probe_updates), ("media_native", _probe_media_native), ("firewall", _probe_firewall),
+            ("honeypot", _probe_honeypot),
         ):
             report.probe(name, function)
 

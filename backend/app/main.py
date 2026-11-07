@@ -60,6 +60,7 @@ from app.scheduler_manager import (
     stop_scheduler,
 )
 from app.utils.importer import reconcile_orphaned_media
+from app.utils import honeypot
 from app.utils.mdns import start_mdns_responder, stop_mdns_responder
 from app.utils.radio_announcement_scheduler import (
     start_radio_announcement_scheduler,
@@ -153,6 +154,8 @@ async def lifespan(app: FastAPI):
     # Best-effort, no-op sur l'appliance headless (avahi s'en charge déjà) —
     # cf. app/utils/mdns.py.
     start_mdns_responder(active_port())
+    # Leurre d'intrusion : appliance seulement, et seulement si `install.sh --honeypot` l'a déposé.
+    honeypot.start()
     if get_profile_handler().tries_port80_redirect():
         await port80.start(active_port())
     # Copie lisible de la configuration (dossier `config/` des données), à jour dès le démarrage.
@@ -191,6 +194,7 @@ async def lifespan(app: FastAPI):
     await devices_service.stop()
     await storage_service.stop()
     stop_mdns_responder()
+    await honeypot.stop()
     await port80.stop()
     tor_proxy.shutdown()
     close_current_media_client()

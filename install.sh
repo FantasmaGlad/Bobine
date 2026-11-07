@@ -134,6 +134,8 @@ ${BOLD}OPTIONS${RESET}
                         (pour un poste de dev ou un serveur distinct de l'écran câblé)
       --skip-packages Ne touche pas aux paquets apt (suppose les dépendances système déjà en place)
       --skip-build    Ne reconstruit pas le frontend (suppose frontend/out déjà à jour)
+      --honeypot      Dépose un dossier leurre hors du dépôt (/var/lib/bobine/leurre) : sa consigne demande de créer
+                        bom.txt ; Bobine le signale au journal d'activité et au diagnostic. Aucun secret n'est demandé.
       --as-user LOGIN Compte cible quand le script tourne en root DIRECT (Debian sans sudo, lancé via 'su -').
                         Le kiosk, les fichiers et les groupes GPU appartiendront à ce compte.
       --progress=json Émet une ligne JSON par étape (sortie machine) pour l'assistant graphique.
@@ -168,6 +170,8 @@ ASSUME_YES=false
 NO_KIOSK=false
 SKIP_PACKAGES=false
 SKIP_BUILD=false
+HONEYPOT=false
+HONEYPOT_DIR=/var/lib/bobine/leurre
 AS_USER=""
 DO_CHECK=false
 DO_UNINSTALL=false
@@ -192,6 +196,7 @@ while [[ $# -gt 0 ]]; do
         --no-kiosk) NO_KIOSK=true ;;
         --skip-packages) SKIP_PACKAGES=true ;;
         --skip-build) SKIP_BUILD=true ;;
+        --honeypot) HONEYPOT=true ;;
         --as-user) AS_USER="${2:-}"; shift ;;
         --as-user=*) AS_USER="${1#*=}" ;;
         --progress=*) PROGRESS="${1#*=}" ;;
@@ -853,6 +858,9 @@ if $DO_UNINSTALL; then
     if command -v nft >/dev/null 2>&1; then
         run nft delete table ip olmc_redirect 2>/dev/null || true
     fi
+    # Dossier leurre (décision M16) : retiré avec l'installation, hors des données de l'utilisateur.
+    run rm -rf "${HONEYPOT_DIR}"
+    run rmdir /var/lib/bobine 2>/dev/null || true
     ok "Intégrations système (sudoers, audio, redirection, commande CLI) retirées."
 
     if $DO_PURGE; then
@@ -1934,6 +1942,14 @@ if command -v ufw >/dev/null 2>&1 || command -v firewall-cmd >/dev/null 2>&1; th
     else
         warn "pare-feu non configuré : ouvrez le port 1903 (et 1904 à 1913) aux réseaux locaux à la main"
     fi
+fi
+
+# Leurre d'intrusion (décision M16), sur demande seulement : consigne hors du dépôt, dans un dossier appartenant au
+# compte de service (c'est lui qui peut y créer bom.txt). Le backend surveille l'apparition de bom.txt ; aucun secret.
+if $HONEYPOT; then
+    run install -d -m 0755 -o "${TARGET_USER}" /var/lib/bobine "${HONEYPOT_DIR}"
+    run install -m 0644 -o "${TARGET_USER}" "${REPO_DIR}/packaging/appliance/leurre/LISEZ-MOI.txt" "${HONEYPOT_DIR}/LISEZ-MOI.txt"
+    ok "leurre d'intrusion déposé dans ${HONEYPOT_DIR}"
 fi
 step_done
 
