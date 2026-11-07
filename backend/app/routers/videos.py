@@ -19,8 +19,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db, SessionLocal
-from app.models import Video, VideoSubtitle, ImportSource
+from app.models import ImportSource, Schedule, ScheduleTargetType, Video, VideoSubtitle
+from app.scheduler_manager import remove_schedule_job
 from app.config import settings
+from app.utils import chapters as chapter_utils
 from app.utils.subtitles import (
     MAX_SUBTITLE_BYTES,
     SUBTITLE_EXTENSIONS,
@@ -310,6 +312,28 @@ def get_video(video_id: int, db: Session = Depends(get_db)):
     return video
 
 
+def rename_video_file(video: Video, title: str) -> None:
+    """Renomme le fichier physique d'une vidéo d'après son nouveau titre (jamais sur un support externe, en lecture
+    seule : le titre ne change alors qu'en base). Sans effet si le fichier est absent ou déjà bien nommé."""
+    old_path = Path(video.file_path)
+    if not old_path.exists() or video.storage_id is not None:
+        return
+    import re
+    # Tenter de conserver le même UUID s'il est présent dans le nom de fichier actuel
+    match = re.match(r"^video_([a-f0-9]{32})_(.+)$", old_path.name)
+    uuid_str = match.group(1) if match else uuid.uuid4().hex
+    # Nettoyer et formater le nouveau titre pour le nom de fichier
+    clean_title = "".join(c for c in title if c.isalnum() or c in (" ", "_", "-")).strip().replace(" ", "_") or "video"
+    new_path = old_path.parent / f"video_{uuid_str}_{clean_title}{old_path.suffix}"
+    if new_path != old_path:
+        try:
+            shutil.move(old_path, new_path)
+            video.file_path = str(new_path)
+            logger.info(f"Fichier vidéo physiquement renommé de {old_path.name} à {new_path.name}")
+        except Exception as e:
+            logger.error(f"Erreur lors du renommage physique du fichier vidéo {old_path} -> {new_path}: {e}")
+
+
 @router.put("/{video_id}", response_model=VideoResponse)
 def update_video(video_id: int, payload: VideoUpdate, db: Session = Depends(get_db)):
     """
@@ -320,36 +344,11 @@ def update_video(video_id: int, payload: VideoUpdate, db: Session = Depends(get_
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
 
+    if payload.title is not None and not payload.title.strip():
+        raise HTTPException(status_code=400, detail="Le titre ne peut pas être vide")
     # Si le titre change, renommer physiquement le fichier sur disque
     if payload.title is not None and payload.title != video.title:
-        old_path = Path(video.file_path)
-        # Jamais de renommage physique sur un support externe (lecture seule : le titre ne change qu'en base).
-        if old_path.exists() and video.storage_id is None:
-            import re
-            # Tenter de conserver le même UUID s'il est présent dans le nom de fichier actuel
-            match = re.match(r"^video_([a-f0-9]{32})_(.+)$", old_path.name)
-            if match:
-                uuid_str = match.group(1)
-            else:
-                uuid_str = uuid.uuid4().hex
-
-            # Nettoyer et formater le nouveau titre pour le nom de fichier
-            clean_title = "".join(c for c in payload.title if c.isalnum() or c in (" ", "_", "-")).strip()
-            clean_title = clean_title.replace(" ", "_")
-            if not clean_title:
-                clean_title = "video"
-
-            new_filename = f"video_{uuid_str}_{clean_title}{old_path.suffix}"
-            new_path = old_path.parent / new_filename
-
-            if new_path != old_path:
-                try:
-                    shutil.move(old_path, new_path)
-                    video.file_path = str(new_path)
-                    logger.info(f"Fichier vidéo physiquement renommé de {old_path.name} à {new_filename}")
-                except Exception as e:
-                    logger.error(f"Erreur lors du renommage physique du fichier vidéo {old_path} -> {new_path}: {e}")
-
+        rename_video_file(video, payload.title)
         video.title = payload.title
 
     if payload.program is not None:
@@ -376,38 +375,37 @@ def delete_video(video_id: int, db: Session = Depends(get_db)):
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
 
-    # Suppression du fichier vidéo — JAMAIS sur un support externe : retirer le cours de la bibliothèque
-    # n'efface rien sur le support (lecture seule, c'est le fichier de l'utilisateur).
+    # Fichiers à effacer APRÈS la validation de la base : une suppression refusée ne doit pas laisser une entrée sans
+    # fichier. JAMAIS sur un support externe : retirer le cours de la bibliothèque n'efface rien sur le support (lecture
+    # seule, c'est le fichier de l'utilisateur).
+    files: list[tuple[str, str]] = []
     if video.file_path and video.storage_id is None:
-        p = Path(video.file_path)
-        if p.exists():
-            try:
-                os.remove(p)
-            except Exception as e:
-                logger.error(f"Impossible de supprimer le fichier média {p}: {e}")
-
-    # Suppression de la miniature
+        files.append(("fichier média", video.file_path))
     if video.thumbnail_path:
-        p = Path(video.thumbnail_path)
-        if p.exists():
-            try:
-                os.remove(p)
-            except Exception as e:
-                logger.error(f"Impossible de supprimer la miniature {p}: {e}")
+        files.append(("miniature", video.thumbnail_path))
+    files += [("fichier de sous-titres", sub.file_path) for sub in video.subtitles]  # les lignes partent par cascade
 
-    # Suppression de la version web « lisible partout », s'il y en a une
-    remove_web_file(video.web_path)
-
-    # Les lignes `video_subtitles` partent avec la vidéo (cascade), pas leurs
-    # fichiers WebVTT.
-    for sub in video.subtitles:
-        try:
-            Path(sub.file_path).unlink(missing_ok=True)
-        except Exception as e:
-            logger.warning(f"Impossible de supprimer le fichier de sous-titres {sub.file_path}: {e}")
-
+    # La vidéo quitte les playlists et le planning qui la citaient (sans cela, la ligne de playlist orpheline faisait
+    # échouer la suppression).
+    for item in list(video.playlist_items):
+        db.delete(item)
+    schedules = db.query(Schedule).filter(Schedule.target_type == ScheduleTargetType.video, Schedule.target_id == video.id).all()
+    schedule_ids = [schedule.id for schedule in schedules]
+    for schedule in schedules:
+        db.delete(schedule)
+    web_path = video.web_path
+    chapter_utils.drop_source(video)
     db.delete(video)
     db.commit()
+    for schedule_id in schedule_ids:
+        remove_schedule_job(schedule_id)
+
+    remove_web_file(web_path)
+    for label, path in files:
+        try:
+            Path(path).unlink(missing_ok=True)
+        except Exception as e:
+            logger.error(f"Impossible de supprimer le {label} {path}: {e}")
     ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "video_deleted"})
     return {"message": "Vidéo supprimée avec succès"}
 

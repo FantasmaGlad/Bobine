@@ -16,22 +16,25 @@ router = APIRouter(prefix="/api/config", tags=["config"])
 @router.get("")
 def list_config_files() -> dict[str, Any]:
     """Fichiers disponibles et dossier de la copie à jour (lecture seule, jamais relue par Bobine)."""
-    return {"schema": config_files.SCHEMA, "files": list(config_files.BUILDERS), "mirror_dir": str(config_files.mirror_dir())}
+    return {"schema": config_files.SCHEMA, "files": ["manifest.json", *config_files.BUILDERS], "mirror_dir": str(config_files.mirror_dir())}
 
 
 @router.get("/export")
 async def export_config(db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Tous les fichiers d'un coup : `{"schema": 1, "files": {"settings.json": {...}, ...}}`."""
+    """Tous les fichiers d'un coup : `{"schema": 2, "files": {"settings.json": {...}, "playlists/video.json": {...}, ...}}`."""
     return {"schema": config_files.SCHEMA, "files": await run_in_threadpool(config_files.export_all, db)}
 
 
-@router.get("/export/{name}")
+@router.get("/export/{name:path}")
 async def export_config_file(name: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+    name = config_files.canonical_name(name)
+    if name == "manifest.json":
+        return config_files.export_all(db)["manifest.json"]
     builder = config_files.BUILDERS.get(name)
     if builder is None:
         raise HTTPException(
             status_code=404,
-            detail={"code": "unknown_config_file", "message": f"{name} inconnu.", "allowed": list(config_files.BUILDERS)},
+            detail={"code": "unknown_config_file", "message": f"{name} inconnu.", "allowed": ["manifest.json", *config_files.BUILDERS]},
         )
     return await run_in_threadpool(builder, db)
 

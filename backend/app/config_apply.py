@@ -5,9 +5,15 @@ playlists) sont d'abord résolues et toutes les valeurs validées, avec les mêm
 erreur refuse l'ensemble et les liste toutes. Sinon tout est écrit dans une seule transaction, puis les effets à chaud
 (diffusion aux écrans, planificateur, moteurs radio) suivent. L'essai à blanc renvoie l'écart sans rien écrire.
 
-Sémantique par fichier : réglages et sorties = valeurs fournies ; playlists = créées ou remplacées par leur nom (les
-autres restent) ; étiquettes = créées, et étiquettes des morceaux cités remplacées ; annonces = activation des annonces
-existantes ; règles d'annonce et planning d'un canal = liste complète remplacée.
+Reconnaissance des objets : par `uid` (identifiant stable) quand il est présent et connu ; sinon par le nom ou les
+métadonnées, comme dans les fichiers de la version 5.1. Un `uid` inconnu ici crée l'objet avec ce `uid` (restauration
+sur une autre installation) ; un objet reconnu par son `uid` dont le nom a changé est renommé.
+
+Sémantique par fichier : réglages et sorties = valeurs fournies ; playlists et étiquettes = créées, renommées ou
+remplacées, les autres restent sauf `"prune": true` (elles sont alors supprimées) ; `library/` = métadonnées des médias
+existants (jamais de création ni de suppression de média) ; annonces = description et activation des annonces existantes ;
+règles d'annonce et planning d'un canal = liste complète (ce qui n'y figure plus est supprimé, les `id` des programmations
+reconnues sont conservés).
 """
 from __future__ import annotations
 
@@ -25,6 +31,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app import config_files
+from app.utils.uid import is_uid
 from app.models import (
     AudioCourse, AudioPlaylist, AudioPlaylistItem, AudioTrack, Background, OverrideAction, Playlist, PlaylistItem,
     RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType, RadioPlaylist, RadioPlaylistItem, RadioTag,
@@ -67,7 +74,23 @@ def _pick(ctx: _Context, file: str, what: str, candidates: list, ref: dict, path
     return None
 
 
+def _by_uid(ctx: _Context, model, ref: Any):
+    """Objet portant le `uid` de `ref` (None sans `uid` valide ou s'il est inconnu ici)."""
+    uid = ref.get("uid") if isinstance(ref, dict) else None
+    return ctx.db.query(model).filter(model.uid == uid).first() if is_uid(uid) else None
+
+
+def _claim_uid(ctx: _Context, model, entry: Any, obj: Any) -> None:
+    """Un objet créé reprend le `uid` du document s'il est valide et libre (restauration sur une autre installation)."""
+    uid = entry.get("uid") if isinstance(entry, dict) else None
+    if is_uid(uid) and not ctx.db.query(model).filter(model.uid == uid).first():
+        obj.uid = uid
+
+
 def _video(ctx: _Context, file: str, ref: dict) -> Video | None:
+    found = _by_uid(ctx, Video, ref)
+    if found is not None:
+        return found
     if not isinstance(ref, dict) or not ref.get("title"):
         ctx.fail(file, f"vidéo invalide : {ref!r}")
         return None
@@ -81,11 +104,17 @@ def _video(ctx: _Context, file: str, ref: dict) -> Video | None:
 def _background(ctx: _Context, file: str, ref: dict | None) -> Background | None:
     if ref is None:
         return None
+    found = _by_uid(ctx, Background, ref)
+    if found is not None:
+        return found
     candidates = ctx.db.query(Background).filter(Background.title == (ref or {}).get("title")).all()
     return _pick(ctx, file, "fond", candidates, ref, lambda b: b.file_path)
 
 
 def _audio_track(ctx: _Context, file: str, ref: dict) -> AudioTrack | None:
+    found = _by_uid(ctx, AudioTrack, ref)
+    if found is not None:
+        return found
     course_ref = (ref or {}).get("course") or {}
     query = ctx.db.query(AudioTrack).join(AudioCourse).filter(AudioTrack.title == (ref or {}).get("title"),
                                                                AudioCourse.title == course_ref.get("title"))
@@ -98,6 +127,9 @@ def _audio_track(ctx: _Context, file: str, ref: dict) -> AudioTrack | None:
 
 
 def _radio_track(ctx: _Context, file: str, ref: dict) -> RadioTrack | None:
+    found = _by_uid(ctx, RadioTrack, ref)
+    if found is not None:
+        return found
     query = ctx.db.query(RadioTrack).filter(RadioTrack.title == (ref or {}).get("title"))
     for field in ("artist", "album"):
         if field in ref:
@@ -120,6 +152,8 @@ def _names(ctx: _Context, file: str, entries: list) -> bool:
         return False
     for name in config_files._duplicates(names):
         ctx.fail(file, f"playlist « {name} » présente deux fois")
+    for uid in config_files._duplicates(e.get("uid") for e in entries if is_uid(e.get("uid"))):
+        ctx.fail(file, f"uid {uid} présent deux fois")
     return True
 
 
@@ -316,35 +350,79 @@ def _apply_radio_outputs(ctx: _Context, file: str, document: dict) -> None:
             _write_setting(ctx.db, radio_default_playlist_key(channel), str(playlist.id) if playlist else None)
 
 
-def _replace_playlist(ctx, file, model, name, build_items) -> None:
-    playlist = _unique_by_name(ctx, file, model, name)
+def _replace_playlist(ctx, file, model, entry, build_items, kept: list):
+    """Crée, renomme ou remplace une playlist reconnue par son `uid`, à défaut par son nom."""
+    name = entry["name"]
+    playlist = _by_uid(ctx, model, entry) or _unique_by_name(ctx, file, model, name)
     items = build_items()
     if playlist is None:
         playlist = model(name=name)
+        _claim_uid(ctx, model, entry, playlist)
         ctx.db.add(playlist)
+    elif playlist.name != name:
+        if ctx.db.query(model).filter(model.name == name, model.id != playlist.id).first():
+            ctx.fail(file, f"renommage impossible : une playlist « {name} » existe déjà")
+        else:
+            playlist.name = name
     playlist.items = items
+    kept.append(playlist)
     return playlist
+
+
+def _prune(ctx: _Context, file: str, document: dict, model, kept: list) -> None:
+    """`"prune": true` : supprime les objets du type absents du document (opt-in ; jamais pour les médias)."""
+    if "prune" in document and not isinstance(document["prune"], bool):
+        ctx.fail(file, "« prune » doit être un booléen (true ou false)")
+        return
+    if document.get("prune") is not True:
+        return
+    kept_ids = {obj.id for obj in kept if obj.id is not None}
+    removed_ids = []
+    for obj in ctx.db.query(model).all():
+        if obj.id not in kept_ids:
+            removed_ids.append(obj.id)
+            ctx.db.delete(obj)
+    target = {Playlist: ScheduleTargetType.playlist, RadioPlaylist: ScheduleTargetType.radio_playlist}.get(model)
+    if target is not None and removed_ids:
+        # Une programmation ne vise pas une playlist qui n'existe plus.
+        for schedule in ctx.db.query(Schedule).filter(Schedule.target_type == target, Schedule.target_id.in_(removed_ids)).all():
+            ctx.db.delete(schedule)
+        ctx.effects.append(_resync_all_schedules(None))
+
+
+def _resync_all_schedules(channel: str | None):
+    async def resync(db: Session) -> None:
+        from app.scheduler_manager import sync_schedule_job
+
+        for schedule in db.query(Schedule).all():
+            if channel is None or schedule.channel == channel:
+                sync_schedule_job(schedule)
+
+    return resync
 
 
 def _apply_video_playlists(ctx: _Context, file: str, document: dict) -> None:
     entries = _list(ctx, file, document, "playlists")
     if not _names(ctx, file, entries):
         return
+    kept: list = []
     for entry in entries:
         videos_refs = entry.get("videos")
         if not isinstance(videos_refs, list):
             ctx.fail(file, f"playlist « {entry['name']} » : « videos » doit être une liste")
             continue
         videos = [_video(ctx, file, ref) for ref in videos_refs]
-        _replace_playlist(ctx, file, Playlist, entry["name"], lambda videos=videos: [
+        _replace_playlist(ctx, file, Playlist, entry, lambda videos=videos: [
             PlaylistItem(video_id=v.id, position=i) for i, v in enumerate(videos) if v is not None
-        ])
+        ], kept)
+    _prune(ctx, file, document, Playlist, kept)
 
 
 def _apply_audio_playlists(ctx: _Context, file: str, document: dict) -> None:
     entries = _list(ctx, file, document, "playlists")
     if not _names(ctx, file, entries):
         return
+    kept: list = []
     for entry in entries:
         tracks = entry.get("tracks")
         if not isinstance(tracks, list):
@@ -352,10 +430,11 @@ def _apply_audio_playlists(ctx: _Context, file: str, document: dict) -> None:
             continue
         resolved = [(_audio_track(ctx, file, item.get("track") or {}), _background(ctx, file, item.get("background")))
                     for item in tracks]
-        _replace_playlist(ctx, file, AudioPlaylist, entry["name"], lambda resolved=resolved: [
+        _replace_playlist(ctx, file, AudioPlaylist, entry, lambda resolved=resolved: [
             AudioPlaylistItem(audio_track_id=t.id, position=i, background_id=b.id if b else None)
             for i, (t, b) in enumerate(resolved) if t is not None
-        ])
+        ], kept)
+    _prune(ctx, file, document, AudioPlaylist, kept)
 
 
 def _apply_radio_playlists(ctx: _Context, file: str, document: dict) -> None:
@@ -365,50 +444,83 @@ def _apply_radio_playlists(ctx: _Context, file: str, document: dict) -> None:
     defaults = [e["name"] for e in entries if e.get("default") is True]
     if len(defaults) > 1:
         ctx.fail(file, f"une seule playlist d'ambiance par défaut ({', '.join(defaults)})")
+    kept: list = []
+    default_playlist = None
     for entry in entries:
         tracks_refs = entry.get("tracks")
         if not isinstance(tracks_refs, list):
             ctx.fail(file, f"playlist « {entry['name']} » : « tracks » doit être une liste")
             continue
         tracks = [_radio_track(ctx, file, ref) for ref in tracks_refs]
-        playlist = _replace_playlist(ctx, file, RadioPlaylist, entry["name"], lambda tracks=tracks: [
+        playlist = _replace_playlist(ctx, file, RadioPlaylist, entry, lambda tracks=tracks: [
             RadioPlaylistItem(radio_track_id=t.id, position=i) for i, t in enumerate(tracks) if t is not None
-        ])
+        ], kept)
         if "default" in entry:
             playlist.is_default = _flag(
                 ctx, file, f"« default » de la playlist « {entry['name']} »", entry["default"],
             )
-    if len(defaults) == 1:
-        for other in ctx.db.query(RadioPlaylist).filter(RadioPlaylist.name != defaults[0]).all():
+            if entry["default"] is True:
+                default_playlist = playlist
+    if default_playlist is not None:
+        for other in ctx.db.query(RadioPlaylist).filter(RadioPlaylist.id != default_playlist.id).all():
             other.is_default = False
+    _prune(ctx, file, document, RadioPlaylist, kept)
 
 
 def _apply_radio_tags(ctx: _Context, file: str, document: dict) -> None:
-    existing = {tag.name: tag for tag in ctx.db.query(RadioTag).all()}
+    by_name = {tag.name: tag for tag in ctx.db.query(RadioTag).all()}
+    kept: list = []
 
-    def tag(name: str) -> RadioTag | None:
+    def tag(entry) -> RadioTag | None:
+        """`entry` : un nom (version 5.1) ou `{"uid", "name"}`."""
+        name = entry.get("name") if isinstance(entry, dict) else entry
         if not isinstance(name, str) or not name.strip():
-            ctx.fail(file, f"étiquette invalide : {name!r}")
+            ctx.fail(file, f"étiquette invalide : {entry!r}")
             return None
-        if name not in existing:
-            existing[name] = RadioTag(name=name)
-            ctx.db.add(existing[name])
-        return existing[name]
+        found = _by_uid(ctx, RadioTag, entry) if isinstance(entry, dict) else None
+        if found is not None and found.name != name:
+            if name in by_name and by_name[name] is not found:
+                ctx.fail(file, f"renommage impossible : l'étiquette « {name} » existe déjà")
+            else:
+                by_name.pop(found.name, None)
+                found.name = name
+                by_name[name] = found
+        found = found or by_name.get(name)
+        if found is None:
+            found = RadioTag(name=name)
+            _claim_uid(ctx, RadioTag, entry, found)
+            ctx.db.add(found)
+            by_name[name] = found
+        if found not in kept:
+            kept.append(found)
+        return found
 
-    for name in document.get("tags") or []:
-        tag(name)
+    for entry in document.get("tags") or []:
+        tag(entry)
     for assignment in document.get("assignments") or []:
         track = _radio_track(ctx, file, (assignment or {}).get("track") or {})
         tags = [tag(name) for name in (assignment or {}).get("tags") or []]
         if track is not None:
             track.tags = [t for t in tags if t is not None]
+    _prune(ctx, file, document, RadioTag, kept)
 
 
 def _apply_announcements(ctx: _Context, file: str, document: dict) -> None:
     for entry in _list(ctx, file, document, "announcements"):
-        candidates = ctx.db.query(RadioAnnouncement).filter(RadioAnnouncement.description == (entry or {}).get("description")).all()
-        announcement = _pick(ctx, file, "annonce", candidates, entry or {}, lambda a: a.file_path)
-        if announcement is not None and "enabled" in entry:
+        entry = entry or {}
+        announcement = _by_uid(ctx, RadioAnnouncement, entry)
+        if announcement is None:
+            candidates = ctx.db.query(RadioAnnouncement).filter(RadioAnnouncement.description == entry.get("description")).all()
+            announcement = _pick(ctx, file, "annonce", candidates, entry, lambda a: a.file_path)
+        if announcement is None:
+            continue
+        description = entry.get("description")
+        if description is not None and description != announcement.description:
+            if not isinstance(description, str) or not description.strip():
+                ctx.fail(file, f"description d'annonce invalide : {description!r}")
+            else:
+                announcement.description = description.strip()
+        if "enabled" in entry:
             announcement.enabled = _flag(
                 ctx, file, f"« enabled » de l'annonce « {entry.get('description')} »", entry["enabled"],
             )
@@ -434,12 +546,15 @@ def _apply_announcement_rules(ctx: _Context, file: str, document: dict) -> None:
             ctx.fail(file, "interval_minutes (entier, au moins 1) requis pour every_x_minutes")
         if rule_type == RadioAnnouncementRuleType.fixed_times and (not times or not all(isinstance(t, str) and _TIME_RE.match(t) for t in times)):
             ctx.fail(file, "times_of_day (liste d'horaires HH:MM) requis pour fixed_times")
-        rules.append(RadioAnnouncementRule(
+        rule = RadioAnnouncementRule(
             rule_type=rule_type, target=target,
             enabled=_flag(ctx, file, "« enabled » de la règle", entry.get("enabled", True)),
             n_tracks=entry.get("n_tracks"), interval_minutes=entry.get("interval_minutes"),
             times_of_day=json.dumps(times) if times else None,
-        ))
+        )
+        if is_uid(entry.get("uid"), "rul") and all(entry["uid"] != other.uid for other in rules):
+            rule.uid = entry["uid"]
+        rules.append(rule)
     ctx.db.query(RadioAnnouncementRule).delete()
     ctx.db.add_all(rules)
 
@@ -451,13 +566,18 @@ def _schedule_target(ctx: _Context, file: str, ref: dict | None) -> tuple[Schedu
         return (ScheduleTargetType.video, video.id) if video else None
     if kind in ("playlist", "radio_playlist"):
         model = Playlist if kind == "playlist" else RadioPlaylist
-        playlist = _unique_by_name(ctx, file, model, (ref or {}).get("name"))
+        playlist = _by_uid(ctx, model, ref) or _unique_by_name(ctx, file, model, (ref or {}).get("name"))
         if playlist is None:
             ctx.fail(file, f"playlist introuvable : {(ref or {}).get('name')!r}")
             return None
         return ScheduleTargetType(kind), playlist.id
     ctx.fail(file, f"cible invalide : {ref!r}")
     return None
+
+
+def _signature(schedule: Schedule) -> tuple:
+    rule = json.dumps(json.loads(schedule.recurrence_rule), sort_keys=True) if schedule.recurrence_rule else None
+    return (schedule.target_type, schedule.target_id, schedule.schedule_type, config_files._iso(schedule.run_at), rule)
 
 
 def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> None:
@@ -467,21 +587,28 @@ def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> N
         ctx.fail(file, f"« channel » doit valoir {channel}")
         return
     radio = channel.startswith("radio_")
-    created = []
-    for entry in _list(ctx, file, document, "schedules"):
-        target = _schedule_target(ctx, file, (entry or {}).get("target"))
+    existing = ctx.db.query(Schedule).filter(Schedule.channel == channel).all()
+    by_uid = {s.uid: s for s in existing}
+    unused = list(existing)
+    kept: list[Schedule] = []
+    entries = _list(ctx, file, document, "schedules")
+    for uid in config_files._duplicates(e.get("uid") for e in entries if isinstance(e, dict) and is_uid(e.get("uid"))):
+        ctx.fail(file, f"uid {uid} présent deux fois")
+    for entry in entries:
+        entry = entry or {}
+        target = _schedule_target(ctx, file, entry.get("target"))
         if target is None:
             continue
         if (target[0] == ScheduleTargetType.radio_playlist) != radio:
             ctx.fail(file, f"cible {target[0].value} impossible sur le canal {channel}")
             continue
-        schedule = Schedule(
+        wanted = Schedule(
             target_type=target[0], target_id=target[1], channel=channel,
             active=_flag(ctx, file, "« active » de la programmation", entry.get("active", True)),
         )
         if entry.get("type") == "once":
             try:
-                schedule.schedule_type, schedule.run_at = ScheduleType.once, ensure_utc(datetime.fromisoformat(entry["run_at"]))
+                wanted.schedule_type, wanted.run_at = ScheduleType.once, ensure_utc(datetime.fromisoformat(entry["run_at"]))
             except (KeyError, TypeError, ValueError):
                 ctx.fail(file, f"run_at (date ISO 8601) requis pour une programmation ponctuelle : {entry!r}")
                 continue
@@ -495,11 +622,12 @@ def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> N
             if end is not None and (not radio or not _TIME_RE.match(str(end)) or end <= time):
                 ctx.fail(file, f"end_time invalide (radio seulement, après time) : {rule!r}")
                 continue
-            schedule.schedule_type, schedule.recurrence_rule = ScheduleType.recurring, json.dumps(
+            wanted.schedule_type, wanted.recurrence_rule = ScheduleType.recurring, json.dumps(
                 {**{k: v for k, v in rule.items() if k in ("end_time", "mode")}, "days_of_week": sorted(set(days)), "time": time})
         else:
             ctx.fail(file, f"type de programmation invalide : {entry.get('type')!r}")
             continue
+        overrides = []
         for override in entry.get("overrides") or []:
             try:
                 action = OverrideAction(override["action"])
@@ -508,21 +636,32 @@ def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> N
                 ctx.fail(file, f"exception de planning invalide : {override!r}")
                 continue
             replacement = _schedule_target(ctx, file, override.get("replacement")) if action == OverrideAction.replaced else None
-            schedule.overrides.append(ScheduleOverride(
-                occurrence_date=date, action=action,
-                replacement_target_type=replacement[0] if replacement else None,
-                replacement_target_id=replacement[1] if replacement else None,
-            ))
-        created.append(schedule)
-    old_ids = [s.id for s in ctx.db.query(Schedule).filter(Schedule.channel == channel).all()]
-    for old in ctx.db.query(Schedule).filter(Schedule.channel == channel).all():
+            overrides.append((override.get("uid"), date, action, replacement))
+        # Reconnaissance : `uid`, à défaut la même programmation (cible, type, date ou récurrence) : les `id` restent.
+        schedule = by_uid.get(entry.get("uid")) if is_uid(entry.get("uid"), "sch") else None
+        if schedule is None:
+            schedule = next((s for s in unused if _signature(s) == _signature(wanted)), None)
+        if schedule is None:
+            schedule = wanted
+            ctx.db.add(schedule)
+            if is_uid(entry.get("uid"), "sch") and not ctx.db.query(Schedule).filter(Schedule.uid == entry["uid"]).first() \
+                    and all(entry["uid"] != other.uid for other in kept):
+                schedule.uid = entry["uid"]
+        else:
+            unused = [s for s in unused if s is not schedule]
+            schedule.target_type, schedule.target_id = wanted.target_type, wanted.target_id
+            schedule.schedule_type, schedule.run_at, schedule.recurrence_rule = wanted.schedule_type, wanted.run_at, wanted.recurrence_rule
+            schedule.active = wanted.active
+        _sync_overrides(ctx, schedule, overrides)
+        kept.append(schedule)
+    removed_ids = [s.id for s in unused]
+    for old in unused:
         ctx.db.delete(old)
-    ctx.db.add_all(created)
 
     async def resync(db: Session) -> None:
         from app.scheduler_manager import remove_schedule_job, sync_schedule_job
 
-        for schedule_id in old_ids:
+        for schedule_id in removed_ids:
             remove_schedule_job(schedule_id)
         for schedule in db.query(Schedule).filter(Schedule.channel == channel).all():
             sync_schedule_job(schedule)
@@ -530,41 +669,231 @@ def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> N
     ctx.effects.append(resync)
 
 
+def _sync_overrides(ctx: _Context, schedule: Schedule, wanted: list) -> None:
+    """Exceptions reconnues par `uid`, à défaut par date ; les `id` et `uid` restent, le reste est créé ou supprimé."""
+    from app.scheduler_manager import ensure_utc
+
+    current = list(schedule.overrides) if schedule.id is not None else []
+    by_uid = {o.uid: o for o in current}
+    unused = list(current)
+    for uid, date, action, replacement in wanted:
+        match = by_uid.get(uid) if is_uid(uid, "ovr") else None
+        if match is None:
+            match = next((o for o in unused if ensure_utc(o.occurrence_date).date() == ensure_utc(date).date()), None)
+        fields = dict(
+            occurrence_date=date, action=action,
+            replacement_target_type=replacement[0] if replacement else None,
+            replacement_target_id=replacement[1] if replacement else None,
+        )
+        if match is None:
+            override = ScheduleOverride(**fields)
+            if is_uid(uid, "ovr") and uid not in by_uid and not ctx.db.query(ScheduleOverride).filter(ScheduleOverride.uid == uid).first():
+                override.uid = uid
+            schedule.overrides.append(override)
+        else:
+            unused = [o for o in unused if o is not match]
+            for key, value in fields.items():
+                setattr(match, key, value)
+    for old in unused:
+        schedule.overrides.remove(old)
+
+
+# --- métadonnées des médias (library/) : jamais de création ni de suppression -----------------------------------------
+
+def _text(ctx: _Context, file: str, label: str, value: Any, *, required: bool = False) -> tuple[bool, str | None]:
+    """(valide, valeur nettoyée) : une chaîne vide efface un champ facultatif ; un champ obligatoire ne peut pas l'être."""
+    if value is None and not required:
+        return True, None
+    if not isinstance(value, str):
+        ctx.fail(file, f"{label} doit être un texte : {value!r}")
+        return False, None
+    value = value.strip()
+    if required and not value:
+        ctx.fail(file, f"{label} ne peut pas être vide")
+        return False, None
+    return True, value or None
+
+
+def _integer(ctx: _Context, file: str, label: str, value: Any) -> tuple[bool, int | None]:
+    if value is None:
+        return True, None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        ctx.fail(file, f"{label} doit être un entier positif : {value!r}")
+        return False, None
+    return True, value
+
+
+def _media(ctx: _Context, file: str, model, entry: Any, what: str, by_file: Callable[[Any], str | None], *, key=None):
+    """Média existant désigné par `uid`, à défaut par son nom de fichier ; erreur s'il est introuvable ou ambigu."""
+    if not isinstance(entry, dict):
+        ctx.fail(file, f"{what} invalide : {entry!r}")
+        return None
+    found = _by_uid(ctx, model, entry)
+    if found is not None:
+        return found
+    wanted = entry.get("file")
+    candidates = [m for m in ctx.db.query(model).all() if wanted and by_file(m) and Path(by_file(m)).name == wanted]
+    if len(candidates) == 1:
+        return candidates[0]
+    ctx.fail(file, f"{what} {'introuvable' if not candidates else 'ambigu'} (uid ou fichier requis, aucun média n'est créé) : {entry.get('title')!r}")
+    return None
+
+
+def _apply_library_videos(ctx: _Context, file: str, document: dict) -> None:
+    from app.routers.videos import rename_video_file
+
+    for entry in _list(ctx, file, document, "videos"):
+        video = _media(ctx, file, Video, entry, "vidéo", lambda v: v.file_path)
+        if video is None:
+            continue
+        if "title" in entry:
+            ok, title = _text(ctx, file, f"titre de la vidéo {entry.get('uid') or entry.get('file')}", entry["title"], required=True)
+            if ok and title != video.title:
+                video.title = title
+                video_id, new_title = video.id, title
+
+                async def rename(db: Session, video_id=video_id, new_title=new_title) -> None:
+                    # Le fichier physique suit le titre comme dans l'interface, mais seulement une fois la transaction validée.
+                    target = db.get(Video, video_id)
+                    if target is not None:
+                        rename_video_file(target, new_title)
+                        db.commit()
+
+                ctx.effects.append(rename)
+        for field in ("program", "release", "description"):
+            if field in entry:
+                ok, value = _text(ctx, file, f"« {field} » de la vidéo {entry.get('uid') or entry.get('file')}", entry[field])
+                if ok:
+                    setattr(video, field, value)
+
+
+def _apply_library_backgrounds(ctx: _Context, file: str, document: dict) -> None:
+    for entry in _list(ctx, file, document, "backgrounds"):
+        background = _media(ctx, file, Background, entry, "fond", lambda b: b.file_path)
+        if background is not None and "title" in entry:
+            ok, title = _text(ctx, file, "titre du fond", entry["title"], required=True)
+            if ok:
+                background.title = title
+
+
+def _apply_library_audio(ctx: _Context, file: str, document: dict) -> None:
+    for entry in _list(ctx, file, document, "courses"):
+        course = _by_uid(ctx, AudioCourse, entry) if isinstance(entry, dict) else None
+        if course is None and isinstance(entry, dict):
+            candidates = ctx.db.query(AudioCourse).filter(AudioCourse.title == entry.get("title")).all()
+            if len(candidates) == 1:
+                course = candidates[0]
+        if course is None:
+            ctx.fail(file, f"cours audio introuvable (uid ou titre actuel requis, aucun cours n'est créé) : {(entry or {}).get('title') if isinstance(entry, dict) else entry!r}")
+            continue
+        if "title" in entry:
+            ok, title = _text(ctx, file, "titre du cours audio", entry["title"], required=True)
+            if ok:
+                course.title = title
+        for field in ("program", "release"):
+            if field in entry:
+                ok, value = _text(ctx, file, f"« {field} » du cours « {course.title} »", entry[field])
+                if ok:
+                    setattr(course, field, value)
+        for track_entry in entry.get("tracks") or []:
+            track = _media(ctx, file, AudioTrack, track_entry, "piste", lambda t: t.file_path)
+            if track is None:
+                continue
+            if "title" in track_entry:
+                ok, title = _text(ctx, file, "titre de la piste", track_entry["title"], required=True)
+                if ok:
+                    track.title = title
+            if "number" in track_entry:
+                ok, number = _integer(ctx, file, f"« number » de la piste {track.uid}", track_entry["number"])
+                if ok and number is not None:
+                    track.number = number
+
+
+def _apply_library_radio(ctx: _Context, file: str, document: dict) -> None:
+    for entry in _list(ctx, file, document, "tracks"):
+        track = _media(ctx, file, RadioTrack, entry, "morceau", lambda t: t.file_path)
+        if track is None:
+            continue
+        if "title" in entry:
+            ok, title = _text(ctx, file, f"titre du morceau {track.uid}", entry["title"], required=True)
+            if ok:
+                track.title = title
+        for field in ("artist", "album", "album_artist", "genre"):
+            if field in entry:
+                ok, value = _text(ctx, file, f"« {field} » du morceau {track.uid}", entry[field])
+                if ok:
+                    setattr(track, field, value)
+        for field in ("track_number", "disc_number", "year"):
+            if field in entry:
+                ok, value = _integer(ctx, file, f"« {field} » du morceau {track.uid}", entry[field])
+                if ok:
+                    setattr(track, field, value)
+
+
 APPLIERS: dict[str, Callable[[_Context, str, dict], None]] = {
     "settings.json": _apply_settings,
-    "display-outputs.json": _apply_display_outputs,
-    "radio-outputs.json": _apply_radio_outputs,
-    "playlists-video.json": _apply_video_playlists,
-    "playlists-audio.json": _apply_audio_playlists,
-    "playlists-radio.json": _apply_radio_playlists,
-    "radio-tags.json": _apply_radio_tags,
-    "announcements.json": _apply_announcements,
-    "announcement-rules.json": _apply_announcement_rules,
-    **{f"schedule-{c.replace('_', '-')}.json": (lambda ctx, f, d, c=c: _apply_schedule(ctx, f, d, c))
+    "outputs/display.json": _apply_display_outputs,
+    "outputs/radio.json": _apply_radio_outputs,
+    "library/videos.json": _apply_library_videos,
+    "library/audio.json": _apply_library_audio,
+    "library/radio.json": _apply_library_radio,
+    "library/backgrounds.json": _apply_library_backgrounds,
+    "library/announcements.json": _apply_announcements,
+    "playlists/video.json": _apply_video_playlists,
+    "playlists/audio.json": _apply_audio_playlists,
+    "playlists/radio.json": _apply_radio_playlists,
+    "radio/tags.json": _apply_radio_tags,
+    "radio/announcement-rules.json": _apply_announcement_rules,
+    **{config_files.schedule_path(c): (lambda ctx, f, d, c=c: _apply_schedule(ctx, f, d, c))
        for c in config_files.SCHEDULE_CHANNELS},
     "machine.json": _apply_machine,
 }
-# Ordre d'application : les playlists avant les réglages et le planning qui les citent. `radio-outputs.json` vient
-# après `playlists-radio.json` : son ambiance par défaut se désigne par un nom, qui doit déjà exister (ou venir d'être
-# créé dans la même transaction).
+# Ordre d'application : les métadonnées des médias et les playlists avant ce qui les cite. `outputs/radio.json` vient
+# après `playlists/radio.json` : son ambiance par défaut se désigne par un nom ou un `uid`, qui doit déjà exister (ou
+# venir d'être créé dans la même transaction).
 ORDER = [
     "settings.json",
-    "display-outputs.json",
-    "playlists-video.json",
-    "playlists-audio.json",
-    "playlists-radio.json",
-    "radio-outputs.json",
-    "radio-tags.json",
-    "announcements.json",
-    "announcement-rules.json",
-    *[f"schedule-{channel.replace('_', '-')}.json" for channel in config_files.SCHEDULE_CHANNELS],
+    "outputs/display.json",
+    "library/videos.json",
+    "library/audio.json",
+    "library/radio.json",
+    "library/backgrounds.json",
+    "library/announcements.json",
+    "playlists/video.json",
+    "playlists/audio.json",
+    "playlists/radio.json",
+    "outputs/radio.json",
+    "radio/tags.json",
+    "radio/announcement-rules.json",
+    *[config_files.schedule_path(channel) for channel in config_files.SCHEDULE_CHANNELS],
     "machine.json",
 ]
 
 
+def _strip_uids(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: _strip_uids(v) for k, v in value.items() if k != "uid"}
+    if isinstance(value, list):
+        return [_strip_uids(v) for v in value]
+    return value
+
+
+def _without_links(document: dict) -> dict:
+    links = ("chapters", "chapters_source", "chapters_file", "subtitles", "subtitle_files")
+    return {**document, "videos": [{k: v for k, v in entry.items() if k not in links} if isinstance(entry, dict) else entry
+                                  for entry in document.get("videos") or []]}
+
+
 def _diff(name: str, before: dict, wanted: dict) -> list[str]:
-    clean = {k: v for k, v in wanted.items() if k != "warnings"}
-    current = {k: v for k, v in before.items() if k != "warnings"}
+    ignored = ("warnings", "prune", "schema")
+    clean = {k: v for k, v in wanted.items() if k not in ignored}
+    current = {k: v for k, v in before.items() if k not in ignored}
+    if name == "library/videos.json":
+        # Liens vers les chapitres et sous-titres : informatifs, jamais appliqués, donc absents de l'écart.
+        clean, current = _without_links(clean), _without_links(current)
+    if '"uid"' not in json.dumps(clean):
+        # Document de la version 5.1, sans `uid` : l'écart ne porte pas sur les identifiants.
+        current = _strip_uids(current)
     if clean == current:
         return []
     return list(difflib.unified_diff(
@@ -589,9 +918,19 @@ async def apply(db: Session, files: dict[str, Any], *, dry_run: bool, include_ma
 def _validate_and_write(
     db: Session, files: dict[str, Any], dry_run: bool, include_machine: bool,
 ) -> tuple[dict[str, Any], list[Callable[[Session], Awaitable[None]]]]:
-    unknown = sorted(set(files) - set(APPLIERS))
-    if unknown:
-        raise ConfigErrors([f"fichier inconnu : {name}" for name in unknown])
+    renamed: dict[str, Any] = {}
+    errors = []
+    for key, document in files.items():
+        name = config_files.canonical_name(str(key))
+        if name == "manifest.json":
+            continue  # index de l'export : rien à appliquer
+        if name in renamed:
+            errors.append(f"{name} fourni deux fois (nom plat et arborescence)")
+        renamed[name] = document
+    files = renamed
+    errors += [f"fichier inconnu : {name}" for name in sorted(set(files) - set(APPLIERS))]
+    if errors:
+        raise ConfigErrors(errors)
     ctx = _Context(db)
     skipped = []
     changes: dict[str, list[str]] = {}
@@ -602,11 +941,11 @@ def _validate_and_write(
         if name == "machine.json" and not include_machine:
             skipped.append(name)
             continue
-        if not isinstance(document, dict) or document.get("schema") != config_files.SCHEMA:
-            ctx.fail(name, f"« schema » doit valoir {config_files.SCHEMA}")
+        if not isinstance(document, dict) or document.get("schema") not in config_files.ACCEPTED_SCHEMAS:
+            ctx.fail(name, f"« schema » doit valoir {' ou '.join(map(str, config_files.ACCEPTED_SCHEMAS))}")
             continue
-        if document.get("kind") != name.removesuffix(".json"):
-            ctx.fail(name, f"« kind » doit valoir {name.removesuffix('.json')}")
+        if document.get("kind") != config_files.KINDS[name]:
+            ctx.fail(name, f"« kind » doit valoir {config_files.KINDS[name]}")
             continue
         changes[name] = _diff(name, config_files.BUILDERS[name](db), document)
         with db.no_autoflush:
