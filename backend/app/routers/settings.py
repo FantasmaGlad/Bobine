@@ -539,7 +539,7 @@ async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)
         raise HTTPException(status_code=400, detail="Aucun paramètre fourni")
     stage_settings(updates, db)
     db.commit()
-    logger.info(f"Paramètres mis à jour : {updates}")
+    logger.info("Paramètres mis à jour : %s", ", ".join(sorted(updates)))
     return await after_settings_change(updates, db)
 
 
@@ -557,7 +557,11 @@ def stage_settings(updates: dict[str, Any], db: Session) -> None:
     """Valide puis écrit les réglages dans la session SANS valider la transaction (l'appelant le fait), pour que la
     route et l'application des fichiers de configuration partagent les mêmes règles. Lève `HTTPException`."""
     # Ancien nom de thème (client ou sauvegarde d'avant la 5.2) : accepté et enregistré comme couleur + mode.
-    legacy = themes.legacy_target(updates.get("theme"), updates.get("theme_mode"))
+    # Le mode enregistré compte quand la requête ne le fournit pas : un PUT partiel du seul `theme`
+    # ne doit pas changer le mode déjà choisi (les noms chili/charbon/orchidee sont ambigus).
+    stored_mode = _get_db_value(db, "theme_mode")
+    mode = updates["theme_mode"] if "theme_mode" in updates else stored_mode
+    legacy = themes.legacy_target(updates.get("theme"), mode)
     if legacy:
         # Client 5.2 qui ne change que la couleur : s'il omet le mode alors qu'un mode est enregistré,
         # garder ce mode plutôt que le mode fixe de l'ancien thème (le client envoie normalement les deux).

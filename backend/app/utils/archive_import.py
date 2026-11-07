@@ -55,8 +55,8 @@ def import_media_archive(
             except JobCancelledError:
                 raise
             except Exception as exc:  # un fichier illisible n'empêche pas les autres
-                logger.warning("Import de %s depuis l'archive refusé : %s", path.name, exc)
-                failures.append(f"{path.name} : {exc}")
+                logger.warning("Import de %r depuis l'archive refusé : %s", path.name, exc)
+                failures.append(f"{path.name!r} : {exc}")
     if not imported:
         raise ValueError("Aucun fichier de l'archive n'a pu être importé. " + " ; ".join(failures[:3]))
     return imported
