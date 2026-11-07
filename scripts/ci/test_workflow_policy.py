@@ -68,7 +68,7 @@ class PlayBundlesTests(unittest.TestCase):
 
 class ToolchainRustTests(unittest.TestCase):
     JOBS_RUST = (
-        "assistant-core", "assistant-core-arm64", "devices-sidecar", "media-component", "android-build",
+        "devices-sidecar", "media-component", "android-build",
         "windows-build", "windows-build-arm64", "macos-build",
     )
 

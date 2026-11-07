@@ -27,15 +27,6 @@ updates:
           - "*"
 
   - package-ecosystem: "cargo"
-    directory: "/assistant"
-    schedule:
-      interval: "weekly"
-    groups:
-      assistant-dependencies:
-        patterns:
-          - "*"
-
-  - package-ecosystem: "cargo"
     directory: "/devices"
     schedule:
       interval: "weekly"

@@ -2,8 +2,7 @@
 """Manifestes winget d'une release Stable, écrits à partir de son SHA256SUMS. Rien n'est soumis : les fichiers sont
 joints à la release, et la demande de fusion vers microsoft/winget-pkgs reste une action du mainteneur.
 
-Usage : winget-manifests.py <SHA256SUMS> <tag Vx.y.z> <dossier de sortie>                 (Bobine)
-        winget-manifests.py <SHA256SUMS> <tag assistant-Vx.y.z> <dossier de sortie>       (assistant d'installation)
+Usage : winget-manifests.py <SHA256SUMS> <tag Vx.y.z> <dossier de sortie>
 """
 import re
 import sys
@@ -11,7 +10,7 @@ from pathlib import Path
 
 REPO = "FantasmaGlad/Bobine"
 MANIFEST_VERSION = "1.12.0"
-# Bobine : installeur Inno Setup par machine ; assistant : installeur NSIS (type « nullsoft » pour winget) par utilisateur, silencieux par défaut (/S).
+# Installeur Inno Setup par machine.
 PRODUCTS = {
     "bobine": {
         "identifier": "FantasmaGlad.Bobine", "name": "Bobine", "tag": r"V(\d+\.\d+\.\d+)",
@@ -20,13 +19,6 @@ PRODUCTS = {
         "InstallerSwitches:\n  Silent: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART\n  SilentWithProgress: /SILENT /NORESTART\n",
         "en": "Offline-first video playout for gyms and studios: scheduled classes on screens, projectors and TVs.",
         "fr": "Régie vidéo hors ligne pour salles de sport : cours programmés sur écrans, projecteurs et téléviseurs.",
-    },
-    "assistant": {
-        "identifier": "FantasmaGlad.BobineAssistant", "name": "Bobine Assistant", "tag": r"assistant-V(\d+\.\d+\.\d+)",
-        "setup": "Bobine-Assistant-Setup-{v}{arch}.exe",
-        "installer": "InstallerType: nullsoft\nScope: user\nUpgradeBehavior: install\n",
-        "en": "Installs Bobine on a dedicated mini PC of the local network over SSH, from a graphical wizard or the command line.",
-        "fr": "Installe Bobine sur un mini PC dédié du réseau local, par SSH, depuis un assistant graphique ou en ligne de commande.",
     },
 }
 
@@ -51,7 +43,7 @@ def product_of(tag: str) -> tuple[str, str]:
         match = re.fullmatch(spec["tag"], tag)
         if match:
             return product, match.group(1)
-    raise SystemExit(f"tag Stable attendu (Vx.y.z ou assistant-Vx.y.z) : {tag}")
+    raise SystemExit(f"tag Stable attendu (Vx.y.z) : {tag}")
 
 
 def manifests(sums: dict[str, str], tag: str) -> dict[str, str]:

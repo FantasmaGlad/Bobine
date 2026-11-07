@@ -61,7 +61,7 @@ Same packages on derivatives (glibc 2.38+): <img src="Assets/Icons/distros/linux
 
 Turns a mini PC (Debian 13, x64 or ARM64) into a dedicated Bobine player: it starts straight into the fullscreen kiosk on its HDMI screen and resumes on its own after a power cut.
 
-- **From your computer, with the setup assistant**: it finds the mini PC on your network, connects to it over SSH and installs everything with a progress bar. Assistant for Linux: [x64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine-assistant) · [ARM64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine-assistant-arm64).
+- **From your computer, with [Bobine Deploy](https://github.com/FantasmaGlad/bobine-deploy)**: it finds the mini PC on your network, connects to it over SSH and installs everything with a progress bar, from a window or the command line (Linux, Windows, macOS; [releases](https://github.com/FantasmaGlad/bobine-deploy/releases/latest)).
 - **Directly on the mini PC**, in a terminal ([install.sh](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/install.sh)):
 
   ```bash

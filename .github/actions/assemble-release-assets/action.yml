@@ -45,16 +45,6 @@ runs:
       with:
         name: bobine-macos-dmg
         path: release-assets
-    - name: Download Linux assistant binary
-      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-      with:
-        name: bobine-assistant-linux
-        path: release-assets
-    - name: Download Linux ARM64 assistant binary
-      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-      with:
-        name: bobine-assistant-linux-arm64
-        path: release-assets
     # Les deux APK sont exigés par verify-release-assets.sh : un artefact absent arrête la publication dès ce
     # téléchargement, avec le nom de l'artefact manquant, au lieu d'attendre la vérification de complétude.
     - name: Download Android APK

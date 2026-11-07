@@ -2,8 +2,7 @@
 """Génère toutes les icônes dérivées des icônes de canal (Stable, Bêta, Canary).
 
 Source de vérité unique : `Assets/Images/channel-icons/bobine-channel-<canal>.png`
-(512 x 512, RGBA, fond transparent), `assistant-channel-<canal>.png` (1024 x 1024, icône de
-l'assistant d'installation) et `banner-wordmark.png` (texte « obine » de la
+(512 x 512, RGBA, fond transparent) et `banner-wordmark.png` (texte « obine » de la
 bannière Android TV). Tout le reste est DÉRIVÉ et ne se modifie jamais à la main :
 relancer ce script. Ajouter un canal commence dans `backend/app/release_channel.py`.
 
@@ -50,7 +49,6 @@ ICO_SIZES = [(s, s) for s in (16, 24, 32, 48, 64, 128, 256)]
 ICNS_CANVAS = 1024
 TRAY_SIZE = 256
 FAVICON_SIZE = 64
-ASSISTANT_SIZE = 160
 VERSIONS_SIZE = 1024
 SPLASH_SIZE = 512
 
@@ -86,26 +84,6 @@ def load_master(channel: str, kind: str = "bobine", size: int = 512) -> Image.Im
     if image.size != (size, size):
         raise ValueError(f"{path.name} doit mesurer {size} x {size} (trouvé {image.size[0]} x {image.size[1]})")
     return image
-
-
-def assistant_outputs(channel: str) -> list[Output]:
-    """Icônes de l'application d'installation (Tauri) : un jeu par canal, celui du canal par défaut aussi à la
-    racine de `icons/`, que lit `tauri.conf.json` ; la CI d'un canal Bêta ou Canary pointe vers son dossier."""
-    desktop = fit_on_square(load_master(channel, "assistant", ICNS_CANVAS), ICNS_CANVAS, FULL_FILL)
-    roots = [f"assistant/src-tauri/icons/{channel}"]
-    if channel == DEFAULT_CHANNEL:
-        roots.append("assistant/src-tauri/icons")
-    outputs: list[Output] = []
-    for root in roots:
-        outputs += [
-            Output(f"{root}/32x32.png", resized(desktop, 32)),
-            Output(f"{root}/128x128.png", resized(desktop, 128)),
-            Output(f"{root}/128x128@2x.png", resized(desktop, 256)),
-            Output(f"{root}/icon.png", resized(desktop, 512)),
-            Output(f"{root}/icon.ico", desktop, "ICO"),
-            Output(f"{root}/icon.icns", desktop, "ICNS"),
-        ]
-    return outputs
 
 
 def fit_on_square(source: Image.Image, size: int, fill: float) -> Image.Image:
@@ -174,10 +152,9 @@ def outputs_for_channel(channel: str) -> list[Output]:
     # Application de bureau : icône de la barre système (suit le canal choisi à l'exécution).
     outputs.append(Output(f"Assets/Images/logo_bobine_icon_{channel}.png", resized(desktop, TRAY_SIZE)))
 
-    # Interface web et assistant d'installation.
+    # Interface web.
     outputs.append(Output(f"frontend/public/logo-{channel}.png", master))
     outputs.append(Output(f"frontend/public/favicon-{channel}.png", resized(desktop, FAVICON_SIZE)))
-    outputs.append(Output(f"assistant/ui/assets/channel-{channel}.png", resized(master, ASSISTANT_SIZE)))
 
     # Visuels des README et des notes de version (dossier historique « Versions »).
     versions = resized(master, VERSIONS_SIZE)
@@ -195,7 +172,6 @@ def all_outputs(channels: tuple[str, ...] = CHANNELS) -> list[Output]:
     result: list[Output] = []
     for channel in channels:
         result.extend(outputs_for_channel(channel))
-        result.extend(assistant_outputs(channel))
     return result
 
 

@@ -6,7 +6,7 @@
 # des signatures pendant que les paquets qu'elles couvrent sont encore en cours de remplacement. Seul le remplacement d'un
 # asset donné est indisponible, le temps de son envoi.
 # Usage : publish-rolling-release.sh <tag> <dossier des assets> <titre> <fichier de notes> [commit cible]
-# RELEASE_KIND=stable-secondaire : release Stable d'un produit annexe (l'assistant, tag assistant-Vx.y.z), publiée sans
+# RELEASE_KIND=stable-secondaire : release Stable d'un produit annexe, publiée sans
 # marque de préversion mais jamais « Latest », que lisent le site, install.ps1, le cask et winget pour Bobine.
 # Dépendances : gh, GH_TOKEN (ou gh déjà authentifié). Le tag doit déjà pointer sur le commit publié.
 set -euo pipefail

@@ -61,7 +61,7 @@ Mêmes paquets sur les dérivées (glibc 2.38+) : <img src="Assets/Icons/distros
 
 Transforme un mini PC (Debian 13, x64 ou ARM64) en lecteur Bobine dédié : il démarre directement sur le kiosque plein écran de sa sortie HDMI et reprend seul après une coupure de courant.
 
-- **Depuis votre ordinateur, avec l'assistant d'installation** : il trouve le mini PC sur votre réseau, s'y connecte en SSH et installe tout avec une barre de progression. Assistant pour Linux : [x64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine-assistant) · [ARM64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine-assistant-arm64).
+- **Depuis votre ordinateur, avec [Bobine Deploy](https://github.com/FantasmaGlad/bobine-deploy)** : il trouve le mini PC sur votre réseau, s'y connecte en SSH et installe tout avec une barre de progression, en fenêtre ou en ligne de commande (Linux, Windows, macOS ; [téléchargements](https://github.com/FantasmaGlad/bobine-deploy/releases/latest)).
 - **Directement sur le mini PC**, dans un terminal ([install.sh](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/install.sh)) :
 
   ```bash
