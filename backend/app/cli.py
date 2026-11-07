@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_UNREACHABLE, EXIT_REFUSED = 0, 1, 2, 3, 4
-COMMANDS = ("status", "diagnose", "library", "playlists", "schedule", "devices", "storage", "metrics", "imports", "display", "logs", "playback", "radio", "config", "settings", "update", "version")
+COMMANDS = ("status", "diagnose", "library", "playlists", "schedule", "devices", "storage", "metrics", "imports", "display", "logs", "playback", "radio", "config", "settings", "update", "completion", "version")
 _REFUSAL_STATUSES = {403, 404, 409, 503}
 DEFAULT_TIMEOUT = 30.0
 
@@ -340,15 +340,45 @@ def cmd_display(client: Client, out: Output, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _apply_fix(client: Client, fix: dict) -> list[str]:
+    """Applique une correction décrite par le diagnostic (`fix`) par les routes de l'interface ; renvoie ce qui a été fait."""
+    action = fix.get("action")
+    if action == "cancel_import_jobs":
+        done = []
+        for job_id in fix.get("job_ids") or []:
+            client.request("DELETE", f"/api/import-jobs/{segment(job_id)}", accept_status=frozenset({404}))
+            done.append(f"import {str(job_id)[:8]} annulé")
+        return done
+    if action == "set_settings":
+        client.request("PUT", "/api/settings", body=fix.get("settings") or {})
+        return ["réglage " + ", ".join(f"{k}={v}" for k, v in (fix.get("settings") or {}).items())]
+    raise CliError(f"correction inconnue : {action!r} (version de la commande différente de celle du serveur ?)", EXIT_ERROR)
+
+
 def cmd_diagnose(client: Client, out: Output, args: argparse.Namespace) -> int:
     report = client.request("GET", "/api/diagnostics/system")
     colors = {"critical": "red", "warning": "yellow", "info": "dim"}
     lines = [f"État : {report['status']}"]
+    fixable = [p for p in report["problems"] if p.get("fix")]
     for problem in report["problems"]:
         lines.append(f"  {out.paint(problem['severity'], colors[problem['severity']])} {problem['code']} : {problem['message']}")
         lines.append(f"    remède : {problem['remedy']}")
+        if problem.get("fix"):
+            lines.append("    corrigeable par --auto-fix --yes" if args.auto_fix else "    corrigeable : bobine diagnose --auto-fix")
     if out.verbosity >= 1:
         lines += [f"  sonde {c['name']} : {c['status']}" + (f" ({c['detail']})" if c.get("detail") else "") for c in report["checks"]]
+    if args.auto_fix:
+        if not fixable:
+            lines.append("Rien à corriger automatiquement.")
+        elif not args.yes:
+            lines.append(f"{len(fixable)} correction(s) possible(s) : relancez avec --yes pour les appliquer.")
+        else:
+            applied = []
+            for problem in fixable:
+                applied += [f"{problem['code']} : {step}" for step in _apply_fix(client, problem["fix"])]
+            lines += [f"corrigé : {step}" for step in applied]
+            report = client.request("GET", "/api/diagnostics/system")
+            lines.append(f"État après correction : {report['status']} ({len(report['problems'])} constat(s) restant(s))")
     out.result(report, "\n".join(lines))
     return EXIT_OK if report["status"] == "ok" else EXIT_ERROR
 
@@ -557,11 +587,14 @@ def build_parser() -> argparse.ArgumentParser:
         epilog="Sur l'appliance, bobine start, stop, restart et journal pilotent aussi ses services. "
                "Codes de sortie : 0 succès, 1 erreur ou problème trouvé, 2 usage, 3 injoignable, 4 refus.",
     )
-    parser.add_argument("--version", action="version", version=f"bobine {local_version()}")
+    parser.add_argument("-V", "--version", action="version", version=f"bobine {local_version()}")
     sub = parser.add_subparsers(dest="command", required=True, metavar="commande")
 
     sub.add_parser("status", parents=[sub_common], help="santé et lecture en cours").set_defaults(run=cmd_status)
-    sub.add_parser("diagnose", parents=[sub_common], help="diagnostic typé (code de sortie 1 si un problème est trouvé)").set_defaults(run=cmd_diagnose)
+    diagnose = sub.add_parser("diagnose", parents=[sub_common], help="diagnostic typé (code de sortie 1 si un problème est trouvé)")
+    diagnose.add_argument("--auto-fix", action="store_true", help="corriger ce qui peut l'être sans risque (import bloqué, composant natif inutilisé)")
+    diagnose.add_argument("--yes", action="store_true", help="avec --auto-fix : appliquer réellement")
+    diagnose.set_defaults(run=cmd_diagnose)
 
     library = sub.add_parser("library", parents=[sub_common], help="bibliothèque vidéo")
     library_sub = library.add_subparsers(dest="library_action", required=True)
@@ -676,9 +709,77 @@ def build_parser() -> argparse.ArgumentParser:
     install.set_defaults(run=cmd_update)
     update_sub.add_parser("status", parents=[sub_common]).set_defaults(run=cmd_update_status)
 
+    completion = sub.add_parser("completion", parents=[sub_common], help="script de complétion pour bash, zsh ou fish")
+    completion.add_argument("shell", choices=("bash", "zsh", "fish"))
+    completion.set_defaults(run=cmd_completion)
+
     sub.add_parser("version", parents=[sub_common], help="version de cette installation").set_defaults(
         run=lambda client, out, args: (out.result({"version": local_version()}, local_version()), EXIT_OK)[1])
     return parser
+
+
+# --- complétion des shells -------------------------------------------------------------------------------------------
+
+def _command_tree(parser: argparse.ArgumentParser) -> tuple[list[str], dict[str, dict[str, Any]]]:
+    """(options globales, {commande: {"options": [...], "subs": {sous-commande: [options]}}}) lus dans le parser lui-même :
+    la complétion ne peut donc pas diverger de l'aide."""
+    def options(p: argparse.ArgumentParser) -> list[str]:
+        return sorted({o for a in p._actions for o in a.option_strings if o.startswith("-") and o not in ("-h", "--help")})
+
+    def subparsers(p: argparse.ArgumentParser) -> dict[str, argparse.ArgumentParser]:
+        for action in p._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                return dict(action.choices)
+        return {}
+
+    tree: dict[str, dict[str, Any]] = {}
+    for name, command in subparsers(parser).items():
+        tree[name] = {"options": options(command), "subs": {sub: options(p) for sub, p in subparsers(command).items()}}
+    return options(parser), tree
+
+
+def completion_script(shell: str, parser: argparse.ArgumentParser) -> str:
+    glob, tree = _command_tree(parser)
+    commands = " ".join(tree)
+    if shell == "fish":
+        lines = [f"# Complétion de bobine pour fish : bobine completion fish > ~/.config/fish/completions/bobine.fish",
+                 f"complete -c bobine -f", f"complete -c bobine -n '__fish_use_subcommand' -a '{commands}'"]
+        lines += [f"complete -c bobine -l {o.lstrip('-')}" if o.startswith("--") else f"complete -c bobine -s {o.lstrip('-')}" for o in glob]
+        for name, info in tree.items():
+            if info["subs"]:
+                lines.append(f"complete -c bobine -n '__fish_seen_subcommand_from {name}' -a '{' '.join(info['subs'])}'")
+            for o in info["options"]:
+                flag = f"-l {o[2:]}" if o.startswith("--") else f"-s {o[1:]}"
+                lines.append(f"complete -c bobine -n '__fish_seen_subcommand_from {name}' {flag}")
+        return "\n".join(lines) + "\n"
+    cases = []
+    for name, info in tree.items():
+        subs = " ".join(info["subs"])
+        opts = " ".join(sorted(set(info["options"]) | {o for v in info["subs"].values() for o in v}))
+        sub_opts = "".join(f"\n            {sub}) COMPREPLY=($(compgen -W \"{' '.join(o)} $global\" -- \"$cur\")); return ;;" for sub, o in info["subs"].items() if o)
+        cases.append(f"    {name})\n        if [ \"$cword\" -le $(( cmd_index + 1 )) ] && [[ \"$cur\" != -* ]]; then\n"
+                     f"            COMPREPLY=($(compgen -W \"{subs}\" -- \"$cur\")); return\n        fi\n"
+                     f"        COMPREPLY=($(compgen -W \"{opts} $global\" -- \"$cur\")) ;;")
+    header = "# Complétion de bobine : source <(bobine completion bash)   (zsh : autoload -U +X bashcompinit && bashcompinit d'abord)\n"
+    return header + (
+        "_bobine() {\n"
+        "    local cur=\"${COMP_WORDS[COMP_CWORD]}\" cword=$COMP_CWORD cmd cmd_index=0 i\n"
+        f"    local global=\"{' '.join(glob)}\" commands=\"{commands}\"\n"
+        "    for i in \"${!COMP_WORDS[@]}\"; do\n"
+        "        [ \"$i\" -eq 0 ] && continue\n"
+        "        case \" $commands \" in *\" ${COMP_WORDS[$i]} \"*) cmd=${COMP_WORDS[$i]}; cmd_index=$i; break ;; esac\n"
+        "    done\n"
+        "    if [ -z \"$cmd\" ]; then\n"
+        "        COMPREPLY=($(compgen -W \"$commands $global\" -- \"$cur\")); return\n"
+        "    fi\n"
+        "    case \"$cmd\" in\n" + "\n".join(cases) + "\n    esac\n}\n"
+        "complete -F _bobine bobine\n"
+    )
+
+
+def cmd_completion(client: Client | None, out: Output, args: argparse.Namespace) -> int:
+    print(completion_script(args.shell, build_parser()), end="")
+    return EXIT_OK
 
 
 def _prepare_windows_output() -> None:

@@ -567,3 +567,93 @@ def test_config_documents_keep_their_place_in_the_tree(tmp_path):
     assert sorted(cli._read_documents([str(tmp_path / "playlists")])) == ["playlists/video.json"]
     assert sorted(cli._read_documents([str(tmp_path / "playlists" / "video.json")])) == ["playlists/video.json"]
     assert sorted(cli._read_documents([str(tmp_path / "settings.json")])) == ["settings.json"]
+
+
+# --- diagnose --auto-fix, complétion, -V ----------------------------------------------------------------------------------
+
+REPORT = {"status": "warning", "checks": [], "problems": [
+    {"code": "import_job_stuck", "severity": "warning", "message": "bloqué", "remedy": "annuler",
+     "fix": {"action": "cancel_import_jobs", "job_ids": ["abcdef0123456789"]}},
+    {"code": "media_native_fallback", "severity": "info", "message": "inutilisé", "remedy": "désactiver",
+     "fix": {"action": "set_settings", "settings": {"media_native": "false"}}},
+    {"code": "firewall_rule_missing", "severity": "warning", "message": "règle absente", "remedy": "à la main"},
+]}
+
+
+def _scripted(monkeypatch, calls):
+    answers = {"n": 0}
+
+    def request(self, method, path, **kw):
+        calls.append((method, path, kw.get("body")))
+        if (method, path) == ("GET", "/api/diagnostics/system"):
+            answers["n"] += 1
+            return REPORT if answers["n"] == 1 else {"status": "warning", "checks": [], "problems": [REPORT["problems"][2]]}
+        return {}
+
+    monkeypatch.setattr(cli.Client, "request", request)
+
+
+def test_auto_fix_without_yes_only_lists(monkeypatch, capsys):
+    calls = []
+    _scripted(monkeypatch, calls)
+    assert cli.main(["--port", "1903", "diagnose", "--auto-fix"]) == cli.EXIT_ERROR
+    out = capsys.readouterr().out
+    assert "2 correction(s) possible(s)" in out and "--yes" in out
+    assert [c for c in calls if c[0] != "GET"] == []
+
+
+def test_auto_fix_yes_applies_only_the_declared_fixes(monkeypatch, capsys):
+    calls = []
+    _scripted(monkeypatch, calls)
+    cli.main(["--port", "1903", "diagnose", "--auto-fix", "--yes"])
+    writes = [c for c in calls if c[0] != "GET"]
+    assert writes == [("DELETE", "/api/import-jobs/abcdef0123456789", None), ("PUT", "/api/settings", {"media_native": "false"})]
+    out = capsys.readouterr().out
+    assert "corrigé : import_job_stuck : import abcdef01 annulé" in out and "1 constat(s) restant(s)" in out
+
+
+def test_diagnose_without_the_option_changes_nothing(monkeypatch):
+    calls = []
+    _scripted(monkeypatch, calls)
+    cli.main(["--port", "1903", "diagnose"])
+    assert [c for c in calls if c[0] != "GET"] == []
+
+
+def test_unknown_fix_is_an_error_not_a_crash(monkeypatch, capsys):
+    monkeypatch.setattr(cli.Client, "request", lambda self, m, p, **kw: {"status": "warning", "checks": [], "problems": [
+        {"code": "x", "severity": "info", "message": "m", "remedy": "r", "fix": {"action": "inconnue"}}]})
+    assert cli.main(["--port", "1903", "diagnose", "--auto-fix", "--yes"]) == cli.EXIT_ERROR
+    assert "correction inconnue" in capsys.readouterr().err
+
+
+def test_completion_scripts_follow_the_parser(capsys):
+    for shell in ("bash", "zsh", "fish"):
+        assert cli.main(["completion", shell]) == cli.EXIT_OK
+        script = capsys.readouterr().out
+        assert all(name in script for name in ("diagnose", "playlists", "--auto-fix" if shell != "fish" else "auto-fix"))
+    assert cli.main(["completion", "csh"]) == cli.EXIT_USAGE
+
+
+def test_completion_bash_is_valid_shell(tmp_path, capsys):
+    import shutil
+    import subprocess
+
+    if not shutil.which("bash"):
+        pytest.skip("bash absent")
+    cli.main(["completion", "bash"])
+    script = tmp_path / "bobine.bash"
+    script.write_text(capsys.readouterr().out, encoding="utf-8")
+    assert subprocess.run(["bash", "-n", str(script)]).returncode == 0
+    probe = subprocess.run(["bash", "-c", f'source {script}; COMP_WORDS=(bobine lib); COMP_CWORD=1; _bobine; echo "${{COMPREPLY[@]}}"'],
+                           capture_output=True, text=True)
+    assert probe.stdout.strip() == "library"
+
+
+def test_every_command_is_listed_for_the_windows_launcher():
+    parser_commands = set(cli._command_tree(cli.build_parser())[1])
+    assert parser_commands == set(cli.COMMANDS)
+
+
+def test_short_version_flag(capsys):
+    assert cli.main(["-V"]) == 0
+    assert capsys.readouterr().out.startswith("bobine ")
