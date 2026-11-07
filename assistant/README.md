@@ -11,10 +11,10 @@ de progression en temps réel.
 - **`src-tauri/` + `ui/` — Application graphique Tauri 2** : livrée et multi-plateforme.
   Fonctionne nativement sur **Linux** (WebKitGTK), **Windows** (WebView2), **macOS** (WebKit) et **Android** 7 et
   plus (WebView du système).
-  Scan `/24` complet du sous-réseau (tous les appareils qui répondent, pas
-  seulement les cibles Bobine — voir §Scan réseau), authentification SSH par
-  mot de passe, agent, clés `~/.ssh/` usuelles ou clé importée explicitement,
-  et terminal live PTY.
+  Scan du réseau de chaque interface active, du /24 au /22 (tous les appareils qui répondent, pas
+  seulement les cibles Bobine — voir §Scan réseau), authentification SSH par mot de passe, clé importée
+  explicitement, ou, avec l'accord de l'utilisateur, agent et clés `~/.ssh/` usuelles, et terminal live PTY.
+  Le même exécutable se pilote en ligne de commande (§Ligne de commande).
 
 > `core` ne réimplémente pas l'installation : `install.sh` reste la **source de
 > vérité unique**. L'assistant l'**orchestre** (construit la commande, parse sa
@@ -105,7 +105,7 @@ locale active** (Wi-Fi, Ethernet...), avec son **vrai masque** (de /24 jusqu'à
 /22 ; un réseau plus vaste est ramené au bloc /22 du poste). Les interfaces de
 conteneurs/VM, l'auto-adressage 169.254/16 et — tant qu'une autre interface
 existe — les tunnels VPN sont ignorés. Les appareils apparaissent **en direct**
-(évènements `scan_device`/`scan_progress`) et affiche **tous les appareils qui
+(évènements `scan_device`/`scan_progress`), avec **tous les appareils qui
 répondent**, pas seulement les cibles Debian/Bobine — un routeur, une
 imprimante réseau ou un poste Windows apparaissent aussi, avec leur IP, leur
 nom d'hôte résolu (DNS inverse, fonctionne pour les noms `.local` sur la
@@ -159,7 +159,9 @@ l'ordre : la clé importée explicitement (bouton « Importer une clé SSH », u
 sélecteur de fichier natif via `tauri-plugin-dialog`), le mot de passe saisi
 (direct puis clavier-interactif/PAM), puis, seulement si l'utilisateur l'autorise (case de l'étape 2,
 `--local-keys` en ligne de commande), l'agent SSH local et les clés usuelles de `~/.ssh/` (`id_ed25519`, `id_rsa`,
-`id_ecdsa`). Les mots de passe sont effacés de la mémoire dès que la connexion ou l'installation est terminée. Le mot de passe
+`id_ecdsa`). Les mots de passe sont effacés de la mémoire à la fin de la connexion ou de l'installation, y compris
+quand elle s'arrête sur une erreur. Le terminal distant n'écho pas le mot de passe root, et toute ligne du journal qui le
+contiendrait le remplace par `***`. Le mot de passe
 sert aussi de passphrase de déchiffrement si la clé importée en réclame une.
 Aucun mot de passe ni contenu de clé n'est jamais journalisé.
 
