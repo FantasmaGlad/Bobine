@@ -3,6 +3,8 @@ name: CI
 # Intégration continue Bobine : à chaque push sur main et à chaque pull request,
 # on construit le frontend et les paquets, on teste le backend sous trois
 # versions de Python, le navigateur Firefox et les composants natifs.
+# Une modification de documentation seule (job `version`, sortie `code`) ne lance que les contrôles
+# rapides du job `version` et ne publie aucune Canary : pas besoin de `[skip ci]`.
 
 on:
   push:
@@ -96,10 +98,27 @@ jobs:
       deb_version: ${{ steps.resolve.outputs.deb_version }}
       filename_version: ${{ steps.resolve.outputs.filename_version }}
       commit_short: ${{ steps.resolve.outputs.commit_short }}
+      code: ${{ steps.scope.outputs.code }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
+      - name: Portée de la modification (code ou documentation seule)
+        id: scope
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # Tag, déclenchement manuel ou base inconnue : tout est construit.
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [[ "$GITHUB_REF" == refs/tags/* ]] || [ -z "$BASE" ] \
+             || [ "$BASE" = 0000000000000000000000000000000000000000 ] || ! git fetch -q --depth=1 origin "$BASE"; then
+            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # README, documentation, licences, politiques et modèles de tickets ne changent aucun artefact.
+          if git diff --name-only "$BASE" HEAD | grep -qvE '(\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Vérifier les outils de publication sans réseau
         run: |
           sudo apt-get $APT_OPTIONS update -qq && sudo apt-get $APT_OPTIONS install -y -qq --no-install-recommends reprepro python3-yaml
@@ -117,6 +136,8 @@ jobs:
 
   frontend:
     name: Frontend build (Next.js)
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -147,6 +168,8 @@ jobs:
     # affiche une erreur applicative ou si l'interface se fige pendant l'import.
     # Le succès de ce parcours navigateur fait partie du contrôle ci-ok.
     name: Firefox smoke tests (geckodriver)
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -210,6 +233,8 @@ jobs:
     # téléphone/tablette. Une syntaxe ou une API postérieure à 3.11 ne doit pas
     # entrer sans casser ce job.
     name: Backend checks (Python ${{ matrix.python }})
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -269,6 +294,8 @@ jobs:
 
   backend-android-compat:
     name: Backend Android (Pydantic v1, Python ${{ matrix.python }})
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -311,6 +338,8 @@ jobs:
     # méthodes, analyseurs des sorties d'outils. Les binaires Windows/macOS sont construits et
     # embarqués dans leurs jobs de packaging respectifs.
     name: Devices sidecar (Rust)
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -348,6 +377,8 @@ jobs:
     # deb, Windows et macOS est contrôlé par les jobs de packaging, celui des APK Android par `android-build`
     # (et des AAB par play-aab.yml). Ce job ne valide aucun appareil réel.
     name: Media component (${{ matrix.os }})
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     # Chaque architecture de paquet doit passer les mêmes contrôles bloquants.
@@ -407,6 +438,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: [version]
+    if: needs.version.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -578,6 +610,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     needs: [version]
+    if: needs.version.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -643,6 +676,8 @@ jobs:
 
   install-script:
     name: install.sh sanity
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -683,6 +718,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     needs: [version]
+    if: needs.version.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -784,6 +820,7 @@ jobs:
     runs-on: windows-11-arm
     timeout-minutes: 60
     needs: [version]
+    if: needs.version.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -893,6 +930,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     needs: [version]
+    if: needs.version.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -1013,6 +1051,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 45
     needs: [version]
+    if: needs.version.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1182,12 +1221,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Tous les contrôles sont verts
+        env:
+          CODE: ${{ needs.version.outputs.code }}
         run: |
           set -eu
+          [ "${{ needs.version.result }}" = success ] || { echo "::error::job version en échec"; exit 1; }
           results='${{ join(needs.*.result, ' ') }}'
-          echo "résultats : $results"
+          echo "résultats : $results (code : $CODE)"
+          # Documentation seule : les jobs de construction sont ignorés par décision, pas par échec.
           for r in $results; do
-            [ "$r" = "success" ] || { echo "::error::un contrôle a échoué ou a été ignoré ($r)"; exit 1; }
+            [ "$r" = "success" ] || { [ "$CODE" = false ] && [ "$r" = skipped ]; } || { echo "::error::un contrôle a échoué ou a été ignoré ($r)"; exit 1; }
           done
 
   linux-package-signing:

@@ -84,5 +84,27 @@ class ToolchainRustTests(unittest.TestCase):
             self.assertLess(install, appel.start(), f"job {name} : cargo avant l'installation de la toolchain")
 
 
+class DocumentationSeuleTests(unittest.TestCase):
+    """Une modification de documentation seule ne construit rien et ne publie aucune Canary."""
+
+    LOURDS = (
+        "frontend", "firefox-smoke", "backend", "backend-android-compat", "devices-sidecar", "media-component",
+        "android-build", "android-startup", "install-script", "windows-build", "windows-build-arm64", "linux-deb",
+        "macos-build",
+    )
+
+    def test_chaque_job_de_construction_depend_de_la_portee(self):
+        parts = jobs(CI)
+        for name in self.LOURDS:
+            self.assertIn("    if: needs.version.outputs.code == 'true'", parts[name], name)
+
+    def test_tag_et_declenchement_manuel_construisent_tout(self):
+        version = jobs(CI)["version"]
+        self.assertIn('[ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [[ "$GITHUB_REF" == refs/tags/* ]]', version)
+
+    def test_ci_ok_n_accepte_un_job_ignore_que_pour_la_documentation(self):
+        self.assertIn('{ [ "$CODE" = false ] && [ "$r" = skipped ]; }', jobs(CI)["ci-ok"])
+
+
 if __name__ == "__main__":
     unittest.main()
