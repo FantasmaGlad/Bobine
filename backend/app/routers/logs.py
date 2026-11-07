@@ -11,6 +11,7 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api_contract import LOG_LEVELS
 from app.config import settings
 from app.database import get_db
 from app.models import ActivityLog
@@ -33,7 +34,7 @@ class ActivityLogResponse(BaseModel):
 
 # --- Lecture unifiée et stable (`GET /api/logs`), pour la CLI et un agent externe ------------------------------------
 
-LEVELS = ("debug", "info", "warning", "error", "critical")
+LEVELS = LOG_LEVELS
 # Format de `logging.basicConfig` (app/main.py) : « 2026-11-05 20:54:00,517 INFO app.main: message », heure locale.
 _LINE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),(\d{3}) (DEBUG|INFO|WARNING|ERROR|CRITICAL) ([^:\s]+): ?(.*)$")
 # Rotation : fichier courant puis `.1` à `.5` (5 Mo chacun) ; plafond de lecture par fichier, au cas où.

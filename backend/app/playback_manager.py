@@ -15,8 +15,7 @@ BroadcastFn = Callable[[dict], Awaitable[None]]
 # Canaux de diffusion indépendants : chaque canal a son PROPRE état de lecture, sa propre playlist,
 # son propre kiosk primaire. "cable" = l'écran physiquement branché au Wyse,
 # "network" = tout /kiosk ouvert depuis un autre appareil du LAN.
-CHANNELS = ("cable", "network")
-DEFAULT_CHANNEL = "cable"
+from app.api_contract import CHANNELS, DEFAULT_CHANNEL  # noqa: E402  (valeurs partagées avec l'API et la CLI)
 
 
 # Décalage (ms) entre l'ordre reçu et l'instant où TOUS les écrans démarrent : laisse à chaque écran le temps de recevoir l'ordre

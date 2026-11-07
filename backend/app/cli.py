@@ -20,6 +20,11 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from app.api_contract import (
+    CHANNELS, DASHBOARD_CHANNELS, DASHBOARD_PERIODS, DISPLAY_OUTPUTS, HISTORY_PERIODS, LOG_LEVELS, LOG_SOURCES, SCHEDULE_CHANNELS,
+    SORT_ORDERS, VIDEO_SORT_FIELDS,
+)
+
 EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_UNREACHABLE, EXIT_REFUSED = 0, 1, 2, 3, 4
 COMMANDS = ("status", "diagnose", "library", "playlists", "schedule", "devices", "storage", "metrics", "imports", "display", "logs", "playback", "radio", "config", "settings", "update", "completion", "version")
 _REFUSAL_STATUSES = {403, 404, 409, 503}
@@ -601,8 +606,8 @@ def build_parser() -> argparse.ArgumentParser:
     library_list = library_sub.add_parser("list", parents=[sub_common], help="lister les vidéos")
     library_list.add_argument("--search")
     library_list.add_argument("--program")
-    library_list.add_argument("--sort-by", dest="sort_by", choices=("imported_at", "title", "duration"), default="imported_at")
-    library_list.add_argument("--order", choices=("asc", "desc"), default="desc")
+    library_list.add_argument("--sort-by", dest="sort_by", choices=VIDEO_SORT_FIELDS, default="imported_at")
+    library_list.add_argument("--order", choices=SORT_ORDERS, default="desc")
     library_get = library_sub.add_parser("get", parents=[sub_common], help="détail d'une vidéo")
     library_get.add_argument("video_id", type=int)
     library.set_defaults(run=cmd_library)
@@ -614,7 +619,7 @@ def build_parser() -> argparse.ArgumentParser:
     playlists.set_defaults(run=cmd_playlists)
     schedule = sub.add_parser("schedule", parents=[sub_common], help="planning de diffusion")
     schedule_sub = schedule.add_subparsers(dest="schedule_action", required=True)
-    channels = ("cable", "network", "radio_cable", "radio_network")
+    channels = SCHEDULE_CHANNELS
     schedule_list = schedule_sub.add_parser("list", parents=[sub_common], help="lister les programmations")
     schedule_list.add_argument("--channel", choices=channels)
     schedule_next = schedule_sub.add_parser("next", parents=[sub_common], help="prochaine occurrence")
@@ -644,12 +649,12 @@ def build_parser() -> argparse.ArgumentParser:
     metrics = sub.add_parser("metrics", parents=[sub_common], help="métriques et télémétrie")
     metrics_sub = metrics.add_subparsers(dest="metrics_action", required=True)
     metrics_dashboard = metrics_sub.add_parser("dashboard", parents=[sub_common], help="tableau de bord")
-    metrics_dashboard.add_argument("--period", choices=("7d", "30d", "this_month", "all"), default="30d")
-    metrics_dashboard.add_argument("--channel", choices=("all", "cable", "network"), default="all")
+    metrics_dashboard.add_argument("--period", choices=DASHBOARD_PERIODS, default="30d")
+    metrics_dashboard.add_argument("--channel", choices=DASHBOARD_CHANNELS, default="all")
     metrics_sub.add_parser("system", parents=[sub_common], help="télémétrie matérielle courante")
     metrics_history = metrics_sub.add_parser("history", parents=[sub_common], help="historique d'une métrique")
     metrics_history.add_argument("--metric", default="cpu")
-    metrics_history.add_argument("--period", choices=("1h", "6h", "24h", "7d", "30d", "this_month", "all"), default="1h")
+    metrics_history.add_argument("--period", choices=HISTORY_PERIODS, default="1h")
     metrics.set_defaults(run=cmd_metrics)
     imports = sub.add_parser("imports", parents=[sub_common], help="file d'import et chaîne d'import")
     imports_sub = imports.add_subparsers(dest="imports_action", required=True)
@@ -662,13 +667,13 @@ def build_parser() -> argparse.ArgumentParser:
     display_sub = display.add_subparsers(dest="display_action", required=True)
     display_sub.add_parser("get", parents=[sub_common], help="lire les sorties câblé et réseau")
     display_set = display_sub.add_parser("set", parents=[sub_common], help="basculer un canal")
-    display_set.add_argument("channel", choices=("cable", "network"))
-    display_set.add_argument("output", choices=("kiosk", "cinema", "radio"))
+    display_set.add_argument("channel", choices=CHANNELS)
+    display_set.add_argument("output", choices=DISPLAY_OUTPUTS)
     display.set_defaults(run=cmd_display)
 
     logs = sub.add_parser("logs", parents=[sub_common], help="journaux")
-    logs.add_argument("--source", choices=("technical", "activity"), default="technical")
-    logs.add_argument("--level", choices=("debug", "info", "warning", "error", "critical"))
+    logs.add_argument("--source", choices=LOG_SOURCES, default="technical")
+    logs.add_argument("--level", choices=LOG_LEVELS)
     logs.add_argument("--since", help="date ISO 8601 avec fuseau, ex. 2026-11-05T08:00:00Z")
     logs.add_argument("--limit", type=int, default=200)
     logs.set_defaults(run=cmd_logs)
