@@ -94,6 +94,7 @@ def _jobs_state() -> dict:
             continue
         active.append({
             "id": job["id"][:8],
+            "job_id": job["id"],  # identifiant complet : `bobine diagnose --auto-fix` annule par lui
             "kind": job.get("kind"),
             "source": job.get("source"),
             "stage": job["stage"],
@@ -184,8 +185,13 @@ class _Report:
             entry["detail"] = detail
         self.checks.append(entry)
 
-    def problem(self, check: str, code: str, severity: str, message: str, remedy: str) -> None:
-        self.problems.append({"code": code, "severity": severity, "message": message, "remedy": remedy})
+    def problem(self, check: str, code: str, severity: str, message: str, remedy: str, fix: dict | None = None) -> None:
+        """`fix` (facultatif) décrit une correction sans risque que `bobine diagnose --auto-fix` peut appliquer :
+        `{"action": "cancel_import_jobs", "job_ids": [...]}` ou `{"action": "set_settings", "settings": {...}}`."""
+        entry = {"code": code, "severity": severity, "message": message, "remedy": remedy}
+        if fix:
+            entry["fix"] = fix
+        self.problems.append(entry)
         if not any(c["name"] == check for c in self.checks):
             self.check(check, "problem")
 
@@ -302,7 +308,8 @@ def _probe_imports(report: _Report) -> None:
     stuck = [j for j in jobs["active"] if j["idle_seconds"] > STUCK_JOB_SECONDS]
     if stuck:
         report.problem("imports", "import_job_stuck", "warning", f"{len(stuck)} import(s) sans progression depuis plus de 5 minutes.",
-                       "Annuler l'import concerné puis consulter le journal technique.")
+                       "Annuler l'import concerné puis consulter le journal technique.",
+                       fix={"action": "cancel_import_jobs", "job_ids": [j["job_id"] for j in stuck]})
     if _executor_state()["ffmpeg"]["shutdown"]:
         report.problem("imports", "import_executor_shutdown", "critical", "Le moteur de traitement des médias est arrêté.",
                        "Redémarrer Bobine.")
@@ -331,7 +338,8 @@ def _probe_media_native(report: _Report) -> None:
     if state.get("enabled") and state.get("state") in ("fallback", "absent"):
         report.problem("media_native", "media_native_fallback", "info",
                        "Le composant audio natif est activé mais inutilisé : ffmpeg prend le relais.",
-                       "Désactiver le composant natif dans Réglages, ou réinstaller Bobine.")
+                       "Désactiver le composant natif dans Réglages, ou réinstaller Bobine.",
+                       fix={"action": "set_settings", "settings": {"media_native": "false"}})
 
 
 async def _probe_storage(report: _Report) -> None:
