@@ -97,7 +97,10 @@
 
   /* Sélection télécommande / manette : anneau à deux tons lisible sur tout fond (vignette claire ou sombre). */
   --remote-focus-scale: 1.06;
-  --remote-focus-ring: 0 0 0 3px var(--bg-main), 0 0 0 6px var(--accent-text);
+  /* Survol et sélection thémés (cahier 7.1) : dérivés des jetons du thème, lisibles à 3 mètres (3:1 sur le fond, vérifié par les tests). */
+  --focus-ring: var(--accent-text);
+  --hover-overlay: color-mix(in srgb, var(--text-main) 8%, transparent);
+  --remote-focus-ring: 0 0 0 3px var(--bg-main), 0 0 0 6px var(--focus-ring);
   --remote-focus-shadow: 0 16px 36px color-mix(in srgb, var(--ink) 55%, transparent);
   --remote-focus-glow: 0 0 24px color-mix(in srgb, var(--accent-primary) 45%, transparent);
   --remote-focus-ease: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
@@ -8995,10 +8998,10 @@ video::cue {
 
 /* ---- Navigation à la télécommande (useDpadNavigation) : halo net sur l'élément sélectionné ---- */
 :root[data-input-mode="remote"] :focus {
-  outline: 3px solid var(--accent-text) !important;
+  outline: 3px solid var(--focus-ring) !important;
   outline-offset: 3px;
   border-radius: var(--radius-md);
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--focus-ring) 22%, transparent);
   position: relative;
   z-index: 5;
 }
