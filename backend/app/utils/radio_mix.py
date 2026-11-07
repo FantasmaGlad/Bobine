@@ -36,10 +36,14 @@ def default_mix() -> dict[str, Any]:
 
 
 def _gain(value: Any, fallback: int) -> int:
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or value != value:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         return fallback
-    # floor(x + 0.5) = Math.round de JavaScript (le round() de Python arrondit .5 au pair)
-    return max(GAIN_MIN_DB, min(GAIN_MAX_DB, math.floor(value + 0.5)))
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            return fallback
+        # floor(x + 0.5) = Math.round de JavaScript (le round() de Python arrondit .5 au pair)
+        value = math.floor(value + 0.5)
+    return max(GAIN_MIN_DB, min(GAIN_MAX_DB, value))
 
 
 def _flag(value: Any, fallback: bool) -> bool:
