@@ -118,9 +118,9 @@ jobs:
       - name: Décoder le keystore depuis le secret
         if: steps.check_secrets.outputs.configured == 'true'
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "${{ runner.temp }}/bobine-release.keystore"
-      # Le backend embarqué compare ce commit à celui du canal Bêta/Canary
-      # pour proposer une mise à jour ; sans fichier COMMIT il vaut "unknown"
-      # et aucune mise à jour n'est jamais proposée sur ces canaux.
+      # COMMIT identifie le build embarqué (commit affiché dans Réglages, repris par les rapports de diagnostic) ; sans
+      # ce fichier il vaut "unknown". Un build Play est verrouillé sur la Stable et se met à jour par la boutique : il ne
+      # compare jamais ce commit à ceux des canaux Bêta et Canary.
       - name: Identifiants de build (COMMIT bundlé)
         if: steps.check_secrets.outputs.configured == 'true'
         run: echo "${{ steps.ref.outputs.commit_short }}" > COMMIT

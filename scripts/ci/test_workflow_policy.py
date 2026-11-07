@@ -30,6 +30,8 @@ class TagCheckoutTests(unittest.TestCase):
         for block in steps:
             if "repository:" in block:
                 continue  # dépôts tiers (gh-pages, BobineWeb) : pas ce dépôt
+            if "path: .workflow-tools" in block:
+                continue  # révision du workflow, pour ses actions locales (publication d'un ancien tag Stable)
             self.assertIn("ref: ${{ inputs.tag }}", block, block)
 
 

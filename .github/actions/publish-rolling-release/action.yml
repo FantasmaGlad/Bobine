@@ -1,0 +1,123 @@
+name: Publier une release mobile (Canary ou Bêta)
+description: >-
+  Garde de monotonie (scripts/ci/rolling-guard.py), déplacement de l'étiquette mobile, notes (modèle de
+  scripts/ci/rolling-notes/<canal>.md, tableau de téléchargement, changelog depuis la dernière Stable) et publication en
+  place (scripts/ci/publish-rolling-release.sh). Le dépôt doit être récupéré avec tout son historique
+  (fetch-depth: 0) et release-assets/ déjà assemblé (action assemble-release-assets).
+inputs:
+  channel:
+    description: canary ou beta
+    required: true
+  title:
+    description: Titre de la release.
+    required: true
+  commit-short:
+    description: Commit court affiché dans les notes.
+    required: true
+  base-version:
+    description: Version à venir affichée dans les notes.
+    required: true
+  require-tip:
+    description: "true : depuis main, le commit doit être la tête de main (Canary)."
+    required: false
+    default: 'false'
+  token:
+    description: Jeton de publication (github.token).
+    required: true
+outputs:
+  published:
+    description: true si la release a été publiée (false si la garde a refusé un build plus ancien).
+    value: ${{ steps.guard.outputs.publish }}
+runs:
+  using: composite
+  steps:
+    - name: Refuser de publier un build plus ancien que celui déjà publié
+      id: guard
+      shell: bash
+      env:
+        CHANNEL: ${{ inputs.channel }}
+        REQUIRE_TIP: ${{ inputs.require-tip }}
+        EVENT_NAME: ${{ github.event_name }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
+        SHA: ${{ github.sha }}
+      run: |
+        tip=()
+        if [ "$REQUIRE_TIP" = true ]; then
+          git fetch --no-tags origin main
+          # Depuis main, le commit doit être la tête de main ; une republication manuelle depuis une autre branche reste permise.
+          [ "$GITHUB_REF" = refs/heads/main ] && tip=(--require-tip origin/main)
+        fi
+        # Le tag mobile est relu à distance : absent (rc 2) à la première publication, toute autre erreur arrête la publication.
+        rc=0; git ls-remote --exit-code --tags origin "$CHANNEL" > /dev/null || rc=$?
+        case "$rc" in
+          0) git fetch --force --no-tags origin "refs/tags/$CHANNEL:refs/tags/$CHANNEL" ;;
+          2) ;;
+          *) exit "$rc" ;;
+        esac
+        python3 scripts/ci/rolling-guard.py --tag "$CHANNEL" --sha "$SHA" --event "$EVENT_NAME" --attempt "$RUN_ATTEMPT" "${tip[@]}"
+    - name: Force-move the mobile tag to the current commit
+      if: steps.guard.outputs.publish == 'true'
+      shell: bash
+      env:
+        CHANNEL: ${{ inputs.channel }}
+        SHA: ${{ github.sha }}
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag -f "$CHANNEL" "$SHA"
+        # GITHUB_TOKEN ne peut pas mettre à jour une référence dont le diff touche .github/workflows ("workflows permission") :
+        # le tag est supprimé puis recréé, la création sur un commit existant n'étant pas une mise à jour.
+        git push origin ":refs/tags/$CHANNEL" || true
+        git push origin "$CHANNEL"
+    - name: Generate rolling release notes (README-style layout + changelog since last Stable)
+      id: notes
+      if: steps.guard.outputs.publish == 'true'
+      shell: bash
+      env:
+        CHANNEL: ${{ inputs.channel }}
+        COMMIT_SHORT: ${{ inputs.commit-short }}
+        BASE_VERSION: ${{ inputs.base-version }}
+      run: |
+        notes="/tmp/${CHANNEL}-notes.md"
+        # Bloc statique (bannière, introduction, tableau de téléchargement) : modèle versionné par canal, avec
+        # __COMMIT__ et __VERSION__ remplacés ici (un SHA court et un « x.y.z », sans caractère spécial pour sed).
+        cp "scripts/ci/rolling-notes/${CHANNEL}.md" "$notes"
+        sed -i "s/__COMMIT__/${COMMIT_SHORT}/; s/__VERSION__/${BASE_VERSION}/" "$notes"
+        python3 scripts/ci/render-rolling-notes.py "$CHANNEL" >> "$notes"
+
+        # Bloc dynamique (changelog) ajouté à part, pas via sed : un message de commit peut contenir '/', '&' ou
+        # d'autres caractères qui casseraient une substitution sed, et un fence de code (```) rend le changelog bien
+        # plus lisible qu'un paragraphe brut (le Markdown fusionne des lignes consécutives sans ligne vide entre elles).
+        LAST_STABLE="$(git tag --list 'V*' --sort=-v:refname | grep -E '^V[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
+        if [ -n "${LAST_STABLE}" ]; then
+          CHANGELOG_HEADING="Changements depuis ${LAST_STABLE}"
+          CHANGELOG="$(git log "${LAST_STABLE}..HEAD" --oneline --no-merges | head -50)"
+        else
+          CHANGELOG_HEADING="Changements récents"
+          CHANGELOG="$(git log --oneline --no-merges | head -50)"
+        fi
+        {
+          echo "---"
+          echo ""
+          echo "## ${CHANGELOG_HEADING}"
+          echo ""
+          echo '```'
+          echo "${CHANGELOG}"
+          echo '```'
+          echo ""
+          echo "---"
+          echo ""
+          echo "Retour à la Stable à tout moment, sans perte de données : Réglages → Mises à jour logicielles → Canal de mise à jour → Stable."
+        } >> "$notes"
+        echo "notes_path=$notes" >> "$GITHUB_OUTPUT"
+    # Mise à jour en place : la release n'est jamais supprimée (pas de 404, pas de canal vide si l'envoi échoue).
+    - name: Publish release
+      if: steps.guard.outputs.publish == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        CHANNEL: ${{ inputs.channel }}
+        TITLE: ${{ inputs.title }}
+        NOTES: ${{ steps.notes.outputs.notes_path }}
+        SHA: ${{ github.sha }}
+      run: bash scripts/ci/publish-rolling-release.sh "$CHANNEL" release-assets "$TITLE" "$NOTES" "$SHA"
