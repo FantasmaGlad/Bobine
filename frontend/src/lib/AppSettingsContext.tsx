@@ -6,41 +6,19 @@ import { translate, translateList, UI_LANGUAGE, type Language } from "@/lib/i18n
 import { pushThemeToNative, pushUpdateChannelToNative } from "@/lib/nativeBridge";
 import { applyChannelFavicon, DEFAULT_RELEASE_CHANNEL, isReleaseChannel, type UpdateChannel } from "@/lib/releaseChannel";
 import { useGlassGovernor } from "@/lib/useGlassGovernor";
+import {
+  DEFAULT_MODE,
+  DEFAULT_THEME,
+  resolveMode,
+  resolveStored,
+  THEME_IDS,
+  type ResolvedMode,
+  type ThemeId,
+  type ThemeMode,
+} from "@/lib/themePalettes";
 
-export type Theme =
-  | "clair"
-  | "lune"
-  | "menthe"
-  | "automne"
-  | "hiver"
-  | "chili"
-  | "ciel"
-  | "orchidee"
-  | "taupe"
-  | "charbon"
-  | "charbon-sombre"
-  | "beige"
-  | "lavande"
-  | "miel"
-  | "coco";
-
-export const THEME_VALUES: Theme[] = [
-  "clair",
-  "lune",
-  "menthe",
-  "automne",
-  "hiver",
-  "chili",
-  "ciel",
-  "orchidee",
-  "taupe",
-  "charbon",
-  "charbon-sombre",
-  "beige",
-  "lavande",
-  "miel",
-  "coco",
-];
+export type Theme = ThemeId;
+export const THEME_VALUES: readonly Theme[] = THEME_IDS;
 
 export interface NetworkInfo {
   localIp: string | null;
@@ -57,6 +35,10 @@ export type DisplayModeSetting = "auto" | WiredDisplayMode;
 
 interface AppSettingsContextValue {
   theme: Theme;
+  /** Choix du mode : suivre le système (« auto »), clair ou sombre. */
+  themeMode: ThemeMode;
+  /** Mode réellement appliqué (clair ou sombre). */
+  resolvedMode: ResolvedMode;
   /** Langue de cet export (fixée à la compilation) : toujours celle des textes affichés. */
   language: Language;
   /** Langue enregistrée dans Réglages ; elle ne s'applique qu'au redémarrage suivant. */
@@ -69,6 +51,7 @@ interface AppSettingsContextValue {
   t: (key: string, params?: Record<string, string | number>) => string;
   tList: (key: string) => string[];
   setTheme: (theme: Theme) => void;
+  setThemeMode: (mode: ThemeMode) => void;
   setLanguage: (language: Language) => void;
   hasCustomLogo: boolean;
   activeLogo: ActiveLogo;
@@ -97,14 +80,14 @@ interface AppSettingsContextValue {
   network: NetworkInfo;
 }
 
-// "lavande" : thème clair par défaut (nacre irisée et améthyste profonde) — premier écran vu à l'installation avant tout réglage utilisateur.
-const DEFAULT_THEME: Theme = "lavande";
 const DEFAULT_LANGUAGE: Language = "fr";
 const DEFAULT_WIRED_DISPLAY_MODE: WiredDisplayMode = "headless";
 const DEFAULT_NETWORK: NetworkInfo = { localIp: null, port: 1903, mdnsUrl: "http://bobine.local" };
 
 const AppSettingsContext = createContext<AppSettingsContextValue>({
   theme: DEFAULT_THEME,
+  themeMode: DEFAULT_MODE,
+  resolvedMode: "light",
   language: UI_LANGUAGE,
   storedLanguage: DEFAULT_LANGUAGE,
   languagePending: false,
@@ -113,6 +96,7 @@ const AppSettingsContext = createContext<AppSettingsContextValue>({
   t: (key) => key,
   tList: () => [],
   setTheme: () => {},
+  setThemeMode: () => {},
   setLanguage: () => {},
   hasCustomLogo: false,
   activeLogo: "default",
@@ -155,6 +139,8 @@ function getApiUrl(path: string) {
 export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
   useGlassGovernor();
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(DEFAULT_MODE);
+  const [resolvedMode, setResolvedMode] = useState<ResolvedMode>("light");
   // `language` (celle des textes) est fixée par l'export ; seule la langue enregistrée évolue.
   const language: Language = UI_LANGUAGE;
   const [storedLanguage, setLanguageState] = useState<Language>(UI_LANGUAGE);
@@ -191,8 +177,11 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   // factorisait pas.
   const applySettingsPayload = useCallback((data: Record<string, unknown> | null) => {
     if (!data) return;
-    if (THEME_VALUES.includes(data.theme as Theme)) {
-      setThemeState(data.theme as Theme);
+    if (typeof data.theme === "string") {
+      // Un ancien nom de thème (serveur ou sauvegarde d'avant la 5.2) donne sa couleur et son mode.
+      const stored = resolveStored(data.theme, data.theme_mode);
+      setThemeState(stored.theme);
+      setThemeModeState(stored.mode);
     }
     if (data.language === "fr" || data.language === "en") {
       setLanguageState(data.language);
@@ -233,10 +222,13 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     try {
-      const cachedTheme = localStorage.getItem("olc-theme") as Theme | null;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronise l'état avec le cache localStorage au montage, même motif que le chargement initial ailleurs dans le projet (library/playlists/schedule)
-      if (cachedTheme && THEME_VALUES.includes(cachedTheme)) setThemeState(cachedTheme);
-      else if (cachedTheme) localStorage.removeItem("olc-theme");
+      const cachedTheme = localStorage.getItem("olc-theme");
+      if (cachedTheme) {
+        const stored = resolveStored(cachedTheme, localStorage.getItem("olc-theme-mode"));
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronise l'état avec le cache localStorage au montage, même motif que le chargement initial ailleurs dans le projet (library/playlists/schedule)
+        setThemeState(stored.theme);
+        setThemeModeState(stored.mode);
+      }
     } catch {
       // localStorage indisponible (navigation privée stricte, ou WebView
       // Android sans DOM Storage activé : confirmé en pratique que `window.localStorage`
@@ -308,9 +300,11 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             return;
           }
           if (parsed.event === "settings_change") {
-            if (THEME_VALUES.includes(parsed.theme)) {
+            if (typeof parsed.theme === "string") {
+              const stored = resolveStored(parsed.theme, parsed.theme_mode);
               // eslint-disable-next-line react-hooks/set-state-in-effect -- réaction à un évènement externe temps réel, pas un calcul dérivable au rendu
-              setThemeState(parsed.theme);
+              setThemeState(stored.theme);
+              setThemeModeState(stored.mode);
             }
             if (parsed.language === "fr" || parsed.language === "en") {
               // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
@@ -371,17 +365,32 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     };
   }, [applySettingsPayload]);
 
+  // Mode effectif : « auto » suit le réglage du système et le réévalue quand il change.
+  useEffect(() => {
+    const query = typeof window.matchMedia === "function" ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+    const apply = () => {
+      const resolved = resolveMode(themeMode, Boolean(query?.matches));
+      document.documentElement.setAttribute("data-mode", resolved);
+      setResolvedMode(resolved);
+    };
+    apply();
+    if (themeMode !== "auto" || !query) return;
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
+  }, [themeMode]);
+
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     try {
       localStorage.setItem("olc-theme", theme);
+      localStorage.setItem("olc-theme-mode", themeMode);
     } catch {
       // ignore
     }
     // Les variables du thème sont résolues à l'image suivante.
     const frame = requestAnimationFrame(() => requestAnimationFrame(pushThemeToNative));
     return () => cancelAnimationFrame(frame);
-  }, [theme]);
+  }, [theme, themeMode, resolvedMode]);
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -404,6 +413,14 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     (value: Theme) => {
       setThemeState(value);
       persist({ theme: value });
+    },
+    [persist]
+  );
+
+  const setThemeMode = useCallback(
+    (value: ThemeMode) => {
+      setThemeModeState(value);
+      persist({ theme_mode: value });
     },
     [persist]
   );
@@ -469,6 +486,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const value = React.useMemo(
     () => ({
       theme,
+      themeMode,
+      resolvedMode,
       language,
       storedLanguage,
       languagePending: storedLanguage !== language,
@@ -477,6 +496,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       t,
       tList,
       setTheme,
+      setThemeMode,
       setLanguage,
       hasCustomLogo,
       activeLogo,
@@ -492,7 +512,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       network,
       updateChannel,
     }),
-    [theme, language, storedLanguage, simplifiedUi, setSimplifiedUi, t, tList, setTheme, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount, waitTimeBetweenCourses, network, updateChannel]
+    [theme, themeMode, resolvedMode, language, storedLanguage, simplifiedUi, setSimplifiedUi, t, tList, setTheme, setThemeMode, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount, waitTimeBetweenCourses, network, updateChannel]
   );
 
   return (

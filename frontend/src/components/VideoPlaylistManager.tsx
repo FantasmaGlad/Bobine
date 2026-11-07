@@ -611,7 +611,7 @@ export default function VideoPlaylistManager() {
                 </div>
                 <div className="metadata-stat">
                   <span className="metadata-stat-label">{t("playlists.statusLabel")}</span>
-                  <span className="metadata-stat-value" style={{ color: "var(--accent-primary)", fontSize: "0.95rem", textTransform: "uppercase" }}>
+                  <span className="metadata-stat-value" style={{ color: "var(--accent-text)", fontSize: "0.95rem", textTransform: "uppercase" }}>
                     {t("playlists.statusEditing")}
                   </span>
                 </div>

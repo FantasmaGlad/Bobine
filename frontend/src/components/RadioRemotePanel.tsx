@@ -166,7 +166,7 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
             <div
               style={{
                 fontSize: "0.85rem",
-                color: "var(--accent-primary)",
+                color: "var(--accent-text)",
                 fontWeight: 700,
                 background: "color-mix(in srgb, var(--accent-primary) 6%, transparent)",
                 padding: "8px 14px",

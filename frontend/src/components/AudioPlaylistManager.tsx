@@ -669,7 +669,7 @@ export default function AudioPlaylistManager() {
                 {!isMobile && (
                   <div className="metadata-stat">
                     <span className="metadata-stat-label">{t("audioPlaylists.statusLabel")}</span>
-                    <span className="metadata-stat-value" style={{ color: "var(--accent-primary)", fontSize: "0.95rem", textTransform: "uppercase" }}>
+                    <span className="metadata-stat-value" style={{ color: "var(--accent-text)", fontSize: "0.95rem", textTransform: "uppercase" }}>
                       {t("audioPlaylists.statusEditing")}
                     </span>
                   </div>

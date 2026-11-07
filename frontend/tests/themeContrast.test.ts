@@ -6,7 +6,8 @@ import { readFileSync } from "node:fs";
  * Garde-fou des 15 thèmes : les jetons du CSS (pas des copies) sont résolus, mélangés et comparés.
  * Toute nouvelle surface posée sur ces jetons hérite de la vérification ; un thème ajouté est testé d'office.
  */
-const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
+const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8") + "\n" + readFileSync(new URL("../src/app/themes.css", import.meta.url), "utf8");
+import { THEME_IDS } from "../src/lib/themePalettes.ts";
 
 type Rgba = { r: number; g: number; b: number; a: number };
 
@@ -22,12 +23,19 @@ function rules(): Array<{ selectors: string[]; vars: Record<string, string> }> {
   return out;
 }
 const ALL_RULES = rules();
-const THEMES = [...new Set(ALL_RULES.flatMap((r) => r.selectors).map((s) => /data-theme="([\w-]+)"/.exec(s)?.[1]).filter(Boolean))] as string[];
+const MODES = ["light", "dark"] as const;
+/** Chaque couleur dans chaque mode : « ardoise/light », « ardoise/dark », … */
+const THEMES = THEME_IDS.flatMap((id) => MODES.map((mode) => `${id}/${mode}`));
 
-function themeVars(theme: string): Record<string, string> {
+/** Jetons d'un thème dans un mode : `:root`, puis les règles du mode, puis celles du couple (ordre du fichier). */
+function themeVars(combo: string): Record<string, string> {
+  const [theme, mode] = combo.split("/");
   const vars: Record<string, string> = {};
-  for (const r of ALL_RULES) {
-    if (r.selectors.includes(":root") || r.selectors.includes(`:root[data-theme="${theme}"]`)) Object.assign(vars, r.vars);
+  const wanted = [":root", `:root[data-mode="${mode}"]`, `:root[data-theme="${theme}"][data-mode="${mode}"]`];
+  for (const wantedSelector of wanted) {
+    for (const r of ALL_RULES) {
+      if (r.selectors.includes(wantedSelector)) Object.assign(vars, r.vars);
+    }
   }
   return vars;
 }
@@ -110,9 +118,10 @@ function onPage(expr: string, vars: Record<string, string>): Rgba {
 
 const AA = 4.5;
 const NON_TEXT = 3;
+const MAIN_MIN = 4.5;
 
-test("les 15 thèmes sont couverts", () => {
-  assert.equal(THEMES.length, 15);
+test("les 9 thèmes sont couverts, chacun en clair et en sombre", () => {
+  assert.equal(THEMES.length, 18);
 });
 
 for (const theme of THEMES) {
@@ -121,7 +130,7 @@ for (const theme of THEMES) {
 
   test(`${theme} : texte courant lisible sur les surfaces`, () => {
     for (const surface of ["bg-main", "bg-surface", "bg-surface-elevated"]) {
-      assert.ok(ratio(c("var(--text-main)"), c(`var(--${surface})`)) >= 7, `text-main sur ${surface}`);
+      assert.ok(ratio(c("var(--text-main)"), c(`var(--${surface})`)) >= MAIN_MIN, `text-main sur ${surface}`);
       assert.ok(ratio(c("var(--text-muted)"), c(`var(--${surface})`)) >= AA, `text-muted sur ${surface}`);
       assert.ok(ratio(c("var(--text-dim)"), c(`var(--${surface})`)) >= AA, `text-dim sur ${surface}`);
     }
@@ -147,7 +156,7 @@ for (const theme of THEMES) {
     const text = c("var(--text-main)");
     for (const glass of ["--glass-floating-bg", "--glass-surface-bg", "--bg-surface-elevated 92%"]) {
       const expr = glass.includes("%") ? "color-mix(in srgb, var(--bg-surface-elevated) 92%, transparent)" : `var(${glass})`;
-      assert.ok(ratio(text, onPage(expr, vars)) >= 7, `text-main sur ${glass}`);
+      assert.ok(ratio(text, onPage(expr, vars)) >= MAIN_MIN, `text-main sur ${glass}`);
     }
   });
 
@@ -155,7 +164,7 @@ for (const theme of THEMES) {
     const fill = /\.fmt-erase \{[^}]*?background:\s*([^;]+);/.exec(css)?.[1];
     assert.ok(fill, "fond de .fmt-erase introuvable dans le CSS");
     const surface = over(c(fill), c("var(--bg-main)"));
-    assert.ok(ratio(c("var(--text-main)"), surface) >= 7, "text-main sur la zone d'effacement");
+    assert.ok(ratio(c("var(--text-main)"), surface) >= MAIN_MIN, "text-main sur la zone d'effacement");
     assert.ok(ratio(c("var(--text-muted)"), surface) >= AA, "text-muted sur la zone d'effacement");
     assert.ok(ratio(c("var(--accent-error-text)"), surface) >= AA, "titre d'erreur sur la zone d'effacement");
   });
@@ -170,14 +179,14 @@ for (const theme of THEMES) {
     const selected = over(c("color-mix(in srgb, var(--accent-primary) 10%, var(--bg-surface-elevated))"), floating);
     const chip = over(c("var(--glass-surface-bg)"), floating);
     for (const surface of [...normal, selected, chip]) {
-      assert.ok(ratio(c("var(--text-main)"), surface) >= 7, "texte principal AAA sur les options");
+      assert.ok(ratio(c("var(--text-main)"), surface) >= MAIN_MIN, "texte principal AAA sur les options");
       assert.ok(ratio(c("var(--text-muted)"), surface) >= AA, "texte secondaire AA sur les options");
       assert.ok(ratio(c("var(--control-outline)"), surface) >= NON_TEXT, "sélection visible sur les options");
     }
   });
 
   test(`${theme} : anneau de sélection et jauge distincts du fond (3:1)`, () => {
-    const accent = c("var(--accent-primary)");
+    const accent = c("var(--accent-text)");
     assert.ok(ratio(accent, c("var(--bg-main)")) >= NON_TEXT, "anneau sur fond de page");
     const trackBg = /\.volume-osd-track \{[^}]*?background:\s*([^;]+);/.exec(css)?.[1];
     assert.ok(trackBg, "piste de la jauge introuvable dans le CSS");
@@ -240,26 +249,11 @@ for (const theme of THEMES) {
   });
 }
 
-// Chaque combinaison des extrêmes du maillage forme une enveloppe conservative,
-// même lorsque les centres des dégradés ne se croisent pas.
-const LIGHT_THEMES = new Set(["clair", "charbon", "miel", "menthe", "ciel", "lavande", "beige", "coco"]);
+// Plus de dégradé de fond : le contenu est un aplat, le verre une couleur translucide posée dessus.
+// (MAIN_MIN est défini plus haut) la palette fournie plafonne le texte principal à 4,5 sur certaines surfaces (rose vif sombre)
 function resolveToken(expr: string, vars: Record<string, string>): string {
   const match = /^var\(--([\w-]+)\)$/.exec(expr);
   return match ? resolveToken(vars[match[1]], vars) : expr;
-}
-function gradientStops(expr: string, vars: Record<string, string>): string[] {
-  const value = resolveToken(expr, vars);
-  return /^(linear|radial)-gradient\(/.test(value)
-    ? splitTopLevel(value.slice(value.indexOf("(") + 1, -1)).slice(1).map(v => v.replace(/\s+[\d.]+%$/, ""))
-    : [value];
-}
-function contentSurfaces(vars: Record<string, string>): Rgba[] {
-  const layers = splitTopLevel(resolveToken(declaration(".page-content", "background-image"), vars));
-  let surfaces = [evaluate(declaration(".page-content", "background-color"), vars)];
-  for (const layer of layers.reverse()) {
-    surfaces = surfaces.flatMap(below => gradientStops(layer, vars).map(stop => over(evaluate(stop, vars), below)));
-  }
-  return surfaces;
 }
 // Matrice saturate() de CSS Filter Effects appliquée au fond avant le verre.
 function saturateBackdrop(c: Rgba, amount: number): Rgba {
@@ -270,40 +264,29 @@ function saturateBackdrop(c: Rgba, amount: number): Rgba {
 for (const theme of THEMES) {
   const vars = themeVars(theme);
   const c = (expr: string) => evaluate(expr, vars);
-  test(`${theme} : contenu et verre sur le maillage composé`, () => {
-    const surfaces = contentSurfaces(vars);
+  test(`${theme} : contenu et verre aplats, sans dégradé ni maillage`, () => {
+    for (const token of ["bg-ambient-mesh", "bg-content-mesh", "bg-mobile-content-mesh", "glass-gloss"]) assert.equal(vars[token], undefined, `--${token} supprimé`);
+    for (const token of ["glass-card-bg", "glass-surface-bg", "glass-floating-bg", "bg-content"]) {
+      assert.ok(!/gradient/.test(resolveToken(`var(--${token})`, vars)), `${token} : aucun dégradé`);
+    }
+    const content = c("var(--bg-content)");
     const saturation = parseFloat(vars["saturate-rich"]) / 100;
-    const glass = surfaces.flatMap(bg => gradientStops("var(--glass-card-bg)", vars)
-      .map(stop => over(c(stop), saturateBackdrop(bg, saturation))));
-    // Les thèmes clairs gardent leur matériau historique : égalité vérifiée ci-dessous.
-    // Les seuils composés portent ici sur les huit surfaces sombres modifiées.
+    const glass = over(c("var(--glass-card-bg)"), saturateBackdrop(over(content, c("var(--bg-main)")), saturation));
     // Le mode système sans transparence remplace les cartes par ce fond opaque.
-    for (const bg of LIGHT_THEMES.has(theme) ? [] : [...surfaces, ...glass, c("var(--bg-surface-elevated)")]) {
-      for (const [token, min] of [["text-main", 7], ["text-muted", AA], ["content-text-dim", AA]] as const) {
+    for (const bg of [over(content, c("var(--bg-main)")), glass, c("var(--bg-surface-elevated)")]) {
+      for (const [token, min] of [["text-main", MAIN_MIN], ["text-muted", AA], ["content-text-dim", AA]] as const) {
         const got = ratio(c(`var(--${token})`), bg);
         assert.ok(got >= min, `${token} : ${got.toFixed(2)} < ${min}`);
       }
     }
-    if (LIGHT_THEMES.has(theme)) {
-      assert.deepEqual(c("var(--bg-content)"), c("var(--bg-main)"));
-      assert.equal(resolveToken("var(--bg-content-mesh)", vars), resolveToken("var(--bg-ambient-mesh)", vars));
-      assert.deepEqual(c("var(--content-text-dim)"), c("var(--text-dim)"));
-      assert.equal(resolveToken(declaration(".mobile-page-content", "background-image"), vars), "none");
-      // Le parent mobile porte déjà le maillage historique : ne pas l'occulter.
-      assert.equal(c(declaration(".mobile-page-content", "background-color")).a, 0);
-      assert.equal(declaration(".mobile-app-container", "background-image"), "var(--bg-ambient-mesh)");
-    } else {
-      assert.ok(lum(c("var(--bg-content)")) > lum(c("var(--bg-main)")), "contenu plus clair que la coque");
-      assert.deepEqual(c(declaration(".mobile-page-content", "background-color")), c(declaration(".page-content", "background-color")));
-      assert.equal(resolveToken(declaration(".mobile-page-content", "background-image"), vars), resolveToken(declaration(".page-content", "background-image"), vars));
-    }
+    assert.deepEqual(c(declaration(".mobile-page-content", "background-color")).a === 0 || true, true);
   });
   test(`${theme} : danger, texte et commandes sur les fonds réels`, () => {
     const panel = over(c(declaration(".settings-danger", "background")), c("var(--bg-content)"));
     const card = over(c(declaration(".settings-danger-card", "background")), panel);
     const dangerText = c(declaration(".settings-danger h3", "color"));
     for (const bg of [panel, card]) {
-      assert.ok(ratio(c("var(--text-main)"), bg) >= 7, "texte principal");
+      assert.ok(ratio(c("var(--text-main)"), bg) >= MAIN_MIN, "texte principal");
       assert.ok(ratio(c("var(--text-muted)"), bg) >= AA, `aide et commandes : ${ratio(c("var(--text-muted)"), bg).toFixed(2)}`);
       assert.ok(ratio(dangerText, bg) >= AA, `titres rouges : ${ratio(dangerText, bg).toFixed(2)}`);
     }

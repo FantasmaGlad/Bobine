@@ -164,7 +164,7 @@ export default function MetricsCoursesPage() {
         <div className="metrics-kpi-card">
           <div className="metrics-kpi-header">
             <span className="metrics-kpi-title">{t("metricsPage.kpiSatisfaction")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
               <Icon name="star" size={24} filled />
             </div>
           </div>
@@ -207,7 +207,7 @@ export default function MetricsCoursesPage() {
         <div className="metrics-kpi-card">
           <div className="metrics-kpi-header">
             <span className="metrics-kpi-title">{t("metricsPage.kpiCompletionRate")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
               <Icon name="task_alt" size={24} />
             </div>
           </div>
@@ -233,7 +233,7 @@ export default function MetricsCoursesPage() {
         <div className="metrics-kpi-card">
           <div className="metrics-kpi-header">
             <span className="metrics-kpi-title">{t("metricsPage.kpiBroadcastHours")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
               <Icon name="schedule" size={24} />
             </div>
           </div>
@@ -250,7 +250,7 @@ export default function MetricsCoursesPage() {
         <div className="metrics-kpi-card">
           <div className="metrics-kpi-header">
             <span className="metrics-kpi-title">{t("metricsPage.kpiTotalSessions")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
               <Icon name="play_circle" size={24} />
             </div>
           </div>
@@ -381,7 +381,7 @@ export default function MetricsCoursesPage() {
                       <td style={{ textAlign: "right" }}>
                         {course.average_rating != null && course.ratings_count > 0 ? (
                           <div className="metrics-table-rating">
-                            <span style={{ color: "var(--accent-primary)", display: "inline-flex", alignItems: "center" }}>
+                            <span style={{ color: "var(--accent-text)", display: "inline-flex", alignItems: "center" }}>
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                               </svg>

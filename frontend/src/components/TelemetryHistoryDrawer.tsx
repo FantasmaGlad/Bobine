@@ -193,7 +193,7 @@ export default function TelemetryHistoryDrawer({
         {/* En-tête du tiroir */}
         <div className="telemetry-drawer-header">
           <div className="telemetry-drawer-title-wrap">
-            <div className="telemetry-drawer-icon" style={{ color: "var(--accent-primary)" }}>
+            <div className="telemetry-drawer-icon" style={{ color: "var(--accent-text)" }}>
               <Icon name={iconName} size={22} />
             </div>
             <div>
@@ -232,7 +232,7 @@ export default function TelemetryHistoryDrawer({
         <div className="telemetry-stats-grid">
           <div className="telemetry-stat-card">
             <span className="telemetry-stat-label">{t("telemetryDrawer.current")}</span>
-            <span className="telemetry-stat-val" style={{ color: "var(--accent-primary)" }}>
+            <span className="telemetry-stat-val" style={{ color: "var(--accent-text)" }}>
               {curVal.toFixed(1)} <small>{unit}</small>
             </span>
           </div>
@@ -319,7 +319,7 @@ export default function TelemetryHistoryDrawer({
                 <path
                   d={pathD}
                   fill="none"
-                  stroke="var(--accent-primary)"
+                  stroke="var(--accent-text)"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -343,7 +343,7 @@ export default function TelemetryHistoryDrawer({
                     cy={hoveredPoint.y}
                     r="5"
                     fill="var(--bg-surface)"
-                    stroke="var(--accent-primary)"
+                    stroke="var(--accent-text)"
                     strokeWidth="3"
                   />
                 </g>

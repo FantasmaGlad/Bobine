@@ -456,7 +456,7 @@ export default function CoachModePage() {
             ) : (
               <div className="coach-monitor-placeholder">
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", opacity: 0.35 }}>
-                  <Icon name="hide_image" size={36} color="var(--accent-primary)" />
+                  <Icon name="hide_image" size={36} color="var(--accent-text)" />
                   <span style={{ fontSize: "0.8rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
                     {t("coach.soberScreenActive")}
                   </span>
@@ -640,7 +640,7 @@ export default function CoachModePage() {
                   <Icon name="hide_image" size={18} />
                   {t("coach.noBackground")}
                 </span>
-                {!activeBgId && <Icon name="check_circle" size={18} color="var(--accent-primary)" filled />}
+                {!activeBgId && <Icon name="check_circle" size={18} color="var(--accent-text)" filled />}
               </button>
               {backgrounds.map((bg) => (
                 <button

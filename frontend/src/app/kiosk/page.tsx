@@ -707,7 +707,7 @@ export default function KioskPage() {
           <div className="kiosk-next-course">
             <span className="kiosk-next-course-label">{t("kiosk.nextCourseLabel")}</span>
             <span className="kiosk-next-course-title">{nextPlaylistItem.title}</span>
-            <span className="kiosk-playlist-countdown-number" style={{ color: "var(--accent-primary)" }}>
+            <span className="kiosk-playlist-countdown-number" style={{ color: "var(--accent-text)" }}>
               {Math.ceil(state.playlist_waiting_remaining ?? 0)}
             </span>
           </div>

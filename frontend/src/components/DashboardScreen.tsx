@@ -412,7 +412,7 @@ export default function DashboardScreen({ channel }: Props) {
     return (
       <div className="dashboard-root" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "55vh", textAlign: "center", gap: "16px", padding: "40px 20px" }}>
         <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Icon name="mic" size={36} color="var(--accent-primary)" />
+          <Icon name="mic" size={36} color="var(--accent-text)" />
         </div>
         <h2 style={{ fontSize: "1.4rem", fontWeight: 800, margin: 0 }}>{t("dashboard.coachModeActiveTitle")}</h2>
         <p style={{ color: "var(--text-muted)", maxWidth: "440px", margin: 0, fontSize: "0.9rem", lineHeight: 1.5 }}>
@@ -532,7 +532,7 @@ export default function DashboardScreen({ channel }: Props) {
                       <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                         <div className="live-title">{cinemaLive.title}</div>
                         {(cinemaVideo?.program || cinemaLive.program || cinemaVideo?.release) && (
-                          <span style={{ fontSize: "0.8rem", color: "var(--accent-primary)", fontWeight: 700 }}>
+                          <span style={{ fontSize: "0.8rem", color: "var(--accent-text)", fontWeight: 700 }}>
                             {[cinemaVideo?.program ?? cinemaLive.program, cinemaVideo?.release ? `#${cinemaVideo.release}` : null].filter(Boolean).join(" · ")}
                           </span>
                         )}
@@ -596,7 +596,7 @@ export default function DashboardScreen({ channel }: Props) {
                   {/* Playlist Indicator & Quick Navigation */}
                   {state.playlist_name && (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "color-mix(in srgb, var(--accent-primary) 3%, transparent)", padding: "10px 12px", borderRadius: "var(--radius-md)", border: "1px solid color-mix(in srgb, var(--accent-primary) 15%, transparent)", marginBottom: "12px" }}>
-                      <span style={{ fontSize: "0.85rem", color: "var(--accent-primary)", fontWeight: 700 }}>
+                      <span style={{ fontSize: "0.85rem", color: "var(--accent-text)", fontWeight: 700 }}>
                         {t("dashboard.playlistLabel", {
                           name: state.playlist_name,
                           index: (state.playlist_index ?? 0) + 1,
@@ -643,7 +643,7 @@ export default function DashboardScreen({ channel }: Props) {
                       <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>
                         {t("dashboard.transitionRemaining")}
                       </span>
-                      <span style={{ fontSize: "2.5rem", fontWeight: 900, color: "var(--accent-primary)", fontVariantNumeric: "tabular-nums" }}>
+                      <span style={{ fontSize: "2.5rem", fontWeight: 900, color: "var(--accent-text)", fontVariantNumeric: "tabular-nums" }}>
                         {Math.ceil(state.playlist_waiting_remaining ?? 0)} s
                       </span>
                       {nextPlaylistItem ? (
@@ -707,7 +707,7 @@ export default function DashboardScreen({ channel }: Props) {
                             {state.current_video?.title || (state.state === "background" ? state.current_background?.title : "")}
                           </div>
                           {state.state === "background" && (
-                            <span style={{ fontSize: "0.8rem", color: "var(--accent-primary)", fontWeight: 700 }}>
+                            <span style={{ fontSize: "0.8rem", color: "var(--accent-text)", fontWeight: 700 }}>
                               {t("dashboard.ambianceActive")}
                             </span>
                           )}
@@ -965,7 +965,7 @@ export default function DashboardScreen({ channel }: Props) {
                 <p className="live-empty" style={{ marginTop: "12px" }}>{t("dashboard.noVideos")}</p>
               )}
               {cinemaLocked && (
-                <p className="live-empty" role="alert" style={{ marginTop: "12px", color: "var(--accent-primary)" }}>
+                <p className="live-empty" role="alert" style={{ marginTop: "12px", color: "var(--accent-text)" }}>
                   {t(lockedReason === "radio" ? "dashboard.channelRadioLockedHint" : "dashboard.channelCinemaLockedHint")}
                 </p>
               )}
@@ -1061,7 +1061,7 @@ export default function DashboardScreen({ channel }: Props) {
                       style={{
                         cursor: "pointer",
                         borderRadius: "var(--radius-md)",
-                        border: isSelected ? "2px solid var(--accent-primary)" : "1px solid var(--border-color)",
+                        border: isSelected ? "2px solid var(--accent-text)" : "1px solid var(--border-color)",
                         background: isSelected ? "color-mix(in srgb, var(--accent-primary) 8%, var(--bg-surface))" : "var(--bg-surface)",
                         overflow: "hidden",
                         display: "flex",

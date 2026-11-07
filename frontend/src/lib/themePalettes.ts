@@ -155,6 +155,9 @@ function nearestMix(from: string, to: string, surfaces: string[], target: number
   return to;
 }
 
+/** Couleurs d'état, communes à tous les thèmes : le sens (succès, attention, erreur) ne change pas avec la couleur choisie. */
+export const SEMANTIC_COLORS = { error: "#ff453a", success: "#30d158", warning: "#ff9f0a" } as const;
+
 export interface DerivedTokens {
   "bg-main": string;
   "bg-surface": string;
@@ -168,7 +171,9 @@ export interface DerivedTokens {
   "accent-primary": string;
   "accent-primary-fg": string;
   "accent-text": string;
-  "accent-sprint": string;
+  "accent-error-text": string;
+  "accent-success-text": string;
+  "accent-warning-text": string;
 }
 
 /**
@@ -179,12 +184,20 @@ export interface DerivedTokens {
  */
 export function deriveTokens(palette: Palette, mode: ResolvedMode): DerivedTokens {
   const { bg, surface, accent, text } = palette;
-  const elevated = mix(surface, text, mode === "dark" ? 0.08 : 0.05);
-  const hover = mix(surface, text, mode === "dark" ? 0.14 : 0.1);
-  const grounds = [bg, surface];
-  const muted = farthestMix(text, bg, grounds, 5.5, 0.4);
-  const dim = farthestMix(text, bg, grounds, 4.5, 0.6);
-  const accentText = nearestMix(accent, text, [bg, surface, elevated], 4.5);
+  // Surfaces relevées : vers le texte (plus de relief) ; vers le fond quand le texte a peu de marge sur la surface
+  // (palette serrée), pour que le texte reste lisible sur les surfaces survolées ou relevées.
+  const tight = contrast(text, surface) < 7;
+  const raise = (amount: number) => (tight ? mix(surface, bg, amount * 2.5) : mix(surface, text, amount));
+  const elevated = raise(mode === "dark" ? 0.08 : 0.05);
+  const hover = raise(mode === "dark" ? 0.14 : 0.1);
+  const grounds = [bg, surface, elevated];
+  // Les textes secondaires restent lisibles aussi sur un élément sélectionné (accent à 12 % sur la surface relevée).
+  const selected = mix(elevated, accent, 0.12);
+  const muted = farthestMix(text, bg, [...grounds, selected], 5.5, 0.4);
+  const dim = farthestMix(text, bg, [...grounds, selected], 4.5, 0.6);
+  const accentText = nearestMix(accent, text, grounds, 4.5);
+  // Texte d'état lisible aussi sur les encarts teintés de la couleur d'état (15 % par-dessus la surface relevée).
+  const stateText = (color: string) => nearestMix(color, text, [...grounds, mix(elevated, color, 0.45)], 5);
   const candidates = [text, bg, "#000000", "#ffffff"];
   const accentFg = candidates.find((c) => contrast(c, accent) >= 4.5) ?? candidates.sort((a, b) => contrast(b, accent) - contrast(a, accent))[0];
   return {
@@ -200,8 +213,9 @@ export function deriveTokens(palette: Palette, mode: ResolvedMode): DerivedToken
     "accent-primary": accent,
     "accent-primary-fg": accentFg,
     "accent-text": accentText,
-    // Repère « sprint » des programmes : jaune ambré lisible sur chaque mode.
-    "accent-sprint": mode === "dark" ? "#ffb81c" : "#8a5a00",
+    "accent-error-text": stateText(SEMANTIC_COLORS.error),
+    "accent-success-text": stateText(SEMANTIC_COLORS.success),
+    "accent-warning-text": stateText(SEMANTIC_COLORS.warning),
   };
 }
 
@@ -212,7 +226,11 @@ export function resolveMode(mode: ThemeMode, prefersDark: boolean): ResolvedMode
 
 /** Ancien nom → couleur + mode ; valeur inconnue → défaut. Même règle que `themes.resolve` côté serveur. */
 export function resolveStored(theme: unknown, mode: unknown): { theme: ThemeId; mode: ThemeMode } {
+  // Trois noms (chili, charbon, orchidee) existaient déjà : ils ne sont traduits que sans mode enregistré. Les autres
+  // anciens noms sont sans ambiguïté ; un mode clair ou sombre déjà choisi est conservé.
   const legacy = typeof theme === "string" ? LEGACY_THEMES[theme] : undefined;
-  if (legacy) return { theme: legacy.theme, mode: isThemeMode(mode) && mode !== DEFAULT_MODE ? mode : legacy.mode };
+  if (legacy && (!isThemeId(theme) || !isThemeMode(mode))) {
+    return { theme: legacy.theme, mode: mode === "light" || mode === "dark" ? mode : legacy.mode };
+  }
   return { theme: isThemeId(theme) ? theme : DEFAULT_THEME, mode: isThemeMode(mode) ? mode : DEFAULT_MODE };
 }

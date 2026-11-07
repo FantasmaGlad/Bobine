@@ -170,6 +170,7 @@ class SettingsUpdate(BaseModel):
     logs_retention_days: int | None = None
     default_coach_background_id: int | None = None
     theme: str | None = None
+    theme_mode: str | None = None
     language: str | None = None
     active_logo: str | None = None
     update_channel: str | None = None
@@ -555,6 +556,10 @@ def settings_updates(payload: SettingsUpdate) -> dict[str, Any]:
 def stage_settings(updates: dict[str, Any], db: Session) -> None:
     """Valide puis écrit les réglages dans la session SANS valider la transaction (l'appelant le fait), pour que la
     route et l'application des fichiers de configuration partagent les mêmes règles. Lève `HTTPException`."""
+    # Ancien nom de thème (client ou sauvegarde d'avant la 5.2) : accepté et enregistré comme couleur + mode.
+    legacy = themes.legacy_target(updates.get("theme"), updates.get("theme_mode"))
+    if legacy:
+        updates["theme"], updates["theme_mode"] = legacy
     for key, value in updates.items():
         if value is None:
             if key == "default_coach_background_id":

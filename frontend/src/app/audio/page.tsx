@@ -661,7 +661,7 @@ export default function AudioLibraryPage() {
               {uploadMode === "files" ? (
                 uploadFiles.length > 1 ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                    <span style={{ fontWeight: 700, color: "var(--accent-primary)" }}>
+                    <span style={{ fontWeight: 700, color: "var(--accent-text)" }}>
                       {t("audio.tracksSelected", { count: uploadFiles.length })}
                     </span>
                     <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
@@ -706,7 +706,7 @@ export default function AudioLibraryPage() {
                 style={{
                   fontSize: "0.85rem",
                   marginBottom: "16px",
-                  color: "var(--accent-primary)",
+                  color: "var(--accent-text)",
                 }}
               >
                 {group.program === "" ? t("audio.noProgram") : group.program}{" "}
@@ -1008,14 +1008,14 @@ export default function AudioLibraryPage() {
                   onClick={() => assignTrackBackground(pickingTrackBackgroundId, null)}
                 >
                   <div style={{ width: "64px", height: "36px", borderRadius: "4px", background: "var(--bg-surface-hover)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Icon name="auto_awesome" size={20} color="var(--accent-primary)" />
+                    <Icon name="auto_awesome" size={20} color="var(--accent-text)" />
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{t("audio.courseAmbianceDefault")}</div>
                     <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{t("audio.courseAmbianceKeep")}</div>
                   </div>
                   {!selected?.tracks.find((t) => t.id === pickingTrackBackgroundId)?.background_id && (
-                    <Icon name="check_circle" size={20} color="var(--accent-primary)" filled />
+                    <Icon name="check_circle" size={20} color="var(--accent-text)" filled />
                   )}
                 </div>
               ) : (
@@ -1049,7 +1049,7 @@ export default function AudioLibraryPage() {
                           />
                         ) : (
                           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <Icon name="bookmark" size={18} color="var(--accent-primary)" />
+                            <Icon name="bookmark" size={18} color="var(--accent-text)" />
                           </div>
                         )}
                       </div>
@@ -1064,7 +1064,7 @@ export default function AudioLibraryPage() {
                           {t("backgrounds.defaultClubAmbiance")}
                         </div>
                       </div>
-                      {!drawerBackgroundId && <Icon name="check_circle" size={20} color="var(--accent-primary)" filled />}
+                      {!drawerBackgroundId && <Icon name="check_circle" size={20} color="var(--accent-text)" filled />}
                     </div>
                   )}
 
@@ -1094,7 +1094,7 @@ export default function AudioLibraryPage() {
                       <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{t("backgrounds.noBackgroundAmbiance")}</div>
                       <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{t("audio.plainScreen")}</div>
                     </div>
-                    {!defaultBg && !drawerBackgroundId && <Icon name="check_circle" size={20} color="var(--accent-primary)" filled />}
+                    {!defaultBg && !drawerBackgroundId && <Icon name="check_circle" size={20} color="var(--accent-text)" filled />}
                   </div>
                 </>
               )}

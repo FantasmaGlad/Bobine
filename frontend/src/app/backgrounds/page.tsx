@@ -464,7 +464,7 @@ export default function BackgroundsPage() {
               style={{ borderColor: "color-mix(in srgb, var(--accent-primary) 40%, transparent)", margin: 0 }}
             >
               <div className="interrupted-text">
-                <span className="interrupted-label" style={{ color: "var(--accent-primary)", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span className="interrupted-label" style={{ color: "var(--accent-text)", display: "flex", alignItems: "center", gap: "6px" }}>
                   <Icon name="wifi" size={16} />
                   {t("backgrounds.onNetwork")} · {t("backgrounds.onScreenNow")}
                 </span>
@@ -502,7 +502,7 @@ export default function BackgroundsPage() {
           </>
         ) : (
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "560px", textAlign: "left" }}>
-            <h3 style={{ fontSize: "1.05rem", fontWeight: 800, marginBottom: "12px", color: "var(--accent-primary)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px" }}>
+            <h3 style={{ fontSize: "1.05rem", fontWeight: 800, marginBottom: "12px", color: "var(--accent-text)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px" }}>
               {t(pendingSpecs.length > 1 ? "backgrounds.filesSelectedMany" : "backgrounds.filesSelectedOne", { count: pendingSpecs.length })}
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "320px", overflowY: "auto", paddingRight: "4px" }}>
@@ -579,7 +579,7 @@ export default function BackgroundsPage() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <Icon name={inspectingBg.is_image ? "image" : "videocam"} size={22} color="var(--accent-primary)" />
+                <Icon name={inspectingBg.is_image ? "image" : "videocam"} size={22} color="var(--accent-text)" />
                 <h3 style={{ fontSize: "1.2rem", fontWeight: 800, margin: 0 }}>
                   {inspectingBg.title}
                 </h3>
@@ -675,7 +675,7 @@ export default function BackgroundsPage() {
                   style={{ flex: 1, minWidth: "200px", height: "44px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
                   onClick={() => handleBroadcastNetwork(inspectingBg)}
                 >
-                  <Icon name="wifi" size={18} color="var(--accent-primary)" />
+                  <Icon name="wifi" size={18} color="var(--accent-text)" />
                   {t("backgrounds.broadcastNetwork")}
                 </button>
               </div>
