@@ -241,10 +241,18 @@ def receive_single_upload(file: UploadFile | None, upload_id: str | None, forced
     if file is None or not file.filename:
         raise HTTPException(status_code=400, detail="Aucun fichier reçu")
     suffix = forced_suffix or Path(file.filename).suffix.lower()
+    temp_path: str | None = None
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            temp_path = temp_file.name
             shutil.copyfileobj(file.file, temp_file)
-            return temp_file.name, file.filename
+            return temp_path, file.filename
     except Exception as e:
+        # Un client qui coupe le transfert laisse sinon un fichier partiel pour toujours dans /tmp.
+        if temp_path is not None:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
         logger.error(f"Erreur lors de la réception de l'upload : {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
