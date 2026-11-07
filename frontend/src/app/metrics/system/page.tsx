@@ -140,7 +140,7 @@ export default function MetricsSystemPage() {
         >
           <div className="metrics-telemetry-item-head">
             <span className="metrics-telemetry-name">{t("metricsPage.cpu")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
               <Icon name="memory" size={24} />
             </div>
           </div>
@@ -171,7 +171,7 @@ export default function MetricsSystemPage() {
         >
           <div className="metrics-telemetry-item-head">
             <span className="metrics-telemetry-name">{t("metricsPage.gpu")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
               <Icon name="videogame_asset" size={24} />
             </div>
           </div>
@@ -202,7 +202,7 @@ export default function MetricsSystemPage() {
         >
           <div className="metrics-telemetry-item-head">
             <span className="metrics-telemetry-name">{t("metricsPage.ram")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
               <Icon name="developer_board" size={24} />
             </div>
           </div>
@@ -236,7 +236,7 @@ export default function MetricsSystemPage() {
         >
           <div className="metrics-telemetry-item-head">
             <span className="metrics-telemetry-name">{t("metricsPage.storage")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
               <Icon name="storage" size={24} />
             </div>
           </div>
@@ -267,7 +267,7 @@ export default function MetricsSystemPage() {
         >
           <div className="metrics-telemetry-item-head">
             <span className="metrics-telemetry-name">{t("metricsPage.powerAndEnergy")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
               <Icon name="bolt" size={24} />
             </div>
           </div>
@@ -277,7 +277,7 @@ export default function MetricsSystemPage() {
               : t("metricsPage.systemPower")}
           </span>
           <div className="metrics-telemetry-metric-val">
-            <span className="metrics-telemetry-big-num" style={{ color: "var(--accent-primary)" }}>
+            <span className="metrics-telemetry-big-num" style={{ color: "var(--accent-text)" }}>
               {telemetry?.power_watts != null ? `${telemetry.power_watts.toFixed(1)} W` : "-- W"}
             </span>
           </div>
@@ -290,7 +290,7 @@ export default function MetricsSystemPage() {
         <div className="metrics-telemetry-item">
           <div className="metrics-telemetry-item-head">
             <span className="metrics-telemetry-name">{t("metricsPage.runtime")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-primary)" }}>
+            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
               <Icon name="timer" size={24} />
             </div>
           </div>
@@ -298,7 +298,7 @@ export default function MetricsSystemPage() {
             {t("metricsPage.systemUptime", { value: telemetry?.runtime?.uptime_formatted || "--" })}
           </span>
           <div className="metrics-telemetry-metric-val">
-            <span className="metrics-telemetry-big-num" style={{ fontSize: "1.4rem", color: "var(--accent-primary)" }}>
+            <span className="metrics-telemetry-big-num" style={{ fontSize: "1.4rem", color: "var(--accent-text)" }}>
               {telemetry?.runtime?.app_runtime_formatted || "--"}
             </span>
             <span className="metrics-telemetry-temp">

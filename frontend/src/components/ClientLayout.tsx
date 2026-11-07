@@ -266,7 +266,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         role="button"
         tabIndex={0}
       >
-        <Icon name="system_update" size={18} color="var(--accent-primary)" />
+        <Icon name="system_update" size={18} color="var(--accent-text)" />
         <span>{t("settingsPage.updateAvailable")} ({updateAvailableVersion})</span>
         <button
           type="button"
@@ -311,7 +311,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           <div className="mobile-topbar-center">
             {activeNavInfo && (
               <>
-                <Icon name={activeNavInfo.iconName} size={18} color="var(--accent-primary)" />
+                <Icon name={activeNavInfo.iconName} size={18} color="var(--accent-text)" />
                 <span className="mobile-topbar-title">{activeNavInfo.label}</span>
               </>
             )}

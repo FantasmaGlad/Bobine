@@ -36,6 +36,8 @@ test("un appareil à peu de mémoire ou de cœurs démarre en verre réduit", as
   assert.equal(initialStepForDevice(2, 8), 1);
   assert.equal(initialStepForDevice(1, undefined), 1);
   assert.equal(initialStepForDevice(8, 2), 1);
+  assert.equal(initialStepForDevice(8, 4), 1);
+  assert.equal(initialStepForDevice(8, 6), 0);
   assert.equal(initialStepForDevice(8, 8), 0);
   assert.equal(initialStepForDevice(undefined, undefined), 0);
 });

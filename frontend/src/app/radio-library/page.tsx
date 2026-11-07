@@ -8,7 +8,6 @@ import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SegmentedTabs from "@/components/SegmentedTabs";
-import { usePointerGlow } from "@/lib/usePointerGlow";
 import { ARCHIVE_ACCEPT, RADIO_AUDIO_EXTENSIONS, hasExtension, isArchiveName } from "@/lib/mediaFiles";
 
 // Bibliothèque musicale Radio — écran unique « vue d'ensemble » (refonte).
@@ -90,8 +89,6 @@ const isAudioFile = (name: string) => hasExtension(name, RADIO_AUDIO_EXTENSIONS)
 
 export default function RadioLibraryPage() {
   const { t } = useAppSettings();
-  const rootRef = useRef<HTMLDivElement>(null);
-  usePointerGlow(rootRef);
 
   const [tracks, setTracks] = useState<RadioTrack[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
@@ -811,7 +808,7 @@ export default function RadioLibraryPage() {
     : "library_music";
 
   return (
-    <div className="radio-lib radio-lib--tabs" ref={rootRef}>
+    <div className="radio-lib radio-lib--tabs">
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
 
       {/* ==================== BARRE DE NAVIGATION HORIZONTALE (même style que « Sortie Câblé ») ==================== */}

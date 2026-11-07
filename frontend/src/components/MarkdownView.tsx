@@ -79,7 +79,7 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
             href={linkUrl}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: "var(--accent-primary)", fontWeight: 600, textDecoration: "underline" }}
+            style={{ color: "var(--accent-text)", fontWeight: 600, textDecoration: "underline" }}
           >
             {renderInline(linkText)}
           </a>
@@ -100,7 +100,7 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
               borderRadius: "4px",
               fontSize: "0.85em",
               fontFamily: "monospace",
-              color: "var(--accent-primary)",
+              color: "var(--accent-text)",
               border: "1px solid var(--border-color)",
             }}
           >

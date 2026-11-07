@@ -225,9 +225,9 @@ export default function UpdateProgressOverlay() {
                     border: `2px solid ${stepState === "pending" ? "var(--border-color)" : "var(--accent-primary)"}`,
                   }}
                 >
-                  {stepState === "done" && <Icon name="check" size={10} color="#fff" />}
+                  {stepState === "done" && <Icon name="check" size={10} color="var(--specular)" />}
                   {stepState === "active" && (
-                    <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#fff" }} />
+                    <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--specular)" }} />
                   )}
                 </div>
                 {i < STEPPER_STEPS.length - 1 && (

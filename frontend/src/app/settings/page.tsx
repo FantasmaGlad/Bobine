@@ -3,7 +3,9 @@
 import React, { useEffect, useState, useCallback } from "react";
 import BrowserCompatibility from "@/components/BrowserCompatibility";
 import MediaNativeSetting from "@/components/MediaNativeSetting";
-import { useAppSettings, type Theme } from "@/lib/AppSettingsContext";
+import { useAppSettings } from "@/lib/AppSettingsContext";
+import SegmentedTabs from "@/components/SegmentedTabs";
+import { paletteOf, THEME_MODES, THEMES, type ThemeMode } from "@/lib/themePalettes";
 import { channelI18nSuffix, channelLogoUrl, isRollingReleaseChannel, RELEASE_CHANNELS, type UpdateChannel } from "@/lib/releaseChannel";
 import type { Language } from "@/lib/i18n";
 import Icon from "@/components/Icon";
@@ -127,34 +129,6 @@ function getApiUrl(path: string) {
   return `/api${path}`;
 }
 
-interface ThemeSwatch {
-  value: Theme;
-  labelKey: string;
-  category: "clair" | "sombre";
-  colors: [string, string, string, string];
-}
-
-const THEME_SWATCHES: ThemeSwatch[] = [
-  // --- Thèmes clairs ---
-  { value: "clair", labelKey: "settingsPage.themeLight", category: "clair", colors: ["#f6f7f9", "#ffffff", "#e11d48", "#0f172a"] },
-  { value: "charbon", labelKey: "settingsPage.themeCharbon", category: "clair", colors: ["#f4f4f5", "#e4e4e7", "#18181b", "#09090b"] },
-  { value: "miel", labelKey: "settingsPage.themeMiel", category: "clair", colors: ["#faf8f5", "#ffffff", "#d97706", "#18130c"] },
-  { value: "menthe", labelKey: "settingsPage.themeMenthe", category: "clair", colors: ["#f4f8f6", "#ffffff", "#059669", "#0c1d15"] },
-  { value: "ciel", labelKey: "settingsPage.themeCiel", category: "clair", colors: ["#f4f7fb", "#ffffff", "#0071e3", "#0b1929"] },
-  { value: "lavande", labelKey: "settingsPage.themeLavande", category: "clair", colors: ["#f7f6fb", "#ffffff", "#7c3aed", "#161126"] },
-  { value: "beige", labelKey: "settingsPage.themeBeige", category: "clair", colors: ["#f7f5f0", "#ffffff", "#9a5b25", "#1c1814"] },
-  { value: "coco", labelKey: "settingsPage.themeCoco", category: "clair", colors: ["#f8f5f2", "#ffffff", "#7c3a19", "#1f1510"] },
-
-  // --- Thèmes sombres ---
-  { value: "charbon-sombre", labelKey: "settingsPage.themeCharbonSombre", category: "sombre", colors: ["#0a0c10", "#1a202a", "#e2e8f0", "#f1f5f9"] },
-  { value: "automne", labelKey: "settingsPage.themeAutomne", category: "sombre", colors: ["#0b0908", "#201b16", "#f97316", "#faf8f5"] },
-  { value: "hiver", labelKey: "settingsPage.themeHiver", category: "sombre", colors: ["#070b0f", "#15202b", "#06b6d4", "#f4f9fc"] },
-  { value: "lune", labelKey: "settingsPage.themeLune", category: "sombre", colors: ["#080911", "#181c30", "#6366f1", "#f6f7fe"] },
-  { value: "chili", labelKey: "settingsPage.themeChili", category: "sombre", colors: ["#0b0809", "#20171a", "#f43f5e", "#fcf7f8"] },
-  { value: "orchidee", labelKey: "settingsPage.themeOrchidee", category: "sombre", colors: ["#09080d", "#1b1726", "#d946ef", "#faf7fc"] },
-  { value: "taupe", labelKey: "settingsPage.themeTaupe", category: "sombre", colors: ["#0b0a09", "#201d19", "#eab308", "#fafaf9"] },
-];
-
 // Pages plein écran destinées à être ouvertes depuis un AUTRE appareil du
 // réseau local (TV câblée, tablette coach, poste radio dédié…) — même liste que
 // `isFullscreenRoute` dans ClientLayout.tsx.
@@ -204,7 +178,7 @@ const normalizePhrase = (s: string) => s.trim().toUpperCase().replace(/É/g, "E"
 
 export default function SettingsPage() {
   const {
-    theme, language, storedLanguage, languagePending, simplifiedUi, setSimplifiedUi, setTheme, setLanguage, t,
+    theme, themeMode, resolvedMode, language, storedLanguage, languagePending, simplifiedUi, setSimplifiedUi, setTheme, setThemeMode, setLanguage, t,
     hasCustomLogo, activeLogo, setActiveLogo, refreshBranding,
     wiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount,
   } = useAppSettings();
@@ -798,7 +772,7 @@ export default function SettingsPage() {
           role={toast.onClick ? "button" : undefined}
           tabIndex={toast.onClick ? 0 : undefined}
         >
-          {toast.type === "warning" && <Icon name="system_update" size={18} color="var(--accent-primary)" />}
+          {toast.type === "warning" && <Icon name="system_update" size={18} color="var(--accent-text)" />}
           <span>{toast.message}</span>
           {toast.onClick && <Icon name="arrow_downward" size={16} />}
         </div>
@@ -833,54 +807,39 @@ export default function SettingsPage() {
         <div className="form-group">
           <label className="form-label">{t("settingsPage.themeLabel")}</label>
 
-          {/* Catégorie : Thèmes clairs */}
-          <div style={{ marginTop: "10px", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
-            <Icon name="light_mode" size={16} />
-            <span style={{ fontSize: "0.82rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>
-              {t("settingsPage.themeCategoryLight")}
-            </span>
-          </div>
-          <div className="theme-picker-grid">
-            {THEME_SWATCHES.filter((o) => o.category === "clair").map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={`theme-picker-card ${theme === option.value ? "active" : ""}`}
-                onClick={() => setTheme(option.value)}
-              >
-                <div className="theme-picker-swatch">
-                  {option.colors.map((c, i) => (
-                    <span key={i} style={{ background: c }} />
-                  ))}
-                </div>
-                <span className="theme-picker-name">{t(option.labelKey)}</span>
-              </button>
-            ))}
-          </div>
+          <SegmentedTabs
+            ariaLabel={t("settingsPage.themeModeLabel")}
+            value={themeMode}
+            onChange={(id) => setThemeMode(id as ThemeMode)}
+            tabs={THEME_MODES.map((mode) => ({
+              id: mode,
+              icon: mode === "auto" ? "brightness_auto" : mode === "light" ? "light_mode" : "dark_mode",
+              label: t(`settingsPage.themeMode${mode === "auto" ? "Auto" : mode === "light" ? "Light" : "Dark"}`),
+            }))}
+          />
+          <p className="settings-hint">{t("settingsPage.themeModeHint")}</p>
 
-          {/* Catégorie : Thèmes sombres */}
-          <div style={{ marginTop: "22px", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
-            <Icon name="dark_mode" size={16} />
-            <span style={{ fontSize: "0.82rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>
-              {t("settingsPage.themeCategoryDark")}
-            </span>
-          </div>
+          {/* Les pastilles montrent la palette de chaque thème dans le mode appliqué en ce moment. */}
           <div className="theme-picker-grid">
-            {THEME_SWATCHES.filter((o) => o.category === "sombre").map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={`theme-picker-card ${theme === option.value ? "active" : ""}`}
-                onClick={() => setTheme(option.value)}
-              >
-                <div className="theme-picker-swatch">
-                  {option.colors.map((c, i) => (
-                    <span key={i} style={{ background: c }} />
-                  ))}
-                </div>
-                <span className="theme-picker-name">{t(option.labelKey)}</span>
-              </button>
-            ))}
+            {THEMES.map((option) => {
+              const palette = paletteOf(option.id, resolvedMode);
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`theme-picker-card ${theme === option.id ? "active" : ""}`}
+                  aria-pressed={theme === option.id}
+                  onClick={() => setTheme(option.id)}
+                >
+                  <div className="theme-picker-swatch">
+                    {[palette.bg, palette.surface, palette.accent, palette.text].map((color, i) => (
+                      <span key={i} style={{ background: color }} />
+                    ))}
+                  </div>
+                  <span className="theme-picker-name">{t(option.labelKey)}</span>
+                </button>
+              );
+            })}
           </div>
 
           <p className="settings-hint">{t("settingsPage.themeHint")}</p>
@@ -988,7 +947,7 @@ export default function SettingsPage() {
                   </strong>
                 </div>
                 {displayModeSetting === "auto" && (
-                  <span style={{ color: "var(--accent-primary)", display: "flex", alignItems: "center" }}>
+                  <span style={{ color: "var(--accent-text)", display: "flex", alignItems: "center" }}>
                     <Icon name="check_circle" size={18} />
                   </span>
                 )}
@@ -996,7 +955,7 @@ export default function SettingsPage() {
               <p style={{ margin: 0, fontSize: "0.84rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
                 {t("settingsPage.wiredDisplayModeAutoDesc")}
               </p>
-              <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--accent-primary)", lineHeight: 1.4 }}>
+              <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--accent-text)", lineHeight: 1.4 }}>
                 {displayExternalCount === null
                   ? t("settingsPage.wiredDisplayAutoNoReport")
                   : t("settingsPage.wiredDisplayAutoDetected", {
@@ -1044,7 +1003,7 @@ export default function SettingsPage() {
                   </strong>
                 </div>
                 {displayModeSetting === "headless" && (
-                  <span style={{ color: "var(--accent-primary)", display: "flex", alignItems: "center" }}>
+                  <span style={{ color: "var(--accent-text)", display: "flex", alignItems: "center" }}>
                     <Icon name="check_circle" size={18} />
                   </span>
                 )}
@@ -1092,7 +1051,7 @@ export default function SettingsPage() {
                   </strong>
                 </div>
                 {displayModeSetting === "dual_screen" && (
-                  <span style={{ color: "var(--accent-primary)", display: "flex", alignItems: "center" }}>
+                  <span style={{ color: "var(--accent-text)", display: "flex", alignItems: "center" }}>
                     <Icon name="check_circle" size={18} />
                   </span>
                 )}
@@ -1116,7 +1075,7 @@ export default function SettingsPage() {
               gap: "12px",
             }}
           >
-            <div style={{ color: "var(--accent-primary)", marginTop: "1px", flexShrink: 0 }}>
+            <div style={{ color: "var(--accent-text)", marginTop: "1px", flexShrink: 0 }}>
               <Icon name="info" size={20} />
             </div>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
@@ -1169,7 +1128,7 @@ export default function SettingsPage() {
                     </span>
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--accent-primary)", fontWeight: 700, fontSize: "0.9rem", flexShrink: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--accent-text)", fontWeight: 700, fontSize: "0.9rem", flexShrink: 0 }}>
                   <span>{t("settingsPage.wiredDisplayOpenGrid")}</span>
                   <Icon name="open_in_new" size={16} />
                 </div>
@@ -1217,7 +1176,7 @@ export default function SettingsPage() {
                     </span>
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--accent-primary)", fontWeight: 700, fontSize: "0.9rem", flexShrink: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--accent-text)", fontWeight: 700, fontSize: "0.9rem", flexShrink: 0 }}>
                   <span>{t("settingsPage.wiredDisplayOpenCinema")}</span>
                   <Icon name="open_in_new" size={16} />
                 </div>
@@ -1526,7 +1485,7 @@ export default function SettingsPage() {
           {data.store_managed && (
             <div className="olc-anim-in" style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", maxWidth: "620px" }}>
               <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.storeManagedHint")}</p>
-              <div className="update-card-banner" style={{ borderLeft: "4px solid var(--accent-primary)", boxShadow: "var(--shadow-sm)", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div className="update-card-banner" style={{ borderLeft: "4px solid var(--accent-text)", boxShadow: "var(--shadow-sm)", display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700 }}>
                   <Icon
                     name={updateInfo?.store?.state === "available" || updateInfo?.store?.state === "downloaded" ? "system_update" : updateInfo?.store?.state === "failed" ? "error" : "check_circle"}
@@ -1605,7 +1564,7 @@ export default function SettingsPage() {
                 <div
                   className="update-card-banner"
                   style={{
-                    borderLeft: "4px solid var(--accent-primary)",
+                    borderLeft: "4px solid var(--accent-text)",
                     boxShadow: "var(--shadow-sm)",
                   }}
                 >
@@ -1696,7 +1655,7 @@ export default function SettingsPage() {
                 <div
                   className="update-card-banner"
                   style={{
-                    borderLeft: "4px solid var(--accent-primary)",
+                    borderLeft: "4px solid var(--accent-text)",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1908,7 +1867,7 @@ export default function SettingsPage() {
           <p className="settings-hint" style={{ margin: "2px 0 6px" }}>{t("settingsPage.paths.systemHint")}</p>
 
           <div style={{ margin: "8px 0 14px", padding: "10px 14px", borderRadius: "var(--radius-sm)", background: "color-mix(in srgb, var(--accent-primary) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent)", display: "flex", alignItems: "center", gap: "10px" }}>
-            <Icon name="smartphone" size={18} color="var(--accent-primary)" />
+            <Icon name="smartphone" size={18} color="var(--accent-text)" />
             <span style={{ fontSize: "0.85rem", lineHeight: 1.45, color: "var(--text-main)" }}>
               {t("settingsPage.paths.androidStorageNote")}
             </span>
@@ -2113,7 +2072,7 @@ export default function SettingsPage() {
       {showRestoreConfirm && selectedBackupFile && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--accent-primary)" }}>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--accent-text)" }}>
               <Icon name="upload" size={20} /> {t("settingsPage.restoreBackup")}
             </h3>
             <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>

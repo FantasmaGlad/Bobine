@@ -18,16 +18,16 @@ object ThemeColors {
     data class Pair(val background: Int, val text: Int, val accent: Int = text)
 
     /**
-     * Thème par défaut tant que l'interface web n'a rien envoyé (premier lancement) : « lavande »,
-     * le thème clair par défaut de l'application (valeurs de `:root[data-theme="lavande"]` dans
-     * frontend/src/app/globals.css : `--bg-main`, `--text-main`, `--accent-primary`). Indépendant du
-     * mode sombre du système : l'écran de chargement et l'interface ouvrent sur le même thème.
+     * Thème par défaut tant que l'interface web n'a rien envoyé (premier lancement) : « ardoise » en clair
+     * (valeurs de `:root[data-theme="ardoise"][data-mode="light"]` dans frontend/src/app/themes.css, GÉNÉRÉ :
+     * `--bg-main`, `--text-main`, `--accent-primary` ; un test serveur vérifie l'égalité). Indépendant du mode
+     * sombre du système. Dès que l'interface a envoyé ses couleurs, celles-ci les remplacent (thème et mode réels).
      */
-    private const val DEFAULT_BACKGROUND = "#f7f6fb"
-    private const val DEFAULT_TEXT = "#161126"
-    private const val DEFAULT_ACCENT = "#7c3aed"
+    private const val DEFAULT_BACKGROUND = "#ffffff"
+    private const val DEFAULT_TEXT = "#252d41"
+    private const val DEFAULT_ACCENT = "#697485"
 
-    /** Dernières couleurs envoyées par l'interface web ; à défaut, le thème lavande. */
+    /** Dernières couleurs envoyées par l'interface web ; à défaut, le thème par défaut en clair. */
     fun load(context: Context): Pair {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val bg = prefs.getString(KEY_BG, null)

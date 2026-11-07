@@ -183,7 +183,7 @@ const CinemaRow = React.memo(function CinemaRow({
   return (
     <section className="cinema-row" style={{ animationDelay: `${rowIndex * 90}ms` }}>
       <div className="cinema-row-header">
-        <h2 style={{ color: "var(--accent-primary)" }}>{programName}</h2>
+        <h2 style={{ color: "var(--accent-text)" }}>{programName}</h2>
         <span className="cinema-row-count">{coursesCountLabel}</span>
       </div>
       <div className="cinema-row-wrap">

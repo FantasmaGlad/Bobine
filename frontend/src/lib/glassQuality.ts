@@ -47,7 +47,8 @@ export function nextStep(frameDeltasMs: number[], step: number): number {
  */
 export function initialStepForDevice(deviceMemoryGb: number | undefined, cores: number | undefined): number {
   if (typeof deviceMemoryGb === "number" && deviceMemoryGb > 0 && deviceMemoryGb <= 2) return 1;
-  if (typeof cores === "number" && cores > 0 && cores <= 2) return 1;
+  // Cahier des charges (4.3) : quatre cœurs ou moins (téléviseurs, clients légers type Wyse) = matériel modeste.
+  if (typeof cores === "number" && cores > 0 && cores <= 4) return 1;
   return 0;
 }
 

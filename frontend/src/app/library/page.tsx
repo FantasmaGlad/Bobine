@@ -747,7 +747,7 @@ export default function LibraryPage() {
             onClick={(e) => e.stopPropagation()}
             style={{ width: "100%", maxWidth: "680px", textAlign: "left" }}
           >
-            <h3 style={{ fontSize: "1.05rem", fontWeight: 800, marginBottom: "12px", color: "var(--accent-primary)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px" }}>
+            <h3 style={{ fontSize: "1.05rem", fontWeight: 800, marginBottom: "12px", color: "var(--accent-text)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px" }}>
               {t(pendingSpecs.length > 1 ? "library.filesSelectedMany" : "library.filesSelectedOne", { count: pendingSpecs.length })}
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "380px", overflowY: "auto", paddingRight: "4px" }}>
@@ -755,7 +755,7 @@ export default function LibraryPage() {
                 <div key={spec.key} style={{ background: "var(--bg-surface-hover)", borderRadius: "12px", border: "1px solid var(--border-color)", padding: "12px 14px", display: "flex", flexDirection: "column", gap: "10px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
-                      <Icon name="movie" size={18} style={{ color: "var(--accent-primary)", flexShrink: 0 }} />
+                      <Icon name="movie" size={18} style={{ color: "var(--accent-text)", flexShrink: 0 }} />
                       <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={spec.file!.name}>
                         {spec.file!.name}
                       </span>
@@ -814,7 +814,7 @@ export default function LibraryPage() {
                         <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>Aucun</span>
                       ) : (
                         spec.subtitles.map((subFile, idx) => (
-                          <span key={idx} className="badge-pill" style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "color-mix(in srgb, var(--accent-primary) 15%, transparent)", border: "1px solid var(--accent-primary)", fontSize: "0.74rem", padding: "2px 8px" }}>
+                          <span key={idx} className="badge-pill" style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "color-mix(in srgb, var(--accent-primary) 15%, transparent)", border: "1px solid var(--accent-text)", fontSize: "0.74rem", padding: "2px 8px" }}>
                             <Icon name="subtitles" size={12} />
                             <span>{subFile.name}</span>
                             <button
@@ -1006,7 +1006,7 @@ export default function LibraryPage() {
                   style={{
                     fontSize: "0.85rem",
                     marginBottom: "16px",
-                    color: "var(--accent-primary)",
+                    color: "var(--accent-text)",
                   }}
                 >
                   <label style={{ display: "inline-flex", alignItems: "center", gap: "8px", cursor: "pointer" }} title={t("library.selectGroupTitle")}>
@@ -1148,7 +1148,7 @@ export default function LibraryPage() {
                   <Icon name="movie_filter" size={22} />
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: 700, color: "var(--accent-primary)", letterSpacing: "0.08em" }}>
+                  <div style={{ fontSize: "0.75rem", textTransform: "uppercase", fontWeight: 700, color: "var(--accent-text)", letterSpacing: "0.08em" }}>
                     {t("library.studioTitle")}
                   </div>
                   <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1348,7 +1348,7 @@ export default function LibraryPage() {
                   <div className="course-studio-subtitles-section">
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <Icon name="subtitles" size={18} style={{ color: "var(--accent-primary)" }} />
+                        <Icon name="subtitles" size={18} style={{ color: "var(--accent-text)" }} />
                         <span style={{ fontSize: "0.82rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
                           {t("library.syncedSubtitles")}
                         </span>

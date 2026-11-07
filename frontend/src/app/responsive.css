@@ -346,7 +346,7 @@
   color: inherit;
 }
 .settings-page-link:hover {
-  border-color: var(--accent-primary);
+  border-color: var(--accent-text);
 }
 .settings-page-path {
   flex-shrink: 0;
@@ -354,7 +354,7 @@
   overflow-wrap: anywhere;
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
   font-size: 0.8rem;
-  color: var(--accent-primary);
+  color: var(--accent-text);
   text-align: right;
 }
 .settings-copy-btn {
@@ -371,8 +371,8 @@
   cursor: pointer;
 }
 .settings-copy-btn:hover {
-  color: var(--accent-primary);
-  border-color: var(--accent-primary);
+  color: var(--accent-text);
+  border-color: var(--accent-text);
 }
 
 /* Chemins système : étiquette, chemin tronqué, actions ; empilés sur mobile. */
@@ -577,7 +577,7 @@ details.settings-doc-group[open] > summary.settings-doc-header::after {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--accent-primary);
+  color: var(--accent-text);
   background: var(--bg-surface);
 }
 .sheet-option {
@@ -596,16 +596,16 @@ details.settings-doc-group[open] > summary.settings-doc-header::after {
   font: inherit;
 }
 .sheet-option.is-selected {
-  border-color: var(--accent-primary);
+  border-color: var(--accent-text);
   background: color-mix(in srgb, var(--accent-primary) 9%, var(--bg-surface-elevated));
-  color: var(--accent-primary);
+  color: var(--accent-text);
 }
 .sheet-option__thumb {
   width: 84px;
   aspect-ratio: 16 / 9;
   object-fit: cover;
   border-radius: var(--radius-sm);
-  background: #000;
+  background: var(--ink);
   flex-shrink: 0;
 }
 .sheet-option__text {
@@ -676,7 +676,7 @@ button.course-card {
   padding: 8px;
 }
 button.course-card.is-selected {
-  border-color: var(--accent-primary);
+  border-color: var(--accent-text);
   background: color-mix(in srgb, var(--accent-primary) 9%, var(--bg-surface-elevated));
 }
 .course-card__thumb {
@@ -705,7 +705,7 @@ button.course-card.is-selected {
   font-size: 0.7rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #fff;
+  color: var(--specular);
   background: color-mix(in srgb, var(--ink) 72%, transparent);
 }
 .course-card__body {
@@ -733,7 +733,7 @@ button.course-card.is-selected {
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 700;
-  color: var(--accent-primary);
+  color: var(--accent-text);
   background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent);
 }
@@ -782,7 +782,7 @@ button.course-card.is-selected {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--accent-primary);
+  color: var(--accent-text);
 }
 .now-card__label .is-live {
   width: 8px;
@@ -933,7 +933,7 @@ button.course-card.is-selected {
   padding: 0 7px;
   border-radius: 999px;
   font-size: 0.72rem;
-  color: var(--accent-primary);
+  color: var(--accent-text);
   background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
 }
 .chapter-list__current {
@@ -973,7 +973,7 @@ button.course-card.is-selected {
 }
 .chapter-list__item.is-current {
   background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  color: var(--accent-primary);
+  color: var(--accent-text);
   font-weight: 700;
 }
 .chapter-list__time {
@@ -999,9 +999,9 @@ button.course-card.is-selected {
   gap: 2px;
   max-width: min(60vw, 720px);
   padding: 10px 18px;
-  border-left: 4px solid var(--accent-primary);
+  border-left: 4px solid var(--accent-text);
   border-radius: var(--radius-md);
-  color: #fff;
+  color: var(--specular);
   background: color-mix(in srgb, var(--ink) 62%, transparent);
   backdrop-filter: blur(var(--blur-sm));
   pointer-events: none;

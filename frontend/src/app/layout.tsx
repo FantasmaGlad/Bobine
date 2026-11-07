@@ -1,19 +1,23 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./themes.css";
 import "./responsive.css";
 import ClientLayout from "@/components/ClientLayout";
 import { translate, UI_LANGUAGE } from "@/lib/i18n";
 import { AppSettingsProvider } from "@/lib/AppSettingsContext";
 import { InlineScript } from "@/components/InlineScript";
 import { UploadManagerProvider } from "@/lib/UploadManager";
+import { DEFAULT_MODE, DEFAULT_THEME, LEGACY_THEMES, paletteOf, THEME_IDS } from "@/lib/themePalettes";
 
 // Applique le thème/la langue mis en cache (localStorage) avant même
 // l'hydratation React, pour éviter un flash du mauvais thème au premier
 // affichage — script bloquant volontaire
 // (pas de défer/async), s'exécute donc avant tout rendu visible. Le contenu
 // est statique (jamais de données utilisateur injectées ici), sans risque XSS.
-const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('olc-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
+// Les noms, la table des anciens thèmes et le défaut viennent de lib/themePalettes.ts (aucune liste en double) ; le mode
+// « auto » suit prefers-color-scheme, comme le fait AppSettingsContext ensuite.
+const THEME_INIT_SCRIPT = `(function(){try{var d=document.documentElement,ids=${JSON.stringify(THEME_IDS)},legacy=${JSON.stringify(LEGACY_THEMES)},t=localStorage.getItem('olc-theme'),m=localStorage.getItem('olc-theme-mode'),l=t&&legacy[t];if(l&&(ids.indexOf(t)<0||(m!=='light'&&m!=='dark'&&m!=='auto'))){t=l.theme;m=(m==='light'||m==='dark')?m:l.mode;}if(ids.indexOf(t)<0)t=${JSON.stringify(DEFAULT_THEME)};if(m!=='light'&&m!=='dark'&&m!=='auto')m=${JSON.stringify(DEFAULT_MODE)};if(m==='auto')m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';d.setAttribute('data-theme',t);d.setAttribute('data-mode',m);}catch(e){}})();`;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,9 +44,11 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover" as const,
-  // Couleur de fond du thème par défaut « lavande » (clair), cf. THEME_SWATCHES dans
-  // app/settings/page.tsx et DEFAULT_THEME dans lib/AppSettingsContext.tsx.
-  themeColor: "#f7f6fb",
+  // Couleur du navigateur : le fond du thème par défaut dans chaque mode (lib/themePalettes.ts), avant tout réglage.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: paletteOf(DEFAULT_THEME, "light").bg },
+    { media: "(prefers-color-scheme: dark)", color: paletteOf(DEFAULT_THEME, "dark").bg },
+  ],
 };
 
 export default function RootLayout({
@@ -53,7 +59,8 @@ export default function RootLayout({
   return (
     <html
       lang={UI_LANGUAGE}
-      data-theme="lavande"
+      data-theme={DEFAULT_THEME}
+      data-mode="light"
       className={`${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >

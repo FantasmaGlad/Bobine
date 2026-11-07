@@ -430,14 +430,14 @@ export default function RadioAnnouncementsPage() {
                 {t("radioAnnouncements.dropFileHint")}
               </p>
               {selectedFileName && (
-                <p style={{ fontSize: "0.8rem", fontWeight: 700, margin: "4px 0 0", color: "var(--accent-primary)" }}>{selectedFileName}</p>
+                <p style={{ fontSize: "0.8rem", fontWeight: 700, margin: "4px 0 0", color: "var(--accent-text)" }}>{selectedFileName}</p>
               )}
               <button
                 type="button"
                 onClick={openFolderPicker}
                 style={{
                   marginTop: "10px", background: "none", border: "none", padding: 0,
-                  color: "var(--accent-primary)", fontWeight: 700, fontSize: "0.8rem",
+                  color: "var(--accent-text)", fontWeight: 700, fontSize: "0.8rem",
                   cursor: "pointer", textDecoration: "underline",
                 }}
               >

@@ -133,7 +133,7 @@ curl --socks5-hostname 127.0.0.1:9050 -fsSL "$onion/install-tor.sh" | bash
 - **Radio d'ambiance 24/7 & Rappels vocaux (`/radio`)** — Lecteur musical continu avec fondu enchaîné, égaliseur 5 bandes, playlists et diffusion automatique d'annonces vocales programmées (*« Pensez à ranger vos poids »*, etc.).
 - **Deux sorties d'écran et de radio indépendantes** — Pilotez simultanément un écran câblé (HDMI) et un écran réseau avec deux programmes distincts.
 - **Statistiques de fréquentation (`/metrics`)** — Suivez en local l'assiduité des cours, les notes des adhérents, les heures d'affluence sur 24 h et l'état du matériel.
-- **15 thèmes de couleurs** — Thèmes clairs et sombres à fort contraste (dont le thème *Charbon* inspiré d'Apple) adaptés aux espaces d'accueil lumineux comme aux salles de cycling immersives.
+- **9 thèmes de couleurs, chacun en clair et en sombre** — mode automatique selon l'appareil, contrastes vérifiés, sans dégradé ; adaptés aux espaces d'accueil lumineux comme aux salles de cycling immersives.
 
 ---
 

@@ -42,7 +42,7 @@ export function pushThemeToNative(): void {
 /** Couleur d'accent calculée du thème actif (`--accent-primary`), en #rrggbb. */
 function readAccentHex(): string | null {
   const probe = document.createElement("span");
-  probe.style.color = "var(--accent-primary)";
+  probe.style.color = "var(--accent-text)";
   probe.style.display = "none";
   document.body.appendChild(probe);
   const color = getComputedStyle(probe).color;
