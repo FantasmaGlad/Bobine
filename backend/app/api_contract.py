@@ -13,6 +13,8 @@ DEFAULT_CHANNEL = "cable"
 RADIO_CHANNELS = ("radio_cable", "radio_network")
 LEGACY_RADIO_CHANNEL = "radio"
 SCHEDULE_CHANNELS = CHANNELS + RADIO_CHANNELS
+SCHEDULE_TARGETS = ("video", "playlist", "radio_playlist")
+OVERRIDE_ACTIONS = ("cancelled", "replaced")
 
 # Ce que chaque canal peut afficher ; la sortie radio n'existe que sur le canal câblé.
 DISPLAY_OUTPUTS_BY_CHANNEL = {"cable": ("kiosk", "cinema", "radio"), "network": ("kiosk", "cinema")}

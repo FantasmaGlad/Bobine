@@ -11,22 +11,26 @@ from __future__ import annotations
 import argparse
 import http.client
 import json
+import mimetypes
 import os
+import re
 import sys
 import time
+import uuid
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
 
+from app.cli_commands import SPECS, Spec, UsageError
 from app.api_contract import (
     CHANNELS, DASHBOARD_CHANNELS, DASHBOARD_PERIODS, DISPLAY_OUTPUTS, HISTORY_PERIODS, LOG_LEVELS, LOG_SOURCES, SCHEDULE_CHANNELS,
     SORT_ORDERS, VIDEO_SORT_FIELDS,
 )
 
 EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_UNREACHABLE, EXIT_REFUSED = 0, 1, 2, 3, 4
-COMMANDS = ("status", "diagnose", "library", "playlists", "schedule", "devices", "storage", "metrics", "imports", "display", "logs", "playback", "radio", "config", "settings", "update", "completion", "version")
+COMMANDS = ("status", "diagnose", "library", "playlists", "schedule", "devices", "storage", "metrics", "imports", "display", "logs", "playback", "radio", "config", "settings", "update", "completion", "audio", "backgrounds", "radio-library", "api", "version")
 _REFUSAL_STATUSES = {403, 404, 409, 503}
 DEFAULT_TIMEOUT = 30.0
 
@@ -88,6 +92,10 @@ class Client:
         except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError) as exc:
             raise CliError(f"Bobine injoignable sur {self.base} ({getattr(exc, 'reason', exc)}).", EXIT_UNREACHABLE) from exc
         self.out.log(2, f"< {status} en {1000 * (time.monotonic() - started):.0f} ms : {raw[:2000].decode('utf-8', 'replace')}")
+        return self._interpret(status, raw, url, accept_status)
+
+    def _interpret(self, status: int, raw: bytes, url: str, accept_status: frozenset[int] = frozenset()) -> Any:
+        """Réponse brute -> charge utile JSON, ou `CliError` au code de sortie stable (400 et 422 : 2 ; 403, 404, 409, 503 : 4)."""
         try:
             payload = json.loads(raw) if raw else None
         except ValueError:
@@ -110,6 +118,69 @@ class Client:
         if payload is not None and not isinstance(payload, (dict, list)):
             raise CliError(f"réponse non JSON ({status}) de {url} : {raw[:200]!r}", EXIT_ERROR, payload)
         return payload
+
+    def upload(self, path: str, files: list[tuple[str, Path]], fields: dict[str, str] | None = None) -> Any:
+        """Envoie des fichiers en multipart sans les charger en mémoire (une vidéo peut peser plusieurs Gio)."""
+        boundary = "bobine" + uuid.uuid4().hex
+        parts: list[bytes | Path] = []
+        for name, value in (fields or {}).items():
+            parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode("utf-8"))
+        for name, file in files:
+            kind = mimetypes.guess_type(file.name)[0] or "application/octet-stream"
+            filename = urllib.parse.quote(file.name)
+            parts.append((f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'
+                          f"Content-Type: {kind}\r\n\r\n").encode("utf-8"))
+            parts.append(file)
+            parts.append(b"\r\n")
+        parts.append(f"--{boundary}--\r\n".encode("utf-8"))
+        try:
+            length = sum(len(part) if isinstance(part, bytes) else part.stat().st_size for part in parts)
+        except OSError as exc:
+            raise CliError(f"fichier illisible : {exc}", EXIT_USAGE) from exc
+        url = self.base + path
+        self.out.log(1, f"POST {url} ({len(files)} fichier(s), {length} octets)")
+        parsed = urllib.parse.urlsplit(url)
+        connection = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=self.timeout)
+        try:
+            connection.putrequest("POST", parsed.path)
+            connection.putheader("Content-Type", f"multipart/form-data; boundary={boundary}")
+            connection.putheader("Content-Length", str(length))
+            connection.endheaders()
+            for part in parts:
+                if isinstance(part, bytes):
+                    connection.send(part)
+                else:
+                    with part.open("rb") as handle:
+                        while chunk := handle.read(1 << 20):
+                            connection.send(chunk)
+            response = connection.getresponse()
+            raw, status = response.read(), response.status
+        except (OSError, http.client.HTTPException) as exc:
+            raise CliError(f"Bobine injoignable sur {self.base} ({getattr(exc, 'reason', exc)}).", EXIT_UNREACHABLE) from exc
+        finally:
+            connection.close()
+        return self._interpret(status, raw, url)
+
+    def download(self, path: str, destination: Path) -> int:
+        """Enregistre une réponse binaire (sauvegarde) dans `destination` ; renvoie sa taille."""
+        url = self.base + path
+        self.out.log(1, f"GET {url}")
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url), timeout=self.timeout) as response:
+                with destination.open("xb") as handle:
+                    size = 0
+                    while chunk := response.read(1 << 20):
+                        handle.write(chunk)
+                        size += len(chunk)
+            return size
+        except urllib.error.HTTPError as exc:
+            self._interpret(exc.code, exc.read(), url)
+            raise CliError(f"réponse {exc.code} de {url}", EXIT_ERROR) from exc
+        except FileExistsError as exc:
+            raise CliError(f"{destination} existe déjà : choisir un autre nom (rien n'est écrasé).", EXIT_USAGE) from exc
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as exc:
+            destination.unlink(missing_ok=True)
+            raise CliError(f"Bobine injoignable sur {self.base} ({getattr(exc, 'reason', exc)}).", EXIT_UNREACHABLE) from exc
 
 
 # --- paramètres « clé=valeur » des commandes de lecture ------------------------------------------------------------
@@ -518,6 +589,183 @@ def cmd_update_status(client: Client, out: Output, args: argparse.Namespace) -> 
     return EXIT_OK
 
 
+# --- commandes d'écriture déclarées dans app/cli_commands.py ----------------------------------------------------------------
+
+def _run_spec(client: Client, out: Output, args: argparse.Namespace) -> int:
+    spec: Spec = args.spec
+    if spec.needs_one_of and not any(getattr(args, name, None) not in (None, False) for name in spec.needs_one_of):
+        options = ", ".join("--" + name.replace("_", "-") for name in spec.needs_one_of)
+        raise CliError(f"indiquer au moins une option : {options}", EXIT_USAGE)
+    if spec.confirm and not args.yes:
+        raise CliError(spec.confirm.format(**vars(args)) + " Relancer avec --yes pour confirmer.", EXIT_USAGE)
+    try:
+        call = spec.request(client, args)
+    except UsageError as exc:
+        raise CliError(str(exc), EXIT_USAGE) from exc
+    payload = client.request(call.method, call.path, body=call.body, query=call.query)
+    out.result(payload, spec.human(payload, args))
+    return EXIT_OK
+
+
+def add_spec_commands(sub: Any, sub_common: argparse.ArgumentParser) -> None:
+    """Ajoute au parser chaque `Spec` : sous-commande de sa commande (créée si elle n'existe pas encore)."""
+    for spec in SPECS:
+        command = sub.choices.get(spec.command)
+        if command is None:
+            command = sub.add_parser(spec.command, parents=[sub_common], help=f"{spec.command} : voir « bobine {spec.command} --help »")
+        actions = next((a for a in command._actions if isinstance(a, argparse._SubParsersAction)), None)
+        if actions is None:
+            actions = command.add_subparsers(dest=f"{spec.command.replace('-', '_')}_action", required=True)
+        parser = actions.add_parser(spec.action, parents=[sub_common], help=spec.help)
+        for argument in spec.arguments:
+            argument.add_to(parser)
+        if spec.confirm:
+            parser.add_argument("--yes", action="store_true", help="confirmer (sinon rien n'est modifié)")
+        parser.set_defaults(run=_run_spec, spec=spec)
+
+
+# --- envoi de médias --------------------------------------------------------------------------------------------------------
+
+IMPORT_FAMILIES = {
+    # famille -> (route d'un envoi, route d'une archive zip, champ du fichier, un envoi par fichier, champs de formulaire)
+    "library": ("/api/videos/upload", None, "file", True, ("title", "program", "release", "description")),
+    "audio": ("/api/audio/upload", "/api/audio/upload-zip", "files", False, ("title", "program", "release")),
+    "radio-library": ("/api/radio/tracks/upload", "/api/radio/tracks/upload-zip", "files", False, ()),
+    "backgrounds": ("/api/backgrounds/upload", None, "file", True, ("title",)),
+}
+FINISHED_STAGES = ("done", "error", "cancelled")
+
+
+def cmd_import(client: Client, out: Output, args: argparse.Namespace) -> int:
+    """`bobine <famille> import FICHIER...` : envoi d'un ou plusieurs fichiers, avec attente facultative des tâches."""
+    route, zip_route, field_name, one_per_file, form = IMPORT_FAMILIES[args.command]
+    files = [Path(raw) for raw in args.files]
+    for file in files:
+        if not file.is_file():
+            raise CliError(f"fichier introuvable : {file}", EXIT_USAGE)
+    fields = {name: getattr(args, name) for name in form if getattr(args, name, None) is not None}
+    if args.command == "audio" and not fields.get("title"):
+        raise CliError("--title est obligatoire pour un cours audio", EXIT_USAGE)
+    if fields and one_per_file and len(files) > 1:
+        raise CliError("titre, programme, release et description ne s'appliquent qu'à un seul fichier : envoyer les autres séparément", EXIT_USAGE)
+    requests: list[tuple[str, list[tuple[str, Path]]]] = []
+    if zip_route and len(files) == 1 and files[0].suffix.lower() == ".zip":
+        requests.append((zip_route, [("file", files[0])]))
+    elif one_per_file:
+        requests += [(route, [(field_name, file)]) for file in files]
+    else:
+        requests.append((route, [(field_name, file) for file in files]))
+    accepted = []
+    for path, parts in requests:
+        answer = client.upload(path, parts, fields)
+        job = (answer or {}).get("job_id") or (answer or {}).get("id")
+        accepted.append({"files": [file.name for _, file in parts], "job": job, "answer": answer})
+    results = accepted
+    if args.wait:
+        results = _wait_for_jobs(client, out, accepted, args.wait_timeout)
+    failed = [r for r in results if r.get("stage") in ("error", "cancelled")]
+    lines = [f"{', '.join(r['files'])} : " + (f"tâche {r['job']}" + (f", {r['stage']}" if r.get("stage") else "") if r["job"] else "importé") for r in results]
+    out.result({"imports": results}, "\n".join(lines))
+    return EXIT_ERROR if failed else EXIT_OK
+
+
+def _wait_for_jobs(client: Client, out: Output, accepted: list[dict], timeout: float) -> list[dict]:
+    """Interroge la file d'import jusqu'à la fin de chaque tâche ; une tâche absente de la liste est considérée comme finie."""
+    deadline = time.monotonic() + timeout
+    pending = {item["job"]: item for item in accepted if item["job"]}
+    while pending:
+        jobs = {job.get("id"): job for job in client.request("GET", "/api/import-jobs") or []}
+        for job_id in list(pending):
+            job = jobs.get(job_id)
+            if job is None:
+                pending.pop(job_id).setdefault("stage", "done")
+            elif job.get("stage") in FINISHED_STAGES:
+                finished = pending.pop(job_id)
+                finished["stage"], finished["message"] = job["stage"], job.get("error") or job.get("message")
+            else:
+                out.log(0, f"{job_id[:8]}  {job.get('stage')}  {job.get('progress_percent') or 0} %")
+        if pending and time.monotonic() > deadline:
+            raise CliError(f"{len(pending)} tâche(s) encore en cours après {timeout:g} s (elles continuent : bobine imports list).", EXIT_ERROR)
+        if pending:
+            time.sleep(1.0)
+    return accepted
+
+
+def add_import_commands(sub: Any, sub_common: argparse.ArgumentParser) -> None:
+    for family, (_, zip_route, _, one_per_file, form) in IMPORT_FAMILIES.items():
+        command = sub.choices.get(family)
+        if command is None:
+            command = sub.add_parser(family, parents=[sub_common], help=f"{family} : voir « bobine {family} --help »")
+        actions = next((a for a in command._actions if isinstance(a, argparse._SubParsersAction)), None) or command.add_subparsers(
+            dest=f"{family.replace('-', '_')}_action", required=True)
+        parser = actions.add_parser("import", parents=[sub_common], help=(
+            "envoyer une archive .zip ou des fichiers" if zip_route else "envoyer un ou plusieurs fichiers"))
+        parser.add_argument("files", nargs="+", metavar="fichier")
+        for name in form:
+            parser.add_argument(f"--{name}")
+        parser.add_argument("--wait", action="store_true", help="attendre la fin des tâches d'import (code de sortie 1 si l'une échoue)")
+        parser.add_argument("--wait-timeout", type=float, default=3600.0, metavar="SECONDES")
+        parser.set_defaults(run=cmd_import)
+
+
+# --- sauvegarde et restauration --------------------------------------------------------------------------------------------
+
+def cmd_backup(client: Client, out: Output, args: argparse.Namespace) -> int:
+    destination = Path(args.file)
+    size = client.download("/api/settings/backup/export", destination)
+    out.result({"file": str(destination), "bytes": size}, f"Sauvegarde écrite dans {destination} ({size} octets).")
+    return EXIT_OK
+
+
+def cmd_restore(client: Client, out: Output, args: argparse.Namespace) -> int:
+    source = Path(args.file)
+    if not source.is_file():
+        raise CliError(f"fichier introuvable : {source}", EXIT_USAGE)
+    if not args.yes:
+        raise CliError("La restauration remplace la base de données et redémarre Bobine. Relancer avec --yes pour confirmer.", EXIT_USAGE)
+    answer = client.upload("/api/settings/backup/restore", [("file", source)])
+    out.result(answer, "Sauvegarde restaurée : Bobine redémarre.")
+    return EXIT_OK
+
+
+# --- passerelle générique ---------------------------------------------------------------------------------------------------
+
+# Routes que `bobine api` refuse toujours : leur commande dédiée demande la confirmation et fait les vérifications (sinon
+# elles ne sont pas offertes par la ligne de commande).
+DANGEROUS_ROUTES = (
+    (re.compile(r"POST /api/settings/system/(reset|uninstall|reset-data|restart)"), "irréversible : interface, ou install.sh --uninstall"),
+    (re.compile(r"POST /api/settings/backup/restore"), "bobine settings restore FICHIER --yes"),
+    (re.compile(r"POST /api/storage/format/execute"), "assistant de formatage de l'interface"),
+    (re.compile(r"POST /api/updates/apply"), "bobine update apply --yes"),
+    (re.compile(r"POST /api/config/apply"), "bobine config apply DOSSIER --yes"),
+)
+_API_PATH = re.compile(r"^/api/[A-Za-z0-9_./{}%~-]+$")
+
+
+def cmd_api(client: Client, out: Output, args: argparse.Namespace) -> int:
+    """`bobine api METHODE /api/chemin` : n'importe quelle route de l'API, pour ce qu'aucune commande ne couvre encore."""
+    method, path = args.method.upper(), args.path
+    if not _API_PATH.match(path) or ".." in path.split("/"):
+        raise CliError("chemin invalide : attendu /api/... sans ?, # ni .. (les paramètres passent par --query)", EXIT_USAGE)
+    for pattern, hint in DANGEROUS_ROUTES:
+        if pattern.fullmatch(f"{method} {path}"):
+            raise CliError(f"{method} {path} n'est pas offerte par bobine api ({hint}).", EXIT_USAGE)
+    if method != "GET" and not args.yes:
+        raise CliError(f"{method} {path} modifie Bobine : relancer avec --yes pour confirmer.", EXIT_USAGE)
+    body = None
+    if args.body is not None:
+        raw = sys.stdin.read() if args.body == "-" else Path(args.body[1:]).read_text(encoding="utf-8") if args.body.startswith("@") else args.body
+        try:
+            body = json.loads(raw)
+        except (ValueError, OSError) as exc:
+            raise CliError(f"corps JSON illisible : {exc}", EXIT_USAGE) from exc
+    query = parse_params(args.query or [])
+    payload = client.request(method, path, query=query or None, body=body)
+    out.json = True  # la réponse de l'API, telle quelle, sur stdout
+    out.result(payload)
+    return EXIT_OK
+
+
 def local_version() -> str:
     try:
         from app.utils.version import get_app_version
@@ -713,6 +961,25 @@ def build_parser() -> argparse.ArgumentParser:
     install.add_argument("--yes", action="store_true", help="confirmer (Bobine redémarre)")
     install.set_defaults(run=cmd_update)
     update_sub.add_parser("status", parents=[sub_common]).set_defaults(run=cmd_update_status)
+
+    settings_backup = settings_sub.add_parser("backup", parents=[sub_common], help="écrire une sauvegarde (zip) de la base et de la configuration")
+    settings_backup.add_argument("file", help="fichier à créer (rien n'est écrasé)")
+    settings_backup.set_defaults(run=cmd_backup)
+    settings_restore = settings_sub.add_parser("restore", parents=[sub_common], help="restaurer une sauvegarde (remplace la base, redémarre Bobine)")
+    settings_restore.add_argument("file")
+    settings_restore.add_argument("--yes", action="store_true", help="confirmer")
+    settings_restore.set_defaults(run=cmd_restore)
+
+    api = sub.add_parser("api", parents=[sub_common], help="appeler directement une route de l'API (ce qu'aucune commande ne couvre)")
+    api.add_argument("method", choices=("GET", "POST", "PUT", "PATCH", "DELETE"))
+    api.add_argument("path", help="chemin de la route, /api/...")
+    api.add_argument("--query", action="append", metavar="clé=valeur", help="paramètre de requête (répétable)")
+    api.add_argument("--body", help="corps JSON : texte, @fichier ou - (entrée standard)")
+    api.add_argument("--yes", action="store_true", help="confirmer une écriture")
+    api.set_defaults(run=cmd_api)
+
+    add_spec_commands(sub, sub_common)
+    add_import_commands(sub, sub_common)
 
     completion = sub.add_parser("completion", parents=[sub_common], help="script de complétion pour bash, zsh ou fish")
     completion.add_argument("shell", choices=("bash", "zsh", "fish"))
