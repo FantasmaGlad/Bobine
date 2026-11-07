@@ -221,6 +221,10 @@ class _StoreProfile:
         return False
 
     @staticmethod
+    def restart_is_guaranteed():
+        return True
+
+    @staticmethod
     def has_system_port80_redirect():
         return False
 

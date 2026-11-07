@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { isLockedByEnvironment, parseMediaNativeStatus, stateKey } from "../src/lib/mediaNative.ts";
-import { dictionaries as translations } from "../src/lib/i18n.ts";
+import { dictionaries as translations } from "../src/lib/i18n/all.ts";
 
 const base = {
   enabled: true, setting: true, source: "setting", forced_by_env: null, available: true,

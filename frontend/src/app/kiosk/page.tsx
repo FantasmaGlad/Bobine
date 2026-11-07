@@ -859,9 +859,9 @@ export default function KioskPage() {
                       {getResolutionBadge(state.current_video?.width, state.current_video?.height, "HD")}
                     </span>
                   )}
-                  {getAudioQualityBadge(state.current_video?.audio_channels, state.current_video?.audio_codec, "Stéréo 2.0") && (
+                  {getAudioQualityBadge(state.current_video?.audio_channels, state.current_video?.audio_codec, t("audioBadge.stereo"), t) && (
                     <span className="pause-badge-pill">
-                      {getAudioQualityBadge(state.current_video?.audio_channels, state.current_video?.audio_codec, "Stéréo 2.0")}
+                      {getAudioQualityBadge(state.current_video?.audio_channels, state.current_video?.audio_codec, t("audioBadge.stereo"), t)}
                     </span>
                   )}
                 </div>

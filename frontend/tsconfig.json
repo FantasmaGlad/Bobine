@@ -20,7 +20,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@bobine/dictionary": ["./src/lib/i18n/fr.ts"]
     }
   },
   "include": [

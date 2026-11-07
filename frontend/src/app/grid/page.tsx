@@ -115,6 +115,7 @@ const GridRow = React.memo(function GridRow({
     return () => window.removeEventListener("resize", onResize);
   }, [updateArrows, items.length]);
 
+  const { t } = useAppSettings();
   const scrollBy = (direction: 1 | -1) => {
     const el = scrollRef.current;
     if (!el) return;
@@ -129,7 +130,7 @@ const GridRow = React.memo(function GridRow({
       </div>
       <div className="cinema-row-wrap">
         {canScrollLeft && (
-          <button className="cinema-row-arrow cinema-row-arrow-left" onClick={() => scrollBy(-1)} aria-label="Précédent">
+          <button className="cinema-row-arrow cinema-row-arrow-left" onClick={() => scrollBy(-1)} aria-label={t("common.previous")}>
             <Icon name="chevron_left" size={32} />
           </button>
         )}
@@ -707,9 +708,9 @@ export default function GridPage() {
                     {getResolutionBadge(featured.width, featured.height)}
                   </span>
                 )}
-                {getAudioQualityBadge(featured.audio_channels, featured.audio_codec) && (
+                {getAudioQualityBadge(featured.audio_channels, featured.audio_codec, undefined, t) && (
                   <span className="cinema-hero-badge-pill">
-                    {getAudioQualityBadge(featured.audio_channels, featured.audio_codec)}
+                    {getAudioQualityBadge(featured.audio_channels, featured.audio_codec, undefined, t)}
                   </span>
                 )}
               </div>

@@ -172,6 +172,7 @@ const CinemaRow = React.memo(function CinemaRow({
     return () => window.removeEventListener("resize", onResize);
   }, [updateArrows, items.length]);
 
+  const { t } = useAppSettings();
   const scrollBy = (direction: 1 | -1) => {
     const el = scrollRef.current;
     if (!el) return;
@@ -189,7 +190,7 @@ const CinemaRow = React.memo(function CinemaRow({
           <button
             className="cinema-row-arrow cinema-row-arrow-left"
             onClick={() => scrollBy(-1)}
-            aria-label="Précédent"
+            aria-label={t("common.previous")}
           >
             <Icon name="chevron_left" size={32} />
           </button>
@@ -1075,9 +1076,9 @@ export default function CinemaPage() {
                       {getResolutionBadge(featured.width, featured.height)}
                     </span>
                   )}
-                  {getAudioQualityBadge(featured.audio_channels, featured.audio_codec) && (
+                  {getAudioQualityBadge(featured.audio_channels, featured.audio_codec, undefined, t) && (
                     <span className="cinema-hero-badge-pill">
-                      {getAudioQualityBadge(featured.audio_channels, featured.audio_codec)}
+                      {getAudioQualityBadge(featured.audio_channels, featured.audio_codec, undefined, t)}
                     </span>
                   )}
                 </div>
@@ -1112,8 +1113,8 @@ export default function CinemaPage() {
                       setPendingPlaying(null);
                       setOptimisticSeek(null);
                     }}
-                    aria-label="Arrêter"
-                    title="Arrêter"
+                    aria-label={t("common.stop")}
+                    title={t("common.stop")}
                   >
                     <Icon name="close" size={18} />
                   </button>
@@ -1132,7 +1133,7 @@ export default function CinemaPage() {
                       setNowPlayingSeekDrag(null);
                       handleNowPlayingSeekDelta(target - nowPlaying.position_seconds);
                     }}
-                    aria-label="Position dans le cours"
+                    aria-label={t("cinema.seekPosition")}
                   />
                   <div className="grid-now-playing-times">
                     <span>{formatTime(nowPlayingSeekDrag ?? nowPlaying.position_seconds)}</span>
@@ -1143,8 +1144,8 @@ export default function CinemaPage() {
                       type="button"
                       className="grid-now-playing-btn"
                       onClick={() => handleNowPlayingSeekDelta(-30)}
-                      title="Reculer de 30 secondes"
-                      aria-label="Reculer de 30 secondes"
+                      title={t("cinema.back30")}
+                      aria-label={t("cinema.back30")}
                     >
                       <Icon name="replay_30" size={24} />
                     </button>
@@ -1161,8 +1162,8 @@ export default function CinemaPage() {
                       type="button"
                       className="grid-now-playing-btn"
                       onClick={() => handleNowPlayingSeekDelta(30)}
-                      title="Avancer de 30 secondes"
-                      aria-label="Avancer de 30 secondes"
+                      title={t("cinema.forward30")}
+                      aria-label={t("cinema.forward30")}
                     >
                       <Icon name="forward_30" size={24} />
                     </button>
@@ -1359,9 +1360,9 @@ export default function CinemaPage() {
                         {getResolutionBadge(selected?.width, selected?.height, "HD")}
                       </span>
                     )}
-                    {getAudioQualityBadge(selected?.audio_channels, selected?.audio_codec, "Stéréo 2.0") && (
+                    {getAudioQualityBadge(selected?.audio_channels, selected?.audio_codec, t("audioBadge.stereo"), t) && (
                       <span className="cinema-pause-badge-pill">
-                        {getAudioQualityBadge(selected?.audio_channels, selected?.audio_codec, "Stéréo 2.0")}
+                        {getAudioQualityBadge(selected?.audio_channels, selected?.audio_codec, t("audioBadge.stereo"), t)}
                       </span>
                     )}
                   </div>

@@ -371,7 +371,7 @@ export default function RadioAnnouncementsPage() {
             style={{ height: "44px" }}
           >
             <Icon name="cloud_upload" size={18} />
-            <span>{showImportCard ? "Fermer l'import" : "Importer un rappel"}</span>
+            <span>{showImportCard ? t("radioAnnouncements.closeImport") : t("radioAnnouncements.openImport")}</span>
           </button>
           <ResponsiveSelect
             className="form-control"

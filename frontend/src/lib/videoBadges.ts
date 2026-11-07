@@ -20,22 +20,30 @@ export function getResolutionBadge(
   return fallback;
 }
 
+type Translate = (key: string, params?: Record<string, string | number>) => string;
+
+/** Libellé de la qualité audio ; `t` donne les mots de la langue de l'interface (français par défaut). */
 export function getAudioQualityBadge(
   channels?: number | null,
   codec?: string | null,
-  fallback: string | null = "Stéréo 2.0"
+  fallback?: string | null,
+  t?: Translate
 ): string | null {
+  const tr: Translate = t ?? ((key, params) => (
+    key === "audioBadge.stereo" ? "Stéréo 2.0" : key === "audioBadge.stereoCodec" ? `Stéréo (${params?.codec})` : `${params?.count} canaux`
+  ));
+  const stereo = tr("audioBadge.stereo");
   if (channels === 6) return "Surround 5.1";
   if (channels === 8) return "Surround 7.1";
-  if (channels === 2) return "Stéréo 2.0";
+  if (channels === 2) return stereo;
   if (channels === 1) return "Mono 1.0";
-  if (channels && channels > 2) return `${channels} canaux`;
+  if (channels && channels > 2) return tr("audioBadge.channels", { count: channels });
   if (codec) {
     const c = codec.toUpperCase();
     if (c === "AC3" || c === "EAC3") return "Surround 5.1";
-    return `Stéréo (${c})`;
+    return tr("audioBadge.stereoCodec", { codec: c });
   }
-  return fallback;
+  return fallback === undefined ? stereo : fallback;
 }
 
 export function formatFps(fps?: number | null): string | null {

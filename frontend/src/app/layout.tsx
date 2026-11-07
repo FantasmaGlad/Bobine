@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./responsive.css";
 import ClientLayout from "@/components/ClientLayout";
+import { translate, UI_LANGUAGE } from "@/lib/i18n";
 import { AppSettingsProvider } from "@/lib/AppSettingsContext";
 import { InlineScript } from "@/components/InlineScript";
 import { UploadManagerProvider } from "@/lib/UploadManager";
@@ -12,7 +13,7 @@ import { UploadManagerProvider } from "@/lib/UploadManager";
 // affichage — script bloquant volontaire
 // (pas de défer/async), s'exécute donc avant tout rendu visible. Le contenu
 // est statique (jamais de données utilisateur injectées ici), sans risque XSS.
-const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('olc-theme');if(t)document.documentElement.setAttribute('data-theme',t);var l=localStorage.getItem('olc-language');if(l)document.documentElement.lang=l;}catch(e){}})();`;
+const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('olc-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,7 +27,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Bobine - Administration",
-  description: "Système de cinéma automatisé pour vos cours en salle",
+  description: translate("app.metaDescription"),
   manifest: "/manifest.json",
 };
 
@@ -51,7 +52,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="fr"
+      lang={UI_LANGUAGE}
       data-theme="lavande"
       className={`${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning

@@ -2,6 +2,8 @@ export interface NavLinkConfig {
   href: string;
   labelKey: string;
   iconName: string;
+  /** Masqué par l'interface simplifiée (M28). */
+  advanced?: boolean;
 }
 
 // Regroupement dépliable (accordéon) de plusieurs sections sous une même
@@ -10,6 +12,8 @@ export interface NavGroupConfig {
   groupKey: string;
   iconName: string;
   children: NavLinkConfig[];
+  /** Masqué par l'interface simplifiée (M28). */
+  advanced?: boolean;
 }
 
 export type NavEntry = NavLinkConfig | NavGroupConfig;
@@ -41,6 +45,7 @@ export const navEntries: NavEntry[] = [
   {
     groupKey: "nav.coachGroup",
     iconName: "fitness_center",
+    advanced: true,
     children: [
       { href: "/audio", labelKey: "nav.audio", iconName: "library_music" },
       { href: "/backgrounds", labelKey: "nav.backgrounds", iconName: "gradient" },
@@ -51,6 +56,7 @@ export const navEntries: NavEntry[] = [
   {
     groupKey: "nav.metricsGroup",
     iconName: "analytics",
+    advanced: true,
     children: [
       { href: "/metrics/courses", labelKey: "nav.metricsCourses", iconName: "school" },
       { href: "/metrics/system", labelKey: "nav.metricsSystem", iconName: "monitor_heart" },
@@ -62,7 +68,7 @@ export const footerNavLinks: NavLinkConfig[] = [
   { href: "/devices", labelKey: "nav.devices", iconName: "devices" },
   { href: "/storage", labelKey: "nav.storage", iconName: "usb" },
   { href: "/settings", labelKey: "nav.settings", iconName: "settings" },
-  { href: "/logs", labelKey: "nav.logs", iconName: "receipt_long" },
+  { href: "/logs", labelKey: "nav.logs", iconName: "receipt_long", advanced: true },
 ];
 
 // Liste PLATE de toutes les sections (groupes aplatis) : utilisée par le mode
@@ -71,3 +77,12 @@ export const footerNavLinks: NavLinkConfig[] = [
 export const navLinks: NavLinkConfig[] = navEntries.flatMap((entry) =>
   isNavGroup(entry) ? entry.children : [entry],
 );
+
+/** Interface simplifiée (M28) : sans coach, métriques ni journaux. */
+export function visibleNavEntries(simplified: boolean): NavEntry[] {
+  return simplified ? navEntries.filter((entry) => !entry.advanced) : navEntries;
+}
+
+export function visibleFooterLinks(simplified: boolean): NavLinkConfig[] {
+  return simplified ? footerNavLinks.filter((link) => !link.advanced) : footerNavLinks;
+}

@@ -38,6 +38,7 @@ from app.utils.http_compression import (
     is_compressible_media_type,
     request_allows_gzip,
 )
+from app.utils import ui_language
 from app.utils.network_guard import LocalNetworkGuard
 from app.utils.origin_guard import SameOriginGuard, dev_origins
 from app.utils.media_response import build_media_response
@@ -127,6 +128,9 @@ async def lifespan(app: FastAPI):
     # de diffuser depuis un thread hors boucle.
     ws_manager.bind_loop(asyncio.get_running_loop())
     init_db()
+    # Export statique de la langue enregistrée (changer de langue demande un redémarrage, M27).
+    with SessionLocal() as language_db:
+        ui_language.set_served(settings_router.stored_language(language_db))
     # Recharge l'issue de la dernière mise à jour AVANT toute autre
     # initialisation : un redémarrage déclenché par une mise à jour réussie
     # (ou un service qui a crashé en plein milieu) ne doit pas laisser
@@ -653,6 +657,6 @@ class RevalidateStaticFiles(StaticFiles):
 
 if frontend_out.exists():
     logger.info(f"Montage du frontend statique depuis {frontend_out}")
-    app.mount("/", RevalidateStaticFiles(directory=str(frontend_out), html=True), name="frontend")
+    app.mount("/", ui_language.LanguageFrontend(frontend_out, RevalidateStaticFiles), name="frontend")
 else:
     logger.warning("Dossier frontend/out introuvable. Le frontend ne sera pas servi par FastAPI (dev direct).")

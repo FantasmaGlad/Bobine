@@ -25,7 +25,7 @@ if [ ! -f "${DIST_DIR}/BobineBackend" ] || [ ! -f "${DIST_DIR}/BobineTray" ]; th
         echo "Erreur: pyinstaller est introuvable." >&2
         exit 1
     fi
-    if [ ! -d "${REPO_DIR}/frontend/out" ]; then
+    if [ ! -f "${REPO_DIR}/frontend/out/fr/index.html" ] || [ ! -f "${REPO_DIR}/frontend/out/en/index.html" ]; then
         (cd "${REPO_DIR}/frontend" && npm run build) >&2
     fi
     (cd "${REPO_DIR}/backend" && "${PYINSTALLER_CMD[@]}" --noconfirm "${REPO_DIR}/packaging/linux/bobine.spec") >&2

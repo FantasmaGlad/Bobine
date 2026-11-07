@@ -30,6 +30,7 @@ from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.utils import ui_language
 from app import config_files
 from app.utils.uid import is_uid
 from app.models import (
@@ -194,6 +195,8 @@ def _apply_settings(ctx: _Context, file: str, document: dict) -> None:
         background = _background(ctx, file, body["default_coach_background"])
         values["default_coach_background_id"] = background.id if background else 0
     _stage(ctx, file, values, SettingsUpdate, settings_updates, stage_settings, after_settings_change)
+    if values.get("language") in ("fr", "en") and values["language"] != ui_language.served():
+        ctx.restart_required.append("language")
     radio_value = body.get("radio")
     if radio_value is None:
         radio = {}

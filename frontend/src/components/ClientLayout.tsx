@@ -9,7 +9,7 @@ import { useAutoFullscreen } from "@/lib/useAutoFullscreen";
 import { useClickSound } from "@/lib/useClickSound";
 import { useScreenSafeMargin } from "@/lib/useScreenSafeMargin";
 import { useScreenWakeLock } from "@/lib/useScreenWakeLock";
-import { navEntries, isNavGroup, footerNavLinks as footerNavLinkConfigs } from "@/lib/navLinks";
+import { isNavGroup, visibleFooterLinks, visibleNavEntries } from "@/lib/navLinks";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import UpdateProgressOverlay from "@/components/UpdateProgressOverlay";
@@ -45,7 +45,8 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const isMobile = useIsMobile();
-  const { t, network } = useAppSettings();
+  const { t, network, simplifiedUi } = useAppSettings();
+  const navEntries = visibleNavEntries(simplifiedUi);
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [updateAvailableVersion, setUpdateAvailableVersion] = useState<string | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState<boolean>(false);
@@ -117,7 +118,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   // quelles du design importé (surface "PC Admin") plutôt que les SVG
   // Heroicons d'origine, pour une identité visuelle cohérente avec le reste
   // de la refonte.
-  const footerLinks = footerNavLinkConfigs.map((link) => ({ ...link, label: t(link.labelKey) }));
+  const footerLinks = visibleFooterLinks(simplifiedUi).map((link) => ({ ...link, label: t(link.labelKey) }));
 
   // Regroupements dépliables (accordéon exclusif) :
   // Lors de la navigation ou d'un clic d'accordéon, fermer les autres

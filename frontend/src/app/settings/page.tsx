@@ -29,6 +29,8 @@ import { loadMode, saveMode, type GlassMode } from "@/lib/glassQuality";
 type DeploymentProfile = "linux-headless" | "linux-desktop" | "windows" | "macos" | "android";
 
 interface SettingsData {
+  /** Faux sur Android : le redémarrage n'y est pas relancé de façon garantie. */
+  restart_guaranteed?: boolean;
   wait_time_between_courses: number;
   volume_default: number;
   audio_chain_timer_seconds: number;
@@ -202,7 +204,7 @@ const normalizePhrase = (s: string) => s.trim().toUpperCase().replace(/É/g, "E"
 
 export default function SettingsPage() {
   const {
-    theme, language, setTheme, setLanguage, t,
+    theme, language, storedLanguage, languagePending, simplifiedUi, setSimplifiedUi, setTheme, setLanguage, t,
     hasCustomLogo, activeLogo, setActiveLogo, refreshBranding,
     wiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount,
   } = useAppSettings();
@@ -214,6 +216,28 @@ export default function SettingsPage() {
   }, []);
   const [data, setData] = useState<SettingsData | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const [restartMessage, setRestartMessage] = useState<string | null>(null);
+  // Redémarrage simple : les écrans ouverts se reconnectent, voient un autre boot_id et se rechargent seuls.
+  const restartNow = async () => {
+    setRestarting(true);
+    setRestartMessage(null);
+    try {
+      const res = await fetch(getApiUrl("/settings/system/restart"), { method: "POST" });
+      setRestartMessage(t(res.ok ? "settingsPage.languageRestarting" : "settingsPage.languageRestartFailed"));
+      if (!res.ok) setRestarting(false);
+      else {
+        // Sans relance observable (poste de développement), la page ne se recharge jamais : on rend la main.
+        window.setTimeout(() => {
+          setRestarting(false);
+          setRestartMessage(t("settingsPage.languageRestartFailed"));
+        }, 30000);
+      }
+    } catch {
+      setRestartMessage(t("settingsPage.languageRestartFailed"));
+      setRestarting(false);
+    }
+  };
   const [loading, setLoading] = useState(true);
 
   const [refreshingNetwork, setRefreshingNetwork] = useState(false);
@@ -611,7 +635,7 @@ export default function SettingsPage() {
         body: JSON.stringify({ logs_retention_days: days }),
       });
       if (res.ok) {
-        showToast("Rétention des logs enregistrée", "success");
+        showToast(t("settingsPage.retentionSaved"), "success");
       } else {
         showToast(t("settingsPage.saveError"), "error");
       }
@@ -621,7 +645,7 @@ export default function SettingsPage() {
   };
 
   const handlePurgeLogs = async () => {
-    if (!window.confirm("Purger définitivement les journaux et historiques de métriques plus anciens que la période configurée ?")) return;
+    if (!window.confirm(t("settingsPage.purgeConfirm"))) return;
     setIsPurgingLogs(true);
     try {
       const res = await fetch(getApiUrl("/settings/logs/purge"), { method: "POST" });
@@ -629,7 +653,7 @@ export default function SettingsPage() {
       if (res.ok) {
         const details = body.details;
         const msg = details
-          ? `Nettoyage terminé : ${details.purged_logs} logs et ${details.purged_metrics} métriques supprimés.`
+          ? t("settingsPage.purgeDone", { logs: details.purged_logs, metrics: details.purged_metrics })
           : (body.message || t("settingsPage.logsPurgedSuccess"));
         showToast(msg, "success");
       } else {
@@ -668,7 +692,7 @@ export default function SettingsPage() {
           showToast(t("settingsPage.paths.folderOpened"));
         }
       } else {
-        showToast(resData.detail || "Impossible d'ouvrir le dossier", "error");
+        showToast(resData.detail || t("settingsPage.openFolderError"), "error");
       }
     } catch {
       showToast(t("common.networkError"), "error");
@@ -883,7 +907,7 @@ export default function SettingsPage() {
           <label className="form-label">{t("settingsPage.languageLabel")}</label>
           <ResponsiveSelect
             className="form-control"
-            value={language}
+            value={storedLanguage}
             onChange={(value) => setLanguage(value as Language)}
             title={t("settingsPage.languageLabel")}
             options={[
@@ -892,6 +916,27 @@ export default function SettingsPage() {
             ]}
           />
           <p className="settings-hint">{t("settingsPage.languageHint")}</p>
+          {languagePending && (
+            <div className="settings-hint" role="status" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+              <span>{t("settingsPage.languagePending", { language: storedLanguage === "fr" ? t("settingsPage.languageFr") : t("settingsPage.languageEn") })}</span>
+              <button type="button" className="btn btn-secondary" onClick={() => void restartNow()} disabled={restarting}>
+                {t("settingsPage.languageRestartNow")}
+              </button>
+              {data && data.restart_guaranteed === false && <span>{t("settingsPage.restartNotGuaranteed")}</span>}
+              {restartMessage && <span>{restartMessage}</span>}
+            </div>
+          )}
+        </div>
+
+        <div className="form-group" style={{ maxWidth: "520px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+            <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>{t("settingsPage.simplifiedUiLabel")}</span>
+            <label className="ra-switch" title={t("settingsPage.simplifiedUiLabel")}>
+              <input type="checkbox" checked={simplifiedUi} onChange={(e) => setSimplifiedUi(e.target.checked)} />
+              <span className="ra-switch-track" />
+            </label>
+          </div>
+          <p className="settings-hint">{t("settingsPage.simplifiedUiHint")}</p>
         </div>
       </section>
 

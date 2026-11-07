@@ -8,7 +8,7 @@ import {
   type BrowseEntry, type LongevityItem, type StorageVolume,
 } from "../src/lib/storageApi.ts";
 import { isPlugEvent } from "../src/lib/useStorageEvents.ts";
-import { dictionaries } from "../src/lib/i18n.ts";
+import { dictionaries } from "../src/lib/i18n/all.ts";
 
 function volume(extra: Partial<StorageVolume> = {}): StorageVolume {
   return {

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { formatAge, formatBytes, installHintKey, isBlockError, problemKeys, reportAsText, type ImportDiagnostics } from "../src/lib/importDiagnostics.ts";
-import { dictionaries } from "../src/lib/i18n.ts";
+import { dictionaries } from "../src/lib/i18n/all.ts";
 
 const dir = (path: string, free: number) => ({ path, exists: true, writable: true, free_bytes: free, total_bytes: free * 2 });
 const sample: ImportDiagnostics = {
