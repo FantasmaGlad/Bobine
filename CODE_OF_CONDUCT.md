@@ -31,7 +31,7 @@ Behavior that is unacceptable:
 
 ## Scope
 
-This Code of Conduct applies within all project spaces: the GitHub repository (issues, pull requests, discussions, reviews, releases), the website `bobine.fit`, the Baamix assistant, and any channel where the project is officially represented. It also applies when an individual is officially representing the project in public spaces, for example when using an official e-mail address or speaking on behalf of the project.
+This Code of Conduct applies within all project spaces: the GitHub repository (issues, pull requests, discussions, reviews, releases), the website `bobine.fit`, and any channel where the project is officially represented. It also applies when an individual is officially representing the project in public spaces, for example when using an official e-mail address or speaking on behalf of the project.
 
 ## Maintainer responsibilities
 
