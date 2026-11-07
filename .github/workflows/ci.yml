@@ -1593,108 +1593,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
-      - name: Create release assets directory
-        run: mkdir -p release-assets
-      - name: Download Windows installer
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      # Les actions locales appartiennent à la révision du workflow, même si `tag` désigne un ancien tag qui ne les
+      # contient pas encore (même principe que play-aab.yml) ; les scripts qu'elles appellent restent ceux du tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          name: bobine-windows-installer
-          path: release-assets
-      - name: Download Windows ARM64 installer
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+          path: .workflow-tools
+      - name: Assembler les assets de la release
+        uses: ./.workflow-tools/.github/actions/assemble-release-assets
         with:
-          name: bobine-windows-installer-arm64
-          path: release-assets
-      - name: Download Linux deb
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-linux-deb
-          path: release-assets
-      - name: Download Linux ARM64 deb
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-linux-deb-arm64
-          path: release-assets
-      - name: Download macOS dmg
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-macos-dmg
-          path: release-assets
-      - name: Download Linux assistant binary
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-assistant-linux
-          path: release-assets
-      - name: Download Linux ARM64 assistant binary
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-assistant-linux-arm64
-          path: release-assets
-      - name: Download Android APK
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        continue-on-error: true
-        with:
-          name: bobine-android-apk
-          path: android-artifact
-      - name: Download Android TV APK
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        continue-on-error: true
-        with:
-          name: bobine-android-tv-apk
-          path: android-tv-artifact
-      - name: Prepare Android APK assets
-        run: |
-          if [ -d "android-artifact" ] && compgen -G "android-artifact/*.apk" > /dev/null; then
-            APK_SRC=$(ls android-artifact/*.apk | head -1)
-            cp "$APK_SRC" "release-assets/Bobine-${{ needs.version.outputs.filename_version }}.apk"
-            echo "Android APK copié : release-assets/Bobine-${{ needs.version.outputs.filename_version }}.apk"
-          else
-            echo "Aucun APK Android trouvé dans l'artefact."
-          fi
-          if [ -d "android-tv-artifact" ] && compgen -G "android-tv-artifact/*.apk" > /dev/null; then
-            APK_TV_SRC=$(ls android-tv-artifact/*.apk | head -1)
-            cp "$APK_TV_SRC" "release-assets/Bobine-TV-${{ needs.version.outputs.filename_version }}.apk"
-            echo "Android TV APK copié : release-assets/Bobine-TV-${{ needs.version.outputs.filename_version }}.apk"
-          else
-            echo "Aucun APK Android TV trouvé dans l'artefact."
-          fi
-      - name: Télécharger les paquets Fedora et Arch
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-linux-packages-signed
-          path: package-assets
-      - name: Rassembler les paquets Linux
-        run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
-      - name: Copy install script into release assets
-        run: |
-          cp install.sh release-assets/
-          if [ -f packaging/windows/install.ps1 ]; then cp packaging/windows/install.ps1 release-assets/; fi
-      - name: Manifestes winget (joints à la release, soumission manuelle)
-        run: |
-          if [ -f scripts/ci/winget-manifests.py ]; then
-            (cd release-assets && sha256sum Bobine-Setup-*.exe) > "$RUNNER_TEMP/winget-SHA256SUMS"
-            python3 scripts/ci/winget-manifests.py "$RUNNER_TEMP/winget-SHA256SUMS" "${{ needs.version.outputs.tag_name }}" release-assets
-          fi
-      - name: Signer la liste des empreintes (SHA256SUMS)
-        env:
-          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
-          GNUPGHOME: ${{ runner.temp }}/bobine-signing
-        run: |
-          install -d -m 0700 "$GNUPGHOME"
-          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
-          bash scripts/ci/sign-release-checksums.sh release-assets
-          if [ -f scripts/ci/test-install-signature.ps1 ]; then pwsh -NoProfile -File scripts/ci/test-install-signature.ps1 release-assets; fi
-      - name: Retirer la clé privée du runner
-        if: always()
-        env:
-          GNUPGHOME: ${{ runner.temp }}/bobine-signing
-        run: |
-          gpgconf --kill gpg-agent || true
-          rm -rf "$GNUPGHOME"
-      - name: Vérifier la complétude des assets
-        run: scripts/ci/verify-release-assets.sh release-assets "${{ needs.version.outputs.filename_version }}"
-      - name: Inspect generated binary assets
-        run: ls -lh release-assets/
+          suffix: ${{ needs.version.outputs.filename_version }}
+          winget-tag: ${{ needs.version.outputs.tag_name }}
+          signing-key: ${{ secrets.APT_GPG_PRIVATE_KEY }}
       - name: Select Release Notes Body
         id: release-notes
         run: |
@@ -1735,211 +1644,28 @@ jobs:
       group: publish-canary-release
       cancel-in-progress: false
     outputs:
-      published: ${{ steps.guard.outputs.publish }}
+      published: ${{ steps.rolling.outputs.published }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
-      - name: Create release assets directory
-        run: mkdir -p release-assets
-      - name: Download Windows installer
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - name: Assembler les assets de la release
+        uses: ./.github/actions/assemble-release-assets
         with:
-          name: bobine-windows-installer
-          path: release-assets
-      - name: Download Windows ARM64 installer
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+          suffix: canary
+          signing-key: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+      - name: Publier la release canary
+        id: rolling
+        uses: ./.github/actions/publish-rolling-release
         with:
-          name: bobine-windows-installer-arm64
-          path: release-assets
-      - name: Download Linux deb
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-linux-deb
-          path: release-assets
-      - name: Download Linux ARM64 deb
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-linux-deb-arm64
-          path: release-assets
-      - name: Download macOS dmg
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-macos-dmg
-          path: release-assets
-      - name: Download Linux assistant binary
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-assistant-linux
-          path: release-assets
-      - name: Download Linux ARM64 assistant binary
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-assistant-linux-arm64
-          path: release-assets
-      - name: Download Android APK
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        continue-on-error: true
-        with:
-          name: bobine-android-apk
-          path: android-artifact
-      - name: Download Android TV APK
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        continue-on-error: true
-        with:
-          name: bobine-android-tv-apk
-          path: android-tv-artifact
-      - name: Prepare Android APK assets
-        run: |
-          if [ -d "android-artifact" ] && compgen -G "android-artifact/*.apk" > /dev/null; then
-            APK_SRC=$(ls android-artifact/*.apk | head -1)
-            cp "$APK_SRC" "release-assets/Bobine-canary.apk"
-            echo "Android APK copié : release-assets/Bobine-canary.apk"
-          else
-            echo "Aucun APK Android trouvé dans l'artefact."
-          fi
-          if [ -d "android-tv-artifact" ] && compgen -G "android-tv-artifact/*.apk" > /dev/null; then
-            APK_TV_SRC=$(ls android-tv-artifact/*.apk | head -1)
-            cp "$APK_TV_SRC" "release-assets/Bobine-TV-canary.apk"
-            echo "Android TV APK copié : release-assets/Bobine-TV-canary.apk"
-          else
-            echo "Aucun APK Android TV trouvé dans l'artefact."
-          fi
-      - name: Télécharger les paquets Fedora et Arch
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-linux-packages-signed
-          path: package-assets
-      - name: Rassembler les paquets Linux
-        run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
-      - name: Copy install script into release assets
-        run: |
-          cp install.sh release-assets/
-          if [ -f packaging/windows/install.ps1 ]; then cp packaging/windows/install.ps1 release-assets/; fi
-      - name: Signer la liste des empreintes (SHA256SUMS)
-        env:
-          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
-          GNUPGHOME: ${{ runner.temp }}/bobine-signing
-        run: |
-          install -d -m 0700 "$GNUPGHOME"
-          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
-          bash scripts/ci/sign-release-checksums.sh release-assets
-          if [ -f scripts/ci/test-install-signature.ps1 ]; then pwsh -NoProfile -File scripts/ci/test-install-signature.ps1 release-assets; fi
-      - name: Retirer la clé privée du runner
-        if: always()
-        env:
-          GNUPGHOME: ${{ runner.temp }}/bobine-signing
-        run: |
-          gpgconf --kill gpg-agent || true
-          rm -rf "$GNUPGHOME"
-      - name: Vérifier la complétude des assets
-        run: scripts/ci/verify-release-assets.sh release-assets canary
-      - name: Inspect generated binary assets
-        run: ls -lh release-assets/
-      - name: Refuser de publier un build plus ancien que celui déjà publié
-        id: guard
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          RUN_ATTEMPT: ${{ github.run_attempt }}
-        run: |
-          git fetch --no-tags origin main
-          # Le tag mobile est relu à distance : absent (rc 2) à la première publication, toute autre erreur arrête la publication.
-          rc=0; git ls-remote --exit-code --tags origin canary > /dev/null || rc=$?
-          case "$rc" in
-            0) git fetch --force --no-tags origin "refs/tags/canary:refs/tags/canary" ;;
-            2) ;;
-            *) exit "$rc" ;;
-          esac
-          # Depuis main, le commit doit être la tête de main ; une republication manuelle depuis une autre branche reste permise.
-          tip=(); [ "$GITHUB_REF" = refs/heads/main ] && tip=(--require-tip origin/main)
-          python3 scripts/ci/rolling-guard.py --tag canary --sha "${{ github.sha }}" --event "$EVENT_NAME" --attempt "$RUN_ATTEMPT" "${tip[@]}"
-      - name: Force-move the "canary" tag to the current commit
-        if: steps.guard.outputs.publish == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -f canary "${{ github.sha }}"
-          # GITHUB_TOKEN ne peut pas mettre à jour une référence dont le diff touche .github/workflows ("workflows permission") :
-          # le tag est supprimé puis recréé, la création sur un commit existant n'étant pas une mise à jour.
-          git push origin ":refs/tags/canary" || true
-          git push origin canary
-      - name: Generate rolling release notes (README-style layout + changelog since last Stable)
-        id: notes
-        if: steps.guard.outputs.publish == 'true'
-        run: |
-          # Bloc statique (bannière + intro + tableau de téléchargement) dans un
-          # heredoc ENTIÈREMENT quoté ('NOTES_EOF') : aucune substitution shell,
-          # donc tous les backticks/`$`/badges markdown restent littéraux sans
-          # avoir besoin d'être échappés un par un. __COMMIT__/__VERSION__ sont
-          # remplacés juste après par sed (valeurs courtes, sans caractère
-          # spécial pour sed : un SHA court et un "x.y.z"). Chaque ligne du
-          # heredoc est indentée pour respecter le bloc scalaire YAML `run: |`
-          # (l'indentation commune est retirée par le parseur YAML avant que
-          # bash ne voie le script — le fichier markdown généré, lui, n'a
-          # bien AUCUNE indentation, sans quoi Markdown le lirait comme un
-          # bloc de code).
-          cat > /tmp/canary-notes.md <<'NOTES_EOF'
-          <p align="center">
-            <img alt="Bobine" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/LogoBanniere.png" width="100%">
-          </p>
+          channel: canary
+          title: "Bobine — Canary (build automatique)"
+          commit-short: ${{ needs.version.outputs.commit_short }}
+          base-version: ${{ needs.version.outputs.base_version }}
+          require-tip: 'true'
+          token: ${{ github.token }}
 
-          <p align="center">
-            <img alt="Bobine — Canal Canary" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/Versions/Canary.png" width="220">
-          </p>
-
-          # Bobine — Canary (build automatique)
-
-          > **Canal Canary (rolling).** Pre-release construite automatiquement depuis le tout dernier commit de `main`, sans aucune curation — pour les développeurs et utilisateurs avancés souhaitant suivre le développement au jour le jour. Une version stable équivalente ou plus récente la remplace toujours automatiquement.
-
-          Pre-release construite depuis le tout dernier commit de `main`, sans aucune curation — reconstruite automatiquement à chaque push et republiée **en place** sur ce même tag mobile `canary` (jamais un nouveau tag par itération). Une version stable équivalente ou plus récente la remplace toujours automatiquement.
-
-          Réservée aux utilisateurs ayant activé le canal Canary (Réglages → Mises à jour, `install.sh --channel=canary`, ou l'assistant Tauri). Pour un accès anticipé moins volatil, voir le [canal Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) (lots curés, publication manuelle).
-
-          **Basé sur** commit `__COMMIT__` · version à venir `__VERSION__`
-
-          ---
-
-          NOTES_EOF
-          sed -i "s/__COMMIT__/${{ needs.version.outputs.commit_short }}/; s/__VERSION__/${{ needs.version.outputs.base_version }}/" /tmp/canary-notes.md
-          python3 scripts/ci/render-rolling-notes.py canary >> /tmp/canary-notes.md
-
-          # Bloc dynamique (changelog) ajouté à part, pas via sed : un message
-          # de commit peut contenir '/', '&' ou d'autres caractères qui
-          # casseraient une substitution sed, et un fence de code (```) rend le
-          # changelog bien plus lisible qu'un paragraphe brut (le Markdown
-          # fusionne des lignes consécutives sans ligne vide entre elles).
-          LAST_STABLE="$(git tag --list 'V*' --sort=-v:refname | grep -E '^V[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
-          if [ -n "${LAST_STABLE}" ]; then
-            CHANGELOG_HEADING="Changements depuis ${LAST_STABLE}"
-            CHANGELOG="$(git log "${LAST_STABLE}..HEAD" --oneline --no-merges | head -50)"
-          else
-            CHANGELOG_HEADING="Changements récents"
-            CHANGELOG="$(git log --oneline --no-merges | head -50)"
-          fi
-          {
-            echo "---"
-            echo ""
-            echo "## ${CHANGELOG_HEADING}"
-            echo ""
-            echo '```'
-            echo "${CHANGELOG}"
-            echo '```'
-            echo ""
-            echo "---"
-            echo ""
-            echo "Retour à la Stable à tout moment, sans perte de données : Réglages → Mises à jour logicielles → Canal de mise à jour → Stable."
-          } >> /tmp/canary-notes.md
-          echo "notes_path=/tmp/canary-notes.md" >> "$GITHUB_OUTPUT"
-      # Mise à jour en place : la release n'est jamais supprimée (pas de 404, pas de canal vide si l'envoi échoue).
-      - name: Publish Canary release
-        if: steps.guard.outputs.publish == 'true'
-        run: >-
-          bash scripts/ci/publish-rolling-release.sh canary release-assets
-          "Bobine — Canary (build automatique)"
-          "${{ steps.notes.outputs.notes_path }}" "${{ github.sha }}"
-        env:
-          GH_TOKEN: ${{ github.token }}
 
   # Publie/rafraîchit la release BÊTA (palier curé) — un seul tag mobile
   # "beta", republié en place UNIQUEMENT sur déclenchement manuel
@@ -1961,208 +1687,28 @@ jobs:
       group: publish-beta-release
       cancel-in-progress: false
     outputs:
-      published: ${{ steps.guard.outputs.publish }}
+      published: ${{ steps.rolling.outputs.published }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
-      - name: Create release assets directory
-        run: mkdir -p release-assets
-      - name: Download Windows installer
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - name: Assembler les assets de la release
+        uses: ./.github/actions/assemble-release-assets
         with:
-          name: bobine-windows-installer
-          path: release-assets
-      - name: Download Windows ARM64 installer
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+          suffix: beta
+          signing-key: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+      - name: Publier la release beta
+        id: rolling
+        uses: ./.github/actions/publish-rolling-release
         with:
-          name: bobine-windows-installer-arm64
-          path: release-assets
-      - name: Download Linux deb
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-linux-deb
-          path: release-assets
-      - name: Download Linux ARM64 deb
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-linux-deb-arm64
-          path: release-assets
-      - name: Download macOS dmg
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-macos-dmg
-          path: release-assets
-      - name: Download Linux assistant binary
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-assistant-linux
-          path: release-assets
-      - name: Download Linux ARM64 assistant binary
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-assistant-linux-arm64
-          path: release-assets
-      - name: Download Android APK
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        continue-on-error: true
-        with:
-          name: bobine-android-apk
-          path: android-artifact
-      - name: Download Android TV APK
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        continue-on-error: true
-        with:
-          name: bobine-android-tv-apk
-          path: android-tv-artifact
-      - name: Prepare Android APK assets
-        run: |
-          if [ -d "android-artifact" ] && compgen -G "android-artifact/*.apk" > /dev/null; then
-            APK_SRC=$(ls android-artifact/*.apk | head -1)
-            cp "$APK_SRC" "release-assets/Bobine-beta.apk"
-            echo "Android APK copié : release-assets/Bobine-beta.apk"
-          else
-            echo "Aucun APK Android trouvé dans l'artefact."
-          fi
-          if [ -d "android-tv-artifact" ] && compgen -G "android-tv-artifact/*.apk" > /dev/null; then
-            APK_TV_SRC=$(ls android-tv-artifact/*.apk | head -1)
-            cp "$APK_TV_SRC" "release-assets/Bobine-TV-beta.apk"
-            echo "Android TV APK copié : release-assets/Bobine-TV-beta.apk"
-          else
-            echo "Aucun APK Android TV trouvé dans l'artefact."
-          fi
-      - name: Télécharger les paquets Fedora et Arch
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: bobine-linux-packages-signed
-          path: package-assets
-      - name: Rassembler les paquets Linux
-        run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
-      - name: Copy install script into release assets
-        run: |
-          cp install.sh release-assets/
-          if [ -f packaging/windows/install.ps1 ]; then cp packaging/windows/install.ps1 release-assets/; fi
-      - name: Signer la liste des empreintes (SHA256SUMS)
-        env:
-          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
-          GNUPGHOME: ${{ runner.temp }}/bobine-signing
-        run: |
-          install -d -m 0700 "$GNUPGHOME"
-          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
-          bash scripts/ci/sign-release-checksums.sh release-assets
-          if [ -f scripts/ci/test-install-signature.ps1 ]; then pwsh -NoProfile -File scripts/ci/test-install-signature.ps1 release-assets; fi
-      - name: Retirer la clé privée du runner
-        if: always()
-        env:
-          GNUPGHOME: ${{ runner.temp }}/bobine-signing
-        run: |
-          gpgconf --kill gpg-agent || true
-          rm -rf "$GNUPGHOME"
-      - name: Vérifier la complétude des assets
-        run: scripts/ci/verify-release-assets.sh release-assets beta
-      - name: Inspect generated binary assets
-        run: ls -lh release-assets/
-      - name: Refuser de publier un build plus ancien que celui déjà publié
-        id: guard
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          RUN_ATTEMPT: ${{ github.run_attempt }}
-        run: |
-          # Le tag mobile est relu à distance : absent (rc 2) à la première publication, toute autre erreur arrête la publication.
-          rc=0; git ls-remote --exit-code --tags origin beta > /dev/null || rc=$?
-          case "$rc" in
-            0) git fetch --force --no-tags origin "refs/tags/beta:refs/tags/beta" ;;
-            2) ;;
-            *) exit "$rc" ;;
-          esac
-          python3 scripts/ci/rolling-guard.py --tag beta --sha "${{ github.sha }}" --event "$EVENT_NAME" --attempt "$RUN_ATTEMPT"
-      - name: Force-move the "beta" tag to the current commit
-        if: steps.guard.outputs.publish == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -f beta "${{ github.sha }}"
-          # GITHUB_TOKEN ne peut pas mettre à jour une référence dont le diff touche .github/workflows ("workflows permission") :
-          # le tag est supprimé puis recréé, la création sur un commit existant n'étant pas une mise à jour.
-          git push origin ":refs/tags/beta" || true
-          git push origin beta
-      - name: Generate rolling release notes (README-style layout + changelog since last Stable)
-        id: notes
-        if: steps.guard.outputs.publish == 'true'
-        run: |
-          # Bloc statique (bannière + intro + tableau de téléchargement) dans un
-          # heredoc ENTIÈREMENT quoté ('NOTES_EOF') : aucune substitution shell,
-          # donc tous les backticks/`$`/badges markdown restent littéraux sans
-          # avoir besoin d'être échappés un par un. __COMMIT__/__VERSION__ sont
-          # remplacés juste après par sed (valeurs courtes, sans caractère
-          # spécial pour sed : un SHA court et un "x.y.z"). Chaque ligne du
-          # heredoc est indentée pour respecter le bloc scalaire YAML `run: |`
-          # (l'indentation commune est retirée par le parseur YAML avant que
-          # bash ne voie le script — le fichier markdown généré, lui, n'a
-          # bien AUCUNE indentation, sans quoi Markdown le lirait comme un
-          # bloc de code).
-          cat > /tmp/beta-notes.md <<'NOTES_EOF'
-          <p align="center">
-            <img alt="Bobine" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/LogoBanniere.png" width="100%">
-          </p>
+          channel: beta
+          title: "Bobine — Bêta (lot curé)"
+          commit-short: ${{ needs.version.outputs.commit_short }}
+          base-version: ${{ needs.version.outputs.base_version }}
+          require-tip: 'false'
+          token: ${{ github.token }}
 
-          <p align="center">
-            <img alt="Bobine — Canal Bêta" src="https://raw.githubusercontent.com/FantasmaGlad/Bobine/main/Assets/Images/Versions/Beta.png" width="220">
-          </p>
-
-          # Bobine — Bêta (lot curé)
-
-          > **Canal Bêta (accès anticipé).** Lots de fonctionnalités et correctifs sélectionnés et testés avant leur passage en Stable — plus avancé que Stable, plus testé que Canary. Une version stable équivalente ou plus récente la remplace toujours automatiquement.
-
-          Pre-release curée : un lot de fonctionnalités/correctifs sélectionné par le mainteneur, publié manuellement — plus testé que Canary (qui suit chaque commit de main), moins que Stable. Republiée **en place** sur ce même tag mobile `beta` (jamais un nouveau tag par itération) à chaque nouveau lot. Une version stable équivalente ou plus récente la remplace toujours automatiquement.
-
-          Réservée aux utilisateurs ayant activé le canal Bêta (Réglages → Mises à jour, `install.sh --channel=beta`, ou l'assistant Tauri). Pour suivre chaque commit de main sans attendre un lot, voir le [canal Canary](https://github.com/FantasmaGlad/Bobine/releases/tag/canary).
-
-          **Basé sur** commit `__COMMIT__` · version à venir `__VERSION__`
-
-          ---
-
-          NOTES_EOF
-          sed -i "s/__COMMIT__/${{ needs.version.outputs.commit_short }}/; s/__VERSION__/${{ needs.version.outputs.base_version }}/" /tmp/beta-notes.md
-          python3 scripts/ci/render-rolling-notes.py beta >> /tmp/beta-notes.md
-
-          # Bloc dynamique (changelog) ajouté à part, pas via sed : un message
-          # de commit peut contenir '/', '&' ou d'autres caractères qui
-          # casseraient une substitution sed, et un fence de code (```) rend le
-          # changelog bien plus lisible qu'un paragraphe brut (le Markdown
-          # fusionne des lignes consécutives sans ligne vide entre elles).
-          LAST_STABLE="$(git tag --list 'V*' --sort=-v:refname | grep -E '^V[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
-          if [ -n "${LAST_STABLE}" ]; then
-            CHANGELOG_HEADING="Changements depuis ${LAST_STABLE}"
-            CHANGELOG="$(git log "${LAST_STABLE}..HEAD" --oneline --no-merges | head -50)"
-          else
-            CHANGELOG_HEADING="Changements récents"
-            CHANGELOG="$(git log --oneline --no-merges | head -50)"
-          fi
-          {
-            echo "---"
-            echo ""
-            echo "## ${CHANGELOG_HEADING}"
-            echo ""
-            echo '```'
-            echo "${CHANGELOG}"
-            echo '```'
-            echo ""
-            echo "---"
-            echo ""
-            echo "Retour à la Stable à tout moment, sans perte de données : Réglages → Mises à jour logicielles → Canal de mise à jour → Stable."
-          } >> /tmp/beta-notes.md
-          echo "notes_path=/tmp/beta-notes.md" >> "$GITHUB_OUTPUT"
-      # Mise à jour en place : la release n'est jamais supprimée (pas de 404, pas de canal vide si l'envoi échoue).
-      - name: Publish Beta release
-        if: steps.guard.outputs.publish == 'true'
-        run: >-
-          bash scripts/ci/publish-rolling-release.sh beta release-assets
-          "Bobine — Bêta (lot curé)"
-          "${{ steps.notes.outputs.notes_path }}" "${{ github.sha }}"
-        env:
-          GH_TOKEN: ${{ github.token }}
 
   # Release de l'assistant d'installation, à part de celle de Bobine : la mise à jour intégrée des installations existantes
   # prend le premier .exe, .deb ou .dmg de la bonne architecture d'une release de Bobine. Une seule release par canal
