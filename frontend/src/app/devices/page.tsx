@@ -8,6 +8,7 @@ import BluetoothSection from "@/components/devices/BluetoothSection";
 import WifiSection from "@/components/devices/WifiSection";
 import MapSection from "@/components/devices/MapSection";
 import MixerSection from "@/components/devices/MixerSection";
+import VideoSoundSection from "@/components/devices/VideoSoundSection";
 import RoutingSection from "@/components/devices/RoutingSection";
 import type { Notify, SectionProps } from "@/components/devices/common";
 import { devicesRequest, type DevicesStatus } from "@/lib/devicesApi";
@@ -19,7 +20,7 @@ import { usePointerGlow } from "@/lib/usePointerGlow";
 // y accède directement (voir docs/ARCHITECTURE.md).
 // Même barre de sections horizontale que la bibliothèque radio.
 
-type Tab = "map" | "audio" | "bluetooth" | "wifi" | "routing" | "mixer";
+type Tab = "map" | "audio" | "bluetooth" | "wifi" | "routing" | "mixer" | "videosound";
 const TAB_KEY = "bobine.devices.tab";
 
 interface ToastState { message: string; type: "success" | "error" | "warning"; }
@@ -46,7 +47,7 @@ export default function DevicesPage() {
     try {
       const saved = window.localStorage.getItem(TAB_KEY);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- restaure la dernière section (stockage local du navigateur)
-      if (saved === "map" || saved === "audio" || saved === "bluetooth" || saved === "wifi" || saved === "routing" || saved === "mixer") setTab(saved);
+      if (saved === "map" || saved === "audio" || saved === "bluetooth" || saved === "wifi" || saved === "routing" || saved === "mixer" || saved === "videosound") setTab(saved);
     } catch { /* stockage indisponible */ }
   }, []);
   const chooseTab = (next: Tab) => {
@@ -97,6 +98,7 @@ export default function DevicesPage() {
               { id: "wifi", icon: "wifi", label: t("devices.tabs.wifi") },
               { id: "routing", icon: "alt_route", label: t("devices.tabs.routing") },
               { id: "mixer", icon: "instant_mix", label: t("devices.tabs.mixer") },
+              { id: "videosound", icon: "graphic_eq", label: t("devices.tabs.videosound") },
             ]}
           />
         </div>
@@ -113,6 +115,8 @@ export default function DevicesPage() {
           <WifiSection {...section} />
         ) : tab === "routing" ? (
           <RoutingSection {...section} feed={radioFeed} />
+        ) : tab === "videosound" ? (
+          <VideoSoundSection {...section} />
         ) : (
           <MixerSection {...section} feed={radioFeed} />
         )}

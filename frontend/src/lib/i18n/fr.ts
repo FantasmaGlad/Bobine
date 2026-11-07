@@ -407,7 +407,7 @@ export const dictionary: Dict = {
     loading: "Chargement…",
     sectionsLabel: "Sections des périphériques",
     settingsOpened: "Réglages ouverts sur l'appareil.",
-    tabs: { map: "Vue globale", audio: "Audio", bluetooth: "Bluetooth", wifi: "Wi-Fi", routing: "Routage", mixer: "Mixage" },
+    tabs: { map: "Vue globale", audio: "Audio", bluetooth: "Bluetooth", wifi: "Wi-Fi", routing: "Routage", mixer: "Mixage", videosound: "Son vidéo" },
     errors: {
       generic: "L'opération n'a pas pu aboutir.",
       network: "Impossible de joindre le serveur.",
@@ -610,6 +610,11 @@ export const dictionary: Dict = {
         denied: "Autorisation refusée par le navigateur.",
         unsupported: "Ce navigateur ne peut pas révéler les noms de ses sorties.",
       },
+    },
+    videoSound: {
+      title: "Son des canaux vidéo",
+      intro: "Égaliseur, basses, loudness et limiteur de chaque canal, appliqués par son lecteur. À plat, le son reste direct.",
+      saveFailed: "Réglage non enregistré",
     },
     mixer: {
       intro: "Table de mixage de chaque radio, appliquée dans son lecteur. Les niveaux montent quand la radio joue.",

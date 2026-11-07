@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
+import { useMediaSound } from "@/lib/useMediaSound";
 import { videoStreamUrl } from "@/lib/clientCodecSupport";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { buildOutputUrl } from "@/lib/displayChannel";
@@ -421,6 +422,9 @@ export default function CinemaPage() {
     (action, positionSeconds, videoId, extra) => cinemaCmdRef.current?.(action, positionSeconds, videoId, extra),
     "cinema",
   );
+  // Son du canal sur les deux lecteurs A/B ; repli en son direct si le contexte audio ne démarre pas.
+  useMediaSound(deckARef, state.sound);
+  useMediaSound(deckBRef, state.sound);
   useDisplayOutputRedirect("cinema", displayOutputCable, displayOutputNetwork);
 
   // Bascule automatique vers le kiosque si le mode coach est actif sur ce canal,

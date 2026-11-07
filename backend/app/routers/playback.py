@@ -26,7 +26,7 @@ from app.radio_manager import (
 from app.routers.settings import get_display_output_value
 from app.devices.service import PLAYER_ROUTE_STATUSES, service as devices_service
 from app.utils.radio_mix import sanitize_levels
-from app.utils import radio_commands
+from app.utils import radio_commands, video_sound
 from app.scheduler_manager import ensure_utc, radio_track_dict, resolve_target_title
 from app.utils.activity_log import log_activity
 from app.utils.boot_state import current_boot_id
@@ -786,6 +786,9 @@ async def _handle_command(
         await manager.set_volume(params.get("volume", 100), client_ts)
     elif command == "speed":
         await manager.set_speed(params.get("speed", 1.0), client_ts)
+    elif command == "set_sound":
+        # Réglages de son de CE canal : bornés (jamais d'erreur), champs absents inchangés ; persistés puis diffusés.
+        await video_sound.apply_video_sound(db, manager, params.get("sound"), client_ts)
     elif command == "set_subtitle":
         await manager.set_subtitle(params.get("subtitle"), client_ts)
     elif command == "next_video":

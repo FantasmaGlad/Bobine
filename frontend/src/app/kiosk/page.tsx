@@ -15,6 +15,7 @@ import { formatCleanDescription } from "@/lib/formatDescription";
 import { subtitleSrc, useApplySubtitleMode, useVideoSubtitles } from "@/lib/subtitles";
 import { chapterJumpTarget, useVideoChapters } from "@/lib/chapters";
 import SeekOsd, { useSeekHud } from "@/components/SeekOsd";
+import { useMediaSound } from "@/lib/useMediaSound";
 import ChapterToast from "@/components/ChapterToast";
 import VolumeOsd from "@/components/VolumeOsd";
 import { adjustMediaVolume, useVolumeHud, VOLUME_STEP } from "@/lib/volumeHud";
@@ -557,6 +558,10 @@ export default function KioskPage() {
 
     return () => window.clearInterval(interval);
   }, []);
+
+  // Son du canal (égaliseur, basses, loudness, limiteur) sur la vidéo et sur l'audio des cours ; repli en son direct.
+  useMediaSound(videoRef, state.sound);
+  useMediaSound(audioRef, state.sound);
 
   /** Saut vidéo commandé au serveur, avec la surimpression de position. */
   const seekVideoTo = (seconds: number) => {

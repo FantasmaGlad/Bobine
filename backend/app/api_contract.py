@@ -37,7 +37,7 @@ SORT_ORDERS = ("asc", "desc")
 # Les rapports d'un écran (position, fins de média, niveaux) n'en font pas partie : l'écran primaire en a l'autorité.
 PLAYBACK_ACTIONS = (
     "load", "load_playlist", "load_background", "load_audio_course", "load_audio_playlist", "play", "pause", "stop",
-    "seek", "speed", "volume", "set_subtitle", "next_video", "previous_video", "skip_waiting", "audio_set_background",
+    "seek", "speed", "volume", "set_sound", "set_subtitle", "next_video", "previous_video", "skip_waiting", "audio_set_background",
     "audio_next_track", "audio_previous_track", "audio_restart_track", "audio_jump_to_track", "audio_set_chain_mode",
     "audio_set_chain_timer", "cinema_command",
 )

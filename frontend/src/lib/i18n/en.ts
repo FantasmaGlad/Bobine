@@ -407,7 +407,7 @@ export const dictionary: Dict = {
     loading: "Loading…",
     sectionsLabel: "Device sections",
     settingsOpened: "Settings opened on the device.",
-    tabs: { map: "Overview", audio: "Audio", bluetooth: "Bluetooth", wifi: "Wi-Fi", routing: "Routing", mixer: "Mixer" },
+    tabs: { map: "Overview", audio: "Audio", bluetooth: "Bluetooth", wifi: "Wi-Fi", routing: "Routing", mixer: "Mixer", videosound: "Video sound" },
     errors: {
       generic: "The operation could not be completed.",
       network: "Cannot reach the server.",
@@ -610,6 +610,11 @@ export const dictionary: Dict = {
         denied: "Permission refused by the browser.",
         unsupported: "This browser cannot reveal the names of its outputs.",
       },
+    },
+    videoSound: {
+      title: "Video channel sound",
+      intro: "Equalizer, bass, loudness and limiter for each channel, applied by its player. When flat, the sound stays direct.",
+      saveFailed: "Setting not saved",
     },
     mixer: {
       intro: "Mixer for each radio, applied inside its player. Levels move while the radio plays.",

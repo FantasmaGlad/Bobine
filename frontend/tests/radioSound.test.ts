@@ -131,3 +131,13 @@ test("un ancien identifiant de préréglage disparu n'est plus reconnu", () => {
   for (const id of ["bass", "voice", "soft"]) assert.equal(knownPresetId(id), id);
   assert.equal(defaultSound().preset, null);
 });
+
+test("isNeutralSound : contournement ou tout à plat sans loudness", async () => {
+  const { isNeutralSound, defaultSound } = await import("../src/lib/radioSound.ts");
+  assert.equal(isNeutralSound(defaultSound()), true);
+  assert.equal(isNeutralSound({ ...defaultSound(), enabled: false, bass_boost: 9 }), true);
+  assert.equal(isNeutralSound({ ...defaultSound(), bands: [0, 0, -3, 0, 0] }), false);
+  assert.equal(isNeutralSound({ ...defaultSound(), bass_boost: 2 }), false);
+  assert.equal(isNeutralSound({ ...defaultSound(), loudness: true }), false);
+  assert.equal(isNeutralSound({ ...defaultSound(), limiter: false }), true);
+});

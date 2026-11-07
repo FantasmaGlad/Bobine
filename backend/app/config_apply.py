@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import difflib
 import json
+from app.api_contract import CHANNELS
 import logging
 import re
 from datetime import datetime
@@ -313,6 +314,25 @@ def _apply_display_outputs(ctx: _Context, file: str, document: dict) -> None:
                 await apply_display_output(db, channel, output)
 
             ctx.effects.append(switch)
+    sounds = document.get("sound", {})
+    if not isinstance(sounds, dict):
+        ctx.fail(file, "« sound » doit être un objet")
+        return
+    from app.playback_manager import get_playback_manager
+    from app.utils.radio_sound import sanitize_sound
+    from app.utils.video_sound import video_sound_setting_key
+
+    for channel, raw in sounds.items():
+        if channel not in CHANNELS:
+            ctx.fail(file, f"canal inconnu pour le son : {channel!r}")
+            continue
+        sound = sanitize_sound(raw)
+        _write_setting(ctx.db, video_sound_setting_key(channel), json.dumps(sound))
+
+        async def set_video_sound(db: Session, channel=channel, sound=sound) -> None:
+            await get_playback_manager(channel).set_sound(sound)
+
+        ctx.effects.append(set_video_sound)
 
 
 def _apply_radio_outputs(ctx: _Context, file: str, document: dict) -> None:

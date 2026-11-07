@@ -15,6 +15,7 @@ BroadcastFn = Callable[[dict], Awaitable[None]]
 # Canaux de diffusion indépendants : chaque canal a son PROPRE état de lecture, sa propre playlist,
 # son propre kiosk primaire. "cable" = l'écran physiquement branché au Wyse,
 # "network" = tout /kiosk ouvert depuis un autre appareil du LAN.
+from app.utils.radio_sound import default_sound  # noqa: E402
 from app.api_contract import CHANNELS, DEFAULT_CHANNEL  # noqa: E402  (valeurs partagées avec l'API et la CLI)
 
 
@@ -141,6 +142,9 @@ class PlaybackManager:
             "subtitle": None,
             "position_seconds": 0.0,
             "volume": settings.volume_default,
+            # Réglages de son du canal (égaliseur, basses, loudness, limiteur) : validés par utils/video_sound.py,
+            # appliqués par le lecteur (graphe Web Audio).
+            "sound": default_sound(),
             "speed": 1.0,
             "playlist_id": None,
             "playlist_name": None,
@@ -699,6 +703,11 @@ class PlaybackManager:
     async def set_volume(self, volume: float, client_ts: float | None = None):
         self.state["volume"] = max(0, min(100, int(volume)))
         await self._emit("volume", client_ts)
+
+    async def set_sound(self, sound: dict, client_ts: float | None = None):
+        """Applique des réglages de son DÉJÀ validés (utils/video_sound.py) et les diffuse ; persistance par l'appelant."""
+        self.state["sound"] = sound
+        await self._emit("sound_change", client_ts)
 
     async def set_subtitle(self, subtitle: int | str | None, client_ts: float | None = None):
         """Choix des sous-titres affichés par les kiosques du canal."""
