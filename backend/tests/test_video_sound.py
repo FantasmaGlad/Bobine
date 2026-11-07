@@ -29,7 +29,10 @@ def _clean():
 
 
 @pytest.fixture()
-def client():
+def client(monkeypatch):
+    # La copie de la configuration se fait en arrière-plan : sans ceci, elle pourrait s'exécuter pendant un autre test.
+    from app import config_files
+    monkeypatch.setattr(config_files, "schedule_mirror", lambda: None)
     with TestClient(app) as c:
         _clean()
         yield c
