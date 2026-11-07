@@ -31,7 +31,7 @@ Comportements inacceptables :
 
 ## Périmètre
 
-Le présent code de conduite s'applique dans tous les espaces du projet : le dépôt GitHub (tickets, demandes de fusion, discussions, revues, versions), le site `bobine.fit`, l'assistant Baamix et tout canal où le projet est officiellement représenté. Il s'applique aussi lorsqu'une personne représente officiellement le projet dans un espace public, par exemple en utilisant une adresse électronique officielle ou en s'exprimant au nom du projet.
+Le présent code de conduite s'applique dans tous les espaces du projet : le dépôt GitHub (tickets, demandes de fusion, discussions, revues, versions), le site `bobine.fit` et tout canal où le projet est officiellement représenté. Il s'applique aussi lorsqu'une personne représente officiellement le projet dans un espace public, par exemple en utilisant une adresse électronique officielle ou en s'exprimant au nom du projet.
 
 ## Responsabilités du mainteneur
 

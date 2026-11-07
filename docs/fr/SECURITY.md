@@ -69,7 +69,7 @@ Dans le périmètre : le logiciel Bobine et ses installateurs (`install.sh`, `in
 
 Modèle de confiance : Bobine n'a pas de compte ; seul le réseau local est de confiance. Le serveur refuse toute connexion venue d'une adresse publique (réseaux privés, liens locaux et 100.64.0.0/10 admis ; ajout explicite par `BOBINE_ALLOWED_NETWORKS`, qui n'ouvre aucun pare-feu). Le contrôle porte sur le pair TCP et sur chaque adresse qu'un proxy annonce dans `X-Forwarded-For`, `Forwarded` ou un en-tête voisin ; un proxy qui n'annonce rien (Docker en NAT, par exemple) masque ses clients et ne doit pas être exposé à Internet. Une requête relayée par un proxy ou adressée à un nom `.onion` n'a jamais les droits de l'écran local, refuse les requêtes d'une page web d'une autre origine, et les installateurs n'ouvrent le pare-feu qu'aux réseaux privés. Contourner l'une de ces barrières est dans le périmètre.
 
-Hors périmètre : les failles des services tiers (Vercel, Cloudflare, GitHub, Hugging Face, OpenRouter, Resend), l'ingénierie sociale et le hameçonnage, l'accès physique, les attaques par déni de service, les tests de charge et les scans automatisés massifs, les constats sans impact démontrable, et les erreurs de contenu ou de traduction.
+Hors périmètre : les failles des services tiers (Vercel, Cloudflare, GitHub, Resend), l'ingénierie sociale et le hameçonnage, l'accès physique, les attaques par déni de service, les tests de charge et les scans automatisés massifs, les constats sans impact démontrable, et les erreurs de contenu ou de traduction.
 
 ## Recherche de bonne foi
 

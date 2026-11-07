@@ -133,7 +133,7 @@ curl --socks5-hostname 127.0.0.1:9050 -fsSL "$onion/install-tor.sh" | bash
 - **24/7 Club Radio & Voice Reminders (`/radio`)** — Built-in music player with automatic crossfade, 5-band equalizer, playlists, and scheduled spoken announcements (e.g., *"Please re-rack your weights"*).
 - **Two Independent Display & Radio Outputs** — Drive a wired HDMI screen and a secondary network screen simultaneously with separate content.
 - **Attendance Metrics (`/metrics`)** — Track class completion rates, 5-star member feedback, peak studio hours, and device health locally.
-- **9 Color Themes, each in light and dark** — automatic mode following the device, verified contrast, no gradients; adaptable to bright reception areas or dark cycling rooms.
+- **9 Color Themes, each in light and dark** — automatic mode following the device, verified contrast, no gradient in the backgrounds; adaptable to bright reception areas or dark cycling rooms.
 
 ---
 
@@ -145,7 +145,7 @@ curl --socks5-hostname 127.0.0.1:9050 -fsSL "$onion/install-tor.sh" | bash
    http://bobine.local:1903
    ```
    *(Or `http://127.0.0.1:1903` directly on the host machine; without the port on the mini PC appliance. Every address of the device is listed in Settings → Documentation.)*
-3. **Import your first videos or music tracks** by drag-and-drop in the **Library** tab, then launch a class or set up your weekly **Schedule**.
+3. **Import your first videos** by drag-and-drop in the **Library** tab (music goes in the **Radio Audio Tracks** tab), then launch a class or set up your weekly **Schedule**.
 
 All web interfaces work out of the box on **Mozilla Firefox**, **Google Chrome**, **Microsoft Edge**, **Apple Safari**, **Brave**, and **Tor Browser** with zero client installation.
 

@@ -133,7 +133,7 @@ curl --socks5-hostname 127.0.0.1:9050 -fsSL "$onion/install-tor.sh" | bash
 - **Radio d'ambiance 24/7 & Rappels vocaux (`/radio`)** — Lecteur musical continu avec fondu enchaîné, égaliseur 5 bandes, playlists et diffusion automatique d'annonces vocales programmées (*« Pensez à ranger vos poids »*, etc.).
 - **Deux sorties d'écran et de radio indépendantes** — Pilotez simultanément un écran câblé (HDMI) et un écran réseau avec deux programmes distincts.
 - **Statistiques de fréquentation (`/metrics`)** — Suivez en local l'assiduité des cours, les notes des adhérents, les heures d'affluence sur 24 h et l'état du matériel.
-- **9 thèmes de couleurs, chacun en clair et en sombre** — mode automatique selon l'appareil, contrastes vérifiés, sans dégradé ; adaptés aux espaces d'accueil lumineux comme aux salles de cycling immersives.
+- **9 thèmes de couleurs, chacun en clair et en sombre** — mode automatique selon l'appareil, contrastes vérifiés, sans dégradé de fond ; adaptés aux espaces d'accueil lumineux comme aux salles de cycling immersives.
 
 ---
 
@@ -145,7 +145,7 @@ curl --socks5-hostname 127.0.0.1:9050 -fsSL "$onion/install-tor.sh" | bash
    http://bobine.local:1903
    ```
    *(Ou `http://127.0.0.1:1903` directement sur la machine hôte ; sans le port sur le mini PC dédié. Toutes les adresses de l'appareil sont dans Réglages → Documentation.)*
-3. **Importez vos premières vidéos ou musiques** par glisser-déposer dans l'onglet **Bibliothèque**, puis lancez une séance ou configurez votre **Planning**.
+3. **Importez vos premières vidéos** par glisser-déposer dans l'onglet **Bibliothèque** (les musiques vont dans l'onglet **Piste Audio Radio**), puis lancez une séance ou configurez votre **Planning**.
 
 Toutes les interfaces fonctionnent immédiatement sur **Mozilla Firefox**, **Google Chrome**, **Microsoft Edge**, **Apple Safari**, **Brave** et **Tor Browser**, sans aucune installation sur les appareils clients.
 
