@@ -138,6 +138,17 @@ fn upload_install_script(sess: &Session, remote_path: &str) -> Result<(), String
 /// sans risquer d'être supprimée par l'optimiseur comme un simple `for b in
 /// s.as_bytes_mut() { *b = 0 }` le pourrait. Les octets de remplacement (0)
 /// restent de l'ASCII valide, donc la chaîne reste UTF-8 valide.
+const MAX_PENDING_BYTES: usize = 1 << 20;
+
+/// Remplace le secret par `***` dans une ligne destinée au journal : quoi qu'il arrive sur le terminal distant,
+/// le mot de passe root ne doit jamais être affiché ni copié.
+fn redact_secret(line: &str, secret: Option<&str>) -> String {
+    match secret {
+        Some(secret) if !secret.is_empty() && line.contains(secret) => line.replace(secret, "***"),
+        _ => line.to_string(),
+    }
+}
+
 fn scrub_secret(s: &mut str) {
     let bytes = unsafe { s.as_bytes_mut() };
     for b in bytes {
@@ -255,8 +266,8 @@ pub fn run_installation(events: &dyn Events, mut params: RunInstallParams) -> Re
         // seul cas où la commande distante s'arrête sur une invite
         // interactive avant de continuer (voir en-tête d'orchestrate.rs).
         // On le sort de `params` une bonne fois pour n'en garder qu'une
-        // seule copie en mémoire, à écraser en fin de fonction.
-        let mut root_password = params.root_password.take();
+        // seule copie en mémoire, effacée à la sortie de la fonction par quelque chemin que ce soit (`?` compris).
+        let root_password = zeroize::Zeroizing::new(params.root_password.take());
         if needs_root_password && root_password.as_deref().is_none_or(|p| p.trim().is_empty()) {
             return Err(AssistantError::Failed(
                 "Le mot de passe root est requis pour lancer l'installation via « su - » sur cette machine, mais aucun mot de passe n'a été fourni.".to_string(),
@@ -286,7 +297,11 @@ pub fn run_installation(events: &dyn Events, mut params: RunInstallParams) -> Re
         // terminal est alloué côté distant — sans lui, la commande resterait
         // bloquée en silence en attendant une saisie qui ne peut jamais
         // arriver sur un canal non-PTY.
-        channel.request_pty("xterm", None, None).ok();
+        // Écho coupé : si le mot de passe root est écrit alors que le terminal distant l'écho, il reviendrait
+        // dans le flux et finirait dans le journal affiché (et copiable) de l'assistant.
+        let mut pty_modes = ssh2::PtyModes::new();
+        pty_modes.set_boolean(ssh2::PtyModeOpcode::ECHO, false);
+        channel.request_pty("xterm", Some(pty_modes), None).ok();
         channel
             .exec(&cmd)
             .map_err(|e| format!("Erreur lancement de la commande : {e}"))?;
@@ -312,6 +327,11 @@ pub fn run_installation(events: &dyn Events, mut params: RunInstallParams) -> Re
                 Ok(0) => break Ok(()), // canal fermé : la commande distante s'est terminée
                 Ok(n) => {
                     pending.extend_from_slice(&chunk[..n]);
+                    // Une cible qui n'envoie jamais de saut de ligne ne doit pas faire croître la mémoire sans fin.
+                    if pending.len() > MAX_PENDING_BYTES && !pending.contains(&b'\n') {
+                        pending.clear();
+                        crate::events::send(events, "install_log", &"[ATTENTION] Sortie distante sans fin de ligne ignorée".to_string());
+                    }
 
                     // L'invite de mot de passe n'est jamais suivie d'un saut
                     // de ligne (le shell distant attend la saisie) : on
@@ -346,7 +366,8 @@ pub fn run_installation(events: &dyn Events, mut params: RunInstallParams) -> Re
                     while let Some(pos) = pending.iter().position(|&b| b == b'\n') {
                         let raw_line: Vec<u8> = pending.drain(..=pos).collect();
                         let line = String::from_utf8_lossy(&raw_line);
-                        let line = line.trim_end_matches(['\r', '\n']);
+                        let line = redact_secret(line.trim_end_matches(['\r', '\n']), root_password.as_deref());
+                        let line = line.as_str();
                         match classify_line(line) {
                             LineKind::Event(ref ev) => {
                                 state.apply(ev);
@@ -383,9 +404,6 @@ pub fn run_installation(events: &dyn Events, mut params: RunInstallParams) -> Re
         // Le secret ne doit pas survivre au-delà de ce point, qu'il ait
         // servi (élévation `su -`) ou non (élévation `sudo`, échec avant
         // détection de l'invite...).
-        if let Some(pwd) = root_password.as_mut() {
-            scrub_secret(pwd);
-        }
         drop(root_password);
 
         // Code de sortie réel de install.sh : un canal fermé n'est pas un
@@ -418,5 +436,18 @@ pub fn run_installation(events: &dyn Events, mut params: RunInstallParams) -> Re
             ));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod redaction_tests {
+    use super::redact_secret;
+
+    #[test]
+    fn secret_never_reaches_the_log() {
+        assert_eq!(redact_secret("mot de passe: hunter2 ok", Some("hunter2")), "mot de passe: *** ok");
+        assert_eq!(redact_secret("rien", Some("hunter2")), "rien");
+        assert_eq!(redact_secret("rien", Some("")), "rien");
+        assert_eq!(redact_secret("rien", None), "rien");
     }
 }

@@ -314,8 +314,8 @@ def acquire_listen_port() -> int:
     if port != wanted:
         logger.warning(
             "Le port %d est occupé : Bobine écoute sur le port de repli %d. Les autres appareils doivent "
-            "utiliser http://<adresse>:%d. Les règles de pare-feu posées par les installeurs couvrent ce port "
-            "(Windows : règle liée au programme ; Linux : ports %d à %d) ; au-delà, ouvrez-le à la main.",
+            "utiliser http://<adresse>:%d. Windows : la règle de pare-feu liée au programme couvre ce port. Linux : les "
+            "règles posées par les paquets couvrent les ports %d à %d ; hors de cette plage, ouvrez-le à la main.",
             wanted, port, port, DEFAULT_PORT, DEFAULT_PORT + FALLBACK_SPAN,
         )
     else:

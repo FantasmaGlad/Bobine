@@ -5,18 +5,23 @@
 # - firewalld (Fedora, RHEL, openSUSE) : service « bobine » (/usr/lib/firewalld/services/bobine.xml).
 # Ouverture aux réseaux privés et VPN seulement (RFC 1918, 100.64.0.0/10 de Tailscale, IPv6 locales), jamais à
 # Internet. Les règles sont enregistrées même si le pare-feu est éteint : elles s'appliquent dès son activation.
-# Sans pare-feu installé, rien n'est fait. Chaque commande est idempotente.
+# Sans pare-feu installé, rien n'est fait. Chaque commande est idempotente. Une règle qui ne s'applique pas est
+# signalée sur la sortie d'erreur et le script sort en 1 (les appelants continuent : le paquet reste installé). Les
+# règles sont reposées à chaque mise à jour : c'est ce qui ouvre l'accès aux postes installés avant leur existence.
 set -e
+failed=0
+fail() { echo "configure-firewall : échec de : $*" >&2; failed=1; }
 action="${1:?open ou close}"
 case "$action" in open|close) ;; *) exit 2 ;; esac
-networks="10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10 fc00::/7 fe80::/10"
+networks="10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 100.64.0.0/10 fc00::/7 fe80::/10"
 
 if command -v ufw >/dev/null 2>&1; then
-    [ "$action" = open ] && ufw app update Bobine >/dev/null 2>&1 || true
+    if [ "$action" = open ] && ! ufw app update Bobine >/dev/null 2>&1; then fail "ufw app update Bobine"; fi
     for network in $networks; do
-        # Une règle IPv6 échoue si IPv6 est désactivé dans ufw : les autres sont gardées.
+        # Une règle IPv6 échoue si IPv6 est désactivé dans ufw : ce n'est pas une erreur, les autres sont gardées.
+        case "$network" in *:*) tolerate=1 ;; *) tolerate=0 ;; esac
         if [ "$action" = open ]; then
-            ufw allow from "$network" to any app Bobine comment "Bobine (réseau local)" >/dev/null 2>&1 || true
+            ufw allow from "$network" to any app Bobine comment "Bobine (réseau local)" >/dev/null 2>&1 || [ "$tolerate" = 1 ] || fail "ufw allow from $network"
         else
             ufw delete allow from "$network" to any app Bobine >/dev/null 2>&1 || true
         fi
@@ -30,14 +35,16 @@ if command -v firewall-cmd >/dev/null 2>&1 || command -v firewall-offline-cmd >/
         firewall-cmd --reload >/dev/null 2>&1 || true  # charge le service bobine fraîchement installé
     else
         tool="firewall-offline-cmd"
-        command -v firewall-offline-cmd >/dev/null 2>&1 || exit 0
+        command -v firewall-offline-cmd >/dev/null 2>&1 || exit "$failed"
     fi
     verb="--add-rich-rule"
     [ "$action" = close ] && verb="--remove-rich-rule"
     for network in $networks; do
         case "$network" in *:*) family=ipv6 ;; *) family=ipv4 ;; esac
-        $tool "$verb=rule family=$family source address=$network service name=bobine accept" >/dev/null 2>&1 || true
+        if ! $tool "$verb=rule family=$family source address=$network service name=bobine accept" >/dev/null 2>&1 && [ "$action" = open ]; then
+            fail "$tool $verb (réseau $network)"
+        fi
     done
     [ "$tool" = "firewall-cmd --permanent" ] && { firewall-cmd --reload >/dev/null 2>&1 || true; }
 fi
-exit 0
+exit "$failed"

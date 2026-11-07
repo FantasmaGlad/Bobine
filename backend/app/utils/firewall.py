@@ -13,13 +13,30 @@ import subprocess
 import sys
 from pathlib import Path
 
+from app.utils.local_networks import FIREWALL_NETWORKS
+
 SOCKETFILTERFW = "/usr/libexec/ApplicationFirewall/socketfilterfw"
 # Mêmes plages que packaging/linux/firewall/configure-firewall et la règle de packaging/windows/bobine.iss.
-LOCAL_NETWORKS = "LocalSubnet,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10,fc00::/7,fe80::/10"
+LOCAL_NETWORKS = ",".join(FIREWALL_NETWORKS)
 
 
 def _run(command: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(command, capture_output=True, text=True, timeout=5)
+
+
+def _windows_rule_is_usable(output: str, executable: str) -> bool:
+    """La règle existe, est activée, concerne ce programme et n'est pas ouverte à tout Internet (`RemoteIP: Any`).
+
+    `netsh` traduit ses libellés : une sortie illisible n'est pas jugée, la règle compte comme présente."""
+    fields = {key.strip().lower(): value.strip() for key, _, value in (line.partition(":") for line in output.splitlines())}
+    enabled = fields.get("enabled") or fields.get("activé")
+    program = fields.get("program") or fields.get("programme")
+    remote = fields.get("remoteip") or fields.get("adresse ip distante")
+    if enabled and enabled.lower() in {"no", "non"}:
+        return False
+    if program and program.lower() not in {"any", "tout"} and program.lower() != executable.lower():
+        return False
+    return not (remote and remote.lower() in {"any", "tout"})
 
 
 def status(platform: str | None = None, executable: str | None = None) -> dict:
@@ -42,7 +59,8 @@ def status(platform: str | None = None, executable: str | None = None) -> dict:
             return {"state": "blocked", "remedy": remedy}
         return {"state": "allowed"}
     if platform == "win32":
-        if _run(["netsh", "advfirewall", "firewall", "show", "rule", "name=Bobine"]).returncode == 0:
+        rule = _run(["netsh", "advfirewall", "firewall", "show", "rule", "name=Bobine", "verbose"])
+        if rule.returncode == 0 and _windows_rule_is_usable(rule.stdout, executable):
             return {"state": "allowed"}
         remedy = ('netsh advfirewall firewall add rule name="Bobine" dir=in action=allow '
                   f'program="{executable}" enable=yes profile=any remoteip={LOCAL_NETWORKS} '

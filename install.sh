@@ -1929,8 +1929,11 @@ ok "redirection du port 80 configurée"
 if command -v ufw >/dev/null 2>&1 || command -v firewall-cmd >/dev/null 2>&1; then
     run install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.ufw" /etc/ufw/applications.d/bobine
     run install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.firewalld.xml" /usr/lib/firewalld/services/bobine.xml
-    run sh "${REPO_DIR}/packaging/linux/firewall/configure-firewall" open
-    ok "pare-feu ouvert aux réseaux locaux (ufw ou firewalld)"
+    if run sh "${REPO_DIR}/packaging/linux/firewall/configure-firewall" open; then
+        ok "pare-feu ouvert aux réseaux locaux (ufw ou firewalld)"
+    else
+        warn "pare-feu non configuré : ouvrez le port 1903 (et 1904 à 1913) aux réseaux locaux à la main"
+    fi
 fi
 step_done
 

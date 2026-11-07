@@ -627,6 +627,7 @@ jobs:
           # Une publication exige l'APK signée de la clé de Bobine.
           if [ "${{ needs.version.outputs.channel }}" != none ]; then
             "$BOBINE_ANDROID_BUILD_TOOLS/apksigner" verify dist-assistant/*.apk
+            scripts/ci/verify-apk-cert.sh dist-assistant/*.apk
           fi
           apk=$(ls dist-assistant/*.apk)
           abis=$("$BOBINE_ANDROID_BUILD_TOOLS/aapt2" dump badging "$apk" | sed -n "s/^native-code: //p" | tr -d "'")
@@ -912,6 +913,7 @@ jobs:
           while IFS= read -r -d '' APK; do
             echo "Vérification signature : $APK"
             "${BOBINE_ANDROID_BUILD_TOOLS}/apksigner" verify --print-certs "$APK"
+            scripts/ci/verify-apk-cert.sh "$APK"
             "${BOBINE_ANDROID_BUILD_TOOLS}/zipalign" -c -P 16 4 "$APK"
           done < <(find android/app/build/outputs/apk -name '*release*.apk' -print0)
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
