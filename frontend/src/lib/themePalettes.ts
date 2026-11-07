@@ -192,9 +192,10 @@ export function deriveTokens(palette: Palette, mode: ResolvedMode): DerivedToken
   const hover = raise(mode === "dark" ? 0.14 : 0.1);
   const grounds = [bg, surface, elevated];
   // Les textes secondaires restent lisibles aussi sur un élément sélectionné (accent à 12 % sur la surface relevée).
-  const selected = mix(elevated, accent, 0.12);
-  const muted = farthestMix(text, bg, [...grounds, selected], 5.5, 0.4);
-  const dim = farthestMix(text, bg, [...grounds, selected], 4.5, 0.6);
+  const selected = mix(elevated, accent, 0.1);
+  const errorTint = mix(elevated, SEMANTIC_COLORS.error, 0.15);
+  const muted = farthestMix(text, bg, [...grounds, selected, errorTint], 4.7, 0.4);
+  const dim = farthestMix(text, bg, [...grounds, selected, errorTint], 4.5, 0.6);
   const accentText = nearestMix(accent, text, grounds, 4.5);
   // Texte d'état lisible aussi sur les encarts teintés de la couleur d'état (15 % par-dessus la surface relevée).
   const stateText = (color: string) => nearestMix(color, text, [...grounds, mix(elevated, color, 0.45)], 5);

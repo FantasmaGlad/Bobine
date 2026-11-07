@@ -591,7 +591,7 @@ export default function CoachModePage() {
                           bottom: 3,
                           right: 3,
                           background: "color-mix(in srgb, var(--ink) 70%, transparent)",
-                          color: "#fff",
+                          color: "var(--specular)",
                           borderRadius: "3px",
                           padding: "1px 4px",
                           fontSize: "0.65rem",

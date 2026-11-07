@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import AudioSection from "@/components/devices/AudioSection";
@@ -14,7 +14,6 @@ import type { Notify, SectionProps } from "@/components/devices/common";
 import { devicesRequest, type DevicesStatus } from "@/lib/devicesApi";
 import { useDevicesEvents } from "@/lib/useDevicesEvents";
 import { useRadioFeed } from "@/lib/useRadioFeed";
-import { usePointerGlow } from "@/lib/usePointerGlow";
 
 // Périphériques : audio, Bluetooth et Wi-Fi de la machine qui diffuse. Tout appareil du réseau local de confiance
 // y accède directement (voir docs/ARCHITECTURE.md).
@@ -27,8 +26,6 @@ interface ToastState { message: string; type: "success" | "error" | "warning"; }
 
 export default function DevicesPage() {
   const { t } = useAppSettings();
-  const rootRef = useRef<HTMLDivElement>(null);
-  usePointerGlow(rootRef);
   const [status, setStatus] = useState<DevicesStatus | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [tab, setTab] = useState<Tab>("map");
@@ -82,7 +79,7 @@ export default function DevicesPage() {
   const caps = status.capabilities ?? {};
   const section: SectionProps = { caps, local: status.local, refreshKey, notify, t, focusId: focus.id, focusNonce: focus.nonce };
   return (
-    <div className="radio-lib radio-lib--tabs dv-page" ref={rootRef}>
+    <div className="radio-lib radio-lib--tabs dv-page">
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
 
       <div className="live-block channel-card rl-nav-card rl-nav-card--centered">

@@ -14,7 +14,6 @@ import { storageErrorText } from "@/components/storage/common";
 import { devicesRequest, type DevicesStatus } from "@/lib/devicesApi";
 import { diffVolumes, encodeKey, storageRequest, type FormatJob, type PortableListing, type StorageVolume, type VolumeListing } from "@/lib/storageApi";
 import { useStorageEvents } from "@/lib/useStorageEvents";
-import { usePointerGlow } from "@/lib/usePointerGlow";
 
 // Stockage externe : supports amovibles et téléphones. Tout appareil du réseau local de confiance y accède directement.
 // Une liste, UNE action principale par support (Explorer), puis Importer ou Utiliser comme extension ; le reste est dans « Options ».
@@ -25,8 +24,6 @@ interface OpenSource { key: string; name: string; portable: boolean; volume: Sto
 export default function StoragePage() {
   const { t, language } = useAppSettings();
   const lang = language === "en" ? "en" : "fr";
-  const rootRef = useRef<HTMLDivElement>(null);
-  usePointerGlow(rootRef);
   const [status, setStatus] = useState<DevicesStatus | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [listing, setListing] = useState<VolumeListing | null>(null);
@@ -138,7 +135,7 @@ export default function StoragePage() {
   const showJobs = jobIds.length > 0;
 
   return (
-    <div className="radio-lib radio-lib--tabs dv-page st-page" ref={rootRef}>
+    <div className="radio-lib radio-lib--tabs dv-page st-page">
       {toast && <div className={`toast ${toast.type}`} role="status"><span>{toast.message}</span></div>}
 
       <main className="radio-lib-main">

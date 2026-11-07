@@ -1,6 +1,21 @@
 /* GÉNÉRÉ par scripts/generate-themes.mjs depuis src/lib/themePalettes.ts : ne pas modifier à la main.
    Neuf thèmes, chacun en clair et en sombre : les quatre couleurs de la palette et les jetons qui en sont déduits. */
 :root {
+  --bg-main: #252d41;
+  --bg-surface: #536383;
+  --bg-surface-elevated: #4a5876;
+  --bg-surface-hover: #43506c;
+  --text-main: #ffffff;
+  --text-muted: #e9eaec;
+  --text-dim: #e4e5e7;
+  --border-color: #515767;
+  --border-focus: #e3ecf2;
+  --accent-primary: #e3ecf2;
+  --accent-primary-fg: #252d41;
+  --accent-text: #e3ecf2;
+  --accent-error-text: #ffeceb;
+  --accent-success-text: #ffffff;
+  --accent-warning-text: #ffffff;
   --accent-error: #ff453a;
   --accent-success: #30d158;
   --accent-warning: #ff9f0a;
@@ -13,8 +28,8 @@
   --bg-surface-elevated: #dae2e9;
   --bg-surface-hover: #d0d9e0;
   --text-main: #252d41;
-  --text-muted: #484f5f;
-  --text-dim: #555c6b;
+  --text-muted: #505666;
+  --text-dim: #535969;
   --border-color: #dcdde1;
   --border-focus: #5a6476;
   --accent-primary: #697485;
@@ -32,8 +47,8 @@
   --bg-surface-elevated: #4a5876;
   --bg-surface-hover: #43506c;
   --text-main: #ffffff;
-  --text-muted: #ffffff;
-  --text-dim: #e9eaec;
+  --text-muted: #e9eaec;
+  --text-dim: #e4e5e7;
   --border-color: #515767;
   --border-focus: #e3ecf2;
   --accent-primary: #e3ecf2;
@@ -51,8 +66,8 @@
   --bg-surface-elevated: #d9d7d7;
   --bg-surface-hover: #d0cccc;
   --text-main: #2e0605;
-  --text-muted: #5d3e3d;
-  --text-dim: #684b4a;
+  --text-muted: #674a49;
+  --text-dim: #694c4c;
   --border-color: #ded7d7;
   --border-focus: #ba1916;
   --accent-primary: #cd1c18;
@@ -70,8 +85,8 @@
   --bg-surface-elevated: #521716;
   --bg-surface-hover: #5d2120;
   --text-main: #f6b7b5;
-  --text-muted: #d99e9c;
-  --text-dim: #c68d8b;
+  --text-muted: #d39896;
+  --text-dim: #d09593;
   --border-color: #562928;
   --border-focus: #ed6864;
   --accent-primary: #e5211d;
@@ -89,8 +104,8 @@
   --bg-surface-elevated: #f5f0aa;
   --bg-surface-hover: #ebe6a1;
   --text-main: #393500;
-  --text-muted: #615d33;
-  --text-dim: #6d6a43;
+  --text-muted: #615e34;
+  --text-dim: #646137;
   --border-color: #dfdfd6;
   --border-focus: #746c00;
   --accent-primary: #e6d700;
@@ -108,8 +123,8 @@
   --bg-surface-elevated: #635e0e;
   --bg-surface-hover: #6d6819;
   --text-main: #fffab3;
-  --text-muted: #fffab3;
-  --text-dim: #f7f2ab;
+  --text-muted: #f9f4ad;
+  --text-dim: #f4efa9;
   --border-color: #615c24;
   --border-focus: #ffef00;
   --accent-primary: #ffef00;
@@ -127,8 +142,8 @@
   --bg-surface-elevated: #f8b8d8;
   --bg-surface-hover: #f0afcf;
   --text-main: #6c0036;
-  --text-muted: #7a1849;
-  --text-dim: #862c59;
+  --text-muted: #832855;
+  --text-dim: #852b58;
   --border-color: #e7d6df;
   --border-focus: #a50d59;
   --accent-primary: #ff2290;
@@ -165,8 +180,8 @@
   --bg-surface-elevated: #d7d7d7;
   --bg-surface-hover: #cbcbcb;
   --text-main: #000000;
-  --text-muted: #444444;
-  --text-dim: #515151;
+  --text-muted: #505050;
+  --text-dim: #535353;
   --border-color: #d6d6d6;
   --border-focus: #333333;
   --accent-primary: #333333;
@@ -184,8 +199,8 @@
   --bg-surface-elevated: #454849;
   --bg-surface-hover: #515455;
   --text-main: #ffffff;
-  --text-muted: #c9c9c9;
-  --text-dim: #b6b6b6;
+  --text-muted: #c3c3c3;
+  --text-dim: #bfbfbf;
   --border-color: #333333;
   --border-focus: #b7b7b7;
   --accent-primary: #4a4a4a;
@@ -203,7 +218,7 @@
   --bg-surface-elevated: #f6cff5;
   --bg-surface-hover: #edc4ec;
   --text-main: #470a45;
-  --text-muted: #693767;
+  --text-muted: #724370;
   --text-dim: #744673;
   --border-color: #e2d8e1;
   --border-focus: #a918a4;
@@ -222,7 +237,7 @@
   --bg-surface-elevated: #771f73;
   --bg-surface-hover: #802b7c;
   --text-main: #ffd9fe;
-  --text-muted: #f1c9f0;
+  --text-muted: #e2b8e0;
   --text-dim: #deb4dd;
   --border-color: #6c336a;
   --border-focus: #f291ee;
@@ -241,8 +256,8 @@
   --bg-surface-elevated: #c5f4d2;
   --bg-surface-hover: #bbe8c7;
   --text-main: #0a190e;
-  --text-muted: #49544c;
-  --text-dim: #566159;
+  --text-muted: #525c54;
+  --text-dim: #555f58;
   --border-color: #d8dad8;
   --border-focus: #2e6f40;
   --accent-primary: #2e6f40;
@@ -260,8 +275,8 @@
   --bg-surface-elevated: #334d3a;
   --bg-surface-hover: #3d5845;
   --text-main: #cfffdc;
-  --text-muted: #b7e5c3;
-  --text-dim: #a4d0b0;
+  --text-muted: #a6d2b2;
+  --text-dim: #a2ceae;
   --border-color: #395a42;
   --border-focus: #7ac68f;
   --accent-primary: #68ba7f;
@@ -279,8 +294,8 @@
   --bg-surface-elevated: #8f8ff4;
   --bg-surface-hover: #8787e8;
   --text-main: #00001c;
-  --text-muted: #0b0b26;
-  --text-dim: #202039;
+  --text-muted: #202038;
+  --text-dim: #23233b;
   --border-color: #d6d6db;
   --border-focus: #000080;
   --accent-primary: #000080;
@@ -298,8 +313,8 @@
   --bg-surface-elevated: #212163;
   --bg-surface-hover: #30306d;
   --text-main: #ffffff;
-  --text-muted: #aeaeb7;
-  --text-dim: #9d9da8;
+  --text-muted: #9f9faa;
+  --text-dim: #9c9ca6;
   --border-color: #333349;
   --border-focus: #8383ff;
   --accent-primary: #8080ff;
@@ -317,8 +332,8 @@
   --bg-surface-elevated: #f9e7d6;
   --bg-surface-hover: #f2ddcb;
   --text-main: #803600;
-  --text-muted: #884310;
-  --text-dim: #925325;
+  --text-muted: #8d4a1a;
+  --text-dim: #8e4d1d;
   --border-color: #ebdfd6;
   --border-focus: #ae4d09;
   --accent-primary: #ff7518;
@@ -336,8 +351,8 @@
   --bg-surface-elevated: #8f3900;
   --bg-surface-hover: #853500;
   --text-main: #fff0e1;
-  --text-muted: #fdeede;
-  --text-dim: #ecd8c6;
+  --text-muted: #edd9c8;
+  --text-dim: #e9d4c2;
   --border-color: #7d4e2d;
   --border-focus: #ffc7a0;
   --accent-primary: #ffb98a;

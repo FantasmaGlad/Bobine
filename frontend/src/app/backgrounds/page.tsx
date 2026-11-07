@@ -131,7 +131,7 @@ function BackgroundCard({
             <span
               style={{
                 background: "var(--accent-success)",
-                color: "#ffffff",
+                color: "var(--specular)",
                 padding: "3px 8px",
                 borderRadius: "6px",
                 fontSize: "0.72rem",
@@ -174,7 +174,7 @@ function BackgroundCard({
             bottom: 8,
             right: 8,
             background: "color-mix(in srgb, var(--ink) 75%, transparent)",
-            color: "#ffffff",
+            color: "var(--specular)",
             padding: "2px 6px",
             borderRadius: "4px",
             fontSize: "0.72rem",

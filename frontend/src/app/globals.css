@@ -1,31 +1,11 @@
 /* Bobine — Global Styles & Design System */
 
 :root {
-  /* Colors - Dark Theme (thème par défaut) */
-  --bg-main: #141416;
-  --bg-surface: #1e1e21;
-  --bg-surface-elevated: #28282c;
-  --bg-surface-hover: #323237;
+  /* Couleurs du thème : valeurs de repli et palettes dans themes.css (GÉNÉRÉ depuis src/lib/themePalettes.ts). */
   --hover-brightness: 1.12;
   --press-brightness: 0.9;
 
-  --text-main: #ffffff;
-  --text-muted: #9ca3af;
-  --text-dim: #868e96;
-
-  --border-color: #27272a;
-  --border-focus: #52525b;
-
-  /* Accent Colors */
-  --accent-primary: #e4002b; /* Rouge Bobine */
-  /* Couleur de texte/icône lisible posée SUR --accent-primary : recalculée par thème (luminance WCAG
-     réelle de l'accent — blanc sur les accents foncés, encre sombre sur les
-     accents clairs). À utiliser partout où un élément a l'accent en fond
-     plein (btn-primary, badge héros cinéma, bouton play coach...), jamais un
-     blanc codé en dur. */
-  --accent-primary-fg: #ffffff;
   --accent-rpm: #e4002b;
-  --accent-sprint: #ffb81c;
   --accent-trip: #8a2be2; /* Vibrant violet-blue */
   --accent-other: #636366;
 
@@ -2078,7 +2058,7 @@ a.status-pill,
 a.status-pill:hover,
 .status-pill[href]:hover {
   background: var(--accent-primary);
-  color: var(--accent-primary-fg, #ffffff);
+  color: var(--accent-primary-fg);
   border-color: var(--accent-text);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-primary) 35%, transparent);
   transform: translateY(-1px);
@@ -2680,7 +2660,6 @@ a.status-pill:hover,
   align-items: center;
   justify-content: center;
   background: color-mix(in srgb, var(--ink) 32%, transparent);
-  backdrop-filter: blur(var(--blur-xs));
   color: var(--specular);
   transition: background 0.2s ease, transform 0.2s ease;
 }
@@ -2876,27 +2855,27 @@ a.status-pill:hover,
 }
 
 video::cue {
-  background-color: rgba(0, 0, 0, 0.78);
-  color: #ffffff;
+  background-color: color-mix(in srgb, var(--ink) 78%, transparent);
+  color: var(--specular);
   font-family: var(--font-body, system-ui, sans-serif);
   font-size: 1.15rem;
   font-weight: 600;
   line-height: 1.4;
   border-radius: 4px;
   padding: 2px 6px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 2px 4px color-mix(in srgb, var(--ink) 90%, transparent);
 }
 
 .cinema-hero-description {
   margin: 8px 0 0;
-  font-size: 0.95rem;
+  font-size: clamp(1rem, 1.7vw, 1.6rem);
   font-weight: 500;
   line-height: 1.5;
   color: var(--text-muted);
-  max-width: 600px;
+  max-width: 62ch;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
 }
 
@@ -5729,30 +5708,21 @@ video::cue {
     );
 }
 
-/* Île d'information flottante glassmorphism Apple (Style Cinéma Apple TV / VisionOS) */
+/* Titre et description (M30) : sans encadré, à partir du coin haut gauche, sur toute la hauteur et une large part de la
+   largeur de l'écran. Rien n'est compacté sur les écrans courts : la taille suit l'écran (clamp), le texte lit sur le voile. */
 .cinema-hero-content {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
-  align-self: center;
-  gap: 16px;
-  margin: 36px 0 36px 56px;
-  padding: 40px 52px;
-  width: 50%;
-  max-width: 660px;
+  justify-content: flex-start;
+  align-self: stretch;
+  gap: clamp(10px, 2.2vh, 24px);
+  margin: 0;
+  padding: 0;
+  width: min(64%, 1180px);
+  max-width: none;
   z-index: 2;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--bg-surface) 60%, transparent) 0%,
-    color-mix(in srgb, var(--bg-surface) 38%, color-mix(in srgb, var(--accent-primary) 18%, transparent)) 100%
-  );
-  -webkit-backdrop-filter: blur(var(--blur-2xl)) saturate(var(--saturate-rich));
-  backdrop-filter: blur(var(--blur-2xl)) saturate(var(--saturate-rich));
-  border: 1px solid color-mix(in srgb, var(--text-main) 18%, color-mix(in srgb, var(--accent-primary) 32%, transparent));
-  border-radius: 28px;
-  box-shadow: 0 20px 50px color-mix(in srgb, var(--ink) 16%, transparent), inset 0 1px 1px 0 color-mix(in srgb, var(--specular) 65%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent-primary) 16%, transparent);
 }
 
 @media (max-width: 900px) {
@@ -5764,11 +5734,7 @@ video::cue {
   .cinema-hero-content {
     width: auto;
     max-width: none;
-    margin: 16px;
-    padding: 24px;
-    border-radius: 24px;
-    border: 1px solid color-mix(in srgb, var(--text-main) 18%, color-mix(in srgb, var(--accent-primary) 32%, transparent));
-    box-shadow: 0 12px 32px color-mix(in srgb, var(--ink) 18%, transparent);
+    margin: 0;
   }
 }
 
@@ -5818,7 +5784,7 @@ video::cue {
 }
 
 .cinema-hero-title {
-  font-size: clamp(1.8rem, 3.6vw, 2.8rem);
+  font-size: clamp(2rem, 5.4vw, 5rem);
   font-weight: 900;
   line-height: 1.08;
   margin: 0;
@@ -5860,14 +5826,6 @@ video::cue {
   font-size: 0.82rem;
   font-weight: 700;
   box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 6%, transparent);
-}
-
-.cinema-hero-desc {
-  font-size: 0.94rem;
-  line-height: 1.5;
-  color: var(--text-muted);
-  margin: 2px 0 6px;
-  max-width: 520px;
 }
 
 .cinema-hero-actions {
@@ -6064,7 +6022,7 @@ video::cue {
   transform: translateX(-50%);
   z-index: 20;
   background: var(--accent-warning);
-  color: #1a1400;
+  color: var(--ink);
   font-weight: 700;
   font-size: 0.95rem;
   padding: 12px 22px;
@@ -6462,14 +6420,14 @@ video::cue {
 
 /* Lecture vidéo plein écran + barre de contrôle souris auto-masquée */
 .cinema-video-layer {
-  background: #000;
+  background: var(--ink);
 }
 
 .cinema-video {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #000;
+  background: var(--ink);
 }
 
 /* Bouton de lancement manuel (autoplay refusé par le navigateur, ex. mobile
@@ -7062,7 +7020,7 @@ video::cue {
   background: var(--bg-surface-elevated); display: flex; align-items: center; justify-content: center; }
 .rl-pcard-cover img { width: 100%; height: 100%; object-fit: cover; }
 .rl-pcard-cover--round { aspect-ratio: 1 / 1; border-radius: 50%; width: 96px; margin: 0 auto; }
-.rl-pcard-star { position: absolute; top: 6px; right: 6px; color: #f5c518; background: color-mix(in srgb, var(--ink) 55%, transparent);
+.rl-pcard-star { position: absolute; top: 6px; right: 6px; color: var(--accent-warning); background: color-mix(in srgb, var(--ink) 55%, transparent);
   border-radius: 999px; padding: 3px; display: flex; }
 .rl-pcard-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .rl-pcard-title { font-weight: 800; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -7526,7 +7484,7 @@ video::cue {
   height: 100%;
   object-fit: contain;
   transition: opacity 0.4s ease;
-  background: #000;
+  background: var(--ink);
   pointer-events: none;
 }
 
@@ -8743,8 +8701,8 @@ video::cue {
   font-size: max(22px, 3.4vh);
   line-height: 1.25;
   color: var(--specular);
-  background-color: rgba(0, 0, 0, 0.62);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  background-color: color-mix(in srgb, var(--ink) 62%, transparent);
+  text-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 90%, transparent);
 }
 
 /* ---- Gestion du son d'une sortie radio (RadioSoundPanel) ---- */
@@ -9007,7 +8965,7 @@ video::cue {
 }
 .rq-remove:hover,
 .rq-remove:focus-visible {
-  color: #fff;
+  color: var(--specular);
   background: var(--accent-error);
 }
 
@@ -9151,16 +9109,7 @@ video::cue {
   .pause-center, .cinema-pause-center { padding: 12px 16px; gap: 14px; }
 }
 
-/* --- Cinéma (vitrine) : le héros s'adapte aux écrans courts / très larges --- */
-.cinema-hero-content { max-height: calc(100% - 24px); overflow: hidden; }
-@media (min-width: 901px) and (max-height: 760px) {
-  .cinema-hero-content { margin: 14px 0 14px 4vw; padding: 20px 28px; gap: 10px; border-radius: 22px; }
-  .cinema-hero-description { display: none; }
-  .cinema-brand-logo { height: clamp(48px, 9vmin, 80px); }
-}
-@media (min-aspect-ratio: 2/1) {
-  .cinema-hero-content { margin-left: 6vw; }
-}
+/* --- Cinéma (vitrine) : le héros occupe l'écran, sans compaction sur les écrans courts ni larges --- */
 @media (min-width: 901px) {
   .cinema-controls { padding: clamp(14px, 3vmin, 36px) clamp(18px, 4vmin, 48px); }
 }
@@ -9250,18 +9199,6 @@ video::cue {
   isolation: isolate;
   transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
 }
-.glass-interactive::before {
-  /* halo qui suit le pointeur : actif seulement avec une souris précise (voir plus bas) */
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  opacity: 0;
-  z-index: -1;
-  background: none;
-  transition: opacity var(--dur-base) var(--ease-out);
-}
 .glass-interactive:focus-visible {
   outline: 3px solid var(--accent-text);
   outline-offset: 2px;
@@ -9279,7 +9216,6 @@ video::cue {
     border-color: color-mix(in srgb, var(--accent-primary) 35%, transparent);
     box-shadow: 0 10px 26px color-mix(in srgb, var(--ink) 14%, transparent);
   }
-  :root:not([data-input-mode="remote"]) .glass-interactive:hover::before { opacity: 1; }
   :root:not([data-input-mode="remote"]) .glass-interactive:hover .dv-icon,
   :root:not([data-input-mode="remote"]) .glass-interactive:hover .rl-list-cover {
     background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-surface-elevated));
@@ -9288,7 +9224,7 @@ video::cue {
 }
 .dv-icon { transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out); }
 @media (prefers-reduced-motion: reduce) {
-  .glass-interactive, .glass-interactive::before, .seg-indicator { transition: none !important; transform: none !important; }
+  .glass-interactive, .seg-indicator { transition: none !important; transform: none !important; }
 }
 
 /* Onglets segmentés : un indicateur unique glisse sous l'onglet actif. */
@@ -9421,8 +9357,7 @@ video::cue {
 
 .dv-map-controls { position: absolute; left: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
 .dv-map-btn { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-main);
-  background: color-mix(in srgb, var(--bg-surface) 75%, transparent); border: 1px solid color-mix(in srgb, var(--text-main) 16%, var(--border-color));
-  -webkit-backdrop-filter: blur(var(--blur-md)); backdrop-filter: blur(var(--blur-md)); transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast) var(--ease-out); }
+  background: var(--bg-surface-elevated); border: 1px solid color-mix(in srgb, var(--text-main) 16%, var(--border-color)); transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast) var(--ease-out); }
 .dv-map-btn:hover { background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-surface)); }
 .dv-map-btn:active { transform: scale(0.92); }
 .dv-map-btn:focus-visible { outline: 3px solid var(--accent-text); outline-offset: 2px; }

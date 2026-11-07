@@ -605,7 +605,7 @@ details.settings-doc-group[open] > summary.settings-doc-header::after {
   aspect-ratio: 16 / 9;
   object-fit: cover;
   border-radius: var(--radius-sm);
-  background: #000;
+  background: var(--ink);
   flex-shrink: 0;
 }
 .sheet-option__text {
@@ -705,7 +705,7 @@ button.course-card.is-selected {
   font-size: 0.7rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #fff;
+  color: var(--specular);
   background: color-mix(in srgb, var(--ink) 72%, transparent);
 }
 .course-card__body {
@@ -1001,7 +1001,7 @@ button.course-card.is-selected {
   padding: 10px 18px;
   border-left: 4px solid var(--accent-text);
   border-radius: var(--radius-md);
-  color: #fff;
+  color: var(--specular);
   background: color-mix(in srgb, var(--ink) 62%, transparent);
   backdrop-filter: blur(var(--blur-sm));
   pointer-events: none;
