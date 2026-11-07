@@ -1,6 +1,6 @@
 /**
  * Thèmes de l'interface : neuf couleurs, chacune en clair et en sombre. SOURCE UNIQUE des palettes (4 couleurs par
- * palette : fond, surface, accent, texte), relevées telles quelles du classeur de la refonte L7.
+ * palette : fond, surface, accent, texte), relevées telles quelles dans la maquette de l'interface.
  *
  * Les jetons dérivés (`deriveTokens`) sont calculés ici, avec un contrôle de contraste, puis écrits dans
  * `src/app/themes.css` par `scripts/generate-themes.mjs`. Un test vérifie que le fichier CSS est à jour. La liste des

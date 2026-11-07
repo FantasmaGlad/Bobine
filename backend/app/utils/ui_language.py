@@ -1,4 +1,4 @@
-"""Langue de l'interface : un export statique par langue, celui de la langue enregistrée est servi (M27).
+"""Langue de l'interface : un export statique par langue, celui de la langue enregistrée est servi.
 
 Chaque écran ne charge ainsi que ses textes. Changer de langue dans Réglages enregistre le choix ; il s'applique au
 redémarrage suivant, après lequel les écrans ouverts se rechargent seuls (changement de `boot_id`).

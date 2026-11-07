@@ -5708,7 +5708,7 @@ video::cue {
     );
 }
 
-/* Titre et description (M30) : sans encadré, à partir du coin haut gauche, sur toute la hauteur et une large part de la
+/* Titre et description : sans encadré, à partir du coin haut gauche, sur toute la hauteur et une large part de la
    largeur de l'écran. Rien n'est compacté sur les écrans courts : la taille suit l'écran (clamp), le texte lit sur le voile. */
 .cinema-hero-content {
   position: relative;

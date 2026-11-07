@@ -2,7 +2,7 @@ export interface NavLinkConfig {
   href: string;
   labelKey: string;
   iconName: string;
-  /** Masqué par l'interface simplifiée (M28). */
+  /** Masqué par l'interface simplifiée. */
   advanced?: boolean;
 }
 
@@ -12,7 +12,7 @@ export interface NavGroupConfig {
   groupKey: string;
   iconName: string;
   children: NavLinkConfig[];
-  /** Masqué par l'interface simplifiée (M28). */
+  /** Masqué par l'interface simplifiée. */
   advanced?: boolean;
 }
 
@@ -78,7 +78,7 @@ export const navLinks: NavLinkConfig[] = navEntries.flatMap((entry) =>
   isNavGroup(entry) ? entry.children : [entry],
 );
 
-/** Interface simplifiée (M28) : sans coach, métriques ni journaux. */
+/** Interface simplifiée : sans coach, métriques ni journaux. */
 export function visibleNavEntries(simplified: boolean): NavEntry[] {
   return simplified ? navEntries.filter((entry) => !entry.advanced) : navEntries;
 }

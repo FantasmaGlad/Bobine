@@ -48,11 +48,10 @@ BUILD_CHANNEL = channel.build_channel(REPO_DIR)
 ICON_PATH = channel.stage_icon(SPEC_DIR / f"bobine-{BUILD_CHANNEL}.icns", Path(workpath), "bobine.icns")
 
 # Numéro de version du bundle — lu
-# dynamiquement depuis VERSION, jamais recopié en dur ici (c'était le cas
-# avant ce lot : BUNDLE() et Info.plist annonçaient "3.0.0" quelle que soit
-# la version réellement construite, découvert en même temps que le bug
-# analogue sur DEBIAN/control). La CI écrit VERSION avec le suffixe "-beta"
-# ou "-canary" avant PyInstaller selon le canal rolling concerné (cf. ci.yml).
+# dynamiquement depuis VERSION, jamais recopié en dur ici : BUNDLE() et
+# Info.plist annoncent la version réellement construite. La CI écrit VERSION
+# avec le suffixe "-beta" ou "-canary" avant PyInstaller selon le canal
+# rolling concerné (cf. ci.yml).
 APP_VERSION = (REPO_DIR / "VERSION").read_text(encoding="utf-8").strip()
 
 datas = [
