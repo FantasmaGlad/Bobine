@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { recallCatalog, rememberCatalog } from "@/lib/sessionCatalog";
+import PageNav from "@/components/PageNav";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useUploadManager } from "@/lib/UploadManager";
 import { parseMediaName } from "@/lib/parseMediaName";
@@ -500,25 +501,15 @@ export default function AudioLibraryPage() {
       onDragLeave={mode === "courses" ? handleDrag : undefined}
       onDrop={mode === "courses" ? handleFileDrop : undefined}
     >
-      {/* Bascule Cours/Playlists : même langage visuel que le bascule
-          grille/liste de la Bibliothèque vidéo (.view-toggle). */}
-      <div className="library-header-bar">
-        <div className="view-toggle">
-          <button
-            className={`view-btn olc-press ${mode === "courses" ? "active" : ""}`}
-            onClick={() => setMode("courses")}
-          >
-            <Icon name="library_music" size={16} /> {t("audio.coursesTab")}
-          </button>
-          <button
-            className={`view-btn olc-press ${mode === "playlists" ? "active" : ""}`}
-            onClick={() => setMode("playlists")}
-          >
-            <Icon name="playlist_play" size={16} /> {t("audio.playlistsTab")}
-          </button>
-        </div>
-
-        {mode === "courses" && (
+      {/* Cours / Playlists : barre de page commune (PageNav), imports à droite. */}
+      <PageNav
+        tabs={[{ id: "courses", icon: "library_music", label: t("audio.coursesTab") }, { id: "playlists", icon: "playlist_play", label: t("audio.playlistsTab") }]}
+        value={mode}
+        onChange={(id) => setMode(id as typeof mode)}
+        ariaLabel={t("audio.coursesTab")}
+        actions={
+          <>
+            {mode === "courses" && (
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <input
               ref={fileInputRef}
@@ -565,7 +556,9 @@ export default function AudioLibraryPage() {
             </button>
           </div>
         )}
-      </div>
+          </>
+        }
+      />
 
       {mode === "playlists" ? (
         <AudioPlaylistManager />

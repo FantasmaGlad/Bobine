@@ -6838,6 +6838,25 @@ video::cue {
    ============================================================ */
 .radio-lib { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .rl-nav-card { align-items: center; flex-wrap: wrap; gap: 12px; }
+/* Une section masquée (catégorie non choisie des Réglages) ne doit jamais être réaffichée par une règle de mise en page. */
+.live-block[hidden] { display: none !important; }
+.settings-search-row { display: flex; justify-content: center; margin: 4px 0 18px; }
+.settings-search {
+  display: flex; align-items: center; gap: 10px; width: min(100%, 520px); box-sizing: border-box;
+  padding: 0 16px; min-height: 48px; border-radius: var(--radius-full);
+  background: var(--glass-card-bg); border: 1px solid var(--glass-card-border); color: var(--text-muted);
+  -webkit-backdrop-filter: blur(var(--glass-card-blur)); backdrop-filter: blur(var(--glass-card-blur));
+}
+.settings-search:focus-within { border-color: var(--focus-ring); color: var(--text-main); }
+.settings-search input {
+  flex: 1; min-width: 0; height: 46px; border: 0; outline: 0; background: transparent; color: var(--text-main);
+  font: inherit; font-size: 1rem;
+}
+.settings-search input::placeholder { color: var(--text-muted); }
+/* Barre de navigation commune (PageNav) : onglets à gauche, actions de la page à droite. */
+.page-nav { justify-content: space-between; margin-bottom: 14px; }
+.page-nav-tabs { flex: 1 1 auto; min-width: 0; }
+.page-nav-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
 .rl-sections { max-width: 100%; }
 .rl-sections .display-output-buttons { flex-wrap: wrap; justify-content: flex-start; }
 .rl-tab-count { font-size: 0.7rem; opacity: 0.75; background: color-mix(in srgb, currentColor 14%, transparent);
@@ -7054,45 +7073,6 @@ video::cue {
    ============================================================ */
 .settings-page { display: flex; flex-direction: column; gap: 18px; width: 100%; }
 .settings-page .live-block { scroll-margin-top: 80px; }
-.settings-nav-tabs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 8px 12px;
-  margin-bottom: 2px;
-  scrollbar-width: none;
-}
-.settings-nav-tabs::-webkit-scrollbar {
-  display: none;
-}
-.settings-nav-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-decoration: none;
-  white-space: nowrap;
-  transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), opacity var(--transition-fast), filter var(--transition-fast);
-  background: transparent;
-  border: 1px solid transparent;
-}
-.settings-nav-tab:hover {
-  color: var(--text-main);
-  background: var(--bg-hover);
-}
-.settings-nav-tab.danger {
-  color: color-mix(in srgb, var(--accent-error) 80%, var(--text-muted));
-}
-.settings-nav-tab.danger:hover {
-  color: var(--accent-error-text);
-  background: color-mix(in srgb, var(--accent-error) 10%, transparent);
-  border-color: color-mix(in srgb, var(--accent-error) 25%, transparent);
-}
 .settings-head { margin-bottom: 2px; }
 .settings-title { font-size: 1.5rem; font-weight: 800; margin: 0; }
 .settings-subtitle { font-size: 0.9rem; color: var(--text-muted); margin: 4px 0 0; }
@@ -9468,8 +9448,6 @@ video::cue {
 
   .dv-row--click { padding-right: 34px; }
   .dv-chevron { position: absolute; right: 8px; top: 14px; margin-left: 0; }
-  .settings-nav-tabs { container-type: inline-size; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; }
-  .settings-nav-tab { flex: 0 0 calc((100cqw - 16px) / 3.4); justify-content: center; scroll-snap-align: center; scroll-snap-stop: always; padding-left: 8px; padding-right: 8px; }
 }
 
 /* ============================================================

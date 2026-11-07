@@ -216,16 +216,6 @@
 /* Réglages : onglets de section et adresses                            */
 /* ------------------------------------------------------------------ */
 @media (max-width: 640px) {
-  .settings-nav-tabs {
-    padding: 6px 8px;
-    gap: 6px;
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
-    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
-  }
-  .settings-nav-tab {
-    min-height: var(--tap-min);
-    padding: 0 14px;
-  }
 
   .settings-path-row {
     flex-direction: column;

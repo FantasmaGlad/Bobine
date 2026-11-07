@@ -1,5 +1,6 @@
 "use client";
 
+import PageNav from "@/components/PageNav";
 import React, { useEffect, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
@@ -133,15 +134,13 @@ export default function LogsPage() {
 
   return (
     <div className="library-container">
+      <PageNav
+        tabs={[{ id: "activity", label: t("logs.activityTab") }, { id: "technical", label: t("logs.technicalTab") }]}
+        value={tab}
+        onChange={(id) => setTab(id as typeof tab)}
+        ariaLabel={t("logs.activityTab")}
+      />
       <div className="library-toolbar sticky-glass-toolbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-        <div className="view-toggle" style={{ width: "fit-content" }}>
-          <button className={`view-btn ${tab === "activity" ? "active" : ""}`} onClick={() => setTab("activity")}>
-            {t("logs.activityTab")}
-          </button>
-          <button className={`view-btn ${tab === "technical" ? "active" : ""}`} onClick={() => setTab("technical")}>
-            {t("logs.technicalTab")}
-          </button>
-        </div>
 
         {tab === "activity" ? (
           <div className="toolbar-filters" style={{ flexWrap: "wrap", gap: "8px" }}>

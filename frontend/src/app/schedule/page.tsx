@@ -1,11 +1,11 @@
 "use client";
 
+import PageNav from "@/components/PageNav";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
 import Icon from "@/components/Icon";
-import ScrollNav from "@/components/ScrollNav";
 import { isRadioLane, parseScheduleChannel, type ScheduleChannel } from "@/lib/scheduleChannels";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SearchBox from "@/components/SearchBox";
@@ -1015,47 +1015,19 @@ export default function SchedulePage() {
         </div>
       )}
 
+<PageNav
+        tabs={[
+          { id: "cable", icon: "cable", label: t("schedule.channelTabCable") },
+          { id: "network", icon: "wifi", label: t("schedule.channelTabNetwork") },
+          { id: "radio_cable", icon: "graphic_eq", label: t("schedule.channelTabRadioCable") },
+          { id: "radio_network", icon: "graphic_eq", label: t("schedule.channelTabRadioNetwork") },
+        ]}
+        value={channel}
+        onChange={(id) => setChannel(id as typeof channel)}
+        ariaLabel={t("schedule.channelCableTitle")}
+      />
+
       <div className="schedule-toolbar sticky-glass-toolbar">
-        {/* Onglets de canal : tout ce qui suit — calendrier,
-            liste, créations — ne concerne que le canal sélectionné. */}
-        <ScrollNav>
-          <button
-            className={`view-btn olc-press ${channel === "cable" ? "active" : ""}`}
-            onClick={() => setChannel("cable")}
-            title={t("schedule.channelCableTitle")}
-            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 12px" }}
-          >
-            <Icon name="cable" size={16} />
-            {t("schedule.channelTabCable")}
-          </button>
-          <button
-            className={`view-btn olc-press ${channel === "network" ? "active" : ""}`}
-            onClick={() => setChannel("network")}
-            title={t("schedule.channelNetworkTitle")}
-            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 12px" }}
-          >
-            <Icon name="wifi" size={16} />
-            {t("schedule.channelTabNetwork")}
-          </button>
-          <button
-            className={`view-btn olc-press ${channel === "radio_cable" ? "active" : ""}`}
-            onClick={() => setChannel("radio_cable")}
-            title={t("schedule.channelRadioCableTitle")}
-            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 12px" }}
-          >
-            <Icon name="graphic_eq" size={16} />
-            {t("schedule.channelTabRadioCable")}
-          </button>
-          <button
-            className={`view-btn olc-press ${channel === "radio_network" ? "active" : ""}`}
-            onClick={() => setChannel("radio_network")}
-            title={t("schedule.channelRadioNetworkTitle")}
-            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 12px" }}
-          >
-            <Icon name="graphic_eq" size={16} />
-            {t("schedule.channelTabRadioNetwork")}
-          </button>
-        </ScrollNav>
         {viewMode === "day" ? (
           <div className="week-nav">
             <button className="btn btn-secondary btn-sm" onClick={goToPreviousDay} title={t("schedule.previousDayTitle")}>

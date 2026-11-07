@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import BrowserCompatibility from "@/components/BrowserCompatibility";
 import MediaNativeSetting from "@/components/MediaNativeSetting";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import SegmentedTabs from "@/components/SegmentedTabs";
+import PageNav from "@/components/PageNav";
+import { DEFAULT_SETTINGS_CATEGORY, SETTINGS_CATEGORIES, categoryOfSection, matchCategories, type SettingsCategoryId } from "@/lib/settingsCategories";
 import { paletteOf, THEME_MODES, THEMES, type ThemeMode } from "@/lib/themePalettes";
 import { channelI18nSuffix, channelLogoUrl, isRollingReleaseChannel, RELEASE_CHANNELS, type UpdateChannel } from "@/lib/releaseChannel";
 import type { Language } from "@/lib/i18n";
@@ -182,6 +184,37 @@ export default function SettingsPage() {
     hasCustomLogo, activeLogo, setActiveLogo, refreshBranding,
     wiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount,
   } = useAppSettings();
+
+  // Catégories : la page n'affiche que celle choisie ; une recherche affiche toutes les catégories qui répondent.
+  const [category, setCategory] = useState<SettingsCategoryId>(DEFAULT_SETTINGS_CATEGORY);
+  const [query, setQuery] = useState("");
+  const searching = query.trim().length > 0;
+  const matched = useMemo(
+    () => matchCategories(query, (id) => ["label", "desc", "keywords"].map((part) => t(`settingsPage.cat.${id}.${part}`)).join(" ")),
+    [query, t],
+  );
+  const shows = (sectionId: string) => {
+    const owner = categoryOfSection(sectionId);
+    return searching ? owner !== undefined && matched.has(owner) : owner === category;
+  };
+  const chooseCategory = (id: SettingsCategoryId) => {
+    setQuery("");
+    setCategory(id);
+  };
+  /** Ouvre la catégorie d'une section puis la fait défiler (liens profonds, notifications). */
+  const openSection = useCallback((sectionId: string) => {
+    const owner = categoryOfSection(sectionId);
+    if (owner) {
+      setQuery("");
+      setCategory(owner);
+    }
+    window.setTimeout(() => document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }, []);
+  useEffect(() => {
+    const target = window.location.hash.replace(/^#/, "");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture de l'adresse au montage (lien profond vers une section)
+    if (target && categoryOfSection(target)) openSection(target);
+  }, [openSection]);
   const isMobile = useIsMobile();
   const [glassMode, setGlassMode] = useState<GlassMode>("auto");
   useEffect(() => {
@@ -417,8 +450,7 @@ export default function SettingsPage() {
           const state = info.store?.state;
           if (state === "available") {
             showToast(t("settingsPage.storeAvailable"), "warning", () => {
-              const el = document.getElementById("updates-section");
-              if (el) el.scrollIntoView({ behavior: "smooth" });
+              openSection("updates-section");
             });
           } else if (!silent) {
             showToast(state === "none" ? t("settingsPage.storeUpToDate") : t("settingsPage.storeUnavailable"), state === "none" ? "success" : "warning");
@@ -435,8 +467,7 @@ export default function SettingsPage() {
             `${t("settingsPage.updateAvailable")} (${info.latest_version})`,
             "warning",
             () => {
-              const el = document.getElementById("updates-section");
-              if (el) el.scrollIntoView({ behavior: "smooth" });
+              openSection("updates-section");
             },
           );
         } else if (!silent) {
@@ -754,14 +785,6 @@ export default function SettingsPage() {
     return <div className="live-empty">{t("settingsPage.loadError")}</div>;
   }
 
-  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
-    e.preventDefault();
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
-
   return (
     <div className="settings-page">
       {toast && (
@@ -778,31 +801,29 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div className="settings-nav-tabs sticky-glass-toolbar">
-        <a href="#section-appearance" className="settings-nav-tab" onClick={(e) => scrollToSection(e, "section-appearance")}>
-          <Icon name="palette" size={16} />
-          <span>{t("settingsPage.appearanceSection")}</span>
-        </a>
-        <a href="#section-display" className="settings-nav-tab" onClick={(e) => scrollToSection(e, "section-display")}>
-          <Icon name="tv" size={16} />
-          <span>{t("settingsPage.wiredDisplaySection")}</span>
-        </a>
-        <a href="#updates-section" className="settings-nav-tab" onClick={(e) => scrollToSection(e, "updates-section")}>
-          <Icon name="system_update" size={16} />
-          <span>{t("settingsPage.updatesSection")}</span>
-        </a>
-        <a href="#section-docs" className="settings-nav-tab" onClick={(e) => scrollToSection(e, "section-docs")}>
-          <Icon name="description" size={16} />
-          <span>{t("settingsPage.docSection")}</span>
-        </a>
-        <a href="#section-danger" className="settings-nav-tab danger" onClick={(e) => scrollToSection(e, "section-danger")}>
-          <Icon name="warning" size={16} />
-          <span>{t("settingsPage.dangerSection")}</span>
-        </a>
+      <PageNav
+        tabs={SETTINGS_CATEGORIES.map((category) => ({ id: category.id, icon: category.icon, label: t(`settingsPage.cat.${category.id}.label`) }))}
+        value={searching && matched.size > 0 ? [...matched][0] : category}
+        onChange={(id) => chooseCategory(id as SettingsCategoryId)}
+        ariaLabel={t("settingsPage.categoriesLabel")}
+      />
+      {/* Recherche : son propre espace, centré sous les catégories. */}
+      <div className="settings-search-row">
+        <label className="settings-search">
+          <Icon name="search" size={18} />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("settingsPage.searchPlaceholder")}
+            aria-label={t("settingsPage.searchPlaceholder")}
+          />
+        </label>
       </div>
+      {searching && matched.size === 0 && <div className="live-empty">{t("settingsPage.searchNone")}</div>}
 
       {/* ---- Apparence : thèmes + langue ---- */}
-      <section className="live-block" id="section-appearance">
+      <section className="live-block" id="section-appearance" hidden={!shows("section-appearance")}>
         <h3><Icon name="palette" size={18} /> {t("settingsPage.appearanceSection")}</h3>
         <div className="form-group">
           <label className="form-label">{t("settingsPage.themeLabel")}</label>
@@ -900,7 +921,7 @@ export default function SettingsPage() {
       </section>
 
       {/* ---- Sortie câblée : Pupitre Studio (/grid) vs Headless (Écran physique & HDMI) ---- */}
-      <section className="live-block" id="section-display">
+      <section className="live-block" id="section-display" hidden={!shows("section-display")}>
         <h3><Icon name="tv" size={18} /> {t("settingsPage.wiredDisplaySection")}</h3>
         <p className="settings-hint" style={{ marginTop: "-8px", marginBottom: "16px" }}>
           {t("settingsPage.wiredDisplaySubtitle")}
@@ -1250,7 +1271,7 @@ export default function SettingsPage() {
       </section>
 
       {/* ---- Branding : image de marque & logo ---- */}
-      <section className="live-block">
+      <section className="live-block" id="section-branding" hidden={!shows("section-branding")}>
         <h3><Icon name="image" size={18} /> {t("settingsPage.brandingSection")}</h3>
         <div className="form-group" style={{ flexDirection: "row", alignItems: "center", gap: "24px", flexWrap: "wrap" }}>
           {/* Cadre de prévisualisation : dimensions généreuses et padding pour contenir tout logo */}
@@ -1351,7 +1372,7 @@ export default function SettingsPage() {
 
 
       {/* ---- Mises à jour logicielles ---- */}
-      <section className="live-block" id="updates-section">
+      <section className="live-block" id="updates-section" hidden={!shows("updates-section")}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
           <h3 style={{ margin: 0 }}>
             <Icon name="system_update" size={18} /> {t("settingsPage.updatesSection")}
@@ -1687,13 +1708,15 @@ export default function SettingsPage() {
       </section>
 
       {/* ---- Compatibilité navigateur (diagnostic local) ---- */}
+      <div id="section-playback" hidden={!shows("section-playback")}>
       <BrowserCompatibility />
 
       {/* ---- Composant audio natif (expérimental, désactivé par défaut) ---- */}
       <MediaNativeSetting />
+      </div>
 
       {/* ---- Sauvegarde & Restauration universelle ---- */}
-      <section className="live-block">
+      <section className="live-block" id="section-backup" hidden={!shows("section-backup")}>
         <h3><Icon name="archive" size={18} /> {t("settingsPage.backupSection")}</h3>
         <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.backupHint")}</p>
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
@@ -1725,7 +1748,7 @@ export default function SettingsPage() {
       </section>
 
       {/* ---- Maintenance : resync ---- */}
-      <section className="live-block">
+      <section className="live-block" id="section-sync" hidden={!shows("section-sync")}>
         <h3><Icon name="sync" size={18} /> {t("settingsPage.syncSection")}</h3>
         <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.syncHint")}</p>
         <button type="button" className="btn btn-secondary" style={{ height: "44px", alignSelf: "flex-start" }} onClick={() => setShowResetConfirm(true)}>
@@ -1734,7 +1757,7 @@ export default function SettingsPage() {
       </section>
 
       {/* ---- Maintenance : Nettoyage des journaux & métriques ---- */}
-      <section className="live-block">
+      <section className="live-block" id="section-logs" hidden={!shows("section-logs")}>
         <h3><Icon name="auto_delete" size={18} /> {t("settingsPage.logsMaintenanceSection")}</h3>
         <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.logsMaintenanceHint")}</p>
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -1780,12 +1803,16 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      <div id="section-diagnostics" hidden={!shows("section-diagnostics")}>
       <ImportDiagnosticsPanel />
+      </div>
 
+      <div id="section-startup" hidden={!shows("section-startup")}>
       <StartOnBootToggle />
+      </div>
 
       {/* ---- Documentation : chemins (lecture seule) ---- */}
-      <section className="live-block" id="section-docs">
+      <section className="live-block" id="section-docs" hidden={!shows("section-docs")}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
           <h3 style={{ margin: 0 }}><Icon name="description" size={18} /> {t("settingsPage.docSection")}</h3>
           <button
@@ -1912,7 +1939,7 @@ export default function SettingsPage() {
       </section>
 
       {/* ---- Zone de danger : réinitialisation usine & désinstallation ---- */}
-      <section className="live-block settings-danger" id="section-danger">
+      <section className="live-block settings-danger" id="section-danger" hidden={!shows("section-danger")}>
         <h3 style={{ margin: "0 0 6px 0" }}>
           <Icon name="warning" size={18} /> {t("settingsPage.dangerSection")}
         </h3>
