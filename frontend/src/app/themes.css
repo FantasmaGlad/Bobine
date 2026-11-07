@@ -16,9 +16,11 @@
   --accent-error-text: #ffeceb;
   --accent-success-text: #ffffff;
   --accent-warning-text: #ffffff;
+  --accent-info-text: #ffffff;
   --accent-error: #ff453a;
   --accent-success: #30d158;
   --accent-warning: #ff9f0a;
+  --accent-info: #0ea5e9;
 }
 
 :root[data-theme="ardoise"][data-mode="light"] {
@@ -38,6 +40,7 @@
   --accent-error-text: #55323f;
   --accent-success-text: #285647;
   --accent-warning-text: #5e4b33;
+  --accent-info-text: #1f4a69;
 }
 
 :root[data-theme="ardoise"][data-mode="dark"] {
@@ -57,25 +60,27 @@
   --accent-error-text: #ffeceb;
   --accent-success-text: #ffffff;
   --accent-warning-text: #ffffff;
+  --accent-info-text: #ffffff;
 }
 
 :root[data-theme="chili"][data-mode="light"] {
   color-scheme: light;
   --bg-main: #ffffff;
-  --bg-surface: #e2e2e2;
-  --bg-surface-elevated: #d9d7d7;
-  --bg-surface-hover: #d0cccc;
+  --bg-surface: #ffcfcd;
+  --bg-surface-elevated: #f5c5c3;
+  --bg-surface-hover: #eabbb9;
   --text-main: #2e0605;
-  --text-muted: #674a49;
-  --text-dim: #694c4c;
+  --text-muted: #644746;
+  --text-dim: #664949;
   --border-color: #ded7d7;
-  --border-focus: #ba1916;
+  --border-focus: #b21815;
   --accent-primary: #cd1c18;
   --accent-primary-fg: #ffffff;
-  --accent-text: #ba1916;
-  --accent-error-text: #6f1a15;
-  --accent-success-text: #2f5325;
+  --accent-text: #b21815;
+  --accent-error-text: #6d1915;
+  --accent-success-text: #2f4d22;
   --accent-warning-text: #753a07;
+  --accent-info-text: #224159;
 }
 
 :root[data-theme="chili"][data-mode="dark"] {
@@ -95,6 +100,7 @@
   --accent-error-text: #f6b7b5;
   --accent-success-text: #f6b7b5;
   --accent-warning-text: #f6b7b5;
+  --accent-info-text: #f6b7b5;
 }
 
 :root[data-theme="canary"][data-mode="light"] {
@@ -114,6 +120,7 @@
   --accent-error-text: #63380c;
   --accent-success-text: #375c16;
   --accent-warning-text: #6b5003;
+  --accent-info-text: #2e513a;
 }
 
 :root[data-theme="canary"][data-mode="dark"] {
@@ -133,6 +140,7 @@
   --accent-error-text: #fffab3;
   --accent-success-text: #fffab3;
   --accent-warning-text: #fffab3;
+  --accent-info-text: #fffab3;
 }
 
 :root[data-theme="rose-vif"][data-mode="light"] {
@@ -152,6 +160,7 @@
   --accent-error-text: #700236;
   --accent-success-text: #5b3b40;
   --accent-warning-text: #881e2e;
+  --accent-info-text: #552861;
 }
 
 :root[data-theme="rose-vif"][data-mode="dark"] {
@@ -171,6 +180,7 @@
   --accent-error-text: #ffc2e0;
   --accent-success-text: #ffc2e0;
   --accent-warning-text: #ffc2e0;
+  --accent-info-text: #ffc2e0;
 }
 
 :root[data-theme="charbon"][data-mode="light"] {
@@ -190,6 +200,7 @@
   --accent-error-text: #6b1d18;
   --accent-success-text: #145624;
   --accent-warning-text: #694104;
+  --accent-info-text: #064764;
 }
 
 :root[data-theme="charbon"][data-mode="dark"] {
@@ -209,6 +220,7 @@
   --accent-error-text: #ffdedc;
   --accent-success-text: #ffffff;
   --accent-warning-text: #ffffff;
+  --accent-info-text: #f1fafe;
 }
 
 :root[data-theme="orchidee"][data-mode="light"] {
@@ -228,6 +240,7 @@
   --accent-error-text: #711842;
   --accent-success-text: #3f4e4b;
   --accent-warning-text: #7c3534;
+  --accent-info-text: #343d7b;
 }
 
 :root[data-theme="orchidee"][data-mode="dark"] {
@@ -247,6 +260,7 @@
   --accent-error-text: #ffd9fe;
   --accent-success-text: #ffd9fe;
   --accent-warning-text: #ffd9fe;
+  --accent-info-text: #ffd9fe;
 }
 
 :root[data-theme="foret"][data-mode="light"] {
@@ -266,6 +280,7 @@
   --accent-error-text: #6a2a1f;
   --accent-success-text: #185d29;
   --accent-warning-text: #674c0c;
+  --accent-info-text: #0c5063;
 }
 
 :root[data-theme="foret"][data-mode="dark"] {
@@ -285,6 +300,7 @@
   --accent-error-text: #d5e7c7;
   --accent-success-text: #cfffdc;
   --accent-warning-text: #cfffdc;
+  --accent-info-text: #cfffdc;
 }
 
 :root[data-theme="ocean"][data-mode="light"] {
@@ -304,6 +320,7 @@
   --accent-error-text: #2e0c21;
   --accent-success-text: #0b302a;
   --accent-warning-text: #3b2518;
+  --accent-info-text: #04294f;
 }
 
 :root[data-theme="ocean"][data-mode="dark"] {
@@ -323,6 +340,7 @@
   --accent-error-text: #ffbab6;
   --accent-success-text: #d4f5dc;
   --accent-warning-text: #ffe9c7;
+  --accent-info-text: #b7e4f8;
 }
 
 :root[data-theme="pumpkin"][data-mode="light"] {
@@ -342,6 +360,7 @@
   --accent-error-text: #803600;
   --accent-success-text: #794408;
   --accent-warning-text: #883c01;
+  --accent-info-text: #803600;
 }
 
 :root[data-theme="pumpkin"][data-mode="dark"] {
@@ -361,4 +380,5 @@
   --accent-error-text: #fff0e1;
   --accent-success-text: #fff0e1;
   --accent-warning-text: #fff0e1;
+  --accent-info-text: #f8eee1;
 }

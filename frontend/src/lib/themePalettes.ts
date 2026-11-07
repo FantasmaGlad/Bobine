@@ -37,7 +37,7 @@ export const THEMES: readonly ThemeDef[] = [
     light: { bg: "#ffffff", surface: "#e3ecf2", accent: "#697485", text: "#252d41" },
     dark: { bg: "#252d41", surface: "#536383", accent: "#e3ecf2", text: "#ffffff" } },
   { id: "chili", labelKey: "settingsPage.themeChili", base: "#972121",
-    light: { bg: "#ffffff", surface: "#e2e2e2", accent: "#cd1c18", text: "#2e0605" },
+    light: { bg: "#ffffff", surface: "#ffcfcd", accent: "#cd1c18", text: "#2e0605" },
     dark: { bg: "#2e0605", surface: "#440908", accent: "#e5211d", text: "#f6b7b5" } },
   { id: "canary", labelKey: "settingsPage.themeCanary", base: "#ffef00",
     light: { bg: "#ffffff", surface: "#fffab3", accent: "#e6d700", text: "#393500" },
@@ -156,7 +156,7 @@ function nearestMix(from: string, to: string, surfaces: string[], target: number
 }
 
 /** Couleurs d'état, communes à tous les thèmes : le sens (succès, attention, erreur) ne change pas avec la couleur choisie. */
-export const SEMANTIC_COLORS = { error: "#ff453a", success: "#30d158", warning: "#ff9f0a" } as const;
+export const SEMANTIC_COLORS = { error: "#ff453a", success: "#30d158", warning: "#ff9f0a", info: "#0ea5e9" } as const;
 
 export interface DerivedTokens {
   "bg-main": string;
@@ -174,6 +174,7 @@ export interface DerivedTokens {
   "accent-error-text": string;
   "accent-success-text": string;
   "accent-warning-text": string;
+  "accent-info-text": string;
 }
 
 /**
@@ -217,6 +218,7 @@ export function deriveTokens(palette: Palette, mode: ResolvedMode): DerivedToken
     "accent-error-text": stateText(SEMANTIC_COLORS.error),
     "accent-success-text": stateText(SEMANTIC_COLORS.success),
     "accent-warning-text": stateText(SEMANTIC_COLORS.warning),
+    "accent-info-text": stateText(SEMANTIC_COLORS.info),
   };
 }
 
