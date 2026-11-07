@@ -42,17 +42,17 @@ Group-fitness rooms and cycling studios run pre-recorded video classes ("virtual
 
 ## Download & Install
 
-Native application for computers, tablets, TVs and mini PCs. Stable 5.1.0 below; every channel and file on [**bobine.fit/en/download**](https://bobine.fit/en/download).
+Native application for computers, tablets, TVs and mini PCs. Stable 5.1.1 below; every channel and file on [**bobine.fit/en/download**](https://bobine.fit/en/download).
 
 | Platform | Download | Requirements |
 | :--- | :--- | :--- |
-| <img src="Assets/Icons/os/windows.svg" width="20" height="20" valign="middle" alt="Windows"> **Windows** 10 & 11 | [x64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/Bobine-Setup-5.1.0.exe) · [ARM64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/Bobine-Setup-5.1.0-arm64.exe) | `.exe` installer, Snapdragon supported |
-| <img src="Assets/Icons/os/apple.svg" width="20" height="20" valign="middle" alt="macOS"> **macOS** | [Apple Silicon](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/Bobine-5.1.0.dmg) | M1 or newer, `.dmg` |
-| <img src="Assets/Icons/distros/debian.svg" width="20" height="20" valign="middle" alt="Debian"> **Debian, Ubuntu** | [APT](https://packages.bobine.fit/debian/) · [amd64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/bobine_5.1.0_amd64.deb) · [arm64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/bobine_5.1.0_arm64.deb) | glibc 2.38+ (Debian 13, Ubuntu 24.04) |
-| <img src="Assets/Icons/distros/fedora.svg" width="20" height="20" valign="middle" alt="Fedora"> **Fedora, RHEL** | [DNF](https://packages.bobine.fit/fedora/) · [x86_64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/bobine-5.1.0-1.x86_64.rpm) · [aarch64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/bobine-5.1.0-1.aarch64.rpm) | glibc 2.38+ |
-| <img src="Assets/Icons/distros/arch.svg" width="20" height="20" valign="middle" alt="Arch Linux"> **Arch Linux** | [pacman](https://packages.bobine.fit/arch/) · [x86_64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/bobine-5.1.0-1-x86_64.pkg.tar.zst) · [aarch64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/bobine-5.1.0-1-aarch64.pkg.tar.zst) | glibc 2.38+ |
-| <img src="Assets/Icons/os/android.svg" width="20" height="20" valign="middle" alt="Android"> **Android** | [APK](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/Bobine-5.1.0.apk) | Android 14+, ARM64 |
-| <img src="Assets/Icons/os/androidtv.svg" width="20" height="20" valign="middle" alt="Android TV"> **Android TV, Google TV** | [APK TV](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/Bobine-TV-5.1.0.apk) | ARM 32 and 64-bit |
+| <img src="Assets/Icons/os/windows.svg" width="20" height="20" valign="middle" alt="Windows"> **Windows** 10 & 11 | [x64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/Bobine-Setup-5.1.1.exe) · [ARM64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/Bobine-Setup-5.1.1-arm64.exe) | `.exe` installer, Snapdragon supported |
+| <img src="Assets/Icons/os/apple.svg" width="20" height="20" valign="middle" alt="macOS"> **macOS** | [Apple Silicon](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/Bobine-5.1.1.dmg) | M1 or newer, `.dmg` |
+| <img src="Assets/Icons/distros/debian.svg" width="20" height="20" valign="middle" alt="Debian"> **Debian, Ubuntu** | [APT](https://packages.bobine.fit/debian/) · [amd64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine_5.1.1_amd64.deb) · [arm64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine_5.1.1_arm64.deb) | glibc 2.38+ (Debian 13, Ubuntu 24.04) |
+| <img src="Assets/Icons/distros/fedora.svg" width="20" height="20" valign="middle" alt="Fedora"> **Fedora, RHEL** | [DNF](https://packages.bobine.fit/fedora/) · [x86_64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine-5.1.1-1.x86_64.rpm) · [aarch64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine-5.1.1-1.aarch64.rpm) | glibc 2.38+ |
+| <img src="Assets/Icons/distros/arch.svg" width="20" height="20" valign="middle" alt="Arch Linux"> **Arch Linux** | [pacman](https://packages.bobine.fit/arch/) · [x86_64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine-5.1.1-1-x86_64.pkg.tar.zst) · [aarch64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine-5.1.1-1-aarch64.pkg.tar.zst) | glibc 2.38+ |
+| <img src="Assets/Icons/os/android.svg" width="20" height="20" valign="middle" alt="Android"> **Android** | [APK](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/Bobine-5.1.1.apk) | Android 14+, ARM64 |
+| <img src="Assets/Icons/os/androidtv.svg" width="20" height="20" valign="middle" alt="Android TV"> **Android TV, Google TV** | [APK TV](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/Bobine-TV-5.1.1.apk) | ARM 32 and 64-bit |
 | <img src="Assets/Icons/os/tor.svg" width="20" height="20" valign="middle" alt="Tor"> **Tor (.onion)** | [website](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/) · [packages](http://rzvwjat5pidtxtwzcsvew7yc5ugfjvzz432ecpn3s5mlch4cs7vvmqad.onion/) | Tor Browser or tor |
 
 Same packages on derivatives (glibc 2.38+): <img src="Assets/Icons/distros/linuxmint.svg" width="16" height="16" valign="middle" alt="Linux Mint" title="Linux Mint"> Linux Mint · <img src="Assets/Icons/distros/popos.svg" width="16" height="16" valign="middle" alt="Pop!_OS" title="Pop!_OS"> Pop!_OS · <img src="Assets/Icons/distros/zorin.svg" width="16" height="16" valign="middle" alt="Zorin OS" title="Zorin OS"> Zorin OS · <img src="Assets/Icons/distros/raspberrypi.svg" width="16" height="16" valign="middle" alt="Raspberry Pi OS" title="Raspberry Pi OS"> Raspberry Pi OS · <img src="Assets/Icons/distros/nobara.svg" width="16" height="16" valign="middle" alt="Nobara" title="Nobara"> Nobara · <img src="Assets/Icons/distros/rhel.svg" width="16" height="16" valign="middle" alt="RHEL" title="RHEL"> RHEL 10+ · <img src="Assets/Icons/distros/almalinux.svg" width="16" height="16" valign="middle" alt="AlmaLinux" title="AlmaLinux"> AlmaLinux 10+ · <img src="Assets/Icons/distros/rockylinux.svg" width="16" height="16" valign="middle" alt="Rocky Linux" title="Rocky Linux"> Rocky Linux 10+ · <img src="Assets/Icons/distros/endeavouros.svg" width="16" height="16" valign="middle" alt="EndeavourOS" title="EndeavourOS"> EndeavourOS · <img src="Assets/Icons/distros/cachyos.svg" width="16" height="16" valign="middle" alt="CachyOS" title="CachyOS"> CachyOS · <img src="Assets/Icons/distros/manjaro.svg" width="16" height="16" valign="middle" alt="Manjaro" title="Manjaro"> Manjaro
@@ -61,8 +61,8 @@ Same packages on derivatives (glibc 2.38+): <img src="Assets/Icons/distros/linux
 
 Turns a mini PC (Debian 13, x64 or ARM64) into a dedicated Bobine player: it starts straight into the fullscreen kiosk on its HDMI screen and resumes on its own after a power cut.
 
-- **From your computer, with the setup assistant**: it finds the mini PC on your network, connects to it over SSH and installs everything with a progress bar. Assistant for Linux: [x64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/bobine-assistant) · [ARM64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/bobine-assistant-arm64).
-- **Directly on the mini PC**, in a terminal ([install.sh](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.0/install.sh)):
+- **From your computer, with the setup assistant**: it finds the mini PC on your network, connects to it over SSH and installs everything with a progress bar. Assistant for Linux: [x64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine-assistant) · [ARM64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine-assistant-arm64).
+- **Directly on the mini PC**, in a terminal ([install.sh](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/install.sh)):
 
   ```bash
   curl -fsSL https://bobine.fit/install.sh | bash
@@ -157,7 +157,7 @@ Bobine offers three update channels, switchable anytime in **Settings → Softwa
 
 | Channel | Cadence | Who it is for | Links |
 | :--- | :--- | :--- | :--- |
-| **Stable** | Tagged version releases (`V5.1.0`) | Recommended default for production clubs and studios | [Latest Stable](https://github.com/FantasmaGlad/Bobine/releases/latest) |
+| **Stable** | Tagged version releases (`V5.1.1`) | Recommended default for production clubs and studios | [Latest Stable](https://github.com/FantasmaGlad/Bobine/releases/latest) |
 | **Beta** | Curated preview batches | Early adopters wanting upcoming features before Stable | [Beta Release](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) |
 | **Canary** | Rebuilt on every commit to `main` | Power users and testers wanting the latest changes immediately | [Canary Release](https://github.com/FantasmaGlad/Bobine/releases/tag/canary) |
 
