@@ -131,7 +131,7 @@ function BackgroundCard({
             <span
               style={{
                 background: "var(--accent-success)",
-                color: "var(--specular)",
+                color: "var(--ink)",
                 padding: "3px 8px",
                 borderRadius: "6px",
                 fontSize: "0.72rem",
@@ -447,7 +447,7 @@ export default function BackgroundsPage() {
               style={{ borderColor: "color-mix(in srgb, var(--accent-success) 40%, transparent)", margin: 0 }}
             >
               <div className="interrupted-text">
-                <span className="interrupted-label" style={{ color: "var(--accent-success)", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span className="interrupted-label" style={{ color: "var(--accent-success-text)", display: "flex", alignItems: "center", gap: "6px" }}>
                   <Icon name="cable" size={16} />
                   {t("backgrounds.onCable")} · {t("backgrounds.onScreenNow")}
                 </span>
@@ -594,7 +594,7 @@ export default function BackgroundsPage() {
             </div>
 
             {/* Lecteur grand format */}
-            <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", borderRadius: "10px", overflow: "hidden", background: "#000", marginBottom: "16px" }}>
+            <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", borderRadius: "10px", overflow: "hidden", background: "var(--ink)", marginBottom: "16px" }}>
               {inspectingBg.is_image ? (
                 <img
                   src={getApiUrl(`/backgrounds/${inspectingBg.id}/stream`)}
@@ -639,7 +639,7 @@ export default function BackgroundsPage() {
               </div>
               <div>
                 <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.75rem" }}>Mode Coach</span>
-                <strong style={{ color: defaultCoachBgId === inspectingBg.id ? "var(--accent-primary)" : "var(--text-muted)" }}>
+                <strong style={{ color: defaultCoachBgId === inspectingBg.id ? "var(--accent-text)" : "var(--text-muted)" }}>
                   {defaultCoachBgId === inspectingBg.id ? t("backgrounds.isDefault") : t("backgrounds.isOptional")}
                 </strong>
               </div>
@@ -666,7 +666,7 @@ export default function BackgroundsPage() {
                   style={{ flex: 1, minWidth: "200px", height: "44px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
                   onClick={() => handleBroadcastCable(inspectingBg)}
                 >
-                  <Icon name="cable" size={18} color="var(--accent-success)" />
+                  <Icon name="cable" size={18} color="var(--accent-success-text)" />
                   {t("backgrounds.broadcastCable")}
                 </button>
                 <button

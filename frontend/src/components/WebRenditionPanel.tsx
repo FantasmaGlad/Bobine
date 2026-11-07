@@ -89,7 +89,7 @@ export default function WebRenditionPanel({ videoId }: { videoId: number }) {
   return (
     <div className="web-rendition-panel" style={{ marginTop: 12, padding: "12px 14px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", background: "var(--bg-surface-elevated)", display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}>
-        <Icon name={status === "ready" ? "check_circle" : "devices"} size={18} color={status === "ready" ? "var(--accent-success)" : "var(--accent-primary)"} />
+        <Icon name={status === "ready" ? "check_circle" : "devices"} size={18} color={status === "ready" ? "var(--accent-success-text)" : "var(--accent-text)"} />
         {t("webRendition.title")}
       </div>
       <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>

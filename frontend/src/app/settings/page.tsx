@@ -180,7 +180,7 @@ const normalizePhrase = (s: string) => s.trim().toUpperCase().replace(/É/g, "E"
 
 export default function SettingsPage() {
   const {
-    theme, themeMode, resolvedMode, language, storedLanguage, languagePending, simplifiedUi, setSimplifiedUi, setTheme, setThemeMode, setLanguage, t,
+    theme, themeMode, resolvedMode, storedLanguage, languagePending, simplifiedUi, setSimplifiedUi, setTheme, setThemeMode, setLanguage, t,
     hasCustomLogo, activeLogo, setActiveLogo, refreshBranding,
     wiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount,
   } = useAppSettings();
@@ -1489,7 +1489,7 @@ export default function SettingsPage() {
                     {t(torChecking ? "settingsPage.updateTorChecking" : "settingsPage.updateTorCheck")}
                   </button>
                   {torCheck && (
-                    <span role="status" style={{ color: torCheck.ok ? "var(--accent-success, #2e7d32)" : "var(--accent-warning, #c77700)" }}>
+                    <span role="status" style={{ color: torCheck.ok ? "var(--accent-success-text)" : "var(--accent-warning-text)" }}>
                       {torCheck.ok
                         ? t(torCheck.source === "on_demand" ? "settingsPage.updateTorOkOnDemand" : "settingsPage.updateTorOk")
                         : t("settingsPage.updateTorFailed", { error: torCheck.error ?? "" })}
@@ -1866,7 +1866,7 @@ export default function SettingsPage() {
                   {/* État RÉEL du répondeur mDNS (backend utils/mdns.py::get_status) : « failed »/« unavailable »
                       signifie que seules les adresses IP ci-dessus sont fiables pour le moment. */}
                   {link.kind === "mdns" && (data.network.mdns_status === "failed" || data.network.mdns_status === "unavailable") && (
-                    <span title={t("settingsPage.paths.mdnsUnavailableHint")} style={{ display: "inline-flex", color: "var(--accent-warning, #c77700)" }}>
+                    <span title={t("settingsPage.paths.mdnsUnavailableHint")} style={{ display: "inline-flex", color: "var(--accent-warning-text)" }}>
                       <Icon name="warning" size={14} />
                     </span>
                   )}

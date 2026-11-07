@@ -231,7 +231,9 @@ export function resolveMode(mode: ThemeMode, prefersDark: boolean): ResolvedMode
 export function resolveStored(theme: unknown, mode: unknown): { theme: ThemeId; mode: ThemeMode } {
   // Trois noms (chili, charbon, orchidee) existaient déjà : ils ne sont traduits que sans mode enregistré. Les autres
   // anciens noms sont sans ambiguïté ; un mode clair ou sombre déjà choisi est conservé.
-  const legacy = typeof theme === "string" ? LEGACY_THEMES[theme] : undefined;
+  const legacy = typeof theme === "string" && Object.prototype.hasOwnProperty.call(LEGACY_THEMES, theme)
+    ? LEGACY_THEMES[theme]
+    : undefined;
   if (legacy && (!isThemeId(theme) || !isThemeMode(mode))) {
     return { theme: legacy.theme, mode: mode === "light" || mode === "dark" ? mode : legacy.mode };
   }

@@ -1520,7 +1520,7 @@ export default function SchedulePage() {
                               display: "flex",
                               alignItems: "center",
                               gap: "10px",
-                              borderColor: selected ? "var(--accent-primary)" : undefined,
+                              borderColor: selected ? "var(--accent-text)" : undefined,
                               background: selected ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)" : undefined,
                             }}
                             onClick={() => setFormTargetId(String(opt.id))}
@@ -1557,7 +1557,7 @@ export default function SchedulePage() {
                           className="library-picker-item"
                           style={{
                             cursor: "pointer",
-                            borderColor: selected ? "var(--accent-primary)" : undefined,
+                            borderColor: selected ? "var(--accent-text)" : undefined,
                             background: selected ? "color-mix(in srgb, var(--accent-primary) 8%, transparent)" : undefined,
                           }}
                           onClick={() => setFormTargetId(String(opt.id))}
@@ -1568,7 +1568,7 @@ export default function SchedulePage() {
                     })}
                 </div>
                 {formTargetId && (
-                  <span style={{ fontSize: "0.75rem", color: "var(--accent-success)" }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--accent-success-text)" }}>
                     {t("schedule.selectedLabel")}{" "}
                     {formTargetType === "video"
                       ? findVideo(Number(formTargetId))?.title

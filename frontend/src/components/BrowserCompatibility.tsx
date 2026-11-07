@@ -171,7 +171,7 @@ export default function BrowserCompatibility() {
 
   if (!caps) return null;
   const mark = (ok: boolean) => (
-    <span style={{ color: ok ? "var(--accent-success)" : "var(--text-muted)", fontWeight: 600 }}>
+    <span style={{ color: ok ? "var(--accent-success-text)" : "var(--text-muted)", fontWeight: 600 }}>
       {ok ? t("browserCompat.yes") : t("browserCompat.no")}
     </span>
   );

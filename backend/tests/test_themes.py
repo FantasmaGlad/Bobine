@@ -64,3 +64,20 @@ def test_le_serveur_traduit_un_ancien_theme_et_valide_le_mode(client):
         assert (got["theme"], got["theme_mode"]) == ("ocean", "dark")
     finally:
         client.put("/api/settings", json={"theme": original["theme"], "theme_mode": original["theme_mode"]})
+
+
+def test_ecriture_partielle_du_theme_ou_du_mode(client):
+    """Un changement de couleur seul conserve le mode ; un changement de mode seul normalise l'ancien nom."""
+    original = client.get("/api/settings").json()
+    try:
+        assert client.put("/api/settings", json={"theme": "ocean", "theme_mode": "dark"}).status_code == 200
+        assert client.put("/api/settings", json={"theme": "charbon"}).status_code == 200
+        got = client.get("/api/settings").json()
+        assert (got["theme"], got["theme_mode"]) == ("charbon", "dark")
+
+        assert client.put("/api/settings", json={"theme": "lavande"}).status_code == 200
+        assert client.put("/api/settings", json={"theme_mode": "auto"}).status_code == 200
+        got = client.get("/api/settings").json()
+        assert (got["theme"], got["theme_mode"]) == ("orchidee", "auto")
+    finally:
+        client.put("/api/settings", json={"theme": original["theme"], "theme_mode": original["theme_mode"]})

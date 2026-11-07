@@ -39,7 +39,7 @@ export function pushThemeToNative(): void {
   }
 }
 
-/** Couleur d'accent calculée du thème actif (`--accent-primary`), en #rrggbb. */
+/** Couleur d'accent lisible calculée du thème actif (`--accent-text`), en #rrggbb. */
 function readAccentHex(): string | null {
   const probe = document.createElement("span");
   probe.style.color = "var(--accent-text)";

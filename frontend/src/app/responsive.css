@@ -993,6 +993,7 @@ button.course-card.is-selected {
   border-radius: var(--radius-md);
   color: var(--specular);
   background: color-mix(in srgb, var(--ink) 62%, transparent);
+  -webkit-backdrop-filter: blur(var(--blur-sm));
   backdrop-filter: blur(var(--blur-sm));
   pointer-events: none;
   animation: fadeIn 0.3s ease-out;
