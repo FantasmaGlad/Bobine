@@ -94,7 +94,7 @@ def upload_background(
 
     job_id = create_job("background", filename, title or Path(filename).stem)
     future = ffmpeg_executor.submit(_run_background_import_job, job_id, temp_path, filename, title)
-    register_job_future(job_id, future)
+    register_job_future(job_id, future, [temp_path])
     return {"job_id": job_id}
 
 
@@ -118,7 +118,7 @@ def upload_backgrounds_archive(file: UploadFile | None = File(None), upload_id: 
     temp_path, filename = receive_single_upload(file, upload_id, forced_suffix=".zip")
     job_id = create_job("background", filename, Path(filename).stem)
     future = ffmpeg_executor.submit(_run_background_archive_job, job_id, temp_path)
-    register_job_future(job_id, future)
+    register_job_future(job_id, future, [temp_path])
     return {"job_id": job_id}
 
 

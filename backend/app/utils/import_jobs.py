@@ -1,4 +1,5 @@
 import concurrent.futures
+import os
 import subprocess
 import threading
 import time
@@ -16,6 +17,7 @@ _lock = threading.Lock()
 _jobs: dict[str, dict] = {}
 _job_order: list[str] = []  # ids dans l'ordre de création (remplace le zset Redis)
 _job_futures: dict[str, concurrent.futures.Future] = {}
+_job_leftovers: dict[str, list[str]] = {}
 _job_processes: dict[str, subprocess.Popen] = {}
 _cancelled_jobs: set[str] = set()
 
@@ -95,10 +97,14 @@ def create_job(kind: str, filename: str, title: str | None = None, source: str =
     return job_id
 
 
-def register_job_future(job_id: str, future: concurrent.futures.Future) -> None:
-    """Associe la Future d'un exécuteur à une tâche pour permettre son annulation en file."""
+def register_job_future(job_id: str, future: concurrent.futures.Future, leftovers: list[str] | None = None) -> None:
+    """Associe la Future d'un exécuteur à une tâche pour permettre son annulation en file.
+    `leftovers` : fichiers temporaires que la tâche supprime elle-même en fin de course ;
+    si elle est annulée avant de démarrer, ils sont supprimés ici."""
     with _lock:
         _job_futures[job_id] = future
+        if leftovers:
+            _job_leftovers[job_id] = list(leftovers)
 
 
 def register_job_process(job_id: str | None, proc: subprocess.Popen) -> None:
@@ -147,10 +153,16 @@ def cancel_job(job_id: str) -> bool:
             job["updated_at"] = time.time()
         future = _job_futures.pop(job_id, None)
         proc = _job_processes.pop(job_id, None)
+        leftovers = _job_leftovers.pop(job_id, [])
 
     if future is not None and not future.done():
-        future.cancel()
-        logger.info(f"Future de l'import {job_id} annulée dans la file d'attente.")
+        if future.cancel():
+            logger.info(f"Future de l'import {job_id} annulée dans la file d'attente.")
+            for path in leftovers:
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
 
     if proc is not None:
         try:
@@ -211,6 +223,7 @@ def list_jobs() -> list[dict]:
             _job_order.remove(job_id)
             _jobs.pop(job_id, None)
             _job_futures.pop(job_id, None)
+            _job_leftovers.pop(job_id, None)
             _job_processes.pop(job_id, None)
             _cancelled_jobs.discard(job_id)
         jobs = [dict(_jobs[job_id]) for job_id in _job_order]
