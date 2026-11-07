@@ -11,8 +11,10 @@ from __future__ import annotations
 import argparse
 import http.client
 import json
+import math
 import mimetypes
 import os
+import posixpath
 import re
 import sys
 import time
@@ -24,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from app.cli_commands import SPECS, Spec, UsageError
+from app.utils.media_formats import ARCHIVE as ARCHIVE_EXTENSIONS
 from app.api_contract import (
     CHANNELS, DASHBOARD_CHANNELS, DASHBOARD_PERIODS, DISPLAY_OUTPUTS, HISTORY_PERIODS, LOG_LEVELS, LOG_SOURCES, SCHEDULE_CHANNELS,
     SORT_ORDERS, VIDEO_SORT_FIELDS,
@@ -127,7 +130,13 @@ class Client:
             parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode("utf-8"))
         for name, file in files:
             kind = mimetypes.guess_type(file.name)[0] or "application/octet-stream"
-            filename = urllib.parse.quote(file.name)
+            # Le nom part tel quel (UTF-8) comme le fait un navigateur : `quote` le rendrait
+            # littéralement « %C3%A9 » côté serveur. On neutralise seulement ce qui casserait
+            # l'en-tête multipart (guillemet, antislash, CR/LF, contrôles).
+            filename = "".join(
+                "_" if ch in '"\\\r\n' or ord(ch) < 32 or ord(ch) == 127 else ch
+                for ch in file.name
+            )
             parts.append((f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'
                           f"Content-Type: {kind}\r\n\r\n").encode("utf-8"))
             parts.append(file)
@@ -508,6 +517,21 @@ def _read_documents(paths: list[str]) -> dict[str, Any]:
     return files
 
 
+def _checked_export_name(name: object) -> str:
+    """Nom de fichier rendu par le serveur : relatif au dossier demandé, jamais absolu ni `..`."""
+    text = str(name)
+    normalized = text.replace("\\", "/")
+    if (
+        not text
+        or any(ord(ch) < 32 or ord(ch) == 127 for ch in text)
+        or normalized.startswith("/")
+        or re.match(r"^[A-Za-z]:", normalized)
+        or ".." in normalized.split("/")
+    ):
+        raise CliError(f"nom de fichier refusé par le serveur : {name!r}", EXIT_ERROR)
+    return text
+
+
 def cmd_config(client: Client, out: Output, args: argparse.Namespace) -> int:
     if args.config_action == "export":
         if args.name:
@@ -519,13 +543,18 @@ def cmd_config(client: Client, out: Output, args: argparse.Namespace) -> int:
             exported = {args.name: document}
         else:
             exported = client.request("GET", "/api/config/export")["files"]
+        if not isinstance(exported, dict):
+            raise CliError("réponse d'export invalide : objet « files » attendu.", EXIT_ERROR)
         if args.directory:
             target = Path(args.directory)
             try:
                 target.mkdir(parents=True, exist_ok=True)
                 for name, document in exported.items():
-                    (target / name).parent.mkdir(parents=True, exist_ok=True)
-                    (target / name).write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                    # Nom fourni par le serveur : jamais un chemin absolu ni une remontée hors du dossier choisi.
+                    relative = name if args.name else _checked_export_name(name)
+                    path = target / relative
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             except OSError as exc:
                 raise CliError(f"écriture impossible dans {target} : {exc}", EXIT_ERROR) from exc
             out.result({"written": sorted(exported), "directory": str(target)}, f"{len(exported)} fichier(s) écrit(s) dans {target}")
@@ -649,7 +678,7 @@ def cmd_import(client: Client, out: Output, args: argparse.Namespace) -> int:
     if fields and one_per_file and len(files) > 1:
         raise CliError("titre, programme, release et description ne s'appliquent qu'à un seul fichier : envoyer les autres séparément", EXIT_USAGE)
     requests: list[tuple[str, list[tuple[str, Path]]]] = []
-    if zip_route and len(files) == 1 and files[0].suffix.lower() == ".zip":
+    if zip_route and len(files) == 1 and files[0].name.lower().endswith(ARCHIVE_EXTENSIONS):
         requests.append((zip_route, [("file", files[0])]))
     elif one_per_file:
         requests += [(route, [(field_name, file)]) for file in files]
@@ -671,6 +700,8 @@ def cmd_import(client: Client, out: Output, args: argparse.Namespace) -> int:
 
 def _wait_for_jobs(client: Client, out: Output, accepted: list[dict], timeout: float) -> list[dict]:
     """Interroge la file d'import jusqu'à la fin de chaque tâche ; une tâche absente de la liste est considérée comme finie."""
+    if not (timeout > 0 and math.isfinite(timeout)):
+        raise CliError(f"délai d'attente invalide : {timeout!r} (secondes, > 0).", EXIT_USAGE)
     deadline = time.monotonic() + timeout
     pending = {item["job"]: item for item in accepted if item["job"]}
     while pending:
@@ -745,19 +776,25 @@ _API_PATH = re.compile(r"^/api/[A-Za-z0-9_./{}%~-]+$")
 def cmd_api(client: Client, out: Output, args: argparse.Namespace) -> int:
     """`bobine api METHODE /api/chemin` : n'importe quelle route de l'API, pour ce qu'aucune commande ne couvre encore."""
     method, path = args.method.upper(), args.path
-    if not _API_PATH.match(path) or ".." in path.split("/"):
+    # Le serveur décode le chemin une fois (`%61pply` -> `apply`) : la liste des routes dangereuses
+    # doit donc être comparée au chemin décodé et normalisé, pas à la chaîne brute.
+    canonical = posixpath.normpath(urllib.parse.unquote(path))
+    if not _API_PATH.match(path) or ".." in path.split("/") or ".." in canonical.split("/"):
         raise CliError("chemin invalide : attendu /api/... sans ?, # ni .. (les paramètres passent par --query)", EXIT_USAGE)
     for pattern, hint in DANGEROUS_ROUTES:
-        if pattern.fullmatch(f"{method} {path}"):
+        if pattern.fullmatch(f"{method} {canonical}"):
             raise CliError(f"{method} {path} n'est pas offerte par bobine api ({hint}).", EXIT_USAGE)
     if method != "GET" and not args.yes:
         raise CliError(f"{method} {path} modifie Bobine : relancer avec --yes pour confirmer.", EXIT_USAGE)
     body = None
     if args.body is not None:
-        raw = sys.stdin.read() if args.body == "-" else Path(args.body[1:]).read_text(encoding="utf-8") if args.body.startswith("@") else args.body
+        try:
+            raw = sys.stdin.read() if args.body == "-" else Path(args.body[1:]).read_text(encoding="utf-8") if args.body.startswith("@") else args.body
+        except (OSError, UnicodeDecodeError) as exc:
+            raise CliError(f"corps JSON illisible : {exc}", EXIT_USAGE) from exc
         try:
             body = json.loads(raw)
-        except (ValueError, OSError) as exc:
+        except ValueError as exc:
             raise CliError(f"corps JSON illisible : {exc}", EXIT_USAGE) from exc
     query = parse_params(args.query or [])
     payload = client.request(method, path, query=query or None, body=body)

@@ -85,7 +85,9 @@ def _by_uid(ctx: _Context, model, ref: Any):
 def _claim_uid(ctx: _Context, model, entry: Any, obj: Any) -> None:
     """Un objet créé reprend le `uid` du document s'il est valide et libre (restauration sur une autre installation)."""
     uid = entry.get("uid") if isinstance(entry, dict) else None
-    if is_uid(uid) and not ctx.db.query(model).filter(model.uid == uid).first():
+    # Le préfixe fait partie de l'identité (`pl_`, `tag_`...) : un `vid_` glissé dans un fichier de
+    # playlists ne doit pas devenir l'uid d'une playlist.
+    if is_uid(uid, getattr(model, "__uid_prefix__", None)) and not ctx.db.query(model).filter(model.uid == uid).first():
         obj.uid = uid
 
 
@@ -326,6 +328,9 @@ def _apply_display_outputs(ctx: _Context, file: str, document: dict) -> None:
         if channel not in CHANNELS:
             ctx.fail(file, f"canal inconnu pour le son : {channel!r}")
             continue
+        if not isinstance(raw, dict):
+            ctx.fail(file, f"réglages de son invalides pour le canal {channel!r} (objet attendu)")
+            continue
         sound = sanitize_sound(raw)
         _write_setting(ctx.db, video_sound_setting_key(channel), json.dumps(sound))
 
@@ -350,21 +355,27 @@ def _apply_radio_outputs(ctx: _Context, file: str, document: dict) -> None:
             ctx.fail(file, f"sortie radio inconnue : {channel!r}")
             continue
         if "sound" in entry:
-            sound = sanitize_sound(entry["sound"])
-            _write_setting(ctx.db, sound_setting_key(channel), json.dumps(sound))
+            if not isinstance(entry["sound"], dict):
+                ctx.fail(file, f"réglages de son invalides pour la sortie {channel!r} (objet attendu)")
+            else:
+                sound = sanitize_sound(entry["sound"])
+                _write_setting(ctx.db, sound_setting_key(channel), json.dumps(sound))
 
-            async def set_sound(db: Session, channel=channel, sound=sound) -> None:
-                await get_radio_manager(channel).set_sound(sound)
+                async def set_sound(db: Session, channel=channel, sound=sound) -> None:
+                    await get_radio_manager(channel).set_sound(sound)
 
-            ctx.effects.append(set_sound)
+                ctx.effects.append(set_sound)
         if "mix" in entry:
-            mix = sanitize_mix(entry["mix"])
-            _write_setting(ctx.db, mix_setting_key(channel), json.dumps(mix))
+            if not isinstance(entry["mix"], dict):
+                ctx.fail(file, f"réglages de mixage invalides pour la sortie {channel!r} (objet attendu)")
+            else:
+                mix = sanitize_mix(entry["mix"])
+                _write_setting(ctx.db, mix_setting_key(channel), json.dumps(mix))
 
-            async def set_mix(db: Session, channel=channel, mix=mix) -> None:
-                await get_radio_manager(channel).set_mix(mix)
+                async def set_mix(db: Session, channel=channel, mix=mix) -> None:
+                    await get_radio_manager(channel).set_mix(mix)
 
-            ctx.effects.append(set_mix)
+                ctx.effects.append(set_mix)
         if "default_playlist" in entry:
             name = entry["default_playlist"]
             playlist = _unique_by_name(ctx, file, RadioPlaylist, name) if name else None

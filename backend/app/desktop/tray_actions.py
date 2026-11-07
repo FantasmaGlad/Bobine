@@ -7,6 +7,7 @@ Logique pure, sans pystray : le transport HTTP est injecté pour les tests (back
 """
 from __future__ import annotations
 
+import http.client
 import json
 import logging
 import threading
@@ -69,7 +70,7 @@ class Controls:
                 payload = self._transport("GET", self._admin_url() + _state_path(kind, target), HTTP_TIMEOUT_SECONDS)
                 state = (payload or {}).get("state")
                 result[(kind, target)] = state if isinstance(state, str) else "idle"
-            except (urllib.error.URLError, OSError, ValueError):
+            except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException):
                 result[(kind, target)] = None
         with self._lock:
             self._cache = (self._clock(), result)
@@ -115,6 +116,6 @@ class Controls:
             return True
         except urllib.error.HTTPError as exc:  # canal verrouillé (409), inconnu (404)...
             logger.info("Action rapide %s %s %s refusée : %s", kind, target, action, exc.code)
-        except (urllib.error.URLError, OSError, ValueError) as exc:
+        except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException) as exc:
             logger.info("Action rapide %s %s %s impossible : %s", kind, target, action, exc)
         return False

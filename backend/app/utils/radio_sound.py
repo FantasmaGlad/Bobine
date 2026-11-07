@@ -49,11 +49,13 @@ def _clamp_int(value: Any, low: int, high: int, fallback: int) -> int:
     # bool est un int en Python : True/False ne sont pas des gains valides.
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return fallback
-    if value != value:  # NaN
-        return fallback
-    # floor(x + 0.5) = Math.round de JavaScript (le round() de Python arrondit .5 au pair : 2,5
-    # donnerait 2 côté serveur et 3 côté lecteur pour la même valeur).
-    return max(low, min(high, math.floor(value + 0.5)))
+    if isinstance(value, float):
+        if not math.isfinite(value):  # NaN et infinis ; un entier JSON peut aussi dépasser la plage flottante
+            return fallback
+        # floor(x + 0.5) = Math.round de JavaScript (le round() de Python arrondit .5 au pair : 2,5
+        # donnerait 2 côté serveur et 3 côté lecteur pour la même valeur).
+        value = math.floor(value + 0.5)
+    return max(low, min(high, value))
 
 
 def _as_bool(value: Any, fallback: bool) -> bool:

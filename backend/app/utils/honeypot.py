@@ -70,7 +70,8 @@ def report_once() -> bool:
             db.add(Setting(key=REPORTED_KEY, value=signature))
         else:
             row.value = signature
-        db.commit()
+        # `log_activity` commit la signature dans la même transaction : si l'écriture du journal
+        # échoue, elle est annulée et la prochaine passe réessaie (sinon l'alarme serait perdue).
         log_activity(db, "intrusion_suspected", f"{TRIGGER_NAME} créé dans le dossier leurre {directory()}")
     logger.warning("Leurre d'intrusion déclenché : %s a été créé dans %s", TRIGGER_NAME, directory())
     return True
