@@ -100,8 +100,7 @@ def _android_internal_root() -> Path | None:
     reste DATA_ROOT ci-dessus pour les médias). `None` sur toute autre
     plateforme, ou si la variable n'a pas été posée par
     `bobine_bootstrap.py` (anciennes installations sans cette étape —
-    `load_settings()` retombe alors sur DATA_ROOT pour tout, comportement
-    identique à avant ce lot).
+    `load_settings()` retombe alors sur DATA_ROOT pour tout).
 
     Utilisée uniquement pour les quelques chemins à faible volume mais à
     forte fréquence d'I/O aléatoire (base SQLite, miniatures, logs,
@@ -209,8 +208,8 @@ class Settings(BaseSettings):
     logs_retention_days: int = 7
 
     # Réglages de lecture Radio.
-    # Consommés par les lots ultérieurs (moteur de lecture L3, crossfade L5,
-    # rappels L6, auto-boot L7) ; déclarés ici pour centraliser la config.
+    # Consommés par le moteur de lecture, le crossfade, les rappels et
+    # l'auto-boot ; déclarés ici pour centraliser la config.
     # La playlist d'ambiance par défaut n'est PAS un réglage : c'est la
     # RadioPlaylist marquée `is_default` (cf. models.py).
     radio_volume_default: int = 100

@@ -403,8 +403,8 @@ jobs:
           name: bobine-assistant-linux-arm64
           path: assistant/target/release/bobine-assistant-arm64
 
-  # Paquets de l'assistant d'installation (L8) : construits avec l'icône du canal, installés puis lancés sur chaque
-  # système. Publication dans les releases : lot suivant.
+  # Paquets de l'assistant d'installation : construits avec l'icône du canal, installés puis lancés sur chaque
+  # système.
   assistant-bundle:
     name: Assistant packages (${{ matrix.label }})
     runs-on: ${{ matrix.os }}

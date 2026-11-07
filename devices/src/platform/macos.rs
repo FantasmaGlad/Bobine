@@ -3,7 +3,7 @@
 //! (pilotage Bluetooth). Sans eux, l'audio par défaut et le Bluetooth restent en lecture seule.
 //!
 //! ATTENTION : NON VALIDÉ sur un Mac réel : les analyseurs (`parse.rs`) sont testés sur des sorties
-//! représentatives ; le comportement réel reste à confirmer (lot P0 / P5 du cahier des charges).
+//! représentatives ; le comportement réel reste à confirmer.
 
 use crate::exec::{run, tool_exists, Output};
 use crate::parse;

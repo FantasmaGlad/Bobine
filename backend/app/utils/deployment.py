@@ -26,7 +26,7 @@ SUDOERS_FILE = Path("/etc/sudoers.d/bobine")
 
 # Noms des unités systemd de l'appliance headless — utilisés par le handler
 # linux-headless, gardés ici pour rester l'unique source de vérité (au lieu
-# d'être dupliqués dans settings.py ET updates.py comme avant ce lot).
+# d'être dupliqués dans settings.py ET updates.py).
 BACKEND_SERVICE_UNIT = "bobine-backend.service"
 KIOSK_SERVICE_UNIT = "bobine-kiosk.service"
 

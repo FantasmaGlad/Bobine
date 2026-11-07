@@ -4,7 +4,7 @@ Le binaire est lancé À LA DEMANDE, sous le même compte que le backend, et arr
 réseau. Une requête = une réponse (sérialisées par un verrou), avec délai d'expiration : un sidecar
 bloqué ou planté est tué puis relancé au prochain appel, sans jamais toucher à la diffusion en cours.
 
-Garde-fou du cahier des charges : tant qu'une plateforme n'est pas validée sur du matériel réel, ses
+Garde-fou : tant qu'une plateforme n'est pas validée sur du matériel réel, ses
 fonctions restent « non prises en charge » ; la variable `BOBINE_DEVICES_EXPERIMENTAL=1` les débloque
 pour essai.
 """

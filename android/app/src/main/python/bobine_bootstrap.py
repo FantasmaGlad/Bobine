@@ -53,7 +53,7 @@ def _checkpoint_and_copy_database(external_data_dir, internal_data_dir):
     diagnostic qui se trompe ne doit jamais être destructif). Retourne
     True si la copie interne est utilisable, False sinon (l'appelant
     laisse alors `app.config` créer une base neuve sur l'interne, comme
-    avant ce lot pour une toute première installation)."""
+    pour une toute première installation)."""
     external_db = os.path.join(external_data_dir, _MIGRATED_DB_RELATIVE)
     internal_db = os.path.join(internal_data_dir, _MIGRATED_DB_RELATIVE)
     if not os.path.exists(external_db) or os.path.exists(internal_db):
@@ -110,7 +110,7 @@ def _checkpoint_and_copy_database(external_data_dir, internal_data_dir):
         # Toute erreur (verrou, espace disque, permission...) : la copie
         # interne partielle éventuelle est purgée, l'externe n'a jamais été
         # touché — repli sûr sur une base neuve côté interne, exactement le
-        # comportement d'avant ce lot.
+        # comportement d'une installation neuve.
         try:
             if os.path.exists(internal_db):
                 os.remove(internal_db)

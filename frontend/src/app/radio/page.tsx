@@ -152,7 +152,7 @@ export default function RadioScreenPage() {
     if (graphReadyRef.current) return;
     const AudioContextClass =
       window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return; // navigateur sans Web Audio API : dégradation silencieuse (pas de fondu, l'enchaînement net de L3/L4 reste fonctionnel via onEnded)
+    if (!AudioContextClass) return; // navigateur sans Web Audio API : dégradation silencieuse (pas de fondu, l'enchaînement net des pistes reste fonctionnel via onEnded)
     const ctx = new AudioContextClass();
     audioCtxRef.current = ctx;
     // Toute la MUSIQUE (les deux slots du fondu enchaîné) passe par UNE chaîne de son, puis par l'étage de mixage

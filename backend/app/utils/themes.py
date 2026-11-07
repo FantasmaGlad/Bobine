@@ -1,4 +1,4 @@
-"""Thèmes de l'interface : neuf couleurs, chacune en clair et en sombre (palettes de la refonte L7).
+"""Thèmes de l'interface : neuf couleurs, chacune en clair et en sombre.
 
 Le thème (`theme`) désigne la couleur, le mode (`theme_mode`) le clair, le sombre ou le réglage du système.
 `frontend/src/lib/themePalettes.ts` en tient la liste côté interface ; `backend/tests/test_themes.py` vérifie qu'elles

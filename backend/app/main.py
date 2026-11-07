@@ -129,7 +129,7 @@ async def lifespan(app: FastAPI):
     # de diffuser depuis un thread hors boucle.
     ws_manager.bind_loop(asyncio.get_running_loop())
     init_db()
-    # Export statique de la langue enregistrée (changer de langue demande un redémarrage, M27).
+    # Export statique de la langue enregistrée (changer de langue demande un redémarrage).
     with SessionLocal() as language_db:
         ui_language.set_served(settings_router.stored_language(language_db))
     # Recharge l'issue de la dernière mise à jour AVANT toute autre

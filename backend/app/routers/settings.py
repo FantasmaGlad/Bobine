@@ -97,7 +97,7 @@ _WRITABLE_STRING_FIELDS = {
     "auto_web_rendition", "media_native", "update_tor", "update_tor_proxy", "simplified_ui",
 }
 _DEFAULTS = {
-    # Interface simplifiée (M28) : masque coach, métriques et journaux. Réglage portable de settings.json.
+    # Interface simplifiée : masque coach, métriques et journaux. Réglage portable de settings.json.
     "simplified_ui": "false",
     # « ardoise » en mode automatique (clair ou sombre selon le système) : thème par défaut.
     "theme": themes.DEFAULT_THEME,

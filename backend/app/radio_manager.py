@@ -121,7 +121,7 @@ class RadioPlaybackManager:
             "shuffle": False,
             "repeat": "off",            # off | playlist | track
             "playing": False,
-            # Réglages transmis au lecteur /radio (lots L4/L5).
+            # Réglages transmis au lecteur /radio.
             "crossfade_seconds": settings.radio_crossfade_seconds,
             # Rappels : {id, description, mode} | None. `mode` =
             # "wait_end" (« toutes les N musiques », inséré entre 2 pistes,
@@ -502,7 +502,7 @@ class RadioPlaybackManager:
         idx = self.state["index"]
         # Ne réordonne que les pistes À VENIR (garde l'historique et la piste
         # courante en place). Désactiver le shuffle ne restaure pas l'ordre
-        # d'origine (recharger la playlist pour cela) — limitation assumée en L3.
+        # d'origine (recharger la playlist pour cela) — limitation assumée.
         if on and order and idx is not None and idx + 1 < len(order):
             upcoming = order[idx + 1:]
             random.shuffle(upcoming)

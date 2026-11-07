@@ -5,7 +5,7 @@
 //! la liste des sorties est en lecture seule.
 //!
 //! ATTENTION : NON VALIDÉ sur un PC Windows réel : les analyseurs (`parse.rs`) sont testés sur des sorties
-//! représentatives (anglais et français) ; le comportement réel reste à confirmer (lots P0 / P5).
+//! représentatives (anglais et français) ; le comportement réel reste à confirmer.
 
 use crate::exec::{run, run_with_env, Output};
 use crate::parse;

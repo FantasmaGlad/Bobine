@@ -43,7 +43,7 @@ interface AppSettingsContextValue {
   storedLanguage: Language;
   /** Vrai quand la langue enregistrée diffère de celle affichée : un redémarrage est requis. */
   languagePending: boolean;
-  /** Interface simplifiée (M28) : masque coach, métriques et journaux. */
+  /** Interface simplifiée : masque coach, métriques et journaux. */
   simplifiedUi: boolean;
   setSimplifiedUi: (value: boolean) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
