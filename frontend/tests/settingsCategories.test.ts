@@ -22,6 +22,12 @@ test("toutes les sections de la page Réglages sont rangées, et inversement", (
     assert.equal(m[1], m[2], `${m[1]} : identifiant et shows() différents`);
     return m[1];
   });
+  // Les sections extraites dans components/settings/ reçoivent leur visibilité par `hidden` et portent leur identifiant.
+  for (const m of page.matchAll(/<([A-Z]\w+)\s+hidden=\{!shows\("([\w-]+)"\)\}/g)) {
+    const component = readFileSync(new URL(`../src/components/settings/${m[1]}.tsx`, import.meta.url), "utf8");
+    assert.match(component, new RegExp(`id="${m[2]}" hidden=\\{hidden\\}`), `${m[1]} : id="${m[2]}" hidden={hidden} manquant`);
+    ids.push(m[2]);
+  }
   const declared = SETTINGS_CATEGORIES.flatMap((category) => [...category.sections]);
   assert.deepEqual([...ids].sort(), [...declared].sort());
 });

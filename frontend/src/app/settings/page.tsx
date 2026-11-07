@@ -21,6 +21,7 @@ import { useIsMobile } from "@/lib/useIsMobile";
 import { copyText } from "@/lib/clipboard";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import { loadMode, saveMode, type GlassMode } from "@/lib/glassQuality";
+import DangerSection from "@/components/settings/DangerSection";
 
 // Profil de déploiement — détermine si
 // la zone Désinstaller propose une action directe (appliance headless) ou de
@@ -174,10 +175,6 @@ const PATH_LABEL_KEYS: Record<string, string> = {
   subtitles_dir: "settingsPage.paths.subtitles_dir",
 };
 
-// Phrase à recopier pour armer la désinstallation (comparée sans casse/accent).
-const UNINSTALL_PHRASE = "DÉSINSTALLER";
-const RESET_DATA_PHRASE = "RÉINITIALISER";
-const normalizePhrase = (s: string) => s.trim().toUpperCase().replace(/É/g, "E");
 
 export default function SettingsPage() {
   const {
@@ -253,9 +250,6 @@ export default function SettingsPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [confirmingChannel, setConfirmingChannel] = useState<UpdateChannel | null>(null);
   const [resetting, setResetting] = useState(false);
-  const [showUninstall, setShowUninstall] = useState(false);
-  const [uninstallConfirm, setUninstallConfirm] = useState("");
-  const [uninstalling, setUninstalling] = useState(false);
 
   // Sauvegarde & Restauration
   const [exportingBackup, setExportingBackup] = useState(false);
@@ -264,9 +258,6 @@ export default function SettingsPage() {
   const [selectedBackupFile, setSelectedBackupFile] = useState<File | null>(null);
 
   // Remise à zéro des données
-  const [showResetData, setShowResetData] = useState(false);
-  const [resetDataConfirm, setResetDataConfirm] = useState("");
-  const [resettingData, setResettingData] = useState(false);
 
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [storeBusy, setStoreBusy] = useState(false);
@@ -403,29 +394,6 @@ export default function SettingsPage() {
     } finally {
       setResetting(false);
       setShowResetConfirm(false);
-    }
-  };
-
-  const handleUninstall = async () => {
-    setUninstalling(true);
-    try {
-      const res = await fetch(getApiUrl("/settings/system/uninstall"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: uninstallConfirm }),
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (res.ok) {
-        showToast(payload.message || t("settingsPage.uninstallStarted"), "warning");
-      } else {
-        showToast(payload.detail || t("settingsPage.uninstallError"), "error");
-      }
-    } catch {
-      showToast(t("common.networkError"), "error");
-    } finally {
-      setUninstalling(false);
-      setShowUninstall(false);
-      setUninstallConfirm("");
     }
   };
 
@@ -750,34 +718,6 @@ export default function SettingsPage() {
       setRestoringBackup(false);
     }
   };
-
-  const resetDataReady = normalizePhrase(resetDataConfirm) === "REINITIALISER";
-
-  const handleResetData = async () => {
-    if (!resetDataReady) return;
-    setResettingData(true);
-    try {
-      const res = await fetch(getApiUrl("/settings/system/reset-data"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: resetDataConfirm }),
-      });
-      if (res.ok) {
-        showToast(t("settingsPage.resetDataSuccess"), "success");
-        setShowResetData(false);
-        setResetDataConfirm("");
-      } else {
-        const err = await res.json().catch(() => null);
-        showToast(err?.detail || t("settingsPage.resetDataError"), "error");
-      }
-    } catch {
-      showToast(t("settingsPage.resetDataError"), "error");
-    } finally {
-      setResettingData(false);
-    }
-  };
-
-  const uninstallReady = normalizePhrase(uninstallConfirm) === "DESINSTALLER";
 
   if (loading) {
     return <div className="live-empty">{t("common.loading")}</div>;
@@ -1941,75 +1881,11 @@ export default function SettingsPage() {
       </section>
 
       {/* ---- Zone de danger : réinitialisation usine & désinstallation ---- */}
-      <section className="live-block settings-danger" id="section-danger" hidden={!shows("section-danger")}>
-        <h3 style={{ margin: "0 0 6px 0" }}>
-          <Icon name="warning" size={18} /> {t("settingsPage.dangerSection")}
-        </h3>
-        <p className="settings-hint" style={{ margin: "0 0 16px 0" }}>
-          {t("settingsPage.dangerHint")}
-        </p>
-
-        <div className="settings-danger-group">
-          {/* 1. Remise à zéro des données (universelle tous profils) */}
-          <div className="settings-danger-card">
-            <h4>
-              <Icon name="cleaning_services" size={18} /> {t("settingsPage.resetDataTitle")}
-            </h4>
-            <p>{t("settingsPage.resetDataHint")}</p>
-            <div>
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={() => setShowResetData(true)}
-              >
-                <Icon name="cleaning_services" size={16} /> {t("settingsPage.resetDataAction")}
-              </button>
-            </div>
-          </div>
-
-          {/* 2. Désinstallation du logiciel (tous profils avec bouton automatique) */}
-          <div className="settings-danger-card">
-            <h4>
-              <Icon name="delete_forever" size={18} /> {t("settingsPage.uninstallSectionTitle")}
-            </h4>
-            <p>
-              {t(
-                data.deployment_profile === "windows"
-                  ? "settingsPage.uninstallDesktopWindows"
-                  : data.deployment_profile === "macos"
-                  ? "settingsPage.uninstallDesktopMacos"
-                  : data.deployment_profile === "android"
-                  ? "settingsPage.uninstallDesktopAndroid"
-                  : data.deployment_profile === "linux-headless"
-                  ? "settingsPage.uninstallHint"
-                  : "settingsPage.uninstallDesktopLinux",
-              )}
-            </p>
-            <div>
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={() => setShowUninstall(true)}
-              >
-                <Icon name="delete_forever" size={16} /> {t("settingsPage.uninstallAction")}
-              </button>
-            </div>
-            <div className="settings-danger-manual">
-              {t(
-                data.deployment_profile === "windows"
-                  ? "settingsPage.uninstallManualHintWindows"
-                  : data.deployment_profile === "macos"
-                  ? "settingsPage.uninstallManualHintMacos"
-                  : data.deployment_profile === "android"
-                  ? "settingsPage.uninstallManualHintAndroid"
-                  : data.deployment_profile === "linux-headless"
-                  ? "settingsPage.uninstallManualHintHeadless"
-                  : "settingsPage.uninstallManualHintLinux",
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
+      <DangerSection
+        hidden={!shows("section-danger")}
+        deploymentProfile={data.deployment_profile}
+        showToast={showToast}
+      />
 
       {/* ---- Modale : resync ---- */}
       {showResetConfirm && (
@@ -2060,43 +1936,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ---- Modale : désinstallation (recopie de phrase obligatoire) ---- */}
-      {showUninstall && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--accent-error-text)" }}>
-              <Icon name="delete_forever" size={20} /> {t("settingsPage.uninstallButton")}
-            </h3>
-            <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>{t("settingsPage.uninstallConfirmText")}</p>
-            <ul className="settings-uninstall-list">
-              <li>{t("settingsPage.uninstallItemServices")}</li>
-              <li>{t("settingsPage.uninstallItemApp")}</li>
-              <li>{t("settingsPage.uninstallItemData")}</li>
-              <li>{t("settingsPage.uninstallItemKeepPackages")}</li>
-            </ul>
-            <label className="form-label" style={{ marginBottom: "4px" }}>
-              {t("settingsPage.uninstallTypeLabel", { phrase: UNINSTALL_PHRASE })}
-            </label>
-            <input
-              type="text"
-              className="form-control"
-              value={uninstallConfirm}
-              onChange={(e) => setUninstallConfirm(e.target.value)}
-              placeholder={UNINSTALL_PHRASE}
-              autoFocus
-            />
-            <div className="modal-actions">
-              <button type="button" className="btn btn-secondary" onClick={() => { setShowUninstall(false); setUninstallConfirm(""); }} disabled={uninstalling}>
-                {t("common.cancel")}
-              </button>
-              <button type="button" className="btn btn-danger" onClick={handleUninstall} disabled={!uninstallReady || uninstalling}>
-                {uninstalling ? t("settingsPage.uninstallInProgress") : t("settingsPage.uninstallConfirmButton")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ---- Modale : restauration de sauvegarde ---- */}
       {showRestoreConfirm && selectedBackupFile && (
         <div className="modal-overlay">
@@ -2135,53 +1974,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ---- Modale : remise à zéro d'usine des données (recopie de phrase obligatoire) ---- */}
-      {showResetData && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--accent-error-text)" }}>
-              <Icon name="cleaning_services" size={20} /> {t("settingsPage.resetDataButton")}
-            </h3>
-            <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-              {t("settingsPage.resetDataConfirmText")}
-            </p>
-            <ul className="settings-uninstall-list">
-              <li>{t("settingsPage.resetDataItemMedia")}</li>
-              <li>{t("settingsPage.resetDataItemDb")}</li>
-              <li>{t("settingsPage.resetDataItemKeepApp")}</li>
-            </ul>
-            <label className="form-label" style={{ marginBottom: "4px" }}>
-              {t("settingsPage.resetDataTypeLabel", { phrase: RESET_DATA_PHRASE })}
-            </label>
-            <input
-              type="text"
-              className="form-control"
-              value={resetDataConfirm}
-              onChange={(e) => setResetDataConfirm(e.target.value)}
-              placeholder={RESET_DATA_PHRASE}
-              autoFocus
-            />
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => { setShowResetData(false); setResetDataConfirm(""); }}
-                disabled={resettingData}
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={handleResetData}
-                disabled={!resetDataReady || resettingData}
-              >
-                {resettingData ? t("settingsPage.resetDataInProgress") : t("settingsPage.resetDataConfirmButton")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
