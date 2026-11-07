@@ -7,7 +7,7 @@ A short reference to understand and change Bobine. The code is authoritative.
 ## 1. Overview
 
 - **Backend**: Python 3.11+, FastAPI and Uvicorn in a **single process**, SQLite (SQLAlchemy), APScheduler, ffmpeg. Playback state lives in memory and is sent over WebSocket, with no external bus.
-- **Frontend**: Next.js static export, served by the backend on the same origin; React, TypeScript, token-based CSS (15 contrast-tested themes).
+- **Frontend**: Next.js static export, served by the backend on the same origin; React, TypeScript, token-based CSS (9 palettes, each in light and dark, generated from a single source and contrast-tested).
 - **Android and Android TV**: Kotlin with embedded CPython (Chaquopy); the backend runs inside the app.
 - **Native**: `projector/` (projection window), `media/` and `devices/` (Rust components), `assistant/` (Tauri graphical installer).
 
