@@ -25,6 +25,7 @@ restent acceptés à l'application et traduits (`canonical_name`).
 from __future__ import annotations
 
 import json
+from app.api_contract import CHANNELS
 import logging
 import os
 import tempfile
@@ -217,9 +218,12 @@ def build_machine(db: Session) -> dict[str, Any]:
 def build_display_outputs(db: Session) -> dict[str, Any]:
     from app.routers.settings import get_display_output_value
 
-    return _document("display-outputs", {"outputs": {
-        channel: get_display_output_value(db, channel) for channel in ("cable", "network")
-    }})
+    from app.utils.video_sound import load_video_sound
+
+    return _document("display-outputs", {
+        "outputs": {channel: get_display_output_value(db, channel) for channel in CHANNELS},
+        "sound": {channel: load_video_sound(db, channel) for channel in CHANNELS},
+    })
 
 
 def build_radio_outputs(db: Session) -> dict[str, Any]:

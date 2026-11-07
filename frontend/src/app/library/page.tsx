@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
+import { recallCatalog, rememberCatalog } from "@/lib/sessionCatalog";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { videoStreamUrl } from "@/lib/clientCodecSupport";
 import WebRenditionPanel from "@/components/WebRenditionPanel";
@@ -60,8 +61,9 @@ export default function LibraryPage() {
   // Bascule Médiathèque/Playlists : la création de playlist vidéo vit désormais ici plutôt
   // que sur une page /playlists séparée.
   const [mode, setMode] = useState<"media" | "playlists">("media");
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  // Dernier catalogue connu de la session : affiché tout de suite, remplacé par la lecture réseau.
+  const [videos, setVideos] = useState<Video[]>(() => recallCatalog<Video>("library.videos") ?? []);
+  const [loading, setLoading] = useState<boolean>(() => recallCatalog<Video>("library.videos") === undefined);
 
   // Filters & Search states
   const [search, setSearch] = useState<string>("");
@@ -155,7 +157,7 @@ export default function LibraryPage() {
   // Load videos
   const fetchVideos = async () => {
     await Promise.resolve();
-    setLoading(true);
+    if (recallCatalog<Video>("library.videos") === undefined) setLoading(true);
     try {
       const queryParams = new URLSearchParams();
       if (search) queryParams.append("search", search);
@@ -170,6 +172,7 @@ export default function LibraryPage() {
       if (res.ok) {
         const data = await res.json();
         setVideos(data);
+        if (!search && !programFilter && !releaseFilter) rememberCatalog("library.videos", data as Video[]);
       } else {
         showToast(t("library.fetchError"), "error");
       }

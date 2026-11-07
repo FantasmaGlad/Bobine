@@ -30,3 +30,12 @@ test("les modes explicites ignorent le palier automatique", () => {
   assert.equal(scaleForMode("auto", 1), GLASS_STEPS[1]);
   assert.equal(scaleForMode("auto", 99), GLASS_STEPS[2], "palier hors bornes ramené au dernier");
 });
+
+test("un appareil à peu de mémoire ou de cœurs démarre en verre réduit", async () => {
+  const { initialStepForDevice } = await import("../src/lib/glassQuality.ts");
+  assert.equal(initialStepForDevice(2, 8), 1);
+  assert.equal(initialStepForDevice(1, undefined), 1);
+  assert.equal(initialStepForDevice(8, 2), 1);
+  assert.equal(initialStepForDevice(8, 8), 0);
+  assert.equal(initialStepForDevice(undefined, undefined), 0);
+});

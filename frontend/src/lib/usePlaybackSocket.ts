@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { clearCachesAndReload } from "@/lib/cacheReload";
 import { createPageClientId, type DisplayOutput } from "@/lib/displayChannel";
 import { type ClockAnchor } from "@/lib/playbackClock";
+import type { RadioSoundSettings } from "@/lib/radioSound";
 import { ServerClockSync } from "@/lib/serverClockSync";
 
 export type PlaybackStateValue =
@@ -71,6 +72,8 @@ export interface PlaybackState {
   subtitle?: number | "off" | null;
   position_seconds: number;
   volume: number;
+  /** Réglages de son du canal (égaliseur, basses, loudness, limiteur) ; absent sur un serveur ancien. */
+  sound?: RadioSoundSettings;
   speed: number;
   playlist_id: number | null;
   playlist_name: string | null;

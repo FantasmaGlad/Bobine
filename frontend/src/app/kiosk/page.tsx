@@ -13,7 +13,9 @@ import AppLogo from "@/components/AppLogo";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 import { formatCleanDescription } from "@/lib/formatDescription";
 import { subtitleSrc, useApplySubtitleMode, useVideoSubtitles } from "@/lib/subtitles";
-import { useVideoChapters } from "@/lib/chapters";
+import { chapterJumpTarget, useVideoChapters } from "@/lib/chapters";
+import SeekOsd, { useSeekHud } from "@/components/SeekOsd";
+import { useMediaSound } from "@/lib/useMediaSound";
 import ChapterToast from "@/components/ChapterToast";
 import VolumeOsd from "@/components/VolumeOsd";
 import { adjustMediaVolume, useVolumeHud, VOLUME_STEP } from "@/lib/volumeHud";
@@ -92,6 +94,7 @@ export default function KioskPage() {
 
   // Indicateur visuel du changement de volume
   const [volumeHud, showVolumeHud] = useVolumeHud();
+  const [seekHud, showSeekHud] = useSeekHud();
   const [now, setNow] = useState(new Date());
   // Offset en ms entre l'heure serveur et l'heure locale du navigateur. Utilisé pour corriger la dérive d'horloge de la TV kiosk
   // dont l'horloge système peut être décalée si NTP n'a pas encore synchro.
@@ -556,6 +559,23 @@ export default function KioskPage() {
     return () => window.clearInterval(interval);
   }, []);
 
+  // Son du canal (égaliseur, basses, loudness, limiteur) sur la vidéo et sur l'audio des cours ; repli en son direct.
+  useMediaSound(videoRef, state.sound);
+  useMediaSound(audioRef, state.sound);
+
+  /** Saut vidéo commandé au serveur, avec la surimpression de position. */
+  const seekVideoTo = (seconds: number) => {
+    sendCommand("seek", { position_seconds: seconds });
+    showSeekHud({ position: seconds, duration: videoRef.current?.duration || state.current_video?.duration_seconds || 0 });
+  };
+
+  const jumpChapter = (direction: "next" | "prev") => {
+    if (!state.current_video) return;
+    const cur = videoRef.current?.currentTime || state.position_seconds || 0;
+    const target = chapterJumpTarget(chapters, cur, direction);
+    if (target !== null) seekVideoTo(target);
+  };
+
   useKioskRemote(() => {
     return {
       onPlayPause: () => {
@@ -575,7 +595,7 @@ export default function KioskPage() {
       onLeft: () => {
         if (state.current_video) {
           const cur = videoRef.current?.currentTime || state.position_seconds || 0;
-          sendCommand("seek", { position_seconds: Math.max(0, cur - 10) });
+          seekVideoTo(Math.max(0, cur - 10));
         } else if (state.current_audio_course) {
           const cur = audioRef.current?.currentTime || state.audio_position_seconds || 0;
           sendCommand("seek", { position_seconds: Math.max(0, cur - 10) });
@@ -585,13 +605,16 @@ export default function KioskPage() {
         if (state.current_video) {
           const cur = videoRef.current?.currentTime || state.position_seconds || 0;
           const dur = videoRef.current?.duration || state.current_video.duration_seconds || 0;
-          sendCommand("seek", { position_seconds: Math.min(dur, cur + 10) });
+          seekVideoTo(Math.min(dur, cur + 10));
         } else if (state.current_audio_course) {
           const cur = audioRef.current?.currentTime || state.audio_position_seconds || 0;
           const dur = audioRef.current?.duration || 0;
           sendCommand("seek", { position_seconds: Math.min(dur, cur + 10) });
         }
       },
+      // Touches de chaîne : chapitre suivant ou précédent (le serveur pilote la lecture, d'où la commande seek).
+      onChapterNext: () => jumpChapter("next"),
+      onChapterPrev: () => jumpChapter("prev"),
       onVolumeUp: () => showVolumeHud(adjustMediaVolume([videoRef.current, audioRef.current], VOLUME_STEP)),
       onVolumeDown: () => showVolumeHud(adjustMediaVolume([videoRef.current, audioRef.current], -VOLUME_STEP)),
       onBack: () => {
@@ -733,6 +756,8 @@ export default function KioskPage() {
           ))}
         </video>
       </div>
+
+      {state.current_video && <SeekOsd {...seekHud} visible={seekHud.visible} chapters={chapters} />}
 
       <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} />
 

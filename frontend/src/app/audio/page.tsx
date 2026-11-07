@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { recallCatalog, rememberCatalog } from "@/lib/sessionCatalog";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useUploadManager } from "@/lib/UploadManager";
 import { parseMediaName } from "@/lib/parseMediaName";
@@ -133,9 +134,9 @@ export default function AudioLibraryPage() {
   // Bascule Cours/Playlists : la création d'éditions mixées vit désormais ici
   // plutôt que sur une page /audio-playlists séparée.
   const [mode, setMode] = useState<"courses" | "playlists">("courses");
-  const [courses, setCourses] = useState<AudioCourseSummary[]>([]);
+  const [courses, setCourses] = useState<AudioCourseSummary[]>(() => recallCatalog<AudioCourseSummary>("audio.courses") ?? []);
   const [backgrounds, setBackgrounds] = useState<BackgroundOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => recallCatalog<AudioCourseSummary>("audio.courses") === undefined);
   const [toast, setToast] = useState<ToastState | null>(null);
   // Catégories (programmes) réellement présentes parmi les cours audio, pour
   // les suggestions de saisie libre — même pattern que la Bibliothèque vidéo.
@@ -225,10 +226,14 @@ export default function AudioLibraryPage() {
   }, [toast]);
 
   const fetchCourses = async () => {
-    setLoading(true);
+    if (recallCatalog<AudioCourseSummary>("audio.courses") === undefined) setLoading(true);
     try {
       const res = await fetch(getApiUrl("/audio"), { cache: "no-store" });
-      if (res.ok) setCourses(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setCourses(data);
+        rememberCatalog("audio.courses", data as AudioCourseSummary[]);
+      }
       else showToast(t("audio.fetchError"), "error");
     } catch {
       showToast(t("audio.connectionError"), "error");

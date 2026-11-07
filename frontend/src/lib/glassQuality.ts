@@ -40,6 +40,17 @@ export function nextStep(frameDeltasMs: number[], step: number): number {
   return p75 > SLOW_FRAME_MS ? step + 1 : step;
 }
 
+/**
+ * Palier de départ selon les capacités annoncées par le navigateur (détection de fonctionnalités, jamais l'user-agent) :
+ * un appareil à peu de mémoire ou de cœurs (téléviseur 32 bits, client léger) commence en verre réduit au lieu d'attendre
+ * d'avoir saccadé. Le palier mesuré par le gouverneur reste prioritaire une fois mémorisé.
+ */
+export function initialStepForDevice(deviceMemoryGb: number | undefined, cores: number | undefined): number {
+  if (typeof deviceMemoryGb === "number" && deviceMemoryGb > 0 && deviceMemoryGb <= 2) return 1;
+  if (typeof cores === "number" && cores > 0 && cores <= 2) return 1;
+  return 0;
+}
+
 /** Pose l'échelle sur la page, sauf si le système demande déjà moins de transparence (la règle CSS prime alors). */
 export function applyScale(scale: number): void {
   if (typeof document === "undefined") return;
@@ -66,8 +77,11 @@ export function saveMode(mode: GlassMode): void {
   window.dispatchEvent(new Event(MODE_EVENT));
 }
 export function loadStep(): number {
-  const n = Number(read(STEP_KEY));
-  return Number.isInteger(n) && n >= 0 && n < GLASS_STEPS.length ? n : 0;
+  const saved = read(STEP_KEY);
+  const n = Number(saved);
+  if (saved !== null && Number.isInteger(n) && n >= 0 && n < GLASS_STEPS.length) return n;
+  const nav = typeof navigator === "undefined" ? undefined : (navigator as Navigator & { deviceMemory?: number });
+  return initialStepForDevice(nav?.deviceMemory, nav?.hardwareConcurrency);
 }
 export function saveStep(step: number): void {
   write(STEP_KEY, String(step));

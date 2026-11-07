@@ -56,6 +56,11 @@ export const BASS_FREQUENCY = 80;
 export const LOUDNESS_LOW = { frequency: 100, gain: 4 };
 export const LOUDNESS_HIGH = { frequency: 10000, gain: 3 };
 
+/** Vrai quand les réglages ne changent rien au son (contournement, ou tout à plat sans loudness) : aucun graphe nécessaire. */
+export function isNeutralSound(sound: RadioSoundSettings): boolean {
+  return !sound.enabled || (sound.bands.every((gain) => gain === 0) && sound.bass_boost === 0 && !sound.loudness);
+}
+
 /** Plafond d'atténuation du préampli (dB) : évite un son anormalement faible. */
 const PREAMP_MAX_CUT_DB = 18;
 

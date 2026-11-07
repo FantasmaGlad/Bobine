@@ -3,7 +3,10 @@
 import { useEffect } from "react";
 import { applyScale, loadMode, loadStep, MIN_SAMPLE, MODE_EVENT, nextStep, saveStep, scaleForMode } from "./glassQuality";
 
-/** Applique la qualité du verre et, en mode auto, la réduit si le défilement saccade (voir glassQuality.ts). */
+/** Durée pendant laquelle une activité (défilement, touche, transition) fait mesurer les images. */
+const ACTIVITY_WINDOW_MS = 250;
+
+/** Applique la qualité du verre et, en mode auto, la réduit si l'interface saccade pendant l'activité (voir glassQuality.ts). */
 export function useGlassGovernor(): void {
   useEffect(() => {
     let step = loadStep();
@@ -16,18 +19,19 @@ export function useGlassGovernor(): void {
       applyScale(scaleForMode(mode, step));
       if (mode !== "auto" || step >= 2) return;
 
-      // Durées d'image relevées uniquement pendant un défilement (c'est là que le flou coûte).
+      // Durées d'image relevées pendant l'activité qui coûte du flou : défilement, mais aussi navigation à la
+      // télécommande ou au doigt, ouverture de feuilles et transitions (sur une télévision, on défile peu).
       let deltas: number[] = [];
-      let lastScrollAt = 0;
+      let lastActivityAt = 0;
       let last = 0;
       let raf = 0;
-      const onScroll = () => {
-        lastScrollAt = performance.now();
+      const onActivity = () => {
+        lastActivityAt = performance.now();
         if (!raf) raf = requestAnimationFrame(tick);
       };
       const tick = (now: number) => {
         raf = 0;
-        if (document.hidden || now - lastScrollAt > 150) { last = 0; return; }
+        if (document.hidden || now - lastActivityAt > ACTIVITY_WINDOW_MS) { last = 0; return; }
         if (last) deltas.push(now - last);
         last = now;
         if (deltas.length >= MIN_SAMPLE) {
@@ -42,9 +46,10 @@ export function useGlassGovernor(): void {
         }
         raf = requestAnimationFrame(tick);
       };
-      window.addEventListener("scroll", onScroll, { capture: true, passive: true });
+      const events = ["scroll", "keydown", "pointerdown", "transitionrun"] as const;
+      for (const name of events) window.addEventListener(name, onActivity, { capture: true, passive: true });
       stopGovernor = () => {
-        window.removeEventListener("scroll", onScroll, { capture: true });
+        for (const name of events) window.removeEventListener(name, onActivity, { capture: true });
         if (raf) cancelAnimationFrame(raf);
         raf = 0;
       };
