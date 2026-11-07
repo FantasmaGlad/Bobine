@@ -99,7 +99,6 @@
   --remote-focus-scale: 1.06;
   /* Survol et sélection thémés (cahier 7.1) : dérivés des jetons du thème, lisibles à 3 mètres (3:1 sur le fond, vérifié par les tests). */
   --focus-ring: var(--accent-text);
-  --hover-overlay: color-mix(in srgb, var(--text-main) 8%, transparent);
   --remote-focus-ring: 0 0 0 3px var(--bg-main), 0 0 0 6px var(--focus-ring);
   --remote-focus-shadow: 0 16px 36px color-mix(in srgb, var(--ink) 55%, transparent);
   --remote-focus-glow: 0 0 24px color-mix(in srgb, var(--accent-primary) 45%, transparent);
@@ -122,7 +121,6 @@
   --bg-mobile-content: var(--bg-main);
   --content-text-dim: var(--text-dim);
   --btn-outline: color-mix(in srgb, var(--text-main) 50%, transparent);
-  --glass-edge: inset 0 1px 0 color-mix(in srgb, var(--specular) 85%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--ink) 4%, transparent);
   --glass-surface-bg: color-mix(in srgb, var(--bg-surface) 78%, transparent);
   --glass-surface-border: color-mix(in srgb, var(--text-main) 12%, transparent);
   --glass-card-bg: color-mix(in srgb, var(--bg-surface) 84%, transparent);
@@ -296,9 +294,9 @@ h1, h2, h3, h4, h5, h6 {
   0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
   50% { box-shadow: 0 0 0 4px transparent; opacity: 0.55; }
 }
-@keyframes olcShimmer {
-  from { background-position: -200% 0; }
-  to { background-position: 200% 0; }
+@keyframes olcSkeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }
 @keyframes olcSpin {
   from { transform: rotate(0deg); }
@@ -432,9 +430,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .olc-skeleton {
-  background: linear-gradient(90deg, var(--bg-surface-elevated) 25%, var(--bg-surface-hover) 50%, var(--bg-surface-elevated) 75%);
-  background-size: 200% 100%;
-  animation: olcShimmer 1.4s ease-in-out infinite;
+  background: var(--bg-surface-hover);
+  animation: olcSkeletonPulse 1.4s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -885,8 +882,6 @@ h1, h2, h3, h4, h5, h6 {
 .view-toggle {
   display: flex;
   background: color-mix(in srgb, var(--text-main) 5%, var(--bg-surface-elevated));
-  -webkit-backdrop-filter: blur(var(--glass-surface-blur));
-  backdrop-filter: blur(var(--glass-surface-blur));
   border: 1px solid color-mix(in srgb, var(--text-main) 16%, var(--border-color));
   border-radius: var(--radius-md);
   padding: 3px;
@@ -2681,6 +2676,7 @@ a.status-pill:hover,
   font-weight: 700;
   padding: 3px 8px;
   border-radius: 6px;
+  -webkit-backdrop-filter: blur(var(--glass-chip-blur));
   backdrop-filter: blur(var(--glass-chip-blur));
 }
 
@@ -3899,7 +3895,7 @@ video::cue {
   height: 14px;
   border-radius: 50%;
   background: var(--accent-warning);
-  color: var(--bg-surface);
+  color: var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3974,7 +3970,7 @@ video::cue {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--accent-warning);
+  color: var(--accent-warning-text);
 }
 
 .schedule-occurrence-actions {
@@ -4033,7 +4029,7 @@ video::cue {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--accent-warning);
+  color: var(--accent-warning-text);
 }
 
 .interrupted-title {
@@ -4458,6 +4454,7 @@ video::cue {
   align-items: center;
   gap: 6px;
   background: var(--glass-chip-bg);
+  -webkit-backdrop-filter: blur(var(--glass-chip-blur));
   backdrop-filter: blur(var(--glass-chip-blur));
   padding: 4px 10px;
   border-radius: 20px;
@@ -5145,7 +5142,7 @@ video::cue {
 
 .canvas-editor-unsaved {
   font-size: 0.8rem;
-  color: var(--accent-warning);
+  color: var(--accent-warning-text);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 700;
@@ -5213,7 +5210,7 @@ video::cue {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 800;
-  color: var(--accent-success);
+  color: var(--accent-success-text);
 }
 
 .canvas-editor-new-form,
@@ -5984,9 +5981,7 @@ video::cue {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--bg-surface) 88%, transparent);
-  -webkit-backdrop-filter: blur(var(--blur-md)) saturate(var(--saturate-soft));
-  backdrop-filter: blur(var(--blur-md)) saturate(var(--saturate-soft));
+  background: var(--bg-surface);
   box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 24%, transparent);
   border: 1px solid color-mix(in srgb, var(--text-main) 12%, transparent);
   transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
@@ -6548,9 +6543,7 @@ video::cue {
 
 .display-output-buttons {
   display: flex;
-  background: var(--glass-card-bg);
-  -webkit-backdrop-filter: blur(var(--blur-lg));
-  backdrop-filter: blur(var(--blur-lg));
+  background: var(--bg-surface-elevated);
   border: 1px solid color-mix(in srgb, var(--text-main) 16%, color-mix(in srgb, var(--accent-primary) 30%, transparent));
   border-radius: 999px;
   padding: 4px;
@@ -7358,7 +7351,7 @@ video::cue {
   gap: 10px;
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--accent-success);
+  color: var(--accent-success-text);
 }
 
 .grid-standby-pulse-dot {
@@ -7517,6 +7510,7 @@ video::cue {
   flex-direction: column;
   gap: 12px;
   box-shadow: 0 8px 32px color-mix(in srgb, var(--ink) 25%, transparent);
+  -webkit-backdrop-filter: blur(var(--blur-md));
   backdrop-filter: blur(var(--blur-md));
   z-index: 10;
   transition: color var(--transition-normal, 0.3s ease), background-color var(--transition-normal, 0.3s ease), border-color var(--transition-normal, 0.3s ease), box-shadow var(--transition-normal, 0.3s ease), transform var(--transition-normal, 0.3s ease), opacity var(--transition-normal, 0.3s ease), filter var(--transition-normal, 0.3s ease);
@@ -7564,7 +7558,7 @@ video::cue {
 }
 
 .course-rating-icon-title {
-  color: var(--accent-warning);
+  color: var(--accent-warning-text);
 }
 
 .course-rating-subtitle {
@@ -7633,7 +7627,7 @@ video::cue {
 }
 
 .course-rating-star-icon {
-  color: var(--text-dim, #666);
+  color: var(--text-dim);
   transition: color var(--transition-fast);
 }
 
@@ -8663,10 +8657,6 @@ video::cue {
    4K60 à chaque image est trop coûteux sur le matériel visé
    (Dell Wyse 5070) — reflet et ombre seulement.
    ============================================================ */
-:root {
-  --glass-edge: inset 0 1px 0 color-mix(in srgb, var(--specular) 60%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
-}
-
 /* Boutons : aplats nets, jamais de verre (le verre est réservé aux surfaces : cartes, feuilles, barres flottantes). */
 .btn-secondary:not(:disabled),
 .coach-btn:not(.coach-btn-main):not(:disabled),
@@ -9232,8 +9222,8 @@ video::cue {
 
 /* Onglets segmentés : un indicateur unique glisse sous l'onglet actif. */
 .seg { max-width: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-surface) 60%, transparent); border: 1px solid color-mix(in srgb, var(--text-main) 14%, var(--border-color));
-  -webkit-backdrop-filter: blur(var(--blur-md)); backdrop-filter: blur(var(--blur-md)); box-shadow: inset 0 1px 1px color-mix(in srgb, var(--specular) 30%, transparent); }
+  background: var(--bg-surface); border: 1px solid color-mix(in srgb, var(--text-main) 14%, var(--border-color));
+  box-shadow: inset 0 1px 1px color-mix(in srgb, var(--specular) 30%, transparent); }
 .seg::-webkit-scrollbar { display: none; }
 .seg-track { position: relative; display: inline-flex; gap: 2px; padding: 4px; min-width: 100%; }
 .seg-indicator { position: absolute; top: 4px; bottom: 4px; left: 0; border-radius: 999px; background: var(--accent-primary);
@@ -9791,7 +9781,7 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
 
 /* ============================================================
    Stockage externe : assistant « Préparer ce support » (formatage). Zone d'effacement teintée par le jeton d'erreur du thème
-   (contrastes contrôlés sur les 15 thèmes dans tests/themeContrast.test.ts), bouton danger sobre, uniquement des jetons.
+   (contrastes contrôlés sur les 18 palettes dans tests/themeContrast.test.ts), bouton danger sobre, uniquement des jetons.
    ============================================================ */
 :root { --control-outline: var(--accent-text); }
 .fmt-erase { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: var(--radius-md); color: var(--text-main);
@@ -9800,8 +9790,8 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
 .fmt-erase strong { color: var(--accent-error-text); }
 .fmt-options { display: flex; flex-direction: column; gap: 8px; }
 .fmt-option { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; min-height: 56px; border-radius: var(--radius-md); cursor: pointer;
-  background: var(--glass-card-bg); -webkit-backdrop-filter: blur(var(--blur-md)) saturate(var(--saturate-soft)); backdrop-filter: blur(var(--blur-md)) saturate(var(--saturate-soft));
-  border: 1px solid var(--glass-surface-border, var(--border-color)); box-shadow: var(--glass-card-highlight);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color); box-shadow: var(--glass-card-highlight);
   transition: border-color var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
 .fmt-option input[type="radio"] { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--control-outline); cursor: pointer; flex-shrink: 0; }
 .fmt-option:has(input:checked) { border-color: var(--control-outline); background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-surface-elevated)); }

@@ -559,7 +559,20 @@ def stage_settings(updates: dict[str, Any], db: Session) -> None:
     # Ancien nom de thème (client ou sauvegarde d'avant la 5.2) : accepté et enregistré comme couleur + mode.
     legacy = themes.legacy_target(updates.get("theme"), updates.get("theme_mode"))
     if legacy:
-        updates["theme"], updates["theme_mode"] = legacy
+        # Client 5.2 qui ne change que la couleur : s'il omet le mode alors qu'un mode est enregistré,
+        # garder ce mode plutôt que le mode fixe de l'ancien thème (le client envoie normalement les deux).
+        if (
+            updates.get("theme") in themes.THEMES
+            and "theme_mode" not in updates
+            and _get_db_value(db, "theme_mode") in themes.MODES
+        ):
+            legacy = None
+        else:
+            updates["theme"], updates["theme_mode"] = legacy
+    if "theme_mode" in updates and "theme" not in updates:
+        # Changement de mode seul : normaliser aussi le nom ancien stocké, sinon « auto » est relu avec
+        # le mode fixe de cet ancien thème (resolve ne rend que light/dark pour un nom d'avant la 5.2).
+        updates["theme"], _ = themes.resolve(_get_db_value(db, "theme"), _get_db_value(db, "theme_mode"))
     for key, value in updates.items():
         if value is None:
             if key == "default_coach_background_id":

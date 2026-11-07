@@ -78,6 +78,7 @@ test("anciens thèmes : traduits sans mode enregistré, intacts avec un mode", (
   assert.deepEqual(resolveStored("chili", null), { theme: "chili", mode: "dark" });
   assert.deepEqual(resolveStored("chili", "auto"), { theme: "chili", mode: "auto" });
   assert.deepEqual(resolveStored("inconnu", "zzz"), { theme: DEFAULT_THEME, mode: DEFAULT_MODE });
+  assert.deepEqual(resolveStored("constructor", null), { theme: DEFAULT_THEME, mode: DEFAULT_MODE });
   for (const [name, target] of Object.entries(LEGACY_THEMES)) assert.ok(isThemeId(target.theme), name);
   assert.equal(Object.keys(LEGACY_THEMES).length, 15);
 });

@@ -11,14 +11,12 @@ import {
   DEFAULT_THEME,
   resolveMode,
   resolveStored,
-  THEME_IDS,
   type ResolvedMode,
   type ThemeId,
   type ThemeMode,
 } from "@/lib/themePalettes";
 
 export type Theme = ThemeId;
-export const THEME_VALUES: readonly Theme[] = THEME_IDS;
 
 export interface NetworkInfo {
   localIp: string | null;
@@ -412,17 +410,21 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const setTheme = useCallback(
     (value: Theme) => {
       setThemeState(value);
-      persist({ theme: value });
+      // Paire complète : sans le mode, le serveur lit un ancien nom (chili, charbon, orchidee) comme
+      // une écriture d'avant la 5.2 et écrase le mode courant.
+      persist({ theme: value, theme_mode: themeMode });
     },
-    [persist]
+    [persist, themeMode]
   );
 
   const setThemeMode = useCallback(
     (value: ThemeMode) => {
       setThemeModeState(value);
-      persist({ theme_mode: value });
+      // Envoyer aussi la couleur résolue normalise un ancien nom stocké (ex. lavande) : le serveur ne
+      // relit plus « auto » à travers le mode fixe de cet ancien thème.
+      persist({ theme, theme_mode: value });
     },
-    [persist]
+    [persist, theme]
   );
 
   const setLanguage = useCallback(

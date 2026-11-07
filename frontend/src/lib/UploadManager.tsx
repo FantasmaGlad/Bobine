@@ -719,7 +719,7 @@ function UploadFloatingPanel() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span
                   style={{
-                    color: task.status === "error" ? "var(--accent-error)" : task.status === "done" ? "var(--accent-success)" : "var(--text-main)",
+                    color: task.status === "error" ? "var(--accent-error-text)" : task.status === "done" ? "var(--accent-success-text)" : "var(--text-main)",
                     fontWeight: 600,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -733,8 +733,8 @@ function UploadFloatingPanel() {
                   }}
                   title={task.title}
                 >
-                  {task.status === "done" && <Icon name="check" size={14} color="var(--accent-success)" />}
-                  {task.status === "error" && <Icon name="close" size={14} color="var(--accent-error)" />}
+                  {task.status === "done" && <Icon name="check" size={14} color="var(--accent-success-text)" />}
+                  {task.status === "error" && <Icon name="close" size={14} color="var(--accent-error-text)" />}
                   {task.status === "pending" && <Icon name="hourglass_empty" size={14} />}
                   {task.status === "processing" && (
                     <Icon name={STAGE_ICONS[task.stage ?? ""] ?? "autorenew"} size={14} className="olc-spin" />
@@ -840,7 +840,7 @@ function UploadFloatingPanel() {
                 </div>
               )}
               {task.notice && (task.status === "uploading" || task.status === "processing") && (
-                <span role="status" data-testid="upload-notice" style={{ color: "var(--accent-warning)", fontSize: "0.75rem" }}>
+                <span role="status" data-testid="upload-notice" style={{ color: "var(--accent-warning-text)", fontSize: "0.75rem" }}>
                   {formatNotice(t, task.notice)}
                 </span>
               )}

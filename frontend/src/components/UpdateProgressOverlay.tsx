@@ -191,7 +191,7 @@ export default function UpdateProgressOverlay() {
         <Icon
           name={isFailed ? "error" : isDone ? "check_circle" : "system_update"}
           size={18}
-          color={isFailed ? "var(--accent-error)" : isDone ? "var(--accent-success)" : "var(--accent-primary)"}
+          color={isFailed ? "var(--accent-error-text)" : isDone ? "var(--accent-success-text)" : "var(--accent-text)"}
         />
         <span style={{ flex: 1 }}>{label}</span>
         {(isDone || isFailed) && (
@@ -222,12 +222,12 @@ export default function UpdateProgressOverlay() {
                     justifyContent: "center",
                     flexShrink: 0,
                     background: stepState === "pending" ? "transparent" : "var(--accent-primary)",
-                    border: `2px solid ${stepState === "pending" ? "var(--border-color)" : "var(--accent-primary)"}`,
+                    border: `2px solid ${stepState === "pending" ? "var(--border-color)" : "var(--accent-text)"}`,
                   }}
                 >
-                  {stepState === "done" && <Icon name="check" size={10} color="var(--specular)" />}
+                  {stepState === "done" && <Icon name="check" size={10} color="var(--accent-primary-fg)" />}
                   {stepState === "active" && (
-                    <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--specular)" }} />
+                    <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--accent-primary-fg)" }} />
                   )}
                 </div>
                 {i < STEPPER_STEPS.length - 1 && (

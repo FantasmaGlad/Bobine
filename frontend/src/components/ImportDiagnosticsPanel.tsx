@@ -112,11 +112,11 @@ export default function ImportDiagnosticsPanel() {
       {report && (
         <div data-testid="import-diagnostics">
           {problems.length === 0 ? (
-            <p style={{ color: "var(--accent-success)", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "6px" }}>
-              <Icon name="check" size={16} color="var(--accent-success)" /> {t("settingsPage.importDiag.allGood")}
+            <p style={{ color: "var(--accent-success-text)", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "6px" }}>
+              <Icon name="check" size={16} color="var(--accent-success-text)" /> {t("settingsPage.importDiag.allGood")}
             </p>
           ) : (
-            <ul role="alert" style={{ margin: "0 0 12px", paddingLeft: "18px", color: "var(--accent-warning)", fontSize: "0.88rem" }}>
+            <ul role="alert" style={{ margin: "0 0 12px", paddingLeft: "18px", color: "var(--accent-warning-text)", fontSize: "0.88rem" }}>
               {problems.map((key) => <li key={key}>{t(key)}</li>)}
             </ul>
           )}
@@ -124,7 +124,7 @@ export default function ImportDiagnosticsPanel() {
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {rows.map((row) => (
               <div key={row.label} style={{ display: "flex", gap: "8px", alignItems: "flex-start", fontSize: "0.88rem" }}>
-                <Icon name={row.ok ? "check" : "warning"} size={16} color={row.ok ? "var(--accent-success)" : "var(--accent-warning)"} />
+                <Icon name={row.ok ? "check" : "warning"} size={16} color={row.ok ? "var(--accent-success-text)" : "var(--accent-warning-text)"} />
                 <div style={{ minWidth: 0 }}>
                   <strong style={{ color: "var(--text-main)" }}>{row.label}</strong>
                   <span style={{ color: "var(--text-muted)" }}> — {row.value}</span>

@@ -191,7 +191,7 @@ const GridAllList = React.memo(function GridAllList({
     <div className="cinema-all-grid">
       {videos.map((v, i) => {
         const thumb = thumbnailUrl(v);
-        const accent = "var(--accent-primary)";
+        const accent = "var(--accent-text)";
         return (
           <button
             key={v.id}

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 /**
- * Garde-fou des 15 thèmes : les jetons du CSS (pas des copies) sont résolus, mélangés et comparés.
+ * Garde-fou des 18 palettes : les jetons du CSS (pas des copies) sont résolus, mélangés et comparés.
  * Toute nouvelle surface posée sur ces jetons hérite de la vérification ; un thème ajouté est testé d'office.
  */
 const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8") + "\n" + readFileSync(new URL("../src/app/themes.css", import.meta.url), "utf8");
@@ -279,7 +279,7 @@ for (const theme of THEMES) {
         assert.ok(got >= min, `${token} : ${got.toFixed(2)} < ${min}`);
       }
     }
-    assert.deepEqual(c(declaration(".mobile-page-content", "background-color")).a === 0 || true, true);
+    assert.equal(c(declaration(".mobile-page-content", "background-color")).a, 1, "le contenu mobile est opaque");
   });
   test(`${theme} : danger, texte et commandes sur les fonds réels`, () => {
     const panel = over(c(declaration(".settings-danger", "background")), c("var(--bg-content)"));

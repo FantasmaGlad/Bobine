@@ -889,8 +889,8 @@ export default function AudioLibraryPage() {
                             padding: "4px 8px",
                             borderRadius: "6px",
                             background: trackBg ? "color-mix(in srgb, var(--accent-primary) 15%, var(--bg-surface-elevated))" : "var(--bg-surface)",
-                            border: `1px solid ${trackBg ? "var(--accent-primary)" : "var(--border-color)"}`,
-                            color: trackBg ? "var(--accent-primary)" : "var(--text-muted)",
+                            border: `1px solid ${trackBg ? "var(--accent-text)" : "var(--border-color)"}`,
+                            color: trackBg ? "var(--accent-text)" : "var(--text-muted)",
                             fontSize: "0.75rem",
                             fontWeight: 600,
                             cursor: "pointer",
@@ -1001,7 +1001,7 @@ export default function AudioLibraryPage() {
                     padding: "10px 12px",
                     borderRadius: "8px",
                     background: !selected?.tracks.find((t) => t.id === pickingTrackBackgroundId)?.background_id ? "var(--bg-surface-hover)" : "var(--bg-surface-elevated)",
-                    border: `1.5px solid ${!selected?.tracks.find((t) => t.id === pickingTrackBackgroundId)?.background_id ? "var(--accent-primary)" : "var(--border-color)"}`,
+                    border: `1.5px solid ${!selected?.tracks.find((t) => t.id === pickingTrackBackgroundId)?.background_id ? "var(--accent-text)" : "var(--border-color)"}`,
                     cursor: "pointer",
                     marginBottom: "14px",
                   }}
@@ -1031,7 +1031,7 @@ export default function AudioLibraryPage() {
                         padding: "10px 12px",
                         borderRadius: "8px",
                         background: !drawerBackgroundId ? "var(--bg-surface-hover)" : "var(--bg-surface-elevated)",
-                        border: `1.5px solid ${!drawerBackgroundId ? "var(--accent-primary)" : "var(--border-color)"}`,
+                        border: `1.5px solid ${!drawerBackgroundId ? "var(--accent-text)" : "var(--border-color)"}`,
                         cursor: "pointer",
                         marginBottom: "10px",
                       }}
@@ -1078,7 +1078,7 @@ export default function AudioLibraryPage() {
                       padding: "10px 12px",
                       borderRadius: "8px",
                       background: (!defaultBg && !drawerBackgroundId) ? "var(--bg-surface-hover)" : "var(--bg-surface-elevated)",
-                      border: `1.5px solid ${(!defaultBg && !drawerBackgroundId) ? "var(--accent-primary)" : "var(--border-color)"}`,
+                      border: `1.5px solid ${(!defaultBg && !drawerBackgroundId) ? "var(--accent-text)" : "var(--border-color)"}`,
                       cursor: "pointer",
                       marginBottom: "14px",
                     }}
@@ -1121,7 +1121,7 @@ export default function AudioLibraryPage() {
                       className="olc-press"
                       style={{
                         background: isSelected ? "var(--bg-surface-hover)" : "var(--bg-surface-elevated)",
-                        border: `2px solid ${isSelected ? "var(--accent-primary)" : "var(--border-color)"}`,
+                        border: `2px solid ${isSelected ? "var(--accent-text)" : "var(--border-color)"}`,
                         borderRadius: "8px",
                         overflow: "hidden",
                         cursor: "pointer",

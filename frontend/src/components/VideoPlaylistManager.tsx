@@ -443,9 +443,9 @@ export default function VideoPlaylistManager() {
     <div className="playlist-manager-wrap">
       {toast && (
         <div className={`toast ${toast.type}`}>
-          {toast.type === "success" && <Icon name="check_circle" size={20} color="var(--accent-success)" filled />}
-          {toast.type === "error" && <Icon name="error" size={20} color="var(--accent-error)" filled />}
-          {toast.type === "warning" && <Icon name="warning" size={20} color="var(--accent-warning)" filled />}
+          {toast.type === "success" && <Icon name="check_circle" size={20} color="var(--accent-success-text)" filled />}
+          {toast.type === "error" && <Icon name="error" size={20} color="var(--accent-error-text)" filled />}
+          {toast.type === "warning" && <Icon name="warning" size={20} color="var(--accent-warning-text)" filled />}
           <span>{toast.message}</span>
         </div>
       )}

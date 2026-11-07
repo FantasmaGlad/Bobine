@@ -532,8 +532,8 @@ export default function CoachModePage() {
                 minHeight: "40px",
                 borderRadius: "var(--radius-md)",
                 background: !activeBgId ? "color-mix(in srgb, var(--accent-primary) 15%, var(--bg-surface-elevated))" : "var(--bg-surface-elevated)",
-                border: `1.5px solid ${!activeBgId ? "var(--accent-primary)" : "var(--border-color)"}`,
-                color: !activeBgId ? "var(--accent-primary)" : "var(--text-main)",
+                border: `1.5px solid ${!activeBgId ? "var(--accent-text)" : "var(--border-color)"}`,
+                color: !activeBgId ? "var(--accent-text)" : "var(--text-main)",
                 fontWeight: 700,
                 fontSize: "0.82rem",
                 cursor: "pointer",
@@ -609,7 +609,7 @@ export default function CoachModePage() {
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
-                        color: isActive ? "var(--accent-primary)" : "var(--text-main)",
+                        color: isActive ? "var(--accent-text)" : "var(--text-main)",
                       }}
                     >
                       {bg.title}

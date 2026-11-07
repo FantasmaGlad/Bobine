@@ -709,8 +709,8 @@ export default function LibraryPage() {
       {/* Dynamic Toast Notifications */}
       {toast && (
         <div className={`toast ${toast.type}`}>
-          {toast.type === "success" && <Icon name="check_circle" size={20} color="var(--accent-success)" filled />}
-          {toast.type === "error" && <Icon name="error" size={20} color="var(--accent-error)" filled />}
+          {toast.type === "success" && <Icon name="check_circle" size={20} color="var(--accent-success-text)" filled />}
+          {toast.type === "error" && <Icon name="error" size={20} color="var(--accent-error-text)" filled />}
           <span>{toast.message}</span>
         </div>
       )}
@@ -1388,7 +1388,7 @@ export default function LibraryPage() {
                       <div className="course-studio-subtitles-list">
                         {studioSubtitles.map((sub) => (
                           <div key={sub.id} className="course-studio-subtitle-tag">
-                            <span style={{ fontWeight: 800, textTransform: "uppercase", fontSize: "0.72rem", background: "var(--accent-primary)", color: "#fff", padding: "1px 5px", borderRadius: "4px" }}>
+                            <span style={{ fontWeight: 800, textTransform: "uppercase", fontSize: "0.72rem", background: "var(--accent-primary)", color: "var(--accent-primary-fg)", padding: "1px 5px", borderRadius: "4px" }}>
                               {sub.language_code}
                             </span>
                             <span>{sub.language_label}</span>
