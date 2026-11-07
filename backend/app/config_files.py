@@ -94,7 +94,7 @@ def canonical_name(name: str) -> str:
 
 # Réglages communs à toutes les installations, tels que l'interface les affiche (valeurs effectives).
 PORTABLE_SETTINGS = (
-    "theme", "language", "active_logo", "update_channel", "auto_update_enabled", "auto_update_time",
+    "theme", "theme_mode", "language", "active_logo", "update_channel", "auto_update_enabled", "auto_update_time",
     "wait_time_between_courses", "volume_default", "audio_chain_timer_seconds", "logs_retention_days",
     "radio_announcement_fade_ms", "auto_web_rendition", "simplified_ui",
 )

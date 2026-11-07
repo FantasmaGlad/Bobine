@@ -43,7 +43,7 @@ from app.radio_manager import get_radio_manager
 from app.scheduler_manager import activate_radio_output
 from app import release_channel
 from app.utils.activity_log import log_activity
-from app.utils import ui_language
+from app.utils import themes, ui_language
 from app.utils.android_runtime import is_android
 from app.utils.display_state import (
     DEFAULT_DISPLAY_MODE_SETTING,
@@ -92,15 +92,16 @@ _WRITABLE_NUMERIC_FIELDS = {
     "radio_announcement_fade_ms", "logs_retention_days", "default_coach_background_id",
 }
 _WRITABLE_STRING_FIELDS = {
-    "theme", "language", "active_logo", "update_channel", "wired_display_mode",
+    "theme", "theme_mode", "language", "active_logo", "update_channel", "wired_display_mode",
     "display_mode_setting", "auto_update_enabled", "auto_update_time",
     "auto_web_rendition", "media_native", "update_tor", "update_tor_proxy", "simplified_ui",
 }
 _DEFAULTS = {
     # Interface simplifiée (M28) : masque coach, métriques et journaux. Réglage portable de settings.json.
     "simplified_ui": "false",
-    # "lavande" : thème clair par défaut (nacre irisée et améthyste profonde).
-    "theme": "lavande",
+    # « ardoise » en mode automatique (clair ou sombre selon le système) : thème par défaut.
+    "theme": themes.DEFAULT_THEME,
+    "theme_mode": themes.DEFAULT_MODE,
     "language": "fr",
     "active_logo": "default",
     # Canal de mise à jour : jamais lu d'ici. Sans choix explicite de l'utilisateur, le canal
@@ -137,11 +138,8 @@ _DEFAULTS = {
 }
 _AUTO_UPDATE_TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _LOGO_FILENAME = "logo.png"
-_VALID_THEMES = {
-    "clair", "lune", "menthe", "automne", "hiver",
-    "chili", "ciel", "orchidee", "taupe", "charbon", "charbon-sombre",
-    "beige", "lavande", "miel", "coco",
-}
+_VALID_THEMES = set(themes.THEMES)
+_VALID_THEME_MODES = set(themes.MODES)
 _VALID_ACTIVE_LOGOS = {"default", "custom"}
 _VALID_WIRED_DISPLAY_MODES = {"dual_screen", "headless"}
 
@@ -280,6 +278,7 @@ async def broadcast_display_mode(db: Session) -> str:
     await ws_manager.broadcast({
         "event": "settings_change",
         "theme": snapshot["theme"],
+        "theme_mode": snapshot["theme_mode"],
         "language": snapshot["language"],
         "has_custom_logo": snapshot["has_custom_logo"],
         "active_logo": snapshot["active_logo"],
@@ -291,10 +290,8 @@ async def broadcast_display_mode(db: Session) -> str:
 
 @router.get("")
 def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
-    theme = _get_db_value(db, "theme")
-    if theme not in _VALID_THEMES:
-        # Thème retiré ou valeur restaurée d'une ancienne sauvegarde : le thème par défaut s'applique.
-        theme = _DEFAULTS["theme"]
+    # Ancien nom de thème (avant la 5.2) ou valeur inconnue : traduit en couleur + mode, sinon thème par défaut.
+    theme, theme_mode = themes.resolve(_get_db_value(db, "theme"), _get_db_value(db, "theme_mode"))
     language = _get_db_value(db, "language") or _DEFAULTS["language"]
     has_custom = _logo_path().exists()
     active_logo = _get_db_value(db, "active_logo") or _DEFAULTS["active_logo"]
@@ -333,6 +330,7 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "update_tor": "true" if _get_db_value(db, "update_tor") == "true" else "false",
         "update_tor_proxy": _get_db_value(db, "update_tor_proxy") or _DEFAULTS["update_tor_proxy"],
         "theme": theme,
+        "theme_mode": theme_mode,
         "language": language,
         # Langue de l'export servi depuis le démarrage : si elle diffère de `language`, un redémarrage est requis.
         "ui_language": ui_language.served(),
@@ -582,6 +580,8 @@ def stage_settings(updates: dict[str, Any], db: Session) -> None:
                 raise HTTPException(status_code=400, detail="Langue invalide (attendu 'fr' ou 'en')")
             if key == "simplified_ui" and value not in ("true", "false"):
                 raise HTTPException(status_code=400, detail="Interface simplifiée invalide (attendu 'true' ou 'false')")
+            if key == "theme_mode" and value not in _VALID_THEME_MODES:
+                raise HTTPException(status_code=400, detail=f"Mode de thème invalide (attendu l'un de : {', '.join(themes.MODES)})")
             if key == "theme" and value not in _VALID_THEMES:
                 raise HTTPException(status_code=400, detail=f"Thème invalide (attendu l'un de : {', '.join(sorted(_VALID_THEMES))})")
             if key == "active_logo":
@@ -670,6 +670,7 @@ async def after_settings_change(updates: dict[str, Any], db: Session) -> dict[st
     # pour ne pas générer de trafic WebSocket inutile à chaque réglage numérique (countdown, volume...).
     if (
         "theme" in updates
+        or "theme_mode" in updates
         or "language" in updates
         or "active_logo" in updates
         or "wired_display_mode" in updates
@@ -680,6 +681,7 @@ async def after_settings_change(updates: dict[str, Any], db: Session) -> dict[st
         await ws_manager.broadcast({
             "event": "settings_change",
             "theme": result["theme"],
+            "theme_mode": result["theme_mode"],
             "language": result["language"],
             "ui_language": result["ui_language"],
             "simplified_ui": result["simplified_ui"],
