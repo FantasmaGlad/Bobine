@@ -5,15 +5,10 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import { useUploadManager } from "@/lib/UploadManager";
+import { RADIO_AUDIO_EXTENSIONS, hasExtension } from "@/lib/mediaFiles";
 
-// Extensions audio acceptées (miroir de AUDIO_EXTENSIONS côté backend) : sert
-// à filtrer côté client les fichiers non-audio d'un import de dossier
-// (webkitdirectory renvoie tout le contenu, sous-dossiers compris).
-const AUDIO_EXTENSIONS = [
-  ".mp3", ".m4a", ".aac", ".mp4", ".ogg", ".oga", ".opus", ".webm", ".flac", ".wav",
-  ".wma", ".aiff", ".aif", ".aifc", ".ape", ".alac", ".wv", ".mka", ".m4b", ".ac3",
-];
-const isAudioFile = (name: string) => AUDIO_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
+// Filtre les fichiers non audio d'un dossier déposé (liste unique : `lib/mediaFiles.ts`).
+const isAudioFile = (name: string) => hasExtension(name, RADIO_AUDIO_EXTENSIONS);
 
 // Écran « Rappels » —
 // refonte UI/UX (style de la bibliothèque radio) : en-tête clair, import

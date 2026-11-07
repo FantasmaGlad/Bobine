@@ -82,14 +82,14 @@ function maxConcurrentUploads(): number {
 /** Types d'import à fichier unique, potentiellement très volumineux : envoyés
  *  par morceaux reprenables (lib/chunkedUpload.ts). Les imports multi-fichiers
  *  de pistes audio (quelques Mo chacune) restent en `multipart` classique. */
-const CHUNKED_KINDS: ReadonlySet<UploadKind> = new Set<UploadKind>(["video", "background", "audio_zip", "radio_zip"]);
+const CHUNKED_KINDS: ReadonlySet<UploadKind> = new Set<UploadKind>(["video", "background", "video_zip", "background_zip", "audio_zip", "radio_zip"]);
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export type UploadKind =
-  | "video" | "background" | "audio_files" | "audio_zip"
+  | "video" | "background" | "video_zip" | "background_zip" | "audio_files" | "audio_zip"
   | "radio_files" | "radio_zip" | "radio_announcement_files";
 
 export interface PendingUploadSpec {
@@ -182,6 +182,8 @@ function uuid(): string {
 const UPLOAD_ENDPOINTS: Record<UploadKind, string> = {
   video: "/videos/upload",
   background: "/backgrounds/upload",
+  video_zip: "/videos/upload-zip",
+  background_zip: "/backgrounds/upload-zip",
   audio_files: "/audio/upload",
   audio_zip: "/audio/upload-zip",
   radio_files: "/radio/tracks/upload",
@@ -630,6 +632,8 @@ export function useUploadManager(): UploadManagerContextValue {
 const KIND_LABEL_KEYS: Record<UploadKind, string> = {
   video: "uploadManager.kindVideo",
   background: "uploadManager.kindBackground",
+  video_zip: "uploadManager.kindVideo",
+  background_zip: "uploadManager.kindBackground",
   audio_files: "uploadManager.kindAudio",
   audio_zip: "uploadManager.kindAudio",
   radio_files: "uploadManager.kindRadio",

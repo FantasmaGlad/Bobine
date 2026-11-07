@@ -5,6 +5,7 @@ import shutil
 import logging
 from pathlib import Path
 
+from app.utils import media_formats
 from app.config import settings
 from app.database import SessionLocal
 from app.models import Background, Video, ImportSource
@@ -65,7 +66,7 @@ def _extract_metadata_or_unknown(file_path: str, original_filename: str) -> dict
         }
 
 
-SUPPORTED_EXTENSIONS = {".mp4", ".m4v", ".mkv", ".avi", ".mov"}
+SUPPORTED_EXTENSIONS = media_formats.VIDEO
 # Fonds animés : mêmes conteneurs que les cours, plus WebM (nativement
 # lisible par Chromium, format courant pour des boucles d'ambiance courtes).
 # Images fixes : un fond

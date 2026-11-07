@@ -142,3 +142,10 @@ def test_backup_writes_a_new_file_and_never_overwrites(monkeypatch, tmp_path):
     target.write_bytes(b"precieux")
     assert cli.main(["settings", "backup", str(target)]) == cli.EXIT_USAGE
     assert target.read_bytes() == b"precieux"
+
+
+def test_archives_use_the_archive_route_for_every_family(rec, tmp_path):
+    z = tmp_path / "lot.zip"; z.write_bytes(b"PK")
+    for family, route in (("library", "/api/videos/upload-zip"), ("backgrounds", "/api/backgrounds/upload-zip")):
+        assert cli.main([family, "import", str(z)]) == cli.EXIT_OK
+        assert rec.uploads[-1][0] == route

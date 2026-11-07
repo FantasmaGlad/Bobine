@@ -11,6 +11,8 @@ from app.database import get_db, SessionLocal
 from app.models import Background, ImportSource
 from app.utils.importer import import_background, is_image_background
 from app.utils.executors import ffmpeg_executor
+from app.utils.archive_import import import_media_archive
+from app.utils import media_formats
 from app.utils.staged_uploads import receive_single_upload
 from app.utils.import_jobs import create_job, update_job, register_job_future, JobCancelledError
 from app.utils._pydantic_compat import computed_field, _ComputedFieldsCompatMixin
@@ -92,6 +94,30 @@ def upload_background(
 
     job_id = create_job("background", filename, title or Path(filename).stem)
     future = ffmpeg_executor.submit(_run_background_import_job, job_id, temp_path, filename, title)
+    register_job_future(job_id, future)
+    return {"job_id": job_id}
+
+
+def _run_background_archive_job(job_id: str, archive_path: str) -> None:
+    try:
+        backgrounds = import_media_archive(
+            archive_path, job_id, media_formats.VIDEO | {".webm"} | media_formats.IMAGE,
+            lambda path, name: import_background(path, name, ImportSource.upload, job_id=job_id), "d'ambiance",
+        )
+        update_job(job_id, stage="done", result_id=backgrounds[0].id)
+    except JobCancelledError:
+        update_job(job_id, stage="cancelled")
+    except Exception as e:
+        logger.error(f"Import d'une archive de fonds (job {job_id}) échoué : {e}", exc_info=True)
+        update_job(job_id, stage="error", error=str(e))
+
+
+@router.post("/upload-zip", response_model=ImportJobAccepted, status_code=202)
+def upload_backgrounds_archive(file: UploadFile | None = File(None), upload_id: str | None = Form(None)):
+    """Import d'une archive (ZIP ou tar) de fonds animés et d'images : un fond par fichier, en une seule tâche."""
+    temp_path, filename = receive_single_upload(file, upload_id, forced_suffix=".zip")
+    job_id = create_job("background", filename, Path(filename).stem)
+    future = ffmpeg_executor.submit(_run_background_archive_job, job_id, temp_path)
     register_job_future(job_id, future)
     return {"job_id": job_id}
 

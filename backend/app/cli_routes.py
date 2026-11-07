@@ -60,6 +60,8 @@ COVERED: dict[str, str] = {
     "POST /api/audio/upload": "audio",
     "POST /api/audio/upload-zip": "audio",
     "POST /api/backgrounds/upload": "backgrounds",
+    "POST /api/backgrounds/upload-zip": "backgrounds",
+    "POST /api/videos/upload-zip": "library",
     "POST /api/radio/tracks/upload": "radio-library",
     "POST /api/radio/tracks/upload-zip": "radio-library",
     "GET /api/settings/backup/export": "settings",

@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import { VIDEO_ACCEPT } from "@/lib/mediaFiles";
+import { ARCHIVE_ACCEPT, VIDEO_ACCEPT, isArchiveName } from "@/lib/mediaFiles";
 import { useUploadManager, PendingUploadSpec } from "@/lib/UploadManager";
 import Icon from "@/components/Icon";
 
@@ -283,12 +283,20 @@ export default function BackgroundsPage() {
   // Rafraîchit la liste dès qu'un import se termine
   useEffect(() => {
     const newlyDone = uploads.filter(
-      (u) => u.kind === "background" && u.status === "done" && !seenDoneIds.current.has(u.id)
+      (u) => (u.kind === "background" || u.kind === "background_zip") && u.status === "done" && !seenDoneIds.current.has(u.id)
     );
     if (newlyDone.length === 0) return;
     newlyDone.forEach((u) => seenDoneIds.current.add(u.id));
     fetchBackgrounds();
   }, [uploads]);
+
+  /** Les archives partent telles quelles (un fond par fichier contenu) ; le reste passe par la liste d'attente. */
+  const addFiles = (all: File[]) => {
+    const archives = all.filter((f) => isArchiveName(f.name));
+    if (archives.length > 0) addUploads(archives.map((file) => ({ kind: "background_zip" as const, file, title: file.name })));
+    const files = all.filter((f) => !isArchiveName(f.name));
+    if (files.length > 0) addPendingSpecs(files);
+  };
 
   const addPendingSpecs = (files: File[]) => {
     const specs = files.map((file) => ({
@@ -310,7 +318,7 @@ export default function BackgroundsPage() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files?.length) addPendingSpecs(Array.from(e.dataTransfer.files));
+    if (e.dataTransfer.files?.length) addFiles(Array.from(e.dataTransfer.files));
   };
 
   const updatePendingSpec = (key: string, patch: Partial<PendingUploadSpec>) => {
@@ -410,11 +418,11 @@ export default function BackgroundsPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept={`${VIDEO_ACCEPT},image/*`}
+            accept={`${VIDEO_ACCEPT},image/*,${ARCHIVE_ACCEPT}`}
             multiple
             style={{ display: "none" }}
             onChange={(e) => {
-              if (e.target.files?.length) addPendingSpecs(Array.from(e.target.files));
+              if (e.target.files?.length) addFiles(Array.from(e.target.files));
               e.target.value = "";
             }}
           />
