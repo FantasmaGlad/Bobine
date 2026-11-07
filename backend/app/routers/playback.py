@@ -26,7 +26,7 @@ from app.radio_manager import (
 from app.routers.settings import get_display_output_value
 from app.devices.service import PLAYER_ROUTE_STATUSES, service as devices_service
 from app.utils.radio_mix import sanitize_levels
-from app.utils.radio_sound import sanitize_sound, save_sound
+from app.utils import radio_commands
 from app.scheduler_manager import ensure_utc, radio_track_dict, resolve_target_title
 from app.utils.activity_log import log_activity
 from app.utils.boot_state import current_boot_id
@@ -998,10 +998,7 @@ async def _handle_radio_command(
         # Réglages de son de CETTE sortie : bornés (jamais d'erreur sur une valeur
         # aberrante), les champs absents gardent leur valeur courante; persistés
         # puis diffusés avec l'état du moteur.
-        sound = sanitize_sound(params.get("sound"), base=manager.state.get("sound"))
-        save_sound(db, manager.channel, sound)
-        await manager.set_sound(sound, client_ts)
-        config_files.schedule_mirror()
+        await radio_commands.apply_sound(db, manager, params.get("sound"), client_ts)
     elif command == "radio_report_route":
         # Résultat de l'application de la route audio par ce lecteur (lib/audioRoute.ts) : mémorisé tel quel pour
         # l'interface Périphériques et pour décider si le serveur doit déplacer le flux. Valeur inconnue = « error ».
@@ -1054,12 +1051,10 @@ async def _handle_radio_command(
     elif command == "radio_play_announcement":
         # Déclenchement manuel depuis /radio (bouton rappel) — toujours en
         # mode « duck », null = tirage aléatoire.
-        announcement = _resolve_announcement(db, params.get("announcement_id"))
+        announcement = radio_commands.resolve_announcement(db, params.get("announcement_id"))
         if not announcement:
             raise _not_found(command, manager.channel, "Rappel")
-        await manager.play_announcement(
-            {"id": announcement.id, "description": announcement.description}, mode="duck", client_ts=client_ts,
-        )
+        await radio_commands.play_announcement_now(db, [manager], announcement, client_ts)
     elif command == "announcement_ended":
         await manager.announcement_ended(client_ts)
     elif command == "report_position":
@@ -1074,14 +1069,6 @@ async def _handle_radio_command(
     else:
         logger.warning(f"Commande radio WebSocket inconnue reçue : {command}")
         raise CommandRejected("unknown_command", manager.channel, f"Commande radio inconnue : {command}.", 400)
-
-
-def _resolve_announcement(db: Session, announcement_id) -> RadioAnnouncement | None:
-    """Rappel ciblé, ou tirage aléatoire parmi les actifs si absent."""
-    query = db.query(RadioAnnouncement).filter(RadioAnnouncement.enabled == True)  # noqa: E712
-    if announcement_id:
-        return query.filter(RadioAnnouncement.id == announcement_id).first()
-    return query.order_by(func.random()).first()
 
 
 def _due_wait_end_announcement(db: Session, manager) -> RadioAnnouncement | None:
@@ -1104,7 +1091,7 @@ def _due_wait_end_announcement(db: Session, manager) -> RadioAnnouncement | None
         count >= (rule.n_tracks or 1) and rule_targets_output(rule.target, manager.channel) for rule in rules
     ):
         return None
-    return _resolve_announcement(db, None)
+    return radio_commands.resolve_announcement(db, None)
 
 
 # ---------------------------------------------------------------------------

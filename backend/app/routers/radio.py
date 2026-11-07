@@ -57,13 +57,9 @@ async def set_radio_sound(payload: dict = Body(...), channel: str | None = None,
     persisté puis diffusé aux lecteurs et télécommandes de la sortie. Même chemin que
     la commande WebSocket `radio_set_sound`."""
     from app.radio_manager import get_radio_manager
-    from app.utils.radio_sound import sanitize_sound, save_sound
+    from app.utils.radio_commands import apply_sound
 
-    manager = get_radio_manager(channel)
-    sound = sanitize_sound(payload, base=manager.state.get("sound"))
-    save_sound(db, manager.channel, sound)
-    await manager.set_sound(sound)
-    return sound
+    return await apply_sound(db, get_radio_manager(channel), payload)
 
 
 class DefaultPlaylistInput(BaseModel):

@@ -241,24 +241,14 @@ async def play_announcement_now(payload: PlayNowInput, db: Session = Depends(get
     (fondu immédiat, la musique continue). `announcement_id` nul = tirage
     aléatoire parmi les rappels actifs."""
     from app.radio_manager import RADIO_CHANNELS, RULE_TARGET_BOTH, get_radio_manager, normalize_rule_target
+    from app.utils.radio_commands import play_announcement_now as play_now, resolve_announcement
 
-    query = db.query(RadioAnnouncement).filter(RadioAnnouncement.enabled == True)  # noqa: E712
-    announcement = (
-        query.filter(RadioAnnouncement.id == payload.announcement_id).first()
-        if payload.announcement_id
-        else query.order_by(func.random()).first()
-    )
+    announcement = resolve_announcement(db, payload.announcement_id)
     if not announcement:
         raise HTTPException(status_code=404, detail="Aucun rappel disponible")
-
     target = normalize_rule_target(payload.target)
     outputs = RADIO_CHANNELS if target == RULE_TARGET_BOTH else (target,)
-    for radio_channel in outputs:
-        await get_radio_manager(radio_channel).play_announcement(
-            {"id": announcement.id, "description": announcement.description}, mode="duck",
-        )
-    log_activity(db, "radio_announcement_played", announcement.description)
-    return {"id": announcement.id, "description": announcement.description}
+    return await play_now(db, [get_radio_manager(channel) for channel in outputs], announcement)
 
 
 # ---------------------------------------------------------------------------
