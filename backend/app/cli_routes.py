@@ -14,6 +14,8 @@ import re
 from typing import NamedTuple
 
 # "METHODE chemin OpenAPI" -> commande `bobine` qui l'appelle.
+from app.cli_commands import SPECS
+
 COVERED: dict[str, str] = {
     "GET /api/health": "status",
     "GET /api/playback/state": "status",
@@ -54,7 +56,17 @@ COVERED: dict[str, str] = {
     "GET /api/updates/check": "update",
     "GET /api/updates/status": "update",
     "POST /api/updates/apply": "update",
+    "POST /api/videos/upload": "library",
+    "POST /api/audio/upload": "audio",
+    "POST /api/audio/upload-zip": "audio",
+    "POST /api/backgrounds/upload": "backgrounds",
+    "POST /api/radio/tracks/upload": "radio-library",
+    "POST /api/radio/tracks/upload-zip": "radio-library",
+    "GET /api/settings/backup/export": "settings",
+    "POST /api/settings/backup/restore": "settings",
 }
+# Les commandes déclarées dans app/cli_commands.py annoncent elles-mêmes leurs routes.
+COVERED.update({route: spec.command for spec in SPECS for route in spec.covers})
 
 
 class Exemption(NamedTuple):
@@ -85,11 +97,9 @@ EXEMPT: tuple[Exemption, ...] = (
     Exemption(r"(POST|GET|PATCH|DELETE) /api/uploads.*", "todo", "library import : protocole d'envoi par morceaux"),
     Exemption(r"(POST|PUT|DELETE) /api/videos(/.*)?", "todo", "library import|set|rm|subtitles|chapters"),
     Exemption(r"GET /api/videos/(programs|\{video_id\}/(subtitles|chapters(/export)?))", "todo", "library subtitles|chapters"),
-    Exemption(r"(POST|PUT|DELETE) /api/playlists(/.*)?", "todo", "playlists add|set|rm|dup"),
     Exemption(r"(GET|POST|PUT|DELETE) /api/audio-playlists(/.*)?", "todo", "playlists --kind audio"),
     Exemption(r"(GET|POST|PUT|DELETE) /api/audio(/.*)?", "todo", "audio list|get|import|set|rm"),
     Exemption(r"(GET|POST|PUT|DELETE) /api/backgrounds(/.*)?", "todo", "backgrounds list|import|set|rm"),
-    Exemption(r"(POST|PUT|DELETE) /api/schedule(/.*)?", "todo", "schedule add|set|rm|override"),
     Exemption(r"GET /api/schedule/occurrences", "todo", "schedule occurrences"),
     Exemption(r"(GET|POST|PUT|PATCH|DELETE) /api/radio/(tracks|artists|albums|tags|playlists|announcements|announcement-rules|default-playlist|sound).*",
               "todo", "radio library|tags|playlists|announcements"),

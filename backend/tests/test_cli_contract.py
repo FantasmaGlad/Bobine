@@ -67,6 +67,11 @@ EXPECTED_CHOICES = {
     ("display", "set", "output"): contract.DISPLAY_OUTPUTS,
     ("logs", None, "source"): contract.LOG_SOURCES,
     ("logs", None, "level"): contract.LOG_LEVELS,
+    ("schedule", "add", "target_type"): contract.SCHEDULE_TARGETS,
+    ("schedule", "add", "channel"): contract.SCHEDULE_CHANNELS,
+    ("schedule", "override", "action"): contract.OVERRIDE_ACTIONS,
+    ("schedule", "override", "replace_type"): contract.SCHEDULE_TARGETS,
+    ("api", None, "method"): ("GET", "POST", "PUT", "PATCH", "DELETE"),
     ("completion", None, "shell"): ("bash", "zsh", "fish"),
 }
 
@@ -173,4 +178,4 @@ def test_the_todo_list_only_shrinks():
     """Garde-fou : le nombre de routes sans commande prévue ne grandit pas sans décision ; le baisser (nouvelle commande)
     est la bonne direction. Mettre à jour ce plafond avec la commande qui retire des routes de `todo`."""
     todo = [route for route in api_routes() if any(r.status == "todo" for r in cli_routes.exemption_for(route))]
-    assert len(todo) <= 165, f"{len(todo)} routes todo : ajouter des commandes plutôt que des exemptions"
+    assert len(todo) <= 120, f"{len(todo)} routes todo : ajouter des commandes plutôt que des exemptions"
