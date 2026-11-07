@@ -9,7 +9,7 @@ import { matchesQuery } from "@/lib/searchText";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import { usePointerGlow } from "@/lib/usePointerGlow";
-import { ARCHIVE_ACCEPT, isArchiveName } from "@/lib/mediaFiles";
+import { ARCHIVE_ACCEPT, RADIO_AUDIO_EXTENSIONS, hasExtension, isArchiveName } from "@/lib/mediaFiles";
 
 // Bibliothèque musicale Radio — écran unique « vue d'ensemble » (refonte).
 // Barre latérale persistante (playlists / tags / genres / artistes, tous
@@ -85,14 +85,8 @@ function formatDuration(seconds: number | null) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-// Extensions audio acceptées (miroir de AUDIO_EXTENSIONS côté backend) : sert
-// à filtrer les fichiers non-audio quand on importe un DOSSIER entier
-// (webkitdirectory renvoie tout le contenu, sous-dossiers compris).
-const AUDIO_EXTENSIONS = [
-  ".mp3", ".m4a", ".aac", ".mp4", ".ogg", ".oga", ".opus", ".webm", ".flac",
-  ".wav", ".wma", ".aiff", ".aif", ".aifc", ".ape", ".alac", ".wv", ".mka", ".m4b", ".ac3",
-];
-const isAudioFile = (name: string) => AUDIO_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
+// Filtre les fichiers non audio d'un dossier déposé (liste unique : `lib/mediaFiles.ts`).
+const isAudioFile = (name: string) => hasExtension(name, RADIO_AUDIO_EXTENSIONS);
 
 export default function RadioLibraryPage() {
   const { t } = useAppSettings();

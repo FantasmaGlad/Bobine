@@ -7,9 +7,10 @@ import shutil
 import tarfile
 import zipfile
 from pathlib import Path
+from app.utils import media_formats
 
 # Extensions acceptées par les formulaires d'import ; le format réel est reconnu au contenu, pas au nom.
-ARCHIVE_EXTENSIONS = (".zip", ".tar", ".tar.gz", ".tgz", ".tar.xz", ".txz", ".tar.bz2", ".tbz2")
+ARCHIVE_EXTENSIONS = media_formats.ARCHIVE
 
 
 class UnsafeZipError(Exception):

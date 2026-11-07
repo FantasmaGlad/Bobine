@@ -7,6 +7,7 @@ import logging
 import tempfile
 from pathlib import Path
 
+from app.utils import media_formats
 from app.config import settings
 from app.database import SessionLocal
 from app.models import AudioCourse, AudioTrack
@@ -18,7 +19,7 @@ from app.utils.zip_safety import InvalidArchiveError, UnsafeZipError, safe_extra
 
 logger = logging.getLogger(__name__)
 
-AUDIO_EXTENSIONS = {".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg", ".oga", ".opus"}
+AUDIO_EXTENSIONS = media_formats.COURSE_AUDIO
 
 
 def _guess_program(title: str) -> str | None:

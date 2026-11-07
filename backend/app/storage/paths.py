@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from typing import Iterator
+from app.utils import media_formats
 
 MAX_REL_LENGTH = 4096
 MAX_DEPTH = 16
@@ -24,13 +25,10 @@ MAX_WALK_DEPTH = 12
 MAX_WALK_FILES = 20_000
 
 # Mêmes ensembles que les importeurs (un test le vérifie) : le support peut en contenir d'autres, ils ne sont pas proposés.
-VIDEO_EXTENSIONS = frozenset({".mp4", ".m4v", ".mkv", ".avi", ".mov"})
-AUDIO_EXTENSIONS = frozenset({
-    ".mp3", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".flac", ".wav", ".wma", ".aiff", ".aif", ".aifc", ".ape", ".alac",
-    ".wv", ".mka", ".m4b", ".ac3",
-})  # = formats audio de la radio et des cours audio, hors .mp4/.webm (conteneurs vidéo)
-IMAGE_EXTENSIONS = frozenset({".png", ".jpg", ".jpeg", ".webp"})
-SUBTITLE_EXTENSIONS = frozenset({".srt", ".vtt"})
+VIDEO_EXTENSIONS = media_formats.VIDEO
+AUDIO_EXTENSIONS = media_formats.SUPPORT_AUDIO
+IMAGE_EXTENSIONS = media_formats.IMAGE
+SUBTITLE_EXTENSIONS = media_formats.SUBTITLE
 
 _HIDDEN_NAMES = frozenset({
     "$recycle.bin", "system volume information", "lost+found", "__macosx", "thumbs.db", "desktop.ini",

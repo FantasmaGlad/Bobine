@@ -30,6 +30,19 @@ export function isVideoFile(file: File): boolean {
   return file.type.startsWith("video/") || VIDEO_EXTENSION_SET.has(fileExtension(file.name));
 }
 
+/** Radio : tous les formats audio (miroir de `RADIO_AUDIO` dans `backend/app/utils/media_formats.py`, vérifié par un test). */
+export const RADIO_AUDIO_EXTENSIONS = [
+  ".mp3", ".m4a", ".aac", ".mp4", ".ogg", ".oga", ".opus", ".webm", ".flac", ".wav",
+  ".wma", ".aiff", ".aif", ".aifc", ".ape", ".alac", ".wv", ".mka", ".m4b", ".ac3",
+] as const;
+/** Cours audio : formats lus tels quels (miroir de `COURSE_AUDIO`). */
+export const COURSE_AUDIO_EXTENSIONS = [".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg", ".oga", ".opus"] as const;
+
+export function hasExtension(name: string, extensions: readonly string[]): boolean {
+  const lower = name.toLowerCase();
+  return extensions.some((ext) => lower.endsWith(ext));
+}
+
 export const SUBTITLE_EXTENSIONS = ["srt", "vtt"] as const;
 const SUBTITLE_EXTENSION_SET: ReadonlySet<string> = new Set(SUBTITLE_EXTENSIONS);
 

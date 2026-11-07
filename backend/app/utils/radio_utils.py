@@ -14,18 +14,15 @@ import tempfile
 from pathlib import Path
 
 from app.utils.ffmpeg_binaries import FFMPEG_BIN, FFPROBE_BIN, media_subprocess_kwargs, with_nostdin
+from app.utils import media_formats
 
 logger = logging.getLogger(__name__)
 
 # Formats lus nativement par Chromium (le kiosk /radio) : servis tels quels.
-WEB_PLAYABLE_EXTENSIONS = {
-    ".mp3", ".m4a", ".aac", ".mp4", ".ogg", ".oga", ".opus", ".webm", ".flac", ".wav",
-}
+WEB_PLAYABLE_EXTENSIONS = media_formats.WEB_PLAYABLE_AUDIO
 # Décision A2 « tous les formats audio » : whitelist large à l'import. Les formats
 # hors WEB_PLAYABLE_EXTENSIONS sont transcodés en AAC/.m4a à l'import.
-AUDIO_EXTENSIONS = WEB_PLAYABLE_EXTENSIONS | {
-    ".wma", ".aiff", ".aif", ".aifc", ".ape", ".alac", ".wv", ".mka", ".m4b", ".ac3",
-}
+AUDIO_EXTENSIONS = media_formats.RADIO_AUDIO
 
 AUDIO_CONTENT_TYPES = {
     ".mp3": "audio/mpeg",

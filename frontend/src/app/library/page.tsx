@@ -5,7 +5,7 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { videoStreamUrl } from "@/lib/clientCodecSupport";
 import WebRenditionPanel from "@/components/WebRenditionPanel";
 import { useUploadManager, PendingUploadSpec } from "@/lib/UploadManager";
-import { VIDEO_ACCEPT, partitionVideoFiles } from "@/lib/mediaFiles";
+import { ARCHIVE_ACCEPT, VIDEO_ACCEPT, isArchiveName, partitionVideoFiles } from "@/lib/mediaFiles";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { parseMediaName } from "@/lib/parseMediaName";
 import Icon from "@/components/Icon";
@@ -186,7 +186,7 @@ export default function LibraryPage() {
   // de filtre/tri).
   useEffect(() => {
     const newlyDone = uploads.filter(
-      (u) => u.kind === "video" && u.status === "done" && !seenDoneIds.current.has(u.id)
+      (u) => (u.kind === "video" || u.kind === "video_zip") && u.status === "done" && !seenDoneIds.current.has(u.id)
     );
     if (newlyDone.length === 0) return;
     newlyDone.forEach((u) => seenDoneIds.current.add(u.id));
@@ -535,7 +535,11 @@ export default function LibraryPage() {
 
   /** Ajoute les fichiers vidéo et sous-titres reconnus (type MIME OU extension, cf.
    *  lib/mediaFiles.ts) et prévient explicitement pour les autres. */
-  const acceptDroppedOrSelected = (files: File[]) => {
+  const acceptDroppedOrSelected = (all: File[]) => {
+    // Une archive (ZIP ou tar) est envoyée telle quelle : le serveur importe un cours par vidéo qu'elle contient.
+    const archives = all.filter((f) => isArchiveName(f.name));
+    if (archives.length > 0) addUploads(archives.map((file) => ({ kind: "video_zip" as const, file, title: file.name })));
+    const files = all.filter((f) => !isArchiveName(f.name));
     const { accepted, subtitles, rejected } = partitionVideoFiles(files);
     if (accepted.length > 0) {
       addPendingSpecs(accepted, subtitles);
@@ -668,7 +672,7 @@ export default function LibraryPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept={VIDEO_ACCEPT}
+              accept={`${VIDEO_ACCEPT},${ARCHIVE_ACCEPT}`}
               multiple
               style={{ display: "none" }}
               onChange={handleFileChange}

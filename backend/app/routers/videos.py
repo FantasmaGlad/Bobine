@@ -35,7 +35,8 @@ from app.utils.subtitles import (
     normalize_language_code,
     normalize_language_label,
 )
-from app.utils.importer import import_video
+from app.utils.importer import import_video, SUPPORTED_EXTENSIONS
+from app.utils.archive_import import import_media_archive
 from app.utils.executors import ffmpeg_executor
 from app.utils.staged_uploads import receive_single_upload
 from app.utils.web_rendition import remove_web_file, request_web_rendition
@@ -199,6 +200,31 @@ def _run_video_import_job(
                         os.remove(sub_temp_path)
                     except Exception:
                         pass
+
+
+def _run_video_archive_job(job_id: str, archive_path: str) -> None:
+    try:
+        videos = import_media_archive(
+            archive_path, job_id, SUPPORTED_EXTENSIONS,
+            lambda path, name: import_video(path, name, ImportSource.upload, job_id=job_id), "vidéo",
+        )
+        ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "video_imported"})
+        update_job(job_id, stage="done", result_id=videos[0].id)
+    except JobCancelledError:
+        update_job(job_id, stage="cancelled")
+    except Exception as e:
+        logger.error(f"Import d'une archive de vidéos (job {job_id}) échoué : {e}", exc_info=True)
+        update_job(job_id, stage="error", error=str(e))
+
+
+@router.post("/upload-zip", response_model=ImportJobAccepted, status_code=202)
+def upload_videos_archive(file: UploadFile | None = File(None), upload_id: str | None = Form(None)):
+    """Import d'une archive (ZIP ou tar) de vidéos : un cours par fichier, en une seule tâche."""
+    temp_path, filename = receive_single_upload(file, upload_id, forced_suffix=".zip")
+    job_id = create_job("video", filename, Path(filename).stem)
+    future = ffmpeg_executor.submit(_run_video_archive_job, job_id, temp_path)
+    register_job_future(job_id, future)
+    return {"job_id": job_id}
 
 
 @router.post("/upload", response_model=ImportJobAccepted, status_code=202)

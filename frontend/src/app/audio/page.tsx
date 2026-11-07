@@ -4,16 +4,15 @@ import React, { useEffect, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useUploadManager } from "@/lib/UploadManager";
 import { parseMediaName } from "@/lib/parseMediaName";
-import { ARCHIVE_ACCEPT, isArchiveName } from "@/lib/mediaFiles";
+import { ARCHIVE_ACCEPT, COURSE_AUDIO_EXTENSIONS, hasExtension, isArchiveName } from "@/lib/mediaFiles";
 import Icon from "@/components/Icon";
 import AudioPlaylistManager from "@/components/AudioPlaylistManager";
 
-const AUDIO_EXTENSIONS = [".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg", ".oga", ".opus"];
-const AUDIO_ACCEPT = ".mp3,.m4a,.wav,.aac,.flac,.ogg,.oga,.opus,audio/*";
+const AUDIO_ACCEPT = `${COURSE_AUDIO_EXTENSIONS.join(",")},audio/*`;
 
 const isAudioFile = (f: File) => {
   const lower = f.name.toLowerCase();
-  return AUDIO_EXTENSIONS.some((ext) => lower.endsWith(ext));
+  return hasExtension(lower, COURSE_AUDIO_EXTENSIONS);
 };
 
 // FileSystemEntry (webkitGetAsEntry) n'est pas dans le lib DOM de TypeScript
