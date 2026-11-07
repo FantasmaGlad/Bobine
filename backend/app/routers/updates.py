@@ -301,15 +301,16 @@ def _lookup_release_blocking(channel: str, force: bool) -> tuple[dict[str, Any] 
     if not isinstance(data, dict):
         return (cached["data"] if cached else None), "offline"
 
-    if channel in _ROLLING_RELEASE_URLS and not _SHA_RE.match((data.get("target_commitish") or "").lower()):
-        # `target_commitish` peut valoir un nom de branche si la release a été
-        # créée à la main sans `--target <sha>` : la comparaison de commits
-        # déclarerait alors une mise à jour À CHAQUE vérification. On résout
-        # le commit réel derrière le tag mobile du canal ("beta" ou "canary").
+    if channel in _ROLLING_RELEASE_URLS:
+        # La release d'un canal glissant est mise à jour EN PLACE (scripts/ci/publish-rolling-release.sh) : son
+        # `target_commitish` reste celui de sa création, même quand le tag mobile avance. Le commit réellement publié
+        # est celui du tag ; se fier au champ déclarerait une mise à jour à chaque vérification, même juste après
+        # l'avoir installée. Si le tag ne se résout pas, on n'annonce rien plutôt qu'une mise à jour fantôme.
+        data["target_commitish"] = ""
         try:
             _, commit_data, _ = _github_get(f"{_COMMITS_URL}/{channel}")
-            sha = (commit_data or {}).get("sha")
-            if sha:
+            sha = str((commit_data or {}).get("sha") or "").lower()
+            if _SHA_RE.match(sha):
                 data["target_commitish"] = sha
         except Exception as e:
             logger.info(f"Résolution du commit du tag {channel} impossible : {e}")

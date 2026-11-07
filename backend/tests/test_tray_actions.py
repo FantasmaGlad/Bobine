@@ -98,3 +98,14 @@ def test_routes_are_the_ones_of_the_rest_facade():
     assert tray_actions._action_path("radio", "cable", "stop") == "/api/radio/cable/stop"
     assert tray_actions._state_path("radio", "network") == "/api/radio/state?channel=radio_network"
     assert tray_actions._state_path("playback", "cable") == "/api/playback/state?channel=cable"
+
+
+def test_update_outcome_notification_is_recent_new_and_unacknowledged():
+    from app.desktop.tray import _should_notify_update_outcome as notify
+
+    done = {"step": "done", "started_at": 100.0, "updated_at": 110.0, "acknowledged_started_at": None}
+    assert notify(done, None, now=120.0)
+    assert not notify(done, 100.0, now=120.0)  # déjà notifiée
+    assert not notify({**done, "acknowledged_started_at": 100.0}, None, now=120.0)  # fermée dans l'interface
+    assert not notify(done, None, now=110.0 + 601)  # ancienne : un redémarrage ne la rejoue pas
+    assert not notify({**done, "step": "installing"}, None, now=120.0)

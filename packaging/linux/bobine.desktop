@@ -13,3 +13,24 @@ StartupNotify=true
 X-GNOME-Autostart-enabled=true
 Keywords=cinema;fitness;video;audio;kiosk;radio;gym;playout;
 Keywords[fr]=cinéma;fitness;vidéo;audio;kiosque;radio;salle de sport;diffusion;
+Actions=admin;grid;cinema;stop;
+
+[Desktop Action admin]
+Name=Open the administration
+Name[fr]=Ouvrir l'administration
+Exec=xdg-open http://127.0.0.1:1903/
+
+[Desktop Action grid]
+Name=Open the touch panel
+Name[fr]=Ouvrir le pupitre tactile
+Exec=xdg-open http://127.0.0.1:1903/grid
+
+[Desktop Action cinema]
+Name=Open the cinema screen
+Name[fr]=Ouvrir l'écran cinéma
+Exec=xdg-open http://127.0.0.1:1903/cinema
+
+[Desktop Action stop]
+Name=Stop all playback
+Name[fr]=Couper la diffusion
+Exec=sh -c "for c in cable network; do bobine playback \\$c stop; bobine radio \\$c stop; done"
