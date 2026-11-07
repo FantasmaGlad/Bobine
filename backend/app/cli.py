@@ -628,10 +628,10 @@ def add_spec_commands(sub: Any, sub_common: argparse.ArgumentParser) -> None:
 
 IMPORT_FAMILIES = {
     # famille -> (route d'un envoi, route d'une archive zip, champ du fichier, un envoi par fichier, champs de formulaire)
-    "library": ("/api/videos/upload", None, "file", True, ("title", "program", "release", "description")),
+    "library": ("/api/videos/upload", "/api/videos/upload-zip", "file", True, ("title", "program", "release", "description")),
     "audio": ("/api/audio/upload", "/api/audio/upload-zip", "files", False, ("title", "program", "release")),
     "radio-library": ("/api/radio/tracks/upload", "/api/radio/tracks/upload-zip", "files", False, ()),
-    "backgrounds": ("/api/backgrounds/upload", None, "file", True, ("title",)),
+    "backgrounds": ("/api/backgrounds/upload", "/api/backgrounds/upload-zip", "file", True, ("title",)),
 }
 FINISHED_STAGES = ("done", "error", "cancelled")
 

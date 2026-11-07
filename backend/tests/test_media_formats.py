@@ -99,3 +99,11 @@ def test_archive_cancelled_between_files_stops(tmp_path, monkeypatch):
     monkeypatch.setattr(archive_import, "is_job_cancelled", lambda job_id: True)
     with pytest.raises(JobCancelledError):
         import_media_archive(str(archive), "job", media_formats.VIDEO, lambda p, n: object(), "vidéo")
+
+
+def test_7z_is_refused_with_an_explicit_message(tmp_path):
+    from app.utils.zip_safety import InvalidArchiveError, safe_extract_archive
+    archive = tmp_path / "lot.7z"
+    archive.write_bytes(b"7z\xbc\xaf\x27\x1c" + b"\x00" * 20)
+    with pytest.raises(InvalidArchiveError, match="7z"):
+        safe_extract_archive(archive, tmp_path / "out")

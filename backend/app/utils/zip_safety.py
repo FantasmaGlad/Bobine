@@ -78,6 +78,9 @@ def safe_extract_archive(path: Path, dest_dir: Path) -> None:
         except zipfile.BadZipFile as exc:
             raise InvalidArchiveError("L'archive ZIP est invalide ou corrompue.") from exc
         return
+    with open(path, "rb") as probe:
+        if probe.read(6) == b"7z\xbc\xaf\x27\x1c":
+            raise InvalidArchiveError("Le format 7z n'est pas pris en charge : utiliser une archive ZIP ou tar.")
     try:
         with tarfile.open(path, "r:*") as tf:
             safe_extract_tar(tf, dest_dir)
