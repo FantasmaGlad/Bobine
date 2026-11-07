@@ -29,7 +29,7 @@ from pathlib import Path
 import pystray
 from PIL import Image
 
-from app.desktop import channel_icon
+from app.desktop import channel_icon, tray_actions
 from app.desktop.displays import (
     REPORT_REFRESH_SECONDS,
     DisplayOrchestrator,
@@ -780,6 +780,23 @@ def run() -> None:
         if not display_orchestrator.reopen_projector():
             _notify_best_effort(icon, "Bobine", "Aucun écran externe détecté.")
 
+    controls = tray_actions.Controls(_admin_url)
+
+    def output_item(kind: str, target: str, name: str) -> "pystray.MenuItem":
+        def on_click(icon, item):
+            if not controls.toggle(kind, target):
+                _notify_best_effort(icon, "Bobine", f"{name} : rien à mettre en pause ni à reprendre.")
+
+        return pystray.MenuItem(
+            lambda item: controls.label(kind, target, name), on_click,
+            enabled=lambda item: controls.next_action(controls.states().get((kind, target))) is not None,
+        )
+
+    def on_stop_all(icon, item):
+        accepted = controls.stop_all()
+        if accepted < len(tray_actions.OUTPUTS):
+            _notify_best_effort(icon, "Bobine", f"Diffusion arrêtée sur {accepted} sortie(s) sur {len(tray_actions.OUTPUTS)}.")
+
     def on_quit(icon, item):
         display_watcher.stop()
         display_orchestrator.shutdown()
@@ -797,6 +814,10 @@ def run() -> None:
 
     menu = pystray.Menu(
         pystray.MenuItem(status_text, None, enabled=False),
+        pystray.Menu.SEPARATOR,
+        # Actions rapides, par la même façade REST que l'interface et la commande `bobine`.
+        *[output_item(kind, target, name) for kind, target, name in tray_actions.OUTPUTS],
+        pystray.MenuItem("Couper la diffusion", on_stop_all),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Ouvrir l'administration", on_open_admin, default=True),
         pystray.MenuItem("Ouvrir le pupitre tactile (/grid)", on_open_grid),
