@@ -43,7 +43,7 @@ fi
 for name in "${expected[@]}"; do
     [[ -s "${DIR}/${name}" ]] || { echo "::error::asset de l'assistant manquant ou vide : ${name}"; ls -l "${DIR}"; exit 1; }
 done
-extra=$(cd "${DIR}" && ls -1 | grep -vxF -f <(printf '%s\n' "${expected[@]}") || true)
+extra=$(cd "${DIR}" && ls -1A | grep -vxF -f <(printf '%s\n' "${expected[@]}") || true)
 [[ -z "${extra}" ]] || { echo "::error::fichiers inattendus dans la release de l'assistant : ${extra//$'\n'/ }"; exit 1; }
 for name in "${expected[@]}"; do
     case "${name}" in SHA256SUMS|SHA256SUMS.asc) continue ;; esac

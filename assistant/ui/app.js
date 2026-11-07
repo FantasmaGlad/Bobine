@@ -612,7 +612,9 @@ async function startInstallationRun() {
   const isMock = document.getElementById('opt-mock').checked;
   const noKiosk = !document.getElementById('opt-kiosk').checked;
   const channel = document.querySelector('input[name="update-channel"]:checked')?.value || 'stable';
-  const rootPassword = document.getElementById('ssh-root-password')?.value || null;
+  // Le mot de passe root ne part que si l'élévation passe par `su` : en `sudo`, il resterait inutilement en mémoire.
+  const needsRoot = (state.systemInspection?.privilege_decision || 'sudo') === 'su_as_user';
+  const rootPassword = needsRoot ? (document.getElementById('ssh-root-password')?.value || null) : null;
 
   const params = {
     host: state.selectedTarget || '203.0.113.10',

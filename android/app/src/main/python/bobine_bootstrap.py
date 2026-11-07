@@ -215,7 +215,7 @@ def start_server_once(external_files_dir=None, native_library_dir=None, internal
             uvicorn.run(
                 app, host=settings.host, port=listen_port, workers=1,
                 timeout_keep_alive=75, ws_ping_interval=None, ws_ping_timeout=None,
-                limit_concurrency=64,
+                limit_concurrency=64, proxy_headers=False,
             )
         finally:
             release_port()

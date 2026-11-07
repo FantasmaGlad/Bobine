@@ -151,7 +151,7 @@ def test_local_client_detection():
 
 
 def test_remote_client_reads_status_without_cookie(driver):
-    response = remote("203.0.113.42").get("/api/devices/status")
+    response = remote("192.168.1.42").get("/api/devices/status")
     assert response.status_code == 200
     assert "set-cookie" not in response.headers
     body = response.json()
@@ -227,7 +227,7 @@ def local(monkeypatch):
     monkeypatch.setattr("app.routers.devices.is_local_request", lambda request: True)
 
 
-def remote(host="203.0.113.7"):
+def remote(host="192.168.1.7"):
     return TestClient(app, client=(host, 50000))
 
 
@@ -281,7 +281,7 @@ def test_wifi_change_requires_ack_when_reached_through_wifi_and_confirm_clears(d
     assert client.get("/api/devices/wifi").json()["pending_change"]["target"] == "Autre"
     assert client.post("/api/devices/wifi/confirm").json() == {"confirmed": True}
     assert client.get("/api/devices/wifi").json()["pending_change"] is None
-    outside = remote("198.51.100.4")  # hors du sous-réseau Wi-Fi : pas de confirmation préalable exigée
+    outside = remote("10.9.9.4")  # hors du sous-réseau Wi-Fi : pas de confirmation préalable exigée
     assert outside.post("/api/devices/wifi/connect", json={"ssid": "Maison"}).status_code == 200
 
 

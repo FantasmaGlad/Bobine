@@ -76,7 +76,7 @@ tar -xf %{SOURCE0} -C %{buildroot}
 # Mise à jour (deux versions installées simultanément) : arrêter Bobine AVANT le
 # remplacement des fichiers, comme le prerm du .deb. Sentinelle posée par la mise à jour
 # interne de Bobine : il se relance alors lui-même.
-if [ "$1" -ge 2 ] && [ ! -f /tmp/bobine-self-update-in-progress ]; then
+if [ "$1" -ge 2 ] && [ ! -f /run/bobine-self-update-in-progress ]; then
     if pgrep -x BobineTray >/dev/null 2>&1 || pgrep -x BobineBackend >/dev/null 2>&1; then
         touch /run/bobine-restart-after-upgrade 2>/dev/null || touch /tmp/bobine-restart-after-upgrade 2>/dev/null || true
     fi

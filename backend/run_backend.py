@@ -58,6 +58,7 @@ if __name__ == "__main__":
         print(f"Bobine : démarrage impossible. {exc}", file=sys.stderr)
         sys.exit(1)
     try:
-        uvicorn.run(app, host=settings.host, port=listen_port, workers=1)
+        # proxy_headers=False : `LocalNetworkGuard` et `is_local_request` jugent le pair TCP, que `X-Forwarded-For` ne réécrit pas.
+        uvicorn.run(app, host=settings.host, port=listen_port, workers=1, proxy_headers=False)
     finally:
         release_port()

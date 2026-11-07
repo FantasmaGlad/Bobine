@@ -193,3 +193,37 @@ def read_embedded(file_path: str) -> list[dict[str, Any]]:
         except (KeyError, TypeError, ValueError):
             continue
     return chapters
+
+
+# --- copie du fichier de chapitres importé ------------------------------------------------------------------------------
+
+def chapters_directory():
+    """Dossier des fichiers de chapitres importés, à côté de celui des sous-titres (créé au besoin)."""
+    from pathlib import Path
+
+    from app.config import settings
+
+    target = Path(settings.subtitles_dir).parent / "chapters"
+    target.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+def drop_source(video) -> None:
+    """Supprime la copie du fichier importé : elle ne décrit plus les chapitres actuels (ou la vidéo disparaît)."""
+    from pathlib import Path
+
+    if video.chapters_file:
+        try:
+            Path(video.chapters_file).unlink(missing_ok=True)
+        except OSError:
+            pass
+    video.chapters_file = None
+
+
+def save_source(video, filename: str, content: bytes) -> None:
+    """Garde le fichier importé (`<uid de la vidéo>_<nom>`) et note son chemin sur la vidéo."""
+    drop_source(video)
+    name = re.sub(r"[^A-Za-z0-9._-]+", "_", filename or "chapitres.txt").strip("._") or "chapitres.txt"
+    path = chapters_directory() / f"{video.uid or video.id}_{name}"
+    path.write_bytes(content)
+    video.chapters_file = str(path)

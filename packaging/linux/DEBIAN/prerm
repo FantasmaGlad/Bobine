@@ -13,10 +13,10 @@ if [ "$1" = "remove" ] || [ "$1" = "upgrade" ] || [ "$1" = "deconfigure" ]; then
     # le tuer ici l'interromprait en plein milieu de sa propre mise à
     # jour, avant même qu'il ait pu se redémarrer (cause racine confirmée
     # de l'instabilité observée du redémarrage automatique). Sentinelle
-    # posée par apply_update() juste avant `pkexec apt-get install`, retirée juste
+    # posée dans /run (inscriptible par root seul) par la commande root de apply_update(), retirée juste
     # après — absente pour un `apt upgrade`/`dpkg -i` lancé en dehors de
     # l'application, où le kill préventif ci-dessous reste nécessaire.
-    if [ -f /tmp/bobine-self-update-in-progress ]; then
+    if [ -f /run/bobine-self-update-in-progress ]; then
         exit 0
     fi
 

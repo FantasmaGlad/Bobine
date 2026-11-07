@@ -2,6 +2,8 @@ import logging
 import time
 from pathlib import Path
 
+import uuid
+
 from sqlalchemy import create_engine, event
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
@@ -131,6 +133,38 @@ def init_db():
     _migrate_schedule_radio_channel_to_network()
     _migrate_storage_indexes()
     _migrate_drop_devices_access_settings()
+    _migrate_add_uids()
+
+
+def _migrate_add_uids():
+    """Identifiant stable (`uid`) des objets existants : colonne, valeur pour chaque ligne, puis index unique.
+
+    Idempotent. Les nouvelles lignes reçoivent le leur à l'insertion (`app.models.UidMixin`)."""
+    from sqlalchemy import text
+
+    from app.models import UidMixin
+    from app.utils.uid import new_uid
+
+    if not _IS_SQLITE:
+        return
+    with engine.connect() as conn:
+        for mapper in Base.registry.mappers:
+            cls = mapper.class_
+            if not issubclass(cls, UidMixin):
+                continue
+            table = cls.__tablename__
+            columns = {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))}
+            if "uid" not in columns:
+                try:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN uid VARCHAR(32)"))
+                except OperationalError:
+                    pass  # colonne créée entre-temps
+            for (row_id,) in conn.execute(text(f"SELECT id FROM {table} WHERE uid IS NULL")).fetchall():
+                conn.execute(text(f"UPDATE {table} SET uid = :uid WHERE id = :id"), {"uid": new_uid(cls.__uid_prefix__), "id": row_id})
+            conn.execute(text(f"CREATE UNIQUE INDEX IF NOT EXISTS ix_{table}_uid ON {table}(uid)"))
+        # Identifiant de cette installation, repris dans `manifest.json` de la configuration exportée.
+        conn.execute(text("INSERT OR IGNORE INTO settings (key, value) VALUES ('instance_uid', :uid)"), {"uid": uuid.uuid4().hex[:16]})
+        conn.commit()
 
 
 def _migrate_storage_indexes():
@@ -237,6 +271,9 @@ def _migrate_add_missing_columns():
         ("videos", "pix_fmt", "VARCHAR"),
         ("videos", "web_path", "VARCHAR"),
         ("videos", "web_status", "VARCHAR"),
+        # Origine des chapitres et copie du fichier importé (liens indiqués dans library/videos.json).
+        ("videos", "chapters_source", "TEXT"),
+        ("videos", "chapters_file", "TEXT"),
         # Télémétrie extensible : stockage JSON dynamique pour métriques futures
         ("system_metrics_history", "extra_data", "TEXT"),
         # Sortie radio visée par une règle de rappel (les règles existantes

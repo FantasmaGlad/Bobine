@@ -100,12 +100,13 @@ switch ($Action) {
             }
         }
         if (-not (Test-FirewallRule)) { $problems.Add('règle de pare-feu "Bobine" absente') }
-        # Une seule règle (pas de copie à chaque mise à jour), limitée aux réseaux locaux : jamais « Any ».
+        # Une seule règle (pas de copie à chaque mise à jour), limitée aux réseaux locaux : jamais « Any ». Windows rend les plages
+        # avec un masque (10.0.0.0/255.0.0.0) ou en intervalle, pas en notation CIDR.
         $rules = @(Get-NetFirewallRule -DisplayName 'Bobine' -ErrorAction SilentlyContinue)
         if ($rules.Count -ne 1) { $problems.Add("$($rules.Count) règles de pare-feu « Bobine », 1 attendue") }
         foreach ($rule in $rules) {
             $remote = @(($rule | Get-NetFirewallAddressFilter).RemoteAddress)
-            if ($remote -contains 'Any' -or -not ($remote -contains 'LocalSubnet')) {
+            if ($remote -contains 'Any' -or -not @($remote | Where-Object { $_ -like '10.0.0.0/*' -or $_ -like '10.0.0.0-*' })) {
                 $problems.Add("règle de pare-feu ouverte au-delà du réseau local : $($remote -join ', ')")
             }
         }

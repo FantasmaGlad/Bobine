@@ -52,13 +52,21 @@ def _serialize(video: Video) -> list[ChapterResponse]:
     ]
 
 
-def _replace(db: Session, video: Video, raw: list[dict]) -> list[ChapterResponse]:
+def _replace(
+    db: Session, video: Video, raw: list[dict], *, source: str = "manual", filename: str | None = None, content: bytes | None = None,
+) -> list[ChapterResponse]:
+    """Remplace les chapitres et note leur origine (`chapters_source`) ; un fichier importé est conservé."""
     try:
         cleaned = chapter_utils.normalize(raw, video.duration_seconds)
     except chapter_utils.ChapterError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     video.chapters.clear()
     db.flush()
+    if source == "file" and content is not None:
+        chapter_utils.save_source(video, filename or "chapitres.txt", content)
+    else:
+        chapter_utils.drop_source(video)
+    video.chapters_source = source if cleaned else None
     for position, item in enumerate(cleaned):
         video.chapters.append(
             VideoChapter(
@@ -83,7 +91,7 @@ async def replace_chapters(video_id: int, payload: ChaptersPayload, db: Session 
     """Remplace tous les chapitres du cours (liste vide = les supprimer)."""
     video = _get_video(db, video_id)
     raw = [{"start_seconds": c.start_seconds, "end_seconds": c.end_seconds, "title": c.title} for c in payload.chapters]
-    result = _replace(db, video, raw)
+    result = _replace(db, video, raw, source="manual")
     await ws_manager.broadcast({"type": "library_change"})
     return result
 
@@ -103,7 +111,7 @@ async def import_chapters(video_id: int, file: UploadFile = File(...), db: Sessi
         raw = chapter_utils.parse_any(text, file.filename or "")
     except chapter_utils.ChapterError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    result = _replace(db, video, raw)
+    result = _replace(db, video, raw, source="file", filename=file.filename, content=content)
     await ws_manager.broadcast({"type": "library_change"})
     return result
 
@@ -115,7 +123,7 @@ async def import_embedded_chapters(video_id: int, db: Session = Depends(get_db))
     raw = await run_in_threadpool(chapter_utils.read_embedded, video.file_path)
     if not raw:
         raise HTTPException(status_code=404, detail="Aucun chapitre incorporé dans ce fichier vidéo.")
-    result = _replace(db, video, raw)
+    result = _replace(db, video, raw, source="embedded")
     await ws_manager.broadcast({"type": "library_change"})
     return result
 
