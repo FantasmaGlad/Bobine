@@ -639,22 +639,6 @@ def _port_fallback_notice(icon: "pystray.Icon", wait_seconds: float = 120.0) -> 
         time.sleep(1.0)
 
 
-# Une issue de mise à jour plus ancienne n'est plus une nouvelle : la barre système n'a pas de mémoire entre deux lancements,
-# sans ce délai chaque redémarrage re-notifierait la dernière mise à jour terminée.
-UPDATE_NOTIFICATION_MAX_AGE_SECONDS = 600
-
-
-def _should_notify_update_outcome(status: dict, last_notified_started_at, now: float | None = None) -> bool:
-    """Vrai pour une issue (terminée ou échouée) récente, jamais notifiée et non acquittée dans l'interface."""
-    started_at = status.get("started_at")
-    if status.get("step") not in ("done", "failed") or started_at is None:
-        return False
-    if started_at == last_notified_started_at or status.get("acknowledged_started_at") == started_at:
-        return False
-    finished_at = status.get("updated_at") or started_at
-    return (time.time() if now is None else now) - finished_at <= UPDATE_NOTIFICATION_MAX_AGE_SECONDS
-
-
 def _update_status_poll_loop(icon: "pystray.Icon") -> None:
     """Suit la progression d'une mise à jour déjà en cours (déclenchée
     manuellement depuis Réglages, OU automatiquement par la planification
@@ -685,7 +669,7 @@ def _update_status_poll_loop(icon: "pystray.Icon") -> None:
 
         step = status.get("step")
         started_at = status.get("started_at")
-        if not _should_notify_update_outcome(status, last_notified_started_at):
+        if not tray_actions.should_notify_update_outcome(status, last_notified_started_at):
             if step in ("done", "failed"):
                 last_notified_started_at = started_at  # issue déjà vue ou trop ancienne : jamais notifiée plus tard
             continue

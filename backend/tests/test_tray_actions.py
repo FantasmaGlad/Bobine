@@ -101,7 +101,7 @@ def test_routes_are_the_ones_of_the_rest_facade():
 
 
 def test_update_outcome_notification_is_recent_new_and_unacknowledged():
-    from app.desktop.tray import _should_notify_update_outcome as notify
+    from app.desktop.tray_actions import should_notify_update_outcome as notify
 
     done = {"step": "done", "started_at": 100.0, "updated_at": 110.0, "acknowledged_started_at": None}
     assert notify(done, None, now=120.0)
