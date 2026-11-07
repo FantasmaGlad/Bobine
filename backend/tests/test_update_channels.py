@@ -449,3 +449,32 @@ def test_store_managed_apply_is_refused(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         asyncio.run(updates.apply_update(BackgroundTasks(), db=None))
     assert exc.value.status_code == 400
+
+
+def test_rolling_release_target_is_the_tag_commit_not_the_stale_release_field(monkeypatch):
+    # La release glissante est mise à jour en place : son target_commitish reste celui de sa création.
+    from app.routers import updates
+
+    def fake_get(url, etag=None):
+        if url.endswith("/commits/canary"):
+            return 200, {"sha": "2ad276163493e8488c7611fe4fc06c546a0c5dc7"}, None
+        return 200, {"tag_name": "canary", "target_commitish": "303318ebe59bcceeb87a4d7d11a58ed095999012"}, "etag"
+
+    monkeypatch.setattr(updates, "_github_get", fake_get)
+    updates._RELEASE_CACHE.clear()
+    release, error = updates._lookup_release_blocking("canary", True)
+    assert error is None
+    assert release["target_commitish"].startswith("2ad2761")
+    local = {"current_commit": "2ad2761"}
+    assert updates._evaluate_update("canary", local, release)["has_update"] is False
+
+    def failing_get(url, etag=None):
+        if url.endswith("/commits/canary"):
+            raise OSError("hors ligne")
+        return 200, {"tag_name": "canary", "target_commitish": "303318ebe59bcceeb87a4d7d11a58ed095999012"}, None
+
+    monkeypatch.setattr(updates, "_github_get", failing_get)
+    updates._RELEASE_CACHE.clear()
+    release, _ = updates._lookup_release_blocking("canary", True)
+    assert updates._evaluate_update("canary", local, release)["has_update"] is False
+    updates._RELEASE_CACHE.clear()

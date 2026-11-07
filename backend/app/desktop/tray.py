@@ -669,10 +669,10 @@ def _update_status_poll_loop(icon: "pystray.Icon") -> None:
 
         step = status.get("step")
         started_at = status.get("started_at")
-        if step not in ("done", "failed") or started_at is None:
+        if not tray_actions.should_notify_update_outcome(status, last_notified_started_at):
+            if step in ("done", "failed"):
+                last_notified_started_at = started_at  # issue déjà vue ou trop ancienne : jamais notifiée plus tard
             continue
-        if started_at == last_notified_started_at:
-            continue  # déjà notifié pour cette exécution du pipeline
         last_notified_started_at = started_at
 
         if step == "done":

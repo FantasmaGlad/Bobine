@@ -119,3 +119,19 @@ class Controls:
         except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException) as exc:
             logger.info("Action rapide %s %s %s impossible : %s", kind, target, action, exc)
         return False
+
+
+# Une issue de mise à jour plus ancienne n'est plus une nouvelle : la barre système n'a pas de mémoire entre deux lancements,
+# sans ce délai chaque redémarrage re-notifierait la dernière mise à jour terminée.
+UPDATE_NOTIFICATION_MAX_AGE_SECONDS = 600
+
+
+def should_notify_update_outcome(status: dict, last_notified_started_at, now: float | None = None) -> bool:
+    """Vrai pour une issue (terminée ou échouée) récente, jamais notifiée et non acquittée dans l'interface."""
+    started_at = status.get("started_at")
+    if status.get("step") not in ("done", "failed") or started_at is None:
+        return False
+    if started_at == last_notified_started_at or status.get("acknowledged_started_at") == started_at:
+        return False
+    finished_at = status.get("updated_at") or started_at
+    return (time.time() if now is None else now) - finished_at <= UPDATE_NOTIFICATION_MAX_AGE_SECONDS
