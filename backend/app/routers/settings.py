@@ -1081,49 +1081,81 @@ async def restore_backup(
     if not _IS_SQLITE:
         raise HTTPException(status_code=400, detail="La restauration n'est supportée que pour SQLite.")
 
-    content = await file.read()
-    if not content:
-        raise HTTPException(status_code=400, detail="Fichier de sauvegarde vide.")
-
-    buf = io.BytesIO(content)
-    if not zipfile.is_zipfile(buf):
-        raise HTTPException(status_code=400, detail="Le fichier fourni n'est pas une archive ZIP valide.")
-
     db_path = _get_sqlite_db_path()
     if not db_path:
         raise HTTPException(status_code=500, detail="Chemin de la base de données introuvable.")
 
-    with zipfile.ZipFile(buf, "r") as zf:
-        namelist = zf.namelist()
-        if "database.db" not in namelist:
+    work_dir = Path(tempfile.mkdtemp(prefix="bobine-restore-", dir=str(db_path.parent)))
+    try:
+        db_tmp, config_bytes = await run_in_threadpool(_stage_backup_archive, file.file, work_dir)
+        await _restore_database_file(db_tmp, db_path, config_bytes, db, background_tasks)
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+    return {
+        "status": "ok",
+        "message": "Sauvegarde restaurée avec succès. L'application redémarre...",
+    }
+
+
+_MAX_RESTORED_CONFIG_BYTES = 1024 * 1024
+
+
+def _stage_backup_archive(source, work_dir: Path) -> tuple[Path, bytes | None]:
+    """Reçoit et valide la sauvegarde sur disque, sans jamais la charger en mémoire :
+    l'archive est copiée par blocs, la base est décompressée par blocs, et la place
+    disponible est vérifiée avant chaque écriture."""
+    archive_path = work_dir / "backup.zip"
+    with open(archive_path, "wb") as out:
+        shutil.copyfileobj(source, out, 1024 * 1024)
+    if archive_path.stat().st_size == 0:
+        raise HTTPException(status_code=400, detail="Fichier de sauvegarde vide.")
+    if not zipfile.is_zipfile(archive_path):
+        raise HTTPException(status_code=400, detail="Le fichier fourni n'est pas une archive ZIP valide.")
+
+    db_tmp = work_dir / "database.db"
+    config_bytes: bytes | None = None
+    with zipfile.ZipFile(archive_path, "r") as zf:
+        names = set(zf.namelist())
+        if "database.db" not in names:
             raise HTTPException(status_code=400, detail="Archive invalide : database.db manquant.")
+        info = zf.getinfo("database.db")
+        if shutil.disk_usage(work_dir).free < info.file_size * 2:
+            raise HTTPException(status_code=507, detail="Espace disque insuffisant pour restaurer cette sauvegarde.")
+        written = 0
+        with zf.open(info) as src, open(db_tmp, "wb") as dst:
+            while True:
+                block = src.read(1024 * 1024)
+                if not block:
+                    break
+                written += len(block)
+                if written > info.file_size:
+                    raise HTTPException(status_code=400, detail="Archive invalide : taille de database.db incohérente.")
+                dst.write(block)
+        if "config.toml" in names:
+            cfg_info = zf.getinfo("config.toml")
+            if cfg_info.file_size <= _MAX_RESTORED_CONFIG_BYTES:
+                with zf.open(cfg_info) as src:
+                    config_bytes = src.read(_MAX_RESTORED_CONFIG_BYTES + 1)
+                if len(config_bytes) > _MAX_RESTORED_CONFIG_BYTES:
+                    config_bytes = None
 
-        db_bytes = zf.read("database.db")
-        if not db_bytes.startswith(b"SQLite format 3\x00"):
+    with open(db_tmp, "rb") as f:
+        if f.read(16) != b"SQLite format 3\x00":
             raise HTTPException(status_code=400, detail="Le fichier database.db n'est pas une base SQLite valide.")
-
+    try:
+        con = sqlite3.connect(db_tmp)
         try:
-            with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
-                tmp.write(db_bytes)
-                tmp_path = Path(tmp.name)
-            try:
-                con = sqlite3.connect(tmp_path)
-                cur = con.cursor()
-                cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
-                tables = {row[0] for row in cur.fetchall()}
-                con.close()
-                if "videos" not in tables and "settings" not in tables:
-                    raise HTTPException(status_code=400, detail="La base dans l'archive ne contient pas les tables Bobine.")
-            finally:
-                if tmp_path.exists():
-                    tmp_path.unlink()
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Échec de validation de la base de données : {e}")
+            tables = {row[0] for row in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        finally:
+            con.close()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Échec de validation de la base de données : {e}")
+    if "videos" not in tables and "settings" not in tables:
+        raise HTTPException(status_code=400, detail="La base dans l'archive ne contient pas les tables Bobine.")
+    return db_tmp, config_bytes
 
-        config_bytes = zf.read("config.toml") if "config.toml" in namelist else None
 
+async def _restore_database_file(db_tmp: Path, db_path: Path, config_bytes: bytes | None, db: Session, background_tasks: BackgroundTasks) -> None:
     try:
         log_activity(db, "settings", "Restauration d'une sauvegarde de données")
     except Exception:
@@ -1155,8 +1187,7 @@ async def restore_backup(
             except Exception:
                 pass
 
-        with open(db_path, "wb") as f:
-            f.write(db_bytes)
+        shutil.copyfile(db_tmp, db_path)
 
         if config_bytes:
             cfg_path = _global_config_path()
@@ -1175,10 +1206,6 @@ async def restore_backup(
         raise HTTPException(status_code=500, detail=f"Erreur lors du remplacement de la base : {e}")
 
     background_tasks.add_task(_run_restore_restart)
-    return {
-        "status": "ok",
-        "message": "Sauvegarde restaurée avec succès. L'application redémarre...",
-    }
 
 
 # ---------------------------------------------------------------------------

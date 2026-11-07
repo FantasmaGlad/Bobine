@@ -223,7 +223,7 @@ def upload_videos_archive(file: UploadFile | None = File(None), upload_id: str |
     temp_path, filename = receive_single_upload(file, upload_id, forced_suffix=".zip")
     job_id = create_job("video", filename, Path(filename).stem)
     future = ffmpeg_executor.submit(_run_video_archive_job, job_id, temp_path)
-    register_job_future(job_id, future)
+    register_job_future(job_id, future, [temp_path])
     return {"job_id": job_id}
 
 
@@ -269,7 +269,7 @@ def upload_video(
         description,
         subtitle_temps,
     )
-    register_job_future(job_id, future)
+    register_job_future(job_id, future, [temp_path, *(path for path, _ in subtitle_temps)])
     return {"job_id": job_id}
 
 
