@@ -22,3 +22,4 @@ Chaque version **Stable** majeure ou marquante reçoit, en plus de son numéro `
 | V5.0.5 | Résonance | 2026-10-24 |
 | V5.0.7 | Aurora | 2026-10-29 |
 | V5.1.0 | Coco | 2026-11-06 |
+| V5.1.1 | Ardoise | 2026-11-07 |
