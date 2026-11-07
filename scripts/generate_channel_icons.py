@@ -72,12 +72,12 @@ class Output:
     fmt: str = "PNG"
 
 
-def master_path(channel: str, kind: str = "bobine") -> Path:
-    return SOURCE_DIR / f"{kind}-channel-{channel}.png"
+def master_path(channel: str) -> Path:
+    return SOURCE_DIR / f"bobine-channel-{channel}.png"
 
 
-def load_master(channel: str, kind: str = "bobine", size: int = 512) -> Image.Image:
-    path = master_path(channel, kind)
+def load_master(channel: str, size: int = 512) -> Image.Image:
+    path = master_path(channel)
     if not path.exists():
         raise FileNotFoundError(f"Icône source absente : {path.relative_to(REPO_DIR)}")
     image = Image.open(path).convert("RGBA")
