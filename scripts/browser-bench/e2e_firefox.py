@@ -187,7 +187,7 @@ def main() -> int:
             resume_after_network_cut(workdir)
 
         # --- 6. diagnostic navigateur dans les Réglages ---------------------------------------
-        wd.navigate(BASE + "/settings/")
+        wd.navigate(BASE + "/settings/#section-playback")  # les Réglages sont rangés par catégories : lien profond vers « Lecture et médias »
         time.sleep(2.5)
         text = wd.execute("return document.body.innerText")
         check("section « Compatibilité navigateur » affichée", "H.264" in text and "WebSocket" in text)

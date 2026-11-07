@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { recallCatalog, rememberCatalog } from "@/lib/sessionCatalog";
+import PageNav from "@/components/PageNav";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { videoStreamUrl } from "@/lib/clientCodecSupport";
 import WebRenditionPanel from "@/components/WebRenditionPanel";
@@ -651,26 +652,15 @@ export default function LibraryPage() {
       onDragLeave={mode === "media" ? handleDrag : undefined}
       onDrop={mode === "media" ? handleDrop : undefined}
     >
-      {/* Bascule Médiathèque/Playlists : mêmes boutons que le bascule
-          grille/liste ci-dessous (.view-toggle), pour rester dans le même
-          langage visuel plutôt qu'introduire un nouveau composant d'onglet. */}
-      <div className="library-header-bar">
-        <div className="view-toggle">
-          <button
-            className={`view-btn olc-press ${mode === "media" ? "active" : ""}`}
-            onClick={() => setMode("media")}
-          >
-            <Icon name="video_library" size={16} /> {t("library.mediaTab")}
-          </button>
-          <button
-            className={`view-btn olc-press ${mode === "playlists" ? "active" : ""}`}
-            onClick={() => setMode("playlists")}
-          >
-            <Icon name="playlist_play" size={16} /> {t("library.playlistsTab")}
-          </button>
-        </div>
-
-        {mode === "media" && (
+      {/* Médiathèque / Playlists : barre de page commune (PageNav), import à droite. */}
+      <PageNav
+        tabs={[{ id: "media", icon: "video_library", label: t("library.mediaTab") }, { id: "playlists", icon: "playlist_play", label: t("library.playlistsTab") }]}
+        value={mode}
+        onChange={(id) => setMode(id as typeof mode)}
+        ariaLabel={t("library.mediaTab")}
+        actions={
+          <>
+            {mode === "media" && (
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <input
               ref={fileInputRef}
@@ -691,7 +681,9 @@ export default function LibraryPage() {
             </button>
           </div>
         )}
-      </div>
+          </>
+        }
+      />
 
       {mode === "playlists" ? (
         <VideoPlaylistManager />
