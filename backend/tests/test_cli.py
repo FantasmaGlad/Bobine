@@ -657,3 +657,14 @@ def test_every_command_is_listed_for_the_windows_launcher():
 def test_short_version_flag(capsys):
     assert cli.main(["-V"]) == 0
     assert capsys.readouterr().out.startswith("bobine ")
+
+
+def test_open_uses_the_real_port_and_the_requested_page(monkeypatch, capsys):
+    import webbrowser
+
+    opened = []
+    monkeypatch.setattr(webbrowser, "open", lambda url: opened.append(url) or True)
+    assert cli.main(["--port", "2024", "open", "grid"]) == 0
+    assert opened == ["http://127.0.0.1:2024/grid"]
+    assert cli.main(["--port", "2024", "open"]) == 0
+    assert opened[-1] == "http://127.0.0.1:2024/"

@@ -33,7 +33,7 @@ from app.api_contract import (
 )
 
 EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_UNREACHABLE, EXIT_REFUSED = 0, 1, 2, 3, 4
-COMMANDS = ("status", "diagnose", "library", "playlists", "schedule", "devices", "storage", "metrics", "imports", "display", "logs", "playback", "radio", "config", "settings", "update", "completion", "audio", "backgrounds", "radio-library", "api", "version")
+COMMANDS = ("status", "diagnose", "library", "playlists", "schedule", "devices", "storage", "metrics", "imports", "display", "logs", "playback", "radio", "config", "settings", "update", "completion", "audio", "backgrounds", "radio-library", "api", "open", "version")
 _REFUSAL_STATUSES = {403, 404, 409, 503}
 DEFAULT_TIMEOUT = 30.0
 
@@ -1022,6 +1022,10 @@ def build_parser() -> argparse.ArgumentParser:
     completion.add_argument("shell", choices=("bash", "zsh", "fish"))
     completion.set_defaults(run=cmd_completion)
 
+    open_page = sub.add_parser("open", parents=[sub_common], help="ouvrir une page de Bobine dans le navigateur (port réel)")
+    open_page.add_argument("page", nargs="?", default="admin", help="admin, grid ou cinema")
+    open_page.set_defaults(run=cmd_open)
+
     sub.add_parser("version", parents=[sub_common], help="version de cette installation").set_defaults(
         run=lambda client, out, args: (out.result({"version": local_version()}, local_version()), EXIT_OK)[1])
     return parser
@@ -1102,6 +1106,22 @@ def _prepare_windows_output() -> None:
             stream.reconfigure(errors="backslashreplace")
         except (AttributeError, OSError, ValueError):
             pass
+
+
+OPEN_PAGES = {"admin": "/", "grid": "/grid", "cinema": "/cinema"}
+
+
+def cmd_open(client: Client, out: Output, args: argparse.Namespace) -> int:
+    """Ouvre une page dans le navigateur, sur le port réel de cette machine (raccourcis du bureau, sans port écrit en dur)."""
+    import webbrowser
+
+    if args.page not in OPEN_PAGES:
+        raise CliError(f"page inconnue : {args.page} ({', '.join(OPEN_PAGES)}).", EXIT_USAGE)
+    url = client.base + OPEN_PAGES[args.page]
+    if not webbrowser.open(url):
+        raise CliError(f"aucun navigateur n'a pu être ouvert ; adresse : {url}")
+    out.result({"url": url}, url)
+    return EXIT_OK
 
 
 def main(argv: list[str] | None = None) -> int:
