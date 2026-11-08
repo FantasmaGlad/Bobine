@@ -90,14 +90,15 @@ Sur Windows PowerShell 5.1 avec un .NET antérieur à 4.7, exécutez `[Net.Servi
 Autre canal (le pipe ne transmet pas les paramètres) :
 
 ```powershell
-& ([scriptblock]::Create((irm https://bobine.fit/install.ps1))) -Channel beta
+$script = irm https://bobine.fit/install.ps1
+& ([scriptblock]::Create($script)) -Channel beta
 ```
 
 Par Tor (PowerShell 7.2+, Tor Browser ouvert ; `-TorPort 9050` pour le service tor) :
 
 ```powershell
-$u = 'https://github.com/FantasmaGlad/Bobine/releases/latest/download/install.ps1'
-$script = irm $u -Proxy socks5://127.0.0.1:9150
+$base = 'https://github.com/FantasmaGlad/Bobine/releases/latest/download'
+$script = irm "$base/install.ps1" -Proxy socks5://127.0.0.1:9150
 & ([scriptblock]::Create($script)) -Tor
 ```
 
@@ -110,7 +111,8 @@ brew install --cask fantasmaglad/bobine/bobine
 Par Tor :
 
 ```bash
-ALL_PROXY=socks5h://127.0.0.1:9050 brew install --cask fantasmaglad/bobine/bobine
+export ALL_PROXY=socks5h://127.0.0.1:9050
+brew install --cask fantasmaglad/bobine/bobine
 ```
 
 <img src="Assets/Icons/os/linux.svg" width="20" height="20" alt="Linux"> Linux : dépôts signés, instructions sur [packages.bobine.fit](https://packages.bobine.fit). Par Tor, dépôts et clé de signature par le miroir onion :
