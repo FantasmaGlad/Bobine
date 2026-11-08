@@ -5,6 +5,10 @@ set -euo pipefail
 export LC_ALL=C
 family="${1:?deb, rpm ou arch}"; channel="${2:?canal (stable, beta, canary...)}"
 packages=$(realpath "${3:?paquets signés}"); destination=$(realpath "${4:?copie du dépôt Pages}")
+# 5e argument facultatif : paquets signés de Bobine Deploy (dernière release de FantasmaGlad/bobine-deploy), publiés à
+# côté de bobine dans le canal. Absent ou vide, le canal garde ceux qu'il porte déjà.
+deploy=""
+[ -n "${5:-}" ] && deploy=$(realpath "$5")
 case "$family" in deb|rpm|arch) ;; *) exit 2 ;; esac
 . "$(dirname "$0")/container-images.sh"
 # Canaux valides : le registre unique (backend/app/release_channel.py), pas une liste recopiée ici.
@@ -70,8 +74,18 @@ EOF
         reprepro -b "$debian_dir" includedeb stable "$deb_amd64"
         reprepro -b "$debian_dir" includedeb stable "$deb_arm64"
     fi
-    # L'ancien assistant (bobine-assistant) n'est plus publié ici : Bobine Deploy a son propre dépôt.
+    # L'ancien assistant (bobine-assistant) est remplacé par bobine-deploy.
     reprepro -b "$debian_dir" remove "$channel" bobine-assistant || true
+    if [ -n "$deploy" ]; then
+        mapfile -d '' deploy_debs < <(find "$deploy" -maxdepth 1 -type f -name "bobine-deploy_*.deb" -print0)
+        if [ "${#deploy_debs[@]}" -gt 0 ]; then
+            [ "${#deploy_debs[@]}" = 2 ] || { echo "Deux paquets deb de Bobine Deploy (amd64 et arm64) attendus." >&2; exit 1; }
+            reprepro -b "$debian_dir" remove "$channel" bobine-deploy || true
+            for deb in "${deploy_debs[@]}"; do
+                reprepro -b "$debian_dir" includedeb "$channel" "$deb"
+            done
+        fi
+    fi
     cat "$debian_dir"/dists/*/main/binary-*/Packages | sed -n 's/^Filename: //p' | sort -u > "$debian_dir/.referenced.txt"
     if [ -s "$debian_dir/.referenced.txt" ]; then
         (
@@ -107,9 +121,31 @@ for arch in x86_64 aarch64; do
     else
         gpg --batch --verify "$package.sig" "$package"
     fi
+    # Bobine Deploy : le nouveau paquet s'il est fourni, sinon celui que le canal porte déjà.
+    extra=()
+    if [ "$family" = rpm ]; then
+        source_dir=""
+        if [ -n "$deploy" ] && compgen -G "$deploy/bobine-deploy-*$suffix" > /dev/null; then
+            source_dir="$deploy"
+        elif [ -d "$target" ]; then
+            source_dir="$target"
+        fi
+        if [ -n "$source_dir" ]; then
+            keep=$(mktemp -d)
+            find "$source_dir" -maxdepth 1 -type f -name "bobine-deploy-*$suffix" -exec cp {} "$keep/" \;
+            mapfile -d '' extra < <(find "$keep" -type f -print0)
+            [ "${#extra[@]}" -le 1 ] || { echo "Un seul paquet rpm/$arch de Bobine Deploy attendu." >&2; exit 1; }
+        fi
+    fi
     rm -rf "$target"
     mkdir -p "$target"
     cp "$package" "$target/"
+    for rpm_package in "${extra[@]}"; do
+        verification=$(rpmkeys --checksig "$rpm_package")
+        echo "$verification"
+        [[ "$verification" == *"digests signatures OK"* ]] || exit 1
+        cp "$rpm_package" "$target/"
+    done
     if [ "$family" = rpm ]; then
         createrepo_c "$target"
         gpg --batch --yes --local-user "$fingerprint" --armor --detach-sign "$target/repodata/repomd.xml"

@@ -54,7 +54,8 @@ class ReleaseChecksTests(unittest.TestCase):
 
 
 class FollowsReleaseTests(unittest.TestCase):
-    ENTRIES = [{"Architecture": "amd64", "SHA256": "aa" * 32}, {"Architecture": "arm64", "SHA256": "bb" * 32}]
+    ENTRIES = [{"Package": "bobine", "Architecture": "amd64", "SHA256": "aa" * 32},
+               {"Package": "bobine", "Architecture": "arm64", "SHA256": "bb" * 32}]
 
     def assets(self, amd64="aa" * 32, arm64="bb" * 32):
         return [{"name": "bobine_canary_amd64.deb", "digest": "sha256:" + amd64}, {"name": "bobine_canary_arm64.deb", "digest": "sha256:" + arm64}]
@@ -66,6 +67,10 @@ class FollowsReleaseTests(unittest.TestCase):
         errors = probe.check_follows_release("canary", self.ENTRIES, self.assets(amd64="cc" * 32))
         self.assertEqual(len(errors), 1)
         self.assertIn("amd64 diffère de la release", errors[0])
+
+    def test_bobine_deploy_beside_bobine_is_ignored(self):
+        deploy = [{"Package": "bobine-deploy", "Architecture": a, "SHA256": "dd" * 32} for a in ("amd64", "arm64")]
+        self.assertEqual(probe.check_follows_release("canary", self.ENTRIES + deploy, self.assets()), [])
 
     def test_a_missing_asset_or_package_fails(self):
         self.assertTrue(probe.check_follows_release("canary", self.ENTRIES, self.assets()[:1]))

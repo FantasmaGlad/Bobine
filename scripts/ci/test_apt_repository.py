@@ -40,6 +40,13 @@ class AptRepositoryTests(unittest.TestCase):
             (tree / "DEBIAN").mkdir(parents=True)
             (tree / "DEBIAN/control").write_text(f"Package: bobine\nVersion: 1.0-1\nArchitecture: {architecture}\nSection: misc\nPriority: optional\nMaintainer: t <t@example.org>\nDescription: test\n")
             subprocess.run(["dpkg-deb", "--build", str(tree), str(cls.packages / f"bobine_1.0-1_{architecture}.deb")], check=True, capture_output=True)
+        cls.deploy = base / "deploy"
+        cls.deploy.mkdir()
+        for architecture in ("amd64", "arm64"):
+            tree = base / f"deploy-{architecture}"
+            (tree / "DEBIAN").mkdir(parents=True)
+            (tree / "DEBIAN/control").write_text(f"Package: bobine-deploy\nVersion: 0.0.1\nArchitecture: {architecture}\nSection: utils\nPriority: optional\nMaintainer: t <t@example.org>\nDescription: test\n")
+            subprocess.run(["dpkg-deb", "--build", str(tree), str(cls.deploy / f"bobine-deploy_0.0.1_{architecture}.deb")], check=True, capture_output=True)
         cls.assistant = base / "assistant"
         cls.assistant.mkdir()
         for architecture in ("amd64", "arm64"):
@@ -79,6 +86,18 @@ class AptRepositoryTests(unittest.TestCase):
 
     def packages_index(self, channel, architecture):
         return (self.debian / "dists" / channel / "main" / f"binary-{architecture}" / "Packages").read_text()
+
+    def test_bobine_deploy_is_published_beside_bobine_and_kept_without_new_packages(self):
+        result = self.run_script(PREPARE, "deb", "canary", str(self.packages), str(self.pages), str(self.deploy))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for architecture in ("amd64", "arm64"):
+            index = self.packages_index("canary", architecture)
+            self.assertIn("Package: bobine\n", index)
+            self.assertIn("Package: bobine-deploy\nVersion: 0.0.1", index)
+        # Publication de Bobine sans release de Bobine Deploy lisible : le paquet déjà publié reste.
+        self.prepare("canary")
+        self.assertIn("Package: bobine-deploy\n", self.packages_index("canary", "amd64"))
+        self.assertTrue(list((self.debian / "pool").rglob("bobine-deploy_*.deb")))
 
     def test_the_former_assistant_is_removed_from_the_channel(self):
         # Bobine Deploy a son propre dépôt : un bobine-assistant déjà publié disparaît à la publication suivante du canal.
