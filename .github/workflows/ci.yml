@@ -1445,6 +1445,23 @@ jobs:
           sudo apt-get $APT_OPTIONS install -y reprepro rpm gnupg createrepo-c
           . scripts/ci/container-images.sh
           docker pull "$ARCH_IMAGE"
+      # Bobine Deploy publie ses paquets sur les releases de son dépôt ; l'archive packages.bobine.fit les sert à côté
+      # de bobine. Signature de SHA256SUMS et empreintes vérifiées avant usage ; sans release lisible, le canal garde
+      # les paquets qu'il porte déjà.
+      - name: Paquets de Bobine Deploy (dernière release signée)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p deploy-assets
+          if ! gh release download --repo FantasmaGlad/bobine-deploy --dir deploy-assets \
+               --pattern 'bobine-deploy_*.deb' --pattern 'bobine-deploy-*.rpm' --pattern 'SHA256SUMS' --pattern 'SHA256SUMS.asc'; then
+            echo "::warning::release de Bobine Deploy illisible : paquets déjà publiés conservés"; rm -rf deploy-assets/*; exit 0
+          fi
+          gpg --no-default-keyring --keyring "$RUNNER_TEMP/deploy.kbx" --import package-assets/bobine.gpg
+          gpg --no-default-keyring --keyring "$RUNNER_TEMP/deploy.kbx" --verify deploy-assets/SHA256SUMS.asc deploy-assets/SHA256SUMS
+          (cd deploy-assets && sha256sum --check --ignore-missing --strict SHA256SUMS)
+          rm deploy-assets/SHA256SUMS deploy-assets/SHA256SUMS.asc
+          ls -l deploy-assets
       - name: Préparer et vérifier les dépôts signés (Debian, RPM et Arch)
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
@@ -1454,8 +1471,8 @@ jobs:
           install -d -m 0700 "$GNUPGHOME"
           printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
           rpm --import package-assets/bobine.gpg
-          bash scripts/ci/prepare-package-repository.sh deb "$CHANNEL" package-assets package-repo
-          bash scripts/ci/prepare-package-repository.sh rpm "$CHANNEL" package-assets package-repo
+          bash scripts/ci/prepare-package-repository.sh deb "$CHANNEL" package-assets package-repo deploy-assets
+          bash scripts/ci/prepare-package-repository.sh rpm "$CHANNEL" package-assets package-repo deploy-assets
           bash scripts/ci/prepare-package-repository.sh arch "$CHANNEL" package-assets package-repo
       - name: Vérifier toute la chaîne APT, DNF et Pacman avant publication
         run: |
