@@ -3,6 +3,8 @@ name: CI
 # Intégration continue Bobine : à chaque push sur main et à chaque pull request,
 # on construit le frontend et les paquets, on teste le backend sous trois
 # versions de Python, le navigateur Firefox et les composants natifs.
+# Une modification de documentation seule (job `version`, sortie `code`) ne lance que les contrôles
+# rapides du job `version` et ne publie aucune Canary : pas besoin de `[skip ci]`.
 
 on:
   push:
@@ -96,10 +98,27 @@ jobs:
       deb_version: ${{ steps.resolve.outputs.deb_version }}
       filename_version: ${{ steps.resolve.outputs.filename_version }}
       commit_short: ${{ steps.resolve.outputs.commit_short }}
+      code: ${{ steps.scope.outputs.code }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
+      - name: Portée de la modification (code ou documentation seule)
+        id: scope
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # Tag, déclenchement manuel ou base inconnue : tout est construit.
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [[ "$GITHUB_REF" == refs/tags/* ]] || [ -z "$BASE" ] \
+             || [ "$BASE" = 0000000000000000000000000000000000000000 ] || ! git fetch -q --depth=1 origin "$BASE"; then
+            echo "code=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # README, documentation, licences, politiques et modèles de tickets ne changent aucun artefact.
+          if git diff --name-only "$BASE" HEAD | grep -qvE '(\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Vérifier les outils de publication sans réseau
         run: |
           sudo apt-get $APT_OPTIONS update -qq && sudo apt-get $APT_OPTIONS install -y -qq --no-install-recommends reprepro python3-yaml
@@ -117,6 +136,8 @@ jobs:
 
   frontend:
     name: Frontend build (Next.js)
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -147,6 +168,8 @@ jobs:
     # affiche une erreur applicative ou si l'interface se fige pendant l'import.
     # Le succès de ce parcours navigateur fait partie du contrôle ci-ok.
     name: Firefox smoke tests (geckodriver)
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -210,6 +233,8 @@ jobs:
     # téléphone/tablette. Une syntaxe ou une API postérieure à 3.11 ne doit pas
     # entrer sans casser ce job.
     name: Backend checks (Python ${{ matrix.python }})
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -269,6 +294,8 @@ jobs:
 
   backend-android-compat:
     name: Backend Android (Pydantic v1, Python ${{ matrix.python }})
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -306,365 +333,13 @@ jobs:
           XDG_DATA_HOME: ${{ runner.temp }}/android-backend/data
           XDG_CONFIG_HOME: ${{ runner.temp }}/android-backend/config
 
-  assistant-core:
-    name: Assistant core (Rust)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: [version]
-    defaults:
-      run:
-        working-directory: assistant
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.tag }}
-      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
-      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
-      - name: Installer la toolchain Rust
-        run: rustup toolchain install
-      - name: Cache cargo
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            assistant/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml', 'assistant/**/Cargo.toml', 'assistant/Cargo.lock') }}
-      - name: Install system dependencies (WebKitGTK & AppIndicator)
-        run: |
-          sudo apt-get $APT_OPTIONS update
-          sudo apt-get $APT_OPTIONS install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - name: Identifiants de build (VERSION bundlée + COMMIT)
-        working-directory: .
-        run: |
-          echo "${{ needs.version.outputs.commit_short }}" > COMMIT
-          if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
-            echo "${{ needs.version.outputs.display_version }}" > VERSION
-          fi
-      - name: Clippy (warnings = erreurs)
-        run: |
-          rustup component add clippy
-          cargo clippy --locked --workspace --all-targets -- -D warnings
-      - name: Tests
-        run: cargo test --locked --workspace
-      - name: Build Bobine Assistant (Linux binary)
-        run: |
-          cargo build --release --locked --bin bobine-assistant
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: bobine-assistant-linux
-          path: assistant/target/release/bobine-assistant
-
-  assistant-core-arm64:
-    name: Assistant core ARM64 (Rust)
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 30
-    needs: [version]
-    defaults:
-      run:
-        working-directory: assistant
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.tag }}
-      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
-      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
-      - name: Installer la toolchain Rust
-        run: rustup toolchain install
-      - name: Cache cargo (ARM64)
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            assistant/target
-          key: cargo-${{ runner.os }}-arm64-${{ hashFiles('rust-toolchain.toml', 'assistant/**/Cargo.toml', 'assistant/Cargo.lock') }}
-      - name: Install system dependencies (WebKitGTK & AppIndicator)
-        run: |
-          sudo apt-get $APT_OPTIONS update
-          sudo apt-get $APT_OPTIONS install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - name: Identifiants de build (VERSION bundlée + COMMIT)
-        working-directory: .
-        run: |
-          echo "${{ needs.version.outputs.commit_short }}" > COMMIT
-          if [ "${{ needs.version.outputs.channel }}" = "beta" ] || [ "${{ needs.version.outputs.channel }}" = "canary" ]; then
-            echo "${{ needs.version.outputs.display_version }}" > VERSION
-          fi
-      - name: Clippy et tests ARM64
-        run: |
-          cargo clippy --locked --workspace --all-targets -- -D warnings
-          cargo test --locked --workspace
-      - name: Build Bobine Assistant ARM64 (Linux aarch64 binary)
-        run: |
-          cargo build --release --locked --bin bobine-assistant
-          cp target/release/bobine-assistant target/release/bobine-assistant-arm64
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: bobine-assistant-linux-arm64
-          path: assistant/target/release/bobine-assistant-arm64
-
-  # Paquets de l'assistant d'installation : construits avec l'icône du canal, installés puis lancés sur chaque
-  # système.
-  assistant-bundle:
-    name: Assistant packages (${{ matrix.label }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
-    needs: [version]
-    env:
-      # Version strictement croissante d'un build glissant à l'autre : la mise à jour automatique n'en propose pas d'autre.
-      ASSISTANT_VERSION: ${{ (needs.version.outputs.channel == 'beta' || needs.version.outputs.channel == 'canary') && format('{0}+{1}.{2}', needs.version.outputs.base_version, needs.version.outputs.channel, github.run_number) || needs.version.outputs.base_version }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: ubuntu-24.04, label: Linux x64, deb: amd64, rpm: x86_64 }
-          - { os: ubuntu-24.04-arm, label: Linux arm64, deb: arm64, rpm: aarch64 }
-          - { os: windows-latest, label: Windows x64 }
-          - { os: windows-11-arm, label: Windows arm64 }
-          - { os: macos-latest, label: macOS arm64 }
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.tag }}
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.12"
-      - name: Installer la toolchain Rust
-        shell: bash
-        run: rustup toolchain install
-      - name: Cache cargo
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            assistant/target
-          key: cargo-bundle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml', 'assistant/**/Cargo.toml', 'assistant/Cargo.lock') }}
-      - name: Dépendances système (WebKitGTK)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get $APT_OPTIONS update
-          sudo apt-get $APT_OPTIONS install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm xvfb
-      - name: Identifiants de build (VERSION + COMMIT)
-        shell: bash
-        run: |
-          echo "${{ needs.version.outputs.commit_short }}" > COMMIT
-          echo "$ASSISTANT_VERSION" > VERSION
-      - name: Construire les paquets
-        shell: bash
-        env:
-          # Signature des paquets de mise à jour : absente pour une PR venue d'un fork (aucun secret), alors rien n'est signé.
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # Clé des dépôts : le .rpm est signé en OpenPGP pour DNF avant sa signature de mise à jour (même fichier dans la
-          # release et dans packages.bobine.fit). Importée dans un GNUPGHOME éphémère, effacé à la fin de l'étape.
-          APT_GPG_PRIVATE_KEY: ${{ runner.os == 'Linux' && secrets.APT_GPG_PRIVATE_KEY || '' }}
-          GNUPGHOME: ${{ runner.temp }}/assistant-signing
-        run: |
-          # Hors publication (PR), le canal vaut « none » : icônes de la Stable.
-          channel="${{ needs.version.outputs.channel }}"
-          gpg_sign=()
-          if [ -n "$APT_GPG_PRIVATE_KEY" ]; then
-            fingerprint=B77D96D72F84F36ACAA3F8729CBF497D829EE15A
-            install -d -m 0700 "$GNUPGHOME"
-            trap 'gpgconf --kill gpg-agent 2>/dev/null || true; rm -rf "$GNUPGHOME"' EXIT
-            printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
-            gpg --batch --armor --export "$fingerprint" > "$RUNNER_TEMP/bobine.gpg"
-            rpm --import "$RUNNER_TEMP/bobine.gpg"
-            gpg_sign=(--gpg-sign "$fingerprint")
-          fi
-          # OpenSSL se configure avec le Perl natif de Windows, pas celui de Git Bash (msys), qu'il ne reconnaît pas.
-          if [ "$RUNNER_OS" = Windows ]; then
-            # L'image Windows ARM64 n'a pas toujours Strawberry Perl.
-            [ -f /c/Strawberry/perl/bin/perl.exe ] || choco install strawberryperl -y --no-progress
-            export OPENSSL_SRC_PERL='C:\Strawberry\perl\bin\perl.exe'
-          fi
-          [ "$channel" = none ] && channel=stable
-          python assistant/scripts/bundle.py --channel "$channel" --version "$ASSISTANT_VERSION" --filename-version "${{ needs.version.outputs.filename_version }}" --out dist-assistant "${gpg_sign[@]}"
-          # Une publication exige les signatures : sans elles, la mise à jour automatique refuserait chaque paquet.
-          if [ "${{ needs.version.outputs.channel }}" != none ] && ! ls dist-assistant/*.sig > /dev/null 2>&1; then
-            echo "::error::paquets de l'assistant non signés (secret TAURI_SIGNING_PRIVATE_KEY absent ?)"; exit 1
-          fi
-      - name: Installer et lancer (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get $APT_OPTIONS install -y ./dist-assistant/bobine-assistant_*_${{ matrix.deb }}.deb
-          test -x /usr/bin/bobine-assistant
-          test -f /usr/share/icons/hicolor/128x128/apps/bobine-assistant.png
-          # Ligne de commande : même exécutable, sans fenêtre.
-          bobine-assistant --json version | grep -q '"version"'
-          set +e; bobine-assistant install --host 203.0.113.10 --user essai; rc=$?; set -e
-          [ "$rc" -eq 2 ] || { echo "install sans --yes : code $rc, 2 attendu" >&2; exit 1; }
-          rpm -qip dist-assistant/bobine-assistant-*.${{ matrix.rpm }}.rpm
-          # Toujours vivant au bout de 10 s : timeout le tue (124), un plantage au démarrage rend un autre code.
-          set +e; xvfb-run -a timeout 10 bobine-assistant; rc=$?; set -e
-          [ "$rc" -eq 124 ] || { echo "l'assistant s'est arrêté au démarrage (code $rc)" >&2; exit 1; }
-          sudo apt-get $APT_OPTIONS remove -y bobine-assistant
-          test ! -e /usr/bin/bobine-assistant
-      - name: Installer le rpm (Fedora)
-        if: runner.os == 'Linux'
-        run: |
-          # `rpm -qip` ne valide ni les dépendances ni les scripts : le rpm est pourtant ce que l'updater installe sur
-          # Fedora. L'installer dans l'image Fedora, comme le job linux-rpm-aarch64 le fait pour Bobine.
-          . scripts/ci/container-images.sh
-          rpm_file=$(basename "$(ls dist-assistant/bobine-assistant-*.${{ matrix.rpm }}.rpm)")
-          docker run --rm -v "$PWD/dist-assistant:/pkg:ro" "$FEDORA_IMAGE" \
-            bash -c 'dnf -y -q install "/pkg/$1" && test -x /usr/bin/bobine-assistant && rpm -q bobine-assistant' -- "$rpm_file"
-      - name: Installer, lancer et désinstaller (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $setup = Get-ChildItem dist-assistant -Filter 'Bobine-Assistant-Setup-*.exe' | Select-Object -First 1
-          Start-Process $setup.FullName -ArgumentList '/S' -Wait
-          $dir = Join-Path $env:LOCALAPPDATA 'Bobine Assistant'
-          $exe = Get-ChildItem $dir -Filter '*.exe' | Where-Object { $_.Name -notlike 'uninstall*' } | Select-Object -First 1
-          if (-not $exe) { throw "exécutable absent de $dir" }
-          # Ligne de commande : l'exécutable sans console se rattache à celle du terminal (tube pour attendre la fin).
-          $version = & $exe.FullName --json version | Out-String
-          if ($version -notmatch '"version"') { throw "bobine-assistant --json version : sortie inattendue ($version)" }
-          $app = Start-Process $exe.FullName -PassThru
-          Start-Sleep -Seconds 10
-          if ($app.HasExited) { throw "l'assistant s'est arrêté au démarrage (code $($app.ExitCode))" }
-          Stop-Process -Id $app.Id -Force
-          Start-Sleep -Seconds 2
-          Start-Process (Join-Path $dir 'uninstall.exe') -ArgumentList '/S' -Wait
-          Start-Sleep -Seconds 5
-          if (Test-Path $exe.FullName) { throw "désinstallation incomplète : $($exe.FullName)" }
-      - name: Monter et lancer (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          dmg=$(ls dist-assistant/Bobine-Assistant-*.dmg)
-          hdiutil attach "$dmg" -readonly -nobrowse -noautoopen -mountpoint "$RUNNER_TEMP/assistant-dmg"
-          ditto "$RUNNER_TEMP/assistant-dmg/Bobine Assistant.app" "$RUNNER_TEMP/Bobine Assistant.app"
-          hdiutil detach "$RUNNER_TEMP/assistant-dmg"
-          codesign --verify --deep --strict "$RUNNER_TEMP/Bobine Assistant.app"
-          test -f "$RUNNER_TEMP/Bobine Assistant.app/Contents/Resources/icon.icns"
-          binary=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$RUNNER_TEMP/Bobine Assistant.app/Contents/Info.plist")
-          "$RUNNER_TEMP/Bobine Assistant.app/Contents/MacOS/$binary" --json version | grep -q '"version"'
-          "$RUNNER_TEMP/Bobine Assistant.app/Contents/MacOS/$binary" & pid=$!
-          sleep 10
-          kill -0 "$pid" || { echo "l'assistant s'est arrêté au démarrage" >&2; exit 1; }
-          kill "$pid"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: assistant-packages-${{ runner.os }}-${{ runner.arch }}
-          path: dist-assistant/
-          if-no-files-found: error
-
-  assistant-android:
-    # APK de l'assistant (ARM64, ARM 32 bits, x86_64) signée de la clé Android de Bobine, lancée sur émulateur. Sans les
-    # secrets (PR externe), APK non signée, signée d'une clé jetable pour l'essai seulement.
-    name: Assistant Android (APK)
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    needs: [version]
-    env:
-      ASSISTANT_VERSION: ${{ (needs.version.outputs.channel == 'beta' || needs.version.outputs.channel == 'canary') && format('{0}+{1}.{2}', needs.version.outputs.base_version, needs.version.outputs.channel, github.run_number) || needs.version.outputs.base_version }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.tag }}
-          # versionCode : nombre de commits, strictement croissant comme pour l'APK de Bobine.
-          fetch-depth: 0
-      - name: Vérifier que les secrets de signature sont configurés
-        id: check_secrets
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: python scripts/ci/check-android-signing.py ${{ github.event_name == 'pull_request' && '--allow-missing' || '' }}
-      - name: Installer la toolchain Rust et les cibles Android
-        run: |
-          rustup toolchain install
-          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
-      - name: Cache cargo
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            assistant/target
-          key: cargo-assistant-android-${{ hashFiles('rust-toolchain.toml', 'assistant/**/Cargo.toml', 'assistant/Cargo.lock') }}
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.12"
-      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
-        with:
-          packages: platform-tools
-      - name: Installer les plateformes/outils Android requis
-        run: python scripts/ci/setup-android-sdk.py
-      - name: Identifiants de build (VERSION + COMMIT)
-        run: |
-          echo "${{ needs.version.outputs.commit_short }}" > COMMIT
-          echo "$ASSISTANT_VERSION" > VERSION
-      - name: Décoder le keystore depuis le secret
-        if: steps.check_secrets.outputs.configured == 'true'
-        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "${{ runner.temp }}/bobine-release.keystore"
-      - name: Construire l'APK
-        env:
-          ANDROID_KEYSTORE_PATH: ${{ steps.check_secrets.outputs.configured == 'true' && format('{0}/bobine-release.keystore', runner.temp) || '' }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ steps.check_secrets.outputs.configured == 'true' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
-          ANDROID_KEY_ALIAS: ${{ steps.check_secrets.outputs.configured == 'true' && secrets.ANDROID_KEY_ALIAS || '' }}
-          ANDROID_KEY_PASSWORD: ${{ steps.check_secrets.outputs.configured == 'true' && secrets.ANDROID_KEY_PASSWORD || '' }}
-        run: |
-          channel="${{ needs.version.outputs.channel }}"
-          [ "$channel" = none ] && channel=stable
-          NDK_HOME="$ANDROID_NDK_HOME" python assistant/scripts/build_android.py --channel "$channel" \
-            --version "$ASSISTANT_VERSION" --version-code "$(git rev-list --count HEAD)" \
-            --filename-version "${{ needs.version.outputs.filename_version }}" --out dist-assistant
-          rm -f "${{ runner.temp }}/bobine-release.keystore"
-          # Une publication exige l'APK signée de la clé de Bobine.
-          if [ "${{ needs.version.outputs.channel }}" != none ]; then
-            "$BOBINE_ANDROID_BUILD_TOOLS/apksigner" verify dist-assistant/*.apk
-            scripts/ci/verify-apk-cert.sh dist-assistant/*.apk
-          fi
-          apk=$(ls dist-assistant/*.apk)
-          abis=$("$BOBINE_ANDROID_BUILD_TOOLS/aapt2" dump badging "$apk" | sed -n "s/^native-code: //p" | tr -d "'")
-          [ "$abis" = "arm64-v8a armeabi-v7a x86_64" ] || { echo "::error::ABI de l'APK : [$abis]"; exit 1; }
-          python3 scripts/ci/check-elf-alignment.py --apk "$apk" --enforce-abi arm64-v8a
-      - name: Activer KVM
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-      - name: Installer et lancer sur émulateur
-        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
-        with:
-          api-level: 35
-          target: google_apis
-          arch: x86_64
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader -noaudio -no-boot-anim -camera-back none
-          script: scripts/ci/smoke-assistant-apk.sh "$(ls dist-assistant/*.apk)"
-      - name: Conserver le diagnostic de démarrage
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: assistant-android-startup
-          path: assistant-android-logs/
-          if-no-files-found: warn
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: assistant-packages-Android
-          path: dist-assistant/
-          if-no-files-found: error
-
   devices-sidecar:
     # Sidecar Rust de l'onglet Périphériques (Windows/macOS) : protocole JSON-RPC, liste blanche de
     # méthodes, analyseurs des sorties d'outils. Les binaires Windows/macOS sont construits et
     # embarqués dans leurs jobs de packaging respectifs.
     name: Devices sidecar (Rust)
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -702,6 +377,8 @@ jobs:
     # deb, Windows et macOS est contrôlé par les jobs de packaging, celui des APK Android par `android-build`
     # (et des AAB par play-aab.yml). Ce job ne valide aucun appareil réel.
     name: Media component (${{ matrix.os }})
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     # Chaque architecture de paquet doit passer les mêmes contrôles bloquants.
@@ -761,6 +438,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: [version]
+    if: needs.version.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -932,6 +610,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     needs: [version]
+    if: needs.version.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -997,6 +676,8 @@ jobs:
 
   install-script:
     name: install.sh sanity
+    needs: [version]
+    if: needs.version.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1037,6 +718,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     needs: [version]
+    if: needs.version.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1138,6 +820,7 @@ jobs:
     runs-on: windows-11-arm
     timeout-minutes: 60
     needs: [version]
+    if: needs.version.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1247,6 +930,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     needs: [version]
+    if: needs.version.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -1367,6 +1051,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 45
     needs: [version]
+    if: needs.version.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1532,16 +1217,20 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, assistant-core, assistant-core-arm64, assistant-bundle, assistant-android, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages, linux-rpm-aarch64]
+    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages, linux-rpm-aarch64]
     runs-on: ubuntu-latest
     steps:
       - name: Tous les contrôles sont verts
+        env:
+          CODE: ${{ needs.version.outputs.code }}
         run: |
           set -eu
+          [ "${{ needs.version.result }}" = success ] || { echo "::error::job version en échec"; exit 1; }
           results='${{ join(needs.*.result, ' ') }}'
-          echo "résultats : $results"
+          echo "résultats : $results (code : $CODE)"
+          # Documentation seule : les jobs de construction sont ignorés par décision, pas par échec.
           for r in $results; do
-            [ "$r" = "success" ] || { echo "::error::un contrôle a échoué ou a été ignoré ($r)"; exit 1; }
+            [ "$r" = "success" ] || { [ "$CODE" = false ] && [ "$r" = skipped ]; } || { echo "::error::un contrôle a échoué ou a été ignoré ($r)"; exit 1; }
           done
 
   linux-package-signing:
@@ -1583,7 +1272,7 @@ jobs:
 
   release-stable:
     name: Publish Stable Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1633,7 +1322,7 @@ jobs:
   # de main, sans validation matérielle manuelle.
   release-canary:
     name: Publish/Update Canary Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'canary'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1676,7 +1365,7 @@ jobs:
   # générées automatiquement que Canary, juste un déclenchement différent.
   release-beta:
     name: Publish/Update Beta Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, assistant-core, assistant-core-arm64, android-build, linux-packages, linux-package-signing]
+    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'beta'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1710,128 +1399,9 @@ jobs:
           token: ${{ github.token }}
 
 
-  # Release de l'assistant d'installation, à part de celle de Bobine : la mise à jour intégrée des installations existantes
-  # prend le premier .exe, .deb ou .dmg de la bonne architecture d'une release de Bobine. Une seule release par canal
-  # (assistant-Vx.y.z, assistant-beta, assistant-canary), publiée après celle de Bobine ; la Stable n'est jamais « Latest ».
-  publish-assistant:
-    name: Publish assistant release
-    needs: [version, assistant-bundle, assistant-android, release-stable, release-canary, release-beta]
-    if: >-
-      always() && needs.assistant-bundle.result == 'success' && needs.assistant-android.result == 'success' && (
-        needs.release-stable.result == 'success' ||
-        (needs.release-canary.result == 'success' && needs.release-canary.outputs.published == 'true') ||
-        (needs.release-beta.result == 'success' && needs.release-beta.outputs.published == 'true'))
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write
-    concurrency:
-      group: publish-assistant-${{ needs.version.outputs.channel }}
-      cancel-in-progress: false
-    env:
-      CHANNEL: ${{ needs.version.outputs.channel }}
-      TAG: assistant-${{ needs.version.outputs.tag_name }}
-      SUFFIX: ${{ needs.version.outputs.filename_version }}
-      ASSISTANT_VERSION: ${{ (needs.version.outputs.channel == 'beta' || needs.version.outputs.channel == 'canary') && format('{0}+{1}.{2}', needs.version.outputs.base_version, needs.version.outputs.channel, github.run_number) || needs.version.outputs.base_version }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.tag }}
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: assistant-packages-*
-          merge-multiple: true
-          path: assistant-assets
-      - name: Manifeste de mise à jour (latest.json)
-        run: python3 scripts/ci/render-assistant-latest.py assistant-assets "$TAG" "$ASSISTANT_VERSION"
-      - name: Manifestes winget (Stable)
-        if: needs.version.outputs.channel == 'stable'
-        run: |
-          (cd assistant-assets && sha256sum Bobine-Assistant-Setup-*.exe) > "$RUNNER_TEMP/winget-assistant-SHA256SUMS"
-          python3 scripts/ci/winget-manifests.py "$RUNNER_TEMP/winget-assistant-SHA256SUMS" "$TAG" assistant-assets
-      - name: Signer la liste des empreintes (SHA256SUMS)
-        env:
-          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
-          GNUPGHOME: ${{ runner.temp }}/bobine-signing
-        run: |
-          install -d -m 0700 "$GNUPGHOME"
-          printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
-          bash scripts/ci/sign-release-checksums.sh assistant-assets
-          gpgconf --kill gpg-agent || true
-          rm -rf "$GNUPGHOME"
-      - name: Vérifier la complétude des assets
-        run: bash scripts/ci/verify-assistant-assets.sh assistant-assets "$SUFFIX"
-      - name: Notes de la release
-        run: python3 scripts/ci/render-assistant-notes.py "$CHANNEL" "${{ needs.version.outputs.tag_name }}" "$SUFFIX" > "$RUNNER_TEMP/assistant-notes.md"
-      - name: Placer le tag
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Le commit publié est celui du checkout (inputs.tag), pas la référence choisie pour un workflow_dispatch.
-          target=$(git rev-parse HEAD)
-          if [ "$CHANNEL" = stable ]; then
-            # Un tag Stable ne bouge jamais : créé s'il manque, accepté s'il désigne déjà ce commit.
-            if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
-              # Un tag annoté expose le commit qu'il désigne sur la ligne ^{} ; un tag léger n'en a pas.
-              remote=$(git ls-remote origin "refs/tags/$TAG^{}" | awk 'NR==1 {print $1}')
-              [ -n "$remote" ] || remote=$(git ls-remote origin "refs/tags/$TAG" | awk 'NR==1 {print $1}')
-              [ "$remote" = "$target" ] || { echo "::error::$TAG existe déjà sur un autre commit" >&2; exit 1; }
-            else
-              git tag "$TAG" "$target" && git push origin "refs/tags/$TAG"
-            fi
-          else
-            git tag -f "$TAG" "$target"
-            # GITHUB_TOKEN refuse de déplacer un tag dont le diff touche .github/workflows : supprimer puis recréer la
-            # référence, comme release-canary et release-beta.
-            git push origin ":refs/tags/$TAG" || true
-            git push origin "refs/tags/$TAG"
-          fi
-      - name: Publier
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_KIND: ${{ needs.version.outputs.channel == 'stable' && 'stable-secondaire' || 'glissant' }}
-        run: >-
-          bash scripts/ci/publish-rolling-release.sh "$TAG" assistant-assets
-          "Bobine Assistant ${{ needs.version.outputs.channel == 'stable' && needs.version.outputs.base_version || needs.version.outputs.channel }}"
-          "$RUNNER_TEMP/assistant-notes.md" "$(git rev-parse HEAD)"
-      # La Stable a un tag par version : l'adresse fixe que lit l'assistant Stable est la release assistant-stable, qui ne
-      # porte que le latest.json de la dernière Stable (ses liens visent assistant-Vx.y.z).
-      - name: Pointeur de mise à jour Stable (assistant-stable)
-        if: needs.version.outputs.channel == 'stable'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_KIND: stable-secondaire
-        run: |
-          target=$(git rev-parse HEAD)
-          # Une relance d'une ancienne Stable ne doit pas faire reculer le pointeur : les nouvelles installations
-          # recevraient cette ancienne version jusqu'à la Stable suivante.
-          current_version=""
-          if gh release view assistant-stable > /dev/null 2>&1; then
-            if gh release download assistant-stable --pattern latest.json --output "$RUNNER_TEMP/current-latest.json" --clobber > /dev/null 2>&1; then
-              current_version=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$RUNNER_TEMP/current-latest.json")
-            fi
-          fi
-          if [ -n "$current_version" ] && ! python3 -c 'import sys
-          a = tuple(int(part) for part in sys.argv[1].split("+", 1)[0].split("."))
-          b = tuple(int(part) for part in sys.argv[2].split("+", 1)[0].split("."))
-          sys.exit(0 if b > a else 1)' "$current_version" "$ASSISTANT_VERSION"; then
-            echo "assistant-stable annonce déjà $current_version : $ASSISTANT_VERSION ne le remplace pas."
-            exit 0
-          fi
-          mkdir -p "$RUNNER_TEMP/assistant-stable"
-          cp assistant-assets/latest.json "$RUNNER_TEMP/assistant-stable/"
-          printf '%s\n' "Manifeste de mise à jour de Bobine Assistant Stable : pointe vers la release [$TAG](https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG)." > "$RUNNER_TEMP/assistant-stable-notes.md"
-          # Même contournement que pour les canaux glissants : GITHUB_TOKEN ne peut pas déplacer une référence dont le
-          # diff touche .github/workflows.
-          git tag -f assistant-stable "$target"
-          git push origin ":refs/tags/assistant-stable" || true
-          git push origin "refs/tags/assistant-stable"
-          bash scripts/ci/publish-rolling-release.sh assistant-stable "$RUNNER_TEMP/assistant-stable" \
-            "Bobine Assistant — mise à jour Stable" "$RUNNER_TEMP/assistant-stable-notes.md" "$target"
-
   publish-linux-packages:
     name: Publier les dépôts Linux (packages.bobine.fit)
-    needs: [version, linux-deb, linux-package-signing, release-stable, release-beta, release-canary, assistant-bundle]
+    needs: [version, linux-deb, linux-package-signing, release-stable, release-beta, release-canary]
     if: |
       always() && !cancelled() && needs.linux-package-signing.result == 'success' &&
       (needs.release-stable.result == 'success' ||
@@ -1869,14 +1439,6 @@ jobs:
         with:
           name: bobine-linux-deb-arm64
           path: package-assets
-      # Paquets de l'assistant (.deb et .rpm signés, x64 et ARM64), à côté de bobine dans le même canal ; un échec de leur
-      # construction ne bloque pas la publication de Bobine : le dépôt garde alors l'assistant déjà publié.
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        if: needs.assistant-bundle.result == 'success'
-        with:
-          pattern: assistant-packages-Linux-*
-          merge-multiple: true
-          path: assistant-assets
       - name: Installer les outils de dépôt
         run: |
           sudo apt-get $APT_OPTIONS update
@@ -1892,10 +1454,8 @@ jobs:
           install -d -m 0700 "$GNUPGHOME"
           printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
           rpm --import package-assets/bobine.gpg
-          assistant=""
-          [ -d assistant-assets ] && assistant=assistant-assets
-          bash scripts/ci/prepare-package-repository.sh deb "$CHANNEL" package-assets package-repo $assistant
-          bash scripts/ci/prepare-package-repository.sh rpm "$CHANNEL" package-assets package-repo $assistant
+          bash scripts/ci/prepare-package-repository.sh deb "$CHANNEL" package-assets package-repo
+          bash scripts/ci/prepare-package-repository.sh rpm "$CHANNEL" package-assets package-repo
           bash scripts/ci/prepare-package-repository.sh arch "$CHANNEL" package-assets package-repo
       - name: Vérifier toute la chaîne APT, DNF et Pacman avant publication
         run: |

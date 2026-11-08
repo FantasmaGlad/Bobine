@@ -150,8 +150,8 @@ def test_les_reglages_exposent_origine_et_canal_d_installation():
 
 
 # --- Consommateurs autonomes par nature : vérifiés contre le registre -------------------------------
-# install.sh (distribué par `curl | bash`, il ne peut pas dépendre du dépôt avant de l'avoir cloné),
-# l'assistant d'installation Tauri et les workflows CI ne peuvent pas importer le registre. Ils sont
+# install.sh (distribué par `curl | bash`, il ne peut pas dépendre du dépôt avant de l'avoir cloné)
+# et les workflows CI ne peuvent pas importer le registre. Ils sont
 # donc contrôlés ici : ajouter un canal au registre sans les mettre à jour fait échouer ce test.
 
 
@@ -163,17 +163,6 @@ def test_install_sh_connait_exactement_les_canaux_du_registre():
     assert {channel for _, channel in arms} == set(release_channel.ROLLING_CHANNEL_IDS)
     assert all(prefix == channel for prefix, channel in arms)
 
-
-def test_assistant_d_installation_propose_exactement_les_canaux_du_registre():
-    html = _read("assistant/ui/index.html")
-    values = re.findall(r'name="update-channel"[^>]*value="([a-z]+)"', html) or re.findall(r'value="([a-z]+)"[^>]*name="update-channel"', html)
-    assert values == list(release_channel.CHANNEL_IDS)
-    # La mise à jour de l'assistant LUI-MÊME est volontairement limitée à Stable et Canary (outil de
-    # développeur, cf. le commentaire d'app.js) : on vérifie seulement que les tags qu'il interroge
-    # existent bien dans le registre.
-    script = _read("assistant/ui/app.js")
-    known_tags = {c.release_tag for c in release_channel.CHANNELS if c.rolling}
-    assert set(re.findall(r"/releases/tags/([a-z]+)", script)) <= known_tags
 
 
 def test_ci_publie_exactement_les_canaux_du_registre():

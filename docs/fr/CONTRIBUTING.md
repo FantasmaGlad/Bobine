@@ -44,7 +44,6 @@ Bobine comporte plusieurs composants. Avant d'ouvrir une demande de fusion, lanc
 |---|---|---|
 | Backend (Python, FastAPI, SQLite) | `backend/` | `python -m compileall -q backend/app scripts` puis `python -m pytest backend/tests -q` avec `PYTHONPATH=backend` (nécessite `ffmpeg`, `pytest` et `httpx` ; la CI utilise Python 3.11, 3.12 et 3.13, donc aucune syntaxe postérieure à 3.11) |
 | Frontend (Next.js, Node 22) | `frontend/` | `npm ci` puis `npm run build` (CI) ; `npm test` (CI) ; aussi `npx tsc --noEmit` (local). `npm run lint` n'est pas imposé par la CI et signale des problèmes existants : n'en introduisez pas de nouveaux dans le code que vous touchez |
-| Assistant (Rust, Tauri) | `assistant/` | `cargo clippy --workspace --all-targets -- -D warnings` puis `cargo test --workspace` |
 | Sidecar des périphériques (Rust) | `devices/` | `cargo clippy --locked --all-targets -- -D warnings` puis `cargo test --locked` |
 | Composant audio natif (Rust) | `media/` | `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings` puis `cargo test --locked` ; `python3 scripts/ci/check-media-licenses.py --offline` pour les licences des dépendances |
 
@@ -79,7 +78,7 @@ type(scope): description courte à l'impératif
 | `build`, `ci`, `chore` | empaquetage, pipelines, maintenance |
 | `revert` | l'annulation d'un commit précédent |
 
-Le scope désigne le domaine (`coach`, `playlists`, `audio`, `schedule`, `updates`, `packaging`, `assistant`, `android`, `windows`, `security`, `ci`...). Exemples tirés de l'historique :
+Le scope désigne le domaine (`coach`, `playlists`, `audio`, `schedule`, `updates`, `packaging`, `android`, `windows`, `security`, `ci`...). Exemples tirés de l'historique :
 
 ```
 fix(android): synchroniser wired_display_mode sur la detection HDMI reelle

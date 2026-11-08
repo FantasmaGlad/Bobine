@@ -136,7 +136,7 @@ ${BOLD}OPTIONS${RESET}
       --skip-build    Ne reconstruit pas le frontend (suppose frontend/out déjà à jour)
       --as-user LOGIN Compte cible quand le script tourne en root DIRECT (Debian sans sudo, lancé via 'su -').
                         Le kiosk, les fichiers et les groupes GPU appartiendront à ce compte.
-      --progress=json Émet une ligne JSON par étape (sortie machine) pour l'assistant graphique.
+      --progress=json Émet une ligne JSON par étape (sortie machine) pour Bobine Deploy.
                         Une ligne = un évènement {run_begin|step|run_end} ; le journal humain reste inchangé.
       --check         Diagnostic de l'installation existante, sans rien modifier
       --uninstall     Arrête, désactive et retire tout ce que ce script a installé
@@ -295,7 +295,7 @@ select_update_channel() {
 select_update_channel
 
 # --progress=json : sortie machine (une ligne JSON par évènement) pour piloter
-# une barre de progression depuis l'assistant graphique. Seule la valeur 'json' est gérée.
+# une barre de progression depuis Bobine Deploy. Seule la valeur 'json' est gérée.
 case "${PROGRESS}" in
     "")     ;;
     json)   PROGRESS_JSON=true ;;
@@ -650,12 +650,12 @@ STEP_OPEN=false
 
 # ---- Sortie machine (--progress=json) ----------------------------------------
 # Émet une ligne JSON compacte par évènement sur le fd 3 (stdout d'origine,
-# préservé avant la redirection vers tee) : l'assistant graphique la parse pour
+# préservé avant la redirection vers tee) : Bobine Deploy la parse pour
 # une barre de progression + un journal repliable, sans que ces lignes polluent
 # le fichier journal humain. Schéma versionné par la clé de tête "bobine":1
 # (le consommateur filtre les lignes qui matchent ^\{"bobine":). Silencieux hors
 # --progress=json.
-# Astuce SSH : allouer un PTY pour un flush ligne à ligne côté assistant.
+# Astuce SSH : allouer un PTY pour un flush ligne à ligne côté Bobine Deploy.
 _json_escape() { local s="$1"; s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; printf '%s' "$s"; }
 _now_iso() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 _pct_start() { echo $(( (STEP_CUR - 1) * 100 / STEP_TOTAL )); }
@@ -809,7 +809,7 @@ mkdir -p "${LOG_DIR}" 2>/dev/null || LOG_DIR="/tmp"
 LOG_FILE="${LOG_DIR}/install-$(date +%Y%m%d-%H%M%S).log"
 # fd 3 = canal des évènements JSON (--progress=json) : on garde le stdout
 # d'origine AVANT de dérouter le stdout "humain" vers tee. Les évènements
-# atteignent ainsi l'assistant (même canal SSH) sans être écrits au journal.
+# atteignent ainsi Bobine Deploy (même canal SSH) sans être écrits au journal.
 exec 3>&1
 exec > >(tee -a "${LOG_FILE}") 2>&1
 
@@ -1031,7 +1031,7 @@ if [[ -n "${AVAIL_KB:-}" ]] && (( AVAIL_KB < 2 * 1024 * 1024 )); then
     warn "Moins de 2 Go disponibles sur $(df --output=target "${REPO_DIR}" | tail -1 | tr -d ' ') — l'import de vidéos réclame nettement plus d'espace."
 fi
 
-# Début de la séquence pilotable : métadonnées d'exécution pour l'assistant.
+# Début de la séquence pilotable : métadonnées d'exécution pour Bobine Deploy.
 emit_event "\"event\":\"run_begin\",\"version\":\"${SCRIPT_VERSION}\",\"total\":${STEP_TOTAL},\"user\":\"$(_json_escape "${TARGET_USER}")\",\"repo\":\"$(_json_escape "${REPO_DIR}")\",\"log\":\"$(_json_escape "${LOG_FILE}")\",\"mode\":\"$($NO_KIOSK && echo server || echo kiosk)\",\"dry_run\":${DRY_RUN}"
 
 # ---------------------------------------------------------------------------
@@ -2143,7 +2143,7 @@ if [[ -n "${LAN_IP:-}" ]] && ! $DRY_RUN && ! $QUIET && command -v qrencode >/dev
     echo
 fi
 
-# Fin de la séquence pilotable : l'assistant peut fermer sa barre à 100 % et
+# Fin de la séquence pilotable : Bobine Deploy peut fermer sa barre à 100 % et
 # afficher l'écran final (URL/QR). healthy reflète le contrôle /api/health.
 emit_event "\"event\":\"run_end\",\"status\":\"ok\",\"pct\":100,\"total\":${STEP_TOTAL},\"healthy\":${HEALTHY:-false},\"audio\":${AUDIO_OK:-false},\"vaapi\":${VAAPI_OK:-false},\"url\":\"http://bobine.local\",\"lan_ip\":\"${LAN_IP:-}\",\"port\":${SERVICE_PORT},\"dry_run\":${DRY_RUN}"
 

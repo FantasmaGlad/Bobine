@@ -97,7 +97,7 @@ def test_foreign_origin_cannot_change_state():
 def test_same_origin_cli_and_dev_server_pass():
     client = TestClient(_guarded_app())
     assert client.post("/api/action", headers={"Origin": "http://testserver"}).status_code == 200
-    assert client.post("/api/action").status_code == 200  # CLI, assistant, curl : pas d'en-tête Origin
+    assert client.post("/api/action").status_code == 200  # CLI, Bobine Deploy, curl : pas d'en-tête Origin
     assert client.post("/api/action", headers={"Origin": "http://localhost:3000"}).status_code == 200
     assert client.get("/api/state", headers={"Origin": EVIL}).status_code == 200
 

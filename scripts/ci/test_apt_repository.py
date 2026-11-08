@@ -80,17 +80,19 @@ class AptRepositoryTests(unittest.TestCase):
     def packages_index(self, channel, architecture):
         return (self.debian / "dists" / channel / "main" / f"binary-{architecture}" / "Packages").read_text()
 
-    def test_assistant_is_published_beside_bobine_and_kept_without_new_packages(self):
-        result = self.run_script(PREPARE, "deb", "canary", str(self.packages), str(self.pages), str(self.assistant))
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+    def test_the_former_assistant_is_removed_from_the_channel(self):
+        # Bobine Deploy a son propre dépôt : un bobine-assistant déjà publié disparaît à la publication suivante du canal.
+        self.prepare("canary")
+        for deb in sorted(self.assistant.glob("*.deb")):
+            included = subprocess.run(["reprepro", "-b", str(self.debian), "includedeb", "canary", str(deb)], capture_output=True, text=True, env=self.env)
+            self.assertEqual(included.returncode, 0, included.stdout + included.stderr)
+        self.assertIn("Package: bobine-assistant\n", self.packages_index("canary", "amd64"))
+        self.prepare("canary")
         for architecture in ("amd64", "arm64"):
             index = self.packages_index("canary", architecture)
             self.assertIn("Package: bobine\n", index)
-            self.assertIn("Package: bobine-assistant\nVersion: 1.0+canary.7", index)
-        # Une publication de Bobine seule (construction de l'assistant en échec) garde l'assistant déjà publié.
-        self.prepare("canary")
-        self.assertIn("Package: bobine-assistant\n", self.packages_index("canary", "amd64"))
-        self.assertTrue(list((self.debian / "pool").rglob("bobine-assistant_*.deb")))
+            self.assertNotIn("bobine-assistant", index)
+        self.assertFalse(list((self.debian / "pool").rglob("bobine-assistant_*.deb")))
 
     def test_unknown_channel_is_refused(self):
         result = self.run_script(PREPARE, "deb", "nightly", str(self.packages), str(self.pages))

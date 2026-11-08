@@ -82,7 +82,6 @@ def _blueness(path: Path) -> float:
         "Assets/Images/logo_bobine_icon_{c}.png",
         "frontend/public/logo-{c}.png",
         "frontend/public/favicon-{c}.png",
-        "assistant/ui/assets/channel-{c}.png",
         "packaging/linux/icons/{c}/hicolor/256x256/apps/com.bobine.app.png",
         "android/app/src/channel-{c}/res/mipmap-xxxhdpi/ic_launcher_foreground.png",
         "android/app/src/main/res/drawable-nodpi/bobine_splash_logo_{c}.png",

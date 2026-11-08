@@ -41,21 +41,10 @@ class WingetManifestTests(unittest.TestCase):
                            ("FantasmaGlad.Bobine.locale.fr-FR.yaml", "locale")):
             self.assertTrue(files[name].startswith(f"# yaml-language-server: $schema=https://aka.ms/winget-manifest.{kind}.1.12.0.schema.json\n"))
 
-    def test_assistant_has_its_own_package_from_its_own_release(self):
-        sums = "c" * 64 + "  Bobine-Assistant-Setup-5.1.1.exe\n" + "d" * 64 + "  Bobine-Assistant-Setup-5.1.1-arm64.exe\n"
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "SHA256SUMS"
-            path.write_text(sums, encoding="utf-8")
-            files = winget.manifests(winget.read_sums(path), "assistant-V5.1.1")
-        self.assertEqual(set(files), {"FantasmaGlad.BobineAssistant.yaml", "FantasmaGlad.BobineAssistant.installer.yaml",
-                                      "FantasmaGlad.BobineAssistant.locale.en-US.yaml", "FantasmaGlad.BobineAssistant.locale.fr-FR.yaml"})
-        installer = files["FantasmaGlad.BobineAssistant.installer.yaml"]
-        self.assertIn("InstallerType: nullsoft\nScope: user", installer)
-        self.assertIn("releases/download/assistant-V5.1.1/Bobine-Assistant-Setup-5.1.1-arm64.exe\n    InstallerSha256: " + "D" * 64, installer)
-        self.assertIn("PackageVersion: 5.1.1\n", installer)
-        self.assertIn("PackageName: Bobine Assistant", files["FantasmaGlad.BobineAssistant.locale.en-US.yaml"])
+    def test_only_bobine_tags_are_accepted(self):
+        # Bobine Deploy publie ses propres manifestes depuis son dépôt.
         with self.assertRaises(SystemExit):
-            winget.manifests(winget.read_sums(path) if False else {}, "assistant-canary")
+            winget.manifests({"Bobine-Setup-5.1.1.exe": "A" * 64}, "assistant-V5.1.1")
 
     def test_missing_installer_and_rolling_tag_are_refused(self):
         with self.assertRaises(SystemExit):

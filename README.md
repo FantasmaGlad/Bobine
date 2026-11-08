@@ -61,7 +61,7 @@ Same packages on derivatives (glibc 2.38+): <img src="Assets/Icons/distros/linux
 
 Turns a mini PC (Debian 13, x64 or ARM64) into a dedicated Bobine player: it starts straight into the fullscreen kiosk on its HDMI screen and resumes on its own after a power cut.
 
-- **From your computer, with the setup assistant**: it finds the mini PC on your network, connects to it over SSH and installs everything with a progress bar. Assistant for Linux: [x64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine-assistant) · [ARM64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/bobine-assistant-arm64).
+- **From your computer, with [Bobine Deploy](https://github.com/FantasmaGlad/bobine-deploy)**: it finds the mini PC on your network, connects to it over SSH and installs everything with a progress bar, from a window or the command line (Linux, Windows, macOS; [releases](https://github.com/FantasmaGlad/bobine-deploy/releases/latest)).
 - **Directly on the mini PC**, in a terminal ([install.sh](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/install.sh)):
 
   ```bash
@@ -178,4 +178,4 @@ Bobine offers three update channels, switchable anytime in **Settings → Softwa
 - **Contributing**: Bug reports and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 - **License**: Free and open-source software licensed under the **GNU Affero General Public License v3.0 ([AGPL-3.0](LICENSE))**.
 
-<sub>Related repositories: [BobineWeb](https://github.com/FantasmaGlad/BobineWeb) (website) · [bobine-packages](https://github.com/FantasmaGlad/bobine-packages) (Linux package repositories) · [homebrew-bobine](https://github.com/FantasmaGlad/homebrew-bobine) (Homebrew tap) · Security policy: [security.bobine.fit](https://security.bobine.fit), [`/.well-known/security.txt`](https://bobine.fit/.well-known/security.txt)</sub>
+<sub>Related repositories: [bobine-deploy](https://github.com/FantasmaGlad/bobine-deploy) (remote installation) · [BobineWeb](https://github.com/FantasmaGlad/BobineWeb) (website) · [bobine-packages](https://github.com/FantasmaGlad/bobine-packages) (Linux package repositories) · [homebrew-bobine](https://github.com/FantasmaGlad/homebrew-bobine) (Homebrew tap) · Security policy: [security.bobine.fit](https://security.bobine.fit), [`/.well-known/security.txt`](https://bobine.fit/.well-known/security.txt)</sub>

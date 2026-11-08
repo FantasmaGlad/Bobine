@@ -3,7 +3,7 @@
 Bobine n'a ni mot de passe ni jeton : le réseau local est de confiance. Ce qui reste à empêcher, c'est qu'une page
 web quelconque ouverte sur un appareil du réseau pilote l'API à la place de l'utilisateur (désinstallation,
 remise à zéro, formatage, lecture). Un navigateur joint toujours l'en-tête `Origin` à une requête qui modifie un
-état ou ouvre un WebSocket ; la CLI, l'assistant et `curl` ne l'envoient pas et passent donc sans contrôle.
+état ou ouvre un WebSocket ; la CLI, Bobine Deploy et `curl` ne l'envoient pas et passent donc sans contrôle.
 
 Comparer `Origin` à `Host` ne suffit pas : par rebinding DNS, une page de `evil.example` dont le nom résout ensuite
 vers l'adresse de Bobine envoie des en-têtes identiques. Le nom joint doit donc aussi être un nom qu'aucun tiers ne
