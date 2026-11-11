@@ -432,7 +432,6 @@ export function usePlaybackSocket(
             return;
           }
           if (parsed.event === "library_change") {
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- réaction à un évènement externe temps réel
             setLibraryVersion((v) => v + 1);
             return;
           }

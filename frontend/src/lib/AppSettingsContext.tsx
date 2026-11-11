@@ -291,34 +291,26 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
           if (parsed.event === "settings_change") {
             if (typeof parsed.theme === "string") {
               const stored = resolveStored(parsed.theme, parsed.theme_mode);
-              // eslint-disable-next-line react-hooks/set-state-in-effect -- réaction à un évènement externe temps réel, pas un calcul dérivable au rendu
               setThemeState(stored.theme);
               setThemeModeState(stored.mode);
             }
             if (parsed.language === "fr" || parsed.language === "en") {
-              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setLanguageState(parsed.language);
             }
             if (parsed.simplified_ui === "true" || parsed.simplified_ui === "false") {
-              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setSimplifiedUiState(parsed.simplified_ui === "true");
             }
             if (typeof parsed.has_custom_logo === "boolean") {
-              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setHasCustomLogo(parsed.has_custom_logo);
-              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setLogoVersion((v) => v + 1);
             }
             if (parsed.active_logo === "default" || parsed.active_logo === "custom") {
-              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setActiveLogoState(parsed.active_logo);
             }
             if (parsed.wired_display_mode === "dual_screen" || parsed.wired_display_mode === "headless") {
-              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setWiredDisplayModeState(parsed.wired_display_mode);
             }
             if (isReleaseChannel(parsed.update_channel)) {
-              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setUpdateChannel(parsed.update_channel);
               pushUpdateChannelToNative(parsed.update_channel);
             }
@@ -326,7 +318,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
           if (parsed.event === "display_mode_change") {
             const mode = parsed.mode || parsed.wired_display_mode;
             if (mode === "dual_screen" || mode === "headless") {
-              // eslint-disable-next-line react-hooks/set-state-in-effect -- idem
               setWiredDisplayModeState(mode);
             }
             // Branchement/débranchement d'un projecteur : recale aussi le

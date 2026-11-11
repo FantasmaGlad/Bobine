@@ -17,6 +17,7 @@ import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOut
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import { getApiUrl } from "@/lib/apiUrl";
+import { formatTime, formatWallClock } from "@/lib/format";
 
 // Écran du poste radio dédié : mise en page "type Spotify", lecteur PRIMAIRE (source de la
 // position rapportée au serveur, comme le kiosk câblé/réseau).
@@ -35,18 +36,6 @@ import { getApiUrl } from "@/lib/apiUrl";
 // (cf. handleEvent), pour que la position rapportée reste cohérente avec
 // l'état serveur pendant le chevauchement. Le rappel réutilise
 // le MÊME graphe : la « rampe de gain » n'est plus qu'une primitive partagée.
-
-function formatTime(seconds: number | null | undefined) {
-  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-function formatClock(date: Date | null) {
-  if (!date) return "--:--";
-  return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
-}
 
 const DUCK_LEVEL_DEFAULT = 15;
 const DUCK_FADE_MS_DEFAULT = 1500;
@@ -433,7 +422,6 @@ export default function RadioScreenPage() {
   // rappel (état « announcing » : la musique y est gérée par le rappel).
   const activeMediaRef = useMemo(
     () => ({ get current() { return getAudioEl(activeSlotRef.current); } }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- getAudioEl ne lit que des refs stables
     [],
   );
   useMediaClockFollower({
@@ -465,7 +453,7 @@ export default function RadioScreenPage() {
   // côté client (l'instant réel où la page s'ouvre, potentiellement des jours
   // après) : React détecte l'écart et rejette tout le HTML pré-rendu. La vraie
   // heure n'est posée qu'ici, dans l'effet ci-dessous (hors rendu, après
-  // hydratation) — formatClock affiche "--:--" le temps de ce premier réglage.
+  // hydratation) — formatWallClock affiche "--:--" le temps de ce premier réglage.
   const [now, setNow] = useState<Date | null>(null);
   const clockOffsetRef = useRef(0);
   useEffect(() => {
@@ -757,7 +745,7 @@ export default function RadioScreenPage() {
       {!currentTrack ? (
         <>
           <AppLogo className="radio-brand-logo" />
-          <span className="radio-screen-clock">{formatClock(now)}</span>
+          <span className="radio-screen-clock">{formatWallClock(now)}</span>
           <span className="radio-screen-idle-label">
             {connected ? t("radioScreen.idleHint") : t("radioRemote.disconnected")}
           </span>

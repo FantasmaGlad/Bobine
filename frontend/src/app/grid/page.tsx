@@ -9,12 +9,16 @@ import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
 import { useScreenWakeLock } from "@/lib/useScreenWakeLock";
 import { useKioskRemote, moveDomFocus, moveDomFocus2D, activateDomFocus } from "@/lib/useKioskRemote";
 import Icon from "@/components/Icon";
+import CinemaRow from "@/components/cinema/CinemaRow";
+import CinemaAllList from "@/components/cinema/CinemaAllList";
+import { thumbnailUrl, type CinemaVideo } from "@/lib/cinemaCatalog";
 import AppLogo from "@/components/AppLogo";
 import MarqueeText from "@/components/MarqueeText";
 import CourseRatingWidget from "@/components/CourseRatingWidget";
 import RadioRemotePanel from "@/components/RadioRemotePanel";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 import { getApiUrl } from "@/lib/apiUrl";
+import { formatMinutes, formatTime, formatWallClock } from "@/lib/format";
 
 // écran de sélection
 // SEUL — reprend la présentation visuelle de la grille de `/cinema` (héros
@@ -25,196 +29,7 @@ import { getApiUrl } from "@/lib/apiUrl";
 // HDMI de la tablette Android). Cette page reste TOUJOURS affichée sur la
 // grille, y compris pendant qu'un cours joue ailleurs sur le canal.
 //
-// Duplique volontairement quelques petits utilitaires (`getApiUrl`,
-// `thumbnailUrl`, `formatDurationMin`, `CinemaRow`, `CinemaAllList`)
-// plutôt que de les extraire de `cinema/page.tsx` dans un module partagé :
-// cohérent avec la convention déjà en place dans ce dépôt (chaque route a
-// sa propre petite fonction `getApiUrl`, jamais un utilitaire central) et
-// évite tout risque de régression sur `/cinema`, qui reste inchangé à part
-// l'ajout de la commande `launch`.
-
-interface CinemaVideo {
-  id: number;
-  title: string;
-  program: string | null;
-  release: string | null;
-  duration_seconds: number | null;
-  thumbnail_path: string | null;
-  width?: number | null;
-  height?: number | null;
-  codec?: string | null;
-  description?: string | null;
-  audio_channels?: number | null;
-  audio_codec?: string | null;
-  fps?: number | null;
-  bitrate_kbps?: number | null;
-}
-
-function formatDurationMin(seconds: number | null) {
-  if (!seconds) return "";
-  return `${Math.round(seconds / 60)} min`;
-}
-
-function formatClock(date: Date) {
-  return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
-}
-
-function formatTime(seconds: number | null | undefined) {
-  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-function thumbnailUrl(video: CinemaVideo): string | null {
-  if (!video.thumbnail_path) return null;
-  const filename = video.thumbnail_path.split("/").pop();
-  return filename ? getApiUrl(`/thumbnails/${filename}`) : null;
-}
-
-const ROW_SCROLL_FRACTION = 0.85;
-
-const GridRow = React.memo(function GridRow({
-  programName,
-  items,
-  rowIndex,
-  onSelect,
-  onHover,
-  coursesCountLabel,
-}: {
-  programName: string;
-  items: CinemaVideo[];
-  rowIndex: number;
-  onSelect: (video: CinemaVideo) => void;
-  onHover: () => void;
-  coursesCountLabel: string;
-}) {
-  const scrollRef = React.useRef<HTMLDivElement | null>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const updateArrows = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }, []);
-
-  useEffect(() => {
-    updateArrows();
-    const el = scrollRef.current;
-    if (!el) return;
-    const onResize = () => updateArrows();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [updateArrows, items.length]);
-
-  const { t } = useAppSettings();
-  const scrollBy = (direction: 1 | -1) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollBy({ left: direction * el.clientWidth * ROW_SCROLL_FRACTION, behavior: "smooth" });
-  };
-
-  return (
-    <section className="cinema-row" style={{ animationDelay: `${rowIndex * 90}ms` }}>
-      <div className="cinema-row-header">
-        <h2>{programName}</h2>
-        <span className="cinema-row-count">{coursesCountLabel}</span>
-      </div>
-      <div className="cinema-row-wrap">
-        {canScrollLeft && (
-          <button className="cinema-row-arrow cinema-row-arrow-left" onClick={() => scrollBy(-1)} aria-label={t("common.previous")}>
-            <Icon name="chevron_left" size={32} />
-          </button>
-        )}
-        <div className="cinema-row-scroll" ref={scrollRef} onScroll={updateArrows}>
-          {items.map((v, i) => {
-            const thumb = thumbnailUrl(v);
-            return (
-              <button
-                key={v.id}
-                className="cinema-card"
-                style={{ animationDelay: `${rowIndex * 90 + i * 45}ms` }}
-                onClick={() => onSelect(v)}
-                onMouseEnter={onHover}
-                title={v.title}
-              >
-                <div className="cinema-card-thumb">
-                  {thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={thumb} alt="" loading="lazy" />
-                  ) : (
-                    <div className="cinema-card-thumb-fallback">
-                      <Icon name="movie" size={40} color="var(--text-dim)" />
-                    </div>
-                  )}
-                  <span className="cinema-card-play">
-                    <Icon name="play_arrow" size={34} filled />
-                  </span>
-                  {v.duration_seconds ? (
-                    <span className="cinema-card-duration">{formatDurationMin(v.duration_seconds)}</span>
-                  ) : null}
-                </div>
-                <MarqueeText text={v.title} className="cinema-card-title" />
-                <span className="cinema-card-meta">{v.release ?? ""}</span>
-              </button>
-            );
-          })}
-        </div>
-        {canScrollRight && (
-          <button className="cinema-row-arrow cinema-row-arrow-right" onClick={() => scrollBy(1)} aria-label="Suivant">
-            <Icon name="chevron_right" size={32} />
-          </button>
-        )}
-      </div>
-    </section>
-  );
-});
-
-const GridAllList = React.memo(function GridAllList({
-  videos,
-  onSelect,
-  onHover,
-}: {
-  videos: CinemaVideo[];
-  onSelect: (video: CinemaVideo) => void;
-  onHover: () => void;
-}) {
-  return (
-    <div className="cinema-all-grid">
-      {videos.map((v, i) => {
-        const thumb = thumbnailUrl(v);
-        const accent = "var(--accent-text)";
-        return (
-          <button
-            key={v.id}
-            className="cinema-all-item"
-            style={{ animationDelay: `${i * 30}ms` }}
-            onClick={() => onSelect(v)}
-            onMouseEnter={onHover}
-          >
-            <div className="cinema-all-thumb">
-              {thumb ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={thumb} alt="" loading="lazy" />
-              ) : (
-                <Icon name="movie" size={22} color="var(--text-dim)" />
-              )}
-            </div>
-            <div className="cinema-all-text">
-              <MarqueeText text={v.title} className="cinema-all-title" />
-              <span className="cinema-all-meta" style={{ color: accent }}>
-                {[v.program, formatDurationMin(v.duration_seconds)].filter(Boolean).join(" · ")}
-              </span>
-            </div>
-            <Icon name="play_circle" size={26} color="var(--text-dim)" />
-          </button>
-        );
-      })}
-    </div>
-  );
-});
+// Les rangées et la liste complète sont les composants de `/cinema` (`components/cinema`).
 
 export default function GridPage() {
   const { t, wiredDisplayMode, setWiredDisplayMode, waitTimeBetweenCourses } = useAppSettings();
@@ -463,7 +278,6 @@ export default function GridPage() {
   const [ratingCourse, setRatingCourse] = useState<{
     videoId: number;
     title: string;
-    sessionId?: number | null;
   } | null>(null);
   const ratingShownForVideoRef = useRef<number | null>(null);
   const lastPlayingRef = useRef<{
@@ -492,7 +306,6 @@ export default function GridPage() {
         setRatingCourse({
           videoId: nowPlaying.video_id,
           title: nowPlaying.title || "",
-          sessionId: null,
         });
       }
     } else if (!nowPlaying && lastPlayingRef.current) {
@@ -507,7 +320,6 @@ export default function GridPage() {
         setRatingCourse({
           videoId: last.videoId,
           title: last.title,
-          sessionId: null,
         });
       }
       lastPlayingRef.current = null;
@@ -579,7 +391,7 @@ export default function GridPage() {
         <div className="grid-standby-card">
           <div className="grid-standby-header">
             <AppLogo size={48} className="grid-standby-logo" />
-            <span className="grid-standby-clock">{formatClock(now)}</span>
+            <span className="grid-standby-clock">{formatWallClock(now)}</span>
           </div>
 
           <div className="grid-standby-content">
@@ -652,7 +464,7 @@ export default function GridPage() {
                 {t("radioRemote.gridRadioActiveHint")}
               </p>
             </div>
-            <span className="grid-standby-clock">{formatClock(now)}</span>
+            <span className="grid-standby-clock">{formatWallClock(now)}</span>
           </div>
           <RadioRemotePanel key="radio_cable" channel="radio_cable" variant="compact" />
         </div>
@@ -666,7 +478,7 @@ export default function GridPage() {
       {videos.length === 0 && (
         <div className="cinema-empty-screen">
           <AppLogo className="cinema-empty-logo" />
-          <span className="cinema-empty-clock">{formatClock(now)}</span>
+          <span className="cinema-empty-clock">{formatWallClock(now)}</span>
           <span className="cinema-empty-message">{t("cinema.empty")}</span>
         </div>
       )}
@@ -695,7 +507,7 @@ export default function GridPage() {
                   <span className="cinema-hero-year">{featured.release}</span>
                 )}
                 {featured.duration_seconds && (
-                  <span className="cinema-hero-duration">{formatDurationMin(featured.duration_seconds)}</span>
+                  <span className="cinema-hero-duration">{formatMinutes(featured.duration_seconds)}</span>
                 )}
                 {getResolutionBadge(featured.width, featured.height) && (
                   <span className="cinema-hero-badge-pill">
@@ -724,7 +536,6 @@ export default function GridPage() {
               <CourseRatingWidget
                 videoId={ratingCourse.videoId}
                 courseTitle={ratingCourse.title}
-                sessionId={ratingCourse.sessionId}
                 channel="cable"
                 autoCloseSeconds={waitTimeBetweenCourses > 0 ? waitTimeBetweenCourses : 20}
                 onClose={() => setRatingCourse(null)}
@@ -806,7 +617,7 @@ export default function GridPage() {
           {rows.length === 0 && videos.length > 0 && <p className="cinema-empty">{t("cinema.empty")}</p>}
 
           {rows.map(([programName, items], rowIndex) => (
-            <GridRow
+            <CinemaRow
               key={programName}
               programName={programName}
               items={items}
@@ -820,7 +631,7 @@ export default function GridPage() {
           {videos.length > 0 && (
             <section className="cinema-all">
               <h2>{t("cinema.allCourses")}</h2>
-              <GridAllList videos={videos} onSelect={handleSelect} onHover={playHoverSound} />
+              <CinemaAllList videos={videos} onSelect={handleSelect} onHover={playHoverSound} />
             </section>
           )}
         </div>

@@ -8,7 +8,6 @@ import { getApiUrl } from "@/lib/apiUrl";
 export interface CourseRatingWidgetProps {
   videoId: number;
   courseTitle: string;
-  sessionId?: number | null;
   channel?: "cable" | "network";
   autoCloseSeconds?: number;
   onClose?: () => void;
@@ -19,7 +18,6 @@ export interface CourseRatingWidgetProps {
 export default function CourseRatingWidget({
   videoId,
   courseTitle,
-  sessionId,
   channel = "cable",
   autoCloseSeconds = 20,
   onClose,

@@ -7,6 +7,7 @@ import ResponsiveSelect from "@/components/ResponsiveSelect";
 import { useUploadManager } from "@/lib/UploadManager";
 import { RADIO_AUDIO_EXTENSIONS, hasExtension } from "@/lib/mediaFiles";
 import { getApiUrl } from "@/lib/apiUrl";
+import { formatMediaDuration } from "@/lib/format";
 
 // Filtre les fichiers non audio d'un dossier déposé (liste unique : `lib/mediaFiles.ts`).
 const isAudioFile = (name: string) => hasExtension(name, RADIO_AUDIO_EXTENSIONS);
@@ -40,13 +41,6 @@ interface Rule {
 }
 
 interface ToastState { message: string; type: "success" | "error" | "warning"; }
-
-function formatDuration(seconds: number | null) {
-  if (!seconds) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
 
 export default function RadioAnnouncementsPage() {
   const { t } = useAppSettings();
@@ -497,7 +491,7 @@ export default function RadioAnnouncementsPage() {
                       ) : (
                         <>
                           <span className="ra-item-desc">{a.description}</span>
-                          <span className="ra-item-dur">{formatDuration(a.duration_seconds)}</span>
+                          <span className="ra-item-dur">{formatMediaDuration(a.duration_seconds)}</span>
                         </>
                       )}
                     </div>

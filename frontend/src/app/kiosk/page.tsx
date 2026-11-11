@@ -20,17 +20,7 @@ import ChapterToast from "@/components/ChapterToast";
 import VolumeOsd from "@/components/VolumeOsd";
 import { adjustMediaVolume, useVolumeHud, VOLUME_STEP } from "@/lib/volumeHud";
 import { getApiUrl } from "@/lib/apiUrl";
-
-function formatTime(seconds: number | null | undefined) {
-  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-function formatClock(date: Date) {
-  return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
-}
+import { formatTime, formatWallClock } from "@/lib/format";
 
 // Durée hh:mm:ss pour le compte à rebours « prochain cours » de l'écran
 // d'attente (format identique à l'ancien habillage dynamique).
@@ -664,7 +654,7 @@ export default function KioskPage() {
           habillage. */}
       <div className={`kiosk-layer kiosk-waiting ${isIdle ? "visible" : ""}`}>
         <div className="kiosk-waiting-content">
-          <span className="kiosk-waiting-clock" suppressHydrationWarning>{formatClock(now)}</span>
+          <span className="kiosk-waiting-clock" suppressHydrationWarning>{formatWallClock(now)}</span>
           <div className="kiosk-waiting-logo-wrap">
             <AppLogo className="kiosk-waiting-stage-logo" />
           </div>
@@ -692,7 +682,7 @@ export default function KioskPage() {
 
       <div className={`kiosk-layer kiosk-playlist-waiting ${state.state === "playlist_waiting" ? "visible" : ""}`}>
         <AppLogo size={110} className="kiosk-waiting-logo" />
-        <span className="kiosk-clock" suppressHydrationWarning>{formatClock(now)}</span>
+        <span className="kiosk-clock" suppressHydrationWarning>{formatWallClock(now)}</span>
         <div className="kiosk-playlist-info">
           <span className="kiosk-playlist-label">{t("kiosk.activePlaylist")}</span>
           <span className="kiosk-playlist-name">{state.playlist_name}</span>

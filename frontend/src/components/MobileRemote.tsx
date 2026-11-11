@@ -19,6 +19,7 @@ import { getAudioQualityBadge, getResolutionBadge } from "@/lib/videoBadges";
 import type { DisplayOutput } from "@/lib/displayChannel";
 import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
+import { formatTime } from "@/lib/format";
 
 interface VideoSummary {
   id: number;
@@ -69,13 +70,6 @@ interface MobileRemoteProps {
   /** Canal contrôlé par cette instance. Omis = comportement
    * historique (les deux canaux affichés ensemble), conservé pour "/". */
   channel?: "cable" | "network";
-}
-
-function formatTime(seconds: number | null | undefined) {
-  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 const STOP_HOLD_MS = 650;

@@ -10,6 +10,7 @@ import { ARCHIVE_ACCEPT, COURSE_AUDIO_EXTENSIONS, hasExtension, isArchiveName } 
 import Icon from "@/components/Icon";
 import AudioPlaylistManager from "@/components/AudioPlaylistManager";
 import { getApiUrl } from "@/lib/apiUrl";
+import { formatMediaDuration } from "@/lib/format";
 
 const AUDIO_ACCEPT = `${COURSE_AUDIO_EXTENSIONS.join(",")},audio/*`;
 
@@ -105,23 +106,6 @@ interface BackgroundOption {
 interface ToastState {
   message: string;
   type: "success" | "error" | "warning";
-}
-
-function formatDuration(seconds: number | null) {
-  if (!seconds) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-// Catégories libres : plus de couleur par programme, une seule classe générique suffit
-// (même simplification déjà faite côté Bibliothèque vidéo).
-function programBadgeClass(_program: string | null) {
-  return "autre";
-}
-
-function programCardClass(_program: string | null) {
-  return "program-autre";
 }
 
 export default function AudioLibraryPage() {
@@ -254,7 +238,6 @@ export default function AudioLibraryPage() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial, même motif que library/playlists/schedule
     fetchCourses();
     fetchBackgrounds();
     fetchPrograms();
@@ -703,7 +686,7 @@ export default function AudioLibraryPage() {
                 {group.courses.map((course) => {
                   const thumbSrc = getCourseThumbSrc(course);
                   return (
-                    <div key={course.id} className={`video-card ${programCardClass(course.program)}`} onClick={() => openCourse(course.id)}>
+                    <div key={course.id} className={`video-card program-autre`} onClick={() => openCourse(course.id)}>
                       <div className="thumbnail-wrapper" style={{ background: "var(--bg-surface-elevated)" }}>
                         {thumbSrc ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -718,8 +701,8 @@ export default function AudioLibraryPage() {
                       <div className="card-content">
                         <h4 className="card-title" title={course.title}>{course.title}</h4>
                         <div className="card-meta-row">
-                          <span className={`program-badge ${programBadgeClass(course.program)}`}>{course.program || t("audio.noProgram")}</span>
-                          <span className="release-badge">{formatDuration(course.total_duration_seconds)}</span>
+                          <span className={`program-badge autre`}>{course.program || t("audio.noProgram")}</span>
+                          <span className="release-badge">{formatMediaDuration(course.total_duration_seconds)}</span>
                         </div>
                       </div>
                     </div>
@@ -898,7 +881,7 @@ export default function AudioLibraryPage() {
                         </button>
 
                         <span style={{ color: "var(--text-muted)", fontSize: "0.8rem", flexShrink: 0 }}>
-                          {formatDuration(track.duration_seconds)}
+                          {formatMediaDuration(track.duration_seconds)}
                         </span>
                       </div>
                     );

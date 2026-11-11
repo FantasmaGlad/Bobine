@@ -122,7 +122,6 @@ export default function LogsPage() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetchTechnical() met setTechnicalLoading(true) en premier, même motif
     if (tab === "technical") fetchTechnical();
   }, [tab]);
 

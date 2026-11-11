@@ -12,6 +12,7 @@ import Icon from "@/components/Icon";
 import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
 import { getApiUrl } from "@/lib/apiUrl";
+import { formatTime } from "@/lib/format";
 
 interface AudioCourseSummary {
   id: number;
@@ -35,13 +36,6 @@ interface BackgroundSummary {
   is_image: boolean;
   thumbnail_path: string | null;
   duration_seconds: number | null;
-}
-
-function formatTime(seconds: number | null | undefined) {
-  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 export default function CoachModePage() {

@@ -88,7 +88,6 @@ export default function LibraryPage() {
 
   // Sous-titres pour le cours ouvert en Studio
   const [studioSubtitles, setStudioSubtitles] = useState<VideoSubtitleItem[]>([]);
-  const [isLoadingSubtitles, setIsLoadingSubtitles] = useState<boolean>(false);
   const subtitleInputRef = useRef<HTMLInputElement>(null);
 
   // Catégories (programmes) réellement présentes dans la bibliothèque, pour
@@ -332,7 +331,6 @@ export default function LibraryPage() {
   };
 
   const fetchSubtitles = async (videoId: number) => {
-    setIsLoadingSubtitles(true);
     try {
       const res = await fetch(getApiUrl(`/videos/${videoId}/subtitles`));
       if (res.ok) {
@@ -340,9 +338,7 @@ export default function LibraryPage() {
         setStudioSubtitles(Array.isArray(data) ? data : []);
       }
     } catch {
-      // ignorer
-    } finally {
-      setIsLoadingSubtitles(false);
+      // Liste de sous-titres indisponible : le studio s'ouvre sans elle.
     }
   };
 
@@ -623,8 +619,6 @@ export default function LibraryPage() {
 
   // Catégories libres : plus de couleur par programme (RPM/Sprint/… mappaient
   // déjà tous vers l'accent du thème en CSS). Une seule classe générique suffit.
-  const getProgramClass = (_program: string | null) => "program-autre";
-  const getProgramBadgeClass = (_program: string | null) => "autre";
 
   const getThumbnailSrc = (video: Video) => {
     if (!video.thumbnail_path) return null;
@@ -1012,7 +1006,7 @@ export default function LibraryPage() {
                     return (
                       <div
                         key={video.id}
-                        className={`video-card ${getProgramClass(video.program)}${isSelected ? " selected" : ""}`}
+                        className={`video-card program-autre${isSelected ? " selected" : ""}`}
                         onClick={() => handleSelectVideo(video)}
                       >
                         <div className="thumbnail-wrapper">
@@ -1037,7 +1031,7 @@ export default function LibraryPage() {
                             {video.title}
                           </h4>
                           <div className="card-meta-row">
-                            <span className={`program-badge ${getProgramBadgeClass(video.program)}`}>
+                            <span className={`program-badge autre`}>
                               {video.program || t("library.noProgram")}
                             </span>
                             {video.release && (
@@ -1103,7 +1097,7 @@ export default function LibraryPage() {
                       {video.title}
                     </td>
                     <td>
-                      <span className={`program-badge ${getProgramBadgeClass(video.program)}`}>
+                      <span className={`program-badge autre`}>
                         {video.program || t("library.noProgram")}
                       </span>
                     </td>

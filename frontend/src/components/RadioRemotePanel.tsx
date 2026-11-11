@@ -13,6 +13,7 @@ import SearchBox from "@/components/SearchBox";
 import Highlight from "@/components/Highlight";
 import { rankByQuery } from "@/lib/searchText";
 import { getApiUrl } from "@/lib/apiUrl";
+import { formatMinutes, formatTime } from "@/lib/format";
 
 // Télécommande d'UNE sortie radio (câblée ou réseau) : pilote le RadioPlaybackManager de la
 // sortie à distance (mobile + PC). Le lecteur réel est l'écran /radio?channel=… ; ce composant
@@ -41,19 +42,6 @@ interface RadioTrackSearchResult {
   genre?: string | null;
   duration_seconds: number | null;
   has_cover?: boolean;
-}
-
-function formatTime(seconds: number | null | undefined) {
-  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-function formatDuration(seconds: number) {
-  if (!seconds) return "0 min";
-  const mins = Math.round(seconds / 60);
-  return `${mins} min`;
 }
 
 const REPEAT_CYCLE: RadioRepeatMode[] = ["off", "playlist", "track"];
@@ -338,7 +326,7 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
                   // Pochette du 1er morceau illustré, durée totale à droite : aperçu avant de lancer.
                   thumbnail: p.cover_track_id != null ? getApiUrl(`/radio/tracks/${p.cover_track_id}/cover`) : null,
                   square: true,
-                  meta: formatDuration(p.total_duration_seconds),
+                  meta: formatMinutes(p.total_duration_seconds, "0 min"),
                 }))}
               />
               <button className="btn btn-primary" onClick={handleLaunch} disabled={!selectedPlaylistId}>
@@ -376,7 +364,7 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
               <p className="live-empty">{t("radioRemote.queueEmpty")}</p>
             ) : (
               <>
-                <p className="rq-summary">{t("radioRemote.queueSummary", { count: queue.length, duration: formatDuration(queueSeconds) })}</p>
+                <p className="rq-summary">{t("radioRemote.queueSummary", { count: queue.length, duration: formatMinutes(queueSeconds, "0 min") })}</p>
                 {/* Pochette, titre, artiste, style, durée de chaque morceau; glisser-déposer pour réordonner. */}
                 <RadioQueueList
                   tracks={queue}

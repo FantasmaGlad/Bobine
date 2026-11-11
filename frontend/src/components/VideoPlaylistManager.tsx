@@ -9,6 +9,7 @@ import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
 import { getApiUrl } from "@/lib/apiUrl";
+import { formatMinutes } from "@/lib/format";
 
 interface Video {
   id: number;
@@ -130,12 +131,6 @@ export default function VideoPlaylistManager() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     Promise.all([fetchPlaylists(), fetchVideos()]).finally(() => setLoading(false));
   }, []);
-
-  const formatDuration = (seconds: number) => {
-    if (!seconds) return "0 min";
-    const mins = Math.round(seconds / 60);
-    return `${mins} min`;
-  };
 
   const formatItemDuration = (seconds: number | null) => {
     if (seconds === null || seconds === undefined) return "--:--";
@@ -498,7 +493,7 @@ export default function VideoPlaylistManager() {
                       <span className="release-badge" style={{ padding: "2px 6px" }}>
                         {t("playlists.coursesCount", { count: p.item_count })}
                       </span>
-                      <span>{formatDuration(p.total_duration_seconds)}</span>
+                      <span>{formatMinutes(p.total_duration_seconds, "0 min")}</span>
                     </div>
                     <div className="playlist-card-actions">
                       <button
@@ -599,7 +594,7 @@ export default function VideoPlaylistManager() {
                 </div>
                 <div className="metadata-stat">
                   <span className="metadata-stat-label">{t("playlists.totalDurationLabel")}</span>
-                  <span className="metadata-stat-value">{formatDuration(totalDurationSeconds)}</span>
+                  <span className="metadata-stat-value">{formatMinutes(totalDurationSeconds, "0 min")}</span>
                 </div>
                 <div className="metadata-stat">
                   <span className="metadata-stat-label">{t("playlists.statusLabel")}</span>
