@@ -5,7 +5,8 @@ import json
 import pytest
 
 from app import cli
-from app.cli_commands import SPECS
+import urllib.request
+from app.cli.specs import SPECS
 
 
 class Recorder:
@@ -51,7 +52,7 @@ def test_destructive_commands_need_yes(rec, argv, capsys):
 
 
 def test_every_spec_route_is_declared_as_covered():
-    from app import cli_routes
+    from app.cli import routes as cli_routes
     for spec in SPECS:
         for route in spec.covers:
             assert cli_routes.COVERED[route] == spec.command
@@ -135,7 +136,7 @@ class FakeResponse:
 
 def test_backup_writes_a_new_file_and_never_overwrites(monkeypatch, tmp_path):
     monkeypatch.setenv("BOBINE_PORT", "1903")
-    monkeypatch.setattr(cli.urllib.request, "urlopen", lambda *a, **k: FakeResponse(b"PKdonnees"))
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: FakeResponse(b"PKdonnees"))
     target = tmp_path / "sauvegarde.zip"
     assert cli.main(["settings", "backup", str(target)]) == cli.EXIT_OK
     assert target.read_bytes() == b"PKdonnees"

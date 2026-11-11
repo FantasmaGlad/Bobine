@@ -1,5 +1,5 @@
 """Contrat entre l'API, l'interface et la commande `bobine` : une valeur se déclare une fois (app/api_contract.py), une route
-n'existe pas sans commande ni exemption motivée (app/cli_routes.py), une commande ne dérive pas de l'API."""
+n'existe pas sans commande ni exemption motivée (app/cli/routes.py), une commande ne dérive pas de l'API."""
 import argparse
 import os
 
@@ -12,7 +12,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import api_contract as contract
-from app import cli, cli_routes
+from app import cli
+from app.cli import completion as cli_completion
+from app.cli import routes as cli_routes
 from app.database import init_db
 from app.main import app
 
@@ -26,7 +28,7 @@ def api_routes() -> set[str]:
 def test_every_route_has_a_command_or_a_reasoned_exemption():
     unclassified = sorted(route for route in api_routes() if route not in cli_routes.COVERED and not cli_routes.exemption_for(route))
     assert not unclassified, (
-        "Routes sans commande bobine ni exemption : ajoutez-les à COVERED (app/cli_routes.py) avec leur commande, "
+        "Routes sans commande bobine ni exemption : ajoutez-les à COVERED (app/cli/routes.py) avec leur commande, "
         "ou à EXEMPT avec le statut never ou todo et la raison :\n  " + "\n  ".join(unclassified)
     )
 
@@ -50,7 +52,7 @@ def test_covered_routes_name_a_real_command():
 
 
 def test_every_command_listed_for_the_launcher_exists_in_the_parser():
-    assert set(cli._command_tree(cli.build_parser())[1]) == set(cli.COMMANDS)
+    assert set(cli_completion._command_tree(cli.build_parser())[1]) == set(cli.COMMANDS)
 
 
 # --- les choix du CLI sont ceux de l'API -----------------------------------------------------------------------------------

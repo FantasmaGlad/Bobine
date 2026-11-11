@@ -11,6 +11,9 @@ from pathlib import Path
 import pytest
 
 from app import cli
+import urllib.request
+from app.cli import completion as cli_completion
+from app.cli import config as cli_config
 
 BACKEND = Path(__file__).resolve().parents[1]
 
@@ -147,7 +150,7 @@ def test_server_answers_map_to_exit_codes(monkeypatch, capsys, raised, code, mes
     def fail(*args, **kwargs):
         raise raised
 
-    monkeypatch.setattr(cli.urllib.request, "urlopen", fail)
+    monkeypatch.setattr(urllib.request, "urlopen", fail)
     monkeypatch.setenv("BOBINE_PORT", "1903")
     assert cli.main(["playback", "cable", "play"]) == code
     captured = capsys.readouterr()
@@ -173,7 +176,7 @@ def test_non_json_success_is_a_clear_error(monkeypatch, capsys):
         def read(self):
             return b"<html>portail captif</html>"
 
-    monkeypatch.setattr(cli.urllib.request, "urlopen", lambda *args, **kwargs: Response())
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *args, **kwargs: Response())
     assert cli.main(["status", "--port", "1903"]) == cli.EXIT_ERROR
     captured = capsys.readouterr()
     assert captured.out == "" and "non JSON" in captured.err
@@ -505,7 +508,7 @@ def test_http_statuses_map_to_stable_exit_codes(monkeypatch, status, code):
     def fake(req, timeout=None):
         raise urllib.error.HTTPError(req.full_url, status, "x", {}, io.BytesIO(b'{"detail": "non"}'))
 
-    monkeypatch.setattr(cli.urllib.request, "urlopen", fake)
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
     assert cli.main(["--port", "1903", "settings", "get"]) == code
 
 
@@ -516,7 +519,7 @@ def test_timeout_option_and_environment(monkeypatch):
         seen["timeout"] = timeout
         raise OSError("fermé")
 
-    monkeypatch.setattr(cli.urllib.request, "urlopen", fake)
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
     cli.main(["--port", "1903", "--timeout", "7", "status"])
     assert seen["timeout"] == 7
     monkeypatch.setenv("BOBINE_TIMEOUT", "11")
@@ -549,7 +552,7 @@ def test_duplicate_config_file_names_are_refused(tmp_path):
     for folder in ("a", "b"):
         (tmp_path / folder / "settings.json").write_text("{}", encoding="utf-8")
     with pytest.raises(cli.CliError) as error:
-        cli._read_documents([str(tmp_path / "a"), str(tmp_path / "b")])
+        cli_config._read_documents([str(tmp_path / "a"), str(tmp_path / "b")])
     assert error.value.code == cli.EXIT_USAGE
 
 
@@ -563,10 +566,10 @@ def test_config_documents_keep_their_place_in_the_tree(tmp_path):
     (tmp_path / "playlists").mkdir()
     (tmp_path / "playlists" / "video.json").write_text("{}", encoding="utf-8")
     (tmp_path / "settings.json").write_text("{}", encoding="utf-8")
-    assert sorted(cli._read_documents([str(tmp_path)])) == ["playlists/video.json", "settings.json"]
-    assert sorted(cli._read_documents([str(tmp_path / "playlists")])) == ["playlists/video.json"]
-    assert sorted(cli._read_documents([str(tmp_path / "playlists" / "video.json")])) == ["playlists/video.json"]
-    assert sorted(cli._read_documents([str(tmp_path / "settings.json")])) == ["settings.json"]
+    assert sorted(cli_config._read_documents([str(tmp_path)])) == ["playlists/video.json", "settings.json"]
+    assert sorted(cli_config._read_documents([str(tmp_path / "playlists")])) == ["playlists/video.json"]
+    assert sorted(cli_config._read_documents([str(tmp_path / "playlists" / "video.json")])) == ["playlists/video.json"]
+    assert sorted(cli_config._read_documents([str(tmp_path / "settings.json")])) == ["settings.json"]
 
 
 # --- diagnose --auto-fix, complétion, -V ----------------------------------------------------------------------------------
@@ -650,7 +653,7 @@ def test_completion_bash_is_valid_shell(tmp_path, capsys):
 
 
 def test_every_command_is_listed_for_the_windows_launcher():
-    parser_commands = set(cli._command_tree(cli.build_parser())[1])
+    parser_commands = set(cli_completion._command_tree(cli.build_parser())[1])
     assert parser_commands == set(cli.COMMANDS)
 
 

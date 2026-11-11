@@ -2,7 +2,7 @@
 
 Module sans dépendance (ni FastAPI ni base) : les routeurs, les moteurs de lecture et `app.cli` l'importent, donc une
 valeur ne se déclare qu'ici. `backend/tests/test_cli_contract.py` échoue si un routeur accepte autre chose que ce
-module, ou si une route de l'API n'a ni commande `bobine` ni exemption motivée (`app/cli_routes.py`).
+module, ou si une route de l'API n'a ni commande `bobine` ni exemption motivée (`app/cli/routes.py`).
 """
 from __future__ import annotations
 

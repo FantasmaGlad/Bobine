@@ -6,6 +6,7 @@ import zipfile
 import pytest
 
 from app import cli
+from app.cli import config as cli_config
 from app.utils import zip_safety
 from app.utils.zip_safety import UnsafeZipError, safe_extract_archive
 
@@ -13,8 +14,8 @@ from app.utils.zip_safety import UnsafeZipError, safe_extract_archive
 @pytest.mark.parametrize("name", ["../x.json", "/etc/passwd", "a/../../b", "C:\\x.json", "a\x00b", "..\\x"])
 def test_export_names_leaving_the_folder_are_refused(name):
     with pytest.raises(cli.CliError):
-        cli._checked_export_name(name)
-    assert cli._checked_export_name("library/videos.json") == "library/videos.json"
+        cli_config._checked_export_name(name)
+    assert cli_config._checked_export_name("library/videos.json") == "library/videos.json"
 
 
 def test_encoded_dangerous_route_is_still_refused(monkeypatch):

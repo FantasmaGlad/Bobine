@@ -14,7 +14,7 @@ import re
 from typing import NamedTuple
 
 # "METHODE chemin OpenAPI" -> commande `bobine` qui l'appelle.
-from app.cli_commands import SPECS
+from app.cli.specs import SPECS
 
 COVERED: dict[str, str] = {
     "GET /api/health": "status",
@@ -67,7 +67,7 @@ COVERED: dict[str, str] = {
     "GET /api/settings/backup/export": "settings",
     "POST /api/settings/backup/restore": "settings",
 }
-# Les commandes déclarées dans app/cli_commands.py annoncent elles-mêmes leurs routes.
+# Les commandes déclarées dans app/cli/specs.py annoncent elles-mêmes leurs routes.
 COVERED.update({route: spec.command for spec in SPECS for route in spec.covers})
 
 

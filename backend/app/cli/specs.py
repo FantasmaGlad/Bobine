@@ -1,9 +1,9 @@
 """Commandes d'écriture de `bobine`, déclarées en données : une ligne de `SPECS` ajoute la commande, son aide, ses arguments,
 la route appelée et sa confirmation. `app.cli` en construit le parser et l'exécution ; `backend/tests/test_cli_contract.py`
-vérifie que chaque route déclarée figure dans `app/cli_routes.py`.
+vérifie que chaque route déclarée figure dans `app/cli/routes.py`.
 
 Ajouter un bouton à l'interface qui appelle une nouvelle route : ajouter la route à `COVERED` (ou à `EXEMPT`) dans
-`cli_routes.py`, et, si une commande a du sens, une `Spec` ici. Aucune dépendance en dehors de la bibliothèque standard.
+`routes.py`, et, si une commande a du sens, une `Spec` ici. Aucune dépendance en dehors de la bibliothèque standard.
 """
 from __future__ import annotations
 
