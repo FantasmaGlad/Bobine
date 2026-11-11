@@ -424,8 +424,10 @@ export default function RadioLibraryPage() {
 
   const confirmBulkDelete = async () => {
     const ids = Array.from(selected);
-    await Promise.all(ids.map((id) => fetch(getApiUrl(`/radio/tracks/${id}`), { method: "DELETE" }).catch(() => null)));
-    showToast(t("radioLibrary.bulkDeletedToast", { count: ids.length }));
+    const responses = await Promise.all(ids.map((id) => fetch(getApiUrl(`/radio/tracks/${id}`), { method: "DELETE" }).catch(() => null)));
+    const deleted = responses.filter((res) => res?.ok).length;
+    if (deleted === 0) showToast(t("radioLibrary.deleteError"), "error");
+    else showToast(t("radioLibrary.bulkDeletedToast", { count: deleted }), deleted < ids.length ? "error" : "success");
     setBulkDeleteOpen(false);
     clearSelection();
     refreshAll();

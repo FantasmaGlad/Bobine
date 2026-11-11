@@ -280,6 +280,8 @@ jobs:
       # déclaré dans requirements.txt car inutile à l'exécution.
       - name: Install test dependencies
         run: python -m pip install -r backend/requirements-test.txt
+      - name: Code mort et noms indéfinis (ruff)
+        run: python -m ruff check .
       - name: Run test suite (pytest)
         run: python -m pytest backend/tests -q -W error::RuntimeWarning -W error::pytest.PytestUnraisableExceptionWarning
         env:

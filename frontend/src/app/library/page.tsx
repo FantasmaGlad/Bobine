@@ -276,7 +276,8 @@ export default function LibraryPage() {
   const confirmBulkDelete = async () => {
     const ids = Array.from(selectedIds);
     const results = await Promise.allSettled(ids.map((id) => fetch(getApiUrl(`/videos/${id}`), { method: "DELETE" })));
-    const failed = results.filter((r) => r.status === "rejected").length;
+    // Une réponse d'erreur du serveur résout la promesse : seul `ok` dit que la vidéo est supprimée.
+    const failed = results.filter((r) => r.status === "rejected" || !r.value.ok).length;
     showToast(
       failed > 0
         ? t("library.bulkDeletedPartial", { ok: ids.length - failed, total: ids.length })
