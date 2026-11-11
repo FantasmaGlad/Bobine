@@ -114,7 +114,7 @@ def _should_self_publish() -> bool:
 
 
 def _local_ip() -> str | None:
-    """Même choix d'adresse que `api/routes/settings/::_get_local_ip` (module
+    """Même choix d'adresse que `api/routes/settings/access.py::_get_local_ip` (module
     partagé `utils/network.py`) : annoncer l'IP d'un VPN rendrait
     `bobine.local` injoignable depuis le Wi-Fi. Ce module tourne dans son
     propre thread de fond, indépendant du cycle de requêtes FastAPI."""
