@@ -8,6 +8,7 @@ from apscheduler.triggers.date import DateTrigger
 from sqlalchemy.orm import Session
 from tzlocal import get_localzone
 
+from app.config import settings
 from app.database import SessionLocal
 from app.models import (
     OverrideAction,
@@ -25,6 +26,8 @@ from app.models import (
 from app.playback_manager import PlaybackStateEnum, get_playback_manager
 from app.radio_manager import DEFAULT_RADIO_CHANNEL, get_all_radio_managers, get_radio_manager, normalize_radio_channel
 from app.hardware.telemetry import purge_expired_logs_and_metrics, record_hardware_snapshot
+from app.utils import scheduled_launch_store
+from app.utils.schedule_resume import playback_offset, playlist_resume_point
 
 logger = logging.getLogger(__name__)
 
@@ -500,10 +503,14 @@ def _scheduled_target_unavailable(db: Session, target_type: ScheduleTargetType, 
 
 
 async def _launch_target(
-    db: Session, target_type: ScheduleTargetType, target_id: int, channel: str = "cable"
+    db: Session, target_type: ScheduleTargetType, target_id: int, channel: str = "cable",
+    resumed_from: datetime | None = None,
 ) -> None:
     """Lance la cible d'une programmation sur l'état de lecture de SON canal
-    (un planning par canal, zéro interférence entre les deux lectures)."""
+    (un planning par canal, zéro interférence entre les deux lectures).
+
+    `resumed_from` : heure du lancement d'origine quand le serveur reprend une programmation après un
+    redémarrage ; la lecture démarre alors à la position qu'elle aurait atteinte sans la coupure."""
     if target_type == ScheduleTargetType.radio_playlist:
         # 3e canal radio, sous-système totalement indépendant : aucune des règles de conflit câblé/réseau ci-dessous ne
         # s'applique — pas de mode coach, pas de "lecture manuelle en cours".
@@ -622,12 +629,20 @@ async def _launch_target(
         if not video:
             logger.warning(f"Cible programmée introuvable : vidéo {target_id}")
             return
+        start_position = 0.0
+        if resumed_from is not None:
+            offset = playback_offset(resumed_from, datetime.now(timezone.utc), video.duration_seconds)
+            if offset is None:
+                logger.info(f"Reprise ({channel}) : la vidéo {target_id} est terminée, rien à relancer")
+                scheduled_launch_store.close(db, channel)
+                return
+            start_position = offset
         thumb = video.thumbnail_path.split("/")[-1] if video.thumbnail_path else None
         await manager.load(
             video.id, video.title, video.duration_seconds, video.program, thumbnail_url=thumb, release=video.release,
             description=video.description, audio_channels=video.audio_channels, audio_codec=video.audio_codec,
             fps=video.fps, bitrate_kbps=video.bitrate_kbps, width=video.width, height=video.height,
-            launch_type="schedule", scheduled=True,
+            launch_type="schedule", scheduled=True, start_position=start_position,
         )
     else:
         playlist = db.query(Playlist).filter(Playlist.id == target_id).first()
@@ -655,7 +670,26 @@ async def _launch_target(
             for item in sorted_items
             if item.video.available  # les médias d'un support débranché sont sautés
         ]
-        await manager.load_playlist(playlist.id, playlist.name, items_data, scheduled=True)
+        start_index, start_position = 0, 0.0
+        if resumed_from is not None:
+            elapsed = (datetime.now(timezone.utc) - resumed_from).total_seconds()
+            point = playlist_resume_point(
+                [item["duration_seconds"] for item in items_data], float(settings.wait_time_between_courses), elapsed
+            )
+            if point is None:
+                logger.info(f"Reprise ({channel}) : la playlist {target_id} est terminée, rien à relancer")
+                scheduled_launch_store.close(db, channel)
+                return
+            start_index, start_position = point
+        await manager.load_playlist(
+            playlist.id, playlist.name, items_data, scheduled=True, start_index=start_index, start_position=start_position
+        )
+
+    # Mémorisé pour qu'un redémarrage du serveur reprenne ce cours à la bonne position (scheduler_resume.py).
+    scheduled_launch_store.remember(
+        db, channel, target_type.value, target_id, resumed_from or datetime.now(timezone.utc)
+    )
+    manager.note_scheduled_launch_recorded()
 
 
 async def fire_schedule(schedule_id: int) -> None:

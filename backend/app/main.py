@@ -40,6 +40,7 @@ from app.scheduler_manager import (
     start_scheduler,
     stop_scheduler,
 )
+from app.scheduler_resume import cancel_pending_resume, resume_running_schedules
 from app.utils.importer import reconcile_orphaned_media
 from app.utils.mdns import start_mdns_responder, stop_mdns_responder
 from app.utils.radio_announcement_scheduler import (
@@ -150,6 +151,8 @@ async def lifespan(app: FastAPI):
         media_native.load_from_database(sound_db)
         tor_proxy.load_from_database(sound_db)
     await autostart_default_radio_playlist()
+    # Cours programmé en cours avant l'arrêt, ou dont l'heure est passée serveur éteint : repris à sa position.
+    await resume_running_schedules()
     for playback_manager in get_all_playback_managers().values():
         playback_manager.start_position_broadcast_loop()
     for radio_manager in get_all_radio_managers().values():
@@ -163,6 +166,7 @@ async def lifespan(app: FastAPI):
     await devices_service.start()
     yield
     # Shutdown : arrêt propre du scheduler et du watcher.
+    cancel_pending_resume()
     stop_scheduler()
     stop_watcher()
     for playback_manager in get_all_playback_managers().values():

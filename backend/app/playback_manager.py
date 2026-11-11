@@ -74,6 +74,16 @@ def _db_update_session(session_id: int, position: float) -> None:
         logger.debug(f"Erreur DB update session : {e}")
 
 
+def _db_close_scheduled_launch(channel: str) -> None:
+    try:
+        from app.database import SessionLocal
+        from app.utils import scheduled_launch_store
+        with SessionLocal() as db:
+            scheduled_launch_store.close(db, channel)
+    except Exception as e:
+        logger.error(f"Erreur DB clôture du lancement programmé : {e}")
+
+
 def _db_close_session(session_id: int, position: float | None = None, completed: bool | None = None) -> None:
     try:
         from app.database import SessionLocal
@@ -105,6 +115,7 @@ class PlaybackManager:
         # kiosk : seul le kiosk primaire diffuse les position_tick (cf.
         # _position_broadcast_loop).
         self._last_direct_report = 0.0
+        self._scheduled_launch_recorded = False
         self._waiting_task: asyncio.Task | None = None
         self._audio_chain_wait_task: asyncio.Task | None = None
         self._position_broadcast_task: asyncio.Task | None = None
@@ -345,10 +356,13 @@ class PlaybackManager:
         height: int | None = None,
         launch_type: str = "kiosk",
         scheduled: bool = False,
+        start_position: float = 0.0,
     ):
         """
-        Lance un cours directement en lecture.
+        Lance un cours directement en lecture, à `start_position` (reprise d'une programmation interrompue).
         """
+        if not scheduled:
+            await self._close_scheduled_launch()
         # Clôture de la session précédente si elle était encore ouverte
         if self._current_session_id is not None:
             old_sess_id = self._current_session_id
@@ -382,13 +396,13 @@ class PlaybackManager:
             "width": width,
             "height": height,
         }
-        self.state["position_seconds"] = 0.0
+        self.state["position_seconds"] = start_position
         self.state["volume"] = self.state.get("volume", settings.volume_default)
         self.state["state"] = PlaybackStateEnum.playing.value
         self.state["scheduled_launch"] = scheduled
         self._clock.reset()
         self._clock.set_rate(self.state["speed"])
-        self._clock.start(0.0, lead_ms=self._lead_ms(LOAD_LEAD_MS))
+        self._clock.start(start_position, lead_ms=self._lead_ms(LOAD_LEAD_MS))
         self._last_heartbeat = time.monotonic()
 
         # Démarrage de la session SQLite d'assiduité
@@ -406,21 +420,23 @@ class PlaybackManager:
         playlist_items: list[dict],
         client_ts: float | None = None,
         scheduled: bool = False,
+        start_index: int = 0,
+        start_position: float = 0.0,
     ):
-        """Lance une playlist : initialise l'index et charge la première vidéo avec compte à rebours."""
+        """Lance une playlist à la vidéo `start_index` (la première, sauf reprise d'une programmation interrompue)."""
         self._cancel_waiting()
 
         self.state["playlist_id"] = playlist_id
         self.state["playlist_name"] = playlist_name
         self.state["playlist_items"] = playlist_items
-        self.state["playlist_index"] = 0
+        self.state["playlist_index"] = start_index
         self.state["playlist_waiting_remaining"] = None
 
-        if not playlist_items:
+        if not playlist_items or start_index >= len(playlist_items):
             await self.stop(client_ts)
             return
 
-        first_item = playlist_items[0]
+        first_item = playlist_items[start_index]
         await self.load(
             video_id=first_item["id"],
             title=first_item["title"],
@@ -438,7 +454,18 @@ class PlaybackManager:
             width=first_item.get("width"),
             height=first_item.get("height"),
             scheduled=scheduled,
+            start_position=start_position,
         )
+
+    def note_scheduled_launch_recorded(self) -> None:
+        """Le planificateur vient d'enregistrer ce lancement en base : il faudra le clore quand il quittera l'écran."""
+        self._scheduled_launch_recorded = True
+
+    async def _close_scheduled_launch(self) -> None:
+        if not self._scheduled_launch_recorded:
+            return
+        self._scheduled_launch_recorded = False
+        await asyncio.to_thread(_db_close_scheduled_launch, self.channel)
 
     async def _run_waiting_period(self):
         # Se retient elle-même : un garde-fou supplémentaire en
@@ -645,6 +672,7 @@ class PlaybackManager:
     async def stop(self, client_ts: float | None = None):
         self._cancel_waiting()
         self._clear_audio_coach()
+        await self._close_scheduled_launch()
 
         # Clôture de la session d'assiduité avec position finale
         if self._current_session_id is not None:
@@ -672,6 +700,7 @@ class PlaybackManager:
         plutôt qu'une <video> en boucle quand ce fond est une image fixe."""
         self._cancel_waiting()
         self._clear_audio_coach()
+        await self._close_scheduled_launch()
         self.state["state"] = PlaybackStateEnum.background.value
         self.state["current_video"] = None
         self.state["position_seconds"] = 0.0
@@ -768,6 +797,7 @@ class PlaybackManager:
         qu'UNE seule source de vérité pour rendre le fond, qu'on soit en mode
         "background" pur ou en mode coach avec fond d'ambiance."""
         self._cancel_waiting()
+        await self._close_scheduled_launch()
         self._cancel_audio_chain_wait()
         self.state["current_video"] = None
         self.state["position_seconds"] = 0.0

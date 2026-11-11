@@ -565,6 +565,21 @@ class PlaybackState(Base):
     interrupted_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
 
+class ScheduledLaunch(Base):
+    """Dernier lancement programmé d'un canal de diffusion (une ligne par canal).
+
+    `started_at` est l'heure murale du lancement : après un redémarrage du serveur, la lecture reprend à
+    `maintenant - started_at`. `active` passe à faux dès que ce lancement quitte l'écran (arrêt, lecture
+    manuelle, fin) : un cours arrêté à la main n'est jamais relancé."""
+    __tablename__ = "scheduled_launches"
+
+    channel: Mapped[str] = mapped_column(primary_key=True)
+    target_type: Mapped[str]
+    target_id: Mapped[int]
+    started_at: Mapped[datetime]
+    active: Mapped[bool] = mapped_column(default=True)
+
+
 class Setting(Base):
     __tablename__ = "settings"
 
