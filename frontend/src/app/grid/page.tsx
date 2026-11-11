@@ -6,7 +6,6 @@ import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useHoverSound } from "@/lib/useHoverSound";
 import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
-import { useScreenWakeLock } from "@/lib/useScreenWakeLock";
 import { useKioskRemote, moveDomFocus, moveDomFocus2D, activateDomFocus } from "@/lib/useKioskRemote";
 import Icon from "@/components/Icon";
 import CinemaRow from "@/components/cinema/CinemaRow";
@@ -33,7 +32,6 @@ import { formatMinutes, formatTime, formatWallClock } from "@/lib/format";
 
 export default function GridPage() {
   const { t, wiredDisplayMode, setWiredDisplayMode, waitTimeBetweenCourses } = useAppSettings();
-  useScreenWakeLock(true);
   const [videos, setVideos] = useState<CinemaVideo[]>([]);
   const [now, setNow] = useState<Date>(() => new Date());
 

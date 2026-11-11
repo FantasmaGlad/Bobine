@@ -29,6 +29,7 @@ import ChapterToast from "@/components/ChapterToast";
 import VolumeOsd from "@/components/VolumeOsd";
 import { getApiUrl } from "@/lib/apiUrl";
 import { formatMinutes, formatTime, formatWallClock } from "@/lib/format";
+import { unloadMedia } from "@/lib/mediaElement";
 
 // Boutons de cours focalisables par la télécommande, dans l'ordre de lecture
 // (héros, puis rangées par programme, puis grille complète).
@@ -171,6 +172,7 @@ export default function CinemaPage() {
   const lastSeekTimeRef = useRef(0);
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deckUnloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Définie tôt (avant startPlayback ci-dessous, qui doit pouvoir l'appeler) : ce minuteur d'auto-masquage n'était armé
   // QUE par `onMouseMove` sur cinema-root, jamais par le démarrage de la
   // lecture elle-même. Sur un écran HDMI passif piloté à distance depuis
@@ -314,6 +316,13 @@ export default function CinemaPage() {
       return;
     }
 
+    // Le deck inactif est celui qu'un lancement précédent s'apprêtait à décharger : sans annulation, la
+    // minuterie viderait le cours qui vient d'y être chargé.
+    if (deckUnloadTimerRef.current) {
+      clearTimeout(deckUnloadTimerRef.current);
+      deckUnloadTimerRef.current = null;
+    }
+
     // Double Décodeur Vidéo Gapless A/B Deck :
     // Préchargement en coulisses sur le deck inactif
     idle.src = videoStreamUrl(getApiUrl, video.id);
@@ -331,13 +340,10 @@ export default function CinemaPage() {
           setActiveDeck(nextDeck);
           if (videoRef.current) videoRef.current = idle;
 
-          // Déchargement doux du deck précédent après transition 0.4s
-          setTimeout(() => {
-            if (currentActive) {
-              currentActive.pause();
-              currentActive.removeAttribute("src");
-              currentActive.load();
-            }
+          // Déchargement du deck précédent une fois la transition de 0,4 s terminée.
+          deckUnloadTimerRef.current = setTimeout(() => {
+            deckUnloadTimerRef.current = null;
+            unloadMedia(currentActive);
           }, 450);
         })
         .catch(() => {
@@ -369,13 +375,8 @@ export default function CinemaPage() {
   const handleBackToMenu = useCallback(() => {
     setCinemaSync(null);
     clearUpNextTask();
-    [deckARef.current, deckBRef.current].forEach((el) => {
-      if (el) {
-        el.pause();
-        el.removeAttribute("src");
-        el.load();
-      }
-    });
+    unloadMedia(deckARef.current);
+    unloadMedia(deckBRef.current);
     setPhase("grid");
     setSelected(null);
     setUpNext(null);
@@ -484,7 +485,18 @@ export default function CinemaPage() {
     }, 1000);
   }, [videos, selected, handleBackToMenu, playImmediately]);
 
-  useEffect(() => () => clearUpNextTask(), []);
+  // Démontage : minuteries arrêtées, flux et tampons des deux decks libérés.
+  useEffect(() => {
+    const deckA = deckARef;
+    const deckB = deckBRef;
+    return () => {
+      clearUpNextTask();
+      if (deckUnloadTimerRef.current) clearTimeout(deckUnloadTimerRef.current);
+      if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+      unloadMedia(deckA.current);
+      unloadMedia(deckB.current);
+    };
+  }, []);
 
   const handlePlayPause = () => {
     const el = videoRef.current;

@@ -11,10 +11,11 @@ import { useEffect, useRef } from "react";
  * en dehors du mode kiosque natif supervisé par BobineTray.
  *
  * Ce hook demande un verrou d'écran ("screen wake lock") dès que la route plein écran
- * est active, le réacquiert automatiquement lorsque l'onglet redevient visible après
- * avoir été masqué, et le libère proprement lors de la navigation vers une page standard
- * d'administration ou lors du démontage du composant.
+ * est active, le redemande quand l'onglet redevient visible ou quand le système le retire,
+ * et le libère lors de la navigation vers une page d'administration ou au démontage.
  */
+const WAKE_LOCK_RETRY_MS = 15_000;
+
 export function useScreenWakeLock(enabled: boolean) {
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
@@ -24,6 +25,15 @@ export function useScreenWakeLock(enabled: boolean) {
     }
 
     let isActive = true;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const retryLater = () => {
+      if (!isActive || retryTimer) return;
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        requestWakeLock();
+      }, WAKE_LOCK_RETRY_MS);
+    };
 
     const requestWakeLock = async () => {
       try {
@@ -45,9 +55,13 @@ export function useScreenWakeLock(enabled: boolean) {
           if (wakeLockRef.current === sentinel) {
             wakeLockRef.current = null;
           }
+          // Le système peut retirer le verrou sans que l'onglet soit masqué (économie d'énergie, changement de
+          // session) : aucun `visibilitychange` ne suivrait, l'écran de la salle finirait par s'éteindre.
+          retryLater();
         });
       } catch {
-        // Échec silencieux si refusé par la politique du navigateur ou si la batterie est trop faible
+        // Refus du navigateur ou batterie trop faible : nouvelle tentative plus tard.
+        retryLater();
       }
     };
 
@@ -62,6 +76,7 @@ export function useScreenWakeLock(enabled: boolean) {
 
     return () => {
       isActive = false;
+      if (retryTimer) clearTimeout(retryTimer);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (wakeLockRef.current) {
         wakeLockRef.current.release().catch(() => {});

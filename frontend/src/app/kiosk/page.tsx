@@ -21,6 +21,7 @@ import VolumeOsd from "@/components/VolumeOsd";
 import { adjustMediaVolume, useVolumeHud, VOLUME_STEP } from "@/lib/volumeHud";
 import { getApiUrl } from "@/lib/apiUrl";
 import { formatTime, formatWallClock } from "@/lib/format";
+import { unloadMedia } from "@/lib/mediaElement";
 
 // Durée hh:mm:ss pour le compte à rebours « prochain cours » de l'écran
 // d'attente (format identique à l'ancien habillage dynamique).
@@ -75,6 +76,19 @@ export default function KioskPage() {
   const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
   const [osd, setOsd] = useState<OsdContent>(null);
   const osdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Démontage : flux, tampons et minuterie libérés sans attendre le ramasse-miettes.
+  useEffect(() => {
+    const video = videoRef;
+    const bgVideo = bgVideoRef;
+    const audio = audioRef;
+    return () => {
+      if (osdTimerRef.current) clearTimeout(osdTimerRef.current);
+      unloadMedia(video.current);
+      unloadMedia(bgVideo.current);
+      unloadMedia(audio.current);
+    };
+  }, []);
 
   // Indicateur visuel du changement de volume
   const [volumeHud, showVolumeHud] = useVolumeHud();
@@ -216,12 +230,6 @@ export default function KioskPage() {
       // <video>/<audio> non déchargé continue de jouer (son audible) sous la
       // nouvelle couche. Appelé à chaque changement de mode pour tout élément
       // qui n'est plus concerné par l'état serveur.
-      const unloadMedia = (el: HTMLMediaElement | null) => {
-        if (!el || (!el.src && !el.getAttribute("src"))) return;
-        el.pause();
-        el.removeAttribute("src");
-        el.load();
-      };
 
       // Chaque /kiosk (câblé ou réseau) est un canal de diffusion à part
       // entière : un second
@@ -410,21 +418,9 @@ export default function KioskPage() {
           }
           break;
         case "stop":
-          if (video) {
-            video.pause();
-            video.removeAttribute("src");
-            video.load();
-          }
-          if (bgVideo) {
-            bgVideo.pause();
-            bgVideo.removeAttribute("src");
-            bgVideo.load();
-          }
-          if (audio) {
-            audio.pause();
-            audio.removeAttribute("src");
-            audio.load();
-          }
+          unloadMedia(video);
+          unloadMedia(bgVideo);
+          unloadMedia(audio);
           break;
         case "seek":
           // ce cas

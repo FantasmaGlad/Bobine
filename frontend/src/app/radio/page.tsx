@@ -18,6 +18,7 @@ import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
 import { getApiUrl } from "@/lib/apiUrl";
 import { formatTime, formatWallClock } from "@/lib/format";
+import { unloadMedia } from "@/lib/mediaElement";
 
 // Écran du poste radio dédié : mise en page "type Spotify", lecteur PRIMAIRE (source de la
 // position rapportée au serveur, comme le kiosk câblé/réseau).
@@ -114,6 +115,7 @@ export default function RadioScreenPage() {
   // expiration (dos-à-dos, écart < fadeMs) ne doit pas se faire couper par un
   // pause() différé destiné à l'ancien.
   const announcementFadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recoveryPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const duckSettingsRef = useRef({ level: DUCK_LEVEL_DEFAULT, fadeMs: DUCK_FADE_MS_DEFAULT });
   useEffect(() => {
     fetch(getApiUrl("/settings"), { cache: "no-store" })
@@ -295,9 +297,7 @@ export default function RadioScreenPage() {
       // sinon l'audio se coupe net avant même que le gain ait eu le temps de
       // descendre (Web Audio ne coupe pas la lecture, seulement le volume).
       announcementFadeOutTimeoutRef.current = setTimeout(() => {
-        announcementAudio.pause();
-        announcementAudio.removeAttribute("src");
-        announcementAudio.load();
+        unloadMedia(announcementAudio);
         announcementFadeOutTimeoutRef.current = null;
       }, fadeMs);
       if (wasAnnouncing.mode === "duck") {
@@ -310,11 +310,7 @@ export default function RadioScreenPage() {
     if (!track) {
       for (const slot of [0, 1] as Slot[]) {
         const el = getAudioEl(slot);
-        if (el && el.getAttribute("src")) {
-          el.pause();
-          el.removeAttribute("src");
-          el.load();
-        }
+        unloadMedia(el);
         slotTrackIdRef.current[slot] = null;
       }
       crossfadingRef.current = false;
@@ -478,7 +474,15 @@ export default function RadioScreenPage() {
   // Ferme proprement le contexte Web Audio si la page se démonte (hygiène —
   // ce poste reste normalement ouvert en permanence, comme un kiosk).
   useEffect(() => {
+    const slotA = audioARef;
+    const slotB = audioBRef;
+    const announcement = announcementAudioRef;
     return () => {
+      if (announcementFadeOutTimeoutRef.current) clearTimeout(announcementFadeOutTimeoutRef.current);
+      if (recoveryPollRef.current) clearInterval(recoveryPollRef.current);
+      unloadMedia(slotA.current);
+      unloadMedia(slotB.current);
+      unloadMedia(announcement.current);
       audioCtxRef.current?.close().catch(() => {});
     };
   }, []);
@@ -574,6 +578,7 @@ export default function RadioScreenPage() {
     }
     const attemptStartedAt = Date.now();
     lastProgressRef.current[slot] = attemptStartedAt;
+    if (recoveryPollRef.current) clearInterval(recoveryPollRef.current);
     const pollId = setInterval(() => {
       // Un vrai timeupdate est revenu APRÈS le début de cette tentative : la
       // reprise a fonctionné (fût-elle lente), on arrête là sans rien signaler
@@ -590,6 +595,7 @@ export default function RadioScreenPage() {
         sendCommand("radio_track_ended", { track_id: slotTrackIdRef.current[slot] });
       }
     }, RECOVERY_POLL_MS);
+    recoveryPollRef.current = pollId;
   }, [sendCommand]);
 
   const handleErrorForSlot = (slot: Slot) => {
