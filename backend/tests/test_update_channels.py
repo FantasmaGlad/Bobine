@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from app.routers import updates
+from app.api.routes import updates
 from app.utils import update_orchestrator as orch
 
 
@@ -453,7 +453,7 @@ def test_store_managed_apply_is_refused(monkeypatch):
 
 def test_rolling_release_target_is_the_tag_commit_not_the_stale_release_field(monkeypatch):
     # La release glissante est mise à jour en place : son target_commitish reste celui de sa création.
-    from app.routers import updates
+    from app.api.routes import updates
 
     def fake_get(url, etag=None):
         if url.endswith("/commits/canary"):

@@ -16,7 +16,7 @@ BroadcastFn = Callable[[dict], Awaitable[None]]
 # son propre kiosk primaire. "cable" = l'écran physiquement branché au Wyse,
 # "network" = tout /kiosk ouvert depuis un autre appareil du LAN.
 from app.utils.radio_sound import default_sound  # noqa: E402
-from app.api_contract import CHANNELS, DEFAULT_CHANNEL  # noqa: E402  (valeurs partagées avec l'API et la CLI)
+from app.api.contract import CHANNELS, DEFAULT_CHANNEL  # noqa: E402  (valeurs partagées avec l'API et la CLI)
 
 
 # Décalage (ms) entre l'ordre reçu et l'instant où TOUS les écrans démarrent : laisse à chaque écran le temps de recevoir l'ordre

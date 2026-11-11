@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.routers.settings import (
+from app.api.routes.settings import (
     broadcast_display_mode,
     get_display_mode_setting,
     get_effective_wired_display_mode,

@@ -53,8 +53,8 @@ class FreeHandler(ProfileHandler):
 def play(monkeypatch):
     init_db()
     handler = PlayHandler()
-    monkeypatch.setattr("app.routers.updates.get_profile_handler", lambda: handler)
-    monkeypatch.setattr("app.routers.settings.get_profile_handler", lambda: handler)
+    monkeypatch.setattr("app.api.routes.updates.get_profile_handler", lambda: handler)
+    monkeypatch.setattr("app.api.routes.settings.get_profile_handler", lambda: handler)
     return handler
 
 
@@ -88,7 +88,7 @@ def test_github_apply_is_refused_on_the_store_build(play):
 
 def test_free_build_has_no_store_actions(monkeypatch):
     init_db()
-    monkeypatch.setattr("app.routers.updates.get_profile_handler", lambda: FreeHandler())
+    monkeypatch.setattr("app.api.routes.updates.get_profile_handler", lambda: FreeHandler())
     client = TestClient(app)
     for action in ("start", "complete", "open"):
         assert client.post(f"/api/updates/store/{action}").status_code == 400

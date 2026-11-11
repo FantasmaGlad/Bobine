@@ -17,14 +17,14 @@ from fastapi import HTTPException
 from app.config import settings
 from app.database import SessionLocal, init_db
 from app.models import CourseRating, ImportSource, PlaybackSession, Video
-from app.routers.metrics import (
+from app.api.routes.metrics import (
     RatingCreate,
     create_course_rating,
     get_hardware_history,
     get_metrics_dashboard,
     list_course_ratings,
 )
-from app.routers.settings import get_storage, get_system_usage, purge_logs_manual
+from app.api.routes.settings import get_storage, get_system_usage, purge_logs_manual
 from app.hardware.cpu import get_cpu_model_name
 from app.hardware.disk import get_storage_model
 from app.hardware.gpu import get_gpu_info
@@ -274,7 +274,7 @@ class TestMetricsFlow(unittest.TestCase):
 
     def test_settings_logs_retention_days_update(self):
         """Valide la modification du délai de rétention des logs via PUT /api/settings et la validation des bornes."""
-        from app.routers.settings import update_settings, get_settings, SettingsUpdate
+        from app.api.routes.settings import update_settings, get_settings, SettingsUpdate
         import asyncio
 
         with SessionLocal() as db:

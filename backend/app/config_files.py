@@ -25,7 +25,7 @@ restent acceptés à l'application et traduits (`canonical_name`).
 from __future__ import annotations
 
 import json
-from app.api_contract import CHANNELS
+from app.api.contract import CHANNELS
 import logging
 import os
 import tempfile
@@ -156,7 +156,7 @@ def _document(kind: str, body: dict[str, Any], warnings: list[str] | None = None
 # --- un constructeur par fichier ---------------------------------------------------------------------------------------
 
 def _settings_values(db: Session) -> dict[str, Any]:
-    from app.routers.settings import get_settings
+    from app.api.routes.settings import get_settings
 
     return get_settings(db)
 
@@ -200,7 +200,7 @@ def build_settings(db: Session) -> dict[str, Any]:
 
 def build_machine(db: Session) -> dict[str, Any]:
     from app.devices.routing import load_routes
-    from app.routers.devices import _load_audio_meta
+    from app.api.routes.devices import _load_audio_meta
     from app.storage.library import global_defaults
 
     values = _settings_values(db)
@@ -216,7 +216,7 @@ def build_machine(db: Session) -> dict[str, Any]:
 
 
 def build_display_outputs(db: Session) -> dict[str, Any]:
-    from app.routers.settings import get_display_output_value
+    from app.api.routes.settings import get_display_output_value
 
     from app.utils.video_sound import load_video_sound
 

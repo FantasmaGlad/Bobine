@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api_contract import DASHBOARD_CHANNELS, DASHBOARD_PERIODS, HISTORY_PERIODS, regex
+from app.api.contract import DASHBOARD_CHANNELS, DASHBOARD_PERIODS, HISTORY_PERIODS, regex
 from app.database import get_db
 from app.models import CourseRating, PlaybackSession, SystemMetricsHistory, Video
 from app.utils.activity_log import log_activity

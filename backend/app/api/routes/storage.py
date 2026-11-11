@@ -1,6 +1,6 @@
 """API « Stockage externe » (`/api/storage/*`) : supports amovibles, appareils portables, bibliothèque externe, longévité.
 
-Même provenance que les périphériques (`routers/devices.py::require_access`) : ouvert à tout le réseau local de confiance.
+Même provenance que les périphériques (`api/routes/devices.py::require_access`) : ouvert à tout le réseau local de confiance.
 Les erreurs sont toujours structurées `{"detail": {"code", "message", ...}}` : aucune erreur d'OS ne devient une 500,
 et aucun chemin hors des volumes montés n'est jamais exposé (le client n'envoie que des chemins RELATIFS au support).
 """
@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.devices.base import DeviceError
-from app.routers.devices import Access, _fail, require_access
+from app.api.routes.devices import Access, _fail, require_access
 from app.storage import fsadvisor
 from app.storage.paths import PathError
 from app.utils._pydantic_compat import list_max_items

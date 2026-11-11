@@ -484,7 +484,7 @@ def test_une_panne_du_pilote_ne_leve_jamais_et_ne_touche_pas_a_la_lecture(routin
 def api(routing_env, monkeypatch):
     fresh, driver = routing_env
     from app.devices import service as service_module
-    import app.routers.devices as devices_router
+    import app.api.routes.devices as devices_router
 
     monkeypatch.setattr(devices_router, "service", fresh)
     monkeypatch.setattr(service_module, "service", fresh)
@@ -492,7 +492,7 @@ def api(routing_env, monkeypatch):
 
 
 def _local(monkeypatch):
-    monkeypatch.setattr("app.routers.devices.is_local_request", lambda request: True)
+    monkeypatch.setattr("app.api.routes.devices.is_local_request", lambda request: True)
 
 
 def test_choix_effacement_et_repli_d_une_route(api, monkeypatch):
@@ -577,7 +577,7 @@ def test_le_rapport_du_lecteur_est_memorise_borne_et_retire_a_la_deconnexion(api
     fresh, driver = api
     _local(monkeypatch)
     client = TestClient(app)
-    from app.routers import playback as playback_router
+    from app.api.routes import playback as playback_router
 
     monkeypatch.setattr(playback_router, "devices_service", fresh)
     with client.websocket_connect("/ws/playback") as ws:

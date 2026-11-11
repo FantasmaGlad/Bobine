@@ -5,7 +5,7 @@ description obligatoire), activation/retrait, règles de déclenchement (toutes
 les N musiques / toutes les X minutes / à heures fixes), et déclenchement
 manuel (« jouer maintenant »). Le tirage et l'insertion réels vivent dans
 `RadioPlaybackManager.play_announcement` (état) + `radio_announcement_scheduler`
-(règles temporelles) + `routers/playback.py::_handle_radio_command` (règle
+(règles temporelles) + `api/routes/playback.py::_handle_radio_command` (règle
 « toutes les N musiques », à la fin de chaque piste).
 """
 import json

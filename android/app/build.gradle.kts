@@ -368,8 +368,8 @@ chaquopy {
         // backend/app/ pour le profil Android (identifies par grep,
         // perimetre volontairement petit) : `pydantic_settings.BaseSettings` (config.py:6, remplacer
         // par `pydantic.BaseSettings` integre a v1 sur ce profil),
-        // `field_validator` (routers/radio_announcements.py:20,75, syntaxe
-        // v1 = `validator`), `payload.model_dump(...)` (routers/settings.py:339,
+        // `field_validator` (api/routes/radio_announcements.py:20,75, syntaxe
+        // v1 = `validator`), `payload.model_dump(...)` (api/routes/settings.py:339,
         // syntaxe v1 = `.dict(...)`). Non fait a ce stade.
     }
 }

@@ -1,6 +1,6 @@
 /**
  * Lecture du diagnostic de la chaîne d'import (`GET /api/diagnostics/import`,
- * backend `app/routers/diagnostics.py`) : types, formatage et traduction des
+ * backend `app/api/routes/diagnostics.py`) : types, formatage et traduction des
  * constats. Pur (sans React ni réseau) pour être testé sans navigateur ; le
  * panneau de Réglages (`components/ImportDiagnosticsPanel.tsx`) ne fait que
  * l'afficher.

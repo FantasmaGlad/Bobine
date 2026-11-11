@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api_contract import SCHEDULE_CHANNELS
+from app.api.contract import SCHEDULE_CHANNELS
 from app.database import get_db
 from app.models import (
     OverrideAction,

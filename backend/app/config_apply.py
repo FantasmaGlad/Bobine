@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import difflib
 import json
-from app.api_contract import CHANNELS
+from app.api.contract import CHANNELS
 import logging
 import re
 from datetime import datetime
@@ -180,7 +180,7 @@ def _flag(ctx: _Context, file: str, label: str, value: Any) -> bool:
 # --- un applicateur par fichier --------------------------------------------------------------------------------------
 
 def _apply_settings(ctx: _Context, file: str, document: dict) -> None:
-    from app.routers.settings import SettingsUpdate, after_settings_change, settings_updates, stage_settings
+    from app.api.routes.settings import SettingsUpdate, after_settings_change, settings_updates, stage_settings
 
     body = document.get("settings")
     if not isinstance(body, dict):
@@ -255,7 +255,7 @@ def _write_setting(db: Session, key: str, value: str | None) -> None:
 
 def _apply_machine(ctx: _Context, file: str, document: dict) -> None:
     from app.devices.routing import ROUTES_SETTING, sanitize_routes
-    from app.routers.settings import SettingsUpdate, after_settings_change, settings_updates, stage_settings
+    from app.api.routes.settings import SettingsUpdate, after_settings_change, settings_updates, stage_settings
     from app.storage import longevity
 
     body = document.get("machine")
@@ -301,7 +301,7 @@ def _apply_machine(ctx: _Context, file: str, document: dict) -> None:
 
 
 def _apply_display_outputs(ctx: _Context, file: str, document: dict) -> None:
-    from app.routers.settings import _DISPLAY_OUTPUTS_BY_CHANNEL, apply_display_output, get_display_output_value
+    from app.api.routes.settings import _DISPLAY_OUTPUTS_BY_CHANNEL, apply_display_output, get_display_output_value
 
     outputs = document.get("outputs")
     if not isinstance(outputs, dict):
@@ -774,7 +774,7 @@ def _media(ctx: _Context, file: str, model, entry: Any, what: str, by_file: Call
 
 
 def _apply_library_videos(ctx: _Context, file: str, document: dict) -> None:
-    from app.routers.videos import rename_video_file
+    from app.api.routes.videos import rename_video_file
 
     for entry in _list(ctx, file, document, "videos"):
         video = _media(ctx, file, Video, entry, "vidéo", lambda v: v.file_path)

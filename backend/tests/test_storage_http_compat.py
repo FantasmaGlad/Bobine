@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.routers import storage
+from app.api.routes import storage
 
 
 @pytest.fixture()
@@ -25,7 +25,7 @@ def client(monkeypatch):
     fake.start_import.return_value = {"job_id": 42}
     monkeypatch.setattr(storage, "service", fake)
     monkeypatch.setattr("app.main.storage_service", fake)
-    monkeypatch.setattr("app.routers.media_streams.storage_service", fake)
+    monkeypatch.setattr("app.api.routes.media_streams.storage_service", fake)
     try:
         with TestClient(app, raise_server_exceptions=True) as http:
             yield http, fake

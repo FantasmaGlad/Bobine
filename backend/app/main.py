@@ -12,25 +12,25 @@ from app.config import settings
 from app.database import init_db, SessionLocal
 from app.playback_manager import get_all_playback_managers
 from app.radio_manager import get_all_radio_managers
-from app.routers import (
+from app.api.routes import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,
     radio, radio_playlists, radio_announcements, settings as settings_router, logs, import_jobs,
     updates, metrics, display, uploads, chapters, devices, diagnostics, storage, health, media_streams,
 )
-from app.routers.media_streams import reset_stale_web_rendition_status
-from app.static_files import mount_static_files
-from app.errors import install_error_handlers
+from app.api.routes.media_streams import reset_stale_web_rendition_status
+from app.api.static_files import mount_static_files
+from app.api.errors import install_error_handlers
 from app.utils.android_runtime import is_android
-from app.utils.http_compression import (
+from app.api.http_compression import (
     ApiCompressionMiddleware,
 )
 from app.utils import ui_language
-from app.utils.network_guard import LocalNetworkGuard
-from app.utils.origin_guard import SameOriginGuard, dev_origins
+from app.api.network_guard import LocalNetworkGuard
+from app.api.origin_guard import SameOriginGuard, dev_origins
 from app.utils.deployment import get_profile_handler
 from app.utils.port import active_port
 from app import config_files
-from app.routers import config_files as config_files_router
+from app.api.routes import config_files as config_files_router
 from app.utils import media_native, port80, tor_proxy
 from app.utils.media_sidecar import close_current_media_client
 from app.utils.update_orchestrator import load_persisted_state_at_startup
@@ -72,7 +72,7 @@ _IS_ANDROID = is_android()
 # (25 Mo max sur disque) via RotatingFileHandler plutôt que logrotate système —
 # autonome (aucune configuration OS à poser), identique en dev et en
 # production, cohérent avec le reste de la config applicative centralisée.
-# `/api/logs/technical*` (routers/logs.py) ne sert que le fichier courant
+# `/api/logs/technical*` (api/routes/logs.py) ne sert que le fichier courant
 # (`technical.log`) ; les archives (`technical.log.1` etc.) restent accessibles
 # directement sur le disque pour un diagnostic approfondi si besoin.
 settings.technical_log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -159,7 +159,7 @@ async def lifespan(app: FastAPI):
         radio_manager.start_position_broadcast_loop()
     # Règles temporelles des rappels : toutes les X
     # minutes / à heures fixes — la règle « toutes les N musiques » n'a rien
-    # de temporel, elle est vérifiée à chaque fin de piste (routers/playback.py).
+    # de temporel, elle est vérifiée à chaque fin de piste (api/routes/playback.py).
     start_radio_announcement_scheduler()
     # Surveillance des périphériques (audio, Bluetooth, Wi-Fi) : inerte tant que la fonction est désactivée
     # ou qu'aucun client n'écoute ; une panne du pilote n'affecte jamais la diffusion.
@@ -197,7 +197,7 @@ app.add_middleware(
 app.add_middleware(SameOriginGuard, allowed_origins=dev_origins())
 app.add_middleware(config_files.ConfigMirrorTrigger)
 # gzip des seules réponses JSON/texte de /api/* (jamais /stream, miniatures,
-# Range, WebSocket...) : voir app/utils/http_compression.py. Ajouté APRÈS le
+# Range, WebSocket...) : voir app/api/http_compression.py. Ajouté APRÈS le
 # CORS pour envelopper aussi ses en-têtes ; le frontend statique négocie lui-même
 # la compression (RevalidateStaticFiles) afin de garder son ETag par contenu.
 app.add_middleware(ApiCompressionMiddleware)

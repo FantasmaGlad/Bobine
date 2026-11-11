@@ -22,7 +22,7 @@ from app.database import init_db, SessionLocal, get_db
 from app.models import Video, ImportSource
 from app.utils.video_utils import extract_metadata, check_compatibility, generate_thumbnail, read_mp4_duration_seconds
 from app.utils.importer import import_video
-from app.routers.videos import VideoUpdate, update_video, upload_video_thumbnail
+from app.api.routes.videos import VideoUpdate, update_video, upload_video_thumbnail
 
 
 class TestVideoFlow(unittest.TestCase):

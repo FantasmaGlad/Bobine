@@ -11,7 +11,7 @@ import argparse
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from app.api_contract import OVERRIDE_ACTIONS, SCHEDULE_CHANNELS, SCHEDULE_TARGETS
+from app.api.contract import OVERRIDE_ACTIONS, SCHEDULE_CHANNELS, SCHEDULE_TARGETS
 
 
 

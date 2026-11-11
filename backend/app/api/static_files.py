@@ -15,7 +15,7 @@ from starlette.staticfiles import NotModifiedResponse
 from app.config import settings
 from app.utils import ui_language
 from app.utils.android_runtime import is_android
-from app.utils.http_compression import (
+from app.api.http_compression import (
     MIN_COMPRESSIBLE_SIZE,
     add_vary_accept_encoding,
     gzip_compress,
@@ -69,16 +69,16 @@ class _EnsuredDirStaticFiles(StaticFiles):
 # `frontend/` sibling de `backend/` comme dans le cas "dépôt" ci-dessous —
 # la tâche Gradle `stagePythonSources` (android/app/build.gradle.kts)
 # place plutôt le frontend compilé en `frontend_out/`, sibling du paquet
-# `app/` lui-même (donc 2 `.parent`, pas 3).
+# `app/` lui-même (un `.parent` de moins que dans le dépôt).
 if _IS_ANDROID:
-    frontend_out = Path(__file__).resolve().parent.parent / "frontend_out"
+    frontend_out = Path(__file__).resolve().parent.parent.parent / "frontend_out"
 elif getattr(sys, "frozen", False):
     if platform.system() == "Darwin":
         frontend_out = Path(sys.executable).resolve().parent.parent / "Resources" / "frontend" / "out"
     else:
         frontend_out = Path(sys.executable).resolve().parent / "frontend" / "out"
 else:
-    frontend_out = Path(__file__).resolve().parent.parent.parent / "frontend" / "out"
+    frontend_out = Path(__file__).resolve().parent.parent.parent.parent / "frontend" / "out"
 
 
 class RevalidateStaticFiles(StaticFiles):

@@ -202,7 +202,7 @@ class AndroidHandler(ProfileHandler):
         # vérification SHA-256, la validation du paquet (nom, signature,
         # versionCode) et l'étape finale ("en attente de confirmation" /
         # "échec") sont rapportées par le rappel Kotlin ->
-        # `POST /api/updates/_android-callback` (cf. routers/updates.py).
+        # `POST /api/updates/_android-callback` (cf. api/routes/updates.py).
         # La confirmation finale nécessitera un tap utilisateur sur la
         # boîte de dialogue système Android (jamais d'installation
         # silencieuse, cf. can_schedule_auto_apply) — et `async_completion`

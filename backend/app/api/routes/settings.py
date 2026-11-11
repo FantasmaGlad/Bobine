@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.api_contract import CHANNELS, DISPLAY_OUTPUTS_BY_CHANNEL, SETTING_BOUNDS
+from app.api.contract import CHANNELS, DISPLAY_OUTPUTS_BY_CHANNEL, SETTING_BOUNDS
 from app.config import (
     ROOT_DIR,
     _global_config_path,
@@ -125,7 +125,7 @@ _DEFAULTS = {
     # défaut — c'est un réencodage ffmpeg (plusieurs minutes sur un CPU
     # modeste) que l'administrateur choisit d'activer ; quand elle l'est, la
     # première lecture depuis un navigateur incapable de décoder l'original la
-    # déclenche automatiquement (cf. routers/media_streams.py::stream_video).
+    # déclenche automatiquement (cf. api/routes/media_streams.py::stream_video).
     "auto_web_rendition": "false",
     # Composant audio natif (expérimental) : désactivé par défaut. Il n'accélère que de
     # nouveaux imports et n'altère aucune donnée existante ; tout échec retombe sur
@@ -781,7 +781,7 @@ async def delete_logo(db: Session = Depends(get_db)) -> dict[str, Any]:
 
 def get_display_output_value(db: Session, channel: str = "cable") -> str:
     """Valeur de sortie active pour un canal, réutilisable hors endpoint
-    (verrouillage cinéma dans routers/playback.py)."""
+    (verrouillage cinéma dans api/routes/playback.py)."""
     value = _get_db_value(db, _DISPLAY_OUTPUT_KEYS[channel])
     # Une valeur explicitement stockée (y compris "radio" sur le câblé) l'emporte
     # toujours sur la sortie dérivée du matériel ci-dessous.

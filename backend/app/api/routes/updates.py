@@ -183,7 +183,7 @@ def _get_local_version_info() -> dict[str, Any]:
             "local_rolling_channel": release_channel.rolling_channel_of_version(),
         }
 
-    repo_dir = Path(__file__).resolve().parent.parent.parent
+    repo_dir = Path(__file__).resolve().parent.parent.parent.parent
     head = _git_lines(["rev-parse", "--short", "HEAD"], repo_dir)
     if head:
         commit = head[0]

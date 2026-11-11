@@ -23,7 +23,7 @@ from app.devices import locality
 from app.devices.base import DeviceError
 from app.devices.routing import FALLBACKS, describe_sink, load_routes, resolve_route, save_routes
 from app.devices.service import WIFI_CONFIRM_SECONDS, service
-from app.utils.network_guard import has_forwarding_headers
+from app.api.network_guard import has_forwarding_headers
 from app.models import Setting
 from app.radio_manager import RADIO_CHANNELS, get_all_radio_managers, get_radio_manager
 from app.utils.activity_log import log_activity

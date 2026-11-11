@@ -2,7 +2,7 @@
 # Vérifie qu'un dossier d'assets de release contient TOUS les artefacts
 # attendus avant publication, sous les noms exacts que consomment le site
 # (bobine.fit, src/lib/github-releases.ts), les notes de release, le README et
-# l'auto-mise à jour (backend/app/routers/updates.py).
+# l'auto-mise à jour (backend/app/api/routes/updates.py).
 #
 # Sans ce contrôle, un job de build ignoré ou un artefact manquant donnait une
 # release « verte » mais incomplète : les téléchargements du site retombaient

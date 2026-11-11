@@ -14,7 +14,7 @@ from starlette.testclient import TestClient  # noqa: E402
 from starlette.websockets import WebSocketDisconnect  # noqa: E402
 
 from app.main import app as real_app  # noqa: E402
-from app.utils.network_guard import LocalNetworkGuard, allowed_networks, is_allowed_client  # noqa: E402
+from app.api.network_guard import LocalNetworkGuard, allowed_networks, is_allowed_client  # noqa: E402
 
 
 @pytest.mark.parametrize("host", [
@@ -135,7 +135,7 @@ def test_uvicorn_does_not_rewrite_peer():
 def test_local_screen_rights_need_a_direct_clean_request(headers, expected):
     from starlette.requests import Request
 
-    from app.routers.devices import is_local_request
+    from app.api.routes.devices import is_local_request
 
     request = Request({"type": "http", "client": ("127.0.0.1", 5000), "headers": headers})
     assert is_local_request(request) is expected

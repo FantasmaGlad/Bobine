@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
 
 from app.config import settings
-from app.routers import settings as settings_router
+from app.api.routes import settings as settings_router
 from app.utils.subtitles import (
     convert_srt_to_vtt,
     normalize_language_code,

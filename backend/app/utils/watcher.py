@@ -76,7 +76,7 @@ class VideoWatchHandler(_BaseWatchHandler):
         try:
             logger.info(f"Watcher : Lancement de l'import pour {path.name}")
             video = import_video(file_path, path.name, ImportSource.watched_folder, job_id=job_id)
-            # même diffusion que l'import web (routers/videos.py) — un
+            # même diffusion que l'import web (api/routes/videos.py) — un
             # cours déposé dans le dossier surveillé doit apparaître sans
             # délai sur les écrans déjà ouverts.
             ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "video_imported"})

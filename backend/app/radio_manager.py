@@ -29,7 +29,7 @@ BroadcastFn = Callable[[dict], Awaitable[None]]
 # les gestionnaires câblé/réseau de playback_manager.py) : la sortie câblée
 # (écran physiquement connecté) et la sortie réseau (tout autre appareil) ont
 # chacune leur playlist, file d'attente, position, volume, rappels et planning.
-from app.api_contract import RADIO_CHANNELS  # noqa: E402  (valeurs partagées avec l'API et la CLI)
+from app.api.contract import RADIO_CHANNELS  # noqa: E402  (valeurs partagées avec l'API et la CLI)
 # Identifiant historique du poste radio unique (avant les deux sorties) : il
 # désignait ce qui est aujourd'hui la sortie réseau. Il reste accepté en ENTRÉE
 # (anciens favoris, onglets ouverts, planning, clients en cache) et n'est

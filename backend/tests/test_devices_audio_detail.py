@@ -205,7 +205,7 @@ def api(monkeypatch):
     init_db()
     driver = FakeAudioDriver()
     service.set_driver(driver)
-    monkeypatch.setattr("app.routers.devices.is_local_request", lambda request: True)
+    monkeypatch.setattr("app.api.routes.devices.is_local_request", lambda request: True)
     with SessionLocal() as db:
         db.query(Setting).filter(Setting.key == "devices_audio_meta").delete(synchronize_session=False)
         db.commit()

@@ -1,5 +1,5 @@
 /**
- * Bornes des réglages numériques de lecture. Miroir de `SETTING_BOUNDS` dans `backend/app/api_contract.py` : le serveur
+ * Bornes des réglages numériques de lecture. Miroir de `SETTING_BOUNDS` dans `backend/app/api/contract.py` : le serveur
  * refuse hors de ces bornes, `backend/tests/test_setting_bounds.py` vérifie que les deux listes sont identiques.
  */
 export type TimingSettingKey = "wait_time_between_courses" | "volume_default" | "audio_chain_timer_seconds" | "radio_announcement_fade_ms";

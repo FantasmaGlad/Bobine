@@ -31,7 +31,7 @@ def client(tmp_path, monkeypatch):
 
 
 def _messages(caplog):
-    return [r.getMessage() for r in caplog.records if r.name in ("app.routers.uploads", "app.utils.staged_uploads")]
+    return [r.getMessage() for r in caplog.records if r.name in ("app.api.routes.uploads", "app.utils.staged_uploads")]
 
 
 # ---------------------------------------------------------------------------

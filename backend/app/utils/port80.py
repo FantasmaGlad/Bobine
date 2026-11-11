@@ -12,8 +12,8 @@ import asyncio
 import logging
 from urllib.parse import urlsplit
 
-from app.utils.network_guard import allowed_networks, is_allowed_client
-from app.utils.origin_guard import is_trusted_host_name
+from app.api.network_guard import allowed_networks, is_allowed_client
+from app.api.origin_guard import is_trusted_host_name
 
 logger = logging.getLogger(__name__)
 

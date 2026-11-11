@@ -1,4 +1,4 @@
-"""Contrat entre l'API, l'interface et la commande `bobine` : une valeur se déclare une fois (app/api_contract.py), une route
+"""Contrat entre l'API, l'interface et la commande `bobine` : une valeur se déclare une fois (app/api/contract.py), une route
 n'existe pas sans commande ni exemption motivée (app/cli/routes.py), une commande ne dérive pas de l'API."""
 import argparse
 import os
@@ -11,7 +11,7 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 import pytest
 from fastapi.testclient import TestClient
 
-from app import api_contract as contract
+from app.api import contract
 from app import cli
 from app.cli import completion as cli_completion
 from app.cli import routes as cli_routes
@@ -159,7 +159,7 @@ def test_openapi_publishes_the_contract_patterns():
 
 def test_engines_and_routers_share_the_contract_values():
     from app import playback_manager, radio_manager
-    from app.routers import logs, playback, schedule
+    from app.api.routes import logs, playback, schedule
 
     assert playback_manager.CHANNELS == contract.CHANNELS and radio_manager.RADIO_CHANNELS == contract.RADIO_CHANNELS
     assert logs.LEVELS == contract.LOG_LEVELS and schedule._CHANNELS == contract.SCHEDULE_CHANNELS

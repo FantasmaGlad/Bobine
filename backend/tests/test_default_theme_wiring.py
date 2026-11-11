@@ -5,7 +5,7 @@ viennent de `themes.css`, généré depuis `themePalettes.ts` : rien n'est recop
 import re
 from pathlib import Path
 
-from app.routers import settings
+from app.api.routes import settings
 from app.utils import themes
 
 REPO = Path(__file__).resolve().parents[2]

@@ -7,7 +7,7 @@ import zipfile
 import pytest
 from fastapi import HTTPException
 
-from app.routers import settings as settings_router
+from app.api.routes import settings as settings_router
 from app.utils import import_jobs
 
 

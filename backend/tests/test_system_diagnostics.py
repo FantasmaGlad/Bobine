@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import init_db  # noqa: E402
 from app.main import app  # noqa: E402
-from app.routers import diagnostics  # noqa: E402
+from app.api.routes import diagnostics  # noqa: E402
 
 
 @pytest.fixture()
@@ -78,13 +78,13 @@ def technical_log(tmp_path, monkeypatch):
     log.write_text(
         "ligne orpheline d'un fichier tourné\n"
         "2026-11-05 10:00:00,250 INFO app.main: démarrage\n"
-        "2026-11-05 10:05:00,000 ERROR app.routers.settings: échec de diffusion\n"
+        "2026-11-05 10:05:00,000 ERROR app.api.routes.settings: échec de diffusion\n"
         "Traceback (most recent call last):\n"
         "  ValueError: exemple\n"
         "2026-11-05 10:06:00,000 WARNING app.utils.mdns: ré-annonce en échec\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr("app.routers.logs.settings", type("S", (), {"technical_log_path": log})())
+    monkeypatch.setattr("app.api.routes.logs.settings", type("S", (), {"technical_log_path": log})())
     yield
     if previous is None:
         os.environ.pop("TZ", None)
@@ -100,7 +100,7 @@ def test_technical_log_is_parsed_newest_first_in_utc(client, technical_log):
         "2026-11-05T09:06:00.000Z", "2026-11-05T09:05:00.000Z", "2026-11-05T09:00:00.250Z", "2026-11-04T22:00:00.000Z",
     ]
     error = answer["entries"][1]
-    assert error["level"] == "error" and error["category"] == "app.routers.settings"
+    assert error["level"] == "error" and error["category"] == "app.api.routes.settings"
     assert error["message"].endswith("Traceback (most recent call last):\n  ValueError: exemple")
     assert answer["skipped_unparsed"] == 1 and answer["truncated"] is False
 
@@ -108,7 +108,7 @@ def test_technical_log_is_parsed_newest_first_in_utc(client, technical_log):
 def test_filters_level_since_and_limit(client, technical_log):
     assert [e["level"] for e in client.get("/api/logs?level=warning").json()["entries"]] == ["warning", "error"]
     recent = client.get("/api/logs", params={"since": "2026-11-05T09:01:00Z"}).json()
-    assert [e["category"] for e in recent["entries"]] == ["app.utils.mdns", "app.routers.settings"]
+    assert [e["category"] for e in recent["entries"]] == ["app.utils.mdns", "app.api.routes.settings"]
     limited = client.get("/api/logs?limit=1").json()
     assert limited["count"] == 1 and limited["truncated"] is True
 
@@ -153,7 +153,7 @@ def test_repeated_local_hour_keeps_utc_order(client, technical_log, tmp_path):
 
 
 def test_rotation_while_reading_neither_duplicates_nor_fails(client, technical_log, tmp_path, monkeypatch):
-    from app.routers import logs
+    from app.api.routes import logs
 
     original = logs._parse_technical
     rotated = []

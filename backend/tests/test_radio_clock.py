@@ -181,7 +181,7 @@ def test_un_seul_poste_demarre_sans_delai_deux_postes_ensemble():
 
 
 def test_la_regle_toutes_les_n_musiques_n_est_pas_comptee_deux_fois_par_un_doublon(monkeypatch):
-    from app.routers import playback as playback_router
+    from app.api.routes import playback as playback_router
 
     async def _run():
         m, fake = _manager()

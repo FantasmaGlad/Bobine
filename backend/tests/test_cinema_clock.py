@@ -11,7 +11,7 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
 import pytest  # noqa: E402
 
-from app.routers import playback as pb  # noqa: E402
+from app.api.routes import playback as pb  # noqa: E402
 from app.utils.playback_clock import PlaybackClock  # noqa: E402
 
 

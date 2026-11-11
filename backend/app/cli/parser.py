@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from app.api_contract import (
+from app.api.contract import (
     CHANNELS,
     DASHBOARD_CHANNELS,
     DASHBOARD_PERIODS,

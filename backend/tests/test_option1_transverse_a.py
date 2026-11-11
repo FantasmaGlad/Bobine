@@ -30,14 +30,14 @@ from fastapi import HTTPException, UploadFile
 from app.config import settings
 from app.database import engine, init_db, SessionLocal
 from app.models import Video, Setting, ImportSource
-from app.routers.settings import (
+from app.api.routes.settings import (
     ResetDataRequest,
     export_backup,
     restore_backup,
     reset_data_system,
     get_system_usage,
 )
-from app.routers.updates import check_updates
+from app.api.routes.updates import check_updates
 from app.utils.version import get_app_version
 
 
@@ -123,8 +123,8 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
 
         # Test Windows profile
         with patch("urllib.request.urlopen", return_value=mock_resp), \
-             patch("app.routers.updates.get_deployment_profile", return_value="windows"), \
-             patch("app.routers.updates.get_profile_handler") as mock_handler:
+             patch("app.api.routes.updates.get_deployment_profile", return_value="windows"), \
+             patch("app.api.routes.updates.get_profile_handler") as mock_handler:
             mock_handler.return_value.can_auto_apply.return_value = True
             mock_handler.return_value.is_store_managed.return_value = False
             res = await check_updates(db=SessionLocal())
@@ -136,8 +136,8 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
 
         # Test Linux Desktop profile (.deb)
         with patch("urllib.request.urlopen", return_value=mock_resp), \
-             patch("app.routers.updates.get_deployment_profile", return_value="linux-desktop"), \
-             patch("app.routers.updates.get_profile_handler") as mock_handler:
+             patch("app.api.routes.updates.get_deployment_profile", return_value="linux-desktop"), \
+             patch("app.api.routes.updates.get_profile_handler") as mock_handler:
             mock_handler.return_value.can_auto_apply.return_value = True
             mock_handler.return_value.is_store_managed.return_value = False
             res = await check_updates(db=SessionLocal())
@@ -146,8 +146,8 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
 
         # Test macOS profile (.dmg)
         with patch("urllib.request.urlopen", return_value=mock_resp), \
-             patch("app.routers.updates.get_deployment_profile", return_value="macos"), \
-             patch("app.routers.updates.get_profile_handler") as mock_handler:
+             patch("app.api.routes.updates.get_deployment_profile", return_value="macos"), \
+             patch("app.api.routes.updates.get_profile_handler") as mock_handler:
             mock_handler.return_value.can_auto_apply.return_value = False
             mock_handler.return_value.is_store_managed.return_value = False
             res = await check_updates(db=SessionLocal())
@@ -157,8 +157,8 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
 
         # Test Linux Headless appliance (git auto-apply)
         with patch("urllib.request.urlopen", return_value=mock_resp), \
-             patch("app.routers.updates.get_deployment_profile", return_value="linux-headless"), \
-             patch("app.routers.updates.get_profile_handler") as mock_handler:
+             patch("app.api.routes.updates.get_deployment_profile", return_value="linux-headless"), \
+             patch("app.api.routes.updates.get_profile_handler") as mock_handler:
             mock_handler.return_value.can_auto_apply.return_value = True
             mock_handler.return_value.is_store_managed.return_value = False
             res = await check_updates(db=SessionLocal())
@@ -242,7 +242,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         # 3. Restore initial backup
         upload = UploadFile(filename="valid_backup.zip", file=io.BytesIO(backup_bytes))
         mock_bg = MagicMock()
-        with patch("app.routers.settings._run_restore_restart"):
+        with patch("app.api.routes.settings._run_restore_restart"):
             result = await restore_backup(file=upload, background_tasks=mock_bg, db=MagicMock())
             self.assertEqual(result["status"], "ok")
 
@@ -276,7 +276,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(media_file.exists())
 
         mock_bg = MagicMock()
-        with patch("app.routers.settings._run_reset_data_restart"):
+        with patch("app.api.routes.settings._run_reset_data_restart"):
             res = await reset_data_system(ResetDataRequest(confirm="reinitialiser"), mock_bg)
             self.assertIn("Remise à zéro des données effectuée", res["message"])
 

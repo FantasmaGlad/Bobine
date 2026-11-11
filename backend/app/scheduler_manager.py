@@ -111,7 +111,7 @@ def resolve_target_display(db: Session, target_type: ScheduleTargetType, target_
     - playlist radio (fenêtre programmée) : `duration_seconds` volontairement
       `None` — le bloc du planning se dimensionne sur la fenêtre horaire
       choisie (`time_of_day`/`end_time`), pas sur le contenu qui boucle. `cover_track_id` = 1er morceau ayant une pochette, même
-      logique que `routers/radio_playlists.py::list_playlists`.
+      logique que `api/routes/radio_playlists.py::list_playlists`.
     """
     if target_type == ScheduleTargetType.video:
         video = db.query(Video).filter(Video.id == target_id).first()
@@ -296,7 +296,7 @@ def expand_occurrences(
 def radio_track_dict(track) -> dict:
     """Forme d'une piste radio dans l'état du RadioPlaybackManager (`order`,
     `current_track`, file d'attente) : source UNIQUE, partagée avec
-    routers/playback.py (les deux copies d'avant dérivaient l'une de l'autre).
+    api/routes/playback.py (les deux copies d'avant dérivaient l'une de l'autre).
     Le style (`genre`) sert à l'affichage de la file « À suivre »."""
     return {
         "id": track.id,
@@ -356,7 +356,7 @@ def resolve_radio_default_playlist(db: Session, radio_channel: str) -> RadioPlay
 
 def is_cable_output_radio(db: Session) -> bool:
     """Vrai si la sortie câblée est actuellement basculée sur la radio."""
-    from app.routers.settings import get_display_output_value
+    from app.api.routes.settings import get_display_output_value
 
     return get_display_output_value(db, "cable") == "radio"
 
@@ -400,7 +400,7 @@ async def _launch_radio_shuffle_all(
     pour la sortie, pour ne jamais laisser la radio muette.
 
     Playlist VIRTUELLE (playlist_id=None, comme la commande `radio_shuffle_all`
-    de routers/playback.py) : rien n'est persisté en base, la liste est
+    de api/routes/playback.py) : rien n'est persisté en base, la liste est
     recomposée à chaque lancement — elle reflète donc toujours l'état courant de
     la bibliothèque, sans playlist figée à resynchroniser à chaque import.
     Renvoie le nom lancé, ou None si la bibliothèque est vide."""
@@ -528,7 +528,7 @@ async def _launch_target(
                     "sans basculer l'écran câblé"
                 )
             else:
-                from app.routers.settings import apply_display_output
+                from app.api.routes.settings import apply_display_output
 
                 logger.info(f"Programmation radio ({radio_channel}) : l'écran câblé passe sur Radio")
                 await apply_display_output(db, "cable", "radio", activate_radio=False)
@@ -811,7 +811,7 @@ def _sync_end_job(schedule: Schedule) -> None:
     "once") ne revient pas automatiquement au défaut — limitation assumée
     pour ce lot, le cas d'usage principal (programmation hebdomadaire d'une
     salle) est récurrent. Fenêtres à cheval sur minuit non prises en charge
-    (cf. routers/schedule.py::_validate_and_normalize)."""
+    (cf. api/routes/schedule.py::_validate_and_normalize)."""
     if _scheduler is None:
         return
     applicable = (
@@ -885,7 +885,7 @@ async def _run_auto_update_check() -> None:
     établir un ordre d'import entre `scheduler_manager` (importé tôt par
     `main.py`) et `routers.updates` — même précaution que `from app.models
     import Setting` un peu plus bas dans ce fichier."""
-    from app.routers.updates import run_scheduled_update_if_available
+    from app.api.routes.updates import run_scheduled_update_if_available
 
     db = SessionLocal()
     try:
@@ -899,7 +899,7 @@ async def _run_auto_update_check() -> None:
 def sync_auto_update_job(enabled: bool, time_str: str) -> None:
     """(Ré)enregistre ou retire le job planifié de mise à jour automatique.
     Appelé au démarrage (lecture du réglage persisté) et à chaque
-    modification du réglage depuis Réglages (cf. routers/settings.py)."""
+    modification du réglage depuis Réglages (cf. api/routes/settings.py)."""
     if _scheduler is None:
         logger.debug("Scheduler non démarré : synchronisation de la mise à jour automatique ignorée")
         return

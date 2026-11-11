@@ -98,8 +98,8 @@ class ApplianceHandler(ProfileHandler):
 @pytest.fixture()
 def client(monkeypatch):
     init_db()
-    monkeypatch.setattr("app.routers.settings.active_port", lambda: 1903)
-    monkeypatch.setattr("app.routers.settings.access_addresses", lambda: [
+    monkeypatch.setattr("app.api.routes.settings.active_port", lambda: 1903)
+    monkeypatch.setattr("app.api.routes.settings.access_addresses", lambda: [
         {"ip": "192.168.1.20", "interface": "wlan0", "kind": "lan"},
         {"ip": "100.101.102.103", "interface": "tailscale0", "kind": "vpn"},
     ])
@@ -107,7 +107,7 @@ def client(monkeypatch):
 
 
 def test_desktop_without_redirect_keeps_the_port_in_every_link(client, monkeypatch):
-    monkeypatch.setattr("app.routers.settings.get_profile_handler", lambda: DesktopHandler())
+    monkeypatch.setattr("app.api.routes.settings.get_profile_handler", lambda: DesktopHandler())
     network_info = client.get("/api/settings").json()["network"]
     assert network_info["mdns_url"] == "http://bobine.local:1903"
     assert network_info["port80_redirect"] is False
@@ -118,17 +118,17 @@ def test_desktop_without_redirect_keeps_the_port_in_every_link(client, monkeypat
 
 
 def test_short_address_only_where_port_80_redirects(client, monkeypatch):
-    monkeypatch.setattr("app.routers.settings.get_profile_handler", lambda: ApplianceHandler())
+    monkeypatch.setattr("app.api.routes.settings.get_profile_handler", lambda: ApplianceHandler())
     assert client.get("/api/settings").json()["network"]["mdns_url"] == "http://bobine.local"
-    monkeypatch.setattr("app.routers.settings.get_profile_handler", lambda: DesktopHandler())
+    monkeypatch.setattr("app.api.routes.settings.get_profile_handler", lambda: DesktopHandler())
     monkeypatch.setattr(port80, "is_active", lambda: True)
     assert client.get("/api/settings").json()["network"]["mdns_url"] == "http://bobine.local"
 
 
 def test_linux_desktop_with_system_avahi_links_the_machine_name(client, monkeypatch):
-    monkeypatch.setattr("app.routers.settings.get_profile_handler", lambda: DesktopHandler())
-    monkeypatch.setattr("app.routers.settings.get_mdns_status", lambda: {"state": "external"})
-    monkeypatch.setattr("app.routers.settings.socket.gethostname", lambda: "Poste-Salle.home")
+    monkeypatch.setattr("app.api.routes.settings.get_profile_handler", lambda: DesktopHandler())
+    monkeypatch.setattr("app.api.routes.settings.get_mdns_status", lambda: {"state": "external"})
+    monkeypatch.setattr("app.api.routes.settings.socket.gethostname", lambda: "Poste-Salle.home")
     assert client.get("/api/settings").json()["network"]["mdns_url"] == "http://poste-salle.local:1903"
 
 

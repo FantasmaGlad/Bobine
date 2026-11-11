@@ -20,7 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db, SessionLocal
-from app.api_contract import SORT_ORDERS, VIDEO_SORT_FIELDS, regex
+from app.api.contract import SORT_ORDERS, VIDEO_SORT_FIELDS, regex
 from app.models import ImportSource, Schedule, ScheduleTargetType, Video, VideoSubtitle
 from app.scheduler_manager import remove_schedule_job
 from app.config import settings

@@ -6,7 +6,7 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-from app.routers import diagnostics
+from app.api.routes import diagnostics
 
 
 def test_problem_carries_its_fix_only_when_given():

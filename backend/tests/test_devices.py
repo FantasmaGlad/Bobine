@@ -224,7 +224,7 @@ def driver():
 
 @pytest.fixture()
 def local(monkeypatch):
-    monkeypatch.setattr("app.routers.devices.is_local_request", lambda request: True)
+    monkeypatch.setattr("app.api.routes.devices.is_local_request", lambda request: True)
 
 
 def remote(host="192.168.1.7"):

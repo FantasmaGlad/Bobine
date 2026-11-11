@@ -11,7 +11,7 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api_contract import LOG_LEVELS
+from app.api.contract import LOG_LEVELS
 from app.config import settings
 from app.database import get_db
 from app.models import ActivityLog

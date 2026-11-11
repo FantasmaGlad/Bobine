@@ -2,7 +2,7 @@
 FastAPI SYNCHRONES (`def`, exécutés dans le threadpool) et les exécuteurs
 d'import (ffmpeg_executor/io_executor) pour diffuser un évènement WebSocket
 sans jamais appeler une coroutine directement depuis un thread qui n'est pas
-celui de la boucle asyncio — cf. `routers/videos.py`/`utils/watcher.py`.
+celui de la boucle asyncio — cf. `api/routes/videos.py`/`utils/watcher.py`.
 
 Simule exactement ce contexte : une boucle asyncio tourne dans un thread
 dédié (comme la boucle principale d'uvicorn), et `broadcast_threadsafe` est

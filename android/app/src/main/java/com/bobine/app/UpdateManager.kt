@@ -26,7 +26,7 @@ import java.security.MessageDigest
 private const val TAG = "UpdateManager"
 
 // Rappel vers l'orchestrateur de mise a jour cote Python (cf.
-// routers/updates.py::android_update_callback) : le telechargement se fait
+// api/routes/updates.py::android_update_callback) : le telechargement se fait
 // dans CE thread Kotlin, de facon totalement asynchrone du point de vue de
 // `apply_update()` cote Python (deja retourne au moment ou ce thread
 // termine) - sans ce rappel, l'etat de mise a jour affiche dans Reglages
@@ -343,7 +343,7 @@ object UpdateManager {
     }
 
     /** Signale progression/issue a l'orchestrateur Python (cf.
-     * routers/updates.py::android_update_callback) — best-effort, une
+     * api/routes/updates.py::android_update_callback) — best-effort, une
      * defaillance de ce rappel ne doit jamais empecher la mise a jour
      * elle-meme de se poursuivre. */
     private fun reportCallback(context: Context, status: String, message: String, percent: Int? = null) {
