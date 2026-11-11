@@ -65,3 +65,19 @@ def test_open_path_opens_a_data_directory(monkeypatch):
     result = settings_router.open_path(settings_router.OpenPathRequest(path=str(target)))
     assert result["path"] == str(target)
     assert opened
+
+
+def test_health_reports_version_and_components_without_changing_the_status_rule():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    from app.utils.version import get_app_version
+
+    with TestClient(app) as client:
+        response = client.get("/api/health")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok" and body["version"] == get_app_version()
+    assert body["components"]["database"] == "ok"
+    assert body["components"]["scheduler"] == "ok"
+    assert body["components"]["frontend"] in ("ok", "missing")

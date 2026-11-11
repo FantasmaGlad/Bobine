@@ -9,7 +9,10 @@ from sqlalchemy import text
 
 from app.database import SessionLocal
 from app.utils.android_runtime import is_android
+from app.api.static_files import frontend_out
+from app.scheduling.jobs import scheduler_running
 from app.utils.health import kiosk_process_alive
+from app.utils.version import get_app_version
 
 router = APIRouter()
 
@@ -21,10 +24,10 @@ async def health():
     """Contrôle de santé lisible par machine, consommé par le chien de garde
     `bobine-watchdog` (redémarrage auto d'un composant mort) et par toute
     supervision externe. Vérifie la dépendance critique du backend — la base
-    **SQLite** — plus, à titre indicatif, la présence du **kiosque Chromium**.
-    Renvoie HTTP 200 si la base répond, sinon 503. L'état du kiosque n'influe
-    PAS sur le code HTTP : c'est un composant séparé, que le chien de garde
-    redémarre indépendamment du backend."""
+    **SQLite** — plus, à titre indicatif, le **kiosque Chromium**, le planificateur,
+    l'interface exportée et la version. Renvoie HTTP 200 si la base répond, sinon 503.
+    Les composants indicatifs n'influent PAS sur le code HTTP : le chien de garde ne
+    relance le backend que pour une base muette."""
     components: dict[str, str] = {}
 
     def _check_database() -> str:
@@ -52,8 +55,13 @@ async def health():
     # exception interceptée)..
     components["kiosk"] = "n/a" if _IS_ANDROID else await run_in_threadpool(kiosk_process_alive)
 
+    # À titre indicatif comme le kiosque : avec `version`, de quoi vérifier après une mise à jour que la bonne
+    # version tourne entière (planning armé, interface servie), sans que le chien de garde relance le backend.
+    components["scheduler"] = "ok" if scheduler_running() else "down"
+    components["frontend"] = "ok" if frontend_out.is_dir() else "missing"
+
     healthy = components["database"] == "ok"
-    payload = {"status": "ok" if healthy else "degraded", "components": components}
+    payload = {"status": "ok" if healthy else "degraded", "version": get_app_version(), "components": components}
     if not healthy:
         return JSONResponse(status_code=503, content=payload)
     return payload

@@ -260,6 +260,11 @@ def start_scheduler() -> None:
         db.close()
 
 
+def scheduler_running() -> bool:
+    """Vrai quand le planificateur tourne : sans lui, aucune programmation ne se déclenche."""
+    return _scheduler is not None and _scheduler.running
+
+
 def stop_scheduler() -> None:
     global _scheduler
     if _scheduler is not None:
