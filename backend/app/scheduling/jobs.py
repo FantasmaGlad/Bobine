@@ -178,7 +178,7 @@ async def _run_auto_update_check() -> None:
 def sync_auto_update_job(enabled: bool, time_str: str) -> None:
     """(Ré)enregistre ou retire le job planifié de mise à jour automatique.
     Appelé au démarrage (lecture du réglage persisté) et à chaque
-    modification du réglage depuis Réglages (cf. api/routes/settings.py)."""
+    modification du réglage depuis Réglages (cf. api/routes/settings/)."""
     if _scheduler is None:
         logger.debug("Scheduler non démarré : synchronisation de la mise à jour automatique ignorée")
         return

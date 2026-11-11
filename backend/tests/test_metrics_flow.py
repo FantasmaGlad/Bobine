@@ -24,7 +24,7 @@ from app.api.routes.metrics import (
     get_metrics_dashboard,
     list_course_ratings,
 )
-from app.api.routes.settings import get_storage, get_system_usage, purge_logs_manual
+from app.api.routes.settings.maintenance import get_storage, get_system_usage, purge_logs_manual
 from app.hardware.cpu import get_cpu_model_name
 from app.hardware.disk import get_storage_model
 from app.hardware.gpu import get_gpu_info
@@ -274,7 +274,8 @@ class TestMetricsFlow(unittest.TestCase):
 
     def test_settings_logs_retention_days_update(self):
         """Valide la modification du délai de rétention des logs via PUT /api/settings et la validation des bornes."""
-        from app.api.routes.settings import update_settings, get_settings, SettingsUpdate
+        from app.api.routes.settings.core import SettingsUpdate
+        from app.api.routes.settings.values import update_settings, get_settings
         import asyncio
 
         with SessionLocal() as db:

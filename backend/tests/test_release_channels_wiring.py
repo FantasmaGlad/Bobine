@@ -144,7 +144,7 @@ def test_frontend_importe_la_liste_generee_et_ne_la_redeclare_pas():
 
 
 def test_les_reglages_exposent_origine_et_canal_d_installation():
-    source = _read("backend/app/api/routes/settings.py")
+    source = _read("backend/app/api/routes/settings/values.py")
     for key in ('"update_channel_source"', '"install_channel"'):
         assert key in source
 

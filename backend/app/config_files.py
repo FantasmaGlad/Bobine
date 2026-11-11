@@ -156,7 +156,7 @@ def _document(kind: str, body: dict[str, Any], warnings: list[str] | None = None
 # --- un constructeur par fichier ---------------------------------------------------------------------------------------
 
 def _settings_values(db: Session) -> dict[str, Any]:
-    from app.api.routes.settings import get_settings
+    from app.api.routes.settings.values import get_settings
 
     return get_settings(db)
 
@@ -216,7 +216,7 @@ def build_machine(db: Session) -> dict[str, Any]:
 
 
 def build_display_outputs(db: Session) -> dict[str, Any]:
-    from app.api.routes.settings import get_display_output_value
+    from app.api.routes.settings.display import get_display_output_value
 
     from app.utils.video_sound import load_video_sound
 

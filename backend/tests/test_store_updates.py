@@ -54,7 +54,10 @@ def play(monkeypatch):
     init_db()
     handler = PlayHandler()
     monkeypatch.setattr("app.api.routes.updates.get_profile_handler", lambda: handler)
-    monkeypatch.setattr("app.api.routes.settings.get_profile_handler", lambda: handler)
+    monkeypatch.setattr("app.api.routes.settings.access.get_profile_handler", lambda: handler)
+    monkeypatch.setattr("app.api.routes.settings.backup.get_profile_handler", lambda: handler)
+    monkeypatch.setattr("app.api.routes.settings.maintenance.get_profile_handler", lambda: handler)
+    monkeypatch.setattr("app.api.routes.settings.values.get_profile_handler", lambda: handler)
     return handler
 
 

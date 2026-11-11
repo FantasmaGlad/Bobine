@@ -44,25 +44,26 @@ def test_srt_is_converted_to_webvtt():
 def test_open_path_refuses_directories_outside_the_data_roots():
     for outside in ("/etc", "/", str(Path.home())):
         with pytest.raises(HTTPException) as exc:
-            settings_router.open_path(settings_router.OpenPathRequest(path=outside))
+            settings_router.maintenance.open_path(settings_router.maintenance.OpenPathRequest(path=outside))
         assert exc.value.status_code == 403
 
 
 def test_open_path_does_not_create_missing_directories(tmp_path):
     missing = Path(settings.media_dir).resolve() / "dossier-inexistant-pour-test"
     with pytest.raises(HTTPException) as exc:
-        settings_router.open_path(settings_router.OpenPathRequest(path=str(missing)))
+        settings_router.maintenance.open_path(settings_router.maintenance.OpenPathRequest(path=str(missing)))
     assert exc.value.status_code == 404
     assert not missing.exists()
 
 
 def test_open_path_opens_a_data_directory(monkeypatch):
     opened = []
-    monkeypatch.setattr(settings_router, "is_android", lambda: False)
-    monkeypatch.setattr(settings_router.subprocess, "Popen", lambda cmd, **kw: opened.append(cmd))
+    monkeypatch.setattr(settings_router.maintenance, "is_android", lambda: False)
+    monkeypatch.setattr(settings_router.laptop_lid.subprocess, "Popen", lambda cmd, **kw: opened.append(cmd))
+    monkeypatch.setattr(settings_router.maintenance.subprocess, "Popen", lambda cmd, **kw: opened.append(cmd))
     target = Path(settings.media_dir).resolve()
     target.mkdir(parents=True, exist_ok=True)
-    result = settings_router.open_path(settings_router.OpenPathRequest(path=str(target)))
+    result = settings_router.maintenance.open_path(settings_router.maintenance.OpenPathRequest(path=str(target)))
     assert result["path"] == str(target)
     assert opened
 

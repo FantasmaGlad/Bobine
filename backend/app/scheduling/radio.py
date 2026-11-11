@@ -78,7 +78,7 @@ def resolve_radio_default_playlist(db: Session, radio_channel: str) -> RadioPlay
 
 def is_cable_output_radio(db: Session) -> bool:
     """Vrai si la sortie câblée est actuellement basculée sur la radio."""
-    from app.api.routes.settings import get_display_output_value
+    from app.api.routes.settings.display import get_display_output_value
 
     return get_display_output_value(db, "cable") == "radio"
 

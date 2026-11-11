@@ -180,7 +180,8 @@ def _flag(ctx: _Context, file: str, label: str, value: Any) -> bool:
 # --- un applicateur par fichier --------------------------------------------------------------------------------------
 
 def _apply_settings(ctx: _Context, file: str, document: dict) -> None:
-    from app.api.routes.settings import SettingsUpdate, after_settings_change, settings_updates, stage_settings
+    from app.api.routes.settings.core import SettingsUpdate
+    from app.api.routes.settings.values import after_settings_change, settings_updates, stage_settings
 
     body = document.get("settings")
     if not isinstance(body, dict):
@@ -255,7 +256,8 @@ def _write_setting(db: Session, key: str, value: str | None) -> None:
 
 def _apply_machine(ctx: _Context, file: str, document: dict) -> None:
     from app.devices.routing import ROUTES_SETTING, sanitize_routes
-    from app.api.routes.settings import SettingsUpdate, after_settings_change, settings_updates, stage_settings
+    from app.api.routes.settings.core import SettingsUpdate
+    from app.api.routes.settings.values import after_settings_change, settings_updates, stage_settings
     from app.storage import longevity
 
     body = document.get("machine")
@@ -301,7 +303,8 @@ def _apply_machine(ctx: _Context, file: str, document: dict) -> None:
 
 
 def _apply_display_outputs(ctx: _Context, file: str, document: dict) -> None:
-    from app.api.routes.settings import _DISPLAY_OUTPUTS_BY_CHANNEL, apply_display_output, get_display_output_value
+    from app.api.routes.settings.core import _DISPLAY_OUTPUTS_BY_CHANNEL
+    from app.api.routes.settings.display import apply_display_output, get_display_output_value
 
     outputs = document.get("outputs")
     if not isinstance(outputs, dict):

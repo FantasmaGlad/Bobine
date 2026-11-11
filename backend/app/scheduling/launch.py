@@ -77,7 +77,7 @@ async def _launch_target(
                     "sans basculer l'écran câblé"
                 )
             else:
-                from app.api.routes.settings import apply_display_output
+                from app.api.routes.settings.display import apply_display_output
 
                 logger.info(f"Programmation radio ({radio_channel}) : l'écran câblé passe sur Radio")
                 await apply_display_output(db, "cable", "radio", activate_radio=False)

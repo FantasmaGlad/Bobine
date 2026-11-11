@@ -21,7 +21,7 @@ from app.radio_manager import (
     get_all_radio_managers, get_radio_manager, init_radio_managers, is_radio_channel,
     normalize_radio_channel, rule_targets_output,
 )
-from app.api.routes.settings import get_display_output_value
+from app.api.routes.settings.display import get_display_output_value
 from app.devices.service import PLAYER_ROUTE_STATUSES, service as devices_service
 from app.utils.radio_mix import sanitize_levels
 from app.utils import radio_commands, video_sound

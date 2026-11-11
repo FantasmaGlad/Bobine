@@ -15,11 +15,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.api.routes.settings import (
-    broadcast_display_mode,
-    get_display_mode_setting,
-    get_effective_wired_display_mode,
-)
+from app.api.routes.settings.display import broadcast_display_mode
+from app.api.routes.settings.wired_mode import get_display_mode_setting, get_effective_wired_display_mode
 from app.utils.display_state import get_hardware_state, report_external_displays
 
 logger = logging.getLogger(__name__)

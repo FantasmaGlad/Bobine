@@ -201,7 +201,10 @@ def client():
 
 
 def test_settings_expose_and_validate_tor(client, monkeypatch):
-    monkeypatch.setattr("app.api.routes.settings.get_profile_handler", lambda: DesktopHandler())
+    monkeypatch.setattr("app.api.routes.settings.access.get_profile_handler", lambda: DesktopHandler())
+    monkeypatch.setattr("app.api.routes.settings.backup.get_profile_handler", lambda: DesktopHandler())
+    monkeypatch.setattr("app.api.routes.settings.maintenance.get_profile_handler", lambda: DesktopHandler())
+    monkeypatch.setattr("app.api.routes.settings.values.get_profile_handler", lambda: DesktopHandler())
     data = client.get("/api/settings").json()
     assert data["update_tor_supported"] is True
     assert client.put("/api/settings", json={"update_tor_proxy": "pas une adresse"}).status_code == 400
@@ -213,7 +216,10 @@ def test_settings_expose_and_validate_tor(client, monkeypatch):
 
 
 def test_appliance_refuses_tor_updates(client, monkeypatch):
-    monkeypatch.setattr("app.api.routes.settings.get_profile_handler", lambda: ApplianceHandler())
+    monkeypatch.setattr("app.api.routes.settings.access.get_profile_handler", lambda: ApplianceHandler())
+    monkeypatch.setattr("app.api.routes.settings.backup.get_profile_handler", lambda: ApplianceHandler())
+    monkeypatch.setattr("app.api.routes.settings.maintenance.get_profile_handler", lambda: ApplianceHandler())
+    monkeypatch.setattr("app.api.routes.settings.values.get_profile_handler", lambda: ApplianceHandler())
     assert client.get("/api/settings").json()["update_tor_supported"] is False
     assert client.put("/api/settings", json={"update_tor": "true"}).status_code == 409
 

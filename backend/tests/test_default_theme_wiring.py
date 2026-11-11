@@ -22,7 +22,7 @@ def _default_light_tokens() -> dict[str, str]:
 
 
 def test_theme_par_defaut_du_serveur_et_de_l_interface():
-    assert settings._DEFAULTS["theme"] == themes.DEFAULT_THEME and settings._DEFAULTS["theme_mode"] == themes.DEFAULT_MODE
+    assert settings.core._DEFAULTS["theme"] == themes.DEFAULT_THEME and settings.core._DEFAULTS["theme_mode"] == themes.DEFAULT_MODE
     palettes = _read("frontend/src/lib/themePalettes.ts")
     assert f'DEFAULT_THEME: ThemeId = "{themes.DEFAULT_THEME}"' in palettes
     assert f'DEFAULT_MODE: ThemeMode = "{themes.DEFAULT_MODE}"' in palettes

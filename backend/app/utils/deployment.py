@@ -2,7 +2,7 @@
 dépend — redémarrage des services, désinstallation, mise à jour.
 
 Un seul point d'entrée (`get_profile_handler()`) pour que
-`api/routes/settings.py` et `api/routes/updates.py` n'appellent plus jamais
+`api/routes/settings/` et `api/routes/updates.py` n'appellent plus jamais
 `sudo`/`systemctl`/`git` directement selon la plateforme : chaque profil
 ajoute son propre fichier de handler dans `deployment_profiles/`, sans
 jamais toucher aux deux routers ni à ce module — voir `docs/ARCHITECTURE.md`

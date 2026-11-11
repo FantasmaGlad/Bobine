@@ -369,7 +369,7 @@ chaquopy {
         // perimetre volontairement petit) : `pydantic_settings.BaseSettings` (config.py:6, remplacer
         // par `pydantic.BaseSettings` integre a v1 sur ce profil),
         // `field_validator` (api/routes/radio_announcements.py:20,75, syntaxe
-        // v1 = `validator`), `payload.model_dump(...)` (api/routes/settings.py:339,
+        // v1 = `validator`), `payload.model_dump(...)` (api/routes/settings/:339,
         // syntaxe v1 = `.dict(...)`). Non fait a ce stade.
     }
 }

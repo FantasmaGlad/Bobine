@@ -30,13 +30,8 @@ from fastapi import HTTPException, UploadFile
 from app.config import settings
 from app.database import engine, init_db, SessionLocal
 from app.models import Video, Setting, ImportSource
-from app.api.routes.settings import (
-    ResetDataRequest,
-    export_backup,
-    restore_backup,
-    reset_data_system,
-    get_system_usage,
-)
+from app.api.routes.settings.backup import ResetDataRequest, export_backup, restore_backup, reset_data_system
+from app.api.routes.settings.maintenance import get_system_usage
 from app.api.routes.updates import check_updates
 from app.utils.version import get_app_version
 
@@ -242,7 +237,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         # 3. Restore initial backup
         upload = UploadFile(filename="valid_backup.zip", file=io.BytesIO(backup_bytes))
         mock_bg = MagicMock()
-        with patch("app.api.routes.settings._run_restore_restart"):
+        with patch("app.api.routes.settings.backup._run_restore_restart"):
             result = await restore_backup(file=upload, background_tasks=mock_bg, db=MagicMock())
             self.assertEqual(result["status"], "ok")
 
@@ -276,7 +271,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(media_file.exists())
 
         mock_bg = MagicMock()
-        with patch("app.api.routes.settings._run_reset_data_restart"):
+        with patch("app.api.routes.settings.backup._run_reset_data_restart"):
             res = await reset_data_system(ResetDataRequest(confirm="reinitialiser"), mock_bg)
             self.assertIn("Remise à zéro des données effectuée", res["message"])
 
