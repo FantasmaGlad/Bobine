@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -552,7 +553,8 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
     "Rechercher", changement de canal) ; la requête reste conditionnelle
     (ETag).
     """
-    local_info = _get_local_version_info()
+    # Jusqu'à quatre appels `git` synchrones : hors de la boucle d'évènements.
+    local_info = await run_in_threadpool(_get_local_version_info)
     now_iso = datetime.now(timezone.utc).isoformat()
     channel = _get_update_channel(db)
 
@@ -785,7 +787,8 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
         )
     # Un retour en arrière (is_downgrade) est accepté ICI — c'est l'action
     # explicite du bouton — mais pas un clic sur une version déjà installée.
-    local_info = _get_local_version_info()
+    # Jusqu'à quatre appels `git` synchrones : hors de la boucle d'évènements.
+    local_info = await run_in_threadpool(_get_local_version_info)
     profile = get_deployment_profile()
     evaluation = await _refuse_android_downgrade(
         profile, local_info, release_data, _evaluate_update(channel, local_info, release_data)
@@ -854,7 +857,8 @@ async def run_scheduled_update_if_available(db: Session) -> None:
     release_data, _ = await _fetch_release_for_channel(channel, force=True)
     if not release_data:
         return
-    local_info = _get_local_version_info()
+    # Jusqu'à quatre appels `git` synchrones : hors de la boucle d'évènements.
+    local_info = await run_in_threadpool(_get_local_version_info)
     profile = get_deployment_profile()
     evaluation = await _refuse_android_downgrade(
         profile, local_info, release_data, _evaluate_update(channel, local_info, release_data)

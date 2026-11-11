@@ -724,6 +724,26 @@ async def after_settings_change(updates: dict[str, Any], db: Session) -> dict[st
     return result
 
 
+_LOGO_MAX_BYTES = 10 * 1024 * 1024
+
+
+def _write_logo(raw: bytes) -> None:
+    """Normalise l'image reçue en PNG de 800 px au plus. `ValueError` si elle est illisible : fichier tronqué
+    ou résolution annoncée démesurée sont des refus, pas des pannes."""
+    import io
+
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        with Image.open(io.BytesIO(raw)) as img:
+            img = img.convert("RGBA")
+            img.thumbnail((800, 800))
+            Path(runtime_settings.branding_dir).mkdir(parents=True, exist_ok=True)
+            img.save(_logo_path(), "PNG")
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+        raise ValueError(str(exc)) from exc
+
+
 @router.post("/logo")
 async def upload_logo(file: UploadFile = File(...), db: Session = Depends(get_db)) -> dict[str, Any]:
     """Upload d'un logo personnalisé :
@@ -731,26 +751,14 @@ async def upload_logo(file: UploadFile = File(...), db: Session = Depends(get_db
     (/api/branding/logo.png), remplace tout logo custom précédent.
     Active automatiquement `active_logo = "custom"` tout en permettant à l'utilisateur
     de basculer manuellement vers le logo Bobine à tout moment."""
-    import io
-
-    from PIL import Image, UnidentifiedImageError
-
     raw = await file.read()
     # Garde-fou taille : matériel modeste visé par ce
     # projet (Wyse), pas de limite avant lecture complète en mémoire sinon.
-    if len(raw) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Fichier trop volumineux (10 Mo max)")
+    if len(raw) > _LOGO_MAX_BYTES:
+        raise HTTPException(status_code=400, detail=f"Fichier trop volumineux ({_LOGO_MAX_BYTES // 1024**2} Mo max)")
     try:
-        with Image.open(io.BytesIO(raw)) as img:
-            img = img.convert("RGBA")
-            img.thumbnail((800, 800))
-            branding_dir = Path(runtime_settings.branding_dir)
-            branding_dir.mkdir(parents=True, exist_ok=True)
-            img.save(_logo_path(), "PNG")
-    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as e:
-        # Capture large (pas seulement UnidentifiedImageError) : un fichier tronqué (OSError) ou une bombe de décompression
-        # (résolution annoncée énorme) sont aussi des cas de rejet propre en
-        # 400, pas un 500 non géré.
+        await run_in_threadpool(_write_logo, raw)
+    except ValueError as e:
         logger.warning(f"Upload de logo rejeté : {e}")
         raise HTTPException(status_code=400, detail="Image illisible")
 

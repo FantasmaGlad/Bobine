@@ -15,6 +15,7 @@ from fastapi import (
     Form,
     HTTPException,
 )
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -466,6 +467,26 @@ def delete_web_rendition(video_id: int, db: Session = Depends(get_db)):
     return {"message": "Version web supprimée"}
 
 
+def _write_manual_thumbnail(source) -> Path:
+    """Enregistre l'image reçue comme miniature JPEG et rend son chemin. `ValueError` si elle est illisible."""
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        Image.open(source).verify()
+        source.seek(0)
+        img = Image.open(source).convert("RGB")
+    except (UnidentifiedImageError, OSError) as exc:
+        raise ValueError(str(exc)) from exc
+
+    thumbnails_dir = Path(settings.thumbnails_dir)
+    thumbnails_dir.mkdir(parents=True, exist_ok=True)
+    # 1080p en LANCZOS : la miniature sert aussi d'image de héros sur des écrans denses (tablettes 2,8K, TV 4K).
+    img.thumbnail((1920, 1080), Image.Resampling.LANCZOS)
+    path = thumbnails_dir / f"thumb_{uuid.uuid4().hex}.jpg"
+    img.save(path, "JPEG", quality=92, optimize=True)
+    return path
+
+
 @router.put("/{video_id}/thumbnail", response_model=VideoResponse)
 async def upload_video_thumbnail(video_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
@@ -474,29 +495,14 @@ async def upload_video_thumbnail(video_id: int, file: UploadFile = File(...), db
     le fait déjà pour un fond fixe : aucun décodage vidéo requis, seulement
     Pillow, donc disponible sur toutes les plateformes sans exception.
     """
-    from PIL import Image, UnidentifiedImageError
-
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
 
     try:
-        img = Image.open(file.file)
-        img.verify()
-        file.file.seek(0)
-        img = Image.open(file.file).convert("RGB")
-    except (UnidentifiedImageError, OSError):
+        new_thumb_path = await run_in_threadpool(_write_manual_thumbnail, file.file)
+    except ValueError:
         raise HTTPException(status_code=400, detail="Fichier image invalide")
-
-    thumbnails_dir = Path(settings.thumbnails_dir)
-    thumbnails_dir.mkdir(parents=True, exist_ok=True)
-
-    # Gabarit haute résolution 1080p (LANCZOS) pour un rendu d'une netteté
-    # cristalline sur écrans Retina/Haute densité (tablettes 2.8K, TV 4K),
-    # évitant le flou de mise à l'échelle d'une miniature 360p étirée en héros.
-    img.thumbnail((1920, 1080), Image.Resampling.LANCZOS)
-    new_thumb_path = thumbnails_dir / f"thumb_{uuid.uuid4().hex}.jpg"
-    img.save(new_thumb_path, "JPEG", quality=92, optimize=True)
 
     old_thumb_path = Path(video.thumbnail_path) if video.thumbnail_path else None
     video.thumbnail_path = str(new_thumb_path)
