@@ -85,25 +85,42 @@ class ToolchainRustTests(unittest.TestCase):
 
 
 class DocumentationSeuleTests(unittest.TestCase):
-    """Une modification de documentation seule ne construit rien et ne publie aucune Canary."""
+    """Documentation seule : rien n'est construit ni publié. Pull request : seuls les jobs de la zone touchée."""
 
-    LOURDS = (
-        "frontend", "firefox-smoke", "backend", "backend-android-compat", "devices-sidecar", "media-component",
-        "android-build", "android-startup", "install-script", "windows-build", "windows-build-arm64", "linux-deb",
-        "macos-build",
-    )
+    # Portée dont dépend chaque job : `code` tourne à toute modification de code, les autres seulement quand
+    # une pull request touche leur zone (un push sur main, un tag ou un déclenchement manuel construisent tout).
+    PORTEES = {
+        "frontend": "code", "firefox-smoke": "code", "backend": "code", "backend-android-compat": "code",
+        "install-script": "code", "devices-sidecar": "devices", "media-component": "media",
+        "android-build": "android", "android-startup": "android", "windows-build": "packaging",
+        "windows-build-arm64": "packaging", "linux-deb": "packaging", "macos-build": "packaging",
+    }
 
     def test_chaque_job_de_construction_depend_de_la_portee(self):
         parts = jobs(CI)
-        for name in self.LOURDS:
-            self.assertIn("    if: needs.version.outputs.code == 'true'", parts[name], name)
+        for name, portee in self.PORTEES.items():
+            self.assertIn(f"    if: needs.version.outputs.{portee} == 'true'", parts[name], name)
+
+    def test_une_pull_request_ne_construit_aucun_paquet_sans_raison(self):
+        version = jobs(CI)["version"]
+        self.assertIn('if [ "$GITHUB_EVENT_NAME" != pull_request ]; then\n            portee true; exit 0', version)
+        for cle in ("packaging", "android", "media", "devices"):
+            self.assertIn(f'echo "{cle}=$(touche ', version)
+
+    def test_chaque_artefact_a_une_retention_courte(self):
+        for texte in (CI, PLAY):
+            envois = re.findall(r"uses: actions/upload-artifact@[^\n]*\n(?:[^\n]*\n){0,2}? +with:\n +retention-days: ", texte)
+            self.assertEqual(len(envois), texte.count("actions/upload-artifact@"))
 
     def test_tag_et_declenchement_manuel_construisent_tout(self):
         version = jobs(CI)["version"]
         self.assertIn('[ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [[ "$GITHUB_REF" == refs/tags/* ]]', version)
 
-    def test_ci_ok_n_accepte_un_job_ignore_que_pour_la_documentation(self):
-        self.assertIn('{ [ "$CODE" = false ] && [ "$r" = skipped ]; }', jobs(CI)["ci-ok"])
+    def test_ci_ok_n_accepte_un_job_ignore_que_hors_de_sa_portee(self):
+        ci_ok = jobs(CI)["ci-ok"]
+        self.assertIn('{ [ "$3" = false ] && [ "$2" = skipped ]; }', ci_ok)
+        for name, portee in self.PORTEES.items():
+            self.assertIn(f'controle {name} "${{{{ needs.{name}.result }}}}" "${portee.upper()}"', ci_ok)
 
 
 if __name__ == "__main__":
