@@ -142,7 +142,7 @@ Trois canaux, à changer à tout moment dans **Réglages → Mises à jour**.
 
 ## Pourquoi aller aussi loin ?
 
-Un planning hebdomadaire de cours collectifs n'a pas besoin de huit plateformes, de trois canaux de mise à jour ni d'un miroir Tor. Ces choix sont voulus ; Bobine est aussi le terrain où son auteur les pratique.
+Un planning hebdomadaire de cours collectifs n'a pas besoin de sept plateformes, de trois canaux de mise à jour ni d'un miroir Tor. Ces choix sont voulus ; Bobine est aussi le terrain où son auteur les pratique.
 
 - **Tous les systèmes et architectures** : pour que la question « est-ce compatible ? » ne se pose pas. Un ancien portable, une tablette, un boîtier TV, un mini PC d'occasion : si l'appareil dort dans un garage, Bobine doit pouvoir s'y installer, quelle que soit sa puissance. Réutiliser un appareil évite d'en acheter un.
 - **Trois canaux de mise à jour** : pour tenir un processus de diffusion propre, avec la Stable en bout de chaîne, la Bêta par lots choisis et la Canary reconstruite à chaque modification.

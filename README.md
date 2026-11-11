@@ -142,7 +142,7 @@ Three channels, switchable at any time in **Settings → Software Updates**.
 
 ## Why go this far?
 
-A weekly timetable of fitness classes does not need eight platforms, three update channels and a Tor mirror. These choices are deliberate; Bobine is also where its author practises them.
+A weekly timetable of fitness classes does not need seven platforms, three update channels and a Tor mirror. These choices are deliberate; Bobine is also where its author practises them.
 
 - **Every system and architecture**: so that "is it compatible?" is not a question. An old laptop, a tablet, a TV box, a second-hand mini PC: if the device sits in a garage, Bobine should install on it, whatever its power. Reusing a device avoids buying one.
 - **Three update channels**: to run a clean release process, with Stable at the end of the line, Beta in chosen batches and Canary rebuilt on every change.
