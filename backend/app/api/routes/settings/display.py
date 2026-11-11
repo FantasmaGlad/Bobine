@@ -46,7 +46,7 @@ async def broadcast_display_mode(db: Session) -> str:
 
 def get_display_output_value(db: Session, channel: str = "cable") -> str:
     """Valeur de sortie active pour un canal, réutilisable hors endpoint
-    (verrouillage cinéma dans api/routes/playback.py)."""
+    (verrouillage cinéma dans api/routes/playback/)."""
     value = _get_db_value(db, _DISPLAY_OUTPUT_KEYS[channel])
     # Une valeur explicitement stockée (y compris "radio" sur le câblé) l'emporte
     # toujours sur la sortie dérivée du matériel ci-dessous.

@@ -186,10 +186,10 @@ def test_la_regle_toutes_les_n_musiques_n_est_pas_comptee_deux_fois_par_un_doubl
     async def _run():
         m, fake = _manager()
         await m.load_playlist(1, "Ambiance", TRACKS, shuffle=False)
-        monkeypatch.setattr(playback_router, "_due_wait_end_announcement", lambda db, manager: None)
+        monkeypatch.setattr(playback_router.radio_commands, "_due_wait_end_announcement", lambda db, manager: None)
         fake.advance(30.0)
-        await playback_router._handle_radio_track_ended(m, None, None, 11)   # poste 1
-        await playback_router._handle_radio_track_ended(m, None, None, 11)   # poste 2 : doublon
+        await playback_router.radio_commands._handle_radio_track_ended(m, None, None, 11)   # poste 1
+        await playback_router.radio_commands._handle_radio_track_ended(m, None, None, 11)   # poste 2 : doublon
         assert m.state["tracks_since_announcement"] == 1
         assert m.state["current_track"]["id"] == 12
 

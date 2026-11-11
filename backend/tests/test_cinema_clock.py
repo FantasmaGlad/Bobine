@@ -31,56 +31,57 @@ class FakeTime:
 @pytest.fixture()
 def fake(monkeypatch):
     f = FakeTime()
-    monkeypatch.setattr(pb, "_cinema_clocks", {})
-    monkeypatch.setattr(pb, "_cinema_launched_video", {})
-    monkeypatch.setattr(pb, "PlaybackClock", f.clock)
+    monkeypatch.setattr(pb.cinema, "_cinema_clocks", {})
+    monkeypatch.setattr(pb.cinema, "_cinema_launched_video", {})
+    monkeypatch.setattr(pb.commands, "_cinema_launched_video", {})
+    monkeypatch.setattr(pb.cinema, "PlaybackClock", f.clock)
     return f
 
 
 def test_sans_launch_aucune_horloge_n_est_jointe_aux_ordres(fake):
-    pb._apply_cinema_command_to_clock("cable", "play", {})
-    pb._apply_cinema_command_to_clock("cable", "seek", {"position_seconds": 50})
-    assert "cable" not in pb._cinema_launched_video
+    pb.cinema._apply_cinema_command_to_clock("cable", "play", {})
+    pb.cinema._apply_cinema_command_to_clock("cable", "seek", {"position_seconds": 50})
+    assert "cable" not in pb.cinema._cinema_launched_video
 
 
 def test_launch_cree_l_horloge_puis_play_pause_seek_la_pilotent(fake):
-    pb._apply_cinema_command_to_clock("cable", "launch", {"video_id": 7})
-    clock = pb._cinema_clock_for("cable")
-    assert pb._cinema_launched_video["cable"] == 7 and clock.running
+    pb.cinema._apply_cinema_command_to_clock("cable", "launch", {"video_id": 7})
+    clock = pb.cinema._cinema_clock_for("cable")
+    assert pb.cinema._cinema_launched_video["cable"] == 7 and clock.running
     fake.advance(10.0)
     assert abs(clock.position() - 10.0) < 1e-6
-    pb._apply_cinema_command_to_clock("cable", "pause", {})
+    pb.cinema._apply_cinema_command_to_clock("cable", "pause", {})
     fake.advance(30.0)
     assert abs(clock.position() - 10.0) < 1e-6 and not clock.running
-    pb._apply_cinema_command_to_clock("cable", "seek", {"position_seconds": 60})
+    pb.cinema._apply_cinema_command_to_clock("cable", "seek", {"position_seconds": 60})
     assert abs(clock.position() - 60.0) < 1e-6 and not clock.running
-    pb._apply_cinema_command_to_clock("cable", "play", {})
+    pb.cinema._apply_cinema_command_to_clock("cable", "play", {})
     fake.advance(2.0)
     assert abs(clock.position() - 62.0) < 1e-6
 
 
 def test_un_launch_peut_reprendre_a_une_position(fake):
-    pb._apply_cinema_command_to_clock("cable", "launch", {"video_id": 3, "position_seconds": 45})
+    pb.cinema._apply_cinema_command_to_clock("cable", "launch", {"video_id": 3, "position_seconds": 45})
     fake.advance(5.0)
-    assert abs(pb._cinema_clock_for("cable").position() - 50.0) < 1e-6
+    assert abs(pb.cinema._cinema_clock_for("cable").position() - 50.0) < 1e-6
 
 
 def test_stop_detruit_le_cours_lance_par_ordre(fake):
-    pb._apply_cinema_command_to_clock("cable", "launch", {"video_id": 7})
-    pb._apply_cinema_command_to_clock("cable", "stop", {})
-    assert "cable" not in pb._cinema_launched_video
-    assert not pb._cinema_clock_for("cable").running
+    pb.cinema._apply_cinema_command_to_clock("cable", "launch", {"video_id": 7})
+    pb.cinema._apply_cinema_command_to_clock("cable", "stop", {})
+    assert "cable" not in pb.cinema._cinema_launched_video
+    assert not pb.cinema._cinema_clock_for("cable").running
     # Un ordre ultérieur sans nouveau launch n'a plus d'horloge à piloter.
-    pb._apply_cinema_command_to_clock("cable", "play", {})
-    assert "cable" not in pb._cinema_launched_video
+    pb.cinema._apply_cinema_command_to_clock("cable", "play", {})
+    assert "cable" not in pb.cinema._cinema_launched_video
 
 
 def test_les_canaux_sont_independants(fake):
-    pb._apply_cinema_command_to_clock("cable", "launch", {"video_id": 1})
-    pb._apply_cinema_command_to_clock("network", "launch", {"video_id": 2})
+    pb.cinema._apply_cinema_command_to_clock("cable", "launch", {"video_id": 1})
+    pb.cinema._apply_cinema_command_to_clock("network", "launch", {"video_id": 2})
     fake.advance(4.0)
-    pb._apply_cinema_command_to_clock("network", "pause", {})
+    pb.cinema._apply_cinema_command_to_clock("network", "pause", {})
     fake.advance(6.0)
-    assert abs(pb._cinema_clock_for("cable").position() - 10.0) < 1e-6
-    assert abs(pb._cinema_clock_for("network").position() - 4.0) < 1e-6
-    assert pb._cinema_launched_video == {"cable": 1, "network": 2}
+    assert abs(pb.cinema._cinema_clock_for("cable").position() - 10.0) < 1e-6
+    assert abs(pb.cinema._cinema_clock_for("network").position() - 4.0) < 1e-6
+    assert pb.cinema._cinema_launched_video == {"cable": 1, "network": 2}

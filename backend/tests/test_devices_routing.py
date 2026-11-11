@@ -579,7 +579,7 @@ def test_le_rapport_du_lecteur_est_memorise_borne_et_retire_a_la_deconnexion(api
     client = TestClient(app)
     from app.api.routes import playback as playback_router
 
-    monkeypatch.setattr(playback_router, "devices_service", fresh)
+    monkeypatch.setattr(playback_router.radio_commands, "devices_service", fresh)
     with client.websocket_connect("/ws/playback") as ws:
         ws.send_json({"command": "identify", "params": {"role": "kiosk", "channel": "radio_cable", "client_id": "t1", "page": "radio"}})
         while ws.receive_json()["event"] != "kiosk_role":  # après boot_id et les états de synchronisation

@@ -28,7 +28,7 @@ from app.models import (
     Video,
 )
 from app.playback_manager import init_playback_managers, get_playback_manager
-from app.api.routes.playback import dismiss_interrupted_state, resume_interrupted_state
+from app.api.routes.playback.state import dismiss_interrupted_state, resume_interrupted_state
 from app.api.routes.schedule import (
     OverrideInput,
     ScheduleInput,

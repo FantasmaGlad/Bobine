@@ -163,8 +163,8 @@ def test_engines_and_routers_share_the_contract_values():
 
     assert playback_manager.CHANNELS == contract.CHANNELS and radio_manager.RADIO_CHANNELS == contract.RADIO_CHANNELS
     assert logs.LEVELS == contract.LOG_LEVELS and schedule._CHANNELS == contract.SCHEDULE_CHANNELS
-    assert playback.PLAYBACK_ACTIONS == contract.PLAYBACK_ACTIONS and playback.RADIO_ACTIONS == contract.RADIO_ACTIONS
-    assert playback.RADIO_OUTPUTS == contract.RADIO_OUTPUTS
+    assert playback.facade.PLAYBACK_ACTIONS is contract.PLAYBACK_ACTIONS and playback.facade.RADIO_ACTIONS is contract.RADIO_ACTIONS
+    assert playback.facade.RADIO_OUTPUTS is contract.RADIO_OUTPUTS
 
 
 def test_the_facade_knows_every_action_of_the_contract(client):

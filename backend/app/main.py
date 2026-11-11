@@ -156,7 +156,7 @@ async def lifespan(app: FastAPI):
         radio_manager.start_position_broadcast_loop()
     # Règles temporelles des rappels : toutes les X
     # minutes / à heures fixes — la règle « toutes les N musiques » n'a rien
-    # de temporel, elle est vérifiée à chaque fin de piste (api/routes/playback.py).
+    # de temporel, elle est vérifiée à chaque fin de piste (api/routes/playback/).
     start_radio_announcement_scheduler()
     # Surveillance des périphériques (audio, Bluetooth, Wi-Fi) : inerte tant que la fonction est désactivée
     # ou qu'aucun client n'écoute ; une panne du pilote n'affecte jamais la diffusion.

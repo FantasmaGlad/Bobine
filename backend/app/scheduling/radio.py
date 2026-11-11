@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 def radio_track_dict(track) -> dict:
     """Forme d'une piste radio dans l'état du RadioPlaybackManager (`order`,
     `current_track`, file d'attente) : source UNIQUE, partagée avec
-    api/routes/playback.py (les deux copies d'avant dérivaient l'une de l'autre).
+    api/routes/playback/ (les deux copies d'avant dérivaient l'une de l'autre).
     Le style (`genre`) sert à l'affichage de la file « À suivre »."""
     return {
         "id": track.id,
@@ -122,7 +122,7 @@ async def _launch_radio_shuffle_all(
     pour la sortie, pour ne jamais laisser la radio muette.
 
     Playlist VIRTUELLE (playlist_id=None, comme la commande `radio_shuffle_all`
-    de api/routes/playback.py) : rien n'est persisté en base, la liste est
+    de api/routes/playback/) : rien n'est persisté en base, la liste est
     recomposée à chaque lancement — elle reflète donc toujours l'état courant de
     la bibliothèque, sans playlist figée à resynchroniser à chaque import.
     Renvoie le nom lancé, ou None si la bibliothèque est vide."""
