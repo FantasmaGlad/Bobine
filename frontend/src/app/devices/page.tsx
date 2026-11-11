@@ -10,7 +10,7 @@ import MapSection from "@/components/devices/MapSection";
 import MixerSection from "@/components/devices/MixerSection";
 import VideoSoundSection from "@/components/devices/VideoSoundSection";
 import RoutingSection from "@/components/devices/RoutingSection";
-import type { Notify, SectionProps } from "@/components/devices/common";
+import type { SectionProps } from "@/components/devices/common";
 import { devicesRequest, type DevicesStatus } from "@/lib/devicesApi";
 import { useDevicesEvents } from "@/lib/useDevicesEvents";
 import { useRadioFeed } from "@/lib/useRadioFeed";
