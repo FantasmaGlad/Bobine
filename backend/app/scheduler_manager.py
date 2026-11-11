@@ -792,6 +792,7 @@ def _sync_end_job(schedule: Schedule) -> None:
     try:
         rule = json.loads(schedule.recurrence_rule)
     except (TypeError, ValueError):
+        logger.warning("Planning %s : règle de récurrence illisible, aucune heure de fin programmée", schedule.id)
         remove_end_schedule_job(schedule.id)
         return
 

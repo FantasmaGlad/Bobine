@@ -8,9 +8,7 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from sqlalchemy import func
 
-from app import config_files
 from app.database import get_db
 from app.models import (
     AudioCourse, AudioPlaylist, Background, PlaybackState,

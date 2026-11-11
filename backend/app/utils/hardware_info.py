@@ -145,7 +145,6 @@ def get_cpu_model_name() -> str:
     if is_android:
         soc_model = _get_android_prop("ro.soc.model").strip()
         platform_code = _get_android_prop("ro.board.platform").strip()
-        manufacturer = _get_android_prop("ro.soc.manufacturer").strip()
 
         # Lecture sysfs /sys/devices/soc0 si disponible
         soc_family = ""

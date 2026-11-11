@@ -35,7 +35,6 @@ from .linux_parse import (
     parse_wifi_device,
     parse_wifi_list,
     parse_wpctl_volume,
-    split_terse,
 )
 
 logger = logging.getLogger(__name__)

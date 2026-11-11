@@ -172,7 +172,6 @@ def parse_lsblk(
             continue
         nodes = _flatten(top)
         name = str(top.get("name") or "")
-        top_path = str(top.get("path") or f"/dev/{name}")
 
         def reject(reason: str, only_filesystems: bool = True) -> None:
             for node in nodes:

@@ -36,7 +36,7 @@ from app.config import (
     _global_config_path,
     settings as runtime_settings,
 )
-from app.database import _IS_SQLITE, engine, get_db, init_db
+from app.database import _IS_SQLITE, engine, get_db, init_db, release_sqlite_files
 from app.models import Setting
 from app.playback_manager import get_playback_manager
 from app.radio_manager import get_radio_manager
@@ -1158,34 +1158,15 @@ def _stage_backup_archive(source, work_dir: Path) -> tuple[Path, bytes | None]:
 async def _restore_database_file(db_tmp: Path, db_path: Path, config_bytes: bytes | None, db: Session, background_tasks: BackgroundTasks) -> None:
     try:
         log_activity(db, "settings", "Restauration d'une sauvegarde de données")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Restauration non inscrite au journal d'activité : %s", e)
 
     try:
-        from sqlalchemy import text
-        try:
-            with engine.connect() as conn:
-                conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE);"))
-        except Exception:
-            pass
-        engine.dispose()
-
+        # Le checkpoint précède la copie de secours : elle contient ainsi les dernières écritures.
+        release_sqlite_files(db_path)
         if db_path.exists():
             bak_path = db_path.with_suffix(".db.bak")
             shutil.copy2(db_path, bak_path)
-
-        wal_file = Path(f"{db_path}-wal")
-        shm_file = Path(f"{db_path}-shm")
-        if wal_file.exists():
-            try:
-                wal_file.unlink()
-            except Exception:
-                pass
-        if shm_file.exists():
-            try:
-                shm_file.unlink()
-            except Exception:
-                pass
 
         shutil.copyfile(db_tmp, db_path)
 
@@ -1280,28 +1261,11 @@ async def reset_data_system(payload: ResetDataRequest, background_tasks: Backgro
     if _IS_SQLITE:
         db_path = _get_sqlite_db_path()
         try:
-            from sqlalchemy import text
-            try:
-                with engine.connect() as conn:
-                    conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE);"))
-            except Exception:
-                pass
-            engine.dispose()
-
-            if db_path and db_path.exists():
-                db_path.unlink()
-            wal_file = Path(f"{db_path}-wal") if db_path else None
-            shm_file = Path(f"{db_path}-shm") if db_path else None
-            if wal_file and wal_file.exists():
-                try:
-                    wal_file.unlink()
-                except Exception:
-                    pass
-            if shm_file and shm_file.exists():
-                try:
-                    shm_file.unlink()
-                except Exception:
-                    pass
+            if db_path:
+                release_sqlite_files(db_path)
+                db_path.unlink(missing_ok=True)
+            else:
+                engine.dispose()
 
             init_db()
         except Exception as e:

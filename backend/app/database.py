@@ -91,6 +91,23 @@ SessionLocal = sessionmaker(
 )
 
 
+def release_sqlite_files(db_path: Path) -> None:
+    """Vide le journal WAL, ferme le pool et supprime `-wal` et `-shm` avant de remplacer ou d'effacer la base.
+
+    Un `-wal` laissé à côté d'un fichier de base remplacé serait rejoué sur la nouvelle base : une
+    suppression impossible lève `OSError` et l'appelant renonce à l'opération."""
+    from sqlalchemy import text
+
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("PRAGMA wal_checkpoint(TRUNCATE);"))
+    except Exception as exc:
+        logger.warning("Checkpoint WAL impossible avant de détacher la base : %s", exc)
+    engine.dispose()
+    for suffix in ("-wal", "-shm"):
+        Path(f"{db_path}{suffix}").unlink(missing_ok=True)
+
+
 def get_db():
     db = SessionLocal()
     try:

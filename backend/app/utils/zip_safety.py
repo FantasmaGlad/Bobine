@@ -3,11 +3,14 @@
 qu'aucune vérification native ne s'y oppose. Pour tar, les liens et fichiers spéciaux sont refusés en plus :
 le runtime Android (Python 3.11) n'a pas toujours le filtre `data` de `tarfile`."""
 
+import logging
 import shutil
 import tarfile
 import zipfile
 from pathlib import Path
 from app.utils import media_formats
+
+logger = logging.getLogger(__name__)
 
 # Extensions acceptées par les formulaires d'import ; le format réel est reconnu au contenu, pas au nom.
 ARCHIVE_EXTENSIONS = media_formats.ARCHIVE
@@ -49,7 +52,8 @@ def _check_archive_budget(dest_dir: Path, total_bytes: int) -> None:
         probe = probe.parent
     try:
         free = shutil.disk_usage(probe).free
-    except OSError:
+    except OSError as exc:
+        logger.warning("Espace libre de %s inconnu, budget de l'archive non contrôlé : %s", probe, exc)
         return
     if total_bytes > free * MAX_ARCHIVE_FREE_SPACE_RATIO:
         raise UnsafeZipError(

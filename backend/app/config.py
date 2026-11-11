@@ -380,7 +380,6 @@ settings = load_settings()
 
 
 def reload_settings() -> None:
-    global settings
     new_settings = load_settings()
     # `.model_fields` (Pydantic v2) sauf sur le profil Android où `.__fields__`
     # (v1) est le seul disponible — un

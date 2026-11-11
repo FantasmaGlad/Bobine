@@ -21,13 +21,11 @@ try:
     from pydantic import BaseModel, field_validator
 except ImportError:  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1)
     from pydantic import BaseModel, validator as field_validator
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType
 from app.radio_manager import LEGACY_RADIO_CHANNEL, RULE_TARGETS, normalize_rule_target
-from app.utils.activity_log import log_activity
 from app.utils.executors import io_executor
 from app.utils.import_jobs import create_job, update_job
 from app.utils.radio_importer import import_radio_announcement, import_radio_announcements_from_files

@@ -144,8 +144,10 @@ class FormatManager:
         for path in paths:
             try:
                 out[path] = os.stat(path).st_dev
-            except OSError:
+            except FileNotFoundError:
                 continue
+            except OSError as exc:
+                logger.warning("Chemin protégé %s illisible, non comparé par périphérique : %s", path, exc)
         return out
 
     async def _context(self, disk: DiskInfo | None, support: dict[str, Any], *, ignore_job: FormatJob | None = None) -> GuardContext:

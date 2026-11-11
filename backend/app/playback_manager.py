@@ -261,18 +261,14 @@ class PlaybackManager:
 
     async def _position_broadcast_loop(self):
         try:
-            last_tick_time = time.monotonic()
             while True:
                 await asyncio.sleep(0.25)
                 now = time.monotonic()
-                delta = now - last_tick_time
-                last_tick_time = now
 
                 is_video_playing = self.state["state"] == PlaybackStateEnum.playing.value
                 is_audio_playing = (
                     self.state["state"] == PlaybackStateEnum.coach_mode.value and self.state["audio_playing"]
                 )
-                drives_playback = time.monotonic() - self._last_direct_report < 2.5
                 if is_video_playing:
                     # Vidéo : l'horloge serveur avance seule, qu'un kiosque
                     # rapporte ou non — heartbeat lent, pas de tick à 4 Hz.

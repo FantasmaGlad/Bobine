@@ -37,11 +37,11 @@ def load_alignments(data: bytes) -> list[int]:
     if data[4] == 2:
         phoff, = struct.unpack_from("<Q", data, 0x20)
         phentsize, phnum = struct.unpack_from("<HH", data, 0x36)
-        fmt, align_at = "<IIQQQQQQ", 48  # p_type, p_flags, p_offset, p_vaddr, p_paddr, p_filesz, p_memsz, p_align
+        fmt = "<IIQQQQQQ"  # p_type, p_flags, p_offset, p_vaddr, p_paddr, p_filesz, p_memsz, p_align
     elif data[4] == 1:
         phoff, = struct.unpack_from("<I", data, 0x1C)
         phentsize, phnum = struct.unpack_from("<HH", data, 0x2A)
-        fmt, align_at = "<IIIIIIII", 28  # p_type, p_offset, p_vaddr, p_paddr, p_filesz, p_memsz, p_flags, p_align
+        fmt = "<IIIIIIII"  # p_type, p_offset, p_vaddr, p_paddr, p_filesz, p_memsz, p_flags, p_align
     else:
         raise ValueError("classe ELF inconnue")
     aligns = []

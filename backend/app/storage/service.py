@@ -736,7 +736,7 @@ class StorageService:
                 cancel_job(job_id)
                 raise
             self._rw_lease.add(key)
-            release = self._mark_busy(key, job_id)  # occupé dès que le support est en écriture : ni retrait ni démontage
+            self._mark_busy(key, job_id)  # occupé dès que le support est en écriture : ni retrait ni démontage
         await self.refresh()
         refreshed = self._by_key.get(key)
         root = (refreshed.mountpoint if refreshed else None) or source.root
@@ -893,7 +893,6 @@ class StorageService:
     async def update_settings(self, key: str | None, values: dict[str, Any]) -> dict[str, Any]:
         """Réglages de longévité : d'un support enregistré, ou les valeurs par défaut globales (`key=None`)."""
         from app.database import SessionLocal
-        from app.models import ExternalVolume
 
         def _save() -> dict[str, Any]:
             with SessionLocal() as db:

@@ -17,10 +17,8 @@ from pydantic import BaseModel, Field
 from app.devices.base import DeviceError
 from app.routers.devices import Access, _fail, require_access
 from app.storage import fsadvisor
-from app.storage.formatting.refusals import FormatRefusal
 from app.storage.paths import PathError
 from app.utils._pydantic_compat import list_max_items
-from app.utils.activity_log import log_activity
 from app.storage.service import service
 from app.storage.transfer import TransferError
 

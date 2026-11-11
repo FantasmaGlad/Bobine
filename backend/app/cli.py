@@ -1055,8 +1055,8 @@ def completion_script(shell: str, parser: argparse.ArgumentParser) -> str:
     glob, tree = _command_tree(parser)
     commands = " ".join(tree)
     if shell == "fish":
-        lines = [f"# Complétion de bobine pour fish : bobine completion fish > ~/.config/fish/completions/bobine.fish",
-                 f"complete -c bobine -f", f"complete -c bobine -n '__fish_use_subcommand' -a '{commands}'"]
+        lines = ["# Complétion de bobine pour fish : bobine completion fish > ~/.config/fish/completions/bobine.fish",
+                 "complete -c bobine -f", f"complete -c bobine -n '__fish_use_subcommand' -a '{commands}'"]
         lines += [f"complete -c bobine -l {o.lstrip('-')}" if o.startswith("--") else f"complete -c bobine -s {o.lstrip('-')}" for o in glob]
         for name, info in tree.items():
             if info["subs"]:
@@ -1069,7 +1069,6 @@ def completion_script(shell: str, parser: argparse.ArgumentParser) -> str:
     for name, info in tree.items():
         subs = " ".join(info["subs"])
         opts = " ".join(sorted(set(info["options"]) | {o for v in info["subs"].values() for o in v}))
-        sub_opts = "".join(f"\n            {sub}) COMPREPLY=($(compgen -W \"{' '.join(o)} $global\" -- \"$cur\")); return ;;" for sub, o in info["subs"].items() if o)
         cases.append(f"    {name})\n        if [ \"$cword\" -le $(( cmd_index + 1 )) ] && [[ \"$cur\" != -* ]]; then\n"
                      f"            COMPREPLY=($(compgen -W \"{subs}\" -- \"$cur\")); return\n        fi\n"
                      f"        COMPREPLY=($(compgen -W \"{opts} $global\" -- \"$cur\")) ;;")
