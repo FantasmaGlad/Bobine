@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.contract import SCHEDULE_CHANNELS
+from app.api.contract import CHANNELS, DEFAULT_CHANNEL, SCHEDULE_CHANNELS
 from app.database import get_db
 from app.models import (
     OverrideAction,
@@ -48,7 +48,7 @@ def _storage_channel(value: str | None, target_type: ScheduleTargetType) -> str:
     channel = _normalize_channel(value)
     if target_type == ScheduleTargetType.radio_playlist:
         return channel if channel in RADIO_CHANNELS else normalize_radio_channel(None)
-    return channel if channel in ("cable", "network") else "cable"
+    return channel if channel in CHANNELS else DEFAULT_CHANNEL
 
 
 # ---------------------------------------------------------------------------
@@ -58,7 +58,7 @@ class ScheduleInput(BaseModel):
     target_type: ScheduleTargetType
     target_id: int
     # Canal de diffusion ciblé : un planning par canal, "cable" par défaut (compatibilité).
-    channel: str = "cable"
+    channel: str = DEFAULT_CHANNEL
     schedule_type: ScheduleType
     run_at: datetime | None = None
     days_of_week: List[int] | None = None  # 0=lundi .. 6=dimanche
@@ -197,7 +197,7 @@ def _to_response(db: Session, schedule: Schedule) -> dict:
         is_24_7 = rule.get("mode") == "24_7"
     return {
         "id": schedule.id,
-        "channel": schedule.channel or "cable",
+        "channel": schedule.channel or DEFAULT_CHANNEL,
         "target_type": schedule.target_type,
         "target_id": schedule.target_id,
         "target_title": display["title"],

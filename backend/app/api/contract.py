@@ -6,6 +6,11 @@ module, ou si une route de l'API n'a ni commande `bobine` ni exemption motivée 
 """
 from __future__ import annotations
 
+# Port préféré quand rien d'autre n'est configuré ; installeurs, pare-feu et documentation s'appuient dessus.
+DEFAULT_PORT = 1903
+# Dépôt GitHub des versions publiées (mises à jour, notes de version).
+GITHUB_REPO = "FantasmaGlad/Bobine"
+
 # Canaux de diffusion vidéo ; chaque canal a son état de lecture, sa playlist, son kiosque primaire.
 CHANNELS = ("cable", "network")
 DEFAULT_CHANNEL = "cable"

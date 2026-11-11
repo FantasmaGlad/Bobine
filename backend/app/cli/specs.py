@@ -11,7 +11,7 @@ import argparse
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from app.api.contract import OVERRIDE_ACTIONS, SCHEDULE_CHANNELS, SCHEDULE_TARGETS
+from app.api.contract import DEFAULT_CHANNEL, OVERRIDE_ACTIONS, SCHEDULE_CHANNELS, SCHEDULE_TARGETS
 
 
 
@@ -112,7 +112,7 @@ def _schedule_body(args, base: dict | None = None) -> dict:
 
 
 def _schedule_add(client, args) -> Call:
-    body = {"channel": "cable", "active": True}
+    body = {"channel": DEFAULT_CHANNEL, "active": True}
     body = _schedule_body(args, body)
     if "schedule_type" not in body:
         raise UsageError("indiquer --at (ponctuelle) ou --days et --time (récurrente)")

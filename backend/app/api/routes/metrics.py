@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.api.contract import DASHBOARD_CHANNELS, DASHBOARD_PERIODS, HISTORY_PERIODS, regex
+from app.api.contract import CHANNELS, DASHBOARD_CHANNELS, DEFAULT_CHANNEL, DASHBOARD_PERIODS, HISTORY_PERIODS, regex
 from app.database import get_db
 from app.models import CourseRating, PlaybackSession, SystemMetricsHistory, Video
 from app.utils.activity_log import log_activity
@@ -24,13 +24,13 @@ router = APIRouter(prefix="/api/metrics", tags=["metrics"])
 class RatingCreate(BaseModel):
     video_id: int
     rating: int = Field(..., ge=1, le=5)
-    channel: str = "cable"
+    channel: str = DEFAULT_CHANNEL
     source: str = "grid"
 
 
 class SessionStartRequest(BaseModel):
     video_id: int
-    channel: str = "cable"
+    channel: str = DEFAULT_CHANNEL
     launch_type: str = "grid"
     total_duration_seconds: float = 0.0
 
@@ -65,8 +65,8 @@ def create_course_rating(payload: RatingCreate, db: Session = Depends(get_db)):
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo introuvable")
 
-    if payload.channel not in ("cable", "network"):
-        payload.channel = "cable"
+    if payload.channel not in CHANNELS:
+        payload.channel = DEFAULT_CHANNEL
     if payload.source not in ("grid", "cinema"):
         payload.source = "grid"
 

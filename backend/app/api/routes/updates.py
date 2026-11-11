@@ -14,6 +14,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.api.contract import GITHUB_REPO
 from app.database import get_db
 from app.models import Setting
 from app.utils import tor_proxy
@@ -42,7 +43,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/updates", tags=["updates"])
 
-GITHUB_REPO = "FantasmaGlad/Bobine"
 # "stable" n'interroge QUE /releases/latest, qui exclut structurellement les
 # pre-releases et brouillons côté API GitHub — aucun risque qu'un canal
 # stable voie jamais une bêta ou une canary, même en cas de bug côté

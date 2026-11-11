@@ -15,6 +15,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from app.api.contract import DEFAULT_PORT
 from .core import _REFUSAL_STATUSES, DEFAULT_TIMEOUT, EXIT_ERROR, EXIT_REFUSED, EXIT_UNREACHABLE, EXIT_USAGE, CliError, Output
 
 
@@ -176,4 +177,4 @@ def _default_port() -> int:
 
         return current_port()
     except Exception:  # noqa: BLE001 — sans fichier d'exécution lisible, le port par défaut de Bobine
-        return 1903
+        return DEFAULT_PORT

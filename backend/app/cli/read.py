@@ -7,13 +7,15 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from app.api.contract import CHANNELS
+
 from .client import Client
 from .core import EXIT_ERROR, EXIT_OK, EXIT_USAGE, CliError, Output, segment
 
 
 def cmd_status(client: Client, out: Output, args: argparse.Namespace) -> int:
     health = client.request("GET", "/api/health", accept_status={503})
-    playback = {channel: client.request("GET", "/api/playback/state", query={"channel": channel}) for channel in ("cable", "network")}
+    playback = {channel: client.request("GET", "/api/playback/state", query={"channel": channel}) for channel in CHANNELS}
     payload = {"health": health, "playback": playback}
     lines = [f"Bobine sur {client.base} : {health.get('status')}"]
     for channel, data in playback.items():
