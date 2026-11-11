@@ -40,7 +40,9 @@ from app.api.routes.schedule import (
     list_schedules,
     update_schedule,
 )
-from app.scheduler_manager import expand_occurrences, fire_schedule, start_scheduler, stop_scheduler
+from app.scheduling.jobs import start_scheduler, stop_scheduler
+from app.scheduling.launch import fire_schedule
+from app.scheduling.occurrences import expand_occurrences
 
 
 class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):

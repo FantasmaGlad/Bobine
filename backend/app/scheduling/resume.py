@@ -21,8 +21,9 @@ from app.api.contract import CHANNELS
 from app.database import SessionLocal
 from app.models import OverrideAction, Schedule, ScheduleTargetType
 from app.playback_manager import PlaybackStateEnum, get_playback_manager
-from app.scheduler_manager import _launch_target, _scheduled_target_unavailable, ensure_utc, expand_occurrences
-from app.utils import scheduled_launch_store
+from app.scheduling.launch import _launch_target, _scheduled_target_unavailable
+from app.scheduling.occurrences import ensure_utc, expand_occurrences
+from app.scheduling import launch_store as scheduled_launch_store
 
 logger = logging.getLogger(__name__)
 

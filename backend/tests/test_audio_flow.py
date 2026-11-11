@@ -22,7 +22,8 @@ from app.utils.audio_importer import (
     import_audio_course_from_watched_folder,
 )
 from app.playback_manager import PlaybackManager
-from app.scheduler_manager import fire_schedule, sync_schedule_job
+from app.scheduling.jobs import sync_schedule_job
+from app.scheduling.launch import fire_schedule
 
 
 def _make_mp3(path: str, duration: float = 1.0):

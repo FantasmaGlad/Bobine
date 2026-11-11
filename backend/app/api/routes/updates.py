@@ -836,7 +836,7 @@ def _something_is_playing() -> bool:
 
 
 async def run_scheduled_update_if_available(db: Session) -> None:
-    """Appelée par `scheduler_manager` au créneau planifié (Réglages → Mise
+    """Appelée par `scheduling` au créneau planifié (Réglages → Mise
     à jour automatique). Vérifie d'abord qu'une mise à jour existe RÉELLEMENT
     avant de déclencher quoi que ce soit — contrairement au bouton manuel,
     personne ne clique ici, donc pas de retour utilisateur immédiat en cas

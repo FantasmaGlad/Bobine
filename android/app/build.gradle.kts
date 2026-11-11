@@ -341,7 +341,7 @@ chaquopy {
             // a l'emplacement attendu par le module stdlib `zoneinfo` (a la
             // difference des distributions Linux desktop) - decouvert en
             // executant reellement app.main sur un emulateur
-            // (ZoneInfoNotFoundError via scheduler_manager -> tzlocal).
+            // (ZoneInfoNotFoundError via scheduling -> tzlocal).
             // Absent de backend/requirements.txt car inutile ailleurs.
             install("tzdata==2026.5")
             install("aiofiles==25.1.0")

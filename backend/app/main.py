@@ -35,12 +35,9 @@ from app.utils import media_native, port80, tor_proxy
 from app.utils.media_sidecar import close_current_media_client
 from app.utils.update_orchestrator import load_persisted_state_at_startup
 from app.utils.version import get_app_version
-from app.scheduler_manager import (
-    autostart_default_radio_playlist,
-    start_scheduler,
-    stop_scheduler,
-)
-from app.scheduler_resume import cancel_pending_resume, resume_running_schedules
+from app.scheduling.jobs import start_scheduler, stop_scheduler
+from app.scheduling.radio import autostart_default_radio_playlist
+from app.scheduling.resume import cancel_pending_resume, resume_running_schedules
 from app.utils.importer import reconcile_orphaned_media
 from app.utils.mdns import start_mdns_responder, stop_mdns_responder
 from app.utils.radio_announcement_scheduler import (

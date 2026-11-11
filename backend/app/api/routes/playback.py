@@ -25,7 +25,8 @@ from app.api.routes.settings import get_display_output_value
 from app.devices.service import PLAYER_ROUTE_STATUSES, service as devices_service
 from app.utils.radio_mix import sanitize_levels
 from app.utils import radio_commands, video_sound
-from app.scheduler_manager import ensure_utc, radio_track_dict, resolve_target_title
+from app.scheduling.occurrences import ensure_utc, resolve_target_title
+from app.scheduling.radio import radio_track_dict
 from app.utils.activity_log import log_activity
 from app.utils.boot_state import current_boot_id
 from app.utils.importer import is_image_background
@@ -1042,7 +1043,7 @@ async def _handle_radio_command(
     elif command == "radio_track_ended":
         # Règle « toutes les N musiques » : vérifiée
         # ICI (accès DB), pas dans le manager (état pur) — même partage des
-        # responsabilités que scheduler_manager/playback_manager. Si due, le
+        # responsabilités que scheduling/playback_manager. Si due, le
         # rappel se joue AVANT l'avancement (attente-fin), qui reprendra à sa
         # fin (`announcement_ended`, deferred_advance=True) plutôt que tout
         # de suite.

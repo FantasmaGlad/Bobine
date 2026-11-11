@@ -40,7 +40,7 @@ from app.database import _IS_SQLITE, engine, get_db, init_db, release_sqlite_fil
 from app.models import Setting
 from app.playback_manager import get_playback_manager
 from app.radio_manager import get_radio_manager
-from app.scheduler_manager import activate_radio_output
+from app.scheduling.radio import activate_radio_output
 from app import release_channel
 from app.utils.activity_log import log_activity
 from app.utils import themes, ui_language
@@ -353,7 +353,7 @@ def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
         "display_external_count": get_hardware_state().external_count,
         # Mise à jour automatique planifiée (Réglages → Mises à jour) :
         # vérifiée et appliquée chaque jour à `auto_update_time` si
-        # `auto_update_enabled` — cf. app.scheduler_manager.sync_auto_update_job.
+        # `auto_update_enabled` — cf. app.scheduling.jobs.sync_auto_update_job.
         "auto_update_enabled": auto_update_enabled,
         "auto_update_time": auto_update_time,
         "auto_web_rendition": _get_db_value(db, "auto_web_rendition") or _DEFAULTS["auto_web_rendition"],
@@ -657,7 +657,7 @@ def stage_settings(updates: dict[str, Any], db: Session) -> None:
 async def after_settings_change(updates: dict[str, Any], db: Session) -> dict[str, Any]:
     """Effets à chaud de réglages déjà enregistrés ; renvoie les réglages effectifs."""
     for key, value in updates.items():
-        # Le singleton `runtime_settings` est partagé par tout le backend (playback_manager, scheduler_manager...),
+        # Le singleton `runtime_settings` est partagé par tout le backend (playback_manager, scheduling...),
         # qui lit ses attributs à chaque usage, pas seulement au démarrage.
         if key in _WRITABLE_NUMERIC_FIELDS and hasattr(runtime_settings, key) and value is not None:
             setattr(runtime_settings, key, int(value))
@@ -672,11 +672,11 @@ async def after_settings_change(updates: dict[str, Any], db: Session) -> dict[st
         tor_proxy.configure(result["update_tor"] == "true", result["update_tor_proxy"])
 
     if "auto_update_enabled" in updates or "auto_update_time" in updates:
-        # Import différé : `scheduler_manager` importe déjà plusieurs
+        # Import différé : `scheduling` importe déjà plusieurs
         # modules utilitaires au chargement, et ce routeur est lui-même
         # importé tôt par `main.py` — même précaution que les autres
         # imports différés de ce fichier (cf. `Background` plus haut).
-        from app.scheduler_manager import sync_auto_update_job
+        from app.scheduling.jobs import sync_auto_update_job
 
         sync_auto_update_job(
             enabled=result["auto_update_enabled"] == "true",

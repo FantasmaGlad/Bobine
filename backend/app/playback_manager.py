@@ -77,7 +77,7 @@ def _db_update_session(session_id: int, position: float) -> None:
 def _db_close_scheduled_launch(channel: str) -> None:
     try:
         from app.database import SessionLocal
-        from app.utils import scheduled_launch_store
+        from app.scheduling import launch_store as scheduled_launch_store
         with SessionLocal() as db:
             scheduled_launch_store.close(db, channel)
     except Exception as e:
@@ -174,7 +174,7 @@ class PlaybackManager:
             "audio_chain_wait_remaining": None,
             # distingue "lecture
             # manuelle" d'un "reliquat d'une programmation encore en cours"
-            # pour la détection de conflit de scheduler_manager._launch_target
+            # pour la détection de conflit de scheduling.launch._launch_target
             # — sans ce marqueur, la règle réseau "le manuel gagne toujours"
             # s'appliquait aussi à tort à un chevauchement programmation vs
             # programmation, annulant silencieusement la seconde au lieu de

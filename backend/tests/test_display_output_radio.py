@@ -29,11 +29,7 @@ from app.models import (  # noqa: E402
 )
 from app.radio_manager import get_radio_manager, rule_targets_output  # noqa: E402
 from app.api.routes.playback import _due_wait_end_announcement  # noqa: E402
-from app.scheduler_manager import (  # noqa: E402
-    _revert_radio_to_default,
-    resolve_radio_default_playlist,
-    start_radio_ambiance,
-)
+from app.scheduling.radio import _revert_radio_to_default, resolve_radio_default_playlist, start_radio_ambiance
 
 SETTING_KEYS = (
     "display_output_cable", "display_output_network",

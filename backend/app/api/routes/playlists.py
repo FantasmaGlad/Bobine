@@ -69,7 +69,7 @@ class PlaylistSummaryResponse(BaseModel):
     total_duration_seconds: float
     # `Playlist` n'a pas de champ cover propre — miniature dérivée du 1er
     # élément ayant une miniature, même convention que
-    # `scheduler_manager.resolve_target_display` (planning visuel).
+    # `scheduling.occurrences.resolve_target_display` (planning visuel).
     thumbnail_path: str | None = None
 
     class Config:

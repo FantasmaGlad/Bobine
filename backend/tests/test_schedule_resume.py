@@ -20,10 +20,10 @@ from app.models import (  # noqa: E402
     Video,
 )
 from app.playback_manager import get_playback_manager, init_playback_managers  # noqa: E402
-from app.scheduler_manager import _launch_target  # noqa: E402
-from app.scheduler_resume import resume_running_schedules  # noqa: E402
-from app.utils import scheduled_launch_store  # noqa: E402
-from app.utils.schedule_resume import MIN_REMAINING_SECONDS, playback_offset, playlist_resume_point  # noqa: E402
+from app.scheduling.launch import _launch_target  # noqa: E402
+from app.scheduling.resume import resume_running_schedules  # noqa: E402
+from app.scheduling import launch_store as scheduled_launch_store  # noqa: E402
+from app.scheduling.offsets import MIN_REMAINING_SECONDS, playback_offset, playlist_resume_point  # noqa: E402
 
 T0 = datetime(2026, 11, 11, 18, 0, tzinfo=timezone.utc)
 

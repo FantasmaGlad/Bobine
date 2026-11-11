@@ -549,7 +549,7 @@ class PlaybackState(Base):
       mode audio coach était actif -> `target_type`/`target_id` renseignés
       (cible jamais lancée, donc pas de position), relance depuis zéro.
     Une seule ligne à la fois quelle que soit la cause (la plus récente
-    remplace la précédente non traitée), cf. scheduler_manager._launch_target.
+    remplace la précédente non traitée), cf. scheduling.launch._launch_target.
     """
     __tablename__ = "playback_state"
 

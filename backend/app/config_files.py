@@ -228,7 +228,7 @@ def build_display_outputs(db: Session) -> dict[str, Any]:
 
 def build_radio_outputs(db: Session) -> dict[str, Any]:
     from app.radio_manager import RADIO_CHANNELS
-    from app.scheduler_manager import get_radio_default_playlist_override
+    from app.scheduling.radio import get_radio_default_playlist_override
     from app.utils.radio_mix import load_mix
     from app.utils.radio_sound import load_sound
 

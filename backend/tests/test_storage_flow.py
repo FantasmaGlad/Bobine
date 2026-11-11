@@ -654,7 +654,7 @@ def test_startup_puts_every_external_path_in_waiting_state(env):
 def test_scheduler_and_playlists_skip_unavailable_media(env):
     from app.models import Playlist, PlaylistItem, ScheduleTargetType
     from app.api.routes.playback import _build_playlist_video_items
-    from app.scheduler_manager import _scheduled_target_unavailable
+    from app.scheduling.launch import _scheduled_target_unavailable
 
     with SessionLocal() as db:
         lib = ExternalVolume(fs_uuid="FFFF-0002", label="Y", kind="usb")

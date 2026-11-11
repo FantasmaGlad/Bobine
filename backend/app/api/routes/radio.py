@@ -74,7 +74,7 @@ def get_default_playlists(db: Session = Depends(get_db)):
     (None si aucun) et la playlist effectivement utilisée (choix propre, sinon
     playlist marquée `is_default`, sinon None = toute la bibliothèque)."""
     from app.radio_manager import RADIO_CHANNELS
-    from app.scheduler_manager import get_radio_default_playlist_override, resolve_radio_default_playlist
+    from app.scheduling.radio import get_radio_default_playlist_override, resolve_radio_default_playlist
 
     result = {}
     for radio_channel in RADIO_CHANNELS:
@@ -91,7 +91,7 @@ def set_default_playlist(payload: DefaultPlaylistInput, db: Session = Depends(ge
     """Choisit l'ambiance par défaut d'UNE sortie radio (démarrage automatique,
     fin de fenêtre de planning, bascule de la sortie câblée sur Radio)."""
     from app.radio_manager import RADIO_CHANNELS
-    from app.scheduler_manager import set_radio_default_playlist_override
+    from app.scheduling.radio import set_radio_default_playlist_override
 
     if payload.channel not in RADIO_CHANNELS:
         raise HTTPException(status_code=400, detail="Sortie radio invalide (attendu 'radio_cable' ou 'radio_network')")

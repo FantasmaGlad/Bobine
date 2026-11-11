@@ -342,7 +342,7 @@ def _apply_display_outputs(ctx: _Context, file: str, document: dict) -> None:
 
 def _apply_radio_outputs(ctx: _Context, file: str, document: dict) -> None:
     from app.radio_manager import RADIO_CHANNELS, get_radio_manager
-    from app.scheduler_manager import radio_default_playlist_key
+    from app.scheduling.radio import radio_default_playlist_key
     from app.utils.radio_mix import mix_setting_key, sanitize_mix
     from app.utils.radio_sound import sanitize_sound, sound_setting_key
 
@@ -426,7 +426,7 @@ def _prune(ctx: _Context, file: str, document: dict, model, kept: list) -> None:
 
 def _resync_all_schedules(channel: str | None):
     async def resync(db: Session) -> None:
-        from app.scheduler_manager import sync_schedule_job
+        from app.scheduling.jobs import sync_schedule_job
 
         for schedule in db.query(Schedule).all():
             if channel is None or schedule.channel == channel:
@@ -615,7 +615,7 @@ def _signature(schedule: Schedule) -> tuple:
 
 
 def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> None:
-    from app.scheduler_manager import ensure_utc
+    from app.scheduling.occurrences import ensure_utc
 
     if document.get("channel", channel) != channel:
         ctx.fail(file, f"« channel » doit valoir {channel}")
@@ -693,7 +693,7 @@ def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> N
         ctx.db.delete(old)
 
     async def resync(db: Session) -> None:
-        from app.scheduler_manager import remove_schedule_job, sync_schedule_job
+        from app.scheduling.jobs import remove_schedule_job, sync_schedule_job
 
         for schedule_id in removed_ids:
             remove_schedule_job(schedule_id)
@@ -705,7 +705,7 @@ def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> N
 
 def _sync_overrides(ctx: _Context, schedule: Schedule, wanted: list) -> None:
     """Exceptions reconnues par `uid`, à défaut par date ; les `id` et `uid` restent, le reste est créé ou supprimé."""
-    from app.scheduler_manager import ensure_utc
+    from app.scheduling.occurrences import ensure_utc
 
     current = list(schedule.overrides) if schedule.id is not None else []
     by_uid = {o.uid: o for o in current}
