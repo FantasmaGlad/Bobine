@@ -205,7 +205,7 @@ def build_parser() -> argparse.ArgumentParser:
     completion.set_defaults(run=cmd_completion)
 
     open_page = sub.add_parser("open", parents=[sub_common], help="ouvrir une page de Bobine dans le navigateur (port réel)")
-    open_page.add_argument("page", nargs="?", default="admin", help="admin, grid ou cinema")
+    open_page.add_argument("page", nargs="?", default="admin", help="admin, grid, cinema, kiosk ou radio")
     open_page.set_defaults(run=cmd_open)
 
     sub.add_parser("version", parents=[sub_common], help="version de cette installation").set_defaults(

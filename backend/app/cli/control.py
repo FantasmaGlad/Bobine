@@ -89,7 +89,8 @@ def cmd_update(client: Client, out: Output, args: argparse.Namespace) -> int:
 def cmd_update_status(client: Client, out: Output, args: argparse.Namespace) -> int:
     status = client.request("GET", "/api/updates/status")
     out.result(status, f"{status.get('step')} {status.get('percent') or ''} {status.get('message') or ''}".strip())
-    return EXIT_OK
+    # Un script qui attend la fin d'une mise à jour doit pouvoir distinguer l'échec sans lire le texte.
+    return EXIT_ERROR if status.get("step") == "failed" else EXIT_OK
 
 
 # Routes que `bobine api` refuse toujours : leur commande dédiée demande la confirmation et fait les vérifications (sinon
@@ -134,7 +135,7 @@ def cmd_api(client: Client, out: Output, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-OPEN_PAGES = {"admin": "/", "grid": "/grid", "cinema": "/cinema"}
+OPEN_PAGES = {"admin": "/", "grid": "/grid", "cinema": "/cinema", "kiosk": "/kiosk", "radio": "/radio"}
 
 
 def cmd_open(client: Client, out: Output, args: argparse.Namespace) -> int:

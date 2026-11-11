@@ -150,3 +150,10 @@ def test_archives_use_the_archive_route_for_every_family(rec, tmp_path):
     for family, route in (("library", "/api/videos/upload-zip"), ("backgrounds", "/api/backgrounds/upload-zip")):
         assert cli.main([family, "import", str(z)]) == cli.EXIT_OK
         assert rec.uploads[-1][0] == route
+
+
+def test_update_status_exit_code_reports_a_failed_update(monkeypatch):
+    monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: {"step": "failed", "message": "empreinte"})
+    assert cli.main(["update", "status"]) == cli.EXIT_ERROR
+    monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: {"step": "done"})
+    assert cli.main(["update", "status"]) == cli.EXIT_OK
