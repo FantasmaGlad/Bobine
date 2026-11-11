@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://bobine.fit"><b>Official Website</b></a> &nbsp;·&nbsp;
-  <a href="https://bobine.fit/en/download"><b>Downloads</b></a> &nbsp;·&nbsp;
+  <a href="#download"><b>Downloads</b></a> &nbsp;·&nbsp;
   <a href="https://bobine.fit/en/documentation"><b>User Documentation</b></a> &nbsp;·&nbsp;
   <a href="README.fr.md"><b>Français</b></a> &nbsp;·&nbsp;
   <a href="docs/ARCHITECTURE.en.md"><b>Technical Architecture</b></a>
@@ -39,7 +39,7 @@ Group-fitness rooms and cycling studios play pre-recorded video classes on large
 
 ## Download
 
-Native application for computers, tablets, TVs and mini PCs. Stable 5.1.1 below; every channel and file on [**bobine.fit/en/download**](https://bobine.fit/en/download).
+Native application for computers, tablets, TVs and mini PCs. Stable 5.1.1 below; every channel and file on the [**releases page**](https://github.com/FantasmaGlad/Bobine/releases).
 
 | Platform | Download | Requirements |
 | :--- | :--- | :--- |
@@ -136,9 +136,18 @@ Three channels, switchable at any time in **Settings → Software Updates**.
 | Subject | Where |
 | :--- | :--- |
 | User guide and FAQ | [bobine.fit/en/documentation](https://bobine.fit/en/documentation) |
-| Compatible hardware | [bobine.fit/en/download](https://bobine.fit/en/download) |
+| Author and project | [bobine.fit/en/about](https://bobine.fit/en/about) |
 | Linux repositories | [packages.bobine.fit](https://packages.bobine.fit) |
 | Architecture and API | [docs/ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md) |
+
+## Why go this far?
+
+A weekly timetable of fitness classes does not need eight platforms, three update channels and a Tor mirror. These choices are deliberate; Bobine is also where its author practises them.
+
+- **Every system and architecture**: so that "is it compatible?" is not a question. An old laptop, a tablet, a TV box, a second-hand mini PC: if the device sits in a garage, Bobine should install on it, whatever its power. Reusing a device avoids buying one.
+- **Three update channels**: to run a clean release process, with Stable at the end of the line, Beta in chosen batches and Canary rebuilt on every change.
+- **A Tor mirror**: out of proportion for a playout application. Publishing an application and its repositories through onion mirrors, without revealing the user's address, is a skill to master before publishing more sensitive software.
+- **One person**: the whole chain, from source code to signed packages on each platform, is built and maintained by [Clément Barillot](https://bobine.fit/en/about).
 
 ## Security and license
 

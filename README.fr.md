@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://bobine.fit/fr"><b>Site officiel</b></a> &nbsp;·&nbsp;
-  <a href="https://bobine.fit/fr/telechargement"><b>Télécharger</b></a> &nbsp;·&nbsp;
+  <a href="#téléchargement"><b>Télécharger</b></a> &nbsp;·&nbsp;
   <a href="https://bobine.fit/fr/documentation"><b>Documentation utilisateur</b></a> &nbsp;·&nbsp;
   <a href="README.md"><b>English</b></a> &nbsp;·&nbsp;
   <a href="docs/ARCHITECTURE.md"><b>Architecture technique</b></a>
@@ -39,7 +39,7 @@ Les salles de cours collectifs et les studios de cycling diffusent des cours vid
 
 ## Téléchargement
 
-Application native pour ordinateurs, tablettes, téléviseurs et mini PC. Version Stable 5.1.1 ci-dessous ; tous les canaux et fichiers sur [**bobine.fit/fr/telechargement**](https://bobine.fit/fr/telechargement).
+Application native pour ordinateurs, tablettes, téléviseurs et mini PC. Version Stable 5.1.1 ci-dessous ; tous les canaux et fichiers sur la [**page des versions**](https://github.com/FantasmaGlad/Bobine/releases).
 
 | Plateforme | Téléchargement | Prérequis |
 | :--- | :--- | :--- |
@@ -136,9 +136,18 @@ Trois canaux, à changer à tout moment dans **Réglages → Mises à jour**.
 | Sujet | Où |
 | :--- | :--- |
 | Guide d'utilisation et FAQ | [bobine.fit/fr/documentation](https://bobine.fit/fr/documentation) |
-| Matériel compatible | [bobine.fit/fr/telechargement](https://bobine.fit/fr/telechargement) |
+| Auteur et projet | [bobine.fit/fr/a-propos](https://bobine.fit/fr/a-propos) |
 | Dépôts Linux | [packages.bobine.fit](https://packages.bobine.fit/fr/) |
 | Architecture et API | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+
+## Pourquoi aller aussi loin ?
+
+Un planning hebdomadaire de cours collectifs n'a pas besoin de huit plateformes, de trois canaux de mise à jour ni d'un miroir Tor. Ces choix sont voulus ; Bobine est aussi le terrain où son auteur les pratique.
+
+- **Tous les systèmes et architectures** : pour que la question « est-ce compatible ? » ne se pose pas. Un ancien portable, une tablette, un boîtier TV, un mini PC d'occasion : si l'appareil dort dans un garage, Bobine doit pouvoir s'y installer, quelle que soit sa puissance. Réutiliser un appareil évite d'en acheter un.
+- **Trois canaux de mise à jour** : pour tenir un processus de diffusion propre, avec la Stable en bout de chaîne, la Bêta par lots choisis et la Canary reconstruite à chaque modification.
+- **Un miroir Tor** : disproportionné pour une application de régie. Publier une application et ses dépôts par des miroirs onion, sans révéler l'adresse de l'utilisateur, est un savoir-faire à maîtriser avant de publier des logiciels plus sensibles.
+- **Une seule personne** : toute la chaîne, du code source aux paquets signés de chaque plateforme, est construite et maintenue par [Clément Barillot](https://bobine.fit/fr/a-propos).
 
 ## Sécurité et licence
 
