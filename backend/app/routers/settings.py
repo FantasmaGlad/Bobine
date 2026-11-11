@@ -53,11 +53,8 @@ from app.utils.display_state import (
 )
 from app.utils import media_native, port80, tor_proxy
 from app.utils.port import active_port
-from app.utils.hardware_info import (
-    get_storage_model,
-    get_system_telemetry_payload,
-    purge_expired_logs_and_metrics,
-)
+from app.hardware.disk import get_storage_model
+from app.hardware.telemetry import get_system_telemetry_payload, purge_expired_logs_and_metrics
 from app.utils.deployment import (
     SUDOERS_FILE,
     UNINSTALL_WRAPPER,

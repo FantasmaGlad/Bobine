@@ -35,7 +35,7 @@ def _get_android_context():
     levait `type object 'PyApplication' has no attribute 'context'` à chaque
     tentative de mise à jour ou de désinstallation depuis Réglages). La voie
     documentée est `Python.getPlatform().getApplication()` — déjà utilisée par
-    `utils/hardware_info.py` et validée sur la tablette pilote."""
+    `app/hardware/` et validée sur la tablette pilote."""
     from com.chaquo.python import Python  # Chaquopy
     return Python.getPlatform().getApplication()
 

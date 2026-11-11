@@ -24,7 +24,7 @@ from app.models import (
 )
 from app.playback_manager import PlaybackStateEnum, get_playback_manager
 from app.radio_manager import DEFAULT_RADIO_CHANNEL, get_all_radio_managers, get_radio_manager, normalize_radio_channel
-from app.utils.hardware_info import purge_expired_logs_and_metrics, record_hardware_snapshot
+from app.hardware.telemetry import purge_expired_logs_and_metrics, record_hardware_snapshot
 
 logger = logging.getLogger(__name__)
 

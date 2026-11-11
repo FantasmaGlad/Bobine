@@ -10,7 +10,7 @@ from app.api_contract import DASHBOARD_CHANNELS, DASHBOARD_PERIODS, HISTORY_PERI
 from app.database import get_db
 from app.models import CourseRating, PlaybackSession, SystemMetricsHistory, Video
 from app.utils.activity_log import log_activity
-from app.utils.hardware_info import get_system_telemetry_payload
+from app.hardware.telemetry import get_system_telemetry_payload
 from app.utils.playback_session_tracker import (
     close_playback_session,
     start_playback_session,
