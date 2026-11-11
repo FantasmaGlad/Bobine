@@ -11,6 +11,7 @@ import Icon from "@/components/Icon";
 import AudioPlaylistManager from "@/components/AudioPlaylistManager";
 import { getApiUrl } from "@/lib/apiUrl";
 import { formatMediaDuration } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 const AUDIO_ACCEPT = `${COURSE_AUDIO_EXTENSIONS.join(",")},audio/*`;
 
@@ -103,11 +104,6 @@ interface BackgroundOption {
   is_image?: boolean;
 }
 
-interface ToastState {
-  message: string;
-  type: "success" | "error" | "warning";
-}
-
 export default function AudioLibraryPage() {
   const { t } = useAppSettings();
   // Bascule Cours/Playlists : la création d'éditions mixées vit désormais ici
@@ -116,7 +112,7 @@ export default function AudioLibraryPage() {
   const [courses, setCourses] = useState<AudioCourseSummary[]>(() => recallCatalog<AudioCourseSummary>("audio.courses") ?? []);
   const [backgrounds, setBackgrounds] = useState<BackgroundOption[]>([]);
   const [loading, setLoading] = useState(() => recallCatalog<AudioCourseSummary>("audio.courses") === undefined);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast } = useToast();
   // Catégories (programmes) réellement présentes parmi les cours audio, pour
   // les suggestions de saisie libre — même pattern que la Bibliothèque vidéo.
   const [programs, setPrograms] = useState<string[]>([]);
@@ -193,16 +189,8 @@ export default function AudioLibraryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploads]);
 
-  const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
-
   const selectedBg = backgrounds.find((b) => String(b.id) === String(drawerBackgroundId));
   const defaultBg = defaultCoachBgId ? backgrounds.find((b) => b.id === defaultCoachBgId) : null;
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
 
   const fetchCourses = async () => {
     if (recallCatalog<AudioCourseSummary>("audio.courses") === undefined) setLoading(true);

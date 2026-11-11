@@ -11,6 +11,7 @@ import SegmentedTabs from "@/components/SegmentedTabs";
 import { ARCHIVE_ACCEPT, RADIO_AUDIO_EXTENSIONS, hasExtension, isArchiveName } from "@/lib/mediaFiles";
 import { getApiUrl } from "@/lib/apiUrl";
 import { formatMediaDuration } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 // Bibliothèque musicale Radio — écran unique « vue d'ensemble » (refonte).
 // Barre latérale persistante (playlists / tags / genres / artistes, tous
@@ -70,8 +71,6 @@ type SortKey = "recent" | "title" | "artist" | "duration";
 type ViewMode = "grid" | "list";
 const VIEW_STORAGE_KEY = "bobine.radioLibrary.view";
 
-interface ToastState { message: string; type: "success" | "error" | "warning"; }
-
 // Filtre les fichiers non audio d'un dossier déposé (liste unique : `lib/mediaFiles.ts`).
 const isAudioFile = (name: string) => hasExtension(name, RADIO_AUDIO_EXTENSIONS);
 
@@ -84,7 +83,7 @@ export default function RadioLibraryPage() {
   const [albums, setAlbums] = useState<AlbumEntry[]>([]);
   const [tagsList, setTagsList] = useState<TagEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast } = useToast();
   const [coverVersion, setCoverVersion] = useState(0);
 
   const [search, setSearch] = useState("");
@@ -166,15 +165,8 @@ export default function RadioLibraryPage() {
   const { uploads, addUploads } = useUploadManager();
   const seenDoneIds = useRef<Set<string>>(new Set());
 
-  const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
   // Imports radio en cours ou récents, affichés dans la section « Importer ».
   const radioUploads = uploads.filter((u) => u.kind === "radio_files" || u.kind === "radio_zip").slice(-12).reverse();
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
 
   const fetchJson = async <T,>(path: string, fallback: T): Promise<T> => {
     try {

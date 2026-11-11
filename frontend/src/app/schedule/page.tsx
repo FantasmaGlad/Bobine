@@ -13,6 +13,7 @@ import Highlight from "@/components/Highlight";
 import { matchesQuery } from "@/lib/searchText";
 import { getApiUrl } from "@/lib/apiUrl";
 import { formatMinutes } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 type TargetType = "video" | "playlist" | "radio_playlist";
 type ScheduleTypeValue = "once" | "recurring";
@@ -82,11 +83,6 @@ interface Occurrence {
   is_override: boolean;
   override_action: OverrideActionValue | null;
   override_id: number | null;
-}
-
-interface ToastState {
-  message: string;
-  type: "success" | "error" | "warning";
 }
 
 function getWeekStart(source: Date): Date {
@@ -271,7 +267,7 @@ export default function SchedulePage() {
   const [videos, setVideos] = useState<VideoSummary[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [radioPlaylists, setRadioPlaylists] = useState<RadioPlaylistSummary[]>([]);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast } = useToast();
 
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [replacingKey, setReplacingKey] = useState<string | null>(null);
@@ -309,14 +305,6 @@ export default function SchedulePage() {
   const [libraryOpen, setLibraryOpen] = useState(true);
   const [librarySearch, setLibrarySearch] = useState("");
   const timelineScrollRef = useRef<HTMLDivElement | null>(null);
-
-  const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
 
   useEffect(() => {
     if (viewMode === "week" || viewMode === "day") {

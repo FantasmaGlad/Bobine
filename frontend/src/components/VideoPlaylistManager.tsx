@@ -10,6 +10,7 @@ import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
 import { getApiUrl } from "@/lib/apiUrl";
 import { formatMinutes } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 interface Video {
   id: number;
@@ -47,11 +48,6 @@ interface PlaylistSummary {
   total_duration_seconds: number;
 }
 
-interface ToastState {
-  message: string;
-  type: "success" | "error" | "warning";
-}
-
 /**
  * Créateur de playlists vidéo pour le mode kiosk, embarqué dans l'onglet
  * "Playlists" de la Bibliothèque — anciennement la page `/playlists` à part entière.
@@ -67,7 +63,7 @@ export default function VideoPlaylistManager() {
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast } = useToast();
 
   const [playlistSearch, setPlaylistSearch] = useState<string>("");
 
@@ -87,19 +83,6 @@ export default function VideoPlaylistManager() {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [playlistToDelete, setPlaylistToDelete] = useState<PlaylistSummary | null>(null);
-
-  const showToast = (message: string, type: "success" | "error" | "warning" = "success") => {
-    setToast({ message, type });
-  };
-
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => {
-        setToast(null);
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
 
   const fetchPlaylists = async () => {
     try {

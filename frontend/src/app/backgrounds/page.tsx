@@ -7,6 +7,7 @@ import { ARCHIVE_ACCEPT, VIDEO_ACCEPT, isArchiveName } from "@/lib/mediaFiles";
 import { useUploadManager, PendingUploadSpec } from "@/lib/UploadManager";
 import Icon from "@/components/Icon";
 import { getApiUrl } from "@/lib/apiUrl";
+import { useToast } from "@/lib/useToast";
 
 interface BackgroundItem {
   id: number;
@@ -15,11 +16,6 @@ interface BackgroundItem {
   duration_seconds: number | null;
   thumbnail_path: string | null;
   is_image: boolean;
-}
-
-interface ToastState {
-  message: string;
-  type: "success" | "error" | "warning";
 }
 
 function BackgroundCard({
@@ -216,7 +212,7 @@ export default function BackgroundsPage() {
   const [backgrounds, setBackgrounds] = useState<BackgroundItem[]>([]);
   const [defaultCoachBgId, setDefaultCoachBgId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast } = useToast();
 
   // Modale d'aperçu / inspection
   const [inspectingBg, setInspectingBg] = useState<BackgroundItem | null>(null);
@@ -230,14 +226,6 @@ export default function BackgroundsPage() {
 
   // Suppression
   const [toDelete, setToDelete] = useState<BackgroundItem | null>(null);
-
-  const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
 
   const fetchSettings = async () => {
     try {

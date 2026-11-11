@@ -10,6 +10,7 @@ import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
 import { getApiUrl } from "@/lib/apiUrl";
 import { formatMediaDuration, formatMinutes } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 interface AudioTrackSummary {
   id: number;
@@ -78,11 +79,6 @@ interface PlaylistDraftItem {
   backgroundId: number | null;
 }
 
-interface ToastState {
-  message: string;
-  type: "success" | "error" | "warning";
-}
-
 /**
  * Créateur de playlists audio ("éditions mixées") pour le mode coach,
  * embarqué dans l'onglet "Playlists" de Coach → Cours audio — anciennement la page
@@ -103,7 +99,7 @@ export default function AudioPlaylistManager() {
   const [courses, setCourses] = useState<AudioCourseSummary[]>([]);
   const [backgrounds, setBackgrounds] = useState<BackgroundSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast } = useToast();
 
   const [playlistSearch, setPlaylistSearch] = useState<string>("");
   const [trackSearch, setTrackSearch] = useState<string>("");
@@ -123,17 +119,6 @@ export default function AudioPlaylistManager() {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [playlistToDelete, setPlaylistToDelete] = useState<AudioPlaylistSummary | null>(null);
-
-  const showToast = (message: string, type: "success" | "error" | "warning" = "success") => {
-    setToast({ message, type });
-  };
-
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
 
   const fetchPlaylists = async () => {
     try {

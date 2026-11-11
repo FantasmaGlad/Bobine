@@ -23,6 +23,7 @@ import ResponsiveSelect from "@/components/ResponsiveSelect";
 import { loadMode, saveMode, type GlassMode } from "@/lib/glassQuality";
 import DangerSection from "@/components/settings/DangerSection";
 import { getApiUrl } from "@/lib/apiUrl";
+import { useToast } from "@/lib/useToast";
 
 // Profil de déploiement — détermine si
 // la zone Désinstaller propose une action directe (appliance headless) ou de
@@ -114,12 +115,6 @@ function formatBytes(bytes: number): string {
   const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
   const value = bytes / Math.pow(1024, i);
   return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
-}
-
-interface ToastState {
-  message: string;
-  type: "success" | "error" | "warning";
-  onClick?: () => void;
 }
 
 interface LidInfo {
@@ -240,7 +235,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
 
   const [refreshingNetwork, setRefreshingNetwork] = useState(false);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast } = useToast(5000);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [confirmingChannel, setConfirmingChannel] = useState<UpdateChannel | null>(null);
   const [resetting, setResetting] = useState(false);
@@ -266,15 +261,6 @@ export default function SettingsPage() {
 
   const [lidInfo, setLidInfo] = useState<LidInfo | null>(null);
   const [updatingLid, setUpdatingLid] = useState(false);
-
-  const showToast = (message: string, type: ToastState["type"] = "success", onClick?: () => void) =>
-    setToast({ message, type, onClick });
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 5000);
-    return () => clearTimeout(timer);
-  }, [toast]);
 
   useEffect(() => {
     fetch(getApiUrl("/settings/laptop-lid"), { cache: "no-store" })

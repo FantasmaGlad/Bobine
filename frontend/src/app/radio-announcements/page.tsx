@@ -8,6 +8,7 @@ import { useUploadManager } from "@/lib/UploadManager";
 import { RADIO_AUDIO_EXTENSIONS, hasExtension } from "@/lib/mediaFiles";
 import { getApiUrl } from "@/lib/apiUrl";
 import { formatMediaDuration } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 // Filtre les fichiers non audio d'un dossier déposé (liste unique : `lib/mediaFiles.ts`).
 const isAudioFile = (name: string) => hasExtension(name, RADIO_AUDIO_EXTENSIONS);
@@ -40,14 +41,12 @@ interface Rule {
   target: RuleTarget;
 }
 
-interface ToastState { message: string; type: "success" | "error" | "warning"; }
-
 export default function RadioAnnouncementsPage() {
   const { t } = useAppSettings();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast } = useToast();
   const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -85,13 +84,6 @@ export default function RadioAnnouncementsPage() {
     el.multiple = true;
     el.click();
   };
-
-  const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
 
   const fetchAll = () => {
     Promise.all([

@@ -24,6 +24,7 @@ import ResponsiveSelect from "@/components/ResponsiveSelect";
 import ChapterEditor from "@/components/ChapterEditor";
 import SearchBox from "@/components/SearchBox";
 import { getApiUrl } from "@/lib/apiUrl";
+import { useToast } from "@/lib/useToast";
 
 interface VideoSubtitleItem {
   id: number;
@@ -51,11 +52,6 @@ interface Video {
   audio_codec?: string | null;
   fps?: number | null;
   bitrate_kbps?: number | null;
-}
-
-interface ToastState {
-  message: string;
-  type: "success" | "error" | "warning";
 }
 
 export default function LibraryPage() {
@@ -116,7 +112,7 @@ export default function LibraryPage() {
   const [bulkTargetPlaylistId, setBulkTargetPlaylistId] = useState<string>("");
 
   // Toast state
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast } = useToast();
 
   // Upload Manager global
   const { addUploads, uploads } = useUploadManager();
@@ -129,21 +125,6 @@ export default function LibraryPage() {
   // vidéo n'a nouvellement terminé (effet déclaré plus bas, après
   // `fetchVideos`).
   const seenDoneIds = useRef<Set<string>>(new Set());
-
-  // Show toast helper
-  const showToast = (message: string, type: "success" | "error" | "warning" = "success") => {
-    setToast({ message, type });
-  };
-
-  // Auto-hide toast
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => {
-        setToast(null);
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
 
   // Load videos
   const fetchVideos = async () => {
@@ -193,7 +174,6 @@ export default function LibraryPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchVideos();
   }, [search, programFilter, releaseFilter, sortBy]);
-
 
   useEffect(() => {
     fetch(getApiUrl("/playlists"), { cache: "no-store" })
