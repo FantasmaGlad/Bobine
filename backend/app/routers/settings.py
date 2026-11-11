@@ -128,7 +128,7 @@ _DEFAULTS = {
     # défaut — c'est un réencodage ffmpeg (plusieurs minutes sur un CPU
     # modeste) que l'administrateur choisit d'activer ; quand elle l'est, la
     # première lecture depuis un navigateur incapable de décoder l'original la
-    # déclenche automatiquement (cf. main.py::stream_video).
+    # déclenche automatiquement (cf. routers/media_streams.py::stream_video).
     "auto_web_rendition": "false",
     # Composant audio natif (expérimental) : désactivé par défaut. Il n'accélère que de
     # nouveaux imports et n'altère aucune donnée existante ; tout échec retombe sur

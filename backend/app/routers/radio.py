@@ -2,7 +2,7 @@
 
 Gestion de la bibliothèque (« Piste Audio Radio ») — import, liste
 filtrable, édition des métadonnées et pochettes, navigation artiste/album, tags.
-Le streaming audio et la pochette sont servis par main.py (via _range_stream_response).
+Le streaming audio et la pochette sont servis par `routers/media_streams.py`.
 """
 import logging
 import os

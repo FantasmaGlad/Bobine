@@ -110,7 +110,7 @@ def test_range_requests_work_on_the_web_version(env):
 def test_incapable_client_triggers_generation_only_when_auto_is_enabled(env, monkeypatch):
     client, make, Session = env
     calls = []
-    monkeypatch.setattr("app.main.request_web_rendition", lambda video_id: calls.append(video_id))
+    monkeypatch.setattr("app.routers.media_streams.request_web_rendition", lambda video_id: calls.append(video_id))
     vid = make(None)
     client.get(f"/api/videos/{vid}/stream?accept=h264")
     assert calls == []

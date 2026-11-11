@@ -25,6 +25,7 @@ def client(monkeypatch):
     fake.start_import.return_value = {"job_id": 42}
     monkeypatch.setattr(storage, "service", fake)
     monkeypatch.setattr("app.main.storage_service", fake)
+    monkeypatch.setattr("app.routers.media_streams.storage_service", fake)
     try:
         with TestClient(app, raise_server_exceptions=True) as http:
             yield http, fake
@@ -61,6 +62,17 @@ def test_storage_openapi_exposes_list_limits():
     assert schema["ExportRequest"]["properties"]["ids"]["maxItems"] == 2000
 
 
+def _flat_routes(routes):
+    """Routes d'une application, celles des routeurs inclus comprises (selon la version de FastAPI, un routeur
+    inclus est recopié ou enveloppé)."""
+    for route in routes:
+        included = getattr(route, "original_router", None)
+        if included is None:
+            yield route
+        else:
+            yield from _flat_routes(included.routes)
+
+
 def test_openapi_has_unique_operation_ids_and_keeps_head_routes():
     from app.main import app
     schema = app.openapi()
@@ -72,4 +84,4 @@ def test_openapi_has_unique_operation_ids_and_keeps_head_routes():
                  "/api/radio/tracks/{track_id}/cover", "/api/radio/announcements/{announcement_id}/stream"):
         assert "get" in schema["paths"][path]
         assert "head" not in schema["paths"][path]
-        assert any(getattr(route, "path", None) == path and "HEAD" in getattr(route, "methods", set()) for route in app.routes)
+        assert any(getattr(route, "path", None) == path and "HEAD" in getattr(route, "methods", set()) for route in _flat_routes(app.routes))

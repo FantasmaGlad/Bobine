@@ -131,7 +131,7 @@ class ApiCompressionMiddleware:
     """gzip des réponses JSON/texte de `/api/*`, uniquement quand le client le
     demande et que la réponse est une représentation complète sans validateur.
     Le frontend statique négocie lui-même (ETag par contenu, cf.
-    `RevalidateStaticFiles` dans `app/main.py`)."""
+    `RevalidateStaticFiles` dans `app/static_files.py`)."""
 
     def __init__(
         self,

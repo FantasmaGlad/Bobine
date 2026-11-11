@@ -27,7 +27,7 @@ os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 from starlette.datastructures import Headers  # noqa: E402
 from starlette.staticfiles import NotModifiedResponse  # noqa: E402
 
-from app.main import RevalidateStaticFiles  # noqa: E402
+from app.static_files import RevalidateStaticFiles  # noqa: E402
 
 
 def _scope_with_if_none_match(etag: str) -> dict:
