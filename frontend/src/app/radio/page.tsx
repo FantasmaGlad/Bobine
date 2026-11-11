@@ -16,6 +16,7 @@ import { detectAutoplayAllowed } from "@/lib/autoplayProbe";
 import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
+import { getApiUrl } from "@/lib/apiUrl";
 
 // Écran du poste radio dédié : mise en page "type Spotify", lecteur PRIMAIRE (source de la
 // position rapportée au serveur, comme le kiosk câblé/réseau).
@@ -34,13 +35,6 @@ import AppLogo from "@/components/AppLogo";
 // (cf. handleEvent), pour que la position rapportée reste cohérente avec
 // l'état serveur pendant le chevauchement. Le rappel réutilise
 // le MÊME graphe : la « rampe de gain » n'est plus qu'une primitive partagée.
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
 
 function formatTime(seconds: number | null | undefined) {
   if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "--:--";

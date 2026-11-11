@@ -14,6 +14,7 @@ import MarqueeText from "@/components/MarqueeText";
 import CourseRatingWidget from "@/components/CourseRatingWidget";
 import RadioRemotePanel from "@/components/RadioRemotePanel";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
+import { getApiUrl } from "@/lib/apiUrl";
 
 // écran de sélection
 // SEUL — reprend la présentation visuelle de la grille de `/cinema` (héros
@@ -31,13 +32,6 @@ import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 // sa propre petite fonction `getApiUrl`, jamais un utilitaire central) et
 // évite tout risque de régression sur `/cinema`, qui reste inchangé à part
 // l'ajout de la commande `launch`.
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
 
 interface CinemaVideo {
   id: number;

@@ -11,6 +11,7 @@ import { navLinks, footerNavLinks } from "@/lib/navLinks";
 import Icon from "@/components/Icon";
 import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
+import { getApiUrl } from "@/lib/apiUrl";
 
 interface AudioCourseSummary {
   id: number;
@@ -34,13 +35,6 @@ interface BackgroundSummary {
   is_image: boolean;
   thumbnail_path: string | null;
   duration_seconds: number | null;
-}
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
 }
 
 function formatTime(seconds: number | null | undefined) {

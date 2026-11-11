@@ -6,6 +6,7 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { ARCHIVE_ACCEPT, VIDEO_ACCEPT, isArchiveName } from "@/lib/mediaFiles";
 import { useUploadManager, PendingUploadSpec } from "@/lib/UploadManager";
 import Icon from "@/components/Icon";
+import { getApiUrl } from "@/lib/apiUrl";
 
 interface BackgroundItem {
   id: number;
@@ -19,13 +20,6 @@ interface BackgroundItem {
 interface ToastState {
   message: string;
   type: "success" | "error" | "warning";
-}
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
 }
 
 function BackgroundCard({

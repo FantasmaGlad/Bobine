@@ -4,15 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
+import { getApiUrl } from "@/lib/apiUrl";
 
 interface VideoWebState {
   web_issues: string[];
   web_status: "pending" | "ready" | "error" | null;
-}
-
-function getApiUrl(path: string): string {
-  if (typeof window !== "undefined" && window.location.port === "3000") return `http://localhost:8001/api${path}`;
-  return `/api${path}`;
 }
 
 /** Raisons de non-lisibilité susceptibles d'empêcher le décodage (préfixe

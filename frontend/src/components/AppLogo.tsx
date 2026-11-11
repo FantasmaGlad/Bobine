@@ -3,17 +3,11 @@
 import React, { useEffect, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { channelLogoUrl } from "@/lib/releaseChannel";
+import { getApiUrl } from "@/lib/apiUrl";
 
 interface AppLogoProps {
   size?: number;
   className?: string;
-}
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
 }
 
 /**

@@ -8,6 +8,7 @@ import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
+import { getApiUrl } from "@/lib/apiUrl";
 
 interface AudioTrackSummary {
   id: number;
@@ -79,13 +80,6 @@ interface PlaylistDraftItem {
 interface ToastState {
   message: string;
   type: "success" | "error" | "warning";
-}
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
 }
 
 /**

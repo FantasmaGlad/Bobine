@@ -9,11 +9,7 @@ import {
   stateKey,
   type MediaNativeStatus,
 } from "@/lib/mediaNative";
-
-function getApiUrl(path: string): string {
-  if (typeof window !== "undefined" && window.location.port === "3000") return `http://localhost:8001/api${path}`;
-  return `/api${path}`;
-}
+import { getApiUrl } from "@/lib/apiUrl";
 
 /**
  * Réglages → Composant audio natif (expérimental). Désactivé par défaut ; il n'accélère que de

@@ -8,6 +8,7 @@ import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
+import { getApiUrl } from "@/lib/apiUrl";
 
 interface Video {
   id: number;
@@ -85,15 +86,6 @@ export default function VideoPlaylistManager() {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [playlistToDelete, setPlaylistToDelete] = useState<PlaylistSummary | null>(null);
-
-  const getApiUrl = (path: string) => {
-    if (typeof window !== "undefined") {
-      if (window.location.port === "3000") {
-        return `http://localhost:8001/api${path}`;
-      }
-    }
-    return `/api${path}`;
-  };
 
   const showToast = (message: string, type: "success" | "error" | "warning" = "success") => {
     setToast({ message, type });

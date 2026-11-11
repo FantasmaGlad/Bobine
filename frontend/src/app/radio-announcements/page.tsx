@@ -6,6 +6,7 @@ import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import { useUploadManager } from "@/lib/UploadManager";
 import { RADIO_AUDIO_EXTENSIONS, hasExtension } from "@/lib/mediaFiles";
+import { getApiUrl } from "@/lib/apiUrl";
 
 // Filtre les fichiers non audio d'un dossier déposé (liste unique : `lib/mediaFiles.ts`).
 const isAudioFile = (name: string) => hasExtension(name, RADIO_AUDIO_EXTENSIONS);
@@ -39,13 +40,6 @@ interface Rule {
 }
 
 interface ToastState { message: string; type: "success" | "error" | "warning"; }
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
 
 function formatDuration(seconds: number | null) {
   if (!seconds) return "--:--";

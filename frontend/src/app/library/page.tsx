@@ -23,6 +23,7 @@ import { subtitleSrc } from "@/lib/subtitles";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import ChapterEditor from "@/components/ChapterEditor";
 import SearchBox from "@/components/SearchBox";
+import { getApiUrl } from "@/lib/apiUrl";
 
 interface VideoSubtitleItem {
   id: number;
@@ -117,16 +118,6 @@ export default function LibraryPage() {
 
   // Toast state
   const [toast, setToast] = useState<ToastState | null>(null);
-
-  // API URL Helper
-  const getApiUrl = (path: string) => {
-    if (typeof window !== "undefined") {
-      if (window.location.port === "3000") {
-        return `http://localhost:8001/api${path}`;
-      }
-    }
-    return `/api${path}`;
-  };
 
   // Upload Manager global
   const { addUploads, uploads } = useUploadManager();

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import Icon from "@/components/Icon";
+import { getApiUrl, getPlaybackWsUrl } from "@/lib/apiUrl";
 
 type UpdateStep =
   | "idle"
@@ -34,20 +35,6 @@ const ACTIVE_STEPS: UpdateStep[] = [
 // une étape séquentielle du pipeline) garde son affichage textuel seul,
 // sans entrer dans cette séquence linéaire.
 const STEPPER_STEPS: UpdateStep[] = ["checking", "downloading", "verifying", "installing", "restarting"];
-
-function getApiUrl(path: string): string {
-  if (typeof window === "undefined") return "";
-  const isDevServer = window.location.port === "3000";
-  return isDevServer ? `http://localhost:8001/api${path}` : `/api${path}`;
-}
-
-function getWsUrl(): string {
-  if (typeof window === "undefined") return "";
-  const isDevServer = window.location.port === "3000";
-  const host = isDevServer ? "localhost:8001" : window.location.host;
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${host}/ws/playback`;
-}
 
 /**
  * Bannière de progression de mise à jour, montée globalement (cf.
@@ -103,7 +90,7 @@ export default function UpdateProgressOverlay() {
 
     const connect = () => {
       if (cancelled || typeof window === "undefined") return;
-      ws = new WebSocket(getWsUrl());
+      ws = new WebSocket(getPlaybackWsUrl());
       // N'écoute que les évènements globaux : aucun canal.
       ws.onopen = () => ws?.send(JSON.stringify({ command: "subscribe", params: { channels: [] } }));
       ws.onmessage = (evt) => {

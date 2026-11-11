@@ -10,11 +10,7 @@ import {
   getVideoProfilePreference,
   setVideoProfilePreference,
 } from "@/lib/clientCodecSupport";
-
-function getApiUrl(path: string): string {
-  if (typeof window !== "undefined" && window.location.port === "3000") return `http://localhost:8001/api${path}`;
-  return `/api${path}`;
-}
+import { getApiUrl } from "@/lib/apiUrl";
 
 const CODEC_ROWS: ReadonlyArray<readonly [string, string, string]> = [
   ["H.264 (AVC)", "h264", 'video/mp4; codecs="avc1.640028"'],

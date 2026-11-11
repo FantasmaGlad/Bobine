@@ -25,18 +25,12 @@ import { chapterJumpTarget, useVideoChapters } from "@/lib/chapters";
 import ChapterTicks from "@/components/ChapterTicks";
 import ChapterToast from "@/components/ChapterToast";
 import VolumeOsd from "@/components/VolumeOsd";
+import { getApiUrl } from "@/lib/apiUrl";
 
 // Boutons de cours focalisables par la télécommande, dans l'ordre de lecture
 // (héros, puis rangées par programme, puis grille complète).
 const CINEMA_GRID_CARDS =
   ".cinema-grid-layer .cinema-hero-play, .cinema-grid-layer .cinema-card, .cinema-grid-layer .cinema-all-item";
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
 
 // (voir kiosk/page.tsx,
 // même bug) : assigner `currentTime` sur un élément en lecture sans pause

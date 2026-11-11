@@ -15,6 +15,7 @@ import {
   type ThemeId,
   type ThemeMode,
 } from "@/lib/themePalettes";
+import { getApiUrl, getPlaybackWsUrl } from "@/lib/apiUrl";
 
 export type Theme = ThemeId;
 
@@ -113,13 +114,6 @@ const AppSettingsContext = createContext<AppSettingsContextValue>({
 
 export function useAppSettings() {
   return useContext(AppSettingsContext);
-}
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
 }
 
 /**
@@ -279,10 +273,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
 
     const connect = () => {
       if (cancelled || typeof window === "undefined") return;
-      const isDevServer = window.location.port === "3000";
-      const host = isDevServer ? "localhost:8001" : window.location.host;
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      ws = new WebSocket(`${protocol}//${host}/ws/playback`);
+      ws = new WebSocket(getPlaybackWsUrl());
       // N'écoute que les évènements globaux : aucun canal.
       ws.onopen = () => ws?.send(JSON.stringify({ command: "subscribe", params: { channels: [] } }));
       ws.onmessage = (evt) => {

@@ -9,6 +9,7 @@ import { matchesQuery } from "@/lib/searchText";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import { ARCHIVE_ACCEPT, RADIO_AUDIO_EXTENSIONS, hasExtension, isArchiveName } from "@/lib/mediaFiles";
+import { getApiUrl } from "@/lib/apiUrl";
 
 // Bibliothèque musicale Radio — écran unique « vue d'ensemble » (refonte).
 // Barre latérale persistante (playlists / tags / genres / artistes, tous
@@ -69,13 +70,6 @@ type ViewMode = "grid" | "list";
 const VIEW_STORAGE_KEY = "bobine.radioLibrary.view";
 
 interface ToastState { message: string; type: "success" | "error" | "warning"; }
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
 
 function formatDuration(seconds: number | null) {
   if (!seconds) return "--:--";

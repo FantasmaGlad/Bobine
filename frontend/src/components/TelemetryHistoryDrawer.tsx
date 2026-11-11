@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useId } from "react";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import { getApiUrl } from "@/lib/apiUrl";
 
 export interface TelemetryHistoryDrawerProps {
   isOpen: boolean;
@@ -73,7 +74,7 @@ export default function TelemetryHistoryDrawer({
     if (!metric) return;
     try {
       setLoading(true);
-      const res = await fetch(`/api/metrics/hardware/history?metric=${encodeURIComponent(metric)}&period=${apiPeriod}`);
+      const res = await fetch(getApiUrl(`/metrics/hardware/history?metric=${encodeURIComponent(metric)}&period=${apiPeriod}`));
       if (res.ok) {
         const data: HistoryResponse = await res.json();
         setHistoryData(data);

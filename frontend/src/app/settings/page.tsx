@@ -22,6 +22,7 @@ import { copyText } from "@/lib/clipboard";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import { loadMode, saveMode, type GlassMode } from "@/lib/glassQuality";
 import DangerSection from "@/components/settings/DangerSection";
+import { getApiUrl } from "@/lib/apiUrl";
 
 // Profil de déploiement — détermine si
 // la zone Désinstaller propose une action directe (appliance headless) ou de
@@ -124,13 +125,6 @@ interface ToastState {
 interface LidInfo {
   has_lid: boolean;
   prevent_sleep: boolean;
-}
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
 }
 
 // Pages plein écran destinées à être ouvertes depuis un AUTRE appareil du

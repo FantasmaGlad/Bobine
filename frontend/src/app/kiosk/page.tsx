@@ -19,13 +19,7 @@ import { useMediaSound } from "@/lib/useMediaSound";
 import ChapterToast from "@/components/ChapterToast";
 import VolumeOsd from "@/components/VolumeOsd";
 import { adjustMediaVolume, useVolumeHud, VOLUME_STEP } from "@/lib/volumeHud";
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
+import { getApiUrl } from "@/lib/apiUrl";
 
 function formatTime(seconds: number | null | undefined) {
   if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "--:--";

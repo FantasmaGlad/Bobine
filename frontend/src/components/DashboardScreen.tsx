@@ -18,6 +18,7 @@ import ResponsiveSelect from "@/components/ResponsiveSelect";
 import { courseThumbSrc, formatClock as formatCourseClock } from "@/lib/courseMeta";
 import { useVideoChapters } from "@/lib/chapters";
 import type { DisplayOutput } from "@/lib/displayChannel";
+import { getApiUrl } from "@/lib/apiUrl";
 
 interface VideoSummary {
   id: number;
@@ -70,13 +71,6 @@ interface InterruptedState {
   // Report par le mode coach (cause="coach_priority") : programmation reportée par le mode audio coach.
   target_type?: string | null;
   target_id?: number | null;
-}
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
 }
 
 function formatTime(seconds: number | null | undefined) {

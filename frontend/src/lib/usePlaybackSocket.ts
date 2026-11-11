@@ -6,6 +6,7 @@ import { createPageClientId, type DisplayOutput } from "@/lib/displayChannel";
 import { type ClockAnchor } from "@/lib/playbackClock";
 import type { RadioSoundSettings } from "@/lib/radioSound";
 import { ServerClockSync } from "@/lib/serverClockSync";
+import { getApiUrl, getPlaybackWsUrl } from "@/lib/apiUrl";
 
 export type PlaybackStateValue =
   | "waiting"
@@ -159,20 +160,6 @@ const DEFAULT_STATE: PlaybackState = {
   audio_clock: null,
 };
 
-function getWsUrl(): string {
-  if (typeof window === "undefined") return "";
-  const isDevServer = window.location.port === "3000";
-  const host = isDevServer ? "localhost:8001" : window.location.host;
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${host}/ws/playback`;
-}
-
-function getApiUrl(path: string): string {
-  if (typeof window === "undefined") return "";
-  const isDevServer = window.location.port === "3000";
-  return isDevServer ? `http://localhost:8001/api${path}` : `/api${path}`;
-}
-
 // Intervalle du filet de sécurité de resynchronisation : un `broadcast()` peut échouer
 // silencieusement sans jamais faire tomber la connexion WebSocket — dans ce
 // cas aucun `state_change` ne rattrape jamais l'état affiché. Ce re-fetch
@@ -313,7 +300,7 @@ export function usePlaybackSocket(
 
     const connect = () => {
       if (cancelled) return;
-      const ws = new WebSocket(getWsUrl());
+      const ws = new WebSocket(getPlaybackWsUrl());
       wsRef.current = ws;
 
       const sendIdentify = () => {

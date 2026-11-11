@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import Icon from "@/components/Icon";
 import ScrollNav from "@/components/ScrollNav";
+import { getApiUrl } from "@/lib/apiUrl";
 
 interface RatingBreakdown {
   score: number;
@@ -62,7 +63,7 @@ export default function MetricsCoursesPage() {
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const res = await fetch(`/api/metrics/dashboard?period=${period}&channel=${channel}`);
+      const res = await fetch(getApiUrl(`/metrics/dashboard?period=${period}&channel=${channel}`));
       if (res.ok) {
         const data = await res.json();
         setMetrics(data);

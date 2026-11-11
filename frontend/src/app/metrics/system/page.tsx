@@ -5,6 +5,7 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import Icon from "@/components/Icon";
 import ScrollNav from "@/components/ScrollNav";
 import TelemetryHistoryDrawer from "@/components/TelemetryHistoryDrawer";
+import { getApiUrl } from "@/lib/apiUrl";
 
 interface SystemTelemetry {
   cpu_percent: number;
@@ -62,7 +63,7 @@ export default function MetricsSystemPage() {
 
   const fetchTelemetry = useCallback(async () => {
     try {
-      const res = await fetch("/api/settings/system", { cache: "no-store" });
+      const res = await fetch(getApiUrl("/settings/system"), { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setTelemetry(data);

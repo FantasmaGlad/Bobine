@@ -9,6 +9,7 @@ import { parseMediaName } from "@/lib/parseMediaName";
 import { ARCHIVE_ACCEPT, COURSE_AUDIO_EXTENSIONS, hasExtension, isArchiveName } from "@/lib/mediaFiles";
 import Icon from "@/components/Icon";
 import AudioPlaylistManager from "@/components/AudioPlaylistManager";
+import { getApiUrl } from "@/lib/apiUrl";
 
 const AUDIO_ACCEPT = `${COURSE_AUDIO_EXTENSIONS.join(",")},audio/*`;
 
@@ -104,13 +105,6 @@ interface BackgroundOption {
 interface ToastState {
   message: string;
   type: "success" | "error" | "warning";
-}
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
 }
 
 function formatDuration(seconds: number | null) {

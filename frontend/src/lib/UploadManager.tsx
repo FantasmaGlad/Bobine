@@ -60,6 +60,7 @@ import {
   type UploadNotice,
   type UploadPhase,
 } from "@/lib/uploadFlow";
+import { getApiUrl } from "@/lib/apiUrl";
 
 const JOB_POLL_INTERVAL_MS = 1500;
 /** Fréquence maximale des mises à jour d'état pendant un transfert : chaque
@@ -167,13 +168,6 @@ interface UploadManagerContextValue {
 // ---------------------------------------------------------------------------
 
 const UploadManagerContext = createContext<UploadManagerContextValue | null>(null);
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
 
 function uuid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);

@@ -5,19 +5,13 @@ import React, { useEffect, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
+import { getApiUrl } from "@/lib/apiUrl";
 
 interface ActivityLogEntry {
   id: number;
   timestamp: string;
   event_type: string;
   detail: string | null;
-}
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
 }
 
 function formatTimestamp(iso: string, language: Language) {
