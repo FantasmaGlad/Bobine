@@ -22,7 +22,7 @@ from app.radio_manager import (
 )
 from app.utils import video_sound
 from app.utils.activity_log import log_activity
-from app.utils.importer import is_image_background
+from app.utils.importer.formats import is_image_background
 from app.utils.playback_session_tracker import (
     close_playback_session,
     start_playback_session,

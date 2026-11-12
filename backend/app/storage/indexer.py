@@ -82,7 +82,8 @@ def run_index_job(job_id: str, lib_id: int, root: str, plan: Plan, on_finished=l
 def _index_video(db, lib_id: int, root: str, unit: Unit):
     from app.config import settings
     from app.models import ImportSource, Video
-    from app.utils.importer import _extract_metadata_or_unknown, parse_title_program_release
+    from app.utils.importer.metadata import extract_metadata_or_unknown
+    from app.utils.importer.naming import parse_title_program_release
     from app.utils.video_utils.compatibility import check_compatibility
     from app.utils.video_utils.thumbnails import generate_thumbnail
 
@@ -90,7 +91,7 @@ def _index_video(db, lib_id: int, root: str, unit: Unit):
     if db.query(Video.id).filter(Video.storage_id == lib_id, Video.rel_path == f.rel).first():
         return None
     name = os.path.basename(f.absolute)
-    meta = _extract_metadata_or_unknown(f.absolute, name)
+    meta = extract_metadata_or_unknown(f.absolute, name)
     if meta.get("is_drm"):
         return {"reason": "drm"}  # jamais de suppression de la source
     try:

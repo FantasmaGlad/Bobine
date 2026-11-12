@@ -24,7 +24,7 @@ from app.utils.video_utils.probe import extract_metadata
 from app.utils.video_utils.compatibility import check_compatibility
 from app.utils.video_utils.thumbnails import generate_thumbnail
 from app.utils.video_utils.container import read_mp4_duration_seconds
-from app.utils.importer import import_video
+from app.utils.importer.video import import_video
 from app.api.routes.videos import VideoUpdate, update_video, upload_video_thumbnail
 
 
@@ -206,10 +206,10 @@ class TestVideoFlow(unittest.TestCase):
         shutil.copy(self.dummy_compatible_path, temp_src)
 
         with patch(
-            "app.utils.importer.extract_metadata",
+            "app.utils.importer.metadata.extract_metadata",
             side_effect=FileNotFoundError(2, "No such file or directory", "ffprobe"),
         ), patch(
-            "app.utils.importer.generate_thumbnail",
+            "app.utils.importer.video.generate_thumbnail",
             side_effect=FileNotFoundError(2, "No such file or directory", "ffmpeg"),
         ):
             video = import_video(temp_src, "RPM 108.mp4", ImportSource.upload)
@@ -241,7 +241,7 @@ class TestVideoFlow(unittest.TestCase):
     def test_09_upload_video_thumbnail(self):
         # miniature fournie
         # manuellement par l'admin, décodée avec Pillow seul (aucune vidéo à
-        # décoder), même chemin que _import_background_image().
+        # décoder), même chemin que import_background_image().
         from PIL import Image
         from fastapi import UploadFile
 

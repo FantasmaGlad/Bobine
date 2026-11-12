@@ -357,7 +357,7 @@ def run_import_job(
     from app.models import ImportSource
     from app.utils.executors import ffmpeg_executor
     from app.utils.import_jobs import JobCancelledError, is_job_cancelled, update_job
-    from app.utils.importer import import_video
+    from app.utils.importer.video import import_video
     from app.utils.audio_importer import import_audio_course_from_files
     from app.utils.radio_importer import import_radio_tracks_from_files
     from app.utils.ws_manager import manager as ws_manager

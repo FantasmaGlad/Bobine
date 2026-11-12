@@ -2,7 +2,7 @@
 ici, la tâche d'arrière-plan (ffmpeg, suivi dans `import_jobs`, état en base).
 
 Les fichiers vivent dans `<media_dir>/web/` — sous-dossier volontaire :
-`importer.reconcile_orphaned_media` n'examine que les fichiers à la racine du
+`importer/reconcile.py` n'examine que les fichiers à la racine du
 dossier média et signalerait sinon chaque version web comme « orpheline »."""
 
 import logging

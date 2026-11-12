@@ -108,7 +108,7 @@ def test_walk_media_file_cap(volume, monkeypatch):
 
 def test_extension_sets_match_the_importers():
     from app.utils.audio_importer import AUDIO_EXTENSIONS as AUDIO_COURSE
-    from app.utils.importer import IMAGE_EXTENSIONS, SUPPORTED_EXTENSIONS
+    from app.utils.importer.formats import IMAGE_EXTENSIONS, SUPPORTED_EXTENSIONS
     from app.utils.radio_utils import AUDIO_EXTENSIONS as RADIO
 
     assert paths.VIDEO_EXTENSIONS == SUPPORTED_EXTENSIONS
