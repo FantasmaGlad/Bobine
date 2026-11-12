@@ -78,12 +78,12 @@ def test_store_actions_are_triggered_and_errors_are_409(play):
     assert client.post("/api/updates/store/start").json()["ok"] is True
     assert client.post("/api/updates/store/open").json()["ok"] is True
     refused = client.post("/api/updates/store/complete")
-    assert refused.status_code == 409 and "Rien à installer" in refused.json()["detail"]
+    assert refused.status_code == 409 and "Rien à installer" in refused.json()["detail"]["message"]
     assert play.calls == ["start", "open", "complete"]
 
 
 def test_github_apply_is_refused_on_the_store_build(play):
-    assert TestClient(app).post("/api/updates/apply").status_code == 400
+    assert TestClient(app).post("/api/updates/apply").status_code == 409
 
 
 def test_free_build_has_no_store_actions(monkeypatch):
@@ -91,7 +91,7 @@ def test_free_build_has_no_store_actions(monkeypatch):
     monkeypatch.setattr("app.api.routes.updates.get_profile_handler", lambda: FreeHandler())
     client = TestClient(app)
     for action in ("start", "complete", "open"):
-        assert client.post(f"/api/updates/store/{action}").status_code == 400
+        assert client.post(f"/api/updates/store/{action}").status_code == 409
 
 
 def test_settings_expose_store_managed(play):

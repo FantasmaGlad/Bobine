@@ -202,7 +202,7 @@ def test_settings_expose_and_validate_tor(client, monkeypatch):
     monkeypatch.setattr("app.api.routes.settings.values.get_profile_handler", lambda: DesktopHandler())
     data = client.get("/api/settings").json()
     assert data["update_tor_supported"] is True
-    assert client.put("/api/settings", json={"update_tor_proxy": "pas une adresse"}).status_code == 400
+    assert client.put("/api/settings", json={"update_tor_proxy": "pas une adresse"}).status_code == 422
     saved = client.put("/api/settings", json={"update_tor": "true", "update_tor_proxy": "127.0.0.1:9150"}).json()
     assert saved["update_tor"] == "true" and saved["update_tor_proxy"] == "127.0.0.1:9150"
     assert tor_proxy.is_enabled()
@@ -222,7 +222,7 @@ def test_appliance_refuses_tor_updates(client, monkeypatch):
 def test_tor_check_endpoint(client, monkeypatch):
     monkeypatch.setattr(tor_proxy, "check", lambda proxy: {"ok": True, "is_tor": True, "proxy": proxy, "source": "existing"})
     assert client.post("/api/updates/tor-check", json={"proxy": "127.0.0.1:9150"}).json()["proxy"] == "127.0.0.1:9150"
-    assert client.post("/api/updates/tor-check", json={"proxy": "faux"}).status_code == 400
+    assert client.post("/api/updates/tor-check", json={"proxy": "faux"}).status_code == 422
 
 
 def test_automatic_checks_reuse_the_last_result_longer_under_tor(monkeypatch):

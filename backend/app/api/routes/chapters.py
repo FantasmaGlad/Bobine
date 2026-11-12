@@ -57,7 +57,7 @@ def _replace(
     try:
         cleaned = chapter_utils.normalize(raw, video.duration_seconds)
     except chapter_utils.ChapterError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     video.chapters.clear()
     db.flush()
     if source == "file" and content is not None:
@@ -108,7 +108,7 @@ async def import_chapters(video_id: int, file: UploadFile = File(...), db: Sessi
     try:
         raw = chapter_utils.parse_any(text, file.filename or "")
     except chapter_utils.ChapterError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     result = _replace(db, video, raw, source="file", filename=file.filename, content=content)
     await ws_manager.broadcast({"type": "library_change"})
     return result

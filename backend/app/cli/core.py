@@ -11,9 +11,9 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
-EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_UNREACHABLE, EXIT_REFUSED = 0, 1, 2, 3, 4
+EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_UNREACHABLE, EXIT_REFUSED, EXIT_NOT_FOUND = 0, 1, 2, 3, 4, 5
 COMMANDS = ("status", "diagnose", "library", "playlists", "schedule", "devices", "storage", "metrics", "imports", "display", "logs", "playback", "radio", "config", "settings", "update", "completion", "audio", "backgrounds", "radio-library", "api", "open", "version")
-_REFUSAL_STATUSES = {403, 404, 409, 503}
+_REFUSAL_STATUSES = {403, 409, 503}
 DEFAULT_TIMEOUT = 30.0
 
 

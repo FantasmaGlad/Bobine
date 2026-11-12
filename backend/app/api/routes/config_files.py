@@ -51,7 +51,7 @@ async def apply_config(
     """Applique un ou plusieurs fichiers (`{"files": {"settings.json": {...}}}`) en une seule transaction."""
     files = payload.get("files")
     if not isinstance(files, dict) or not files:
-        raise HTTPException(status_code=400, detail={"code": "no_files", "message": "Aucun fichier fourni (« files »)."})
+        raise HTTPException(status_code=422, detail={"code": "no_files", "message": "Aucun fichier fourni (« files »)."})
     try:
         return await apply_configuration(db, files, dry_run=dry_run, include_machine=include_machine)
     except ConfigErrors as exc:

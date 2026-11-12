@@ -45,7 +45,7 @@ def test_stage_refuses_invalid_inputs(tmp_path):
     work.mkdir()
     with pytest.raises(HTTPException) as e:
         settings_router.backup._stage_backup_archive(io.BytesIO(b""), work)
-    assert e.value.status_code == 400
+    assert e.value.status_code == 422
     with pytest.raises(HTTPException):
         settings_router.backup._stage_backup_archive(io.BytesIO(b"pas un zip"), work)
     bad = tmp_path / "bad.zip"

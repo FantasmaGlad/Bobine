@@ -147,7 +147,7 @@ async def get_media_native_status() -> dict[str, Any]:
 async def update_settings(payload: SettingsUpdate, db: Session = Depends(get_db)) -> dict[str, Any]:
     updates = settings_updates(payload)
     if not updates:
-        raise HTTPException(status_code=400, detail="Aucun paramètre fourni")
+        raise HTTPException(status_code=422, detail="Aucun paramètre fourni")
     stage_settings(updates, db)
     db.commit()
     logger.info("Paramètres mis à jour : %s", ", ".join(sorted(updates)))
@@ -184,61 +184,61 @@ def stage_settings(updates: dict[str, Any], db: Session) -> None:
             if key == "default_coach_background_id":
                 stored_value = ""
             else:
-                raise HTTPException(status_code=400, detail=f"{key} ne peut pas être nul")
+                raise HTTPException(status_code=422, detail=f"{key} ne peut pas être nul")
         else:
             stored_value = str(value)
         if key in _WRITABLE_NUMERIC_FIELDS and value is not None:
             if key == "logs_retention_days" and value < 1:
-                raise HTTPException(status_code=400, detail="Le délai de rétention doit être d'au moins 1 jour")
+                raise HTTPException(status_code=422, detail="Le délai de rétention doit être d'au moins 1 jour")
             elif key == "default_coach_background_id":
                 if value > 0:
                     from app.models import Background
                     if not db.query(Background).filter(Background.id == value).first():
-                        raise HTTPException(status_code=400, detail=f"Fond d'ambiance {value} introuvable")
+                        raise HTTPException(status_code=404, detail=f"Fond d'ambiance {value} introuvable")
                 elif value == 0:
                     stored_value = ""
             elif value < 0:
-                raise HTTPException(status_code=400, detail=f"{key} doit être positif")
+                raise HTTPException(status_code=422, detail=f"{key} doit être positif")
             elif key in SETTING_BOUNDS and not SETTING_BOUNDS[key][0] <= value <= SETTING_BOUNDS[key][1]:
                 low, high = SETTING_BOUNDS[key]
-                raise HTTPException(status_code=400, detail=f"{key} doit être compris entre {low} et {high}")
+                raise HTTPException(status_code=422, detail=f"{key} doit être compris entre {low} et {high}")
         elif key in _WRITABLE_STRING_FIELDS and value is not None:
             if key == "language" and value not in ("fr", "en"):
-                raise HTTPException(status_code=400, detail="Langue invalide (attendu 'fr' ou 'en')")
+                raise HTTPException(status_code=422, detail="Langue invalide (attendu 'fr' ou 'en')")
             if key == "simplified_ui" and value not in ("true", "false"):
-                raise HTTPException(status_code=400, detail="Interface simplifiée invalide (attendu 'true' ou 'false')")
+                raise HTTPException(status_code=422, detail="Interface simplifiée invalide (attendu 'true' ou 'false')")
             if key == "theme_mode" and value not in _VALID_THEME_MODES:
-                raise HTTPException(status_code=400, detail=f"Mode de thème invalide (attendu l'un de : {', '.join(themes.MODES)})")
+                raise HTTPException(status_code=422, detail=f"Mode de thème invalide (attendu l'un de : {', '.join(themes.MODES)})")
             if key == "theme" and value not in _VALID_THEMES:
-                raise HTTPException(status_code=400, detail=f"Thème invalide (attendu l'un de : {', '.join(sorted(_VALID_THEMES))})")
+                raise HTTPException(status_code=422, detail=f"Thème invalide (attendu l'un de : {', '.join(sorted(_VALID_THEMES))})")
             if key == "active_logo":
                 if value not in _VALID_ACTIVE_LOGOS:
-                    raise HTTPException(status_code=400, detail="Logo actif invalide (attendu 'default' ou 'custom')")
+                    raise HTTPException(status_code=422, detail="Logo actif invalide (attendu 'default' ou 'custom')")
                 if value == "custom" and not _logo_path().exists():
-                    raise HTTPException(status_code=400, detail="Aucun logo personnalisé n'a été importé")
+                    raise HTTPException(status_code=409, detail="Aucun logo personnalisé n'a été importé")
             if key == "update_channel" and get_profile_handler().is_store_managed() and value != release_channel.DEFAULT_CHANNEL:
                 raise HTTPException(status_code=409, detail="Cette installation est gérée par une boutique : seul le canal Stable est disponible.")
             if key == "update_channel" and value not in release_channel.CHANNEL_IDS:
                 expected = ", ".join(f"'{channel_id}'" for channel_id in release_channel.CHANNEL_IDS)
-                raise HTTPException(status_code=400, detail=f"Canal de mise à jour invalide (attendu l'un de : {expected})")
+                raise HTTPException(status_code=422, detail=f"Canal de mise à jour invalide (attendu l'un de : {expected})")
             if key == "display_mode_setting" and value not in VALID_DISPLAY_MODE_SETTINGS:
                 raise HTTPException(
-                    status_code=400,
+                    status_code=422,
                     detail="Mode d'affichage invalide (attendu 'auto', 'dual_screen' ou 'headless')",
                 )
             if key == "wired_display_mode" and value not in _VALID_WIRED_DISPLAY_MODES:
                 raise HTTPException(
-                    status_code=400,
+                    status_code=422,
                     detail="Mode d'affichage câblé invalide (attendu 'dual_screen' ou 'headless')",
                 )
             if key == "auto_update_enabled" and value not in ("true", "false"):
-                raise HTTPException(status_code=400, detail="auto_update_enabled invalide (attendu 'true' ou 'false')")
+                raise HTTPException(status_code=422, detail="auto_update_enabled invalide (attendu 'true' ou 'false')")
             if key == "auto_web_rendition" and value not in ("true", "false"):
-                raise HTTPException(status_code=400, detail="auto_web_rendition invalide (attendu 'true' ou 'false')")
+                raise HTTPException(status_code=422, detail="auto_web_rendition invalide (attendu 'true' ou 'false')")
             if key == "media_native" and value not in ("true", "false"):
-                raise HTTPException(status_code=400, detail="media_native invalide (attendu 'true' ou 'false')")
+                raise HTTPException(status_code=422, detail="media_native invalide (attendu 'true' ou 'false')")
             if key == "update_tor" and value not in ("true", "false"):
-                raise HTTPException(status_code=400, detail="update_tor invalide (attendu 'true' ou 'false')")
+                raise HTTPException(status_code=422, detail="update_tor invalide (attendu 'true' ou 'false')")
             if key == "update_tor" and value == "true" and not get_profile_handler().supports_update_over_tor():
                 raise HTTPException(
                     status_code=409,
@@ -248,9 +248,9 @@ def stage_settings(updates: dict[str, Any], db: Session) -> None:
                 try:
                     tor_proxy.parse_proxy(value)
                 except ValueError as exc:
-                    raise HTTPException(status_code=400, detail=str(exc)) from exc
+                    raise HTTPException(status_code=422, detail=str(exc)) from exc
             if key == "auto_update_time" and not _AUTO_UPDATE_TIME_RE.match(value):
-                raise HTTPException(status_code=400, detail="Heure de mise à jour automatique invalide (attendu 'HH:MM')")
+                raise HTTPException(status_code=422, detail="Heure de mise à jour automatique invalide (attendu 'HH:MM')")
 
         row = db.query(Setting).filter(Setting.key == key).first()
         if row:
@@ -336,12 +336,12 @@ async def upload_logo(file: UploadFile = File(...), db: Session = Depends(get_db
     """Upload d'un logo personnalisé : normalisé en PNG sous un nom fixe (`_LOGO_FILENAME`) pour une URL stable (/api/branding/logo.png), remplace tout logo custom précédent."""
     raw = await file.read()
     if len(raw) > _LOGO_MAX_BYTES:
-        raise HTTPException(status_code=400, detail=f"Fichier trop volumineux ({_LOGO_MAX_BYTES // 1024**2} Mo max)")
+        raise HTTPException(status_code=422, detail=f"Fichier trop volumineux ({_LOGO_MAX_BYTES // 1024**2} Mo max)")
     try:
         await run_in_threadpool(_write_logo, raw)
     except ValueError as e:
         logger.warning(f"Upload de logo rejeté : {e}")
-        raise HTTPException(status_code=400, detail="Image illisible")
+        raise HTTPException(status_code=422, detail="Image illisible")
 
     row = db.query(Setting).filter(Setting.key == "active_logo").first()
     if row:

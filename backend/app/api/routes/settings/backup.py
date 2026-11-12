@@ -63,7 +63,7 @@ def _sanitized_db_bytes(db_path: Path) -> bytes:
 def export_backup() -> Response:
     """Exporte une archive ZIP de sauvegarde contenant."""
     if not _IS_SQLITE:
-        raise HTTPException(status_code=400, detail="L'export de sauvegarde n'est supporté que pour SQLite.")
+        raise HTTPException(status_code=409, detail="L'export de sauvegarde n'est supporté que pour SQLite.")
 
     db_path = _get_sqlite_db_path()
     if not db_path or not db_path.exists():
@@ -122,7 +122,7 @@ async def restore_backup(
 ) -> dict[str, str]:
     """Restaure une sauvegarde depuis une archive ZIP uploadée."""
     if not _IS_SQLITE:
-        raise HTTPException(status_code=400, detail="La restauration n'est supportée que pour SQLite.")
+        raise HTTPException(status_code=409, detail="La restauration n'est supportée que pour SQLite.")
 
     db_path = _get_sqlite_db_path()
     if not db_path:
@@ -148,16 +148,16 @@ def _stage_backup_archive(source, work_dir: Path) -> tuple[Path, bytes | None]:
     with open(archive_path, "wb") as out:
         shutil.copyfileobj(source, out, 1024 * 1024)
     if archive_path.stat().st_size == 0:
-        raise HTTPException(status_code=400, detail="Fichier de sauvegarde vide.")
+        raise HTTPException(status_code=422, detail="Fichier de sauvegarde vide.")
     if not zipfile.is_zipfile(archive_path):
-        raise HTTPException(status_code=400, detail="Le fichier fourni n'est pas une archive ZIP valide.")
+        raise HTTPException(status_code=422, detail="Le fichier fourni n'est pas une archive ZIP valide.")
 
     db_tmp = work_dir / "database.db"
     config_bytes: bytes | None = None
     with zipfile.ZipFile(archive_path, "r") as zf:
         names = set(zf.namelist())
         if "database.db" not in names:
-            raise HTTPException(status_code=400, detail="Archive invalide : database.db manquant.")
+            raise HTTPException(status_code=422, detail="Archive invalide : database.db manquant.")
         info = zf.getinfo("database.db")
         if shutil.disk_usage(work_dir).free < info.file_size * 2:
             raise HTTPException(status_code=507, detail="Espace disque insuffisant pour restaurer cette sauvegarde.")
@@ -169,7 +169,7 @@ def _stage_backup_archive(source, work_dir: Path) -> tuple[Path, bytes | None]:
                     break
                 written += len(block)
                 if written > info.file_size:
-                    raise HTTPException(status_code=400, detail="Archive invalide : taille de database.db incohérente.")
+                    raise HTTPException(status_code=422, detail="Archive invalide : taille de database.db incohérente.")
                 dst.write(block)
         if "config.toml" in names:
             cfg_info = zf.getinfo("config.toml")
@@ -181,7 +181,7 @@ def _stage_backup_archive(source, work_dir: Path) -> tuple[Path, bytes | None]:
 
     with open(db_tmp, "rb") as f:
         if f.read(16) != b"SQLite format 3\x00":
-            raise HTTPException(status_code=400, detail="Le fichier database.db n'est pas une base SQLite valide.")
+            raise HTTPException(status_code=422, detail="Le fichier database.db n'est pas une base SQLite valide.")
     try:
         con = sqlite3.connect(db_tmp)
         try:
@@ -189,9 +189,9 @@ def _stage_backup_archive(source, work_dir: Path) -> tuple[Path, bytes | None]:
         finally:
             con.close()
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Échec de validation de la base de données : {e}")
+        raise HTTPException(status_code=422, detail=f"Échec de validation de la base de données : {e}")
     if "videos" not in tables and "settings" not in tables:
-        raise HTTPException(status_code=400, detail="La base dans l'archive ne contient pas les tables Bobine.")
+        raise HTTPException(status_code=422, detail="La base dans l'archive ne contient pas les tables Bobine.")
     return db_tmp, config_bytes
 
 
@@ -285,7 +285,7 @@ async def reset_data_system(payload: ResetDataRequest, background_tasks: Backgro
     """Remise à zéro d'usine : médias, journaux et base de données."""
     phrase = payload.confirm.strip().upper().replace("É", "E")
     if phrase != "REINITIALISER":
-        raise HTTPException(status_code=400, detail="Phrase de confirmation incorrecte. Saisissez REINITIALISER.")
+        raise HTTPException(status_code=422, detail="Phrase de confirmation incorrecte. Saisissez REINITIALISER.")
 
     try:
         await run_in_threadpool(_wipe_data)

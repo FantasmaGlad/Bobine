@@ -126,7 +126,7 @@ def test_the_api_refuses_what_the_contract_does_not_list(client):
     assert client.get("/api/videos", params={"order": "sideways"}).status_code == 422
     assert client.get("/api/metrics/dashboard", params={"period": "1y"}).status_code == 422
     assert client.get("/api/metrics/hardware/history", params={"period": "2y"}).status_code == 422
-    assert client.get("/api/logs", params={"level": "loud"}).status_code == 400
+    assert client.get("/api/logs", params={"level": "loud"}).status_code == 422
 
 
 def test_display_outputs_follow_the_contract(client):

@@ -67,10 +67,10 @@ def get_display_output(db: Session = Depends(get_db)) -> dict[str, str]:
 async def set_display_output(payload: DisplayOutputUpdate, db: Session = Depends(get_db)) -> dict[str, str]:
     """Bascule un canal (câblé ou réseau) entre kiosk et cinéma, indépendamment de l'autre."""
     if payload.channel not in _DISPLAY_CHANNELS:
-        raise HTTPException(status_code=400, detail="Canal invalide (attendu 'cable' ou 'network')")
+        raise HTTPException(status_code=422, detail="Canal invalide (attendu 'cable' ou 'network')")
     if payload.output not in _DISPLAY_OUTPUTS_BY_CHANNEL[payload.channel]:
         allowed = " ou ".join(f"'{o}'" for o in _DISPLAY_OUTPUTS_BY_CHANNEL[payload.channel])
-        raise HTTPException(status_code=400, detail=f"Sortie invalide pour ce canal (attendu {allowed})")
+        raise HTTPException(status_code=422, detail=f"Sortie invalide pour ce canal (attendu {allowed})")
 
     await apply_display_output(db, payload.channel, payload.output)
     return {

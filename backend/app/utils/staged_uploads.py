@@ -81,7 +81,7 @@ def _read(upload_id: str) -> Session:
 
 def create_session(filename: str, size: int, fingerprint: str | None) -> Session:
     if size < 0:
-        raise HTTPException(status_code=400, detail="Taille de fichier invalide")
+        raise HTTPException(status_code=422, detail="Taille de fichier invalide")
     purge_stale()
     if fingerprint:
         for meta_file in staging_dir().glob("*.json"):
@@ -201,7 +201,7 @@ def receive_single_upload(file: UploadFile | None, upload_id: str | None, forced
     if upload_id:
         return take_staged_upload(upload_id, forced_suffix)
     if file is None or not file.filename:
-        raise HTTPException(status_code=400, detail="Aucun fichier reçu")
+        raise HTTPException(status_code=422, detail="Aucun fichier reçu")
     suffix = forced_suffix or Path(file.filename).suffix.lower()
     temp_path: str | None = None
     try:
@@ -216,4 +216,4 @@ def receive_single_upload(file: UploadFile | None, upload_id: str | None, forced
             except OSError:
                 pass
         logger.error(f"Erreur lors de la réception de l'upload : {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e))

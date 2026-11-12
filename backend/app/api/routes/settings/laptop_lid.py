@@ -113,7 +113,7 @@ def get_laptop_lid():
 def set_laptop_lid(payload: LaptopLidPayload):
     """Active ou désactive la mise en veille à la fermeture du capot."""
     if not _has_laptop_lid():
-        raise HTTPException(status_code=400, detail="Aucun capot détecté sur cet appareil")
+        raise HTTPException(status_code=409, detail="Aucun capot détecté sur cet appareil")
     success = _set_lid_prevent_sleep(payload.prevent_sleep)
     if not success:
         raise HTTPException(status_code=500, detail="Impossible d'appliquer le réglage du capot")

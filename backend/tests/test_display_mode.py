@@ -82,7 +82,7 @@ def test_un_ancien_client_qui_ecrit_wired_display_mode_force_le_mode(client):
 
 
 def test_validation_des_valeurs(client):
-    assert client.put("/api/settings", json={"display_mode_setting": "nimporte"}).status_code == 400
+    assert client.put("/api/settings", json={"display_mode_setting": "nimporte"}).status_code == 422
     assert client.put("/api/display/state", json={"external_count": -1}).status_code == 422
     assert client.put("/api/display/state", json={"external_count": 99}).status_code == 422
 

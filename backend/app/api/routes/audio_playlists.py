@@ -93,7 +93,7 @@ def _validate_background_id(background_id: int | None, db: Session) -> None:
     if background_id is None:
         return
     if not db.query(Background).filter(Background.id == background_id).first():
-        raise HTTPException(status_code=400, detail=f"Fond animé {background_id} introuvable")
+        raise HTTPException(status_code=404, detail=f"Fond animé {background_id} introuvable")
 
 
 @router.get("", response_model=List[AudioPlaylistSummaryResponse])
@@ -157,7 +157,7 @@ def get_audio_playlist(playlist_id: int, db: Session = Depends(get_db)):
 @router.post("", response_model=AudioPlaylistDetailResponse)
 def create_audio_playlist(data: AudioPlaylistInput, db: Session = Depends(get_db)):
     if not data.name.strip():
-        raise HTTPException(status_code=400, detail="Le nom de la playlist ne peut pas être vide")
+        raise HTTPException(status_code=422, detail="Le nom de la playlist ne peut pas être vide")
 
     playlist = AudioPlaylist(name=data.name.strip())
     db.add(playlist)
@@ -166,7 +166,7 @@ def create_audio_playlist(data: AudioPlaylistInput, db: Session = Depends(get_db
     for i, item_input in enumerate(data.items):
         track = db.query(AudioTrack).filter(AudioTrack.id == item_input.audio_track_id).first()
         if not track:
-            raise HTTPException(status_code=400, detail=f"Piste audio {item_input.audio_track_id} introuvable")
+            raise HTTPException(status_code=404, detail=f"Piste audio {item_input.audio_track_id} introuvable")
         _validate_background_id(item_input.background_id, db)
 
         position = item_input.position if item_input.position is not None else i
@@ -189,7 +189,7 @@ def update_audio_playlist(playlist_id: int, data: AudioPlaylistInput, db: Sessio
         raise HTTPException(status_code=404, detail="Playlist audio non trouvée")
 
     if not data.name.strip():
-        raise HTTPException(status_code=400, detail="Le nom de la playlist ne peut pas être vide")
+        raise HTTPException(status_code=422, detail="Le nom de la playlist ne peut pas être vide")
 
     playlist.name = data.name.strip()
 
@@ -198,7 +198,7 @@ def update_audio_playlist(playlist_id: int, data: AudioPlaylistInput, db: Sessio
     for i, item_input in enumerate(data.items):
         track = db.query(AudioTrack).filter(AudioTrack.id == item_input.audio_track_id).first()
         if not track:
-            raise HTTPException(status_code=400, detail=f"Piste audio {item_input.audio_track_id} introuvable")
+            raise HTTPException(status_code=404, detail=f"Piste audio {item_input.audio_track_id} introuvable")
         _validate_background_id(item_input.background_id, db)
 
         position = item_input.position if item_input.position is not None else i

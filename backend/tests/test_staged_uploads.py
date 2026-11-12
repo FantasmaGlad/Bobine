@@ -82,7 +82,7 @@ def test_missing_or_invalid_offset_header(client):
 def test_insufficient_disk_space_is_507(client, monkeypatch):
     monkeypatch.setattr(staged, "_free_bytes", lambda: 10)
     r = client.post("/api/uploads", json={"filename": "gros.mp4", "size": 10_000})
-    assert r.status_code == 507 and "Espace disque" in r.json()["detail"]
+    assert r.status_code == 507 and "Espace disque" in r.json()["detail"]["message"]
 
 
 def test_incomplete_session_cannot_be_taken(client):
@@ -120,7 +120,7 @@ def test_receive_single_upload_prefers_staged_file_without_copy(client):
     assert name == "archive.zip" and path.endswith(".zip") and Path(path).stat().st_size == len(DATA)
 
 
-def test_receive_single_upload_without_anything_is_400():
+def test_receive_single_upload_without_anything_is_422():
     with pytest.raises(HTTPException) as e:
         staged.receive_single_upload(None, None)
-    assert e.value.status_code == 400
+    assert e.value.status_code == 422

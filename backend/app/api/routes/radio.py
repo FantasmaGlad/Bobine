@@ -78,7 +78,7 @@ def set_default_playlist(payload: DefaultPlaylistInput, db: Session = Depends(ge
     from app.scheduling.radio import set_radio_default_playlist_override
 
     if payload.channel not in RADIO_CHANNELS:
-        raise HTTPException(status_code=400, detail="Sortie radio invalide (attendu 'radio_cable' ou 'radio_network')")
+        raise HTTPException(status_code=422, detail="Sortie radio invalide (attendu 'radio_cable' ou 'radio_network')")
     if payload.playlist_id is not None:
         if not db.query(RadioPlaylist).filter(RadioPlaylist.id == payload.playlist_id).first():
             raise HTTPException(status_code=404, detail="Playlist radio non trouvée")
@@ -218,7 +218,7 @@ def upload_tracks(files: List[UploadFile] = File(...)):
             temp_paths.append(str(dest))
     except Exception as e:
         shutil.rmtree(tmp_dir, ignore_errors=True)
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e))
 
     label = Path(files[0].filename).name if files else "morceaux"
     job_id = create_job("radio", label, label)
@@ -266,7 +266,7 @@ def update_track(track_id: int, payload: RadioTrackUpdate, db: Session = Depends
             value = getattr(payload, field)
             setattr(track, field, value.strip() if value and value.strip() else None)
     if "title" in fields_set and not track.title:
-        raise HTTPException(status_code=400, detail="Le titre ne peut pas être vide")
+        raise HTTPException(status_code=422, detail="Le titre ne peut pas être vide")
     for field in ("track_number", "disc_number", "year"):
         if field in fields_set:
             setattr(track, field, getattr(payload, field))
@@ -296,7 +296,7 @@ def upload_track_cover(track_id: int, file: UploadFile = File(...), db: Session 
         try:
             new_cover = save_cover_image(tmp.name, settings.radio_covers_dir, file_id)
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Image invalide : {e}")
+            raise HTTPException(status_code=422, detail=f"Image invalide : {e}")
     finally:
         try:
             os.remove(tmp.name)
@@ -395,7 +395,7 @@ def list_tags(db: Session = Depends(get_db)):
 def create_tag(payload: TagInput, db: Session = Depends(get_db)):
     name = payload.name.strip()
     if not name:
-        raise HTTPException(status_code=400, detail="Le nom du tag est requis")
+        raise HTTPException(status_code=422, detail="Le nom du tag est requis")
     if db.query(RadioTag).filter(RadioTag.name == name).first():
         raise HTTPException(status_code=409, detail="Ce tag existe déjà")
     tag = RadioTag(name=name)
@@ -412,7 +412,7 @@ def rename_tag(tag_id: int, payload: TagInput, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Tag non trouvé")
     name = payload.name.strip()
     if not name:
-        raise HTTPException(status_code=400, detail="Le nom du tag est requis")
+        raise HTTPException(status_code=422, detail="Le nom du tag est requis")
     existing = db.query(RadioTag).filter(RadioTag.name == name, RadioTag.id != tag_id).first()
     if existing:
         raise HTTPException(status_code=409, detail="Ce tag existe déjà")

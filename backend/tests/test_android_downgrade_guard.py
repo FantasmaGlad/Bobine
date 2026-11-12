@@ -151,7 +151,7 @@ def test_apply_refuse_avant_tout_telechargement(monkeypatch, android_beta):
     monkeypatch.setattr(updates, "run_update_pipeline", lambda *a: lances.append(a))
     with pytest.raises(HTTPException) as exc:
         asyncio.run(updates.apply_update(background_tasks=None, db=None))
-    assert exc.value.status_code == 400 and "plus ancienne" in exc.value.detail
+    assert exc.value.status_code == 409 and "plus ancienne" in exc.value.detail
     assert lances == []
 
 

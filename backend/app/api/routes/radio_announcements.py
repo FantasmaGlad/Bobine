@@ -95,14 +95,14 @@ def _rule_response(rule: RadioAnnouncementRule) -> dict:
 def _validate_rule_fields(data: RadioAnnouncementRuleInput) -> None:
     if data.target is not None and data.target not in (*RULE_TARGETS, LEGACY_RADIO_CHANNEL):
         raise HTTPException(
-            status_code=400, detail="target invalide (attendu 'radio_cable', 'radio_network' ou 'both')"
+            status_code=422, detail="target invalide (attendu 'radio_cable', 'radio_network' ou 'both')"
         )
     if data.rule_type == RadioAnnouncementRuleType.every_n_tracks and not data.n_tracks:
-        raise HTTPException(status_code=400, detail="n_tracks est requis pour une règle « toutes les N musiques »")
+        raise HTTPException(status_code=422, detail="n_tracks est requis pour une règle « toutes les N musiques »")
     if data.rule_type == RadioAnnouncementRuleType.every_x_minutes and not data.interval_minutes:
-        raise HTTPException(status_code=400, detail="interval_minutes est requis pour une règle « toutes les X minutes »")
+        raise HTTPException(status_code=422, detail="interval_minutes est requis pour une règle « toutes les X minutes »")
     if data.rule_type == RadioAnnouncementRuleType.fixed_times and not data.times_of_day:
-        raise HTTPException(status_code=400, detail="times_of_day est requis pour une règle « à heures fixes »")
+        raise HTTPException(status_code=422, detail="times_of_day est requis pour une règle « à heures fixes »")
 
 
 @router.get("/announcements", response_model=List[RadioAnnouncementResponse])
@@ -117,7 +117,7 @@ def upload_announcement(
     """Import synchrone (un seul fichier + description obligatoire) : pas de job d'arrière-plan, contrairement aux morceaux — le traitement ffprobe/ffmpeg d'un unique fichier reste rapide."""
     description = description.strip()
     if not description:
-        raise HTTPException(status_code=400, detail="La description est obligatoire")
+        raise HTTPException(status_code=422, detail="La description est obligatoire")
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename or "").suffix)
     try:
@@ -125,10 +125,10 @@ def upload_announcement(
         tmp.close()
         announcement = import_radio_announcement(tmp.name, description, db)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         logger.error(f"Import de rappel échoué : {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Import impossible : {e}")
+        raise HTTPException(status_code=422, detail=f"Import impossible : {e}")
     finally:
         try:
             os.remove(tmp.name)
@@ -161,7 +161,7 @@ def upload_announcements_batch(files: List[UploadFile] = File(...)):
             temp_paths.append(str(dest))
     except Exception as e:
         shutil.rmtree(tmp_dir, ignore_errors=True)
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e))
 
     label = Path(files[0].filename).name if files else "rappels"
     job_id = create_job("radio_announcement", label, label)
@@ -179,7 +179,7 @@ def update_announcement(announcement_id: int, payload: RadioAnnouncementUpdate, 
     if "description" in fields_set:
         description = (payload.description or "").strip()
         if not description:
-            raise HTTPException(status_code=400, detail="La description ne peut pas être vide")
+            raise HTTPException(status_code=422, detail="La description ne peut pas être vide")
         announcement.description = description
     if "enabled" in fields_set:
         announcement.enabled = bool(payload.enabled)

@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from app.api.contract import DEFAULT_PORT
-from .core import _REFUSAL_STATUSES, DEFAULT_TIMEOUT, EXIT_ERROR, EXIT_REFUSED, EXIT_UNREACHABLE, EXIT_USAGE, CliError, Output
+from .core import _REFUSAL_STATUSES, DEFAULT_TIMEOUT, EXIT_ERROR, EXIT_NOT_FOUND, EXIT_REFUSED, EXIT_UNREACHABLE, EXIT_USAGE, CliError, Output
 
 
 class Client:
@@ -64,7 +64,8 @@ class Client:
             errors = detail.get("errors") if isinstance(detail, dict) else None
             if errors:
                 message = message + "\n" + "\n".join(f"  - {e}" for e in errors)
-            code = EXIT_REFUSED if status in _REFUSAL_STATUSES else EXIT_USAGE if status in (400, 422) else EXIT_ERROR
+            code = (EXIT_NOT_FOUND if status == 404 else EXIT_REFUSED if status in _REFUSAL_STATUSES
+                    else EXIT_USAGE if status in (400, 422) else EXIT_ERROR)
             raise CliError(f"Refusé ({status}) : {message}", code, payload)
         if payload is not None and not isinstance(payload, (dict, list)):
             raise CliError(f"réponse non JSON ({status}) de {url} : {raw[:200]!r}", EXIT_ERROR, payload)
