@@ -1,6 +1,7 @@
 """Pilote Linux : PipeWire (audio), BlueZ par D-Bus (Bluetooth), NetworkManager (Wi-Fi)."""
 
 from __future__ import annotations
+from app.api.contract import AUDIO_TEST_CHANNELS
 
 import asyncio
 import ipaddress
@@ -234,7 +235,7 @@ class LinuxDriver(DeviceDriver):
         self._emit("audio")
 
     async def audio_test_tone(self, device_id: str, channel: str) -> None:
-        if channel not in ("left", "right", "both"):
+        if channel not in AUDIO_TEST_CHANNELS:
             raise DeviceError("bad_channel", "Canal de test inconnu.", 400)
         if not shutil.which("pw-play"):
             raise DeviceError("tool_missing", "L'outil pw-play est introuvable : le son de test n'est pas disponible.", 501)

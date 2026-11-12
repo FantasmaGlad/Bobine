@@ -22,8 +22,9 @@ def _playlist_set(client, args) -> Call:
 
 
 
-def _audio_items(track_ids: list[int] | None) -> list[dict]:
-    return [{"audio_track_id": track_id, "position": index} for index, track_id in enumerate(track_ids or [])]
+def _audio_items(track_ids: list[int] | None, backgrounds: dict[int, int | None] | None = None) -> list[dict]:
+    return [{"audio_track_id": track_id, "position": index, "background_id": (backgrounds or {}).get(track_id)}
+            for index, track_id in enumerate(track_ids or [])]
 
 
 def _audio_playlist_add(client, args) -> Call:
@@ -35,11 +36,10 @@ def _audio_playlist_set(client, args) -> Call:
     name = args.name if args.name is not None else current.get("name")
     if args.clear:
         items: list[dict] = []
-    elif args.track is not None:
-        items = _audio_items(args.track)
     else:
-        items = [{"audio_track_id": item["track"]["id"], "position": index, "background_id": (item.get("background") or {}).get("id")}
-                 for index, item in enumerate(current.get("items") or []) if item.get("track")]
+        kept = [item for item in current.get("items") or [] if item.get("track")]
+        backgrounds = {item["track"]["id"]: (item.get("background") or {}).get("id") for item in kept}
+        items = _audio_items(args.track if args.track is not None else [item["track"]["id"] for item in kept], backgrounds)
     return Call("PUT", f"/api/audio-playlists/{args.playlist_id}", {"name": name, "items": items})
 
 
@@ -52,7 +52,7 @@ SPECS: tuple[Spec, ...] = (
          lambda c, a: Call("POST", "/api/playlists", {"name": a.name, "items": _video_ids(a.video)}), ("POST /api/playlists",),
          (Arg(("name",), "nom de la playlist"), Arg(("--video",), "identifiant d'une vidéo (répétable, dans l'ordre)", int, action="append")),
          lambda p, a: f"Playlist {p.get('id')} créée : {p.get('name')}"),
-    Spec("playlists", "set", "renommer ou recomposer une playlist (sans option, rien ne change)", _playlist_set, ("PUT /api/playlists/{playlist_id}",),
+    Spec("playlists", "set", "renommer ou recomposer une playlist", _playlist_set, ("PUT /api/playlists/{playlist_id}",),
          (Arg(("playlist_id",), "identifiant de la playlist", int), Arg(("--name",), "nouveau nom"),
           Arg(("--video",), "remplace le contenu : identifiant d'une vidéo (répétable, dans l'ordre)", int, action="append"),
           Arg(("--clear",), "vide la playlist", action="store_true")),

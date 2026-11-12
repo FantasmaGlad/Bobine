@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.api.contract import AUDIO_TEST_CHANNELS, RADIO_CHANNELS, ROUTING_FALLBACKS
+
 from .model import Spec
 from .route import route
 
@@ -14,7 +16,7 @@ SPECS: tuple[Spec, ...] = (
           body=("id", "volume:float", "muted:bool"), pos=("id",), require_one=True),
     route("devices", "audio-balance", "POST", f"{_AUDIO}/balance", "balance gauche-droite (-1 à 1)",
           body=("id", "balance:float"), pos=("id", "balance")),
-    route("devices", "audio-test", "POST", f"{_AUDIO}/test", "son de test sur un canal", body=("id", "channel"), pos=("id", "channel")),
+    route("devices", "audio-test", "POST", f"{_AUDIO}/test", "son de test sur un canal", body=("id", "channel=" + "|".join(AUDIO_TEST_CHANNELS)), pos=("id", "channel")),
     route("devices", "audio-profile", "POST", f"{_AUDIO}/profile", "choisir un profil de carte son",
           body=("id", "index:int"), pos=("id", "index")),
     route("devices", "audio-meta", "PUT", f"{_AUDIO}/meta", "nom affiché ou masquage d'une sortie",
@@ -39,7 +41,8 @@ SPECS: tuple[Spec, ...] = (
           body=("ssid", "acknowledge_disconnect:bool"), pos=("ssid",), confirm="Oublier le réseau {ssid} ?"),
     route("devices", "routing", "GET", "/api/devices/routing", "sortie audio de chaque canal"),
     route("devices", "routing-set", "PUT", "/api/devices/routing", "diriger un canal vers une sortie audio",
-          body=("channel", "sink_id", "fallback", "clear:bool"), pos=("channel",)),
+          body=("channel=" + "|".join(RADIO_CHANNELS), "sink_id", "fallback=" + "|".join(ROUTING_FALLBACKS), "clear:bool"),
+          pos=("channel",)),
     route("devices", "mixer", "GET", "/api/devices/mixer", "table de mixage par canal"),
     route("devices", "mixer-set", "PUT", "/api/devices/mixer/{channel}", "régler le mixage d'un canal (JSON)",
           body=("mix:json", "sound:json"), require_one=True),

@@ -26,7 +26,7 @@ class Client:
 
     def request(
         self, method: str, path: str, *, query: dict | None = None, body: Any = None,
-        accept_status: frozenset[int] = frozenset(),
+        accept_status: frozenset[int] = frozenset(), text: bool = False,
     ) -> Any:
         url = self.base + path + (f"?{urllib.parse.urlencode({k: v for k, v in query.items() if v is not None}, doseq=True)}" if query else "")
         data = json.dumps(body).encode("utf-8") if body is not None else None
@@ -44,6 +44,8 @@ class Client:
         except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError) as exc:
             raise CliError(f"Bobine injoignable sur {self.base} ({getattr(exc, 'reason', exc)}).", EXIT_UNREACHABLE) from exc
         self.out.log(2, f"< {status} en {1000 * (time.monotonic() - started):.0f} ms : {raw[:2000].decode('utf-8', 'replace')}")
+        if text and status < 400:
+            return raw.decode("utf-8", "replace")
         return self._interpret(status, raw, url, accept_status)
 
     def _interpret(self, status: int, raw: bytes, url: str, accept_status: frozenset[int] = frozenset()) -> Any:

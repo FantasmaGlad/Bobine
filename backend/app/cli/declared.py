@@ -15,9 +15,13 @@ from .client import Client
 from .core import EXIT_ERROR, EXIT_OK, EXIT_USAGE, CliError, Output
 
 
+def _given(value: Any) -> bool:
+    return value is not None and value is not False
+
+
 def _run_spec(client: Client, out: Output, args: argparse.Namespace) -> int:
     spec: Spec = args.spec
-    if spec.needs_one_of and not any(getattr(args, name, None) not in (None, False) for name in spec.needs_one_of):
+    if spec.needs_one_of and not any(_given(getattr(args, name, None)) for name in spec.needs_one_of):
         options = ", ".join("--" + name.replace("_", "-") for name in spec.needs_one_of)
         raise CliError(f"indiquer au moins une option : {options}", EXIT_USAGE)
     if spec.confirm and not args.yes:
@@ -33,7 +37,7 @@ def _run_spec(client: Client, out: Output, args: argparse.Namespace) -> int:
         form = {key: str(value) for key, value in (call.body or {}).items()}
         payload = client.upload(call.path, list(call.files), form, call.method)
     else:
-        payload = client.request(call.method, call.path, body=call.body, query=call.query)
+        payload = client.request(call.method, call.path, body=call.body, query=call.query, text=call.text)
     out.result(payload, spec.human(payload, args))
     return EXIT_OK
 
@@ -83,6 +87,8 @@ def cmd_import(client: Client, out: Output, args: argparse.Namespace) -> int:
         requests += [(route, [(field_name, file)]) for file in files]
     else:
         requests.append((route, [(field_name, file) for file in files]))
+    if args.wait and not (args.wait_timeout > 0 and math.isfinite(args.wait_timeout)):
+        raise CliError(f"délai d'attente invalide : {args.wait_timeout!r} (secondes, > 0).", EXIT_USAGE)
     accepted = []
     for path, parts in requests:
         answer = client.upload(path, parts, fields)
@@ -98,8 +104,6 @@ def cmd_import(client: Client, out: Output, args: argparse.Namespace) -> int:
 
 
 def _wait_for_jobs(client: Client, out: Output, accepted: list[dict], timeout: float) -> list[dict]:
-    if not (timeout > 0 and math.isfinite(timeout)):
-        raise CliError(f"délai d'attente invalide : {timeout!r} (secondes, > 0).", EXIT_USAGE)
     deadline = time.monotonic() + timeout
     pending = {item["job"]: item for item in accepted if item["job"]}
     while pending:

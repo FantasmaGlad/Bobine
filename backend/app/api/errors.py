@@ -23,8 +23,8 @@ CODE_BY_STATUS = {
 
 
 def error_body(status: int, detail: object) -> dict:
-    if isinstance(detail, dict) and "message" in detail:
-        return {"code": CODE_BY_STATUS.get(status, "error"), **detail}
+    if isinstance(detail, dict):
+        return {"code": CODE_BY_STATUS.get(status, "error"), "message": "", **detail}
     return {"code": CODE_BY_STATUS.get(status, "error"), "message": "" if detail is None else str(detail)}
 
 

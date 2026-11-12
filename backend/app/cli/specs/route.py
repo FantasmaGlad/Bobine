@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -11,7 +12,7 @@ from .render import summary
 
 _FIELD = re.compile(r"^(?P<name>[a-z_]+)(?::(?P<kind>int|float|bool|ints|strs|json))?(?:=(?P<choices>[\w|.:-]+))?$")
 _TEXT_IDS = {"device_id", "upload_id", "job_id"}
-_RESERVED = {"host", "port", "json", "verbose", "quiet", "timeout", "yes"}
+_RESERVED = {"host", "port", "json", "verbose", "quiet", "timeout", "yes", "run", "spec", "command", "no_color"}
 _TRUE, _FALSE = {"1", "true", "on", "oui", "yes"}, {"0", "false", "off", "non", "no"}
 
 
@@ -89,6 +90,7 @@ def route(
     command: str, action: str, method: str, path: str, help: str, *,
     body: tuple[str, ...] = (), query: tuple[str, ...] = (), pos: tuple[str, ...] = (), files: tuple[str, ...] = (),
     confirm: str | None = None, human: Callable[[Any, Any], str] = summary, require_one: bool = False, raw: str | None = None,
+    text: bool = False,
 ) -> Spec:
     positional = set(pos)
     params = re.findall(r"{(\w+)}", path)
@@ -99,12 +101,12 @@ def route(
     arguments += tuple(f.arg() for f in sorted(body_fields + query_fields, key=lambda f: not f.positional))
 
     def request(client: Any, args: Any) -> Call:
-        target = path.format(**{name: getattr(args, name) for name in params})
+        target = path.format(**{name: urllib.parse.quote(str(getattr(args, name)), safe="") for name in params})
         payload = {f.name: f.value(args) for f in body_fields if f.provided(args)}
         params_ = {f.name: f.value(args) for f in query_fields if f.provided(args)}
         attached = tuple((name.rstrip("+"), Path(raw)) for name in files for raw in _paths(getattr(args, name.rstrip("+"))))
-        content = payload.get(raw) if raw else payload or None
-        return Call(method, target, content, params_ or None, attached)
+        content = payload.get(raw) if raw else payload if body_fields else None
+        return Call(method, target, content, params_ or None, attached, text)
 
     optional = tuple(f.dest for f in body_fields + query_fields if not f.positional)
     return Spec(command, action, help, request, (f"{method} {path}",), arguments, human, confirm,

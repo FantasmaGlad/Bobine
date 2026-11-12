@@ -25,9 +25,9 @@ class Arg:
         options: dict[str, Any] = {"help": self.help}
         if self.action:
             options["action"] = self.action
-        else:
-            if self.kind:
-                options["type"] = self.kind
+        if self.kind and self.action in (None, "append"):
+            options["type"] = self.kind
+        if not self.action:
             if self.choices:
                 options["choices"] = self.choices
             if self.nargs:
@@ -46,6 +46,7 @@ class Call:
     body: Any = None
     query: dict | None = None
     files: tuple[tuple[str, Path], ...] = ()
+    text: bool = False
 
 
 @dataclass(frozen=True)

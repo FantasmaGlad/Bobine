@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.api.contract import CHANNELS
+from app.api.contract import CHANNELS, DASHBOARD_CHANNELS
 
 from .model import Spec
 from .route import route
@@ -19,5 +19,5 @@ SPECS: tuple[Spec, ...] = (
     route("interrupted", "resume", "POST", "/api/playback/interrupted/resume", "reprendre la lecture interrompue", query=(_CHANNEL,)),
     route("interrupted", "dismiss", "DELETE", "/api/playback/interrupted", "oublier la lecture interrompue", query=(_CHANNEL,)),
     route("metrics", "ratings", "GET", "/api/metrics/ratings", "notes données aux cours",
-          query=("video_id:int", _CHANNEL, "limit:int")),
+          query=("video_id:int", "channel=" + "|".join(DASHBOARD_CHANNELS), "limit:int")),
 )

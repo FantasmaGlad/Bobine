@@ -1,6 +1,7 @@
 """Analyse pure des sorties d'outils Linux (PipeWire, BlueZ, NetworkManager) — testable sans matériel."""
 
 from __future__ import annotations
+from app.api.contract import AUDIO_TEST_CHANNELS
 
 import re
 from typing import Any
@@ -409,7 +410,7 @@ def tone_wav_bytes(channel: str, seconds: float = 1.5, frequency: float = 440.0,
     import struct
     import wave
 
-    if channel not in ("left", "right", "both"):
+    if channel not in AUDIO_TEST_CHANNELS:
         raise ValueError("canal inconnu")
     frames = int(seconds * rate)
     fade = int(0.08 * rate)

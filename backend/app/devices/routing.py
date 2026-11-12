@@ -1,6 +1,7 @@
 """Routage audio par sortie radio (phase 2) : à quelle sortie PHYSIQUE de la machine chaque sortie radio doit jouer."""
 
 from __future__ import annotations
+from app.api.contract import ROUTING_FALLBACKS
 
 import json
 import logging
@@ -16,7 +17,7 @@ from app.radio_manager import RADIO_CHANNELS
 logger = logging.getLogger(__name__)
 
 ROUTES_SETTING = "devices_audio_routes"
-FALLBACKS = ("default", "mute")
+FALLBACKS = ROUTING_FALLBACKS
 DEFAULT_FALLBACK = "default"
 AUDIO_KINDS = ("internal", "hdmi", "usb", "jack", "bluetooth", "virtual", "other")
 

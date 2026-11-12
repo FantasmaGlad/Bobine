@@ -59,7 +59,8 @@ def _radio_tracks(db: Session) -> list[Entry]:
 def _radio_playlists(db: Session) -> list[Entry]:
     rows = db.query(RadioPlaylist).options(selectinload(RadioPlaylist.items).joinedload(RadioPlaylistItem.track)).all()
     return [Entry("radio-playlist", p.id, p.name, "ambiance par défaut" if p.is_default else f"{len(p.items)} morceau(x)",
-                  _sum(i.track.duration_seconds for i in p.items if i.track), bool(p.items)) for p in rows]
+                  _sum(i.track.duration_seconds for i in p.items if i.track),
+                  any(i.track and i.track.available for i in p.items)) for p in rows]
 
 
 LOADERS: dict[str, Callable[[Session], list[Entry]]] = {

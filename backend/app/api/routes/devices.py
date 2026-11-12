@@ -1,6 +1,7 @@
 """API « Périphériques » : audio, Bluetooth, Wi-Fi (voir app/devices/)."""
 
 from __future__ import annotations
+from app.api.contract import AUDIO_TEST_CHANNELS
 
 import ipaddress
 import json
@@ -180,7 +181,7 @@ async def audio_balance(payload: AudioBalanceRequest, _: Access = Depends(requir
 
 @router.post("/audio/test")
 async def audio_test(payload: AudioToneRequest, _: Access = Depends(require_access)) -> dict[str, bool]:
-    if payload.channel not in ("left", "right", "both"):
+    if payload.channel not in AUDIO_TEST_CHANNELS:
         raise _fail(400, "bad_channel", "Canal de test inconnu.")
     await _guard(service.driver.audio_test_tone(payload.id, payload.channel))
     return {"ok": True}

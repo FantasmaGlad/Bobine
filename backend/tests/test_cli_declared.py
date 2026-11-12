@@ -35,8 +35,15 @@ def test_media_list_filters_through_the_catalog(rec, capsys):
 @pytest.mark.parametrize("kind", list(contract.PLAYABLE_MEDIA))
 def test_play_sends_the_load_action_of_each_kind(rec, kind):
     family, action, param = contract.PLAYABLE_MEDIA[kind]
-    assert cli.main(["play", kind, "12", "--channel", "network"]) == cli.EXIT_OK
-    assert rec.calls == [("POST", f"/api/{family}/network/{action}", None, {param: 12})]
+    channel = "cable" if kind in contract.CABLE_ONLY_MEDIA else "network"
+    assert cli.main(["play", kind, "12", "--channel", channel]) == cli.EXIT_OK
+    assert rec.calls == [("POST", f"/api/{family}/{channel}/{action}", None, {param: 12})]
+
+
+@pytest.mark.parametrize("kind", contract.CABLE_ONLY_MEDIA)
+def test_coach_media_only_play_on_the_wired_screen(rec, kind):
+    assert cli.main(["play", kind, "12", "--channel", "network"]) == cli.EXIT_USAGE
+    assert rec.calls == []
 
 
 def test_typed_fields_are_converted(rec):
@@ -84,3 +91,37 @@ def test_partial_update_needs_one_field(rec):
     assert cli.main(["storage", "volume-set", "sdb1"]) == cli.EXIT_USAGE
     assert cli.main(["storage", "volume-set", "sdb1", "--noatime", "on"]) == cli.EXIT_OK
     assert rec.calls[-1][1:] == ("/api/storage/volumes/sdb1/settings", None, {"noatime": True})
+
+
+def test_renaming_a_radio_playlist_keeps_its_tracks(rec, monkeypatch):
+    current = {"name": "Ancien", "items": [{"track": {"id": 4}}, {"track": {"id": 9}}]}
+    monkeypatch.setattr(rec, "request", lambda method, path, **kw: rec.calls.append((method, path, kw.get("query"), kw.get("body"))) or current)
+    assert cli.main(["radio-playlists", "set", "3", "--name", "Nouveau"]) == cli.EXIT_OK
+    assert rec.calls[-1] == ("PUT", "/api/radio/playlists/3", None, {"name": "Nouveau", "track_ids": [4, 9]})
+
+
+def test_editing_a_rule_keeps_the_other_fields(rec, monkeypatch):
+    rule = {"id": 2, "rule_type": "every_n_tracks", "n_tracks": 5, "interval_minutes": None, "times_of_day": None,
+            "enabled": True, "target": "both"}
+    monkeypatch.setattr(rec, "request", lambda method, path, **kw: rec.calls.append((method, path, kw.get("query"), kw.get("body"))) or [rule])
+    assert cli.main(["radio-rules", "set", "2", "--enabled", "off"]) == cli.EXIT_OK
+    assert rec.calls[-1][3] == {**{k: v for k, v in rule.items() if k != "id"}, "enabled": False}
+
+
+def test_zero_counts_as_a_given_value(rec):
+    assert cli.main(["devices", "audio-volume", "sink-1", "--volume", "0"]) == cli.EXIT_OK
+    assert rec.calls[-1][3] == {"id": "sink-1", "volume": 0.0}
+
+
+def test_path_segments_are_encoded(rec):
+    assert cli.main(["storage", "format-job", "a/b"]) == cli.EXIT_OK
+    assert rec.calls[-1][1] == "/api/storage/format/jobs/a%2Fb"
+
+
+def test_optional_body_is_sent_empty(rec):
+    assert cli.main(["storage", "mount", "sdb1"]) == cli.EXIT_OK
+    assert rec.calls[-1] == ("POST", "/api/storage/volumes/sdb1/mount", None, {})
+
+
+def test_deleting_activity_needs_a_selection(rec):
+    assert cli.main(["logs-admin", "activity-rm", "--yes"]) == cli.EXIT_USAGE

@@ -172,6 +172,25 @@ def get_audio_course(course_id: int, db: Session = Depends(get_db)):
     return course
 
 
+@router.put("/{course_id}/tracks/reorder", response_model=AudioCourseDetailResponse)
+def reorder_tracks(course_id: int, payload: TrackReorderInput, db: Session = Depends(get_db)):
+    """Réordonnancement des pistes par glisser-déposer."""
+    course = db.query(AudioCourse).filter(AudioCourse.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Cours audio non trouvé")
+
+    tracks_by_id = {t.id: t for t in course.tracks}
+    if set(payload.track_ids) != set(tracks_by_id.keys()):
+        raise HTTPException(status_code=422, detail="La liste fournie ne correspond pas exactement aux pistes du cours")
+
+    for position, track_id in enumerate(payload.track_ids):
+        tracks_by_id[track_id].position = position
+
+    db.commit()
+    db.refresh(course)
+    return course
+
+
 @router.put("/{course_id}/tracks/{track_id}", response_model=AudioTrackResponse)
 def update_audio_track(
     course_id: int,
@@ -296,25 +315,6 @@ def update_audio_course(course_id: int, payload: AudioCourseUpdate, db: Session 
         course.background_id = None
     elif payload.background_id is not None:
         course.background_id = payload.background_id
-
-    db.commit()
-    db.refresh(course)
-    return course
-
-
-@router.put("/{course_id}/tracks/reorder", response_model=AudioCourseDetailResponse)
-def reorder_tracks(course_id: int, payload: TrackReorderInput, db: Session = Depends(get_db)):
-    """Réordonnancement des pistes par glisser-déposer."""
-    course = db.query(AudioCourse).filter(AudioCourse.id == course_id).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="Cours audio non trouvé")
-
-    tracks_by_id = {t.id: t for t in course.tracks}
-    if set(payload.track_ids) != set(tracks_by_id.keys()):
-        raise HTTPException(status_code=422, detail="La liste fournie ne correspond pas exactement aux pistes du cours")
-
-    for position, track_id in enumerate(payload.track_ids):
-        tracks_by_id[track_id].position = position
 
     db.commit()
     db.refresh(course)

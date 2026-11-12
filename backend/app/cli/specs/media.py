@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.api.contract import CHANNELS, DEFAULT_CHANNEL, MEDIA_KINDS, PLAYABLE_MEDIA
+from app.api.contract import CABLE_ONLY_MEDIA, CHANNELS, COACH_CHANNELS, DEFAULT_CHANNEL, MEDIA_KINDS, PLAYABLE_MEDIA
 
 from .model import Arg, Call, Spec
 from .route import route
@@ -25,7 +25,8 @@ def _play(kind: str) -> Spec:
     route_key = "POST /api/playback/{channel}/{action}" if family == "playback" else "POST /api/radio/{output}/{action}"
     return Spec("play", kind, f"lire un média de type {kind}", request, (route_key,),
                 (Arg(("id",), "identifiant (bobine media list)", int),
-                 Arg(("--channel",), "canal de diffusion", choices=CHANNELS, default=DEFAULT_CHANNEL)),
+                 Arg(("--channel",), "canal de diffusion", choices=COACH_CHANNELS if kind in CABLE_ONLY_MEDIA else CHANNELS,
+                     default=DEFAULT_CHANNEL)),
                 lambda p, a: f"{kind} {a.id} lancé sur {a.channel}.")
 
 
