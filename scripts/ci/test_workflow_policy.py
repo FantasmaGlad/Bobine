@@ -35,13 +35,6 @@ class TagCheckoutTests(unittest.TestCase):
             self.assertIn("ref: ${{ inputs.tag }}", block, block)
 
 
-# Jobs courts et sans compilation : le délai par défaut de GitHub (6 h) y reste toléré.
-SANS_DELAI = {
-    "version", "frontend", "backend-android-compat", "install-script", "ci-ok",
-    "linux-package-signing", "notify-web-release",
-}
-
-
 def jobs(text: str) -> dict[str, str]:
     body = text.split("\njobs:\n", 1)[1]
     parts = re.split(r"^  ([a-z0-9-]+):$", body, flags=re.M)
@@ -52,10 +45,9 @@ class DroitsEtDelaisTests(unittest.TestCase):
     def test_droits_du_jeton_reduits_au_niveau_du_workflow(self):
         self.assertRegex(CI, r"(?m)^permissions:\n  contents: read\n")
 
-    def test_chaque_job_lourd_a_un_delai_maximal(self):
+    def test_chaque_job_a_un_delai_maximal(self):
         for name, body in jobs(CI).items():
-            if name not in SANS_DELAI:
-                self.assertRegex(body, r"(?m)^    timeout-minutes: \d+$", f"job {name} sans timeout-minutes")
+            self.assertRegex(body, r"(?m)^    timeout-minutes: \d+$", f"job {name} sans timeout-minutes")
 
 
 class PlayBundlesTests(unittest.TestCase):
@@ -90,8 +82,8 @@ class DocumentationSeuleTests(unittest.TestCase):
     # Portée dont dépend chaque job : `code` tourne à toute modification de code, les autres seulement quand
     # une pull request touche leur zone (un push sur main, un tag ou un déclenchement manuel construisent tout).
     PORTEES = {
-        "frontend": "code", "firefox-smoke": "code", "backend": "code", "backend-android-compat": "code",
-        "install-script": "code", "devices-sidecar": "devices", "media-component": "media",
+        "frontend": "frontend", "firefox-smoke": "code", "backend": "code", "backend-android-compat": "code",
+        "install-script": "install", "devices-sidecar": "devices", "media-component": "media",
         "android-build": "android", "android-startup": "android", "windows-build": "packaging",
         "windows-build-arm64": "packaging", "linux-deb": "packaging", "macos-build": "packaging",
     }
@@ -104,12 +96,16 @@ class DocumentationSeuleTests(unittest.TestCase):
     def test_une_pull_request_ne_construit_aucun_paquet_sans_raison(self):
         version = jobs(CI)["version"]
         self.assertIn('if [ "$GITHUB_EVENT_NAME" != pull_request ]; then\n            portee true; exit 0', version)
-        for cle in ("packaging", "android", "media", "devices"):
+        for cle in ("frontend", "install", "packaging", "android", "media", "devices"):
             self.assertIn(f'echo "{cle}=$(touche ', version)
 
     def test_chaque_artefact_a_une_retention_courte(self):
-        for texte in (CI, PLAY):
-            envois = re.findall(r"uses: actions/upload-artifact@[^\n]*\n(?:[^\n]*\n){0,2}? +with:\n +retention-days: ", texte)
+        # play-aab.yml ne part que d'un déclenchement manuel : jamais de pull request, 3 jours.
+        for texte, duree in ((CI, r"\$\{\{ github\.event_name == 'pull_request' && 1 \|\| 3 \}\}"), (PLAY, "3")):
+            envois = re.findall(
+                r"uses: actions/upload-artifact@[^\n]*\n(?:[^\n]*\n){0,2}? +with:\n +retention-days: " + duree + r"\n",
+                texte,
+            )
             self.assertEqual(len(envois), texte.count("actions/upload-artifact@"))
 
     def test_tag_et_declenchement_manuel_construisent_tout(self):
