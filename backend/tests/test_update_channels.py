@@ -15,7 +15,8 @@ from pathlib import Path
 import pytest
 
 from app.api.routes import updates
-from app.utils import update_orchestrator as orch
+from app.updates import assets, github, versions
+from app.updates import orchestrator as orch
 
 
 def _local(version: str, commit: str = "aaaaaaa", local_rolling_channel: str | None = None) -> dict:
@@ -32,69 +33,69 @@ def _stable(tag: str) -> dict:
 # --- decision de mise a jour ----------------------------------------------
 
 def test_stable_newer_version_is_an_upgrade():
-    r = updates._evaluate_update("stable", _local("V4.0.1"), _stable("V4.0.2"))
+    r = versions.evaluate_update("stable", _local("V4.0.1"), _stable("V4.0.2"))
     assert r == {"has_update": True, "is_downgrade": False, "latest_version": "V4.0.2"}
 
 
 def test_stable_same_version_is_up_to_date():
-    r = updates._evaluate_update("stable", _local("V4.0.2"), _stable("V4.0.2"))
+    r = versions.evaluate_update("stable", _local("V4.0.2"), _stable("V4.0.2"))
     assert r["has_update"] is False
 
 
 def test_beta_build_of_same_base_is_replaced_by_stable():
     # "4.0.2-beta" < "4.0.2" : promesse "une stable equivalente la remplace".
-    r = updates._evaluate_update("stable", _local("V4.0.2-beta", local_rolling_channel="beta"), _stable("V4.0.2"))
+    r = versions.evaluate_update("stable", _local("V4.0.2-beta", local_rolling_channel="beta"), _stable("V4.0.2"))
     assert r["has_update"] is True and r["is_downgrade"] is False
 
 
 def test_beta_build_ahead_of_stable_can_go_back_to_stable():
     # Repasser en Stable "a tout moment" : propose la stable anterieure,
     # marquee comme retour en arriere (jamais applique par la planification).
-    r = updates._evaluate_update("stable", _local("V4.0.3-beta", local_rolling_channel="beta"), _stable("V4.0.2"))
+    r = versions.evaluate_update("stable", _local("V4.0.3-beta", local_rolling_channel="beta"), _stable("V4.0.2"))
     assert r == {"has_update": True, "is_downgrade": True, "latest_version": "V4.0.2"}
 
 
 def test_canary_build_of_same_base_is_replaced_by_stable():
-    r = updates._evaluate_update("stable", _local("V4.0.2-canary", local_rolling_channel="canary"), _stable("V4.0.2"))
+    r = versions.evaluate_update("stable", _local("V4.0.2-canary", local_rolling_channel="canary"), _stable("V4.0.2"))
     assert r["has_update"] is True and r["is_downgrade"] is False
 
 
 def test_canary_build_ahead_of_stable_can_go_back_to_stable():
-    r = updates._evaluate_update("stable", _local("V4.0.3-canary", local_rolling_channel="canary"), _stable("V4.0.2"))
+    r = versions.evaluate_update("stable", _local("V4.0.3-canary", local_rolling_channel="canary"), _stable("V4.0.2"))
     assert r == {"has_update": True, "is_downgrade": True, "latest_version": "V4.0.2"}
 
 
 def test_stable_build_never_offered_an_older_stable():
-    r = updates._evaluate_update("stable", _local("V4.0.3"), _stable("V4.0.2"))
+    r = versions.evaluate_update("stable", _local("V4.0.3"), _stable("V4.0.2"))
     assert r["has_update"] is False
 
 
 def test_beta_channel_compares_commits_not_versions():
     release = {"tag_name": "beta", "target_commitish": "c05011755e69136ce3d24655f4562c3a57e131e9"}
-    same = updates._evaluate_update("beta", _local("V4.0.2", commit="c050117"), release)
+    same = versions.evaluate_update("beta", _local("V4.0.2", commit="c050117"), release)
     assert same["has_update"] is False
-    other = updates._evaluate_update("beta", _local("V4.0.2", commit="deadbee"), release)
+    other = versions.evaluate_update("beta", _local("V4.0.2", commit="deadbee"), release)
     assert other["has_update"] is True and other["is_downgrade"] is False
     assert other["latest_version"] == "beta (c050117)"
 
 
 def test_beta_channel_unknown_local_commit_never_claims_an_update():
     release = {"tag_name": "beta", "target_commitish": "c05011755e69136ce3d24655f4562c3a57e131e9"}
-    assert updates._evaluate_update("beta", _local("V4.0.2", commit="unknown"), release)["has_update"] is False
+    assert versions.evaluate_update("beta", _local("V4.0.2", commit="unknown"), release)["has_update"] is False
 
 
 def test_canary_channel_compares_commits_not_versions():
     release = {"tag_name": "canary", "target_commitish": "c05011755e69136ce3d24655f4562c3a57e131e9"}
-    same = updates._evaluate_update("canary", _local("V4.0.2", commit="c050117"), release)
+    same = versions.evaluate_update("canary", _local("V4.0.2", commit="c050117"), release)
     assert same["has_update"] is False
-    other = updates._evaluate_update("canary", _local("V4.0.2", commit="deadbee"), release)
+    other = versions.evaluate_update("canary", _local("V4.0.2", commit="deadbee"), release)
     assert other["has_update"] is True and other["is_downgrade"] is False
     assert other["latest_version"] == "canary (c050117)"
 
 
 def test_canary_channel_unknown_local_commit_never_claims_an_update():
     release = {"tag_name": "canary", "target_commitish": "c05011755e69136ce3d24655f4562c3a57e131e9"}
-    assert updates._evaluate_update("canary", _local("V4.0.2", commit="unknown"), release)["has_update"] is False
+    assert versions.evaluate_update("canary", _local("V4.0.2", commit="unknown"), release)["has_update"] is False
 
 
 # --- migration DB du canal "beta" historique (rolling) vers "canary" -------
@@ -154,23 +155,23 @@ _RELEASE_ASSETS = {
 
 
 def test_android_mobile_gets_the_phone_apk():
-    assert updates._resolve_asset("android", _RELEASE_ASSETS, "mobile")["download_url"] == "u/mobile.apk"
-    assert updates._resolve_asset("android", _RELEASE_ASSETS, None)["download_url"] == "u/mobile.apk"
+    assert assets.resolve_asset("android", _RELEASE_ASSETS, "mobile")["download_url"] == "u/mobile.apk"
+    assert assets.resolve_asset("android", _RELEASE_ASSETS, None)["download_url"] == "u/mobile.apk"
 
 
 def test_android_tv_gets_the_tv_apk_even_when_listed_second():
-    assert updates._resolve_asset("android", _RELEASE_ASSETS, "tv")["download_url"] == "u/tv.apk"
+    assert assets.resolve_asset("android", _RELEASE_ASSETS, "tv")["download_url"] == "u/tv.apk"
 
 
 def test_android_tv_without_tv_asset_gets_nothing_rather_than_the_wrong_apk():
     only_phone = {"assets": [_RELEASE_ASSETS["assets"][1]]}
-    assert updates._resolve_asset("android", only_phone, "tv")["download_url"] is None
+    assert assets.resolve_asset("android", only_phone, "tv")["download_url"] is None
 
 
 def test_desktop_profiles_pick_their_extension():
-    assert updates._resolve_asset("windows", _RELEASE_ASSETS)["download_url"] == "u/setup.exe"
-    assert updates._resolve_asset("linux-desktop", _RELEASE_ASSETS)["asset_digest"] == "sha256:ee"
-    assert updates._resolve_asset("macos", _RELEASE_ASSETS)["download_url"] is None
+    assert assets.resolve_asset("windows", _RELEASE_ASSETS)["download_url"] == "u/setup.exe"
+    assert assets.resolve_asset("linux-desktop", _RELEASE_ASSETS)["asset_digest"] == "sha256:ee"
+    assert assets.resolve_asset("macos", _RELEASE_ASSETS)["download_url"] is None
 
 
 def test_multi_distro_and_multi_arch_asset_resolution():
@@ -186,14 +187,14 @@ def test_multi_distro_and_multi_arch_asset_resolution():
             {"name": "bobine-5.0.5-1-aarch64.pkg.tar.zst", "browser_download_url": "u/arch-arm64.pkg.tar.zst", "size": 17, "digest": "sha256:8"},
         ]
     }
-    assert updates._resolve_asset("windows", full_release, arch="x86_64")["download_url"] == "u/win-x64.exe"
-    assert updates._resolve_asset("windows", full_release, arch="arm64")["download_url"] == "u/win-arm64.exe"
-    assert updates._resolve_asset("linux-desktop", full_release, arch="x86_64", linux_ext=".deb")["download_url"] == "u/deb-amd64.deb"
-    assert updates._resolve_asset("linux-desktop", full_release, arch="arm64", linux_ext=".deb")["download_url"] == "u/deb-arm64.deb"
-    assert updates._resolve_asset("linux-desktop", full_release, arch="x86_64", linux_ext=".rpm")["download_url"] == "u/rpm-x64.rpm"
-    assert updates._resolve_asset("linux-desktop", full_release, arch="arm64", linux_ext=".rpm")["download_url"] == "u/rpm-arm64.rpm"
-    assert updates._resolve_asset("linux-desktop", full_release, arch="x86_64", linux_ext=".pkg.tar.zst")["download_url"] == "u/arch-x64.pkg.tar.zst"
-    assert updates._resolve_asset("linux-desktop", full_release, arch="arm64", linux_ext=".pkg.tar.zst")["download_url"] == "u/arch-arm64.pkg.tar.zst"
+    assert assets.resolve_asset("windows", full_release, arch="x86_64")["download_url"] == "u/win-x64.exe"
+    assert assets.resolve_asset("windows", full_release, arch="arm64")["download_url"] == "u/win-arm64.exe"
+    assert assets.resolve_asset("linux-desktop", full_release, arch="x86_64", linux_ext=".deb")["download_url"] == "u/deb-amd64.deb"
+    assert assets.resolve_asset("linux-desktop", full_release, arch="arm64", linux_ext=".deb")["download_url"] == "u/deb-arm64.deb"
+    assert assets.resolve_asset("linux-desktop", full_release, arch="x86_64", linux_ext=".rpm")["download_url"] == "u/rpm-x64.rpm"
+    assert assets.resolve_asset("linux-desktop", full_release, arch="arm64", linux_ext=".rpm")["download_url"] == "u/rpm-arm64.rpm"
+    assert assets.resolve_asset("linux-desktop", full_release, arch="x86_64", linux_ext=".pkg.tar.zst")["download_url"] == "u/arch-x64.pkg.tar.zst"
+    assert assets.resolve_asset("linux-desktop", full_release, arch="arm64", linux_ext=".pkg.tar.zst")["download_url"] == "u/arch-arm64.pkg.tar.zst"
 
 
 # --- reconciliation de l'etat apres redemarrage -----------------------------
@@ -430,13 +431,13 @@ class _StoreHandler:
 
 def test_store_managed_check_does_not_query_github(monkeypatch):
     monkeypatch.setattr(updates, "get_profile_handler", lambda: _StoreHandler())
-    monkeypatch.setattr(updates, "_get_local_version_info", lambda: _local("V5.0.0"))
-    monkeypatch.setattr(updates, "_get_update_channel", lambda db: "stable")
+    monkeypatch.setattr(updates, "get_local_version_info", lambda: _local("V5.0.0"))
+    monkeypatch.setattr(updates, "get_update_channel", lambda db: "stable")
 
     async def _boom(*args, **kwargs):
         raise AssertionError("aucune requete GitHub pour un build de boutique")
 
-    monkeypatch.setattr(updates, "_fetch_release_for_channel", _boom)
+    monkeypatch.setattr(updates, "fetch_release_for_channel", _boom)
     result = asyncio.run(updates.check_updates(refresh=True, db=None))
     assert result["store_managed"] is True
     assert result["has_update"] is False and result["can_auto_apply"] is False
@@ -454,27 +455,28 @@ def test_store_managed_apply_is_refused(monkeypatch):
 def test_rolling_release_target_is_the_tag_commit_not_the_stale_release_field(monkeypatch):
     # La release glissante est mise à jour en place : son target_commitish reste celui de sa création.
     from app.api.routes import updates
+    from app.updates import assets, github, versions
 
     def fake_get(url, etag=None):
         if url.endswith("/commits/canary"):
             return 200, {"sha": "2ad276163493e8488c7611fe4fc06c546a0c5dc7"}, None
         return 200, {"tag_name": "canary", "target_commitish": "303318ebe59bcceeb87a4d7d11a58ed095999012"}, "etag"
 
-    monkeypatch.setattr(updates, "_github_get", fake_get)
-    updates._RELEASE_CACHE.clear()
-    release, error = updates._lookup_release_blocking("canary", True)
+    monkeypatch.setattr(github, "github_get", fake_get)
+    github.RELEASE_CACHE.clear()
+    release, error = github.lookup_release_blocking("canary", True)
     assert error is None
     assert release["target_commitish"].startswith("2ad2761")
     local = {"current_commit": "2ad2761"}
-    assert updates._evaluate_update("canary", local, release)["has_update"] is False
+    assert versions.evaluate_update("canary", local, release)["has_update"] is False
 
     def failing_get(url, etag=None):
         if url.endswith("/commits/canary"):
             raise OSError("hors ligne")
         return 200, {"tag_name": "canary", "target_commitish": "303318ebe59bcceeb87a4d7d11a58ed095999012"}, None
 
-    monkeypatch.setattr(updates, "_github_get", failing_get)
-    updates._RELEASE_CACHE.clear()
-    release, _ = updates._lookup_release_blocking("canary", True)
-    assert updates._evaluate_update("canary", local, release)["has_update"] is False
-    updates._RELEASE_CACHE.clear()
+    monkeypatch.setattr(github, "github_get", failing_get)
+    github.RELEASE_CACHE.clear()
+    release, _ = github.lookup_release_blocking("canary", True)
+    assert versions.evaluate_update("canary", local, release)["has_update"] is False
+    github.RELEASE_CACHE.clear()

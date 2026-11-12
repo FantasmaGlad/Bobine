@@ -16,6 +16,7 @@ from sqlalchemy.orm import sessionmaker
 from app import release_channel
 from app.models import Base, Setting
 from app.api.routes import settings, updates
+from app.updates import github, local_build
 
 MODULE_PATH = Path(release_channel.__file__)
 
@@ -150,27 +151,27 @@ def test_reglages_choix_explicite_stable_l_emporte_sur_une_installation_canary(d
 
 
 def test_mises_a_jour_proposees_sur_le_canal_d_installation_sans_choix(db, installed_as_canary):
-    assert updates._get_update_channel(db) == "canary"
+    assert local_build.get_update_channel(db) == "canary"
     db.add(Setting(key="update_channel", value="beta"))
     db.commit()
-    assert updates._get_update_channel(db) == "beta"
+    assert local_build.get_update_channel(db) == "beta"
 
 
 def test_valeur_invalide_en_base_retombe_sur_le_canal_d_installation(db, installed_as_canary):
     db.add(Setting(key="update_channel", value="nightly"))
     db.commit()
-    assert updates._get_update_channel(db) == "canary"
+    assert local_build.get_update_channel(db) == "canary"
 
 
 def test_une_stable_sans_choix_reste_sur_stable(db, monkeypatch):
     monkeypatch.setattr(release_channel, "_current_version", lambda: "5.0.5")
     monkeypatch.setattr(release_channel, "INSTALL_HINT_PATH", Path("/nonexistent/update-channel"))
-    assert updates._get_update_channel(db) == "stable"
+    assert local_build.get_update_channel(db) == "stable"
 
 
 def test_urls_de_release_derivees_du_registre():
-    assert set(updates._ROLLING_RELEASE_URLS) == set(release_channel.ROLLING_CHANNEL_IDS)
-    for channel_id, url in updates._ROLLING_RELEASE_URLS.items():
+    assert set(github.ROLLING_RELEASE_URLS) == set(release_channel.ROLLING_CHANNEL_IDS)
+    for channel_id, url in github.ROLLING_RELEASE_URLS.items():
         assert url.endswith(f"/releases/tags/{release_channel.get(channel_id).release_tag}")
 
 
@@ -193,11 +194,11 @@ class _GitProfile:
     ],
 )
 def test_checkout_git_deduit_le_canal_du_tag_mobile(monkeypatch, tags, expected_channel, expected_version):
-    monkeypatch.setattr(updates, "get_profile_handler", lambda: _GitProfile())
-    monkeypatch.setattr(updates, "get_app_commit", lambda: "unknown")
-    monkeypatch.setattr(updates, "get_app_version", lambda: "5.0.5")
-    monkeypatch.setattr(updates, "_git_lines", lambda args, cwd: ["abc1234"] if args[0] == "rev-parse" else tags)
-    info = updates._get_local_version_info()
+    monkeypatch.setattr(local_build, "get_profile_handler", lambda: _GitProfile())
+    monkeypatch.setattr(local_build, "get_app_commit", lambda: "unknown")
+    monkeypatch.setattr(local_build, "get_app_version", lambda: "5.0.5")
+    monkeypatch.setattr(local_build, "git_lines", lambda args, cwd: ["abc1234"] if args[0] == "rev-parse" else tags)
+    info = local_build.get_local_version_info()
     assert info["local_rolling_channel"] == expected_channel
     assert info["current_version"] == expected_version
     if expected_channel:
@@ -242,7 +243,7 @@ def test_build_boutique_reste_sur_stable_quel_que_soit_le_reglage_enregistre(db,
     db.commit()
     payload = settings.values.get_settings(db)
     assert (payload["update_channel"], payload["update_channel_source"]) == ("stable", "locked")
-    assert updates._get_update_channel(db) == "stable"
+    assert local_build.get_update_channel(db) == "stable"
 
 
 def test_build_boutique_refuse_de_rejoindre_un_autre_canal(db, store_build):

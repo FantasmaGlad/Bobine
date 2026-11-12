@@ -92,7 +92,7 @@ def media_subprocess_env() -> dict[str, str] | None:
     `update_orchestrator.clean_subprocess_env()`, qui fait foi."""
     if not getattr(sys, "frozen", False):
         return None
-    from app.utils.update_orchestrator import clean_subprocess_env
+    from app.updates.orchestrator import clean_subprocess_env
 
     return clean_subprocess_env()
 

@@ -232,15 +232,16 @@ def test_tor_check_endpoint(client, monkeypatch):
 
 def test_automatic_checks_reuse_the_last_result_longer_under_tor(monkeypatch):
     from app.api.routes import updates
+    from app.updates import github
 
     calls = []
-    monkeypatch.setattr(updates, "_github_get", lambda url, etag=None: calls.append(url) or (200, {"tag_name": "V9.9.9"}, None))
-    updates._RELEASE_CACHE.clear()
+    monkeypatch.setattr(github, "github_get", lambda url, etag=None: calls.append(url) or (200, {"tag_name": "V9.9.9"}, None))
+    github.RELEASE_CACHE.clear()
     tor_proxy.configure(True, None)
-    updates._lookup_release_blocking("stable", False)
-    updates._RELEASE_CACHE["stable"]["checked_at"] -= 60  # au-delà de la fenêtre directe de 10 s
-    updates._lookup_release_blocking("stable", False)
+    github.lookup_release_blocking("stable", False)
+    github.RELEASE_CACHE["stable"]["checked_at"] -= 60  # au-delà de la fenêtre directe de 10 s
+    github.lookup_release_blocking("stable", False)
     assert len(calls) == 1
-    updates._lookup_release_blocking("stable", True)
+    github.lookup_release_blocking("stable", True)
     assert len(calls) == 2
-    updates._RELEASE_CACHE.clear()
+    github.RELEASE_CACHE.clear()

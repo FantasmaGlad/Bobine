@@ -201,7 +201,7 @@ def test_non_frozen_build_inherits_environment(monkeypatch):
 
 
 def test_clean_subprocess_env_also_restores_macos_library_path(monkeypatch):
-    from app.utils import update_orchestrator as orch
+    from app.updates import orchestrator as orch
 
     monkeypatch.setenv("DYLD_LIBRARY_PATH", "/bundle/dylib")
     monkeypatch.setenv("DYLD_LIBRARY_PATH_ORIG", "/host/dylib")

@@ -10,13 +10,14 @@ import pytest
 from fastapi import HTTPException
 
 from app.api.routes import updates
+from app.updates import android, github, scheduled, versions
 
 
 @pytest.fixture(autouse=True)
 def _cache_vide():
-    updates._COMMIT_DISTANCE_CACHE.clear()
+    github.COMMIT_DISTANCE_CACHE.clear()
     yield
-    updates._COMMIT_DISTANCE_CACHE.clear()
+    github.COMMIT_DISTANCE_CACHE.clear()
 
 
 def _local(commit="a910129"):
@@ -35,13 +36,13 @@ def _comparaison(monkeypatch, ahead=0, behind=0, erreur=None):
             raise erreur
         return 200, {"ahead_by": ahead, "behind_by": behind, "status": "x"}, None
 
-    monkeypatch.setattr(updates, "_github_get", faux)
+    monkeypatch.setattr(github, "github_get", faux)
     return appels
 
 
 def _eval(profile, local, release, channel="beta"):
-    evaluation = updates._evaluate_update(channel, local, release)
-    return asyncio.run(updates._refuse_android_downgrade(profile, local, release, evaluation))
+    evaluation = versions.evaluate_update(channel, local, release)
+    return asyncio.run(android.refuse_android_downgrade(profile, local, release, evaluation))
 
 
 BETA = {"tag_name": "beta", "target_commitish": "f2d46a79" + "0" * 32}
@@ -53,14 +54,14 @@ def test_canary_vers_beta_plus_ancienne_est_bloque(monkeypatch):
     r = _eval("android", _local(), BETA)
     assert r["has_update"] is False and r["is_downgrade"] is True and r["downgrade_blocked"] is True
     # SHA de la release (tag mobile), pas le nom de tag
-    assert appels == [f"{updates._COMPARE_URL}/a910129...{BETA['target_commitish']}"]
+    assert appels == [f"{github.COMPARE_URL}/a910129...{BETA['target_commitish']}"]
 
 
 def test_canary_vers_stable_plus_ancienne_compare_sur_le_tag(monkeypatch):
     appels = _comparaison(monkeypatch, ahead=0, behind=33)
     r = _eval("android", _local(), STABLE, channel="stable")
     assert r["has_update"] is False and r["downgrade_blocked"] is True
-    assert appels == [f"{updates._COMPARE_URL}/a910129...V5.0.5"]
+    assert appels == [f"{github.COMPARE_URL}/a910129...V5.0.5"]
 
 
 def test_cible_plus_recente_reste_proposee(monkeypatch):
@@ -73,7 +74,7 @@ def test_historique_divergent_se_juge_sur_le_nombre_de_commits(monkeypatch):
     # versionCode cible - versionCode local = ahead_by - behind_by
     _comparaison(monkeypatch, ahead=3, behind=4)
     assert _eval("android", _local(), BETA)["downgrade_blocked"] is True
-    updates._COMMIT_DISTANCE_CACHE.clear()
+    github.COMMIT_DISTANCE_CACHE.clear()
     _comparaison(monkeypatch, ahead=4, behind=4)
     assert _eval("android", _local(), BETA)["has_update"] is True
 
@@ -82,13 +83,13 @@ def test_comparaison_impossible_laisse_la_validation_apres_telechargement(monkey
     _comparaison(monkeypatch, erreur=urllib.error.URLError("hors ligne"))
     r = _eval("android", _local(), BETA)
     assert r["has_update"] is True and not r.get("downgrade_blocked")
-    assert updates._COMMIT_DISTANCE_CACHE == {}  # un échec n'est jamais mémorisé
+    assert github.COMMIT_DISTANCE_CACHE == {}  # un échec n'est jamais mémorisé
 
 
 def test_commit_local_inconnu_ne_declenche_aucune_requete(monkeypatch):
     appels = _comparaison(monkeypatch, behind=10)
-    r = updates._evaluate_update("beta", _local("unknown"), BETA)
-    assert asyncio.run(updates._refuse_android_downgrade("android", _local("unknown"), BETA, r)) == r
+    r = versions.evaluate_update("beta", _local("unknown"), BETA)
+    assert asyncio.run(android.refuse_android_downgrade("android", _local("unknown"), BETA, r)) == r
     assert appels == []
 
 
@@ -130,12 +131,13 @@ def android_beta(monkeypatch):
     async def fetch(channel, force=False):
         return release, None
 
-    monkeypatch.setattr(updates, "_fetch_release_for_channel", fetch)
-    monkeypatch.setattr(updates, "_get_update_channel", lambda db: "beta")
-    monkeypatch.setattr(updates, "_get_local_version_info", lambda: _local())
-    monkeypatch.setattr(updates, "get_deployment_profile", lambda: "android")
-    monkeypatch.setattr(updates, "get_profile_handler", lambda: _Handler())
-    monkeypatch.setattr(updates, "is_running", lambda: False)
+    for module in (updates, scheduled):  # la route et la mise à jour planifiée
+        monkeypatch.setattr(module, "fetch_release_for_channel", fetch)
+        monkeypatch.setattr(module, "get_update_channel", lambda db: "beta")
+        monkeypatch.setattr(module, "get_local_version_info", lambda: _local())
+        monkeypatch.setattr(module, "get_deployment_profile", lambda: "android")
+        monkeypatch.setattr(module, "get_profile_handler", lambda: _Handler())
+        monkeypatch.setattr(module, "is_running", lambda: False)
     return release
 
 
@@ -169,8 +171,8 @@ def test_planification_ne_telecharge_pas(monkeypatch, android_beta):
     async def pipeline(*a):
         lances.append(a)
 
-    monkeypatch.setattr(updates, "run_update_pipeline", pipeline)
-    asyncio.run(updates.run_scheduled_update_if_available(db=None))
+    monkeypatch.setattr(scheduled, "run_update_pipeline", pipeline)
+    asyncio.run(scheduled.run_scheduled_update_if_available(db=None))
     assert lances == []
 
 
@@ -181,9 +183,9 @@ def test_planification_telecharge_une_mise_a_jour_montante(monkeypatch, android_
     async def pipeline(*a):
         lances.append(a)
 
-    monkeypatch.setattr(updates, "run_update_pipeline", pipeline)
-    monkeypatch.setattr(updates, "log_activity", lambda *a, **k: None)
-    asyncio.run(updates.run_scheduled_update_if_available(db=None))
+    monkeypatch.setattr(scheduled, "run_update_pipeline", pipeline)
+    monkeypatch.setattr(scheduled, "log_activity", lambda *a, **k: None)
+    asyncio.run(scheduled.run_scheduled_update_if_available(db=None))
     assert len(lances) == 1
 
 
@@ -194,10 +196,10 @@ def test_planification_reportee_pendant_une_lecture(monkeypatch, android_beta):
     async def pipeline(*a):
         lances.append(a)
 
-    monkeypatch.setattr(updates, "run_update_pipeline", pipeline)
-    monkeypatch.setattr(updates, "log_activity", lambda *a, **k: None)
-    monkeypatch.setattr(updates, "_something_is_playing", lambda: True)
-    asyncio.run(updates.run_scheduled_update_if_available(db=None))
+    monkeypatch.setattr(scheduled, "run_update_pipeline", pipeline)
+    monkeypatch.setattr(scheduled, "log_activity", lambda *a, **k: None)
+    monkeypatch.setattr(scheduled, "something_is_playing", lambda: True)
+    asyncio.run(scheduled.run_scheduled_update_if_available(db=None))
     assert lances == []
 
 
@@ -210,9 +212,9 @@ def test_detection_de_lecture_video_et_radio(monkeypatch):
 
     monkeypatch.setattr(playback_manager, "get_all_playback_managers", lambda: {"cable": Fake({"state": "idle"})})
     monkeypatch.setattr(radio_manager, "get_all_radio_managers", lambda: {"radio_cable": Fake({"state": "idle"})})
-    assert updates._something_is_playing() is False
+    assert scheduled.something_is_playing() is False
     monkeypatch.setattr(playback_manager, "get_all_playback_managers", lambda: {"cable": Fake({"state": "playing"})})
-    assert updates._something_is_playing() is True
+    assert scheduled.something_is_playing() is True
     monkeypatch.setattr(playback_manager, "get_all_playback_managers", lambda: {"cable": Fake({"state": "idle"})})
     monkeypatch.setattr(radio_manager, "get_all_radio_managers", lambda: {"radio_cable": Fake({"state": "playing"})})
-    assert updates._something_is_playing() is True
+    assert scheduled.something_is_playing() is True

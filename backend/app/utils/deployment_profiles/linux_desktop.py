@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Callable
 
 from app.utils.deployment import ProfileHandler, UpdateUnsupported
-from app.utils.update_orchestrator import clean_subprocess_env, download_with_progress, run_checked
+from app.updates.orchestrator import clean_subprocess_env, download_with_progress, run_checked
 
 logger = logging.getLogger(__name__)
 

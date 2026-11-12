@@ -33,7 +33,7 @@ from app import config_files
 from app.api.routes import config_files as config_files_router
 from app.utils import media_native, port80, tor_proxy
 from app.utils.media_sidecar import close_current_media_client
-from app.utils.update_orchestrator import load_persisted_state_at_startup
+from app.updates.orchestrator import load_persisted_state_at_startup
 from app.utils.version import get_app_version
 from app.scheduling.jobs import start_scheduler, stop_scheduler
 from app.scheduling.radio import autostart_default_radio_playlist

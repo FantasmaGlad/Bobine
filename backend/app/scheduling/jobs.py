@@ -164,7 +164,7 @@ async def _run_auto_update_check() -> None:
     établir un ordre d'import entre `scheduler_manager` (importé tôt par
     `main.py`) et `routers.updates` — même précaution que `from app.models
     import Setting` un peu plus bas dans ce fichier."""
-    from app.api.routes.updates import run_scheduled_update_if_available
+    from app.updates.scheduled import run_scheduled_update_if_available
 
     db = SessionLocal()
     try:
