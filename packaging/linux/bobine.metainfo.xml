@@ -59,6 +59,12 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="5.1.2" date="2026-11-12">
+      <description>
+        <p>Version 5.1.2: a scheduled class resumes at the position it would have reached after a power cut, the mini PC returns to the previous version when an update does not start, and the code is reorganised into short packages.</p>
+        <p xml:lang="fr">Version 5.1.2 : un cours programmé reprend à la position qu'il aurait atteinte après une coupure de courant, le mini PC revient à la version précédente quand une mise à jour ne démarre pas, et le code est réorganisé en paquets courts.</p>
+      </description>
+    </release>
     <release version="5.1.1" date="2026-11-07">
       <description>
         <p>Version 5.1.1 "Ardoise": nine light and dark themes with Ardoise as the automatic default, Settings organised by category with a search box, an update check that no longer loops and no longer repeats its notification, quick playback actions in the system tray menu, and a restore of backups that no longer loads the whole archive in memory.</p>
