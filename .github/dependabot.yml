@@ -25,6 +25,9 @@ updates:
       backend-dependencies:
         patterns:
           - "*"
+    # pydantic fixe sa version exacte de pydantic-core : le noyau suit pydantic, jamais seul.
+    ignore:
+      - dependency-name: "pydantic-core"
 
   - package-ecosystem: "cargo"
     directory: "/devices"
