@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { formatBinarySize } from "@/lib/format";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import Icon from "@/components/Icon";
 import ScrollNav from "@/components/ScrollNav";
@@ -40,14 +41,6 @@ interface SystemTelemetry {
     cumulative_energy_wh?: number;
     average_power_watts?: number | null;
   };
-}
-
-function formatBytes(bytes?: number): string {
-  if (!bytes || bytes < 0) return "0 Go";
-  const units = ["o", "Ko", "Mo", "Go", "To"];
-  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
-  const val = bytes / Math.pow(1024, i);
-  return `${val.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
 export default function MetricsSystemPage() {
@@ -211,7 +204,7 @@ export default function MetricsSystemPage() {
               {telemetry?.memory_percent != null ? telemetry.memory_percent.toFixed(0) : "0"}%
             </span>
             <span className="metrics-telemetry-temp">
-              {formatBytes(telemetry?.memory_used_bytes)} / {formatBytes(telemetry?.memory_total_bytes)}
+              {formatBinarySize(telemetry?.memory_used_bytes, "0 Go")} / {formatBinarySize(telemetry?.memory_total_bytes, "0 Go")}
             </span>
           </div>
           <span className="metrics-telemetry-cta">
@@ -241,7 +234,7 @@ export default function MetricsSystemPage() {
               {usedStoragePct.toFixed(0)}%
             </span>
             <span className="metrics-telemetry-temp">
-              {t("metricsPage.storageFree", { free: formatBytes(freeStorage), total: formatBytes(totalStorage) })}
+              {t("metricsPage.storageFree", { free: formatBinarySize(freeStorage, "0 Go"), total: formatBinarySize(totalStorage, "0 Go") })}
             </span>
           </div>
           <span className="metrics-telemetry-cta">

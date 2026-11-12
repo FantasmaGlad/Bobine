@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/apiError";
 
 import React, { useState } from "react";
 import Icon from "@/components/Icon";
@@ -38,7 +39,7 @@ export default function DangerSection({ hidden, deploymentProfile, showToast }: 
       if (res.ok) {
         showToast(payload.message || t("settingsPage.uninstallStarted"), "warning");
       } else {
-        showToast(payload.detail || t("settingsPage.uninstallError"), "error");
+        showToast(errorMessage(payload, t("settingsPage.uninstallError")), "error");
       }
     } catch {
       showToast(t("common.networkError"), "error");
@@ -66,7 +67,7 @@ export default function DangerSection({ hidden, deploymentProfile, showToast }: 
         setResetDataConfirm("");
       } else {
         const err = await res.json().catch(() => null);
-        showToast(err?.detail || t("settingsPage.resetDataError"), "error");
+        showToast(errorMessage(err, t("settingsPage.resetDataError")), "error");
       }
     } catch {
       showToast(t("settingsPage.resetDataError"), "error");

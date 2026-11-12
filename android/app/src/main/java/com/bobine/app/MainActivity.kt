@@ -88,50 +88,7 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(themeColors.background)
         }
 
-        val splashLayout = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            gravity = android.view.Gravity.CENTER
-            setBackgroundColor(themeColors.background)
-            layoutParams = android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-            )
-        }
-
-        val logoSizePx = (140 * resources.displayMetrics.density).toInt()
-        val logoView = android.widget.ImageView(this).apply {
-            setImageResource(SplashChannel.initialDrawable(this@MainActivity))
-            layoutParams = android.widget.LinearLayout.LayoutParams(logoSizePx, logoSizePx).apply {
-                bottomMargin = (22 * resources.displayMetrics.density).toInt()
-            }
-            adjustViewBounds = true
-        }
-        splashLayout.addView(logoView)
-        SplashChannel.refreshFromBackendIfUnknown(this, logoView)
-
-        val progressBar = ArcSpinnerView(
-            this,
-            SpinnerColors.arcColor(themeColors.accent, themeColors.text, themeColors.background),
-            themeColors.text,
-            if (isTv) 56 else 40,
-        ).apply {
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                bottomMargin = (18 * resources.displayMetrics.density).toInt()
-            }
-        }
-        splashLayout.addView(progressBar)
-
-        val statusText = android.widget.TextView(this).apply {
-            text = "Démarrage de Bobine..."
-            setTextColor(themeColors.text)
-            textSize = 14f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity = android.view.Gravity.CENTER
-        }
-        splashLayout.addView(statusText)
+        val splashLayout = buildBootSplash(this, themeColors.background, themeColors.text, themeColors.accent, 140, 22, if (isTv) 56 else 40, 14f)
 
         var hasLoadedSuccessfully = false
         var lastPageFailed = false

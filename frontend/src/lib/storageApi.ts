@@ -1,5 +1,5 @@
 import { getApiUrl } from "./apiUrl.ts";
-import { parseApiError, type ApiError, type ApiResult } from "./devicesApi.ts";
+import { parseApiError, type ApiError, type ApiResult } from "./apiError.ts";
 
 export type VolumeKind = "usb" | "sd" | "hdd" | "ssd" | "image" | "other";
 export type VolumeState = "present" | "mounted" | "busy" | "ejecting" | "offline" | "formatting";

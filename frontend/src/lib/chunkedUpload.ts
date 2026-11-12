@@ -1,3 +1,4 @@
+import { errorMessage } from "./apiError.ts";
 import { backoffMs, retryNotice, type UploadNotice, type UploadPhase } from "./uploadFlow.ts";
 
 export const MAX_ATTEMPTS = 8;
@@ -112,7 +113,7 @@ async function createSession(file: File, opts: ChunkedUploadOptions): Promise<Se
       if (res.status === 404 || res.status === 405) throw new ChunkedUnsupportedError();
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw Object.assign(new Error(body.detail || `Erreur serveur (${res.status})`), { fatal: true });
+        throw Object.assign(new Error(errorMessage(body, `Erreur serveur (${res.status})`)), { fatal: true });
       }
       return (await res.json()) as SessionState;
     });
@@ -212,7 +213,7 @@ export async function uploadFileInChunks(file: File, opts: ChunkedUploadOptions)
         continue;
       }
       if (result.status >= 400 && result.status < 500) {
-        throw Object.assign(new Error(result.detail || `Refusé par le serveur (${result.status})`), { fatal: true });
+        throw Object.assign(new Error(errorMessage(result, `Refusé par le serveur (${result.status})`)), { fatal: true });
       }
       throw Object.assign(new Error(`Erreur serveur (${result.status})`), { status: result.status });
     } catch (err) {

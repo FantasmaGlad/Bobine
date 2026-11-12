@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/apiError";
 
 import PageNav from "@/components/PageNav";
 import React, { useEffect, useState } from "react";
@@ -246,7 +247,7 @@ export default function LogsPage() {
                         {formatTimestamp(entry.timestamp, language)}
                       </td>
                       <td data-label={t("logs.eventHeader")} style={{ fontWeight: 700 }}>{EVENT_LABELS[entry.event_type] || entry.event_type}</td>
-                      <td data-label={t("logs.detailHeader")} style={{ color: "var(--text-muted)" }}>{entry.detail || "—"}</td>
+                      <td data-label={t("logs.detailHeader")} style={{ color: "var(--text-muted)" }}>{errorMessage(entry, "—")}</td>
                     </tr>
                   ))}
                 </tbody>

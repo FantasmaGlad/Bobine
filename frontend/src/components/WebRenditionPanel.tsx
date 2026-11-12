@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/apiError";
 
 import { useCallback, useEffect, useState } from "react";
 import Icon from "@/components/Icon";
@@ -60,7 +61,7 @@ export default function WebRenditionPanel({ videoId }: { videoId: number }) {
         setState((prev) => (prev ? { ...prev, web_status: method === "POST" ? "pending" : null } : prev));
       } else {
         const body = await res.json().catch(() => ({}));
-        setMessage(body.detail || t("webRendition.failed"));
+        setMessage(errorMessage(body, t("webRendition.failed")));
       }
     } catch {
       setMessage(t("webRendition.failed"));

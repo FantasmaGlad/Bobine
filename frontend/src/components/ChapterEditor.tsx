@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/apiError";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Icon from "@/components/Icon";
@@ -56,7 +57,7 @@ export default function ChapterEditor({ videoId, getApiUrl, getCurrentTime, onNo
         onNotify(t("chapters.saved"), "success");
       } else {
         const detail = await res.json().catch(() => null);
-        onNotify(detail?.detail ?? t("chapters.error"), "error");
+        onNotify(errorMessage(detail, t("chapters.error")), "error");
       }
     } catch {
       onNotify(t("chapters.error"), "error");

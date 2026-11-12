@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/apiError";
 
 import React, { useEffect, useState, useRef } from "react";
 import { recallCatalog, rememberCatalog } from "@/lib/sessionCatalog";
@@ -290,7 +291,7 @@ export default function LibraryPage() {
         fetchSubtitles(selectedVideo.id);
       } else {
         const errData = await res.json().catch(() => ({}));
-        showToast(errData.detail || t("library.subtitleImportError"), "error");
+        showToast(errorMessage(errData, t("library.subtitleImportError")), "error");
       }
     } catch {
       showToast(t("common.networkError"), "error");
@@ -351,7 +352,7 @@ export default function LibraryPage() {
         fetchPrograms();
       } else {
         const errData = await res.json();
-        showToast(t("library.saveErrorDetail", { detail: errData.detail || t("library.saveErrorFallback") }), "error");
+        showToast(t("library.saveErrorDetail", { detail: errorMessage(errData, t("library.saveErrorFallback"))}), "error");
       }
     } catch {
       showToast(t("library.saveConnectionError"), "error");
@@ -371,7 +372,7 @@ export default function LibraryPage() {
         showToast(data.message, "success");
       } else {
         const errData = await res.json();
-        showToast(errData.detail || t("library.normalizeError"), "error");
+        showToast(errorMessage(errData, t("library.normalizeError")), "error");
       }
     } catch {
       showToast(t("library.normalizeNetworkError"), "error");
@@ -396,7 +397,7 @@ export default function LibraryPage() {
         setSelectedVideo(updatedVideo);
       } else {
         const errData = await res.json();
-        showToast(t("library.saveErrorDetail", { detail: errData.detail || t("library.saveErrorFallback") }), "error");
+        showToast(t("library.saveErrorDetail", { detail: errorMessage(errData, t("library.saveErrorFallback"))}), "error");
       }
     } catch {
       showToast(t("library.saveConnectionError"), "error");

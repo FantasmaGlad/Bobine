@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/apiError";
 
 import React, {
   createContext,
@@ -195,7 +196,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          throw new Error(body.detail || translate("uploadManager.importError"));
+          throw new Error(errorMessage(body, translate("uploadManager.importError")));
         }
         const body = await res.json().catch(() => ({}));
         updateTask(task.id, {
@@ -266,7 +267,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
           let errMsg = translate("uploadManager.uploadError");
           try {
             const body = JSON.parse(xhr.responseText);
-            errMsg = body.detail || errMsg;
+            errMsg = errorMessage(body, errMsg);
           } catch {
           }
           updateTask(task.id, { status: "error", error: errMsg });
