@@ -38,7 +38,7 @@ Maintainers review contributions in their own time. Making the review short is y
 
 ## Development setup
 
-Bobine has several components. Before opening a pull request, run locally the checks below for each component you touched. CI runs the same ones, except the frontend type check, which is local only.
+Bobine has several components. Before opening a pull request, run locally the checks below for each component you touched. CI runs the same ones.
 
 | Component | Directory | Checks |
 |---|---|---|

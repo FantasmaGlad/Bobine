@@ -93,9 +93,7 @@ The `install-tor.sh` script pins the primary key fingerprint and stops if it dif
 
 | Date | Change |
 |---|---|
-| 2026-10-07 | Policy published with a first report key (`8208 FFD3 F7AB 4DD3 6B0A CDD8 4726 A378 F683 265A`). |
-| 2026-10-07 | First key revoked and removed the same day, a few hours after publication, because its passphrase could not be used. No report had been received and the private key was never exposed. |
-| 2026-10-07 | Current report key `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2` created and published. `security.txt` signed with this key. |
+| 2026-10-07 | Policy published with the report key `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2`. `security.txt` signed with this key. |
 | 2026-10-08 | Dedicated disclosure site <https://security.bobine.fit> published, and the fingerprint added to the DNS of `bobine.fit`. A daily check verifies that every channel serves the same fingerprint. |
 
 This history lists every change of key, fingerprint or commitment. A key rotation or revocation is announced here and on <https://bobine.fit/en/securite>.

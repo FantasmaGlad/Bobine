@@ -27,7 +27,7 @@ Validation avant contribution : `pytest` dans `backend/`, `npm test` et `npx tsc
 
 **Port** : 1903 par défaut (`BOBINE_PORT` ou `config.toml`). S'il est pris, Bobine essaie les 10 suivants puis un port du système ; `BOBINE_PORT_STRICT=1` interdit ce repli. Le port réel est écrit dans `backend-runtime.json`, à la racine des données.
 
-**Configuration** : variables `BOBINE_*`, puis `/etc/bobine/config.toml`, puis `config.toml` du dépôt.
+**Configuration** : variables `BOBINE_*`, puis un seul fichier global (`%ProgramData%\Bobine\config.toml` sous Windows, `~/Library/Application Support/Bobine/config.toml` sous macOS, `$XDG_CONFIG_HOME/bobine/config.toml` s'il existe puis `/etc/bobine/config.toml` sous Linux), puis `config.toml` du dépôt.
 
 ## 3. Données
 

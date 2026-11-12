@@ -8,7 +8,7 @@ Version anglaise : [CONTRIBUTING.md](../../CONTRIBUTING.md). En participant, vou
 
 - Recherchez d'abord dans les tickets et demandes de fusion existants.
 - Pour tout ce qui dépasse une correction simple et évidente (nouvelle fonctionnalité, changement de comportement, refactorisation, nouvelle dépendance), ouvrez un ticket et convenez de l'approche avant d'écrire du code. Une grosse demande de fusion non sollicitée a de fortes chances d'être déclinée, quelle que soit sa qualité.
-- Une demande de fusion, un changement logique. Une correction de bug n'embarque pas de refactorisation, et une refactorisation n'embarque pas de fonctionnalité.
+- Une seule modification logique par demande de fusion. Une correction de bug n'embarque pas de refactorisation, et une refactorisation n'embarque pas de fonctionnalité.
 - Les tickets et demandes de fusion peuvent être rédigés en français ou en anglais.
 
 ## Principes
@@ -38,7 +38,7 @@ Les mainteneurs relisent les contributions sur leur temps. Rendre la revue court
 
 ## Environnement de développement
 
-Bobine comporte plusieurs composants. Avant d'ouvrir une demande de fusion, lancez localement les vérifications ci-dessous pour chaque composant que vous avez touché. La CI exécute les mêmes, sauf le typage du frontend, qui reste local.
+Bobine comporte plusieurs composants. Avant d'ouvrir une demande de fusion, lancez localement les vérifications ci-dessous pour chaque composant que vous avez touché. La CI exécute les mêmes.
 
 | Composant | Dossier | Vérifications |
 |---|---|---|

@@ -27,7 +27,7 @@ Before contributing: `pytest` in `backend/`, `npm test` and `npx tsc --noEmit` i
 
 **Port**: 1903 by default (`BOBINE_PORT` or `config.toml`). If it is taken, Bobine tries the next 10, then a system port; `BOBINE_PORT_STRICT=1` forbids this fallback. The actual port is written to `backend-runtime.json`, at the root of the data folder.
 
-**Configuration**: `BOBINE_*` variables, then `/etc/bobine/config.toml`, then the repository `config.toml`.
+**Configuration**: `BOBINE_*` variables, then a single global file (`%ProgramData%\Bobine\config.toml` on Windows, `~/Library/Application Support/Bobine/config.toml` on macOS, `$XDG_CONFIG_HOME/bobine/config.toml` if present then `/etc/bobine/config.toml` on Linux), then the repository `config.toml`.
 
 ## 3. Data
 
