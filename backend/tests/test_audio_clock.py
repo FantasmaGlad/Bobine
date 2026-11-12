@@ -3,7 +3,8 @@ une fonction du temps, la fin de piste est idempotente."""
 
 import asyncio
 
-from app.playback_manager import AUDIO_END_GRACE_SECONDS, PlaybackManager
+from app.playback.constants import AUDIO_END_GRACE_SECONDS
+from app.playback.manager import PlaybackManager
 from app.utils.playback_clock import PlaybackClock
 
 TRACKS = [

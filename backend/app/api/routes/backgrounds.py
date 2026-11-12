@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, SessionLocal
 from app.models import Background, ImportSource
-from app.utils.importer import import_background, is_image_background
+from app.utils.importer.background import import_background
+from app.utils.importer.formats import is_image_background
 from app.utils.executors import ffmpeg_executor
 from app.utils.archive_import import import_media_archive
 from app.utils import media_formats

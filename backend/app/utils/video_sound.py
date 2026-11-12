@@ -48,7 +48,7 @@ def save_video_sound(db: Session, channel: str, sound: dict[str, Any]) -> None:
 
 def load_all_video_sounds_into_managers(db: Session) -> None:
     """Charge les réglages persistés dans l'état de chaque canal vidéo (au démarrage)."""
-    from app.playback_manager import get_all_playback_managers
+    from app.playback.manager import get_all_playback_managers
 
     for channel, manager in get_all_playback_managers().items():
         manager.state["sound"] = load_video_sound(db, channel)

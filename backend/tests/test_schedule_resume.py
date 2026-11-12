@@ -19,7 +19,7 @@ from app.models import (  # noqa: E402
     ScheduleType,
     Video,
 )
-from app.playback_manager import get_playback_manager, init_playback_managers  # noqa: E402
+from app.playback.manager import get_playback_manager, init_playback_managers  # noqa: E402
 from app.scheduling.launch import launch_target  # noqa: E402
 from app.scheduling.resume import resume_running_schedules  # noqa: E402
 from app.scheduling import launch_store as scheduled_launch_store  # noqa: E402
@@ -72,7 +72,7 @@ class ResumeAfterRestartTests(unittest.IsolatedAsyncioTestCase):
         init_db()
 
     def setUp(self):
-        from app import playback_manager as playback_manager_module
+        from app.playback import manager as playback_manager_module
 
         saved_managers = dict(playback_manager_module._managers)
         self.addCleanup(lambda: playback_manager_module._managers.update(saved_managers))

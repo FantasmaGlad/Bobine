@@ -7,7 +7,7 @@ from app.models import (
     AudioCourse,
     Background,
 )
-from app.utils.importer import is_image_background
+from app.utils.importer.formats import is_image_background
 
 
 def _thumbnail_filename(thumbnail_path: str | None) -> str | None:

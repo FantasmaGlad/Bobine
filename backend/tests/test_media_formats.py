@@ -30,7 +30,8 @@ def test_frontend_lists_equal_the_backend_lists():
 
 def test_importers_share_the_single_lists():
     from app.storage import paths
-    from app.utils import audio_importer, importer, radio_utils, zip_safety
+    from app.utils import audio_importer, radio_utils, zip_safety
+    from app.utils.importer import formats as importer
     assert radio_utils.AUDIO_EXTENSIONS is media_formats.RADIO_AUDIO
     assert audio_importer.AUDIO_EXTENSIONS is media_formats.COURSE_AUDIO
     assert importer.SUPPORTED_EXTENSIONS is media_formats.VIDEO

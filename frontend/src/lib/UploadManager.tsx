@@ -23,7 +23,7 @@
  *    éventuel, miniature, écriture en base). Suivi par polling de
  *    `GET /api/import-jobs`, PAS par XHR (la requête HTTP d'upload, elle,
  *    est déjà terminée). Le réencodage ffmpeg lui-même reste sérialisé
- *    côté serveur (verrou global, cf. app/utils/video_utils.py) — c'est
+ *    côté serveur (verrou global, cf. app/utils/video_utils/) — c'est
  *    voulu, pour ne pas reproduire le bug déjà corrigé "l'importation des
  *    fonds animés bloque et ne termine jamais" (CPU limité du Wyse 5070) —
  *    mais cette sérialisation n'empêche plus de LANCER d'autres imports

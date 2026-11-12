@@ -49,7 +49,7 @@ def _checkpoint_and_copy_database(external_data_dir, internal_data_dir):
     """Copie `data/database.db` (+ -wal/-shm) de l'externe vers l'interne,
     avec vérification d'intégrité AVANT toute utilisation — ne supprime
     JAMAIS l'original (même philosophie que
-    `backend/app/utils/importer.py::reconcile_orphaned_media` : un
+    `backend/app/utils/importer/reconcile.py` : un
     diagnostic qui se trompe ne doit jamais être destructif). Retourne
     True si la copie interne est utilisable, False sinon (l'appelant
     laisse alors `app.config` créer une base neuve sur l'interne, comme

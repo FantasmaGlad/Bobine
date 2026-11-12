@@ -15,7 +15,7 @@ from app.utils.deployment import (
     KIOSK_SERVICE_UNIT,
     ProfileHandler,
 )
-from app.utils.update_orchestrator import run_checked
+from app.updates.orchestrator import run_checked
 
 logger = logging.getLogger(__name__)
 

@@ -13,12 +13,12 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from PIL import Image  # noqa: E402
 
-from app.utils import video_utils  # noqa: E402
+from app.utils.video_utils import thumbnails  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def no_sleep(monkeypatch):
-    monkeypatch.setattr(video_utils.time, "sleep", lambda s: None)
+    monkeypatch.setattr(thumbnails.time, "sleep", lambda s: None)
 
 
 def _fake_run_factory(outcomes):
@@ -40,16 +40,16 @@ def _fake_run_factory(outcomes):
 
 def test_timeout_does_not_abort_the_fallbacks(tmp_path, monkeypatch):
     fake, calls = _fake_run_factory(["timeout", "timeout", "ok"])
-    monkeypatch.setattr(video_utils.subprocess, "run", fake)
-    path = video_utils.generate_thumbnail("video.mp4", str(tmp_path), 120.0)
+    monkeypatch.setattr(thumbnails.subprocess, "run", fake)
+    path = thumbnails.generate_thumbnail("video.mp4", str(tmp_path), 120.0)
     assert Path(path).stat().st_size > 0
     assert len(calls) == 3  # 10 %, 0,1 s puis 0 s : le dépassement du premier essai n'a pas tout interrompu
 
 
 def test_transient_failures_get_a_last_retry(tmp_path, monkeypatch):
     fake, calls = _fake_run_factory(["fail", "fail", "fail", "ok"])
-    monkeypatch.setattr(video_utils.subprocess, "run", fake)
-    assert Path(video_utils.generate_thumbnail("video.mp4", str(tmp_path), 60.0)).exists()
+    monkeypatch.setattr(thumbnails.subprocess, "run", fake)
+    assert Path(thumbnails.generate_thumbnail("video.mp4", str(tmp_path), 60.0)).exists()
     assert len(calls) == 4
 
 
@@ -57,14 +57,14 @@ def test_missing_binary_is_a_clean_error(tmp_path, monkeypatch):
     def boom(cmd, **kwargs):
         raise FileNotFoundError("ffmpeg")
 
-    monkeypatch.setattr(video_utils.subprocess, "run", boom)
+    monkeypatch.setattr(thumbnails.subprocess, "run", boom)
     with pytest.raises(ValueError):
-        video_utils.generate_thumbnail("video.mp4", str(tmp_path), 60.0)
+        thumbnails.generate_thumbnail("video.mp4", str(tmp_path), 60.0)
 
 
 def test_placeholder_is_a_valid_jpeg_even_for_odd_titles(tmp_path):
     for title in ("Ambiance forêt", "", "---", "日本語"):
-        out = video_utils.generate_placeholder_thumbnail(str(tmp_path / "sub"), title)
+        out = thumbnails.generate_placeholder_thumbnail(str(tmp_path / "sub"), title)
         with Image.open(out) as img:
             assert img.format == "JPEG" and img.size == (640, 360)
 

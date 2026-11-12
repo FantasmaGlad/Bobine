@@ -16,8 +16,9 @@ os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
 from app.utils import (  # noqa: E402
-    audio_utils, chapters, ffmpeg_binaries, import_jobs, radio_utils, staged_uploads as staged, video_utils,
+    audio_utils, chapters, ffmpeg_binaries, import_jobs, radio_utils, staged_uploads as staged,
 )
+from app.utils.video_utils import probe, progress, thumbnails  # noqa: E402
 
 
 @pytest.fixture
@@ -45,16 +46,16 @@ def test_missing_tool_message_explains_how_to_install(monkeypatch, os_name, frag
 
 
 def test_ffprobe_missing_raises_clear_error(monkeypatch):
-    monkeypatch.setattr(video_utils, "FFPROBE_BIN", "/nonexistent/ffprobe")
+    monkeypatch.setattr(probe, "FFPROBE_BIN", "/nonexistent/ffprobe")
     with pytest.raises(ffmpeg_binaries.MediaToolMissingError) as exc:
-        video_utils.get_video_info("/tmp/x.mov")
+        probe.get_video_info("/tmp/x.mov")
     assert str(exc.value).startswith("ffprobe est introuvable")
 
 
 def test_ffmpeg_missing_on_normalize_raises_clear_error(monkeypatch, tmp_path):
-    monkeypatch.setattr(video_utils.subprocess, "Popen", _raising_popen(FileNotFoundError(2, "No such file or directory", "ffmpeg")))
+    monkeypatch.setattr(progress.subprocess, "Popen", _raising_popen(FileNotFoundError(2, "No such file or directory", "ffmpeg")))
     with pytest.raises(ffmpeg_binaries.MediaToolMissingError) as exc:
-        video_utils._run_ffmpeg_with_progress([ffmpeg_binaries.FFMPEG_BIN, "-i", "a", "b"], None, 1.0)
+        progress.run_ffmpeg_with_progress([ffmpeg_binaries.FFMPEG_BIN, "-i", "a", "b"], None, 1.0)
     assert str(exc.value).startswith("ffmpeg est introuvable")
     assert "[Errno 2]" not in str(exc.value).split("(")[0]  # le détail technique est en fin de message seulement
 
@@ -66,10 +67,10 @@ def test_ffmpeg_missing_stops_thumbnail_retries_immediately(monkeypatch, tmp_pat
         calls.append(cmd)
         raise FileNotFoundError(2, "No such file or directory", "ffmpeg")
 
-    monkeypatch.setattr(video_utils.subprocess, "run", fake_run)
-    monkeypatch.setattr(video_utils.time, "sleep", lambda s: pytest.fail("aucune pause attendue"))
+    monkeypatch.setattr(thumbnails.subprocess, "run", fake_run)
+    monkeypatch.setattr(thumbnails.time, "sleep", lambda s: pytest.fail("aucune pause attendue"))
     with pytest.raises(ffmpeg_binaries.MediaToolMissingError):
-        video_utils.generate_thumbnail("/tmp/x.mp4", str(tmp_path), 10.0)
+        thumbnails.generate_thumbnail("/tmp/x.mp4", str(tmp_path), 10.0)
     assert len(calls) == 1
 
 
@@ -117,7 +118,7 @@ def test_ffprobe_calls_get_devnull_stdin_but_no_nostdin(monkeypatch, tmp_path):
     # ffprobe 8 refuse -nostdin (« Option not found ») : seul stdin=DEVNULL s'applique.
     rec = _Recorder()
     monkeypatch.setattr(subprocess, "run", rec.run)
-    video_utils.get_video_info("/tmp/x.mp4")
+    probe.get_video_info("/tmp/x.mp4")
     audio_utils.extract_audio_duration("/tmp/x.mp3")
     radio_utils.extract_radio_metadata("/tmp/x.mp3")
     chapters.read_embedded("/tmp/x.mkv")
@@ -136,8 +137,8 @@ def test_ffmpeg_calls_get_nostdin_and_devnull_stdin(monkeypatch, tmp_path):
         Path(cmd[-1]).write_bytes(b"\xff\xd8jpeg")
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
-    monkeypatch.setattr(video_utils.subprocess, "run", fake_run_thumb)
-    video_utils.generate_thumbnail("/tmp/x.mp4", str(tmp_path), 10.0)
+    monkeypatch.setattr(thumbnails.subprocess, "run", fake_run_thumb)
+    thumbnails.generate_thumbnail("/tmp/x.mp4", str(tmp_path), 10.0)
     monkeypatch.setattr(subprocess, "run", rec.run)
     radio_utils.transcode_to_web("/tmp/a.wma", str(tmp_path / "a.m4a"))
     radio_utils._measure_loudnorm("/tmp/a.mp3", -16.0)
@@ -165,8 +166,8 @@ def test_normalize_popen_gets_nostdin_devnull_and_keeps_progress(monkeypatch):
         seen["cmd"], seen["kwargs"] = cmd, kwargs
         return FakeProc()
 
-    monkeypatch.setattr(video_utils.subprocess, "Popen", fake_popen)
-    ret, _ = video_utils._run_ffmpeg_with_progress([ffmpeg_binaries.FFMPEG_BIN, "-i", "a", "b.mp4"], None, None)
+    monkeypatch.setattr(progress.subprocess, "Popen", fake_popen)
+    ret, _ = progress.run_ffmpeg_with_progress([ffmpeg_binaries.FFMPEG_BIN, "-i", "a", "b.mp4"], None, None)
     assert ret == 0
     assert seen["cmd"][:2] == [ffmpeg_binaries.FFMPEG_BIN, "-nostdin"]
     assert "-progress" in seen["cmd"]
@@ -200,7 +201,7 @@ def test_non_frozen_build_inherits_environment(monkeypatch):
 
 
 def test_clean_subprocess_env_also_restores_macos_library_path(monkeypatch):
-    from app.utils import update_orchestrator as orch
+    from app.updates import orchestrator as orch
 
     monkeypatch.setenv("DYLD_LIBRARY_PATH", "/bundle/dylib")
     monkeypatch.setenv("DYLD_LIBRARY_PATH_ORIG", "/host/dylib")

@@ -2,7 +2,7 @@
 ici, la tâche d'arrière-plan (ffmpeg, suivi dans `import_jobs`, état en base).
 
 Les fichiers vivent dans `<media_dir>/web/` — sous-dossier volontaire :
-`importer.reconcile_orphaned_media` n'examine que les fichiers à la racine du
+`importer/reconcile.py` n'examine que les fichiers à la racine du
 dossier média et signalerait sinon chaque version web comme « orpheline »."""
 
 import logging
@@ -72,7 +72,8 @@ def request_web_rendition(video_id: int) -> str | None:
 
 
 def _run_job(job_id: str, video_id: int) -> None:
-    from app.utils.video_utils import FFMPEG_NORMALIZE_TIMEOUT_SECONDS, _run_ffmpeg_with_progress
+    from app.utils.video_utils.limits import FFMPEG_NORMALIZE_TIMEOUT_SECONDS
+    from app.utils.video_utils.progress import run_ffmpeg_with_progress
 
     output = None
     db = SessionLocal()
@@ -85,7 +86,7 @@ def _run_job(job_id: str, video_id: int) -> None:
         command = build_web_rendition_command(
             FFMPEG_BIN, video.file_path, output, video.height, video.fps, has_audio=video.audio_codec is not None,
         )
-        ret, stderr = _run_ffmpeg_with_progress(
+        ret, stderr = run_ffmpeg_with_progress(
             command, job_id, video.duration_seconds, timeout=FFMPEG_NORMALIZE_TIMEOUT_SECONDS * 2,
             width=video.width, height=video.height,
         )

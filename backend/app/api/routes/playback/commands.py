@@ -15,14 +15,15 @@ from app.models import (
     Playlist,
     Video,
 )
-from app.playback_manager import DEFAULT_CHANNEL, get_playback_manager
+from app.api.contract import DEFAULT_CHANNEL
+from app.playback.manager import get_playback_manager
 from app.radio_manager import (
     is_radio_channel,
     normalize_radio_channel,
 )
 from app.utils import video_sound
 from app.utils.activity_log import log_activity
-from app.utils.importer import is_image_background
+from app.utils.importer.formats import is_image_background
 from app.utils.playback_session_tracker import (
     close_playback_session,
     start_playback_session,
@@ -308,7 +309,7 @@ async def _handle_command(
         await manager.report_position(float(params.get("position_seconds", 0)))
     elif command == "cinema_report":
         # Supervision du mode cinéma : la lecture cinéma est LOCALE
-        # à chaque appareil (jamais dans le playback_manager), mais la page
+        # à chaque appareil (jamais dans le gestionnaire de lecture), mais la page
         # /cinema remonte périodiquement ce qu'elle joue pour que les
         # tableaux de bord du canal l'affichent. Simple relais, aucun état
         # serveur : si la page cinéma se ferme, ses rapports cessent et le

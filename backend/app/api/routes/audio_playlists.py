@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.database import get_db
 from app.models import AudioPlaylist, AudioPlaylistItem, AudioTrack, Background
 from app.utils.activity_log import log_activity
-from app.utils.importer import is_image_background
+from app.utils.importer.formats import is_image_background
 
 logger = logging.getLogger(__name__)
 

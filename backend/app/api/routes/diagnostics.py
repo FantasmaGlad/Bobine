@@ -321,7 +321,8 @@ def _probe_imports(report: _Report) -> None:
 
 
 def _probe_updates(report: _Report) -> None:
-    from app.utils import tor_proxy, update_orchestrator
+    from app.utils import tor_proxy
+    from app.updates import orchestrator as update_orchestrator
 
     status = update_orchestrator.get_status()
     if status.get("step") == "failed":

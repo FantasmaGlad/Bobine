@@ -17,8 +17,8 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_background_thumbnails"
 from app.config import settings
 from app.database import init_db, SessionLocal
 from app.models import Background, ImportSource
-from app.utils.importer import import_background
-from app.playback_manager import PlaybackManager
+from app.utils.importer.background import import_background
+from app.playback.manager import PlaybackManager
 
 
 class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):

@@ -431,7 +431,7 @@ def _migrate_backfill_video_metadata():
         return
     try:
         from app.models import Video
-        from app.utils.video_utils import extract_metadata
+        from app.utils.video_utils.probe import extract_metadata
 
         with SessionLocal() as db:
             # `pix_fmt` : vidéos importées sans format de pixels enregistré (format de pixels

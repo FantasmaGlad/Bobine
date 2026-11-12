@@ -7,7 +7,8 @@ from fastapi import Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.playback_manager import CHANNELS, DEFAULT_CHANNEL, get_playback_manager
+from app.api.contract import CHANNELS, DEFAULT_CHANNEL
+from app.playback.manager import get_playback_manager
 from app.radio_manager import (
     get_all_radio_managers,
     is_radio_channel,

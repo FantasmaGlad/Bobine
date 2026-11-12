@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Setting
-from app.playback_manager import get_playback_manager
+from app.playback.manager import get_playback_manager
 from app.radio_manager import get_radio_manager
 from app.scheduling.radio import activate_radio_output
 from app.utils.activity_log import log_activity

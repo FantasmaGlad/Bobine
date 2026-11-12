@@ -14,7 +14,9 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app import config_apply, config_files  # noqa: E402
+from app import config_files  # noqa: E402
+from app.config_apply.context import ConfigErrors  # noqa: E402
+from app.config_apply.runner import apply as apply_configuration  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Playlist, RadioAnnouncement, Schedule, Setting  # noqa: E402
@@ -47,7 +49,7 @@ def _export():
 
 def _apply(files, dry_run=False, include_machine=False):
     with SessionLocal() as db:
-        return asyncio.run(config_apply.apply(db, files, dry_run=dry_run, include_machine=include_machine))
+        return asyncio.run(apply_configuration(db, files, dry_run=dry_run, include_machine=include_machine))
 
 
 def test_round_trip_has_no_difference(single_names):
@@ -89,7 +91,7 @@ def test_all_or_nothing_with_every_error_listed(single_names):
     files["settings.json"]["settings"]["theme"] = "pas-un-theme"
     files["library/announcements.json"]["announcements"] = [{"description": "Inconnue", "enabled": False}]
     files["schedule/cable.json"]["schedules"][0]["recurrence"]["time"] = "25:00"
-    with pytest.raises(config_apply.ConfigErrors) as refused:
+    with pytest.raises(ConfigErrors) as refused:
         _apply(files)
     joined = " | ".join(refused.value.errors)
     for expected in ("settings.json", "library/announcements.json", "schedule/cable.json"):
@@ -103,7 +105,7 @@ def test_ambiguous_names_are_refused(library):  # noqa: F811
     for entry in legacy["schedules"]:
         entry.pop("uid", None)
         entry["target"].pop("uid", None)  # document de la 5.1 : seul le nom désigne la playlist
-    with pytest.raises(config_apply.ConfigErrors) as refused:
+    with pytest.raises(ConfigErrors) as refused:
         _apply({"schedule/cable.json": legacy})
     assert "plusieurs playlists « Lundi soir »" in " ".join(refused.value.errors)
 

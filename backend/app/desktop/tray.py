@@ -643,7 +643,7 @@ def _update_status_poll_loop(icon: "pystray.Icon") -> None:
     """Suit la progression d'une mise à jour déjà en cours (déclenchée
     manuellement depuis Réglages, OU automatiquement par la planification
     quotidienne — les deux origines alimentent le même `/api/updates/status`,
-    cf. `update_orchestrator.run_update_pipeline`) et affiche une
+    cf. `updates.orchestrator.run_update_pipeline`) et affiche une
     notification native à la fin, réussie ou non. Sans ce suivi, une mise à
     jour planifiée à 3h du matin n'avait AUCUN moyen de se signaler à un
     utilisateur qui n'a pas de navigateur ouvert sur Réglages à ce moment-là."""

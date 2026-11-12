@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db, SessionLocal
-from app.playback_manager import get_all_playback_managers
+from app.playback.manager import get_all_playback_managers
 from app.radio_manager import get_all_radio_managers
 from app.api.routes import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,
@@ -33,12 +33,12 @@ from app import config_files
 from app.api.routes import config_files as config_files_router
 from app.utils import media_native, port80, tor_proxy
 from app.utils.media_sidecar import close_current_media_client
-from app.utils.update_orchestrator import load_persisted_state_at_startup
+from app.updates.orchestrator import load_persisted_state_at_startup
 from app.utils.version import get_app_version
 from app.scheduling.jobs import start_scheduler, stop_scheduler
 from app.scheduling.radio import autostart_default_radio_playlist
 from app.scheduling.resume import cancel_pending_resume, resume_running_schedules
-from app.utils.importer import reconcile_orphaned_media
+from app.utils.importer.reconcile import reconcile_orphaned_media
 from app.utils.mdns import start_mdns_responder, stop_mdns_responder
 from app.utils.radio_announcement_scheduler import (
     start_radio_announcement_scheduler,

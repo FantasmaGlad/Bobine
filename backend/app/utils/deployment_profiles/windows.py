@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Callable
 
 from app.utils.deployment import ProfileHandler, UpdateUnsupported
-from app.utils.update_orchestrator import download_with_progress, status_file_path
+from app.updates.orchestrator import download_with_progress, status_file_path
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,10 @@ except ImportError:  # watchdog n'a aucune distribution Android (profil Android
 
 from app.config import settings
 from app.models import ImportSource
-from app.utils.importer import import_video, import_background, wait_for_file_to_copy, SUPPORTED_EXTENSIONS, BACKGROUND_SUPPORTED_EXTENSIONS
+from app.utils.importer.video import import_video
+from app.utils.importer.background import import_background
+from app.utils.importer.staging import wait_for_file_to_copy
+from app.utils.importer.formats import SUPPORTED_EXTENSIONS, BACKGROUND_SUPPORTED_EXTENSIONS
 from app.utils.audio_importer import import_audio_course_from_watched_folder, wait_for_folder_to_stabilize
 from app.utils.radio_importer import import_radio_track_from_watched_file
 from app.utils.radio_utils import AUDIO_EXTENSIONS as RADIO_AUDIO_EXTENSIONS

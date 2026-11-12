@@ -13,7 +13,9 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
 import pytest  # noqa: E402
 
-from app import config_apply, config_files  # noqa: E402
+from app import config_files  # noqa: E402
+from app.config_apply.context import ConfigErrors  # noqa: E402
+from app.config_apply.runner import apply as apply_configuration  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 from app.models import (  # noqa: E402
     AudioCourse, Playlist, RadioAnnouncement, RadioAnnouncementRule, RadioPlaylist, RadioTag, RadioTrack, Schedule,
@@ -24,7 +26,7 @@ from test_config_files import library  # noqa: E402,F401
 
 
 def _expect_errors(files, *needles):
-    with pytest.raises(config_apply.ConfigErrors) as refused:
+    with pytest.raises(ConfigErrors) as refused:
         _apply(files)
     text = " ".join(refused.value.errors)
     for needle in needles:

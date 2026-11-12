@@ -114,7 +114,7 @@ def _git_head_short() -> str | None:
 def get_build_fingerprint() -> str:
     """Empreinte `version|commit` du code actuellement en cours d'exécution.
 
-    Comparée avant/après une mise à jour par `update_orchestrator` pour
+    Comparée avant/après une mise à jour par `updates/orchestrator.py` pour
     déterminer si un redémarrage a réellement installé quelque chose : un
     service qui se relance en plein pipeline (cas NORMAL de toute mise à
     jour qui redémarre son propre processus) ne peut pas écrire lui-même

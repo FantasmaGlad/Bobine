@@ -36,19 +36,18 @@ from app.utils.subtitles import (
     normalize_language_code,
     normalize_language_label,
 )
-from app.utils.importer import import_video, SUPPORTED_EXTENSIONS
+from app.utils.importer.video import import_video
+from app.utils.importer.formats import SUPPORTED_EXTENSIONS
 from app.utils.archive_import import import_media_archive
 from app.utils.executors import ffmpeg_executor
 from app.utils.staged_uploads import receive_single_upload
 from app.utils.web_rendition import remove_web_file, request_web_rendition
 from app.utils.import_jobs import create_job, update_job, register_job_future, JobCancelledError
 from app.utils.ws_manager import manager as ws_manager
-from app.utils.video_utils import (
-    extract_metadata,
-    check_compatibility,
-    normalize_video,
-    generate_thumbnail,
-)
+from app.utils.video_utils.probe import extract_metadata
+from app.utils.video_utils.compatibility import check_compatibility
+from app.utils.video_utils.normalize import normalize_video
+from app.utils.video_utils.thumbnails import generate_thumbnail
 
 logger = logging.getLogger(__name__)
 
@@ -487,7 +486,7 @@ def _write_manual_thumbnail(source) -> Path:
 async def upload_video_thumbnail(video_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
     Miniature manuelle. Permet à un admin
-    de fournir lui-même une image, exactement comme _import_background_image()
+    de fournir lui-même une image, exactement comme import_background_image()
     le fait déjà pour un fond fixe : aucun décodage vidéo requis, seulement
     Pillow, donc disponible sur toutes les plateformes sans exception.
     """

@@ -12,7 +12,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
 
-from app.utils import video_utils  # noqa: E402
+from app.utils.video_utils import encoders  # noqa: E402
 
 pytestmark = pytest.mark.skipif(os.name == "nt", reason="nice POSIX")
 
@@ -27,7 +27,7 @@ def _nice_of(pid: int) -> int:
 ])
 def test_shares_machine_profiles(monkeypatch, profile, expected_lower):
     monkeypatch.setattr("app.utils.deployment.get_deployment_profile", lambda: profile)
-    assert video_utils._shares_machine_with_browser() is expected_lower
+    assert encoders.shares_machine_with_browser() is expected_lower
 
 
 def test_desktop_profile_lowers_the_child_priority(monkeypatch):
@@ -35,7 +35,7 @@ def test_desktop_profile_lowers_the_child_priority(monkeypatch):
     child = subprocess.Popen(["sleep", "5"])
     try:
         before = _nice_of(child.pid)
-        video_utils._lower_process_priority(child.pid)
+        encoders.lower_process_priority(child.pid)
         assert _nice_of(child.pid) == max(before, 10)
     finally:
         child.kill()
@@ -46,7 +46,7 @@ def test_headless_appliance_keeps_full_priority(monkeypatch):
     child = subprocess.Popen(["sleep", "5"])
     try:
         before = _nice_of(child.pid)
-        video_utils._lower_process_priority(child.pid)
+        encoders.lower_process_priority(child.pid)
         assert _nice_of(child.pid) == before
     finally:
         child.kill()
@@ -54,4 +54,4 @@ def test_headless_appliance_keeps_full_priority(monkeypatch):
 
 def test_invalid_pid_never_raises(monkeypatch):
     monkeypatch.setattr("app.utils.deployment.get_deployment_profile", lambda: "linux-desktop")
-    video_utils._lower_process_priority(2**22 + 12345)
+    encoders.lower_process_priority(2**22 + 12345)

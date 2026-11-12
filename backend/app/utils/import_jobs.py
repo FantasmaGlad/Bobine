@@ -28,7 +28,7 @@ class JobCancelledError(Exception):
 
 
 # Le réencodage le plus long observé en production a dépassé 15 min (cf.
-# FFMPEG_NORMALIZE_TIMEOUT_SECONDS = 1800 dans video_utils.py) : la tâche doit
+# FFMPEG_NORMALIZE_TIMEOUT_SECONDS = 1800 dans video_utils/limits.py) : la tâche doit
 # rester visible largement au-delà, sans quoi elle "disparaîtrait" de la
 # file en cours de traitement.
 ACTIVE_TTL_SECONDS = 3600

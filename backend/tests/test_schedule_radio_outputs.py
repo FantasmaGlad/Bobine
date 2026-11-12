@@ -151,7 +151,7 @@ def test_lancement_radio_reseau_demarre_et_radio_cable_ramene_l_ecran_cable_sur_
 
 
 def test_la_bascule_planifiee_coupe_la_video_du_cable(client):
-    from app.playback_manager import get_playback_manager
+    from app.playback.manager import get_playback_manager
 
     pid = _playlist()
     manager = get_playback_manager("cable")
@@ -166,7 +166,7 @@ def test_la_bascule_planifiee_coupe_la_video_du_cable(client):
 
 
 def test_le_mode_coach_garde_la_priorite_sur_une_programmation_radio_cable(client):
-    from app.playback_manager import get_playback_manager
+    from app.playback.manager import get_playback_manager
 
     pid = _playlist()
     manager = get_playback_manager("cable")
