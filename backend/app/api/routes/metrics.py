@@ -206,8 +206,8 @@ def get_metrics_dashboard(
             h = local_dt.hour
             if 0 <= h < 24:
                 hourly_distribution[h]["count"] += 1
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_metrics_dashboard : %s", exc)
 
     video_sessions_map: dict[int, list[PlaybackSession]] = {}
     for s in sessions:

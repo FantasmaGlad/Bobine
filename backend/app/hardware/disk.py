@@ -1,4 +1,5 @@
 """Stockage principal : modèle et occupation du dossier des médias."""
+import logging
 
 import glob
 import shutil
@@ -8,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from .probe import _HARDWARE_CACHE, _get_android_prop, is_android_system, shutil_which
+
+logger = logging.getLogger(__name__)
 
 
 def get_storage_model() -> str:
@@ -42,8 +45,8 @@ def get_storage_model() -> str:
                     if val:
                         model = val
                         break
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_storage_model : %s", exc)
 
         if not model and shutil_which("lsblk"):
             try:
@@ -53,8 +56,8 @@ def get_storage_model() -> str:
                     if line:
                         model = line
                         break
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_storage_model : %s", exc)
 
     if not model and sys.platform == "darwin":
         try:
@@ -63,8 +66,8 @@ def get_storage_model() -> str:
                 if "Device / Media Name:" in line:
                     model = line.split(":", 1)[1].strip()
                     break
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_storage_model : %s", exc)
 
     if not model and sys.platform == "win32":
         try:
@@ -78,8 +81,8 @@ def get_storage_model() -> str:
                 if sline:
                     model = sline
                     break
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_storage_model : %s", exc)
 
     if not model:
         model = "Stockage Système"

@@ -1,3 +1,4 @@
+import logging
 import enum
 from datetime import datetime, timezone
 from pathlib import Path
@@ -5,9 +6,12 @@ from pathlib import Path
 from sqlalchemy import Column, ForeignKey, Integer, String, Table, Text, event
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
+from app.utils.media_formats import IMAGE as IMAGE_EXTENSIONS
+
 
 from app.storage.availability import media_available  # noqa: E402  (registre en mémoire, sans dépendance)
+
+logger = logging.getLogger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -269,7 +273,7 @@ class AudioTrack(UidMixin, Base):
     def background_is_image(self) -> bool:
         if not self.background or not self.background.file_path:
             return False
-        return Path(self.background.file_path).suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
+        return Path(self.background.file_path).suffix.lower() in IMAGE_EXTENSIONS
 
 
 class Playlist(UidMixin, Base):
@@ -605,8 +609,8 @@ class SystemMetricsHistory(Base):
                     val = payload.get(name) or payload.get(target_attr)
                     if val is not None:
                         return float(val)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_metric : %s", exc)
         return None
 
 

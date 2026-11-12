@@ -1,4 +1,5 @@
 """Consommation électrique instantanée et énergie cumulée depuis le démarrage."""
+import logging
 
 import glob
 import os
@@ -11,6 +12,8 @@ import psutil
 
 from .cpu import get_cpu_percent
 from .probe import _SERVICE_START_TIME, is_android_system
+
+logger = logging.getLogger(__name__)
 
 _LAST_RAPL_CHECK = 0.0
 _LAST_RAPL_ENERGY_UJ = 0
@@ -64,8 +67,8 @@ def _linux_hwmon_power() -> float | None:
             try:
                 with open(name_file, "r", encoding="utf-8") as f:
                     name = f.read().strip().lower()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_linux_hwmon_power : %s", exc)
         if "bat" in name or "battery" in name:
             continue
 
@@ -75,8 +78,8 @@ def _linux_hwmon_power() -> float | None:
                     val = int(f.read().strip())
                     if 500_000 <= val <= 500_000_000:
                         return round(val / 1_000_000.0, 1)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_linux_hwmon_power : %s", exc)
     return None
 
 
@@ -99,8 +102,8 @@ def _linux_rapl_power() -> float | None:
             _LAST_RAPL_CHECK = now
             _LAST_RAPL_ENERGY_UJ = current_energy
             break
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("_linux_rapl_power : %s", exc)
     return None
 
 
@@ -114,8 +117,8 @@ def _linux_on_ac() -> bool:
                 o = open(online_file, "r").read().strip()
                 if t in ("mains", "ac", "usb") and o == "1":
                     return True
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_linux_on_ac : %s", exc)
     return False
 
 
@@ -128,16 +131,16 @@ def _battery_watts(bat_dir: str) -> float | None:
             val = int(open(power_file, "r").read().strip())
             if val > 0:
                 return val / 1_000_000.0
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("_battery_watts : %s", exc)
     elif os.path.exists(curr_file) and os.path.exists(volt_file):
         try:
             c = int(open(curr_file, "r").read().strip())
             v = int(open(volt_file, "r").read().strip())
             if c > 0 and v > 0:
                 return (c * v) / 1_000_000_000_000.0
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("_battery_watts : %s", exc)
     return None
 
 
@@ -149,16 +152,16 @@ def _linux_battery_power() -> float | None:
             try:
                 if open(type_file, "r").read().strip().lower() != "battery":
                     continue
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_linux_battery_power : %s", exc)
 
         status_file = os.path.join(bat_dir, "status")
         status = ""
         if os.path.exists(status_file):
             try:
                 status = open(status_file, "r").read().strip().lower()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_linux_battery_power : %s", exc)
 
         bat_watts = _battery_watts(bat_dir)
 
@@ -213,8 +216,8 @@ def _estimated_power() -> float | None:
     bat = None
     try:
         bat = psutil.sensors_battery()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("_estimated_power : %s", exc)
 
     if bat is not None:
         if not bat.power_plugged:

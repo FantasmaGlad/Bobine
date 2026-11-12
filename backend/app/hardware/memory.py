@@ -1,10 +1,13 @@
 """Mémoire vive : marque, type, fréquence."""
+import logging
 
 import subprocess
 import sys
 from typing import Any
 
 from .probe import _HARDWARE_CACHE, _get_android_prop, is_android_system, shutil_which
+
+logger = logging.getLogger(__name__)
 
 
 def get_ram_info() -> dict[str, Any]:
@@ -58,8 +61,8 @@ def get_ram_info() -> dict[str, Any]:
                         val = line.split("=", 1)[1].strip()
                         if val.isdigit() and int(val) > 0:
                             freq = f"{val} MHz"
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_ram_info : %s", exc)
 
     if (not brand or not ram_type or not freq) and shutil_which("dmidecode"):
         for cmd in (["dmidecode", "-t", "17"], ["sudo", "-n", "dmidecode", "-t", "17"]):
@@ -81,8 +84,8 @@ def get_ram_info() -> dict[str, Any]:
                             freq = val.replace("MT/s", "MHz").strip()
                 if brand and ram_type and freq:
                     break
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_ram_info : %s", exc)
 
     if sys.platform == "win32" and (not brand or not ram_type or not freq):
         try:
@@ -106,8 +109,8 @@ def get_ram_info() -> dict[str, Any]:
                     smbios_map = {24: "DDR3", 26: "DDR4", 30: "LPDDR4", 34: "DDR5", 35: "LPDDR5"}
                     if code in smbios_map:
                         ram_type = smbios_map[code]
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_ram_info : %s", exc)
 
     if sys.platform == "darwin" and (not brand or not ram_type or not freq):
         try:
@@ -122,8 +125,8 @@ def get_ram_info() -> dict[str, Any]:
                     brand = sline.split(":", 1)[1].strip()
             if not brand:
                 brand = "Apple"
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_ram_info : %s", exc)
 
     parts = []
     if brand:

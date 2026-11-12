@@ -1,6 +1,7 @@
 """Interface commune des pilotes de stockage externe."""
-
 from __future__ import annotations
+
+import logging
 
 from abc import ABC, abstractmethod
 from typing import Any, Callable
@@ -9,6 +10,8 @@ from app.devices.base import DeviceError
 from app.storage.health import unavailable
 from app.storage.formatting.model import DiskInfo, FormatSpec
 from app.storage.types import Inventory, Volume
+
+logger = logging.getLogger(__name__)
 
 ChangeCallback = Callable[[str], None]
 
@@ -40,8 +43,8 @@ class StorageDriver(ABC):
         if self._on_change is not None:
             try:
                 self._on_change(scope)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_emit : %s", exc)
 
     async def start(self) -> None:  # pragma: no cover - crochet optionnel
         """Démarre les ressources longues (abonnement D-Bus...)."""

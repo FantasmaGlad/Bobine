@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from app.api.contract import CHANNELS
+from app.api.contract import CHANNELS, SCHEDULE_CHANNELS
 import logging
 import os
 import tempfile
@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 SCHEMA = 2
 ACCEPTED_SCHEMAS = (1, 2)
-SCHEDULE_CHANNELS = ("cable", "network", "radio_cable", "radio_network")
 
 
 def schedule_path(channel: str) -> str:

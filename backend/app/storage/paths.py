@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Iterator
 from app.utils import media_formats
 
 MAX_REL_LENGTH = 4096
@@ -257,15 +256,6 @@ def walk_media(root: str, rels: list[str], kinds: set[str]) -> WalkResult:
         elif os.path.isfile(absolute):
             add(absolute)
     return result
-
-
-def iter_chunks(path: str, chunk: int = 4 * 1024 * 1024) -> Iterator[bytes]:
-    with open(path, "rb") as handle:
-        while True:
-            data = handle.read(chunk)
-            if not data:
-                return
-            yield data
 
 
 def safe_dest_name(name: str) -> str:

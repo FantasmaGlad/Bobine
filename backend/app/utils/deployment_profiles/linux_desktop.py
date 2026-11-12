@@ -43,8 +43,8 @@ def detect_linux_package_format() -> str:
                 )
                 if res.returncode == 0:
                     return ext
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("detect_linux_package_format : %s", exc)
 
     if Path("/etc/arch-release").exists():
         return ".pkg.tar.zst"

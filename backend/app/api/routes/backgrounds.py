@@ -16,7 +16,7 @@ from app.utils.archive_import import import_media_archive
 from app.utils import media_formats
 from app.utils.staged_uploads import receive_single_upload
 from app.utils.import_jobs import create_job, update_job, register_job_future, JobCancelledError
-from app.utils._pydantic_compat import computed_field, _ComputedFieldsCompatMixin
+from app.utils._pydantic_compat import OrmModel, _ComputedFieldsCompatMixin, computed_field
 
 logger = logging.getLogger(__name__)
 
@@ -27,16 +27,12 @@ class BackgroundUpdate(BaseModel):
     title: str | None = None
 
 
-class BackgroundResponse(_ComputedFieldsCompatMixin, BaseModel):
+class BackgroundResponse(_ComputedFieldsCompatMixin, OrmModel):
     id: int
     file_path: str
     title: str
     duration_seconds: float | None
     thumbnail_path: str | None
-
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
     @computed_field
     @property
@@ -73,8 +69,8 @@ def _run_background_import_job(job_id: str, temp_path: str, filename: str, title
         if os.path.exists(temp_path):
             try:
                 os.remove(temp_path)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_run_background_import_job : %s", exc)
 
 
 @router.post("/upload", response_model=ImportJobAccepted, status_code=202)

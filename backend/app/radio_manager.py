@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 BroadcastFn = Callable[[dict], Awaitable[None]]
 
-from app.api.contract import RADIO_CHANNELS  # noqa: E402  (valeurs partagées avec l'API et la CLI)
-LEGACY_RADIO_CHANNEL = "radio"
+from app.api.contract import LEGACY_RADIO_CHANNEL, RADIO_CHANNELS  # noqa: E402
 DEFAULT_RADIO_CHANNEL = "radio_network"
 
 

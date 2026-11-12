@@ -82,11 +82,6 @@ def make_key(fs_uuid: str | None, serial: str | None, model: str | None, partn: 
     return "d-" + hashlib.sha1(raw.encode()).hexdigest()[:12]
 
 
-def has_stable_identity(volume: Volume) -> bool:
-    """Seul un volume portant un UUID de système de fichiers peut devenir une bibliothèque."""
-    return bool(volume.fs_uuid)
-
-
 def volume_public(volume: Volume) -> dict[str, Any]:
     """Représentation publique : jamais de chemin de périphérique (`/dev/...`) ni de série."""
     return {

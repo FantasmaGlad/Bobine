@@ -8,7 +8,7 @@ from typing import Any, BinaryIO, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel
+from app.utils._pydantic_compat import OrmModel
 from sqlalchemy.orm import Session
 
 from app.api.contract import LOG_LEVELS
@@ -21,15 +21,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/logs", tags=["logs"])
 
 
-class ActivityLogResponse(BaseModel):
+class ActivityLogResponse(OrmModel):
     id: int
     timestamp: datetime
     event_type: str
     detail: str | None
-
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
 
 LEVELS = LOG_LEVELS

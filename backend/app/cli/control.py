@@ -75,6 +75,9 @@ def cmd_playback(client: Client, out: Output, args: argparse.Namespace) -> int:
 def cmd_update(client: Client, out: Output, args: argparse.Namespace) -> int:
     if args.update_action == "check":
         info = client.request("GET", "/api/updates/check", query={"refresh": 1})
+        if info.get("online") is False:
+            out.result(info, f"Vérification impossible : {info.get('message') or info.get('error_code')}")
+            return EXIT_ERROR
         human = (f"Mise à jour disponible : {info.get('latest_version')}" if info.get("has_update")
                  else f"À jour ({info.get('current_version')})")
         out.result(info, human)

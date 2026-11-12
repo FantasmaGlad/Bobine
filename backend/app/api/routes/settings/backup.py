@@ -202,30 +202,27 @@ async def _restore_database_file(db_tmp: Path, db_path: Path, config_bytes: byte
         logger.warning("Restauration non inscrite au journal d'activité : %s", e)
 
     try:
-        release_sqlite_files(db_path)
-        if db_path.exists():
-            bak_path = db_path.with_suffix(".db.bak")
-            shutil.copy2(db_path, bak_path)
-
-        shutil.copyfile(db_tmp, db_path)
-
-        if config_bytes:
-            cfg_path = _global_config_path()
-            try:
-                if cfg_path.parent.exists() and os.access(cfg_path.parent, os.W_OK):
-                    with open(cfg_path, "wb") as f:
-                        f.write(config_bytes)
-            except Exception as e:
-                logger.warning(f"Impossible d'écrire config.toml restauré : {e}")
-
-        init_db()
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Erreur critique lors du remplacement de la base de données : {e}")
-        raise HTTPException(status_code=500, detail=f"Erreur lors du remplacement de la base : {e}")
+        await run_in_threadpool(_replace_database, db_tmp, db_path, config_bytes)
+    except Exception:
+        logger.exception("Remplacement de la base impossible")
+        raise HTTPException(status_code=500, detail="Erreur lors du remplacement de la base : voir le journal technique.")
 
     background_tasks.add_task(_run_restore_restart)
+
+
+def _replace_database(db_tmp: Path, db_path: Path, config_bytes: bytes | None) -> None:
+    release_sqlite_files(db_path)
+    if db_path.exists():
+        shutil.copy2(db_path, db_path.with_suffix(".db.bak"))
+    shutil.copyfile(db_tmp, db_path)
+    if config_bytes:
+        cfg_path = _global_config_path()
+        try:
+            if cfg_path.parent.exists() and os.access(cfg_path.parent, os.W_OK):
+                cfg_path.write_bytes(config_bytes)
+        except OSError as e:
+            logger.warning(f"Impossible d'écrire config.toml restauré : {e}")
+    init_db()
 
 
 class ResetDataRequest(BaseModel):
@@ -245,23 +242,7 @@ def _clean_dir_contents(dir_path: Path) -> None:
             logger.warning(f"Impossible de supprimer {item} lors du reset des données : {e}")
 
 
-async def _run_reset_data_restart():
-    await asyncio.sleep(1.0)
-    try:
-        await ws_manager.broadcast_force_reload()
-    except Exception as e:
-        logger.warning(f"Échec force_reload après reset-data : {e}")
-    await asyncio.sleep(1.0)
-    get_profile_handler().restart_services()
-
-
-@router.post("/system/reset-data")
-async def reset_data_system(payload: ResetDataRequest, background_tasks: BackgroundTasks) -> dict[str, str]:
-    """Remise à zéro d'usine des données (DATA_ROOT) : - Purge tous les fichiers des dossiers de médias (vidéos, audio, radio, vignettes, fonds, logos, logs)."""
-    phrase = payload.confirm.strip().upper().replace("É", "E")
-    if phrase != "REINITIALISER":
-        raise HTTPException(status_code=400, detail="Phrase de confirmation incorrecte. Saisissez REINITIALISER.")
-
+def _wipe_data() -> None:
     dirs_to_clean = [
         runtime_settings.media_dir,
         runtime_settings.watch_dir,
@@ -278,24 +259,39 @@ async def reset_data_system(payload: ResetDataRequest, background_tasks: Backgro
         runtime_settings.logs_dir,
     ]
     for d in dirs_to_clean:
-        try:
-            _clean_dir_contents(Path(d))
-        except Exception as e:
-            logger.warning(f"Erreur lors du nettoyage du dossier {d} : {e}")
-
+        _clean_dir_contents(Path(d))
     if _IS_SQLITE:
         db_path = _get_sqlite_db_path()
-        try:
-            if db_path:
-                release_sqlite_files(db_path)
-                db_path.unlink(missing_ok=True)
-            else:
-                engine.dispose()
+        if db_path:
+            release_sqlite_files(db_path)
+            db_path.unlink(missing_ok=True)
+        else:
+            engine.dispose()
+        init_db()
 
-            init_db()
-        except Exception as e:
-            logger.error(f"Erreur lors de la remise à zéro de la base de données : {e}")
-            raise HTTPException(status_code=500, detail=f"Erreur lors du reset DB : {e}")
+
+async def _run_reset_data_restart():
+    await asyncio.sleep(1.0)
+    try:
+        await ws_manager.broadcast_force_reload()
+    except Exception as e:
+        logger.warning(f"Échec force_reload après reset-data : {e}")
+    await asyncio.sleep(1.0)
+    get_profile_handler().restart_services()
+
+
+@router.post("/system/reset-data")
+async def reset_data_system(payload: ResetDataRequest, background_tasks: BackgroundTasks) -> dict[str, str]:
+    """Remise à zéro d'usine : médias, journaux et base de données."""
+    phrase = payload.confirm.strip().upper().replace("É", "E")
+    if phrase != "REINITIALISER":
+        raise HTTPException(status_code=400, detail="Phrase de confirmation incorrecte. Saisissez REINITIALISER.")
+
+    try:
+        await run_in_threadpool(_wipe_data)
+    except Exception:
+        logger.exception("Remise à zéro de la base impossible")
+        raise HTTPException(status_code=500, detail="Erreur lors de la remise à zéro de la base : voir le journal technique.")
 
     background_tasks.add_task(_run_reset_data_restart)
     return {

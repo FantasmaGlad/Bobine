@@ -30,6 +30,8 @@ from app.desktop.displays import (
 
 from app.utils.port import DEFAULT_PORT, read_runtime
 
+from app.desktop.chromium import OFFLINE_FLAGS
+
 logger = logging.getLogger(__name__)
 
 
@@ -177,8 +179,8 @@ def _set_display_always_on(enabled: bool) -> None:
                     subprocess.run(["xset", "s", "off", "-dpms"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 else:
                     subprocess.run(["xset", "s", "default", "+dpms"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_set_display_always_on : %s", exc)
 
 
 def _caffeinate_after_launch(process_name: str, timeout_seconds: float = 5.0) -> None:
@@ -198,7 +200,7 @@ def launch_kiosk_browser(url: str | None = None) -> None:
     """Lance le navigateur en mode kiosque optionnel."""
     target_url = url or _kiosk_url()
     system = platform.system()
-    kiosk_args = ["--kiosk", "--autoplay-policy=no-user-gesture-required", target_url]
+    kiosk_args = ["--kiosk", "--autoplay-policy=no-user-gesture-required", *OFFLINE_FLAGS, target_url]
 
     if system == "Windows":
         edge = shutil.which("msedge")
@@ -372,8 +374,8 @@ def _ensure_desktop_shortcut() -> None:
                         try:
                             os.symlink(str(app_path), str(dest))
                             logger.info(f"Raccourci Bureau macOS créé : {dest} -> {app_path}")
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.debug("_ensure_desktop_shortcut : %s", exc)
     except Exception as e:
         logger.debug(f"Vérification du raccourci Bureau ignorée : {e!r}")
 

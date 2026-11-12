@@ -9,7 +9,7 @@ Le kiosque de référence de Bobine reste **Chromium** (appliance headless, voir
   (sans cela Firefox bloque l'audio tant qu'aucun geste n'a eu lieu — il n'y a ni
   souris ni doigt sur un écran câblé) ; tous les autres sites restent en
   « bloquer l'audio » ;
-- désactive télémétrie, études, pages de bienvenue et recommandations.
+- désactive télémétrie, études, pages de bienvenue, recommandations, détection de portail captif et préchargement réseau : aucune requête vers un service tiers.
 
 ## Installation
 
