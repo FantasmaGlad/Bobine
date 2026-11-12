@@ -8,17 +8,13 @@ export type Notify = (message: string, type?: "success" | "error" | "warning") =
 export interface SectionProps {
   caps: Capabilities;
   local: boolean;
-  /** Incrémenté à chaque évènement `devices_changed` : déclenche une relecture. */
   refreshKey: number;
-  /** Raccourci depuis la carte : élément à mettre en évidence (adresse Bluetooth, SSID, identifiant de sortie). */
   focusId?: string | null;
-  /** Change à chaque raccourci (même élément, nouveau clic). */
   focusNonce?: number;
   notify: Notify;
   t: (key: string, params?: Record<string, string | number>) => string;
 }
 
-/** Message lisible pour une erreur d'API : traduction du code si elle existe, sinon le message du serveur. */
 export function errorText(error: ApiError, t: SectionProps["t"]): string {
   const key = `devices.errors.${error.code}`;
   const translated = t(key);
@@ -26,7 +22,6 @@ export function errorText(error: ApiError, t: SectionProps["t"]): string {
   return error.message || t("devices.errors.generic");
 }
 
-/** Charge une ressource `/api/devices/<path>` ; relue sur `refreshKey` et à la demande (`reload`). */
 export function useDevicesResource<T>(path: string, refreshKey: number) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
@@ -57,14 +52,12 @@ export function useDevicesResource<T>(path: string, refreshKey: number) {
   return { data, error, loading, reload };
 }
 
-/** Ouvre un réglage du système sur la machine (Android : Wi-Fi, Bluetooth, son). */
 export async function openSystemSettings(target: "wifi" | "bluetooth" | "sound", notify: Notify, t: SectionProps["t"]) {
   const result = await devicesRequest<{ ok: boolean }>("/system-settings", { body: { target } });
   if (result.ok) notify(t("devices.settingsOpened"), "success");
   else notify(errorText(result.error, t), "error");
 }
 
-/** Met en évidence (défilement + halo bref) l'élément `[data-focus-id]` visé par un raccourci de la carte. */
 export function useFocusFlash(focusId: string | null | undefined, nonce: number | undefined, ready: boolean) {
   useEffect(() => {
     if (!focusId || !ready) return;

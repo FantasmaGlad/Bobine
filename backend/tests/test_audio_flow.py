@@ -58,8 +58,6 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
                 shutil.rmtree(p)
 
     def setUp(self):
-        # Certains tests remplacent les gestionnaires de lecture globaux (diffusion factice) : ceux de l'application
-        # sont remis ensuite, sinon les tests WebSocket suivants ne reçoivent plus aucun état.
         from app.playback import manager as playback_manager_module
 
         saved_managers = dict(playback_manager_module._managers)
@@ -122,7 +120,7 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
 
         course = import_audio_course_from_zip(zip_path, "RPM 111")
         self.assertEqual(len(course.tracks), 2)
-        self.assertFalse(Path(zip_path).exists())  # nettoyé après extraction
+        self.assertFalse(Path(zip_path).exists())
 
     def test_04_import_from_watched_folder_uses_dirname_as_title(self):
         course_dir = Path(settings.audio_watch_dir) / "Sprint 40"
@@ -133,7 +131,7 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         course = import_audio_course_from_watched_folder(str(course_dir))
         self.assertEqual(course.title, "Sprint 40")
         self.assertEqual(len(course.tracks), 2)
-        self.assertFalse(course_dir.exists())  # dossier source nettoyé après import
+        self.assertFalse(course_dir.exists())
 
     async def test_05_coach_mode_playback_manager_flow(self):
         broadcast_payloads = []
@@ -148,14 +146,11 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
             {"id": 3, "number": 3, "title": "Sprint", "duration_seconds": 350.0},
         ]
 
-        # Lancement en 2 taps : le choix du cours suffit à démarrer la lecture
         await manager.load_audio_course(1, "RPM 110", "RPM", None, tracks)
         self.assertEqual(manager.state["state"], "coach_mode")
-        # En pause par défaut à l'activation : au coach de cliquer sur play
         self.assertFalse(manager.state["audio_playing"])
         self.assertEqual(manager.state["audio_track_index"], 0)
 
-        # play/pause pilotent la piste audio en mode coach (même bouton que la vidéo)
         await manager.play()
         self.assertTrue(manager.state["audio_playing"])
         await manager.pause()
@@ -163,51 +158,41 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         await manager.play()
         self.assertTrue(manager.state["audio_playing"])
 
-        # Navigation suivant/précédent
         await manager.audio_next_track()
         self.assertEqual(manager.state["audio_track_index"], 1)
-        self.assertAlmostEqual(manager.state["audio_position_seconds"], 0.0, delta=0.5)  # horloge serveur : avance en temps réel
+        self.assertAlmostEqual(manager.state["audio_position_seconds"], 0.0, delta=0.5)
         await manager.audio_previous_track()
         self.assertEqual(manager.state["audio_track_index"], 0)
 
-        # Relancer la piste au début
         manager.state["audio_position_seconds"] = 120.0
         await manager.audio_restart_track()
-        self.assertAlmostEqual(manager.state["audio_position_seconds"], 0.0, delta=0.5)  # horloge serveur : avance en temps réel
+        self.assertAlmostEqual(manager.state["audio_position_seconds"], 0.0, delta=0.5)
         self.assertTrue(manager.state["audio_playing"])
 
-        # Saut direct à une piste (bottom sheet)
         await manager.audio_jump_to_track(2)
         self.assertEqual(manager.state["audio_track_index"], 2)
 
-        # Mode manuel : la piste s'arrête à sa fin, pas d'enchaînement automatique
         await manager.audio_set_chain_mode("manual")
         await manager.audio_track_ended()
         self.assertFalse(manager.state["audio_playing"])
-        self.assertEqual(manager.state["audio_track_index"], 2)  # reste sur la dernière piste
+        self.assertEqual(manager.state["audio_track_index"], 2)
 
-        # Mode auto : enchaînement immédiat
         await manager.audio_jump_to_track(0)
         await manager.audio_set_chain_mode("auto")
         await manager.audio_track_ended()
         self.assertEqual(manager.state["audio_track_index"], 1)
         self.assertTrue(manager.state["audio_playing"])
 
-        # Fin du cours en mode auto (dernière piste) : reste affiché, en pause
         await manager.audio_jump_to_track(2)
         await manager.audio_track_ended()
         self.assertFalse(manager.state["audio_playing"])
-        self.assertIsNotNone(manager.state["current_audio_course"])  # mode coach toujours actif
+        self.assertIsNotNone(manager.state["current_audio_course"])
 
-        # Une vidéo classique doit pouvoir prendre le relais sur le mode coach (action manuelle, pas une programmation)
         await manager.load(video_id=99, title="RPM 100", duration_seconds=2700.0)
         self.assertIsNone(manager.state["current_audio_course"])
-        # Bascule directe en lecture (plus de compte à rebours serveur, réf.
-        # refactor "retrait du minuteur autonome").
         self.assertEqual(manager.state["state"], "playing")
 
     async def test_06_priority_rule_f10_7_defers_schedule_during_coach_mode(self):
-        # Vidéo cible d'une programmation qui va se déclencher pendant le mode coach
         video = Video(
             file_path="data/test_audio_videos/rpm.mp4",
             title="RPM 100",
@@ -241,21 +226,17 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         await manager.load_audio_course(1, "RPM 110", "RPM", None, tracks)
         self.assertEqual(manager.state["state"], "coach_mode")
 
-        # Déclenchement direct de la programmation (simule l'heure H sans attendre APScheduler)
         await fire_schedule(schedule.id)
 
-        # Le mode coach ne doit PAS avoir été interrompu
         self.assertEqual(manager.state["state"], "coach_mode")
         self.assertEqual(manager.state["current_audio_course"]["id"], 1)
 
-        # La programmation doit être mémorisée comme "reportée", relançable depuis l'UI
         pending = self.db.query(PlaybackState).order_by(PlaybackState.id.desc()).first()
         self.assertIsNotNone(pending)
         self.assertEqual(pending.cause, "coach_priority")
         self.assertEqual(pending.target_type, "video")
         self.assertEqual(pending.target_id, video.id)
 
-        # La programmation ponctuelle passée doit tout de même se désactiver (comportement existant)
         self.db.refresh(schedule)
         self.assertFalse(schedule.active)
 
@@ -279,7 +260,6 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(t1.background_is_image)
         self.assertIsNone(t2.background_id)
 
-        # Vérification du comportement dynamique avec PlaybackManager
         from app.playback import manager as playback_manager_module
         async def mock_bc(data): pass
         playback_manager_module.init_playback_managers(mock_bc)
@@ -290,10 +270,8 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
             {"id": t2.id, "number": 2, "title": t2.title, "duration_seconds": t2.duration_seconds, "background_id": t2.background_id},
         ]
         await mgr.load_audio_course(course.id, course.title, course.program, None, tracks_payload)
-        # Track 1 démarre : current_background doit être le fond de la piste 1
         self.assertEqual(mgr.state["current_background"]["id"], bg.id)
 
-        # Passer à la piste 2 sans fond propre : current_background retombe sur None (fond du cours)
         await mgr.audio_next_track()
         self.assertIsNone(mgr.state["current_background"])
 

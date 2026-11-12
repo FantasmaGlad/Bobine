@@ -5,7 +5,6 @@ import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getApiUrl } from "@/lib/apiUrl";
 
-// Phrases à recopier pour armer les actions destructives (comparées sans casse ni accent).
 const UNINSTALL_PHRASE = "DÉSINSTALLER";
 const RESET_DATA_PHRASE = "RÉINITIALISER";
 const normalizePhrase = (s: string) => s.trim().toUpperCase().replace(/É/g, "E");
@@ -18,7 +17,6 @@ interface DangerSectionProps {
   showToast: (message: string, type?: ToastType) => void;
 }
 
-/** Zone de danger des Réglages : remise à zéro des données et désinstallation, chacune derrière une phrase à recopier. */
 export default function DangerSection({ hidden, deploymentProfile, showToast }: DangerSectionProps) {
   const { t } = useAppSettings();
   const [showUninstall, setShowUninstall] = useState(false);
@@ -90,7 +88,6 @@ export default function DangerSection({ hidden, deploymentProfile, showToast }: 
         </p>
 
         <div className="settings-danger-group">
-          {/* 1. Remise à zéro des données (universelle tous profils) */}
           <div className="settings-danger-card">
             <h4>
               <Icon name="cleaning_services" size={18} /> {t("settingsPage.resetDataTitle")}
@@ -107,7 +104,6 @@ export default function DangerSection({ hidden, deploymentProfile, showToast }: 
             </div>
           </div>
 
-          {/* 2. Désinstallation du logiciel (tous profils avec bouton automatique) */}
           <div className="settings-danger-card">
             <h4>
               <Icon name="delete_forever" size={18} /> {t("settingsPage.uninstallSectionTitle")}
@@ -151,7 +147,6 @@ export default function DangerSection({ hidden, deploymentProfile, showToast }: 
         </div>
       </section>
 
-      {/* ---- Modale : désinstallation (recopie de phrase obligatoire) ---- */}
       {showUninstall && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -188,7 +183,6 @@ export default function DangerSection({ hidden, deploymentProfile, showToast }: 
         </div>
       )}
 
-      {/* ---- Modale : remise à zéro d'usine des données (recopie de phrase obligatoire) ---- */}
       {showResetData && (
         <div className="modal-overlay">
           <div className="modal-content">

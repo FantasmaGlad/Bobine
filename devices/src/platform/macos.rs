@@ -1,10 +1,3 @@
-//! macOS : `system_profiler` (lecture), `networksetup` (Wi-Fi), `osascript` (volume) ; outils tiers
-//! optionnels détectés au démarrage : `SwitchAudioSource` (sortie audio par défaut) et `blueutil`
-//! (pilotage Bluetooth). Sans eux, l'audio par défaut et le Bluetooth restent en lecture seule.
-//!
-//! ATTENTION : NON VALIDÉ sur un Mac réel : les analyseurs (`parse.rs`) sont testés sur des sorties
-//! représentatives ; le comportement réel reste à confirmer.
-
 use crate::exec::{run, tool_exists, Output};
 use crate::parse;
 use crate::protocol::{capabilities_all, Platform, RpcError, RpcResult};
@@ -18,7 +11,6 @@ const LONG: Duration = Duration::from_secs(40);
 pub struct MacOs {
     has_switch_audio: bool,
     has_blueutil: bool,
-    /// Appareils trouvés par le dernier scan Bluetooth (le processus est durable : on les garde en mémoire).
     discovered: Mutex<Vec<Value>>,
 }
 
@@ -69,7 +61,6 @@ impl MacOs {
         )?;
         let (mut devices, default_id) = parse::macos_audio(&out.stdout)
             .ok_or_else(|| RpcError::app("parse_failed", "Réponse system_profiler illisible."))?;
-        // Volume : uniquement celui de la sortie par défaut (osascript ne sait pas lire les autres).
         if let Ok(v) = run(
             "osascript",
             &["-e", "output volume of (get volume settings)"],
@@ -295,8 +286,6 @@ impl Platform for MacOs {
             "wifi.connect" => {
                 let device = self.wifi_device()?;
                 let mut args = vec!["-setairportnetwork", device.as_str(), s("ssid")];
-                // ATTENTION : networksetup n'accepte le mot de passe qu'en argument (visible brièvement dans `ps`,
-                // sur cette machine seulement) ; il n'existe pas d'entrée standard équivalente.
                 if let Some(pw) = params
                     .get("password")
                     .and_then(Value::as_str)
@@ -305,7 +294,6 @@ impl Platform for MacOs {
                     args.push(pw);
                 }
                 let out = run("networksetup", &args, Duration::from_secs(45), None)?;
-                // networksetup renvoie 0 même en cas d'échec : l'erreur est dans la sortie.
                 let text = format!("{}{}", out.stdout, out.stderr);
                 if text.contains("Failed to join")
                     || text.contains("Could not find network")

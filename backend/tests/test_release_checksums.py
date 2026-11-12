@@ -1,8 +1,3 @@
-"""Signature de la liste des empreintes d'une release (scripts/ci/sign-release-checksums.sh) et contrôle de complétude.
-
-Une clé éphémère remplace la clé de production : le script lit son empreinte dans BOBINE_SIGNING_FINGERPRINT.
-"""
-
 import os
 import shutil
 import subprocess
@@ -42,7 +37,6 @@ def test_la_liste_est_signee_et_verifiable(tmp_path, signing_env):
     lines = (directory / "SHA256SUMS").read_text().splitlines()
     assert [line.split("  ")[1] for line in lines] == ["Bobine-Setup-9.9.9.exe", "bobine_9.9.9_amd64.deb", "install.sh"]
     assert (directory / "SHA256SUMS.asc").read_text().startswith("-----BEGIN PGP SIGNATURE-----")
-    # Ce que fera l'utilisateur : vérifier la signature, puis les empreintes.
     subprocess.run(["gpg", "--batch", "--verify", "SHA256SUMS.asc", "SHA256SUMS"], cwd=directory, env=signing_env, check=True, capture_output=True)
     subprocess.run(["sha256sum", "--check", "--strict", "SHA256SUMS"], cwd=directory, check=True, capture_output=True)
 
@@ -73,7 +67,6 @@ def test_une_cle_inattendue_est_refusee(tmp_path, signing_env):
 
 
 def test_la_verification_de_completude_exige_la_liste(tmp_path):
-    # Un dossier sans SHA256SUMS ni signature est refusé avant toute vérification d'empreinte.
     directory = _release(tmp_path)
     result = subprocess.run(["bash", str(VERIFY), str(directory), "9.9.9"], capture_output=True, text=True)
     assert result.returncode != 0

@@ -1,5 +1,3 @@
-"""Stockage externe : conseiller de système de fichiers, santé SMART, longévité (logique pure)."""
-
 import pytest
 
 from app.storage import fsadvisor, health, longevity
@@ -27,7 +25,7 @@ def test_recommendation_never_formats_and_shows_procedures():
     assert rec["destructive"] is True
     assert any("mkfs.exfat" in step for step in rec["procedures"]["linux"])
     assert "windows" in rec["procedures"] and "macos" in rec["procedures"]
-    assert not hasattr(fsadvisor, "format_volume")  # aucune fonction d'exécution
+    assert not hasattr(fsadvisor, "format_volume")
 
 
 def test_unknown_inputs_fall_back_safely():
@@ -64,10 +62,6 @@ def test_flash_media_notes_wear():
     assert "flash_write_wear" in codes(fsadvisor.assess_filesystem("ext4", media="flash"))
     assert "flash_write_wear" not in codes(fsadvisor.assess_filesystem("ext4", media="hdd"))
 
-
-# ---------------------------------------------------------------------------------------------------------
-# SMART
-# ---------------------------------------------------------------------------------------------------------
 
 def ata(attrs, passed=True, temp=34, hours=1200):
     return {
@@ -126,10 +120,6 @@ def test_write_wear_levels_and_combined_status():
     assert health.combine_status("ok", "warning") == "warning" and health.combine_status("unknown", "ok") == "ok"
     assert health.combine_status("warning", "critical") == "critical"
 
-
-# ---------------------------------------------------------------------------------------------------------
-# Longévité
-# ---------------------------------------------------------------------------------------------------------
 
 def test_defaults_are_read_only_noatime_noexec():
     assert longevity.mount_options(longevity.DEFAULTS, writable=False) == ["ro", "noatime", "nodiratime", "noexec"]

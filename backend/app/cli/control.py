@@ -17,7 +17,6 @@ from .core import EXIT_ERROR, EXIT_OK, EXIT_USAGE, CliError, Output, parse_param
 
 
 def _apply_fix(client: Client, fix: dict) -> list[str]:
-    """Applique une correction décrite par le diagnostic (`fix`) par les routes de l'interface ; renvoie ce qui a été fait."""
     action = fix.get("action")
     if action == "cancel_import_jobs":
         done = []
@@ -89,12 +88,9 @@ def cmd_update(client: Client, out: Output, args: argparse.Namespace) -> int:
 def cmd_update_status(client: Client, out: Output, args: argparse.Namespace) -> int:
     status = client.request("GET", "/api/updates/status")
     out.result(status, f"{status.get('step')} {status.get('percent') or ''} {status.get('message') or ''}".strip())
-    # Un script qui attend la fin d'une mise à jour doit pouvoir distinguer l'échec sans lire le texte.
     return EXIT_ERROR if status.get("step") == "failed" else EXIT_OK
 
 
-# Routes que `bobine api` refuse toujours : leur commande dédiée demande la confirmation et fait les vérifications (sinon
-# elles ne sont pas offertes par la ligne de commande).
 DANGEROUS_ROUTES = (
     (re.compile(r"POST /api/settings/system/(reset|uninstall|reset-data|restart)"), "irréversible : interface, ou install.sh --uninstall"),
     (re.compile(r"POST /api/settings/backup/restore"), "bobine settings restore FICHIER --yes"),
@@ -108,8 +104,6 @@ _API_PATH = re.compile(r"^/api/[A-Za-z0-9_./{}%~-]+$")
 def cmd_api(client: Client, out: Output, args: argparse.Namespace) -> int:
     """`bobine api METHODE /api/chemin` : n'importe quelle route de l'API, pour ce qu'aucune commande ne couvre encore."""
     method, path = args.method.upper(), args.path
-    # Le serveur décode le chemin une fois (`%61pply` -> `apply`) : la liste des routes dangereuses
-    # doit donc être comparée au chemin décodé et normalisé, pas à la chaîne brute.
     canonical = posixpath.normpath(urllib.parse.unquote(path))
     if not _API_PATH.match(path) or ".." in path.split("/") or ".." in canonical.split("/"):
         raise CliError("chemin invalide : attendu /api/... sans ?, # ni .. (les paramètres passent par --query)", EXIT_USAGE)
@@ -130,7 +124,7 @@ def cmd_api(client: Client, out: Output, args: argparse.Namespace) -> int:
             raise CliError(f"corps JSON illisible : {exc}", EXIT_USAGE) from exc
     query = parse_params(args.query or [])
     payload = client.request(method, path, query=query or None, body=body)
-    out.json = True  # la réponse de l'API, telle quelle, sur stdout
+    out.json = True
     out.result(payload)
     return EXIT_OK
 

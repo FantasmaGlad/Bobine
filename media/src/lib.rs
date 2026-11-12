@@ -1,4 +1,3 @@
-//! Experimental, read-only media inspection over bounded JSON-RPC lines.
 mod aiff;
 mod audio;
 mod flac;
@@ -59,7 +58,6 @@ fn error(id: Value, code: i32, reason: &str, message: &str) -> Value {
     json!({"jsonrpc":"2.0","id":id,"error":{"code":code,"message":message,"data":{"reason":reason}}})
 }
 
-/// Dispatch exactly one request. Invalid envelopes never echo untrusted content.
 pub fn dispatch(raw: &[u8]) -> Value {
     if raw.len() > REQUEST_BYTES {
         return error(
@@ -126,8 +124,6 @@ pub fn dispatch(raw: &[u8]) -> Value {
     }
 }
 
-/// Read at most REQUEST_BYTES + one CR byte; discard oversized frames without growing the buffer.
-/// An unterminated final line is processed once; empty EOF stops without output.
 pub fn serve<R: BufRead, W: Write>(mut reader: R, mut writer: W) -> io::Result<()> {
     loop {
         let mut line = Vec::with_capacity(1024);

@@ -2,13 +2,6 @@
 
 from app.utils.playback_clock import PlaybackClock
 
-# Horloge du cours /cinema LANCÉ PAR ORDRE, par canal : un `launch`
-# (depuis /grid ou le tableau de bord) crée l'horloge, les ordres suivants
-# (play, pause, seek) la pilotent, `stop` la détruit. Les pages /cinema qui jouent
-# CE cours la suivent (démarrage et dérive corrigés comme pour /kiosk) ; une page
-# dont l'adhérent a choisi un autre cours à la main reste totalement indépendante
-# (lecture locale, choix de conception de /cinema). Sans `launch`
-# préalable, aucune ancre n'est jointe aux ordres : comportement inchangé.
 _cinema_clocks: dict[str, PlaybackClock] = {}
 _cinema_launched_video: dict[str, int] = {}
 
@@ -21,7 +14,6 @@ def _cinema_clock_for(channel: str) -> PlaybackClock:
 
 
 def _apply_cinema_command_to_clock(channel: str, action: str, params: dict) -> None:
-    """Met à jour l'horloge du cours lancé par ordre selon l'ordre reçu."""
     clock = _cinema_clock_for(channel)
     if action == "launch" and params.get("video_id"):
         _cinema_launched_video[channel] = int(params["video_id"])
@@ -29,7 +21,7 @@ def _apply_cinema_command_to_clock(channel: str, action: str, params: dict) -> N
         clock.start(max(0.0, float(params.get("position_seconds") or 0)))
         return
     if channel not in _cinema_launched_video:
-        return  # pas de cours lancé par ordre : lecture locale, aucune horloge
+        return
     if action == "stop":
         _cinema_launched_video.pop(channel, None)
         clock.reset()

@@ -1,10 +1,6 @@
-"""File « À suivre » : réordonnancement (glisser-déposer) limité aux pistes à venir,
-commande WebSocket, style (genre) transmis avec chaque piste."""
-
 import asyncio
 import os
 
-# Base de test isolée AVANT tout import de l'application (comme les autres tests).
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
@@ -38,7 +34,7 @@ async def _loaded(events=None):
 def test_deplacer_une_piste_a_venir_vers_le_haut_et_le_bas():
     async def _run():
         events = []
-        m = await _loaded(events)  # piste courante = index 0 ; file = indices 1..5
+        m = await _loaded(events)
         await m.move_in_order(4, 1, client_ts=1.0)
         assert _ids(m) == [1, 5, 2, 3, 4, 6]
         await m.move_in_order(1, 5)
@@ -53,14 +49,14 @@ def test_la_piste_courante_et_l_historique_ne_bougent_jamais():
     async def _run():
         m = await _loaded()
         await m.next_track()
-        await m.next_track()  # courante = index 2 (id 3) ; à venir = indices 3..5
+        await m.next_track()
         before = _ids(m)
-        await m.move_in_order(2, 4)  # la piste courante : refusé
-        await m.move_in_order(0, 4)  # l'historique : refusé
-        await m.move_in_order(4, 2)  # vers la piste courante : refusé -> borné à la file
+        await m.move_in_order(2, 4)
+        await m.move_in_order(0, 4)
+        await m.move_in_order(4, 2)
         assert _ids(m)[:3] == before[:3]
         assert m.state["current_track"]["id"] == 3
-        await m.move_in_order(5, 0)  # destination hors file : bornée au début de la file
+        await m.move_in_order(5, 0)
         assert _ids(m)[:3] == before[:3]
         assert _ids(m)[3] == before[5]
 
@@ -77,7 +73,7 @@ def test_les_indices_invalides_ou_identiques_n_emettent_rien():
         assert len(events) == count
         assert _ids(m) == [1, 2, 3, 4, 5, 6]
         idle = RadioPlaybackManager(lambda payload: asyncio.sleep(0), "radio_network")
-        await idle.move_in_order(1, 2)  # file vide : sans effet, sans erreur
+        await idle.move_in_order(1, 2)
         assert idle.state["order"] == []
 
     asyncio.run(_run())

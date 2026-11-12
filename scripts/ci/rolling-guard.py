@@ -32,7 +32,7 @@ def is_ancestor(older, newer):
 
 
 def decide(sha, tip, published, event, attempt, ancestor):
-    """Renvoie (publier, raison). `ancestor(a, b)` dit si a est un ancêtre de b."""
+    """Renvoie (publier, raison)."""
     if tip is not None and sha != tip:
         return False, f"{sha[:7]} n'est plus la tête de la branche ({tip[:7]}) : un run plus récent publie"
     if published is not None and sha != published and ancestor(sha, published):
@@ -61,7 +61,7 @@ def main(argv):
         if tip is None:
             print(f"::error::Référence {args.require_tip} introuvable : pas de publication à l'aveugle.")
             return 2
-    published = resolve("refs/tags/" + args.tag)  # absent à la toute première publication
+    published = resolve("refs/tags/" + args.tag)
     publish, reason = decide(sha, tip, published, args.event, args.attempt, is_ancestor)
     print(("::notice::" if publish else "::warning::") + f"Canal {args.tag} : {'publication' if publish else 'publication refusée'} ({reason}).")
     if os.environ.get("GITHUB_OUTPUT"):

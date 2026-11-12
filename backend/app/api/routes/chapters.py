@@ -1,5 +1,4 @@
-"""Chapitres des cours : lecture, remplacement, import (JSON, WebVTT, texte,
-chapitres incorporés au fichier) et export."""
+"""Chapitres des cours : lecture, remplacement, import (JSON, WebVTT, texte, chapitres incorporés au fichier) et export."""
 
 import logging
 from typing import List
@@ -55,7 +54,6 @@ def _serialize(video: Video) -> list[ChapterResponse]:
 def _replace(
     db: Session, video: Video, raw: list[dict], *, source: str = "manual", filename: str | None = None, content: bytes | None = None,
 ) -> list[ChapterResponse]:
-    """Remplace les chapitres et note leur origine (`chapters_source`) ; un fichier importé est conservé."""
     try:
         cleaned = chapter_utils.normalize(raw, video.duration_seconds)
     except chapter_utils.ChapterError as exc:

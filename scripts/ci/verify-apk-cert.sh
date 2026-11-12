@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# Vérifie qu'une APK est signée par la clé de Bobine (empreinte SHA-256 du certificat épinglée dans
-# android/signing-certificate.sha256) : `apksigner verify` seul accepte n'importe quelle signature valide, y compris
-# celle d'un keystore de débogage, ce qui casserait silencieusement les mises à jour Android. Refuse aussi un
-# fichier .idsig posé à côté (signature v4, rejetée par la vérification de la release).
-#
-# Usage : verify-apk-cert.sh <apk>      (apksigner via BOBINE_ANDROID_BUILD_TOOLS ou le PATH)
 set -euo pipefail
 
 apk="${1:?chemin de l APK}"

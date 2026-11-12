@@ -1,10 +1,3 @@
-/**
- * Carte des périphériques en « système solaire » — disposition PURE (testable, `frontend/tests/`).
- * La machine est au centre ; trois orbites : réseau (Wi-Fi, Ethernet), appareils (sorties audio, Bluetooth),
- * écrans et télécommandes Bobine. La disposition est calculée UNE fois, de façon déterministe : pas de
- * simulation physique, aucun coût de rendu au-delà du SVG.
- */
-
 export type NodeKind = "machine" | "audio" | "bluetooth" | "wifi" | "ethernet" | "screen" | "remote";
 export type LinkMedium = "wifi" | "bluetooth" | "wired" | "internal" | "lan";
 
@@ -38,9 +31,7 @@ export interface Topology {
 export interface PlacedNode extends TopoNode {
   x: number;
   y: number;
-  /** Rayon du disque du nœud. */
   r: number;
-  /** Angle (radians) autour du centre. */
   angle: number;
 }
 
@@ -52,7 +43,6 @@ export interface PlacedLink extends TopoLink {
 export interface MapLayout {
   nodes: PlacedNode[];
   links: PlacedLink[];
-  /** Rayons des orbites à dessiner. */
   rings: number[];
   bounds: { minX: number; minY: number; maxX: number; maxY: number };
 }
@@ -61,7 +51,6 @@ export const RING_RADII = [0, 175, 305, 430];
 const NODE_RADIUS: Record<NodeKind, number> = { machine: 46, audio: 30, bluetooth: 30, wifi: 34, ethernet: 34, screen: 30, remote: 28 };
 const TAU = Math.PI * 2;
 
-/** Hash déterministe (FNV-1a) → [0, 1[ : variation stable d'un chargement à l'autre. */
 export function hash01(text: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
@@ -73,7 +62,6 @@ export function hash01(text: string): number {
 
 const place = (radius: number, angle: number) => ({ x: Math.round(Math.cos(angle) * radius * 10) / 10, y: Math.round(Math.sin(angle) * radius * 10) / 10 });
 
-/** Dispose les nœuds d'une orbite à intervalles réguliers, avec une légère variation déterministe. */
 function ringAngles(ids: string[], start: number): Map<string, number> {
   const angles = new Map<string, number>();
   const step = TAU / Math.max(ids.length, 1);
@@ -84,7 +72,6 @@ function ringAngles(ids: string[], start: number): Map<string, number> {
   return angles;
 }
 
-/** Écarte, sans hasard, les nœuds de l'orbite externe qui se chevauchent : quelques passes d'ajustement angulaire. */
 function relaxOuter(outer: PlacedNode[]): void {
   const MIN_GAP = 10;
   const radiusOf = (n: PlacedNode) => Math.hypot(n.x, n.y);
@@ -124,7 +111,6 @@ export function layoutOrbits(topology: Topology): MapLayout {
   const machine = topology.nodes.find((n) => n.ring === 0);
   if (machine) placed.set(machine.id, base(machine));
 
-  // Orbite 1 (réseau) et orbite 2 (appareils) : réparties régulièrement, décalées entre elles.
   for (const [ring, start] of [[1, -Math.PI / 2], [2, -Math.PI / 2 + 0.35]] as const) {
     const nodes = byRing(ring);
     const angles = ringAngles(nodes.map((n) => n.id), start);
@@ -134,7 +120,6 @@ export function layoutOrbits(topology: Topology): MapLayout {
     }
   }
 
-  // Orbite 3 (écrans et télécommandes) : groupés autour du nœud réseau auquel ils sont rattachés.
   const outer = byRing(3);
   const groups = new Map<string, TopoNode[]>();
   for (const n of outer) {
@@ -179,18 +164,16 @@ export function layoutOrbits(topology: Topology): MapLayout {
   return { nodes, links, rings, bounds };
 }
 
-/** Style d'un trait : Wi-Fi en pointillés longs, Bluetooth en pointillés courts, filaire en trait plein. */
 export function linkStyle(medium: LinkMedium): { dash: string; width: number; cap: "butt" | "round" } {
   switch (medium) {
     case "wifi": return { dash: "16 10", width: 2.4, cap: "butt" };
     case "bluetooth": return { dash: "3 7", width: 2.8, cap: "round" };
     case "wired": return { dash: "", width: 3, cap: "butt" };
     case "internal": return { dash: "", width: 1.8, cap: "butt" };
-    default: return { dash: "1 9", width: 2.4, cap: "round" }; // lan : liaison dont le moyen n'est pas connu
+    default: return { dash: "1 9", width: 2.4, cap: "round" };
   }
 }
 
-/** Courbe légère (quadratique) entre deux points, pour éviter que les traits se superposent exactement. */
 export function curvePath(a: { x: number; y: number }, b: { x: number; y: number }, bend = 0.1): string {
   const mx = (a.x + b.x) / 2;
   const my = (a.y + b.y) / 2;
@@ -199,7 +182,6 @@ export function curvePath(a: { x: number; y: number }, b: { x: number; y: number
   return `M ${a.x} ${a.y} Q ${Math.round(cx * 10) / 10} ${Math.round(cy * 10) / 10} ${b.x} ${b.y}`;
 }
 
-/** Nœud et voisins directs : ce qui reste en évidence au survol, le reste est atténué. */
 export function neighborhood(links: TopoLink[], id: string): { nodes: Set<string>; links: Set<string> } {
   const nodes = new Set<string>([id]);
   const linkIds = new Set<string>();
@@ -218,7 +200,6 @@ export const ZOOM_MAX = 2.8;
 
 export const clampZoom = (z: number): number => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
 
-/** Vue qui fait tenir tous les nœuds dans un cadre de la taille donnée. */
 export function fitView(bounds: MapLayout["bounds"], size: { width: number; height: number }): { scale: number; tx: number; ty: number } {
   const w = Math.max(1, bounds.maxX - bounds.minX);
   const h = Math.max(1, bounds.maxY - bounds.minY);
@@ -226,7 +207,6 @@ export function fitView(bounds: MapLayout["bounds"], size: { width: number; heig
   return { scale, tx: size.width / 2 - ((bounds.minX + bounds.maxX) / 2) * scale, ty: size.height / 2 - ((bounds.minY + bounds.maxY) / 2) * scale };
 }
 
-/** Zoom autour d'un point de l'écran : le point reste fixe sous le curseur ou les doigts. */
 export function zoomAt(view: { scale: number; tx: number; ty: number }, point: { x: number; y: number }, factor: number): { scale: number; tx: number; ty: number } {
   const scale = clampZoom(view.scale * factor);
   const k = scale / view.scale;

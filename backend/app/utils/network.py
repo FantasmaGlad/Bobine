@@ -1,28 +1,12 @@
-"""Choix de l'adresse IPv4 à présenter pour joindre Bobine depuis le réseau local.
-
-L'astuce « connecter une socket UDP vers 8.8.8.8 » renvoie l'interface de la
-route par défaut. Dès qu'un VPN (WireGuard, OpenVPN, Tailscale...), un réseau
-mobile ou un pont de conteneurs prend cette route, l'adresse affichée n'est
-plus celle du Wi-Fi ou de l'Ethernet et ni le bandeau, ni les Réglages, ni
-l'annonce mDNS ne sont joignables depuis un autre appareil. Ce module
-énumère les interfaces actives, écarte les interfaces virtuelles et choisit
-l'adresse privée d'une interface physique.
-
-Module feuille : aucun import de `app.*`.
-"""
+"""Choix de l'adresse IPv4 à présenter pour joindre Bobine depuis le réseau local."""
 
 import ipaddress
 import os
 import socket
 from dataclasses import dataclass
 
-# Adresse fournie par la couche native (Android : réseau Wi-Fi ou Ethernet lu
-# via ConnectivityManager). Prioritaire : Python n'y énumère pas toujours les
-# interfaces.
 LAN_IP_ENV = "BOBINE_LAN_IP"
 
-# Sous-chaînes (minuscules) de noms d'interface qui ne sont jamais le réseau
-# local : bouclage, tunnels, VPN, conteneurs, machines virtuelles, réseau mobile.
 _VIRTUAL_MARKERS = (
     "loopback", "tun", "tap", "wg", "ppp", "utun", "ipsec", "wireguard", "openvpn",
     "vpn", "proton", "nord", "mullvad", "tailscale", "zerotier", "zt", "hamachi",
@@ -30,7 +14,6 @@ _VIRTUAL_MARKERS = (
     "vmware", "virtualbox", "wsl", "bluetooth", "awdl", "llw", "anpi", "bridge",
     "gif", "stf", "dummy", "rmnet", "ccmni", "p2p", "lxc", "cni", "flannel",
 )
-# Préfixes d'interfaces physiques : Wi-Fi puis Ethernet, par ordre de préférence.
 _WIFI_PREFIXES = ("wlan", "wlp", "wlx", "wl", "wi-fi", "wifi", "en0", "wireless")
 _WIRED_PREFIXES = ("eth", "eno", "ens", "enp", "enx", "en", "ethernet", "local area connection")
 
@@ -46,9 +29,6 @@ class LanAddress:
 
 def is_virtual_interface(name: str) -> bool:
     lowered = name.lower()
-    # `wl*` (wlan0, wlp3s0) commence par "w" mais ne doit pas être pris pour
-    # `wg*` : on teste les marqueurs sur le début du nom pour les préfixes
-    # courts, et en sous-chaîne pour les noms longs.
     for marker in _VIRTUAL_MARKERS:
         if len(marker) <= 3:
             if lowered.startswith(marker):
@@ -59,7 +39,6 @@ def is_virtual_interface(name: str) -> bool:
 
 
 def _score(name: str, ip: str) -> int:
-    """Plus le score est haut, plus l'adresse a de chances d'être celle du LAN."""
     try:
         address = ipaddress.ip_address(ip)
     except ValueError:
@@ -83,7 +62,6 @@ def _score(name: str, ip: str) -> int:
 
 
 def _enumerate_ipv4() -> list[tuple[str, str]]:
-    """(interface, adresse) des interfaces IPv4 actives."""
     pairs: list[tuple[str, str]] = []
     try:
         import psutil
@@ -99,7 +77,6 @@ def _enumerate_ipv4() -> list[tuple[str, str]]:
         return pairs
     except Exception:
         pass
-    # Sans psutil (profil Android) : ioctl SIOCGIFADDR sur Linux.
     try:
         import fcntl
         import struct
@@ -132,7 +109,6 @@ def lan_addresses() -> list[LanAddress]:
     return found
 
 
-# Réseaux privés virtuels par lesquels un appareil peut joindre Bobine (« Wi-Fi de confiance », VPN compris).
 _VPN_MARKERS = ("tailscale", "wg", "wireguard", "zerotier", "zt", "tun", "utun", "openvpn", "vpn", "nord", "proton", "mullvad", "hamachi")
 
 
@@ -142,9 +118,7 @@ def _is_vpn_interface(name: str) -> bool:
 
 
 def access_addresses() -> list[dict[str, str]]:
-    """Adresses par lesquelles un autre appareil peut joindre Bobine : réseau local (Wi-Fi, Ethernet) puis VPN.
-    Contrairement à `lan_addresses()`, qui cherche L'adresse du réseau local, les VPN sont inclus : ils servent aux
-    liens d'accès affichés dans Réglages et renvoyés par l'API."""
+    """Adresses par lesquelles un autre appareil peut joindre Bobine : réseau local (Wi-Fi, Ethernet) puis VPN."""
     found = [{"ip": item.ip, "interface": item.interface, "kind": "lan"} for item in lan_addresses()]
     known = {item["ip"] for item in found}
     for name, ip in _enumerate_ipv4():
@@ -160,7 +134,6 @@ def access_addresses() -> list[dict[str, str]]:
 
 
 def _route_ip() -> str | None:
-    """Dernier recours : interface de la route par défaut (peut être un VPN)."""
     probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     probe.settimeout(0.2)
     try:

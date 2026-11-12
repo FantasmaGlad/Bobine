@@ -62,10 +62,10 @@ import { audioDisplayName, balanceFromSlider, describeBalance, describeChannels,
 
 test("détail audio : balance avec cran central, bornes et lecture", () => {
   assert.equal(balanceFromSlider(0), 0);
-  assert.equal(balanceFromSlider(3), 0); // cran central
+  assert.equal(balanceFromSlider(3), 0);
   assert.equal(balanceFromSlider(-4), 0);
   assert.equal(balanceFromSlider(-40), -0.4);
-  assert.equal(balanceFromSlider(250), 1); // borné
+  assert.equal(balanceFromSlider(250), 1);
   assert.equal(sliderFromBalance(0.6), 60);
   assert.deepEqual(describeBalance(0), { side: "center", percent: 100 });
   assert.deepEqual(describeBalance(-0.4), { side: "left", percent: 60 });

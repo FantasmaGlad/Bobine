@@ -1,28 +1,14 @@
-"""Interface commune des pilotes de périphériques (audio, Bluetooth, Wi-Fi).
-
-Un pilote par plateforme (Linux : `linux.py`, Windows/macOS : sidecar Rust `sidecar.py`,
-Android : pont Kotlin `android.py`) ; le routeur `api/routes/devices.py` ne connaît que cette
-interface. Règles d'or :
-
-* un pilote DÉCLARE ses capacités (`capabilities()`) — l'interface n'affiche que ce que
-  l'OS permet, jamais un bouton qui échouera ;
-* aucune erreur d'OS ne remonte en exception brute : un pilote lève `DeviceError` (code
-  stable + message lisible) ou renvoie `unsupported(...)`, jamais une 500.
-"""
+"""Interface commune des pilotes de périphériques (audio, Bluetooth, Wi-Fi)."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Any, Callable
 
-# Évènement émis par un pilote quand son état change de lui-même (branchement, appairage...).
-# Le service le relaie en WebSocket sous forme de simple signal (sans données) : les clients
-# relisent ensuite l'état par REST.
 ChangeCallback = Callable[[str], None]
 
 SCOPES = ("audio", "bluetooth", "wifi")
 
-# Capacités connues, toutes fausses par défaut : un pilote n'active que ce qu'il sait faire.
 CAPABILITY_KEYS = (
     "audio_list",
     "audio_set_default",
@@ -68,9 +54,8 @@ def no_capabilities(reason: str) -> dict[str, dict[str, Any]]:
 
 
 class DeviceDriver(ABC):
-    """Contrat d'un pilote. Toutes les méthodes sont asynchrones et ne bloquent pas la boucle."""
+    """Contrat d'un pilote."""
 
-    #: identifiant du pilote ("linux", "sidecar", "android", "none")
     name: str = "none"
 
     def __init__(self) -> None:
@@ -83,7 +68,7 @@ class DeviceDriver(ABC):
         if self._on_change is not None:
             try:
                 self._on_change(scope)
-            except Exception:  # un abonné fautif ne doit jamais casser le pilote
+            except Exception:
                 pass
 
     async def start(self) -> None:  # pragma: no cover - crochet optionnel
@@ -92,18 +77,13 @@ class DeviceDriver(ABC):
     async def stop(self) -> None:  # pragma: no cover - crochet optionnel
         """Libère les ressources longues."""
 
-    # --- capacités -------------------------------------------------------
     @abstractmethod
     async def capabilities(self) -> dict[str, dict[str, Any]]:
         """`{clé: {"supported": bool, "reason"?: str}}` pour chaque clé de CAPABILITY_KEYS."""
 
-    # --- audio -----------------------------------------------------------
     @abstractmethod
     async def audio_list(self) -> dict[str, Any]:
-        """`{"supported": True, "devices": [...], "default_id": str|None}` ou `unsupported()`.
-
-        Chaque appareil : id, name, description, kind (internal|hdmi|usb|jack|bluetooth|virtual|other),
-        is_default, volume (0..1|None), muted (bool|None), available (bool)."""
+        """`{"supported": True, "devices": [...], "default_id": str|None}` ou `unsupported()`."""
 
     async def audio_set_default(self, device_id: str) -> None:
         raise DeviceError("unsupported", "Changer la sortie audio par défaut n'est pas possible sur cette plateforme.", 501)
@@ -112,8 +92,7 @@ class DeviceDriver(ABC):
         raise DeviceError("unsupported", "Régler le volume système n'est pas possible sur cette plateforme.", 501)
 
     async def audio_details(self, device_id: str) -> dict[str, Any]:
-        """Analyse d'une sortie : état, canaux, fréquence, format, latence, carte, profil, codec Bluetooth, balance.
-        `{"supported": False, "reason"}` quand la plateforme ne sait pas le dire."""
+        """Analyse d'une sortie : état, canaux, fréquence, format, latence, carte, profil, codec Bluetooth, balance."""
         return unsupported("L'analyse détaillée d'une sortie audio n'est pas disponible sur cette plateforme.")
 
     async def audio_set_balance(self, device_id: str, balance: float) -> None:
@@ -128,18 +107,12 @@ class DeviceDriver(ABC):
         raise DeviceError("unsupported", "Le changement de profil audio n'est pas possible sur cette plateforme.", 501)
 
     async def audio_route_stream(self, sink_id: str | None) -> dict[str, Any]:
-        """Phase 2 (routage par sortie radio) : amène vers `sink_id` le flux audio du navigateur qui joue la radio
-        sur CETTE machine, ou le rend à la sortie par défaut (`None`). Ne déplace un flux que s'il est identifiable
-        sans ambiguïté. Renvoie `{"status": "moved"|"unchanged"|"released"|"no_stream"|"ambiguous"|"failed"}`."""
+        """Phase 2 (routage par sortie radio) : amène vers `sink_id` le flux audio du navigateur qui joue la radio sur CETTE machine, ou le rend à la sortie par défaut (`None`)."""
         raise DeviceError("unsupported", "Le déplacement du flux audio d'une application n'est pas possible sur cette plateforme.", 501)
 
-    # --- Bluetooth -------------------------------------------------------
     @abstractmethod
     async def bluetooth_status(self) -> dict[str, Any]:
-        """`{"supported": True, "powered": bool, "discovering": bool, "devices": [...],
-        "pending_pairing": {...}|None}` ou `unsupported()`.
-
-        Chaque appareil : address, name, paired, connected, trusted, rssi, kind, battery."""
+        """`{"supported": True, "powered": bool, "discovering": bool, "devices": [...], "pending_pairing": {...}|None}` ou `unsupported()`."""
 
     async def bluetooth_request_permission(self) -> None:
         """Demande l'autorisation système d'utiliser le Bluetooth (Android : « Appareils à proximité »)."""
@@ -165,14 +138,9 @@ class DeviceDriver(ABC):
     async def bluetooth_forget(self, address: str) -> None:
         raise DeviceError("unsupported", "L'oubli d'un appareil Bluetooth n'est pas possible ici.", 501)
 
-    # --- Wi-Fi -----------------------------------------------------------
     @abstractmethod
     async def wifi_status(self) -> dict[str, Any]:
-        """`{"supported": True, "enabled": bool, "interface": str|None, "current": {...}|None,
-        "networks": [...], "known": [...]}` ou `unsupported()`.
-
-        current : ssid, signal (0..100), band, ip, security. networks : ssid, signal, security,
-        band, known (bool), in_use (bool)."""
+        """`{"supported": True, "enabled": bool, "interface": str|None, "current": {...}|None, "networks": [...], "known": [...]}` ou `unsupported()`."""
 
     async def wifi_set_power(self, on: bool) -> None:
         raise DeviceError("unsupported", "Le Wi-Fi ne peut pas être activé ici.", 501)
@@ -194,7 +162,6 @@ class DeviceDriver(ABC):
     async def wifi_forget(self, ssid: str) -> None:
         raise DeviceError("unsupported", "L'oubli d'un réseau Wi-Fi n'est pas possible ici.", 501)
 
-    # --- réglages du système -----------------------------------------------
     async def open_system_settings(self, target: str) -> None:
         """Ouvre l'écran de réglages du système (« wifi », « bluetooth », « sound ») sur la machine."""
         raise DeviceError("unsupported", "Les réglages du système ne peuvent pas être ouverts depuis Bobine ici.", 501)

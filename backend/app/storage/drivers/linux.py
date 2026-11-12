@@ -1,11 +1,4 @@
-"""Pilote Linux : `lsblk` (inventaire), `udisksctl`/udisks2 (montage sans privilèges), `smartctl`, GVFS.
-
-* **Inventaire** : `lsblk -J -b` (une commande, ~10 ms) + `/proc/self/mountinfo` (options de montage) ;
-  **déclencheur** : signaux D-Bus udisks2 (`InterfacesAdded/Removed`, `PropertiesChanged`) via `dbus-fast`,
-  avec interrogation périodique de secours (le service la règle selon que les signaux fonctionnent).
-* **Actions** : `udisksctl` (polkit, jamais sudo) ; le `runner` est injectable pour les tests.
-* Aucun appel ne lève d'exception brute : `DeviceError` (code stable) ou rapport `unavailable`.
-"""
+"""Pilote Linux : `lsblk` (inventaire), `udisksctl`/udisks2 (montage sans privilèges), `smartctl`, GVFS."""
 
 from __future__ import annotations
 
@@ -95,7 +88,6 @@ class LinuxStorageDriver(StorageDriver):
         self._facts_cache: tuple[float, dict[str, Any]] | None = None
         self._unix_uid = os.getuid() if hasattr(os, "getuid") else 0
 
-    # ------------------------------------------------------------------ cycle de vie
     async def start(self) -> None:
         if self._watch_task is None or self._watch_task.done():
             self._watch_task = asyncio.create_task(self._watch_udisks())
@@ -113,7 +105,6 @@ class LinuxStorageDriver(StorageDriver):
         self.push_active = False
 
     async def _watch_udisks(self) -> None:
-        """Abonnement aux signaux udisks2 : un branchement ou un retrait est signalé sans attendre l'interrogation."""
         try:
             from dbus_fast import BusType, Message, MessageType
             from dbus_fast.aio import MessageBus
@@ -153,7 +144,6 @@ class LinuxStorageDriver(StorageDriver):
             self.push_active = False
             await asyncio.sleep(30)
 
-    # ------------------------------------------------------------------ capacités
     async def capabilities(self) -> dict[str, dict[str, Any]]:
         now = time.monotonic()
         if self._probe_cache and now - self._probe_cache[0] < _PROBE_TTL:
@@ -219,7 +209,6 @@ class LinuxStorageDriver(StorageDriver):
         self._facts_cache = (now, facts)
         return facts
 
-    # ------------------------------------------------------------------ inventaire
     def _is_sd(self, disk: str) -> bool:
         try:
             with open(os.path.join(self._sys_block, disk, "device", "type"), encoding="utf-8") as handle:
@@ -238,7 +227,6 @@ class LinuxStorageDriver(StorageDriver):
         try:
             code, out, err = await self._run("lsblk", "-J", "-b", "-o", LSBLK_COLUMNS, timeout=8.0)
             if code != 0 or not out.strip():
-                # Anciennes versions d'util-linux : colonnes en moins (jamais celles qui servent à écarter les disques système).
                 code, out, err = await self._run("lsblk", "-J", "-b", "-o", LSBLK_COLUMNS.replace(",DISC-GRAN", "").replace(",PARTN", ""), timeout=8.0)
         except DeviceError:
             raise
@@ -255,7 +243,6 @@ class LinuxStorageDriver(StorageDriver):
         except (ValueError, KeyError, TypeError) as exc:
             raise DeviceError("inventory_failed", f"Réponse lsblk illisible : {exc}", 502) from exc
 
-    # ------------------------------------------------------------------ montage
     async def mount(self, volume: Volume, options: list[str]) -> str:
         code, out, err = await self._run(
             "udisksctl", "mount", "-b", volume.device, "-o", ",".join(options), "--no-user-interaction", timeout=45.0
@@ -296,7 +283,6 @@ class LinuxStorageDriver(StorageDriver):
             return False
         return True
 
-    # ------------------------------------------------------------------ santé, veille, TRIM
     async def smart(self, volume: Volume) -> dict[str, Any]:
         if not volume.disk:
             return health.unavailable("no_smart")
@@ -305,7 +291,7 @@ class LinuxStorageDriver(StorageDriver):
         device = f"/dev/{volume.disk}"
         report = await self._smartctl(device, [])
         if not report["available"] and report["reason"] == "no_smart" and volume.transport == "usb":
-            retry = await self._smartctl(device, ["-d", "sat"])  # pont USB-SATA
+            retry = await self._smartctl(device, ["-d", "sat"])
             if retry["available"] or retry["reason"] == "permission":
                 report = retry
         return report
@@ -359,9 +345,7 @@ class LinuxStorageDriver(StorageDriver):
             raise DeviceError("trim_failed", "TRIM a échoué : " + _stderr(err), 502)
         return out.strip()
 
-    # ------------------------------------------------------------------ formatage (udisks2, sans privilèges)
     async def _udisks_call(self, path: str, interface: str, member: str, signature: str, body: list[Any], *, timeout: float = FORMAT_TIMEOUT) -> Any:
-        """Appel D-Bus de udisks2 (dbus-fast) ; une erreur devient un `DeviceError` à code stable, jamais une exception brute."""
         try:
             from dbus_fast import BusType, Message, MessageType
             from dbus_fast.aio import MessageBus
@@ -460,7 +444,6 @@ class LinuxStorageDriver(StorageDriver):
     async def wipe_disk(self, disk: DiskInfo) -> None:
         await self._udisks_call(self._block_path(disk.path), "org.freedesktop.UDisks2.Block", "Format", "sa{sv}", ["empty", {}])
 
-    # ------------------------------------------------------------------ appareils portables (GVFS)
     def _gvfs_env_dir(self) -> str:
         runtime = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{self._unix_uid}"
         return os.path.join(runtime, "gvfs")
@@ -557,4 +540,4 @@ class LinuxStorageDriver(StorageDriver):
         await self._gio("mount", "-u", dev.uri, timeout=30.0)
 
     def portable_root(self, device_id: str) -> str | None:
-        return None  # résolu par le service à partir de `portable_mount` (racine mémorisée)
+        return None

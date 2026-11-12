@@ -1,4 +1,3 @@
-"""Keep the bilingual public documents aligned: same outline, valid anchors, no link to files that are never published."""
 from pathlib import Path
 import re
 import unittest
@@ -14,7 +13,6 @@ def read(path):
 
 
 def headings(text):
-    """Markdown headings outside fenced code blocks, as (level, title)."""
     result, fenced = [], False
     for line in text.splitlines():
         if line.lstrip().startswith("```"):
@@ -27,7 +25,6 @@ def headings(text):
 
 
 def anchors(text):
-    """GitHub anchors of the headings, with the numeric suffix GitHub adds to repeated titles."""
     seen, found = {}, set()
     for _, title in headings(text):
         base = re.sub(r"[^\w\- ]", "", title.lower()).replace(" ", "-")
@@ -59,7 +56,6 @@ class BilingualDocumentTests(unittest.TestCase):
                 self.assertEqual([link for link in links if link not in anchors(text)], [])
 
     def test_no_link_to_files_that_stay_local(self):
-        """Google Play bundles and Play APKs are built locally and never attached to a public release."""
         for path in sorted(ROOT.glob("docs/*.md")) + [ROOT / "README.md", ROOT / "README.fr.md"]:
             with self.subTest(document=path.name):
                 found = re.findall(r"releases/download/[^)\s]*(?:\.aab|-play\.apk)", path.read_text(encoding="utf-8"))

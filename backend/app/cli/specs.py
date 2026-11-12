@@ -1,10 +1,4 @@
-"""Commandes d'écriture de `bobine`, déclarées en données : une ligne de `SPECS` ajoute la commande, son aide, ses arguments,
-la route appelée et sa confirmation. `app.cli` en construit le parser et l'exécution ; `backend/tests/test_cli_contract.py`
-vérifie que chaque route déclarée figure dans `app/cli/routes.py`.
-
-Ajouter un bouton à l'interface qui appelle une nouvelle route : ajouter la route à `COVERED` (ou à `EXEMPT`) dans
-`routes.py`, et, si une commande a du sens, une `Spec` ici. Aucune dépendance en dehors de la bibliothèque standard.
-"""
+"""Commandes d'écriture de `bobine`, déclarées en données : une ligne de `SPECS` ajoute la commande, son aide, ses arguments, la route appelée et sa confirmation."""
 from __future__ import annotations
 
 import argparse
@@ -12,7 +6,6 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from app.api.contract import DEFAULT_CHANNEL, OVERRIDE_ACTIONS, SCHEDULE_CHANNELS, SCHEDULE_TARGETS
-
 
 
 class UsageError(ValueError):
@@ -58,15 +51,15 @@ class Call:
 
 @dataclass(frozen=True)
 class Spec:
-    command: str  # commande de premier niveau (existante ou nouvelle)
-    action: str  # sous-commande
+    command: str
+    action: str
     help: str
-    request: Callable[[Any, argparse.Namespace], Call]  # (client, args) -> appel ; le client sert à lire l'état avant d'écrire
-    covers: tuple[str, ...]  # « METHODE /chemin OpenAPI » (contrôlé par test_cli_contract)
+    request: Callable[[Any, argparse.Namespace], Call]
+    covers: tuple[str, ...]
     arguments: tuple[Arg, ...] = ()
     human: Callable[[Any, argparse.Namespace], str] = lambda payload, args: "Fait."
-    confirm: str | None = None  # texte de la demande : l'écriture exige alors --yes
-    needs_one_of: tuple[str, ...] = field(default=())  # au moins une de ces options (attributs de `args`)
+    confirm: str | None = None
+    needs_one_of: tuple[str, ...] = field(default=())
 
 
 def _video_ids(values: list[int] | None) -> list[dict]:
@@ -150,7 +143,6 @@ SCHEDULE_OPTIONS = (
 )
 
 def _lines(template: str):
-    """Formateur de liste : une ligne par élément, `template` reçoit le dictionnaire de l'élément."""
     return lambda payload, args: "\n".join(template.format_map(_Blank(item)) for item in (payload or []) if isinstance(item, dict))
 
 

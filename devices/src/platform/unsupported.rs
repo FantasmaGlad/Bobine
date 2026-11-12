@@ -1,5 +1,3 @@
-//! Plateformes sans backend (Linux : géré par le backend Python via D-Bus, pas par ce sidecar).
-
 use crate::protocol::{capabilities_all, Platform, RpcError, RpcResult};
 use serde_json::{Map, Value};
 

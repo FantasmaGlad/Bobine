@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# Commit des fichiers générés d'une copie du dépôt Pages (gh-pages) et poussée avec reprise : un autre écrivain peut avoir poussé
-# entre le checkout et la poussée (pages vitrines, autre publication). Le rejet déclenche un rebase sur la tête distante puis un
-# nouvel essai ; un conflit de rebase est abandonné proprement et fait échouer l'étape plutôt que de perdre un des deux états.
-# Les pages vitrines ne sont jamais ajoutées : seuls les chemins générés ci-dessous le sont.
-# Usage : commit-package-repository.sh <copie du dépôt Pages> <message de commit>
-# Variables : PUSH_ATTEMPTS (3), PUSH_RETRY_DELAY (5 s, multiplié par le numéro d'essai), PUSH_REMOTE (origin),
-#             PUSH_BRANCH (gh-pages), DRY_RUN=true (commit local, aucune poussée).
 set -euo pipefail
 export LC_ALL=C
 repo="${1:?copie du dépôt Pages}"; message="${2:?message de commit}"
@@ -15,7 +8,6 @@ cd "$repo"
 git config user.name fanta
 git config user.email 193235053+FantasmaGlad@users.noreply.github.com
 
-# Les alias .repo de la racine sont écrits par prepare-package-repository.sh (famille rpm) : ils font partie des chemins publiés.
 generated=(debian/ fedora/ arch/ bobine.gpg bobine.repo bobine-stable.repo bobine-beta.repo bobine-canary.repo latest.json mirror-packages.json)
 staged=()
 for path in "${generated[@]}"; do

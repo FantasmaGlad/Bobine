@@ -8,7 +8,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 struct Scratch(PathBuf);
 impl Scratch {
     fn new() -> Self {
-        // L'horloge de macOS est au plus fine à la microseconde : le compteur garantit un dossier distinct par test.
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -139,7 +138,6 @@ fn embedded_cover_requires_reference_pipeline_and_huge_tag_is_rejected() {
     let mut bytes = b"ID3\x04\0\0\0\0\0\x0eAPIC\0\0\0\x04\0\0test\xff\xfb\x90\0".to_vec();
     bytes.resize(160, 0);
     bytes[60..64].copy_from_slice(b"Info");
-    // The Xing/Info frame must carry the frame counter the duration is computed from.
     bytes[64..68].copy_from_slice(&1_u32.to_be_bytes());
     bytes[68..72].copy_from_slice(&10_u32.to_be_bytes());
     std::fs::write(&path, &bytes).unwrap();

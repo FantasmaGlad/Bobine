@@ -1,7 +1,3 @@
-"""Stockage externe : analyse de lsblk, règles d'exclusion strictes, options de montage, identité des volumes.
-
-Logique pure : aucune dépendance au matériel, au bus système ni à la base."""
-
 import json
 
 from app.storage.lsblk import (
@@ -73,7 +69,6 @@ def test_system_disk_is_never_listed():
 
 
 def test_disk_with_any_system_mount_is_system_even_if_removable():
-    """Un disque « USB » qui porte / (installation sur clé) ou /home n'est jamais proposé."""
     booted_usb = node("sde", type="disk", rm=True, hotplug=True, tran="usb", children=[
         node("sde1", fstype="ext4", mountpoints=["/"], uuid="77777777-7777-7777-7777-777777777777"),
         node("sde2", fstype="ext4", mountpoints=[None], uuid="88888888-8888-8888-8888-888888888888"),
@@ -98,7 +93,7 @@ def test_sd_card_detected_only_when_sysfs_says_sd():
     assert set(volumes_of(with_sd)) == {"mmcblk0p1"}
     assert volumes_of(with_sd)["mmcblk0p1"].kind == "sd"
     without = parse_lsblk(listing(SD_CARD, EMMC))
-    assert without.volumes == []  # eMMC interne et carte non identifiée : écartées par prudence
+    assert without.volumes == []
 
 
 def test_loop_images_snap_squashfs_excluded_data_image_listed():
@@ -110,7 +105,6 @@ def test_loop_images_snap_squashfs_excluded_data_image_listed():
 def test_volume_holding_bobine_data_is_excluded():
     inv = parse_lsblk(listing(USB_STICK), protected_paths=["/run/media/u/COURS/bobine/data/videos"])
     assert inv.volumes == [] and inv.excluded[0].reason == "bobine_data"
-    # Monté DANS un dossier de données de Bobine : écarté aussi.
     inside = node("sdf", type="disk", rm=True, hotplug=True, tran="usb", children=[
         node("sdf1", fstype="exfat", uuid="9999-9999", mountpoints=["/srv/bobine/data/videos/usb"])])
     assert parse_lsblk(listing(inside), protected_paths=["/srv/bobine/data/videos"]).volumes == []

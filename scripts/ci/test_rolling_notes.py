@@ -1,4 +1,3 @@
-"""Keep the rolling release notes complete: every required asset is offered and none is invented."""
 import importlib.util
 from pathlib import Path
 import re
@@ -13,7 +12,6 @@ MANIFESTS = {"SHA256SUMS", "SHA256SUMS.asc"}
 
 
 def required_assets(channel):
-    """Names that scripts/ci/verify-release-assets.sh requires for a rolling channel (version and package version are the channel)."""
     script = (ROOT / "scripts/ci/verify-release-assets.sh").read_text(encoding="utf-8")
     block = re.search(r"expected=\((.*?)\n\)", script, re.S).group(1)
     return {name.replace("${S}", channel).replace("${package_version}", channel) for name in re.findall(r'"([^"]+)"', block)}

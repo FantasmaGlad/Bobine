@@ -1,24 +1,4 @@
-"""Machine à états de la mise à jour système.
-
-Centralise ce qui vivait auparavant dans `_run_update_pipeline()`
-(`api/routes/updates.py`) et l'étend pour que chaque étape (vérification,
-téléchargement, vérification d'intégrité, installation, redémarrage)
-diffuse sa progression en temps réel — au lieu de ne renvoyer un succès
-au frontend qu'au moment où le travail est simplement PLANIFIÉ (bug
-constaté en audit : le bouton affichait « mise à jour réussie » avant
-même que le téléchargement ait commencé, masquant tout échec réel).
-
-Trois canaux de sortie pour cet état, tous alimentés depuis un seul
-point (`_set_state`) :
-  1. Diffusion WebSocket immédiate (`{"event": "update_progress", ...}`)
-     pour un client connecté au moment de la mise à jour.
-  2. Persistance sur disque (`data/logs/update_status.json`) pour qu'un
-     client qui se reconnecte APRÈS un redémarrage de service (cas normal
-     d'une mise à jour) retrouve l'issue réelle au lieu de revenir
-     silencieusement à un état neutre.
-  3. `GET /api/updates/status` (api/routes/updates.py) qui lit ce même état
-     en mémoire — utilisé par le frontend au chargement de la page.
-"""
+"""Machine à états de la mise à jour système."""
 
 import asyncio
 import hashlib
@@ -49,12 +29,6 @@ DOWNLOAD_CHUNK_SIZE = 64 * 1024
 DOWNLOAD_TIMEOUT_SECONDS = 30
 DOWNLOAD_ATTEMPTS = 3
 
-# Un seul pipeline de mise à jour à la fois (corrige le constat "double
-# clic ou deux onglets peuvent lancer deux installations en parallèle sur
-# le même fichier temporaire"). `asyncio.Lock()` ne se lie plus à une
-# boucle particulière à la construction depuis Python 3.10 — l'instancier
-# ici, au niveau module, est sûr même avant que la boucle asyncio du
-# process ne tourne.
 _lock = asyncio.Lock()
 
 _state: dict[str, Any] = {
@@ -66,17 +40,7 @@ _state: dict[str, Any] = {
     "started_at": None,
     "updated_at": None,
     "error": None,
-    # Horodatage du cycle ("started_at") acquitté par l'utilisateur (clic sur
-    # "fermer" la notification) — persisté côté SERVEUR, contrairement à
-    # l'ancien état `dismissed` purement React côté frontend qui revenait à
-    # `null` à chaque rechargement de page ou redémarrage de service déclenché
-    # par la mise à jour elle-même, faisant réapparaître la notification "en
-    # boucle" (cause racine confirmée). Repassé à `None` au début de chaque
-    # nouveau cycle (cf. `run_update_pipeline`) pour qu'un NOUVEAU "terminé"/
-    # "échoué" soit bien notifié même si le précédent avait été fermé.
     "acknowledged_started_at": None,
-    # Empreinte `version|commit` du code AVANT la mise à jour — voir
-    # `load_persisted_state_at_startup()`. Interne : jamais exposée au client.
     "from_fingerprint": None,
 }
 
@@ -88,23 +52,17 @@ def _public_state() -> dict[str, Any]:
 
 
 def is_running() -> bool:
-    """Utilisé par `POST /api/updates/apply` pour répondre 409 plutôt que
-    de lancer un deuxième pipeline concurrent."""
+    """Utilisé par `POST /api/updates/apply` pour répondre 409 plutôt que de lancer un deuxième pipeline concurrent."""
     return _lock.locked()
 
 
 def get_status() -> dict[str, Any]:
-    """État courant (ou dernier connu) — copie défensive, jamais l'objet
-    interne muté par le pipeline."""
+    """État courant (ou dernier connu) — copie défensive, jamais l'objet interne muté par le pipeline."""
     return _public_state()
 
 
 def status_file_path() -> Path:
-    """Chemin public — utilisé aussi par les handlers dont l'installeur
-    s'exécute dans un script détaché SURVIVANT à la sortie de ce process
-    (ex. le runner PowerShell Windows) et qui doit donc écrire lui-même
-    l'issue finale dans ce même fichier, relu par `load_persisted_state_
-    at_startup()` au prochain démarrage du backend."""
+    """Chemin public — utilisé aussi par les handlers dont l'installeur s'exécute dans un script détaché SURVIVANT à la sortie de ce process."""
     from app.config import settings as runtime_settings
     return Path(runtime_settings.logs_dir) / "update_status.json"
 
@@ -114,9 +72,6 @@ def _status_file_path() -> Path:
 
 
 def _persist_state() -> None:
-    """Best-effort : un échec d'écriture disque ne doit jamais faire
-    échouer la mise à jour elle-même, seulement dégrader la capacité du
-    frontend à retrouver l'état après une reconnexion tardive."""
     try:
         path = _status_file_path()
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -126,19 +81,7 @@ def _persist_state() -> None:
 
 
 def load_persisted_state_at_startup() -> None:
-    """Recharge le dernier état connu au démarrage du process (appelé
-    depuis `main.py::lifespan`) — sans ça, un redémarrage déclenché par
-    une mise à jour réussie ferait réapparaître `GET /api/updates/status`
-    à "idle" avant même que le frontend ait pu lire le résultat réel.
-
-    Un état intermédiaire ("restarting", "installing"…) persisté sur disque
-    est normal et ATTENDU quand le service s'est relancé lui-même pour
-    appliquer la mise à jour (systemctl restart, os._exit puis relance par
-    le superviseur, installation d'un APK) : le process qui l'a écrit ne
-    peut pas écrire "terminé" avant de mourir. L'issue réelle se déduit
-    donc en comparant l'empreinte `version|commit` du code qui tourne
-    MAINTENANT à celle enregistrée au début du pipeline — l'ancien code
-    marquait systématiquement ces mises à jour réussies comme "échouées"."""
+    """Recharge le dernier état connu au démarrage du process."""
     try:
         path = _status_file_path()
         if not path.exists():
@@ -157,8 +100,6 @@ def load_persisted_state_at_startup() -> None:
                 message="Mise à jour terminée avec succès.",
             )
         elif _state.get("step") == "awaiting_user_confirmation":
-            # APK téléchargé mais jamais installé (confirmation refusée ou
-            # ignorée, puis relance de l'app) : rien à signaler de plus.
             _state.update(step="idle", percent=None, message=None, error=None)
         else:
             _state.update(
@@ -178,26 +119,12 @@ async def report_external_event(
     error: str | None = None,
     percent: int | None = None,
 ) -> None:
-    """Point d'entrée public pour un évènement qui n'arrive PAS depuis
-    `run_update_pipeline` lui-même — aujourd'hui uniquement le rappel
-    Android (`POST /api/updates/_android-callback`, cf. api/routes/updates.py) :
-    `apply_update()` d'Android ne peut connaître l'issue réelle du
-    téléchargement qu'après être retourné (délégué à un thread Kotlin
-    asynchrone côté JVM), donc après que le pipeline se soit déjà terminé
-    de son point de vue. Aucun verrou à tenir ici : à ce stade
-    `run_update_pipeline` a déjà relâché `_lock`."""
+    """Point d'entrée public pour un évènement qui n'arrive PAS depuis `run_update_pipeline` lui-même — aujourd'hui uniquement le rappel Android."""
     await _set_state(step=step, message=message, error=error, percent=percent)
 
 
 async def acknowledge_current() -> dict[str, Any]:
-    """Marque le cycle de mise à jour COURANT (`started_at`) comme vu par
-    l'utilisateur — appelé par `POST /api/updates/acknowledge` quand la
-    notification/bannière est fermée manuellement. Persisté ici plutôt que
-    dans un state React volatile : survit à un rechargement de page et à un
-    redémarrage de service déclenché par la mise à jour elle-même (corrige
-    le constat "la notification réapparaît en boucle"). Diffusé en
-    WebSocket pour que tout autre client déjà connecté (ex. un second
-    onglet) ferme aussi sa propre bannière sans attendre sa reconnexion."""
+    """Marque le cycle de mise à jour COURANT (`started_at`) comme vu par l'utilisateur — appelé par `POST /api/updates/acknowledge` quand la notification/bannière est fermée manuellement."""
     _state["acknowledged_started_at"] = _state.get("started_at")
     try:
         await ws_manager.broadcast({"event": "update_progress", **_public_state()})
@@ -218,11 +145,7 @@ async def _set_state(**kwargs: Any) -> None:
 
 
 def make_reporter(loop: asyncio.AbstractEventLoop) -> Callable[..., None]:
-    """Callback SYNCHRONE passé aux handlers de profil (`ProfileHandler.
-    apply_update`), qui s'exécutent dans un thread via `asyncio.to_thread`
-    (jamais directement sur la boucle asyncio — cf. `run_update_pipeline`).
-    Reprogramme la mise à jour d'état réelle (coroutine) sur la boucle
-    principale depuis ce thread."""
+    """Callback SYNCHRONE passé aux handlers de profil (`ProfileHandler."""
 
     def report(step: str, percent: int | None = None, message: str | None = None) -> None:
         asyncio.run_coroutine_threadsafe(
@@ -233,29 +156,8 @@ def make_reporter(loop: asyncio.AbstractEventLoop) -> Callable[..., None]:
 
 
 def clean_subprocess_env() -> dict[str, str]:
-    """Environnement assaini pour tout sous-processus invoquant un binaire
-    SYSTÈME externe (systemctl, dpkg, git...) depuis ce process.
-
-    PyInstaller (mode onedir, cf. packaging/linux/bobine.spec) positionne
-    `LD_LIBRARY_PATH` sur son propre dossier d'installation pour que
-    l'exécutable frozen trouve ses bibliothèques embarquées (dont
-    `libssl.so.3`/`libcrypto.so.3`, bundlées pour le module `ssl` de
-    Python) — mais ce même `LD_LIBRARY_PATH` est hérité par tout
-    sous-processus lancé depuis ce process, y compris des binaires système
-    totalement indépendants (`systemctl` en particulier charge
-    `libsystemd-shared.so`, lui-même lié à OpenSSL). Une `libcrypto.so.3`
-    bundlée plus ancienne que celle attendue par l'hôte provoque alors un
-    échec au chargement dynamique (symbole de version manquant, ex.
-    `OPENSSL_3.4.0`), typiquement sur `systemctl --user restart
-    bobine.service` juste après une mise à jour .deb — cause racine
-    confirmée du rapport "Paquet installé avec succès, mais le redémarrage
-    automatique du service a échoué". PyInstaller restaure la valeur
-    ORIGINALE (pré-frozen) de la variable, si elle existait, dans
-    `LD_LIBRARY_PATH_ORIG` — on la réapplique ici, ou on supprime
-    entièrement la clé si l'hôte n'en avait pas."""
+    """Environnement assaini pour tout sous-processus invoquant un binaire SYSTÈME externe (systemctl, dpkg, git...) depuis ce process."""
     env = dict(os.environ)
-    # Linux : LD_LIBRARY_PATH ; macOS : DYLD_LIBRARY_PATH ; AIX : LIBPATH.
-    # Le chargeur PyInstaller sauvegarde chacune sous « <nom>_ORIG » (même motif).
     for name in ("LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "LIBPATH"):
         original = env.pop(f"{name}_ORIG", None)
         if original:
@@ -270,14 +172,7 @@ def run_checked(
     cwd: Path | str | None = None,
     timeout: float = 45.0,
 ) -> subprocess.CompletedProcess:
-    """`subprocess.run` qui échoue BRUYAMMENT (exception avec stdout/
-    stderr inclus) au lieu de laisser l'appelant oublier de vérifier
-    `returncode` — corrige le constat récurrent "git checkout / systemctl
-    restart jamais vérifié avant de continuer, y compris en cas
-    d'échec réel". Environnement systématiquement assaini (cf.
-    `clean_subprocess_env()`) : ce helper invoque aussi bien des binaires
-    système (`systemctl`, `dpkg`) que `git`, tous potentiellement affectés
-    par la pollution `LD_LIBRARY_PATH` d'un build PyInstaller frozen."""
+    """`subprocess.run` qui échoue BRUYAMMENT (exception avec stdout/ stderr inclus) au lieu de laisser l'appelant oublier de vérifier `returncode`."""
     result = subprocess.run(
         cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout,
         env=clean_subprocess_env(),
@@ -297,34 +192,7 @@ def download_with_progress(
     on_progress: Callable[[int], None] | None = None,
     on_verifying: Callable[[], None] | None = None,
 ) -> None:
-    """Téléchargement par blocs, avec timeout explicite (contrairement à
-    l'ancien `urllib.request.urlretrieve` utilisé sans timeout sur les
-    profils Windows et Linux desktop) et vérification d'intégrité.
-
-    `expected_digest` reprend directement le champ `digest` que l'API
-    GitHub Releases renvoie déjà nativement pour chaque asset (format
-    `"sha256:<hex>"`) — pas besoin d'infrastructure CI supplémentaire
-    (fichier SHA256SUMS séparé) pour vérifier ce qui est sur le point
-    d'être installé avec des privilèges élevés.
-
-    Fonction SYNCHRONE et bloquante par conception : les handlers de
-    profil qui l'appellent tournent déjà dans un thread dédié via
-    `asyncio.to_thread` (cf. `run_update_pipeline`), jamais sur la boucle
-    asyncio elle-même.
-
-    Fail-closed : `expected_digest` absent
-    (asset non retrouvé dans la release GitHub, ou champ `digest` manquant
-    côté API) refuse le téléchargement plutôt que d'installer un binaire à
-    privilèges élevés sans aucune vérification — mieux vaut rater une mise
-    à jour automatique qu'en exécuter une jamais vérifiée.
-
-    `on_verifying` : appelé juste avant la comparaison d'empreinte SHA-256,
-    une fois le téléchargement terminé — l'étape `UpdateStep` "verifying"
-    était définie dans le type mais jamais réellement émise par aucun
-    handler, cette vérification ayant lieu silencieusement ; sans cet
-    évènement intermédiaire, un wizard affichant la progression saute
-    directement de "téléchargement 100%" à "installation" sans transition
-    visible pour cette étape pourtant réelle."""
+    """Téléchargement par blocs, avec timeout explicite (contrairement à l'ancien `urllib.request.urlretrieve` utilisé sans timeout sur les profils Windows et Linux desktop) et vérification d'intégrité."""
     if not expected_digest:
         raise RuntimeError(
             "Empreinte d'intégrité indisponible pour cet asset — "
@@ -338,11 +206,6 @@ def download_with_progress(
             hasher = _download_once(url, part, on_progress)
             break
         except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
-            # Coupure Wi-Fi, reset de connexion ou fichier tronqué : cas
-            # courants sur un réseau de salle de sport — on retente avec un
-            # court délai croissant plutôt que d'échouer au premier incident.
-            # Une erreur d'espace disque n'a aucune chance de se résoudre
-            # d'elle-même : propagée immédiatement.
             last_error = e
             part.unlink(missing_ok=True)
             if isinstance(e, OSError) and getattr(e, "errno", None) == 28:
@@ -366,17 +229,12 @@ def download_with_progress(
             f"(attendu {expected[:12]}…, obtenu {actual[:12]}…) — "
             f"fichier supprimé, installation annulée par précaution."
         )
-    # Renommage atomique APRÈS vérification : `dest` n'existe jamais dans un
-    # état partiel ou non vérifié, un installeur ne peut donc pas le lancer
-    # par erreur.
     part.replace(dest)
     if on_progress:
         on_progress(100)
 
 
 def _download_once(url: str, part: Path, on_progress: Callable[[int], None] | None):
-    """Une tentative de téléchargement vers `part` ; renvoie le hasher
-    SHA-256 alimenté par tous les octets écrits."""
     req = urllib.request.Request(
         url, headers={"User-Agent": "Bobine-Updater/2.0 (+https://bobine.fit)"}
     )
@@ -416,16 +274,7 @@ async def run_update_pipeline(
     asset_digest: str | None = None,
     triggered_by: str = "manual",
 ) -> None:
-    """Applique la mise à jour et redémarre les services, via le handler
-    du profil courant. `target_tag` épingle le checkout sur le tag résolu
-    par le canal courant au moment du déclenchement (manuel ou planifié) —
-    None si la résolution GitHub a échoué, auquel cas le handler retombe
-    sur son ancien comportement (`git pull --ff-only` sur la branche
-    courante). `download_url`/`asset_digest` sont l'URL et l'empreinte
-    SHA-256 de l'asset pour les profils non-git. `triggered_by` ("manual"
-    ou "scheduled") est uniquement informatif, reporté dans l'état pour
-    distinguer les deux origines dans les journaux et l'historique
-    affiché côté Réglages."""
+    """Applique la mise à jour et redémarre les services, via le handler du profil courant."""
     if _lock.locked():
         logger.warning("Une mise à jour est déjà en cours — nouvelle demande ignorée.")
         return
@@ -447,26 +296,12 @@ async def run_update_pipeline(
             f"(cible : {target_tag or 'branche courante'}, déclenchement : {triggered_by})..."
         )
 
-        # Aucun `force_reload` ici (l'ancien code rechargeait TOUS les écrans
-        # dès le début, avant même de savoir si la mise à jour allait
-        # aboutir — écrans de diffusion coupés en pleine séance pour une
-        # mise à jour échouée ou simplement en attente de confirmation).
-        # Quand le backend redémarre réellement, chaque client détecte le
-        # changement de `boot_id` à sa reconnexion WebSocket et se recharge
-        # tout seul (cf. usePlaybackSocket/useRadioSocket).
         await asyncio.sleep(0.5)
 
         loop = asyncio.get_running_loop()
         report = make_reporter(loop)
         handler = get_profile_handler()
         try:
-            # `asyncio.to_thread` — jamais un appel direct sur la coroutine
-            # courante : les handlers font des appels bloquants
-            # (subprocess, téléchargement) qui, exécutés directement sur
-            # la boucle asyncio, gelaient `/api/health` pendant toute la
-            # durée de la mise à jour et pouvaient déclencher un
-            # redémarrage forcé du process EN PLEIN transfert/installation
-            # (cf. `BobineTray._health_poll_loop`, 3 échecs consécutifs).
             await asyncio.to_thread(
                 handler.apply_update,
                 target_tag=target_tag,
@@ -474,10 +309,6 @@ async def run_update_pipeline(
                 asset_digest=asset_digest,
                 report=report,
             )
-            # Un handler à achèvement asynchrone (Android : téléchargement
-            # dans un thread JVM, issue rapportée plus tard par rappel HTTP)
-            # a déjà positionné l'étape réelle — ne jamais l'écraser par
-            # "terminé" ici.
             if not handler.async_completion:
                 await _set_state(step="done", percent=100, message="Mise à jour terminée avec succès.")
         except UpdateUnsupported as e:

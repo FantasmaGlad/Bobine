@@ -1,7 +1,3 @@
-"""Version web « lisible partout » : détection des
-raisons de non-lisibilité, négociation selon les capacités annoncées par le
-navigateur, et vrai transcodage ffmpeg d'un HEVC 10 bits."""
-
 import os
 import shutil
 import subprocess
@@ -17,8 +13,6 @@ from app.utils.web_profile import (  # noqa: E402
     build_web_rendition_command, choose_rendition, client_can_decode, parse_accept, web_playback_issues,
 )
 
-
-# --- raisons de non-lisibilité ---------------------------------------------------
 
 def test_plain_h264_1080p30_is_web_safe():
     assert web_playback_issues("h264", "yuv420p", 1920, 1080, 30.0) == []
@@ -42,12 +36,8 @@ def test_uhd_60fps_is_only_a_performance_note():
 
 
 def test_unknown_pixel_format_is_not_flagged():
-    # vidéos importées avec l'ancienne analyse : tant qu'elles n'ont pas été
-    # réanalysées, on ne prétend pas savoir
     assert web_playback_issues("h264", None, 1920, 1080, 30.0) == []
 
-
-# --- capacités du client ----------------------------------------------------------
 
 def test_client_accepting_hevc_can_play_hevc():
     assert client_can_decode(["decode:codec-hevc"], {"h264", "hevc"}) is True
@@ -68,8 +58,6 @@ def test_parse_accept():
     assert parse_accept("h264, HEVC,,") == {"h264", "hevc"}
     assert parse_accept("") == set()
 
-
-# --- choix de la version -----------------------------------------------------------
 
 def _choose(**kw):
     base = dict(issues=["decode:codec-hevc"], web_ready=True, profile=None, accept=None)
@@ -98,8 +86,6 @@ def test_explicit_profile_overrides_negotiation():
     assert _choose(profile="web", accept={"h264", "hevc"}) == "web"
     assert _choose(profile="original", accept={"h264"}) == "original"
 
-
-# --- ligne de commande ffmpeg ---------------------------------------------------------
 
 def test_command_downscales_uhd_and_caps_frame_rate():
     cmd = build_web_rendition_command("ffmpeg", "in.mkv", "out.mp4", 2160, 120.0, has_audio=True)

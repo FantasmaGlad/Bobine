@@ -2,16 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-/**
- * Garde-fou des 18 palettes : les jetons du CSS (pas des copies) sont résolus, mélangés et comparés.
- * Toute nouvelle surface posée sur ces jetons hérite de la vérification ; un thème ajouté est testé d'office.
- */
 const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8") + "\n" + readFileSync(new URL("../src/app/themes.css", import.meta.url), "utf8");
 import { THEME_IDS } from "../src/lib/themePalettes.ts";
 
 type Rgba = { r: number; g: number; b: number; a: number };
 
-/** Déclarations `--jeton: valeur;` de chaque règle dont un sélecteur est `:root` ou `:root[data-theme="x"]`, dans l'ordre du fichier. */
 function rules(): Array<{ selectors: string[]; vars: Record<string, string> }> {
   const out: Array<{ selectors: string[]; vars: Record<string, string> }> = [];
   for (const m of css.matchAll(/(^|\n)(:root[^{}]*)\{([^{}]*)\}/g)) {
@@ -24,10 +19,8 @@ function rules(): Array<{ selectors: string[]; vars: Record<string, string> }> {
 }
 const ALL_RULES = rules();
 const MODES = ["light", "dark"] as const;
-/** Chaque couleur dans chaque mode : « ardoise/light », « ardoise/dark », … */
 const THEMES = THEME_IDS.flatMap((id) => MODES.map((mode) => `${id}/${mode}`));
 
-/** Jetons d'un thème dans un mode : `:root`, puis les règles du mode, puis celles du couple (ordre du fichier). */
 function themeVars(combo: string): Record<string, string> {
   const [theme, mode] = combo.split("/");
   const vars: Record<string, string> = {};
@@ -53,7 +46,6 @@ function splitTopLevel(text: string): string[] {
   return parts;
 }
 
-/** Évalue #hex, rgb()/rgba(), transparent, black, var(--x) et color-mix(in srgb, A p%, B) (mélange prémultiplié CSS Color 5). */
 function evaluate(expr: string, vars: Record<string, string>): Rgba {
   const e = expr.trim();
   if (e === "transparent") return { r: 0, g: 0, b: 0, a: 0 };
@@ -111,7 +103,6 @@ function ratio(a: Rgba, b: Rgba): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** Couleur de `expr` posée sur le fond de page du thème (les surfaces de verre sont translucides). */
 function onPage(expr: string, vars: Record<string, string>): Rgba {
   return over(evaluate(expr, vars), evaluate("var(--bg-main)", vars));
 }
@@ -137,7 +128,7 @@ for (const theme of THEMES) {
   });
 
   test(`${theme} : texte d'erreur lisible sur les surfaces`, () => {
-    const tinted = "color-mix(in srgb, var(--accent-error) 15%, var(--bg-surface-elevated))"; // encarts d'erreur teintés
+    const tinted = "color-mix(in srgb, var(--accent-error) 15%, var(--bg-surface-elevated))";
     for (const surface of ["var(--bg-main)", "var(--bg-surface)", "var(--bg-surface-elevated)", tinted]) {
       const got = ratio(c("var(--accent-error-text)"), over(c(surface), c("var(--bg-main)")));
       assert.ok(got >= AA, `accent-error-text sur ${surface} : ${got.toFixed(2)}`);
@@ -145,7 +136,6 @@ for (const theme of THEMES) {
   });
 
   test(`${theme} : bouton principal (texte sur son fond réel, posé sur la page)`, () => {
-    // Fond effectif : celui que le CSS impose à ce thème (règle des thèmes clairs) sinon `.btn-primary`.
     const themed = new RegExp(`:root\\[data-theme="${theme}"\\] \\.btn-primary:not\\(:disabled\\)[^{]*\\{[^}]*?background-color:\\s*([^;]+);`).exec(css)?.[1];
     const fill = themed ?? /\n\.btn-primary \{[^}]*?background:\s*([^;]+);/.exec(css)?.[1];
     assert.ok(fill && !fill.includes("gradient"), "fond du bouton principal introuvable ou en dégradé translucide");
@@ -195,9 +185,6 @@ for (const theme of THEMES) {
   });
 }
 
-// --- Routage audio et table de mixage des sorties radio (matériau ajouté avec les phases 2 et 3) ---
-
-/** Valeur de la déclaration `property` de la première règle `selector { … }` du CSS. */
 function declaration(selector: string, property: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const block = new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`).exec(css)?.[1];
@@ -221,26 +208,21 @@ for (const theme of THEMES) {
 
   test(`${theme} : routage et mixage (bascules, vumètre, arêtes du graphe)`, () => {
     const strip = onPage(declaration(".mx-strip", "background"), vars);
-    // Solo actif : texte sur le fond d'accent.
     const solo = ratio(c(declaration(".mx-toggle--solo.is-on", "color")), onPage(declaration(".mx-toggle--solo.is-on", "background"), vars));
     assert.ok(solo >= AA, `solo actif : ${solo.toFixed(2)}`);
-    // Sourdine active : texte d'erreur sur son fond teinté.
     const muteBg = over(c(declaration(".mx-toggle--mute.is-on", "background")), strip);
     const mute = ratio(c(declaration(".mx-toggle--mute.is-on", "color")), muteBg);
     assert.ok(mute >= AA, `sourdine active : ${mute.toFixed(2)}`);
-    // Vumètre : le remplissage se distingue de sa piste (3:1), y compris la zone de saturation.
     const track = over(c(declaration(".mx-meter", "background")), strip);
     for (const fill of [declaration(".mx-meter-fill", "background"), declaration(".mx-meter-fill.is-hot", "background")]) {
       const got = ratio(c(fill), track);
       assert.ok(got >= NON_TEXT, `vumètre ${fill} sur sa piste : ${got.toFixed(2)}`);
     }
-    // Arêtes du graphe sur le fond de la zone de graphe : route (accent), liaison par défaut (texte atténué), sortie absente.
     const frame = onPage(declaration(".rt-graph-frame", "background"), vars);
     for (const [rule, expect] of [[".rt-edge--route", "stroke"], [".rt-edge", "stroke"], [".rt-edge.is-absent", "stroke"]] as const) {
       const got = ratio(c(declaration(rule, expect)), frame);
       assert.ok(got >= NON_TEXT, `${rule} sur le graphe : ${got.toFixed(2)}`);
     }
-    // Icônes d'état (en plus du texte) des cartes de routage sur le verre.
     const card = onPage(declaration(".rt-card, .mx-channel", "background"), vars);
     const ok = ratio(c(declaration(".rt-status--ok .material-symbols-outlined", "color")), card);
     const warn = ratio(c(declaration(".rt-status--warn .material-symbols-outlined", "color")), card);
@@ -249,13 +231,10 @@ for (const theme of THEMES) {
   });
 }
 
-// Plus de dégradé de fond : le contenu est un aplat, le verre une couleur translucide posée dessus.
-// (MAIN_MIN est défini plus haut) la palette fournie plafonne le texte principal à 4,5 sur certaines surfaces (rose vif sombre)
 function resolveToken(expr: string, vars: Record<string, string>): string {
   const match = /^var\(--([\w-]+)\)$/.exec(expr);
   return match ? resolveToken(vars[match[1]], vars) : expr;
 }
-// Matrice saturate() de CSS Filter Effects appliquée au fond avant le verre.
 function saturateBackdrop(c: Rgba, amount: number): Rgba {
   const y = .213 * c.r + .715 * c.g + .072 * c.b;
   const channel = (v: number) => Math.max(0, Math.min(255, y + amount * (v - y)));
@@ -272,7 +251,6 @@ for (const theme of THEMES) {
     const content = c("var(--bg-content)");
     const saturation = parseFloat(vars["saturate-rich"]) / 100;
     const glass = over(c("var(--glass-card-bg)"), saturateBackdrop(over(content, c("var(--bg-main)")), saturation));
-    // Le mode système sans transparence remplace les cartes par ce fond opaque.
     for (const bg of [over(content, c("var(--bg-main)")), glass, c("var(--bg-surface-elevated)")]) {
       for (const [token, min] of [["text-main", MAIN_MIN], ["text-muted", AA], ["content-text-dim", AA]] as const) {
         const got = ratio(c(`var(--${token})`), bg);

@@ -65,7 +65,7 @@ def validate_ndk(root: Path, expected: str) -> None:
 def download_archive(spec: dict, destination: Path, attempts: int = 3) -> None:
     for attempt in range(1, attempts + 1):
         try:
-            digest = hashlib.sha1()  # Google's pinned repository checksum; transport uses HTTPS.
+            digest = hashlib.sha1()
             size = 0
             with urllib.request.urlopen(REPOSITORY + spec["archive"], timeout=120) as response, destination.open("wb") as output:
                 while block := response.read(1024 * 1024):
@@ -81,7 +81,6 @@ def download_archive(spec: dict, destination: Path, attempts: int = 3) -> None:
                     raise zipfile.BadZipFile("NDK ZIP CRC mismatch")
             return
         except (OSError, ValueError, zipfile.BadZipFile, urllib.error.URLError) as exc:
-            # Permanent HTTP errors and filesystem failures do not improve on retry.
             if isinstance(exc, urllib.error.HTTPError) and exc.code not in (408, 429, 500, 502, 503, 504):
                 raise
             if isinstance(exc, OSError) and getattr(exc, "errno", None) in (13, 28, 30):

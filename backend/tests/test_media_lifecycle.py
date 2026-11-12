@@ -1,8 +1,3 @@
-"""Binary discovery in packaged layouts, parent death, and gapless duration parity.
-
-The tests that need the native executable or ffmpeg skip when they are absent, like the
-other optional-component tests; the Rust suite covers the same rules on every platform.
-"""
 from pathlib import Path
 import os
 import shutil
@@ -63,7 +58,6 @@ def test_non_executable_candidate_is_not_selected(tmp_path, frozen, monkeypatch)
 @pytest.mark.skipif(os.name == "nt", reason="POSIX signals")
 @needs_binary
 def test_native_process_exits_when_the_parent_is_killed(tmp_path):
-    """EOF on stdin is the only supervision channel: it must also fire when the parent dies."""
     parent = tmp_path / "parent.py"
     parent.write_text(textwrap.dedent(f'''
         import sys, time
@@ -82,7 +76,7 @@ def test_native_process_exits_when_the_parent_is_killed(tmp_path):
     process = subprocess.Popen([sys.executable, str(parent)], stdout=subprocess.PIPE, text=True)
     try:
         child_pid = int(process.stdout.readline())
-        os.kill(child_pid, 0)  # alive while its parent lives
+        os.kill(child_pid, 0)
         process.send_signal(signal.SIGKILL)
         process.wait(timeout=5)
         deadline = time.monotonic() + 5
@@ -93,7 +87,7 @@ def test_native_process_exits_when_the_parent_is_killed(tmp_path):
                 return
             except ProcessLookupError:
                 return
-            if state == "Z":  # exited, only waiting to be reaped by init
+            if state == "Z":
                 return
             if state is None:
                 try:
@@ -111,7 +105,6 @@ def test_native_process_exits_when_the_parent_is_killed(tmp_path):
 @needs_binary
 @pytest.mark.skipif(not (shutil.which("ffmpeg") and shutil.which("ffprobe")), reason="ffmpeg/ffprobe unavailable")
 def test_mp3_durations_match_ffprobe_for_varied_lengths(tmp_path):
-    """Regression: raw frame counts over-report by the encoder delay and padding (up to ~52 ms)."""
     client = media.MediaClient([str(NATIVE)], enabled=True)
     try:
         checked = 0

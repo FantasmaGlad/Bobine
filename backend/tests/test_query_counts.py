@@ -1,19 +1,5 @@
-"""Régression N+1 : les routes de LISTE (et les détails de playlists) doivent
-émettre un nombre de requêtes SQL constant, indépendant du nombre de lignes.
-
-Avant correction, chaque ligne déclenchait un SELECT paresseux sur sa relation
-(`RadioTrack.tags`, `Playlist.items` -> `PlaylistItem.video`, `AudioCourse.tracks`...)
-: 5000 morceaux radio = 5001 requêtes (~489 ms qui bloquent la boucle
-d'évènements) contre 2 avec `selectinload`/`joinedload` (~54 ms).
-
-Le test sème un jeu volontairement petit mais assez grand pour que le défaut
-saute aux yeux (≥ 12 lignes par collection) : une régression ferait passer un
-nombre de requêtes de ~3 à plus de 40, très au-delà de la borne.
-"""
-
 import os
 
-# Base de test isolée AVANT tout import de l'application (comme les autres tests).
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
 os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
@@ -43,8 +29,6 @@ from app.models import (  # noqa: E402
 
 ROWS = 12
 PREFIX = "qcount-"
-# Borne large : les listes émettent aujourd'hui 1 à 3 requêtes ; un N+1
-# ferait au minimum ROWS requêtes de plus.
 MAX_QUERIES = 6
 
 
@@ -109,7 +93,6 @@ def seeded():
 
 
 def _purge(db) -> None:
-    """Supprime uniquement les lignes semées ici (la base de test est partagée)."""
     for playlist_model, item_model, fk in (
         (AudioPlaylist, AudioPlaylistItem, AudioPlaylistItem.playlist_id),
         (RadioPlaylist, RadioPlaylistItem, RadioPlaylistItem.playlist_id),
@@ -135,7 +118,6 @@ def _count_queries(client: TestClient, url: str) -> tuple[int, object]:
     def _record(conn, cursor, statement, parameters, context, executemany):
         statements.append(statement)
 
-    # `database.engine` est relu à chaque appel : `database.py` peut le recréer.
     event.listen(database.engine, "before_cursor_execute", _record)
     try:
         response = client.get(url)

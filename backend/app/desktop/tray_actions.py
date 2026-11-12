@@ -1,10 +1,4 @@
-"""Actions rapides du menu de la barre système : état, pause, reprise et arrêt de la diffusion.
-
-Elles passent par la façade REST de l'interface (`POST /api/playback|radio/{cible}/{action}`) : le menu ne fait que ce
-que font l'écran de pilotage et la commande `bobine` (`bobine playback cable pause`), avec les mêmes verrous de canal.
-Logique pure, sans pystray : le transport HTTP est injecté pour les tests (backend/tests/test_tray_actions.py) ;
-`app.desktop.tray` fournit l'adresse du backend et monte le menu.
-"""
+"""Actions rapides du menu de la barre système : état, pause, reprise et arrêt de la diffusion."""
 from __future__ import annotations
 
 import http.client
@@ -18,7 +12,6 @@ from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
-# (type de sortie, cible, libellé du menu) : vidéo par canal, radio par sortie.
 OUTPUTS = (
     ("playback", "cable", "Câblé"),
     ("playback", "network", "Réseau"),
@@ -114,15 +107,13 @@ class Controls:
         try:
             self._transport("POST", self._admin_url() + _action_path(kind, target, action), HTTP_TIMEOUT_SECONDS)
             return True
-        except urllib.error.HTTPError as exc:  # canal verrouillé (409), inconnu (404)...
+        except urllib.error.HTTPError as exc:
             logger.info("Action rapide %s %s %s refusée : %s", kind, target, action, exc.code)
         except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException) as exc:
             logger.info("Action rapide %s %s %s impossible : %s", kind, target, action, exc)
         return False
 
 
-# Une issue de mise à jour plus ancienne n'est plus une nouvelle : la barre système n'a pas de mémoire entre deux lancements,
-# sans ce délai chaque redémarrage re-notifierait la dernière mise à jour terminée.
 UPDATE_NOTIFICATION_MAX_AGE_SECONDS = 600
 
 

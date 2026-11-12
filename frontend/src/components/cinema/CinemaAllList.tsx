@@ -6,8 +6,6 @@ import { formatMinutes } from "@/lib/format";
 import Icon from "@/components/Icon";
 import MarqueeText from "@/components/MarqueeText";
 
-// Mémoïsé comme CinemaRow pour ne pas réconcilier toute la liste "Tous les
-// cours" (potentiellement longue) à chaque mise à jour de position vidéo.
 const CinemaAllList = React.memo(function CinemaAllList({
   videos,
   onSelect,

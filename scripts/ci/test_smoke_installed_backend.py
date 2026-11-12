@@ -1,4 +1,3 @@
-"""Le script de fumée du backend installé doit réussir sur un backend sain et échouer sinon (sinon le job CI ne prouve rien)."""
 import os
 import socket
 import stat

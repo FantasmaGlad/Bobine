@@ -17,7 +17,6 @@ ROOT = Path(__file__).resolve().parents[2]
 def run(command):
     result = subprocess.run(command, capture_output=True, text=True, timeout=60)
     if result.returncode:
-        # Keep generated reports portable: no absolute paths in diagnostics.
         raise RuntimeError(f"{Path(command[0]).name} exited {result.returncode}")
     return result.stdout
 
@@ -36,7 +35,6 @@ _MPEG1_SAMPLE_RATES = (44100, 48000, 32000)
 
 
 def _mp3_frames(data, start):
-    """Return (first_frame_offset, [(offset, length)]) for MPEG-1 Layer III audio."""
     frames, position = [], start
     while position + 4 <= len(data):
         header = int.from_bytes(data[position:position + 4], "big")
@@ -53,13 +51,7 @@ def _mp3_frames(data, start):
 
 
 def build_vbri_mp3(data):
-    """Insert a genuine VBRI frame after the ID3v2 tag of a CBR MPEG-1 Layer III stream.
-
-    ffmpeg/libmp3lame only writes Xing/Info, so this is the only way to obtain a VBRI
-    fixture without third-party media. The frame follows the Fraunhofer layout: a
-    4-byte header, 32 zero bytes, then `VBRI`, version 1, delay, quality, byte and frame
-    counts, and an empty seek table.
-    """
+    """Insert a genuine VBRI frame after the ID3v2 tag of a CBR MPEG-1 Layer III stream."""
     start = 0
     if data[:3] == b"ID3":
         start = 10 + (data[6] << 21 | data[7] << 14 | data[8] << 7 | data[9])
@@ -100,10 +92,7 @@ def patch_mp4_creation_time(data, seconds_1904):
 
 
 def cover_gallery(output):
-    """Image varieties that exercise the cover equivalence. Needs Pillow (backend environment).
-
-    Deterministic procedural images, never third-party content. Returns {id: (path, extension)}.
-    """
+    """Image varieties that exercise the cover equivalence."""
     try:
         from PIL import Image, ImageDraw, ImageFilter
     except ImportError:
@@ -159,12 +148,7 @@ def cover_gallery(output):
 
 
 def generate_scale(output, media, ffmpeg, count, cover_ratio, failures):
-    """Extra unique tracks with varied durations, for large-library measurements.
-
-    Deterministic (fixed LCG) so two runs create the same intentions. The mix keeps the
-    format spread of the base corpus; only MP3 and FLAC receive a picture because those
-    are the common cover carriers.
-    """
+    """Extra unique tracks with varied durations, for large-library measurements."""
     scale_dir = media / "scale"
     scale_dir.mkdir()
     families = [
@@ -178,7 +162,6 @@ def generate_scale(output, media, ffmpeg, count, cover_ratio, failures):
         ("ogg-vorbis", "ogg", ["-c:a", "libvorbis", "-q:a", "3"]),
         ("ogg-opus", "opus", ["-c:a", "libopus", "-b:a", "96k"]),
         ("aiff", "aiff", ["-c:a", "pcm_s16be"]),
-        # CBR without index at other rates and layouts (MPEG-1 and MPEG-2, mono and stereo).
         ("mp3-cbr-no-xing-48k-192", "mp3", ["-c:a", "libmp3lame", "-b:a", "192k", "-ar", "48000", "-ac", "2", "-write_xing", "0"]),
         ("mp3-cbr-no-xing-22k-64", "mp3", ["-c:a", "libmp3lame", "-b:a", "64k", "-ar", "22050", "-write_xing", "0"]),
         ("mp3-cbr-xing-32k-96", "mp3", ["-c:a", "libmp3lame", "-b:a", "96k", "-ar", "32000", "-write_xing", "1"]),
@@ -275,7 +258,6 @@ def generate(output, ffmpeg, scale=0, cover_ratio=0.25):
                 continue
             record(identity, family, path, {"source_seconds": 1.37, "requested_tags": tags, "cover": None})
 
-    # Both opaque JPEG and transparent PNG in every common cover container.
     for family, extension in [("mp3-cbr-xing", "mp3"), ("flac", "flac"), ("aac-m4a", "m4a"), ("ogg-vorbis", "ogg"), ("ogg-opus", "opus")]:
         source = next((entry for entry in entries if entry["id"] == f"{family}-numbers"), None)
         if source is None:
@@ -298,7 +280,6 @@ def generate(output, ffmpeg, scale=0, cover_ratio=0.25):
                 continue
             record(identity, family, path, {"source_seconds": 1.37, "cover": image_format})
 
-    # VBRI (not produced by libmp3lame), a double attached picture and atypical locations.
     for variant in ("absent", "unicode"):
         source = next((entry for entry in entries if entry["id"] == f"mp3-cbr-no-xing-{variant}"), None)
         if source is None:
@@ -320,7 +301,6 @@ def generate(output, ffmpeg, scale=0, cover_ratio=0.25):
         except (RuntimeError, subprocess.TimeoutExpired) as exc:
             failures.append({"id": identity, "reason": str(exc) if not isinstance(exc, subprocess.TimeoutExpired) else "ffmpeg timeout"})
             print(f"FAILED {identity}: {failures[-1]['reason']}", file=sys.stderr)
-    # Image varieties in an MP3 (Pillow only: skipped, and recorded, without it).
     gallery = cover_gallery(output)
     if not gallery:
         failures.append({"id": "cover-gallery", "reason": "Pillow unavailable"})
@@ -334,8 +314,6 @@ def generate(output, ffmpeg, scale=0, cover_ratio=0.25):
             record(identity, "mp3-cbr-xing", path, {"source_seconds": 1.37, "cover": name})
         except (RuntimeError, subprocess.TimeoutExpired) as exc:
             failures.append({"id": identity, "reason": str(exc) if not isinstance(exc, subprocess.TimeoutExpired) else "ffmpeg timeout"})
-    # Layout variations of the accepted containers: ID3v2.4, a trailing ID3v1, other MP3 rates,
-    # an MP4 creation time (a year source when the date tag is missing).
     layouts = [
         ("mp3-cbr-xing-id3v24", "mp3", "mp3-cbr-xing", ["-id3v2_version", "4"], "numbers"),
         ("mp3-cbr-xing-id3v1", "mp3", "mp3-cbr-xing", ["-write_id3v1", "1"], "numbers"),
@@ -365,8 +343,6 @@ def generate(output, ffmpeg, scale=0, cover_ratio=0.25):
                 ("wav-nested", nested / "03 spaces  double.wav", ["-c:a", "pcm_s16le"]),
                 ("wav-long-name", media / (("très long nom " * 14).strip() + ".wav"), ["-c:a", "pcm_s16le"])]
     for identity, path, codec in atypical:
-        # WAV keeps no title here: a RIFF INFO title is outside the native subset, and
-        # these files exist to exercise path handling on the accepted layouts.
         tags = [] if identity.startswith("wav") else ["-metadata", "title=Chemin atypique"]
         try:
             run([ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",

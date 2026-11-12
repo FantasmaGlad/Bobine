@@ -1,17 +1,4 @@
-"""Gestionnaire du formatage : plan (lecture seule), exécution en cascade, annulation, vérification après coup.
-
-Deux phases côté serveur :
-
-1. `plan` ne touche à rien : il relit le support, passe la cascade de vérifications, résume ce qui sera effacé, liste les
-   formats possibles avec le verdict du conseiller et délivre un jeton court à usage unique lié à l'identité du support ;
-2. `start` exige ce jeton, le format choisi, une étiquette valide et la confirmation saisie, rejoue TOUTE la cascade sur un
-   inventaire frais, compare l'identité, puis lance l'opération en arrière-plan.
-
-L'opération ne fait qu'un formatage RAPIDE : table GPT, une partition alignée sur 1 Mio, système de fichiers. Le point de
-non-retour est franchi juste avant l'écriture de la table ; avant, l'annulation est possible et le support reste intact ;
-après, elle ne l'est plus. Au moindre échec après l'effacement, le support est ramené à l'état vierge plutôt que laissé à
-moitié configuré. Tout ce que le support devient est relu et contrôlé (cascade de vérification après coup).
-"""
+"""Gestionnaire du formatage : plan (lecture seule), exécution en cascade, annulation, vérification après cou."""
 
 from __future__ import annotations
 
@@ -41,7 +28,6 @@ from .tokens import PlanTokens
 
 logger = logging.getLogger(__name__)
 
-# Étapes de l'opération, dans l'ordre (l'interface les affiche) ; l'effacement commence à « table ».
 STEPS = ("unmount", "recheck", "table", "format", "settle", "readback", "mount_ro", "write_test", "back_ro", "health")
 POINT_OF_NO_RETURN = "table"
 UNMOUNT_TRIES = 4
@@ -51,8 +37,8 @@ JOB_KEEP_SECONDS = 600.0
 TEST_FILE_BYTES = 64 * 1024
 SECTOR = 512
 
-OWN_ENV_IMAGES = "BOBINE_STORAGE_FORMAT_IMAGES"       # essais : autorise les images disque (loop)
-OWN_ENV_ONLY = "BOBINE_STORAGE_FORMAT_ONLY"           # essais : liste blanche de périphériques (/dev/loopN,...)
+OWN_ENV_IMAGES = "BOBINE_STORAGE_FORMAT_IMAGES"
+OWN_ENV_ONLY = "BOBINE_STORAGE_FORMAT_ONLY"
 
 
 def _env_allow_images() -> bool:
@@ -78,8 +64,8 @@ class FormatJob:
     started_at: float
     steps: dict[str, str] = field(default_factory=lambda: {s: "pending" for s in STEPS})
     stage: str = "starting"
-    state: str = "running"           # running | done | failed | cancelled
-    outcome: str | None = None       # verified | verified_with_warnings | unchanged | erased_blank | partial_unknown | unverified
+    state: str = "running"
+    outcome: str | None = None
     point_of_no_return: bool = False
     cancel_requested: bool = False
     error: dict[str, str] | None = None
@@ -117,7 +103,6 @@ class FormatManager:
         self._active: FormatJob | None = None
         self._tasks: set[asyncio.Task[None]] = set()
 
-    # ------------------------------------------------------------------ contexte de la cascade
     async def _registered(self) -> tuple[frozenset[str], dict[str, str]]:
         from app.database import SessionLocal
 
@@ -166,7 +151,6 @@ class FormatManager:
         )
 
     async def _resolve(self, key: str) -> tuple[Volume | None, DiskInfo | None, list[DiskInfo]]:
-        """Support et disque RELUS dans l'inventaire courant (jamais un chemin envoyé par le client)."""
         if key.startswith("p-"):
             raise FormatRefusal("format_phone")
         vol = self.svc._by_key.get(key)
@@ -191,7 +175,6 @@ class FormatManager:
             extra["actions"] = [{"id": "unregister", "key": k} for k in registered_keys]
         return FormatRefusal(bad.code or "format_failed", **extra)
 
-    # ------------------------------------------------------------------ phase 1 : plan (aucune écriture)
     async def plan(self, key: str, *, owner: str, travels: list[str]) -> dict[str, Any]:
         support = await self.svc.driver.format_support()
         vol, disk, disks = await self._resolve(key)
@@ -202,9 +185,7 @@ class FormatManager:
             raise refusal
         assert disk is not None and vol is not None
 
-        # Contenu : lecture seule uniquement. Un support déjà monté est lu tel quel ; sinon montage en lecture seule.
         reads = await self._content_of(disk)
-        # Relecture fraîche : l'identité du plan est celle d'APRÈS la lecture du contenu.
         _, disk, disks = await self._resolve(key)
         if disk is None:
             raise FormatRefusal("format_not_found")
@@ -251,7 +232,6 @@ class FormatManager:
         }
 
     async def _content_of(self, disk: DiskInfo) -> list[dict[str, Any]]:
-        """Résumé du contenu de chaque système de fichiers du disque (montage en lecture seule si nécessaire, rien d'autre)."""
         results: list[dict[str, Any]] = []
         for part in disk.partitions:
             if not part.fstype:
@@ -285,7 +265,6 @@ class FormatManager:
             results.append(entry)
         return results
 
-    # ------------------------------------------------------------------ phase 2 : exécution
     def _spec(self, fs: str, label: str, disk: DiskInfo) -> FormatSpec:
         spec = SPECS[fs]
         return FormatSpec(
@@ -294,9 +273,7 @@ class FormatManager:
         )
 
     async def start(self, key: str, *, token: str | None, fs: str, label: str, confirm_text: str, acknowledged: bool, owner: str) -> dict[str, Any]:
-        """Valide la demande, rejoue la cascade sur un inventaire frais, puis lance l'opération. Rien n'est écrit avant.
-
-        Tout refus est journalisé (code seulement : jamais de jeton, de numéro de série ni de chemin)."""
+        """Valide la demande, rejoue la cascade sur un inventaire frais, puis lance l'opération."""
         try:
             return await self._start(key, token=token, fs=fs, label=label, confirm_text=confirm_text, acknowledged=acknowledged, owner=owner)
         except FormatRefusal as exc:
@@ -304,7 +281,6 @@ class FormatManager:
             raise
 
     async def _start(self, key: str, *, token: str | None, fs: str, label: str, confirm_text: str, acknowledged: bool, owner: str) -> dict[str, Any]:
-        # 0. validation de la demande (aucun état modifié, le jeton n'est pas encore brûlé)
         if not token:
             raise FormatRefusal("format_token_missing")
         if fs not in SPECS:
@@ -328,17 +304,14 @@ class FormatManager:
         if limit:
             raise FormatRefusal("format_fs_unavailable", reason=limit)
 
-        # Une seule opération destructive à la fois : prise atomique du verrou (aucune attente entre le test et la prise).
         if self._gate.locked():
             raise FormatRefusal("format_busy_operation")
         await self._gate.acquire()
         job: FormatJob | None = None
         try:
-            # 1. le jeton est brûlé ICI : toute dérive à partir de maintenant impose de recommencer
             record = self.tokens.consume(token, owner=owner)
             if record.key != key:
                 raise FormatRefusal("format_identity_changed")
-            # 2. relecture au dernier instant, cascade complète, comparaison d'identité
             vol, disk, disks = await self._resolve(key)
             ctx = await self._context(disk, support)
             refusal = self._refusal(evaluate(ctx), disk)
@@ -366,7 +339,6 @@ class FormatManager:
                 self._gate.release()
             raise
 
-    # ------------------------------------------------------------------ déroulement
     def _step(self, job: FormatJob, step: str, state: str) -> None:
         job.steps[step] = state
         if state == "running":
@@ -420,19 +392,17 @@ class FormatManager:
         job.state = "failed"
         job.error = {"code": code, "message": message}
         if not job.point_of_no_return:
-            job.outcome = "unchanged"                    # rien n'a été effacé
+            job.outcome = "unchanged"
         elif job.steps["table"] != "ok":
-            # Un refus d'autorisation précède toute écriture ; toute autre panne pendant la table laisse un état incertain.
             job.outcome = "unchanged" if code == "format_not_authorized" else "partial_unknown"
         elif job.steps["format"] != "ok":
-            # La table est écrite mais pas le système de fichiers : retour à un support vierge, jamais à moitié configuré.
             try:
                 await self.svc.driver.wipe_disk(await self._fresh(disk))
                 job.outcome = "erased_blank"
             except DeviceError:
                 job.outcome = "partial_unknown"
         else:
-            job.outcome = "unverified"                   # formaté, mais la vérification n'a pas pu aboutir
+            job.outcome = "unverified"
         for step, state in job.steps.items():
             if state == "running":
                 job.steps[step] = "failed"
@@ -444,7 +414,6 @@ class FormatManager:
         for jid in [j for j, v in self._jobs.items() if v.finished_at and now - v.finished_at > JOB_KEEP_SECONDS]:
             self._jobs.pop(jid, None)
 
-    # --- étape : démontage de toutes les partitions -------------------------------------------------------------
     async def _unmount_all(self, job: FormatJob, disk: DiskInfo) -> DiskInfo:
         self._step(job, "unmount", "running")
         await asyncio.to_thread(os.sync)
@@ -467,13 +436,11 @@ class FormatManager:
         raise FormatRefusal("format_busy_mounted")
 
     async def _fresh(self, disk: DiskInfo) -> DiskInfo:
-        """Le même disque, relu dans l'inventaire courant (par chemin ET identité)."""
         for candidate in await self.svc.driver.disks():
             if hardware_identity(candidate) == hardware_identity(disk):
                 return candidate
         raise FormatRefusal("format_identity_changed")
 
-    # --- étape : dernier examen avant le point de non-retour ------------------------------------------------------
     async def _recheck(self, job: FormatJob, planned: DiskInfo, support: dict[str, Any]) -> DiskInfo:
         self._step(job, "recheck", "running")
         self._check_cancel(job)
@@ -484,7 +451,6 @@ class FormatManager:
         if refusal is not None:
             raise refusal
         assert current is not None
-        # Les partitions peuvent avoir changé d'état de montage (le bureau remonte un support démonté) mais jamais d'identité.
         if fingerprint(current) != fingerprint(planned):
             raise FormatRefusal("format_identity_changed")
         if current.mountpoints:
@@ -498,9 +464,8 @@ class FormatManager:
         self._step(job, "recheck", "ok")
         return current
 
-    # --- étapes : effacement (point de non-retour) ---------------------------------------------------------------
     async def _erase_and_format(self, job: FormatJob, disk: DiskInfo, spec: FormatSpec) -> None:
-        job.point_of_no_return = True            # À partir d'ici : plus d'annulation
+        job.point_of_no_return = True
         self._step(job, "table", "running")
         await self.svc.driver.create_partition_table(disk)
         await asyncio.sleep(0.8)
@@ -510,7 +475,6 @@ class FormatManager:
         await self.svc.driver.create_partition_and_format(await self._fresh(disk), spec)
         self._step(job, "format", "ok")
 
-    # --- cascade de vérification après coup --------------------------------------------------------------------
     async def _wait_new_disk(self, disk: DiskInfo, spec: FormatSpec) -> DiskInfo | None:
         deadline = time.monotonic() + SETTLE_SECONDS
         while time.monotonic() < deadline:
@@ -540,7 +504,6 @@ class FormatManager:
         def add(cid: str, ok: bool, **detail: Any) -> None:
             checks.append({"id": cid, "ok": ok, **detail})
 
-        # --- 1. relecture : type, étiquette, UUID nouveau, capacité, table, alignement
         self._step(job, "settle", "running")
         disk = await self._wait_new_disk(planned, spec)
         if disk is None:
@@ -566,7 +529,6 @@ class FormatManager:
         readback_ok = all(c["ok"] for c in checks)
         self._step(job, "readback", "ok" if readback_ok else "warn")
 
-        # --- 2. remontage en lecture seule, puis phase d'écriture temporaire explicite, puis retour en lecture seule
         volume = await self._wait_volume(main.path)
         final_ro: bool | None = None
         write_info: dict[str, Any] = {}
@@ -587,7 +549,7 @@ class FormatManager:
                 self._step(job, "mount_ro", "failed")
             self._step(job, "write_test", "running")
             try:
-                await self.svc.mount(vkey, "rw", _format_job=job.id)               # phase explicitement en lecture-écriture, temporaire
+                await self.svc.mount(vkey, "rw", _format_job=job.id)
                 volume = self.svc._by_key.get(vkey) or volume
                 if volume.mountpoint:
                     write_info = await asyncio.to_thread(write_read_delete_test, volume.mountpoint)
@@ -610,7 +572,6 @@ class FormatManager:
                 add("back_read_only", final_ro)
             self._step(job, "back_ro", "ok" if final_ro else "warn")
 
-        # --- 3. santé relue (SMART si possible) ; jamais bloquant
         self._step(job, "health", "running")
         health: dict[str, Any] = {"available": False, "reason": "unknown"}
         if volume is not None:
@@ -629,7 +590,6 @@ class FormatManager:
             "mkfs_args": list(spec.mkfs_args),
         }
 
-    # ------------------------------------------------------------------ annulation et suivi
     def job(self, job_id: str) -> FormatJob:
         found = self._jobs.get(job_id)
         if found is None:
@@ -650,8 +610,7 @@ class FormatManager:
 
 
 def write_read_delete_test(root: str) -> dict[str, Any]:
-    """Écrit un petit fichier aléatoire, force l'écriture, le relit depuis le support (cache purgé), compare les empreintes,
-    le supprime et vérifie qu'il a disparu. Mesure aussi la taille de cluster et les blocs réservés (statvfs)."""
+    """Écrit un petit fichier aléatoire, force l'écriture, le relit depuis le support (cache purgé), compare les empreintes, le supprime et vérifie qu'il a disparu."""
     name = f".bobine-format-check-{secrets.token_hex(6)}"
     path = os.path.join(root, name)
     data = secrets.token_bytes(TEST_FILE_BYTES)

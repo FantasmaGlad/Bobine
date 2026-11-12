@@ -1,7 +1,4 @@
-"""Extraction sûre d'archives ZIP et tar — un membre nommé `../../etc/x` (ou équivalent) fait normalement
-écrire `ZipFile.extractall()` hors du dossier de destination prévu, sans
-qu'aucune vérification native ne s'y oppose. Pour tar, les liens et fichiers spéciaux sont refusés en plus :
-le runtime Android (Python 3.11) n'a pas toujours le filtre `data` de `tarfile`."""
+"""Extraction sûre d'archives ZIP et tar — un membre nommé `../../etc/x`."""
 
 import logging
 import shutil
@@ -12,7 +9,6 @@ from app.utils import media_formats
 
 logger = logging.getLogger(__name__)
 
-# Extensions acceptées par les formulaires d'import ; le format réel est reconnu au contenu, pas au nom.
 ARCHIVE_EXTENSIONS = media_formats.ARCHIVE
 
 
@@ -24,14 +20,11 @@ class InvalidArchiveError(ValueError):
     """Le fichier n'est ni un ZIP ni un tar lisible."""
 
 
-# Bornes de sécurité : sans elles, une archive de quelques kilo-octets peut remplir le disque
-# (bombe de décompression) ou saturer la table des inodes (des millions de petits membres).
 MAX_ARCHIVE_MEMBERS = 50_000
 MAX_ARCHIVE_FREE_SPACE_RATIO = 0.9
 
 
 def _label(name: str) -> str:
-    """Nom de membre affichable : sans saut de ligne ni séquence d'échappement du terminal."""
     text = name if len(name) <= 200 else name[:200] + "…"
     return repr(text)
 
@@ -45,8 +38,6 @@ def _size(value: int) -> str:
 
 
 def _check_archive_budget(dest_dir: Path, total_bytes: int) -> None:
-    """Refuse un contenu décompressé qui ne tiendrait pas dans l'espace libre de la destination."""
-    # La destination peut ne pas exister encore : on mesure l'espace du premier dossier existant au-dessus.
     probe = dest_dir
     while not probe.exists() and probe != probe.parent:
         probe = probe.parent
@@ -67,12 +58,7 @@ def _inside(dest_dir: Path, name: str) -> bool:
 
 
 def safe_extract_zip(zf: zipfile.ZipFile, dest_dir: Path) -> None:
-    """
-    Équivalent sûr de `zf.extractall(dest_dir)` : vérifie D'ABORD que chaque
-    membre de l'archive résout bien sous `dest_dir` avant d'extraire quoi que
-    ce soit — une archive malveillante ne doit laisser AUCUN fichier sur
-    disque, pas juste s'arrêter au milieu de l'extraction.
-    """
+    """Équivalent sûr de `zf.extractall(dest_dir)`."""
     dest_dir = dest_dir.resolve()
     members = zf.infolist()
     if len(members) > MAX_ARCHIVE_MEMBERS:
@@ -95,8 +81,6 @@ def safe_extract_tar(tf: tarfile.TarFile, dest_dir: Path) -> None:
     dest_dir = dest_dir.resolve()
     members: list[tarfile.TarInfo] = []
     total = 0
-    # Lecture bornée : un tar (surtout compressé) peut annoncer des millions de membres avant
-    # qu'on ait la moindre occasion de vérifier sa taille décompressée.
     for member in tf:
         if len(members) >= MAX_ARCHIVE_MEMBERS:
             raise UnsafeZipError(f"Archive invalide : plus de {MAX_ARCHIVE_MEMBERS} membres.")

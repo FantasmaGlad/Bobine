@@ -5,10 +5,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-# ---------------------------------------------------------------------------
-# Audio (pw-dump + wpctl)
-# ---------------------------------------------------------------------------
-
 
 def _props(obj: dict[str, Any]) -> dict[str, Any]:
     return (obj.get("info") or {}).get("props") or {}
@@ -86,18 +82,11 @@ def parse_pw_dump(data: list[dict[str, Any]]) -> dict[str, Any]:
     return {"sinks": sinks, "default_id": default_name}
 
 
-# ---------------------------------------------------------------------------
-# Flux de lecture des applications (phase 2 : routage de la radio vers une sortie)
-# ---------------------------------------------------------------------------
-
-# Navigateurs susceptibles de jouer le lecteur /radio. PipeWire ne donne ni l'onglet ni l'URL : seule l'application
-# est identifiable, d'où la prudence de `choose_browser_stream`.
 _BROWSER_RE = re.compile(r"(chrom|firefox|brave|vivaldi|opera|msedge|microsoft-edge|epiphany|librewolf|waterfox|falkon|qutebrowser)", re.I)
 
 
 def parse_output_streams(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Flux de lecture (`Stream/Output/Audio`) d'un `pw-dump` : identifiant, application, état et sortie à laquelle
-    chacun est relié (`sink`, nom de nœud PipeWire, ou None s'il n'est relié à aucune)."""
+    """Flux de lecture (`Stream/Output/Audio`) d'un `pw-dump` : identifiant, application, état et sortie à laquelle chacun est relié (`sink`, nom de nœud PipeWire, ou None s'il n'est relié à aucune)."""
     names = {obj["id"]: _props(obj).get("node.name") for obj in data if str(obj.get("type", "")).endswith("Interface:Node")}
     linked: dict[int, int] = {}
     for obj in data:
@@ -130,9 +119,7 @@ def parse_output_streams(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def choose_browser_stream(streams: list[dict[str, Any]]) -> tuple[str, dict[str, Any] | None]:
-    """Le flux du navigateur qui joue la radio : `("one", flux)` s'il y a EXACTEMENT un flux de navigateur en lecture,
-    `("none", None)` s'il n'y en a aucun, `("ambiguous", None)` sinon. Jamais de devinette : déplacer le flux d'un
-    autre onglet (vidéo, autre radio) serait pire que ne rien déplacer."""
+    """Le flux du navigateur qui joue la radio : `("one", flux)` s'il y a EXACTEMENT un flux de navigateur en lecture, `("none", None)` s'il n'y en a aucun, `("ambiguous", None)` sinon."""
     running = [s for s in streams if s["browser"] and s["state"] == "running"]
     if not running:
         return "none", None
@@ -151,10 +138,6 @@ def parse_wpctl_volume(text: str) -> tuple[float | None, bool | None]:
         return None, None
     return float(match.group(1)), match.group(2) == "MUTED"
 
-
-# ---------------------------------------------------------------------------
-# Bluetooth (BlueZ ObjectManager, valeurs déjà « dévariantées »)
-# ---------------------------------------------------------------------------
 
 _BT_ICON_KIND = {
     "audio-headset": "headset",
@@ -232,11 +215,6 @@ def is_valid_mac(address: str) -> bool:
     return bool(_MAC_RE.fullmatch(address or ""))
 
 
-# ---------------------------------------------------------------------------
-# Wi-Fi (nmcli -t)
-# ---------------------------------------------------------------------------
-
-
 def split_terse(line: str) -> list[str]:
     """Découpe une ligne `nmcli -t` : `:` séparateur, `\\:` et `\\\\` échappés."""
     fields: list[str] = []
@@ -278,7 +256,7 @@ def parse_wifi_list(output: str, known_ssids: set[str]) -> list[dict[str, Any]]:
             continue
         in_use, ssid, signal, security, freq = (f.strip() for f in fields[:5])
         if not ssid:
-            continue  # réseau masqué : non listé
+            continue
         try:
             level = int(signal)
         except ValueError:
@@ -319,15 +297,10 @@ def parse_wifi_device(output: str) -> dict[str, str] | None:
     return None
 
 
-# ---------------------------------------------------------------------------
-# Détail d'une sortie audio (analyse, balance, profils)
-# ---------------------------------------------------------------------------
-
 import math  # noqa: E402
 
 
 def _cbrt(value: float) -> float:
-    """PipeWire stocke les volumes de canal en échelle cubique : le niveau affiché (wpctl) en est la racine cubique."""
     return math.copysign(abs(value) ** (1.0 / 3.0), value)
 
 
@@ -431,8 +404,7 @@ def parse_audio_details(data: list[dict[str, Any]], device_id: str) -> dict[str,
 
 
 def tone_wav_bytes(channel: str, seconds: float = 1.5, frequency: float = 440.0, rate: int = 48000, amplitude: float = 0.22) -> bytes:
-    """Tonalité de test stéréo (sinus avec fondu d'entrée et de sortie), un seul canal non silencieux au besoin.
-    Niveau volontairement bas (≈ -13 dBFS) ; le lecteur applique en plus son propre volume."""
+    """Tonalité de test stéréo (sinus avec fondu d'entrée et de sortie), un seul canal non silencieux au besoin."""
     import io
     import struct
     import wave

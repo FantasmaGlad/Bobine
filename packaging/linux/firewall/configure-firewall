@@ -1,13 +1,4 @@
 #!/bin/sh
-# Accès à Bobine depuis le réseau local, quel que soit le pare-feu Linux : `open` à l'installation et à la mise à jour,
-# `close` avant la désinstallation (paquets .deb, .rpm, Arch et appliance install.sh).
-# - ufw (Debian, Ubuntu, Arch) : profil « Bobine » (/etc/ufw/applications.d/bobine) ;
-# - firewalld (Fedora, RHEL, openSUSE) : service « bobine » (/usr/lib/firewalld/services/bobine.xml).
-# Ouverture aux réseaux privés et VPN seulement (RFC 1918, 100.64.0.0/10 de Tailscale, IPv6 locales), jamais à
-# Internet. Les règles sont enregistrées même si le pare-feu est éteint : elles s'appliquent dès son activation.
-# Sans pare-feu installé, rien n'est fait. Chaque commande est idempotente. Une règle qui ne s'applique pas est
-# signalée sur la sortie d'erreur et le script sort en 1 (les appelants continuent : le paquet reste installé). Les
-# règles sont reposées à chaque mise à jour : c'est ce qui ouvre l'accès aux postes installés avant leur existence.
 set -e
 failed=0
 fail() { echo "configure-firewall : échec de : $*" >&2; failed=1; }
@@ -18,7 +9,6 @@ networks="10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 100.64.0.0/10 f
 if command -v ufw >/dev/null 2>&1; then
     if [ "$action" = open ] && ! ufw app update Bobine >/dev/null 2>&1; then fail "ufw app update Bobine"; fi
     for network in $networks; do
-        # Une règle IPv6 échoue si IPv6 est désactivé dans ufw : ce n'est pas une erreur, les autres sont gardées.
         case "$network" in *:*) tolerate=1 ;; *) tolerate=0 ;; esac
         if [ "$action" = open ]; then
             ufw allow from "$network" to any app Bobine comment "Bobine (réseau local)" >/dev/null 2>&1 || [ "$tolerate" = 1 ] || fail "ufw allow from $network"
@@ -29,7 +19,6 @@ if command -v ufw >/dev/null 2>&1; then
 fi
 
 if command -v firewall-cmd >/dev/null 2>&1 || command -v firewall-offline-cmd >/dev/null 2>&1; then
-    # firewalld en marche : configuration permanente puis rechargement ; arrêté : firewall-offline-cmd.
     if firewall-cmd --state >/dev/null 2>&1; then
         tool="firewall-cmd --permanent"
         firewall-cmd --reload >/dev/null 2>&1 || true  # charge le service bobine fraîchement installé

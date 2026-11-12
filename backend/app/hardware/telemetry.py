@@ -31,7 +31,6 @@ def get_runtime_info() -> dict[str, Any]:
     system_uptime = 0
     is_android = is_android_system()
 
-    # 1. ANDROID : Uptime système exact via SystemClock (non affecté par SELinux /proc/uptime)
     if is_android:
         try:
             from android.os import SystemClock
@@ -39,7 +38,6 @@ def get_runtime_info() -> dict[str, Any]:
         except Exception:
             pass
 
-    # 2. Linux & Wyse Headless via /proc/uptime
     if system_uptime <= 0 and os.path.exists("/proc/uptime"):
         try:
             with open("/proc/uptime", "r", encoding="utf-8") as f:
@@ -47,7 +45,6 @@ def get_runtime_info() -> dict[str, Any]:
         except Exception:
             pass
 
-    # 3. Windows & macOS via psutil boot_time
     if system_uptime <= 0:
         try:
             system_uptime = int(now - psutil.boot_time())
@@ -82,10 +79,7 @@ def format_duration_short(seconds: int) -> str:
 
 
 def get_system_telemetry_payload() -> dict[str, Any]:
-    """
-    Génère la télémétrie matérielle complète unifiée consommée par
-    /api/settings/system et /api/metrics/dashboard.
-    """
+    """Génère la télémétrie matérielle complète unifiée consommée par /api/settings/system et /api/metrics/dashboard."""
     gpu_name, gpu_percent, gpu_temp_c = get_gpu_info()
     ram_info = get_ram_info()
     storage_info = get_storage_usage()
@@ -95,7 +89,6 @@ def get_system_telemetry_payload() -> dict[str, Any]:
     cpu_temp = get_cpu_temp()
     runtime = get_runtime_info()
 
-    # Mémoire RAM
     mem_total, mem_used, mem_percent = 0, 0, 0.0
     try:
         vm = psutil.virtual_memory()

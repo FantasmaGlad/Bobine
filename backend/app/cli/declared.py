@@ -49,7 +49,6 @@ def add_spec_commands(sub: Any, sub_common: argparse.ArgumentParser) -> None:
 
 
 IMPORT_FAMILIES = {
-    # famille -> (route d'un envoi, route d'une archive zip, champ du fichier, un envoi par fichier, champs de formulaire)
     "library": ("/api/videos/upload", "/api/videos/upload-zip", "file", True, ("title", "program", "release", "description")),
     "audio": ("/api/audio/upload", "/api/audio/upload-zip", "files", False, ("title", "program", "release")),
     "radio-library": ("/api/radio/tracks/upload", "/api/radio/tracks/upload-zip", "files", False, ()),
@@ -92,7 +91,6 @@ def cmd_import(client: Client, out: Output, args: argparse.Namespace) -> int:
 
 
 def _wait_for_jobs(client: Client, out: Output, accepted: list[dict], timeout: float) -> list[dict]:
-    """Interroge la file d'import jusqu'à la fin de chaque tâche ; une tâche absente de la liste est considérée comme finie."""
     if not (timeout > 0 and math.isfinite(timeout)):
         raise CliError(f"délai d'attente invalide : {timeout!r} (secondes, > 0).", EXIT_USAGE)
     deadline = time.monotonic() + timeout

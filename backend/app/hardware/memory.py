@@ -8,13 +8,7 @@ from .probe import _HARDWARE_CACHE, _get_android_prop, is_android_system, shutil
 
 
 def get_ram_info() -> dict[str, Any]:
-    """
-    Retourne les informations matérielles détaillées de la mémoire vive (RAM) :
-    - brand (marque : Hynix, Samsung, Micron, Crucial, Kingston...)
-    - type (technologie : DDR4, DDR5, LPDDR4, LPDDR5, LPDDR5x...)
-    - freq (fréquence max : ex. 8533 MT/s, 6400 MHz, 3200 MHz...)
-    - model_label (libellé commercial formaté pour l'interface utilisateur)
-    """
+    """Retourne les informations matérielles détaillées de la mémoire vive."""
     if _HARDWARE_CACHE.get("ram_info"):
         return _HARDWARE_CACHE["ram_info"]
 
@@ -23,7 +17,6 @@ def get_ram_info() -> dict[str, Any]:
     freq = ""
     is_android = is_android_system()
 
-    # 1. ANDROID : détection de la RAM via spécification SoC et getprop
     if is_android:
         soc_model = _get_android_prop("ro.soc.model").upper()
         dram_prop = _get_android_prop("ro.boot.dram_type") or _get_android_prop("ro.boot.ddr_type")
@@ -43,7 +36,6 @@ def get_ram_info() -> dict[str, Any]:
             ram_type = "LPDDR5"
             freq = "6400 MT/s"
 
-    # 2. LINUX (Desktop / Wyse Headless) via udevadm SMBIOS
     if not brand and sys.platform.startswith("linux") and shutil_which("udevadm"):
         try:
             res = subprocess.run(
@@ -69,7 +61,6 @@ def get_ram_info() -> dict[str, Any]:
         except Exception:
             pass
 
-    # 3. LINUX via dmidecode
     if (not brand or not ram_type or not freq) and shutil_which("dmidecode"):
         for cmd in (["dmidecode", "-t", "17"], ["sudo", "-n", "dmidecode", "-t", "17"]):
             try:
@@ -93,7 +84,6 @@ def get_ram_info() -> dict[str, Any]:
             except Exception:
                 pass
 
-    # 4. WINDOWS via PowerShell / WMI Win32_PhysicalMemory
     if sys.platform == "win32" and (not brand or not ram_type or not freq):
         try:
             out = subprocess.check_output(
@@ -119,7 +109,6 @@ def get_ram_info() -> dict[str, Any]:
         except Exception:
             pass
 
-    # 5. macOS via system_profiler
     if sys.platform == "darwin" and (not brand or not ram_type or not freq):
         try:
             out = subprocess.check_output(["system_profiler", "SPMemoryDataType"], text=True, timeout=2)

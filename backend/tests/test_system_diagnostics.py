@@ -1,7 +1,3 @@
-"""Diagnostic système et journaux unifiés : constats typés à code stable triés par gravité, sonde en échec rendue
-`unknown` sans erreur 500 ; journaux en JSON stable (UTC, niveau minimal, `since` avec fuseau, archives, traces
-rattachées à leur entrée)."""
-
 import os
 import time
 from datetime import datetime
@@ -61,8 +57,6 @@ def test_a_failing_probe_is_unknown_not_an_error(client, monkeypatch):
     if not answer.json()["problems"]:
         assert answer.json()["status"] == "unknown"
 
-
-# --- journaux ---------------------------------------------------------------------------------------------------------
 
 @pytest.fixture()
 def technical_log(tmp_path, monkeypatch):
@@ -133,7 +127,6 @@ def test_activity_log_shares_the_same_shape(client):
 
 
 def test_repeated_local_hour_keeps_utc_order(client, technical_log, tmp_path):
-    """Le retour à l'heure d'hiver répète 02:00-03:00 : les deux passages doivent rester en UTC et dans l'ordre."""
     (tmp_path / "technical.log.1").unlink()
     (tmp_path / "technical.log").write_text(
         "2026-10-25 02:30:00,000 INFO app.main: premier passage\n"
@@ -159,7 +152,7 @@ def test_rotation_while_reading_neither_duplicates_nor_fails(client, technical_l
     rotated = []
 
     def rotate_then_parse(handle):
-        if not rotated:  # le serveur fait tourner ses journaux juste après l'ouverture
+        if not rotated:
             rotated.append(True)
             (tmp_path / "technical.log.1").replace(tmp_path / "technical.log.2")
             (tmp_path / "technical.log").replace(tmp_path / "technical.log.1")

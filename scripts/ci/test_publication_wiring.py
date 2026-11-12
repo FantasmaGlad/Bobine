@@ -1,4 +1,3 @@
-"""Wiring of the publication jobs: in-place rolling releases, one publisher per channel, guarded order, scheduled refresh."""
 from pathlib import Path
 import re
 import unittest
@@ -30,7 +29,7 @@ class RollingReleaseTests(unittest.TestCase):
             self.assertIn(f"suffix: {channel}", text)
             self.assertLess(text.index("assemble-release-assets"), text.index("publish-rolling-release"))
             self.assertIn("published: ${{ steps.rolling.outputs.published }}", text)
-            self.assertIn("fetch-depth: 0", text)  # le changelog et la garde lisent l'historique
+            self.assertIn("fetch-depth: 0", text)
 
     def test_the_shared_action_publishes_in_place_behind_the_guard(self):
         text = ROLLING_ACTION
@@ -83,7 +82,6 @@ class RollingReleaseTests(unittest.TestCase):
         self.assertLess(ROLLING_ACTION.index('if [ "$REQUIRE_TIP" = true ]'), ROLLING_ACTION.index("--require-tip origin/main"))
 
     def test_the_stable_job_takes_its_actions_from_the_workflow_revision(self):
-        """Republier un ancien tag Stable : l'action locale vient de la révision du workflow, pas du tag."""
         stable = job("release-stable")
         self.assertIn("path: .workflow-tools", stable)
         self.assertIn("uses: ./.workflow-tools/.github/actions/assemble-release-assets", stable)
@@ -139,7 +137,6 @@ class HealthProbeTests(unittest.TestCase):
     def test_it_compares_both_rolling_channels_with_their_release(self):
         for channel in ("canary", "beta"):
             self.assertIn(f'--release {channel}="$RUNNER_TEMP/{channel}.json"', self.PROBE)
-
 
 
 if __name__ == "__main__":

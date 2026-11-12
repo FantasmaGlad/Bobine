@@ -1,11 +1,5 @@
 name: CI
 
-# Intégration continue Bobine : à chaque push sur main et à chaque pull request,
-# on construit le frontend et les paquets, on teste le backend sous trois
-# versions de Python, le navigateur Firefox et les composants natifs.
-# Une modification de documentation seule (job `version`, sortie `code`) ne lance que les contrôles
-# rapides du job `version` et ne publie aucune Canary : pas besoin de `[skip ci]`.
-
 on:
   push:
     branches: [main]
@@ -40,53 +34,17 @@ on:
         type: boolean
         default: false
 
-# Droits du jeton réduits au strict nécessaire pour tous les jobs ; les jobs
-# de publication (release-*) et de notification les élargissent ou les
-# précisent eux-mêmes.
 permissions:
   contents: read
 
-# Une pull request annule son exécution précédente. Un push (main, tag) ou un
-# déclenchement manuel, lui, n'est JAMAIS annulé : un job de publication
-# interrompu en pleine mise à jour laisserait la release d'un canal à moitié
-# remplacée. Les exécutions suivantes attendent leur tour (GitHub ne garde que
-# la plus récente en attente).
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Un miroir apt qui cale laisse apt attendre jusqu'au délai du job : abandon d'un transfert muet après 30 s,
-# puis nouvel essai.
 env:
   APT_OPTIONS: -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
 
 jobs:
-  # Résout la version et le CANAL une seule fois pour tous les jobs de
-  # packaging. Trois canaux structurellement
-  # séparés :
-  # - "stable" : déclenché par un tag Git Vx.y.z strict (pas de suffixe —
-  #   les tags -beta.N/-canary.N par itération sont abandonnés). Un nouveau
-  #   tag/release par version, comme avant : historique normal et attendu.
-  # - "canary" : déclenché AUTOMATIQUEMENT à chaque push sur main (la Canary
-  #   suit main en continu, cf. incident du 8 sept. où l'ancienne release
-  #   Bêta rolling est restée 6 commits en retard faute de republication
-  #   manuelle), ou manuellement (workflow_dispatch, case publish_canary
-  #   cochée) depuis n'importe quelle référence (choisie via "Use workflow
-  #   from" dans l'UI Actions — utile pour republier sans nouveau commit, ex.
-  #   après un correctif d'infra CI). Publie TOUJOURS sous le même tag mobile
-  #   "canary" — un seul fichier de release Canary sur GitHub, jamais
-  #   d'accumulation, republié en place par le job release-canary à chaque
-  #   déclenchement. Zéro curation : c'est le dernier commit de main, non
-  #   testé.
-  # - "beta"   : déclenché UNIQUEMENT manuellement (workflow_dispatch, case
-  #   publish_beta cochée) depuis la référence choisie par le mainteneur —
-  #   jamais automatiquement sur un simple push. Lots de fonctionnalités/
-  #   correctifs choisis, publiés quand le mainteneur le décide. Publie sous
-  #   le tag mobile "beta", republié en place par le job release-beta.
-  # Ni tag ni push sur main ni publish_beta/publish_canary (pull_request,
-  # push sur une autre branche) : CHANNEL="none" — les jobs de publication
-  # (release-stable, release-beta, release-canary) ne se déclenchent pas,
-  # seuls les tests/builds de vérification tournent.
   version:
     name: Resolve release version & channel
     runs-on: ubuntu-latest
@@ -116,22 +74,17 @@ jobs:
           BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
           portee() { for cle in code frontend install packaging android media devices; do echo "$cle=$1" >> "$GITHUB_OUTPUT"; done; }
-          # Tag, déclenchement manuel ou base inconnue : tout est construit.
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [[ "$GITHUB_REF" == refs/tags/* ]] || [ -z "$BASE" ] \
              || [ "$BASE" = 0000000000000000000000000000000000000000 ] || ! git fetch -q --depth=1 origin "$BASE"; then
             portee true; exit 0
           fi
           changed="$(git diff --name-only "$BASE" HEAD)"
-          # README, documentation, licences, politiques et modèles de tickets ne changent aucun artefact.
           if ! grep -qvE '(\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/)' <<<"$changed"; then
             portee false; exit 0
           fi
-          # Un push sur main publie la Canary : tous les paquets sont construits.
           if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
             portee true; exit 0
           fi
-          # Pull request : les tests backend et Firefox tournent toujours (ils vérifient les contrats avec le
-          # frontend, les paquets et les composants natifs) ; le reste seulement quand la modification le touche. Le push sur main qui suit la fusion construit tout de toute façon.
           touche() { grep -qE "$1" <<<"$changed" && echo true || echo false; }
           ci='^\.github/(workflows|actions)/'
           {
@@ -186,12 +139,6 @@ jobs:
         run: npm run build
 
   firefox-smoke:
-    # Compatibilité Firefox/Gecko :
-    # un vrai Firefox (préinstallé sur le runner, avec geckodriver) pilote une
-    # instance de TEST isolée — import par morceaux, négociation de la version
-    # vidéo, protocole (HEAD/404 JSON), pages principales. Échoue si une page
-    # affiche une erreur applicative ou si l'interface se fige pendant l'import.
-    # Le succès de ce parcours navigateur fait partie du contrôle ci-ok.
     name: Firefox smoke tests (geckodriver)
     needs: [version]
     if: needs.version.outputs.code == 'true'
@@ -256,10 +203,6 @@ jobs:
         run: tail -n 100 "$RUNNER_TEMP/backend.log"
 
   backend:
-    # 3.11 : runtime embarqué de l'APK Android TV (seul Python de Chaquopy à
-    # fournir armeabi-v7a). 3.12 : paquets de bureau. 3.13 : runtime de l'APK
-    # téléphone/tablette. Une syntaxe ou une API postérieure à 3.11 ne doit pas
-    # entrer sans casser ce job.
     name: Backend checks (Python ${{ matrix.python }})
     needs: [version]
     if: needs.version.outputs.code == 'true'
@@ -268,7 +211,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Pull request : la version de l'appliance suffit, `backend-android-compat` couvre 3.11 ; main teste les trois.
         python: ${{ fromJSON(github.event_name == 'pull_request' && '["3.13"]' || '["3.11", "3.12", "3.13"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -299,17 +241,9 @@ jobs:
           key: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.version }}
           restore-keys: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-
       - name: Install system dependencies (ffmpeg)
-        # Comme le job Firefox, les tests CPU n’installent pas les modèles ASR ni les pilotes recommandés.
         run: |
           scripts/ci/apt-install-cached.sh ~/ffmpeg-debs ffmpeg
           ffmpeg -hide_banner -version | head -n 1
-      # pytest (et non `unittest discover`) : c'est la commande documentée
-      # et `unittest` ignore les tests écrits en simples
-      # fonctions (suivi de séquence, horloge de lecture, diffusion par canal,
-      # écrans...), qui n'étaient donc jamais exécutés en CI. pytest exécute
-      # aussi les `unittest.TestCase` existants.
-      # httpx : requis par starlette.testclient.TestClient (tests de l'API), non
-      # déclaré dans requirements.txt car inutile à l'exécution.
       - name: Install test dependencies
         run: python -m pip install -r backend/requirements-test.txt
       - name: Code mort et noms indéfinis (ruff)
@@ -350,7 +284,6 @@ jobs:
           from pathlib import Path
           import os, re
           requirements = Path("backend/requirements.txt").read_text().splitlines()
-          # BaseSettings est intégré à Pydantic v1 ; pydantic-settings exige v2.
           requirements = [line for line in requirements if line.strip() != "pydantic-settings" and not line.startswith("-c ")]
           gradle = Path("android/app/build.gradle.kts").read_text()
           for package in ("pydantic", "fastapi"):
@@ -370,9 +303,6 @@ jobs:
           XDG_CONFIG_HOME: ${{ runner.temp }}/android-backend/config
 
   devices-sidecar:
-    # Sidecar Rust de l'onglet Périphériques (Windows/macOS) : protocole JSON-RPC, liste blanche de
-    # méthodes, analyseurs des sorties d'outils. Les binaires Windows/macOS sont construits et
-    # embarqués dans leurs jobs de packaging respectifs.
     name: Devices sidecar (Rust)
     needs: [version]
     if: needs.version.outputs.devices == 'true'
@@ -388,8 +318,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
-      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
-      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
       - name: Installer la toolchain Rust
         run: rustup toolchain install
       - name: Cache cargo
@@ -408,20 +336,14 @@ jobs:
         run: cargo test --locked
 
   media-component:
-    # Composant natif d'inspection audio (bobine-media), désactivé par défaut (réglage « media_native ») :
-    # formatage, clippy, tests et licences sur chaque plateforme desktop. L'embarquement dans les paquets
-    # deb, Windows et macOS est contrôlé par les jobs de packaging, celui des APK Android par `android-build`
-    # (et des AAB par play-aab.yml). Ce job ne valide aucun appareil réel.
     name: Media component (${{ matrix.os }})
     needs: [version]
     if: needs.version.outputs.media == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
-    # Chaque architecture de paquet doit passer les mêmes contrôles bloquants.
     strategy:
       fail-fast: false
       matrix:
-        # Pull request : Linux seulement ; macOS et Windows sont vérifiés par la construction des paquets.
         os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest","ubuntu-24.04-arm"]' || '["ubuntu-latest","ubuntu-24.04-arm","windows-latest","windows-11-arm","macos-latest"]') }}
     defaults:
       run:
@@ -434,8 +356,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
-      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
-      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
       - name: Installer la toolchain Rust
         run: rustup toolchain install
       - name: Cache cargo
@@ -463,30 +383,16 @@ jobs:
           ls target/release/bobine-media* | grep -v '\.d$' | xargs wc -c
 
   android-build:
-    # Compile et signe les APK Android (Chaquopy + FastAPI embarqué + binaires FFmpeg ARM).
-    # Téléphone/tablette : arm64-v8a (Python 3.13). Android TV : armeabi-v7a +
-    # arm64-v8a (Python 3.11, seul runtime Chaquopy disponible en 32 bits).
-    # Inclus dans les assets officiels des releases Stable (Bobine-x.y.z.apk), Bêta (Bobine-beta.apk)
-    # et Canary (Bobine-canary.apk) à partir de la version 3.0.2.
-    #
-    # Les quatre secrets sont requis hors PR ; une configuration partielle échoue
-    # toujours. Une PR externe sans secret conserve les contrôles de démarrage debug.
     name: Android (Chaquopy) — build & sign
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: [version]
     if: needs.version.outputs.android == 'true'
-    # Les clés de signature vivent dans l'environnement android-signing, ouvert seulement à main et aux tags V* :
-    # une pull request n'y accède pas et construit sans signer (check-android-signing.py --allow-missing).
     environment: ${{ github.event_name != 'pull_request' && 'android-signing' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
-          # fetch-depth 0 (pas le defaut 1) : requis pour que `git rev-list
-          # --count HEAD` ci-dessous compte l'historique reel plutot que de
-          # toujours renvoyer 1 sur un clone superficiel - c'est ce compteur
-          # qui sert de versionCode Android (doit croitre a chaque commit).
           fetch-depth: 0
       - name: Vérifier que les secrets de signature sont configurés
         id: check_secrets
@@ -496,8 +402,6 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: python scripts/ci/check-android-signing.py ${{ github.event_name == 'pull_request' && '--allow-missing' || '' }}
-      # Pas de pip avant le premier cargo ici, mais l'installation implicite de la toolchain par le proxy
-      # rustup est dépréciée : l'installer explicitement, comme les jobs qui lancent pip.
       - name: Installer la toolchain Rust
         if: steps.check_secrets.outputs.configured == 'true'
         run: rustup toolchain install
@@ -511,8 +415,6 @@ jobs:
         if: steps.check_secrets.outputs.configured == 'true'
         working-directory: frontend
         run: npm ci
-      # Chaquopy cherche `python3.<x>` sur le PATH pour chaque version du
-      # projet : 3.13 (flavor mobile) et 3.11 (flavor TV).
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         if: steps.check_secrets.outputs.configured == 'true'
         with:
@@ -527,13 +429,6 @@ jobs:
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         if: steps.check_secrets.outputs.configured == 'true'
         with:
-          # le paquet legacy "tools" (installé par
-          # défaut par cette action, `packages: "tools platform-tools"`) a
-          # disparu du dépôt SDK Google ("Failed to find package 'tools'",
-          # exit code 1) — cassait tout le job avant même l'étape suivante,
-          # qui installe déjà les seuls paquets réellement utilisés
-          # (platforms;android-37.0, build-tools;37.0.0). platform-tools seul
-          # suffit ici.
           packages: "platform-tools"
       - name: Installer les plateformes/outils Android requis
         if: steps.check_secrets.outputs.configured == 'true'
@@ -545,15 +440,9 @@ jobs:
         if: steps.check_secrets.outputs.configured == 'true'
         id: android_version
         run: echo "version_code=$(git rev-list --count HEAD)" >> "$GITHUB_OUTPUT"
-      # Le backend embarqué compare ce commit à celui du canal Bêta/Canary
-      # pour proposer une mise à jour ; sans fichier COMMIT il vaut "unknown"
-      # et aucune mise à jour n'est jamais proposée sur ces canaux.
       - name: Identifiants de build (COMMIT bundlé)
         if: steps.check_secrets.outputs.configured == 'true'
         run: echo "${{ needs.version.outputs.commit_short }}" > COMMIT
-      # Commit épinglé (et non la branche `main` du dépôt tiers) + empreintes
-      # SHA-256 : un binaire exécuté sur les appareils des utilisateurs ne doit
-      # jamais changer sans qu'on l'ait relu.
       - name: Télécharger les binaires statiques ffmpeg/ffprobe ARM64 (Bionic NDK)
         if: steps.check_secrets.outputs.configured == 'true'
         run: |
@@ -565,9 +454,6 @@ jobs:
           echo "480defd776199b5434008565974de5bf99822371c3cd9c1f130fda2c57de6439  libffmpeg.so" | sha256sum -c -
           echo "e66d481eb55af07282ea4efcdba5d18b564f809e9e40441dede7cc6ee9f88224  libffprobe.so" | sha256sum -c -
           chmod +x libffmpeg.so libffprobe.so
-      # Aucun binaire 32 bits n'est publié par le dépôt tiers : compilation
-      # depuis les sources officielles (android/scripts/build_ffmpeg_armv7.sh),
-      # mise en cache tant que le script ne change pas.
       - name: Cache des binaires ffmpeg/ffprobe armeabi-v7a
         if: steps.check_secrets.outputs.configured == 'true'
         id: ffmpeg_armv7_cache
@@ -578,8 +464,6 @@ jobs:
       - name: Compiler ffmpeg/ffprobe armeabi-v7a (NDK r28c)
         if: steps.check_secrets.outputs.configured == 'true' && steps.ffmpeg_armv7_cache.outputs.cache-hit != 'true'
         run: android/scripts/build_ffmpeg_armv7.sh
-      # Composant audio natif (Bionic ARM64 et ARM32, alignement 16 Kio vérifié par le script) : sans lui
-      # l'option « composant audio natif » des Réglages indique « absent » et l'import garde ffprobe/ffmpeg.
       - name: Compiler le composant audio Android (Bionic ARM64 et ARM32)
         if: steps.check_secrets.outputs.configured == 'true'
         run: scripts/ci/build-media-android.sh
@@ -599,10 +483,6 @@ jobs:
         run: |
           scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/mobile/release/*.apk)" arm64-v8a
           scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/tv/release/*.apk)" armeabi-v7a arm64-v8a
-      # Bundles .aab pour Google Play (un par application : com.bobine.app et com.bobine.app.tv).
-      # Signés avec la clé de téléversement (la même que les APK) ; Google Play les re-signe avec la clé
-      # de distribution. La construction et la signature des deux bundles sont bloquantes.
-      # La publication sur la console reste manuelle tant qu'aucun compte de service Play n'est configuré.
       - name: Construire les bundles Google Play (.aab)
         if: steps.check_secrets.outputs.configured == 'true'
         working-directory: android
@@ -699,9 +579,6 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      # Les runners Linux x86_64 accélèrent une image x86_64. Cette variante
-      # debug vérifie Chaquopy/le service réel ; les APK ARM signés restent
-      # contrôlés séparément par android-build et la recette sur matériel.
       - name: Installer, démarrer et interroger le serveur dans l'APK
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
@@ -746,21 +623,12 @@ jobs:
           test "${declared}" = "${actual}"
       - name: L'installation en une commande (tube curl | bash) s'amorce sans dépôt local
         run: |
-          # Reproduit `curl … | sudo bash` : le script arrive par stdin, hors
-          # de tout dépôt — régression historique : `${BASH_SOURCE[0]}` non
-          # défini sous `set -u` faisait planter le script avant tout message.
           cd "$(mktemp -d)"
           out=$(cat "${GITHUB_WORKSPACE}/install.sh" | sudo bash -s -- --as-user "$(id -un)" --dry-run -y --lang=en 2>&1)
           echo "$out"
           grep -q "would clone" <<<"$out"
 
   windows-build:
-    # PyInstaller ne cross-compile pas — ce
-    # job est le seul endroit où le packaging Windows (bobine.spec) est
-    # réellement construit sur un vrai Windows. Écrit et vérifié localement
-    # sur Linux (import réel de l'exécutable figé) mais
-    # jamais exécuté tel quel sur Windows avant son premier passage ici —
-    # à surveiller de près au premier déclenchement.
     name: Windows packaging (PyInstaller + Inno Setup)
     runs-on: windows-latest
     timeout-minutes: 45
@@ -770,7 +638,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
-      # Avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) et interrompt l'installation implicite de la toolchain.
       - name: Installer la toolchain Rust (avant pip)
         run: rustup toolchain install
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -829,7 +696,6 @@ jobs:
         run: packaging/windows/stage-ffmpeg.ps1 -Architecture x64
       - name: Vérifier que BobineBackend.exe démarre et répond à /api/health
         shell: pwsh
-        # Journaux et données hors de dist/Bobine : Inno Setup embarque tout ce dossier.
         run: scripts/ci/smoke-windows-backend.ps1 -Exe backend\dist\Bobine\BobineBackend.exe -LogDir "$env:RUNNER_TEMP\bobine-dist-logs" -DataRoot "$env:RUNNER_TEMP\bobine-dist-data"
       - name: Compiler l'installeur (Inno Setup, préinstallé sur windows-latest)
         run: ISCC.exe /DMyAppVersion=${{ needs.version.outputs.display_version }} /DMyOutputVersion=${{ needs.version.outputs.filename_version }} packaging\windows\bobine.iss
@@ -839,7 +705,6 @@ jobs:
           name: bobine-windows-installer
           path: dist-installer/*.exe
           if-no-files-found: error
-      # Cycle de vie réel de l'installeur : installation silencieuse, arborescence, lancement du backend installé, désinstallation.
       - name: Installer Bobine-Setup en silence (dossier de test, journal conservé)
         shell: pwsh
         env:
@@ -862,9 +727,6 @@ jobs:
         run: scripts/ci/smoke-windows-installer.ps1 -Action Logs -InstallDir "$env:RUNNER_TEMP\bobine-installed" -LogDir "$env:RUNNER_TEMP\bobine-installer-logs"
 
   windows-build-arm64:
-    # Packaging Windows 11 ARM64 natif (PC Qualcomm Snapdragon X Elite / X Plus).
-    # Construit BobineBackend.exe + BobineTray.exe avec Python 3.12 ARM64 + PyInstaller,
-    # intègre les binaires statiques FFmpeg winarm64 et génère Bobine-Setup-*-arm64.exe.
     name: Windows ARM64 packaging (PyInstaller + Inno Setup)
     runs-on: windows-11-arm
     timeout-minutes: 60
@@ -874,7 +736,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
-      # Avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) et interrompt l'installation implicite de la toolchain.
       - name: Installer la toolchain Rust (avant pip)
         run: rustup toolchain install
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -933,7 +794,6 @@ jobs:
         run: packaging/windows/stage-ffmpeg.ps1 -Architecture arm64
       - name: Vérifier que BobineBackend.exe démarre et répond à /api/health
         shell: pwsh
-        # Journaux et données hors de dist/Bobine : Inno Setup embarque tout ce dossier.
         run: scripts/ci/smoke-windows-backend.ps1 -Exe backend\dist\Bobine\BobineBackend.exe -LogDir "$env:RUNNER_TEMP\bobine-dist-logs" -DataRoot "$env:RUNNER_TEMP\bobine-dist-data"
       - name: Compiler l'installeur ARM64 (Inno Setup)
         shell: pwsh
@@ -949,7 +809,6 @@ jobs:
           name: bobine-windows-installer-arm64
           path: dist-installer/Bobine-Setup-*-arm64.exe
           if-no-files-found: error
-      # Cycle de vie réel de l'installeur : installation silencieuse, arborescence, lancement du backend installé, désinstallation.
       - name: Installer Bobine-Setup en silence (dossier de test, journal conservé)
         shell: pwsh
         env:
@@ -972,11 +831,6 @@ jobs:
         run: scripts/ci/smoke-windows-installer.ps1 -Action Logs -InstallDir "$env:RUNNER_TEMP\bobine-installed" -LogDir "$env:RUNNER_TEMP\bobine-installer-logs"
 
   linux-deb:
-    # Paquet APT (.deb) Linux non-headless, amd64 et arm64 : un seul job à matrice, les deux architectures suivent exactement les mêmes étapes.
-    # Les paquets DNF et pacman en sont dérivés par le job linux-packages.
-    # Construit le frontend Next.js, les exécutables PyInstaller Linux
-    # (BobineBackend + BobineTray), assemble l'arborescence Debian et valide
-    # l'intégrité et l'installation réelle du paquet .deb sur un runner de l'architecture visée.
     name: Paquet APT (.deb ${{ matrix.deb_arch }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
@@ -996,10 +850,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
-      # À placer avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) pour son User-Agent.
-      # Avec rust-toolchain.toml et sans toolchain installée, le proxy rustup commence à l'installer et pip
-      # le tue en plein vol ; le premier cargo trouve alors une toolchain partielle (« recovering from a
-      # partially installed toolchain », parfois « detected conflict: 'bin/cargo-clippy' »).
       - name: Installer la toolchain Rust (avant pip)
         run: rustup toolchain install
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -1091,17 +941,6 @@ jobs:
           if-no-files-found: error
 
   macos-build:
-    # PyInstaller ne cross-compile pas — ce
-    # job est le seul endroit où le packaging macOS (bobine.spec, BUNDLE())
-    # est réellement construit sur un vrai macOS. Écrit d'après la
-    # documentation officielle PyInstaller/Apple (aucune machine macOS dans
-    # l'environnement de développement) — jamais exécuté tel quel avant son
-    # premier passage ici, à surveiller de près.
-    # `macos-latest` est arm64 uniquement depuis macOS 14 (pas de x86_64 par
-    # défaut) : l'étape de signature ad-hoc est OBLIGATOIRE sur ce runner —
-    # sans elle, le noyau (AMFI) tue au lancement tout binaire/bibliothèque
-    # figé non signé sur Apple Silicon ("Killed: 9"), indépendamment de tout
-    # avertissement Gatekeeper.
     name: macOS packaging (PyInstaller + dmg)
     runs-on: macos-latest
     timeout-minutes: 45
@@ -1111,7 +950,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
-      # Avant toute étape pip : pip lance `rustc --version` (délai de 0,5 s) et interrompt l'installation implicite de la toolchain.
       - name: Installer la toolchain Rust (avant pip)
         run: rustup toolchain install
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -1146,13 +984,8 @@ jobs:
       - name: Construire Bobine.app
         working-directory: backend
         run: pyinstaller ../packaging/macos/bobine.spec
-      # Fenêtre native du projecteur : tests puis binaire
-      # release, copié dans le bundle AVANT la signature ad-hoc ci-dessous.
       - name: Tester et construire la fenêtre native du projecteur
         working-directory: projector
-        # Nouvelles tentatives réseau : le téléchargement de l'index crates.io a
-        # déjà échoué une fois sur une panne DNS passagère du runner. `--locked`
-        # impose Cargo.lock (build reproductible).
         env:
           CARGO_NET_RETRY: "10"
           CARGO_HTTP_TIMEOUT: "60"
@@ -1179,7 +1012,6 @@ jobs:
       - name: Signature ad-hoc (requise par le noyau sur Apple Silicon)
         run: codesign --force --deep -s - backend/dist/Bobine.app
       - name: Vérifier que BobineBackend démarre et répond à /api/health
-        # Journaux et données hors du bundle : le dmg embarque Bobine.app, déjà signé.
         run: scripts/ci/smoke-macos-backend.sh backend/dist/Bobine.app/Contents/MacOS/BobineBackend --home "$RUNNER_TEMP/bobine-dist-home" --log-dir "$RUNNER_TEMP/bobine-dist-logs"
       - name: Créer le .dmg (hdiutil)
         env:
@@ -1195,16 +1027,11 @@ jobs:
           name: bobine-macos-dmg
           path: dist-dmg/*.dmg
           if-no-files-found: error
-      # Montage réel du dmg : copie de Bobine.app, signature du bundle copié, lancement de son backend, démontage.
       - name: Monter le .dmg, copier Bobine.app et lancer son backend
         env:
           DMG_FILENAME_VERSION: ${{ needs.version.outputs.filename_version }}
         run: scripts/ci/smoke-macos-dmg.sh "dist-dmg/Bobine-${DMG_FILENAME_VERSION}.dmg" "$RUNNER_TEMP/bobine-dmg"
 
-  # Publie une release STABLE — un tag Vx.y.z par version, historique normal
-  # et attendu sur la page GitHub Releases.
-  # Statut unique à exiger dans la protection de la branche main : vert seulement si tous les
-  # contrôles de validation (hors publication) sont verts.
   linux-packages:
     name: Paquets DNF et pacman (${{ matrix.arch }})
     needs: [version, linux-deb]
@@ -1235,7 +1062,6 @@ jobs:
           deb="$(find deb-input -name '*.deb' | head -1)"
           bash scripts/ci/build-linux-packages.sh "$deb" '${{ matrix.arch }}'
           bash scripts/ci/check-package-parity.sh "$deb" "$(find dist-rpm -name '*.rpm' | head -1)" "$(find dist-arch -name '*.pkg.tar.zst' | head -1)"
-      # x86_64 : build-linux-packages.sh a installé et lancé le rpm (Fedora) et le paquet Arch ; l'aarch64 l'est par linux-rpm-aarch64.
       - name: Vérifier que le rpm est refusé sur AlmaLinux 9 (plancher glibc)
         if: matrix.arch == 'x86_64'
         run: bash scripts/ci/test-glibc-floor.sh rpm "$(find dist-rpm -name '*.x86_64.rpm' | head -1)"
@@ -1249,8 +1075,6 @@ jobs:
           if-no-files-found: error
 
   linux-rpm-aarch64:
-    # Le rpm aarch64 est construit sur ubuntu-latest (l'image Arch officielle n'existe qu'en x86_64) puis installé et lancé ici,
-    # dans un conteneur Fedora arm64 sur un runner arm64. Le paquet Arch aarch64 reste sans installation (voir container-images.sh).
     name: Paquet DNF aarch64 installé et lancé (Fedora arm64)
     needs: [linux-packages]
     runs-on: ubuntu-24.04-arm
@@ -1292,8 +1116,6 @@ jobs:
         run: |
           set -eu
           [ "${{ needs.version.result }}" = success ] || { echo "::error::job version en échec"; exit 1; }
-          # Un job n'est ignoré que par décision de portée (documentation seule, zone non touchée par la
-          # pull request), jamais par échec d'un job dont il dépend.
           controle() {
             echo "$1 : $2 (attendu : $3)"
             [ "$2" = success ] || { [ "$3" = false ] && [ "$2" = skipped ]; } || { echo "::error::$1 a échoué ou a été ignoré ($2)"; exit 1; }
@@ -1366,8 +1188,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
-      # Les actions locales appartiennent à la révision du workflow, même si `tag` désigne un ancien tag qui ne les
-      # contient pas encore (même principe que play-aab.yml) ; les scripts qu'elles appellent restent ceux du tag.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: .workflow-tools
@@ -1397,13 +1217,6 @@ jobs:
           prerelease: false
           generate_release_notes: false
 
-  # Publie/rafraîchit la release CANARY — un seul tag mobile "canary",
-  # republié en place à chaque déclenchement (automatique à chaque push sur
-  # main, ou manuel). Le tag est force-déplacé sur le commit courant ; les
-  # notes sont générées automatiquement (changelog depuis la dernière
-  # Stable), pas de fichier docs/releases/ à maintenir pour ce canal (il
-  # serait obsolète dès le commit suivant). Zéro curation : dernier commit
-  # de main, sans validation matérielle manuelle.
   release-canary:
     name: Publish/Update Canary Release
     needs: [version, ci-ok, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, android-build, linux-packages, linux-package-signing]
@@ -1412,7 +1225,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
-    # Une seule publication Canary à la fois, même entre références ou relances : la garde de monotonie lit un tag stable.
     concurrency:
       group: publish-canary-release
       cancel-in-progress: false
@@ -1439,14 +1251,6 @@ jobs:
           require-tip: 'true'
           token: ${{ github.token }}
 
-
-  # Publie/rafraîchit la release BÊTA (palier curé) — un seul tag mobile
-  # "beta", republié en place UNIQUEMENT sur déclenchement manuel
-  # (workflow_dispatch, jamais sur un simple push sur main — à la différence
-  # de Canary). Le mainteneur choisit la référence ("Use workflow from")
-  # quand un lot de fonctionnalités/correctifs est prêt à être partagé plus
-  # largement que sur Canary. Même mécanique de tag mobile et de notes
-  # générées automatiquement que Canary, juste un déclenchement différent.
   release-beta:
     name: Publish/Update Beta Release
     needs: [version, ci-ok, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, android-build, linux-packages, linux-package-signing]
@@ -1455,7 +1259,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
-    # Une seule publication Beta à la fois, même entre références ou relances : la garde de monotonie lit un tag stable.
     concurrency:
       group: publish-beta-release
       cancel-in-progress: false
@@ -1481,7 +1284,6 @@ jobs:
           base-version: ${{ needs.version.outputs.base_version }}
           require-tip: 'false'
           token: ${{ github.token }}
-
 
   publish-linux-packages:
     name: Publier les dépôts Linux (packages.bobine.fit)
@@ -1529,9 +1331,6 @@ jobs:
           sudo apt-get $APT_OPTIONS install -y reprepro rpm gnupg createrepo-c
           . scripts/ci/container-images.sh
           docker pull "$ARCH_IMAGE"
-      # Bobine Deploy publie ses paquets sur les releases de son dépôt ; l'archive packages.bobine.fit les sert à côté
-      # de bobine. Signature de SHA256SUMS et empreintes vérifiées avant usage ; sans release lisible, le canal garde
-      # les paquets qu'il porte déjà.
       - name: Paquets de Bobine Deploy (dernière release signée)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -1560,8 +1359,6 @@ jobs:
           bash scripts/ci/prepare-package-repository.sh arch "$CHANNEL" package-assets package-repo
       - name: Vérifier toute la chaîne APT, DNF et Pacman avant publication
         run: |
-          # Les index sont produits avec sudo : sans changement de propriétaire, le noyau refuse les liens physiques que le
-          # jeu de corruptions crée pour copier le dépôt (EPERM sur bobine.db.tar.gz).
           sudo chown -R "$(id -u):$(id -g)" package-repo
           python3 package-verification/deploy/onion/verify-packages.py package-repo
           python3 package-verification/deploy/onion/test-verify-packages.py package-repo
@@ -1580,7 +1377,6 @@ jobs:
         run: |
           gpgconf --kill gpg-agent || true
           rm -rf "$GNUPGHOME"
-
 
   notify-web-release:
     name: Notifier le miroir web après publication

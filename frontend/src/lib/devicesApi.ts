@@ -1,9 +1,3 @@
-/**
- * Client de l'API « Périphériques » (`/api/devices/*`) et aides PURES (testables, `frontend/tests/`).
- *
- * Toutes les erreurs de l'API sont structurées : `{"detail": {"code", "message", ...}}` — jamais une 500.
- */
-
 import { getApiUrl } from "./apiUrl.ts";
 
 export interface CapabilityInfo {
@@ -33,7 +27,6 @@ export interface AudioDevice {
   volume: number | null;
   muted: boolean | null;
   available: boolean;
-  /** Nom personnalisé et masquage choisis dans Bobine (communs à toutes les plateformes). */
   alias?: string | null;
   hidden?: boolean;
 }
@@ -64,7 +57,6 @@ export interface AudioDetails {
   codec: string | null;
   profile: AudioProfile | null;
   profiles: AudioProfile[];
-  /** -1 (tout à gauche) … +1 (tout à droite) ; null si la sortie n'a pas de balance. */
   balance: number | null;
   level: number | null;
   muted: boolean | null;
@@ -159,7 +151,6 @@ export function getDevicesApiUrl(path: string): string {
   return getApiUrl(`/devices${path}`);
 }
 
-/** Interprète le corps d'une réponse d'erreur (détail structuré, texte ou absent). */
 export function parseApiError(status: number, body: unknown): ApiError {
   const detail = (body as { detail?: unknown } | null)?.detail;
   if (detail && typeof detail === "object") {
@@ -191,11 +182,6 @@ export async function devicesRequest<T>(path: string, init?: { method?: string; 
   }
 }
 
-// ---------------------------------------------------------------------------
-// Aides pures
-// ---------------------------------------------------------------------------
-
-/** Nombre de barres (0-4) pour un niveau de signal 0-100. */
 export function signalBars(signal: number): number {
   if (signal >= 75) return 4;
   if (signal >= 50) return 3;
@@ -205,16 +191,11 @@ export function signalBars(signal: number): number {
 
 export type WifiConnectPlan = "direct" | "needs_password" | "password_local_only";
 
-/**
- * Comment se connecter à un réseau : directement (déjà enregistré ou ouvert), avec un mot de passe saisi
- * sur l'écran LOCAL, ou impossible à distance (le mot de passe ne se saisit jamais à distance : HTTP en clair).
- */
 export function wifiConnectPlan(network: Pick<WifiNetwork, "known" | "security">, local: boolean): WifiConnectPlan {
   if (network.known || !network.security) return "direct";
   return local ? "needs_password" : "password_local_only";
 }
 
-/** Appareils Bluetooth séparés en appairés / à portée non appairés ; connectés d'abord. */
 export function splitBluetooth(devices: BluetoothDevice[]): { paired: BluetoothDevice[]; nearby: BluetoothDevice[] } {
   const byName = (a: BluetoothDevice, b: BluetoothDevice) => Number(b.connected) - Number(a.connected) || a.name.localeCompare(b.name);
   return {
@@ -223,7 +204,6 @@ export function splitBluetooth(devices: BluetoothDevice[]): { paired: BluetoothD
   };
 }
 
-/** Icône Material Symbols d'une sortie audio. */
 export function audioKindIcon(kind: AudioKind): string {
   switch (kind) {
     case "hdmi": return "settings_input_hdmi";
@@ -236,7 +216,6 @@ export function audioKindIcon(kind: AudioKind): string {
   }
 }
 
-/** Icône Material Symbols d'un appareil Bluetooth. */
 export function bluetoothKindIcon(kind: string): string {
   switch (kind) {
     case "headphones": return "headphones";
@@ -251,22 +230,15 @@ export function bluetoothKindIcon(kind: string): string {
   }
 }
 
-/** Compte à rebours de confirmation Wi-Fi : secondes restantes (jamais négatif). */
 export function secondsLeft(pending: WifiPendingChange | null | undefined, elapsedSeconds: number): number {
   if (!pending) return 0;
   return Math.max(0, pending.seconds_left - Math.floor(elapsedSeconds));
 }
 
-// ---------------------------------------------------------------------------
-// Détail d'une sortie audio
-// ---------------------------------------------------------------------------
-
-/** Nom affiché d'une sortie : l'alias choisi dans Bobine, sinon le nom du système. */
 export function audioDisplayName(device: Pick<AudioDevice, "name" | "alias">): string {
   return device.alias?.trim() || device.name;
 }
 
-/** Curseur −100…+100 → balance −1…+1, avec un cran au centre (±4 → 0). */
 export function balanceFromSlider(value: number): number {
   const clamped = Math.max(-100, Math.min(100, value));
   return Math.abs(clamped) <= 4 ? 0 : Math.round(clamped) / 100;
@@ -278,7 +250,6 @@ export function sliderFromBalance(balance: number): number {
 
 export type BalanceSide = "left" | "right" | "center";
 
-/** Côté dominant et pourcentage de l'autre canal : « gauche 100 / droite 60 » se lit « droite à 60 % ». */
 export function describeBalance(balance: number): { side: BalanceSide; percent: number } {
   if (Math.abs(balance) < 0.005) return { side: "center", percent: 100 };
   return balance < 0
@@ -296,7 +267,6 @@ export function formatLatency(ms: number | null | undefined): string {
   return ms >= 100 ? `${Math.round(ms)} ms` : `${ms.toFixed(1)} ms`;
 }
 
-/** Disposition des canaux : `FL, FR` → « Stéréo (G, D) » ; 6 canaux → « 6 canaux ». */
 export function describeChannels(count: number | null | undefined, map: string[], t?: (key: string, params?: Record<string, string | number>) => string): string {
   const tr = t ?? ((key: string, params?: Record<string, string | number>) => ({
     "devices.channelWords.mono": "Mono", "devices.channelWords.stereo": "Stéréo", "devices.channelWords.stereoMap": `Stéréo (${params?.map})`,
@@ -310,10 +280,6 @@ export function describeChannels(count: number | null | undefined, map: string[]
   return tr("devices.channelWords.count", { count });
 }
 
-// ---------------------------------------------------------------------------
-// Routage audio par sortie radio (phase 2) et table de mixage (phase 3)
-// ---------------------------------------------------------------------------
-
 export type RadioOutputId = "radio_cable" | "radio_network";
 export const RADIO_OUTPUTS: RadioOutputId[] = ["radio_cable", "radio_network"];
 
@@ -326,10 +292,8 @@ export interface RoutingRoute {
 }
 
 export interface RoutingPlayer {
-  /** Lecteur ouvert sur la machine elle-même (le seul que le serveur peut aider à router). */
   local: boolean;
   primary: boolean;
-  /** Dernier résultat rapporté par ce lecteur (`applied`, `unsupported`, `insecure`, `needs_labels`, `no_match`, `muted`…). */
   status: string | null;
 }
 
@@ -362,9 +326,7 @@ export type RoutingTone = "neutral" | "ok" | "info" | "warn" | "bad";
 
 export interface RoutingSummary {
   tone: RoutingTone;
-  /** Clé de texte sous `devices.routing.status.`. */
   key: string;
-  /** Seconde ligne éventuelle (ce que le serveur a tenté), même espace de clés. */
   extra?: string;
 }
 
@@ -376,10 +338,6 @@ const PLAYER_PROBLEMS: Record<string, string> = {
   error: "error",
 };
 
-/**
- * Ce que l'administrateur doit lire d'une route : ce qui s'est RÉELLEMENT passé (rapports des lecteurs, action du
- * serveur), jamais « appliqué » par défaut. Pure et testée.
- */
 export function summarizeRouting(output: Pick<RoutingOutput, "route" | "state" | "players" | "server">): RoutingSummary {
   const { route, state, players, server } = output;
   if (!route) return { tone: "neutral", key: "none" };
@@ -393,11 +351,9 @@ export function summarizeRouting(output: Pick<RoutingOutput, "route" | "state" |
     ? (server.status === "no_stream" ? "serverNoStream" : server.status === "ambiguous" ? "serverAmbiguous" : "serverFailed")
     : undefined;
   if (problem) return { tone: problem === "error" ? "bad" : "warn", key: problem, extra };
-  // Rapports absents (lecteur qui n'a pas encore déverrouillé son audio) ou « par défaut » : en attente.
   return { tone: "info", key: "pending", extra };
 }
 
-/** Le navigateur courant cache-t-il les noms de ses sorties audio ? (bouton « autoriser les noms de sortie ») */
 export function outputLabelsHidden(devices: Array<{ kind: string; label: string }>): boolean {
   const outputs = devices.filter((d) => d.kind === "audiooutput");
   return outputs.length > 0 && outputs.every((d) => !d.label);

@@ -1,4 +1,3 @@
-// moniteur de réactivité jetable : retard de boucle d'événements + écarts entre frames
 (function(){
   if (window.__mon) return;
   const m = window.__mon = {lagMax:0, lagOver100:0, lagOver500:0, ticks:0, frames:0, frameGapMax:0, frameGapOver100:0, longest:[], start:performance.now()};

@@ -11,7 +11,6 @@ export interface StorageCtx {
   notify: Notify;
 }
 
-/** Message lisible d'une erreur d'API : texte propre au stockage, puis texte des périphériques, puis message du serveur. */
 export function storageErrorText(error: ApiError, t: T, lang: Lang = "fr"): string {
   const own = `storage.errors.${error.code}`;
   const params: Record<string, string | number> = {};
@@ -25,7 +24,6 @@ export function storageErrorText(error: ApiError, t: T, lang: Lang = "fr"): stri
   return error.message || t("storage.errors.generic");
 }
 
-/** Traduction avec repli : la clé, sinon `fallback` (code inconnu du serveur plus récent que le client). */
 export function tr(t: T, key: string, fallback = "", params?: Record<string, string | number>): string {
   const text = t(key, params);
   return text === key ? fallback : text;

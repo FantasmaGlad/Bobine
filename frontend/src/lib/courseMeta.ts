@@ -13,7 +13,6 @@ export interface CourseLike {
   audio_codec?: string | null;
 }
 
-/** Adresse de la miniature, que le serveur donne en chemin complet ou en nom de fichier. */
 export function courseThumbSrc(getApiUrl: (path: string) => string, course: Pick<CourseLike, "thumbnail_url" | "thumbnail_path">): string | null {
   const raw = course.thumbnail_url || course.thumbnail_path;
   if (!raw) return null;
@@ -21,7 +20,6 @@ export function courseThumbSrc(getApiUrl: (path: string) => string, course: Pick
   return filename ? getApiUrl(`/thumbnails/${filename}`) : null;
 }
 
-/** 42:10 ou 1:05:30 ; « --:-- » sans durée connue. */
 export function formatClock(seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined || !Number.isFinite(seconds) || seconds < 0) return "--:--";
   const total = Math.floor(seconds);
@@ -31,7 +29,6 @@ export function formatClock(seconds: number | null | undefined): string {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
 }
 
-/** Secondes depuis « 90 », « 1:30 » ou « 1:02:03 » ; null si illisible. */
 export function parseClock(text: string): number | null {
   const trimmed = text.trim();
   if (!trimmed) return null;

@@ -1,6 +1,3 @@
-"""Négociation de la version servie par `GET /api/videos/{id}/stream` : l'original par défaut, la version web
-pour un client qui annonce ne pas savoir décoder le codec, jamais une version web absente."""
-
 import os
 import sys
 from pathlib import Path
@@ -33,7 +30,7 @@ def env(tmp_path):
 
     def make(web_status, codec="hevc"):
         counter["n"] += 1
-        n = counter["n"]  # file_path est unique en base : un jeu de fichiers par vidéo
+        n = counter["n"]
         (tmp_path / f"orig{n}.mp4").write_bytes(ORIGINAL)
         (tmp_path / f"web{n}.mp4").write_bytes(WEB)
         with Session() as db:
@@ -119,5 +116,5 @@ def test_incapable_client_triggers_generation_only_when_auto_is_enabled(env, mon
         db.commit()
     client.get(f"/api/videos/{vid}/stream?accept=h264")
     assert calls == [vid]
-    client.get(f"/api/videos/{vid}/stream?accept=h264,hevc")  # client capable : rien à produire
+    client.get(f"/api/videos/{vid}/stream?accept=h264,hevc")
     assert calls == [vid]

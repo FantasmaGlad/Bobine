@@ -1,8 +1,3 @@
-"""Contrat HTTP du stockage sous FastAPI/Pydantic Android et bureau.
-
-Importer l'application complète détecte aussi les modèles des autres routeurs.
-Seule la frontière pilote est simulée : ni disque réel ni privilège nécessaire.
-"""
 from unittest.mock import AsyncMock
 
 import pytest
@@ -63,8 +58,6 @@ def test_storage_openapi_exposes_list_limits():
 
 
 def _flat_routes(routes):
-    """Routes d'une application, celles des routeurs inclus comprises (selon la version de FastAPI, un routeur
-    inclus est recopié ou enveloppé)."""
     for route in routes:
         included = getattr(route, "original_router", None)
         if included is None:

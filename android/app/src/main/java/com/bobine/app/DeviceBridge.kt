@@ -34,19 +34,6 @@ private const val PERMISSION_REQUEST_CODE = 4107
 private const val PERMISSION_MESSAGE =
     "Autorisez « Appareils à proximité » dans la boîte de dialogue affichée sur l'appareil Android, puis réessayez."
 
-/**
- * Pont « Périphériques » appelé par le backend Python (Chaquopy, `devices/android.py`) : sorties audio,
- * Bluetooth et état du Wi-Fi. Chaque méthode renvoie une chaîne JSON — `{"error": code, "message": ...}`
- * en cas de refus ou d'échec, jamais une exception qui traverserait Chaquopy.
- *
- * Limites ASSUMÉES d'Android (documentées dans docs/ARCHITECTURE.md, section Périphériques) :
- *  - aucune API publique ne change la sortie audio par défaut, ne connecte/déconnecte un profil
- *    Bluetooth déjà appairé ni n'oublie un appareil → réglages du système (`openSettings`) ;
- *  - depuis Android 10, une application ne peut plus scanner/connecter/oublier un réseau Wi-Fi :
- *    lecture seule de l'état, sans SSID (la lecture du nom exige la localisation précise, permission
- *    sensible que Bobine NE demande PAS) ;
- *  - l'appairage ouvre la boîte de dialogue système sur l'appareil (confirmation à l'écran).
- */
 object DeviceBridge {
     private val discovered = ConcurrentHashMap<String, JSONObject>()
     @Volatile private var receiverRegistered = false
@@ -58,7 +45,6 @@ object DeviceBridge {
 
     private fun ok(extra: JSONObject = JSONObject()): String = extra.put("ok", true).toString()
 
-    // ------------------------------------------------------------------ audio
     private fun audioKind(type: Int): String = when (type) {
         AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "internal"
         AudioDeviceInfo.TYPE_HDMI, AudioDeviceInfo.TYPE_HDMI_ARC, AudioDeviceInfo.TYPE_HDMI_EARC -> "hdmi"
@@ -71,7 +57,6 @@ object DeviceBridge {
         else -> "other"
     }
 
-    /** Sorties audio ; « par défaut » = celles où Android route actuellement le média. */
     fun audioList(context: Context): String = try {
         val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val media = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
@@ -115,7 +100,6 @@ object DeviceBridge {
         else -> "Encodage $encoding"
     }
 
-    /** Analyse d'une sortie (formats annoncés par Android : fréquences, canaux, encodages). */
     fun audioDetails(context: Context, id: String): String = try {
         val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val device = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).firstOrNull { it.id.toString() == id }
@@ -147,7 +131,6 @@ object DeviceBridge {
         error("audio_failed", "Analyse de la sortie audio impossible.")
     }
 
-    /** `volume` < 0 : inchangé ; `muted` : -1 inchangé, 0 son actif, 1 coupé. Agit sur le volume média du système. */
     fun audioSetVolume(context: Context, volume: Double, muted: Int): String = try {
         val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (volume >= 0.0) {
@@ -165,7 +148,6 @@ object DeviceBridge {
         error("audio_failed", "Réglage du volume impossible.")
     }
 
-    // ------------------------------------------------------------------ Bluetooth
     private fun adapter(context: Context): BluetoothAdapter? =
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
@@ -177,7 +159,6 @@ object DeviceBridge {
         return wanted.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
     }
 
-    /** Demande les permissions « Appareils à proximité » (boîte de dialogue système sur l'appareil). */
     private fun requestPermissions(missing: List<String>): String {
         val activity = MainActivity.activeActivity?.get()
         if (activity != null) {
@@ -186,13 +167,11 @@ object DeviceBridge {
         return error("permission_required", PERMISSION_MESSAGE)
     }
 
-    /** Action explicite de l'utilisateur (bouton « Autoriser ») : affiche la demande « Appareils à proximité ». */
     fun bluetoothRequestPermission(context: Context): String {
         val missing = missingBluetoothPermissions(context, needScan = true)
         return if (missing.isEmpty()) ok() else requestPermissions(missing)
     }
 
-    /** Vrai si l'appareil possède un Bluetooth (aucune demande d'autorisation). */
     fun hasBluetooth(context: Context): Boolean =
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH)
 
@@ -214,7 +193,6 @@ object DeviceBridge {
         }
     }
 
-    /** Adresses actuellement connectées en audio (A2DP / casque), via les profils publics. */
     @SuppressLint("MissingPermission")
     private fun connectedAddresses(context: Context, adapter: BluetoothAdapter): Set<String> {
         val connected = ConcurrentHashMap.newKeySet<String>()
@@ -275,7 +253,6 @@ object DeviceBridge {
         }
     }
 
-    /** Active le Bluetooth : Android exige la boîte de dialogue système (`adapter.enable()` est sans effet). */
     fun bluetoothRequestEnable(context: Context): String {
         return try {
             val adapter = adapter(context) ?: return error("no_adapter", "Cet appareil n'a pas de Bluetooth.")
@@ -373,7 +350,6 @@ object DeviceBridge {
         }
     }
 
-    // ------------------------------------------------------------------ Wi-Fi (lecture seule)
     @Suppress("DEPRECATION")
     fun wifiStatus(context: Context): String {
         return try {
@@ -397,7 +373,6 @@ object DeviceBridge {
                 val ip = connectivity.getLinkProperties(network)?.linkAddresses
                     ?.firstOrNull { it.address is java.net.Inet4Address }?.address?.hostAddress
                 val ssidRaw = info?.ssid?.trim('"')
-                // Sans la localisation précise (jamais demandée), Android masque le nom : « <unknown ssid> ».
                 val ssid = ssidRaw?.takeIf { it.isNotBlank() && it != WifiManager.UNKNOWN_SSID }
                 current = JSONObject()
                     .put("ssid", ssid ?: JSONObject.NULL)
@@ -418,7 +393,6 @@ object DeviceBridge {
         }
     }
 
-    // ------------------------------------------------------------------ réglages du système
     fun openSettings(context: Context, target: String): String = try {
         val action = when (target) {
             "wifi" -> Settings.ACTION_WIFI_SETTINGS
@@ -429,7 +403,6 @@ object DeviceBridge {
         try {
             context.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (e: android.content.ActivityNotFoundException) {
-            // Certains boîtiers Android TV n'exposent pas ces écrans : repli sur les réglages généraux.
             context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
         ok()

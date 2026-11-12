@@ -1,10 +1,3 @@
-/**
- * Client de l'API « Stockage externe » (`/api/storage/*`) et aides PURES (testables, `frontend/tests/`).
- *
- * Mêmes erreurs structurées que les périphériques `{"detail": {"code", "message", ...}}` : jamais de 500.
- * Le client n'envoie que des chemins RELATIFS au support.
- */
-
 import { getApiUrl } from "./apiUrl.ts";
 import { parseApiError, type ApiError, type ApiResult } from "./devicesApi.ts";
 
@@ -178,10 +171,6 @@ export interface FormatAdvice {
   destructive: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Requêtes
-// ---------------------------------------------------------------------------
-
 export function getStorageApiUrl(path: string): string {
   return getApiUrl(`/storage${path}`);
 }
@@ -217,16 +206,11 @@ export function encodeKey(key: string): string {
   return encodeURIComponent(key);
 }
 
-// ---------------------------------------------------------------------------
-// Aides pures
-// ---------------------------------------------------------------------------
-
 const UNITS = {
   fr: ["o", "Ko", "Mo", "Go", "To"],
   en: ["B", "KB", "MB", "GB", "TB"],
 } as const;
 
-/** Taille lisible, en unités décimales (convention des supports de stockage) : « 64 Go », « 1,9 To », « 640 Mo ». */
 export function formatBytes(bytes: number | null | undefined, lang: "fr" | "en" = "fr"): string {
   if (bytes === null || bytes === undefined || !Number.isFinite(bytes) || bytes < 0) return "—";
   let value = bytes;
@@ -240,7 +224,6 @@ export function formatBytes(bytes: number | null | undefined, lang: "fr" | "en" 
   return `${text} ${UNITS[lang][unit]}`;
 }
 
-/** Icône Material Symbols d'un support. */
 export function volumeIcon(kind: VolumeKind): string {
   switch (kind) {
     case "sd": return "sd_card";
@@ -258,10 +241,6 @@ export function portableIcon(scheme: string): string {
 
 export type StatusId = "ready" | "busy" | "ejecting" | "offline" | "attention";
 
-/**
- * État affiché d'un support, en un mot : le vocabulaire « monté / démonté » n'est jamais montré.
- * `attention` : un avertissement de santé ou d'usure mérite d'être vu sans ouvrir les options.
- */
 export function volumeStatus(volume: Pick<StorageVolume, "state" | "connected" | "health" | "library">): StatusId {
   if (!volume.connected || volume.state === "offline") return "offline";
   if (volume.state === "ejecting") return "ejecting";
@@ -280,7 +259,6 @@ export function statusIcon(id: StatusId): string {
   }
 }
 
-/** Pire état entre la santé lue (SMART) et l'usure comptée par Bobine. */
 export function overallTone(volume: Pick<StorageVolume, "health" | "library">): Tone {
   const health = volume.health;
   const smart: Tone = health && health.available ? health.status : "unknown";
@@ -292,14 +270,13 @@ export function overallTone(volume: Pick<StorageVolume, "health" | "library">): 
 
 export type PrimaryAction = "explore" | null;
 
-/** UNE action principale par support : explorer ; rien tant qu'il est débranché ou en cours de retrait. */
 export function primaryAction(volume: Pick<StorageVolume, "state" | "connected">): PrimaryAction {
   if (!volume.connected || volume.state === "offline" || volume.state === "ejecting" || volume.state === "formatting") return null;
   return "explore";
 }
 
 export interface Crumb {
-  label: string | null; // null = racine (le nom du support est affiché par l'appelant)
+  label: string | null;
   path: string;
 }
 
@@ -317,7 +294,6 @@ export function joinPath(parent: string, name: string): string {
   return parent ? `${parent}/${name}` : name;
 }
 
-/** Nature d'import proposée d'après la sélection ; l'utilisateur peut la changer. */
 export function suggestKind(selected: Array<Pick<BrowseEntry, "type" | "media">>): TransferKind {
   if (selected.some((e) => e.media === "video")) return "video";
   const files = selected.filter((e) => e.type === "file");
@@ -329,12 +305,10 @@ export function selectionBytes(selected: Array<Pick<BrowseEntry, "size">>): numb
   return selected.reduce((sum, e) => sum + (e.size ?? 0), 0);
 }
 
-/** Une entrée se sélectionne si c'est un dossier ou un média ; le reste (texte, système) n'a pas de case. */
 export function isSelectable(entry: Pick<BrowseEntry, "type" | "media">): boolean {
   return entry.type === "dir" || (entry.media !== null && entry.media !== "subtitle");
 }
 
-/** Tout ce qu'une page de l'explorateur permet de cocher d'un coup. */
 export function selectableEntries(entries: BrowseEntry[]): BrowseEntry[] {
   return entries.filter(isSelectable);
 }
@@ -343,12 +317,10 @@ export function toggleSelection(selected: string[], path: string): string[] {
   return selected.includes(path) ? selected.filter((p) => p !== path) : [...selected, path];
 }
 
-/** Réglages recommandés actifs ? (tout ce qui est activé est appliqué ou en attente du montage ; rien n'est « inactif » par erreur). */
 export interface LongevitySummary {
   applied: number;
   unavailable: number;
   disabled: number;
-  /** Vrai si aucun réglage n'a été désactivé par l'utilisateur : le support est protégé comme recommandé. */
   recommended: boolean;
 }
 
@@ -360,7 +332,6 @@ export function longevitySummary(items: LongevityItem[]): LongevitySummary {
 
 export const STANDBY_CHOICES = [0, 10, 20, 30, 60] as const;
 
-/** Libellé court d'un avertissement de santé (codes de `health.py`). */
 export function healthWarningKeys(health: Health | null | undefined): string[] {
   return health && health.available ? health.warnings : [];
 }
@@ -370,7 +341,6 @@ export interface VolumeDiff {
   removed: Array<{ name: string; abrupt: boolean }>;
 }
 
-/** Branchements et retraits entre deux relectures (les évènements WebSocket ne portent aucun nom). */
 export function diffVolumes(previous: StorageVolume[], next: StorageVolume[], abruptKeys: Set<string> = new Set()): VolumeDiff {
   const connected = (list: StorageVolume[]) => new Map(list.filter((v) => v.connected).map((v) => [v.key, v]));
   const before = connected(previous);
@@ -391,7 +361,6 @@ export function jobPercent(job: Pick<ImportJob, "progress_percent" | "bytes_done
   return null;
 }
 
-/** Plan de fichier choisi par le conseiller : OS de la machine qui héberge Bobine + OS qui brancheront le support. */
 export const OS_CHOICES = ["linux", "windows", "macos", "android"] as const;
 export type OsChoice = (typeof OS_CHOICES)[number];
 
@@ -403,7 +372,6 @@ export function adviceQuery(host: OsChoice, others: OsChoice[], media: "flash" |
   return `?${params.toString()}`;
 }
 
-/** Système de fichiers affiché pour un humain : exfat → exFAT, vfat → FAT32 (ou FAT), ntfs → NTFS. */
 export function fsLabel(fstype: string | null | undefined): string {
   switch ((fstype ?? "").toLowerCase()) {
     case "exfat": return "exFAT";
@@ -416,7 +384,6 @@ export function fsLabel(fstype: string | null | undefined): string {
   }
 }
 
-/** Conséquences à afficher sous le verdict : celles que la raison ne dit pas déjà (aucune phrase répétée). */
 export function visibleNotes(assessment: Pick<Assessment, "reason" | "notes">, limit = 3): string[] {
   const redundant: Record<string, string[]> = {
     exfat_no_journal: ["no_journal_unplug_risk", "prefer_read_only"],
@@ -430,10 +397,6 @@ export function visibleNotes(assessment: Pick<Assessment, "reason" | "notes">, l
   const skip = new Set(redundant[assessment.reason] ?? []);
   return assessment.notes.filter((n) => !skip.has(n)).slice(0, limit);
 }
-
-// ---------------------------------------------------------------------------
-// Assistant de formatage (« Préparer ce support ») : types de l'API et aides PURES (testées dans tests/)
-// ---------------------------------------------------------------------------
 
 export type FormatFs = "ext4" | "exfat" | "vfat" | "ntfs";
 export const FORMAT_FILESYSTEMS: readonly FormatFs[] = ["ext4", "exfat", "vfat", "ntfs"];
@@ -510,18 +473,15 @@ export interface FormatJob {
   label: string;
 }
 
-/** Les OS qui brancheront aussi le support, déduits de la seule question posée à l'utilisateur (Windows / Mac ?). */
 export function formatTravels(travelsToWindowsOrMac: boolean): string[] {
   return travelsToWindowsOrMac ? ["windows", "macos"] : [];
 }
 
-/** Format présélectionné : celui du conseiller s'il est disponible, sinon le premier disponible. */
 export function defaultFormat(plan: Pick<FormatPlan, "recommended" | "options">): FormatFs | null {
   const options = plan.options.filter((o) => o.available);
   return (options.find((o) => o.fs === plan.recommended) ?? options[0])?.fs ?? null;
 }
 
-/** Étiquette acceptable pour ce format ? Renvoie le code d'erreur (traduit par `storage.format.label.*`) ou null. */
 export function labelProblem(fs: FormatFs, raw: string): "empty" | "too_long" | "chars" | null {
   const text = raw.trim();
   if (!text) return "empty";
@@ -532,7 +492,6 @@ export function labelProblem(fs: FormatFs, raw: string): "empty" | "too_long" | 
   return size > limit ? "too_long" : null;
 }
 
-/** Secondes restantes avant que la confirmation soit possible (délai de réflexion, jamais négatif). */
 export function reflectionLeft(startedAtMs: number, nowMs: number, waitSeconds: number): number {
   return Math.max(0, Math.ceil(waitSeconds - (nowMs - startedAtMs) / 1000));
 }
@@ -545,37 +504,31 @@ export interface ConfirmInput {
   labelOk: boolean;
 }
 
-/** Le bouton d'effacement n'est actif qu'après : saisie exacte du nom, case cochée et délai écoulé. Jamais un simple clic. */
 export function canConfirmFormat(input: ConfirmInput): boolean {
   const same = input.typed.normalize("NFC").trim().toLocaleLowerCase() === input.expected.normalize("NFC").trim().toLocaleLowerCase();
   return same && input.typed.trim() !== "" && input.acknowledged && input.secondsLeft <= 0 && input.labelOk;
 }
 
-/** Étapes affichées avec leur état ; l'effacement commence à « table » (point de non-retour). */
 export const FORMAT_STEP_ORDER: readonly FormatStepId[] = ["unmount", "recheck", "table", "format", "settle", "readback", "mount_ro", "write_test", "back_ro", "health"];
 
 export function stepIcon(state: FormatStepState): string {
   return state === "ok" ? "check_circle" : state === "running" ? "progress_activity" : state === "failed" ? "error" : state === "warn" ? "warning" : state === "skipped" ? "remove" : "radio_button_unchecked";
 }
 
-/** Un travail est terminé quand il n'est plus « running ». */
 export function formatFinished(job: Pick<FormatJob, "state">): boolean {
   return job.state !== "running";
 }
 
-/** Peut-on fermer la fenêtre sans perdre le suivi ? Jamais pendant l'effacement ni la vérification. */
 export function canLeaveWizard(job: Pick<FormatJob, "state" | "point_of_no_return"> | null): boolean {
   return !job || job.state !== "running";
 }
 
-/** Code d'erreur d'une étiquette ou d'un refus → clé de texte. */
 export function refusalKey(code: string): string {
   return `storage.format.refusal.${code}`;
 }
 
 export const FORMAT_SESSION_KEYS = ["format_token_missing", "format_token_unknown", "format_token_expired", "format_token_used", "format_token_owner", "format_identity_changed"] as const;
 
-/** Ces refus imposent de refaire un plan (jeton périmé ou support qui a changé). */
 export function needsNewPlan(code: string): boolean {
   return (FORMAT_SESSION_KEYS as readonly string[]).includes(code);
 }

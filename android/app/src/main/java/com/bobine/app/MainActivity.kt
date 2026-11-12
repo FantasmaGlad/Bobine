@@ -31,31 +31,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
-// Revision du 2026-09-09 : l'ecran
-// tactile charge desormais /grid, pas /cinema - une grille de selection
-// SEULE, qui ne bascule jamais vers un lecteur video local. Choisir un
-// cours au toucher envoie un ordre "launch" sur le canal cable (meme
-// mecanisme que les commandes admin play/pause/seek/stop deja existantes) - c'est BobinePresentation
-// (HDMI, /cinema) qui joue reellement le cours. Sans cette
-// separation, la tablette aurait aussi redecode/rejoue la meme video que
-// l'ecran HDMI des qu'un cours demarre (les deux chargeaient /cinema,
-// qui ne distingue aucun role primaire/miroir dans son rendu).
 private const val GRID_PATH = "/grid/"
-// Sur Android TV / Google TV, l'ecran principal est le grand ecran de la TV.
-// On charge /kiosk par defaut, concu pour la navigation D-Pad a la telecommande.
 private const val KIOSK_PATH = "/kiosk"
-// Delai entre deux lectures du port publie par le serveur embarque (cf. BackendEndpoint).
 private const val BACKEND_POLL_MS = 200L
 
-/**
- * Ecran tactile de la tablette ou affichage Leanback Android TV :
- * plein ecran immersif au demarrage, mais PAS de Lock Task - un geste
- * standard Android (Accueil, multitache) reste actif a tout moment.
- *
- * Ne demarre plus le backend elle-meme : c'est
- * `BobineForegroundService` qui le fait, decouple du cycle de vie de
- * cette Activity - fermer l'app ne coupe plus la diffusion HDMI.
- */
 class MainActivity : AppCompatActivity() {
 
     companion object {
@@ -71,27 +50,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Écran de télévision : télécommande à la place du tactile (voir [isTvDevice]). */
     private val isTv: Boolean by lazy { isTvDevice(this) }
 
     private val handler = Handler(Looper.getMainLooper())
-    // Prochain essai de chargement planifie tant que le serveur n'a pas publie son port.
     private var loadRetry = Runnable { }
-    // champ de classe
-    // plutot qu'une simple val locale de onCreate() - necessaire pour
-    // relayer onResume()/onPause() de l'Activity vers la WebView
-    // (webView.onResume()/onPause() pilotent son cycle de rendu interne,
-    // distinct du cycle de vie Android).
     private var webView: WebView? = null
 
-    // POST_NOTIFICATIONS (API 33+) est une permission "dangereuse" - la
-    // declarer dans le Manifest ne l'accorde PAS automatiquement, une
-    // demande explicite a l'utilisateur est necessaire. Sans elle,
-    // `startForeground()` (BobineForegroundService) demarre quand meme le
-    // service normalement (pas de crash) mais la notification persistante
-    // reste invisible - constate en pratique : le service et le
-    // serveur survivaient bien a la fermeture de l'app, mais
-    // `dumpsys notification` ne montrait rien pour com.bobine.app.
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* resultat ignore : au pire la notification reste invisible, rien de bloquant */ }
 
@@ -107,34 +71,17 @@ class MainActivity : AppCompatActivity() {
         }
         requestIgnoreBatteryOptimizations()
         requestOverlayPermissionOnce()
-        // Plus de telechargement spontane ici (cf. UpdateManager) : seulement
-        // le menage d'un APK deja installe ou perime.
         UpdateManager.cleanupStaleDownloads(this)
 
         startForegroundService(Intent(this, BobineForegroundService::class.java))
-        // Pas d'appel a applyImmersiveFullscreen() ici : la fenetre n'est pas
-        // encore attachee a ce stade (`window.insetsController` est null,
-        // NullPointerException constatee en pratique). onWindowFocusChanged
-        // ci-dessous s'en charge, garanti appele une fois la fenetre reelle.
 
         if (isTv) {
-            // Sur Android TV : neutralise la veille d'ecran Daydream / Ambient pendant l'utilisation de Bobine
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
         val initialPath = if (isTv) KIOSK_PATH else GRID_PATH
 
-        // Debug uniquement (build debug) : console JS visible dans logcat
-        // (tag "WebViewConsole") et inspection chrome://inspect. Restreint
-        // au build debug : rester actif en release ouvrait une
-        // surface de debogage locale inutile en production, sans aucun
-        // benefice (personne n'inspecte un kiosque de salle via USB).
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
 
-        // Conteneur racine avec écran de chargement statique (logo Bobine)
-        // Masque le temps de démarrage du serveur Python embarqué (1 à 2s)
-        // évitant l'affichage de l'erreur réseau standard d'Android ("net::ERR_CONNECTION_REFUSED").
-        // Couleurs du thème choisi dans l'application (envoyées par l'interface web à chaque
-        // changement), pour que l'écran de chargement ne soit plus un noir fixe.
         val themeColors = ThemeColors.load(this)
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(themeColors.background))
         val rootLayout = android.widget.FrameLayout(this).apply {
@@ -196,22 +143,7 @@ class MainActivity : AppCompatActivity() {
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
         webView.settings.mediaPlaybackRequiresUserGesture = false
-        // LOAD_DEFAULT plutot que LOAD_NO_CACHE : le serveur impose deja une revalidation
-        // systematique (Cache-Control: no-cache + ETag, cf.
-        // RevalidateStaticFiles dans backend/app/main.py, ajoute APRES la
-        // decouverte initiale du probleme de cache HTTP heuristique
-        // mentionnee dans l'historique de ce fichier) - un fichier inchange
-        // recoit desormais un 304 quasi gratuit au lieu d'un retelechargement
-        // integral a CHAQUE chargement de page, couteux sur ce materiel
-        // (h11 pur Python, stockage externe FUSE). Le bouton « Synchronisation
-        // des ecrans » (clearCachesAndReload cote frontend) continue de vider
-        // le cache HTTP explicitement pour forcer une vraie mise a jour.
         webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
-        // priorite de rendu
-        // elevee meme quand cette Activity passe en arriere-plan (l'admin
-        // ouvert dans Chrome par-dessus) - sans ceci, le systeme peut
-        // deprioriser fortement le compositeur de cette WebView, aggravant
-        // les saccades constatees lors d'un retour au premier plan.
         webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(message: ConsoleMessage): Boolean {
@@ -234,10 +166,6 @@ class MainActivity : AppCompatActivity() {
                 val isLocal = host == "127.0.0.1" || host == "localhost"
 
                 if (!isTv) {
-                    // Mode tablette / mobile tactile :
-                    // Si la navigation quitte la grille (ex: acces a l'administration / ou tout lien externe),
-                    // on l'ouvre directement dans le navigateur systeme par defaut pour ne pas pieger l'utilisateur
-                    // dans une WebView en plein ecran sans barre de navigation ni retour.
                     if (path != "/grid" && !path.startsWith("/grid/")) {
                         try {
                             val intent = Intent(Intent.ACTION_VIEW, uri)
@@ -249,9 +177,6 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 } else {
-                    // Mode Android TV & Google TV :
-                    // L'utilisateur navigue au D-Pad de la telecommande entre /kiosk, /cinema, /radio, etc.
-                    // Tout le contenu local Bobine reste dans la WebView. Seuls les liens distants tiers ouvrent un navigateur externe.
                     if (!isLocal) {
                         try {
                             val intent = Intent(Intent.ACTION_VIEW, uri)
@@ -273,7 +198,6 @@ class MainActivity : AppCompatActivity() {
             ) {
                 if (request.isForMainFrame) {
                     lastPageFailed = true
-                    // Ne pas révéler la page d'erreur blanche/brute du navigateur
                     handler.postDelayed({
                         if (!hasLoadedSuccessfully) {
                             loadWhenBackendReady(initialPath)
@@ -300,18 +224,11 @@ class MainActivity : AppCompatActivity() {
         ))
         rootLayout.addView(splashLayout)
         setContentView(rootLayout)
-        // Icones de la barre d'etat lisibles : sombres sur un theme clair, claires sur un theme sombre.
         androidx.core.view.WindowCompat.getInsetsController(window, rootLayout).isAppearanceLightStatusBars =
             androidx.core.graphics.ColorUtils.calculateLuminance(themeColors.background) > 0.5
         loadWhenBackendReady(initialPath)
     }
 
-    /**
-     * Charge [path] dès que le serveur embarqué a publié son port (cf. [BackendEndpoint]) : tant
-     * qu'il ne l'a pas fait, l'écran de chargement reste affiché et on réessaie, ce qui remplace
-     * l'ancienne erreur « connexion refusée » du tout premier affichage. Un seul réessai planifié à
-     * la fois.
-     */
     private fun loadWhenBackendReady(path: String) {
         handler.removeCallbacks(loadRetry)
         val url = BackendEndpoint.url(this, path)
@@ -345,18 +262,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        // Reapplique l'immersion a chaque retour au premier plan : un geste
-        // systeme (barre de notifications, multitache) la leve
-        // temporairement, comportement standard Android a reproduire
-        // volontairement (pas un blocage, juste une remise en place).
         if (hasFocus) applyImmersiveFullscreen()
     }
 
-    /**
-     * Demande UNE fois la permission « afficher par-dessus d'autres applications », necessaire
-     * pour rouvrir l'ecran seul apres un redemarrage. Certains appareils (Android TV) n'ont pas
-     * cet ecran de reglages : le serveur redemarre quand meme, l'ecran s'ouvre au lancement.
-     */
     private fun requestOverlayPermissionOnce() {
         if (Settings.canDrawOverlays(this) || !StartOnBoot.isEnabled(this)) return
         val prefs = getSharedPreferences("bobine_native", MODE_PRIVATE)
@@ -369,14 +277,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Demande l'exemption d'optimisation batterie (Doze) : sans elle, le système peut ralentir ou suspendre le
-     * `ForegroundService` après une longue inactivité de l'écran (le service reste démarré, mais son travail de
-     * fond, réseau et minuteries, peut être différé). La permission est « normale » (aucune invite), mais l'action
-     * affiche toujours une fois une boîte de dialogue système : acceptable ici, la demande n'ayant lieu qu'à
-     * l'installation. Un contournement silencieux par Device Owner n'est pas fiable d'un constructeur à l'autre
-     * (HyperOS/MIUI ignore les mécanismes standards d'AOSP et exige des réglages propres, non automatisables).
-     */
     private fun requestIgnoreBatteryOptimizations() {
         val powerManager = getSystemService(PowerManager::class.java)
         if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
@@ -391,10 +291,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Relaie une touche de la télécommande à l'interface Web (écran principal et sortie HDMI) sous la forme d'un
-     * évènement clavier standard, que `useKioskRemote` interprète comme au clavier ou à la manette.
-     */
     private fun relayKeyToWeb(key: String, keyCode: Int, toPresentation: Boolean) {
         val script = "window.dispatchEvent(new KeyboardEvent('keydown', " +
             "{ key: '$key', code: '$key', keyCode: $keyCode, which: $keyCode, bubbles: true, cancelable: true }))"
@@ -403,12 +299,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        // Télécommande Android TV uniquement : sur téléphone et tablette, Retour garde son comportement système.
-        // Le volume reste au téléviseur : certains (Xiaomi) le règlent et affichent leur jauge avant même que
-        // l'application voie la touche, donc la consommer ou la relayer ici réglait le son deux fois.
         if (isTv) {
-            // Retour : la WebView n'a pas d'historique dans une application à page unique ; l'évènement
-            // `Escape` laisse l'interface (modale, grille, veille) décider de la suite.
             if (event.keyCode == KeyEvent.KEYCODE_BACK) {
                 if (event.action == KeyEvent.ACTION_DOWN) {
                     if (webView?.canGoBack() == true) webView?.goBack()
@@ -418,9 +309,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Priorite a l'interface locale tactile de la tablette (/grid) :
-        // si MainActivity ou sa WebView consomme l'evenement (navigation, enter, play/pause),
-        // on ne le deroute pas.
         if (super.dispatchKeyEvent(event)) {
             return true
         }
@@ -434,7 +322,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        // Navigation D-Pad telecommande Android TV : le bouton retour revient a la vue precedente
         if (keyCode == KeyEvent.KEYCODE_BACK && webView?.canGoBack() == true) {
             webView?.goBack()
             return true

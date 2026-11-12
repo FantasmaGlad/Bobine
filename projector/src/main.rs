@@ -1,21 +1,3 @@
-//! Fenetre native plein ecran de Bobine pour le projecteur.
-//!
-//! Pourquoi : sur macOS, Safari n'offre ni mode kiosque en ligne de commande, ni
-//! choix de l'ecran ou s'ouvre la fenetre, et bloque l'autoplay avec son ;
-//! imposer un Chrome installe romprait le « plug and play ». Ce petit
-//! executable embarque le moteur web du systeme (WKWebView, le moteur de
-//! Safari, deja present) dans une fenetre sans bordure, plein ecran, placee sur
-//! l'ecran externe, avec lecture automatique autorisee.
-//!
-//! Lance et arrete par le tray de Bobine :
-//!   bobine-projector --url http://127.0.0.1:<port>/cinema/?channel=cable [--monitor external|primary|<index>]
-//!
-//! `<port>` est celui que le backend a réellement publie (fichier d'execution lu par le tray, qui
-//! compose l'URL a chaque ouverture) : il peut differer du port configure si celui-ci etait occupe.
-//!
-//! Le decodage video suit le moteur du systeme (VideoToolbox sur macOS). La
-//! logique de choix de l'ecran est pure (`select_monitor`) et testee.
-
 use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -23,10 +5,8 @@ use tao::{
 };
 use wry::WebViewBuilder;
 
-/// Quel ecran viser.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum MonitorChoice {
-    /// Premier ecran qui n'est pas l'ecran principal (defaut).
     External,
     Primary,
     Index(usize),
@@ -61,16 +41,12 @@ fn parse_args(args: &[String]) -> Result<Args, String> {
         }
     }
     let url = url.ok_or("--url est obligatoire")?;
-    // Seules les URL http(s) sont acceptees : cette fenetre n'a aucune raison
-    // d'ouvrir un fichier local ni un autre schema.
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         return Err(format!("URL non autorisee : {url}"));
     }
     Ok(Args { url, monitor })
 }
 
-/// Choisit l'ecran cible parmi `monitors`. Sans ecran externe disponible, se
-/// replie sur l'ecran principal (la page reste visible plutot que rien).
 fn select_monitor<T: Clone + PartialEq>(
     monitors: &[T],
     primary: Option<&T>,
@@ -100,7 +76,6 @@ fn main() -> wry::Result<()> {
 
     #[allow(unused_mut)]
     let mut event_loop = EventLoop::new();
-    // Pas d'icone dans le Dock ni de menu : c'est un afficheur, pas une application.
     #[cfg(target_os = "macos")]
     {
         use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
@@ -121,9 +96,6 @@ fn main() -> wry::Result<()> {
 
     let builder = WebViewBuilder::new()
         .with_url(&parsed.url)
-        // Lecture automatique AVEC son, sans geste (equivalent de
-        // --autoplay-policy=no-user-gesture-required cote Chromium) : l'ecran
-        // du projecteur n'a ni souris ni doigt pour la debloquer.
         .with_autoplay(true);
 
     #[cfg(any(
@@ -168,15 +140,30 @@ mod tests {
 
     #[test]
     fn parse_url_et_ecran_par_defaut() {
-        let parsed = parse_args(&a(&["p", "--url", "http://127.0.0.1:1903/cinema/?channel=cable"])).unwrap();
+        let parsed = parse_args(&a(&[
+            "p",
+            "--url",
+            "http://127.0.0.1:1903/cinema/?channel=cable",
+        ]))
+        .unwrap();
         assert_eq!(parsed.url, "http://127.0.0.1:1903/cinema/?channel=cable");
         assert_eq!(parsed.monitor, MonitorChoice::External);
     }
 
     #[test]
     fn parse_choix_d_ecran() {
-        assert_eq!(parse_args(&a(&["p", "--url", "http://x", "--monitor", "primary"])).unwrap().monitor, MonitorChoice::Primary);
-        assert_eq!(parse_args(&a(&["p", "--url", "http://x", "--monitor", "2"])).unwrap().monitor, MonitorChoice::Index(2));
+        assert_eq!(
+            parse_args(&a(&["p", "--url", "http://x", "--monitor", "primary"]))
+                .unwrap()
+                .monitor,
+            MonitorChoice::Primary
+        );
+        assert_eq!(
+            parse_args(&a(&["p", "--url", "http://x", "--monitor", "2"]))
+                .unwrap()
+                .monitor,
+            MonitorChoice::Index(2)
+        );
     }
 
     #[test]
@@ -192,19 +179,38 @@ mod tests {
     #[test]
     fn selection_ecran_externe_puis_replis() {
         let monitors = ["interne", "projecteur", "tv"];
-        assert_eq!(select_monitor(&monitors, Some(&"interne"), &MonitorChoice::External), Some("projecteur"));
-        // Un seul ecran : repli sur le principal plutot que rien.
-        assert_eq!(select_monitor(&["interne"], Some(&"interne"), &MonitorChoice::External), Some("interne"));
-        // Principal inconnu : premier ecran.
-        assert_eq!(select_monitor(&["a", "b"], None, &MonitorChoice::External), Some("a"));
-        assert_eq!(select_monitor::<&str>(&[], None, &MonitorChoice::External), None);
+        assert_eq!(
+            select_monitor(&monitors, Some(&"interne"), &MonitorChoice::External),
+            Some("projecteur")
+        );
+        assert_eq!(
+            select_monitor(&["interne"], Some(&"interne"), &MonitorChoice::External),
+            Some("interne")
+        );
+        assert_eq!(
+            select_monitor(&["a", "b"], None, &MonitorChoice::External),
+            Some("a")
+        );
+        assert_eq!(
+            select_monitor::<&str>(&[], None, &MonitorChoice::External),
+            None
+        );
     }
 
     #[test]
     fn selection_principal_et_index() {
         let monitors = ["interne", "projecteur"];
-        assert_eq!(select_monitor(&monitors, Some(&"interne"), &MonitorChoice::Primary), Some("interne"));
-        assert_eq!(select_monitor(&monitors, Some(&"interne"), &MonitorChoice::Index(1)), Some("projecteur"));
-        assert_eq!(select_monitor(&monitors, Some(&"interne"), &MonitorChoice::Index(9)), None);
+        assert_eq!(
+            select_monitor(&monitors, Some(&"interne"), &MonitorChoice::Primary),
+            Some("interne")
+        );
+        assert_eq!(
+            select_monitor(&monitors, Some(&"interne"), &MonitorChoice::Index(1)),
+            Some("projecteur")
+        );
+        assert_eq!(
+            select_monitor(&monitors, Some(&"interne"), &MonitorChoice::Index(9)),
+            None
+        );
     }
 }

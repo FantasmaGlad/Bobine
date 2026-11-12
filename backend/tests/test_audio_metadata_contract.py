@@ -1,4 +1,3 @@
-"""Freeze existing ffprobe semantics before changing metadata extraction."""
 import json
 from pathlib import Path
 import subprocess

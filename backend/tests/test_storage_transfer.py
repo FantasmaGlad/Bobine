@@ -1,5 +1,3 @@
-"""Stockage externe : copie vérifiée (intégrité, reprise, annulation, source modifiée), plan d'import, export, appareils portables."""
-
 import hashlib
 import os
 from pathlib import Path
@@ -65,7 +63,6 @@ def test_cancel_removes_partial_files_and_keeps_source(source, staging, tmp_path
 
 
 def test_interrupted_copy_resumes_at_the_byte_and_verifies(source, staging, tmp_path):
-    """Retrait brutal en cours de copie : le `.part` est conservé et la reprise ne recopie pas le début."""
     original = open
 
     state = {"reads": 0}
@@ -102,24 +99,24 @@ def test_interrupted_copy_resumes_at_the_byte_and_verifies(source, staging, tmp_
             copy_verified(str(source), str(tmp_path / "out.mp4"), part=part, chunk=1024 * 1024)
     finally:
         builtins.open = original
-    assert exc.value.code == "source_io" and part.exists() and part.stat().st_size == 2 * 1024 * 1024  # début conservé
+    assert exc.value.code == "source_io" and part.exists() and part.stat().st_size == 2 * 1024 * 1024
 
     seen = []
     result = copy_verified(str(source), str(tmp_path / "out.mp4"), part=part, on_bytes=seen.append, chunk=1024 * 1024)
     assert result["resumed_from"] == 2 * 1024 * 1024 and sha(tmp_path / "out.mp4") == sha(source)
-    assert sum(seen) == source.stat().st_size  # la progression compte aussi la partie déjà copiée
+    assert sum(seen) == source.stat().st_size
 
 
 def test_resume_is_refused_when_source_changed_or_prefix_differs(source, staging, tmp_path):
     part = part_for(source, staging)
     part.write_bytes(source.read_bytes()[:1000])
-    Path(str(part) + ".json").write_text('{"size": 1, "mtime_ns": 1}')  # source différente de celle du `.part`
+    Path(str(part) + ".json").write_text('{"size": 1, "mtime_ns": 1}')
     result = copy_verified(str(source), str(tmp_path / "out.mp4"), part=part)
     assert result["resumed_from"] == 0 and sha(tmp_path / "out.mp4") == sha(source)
 
     st = source.stat()
     part2 = transfer.part_path_for("U-2", "cours.mp4", st.st_size, st.st_mtime_ns)
-    part2.write_bytes(b"corrompu" * 200)  # préfixe qui ne correspond pas à la source
+    part2.write_bytes(b"corrompu" * 200)
     Path(str(part2) + ".json").write_text(f'{{"size": {st.st_size}, "mtime_ns": {st.st_mtime_ns}}}')
     result = copy_verified(str(source), str(tmp_path / "out2.mp4"), part=part2)
     assert result["resumed_from"] == 0 and sha(tmp_path / "out2.mp4") == sha(source)
@@ -158,7 +155,7 @@ def test_space_check_keeps_a_reserve():
         transfer.check_space(10**9, free=10**9)
     assert exc.value.code == "insufficient_space" and exc.value.extra["needed_bytes"] > 10**9 and exc.value.status == 409
     transfer.check_space(10**9, free=transfer.needed_bytes(10**9))
-    transfer.check_space(10**9, already=10**9 - 10, free=transfer.RESERVE_BYTES + 100)  # le début déjà copié ne compte pas
+    transfer.check_space(10**9, already=10**9 - 10, free=transfer.RESERVE_BYTES + 100)
 
 
 def test_purge_staging_removes_stale_parts_and_orphan_workdirs(staging):
@@ -188,7 +185,7 @@ def test_plan_import_groups_by_kind(tree):
     course = plan_import(str(tree), [{"path": "Album"}], "audio_course", "U-1")
     assert len(course.units) == 1 and course.units[0].title == "Album" and len(course.units[0].files) == 2
     radio = plan_import(str(tree), [{"path": "Radio"}, {"path": "Radio/x.flac"}], "radio", "U-1")
-    assert sorted(u.key for u in radio.units) == ["Radio/x.flac", "Radio/y.mp3"]  # pas de doublon
+    assert sorted(u.key for u in radio.units) == ["Radio/x.flac", "Radio/y.mp3"]
     none = plan_import(str(tree), [{"path": "doc.txt"}], "video", "U-1")
     assert none.units == [] and none.skipped == [{"path": "doc.txt", "reason": "no_media"}]
     with pytest.raises(TransferError):
@@ -211,10 +208,6 @@ def test_export_never_overwrites_and_writes_atomically(tmp_path):
         export_file(str(src), str(dest), "annule.mp4", is_cancelled=lambda: True)
     assert not (dest / "annule.mp4").exists() and not list(dest.glob(".bobine-*"))
 
-
-# ---------------------------------------------------------------------------------------------------------
-# Appareils portables (analyseurs testés sur des sorties types : NON validés sur matériel)
-# ---------------------------------------------------------------------------------------------------------
 
 GIO = """Drive(0): SAMSUNG MZVL2512HDJD
   Type: GProxyDrive (GProxyVolumeMonitorUDisks2)
@@ -244,7 +237,7 @@ Mount(1): malefique sur 192.168.1.72 -> sftp://malefique@192.168.1.72/
 
 def test_gio_output_lists_only_portable_devices():
     devices = {d.name: d for d in portable.parse_gio_mounts(GIO)}
-    assert set(devices) == {"Pixel 7", "iPhone de Léa"}  # ni le SMB ni le SFTP ni le NVMe
+    assert set(devices) == {"Pixel 7", "iPhone de Léa"}
     pixel = devices["Pixel 7"]
     assert pixel.scheme == "mtp" and pixel.state == "mounted" and pixel.bus == "001" and pixel.dev == "007"
     assert devices["iPhone de Léa"].scheme == "afc" and devices["iPhone de Léa"].state == "ready"
@@ -287,5 +280,5 @@ def test_usb_candidates_detected_without_gvfs_and_merged():
         ("Google Pixel 7", "mtp", "detected"), ("Apple Inc. iPhone", "afc", "detected"), ("Canon Appareil photo", "mtp", "detected")]
     merged = portable.merge(portable.parse_gio_mounts(GIO), candidates)
     names = [d.name for d in merged]
-    assert "Pixel 7" in names and "Google Pixel 7" not in names  # déjà proposé par GVFS : pas de doublon
+    assert "Pixel 7" in names and "Google Pixel 7" not in names
     assert "Canon Appareil photo" in names

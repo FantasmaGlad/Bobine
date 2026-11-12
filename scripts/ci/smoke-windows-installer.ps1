@@ -1,13 +1,3 @@
-<#
-Cycle de vie réel de l'installeur Inno Setup dans la CI Windows (x64 et ARM64) :
-  Install    installation silencieuse dans un dossier de test, journal conservé ;
-  Verify     arborescence installée identique à celle de PyInstaller, clé de
-             désinstallation, règle de pare-feu ;
-  Uninstall  désinstallation silencieuse, puis retrait vérifié (dossier, clé,
-             règle de pare-feu, raccourci de démarrage).
-Le lancement du backend installé se fait avec smoke-windows-backend.ps1.
-Aucune signature n'est exigée : SmartScreen n'est pas exercé par la CI.
-#>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][ValidateSet('Install', 'Verify', 'Uninstall', 'Logs')][string]$Action,
@@ -45,7 +35,6 @@ function Test-MachinePath([string]$Dir) {
 }
 
 function Invoke-Silent([string]$File, [string[]]$Arguments, [string]$What) {
-    # Les messages de l'installeur et du désinstalleur passent par le journal /LOG, pas par la console.
     $process = Start-Process -FilePath $File -ArgumentList $Arguments -Wait -PassThru
     Write-Host "$What : code de sortie $($process.ExitCode)"
     if ($process.ExitCode -ne 0) { throw "$What a échoué (code $($process.ExitCode))" }
@@ -67,7 +56,6 @@ switch ($Action) {
         if (-not (Test-Path -LiteralPath $InstallDir)) { throw "Dossier d'installation absent : $InstallDir" }
         $installRoot = (Resolve-Path -LiteralPath $InstallDir).Path.TrimEnd('\')
 
-        # Tout ce que PyInstaller a produit (dont les sidecars ajoutés après) doit être installé, à la même taille.
         $expected = @()
         if ($DistDir) {
             $distRoot = (Resolve-Path -LiteralPath $DistDir).Path.TrimEnd('\')
@@ -100,8 +88,6 @@ switch ($Action) {
             }
         }
         if (-not (Test-FirewallRule)) { $problems.Add('règle de pare-feu "Bobine" absente') }
-        # Une seule règle (pas de copie à chaque mise à jour), limitée aux réseaux locaux : jamais « Any ». Windows rend les plages
-        # avec un masque (10.0.0.0/255.0.0.0) ou en intervalle, pas en notation CIDR.
         $rules = @(Get-NetFirewallRule -DisplayName 'Bobine' -ErrorAction SilentlyContinue)
         if ($rules.Count -ne 1) { $problems.Add("$($rules.Count) règles de pare-feu « Bobine », 1 attendue") }
         foreach ($rule in $rules) {
@@ -131,7 +117,6 @@ switch ($Action) {
         if (-not (Test-Path -LiteralPath $uninstaller)) { throw "Désinstalleur absent : $uninstaller" }
         Invoke-Silent $uninstaller @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$uninstallLog`"") "Désinstallation silencieuse"
 
-        # Le désinstalleur d'Inno Setup se relance depuis %TEMP% : attendre l'effacement effectif.
         for ($i = 0; $i -lt 60 -and ((Test-Path -LiteralPath $InstallDir) -or (Get-UninstallEntry)); $i++) {
             Start-Sleep -Seconds 1
         }
@@ -161,5 +146,4 @@ switch ($Action) {
     }
 }
 
-# Le code de sortie ne doit pas être celui de la dernière commande native (netsh renvoie 1 sans règle).
 exit 0

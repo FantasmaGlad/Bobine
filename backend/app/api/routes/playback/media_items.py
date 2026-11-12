@@ -11,15 +11,10 @@ from app.utils.importer.formats import is_image_background
 
 
 def _thumbnail_filename(thumbnail_path: str | None) -> str | None:
-    """Nom de fichier seul (pas le chemin disque complet) pour reconstruire
-    l'URL `/api/thumbnails/<fichier>` côté client.3 vignette du
-    bloc « En direct »."""
     return thumbnail_path.split("/")[-1] if thumbnail_path else None
 
 
 def _build_audio_course_item(course: AudioCourse, db: Session) -> dict:
-    """Forme attendue par PlaybackManager.load_audio_course/load_audio_playlist
-    pour UN cours audio : pistes triées + fond d'ambiance résolu (par piste ou par repli cours/défaut)."""
     background_title = None
     background_is_image = False
     effective_bg_id = course.background_id
@@ -40,7 +35,7 @@ def _build_audio_course_item(course: AudioCourse, db: Session) -> dict:
     tracks = []
     for t in sorted(course.tracks, key=lambda t: t.position):
         if not t.available:
-            continue  # piste d'un support externe débranché : sautée
+            continue
         track_bg_id = getattr(t, "background_id", None)
         track_bg_title = None
         track_bg_is_image = False
@@ -78,10 +73,6 @@ def _build_audio_course_item(course: AudioCourse, db: Session) -> dict:
 
 
 def _build_audio_playlist_tracks(audio_playlist) -> list[dict]:
-    """Forme attendue par PlaybackManager.load_audio_playlist pour une
-    playlist audio — traverse `items`/`item.track`/`item.background`
-    (relations ORM paresseuses) : fonction SYNCHRONE, à appeler via
-    `run_in_threadpool`."""
     sorted_items = sorted(audio_playlist.items, key=lambda item: item.position)
     return [
         {
@@ -89,21 +80,16 @@ def _build_audio_playlist_tracks(audio_playlist) -> list[dict]:
             "number": item.track.number,
             "title": item.track.title,
             "duration_seconds": item.track.duration_seconds,
-            # Fond d'ambiance propre à CETTE piste : résolu une fois ici plutôt
-            # que par le kiosk, comme le fond du cours/playlist lui-même.
             "background_id": item.background_id,
             "background_title": item.background.title if item.background else None,
             "background_is_image": is_image_background(item.background.file_path) if item.background else False,
         }
         for item in sorted_items
-        if item.track.available  # piste d'un support externe débranché : sautée
+        if item.track.available
     ]
 
 
 def _build_playlist_video_items(playlist) -> list[dict]:
-    """Même rôle que `_build_audio_playlist_tracks` ci-dessus, pour une
-    playlist VIDÉO (`item.video`, relation ORM paresseuse) — fonction
-    SYNCHRONE, à appeler via `run_in_threadpool`."""
     sorted_items = sorted(playlist.items, key=lambda x: x.position)
     return [
         {
@@ -123,15 +109,11 @@ def _build_playlist_video_items(playlist) -> list[dict]:
             "height": item.video.height,
         }
         for item in sorted_items
-        if item.video.available  # support externe débranché : élément sauté
+        if item.video.available
     ]
 
 
 async def _load_audio_course_into_manager(course: AudioCourse, manager, db: Session, chain_mode=None, chain_timer_seconds=None, client_ts=None):
-    # la construction de
-    # cet item traverse des relations ORM (background) qui peuvent
-    # déclencher leurs propres requêtes paresseuses — regroupées ici dans
-    # un seul aller-retour au threadpool plutôt que plusieurs micro-appels.
     item = await run_in_threadpool(_build_audio_course_item, course, db)
     await manager.load_audio_course(
         item["id"], item["title"], item["program"], item["background_id"], item["tracks"],

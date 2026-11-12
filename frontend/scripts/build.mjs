@@ -1,5 +1,3 @@
-// Construit l'interface une fois par langue : out/fr et out/en. Le backend sert celui de la langue enregistrée
-// (backend/app/utils/ui_language.py) ; tous les empaquetages copient `frontend/out` tel quel.
 import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -11,7 +9,6 @@ const staging = join(root, "out-build");
 const only = process.argv.slice(2);
 const languages = only.length ? only : ["fr", "en"];
 
-// Jamais d'export d'un ancien build à la racine de out/ : le backend le servirait aux deux langues.
 rmSync(join(root, "out"), { recursive: true, force: true });
 rmSync(staging, { recursive: true, force: true });
 mkdirSync(staging, { recursive: true });

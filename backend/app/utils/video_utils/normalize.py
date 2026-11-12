@@ -14,12 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def estimate_normalize_seconds(source_metadata: dict) -> float | None:
-    """Estimation de la durée de réencodage AVANT le démarrage de ffmpeg : basée
-    sur la vitesse moyenne (x temps réel) déjà observée pour ce couple
-    (encodeur, résolution) via `encode_speed_stats`, ou un repère par défaut
-    tant qu'aucun échantillon n'existe encore. Purement indicative — écrasée
-    par la progression réelle de ffmpeg (`run_ffmpeg_with_progress`) dès que
-    l'encodage démarre et émet sa première ligne de progression."""
+    """Estimation de la durée de réencodage AVANT le démarrage de ffmpeg."""
     from app.utils.deployment import get_deployment_profile
     from app.utils.encode_speed_stats import get_estimated_speed, resolution_bucket
 
@@ -41,13 +36,7 @@ def normalize_video(
     source_metadata: dict | None = None,
     job_id: str | None = None,
 ) -> str:
-    """
-    Normalise le conteneur ou la piste audio/vidéo d'une vidéo de manière optimisée.
-    - Stream copy quand les flux sont déjà compatibles (instantané).
-    - Accélération matérielle intégrale multi-paliers (Full HW GPU direct -> Hybride GPU -> Repli logiciel libx264)
-      sans aucun downscale (conservation intégrale des résolutions 2K/4K).
-    - Télémétrie en direct (ETA, pourcentage, vitesse) et interruption immédiate en cas d'annulation.
-    """
+    """Normalise le conteneur ou la piste audio/vidéo d'une vidéo de manière optimisée."""
     from app.utils.deployment import get_deployment_profile
     from app.utils.import_jobs import is_job_cancelled, JobCancelledError
 
@@ -81,11 +70,9 @@ def normalize_video(
         c.extend(["-threads", "0", "-movflags", "+faststart", "-y", output_path])
         return c
 
-    # Construction de la liste des paliers d'exécution
     if "recode_video" in actions:
         tiers = get_transcode_pipeline(is_android, in_codec, meta.get("width"), meta.get("height"))
     else:
-        # Copie de flux vidéo directe (instantanée, pas de réencodage vidéo nécessaire)
         tiers = [{"name": "stream_copy", "encoder_name": None, "hw_in": [], "enc_args": ["-c:v", "copy"]}]
 
     last_error_stderr = ""
@@ -106,7 +93,6 @@ def normalize_video(
         last_error_stderr = stderr
         logger.warning(f"Échec de l'encodage avec {tier['name']} ({tier['encoder_name']}) (code {ret}): {stderr}")
 
-        # Nettoyage de l'éventuel fichier de sortie partiel avant la tentative suivante
         try:
             if os.path.exists(output_path):
                 os.remove(output_path)

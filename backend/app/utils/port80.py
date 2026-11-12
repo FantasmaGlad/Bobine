@@ -1,11 +1,4 @@
-"""Accès sans numéro de port : `http://bobine.local` (port 80) renvoie vers le port réel de Bobine.
-
-L'appliance le fait par une règle nftables posée par `install.sh`. Sur un poste de bureau, ce petit écouteur ne fait
-que répondre une redirection ; il n'est ouvert que si le port 80 est libre et que le système permet de l'ouvrir
-(Windows, macOS ; Linux réserve les ports inférieurs à 1024 à l'administrateur). Sinon rien ne change et les liens
-affichés dans Réglages gardent le numéro de port. Redirection temporaire (307) : un changement de port de Bobine ne
-doit pas rester mémorisé par les navigateurs.
-"""
+"""Accès sans numéro de port : `http://bobine.local` (port 80) renvoie vers le port réel de Bobine."""
 from __future__ import annotations
 
 import asyncio
@@ -36,7 +29,7 @@ def redirect_location(host_header: str, target: str, port: int) -> str:
     except ValueError:
         hostname = "bobine.local"
     if not is_trusted_host_name(hostname):
-        hostname = "bobine.local"  # jamais un nom choisi par l'appelant : pas de redirection vers un site tiers
+        hostname = "bobine.local"
     if ":" in hostname:
         hostname = f"[{hostname}]"
     path = target if target.startswith("/") else "/"
@@ -47,7 +40,7 @@ async def _handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) ->
     try:
         peer = writer.get_extra_info("peername")
         if peer and not is_allowed_client(str(peer[0]), allowed_networks()):
-            return  # même refus que la garde de l'API : rien pour un client venu d'Internet
+            return
         head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=_READ_TIMEOUT)
         if len(head) > _HEADER_LIMIT:
             return

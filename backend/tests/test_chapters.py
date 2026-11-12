@@ -1,5 +1,3 @@
-"""Chapitres : formats d'import, validation, API."""
-
 import pytest
 
 from app.utils import chapters as ch

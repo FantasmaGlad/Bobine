@@ -39,7 +39,7 @@ test("l'état affiché tient en un mot et ne montre jamais « monté »", () => 
   assert.equal(volumeStatus(volume({ connected: false, state: "offline" })), "offline");
   assert.equal(volumeStatus(volume({ health: { available: true, status: "warning", warnings: ["wear_high"] } })), "attention");
   assert.equal(volumeStatus(volume({ library: { registered: true, bytes_written: 1, wear_level: "critical", settings: {} as never } })), "attention");
-  for (const id of ["ready", "busy", "ejecting", "offline", "attention"] as const) assert.ok(statusIcon(id)); // état aussi lisible par l'icône que par la couleur
+  for (const id of ["ready", "busy", "ejecting", "offline", "attention"] as const) assert.ok(statusIcon(id));
 });
 
 test("une seule action principale : explorer, sauf débranché ou en retrait", () => {
@@ -125,8 +125,6 @@ test("libellés et icônes", () => {
   assert.equal(volumeIcon("other"), "storage");
 });
 
-// --- textes : FR et EN couvrent les mêmes clés, aucune clé utilisée ne manque, aucune répétition évidente ---
-
 type Dict = { [key: string]: string | string[] | Dict };
 function flatten(dict: Dict, prefix = ""): Record<string, string> {
   const out: Record<string, string> = {};
@@ -163,14 +161,12 @@ test("toutes les clés storage.* écrites dans le code existent", () => {
   for (const file of files) {
     const src = readFileSync(file, "utf8");
     for (const m of src.matchAll(/\bt\(\s*["'`](storage\.[\w.]+)["'`]/g)) if (!known.has(m[1])) missing.push(`${file}: ${m[1]}`);
-    // clés dynamiques `storage.xxx.${...}` : le dossier doit exister
     for (const m of src.matchAll(/["'`](storage\.[\w.]+)\.\$\{/g)) if (!prefixes.has(m[1])) missing.push(`${file}: ${m[1]}.*`);
   }
   assert.deepEqual(missing, []);
 });
 
 test("aucune répétition : un texte du stockage n'est jamais identique à un autre", () => {
-  // Interdit seulement les doublons de PHRASES (≥ 3 mots) ; les mots seuls (« Fermer », « Retour ») sont partagés à dessein.
   const seen = new Map<string, string>();
   const duplicates: string[] = [];
   for (const [key, text] of Object.entries(fr)) {

@@ -28,7 +28,6 @@ function itemStatusIcon(status: LongevityItem["status"]): string {
   return status === "applied" ? "check_circle" : status === "unavailable" ? "block" : status === "disabled" ? "toggle_off" : "schedule";
 }
 
-/** Options d'un support : santé, protection (repliée, valeurs recommandées déjà appliquées), format, retrait sûr. */
 export default function VolumeSheet({ volume, onClose, onChanged, onAdvice, onPrepare, t, lang, notify }: Props) {
   const [busy, setBusy] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);

@@ -9,10 +9,8 @@ from typing import Any
 
 from app.utils.android_runtime import is_android
 
-# Heure de démarrage du service backend
 _SERVICE_START_TIME = time.time()
 
-# Cache des métadonnées statiques (modèles de CPU, GPU, disque, RAM) pour éviter de requêter sysfs/wmi/udevadm à chaque seconde
 _HARDWARE_CACHE: dict[str, Any] = {
     "cpu_name": None,
     "gpu_name": None,
@@ -35,7 +33,6 @@ def is_android_system() -> bool:
 
 
 def _get_android_prop(prop_name: str) -> str:
-    """Lit une propriété Android via getprop ou /system/build.prop."""
     if shutil_which("getprop"):
         try:
             out = subprocess.check_output(["getprop", prop_name], text=True, timeout=1).strip()

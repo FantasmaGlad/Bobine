@@ -20,8 +20,6 @@ const isAudioFile = (f: File) => {
   return hasExtension(lower, COURSE_AUDIO_EXTENSIONS);
 };
 
-// FileSystemEntry (webkitGetAsEntry) n'est pas dans le lib DOM de TypeScript
-// — ce sont les types minimaux réellement utilisés ici.
 interface FileEntryLike {
   isFile: boolean;
   isDirectory: boolean;
@@ -30,12 +28,6 @@ interface FileEntryLike {
   createReader?: () => { readEntries: (cb: (entries: FileEntryLike[]) => void) => void };
 }
 
-/** Lit récursivement un FileSystemEntry (fichier OU dossier) en liste de
- * fichiers audio : un dossier glissé-déposé n'expose pas directement
- * ses fichiers via `DataTransfer.files` (juste une entrée dossier vide côté
- * navigateur), il faut le parcourir via cette API asynchrone dédiée.
- * `readEntries` est plafonné à ~100 résultats par appel par le navigateur :
- * on boucle jusqu'à une liste vide. */
 async function readEntryRecursively(entry: FileEntryLike): Promise<File[]> {
   if (entry.isFile) {
     return new Promise((resolve) => entry.file((f) => resolve(isAudioFile(f) ? [f] : [])));
@@ -54,10 +46,6 @@ async function readEntryRecursively(entry: FileEntryLike): Promise<File[]> {
   return [];
 }
 
-/** Rassemble les fichiers audio d'un DataTransfer glissé-déposé, dossier(s)
- * inclus, et déduit le nom du cours du dossier de plus haut niveau s'il y en
- * a un — sinon (fichiers isolés glissés directement) `folderName` est null
- * et l'appelant retombe sur son heuristique par fichier. */
 async function collectDroppedAudioFiles(dataTransfer: DataTransfer): Promise<{ files: File[]; folderName: string | null }> {
   const items = dataTransfer.items;
   if (!items || items.length === 0 || typeof items[0]?.webkitGetAsEntry !== "function") {
@@ -106,15 +94,11 @@ interface BackgroundOption {
 
 export default function AudioLibraryPage() {
   const { t } = useAppSettings();
-  // Bascule Cours/Playlists : la création d'éditions mixées vit désormais ici
-  // plutôt que sur une page /audio-playlists séparée.
   const [mode, setMode] = useState<"courses" | "playlists">("courses");
   const [courses, setCourses] = useState<AudioCourseSummary[]>(() => recallCatalog<AudioCourseSummary>("audio.courses") ?? []);
   const [backgrounds, setBackgrounds] = useState<BackgroundOption[]>([]);
   const [loading, setLoading] = useState(() => recallCatalog<AudioCourseSummary>("audio.courses") === undefined);
   const { toast, showToast } = useToast();
-  // Catégories (programmes) réellement présentes parmi les cours audio, pour
-  // les suggestions de saisie libre — même pattern que la Bibliothèque vidéo.
   const [programs, setPrograms] = useState<string[]>([]);
 
   const [selected, setSelected] = useState<AudioCourseDetail | null>(null);
@@ -171,11 +155,6 @@ export default function AudioLibraryPage() {
     }
   };
 
-  // l'import d'un cours (plusieurs MP3 ou une archive ZIP) est désormais
-  // envoyé à la file globale d'imports puis le formulaire se réinitialise
-  // immédiatement — l'ancienne version désactivait tout le formulaire
-  // (`disabled={uploading}`) jusqu'à la fin de l'import, empêchant de
-  // préparer/lancer un second cours en attendant que le premier termine.
   const { addUploads, uploads } = useUploadManager();
   const seenDoneIds = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -214,7 +193,6 @@ export default function AudioLibraryPage() {
       const res = await fetch(getApiUrl("/backgrounds"), { cache: "no-store" });
       if (res.ok) setBackgrounds(await res.json());
     } catch {
-      // silencieux : l'association de fond animé reste optionnelle
     }
   };
 
@@ -333,13 +311,6 @@ export default function AudioLibraryPage() {
     setUploadRelease("");
   };
 
-  /**
-   * `folderNameHint` : nom du dossier d'origine quand les fichiers viennent
-   * d'un import de dossier (glissé-déposé via collectDroppedAudioFiles, ou
-   * sélecteur natif webkitdirectory). Dans ce cas le nom du DOSSIER
-   * sert à déduire catégorie/édition (aussi fiable que le nom d'une archive
-   * ZIP), plutôt que le nom d'une piste individuelle au hasard.
-   */
   const handleFilesSelected = (files: FileList | File[] | null, folderNameHint?: string | null) => {
     if (!files || files.length === 0) return;
     if (uploadMode === "zip") {
@@ -353,9 +324,6 @@ export default function AudioLibraryPage() {
       const audioFiles = Array.from(files).filter(isAudioFile);
       setUploadFiles(audioFiles);
       if (audioFiles.length && !uploadTitle) {
-        // webkitRelativePath ("Dossier/sous-dossier/piste.mp3") : posé
-        // automatiquement par le navigateur pour un <input webkitdirectory>,
-        // absent pour une sélection de fichiers isolés.
         const relPath = (audioFiles[0] as File & { webkitRelativePath?: string }).webkitRelativePath;
         const folderName = folderNameHint || (relPath ? relPath.split("/")[0] : null);
 
@@ -367,13 +335,6 @@ export default function AudioLibraryPage() {
           return;
         }
 
-        // Pas de dossier connu : repli piste par piste.
-        // Le mot qui précède un nombre dans le nom d'UNE piste isolée
-        // ("Squat 12.mp3") n'a aucune raison d'être une vraie catégorie —
-        // on n'auto-remplit la catégorie que si elle correspond à une
-        // catégorie DÉJÀ existante ; sinon le champ reste vide et le cours
-        // atterrit dans le groupe "Sans catégorie" existant plutôt que d'en
-        // inventer une nouvelle.
         const { title, program, release } = parseMediaName(audioFiles[0].name, programs);
         const isKnownProgram = program && programs.some((p) => p.toLowerCase() === program.toLowerCase());
         if (isKnownProgram && release) {
@@ -405,10 +366,6 @@ export default function AudioLibraryPage() {
       handleFilesSelected(e.dataTransfer.files);
       return;
     }
-    // Mode Fichiers MP3 : parcourt aussi un dossier glissé-déposé
-    // — DataTransfer.items doit être lu de façon SYNCHRONE pendant
-    // l'événement (webkitGetAsEntry()), collectDroppedAudioFiles le fait
-    // avant sa première attente asynchrone.
     collectDroppedAudioFiles(e.dataTransfer).then(({ files, folderName }) => {
       handleFilesSelected(files, folderName);
     });
@@ -433,14 +390,9 @@ export default function AudioLibraryPage() {
     } else {
       addUploads([{ kind: "audio_files", files: uploadFiles, title: uploadTitle.trim(), program: uploadProgram, release: uploadRelease }]);
     }
-    // Le résultat (succès/échec) est visible en direct dans le panneau
-    // d'imports flottant — le formulaire se libère immédiatement pour
-    // permettre de préparer/lancer un autre cours sans attendre.
     resetUpload();
   };
 
-  // Regroupement dynamique par catégorie réellement présente : même logique que la grille de
-  // la Bibliothèque vidéo — "" = bucket "sans catégorie", placé en dernier.
   const grouped = Array.from(new Set(courses.map((c) => (c.program && c.program.trim() ? c.program : ""))))
     .sort((a, b) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, "fr", { sensitivity: "base" })))
     .map((program) => ({
@@ -466,7 +418,6 @@ export default function AudioLibraryPage() {
       onDragLeave={mode === "courses" ? handleDrag : undefined}
       onDrop={mode === "courses" ? handleFileDrop : undefined}
     >
-      {/* Cours / Playlists : barre de page commune (PageNav), imports à droite. */}
       <PageNav
         tabs={[{ id: "courses", icon: "library_music", label: t("audio.coursesTab") }, { id: "playlists", icon: "playlist_play", label: t("audio.playlistsTab") }]}
         value={mode}
@@ -487,14 +438,9 @@ export default function AudioLibraryPage() {
                 e.target.value = "";
               }}
             />
-            {/* Import d'un dossier complet : webkitdirectory n'est
-                pas dans le typage DOM standard de React, posé directement sur le
-                noeud DOM plutôt qu'en JSX typé. */}
             <input
               ref={(el) => {
                 folderInputRef.current = el;
-                // webkitdirectory/directory : attributs non typés par React/TS,
-                // posés directement sur le noeud DOM une fois monté.
                 if (el) {
                   el.setAttribute("webkitdirectory", "");
                   el.setAttribute("directory", "");
@@ -529,8 +475,6 @@ export default function AudioLibraryPage() {
         <AudioPlaylistManager />
       ) : (
       <>
-      {/* Suggestions de catégories déjà utilisées : saisie libre + suggestions, comme la
-          Bibliothèque vidéo. */}
       <datalist id="audio-programs">
         {programs.map((p) => (
           <option key={p} value={p} />
@@ -659,7 +603,6 @@ export default function AudioLibraryPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
           {grouped.map((group) => (
             <div key={group.program}>
-              {/* Couleur du thème plutôt que du programme. */}
               <h3
                 style={{
                   fontSize: "0.85rem",
@@ -949,7 +892,6 @@ export default function AudioLibraryPage() {
 
             <div style={{ overflowY: "auto", flex: 1, paddingRight: "4px" }}>
               {pickingTrackBackgroundId ? (
-                /* Option piste : Hériter de l'ambiance du cours */
                 <div
                   className="olc-press"
                   style={{
@@ -978,7 +920,6 @@ export default function AudioLibraryPage() {
                 </div>
               ) : (
                 <>
-                  {/* Option 1 : Fond par défaut du club (si configuré) */}
                   {defaultBg && (
                     <div
                       className={`olc-press ${!drawerBackgroundId ? "active" : ""}`}
@@ -1026,7 +967,6 @@ export default function AudioLibraryPage() {
                     </div>
                   )}
 
-                  {/* Option 2 : Écran sobre (aucun fond) */}
                   <div
                     className="olc-press"
                     style={{
@@ -1057,7 +997,6 @@ export default function AudioLibraryPage() {
                 </>
               )}
 
-              {/* Grille des ambiances disponibles */}
               <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
                 {t("backgrounds.hubTitle")} ({backgrounds.length})
               </div>

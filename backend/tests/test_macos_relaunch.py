@@ -1,8 +1,3 @@
-"""Mise à jour macOS : après le remplacement du bundle, tout Bobine redémarre
-(tray + backend) au lieu de laisser l'ancien tray superviser le nouveau backend.
-Le script de relance est exécuté pour de vrai avec de faux processus et un faux
-`open` : seul le lancement par macOS (`open`) n'est pas exercé sans Mac."""
-
 import os
 import signal
 import subprocess
@@ -36,7 +31,6 @@ def test_le_script_arrete_l_ancienne_version_puis_ouvre_le_bundle(tmp_path):
     app = tmp_path / "Bobine.app"
     macos_dir = app / "Contents" / "MacOS"
     macos_dir.mkdir(parents=True)
-    # faux binaires du bundle : attendent, et portent leur chemin dans leur ligne de commande
     backend_bin = macos_dir / "BobineBackend"
     tray_bin = macos_dir / "BobineTray"
     for fake in (backend_bin, tray_bin):
@@ -51,12 +45,9 @@ def test_le_script_arrete_l_ancienne_version_puis_ouvre_le_bundle(tmp_path):
     fake_open.chmod(0o755)
 
     tray = subprocess.Popen([str(tray_bin), "300"])
-    # l'ancien backend (fils du tray) puis un nouveau, respawné par le superviseur
     backend_courant = subprocess.Popen([str(backend_bin), "0.5"])
     backend_respawn = subprocess.Popen([str(backend_bin), "300"])
 
-    # en vrai, launchd récupère les orphelins ; ici le test les moissonne pour
-    # qu'ils ne restent pas zombies (un zombie répond encore à `kill -0`)
     reapers = [threading.Thread(target=p.wait, daemon=True) for p in (tray, backend_courant, backend_respawn)]
     for t in reapers:
         t.start()
@@ -112,7 +103,6 @@ def test_relance_lance_le_script_puis_quitte(appels, monkeypatch, tmp_path):
     assert kw["env"]["BOBINE_BACKEND_PID"] == str(os.getpid())
     assert kw["env"]["BOBINE_APP"] == "/Applications/Bobine.app"
     assert kw["env"]["BOBINE_BACKEND_BIN"] == "/Applications/Bobine.app/Contents/MacOS/BobineBackend"
-    # ni le chemin du backend ni le motif de pkill ne figurent dans la ligne de commande
     assert "BobineBackend" not in " ".join(args[0])
     assert appels.sorties == 1
 

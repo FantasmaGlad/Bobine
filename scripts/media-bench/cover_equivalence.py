@@ -1,16 +1,4 @@
-"""Definition of the cover equivalence between the reference and the native pipelines.
-
-The reference pipeline (ffmpeg re-encodes the embedded picture to JPEG, then Pillow
-converts to RGB, shrinks to 600x600 and saves a quality-85 JPEG) and the native one (Pillow
-reads the raw embedded bytes) cannot give identical files: ffmpeg's re-encode is lossy and
-is the stage the native path skips. Two final covers are *equivalent* when, once decoded to
-RGB, they have exactly the same dimensions, a PSNR of at least MIN_PSNR_DB and a mean
-absolute error (all channels, 0-255) of at most MAX_MEAN_ABSOLUTE_ERROR.
-
-Measured on development images: real artwork 38-48 dB (MAE 0.4-1.6); a deliberately harsh
-fractal image with sharp edges 34.5-36 dB (MAE up to 3.5). The thresholds sit just under
-the harshest measurement. Needs Pillow (the backend environment).
-"""
+"""Definition of the cover equivalence between the reference and the native pipelines."""
 import io
 import math
 

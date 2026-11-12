@@ -35,8 +35,7 @@ def _job_id_end(schedule_id: int) -> str:
 
 
 def sync_schedule_job(schedule: Schedule) -> None:
-    """(Ré)enregistre le job APScheduler d'une programmation, ou le retire si
-    elle est inactive/déjà passée. Appelé après chaque création/mise à jour."""
+    """(Ré)enregistre le job APScheduler d'une programmation, ou le retire si elle est inactive/déjà passée."""
     if _scheduler is None:
         logger.debug(f"Scheduler non démarré : synchronisation ignorée ({_job_id(schedule.id)})")
         return
@@ -57,14 +56,6 @@ def sync_schedule_job(schedule: Schedule) -> None:
         else:
             trigger = _build_cron_trigger(schedule)
     except Exception as e:
-        # start_scheduler() appelle sync_schedule_job() pour CHAQUE
-        # programmation active dans une simple boucle for — une seule ligne
-        # corrompue (recurrence_rule invalide après une édition manuelle en
-        # base, par ex.) levait une exception qui remontait jusqu'à
-        # start_scheduler(), empêchant TOUTES les programmations suivantes de
-        # la boucle d'être rechargées, et donc le démarrage même du backend
-        # (appelé depuis le lifespan FastAPI, jamais protégé). On ignore
-        # cette seule programmation, en le signalant clairement.
         logger.error(f"Programmation {schedule.id} ignorée : règle de récurrence invalide ({e})")
         remove_schedule_job(schedule.id)
         return
@@ -75,22 +66,12 @@ def sync_schedule_job(schedule: Schedule) -> None:
         id=job_id,
         args=[schedule.id],
         replace_existing=True,
-        # Tolère un redémarrage court du backend à cheval sur l'heure de
-        # déclenchement (le mini PC peut redémarrer) sans pour autant rejouer
-        # une programmation manquée depuis des heures.
         misfire_grace_time=MISFIRE_GRACE_SECONDS,
     )
     _sync_end_job(schedule)
 
 
 def _sync_end_job(schedule: Schedule) -> None:
-    """(Ré)enregistre le job de FIN de fenêtre radio, ou le
-    retire s'il ne s'applique pas. Portée volontairement restreinte aux
-    programmations radio RÉCURRENTES : une fenêtre ponctuelle (schedule_type
-    "once") ne revient pas automatiquement au défaut — limitation assumée
-    pour ce lot, le cas d'usage principal (programmation hebdomadaire d'une
-    salle) est récurrent. Fenêtres à cheval sur minuit non prises en charge
-    (cf. api/routes/schedule.py::_validate_and_normalize)."""
     if _scheduler is None:
         return
     applicable = (
@@ -156,14 +137,6 @@ _AUTO_UPDATE_JOB_ID = "auto_update_check"
 
 
 async def _run_auto_update_check() -> None:
-    """Job planifié (Réglages → Mise à jour automatique) — `AsyncIOScheduler`
-    exécute directement les callables `async def` sur sa propre boucle
-    asyncio (même patron que `fire_schedule`/`launch_target` plus haut
-    dans ce fichier), aucun pont thread-safe n'est donc nécessaire ici.
-    Import différé de `run_scheduled_update_if_available` : évite d'avoir à
-    établir un ordre d'import entre `scheduler_manager` (importé tôt par
-    `main.py`) et `routers.updates` — même précaution que `from app.models
-    import Setting` un peu plus bas dans ce fichier."""
     from app.updates.scheduled import run_scheduled_update_if_available
 
     db = SessionLocal()
@@ -176,9 +149,7 @@ async def _run_auto_update_check() -> None:
 
 
 def sync_auto_update_job(enabled: bool, time_str: str) -> None:
-    """(Ré)enregistre ou retire le job planifié de mise à jour automatique.
-    Appelé au démarrage (lecture du réglage persisté) et à chaque
-    modification du réglage depuis Réglages (cf. api/routes/settings/)."""
+    """(Ré)enregistre ou retire le job planifié de mise à jour automatique."""
     if _scheduler is None:
         logger.debug("Scheduler non démarré : synchronisation de la mise à jour automatique ignorée")
         return
@@ -225,7 +196,6 @@ def start_scheduler() -> None:
     _scheduler = AsyncIOScheduler(timezone=LOCAL_TZ)
     _scheduler.start()
 
-    # Relevé télémétrie périodique (toutes les 60s)
     _scheduler.add_job(
         _periodic_hardware_snapshot,
         trigger="interval",
@@ -233,7 +203,6 @@ def start_scheduler() -> None:
         id="hardware_telemetry_snapshot",
         replace_existing=True,
     )
-    # Purge automatique quotidienne des logs et métriques (chaque jour à 03:00)
     _scheduler.add_job(
         _periodic_purge_logs,
         trigger=CronTrigger(hour=3, minute=0, timezone=LOCAL_TZ),
@@ -247,7 +216,6 @@ def start_scheduler() -> None:
         for schedule in active_schedules:
             sync_schedule_job(schedule)
         logger.info(f"Scheduler démarré, {len(active_schedules)} programmation(s) active(s) rechargée(s)")
-        # Snapshot initial
         record_hardware_snapshot(db)
 
         auto_update_row = db.query(Setting).filter(Setting.key == "auto_update_enabled").first()

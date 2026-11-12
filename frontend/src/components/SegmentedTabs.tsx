@@ -18,17 +18,10 @@ interface Props {
   className?: string;
 }
 
-/**
- * Barre de sections segmentée avec un indicateur UNIQUE qui glisse d'un onglet à l'autre (transform +
- * largeur mesurée, pas de repeinture de chaque bouton). Défile horizontalement sur petit écran et garde
- * l'onglet actif visible ; flèches gauche/droite entre onglets. Sur téléphone, 3 onglets au plus sont affichés
- * (le suivant dépasse un peu : invitation à glisser) et le défilement s'« accroche » sur l'onglet visé.
- */
 export default function SegmentedTabs({ tabs, value, onChange, ariaLabel, className = "" }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
-  // Bord atteint par le défilement : sert aux fondus d'indice « il y a d'autres onglets, glissez ».
   const [edge, setEdge] = useState<"none" | "start" | "middle" | "end">("none");
 
   const updateEdge = useCallback(() => {

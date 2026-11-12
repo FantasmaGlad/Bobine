@@ -1,10 +1,7 @@
-"""Phase 3 des périphériques : table de mixage applicative d'une sortie radio (bornage, persistance, diffusion, vumètre)."""
-
 import asyncio
 import json
 import os
 
-# Base de test isolée AVANT tout import de l'application (comme les autres tests).
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
@@ -48,8 +45,8 @@ def test_reglages_neutres_et_copie_independante():
 def test_gains_hors_plage_bornes_sans_erreur_et_arrondi_comme_javascript():
     mix = sanitize_mix({"master": {"gain_db": 99}, "music": {"gain_db": -99}, "announcements": {"gain_db": 2.5}})
     assert mix["master"]["gain_db"] == GAIN_MAX_DB and mix["music"]["gain_db"] == GAIN_MIN_DB
-    assert mix["announcements"]["gain_db"] == 3  # Math.round(2.5) = 3 (et non 2, arrondi pair de Python)
-    assert sanitize_mix({"music": {"gain_db": -2.5}})["music"]["gain_db"] == -2  # Math.round(-2.5) = -2
+    assert mix["announcements"]["gain_db"] == 3
+    assert sanitize_mix({"music": {"gain_db": -2.5}})["music"]["gain_db"] == -2
 
 
 def test_valeurs_de_mauvais_type_gardent_la_valeur_courante():
@@ -60,7 +57,7 @@ def test_valeurs_de_mauvais_type_gardent_la_valeur_courante():
     assert mix["announcements"] == default_mix()["announcements"]
     for junk in (None, "x", 42, [], {"music": 3}, {"music": {"gain_db": float("nan")}}):
         assert sanitize_mix(junk) == default_mix()
-    assert sanitize_mix({"music": {"gain_db": True}})["music"]["gain_db"] == 0  # bool n'est pas un gain
+    assert sanitize_mix({"music": {"gain_db": True}})["music"]["gain_db"] == 0
 
 
 def test_champs_absents_gardent_la_base_et_l_egaliseur_des_rappels_est_borne():
@@ -100,7 +97,7 @@ def test_persistance_aller_retour_et_json_corrompu():
         assert load_mix(db, "radio_cable") == default_mix()
         save_mix(db, "radio_cable", {"music": {"gain_db": -6, "solo": True}})
         assert load_mix(db, "radio_cable")["music"] == {"gain_db": -6, "muted": False, "solo": True}
-        assert load_mix(db, "radio_network") == default_mix()  # une sortie ne touche pas l'autre
+        assert load_mix(db, "radio_network") == default_mix()
         db.query(Setting).filter(Setting.key == mix_setting_key("radio_cable")).first().value = "{pas du json"
         db.commit()
         assert load_mix(db, "radio_cable") == default_mix()
@@ -128,12 +125,11 @@ def test_api_ecriture_bornee_persistee_et_publiee_dans_l_etat(api):
     assert response.status_code == 200
     cable = response.json()["outputs"][0]
     assert cable["mix"]["music"] == {"gain_db": GAIN_MIN_DB, "muted": False, "solo": True} and cable["mix"]["announcements"]["muted"] is True
-    assert get_radio_manager("radio_cable").state["mix"]["music"]["solo"] is True  # publié au lecteur
+    assert get_radio_manager("radio_cable").state["mix"]["music"]["solo"] is True
     assert get_radio_manager("radio_network").state["mix"] == default_mix()
     with SessionLocal() as db:
         assert load_mix(db, "radio_cable")["music"]["solo"] is True
 
-    # Un second envoi partiel conserve le reste.
     api.put("/api/devices/mixer/radio_cable", json={"mix": {"master": {"gain_db": -3}}})
     assert get_radio_manager("radio_cable").state["mix"]["music"]["solo"] is True
     assert get_radio_manager("radio_cable").state["mix"]["master"]["gain_db"] == -3
@@ -144,18 +140,13 @@ def test_api_egaliseur_de_la_musique_meme_chemin_que_le_son_radio(api):
     assert response.status_code == 200
     sound = get_radio_manager("radio_network").state["sound"]
     assert sound["bands"] == [4, 0, 0, 0, -2] and sound["bass_boost"] == 12
-    assert api.get("/api/radio/sound", params={"channel": "radio_network"}).json()["bands"][0] == 4  # même valeur côté radio
+    assert api.get("/api/radio/sound", params={"channel": "radio_network"}).json()["bands"][0] == 4
 
 
 def test_api_erreurs_structurees(api):
     assert api.put("/api/devices/mixer/cinema", json={"mix": {}}).json()["detail"]["code"] == "not_found"
-    assert api.put("/api/devices/mixer/radio_cable", json={}).status_code == 200  # rien à changer
+    assert api.put("/api/devices/mixer/radio_cable", json={}).status_code == 200
     assert api.put("/api/devices/mixer/radio_cable", json={"mix": "pas un objet"}).status_code == 422
-
-
-# ---------------------------------------------------------------------------
-# Vumètre : bail, expiration, relais
-# ---------------------------------------------------------------------------
 
 
 def _manager():
@@ -175,13 +166,13 @@ def test_le_vumetre_demande_s_active_une_fois_puis_expire_sans_renouvellement(mo
     async def scenario():
         assert manager.state["meter"] is False
         await manager.request_meter()
-        await manager.request_meter()  # renouvellement : pas de nouvel état diffusé
+        await manager.request_meter()
         assert manager.state["meter"] is True
         assert [m["cause"] for m in sent if m["event"] == "state_change"] == ["radio_meter"]
         clock[0] += METER_LEASE_SECONDS - 1
         await manager._expire_meter()  # noqa: SLF001
         assert manager.state["meter"] is True
-        await manager.request_meter()  # l'interface renouvelle
+        await manager.request_meter()
         clock[0] += METER_LEASE_SECONDS - 1
         await manager._expire_meter()  # noqa: SLF001
         assert manager.state["meter"] is True
@@ -255,7 +246,7 @@ def test_commandes_websocket_du_vumetre(monkeypatch):
         ws.send_json({"command": "identify", "params": {"role": "kiosk", "channel": "radio_cable", "client_id": "p1", "page": "radio"}})
         while ws.receive_json()["event"] != "kiosk_role":
             pass
-        ws.send_json({"command": "radio_report_levels", "params": {"channel": "radio_cable", "levels": {"music": 50}}})  # sans bail : ignoré
+        ws.send_json({"command": "radio_report_levels", "params": {"channel": "radio_cable", "levels": {"music": 50}}})
         ws.send_json({"command": "radio_meter", "params": {"channel": "radio_cable"}})
         events = []
         while not any(e["event"] == "state_change" and e["cause"] == "radio_meter" for e in events):

@@ -7,25 +7,16 @@ import { suggestFrom } from "@/lib/searchText";
 interface SearchBoxProps {
   value: string;
   onChange: (value: string) => void;
-  /** Textes dont tirer les suggestions d'autocomplétion (titres, artistes, catégories…). Absent = champ simple. */
   suggestions?: readonly string[];
   placeholder?: string;
   ariaLabel?: string;
   className?: string;
   style?: React.CSSProperties;
   autoFocus?: boolean;
-  /** Validation au clavier (Entrée) quand aucune suggestion n'est surlignée. */
   onSubmit?: (value: string) => void;
-  /** Nombre maximal de suggestions affichées. */
   limit?: number;
 }
 
-/**
- * Champ de recherche avec autocomplétion : au fil de la frappe, propose les textes les plus pertinents
- * (début de texte, puis début de mot — accents et casse ignorés, cf. lib/searchText.ts) avec la saisie
- * surlignée. Flèches haut/bas pour naviguer, Entrée ou clic pour choisir, Échap pour refermer.
- * Combobox ARIA : lisible au lecteur d'écran et à la télécommande.
- */
 export default function SearchBox({
   value,
   onChange,
@@ -41,7 +32,6 @@ export default function SearchBox({
   const listId = useId();
   const [focused, setFocused] = useState(false);
   const [active, setActive] = useState(-1);
-  // Liste refermée par Échap ou après un choix, jusqu'à la prochaine frappe.
   const [dismissedFor, setDismissedFor] = useState<string | null>(null);
 
   const list = useMemo(() => (suggestions ? suggestFrom(suggestions, value, limit) : []), [suggestions, value, limit]);
@@ -114,7 +104,6 @@ export default function SearchBox({
               role="option"
               aria-selected={index === activeIndex}
               className={`search-suggestion${index === activeIndex ? " is-active" : ""}`}
-              // mousedown (et non click) : le champ perdrait le focus avant le clic et la liste se fermerait.
               onMouseDown={(event) => {
                 event.preventDefault();
                 pick(text);

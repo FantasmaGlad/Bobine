@@ -1,4 +1,3 @@
-# Bobine Configuration
 
 [database]
 database_url = "sqlite:///data/database.db"

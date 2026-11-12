@@ -1,10 +1,4 @@
-"""API « Périphériques » : audio, Bluetooth, Wi-Fi (voir app/devices/).
-
-Accessible à tout appareil du réseau local, réputé de confiance. L'écran local n'est distingué que pour ce qui le
-concerne physiquement (déplacement d'un flux audio, risque de couper le Wi-Fi par lequel on agit).
-Aucune erreur d'OS ne devient une 500 : `DeviceError` et toute exception inattendue sont convertis
-en réponse JSON structurée `{"detail": {"code", "message"}}`.
-"""
+"""API « Périphériques » : audio, Bluetooth, Wi-Fi (voir app/devices/)."""
 
 from __future__ import annotations
 
@@ -38,11 +32,6 @@ router = APIRouter(prefix="/api/devices", tags=["devices"])
 T = TypeVar("T")
 
 
-# ---------------------------------------------------------------------------
-# Réglages et provenance
-# ---------------------------------------------------------------------------
-
-
 def _get_setting(db: Session, key: str) -> str | None:
     row = db.query(Setting).filter(Setting.key == key).first()
     return row.value if row else None
@@ -65,12 +54,7 @@ def _client_ip(request: Request) -> str:
 
 
 def is_local_request(request: Request) -> bool:
-    """Requête venant de la machine elle-même (écran physique).
-
-    Uvicorn ne réécrit pas l'adresse du pair (`proxy_headers=False`). Un proxy local fait pourtant passer
-    ses clients pour la machine : une requête relayée (en-tête de relais) ou adressée à un nom `.onion`
-    (service Tor, qui arrive par la boucle locale) n'est donc jamais « locale ».
-    """
+    """Requête venant de la machine elle-même (écran physique)."""
     if has_forwarding_headers(request.scope.get("headers") or ()):
         return False
     host = (request.headers.get("host") or "").rsplit(":", 1)[0].strip("[]").lower()
@@ -95,7 +79,6 @@ def require_access(request: Request) -> Access:
 
 
 async def _guard(coro: Awaitable[T]) -> T:
-    """Convertit toute erreur d'OS en réponse structurée ; jamais de 500."""
     try:
         return await coro
     except DeviceError as exc:
@@ -111,11 +94,6 @@ def _log(db: Session, event: str, detail: str | None = None) -> None:
     log_activity(db, event, detail)
 
 
-# ---------------------------------------------------------------------------
-# État
-# ---------------------------------------------------------------------------
-
-
 @router.get("/status")
 async def get_status(request: Request) -> dict[str, Any]:
     return {
@@ -125,11 +103,6 @@ async def get_status(request: Request) -> dict[str, Any]:
         "wifi_confirm_seconds": WIFI_CONFIRM_SECONDS,
         "capabilities": await _guard(service.driver.capabilities()),
     }
-
-
-# ---------------------------------------------------------------------------
-# Audio
-# ---------------------------------------------------------------------------
 
 
 class AudioDefaultRequest(BaseModel):
@@ -264,11 +237,6 @@ async def audio_set_volume(payload: AudioVolumeRequest, _: Access = Depends(requ
     return {"ok": True}
 
 
-# ---------------------------------------------------------------------------
-# Bluetooth
-# ---------------------------------------------------------------------------
-
-
 class BluetoothPowerRequest(BaseModel):
     on: bool
 
@@ -339,11 +307,6 @@ async def bluetooth_forget(payload: BluetoothAddressRequest, _: Access = Depends
     return {"ok": True}
 
 
-# ---------------------------------------------------------------------------
-# Carte des périphériques
-# ---------------------------------------------------------------------------
-
-
 @router.get("/topology")
 async def topology(_: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
     """Graphe machine → sorties audio, Bluetooth, Wi-Fi, Ethernet, écrans et télécommandes Bobine."""
@@ -358,7 +321,7 @@ async def topology(_: Access = Depends(require_access), db: Session = Depends(ge
             return await coro
         except DeviceError:
             return None
-        except Exception as exc:  # une source en panne n'empêche jamais la carte
+        except Exception as exc:
             logger.debug("Carte des périphériques : source indisponible (%s)", exc)
             return None
 
@@ -376,11 +339,6 @@ async def topology(_: Access = Depends(require_access), db: Session = Depends(ge
     )
 
 
-# ---------------------------------------------------------------------------
-# Routage audio par sortie radio (phase 2)
-# ---------------------------------------------------------------------------
-
-
 class RoutingRequest(BaseModel):
     channel: str
     sink_id: str | None = None
@@ -395,8 +353,6 @@ def _route_public(route: dict[str, Any] | None) -> dict[str, Any] | None:
 
 
 async def _routing_view(db: Session) -> dict[str, Any]:
-    """État du routage : pour chaque sortie radio, la route mémorisée, sa résolution actuelle, les lecteurs connectés
-    (avec ce qu'ils ont pu appliquer) et ce que le serveur a fait. Les adresses des lecteurs ne sortent pas d'ici."""
     caps = await _guard(service.driver.capabilities())
     audio_cap = caps.get("audio_list", {"supported": False})
     sinks = await service.current_sinks()
@@ -472,11 +428,6 @@ async def set_routing(payload: RoutingRequest, _: Access = Depends(require_acces
     return await _routing_view(db)
 
 
-# ---------------------------------------------------------------------------
-# Table de mixage applicative (phase 3)
-# ---------------------------------------------------------------------------
-
-
 class MixerRequest(BaseModel):
     mix: dict | None = None
     sound: dict | None = None
@@ -501,8 +452,7 @@ async def get_mixer(_: Access = Depends(require_access)) -> dict[str, Any]:
 
 @router.put("/mixer/{channel}")
 async def set_mixer(channel: str, payload: MixerRequest, _: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Modifie le mixage et/ou l'égaliseur de la musique d'une sortie radio. Valeurs bornées sans erreur, champs absents
-    conservés, persistées puis diffusées au lecteur (mêmes règles que `PUT /api/radio/sound`)."""
+    """Modifie le mixage et/ou l'égaliseur de la musique d'une sortie radio."""
     if channel not in RADIO_CHANNELS:
         raise _fail(404, "not_found", "Sortie radio inconnue.")
     manager = get_radio_manager(channel)
@@ -517,11 +467,6 @@ async def set_mixer(channel: str, payload: MixerRequest, _: Access = Depends(req
     return _mixer_view()
 
 
-# ---------------------------------------------------------------------------
-# Réglages du système (Android : Wi-Fi, Bluetooth, son)
-# ---------------------------------------------------------------------------
-
-
 class SystemSettingsRequest(BaseModel):
     target: str
 
@@ -533,11 +478,6 @@ async def open_system_settings(payload: SystemSettingsRequest, _: Access = Depen
         raise _fail(400, "bad_target", "Réglage inconnu.")
     await _guard(service.driver.open_system_settings(payload.target))
     return {"ok": True}
-
-
-# ---------------------------------------------------------------------------
-# Wi-Fi (avec filet de sécurité : confirmation + retour automatique après 60 s)
-# ---------------------------------------------------------------------------
 
 
 class WifiConnectRequest(BaseModel):
@@ -557,7 +497,6 @@ class WifiPowerRequest(BaseModel):
 
 
 async def _reached_via_wifi(request: Request, access: Access) -> bool:
-    """Vrai si l'appareil qui agit est sur le sous-réseau du Wi-Fi de la machine (il risque de perdre la main)."""
     if access.local:
         return False
     subnet = await service.driver.wifi_interface_subnet()
@@ -608,7 +547,6 @@ async def wifi_connect(payload: WifiConnectRequest, request: Request, access: Ac
     if not ssid:
         raise _fail(400, "bad_ssid", "Nom de réseau manquant.")
     if payload.password and not access.local:
-        # Le mot de passe ne se saisit que sur l'écran local (le réseau local est en HTTP).
         raise _fail(403, "password_local_only", "Le mot de passe Wi-Fi ne peut être saisi que sur l'écran local de la machine. À distance, seuls les réseaux déjà enregistrés ou ouverts sont proposés.")
     if service.wifi_pending is not None:
         raise _fail(409, "change_pending", "Un changement de Wi-Fi attend sa confirmation.")
@@ -616,7 +554,7 @@ async def wifi_connect(payload: WifiConnectRequest, request: Request, access: Ac
     previous = await _guard(service.driver.wifi_current_connection())
     await _guard(service.driver.wifi_connect(ssid, payload.password))
     service.arm_wifi_rollback("connect", previous, ssid)
-    _log(db, "devices_wifi_connect", ssid[:80])  # jamais le mot de passe
+    _log(db, "devices_wifi_connect", ssid[:80])
     return {"ok": True, "pending_change": service.wifi_pending_info()}
 
 

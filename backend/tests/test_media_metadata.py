@@ -1,4 +1,3 @@
-"""New-import native opt-in, strict fallback and filename/cover preservation."""
 import importlib
 from pathlib import Path
 from types import SimpleNamespace

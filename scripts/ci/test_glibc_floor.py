@@ -1,4 +1,3 @@
-"""The glibc floor of the deb and rpm packages is announced once and checked against the binaries they ship."""
 import importlib.util
 import os
 from pathlib import Path
@@ -22,7 +21,6 @@ def run(function, *arguments, floor_file=None):
 
 
 class Tree:
-    """Temporary directory of fake binaries: relative name -> (content, executable)."""
 
     def __init__(self, files):
         self.directory = tempfile.TemporaryDirectory()
@@ -80,7 +78,6 @@ class CheckTests(unittest.TestCase):
         self.assertIn("MIN_GLIBC", result.stderr)
 
     def test_version_order_is_numeric(self):
-        """2.9 is older than 2.38: a text comparison would reject binaries that fit."""
         self.assertEqual(self.check(b"GLIBC_2.9", "2.38").returncode, 0)
 
 

@@ -4,8 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 try:
     from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler
-except ImportError:  # watchdog n'a aucune distribution Android (profil Android
-    # uniquement — cf. docs/ARCHITECTURE.md §3.1) : repli par polling.
+except ImportError:
     from app.utils._polling_observer import PollingObserver as Observer, FileSystemEventHandler
 
 from app.config import settings
@@ -23,17 +22,8 @@ from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
-# _ffmpeg_executor / _io_executor viennent maintenant de app.utils.executors : ce module et les routers
-# d'upload web partagent désormais le même exécuteur mono-thread ffmpeg,
-# plutôt que le watcher en ayant un à lui tout seul pendant que l'upload web
-# lançait ffmpeg sans aucune coordination. Ré-exportés sous ces noms pour ne
-# pas casser les imports existants (`from app.utils.watcher import ...
-# _ffmpeg_executor, _io_executor`, utilisé par les tests).
-
 
 class _BaseWatchHandler(FileSystemEventHandler):
-    """Détecte un fichier stable dans un dossier surveillé et le soumet à
-    l'exécuteur d'import de la sous-classe. Sous-classé par type de média importé."""
 
     supported_extensions: set[str] = set()
     kind_label = "fichier"
@@ -71,17 +61,10 @@ class VideoWatchHandler(_BaseWatchHandler):
         path = Path(file_path)
         if not path.exists():
             return
-        # Suivi de file :
-        # les imports dossier surveillé passent par le même exécuteur ffmpeg
-        # partagé que les uploads web, autant les rendre visibles dans la
-        # même file plutôt que de les laisser invisibles à l'admin.
         job_id = create_job("video", path.name, source="watched_folder")
         try:
             logger.info(f"Watcher : Lancement de l'import pour {path.name}")
             video = import_video(file_path, path.name, ImportSource.watched_folder, job_id=job_id)
-            # même diffusion que l'import web (api/routes/videos.py) — un
-            # cours déposé dans le dossier surveillé doit apparaître sans
-            # délai sur les écrans déjà ouverts.
             ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "video_imported"})
             update_job(job_id, stage="done", result_id=video.id)
         except Exception as e:
@@ -108,12 +91,7 @@ class BackgroundWatchHandler(_BaseWatchHandler):
 
 
 class AudioCourseWatchHandler(FileSystemEventHandler):
-    """
-    Cas particulier : un cours audio est un GROUPE de fichiers,
-    pas un fichier unique. Le dossier surveillé attend donc un SOUS-DOSSIER
-    (un cours = un sous-dossier nommé d'après le cours, contenant ses MP3),
-    pas des fichiers déposés directement à la racine.
-    """
+    """Cas particulier : un cours audio est un GROUPE de fichiers, pas un fichier unique."""
 
     def on_created(self, event):
         if not event.is_directory:
@@ -130,9 +108,6 @@ class AudioCourseWatchHandler(FileSystemEventHandler):
         if path.name.startswith("."):
             return
         logger.info(f"Watcher : Dossier de cours audio détecté : {path.name}")
-        # Pas de ffmpeg ici (seulement ffprobe pour la durée, cf. audio_utils) :
-        # va sur l'exécuteur I/O plutôt que de faire la queue derrière un
-        # import vidéo/fond en cours.
         _io_executor.submit(self._safe_import, str(path))
 
     def _safe_import(self, dir_path: str):
@@ -153,10 +128,7 @@ class AudioCourseWatchHandler(FileSystemEventHandler):
 
 
 class RadioTrackWatchHandler(_BaseWatchHandler):
-    """Module Radio : contrairement aux
-    cours audio coach (un sous-dossier = un cours), chaque fichier musical déposé
-    devient un morceau indépendant. Pas de ffmpeg lourd (ffprobe + extraction de
-    pochette, transcodage seulement pour un format non-web) : exécuteur I/O."""
+    """Module Radio : contrairement aux cours audio coach (un sous-dossier = un cours), chaque fichier musical déposé devient un morceau indépendant."""
 
     supported_extensions = RADIO_AUDIO_EXTENSIONS
     kind_label = "Morceau radio"
@@ -166,8 +138,6 @@ class RadioTrackWatchHandler(_BaseWatchHandler):
         path = Path(file_path)
         if not path.exists():
             return
-        # Attend la fin de copie (fichier volumineux déposé progressivement)
-        # avant d'importer, comme les autres imports par dossier surveillé.
         if not wait_for_file_to_copy(file_path):
             logger.error(f"Watcher : Le morceau radio {path.name} ne s'est pas stabilisé à temps.")
             return
@@ -209,6 +179,4 @@ def stop_watcher():
         _observer.stop()
         _observer.join()
         _observer = None
-    # Ne pas fermer les exécuteurs ici car ils sont globaux et réutilisés dans les tests.
-    # Python s'occupe de les fermer à la fin du processus.
 

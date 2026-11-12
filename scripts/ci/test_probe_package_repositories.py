@@ -1,4 +1,3 @@
-"""The health probe flags a suite about to expire, a bad signature and a repository that lags behind its release."""
 import functools
 import hashlib
 import http.server
@@ -82,7 +81,6 @@ MISSING = [tool for tool in ("reprepro", "dpkg-deb", "gpg") if shutil.which(tool
 
 @unittest.skipIf(MISSING, f"outils absents : {', '.join(MISSING)}")
 class ProbeOnARealRepositoryTests(unittest.TestCase):
-    """A repository built by prepare-package-repository.sh and served over HTTP, probed as in production."""
 
     @classmethod
     def setUpClass(cls):

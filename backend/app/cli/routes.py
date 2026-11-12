@@ -1,19 +1,9 @@
-"""Qui couvre quelle route de l'API : une commande `bobine`, ou une exemption motivée.
-
-Chaque route de l'API (`/openapi.json`) est dans `COVERED` (commande qui l'appelle) ou décrite par une règle de `EXEMPT`.
-`backend/tests/test_cli_contract.py` échoue quand une route ajoutée n'est dans aucune des deux : un nouveau bouton de
-l'interface oblige donc à choisir, dans la même modification, entre une commande et une exemption.
-
-Statut d'une exemption : `never` (pas de sens pour une commande, la raison le dit) ou `todo` (commande prévue : la
-retirer d'ici et ajouter la route à `COVERED` quand elle existe). Les routes servent aussi `bobine api METHODE CHEMIN`
-pour les cas non couverts, sauf celles de `app.cli.DANGEROUS_ROUTES`.
-"""
+"""Qui couvre quelle route de l'API : une commande `bobine`, ou une exemption motivée."""
 from __future__ import annotations
 
 import re
 from typing import NamedTuple
 
-# "METHODE chemin OpenAPI" -> commande `bobine` qui l'appelle.
 from app.cli.specs import SPECS
 
 COVERED: dict[str, str] = {
@@ -67,21 +57,19 @@ COVERED: dict[str, str] = {
     "GET /api/settings/backup/export": "settings",
     "POST /api/settings/backup/restore": "settings",
 }
-# Les commandes déclarées dans app/cli/specs.py annoncent elles-mêmes leurs routes.
 COVERED.update({route: spec.command for spec in SPECS for route in spec.covers})
 
 
 class Exemption(NamedTuple):
-    pattern: str  # expression régulière sur « METHODE chemin », en entier
-    status: str  # "never" ou "todo"
-    reason: str  # pourquoi, ou la commande prévue
+    pattern: str
+    status: str
+    reason: str
 
     def matches(self, route: str) -> bool:
         return re.fullmatch(self.pattern, route) is not None
 
 
 EXEMPT: tuple[Exemption, ...] = (
-    # --- sans sens pour une commande -------------------------------------------------------------------------------------
     Exemption(r"GET /api/(videos/\{video_id\}|audio/tracks/\{track_id\}|backgrounds/\{background_id\}|radio/tracks/\{track_id\}|radio/announcements/\{announcement_id\})/stream",
               "never", "flux média pour un lecteur"),
     Exemption(r"GET /api/(radio/tracks/\{track_id\}/cover|videos/\{video_id\}/subtitles/\{subtitle_id\}/vtt)", "never", "contenu pour un lecteur ou un navigateur"),
@@ -94,7 +82,6 @@ EXEMPT: tuple[Exemption, ...] = (
     Exemption(r"POST /api/settings/system/(reset|uninstall|reset-data)", "never", "irréversible : interface, ou install.sh --uninstall"),
     Exemption(r"POST /api/settings/system/restart", "never", "autre outil : bobine restart de l'appliance, menu de la barre système"),
     Exemption(r"GET /api/config", "never", "liste des fichiers : `bobine config export` les écrit"),
-    # --- commandes prévues ---------------------------------------------------------------------------------------------
     Exemption(r"GET /api/metrics/ratings", "todo", "metrics ratings"),
     Exemption(r"(POST|GET|PATCH|DELETE) /api/uploads.*", "todo", "library import : protocole d'envoi par morceaux"),
     Exemption(r"(POST|PUT|DELETE) /api/videos(/.*)?", "todo", "library import|set|rm|subtitles|chapters"),
@@ -115,10 +102,8 @@ EXEMPT: tuple[Exemption, ...] = (
 
 
 def exemption_for(route: str) -> list[Exemption]:
-    """Règles qui exemptent la route ; une route couverte par une commande n'est jamais exemptée (les règles par famille
-    de `todo` peuvent donc rester larges)."""
+    """Règles qui exemptent la route ; une route couverte par une commande n'est jamais exemptée (les règles par famille de `todo` peuvent donc rester larges)."""
     if route in COVERED:
         return []
     rules = [rule for rule in EXEMPT if rule.matches(route)]
-    # Une règle « never » précise l'emporte sur la règle « todo » de sa famille (ex. le flux d'un morceau radio).
     return [rule for rule in rules if rule.status == "never"] or rules

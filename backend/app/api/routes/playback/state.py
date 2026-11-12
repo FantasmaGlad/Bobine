@@ -25,30 +25,22 @@ class InterruptedStateResponse(BaseModel):
     cause: str | None
     channel: str | None = None
     interrupted_at: datetime
-    # Interruption par programmation (cause="schedule") : lecture manuelle interrompue, reprise à la position exacte.
     video_id: int | None = None
     title: str | None = None
     position_seconds: float | None = None
-    # Report par le mode coach (cause="coach_priority") : programmation reportée par le mode coach, relance depuis zéro.
     target_type: str | None = None
     target_id: int | None = None
 
 
 @router.get("/api/playback/state")
 def get_playback_state(channel: str = DEFAULT_CHANNEL):
-    """Snapshot ponctuel de l'état de lecture d'UN canal (utile au premier
-    rendu, avant connexion WebSocket)."""
+    """Snapshot ponctuel de l'état de lecture d'UN canal (utile au premier rendu, avant connexion WebSocket)."""
     return get_playback_manager(_resolve_channel(channel)).snapshot()
 
 
 @router.get("/api/playback/interrupted", response_model=InterruptedStateResponse | None)
 def get_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depends(get_db)):
-    """
-    Dernière action différée en attente de reprise/relance explicite depuis
-    l'interface, POUR UN CANAL DONNÉ : soit une lecture manuelle interrompue
-    par une programmation, soit une programmation reportée par le mode
-    coach.
-    """
+    """Dernière action différée en attente de reprise/relance explicite depuis l'interface, POUR UN CANAL DONNÉ."""
     resolved = _resolve_channel(channel)
     state = (
         db.query(PlaybackState)
@@ -85,11 +77,7 @@ def get_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depends(
 
 @router.post("/api/playback/interrupted/resume")
 async def resume_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depends(get_db)):
-    """
-    Relance l'action différée du canal : reprise à la position exacte pour
-    une interruption par programmation, relance depuis zéro de la cible reportée par le mode coach (elle n'avait
-    jamais démarré, il n'y a pas de position à reprendre).
-    """
+    """Relance l'action différée du canal : reprise à la position exacte pour une interruption par programmation, relance depuis zéro de la cible reportée par le mode coach."""
     resolved = _resolve_channel(channel)
     state = (
         db.query(PlaybackState)

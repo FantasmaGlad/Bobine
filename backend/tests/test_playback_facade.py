@@ -1,7 +1,3 @@
-"""Façade REST de la lecture : mêmes commandes et même effet que le WebSocket, refus typés au lieu d'un silence,
-rapports d'écran exclus, routes existantes de même forme non masquées ; une commande en échec ne coupe plus la
-connexion WebSocket."""
-
 import asyncio
 import os
 
@@ -46,7 +42,6 @@ def client():
 
 
 def _without_clocks(state):
-    """L'horodatage des horloges change à chaque instantané : seul le reste de l'état se compare."""
     return {key: value for key, value in state.items() if key not in ("clock", "audio_clock")}
 
 

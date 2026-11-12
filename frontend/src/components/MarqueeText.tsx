@@ -9,12 +9,6 @@ interface MarqueeTextProps {
   title?: string;
 }
 
-/**
- * Composant de défilement horizontal (Marquee) fluide pour les titres de cours :
- * Si le texte dépasse la largeur maximale stricte du conteneur (280px ou colonne de liste),
- * il défile en va-et-vient régulier sans jamais étirer ni déformer la carte ou sa miniature.
- * Si le texte tient dans la largeur, il reste statique.
- */
 export default function MarqueeText({ text, className = "", style, title }: MarqueeTextProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLSpanElement | null>(null);
@@ -26,13 +20,11 @@ export default function MarqueeText({ text, className = "", style, title }: Marq
       const c = containerRef.current;
       const t = textRef.current;
       if (!c || !t) return;
-      // scrollWidth > clientWidth indique un débordement réel
       const diff = t.scrollWidth - c.clientWidth;
       setOverflowPx(diff > 3 ? diff : 0);
     };
 
     measure();
-    // Re-mesure après le montage initial du DOM et au redimensionnement
     const timer = setTimeout(measure, 60);
     window.addEventListener("resize", measure);
 

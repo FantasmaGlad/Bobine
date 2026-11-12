@@ -25,14 +25,6 @@ import java.security.MessageDigest
 
 private const val TAG = "UpdateManager"
 
-// Rappel vers l'orchestrateur de mise a jour cote Python (cf.
-// api/routes/updates.py::android_update_callback) : le telechargement se fait
-// dans CE thread Kotlin, de facon totalement asynchrone du point de vue de
-// `apply_update()` cote Python (deja retourne au moment ou ce thread
-// termine) - sans ce rappel, l'etat de mise a jour affiche dans Reglages
-// restait bloque sur "telechargement en cours" indefiniment, meme apres un
-// succes ou un echec reel. Utilise 127.0.0.1 (pas 127.0.0.2) : ceci n'est
-// pas une requete de l'ecran tactile, les deux atteignent le meme serveur.
 private const val UPDATE_CALLBACK_PATH = "/api/updates/_android-callback"
 
 private const val UPDATE_NOTIFICATION_CHANNEL_ID = "bobine_updates"
@@ -42,45 +34,12 @@ private const val MAX_DOWNLOAD_ATTEMPTS = 3
 private const val CONNECT_TIMEOUT_MS = 15_000
 private const val READ_TIMEOUT_MS = 30_000
 
-/**
- * Une raison de refus explicable a l'utilisateur (paquet invalide, retour en
- * arriere interdit...) - distincte d'une panne reseau, qui est reessayee.
- */
 private class UpdateRejected(message: String) : IllegalStateException(message)
 
-/**
- * Telecharge l'APK de la release choisie dans Reglages, le VERIFIE, puis
- * declenche l'installation standard Android (boite de dialogue systeme de
- * confirmation - pas de contournement silencieux, conforme au principe
- * "Android exige une interaction explicite pour ce type
- * d'installation hors store"; seul le telechargement/la verification se
- * declenchent sans supervision, jamais l'installation finale).
- *
- * Contrairement a la premiere version de ce fichier :
- *  - plus AUCUN telechargement spontane au lancement de l'app (l'ancien
- *    `checkForUpdate` telechargeait et proposait l'installation a chaque
- *    ouverture, hors reglage "mise a jour automatique", et choisissait le
- *    premier `.apk` de la release - l'APK telephone, y compris sur Android
- *    TV, ou il s'installait comme une SECONDE application) ;
- *  - l'asset est choisi par le backend (variante telephone/TV) et son
- *    empreinte SHA-256 est verifiee ici avant tout ;
- *  - le paquet est controle (meme `applicationId`, meme signature,
- *    `versionCode` non inferieur) pour remplacer l'echec opaque "appli non
- *    installee" d'Android par une explication claire.
- */
 object UpdateManager {
 
-    /**
-     * Point d'entree appele par le backend Python (profil Android,
-     * `AndroidHandler.apply_update`). Rend la main immediatement : tout
-     * progres/echec est rapporte via [reportCallback]. [socksProxy] (`hôte:port`, Orbot) : téléchargement par Tor,
-     * sans repli direct ; nul : connexion directe.
-     */
     fun downloadAndInstall(context: Context, downloadUrl: String, expectedDigest: String, socksProxy: String?) {
         val appContext = context.applicationContext
-        // Sans l'autorisation « Installer des applications inconnues », Android
-        // n'affiche qu'un écran de réglages puis abandonne l'installation sans
-        // rien expliquer : on la demande AVANT de télécharger 50 Mo.
         if (!appContext.packageManager.canRequestPackageInstalls()) {
             openUnknownSourcesSettings(appContext)
             reportCallback(
@@ -116,11 +75,6 @@ object UpdateManager {
         }
     }
 
-    /**
-     * Appele au lancement de l'app : supprime l'APK deja installe (ou
-     * perime) pour ne pas garder ~50 Mo inutiles dans le cache, et retire
-     * la notification "mise a jour prete" devenue sans objet.
-     */
     fun cleanupStaleDownloads(context: Context) {
         Thread({
             try {
@@ -141,14 +95,9 @@ object UpdateManager {
         }, "bobine-update-cleanup").start()
     }
 
-    // --- Telechargement -----------------------------------------------------
-
     private fun fetchVerifiedApk(context: Context, url: String, expectedSha256: String, socksProxy: String?): File {
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
         val target = File(dir, APK_FILE_NAME)
-        // Fichier deja telecharge ET verifie lors d'une tentative precedente
-        // (ex. installation interrompue puis relancee) : inutile de
-        // retelecharger 50 Mo sur un Wi-Fi de salle.
         if (target.exists() && sha256(target) == expectedSha256) return target
         target.delete()
 
@@ -208,8 +157,6 @@ object UpdateManager {
                         if (total > 0) {
                             val percent = minOf(99, (read * 100 / total).toInt())
                             val now = System.currentTimeMillis()
-                            // Au plus un rappel par seconde et par pourcent :
-                            // l'etat est diffuse en WebSocket a chaque rappel.
                             if (percent != lastPercent && now - lastReportAt >= 1000) {
                                 lastPercent = percent
                                 lastReportAt = now
@@ -238,13 +185,6 @@ object UpdateManager {
         return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
-    // --- Validation du paquet ------------------------------------------------
-
-    /**
-     * Reproduit les controles du PackageInstaller AVANT d'ouvrir son
-     * dialogue : celui-ci n'affiche, en cas d'echec, que "Application non
-     * installee" sans aucune explication.
-     */
     private fun validatePackage(context: Context, apk: File) {
         val pm = context.packageManager
         val archive = pm.getPackageArchiveInfo(apk.absolutePath, PackageManager.GET_SIGNING_CERTIFICATES)
@@ -274,16 +214,6 @@ object UpdateManager {
         }
     }
 
-    // --- Installation ----------------------------------------------------------
-
-    /**
-     * Android 10+ interdit a une application en arriere-plan d'ouvrir une
-     * activite : le `startActivity` ci-dessous ne peut aboutir que si Bobine
-     * est au premier plan. Dans tous les autres cas (mise a jour planifiee
-     * de nuit, Chrome au premier plan...) la notification porte DIRECTEMENT
-     * l'intention d'installation - un tap suffit, sans passer par
-     * l'ouverture prealable de l'application comme avant.
-     */
     private fun offerInstall(context: Context, apk: File) {
         val installIntent = buildInstallIntent(context, apk)
         notifyApkReady(context, installIntent)
@@ -296,11 +226,6 @@ object UpdateManager {
 
     private fun buildInstallIntent(context: Context, apk: File): Intent {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", apk)
-        // Intent.ACTION_VIEW sur un .apk affiche TOUJOURS la boite de dialogue
-        // systeme d'installation (nom du paquet, permissions, confirmer) -
-        // c'est le comportement voulu, pas un contournement a chercher a
-        // eviter. REQUEST_INSTALL_PACKAGES (Manifest) envoie
-        // l'utilisateur vers l'ecran "Autoriser cette source" si besoin.
         return Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "application/vnd.android.package-archive")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -308,10 +233,6 @@ object UpdateManager {
         }
     }
 
-    /** Notification systeme : la tablette n'affiche l'application Bobine
-     * qu'en avant-plan (`/grid`/`/cinema`), une mise a jour telechargee
-     * pendant la nuit (planification automatique) n'a sinon aucun moyen
-     * visible de signaler qu'une confirmation d'installation l'attend. */
     private fun notifyApkReady(context: Context, installIntent: Intent) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         manager.createNotificationChannel(
@@ -334,18 +255,12 @@ object UpdateManager {
         manager.notify(UPDATE_NOTIFICATION_ID, notification)
     }
 
-    // --- Rappel vers le backend ----------------------------------------------
-
     private fun socksProxyOf(address: String): Proxy {
         val host = address.substringBeforeLast(':').trim('[', ']')
         val port = address.substringAfterLast(':').toIntOrNull() ?: throw UpdateRejected("Adresse du proxy Tor invalide : $address")
         return Proxy(Proxy.Type.SOCKS, InetSocketAddress(host, port))
     }
 
-    /** Signale progression/issue a l'orchestrateur Python (cf.
-     * api/routes/updates.py::android_update_callback) — best-effort, une
-     * defaillance de ce rappel ne doit jamais empecher la mise a jour
-     * elle-meme de se poursuivre. */
     private fun reportCallback(context: Context, status: String, message: String, percent: Int? = null) {
         try {
             val url = BackendEndpoint.url(context, UPDATE_CALLBACK_PATH)

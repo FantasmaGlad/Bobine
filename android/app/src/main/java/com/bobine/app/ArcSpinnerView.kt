@@ -14,20 +14,13 @@ private const val SWEEP_DEGREES = 270f
 private const val ROTATION_MS = 1100L
 private const val MIN_CONTRAST = 3.0
 
-/** Couleurs de l'arc : l'accent du thème, avec repli sur le texte si le contraste avec le fond est insuffisant. */
 object SpinnerColors {
     fun arcColor(accent: Int, text: Int, background: Int): Int =
         if (ColorUtils.calculateContrast(accent or 0xFF000000.toInt(), background or 0xFF000000.toInt()) >= MIN_CONTRAST) accent else text
 
-    /** Dégradé de l'arc : transparent à la queue, couleur pleine à la tête. */
     fun gradient(arc: Int): IntArray = intArrayOf(ColorUtils.setAlphaComponent(arc, 0), ColorUtils.setAlphaComponent(arc, 40), arc)
 }
 
-/**
- * Indicateur de chargement aux couleurs du thème : un arc fin de 270° en dégradé (queue transparente, tête pleine)
- * qui tourne sur une piste discrète, à la manière des indicateurs Apple. Dessiné en natif — aucune image — et
- * arrêté dès que la vue quitte l'écran ou n'est plus visible.
- */
 class ArcSpinnerView(context: Context, arcColor: Int, trackColor: Int, sizeDp: Int) : View(context) {
     private val density = resources.displayMetrics.density
     private val sizePx = (sizeDp * density).toInt()
@@ -67,7 +60,6 @@ class ArcSpinnerView(context: Context, arcColor: Int, trackColor: Int, sizeDp: I
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         val inset = strokePx / 2f
         bounds.set(inset, inset, w - inset, h - inset)
-        // Le dégradé couvre exactement l'arc (0 → SWEEP_DEGREES) ; la rotation du canevas le fait tourner avec lui.
         arcPaint.shader = SweepGradient(w / 2f, h / 2f, colors, floatArrayOf(0f, 0.55f, SWEEP_DEGREES / 360f))
     }
 

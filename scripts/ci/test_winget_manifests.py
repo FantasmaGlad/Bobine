@@ -1,4 +1,3 @@
-"""Manifestes winget : installeurs x64 et ARM64 de la release, empreintes reprises de SHA256SUMS, refus d'un tag roulant."""
 import importlib.util
 import subprocess
 import sys
@@ -42,7 +41,6 @@ class WingetManifestTests(unittest.TestCase):
             self.assertTrue(files[name].startswith(f"# yaml-language-server: $schema=https://aka.ms/winget-manifest.{kind}.1.12.0.schema.json\n"))
 
     def test_only_bobine_tags_are_accepted(self):
-        # Bobine Deploy publie ses propres manifestes depuis son dépôt.
         with self.assertRaises(SystemExit):
             winget.manifests({"Bobine-Setup-5.1.1.exe": "A" * 64}, "assistant-V5.1.1")
 

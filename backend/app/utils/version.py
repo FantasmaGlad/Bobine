@@ -1,20 +1,4 @@
-"""Source de vérité unique du numéro de version ET du commit courant de
-l'application.
-
-Repose sur deux fichiers plats, `VERSION` et `COMMIT`, placés à la racine du
-dépôt en développement — même racine que `config.toml`, bundlés de la même
-façon dans chaque paquet packagé (`datas` des `bobine.spec`). `ROOT_DIR`
-(`app.config`) résout déjà correctement cette racine en mode figé (frozen,
-PyInstaller) COMME en développement, y compris la particularité macOS
-(`Contents/Resources/` vs `Contents/MacOS/`) — le réutiliser ici évite de
-dupliquer cette logique, qui échouerait silencieusement si on se basait sur
-`__file__` (chemin sans rapport avec le système de fichiers réel une fois le
-code Python gelé dans un PYZ, cf. commentaire d'app/config.py).
-
-`COMMIT` n'existe que sur les builds construits par la CI (`ci.yml` l'écrit
-juste avant PyInstaller) — absent en développement local et sur l'appliance
-headless, qui a de toute façon `git` disponible pour une info plus précise
-(cf. `_get_local_version_info()` dans updates.py)."""
+"""Source de vérité unique du numéro de version ET du commit courant de l'application."""
 
 import os
 import subprocess
@@ -29,10 +13,6 @@ _FALLBACK_COMMIT = "unknown"
 
 
 def _app_root() -> Path:
-    # ROOT_DIR = backend/ en développement (racine du backend, pas du dépôt) ;
-    # VERSION/COMMIT vivent à la racine du DÉPÔT — un niveau au-dessus. En
-    # mode figé, ROOT_DIR pointe déjà là où le paquet bundle VERSION/COMMIT
-    # (même `datas` que config.toml), donc pas de `.parent` en plus ici.
     if getattr(sys, "frozen", False):
         return ROOT_DIR
     return ROOT_DIR.parent
@@ -40,14 +20,11 @@ def _app_root() -> Path:
 
 @lru_cache(maxsize=1)
 def get_app_version() -> str:
-    """Numéro de version nu (ex. "3.0.5", ou "3.0.5-canary" sur un build
-    d'un canal Bêta/Canary), sans préfixe "V"."""
-    # 1. Variable d'environnement injectée par la plateforme (ex: Android BuildConfig.VERSION_NAME)
+    """Numéro de version nu."""
     env_ver = os.environ.get("BOBINE_VERSION", "").strip()
     if env_ver:
         return env_ver.lstrip("vV")
 
-    # 2. Emplacement standard racine du dépôt / paquet figé
     for candidate_dir in (_app_root(), Path(__file__).resolve().parent, Path(__file__).resolve().parent.parent, ROOT_DIR):
         try:
             ver_file = candidate_dir / "VERSION"
@@ -63,10 +40,7 @@ def get_app_version() -> str:
 
 @lru_cache(maxsize=1)
 def get_app_commit() -> str:
-    """Commit court (7 caractères) du build courant. Repli "unknown" en
-    développement local (pas de fichier COMMIT généré par la CI) — sans
-    incidence : `_get_local_version_info()` préfère `git rev-parse`
-    directement quand un vrai checkout est disponible."""
+    """Commit court (7 caractères) du build courant."""
     env_commit = os.environ.get("BOBINE_COMMIT", "").strip()
     if env_commit:
         return env_commit
@@ -85,19 +59,11 @@ def get_app_commit() -> str:
 
 
 def get_app_tag() -> str:
-    """Version préfixée "V" (convention de tag Git/GitHub Releases du projet
-    pour le canal Stable, ex. "V3.0.1"), utilisée comme repli quand aucun tag
-    Git réel n'est disponible (profils packagés sans checkout, cf.
-    updates.py)."""
+    """Version préfixée "V" (convention de tag Git/GitHub Releases du projet pour le canal Stable, ex."""
     return f"V{get_app_version()}"
 
 
 def _git_head_short() -> str | None:
-    """Commit HEAD court du checkout git qui contient l'application, ou None
-    (profils packagés sans `.git`, git absent, délai dépassé). Jamais mis en
-    cache : l'appelant veut la valeur du code RÉELLEMENT chargé à cet
-    instant, c'est tout l'intérêt d'une empreinte comparée avant/après une
-    mise à jour."""
     root = _app_root()
     if not (root / ".git").exists():
         return None
@@ -112,15 +78,7 @@ def _git_head_short() -> str | None:
 
 
 def get_build_fingerprint() -> str:
-    """Empreinte `version|commit` du code actuellement en cours d'exécution.
-
-    Comparée avant/après une mise à jour par `updates/orchestrator.py` pour
-    déterminer si un redémarrage a réellement installé quelque chose : un
-    service qui se relance en plein pipeline (cas NORMAL de toute mise à
-    jour qui redémarre son propre processus) ne peut pas écrire lui-même
-    l'état "terminé" — l'issue réelle se déduit donc au démarrage suivant.
-    Sur l'appliance headless la version de base peut rester identique entre
-    deux builds Bêta : le commit git est donc inclus quand il est lisible."""
+    """Empreinte `version|commit` du code actuellement en cours d'exécution."""
     version = _read_version_uncached()
     commit = _git_head_short() or _read_commit_uncached()
     return f"{version}|{commit}"

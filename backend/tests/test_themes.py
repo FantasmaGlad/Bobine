@@ -1,4 +1,3 @@
-"""Thèmes : liste identique côté serveur et côté interface, anciens noms traduits, réglage `theme_mode` validé."""
 import os
 import re
 from pathlib import Path
@@ -34,8 +33,8 @@ def test_chaque_ancien_theme_donne_une_couleur_valide():
 @pytest.mark.parametrize("stored, mode, expected", [
     ("lavande", None, ("orchidee", "light")),
     ("hiver", None, ("ocean", "dark")),
-    ("chili", None, ("chili", "dark")),  # nom déjà existant : sans mode enregistré, c'est l'ancien thème sombre
-    ("chili", "auto", ("chili", "auto")),  # avec un mode enregistré, c'est le nouveau thème
+    ("chili", None, ("chili", "dark")),
+    ("chili", "auto", ("chili", "auto")),
     ("orchidee", "light", ("orchidee", "light")),
     ("foret", "dark", ("foret", "dark")),
     ("inconnu", "zzz", ("ardoise", "auto")),
@@ -56,7 +55,7 @@ def test_le_serveur_traduit_un_ancien_theme_et_valide_le_mode(client):
     try:
         assert client.put("/api/settings", json={"theme_mode": "nuit"}).status_code == 400
         assert client.put("/api/settings", json={"theme": "violet"}).status_code == 400
-        assert client.put("/api/settings", json={"theme": "lavande"}).status_code == 200  # ancien client
+        assert client.put("/api/settings", json={"theme": "lavande"}).status_code == 200
         got = client.get("/api/settings").json()
         assert (got["theme"], got["theme_mode"]) == ("orchidee", "light")
         assert client.put("/api/settings", json={"theme": "ocean", "theme_mode": "dark"}).status_code == 200
@@ -67,7 +66,6 @@ def test_le_serveur_traduit_un_ancien_theme_et_valide_le_mode(client):
 
 
 def test_ecriture_partielle_du_theme_ou_du_mode(client):
-    """Un changement de couleur seul conserve le mode ; un changement de mode seul normalise l'ancien nom."""
     original = client.get("/api/settings").json()
     try:
         assert client.put("/api/settings", json={"theme": "ocean", "theme_mode": "dark"}).status_code == 200

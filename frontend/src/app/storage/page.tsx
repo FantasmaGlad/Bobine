@@ -15,9 +15,6 @@ import { diffVolumes, encodeKey, storageRequest, type FormatJob, type PortableLi
 import { useStorageEvents } from "@/lib/useStorageEvents";
 import { useToast } from "@/lib/useToast";
 
-// Stockage externe : supports amovibles et téléphones. Tout appareil du réseau local de confiance y accède directement.
-// Une liste, UNE action principale par support (Explorer), puis Importer ou Utiliser comme extension ; le reste est dans « Options ».
-
 interface OpenSource { key: string; name: string; portable: boolean; volume: StorageVolume | null; }
 
 export default function StoragePage() {
@@ -75,7 +72,6 @@ export default function StoragePage() {
     void reload();
   }, [status, reload]);
 
-  // Une préparation déjà en cours (page rechargée, autre écran) est reprise là où elle en est.
   useEffect(() => {
     if (!status) return;
     void storageRequest<{ job: FormatJob | null }>("/format/active").then((result) => {
@@ -83,7 +79,6 @@ export default function StoragePage() {
     });
   }, [status]);
 
-  // Branchements et retraits arrivent en direct (WebSocket, sans aucune donnée) ; l'état est relu par REST.
   useStorageEvents((event) => { if (event.scope !== "jobs") void reload(); }, !!status);
 
   const openVolume = async (volume: StorageVolume) => {

@@ -1,18 +1,5 @@
 name: Google Play (AAB)
 
-# Construit le build Google Play (sans mise à jour intégrée ni autorisation d'installation de paquets)
-# d'une version Stable : bundles .aab pour la console, et APK équivalents pour les tests :
-#   Bobine-<version>.aab     (com.bobine.app, téléphone et tablette)
-#   Bobine-TV-<version>.aab  (com.bobine.app.tv, Android TV)
-# Signés avec la clé de téléversement (la même que les APK) ; Google Play les re-signe avec sa clé de
-# distribution. Le numéro de version suit celui des APK (nombre de commits du tag), donc les mises à jour
-# successives restent acceptées par Play.
-#
-# Lancement : onglet Actions > « Google Play (AAB) » > Run workflow, en indiquant le tag (ex. V5.0.0).
-# Les fichiers sont téléchargeables dans l'artefact du run ; ils ne sont jamais joints à la release GitHub.
-# Avec upload_to_play explicite et le secret PLAY_SERVICE_ACCOUNT_JSON, les bundles sont envoyés sur la piste choisie
-# de Google Play en brouillon ; sinon l'envoi se fait à la main dans la console.
-
 on:
   workflow_dispatch:
     inputs:
@@ -49,11 +36,8 @@ jobs:
     name: Bundles Google Play (${{ inputs.tag }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    # Clés de signature et compte Google Play : environnement android-signing (main et tags V* seulement).
     environment: android-signing
     steps:
-      # L'environnement ne contrôle que la révision du déclenchement : la révision construite et signée doit
-      # aussi être main ou un tag de version, jamais une branche non relue.
       - name: Révision construite autorisée
         env:
           SOURCE_REF: ${{ inputs.source_ref }}
@@ -66,8 +50,6 @@ jobs:
         with:
           ref: ${{ inputs.source_ref || inputs.tag }}
           fetch-depth: 0
-      # Les outils appartiennent à la révision du workflow, même si source_ref
-      # choisit un ancien tag qui ne contient pas encore ces scripts.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.workflow_sha }}
@@ -100,8 +82,6 @@ jobs:
         if: steps.check_secrets.outputs.configured == 'true'
         working-directory: frontend
         run: npm ci
-      # Chaquopy cherche `python3.<x>` sur le PATH pour chaque version du
-      # projet : 3.13 (flavor mobile) et 3.11 (flavor TV).
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         if: steps.check_secrets.outputs.configured == 'true'
         with:
@@ -116,13 +96,6 @@ jobs:
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         if: steps.check_secrets.outputs.configured == 'true'
         with:
-          # le paquet legacy "tools" (installé par
-          # défaut par cette action, `packages: "tools platform-tools"`) a
-          # disparu du dépôt SDK Google ("Failed to find package 'tools'",
-          # exit code 1) — cassait tout le job avant même l'étape suivante,
-          # qui installe déjà les seuls paquets réellement utilisés
-          # (platforms;android-37.0, build-tools;37.0.0). platform-tools seul
-          # suffit ici.
           packages: "platform-tools"
       - name: Installer les plateformes/outils Android requis
         if: steps.check_secrets.outputs.configured == 'true'
@@ -130,15 +103,9 @@ jobs:
       - name: Décoder le keystore depuis le secret
         if: steps.check_secrets.outputs.configured == 'true'
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "${{ runner.temp }}/bobine-release.keystore"
-      # COMMIT identifie le build embarqué (commit affiché dans Réglages, repris par les rapports de diagnostic) ; sans
-      # ce fichier il vaut "unknown". Un build Play est verrouillé sur la Stable et se met à jour par la boutique : il ne
-      # compare jamais ce commit à ceux des canaux Bêta et Canary.
       - name: Identifiants de build (COMMIT bundlé)
         if: steps.check_secrets.outputs.configured == 'true'
         run: echo "${{ steps.ref.outputs.commit_short }}" > COMMIT
-      # Commit épinglé (et non la branche `main` du dépôt tiers) + empreintes
-      # SHA-256 : un binaire exécuté sur les appareils des utilisateurs ne doit
-      # jamais changer sans qu'on l'ait relu.
       - name: Télécharger les binaires statiques ffmpeg/ffprobe ARM64 (Bionic NDK)
         if: steps.check_secrets.outputs.configured == 'true'
         run: |
@@ -150,9 +117,6 @@ jobs:
           echo "480defd776199b5434008565974de5bf99822371c3cd9c1f130fda2c57de6439  libffmpeg.so" | sha256sum -c -
           echo "e66d481eb55af07282ea4efcdba5d18b564f809e9e40441dede7cc6ee9f88224  libffprobe.so" | sha256sum -c -
           chmod +x libffmpeg.so libffprobe.so
-      # Aucun binaire 32 bits n'est publié par le dépôt tiers : compilation
-      # depuis les sources officielles (android/scripts/build_ffmpeg_armv7.sh),
-      # mise en cache tant que le script ne change pas.
       - name: Cache des binaires ffmpeg/ffprobe armeabi-v7a
         if: steps.check_secrets.outputs.configured == 'true'
         id: ffmpeg_armv7_cache
@@ -194,7 +158,6 @@ jobs:
           for AAB in aab-out/*.aab; do
             sha256sum "$AAB"
           done
-          # Le build Play ne doit pas contenir l'autorisation d'installation de paquets (politique Google Play).
           AAPT2="$BOBINE_ANDROID_BUILD_TOOLS/aapt2"
           python3 .workflow-tools/scripts/ci/verify-android-bundles.py "aab-out/Bobine-${{ steps.ref.outputs.version_name }}.aab"
           python3 .workflow-tools/scripts/ci/verify-android-bundles.py "aab-out/Bobine-TV-${{ steps.ref.outputs.version_name }}.aab" --tv
@@ -209,7 +172,6 @@ jobs:
           done
           .workflow-tools/scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/mobile/play/*.apk)" arm64-v8a
           .workflow-tools/scripts/ci/verify-apk-abis.sh "$(ls android/app/build/outputs/apk/tv/play/*.apk)" armeabi-v7a arm64-v8a
-          # Le numéro de version des bundles doit dépasser celui de l'APK déjà installé chez les utilisateurs.
           echo "versionName=${{ steps.ref.outputs.version_name }} versionCode=${{ steps.ref.outputs.version_code }}" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.check_secrets.outputs.configured == 'true'

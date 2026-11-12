@@ -1,10 +1,4 @@
-"""Accès base de données du stockage externe : bibliothèques enregistrées, remappage des chemins, index.
-
-Fonctions SYNCHRONES (à appeler dans un thread depuis le service asynchrone). Règle centrale : le chemin
-`file_path` d'un média externe est soit son chemin réel courant (support en ligne), soit un chemin
-d'attente `external://<uuid>/<rel>` (support absent) — unique et jamais résolvable sur le disque, donc
-deux supports successifs au même point de montage ne peuvent jamais se confondre.
-"""
+"""Accès base de données du stockage externe : bibliothèques enregistrées, remappage des chemins, ind."""
 
 from __future__ import annotations
 
@@ -34,7 +28,6 @@ from app.storage.types import Volume
 
 logger = logging.getLogger(__name__)
 
-# (modèle, nom de la nature) des tables qui portent des médias externes.
 _MEDIA_MODELS = ((Video, "video"), (AudioTrack, "audio"), (RadioTrack, "radio"))
 
 
@@ -114,8 +107,7 @@ def stats(db: Session, storage_id: int) -> dict[str, int]:
 
 
 def mark_all_offline(db: Session) -> int:
-    """Au démarrage : tout média externe passe en chemin d'attente (un chemin conservé de la session précédente
-    pourrait désigner, au même point de montage, un AUTRE support). Le premier instantané remappe les supports présents."""
+    """Au démarrage : tout média externe passe en chemin d'attente (un chemin conservé de la session précédente pourrait désigner, au même point de montage, un AUTRE support)."""
     return _apply(db, {lib.id: None for lib in all_libraries(db)})
 
 
@@ -134,7 +126,6 @@ def apply_mapping(db: Session, online: dict[int, str], previous: dict[int, str])
 def _apply(db: Session, targets: dict[int, str | None]) -> int:
     libs = {lib.id: lib for lib in all_libraries(db)}
     moved = 0
-    # Les supports qui partent d'abord : libère leurs chemins avant d'attribuer ceux des supports qui arrivent.
     for storage_id in sorted(targets, key=lambda i: targets[i] is not None):
         lib = libs.get(storage_id)
         if lib is None:
@@ -161,8 +152,7 @@ def _apply(db: Session, targets: dict[int, str | None]) -> int:
 
 
 def purge_index(db: Session, storage_id: int) -> dict[str, int]:
-    """Retire de la base les médias indexés d'un support (jamais les fichiers du support) et leurs fichiers INTERNES
-    (miniatures, pochettes) ; nettoie les éléments de playlists qui les référençaient."""
+    """Retire de la base les médias indexés d'un support (jamais les fichiers du support) et leurs fichiers INTERNES (miniatures, pochettes) ; nettoie les éléments de playlists qui les référençaient."""
     removed = {"videos": 0, "audio_tracks": 0, "radio_tracks": 0, "audio_courses": 0}
     videos = db.query(Video).filter(Video.storage_id == storage_id).all()
     ids = [v.id for v in videos]
@@ -192,7 +182,7 @@ def purge_index(db: Session, storage_id: int) -> dict[str, int]:
     radios = db.query(RadioTrack).filter(RadioTrack.storage_id == storage_id).all()
     for radio in radios:
         _unlink_internal(radio.cover_path)
-        db.delete(radio)  # places en playlist et tags supprimés en cascade
+        db.delete(radio)
         removed["radio_tracks"] += 1
     db.commit()
     remove_jobs(schedule_ids)

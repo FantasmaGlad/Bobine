@@ -7,10 +7,8 @@ import { clampSound, type RadioSoundSettings } from "@/lib/radioSound";
 import type { RadioRoute } from "@/lib/audioRoute";
 import { getPlaybackWsUrl } from "./apiUrl.ts";
 
-/** Ce que l'interface Périphériques suit d'une sortie radio en direct. */
 export interface RadioFeedChannel {
   playing: boolean;
-  /** Titre de la piste en cours (null à l'arrêt). */
   title: string | null;
   mix: RadioMix;
   sound: RadioSoundSettings;
@@ -26,18 +24,10 @@ export interface RadioFeed {
 }
 
 const OUTPUTS: RadioOutputId[] = ["radio_cable", "radio_network"];
-/** Le serveur garde le vumètre actif 12 s après la dernière demande : on la renouvelle bien avant. */
 const METER_RENEW_MS = 5000;
-/** Sans nouvelle mesure depuis ce délai (lecteur en pause, fermé), les aiguilles retombent. */
 const LEVEL_STALE_MS = 600;
 const DECAY_TICK_MS = 150;
 
-/**
- * Suit en direct les deux sorties radio (état de lecture, mixage, route) pour le graphe et la table de mixage, sans
- * jamais se déclarer lecteur (aucun `identify` : pas de rôle primaire, aucun effet sur la diffusion). Quand `metering`
- * est vrai, demande au lecteur primaire de chaque sortie de mesurer ses niveaux (`radio_meter`, bail renouvelé).
- * Reconnexion automatique avec attente croissante.
- */
 export function useRadioFeed(enabled: boolean, metering: boolean): RadioFeed {
   const [connected, setConnected] = useState(false);
   const [channels, setChannels] = useState<RadioFeed["channels"]>({});
@@ -99,7 +89,6 @@ export function useRadioFeed(enabled: boolean, metering: boolean): RadioFeed {
             setLevels((current) => ({ ...current, [message.channel]: { ...current[message.channel as RadioOutputId], ...message.levels } }));
           }
         } catch {
-          /* message illisible : ignoré */
         }
       };
       ws.onclose = () => {
@@ -122,7 +111,6 @@ export function useRadioFeed(enabled: boolean, metering: boolean): RadioFeed {
     };
   }, [enabled]);
 
-  // Retombée des aiguilles quand plus aucune mesure n'arrive.
   useEffect(() => {
     if (!enabled || !metering) return;
     const id = setInterval(() => {

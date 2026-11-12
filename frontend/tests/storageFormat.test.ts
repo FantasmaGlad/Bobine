@@ -34,7 +34,7 @@ test("étiquette : limites propres à chaque format", () => {
 test("confirmation forte : nom exact, case cochée, délai écoulé ; jamais un simple clic", () => {
   const base = { typed: "CLUB", expected: "CLUB", acknowledged: true, secondsLeft: 0, labelOk: true };
   assert.equal(canConfirmFormat(base), true);
-  assert.equal(canConfirmFormat({ ...base, typed: " club " }), true);              // insensible à la casse et aux espaces autour
+  assert.equal(canConfirmFormat({ ...base, typed: " club " }), true);
   assert.equal(canConfirmFormat({ ...base, typed: "" }), false);
   assert.equal(canConfirmFormat({ ...base, typed: "CLU" }), false);
   assert.equal(canConfirmFormat({ ...base, acknowledged: false }), false);
@@ -81,7 +81,6 @@ function codesOf(dict: Dict): string[] {
 }
 
 test("chaque code de refus du serveur est traduit en français et en anglais", () => {
-  // Liste miroir de backend/app/storage/formatting/refusals.py (le test serveur vérifie que chaque code y est documenté).
   const codes = [
     "format_unsupported_platform", "format_tool_missing", "format_not_found", "format_not_allowed", "format_phone", "format_not_removable", "format_internal_disk",
     "format_system_disk", "format_bobine_data", "format_library_registered", "format_in_use", "format_busy_operation", "format_read_only", "format_encrypted_stack",

@@ -4,21 +4,14 @@ import { useEffect, useRef } from "react";
 import { getPlaybackWsUrl } from "./apiUrl.ts";
 
 export interface StorageEvent {
-  /** `volumes` (branchement, retrait), `library` (disponibilité), `jobs`, `health`, `settings`, `portable`. */
   scope: string;
-  /** Nature des changements (`added`, `removed`, `removed_abruptly`, `mounted`, `library_online`…), sans nom ni chemin. */
   changes: string[];
 }
 
-/** Changements qui méritent d'avertir l'utilisateur où qu'il soit (branchement et retrait). */
 export function isPlugEvent(event: StorageEvent): boolean {
   return event.scope === "volumes" && event.changes.some((c) => c === "added" || c === "removed" || c === "removed_abruptly");
 }
 
-/**
- * Écoute les évènements `storage_changed` du serveur (comme `useDevicesEvents`). Ils ne portent AUCUNE donnée :
- * l'appelant relit l'état par REST. Reconnexion automatique à attente croissante.
- */
 export function useStorageEvents(onChange: (event: StorageEvent) => void, enabled = true): void {
   const callbackRef = useRef(onChange);
   useEffect(() => {
@@ -48,7 +41,6 @@ export function useStorageEvents(onChange: (event: StorageEvent) => void, enable
             callbackRef.current({ scope: String(data.scope ?? ""), changes: Array.isArray(data.changes) ? data.changes.map(String) : [] });
           }
         } catch {
-          /* message illisible : ignoré */
         }
       };
       ws.onclose = () => {

@@ -1,11 +1,7 @@
-"""Point d'entrée figé par PyInstaller en `BobineTray.exe` (cf.
-`packaging/windows/bobine.spec`). Une commande (`bobine status`, `bobine --host ... diagnose`...) part vers la CLI
-avant tout import de l'icône système ; sinon l'application se lance comme toujours."""
+"""Point d'entrée figé par PyInstaller en `BobineTray.exe`."""
 
 import sys
 
-# Options qui n'existent que dans la CLI : leur présence signale une invocation de la commande, même si la
-# sous-commande vient après (`bobine --json status`).
 _CLI_OPTIONS = {
     "-h", "--help", "--version", "--host", "--port", "--json", "-v", "-vv", "--verbose", "-q", "--quiet", "--no-color",
 }

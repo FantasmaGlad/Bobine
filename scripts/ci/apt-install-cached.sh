@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Installe des paquets apt en gardant les .deb téléchargés dans un dossier que la CI met en cache : un miroir lent
-# (plusieurs dizaines de secondes par paquet observées, jobs bloqués 20 min) ne coûte plus que le premier run d'une
-# image. Arguments : dossier de cache, puis paquets ou fichiers .deb locaux à installer.
 set -euo pipefail
 cache="${1:?dossier de cache des paquets .deb}"
 shift

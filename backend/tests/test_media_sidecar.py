@@ -1,4 +1,3 @@
-"""Exercise transport failures against real, disposable stdlib subprocesses."""
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import subprocess

@@ -1,8 +1,3 @@
-"""Android refuse un APK au versionCode inférieur (UpdateManager.validatePackage)
-mais seulement après 46 à 69 Mo de téléchargement. Le versionCode des builds de
-la CI vaut `git rev-list --count` : le backend compare donc les commits (API de
-comparaison GitHub) AVANT de proposer, de télécharger ou de planifier."""
-
 import asyncio
 import urllib.error
 
@@ -53,7 +48,6 @@ def test_canary_vers_beta_plus_ancienne_est_bloque(monkeypatch):
     appels = _comparaison(monkeypatch, ahead=0, behind=32)
     r = _eval("android", _local(), BETA)
     assert r["has_update"] is False and r["is_downgrade"] is True and r["downgrade_blocked"] is True
-    # SHA de la release (tag mobile), pas le nom de tag
     assert appels == [f"{github.COMPARE_URL}/a910129...{BETA['target_commitish']}"]
 
 
@@ -71,7 +65,6 @@ def test_cible_plus_recente_reste_proposee(monkeypatch):
 
 
 def test_historique_divergent_se_juge_sur_le_nombre_de_commits(monkeypatch):
-    # versionCode cible - versionCode local = ahead_by - behind_by
     _comparaison(monkeypatch, ahead=3, behind=4)
     assert _eval("android", _local(), BETA)["downgrade_blocked"] is True
     github.COMMIT_DISTANCE_CACHE.clear()
@@ -83,7 +76,7 @@ def test_comparaison_impossible_laisse_la_validation_apres_telechargement(monkey
     _comparaison(monkeypatch, erreur=urllib.error.URLError("hors ligne"))
     r = _eval("android", _local(), BETA)
     assert r["has_update"] is True and not r.get("downgrade_blocked")
-    assert github.COMMIT_DISTANCE_CACHE == {}  # un échec n'est jamais mémorisé
+    assert github.COMMIT_DISTANCE_CACHE == {}
 
 
 def test_commit_local_inconnu_ne_declenche_aucune_requete(monkeypatch):
@@ -108,8 +101,6 @@ def test_resultat_mis_en_cache(monkeypatch):
     assert len(appels) == 1
 
 
-# --- bout en bout : check, apply et planification -----------------------------
-
 class _Handler:
     def is_store_managed(self): return False
     def can_auto_apply(self): return True
@@ -131,7 +122,7 @@ def android_beta(monkeypatch):
     async def fetch(channel, force=False):
         return release, None
 
-    for module in (updates, scheduled):  # la route et la mise à jour planifiée
+    for module in (updates, scheduled):
         monkeypatch.setattr(module, "fetch_release_for_channel", fetch)
         monkeypatch.setattr(module, "get_update_channel", lambda db: "beta")
         monkeypatch.setattr(module, "get_local_version_info", lambda: _local())

@@ -1,11 +1,3 @@
-//! MPEG-4 audio (`.m4a`): one progressive audio track and iTunes-style `ilst` metadata.
-//!
-//! The container is read from its `moov` box alone, never decoded. The duration is the
-//! movie header's (`mvhd`), the value ffprobe reports as the format duration, accepted only
-//! when the track agrees with it (edit list, else media header) within a millisecond.
-//! Fragmented files, several tracks, QuickTime keys, free-form items and anything not
-//! listed below use the reference path.
-
 use crate::audio::{
     ambiguous, corrupt, cover_error, insert, limit, read_exact, unsupported, Duration, Layout,
     Picture, Result, MAX_TEXT_BYTES,
@@ -17,14 +9,12 @@ const MAX_MOOV_BYTES: u64 = 12 * 1024 * 1024;
 
 type Boxes<'a> = Vec<([u8; 4], &'a [u8])>;
 
-/// The boxes laid out one after the other in `data`; any irregular size is corrupt.
 fn boxes(data: &[u8]) -> Result<Boxes<'_>> {
     let mut out = Vec::new();
     let mut at = 0;
     while at < data.len() {
         let head = data.get(at..at + 8).ok_or_else(corrupt)?;
         let size = u32::from_be_bytes([head[0], head[1], head[2], head[3]]) as usize;
-        // Large and to-the-end sizes only make sense at the top level.
         if size < 8 || at + size > data.len() {
             return Err(corrupt());
         }
@@ -56,7 +46,6 @@ fn be64(bytes: &[u8], at: usize) -> Result<u64> {
     Ok(u64::from_be_bytes(slice.try_into().map_err(|_| corrupt())?))
 }
 
-/// (creation time, timescale, duration) of an `mvhd` or `mdhd` box, version 0 or 1.
 fn header_times(body: &[u8]) -> Result<(u64, u64, u64)> {
     match body.first() {
         Some(0) => Ok((be32(body, 4)?, be32(body, 12)?, be32(body, 16)?)),
@@ -65,7 +54,6 @@ fn header_times(body: &[u8]) -> Result<(u64, u64, u64)> {
     }
 }
 
-/// The calendar year of a Unix time, by the civil-from-days algorithm.
 fn year_of(unix: u64) -> u64 {
     let days = unix / 86_400 + 719_468;
     let era = days / 146_097;
@@ -82,9 +70,6 @@ fn year_of(unix: u64) -> u64 {
     }
 }
 
-/// ffmpeg's `creation_time` tag, of which only the year matters to the application. A value
-/// below the 1904 offset is taken as a Unix time, as ffmpeg does; years outside four digits
-/// are left to the reference.
 fn creation_year(stamp: u64) -> Result<Option<u64>> {
     if stamp == 0 {
         return Ok(None);
@@ -102,7 +87,6 @@ fn creation_year(stamp: u64) -> Result<Option<u64>> {
 }
 
 struct Track {
-    /// Duration of the track in seconds: edit list when present, else the media header.
     seconds: f64,
     creation: u64,
 }
@@ -167,7 +151,6 @@ fn track(body: &[u8], movie_scale: u64) -> Result<Track> {
                     be32(elst, 16)?,
                 )
             };
-            // One ordinary edit at normal speed; an empty edit or a rate change shifts timing.
             if start < 0 || rate != 0x0001_0000 {
                 return Err(unsupported());
             }
@@ -178,7 +161,6 @@ fn track(body: &[u8], movie_scale: u64) -> Result<Track> {
     Ok(Track { seconds, creation })
 }
 
-/// The sample table of the media: AAC or ALAC, and only boxes that carry no timing rule.
 fn sample_table(minf: &[u8]) -> Result<()> {
     let mut table = None;
     for (kind, inner) in boxes(minf)? {
@@ -205,7 +187,6 @@ fn sample_table(minf: &[u8]) -> Result<()> {
     Ok(())
 }
 
-/// Text item: exactly one UTF-8 `data` box.
 fn text_item(item: &[u8]) -> Result<String> {
     let payload = single_data(item, 1)?;
     if payload.is_empty() || payload.len() > MAX_TEXT_BYTES {
@@ -214,7 +195,6 @@ fn text_item(item: &[u8]) -> Result<String> {
     String::from_utf8(payload.to_vec()).map_err(|_| corrupt())
 }
 
-/// The payload of the only `data` box of an item, whose type indicator must be `kind`.
 fn single_data(item: &[u8], kind: u32) -> Result<&[u8]> {
     let list = boxes(item)?;
     let [(name, data)] = list.as_slice() else {
@@ -226,8 +206,6 @@ fn single_data(item: &[u8], kind: u32) -> Result<&[u8]> {
     Ok(&data[8..])
 }
 
-/// iTunes numbering (`trkn`, `disk`): two reserved bytes, number, total, two reserved bytes.
-/// ffmpeg prints a signed 16-bit number and the total only when it is not zero.
 fn number_item(item: &[u8]) -> Result<String> {
     let payload = single_data(item, 0)?;
     if payload.len() != 8 || payload[..2] != [0, 0] || payload[6..] != [0, 0] {
@@ -246,7 +224,6 @@ fn number_item(item: &[u8]) -> Result<String> {
 }
 
 fn read_meta(meta: &[u8], layout: &mut Layout, want_cover: bool) -> Result<()> {
-    // `meta` is a full box: version and flags precede its children.
     let body = meta.get(4..).ok_or_else(corrupt)?;
     let (mut handler, mut items) = (None, None);
     for (kind, inner) in boxes(body)? {
@@ -257,7 +234,6 @@ fn read_meta(meta: &[u8], layout: &mut Layout, want_cover: bool) -> Result<()> {
             _ => return Err(unsupported()),
         }
     }
-    // QuickTime-style `keys` metadata has another structure.
     if handler.and_then(|hdlr| hdlr.get(8..12)) != Some(b"mdir") {
         return Err(unsupported());
     }
@@ -299,7 +275,6 @@ fn read_meta(meta: &[u8], layout: &mut Layout, want_cover: bool) -> Result<()> {
                 }
                 continue;
             }
-            // Items ffmpeg exports under names the application never reads.
             b"\xa9too" | b"\xa9cmt" | b"\xa9wrt" | b"\xa9grp" | b"\xa9lyr" | b"cprt" | b"desc"
             | b"ldes" | b"cpil" | b"pgap" | b"tmpo" | b"stik" | b"rtng" | b"hdvd" => {
                 let list = boxes(item)?;
@@ -345,7 +320,6 @@ fn read_moov(moov: &[u8], layout: &mut Layout, want_cover: bool) -> Result<()> {
             }
         }
     }
-    // ffmpeg tags the movie, then the stream, with their creation times; the first wins.
     let created = if movie_created != 0 {
         movie_created
     } else {
@@ -416,7 +390,6 @@ pub(crate) fn scan<R: Read + Seek>(
                     .seek(SeekFrom::Current(body as i64))
                     .map_err(|_| corrupt())?;
             }
-            // Fragments, segment indexes, uuid boxes, a top-level meta: not this layout.
             _ => return Err(unsupported()),
         }
         position += size;
@@ -545,7 +518,6 @@ mod tests {
         assert_eq!(layout.duration, Duration::Exact(1.37));
         assert_eq!(layout.tags["title"], "Été");
         assert_eq!(layout.tags["track"], "3/12");
-        // Without an edit list the media header decides; a disagreement is refused.
         let plain = file(&[], (0, 44_100, 61_441), track_box(None, 61_441, b"alac"));
         assert!(scanned(&plain).is_ok());
         let off = file(&[], (0, 44_100, 61_441), track_box(None, 70_000, b"mp4a"));
@@ -603,7 +575,6 @@ mod tests {
             track_box(Some((1370, 1024)), 61_441, b"mp4a"),
         );
         assert_eq!(scanned(&bitmap).unwrap_err().reason, "ambiguous_cover");
-        // The tags of a file whose picture is not eligible are still read.
         let tags = scan(&mut Cursor::new(&bitmap), bitmap.len() as u64, false).unwrap();
         assert_eq!(tags.pictures, 1);
     }
@@ -611,7 +582,6 @@ mod tests {
     #[test]
     fn unknown_items_boxes_and_layouts_are_refused() {
         let track = || track_box(Some((1370, 1024)), 61_441, b"mp4a");
-        // Free-form item, a genre index, a duplicate title.
         for items in [
             item(b"----", 1, b"x"),
             item(b"gnre", 0, &[0, 12]),
@@ -620,7 +590,6 @@ mod tests {
         ] {
             assert!(scanned(&file(&items, (0, 1000, 1370), track())).is_err());
         }
-        // Fragmented file, no brand, extra top-level box.
         let mut fragmented = file(&[], (0, 1000, 1370), track());
         fragmented.extend(atom(b"moof", &[]));
         assert_eq!(scanned(&fragmented).unwrap_err().reason, "unsupported");

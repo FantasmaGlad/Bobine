@@ -1,5 +1,3 @@
-"""Détail d'une sortie audio : analyse (pw-dump), balance gauche/droite, son de test, profil, alias et masquage."""
-
 import asyncio
 import io
 import os
@@ -58,11 +56,11 @@ def test_parse_audio_details_reads_node_card_profile_and_balance():
     assert d["sample_rate"] == 48000 and d["format"] == "S32LE" and d["latency_ms"] == 21.3
     assert d["card"] == "HD-Audio" and d["bus"] == "pci"
     assert d["profile"]["index"] == 2 and d["profile"]["active"]
-    assert [p["index"] for p in d["profiles"]] == [1, 2, 3]  # « off » n'est pas proposé
+    assert [p["index"] for p in d["profiles"]] == [1, 2, 3]
     assert [p["available"] for p in d["profiles"]] == [False, True, True]
     assert d["balance"] == 0.0 and d["level"] == pytest.approx(0.46, abs=0.001)
     assert parse_audio_details(DUMP, "absente") is None
-    assert find_sink_node(DUMP, "micro") is None  # une source n'est pas une sortie
+    assert find_sink_node(DUMP, "micro") is None
 
 
 def test_balance_math_roundtrip_and_level_preserved():
@@ -70,10 +68,10 @@ def test_balance_math_roundtrip_and_level_preserved():
     for b in (-1.0, -0.5, 0.0, 0.25, 1.0):
         volumes = channel_volumes_for_balance(base, b)
         assert balance_from_channel_volumes(volumes) == pytest.approx(b, abs=0.01)
-        assert max(v ** (1 / 3) for v in volumes) == pytest.approx(0.46, abs=0.001)  # niveau maître conservé
-    assert channel_volumes_for_balance(base, -1.0)[1] == 0.0  # tout à gauche : droite coupée
-    assert channel_volumes_for_balance(base, 9)[0] == 0.0  # borné
-    assert balance_from_channel_volumes([0.1, 0.1, 0.1]) is None  # pas de balance hors stéréo
+        assert max(v ** (1 / 3) for v in volumes) == pytest.approx(0.46, abs=0.001)
+    assert channel_volumes_for_balance(base, -1.0)[1] == 0.0
+    assert channel_volumes_for_balance(base, 9)[0] == 0.0
+    assert balance_from_channel_volumes([0.1, 0.1, 0.1]) is None
     assert balance_from_channel_volumes([0.0, 0.0]) == 0.0
 
 
@@ -86,14 +84,14 @@ def test_tone_wav_is_stereo_short_quiet_and_silences_the_other_channel():
         import struct
         samples = struct.unpack("<" + "h" * (len(raw) // 2), raw)
         left, right = samples[0::2], samples[1::2]
-        assert max(abs(s) for s in left + right) < 32767 * 0.25  # plafond d'amplitude
+        assert max(abs(s) for s in left + right) < 32767 * 0.25
         if loud == 0:
             assert max(abs(s) for s in right) == 0 and max(abs(s) for s in left) > 1000
         elif loud == 1:
             assert max(abs(s) for s in left) == 0 and max(abs(s) for s in right) > 1000
         else:
             assert max(abs(s) for s in left) > 1000 and max(abs(s) for s in right) > 1000
-        assert left[0] == 0 and left[-1] == 0  # fondus : pas de claquement
+        assert left[0] == 0 and left[-1] == 0
     with pytest.raises(ValueError):
         tone_wav_bytes("haut")
 
@@ -126,14 +124,13 @@ def test_linux_driver_balance_profile_and_tone(monkeypatch):
         assert cmd[:4] == ("pw-cli", "set-param", "60", "Props") and "channelVolumes: [0.097331, 0.000000]" in cmd[4]
         await driver.audio_set_profile(SINK, 3)
         assert ("wpctl", "set-profile", "52", "3") in runner.calls
-        for bad in (1, 99, 0):  # indisponible, inexistant, « off »
+        for bad in (1, 99, 0):
             with pytest.raises(DeviceError) as exc:
                 await driver.audio_set_profile(SINK, bad)
             assert exc.value.code == "bad_profile"
         with pytest.raises(DeviceError) as exc:
             await driver.audio_test_tone(SINK, "haut")
         assert exc.value.code == "bad_channel"
-        # Un seul son de test à la fois, jamais deux superposés.
         first = asyncio.create_task(driver.audio_test_tone(SINK, "left"))
         await asyncio.sleep(0.05)
         with pytest.raises(DeviceError) as busy:
@@ -164,11 +161,6 @@ def test_linux_driver_reports_missing_tools(monkeypatch):
             assert exc.value.code == "tool_missing"
 
     asyncio.run(scenario())
-
-
-# ---------------------------------------------------------------------------
-# Routes : alias, masquage, validations
-# ---------------------------------------------------------------------------
 
 
 class FakeAudioDriver(DeviceDriver):
@@ -234,7 +226,6 @@ def test_alias_and_hidden_are_merged_into_listing_and_details(api):
     listing = client.get("/api/devices/audio").json()["devices"]
     assert [(d["id"], d["alias"], d["hidden"]) for d in listing] == [("a", "Salle principale", False), ("b", None, True)]
     assert client.get("/api/devices/audio/details", params={"id": "a"}).json()["alias"] == "Salle principale"
-    # Effacer l'alias et réafficher supprime l'entrée.
     client.put("/api/devices/audio/meta", json={"id": "a", "alias": ""})
     client.put("/api/devices/audio/meta", json={"id": "b", "hidden": False})
     with SessionLocal() as db:

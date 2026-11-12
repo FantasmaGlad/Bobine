@@ -35,7 +35,6 @@ function harness(deps: Deps, signal: AbortSignal = new AbortController().signal)
   return { opts, phases, notices, sleeps };
 }
 
-/** fetch factice : réponses par route ; un handler qui renvoie `"hang"` ne répond jamais (comme un serveur gelé). */
 function fakeFetch(routes: { post: () => Response | "hang" | Error; get?: () => Response | Error }): typeof fetch {
   return ((input: string, init?: RequestInit) => new Promise((resolve, reject) => {
     const handler = init?.method === "POST" ? routes.post : routes.get;
@@ -163,8 +162,6 @@ test("refus définitif (4xx) : aucune reprise, détail du serveur conservé", as
 });
 
 test("des octets conservés par le serveur comptent comme un progrès : le compteur de tentatives repart", async () => {
-  // Chaque morceau échoue une fois en laissant 1 octet de plus côté serveur : 12 échecs au total (> MAX_ATTEMPTS)
-  // mais jamais 8 d'affilée sans progrès.
   const size = 12;
   let serverOffset = 0;
   const h = harness({

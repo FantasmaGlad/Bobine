@@ -1,6 +1,3 @@
-"""Identifiants stables dans la configuration : renommage, restauration, suppression opt-in, planning à `id` conservés,
-métadonnées des médias, noms plats de la version 5.1."""
-
 import asyncio
 import copy
 import os
@@ -42,7 +39,7 @@ def test_renaming_a_playlist_keeps_its_identity(single_names):
     result = _apply({"playlists/video.json": files["playlists/video.json"]})
     assert result["changes"]
     with SessionLocal() as db:
-        playlist = db.query(Playlist).one()  # une seule : renommée, pas dupliquée
+        playlist = db.query(Playlist).one()
         assert (playlist.id, playlist.uid, playlist.name) == (before_id, before_uid, "Lundi soir (nouveau nom)")
     assert _apply(_export(), dry_run=True)["changes"] == {}
 
@@ -56,11 +53,11 @@ def test_without_prune_missing_playlists_stay_and_with_prune_they_go(single_name
     files["playlists/video.json"]["prune"] = True
     assert _apply({"playlists/video.json": files["playlists/video.json"]}, dry_run=True)["changes"]
     with SessionLocal() as db:
-        assert db.query(Playlist).count() == 2  # essai à blanc : rien supprimé
+        assert db.query(Playlist).count() == 2
     _apply({"playlists/video.json": files["playlists/video.json"]})
     with SessionLocal() as db:
         assert [p.name for p in db.query(Playlist).all()] == ["Autre"]
-        assert db.query(Schedule).count() == 0  # la programmation qui visait « Lundi soir » disparaît avec elle
+        assert db.query(Schedule).count() == 0
 
 
 def test_prune_must_be_a_boolean(single_names):
@@ -110,7 +107,7 @@ def test_schedule_ids_survive_an_apply_with_or_without_uids(single_names):
         for override in entry["overrides"]:
             override.pop("uid", None)
     legacy["schema"] = 1
-    assert _apply({"schedule-cable.json": legacy}, dry_run=True)["changes"] == {}  # nom plat de la 5.1
+    assert _apply({"schedule-cable.json": legacy}, dry_run=True)["changes"] == {}
     _apply({"schedule-cable.json": legacy})
     with SessionLocal() as db:
         kept = db.query(Schedule).one()
@@ -169,7 +166,6 @@ def test_library_videos_are_edited_by_uid_even_after_a_title_change(single_names
     with SessionLocal() as db:
         video = db.query(Video).one()
         assert (video.title, video.program, video.description) == ("RPM 111", None, "Nouvelle séance")
-    # Retrouvé par son seul nom de fichier (document sans uid)
     document["videos"][0].pop("uid")
     document["videos"][0]["title"] = "RPM 112"
     _apply({"library/videos.json": document})
@@ -236,8 +232,6 @@ def test_export_apply_export_is_identical_with_all_files(single_names):
     assert _export() == first
 
 
-# --- liens vers les fichiers de chapitres et de sous-titres ------------------------------------------------------------
-
 @pytest.fixture(autouse=True)
 def _no_leftover_links():
     from app.models import VideoChapter, VideoSubtitle
@@ -289,12 +283,10 @@ def test_imported_chapter_file_is_linked_with_its_path(single_names, data_dirs):
     linked = Path(entry["chapters_file"]["path"])
     assert linked.exists() and linked.read_text(encoding="utf-8").startswith("00:00 Intro")
     assert entry["chapters_file"]["file"] == linked.name and linked.name.endswith("chapitres_cours.txt")
-    # Une modification à la main : les chapitres ne viennent plus du fichier, sa copie disparaît.
     client.put(f"/api/videos/{video_id}/chapters", json={"chapters": [{"start_seconds": 0, "title": "Seul"}]})
     entry = _video_entry()
     assert entry["chapters"] is True and entry["chapters_source"] == "manual" and entry["chapters_file"] is None
     assert not linked.exists()
-    # Tout retirer : `chapters` redevient faux.
     client.put(f"/api/videos/{video_id}/chapters", json={"chapters": []})
     assert _video_entry()["chapters"] is False
 
@@ -348,7 +340,6 @@ def test_links_are_informational_and_never_applied_nor_in_the_diff(single_names,
 
 
 def test_deleting_a_video_used_by_a_playlist_and_a_schedule_works(data_dirs, tmp_path, single_names):
-    """Régression : la ligne de playlist orpheline faisait échouer la suppression, après l'effacement des fichiers."""
     from fastapi.testclient import TestClient
 
     from app.main import app
@@ -369,4 +360,4 @@ def test_deleting_a_video_used_by_a_playlist_and_a_schedule_works(data_dirs, tmp
     with SessionLocal() as db:
         assert db.query(Video).count() == 0 and db.query(PlaylistItem).count() == 0
         assert db.query(Schedule).filter(Schedule.target_type == ScheduleTargetType.video).count() == 0
-        assert db.query(Playlist).count() == 1  # la playlist reste, seulement sans cette vidéo
+        assert db.query(Playlist).count() == 1

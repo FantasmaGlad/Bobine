@@ -5,16 +5,8 @@ import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { RadioTrackInfo } from "@/lib/useRadioSocket";
 
-// File « À suivre » d'une sortie radio : une vraie petite barre de gestion par morceau (pochette,
-// titre, artiste, style, durée) avec glisser-déposer pour réordonner. Le glisser-déposer utilise les
-// évènements « pointer » (souris, doigt, stylet) plutôt que l'API HTML5 de glisser-déposer, qui ne
-// fonctionne pas au toucher (tablette Android, téléphone) ; la poignée est aussi pilotable au clavier
-// (flèches haut/bas) pour l'accessibilité et la télécommande.
-
-/** Marge (px) du bord de la liste qui déclenche le défilement automatique pendant un glissement. */
 const AUTOSCROLL_EDGE = 36;
 const AUTOSCROLL_STEP = 14;
-/** Durée (ms) pendant laquelle l'ordre local prime sur l'état serveur après un déplacement. */
 const OPTIMISTIC_HOLD_MS = 1500;
 
 function formatTrackTime(seconds: number | null | undefined): string {
@@ -24,9 +16,7 @@ function formatTrackTime(seconds: number | null | undefined): string {
 }
 
 interface RadioQueueListProps {
-  /** Pistes À VENIR, dans l'ordre de lecture. */
   tracks: RadioTrackInfo[];
-  /** Index absolu (dans l'ordre complet du moteur) de la première piste de `tracks`. */
   baseIndex: number;
   getApiUrl: (path: string) => string;
   onRemove: (absoluteIndex: number) => void;
@@ -40,8 +30,6 @@ interface DragState {
   startScroll: number;
   dy: number;
   rowHeight: number;
-  /** Bornes (bas) de chaque ligne au DÉBUT du glissement, en coordonnées du contenu défilant : les
-   * lignes se décalent ensuite visuellement, on ne peut donc pas les relire en cours de route. */
   bottoms: number[];
 }
 
@@ -50,7 +38,6 @@ export default function RadioQueueList({ tracks, baseIndex, getApiUrl, onRemove,
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [drag, setDrag] = useState<DragState | null>(null);
-  // Ordre local appliqué dès le dépôt (sans attendre le serveur) ; ignoré dès que l'état serveur change.
   const [override, setOverride] = useState<{ signature: string; tracks: RadioTrackInfo[] } | null>(null);
   const overrideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusHandleRef = useRef<number | null>(null);
@@ -65,7 +52,6 @@ export default function RadioQueueList({ tracks, baseIndex, getApiUrl, onRemove,
     [],
   );
 
-  // Après un déplacement au clavier, la poignée suit la piste déplacée.
   useEffect(() => {
     if (focusHandleRef.current === null) return;
     const index = focusHandleRef.current;
@@ -90,8 +76,6 @@ export default function RadioQueueList({ tracks, baseIndex, getApiUrl, onRemove,
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
-      // Pointeur déjà relâché ou non capturable : le glissement continue sans capture (les évènements
-      // de la poignée suffisent tant que le pointeur reste dessus).
     }
     const containerTop = container.getBoundingClientRect().top;
     const bottoms = rowRefs.current
@@ -115,11 +99,9 @@ export default function RadioQueueList({ tracks, baseIndex, getApiUrl, onRemove,
     const bounds = container.getBoundingClientRect();
     if (event.clientY < bounds.top + AUTOSCROLL_EDGE) container.scrollTop -= AUTOSCROLL_STEP;
     else if (event.clientY > bounds.bottom - AUTOSCROLL_EDGE) container.scrollTop += AUTOSCROLL_STEP;
-    // Position du pointeur dans le contenu défilant : cible = première ligne dont le bas la dépasse.
     const contentY = event.clientY - bounds.top + container.scrollTop;
     let to = drag.bottoms.findIndex((bottom) => contentY < bottom);
     if (to < 0) to = Math.max(0, shown.length - 1);
-    // La ligne tenue suit le pointeur même quand la liste défile.
     const dy = event.clientY - drag.startY + (container.scrollTop - drag.startScroll);
     setDrag({ ...drag, to, dy });
   };
@@ -129,7 +111,6 @@ export default function RadioQueueList({ tracks, baseIndex, getApiUrl, onRemove,
     try {
       if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     } catch {
-      // rien à libérer
     }
     const { from, to } = drag;
     setDrag(null);
@@ -146,7 +127,6 @@ export default function RadioQueueList({ tracks, baseIndex, getApiUrl, onRemove,
     applyLocalMove(index, to);
   };
 
-  // Décalage visuel des lignes pendant un glissement : celles que la ligne déplacée enjambe s'écartent.
   const offsetFor = (index: number): number => {
     if (!drag) return 0;
     if (index === drag.from) return drag.dy;

@@ -15,9 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_video_info(file_path: str) -> dict:
-    """
-    Exécute ffprobe pour extraire les informations de flux et de format de la vidéo au format JSON.
-    """
+    """Exécute ffprobe pour extraire les informations de flux et de format de la vidéo au format JSON."""
     cmd = [
         FFPROBE_BIN,
         "-v", "error",
@@ -40,8 +38,6 @@ def get_video_info(file_path: str) -> dict:
         raise ValueError(f"Impossible de lire le fichier vidéo avec ffprobe : {e.stderr}")
     except OSError as e:
         if is_missing_tool_error(e):
-            # Binaire absent/non exécutable : message explicite (avec l'aide
-            # d'installation du système) plutôt que « [Errno 2] … 'ffprobe' ».
             missing = missing_tool_error("ffprobe", e)
             logger.error(f"ffprobe ne peut pas être lancé ({FFPROBE_BIN}) : {e}")
             raise missing from e
@@ -53,9 +49,7 @@ def get_video_info(file_path: str) -> dict:
 
 
 def extract_metadata(file_path: str) -> dict:
-    """
-    Extrait les métadonnées pertinentes (durée, résolution, codecs, DRM) du fichier vidéo.
-    """
+    """Extrait les métadonnées pertinentes (durée, résolution, codecs, DRM) du fichier vidéo."""
     info = get_video_info(file_path)
     streams = info.get("streams", [])
     fmt = info.get("format", {})
@@ -96,7 +90,6 @@ def extract_metadata(file_path: str) -> dict:
             except (ValueError, TypeError):
                 pass
 
-    # Extraction de la cadence d'images (FPS)
     fps = None
     if v_stream:
         for rate_key in ("r_frame_rate", "avg_frame_rate"):
@@ -119,7 +112,6 @@ def extract_metadata(file_path: str) -> dict:
                 except (ValueError, ZeroDivisionError):
                     pass
 
-    # Extraction du débit global ou vidéo (en kbps)
     bitrate_kbps = None
     raw_br = fmt.get("bit_rate") or (v_stream.get("bit_rate") if v_stream else None)
     if raw_br:
@@ -128,7 +120,6 @@ def extract_metadata(file_path: str) -> dict:
         except (ValueError, TypeError):
             pass
 
-    # Extraction de la description / synopsis intégrée aux métadonnées conteneur
     description = None
     fmt_tags = fmt.get("tags") or {}
     if isinstance(fmt_tags, dict):
@@ -145,17 +136,14 @@ def extract_metadata(file_path: str) -> dict:
             if desc_candidate and desc_candidate.strip():
                 description = desc_candidate.strip()
 
-    # Détection des DRM (FairPlay / Encrypted streams)
     is_drm = False
     for s in streams:
         c_name = str(s.get("codec_name", "")).lower()
         c_tag = str(s.get("codec_tag_string", "")).lower()
-        # "encv" et "enca" indiquent des flux chiffrés standard dans les conteneurs MP4/ISO
         if c_name in ("encv", "enca") or c_tag in ("encv", "enca"):
             is_drm = True
             break
 
-    # Vérification des tags pour détecter des mentions de DRM ou chiffrement
     if not is_drm:
         for s in streams:
             for k, v in s.get("tags", {}).items():

@@ -1,13 +1,4 @@
-"""Router des rappels Radio.
-
-Annonces de bienséance intercalées dans la musique : import (fichier +
-description obligatoire), activation/retrait, règles de déclenchement (toutes
-les N musiques / toutes les X minutes / à heures fixes), et déclenchement
-manuel (« jouer maintenant »). Le tirage et l'insertion réels vivent dans
-`RadioPlaybackManager.play_announcement` (état) + `radio_announcement_scheduler`
-(règles temporelles) + `api/routes/playback/::_handle_radio_command` (règle
-« toutes les N musiques », à la fin de chaque piste).
-"""
+"""Router des rappels Radio."""
 import json
 import logging
 import os
@@ -19,7 +10,7 @@ from typing import List
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 try:
     from pydantic import BaseModel, field_validator
-except ImportError:  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1)
+except ImportError:
     from pydantic import BaseModel, validator as field_validator
 from sqlalchemy.orm import Session
 
@@ -35,9 +26,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/radio", tags=["radio-announcements"])
 
 
-# ---------------------------------------------------------------------------
-# Schémas
-# ---------------------------------------------------------------------------
 class RadioAnnouncementResponse(BaseModel):
     id: int
     description: str
@@ -52,8 +40,6 @@ class RadioAnnouncementUpdate(BaseModel):
 
 class PlayNowInput(BaseModel):
     announcement_id: int | None = None
-    # Sortie radio où jouer le rappel : "radio_cable", "radio_network" ou "both".
-    # Absent = sortie réseau (comportement d'avant les deux sorties).
     target: str | None = None
 
 
@@ -77,9 +63,6 @@ class RadioAnnouncementRuleInput(BaseModel):
     interval_minutes: int | None = None
     times_of_day: List[str] | None = None
     enabled: bool = True
-    # Sortie concernée : "radio_cable", "radio_network" ou "both". Absente : réseau à la création
-    # (comportement d'avant les deux sorties), cible CONSERVÉE à la mise à jour — un client qui ne
-    # connaît pas ce champ (page en cache) ne doit pas ramener une règle câblée sur le réseau.
     target: str | None = None
 
     @field_validator("times_of_day")
@@ -122,9 +105,6 @@ def _validate_rule_fields(data: RadioAnnouncementRuleInput) -> None:
         raise HTTPException(status_code=400, detail="times_of_day est requis pour une règle « à heures fixes »")
 
 
-# ---------------------------------------------------------------------------
-# Rappels — bibliothèque
-# ---------------------------------------------------------------------------
 @router.get("/announcements", response_model=List[RadioAnnouncementResponse])
 def list_announcements(db: Session = Depends(get_db)):
     return db.query(RadioAnnouncement).order_by(RadioAnnouncement.imported_at.desc()).all()
@@ -134,9 +114,7 @@ def list_announcements(db: Session = Depends(get_db)):
 def upload_announcement(
     file: UploadFile = File(...), description: str = Form(...), db: Session = Depends(get_db),
 ):
-    """Import synchrone (un seul fichier + description obligatoire) :
-    pas de job d'arrière-plan, contrairement aux morceaux — le traitement
-    ffprobe/ffmpeg d'un unique fichier reste rapide."""
+    """Import synchrone (un seul fichier + description obligatoire) : pas de job d'arrière-plan, contrairement aux morceaux — le traitement ffprobe/ffmpeg d'un unique fichier reste rapide."""
     description = description.strip()
     if not description:
         raise HTTPException(status_code=400, detail="La description est obligatoire")
@@ -172,9 +150,7 @@ def _run_announcements_import_job(job_id: str, tmp_dir: Path, temp_paths: list[s
 
 @router.post("/announcements/upload-batch", response_model=ImportJobAccepted, status_code=202)
 def upload_announcements_batch(files: List[UploadFile] = File(...)):
-    """Import groupé (plusieurs fichiers ou dossier entier) : traité en arrière-plan comme les
-    morceaux — voir GET /api/import-jobs. Description dérivée automatiquement
-    du nom de chaque fichier (décision actée), pas de champ description ici."""
+    """Import groupé (plusieurs fichiers ou dossier entier) : traité en arrière-plan comme les morceaux — voir GET /api/import-jobs."""
     tmp_dir = Path(tempfile.mkdtemp(prefix="olmc_announcement_upload_"))
     temp_paths = []
     try:
@@ -199,8 +175,6 @@ def update_announcement(announcement_id: int, payload: RadioAnnouncementUpdate, 
     if not announcement:
         raise HTTPException(status_code=404, detail="Rappel non trouvé")
 
-    # `.model_fields_set` (v2) / `.__fields_set__` (v1, profil Android) —
-    # cf. docs/ARCHITECTURE.md §3.1.
     fields_set = getattr(payload, "model_fields_set", None) or payload.__fields_set__
     if "description" in fields_set:
         description = (payload.description or "").strip()
@@ -235,9 +209,7 @@ def delete_announcement(announcement_id: int, db: Session = Depends(get_db)):
 
 @router.post("/announcements/play-now")
 async def play_announcement_now(payload: PlayNowInput, db: Session = Depends(get_db)):
-    """Déclenchement manuel — toujours en mode « duck »
-    (fondu immédiat, la musique continue). `announcement_id` nul = tirage
-    aléatoire parmi les rappels actifs."""
+    """Déclenchement manuel — toujours en mode « duck » (fondu immédiat, la musique continue)."""
     from app.radio_manager import RADIO_CHANNELS, RULE_TARGET_BOTH, get_radio_manager, normalize_rule_target
     from app.utils.radio_commands import play_announcement_now as play_now, resolve_announcement
 
@@ -249,9 +221,6 @@ async def play_announcement_now(payload: PlayNowInput, db: Session = Depends(get
     return await play_now(db, [get_radio_manager(channel) for channel in outputs], announcement)
 
 
-# ---------------------------------------------------------------------------
-# Règles de déclenchement
-# ---------------------------------------------------------------------------
 @router.get("/announcement-rules", response_model=List[RadioAnnouncementRuleResponse])
 def list_rules(db: Session = Depends(get_db)):
     rules = db.query(RadioAnnouncementRule).order_by(RadioAnnouncementRule.created_at.asc()).all()

@@ -1,10 +1,4 @@
-"""Chapitres d'un cours : lecture (JSON, WebVTT, liste « 05:00 Titre », chapitres
-incorporés au fichier), validation et sérialisation.
-
-Un chapitre est `{"start_seconds", "end_seconds", "title"}`. `end_seconds` vaut
-le début du chapitre suivant (ou la durée du cours) quand il n'est pas fourni.
-Module sans dépendance sur la base : testable seul.
-"""
+"""Chapitres d'un cours : lecture (JSON, WebVTT, liste « 05:00 Titre », chapitres incorporés au fichier), validation et sérialisation."""
 
 import json
 import re
@@ -53,7 +47,6 @@ def parse_timestamp(value: Any) -> float:
 
 
 def _pick_title(raw: Any) -> str:
-    """Titre d'un chapitre, éventuellement localisé (`{"fr": "...", "en": "..."}`)."""
     if isinstance(raw, dict):
         for key in ("fr", "en"):
             if raw.get(key):
@@ -194,8 +187,6 @@ def read_embedded(file_path: str) -> list[dict[str, Any]]:
             continue
     return chapters
 
-
-# --- copie du fichier de chapitres importé ------------------------------------------------------------------------------
 
 def chapters_directory():
     """Dossier des fichiers de chapitres importés, à côté de celui des sous-titres (créé au besoin)."""

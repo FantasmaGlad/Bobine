@@ -28,7 +28,6 @@ class ImportJobResponse(BaseModel):
     speed: str | None = None
     estimated_seconds: float | None = None
     queue_eta_seconds: int | None = None
-    # Transferts depuis un support externe (import, indexation, export) : progression par octets et fichiers, bilan final.
     bytes_total: int | None = None
     bytes_done: int | None = None
     files_total: int | None = None
@@ -39,22 +38,13 @@ class ImportJobResponse(BaseModel):
 
 @router.get("", response_model=List[ImportJobResponse])
 def get_import_jobs():
-    """
-    File d'attente des imports en direct : uploads web ET
-    dossiers surveillés confondus, triés par ordre de création. Interrogé par
-    polling depuis l'UI d'admin plutôt qu'un canal WebSocket dédié — ces
-    tâches évoluent lentement (secondes à dizaines de minutes) comparé au
-    reste de l'app, un polling léger suffit largement.
-    """
+    """File d'attente des imports en direct : uploads web ET dossiers surveillés confondus, triés par ordre de création."""
     return list_jobs()
 
 
 @router.delete("/{job_id}")
 def cancel_import_job(job_id: str):
-    """
-    Annule immédiatement une tâche d'importation en cours ou en attente,
-    interrompt FFmpeg le cas échéant et supprime les fichiers temporaires.
-    """
+    """Annule immédiatement une tâche d'importation en cours ou en attente, interrompt FFmpeg le cas échéant et supprime les fichiers temporaires."""
     found = cancel_job(job_id)
     if not found:
         raise HTTPException(status_code=404, detail="Tâche d'importation introuvable ou déjà terminée")

@@ -12,12 +12,10 @@ import type { SectionProps } from "./common";
 interface Props {
   model: RoutingGraphModel;
   t: SectionProps["t"];
-  /** Désactivé pendant un enregistrement ou quand la plateforme ne permet pas de router. */
   disabled: boolean;
   onAssign: (assignment: Assignment) => void;
 }
 
-/** Au-delà de ce déplacement (px écran), un appui devient un glisser (en deçà : un simple clic de sélection). */
 const DRAG_THRESHOLD = 6;
 
 function sourceIcon(source: GraphSource): string {
@@ -29,18 +27,12 @@ function sinkIcon(sink: GraphSink): string {
   return sink.kind === "default" ? "volume_up" : audioKindIcon(sink.kind);
 }
 
-/**
- * Graphe de routage : sources à gauche, sorties à droite. Glisser une radio vers une sortie la re-route ; à la
- * télécommande ou au clavier : Entrée sur la radio, puis Entrée sur la sortie (Échap annule). Tous les nœuds sont
- * focalisables (navigation spatiale), l'état en direct est porté par la couleur ET par le texte.
- */
 export default function RoutingGraph({ model, t, disabled, onAssign }: Props) {
   const layout: GraphLayout = useMemo(() => layoutRoutingGraph(model), [model]);
   const svgRef = useRef<SVGSVGElement>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ id: string; x: number; y: number; moved: boolean } | null>(null);
   const startRef = useRef<{ x: number; y: number } | null>(null);
-  // Après un appui à la souris ou au doigt, le navigateur peut émettre un « click » en plus (selon la capture du pointeur).
   const suppressClickUntil = useRef(0);
 
   const nodeOf = (id: string) => layout.nodes.find((n) => n.id === id);
@@ -76,7 +68,6 @@ export default function RoutingGraph({ model, t, disabled, onAssign }: Props) {
   const onSourceActivate = (source: GraphSource) => {
     if (!source.draggable || disabled) return;
     setPicked((current) => (current === source.id ? null : source.id));
-    // Le focus passe aux sorties : un second Entrée (ou un clic) valide.
     requestAnimationFrame(() => svgRef.current?.querySelector<SVGGElement>(".rt-node--sink")?.focus());
   };
 
@@ -102,7 +93,7 @@ export default function RoutingGraph({ model, t, disabled, onAssign }: Props) {
     suppressClickUntil.current = performance.now() + 400;
     if (!current.moved) {
       const source = sourceOf(current.id);
-      if (source) onSourceActivate(source); // simple appui : sélection (puis clic sur une sortie)
+      if (source) onSourceActivate(source);
       return;
     }
     const target = sinkAt(layout, toGraphPoint(event));

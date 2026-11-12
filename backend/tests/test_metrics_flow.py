@@ -4,7 +4,6 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Add backend directory to Python path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_metrics_database.db"
@@ -55,14 +54,12 @@ class TestMetricsFlow(unittest.TestCase):
                 pass
 
     def setUp(self):
-        # Clean up database tables for each test
         with SessionLocal() as db:
             db.query(CourseRating).delete()
             db.query(PlaybackSession).delete()
             db.query(Video).delete()
             db.commit()
 
-            # Insert sample video
             self.video = Video(
                 file_path="/media/test_rpm.mp4",
                 title="RPM 100",
@@ -76,7 +73,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.video_id = self.video.id
 
     def test_playback_session_lifecycle_completed(self):
-        """Teste le cycle de vie d'une session terminée avec complétion (>= 90%)."""
         with SessionLocal() as db:
             sess_id = start_playback_session(
                 db, video_id=self.video_id, channel="cable", launch_type="grid", total_duration_seconds=3000.0
@@ -88,7 +84,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertEqual(s.duration_played_seconds, 1500.0)
             self.assertFalse(s.completed)
 
-            # Visionnage jusqu'à 2750s (> 90% de 3000s = 2700s)
             close_playback_session(db, sess_id, position_seconds=2750.0)
             s = db.query(PlaybackSession).filter(PlaybackSession.id == sess_id).first()
             self.assertTrue(s.completed)
@@ -96,23 +91,19 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertEqual(s.duration_played_seconds, 2750.0)
 
     def test_playback_session_lifecycle_abandoned(self):
-        """Teste le cycle de vie d'une session abandonnée (< 90%)."""
         with SessionLocal() as db:
             sess_id = start_playback_session(
                 db, video_id=self.video_id, channel="network", launch_type="kiosk", total_duration_seconds=3000.0
             )
             self.assertIsNotNone(sess_id)
 
-            # Abandon à 600s (20%)
             close_playback_session(db, sess_id, position_seconds=600.0)
             s = db.query(PlaybackSession).filter(PlaybackSession.id == sess_id).first()
             self.assertFalse(s.completed)
             self.assertEqual(s.duration_played_seconds, 600.0)
 
     def test_rating_api_flow(self):
-        """Teste les endpoints de notation 5 étoiles."""
         with SessionLocal() as db:
-            # 1. Notation valide
             r1 = create_course_rating(
                 RatingCreate(video_id=self.video_id, rating=5, channel="cable", source="grid"),
                 db=db,
@@ -120,14 +111,12 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertEqual(r1["rating"], 5)
             self.assertEqual(r1["source"], "grid")
 
-            # 2. Deuxième note
             r2 = create_course_rating(
                 RatingCreate(video_id=self.video_id, rating=4, channel="cable", source="cinema"),
                 db=db,
             )
             self.assertEqual(r2["rating"], 4)
 
-            # 3. Vidéo inexistante -> 404
             with self.assertRaises(HTTPException) as cm:
                 create_course_rating(
                     RatingCreate(video_id=99999, rating=5, channel="cable", source="grid"),
@@ -135,20 +124,17 @@ class TestMetricsFlow(unittest.TestCase):
                 )
             self.assertEqual(cm.exception.status_code, 404)
 
-            # 4. Lister les notes
             ratings = list_course_ratings(video_id=self.video_id, db=db)
             self.assertEqual(len(ratings), 2)
 
     def test_dashboard_aggregation(self):
-        """Teste l'agrégation complète du tableau de bord /api/metrics/dashboard."""
         with SessionLocal() as db:
             s1 = start_playback_session(db, self.video_id, "cable", "grid", 3000.0)
-            close_playback_session(db, s1, position_seconds=2800.0)  # completed
+            close_playback_session(db, s1, position_seconds=2800.0)
 
             s2 = start_playback_session(db, self.video_id, "cable", "cinema", 3000.0)
-            close_playback_session(db, s2, position_seconds=500.0)  # abandoned
+            close_playback_session(db, s2, position_seconds=500.0)
 
-            # Insérer un avis
             r = CourseRating(
                 video_id=self.video_id,
                 rating=5,
@@ -161,7 +147,6 @@ class TestMetricsFlow(unittest.TestCase):
 
             data = get_metrics_dashboard(period="30d", channel="all", db=db)
 
-        # KPIs
         kpis = data["kpis"]
         self.assertEqual(kpis["sessions"]["total"], 2)
         self.assertEqual(kpis["completion"]["completed_sessions"], 1)
@@ -170,20 +155,16 @@ class TestMetricsFlow(unittest.TestCase):
         self.assertEqual(kpis["satisfaction"]["total_count"], 1)
         self.assertEqual(kpis["satisfaction"]["distribution"]["5"], 1)
 
-        # Volume
         self.assertGreater(kpis["broadcast"]["total_seconds"], 3000.0)
 
-        # Distribution horaire
         self.assertEqual(len(data["hourly_distribution"]), 24)
 
-        # Classement cours
         stats = data["course_stats"]
         self.assertGreaterEqual(len(stats), 1)
         rpm = next(c for c in stats if c["video_id"] == self.video_id)
         self.assertEqual(rpm["sessions_count"], 2)
         self.assertEqual(rpm["average_rating"], 5.0)
 
-        # Télémétrie matérielle
         hw = data["hardware"]
         self.assertIn("cpu_name", hw)
         self.assertIn("gpu_name", hw)
@@ -193,7 +174,6 @@ class TestMetricsFlow(unittest.TestCase):
         self.assertIn("runtime", hw)
 
     def test_hardware_supervision_endpoints(self):
-        """Teste l'enrichissement de /api/settings/system et /api/settings/storage."""
         d = get_system_usage()
         self.assertIn("cpu_percent", d)
         self.assertIn("cpu_name", d)
@@ -210,7 +190,6 @@ class TestMetricsFlow(unittest.TestCase):
         self.assertIn("used_percent", s)
 
     def test_hardware_helpers(self):
-        """Valide que les fonctions hardware_info ne lèvent pas d'exception."""
         cpu = get_cpu_model_name()
         self.assertIsInstance(cpu, str)
         self.assertGreater(len(cpu), 0)
@@ -229,13 +208,11 @@ class TestMetricsFlow(unittest.TestCase):
         self.assertIn("service_uptime_formatted", runtime)
 
     def test_hardware_history_endpoint(self):
-        """Teste l'historique temporel matériel et son sous-échantillonnage."""
         with SessionLocal() as db:
             from app.models import SystemMetricsHistory
             db.query(SystemMetricsHistory).delete()
             db.commit()
 
-            # Snapshot initial
             record_hardware_snapshot(db)
 
             res = get_hardware_history(metric="cpu", period="1h", db=db)
@@ -248,7 +225,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertIn("avg", res)
 
     def test_logs_and_metrics_purge(self):
-        """Teste la purge automatique et manuelle des logs et métriques expirés."""
         with SessionLocal() as db:
             purged = purge_expired_logs_and_metrics(db, retention_days=7)
             self.assertIn("purged_logs", purged)
@@ -259,7 +235,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertIn("details", manual_res)
 
     def test_dynamic_metrics_future_extensibility(self):
-        """Valide qu'une nouvelle métrique future (ex: fan_rpm, npu_load, battery_pct) est enregistrée et servie sans altération de schéma."""
         with SessionLocal() as db:
             record_hardware_snapshot(db, extra={"fan_rpm": 2400.0, "npu_load_percent": 35.5, "battery_pct": 92.0})
 
@@ -273,21 +248,17 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertEqual(res_npu["points"][-1]["value"], 35.5)
 
     def test_settings_logs_retention_days_update(self):
-        """Valide la modification du délai de rétention des logs via PUT /api/settings et la validation des bornes."""
         from app.api.routes.settings.core import SettingsUpdate
         from app.api.routes.settings.values import update_settings, get_settings
         import asyncio
 
         with SessionLocal() as db:
-            # 1. Mise à jour valide à 14 jours
             res = asyncio.run(update_settings(SettingsUpdate(logs_retention_days=14), db=db))
             self.assertEqual(res["logs_retention_days"], 14)
 
-            # Vérification de la lecture
             settings_res = get_settings(db=db)
             self.assertEqual(settings_res["logs_retention_days"], 14)
 
-            # 2. Rejet des valeurs invalides (< 1 jour)
             with self.assertRaises(HTTPException) as cm:
                 asyncio.run(update_settings(SettingsUpdate(logs_retention_days=0), db=db))
             self.assertEqual(cm.exception.status_code, 400)
@@ -296,29 +267,24 @@ class TestMetricsFlow(unittest.TestCase):
                 asyncio.run(update_settings(SettingsUpdate(logs_retention_days=-5), db=db))
             self.assertEqual(cm_neg.exception.status_code, 400)
 
-            # Remise à la valeur par défaut 7 jours
             asyncio.run(update_settings(SettingsUpdate(logs_retention_days=7), db=db))
 
     def test_power_watts_calculation_and_energy(self):
-        """Valide le calcul de puissance multi-OS et l'accumulation d'énergie Wh."""
         from app.hardware.power import update_cumulative_energy, get_cumulative_energy_wh
         p = get_power_watts()
         self.assertIsNotNone(p)
         self.assertGreater(p, 0.0)
 
-        # Simulation accumulation d'énergie
         update_cumulative_energy(15.0)
         wh = get_cumulative_energy_wh()
         self.assertIsInstance(wh, float)
 
     def test_power_watts_multi_os_profiles(self):
-        """Vérifie le comportement de calcul de puissance sur tous les profils matériels (Mac mini, MacBook, PC fixe, Laptop, Wyse)."""
         from unittest.mock import patch
         from collections import namedtuple
 
         BatteryMock = namedtuple("BatteryMock", ["percent", "secsleft", "power_plugged"])
 
-        # 1. Mac mini (macOS, sans batterie)
         with patch("sys.platform", "darwin"), \
              patch("psutil.sensors_battery", return_value=None), \
              patch("subprocess.check_output", side_effect=Exception("no battery")):
@@ -327,7 +293,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertGreaterEqual(w, 5.0)
             self.assertLessEqual(w, 100.0)
 
-        # 2. MacBook branché sur secteur (maintien / 100%)
         with patch("sys.platform", "darwin"), \
              patch("psutil.sensors_battery", return_value=BatteryMock(100.0, -2, True)), \
              patch("subprocess.check_output", side_effect=Exception("skip ioreg")):
@@ -336,7 +301,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertGreaterEqual(w, 7.0)
             self.assertLessEqual(w, 65.0)
 
-        # 3. MacBook sur batterie (décharge)
         with patch("sys.platform", "darwin"), \
              patch("psutil.sensors_battery", return_value=BatteryMock(80.0, 12000, False)), \
              patch("subprocess.check_output", side_effect=Exception("skip ioreg")):
@@ -345,7 +309,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertGreaterEqual(w, 3.0)
             self.assertLessEqual(w, 65.0)
 
-        # 4. PC fixe Windows (Tour desktop, sans batterie)
         with patch("sys.platform", "win32"), \
              patch("psutil.sensors_battery", return_value=None):
             w = get_power_watts()
@@ -353,7 +316,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertGreaterEqual(w, 20.0)
             self.assertLessEqual(w, 450.0)
 
-        # 5. Laptop Windows branché sur secteur
         with patch("sys.platform", "win32"), \
              patch("psutil.sensors_battery", return_value=BatteryMock(95.0, -2, True)):
             w = get_power_watts()
@@ -361,14 +323,12 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertGreaterEqual(w, 7.0)
             self.assertLessEqual(w, 65.0)
 
-        # 6. Laptop Windows en charge rapide (< 90%)
         with patch("sys.platform", "win32"), \
              patch("psutil.sensors_battery", return_value=BatteryMock(50.0, -2, True)):
             w = get_power_watts()
             self.assertIsNotNone(w)
             self.assertGreaterEqual(w, 30.0)
 
-        # 7. Linux Headless Wyse 5070 (sans batterie, sans RAPL)
         with patch("sys.platform", "linux"), \
              patch("psutil.sensors_battery", return_value=None), \
              patch("glob.glob", return_value=[]):

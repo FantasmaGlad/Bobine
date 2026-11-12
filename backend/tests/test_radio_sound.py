@@ -1,10 +1,7 @@
-"""Réglages de son par sortie radio : bornage, persistance, diffusion avec l'état."""
-
 import asyncio
 import json
 import os
 
-# Base de test isolée AVANT tout import de l'application (comme les autres tests).
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
@@ -89,7 +86,6 @@ def test_preset_borne_et_nettoye():
     assert sanitize_sound({"preset": None})["preset"] is None
     assert sanitize_sound({"preset": 12})["preset"] is None
     assert len(sanitize_sound({"preset": "x" * 500})["preset"]) == 40
-    # Preset absent : la valeur courante est conservée.
     assert sanitize_sound({}, base={**default_sound(), "preset": "voice"})["preset"] == "voice"
 
 
@@ -146,14 +142,12 @@ def test_rest_borne_persiste_et_cible_la_bonne_sortie(client):
     assert response.json()["bands"][0] == 12
     assert client.get("/api/radio/sound?channel=radio_cable").json()["bass_boost"] == 3
     assert client.get("/api/radio/sound?channel=radio_network").json() == default_sound()
-    assert client.get("/api/radio/sound").json() == default_sound()  # défaut = sortie réseau
-    # Persisté en base.
+    assert client.get("/api/radio/sound").json() == default_sound()
     db = SessionLocal()
     try:
         assert load_sound(db, "radio_cable")["bass_boost"] == 3
     finally:
         db.close()
-    # Une mise à jour partielle garde le reste.
     client.put("/api/radio/sound?channel=radio_cable", json={"loudness": True})
     state = client.get("/api/radio/sound?channel=radio_cable").json()
     assert state["loudness"] is True and state["bass_boost"] == 3
@@ -194,7 +188,6 @@ def test_le_demarrage_charge_les_reglages_persistes_dans_les_moteurs():
     finally:
         db.close()
     try:
-        # Un nouveau démarrage de l'application (lifespan) relit la base.
         get_radio_manager("radio_cable").state["sound"] = default_sound()
         with TestClient(app):
             assert get_radio_manager("radio_cable").state["sound"]["bass_boost"] == 7

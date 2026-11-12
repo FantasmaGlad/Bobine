@@ -1,7 +1,3 @@
-"""Pilote Android : pont Kotlin simulé (aucun appareil requis). Vérifie la correspondance des
-erreurs, l'état « autorisation requise » (jamais une erreur), les capacités honnêtes et l'absence
-de demande d'autorisation lors d'une simple lecture d'état."""
-
 import asyncio
 import json
 
@@ -93,7 +89,7 @@ def test_bridge_unavailable_is_reported_not_raised():
 def test_status_without_permission_is_a_state_and_never_prompts(bridge):
     status = run(make(bridge).bluetooth_status())
     assert status["supported"] and status["permission_required"] is True
-    assert ("request_permission",) not in bridge.calls  # lecture d'état : jamais de boîte de dialogue
+    assert ("request_permission",) not in bridge.calls
     bridge.permission = True
     assert "permission_required" not in run(make(bridge).bluetooth_status())
 

@@ -1,5 +1,3 @@
-"""Historique matériel : périodes longues (30 jours, mois en cours, tout l'historique)."""
-
 import os
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"

@@ -1,6 +1,3 @@
-"""Diffusion filtrée par canal : un client n'est plus
-inondé des évènements des canaux qui ne le concernent pas."""
-
 import asyncio
 
 from app.utils.ws_manager import ConnectionManager
@@ -41,7 +38,6 @@ def test_les_evenements_de_canal_ne_vont_qu_aux_abonnes_de_ce_canal():
     assert len(c["network"].received) == 1
     assert c["cable"].received == []
     assert c["settings_only"].received == []
-    # Client sans abonnement (ancien bundle) : comportement historique, tout reçu.
     assert len(c["legacy"].received) == 1
 
 

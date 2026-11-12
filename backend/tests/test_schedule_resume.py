@@ -1,4 +1,3 @@
-"""Reprise d'une programmation après un redémarrage du serveur : calcul de la position, puis relance réelle."""
 import os
 import sys
 import unittest
@@ -52,7 +51,6 @@ class PlaylistResumePointTests(unittest.TestCase):
 
     def test_l_attente_entre_deux_cours_compte_dans_le_temps_ecoule(self):
         self.assertEqual(playlist_resume_point(self.DURATIONS, 60.0, 900.0), (1, 240.0))
-        # Pendant l'attente : la vidéo suivante démarre à zéro.
         self.assertEqual(playlist_resume_point(self.DURATIONS, 60.0, 630.0), (1, 0.0))
 
     def test_fin_de_video_et_fin_de_playlist(self):
@@ -99,7 +97,6 @@ class ResumeAfterRestartTests(unittest.IsolatedAsyncioTestCase):
         self.db.close()
 
     def _restart(self):
-        """Un redémarrage du serveur : moteurs de lecture neufs, la base seule survit."""
         async def broadcast(payload, channel="cable"):
             return None
 
@@ -177,7 +174,6 @@ class ResumeAfterRestartTests(unittest.IsolatedAsyncioTestCase):
         state = self._state("network")
         self.assertEqual(state["current_video"]["id"], self.video.id)
         self.assertAlmostEqual(state["position_seconds"], 300.0, delta=5.0)
-        # Second redémarrage : la même occurrence reprend d'après son lancement mémorisé, sans repartir de zéro.
         self._restart()
         await resume_running_schedules()
         self.assertAlmostEqual(self._state("network")["position_seconds"], 300.0, delta=5.0)

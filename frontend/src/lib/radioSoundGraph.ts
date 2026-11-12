@@ -1,27 +1,9 @@
-/**
- * Chaîne de traitement du son d'une sortie radio, dans le graphe Web Audio du lecteur :
- *
- *   entrée → préampli → 5 bandes → basses → loudness (grave, aigu) → limiteur → sortie
- *
- * Une SEULE chaîne pour toute la musique (les deux slots A/B du fondu enchaîné s'y
- * additionnent) : 9 nœuds au total, quel que soit le nombre de pistes. Les rappels vocaux la
- * CONTOURNENT (ils se branchent directement sur la sortie) pour rester intelligibles.
- *
- * Les paramètres viennent de `toGraphParams` (logique pure, testée). Le graphe n'est jamais
- * reconnecté en cours de lecture : le « son neutre » met simplement tous les filtres à 0 dB.
- * Les changements sont lissés (`setTargetAtTime`) pour éviter les craquements de réglage.
- */
-// Import relatif avec extension (et non l'alias @/) : ce module est aussi chargé tel quel par le
-// lanceur de tests Node (`npm test`), qui ne résout pas les alias de chemins.
 import { toGraphParams, type FilterParams, type RadioSoundSettings } from "./radioSound.ts";
 
-/** Constante de temps (s) du lissage des changements de paramètres. */
 const SMOOTHING_TIME_CONSTANT = 0.03;
 
 export interface SoundChain {
-  /** Nœud où brancher la musique (sortie des gains des slots). */
   input: AudioNode;
-  /** Applique des réglages; `smooth=false` pour l'état initial (pas de transition audible). */
   apply: (sound: RadioSoundSettings, smooth?: boolean) => void;
 }
 

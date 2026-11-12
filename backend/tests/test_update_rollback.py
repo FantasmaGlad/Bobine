@@ -1,5 +1,3 @@
-"""Retour arrière d'une mise à jour de l'appliance : le backend arme un marqueur, le chien de garde confirme la
-nouvelle version par le contrôle de santé ou restaure la précédente. Les commandes système sont simulées."""
 import json
 import os
 import shutil
@@ -24,7 +22,6 @@ pytestmark = pytest.mark.skipif(sys.platform == "win32" or shutil.which("bash") 
 
 @pytest.fixture
 def appliance(tmp_path):
-    """Copie du chien de garde dans un faux dépôt, avec des commandes système qui notent leurs appels."""
     repo = tmp_path / "repo"
     (repo / "scripts").mkdir(parents=True)
     (repo / "backend").mkdir()
@@ -39,9 +36,8 @@ def appliance(tmp_path):
         path.write_text(f'#!/bin/sh\necho "{name} $*" >> "{calls}"\n{body}\n', encoding="utf-8")
         path.chmod(0o755)
 
-    # `curl -w '%{http_code}'` (santé simple) rend le code ; sans `-w`, le corps de la réponse.
     stub("curl", 'case "$*" in *http_code*) printf "%s" "${FAKE_HTTP_CODE:-200}" ;; *) printf "%s" "$FAKE_HEALTH" ;; esac')
-    stub("runuser", 'shift 3; exec "$@"')  # runuser -u <propriétaire> -- commande…
+    stub("runuser", 'shift 3; exec "$@"')
     for name in ("systemctl", "logger", "git", "npm", "pgrep"):
         stub(name, "exit 0")
 

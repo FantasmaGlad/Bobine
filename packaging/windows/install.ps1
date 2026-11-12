@@ -1,9 +1,3 @@
-# Installe ou met à jour Bobine sous Windows (x64 ou ARM64) depuis GitHub Releases, après vérification de la signature
-# de SHA256SUMS et de l'empreinte de l'installeur.
-# Usage : irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 | iex
-# Autre canal : & ([scriptblock]::Create((irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1))) -Channel canary
-# Par Tor (PowerShell 7.2+, Tor Browser ouvert) : & ([scriptblock]::Create((irm https://github.com/FantasmaGlad/Bobine/releases/download/canary/install.ps1 -Proxy socks5://127.0.0.1:9150))) -Tor
-#   -Tor passe tous les téléchargements par le proxy SOCKS de Tor Browser (9150) ; -TorPort 9050 pour le service tor.
 param(
   [ValidateSet('stable', 'beta', 'canary')]
   [string]$Channel = 'stable',
@@ -12,15 +6,12 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
-# Windows PowerShell 5.1 peut encore négocier TLS 1.0 par défaut sur une installation
-# Windows 10 ancienne, que GitHub refuse ; forcer TLS 1.2 pour les appels de ce script.
 if ($PSVersionTable.PSVersion.Major -lt 6) {
   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 }
 
 $web = @{ UseBasicParsing = $true }
 if ($Tor) {
-  # SOCKS5 demande PowerShell 7.2+ (.NET 6) : 7.0 et 7.1 refusent le schéma socks5.
   if ($PSVersionTable.PSVersion -lt [version]'7.2') { throw "-Tor exige PowerShell 7.2 ou plus récent (pwsh) : https://aka.ms/powershell" }
   $web.Proxy = "socks5://127.0.0.1:$TorPort"
   try { $exit = Invoke-RestMethod 'https://check.torproject.org/api/ip' @web -TimeoutSec 60 }
@@ -36,11 +27,8 @@ $arch = switch ($cpu) {
   default { throw "Système non pris en charge : $cpu (Bobine existe pour Windows x64 et ARM64)." }
 }
 
-# Sous-clé RSA 4096 de signature des releases (941B 6F52 6A72 59F4 694C  F4BC 1B5D 18A9 76FA AD15, clé principale
-# B77D 96D7 2F84 F36A CAA3  F872 9CBF 497D 829E E15A) : SHA256SUMS.asc est vérifiée ici sans gpg, absent de Windows.
 $SigningKeyModulus = 'tZWGj1cpMao6UGU83DwXax0YFD3JeJCnBC+8ckd+4caTWOeBScqiownN/mreLLbS4voEVsEVuh5wz9jnuOD4+b5iY2KjcSZxM6DNppKHygmk+hkPC2XhoAMt8XmwTynPStNSiMQFsjrzRi3NkWky8chduBnkJebpyqmWOum8n7+M7SYwNnCIjto48Swu+Sf3kHGueGVWEfdzjjAc4jBHZIRV/pIm9EM94XKVSrmGqJ4pUrEy2cGlPZU9G+DCWS+/+vXXkrGxH8+t1Y/lsBufmClrOhS04DfItnvhQIOEZalwfwtCc+TB3hGxQV9siYC3mPdA6Oe9O2tyNaYqZWzQBr+VoLNh0ytYH/VISLntg//0rxE/cY63VyIufZ8Z6L4TxF8Eoivm52rqsEbVhykhlYbd/euXj9Q/EkhulHtjm6qQqsafpZwvda5fOQcvlJvbVlsmrKUVsLtzcHWGd5dzvSzgk9RUMoN9axuKScjZrksUB/3eKBD10hrRyprzHwLV5Z597MIkreFXq7HtHfcZy3Cow98rmbxEJ6JL83ViCxw3T9VOn+3rUUqnDIP8x37BgDBFtWycEusAMp/GlNFcI8Jo2iUOMlm91K6Lq2+dUwYd1Ll+dDNaCFUUkt8gF/0KvchxqegSckTsTHzSErHJVRAdnbPHdyGsoehAbXvYn6U='
 
-# Signature OpenPGP v4 détachée (RFC 4880, 5.2.4) : empreinte du document, puis de la partie hachée et de sa fin.
 function Test-ReleaseSignature([byte[]]$Data, [string]$Armored) {
   $b64 = ($Armored -split "`r?`n" | Where-Object { $_ -and $_ -notmatch '^(-----|=|[A-Za-z]+: )' }) -join ''
   $p = [Convert]::FromBase64String($b64)
@@ -55,7 +43,6 @@ function Test-ReleaseSignature([byte[]]$Data, [string]$Armored) {
     $i += @(1, 2, 4)[$p[0] -band 3]
   }
   $start = $i
-  # Version 4, signature d'un document binaire (0x00), RSA (1).
   if ($p[$i] -ne 4 -or $p[$i + 1] -ne 0 -or $p[$i + 2] -ne 1) { return $false }
   $hashName = switch ($p[$i + 3]) { 8 { 'SHA256' } 10 { 'SHA512' } default { return $false } }
   $hashedLen = ([int]$p[$i + 4] -shl 8) + $p[$i + 5]
@@ -108,7 +95,6 @@ try {
   if (-not $line) { throw "Aucune empreinte pour $name dans SHA256SUMS." }
   $expected = ($line -split '\s+')[0].ToUpper()
   if ((Get-FileHash $setup -Algorithm SHA256).Hash -ne $expected) { throw "Empreinte SHA-256 incorrecte pour $name : installation annulée." }
-  # L'installeur demande l'élévation (installation pour tous les utilisateurs).
   $process = Start-Process -FilePath $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Verb RunAs -Wait -PassThru
   if ($process.ExitCode -ne 0) { throw "L'installeur a échoué (code $($process.ExitCode))." }
   Write-Output "Bobine est installé. Lancez Bobine depuis le menu Démarrer, puis ouvrez http://127.0.0.1:1903."

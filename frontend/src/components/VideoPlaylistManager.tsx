@@ -48,14 +48,6 @@ interface PlaylistSummary {
   total_duration_seconds: number;
 }
 
-/**
- * Créateur de playlists vidéo pour le mode kiosk, embarqué dans l'onglet
- * "Playlists" de la Bibliothèque — anciennement la page `/playlists` à part entière.
- *
- * Le panneau "Ajouter depuis la bibliothèque" affiche désormais des cartes
- * avec vignette au lieu de simples lignes de
- * texte.
- */
 export default function VideoPlaylistManager() {
   const { t } = useAppSettings();
   const isMobile = useIsMobile();
@@ -424,7 +416,6 @@ export default function VideoPlaylistManager() {
         className="playlists-split-container"
         style={isMobile ? { flexDirection: "column", height: "auto", overflow: "visible" } : undefined}
       >
-        {/* Left Panel: Search & Playlists list */}
         <div
           className="playlists-left-panel"
           style={isMobile ? { maxWidth: "100%", minWidth: 0, height: "auto" } : undefined}
@@ -514,7 +505,6 @@ export default function VideoPlaylistManager() {
           </div>
         </div>
 
-        {/* Right Panel: Editor or Placeholder */}
         <div
           className="playlists-right-panel"
           style={isMobile ? { minWidth: 0, height: "auto", overflow: "visible" } : undefined}
@@ -685,8 +675,6 @@ export default function VideoPlaylistManager() {
                 </div>
               </div>
 
-              {/* Library Picker at the Bottom : grille de vignettes plutôt que
-                  du texte. */}
               <div className="library-picker" style={isMobile ? { height: "auto", maxHeight: "360px" } : undefined}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span className="form-label" style={{ fontSize: "0.75rem", margin: 0, textTransform: "uppercase", color: "var(--text-muted)", letterSpacing: "0.05em" }}>

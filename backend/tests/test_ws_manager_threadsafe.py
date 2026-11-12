@@ -1,15 +1,3 @@
-"""Couvre `ConnectionManager.broadcast_threadsafe`, le pont utilisé par les endpoints
-FastAPI SYNCHRONES (`def`, exécutés dans le threadpool) et les exécuteurs
-d'import (ffmpeg_executor/io_executor) pour diffuser un évènement WebSocket
-sans jamais appeler une coroutine directement depuis un thread qui n'est pas
-celui de la boucle asyncio — cf. `api/routes/videos.py`/`utils/watcher.py`.
-
-Simule exactement ce contexte : une boucle asyncio tourne dans un thread
-dédié (comme la boucle principale d'uvicorn), et `broadcast_threadsafe` est
-appelée depuis le thread de TEST (qui n'est pas celui de la boucle) — la
-même relation que threadpool FastAPI -> boucle principale.
-"""
-
 import asyncio
 import threading
 import time
@@ -19,11 +7,8 @@ from app.utils.ws_manager import ConnectionManager
 
 
 def test_broadcast_threadsafe_without_bound_loop_is_a_safe_noop():
-    """Avant `bind_loop()` (ex. un appel trop précoce, ou un test qui
-    n'initialise pas le cycle de vie complet de l'app) : ne doit jamais
-    lever, juste ne rien faire."""
     manager = ConnectionManager()
-    manager.broadcast_threadsafe({"event": "library_change"})  # ne doit pas lever
+    manager.broadcast_threadsafe({"event": "library_change"})
 
 
 def test_broadcast_threadsafe_delivers_message_from_another_thread():
@@ -52,8 +37,6 @@ def test_broadcast_threadsafe_delivers_message_from_another_thread():
     loop_ready.wait(timeout=5)
     loop = loop_holder["loop"]
 
-    # Enregistre une fausse connexion et lie la boucle du thread — exactement
-    # ce que fait `main.py::lifespan` avec `asyncio.get_running_loop()`.
     fake_ws = _FakeWebSocket()
 
     async def _register():
@@ -62,9 +45,6 @@ def test_broadcast_threadsafe_delivers_message_from_another_thread():
     asyncio.run_coroutine_threadsafe(_register(), loop).result(timeout=5)
     manager.bind_loop(loop)
 
-    # Appelé depuis CE thread (le thread de test), pas celui de la boucle —
-    # relation identique à un endpoint FastAPI `def` (threadpool) appelant
-    # broadcast_threadsafe() alors que la vraie boucle tourne ailleurs.
     manager.broadcast_threadsafe({"event": "library_change", "reason": "video_updated"})
 
     deadline = time.monotonic() + 5
@@ -79,20 +59,6 @@ def test_broadcast_threadsafe_delivers_message_from_another_thread():
 
 
 def test_broadcast_actually_closes_a_client_that_times_out(monkeypatch):
-    """Bug réel trouvé en déployant sur la tablette pilote (pas en relecture
-    de code) : `broadcast()` retirait un client lent/bloqué de
-    `active_connections` SANS jamais fermer sa connexion WebSocket — le
-    client, lui, ne recevait ni frame de fermeture ni erreur, et son objet
-    WebSocket restait `OPEN` indéfiniment de son propre point de vue,
-    silencieusement muet (plus aucun `position_tick`), jusqu'au keepalive
-    serveur (jusqu'à 90s). Reproduit et confirmé par un test en conditions
-    réelles sur Wi-Fi (pas seulement en local, où le bug ne se manifestait
-    jamais).
-
-    Ce test vérifie directement le contrat requis : un client dont l'envoi
-    dépasse le délai DOIT recevoir un appel à `close()` (pour que son
-    propre `onclose` se déclenche et qu'il se reconnecte), pas seulement
-    être oublié en silence côté serveur."""
     monkeypatch.setattr(ws_manager_module, "BROADCAST_SEND_TIMEOUT_SECONDS", 0.1)
 
     manager = ConnectionManager()
@@ -102,9 +68,6 @@ def test_broadcast_actually_closes_a_client_that_times_out(monkeypatch):
             self.closed = False
 
         async def send_json(self, message):
-            # Ne se termine jamais avant le timeout du test (0.1s) —
-            # simule un client dont l'envoi ne progresse plus (Wi-Fi
-            # dégradé), sans jamais lever d'exception de lui-même.
             await asyncio.sleep(10)
 
         async def close(self):
@@ -159,8 +122,6 @@ def test_broadcast_never_creates_coroutine_if_loop_stops_after_running_check(mon
     manager.bind_loop(loop)
     broadcast = Mock(side_effect=AssertionError("callback must be discarded"))
     monkeypatch.setattr(manager, "broadcast", broadcast)
-    # Reproduce the race deterministically: is_running saw a running loop,
-    # but shutdown stops it before the thread-safe callback gets executed.
     monkeypatch.setattr(loop, "is_running", lambda: True)
     try:
         manager.broadcast_threadsafe({"event": "shutdown"})

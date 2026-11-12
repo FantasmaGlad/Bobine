@@ -1,14 +1,8 @@
-//! WAV: little-endian RIFF PCM with one `fmt ` and one `data` chunk, an optional
-//! `LIST`/`INFO` chunk and padding. The duration is Lofty's, which equals ffprobe's for PCM.
-
 use crate::audio::{
     ambiguous, corrupt, insert, limit, read_exact, unsupported, Layout, Result, MAX_TEXT_BYTES,
 };
 use std::io::{Read, Seek, SeekFrom};
 
-/// ffmpeg's RIFF INFO conversion table: the identifiers it renames to the tags the
-/// application reads (`Some`) or to tags it does not read (`None`). Any other identifier
-/// would keep its raw four-letter name, which could collide with a field name.
 fn info_key(id: &[u8]) -> Option<Option<&'static str>> {
     Some(match id {
         b"INAM" => Some("title"),
@@ -22,7 +16,6 @@ fn info_key(id: &[u8]) -> Option<Option<&'static str>> {
     })
 }
 
-/// The text of one INFO (or AIFF text) item: UTF-8 up to the first NUL, with only NULs after it.
 pub(crate) fn info_text(value: &[u8]) -> Result<String> {
     let end = value
         .iter()
@@ -220,7 +213,6 @@ mod tests {
 
     #[test]
     fn info_items_outside_the_table_or_irregular_are_refused() {
-        // A raw four-letter name that could collide with a field name, or one ffmpeg keeps raw.
         for item in [
             (b"DATE", b"1995\0".as_slice()),
             (b"ITRK", b"3\0"),
@@ -229,7 +221,6 @@ mod tests {
             let extra = list(&[(item.0, item.1)]);
             assert_eq!(scanned(&pcm(&extra)).unwrap_err().reason, "unsupported");
         }
-        // Text after the terminator, empty text, invalid UTF-8, duplicates, a second list.
         assert_eq!(
             scanned(&pcm(&list(&[(b"INAM", b"A\0B\0")])))
                 .unwrap_err()

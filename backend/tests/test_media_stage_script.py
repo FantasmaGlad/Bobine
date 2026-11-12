@@ -1,4 +1,3 @@
-"""Smoke check used before the audio component is staged into a package."""
 import importlib.util
 from pathlib import Path
 import stat
@@ -52,6 +51,5 @@ def test_script_check_mode_reports_an_installed_executable(tmp_path):
     done = subprocess.run([sys.executable, str(script), "--check", str(BINARY)], capture_output=True, text=True, timeout=30)
     assert done.returncode == 0, done.stderr
     assert json.loads(done.stdout)["protocol_version"] == 1
-    # Without --check, a destination directory is required.
     missing = subprocess.run([sys.executable, str(script), "--dest", str(tmp_path / "absent")], capture_output=True, text=True, timeout=30)
     assert missing.returncode != 0

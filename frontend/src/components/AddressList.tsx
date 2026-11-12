@@ -3,21 +3,14 @@
 import Icon from "@/components/Icon";
 
 interface AddressListProps {
-  /** Adresse commune affichée une seule fois en tête (http://hôte:port). */
   base: string;
   pages: { path: string; labelKey: string }[];
   t: (key: string) => string;
   onCopy: (text: string) => void;
   copyLabel: string;
-  /** Faux quand l'hôte est déjà affiché juste au-dessus (ligne « adresse IP locale »). */
   showHost?: boolean;
 }
 
-/**
- * Pages de l'application sous un hôte unique : on ne répète plus l'adresse
- * complète sur chaque ligne (illisible sur un téléphone), seulement le
- * chemin, avec un bouton pour copier l'adresse entière.
- */
 export default function AddressList({ base, pages, t, onCopy, copyLabel, showHost = true }: AddressListProps) {
   return (
     <div className="settings-paths settings-paths--compact">

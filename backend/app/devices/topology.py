@@ -1,9 +1,4 @@
-"""Carte des périphériques : graphe « système solaire » (machine au centre) construit depuis l'état déjà
-connu — sorties audio, appareils Bluetooth, Wi-Fi, Ethernet, écrans et télécommandes Bobine connectés.
-
-`build_topology` est PUR (testable sans matériel). Les adresses IP des clients n'apparaissent que dans cette
-réponse, comme tout `/api/devices/*`.
-"""
+"""Carte des périphériques : graphe « système solaire »."""
 
 from __future__ import annotations
 
@@ -12,12 +7,9 @@ import re
 import socket
 from typing import Any
 
-# Interfaces virtuelles ou de tunnel : jamais présentées comme « le câble Ethernet » de la machine.
 _VIRTUAL_IFACE = re.compile(r"^(lo|docker|veth|br-|virbr|lxc|lxd|tun|tap|wg|proton|ipv6leak|tailscale|zt|vmnet|vboxnet|utun|awdl|llw|bridge|anpi|ap\d)", re.I)
 
-# Pages qui PILOTENT un canal (télécommandes) plutôt que de l'afficher.
 REMOTE_PAGES = frozenset({"dashboard", "coach"})
-# Pages exécutées sur l'écran de la machine elle-même quand l'adresse du client est locale.
 RING_NETWORK, RING_DEVICES, RING_SCREENS = 1, 2, 3
 
 
@@ -93,7 +85,6 @@ def build_topology(
         nodes.append(node)
         links.append({"id": f"{link_from}>{node['id']}", "from": link_from, "to": node["id"], "medium": medium, "state": state, "quality": quality})
 
-    # --- réseau -------------------------------------------------------
     wifi_node_id: str | None = None
     current = (wifi or {}).get("current") if (wifi or {}).get("supported") else None
     if current:
@@ -110,7 +101,6 @@ def build_topology(
              "ref": None, "meta": {"interface": eth["name"], "ip": eth.get("ip"), "speed": eth.get("speed")}},
             "machine", "wired", "active")
 
-    # --- appareils Bluetooth, puis sorties audio ------------------------
     bt_devices = [d for d in (bluetooth or {}).get("devices", []) if d.get("paired")] if (bluetooth or {}).get("supported") else []
     bt_names = {_normalize(d.get("name", "")): d["address"] for d in bt_devices}
     for d in bt_devices[:14]:
@@ -124,7 +114,7 @@ def build_topology(
             continue
         if dev.get("kind") == "bluetooth":
             twin = bt_names.get(_normalize(dev.get("name", "")))
-            if twin:  # le casque est déjà sur la carte : on note simplement qu'il est aussi une sortie audio
+            if twin:
                 for n in nodes:
                     if n["id"] == f"bt:{twin}":
                         n["meta"]["audio_id"] = dev["id"]
@@ -136,7 +126,6 @@ def build_topology(
              "meta": {"device_kind": dev.get("kind"), "default": bool(dev.get("is_default")), "volume": dev.get("volume"), "muted": dev.get("muted")}},
             "machine", medium, "active" if dev.get("is_default") else "idle")
 
-    # --- écrans et télécommandes Bobine ---------------------------------
     eth_subnets = [s for _, s in eth_ids if s]
     for c in clients:
         page = str(c.get("page") or "viewer")

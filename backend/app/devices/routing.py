@@ -1,14 +1,4 @@
-"""Routage audio par sortie radio (phase 2) : à quelle sortie PHYSIQUE de la machine chaque sortie radio doit jouer.
-
-Ce module est PUR (aucun accès au système) sauf `load_*`/`save_*`, qui lisent et écrivent `settings` :
-
-* une route est un DESCRIPTEUR STABLE de la sortie choisie (clé, libellés, type), pas l'identifiant PipeWire du
-  moment : un haut-parleur Bluetooth qui se reconnecte change de nœud mais garde sa clé (`bt:<MAC>`), et la route
-  se rétablit seule (« mémorisation par périphérique ») ;
-* la route est PUBLIÉE aux lecteurs dans l'état de la sortie radio (champ `route`), comme le réglage de son ;
-  le lecteur l'applique lui-même quand son navigateur le permet (`lib/audioRoute.ts`) ;
-* tout est borné sans erreur : une valeur aberrante est ramenée à une valeur valide, jamais d'exception.
-"""
+"""Routage audio par sortie radio (phase 2) : à quelle sortie PHYSIQUE de la machine chaque sortie radio doit jouer."""
 
 from __future__ import annotations
 
@@ -34,13 +24,11 @@ _MAX_ID = 256
 _MAX_LABEL = 120
 _MAX_LABELS = 4
 
-# `bluez_output.88_92_CC_9C_41_0E.1`, `bluez_output.….a2dp-sink`, `bluez_sink.….a2dp_sink` : la MAC ne change pas avec le profil.
 _BT_SINK_RE = re.compile(r"^bluez_(?:output|sink)\.((?:[0-9A-Fa-f]{2}_){5}[0-9A-Fa-f]{2})(?:\.|$)")
 
 
 def stable_sink_key(sink_id: str) -> str:
-    """Clé qui survit à une reconnexion : `bt:AA:BB:…` pour le Bluetooth (indépendante du profil A2DP/HFP),
-    `node:<nom PipeWire>` sinon (les cartes ALSA gardent leur nom tant que le matériel est le même)."""
+    """Clé qui survit à une reconnexion : `bt:AA:BB:…` pour le Bluetooth (indépendante du profil A2DP/HFP), `node:<nom PipeWire>` sinon (les cartes ALSA gardent leur nom tant que le matériel est le même)."""
     match = _BT_SINK_RE.match(sink_id or "")
     if match:
         return "bt:" + match.group(1).replace("_", ":").upper()
@@ -106,8 +94,7 @@ def sanitize_routes(raw: Any) -> dict[str, dict[str, Any]]:
 
 
 def resolve_route(route: dict[str, Any] | None, sinks: list[dict[str, Any]] | None) -> dict[str, Any]:
-    """Où en est une route : `default` (aucune route), `routed` (sortie présente), `missing` (sortie débranchée, route
-    conservée) ou `unknown` (liste des sorties indisponible sur cette plateforme)."""
+    """Où en est une route : `default` (aucune route), `routed` (sortie présente), `missing` (sortie débranchée, route conservée) ou `unknown` (liste des sorties indisponible sur cette plateforme)."""
     if route is None:
         return {"state": "default", "sink": None}
     if sinks is None:
@@ -120,9 +107,7 @@ def resolve_route(route: dict[str, Any] | None, sinks: list[dict[str, Any]] | No
 
 
 def player_route_state(route: dict[str, Any] | None, resolution: dict[str, Any]) -> dict[str, Any] | None:
-    """Ce que le lecteur de la sortie radio reçoit (champ `route` de l'état) : de quoi retrouver la sortie dans les
-    périphériques de SON navigateur (libellés du système, ceux de la sortie actuelle si elle est présente) et le repli.
-    Pas d'identifiant de nœud ni d'adresse : seulement des noms de sortie audio."""
+    """Ce que le lecteur de la sortie radio reçoit."""
     if route is None:
         return None
     labels = list(route["labels"])
@@ -138,11 +123,6 @@ def player_route_state(route: dict[str, Any] | None, resolution: dict[str, Any])
         "fallback": route["fallback"],
         "state": resolution["state"],
     }
-
-
-# ---------------------------------------------------------------------------
-# Persistance (`settings`)
-# ---------------------------------------------------------------------------
 
 
 def load_routes(db: Session) -> dict[str, dict[str, Any]]:
@@ -173,8 +153,7 @@ def save_routes(db: Session, routes: dict[str, dict[str, Any]]) -> None:
 
 
 def load_routes_into_managers(db: Session) -> None:
-    """Au démarrage : publie les routes mémorisées dans l'état des deux sorties radio (état « inconnu » tant que le pilote
-    n'a pas dit quelles sorties sont présentes ; `DevicesService.reconcile_routes` le précise ensuite)."""
+    """Au démarrage : publie les routes mémorisées dans l'état des deux sorties radio."""
     from app.radio_manager import get_all_radio_managers
 
     routes = load_routes(db)

@@ -1,10 +1,4 @@
-"""Utilitaires du module Radio.
-
-Extraction des métadonnées et de la pochette embarquée d'un fichier musical, et
-transcodage vers un format lisible par le navigateur pour les formats exotiques.
-Tout repose sur ffprobe/ffmpeg (déjà présents) + Pillow (déjà dépendance) : aucun
-paquet Python supplémentaire.
-"""
+"""Utilitaires du module Radio."""
 import json
 import logging
 import os
@@ -18,10 +12,7 @@ from app.utils import media_formats
 
 logger = logging.getLogger(__name__)
 
-# Formats lus nativement par Chromium (le kiosk /radio) : servis tels quels.
 WEB_PLAYABLE_EXTENSIONS = media_formats.WEB_PLAYABLE_AUDIO
-# Décision A2 « tous les formats audio » : whitelist large à l'import. Les formats
-# hors WEB_PLAYABLE_EXTENSIONS sont transcodés en AAC/.m4a à l'import.
 AUDIO_EXTENSIONS = media_formats.RADIO_AUDIO
 
 AUDIO_CONTENT_TYPES = {
@@ -43,10 +34,7 @@ def content_type_for(file_path: str) -> str:
 
 
 def clean_filename_label(file_path: str) -> str:
-    """Dérive un libellé lisible depuis un nom de fichier (underscores en
-    espaces) — utilisé en repli quand aucun tag ID3 de titre n'est présent,
-    et pour dériver automatiquement la description d'un rappel importé en
-    lot."""
+    """Dérive un libellé lisible depuis un nom de fichier."""
     stem = Path(file_path).stem.replace("_", " ").strip()
     return stem or Path(file_path).stem
 
@@ -56,8 +44,6 @@ def needs_transcode(file_path: str) -> bool:
 
 
 def _first_tag(tags: dict, *keys: str) -> str | None:
-    """Lecture insensible à la casse (les clés de tags varient selon le
-    conteneur : `album_artist` vs `ALBUMARTIST`, `track` vs `tracknumber`…)."""
     lowered = {k.lower(): v for k, v in tags.items()}
     for key in keys:
         val = lowered.get(key.lower())
@@ -67,7 +53,6 @@ def _first_tag(tags: dict, *keys: str) -> str | None:
 
 
 def _leading_int(value: str | None) -> int | None:
-    """« 3/12 » -> 3, « 05 » -> 5, sinon None."""
     if not value:
         return None
     m = re.match(r"\s*0*(\d{1,4})", value)
@@ -82,8 +67,7 @@ def _year_from(value: str | None) -> int | None:
 
 
 def extract_radio_metadata(file_path: str) -> dict:
-    """Métadonnées d'un morceau via ffprobe (tags de conteneur + du 1er flux
-    audio fusionnés). Le titre retombe sur le nom de fichier nettoyé si absent."""
+    """Métadonnées d'un morceau via ffprobe (tags de conteneur + du 1er flux audio fusionnés)."""
     meta: dict = {
         "title": None, "artist": None, "album": None, "album_artist": None,
         "track_number": None, "disc_number": None, "year": None, "genre": None,
@@ -99,7 +83,6 @@ def extract_radio_metadata(file_path: str) -> dict:
 
     fmt = info.get("format", {}) or {}
     tags = dict(fmt.get("tags", {}) or {})
-    # Fusionne les tags du premier flux audio (certains conteneurs les y logent).
     for stream in info.get("streams", []) or []:
         if stream.get("codec_type") == "audio":
             for k, v in (stream.get("tags", {}) or {}).items():
@@ -128,12 +111,7 @@ def extract_radio_metadata(file_path: str) -> dict:
 
 
 def extract_embedded_cover(file_path: str, covers_dir: str, file_id: str) -> str | None:
-    """Extrait la pochette embarquée (APIC / cover art) vers un JPEG redimensionné
-    dans `covers_dir`. Renvoie le chemin ou None si le fichier n'en contient pas.
-
-    `-vframes 1` décode la première image (pochette) et la ré-encode : robuste
-    quel que soit le format embarqué (JPEG ou PNG). Un fichier sans pochette fait
-    échouer ffmpeg (code retour != 0 ou sortie vide) -> None."""
+    """Extrait la pochette embarquée (APIC / cover art) vers un JPEG redimensionné dans `covers_dir`."""
     Path(covers_dir).mkdir(parents=True, exist_ok=True)
     tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
     tmp.close()
@@ -160,8 +138,7 @@ def extract_embedded_cover(file_path: str, covers_dir: str, file_id: str) -> str
 
 
 def save_cover_image(src_image_path: str, covers_dir: str, file_id: str) -> str:
-    """Enregistre une pochette fournie manuellement (upload) : redimensionnée et
-    normalisée en JPEG, comme les pochettes extraites."""
+    """Enregistre une pochette fournie manuellement (upload) : redimensionnée et normalisée en JPEG, comme les pochettes extraites."""
     Path(covers_dir).mkdir(parents=True, exist_ok=True)
     from PIL import Image
     dest = Path(covers_dir) / f"cover_{file_id}.jpg"
@@ -173,7 +150,7 @@ def save_cover_image(src_image_path: str, covers_dir: str, file_id: str) -> str:
 
 
 def transcode_to_web(src_path: str, dest_path: str) -> None:
-    """Transcode un format non lu par le navigateur (ex. .wma) en AAC/.m4a. Lève en cas d'échec ffmpeg."""
+    """Transcode un format non lu par le navigateur."""
     cmd = [FFMPEG_BIN, "-y", "-i", src_path, "-vn", "-c:a", "aac", "-b:a", "256k", dest_path]
     res = subprocess.run(with_nostdin(cmd), capture_output=True, text=True, **media_subprocess_kwargs())
     if res.returncode != 0:
@@ -181,10 +158,6 @@ def transcode_to_web(src_path: str, dest_path: str) -> None:
 
 
 def _measure_loudnorm(src_path: str, target_lufs: float) -> dict | None:
-    """1ʳᵉ passe `loudnorm` (analyse seule, sortie nulle) : mesure le loudness
-    réel de la source et renvoie le bloc JSON (input_i/tp/lra/thresh +
-    target_offset) à réinjecter en 2ᵉ passe. Renvoie None si l'analyse échoue
-    ou si le JSON est introuvable (on retombe alors sur une passe simple)."""
     cmd = [
         FFMPEG_BIN, "-y", "-i", src_path, "-vn",
         "-af", f"loudnorm=I={target_lufs}:TP=-1.0:LRA=11:print_format=json",
@@ -193,7 +166,6 @@ def _measure_loudnorm(src_path: str, target_lufs: float) -> dict | None:
     res = subprocess.run(with_nostdin(cmd), capture_output=True, text=True, **media_subprocess_kwargs())
     if res.returncode != 0:
         return None
-    # ffmpeg imprime le bloc JSON en fin de stderr : on prend le dernier objet.
     matches = re.findall(r"\{[^{}]*\}", res.stderr, re.DOTALL)
     if not matches:
         return None
@@ -204,19 +176,7 @@ def _measure_loudnorm(src_path: str, target_lufs: float) -> dict | None:
 
 
 def normalize_announcement_loudness(src_path: str, dest_path: str, target_lufs: float = -10.0) -> None:
-    """Normalise le loudness d'un rappel (filtre EBU R128 `loudnorm`) au niveau
-    d'une musique commerciale, puis ré-encode en AAC/.m4a.
- : une voix brute a un loudness
-    (LUFS) bien plus faible qu'une musique masterisée, et les pistes musicales
-    ne sont PAS normalisées à l'import (souvent -9 à -11 LUFS). On aligne donc
-    la voix sur ce niveau commercial (cible -10 LUFS ≈ la plupart des masters),
-    pour qu'elle passe au-dessus de la musique.
-
-    On procède en DEUX passes : une passe simple de `loudnorm` sous-évalue le
-    gain sur une voix courte/silencieuse (le filtre « apprend » encore le
-    niveau sur les premières secondes) — d'où l'ancien rappel resté trop bas
-    même à -14 LUFS. La 1ʳᵉ passe mesure la source, la 2ᵉ applique la
-    correction exacte. TP=-1.0 dBTP garde une marge anti-saturation."""
+    """Normalise le loudness d'un rappel (filtre EBU R128 `loudnorm`) au niveau d'une musique commerciale, puis ré-encode en AAC/.m4a."""
     measured = _measure_loudnorm(src_path, target_lufs)
     if measured is not None:
         af = (
@@ -228,8 +188,6 @@ def normalize_announcement_loudness(src_path: str, dest_path: str, target_lufs: 
             f":offset={measured['target_offset']}"
         )
     else:
-        # Repli : passe simple (moins précise, mais garde un import fonctionnel
-        # si l'analyse a échoué).
         af = f"loudnorm=I={target_lufs}:TP=-1.0:LRA=11"
     cmd = [
         FFMPEG_BIN, "-y", "-i", src_path, "-vn",

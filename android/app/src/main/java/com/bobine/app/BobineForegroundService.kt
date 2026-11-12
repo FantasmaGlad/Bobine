@@ -35,38 +35,14 @@ private const val NOTIFICATION_CHANNEL_ID = "bobine_service"
 private const val NOTIFICATION_ID = 1
 private const val TAG = "BobineForegroundService"
 private const val DISPLAY_STATE_PATH = "/api/display/state"
-// Re-émission périodique de l'état des écrans : le rapport
-// côté backend est volontairement gardé en mémoire (un fait matériel
-// instantané) ; si le serveur Python redémarre sans que le service le fasse,
-// ce rappel le remet à jour. Sert aussi de filet de réconciliation de la
-// `Presentation` (cf. reconcileDisplays).
 private const val RECONCILE_INTERVAL_MS = 60_000L
-// Cadence des nouvelles tentatives d'ouverture de la `Presentation` : rapide au
-// début (le WindowManager peut ne pas être prêt), puis lente et SANS abandon
-// définitif — un projecteur dont l'EDID arrive tard n'est ainsi jamais perdu.
 private const val PRESENTATION_FAST_RETRIES = 15
 private const val PRESENTATION_FAST_DELAY_MS = 500L
 private const val PRESENTATION_SLOW_DELAY_MS = 5_000L
 
-/**
- * Service au premier plan qui porte le backend Python et la `Presentation` HDMI, DÉCOUPLÉ du cycle de vie de
- * `MainActivity` : c'est ce qui permet au cours de continuer de jouer sur la sortie HDMI même si l'application
- * est fermée depuis le multitâche.
- *
- * L'exemption batterie est demandee via la boite de dialogue systeme
- * standard (`MainActivity.requestIgnoreBatteryOptimizations`, appelee une
- * fois a l'installation) plutot qu'un contournement silencieux via Device
- * Owner - fiabilite inter-OEM non confirmee (HyperOS/MIUI notamment
- * ignore les mecanismes AOSP standards). Le redemarrage apres un "kill"
- * complet du processus par le systeme reste en revanche non garanti
- * (`START_STICKY` en fait la demande, mais un ForegroundService seul reste
- * soumis aux politiques d'economie d'energie agressives de certains
- * constructeurs).
- */
 class BobineForegroundService : Service() {
 
     companion object {
-        /** Demande au service d'ouvrir l'ecran (relance apres un redemarrage de l'appareil). */
         const val EXTRA_LAUNCH_SCREEN = "launch_screen"
 
         var currentPresentation: BobinePresentation? = null
@@ -87,43 +63,13 @@ class BobineForegroundService : Service() {
     private var presentation: BobinePresentation? = null
     private val handler = Handler(Looper.getMainLooper())
     private var presentationRetries = 0
-    // Empeche deux chaines de reessai concurrentes de s'executer en
-    // parallele (constate en pratique : le listener DisplayManager ET
-    // l'appel explicite de onCreate() peuvent toutes deux declencher une
-    // premiere tentative quasi simultanee, epuisant les 5 essais en
-    // quelques dizaines de ms au lieu d'un vrai backoff de 500ms chacun).
     private var presentationAttemptInFlight = false
-    // PARTIAL_WAKE_LOCK (CPU seul, pas l'ecran tactile - l'immersion de
-    // MainActivity s'occupe de l'ecran tactile separement) : empeche le systeme
-    // de suspendre le CPU pendant qu'un cours est activement diffuse sur
-    // la sortie HDMI, uniquement le temps ou la Presentation existe.
     private var wakeLock: PowerManager.WakeLock? = null
 
-    // par defaut, Android ne livre PAS les paquets multicast (mDNS
-    // inclus) au processus applicatif tant qu'aucun MulticastLock n'est
-    // detenu - la decouverte reseau du backend (zeroconf, bobine.local)
-    // resterait invisible depuis un autre appareil du meme Wi-Fi sans
-    // cela, meme si le serveur ecoute correctement. Un seul lock pour
-    // toute la duree de vie du service (pas de reference-count fine par
-    // requete : la decouverte doit rester possible en permanence, pas
-    // seulement pendant une operation ponctuelle).
     private var multicastLock: WifiManager.MulticastLock? = null
 
-    // Verrou Wi-Fi a faible latence : sans lui, la radio passe en economie d'energie entre deux
-    // paquets, ce qui allonge la latence du WebSocket et coupe des flux sur le reseau local. Le
-    // systeme ne l'applique que quand l'application est au premier plan et l'ecran allume (cas de
-    // la TV et de l'ecran de diffusion) ; il n'exige que WAKE_LOCK, permission normale.
     private var wifiLock: WifiManager.WifiLock? = null
 
-    // Re-acquisition du verrou multicast sur changement de reseau : une
-    // acquisition unique a onCreate() ne suffit pas toujours - certains
-    // pilotes radio (HyperOS/MIUI notamment, deja connus pour leur propre
-    // gestion Wi-Fi hors-AOSP) reinitialisent le filtrage multicast lors
-    // d'une reassociation (nouveau reseau, ou simple perte puis retour de
-    // connexion), laissant la decouverte mDNS (zeroconf, bobine.local)
-    // invisible depuis un autre appareil du Wi-Fi jusqu'au redemarrage
-    // complet du service - cause plausible de l'instabilite mDNS
-    // constatee en usage reel sur ce profil.
     private var connectivityManager: ConnectivityManager? = null
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
@@ -139,15 +85,11 @@ class BobineForegroundService : Service() {
         }
     }
 
-    // Reseaux Wi-Fi et Ethernet, y compris quand un VPN ou le reseau mobile
-    // porte la route par defaut : l'adresse annoncee (bandeau, Reglages, mDNS)
-    // doit rester celle du LAN.
     private fun newLanCallback() = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) = publishLanAddress()
         override fun onLinkPropertiesChanged(network: Network, linkProperties: android.net.LinkProperties) = publishLanAddress()
         override fun onLost(network: Network) = publishLanAddress()
     }
-    // Un NetworkCallback ne peut etre enregistre qu'une fois : un par transport.
     private val lanCallbacks = listOf(
         NetworkCapabilities.TRANSPORT_WIFI to newLanCallback(),
         NetworkCapabilities.TRANSPORT_ETHERNET to newLanCallback(),
@@ -168,9 +110,6 @@ class BobineForegroundService : Service() {
 
         override fun onDisplayRemoved(displayId: Int) {
             Log.i(TAG, "Ecran retire (displayId=$displayId) : ${describeDisplays()}")
-            // Ne ferme la Presentation que si SON ecran a disparu (ou s'il n'y
-            // a plus aucun ecran externe) : retirer un autre ecran virtuel ne
-            // doit pas couper la sortie HDMI.
             val current = presentation
             if (current != null && (current.display.displayId == displayId || externalDisplays().isEmpty())) {
                 current.dismiss()
@@ -178,15 +117,10 @@ class BobineForegroundService : Service() {
                 currentPresentation = null
                 releaseWakeLock()
             }
-            // Un autre ecran externe peut prendre le relais immediatement.
             showPresentationIfNeeded()
             reportDisplayState()
         }
 
-        // Un ecran deja connu change (resolution/mode negocie apres coup, mise
-        // sous tension d'un projecteur, EDID tardif...) : avant ce correctif ce
-        // callback etait vide, et une Presentation abandonnee ou jamais ouverte
-        // n'etait plus jamais retentee sans rebrancher le cable.
         override fun onDisplayChanged(displayId: Int) {
             if (displayId == Display.DEFAULT_DISPLAY) return
             if (presentation == null) {
@@ -198,16 +132,6 @@ class BobineForegroundService : Service() {
         }
     }
 
-    /**
-     * Ecrans EXTERNES reellement utilisables comme sortie de diffusion : tout
-     * `Display` autre que l'ecran integre, SAUF les ecrans prives (virtuels
-     * crees par une autre application, ex. enregistrement d'ecran) qui n'ont
-     * aucune raison de recevoir /cinema. Les ecrans marques `FLAG_PRESENTATION`
-     * passent en premier. Volontairement pas limite a la categorie
-     * PRESENTATION : le HDMI de la tablette pilote n'a pas ete verifie comme
-     * portant ce drapeau sur tous les OEM (HyperOS), l'exclure aurait pu
-     * supprimer la vraie sortie.
-     */
     private fun externalDisplays(): List<Display> =
         displayManager.displays
             .filter { it.displayId != Display.DEFAULT_DISPLAY && (it.flags and Display.FLAG_PRIVATE) == 0 }
@@ -216,20 +140,6 @@ class BobineForegroundService : Service() {
     private fun describeDisplays(): String =
         displayManager.displays.joinToString { "[id=${it.displayId} nom='${it.name}' flags=0x${Integer.toHexString(it.flags)} etat=${it.state}]" }
 
-    /**
-     * Remonte au backend le nombre d'ecrans externes REELLEMENT connectes
-     * (`PUT /api/display/state`) : le mode d'affichage cable
-     * effectif en est derive cote serveur (>= 1 ecran = double ecran), sans
-     * reglage manuel — avant, ce signal n'etait envoye qu'une fois et un echec
-     * (serveur Python embarque pas encore a l'ecoute au demarrage a froid) etait
-     * perdu pour de bon.
-     *
-     * Rejouable : en cas d'echec on reessaie avec un delai croissant tant que
-     * la valeur a envoyer n'a pas change entre-temps ; chaque appel annule les
-     * tentatives precedentes (compteur de generation) pour ne jamais ecraser un
-     * etat recent par un plus ancien. Thread dedie, jamais sur le thread
-     * principal.
-     */
     private fun reportDisplayState() {
         val externals = externalDisplays()
         val count = externals.size
@@ -241,7 +151,6 @@ class BobineForegroundService : Service() {
     private fun postDisplayState(count: Int, resolution: String?, generation: Int, attempt: Int) {
         if (generation != reportGeneration) return // un etat plus recent a pris le relais
         try {
-            // Port pas encore publie par le serveur : meme traitement qu'un serveur injoignable (nouvel essai).
             val url = BackendEndpoint.url(applicationContext, DISPLAY_STATE_PATH)
                 ?: throw java.io.IOException("serveur embarque pas encore pret")
             val connection = URL(url).openConnection() as HttpURLConnection
@@ -260,8 +169,6 @@ class BobineForegroundService : Service() {
             connection.disconnect()
             Log.i(TAG, "Etat des ecrans rapporte au backend : $count ecran(s) externe(s)")
         } catch (e: Exception) {
-            // Backend pas encore pret (demarrage a froid) : on retente, delai
-            // croissant plafonne, tant que cette valeur reste la plus recente.
             val delayMs = minOf(1000L * (attempt + 1), 10_000L)
             Log.w(TAG, "Rapport d'etat des ecrans en echec (tentative ${attempt + 1}), nouvel essai dans ${delayMs}ms", e)
             handler.postDelayed({
@@ -270,11 +177,6 @@ class BobineForegroundService : Service() {
         }
     }
 
-    /**
-     * Filet de reconciliation periodique : (re)ouvre la Presentation si un
-     * ecran externe existe sans elle, la recree si le systeme l'a fermee, et
-     * re-emet l'etat des ecrans au backend.
-     */
     private val reconcileRunnable = object : Runnable {
         override fun run() {
             val current = presentation
@@ -292,14 +194,6 @@ class BobineForegroundService : Service() {
 
     @Volatile private var reportGeneration = 0
 
-    // Compte les tentatives de démarrage différé du serveur Python quand
-    // getExternalFilesDirs() ne renvoie encore rien (stockage pas encore monté
-    // au démarrage à froid, en Direct Boot ou juste après un redémarrage).
-    // Sans ce garde-fou, une valeur nulle serait transmise telle quelle à
-    // bobine_bootstrap.py, qui retomberait SILENCIEUSEMENT sur le dossier
-    // interne privé AssetFinder/app/ (écrasé par Chaquopy à chaque mise à jour) :
-    // source probable de disparitions de bibliothèque (données écrites dans la
-    // mauvaise base jusqu'au prochain redémarrage du service).
     private var storageRetries = 0
 
     override fun onCreate() {
@@ -307,11 +201,6 @@ class BobineForegroundService : Service() {
         instance = this
 
         createNotificationChannel()
-        // startForeground() DOIT etre appele tres tot (quelques secondes,
-        // sous peine de ForegroundServiceDidNotStartInTimeException sur API
-        // 31+) - deplace AVANT le demarrage du serveur Python (qui peut
-        // desormais attendre le montage du stockage externe, cf.
-        // startPythonServerWhenStorageReady ci-dessous) plutot qu'apres.
         startForeground(NOTIFICATION_ID, buildNotification())
         acquireMulticastLock()
         acquireWifiLock()
@@ -335,21 +224,13 @@ class BobineForegroundService : Service() {
 
         displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
         displayManager.registerDisplayListener(displayListener, null)
-        // Cas ou le dock/vidoprojecteur est deja branche avant le demarrage
-        // du service (pas seulement un branchement en cours d'utilisation).
         Log.i(TAG, "Ecrans au demarrage : ${describeDisplays()}")
         showPresentationIfNeeded()
-        // Etat des ecrans rapporte AU DEMARRAGE meme sans ecran externe (0), et
-        // re-emis periodiquement (cf. reconcileRunnable).
         reportDisplayState()
         handler.postDelayed(reconcileRunnable, RECONCILE_INTERVAL_MS)
     }
 
     private fun startPythonServerWhenStorageReady() {
-        // Stockage externe propre à l'application (persiste entre les mises à
-        // jour, visible depuis un gestionnaire de fichiers/MTP), réservé aux
-        // MÉDIAS (gros fichiers, voir bobine_bootstrap.py). Pas le dossier
-        // interne AssetFinder/app/, où Chaquopy redéploie les sources Python.
         val externalFilesDirs = ContextCompat.getExternalFilesDirs(applicationContext, null).filterNotNull()
         if (externalFilesDirs.isEmpty()) {
             storageRetries++
@@ -361,8 +242,6 @@ class BobineForegroundService : Service() {
             }
             return
         }
-        // Stockage amovible USB / SSD / SD (index >= 1) prioritaire s'il est inscriptible
-        // (crucial pour Android TV ou l'eMMC interne est souvent limite a ~4-8 Go)
         val removableDir = externalFilesDirs.drop(1).firstOrNull { it.canWrite() }
         val selectedExternalDir = if (removableDir != null) {
             Log.i(TAG, "Stockage amovible USB detecte et selectionne : ${removableDir.absolutePath} (espace libre: ${removableDir.freeSpace / (1024 * 1024)} Mo)")
@@ -371,13 +250,7 @@ class BobineForegroundService : Service() {
             externalFilesDirs.first().absolutePath
         }
 
-        // Dossier PRIVÉ de l'application sur le stockage interne (f2fs natif,
-        // jamais FUSE) : base SQLite, miniatures, logs, branding, pochettes radio.
         val internalFilesDir = applicationContext.filesDir.absolutePath
-        // Dossier natif de l'application (seul emplacement d'où Android 10+
-        // autorise l'exécution d'un binaire embarqué, contrainte W^X) : c'est
-        // là que les jniLibs/<abi>/ (libffmpeg.so, libffprobe.so,
-        // libbobine_media.so) finissent après installation.
         val nativeLibraryDir = applicationContext.applicationInfo.nativeLibraryDir
         val py = Python.getInstance()
         py.getModule("bobine_bootstrap").callAttr(
@@ -385,12 +258,6 @@ class BobineForegroundService : Service() {
         )
     }
 
-    /**
-     * Ouvre l'ecran apres un demarrage de l'appareil. Android 10+ refuse l'ouverture d'une
-     * activite depuis l'arriere-plan sauf si l'application a une fenetre visible : une fenetre
-     * superposee de 1 pixel (permission « afficher par-dessus d'autres applications ») suffit
-     * le temps du lancement.
-     */
     private fun launchScreenFromBackground() {
         val launch = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         if (!Settings.canDrawOverlays(this)) {
@@ -435,11 +302,6 @@ class BobineForegroundService : Service() {
         if (intent?.getBooleanExtra(EXTRA_LAUNCH_SCREEN, false) == true) {
             launchScreenFromBackground()
         }
-        // START_STICKY : le systeme relance le service (sans le dernier
-        // Intent) s'il le tue pour recuperer de la memoire - ne remplace
-        // pas l'exemption batterie, mais aide sur les kills
-        // "normaux" (pression memoire) par opposition aux politiques
-        // d'economie d'energie constructeur agressives.
         return START_STICKY
     }
 
@@ -478,25 +340,11 @@ class BobineForegroundService : Service() {
 
     private fun showPresentationIfNeeded() {
         if (MainActivity.isTvDevice(this)) {
-            // Sur Android TV : l'ecran principal est deja le diffuseur unique (pas de Presentation secondaire)
             return
         }
         if (presentation != null || presentationAttemptInFlight) return
-        // displayId 0 = écran interne de la tablette (jamais une sortie HDMI) ;
-        // une seule Presentation à la fois est attendue ici (un seul dock ou
-        // sortie externe par appareil). Voir externalDisplays() pour le
-        // filtrage des écrans privés.
         val external = externalDisplays().firstOrNull() ?: return
 
-        // Un `Display` peut apparaître dans DisplayManager.getDisplays() avant
-        // que WindowManagerService ait fini d'enregistrer son DisplayContent :
-        // Presentation.show() lève alors InvalidDisplayException ("the specified
-        // display can not be found"). Constaté de façon reproductible sur
-        // l'émulateur juste après le démarrage du service, branchement à chaud
-        // simulé compris ; plausible aussi sur un vrai branchement HDMI à chaud.
-        // Repli : nouvel essai après un court délai plutôt qu'un crash (le
-        // redémarrage START_STICKY masquait ce bug sans le corriger : l'app
-        // plantait puis se rétablissait seule).
         val presentationContext = getPresentationContext()
         presentationAttemptInFlight = true
         try {
@@ -509,12 +357,6 @@ class BobineForegroundService : Service() {
             presentationAttemptInFlight = false
             presentationRetries = 0
         } catch (e: Exception) {
-            // Toute exception (InvalidDisplayException attendue au demarrage,
-            // mais aussi BadTokenException/SecurityException selon l'OEM) est
-            // retentee SANS abandon definitif : 15 essais rapides (7,5 s, mesure
-            // en pratique) puis un essai toutes les 5 s. Auparavant,
-            // l'abandon apres 15 essais laissait un projecteur a EDID tardif
-            // noir jusqu'a un rebranchement du cable.
             presentation = null
             currentPresentation = null
             presentationRetries++

@@ -6,28 +6,18 @@ import type { RadioChannelId } from "@/lib/displayChannel";
 import RadioRemotePanel from "@/components/RadioRemotePanel";
 import Icon from "@/components/Icon";
 
-// Télécommande admin des sorties radio : chaque sortie (câblée, réseau) a son propre moteur
-// — playlist, file d'attente, volume, rappels, planning. Cette page n'est qu'un conteneur à
-// onglets autour de la télécommande partagée (`RadioRemotePanel`), qui est AUSSI montée par la
-// page « Sortie Câblé » quand l'écran câblé est en mode Radio. Le lecteur réel de chaque
-// sortie est l'écran `/radio?channel=…`.
-
 const STORAGE_KEY = "bobine.radioRemote.channel";
 
-/** Dernière sortie consultée (confort par appareil). Tout accès au stockage est protégé :
- * il peut être indisponible (navigation privée, données bloquées) — la page reste correcte. */
 function readStoredChannel(): RadioChannelId {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored === "radio_cable" || stored === "radio_network") return stored;
   } catch {
-    // stockage indisponible : sortie réseau par défaut
   }
   return "radio_network";
 }
 
 function readRequestedChannel(): RadioChannelId | null {
-  // Lien direct depuis la page « Sortie Câblé » ou Réglages : /radio-remote?channel=cable|network
   const requested = new URLSearchParams(window.location.search).get("channel");
   if (requested === "cable") return "radio_cable";
   if (requested === "network") return "radio_network";
@@ -36,9 +26,6 @@ function readRequestedChannel(): RadioChannelId | null {
 
 export default function RadioRemotePage() {
   const { t } = useAppSettings();
-  // Sortie inconnue au rendu serveur (export statique) : la préférence locale est lue après
-  // l'hydratation, et le panneau n'est monté qu'ensuite — une seule connexion WebSocket, pas une
-  // première sur la sortie réseau aussitôt remplacée.
   const [channel, setChannel] = useState<RadioChannelId | null>(null);
 
   useEffect(() => {
@@ -51,14 +38,11 @@ export default function RadioRemotePage() {
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
     } catch {
-      // stockage indisponible : la sélection reste valable pour cette session
     }
   };
 
   return (
     <div className="dashboard-container">
-      {/* Même barre que celle de la page « Sortie Câblé » (carte d'en-tête + commutateur en pilule) :
-          une seule apparence pour tous les choix de sortie. */}
       <div className="live-block channel-card radio-remote-head">
         <div className="channel-card-left">
           <h3>
@@ -70,8 +54,6 @@ export default function RadioRemotePage() {
           </span>
         </div>
         <div className="channel-card-right">
-          {/* Ouvre le lecteur de la sortie choisie dans un nouvel onglet (même geste que « Ouvrir un écran
-              réseau » de Sortie Réseau) : /radio?channel=cable ou /radio?channel=network. */}
           <a
             href={`/radio?channel=${channel === "radio_cable" ? "cable" : "network"}`}
             target="_blank"

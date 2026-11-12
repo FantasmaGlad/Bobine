@@ -1,11 +1,4 @@
-"""Pilote Android / Android TV : pont Kotlin `DeviceBridge` (Chaquopy).
-
-Limites d'Android, assumées et déclarées par les capacités : pas de changement de sortie audio par
-défaut, pas de connexion/oubli d'un appareil Bluetooth déjà appairé, Wi-Fi en lecture seule et sans
-nom de réseau (la lecture du SSID exigerait la localisation précise, permission sensible que Bobine ne
-demande pas) ; pour le reste, des liens vers les réglages d'Android (`open_system_settings`).
-Les appels Java sont bloquants (profils Bluetooth) : ils s'exécutent hors de la boucle d'évènements.
-"""
+"""Pilote Android / Android TV : pont Kotlin `DeviceBridge` (Chaquopy)."""
 
 from __future__ import annotations
 
@@ -35,7 +28,7 @@ _NO_WIFI = "Depuis Android 10, une application ne peut plus gérer le Wi-Fi : ut
 
 
 def _default_bridge() -> tuple[Any, Any]:
-    from com.chaquo.python import Python  # Chaquopy
+    from com.chaquo.python import Python
     from java import jclass
 
     return jclass("com.bobine.app.DeviceBridge").INSTANCE, Python.getPlatform().getApplication()
@@ -67,7 +60,7 @@ class AndroidDriver(DeviceDriver):
             raw = await asyncio.get_running_loop().run_in_executor(None, invoke)
         except DeviceError:
             raise
-        except Exception as exc:  # exception Java ou Chaquopy : jamais une 500
+        except Exception as exc:
             logger.warning("DeviceBridge.%s a échoué : %s", method, exc)
             raise DeviceError("bridge_error", "L'appel au système Android a échoué.", 502) from exc
         try:
@@ -89,7 +82,6 @@ class AndroidDriver(DeviceDriver):
         except Exception:
             return False
 
-    # ------------------------------------------------------------------ capacités
     async def capabilities(self) -> dict[str, dict[str, Any]]:
         caps: dict[str, dict[str, Any]] = {key: {"supported": False, "reason": ""} for key in CAPABILITY_KEYS}
         try:
@@ -115,26 +107,23 @@ class AndroidDriver(DeviceDriver):
         caps["system_settings"] = dict(yes)
         return caps
 
-    # ------------------------------------------------------------------ audio
     async def audio_list(self) -> dict[str, Any]:
         return await self._call("audioList")
 
     async def audio_set_volume(self, device_id: str, volume: float | None, muted: bool | None) -> None:
-        # Android n'a qu'un volume média global (celui de la sortie active), pas de volume par sortie.
         await self._call("audioSetVolume", -1.0 if volume is None else float(volume), -1 if muted is None else (1 if muted else 0))
         self._emit("audio")
 
     async def audio_details(self, device_id: str) -> dict[str, Any]:
         return await self._call("audioDetails", str(device_id))
 
-    # ------------------------------------------------------------------ Bluetooth
     async def bluetooth_status(self) -> dict[str, Any]:
         if not await self._has_bluetooth():
             return unsupported("Cet appareil n'a pas de Bluetooth.")
         try:
             return await self._call("bluetoothStatus")
         except DeviceError as exc:
-            if exc.code == "permission_required":  # état normal avant autorisation : pas une erreur
+            if exc.code == "permission_required":
                 return {"supported": True, "powered": False, "discovering": False, "devices": [], "pending_pairing": None,
                         "pairing": None, "permission_required": True, "permission_message": exc.message}
             if exc.code == "no_adapter":
@@ -145,7 +134,7 @@ class AndroidDriver(DeviceDriver):
         try:
             await self._call("bluetoothRequestPermission")
         except DeviceError as exc:
-            if exc.code != "permission_required":  # la boîte de dialogue vient d'être affichée : c'est attendu
+            if exc.code != "permission_required":
                 raise
 
     async def bluetooth_set_power(self, on: bool) -> None:
@@ -162,7 +151,6 @@ class AndroidDriver(DeviceDriver):
         await self._call("bluetoothPair", address)
         self._emit("bluetooth")
 
-    # ------------------------------------------------------------------ Wi-Fi (lecture seule)
     async def wifi_status(self) -> dict[str, Any]:
         return await self._call("wifiStatus")
 

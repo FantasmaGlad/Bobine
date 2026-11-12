@@ -35,7 +35,7 @@ class AudioTrackResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True
 
 
 class AudioCourseResponse(BaseModel):
@@ -53,7 +53,7 @@ class AudioCourseResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True
 
 
 class AudioCourseDetailResponse(BaseModel):
@@ -66,7 +66,7 @@ class AudioCourseDetailResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True
 
 
 class AudioCourseUpdate(BaseModel):
@@ -82,9 +82,7 @@ class TrackReorderInput(BaseModel):
 
 
 class AudioTrackWithCourseResponse(BaseModel):
-    """Piste individuelle avec le contexte de son cours d'origine :
-    sert de source pour le sélecteur de pistes des playlists audio, qui pioche
-    librement dans n'importe quel cours plutôt que de les enchaîner entiers."""
+    """Piste individuelle avec le contexte de son cours d'origine."""
     id: int
     number: int | None
     title: str
@@ -123,8 +121,6 @@ def _to_summary(course: AudioCourse) -> dict:
 
 @router.get("", response_model=List[AudioCourseResponse])
 def list_audio_courses(db: Session = Depends(get_db)):
-    # `_to_summary` lit `course.tracks` et `course.background` : sans
-    # chargement groupé, 2 SELECT par cours (500 cours = 551 requêtes).
     courses = (
         db.query(AudioCourse)
         .options(selectinload(AudioCourse.tracks), joinedload(AudioCourse.background))
@@ -136,17 +132,10 @@ def list_audio_courses(db: Session = Depends(get_db)):
 
 @router.get("/tracks", response_model=List[AudioTrackWithCourseResponse])
 def list_all_tracks(db: Session = Depends(get_db)):
-    """
-    Toutes les pistes de tous les cours audio, à plat, avec leur contexte de
-    cours d'origine : source du
-    sélecteur de pistes des playlists audio — DOIT être déclarée avant
-    `/{course_id}` pour ne pas être interceptée par cette route paramétrée.
-    """
+    """Toutes les pistes de tous les cours audio, à plat, avec leur contexte de cours d'origine."""
     tracks = (
         db.query(AudioTrack)
         .join(AudioCourse, AudioTrack.audio_course_id == AudioCourse.id)
-        # Le cours est déjà joint pour le tri : `contains_eager` le réutilise
-        # au lieu d'un SELECT par piste ; le fond (titre/type) est joint à part.
         .options(contains_eager(AudioTrack.course), joinedload(AudioTrack.background))
         .order_by(AudioCourse.title.asc(), AudioTrack.position.asc())
         .all()
@@ -171,12 +160,7 @@ def list_all_tracks(db: Session = Depends(get_db)):
 
 @router.get("/programs", response_model=List[str])
 def list_audio_programs(db: Session = Depends(get_db)):
-    """Catégories (programmes) réellement présentes parmi les cours audio,
-    triées. Même pattern que `videos.list_programs` : remplace les presets
-    RPM/Sprint/The Trip codés en dur par des suggestions dérivées des cours
-    déjà importés. Défini AVANT `/{course_id}` pour ne pas être interceptée
-    par cette route paramétrée.
-    """
+    """Catégories (programmes) réellement présentes parmi les cours audio, triées."""
     rows = (
         db.query(AudioCourse.program)
         .filter(AudioCourse.program.isnot(None), AudioCourse.program != "")
@@ -238,10 +222,6 @@ class ImportJobAccepted(BaseModel):
 def _run_audio_files_import_job(
     job_id: str, tmp_dir: Path, temp_paths: list[str], title: str, program: str | None, release: str | None
 ) -> None:
-    """Voir `videos.py::_run_video_import_job` — même mécanique de suivi. Sur
-    `io_executor` (pas `ffmpeg_executor`) : cet import n'appelle que ffprobe,
-    pas de réencodage ffmpeg, donc pas de raison de faire la queue derrière un import
-    vidéo/fond en cours."""
     try:
         course = import_audio_course_from_files(temp_paths, title, program, release, job_id=job_id)
         update_job(job_id, stage="done", result_id=course.id)
@@ -270,14 +250,10 @@ def upload_audio_course(
     program: str | None = Form(None),
     release: str | None = Form(None),
 ):
-    """Import multi-fichiers MP3 d'un cours, traité en
-    arrière-plan — voir `_run_audio_files_import_job` et `GET /api/import-jobs`."""
+    """Import multi-fichiers MP3 d'un cours, traité en arrière-plan — voir `_run_audio_files_import_job` et `GET /api/import-jobs`."""
     if not title.strip():
         raise HTTPException(status_code=400, detail="Le titre du cours est requis")
 
-    # Dossier temporaire dédié à cette requête : chaque fichier y garde son
-    # nom d'origine intact (le numéro de piste en tête de nom.1,
-    # doit rester parsable — un fichier temporaire renommé le perdrait).
     tmp_dir = Path(tempfile.mkdtemp(prefix="olmc_audio_upload_"))
     temp_paths = []
     try:
@@ -304,9 +280,7 @@ def upload_audio_course_zip(
     program: str | None = Form(None),
     release: str | None = Form(None),
 ):
-    """Import d'une archive ZIP d'un cours complet,
-    traité en arrière-plan — voir `_run_audio_zip_import_job` et
-    `GET /api/import-jobs`."""
+    """Import d'une archive ZIP d'un cours complet, traité en arrière-plan — voir `_run_audio_zip_import_job` et `GET /api/import-jobs`."""
     if not title.strip():
         raise HTTPException(status_code=400, detail="Le titre du cours est requis")
 
@@ -365,12 +339,10 @@ def delete_audio_course(course_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Cours audio non trouvé")
 
     for track in course.tracks:
-        # Jamais de suppression de fichier sur un support externe : le cours quitte la bibliothèque, pas le support.
         if track.file_path and track.storage_id is None:
             p = Path(track.file_path)
             if p.exists():
                 try:
-                    # Supprime aussi le dossier parent (dédié au cours) s'il devient vide.
                     os.remove(p)
                     if p.parent.exists() and not any(p.parent.iterdir()):
                         p.parent.rmdir()

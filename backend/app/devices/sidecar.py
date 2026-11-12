@@ -1,13 +1,4 @@
-"""Pilote Windows / macOS : sidecar Rust `bobine-devices` (JSON-RPC 2.0 sur stdin/stdout).
-
-Le binaire est lancé À LA DEMANDE, sous le même compte que le backend, et arrêté avec lui ; aucun port
-réseau. Une requête = une réponse (sérialisées par un verrou), avec délai d'expiration : un sidecar
-bloqué ou planté est tué puis relancé au prochain appel, sans jamais toucher à la diffusion en cours.
-
-Garde-fou : tant qu'une plateforme n'est pas validée sur du matériel réel, ses
-fonctions restent « non prises en charge » ; la variable `BOBINE_DEVICES_EXPERIMENTAL=1` les débloque
-pour essai.
-"""
+"""Pilote Windows / macOS : sidecar Rust `bobine-devices` (JSON-RPC 2.0 sur stdin/stdout)."""
 
 from __future__ import annotations
 
@@ -37,8 +28,7 @@ _STATUS_BY_CODE = {"unsupported": 501, "tool_missing": 501, "timeout": 504, "wif
 
 
 def find_binary(profile: str) -> list[str] | None:
-    """Emplacements habituels du sidecar : variable d'environnement, à côté de l'exécutable (paquets
-    Windows/macOS), puis dépôt de développement. Renvoie la ligne de commande ou None."""
+    """Emplacements habituels du sidecar : variable d'environnement, à côté de l'exécutable (paquets Windows/macOS), puis dépôt de développement."""
     suffix = ".exe" if os.name == "nt" else ""
     candidates: list[Path] = []
     override = os.environ.get(BINARY_ENV)
@@ -69,7 +59,6 @@ class SidecarDriver(DeviceDriver):
         self._hello: dict[str, Any] | None = None
         self._caps_at = 0.0
 
-    # ------------------------------------------------------------------ garde-fous
     def _blocked_reason(self) -> str | None:
         label = _PLATFORM_LABEL.get(self.profile, self.profile)
         if not self._experimental:
@@ -81,7 +70,6 @@ class SidecarDriver(DeviceDriver):
             return f"Le composant bobine-devices est introuvable sur cette installation ({label})."
         return None
 
-    # ------------------------------------------------------------------ processus
     async def _spawn(self) -> None:
         assert self._command
         self._proc = await asyncio.create_subprocess_exec(
@@ -110,14 +98,14 @@ class SidecarDriver(DeviceDriver):
             if proc.returncode is None:
                 proc.kill()
             await asyncio.wait_for(proc.wait(), timeout=3)
-        except Exception:  # processus déjà parti
+        except Exception:
             pass
 
     async def stop(self) -> None:
         proc = self._proc
         if proc is not None and proc.stdin is not None:
             try:
-                proc.stdin.close()  # fin de l'entrée = arrêt propre du sidecar
+                proc.stdin.close()
                 await asyncio.wait_for(proc.wait(), timeout=2)
             except Exception:
                 pass
@@ -173,7 +161,6 @@ class SidecarDriver(DeviceDriver):
                     raise DeviceError("sidecar_down", f"Impossible de lancer le composant de périphériques : {exc.strerror or exc}", 502) from exc
             return await self._exchange(method, params or {}, timeout)
 
-    # ------------------------------------------------------------------ capacités
     async def capabilities(self) -> dict[str, dict[str, Any]]:
         reason = self._blocked_reason()
         if reason:
@@ -192,12 +179,10 @@ class SidecarDriver(DeviceDriver):
             return no_capabilities(exc.message)
         if not caps:
             return no_capabilities("Le composant de périphériques ne déclare aucune capacité.")
-        # Fonctions ajoutées après la version du composant : absentes = non prises en charge (jamais « supposées »).
         for key in CAPABILITY_KEYS:
             caps.setdefault(key, {"supported": False, "reason": "Non disponible sur cette plateforme."})
         return caps
 
-    # ------------------------------------------------------------------ audio
     async def _list(self, method: str) -> dict[str, Any]:
         reason = self._blocked_reason()
         if reason:
@@ -221,7 +206,6 @@ class SidecarDriver(DeviceDriver):
         await self._rpc("audio.set_volume", {"id": device_id, "volume": volume, "muted": muted})
         self._emit("audio")
 
-    # ------------------------------------------------------------------ Bluetooth
     async def bluetooth_status(self) -> dict[str, Any]:
         return await self._list("bluetooth.status")
 
@@ -249,7 +233,6 @@ class SidecarDriver(DeviceDriver):
         await self._rpc("bluetooth.forget", {"address": address})
         self._emit("bluetooth")
 
-    # ------------------------------------------------------------------ Wi-Fi
     async def wifi_status(self) -> dict[str, Any]:
         return await self._list("wifi.status")
 

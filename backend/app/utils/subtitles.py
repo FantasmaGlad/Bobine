@@ -6,8 +6,6 @@ from app.config import settings
 MAX_SUBTITLE_BYTES = 2 * 1024 * 1024
 SUBTITLE_EXTENSIONS = (".srt", ".vtt")
 
-# Code de langue fourni par le client : sert à nommer le fichier sur disque,
-# il ne doit donc jamais pouvoir contenir de séparateur de chemin.
 _LANGUAGE_CODE_RE = re.compile(r"^[a-z]{2,3}(?:-[a-z0-9]{2,8})?$")
 
 
@@ -45,7 +43,6 @@ LANGUAGE_MAP: dict[str, str] = {
 def detect_language_from_filename(filename: str) -> tuple[str, str]:
     """Détecte le code et libellé de langue depuis le nom de fichier (ex: course.fr.srt, film.en.vtt)."""
     clean_name = filename.lower()
-    # Recherche d'un suffixe de langue avant l'extension .srt ou .vtt
     match = re.search(r"[._-]([a-z]{2,3})\.(?:srt|vtt)$", clean_name)
     if match:
         code = match.group(1)
@@ -61,9 +58,6 @@ def convert_srt_to_vtt(content: str) -> str:
     if text.strip().startswith("WEBVTT"):
         return text
 
-    # Remplacement des virgules des millisecondes par des points dans les repères temporels
-    # Format SRT : 00:01:20,500 --> 00:01:23,100
-    # Format VTT : 00:01:20.500 --> 00:01:23.100
     converted = re.sub(r"(\d{2}:\d{2}:\d{2}),(\d{3})", r"\1.\2", text)
     return f"WEBVTT\n\n{converted.strip()}\n"
 

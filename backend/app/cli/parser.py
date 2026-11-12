@@ -27,12 +27,6 @@ from .read import cmd_devices, cmd_display, cmd_imports, cmd_library, cmd_logs, 
 
 
 def _add_common_options(parser: argparse.ArgumentParser, *, suppress_defaults: bool = False) -> None:
-    """Ajoute les options communes, acceptées avant comme après la sous-commande.
-
-    Un sous-analyseur hérite de ces options par `parents`, mais argparse les ré-analyse dans un espace de noms neuf
-    et ré-applique leurs valeurs par défaut : une option globale lue avant la sous-commande serait alors écrasée.
-    Avec `suppress_defaults`, une option absente ne pose aucune valeur et celle déjà lue est conservée.
-    """
     default = argparse.SUPPRESS if suppress_defaults else None
     parser.add_argument("--host", default=default, help="machine à piloter (défaut : 127.0.0.1, ou BOBINE_HOST)")
     parser.add_argument("--port", type=int, default=default, help="port de Bobine (défaut : port réel de la machine locale, ou BOBINE_PORT)")

@@ -31,16 +31,9 @@ import { getApiUrl } from "@/lib/apiUrl";
 import { formatMinutes, formatTime, formatWallClock } from "@/lib/format";
 import { unloadMedia } from "@/lib/mediaElement";
 
-// Boutons de cours focalisables par la télécommande, dans l'ordre de lecture
-// (héros, puis rangées par programme, puis grille complète).
 const CINEMA_GRID_CARDS =
   ".cinema-grid-layer .cinema-hero-play, .cinema-grid-layer .cinema-card, .cinema-grid-layer .cinema-all-item";
 
-// (voir kiosk/page.tsx,
-// même bug) : assigner `currentTime` sur un élément en lecture sans pause
-// préalable force le pipeline média du navigateur à décoder immédiatement jusqu'à
-// sa première image clé (IDR), gelant l'image. On met en pause temporaire
-// pendant le calage et on ne relance qu'une fois le seek confirmé ("seeked").
 function seekWhenReady(el: HTMLMediaElement, targetSeconds: number, onDone?: () => void) {
   const apply = () => {
     try {
@@ -61,40 +54,18 @@ function seekWhenReady(el: HTMLMediaElement, targetSeconds: number, onDone?: () 
         onDone?.();
       }
     } catch {
-      // Rattrapé par le prochain seek/rapport si toujours pas prêt.
     }
   };
   if (el.readyState >= HTMLMediaElement.HAVE_METADATA) apply();
   else el.addEventListener("loadedmetadata", apply, { once: true });
 }
 
-// Délai d'inactivité souris avant de masquer la barre de contrôle en lecture.
 const CONTROLS_HIDE_MS = 3000;
-// "À suivre" : délai avant lancement automatique du
-// cours suggéré en fin de lecture, façon YouTube.
 const UP_NEXT_AUTOPLAY_SECONDS = 5 * 60;
-// "Scramble" de la suggestion à la une : nouveau tirage
-// toutes les 15 minutes.
 const SCRAMBLE_INTERVAL_MS = 15 * 60 * 1000;
 
 type Phase = "grid" | "playing" | "ended";
 
-/**
- * Interface cinéma adhérents. Contrairement à /kiosk, la
- * lecture est ENTIÈREMENT LOCALE à cet onglet/appareil — aucune commande
- * n'est envoyée à l'état de lecture partagé du serveur (playback_manager).
- * C'est un choix architectural délibéré : plusieurs
- * adhérents doivent pouvoir chacun choisir et regarder un cours différent en
- * même temps, sur leur propre téléphone ou sur l'écran câblé, sans qu'un
- * lancement en écrase un autre. Le flux vidéo (`/api/videos/{id}/stream`)
- * supporte nativement des lectures concurrentes indépendantes.
- *
- * La sortie reste pilotée depuis l'admin PAR CANAL : cette page écoute les deux évènements pour savoir si elle
- * doit céder la place à /kiosk, selon qu'elle tourne sur l'écran câblé du
- * Wyse ou sur un appareil du réseau.
- */
-/** Cours lancé PAR ORDRE (depuis /grid ou le tableau de bord) que cette page suit sur
- * l'horloge serveur. Absent = lecture locale (cours choisi à la main). */
 interface CinemaSync {
   anchor: ClockAnchor;
   videoId: number;
@@ -117,20 +88,17 @@ export default function CinemaPage() {
     videoRef.current = activeDeck === "A" ? deckARef.current : deckBRef.current;
   }, [activeDeck]);
 
-  // Indicateur visuel du changement de volume
   const [volumeHud, showVolumeHud] = useVolumeHud();
   const [endedVideo, setEndedVideo] = useState<CinemaVideo | null>(null);
   const [videos, setVideos] = useState<CinemaVideo[]>([]);
   const [phase, setPhase] = useState<Phase>("grid");
   const [selected, setSelected] = useState<CinemaVideo | null>(null);
 
-  // Sous-titres pour la lecture cinéma
   const [activeSubtitleId, setActiveSubtitleId] = useState<number | "off">("off");
   const [showSubtitleMenu, setShowSubtitleMenu] = useState<boolean>(false);
   const subtitles = useVideoSubtitles(selected?.id, getApiUrl);
   useApplySubtitleMode([deckARef, deckBRef], subtitles, activeSubtitleId);
   const chapters = useVideoChapters(selected?.id, getApiUrl);
-  // Languette « Découvrir les cours » du héros plein écran : retirée dès que la grille défile.
   const [heroScrolled, setHeroScrolled] = useState(false);
 
   useEffect(() => {
@@ -141,19 +109,10 @@ export default function CinemaPage() {
     setActiveSubtitleId(subId);
   }, []);
 
-  // Masquage des contrôles HDMI & mode passif :
-  // En mode double écran ("dual_screen" sur sortie câblée physique), /grid
-  // (écran tactile ou laptop) pilote tout — les contrôles de superposition
-  // sont masqués et l'écran HDMI affiche une attente sobre lorsqu'aucun cours ne joue.
-  // En mode classique / "headless", cet écran reste autonome avec ses contrôles et sa vitrine complète.
   const hideControls = wiredDisplayMode === "dual_screen" && isWiredDisplay();
   const [userStandbyMode, setUserStandbyMode] = useState(false);
   const effectiveHideControls = hideControls || userStandbyMode;
 
-  // Horloge de l'écran d'attente « bibliothèque vide » (voir plus bas) :
-  // quand aucun cours n'est disponible, la vitrine n'a ni héros ni logo et se
-  // réduisait à un mince texte sur fond noir — perçu comme un écran éteint sur
-  // la TV. On affiche à la place un vrai écran d'attente (grand logo + heure).
   const [now, setNow] = useState<Date>(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -163,47 +122,23 @@ export default function CinemaPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [needsTapToPlay, setNeedsTapToPlay] = useState(false);
   const [position, setPosition] = useState(0);
-  // Dernière mise à jour de `position` :
-  // l'évènement natif `timeupdate` se déclenche plusieurs fois par seconde,
-  // chaque déclenchement re-rendait tout le composant (dont la grille de
-  // sélection masquée mais toujours montée). Limité à 1 fois/seconde,
-  // largement suffisant pour l'affichage de la position.
   const lastPositionUpdateRef = useRef(0);
   const lastSeekTimeRef = useRef(0);
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deckUnloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Définie tôt (avant startPlayback ci-dessous, qui doit pouvoir l'appeler) : ce minuteur d'auto-masquage n'était armé
-  // QUE par `onMouseMove` sur cinema-root, jamais par le démarrage de la
-  // lecture elle-même. Sur un écran HDMI passif piloté à distance depuis
-  // /grid (aucune souris/tactile locale ne touche jamais CET écran), aucun
-  // `mousemove` ne se produit donc jamais et les commandes restaient
-  // affichées en permanence, `controlsVisible` gardant sa valeur initiale
-  // `true` pour toujours. Auparavant, un minimum d'interaction locale
-  // (kiosk tactile, télécommande dongle) déclenchait ce chemin par hasard.
   const wakeControls = useCallback(() => {
     setControlsVisible(true);
     if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
     controlsTimerRef.current = setTimeout(() => setControlsVisible(false), CONTROLS_HIDE_MS);
   }, []);
   const [seekDragValue, setSeekDragValue] = useState<number | null>(null);
-  // "À suivre" : suggestion aléatoire en fin de cours + compte à rebours
-  // d'autoplay (annulable d'un clic).
   const [upNext, setUpNext] = useState<CinemaVideo | null>(null);
   const [upNextRemaining, setUpNextRemaining] = useState(UP_NEXT_AUTOPLAY_SECONDS);
   const upNextTaskRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Partagé avec le reste de l'app : la sortie active des deux canaux (pour
-  // suivre la bascule kiosk/cinéma décidée depuis l'admin), et un canal de supervision —
-  // cette page RAPPORTE sa lecture locale (titre/position) et OBÉIT aux
-  // commandes admin (play/pause/seek/stop). La lecture reste locale : le
-  // playback_manager du serveur n'est jamais impliqué. Le canal suivi est
-  // celui de CET appareil : câblé si écran du Wyse, réseau sinon.
   const [channel] = useState<"cable" | "network">(() => getDisplayChannel("cinema"));
-  // Implémentation réelle installée plus bas, une fois les handlers définis.
   const cinemaCmdRef = useRef<((action: string, positionSeconds: number, videoId?: number, extra?: CinemaCommandExtra) => void) | null>(null);
-  // Cours lancé par ordre, suivi sur l'horloge serveur ; effacé dès que l'utilisateur
-  // prend la main localement (pause, seek, autre cours, retour au menu...).
   const [cinemaSync, setCinemaSync] = useState<CinemaSync | null>(null);
   const { state, displayOutputCable, displayOutputNetwork, sendCommand, cinemaState, libraryVersion, serverNow } = usePlaybackSocket(
     undefined,
@@ -212,28 +147,17 @@ export default function CinemaPage() {
     (action, positionSeconds, videoId, extra) => cinemaCmdRef.current?.(action, positionSeconds, videoId, extra),
     "cinema",
   );
-  // Son du canal sur les deux lecteurs A/B ; repli en son direct si le contexte audio ne démarre pas.
   useMediaSound(deckARef, state.sound);
   useMediaSound(deckBRef, state.sound);
   useDisplayOutputRedirect("cinema", displayOutputCable, displayOutputNetwork);
 
-  // Bascule automatique vers le kiosque si le mode coach est actif sur ce canal,
-  // permettant à l'écran externe de restituer l'audio et la scène visuelle d'ambiance
   useEffect(() => {
     if (state.state === "coach_mode") {
       window.location.replace(buildOutputUrl("kiosk", window.location.search, channel));
     }
   }, [state.state, channel]);
-  // Son de survol des cartes de cours.
   const playHoverSound = useHoverSound("/sounds/survole.mp3");
 
-  // Rafraîchissement LIVE de la vitrine : la page cinéma est un écran passif
-  // qui ne se recharge jamais ; sans ce sondage, un cours importé depuis un
-  // autre poste n'apparaissait qu'après un rechargement manuel. On ne remplace l'état que si
-  // la liste a réellement changé, pour ne pas re-rendre la vitrine (ni couper
-  // un survol/scroll) à chaque tick.
-  // Même correctif que /grid : retentative rapide (3s) sur échec, sans jamais vider
-  // une liste déjà chargée.
   useEffect(() => {
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -273,10 +197,8 @@ export default function CinemaPage() {
       clearInterval(id);
       if (retryTimer) clearTimeout(retryTimer);
     };
-    // libraryVersion : recharge immédiate sur `library_change`.
   }, [libraryVersion]);
 
-  // Synchronise les métadonnées de la vidéo sélectionnée (vignette, description) dès que la liste est chargée
   useEffect(() => {
     if (selected && (!selected.thumbnail_path || !selected.description)) {
       const fresh = videos.find((v) => Number(v.id) === Number(selected.id));
@@ -298,7 +220,6 @@ export default function CinemaPage() {
     setNeedsTapToPlay(false);
     wakeControls();
 
-    // Si aucune vidéo ne joue ou si l'un des décodeurs n'est pas dispo, on charge sur l'actif
     if (!isPlaying || !idle || !currentActive) {
       const target = currentActive || idle;
       if (!target) return;
@@ -316,15 +237,11 @@ export default function CinemaPage() {
       return;
     }
 
-    // Le deck inactif est celui qu'un lancement précédent s'apprêtait à décharger : sans annulation, la
-    // minuterie viderait le cours qui vient d'y être chargé.
     if (deckUnloadTimerRef.current) {
       clearTimeout(deckUnloadTimerRef.current);
       deckUnloadTimerRef.current = null;
     }
 
-    // Double Décodeur Vidéo Gapless A/B Deck :
-    // Préchargement en coulisses sur le deck inactif
     idle.src = videoStreamUrl(getApiUrl, video.id);
     idle.currentTime = 0;
     idle.volume = 1.0;
@@ -340,7 +257,6 @@ export default function CinemaPage() {
           setActiveDeck(nextDeck);
           if (videoRef.current) videoRef.current = idle;
 
-          // Déchargement du deck précédent une fois la transition de 0,4 s terminée.
           deckUnloadTimerRef.current = setTimeout(() => {
             deckUnloadTimerRef.current = null;
             unloadMedia(currentActive);
@@ -355,7 +271,6 @@ export default function CinemaPage() {
     idle.addEventListener("canplay", onCanPlay, { once: true });
   }, [isPlaying, wakeControls]);
 
-  // Lancement direct sans délai ni animation d'introduction
   const handleSelect = useCallback(
     (video: CinemaVideo) => {
       setCinemaSync(null);
@@ -450,9 +365,6 @@ export default function CinemaPage() {
     sendCommand("cinema_command", { action: "seek", position_seconds: target });
   }, [nowPlaying, optimisticSeek, sendCommand]);
 
-  // Fin naturelle du cours : suggestion aléatoire façon YouTube parmi les
-  // autres cours, lancée automatiquement après 5 minutes — un clic sur
-  // "Retour au menu" annule, "Lancer maintenant" court-circuite l'attente.
   const handleEnded = useCallback(() => {
     setCinemaSync(null);
     const el = activeDeckRef.current === "A" ? deckARef.current : deckBRef.current;
@@ -485,7 +397,6 @@ export default function CinemaPage() {
     }, 1000);
   }, [videos, selected, handleBackToMenu, playImmediately]);
 
-  // Démontage : minuteries arrêtées, flux et tampons des deux decks libérés.
   useEffect(() => {
     const deckA = deckARef;
     const deckB = deckBRef;
@@ -501,7 +412,7 @@ export default function CinemaPage() {
   const handlePlayPause = () => {
     const el = videoRef.current;
     if (!el) return;
-    setCinemaSync(null); // l'utilisateur prend la main : lecture locale
+    setCinemaSync(null);
     if (needsTapToPlay) {
       el.play().then(() => { setIsPlaying(true); setNeedsTapToPlay(false); }).catch(() => {});
       return;
@@ -514,12 +425,6 @@ export default function CinemaPage() {
     }
   };
 
-  // ------------------------------------------------------------------
-  // Télécommande à dongle USB : navigation de la vitrine au
-  // clavier (focus natif des cartes) + transport pendant la lecture. Aucun
-  // pilote ni matériel : la télécommande émet des touches clavier/média que
-  // Chromium délivre en `keydown`. Voir useKioskRemote.
-  // ------------------------------------------------------------------
   const jumpChapter = (direction: "next" | "prev") => {
     const el = videoRef.current;
     if (!el) return;
@@ -541,7 +446,6 @@ export default function CinemaPage() {
     wakeControls();
   }, [showVolumeHud, wakeControls]);
 
-  /** Sélectionne le bouton « Lecture » du héros et remonte tout en haut de la vitrine. */
   const focusHero = () => {
     document.querySelector<HTMLElement>(".cinema-grid-layer")?.scrollTo({ top: 0, behavior: "smooth" });
     const items = Array.from(document.querySelectorAll<HTMLElement>(CINEMA_GRID_CARDS));
@@ -557,7 +461,6 @@ export default function CinemaPage() {
   useKioskRemote(() => {
     if (phase === "grid") {
       if (userStandbyMode) {
-        // Veille choisie : n'importe quelle touche (hors volume) la quitte et rend la main à la vitrine.
         const exitStandby = () => {
           setUserStandbyMode(false);
           setTimeout(focusHero, 50);
@@ -583,7 +486,6 @@ export default function CinemaPage() {
         onNext: () => moveDomFocus2D(CINEMA_GRID_CARDS, "right"),
         onEnter: () => activateDomFocus(CINEMA_GRID_CARDS),
         onPlayPause: () => activateDomFocus(CINEMA_GRID_CARDS),
-        // Premier appui : retour en haut sur le héros ; appui suivant : écran d'attente.
         onBack: () => {
           if ((document.querySelector<HTMLElement>(".cinema-grid-layer")?.scrollTop ?? 0) > 0) focusHero();
           else setUserStandbyMode(true);
@@ -617,7 +519,6 @@ export default function CinemaPage() {
     return volumeKeys;
   });
 
-  // Commandes admin reçues du tableau de bord : appliquées à la lecture LOCALE de cet appareil.
   useEffect(() => {
     cinemaCmdRef.current = (action, positionSeconds, videoId, extra) => {
       const el = videoRef.current;
@@ -626,12 +527,8 @@ export default function CinemaPage() {
         return;
       }
       if (action === "launch") {
-        // ordre reçu de
-        // /grid (écran de sélection découplé, ex. tablette Android) - passe
-        // par le même chemin de lecture qu'un clic local sur la grille.
         let video = videos.find((v) => Number(v.id) === Number(videoId));
         if (!video && videoId) {
-          // Repli immédiat si la liste des vidéos est en cours de chargement ou vide
           video = {
             id: Number(videoId),
             title: extra?.title || "",
@@ -643,8 +540,6 @@ export default function CinemaPage() {
         }
         if (video) {
           handleSelect(video);
-          // Cours lancé par ordre : cette page le suit sur l'horloge serveur
-          // (démarrage et dérive corrigés comme pour /kiosk).
           if (extra?.clock && extra.clock_video_id === Number(video.id)) {
             setCinemaSync({ anchor: extra.clock, videoId: extra.clock_video_id });
           }
@@ -661,17 +556,12 @@ export default function CinemaPage() {
         lastSeekTimeRef.current = Date.now();
         seekWhenReady(el, positionSeconds, () => setPosition(positionSeconds));
       }
-      // Nouvelle ancre pour la page qui joue CE cours lancé par ordre ; une page qui
-      // joue autre chose (choix local d'un adhérent) n'est pas concernée.
       if (extra?.clock && extra.clock_video_id !== undefined && Number(selected?.id) === extra.clock_video_id) {
         setCinemaSync({ anchor: extra.clock, videoId: extra.clock_video_id });
       }
     };
   }, [phase, handleBackToMenu, videos, handleSelect, selected?.id]);
 
-  // Suivi de l'horloge serveur pour le cours lancé par ordre. N'agit que
-  // si l'élément joue bien CE cours (le double lecteur A/B charge d'abord le nouveau
-  // cours en coulisses) et jamais sur une vidéo terminée.
   const cinemaMediaRef = useMemo(() => ({ get current() { return videoRef.current; } }), []);
   useMediaClockFollower({
     mediaRef: cinemaMediaRef,
@@ -687,21 +577,6 @@ export default function CinemaPage() {
     },
   });
 
-  // Rapport périodique vers les tableaux de bord du canal : ce que joue CET
-  // appareil. Un rapport "vide" est envoyé en quittant la lecture pour que
-  // l'affichage admin s'efface immédiatement.
-  //
-  // reportNowRef :
-  // avec un rapport UNIQUEMENT périodique, l'admin qui pressait pause voyait
-  // l'état "en lecture" persister jusqu'à 2 s — croyant le bouton sans effet,
-  // il re-pressait et annulait sa propre commande. Les évènements onPlay/
-  // onPause/onSeeked du <video> (plus bas) déclenchent désormais un rapport
-  // IMMÉDIAT à chaque changement d'état réel, qu'il vienne d'une commande
-  // admin ou d'une action locale de l'adhérent — l'admin voit l'effet en
-  // ~100 ms. L'intervalle ne sert plus que de battement de fond.
-  // Surveillance douce des décrochages de lecture : ne pause ni ne seek jamais
-  // la vidéo agressivement (cause de la boucle infinie play/pause et des saccades).
-  // Relance simplement .play() si la vidéo est déclarée en lecture mais figée > 6s.
   useEffect(() => {
     let lastTime = -1;
     let stallCount = 0;
@@ -713,7 +588,6 @@ export default function CinemaPage() {
         stallCount = 0;
         return;
       }
-      // Période de grâce après un seek récent (3.5s)
       if (Date.now() - lastSeekTimeRef.current < 3500) {
         lastTime = video.currentTime;
         stallCount = 0;
@@ -723,7 +597,6 @@ export default function CinemaPage() {
       if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
         if (Math.abs(video.currentTime - lastTime) < 0.05) {
           stallCount++;
-          // Détection d'un vrai gel prolongé (> 7.5s sans progression de l'horloge)
           if (stallCount >= 3) {
             stallCount = 0;
             video.play().catch(() => {});
@@ -747,8 +620,6 @@ export default function CinemaPage() {
     }
     const report = () => {
       const el = videoRef.current;
-      // Ne pas émettre de rapport si le lecteur est en train de chercher une image clé
-      // (seeking), pour éviter d'émettre une position transitoire obsolète.
       if (el?.seeking) return;
       sendCommand("cinema_report", {
         title: selected?.title ?? null,
@@ -786,12 +657,6 @@ export default function CinemaPage() {
     return [...byProgram.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [videos, t]);
 
-  // Cours "À la une" du héros : léger algorithme de "scramble" qui fait tourner la suggestion toutes les 15 minutes plutôt
-  // qu'une seule fois par jour — un adhérent qui repasse devant l'écran cinéma
-  // plusieurs fois dans la journée voit une vitrine renouvelée. Le tirage
-  // reste déterministe (hachage multiplicatif du créneau de 15 min, pas
-  // Math.random) : tous les appareils affichent la même suggestion au même
-  // moment, et un rafraîchissement de page ne fait pas sauter la sélection.
   const [scrambleTick, setScrambleTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setScrambleTick((v) => v + 1), 60_000);
@@ -808,11 +673,8 @@ export default function CinemaPage() {
 
   const upNextThumb = upNext ? thumbnailUrl(upNext) : null;
   const upNextAccent = "var(--accent-primary)";
-  // Progression de l'anneau d'autoplay (conic-gradient, 0 -> 360deg).
   const upNextProgressDeg = (1 - upNextRemaining / UP_NEXT_AUTOPLAY_SECONDS) * 360;
 
-  // Fond du badge "À la une" et du bouton "Lancer le cours" : accent du THÈME actif, pas du programme — la
-  // teinte change donc avec le thème choisi, identique pour tous les cours.
   const themeFg = useThemeAccentForeground();
 
   return (
@@ -822,10 +684,6 @@ export default function CinemaPage() {
       onTouchStart={isPlayingLayer ? wakeControls : undefined}
       onPointerDown={isPlayingLayer ? wakeControls : undefined}
     >
-      {/* Écran d'attente « bibliothèque vide » : recouvre la vitrine tant
-          qu'aucun cours n'est importé (sinon la TV n'affiche qu'un mince texte
-          sur fond noir — « rien » côté salle). Grand logo + heure + message,
-          dans l'esprit de l'écran d'attente du poste radio/kiosk. */}
       {videos.length === 0 && (
         <div className="cinema-empty-screen">
           <AppLogo className="cinema-empty-logo" />
@@ -834,7 +692,6 @@ export default function CinemaPage() {
         </div>
       )}
 
-      {/* Écran d'attente cinéma TV (sur sortie HDMI pilotée depuis /grid ou via mise en veille Retour télécommande) */}
       {effectiveHideControls && showGrid && (
         <div className="cinema-standby-screen">
           <AppLogo size={96} className="cinema-standby-logo" />
@@ -844,7 +701,6 @@ export default function CinemaPage() {
         </div>
       )}
 
-      {/* Vitrine de sélection : héros + rangées par programme + grille complète */}
       {!effectiveHideControls && (
         <div
           className={`cinema-layer cinema-grid-layer ${showGrid ? "visible" : ""}`}
@@ -858,7 +714,6 @@ export default function CinemaPage() {
                   <img className="cinema-hero-backdrop" src={featuredThumb} alt="" />
                 </div>
               )}
-              {/* Masque de transition Netflix : fondu horizontal opaque couleur thème vers miniature + fondu vers le bas */}
               <div className="cinema-hero-scrim" />
               <div className="cinema-hero-content">
                 <div className="cinema-hero-brand-row">
@@ -1003,7 +858,6 @@ export default function CinemaPage() {
         </div>
       )}
 
-      {/* Lecture vidéo plein écran via Double Décodeur A/B Deck Gapless */}
       <div
         className={`cinema-layer cinema-video-layer ${isPlayingLayer ? "visible" : ""}`}
         style={!isPlayingLayer ? { display: "none", pointerEvents: "none" } : undefined}
@@ -1111,11 +965,9 @@ export default function CinemaPage() {
           </button>
         )}
 
-        {/* Écran de pause cinématique façon Netflix au centre de l'écran */}
         {isPlayingLayer && !isPlaying && !needsTapToPlay && (
           <div className="cinema-pause-overlay" onClick={handlePlayPause}>
             <div className="cinema-pause-center" onClick={(e) => { e.stopPropagation(); }}>
-              {/* Colonne Média (Gauche) avec miniature */}
               <div className="pause-media-col">
                 <div
                   className="pause-thumb-wrap"
@@ -1147,7 +999,6 @@ export default function CinemaPage() {
                 </div>
               </div>
 
-              {/* Colonne Détails & Synopsis (Droite) */}
               <div className="pause-details-col">
                 <div>
                   <div className="pause-header-row">
@@ -1210,10 +1061,6 @@ export default function CinemaPage() {
 
         {!hideControls && (
         <div className={`cinema-controls ${isPlayingLayer && (controlsVisible || !isPlaying) ? "visible" : ""}`}>
-          {/* Correctif "mention du cours en double" : le titre était déjà
-              répété ici en haut à droite alors qu'il apparaît sur la vidéo
-              elle-même (habillage du cours) — retiré, ne garde que le retour
-              au menu. */}
           <div className="cinema-controls-top">
             <button className="cinema-ctl-btn" onClick={handleBackToMenu} title={t("cinema.backToMenu")}>
               <Icon name="arrow_back" size={26} />
@@ -1258,7 +1105,6 @@ export default function CinemaPage() {
             </div>
             <span className="cinema-time">{formatTime(duration)}</span>
 
-            {/* Menu sélecteur de sous-titres Netflix style */}
             {subtitles.length > 0 && (
               <div className="cinema-subtitle-menu-wrap">
                 <button
@@ -1312,7 +1158,6 @@ export default function CinemaPage() {
         )}
       </div>
 
-      {/* Fin de cours : suggestion "À suivre" avec notation 5 étoiles et autoplay annulable */}
       <div
         className={`cinema-layer cinema-upnext ${isEnded ? "visible" : ""}`}
         style={!isEnded ? { display: "none", pointerEvents: "none" } : undefined}
@@ -1372,7 +1217,6 @@ export default function CinemaPage() {
         </div>
       </div>
 
-      {/* Sidebar Volume OSD Glassmorphism (retour visuel TV & télécommande) */}
       <VolumeOsd {...volumeHud} overVideo={phase !== "grid"} />
     </div>
   );

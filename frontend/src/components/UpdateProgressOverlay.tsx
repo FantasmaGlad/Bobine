@@ -29,28 +29,8 @@ const ACTIVE_STEPS: UpdateStep[] = [
   "checking", "downloading", "verifying", "installing", "restarting", "awaiting_user_confirmation",
 ];
 
-// Sous-ensemble d'ACTIVE_STEPS affiché comme un mini-stepper façon
-// "installeur wizard" (fait / en cours / à venir) — "awaiting_user_
-// confirmation" (spécifique Android : attente d'un tap sur l'appareil, pas
-// une étape séquentielle du pipeline) garde son affichage textuel seul,
-// sans entrer dans cette séquence linéaire.
 const STEPPER_STEPS: UpdateStep[] = ["checking", "downloading", "verifying", "installing", "restarting"];
 
-/**
- * Bannière de progression de mise à jour, montée globalement (cf.
- * ClientLayout) — remplace l'ancien comportement où le bouton "Mettre à
- * jour" de Réglages affichait un succès dès que le téléchargement était
- * seulement PLANIFIÉ côté serveur (cf. rapport de santé, constat
- * prioritaire n°1). Reste utile même en dehors de Réglages : une mise à
- * jour PLANIFIÉE (Réglages → Mise à jour automatique, déclenchée sans
- * qu'aucun onglet ne soit ouvert sur cette page) doit rester visible à
- * quiconque a un écran Bobine ouvert au moment où elle se termine.
- *
- * Connexion WebSocket minimale et passive sur le canal déjà partagé par le
- * reste de l'app (`/ws/playback`), même patron que la synchronisation
- * temps réel de AppSettingsContext — pas de connexion dédiée
- * supplémentaire, aucune commande jamais envoyée.
- */
 export default function UpdateProgressOverlay() {
   const { t } = useAppSettings();
   const [status, setStatus] = useState<UpdateStatus | null>(null);
@@ -60,22 +40,11 @@ export default function UpdateProgressOverlay() {
     setStatus(data);
   }, []);
 
-  // Acquittement persisté côté SERVEUR (`POST /api/updates/acknowledge`),
-  // pas un state React local : un ancien `dismissed` purement côté client
-  // revenait à `null` à chaque rechargement de page ou redémarrage de
-  // service déclenché par la mise à jour elle-même, faisant réapparaître la
-  // notification "en boucle" malgré sa fermeture (cause racine confirmée).
-  // Mise à jour optimiste du state local pour une fermeture instantanée,
-  // sans attendre l'aller-retour réseau ni l'écho WebSocket.
   const acknowledge = useCallback(() => {
     setStatus((prev) => (prev ? { ...prev, acknowledged_started_at: prev.started_at } : prev));
     fetch(getApiUrl("/updates/acknowledge"), { method: "POST" }).catch(() => {});
   }, []);
 
-  // État initial au montage (page rechargée pile après un redémarrage
-  // déclenché par la mise à jour elle-même, ou WebSocket pas encore
-  // connecté) — sans ce fetch, la seule source serait l'évènement
-  // WebSocket suivant, qui peut arriver bien après la fin réelle.
   useEffect(() => {
     fetch(getApiUrl("/updates/status"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
@@ -91,7 +60,6 @@ export default function UpdateProgressOverlay() {
     const connect = () => {
       if (cancelled || typeof window === "undefined") return;
       ws = new WebSocket(getPlaybackWsUrl());
-      // N'écoute que les évènements globaux : aucun canal.
       ws.onopen = () => ws?.send(JSON.stringify({ command: "subscribe", params: { channels: [] } }));
       ws.onmessage = (evt) => {
         try {
@@ -104,7 +72,6 @@ export default function UpdateProgressOverlay() {
             applyStatus(parsed as UpdateStatus);
           }
         } catch {
-          // Message illisible : sans conséquence, le prochain évènement suffira.
         }
       };
       ws.onclose = () => {
@@ -151,12 +118,6 @@ export default function UpdateProgressOverlay() {
     }
   })();
 
-  // Mini-stepper "installeur wizard" : chaque étape passée affiche une coche SVG,
-  // l'étape en cours un point plein, les suivantes un cercle vide — répond
-  // au constat "pas assez d'informations visuelles sur ce qu'il se passe
-  // pendant l'installation d'une mise à jour". Affiché pendant les étapes
-  // séquentielles actives, et entièrement coché une fois "done" (pour que
-  // la bannière de succès ne retombe pas brutalement à un simple texte nu).
   const stepperIndex = STEPPER_STEPS.indexOf(status.step);
   const currentStepperIndex = isDone ? STEPPER_STEPS.length : stepperIndex;
   const showStepper = currentStepperIndex !== -1;

@@ -1,5 +1,3 @@
-"""Son des canaux vidéo : mêmes bornes que la radio, un réglage par canal, persisté, diffusé avec l'état."""
-
 import os
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
@@ -30,7 +28,6 @@ def _clean():
 
 @pytest.fixture()
 def client(monkeypatch):
-    # La copie de la configuration se fait en arrière-plan : sans ceci, elle pourrait s'exécuter pendant un autre test.
     from app import config_files
     monkeypatch.setattr(config_files, "schedule_mirror", lambda: None)
     with TestClient(app) as c:

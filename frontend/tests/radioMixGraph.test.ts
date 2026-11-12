@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { createMixStage } from "../src/lib/radioMixGraph.ts";
 import { clampMix, defaultMix, dbToGain } from "../src/lib/radioMix.ts";
 
-// Faux AudioContext minimal : trace le câblage et les appels de paramètres, sans audio réel.
 class FakeParam {
   value = 0;
   setValueAtTime(value: number) { this.value = value; }
@@ -59,7 +58,6 @@ test("câblage : musique et rappels → sortie → limiteur → porte de route �
   assert.ok(masterBus.targets.includes(limiter));
   const routeGate = limiter.targets[0];
   assert.ok(routeGate.targets.includes(destination as unknown as FakeNode));
-  // La chaîne des rappels aboutit au fader des rappels (son dernier nœud est son limiteur).
   const announcementsLimiter = ctx.compressors[1];
   assert.ok(announcementsLimiter.targets.includes(announcementsBus));
   assert.equal(stage.announcementsInput === (stage.musicInput as unknown), false);
@@ -73,7 +71,7 @@ test("réglages initiaux posés sans transition, puis changements appliqués", (
   assert.ok(Math.abs(masterBus.gain.value - dbToGain(-3)) < 1e-9);
   stage.apply(clampMix({ music: { solo: true } }));
   assert.equal(musicBus.gain.value, 1);
-  assert.equal(announcementsBus.gain.value, 0); // coupé par le solo de la musique
+  assert.equal(announcementsBus.gain.value, 0);
   assert.equal(masterBus.gain.value, 1);
 });
 
@@ -103,7 +101,7 @@ test("vumètres : aucun analyseur tant qu'une interface n'en demande pas, branch
   assert.equal(ctx.analysers.length, 0);
   assert.deepEqual(stage.readLevels(), {});
   stage.setMetering(true);
-  stage.setMetering(true); // idempotent
+  stage.setMetering(true);
   assert.equal(ctx.analysers.length, 3);
   const [musicBus, announcementsBus, masterBus] = ctx.gains;
   assert.ok(musicBus.targets.includes(ctx.analysers[0]) && announcementsBus.targets.includes(ctx.analysers[1]) && masterBus.targets.includes(ctx.analysers[2]));

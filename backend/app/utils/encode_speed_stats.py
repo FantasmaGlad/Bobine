@@ -1,15 +1,4 @@
-"""Historique de vitesse d'encodage ffmpeg : mémorise, par couple (encodeur,
-palier de résolution), la vitesse moyenne réellement observée (en multiple du
-temps réel, ex. 2.5 = deux fois et demi plus vite que la durée de la vidéo)
-sur les imports précédents. Permet d'afficher une estimation AVANT même que
-ffmpeg n'ait démarré et n'émette sa propre progression en direct (laquelle
-reste la source de vérité dès qu'elle est disponible, cf.
-video_utils/progress.py).
-
-Persisté dans la table `settings` (clé/valeur déjà utilisée ailleurs dans le
-backend) plutôt que dans un nouveau fichier ou une nouvelle table : pas de
-migration Alembic nécessaire, et l'historique survit aux redémarrages.
-"""
+"""Historique de vitesse d'encodage ffmpeg : mémorise, par couple (encodeur, palier de résolution), la vitesse moyenne réellement observée."""
 
 import json
 import logging
@@ -20,33 +9,19 @@ from app.models import Setting
 logger = logging.getLogger(__name__)
 
 _SETTING_PREFIX = "encode_speed_stats:"
-# Moyenne mobile exponentielle : réagit vite aux imports récents (changement
-# de matériel, source différente) sans qu'un unique échantillon aberrant ne
-# fausse durablement l'estimation.
 _EMA_ALPHA = 0.3
 
-# Repères de départ tant qu'aucun échantillon n'a encore été enregistré pour
-# ce couple (encodeur, résolution) — ordres de grandeur prudents (plutôt sous-
-# estimer la vitesse, donc sur-estimer le temps, qu'annoncer un temps trop
-# court aux utilisateurs).
 _DEFAULT_SPEED_BY_ENCODER = {
     "h264_mediacodec": 2.0,
     "h264_videotoolbox": 3.0,
     "h264_vaapi": 2.5,
-    # Repère de départ identique à h264_vaapi : même matériel Intel
-    # QuickSync sous-jacent, caractéristiques de performance comparables.
-    # Sans cette entrée, `get_estimated_speed` retombait sur 1.0 (le repli
-    # générique) — sous-estimant la vitesse réelle jusqu'au premier
-    # échantillon enregistré.
     "h264_qsv": 2.5,
     "libx264": 1.0,
 }
 
 
 def resolution_bucket(width: int | None, height: int | None) -> str:
-    """Même paliers que `get_target_bitrate` (video_utils/encoders.py) : la vitesse
-    d'encodage dépend avant tout de la résolution source, pas de sa valeur
-    exacte en pixels."""
+    """Même paliers que `get_target_bitrate` (video_utils/encoders.py) : la vitesse d'encodage dépend avant tout de la résolution source, pas de sa valeur exacte en pixels."""
     w = width or 1920
     h = height or 1080
     pixels = w * h
@@ -62,8 +37,7 @@ def _key(encoder_name: str, bucket: str) -> str:
 
 
 def get_estimated_speed(encoder_name: str, bucket: str) -> float:
-    """Vitesse moyenne (x temps réel) observée pour ce couple (encodeur,
-    résolution), ou un repère par défaut tant qu'aucun échantillon n'existe."""
+    """Vitesse moyenne (x temps réel) observée pour ce couple (encodeur, résolution), ou un repère par défaut tant qu'aucun échantillon n'existe."""
     db = SessionLocal()
     try:
         row = db.query(Setting).filter(Setting.key == _key(encoder_name, bucket)).first()
@@ -80,8 +54,7 @@ def get_estimated_speed(encoder_name: str, bucket: str) -> float:
 
 
 def record_speed_sample(encoder_name: str, bucket: str, speed_factor: float) -> None:
-    """Met à jour la moyenne mobile de vitesse d'encodage pour ce couple
-    (encodeur, résolution) — appelé après chaque réencodage réussi."""
+    """Met à jour la moyenne mobile de vitesse d'encodage pour ce couple (encodeur, résolution) — appelé après chaque réencodage réussi."""
     if not speed_factor or speed_factor <= 0:
         return
     key = _key(encoder_name, bucket)

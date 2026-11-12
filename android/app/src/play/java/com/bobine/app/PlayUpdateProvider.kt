@@ -15,12 +15,6 @@ import java.util.concurrent.TimeUnit
 
 private const val UPDATE_REQUEST_CODE = 4108
 
-/**
- * Mises à jour intégrées de Google Play (API « In-App Updates », mode souple) : c'est Google Play qui
- * télécharge et installe — Bobine ne télécharge ni n'installe jamais d'APK dans ce build. Disponible
- * seulement pour une installation faite DEPUIS Google Play (sinon l'API répond « non disponible »).
- * Chargée par réflexion depuis `StoreUpdates` (build « play » uniquement).
- */
 class PlayUpdateProvider : StoreUpdateProvider {
     @Volatile private var manager: AppUpdateManager? = null
     @Volatile private var installState: String = "none"
@@ -69,7 +63,6 @@ class PlayUpdateProvider : StoreUpdateProvider {
     override fun check(context: Context): String = try {
         describe(info(context)).toString()
     } catch (e: Exception) {
-        // Typique hors Google Play (APK installé à la main, émulateur sans Play Store) : pas une panne.
         JSONObject().put("state", "unavailable")
             .put("message", "Google Play ne propose pas de mise à jour pour cette installation (installée hors du Play Store ?).").toString()
     }

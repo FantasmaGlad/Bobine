@@ -9,7 +9,6 @@ import {
 import { useDevicesResource, type SectionProps } from "./common";
 
 interface Props extends Pick<SectionProps, "refreshKey" | "t"> {
-  /** Raccourci : ouvre l'onglet de l'appareil et le met en évidence. */
   onOpen: (tab: "audio" | "bluetooth" | "wifi", ref: string | null) => void;
 }
 
@@ -17,7 +16,6 @@ type View = { scale: number; tx: number; ty: number };
 
 const truncate = (text: string, max = 18) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
-/** Carte « système solaire » : la machine au centre, ses connexions autour. SVG léger, déplacement et zoom. */
 export default function MapSection({ refreshKey, t, onOpen }: Props) {
   const { data, error, loading, reload } = useDevicesResource<Topology>("/topology", refreshKey);
   const [selected, setSelected] = useState<string | null>(null);
@@ -30,7 +28,6 @@ export default function MapSection({ refreshKey, t, onOpen }: Props) {
   const pinch = useRef<number | null>(null);
   const dragged = useRef(false);
 
-  // Relecture périodique (les évènements `devices_changed` ne couvrent pas les écrans Bobine connectés).
   useEffect(() => {
     const timer = setInterval(() => { void reload(); }, 15000);
     return () => clearInterval(timer);
@@ -52,12 +49,10 @@ export default function MapSection({ refreshKey, t, onOpen }: Props) {
     if (layout) setView(fitView(layout.bounds, size));
   }, [layout, size]);
 
-  // Cadrage automatique (tout tient dans le cadre) tant que l'utilisateur n'a pas déplacé ou zoomé la carte.
   useEffect(() => {
     if (layout && !interacted.current && size.width > 50) setView(fitView(layout.bounds, size));
   }, [layout, size]);
 
-  // Molette : zoom autour du curseur (écouteur non passif pour bloquer le défilement de la page).
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;

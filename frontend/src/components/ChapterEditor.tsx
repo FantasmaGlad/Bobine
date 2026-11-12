@@ -15,7 +15,6 @@ interface Draft {
 interface ChapterEditorProps {
   videoId: number;
   getApiUrl: (path: string) => string;
-  /** Position du lecteur de l'aperçu, pour « Ajouter ici ». */
   getCurrentTime: () => number;
   onNotify: (message: string, type?: "success" | "error") => void;
 }
@@ -27,7 +26,6 @@ const toDraft = (chapter: Pick<Chapter, "start_seconds" | "title">): Draft => ({
   title: chapter.title,
 });
 
-/** Édition des chapitres d'un cours : import, lecture dans le fichier vidéo, ajout à la position du lecteur, export. */
 export default function ChapterEditor({ videoId, getApiUrl, getCurrentTime, onNotify }: ChapterEditorProps) {
   const { t } = useAppSettings();
   const [drafts, setDrafts] = useState<Draft[]>([]);

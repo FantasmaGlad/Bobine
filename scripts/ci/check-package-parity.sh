@@ -1,20 +1,8 @@
 #!/usr/bin/env bash
-# Vérifie que les paquets .deb, .rpm et Arch (.pkg.tar.zst) d'une même construction contiennent
-# les MÊMES fichiers (chemins) — l'arbre PyInstaller étant partagé, toute divergence signale
-# une erreur de packaging. Écarts volontaires, listés ici et nulle part ailleurs :
-#   - .deb seul : /usr/share/appdata/… (ancien chemin AppStream, doublon du metainfo) ;
-#   - .rpm seul : /usr/lib/firewalld/services/bobine.xml (définition de service, n'ouvre rien) ;
-#   - Arch seul : /usr/share/licenses/bobine/… (convention Arch pour la licence) ;
-#   - répertoires non comparés ; /usr/share/doc/bobine/copyright : fichier de licence présent partout
-#     (Arch en plus sous /usr/share/licenses).
-# Usage : check-package-parity.sh <.deb> <.rpm> <.pkg.tar.zst>
-# Outils : dpkg-deb, rpm (ou rpm2cpio+cpio), tar avec zstd.
 set -euo pipefail
 DEB="${1:?fichier .deb}"; RPM="${2:?fichier .rpm}"; PKG="${3:?fichier .pkg.tar.zst}"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 
-# Lire les membres de l'archive, pas la sortie destinée à l'humain de dpkg -c :
-# celle-ci contient des espaces et « lien -> cible », que awk tronquerait.
 python3 - "$DEB" "$T/deb" <<'PYDEB'
 import subprocess, sys, tarfile
 process = subprocess.Popen(['dpkg-deb', '--fsys-tarfile', sys.argv[1]], stdout=subprocess.PIPE)
@@ -30,8 +18,6 @@ if command -v rpm >/dev/null 2>&1; then
 else
     rpm2cpio "$RPM" | cpio -t --quiet 2>/dev/null | sed 's|^\./|/|' | sort > "$T/rpm.all"
 fi
-# rpm -ql liste aussi les répertoires : ne garder que ce qui a un équivalent fichier (on retire ceux
-# qui sont des préfixes d'un autre chemin de la liste).
 python3 - "$T/rpm.all" "$T/rpm" <<'PY'
 import sys
 paths = [l.rstrip("\n") for l in open(sys.argv[1]) if l.strip()]
@@ -47,8 +33,6 @@ PY
 tar --zstd -tf "$PKG" | grep -v '/$' | grep -v '^\.' | sed 's|^|/|' | sort > "$T/pkg"
 
 filter() { grep -v -e '^/usr/share/appdata/' -e '^/usr/lib/firewalld/' -e '^/usr/share/licenses/' "$1" | sed '/^$/d' | sort -u; }
-# Les fichiers de l'arbre PyInstaller sont comparés tels quels ; les liens symboliques peuvent
-# apparaître différemment selon l'outil : on compare les chemins.
 filter "$T/deb" > "$T/deb.f"; filter "$T/rpm" > "$T/rpm.f"; filter "$T/pkg" > "$T/pkg.f"
 rc=0
 for other in rpm pkg; do

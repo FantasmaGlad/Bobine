@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Build an Android/Bionic executable, packaged as lib*.so for nativeLibraryDir.
-# Keeps the release ABI policy: mobile ARM64; TV ARM64 + ARM32. x86_64 is opt-in
-# for debug emulators only; Gradle already disables release for emulator builds.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -40,8 +37,6 @@ TOOLS="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/${HOST_TAG}/bin"
 for tool in llvm-strip llvm-readelf; do
     [[ -x "${TOOLS}/${tool}" ]] || { echo "Missing NDK tool: ${tool}" >&2; exit 1; }
 done
-# Absolute target dir makes output deterministic even if the caller configures
-# a different Cargo target-dir for desktop builds.
 TARGET_DIR="${REPO_DIR}/media/target/android"
 for target in aarch64-linux-android armv7-linux-androideabi; do
     rustup target add "${target}"
@@ -55,8 +50,6 @@ build_target() {
     local linker="${TOOLS}/${clang_prefix}${API_LEVEL}-clang"
     [[ -x "${linker}" ]] || { echo "Missing NDK linker for ${target}/API ${API_LEVEL}." >&2; exit 1; }
     local flags='-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,-z,common-page-size=16384'
-    # Explicit flags keep Cargo's linker invocation independent of CMake/ndk-build
-    # defaults. Validate the final ELF rather than assuming NDK version suffices.
     env -u RUSTFLAGS -u CARGO_ENCODED_RUSTFLAGS "CARGO_TARGET_${cargo_key}_LINKER=${linker}" \
         "CARGO_TARGET_${cargo_key}_RUSTFLAGS=${flags}" \
         CARGO_TARGET_DIR="${TARGET_DIR}" \
@@ -93,7 +86,4 @@ build_target armv7-linux-androideabi armeabi-v7a armv7a-linux-androideabi ARMV7_
 if [[ "${EMULATOR}" == 1 ]]; then
     build_target x86_64-linux-android x86_64 x86_64-linux-android X86_64_LINUX_ANDROID
 fi
-# Tout ce que Gradle va empaqueter, pas seulement le composant construit ici :
-# ffmpeg et ffprobe viennent d'un binaire tiers (ARM64) et d'une compilation à
-# part (ARM32), l'alignement 16 Kio ne leur est garanti par aucun réglage de ce script.
 python3 "${SCRIPT_DIR}/check-elf-alignment.py" --dir "${REPO_DIR}/android/app/src/main/jniLibs"

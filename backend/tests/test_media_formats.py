@@ -1,4 +1,3 @@
-"""Liste unique des extensions d'import : parité avec le frontend et import d'archives de médias."""
 import re
 import tarfile
 import zipfile
@@ -23,7 +22,6 @@ def test_frontend_lists_equal_the_backend_lists():
     assert set(frontend_list("RADIO_AUDIO_EXTENSIONS")) == set(media_formats.RADIO_AUDIO)
     assert set(frontend_list("COURSE_AUDIO_EXTENSIONS")) == set(media_formats.COURSE_AUDIO)
     assert tuple(frontend_list("ARCHIVE_EXTENSIONS")) == media_formats.ARCHIVE
-    # le frontend reconnaît plus de vidéos (détection avant envoi) ; tout ce que le serveur importe doit y figurer
     assert {"." + ext for ext in frontend_list("VIDEO_EXTENSIONS")} >= set(media_formats.VIDEO)
     assert {"." + ext for ext in frontend_list("SUBTITLE_EXTENSIONS")} == set(media_formats.SUBTITLE)
 

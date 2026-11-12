@@ -1,16 +1,3 @@
-"""Garde-fou du profil Android, qui tourne en Pydantic v1 (Chaquopy n'a pas de pydantic-core) alors
-que toutes les autres plateformes sont en v2 (cf. app/utils/_pydantic_compat.py).
-
-Une construction valable seulement en v2 ne casse pas la suite de tests (exécutée en v2) mais
-empêche le serveur Android de DÉMARRER : l'application tourne alors sans fin sur son écran de
-chargement. Ce test détecte statiquement les deux pièges déjà rencontrés :
-
-  - `Field(max_length=...)` / `min_length` sur une liste (v1 : « constraints are set but not
-    enforced » dès l'import du module) -> utiliser `list_max_items` ;
-  - appel direct de `.model_dump()` / `.model_validate()` (v2 uniquement) -> passer par
-    `getattr(obj, "model_dump", None) or obj.dict`, comme settings.py.
-"""
-
 import ast
 from pathlib import Path
 

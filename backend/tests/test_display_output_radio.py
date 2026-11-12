@@ -1,12 +1,7 @@
-"""Sortie câblée commutable en Radio : validation par canal de diffusion, coupure de la
-vidéo, reprise ou démarrage de l'ambiance du moteur radio câblé, pause au retour,
-verrou des lancements vidéo, ambiance par défaut et rappels par sortie."""
-
 import asyncio
 import json
 import os
 
-# Base de test isolée AVANT tout import de l'application (comme les autres tests).
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
@@ -67,7 +62,6 @@ def client():
 
 
 def _seed_library(playlists=("Ambiance",), default=None):
-    """Deux morceaux et des playlists nommées ; `default` = nom de la playlist is_default."""
     db = SessionLocal()
     try:
         tracks = [
@@ -120,7 +114,6 @@ def test_la_bascule_vers_radio_demarre_l_ambiance_si_le_moteur_est_a_l_arret(cli
     _put_output(client, "cable", "radio")
     assert cable.state["state"] == "playing"
     assert cable.state["playlist_name"] == "Ambiance"
-    # La sortie réseau n'est pas touchée.
     assert get_radio_manager("radio_network").state["state"] == "idle"
 
 
@@ -137,7 +130,7 @@ def test_la_bascule_vers_radio_reprend_une_lecture_en_pause_sans_la_relancer(cli
     assert cable.state["state"] == "paused"
     _put_output(client, "cable", "radio")
     assert cable.state["state"] == "playing"
-    assert cable.state["index"] == 1  # reprise, pas de rechargement de l'ambiance
+    assert cable.state["index"] == 1
     assert ids["Ambiance"] == cable.state["playlist_id"]
 
 
@@ -205,15 +198,12 @@ def test_un_lancement_video_est_verrouille_quand_le_cable_est_en_radio(client):
         assert message["channel"] == "cable"
 
 
-# --- Ambiance par défaut -------------------------------------------------------
 def test_ambiance_par_defaut_reglage_propre_puis_is_default_puis_bibliotheque(client):
     ids = _seed_library(("Ambiance", "Salle"), default="Ambiance")
     db = SessionLocal()
     try:
-        # 1. Aucun choix propre : la playlist is_default sert les deux sorties.
         assert resolve_radio_default_playlist(db, "radio_cable").id == ids["Ambiance"]
         assert resolve_radio_default_playlist(db, "radio_network").id == ids["Ambiance"]
-        # 2. Choix propre à la sortie câblée.
         response = client.put("/api/radio/default-playlist", json={"channel": "radio_cable", "playlist_id": ids["Salle"]})
         assert response.status_code == 200
         assert resolve_radio_default_playlist(db, "radio_cable").id == ids["Salle"]
@@ -221,7 +211,6 @@ def test_ambiance_par_defaut_reglage_propre_puis_is_default_puis_bibliotheque(cl
         data = client.get("/api/radio/default-playlist").json()
         assert data["radio_cable"] == {"override_playlist_id": ids["Salle"], "effective_playlist_id": ids["Salle"]}
         assert data["radio_network"]["override_playlist_id"] is None
-        # 3. Effacer le choix : retour à is_default.
         client.put("/api/radio/default-playlist", json={"channel": "radio_cable", "playlist_id": None})
         assert resolve_radio_default_playlist(db, "radio_cable").id == ids["Ambiance"]
     finally:
@@ -229,7 +218,7 @@ def test_ambiance_par_defaut_reglage_propre_puis_is_default_puis_bibliotheque(cl
 
 
 def test_ambiance_repli_sur_toute_la_bibliotheque_sans_playlist_par_defaut(client):
-    _seed_library(("Salle",))  # aucune is_default
+    _seed_library(("Salle",))
     db = SessionLocal()
     try:
         assert resolve_radio_default_playlist(db, "radio_cable") is None
@@ -258,12 +247,10 @@ def test_fin_de_fenetre_recharge_en_pause_une_sortie_cable_non_basculee(client):
         db.close()
 
 
-# --- Rappels par sortie --------------------------------------------------------
 def test_cible_de_rappel_applique_a_la_bonne_sortie():
     assert rule_targets_output("radio_cable", "radio_cable")
     assert not rule_targets_output("radio_cable", "radio_network")
     assert rule_targets_output("both", "radio_cable") and rule_targets_output("both", "radio_network")
-    # Une règle d'avant les deux sorties (alias ou valeur absente) vise le réseau.
     assert rule_targets_output("radio", "radio_network") and not rule_targets_output("radio", "radio_cable")
     assert rule_targets_output(None, "radio_network") and not rule_targets_output(None, "radio_cable")
 
@@ -272,13 +259,12 @@ def test_les_regles_de_rappel_ont_une_cible_validee_et_ancienne_valeur_reseau(cl
     base = {"rule_type": "every_n_tracks", "n_tracks": 2}
     created = client.post("/api/radio/announcement-rules", json=base)
     assert created.status_code == 201
-    assert created.json()["target"] == "radio_network"  # défaut = comportement d'avant
+    assert created.json()["target"] == "radio_network"
     cable = client.post("/api/radio/announcement-rules", json={**base, "target": "radio_cable"})
     assert cable.json()["target"] == "radio_cable"
     both = client.put(f"/api/radio/announcement-rules/{cable.json()['id']}", json={**base, "target": "both"})
     assert both.json()["target"] == "both"
     assert client.post("/api/radio/announcement-rules", json={**base, "target": "zzz"}).status_code == 400
-    # Mise à jour SANS cible (client en cache) : la cible existante est conservée.
     kept = client.put(f"/api/radio/announcement-rules/{cable.json()['id']}", json={**base, "enabled": False})
     assert kept.status_code == 200 and kept.json()["target"] == "both"
     listed = client.get("/api/radio/announcement-rules").json()

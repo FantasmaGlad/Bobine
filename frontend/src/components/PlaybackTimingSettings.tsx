@@ -7,11 +7,6 @@ import { SETTING_BOUNDS, TIMING_SETTING_KEYS, parseBounded, type TimingSettingKe
 
 type Status = "idle" | "saved" | "error";
 
-/**
- * Réglages → Lecture et médias : attente entre deux cours, volume de départ, minuterie des pistes audio et fondu des
- * rappels radio. Les bornes sont celles du serveur (`lib/settingsBounds.ts`) ; une valeur est enregistrée à la validation
- * du champ (sortie du champ ou Entrée) et seulement si elle est dans la plage.
- */
 export default function PlaybackTimingSettings() {
   const { t } = useAppSettings();
   const [saved, setSaved] = useState<Partial<Record<TimingSettingKey, number>>>({});
@@ -27,7 +22,6 @@ export default function PlaybackTimingSettings() {
       for (const key of TIMING_SETTING_KEYS) if (typeof data[key] === "number") values[key] = data[key];
       setSaved(values);
     } catch {
-      /* hors ligne : les champs restent vides */
     }
   }, []);
 

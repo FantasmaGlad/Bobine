@@ -55,11 +55,8 @@ def _cpu(usage):
 
 
 def _peak_kb(usage):
-    # ru_maxrss is KiB on Linux and bytes on macOS.
     return usage.ru_maxrss / 1024 if sys.platform == "darwin" else usage.ru_maxrss
 
-
-# --------------------------------------------------------------------------- child
 
 def worker(spec):
     """Runs inside the child: import the staged files and print one JSON object."""
@@ -105,15 +102,12 @@ def worker(spec):
     rows = []
     covers = []
     if spec["kind"] == "radio":
-        # Rows are created one after the other in staging order, so the id order is the input order:
-        # the position identifies the same source file in both modes.
         for position, track in enumerate(sorted(imported, key=lambda item: item.id)):
             row = {key: getattr(track, key) for key in ("title", "artist", "album", "album_artist", "track_number",
                                                         "disc_number", "year", "genre", "duration_seconds")}
             row["position"] = position
             rows.append(row)
             if track.cover_path:
-                # The native cover pipeline is judged by cover_equivalence, not by identical bytes.
                 covers.append({"file": str(position), "data": base64.b64encode(Path(track.cover_path).read_bytes()).decode("ascii")})
     else:
         db = SessionLocal()
@@ -123,7 +117,6 @@ def worker(spec):
                 rows.append({"title": track.title, "number": track.number, "duration_seconds": track.duration_seconds})
         finally:
             db.close()
-    # Reap the long-lived native component before reading child CPU time.
     media_sidecar.close_current_media_client()
     after_children = resource.getrusage(resource.RUSAGE_CHILDREN)
     after_self = resource.getrusage(resource.RUSAGE_SELF)
@@ -136,10 +129,7 @@ def worker(spec):
     }, ensure_ascii=False), flush=True)
 
 
-# -------------------------------------------------------------------------- parent
-
 def _drop_system_cache():
-    """Really empty the page cache (Linux, root). The password comes from the environment, never from a file."""
     password = os.environ.get("BOBINE_BENCH_SUDO_PASSWORD")
     command = ["sudo", "-S", "-p", "", "sh", "-c", "sync; echo 3 > /proc/sys/vm/drop_caches"]
     env = {key: value for key, value in os.environ.items() if key != "BOBINE_BENCH_SUDO_PASSWORD"}
@@ -153,7 +143,7 @@ def _drop_cache(paths):
     for path in paths:
         descriptor = os.open(path, os.O_RDONLY)
         try:
-            os.fsync(descriptor)  # dirty pages cannot be dropped before they are written
+            os.fsync(descriptor)
             os.posix_fadvise(descriptor, 0, 0, os.POSIX_FADV_DONTNEED)
         finally:
             os.close(descriptor)
@@ -205,7 +195,6 @@ def run_once(corpus, entries, kind, mode, cache, binary, workdir):
         names = []
         for index, entry in enumerate(entries):
             name = Path(entry["path"]).name
-            # Keep the original name: it is the radio title fallback and the course title.
             target = staging / name
             if target.exists():
                 target = staging / f"{index:04d}-{name}"
@@ -351,7 +340,6 @@ def main():
     DROP_SYSTEM_CACHE = args.drop_system_cache
     runs = []
     for repeat in range(args.repeats):
-        # Alternate the order so slow drift (thermal, background load) is not charged to one mode.
         for mode in (MODES if repeat % 2 == 0 else tuple(reversed(MODES))):
             for cache in caches:
                 run = run_once(corpus, entries, args.kind, mode, cache, binary, args.workdir)
@@ -365,7 +353,7 @@ def main():
         for left, right in zip(reference, native):
             differences.extend(f"[{cache}] {item}" for item in compare_rows(left, right))
     for run in runs:
-        run.pop("rows")  # keep the report small; differences were computed above
+        run.pop("rows")
         run["cover_count"] = len(run.pop("covers"))
     report = {
         "schema_version": 1, "kind": args.kind, "files": len(entries), "repeats": args.repeats,

@@ -1,19 +1,4 @@
 #!/usr/bin/env bash
-# ==============================================================================
-# Construit le paquet Arch (.pkg.tar.zst) de Bobine à partir de l'arbre PyInstaller —
-# le même que celui du .deb. Aucune compilation : makepkg ne fait qu'emballer.
-#
-# Environnement :
-#   VERSION                version de build (défaut : fichier VERSION), p. ex. 5.0.6~0.canary.42
-#   PKG_FILENAME_VERSION   "beta"/"canary" => bobine-<canal>-<arch>.pkg.tar.zst ; vide => nom natif
-#   PKG_ARCH               architecture du paquet : x86_64 ou aarch64 (défaut : uname -m). Un paquet
-#                          aarch64 peut être assemblé sur x86_64 (aucun code n'est exécuté) à partir
-#                          de l'arbre construit nativement sur arm64 : makepkg reçoit CARCH=aarch64.
-#   BOBINE_DIST_DIR        arbre PyInstaller (défaut backend/dist/Bobine) ; BOBINE_BUILD_DIST=1 le construit
-#   OUTPUT_DIR             dossier de sortie (défaut dist-arch/)
-# Dépendances : makepkg (pacman, base-devel : fakeroot, bsdtar, zstd). makepkg refuse root : si le
-# script est lancé en root, il se relance sous l'utilisateur "builder" (créé au besoin).
-# ==============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -56,7 +41,6 @@ tar --owner=0 --group=0 --numeric-owner -cf "${WORK}/pkg/bobine-root.tar" -C "${
 cp "${SCRIPT_DIR}/PKGBUILD" "${SCRIPT_DIR}/bobine.install" "${WORK}/pkg/"
 
 echo "=== [3/4] makepkg (${PKG_ARCH}) ==="
-# Configuration makepkg dédiée : CARCH forcé à l'architecture visée, paquets déposés dans pkgdest.
 MAKEPKG_CONF="${WORK}/makepkg.conf"
 cp /etc/makepkg.conf "${MAKEPKG_CONF}"
 {

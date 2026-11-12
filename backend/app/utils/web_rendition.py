@@ -1,9 +1,4 @@
-"""Production de la version web « lisible partout » d'une vidéo. Logique pure : `app/utils/web_profile.py` ;
-ici, la tâche d'arrière-plan (ffmpeg, suivi dans `import_jobs`, état en base).
-
-Les fichiers vivent dans `<media_dir>/web/` — sous-dossier volontaire :
-`importer/reconcile.py` n'examine que les fichiers à la racine du
-dossier média et signalerait sinon chaque version web comme « orpheline »."""
+"""Production de la version web « lisible partout » d'une vidéo."""
 
 import logging
 import os
@@ -22,9 +17,6 @@ from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
-# Une version web à la fois par vidéo : un double clic ou deux clients
-# simultanés (négociation automatique) ne doivent jamais lancer deux ffmpeg
-# sur la même source.
 _inflight_lock = threading.Lock()
 _inflight: set[int] = set()
 
@@ -45,8 +37,7 @@ def remove_web_file(web_path: str | None) -> None:
 
 
 def request_web_rendition(video_id: int) -> str | None:
-    """Met en file la production de la version web ; renvoie l'identifiant de
-    tâche, ou None si une production est déjà en cours pour cette vidéo."""
+    """Met en file la production de la version web ; renvoie l'identifiant de tâche, ou None si une production est déjà en cours pour cette vidéo."""
     with _inflight_lock:
         if video_id in _inflight:
             return None

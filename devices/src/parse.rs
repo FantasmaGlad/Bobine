@@ -1,18 +1,9 @@
-//! Analyseurs PURS des sorties d'outils Windows et macOS — compilés et testés sur toutes les
-//! plateformes (les exemples des tests sont des sorties représentatives, pas des captures de machines).
-
 use serde_json::{json, Value};
 
-// ---------------------------------------------------------------------------
-// Communs
-// ---------------------------------------------------------------------------
-
-/// dBm → pourcentage de qualité (0-100) : -50 dBm et mieux = 100, -100 dBm et pire = 0.
 pub fn dbm_to_percent(dbm: f64) -> u8 {
     (2.0 * (dbm + 100.0)).clamp(0.0, 100.0).round() as u8
 }
 
-/// Sous-réseau CIDR depuis une adresse IPv4 et un masque pointé (`255.255.255.0`) ou hexadécimal (`0xffffff00`).
 pub fn subnet_cidr(ip: &str, mask: &str) -> Option<String> {
     let ip: Vec<u8> = ip
         .split('.')
@@ -43,11 +34,6 @@ pub fn subnet_cidr(ip: &str, mask: &str) -> Option<String> {
     Some(format!("{}.{}.{}.{}/{}", b[0], b[1], b[2], b[3], prefix))
 }
 
-// ---------------------------------------------------------------------------
-// macOS
-// ---------------------------------------------------------------------------
-
-/// `networksetup -listallhardwareports` → périphérique du port Wi-Fi (`en0`).
 pub fn macos_wifi_device(text: &str) -> Option<String> {
     let mut is_wifi = false;
     for line in text.lines() {
@@ -63,7 +49,6 @@ pub fn macos_wifi_device(text: &str) -> Option<String> {
     None
 }
 
-/// `Wi-Fi Power (en0): On` → Some(true).
 pub fn macos_wifi_power(text: &str) -> Option<bool> {
     let value = text.rsplit(':').next()?.trim().to_ascii_lowercase();
     match value.as_str() {
@@ -73,7 +58,6 @@ pub fn macos_wifi_power(text: &str) -> Option<bool> {
     }
 }
 
-/// `Current Wi-Fi Network: X` → Some("X") ; « not associated » → None.
 pub fn macos_current_network(text: &str) -> Option<String> {
     let line = text.lines().next()?;
     let (_, name) = line.split_once("Current Wi-Fi Network:")?;
@@ -85,7 +69,6 @@ pub fn macos_current_network(text: &str) -> Option<String> {
     }
 }
 
-/// `networksetup -listpreferredwirelessnetworks en0` → noms (lignes indentées).
 pub fn macos_preferred_networks(text: &str) -> Vec<String> {
     text.lines()
         .filter(|l| l.starts_with('\t') || l.starts_with("    "))
@@ -121,7 +104,6 @@ fn macos_band(channel: &str) -> String {
 }
 
 fn macos_signal(text: &str) -> u8 {
-    // "-55 dBm / -90 dBm" : le premier nombre est le signal.
     text.split_whitespace()
         .next()
         .and_then(|n| n.parse::<f64>().ok())
@@ -129,7 +111,6 @@ fn macos_signal(text: &str) -> u8 {
         .unwrap_or(0)
 }
 
-/// `system_profiler SPAirPortDataType -json` → (réseau courant, autres réseaux) pour l'interface donnée.
 pub fn macos_airport(json_text: &str, device: &str, known: &[String]) -> Option<Vec<Value>> {
     let root: Value = serde_json::from_str(json_text).ok()?;
     let interfaces =
@@ -191,7 +172,6 @@ fn macos_audio_kind(transport: &str, name: &str) -> &'static str {
     }
 }
 
-/// `system_profiler SPAudioDataType -json` → (sorties, id de la sortie par défaut).
 pub fn macos_audio(json_text: &str) -> Option<(Vec<Value>, Option<String>)> {
     let root: Value = serde_json::from_str(json_text).ok()?;
     let mut devices = Vec::new();
@@ -238,7 +218,6 @@ fn bluetooth_kind(minor: &str) -> &'static str {
     }
 }
 
-/// `system_profiler SPBluetoothDataType -json` → (allumé, appareils appairés).
 pub fn macos_bluetooth(json_text: &str) -> Option<(bool, Vec<Value>)> {
     let root: Value = serde_json::from_str(json_text).ok()?;
     let block = root["SPBluetoothDataType"].get(0)?;
@@ -269,16 +248,11 @@ pub fn macos_bluetooth(json_text: &str) -> Option<(bool, Vec<Value>)> {
     Some((powered, devices))
 }
 
-// ---------------------------------------------------------------------------
-// Windows
-// ---------------------------------------------------------------------------
-
 fn key_matches(key: &str, aliases: &[&str]) -> bool {
     let k = key.trim().to_lowercase();
     aliases.iter().any(|a| k == *a)
 }
 
-/// Valeur après le premier « : » d'une ligne `Clé : Valeur` (les clés de `netsh` sont localisées).
 fn split_kv(line: &str) -> Option<(&str, &str)> {
     let (k, v) = line.split_once(':')?;
     Some((k.trim(), v.trim()))
@@ -292,7 +266,6 @@ pub struct NetshInterface {
     pub band: String,
 }
 
-/// `netsh wlan show interfaces` (anglais et français) → première interface Wi-Fi.
 pub fn windows_interface(text: &str) -> Option<NetshInterface> {
     let mut name = None;
     let mut ssid = None;
@@ -351,7 +324,6 @@ fn windows_security(value: &str) -> Option<String> {
     }
 }
 
-/// `netsh wlan show networks mode=bssid` → réseaux dédoublonnés (signal maximal), `known` rempli par l'appelant.
 pub fn windows_networks(text: &str, current: Option<&str>, known: &[String]) -> Vec<Value> {
     struct Net {
         ssid: String,
@@ -363,7 +335,6 @@ pub fn windows_networks(text: &str, current: Option<&str>, known: &[String]) -> 
     for line in text.lines() {
         let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix("SSID ") {
-            // « SSID 3 : Nom » (et non « SSID : » de l'interface)
             if let Some((idx, name)) = rest.split_once(':') {
                 if idx.trim().chars().all(|c| c.is_ascii_digit()) && !idx.trim().is_empty() {
                     nets.push(Net {
@@ -410,7 +381,6 @@ pub fn windows_networks(text: &str, current: Option<&str>, known: &[String]) -> 
     best
 }
 
-/// `netsh wlan show profiles` → noms des profils (lignes « … : Nom » sous l'en-tête de l'interface).
 pub fn windows_profiles(text: &str) -> Vec<String> {
     text.lines()
         .filter(|l| l.starts_with(' ') || l.starts_with('\t'))
@@ -419,7 +389,6 @@ pub fn windows_profiles(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// Échappement XML minimal pour les profils Wi-Fi générés.
 pub fn xml_escape(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -428,7 +397,6 @@ pub fn xml_escape(text: &str) -> String {
         .replace('\'', "&apos;")
 }
 
-/// Profil WLAN minimal (WPA2-Personal/AES, ou ouvert) pour `netsh wlan add profile`.
 pub fn windows_profile_xml(ssid: &str, password: Option<&str>) -> String {
     let ssid = xml_escape(ssid);
     let security = match password {
@@ -443,7 +411,6 @@ pub fn windows_profile_xml(ssid: &str, password: Option<&str>) -> String {
     )
 }
 
-/// Sortie JSON de PowerShell : un objet seul ou un tableau → toujours un tableau.
 pub fn powershell_json_array(text: &str) -> Vec<Value> {
     let text = text.trim();
     if text.is_empty() {
@@ -456,7 +423,6 @@ pub fn powershell_json_array(text: &str) -> Vec<Value> {
     }
 }
 
-/// `Get-PnpDevice -Class Bluetooth` : appareils (adresse extraite de `BTHENUM\DEV_AABBCCDDEEFF\...`).
 pub fn windows_bluetooth(items: &[Value]) -> Vec<Value> {
     let mut devices = Vec::new();
     for item in items {

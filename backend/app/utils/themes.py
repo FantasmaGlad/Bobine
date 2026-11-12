@@ -1,9 +1,4 @@
-"""Thèmes de l'interface : neuf couleurs, chacune en clair et en sombre.
-
-Le thème (`theme`) désigne la couleur, le mode (`theme_mode`) le clair, le sombre ou le réglage du système.
-`frontend/src/lib/themePalettes.ts` en tient la liste côté interface ; `backend/tests/test_themes.py` vérifie qu'elles
-sont identiques. Les anciens noms (15 thèmes d'avant la 5.2) sont traduits en couleur + mode à la lecture.
-"""
+"""Thèmes de l'interface : neuf couleurs, chacune en clair et en sombre."""
 from __future__ import annotations
 
 THEMES = ("ardoise", "chili", "canary", "rose-vif", "charbon", "orchidee", "foret", "ocean", "pumpkin")
@@ -11,7 +6,6 @@ MODES = ("auto", "light", "dark")
 DEFAULT_THEME = "ardoise"
 DEFAULT_MODE = "auto"
 
-# Ancien thème -> (couleur, mode) le plus proche : même famille de teinte et même clarté.
 LEGACY_THEMES: dict[str, tuple[str, str]] = {
     "clair": ("chili", "light"), "charbon-sombre": ("charbon", "dark"), "charbon": ("charbon", "light"),
     "miel": ("pumpkin", "light"), "menthe": ("foret", "light"), "ciel": ("ocean", "light"),
@@ -22,9 +16,7 @@ LEGACY_THEMES: dict[str, tuple[str, str]] = {
 
 
 def legacy_target(theme: str | None, mode: str | None) -> tuple[str, str] | None:
-    """Couleur et mode d'un ancien nom de thème, ou None si `theme` est un nom actuel. Trois noms (chili, charbon,
-    orchidee) existaient déjà : ils ne sont traduits que sans mode enregistré (toute écriture depuis la 5.2 en enregistre
-    un). Les autres anciens noms sont sans ambiguïté ; un mode clair ou sombre déjà choisi est conservé."""
+    """Couleur et mode d'un ancien nom de thème, ou None si `theme` est un nom actuel."""
     if theme not in LEGACY_THEMES:
         return None
     legacy_theme, legacy_mode = LEGACY_THEMES[theme]

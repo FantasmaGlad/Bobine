@@ -15,7 +15,7 @@ const anchor = { pos: 10, at_ms: 1_000_000, rate: 1, running: true };
 test("position cible : avance depuis l'ancre, figée avant l'instant de départ", () => {
   assert.equal(anchorPosition(anchor, 1_000_000), 10);
   assert.equal(anchorPosition(anchor, 1_004_000), 14);
-  assert.equal(anchorPosition(anchor, 999_000), 10); // départ dans le futur
+  assert.equal(anchorPosition(anchor, 999_000), 10);
   assert.equal(anchorPosition({ ...anchor, rate: 2 }, 1_003_000), 16);
   assert.equal(anchorPosition({ ...anchor, running: false }, 1_900_000), 10);
 });
@@ -59,14 +59,14 @@ test("dérive forte -> un seul seek, vitesse nominale", () => {
 });
 
 test("convergence : la correction de vitesse ramène la dérive sous le seuil sans seek", () => {
-  let drift = 0.6; // 600 ms d'avance
+  let drift = 0.6;
   let correcting = false;
   let seeks = 0;
   for (let second = 0; second < 40; second++) {
     const plan = planDrift(drift, 1, correcting);
     if (plan.action === "seek") seeks++;
     correcting = plan.action === "rate";
-    drift += plan.playbackRate - 1; // 1 s écoulée à cette vitesse
+    drift += plan.playbackRate - 1;
   }
   assert.equal(seeks, 0);
   assert.ok(Math.abs(drift) < 0.08, `dérive finale ${drift}`);
@@ -75,32 +75,28 @@ test("convergence : la correction de vitesse ramène la dérive sous le seuil sa
 test("estimation d'horloge : retient les échantillons au plus petit RTT", () => {
   const e = new ClockOffsetEstimator();
   assert.equal(e.offsetMs(), 0);
-  // Vrai décalage = +500 ms (serveur en avance). Échantillons bruités par la latence.
   const truth = 500;
   const sample = (send: number, up: number, down: number) =>
     e.add(send, send + up + truth, send + up + down);
-  sample(0, 5, 5);       // RTT 10, symétrique : offset exact
-  sample(1000, 120, 10); // RTT 130, asymétrique : biaisé
-  sample(2000, 6, 4);    // RTT 10
-  sample(3000, 300, 20); // RTT 320
+  sample(0, 5, 5);
+  sample(1000, 120, 10);
+  sample(2000, 6, 4);
+  sample(3000, 300, 20);
   assert.ok(Math.abs(e.offsetMs() - truth) < 5, `offset ${e.offsetMs()}`);
   assert.equal(e.bestRttMs(), 10);
 });
 
 test("estimation d'horloge : échantillons invalides ignorés, fenêtre bornée", () => {
   const e = new ClockOffsetEstimator(4);
-  e.add(100, 0, 50); // réception avant envoi
+  e.add(100, 0, 50);
   assert.equal(e.count, 0);
   for (let i = 0; i < 10; i++) e.add(i * 100, i * 100 + 5, i * 100 + 10);
   assert.equal(e.count, 4);
 });
 
 test("ordre explicite : seek immédiat dès 0,3 s d'écart, sans attendre la convergence", () => {
-  // Dérive de 0,5 s : en régime normal on corrige par la vitesse...
   assert.equal(planDrift(0.5, 1, false).action, "rate");
-  // ...mais juste après un ordre (seek +10 s à la télécommande) on replace le média.
   assert.deepEqual(planDrift(0.5, 1, false, true), { action: "seek", playbackRate: 1 });
   assert.equal(planDrift(-10, 1, false, true).action, "seek");
-  // Sous le seuil explicite, rien de brutal.
   assert.notEqual(planDrift(EXPLICIT_SEEK_S - 0.05, 1, false, true).action, "seek");
 });

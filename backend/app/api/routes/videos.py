@@ -79,18 +79,15 @@ class VideoResponse(BaseModel):
     fps: float | None = None
     bitrate_kbps: int | None = None
     pix_fmt: str | None = None
-    # Lisibilité sur les navigateurs tiers (cf. app/utils/web_profile.py) :
-    # `web_issues` vide = lisible partout ; `web_status` = état de la version web.
     web_safe: bool = True
     web_issues: List[str] = []
     web_status: str | None = None
-    # Support externe (lecture directe) : `external` = posé sur un support, `available` = lisible maintenant.
     available: bool = True
     external: bool = False
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True
 
 
 class VideoSubtitleResponse(BaseModel):
@@ -120,14 +117,6 @@ def _run_video_import_job(
     description: str | None = None,
     subtitle_temps: list[tuple[str, str]] | None = None,
 ) -> None:
-    """
-    Exécutée sur `ffmpeg_executor`.
-    Contrairement à l'ancienne implémentation synchrone, la requête HTTP
-    d'upload ne bloque plus jusqu'à la fin de cette fonction (qui peut
-    prendre jusqu'à FFMPEG_NORMALIZE_TIMEOUT_SECONDS = 30 min) — elle est
-    seulement mise en file, et son avancement est visible via
-    `app.utils.import_jobs` / `GET /api/import-jobs`.
-    """
     try:
         video = import_video(temp_path, filename, ImportSource.upload, job_id=job_id)
 
@@ -146,7 +135,6 @@ def _run_video_import_job(
                 db.commit()
                 result_id = db_video.id
 
-                # Traiter les sous-titres joints à l'import si fournis
                 if subtitle_temps:
                     subtitles_dir = get_subtitles_directory()
                     for sub_temp_path, sub_orig_name in subtitle_temps:
@@ -174,11 +162,6 @@ def _run_video_import_job(
         finally:
             db.close()
 
-        # Notification WebSocket : un
-        # cours importé doit apparaître SANS délai sur /grid, /cinema et
-        # /library déjà ouverts, pas seulement au prochain sondage (15s
-        # sur /grid et /cinema, jamais sur /library). Exécuté hors boucle
-        # asyncio (thread de ffmpeg_executor) — version thread-safe.
         ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "video_imported"})
         update_job(job_id, stage="done", result_id=result_id)
     except JobCancelledError:
@@ -237,13 +220,7 @@ def upload_video(
     description: str | None = Form(None),
     subtitles: List[UploadFile] = File(None),
 ):
-    """
-    Upload une vidéo en HTTP et enregistre une tâche d'import suivie en
-    arrière-plan (normalisation automatique si requise) — voir
-    `_run_video_import_job` et `GET /api/import-jobs`.
-    """
-    # `upload_id` : fichier déjà reçu par morceaux (app/utils/staged_uploads.py) ;
-    # sinon multipart classique — comportement historique conservé.
+    """Upload une vidéo en HTTP et enregistre une tâche d'import suivie en arrière-plan (normalisation automatique si requise) — voir `_run_video_import_job` et `GET /api/import-jobs`."""
     temp_path, filename = receive_single_upload(file, upload_id)
 
     subtitle_temps: list[tuple[str, str]] = []
@@ -282,9 +259,7 @@ def list_videos(
     order: str = Query("desc", pattern=regex(SORT_ORDERS)),
     db: Session = Depends(get_db),
 ):
-    """
-    Récupère la liste des vidéos de la bibliothèque avec filtres et tris.
-    """
+    """Récupère la liste des vidéos de la bibliothèque avec filtres et tris."""
     query = db.query(Video)
 
     if search:
@@ -294,7 +269,6 @@ def list_videos(
     if release:
         query = query.filter(Video.release == release)
 
-    # Tris
     if sort_by == "title":
         col = Video.title
     elif sort_by == "duration":
@@ -312,14 +286,7 @@ def list_videos(
 
 @router.get("/programs", response_model=List[str])
 def list_programs(db: Session = Depends(get_db)):
-    """Catégories (programmes) réellement présentes dans la bibliothèque, triées.
-
-    Remplace les catégories jadis codées en dur (RPM/Sprint/The Trip) : le champ
-    `program` est un libellé LIBRE saisi par l'utilisateur ; cet endpoint alimente
-    la liste de suggestions (datalist) et le regroupement dynamique côté UI.
-    Défini AVANT `/{video_id}` pour que « programs » ne soit pas interprété comme
-    un identifiant de vidéo.
-    """
+    """Catégories (programmes) réellement présentes dans la bibliothèque, triées."""
     rows = (
         db.query(Video.program)
         .filter(Video.program.isnot(None), Video.program != "")
@@ -331,9 +298,7 @@ def list_programs(db: Session = Depends(get_db)):
 
 @router.get("/{video_id}", response_model=VideoResponse)
 def get_video(video_id: int, db: Session = Depends(get_db)):
-    """
-    Récupère les détails d'une vidéo spécifique.
-    """
+    """Récupère les détails d'une vidéo spécifique."""
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
@@ -341,16 +306,13 @@ def get_video(video_id: int, db: Session = Depends(get_db)):
 
 
 def rename_video_file(video: Video, title: str) -> None:
-    """Renomme le fichier physique d'une vidéo d'après son nouveau titre (jamais sur un support externe, en lecture
-    seule : le titre ne change alors qu'en base). Sans effet si le fichier est absent ou déjà bien nommé."""
+    """Renomme le fichier physique d'une vidéo d'après son nouveau titre (jamais sur un support externe, en lecture seule : le titre ne change alors qu'en base)."""
     old_path = Path(video.file_path)
     if not old_path.exists() or video.storage_id is not None:
         return
     import re
-    # Tenter de conserver le même UUID s'il est présent dans le nom de fichier actuel
     match = re.match(r"^video_([a-f0-9]{32})_(.+)$", old_path.name)
     uuid_str = match.group(1) if match else uuid.uuid4().hex
-    # Nettoyer et formater le nouveau titre pour le nom de fichier
     clean_title = "".join(c for c in title if c.isalnum() or c in (" ", "_", "-")).strip().replace(" ", "_") or "video"
     new_path = old_path.parent / f"video_{uuid_str}_{clean_title}{old_path.suffix}"
     if new_path != old_path:
@@ -364,17 +326,13 @@ def rename_video_file(video: Video, title: str) -> None:
 
 @router.put("/{video_id}", response_model=VideoResponse)
 def update_video(video_id: int, payload: VideoUpdate, db: Session = Depends(get_db)):
-    """
-    Met à jour les métadonnées modifiables d'une vidéo (titre, programme, release).
-    Modifie également le nom physique du fichier sur disque pour rester cohérent avec le titre.
-    """
+    """Met à jour les métadonnées modifiables d'une vidéo (titre, programme, release)."""
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
 
     if payload.title is not None and not payload.title.strip():
         raise HTTPException(status_code=400, detail="Le titre ne peut pas être vide")
-    # Si le titre change, renommer physiquement le fichier sur disque
     if payload.title is not None and payload.title != video.title:
         rename_video_file(video, payload.title)
         video.title = payload.title
@@ -388,33 +346,24 @@ def update_video(video_id: int, payload: VideoUpdate, db: Session = Depends(get_
 
     db.commit()
     db.refresh(video)
-    # `update_video` reste un endpoint SYNCHRONE (`def`, exécuté dans le
-    # threadpool FastAPI) — version thread-safe du broadcast.
     ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "video_updated"})
     return video
 
 
 @router.delete("/{video_id}")
 def delete_video(video_id: int, db: Session = Depends(get_db)):
-    """
-    Supprime physiquement les fichiers de la vidéo et de sa miniature, puis supprime son entrée en BDD.
-    """
+    """Supprime physiquement les fichiers de la vidéo et de sa miniature, puis supprime son entrée en BDD."""
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
 
-    # Fichiers à effacer APRÈS la validation de la base : une suppression refusée ne doit pas laisser une entrée sans
-    # fichier. JAMAIS sur un support externe : retirer le cours de la bibliothèque n'efface rien sur le support (lecture
-    # seule, c'est le fichier de l'utilisateur).
     files: list[tuple[str, str]] = []
     if video.file_path and video.storage_id is None:
         files.append(("fichier média", video.file_path))
     if video.thumbnail_path:
         files.append(("miniature", video.thumbnail_path))
-    files += [("fichier de sous-titres", sub.file_path) for sub in video.subtitles]  # les lignes partent par cascade
+    files += [("fichier de sous-titres", sub.file_path) for sub in video.subtitles]
 
-    # La vidéo quitte les playlists et le planning qui la citaient (sans cela, la ligne de playlist orpheline faisait
-    # échouer la suppression).
     for item in list(video.playlist_items):
         db.delete(item)
     schedule_ids = drop_schedules_targeting(db, ScheduleTargetType.video, [video.id])
@@ -436,9 +385,7 @@ def delete_video(video_id: int, db: Session = Depends(get_db)):
 
 @router.post("/{video_id}/web-rendition", response_model=ImportJobAccepted, status_code=202)
 def create_web_rendition(video_id: int, db: Session = Depends(get_db)):
-    """Lance la production de la version « lisible partout » (H.264 8 bits,
-    ≤ 1080p, AAC) — suivie via `GET /api/import-jobs`, état dans `web_status`.
-    La vidéo d'origine n'est jamais modifiée (cf. app/utils/web_profile.py)."""
+    """Lance la production de la version « lisible partout » (H.264 8 bits, ≤ 1080p, AAC) — suivie via `GET /api/import-jobs`, état dans `web_status`."""
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
@@ -463,7 +410,6 @@ def delete_web_rendition(video_id: int, db: Session = Depends(get_db)):
 
 
 def _write_manual_thumbnail(source) -> Path:
-    """Enregistre l'image reçue comme miniature JPEG et rend son chemin. `ValueError` si elle est illisible."""
     from PIL import Image, UnidentifiedImageError
 
     try:
@@ -475,7 +421,6 @@ def _write_manual_thumbnail(source) -> Path:
 
     thumbnails_dir = Path(settings.thumbnails_dir)
     thumbnails_dir.mkdir(parents=True, exist_ok=True)
-    # 1080p en LANCZOS : la miniature sert aussi d'image de héros sur des écrans denses (tablettes 2,8K, TV 4K).
     img.thumbnail((1920, 1080), Image.Resampling.LANCZOS)
     path = thumbnails_dir / f"thumb_{uuid.uuid4().hex}.jpg"
     img.save(path, "JPEG", quality=92, optimize=True)
@@ -484,12 +429,7 @@ def _write_manual_thumbnail(source) -> Path:
 
 @router.put("/{video_id}/thumbnail", response_model=VideoResponse)
 async def upload_video_thumbnail(video_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
-    """
-    Miniature manuelle. Permet à un admin
-    de fournir lui-même une image, exactement comme import_background_image()
-    le fait déjà pour un fond fixe : aucun décodage vidéo requis, seulement
-    Pillow, donc disponible sur toutes les plateformes sans exception.
-    """
+    """Miniature manuelle."""
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
@@ -514,14 +454,7 @@ async def upload_video_thumbnail(video_id: int, file: UploadFile = File(...), db
 
 
 def bg_normalize(video_id: int, actions: list, source_metadata: dict | None = None):
-    """
-    Tâche en arrière-plan pour normaliser une vidéo existante de manière asynchrone.
-
-    `source_metadata` : l'appelant
-    (manual_normalize) a déjà extrait les métadonnées de ce même fichier pour
-    décider des `actions` — inutile de relancer ffprobe dessus une seconde
-    fois avant même de le déplacer vers son emplacement temporaire.
-    """
+    """Tâche en arrière-plan pour normaliser une vidéo existante de manière asynchrone."""
     db = SessionLocal()
     try:
         video = db.query(Video).filter(Video.id == video_id).first()
@@ -533,20 +466,16 @@ def bg_normalize(video_id: int, actions: list, source_metadata: dict | None = No
         clean_name = old_path.name
         temp_dest_path = old_path.parent / f"temp_{file_id}_{clean_name}"
 
-        # Déplacement temporaire
         shutil.move(old_path, temp_dest_path)
 
-        # Cible finale (.mp4)
         new_name = f"video_{file_id}_{old_path.stem}.mp4"
         new_path = old_path.parent / new_name
 
         try:
             normalize_video(str(temp_dest_path), str(new_path), actions, source_metadata=source_metadata)
 
-            # Re-extraction des métadonnées finales
             meta = extract_metadata(str(new_path))
 
-            # Mettre à jour l'enregistrement DB
             video.file_path = str(new_path)
             video.duration_seconds = meta.get("duration_seconds")
             video.width = meta.get("width")
@@ -563,7 +492,6 @@ def bg_normalize(video_id: int, actions: list, source_metadata: dict | None = No
             if not video.description and meta.get("description"):
                 video.description = meta["description"]
 
-            # Régénérer la miniature
             if video.thumbnail_path:
                 try:
                     os.remove(video.thumbnail_path)
@@ -595,9 +523,7 @@ def manual_normalize(
     video_id: int,
     db: Session = Depends(get_db),
 ):
-    """
-    Déclenche manuellement la normalisation d'une vidéo si elle n'est pas Direct Play.
-    """
+    """Déclenche manuellement la normalisation d'une vidéo si elle n'est pas Direct Play."""
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
@@ -607,7 +533,6 @@ def manual_normalize(
             detail={"code": "external_read_only", "message": "Ce cours est sur un support externe (lecture seule) : importez-le d'abord pour le convertir, ou créez sa version lisible partout."},
         )
 
-    # Extraire les infos réelles pour vérifier les besoins
     try:
         meta = extract_metadata(video.file_path)
     except Exception as e:
@@ -617,14 +542,6 @@ def manual_normalize(
     if not compat["needs_normalization"]:
         return {"message": "La vidéo est déjà compatible Direct Play, aucune action requise."}
 
-    # ffmpeg_executor (mono-thread, partagé avec l'import upload/watcher) plutôt
-    # que BackgroundTasks : BackgroundTasks exécute une fonction sync
-    # sur le pool de threads générique de Starlette, PAS sur notre exécuteur
-    # dédié — un import en cours au même moment lançait donc un second ffmpeg
-    # en parallèle, doublant la charge CPU sur le Wyse. submit() sans .result()
-    # garde ce déclenchement non bloquant pour la réponse HTTP (la tâche
-    # patiente dans la file de l'exécuteur si celui-ci est déjà occupé,
-    # plutôt que de démarrer un second processus ffmpeg en parallèle).
     ffmpeg_executor.submit(bg_normalize, video_id, compat["actions"], meta)
     return {"message": "La tâche de normalisation a été démarrée en tâche de fond."}
 
@@ -678,7 +595,6 @@ async def upload_subtitle(
 
     vtt_content = convert_srt_to_vtt(content_str)
 
-    # Détection automatique de la langue si non fournie
     detected_code, detected_label = detect_language_from_filename(filename)
     final_code = normalize_language_code(language_code or detected_code)
     if final_code is None:

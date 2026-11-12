@@ -5,10 +5,8 @@ import unittest
 import subprocess
 from pathlib import Path
 
-# Add backend directory to Python path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# Set test directories before importing config
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_background_database.db"
 os.environ["BOBINE_BACKGROUNDS_DIR"] = "data/test_backgrounds"
 os.environ["BOBINE_BACKGROUNDS_WATCH_DIR"] = "data/test_backgrounds_watched"
@@ -89,7 +87,6 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
 
         bg = import_background(temp_src, "Ambience MKV.mkv", ImportSource.watched_folder)
         self.assertIsNotNone(bg.id)
-        # Un conteneur MKV mal supporté doit être remuxé en MP4 (même règle que les cours)
         self.assertTrue(bg.file_path.endswith(".mp4"))
         self.assertTrue(os.path.exists(bg.file_path))
 
@@ -101,28 +98,22 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
 
         manager = PlaybackManager(mock_broadcast)
 
-        # Lancer un fond animé : bascule immédiate, sans compte à rebours
         await manager.load_background(1, "Ambience Loop")
         self.assertEqual(manager.state["state"], "background")
         self.assertEqual(manager.state["current_background"], {"id": 1, "title": "Ambience Loop", "is_image": False})
         self.assertIsNone(manager.state["current_video"])
 
-        # Une programmation vidéo doit pouvoir prendre le relais sur un fond animé ("prise de relais")
         await manager.load(video_id=42, title="RPM 100", duration_seconds=2700.0)
-        # Bascule directe en lecture : démarrage immédiat du cours
-        # sans compte à rebours ni vidéo intermédiaire.
         self.assertEqual(manager.state["state"], "playing")
         self.assertIsNone(manager.state["current_background"])
         self.assertEqual(manager.state["current_video"]["id"], 42)
 
-        # Relancer le fond, puis vérifier que stop() nettoie bien current_background
         await manager.load_background(2, "Autre ambiance")
         self.assertEqual(manager.state["state"], "background")
         await manager.stop()
         self.assertEqual(manager.state["state"], "waiting")
         self.assertIsNone(manager.state["current_background"])
 
-        # Play/pause doivent rester des no-op pendant un fond animé (pas de notion de pause)
         await manager.load_background(3, "Test play/pause no-op")
         await manager.play()
         self.assertEqual(manager.state["state"], "background")

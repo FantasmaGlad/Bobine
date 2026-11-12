@@ -27,11 +27,11 @@ test("inclusion acceptée seulement si elle désigne UN SEUL périphérique", ()
   const prefixed = [dev("a", "Bluetooth JBL Live 770NC"), dev("b", "Haut-parleurs")];
   assert.deepEqual(matchOutputDevice(prefixed, ["JBL Live 770NC"]), { kind: "found", deviceId: "a" });
   const twin = [dev("a", "USB Audio"), dev("b", "USB Audio 2")];
-  assert.deepEqual(matchOutputDevice(twin, ["USB Audio"]), { kind: "found", deviceId: "a" }); // égalité exacte prioritaire
+  assert.deepEqual(matchOutputDevice(twin, ["USB Audio"]), { kind: "found", deviceId: "a" });
   const ambiguous = [dev("a", "USB Audio A"), dev("b", "USB Audio B")];
   assert.deepEqual(matchOutputDevice(ambiguous, ["USB Audio"]), { kind: "none" });
   const doubled = [dev("a", "HDMI"), dev("b", "hdmi")];
-  assert.deepEqual(matchOutputDevice(doubled, ["HDMI"]), { kind: "none" }); // deux égalités exactes : on ne devine pas
+  assert.deepEqual(matchOutputDevice(doubled, ["HDMI"]), { kind: "none" });
 });
 
 test("libellés masqués par le navigateur : needs_labels ; liste vide : none", () => {
@@ -48,14 +48,13 @@ test("plan : sans route, retour à la sortie par défaut", () => {
 test("plan : sortie débranchée, repli par défaut ou sourdine selon le choix", () => {
   assert.deepEqual(planRoute(route({ state: "missing" }), ENV, []), { action: "default", status: "missing" });
   assert.deepEqual(planRoute(route({ state: "missing", fallback: "mute" }), ENV, []), { action: "mute", status: "muted" });
-  // Même quand le navigateur ne sait pas router : la sourdine du repli ne dépend pas de setSinkId.
   assert.deepEqual(planRoute(route({ state: "missing", fallback: "mute" }), { secure: false, canSetSinkId: false }, null), { action: "mute", status: "muted" });
 });
 
 test("plan : limites du navigateur rendues visibles, jamais de coupure", () => {
   assert.deepEqual(planRoute(route(), { secure: true, canSetSinkId: false }, []), { action: "none", status: "unsupported" });
   assert.deepEqual(planRoute(route(), { secure: false, canSetSinkId: true }, []), { action: "none", status: "insecure" });
-  assert.deepEqual(planRoute(route({ fallback: "mute" }), { secure: false, canSetSinkId: true }, []), { action: "none", status: "insecure" }); // « couper » ne vaut que sortie débranchée
+  assert.deepEqual(planRoute(route({ fallback: "mute" }), { secure: false, canSetSinkId: true }, []), { action: "none", status: "insecure" });
   assert.deepEqual(planRoute(route(), ENV, null), { action: "none", status: "error" });
   assert.deepEqual(planRoute(route(), ENV, [dev("x", ""), dev("y", "")]), { action: "none", status: "needs_labels" });
   assert.deepEqual(planRoute(route(), ENV, [dev("x", "Haut-parleurs")]), { action: "none", status: "no_match" });
@@ -98,14 +97,14 @@ test("application : trouve le périphérique, appelle setSinkId une seule fois, 
   assert.equal(await applyRoute(h.ctx, route(), h.deps), "applied");
   assert.deepEqual(h.calls, ["def"]);
   assert.equal(await applyRoute(h.ctx, route(), h.deps), "applied");
-  assert.deepEqual(h.calls, ["def"]); // déjà sur cette sortie
+  assert.deepEqual(h.calls, ["def"]);
   assert.deepEqual(h.mutes, [false, false]);
 });
 
 test("application : effacement de la route, retour à la sortie par défaut seulement si on l'avait quittée", async () => {
   const h = harness({ devices: [dev("def", "JBL Live 770NC")] });
   assert.equal(await applyRoute(h.ctx, null, h.deps), "default");
-  assert.deepEqual(h.calls, []); // jamais routé : rien à défaire
+  assert.deepEqual(h.calls, []);
   await applyRoute(h.ctx, route(), h.deps);
   assert.equal(await applyRoute(h.ctx, null, h.deps), "default");
   assert.deepEqual(h.calls, ["def", ""]);
@@ -116,7 +115,7 @@ test("application : sortie absente, repli couper = sourdine et retour à la sort
   assert.equal(await applyRoute(h.ctx, route({ state: "missing", fallback: "mute" }), h.deps), "muted");
   assert.deepEqual(h.mutes, [true]);
   assert.deepEqual(h.calls, [""]);
-  assert.equal(await applyRoute(h.ctx, route({ state: "routed" }), harness({ devices: [dev("def", "JBL Live")] }).deps), "applied"); // levée de la sourdine côté appelant
+  assert.equal(await applyRoute(h.ctx, route({ state: "routed" }), harness({ devices: [dev("def", "JBL Live")] }).deps), "applied");
 });
 
 test("application : le navigateur refuse ou ne répond pas, statut error sans exception", async () => {

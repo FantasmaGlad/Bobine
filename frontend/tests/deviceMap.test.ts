@@ -96,7 +96,6 @@ test("zoom borné, centré sur le point, et vue qui fait tout tenir", () => {
   const view = { scale: 1, tx: 0, ty: 0 };
   const zoomed = zoomAt(view, { x: 100, y: 50 }, 2);
   assert.equal(zoomed.scale, 2);
-  // le point sous le curseur ne bouge pas : (100 - tx) / scale reste constant
   assert.equal((100 - zoomed.tx) / zoomed.scale, 100);
   assert.equal((50 - zoomed.ty) / zoomed.scale, 50);
   const fit = fitView({ minX: -500, minY: -250, maxX: 500, maxY: 250 }, { width: 1000, height: 400 });

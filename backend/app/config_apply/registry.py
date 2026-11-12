@@ -30,9 +30,6 @@ APPLIERS: dict[str, Callable[[_Context, str, dict], None]] = {
 }
 
 
-# Ordre d'application : les métadonnées des médias et les playlists avant ce qui les cite. `outputs/radio.json` vient
-# après `playlists/radio.json` : son ambiance par défaut se désigne par un nom ou un `uid`, qui doit déjà exister (ou
-# venir d'être créé dans la même transaction).
 ORDER = [
     "settings.json",
     "outputs/display.json",

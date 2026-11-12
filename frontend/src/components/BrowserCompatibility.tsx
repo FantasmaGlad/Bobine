@@ -67,11 +67,6 @@ function collect(): Capabilities {
   };
 }
 
-/**
- * Réglages → Compatibilité navigateur : diagnostic
- * local de CE navigateur, choix de la version vidéo utilisée, mesure de lecture
- * réelle et rapport copiable. Aucune donnée n'est envoyée nulle part.
- */
 export default function BrowserCompatibility() {
   const { t } = useAppSettings();
   const [caps, setCaps] = useState<Capabilities | null>(null);
@@ -155,7 +150,7 @@ export default function BrowserCompatibility() {
         codecs: Object.fromEntries(caps.codecs.map((c) => [c.label, c.support || "non"])),
         features: Object.fromEntries(caps.features.map((f) => [f.label, f.supported])),
         playback: testState.text,
-        userAgent: navigator.userAgent, // utile au support ; jamais utilisé pour adapter le comportement
+        userAgent: navigator.userAgent,
       },
       null,
       2,

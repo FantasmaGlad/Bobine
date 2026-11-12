@@ -1,6 +1,3 @@
-"""Garde du réseau local : un client à l'adresse publique n'atteint ni l'API ni un WebSocket ; réseau local, VPN et
-réseaux déclarés passent."""
-
 import os
 
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
@@ -59,7 +56,6 @@ def test_http_and_websocket_from_internet_refused():
     response = client.get("/api/state")
     assert response.status_code == 403
     assert response.json()["detail"]["code"] == "public_client"
-    # Le message ASGI est une fermeture 1008 ; uvicorn la traduit en 403 lors de la poignée de main.
     with pytest.raises(WebSocketDisconnect) as closed:
         with client.websocket_connect("/ws") as socket:
             socket.receive_text()
@@ -109,7 +105,6 @@ def test_guard_is_outermost_middleware():
 
 
 def test_real_app_refuses_public_client():
-    """L'application complète, avec ses montages statiques et ses routeurs, pas une application d'essai."""
     client = TestClient(real_app, client=("8.8.8.8", 50000))
     for path in ("/api/state", "/", "/api/videos"):
         assert client.get(path).status_code == 403

@@ -1,14 +1,4 @@
-"""Chemins sûrs et exploration d'arborescence d'un support (logique pure : seul `os` est utilisé).
-
-Garanties :
-
-* le client n'envoie qu'un chemin RELATIF au support ; il est nettoyé (`clean_rel_path`) puis résolu
-  (`resolve_within`) : pas de `..`, pas de chemin absolu, pas d'octet nul, profondeur bornée ;
-* un lien symbolique n'est suivi que s'il reste DANS le volume et sur le même périphérique (un montage
-  imbriqué ou un lien vers `/etc` est ignoré, pas suivi) ;
-* parcours borné (profondeur, nombre d'entrées, nombre de fichiers) et paginé : aucune réponse ne peut
-  devenir énorme, aucun décodage de média n'a lieu pendant la navigation.
-"""
+"""Chemins sûrs et exploration d'arborescence d'un support (logique pure : seul `os` est utilisé)."""
 
 from __future__ import annotations
 
@@ -19,12 +9,11 @@ from app.utils import media_formats
 
 MAX_REL_LENGTH = 4096
 MAX_DEPTH = 16
-MAX_SCAN_ENTRIES = 20_000      # entrées examinées par dossier
+MAX_SCAN_ENTRIES = 20_000
 MAX_PAGE = 500
 MAX_WALK_DEPTH = 12
 MAX_WALK_FILES = 20_000
 
-# Mêmes ensembles que les importeurs (un test le vérifie) : le support peut en contenir d'autres, ils ne sont pas proposés.
 VIDEO_EXTENSIONS = media_formats.VIDEO
 AUDIO_EXTENSIONS = media_formats.SUPPORT_AUDIO
 IMAGE_EXTENSIONS = media_formats.IMAGE
@@ -118,7 +107,7 @@ def to_rel(root: str, absolute: str) -> str:
 @dataclass
 class Entry:
     name: str
-    type: str  # dir | file
+    type: str
     size: int | None
     mtime: float | None
     media: str | None = None
@@ -133,7 +122,7 @@ class Listing:
     total: int
     offset: int
     limit: int
-    truncated: bool  # plus de MAX_SCAN_ENTRIES entrées : la liste est incomplète
+    truncated: bool
     skipped_links: int = 0
 
 
@@ -156,7 +145,7 @@ def list_directory(
     real_root = _real_root(root)
     root_dev = os.stat(real_root).st_dev
 
-    names: list[tuple[str, bool, bool]] = []  # nom, est un dossier, caché
+    names: list[tuple[str, bool, bool]] = []
     skipped_links = 0
     truncated = False
     try:
@@ -207,7 +196,7 @@ def list_directory(
 
 @dataclass
 class WalkResult:
-    files: list[tuple[str, str, int, str]] = field(default_factory=list)  # (rel, absolu, taille, nature)
+    files: list[tuple[str, str, int, str]] = field(default_factory=list)
     truncated: bool = False
     skipped: int = 0
 
@@ -304,10 +293,8 @@ def inside(base: str, target: str) -> bool:
         return False
 
 
-
 def ensure_dir_within(root: str, rel: str | None) -> str:
-    """Crée (si besoin) le dossier relatif `rel` sous `root`, segment par segment, en vérifiant chaque étape :
-    jamais de création hors du volume, jamais à travers un lien symbolique qui en sortirait."""
+    """Crée (si besoin) le dossier relatif `rel` sous `root`, segment par segment, en vérifiant chaque étape : jamais de création hors du volume, jamais à travers un lien symbolique qui en sortirait."""
     cleaned = clean_rel_path(rel)
     current = ""
     for segment in cleaned.split("/") if cleaned else []:

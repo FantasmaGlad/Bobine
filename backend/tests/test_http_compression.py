@@ -1,11 +1,3 @@
-"""Compression HTTP : gzip des réponses JSON/texte de l'API et du frontend
-statique, jamais des flux média, des requêtes Range ni des réponses déjà
-encodées ; l'ETag par contenu de `RevalidateStaticFiles` doit rester exact.
-
-Mesuré sur la 5.0.2 : `frontend/out` 2,7 Mo -> 0,76 Mo, JSON des pistes
-1,09 Mo -> 39 Ko.
-"""
-
 import gzip
 import hashlib
 import json
@@ -32,8 +24,6 @@ from app.api.http_compression import (  # noqa: E402
 )
 
 def _from_client(app, host: str):
-    """Impose l'adresse du client (le `client=` de TestClient n'existe pas dans
-    le Starlette 0.27 du profil Android)."""
 
     async def wrapped(scope, receive, send):
         if scope["type"] in ("http", "websocket"):
@@ -170,7 +160,6 @@ def test_json_is_gzipped_and_roundtrips(client):
     assert response.headers["content-encoding"] == "gzip"
     assert response.headers["vary"] == "Accept-Encoding"
     assert response.json() == BIG_ROWS
-    # Content-Length annoncé == octets réellement reçus (compressés).
     assert int(response.headers["content-length"]) == response.num_bytes_downloaded
     assert response.num_bytes_downloaded < len(response.content) / 3
 
@@ -197,14 +186,14 @@ def test_client_without_gzip_gets_identity(client):
 @pytest.mark.parametrize(
     "url",
     [
-        "/api/videos/1/stream",  # flux média : jamais compressé
-        "/api/thumbnails/a.svg",  # miniatures/branding : jamais compressés
-        "/api/encoded",  # déjà encodé : pas de double encodage
-        "/api/audio",  # pas du texte
-        "/api/etag",  # validateur d'origine préservé
-        "/api/download",  # téléchargement
-        "/api/partial",  # 206
-        "/other",  # hors /api
+        "/api/videos/1/stream",
+        "/api/thumbnails/a.svg",
+        "/api/encoded",
+        "/api/audio",
+        "/api/etag",
+        "/api/download",
+        "/api/partial",
+        "/other",
     ],
 )
 def test_never_compressed(client, url):
@@ -246,7 +235,6 @@ def test_websocket_passes_through(client):
         assert ws.receive_text() == "z" * 5000
 
 
-# --- frontend statique -------------------------------------------------------
 JS = ("console.log('bobine');\n" * 400).encode()
 
 
@@ -272,7 +260,7 @@ def test_static_text_is_gzipped_with_a_distinct_etag(static_app):
     assert response.headers["cache-control"] == "no-cache"
     assert "content-length" in response.headers
     assert int(response.headers["content-length"]) == response.num_bytes_downloaded < len(JS) / 5
-    assert response.content == JS  # httpx décode : contenu identique à l'original
+    assert response.content == JS
     assert response.headers["content-type"].startswith("text/javascript") or response.headers[
         "content-type"
     ].startswith("application/javascript")
@@ -350,7 +338,6 @@ def test_static_loopback_client_gets_identity(static_app):
     assert response.content == JS
 
 
-# --- application réelle --------------------------------------------------------
 def test_real_app_compresses_api_json_and_leaves_streams_alone():
     client = TestClient(real_app)
     settings = client.get("/api/settings", headers=GZIP)

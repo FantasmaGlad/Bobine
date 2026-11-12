@@ -4,17 +4,6 @@ import { useEffect, type RefObject } from "react";
 import { createSoundChain, type SoundChain } from "./radioSoundGraph";
 import { isNeutralSound, type RadioSoundSettings } from "./radioSound";
 
-/**
- * Applique les réglages de son d'un canal (égaliseur, basses, loudness, limiteur) à un `<video>` ou `<audio>` par un
- * graphe Web Audio : élément → chaîne de la radio → sortie.
- *
- * Règles de sûreté :
- *  - Rien n'est branché tant que les réglages ne changent pas le son : le son direct de l'élément reste intact.
- *  - `createMediaElementSource` est définitif (l'élément ne sort plus que par le graphe). On ne l'appelle donc que si
- *    l'`AudioContext` tourne réellement (`running`) ; sinon, après une seconde, on renonce et le son reste direct
- *    (téléviseur ou navigateur qui exige un geste de l'utilisateur).
- *  - Un seul graphe par élément, un seul `AudioContext` pour la page.
- */
 const RUNNING_WAIT_MS = 1000;
 
 interface Attached {
@@ -64,7 +53,6 @@ async function attach(element: HTMLMediaElement, sound: RadioSoundSettings): Pro
 }
 
 export function useMediaSound(ref: RefObject<HTMLMediaElement | null>, rawSound: RadioSoundSettings | undefined): void {
-  // Le serveur renvoie un objet neuf à chaque diffusion d'état : on ne réagit qu'à un changement de valeur.
   const key = rawSound ? JSON.stringify(rawSound) : "";
   useEffect(() => {
     const element = ref.current;

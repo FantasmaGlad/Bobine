@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/playlists", tags=["playlists"])
 
 
-# Pydantic Schemas
 class PlaylistItemInput(BaseModel):
     video_id: int
     position: int | None = None
@@ -37,7 +36,7 @@ class VideoResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True
 
 
 class PlaylistItemResponse(BaseModel):
@@ -47,7 +46,7 @@ class PlaylistItemResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True
 
 
 class PlaylistDetailResponse(BaseModel):
@@ -59,7 +58,7 @@ class PlaylistDetailResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True
 
 
 class PlaylistSummaryResponse(BaseModel):
@@ -68,24 +67,16 @@ class PlaylistSummaryResponse(BaseModel):
     created_at: datetime
     item_count: int
     total_duration_seconds: float
-    # `Playlist` n'a pas de champ cover propre — miniature dérivée du 1er
-    # élément ayant une miniature, même convention que
-    # `scheduling.occurrences.resolve_target_display` (planning visuel).
     thumbnail_path: str | None = None
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True
 
 
 @router.get("", response_model=List[PlaylistSummaryResponse])
 def list_playlists(db: Session = Depends(get_db)):
-    """
-    Liste toutes les playlists avec le nombre d'éléments, la durée totale et
-    une miniature de repli (1er élément en ayant une).
-    """
-    # Éléments et vidéos chargés en 2 requêtes au total : sans cela, chaque
-    # playlist déclenche un SELECT de ses éléments puis un SELECT par vidéo.
+    """Liste toutes les playlists avec le nombre d'éléments, la durée totale et une miniature de repli (1er élément en ayant une)."""
     playlists = (
         db.query(Playlist)
         .options(selectinload(Playlist.items).joinedload(PlaylistItem.video))
@@ -112,9 +103,7 @@ def list_playlists(db: Session = Depends(get_db)):
 
 @router.get("/{playlist_id}", response_model=PlaylistDetailResponse)
 def get_playlist(playlist_id: int, db: Session = Depends(get_db)):
-    """
-    Détails d'une playlist avec ses éléments ordonnés et les métadonnées des vidéos associées.
-    """
+    """Détails d'une playlist avec ses éléments ordonnés et les métadonnées des vidéos associées."""
     playlist = (
         db.query(Playlist)
         .options(selectinload(Playlist.items).joinedload(PlaylistItem.video))
@@ -124,7 +113,6 @@ def get_playlist(playlist_id: int, db: Session = Depends(get_db)):
     if not playlist:
         raise HTTPException(status_code=404, detail="Playlist non trouvée")
 
-    # Trier les éléments par position
     sorted_items = sorted(playlist.items, key=lambda x: x.position)
     total_duration = sum((item.video.duration_seconds or 0.0) for item in playlist.items)
 
@@ -139,17 +127,14 @@ def get_playlist(playlist_id: int, db: Session = Depends(get_db)):
 
 @router.post("", response_model=PlaylistDetailResponse)
 def create_playlist(data: PlaylistInput, db: Session = Depends(get_db)):
-    """
-    Crée une nouvelle playlist avec ses éléments.
-    """
+    """Crée une nouvelle playlist avec ses éléments."""
     if not data.name.strip():
         raise HTTPException(status_code=400, detail="Le nom de la playlist ne peut pas être vide")
 
     playlist = Playlist(name=data.name.strip())
     db.add(playlist)
-    db.flush()  # Récupère l'id de la playlist
+    db.flush()
 
-    # Ajouter les éléments de la playlist
     for i, item_input in enumerate(data.items):
         video = db.query(Video).filter(Video.id == item_input.video_id).first()
         if not video:
@@ -167,15 +152,12 @@ def create_playlist(data: PlaylistInput, db: Session = Depends(get_db)):
     db.refresh(playlist)
     log_activity(db, "playlist_created", f"{playlist.name} ({len(data.items)} cours)")
 
-    # Re-requêter les détails pour renvoyer la réponse structurée
     return get_playlist(playlist.id, db)
 
 
 @router.put("/{playlist_id}", response_model=PlaylistDetailResponse)
 def update_playlist(playlist_id: int, data: PlaylistInput, db: Session = Depends(get_db)):
-    """
-    Met à jour le nom et/ou les éléments d'une playlist (remplace proprement la liste ordonnée des éléments).
-    """
+    """Met à jour le nom et/ou les éléments d'une playlist (remplace proprement la liste ordonnée des éléments)."""
     playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
     if not playlist:
         raise HTTPException(status_code=404, detail="Playlist non trouvée")
@@ -185,10 +167,8 @@ def update_playlist(playlist_id: int, data: PlaylistInput, db: Session = Depends
 
     playlist.name = data.name.strip()
 
-    # Supprimer les anciens éléments
     db.query(PlaylistItem).filter(PlaylistItem.playlist_id == playlist.id).delete()
 
-    # Ajouter les nouveaux éléments
     for i, item_input in enumerate(data.items):
         video = db.query(Video).filter(Video.id == item_input.video_id).first()
         if not video:
@@ -211,9 +191,7 @@ def update_playlist(playlist_id: int, data: PlaylistInput, db: Session = Depends
 
 @router.delete("/{playlist_id}")
 def delete_playlist(playlist_id: int, db: Session = Depends(get_db)):
-    """
-    Supprime la playlist (les éléments associés sont supprimés en cascade).
-    """
+    """Supprime la playlist (les éléments associés sont supprimés en cascade)."""
     playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
     if not playlist:
         raise HTTPException(status_code=404, detail="Playlist non trouvée")
@@ -229,9 +207,7 @@ def delete_playlist(playlist_id: int, db: Session = Depends(get_db)):
 
 @router.post("/{playlist_id}/duplicate", response_model=PlaylistDetailResponse)
 def duplicate_playlist(playlist_id: int, db: Session = Depends(get_db)):
-    """
-    Duplique une playlist existante (copie le nom en y ajoutant " (copie)" et clone ses éléments).
-    """
+    """Duplique une playlist existante (copie le nom en y ajoutant " (copie)" et clone ses éléments)."""
     original = db.query(Playlist).filter(Playlist.id == playlist_id).first()
     if not original:
         raise HTTPException(status_code=404, detail="Playlist non trouvée")

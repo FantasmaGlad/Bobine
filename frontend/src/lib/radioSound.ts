@@ -1,29 +1,14 @@
-/**
- * Réglages de son d'une sortie radio (égaliseur 5 bandes, basses, loudness, limiteur) —
- * logique PURE, sans accès au DOM ni à Web Audio, pour rester testable (`frontend/tests/`).
- *
- * Le serveur valide par bornage, stocke et diffuse ces réglages avec l'état de la sortie
- * (`RadioState.sound`) ; le lecteur `/radio` les traduit en paramètres de filtres Web
- * Audio. Les bornes ci-dessous DOIVENT rester alignées sur `backend/app/utils/radio_sound.py`.
- */
-
 export const BAND_COUNT = 5;
 export const BAND_GAIN_MIN_DB = -12;
 export const BAND_GAIN_MAX_DB = 12;
 export const BASS_BOOST_MAX_DB = 12;
 
 export interface RadioSoundSettings {
-  /** Contournement global : faux = son neutre, aucun filtre appliqué. */
   enabled: boolean;
-  /** Gain (dB) des 5 bandes, du grave à l'aigu. */
   bands: number[];
-  /** Renfort des basses (dB), indépendant des bandes. */
   bass_boost: number;
-  /** Compensation « faible volume » (graves et aigus relevés). */
   loudness: boolean;
-  /** Protection anti-saturation (compresseur de sécurité). */
   limiter: boolean;
-  /** Identifiant du préréglage appliqué, null = réglage manuel. */
   preset: string | null;
 }
 
@@ -40,28 +25,18 @@ export function defaultSound(): RadioSoundSettings {
   return { ...DEFAULT_SOUND, bands: [...DEFAULT_SOUND.bands] };
 }
 
-// ---------------------------------------------------------------------------
-// Fréquences et préréglages
-// ---------------------------------------------------------------------------
-
-/** Fréquence centrale (Hz) de chaque bande : grave, bas-médium, médium, haut-médium, aigu. */
 export const BAND_FREQUENCIES = [60, 230, 910, 3600, 14000] as const;
-/** Forme du filtre de chaque bande : plateau aux extrémités, cloche au centre. */
 export const BAND_TYPES: BiquadFilterType[] = ["lowshelf", "peaking", "peaking", "peaking", "highshelf"];
 const BAND_Q = [0.7, 1, 1, 1, 0.7];
 
-/** Renfort des basses : plateau bas indépendant des bandes. */
 export const BASS_FREQUENCY = 80;
-/** Compensation « faible volume » : graves et aigus relevés (courbes d'égale sonie, simplifiées). */
 export const LOUDNESS_LOW = { frequency: 100, gain: 4 };
 export const LOUDNESS_HIGH = { frequency: 10000, gain: 3 };
 
-/** Vrai quand les réglages ne changent rien au son (contournement, ou tout à plat sans loudness) : aucun graphe nécessaire. */
 export function isNeutralSound(sound: RadioSoundSettings): boolean {
   return !sound.enabled || (sound.bands.every((gain) => gain === 0) && sound.bass_boost === 0 && !sound.loudness);
 }
 
-/** Plafond d'atténuation du préampli (dB) : évite un son anormalement faible. */
 const PREAMP_MAX_CUT_DB = 18;
 
 export interface SoundPreset {
@@ -71,36 +46,21 @@ export interface SoundPreset {
   loudness: boolean;
 }
 
-/**
- * Trois préréglages seulement : le son « à plat » n'en est pas un (c'est le bouton Réinitialiser ou
- * l'interrupteur Son neutre). Les anciens identifiants éventuellement mémorisés (plat, aigus clairs,
- * cardio…) ne correspondent plus à rien : l'interface les traite comme un réglage manuel.
- */
 export const PRESETS: SoundPreset[] = [
   { id: "bass", bands: [5, 3, 0, -1, 0], bass_boost: 4, loudness: false },
   { id: "voice", bands: [-4, -2, 2, 4, 1], bass_boost: 0, loudness: false },
   { id: "soft", bands: [2, 1, 0, -2, -4], bass_boost: 0, loudness: false },
 ];
 
-/** Préréglage connu à partir d'un identifiant mémorisé, ou null (identifiant disparu ou absent). */
 export function knownPresetId(id: string | null | undefined): string | null {
   return PRESETS.some((p) => p.id === id) ? (id as string) : null;
 }
-
-// ---------------------------------------------------------------------------
-// Bornage et préréglages
-// ---------------------------------------------------------------------------
 
 function clampInt(value: unknown, low: number, high: number, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
   return Math.max(low, Math.min(high, Math.round(value)));
 }
 
-/**
- * Réglages valides à partir d'une entrée quelconque : bornés (jamais d'exception), les champs
- * absents ou invalides gardent la valeur de `base`. Même règle que le serveur
- * (`sanitize_sound`) — le serveur reste l'autorité, ceci évite l'aller-retour pour l'affichage.
- */
 export function clampSound(raw: Partial<RadioSoundSettings> | null | undefined, base: RadioSoundSettings = DEFAULT_SOUND): RadioSoundSettings {
   const input = raw ?? {};
   const bands: number[] = [];
@@ -119,7 +79,6 @@ export function clampSound(raw: Partial<RadioSoundSettings> | null | undefined, 
   };
 }
 
-/** Applique un préréglage (les interrupteurs limiteur et activation sont conservés). */
 export function applyPreset(presetId: string, current: RadioSoundSettings): RadioSoundSettings {
   const preset = PRESETS.find((p) => p.id === presetId);
   if (!preset) return current;
@@ -129,7 +88,6 @@ export function applyPreset(presetId: string, current: RadioSoundSettings): Radi
   );
 }
 
-/** Identifiant du préréglage correspondant exactement aux réglages, ou null (réglage manuel). */
 export function matchingPreset(sound: RadioSoundSettings): string | null {
   const found = PRESETS.find(
     (p) =>
@@ -140,14 +98,9 @@ export function matchingPreset(sound: RadioSoundSettings): string | null {
   return found ? found.id : null;
 }
 
-// ---------------------------------------------------------------------------
-// Paramètres du graphe Web Audio
-// ---------------------------------------------------------------------------
-
 export interface FilterParams {
   type: BiquadFilterType;
   frequency: number;
-  /** Gain en dB (0 = transparent). */
   gain: number;
   q: number;
 }
@@ -161,7 +114,6 @@ export interface LimiterParams {
 }
 
 export interface SoundGraphParams {
-  /** Gain linéaire du préampli (≤ 1) compensant les relèvements pour éviter l'écrêtage. */
   preampGain: number;
   bands: FilterParams[];
   bass: FilterParams;
@@ -170,7 +122,6 @@ export interface SoundGraphParams {
   limiter: LimiterParams;
 }
 
-/** Pire relèvement (dB) cumulé sur la plage de fréquences, pour dimensionner le préampli. */
 export function peakBoostDb(sound: RadioSoundSettings): number {
   if (!sound.enabled) return 0;
   const lowEnd = sound.bands[0] + sound.bass_boost + (sound.loudness ? LOUDNESS_LOW.gain : 0);
@@ -178,21 +129,14 @@ export function peakBoostDb(sound: RadioSoundSettings): number {
   return Math.max(0, lowEnd, sound.bands[1], sound.bands[2], sound.bands[3], highEnd);
 }
 
-/** Gain linéaire du préampli : atténue du pire relèvement (plafonné), jamais de gain positif. */
 export function computePreamp(sound: RadioSoundSettings): number {
   const cut = Math.min(PREAMP_MAX_CUT_DB, peakBoostDb(sound));
   return Math.pow(10, -cut / 20);
 }
 
 export const LIMITER_ON: LimiterParams = { threshold: -3, knee: 2, ratio: 20, attack: 0.003, release: 0.15 };
-// Compresseur transparent (ratio 1, seuil à 0 dB) : le nœud reste dans le graphe sans agir.
 export const LIMITER_OFF: LimiterParams = { threshold: 0, knee: 0, ratio: 1, attack: 0.003, release: 0.25 };
 
-/**
- * Traduit des réglages en paramètres de chaque nœud du graphe. Son neutre (`enabled=false`) =
- * tous les filtres à 0 dB, préampli à 1, limiteur transparent : le graphe reste en place (pas de
- * reconnexion pendant la lecture), mais ne modifie rien.
- */
 export function toGraphParams(sound: RadioSoundSettings): SoundGraphParams {
   const active = sound.enabled;
   const bands = BAND_FREQUENCIES.map((frequency, i) => ({
@@ -207,9 +151,6 @@ export function toGraphParams(sound: RadioSoundSettings): SoundGraphParams {
     bass: { type: "lowshelf", frequency: BASS_FREQUENCY, gain: active ? sound.bass_boost : 0, q: 0.7 },
     loudnessLow: { type: "lowshelf", frequency: LOUDNESS_LOW.frequency, gain: active && sound.loudness ? LOUDNESS_LOW.gain : 0, q: 0.7 },
     loudnessHigh: { type: "highshelf", frequency: LOUDNESS_HIGH.frequency, gain: active && sound.loudness ? LOUDNESS_HIGH.gain : 0, q: 0.7 },
-    // La protection n'agit QUE lorsque les réglages relèvent le son (risque d'écrêtage) : à plat, la
-    // musique reste STRICTEMENT inchangée — sans quoi activer la radio compresserait les crêtes de
-    // tous les morceaux, même sans aucun réglage d'égaliseur.
     limiter: active && sound.limiter && peakBoostDb(sound) > 0 ? LIMITER_ON : LIMITER_OFF,
   };
 }

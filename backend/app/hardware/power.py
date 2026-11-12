@@ -12,18 +12,15 @@ import psutil
 from .cpu import get_cpu_percent
 from .probe import _SERVICE_START_TIME, is_android_system
 
-# État pour le calcul de puissance par delta RAPL (si power_input n'est pas directement disponible)
 _LAST_RAPL_CHECK = 0.0
 _LAST_RAPL_ENERGY_UJ = 0
 
 
-# Suivi de l'énergie consommée depuis le début du runtime (Wh)
 _CUMULATIVE_ENERGY_WH: float = 0.0
 _LAST_ENERGY_SAMPLE_TIME: float = 0.0
 
 
 def _android_power() -> float | None:
-    """Batterie et chargeur d'un appareil Android (BatteryManager)."""
     from android.content import Context, Intent, IntentFilter
     from android.os import BatteryManager
     from com.chaquo.python import Python
@@ -37,35 +34,29 @@ def _android_power() -> float | None:
     status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
     voltage_mv = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)
     current_ua = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-    if current_ua == -2147483648:  # Integer.MIN_VALUE si non disponible
+    if current_ua == -2147483648:
         current_ua = 0
 
     cpu_pct = get_cpu_percent()
 
-    # Branché au secteur (plugged > 0 ou statut CHARGING / FULL)
     if plugged > 0 or status in (BatteryManager.BATTERY_STATUS_CHARGING, BatteryManager.BATTERY_STATUS_FULL):
-        # Consommation de fonctionnement actif de la tablette (écran 3K 144Hz + SoC + radios)
         active_w = 3.2 + (cpu_pct / 100.0) * 5.0
 
         if status == BatteryManager.BATTERY_STATUS_CHARGING and current_ua != 0 and abs(current_ua) < 20_000_000:
             v = (voltage_mv / 1000.0) if voltage_mv > 0 else 4.2
             charge_w = (abs(current_ua) / 1_000_000.0) * v
             return round(min(120.0, max(1.0, charge_w + active_w)), 1)
-        # Batterie pleine (100%) ou maintien : la tablette fonctionne sur l'alimentation externe
         return round(min(60.0, max(1.5, active_w)), 1)
 
-    # Sur batterie (débranché)
     if current_ua != 0 and abs(current_ua) < 20_000_000 and voltage_mv > 0:
         watts = (abs(current_ua) / 1_000_000.0) * (voltage_mv / 1000.0)
         if 0.5 <= watts <= 60.0:
             return round(watts, 1)
 
-    # Repli sur batterie si le capteur de courant est masqué par le fabricant
     return round(2.8 + (cpu_pct / 100.0) * 4.5, 1)
 
 
 def _linux_hwmon_power() -> float | None:
-    """Capteurs de puissance SoC, APU, GPU ou CPU : prioritaires sur la batterie."""
     for h_dir in glob.glob("/sys/class/hwmon/hwmon*"):
         name_file = os.path.join(h_dir, "name")
         name = ""
@@ -75,7 +66,6 @@ def _linux_hwmon_power() -> float | None:
                     name = f.read().strip().lower()
             except Exception:
                 pass
-        # Les sondes de batterie sont lues par `_linux_battery_power`, selon leur statut secteur ou batterie.
         if "bat" in name or "battery" in name:
             continue
 
@@ -91,7 +81,6 @@ def _linux_hwmon_power() -> float | None:
 
 
 def _linux_rapl_power() -> float | None:
-    """Intel / AMD RAPL : puissance par différence d'énergie entre deux appels (Wyse 5070, serveurs sans écran)."""
     global _LAST_RAPL_CHECK, _LAST_RAPL_ENERGY_UJ
     for p in glob.glob("/sys/class/powercap/intel-rapl/*/energy_uj"):
         try:
@@ -131,7 +120,6 @@ def _linux_on_ac() -> bool:
 
 
 def _battery_watts(bat_dir: str) -> float | None:
-    """Puissance traversant une batterie Linux, d'après `power_now` ou `current_now` x `voltage_now`."""
     power_file = os.path.join(bat_dir, "power_now")
     curr_file = os.path.join(bat_dir, "current_now")
     volt_file = os.path.join(bat_dir, "voltage_now")
@@ -154,7 +142,6 @@ def _battery_watts(bat_dir: str) -> float | None:
 
 
 def _linux_battery_power() -> float | None:
-    """Portable Linux : décharge réelle sur batterie, estimation sur secteur."""
     is_on_ac = _linux_on_ac()
     for bat_dir in glob.glob("/sys/class/power_supply/*"):
         type_file = os.path.join(bat_dir, "type")
@@ -187,7 +174,6 @@ def _linux_battery_power() -> float | None:
 
 
 def _macos_power() -> float | None:
-    """macOS : AppleSmartBattery (batterie et chargeur)."""
     out = subprocess.check_output(["ioreg", "-rc", "AppleSmartBattery"], text=True, timeout=1)
     volt = None
     amp = None
@@ -217,12 +203,10 @@ def _macos_power() -> float | None:
 
 
 def _laptop_on_ac_watts(cpu_pct: float) -> float:
-    """Estimation d'un portable branché au secteur, proportionnelle à la charge du processeur."""
     return 9.0 + (cpu_pct / 100.0) * 22.0
 
 
 def _estimated_power() -> float | None:
-    """Repli sans capteur : estimation d'après la charge du processeur, la batterie et le type de machine."""
     cpu_pct = get_cpu_percent()
     nb_cores = os.cpu_count() or 4
 
@@ -238,30 +222,24 @@ def _estimated_power() -> float | None:
             return round(min(65.0, max(3.0, base_discharge)), 1)
         base_laptop_ac = _laptop_on_ac_watts(cpu_pct)
         if hasattr(bat, "percent") and bat.percent is not None and bat.percent < 90:
-            # Charge active de la batterie
             charge_power = 25.0
             return round(min(120.0, max(12.0, base_laptop_ac + charge_power)), 1)
-        # Batterie pleine ou en maintien de charge
         return round(min(65.0, max(7.0, base_laptop_ac)), 1)
 
     if sys.platform == "win32":
-        # Tour de bureau : alimentation ATX, processeur de bureau, carte graphique dédiée ou intégrée
         base_desktop = 28.0 + min(25.0, max(0.0, (nb_cores - 4) * 2.5))
         active_desktop = base_desktop + (cpu_pct / 100.0) * (nb_cores * 4.5)
         return round(min(450.0, max(20.0, active_desktop)), 1)
     if sys.platform == "darwin":
-        # Mac mini / Mac Studio (Apple Silicon, sans batterie)
         base_macmini = 6.5 + min(8.0, max(0.0, (nb_cores - 4) * 1.0))
         active_macmini = base_macmini + (cpu_pct / 100.0) * (nb_cores * 3.0)
         return round(min(120.0, max(5.0, active_macmini)), 1)
-    # Linux sans écran, appliance Dell Wyse 5070, mini-PC Celeron
     base_mini = min(12.0, max(4.0, nb_cores * 1.2))
     active_mini = base_mini + (cpu_pct / 100.0) * (nb_cores * 2.5)
     return round(min(90.0, max(3.5, active_mini)), 1)
 
 
 def _power_probes() -> list[Callable[[], float | None]]:
-    """Sondes de la plateforme courante, de la plus fiable (capteur) à l'estimation."""
     probes: list[Callable[[], float | None]] = []
     if is_android_system():
         probes.append(_android_power)
@@ -274,9 +252,7 @@ def _power_probes() -> list[Callable[[], float | None]]:
 
 
 def get_power_watts() -> float | None:
-    """Consommation instantanée de la machine en watts, ou `None` si aucune sonde ne répond.
-
-    Une sonde en échec passe la main à la suivante : la télémétrie ne lève jamais d'exception."""
+    """Consommation instantanée de la machine en watts, ou `None` si aucune sonde ne répond."""
     for probe in _power_probes():
         try:
             watts = probe()
@@ -293,7 +269,7 @@ def update_cumulative_energy(watts: float | None) -> None:
     now = time.time()
     if _LAST_ENERGY_SAMPLE_TIME > 0 and watts and watts > 0:
         delta_hours = (now - _LAST_ENERGY_SAMPLE_TIME) / 3600.0
-        if 0 < delta_hours < 0.1:  # Ignorer les sauts temporels > 6 min
+        if 0 < delta_hours < 0.1:
             _CUMULATIVE_ENERGY_WH += watts * delta_hours
     _LAST_ENERGY_SAMPLE_TIME = now
 

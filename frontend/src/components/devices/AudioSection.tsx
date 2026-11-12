@@ -31,7 +31,6 @@ export default function AudioSection({ caps, refreshKey, notify, t, focusId, foc
     });
   };
 
-  // Raccourci depuis la carte : ouvre directement le détail de la sortie visée.
   useEffect(() => {
     if (focusId && data?.devices?.some((d) => d.id === focusId)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- ouverture demandée par un raccourci externe (carte)

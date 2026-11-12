@@ -1,10 +1,4 @@
-"""Service du stockage externe : surveillance, état, actions, évènements WebSocket, remappage des chemins.
-
-Un seul service par processus (comme `app/devices/service.py`). Les évènements `storage_changed` ne portent
-AUCUN nom ni chemin (juste la portée et la nature du changement) : les clients relisent l'état par REST,
-ouvert au réseau local de confiance. `library_change` (raison `storage_availability`) invite les pages de
-médias à se relire quand des éléments deviennent (in)disponibles.
-"""
+"""Service du stockage externe : surveillance, état, actions, évènements WebSocket, remappage des chemins."""
 
 from __future__ import annotations
 
@@ -28,9 +22,9 @@ from app.storage.types import Inventory, Volume, volume_public
 
 logger = logging.getLogger(__name__)
 
-POLL_SECONDS = 5.0           # sans signaux udisks2
-POLL_SAFETY_SECONDS = 20.0   # avec signaux : filet de sécurité
-SETTLE_SECONDS = 0.4         # laisse udev/udisks terminer avant de relire
+POLL_SECONDS = 5.0
+POLL_SAFETY_SECONDS = 20.0
+SETTLE_SECONDS = 0.4
 HEALTH_TTL = 600.0
 HEALTH_PERIOD = 6 * 3600.0
 STANDBY_RETRY = 1800.0
@@ -55,7 +49,7 @@ class Source:
     root: str
     portable: bool
     volume: Volume | None
-    source_id: str  # UUID du support ou identifiant d'appareil portable
+    source_id: str
 
 
 class StorageService:
@@ -85,10 +79,9 @@ class StorageService:
         self._written_unregistered: dict[str, int] = {}
         self._last_event: dict[str, float] = {}
         self._last_maintenance = 0.0
-        self._formatting: set[str] = set()   # volumes d'un support en cours de formatage (aucune autre action n'y touche)
+        self._formatting: set[str] = set()
         self.formatter = FormatManager(self)
 
-    # ------------------------------------------------------------------ pilote
     @property
     def driver(self) -> StorageDriver:
         if self._driver is None:
@@ -97,7 +90,7 @@ class StorageService:
         return self._driver
 
     def set_driver(self, driver: StorageDriver | None) -> None:
-        """Remplace le pilote (tests). L'ancien est simplement abandonné."""
+        """Remplace le pilote (tests)."""
         self._driver = driver
         if driver is not None:
             driver.set_change_callback(self._on_driver_event)
@@ -106,9 +99,8 @@ class StorageService:
         if self._loop is not None and self._wake is not None:
             self._loop.call_soon_threadsafe(self._wake.set)
 
-    # ------------------------------------------------------------------ évènements
     def notify(self, scope: str, changes: list[str] | None = None) -> None:
-        """Évènement WebSocket sans donnée sensible (portée + nature). Limité à ~4/s par portée."""
+        """Évènement WebSocket sans donnée sensible (portée + nature)."""
         from app.utils.ws_manager import manager as ws_manager
 
         now = time.monotonic()
@@ -131,7 +123,6 @@ class StorageService:
         except Exception as exc:
             logger.debug("Journal d'activité indisponible : %s", exc)
 
-    # ------------------------------------------------------------------ cycle de vie
     async def start(self) -> None:
         self._loop = asyncio.get_running_loop()
         self._wake = asyncio.Event()
@@ -152,8 +143,6 @@ class StorageService:
         except Exception as exc:
             logger.warning("Démarrage du pilote de stockage impossible : %s", exc)
         try:
-            # Premier instantané AVANT la radio et le planning (une ambiance posée sur un support doit être
-            # lisible au démarrage) ; borné : un montage qui traîne ne bloque jamais l'application.
             await asyncio.wait_for(self.refresh(), timeout=10.0)
         except asyncio.TimeoutError:
             logger.warning("Premier instantané du stockage externe : délai dépassé, la surveillance continue en arrière-plan.")
@@ -190,10 +179,9 @@ class StorageService:
                 await self._maintenance()
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # la surveillance ne s'arrête jamais
+            except Exception as exc:
                 logger.warning("Surveillance du stockage externe : %s", exc, exc_info=True)
 
-    # ------------------------------------------------------------------ inventaire
     @staticmethod
     def protected_paths() -> list[str]:
         from app.config import DATA_ROOT, settings
@@ -251,7 +239,6 @@ class StorageService:
         if changes:
             self.notify("volumes", changes)
 
-    # ------------------------------------------------------------------ bibliothèques : disponibilité et remappage
     async def _sync_libraries(self) -> None:
         from app.database import SessionLocal
 
@@ -275,8 +262,6 @@ class StorageService:
             settings = lib["settings"]
             mountpoint = vol.mountpoint if vol.mounted else None
             if vol.mounted and settings.get("read_only") and vol.mounted_read_only is False and vol.key not in self._rw_lease and vol.key not in self._busy and vol.dev_type != "loop":
-                # Le bureau monte tout en lecture-écriture : une bibliothèque doit rester en lecture seule (zéro écriture).
-                # Jamais pour une image disque : udisks libère le périphérique loop dès son démontage (`Autoclear`).
                 mountpoint = await self._attempt(self._remount(vol, writable=False, settings=settings)) or mountpoint
             elif not vol.mounted and settings.get("auto_mount_library") and time.monotonic() - self._mount_failures.get(vol.key, -MOUNT_RETRY) >= MOUNT_RETRY:
                 mountpoint = await self._attempt(self._mount_volume(vol, writable=False, settings=settings))
@@ -287,7 +272,6 @@ class StorageService:
         if online == self._online:
             return
         previous = self._online
-        # Retrait : indisponible tout de suite ; arrivée : seulement une fois les chemins remappés.
         availability.set_online({i: p for i, p in online.items() if previous.get(i) == p})
 
         def _remap() -> bool:
@@ -305,7 +289,6 @@ class StorageService:
         self.notify("library", (["library_online"] * len(arrived)) + (["library_offline"] * len(gone)))
 
     async def _attempt(self, coro: Any) -> str | None:
-        """Exécute une action de montage ; retourne son résultat (point de montage) ou None si elle échoue (journalisé)."""
         try:
             return await coro
         except DeviceError as exc:
@@ -314,7 +297,6 @@ class StorageService:
             logger.warning("Stockage externe : %s", exc)
         return None
 
-    # ------------------------------------------------------------------ résolution
     def _need(self, key: str, *, format_job: str | None = None) -> Volume:
         vol = self._by_key.get(key)
         if vol is None:
@@ -354,7 +336,6 @@ class StorageService:
                 self._activity[vol.key] = time.monotonic()
                 return
 
-    # ------------------------------------------------------------------ vues
     async def status(self) -> dict[str, Any]:
         caps = await self.driver.capabilities()
         return {
@@ -458,7 +439,6 @@ class StorageService:
                                "wear_level": health.write_wear_level(vol.kind, self._written_unregistered.get(vol.key, 0))}
         return view
 
-    # ------------------------------------------------------------------ montage, démontage, retrait sûr
     async def _mount_volume(self, vol: Volume, *, writable: bool, settings: dict[str, Any]) -> str:
         options = longevity.mount_options(settings, writable=writable)
         mountpoint: str | None = None
@@ -471,7 +451,6 @@ class StorageService:
                     mountpoint = await self.driver.mount(vol, ["rw" if writable else "ro"])
                     break
                 if exc.code == "unsupported_fs" and attempt + 1 < MOUNT_SETTLE_TRIES:
-                    # Support tout juste branché : udisks n'a pas fini d'identifier son système de fichiers.
                     await asyncio.sleep(MOUNT_SETTLE_SECONDS)
                     continue
                 if exc.code == "dirty":
@@ -484,7 +463,6 @@ class StorageService:
         return mountpoint
 
     async def _refresh_soon(self) -> None:
-        # `refresh` prend le même verrou que l'appelant éventuel : on relit après coup, sans attendre.
         if self._wake is not None:
             self._wake.set()
 
@@ -500,7 +478,6 @@ class StorageService:
                 await self.driver.unmount(vol)
                 return
             except DeviceError as exc:
-                # Un indexeur du bureau (vignettes, recherche) garde parfois un support fraîchement monté quelques secondes.
                 if exc.code != "busy" or attempt + 1 == UNMOUNT_BUSY_TRIES:
                     raise
                 await asyncio.sleep(UNMOUNT_BUSY_SECONDS)
@@ -540,7 +517,7 @@ class StorageService:
         return {"mounted": False}
 
     async def eject(self, key: str) -> dict[str, Any]:
-        """Retrait sûr : synchronisation, démontage, extinction du support. Aucun import/export en cours."""
+        """Retrait sûr : synchronisation, démontage, extinction du support."""
         async with self._lock:
             vol = self._need(key)
             if self._busy.get(key):
@@ -557,7 +534,6 @@ class StorageService:
         await self.refresh()
         return {"ejected": True, "powered_off": powered_off}
 
-    # ------------------------------------------------------------------ sources (volume ou appareil portable)
     def _source(self, key: str) -> Source:
         if key.startswith("p-"):
             root = self._portable_roots.get(key)
@@ -601,7 +577,6 @@ class StorageService:
             "portable": source.portable,
         }
 
-    # ------------------------------------------------------------------ jobs : import, indexation, export
     def _mark_busy(self, key: str, job_id: str) -> Callable[[], None]:
         self._busy.setdefault(key, set()).add(job_id)
 
@@ -619,7 +594,7 @@ class StorageService:
                 if self._loop is None:
                     raise RuntimeError
                 self._loop.call_soon_threadsafe(_do)
-            except RuntimeError:  # boucle absente ou fermée (arrêt, tests) : on libère directement
+            except RuntimeError:
                 _do()
 
         return release
@@ -699,7 +674,7 @@ class StorageService:
             raise DeviceError("write_refused", "Ce système de fichiers n'est pas fiable en écriture : exportez vers un autre support.", 409)
         if not ids:
             raise transfer.TransferError("empty_selection", "Aucun élément sélectionné.", 400)
-        paths.clean_rel_path(dest or "Bobine")  # destination hors du support : refusée AVANT toute écriture ou remontage
+        paths.clean_rel_path(dest or "Bobine")
 
         def _items() -> list[tuple[str, str]]:
             from app.models import AudioTrack, RadioTrack, Video
@@ -712,7 +687,7 @@ class StorageService:
                 out = []
                 for row in rows:
                     if row.storage_id is not None or not os.path.isfile(row.file_path):
-                        continue  # seuls les médias locaux existants s'exportent
+                        continue
                     out.append((row.file_path, paths.safe_dest_name(f"{row.title}{os.path.splitext(row.file_path)[1].lower()}")))
                 return out
 
@@ -736,7 +711,7 @@ class StorageService:
                 cancel_job(job_id)
                 raise
             self._rw_lease.add(key)
-            self._mark_busy(key, job_id)  # occupé dès que le support est en écriture : ni retrait ni démontage
+            self._mark_busy(key, job_id)
         await self.refresh()
         refreshed = self._by_key.get(key)
         root = (refreshed.mountpoint if refreshed else None) or source.root
@@ -824,7 +799,6 @@ class StorageService:
             logger.warning("Export vers un support : %s", exc, exc_info=True)
             update_job(job_id, stage="error", error=str(exc), details=summary)
 
-    # ------------------------------------------------------------------ bibliothèque externe
     async def register_library(self, key: str, nickname: str | None = None) -> dict[str, Any]:
         from app.database import SessionLocal
 
@@ -920,7 +894,6 @@ class StorageService:
         if self._wake is not None:
             self._wake.set()
 
-    # ------------------------------------------------------------------ santé, TRIM
     async def health(self, key: str, refresh: bool = False) -> dict[str, Any]:
         vol = self._need(key)
         cached = self._health.get(key)
@@ -962,7 +935,6 @@ class StorageService:
         self._log("storage_trim", vol.display_name)
         return {"result": out}
 
-    # ------------------------------------------------------------------ maintenance : santé périodique, veille
     async def _maintenance(self) -> None:
         now = time.monotonic()
         if now - self._last_maintenance < 30:
@@ -973,7 +945,6 @@ class StorageService:
             if not vol.mounted:
                 continue
             settings = await self._effective_settings(vol)
-            # Santé SMART périodique (silencieuse) : seulement si le réglage est actif et que le système le permet.
             if settings.get("smart_monitor") and now - self._health_last_run.get(key, -HEALTH_PERIOD) >= HEALTH_PERIOD:
                 self._health_last_run[key] = now
                 before = (self._health.get(key) or (0, {}))[1].get("status")
@@ -983,7 +954,6 @@ class StorageService:
                 if report.get("available") and report.get("status") in ("warning", "critical") and report.get("status") != before:
                     self._log("storage_health_warning", f"{vol.display_name} : {', '.join(report.get('warnings', []))}")
                     self.notify("health", ["health_warning"])
-            # Veille des disques rotatifs : long délai d'inactivité, jamais agressif.
             minutes = int(settings.get("standby_minutes") or 0)
             if vol.rotational is True and minutes and facts.get("standby_supported") and not self._busy.get(key):
                 last = self._activity.get(key, now - 0.0)
@@ -996,12 +966,11 @@ class StorageService:
                     except DeviceError as exc:
                         self._standby[key] = {"ok": False, "error": exc.message, "at": datetime.now(timezone.utc).isoformat(), "mono": now}
 
-    # ------------------------------------------------------------------ appareils portables
     async def portable(self) -> dict[str, Any]:
         status = await self.driver.portable_status()
         for dev in status.get("devices", []):
             if dev.get("state") == "mounted" and dev["id"] not in self._portable_roots:
-                dev["state"] = "ready"  # monté ailleurs : on le rouvre pour obtenir la racine
+                dev["state"] = "ready"
         return status
 
     async def portable_mount(self, device_id: str) -> dict[str, Any]:
@@ -1016,7 +985,6 @@ class StorageService:
         self.notify("portable")
         return {"mounted": False}
 
-    # ------------------------------------------------------------------ outils pour les tests
     def volume(self, key: str) -> Volume | None:
         return self._by_key.get(key)
 

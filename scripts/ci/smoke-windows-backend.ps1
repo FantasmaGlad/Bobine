@@ -1,15 +1,3 @@
-<#
-Sonde de santé du backend Windows : lance BobineBackend.exe, attend HTTP 200 sur /api/health,
-arrête le processus et libère le port. Partagée par les jobs windows-build et windows-build-arm64
-(sonde de l'arborescence PyInstaller, puis de l'application installée par Inno Setup).
-
-Le port d'écoute n'est pas imposé : sans -Port, la sonde choisit un port libre, le transmet par
-BOBINE_PORT avec BOBINE_PORT_STRICT=1 (aucun repli silencieux), refuse de démarrer si un autre
-processus écoute déjà dessus et vérifie que le processus lancé est bien celui qui répond.
-Avec -DataRoot, elle contrôle aussi que le fichier d'exécution du backend publie ce port.
--DataRoot isole les données : le backend les range sous %ProgramData%\Bobine, la variable est donc
-redéfinie pour le seul processus lancé.
-#>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Exe,
@@ -91,7 +79,6 @@ for ($i = 0; $i -lt $Attempts; $i++) {
             break
         }
     } catch {
-        # Attente de disponibilité
     }
 }
 
@@ -109,8 +96,6 @@ if (-not $ready) {
     if (Test-Path $outLog) { Get-Content $outLog }
 }
 
-# Arrêt de l'arbre de processus, puis attente de la libération du port : le désinstalleur
-# ou la sonde suivante ne doivent trouver ni verrou de fichier ni port occupé.
 if (-not $proc.HasExited) {
     & taskkill.exe /F /T /PID $proc.Id | Out-Null
     $proc.WaitForExit(10000) | Out-Null

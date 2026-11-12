@@ -17,7 +17,7 @@ def elf64(*aligns, loads_only=True):
     header[:7] = b"\x7fELF\x02\x01\x01"
     struct.pack_into("<Q", header, 0x20, 64)
     struct.pack_into("<HH", header, 0x36, 56, len(aligns) + 1)
-    body = struct.pack("<IIQQQQQQ", 6, 0, 0, 0, 0, 0, 0, 8)  # PT_PHDR : ignoré
+    body = struct.pack("<IIQQQQQQ", 6, 0, 0, 0, 0, 0, 0, 8)
     for align in aligns:
         body += struct.pack("<IIQQQQQQ", 1, 5, 0, 0, 0, 0, 0, align)
     return bytes(header) + body

@@ -16,12 +16,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/audio-playlists", tags=["audio-playlists"])
 
 
-# Pydantic Schemas
 class AudioPlaylistItemInput(BaseModel):
     audio_track_id: int
     position: int | None = None
-    # Fond d'ambiance propre à cette piste : nul = pas de
-    # fond propre, le fond de la playlist/du cours reste affiché.
     background_id: int | None = None
 
 
@@ -41,7 +38,7 @@ class AudioTrackSummaryResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True
 
 
 class AudioPlaylistItemBackgroundResponse(BaseModel):
@@ -58,7 +55,7 @@ class AudioPlaylistItemResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True
 
 
 class AudioPlaylistDetailResponse(BaseModel):
@@ -70,7 +67,7 @@ class AudioPlaylistDetailResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True
 
 
 class AudioPlaylistSummaryResponse(BaseModel):
@@ -82,7 +79,7 @@ class AudioPlaylistSummaryResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True
 
 
 def _track_summary(track: AudioTrack) -> dict:
@@ -116,10 +113,7 @@ def _validate_background_id(background_id: int | None, db: Session) -> None:
 
 @router.get("", response_model=List[AudioPlaylistSummaryResponse])
 def list_audio_playlists(db: Session = Depends(get_db)):
-    """Liste toutes les playlists audio ("éditions mixées") avec le nombre
-    de pistes et la durée totale."""
-    # Éléments et pistes chargés en 2 requêtes au total (au lieu d'un SELECT
-    # par playlist et par piste : 5000 éléments = 5051 requêtes).
+    """Liste toutes les playlists audio ("éditions mixées") avec le nombre de pistes et la durée totale."""
     playlists = (
         db.query(AudioPlaylist)
         .options(selectinload(AudioPlaylist.items).joinedload(AudioPlaylistItem.track))

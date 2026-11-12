@@ -1,19 +1,17 @@
-/* Bobine — Global Styles & Design System */
+
 
 :root {
-  /* Couleurs du thème : valeurs de repli et palettes dans themes.css (GÉNÉRÉ depuis src/lib/themePalettes.ts). */
+  
   --hover-brightness: 1.12;
   --press-brightness: 0.9;
 
   --accent-rpm: #e4002b;
-  --accent-trip: #8a2be2; /* Vibrant violet-blue */
+  --accent-trip: #8a2be2; 
   --accent-other: #636366;
 
-  /* Fonts */
   --font-title: 'Archivo Expanded', 'Barlow Condensed', 'Helvetica Neue', Arial, sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
-  /* Dimensions */
   --sidebar-width: 260px;
   --header-height: 70px;
   --radius-sm: 6px;
@@ -21,24 +19,15 @@
   --radius-lg: 16px;
   --radius-full: 999px;
 
-  /* Transitions */
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Logo : le fichier fourni est un
-     pictogramme noir pur sur fond transparent — invisible sur un fond sombre
-     sans inversion. Les thèmes clairs (clair, menthe) annulent ce filtre. */
   --logo-filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--ink) 35%, transparent));
 
-  /* Verre : matière translucide posée sur les SURFACES (cartes, feuilles, barres flottantes), jamais sur les boutons.
-     Aplats teintés par les jetons du thème, aucun dégradé ni maillage. Valeurs du mode sombre ; le mode clair les
-     redéfinit plus haut (:root[data-mode="light"]). */
-  /* Le contenu gagne un palier de lumière sans modifier les matériaux du menu.
-     Le maillage reste discret pour préserver le contraste du texte secondaire. */
   --bg-content: var(--bg-main);
   --bg-mobile-content: var(--bg-content);
   --content-text-dim: var(--text-dim);
-  /* Surfaces opaques : la teinte de danger ne dépend pas du verre placé dessous. */
+  
   --danger-panel-bg: color-mix(in srgb, var(--accent-error) 9%, var(--bg-main));
   --danger-card-bg: color-mix(in srgb, var(--accent-error) 12%, var(--bg-main));
   --danger-text: var(--accent-error-text);
@@ -58,13 +47,11 @@
   --glass-card-shadow: 0 10px 28px color-mix(in srgb, var(--ink) 32%, transparent);
   --glass-floating-shadow: 0 22px 56px color-mix(in srgb, var(--ink) 50%, transparent);
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  /* États dérivés des jetons de thème (ne jamais retomber sur une valeur figée). */
+  
   --accent-focus: var(--accent-text);
   --bg-hover: var(--bg-surface-hover);
   --bg-surface-active: color-mix(in srgb, var(--bg-surface-hover) 88%, var(--text-main));
 
-  /* Échelle de flou du verre : un seul réglage pour toute l'application.
-     --blur-scale : 1 = normal ; 0 supprime les flous (« transparence réduite », matériel modeste). */
   --blur-scale: 1;
   --blur-xs: calc(4px * var(--blur-scale));
   --blur-sm: calc(8px * var(--blur-scale));
@@ -75,42 +62,28 @@
   --saturate-soft: 165%;
   --saturate-rich: 190%;
 
-  /* Neutres physiques : ombres (--ink) et reflets (--specular), utilisés par toutes les ombres, bords et reflets via
-     color-mix. Ils ne suivent pas le thème par défaut (le noir reste noir sur une vidéo) mais un thème peut les
-     surcharger en un seul endroit. */
   --ink: #000000;
   --specular: #ffffff;
 
-  /* Voiles sous les fenêtres et tiroirs, et pastilles posées sur une vignette ou une vidéo. */
   --scrim-soft: color-mix(in srgb, var(--ink) 45%, transparent);
   --scrim: color-mix(in srgb, var(--ink) 58%, transparent);
   --scrim-strong: color-mix(in srgb, var(--ink) 76%, transparent);
   --glass-chip-bg: color-mix(in srgb, var(--ink) 70%, transparent);
   --glass-chip-blur: var(--blur-sm);
 
-  /* Texte posé sur une vidéo (pause, cinéma) : voile sombre teinté par le thème, jamais plus clair que lui. */
   --scrim-media: color-mix(in srgb, color-mix(in srgb, var(--bg-main) 35%, var(--ink)) 82%, transparent);
 
-  /* Vitrine cinéma : gouttière latérale qui s'adapte à la largeur de l'écran (téléphone → TV). */
   --cinema-gutter: clamp(20px, 3.5vw, 56px);
   --cinema-fade: calc(var(--cinema-gutter) * 0.7);
 
-  /* Sélection télécommande / manette : anneau à deux tons lisible sur tout fond (vignette claire ou sombre). */
   --remote-focus-scale: 1.06;
-  /* Survol et sélection thémés (cahier 7.1) : dérivés des jetons du thème, lisibles à 3 mètres (3:1 sur le fond, vérifié par les tests). */
+  
   --focus-ring: var(--accent-text);
   --remote-focus-ring: 0 0 0 3px var(--bg-main), 0 0 0 6px var(--focus-ring);
   --remote-focus-shadow: 0 16px 36px color-mix(in srgb, var(--ink) 55%, transparent);
   --remote-focus-glow: 0 0 24px color-mix(in srgb, var(--accent-primary) 45%, transparent);
   --remote-focus-ease: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
-
-/* ============================================================
-   THÈMES : neuf couleurs, chacune en clair et en sombre.
-   Les quatre couleurs de chaque palette et les jetons qui en sont déduits sont dans themes.css (GÉNÉRÉ depuis
-   src/lib/themePalettes.ts). Ce fichier ne garde que ce qui dépend du MODE : verre, ombres, logo, repères.
-   Aucun dégradé de fond : les sections sont pleines ou en verre (matière translucide posée sur des surfaces).
-   ============================================================ */
 
 :root[data-mode="light"] {
   --accent-sprint: #8a5a00;
@@ -136,7 +109,6 @@
   --accent-sprint: #ffb81c;
 }
 
-/* Base resets */
 * {
   box-sizing: border-box;
   padding: 0;
@@ -145,7 +117,6 @@
   scrollbar-color: var(--border-color) transparent;
 }
 
-/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -176,7 +147,6 @@ input, button, select, textarea {
   color: inherit;
 }
 
-/* Typography utilities */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-title);
   font-weight: 800;
@@ -184,7 +154,6 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: 0.05em;
 }
 
-/* Glassmorphism utilities */
 .glass,
 .glass-surface {
   background: var(--glass-surface-bg);
@@ -231,7 +200,6 @@ h1, h2, h3, h4, h5, h6 {
   transition: transform 0.2s ease, box-shadow var(--transition-normal), border-color var(--transition-normal);
 }
 
-/* Animations */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -250,11 +218,6 @@ h1, h2, h3, h4, h5, h6 {
   animation: slideInRight var(--transition-normal);
 }
 
-/* ---------------------------------------------------------------------
-   Icônes Material Symbols : police variable embarquée (layout.tsx). Le composant Icon.tsx pilote la variation
-   (taille/graisse/remplissage) via style inline ; cette classe ne fixe
-   que les réglages communs.
---------------------------------------------------------------------- */
 .material-symbols-outlined {
   font-family: var(--font-material-symbols);
   font-weight: normal;
@@ -270,12 +233,6 @@ h1, h2, h3, h4, h5, h6 {
   vertical-align: middle;
 }
 
-/* ---------------------------------------------------------------------
-   Animations partagées — dynamisme de l'interface :
-   entrée de cartes/listes, retour visuel au clic, pastille de statut qui
-   respire, apparition « punchy » façon compteur (inspirée du prototype de
-   design importé), scintillement de chargement.
---------------------------------------------------------------------- */
 @keyframes olcSlideUp {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -305,15 +262,11 @@ h1, h2, h3, h4, h5, h6 {
 .olc-anim-in {
   animation: olcSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-/* Icône de traitement en cours : signale qu'un travail serveur
-   se poursuit après la fin d'un transfert réseau. */
+
 .olc-spin {
   animation: olcSpin 1s linear infinite;
 }
 
-/* Barre de progression indéterminée : le traitement serveur d'un import (analyse/réencodage/
-   miniature) n'a pas de progression numérique fiable à afficher — ce
-   balayage signale une activité réelle plutôt qu'une barre figée. */
 .olc-indeterminate-bar {
   height: 100%;
   width: 40%;
@@ -331,7 +284,6 @@ h1, h2, h3, h4, h5, h6 {
   animation: olcScaleIn 0.2s ease both;
 }
 
-/* Styles et animations du suivi des mises à jour */
 .update-badge {
   display: inline-flex;
   align-items: center;
@@ -393,9 +345,6 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 6px 20px color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
-/* Lift + accent border au survol des cartes (bibliothèque, fonds animés,
-   cours audio, playlists…) — appliquer en plus de la classe existante de
-   la carte, ne redéfinit aucune couleur/fond. */
 .olc-card-hover {
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
@@ -405,13 +354,6 @@ h1, h2, h3, h4, h5, h6 {
   border-color: var(--border-focus);
 }
 
-/* Retour visuel au clic — à poser sur tout élément interactif (boutons,
-   lignes cliquables) pour un feedback tactile net sur PC comme sur mobile.
-   user-select/-webkit-touch-callout : sans ça, un appui MAINTENU sur un vrai téléphone (ex. le bouton
-   Stop en appui long de MobileRemote) peut déclencher le menu contextuel
-   natif du navigateur (sélection de texte / callout iOS) avant la fin du
-   délai, qui interrompt le geste — invisible en test automatisé (évènements
-   synthétiques), seulement sur un écran tactile réel. */
 .olc-press {
   transition: transform 0.12s ease, filter 0.12s ease;
   user-select: none;
@@ -422,8 +364,6 @@ h1, h2, h3, h4, h5, h6 {
   filter: brightness(0.94);
 }
 
-/* Pastille de statut « en vie » : respire doucement quand un état actif
-   est en cours (lecture en direct, kiosk connecté…). */
 .olc-live-dot {
   animation: olcPulseDot 1.8s ease-in-out infinite;
 }
@@ -443,7 +383,6 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Common Layout Components */
 .app-container {
   display: flex;
   width: 100vw;
@@ -451,7 +390,6 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
 }
 
-/* Sidebar Styling */
 .app-sidebar {
   width: var(--sidebar-width);
   height: 100%;
@@ -464,11 +402,7 @@ h1, h2, h3, h4, h5, h6 {
   flex-shrink: 0;
   padding: 24px 16px;
   justify-content: space-between;
-  /* Correctif "impossible de scroller le menu déplié" : avec tous les
-     groupes accordéon ouverts, la liste des liens peut dépasser la hauteur
-     de l'écran — sans ce scroll propre à la sidebar, les entrées qui
-     débordent en bas (Planning, Métriques, Paramètres...) étaient
-     inatteignables. */
+  
   overflow-y: auto;
   z-index: 30;
 }
@@ -476,33 +410,20 @@ h1, h2, h3, h4, h5, h6 {
 .sidebar-brand {
   display: flex;
   align-items: center;
-  /* Logo imposant façon Netflix : centré et pleine
-     largeur de la sidebar plutôt qu'une petite vignette alignée à gauche. */
+  
   justify-content: center;
   gap: 12px;
   padding: 4px 12px 20px 12px;
   border-bottom: 1px solid var(--border-color);
 }
 
-/* Le fichier logo fourni est un pictogramme noir pur sur fond transparent :
-   sans ce filtre il est invisible sur toute surface sombre (sidebar admin,
-   bandeau de pause). Inversé par défaut, désactivé sur les thèmes clairs
-   (--logo-filter). */
 .app-logo {
   filter: var(--logo-filter);
 }
 
-/* Logo personnalisé : contrairement au
-   pictogramme monochrome par défaut, une image custom peut être en couleur —
-   elle ne doit pas hériter de l'inversion/neutralisation --logo-filter
-   pensée uniquement pour ce pictogramme. */
 .app-logo--custom {
   filter: none;
 }
-
-/* .brand-logo est maintenant une image,
-   plus un effet de dégradé sur du texte — la classe ne sert plus qu'à cibler
-   l'élément (masquage en sidebar réduite ci-dessous). */
 
 .sidebar-nav {
   display: flex;
@@ -609,7 +530,6 @@ h1, h2, h3, h4, h5, h6 {
   gap: 4px;
 }
 
-/* Main Content Area */
 .app-main {
   flex-grow: 1;
   height: 100%;
@@ -619,7 +539,6 @@ h1, h2, h3, h4, h5, h6 {
   position: relative;
 }
 
-/* Header Status Bar */
 .app-header {
   height: var(--header-height);
   width: 100%;
@@ -680,7 +599,6 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-main);
 }
 
-/* Page Container wrapper */
 .page-content {
   --text-dim: var(--content-text-dim);
   flex-grow: 1;
@@ -691,7 +609,6 @@ h1, h2, h3, h4, h5, h6 {
   background-attachment: local;
 }
 
-/* Responsive sidebar and panels */
 @media (min-width: 769px) and (max-width: 900px) {
   .app-sidebar {
     width: 80px;
@@ -729,19 +646,11 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Video Library Specific Styles */
 .library-container {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  /* min-height (et non height: 100%) : un `height` fixe transformait le
-     conteneur en cadre rigide de la hauteur de la zone visible. En vue LISTE,
-     .table-wrapper est un conteneur de défilement (overflow-x: auto) — sa
-     taille minimale automatique tombe donc à 0 (règle CSS des flex items
-     scrollables), le flexbox l'écrasait à la hauteur restante et
-     `overflow-y: hidden` masquait toutes les lignes du bas, INACCESSIBLES.
-     Avec min-height, le conteneur grandit avec son contenu et c'est
-     .page-content qui défile naturellement. */
+  
   min-height: 100%;
 }
 
@@ -814,15 +723,8 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 18%, transparent);
 }
 
-/* Polish UX téléphone pour les pages sans traitement mobile dédié (bibliothèque,
-   cours audio, fonds, paramètres, logs...) qui tournaient jusqu'ici dans la
-   coquille mobile sans aucun ajustement de leur contenu. Même seuil que le
-   hook useIsMobile() (768px) pour rester cohérent avec la bascule vers la
-   coquille mobile — pas une refonte, juste plus d'air et des cibles
-   tactiles plus généreuses sur ce qui existe déjà. */
 @media (max-width: 768px) {
-  /* Champs de largeur fixe pensés pour desktop : fluides sur mobile plutôt
-     que de forcer une largeur qui dépasse ou laisse un vide. */
+  
   .search-input {
     width: 100%;
     flex: 1 1 180px;
@@ -847,25 +749,17 @@ h1, h2, h3, h4, h5, h6 {
     flex: 1 1 140px;
   }
 
-  /* Cellules plus denses : plus de contenu tient avant de devoir défiler
-     horizontalement (cf. .table-wrapper, overflow-x: auto). */
   .videos-table th,
   .videos-table td {
     padding: 10px 12px;
     font-size: 0.85rem;
   }
 
-  /* Garde-fou générique : certaines modales fixent leur largeur en style
-     inline (ex. la modale d'import radio, 520px) qui l'emporte sur le
-     max-width: 90vw de la classe de base — sans ce filet, elles
-     déborderaient sur un écran plus étroit que cette largeur fixe. */
   .modal-content {
     width: auto !important;
     max-width: calc(100vw - 32px) !important;
   }
 
-  /* Cibles tactiles confortables (~44px, repère Apple/Google) sur les
-     champs et boutons des pages sans layout mobile dédié. */
   .form-control,
   .btn,
   .view-btn {
@@ -914,7 +808,6 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 1px 4px color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
-/* Upload zone */
 .upload-zone {
   background: var(--glass-card-bg);
   -webkit-backdrop-filter: blur(var(--glass-card-blur));
@@ -964,7 +857,6 @@ h1, h2, h3, h4, h5, h6 {
   transition: width 0.1s ease;
 }
 
-/* Grid & Cards */
 .videos-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -992,8 +884,6 @@ h1, h2, h3, h4, h5, h6 {
   border-color: color-mix(in srgb, var(--accent-primary) 35%, var(--border-color));
 }
 
-/* Carte sélectionnée : liseré accent + halo,
-   pour repérer d'un coup d'œil ce qui est coché avant une action groupée. */
 .video-card.selected {
   border-color: var(--accent-text);
   box-shadow: 0 0 0 2px var(--accent-text) inset, var(--glass-card-shadow);
@@ -1032,9 +922,6 @@ h1, h2, h3, h4, h5, h6 {
   background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
 }
 
-/* Les 4 classes de programme restent posées par les pages Bibliothèque/Cours Audio,
-   mais la distinction visuelle passe désormais par le badge .program-badge sans
-   alourdir la bordure gauche arrondie de chaque carte. */
 .video-card.program-rpm,
 .video-card.program-sprint,
 .video-card.program-the-trip,
@@ -1045,7 +932,7 @@ h1, h2, h3, h4, h5, h6 {
 .thumbnail-wrapper {
   position: relative;
   width: 100%;
-  padding-top: 56.25%; /* 16:9 */
+  padding-top: 56.25%; 
   background: var(--bg-surface-elevated);
   overflow: hidden;
 }
@@ -1116,9 +1003,6 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: 0.05em;
 }
 
-/* Couleur du thème plutôt que du programme du cours. Les 4 classes restent posées par les pages Bibliothèque/Cours
-   Audio/Playlists (JS pas encore nettoyé de cette distinction), mais
-   pointent maintenant toutes vers le même accent de thème. */
 .program-badge.rpm,
 .program-badge.sprint,
 .program-badge.the-trip,
@@ -1137,7 +1021,6 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--radius-sm);
 }
 
-/* List view table */
 .table-wrapper {
   background: var(--glass-card-bg);
   -webkit-backdrop-filter: blur(var(--glass-card-blur));
@@ -1146,9 +1029,7 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: var(--glass-card-shadow);
   border-radius: var(--radius-lg);
   overflow-x: auto;
-  /* auto (et non hidden) : filet de sécurité si la hauteur du conteneur est un
-     jour de nouveau contrainte — on défile alors DANS le tableau au lieu de
-     couper les lignes. */
+  
   overflow-y: auto;
 }
 
@@ -1190,7 +1071,6 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--bg-surface-elevated);
 }
 
-/* Detail Drawer */
 .detail-drawer-overlay {
   position: fixed;
   top: 0;
@@ -1285,7 +1165,6 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-muted);
 }
 
-/* Course Studio Modal (Zero-scroll 2-column layout) */
 .course-studio-overlay {
   position: fixed;
   inset: 0;
@@ -1460,7 +1339,6 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 2px 6px color-mix(in srgb, var(--ink) 20%, transparent);
 }
 
-/* Playout Subtitle Track Selector Popover (Netflix style) */
 .cinema-subtitle-menu-wrap {
   position: relative;
   display: inline-flex;
@@ -1527,8 +1405,6 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-primary) 20%, transparent);
 }
 
-/* Sélecteur visuel de thème : vignette à 4
-   couleurs par thème plutôt qu'un simple menu déroulant textuel. */
 .theme-picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -1610,9 +1486,7 @@ h1, h2, h3, h4, h5, h6 {
   user-select: none;
   -webkit-touch-callout: none;
 }
-/* Dynamisme au survol/clic, app entière : un léger
-   soulèvement au survol, un retour "pressé" au clic — appliqué une seule
-   fois ici plutôt que dupliqué sur chaque bouton de chaque page. */
+
 .btn:hover:not(:disabled) {
   transform: translateY(-2px) scale(1.02);
 }
@@ -1685,7 +1559,6 @@ h1, h2, h3, h4, h5, h6 {
   transform: rotate(90deg) scale(0.9);
 }
 
-/* Dialog / Modal Confirmation */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1724,7 +1597,6 @@ h1, h2, h3, h4, h5, h6 {
   margin-top: 8px;
 }
 
-/* Toast */
 .toast {
   position: fixed;
   bottom: 24px;
@@ -1760,9 +1632,6 @@ h1, h2, h3, h4, h5, h6 {
   background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-surface-elevated));
 }
 
-/* ============================================================
-   Dashboard / Télécommande "En direct"
-   ============================================================ */
 .dashboard-container {
   display: flex;
   flex-direction: column;
@@ -1916,7 +1785,6 @@ h1, h2, h3, h4, h5, h6 {
   border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
 }
 
-/* Grille Bento pour actions rapides (Mode coach & Diffuser un visuel) */
 .bento-actions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1995,8 +1863,6 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.95rem;
 }
 
-/* Sections "Lancer un cours" câblée/réseau côte à côte : deux lancements indépendants vers le même écran partagé, distingués
-   uniquement par où le son sera audible (câblé) ou muet (réseau). */
 .launch-block-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2045,7 +1911,6 @@ h1, h2, h3, h4, h5, h6 {
   transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Lien d'action interactif comme "Voir le planning" */
 a.status-pill,
 .status-pill[href] {
   cursor: pointer;
@@ -2061,7 +1926,6 @@ a.status-pill:hover,
   transform: translateY(-1px);
 }
 
-/* Statut vivant : En attente, Actif ou OK : couleurs du thème avec point pulsant */
 .status-pill.ok,
 .status-pill.waiting,
 .status-pill.state-waiting,
@@ -2085,14 +1949,12 @@ a.status-pill:hover,
   animation: olcPulseDot 1.8s ease-in-out infinite;
 }
 
-/* Canal en mode cinéma */
 .status-pill.neutral {
   background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-surface-elevated));
   color: var(--accent-text);
   border-color: color-mix(in srgb, var(--accent-primary) 28%, transparent);
 }
 
-/* Statut déconnecté ou hors-ligne */
 .status-pill.down,
 .status-pill.state-offline {
   background: color-mix(in srgb, var(--accent-error) 14%, var(--bg-surface-elevated));
@@ -2100,8 +1962,6 @@ a.status-pill:hover,
   border-color: color-mix(in srgb, var(--accent-error) 30%, transparent);
 }
 
-/* Entrée en cascade des blocs du tableau de bord —
-   chaque bloc apparaît en glissant légèrement, décalé du précédent. */
 .dashboard-container > * {
   animation: olcSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -2241,32 +2101,17 @@ a.status-pill:hover,
   gap: 12px;
   flex-wrap: wrap;
 }
-/* Un <select> flex:1 sans min-width:0 résiste à sa réduction sous sa largeur
-   intrinsèque (bug de mobile réel constaté : le bouton "Lancer" débordait
-   hors écran sur un téléphone). */
+
 .launch-row > select {
   min-width: 0;
 }
 
-/* ============================================================
-   Écran Kiosk / Cinéma — plein écran, sans chrome admin
-   ============================================================ */
 .kiosk-root {
   position: fixed;
   inset: 0;
-  /* Contexte de container query : les éléments de canvas
-     dimensionnent leur texte en `cqh` (% de la hauteur de CE conteneur)
-     plutôt qu'en `vh` (% de la fenêtre du navigateur), pour que la même
-     composition JSON s'affiche à l'identique ici (plein écran) et dans la
-     petite prévisualisation 16:9 de l'éditeur PC (.canvas-editor-stage,
-     même unité). Sans effet visuel ici : kiosk-root occupe déjà 100% de la
-     fenêtre, cqh y vaut donc la même chose que vh. */
+  
   container-type: size;
-  /* var(--bg-main) plutôt que #000 en dur : l'écran d'attente doit suivre le
-     thème actif. Sans effet sur la lecture vidéo
-     elle-même : .kiosk-video-layer (ci-dessous) est un calque plein cadre
-     opaque et toujours noir, qui recouvre entièrement ce fond pendant la
-     lecture. */
+  
   background: var(--bg-main);
   overflow: hidden;
   cursor: none;
@@ -2281,9 +2126,7 @@ a.status-pill:hover,
   justify-content: center;
   opacity: 0;
   pointer-events: none;
-  /* Court et sans backdrop-filter : le GPU
-     intégré du Wyse (Gemini Lake) sature sur les flous recalculés en continu
-     pendant la lecture vidéo, provoquant des saccades visibles. */
+  
   transition: opacity 0.12s ease;
 }
 
@@ -2308,17 +2151,11 @@ a.status-pill:hover,
   letter-spacing: 0.1em;
 }
 
-/* Logo imposant sur les écrans d'attente : signe la
-   paternité du projet sur l'écran d'attente par défaut et l'attente
-   inter-cours, façon écran d'accueil de plateforme de streaming. */
 .kiosk-waiting-logo {
   margin-bottom: 32px;
   opacity: 0.95;
 }
 
-/* Écran d'attente TV / Kiosk : mise en page centrée fluide, avec des unités
-   harmonieuses (vmin / clamp) garantissant un affichage parfaitement proportionné
-   et centré sans distorsion sur les téléviseurs et moniteurs (16:9, 16:10, 4:3, 1600x1200). */
 .kiosk-waiting {
   padding: clamp(16px, 4vmin, 48px);
   box-sizing: border-box;
@@ -2435,11 +2272,6 @@ a.status-pill:hover,
   z-index: 20;
 }
 
-/* Bandeau "Activer le son" : contrairement
-   à l'OSD ci-dessus, ne disparaît PAS tout seul — un appareil réseau qui a
-   bloqué l'autoplay avec son reste bloqué tant que personne ne tape dessus,
-   donc pas de timer de masquage automatique. Zone tactile généreuse, cliquable
-   depuis n'importe où sur l'écran d'un téléphone. */
 .kiosk-unlock-audio {
   position: absolute;
   bottom: 8%;
@@ -2448,9 +2280,7 @@ a.status-pill:hover,
   display: flex;
   align-items: center;
   gap: 12px;
-  /* Fond neutre du thème (pas l'accent en pleine teinte) : le contraste avec
-     un texte fixe resterait correct sur tous les thèmes sans calcul dédié,
-     même motif que .pause-resume-btn. */
+  
   background: var(--bg-surface-elevated);
   color: var(--text-main);
   border: 2px solid var(--accent-text);
@@ -2464,9 +2294,6 @@ a.status-pill:hover,
   z-index: 25;
 }
 
-/* ============================================================
-   Écran d'attente : horloge & prochain cours
-   ============================================================ */
 .kiosk-clock {
   font-family: var(--font-title);
   font-size: 8vh;
@@ -2511,26 +2338,6 @@ a.status-pill:hover,
   font-variant-numeric: tabular-nums;
 }
 
-/* ============================================================
-   Overlay de pause façon plateforme de streaming
-   ============================================================
-   Vidéo assombrie mais visible en fond (scrim translucide), bouton de
-   reprise circulaire au centre, bandeau d'info ancré en bas à gauche, barre
-   de progression pleine largeur au tout bord inférieur — plus de rendu
-   canvas générique dont le texte pouvait chevaucher icône/barre. Accent lié au THÈME
-   (var(--accent-primary)) plutôt qu'à la couleur du programme en pause : une teinte de
-   marque par cours est pertinente pour un compte à rebours de quelques
-   secondes, beaucoup moins pour un écran de pause qui peut rester affiché
-   longtemps. */
-/* ====================================================================
-   Écran de pause cinématique façon Netflix (kiosk & cinéma)
-   Logo au centre, halo lumineux dynamique au thème, bouton de reprise
-   circulaire, kicker "EN PAUSE", titre du cours et badges 4K/durée.
-/* ====================================================================
-   Écran de pause Netflix cinématique (kiosk plein écran et cinéma) :
-   100% dynamique aux variables du thème actif, zéro couleur hardcodée.
-   100% matte, zéro reflet glowing, conforme DA premium sobre.
-   ==================================================================== */
 @keyframes netflix-pause-pop {
   from {
     opacity: 0;
@@ -2596,7 +2403,6 @@ a.status-pill:hover,
   }
 }
 
-/* Colonne Média (Gauche) */
 .pause-media-col {
   width: 330px;
   flex-shrink: 0;
@@ -2695,7 +2501,6 @@ a.status-pill:hover,
   filter: none !important;
 }
 
-/* Colonne Détails & Synopsis (Droite) */
 .pause-details-col {
   flex: 1;
   min-width: 0;
@@ -2896,9 +2701,6 @@ video::cue {
   transition: transform 0.15s linear;
 }
 
-/* ============================================================
-   Minuteur/chronomètre — overlay kiosk
-   ============================================================ */
 .timer-overlay.timer-fullscreen {
   position: absolute;
   top: 0;
@@ -2982,9 +2784,6 @@ video::cue {
   50% { transform: translateX(-50%) scale(1.05); }
 }
 
-/* ============================================================
-   Bloc Minuteur — tableau de bord
-   ============================================================ */
 .timer-mode-group {
   display: flex;
   gap: 8px;
@@ -2999,9 +2798,6 @@ video::cue {
   font-variant-numeric: tabular-nums;
 }
 
-/* ============================================================
-   Écran d'attente Playlist intercalé
-   ============================================================ */
 .kiosk-playlist-waiting {
   background: var(--bg-main);
 }
@@ -3039,11 +2835,6 @@ video::cue {
   margin-top: 16px;
 }
 
-/* Playlist split screen administration */
-/* ce bloc est désormais EMBARQUÉ sous la bascule de mode
-   Médiathèque/Cours ↔ Playlists de sa page hôte plutôt que d'occuper une
-   page dédiée — on retire donc un peu plus de hauteur que l'ancien calc
-   (qui, lui, tenait toute la page) pour laisser la place à cette bascule. */
 .playlists-split-container {
   display: flex;
   flex: 1;
@@ -3052,25 +2843,6 @@ video::cue {
   overflow: hidden;
 }
 
-/* Contexte "onglet Playlists" de Bibliothèque/Coach › Cours Audio : VideoPlaylistManager/AudioPlaylistManager sont montés
-   dans .library-container APRÈS le bascule .view-toggle, pas seuls sur la
-   page comme les anciennes routes /playlists et /audio-playlists (devenues
-   de simples redirections). .playlists-split-container (flex:1, min-height:
-   0 ci-dessus) attend un ancêtre à hauteur bornée pour que ses colonnes
-   défilent en interne plutôt que de s'écraser à 0px (séquenceur/liste vides
-   à l'écran) ou de déborder par-dessus le reste de la page. Ce modificateur
-   isole cette hauteur bornée au seul mode Playlists — la grille
-   Médiathèque/Cours garde son défilement naturel (.library-container
-   min-height:100%) volontairement SANS hauteur
-   fixe. 64px = padding vertical de .page-content (32px × 2), seul autre
-   parent entre ce conteneur et la fenêtre.
-*/
-/* Desktop uniquement (breakpoint 768px, même seuil que useIsMobile.ts) : sur
-   mobile, VideoPlaylistManager/AudioPlaylistManager empilent déjà leurs
-   panneaux en colonne avec height:"auto" (styles isMobile déjà en place dans
-   ces composants) et comptent sur le défilement naturel de la page — un
-   overflow:hidden borné ici les aurait tronqués au lieu de les laisser
-   grandir. */
 @media (min-width: 769px) {
   .library-container.playlists-mode {
     height: calc(100vh - var(--header-height) - 64px);
@@ -3083,15 +2855,6 @@ video::cue {
   }
 }
 
-/* VideoPlaylistManager/AudioPlaylistManager enveloppent tout leur rendu dans
-   un <div> racine (conteneur du toast + .playlists-split-container) : sans
-   cette classe, ce <div> est un bloc ordinaire (flex:0 1 auto par défaut) —
-   il s'écrase à la hauteur de son contenu au lieu de transmettre le flex:1
-   de .library-container.playlists-mode à .playlists-split-container, qui se
-   retrouvait alors hors d'un contexte flex utile et retombait lui aussi à sa
-   hauteur de contenu (~256px de constaté) plutôt que de remplir l'écran —
-   c'est ce qui produisait le rendu "trop compact, infos qui se chevauchent,
-   pas scrollable". */
 .playlist-manager-wrap {
   display: flex;
   flex-direction: column;
@@ -3187,18 +2950,12 @@ video::cue {
   justify-content: flex-end;
 }
 
-/* Drag and Drop and Editor classes */
 .playlist-editor-form {
   display: flex;
   flex-direction: column;
   gap: 20px;
   height: 100%;
-  /* Filet de sécurité : sans ce scroll, un contenu qui ne
-     tient pas dans la hauteur disponible écrasait le séquenceur (flex:1,
-     min-height:0) à 0px — son enfant .drag-drop-zone (min-height:150px)
-     débordait alors visuellement PAR-DESSUS .library-picker au lieu de
-     pousser la hauteur du formulaire. Avec overflow-y:auto, le formulaire
-     défile proprement dans ce cas plutôt que de superposer son contenu. */
+  
   overflow-y: auto;
 }
 
@@ -3315,7 +3072,6 @@ video::cue {
   min-height: 0;
 }
 
-/* Liste de cartes visuelles verticales avec marge basse propre */
 .library-picker-list {
   flex: 1;
   overflow-y: auto;
@@ -3372,8 +3128,6 @@ video::cue {
   margin-top: 2px;
 }
 
-/* Bouton "+" flottant : visible au survol sur desktop, toujours visible sur
-   tactile (.always-show-add, posé par les pages quand isMobile). */
 .picker-card-add {
   position: absolute;
   top: 6px;
@@ -3399,8 +3153,6 @@ video::cue {
   transform: scale(1);
 }
 
-/* Carte "cours" dépliable du picker audio : en-tête compact (vignette
-   d'ambiance + bouton "tout le cours") + pistes en accordéon. */
 .picker-course-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
@@ -3469,9 +3221,6 @@ video::cue {
   gap: 16px;
 }
 
-/* ============================================================
-   Planning — Programmation horaire
-   ============================================================ */
 .schedule-page {
   display: flex;
   flex-direction: column;
@@ -3598,11 +3347,6 @@ video::cue {
   margin-top: 2px;
 }
 
-/* Timeline proportionnelle Jour/Semaine : remplace l'ancienne grille
-   de chips de taille uniforme (.schedule-week-grid/.schedule-day-column/
-   .schedule-day-body, supprimées) — un conteneur scrollable, une règle
-   horaire par colonne, des blocs positionnés en absolu proportionnellement
-   à pxPerMinute (top/height calculés côté JS).                            */
 .schedule-timeline-scroll {
   flex: 1;
   min-height: 0;
@@ -3750,11 +3494,6 @@ video::cue {
   outline-offset: -2px;
 }
 
-/* Bloc fantôme affiché pendant le survol en drag&drop depuis la
-   bibliothèque rapide : prévisualise la durée réelle (proportionnelle,
-   même échelle que les blocs programmés) et l'heure de dépôt calculée —
-   remplace le simple contour générique ci-dessus qui ne donnait aucun
-   aperçu du contenu glissé. */
 .schedule-timeline-ghost {
   pointer-events: none;
   border-radius: var(--radius-sm, 6px);
@@ -3804,9 +3543,6 @@ video::cue {
   pointer-events: none;
 }
 
-/* Bande de fond "ambiance permanente 24/7" : sous les blocs normaux
-   (z-index implicite 0, les blocs posent z-index:1), un bloc normal qui se
-   trouve par-dessus la masque donc naturellement à cet endroit. */
 .schedule-timeline-band-247 {
   background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
   pointer-events: none;
@@ -3840,10 +3576,7 @@ video::cue {
   cursor: pointer;
   overflow: hidden;
   transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), opacity var(--transition-fast), filter var(--transition-fast);
-  /* Filet de sécurité au zoom minimal : un bloc de quelques minutes ne
-     doit jamais s'écraser sous une hauteur lisible — quitte à empiéter
-     légèrement sur le bloc suivant (déjà signalé visuellement si
-     chevauchement réel, cf. .cuts-previous ci-dessous). */
+  
   min-height: 34px;
 }
 
@@ -3860,8 +3593,6 @@ video::cue {
   text-decoration: line-through;
 }
 
-/* Chevauchement : le bloc qui démarre après et coupera le précédent
-   porte une bordure distincte + le petit badge ciseaux sur sa miniature. */
 .schedule-timeline-block.cuts-previous {
   border-left-color: var(--accent-warning);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-warning) 40%, transparent);
@@ -3988,7 +3719,6 @@ video::cue {
   padding: 0 8px;
 }
 
-/* Vue liste chronologique alternative */
 .schedule-list-scroll {
   flex: 1;
   min-height: 0;
@@ -4004,7 +3734,6 @@ video::cue {
   padding: 14px 4px 8px;
 }
 
-/* Bannière de reprise après interruption par une programmation */
 .interrupted-block {
   background: var(--bg-surface);
   border: 1px solid color-mix(in srgb, var(--accent-warning) 35%, transparent);
@@ -4042,15 +3771,10 @@ video::cue {
   gap: 10px;
 }
 
-/* ============================================================
-   Mode audio coach — écran kiosk
-   ============================================================ */
 .kiosk-coach-mode {
   background: var(--bg-main);
 }
 
-/* Fond d'ambiance actif sous le mode coach :
-   Rendu à 100% net, sans voile coloré ni assombrissement artificiel. */
 .kiosk-coach-mode.with-background {
   background: transparent;
 }
@@ -4068,11 +3792,6 @@ video::cue {
   text-shadow: 0 2px 12px color-mix(in srgb, var(--ink) 95%, transparent), 0 0 24px color-mix(in srgb, var(--ink) 85%, transparent);
 }
 
-/* Scène plein écran (correctif "carré rouge minuscule") : l'ancien
-   habillage était une petite carte bordée, perdue au centre d'un immense
-   fond noir. Remplacé par une mise en page immersive occupant tout l'écran,
-   avec une lueur radiale douce à la couleur du programme derrière le texte
-   plutôt qu'un encadré — sans backdrop-filter (coût GPU). */
 .coach-stage {
   position: relative;
   display: flex;
@@ -4167,12 +3886,6 @@ video::cue {
   color: var(--text-muted);
 }
 
-/* Couleur du thème/programme (--coach-accent) plutôt que --accent-warning :
-   ce dernier ne varie JAMAIS d'un thème à l'autre (couleur sémantique
-   "avertissement" fixe partout dans l'app), donc ce badge restait orange
-   quel que soit le thème choisi ou le programme en cours — contrairement à
-   tout le reste de la scène coach (eyebrow, lueur, barre de progression),
-   qui suit déjà --coach-accent. */
 .coach-stage-paused-badge {
   font-family: var(--font-title);
   font-size: 1.1rem;
@@ -4193,10 +3906,6 @@ video::cue {
   color: var(--text-dim);
 }
 
-/* ============================================================
-   Mode coach mobile — écran dédié /coach
-   Cibles tactiles >= 64px partout sur cet écran.
-   ============================================================ */
 .coach-screen {
   min-height: 100vh;
   width: 100%;
@@ -4206,7 +3915,6 @@ video::cue {
   overflow-y: auto;
 }
 
-/* Écran de sélection (2e tap) */
 .coach-picker-screen {
   padding: 24px;
   gap: 20px;
@@ -4238,7 +3946,6 @@ video::cue {
   width: 100%;
 }
 
-/* Onglet Cours isolés / Playlists audio */
 .coach-picker-tabs {
   display: flex;
   gap: 8px;
@@ -4302,7 +4009,6 @@ video::cue {
   color: var(--text-muted);
 }
 
-/* Écran de contrôle live (mode coach actif) */
 .coach-live-screen {
   padding: 20px 20px 40px;
   gap: 20px;
@@ -4354,7 +4060,6 @@ video::cue {
   width: 100%;
 }
 
-/* Moniteur Scène Grand Écran */
 .coach-stage-monitor {
   position: relative;
   width: 100%;
@@ -4504,7 +4209,6 @@ video::cue {
   font-weight: 600;
 }
 
-/* Palette d'ambiances */
 .coach-ambiance-panel {
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
@@ -4635,9 +4339,6 @@ video::cue {
   text-decoration: none;
 }
 
-/* Bouton "Désactiver le mode coach" : seule action qui arrête réellement le
-   cours, volontairement discrète et éloignée du geste de retour, avec un
-   libellé explicite plutôt qu'une icône ambiguë en haut de l'écran. */
 .coach-disable-btn {
   display: flex;
   align-items: center;
@@ -4771,7 +4472,7 @@ video::cue {
   cursor: pointer;
 }
 
-.coach-sheet-overlay { /* voile thème, plus de noir fixe */
+.coach-sheet-overlay { 
   position: fixed;
   inset: 0;
   background: color-mix(in srgb, var(--bg-main) 62%, transparent);
@@ -4794,7 +4495,7 @@ video::cue {
   padding: 12px 20px 24px;
   display: flex;
   flex-direction: column;
-  /* Un panneau qui glisse depuis le BAS. */
+  
   animation: olcSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -4834,11 +4535,6 @@ video::cue {
   color: var(--accent-text);
 }
 
-/* ============================================================
-   Coquille mobile — menu burger
-   Pas de sidebar permanente sur mobile : l'écran principal est dédié
-   au contrôle, la navigation reste dans un tiroir discret.
-   ============================================================ */
 .mobile-app-container {
   width: 100vw;
   height: 100vh;
@@ -4849,11 +4545,6 @@ video::cue {
   background: var(--bg-main);
 }
 
-/* Grille 3 colonnes plutôt que flex + transform de centrage : burger et point de statut occupent
-   leur colonne naturelle (auto), le logo (lockup large, ratio ~2,45:1) est
-   centré dans la colonne du milieu SANS position absolue ni transform, qui
-   provoquaient un rendu visuel décorrélé de son rectangle réel mesuré
-   (DevTools cohérent, capture d'écran non conforme) sur ce moteur de rendu. */
 .mobile-topbar {
   height: 56px;
   flex-shrink: 0;
@@ -4931,9 +4622,7 @@ video::cue {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  /* Sans ce padding, les pages
-     sans traitement mobile dédié (bibliothèque, paramètres, logs...)
-     touchaient les bords de l'écran, aucune respiration nulle part. */
+  
   padding: 16px;
   gap: 16px;
 }
@@ -4964,8 +4653,7 @@ video::cue {
   flex-direction: column;
   padding: 20px 12px;
   animation: fadeIn var(--transition-fast);
-  /* Même correctif que .app-sidebar : les groupes accordéon dépliés peuvent
-     dépasser la hauteur de l'écran sur téléphone. */
+  
   overflow-y: auto;
 }
 
@@ -4990,10 +4678,6 @@ video::cue {
   display: inline;
 }
 
-/* ============================================================
-   Télécommande mobile plein écran
-   Cibles tactiles >= 64px sur cet écran.
-   ============================================================ */
 .mobile-remote {
   flex: 1;
   display: flex;
@@ -5021,7 +4705,6 @@ video::cue {
   gap: 14px;
 }
 
-/* Nom de playlist + "à suivre" */
 .mobile-remote-playlist-badge {
   width: 100%;
   display: flex;
@@ -5087,7 +4770,6 @@ video::cue {
   margin-top: auto;
 }
 
-/* Couleur du thème plutôt qu'un rouge fixe. */
 .mobile-remote-stop {
   width: 100%;
   max-width: 360px;
@@ -5116,10 +4798,6 @@ video::cue {
   justify-content: center;
 }
 
-/* ============================================================
-   Éditeur de canvas — PC uniquement, pas de
-   déclinaison mobile (édition fine au doigt hors périmètre v1).
-   ============================================================ */
 .canvas-editor-page {
   display: flex;
   flex-direction: column;
@@ -5247,9 +4925,7 @@ video::cue {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   overflow: hidden;
-  /* Même contexte de container query que .kiosk-root, pour que le texte des
-     éléments (dimensionné en cqh) ait la même taille RELATIVE ici que sur
-     l'écran cinéma réel malgré la boîte bien plus petite. */
+  
   container-type: size;
 }
 
@@ -5364,16 +5040,8 @@ video::cue {
   }
 }
 
-
-/* ==========================================================================
-   Interface cinéma adhérents — /cinema .
-   Style "Apple TV" : rangées par programme, cartes 16:9, navigation souris.
-   ========================================================================== */
-
 .cinema-root {
-  /* Suit le thème choisi dans l'admin (data-theme sur <html>), comme le
-     reste de l'application (correctif "le thème ne se synchronise pas avec
-     l'écran cinéma") — pas de variables forcées ici. */
+  
   position: fixed;
   inset: 0;
   background: var(--bg-main);
@@ -5409,9 +5077,6 @@ video::cue {
   scrollbar-width: thin;
 }
 
-/* Écran d'attente « bibliothèque vide » : recouvre la vitrine, fond opaque du thème,
-   grand logo (image noire inversée par --logo-filter selon le thème), heure et
-   message centrés. z-index au-dessus des .cinema-layer. */
 .cinema-empty-screen {
   position: absolute;
   inset: 0;
@@ -5446,7 +5111,6 @@ video::cue {
   letter-spacing: 0.12em;
 }
 
-/* Écran d'attente cinéma passif (sortie HDMI TV salle, quand piloté par /grid) */
 .cinema-standby-screen {
   position: absolute;
   inset: 0;
@@ -5495,7 +5159,6 @@ video::cue {
   letter-spacing: 0.04em;
 }
 
-/* Entrée en scène des sections et cartes (delay échelonné via style inline) */
 @keyframes cinema-fade-up {
   from {
     opacity: 0;
@@ -5507,19 +5170,10 @@ video::cue {
   }
 }
 
-/* .cinema-brand est une image (logo) : plus
-   de styles typographiques à porter ici. */
 .cinema-brand {
   margin-bottom: 4px;
 }
 
-/* --- Widget "en cours de lecture" (/grid, demande explicite
-   utilisateur : avancer/reculer/pause/enlever depuis l'écran de sélection —
-   l'écran HDMI n'affiche plus aucune commande). Style "widget Apple" demandé
-   explicitement : carte compacte en verre dépoli (backdrop-filter), posée à
-   DROITE du titre dans le héros (second enfant flex de .cinema-hero, cf.
-   grid/page.tsx) plutôt qu'en bandeau pleine largeur — et aucune couleur
-   fixe (rouge ou autre) : uniquement les tokens du thème actif. */
 .grid-now-playing {
   position: relative;
   width: 380px;
@@ -5652,9 +5306,6 @@ video::cue {
   }
 }
 
-/* --- Héros "À la une" (Authentique style Apple TV / VisionOS) --- */
-/* Héros plein écran : le cours vedette occupe tout l'écran, la grille arrive au défilement. La marge suit la zone
-   sûre des téléviseurs (overscan) et des encoches. */
 .cinema-hero {
   position: relative;
   min-height: 100dvh;
@@ -5707,8 +5358,6 @@ video::cue {
     );
 }
 
-/* Titre et description : sans encadré, à partir du coin haut gauche, sur toute la hauteur et une large part de la
-   largeur de l'écran. Rien n'est compacté sur les écrans courts : la taille suit l'écran (clamp), le texte lit sur le voile. */
 .cinema-hero-content {
   position: relative;
   display: flex;
@@ -5737,7 +5386,6 @@ video::cue {
   }
 }
 
-/* Animation au survol / sélection : Grossissement de la miniature intérieure (Netflix-style) */
 .video-card .card-thumbnail,
 .cinema-card-thumb img,
 .picker-card-thumb img,
@@ -5866,7 +5514,6 @@ video::cue {
   filter: brightness(0.92);
 }
 
-/* --- Corps vertical : rangées par programme puis grille complète --- */
 .cinema-sections {
   padding: 24px 0 80px;
   display: flex;
@@ -5902,7 +5549,6 @@ video::cue {
   padding: 0 var(--cinema-gutter);
 }
 
-/* Titre de rangée Netflix : sobre, sans bulle pill baveuse */
 .cinema-row-header h2 {
   font-size: 1.25rem;
   font-weight: 800;
@@ -5920,8 +5566,6 @@ video::cue {
   font-weight: 600;
 }
 
-/* Conteneur des flèches gauche/droite + rangée défilante : remplace la barre de défilement native par des
-   chevrons, dans l'esprit Netflix. */
 .cinema-row-wrap {
   position: relative;
   width: 100%;
@@ -5932,11 +5576,10 @@ video::cue {
   gap: 16px;
   overflow-x: auto;
   padding: 16px var(--cinema-gutter) 24px;
-  /* Barre de défilement native masquée : les flèches ci-dessous en sont le
-     remplacement principal ; le geste tactile/trackpad reste disponible. */
+  
   scrollbar-width: none;
   scroll-snap-type: x proximity;
-  /* Fondu aux deux extrémités : les miniatures glissent d'un bord à l'autre sans coupure franche. */
+  
   --row-mask: linear-gradient(to right, transparent 0, #000 var(--cinema-fade), #000 calc(100% - var(--cinema-fade)), transparent 100%);
   -webkit-mask-image: var(--row-mask);
   mask-image: var(--row-mask);
@@ -5946,8 +5589,6 @@ video::cue {
   display: none;
 }
 
-/* Flèches de défilement style Netflix : pastilles circulaires flottantes
-   translucides SANS aucun dégradé statique masquant les cartes. */
 .cinema-row-arrow {
   position: absolute;
   top: 0;
@@ -5996,10 +5637,6 @@ video::cue {
   transform: scale(0.94);
 }
 
-/* Télécommande & manette : la sélection se lit de loin (zoom, anneau et halo aux couleurs du thème).
-   Tout vient des jetons --remote-focus-* ; la classe est posée en JS (`useKioskRemote`) car un kiosk n'a pas
-   toujours le focus fenêtre. L'anneau remplace l'outline du navigateur sur l'élément sélectionné seulement :
-   le focus clavier ordinaire garde son indicateur. */
 .kiosk-remote-focus,
 .cinema-grid-layer .kiosk-remote-focus {
   transform: scale(var(--remote-focus-scale)) !important;
@@ -6010,8 +5647,6 @@ video::cue {
   outline: none !important;
 }
 
-/* Bandeau d'avertissement "aucun écran de lecture" : purement indicatif, ne
-   bloque jamais l'envoi de l'ordre "launch" lui-même. */
 .grid-launch-warning {
   position: fixed;
   top: 18px;
@@ -6047,10 +5682,7 @@ video::cue {
   scroll-snap-align: start;
   transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2), filter 0.12s ease;
   animation: cinema-fade-up 0.45s ease both;
-  /* Retour tactile propre : sans ces trois règles, un
-     appui affiche le surlignage bleu de sélection natif au lieu d'une
-     animation de clic, cf. .olc-press plus haut pour le même correctif sur
-     d'autres éléments. */
+  
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-touch-callout: none;
@@ -6063,9 +5695,6 @@ video::cue {
   outline: none;
 }
 
-/* Après le :hover ci-dessus pour gagner le conflit à spécificité égale : un
-   écran tactile déclenche souvent :hover ET :active ensemble au toucher, on
-   veut alors l'effet "pressé" (échelle réduite), pas le survol (lift). */
 .cinema-card:active {
   transform: scale(0.96);
   filter: brightness(0.94);
@@ -6156,7 +5785,6 @@ video::cue {
   color: var(--text-muted);
 }
 
-/* --- Défilement horizontal fluide des titres longs (Marquee) --- */
 .marquee-track {
   width: 100%;
   max-width: 100%;
@@ -6191,7 +5819,6 @@ video::cue {
   }
 }
 
-/* --- Grille complète "Tous les cours" (mise en page liste verticale) --- */
 .cinema-all {
   padding: 0 var(--cinema-gutter);
 }
@@ -6289,7 +5916,6 @@ video::cue {
   font-weight: 600;
 }
 
-/* --- Fin de cours : "À suivre" avec autoplay annulable --- */
 .cinema-upnext {
   display: flex;
   align-items: center;
@@ -6347,7 +5973,6 @@ video::cue {
   object-fit: cover;
 }
 
-/* Anneau de progression de l'autoplay : conic-gradient piloté en inline. */
 .cinema-upnext-ring {
   position: relative;
   width: 92px;
@@ -6394,7 +6019,6 @@ video::cue {
   margin-top: 8px;
 }
 
-/* Boutons sur fond potentiellement clair : garde le style translucide lisible */
 .cinema-upnext-actions .cinema-ctl-btn {
   background: var(--bg-surface-elevated);
   border-color: transparent;
@@ -6405,7 +6029,6 @@ video::cue {
   background: var(--bg-surface-hover);
 }
 
-/* Compte à rebours avant lancement (même esprit que le kiosk) */
 .cinema-countdown {
   display: flex;
   flex-direction: column;
@@ -6415,7 +6038,6 @@ video::cue {
   background: var(--bg-main);
 }
 
-/* Lecture vidéo plein écran + barre de contrôle souris auto-masquée */
 .cinema-video-layer {
   background: var(--ink);
 }
@@ -6427,9 +6049,6 @@ video::cue {
   background: var(--ink);
 }
 
-/* Bouton de lancement manuel (autoplay refusé par le navigateur, ex. mobile
-   hors kiosk Chromium) : la lecture reste locale à chaque appareil, donc
-   soumise aux règles d'autoplay habituelles de ce navigateur. */
 .cinema-tap-to-play {
   position: absolute;
   inset: 0;
@@ -6526,7 +6145,6 @@ video::cue {
   cursor: pointer;
 }
 
-/* Switch de sortie câblée kiosk/cinéma (dashboard + télécommande mobile) */
 .display-output-switch {
   display: flex;
   align-items: center;
@@ -6598,9 +6216,6 @@ video::cue {
   padding: 10px 16px 0;
 }
 
-/* ===== Écran radio dédié (/radio) — mise en page "type Spotify" du
-   poste dédié, pensée écran tactile/souris. Volontairement plus simple que
-   .kiosk-* (pas de multi-couches vidéo/fond/intro à gérer, un seul <audio>). */
 .radio-screen {
   position: fixed;
   inset: 0;
@@ -6771,20 +6386,13 @@ video::cue {
   align-items: center;
   justify-content: center;
   gap: 24px;
-  /* Fond OPAQUE calé sur le thème (plus de rgba(0,0,0,0.9) en dur) : le logo
-     est une image noire inversée par --logo-filter selon le thème ; un fond
-     dur cassait ce couple (logo noir invisible sur les thèmes clairs). Avec
-     var(--bg-main)/var(--text-main), le logo reste toujours lisible et
-     l'écran couvre entièrement le poste. */
+  
   background: var(--bg-main);
   color: var(--text-main);
   padding: 5vh 5vw;
   text-align: center;
 }
 
-/* Logo « hors diffusion » (overlay de déverrouillage + écran d'attente) :
-   dimensionné en CSS (AppLogo sans `size`) pour occuper largement l'écran du
-   poste sans jamais déborder en largeur (le bandeau fait ~2,34× sa hauteur). */
 .radio-brand-logo {
   height: min(30vh, 38vw);
   width: auto;
@@ -6823,14 +6431,9 @@ video::cue {
   cursor: pointer;
 }
 
-/* ============================================================
-   Bibliothèque Radio — refonte « vue d'ensemble » (sidebar +
-   grille avec sélection multiple, tags en chips, playlist DnD).
-   Préfixe .rl-* pour éviter toute collision.
-   ============================================================ */
 .radio-lib { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .rl-nav-card { align-items: center; flex-wrap: wrap; gap: 12px; }
-/* Une section masquée (catégorie non choisie des Réglages) ne doit jamais être réaffichée par une règle de mise en page. */
+
 .live-block[hidden] { display: none !important; }
 .settings-timing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 4px 24px; }
 .settings-timing-field { display: flex; align-items: center; gap: 10px; }
@@ -6849,7 +6452,7 @@ video::cue {
   font: inherit; font-size: 1rem;
 }
 .settings-search input::placeholder { color: var(--text-muted); }
-/* Barre de navigation commune (PageNav) : onglets à gauche, actions de la page à droite. */
+
 .page-nav { justify-content: space-between; margin-bottom: 14px; }
 .page-nav-tabs { flex: 1 1 auto; min-width: 0; }
 .page-nav-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
@@ -6927,11 +6530,6 @@ video::cue {
 .rl-dnd-hint { font-weight: 400; color: var(--text-dim); font-size: 0.78rem; }
 .rl-drag-handle { color: var(--text-dim); cursor: grab; flex-shrink: 0; }
 
-/* Tiroir d'édition de playlist — liste unique façon "Ajouter à la playlist"
-   (recherche épinglée, une seule zone de défilement) : évite que le
-   panneau semblait "se refermer sur lui-même" à l'ajout, causé par un
-   double scroll imbriqué + un rafraîchissement complet de la page à chaque
-   clic. Voir radio-library/page.tsx. */
 .rl-pl-drawer { display: flex; flex-direction: column; padding: 0; }
 .rl-pl-header { flex-shrink: 0; gap: 12px; }
 .rl-pl-name-input {
@@ -7005,7 +6603,6 @@ video::cue {
 .rl-link-btn { background: none; border: none; color: var(--accent-text); cursor: pointer; font-weight: 700;
   margin-top: 10px; font-size: 0.85rem; text-decoration: underline; }
 
-/* Vue LISTE des morceaux (dense) + file d'imports */
 .rl-list { display: flex; flex-direction: column; gap: 4px; }
 .rl-list-row { display: grid; grid-template-columns: 28px 40px minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) 56px;
   align-items: center; gap: 12px; padding: 6px 10px; border-radius: var(--radius-sm);
@@ -7026,7 +6623,6 @@ video::cue {
 .rl-list-duration { color: var(--text-dim); font-size: 0.8rem; text-align: right; font-variant-numeric: tabular-nums; }
 .rl-import-section .rl-list-row { grid-template-columns: 40px minmax(0, 1fr) 64px; cursor: default; }
 
-/* Cartes playlists / artistes / albums / tags */
 .rl-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
 .rl-cards--compact { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
 .rl-pcard { display: flex; flex-direction: column; gap: 10px; padding: 12px; text-align: left; color: var(--text-main);
@@ -7063,10 +6659,6 @@ video::cue {
   .rl-cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 }
 
-/* ============================================================
-   Page Paramètres (refonte en sections) + statut système
-   déplacé depuis l'en-tête.
-   ============================================================ */
 .settings-page { display: flex; flex-direction: column; gap: 18px; width: 100%; }
 .settings-page .live-block { scroll-margin-top: 80px; }
 .settings-head { margin-bottom: 2px; }
@@ -7075,21 +6667,10 @@ video::cue {
 .settings-hint { font-size: 0.78rem; color: var(--text-dim); margin: 6px 0 0; line-height: 1.4; }
 .settings-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
 
-/* Corrige le désalignement des champs : la grille étire chaque .form-group à la hauteur de
-   la plus grande cellule de la ligne, mais les libellés ont des longueurs
-   très différentes ("Volume par défaut (%)" vs "Minuterie par défaut entre
-   pistes en mode coach « auto + minuterie » (secondes)", qui peut passer sur
-   3 lignes selon la largeur) — sans ancrage, les champs ne démarrent pas
-   tous à la même hauteur. `margin-top: auto` pousse chaque input en bas de
-   son .form-group (déjà étiré à la hauteur de la ligne par la grille) quel
-   que soit le nombre de lignes du libellé au-dessus — s'adapte à n'importe
-   quelle largeur, pas de hauteur fixe à deviner. */
 .settings-fields .form-group .form-control {
   margin-top: auto;
 }
 
-/* Zone de danger : même intention visuelle pour les deux actions, sans changer
-   leurs confirmations. Les fonds opaques gardent le contraste en verre réduit. */
 .settings-danger {
   background: var(--danger-panel-bg);
   border-color: var(--danger-text);
@@ -7158,7 +6739,6 @@ video::cue {
   font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }
 .settings-uninstall-list li::marker { color: var(--accent-error-text); }
 
-/* Documentation : chemins et accès */
 .settings-paths { display: flex; flex-direction: column; gap: 6px; }
 .settings-doc-group { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border-color); }
 .settings-doc-group:first-of-type { margin-top: 10px; padding-top: 0; border-top: none; }
@@ -7172,9 +6752,6 @@ video::cue {
   font-size: 0.8rem; text-align: right; word-break: break-all; transition: opacity var(--transition-fast); }
 .settings-path-link:hover { text-decoration: underline; opacity: 0.85; }
 
-/* ============================================================
-   Écran Rappels (refonte, style bibliothèque radio)
-   ============================================================ */
 .ra-page { display: flex; flex-direction: column; gap: 18px; }
 .ra-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .ra-title { display: flex; align-items: center; gap: 10px; font-size: 1.5rem; font-weight: 800; margin: 0; }
@@ -7220,7 +6797,6 @@ video::cue {
 .ra-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .ra-icon-btn { width: 34px; height: 34px; padding: 0 !important; display: inline-flex; align-items: center; justify-content: center; }
 
-/* Interrupteur (activer/désactiver) */
 .ra-switch { position: relative; display: inline-flex; cursor: pointer; flex-shrink: 0; }
 .ra-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
 .ra-switch-track { width: 38px; height: 22px; border-radius: 999px; background: var(--bg-surface-hover);
@@ -7230,7 +6806,6 @@ video::cue {
 .ra-switch input:checked + .ra-switch-track { background: color-mix(in srgb, var(--accent-primary) 55%, transparent); border-color: var(--accent-text); }
 .ra-switch input:checked + .ra-switch-track::after { transform: translateX(16px); background: var(--specular); }
 
-/* Règles */
 .ra-rule-icon { flex-shrink: 0; width: 34px; height: 34px; border-radius: var(--radius-sm); display: flex; align-items: center;
   justify-content: center; background: var(--bg-surface); color: var(--text-muted); }
 .ra-rule-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -7241,11 +6816,6 @@ video::cue {
 .ra-time-pill { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.8rem; font-weight: 600;
   background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--text-main);
   border: 1px solid var(--accent-text); border-radius: 999px; padding: 3px 10px; }
-
-/* ==========================================================================
-   Écran de veille / accueil sobre du mode Headless (/grid)
-   Affichage hybride (tablettes & laptops)
-   ========================================================================== */
 
 .grid-standby-root {
   position: fixed;
@@ -7442,11 +7012,6 @@ video::cue {
   text-decoration: none;
 }
 
-/* ============================================================
-   Bêta 3.0.5 — Moteur Vidéo Gapless A/B Deck & Notation 5 Étoiles
-   ============================================================ */
-
-/* Double Décodeur Vidéo Gapless A/B Deck */
 .cinema-deck-container {
   position: absolute;
   inset: 0;
@@ -7482,7 +7047,6 @@ video::cue {
   pointer-events: none;
 }
 
-/* Carte d'évaluation 5 Étoiles (Pupitre Coach /grid & Grand Écran /cinema) */
 .course-rating-card {
   position: relative;
   background: var(--bg-surface);
@@ -7709,10 +7273,6 @@ video::cue {
   display: flex;
   justify-content: center;
 }
-
-/* ============================================================
-   Bêta 3.0.5 — Tableau de Bord Métriques (/metrics)
-   ============================================================ */
 
 .metrics-page {
   padding: 24px 32px;
@@ -8020,7 +7580,6 @@ video::cue {
   font-weight: 700;
 }
 
-/* Histogramme 24h CSS */
 .metrics-histogram-container {
   width: 100%;
   padding: 12px 0 4px;
@@ -8095,7 +7654,6 @@ video::cue {
   white-space: nowrap;
 }
 
-/* Télémétrie Matérielle */
 .metrics-telemetry-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -8218,7 +7776,6 @@ video::cue {
   font-weight: 600;
 }
 
-/* Tableau du Palmarès des Cours */
 .metrics-table-wrapper {
   overflow-x: auto;
 }
@@ -8287,9 +7844,6 @@ video::cue {
   gap: 10px;
 }
 
-/* Miniature du palmarès : gabarit compact (ligne de tableau dense), même
-   recette que .cinema-all-thumb (conteneur fixe 16:9 + <img> en
-   object-fit:cover) mais réduite pour tenir dans une cellule. */
 .metrics-course-thumb {
   position: relative;
   flex: 0 0 48px;
@@ -8379,7 +7933,6 @@ video::cue {
   font-size: 0.95rem;
 }
 
-/* Télémétrie Système Interactive */
 .metrics-telemetry-item.interactive {
   cursor: pointer;
   position: relative;
@@ -8411,7 +7964,6 @@ video::cue {
   opacity: 1;
 }
 
-/* Tiroir Latéral Droit (Slide-in Drawer) */
 .telemetry-drawer-overlay {
   position: fixed;
   inset: 0;
@@ -8492,7 +8044,6 @@ video::cue {
   margin-top: 1px;
 }
 
-/* Filtres Temporels */
 .telemetry-drawer-filters {
   display: flex;
   gap: 8px;
@@ -8527,7 +8078,6 @@ video::cue {
   box-shadow: 0 2px 6px color-mix(in srgb, var(--accent-primary) 30%, transparent);
 }
 
-/* Synthèse des statistiques */
 .telemetry-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -8569,7 +8119,6 @@ video::cue {
   color: var(--text-muted);
 }
 
-/* Conteneur Graphique */
 .telemetry-chart-container {
   padding: 20px 24px;
   display: flex;
@@ -8629,18 +8178,6 @@ video::cue {
   margin-top: auto;
 }
 
-
-/* ============================================================
-   Boutons « verre premium »
-   Couche finale (placée en fin de fichier pour l'emporter à
-   spécificité égale) : surfaces secondaires en verre dépoli,
-   boutons principaux avec reflet spéculaire et halo coloré.
-   Pas de backdrop-filter sur les commandes posées SUR la vidéo
-   (cinema-ctl-btn, grid-now-playing-btn) : flouter une vidéo
-   4K60 à chaque image est trop coûteux sur le matériel visé
-   (Dell Wyse 5070) — reflet et ombre seulement.
-   ============================================================ */
-/* Boutons : aplats nets, jamais de verre (le verre est réservé aux surfaces : cartes, feuilles, barres flottantes). */
 .btn-secondary:not(:disabled),
 .coach-btn:not(.coach-btn-main):not(:disabled),
 .radio-transport-btn:not(.main):not(.active) {
@@ -8655,14 +8192,12 @@ video::cue {
   border-color: var(--btn-outline-hover);
 }
 
-/* Commandes posées sur la vidéo : reflet + ombre, sans flou */
 .grid-now-playing-btn:not(.grid-now-playing-btn-main),
 .cinema-ctl-btn {
   border: 1px solid color-mix(in srgb, var(--text-main) 28%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--specular) 28%, transparent), 0 6px 18px color-mix(in srgb, var(--ink) 28%, transparent);
 }
 
-/* Boutons principaux (dont lecture/pause) : aplat d'accent, sans reflet ni halo. */
 .btn-primary:not(:disabled),
 .btn-primary:hover:not(:disabled),
 .radio-transport-btn.main,
@@ -8670,8 +8205,6 @@ video::cue {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 72%, var(--ink) 28%);
 }
 
-/* Sous-titres importés : lisibles à distance sur une TV ou un projecteur
-   (taille liée à la hauteur de l'écran, contour et fond translucide). */
 .kiosk-video::cue,
 .cinema-deck::cue {
   font-size: max(22px, 3.4vh);
@@ -8681,7 +8214,6 @@ video::cue {
   text-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 90%, transparent);
 }
 
-/* ---- Gestion du son d'une sortie radio (RadioSoundPanel) ---- */
 .radio-sound-panel {
   display: flex;
   flex-direction: column;
@@ -8766,7 +8298,6 @@ video::cue {
   font-size: 0.8rem;
 }
 
-/* ---- Recherche : autocomplétion et surlignage (SearchBox, Highlight, ResponsiveSelect) ---- */
 .search-mark {
   background: color-mix(in srgb, var(--accent-primary) 22%, transparent);
   color: inherit;
@@ -8804,7 +8335,6 @@ video::cue {
   background: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-surface-elevated));
 }
 
-/* ---- File « À suivre » de la radio (RadioQueueList) ---- */
 .rq-list {
   display: flex;
   flex-direction: column;
@@ -8960,7 +8490,6 @@ video::cue {
   overflow-y: auto;
 }
 
-/* Sélecteur riche pleine largeur au-dessus du bouton de lancement (aperçu lisible dans une colonne étroite) */
 .launch-row--stacked {
   flex-direction: column;
   align-items: stretch;
@@ -8969,7 +8498,6 @@ video::cue {
   width: 100%;
 }
 
-/* ---- Navigation à la télécommande (useDpadNavigation) : halo net sur l'élément sélectionné ---- */
 :root[data-input-mode="remote"] :focus {
   outline: 3px solid var(--focus-ring) !important;
   outline-offset: 3px;
@@ -8982,16 +8510,6 @@ video::cue {
   border-radius: 999px;
 }
 
-/* ============================================================
-   Écrans de diffusion — formats atypiques (TV 21:9, 4:3, 5:4, portrait,
-   1366×768, 1280×600...) et overscan des téléviseurs.
-   Les écrans plein cadre (/kiosk, /cinema, /radio) se dimensionnent en
-   `vmin` (le plus petit côté de l'écran) plutôt qu'en `rem`/`px` fixes ou en
-   `vw`/`vh` isolés : ainsi leur contenu tient TOUJOURS dans la fenêtre, quel
-   que soit le ratio. `--screen-safe-x/y` (marge réglée par ?safe=, cf.
-   lib/screenSafe.ts) recule les bords pour les téléviseurs qui rognent l'image.
-   Placé en FIN de fichier : surcharge volontairement les règles précédentes.
-   ============================================================ */
 .kiosk-root,
 .cinema-root,
 .radio-screen,
@@ -8999,7 +8517,6 @@ video::cue {
   inset: var(--screen-safe-y, 0px) var(--screen-safe-x, 0px);
 }
 
-/* --- Radio : tout le contenu se dimensionne sur vmin --- */
 .radio-screen {
   gap: clamp(8px, 2.6vmin, 40px);
   padding: 3vmin 4vmin;
@@ -9029,7 +8546,6 @@ video::cue {
 .radio-unlock-btn { padding: clamp(12px, 2.4vmin, 28px) clamp(24px, 5vmin, 64px); font-size: clamp(1rem, 2.6vmin, 2rem); }
 .radio-announcement-banner { top: clamp(12px, 3vmin, 40px); max-width: 92vw; font-size: clamp(0.9rem, 2.2vmin, 1.8rem); }
 
-/* --- Kiosk : OSD, bandeau son, attente --- */
 .kiosk-osd {
   bottom: calc(6vh + 1vmin);
   max-width: 92vw;
@@ -9059,7 +8575,6 @@ video::cue {
 .cinema-standby-title { font-size: clamp(1.6rem, 5vmin, 4.4rem); }
 .cinema-standby-hint { font-size: clamp(1rem, 2.6vmin, 2.2rem); max-width: 90vw; }
 
-/* --- Pause (kiosk & cinéma) : la carte ne dépasse jamais l'écran --- */
 .pause-center,
 .cinema-pause-center {
   width: min(92%, 960px);
@@ -9085,19 +8600,13 @@ video::cue {
   .pause-center, .cinema-pause-center { padding: 12px 16px; gap: 14px; }
 }
 
-/* --- Cinéma (vitrine) : le héros occupe l'écran, sans compaction sur les écrans courts ni larges --- */
 @media (min-width: 901px) {
   .cinema-controls { padding: clamp(14px, 3vmin, 36px) clamp(18px, 4vmin, 48px); }
 }
 
-/* --- Racines plein écran : unités dynamiques (barres d'interface des navigateurs TV / Android) --- */
 .app-container { height: 100dvh; width: 100%; }
 .coach-screen { min-height: 100dvh; }
 
-/* ============================================================
-   Périphériques (audio, Bluetooth, Wi-Fi) — mêmes listes denses
-   que la bibliothèque radio, barre de sections horizontale.
-   ============================================================ */
 .dv-section { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .dv-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px;
   background: var(--glass-card-bg, var(--bg-surface)); border: 1px solid var(--glass-surface-border, transparent); border-radius: var(--radius-md); }
@@ -9136,7 +8645,6 @@ video::cue {
   .rl-nav-card .channel-card-right { width: 100%; }
 }
 
-/* Téléphone : la barre de sections défile horizontalement (une seule ligne), barres d'outils et lignes compactes. */
 @media (max-width: 720px) {
   .rl-nav-card .channel-card-left { width: 100%; }
   .dv-toolbar { padding: 8px 10px; gap: 8px; }
@@ -9156,12 +8664,6 @@ video::cue {
   .dv-password .form-control { max-width: none; }
 }
 
-
-/* ============================================================
-   Interactions « verre premium » (5.1.1) : jetons de mouvement, survol
-   avec halo, sélection, onglets à indicateur glissant.
-   Seuls transform et opacity sont animés (léger sur Wyse et TV).
-   ============================================================ */
 :root {
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -9203,7 +8705,6 @@ video::cue {
   .glass-interactive, .seg-indicator { transition: none !important; transform: none !important; }
 }
 
-/* Onglets segmentés : un indicateur unique glisse sous l'onglet actif. */
 .seg { max-width: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; border-radius: 999px;
   background: var(--bg-surface); border: 1px solid color-mix(in srgb, var(--text-main) 14%, var(--border-color));
   box-shadow: inset 0 1px 1px color-mix(in srgb, var(--specular) 30%, transparent); }
@@ -9222,16 +8723,10 @@ video::cue {
   .rl-nav-card .channel-card-right .seg { width: 100%; }
 }
 
-/* Actions secondaires de la page en liens discrets. */
 .dv-link-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 12px; border-radius: 999px; transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out); }
 .dv-link-btn:hover { color: var(--text-main); background: var(--bg-surface-elevated); }
 
-/* ============================================================
-   Largeurs intermédiaires (barre latérale de navigateur, onglets
-   verticaux, fenêtres étroites) : les barres d'outils passent à la ligne
-   selon leur CONTENU, pas selon un seuil de largeur de fenêtre.
-   ============================================================ */
 .schedule-toolbar {
   flex-wrap: wrap;
   height: auto;
@@ -9249,15 +8744,12 @@ video::cue {
 .rl-nav-card .channel-card-right { min-width: 0; max-width: 100%; }
 .rl-nav-card .seg { flex: 0 1 auto; }
 .rl-nav-card .channel-card-left { min-width: 0; }
-/* Navigation seule (Périphériques) : centrée, sans titre ni étiquette de plateforme. */
+
 .rl-nav-card--centered { justify-content: center; }
 .rl-nav-card--centered .channel-card-right { margin-left: 0; justify-content: center; }
 
-/* Actions secondaires en liens discrets. */
 .dv-quiet-actions { display: flex; justify-content: center; margin-top: 4px; }
 
-
-/* Détail d'une sortie audio (tiroir) */
 .dv-row--click { cursor: pointer; }
 .dv-chevron { color: var(--text-dim); display: flex; margin-left: auto; transition: transform var(--dur-base) var(--ease-out); }
 .dv-row--click:hover .dv-chevron { transform: translateX(3px); color: var(--accent-text); }
@@ -9289,9 +8781,6 @@ video::cue {
 .dv-profile.is-selected { color: var(--accent-text); }
 @media (prefers-reduced-motion: reduce) { .dv-wave i { animation: none; transform: scaleY(0.7); } }
 
-/* ============================================================
-   Vue globale des périphériques : carte « système solaire » (SVG).
-   ============================================================ */
 .dv-map-wrap { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .dv-map-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; font-size: 0.8rem; color: var(--text-muted); padding: 0 4px; }
 .dv-legend-item { display: inline-flex; align-items: center; gap: 8px; }
@@ -9356,14 +8845,9 @@ video::cue {
 }
 @media (prefers-reduced-motion: reduce) { .dv-map-panel { animation: none; } .dv-link.active { animation: none !important; } }
 
-/* Raccourci depuis la carte : halo bref sur l'élément visé. */
 @keyframes dv-flash { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-primary) 70%, transparent); } 100% { box-shadow: 0 0 0 16px transparent; } }
 .dv-flash { animation: dv-flash 1.1s var(--ease-out) 2; }
 
-/* ============================================================
-   Routage audio (phase 2) et table de mixage (phase 3) des sorties radio.
-   Tout passe par les jetons du thème (aucune couleur figée) ; contrastes vérifiés par themeContrast.test.ts.
-   ============================================================ */
 .dv-note > .material-symbols-outlined { flex: 0 0 auto; }
 .rt-graph-wrap { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .rt-graph-frame { overflow-x: auto; padding: 10px; border-radius: var(--radius-lg); background: var(--glass-surface-bg);
@@ -9380,7 +8864,7 @@ video::cue {
 .rt-edge.is-playing { stroke: var(--accent-text); stroke-dasharray: 10 8; }
 :root:not([data-input-mode="remote"]) .rt-edge.is-playing { animation: rt-flow 1.6s linear infinite; }
 @keyframes rt-flow { to { stroke-dashoffset: -36; } }
-.rt-node, .rt-node:focus-visible { cursor: default; outline: none; } /* l'anneau .rt-node-ring tient lieu de contour de focus */
+.rt-node, .rt-node:focus-visible { cursor: default; outline: none; } 
 .rt-node.is-draggable { cursor: grab; touch-action: none; }
 .rt-node.is-dragging { cursor: grabbing; }
 .rt-node-card { fill: var(--bg-surface-elevated); stroke: color-mix(in srgb, var(--text-main) 22%, transparent); stroke-width: 1.5;
@@ -9429,8 +8913,6 @@ video::cue {
 .mx-eq { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .mx-eq .radio-sound-panel { width: 100%; }
 
-/* Petits écrans : navigation à défilement horizontal limitée à 3 onglets visibles, le suivant dépasse
-   (invitation à glisser), fondus aux bords et accroche collante sur l'onglet visé. */
 @media (max-width: 720px) {
   .seg { container-type: inline-size; width: 100%; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; }
   .seg--many .seg-track { min-width: max-content; }
@@ -9443,12 +8925,6 @@ video::cue {
   .dv-chevron { position: absolute; right: 8px; top: 14px; margin-left: 0; }
 }
 
-/* ============================================================
-   Retours visuels de base (5.0.2) : tout bouton a un survol, un appui et un
-   focus visibles, même sans règle dédiée. :where() = spécificité nulle : toute
-   règle propre à un composant l'emporte. Les composants déjà dotés de leurs
-   propres états sont exclus pour ne pas cumuler deux effets.
-   ============================================================ */
 :where(button, [role="button"], summary, a.btn):where(:not(:disabled):not([aria-disabled="true"]):not(.btn):not(.view-btn):not(.seg-btn):not(.dv-map-btn):not(.display-output-btn):not(.sheet-close):not(.glass-interactive)) {
   cursor: pointer;
   transition: transform var(--dur-fast, 160ms) var(--ease-out, ease-out), filter var(--dur-fast, 160ms) var(--ease-out, ease-out),
@@ -9472,12 +8948,9 @@ video::cue {
 @media (prefers-reduced-motion: reduce) {
   :where(button, [role="button"], summary, a.btn):active { transform: none; }
 }
-/* Boutons à état « actif » (bascule de filtres) et sélecteurs enrichis. */
+
 .mobile-filter-toggle-btn.active { background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-surface-elevated)); border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent); color: var(--accent-text); }
 
-/* ------------------------------------------------------------
-   Barre de recherche compacte (bibliothèque) : recherche, filtres et vue sur UNE ligne.
-   ------------------------------------------------------------ */
 @media (max-width: 768px) {
   .library-toolbar { flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; }
   .library-toolbar .toolbar-filters { display: contents; }
@@ -9487,10 +8960,6 @@ video::cue {
   .library-toolbar .toolbar-secondary-filters { order: 4; flex: 1 0 100%; }
 }
 
-/* ------------------------------------------------------------
-   Barres de choix à défilement horizontal (métriques, planning) : 3 choix visibles, le suivant
-   dépasse, fondus aux bords, accroche collante sur le choix visé — comme les onglets segmentés.
-   ------------------------------------------------------------ */
 @media (max-width: 720px) {
   .scroll-nav { container-type: inline-size; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; overflow-x: auto; scrollbar-width: none; }
   .scroll-nav::-webkit-scrollbar { display: none; }
@@ -9501,16 +8970,12 @@ video::cue {
   .schedule-toolbar > .scroll-nav { width: 100%; }
 }
 
-/* ============================================================
-   Boutons : contours marqués (3:1 sur la page), aplats, pas de halo.
-   ============================================================ */
 :root {
   --btn-outline: color-mix(in srgb, var(--text-main) 44%, transparent);
   --btn-outline-hover: color-mix(in srgb, var(--accent-text) 70%, var(--text-main) 10%);
 }
 .btn-danger { border-color: color-mix(in srgb, var(--accent-error) 55%, transparent); }
 
-/* Téléphone : le switch de sortie (câblée / réseau) se passe d'étiquette et se centre */
 @media (max-width: 720px) {
   .display-output-switch { justify-content: center; width: 100%; }
   .display-output-label {
@@ -9521,7 +8986,6 @@ video::cue {
   .rl-sections .display-output-buttons { justify-content: center; margin-inline: auto; }
 }
 
-/* Contours des champs et des surfaces interactives : au moins 3:1 (WCAG 1.4.11) */
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
 select, textarea {
   border-color: color-mix(in srgb, var(--text-main) 42%, transparent);
@@ -9532,8 +8996,6 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
   border-color: color-mix(in srgb, var(--text-main) 36%, transparent);
 }
 
-/* Télécommande radio sur téléphone : seul le switch reste en en-tête,
-   les commandes tiennent sur une ligne, en icônes. */
 @media (max-width: 720px) {
   .radio-remote-head .channel-card-left,
   .radio-remote-head .radio-remote-open { display: none; }
@@ -9554,9 +9016,9 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
   .live-controls--icons .control-btn-main { flex: 1.6 1 0; }
 }
 @media (max-width: 720px) {
-  /* Pas de volumes prédéfinis sur téléphone : le curseur suffit */
+  
   .live-controls--icons ~ .volume-row .volume-presets { display: none; }
-  /* Switch de sortie sans encadré : ni carte, ni pilule englobante */
+  
   .live-block.radio-remote-head {
     background: transparent; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none;
     padding-block: 0;
@@ -9571,11 +9033,6 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
   }
 }
 
-/* ============================================================
-   Indicateur de volume (télécommande, clavier, manette)
-   Verre flottant aux jetons du thème ; sans flou sur une vidéo en
-   lecture (même règle que les commandes du lecteur).
-   ============================================================ */
 .seek-osd {
   position: fixed;
   left: 50%;
@@ -9697,11 +9154,6 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
   .volume-osd, .volume-osd-fill { transition-duration: 0.01s; }
 }
 
-/* ============================================================
-   « Transparence réduite » (réglage du système) : plus aucun flou,
-   surfaces de verre remplacées par les surfaces pleines du thème.
-   Tout passe par les jetons : aucune règle de composant à modifier.
-   ============================================================ */
 @media (prefers-reduced-transparency: reduce) {
   :root,
   :root[data-theme] {
@@ -9713,10 +9165,6 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
   }
 }
 
-
-/* ============================================================
-   Stockage externe : même matériau que Périphériques (cartes .dv-row, .live-block) ; uniquement des jetons.
-   ============================================================ */
 .st-page .dv-quiet-actions { gap: 8px; flex-wrap: wrap; }
 .st-explorer { padding-bottom: 8px; }
 .st-crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; min-width: 0; flex: 1 1 200px; }
@@ -9760,10 +9208,6 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
   .st-entry { gap: 10px; }
 }
 
-/* ============================================================
-   Stockage externe : assistant « Préparer ce support » (formatage). Zone d'effacement teintée par le jeton d'erreur du thème
-   (contrastes contrôlés sur les 18 palettes dans tests/themeContrast.test.ts), bouton danger sobre, uniquement des jetons.
-   ============================================================ */
 :root { --control-outline: var(--accent-text); }
 .fmt-erase { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: var(--radius-md); color: var(--text-main);
   background: color-mix(in srgb, var(--accent-error) 12%, var(--bg-surface-elevated));
@@ -9793,7 +9237,6 @@ select:focus, textarea:focus { border-color: var(--border-focus); }
 @keyframes fmt-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .fmt-steps li[data-state="running"] .material-symbols-outlined { animation: none; } }
 
-/* Languette d'invitation au défilement, en bas du héros ; animée par transform seulement. */
 .cinema-scroll-hint {
   position: absolute;
   left: 50%;

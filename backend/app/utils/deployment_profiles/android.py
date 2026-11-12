@@ -1,19 +1,4 @@
-"""Handler du profil `android` (app Chaquopy, voir docs/ARCHITECTURE.md).
-
-Contrairement aux autres profils, il n'existe PAS ici de superviseur léger
-(BobineTray, systemd --user) qui relance immédiatement le processus après
-`os._exit(0)` : le backend Python tourne intégré au même processus JVM que
-`MainActivity`/`BobineForegroundService` (Chaquopy). `START_STICKY`
-donne une chance au système de relancer le `Service` après un kill, mais
-sans garantie de délai ni de relance de l'UI visible (`MainActivity`) —
-contrairement à un simple redémarrage de sous-processus sur desktop. Les
-trois appelants de `restart_services()` (réinitialisation complète, restauration
-de sauvegarde, remise à zéro d'usine) restent des actions admin délibérées et
-rares, jamais déclenchées par un enregistrement de réglage courant — ce choix
-reste donc le moins mauvais en l'absence d'un mécanisme de relance dédié.
-NON TESTÉ sur matériel réel à ce stade — à valider avant de considérer ce
-chemin fiable en production.
-"""
+"""Handler du profil `android` (app Chaquopy, voir docs/ARCHITECTURE.md)."""
 
 import logging
 import os
@@ -29,32 +14,18 @@ _NOOP_REPORT: Callable[..., None] = lambda *a, **k: None  # noqa: E731
 
 
 def _get_android_context():
-    """Contexte applicatif Android via Chaquopy.
-
-    `PyApplication` n'expose AUCUN attribut statique `context` (l'ancien code
-    levait `type object 'PyApplication' has no attribute 'context'` à chaque
-    tentative de mise à jour ou de désinstallation depuis Réglages). La voie
-    documentée est `Python.getPlatform().getApplication()` — déjà utilisée par
-    `app/hardware/` et validée sur la tablette pilote."""
-    from com.chaquo.python import Python  # Chaquopy
+    from com.chaquo.python import Python
     return Python.getPlatform().getApplication()
 
 
 class AndroidHandler(ProfileHandler):
     profile = "android"
 
-    # `UpdateManager.downloadAndInstall` télécharge dans un thread JVM et
-    # rapporte l'issue par rappel HTTP (`/api/updates/_android-callback`) :
-    # `apply_update()` retourne bien avant la fin réelle.
     async_completion = True
     _store_managed: bool | None = None
 
     def asset_variant(self) -> str | None:
-        """"tv" si l'application tourne sous le flavor Android TV
-        (`applicationId` = `com.bobine.app.tv`, cf. build.gradle.kts) —
-        l'APK téléphone/tablette installé par-dessus ne la mettrait PAS à
-        jour, il installerait une seconde application à côté. Repli sur
-        l'APK téléphone en cas d'échec de lecture (jamais bloquant)."""
+        """"tv" si l'application tourne sous le flavor Android TV (`applicationId` = `com.bobine.app.tv`, cf."""
         try:
             return "tv" if str(_get_android_context().getPackageName()).endswith(".tv") else "mobile"
         except Exception:
@@ -69,9 +40,6 @@ class AndroidHandler(ProfileHandler):
         os._exit(0)
 
     def restart_is_guaranteed(self) -> bool:
-        # Aucune relance explicite et sûre n'a pu être éprouvée sans appareil : un Intent programmé depuis un processus
-        # qui sort est soumis aux limites de démarrage en arrière-plan (Android 10+) et aux politiques des
-        # constructeurs. START_STICKY reste le seul mécanisme, sans garantie de délai.
         return False
 
     def can_self_uninstall(self) -> bool:
@@ -79,7 +47,7 @@ class AndroidHandler(ProfileHandler):
 
     def start_uninstall(self) -> None:
         try:
-            from java import jclass  # Chaquopy
+            from java import jclass
             Uri = jclass("android.net.Uri")
             Intent = jclass("android.content.Intent")
             context = _get_android_context()
@@ -102,22 +70,21 @@ class AndroidHandler(ProfileHandler):
         return False
 
     def is_store_managed(self) -> bool:
-        """Vrai pour le build Google Play (`BuildConfig.STORE_BUILD`, cf. build.gradle.kts)."""
+        """Vrai pour le build Google Play."""
         if self._store_managed is not None:
             return self._store_managed
         try:
-            from java import jclass  # Chaquopy
-            self._store_managed = bool(jclass("com.bobine.app.BuildConfig").STORE_BUILD)  # constante de build : lue une fois
+            from java import jclass
+            self._store_managed = bool(jclass("com.bobine.app.BuildConfig").STORE_BUILD)
         except Exception:
             return False
         return self._store_managed
 
-    # --- Google Play (build « play ») : Google Play télécharge et installe, Bobine ne fait que le déclencher ---
     @staticmethod
     def _store_call(method: str) -> dict:
         import json
 
-        from java import jclass  # Chaquopy
+        from java import jclass
 
         raw = getattr(jclass("com.bobine.app.StoreUpdates").INSTANCE, method)(_get_android_context())
         data = json.loads(str(raw))
@@ -160,10 +127,6 @@ class AndroidHandler(ProfileHandler):
         return False
 
     def can_schedule_auto_apply(self) -> bool:
-        # Pas de mise à jour planifiée sur Android ni Android TV : l'installation exige un tap de
-        # confirmation (jamais d'installation silencieuse par PackageInstaller ou Device Owner), donc
-        # une planification ne ferait que télécharger un APK et laisser une boîte de dialogue sans
-        # personne devant l'écran. La recherche, la notification et le bouton manuel restent actifs.
         return False
 
     def apply_update(
@@ -179,31 +142,16 @@ class AndroidHandler(ProfileHandler):
                 "Aucun lien de téléchargement d'APK disponible pour la mise à jour."
             )
         if not asset_digest:
-            # Fail-closed, comme `download_with_progress` sur les profils de
-            # bureau : un APK jamais vérifié ne doit pas arriver jusqu'au
-            # dialogue d'installation (l'ancien chemin Android n'avait aucune
-            # vérification d'intégrité).
             raise UpdateUnsupported(
                 "Empreinte SHA-256 indisponible pour l'APK — installation annulée par précaution."
             )
         report("downloading", percent=0, message="Téléchargement de l'APK sur l'appareil…")
         try:
-            from java import jclass  # Chaquopy
+            from java import jclass
             context = _get_android_context()
             update_mgr = jclass("com.bobine.app.UpdateManager")
-            # Tor : seulement un proxy déjà ouvert (Orbot) ; une application ne lance pas Tor sur Android.
             socks_proxy = TorSession().address if tor_proxy.is_enabled() else None
             update_mgr.INSTANCE.downloadAndInstall(context, download_url, asset_digest, socks_proxy)
         except Exception as exc:
             logger.exception("Échec du déclenchement de la mise à jour Android via UpdateManager")
             raise UpdateUnsupported(f"Impossible de déclencher la mise à jour Android : {exc}") from exc
-        # `downloadAndInstall` (Kotlin) lance le téléchargement dans SON
-        # PROPRE thread et rend la main immédiatement. La progression, la
-        # vérification SHA-256, la validation du paquet (nom, signature,
-        # versionCode) et l'étape finale ("en attente de confirmation" /
-        # "échec") sont rapportées par le rappel Kotlin ->
-        # `POST /api/updates/_android-callback` (cf. api/routes/updates.py).
-        # La confirmation finale nécessitera un tap utilisateur sur la
-        # boîte de dialogue système Android (jamais d'installation
-        # silencieuse, cf. can_schedule_auto_apply) — et `async_completion`
-        # empêche l'orchestrateur de conclure "terminé" à tort ici.

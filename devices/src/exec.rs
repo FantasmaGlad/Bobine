@@ -1,7 +1,3 @@
-//! Exécution de commandes système : jamais de shell, délai d'expiration, entrée standard optionnelle.
-//! Les arguments sont passés tels quels (aucune interprétation) ; un mot de passe se transmet par
-//! `stdin` chaque fois que l'outil le permet, jamais en argument.
-
 use crate::protocol::RpcError;
 use std::io::{Read, Write};
 use std::process::{Command, Stdio};
@@ -23,8 +19,6 @@ pub fn run(
     run_with_env(program, args, timeout, stdin, &[])
 }
 
-/// Variante avec variables d'environnement : sert à passer une valeur à PowerShell SANS l'interpoler
-/// dans le script (`$env:BOBINE_ARG`), donc sans aucun risque d'injection.
 pub fn run_with_env(
     program: &str,
     args: &[&str],
@@ -93,7 +87,6 @@ fn read_all<R: Read>(reader: Option<&mut R>) -> String {
     String::from_utf8_lossy(&buffer).into_owned()
 }
 
-/// Vrai si l'outil est trouvé dans le PATH.
 pub fn tool_exists(program: &str) -> bool {
     let Some(path) = std::env::var_os("PATH") else {
         return false;

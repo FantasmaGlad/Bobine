@@ -1,6 +1,3 @@
-"""Commande `bobine` : chaque commande appelle la même route que l'interface (parité), codes de sortie stables,
-`--json` seul sur stdout, journaux sur stderr, démarrage sans charger l'icône système."""
-
 import io
 import json
 import subprocess
@@ -19,7 +16,6 @@ BACKEND = Path(__file__).resolve().parents[1]
 
 
 class Recorder:
-    """Remplace le transport HTTP : note chaque appel et renvoie une réponse plausible."""
 
     def __init__(self, responses=None):
         self.calls = []
@@ -110,7 +106,6 @@ def test_no_argument_prints_the_help(capsys):
 
 
 def test_global_options_are_kept_before_the_subcommand():
-    """`bobine --host ... status` doit viser la machine demandée, pas la machine locale."""
     args = cli.build_parser().parse_args(["--host", "192.0.2.1", "--port", "1234", "--json", "status"])
     assert (args.host, args.port, args.json) == ("192.0.2.1", 1234, True)
 
@@ -126,8 +121,8 @@ def test_invalid_ports_are_usage_errors(monkeypatch, capsys):
 
 
 def test_exit_codes(recorder, capsys):
-    assert cli.main(["diagnose"]) == cli.EXIT_ERROR  # un problème trouvé
-    assert cli.main(["update", "apply"]) == cli.EXIT_USAGE  # --yes exigé
+    assert cli.main(["diagnose"]) == cli.EXIT_ERROR
+    assert cli.main(["update", "apply"]) == cli.EXIT_USAGE
     assert cli.main(["playback", "cable", "load", "sans-egal"]) == cli.EXIT_USAGE
     assert cli.main(["inconnue"]) == cli.EXIT_USAGE
     assert cli.main(["status"]) == cli.EXIT_OK
@@ -481,8 +476,6 @@ def test_playback_and_radio_status_read_the_snapshot(recorder, capsys):
     assert json.loads(capsys.readouterr().out) == {"playing": True}
 
 
-# --- hygiène du client (étape 1 du plan de parité) --------------------------------------------------------------------
-
 def test_path_segments_are_quoted(recorder):
     cli.main(["imports", "cancel", "../playlists/1?x=1"])
     assert recorder.calls[0][1] == "/api/import-jobs/..%2Fplaylists%2F1%3Fx%3D1"
@@ -571,8 +564,6 @@ def test_config_documents_keep_their_place_in_the_tree(tmp_path):
     assert sorted(cli_config._read_documents([str(tmp_path / "playlists" / "video.json")])) == ["playlists/video.json"]
     assert sorted(cli_config._read_documents([str(tmp_path / "settings.json")])) == ["settings.json"]
 
-
-# --- diagnose --auto-fix, complétion, -V ----------------------------------------------------------------------------------
 
 REPORT = {"status": "warning", "checks": [], "problems": [
     {"code": "import_job_stuck", "severity": "warning", "message": "bloqué", "remedy": "annuler",

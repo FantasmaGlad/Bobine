@@ -93,7 +93,6 @@ function BackgroundCard({
           </div>
         )}
 
-        {/* Badges en superposition */}
         <div style={{ position: "absolute", top: 8, left: 8, display: "flex", flexDirection: "column", gap: "6px", zIndex: 3 }}>
           {isDefault && (
             <span
@@ -205,7 +204,6 @@ function BackgroundCard({
 export default function BackgroundsPage() {
   const { t } = useAppSettings();
 
-  // Écoute des deux sorties (câblée et réseau) pour refléter l'état réel de diffusion
   const { state: cableState, sendCommand: sendCableCommand } = usePlaybackSocket(undefined, undefined, "cable");
   const { state: networkState, sendCommand: sendNetworkCommand } = usePlaybackSocket(undefined, undefined, "network");
 
@@ -214,17 +212,14 @@ export default function BackgroundsPage() {
   const [loading, setLoading] = useState(true);
   const { toast, showToast } = useToast();
 
-  // Modale d'aperçu / inspection
   const [inspectingBg, setInspectingBg] = useState<BackgroundItem | null>(null);
 
-  // Uploads
   const [pendingSpecs, setPendingSpecs] = useState<Array<PendingUploadSpec & { key: string }>>([]);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addUploads, uploads } = useUploadManager();
   const seenDoneIds = useRef<Set<string>>(new Set());
 
-  // Suppression
   const [toDelete, setToDelete] = useState<BackgroundItem | null>(null);
 
   const fetchSettings = async () => {
@@ -237,7 +232,6 @@ export default function BackgroundsPage() {
         );
       }
     } catch {
-      // Ignorer silencieusement
     }
   };
 
@@ -262,7 +256,6 @@ export default function BackgroundsPage() {
     fetchSettings();
   }, []);
 
-  // Rafraîchit la liste dès qu'un import se termine
   useEffect(() => {
     const newlyDone = uploads.filter(
       (u) => (u.kind === "background" || u.kind === "background_zip") && u.status === "done" && !seenDoneIds.current.has(u.id)
@@ -272,7 +265,6 @@ export default function BackgroundsPage() {
     fetchBackgrounds();
   }, [uploads]);
 
-  /** Les archives partent telles quelles (un fond par fichier contenu) ; le reste passe par la liste d'attente. */
   const addFiles = (all: File[]) => {
     const archives = all.filter((f) => isArchiveName(f.name));
     if (archives.length > 0) addUploads(archives.map((file) => ({ kind: "background_zip" as const, file, title: file.name })));
@@ -385,7 +377,6 @@ export default function BackgroundsPage() {
         </div>
       )}
 
-      {/* En-tête de section Hub d'Ambiances */}
       <div className="library-header-bar" style={{ marginBottom: "8px" }}>
         <div>
           <h1 style={{ fontFamily: "var(--font-title)", fontSize: "1.5rem", fontWeight: 900, margin: "0 0 4px" }}>
@@ -420,7 +411,6 @@ export default function BackgroundsPage() {
         </div>
       </div>
 
-      {/* Bandeaux de statut si une ambiance est active en direct */}
       {(isCableBgActive || isNetworkBgActive) && (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
           {isCableBgActive && (
@@ -460,7 +450,6 @@ export default function BackgroundsPage() {
         </div>
       )}
 
-      {/* Zone de téléversement Drag & Drop — affichée au survol glisser-déposer ou quand des fichiers sont prêts */}
       {(dragActive || pendingSpecs.length > 0) && (
       <div
         className={`upload-zone ${dragActive ? "drag-active" : ""}`}
@@ -525,7 +514,6 @@ export default function BackgroundsPage() {
       </div>
       )}
 
-      {/* Grille des cartes d'ambiance */}
       {loading ? (
         <div style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center", minHeight: "300px", color: "var(--text-muted)" }}>
           {t("backgrounds.loadingBackgrounds")}
@@ -551,7 +539,6 @@ export default function BackgroundsPage() {
         </div>
       )}
 
-      {/* Modale d'inspection et de prévisualisation grand format */}
       {inspectingBg && (
         <div className="modal-overlay" onClick={() => setInspectingBg(null)}>
           <div
@@ -575,7 +562,6 @@ export default function BackgroundsPage() {
               </button>
             </div>
 
-            {/* Lecteur grand format */}
             <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", borderRadius: "10px", overflow: "hidden", background: "var(--ink)", marginBottom: "16px" }}>
               {inspectingBg.is_image ? (
                 <img
@@ -596,7 +582,6 @@ export default function BackgroundsPage() {
               )}
             </div>
 
-            {/* Métadonnées & Statut */}
             <div
               style={{
                 display: "grid",
@@ -627,7 +612,6 @@ export default function BackgroundsPage() {
               </div>
             </div>
 
-            {/* Actions principales */}
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <div style={{ display: "flex", gap: "10px" }}>
                 <button
@@ -680,7 +664,6 @@ export default function BackgroundsPage() {
         </div>
       )}
 
-      {/* Confirmation de suppression */}
       {toDelete && (
         <div className="modal-overlay">
           <div className="modal-content">

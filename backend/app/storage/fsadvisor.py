@@ -1,17 +1,4 @@
-"""Conseiller de système de fichiers (logique PURE, textes d'interface côté frontend en FR/EN).
-
-Deux usages :
-
-* `assess_filesystem` : pour un volume DÉJÀ branché, verdict (recommandé / acceptable / déconseillé),
-  raison et conséquences sur la longévité (journal, droits, limite de taille, sûreté à l'arrachage) ;
-* `recommend_format` : selon l'OS qui héberge Bobine ET les autres OS qui brancheront le support,
-  système de fichiers conseillé, avec la procédure INDICATIVE par OS.
-
-Ce module ne formate JAMAIS : il décrit, il n'exécute rien. Un éventuel assistant de formatage est une
-action destructive hors de la phase 1 (décision du mainteneur).
-
-Les raisons sont des CODES stables (`reason`, `notes`) ; le frontend les traduit (`storage.fs.*`).
-"""
+"""Conseiller de système de fichiers (logique PURE, textes d'interface côté frontend en FR/EN)."""
 
 from __future__ import annotations
 
@@ -19,11 +6,8 @@ from dataclasses import dataclass
 from typing import Any
 
 OSES = ("linux", "windows", "macos", "android")
-# Support : flash (clé, SD, SSD) ou rotatif.
 MEDIA = ("flash", "ssd", "hdd")
 
-# Propriétés par système de fichiers : journal (survit mieux à un arrachage), droits Unix, limite de taille d'un fichier,
-# systèmes qui le lisent/écrivent sans composant tiers.
 _FS: dict[str, dict[str, Any]] = {
     "ext4": {"journal": True, "permissions": True, "max_file_gib": None, "native": {"linux"}, "readable_elsewhere": set()},
     "ext3": {"journal": True, "permissions": True, "max_file_gib": None, "native": {"linux"}, "readable_elsewhere": set()},
@@ -50,9 +34,9 @@ def normalize_fs(fstype: str | None) -> str:
 @dataclass(frozen=True)
 class Assessment:
     fstype: str
-    verdict: str  # recommended | acceptable | discouraged | unknown
-    reason: str  # code
-    notes: tuple[str, ...]  # codes de conséquences (longévité, droits, limite, arrachage)
+    verdict: str
+    reason: str
+    notes: tuple[str, ...]
     journal: bool | None
     permissions: bool | None
     max_file_gib: int | None
@@ -113,7 +97,6 @@ def assess_filesystem(
     elif fs == "vfat":
         verdict, reason = (DISCOURAGED, "fat_limits") if use == "library" else (ACCEPTABLE, "fat_limits")
     elif fs == "exfat":
-        # Le meilleur compromis pour un support qui voyage, mais sans journal : lecture seule privilégiée.
         verdict, reason = (RECOMMENDED, "exfat_travel") if (others or host_os != "linux") else (ACCEPTABLE, "exfat_no_journal")
         notes.append("prefer_read_only")
     elif fs == "ntfs":
@@ -135,7 +118,6 @@ def assess_filesystem(
     return Assessment(fs, verdict, reason, tuple(notes), info["journal"], info["permissions"], info["max_file_gib"], write_allowed)
 
 
-# Procédures INDICATIVES (jamais exécutées par Bobine). `{device}` est un exemple à remplacer.
 _PROCEDURES: dict[tuple[str, str], list[str]] = {
     ("linux", "ext4"): ["sudo mkfs.ext4 -L BOBINE /dev/sdX1", "GNOME Disques / KDE Partition Manager : Formater > Ext4"],
     ("linux", "exfat"): ["sudo mkfs.exfat -L BOBINE /dev/sdX1", "GNOME Disques : Formater > Autres > exFAT"],
@@ -160,9 +142,7 @@ def recommend_format(
     use: str = "library",
     legacy_readers: bool = False,
 ) -> dict[str, Any]:
-    """Système de fichiers conseillé selon l'OS hôte de Bobine et les autres OS qui brancheront le support.
-
-    `legacy_readers` : très vieux lecteurs (autoradio, TV ancienne) qui ne lisent que FAT32."""
+    """Système de fichiers conseillé selon l'OS hôte de Bobine et les autres OS qui brancheront le support."""
     host = host_os if host_os in OSES else "linux"
     others = tuple(sorted({o for o in other_oses if o in OSES and o != host}))
     notes: list[str] = []
@@ -182,7 +162,7 @@ def recommend_format(
     elif host == "windows":
         fs, reason = "ntfs", "windows_only"
         notes += ["journal_unplug_ok", "no_file_limit"]
-    else:  # macOS seul
+    else:
         if media == "hdd":
             fs, reason = "hfsplus", "macos_only_hdd"
         else:
@@ -205,5 +185,5 @@ def recommend_format(
         "media": media if media in MEDIA else "flash",
         "procedures": {os_name: _PROCEDURES.get((os_name, fs), []) for os_name in OSES if _PROCEDURES.get((os_name, fs))},
         "alternatives": alternatives,
-        "destructive": True,  # formater efface tout : Bobine ne le fait jamais seul
+        "destructive": True,
     }

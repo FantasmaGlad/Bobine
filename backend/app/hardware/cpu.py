@@ -11,14 +11,11 @@ import psutil
 
 from .probe import _HARDWARE_CACHE, _get_android_prop, is_android_system
 
-# État de lissage CPU non bloquant
-_LAST_CPU_TIMES: tuple[float, float, float] = (0.0, 0.0, 0.0)  # (wall_time, total_ticks, idle_ticks)
+_LAST_CPU_TIMES: tuple[float, float, float] = (0.0, 0.0, 0.0)
 _LAST_SMOOTH_CPU_PCT: float = 0.0
 
 
-# Dictionnaire de correspondance commerciale des SoCs Qualcomm Snapdragon, MediaTek, Google Tensor et Samsung Exynos
 _SOC_NAME_MAP: dict[str, str] = {
-    # Qualcomm Snapdragon 8 Series
     "SM8750": "Qualcomm Snapdragon 8 Elite",
     "SM8735": "Qualcomm Snapdragon 8 Elite",
     "SM8735P": "Qualcomm Snapdragon 8 Elite",
@@ -38,18 +35,15 @@ _SOC_NAME_MAP: dict[str, str] = {
     "SM8250": "Qualcomm Snapdragon 865",
     "KONA": "Qualcomm Snapdragon 865",
     "SM8150": "Qualcomm Snapdragon 855",
-    # Qualcomm Snapdragon 7 Series
     "SM7675": "Qualcomm Snapdragon 7+ Gen 3",
     "SM7550": "Qualcomm Snapdragon 7 Gen 3",
     "SM7475": "Qualcomm Snapdragon 7+ Gen 2",
     "SM7450": "Qualcomm Snapdragon 7 Gen 1",
     "SM7325": "Qualcomm Snapdragon 778G",
     "SM7250": "Qualcomm Snapdragon 765G",
-    # Qualcomm Snapdragon 6/4 Series
     "SM6450": "Qualcomm Snapdragon 6 Gen 1",
     "SM6375": "Qualcomm Snapdragon 695",
     "SM4450": "Qualcomm Snapdragon 4 Gen 2",
-    # Google Tensor
     "TENSOR G4": "Google Tensor G4",
     "ZUMA PRO": "Google Tensor G4",
     "TENSOR G3": "Google Tensor G3",
@@ -58,7 +52,6 @@ _SOC_NAME_MAP: dict[str, str] = {
     "CLOUDRIPPER": "Google Tensor G2",
     "TENSOR": "Google Tensor G1",
     "WHITECAP": "Google Tensor G1",
-    # MediaTek Dimensity
     "MT6991": "MediaTek Dimensity 9400",
     "MT6989": "MediaTek Dimensity 9300",
     "MT6985": "MediaTek Dimensity 9200",
@@ -69,23 +62,17 @@ _SOC_NAME_MAP: dict[str, str] = {
 
 
 def get_cpu_model_name() -> str:
-    """
-    Retourne le nom commercial du processeur (ex: AMD Ryzen 7 8840U, Intel Celeron J4105,
-    Apple M1 Pro, Qualcomm Snapdragon 8 Elite).
-    Prise en charge multi-OS : Linux (desktop/headless), macOS, Windows, Android.
-    """
+    """Retourne le nom commercial du processeur (ex: AMD Ryzen 7 8840U, Intel Celeron J4105, Apple M1 Pro, Qualcomm Snapdragon 8 Elite)."""
     if _HARDWARE_CACHE["cpu_name"]:
         return _HARDWARE_CACHE["cpu_name"]
 
     name = ""
     is_android = is_android_system()
 
-    # 1. ANDROID : détection SoC via getprop et sysfs
     if is_android:
         soc_model = _get_android_prop("ro.soc.model").strip()
         platform_code = _get_android_prop("ro.board.platform").strip()
 
-        # Lecture sysfs /sys/devices/soc0 si disponible
         soc_family = ""
         soc_machine = ""
         if os.path.exists("/sys/devices/soc0/family"):
@@ -117,7 +104,6 @@ def get_cpu_model_name() -> str:
         if not name and platform_code:
             name = f"Qualcomm Snapdragon ({platform_code})"
 
-    # 2. LINUX (Desktop / Wyse Headless)
     if not name and sys.platform.startswith("linux"):
         if os.path.exists("/proc/cpuinfo"):
             try:
@@ -135,7 +121,6 @@ def get_cpu_model_name() -> str:
             except Exception:
                 pass
 
-    # 3. macOS
     if not name and sys.platform == "darwin":
         try:
             out = subprocess.check_output(["sysctl", "-n", "machdep.cpu.brand_string"], text=True).strip()
@@ -144,9 +129,7 @@ def get_cpu_model_name() -> str:
         except Exception:
             pass
 
-    # 4. WINDOWS
     if not name and sys.platform == "win32":
-        # Lecture registre Windows (instantanée, zéro WMI)
         try:
             import winreg
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as k:
@@ -197,19 +180,14 @@ def get_cpu_temp() -> float | None:
 
 
 def get_cpu_percent() -> float:
-    """
-    Calcule la charge CPU globale du système de manière non bloquante et lissée.
-    Prise en charge multi-OS : Linux (desktop/headless), Windows, macOS, Android (SELinux).
-    """
+    """Calcule la charge CPU globale du système de manière non bloquante et lissée."""
     global _LAST_CPU_TIMES, _LAST_SMOOTH_CPU_PCT
     now = time.time()
     last_wall, last_total, last_idle = _LAST_CPU_TIMES
 
-    # Si mesuré il y a moins de 1.5s, renvoyer la valeur en cache pour éviter les micro-saccades
     if last_wall > 0 and (now - last_wall) < 1.5:
         return _LAST_SMOOTH_CPU_PCT
 
-    # 1. Linux & Wyse Headless via /proc/stat (non bloquant, instantané)
     if os.path.exists("/proc/stat"):
         try:
             with open("/proc/stat", "r", encoding="utf-8") as f:
@@ -228,7 +206,6 @@ def get_cpu_percent() -> float:
         except Exception:
             pass
 
-    # 2. Repli /proc/loadavg (normalisé par nombre de cœurs) si /proc/stat est restreint par SELinux
     if os.path.exists("/proc/loadavg"):
         try:
             with open("/proc/loadavg", "r", encoding="utf-8") as f:
@@ -243,7 +220,6 @@ def get_cpu_percent() -> float:
         except Exception:
             pass
 
-    # 3. Repli psutil sans intervalle bloquant (Windows, macOS)
     try:
         val = psutil.cpu_percent(interval=None)
         if val > 0.0:
@@ -253,7 +229,6 @@ def get_cpu_percent() -> float:
     except Exception:
         pass
 
-    # 4. Repli /proc/self/stat pour bacs à sable stricts (Android untrusted_app)
     if os.path.exists("/proc/self/stat"):
         try:
             with open("/proc/self/stat", "r", encoding="utf-8") as f:

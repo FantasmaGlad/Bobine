@@ -1,7 +1,3 @@
-"""Résolution du port d'écoute (app/utils/port.py) : port préféré libre, port
-occupé, plage de repli épuisée, mode strict, fichier d'exécution écrit puis
-supprimé, et câblage (plus aucun 8000 littéral dans les lanceurs)."""
-
 import json
 import os
 import re
@@ -23,7 +19,6 @@ def _free_port() -> int:
 
 @pytest.fixture
 def held_port():
-    """Un port réellement occupé (socket en écoute) pour la durée du test."""
     sock = socket.socket()
     sock.bind(("0.0.0.0", 0))
     sock.listen()
@@ -36,11 +31,8 @@ def _isolated(monkeypatch, tmp_path):
     monkeypatch.delenv(port_mod.STRICT_ENV, raising=False)
     monkeypatch.setattr(port_mod, "runtime_dir", lambda: tmp_path)
     monkeypatch.setattr(port_mod, "_active_port", None)
-    # pas de gestionnaire SIGTERM ni d'atexit dans le processus de pytest
     monkeypatch.setattr(port_mod, "_cleanup_hooks_installed", True)
 
-
-# --- résolution ----------------------------------------------------------------
 
 def test_free_preferred_port_is_returned_unchanged():
     free = _free_port()
@@ -75,7 +67,6 @@ def test_exhausted_range_uses_a_system_assigned_port(monkeypatch):
     monkeypatch.setattr(port_mod, "_bind_error", all_busy)
     monkeypatch.setattr(port_mod, "_system_assigned_port", lambda host="0.0.0.0": 54321)
     assert port_mod.resolve_port(9000) == 54321
-    # le préféré et exactement FALLBACK_SPAN ports suivants ont été essayés
     assert attempted == list(range(9000, 9000 + port_mod.FALLBACK_SPAN + 1))
 
 
@@ -148,15 +139,12 @@ def test_invalid_port_is_rejected_without_a_traceback(bad):
         port_mod.resolve_port(bad)
 
 
-# --- fichier d'exécution -------------------------------------------------------
-
 def test_runtime_file_is_written_atomically_with_port_and_pid(tmp_path):
     written = port_mod.write_runtime_file(8003, 8000)
     assert written == tmp_path / port_mod.RUNTIME_FILE_NAME
     data = json.loads(written.read_text(encoding="utf-8"))
     assert data["port"] == 8003 and data["pid"] == os.getpid()
     assert data["preferred"] == 8000 and data["fallback"] is True
-    # aucun fichier temporaire ne subsiste
     assert [p.name for p in tmp_path.iterdir()] == [port_mod.RUNTIME_FILE_NAME]
 
 
@@ -217,8 +205,6 @@ def test_current_port_prefers_the_runtime_file_then_the_preferred_port(monkeypat
     assert port_mod.current_port() == 8004
 
 
-# --- cycle de vie des lanceurs -------------------------------------------------
-
 def test_acquire_publishes_then_release_cleans_up(monkeypatch, tmp_path):
     free = _free_port()
     monkeypatch.setattr(port_mod, "preferred_port", lambda: free)
@@ -256,8 +242,6 @@ def test_active_port_defaults_to_the_preferred_port(monkeypatch):
     assert port_mod.active_port() == 8042
 
 
-# --- câblage : aucun port littéral dans les lanceurs --------------------------
-
 _PORT_LITERAL = re.compile(r"(?<![\d.\-])(?:8000|1903)(?![\d\-])")
 
 _WIRED_FILES = [
@@ -293,12 +277,8 @@ def test_kotlin_endpoint_reads_the_file_the_backend_writes():
     assert "filesDir" in kotlin and "myPid" in kotlin
 
 
-# --- consommateurs du fichier d'exécution ----------------------------------------
-
 @pytest.fixture
 def tray(monkeypatch):
-    """Module du tray importé avec un `pystray` factice : le vrai exige un serveur
-    d'affichage (X11) à l'import, absent des exécuteurs de CI."""
     import importlib
     import sys
     from unittest.mock import MagicMock
@@ -358,7 +338,6 @@ def test_projector_window_resolves_a_callable_url_at_launch():
 
 
 def test_runtime_file_is_removed_when_the_process_receives_sigterm(tmp_path):
-    """uvicorn re-lève SIGTERM après son arrêt propre : le fichier doit disparaître quand même."""
     import signal
     import subprocess
     import sys

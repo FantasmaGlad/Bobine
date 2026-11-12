@@ -29,10 +29,6 @@ def verify(path: Path, tv: bool):
             raise ValueError(f"Unsigned bundle: {path}")
     result = subprocess.run(["jarsigner", "-J-Duser.language=en", "-verify", "-strict", str(path)],
                             text=True, capture_output=True)
-    # Exit 4 is expected for the self-signed upload certificate without a CA
-    # trust store. Other strict flags (unsigned entries, invalid key usage) and
-    # signature/digest errors must fail. Plain -verify also succeeds when an
-    # attacker adds unsigned files, so its "jar verified" message is insufficient.
     verified = any(line in ("jar verified.", "jar verified, with signer errors.")
                    for line in result.stdout.splitlines())
     if result.returncode not in (0, 4) or not verified:

@@ -27,48 +27,32 @@ from app.utils.activity_log import log_activity
 router = APIRouter(prefix="/api/schedule", tags=["schedule"])
 
 _TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
-# Quatre voies de planning, chacune pilotant SON moteur : les canaux de diffusion
-# câblé/réseau et les deux sorties radio (radio_cable/radio_network). L'ancien
-# identifiant "radio" (voie radio unique d'avant les deux sorties) reste accepté
-# en entrée et désigne la sortie réseau.
 _CHANNELS = SCHEDULE_CHANNELS
 
 
 def _normalize_channel(value: str | None) -> str | None:
-    """Voie de planning canonique, ou None si la valeur est absente/inconnue
-    (l'alias historique "radio" devient "radio_network")."""
     if value == LEGACY_RADIO_CHANNEL:
         return normalize_radio_channel(value)
     return value if value in _CHANNELS else None
 
 
 def _storage_channel(value: str | None, target_type: ScheduleTargetType) -> str:
-    """Voie à enregistrer. Une cible radio vit toujours sur une voie radio ; toute
-    autre cible retombe sur le câblé quand la voie demandée est invalide."""
     channel = _normalize_channel(value)
     if target_type == ScheduleTargetType.radio_playlist:
         return channel if channel in RADIO_CHANNELS else normalize_radio_channel(None)
     return channel if channel in CHANNELS else DEFAULT_CHANNEL
 
 
-# ---------------------------------------------------------------------------
-# Schémas Pydantic
-# ---------------------------------------------------------------------------
 class ScheduleInput(BaseModel):
     target_type: ScheduleTargetType
     target_id: int
-    # Canal de diffusion ciblé : un planning par canal, "cable" par défaut (compatibilité).
     channel: str = DEFAULT_CHANNEL
     schedule_type: ScheduleType
     run_at: datetime | None = None
-    days_of_week: List[int] | None = None  # 0=lundi .. 6=dimanche
-    time_of_day: str | None = None  # "HH:MM"
+    days_of_week: List[int] | None = None
+    time_of_day: str | None = None
     active: bool = True
-    # Fenêtre radio : sans objet pour target_type
-    # video/playlist, silencieusement ignorés dans ce cas. Uniquement pour
-    # les programmations RÉCURRENTES (cf. _validate_and_normalize) — fin de
-    # fenêtre, ou 24/7 (ne revient jamais seul au défaut).
-    end_time: str | None = None  # "HH:MM"
+    end_time: str | None = None
     is_24_7: bool = False
 
 
@@ -93,7 +77,7 @@ class ScheduleResponse(BaseModel):
 
 
 class OverrideInput(BaseModel):
-    occurrence_date: str  # "YYYY-MM-DD"
+    occurrence_date: str
     action: OverrideAction
     replacement_target_type: ScheduleTargetType | None = None
     replacement_target_id: int | None = None
@@ -117,10 +101,6 @@ class OccurrenceResponse(BaseModel):
     target_id: int
     title: str | None
     program: str | None
-    # Bloc proportionnel
-    # à la durée réelle (vidéo/playlist) ou à la fenêtre choisie (radio, où
-    # `duration_seconds` reste toujours None — le contenu boucle, seule la
-    # fenêtre `end_time`/`is_24_7` a un sens pour dimensionner le bloc).
     duration_seconds: float | None = None
     thumbnail_path: str | None = None
     cover_track_id: int | None = None
@@ -131,9 +111,6 @@ class OccurrenceResponse(BaseModel):
     override_id: int | None
 
 
-# ---------------------------------------------------------------------------
-# Aides internes
-# ---------------------------------------------------------------------------
 def _check_target_exists(db: Session, target_type: ScheduleTargetType, target_id: int) -> None:
     if target_type == ScheduleTargetType.video:
         found = db.query(Video).filter(Video.id == target_id).first()
@@ -146,7 +123,6 @@ def _check_target_exists(db: Session, target_type: ScheduleTargetType, target_id
 
 
 def _validate_and_normalize(data: ScheduleInput) -> tuple[datetime | None, str | None]:
-    """Valide la cohérence des champs selon le type, renvoie (run_at, recurrence_rule_json)."""
     if data.schedule_type == ScheduleType.once:
         if data.run_at is None:
             raise HTTPException(status_code=400, detail="Une programmation ponctuelle nécessite une date/heure")
@@ -166,9 +142,6 @@ def _validate_and_normalize(data: ScheduleInput) -> tuple[datetime | None, str |
 
     rule_dict: dict = {"days_of_week": sorted(set(data.days_of_week)), "time": data.time_of_day}
 
-    # Fenêtre radio : sans effet pour les autres cibles (le
-    # champ reste ignoré côté modèle vidéo/playlist — pas de risque de
-    # régression, `_sync_end_job` ne l'exploite que pour radio_playlist).
     if data.target_type == ScheduleTargetType.radio_playlist:
         if data.is_24_7:
             rule_dict["mode"] = "24_7"
@@ -216,9 +189,6 @@ def _to_response(db: Session, schedule: Schedule) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Programmations (CRUD)
-# ---------------------------------------------------------------------------
 @router.get("", response_model=List[ScheduleResponse])
 def list_schedules(channel: str | None = None, db: Session = Depends(get_db)):
     """Liste des programmations, filtrable par canal de diffusion."""
@@ -230,11 +200,7 @@ def list_schedules(channel: str | None = None, db: Session = Depends(get_db)):
 
 @router.get("/occurrences", response_model=List[OccurrenceResponse])
 def list_occurrences(start: datetime, end: datetime, channel: str | None = None, db: Session = Depends(get_db)):
-    """
-    Occurrences résolues (récurrence + overrides) dans [start, end], pour les
-    vues planning calendrier/liste. Inclut les occurrences
-    annulées (à afficher barrées côté UI). Filtrable par canal de diffusion.
-    """
+    """Occurrences résolues (récurrence + overrides) dans [start, end], pour les vues planning calendrier/liste."""
     start, end = ensure_utc(start), ensure_utc(end)
     if end <= start:
         raise HTTPException(status_code=400, detail="La date de fin doit être postérieure à la date de début")
@@ -246,11 +212,7 @@ def list_occurrences(start: datetime, end: datetime, channel: str | None = None,
 
 @router.get("/next")
 def get_next_schedule(channel: str | None = None, db: Session = Depends(get_db)):
-    """
-    Prochaine occurrence active à venir, récurrence et overrides résolus, pour
-    le bloc « prochain cours » de l'écran d'attente.
-    Filtrable par canal (chaque kiosk n'affiche que le planning de SON canal).
-    """
+    """Prochaine occurrence active à venir, récurrence et overrides résolus, pour le bloc « prochain cours » de l'écran d'attente."""
     now = datetime.now(timezone.utc)
     horizon = now + timedelta(days=60)
     query = db.query(Schedule).filter(Schedule.active == True)  # noqa: E712
@@ -331,9 +293,6 @@ async def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
     return {"message": "Programmation supprimée avec succès"}
 
 
-# ---------------------------------------------------------------------------
-# Overrides (exceptions ponctuelles sur une programmation récurrente)
-# ---------------------------------------------------------------------------
 @router.post("/{schedule_id}/overrides", response_model=OverrideResponse)
 def create_override(schedule_id: int, data: OverrideInput, db: Session = Depends(get_db)):
     schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
@@ -352,8 +311,6 @@ def create_override(schedule_id: int, data: OverrideInput, db: Session = Depends
             raise HTTPException(status_code=400, detail="Une occurrence remplacée nécessite une cible de remplacement")
         _check_target_exists(db, data.replacement_target_type, data.replacement_target_id)
 
-    # Une occurrence n'a qu'un seul override actif à la fois : un override
-    # précédent sur la même date est remplacé silencieusement.
     existing = (
         db.query(ScheduleOverride)
         .filter(ScheduleOverride.schedule_id == schedule_id, ScheduleOverride.occurrence_date == occurrence_date)

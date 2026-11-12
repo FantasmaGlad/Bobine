@@ -1,6 +1,3 @@
-"""Garde-fous des workflows GitHub, lus comme du texte (aucune dépendance YAML) :
-déclencheur de tag aligné sur resolve-release.py, republication manuelle d'un tag
-construite depuis ce tag."""
 from __future__ import annotations
 
 import re
@@ -29,9 +26,9 @@ class TagCheckoutTests(unittest.TestCase):
         self.assertGreater(len(steps), 20)
         for block in steps:
             if "repository:" in block:
-                continue  # dépôts tiers (gh-pages, BobineWeb) : pas ce dépôt
+                continue
             if "path: .workflow-tools" in block:
-                continue  # révision du workflow, pour ses actions locales (publication d'un ancien tag Stable)
+                continue
             self.assertIn("ref: ${{ inputs.tag }}", block, block)
 
 
@@ -66,7 +63,7 @@ class ToolchainRustTests(unittest.TestCase):
 
     def test_chaque_job_qui_appelle_cargo_installe_la_toolchain_avant(self):
         parts = jobs(CI)
-        self.assertIn("rustup toolchain install", parts["linux-deb"])  # cargo y est lancé par les scripts de paquet
+        self.assertIn("rustup toolchain install", parts["linux-deb"])
         for name in self.JOBS_RUST:
             body = parts[name]
             install = body.find("rustup toolchain install")
@@ -77,10 +74,7 @@ class ToolchainRustTests(unittest.TestCase):
 
 
 class DocumentationSeuleTests(unittest.TestCase):
-    """Documentation seule : rien n'est construit ni publié. Pull request : seuls les jobs de la zone touchée."""
 
-    # Portée dont dépend chaque job : `code` tourne à toute modification de code, les autres seulement quand
-    # une pull request touche leur zone (un push sur main, un tag ou un déclenchement manuel construisent tout).
     PORTEES = {
         "frontend": "frontend", "firefox-smoke": "code", "backend": "code", "backend-android-compat": "code",
         "install-script": "install", "devices-sidecar": "devices", "media-component": "media",
@@ -100,7 +94,6 @@ class DocumentationSeuleTests(unittest.TestCase):
             self.assertIn(f'echo "{cle}=$(touche ', version)
 
     def test_chaque_artefact_a_une_retention_courte(self):
-        # play-aab.yml ne part que d'un déclenchement manuel : jamais de pull request, 3 jours.
         for texte, duree in ((CI, r"\$\{\{ github\.event_name == 'pull_request' && 1 \|\| 3 \}\}"), (PLAY, "3")):
             envois = re.findall(
                 r"uses: actions/upload-artifact@[^\n]*\n(?:[^\n]*\n){0,2}? +with:\n +retention-days: " + duree + r"\n",

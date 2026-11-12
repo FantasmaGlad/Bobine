@@ -20,11 +20,7 @@ def import_media_archive(
     import_one: Callable[[str, str], object],
     kind: str,
 ) -> list[object]:
-    """Extrait l'archive puis appelle `import_one(chemin, nom)` pour chaque fichier dont l'extension est acceptée.
-
-    Un fichier qui échoue n'arrête pas les autres ; la tâche n'échoue que si aucun fichier n'a pu être importé. La tâche finie garde
-    `files_done` < `files_total` quand certains fichiers ont été refusés. L'archive est supprimée dans tous les cas.
-    """
+    """Extrait l'archive puis appelle `import_one(chemin, nom)` pour chaque fichier dont l'extension est acceptée."""
     update_job(job_id, stage="extracting")
     imported: list[object] = []
     failures: list[str] = []
@@ -54,7 +50,7 @@ def import_media_archive(
                 update_job(job_id, files_done=len(imported))
             except JobCancelledError:
                 raise
-            except Exception as exc:  # un fichier illisible n'empêche pas les autres
+            except Exception as exc:
                 logger.warning("Import de %r depuis l'archive refusé : %s", path.name, exc)
                 failures.append(f"{path.name!r} : {exc}")
     if not imported:

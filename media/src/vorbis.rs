@@ -1,5 +1,3 @@
-//! Vorbis comments (FLAC, Ogg Vorbis, Opus) and the FLAC picture block.
-
 use crate::audio::{corrupt, cover_error, insert, limit, unsupported, Layout, Picture, Result};
 use crate::image;
 use crate::COVER_BYTES;
@@ -21,7 +19,6 @@ fn number_be(content: &mut &[u8]) -> Result<usize> {
     Ok(u32::from_be_bytes(take(content, 4)?.try_into().map_err(|_| corrupt())?) as usize)
 }
 
-/// A FLAC `PICTURE` block body, also the payload of an Ogg `METADATA_BLOCK_PICTURE` comment.
 pub(crate) fn flac_picture(block: &[u8]) -> Result<Picture> {
     let mut input = block;
     number_be(&mut input)?;
@@ -46,18 +43,12 @@ pub(crate) fn flac_picture(block: &[u8]) -> Result<Picture> {
     })
 }
 
-/// Which pictures a comment block may carry: FLAC has dedicated blocks and rejects the
-/// Ogg convention; Ogg Vorbis and Opus carry them as a Base64 comment.
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) enum Pictures {
     Refuse,
     Base64Comment,
 }
 
-/// Read a comment block (vendor string, then `KEY=value` items) into `layout`.
-///
-/// Keys that ffmpeg could map onto the fields the application reads are stored; a few
-/// keys known to be unrelated are skipped; any other key is outside the subset.
 pub(crate) fn read(
     content: &[u8],
     layout: &mut Layout,
@@ -181,7 +172,6 @@ mod tests {
             true,
         );
         assert_eq!(flac.unwrap_err().reason, "unsupported");
-        // Counted but not extracted when only the metadata is wanted.
         let mut counted = Layout::default();
         read(
             &block(&[&comment]),

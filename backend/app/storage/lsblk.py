@@ -1,11 +1,4 @@
-"""Analyse de `lsblk -J -b` et règles d'exclusion strictes (logique pure, testée sans matériel).
-
-Règle d'or : **un support n'est proposé que s'il est manifestement amovible** (USB, carte SD, disque
-hotplug, image disque de données). Tout disque portant un montage système, tout disque interne fixe
-et tout volume qui contient ou est contenu dans un dossier de données de Bobine est écarté avant
-même d'atteindre l'interface — et chaque action est revalidée contre l'inventaire courant (le client
-n'envoie jamais de chemin de périphérique).
-"""
+"""Analyse de `lsblk -J -b` et règles d'exclusion strictes (logique pure, testée sans matériel)."""
 
 from __future__ import annotations
 
@@ -20,16 +13,13 @@ from .types import Excluded, Inventory, Volume, make_key
 
 LSBLK_COLUMNS = "NAME,PATH,UUID,LABEL,FSTYPE,SIZE,RM,HOTPLUG,TRAN,MOUNTPOINTS,MODEL,SERIAL,TYPE,RO,ROTA,PKNAME,VENDOR,DISC-GRAN,PARTN"
 
-# Montages dont la présence sur un disque fait de lui un disque système (jamais proposé).
 SYSTEM_MOUNTS = ("/", "/boot", "/boot/efi", "/efi", "/home", "/var", "/usr", "/opt", "/srv", "/tmp", "/nix", "/gnu")
 SYSTEM_MOUNT_PREFIXES = ("/snap", "/var/lib/snapd", "/sysroot")
 
-# Systèmes de fichiers de données qu'un utilisateur peut raisonnablement brancher.
 DATA_FILESYSTEMS = frozenset({
     "vfat", "fat", "fat16", "fat32", "msdos", "exfat", "ntfs", "ntfs3", "ext2", "ext3", "ext4", "btrfs", "xfs",
     "f2fs", "hfsplus", "hfs", "apfs", "udf", "iso9660", "reiserfs", "jfs",
 })
-# Pour une image loop : jamais les images en lecture seule des snaps/AppImages/ISO.
 LOOP_ALLOWED_FILESYSTEMS = DATA_FILESYSTEMS - {"iso9660", "udf"}
 _NEVER_LISTED = frozenset({"swap", "squashfs", "erofs", "LVM2_member", "linux_raid_member", "zfs_member", "ceph_bluestore", "bcache"})
 _ENCRYPTED = frozenset({"crypto_LUKS", "BitLocker"})
@@ -38,7 +28,6 @@ _OCTAL = re.compile(r"\\([0-7]{3})")
 
 
 def _flag(value: Any) -> bool:
-    """Booléen de lsblk : `true`/`false` (récent), `"1"`/`"0"` ou entiers (ancien)."""
     if isinstance(value, bool):
         return value
     if value is None:
@@ -157,9 +146,7 @@ def parse_lsblk(
     is_sd_card: Callable[[str], bool] | None = None,
     include_images: bool = True,
 ) -> Inventory:
-    """Transforme la sortie de lsblk en inventaire de supports proposables + liste des exclusions.
-
-    `is_sd_card(nom_du_disque)` distingue une carte SD d'une mémoire eMMC interne (sysfs, injectable)."""
+    """Transforme la sortie de lsblk en inventaire de supports proposables + liste des exclusions."""
     payload = json.loads(data) if isinstance(data, str) else data
     mountinfo = list(mountinfo)
     protected = [p for p in protected_paths if p]
@@ -221,8 +208,7 @@ def parse_lsblk(
 
 
 def dedupe_keys(volumes: list[Volume]) -> list[Volume]:
-    """Deux supports portant le même UUID (clones) ne doivent jamais partager une clé : chacun reçoit un suffixe (leur
-    enregistrement est de toute façon refusé, voir `duplicate_uuids`)."""
+    """Deux supports portant le même UUID (clones) ne doivent jamais partager une clé : chacun reçoit un suffixe (leur enregistrement est de toute façon refusé, voir `duplicate_uuids`)."""
     counts: dict[str, int] = {}
     for v in volumes:
         counts[v.key] = counts.get(v.key, 0) + 1

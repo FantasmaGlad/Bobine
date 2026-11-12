@@ -1,5 +1,4 @@
-"""Résumé borné du contenu d'un support (ce qui sera EFFACÉ) : espace utilisé, nombre de fichiers, dossiers à la racine,
-médias que Bobine reconnaît. Lecture seule, sans suivre les liens symboliques, avec plafond de nombre et de durée."""
+"""Résumé borné du contenu d'un support (ce qui sera EFFACÉ) : espace utilisé, nombre de fichiers, dossiers à la racine, médias que Bobine reconnaît."""
 
 from __future__ import annotations
 

@@ -13,7 +13,6 @@ interface ChapterListProps {
   className?: string;
 }
 
-/** Chapitres du cours en cours : toucher une ligne y amène la lecture. Replié par défaut. */
 export default function ChapterList({ chapters, position, onSeek, className = "" }: ChapterListProps) {
   const { t } = useAppSettings();
   const [open, setOpen] = useState(false);

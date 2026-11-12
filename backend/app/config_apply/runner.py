@@ -11,10 +11,7 @@ from app.config_apply.values import _diff
 
 
 async def apply(db: Session, files: dict[str, Any], *, dry_run: bool, include_machine: bool) -> dict[str, Any]:
-    """Valide et applique `{nom de fichier: document}` ; lève `ConfigErrors` (rien n'est écrit) si un élément est
-    invalide. Renvoie l'écart par fichier, ce qui a été ignoré et ce qui demande un redémarrage. La validation et
-    l'écriture tournent hors de la boucle d'événements : un gros document ne fige ni les flux ni les écrans ; seuls
-    les effets à chaud (diffusions, moteurs) reviennent sur la boucle."""
+    """Valide et applique `{nom de fichier: document}` ; lève `ConfigErrors` (rien n'est écrit) si un élément est invalide."""
     result, effects = await run_in_threadpool(_validate_and_write, db, files, dry_run, include_machine)
     for effect in effects:
         await effect(db)
@@ -31,7 +28,7 @@ def _validate_and_write(
     for key, document in files.items():
         name = config_files.canonical_name(str(key))
         if name == "manifest.json":
-            continue  # index de l'export : rien à appliquer
+            continue
         if name in renamed:
             errors.append(f"{name} fourni deux fois (nom plat et arborescence)")
         renamed[name] = document
@@ -60,12 +57,8 @@ def _validate_and_write(
             try:
                 APPLIERS[name](ctx, name, document)
             except (AttributeError, IndexError, KeyError, TypeError, ValueError, SQLAlchemyError) as exc:
-                # Un document JSON mal typé (liste au lieu d'objet, chaîne au lieu d'entier...) est une erreur de
-                # validation : il ne doit jamais produire un 500. La transaction est annulée plus bas comme pour
-                # toute autre erreur.
                 ctx.fail(name, f"document invalide : {exc}")
         if not ctx.errors:
-            # Rendus visibles dans la transaction (non validée) : un fichier suivant peut citer ce qui vient d'être créé.
             try:
                 db.flush()
             except Exception as exc:

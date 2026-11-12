@@ -1,8 +1,3 @@
-"""Onglet « Périphériques » : analyseurs Linux, provenance des requêtes, routeur avec pilote factice,
-filet de sécurité Wi-Fi (retour automatique), sauvegarde et migration des réglages d'accès.
-
-Aucun matériel requis : le routeur est testé avec un pilote factice."""
-
 import asyncio
 import io
 import os
@@ -10,7 +5,6 @@ import sqlite3
 import tempfile
 import zipfile
 
-# Base de test isolée AVANT tout import de l'application (comme les autres tests).
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
@@ -39,10 +33,6 @@ from app.devices.service import DevicesService, service  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Setting  # noqa: E402
 
-
-# ---------------------------------------------------------------------------
-# Analyseurs d'outils Linux
-# ---------------------------------------------------------------------------
 
 PW_DUMP = [
     {"id": 41, "type": "PipeWire:Interface:Device", "info": {"props": {
@@ -120,7 +110,7 @@ def test_parse_wifi_list_dedupes_and_marks_known():
         "*:Livebox:76:WPA2:5180 MHz",
         " :Livebox:40:WPA2:2412 MHz",
         " :Voisin:55:WPA2 WPA3:2437 MHz",
-        " ::30:WPA2:2412 MHz",  # masqué : ignoré
+        " ::30:WPA2:2412 MHz",
         " :Cafe:20:--:2412 MHz",
     ])
     networks = parse_wifi_list(out, {"Livebox"})
@@ -138,11 +128,6 @@ def test_parse_known_wifi_and_device():
     assert parse_wifi_device("eth0:ethernet:connected:Wired") is None
 
 
-# ---------------------------------------------------------------------------
-# Provenance et accès
-# ---------------------------------------------------------------------------
-
-
 def test_local_client_detection():
     assert locality.is_local_client("127.0.0.1") and locality.is_local_client("::1")
     assert locality.is_local_client("::ffff:127.0.0.1")
@@ -158,11 +143,6 @@ def test_remote_client_reads_status_without_cookie(driver):
     assert body["local"] is False
     assert set(body) == {"local", "platform", "driver", "wifi_confirm_seconds", "capabilities"}
     assert "pin_set" not in body and "access" not in body
-
-
-# ---------------------------------------------------------------------------
-# Routeur avec pilote factice
-# ---------------------------------------------------------------------------
 
 
 class FakeDriver(DeviceDriver):
@@ -214,7 +194,7 @@ class FakeDriver(DeviceDriver):
 
 @pytest.fixture()
 def driver():
-    init_db()  # tables garanties quel que soit l'ordre d'exécution des tests
+    init_db()
     fake = FakeDriver()
     service.set_driver(fake)
     yield fake
@@ -258,7 +238,6 @@ def test_wifi_password_only_on_local_screen(driver, local, monkeypatch):
     ok = local_client.post("/api/devices/wifi/connect", json={"ssid": "Nouveau", "password": "secret-wifi"})
     assert ok.status_code == 200 and ok.json()["pending_change"]["seconds_left"] > 50
     assert ("connect", "Nouveau", "secret-wifi") in driver.calls
-    # Le mot de passe n'apparaît nulle part dans le journal d'activité.
     from app.models import ActivityLog
     with SessionLocal() as db:
         details = " ".join(str(r.detail) for r in db.query(ActivityLog).filter(ActivityLog.event_type.like("devices_%")).all())
@@ -272,7 +251,7 @@ def test_wifi_password_only_on_local_screen(driver, local, monkeypatch):
 
 def test_wifi_change_requires_ack_when_reached_through_wifi_and_confirm_clears(driver, local, monkeypatch):
     monkeypatch.undo()
-    client = remote("10.0.0.77")  # dans le sous-réseau du pilote factice
+    client = remote("10.0.0.77")
     blocked = client.post("/api/devices/wifi/connect", json={"ssid": "Maison"})
     assert blocked.status_code == 409 and blocked.json()["detail"]["code"] == "ack_required"
     ok = client.post("/api/devices/wifi/connect", json={"ssid": "Autre", "acknowledge_disconnect": True})
@@ -281,7 +260,7 @@ def test_wifi_change_requires_ack_when_reached_through_wifi_and_confirm_clears(d
     assert client.get("/api/devices/wifi").json()["pending_change"]["target"] == "Autre"
     assert client.post("/api/devices/wifi/confirm").json() == {"confirmed": True}
     assert client.get("/api/devices/wifi").json()["pending_change"] is None
-    outside = remote("10.9.9.4")  # hors du sous-réseau Wi-Fi : pas de confirmation préalable exigée
+    outside = remote("10.9.9.4")
     assert outside.post("/api/devices/wifi/connect", json={"ssid": "Maison"}).status_code == 200
 
 
@@ -301,11 +280,11 @@ def test_wifi_rollback_restores_previous_connection_when_not_confirmed():
         svc.arm_wifi_rollback("connect", "Maison", "Autre", seconds=0.05)
         assert svc.confirm_wifi_change() is True
         await asyncio.sleep(0.15)
-        assert fake.calls == []  # confirmé : aucun retour arrière
+        assert fake.calls == []
 
         svc.arm_wifi_rollback("power_off", None, "Wi-Fi", seconds=0.05)
         await asyncio.sleep(0.15)
-        assert ("power", True) in fake.calls  # coupure non confirmée : le Wi-Fi est rallumé
+        assert ("power", True) in fake.calls
 
     asyncio.run(scenario())
 
@@ -353,7 +332,7 @@ def test_event_is_a_data_free_signal(monkeypatch):
     monkeypatch.setattr("app.devices.service.ws_manager.broadcast_threadsafe", lambda message: sent.append(message))
     svc = DevicesService(driver_factory=lambda: FakeDriver())
     svc.notify("wifi")
-    svc.notify("wifi")  # rafale : dédoublonnée
+    svc.notify("wifi")
     assert sent == [{"event": "devices_changed", "scope": "wifi"}]
 
 
@@ -362,4 +341,4 @@ def test_system_settings_and_permission_routes(driver, local):
     assert client.post("/api/devices/system-settings", json={"target": "rm -rf"}).json()["detail"]["code"] == "bad_target"
     unsupported = client.post("/api/devices/system-settings", json={"target": "wifi"})
     assert unsupported.status_code == 501 and unsupported.json()["detail"]["code"] == "unsupported"
-    assert client.post("/api/devices/bluetooth/permission").status_code == 200  # no-op par défaut
+    assert client.post("/api/devices/bluetooth/permission").status_code == 200

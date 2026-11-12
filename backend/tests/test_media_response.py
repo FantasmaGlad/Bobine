@@ -1,7 +1,3 @@
-"""Conformité HTTP des flux média (RFC 9110) : HEAD, Range, If-Range, 416,
-ETag. Régression réelle observée sur Firefox 157 : `HEAD /stream` renvoyait
-la page HTML 404 du frontend avec un statut 206."""
-
 import os
 import sys
 from pathlib import Path
@@ -18,7 +14,7 @@ os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
 from app.utils.media_response import RangeNotSatisfiable, build_media_response, parse_byte_range  # noqa: E402
 
-PAYLOAD = bytes(range(256)) * 40  # 10 240 octets
+PAYLOAD = bytes(range(256)) * 40
 
 
 @pytest.fixture
@@ -38,14 +34,12 @@ def client(tmp_path):
     return TestClient(app)
 
 
-# --- analyse de l'en-tête Range ------------------------------------------------
-
 @pytest.mark.parametrize("header,size,expected", [
     ("bytes=0-99", 1000, (0, 99)),
     ("bytes=900-", 1000, (900, 999)),
     ("bytes=-100", 1000, (900, 999)),
-    ("bytes=-5000", 1000, (0, 999)),          # suffixe plus long que le fichier
-    ("bytes=500-5000", 1000, (500, 999)),     # fin au-delà : tronquée
+    ("bytes=-5000", 1000, (0, 999)),
+    ("bytes=500-5000", 1000, (500, 999)),
     ("bytes=0-0", 1000, (0, 0)),
 ])
 def test_valid_ranges(header, size, expected):
@@ -56,7 +50,6 @@ def test_valid_ranges(header, size, expected):
     None, "", "items=0-5", "bytes=", "bytes=0-5,10-20", "bytes=abc-def", "bytes=5-2", "bytes=10",
 ])
 def test_unusable_ranges_are_ignored_not_rejected(header):
-    # RFC 9110 : un serveur PEUT ignorer Range -> 200 complet, jamais une 400.
     assert parse_byte_range(header, 1000) is None
 
 
@@ -65,8 +58,6 @@ def test_unsatisfiable_ranges(header):
     with pytest.raises(RangeNotSatisfiable):
         parse_byte_range(header, 1000)
 
-
-# --- GET / HEAD ----------------------------------------------------------------
 
 def test_get_full_file(client):
     r = client.get("/stream")
@@ -80,7 +71,7 @@ def test_get_full_file(client):
 def test_head_has_same_headers_and_no_body(client):
     g, h = client.get("/stream"), client.head("/stream")
     assert h.status_code == 200 and h.content == b""
-    assert h.headers["content-type"] == "video/mp4"          # jamais text/html
+    assert h.headers["content-type"] == "video/mp4"
     assert h.headers["content-length"] == str(len(PAYLOAD))
     assert h.headers["etag"] == g.headers["etag"]
 
@@ -120,8 +111,6 @@ def test_multiple_ranges_fall_back_to_full_body(client):
     assert r.status_code == 200 and r.content == PAYLOAD
 
 
-# --- validateurs -----------------------------------------------------------------
-
 def test_if_none_match_gives_304(client):
     etag = client.head("/stream").headers["etag"]
     r = client.get("/stream", headers={"If-None-Match": etag})
@@ -158,8 +147,6 @@ def test_empty_file_is_served_without_error(tmp_path):
     assert c.get("/s", headers={"Range": "bytes=0-"}).status_code == 416
 
 
-# --- routes réelles de l'application ---------------------------------------------
-
 def test_unknown_api_path_is_json_404_never_the_frontend_html():
     from app.main import app
 
@@ -194,9 +181,6 @@ def _open_fds_on(path) -> int:
 
 @pytest.mark.skipif(not os.path.isdir("/proc/self/fd"), reason="Linux uniquement")
 def test_stream_released_when_client_stops_early(tmp_path):
-    """Régression : un client qui coupe en cours de flux (annulation pendant `yield`) laissait le fichier ouvert, ce qui
-    empêchait de démonter un support externe (« occupé »). Garde-fou : le cas réel (uvicorn + coupure du client) est
-    reproduit de bout en bout lors de la recette locale (démontage refusé « occupé » avant le correctif)."""
     import asyncio
 
     media = tmp_path / "gros.mp4"
@@ -211,7 +195,6 @@ def test_stream_released_when_client_stops_early(tmp_path):
         await task
         assert _open_fds_on(media) == 0
 
-        # Annulation de la tâche de diffusion pendant la lecture : même résultat.
         response = await build_media_response(media, {}, "GET", "video/mp4")
         iterator = response.body_iterator
 

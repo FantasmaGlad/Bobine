@@ -1,9 +1,5 @@
 name: Sonde des dépôts de paquets
 
-# Lecture seule, aucun secret : chaque jour, vérifie les dépôts publiés (packages.bobine.fit) : signature de chaque suite APT,
-# marge de Valid-Until d'au moins 7 jours, réponse de chaque paquet, et pour les canaux glissants égalité du .deb du dépôt avec
-# l'asset de la release. Un échec envoie un courriel GitHub : c'est le signal d'une suite qui va expirer ou d'un dépôt en retard.
-
 on:
   schedule:
     - cron: '23 5 * * *'

@@ -10,50 +10,21 @@ import org.json.JSONObject
 
 private const val SETTINGS_PATH = "/api/settings"
 
-/**
- * Icône d'écran de démarrage (mascotte Baamix) selon le canal de mise à jour courant — une
- * ressource `bobine_splash_logo_<canal>` par canal (cf. `drawable-nodpi/`, générées par
- * `scripts/generate_channel_icons.py`). Repli sur « stable » si le canal est inconnu ou invalide (jamais pour un canal enregistré).
- * L'icône du LANCEUR, elle, est fixée à la construction : voir `bobineChannel` dans `app/build.gradle.kts`.
- */
 fun splashDrawableForChannel(channel: String?): Int = when (channel) {
     "beta" -> R.drawable.bobine_splash_logo_beta
     "canary" -> R.drawable.bobine_splash_logo_canary
     else -> R.drawable.bobine_splash_logo_stable
 }
 
-/**
- * Écran de chargement aux couleurs du canal de mise à jour, partagé par l'écran tactile
- * ([MainActivity]) et la sortie HDMI ([BobinePresentation]) — qui dupliquaient chacun leur
- * propre code.
- *
- * Cause du défaut corrigé : l'icône était toujours posée sur « stable », puis remplacée après une
- * interrogation asynchrone de `/api/settings` (4 essais de 0,8 s) ; le serveur Python embarqué
- * n'étant pas prêt au démarrage à froid, un utilisateur Bêta ou Canary voyait l'image « stable »
- * — parfois jusqu'au bout. Le canal est désormais lu SYNCHRONE dans les préférences natives
- * ([UpdateChannelPref], alimentées par l'interface web) avant la première image.
- */
 object SplashChannel {
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    /**
-     * Icône à afficher dès la première image : dernier canal connu ; au tout premier lancement, le
-     * canal par lequel cet APK a été publié (`BuildConfig.BUILD_CHANNEL`) — un APK Canary ouvre sur
-     * l'icône Canary, pas sur Stable, comme le serveur embarqué qui propose ce même canal par défaut.
-     * Un build Google Play est verrouillé sur la Stable, comme le serveur (cf. resolve_update_channel).
-     */
     fun initialDrawable(context: Context): Int =
         splashDrawableForChannel(
             if (BuildConfig.STORE_BUILD) BuildConfig.DEFAULT_RELEASE_CHANNEL
             else UpdateChannelPref.load(context) ?: BuildConfig.BUILD_CHANNEL,
         )
 
-    /**
-     * Repli pour le TOUT PREMIER lancement (aucune préférence encore reçue de l'interface web) :
-     * interroge `/api/settings` en arrière-plan, mémorise le canal trouvé et corrige l'icône. Sans
-     * effet quand la préférence existe déjà — l'interface web la tient à jour, inutile de solliciter
-     * un serveur qui démarre à peine. Purement cosmétique, jamais bloquant.
-     */
     fun refreshFromBackendIfUnknown(context: Context, logoView: ImageView) {
         if (UpdateChannelPref.load(context) != null) return
         val appContext = context.applicationContext
@@ -61,7 +32,6 @@ object SplashChannel {
             var channel: String? = null
             for (attempt in 1..4) {
                 try {
-                    // Port pas encore publie : meme traitement qu'un serveur pas pret (nouvel essai).
                     val url = BackendEndpoint.url(appContext, SETTINGS_PATH)
                     if (url == null) {
                         Thread.sleep(300)
@@ -78,13 +48,11 @@ object SplashChannel {
                     connection.disconnect()
                     if (channel != null) break
                 } catch (e: Exception) {
-                    // Serveur pas encore prêt : nouvelle tentative ci-dessous.
                 }
                 Thread.sleep(300)
             }
             val found = channel ?: return@Thread
             UpdateChannelPref.save(appContext, found)
-            // La valeur est relue depuis les préférences : un canal invalide y a été refusé.
             val drawable = splashDrawableForChannel(UpdateChannelPref.load(appContext))
             mainHandler.post { logoView.setImageResource(drawable) }
         }.start()

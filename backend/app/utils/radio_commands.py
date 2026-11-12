@@ -1,7 +1,4 @@
-"""Commandes radio partagées entre la façade REST (`PUT /api/radio/sound`, `POST /api/radio/announcements/play-now`),
-la commande WebSocket (`radio_set_sound`, `radio_play_announcement`) et `bobine radio` : une seule implémentation, donc
-les mêmes bornes, la même persistance, les mêmes diffusions et la même copie de la configuration quel que soit le canal.
-"""
+"""Commandes radio partagées entre la façade REST."""
 from __future__ import annotations
 
 from sqlalchemy import func
@@ -13,8 +10,7 @@ from app.utils.radio_sound import sanitize_sound, save_sound
 
 
 async def apply_sound(db: Session, manager, raw, client_ts: float | None = None) -> dict:
-    """Réglages de son d'UNE sortie : valeurs bornées (jamais d'erreur), champs absents inchangés ; persistés, diffusés
-    avec l'état du moteur, copie de la configuration demandée."""
+    """Réglages de son d'UNE sortie : valeurs bornées (jamais d'erreur), champs absents inchangés ; persistés, diffusés avec l'état du moteur, copie de la configuration demandée."""
     from app import config_files
 
     sound = sanitize_sound(raw, base=manager.state.get("sound"))

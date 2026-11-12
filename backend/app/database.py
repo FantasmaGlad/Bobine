@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 _IS_SQLITE = settings.database_url.startswith("sqlite")
 
-# sqlite engines require connect_args={"check_same_thread": False}
 connect_args = {}
 if _IS_SQLITE:
     connect_args["check_same_thread"] = False
@@ -22,10 +21,6 @@ if _IS_SQLITE:
 engine = create_engine(
     settings.database_url,
     connect_args=connect_args,
-    # Plusieurs requêtes concurrentes (kiosk, télécommandes, admin, imports)
-    # peuvent ouvrir une session DB en même temps au sein de ce seul
-    # processus : un pool trop petit ferait attendre les requêtes pour rien
-    # sur une machine qui a par ailleurs de la marge mémoire.
     pool_size=5,
     max_overflow=5,
     pool_timeout=30,
@@ -35,15 +30,6 @@ engine = create_engine(
 
 @event.listens_for(engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, connection_record):
-    """
-    Mode WAL (Write-Ahead Logging) : autorise des lectures concurrentes
-    pendant une écriture, utile dès que plusieurs requêtes/tâches de fond du
-    même processus accèdent au fichier SQLite en parallèle. busy_timeout fait
-    patienter une connexion
-    en conflit d'écriture jusqu'à 30s au lieu de lever immédiatement
-    "database is locked" — la RetryingSession ci-dessous ne sert donc qu'en
-    dernier recours, si ce délai est lui-même dépassé.
-    """
     if not _IS_SQLITE:
         return
     cursor = dbapi_connection.cursor()
@@ -59,14 +45,7 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
 
 
 class RetryingSession(Session):
-    """
-    Filet de sécurité au-dessus de busy_timeout : si une écriture
-    échoue quand même avec "database is locked" (contention extrême, ou
-    busy_timeout dépassé), on retente le commit avec un backoff exponentiel
-    court plutôt que de renvoyer une erreur 500 au client pour un conflit
-    transitoire. Un seul point d'implémentation pour tous les routers, plutôt
-    qu'un décorateur à poser sur chaque endpoint qui commit.
-    """
+    """Filet de sécurité au-dessus de busy_timeout."""
 
     _MAX_RETRIES = 3
     _BASE_DELAY_SECONDS = 0.2
@@ -96,10 +75,7 @@ SessionLocal = sessionmaker(
 
 
 def release_sqlite_files(db_path: Path) -> None:
-    """Vide le journal WAL, ferme le pool et supprime `-wal` et `-shm` avant de remplacer ou d'effacer la base.
-
-    Un `-wal` laissé à côté d'un fichier de base remplacé serait rejoué sur la nouvelle base : une
-    suppression impossible lève `OSError` et l'appelant renonce à l'opération."""
+    """Vide le journal WAL, ferme le pool et supprime `-wal` et `-shm` avant de remplacer ou d'effacer la base."""
     from sqlalchemy import text
 
     try:
@@ -122,11 +98,9 @@ def get_db():
 
 def init_db():
     if _IS_SQLITE:
-        # Migrations sans contrôle des clés (une base restaurée peut venir d'un schéma ancien) ; rétabli en fin.
         from app import foreign_keys
 
         foreign_keys.suspend(engine)
-    # Make sure all directories exist (media_dir, watch_dir, thumbnails_dir, ...)
     from pathlib import Path
     for path_str in [
         settings.media_dir,
@@ -145,7 +119,6 @@ def init_db():
     ]:
         Path(path_str).mkdir(parents=True, exist_ok=True)
 
-    # Create SQLite database file directory if needed
     if settings.database_url.startswith("sqlite:///"):
         db_path = Path(settings.database_url[len("sqlite:///"):])
         db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -161,16 +134,12 @@ def init_db():
     _migrate_drop_devices_access_settings()
     _migrate_add_uids()
     if _IS_SQLITE:
-        # En dernier : toutes les tables et colonnes existent, les clés peuvent être alignées sur le modèle.
         from app.foreign_keys import align_foreign_keys
 
         align_foreign_keys(engine)
 
 
 def _migrate_add_uids():
-    """Identifiant stable (`uid`) des objets existants : colonne, valeur pour chaque ligne, puis index unique.
-
-    Idempotent. Les nouvelles lignes reçoivent le leur à l'insertion (`app.models.UidMixin`)."""
     from sqlalchemy import text
 
     from app.models import UidMixin
@@ -189,17 +158,15 @@ def _migrate_add_uids():
                 try:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN uid VARCHAR(32)"))
                 except OperationalError:
-                    pass  # colonne créée entre-temps
+                    pass
             for (row_id,) in conn.execute(text(f"SELECT id FROM {table} WHERE uid IS NULL")).fetchall():
                 conn.execute(text(f"UPDATE {table} SET uid = :uid WHERE id = :id"), {"uid": new_uid(cls.__uid_prefix__), "id": row_id})
             conn.execute(text(f"CREATE UNIQUE INDEX IF NOT EXISTS ix_{table}_uid ON {table}(uid)"))
-        # Identifiant de cette installation, repris dans `manifest.json` de la configuration exportée.
         conn.execute(text("INSERT OR IGNORE INTO settings (key, value) VALUES ('instance_uid', :uid)"), {"uid": uuid.uuid4().hex[:16]})
         conn.commit()
 
 
 def _migrate_storage_indexes():
-    """Index sur `storage_id` (remappage par support au branchement) pour les bases antérieures à la colonne."""
     from sqlalchemy import text
 
     if not _IS_SQLITE:
@@ -211,18 +178,6 @@ def _migrate_storage_indexes():
 
 
 def _migrate_audio_playlist_items_to_tracks():
-    """
-    `audio_playlist_items` a changé de grain : chaque ligne référençait un
-    COURS entier (`audio_course_id`) ; le
-    modèle référence désormais une PISTE (`audio_track_id`). `create_all` ne
-    modifiant jamais une table déjà existante, une base créée avant ce
-    changement garde l'ancienne colonne `audio_course_id` (NOT NULL, sans
-    `audio_track_id`) et casse tout INSERT/SELECT du nouveau code. Pas de
-    mapping automatique possible (un cours correspond à plusieurs pistes) :
-    si la table est vide on la recrée avec le nouveau schéma (via
-    `create_all` juste après), sinon on n'y touche pas et on log un
-    avertissement plutôt que de perdre des données silencieusement.
-    """
     from sqlalchemy import text
 
     if not _IS_SQLITE:
@@ -254,63 +209,31 @@ def _migrate_audio_playlist_items_to_tracks():
 
 
 def _migrate_add_missing_columns():
-    """
-    Micro-migration en place (pas d'Alembic actif dans ce projet) :
-    `create_all` ne modifie jamais une table existante, donc les colonnes
-    ajoutées après coup au schéma doivent être créées par ALTER TABLE sur les
-    bases déjà en production. Idempotent : ne fait rien si la colonne existe.
-
-    Le check-then-act ci-dessous (PRAGMA table_info puis ALTER TABLE) n'est
-    pas atomique. Historiquement (avant le passage à un processus unique), les
-    4 workers uvicorn appelaient chacun cette fonction à leur propre
-    démarrage, avec un vrai risque de collision ("duplicate column name")
-    entre deux d'entre eux. Chaque ALTER TABLE reste protégé individuellement
-    par prudence (ignore silencieusement une collision plutôt que de faire
-    planter le démarrage), même si le scénario d'origine ne peut plus se
-    produire en process unique.
-    """
     from sqlalchemy import text
     from sqlalchemy.exc import OperationalError
 
     if not _IS_SQLITE:
         return
 
-    # (table, colonne, définition SQL) — canal de diffusion par programmation
-    # et par action différée.
     wanted = [
         ("schedules", "channel", "VARCHAR NOT NULL DEFAULT 'cable'"),
         ("playback_state", "channel", "VARCHAR NOT NULL DEFAULT 'cable'"),
-        # target_type/target_id (cause "coach_priority", mode audio
-        # coach) présents dans le modèle mais absents de cette
-        # liste jusqu'ici : sur toute base créée avant leur ajout au modèle,
-        # `create_all` ne les ajoute jamais (il ne modifie pas les tables
-        # existantes), ce qui cassait silencieusement toute lecture de
-        # PlaybackState avec "no such column: playback_state.target_type".
         ("playback_state", "target_type", "VARCHAR"),
         ("playback_state", "target_id", "INTEGER"),
-        # Fond d'ambiance par piste de playlist audio.
         ("audio_playlist_items", "background_id", "INTEGER REFERENCES backgrounds(id)"),
-        # Fond d'ambiance par piste individuelle de cours audio
         ("audio_tracks", "background_id", "INTEGER REFERENCES backgrounds(id)"),
-        # Métadonnées étendues et description pour les cours vidéo
         ("videos", "description", "TEXT"),
         ("videos", "audio_channels", "INTEGER"),
         ("videos", "audio_codec", "VARCHAR"),
         ("videos", "fps", "FLOAT"),
         ("videos", "bitrate_kbps", "INTEGER"),
-        # Format de pixels + version web « lisible partout »
         ("videos", "pix_fmt", "VARCHAR"),
         ("videos", "web_path", "VARCHAR"),
         ("videos", "web_status", "VARCHAR"),
-        # Origine des chapitres et copie du fichier importé (liens indiqués dans library/videos.json).
         ("videos", "chapters_source", "TEXT"),
         ("videos", "chapters_file", "TEXT"),
-        # Télémétrie extensible : stockage JSON dynamique pour métriques futures
         ("system_metrics_history", "extra_data", "TEXT"),
-        # Sortie radio visée par une règle de rappel (les règles existantes
-        # restent sur la sortie réseau, l'ancien poste radio unique).
         ("radio_announcement_rules", "target", "VARCHAR NOT NULL DEFAULT 'radio_network'"),
-        # Stockage externe : média indexé sur un support (bibliothèque externe), voir app/storage/.
         ("videos", "storage_id", "INTEGER REFERENCES external_volumes(id)"),
         ("videos", "rel_path", "VARCHAR"),
         ("audio_tracks", "storage_id", "INTEGER REFERENCES external_volumes(id)"),
@@ -337,8 +260,6 @@ def _migrate_add_missing_columns():
 
 
 def _migrate_drop_devices_access_settings():
-    """Retire les réglages de l'ancien contrôle d'accès des périphériques (empreinte de PIN, interrupteur
-    d'activation) : l'onglet est ouvert à tout le réseau local de confiance. Idempotent."""
     from sqlalchemy import text
 
     if not _IS_SQLITE:
@@ -358,17 +279,6 @@ def _migrate_drop_devices_access_settings():
 
 
 def _migrate_update_channel_beta_to_canary():
-    """
-    Passage de 2 à 3 canaux de mise à jour (Stable/Bêta/Canary) : l'ancien
-    canal "beta" (rolling, republié à chaque push sur main) est renommé
-    "canary" ; "beta" désigne désormais un nouveau palier curé, publié
-    manuellement par lots. Réécrit silencieusement toute valeur DB
-    `update_channel="beta"` existante en "canary" — un utilisateur déjà sur
-    ce canal garde le même comportement (suivi continu de main) sous son
-    nouveau nom, sans jamais hériter par surprise du nouveau palier curé
-    qu'il n'a jamais choisi explicitement. Idempotent (UPDATE sans ligne
-    correspondante après la première exécution).
-    """
     from sqlalchemy import text
 
     if not _IS_SQLITE:
@@ -392,13 +302,6 @@ def _migrate_update_channel_beta_to_canary():
 
 
 def _migrate_schedule_radio_channel_to_network():
-    """
-    Deux sorties radio (câblée et réseau) : l'ancienne voie de planning "radio"
-    désignait le poste radio unique, qui est aujourd'hui la sortie réseau.
-    Réécrit `schedules.channel='radio'` en 'radio_network' pour que les
-    programmations existantes continuent de piloter le même moteur. Idempotent
-    (UPDATE sans ligne correspondante après la première exécution).
-    """
     from sqlalchemy import text
 
     if not _IS_SQLITE:
@@ -422,11 +325,6 @@ def _migrate_schedule_radio_channel_to_network():
 
 
 def _migrate_backfill_video_metadata():
-    """
-    Rétro-migration : analyse les vidéos existantes en base qui n'ont pas encore
-    de métadonnées étendues (audio_channels is None) et les enrichit via ffprobe.
-    Ne modifie jamais une description déjà saisie manuellement par l'utilisateur.
-    """
     if not _IS_SQLITE:
         return
     try:
@@ -434,10 +332,6 @@ def _migrate_backfill_video_metadata():
         from app.utils.video_utils.probe import extract_metadata
 
         with SessionLocal() as db:
-            # `pix_fmt` : vidéos importées sans format de pixels enregistré (format de pixels
-            # inconnu) — réanalysées une seule fois, comme les métadonnées
-            # étendues. Les fichiers sans flux vidéo (codec None) sont exclus
-            # pour ne pas être réanalysés à chaque démarrage.
             videos = db.query(Video).filter(
                 Video.audio_channels.is_(None) | (Video.pix_fmt.is_(None) & Video.codec.isnot(None))
             ).all()
@@ -473,10 +367,6 @@ def _migrate_backfill_video_metadata():
 
 
 def _migrate_backfill_audio_duration():
-    """
-    Rétro-migration : analyse les pistes audio et radio existantes en base qui n'ont
-    pas encore de durée (duration_seconds is None) et les enrichit via FFPROBE_BIN.
-    """
     if not _IS_SQLITE:
         return
     try:

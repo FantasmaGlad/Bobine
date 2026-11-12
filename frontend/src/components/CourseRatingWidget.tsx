@@ -29,7 +29,6 @@ export default function CourseRatingWidget({
   const [hoveredScore, setHoveredScore] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
-  // Durée effective du compte à rebours (calée sur la transition entre cours)
   const duration = autoCloseSeconds > 0 ? autoCloseSeconds : 20;
   const [remainingSeconds, setRemainingSeconds] = useState(duration);
   const startTimeRef = useRef<number>(Date.now());
@@ -39,9 +38,8 @@ export default function CourseRatingWidget({
     onCloseRef.current = onClose;
   }, [onClose]);
 
-  // Compte à rebours précis basé sur l'horloge système (immune aux saccades et re-renders)
   useEffect(() => {
-    if (submitted) return; // Si déjà soumis, le timer post-soumission prend le relais
+    if (submitted) return;
     setRemainingSeconds(duration);
     startTimeRef.current = Date.now();
 
@@ -81,7 +79,6 @@ export default function CourseRatingWidget({
 
       if (onRated) onRated(score);
 
-      // Fermeture automatique après affichage du remerciement (2,5s)
       setTimeout(() => {
         if (onCloseRef.current) onCloseRef.current();
       }, 2500);
@@ -89,7 +86,6 @@ export default function CourseRatingWidget({
     [videoId, channel, isCinemaMode, submitted, onRated]
   );
 
-  // Navigation clavier / télécommande
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -109,7 +105,6 @@ export default function CourseRatingWidget({
   }, [hoveredScore, submitted, handleSelectScore]);
 
   const currentActiveScore = hoveredScore || selectedScore || 0;
-  // Progression inversée : commence à 100% et descend progressivement à 0%
   const progressPercent = Math.max(0, Math.min(100, (remainingSeconds / duration) * 100));
 
   const getScoreLabel = (score: number) => {
@@ -203,7 +198,6 @@ export default function CourseRatingWidget({
         </div>
       )}
 
-      {/* Barre de progression inversée (sans texte "Fermeture dans 300 s") */}
       {!submitted && (
         <div className="course-rating-footer">
           <div className="course-rating-progress-bar">

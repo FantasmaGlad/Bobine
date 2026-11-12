@@ -1,22 +1,7 @@
-/**
- * Reconnaissance des fichiers vidéo à l'import, indépendante du navigateur.
- *
- * Pourquoi pas `File.type.startsWith("video/")` seul (ancien comportement du
- * glisser-déposer de la bibliothèque) : le type MIME d'un `File` est déduit
- * par le NAVIGATEUR depuis la base de types du système d'exploitation. Selon
- * Firefox/OS, il est vide pour des extensions pourtant courantes (`.mkv`,
- * `.ts`, `.mov`, `.m4v`…) — le fichier était alors ignoré SANS aucun message
- * (constaté sous Firefox).
- * L'extension fait donc foi en second recours ; la validation réelle du
- * contenu reste faite côté serveur par ffprobe.
- */
-
 export const VIDEO_EXTENSIONS = [
   "mp4", "m4v", "mov", "mkv", "webm", "avi", "wmv", "flv", "mpg", "mpeg", "ts", "m2ts", "mts", "3gp", "ogv",
 ] as const;
 
-/** Valeur de l'attribut `accept` des champs fichier vidéo : MIME + extensions
- * (le sélecteur de Firefox s'appuie sur la même base de types que `File.type`). */
 export const VIDEO_ACCEPT = ["video/*", ...VIDEO_EXTENSIONS.map((ext) => `.${ext}`)].join(",");
 
 const VIDEO_EXTENSION_SET: ReadonlySet<string> = new Set(VIDEO_EXTENSIONS);
@@ -30,12 +15,10 @@ export function isVideoFile(file: File): boolean {
   return file.type.startsWith("video/") || VIDEO_EXTENSION_SET.has(fileExtension(file.name));
 }
 
-/** Radio : tous les formats audio (miroir de `RADIO_AUDIO` dans `backend/app/utils/media_formats.py`, vérifié par un test). */
 export const RADIO_AUDIO_EXTENSIONS = [
   ".mp3", ".m4a", ".aac", ".mp4", ".ogg", ".oga", ".opus", ".webm", ".flac", ".wav",
   ".wma", ".aiff", ".aif", ".aifc", ".ape", ".alac", ".wv", ".mka", ".m4b", ".ac3",
 ] as const;
-/** Cours audio : formats lus tels quels (miroir de `COURSE_AUDIO`). */
 export const COURSE_AUDIO_EXTENSIONS = [".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg", ".oga", ".opus"] as const;
 
 export function hasExtension(name: string, extensions: readonly string[]): boolean {
@@ -72,7 +55,6 @@ export function partitionVideoFiles(files: File[]): PartitionedFiles {
   return { accepted, subtitles, rejected };
 }
 
-/** Archives d'import acceptées (mêmes extensions que `ARCHIVE_EXTENSIONS` côté serveur, qui reconnaît le format au contenu). */
 export const ARCHIVE_EXTENSIONS = [".zip", ".tar", ".tar.gz", ".tgz", ".tar.xz", ".txz", ".tar.bz2", ".tbz2"] as const;
 export const ARCHIVE_ACCEPT = ARCHIVE_EXTENSIONS.join(",");
 

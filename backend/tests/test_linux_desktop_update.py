@@ -1,5 +1,3 @@
-"""Mise à jour d'un poste Linux installé par paquet : un .deb passe par apt-get, qui installe les dépendances que la
-nouvelle version ajoute ; `dpkg -i` (seul repli sans apt-get) laissait Bobine « non configuré » dès qu'il en manquait une."""
 from pathlib import Path
 
 import pytest

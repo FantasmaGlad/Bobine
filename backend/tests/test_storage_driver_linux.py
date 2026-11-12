@@ -1,5 +1,3 @@
-"""Pilote Linux du stockage : commandes udisksctl/smartctl/busctl simulées par un exécuteur scripté (aucun root, aucun matériel)."""
-
 import asyncio
 import json
 import os
@@ -19,7 +17,6 @@ VOLUME = Volume(key="u-1", device="/dev/sdb1", name="sdb1", fs_uuid="1", label="
 
 
 class Script:
-    """Exécuteur scripté : `rules` = liste de (préfixe de commande, résultat ou exception) consommées dans l'ordre d'appel."""
 
     def __init__(self, *rules):
         self.rules = list(rules)
@@ -94,7 +91,7 @@ def test_power_off_targets_the_parent_disk_and_loop_images_are_released():
     assert run(d.power_off(loop)) is True and script.calls[0][:3] == ("udisksctl", "loop-delete", "-b")
     sd = Volume(**{**VOLUME.__dict__, "sd_card": True, "kind": "sd"})
     d, script = driver()
-    assert run(d.power_off(sd)) is False and script.calls == []  # carte SD : rien à éteindre
+    assert run(d.power_off(sd)) is False and script.calls == []
 
 
 def lsblk_json(extra=()):
@@ -150,7 +147,7 @@ def test_smart_missing_tool_permission_and_usb_bridge_retry(monkeypatch):
     d, script = driver((("smartctl",), [(4, json.dumps(no_bridge), ""), (0, json.dumps(ata), "")]))
     report = run(d.smart(VOLUME))
     assert report["available"] and report["temperature_c"] == 30
-    assert script.calls[1] == ("smartctl", "-j", "-a", "-d", "sat", "/dev/sdb")  # pont USB-SATA retenté
+    assert script.calls[1] == ("smartctl", "-j", "-a", "-d", "sat", "/dev/sdb")
     denied = {"smartctl": {"exit_status": 2, "messages": [{"string": "Permission denied"}]}}
     d, _ = driver((("smartctl",), (2, json.dumps(denied), "")))
     assert run(d.smart(VOLUME))["reason"] == "permission"

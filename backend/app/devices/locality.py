@@ -1,8 +1,4 @@
-"""Provenance d'une requête : la machine elle-même (écran physique) ou un autre appareil du réseau.
-
-Sert à décider ce qui se rapporte à l'écran local (déplacement d'un flux audio du navigateur local, détection
-d'un accès par Wi-Fi), jamais à refuser un accès : Bobine fonctionne sur un réseau local de confiance.
-"""
+"""Provenance d'une requête : la machine elle-même (écran physique) ou un autre appareil du réseau."""
 from __future__ import annotations
 
 import ipaddress
@@ -30,8 +26,7 @@ def normalize_ip(host: str | None) -> str | None:
 
 
 def own_ip_addresses() -> frozenset[str]:
-    """Adresses de cette machine (boucle locale + interfaces) : une requête qui en vient est locale,
-    même quand le navigateur de l'écran physique passe par le nom d'hôte (bobine.local → IP du réseau)."""
+    """Adresses de cette machine (boucle locale + interfaces) : une requête qui en vient est locale, même quand le navigateur de l'écran physique passe par le nom d'hôte (bobine.local → IP du réseau)."""
     global _own_ips_cache
     now = time.monotonic()
     if now - _own_ips_cache[0] < _OWN_IPS_TTL and _own_ips_cache[1]:
@@ -43,7 +38,7 @@ def own_ip_addresses() -> frozenset[str]:
                 normalized = normalize_ip(addr.address)
                 if normalized:
                     found.add(normalized)
-    except Exception as exc:  # psutil indisponible : on se contente de la boucle locale
+    except Exception as exc:
         logger.debug("Énumération des interfaces impossible : %s", exc)
     _own_ips_cache = (now, frozenset(found))
     return _own_ips_cache[1]

@@ -48,9 +48,7 @@ async def apply_config(
     include_machine: bool = Query(False),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Applique un ou plusieurs fichiers (`{"files": {"settings.json": {...}}}`) en une seule transaction. Par défaut
-    un essai à blanc (`dry_run=true`) : rien n'est écrit, l'écart est renvoyé. `machine.json` n'est appliqué qu'avec
-    `include_machine=true`. 422 `invalid_config` avec la liste complète des erreurs : rien n'a été écrit."""
+    """Applique un ou plusieurs fichiers (`{"files": {"settings.json": {...}}}`) en une seule transaction."""
     files = payload.get("files")
     if not isinstance(files, dict) or not files:
         raise HTTPException(status_code=400, detail={"code": "no_files", "message": "Aucun fichier fourni (« files »)."})

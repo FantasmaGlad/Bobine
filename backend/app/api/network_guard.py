@@ -1,22 +1,4 @@
-"""Refus des clients venus d'Internet.
-
-Bobine n'a ni mot de passe ni jeton : seul le réseau local est de confiance. Les installateurs n'ouvrent le pare-feu
-qu'aux réseaux privés, mais un poste sans pare-feu actif (macOS par défaut, beaucoup de Linux de bureau) et joignable
-par une adresse publique serait pilotable depuis Internet. Cette garde refuse donc toute connexion dont l'adresse
-source est routable sur Internet, quel que soit le pare-feu.
-
-Admis : les réseaux de `local_networks.py` (boucle locale, réseaux privés RFC 1918, liens locaux, 100.64.0.0/10 de Tailscale et CGNAT, IPv6 locales), ainsi
-que les réseaux déclarés dans `BOBINE_ALLOWED_NETWORKS` (liste CIDR séparée par des virgules), pour un accès public
-volontaire derrière un proxy authentifiant par exemple.
-
-Uvicorn est lancé sans `proxy_headers` : l'adresse examinée est toujours celle du pair TCP, qu'aucun en-tête ne peut
-réécrire. Un proxy local ou privé masque en revanche le vrai client : quand une requête porte un en-tête de relais
-(`X-Forwarded-For`, `Forwarded`, `X-Real-IP`, `CF-Connecting-IP`, `True-Client-IP`), chaque adresse annoncée doit
-elle aussi être admise, et une valeur illisible est refusée. Ces en-têtes ne peuvent que resserrer l'accès, jamais
-l'élargir. Un proxy qui n'en ajoute aucun (Docker en NAT, par exemple) reste invisible : il doit relayer l'adresse du
-client, ou n'être exposé qu'à un réseau de confiance. Un accès par service Tor (`.onion`) arrive par la boucle locale
-et reste admis, mais sans les droits de l'écran local (`is_local_request`).
-"""
+"""Refus des clients venus d'Internet."""
 from __future__ import annotations
 
 import ipaddress
@@ -53,7 +35,7 @@ def is_allowed_client(host: str | None, extra: tuple[Network, ...] = ()) -> bool
     try:
         address = ipaddress.ip_address(host.split("%")[0])
     except ValueError:
-        return True  # socket Unix ou client de test : pas d'adresse réseau
+        return True
     if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
         address = address.ipv4_mapped
     return any(address in network for network in TRUSTED_NETWORKS + extra)
@@ -78,9 +60,9 @@ def forwarded_hosts(headers: Iterable[tuple[bytes, bytes]]) -> list[str] | None:
             tokens = [token.strip() for token in value.split(",")]
         for token in tokens:
             token = token.strip()
-            if token.startswith("["):  # [IPv6] ou [IPv6]:port
+            if token.startswith("["):
                 token = token[1:].split("]", 1)[0]
-            elif token.count(":") == 1:  # IPv4:port
+            elif token.count(":") == 1:
                 token = token.split(":", 1)[0]
             found.append(token)
     return found
@@ -95,7 +77,7 @@ def is_allowed_chain(hosts: list[str], extra: tuple[Network, ...] = ()) -> bool:
         try:
             ipaddress.ip_address(host.split("%")[0])
         except ValueError:
-            return False  # « unknown », nom obfusqué, valeur forgée : refusée
+            return False
         if not is_allowed_client(host, extra):
             return False
     return True

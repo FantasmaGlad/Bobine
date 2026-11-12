@@ -23,7 +23,6 @@ def _apply_library_videos(ctx: _Context, file: str, document: dict) -> None:
                 video_id, new_title = video.id, title
 
                 async def rename(db: Session, video_id=video_id, new_title=new_title) -> None:
-                    # Le fichier physique suit le titre comme dans l'interface, mais seulement une fois la transaction validée.
                     target = db.get(Video, video_id)
                     if target is not None:
                         rename_video_file(target, new_title)

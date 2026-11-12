@@ -8,8 +8,6 @@ from app.utils.ffmpeg_binaries import FFPROBE_BIN, media_subprocess_kwargs
 
 logger = logging.getLogger(__name__)
 
-# Reconnaît un numéro de piste en tête de nom de fichier : "01 - Titre.mp3",
-# "1. Titre.mp3", "Track 05 Titre.mp3", "05_Titre.mp3".
 _LEADING_NUMBER_RE = re.compile(r"(?:^|track\s*)0*(\d{1,3})(?!\d)", re.IGNORECASE)
 
 
@@ -37,12 +35,7 @@ def extract_audio_duration(file_path: str) -> float | None:
 
 
 def parse_track_number_and_title(filename: str) -> tuple[int | None, str]:
-    """
-    Déduit un numéro de piste et un titre lisible à partir d'un nom de
-    fichier MP3. Le numéro n'est qu'une aide au tri initial :
-    la position réelle (`AudioTrack.position`) reste réordonnable depuis
-    l'interface indépendamment de ce numéro.
-    """
+    """Déduit un numéro de piste et un titre lisible à partir d'un nom de fichier MP3."""
     stem = Path(filename).stem
     match = _LEADING_NUMBER_RE.match(stem)
     number = int(match.group(1)) if match else None

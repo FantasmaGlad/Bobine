@@ -1,4 +1,3 @@
-"""Identifiants stables : posés à l'insertion, jamais modifiés, remplis pour les bases existantes."""
 import os
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"

@@ -1,10 +1,3 @@
-"""Robustesse des mises a jour et de la gestion des canaux de mise a jour
-Stable/Beta/Canary : decision pure `_evaluate_update` (dont le retour en
-arriere Beta/Canary -> Stable), migration DB du canal "beta" historique
-(rolling) vers "canary", choix de l'asset par profil (APK telephone vs
-Android TV), reconciliation de l'etat persiste apres un redemarrage reussi,
-telechargement verifie avec nouvelles tentatives."""
-
 import asyncio
 import hashlib
 import http.server
@@ -30,8 +23,6 @@ def _stable(tag: str) -> dict:
     return {"tag_name": tag}
 
 
-# --- decision de mise a jour ----------------------------------------------
-
 def test_stable_newer_version_is_an_upgrade():
     r = versions.evaluate_update("stable", _local("V4.0.1"), _stable("V4.0.2"))
     assert r == {"has_update": True, "is_downgrade": False, "latest_version": "V4.0.2"}
@@ -43,14 +34,11 @@ def test_stable_same_version_is_up_to_date():
 
 
 def test_beta_build_of_same_base_is_replaced_by_stable():
-    # "4.0.2-beta" < "4.0.2" : promesse "une stable equivalente la remplace".
     r = versions.evaluate_update("stable", _local("V4.0.2-beta", local_rolling_channel="beta"), _stable("V4.0.2"))
     assert r["has_update"] is True and r["is_downgrade"] is False
 
 
 def test_beta_build_ahead_of_stable_can_go_back_to_stable():
-    # Repasser en Stable "a tout moment" : propose la stable anterieure,
-    # marquee comme retour en arriere (jamais applique par la planification).
     r = versions.evaluate_update("stable", _local("V4.0.3-beta", local_rolling_channel="beta"), _stable("V4.0.2"))
     assert r == {"has_update": True, "is_downgrade": True, "latest_version": "V4.0.2"}
 
@@ -98,8 +86,6 @@ def test_canary_channel_unknown_local_commit_never_claims_an_update():
     assert versions.evaluate_update("canary", _local("V4.0.2", commit="unknown"), release)["has_update"] is False
 
 
-# --- migration DB du canal "beta" historique (rolling) vers "canary" -------
-
 def test_migrate_update_channel_beta_to_canary_rewrites_existing_value(tmp_path, monkeypatch):
     from sqlalchemy import create_engine, text
 
@@ -134,14 +120,12 @@ def test_migrate_update_channel_beta_to_canary_is_a_noop_for_other_values(tmp_pa
     monkeypatch.setattr(db_module, "engine", temp_engine)
     monkeypatch.setattr(db_module, "_IS_SQLITE", True)
     db_module._migrate_update_channel_beta_to_canary()
-    db_module._migrate_update_channel_beta_to_canary()  # idempotent, deuxieme appel sans effet ni erreur
+    db_module._migrate_update_channel_beta_to_canary()
 
     with temp_engine.connect() as conn:
         value = conn.execute(text("SELECT value FROM settings WHERE key='update_channel'")).scalar()
     assert value == "stable"
 
-
-# --- choix de l'asset ------------------------------------------------------
 
 _RELEASE_ASSETS = {
     "assets": [
@@ -197,8 +181,6 @@ def test_multi_distro_and_multi_arch_asset_resolution():
     assert assets.resolve_asset("linux-desktop", full_release, arch="arm64", linux_ext=".pkg.tar.zst")["download_url"] == "u/arch-arm64.pkg.tar.zst"
 
 
-# --- reconciliation de l'etat apres redemarrage -----------------------------
-
 @pytest.fixture
 def state_file(tmp_path, monkeypatch):
     path = tmp_path / "update_status.json"
@@ -247,11 +229,6 @@ def test_terminal_states_are_left_untouched(state_file, monkeypatch):
     assert orch.get_status()["step"] == "failed" and orch.get_status()["error"] == "boom"
 
 
-# --- acquittement persiste de la notification (anti-boucle) ----------------
-# Non-regression du correctif "la notification de mise a jour apparait en
-# continu" : l'acquittement doit survivre a un rechargement de page (donc
-# etre lu depuis l'etat serveur, jamais un seul state React volatile).
-
 def test_acknowledge_persists_started_at_and_broadcasts(state_file, monkeypatch):
     orch._state["started_at"] = 123.0
     orch._state["acknowledged_started_at"] = None
@@ -276,11 +253,7 @@ def test_acknowledge_is_a_noop_for_idle_state(state_file, monkeypatch):
     assert result["acknowledged_started_at"] is None
 
 
-# --- telechargement verifie ---------------------------------------------------
-
 class _Server:
-    """Serveur HTTP local : `fail_first` coupe la 1re reponse en plein
-    transfert (fichier tronque) pour exercer la nouvelle tentative."""
 
     def __init__(self, payload: bytes, fail_first: int = 0):
         outer = self
@@ -328,9 +301,6 @@ def test_download_verifies_digest_and_renames_atomically(tmp_path, monkeypatch):
 
 
 def test_download_calls_on_verifying_before_digest_check(tmp_path, monkeypatch):
-    # Non-regression : l'etape "verifying" du wizard (cf. ACTIVE_STEPS cote
-    # frontend) doit etre emise exactement une fois, apres le telechargement
-    # complet mais avant la comparaison d'empreinte SHA-256.
     monkeypatch.setattr(orch.time, "sleep", lambda *_: None)
     payload = b"w" * 50_000
     server = _Server(payload)
@@ -377,12 +347,6 @@ def test_download_without_digest_is_refused(tmp_path):
         orch.download_with_progress("http://127.0.0.1:1/x", tmp_path / "f.bin", None)
 
 
-# --- environnement assaini des sous-processus systeme ----------------------
-# Non-regression du correctif "systemctl: libcrypto.so.3: version
-# OPENSSL_3.4.0 not found" (LD_LIBRARY_PATH d'un build PyInstaller frozen
-# herite par un binaire systeme totalement etranger au bundle, cf.
-# clean_subprocess_env()).
-
 def test_clean_subprocess_env_strips_ld_library_path_without_original(monkeypatch):
     monkeypatch.setenv("LD_LIBRARY_PATH", "/usr/lib/bobine")
     monkeypatch.delenv("LD_LIBRARY_PATH_ORIG", raising=False)
@@ -419,8 +383,6 @@ def test_run_checked_uses_sanitized_env(monkeypatch):
     assert "LD_LIBRARY_PATH" not in captured["env"]
 
 
-# --- build Google Play : mises a jour par la boutique -----------------------
-
 class _StoreHandler:
     def is_store_managed(self) -> bool:
         return True
@@ -453,7 +415,6 @@ def test_store_managed_apply_is_refused(monkeypatch):
 
 
 def test_rolling_release_target_is_the_tag_commit_not_the_stale_release_field(monkeypatch):
-    # La release glissante est mise à jour en place : son target_commitish reste celui de sa création.
     from app.api.routes import updates
     from app.updates import assets, github, versions
 

@@ -1,18 +1,3 @@
-"""Régression sur `RevalidateStaticFiles` (app/main.py) : l'ETag PAR DÉFAUT de
-Starlette (`FileResponse.set_stat_headers`) est `md5(mtime + "-" + taille)`,
-PAS un hachage du contenu réel. Comme l'export Next.js normalise le mtime de
-chaque fichier à une date fixe (build reproductible), l'ETag ne dépendait en
-pratique que de la taille : deux versions différentes d'un même fichier de même
-taille obtenaient le même ETag, et un `GET` avec `If-None-Match` recevait un
-304 à tort, servant une page HTML périmée qui référence des bundles JS/CSS
-absents du build courant.
-
-Ce test simule exactement ce scénario : deux fichiers de même taille en
-octets, EXACTEMENT le même mtime (comme le fait le build reproductible),
-mais un contenu différent — le second doit être servi intégralement
-(200), jamais confondu avec le premier via un 304 à tort.
-"""
-
 import os
 import sys
 from pathlib import Path
@@ -38,23 +23,18 @@ def test_content_change_with_identical_mtime_is_not_served_as_304(tmp_path):
     static_files = RevalidateStaticFiles(directory=str(tmp_path))
 
     file_path = tmp_path / "index.html"
-    # Même taille en octets (24 caractères chacun) pour reproduire fidèlement
-    # le cas réel : seule une référence de bundle change, la longueur totale
-    # du fichier peut coïncider par hasard.
     old_content = b"<script src=aaaaa.js>"
     new_content = b"<script src=bbbbb.js>"
     assert len(old_content) == len(new_content)
 
     file_path.write_bytes(old_content)
-    fixed_mtime = 318_556_800  # 01/02/1980, cf. commentaire de RevalidateStaticFiles
+    fixed_mtime = 318_556_800
     os.utime(file_path, (fixed_mtime, fixed_mtime))
     stat_result = file_path.stat()
 
     first_response = static_files.file_response(str(file_path), stat_result, {"type": "http", "headers": []})
     etag_v1 = first_response.headers["etag"]
 
-    # Le fichier change (nouveau build) mais garde EXACTEMENT le même mtime
-    # (build reproductible) et la même taille — condition exacte du bug.
     file_path.write_bytes(new_content)
     os.utime(file_path, (fixed_mtime, fixed_mtime))
     stat_result_v2 = file_path.stat()
@@ -74,20 +54,11 @@ def test_content_change_with_identical_mtime_is_not_served_as_304(tmp_path):
 
 
 def test_if_modified_since_alone_never_triggers_a_stale_304(tmp_path):
-    """Deuxième bug trouvé en testant pour de vrai sur la tablette pilote
-    (au-delà du premier correctif ETag, insuffisant seul) : un client qui
-    envoie SEULEMENT `If-Modified-Since` (pas `If-None-Match`) ne doit
-    jamais recevoir 304 ici — `Last-Modified` reste figé au mtime normalisé
-    du build reproductible (01/02/1980), donc absolument N'IMPORTE QUELLE
-    date envoyée par le client le satisferait selon la RFC 7232 standard
-    (`If-Modified-Since >= Last-Modified`). Reproduit et confirmé en
-    conditions réelles : `curl -H "If-Modified-Since: <date récente>"` sur
-    la tablette pilote recevait 304 malgré un contenu réellement différent."""
     static_files = RevalidateStaticFiles(directory=str(tmp_path))
 
     file_path = tmp_path / "index.html"
     file_path.write_bytes(b"<html>v1</html>")
-    fixed_mtime = 318_556_800  # 01/02/1980
+    fixed_mtime = 318_556_800
     os.utime(file_path, (fixed_mtime, fixed_mtime))
     stat_result = file_path.stat()
 
@@ -106,9 +77,6 @@ def test_if_modified_since_alone_never_triggers_a_stale_304(tmp_path):
 
 
 def test_unchanged_content_is_served_as_304_on_revalidation(tmp_path):
-    """Le pendant positif : un fichier VRAIMENT inchangé doit toujours
-    bénéficier d'un 304 (l'objectif même de la revalidation ETag), pas être
-    re-téléchargé à chaque requête."""
     static_files = RevalidateStaticFiles(directory=str(tmp_path))
 
     file_path = tmp_path / "style.css"

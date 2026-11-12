@@ -1,12 +1,3 @@
-//! Windows : `netsh wlan` (Wi-Fi) et PowerShell (audio, Bluetooth, adresse IP). Les valeurs fournies
-//! par l'appelant ne sont JAMAIS interpolées dans un script PowerShell : elles passent par la variable
-//! d'environnement `BOBINE_ARG` (aucune injection possible). Le module PowerShell optionnel
-//! `AudioDeviceCmdlets` (Get-/Set-AudioDevice) permet de choisir la sortie audio et le volume ; sans lui,
-//! la liste des sorties est en lecture seule.
-//!
-//! ATTENTION : NON VALIDÉ sur un PC Windows réel : les analyseurs (`parse.rs`) sont testés sur des sorties
-//! représentatives (anglais et français) ; le comportement réel reste à confirmer.
-
 use crate::exec::{run, run_with_env, Output};
 use crate::parse;
 use crate::protocol::{capabilities_all, Platform, RpcError, RpcResult};
@@ -277,7 +268,6 @@ impl Platform for Windows {
                 let existed = self.profiles().iter().any(|p| p == ssid);
                 let mut created = false;
                 if password.is_some() || !existed {
-                    // Profil minimal généré dans un fichier temporaire, supprimé aussitôt après l'import.
                     let path = std::env::temp_dir()
                         .join(format!("bobine-wifi-{}.xml", std::process::id()));
                     let path_text = path.to_string_lossy().to_string();

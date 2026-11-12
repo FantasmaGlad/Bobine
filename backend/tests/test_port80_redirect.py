@@ -1,5 +1,3 @@
-"""Le redirecteur du port 80 n'envoie jamais vers un nom choisi par l'appelant."""
-
 import pytest
 
 from app.utils.port80 import redirect_location

@@ -1,20 +1,6 @@
-/**
- * Rechargement « synchronisation des écrans » : vide les caches du navigateur de l'appareil
- * AVANT de recharger, pour qu'il re-télécharge les nouveaux assets depuis le
- * serveur au lieu de resservir d'anciennes versions mises en cache.
- *
- * Concrètement : purge le Cache Storage (API `caches`, utilisé par un éventuel
- * service worker / PWA) et désenregistre les service workers, puis recharge la
- * page. Sans service worker aujourd'hui ces étapes sont sans effet mais
- * inoffensives — et le rechargement suffit à revalider les fichiers servis par
- * FastAPI (StaticFiles renvoie ETag/Last-Modified, donc un asset modifié est
- * bien re-téléchargé). Toute erreur est avalée : le rechargement doit avoir
- * lieu quoi qu'il arrive.
- */
 let reloading = false;
 
 export async function clearCachesAndReload(): Promise<void> {
-  // Plusieurs écouteurs (réglages, lecture, radio) peuvent demander le rechargement au même redémarrage.
   if (reloading) return;
   reloading = true;
   try {
@@ -27,7 +13,6 @@ export async function clearCachesAndReload(): Promise<void> {
       await Promise.all(regs.map((r) => r.unregister()));
     }
   } catch {
-    // Cache/SW indisponibles ou refusés : on recharge quand même.
   }
   window.location.reload();
 }

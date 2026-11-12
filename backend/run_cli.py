@@ -1,5 +1,4 @@
-"""Point d'entrée figé en `bobine.exe` sous Windows (cf. `packaging/windows/bobine.spec`) : exécutable console, à la
-différence de `BobineTray.exe`, pour que la commande `bobine` affiche ses résultats dans le terminal."""
+"""Point d'entrée figé en `bobine.exe` sous Windows."""
 
 import sys
 

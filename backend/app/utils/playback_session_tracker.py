@@ -14,12 +14,8 @@ def start_playback_session(
     launch_type: str = "kiosk",
     total_duration_seconds: float = 0.0,
 ) -> int | None:
-    """
-    Crée et persiste une nouvelle session de lecture pour le suivi d'assiduité.
-    Retourne l'ID de la session créée.
-    """
+    """Crée et persiste une nouvelle session de lecture pour le suivi d'assiduité."""
     try:
-        # Si total_duration_seconds non fourni, tentative de récupération depuis la vidéo
         if not total_duration_seconds or total_duration_seconds <= 0:
             video = db.query(Video).filter(Video.id == video_id).first()
             if video and video.duration_seconds:

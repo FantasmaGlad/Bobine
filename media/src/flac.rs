@@ -1,5 +1,3 @@
-//! FLAC: STREAMINFO, optional padding and seek table, one Vorbis comment block, pictures.
-
 use crate::audio::{
     ambiguous, corrupt, cover_error, limit, read_exact, unsupported, Layout, Result,
     MAX_METADATA_BYTES, MAX_TEXT_BYTES,

@@ -30,7 +30,7 @@ REGISTRY_PATH = REPO_DIR / "backend" / "app" / "release_channel.py"
 def load_registry():
     spec = importlib.util.spec_from_file_location("bobine_release_channel", REGISTRY_PATH)
     module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module  # requis par @dataclass
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -50,8 +50,7 @@ def render_frontend_ts(registry) -> str:
     ids = ", ".join(f'"{channel_id}"' for channel_id in registry.CHANNEL_IDS)
     rolling = ", ".join(f'"{channel_id}"' for channel_id in registry.ROLLING_CHANNEL_IDS)
     return (
-        "// Généré par scripts/sync_release_channels.py depuis backend/app/release_channel.py.\n"
-        "// Ne pas modifier à la main : ajouter un canal commence dans le registre du backend.\n"
+        "// Généré par scripts/sync_release_channels.py.\n"
         f"export const RELEASE_CHANNELS = [{ids}] as const;\n"
         f'export const DEFAULT_RELEASE_CHANNEL = "{registry.DEFAULT_CHANNEL}" as const;\n'
         f"export const ROLLING_RELEASE_CHANNELS = [{rolling}] as const;\n"

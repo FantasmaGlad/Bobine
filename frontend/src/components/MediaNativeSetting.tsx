@@ -11,11 +11,6 @@ import {
 } from "@/lib/mediaNative";
 import { getApiUrl } from "@/lib/apiUrl";
 
-/**
- * Réglages → Composant audio natif (expérimental). Désactivé par défaut ; il n'accélère que de
- * nouveaux imports et toute erreur retombe sur le chemin habituel : aucun média n'est perdu.
- * L'état affiché (actif, repli, absent) est celui que mesure le serveur.
- */
 export default function MediaNativeSetting() {
   const { t } = useAppSettings();
   const [status, setStatus] = useState<MediaNativeStatus | null>(null);

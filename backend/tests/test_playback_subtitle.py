@@ -1,5 +1,3 @@
-"""Choix des sous-titres depuis l'admin : état diffusé aux kiosques du canal."""
-
 import asyncio
 
 from tests.test_playback_clock import FakeTime, _manager, _patch_clock
@@ -21,7 +19,7 @@ def test_choix_de_sous_titres_diffuse_et_remis_a_zero_au_prochain_cours():
         assert m.snapshot()["subtitle"] == "off"
 
         await m.set_subtitle("n'importe quoi")
-        assert m.snapshot()["subtitle"] == "off"  # valeur invalide ignorée
+        assert m.snapshot()["subtitle"] == "off"
 
         await m.load(2, "Autre cours", 300.0)
         assert m.snapshot()["subtitle"] is None

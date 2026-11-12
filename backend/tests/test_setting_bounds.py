@@ -1,4 +1,3 @@
-"""Réglages numériques de lecture : bornés côté serveur, mêmes bornes que la page Réglages."""
 import os
 import re
 from pathlib import Path

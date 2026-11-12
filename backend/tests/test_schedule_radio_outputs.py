@@ -1,11 +1,6 @@
-"""Planning à quatre voies : les deux sorties radio ont chacune leur voie, l'ancienne voie
-« radio » reste acceptée et migre vers la sortie réseau, un lancement visant la radio câblée
-ne bascule jamais l'écran câblé."""
-
 import asyncio
 import os
 
-# Base de test isolée AVANT tout import de l'application (comme les autres tests).
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
@@ -97,7 +92,7 @@ def test_la_migration_rattache_l_ancienne_voie_radio_a_la_sortie_reseau_et_est_i
     finally:
         db.close()
     _migrate_schedule_radio_channel_to_network()
-    _migrate_schedule_radio_channel_to_network()  # idempotente
+    _migrate_schedule_radio_channel_to_network()
     db = SessionLocal()
     try:
         channels = sorted(s.channel for s in db.query(Schedule).all())
@@ -129,7 +124,7 @@ def test_filtres_de_liste_par_voie_avec_alias(client):
     by_channel = lambda ch: [s["channel"] for s in client.get("/api/schedule", params={"channel": ch}).json()]  # noqa: E731
     assert by_channel("radio_cable") == ["radio_cable"]
     assert by_channel("radio_network") == ["radio_network"]
-    assert by_channel("radio") == ["radio_network"]  # ancien lien /schedule?channel=radio
+    assert by_channel("radio") == ["radio_network"]
     assert len(client.get("/api/schedule").json()) == 2
 
 
@@ -144,7 +139,6 @@ def test_lancement_radio_reseau_demarre_et_radio_cable_ramene_l_ecran_cable_sur_
         db.close()
     network, cable = get_radio_manager("radio_network"), get_radio_manager("radio_cable")
     assert network.state["state"] == "playing"
-    # Une programmation de la radio câblée se fait ENTENDRE : l'écran câblé repasse sur Radio.
     assert client.get("/api/settings/display-output").json()["cable"] == "radio"
     assert cable.state["state"] == "playing" and cable.state["playlist_id"] == pid
     assert client.get("/api/settings/display-output").json()["network"] != "radio"
@@ -184,7 +178,6 @@ def test_le_mode_coach_garde_la_priorite_sur_une_programmation_radio_cable(clien
             db.close()
     finally:
         manager.snapshot = original  # type: ignore[method-assign]
-    # Séance en direct : l'écran n'est pas basculé, la playlist est chargée en pause.
     assert client.get("/api/settings/display-output").json()["cable"] != "radio"
     cable = get_radio_manager("radio_cable")
     assert cable.state["state"] == "paused" and cable.state["playlist_id"] == pid

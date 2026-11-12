@@ -12,7 +12,6 @@ interface Props extends StorageCtx {
   onClose: () => void;
 }
 
-/** Conseiller de format : selon l'OS de Bobine et ceux qui brancheront le support. Décrit, n'exécute jamais rien. */
 export default function FormatAdvisor({ open, onClose, t, lang, notify }: Props) {
   const [host, setHost] = useState<OsChoice>("linux");
   const [others, setOthers] = useState<OsChoice[]>([]);

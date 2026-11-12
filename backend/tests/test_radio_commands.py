@@ -1,4 +1,3 @@
-"""Son radio et rappel immédiat : un seul code pour REST, WebSocket et CLI."""
 import asyncio
 import os
 
@@ -43,7 +42,7 @@ def test_sound_is_bounded_saved_broadcast_and_mirrored(mirrors):
     manager = FakeManager()
     with SessionLocal() as db:
         sound = asyncio.run(radio_commands.apply_sound(db, manager, {"bass_boost": 9999}, 12.5))
-    assert sound["bass_boost"] == 12  # borné, jamais d'erreur
+    assert sound["bass_boost"] == 12
     assert manager.sounds == [(sound, 12.5)] and mirrors == [True]
 
 
@@ -55,7 +54,7 @@ def test_announcement_resolution_and_duck_mode(mirrors):
         off = RadioAnnouncement(file_path="/b.mp3", description="Inactif", enabled=False)
         db.add_all([on, off])
         db.commit()
-        assert radio_commands.resolve_announcement(db, off.id) is None  # désactivé : jamais joué
+        assert radio_commands.resolve_announcement(db, off.id) is None
         assert radio_commands.resolve_announcement(db, None).id == on.id
         manager = FakeManager()
         payload = asyncio.run(radio_commands.play_announcement_now(db, [manager, FakeManager()], on, 3.0))
@@ -72,7 +71,6 @@ def test_rest_routes_use_the_shared_code():
 
 
 def test_put_sound_and_the_facade_give_the_same_state_and_persistence():
-    """`PUT /api/radio/sound` et `POST /api/radio/{sortie}/radio_set_sound` : mêmes bornes, même état, même copie en base."""
     from app.radio_manager import get_radio_manager
     from app.utils.radio_sound import load_sound
 
@@ -92,7 +90,6 @@ def test_put_sound_and_the_facade_give_the_same_state_and_persistence():
 
 
 def test_play_now_and_the_facade_reach_the_same_players():
-    """Le rappel immédiat par REST, par la façade et par la commande WebSocket arrive aux mêmes sorties, en « duck »."""
     from app.radio_manager import get_radio_manager
 
     init_db()

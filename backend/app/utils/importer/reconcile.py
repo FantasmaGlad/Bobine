@@ -10,27 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def reconcile_orphaned_media() -> None:
-    """
-    Filet de sécurité au démarrage : import_video/import_background
-    déplacent déjà le fichier vers son dossier final AVANT le commit DB, avec
-    un nettoyage sur exception Python (`except Exception as dbe`) — mais un
-    crash DUR du processus (coupure électrique, kill -9) entre les deux
-    n'est pas une exception Python à rattraper, et peut laisser un fichier à
-    son emplacement final sans plus aucune ligne DB pour le référencer.
-
-    Appelé une fois au démarrage (avant que le watcher ne traite quoi que ce
-    soit de nouveau — aucun import n'est possible avant que l'app ait fini de
-    démarrer, donc tout fichier trouvé ici provient forcément d'une exécution
-    PRÉCÉDENTE) :
-    - un fichier "temp_*" (jamais censé survivre à un import réussi, son
-      propre `finally` le supprime toujours en cas de succès) est supprimé
-      directement, sans risque ;
-    - un fichier à son nom final sans ligne DB n'est que SIGNALÉ : le
-      supprimer automatiquement serait destructif si ce diagnostic se
-      trompait sur un cas non prévu, mieux vaut laisser l'administrateur
-      l'examiner (visible dans le journal technique à chaque démarrage tant
-      que non résolu, plutôt que perdu silencieusement).
-    """
+    """Filet de sécurité au démarrage : import_video/import_background déplacent déjà le fichier vers son dossier final AVANT le commit DB, avec un nettoyage sur exception Python."""
     db = SessionLocal()
     try:
         known_video_paths = {row[0] for row in db.query(Video.file_path).all()}

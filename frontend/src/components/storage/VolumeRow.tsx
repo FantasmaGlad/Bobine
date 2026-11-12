@@ -14,7 +14,6 @@ interface VolumeProps extends StorageCtx {
   onMore: () => void;
 }
 
-/** Un support : nom, état en un mot, place libre, UNE action principale (Explorer) et le menu d'options. */
 export function VolumeRow({ volume, busy, onExplore, onMore, t, lang }: VolumeProps) {
   const status = volumeStatus(volume);
   const action = primaryAction(volume);
@@ -56,7 +55,6 @@ interface PortableProps extends StorageCtx {
   onOpen: () => void;
 }
 
-/** Téléphone ou tablette : lecture seule, import uniquement ; l'état dit quoi faire sur l'appareil. */
 export function PortableRow({ device, busy, onOpen, t }: PortableProps) {
   const ready = device.state === "ready" || device.state === "mounted";
   const hintKey = device.state === "busy" ? "busy" : device.state === "detected" || device.state === "not_ready" || device.state === "locked" || device.state === "needs_approval" ? "waiting" : "";

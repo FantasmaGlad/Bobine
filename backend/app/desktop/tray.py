@@ -1,15 +1,4 @@
-"""BobineTray — icône de zone de notification + supervision du backend,
-pour les profils « app de bureau » (Windows, Linux de bureau et
-macOS).
-
-Point d'entrée SÉPARÉ de l'API FastAPI (`app.main`) : ce module est
-empaqueté par PyInstaller comme un second exécutable (`BobineTray.exe`),
-lancé au démarrage de session (raccourci posé par l'installeur Inno
-Setup), qui démarre et surveille `BobineBackend.exe` comme process enfant
-— aucun Service Windows ni canal de communication dédié n'est nécessaire.
-
-Voir docs/ARCHITECTURE.md.
-"""
+"""BobineTray — icône de zone de notification + supervision du backend, pour les profils « app de bureau » (Windows, Linux de bureau et macOS)."""
 
 import json
 import logging
@@ -45,17 +34,6 @@ logger = logging.getLogger(__name__)
 
 
 def _admin_port() -> int:
-    """Port du backend à joindre : celui qu'il a réellement publié dans son
-    fichier d'exécution (`app.utils.port`, il peut avoir pris un port de repli
-    si le port configuré était occupé), sinon le port configuré
-    (`config.toml`/`BOBINE_PORT`) — jamais un port figé. Trouvé lors d'un audit
-    multi-plateforme (2026-09-11) : un utilisateur changeant le port dans sa
-    configuration voyait le bouton « Administration » et le kiosque du tray
-    pointer ailleurs en silence. Lu à chaque appel, pas à l'import : le backend
-    est relancé par le superviseur et peut changer de port. Repli sur le
-    port par défaut si `app.utils.port` échoue à charger pour n'importe quelle
-    raison (ce module reste un point d'entrée standalone, packagé séparément par
-    PyInstaller — jamais bloquer le tray pour ça)."""
     try:
         from app.utils.port import current_port
         return int(current_port())
@@ -87,8 +65,6 @@ def _display_state_url() -> str:
     return f"{_admin_url()}/api/display/state"
 
 
-# ?channel=cable EXPLICITE : l'écran projecteur est toujours le canal câblé
-# (cf. frontend/src/lib/displayChannel.ts).
 def _projector_url() -> str:
     return f"{_admin_url()}/cinema/?channel=cable"
 
@@ -101,36 +77,15 @@ def _updates_status_url() -> str:
     return f"{_admin_url()}/api/updates/status"
 
 
-# Supervision "logique" (process vivant mais /api/health en échec de façon
-# répétée) — complète la supervision "process mort" de BackendSupervisor,
-# même principe que scripts/watchdog.sh pour l'appliance headless.
 HEALTH_POLL_INTERVAL_SECONDS = 30
 HEALTH_FAILURES_BEFORE_RESTART = 3
 
-# Notification "mise à jour disponible" : interroge le backend LOCAL
-# (`/api/updates/check`, déjà conscient du canal Stable/Bêta choisi dans
-# Réglages et du profil de déploiement pour l'asset à proposer) plutôt que
-# de dupliquer l'appel GitHub ici. 6h entre deux vérifications — pas besoin
-# de plus réactif pour une appliance de bureau.
 UPDATE_POLL_INTERVAL_SECONDS = 6 * 60 * 60
 
-# Suivi de la PROGRESSION d'une mise à jour déjà en cours (déclenchée
-# manuellement depuis Réglages, ou automatiquement par la planification
-# quotidienne) : intervalle bien plus court que UPDATE_POLL_INTERVAL_SECONDS
-# ci-dessus, qui ne sert lui qu'à détecter qu'UNE NOUVELLE version existe.
-# Le tray n'a aucun moyen d'être notifié directement par le backend (deux
-# process séparés, aucun canal dédié) — il compare simplement l'état lu à
-# chaque passage à celui vu au tour précédent.
 UPDATE_STATUS_POLL_INTERVAL_SECONDS = 15
 
 
 def _backend_command() -> list[str]:
-    """Commande pour lancer BobineBackend. Une fois empaqueté (PyInstaller),
-    cherche l'exécutable frère `BobineBackend(.exe)` à côté de celui-ci. En
-    développement (ni l'un ni l'autre trouvé), retombe sur `uvicorn` via
-    l'interpréteur courant — ce qui rend ce module directement testable
-    sans packaging, y compris hors Windows : `run_backend.py` est le même point
-    d'entrée que celui figé par PyInstaller, donc la même résolution du port."""
     exe_dir = Path(sys.executable).resolve().parent
     for name in ("BobineBackend.exe", "BobineBackend"):
         candidate = exe_dir / name
@@ -140,10 +95,7 @@ def _backend_command() -> list[str]:
 
 
 class BackendSupervisor:
-    """Démarre BobineBackend et le relance s'il s'arrête de lui-même ou sur
-    demande explicite (cf. `WindowsHandler.restart_services()`, qui se
-    contente de quitter le process courant en confiance qu'il sera relancé
-    ici — aucun canal de communication dédié n'est nécessaire)."""
+    """Démarre BobineBackend et le relance s'il s'arrête de lui-même ou sur demande explicite."""
 
     def __init__(self, backend_command: list[str]):
         self._backend_command = backend_command
@@ -166,9 +118,6 @@ class BackendSupervisor:
         with self._lock:
             if self._process is not None:
                 self._process.terminate()
-        # La boucle de supervision relance automatiquement (cf.
-        # _supervise_loop, `self._process.wait()` qui revient dès la
-        # terminaison) — aucun autre code nécessaire ici.
 
     def is_running(self) -> bool:
         with self._lock:
@@ -213,14 +162,6 @@ class BackendSupervisor:
 
 
 def _set_display_always_on(enabled: bool) -> None:
-    """Anti-veille activée UNIQUEMENT pendant la session kiosque
-    — jamais globalement : contrairement à l'appliance headless,
-    l'utilisateur qui installe Bobine sur son PC personnel veut
-    probablement garder son comportement de veille habituel le reste du
-    temps. Windows : SetThreadExecutionState ; Linux (X11) : xset. macOS ne
-    passe pas par ici (cf. `_caffeinate_after_launch` ci-dessous — `caffeinate`
-    s'attache au PID du navigateur et se libère tout seul à sa fermeture,
-    pas de bascule on/off explicite comme sur les deux autres OS)."""
     system = platform.system()
     if system == "Windows":
         import ctypes
@@ -241,13 +182,6 @@ def _set_display_always_on(enabled: bool) -> None:
 
 
 def _caffeinate_after_launch(process_name: str, timeout_seconds: float = 5.0) -> None:
-    """macOS uniquement : attend que le navigateur lancé
-    via `open` apparaisse dans la table des process (`open` ne rend pas la
-    main sur son PID directement), puis attache `caffeinate -d -i -w <pid>`
-    — anti-veille active tant que ce process tourne, libérée automatiquement
-    à sa fermeture, sans bascule on/off explicite à gérer nous-mêmes. Appelé
-    dans un thread pour ne jamais bloquer l'item de menu qui a déclenché le
-    lancement du kiosque."""
     import psutil
 
     deadline = time.time() + timeout_seconds
@@ -261,13 +195,7 @@ def _caffeinate_after_launch(process_name: str, timeout_seconds: float = 5.0) ->
 
 
 def launch_kiosk_browser(url: str | None = None) -> None:
-    """Lance le navigateur en mode kiosque optionnel.
-    - Windows : préfère Edge (Chromium).
-    - Linux : cherche chromium, google-chrome ou firefox en mode --kiosk.
-    - macOS : Google Chrome via `open -na` (les navigateurs sont des bundles
-      `.app`, pas des exécutables nus sur le PATH) + anti-veille `caffeinate`
-      attachée après coup (cf. `_caffeinate_after_launch`).
-    - Repli universel : navigateur par défaut."""
+    """Lance le navigateur en mode kiosque optionnel."""
     target_url = url or _kiosk_url()
     system = platform.system()
     kiosk_args = ["--kiosk", "--autoplay-policy=no-user-gesture-required", target_url]
@@ -280,7 +208,6 @@ def launch_kiosk_browser(url: str | None = None) -> None:
             return
 
     elif system == "Linux":
-        # Recherche d'un navigateur Chromium sous Linux
         for candidate in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "brave-browser", "msedge"):
             browser_bin = shutil.which(candidate)
             if browser_bin:
@@ -288,7 +215,6 @@ def launch_kiosk_browser(url: str | None = None) -> None:
                 subprocess.Popen([browser_bin, *kiosk_args])
                 return
 
-        # Repli Firefox
         firefox = shutil.which("firefox")
         if firefox:
             _set_display_always_on(True)
@@ -312,7 +238,6 @@ def launch_kiosk_browser(url: str | None = None) -> None:
 
 
 def _get_wired_display_mode() -> str:
-    """Lit le mode d'affichage câblé configuré depuis le backend local (/api/settings)."""
     try:
         req = urllib.request.Request(f"{_admin_url()}/api/settings", headers={"User-Agent": "BobineTray"})
         with urllib.request.urlopen(req, timeout=2) as resp:
@@ -323,18 +248,6 @@ def _get_wired_display_mode() -> str:
 
 
 def _open_initial_displays(timeout_seconds: float = 20.0) -> None:
-    """Orchestre l'ouverture des interfaces au démarrage.
-
-    L'écran EXTERNE (projecteur, TV) n'est plus ouvert ici,
-    à l'aveugle et sans position, mais par `DisplayOrchestrator` qui énumère les
-    moniteurs, place une fenêtre dédiée sur le bon écran et suit les
-    branchements/débranchements à chaud. Ce démarrage ne s'occupe donc que de
-    l'écran du PC :
-      - écran externe détecté : /grid (pupitre) ou l'administration sur le PC,
-        le projecteur étant géré par l'orchestrateur ;
-      - aucun écran externe (comportement historique « mini-PC autonome ») :
-        administration + kiosque câblé sur l'écran unique.
-    """
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         if is_backend_running():
@@ -346,9 +259,6 @@ def _open_initial_displays(timeout_seconds: float = 20.0) -> None:
             if has_external or mode == "dual_screen":
                 webbrowser.open(_grid_url() if mode == "dual_screen" else _admin_url())
                 if not has_external and mode == "dual_screen":
-                    # Pupitre forcé sans projecteur branché : la fenêtre
-                    # /cinema sera ouverte par l'orchestrateur dès qu'un écran
-                    # apparaîtra ; rien à lancer ici.
                     logger.info("Mode double écran sans écran externe : en attente d'un projecteur")
             else:
                 logger.info("Mode autonome (aucun écran externe) : Administration + Kiosque")
@@ -362,25 +272,16 @@ def _open_initial_displays(timeout_seconds: float = 20.0) -> None:
 
 
 def _fetch_settings() -> dict | None:
-    """Réglages du backend local (délai court : appelé à chaque cycle de la boucle de statut)."""
     request = urllib.request.Request(f"{_admin_url()}/api/settings", headers={"Accept": "application/json"})
     with urllib.request.urlopen(request, timeout=1.0) as response:
         return json.loads(response.read().decode())
 
 
 def _detect_current_channel() -> str:
-    """Canal de mise à jour choisi (stable, beta, canary) — cf. app.desktop.channel_icon."""
     return channel_icon.detect_channel(_fetch_settings)
 
 
 def _load_icon_image(channel: str | None = None) -> Image.Image:
-    """Icône de la barre système du canal donné (par défaut, le canal courant).
-
-    Les emplacements cherchés (à côté de l'exécutable une fois empaqueté — PyInstaller,
-    cf. `packaging/*/bobine.spec`, `contents_directory = "."` y garantit une arborescence
-    plate —, `Contents/Resources/` pour un bundle macOS, puis le dépôt en développement)
-    sont définis par `channel_icon.icon_candidates`. Les trois icônes de canal sont
-    embarquées par les spec PyInstaller (cf. packaging/common/channel.py)."""
     if channel is None:
         channel = _detect_current_channel()
     exe_dir = Path(sys.executable).resolve().parent
@@ -392,36 +293,9 @@ _LAUNCH_AGENT_LABEL = "com.bobine.app"
 
 
 def _ensure_launch_agent_macos() -> None:
-    """macOS uniquement : installe/active le LaunchAgent de lancement
-    automatique à l'ouverture de session, et le RÉPARE si le chemin qu'il
-    pointe est devenu obsolète.
-
-    Contrairement à Windows (raccourci `{userstartup}` posé par l'installeur
-    Inno Setup) et Linux de bureau (`.desktop` XDG autostart posé par
-    `postinst` du paquet .deb), la distribution macOS envisagée est un
-    simple `.dmg` glisser-déposer vers `/Applications` — un
-    `.dmg` n'a pas de script `postinstall` où poser
-    `~/Library/LaunchAgents/com.bobine.app.plist` (contrairement à un `.pkg`,
-    qui tournerait de toute façon en root sans `$HOME` fiable de
-    l'utilisateur connecté). C'est donc BobineTray lui-même qui écrit puis
-    charge son propre LaunchAgent — best-effort, jamais bloquant : un échec
-    ici ne doit jamais empêcher le tray de démarrer.
-
-    Ne PAS se contenter de sauter cette étape dès que le fichier existe déjà : si l'utilisateur lance
-    Bobine.app directement depuis le `.dmg` monté, ou pendant que Gatekeeper
-    l'a temporairement « translocated » sous
-    `/private/var/folders/.../AppTranslocation/<uuid>/`, avant de le glisser
-    dans `/Applications`, `sys.executable` pointe alors vers cet emplacement
-    éphémère — écrit tel quel dans le plist, il ne fonctionnerait plus une
-    fois le `.dmg` éjecté ou le dossier de translocation nettoyé, et plus
-    aucun lancement ultérieur (y compris depuis le bon emplacement final) ne
-    corrigeait jamais ce chemin figé. On compare donc `ProgramArguments[0]`
-    du plist existant au `sys.executable` courant à CHAQUE lancement, et on
-    réécrit + recharge si besoin."""
     if platform.system() != "Darwin" or not getattr(sys, "frozen", False):
         return
 
-    # sys.executable = .../Bobine.app/Contents/MacOS/BobineTray
     tray_exe = str(Path(sys.executable).resolve())
     agent_path = Path.home() / "Library" / "LaunchAgents" / f"{_LAUNCH_AGENT_LABEL}.plist"
 
@@ -430,7 +304,7 @@ def _ensure_launch_agent_macos() -> None:
             with open(agent_path, "rb") as f:
                 existing = plistlib.load(f)
             if existing.get("ProgramArguments") == [tray_exe]:
-                return  # déjà à jour, rien à faire
+                return
             logger.info(f"LaunchAgent obsolète (chemin enregistré différent de {tray_exe}) — réparation.")
         except Exception:
             logger.warning("LaunchAgent illisible/corrompu — réécriture.")
@@ -446,8 +320,6 @@ def _ensure_launch_agent_macos() -> None:
                     "Label": _LAUNCH_AGENT_LABEL,
                     "ProgramArguments": [tray_exe],
                     "RunAtLoad": True,
-                    # Relance uniquement sur crash (sortie non nulle), jamais
-                    # après un "Quitter" propre depuis le menu (exit(0)).
                     "KeepAlive": {"SuccessfulExit": False},
                     "ProcessType": "Interactive",
                     "StandardOutPath": str(log_dir / "BobineTray.out.log"),
@@ -456,10 +328,6 @@ def _ensure_launch_agent_macos() -> None:
                 f,
             )
 
-        # `bootout` avant `bootstrap` : sans ça, recharger un Label déjà
-        # chargé (cas de réparation, pas de première installation) échoue
-        # silencieusement et l'ancien chemin obsolète resterait actif en
-        # mémoire jusqu'à la prochaine session.
         subprocess.run(
             ["launchctl", "bootout", f"gui/{os.getuid()}/{_LAUNCH_AGENT_LABEL}"],
             check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -474,11 +342,6 @@ def _ensure_launch_agent_macos() -> None:
 
 
 def _ensure_desktop_shortcut() -> None:
-    """Vérifie et assure la présence d'une icône / raccourci sur le Bureau de
-    l'utilisateur pour chaque plateforme de bureau :
-    - Windows : posé nativement à l'installation par Inno Setup ({autodesktop}).
-    - Linux : copie `bobine.desktop` vers ~/Desktop ou ~/Bureau si présent.
-    - macOS : crée un alias/symlink `Bobine.app` vers ~/Desktop si le dossier existe."""
     system = platform.system()
     try:
         if system == "Linux":
@@ -525,29 +388,11 @@ def is_backend_running() -> bool:
         return False
 
 
-# Port dédié, inutilisé ailleurs dans l'app, servant UNIQUEMENT de verrou
-# inter-process (jamais de connexion établie dessus).
 _SINGLE_INSTANCE_LOCK_PORT = 47_821
 _single_instance_socket: socket.socket | None = None
 
 
 def _acquire_single_instance_lock() -> bool:
-    """Empêche deux `BobineTray` de superviser chacun leur propre arbre
-    `BobineBackend` en parallèle — cause racine confirmée du pic RAM
-    observé pendant une mise à jour .deb (200 Mo → 1 Go+) :
-    `packaging/linux/DEBIAN/postinst` relance Bobine par deux voies
-    potentiellement concurrentes (`systemctl --user restart
-    bobine.service` PUIS, si son `pgrep` de contrôle s'exécute avant que
-    le premier ait eu le temps de répondre, un `nohup bobine &` de
-    secours). `is_backend_running()` seul ne suffit pas à s'en prémunir :
-    sa fenêtre de 1s peut tomber pile avant que le PREMIER backend ne soit
-    prêt à répondre, laissant le second lancement croire la voie libre.
-
-    Un bind TCP exclusif sur un port dédié sert de verrou inter-process
-    portable (Windows/Linux/macOS, sans dépendance supplémentaire) :
-    relâché automatiquement par l'OS si ce process meurt, même
-    brutalement — contrairement à un fichier PID, aucun nettoyage de
-    verrou périmé n'est nécessaire au redémarrage suivant."""
     global _single_instance_socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -555,28 +400,17 @@ def _acquire_single_instance_lock() -> bool:
     except OSError:
         sock.close()
         return False
-    # Référence gardée en vie pour toute la durée du process : jamais
-    # fermée explicitement, le verrou doit tenir jusqu'à la sortie.
     _single_instance_socket = sock
     return True
 
 
-# État de la dernière vérification de mise à jour, lu par le libellé
-# dynamique de l'item de menu (cf. `update_text` dans `run()`) et écrit
-# uniquement par `_check_for_update_once()` — un verrou suffit, la fréquence
-# d'accès est très faible (un poll toutes les UPDATE_POLL_INTERVAL_SECONDS,
-# un rendu de menu à chaque clic droit sur l'icône).
 _update_lock = threading.Lock()
 _update_state: dict = {"has_update": False, "latest_version": None, "download_url": None}
 
 
 def _check_for_update_once() -> None:
-    """Interroge le backend local (déjà conscient du canal Stable/Bêta et du
-    profil de déploiement) et met à jour `_update_state`. Best-effort :
-    aucune exception ne doit jamais faire tomber le tray."""
     try:
         req = urllib.request.Request(_updates_check_url(), headers={"User-Agent": "BobineTray"})
-        # Délai large : avec les mises à jour par Tor, le backend peut d'abord lancer Tor avant d'interroger GitHub.
         with urllib.request.urlopen(req, timeout=180) as resp:
             data = json.loads(resp.read().decode("utf-8"))
         with _update_lock:
@@ -590,9 +424,6 @@ def _check_for_update_once() -> None:
 
 
 def _update_poll_loop() -> None:
-    """Vérifie dès que le backend répond, puis toutes les
-    UPDATE_POLL_INTERVAL_SECONDS — tourne pour toute la durée de vie du tray
-    (pas de condition d'arrêt : le process entier se termine sur `on_quit`)."""
     deadline = time.time() + 30.0
     while time.time() < deadline and not is_backend_running():
         time.sleep(0.5)
@@ -602,12 +433,6 @@ def _update_poll_loop() -> None:
 
 
 def _notify_best_effort(icon: "pystray.Icon", title: str, message: str) -> None:
-    """`pystray.Icon.notify()` n'est pas également fiable sur tous les
-    environnements de bureau Linux (dépend du backend GTK/AppIndicator
-    disponible) — un échec ici ne doit dégrader que la notification native,
-    jamais faire tomber le tray lui-même. La bannière affichée dans
-    l'interface web (cf. `UpdateProgressOverlay` côté frontend) reste dans
-    tous les cas le canal d'information fiable."""
     try:
         icon.notify(message, title)
     except Exception as e:
@@ -615,12 +440,6 @@ def _notify_best_effort(icon: "pystray.Icon", title: str, message: str) -> None:
 
 
 def _port_fallback_notice(icon: "pystray.Icon", wait_seconds: float = 120.0) -> None:
-    """Signale clairement que le backend écoute sur un port de repli (le port
-    configuré était occupé). Les règles de pare-feu des installeurs couvrent ce port
-    (Windows : liée au programme ; Linux : profil ufw et service firewalld sur toute la plage de repli) :
-    sans ce message, les autres appareils du réseau ne comprendraient pas pourquoi
-    l'adresse habituelle ne répond plus. Une seule notification par
-    démarrage du tray ; le journal du backend porte le même avertissement."""
     deadline = time.time() + wait_seconds
     while time.time() < deadline:
         info = read_runtime()
@@ -640,18 +459,10 @@ def _port_fallback_notice(icon: "pystray.Icon", wait_seconds: float = 120.0) -> 
 
 
 def _update_status_poll_loop(icon: "pystray.Icon") -> None:
-    """Suit la progression d'une mise à jour déjà en cours (déclenchée
-    manuellement depuis Réglages, OU automatiquement par la planification
-    quotidienne — les deux origines alimentent le même `/api/updates/status`,
-    cf. `updates.orchestrator.run_update_pipeline`) et affiche une
-    notification native à la fin, réussie ou non. Sans ce suivi, une mise à
-    jour planifiée à 3h du matin n'avait AUCUN moyen de se signaler à un
-    utilisateur qui n'a pas de navigateur ouvert sur Réglages à ce moment-là."""
     last_notified_started_at = None
     current_channel = _detect_current_channel()
     while True:
         time.sleep(UPDATE_STATUS_POLL_INTERVAL_SECONDS)
-        # Rafraîchissement automatique de l'icône si le canal a changé
         detected_channel = _detect_current_channel()
         if detected_channel != current_channel:
             current_channel = detected_channel
@@ -671,7 +482,7 @@ def _update_status_poll_loop(icon: "pystray.Icon") -> None:
         started_at = status.get("started_at")
         if not tray_actions.should_notify_update_outcome(status, last_notified_started_at):
             if step in ("done", "failed"):
-                last_notified_started_at = started_at  # issue déjà vue ou trop ancienne : jamais notifiée plus tard
+                last_notified_started_at = started_at
             continue
         last_notified_started_at = started_at
 
@@ -682,20 +493,14 @@ def _update_status_poll_loop(icon: "pystray.Icon") -> None:
 
 
 def run() -> None:
-    """Point d'entrée — `python -m app.desktop.tray` en développement, et
-    l'exécutable `BobineTray.exe` une fois empaqueté."""
+    """Point d'entrée — `python -m app.desktop.tray` en développement, et l'exécutable `BobineTray.exe` une fois empaqueté."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
-    # Si Bobine tourne déjà en arrière-plan, un clic sur l'icône du Bureau
-    # ouvre directement l'interface dans le navigateur sans lancer de doublon.
     if is_backend_running():
         logger.info("Bobine est déjà actif en arrière-plan. Ouverture de l'interface web.")
         webbrowser.open(_admin_url())
         return
 
-    # Second garde-fou, complémentaire au précédent : `is_backend_running()`
-    # peut rater une instance en train de démarrer (health check pas encore
-    # prêt) — cf. `_acquire_single_instance_lock()`.
     if not _acquire_single_instance_lock():
         logger.info(
             "Une autre instance de BobineTray supervise déjà le démarrage du backend "
@@ -710,10 +515,6 @@ def run() -> None:
     supervisor = BackendSupervisor(_backend_command())
     supervisor.start()
 
-    # Ouvre automatiquement les interfaces selon le mode d'affichage configuré
-    # sauf en démarrage silencieux (--startup / --minimized) :
-    # - En mode Pupitre Studio (dual_screen) : /grid sur l'écran du PC et /cinema sur la sortie HDMI.
-    # - En mode Classique / Headless (headless) : l'administration sur l'écran du PC et le kiosque sur HDMI.
     if "--startup" not in sys.argv and "--minimized" not in sys.argv:
         threading.Thread(
             target=_open_initial_displays,
@@ -723,13 +524,7 @@ def run() -> None:
 
     threading.Thread(target=_update_poll_loop, daemon=True, name="bobine-tray-update-check").start()
 
-    # Plug and play : démarre TOUJOURS, y compris en démarrage
-    # silencieux (--startup) — brancher un projecteur doit afficher /cinema
-    # dessus sans aucun geste, au démarrage comme à chaud.
     def _keep_awake_while_projecting(process) -> None:
-        # macOS : anti-veille tant que la fenêtre native tourne (même
-        # mécanisme que le kiosque navigateur, cf. `_caffeinate_after_launch`) ;
-        # `caffeinate -w` se libère seul à la fermeture du process.
         if platform.system() == "Darwin" and shutil.which("caffeinate"):
             subprocess.Popen(["caffeinate", "-d", "-i", "-w", str(process.pid)])
         elif platform.system() in ("Windows", "Linux"):
@@ -769,8 +564,6 @@ def run() -> None:
         if has_update and download_url:
             webbrowser.open(download_url)
         else:
-            # Pas (encore) de mise à jour connue : clic = vérification
-            # immédiate plutôt qu'un item inerte jusqu'au prochain poll.
             threading.Thread(target=_check_for_update_once, daemon=True, name="bobine-tray-update-check-now").start()
 
     def on_restart(icon, item):
@@ -815,7 +608,6 @@ def run() -> None:
     menu = pystray.Menu(
         pystray.MenuItem(status_text, None, enabled=False),
         pystray.Menu.SEPARATOR,
-        # Actions rapides, par la même façade REST que l'interface et la commande `bobine`.
         *[output_item(kind, target, name) for kind, target, name in tray_actions.OUTPUTS],
         pystray.MenuItem("Couper la diffusion", on_stop_all),
         pystray.Menu.SEPARATOR,

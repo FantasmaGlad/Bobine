@@ -1,5 +1,4 @@
 #!/bin/sh
-# Autorisation limitée à un compte explicitement choisi par l'installation.
 set -eu
 [ "$(id -u)" -eq 0 ] || { echo 'Cette configuration nécessite les droits administrateur.' >&2; exit 1; }
 rule=/etc/polkit-1/rules.d/49-bobine-storage.rules
@@ -27,7 +26,6 @@ case "${1:-}" in
             account=$(systemctl show -p User --value bobine-backend.service 2>/dev/null || true)
         fi
         if [ -z "$account" ] || [ "$account" = root ]; then
-            # Une session graphique unique ; aucun choix arbitraire sur un poste partagé.
             accounts=$(loginctl list-sessions --no-legend 2>/dev/null | while read -r session rest; do
                 active=$(loginctl show-session "$session" -p Active --value 2>/dev/null || true)
                 remote=$(loginctl show-session "$session" -p Remote --value 2>/dev/null || true)

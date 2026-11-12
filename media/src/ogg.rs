@@ -1,13 +1,3 @@
-//! Ogg Vorbis and Ogg Opus: one logical stream, the standard header packets.
-//!
-//! The duration is the granule position of the last page over the sample rate, which is
-//! what ffprobe reports (including the Opus pre-skip, which ffmpeg does not subtract). That
-//! rule holds only when the stream starts at sample zero: ffmpeg shifts the start time
-//! otherwise. The first audio page is therefore checked against the sum of the durations of
-//! its own packets (Vorbis blocksizes read back from the setup header, Opus table of
-//! contents); any other start, several logical streams or a missing end page use the
-//! reference. Tags come from the comment header; a cover is a Base64 picture comment.
-
 use crate::audio::{
     corrupt, limit, read_exact, unsupported, Duration, Layout, Result, MAX_METADATA_BYTES,
 };
@@ -25,8 +15,6 @@ struct Page {
     body: Vec<u8>,
 }
 
-/// Parse a page header (27 bytes and the segment table) at the start of `bytes`.
-/// Returns the header fields and the length of the whole page, if it fits.
 fn header(bytes: &[u8]) -> Option<(u8, u64, u32, usize, usize)> {
     if bytes.len() < 27 || &bytes[..4] != b"OggS" || bytes[4] != 0 {
         return None;
@@ -59,7 +47,6 @@ fn read_page<R: Read>(reader: &mut R) -> Result<Page> {
     })
 }
 
-/// Packets are reassembled across pages; only complete ones are returned.
 #[derive(Default)]
 struct Packets {
     partial: Vec<u8>,
@@ -67,7 +54,6 @@ struct Packets {
 
 impl Packets {
     fn feed(&mut self, page: &Page) -> Result<Vec<Vec<u8>>> {
-        // A page continues a packet exactly when the previous page left one open.
         if (page.flags & 1 != 0) != !self.partial.is_empty() {
             return Err(corrupt());
         }
@@ -119,7 +105,6 @@ fn identify(packet: &[u8]) -> Result<Codec> {
         });
     }
     if packet.starts_with(b"OpusHead") {
-        // Version 1, one or two channels with the default mapping, nothing after the header.
         if packet.len() != 19 || packet[8] != 1 || !(1..=2).contains(&packet[9]) || packet[18] != 0
         {
             return Err(unsupported());
@@ -129,13 +114,6 @@ fn identify(packet: &[u8]) -> Result<Codec> {
     Err(unsupported())
 }
 
-/// Blockflag of each mode, from the end of the setup header.
-///
-/// The mode table is the last structure of the setup header: a 6-bit count minus one, then
-/// per mode a blockflag bit, 16 zero bits (window), 16 zero bits (transform) and an 8-bit
-/// mapping, and finally the framing bit, the last bit set of the packet. ffmpeg finds it by
-/// scanning backwards in the same way; the longest run of modes that has the right count in
-/// front of it is taken.
 fn modes(setup: &[u8]) -> Result<Vec<bool>> {
     if !setup.starts_with(b"\x05vorbis") {
         return Err(unsupported());
@@ -170,7 +148,6 @@ fn modes(setup: &[u8]) -> Result<Vec<bool>> {
     Ok((0..count).map(|mode| bit(start + 41 * mode) == 1).collect())
 }
 
-/// Samples each completed packet of a Vorbis stream contributes, in order.
 fn vorbis_total(packets: &[Vec<u8>], modes: &[bool], short: u64, long: u64) -> Result<u64> {
     let mode_bits = usize::BITS - (modes.len() - 1).leading_zeros();
     let mut total = 0;
@@ -194,7 +171,6 @@ fn vorbis_total(packets: &[Vec<u8>], modes: &[bool], short: u64, long: u64) -> R
     Ok(total)
 }
 
-/// Samples at 48 kHz in an Opus packet, from its table of contents.
 fn opus_samples(packet: &[u8]) -> Result<u64> {
     let toc = *packet.first().ok_or_else(unsupported)?;
     let config = usize::from(toc >> 3);
@@ -220,7 +196,6 @@ fn opus_samples(packet: &[u8]) -> Result<u64> {
     Ok(frame * frames)
 }
 
-/// The last page of the file: the chain of pages in the final window must end at the end.
 fn last_page<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<(u8, u64, u32)> {
     let window = file_len.min(MAX_PAGE_BYTES as u64 + 27);
     reader
@@ -255,7 +230,6 @@ pub(crate) fn scan<R: Read + Seek>(
     want_cover: bool,
 ) -> Result<Layout> {
     let first = read_page(reader)?;
-    // The identification header is alone on the first page, which begins the stream.
     if first.flags != 0x02 {
         return Err(unsupported());
     }
@@ -282,7 +256,6 @@ pub(crate) fn scan<R: Read + Seek>(
         }
         headers.extend(packets.feed(&page)?);
         if headers.len() > needed || (headers.len() == needed && !packets.partial.is_empty()) {
-            // Audio must begin on a fresh page.
             return Err(unsupported());
         }
     }
@@ -307,8 +280,6 @@ pub(crate) fn scan<R: Read + Seek>(
     };
     vorbis::read(content, &mut layout, Pictures::Base64Comment, want_cover)?;
 
-    // First audio page: the stream starts at sample zero when its granule is exactly the
-    // length of its own packets.
     let data = read_page(reader)?;
     if data.serial != serial || data.flags & 0x02 != 0 || data.granule == NO_GRANULE {
         return Err(unsupported());
@@ -357,7 +328,6 @@ mod tests {
                 segments.push(255);
                 left -= 255;
             }
-            // A final packet left open keeps a full 255 lacing value.
             if !(open && index == packets.len() - 1) {
                 segments.push(left as u8);
             }
@@ -384,7 +354,6 @@ mod tests {
         bytes
     }
 
-    /// Setup packet whose tail holds two modes: short (blockflag 0) and long (blockflag 1).
     fn setup() -> Vec<u8> {
         let mut bits: Vec<u8> = Vec::new();
         let mut push = |value: usize, width: usize| {
@@ -428,7 +397,6 @@ mod tests {
         [b"\x03vorbis".to_vec(), comments(items), vec![1]].concat()
     }
 
-    /// short, long, long, short: 0 + (256+2048)/4 + 2048/2 + (2048+256)/4 samples.
     fn audio() -> Vec<Vec<u8>> {
         vec![vec![0b00, 7], vec![0b10, 7], vec![0b10, 7], vec![0b00, 7]]
     }
@@ -472,8 +440,6 @@ mod tests {
     #[test]
     fn a_stream_that_does_not_start_at_zero_is_refused() {
         let samples = (256 + 2048) / 4 + 2048 / 2;
-        // The first audio page announces more samples than its packets hold: ffmpeg would
-        // report a non-zero start time.
         let shifted = vorbis_file(samples + 1000, samples + 1576);
         assert_eq!(scanned(&shifted).unwrap_err().reason, "unsupported");
     }
@@ -505,7 +471,6 @@ mod tests {
         head.extend_from_slice(&44_100_u32.to_le_bytes());
         head.extend_from_slice(&[0, 0, 0]);
         let tags = [b"OpusTags".to_vec(), comments(&["ARTIST=Moi"])].concat();
-        // Two 20 ms CELT frames (config 19 = 0b10011), then one 10 ms frame of the last page.
         let toc = 19_u8 << 3;
         let packets: [&[u8]; 3] = [&[toc, 1, 2], &[toc, 1, 2], &[(18_u8 << 3), 1]];
         let bytes = [
@@ -518,7 +483,6 @@ mod tests {
         let layout = scanned(&bytes).unwrap();
         assert_eq!(layout.tags["artist"], "Moi");
         assert_eq!(layout.duration, Duration::Exact(2400.0 / 48_000.0));
-        // Opus granule that does not match the packets of the first audio page.
         let off = [
             page(0x02, 0, 5, &[&head], false),
             page(0, 0, 5, &[&tags], false),
@@ -544,7 +508,6 @@ mod tests {
 
     #[test]
     fn headers_must_end_their_page_and_use_one_stream() {
-        // Audio data sharing the page of the setup header.
         let packets = audio();
         let bytes = [
             page(0x02, 0, 9, &[&ident()], false),
@@ -558,14 +521,12 @@ mod tests {
         ]
         .concat();
         assert_eq!(scanned(&bytes).unwrap_err().reason, "unsupported");
-        // A second logical stream begins before the headers are complete.
         let two = [
             page(0x02, 0, 9, &[&ident()], false),
             page(0x02, 0, 4, &[&ident()], false),
         ]
         .concat();
         assert_eq!(scanned(&two).unwrap_err().reason, "unsupported");
-        // Unknown codec.
         let speex = page(0x02, 0, 9, &[b"Speex   "], false);
         assert_eq!(scanned(&speex).unwrap_err().reason, "unsupported");
     }

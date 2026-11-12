@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Emballe les mêmes binaires que le paquet Debian ; aucune recompilation par distribution.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 input="${1:?paquet Debian}"; arch="${2:?x86_64 ou aarch64}"
@@ -17,7 +16,6 @@ engine="${CONTAINER_ENGINE:-docker}"
 "$engine" run --rm -v "$root:/src:ro" -v "$work/bundle:/input:ro" -v "$root/dist-arch:/output" \
     -e VERSION -e PKG_FILENAME_VERSION -e PKG_ARCH="$arch" -e BOBINE_DIST_DIR=/input/usr/lib/bobine -e OUTPUT_DIR=/output \
     "$ARCH_IMAGE" bash -c 'pacman -Syu --noconfirm --needed base-devel zstd patchelf python && python /src/scripts/ci/test-package-versions.py --family arch && /src/packaging/arch/build_arch.sh'
-# aarch64 : le rpm est installé et lancé par le job linux-rpm-aarch64 (Fedora arm64) ; le paquet Arch n'a pas d'image officielle (container-images.sh).
 args=(); [ "$arch" = x86_64 ] || args+=(--no-install)
 "$engine" run --rm -v "$root:/src:ro" -v "$root/dist-rpm:/output:ro" "$FEDORA_IMAGE" \
     bash -c 'dnf -y -q install desktop-file-utils && /src/packaging/rpm/test_rpm.sh "$1" "${2:-}"' -- "/output/$(basename "$(find "$root/dist-rpm" -name "*.$arch.rpm" | head -1)")" "${args[@]}"

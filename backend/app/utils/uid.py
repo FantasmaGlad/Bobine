@@ -1,9 +1,4 @@
-"""Identifiants stables des objets de Bobine : `<préfixe>_<12 hexadécimaux>` (`vid_3f9a1c07b2de`).
-
-Un identifiant est posé à la création de l'objet (`app.models.UidMixin`) et ne change jamais, même quand le titre, le nom
-ou le fichier changent. Il peut voyager dans un fichier de configuration : restaurer ce fichier sur une autre machine
-recrée l'objet avec le même identifiant.
-"""
+"""Identifiants stables des objets de Bobine : `<préfixe>_<12 hexadécimaux>` (`vid_3f9a1c07b2de`)."""
 from __future__ import annotations
 
 import re

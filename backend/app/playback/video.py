@@ -31,12 +31,9 @@ class VideoMixin:
         scheduled: bool = False,
         start_position: float = 0.0,
     ):
-        """
-        Lance un cours directement en lecture, à `start_position` (reprise d'une programmation interrompue).
-        """
+        """Lance un cours directement en lecture, à `start_position` (reprise d'une programmation interrompue)."""
         if not scheduled:
             await self._close_scheduled_launch()
-        # Clôture de la session précédente si elle était encore ouverte
         if self._current_session_id is not None:
             old_sess_id = self._current_session_id
             self._current_session_id = None
@@ -78,7 +75,6 @@ class VideoMixin:
         self._clock.start(start_position, lead_ms=self._lead_ms(LOAD_LEAD_MS))
         self._last_heartbeat = time.monotonic()
 
-        # Démarrage de la session SQLite d'assiduité
         self._current_session_id = await asyncio.to_thread(
             _db_start_session, video_id, self.channel, launch_type, duration_seconds or 0.0
         )
@@ -97,15 +93,7 @@ class VideoMixin:
         await asyncio.to_thread(_db_close_scheduled_launch, self.channel)
 
     async def video_ended(self, client_ts: float | None = None, video_id: int | None = None):
-        """Gère la fin naturelle d'une vidéo signalée par un écran.
-
-        Idempotent : TOUS les écrans du canal (miroirs compris) envoient
-        `video_ended` à la fin du cours, et le serveur peut déjà l'avoir
-        déclenchée lui-même (horloge). Sans cette garde, le signal tardif d'un
-        second écran terminait le cours SUIVANT dès son démarrage. `video_id`
-        (celui que l'écran vient de finir) doit donc être le cours en lecture ;
-        s'il est absent (client ancien), seul l'état « en lecture » est exigé.
-        """
+        """Gère la fin naturelle d'une vidéo signalée par un écran."""
         current = self.state.get("current_video")
         if current is None or self.state["state"] != PlaybackStateEnum.playing.value:
             return
@@ -117,7 +105,6 @@ class VideoMixin:
         if duration:
             self._clock.seek(duration)
 
-        # Clôture avec complétion validée de la session de lecture
         if self._current_session_id is not None:
             sess_id = self._current_session_id
             self._current_session_id = None
@@ -128,21 +115,16 @@ class VideoMixin:
         items = self.state["playlist_items"]
         if idx is not None and items is not None:
             if idx + 1 < len(items):
-                # Transition vers l'écran d'attente intercalée
                 self.state["state"] = PlaybackStateEnum.playlist_waiting.value
                 self.state["playlist_waiting_remaining"] = float(settings.wait_time_between_courses)
                 self._waiting_task = asyncio.create_task(self._run_waiting_period())
                 await self._emit("video_ended", client_ts)
             else:
-                # Fin de la playlist
                 await self.stop(client_ts)
         else:
-            # Pas de playlist active, comportement stop standard
             await self.stop(client_ts)
 
     async def play(self, client_ts: float | None = None):
-        # En mode coach, "Lecture" pilote la piste audio en cours
-        # plutôt que la vidéo — même bouton, comportement contextuel (un seul état partagé, pas de mode de contrôle séparé par écran).
         if self.state["current_audio_course"] is not None:
             self.state["audio_playing"] = True
             if not self._audio_clock.running:
@@ -181,7 +163,6 @@ class VideoMixin:
         self._clear_audio_coach()
         await self._close_scheduled_launch()
 
-        # Clôture de la session d'assiduité avec position finale
         if self._current_session_id is not None:
             sess_id = self._current_session_id
             self._current_session_id = None
@@ -213,24 +194,12 @@ class VideoMixin:
         await self._emit("seek", client_ts)
 
     async def report_position(self, position_seconds: float):
-        """
-        Rapport de la position réelle d'un écran (kiosque primaire).
-
-        La position est portée par l'horloge serveur
-        (`PlaybackClock`) : ce rapport N'EST PLUS la source de la position et
-        ne la modifie plus (il en fixait l'âge et la précision, et sans écran
-        primaire connecté le cours n'avançait pas). Il sert uniquement à :
-          * mémoriser qu'un écran joue réellement (`_last_direct_report`,
-            diagnostic) ;
-          * alimenter le suivi d'assiduité en base.
-        Silencieux : aucune diffusion (cf. `_position_broadcast_loop`).
-        """
+        """Rapport de la position réelle d'un écran (kiosque primaire)."""
         if self.state["current_video"] is None or self.state["state"] == PlaybackStateEnum.playlist_waiting.value:
             return
         now_mono = time.monotonic()
         self._last_direct_report = now_mono
 
-        # Throttling de la mise à jour en base toutes les 5s
         if self._current_session_id is not None and (now_mono - self._last_session_update >= 5.0):
             self._last_session_update = now_mono
             asyncio.create_task(
@@ -238,10 +207,7 @@ class VideoMixin:
             )
 
     async def load_background(self, background_id: int, title: str, is_image: bool = False, client_ts: float | None = None):
-        """Lance un fond animé en boucle infinie, plein écran, sans son. Prend le relais immédiatement sur toute lecture en cours — pas
-        de compte à rebours, une boucle d'ambiance n'est pas un « lancement de
-        cours » (la règle ne s'applique qu'aux vidéos de cours). `is_image` : le kiosk rend une <img> figée
-        plutôt qu'une <video> en boucle quand ce fond est une image fixe."""
+        """Lance un fond animé en boucle infinie, plein écran, sans son."""
         self._cancel_waiting()
         self._clear_audio_coach()
         await self._close_scheduled_launch()

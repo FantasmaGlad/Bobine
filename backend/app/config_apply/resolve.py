@@ -59,7 +59,6 @@ def _radio_track(ctx: _Context, file: str, ref: dict) -> RadioTrack | None:
 
 
 def _unique_by_name(ctx: _Context, file: str, model, name: str):
-    """Playlist existante portant ce nom (None si aucune) ; un homonyme en base rend la cible ambiguë."""
     found = ctx.db.query(model).filter(model.name == name).all()
     if len(found) > 1:
         ctx.fail(file, f"plusieurs playlists « {name} » existent : renommez-en une avant d'appliquer")
@@ -67,7 +66,6 @@ def _unique_by_name(ctx: _Context, file: str, model, name: str):
 
 
 def _media(ctx: _Context, file: str, model, entry: Any, what: str, by_file: Callable[[Any], str | None], *, key=None):
-    """Média existant désigné par `uid`, à défaut par son nom de fichier ; erreur s'il est introuvable ou ambigu."""
     if not isinstance(entry, dict):
         ctx.fail(file, f"{what} invalide : {entry!r}")
         return None
