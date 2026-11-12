@@ -4,6 +4,7 @@
 
 import json
 import logging
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -33,11 +34,17 @@ PENDING_UPDATE_FILE = "update-pending.json"
 
 
 def write_pending_update(repo_dir: Path, previous_ref: str) -> None:
-    """Demande au chien de garde de confirmer la mise à jour ou de revenir à `previous_ref`."""
+    """Demande au chien de garde de confirmer la mise à jour ou de revenir à `previous_ref`.
+
+    `pid` est celui du backend qui part : tant qu'il répond encore, sa bonne santé ne prouve rien."""
     marker = repo_dir / "backend" / PENDING_UPDATE_FILE
     try:
         marker.write_text(
-            json.dumps({"previous_ref": previous_ref, "deadline": int(time.time()) + UPDATE_CONFIRMATION_SECONDS}),
+            json.dumps({
+                "previous_ref": previous_ref,
+                "deadline": int(time.time()) + UPDATE_CONFIRMATION_SECONDS,
+                "pid": os.getpid(),
+            }),
             encoding="utf-8",
         )
     except OSError as exc:

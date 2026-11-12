@@ -53,9 +53,12 @@ def appliance(tmp_path):
     return repo, run
 
 
-def _arm(repo: Path, deadline_offset: int) -> Path:
+def _arm(repo: Path, deadline_offset: int, pid: int | None = None) -> Path:
     marker = repo / "backend" / linux_headless.PENDING_UPDATE_FILE
-    marker.write_text(json.dumps({"previous_ref": "V5.1.1", "deadline": int(time.time()) + deadline_offset}), encoding="utf-8")
+    payload = {"previous_ref": "V5.1.1", "deadline": int(time.time()) + deadline_offset}
+    if pid is not None:
+        payload["pid"] = pid
+    marker.write_text(json.dumps(payload), encoding="utf-8")
     return marker
 
 
@@ -64,6 +67,7 @@ def test_backend_arms_the_rollback_before_restarting(tmp_path):
     linux_headless.write_pending_update(tmp_path, "abc123")
     marker = json.loads((tmp_path / "backend" / linux_headless.PENDING_UPDATE_FILE).read_text(encoding="utf-8"))
     assert marker["previous_ref"] == "abc123"
+    assert marker["pid"] == os.getpid()
     assert 0 < marker["deadline"] - time.time() <= linux_headless.UPDATE_CONFIRMATION_SECONDS
 
 
@@ -73,6 +77,18 @@ def test_a_healthy_new_version_is_confirmed(appliance):
     calls = run(HEALTHY)
     assert not marker.exists()
     assert not any(call.startswith("git ") for call in calls)
+
+
+def test_the_old_backend_still_answering_does_not_confirm_the_update(appliance):
+    repo, run = appliance
+    (repo / "backend" / "backend-runtime.json").write_text(json.dumps({"port": 1903, "pid": 4242}), encoding="utf-8")
+    marker = _arm(repo, deadline_offset=120, pid=4242)
+    run(HEALTHY)
+    assert marker.exists(), "l'ancien processus répond encore : la nouvelle version n'est pas confirmée"
+
+    (repo / "backend" / "backend-runtime.json").write_text(json.dumps({"port": 1903, "pid": 4243}), encoding="utf-8")
+    run(HEALTHY)
+    assert not marker.exists()
 
 
 def test_an_unhealthy_version_keeps_its_delay_then_is_rolled_back(appliance):
