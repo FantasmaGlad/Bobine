@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
 from typing import Callable, Sequence
 
+from app.desktop.chromium import OFFLINE_FLAGS
+
 logger = logging.getLogger(__name__)
 
 POLL_INTERVAL_SECONDS = 2.0
@@ -330,6 +332,7 @@ def build_projector_command(
         "--disable-pinch",
         "--overscroll-history-navigation=0",
         "--check-for-update-interval=31536000",
+        *OFFLINE_FLAGS,
     ]
     if wayland:
         command.append("--ozone-platform=x11")

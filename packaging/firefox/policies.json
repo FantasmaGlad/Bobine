@@ -1,14 +1,20 @@
 {
   "policies": {
-    "DisableTelemetry": true,
+    "CaptivePortal": false,
     "DisableFirefoxStudies": true,
+    "DisableTelemetry": true,
     "DontCheckDefaultBrowser": true,
+    "NetworkPrediction": false,
+    "NoDefaultBookmarks": true,
     "OverrideFirstRunPage": "",
     "OverridePostUpdatePage": "",
-    "NoDefaultBookmarks": true,
     "Permissions": {
       "Autoplay": {
-        "Allow": ["http://localhost:1903", "http://127.0.0.1:1903", "http://bobine.local:1903"],
+        "Allow": [
+          "http://localhost:1903",
+          "http://127.0.0.1:1903",
+          "http://bobine.local:1903"
+        ],
         "Default": "block-audio",
         "BlockNewRequests": false
       }

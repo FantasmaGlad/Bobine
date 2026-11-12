@@ -1351,7 +1351,14 @@ exec ${CHROMIUM_BIN} \
     --enable-zero-copy \
     --ignore-gpu-blocklist \
     --start-fullscreen \
-    --check-for-update-interval=31536000
+    --check-for-update-interval=31536000 \
+    --disable-background-networking \
+    --disable-component-update \
+    --disable-sync \
+    --disable-domain-reliability \
+    --disable-client-side-phishing-detection \
+    --no-pings \
+    --disable-features=Translate,OptimizationHints,MediaRouter,AutofillServerCommunication
 EOF
     run chmod +x "${CONFIG_DIR}/kiosk-xinitrc"
 

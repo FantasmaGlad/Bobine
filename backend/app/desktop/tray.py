@@ -30,6 +30,8 @@ from app.desktop.displays import (
 
 from app.utils.port import DEFAULT_PORT, read_runtime
 
+from app.desktop.chromium import OFFLINE_FLAGS
+
 logger = logging.getLogger(__name__)
 
 
@@ -198,7 +200,7 @@ def launch_kiosk_browser(url: str | None = None) -> None:
     """Lance le navigateur en mode kiosque optionnel."""
     target_url = url or _kiosk_url()
     system = platform.system()
-    kiosk_args = ["--kiosk", "--autoplay-policy=no-user-gesture-required", target_url]
+    kiosk_args = ["--kiosk", "--autoplay-policy=no-user-gesture-required", *OFFLINE_FLAGS, target_url]
 
     if system == "Windows":
         edge = shutil.which("msedge")
