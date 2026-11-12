@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 ORIG_ARGS=("$@")
 SELF_PATH="${BASH_SOURCE[0]:-}"
@@ -872,213 +872,224 @@ fi
 
 emit_event "\"event\":\"run_begin\",\"version\":\"${SCRIPT_VERSION}\",\"total\":${STEP_TOTAL},\"user\":\"$(_json_escape "${TARGET_USER}")\",\"repo\":\"$(_json_escape "${REPO_DIR}")\",\"log\":\"$(_json_escape "${LOG_FILE}")\",\"mode\":\"$($NO_KIOSK && echo server || echo kiosk)\",\"dry_run\":${DRY_RUN}"
 
-step update-channel "Canal de mise à jour (Stable / Bêta / Canary)"
-mkdir -p "${CONFIG_DIR}" 2>/dev/null || true
-write_file "${CONFIG_DIR}/update-channel" <<< "${UPDATE_CHANNEL}"
+step_update_channel() {
+    step update-channel "Canal de mise à jour (Stable / Bêta / Canary)"
+    mkdir -p "${CONFIG_DIR}" 2>/dev/null || true
+    write_file "${CONFIG_DIR}/update-channel" <<< "${UPDATE_CHANNEL}"
 
-if [[ -d "${REPO_DIR}/.git" ]]; then
-    run git -C "${REPO_DIR}" fetch --tags --force
-    if [[ "${UPDATE_CHANNEL}" == "beta" || "${UPDATE_CHANNEL}" == "canary" ]]; then
-        if git -C "${REPO_DIR}" rev-parse --verify -q "refs/tags/${UPDATE_CHANNEL}" >/dev/null; then
-            TARGET_TAG="${UPDATE_CHANNEL}"
-        else
-            TARGET_TAG=""
-        fi
-    else
-        TARGET_TAG="$(git -C "${REPO_DIR}" tag --list 'V*' --sort=-v:refname 2>/dev/null | grep -E '^V[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
-    fi
-    if [[ -n "${TARGET_TAG:-}" ]]; then
-        CURRENT_TAG="$(git -C "${REPO_DIR}" describe --tags --exact-match 2>/dev/null || true)"
-        if [[ "${CURRENT_TAG}" != "${TARGET_TAG}" ]]; then
-            log "Bascule sur ${TARGET_TAG} (canal ${UPDATE_CHANNEL})"
-            run git -C "${REPO_DIR}" checkout "${TARGET_TAG}"
-            if [[ -z "${BOBINE_REEXEC:-}" && -n "${SELF_PATH}" && -f "${SELF_PATH}" ]] && ! $DRY_RUN \
-                && [[ "$(sha256sum "${SELF_PATH}" | cut -d' ' -f1)" != "${SELF_SHA}" ]]; then
-                ok "$(t "Installateur mis à jour par ce changement de version — relance" "Installer changed by this version switch — restarting")"
-                emit_event "\"event\":\"restart\",\"reason\":\"installer_updated\""
-                exec 1>&3 2>&3
-                exec env BOBINE_REEXEC=1 bash "${SELF_PATH}" "${PASS_ARGS[@]}"
-            fi
-        else
-            ok "Déjà sur ${TARGET_TAG} (canal ${UPDATE_CHANNEL})"
-        fi
-    else
-        warn "Aucun tag de release trouvé dans ce dépôt — installation depuis la branche courante (canal « ${UPDATE_CHANNEL} » enregistré, sans effet pour cette exécution)."
-    fi
-else
-    warn "${REPO_DIR} n'est pas un dépôt git — canal « ${UPDATE_CHANNEL} » enregistré mais sans effet sur les fichiers installés."
-fi
-step_done
-
-step packages "Paquets système (apt)"
-if $SKIP_PACKAGES; then
-    step_skip "--skip-packages"
-else
-    export DEBIAN_FRONTEND=noninteractive
-    run apt-get "${APT_OPTS[@]}" update -qq
-
-    run apt-get "${APT_OPTS[@]}" install -y --no-install-recommends \
-        ffmpeg \
-        python3 \
-        python3-venv \
-        python3-pip \
-        chromium \
-        xinit \
-        xserver-xorg \
-        x11-xserver-utils \
-        unclutter \
-        vainfo \
-        curl \
-        ca-certificates \
-        gnupg \
-        sudo \
-        avahi-daemon \
-        udisks2 \
-        smartmontools \
-        exfatprogs \
-        e2fsprogs \
-        dosfstools \
-        ntfs-3g \
-        gvfs-backends \
-        gvfs-fuse \
-        libmtp-runtime \
-        polkitd \
-        dbus-user-session \
-        nftables \
-        alsa-utils \
-        pipewire \
-        pipewire-pulse \
-        wireplumber \
-        pulseaudio-utils
-    ok "paquets système de base installés"
-
-    GPU_LINES="$(lspci -nn 2>/dev/null | grep -Ei 'VGA compatible controller|3D controller|Display controller' || true)"
-    HAS_INTEL_GPU=false; HAS_AMD_GPU=false; HAS_NVIDIA_GPU=false
-    grep -qiE '\[8086:' <<<"$GPU_LINES" && HAS_INTEL_GPU=true
-    grep -qiE '\[1002:' <<<"$GPU_LINES" && HAS_AMD_GPU=true
-    grep -qiE '\[10de:' <<<"$GPU_LINES" && HAS_NVIDIA_GPU=true
-    CPU_VENDOR="$(LC_ALL=C lscpu 2>/dev/null | awk -F: '/Vendor ID/{gsub(/^[ \t]+/,"",$2);print $2; exit}')"
-    ok "matériel détecté — GPU: Intel=$HAS_INTEL_GPU AMD=$HAS_AMD_GPU NVIDIA=$HAS_NVIDIA_GPU | CPU=${CPU_VENDOR:-inconnu}"
-
-    if $HAS_INTEL_GPU || $HAS_AMD_GPU || $HAS_NVIDIA_GPU; then
-        if ! $DRY_RUN && ensure_apt_components; then
-            run apt-get "${APT_OPTS[@]}" update -qq || true
-        fi
-    fi
-
-    command -v qrencode >/dev/null 2>&1 || apt_optional qrencode || true
-
-    case "$CPU_VENDOR" in
-        *AuthenticAMD*|*AMD*)     apt_optional amd64-microcode ;;
-        *GenuineIntel*|*Intel*)   apt_optional intel-microcode ;;
-    esac
-
-    if $HAS_INTEL_GPU; then
-        apt_optional intel-media-va-driver-non-free || apt_optional intel-media-va-driver || apt_optional i965-va-driver
-    fi
-    if $HAS_AMD_GPU; then
-        apt_optional mesa-va-drivers
-        apt_optional firmware-amd-graphics
-    fi
-    if $HAS_NVIDIA_GPU && ! $HAS_INTEL_GPU && ! $HAS_AMD_GPU; then
-        warn "GPU NVIDIA seul détecté : pas de pilote propriétaire installé (hors périmètre v1)."
-        warn "Le décodage vidéo se fera en logiciel — surveiller la charge CPU sur l'écran réseau."
-    fi
-
-    apt_optional firmware-linux-free
-    apt_optional firmware-misc-nonfree
-    if ip -o link 2>/dev/null | grep -qiE ': wl'; then
-        log "Interface Wi-Fi détectée : firmware sans fil"
-        apt_optional firmware-iwlwifi
-        apt_optional firmware-realtek
-        apt_optional firmware-atheros
-    fi
-
-    if ! command -v node >/dev/null 2>&1 || [[ "$(node -v | sed 's/^v//;s/\..*//')" -lt 20 ]]; then
-        if $DRY_RUN; then
-            echo "  ${DIM}[dry-run]${RESET} installerait Node.js 22.x LTS (NodeSource)"
-        else
-            log "Installation de Node.js 22.x LTS (NodeSource)"
-            run bash -o pipefail -c 'curl -fsSL --retry 3 https://deb.nodesource.com/setup_22.x | bash -'
-            run apt-get "${APT_OPTS[@]}" install -y nodejs
-            ok "Node.js 22.x LTS installé : $(node -v 2>/dev/null || echo 'installé')"
-        fi
-    else
-        ok "Node.js déjà présent : $(node -v)"
-    fi
-    step_done
-fi
-
-step gpu-access "Accès GPU (groupes render/video) & Xwrapper"
-if $NO_KIOSK; then
-    step_skip "--no-kiosk"
-else
-    run usermod -aG render,video "${TARGET_USER}"
-    ok "${TARGET_USER} ajouté aux groupes render/video"
-    if getent group bluetooth >/dev/null 2>&1; then
-        run usermod -aG bluetooth "${TARGET_USER}"
-        ok "${TARGET_USER} ajouté au groupe bluetooth"
-    fi
-
-    if $DRY_RUN; then
-        echo "  ${DIM}[dry-run]${RESET} configurerait /etc/X11/Xwrapper.config (allowed_users=anybody)"
-    else
-        if [[ -f /etc/X11/Xwrapper.config ]]; then
-            if grep -q '^allowed_users=' /etc/X11/Xwrapper.config; then
-                sed -i 's/^allowed_users=.*/allowed_users=anybody/' /etc/X11/Xwrapper.config
+    if [[ -d "${REPO_DIR}/.git" ]]; then
+        run git -C "${REPO_DIR}" fetch --tags --force
+        if [[ "${UPDATE_CHANNEL}" == "beta" || "${UPDATE_CHANNEL}" == "canary" ]]; then
+            if git -C "${REPO_DIR}" rev-parse --verify -q "refs/tags/${UPDATE_CHANNEL}" >/dev/null; then
+                TARGET_TAG="${UPDATE_CHANNEL}"
             else
-                echo 'allowed_users=anybody' >> /etc/X11/Xwrapper.config
+                TARGET_TAG=""
             fi
         else
-            printf 'allowed_users=anybody\nneeds_root_rights=yes\n' > /etc/X11/Xwrapper.config
+            TARGET_TAG="$(git -C "${REPO_DIR}" tag --list 'V*' --sort=-v:refname 2>/dev/null | grep -E '^V[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
         fi
-        ok "Xwrapper.config configuré"
+        if [[ -n "${TARGET_TAG:-}" ]]; then
+            CURRENT_TAG="$(git -C "${REPO_DIR}" describe --tags --exact-match 2>/dev/null || true)"
+            if [[ "${CURRENT_TAG}" != "${TARGET_TAG}" ]]; then
+                log "Bascule sur ${TARGET_TAG} (canal ${UPDATE_CHANNEL})"
+                run git -C "${REPO_DIR}" checkout "${TARGET_TAG}"
+                if [[ -z "${BOBINE_REEXEC:-}" && -n "${SELF_PATH}" && -f "${SELF_PATH}" ]] && ! $DRY_RUN \
+                    && [[ "$(sha256sum "${SELF_PATH}" | cut -d' ' -f1)" != "${SELF_SHA}" ]]; then
+                    ok "$(t "Installateur mis à jour par ce changement de version — relance" "Installer changed by this version switch — restarting")"
+                    emit_event "\"event\":\"restart\",\"reason\":\"installer_updated\""
+                    exec 1>&3 2>&3
+                    exec env BOBINE_REEXEC=1 bash "${SELF_PATH}" "${PASS_ARGS[@]}"
+                fi
+            else
+                ok "Déjà sur ${TARGET_TAG} (canal ${UPDATE_CHANNEL})"
+            fi
+        else
+            warn "Aucun tag de release trouvé dans ce dépôt — installation depuis la branche courante (canal « ${UPDATE_CHANNEL} » enregistré, sans effet pour cette exécution)."
+        fi
+    else
+        warn "${REPO_DIR} n'est pas un dépôt git — canal « ${UPDATE_CHANNEL} » enregistré mais sans effet sur les fichiers installés."
     fi
     step_done
-fi
+}
 
-step python-env "Environnement Python & dépendances backend"
-if [[ ! -d "${VENV_DIR}" ]]; then
-    run_user python3 -m venv "${VENV_DIR}"
-    ok "venv créé : ${VENV_DIR}"
-else
-    ok "venv déjà présent : ${VENV_DIR}"
-fi
-PIP_QUIET="-q"; $VERBOSE && PIP_QUIET=""
-run_user "${VENV_DIR}/bin/pip" install --upgrade pip ${PIP_QUIET}
-run_user "${VENV_DIR}/bin/pip" install -r "${BACKEND_DIR}/requirements.txt" ${PIP_QUIET}
-step_done
+step_packages() {
+    step packages "Paquets système (apt)"
+    if $SKIP_PACKAGES; then
+        step_skip "--skip-packages"
+    else
+        export DEBIAN_FRONTEND=noninteractive
+        run apt-get "${APT_OPTS[@]}" update -qq
 
-step frontend-build "Build du frontend Next.js"
-if $SKIP_BUILD; then
-    step_skip "--skip-build"
-    if [[ ! -d "${FRONTEND_DIR}/out" ]]; then
-        err "frontend/out introuvable et --skip-build demandé : le backend n'aura rien à servir."
-        exit 1
+        run apt-get "${APT_OPTS[@]}" install -y --no-install-recommends \
+            ffmpeg \
+            python3 \
+            python3-venv \
+            python3-pip \
+            chromium \
+            xinit \
+            xserver-xorg \
+            x11-xserver-utils \
+            unclutter \
+            vainfo \
+            curl \
+            ca-certificates \
+            gnupg \
+            sudo \
+            avahi-daemon \
+            udisks2 \
+            smartmontools \
+            exfatprogs \
+            e2fsprogs \
+            dosfstools \
+            ntfs-3g \
+            gvfs-backends \
+            gvfs-fuse \
+            libmtp-runtime \
+            polkitd \
+            dbus-user-session \
+            nftables \
+            alsa-utils \
+            pipewire \
+            pipewire-pulse \
+            wireplumber \
+            pulseaudio-utils
+        ok "paquets système de base installés"
+
+        GPU_LINES="$(lspci -nn 2>/dev/null | grep -Ei 'VGA compatible controller|3D controller|Display controller' || true)"
+        HAS_INTEL_GPU=false; HAS_AMD_GPU=false; HAS_NVIDIA_GPU=false
+        grep -qiE '\[8086:' <<<"$GPU_LINES" && HAS_INTEL_GPU=true
+        grep -qiE '\[1002:' <<<"$GPU_LINES" && HAS_AMD_GPU=true
+        grep -qiE '\[10de:' <<<"$GPU_LINES" && HAS_NVIDIA_GPU=true
+        CPU_VENDOR="$(LC_ALL=C lscpu 2>/dev/null | awk -F: '/Vendor ID/{gsub(/^[ \t]+/,"",$2);print $2; exit}')"
+        ok "matériel détecté — GPU: Intel=$HAS_INTEL_GPU AMD=$HAS_AMD_GPU NVIDIA=$HAS_NVIDIA_GPU | CPU=${CPU_VENDOR:-inconnu}"
+
+        if $HAS_INTEL_GPU || $HAS_AMD_GPU || $HAS_NVIDIA_GPU; then
+            if ! $DRY_RUN && ensure_apt_components; then
+                run apt-get "${APT_OPTS[@]}" update -qq || true
+            fi
+        fi
+
+        command -v qrencode >/dev/null 2>&1 || apt_optional qrencode || true
+
+        case "$CPU_VENDOR" in
+            *AuthenticAMD*|*AMD*)     apt_optional amd64-microcode ;;
+            *GenuineIntel*|*Intel*)   apt_optional intel-microcode ;;
+        esac
+
+        if $HAS_INTEL_GPU; then
+            apt_optional intel-media-va-driver-non-free || apt_optional intel-media-va-driver || apt_optional i965-va-driver
+        fi
+        if $HAS_AMD_GPU; then
+            apt_optional mesa-va-drivers
+            apt_optional firmware-amd-graphics
+        fi
+        if $HAS_NVIDIA_GPU && ! $HAS_INTEL_GPU && ! $HAS_AMD_GPU; then
+            warn "GPU NVIDIA seul détecté : pas de pilote propriétaire installé (hors périmètre v1)."
+            warn "Le décodage vidéo se fera en logiciel — surveiller la charge CPU sur l'écran réseau."
+        fi
+
+        apt_optional firmware-linux-free
+        apt_optional firmware-misc-nonfree
+        if ip -o link 2>/dev/null | grep -qiE ': wl'; then
+            log "Interface Wi-Fi détectée : firmware sans fil"
+            apt_optional firmware-iwlwifi
+            apt_optional firmware-realtek
+            apt_optional firmware-atheros
+        fi
+
+        if ! command -v node >/dev/null 2>&1 || [[ "$(node -v | sed 's/^v//;s/\..*//')" -lt 20 ]]; then
+            if $DRY_RUN; then
+                echo "  ${DIM}[dry-run]${RESET} installerait Node.js 22.x LTS (NodeSource)"
+            else
+                log "Installation de Node.js 22.x LTS (NodeSource)"
+                run bash -o pipefail -c 'curl -fsSL --retry 3 https://deb.nodesource.com/setup_22.x | bash -'
+                run apt-get "${APT_OPTS[@]}" install -y nodejs
+                ok "Node.js 22.x LTS installé : $(node -v 2>/dev/null || echo 'installé')"
+            fi
+        else
+            ok "Node.js déjà présent : $(node -v)"
+        fi
+        step_done
     fi
-else
-    run_user bash -c "cd '${FRONTEND_DIR}' && npm install --no-audit --no-fund && npm run build"
-    if [[ ! -d "${FRONTEND_DIR}/out" ]] && ! $DRY_RUN; then
-        err "le build frontend n'a pas produit de dossier out/. Abandon."
-        exit 1
+}
+
+step_gpu_access() {
+    step gpu-access "Accès GPU (groupes render/video) & Xwrapper"
+    if $NO_KIOSK; then
+        step_skip "--no-kiosk"
+    else
+        run usermod -aG render,video "${TARGET_USER}"
+        ok "${TARGET_USER} ajouté aux groupes render/video"
+        if getent group bluetooth >/dev/null 2>&1; then
+            run usermod -aG bluetooth "${TARGET_USER}"
+            ok "${TARGET_USER} ajouté au groupe bluetooth"
+        fi
+
+        if $DRY_RUN; then
+            echo "  ${DIM}[dry-run]${RESET} configurerait /etc/X11/Xwrapper.config (allowed_users=anybody)"
+        else
+            if [[ -f /etc/X11/Xwrapper.config ]]; then
+                if grep -q '^allowed_users=' /etc/X11/Xwrapper.config; then
+                    sed -i 's/^allowed_users=.*/allowed_users=anybody/' /etc/X11/Xwrapper.config
+                else
+                    echo 'allowed_users=anybody' >> /etc/X11/Xwrapper.config
+                fi
+            else
+                printf 'allowed_users=anybody\nneeds_root_rights=yes\n' > /etc/X11/Xwrapper.config
+            fi
+            ok "Xwrapper.config configuré"
+        fi
+        step_done
     fi
-    ok "build produit dans ${FRONTEND_DIR}/out"
+}
+
+step_python_env() {
+    step python-env "Environnement Python & dépendances backend"
+    if [[ ! -d "${VENV_DIR}" ]]; then
+        run_user python3 -m venv "${VENV_DIR}"
+        ok "venv créé : ${VENV_DIR}"
+    else
+        ok "venv déjà présent : ${VENV_DIR}"
+    fi
+    PIP_QUIET="-q"; $VERBOSE && PIP_QUIET=""
+    run_user "${VENV_DIR}/bin/pip" install --upgrade pip ${PIP_QUIET}
+    run_user "${VENV_DIR}/bin/pip" install -r "${BACKEND_DIR}/requirements.txt" ${PIP_QUIET}
     step_done
-fi
+}
 
-step config "Configuration de production"
-log "Écriture de ${CONFIG_FILE}"
-run mkdir -p "${CONFIG_DIR}"
-run mkdir -p \
-    "${REPO_DIR}/data/videos" "${REPO_DIR}/data/watched" "${REPO_DIR}/data/thumbnails" \
-    "${REPO_DIR}/data/backgrounds" "${REPO_DIR}/data/backgrounds_watched" \
-    "${REPO_DIR}/data/audio" "${REPO_DIR}/data/audio_watched" \
-    "${REPO_DIR}/data/radio" "${REPO_DIR}/data/radio_covers" \
-    "${REPO_DIR}/data/radio_announcements" "${REPO_DIR}/data/radio_watched" \
-    "${REPO_DIR}/data/logs"
-run chown -R "${TARGET_USER}:${TARGET_USER}" "${REPO_DIR}/data"
+step_frontend_build() {
+    step frontend-build "Build du frontend Next.js"
+    if $SKIP_BUILD; then
+        step_skip "--skip-build"
+        if [[ ! -d "${FRONTEND_DIR}/out" ]]; then
+            err "frontend/out introuvable et --skip-build demandé : le backend n'aura rien à servir."
+            exit 1
+        fi
+    else
+        run_user bash -c "cd '${FRONTEND_DIR}' && npm install --no-audit --no-fund && npm run build"
+        if [[ ! -d "${FRONTEND_DIR}/out" ]] && ! $DRY_RUN; then
+            err "le build frontend n'a pas produit de dossier out/. Abandon."
+            exit 1
+        fi
+        ok "build produit dans ${FRONTEND_DIR}/out"
+        step_done
+    fi
+}
 
-write_file "${CONFIG_FILE}" <<EOF
+step_config() {
+    step config "Configuration de production"
+    log "Écriture de ${CONFIG_FILE}"
+    run mkdir -p "${CONFIG_DIR}"
+    run mkdir -p \
+        "${REPO_DIR}/data/videos" "${REPO_DIR}/data/watched" "${REPO_DIR}/data/thumbnails" \
+        "${REPO_DIR}/data/backgrounds" "${REPO_DIR}/data/backgrounds_watched" \
+        "${REPO_DIR}/data/audio" "${REPO_DIR}/data/audio_watched" \
+        "${REPO_DIR}/data/radio" "${REPO_DIR}/data/radio_covers" \
+        "${REPO_DIR}/data/radio_announcements" "${REPO_DIR}/data/radio_watched" \
+        "${REPO_DIR}/data/logs"
+    run chown -R "${TARGET_USER}:${TARGET_USER}" "${REPO_DIR}/data"
+
+    write_file "${CONFIG_FILE}" <<EOF
 # Configuration de production Bobine — générée par install.sh le $(date -Idate).
 # Modifiable à la main ; relance 'sudo systemctl restart bobine-backend'
 # après toute modification pour l'appliquer.
@@ -1112,18 +1123,20 @@ port = ${SERVICE_PORT}
 wait_time_between_courses = 10
 volume_default = 100
 EOF
-ok "configuration écrite"
+    ok "configuration écrite"
 
-if [[ -d "${REPO_DIR}/backend/data" ]]; then
-    warn "Données héritées détectées dans ${REPO_DIR}/backend/data (ancien emplacement)."
-    warn "Pour les unifier sous ${REPO_DIR}/data, arrête le backend puis lance :"
-    warn "  ${VENV_DIR}/bin/python ${REPO_DIR}/scripts/migrate_unify_data_dirs.py --dry-run"
-    warn "puis à nouveau sans --dry-run une fois le plan vérifié."
-fi
-step_done
+    if [[ -d "${REPO_DIR}/backend/data" ]]; then
+        warn "Données héritées détectées dans ${REPO_DIR}/backend/data (ancien emplacement)."
+        warn "Pour les unifier sous ${REPO_DIR}/data, arrête le backend puis lance :"
+        warn "  ${VENV_DIR}/bin/python ${REPO_DIR}/scripts/migrate_unify_data_dirs.py --dry-run"
+        warn "puis à nouveau sans --dry-run une fois le plan vérifié."
+    fi
+    step_done
+}
 
-step cli-tool "Script de contrôle CLI 'bobine'"
-write_file /usr/local/bin/bobine <<EOF
+step_cli_tool() {
+    step cli-tool "Script de contrôle CLI 'bobine'"
+    write_file /usr/local/bin/bobine <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 SERVICES=(bobine-backend.service bobine-kiosk.service)
@@ -1136,24 +1149,30 @@ case "\${1:-}" in
     *)       exec "${VENV_DIR}/bin/python" "${BACKEND_DIR}/run_cli.py" "\$@" ;;
 esac
 EOF
-run chmod +x /usr/local/bin/bobine
-ok "commande 'bobine' installée"
+    run chmod +x /usr/local/bin/bobine
+    ok "commande 'bobine' installée"
+}
 
-step uninstaller "Désinstalleur détaché (bouton « Désinstaller » de l'UI)"
-write_file /usr/local/sbin/bobine-uninstall <<EOF
+step_uninstaller() {
+    step uninstaller "Désinstalleur détaché (bouton « Désinstaller » de l'UI)"
+    write_file /usr/local/sbin/bobine-uninstall <<EOF
 #!/usr/bin/env bash
 exec systemd-run --collect --unit=olmc-uninstall --description="Bobine uninstall" ${REPO_DIR}/install.sh --uninstall --purge --purge-data -y
 EOF
-run chmod +x /usr/local/sbin/bobine-uninstall
-ok "désinstalleur '/usr/local/sbin/bobine-uninstall' installé"
-step_done
+    run chmod +x /usr/local/sbin/bobine-uninstall
+    ok "désinstalleur '/usr/local/sbin/bobine-uninstall' installé"
+    step_done
+}
 
-step storage-access "Autorisation des supports amovibles"
-run sh "${REPO_DIR}/packaging/storage/configure-storage-access" configure "${TARGET_USER}"
-step_done
+step_storage_access() {
+    step storage-access "Autorisation des supports amovibles"
+    run sh "${REPO_DIR}/packaging/storage/configure-storage-access" configure "${TARGET_USER}"
+    step_done
+}
 
-step backend-service "Service systemd — backend FastAPI"
-write_file /etc/systemd/system/bobine-backend.service <<EOF
+step_backend_service() {
+    step backend-service "Service systemd — backend FastAPI"
+    write_file /etc/systemd/system/bobine-backend.service <<EOF
 [Unit]
 Description=Bobine - Backend FastAPI
 After=network.target
@@ -1178,29 +1197,31 @@ RestartSec=2
 [Install]
 WantedBy=multi-user.target
 EOF
-ok "bobine-backend.service écrit"
-step_done
+    ok "bobine-backend.service écrit"
+    step_done
+}
 
-step kiosk "Kiosk Chromium (écran cinéma câblé)"
-if $NO_KIOSK; then
-    step_skip "--no-kiosk"
-else
-    log "Configuration du kiosk Chromium (X11 dédié, sans display manager)"
+step_kiosk() {
+    step kiosk "Kiosk Chromium (écran cinéma câblé)"
+    if $NO_KIOSK; then
+        step_skip "--no-kiosk"
+    else
+        log "Configuration du kiosk Chromium (X11 dédié, sans display manager)"
 
-    CHROMIUM_BIN="/usr/lib/chromium/chromium"
-    if [[ ! -x "${CHROMIUM_BIN}" ]]; then
-        warn "${CHROMIUM_BIN} introuvable, utilisation de /usr/bin/chromium à la place."
-        warn "Le wrapper Debian charge plasma-browser-integration : à désinstaller si le kiosk se bloque en environnement non-Plasma."
-        CHROMIUM_BIN="/usr/bin/chromium"
-    fi
+        CHROMIUM_BIN="/usr/lib/chromium/chromium"
+        if [[ ! -x "${CHROMIUM_BIN}" ]]; then
+            warn "${CHROMIUM_BIN} introuvable, utilisation de /usr/bin/chromium à la place."
+            warn "Le wrapper Debian charge plasma-browser-integration : à désinstaller si le kiosk se bloque en environnement non-Plasma."
+            CHROMIUM_BIN="/usr/bin/chromium"
+        fi
 
-    write_file "${CONFIG_DIR}/kiosk-xinitrc" <<EOF
+        write_file "${CONFIG_DIR}/kiosk-xinitrc" <<EOF
 #!/bin/sh
 # Généré par install.sh — lancé par Xorg au démarrage de la session kiosk.
 CHROMIUM_BIN="${CHROMIUM_BIN}"
 KIOSK_URL="${KIOSK_URL}"
 EOF
-    append_file "${CONFIG_DIR}/kiosk-xinitrc" <<'EOF'
+        append_file "${CONFIG_DIR}/kiosk-xinitrc" <<'EOF'
 
 # Pas de mise en veille ni d'écran noir sur l'écran cinéma.
 xset s off
@@ -1360,9 +1381,9 @@ exec ${CHROMIUM_BIN} \
     --no-pings \
     --disable-features=Translate,OptimizationHints,MediaRouter,AutofillServerCommunication
 EOF
-    run chmod +x "${CONFIG_DIR}/kiosk-xinitrc"
+        run chmod +x "${CONFIG_DIR}/kiosk-xinitrc"
 
-    write_file /etc/systemd/system/bobine-kiosk.service <<EOF
+        write_file /etc/systemd/system/bobine-kiosk.service <<EOF
 [Unit]
 Description=Bobine - Kiosk Chromium (écran cinéma)
 After=bobine-backend.service
@@ -1390,10 +1411,10 @@ ExecStart=/usr/bin/xinit ${CONFIG_DIR}/kiosk-xinitrc -- :0 vt1 -nolisten tcp
 [Install]
 WantedBy=multi-user.target
 EOF
-    ok "bobine-kiosk.service + kiosk-xinitrc écrits"
+        ok "bobine-kiosk.service + kiosk-xinitrc écrits"
 
-    run chmod +x "${REPO_DIR}/scripts/bobine-display-hotplug.sh"
-    write_file /etc/systemd/system/bobine-display-hotplug.service <<EOF
+        run chmod +x "${REPO_DIR}/scripts/bobine-display-hotplug.sh"
+        write_file /etc/systemd/system/bobine-display-hotplug.service <<EOF
 [Unit]
 Description=Bobine - Reconfiguration du kiosque au branchement d'un ecran
 After=bobine-kiosk.service
@@ -1404,20 +1425,22 @@ StartLimitIntervalSec=0
 Type=oneshot
 ExecStart=${REPO_DIR}/scripts/bobine-display-hotplug.sh
 EOF
-    write_file /etc/udev/rules.d/90-bobine-display.rules <<'EOF'
+        write_file /etc/udev/rules.d/90-bobine-display.rules <<'EOF'
 # Bobine : evenement de branchement/debranchement d'un ecran (HPD DRM).
 ACTION=="change", SUBSYSTEM=="drm", ENV{HOTPLUG}=="1", TAG+="systemd", ENV{SYSTEMD_WANTS}+="bobine-display-hotplug.service"
 EOF
-    ok "hotplug des écrans (udev DRM + bobine-display-hotplug) écrit"
-    step_done
-fi
+        ok "hotplug des écrans (udev DRM + bobine-display-hotplug) écrit"
+        step_done
+    fi
+}
 
-step audio "Audio (auto-port, anti-sifflement, garde-fou hors session)"
-if $NO_KIOSK; then
-    step_skip "--no-kiosk"
-else
-    run mkdir -p /etc/wireplumber/wireplumber.conf.d
-    write_file /etc/wireplumber/wireplumber.conf.d/51-fix-jack-autoport.conf <<'EOF'
+step_audio() {
+    step audio "Audio (auto-port, anti-sifflement, garde-fou hors session)"
+    if $NO_KIOSK; then
+        step_skip "--no-kiosk"
+    else
+        run mkdir -p /etc/wireplumber/wireplumber.conf.d
+        write_file /etc/wireplumber/wireplumber.conf.d/51-fix-jack-autoport.conf <<'EOF'
 monitor.alsa.rules = [
   {
     matches = [
@@ -1432,30 +1455,30 @@ monitor.alsa.rules = [
   }
 ]
 EOF
-    ok "commutation automatique de prise jack restaurée"
+        ok "commutation automatique de prise jack restaurée"
 
-    write_file /etc/modprobe.d/bobine-audio.conf <<'EOF'
+        write_file /etc/modprobe.d/bobine-audio.conf <<'EOF'
 options snd-hda-intel power_save=0 power_save_controller=N
 EOF
-    if ! $DRY_RUN; then
-        echo 0 > /sys/module/snd_hda_intel/parameters/power_save 2>/dev/null || true
-        for BOBINE_PC in /sys/class/sound/card*/device/power/control; do
-            [[ -e "${BOBINE_PC}" ]] && echo on > "${BOBINE_PC}" 2>/dev/null || true
-        done
-    fi
-    ok "mise en veille du codec audio désactivée (HDA et USB)"
+        if ! $DRY_RUN; then
+            echo 0 > /sys/module/snd_hda_intel/parameters/power_save 2>/dev/null || true
+            for BOBINE_PC in /sys/class/sound/card*/device/power/control; do
+                [[ -e "${BOBINE_PC}" ]] && echo on > "${BOBINE_PC}" 2>/dev/null || true
+            done
+        fi
+        ok "mise en veille du codec audio désactivée (HDA et USB)"
 
-    if [[ -f /etc/systemd/system/powertop.service ]]; then
-        run mkdir -p /etc/systemd/system/powertop.service.d
-        write_file /etc/systemd/system/powertop.service.d/10-audio-nopowersave.conf <<'EOF'
+        if [[ -f /etc/systemd/system/powertop.service ]]; then
+            run mkdir -p /etc/systemd/system/powertop.service.d
+            write_file /etc/systemd/system/powertop.service.d/10-audio-nopowersave.conf <<'EOF'
 [Service]
 ExecStartPost=/bin/sh -c 'echo 0 > /sys/module/snd_hda_intel/parameters/power_save'
 ExecStartPost=/bin/sh -c 'for pc in /sys/class/sound/card*/device/power/control; do [ -e "$pc" ] && echo on > "$pc"; done; true'
 EOF
-        ok "garde-fou powertop installé"
-    fi
+            ok "garde-fou powertop installé"
+        fi
 
-    write_file /usr/local/bin/bobine-audio-mute.sh <<'EOF'
+        write_file /usr/local/bin/bobine-audio-mute.sh <<'EOF'
 #!/bin/sh
 CARDS=$(awk -F'[][]' '/^ *[0-9]+ \[/{print $2}' /proc/asound/cards 2>/dev/null | sed 's/[[:space:]]*$//')
 # Carte pas encore énumérée par le noyau au tout début du boot (cf.
@@ -1474,8 +1497,8 @@ for CARD in ${CARDS}; do
     done
 done
 EOF
-    run chmod +x /usr/local/bin/bobine-audio-mute.sh
-    write_file /etc/systemd/system/bobine-audio-guard.service <<'EOF'
+        run chmod +x /usr/local/bin/bobine-audio-mute.sh
+        write_file /etc/systemd/system/bobine-audio-guard.service <<'EOF'
 [Unit]
 Description=Bobine - Coupe le son hors session kiosk
 Before=bobine-kiosk.service
@@ -1500,19 +1523,21 @@ ExecStop=/usr/local/bin/bobine-audio-mute.sh
 [Install]
 WantedBy=multi-user.target
 EOF
-    ok "garde-fou audio (silence hors session kiosk) écrit"
-    step_done
-fi
+        ok "garde-fou audio (silence hors session kiosk) écrit"
+        step_done
+    fi
+}
 
-step sudoers "Autorisation sudo restreinte (bouton de réinitialisation)"
-log "Autorisation sudo restreinte pour le redémarrage des services depuis l'UI"
-if $NO_KIOSK; then
-    SUDOERS_UNITS="/usr/bin/systemctl restart bobine-backend.service"
-else
-    SUDOERS_UNITS="/usr/bin/systemctl restart bobine-backend.service, /usr/bin/systemctl restart bobine-kiosk.service"
-fi
-SUDOERS_UNITS="${SUDOERS_UNITS}, /usr/local/sbin/bobine-uninstall"
-write_file /etc/sudoers.d/bobine <<EOF
+step_sudoers() {
+    step sudoers "Autorisation sudo restreinte (bouton de réinitialisation)"
+    log "Autorisation sudo restreinte pour le redémarrage des services depuis l'UI"
+    if $NO_KIOSK; then
+        SUDOERS_UNITS="/usr/bin/systemctl restart bobine-backend.service"
+    else
+        SUDOERS_UNITS="/usr/bin/systemctl restart bobine-backend.service, /usr/bin/systemctl restart bobine-kiosk.service"
+    fi
+    SUDOERS_UNITS="${SUDOERS_UNITS}, /usr/local/sbin/bobine-uninstall"
+    write_file /etc/sudoers.d/bobine <<EOF
 # Autorise UNIQUEMENT ces commandes précises, sans mot de passe :
 #   - le redémarrage des unités (bouton de réinitialisation des paramètres) ;
 #   - l'enveloppe de désinstallation /usr/local/sbin/bobine-uninstall
@@ -1520,62 +1545,66 @@ write_file /etc/sudoers.d/bobine <<EOF
 # Ne JAMAIS élargir à d'autres commandes ni remplacer par NOPASSWD: ALL.
 ${TARGET_USER} ALL=(root) NOPASSWD: ${SUDOERS_UNITS}
 EOF
-if ! $DRY_RUN; then
-    chmod 0440 /etc/sudoers.d/bobine
-    if ! visudo -c -f /etc/sudoers.d/bobine >/dev/null 2>&1; then
-        warn "Fichier sudoers généré invalide, suppression (le bouton de reset ne fonctionnera pas)"
-        rm -f /etc/sudoers.d/bobine
-    else
-        ok "règle sudoers validée par visudo"
+    if ! $DRY_RUN; then
+        chmod 0440 /etc/sudoers.d/bobine
+        if ! visudo -c -f /etc/sudoers.d/bobine >/dev/null 2>&1; then
+            warn "Fichier sudoers généré invalide, suppression (le bouton de reset ne fonctionnera pas)"
+            rm -f /etc/sudoers.d/bobine
+        else
+            ok "règle sudoers validée par visudo"
+        fi
     fi
-fi
-step_done
+    step_done
+}
 
-step ntp "Synchronisation NTP"
-if command -v timedatectl >/dev/null 2>&1; then
-    run timedatectl set-ntp true
-    ok "systemd-timesyncd activé"
-else
-    warn "timedatectl introuvable — vérifier manuellement la synchronisation NTP du système"
-fi
-step_done
-
-step mdns-redirect "URL locale (mDNS) & redirection du port 80"
-log "Publication du nom mDNS 'bobine.local' (avahi)"
-if $DRY_RUN; then
-    echo "  ${DIM}[dry-run]${RESET} configurerait avahi-daemon.conf (host-name, IPv6 désactivé)"
-else
-    AVAHI_CONF="/etc/avahi/avahi-daemon.conf"
-    if grep -qE '^#?host-name=' "${AVAHI_CONF}"; then
-        sed -i 's/^#\?host-name=.*/host-name=bobine/' "${AVAHI_CONF}"
+step_ntp() {
+    step ntp "Synchronisation NTP"
+    if command -v timedatectl >/dev/null 2>&1; then
+        run timedatectl set-ntp true
+        ok "systemd-timesyncd activé"
     else
-        sed -i '/^\[server\]/a host-name=bobine' "${AVAHI_CONF}"
+        warn "timedatectl introuvable — vérifier manuellement la synchronisation NTP du système"
     fi
-    if grep -qE '^#?use-ipv6=' "${AVAHI_CONF}"; then
-        sed -i 's/^#\?use-ipv6=.*/use-ipv6=no/' "${AVAHI_CONF}"
-    else
-        sed -i '/^\[server\]/a use-ipv6=no' "${AVAHI_CONF}"
-    fi
-fi
-run systemctl unmask avahi-daemon.service avahi-daemon.socket >/dev/null 2>&1 || true
+    step_done
+}
 
-run mkdir -p /etc/systemd/system/avahi-daemon.service.d
-write_file /etc/systemd/system/avahi-daemon.service.d/10-wait-network-online.conf <<'EOF'
+step_mdns_redirect() {
+    step mdns-redirect "URL locale (mDNS) & redirection du port 80"
+    log "Publication du nom mDNS 'bobine.local' (avahi)"
+    if $DRY_RUN; then
+        echo "  ${DIM}[dry-run]${RESET} configurerait avahi-daemon.conf (host-name, IPv6 désactivé)"
+    else
+        AVAHI_CONF="/etc/avahi/avahi-daemon.conf"
+        if grep -qE '^#?host-name=' "${AVAHI_CONF}"; then
+            sed -i 's/^#\?host-name=.*/host-name=bobine/' "${AVAHI_CONF}"
+        else
+            sed -i '/^\[server\]/a host-name=bobine' "${AVAHI_CONF}"
+        fi
+        if grep -qE '^#?use-ipv6=' "${AVAHI_CONF}"; then
+            sed -i 's/^#\?use-ipv6=.*/use-ipv6=no/' "${AVAHI_CONF}"
+        else
+            sed -i '/^\[server\]/a use-ipv6=no' "${AVAHI_CONF}"
+        fi
+    fi
+    run systemctl unmask avahi-daemon.service avahi-daemon.socket >/dev/null 2>&1 || true
+
+    run mkdir -p /etc/systemd/system/avahi-daemon.service.d
+    write_file /etc/systemd/system/avahi-daemon.service.d/10-wait-network-online.conf <<'EOF'
 [Unit]
 After=network-online.target
 Wants=network-online.target
 EOF
-run systemctl daemon-reload
-run systemctl enable avahi-daemon >/dev/null 2>&1 || true
-if ! $DRY_RUN && ! systemctl restart avahi-daemon; then
-    warn "Impossible de démarrer avahi-daemon : l'URL bobine.local ne sera pas publiée."
-    warn "L'accès par adresse IP (http://<IP-du-Wyse>:${SERVICE_PORT}) reste fonctionnel."
-else
-    ok "avahi-daemon actif"
-fi
+    run systemctl daemon-reload
+    run systemctl enable avahi-daemon >/dev/null 2>&1 || true
+    if ! $DRY_RUN && ! systemctl restart avahi-daemon; then
+        warn "Impossible de démarrer avahi-daemon : l'URL bobine.local ne sera pas publiée."
+        warn "L'accès par adresse IP (http://<IP-du-Wyse>:${SERVICE_PORT}) reste fonctionnel."
+    else
+        ok "avahi-daemon actif"
+    fi
 
-log "Redirection du port 80 vers ${SERVICE_PORT} (nftables)"
-write_file "${CONFIG_DIR}/redirect.nft" <<EOF
+    log "Redirection du port 80 vers ${SERVICE_PORT} (nftables)"
+    write_file "${CONFIG_DIR}/redirect.nft" <<EOF
 # Généré par install.sh — accès sans numéro de port (http://bobine.local).
 # Le triplet create/delete/create rend le rechargement idempotent.
 table ip olmc_redirect
@@ -1587,7 +1616,7 @@ table ip olmc_redirect {
     }
 }
 EOF
-write_file /etc/systemd/system/bobine-redirect.service <<EOF
+    write_file /etc/systemd/system/bobine-redirect.service <<EOF
 [Unit]
 Description=Bobine - Redirection port 80 vers ${SERVICE_PORT}
 After=network-pre.target nftables.service
@@ -1601,22 +1630,24 @@ ExecStop=/usr/sbin/nft delete table ip olmc_redirect
 [Install]
 WantedBy=multi-user.target
 EOF
-ok "redirection du port 80 configurée"
+    ok "redirection du port 80 configurée"
 
-if command -v ufw >/dev/null 2>&1 || command -v firewall-cmd >/dev/null 2>&1; then
-    run install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.ufw" /etc/ufw/applications.d/bobine
-    run install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.firewalld.xml" /usr/lib/firewalld/services/bobine.xml
-    if run sh "${REPO_DIR}/packaging/linux/firewall/configure-firewall" open; then
-        ok "pare-feu ouvert aux réseaux locaux (ufw ou firewalld)"
-    else
-        warn "pare-feu non configuré : ouvrez le port 1903 (et 1904 à 1913) aux réseaux locaux à la main"
+    if command -v ufw >/dev/null 2>&1 || command -v firewall-cmd >/dev/null 2>&1; then
+        run install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.ufw" /etc/ufw/applications.d/bobine
+        run install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.firewalld.xml" /usr/lib/firewalld/services/bobine.xml
+        if run sh "${REPO_DIR}/packaging/linux/firewall/configure-firewall" open; then
+            ok "pare-feu ouvert aux réseaux locaux (ufw ou firewalld)"
+        else
+            warn "pare-feu non configuré : ouvrez le port 1903 (et 1904 à 1913) aux réseaux locaux à la main"
+        fi
     fi
-fi
-step_done
+    step_done
+}
 
-step watchdog "Chien de garde de santé (watchdog)"
-run chmod +x "${REPO_DIR}/scripts/watchdog.sh"
-write_file /etc/systemd/system/bobine-watchdog.service <<EOF
+step_watchdog() {
+    step watchdog "Chien de garde de santé (watchdog)"
+    run chmod +x "${REPO_DIR}/scripts/watchdog.sh"
+    write_file /etc/systemd/system/bobine-watchdog.service <<EOF
 [Unit]
 Description=Bobine - Chien de garde santé (redémarre un composant mort)
 After=bobine-backend.service
@@ -1625,7 +1656,7 @@ After=bobine-backend.service
 Type=oneshot
 ExecStart=${REPO_DIR}/scripts/watchdog.sh
 EOF
-write_file /etc/systemd/system/bobine-watchdog.timer <<'EOF'
+    write_file /etc/systemd/system/bobine-watchdog.timer <<'EOF'
 [Unit]
 Description=Bobine - Declenche le chien de garde sante periodiquement
 
@@ -1639,15 +1670,17 @@ AccuracySec=5s
 [Install]
 WantedBy=timers.target
 EOF
-ok "chien de garde santé (watchdog) écrit"
-step_done
+    ok "chien de garde santé (watchdog) écrit"
+    step_done
+}
 
-step tuning "Optimisations système (gouverneur CPU, journal)"
-if $NO_KIOSK; then
-    step_skip "--no-kiosk"
-else
-    if [[ -d /sys/devices/system/cpu/cpu0/cpufreq ]]; then
-        write_file /etc/systemd/system/bobine-cpu-governor.service <<'EOF'
+step_tuning() {
+    step tuning "Optimisations système (gouverneur CPU, journal)"
+    if $NO_KIOSK; then
+        step_skip "--no-kiosk"
+    else
+        if [[ -d /sys/devices/system/cpu/cpu0/cpufreq ]]; then
+            write_file /etc/systemd/system/bobine-cpu-governor.service <<'EOF'
 [Unit]
 Description=Bobine - Gouverneur CPU en mode performance
 
@@ -1659,91 +1692,116 @@ ExecStart=/bin/sh -c 'for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_gove
 [Install]
 WantedBy=multi-user.target
 EOF
-        run systemctl daemon-reload
-        run systemctl enable --now bobine-cpu-governor.service
-        ok "gouverneur CPU réglé sur performance"
-    else
-        warn "cpufreq indisponible sur ce matériel (CPU sans scaling ou virtualisé) — gouverneur laissé tel quel"
-    fi
+            run systemctl daemon-reload
+            run systemctl enable --now bobine-cpu-governor.service
+            ok "gouverneur CPU réglé sur performance"
+        else
+            warn "cpufreq indisponible sur ce matériel (CPU sans scaling ou virtualisé) — gouverneur laissé tel quel"
+        fi
 
-    run mkdir -p /etc/systemd/journald.conf.d
-    write_file /etc/systemd/journald.conf.d/bobine.conf <<'EOF'
+        run mkdir -p /etc/systemd/journald.conf.d
+        write_file /etc/systemd/journald.conf.d/bobine.conf <<'EOF'
 [Journal]
 SystemMaxUse=200M
 EOF
+        if ! $DRY_RUN; then
+            systemctl restart systemd-journald 2>/dev/null || true
+        fi
+        ok "journal systemd plafonné à 200 Mo"
+        step_done
+    fi
+}
+
+step_activation() {
+    step activation "Activation des services & vérification de santé"
+    run systemctl daemon-reload
+    if ! $NO_KIOSK; then
+        run systemctl enable bobine-audio-guard.service
+        run systemctl restart bobine-audio-guard.service 2>/dev/null || run systemctl start bobine-audio-guard.service
+    fi
+    run systemctl enable bobine-backend.service
+    run systemctl restart bobine-backend.service 2>/dev/null || run systemctl start bobine-backend.service
+    run systemctl enable bobine-watchdog.timer
+    run systemctl restart bobine-watchdog.timer 2>/dev/null || run systemctl start bobine-watchdog.timer
+    if ! $NO_KIOSK; then
+        run systemctl enable bobine-kiosk.service
+        run systemctl restart bobine-kiosk.service 2>/dev/null || run systemctl start bobine-kiosk.service
+        run udevadm control --reload-rules 2>/dev/null || true
+    fi
+    run systemctl enable bobine-redirect.service >/dev/null 2>&1 || true
+    if ! $DRY_RUN && ! systemctl restart bobine-redirect.service; then
+        warn "Redirection port 80 -> ${SERVICE_PORT} indisponible (nftables) : utiliser http://bobine.local:${SERVICE_PORT}."
+    fi
+
     if ! $DRY_RUN; then
-        systemctl restart systemd-journald 2>/dev/null || true
-    fi
-    ok "journal systemd plafonné à 200 Mo"
-    step_done
-fi
-
-step activation "Activation des services & vérification de santé"
-run systemctl daemon-reload
-if ! $NO_KIOSK; then
-    run systemctl enable bobine-audio-guard.service
-    run systemctl restart bobine-audio-guard.service 2>/dev/null || run systemctl start bobine-audio-guard.service
-fi
-run systemctl enable bobine-backend.service
-run systemctl restart bobine-backend.service 2>/dev/null || run systemctl start bobine-backend.service
-run systemctl enable bobine-watchdog.timer
-run systemctl restart bobine-watchdog.timer 2>/dev/null || run systemctl start bobine-watchdog.timer
-if ! $NO_KIOSK; then
-    run systemctl enable bobine-kiosk.service
-    run systemctl restart bobine-kiosk.service 2>/dev/null || run systemctl start bobine-kiosk.service
-    run udevadm control --reload-rules 2>/dev/null || true
-fi
-run systemctl enable bobine-redirect.service >/dev/null 2>&1 || true
-if ! $DRY_RUN && ! systemctl restart bobine-redirect.service; then
-    warn "Redirection port 80 -> ${SERVICE_PORT} indisponible (nftables) : utiliser http://bobine.local:${SERVICE_PORT}."
-fi
-
-if ! $DRY_RUN; then
-    log "Attente de la disponibilité de l'API backend"
-    HEALTHY=false
-    for _ in $(seq 1 20); do
-        if curl -fsS -o /dev/null -m 2 "http://127.0.0.1:${SERVICE_PORT}/api/health" 2>/dev/null; then
-            HEALTHY=true
-            break
-        fi
-        sleep 1
-    done
-    if $HEALTHY; then
-        ok "API backend en ligne sur le port ${SERVICE_PORT}"
-    else
-        warn "L'API backend ne répond pas encore après 20s — vérifie : journalctl -u bobine-backend -n 50"
-    fi
-fi
-step_done
-
-step capabilities "Vérification des capacités audio & vidéo"
-AUDIO_OK=false
-VAAPI_OK=false
-if $NO_KIOSK; then
-    step_skip "--no-kiosk (aucune sortie locale attendue)"
-elif $DRY_RUN; then
-    step_skip "--dry-run"
-else
-    if command -v aplay >/dev/null 2>&1 && aplay -l 2>/dev/null | grep -q '^card '; then
-        AUDIO_OK=true
-        ok "carte(s) audio détectée(s) : $(aplay -l 2>/dev/null | grep -c '^card ')"
-    else
-        warn "aucune carte audio détectée par aplay -l — vérifier le matériel/les pilotes"
-    fi
-    if command -v vainfo >/dev/null 2>&1; then
-        VAINFO_OUT="$(vainfo 2>&1 || true)"
-        if grep -qi 'VAProfileH264' <<<"${VAINFO_OUT}"; then
-            VAAPI_OK=true
-            VAAPI_DRIVER="$(grep -oE 'Driver version: .*' <<<"${VAINFO_OUT}" | head -1)"
-            ok "décodage matériel H.264 disponible (${VAAPI_DRIVER:-pilote VA-API actif})"
+        log "Attente de la disponibilité de l'API backend"
+        HEALTHY=false
+        for _ in $(seq 1 20); do
+            if curl -fsS -o /dev/null -m 2 "http://127.0.0.1:${SERVICE_PORT}/api/health" 2>/dev/null; then
+                HEALTHY=true
+                break
+            fi
+            sleep 1
+        done
+        if $HEALTHY; then
+            ok "API backend en ligne sur le port ${SERVICE_PORT}"
         else
-            warn "aucun profil H.264 VA-API détecté — décodage logiciel probable (voir 'vainfo' pour le détail)"
+            warn "L'API backend ne répond pas encore après 20s — vérifie : journalctl -u bobine-backend -n 50"
         fi
-    else
-        warn "vainfo introuvable — impossible de vérifier le décodage matériel"
     fi
     step_done
-fi
+}
+
+step_capabilities() {
+    step capabilities "Vérification des capacités audio & vidéo"
+    AUDIO_OK=false
+    VAAPI_OK=false
+    if $NO_KIOSK; then
+        step_skip "--no-kiosk (aucune sortie locale attendue)"
+    elif $DRY_RUN; then
+        step_skip "--dry-run"
+    else
+        if command -v aplay >/dev/null 2>&1 && aplay -l 2>/dev/null | grep -q '^card '; then
+            AUDIO_OK=true
+            ok "carte(s) audio détectée(s) : $(aplay -l 2>/dev/null | grep -c '^card ')"
+        else
+            warn "aucune carte audio détectée par aplay -l — vérifier le matériel/les pilotes"
+        fi
+        if command -v vainfo >/dev/null 2>&1; then
+            VAINFO_OUT="$(vainfo 2>&1 || true)"
+            if grep -qi 'VAProfileH264' <<<"${VAINFO_OUT}"; then
+                VAAPI_OK=true
+                VAAPI_DRIVER="$(grep -oE 'Driver version: .*' <<<"${VAINFO_OUT}" | head -1)"
+                ok "décodage matériel H.264 disponible (${VAAPI_DRIVER:-pilote VA-API actif})"
+            else
+                warn "aucun profil H.264 VA-API détecté — décodage logiciel probable (voir 'vainfo' pour le détail)"
+            fi
+        else
+            warn "vainfo introuvable — impossible de vérifier le décodage matériel"
+        fi
+        step_done
+    fi
+}
+
+step_update_channel
+step_packages
+step_gpu_access
+step_python_env
+step_frontend_build
+step_config
+step_cli_tool
+step_uninstaller
+step_storage_access
+step_backend_service
+step_kiosk
+step_audio
+step_sudoers
+step_ntp
+step_mdns_redirect
+step_watchdog
+step_tuning
+step_activation
+step_capabilities
 
 echo
 box_top
