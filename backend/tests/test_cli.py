@@ -662,3 +662,11 @@ def test_open_uses_the_real_port_and_the_requested_page(monkeypatch, capsys):
     assert opened == ["http://127.0.0.1:2024/grid"]
     assert cli.main(["--port", "2024", "open"]) == 0
     assert opened[-1] == "http://127.0.0.1:2024/"
+
+
+def test_update_check_offline_is_a_failure(monkeypatch, capsys):
+    offline = {"online": False, "error_code": "offline", "message": "Hors ligne", "has_update": False}
+    monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: offline)
+    monkeypatch.setenv("BOBINE_PORT", "1903")
+    assert cli.main(["update", "check"]) == cli.EXIT_ERROR
+    assert "Hors ligne" in capsys.readouterr().out
