@@ -102,11 +102,28 @@ def align_foreign_keys(engine: Engine) -> None:
     global enforced
     try:
         _align(engine)
+        enforced = True
     except Exception:
         logger.exception("Clés étrangères non alignées : la base reste sans contrôle des clés")
-        return
-    enforced = True
-    engine.dispose()  # les connexions déjà ouvertes n'ont pas le contrôle : les suivantes l'auront
+    finally:
+        engine.dispose()  # les connexions déjà ouvertes suivent l'état d'avant : les suivantes suivront `enforced`
+
+
+def suspend(engine: Engine) -> None:
+    """Coupe le contrôle des clés avant de remplacer ou de migrer la base ; `align_foreign_keys` le rétablit."""
+    global enforced
+    enforced = False
+    engine.dispose()
+
+
+def _alignable(cur: sqlite3.Cursor, table: Table) -> bool:
+    """Faux pour une table d'un schéma ancien qui n'a pas les colonnes de clé du modèle : elle reste telle quelle."""
+    columns = {row[1] for row in cur.execute(f"PRAGMA table_info({_quote(table.name)})")}
+    missing = sorted(fk.parent.name for fk in table.foreign_keys if fk.parent.name not in columns)
+    if missing:
+        logger.warning("Clés étrangères : table %s d'un schéma ancien (colonnes absentes : %s), laissée telle quelle",
+                       table.name, ", ".join(missing))
+    return not missing
 
 
 def _align(engine: Engine) -> None:
@@ -118,16 +135,23 @@ def _align(engine: Engine) -> None:
         cur = conn.cursor()
         cur.execute("PRAGMA foreign_keys=OFF")
         existing = {row[0] for row in cur.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-        tables = [t for t in Base.metadata.sorted_tables if t.name in existing and t.foreign_keys]
+        tables = [
+            t for t in Base.metadata.sorted_tables if t.name in existing and t.foreign_keys and _alignable(cur, t)
+        ]
         try:
             cur.execute("BEGIN IMMEDIATE")
+        except sqlite3.Error:
+            conn.isolation_level = previous
+            raise
+        try:
             orphans = sum(_remove_orphans(cur, t) for t in tables)
             rebuilt = []
             for table in tables:
                 if _current_actions(cur, table.name) != _expected_actions(table):
                     _rebuild(cur, table)
                     rebuilt.append(table.name)
-            problems = list(cur.execute("PRAGMA foreign_key_check"))
+            # Contrôle limité aux tables du modèle : une table d'un schéma ancien garde ses lignes et ses clés.
+            problems = [row for t in tables for row in cur.execute(f"PRAGMA foreign_key_check({_quote(t.name)})")]
             if problems:
                 raise RuntimeError(f"clés étrangères incohérentes après migration : {problems[:5]}")
             cur.execute("COMMIT")
@@ -135,7 +159,6 @@ def _align(engine: Engine) -> None:
             cur.execute("ROLLBACK")
             raise
         finally:
-            cur.execute("PRAGMA foreign_keys=ON")
             conn.isolation_level = previous
         if orphans or rebuilt:
             logger.info("Clés étrangères : %d ligne(s) orpheline(s) corrigée(s), tables reconstruites : %s",
