@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.config import settings
 from app.database import get_db
-from app.models import RadioPlaylist, RadioPlaylistItem, RadioTag, RadioTrack, radio_track_tags
+from app.models import RadioPlaylist, RadioTag, RadioTrack, radio_track_tags
 from app.utils.executors import io_executor
 from app.utils.staged_uploads import receive_single_upload
 from app.utils.import_jobs import create_job, update_job
@@ -359,10 +359,7 @@ def delete_track(track_id: int, db: Session = Depends(get_db)):
     # Un morceau d'un support externe n'est retiré que de la bibliothèque : le fichier du support reste intact.
     file_path = track.file_path if track.storage_id is None else None
     cover_path = track.cover_path
-    # FK non appliquées par SQLite ici (cf. database.py) : on retire à la main
-    # les items de playlist et les liens de tags référençant ce morceau.
-    db.query(RadioPlaylistItem).filter(RadioPlaylistItem.radio_track_id == track_id).delete()
-    track.tags = []
+    # Ses places dans les playlists et ses tags partent avec lui (clés étrangères en cascade).
     db.delete(track)
     db.commit()
 

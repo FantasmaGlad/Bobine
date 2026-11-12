@@ -122,7 +122,6 @@ def _purge(db) -> None:
     db.query(AudioTrack).filter(AudioTrack.file_path.like(f"{PREFIX}%")).delete(synchronize_session=False)
     db.query(AudioCourse).filter(AudioCourse.title.like(f"{PREFIX}%")).delete(synchronize_session=False)
     for track in db.query(RadioTrack).filter(RadioTrack.file_path.like(f"{PREFIX}%")).all():
-        track.tags = []
         db.delete(track)
     db.query(RadioTag).filter(RadioTag.name.like(f"{PREFIX}%")).delete(synchronize_session=False)
     db.query(Video).filter(Video.file_path.like(f"{PREFIX}%")).delete(synchronize_session=False)
