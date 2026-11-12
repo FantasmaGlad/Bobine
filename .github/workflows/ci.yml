@@ -462,6 +462,9 @@ jobs:
     timeout-minutes: 60
     needs: [version]
     if: needs.version.outputs.android == 'true'
+    # Les clés de signature vivent dans l'environnement android-signing, ouvert seulement à main et aux tags V* :
+    # une pull request n'y accède pas et construit sans signer (check-android-signing.py --allow-missing).
+    environment: ${{ github.event_name != 'pull_request' && 'android-signing' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

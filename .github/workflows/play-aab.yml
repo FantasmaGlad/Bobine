@@ -49,6 +49,8 @@ jobs:
     name: Bundles Google Play (${{ inputs.tag }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Clés de signature et compte Google Play : environnement android-signing (main et tags V* seulement).
+    environment: android-signing
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
