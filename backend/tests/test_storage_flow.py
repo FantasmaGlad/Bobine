@@ -651,7 +651,7 @@ def test_startup_puts_every_external_path_in_waiting_state(env):
 def test_scheduler_and_playlists_skip_unavailable_media(env):
     from app.models import Playlist, PlaylistItem, ScheduleTargetType
     from app.api.routes.playback.media_items import _build_playlist_video_items
-    from app.scheduling.launch import _scheduled_target_unavailable
+    from app.scheduling.launch import scheduled_target_unavailable
 
     with SessionLocal() as db:
         lib = ExternalVolume(fs_uuid="FFFF-0002", label="Y", kind="usb")
@@ -665,9 +665,9 @@ def test_scheduler_and_playlists_skip_unavailable_media(env):
         db.add_all([PlaylistItem(playlist_id=playlist.id, video_id=remote_video.id, position=0), PlaylistItem(playlist_id=playlist.id, video_id=local_video.id, position=1)])
         db.commit()
         db.refresh(playlist)
-        assert _scheduled_target_unavailable(db, ScheduleTargetType.video, remote_video.id) is True
-        assert _scheduled_target_unavailable(db, ScheduleTargetType.video, local_video.id) is False
-        assert _scheduled_target_unavailable(db, ScheduleTargetType.playlist, playlist.id) is False  # il reste un média local
+        assert scheduled_target_unavailable(db, ScheduleTargetType.video, remote_video.id) is True
+        assert scheduled_target_unavailable(db, ScheduleTargetType.video, local_video.id) is False
+        assert scheduled_target_unavailable(db, ScheduleTargetType.playlist, playlist.id) is False  # il reste un média local
         assert [i["title"] for i in _build_playlist_video_items(playlist)] == ["__stk_Loc"]
         availability.set_online({lib.id: "/mnt/y"})
         assert [i["title"] for i in _build_playlist_video_items(playlist)] == ["__stk_Ext", "__stk_Loc"]

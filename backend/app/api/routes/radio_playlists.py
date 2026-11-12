@@ -14,7 +14,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.models import RadioPlaylist, RadioPlaylistItem, RadioTrack
+from app.models import ScheduleTargetType, RadioPlaylist, RadioPlaylistItem, RadioTrack
+from app.scheduling.targets import drop_schedules_targeting, remove_jobs
 from app.utils.activity_log import log_activity
 
 logger = logging.getLogger(__name__)
@@ -224,7 +225,9 @@ def unset_default(playlist_id: int, db: Session = Depends(get_db)):
 def delete_playlist(playlist_id: int, db: Session = Depends(get_db)):
     playlist = _get_or_404(playlist_id, db)
     name = playlist.name
+    schedule_ids = drop_schedules_targeting(db, ScheduleTargetType.radio_playlist, [playlist.id])
     db.delete(playlist)
     db.commit()
+    remove_jobs(schedule_ids)
     log_activity(db, "radio_playlist_deleted", name)
     return {"message": "Playlist radio supprimée"}

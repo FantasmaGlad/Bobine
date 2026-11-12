@@ -22,8 +22,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, SessionLocal
 from app.api.contract import SORT_ORDERS, VIDEO_SORT_FIELDS, regex
-from app.models import ImportSource, Schedule, ScheduleTargetType, Video, VideoSubtitle
-from app.scheduling.jobs import remove_schedule_job
+from app.models import ImportSource, ScheduleTargetType, Video, VideoSubtitle
+from app.scheduling.targets import drop_schedules_targeting, remove_jobs
 from app.config import settings
 from app.utils import chapters as chapter_utils
 from app.utils.subtitles import (
@@ -418,16 +418,12 @@ def delete_video(video_id: int, db: Session = Depends(get_db)):
     # échouer la suppression).
     for item in list(video.playlist_items):
         db.delete(item)
-    schedules = db.query(Schedule).filter(Schedule.target_type == ScheduleTargetType.video, Schedule.target_id == video.id).all()
-    schedule_ids = [schedule.id for schedule in schedules]
-    for schedule in schedules:
-        db.delete(schedule)
+    schedule_ids = drop_schedules_targeting(db, ScheduleTargetType.video, [video.id])
     web_path = video.web_path
     chapter_utils.drop_source(video)
     db.delete(video)
     db.commit()
-    for schedule_id in schedule_ids:
-        remove_schedule_job(schedule_id)
+    remove_jobs(schedule_ids)
 
     remove_web_file(web_path)
     for label, path in files:

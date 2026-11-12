@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 
 from app.utils import ui_language
 from app import config_files
+from app.scheduling.targets import drop_schedules_targeting
 from app.utils.uid import is_uid
 from app.models import (
     AudioCourse, AudioPlaylist, AudioPlaylistItem, AudioTrack, Background, OverrideAction, Playlist, PlaylistItem,
@@ -422,8 +423,7 @@ def _prune(ctx: _Context, file: str, document: dict, model, kept: list) -> None:
     target = {Playlist: ScheduleTargetType.playlist, RadioPlaylist: ScheduleTargetType.radio_playlist}.get(model)
     if target is not None and removed_ids:
         # Une programmation ne vise pas une playlist qui n'existe plus.
-        for schedule in ctx.db.query(Schedule).filter(Schedule.target_type == target, Schedule.target_id.in_(removed_ids)).all():
-            ctx.db.delete(schedule)
+        drop_schedules_targeting(ctx.db, target, removed_ids)
         ctx.effects.append(_resync_all_schedules(None))
 
 

@@ -28,7 +28,7 @@ from app.models import (  # noqa: E402
     Setting,
 )
 from app.radio_manager import get_radio_manager  # noqa: E402
-from app.scheduling.launch import _launch_target, fire_schedule_end  # noqa: E402
+from app.scheduling.launch import launch_target, fire_schedule_end  # noqa: E402
 
 
 def _clean_db():
@@ -138,8 +138,8 @@ def test_lancement_radio_reseau_demarre_et_radio_cable_ramene_l_ecran_cable_sur_
     assert client.get("/api/settings/display-output").json()["cable"] != "radio"
     db = SessionLocal()
     try:
-        asyncio.run(_launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_network"))
-        asyncio.run(_launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
+        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_network"))
+        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
     finally:
         db.close()
     network, cable = get_radio_manager("radio_network"), get_radio_manager("radio_cable")
@@ -159,7 +159,7 @@ def test_la_bascule_planifiee_coupe_la_video_du_cable(client):
     assert manager.snapshot()["current_video"]
     db = SessionLocal()
     try:
-        asyncio.run(_launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
+        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
     finally:
         db.close()
     assert not get_playback_manager("cable").snapshot()["current_video"]
@@ -179,7 +179,7 @@ def test_le_mode_coach_garde_la_priorite_sur_une_programmation_radio_cable(clien
     try:
         db = SessionLocal()
         try:
-            asyncio.run(_launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
+            asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
         finally:
             db.close()
     finally:
@@ -195,7 +195,7 @@ def test_lancement_radio_cable_joue_quand_la_sortie_cable_est_sur_radio(client):
     client.put("/api/settings/display-output", json={"channel": "cable", "output": "radio"})
     db = SessionLocal()
     try:
-        asyncio.run(_launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
+        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
     finally:
         db.close()
     assert get_radio_manager("radio_cable").state["state"] == "playing"
