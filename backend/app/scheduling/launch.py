@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 MISFIRE_GRACE_SECONDS = 60
 
 
-def _scheduled_target_unavailable(db: Session, target_type: ScheduleTargetType, target_id: int) -> bool:
+def scheduled_target_unavailable(db: Session, target_type: ScheduleTargetType, target_id: int) -> bool:
     """Vrai si la cible vidéo/playlist d'une programmation n'a AUCUN média lisible (support externe absent)."""
     if target_type == ScheduleTargetType.video:
         video = db.query(Video).filter(Video.id == target_id).first()
@@ -51,7 +51,7 @@ def _scheduled_target_unavailable(db: Session, target_type: ScheduleTargetType, 
     return False
 
 
-async def _launch_target(
+async def launch_target(
     db: Session, target_type: ScheduleTargetType, target_id: int, channel: str = "cable",
     resumed_from: datetime | None = None,
 ) -> None:
@@ -88,7 +88,7 @@ async def _launch_target(
     current = manager.snapshot()
 
     # Média sur un support externe débranché : on ne lance rien et on n'interrompt SURTOUT pas la lecture en cours.
-    if _scheduled_target_unavailable(db, target_type, target_id):
+    if scheduled_target_unavailable(db, target_type, target_id):
         logger.warning(f"Programmation ({target_type.value} {target_id}) non lancée : support externe indisponible")
         from app.utils.activity_log import log_activity
 
@@ -98,7 +98,7 @@ async def _launch_target(
     # Priorité au mode audio coach : contrairement au canal câblé, la
     # programmation n'est PAS prioritaire ici. Le coach anime un cours en
     # physique ; une programmation automatique ne doit surtout pas lui couper
-    # le son. On n'appelle jamais _launch_target dans ce cas : la cible est
+    # le son. On n'appelle jamais launch_target dans ce cas : la cible est
     # mémorisée telle quelle (pas de position, elle n'a jamais démarré) pour
     # une relance manuelle ultérieure depuis l'UI, et on s'arrête là.
     # (Ne peut concerner que le canal câblé, seul à porter le mode coach.)
@@ -244,11 +244,7 @@ async def _launch_target(
 async def fire_schedule(schedule_id: int) -> None:
     """Callback APScheduler déclenché à l'heure d'une programmation.
 
-    Auparavant, un verrou distribué Redis
-    dédoublonnait ce déclenchement entre les 4 workers uvicorn, chacun ayant
-    son propre AsyncIOScheduler armé sur la même règle cron. Process unique
-    désormais : un seul AsyncIOScheduler existe, plus de doublon possible
-    par construction (voir `docs/ARCHITECTURE.md` §1)."""
+    Un seul processus, donc un seul planificateur : aucun déclenchement en double (`docs/ARCHITECTURE.md` §1)."""
     db = SessionLocal()
     try:
         schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
@@ -285,7 +281,7 @@ async def fire_schedule(schedule_id: int) -> None:
             schedule.active = False
             db.commit()
 
-        await _launch_target(db, target_type, target_id, schedule.channel or "cable")
+        await launch_target(db, target_type, target_id, schedule.channel or "cable")
     finally:
         db.close()
 

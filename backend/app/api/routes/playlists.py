@@ -7,7 +7,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.models import Playlist, PlaylistItem, Video
+from app.models import ScheduleTargetType, Playlist, PlaylistItem, Video
+from app.scheduling.targets import drop_schedules_targeting, remove_jobs
 from app.utils.activity_log import log_activity
 
 logger = logging.getLogger(__name__)
@@ -218,8 +219,10 @@ def delete_playlist(playlist_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Playlist non trouvée")
 
     name = playlist.name
+    schedule_ids = drop_schedules_targeting(db, ScheduleTargetType.playlist, [playlist.id])
     db.delete(playlist)
     db.commit()
+    remove_jobs(schedule_ids)
     log_activity(db, "playlist_deleted", name)
     return {"message": "Playlist supprimée avec succès"}
 

@@ -21,7 +21,7 @@ from app.api.contract import CHANNELS
 from app.database import SessionLocal
 from app.models import OverrideAction, Schedule, ScheduleTargetType
 from app.playback_manager import PlaybackStateEnum, get_playback_manager
-from app.scheduling.launch import _launch_target, _scheduled_target_unavailable
+from app.scheduling.launch import launch_target, scheduled_target_unavailable
 from app.scheduling.occurrences import ensure_utc, expand_occurrences
 from app.scheduling import launch_store as scheduled_launch_store
 
@@ -80,13 +80,13 @@ async def _resume_channel(channel: str) -> bool:
             return True
         if get_playback_manager(channel).snapshot()["state"] != PlaybackStateEnum.waiting.value:
             return True  # une lecture a déjà été lancée depuis le démarrage : elle garde l'écran
-        if _scheduled_target_unavailable(db, candidate.target_type, candidate.target_id):
+        if scheduled_target_unavailable(db, candidate.target_type, candidate.target_id):
             return False
         logger.info(
             f"Reprise ({channel}) : {candidate.target_type.value} {candidate.target_id} lancé à "
             f"{candidate.started_at.isoformat()}"
         )
-        await _launch_target(db, candidate.target_type, candidate.target_id, channel, resumed_from=candidate.started_at)
+        await launch_target(db, candidate.target_type, candidate.target_id, channel, resumed_from=candidate.started_at)
         return True
 
 

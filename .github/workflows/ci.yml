@@ -90,6 +90,7 @@ jobs:
   version:
     name: Resolve release version & channel
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       channel: ${{ steps.resolve.outputs.channel }}
       tag_name: ${{ steps.resolve.outputs.tag_name }}
@@ -99,6 +100,8 @@ jobs:
       filename_version: ${{ steps.resolve.outputs.filename_version }}
       commit_short: ${{ steps.resolve.outputs.commit_short }}
       code: ${{ steps.scope.outputs.code }}
+      frontend: ${{ steps.scope.outputs.frontend }}
+      install: ${{ steps.scope.outputs.install }}
       packaging: ${{ steps.scope.outputs.packaging }}
       android: ${{ steps.scope.outputs.android }}
       media: ${{ steps.scope.outputs.media }}
@@ -112,7 +115,7 @@ jobs:
         env:
           BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
-          portee() { for cle in code packaging android media devices; do echo "$cle=$1" >> "$GITHUB_OUTPUT"; done; }
+          portee() { for cle in code frontend install packaging android media devices; do echo "$cle=$1" >> "$GITHUB_OUTPUT"; done; }
           # Tag, déclenchement manuel ou base inconnue : tout est construit.
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [[ "$GITHUB_REF" == refs/tags/* ]] || [ -z "$BASE" ] \
              || [ "$BASE" = 0000000000000000000000000000000000000000 ] || ! git fetch -q --depth=1 origin "$BASE"; then
@@ -127,13 +130,15 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
             portee true; exit 0
           fi
-          # Pull request : les tests Linux tournent toujours ; paquets, Android et composants natifs seulement
-          # quand la modification les touche. Le push sur main qui suit la fusion construit tout de toute façon.
+          # Pull request : les tests backend et Firefox tournent toujours (ils vérifient les contrats avec le
+          # frontend, les paquets et les composants natifs) ; le reste seulement quand la modification le touche. Le push sur main qui suit la fusion construit tout de toute façon.
           touche() { grep -qE "$1" <<<"$changed" && echo true || echo false; }
           ci='^\.github/(workflows|actions)/'
           {
             echo "code=true"
-            echo "packaging=$(touche "$ci|^packaging/|^install\.sh$|^scripts/ci/|^backend/(requirements|constraints)|^backend/run_|^rust-toolchain\.toml$|^VERSION$|^frontend/(package(-lock)?\.json|next\.config|scripts/)")"
+            echo "frontend=$(touche "$ci|^frontend/|^VERSION$|^scripts/ci/test-storage-policy")"
+            echo "install=$(touche "$ci|^install\.sh$|^packaging/windows/install\.ps1$")"
+            echo "packaging=$(touche "$ci|^packaging/|^projector/|^install\.sh$|^scripts/ci/|^backend/(requirements|constraints)|^backend/run_|^rust-toolchain\.toml$|^VERSION$|^frontend/(package(-lock)?\.json|next\.config|scripts/)")"
             echo "android=$(touche "$ci|^android/|^backend/(requirements|constraints)|^scripts/ci/[^/]*(android|apk|media)|^media/")"
             echo "media=$(touche "$ci|^media/|^rust-toolchain\.toml$|^scripts/ci/[^/]*media")"
             echo "devices=$(touche "$ci|^devices/|^rust-toolchain\.toml$")"
@@ -156,8 +161,9 @@ jobs:
   frontend:
     name: Frontend build (Next.js)
     needs: [version]
-    if: needs.version.outputs.code == 'true'
+    if: needs.version.outputs.frontend == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
@@ -207,11 +213,14 @@ jobs:
           cache-dependency-path: |
             backend/requirements*.txt
             backend/constraints-desktop.txt
+      - name: Image du runner
+        id: image
+        run: echo "version=${ImageOS:-}-${ImageVersion:-}" >> "$GITHUB_OUTPUT"
       - name: Paquets ffmpeg en cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/ffmpeg-debs
-          key: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-${{ env.ImageVersion }}
+          key: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.version }}
           restore-keys: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-
       - name: Install ffmpeg
         run: |
@@ -280,11 +289,14 @@ jobs:
         run: python -m pip check
       - name: Syntax check (compile all sources)
         run: python -m compileall -q backend/app scripts
+      - name: Image du runner
+        id: image
+        run: echo "version=${ImageOS:-}-${ImageVersion:-}" >> "$GITHUB_OUTPUT"
       - name: Paquets ffmpeg en cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/ffmpeg-debs
-          key: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-${{ env.ImageVersion }}
+          key: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.version }}
           restore-keys: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-
       - name: Install system dependencies (ffmpeg)
         # Comme le job Firefox, les tests CPU n’installent pas les modèles ASR ni les pilotes recommandés.
@@ -320,6 +332,7 @@ jobs:
     needs: [version]
     if: needs.version.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -408,7 +421,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, windows-11-arm, macos-latest]
+        # Pull request : Linux seulement ; macOS et Windows sont vérifiés par la construction des paquets.
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest","ubuntu-24.04-arm"]' || '["ubuntu-latest","ubuntu-24.04-arm","windows-latest","windows-11-arm","macos-latest"]') }}
     defaults:
       run:
         shell: bash
@@ -627,12 +641,14 @@ jobs:
           retention-days: ${{ github.event_name == 'pull_request' && 1 || 3 }}
           name: bobine-android-apk
           path: android/app/build/outputs/apk/mobile/release/*.apk
+          if-no-files-found: error
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.check_secrets.outputs.configured == 'true'
         with:
           retention-days: ${{ github.event_name == 'pull_request' && 1 || 3 }}
           name: bobine-android-tv-apk
           path: android/app/build/outputs/apk/tv/release/*.apk
+          if-no-files-found: error
 
   android-startup:
     name: Android APK startup (${{ matrix.flavor }}, emulator x86_64)
@@ -707,8 +723,9 @@ jobs:
   install-script:
     name: install.sh sanity
     needs: [version]
-    if: needs.version.outputs.code == 'true'
+    if: needs.version.outputs.install == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -821,6 +838,7 @@ jobs:
           retention-days: ${{ github.event_name == 'pull_request' && 1 || 3 }}
           name: bobine-windows-installer
           path: dist-installer/*.exe
+          if-no-files-found: error
       # Cycle de vie réel de l'installeur : installation silencieuse, arborescence, lancement du backend installé, désinstallation.
       - name: Installer Bobine-Setup en silence (dossier de test, journal conservé)
         shell: pwsh
@@ -930,6 +948,7 @@ jobs:
           retention-days: ${{ github.event_name == 'pull_request' && 1 || 3 }}
           name: bobine-windows-installer-arm64
           path: dist-installer/Bobine-Setup-*-arm64.exe
+          if-no-files-found: error
       # Cycle de vie réel de l'installeur : installation silencieuse, arborescence, lancement du backend installé, désinstallation.
       - name: Installer Bobine-Setup en silence (dossier de test, journal conservé)
         shell: pwsh
@@ -1037,11 +1056,14 @@ jobs:
         run: |
           dpkg-deb -I dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
           dpkg-deb -c dist-deb/bobine_*_${{ matrix.deb_arch }}.deb
+      - name: Image du runner
+        id: image
+        run: echo "version=${ImageOS:-}-${ImageVersion:-}" >> "$GITHUB_OUTPUT"
       - name: Dépendances du paquet en cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/deb-deps
-          key: deb-deps-${{ matrix.runner }}-${{ env.ImageVersion }}
+          key: deb-deps-${{ matrix.runner }}-${{ steps.image.outputs.version }}
           restore-keys: deb-deps-${{ matrix.runner }}-
       - name: Tester l'installation réelle (${{ matrix.runner }})
         run: |
@@ -1172,6 +1194,7 @@ jobs:
           retention-days: ${{ github.event_name == 'pull_request' && 1 || 3 }}
           name: bobine-macos-dmg
           path: dist-dmg/*.dmg
+          if-no-files-found: error
       # Montage réel du dmg : copie de Bobine.app, signature du bundle copié, lancement de son backend, démontage.
       - name: Monter le .dmg, copier Bobine.app et lancer son backend
         env:
@@ -1223,6 +1246,7 @@ jobs:
           path: |
             dist-rpm/*.rpm
             dist-arch/*.pkg.tar.zst
+          if-no-files-found: error
 
   linux-rpm-aarch64:
     # Le rpm aarch64 est construit sur ubuntu-latest (l'image Arch officielle n'existe qu'en x86_64) puis installé et lancé ici,
@@ -1254,10 +1278,13 @@ jobs:
     if: always()
     needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages, linux-rpm-aarch64]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Tous les contrôles sont verts
         env:
           CODE: ${{ needs.version.outputs.code }}
+          FRONTEND: ${{ needs.version.outputs.frontend }}
+          INSTALL: ${{ needs.version.outputs.install }}
           PACKAGING: ${{ needs.version.outputs.packaging }}
           ANDROID: ${{ needs.version.outputs.android }}
           MEDIA: ${{ needs.version.outputs.media }}
@@ -1271,11 +1298,11 @@ jobs:
             echo "$1 : $2 (attendu : $3)"
             [ "$2" = success ] || { [ "$3" = false ] && [ "$2" = skipped ]; } || { echo "::error::$1 a échoué ou a été ignoré ($2)"; exit 1; }
           }
-          controle frontend "${{ needs.frontend.result }}" "$CODE"
+          controle frontend "${{ needs.frontend.result }}" "$FRONTEND"
           controle firefox-smoke "${{ needs.firefox-smoke.result }}" "$CODE"
           controle backend "${{ needs.backend.result }}" "$CODE"
           controle backend-android-compat "${{ needs.backend-android-compat.result }}" "$CODE"
-          controle install-script "${{ needs.install-script.result }}" "$CODE"
+          controle install-script "${{ needs.install-script.result }}" "$INSTALL"
           controle devices-sidecar "${{ needs.devices-sidecar.result }}" "$DEVICES"
           controle media-component "${{ needs.media-component.result }}" "$MEDIA"
           controle android-build "${{ needs.android-build.result }}" "$ANDROID"
@@ -1292,6 +1319,7 @@ jobs:
     needs: [version, ci-ok, linux-packages]
     if: github.event_name != 'pull_request' && contains(fromJSON('["stable","beta","canary"]'), needs.version.outputs.channel)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1317,6 +1345,7 @@ jobs:
           retention-days: ${{ github.event_name == 'pull_request' && 1 || 3 }}
           name: bobine-linux-packages-signed
           path: package-assets/
+          if-no-files-found: error
       - name: Retirer la clé privée du runner
         if: always()
         env:
@@ -1327,7 +1356,7 @@ jobs:
 
   release-stable:
     name: Publish Stable Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, android-build, linux-packages, linux-package-signing]
+    needs: [version, ci-ok, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'stable'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1377,7 +1406,7 @@ jobs:
   # de main, sans validation matérielle manuelle.
   release-canary:
     name: Publish/Update Canary Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, android-build, linux-packages, linux-package-signing]
+    needs: [version, ci-ok, backend, backend-android-compat, android-startup, frontend, firefox-smoke, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'canary'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1420,7 +1449,7 @@ jobs:
   # générées automatiquement que Canary, juste un déclenchement différent.
   release-beta:
     name: Publish/Update Beta Release
-    needs: [version, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, android-build, linux-packages, linux-package-signing]
+    needs: [version, ci-ok, backend, backend-android-compat, android-startup, frontend, windows-build, windows-build-arm64, linux-deb, macos-build, android-build, linux-packages, linux-package-signing]
     if: needs.version.outputs.channel == 'beta'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1558,6 +1587,7 @@ jobs:
     needs: [version, publish-linux-packages]
     if: ${{ always() && !cancelled() && needs.publish-linux-packages.result == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:

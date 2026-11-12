@@ -121,6 +121,11 @@ def get_db():
 
 
 def init_db():
+    if _IS_SQLITE:
+        # Migrations sans contrôle des clés (une base restaurée peut venir d'un schéma ancien) ; rétabli en fin.
+        from app import foreign_keys
+
+        foreign_keys.suspend(engine)
     # Make sure all directories exist (media_dir, watch_dir, thumbnails_dir, ...)
     from pathlib import Path
     for path_str in [

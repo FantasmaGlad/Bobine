@@ -51,8 +51,16 @@ STALE_PENDING_SECONDS=3600
 
 json_field() { sed -nE "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"?([^\",}]+)\"?.*/\1/p" "${PENDING_FILE}" | head -n1; }
 
+runtime_pid() { [ -r "${RUNTIME_FILE}" ] && sed -nE 's/.*"pid"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "${RUNTIME_FILE}" | head -n1; }
+
 update_is_healthy() {
-    local body
+    local body old_pid
+    # Le backend arme le marqueur juste avant de se redémarrer : tant que l'ancien processus répond, sa santé
+    # ne dit rien de la nouvelle version.
+    old_pid="$(json_field pid)"
+    if [ -n "${old_pid}" ] && [ "$(runtime_pid)" = "${old_pid}" ]; then
+        return 1
+    fi
     body="$(curl -s -m 5 "${HEALTH_URL}" 2>/dev/null)" || return 1
     # Une version plus ancienne (retour arrière voulu) n'annonce ni planificateur ni interface : seule leur
     # panne déclarée compte comme un échec.

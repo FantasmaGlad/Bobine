@@ -158,7 +158,7 @@ _AUTO_UPDATE_JOB_ID = "auto_update_check"
 async def _run_auto_update_check() -> None:
     """Job planifié (Réglages → Mise à jour automatique) — `AsyncIOScheduler`
     exécute directement les callables `async def` sur sa propre boucle
-    asyncio (même patron que `fire_schedule`/`_launch_target` plus haut
+    asyncio (même patron que `fire_schedule`/`launch_target` plus haut
     dans ce fichier), aucun pont thread-safe n'est donc nécessaire ici.
     Import différé de `run_scheduled_update_if_available` : évite d'avoir à
     établir un ordre d'import entre `scheduler_manager` (importé tôt par

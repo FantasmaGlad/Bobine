@@ -52,6 +52,16 @@ jobs:
     # Clés de signature et compte Google Play : environnement android-signing (main et tags V* seulement).
     environment: android-signing
     steps:
+      # L'environnement ne contrôle que la révision du déclenchement : la révision construite et signée doit
+      # aussi être main ou un tag de version, jamais une branche non relue.
+      - name: Révision construite autorisée
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          case "$SOURCE_REF" in
+            ""|main|V[0-9]*) ;;
+            *) echo "::error::source_ref doit être vide, main ou un tag V*"; exit 1 ;;
+          esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_ref || inputs.tag }}

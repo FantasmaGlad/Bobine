@@ -17,6 +17,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.models import (
+    ScheduleTargetType,
     AudioCourse,
     AudioPlaylistItem,
     AudioTrack,
@@ -26,6 +27,7 @@ from app.models import (
     StorageImport,
     Video,
 )
+from app.scheduling.targets import drop_schedules_targeting, remove_jobs
 from app.storage import longevity
 from app.storage.availability import placeholder_path
 from app.storage.types import Volume
@@ -166,6 +168,7 @@ def purge_index(db: Session, storage_id: int) -> dict[str, int]:
     ids = [v.id for v in videos]
     if ids:
         db.query(PlaylistItem).filter(PlaylistItem.video_id.in_(ids)).delete(synchronize_session=False)
+    schedule_ids = drop_schedules_targeting(db, ScheduleTargetType.video, ids)
     for video in videos:
         _unlink_internal(video.thumbnail_path)
         _unlink_internal(video.web_path)
@@ -192,6 +195,7 @@ def purge_index(db: Session, storage_id: int) -> dict[str, int]:
         db.delete(radio)  # places en playlist et tags supprimés en cascade
         removed["radio_tracks"] += 1
     db.commit()
+    remove_jobs(schedule_ids)
     return removed
 
 

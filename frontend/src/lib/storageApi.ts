@@ -5,6 +5,7 @@
  * Le client n'envoie que des chemins RELATIFS au support.
  */
 
+import { getApiUrl } from "./apiUrl.ts";
 import { parseApiError, type ApiError, type ApiResult } from "./devicesApi.ts";
 
 export type VolumeKind = "usb" | "sd" | "hdd" | "ssd" | "image" | "other";
@@ -182,10 +183,7 @@ export interface FormatAdvice {
 // ---------------------------------------------------------------------------
 
 export function getStorageApiUrl(path: string): string {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api/storage${path}`;
-  }
-  return `/api/storage${path}`;
+  return getApiUrl(`/storage${path}`);
 }
 
 export async function storageRequest<T>(path: string, init?: { method?: string; body?: unknown }): Promise<ApiResult<T>> {
@@ -212,8 +210,7 @@ export async function storageRequest<T>(path: string, init?: { method?: string; 
 }
 
 export function importJobsUrl(): string {
-  if (typeof window !== "undefined" && window.location.port === "3000") return "http://localhost:8001/api/import-jobs";
-  return "/api/import-jobs";
+  return getApiUrl("/import-jobs");
 }
 
 export function encodeKey(key: string): string {

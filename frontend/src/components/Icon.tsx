@@ -12,11 +12,7 @@ interface IconProps {
   style?: React.CSSProperties;
 }
 
-/**
- * Icône Google Material Symbols (police variable chargée dans layout.tsx),
- * remplace les émojis/caractères unicode utilisés
- * jusqu'ici dans l'admin PC et le mobile par le système d'icônes.
- */
+/** Icône Material Symbols (police variable embarquée, déclarée dans layout.tsx). */
 export default function Icon({ name, size = 20, filled = false, weight = 400, color, className, style }: IconProps) {
   return (
     <span

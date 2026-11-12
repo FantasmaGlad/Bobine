@@ -90,3 +90,53 @@ def test_alignment_is_idempotent(tmp_path):
     before = sqlite3.connect(path).execute("SELECT sql FROM sqlite_master ORDER BY name").fetchall()
     align_foreign_keys(engine)
     assert sqlite3.connect(path).execute("SELECT sql FROM sqlite_master ORDER BY name").fetchall() == before
+
+
+def test_a_table_from_an_older_schema_does_not_block_the_others(tmp_path, monkeypatch):
+    from app import foreign_keys
+
+    path = tmp_path / "ancienne.db"
+    _old_schema(path)
+    db = sqlite3.connect(path)
+    db.executescript(
+        """
+        PRAGMA foreign_keys=OFF;
+        DROP TABLE audio_playlist_items;
+        CREATE TABLE audio_playlist_items (
+            id INTEGER NOT NULL PRIMARY KEY,
+            playlist_id INTEGER NOT NULL REFERENCES audio_playlists (id),
+            audio_course_id INTEGER NOT NULL REFERENCES audio_courses (id),
+            position INTEGER NOT NULL
+        );
+        INSERT INTO audio_playlist_items VALUES (1, 7, 77, 0);
+        """
+    )
+    db.commit()
+    db.close()
+    monkeypatch.setattr(foreign_keys, "enforced", False)
+    align_foreign_keys(_engine(path))
+
+    assert foreign_keys.enforced
+    db = sqlite3.connect(path)
+    assert db.execute("SELECT COUNT(*) FROM audio_playlist_items").fetchone() == (1,), "lignes d'un schéma ancien gardées"
+    assert _actions(db, "playlist_items")[("video_id", "videos")] == "CASCADE"
+
+
+def test_a_failed_alignment_leaves_no_connection_with_keys_enforced(tmp_path, monkeypatch):
+    from app import foreign_keys
+
+    path = tmp_path / "ancienne.db"
+    _old_schema(path)
+    engine = create_engine(f"sqlite:///{path}")
+    monkeypatch.setattr(foreign_keys, "enforced", False)
+
+    def boom(*_):
+        raise RuntimeError("échec simulé")
+
+    monkeypatch.setattr(foreign_keys, "_rebuild", boom)
+    align_foreign_keys(engine)
+
+    assert not foreign_keys.enforced
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql("PRAGMA foreign_keys").scalar() == 0
+    assert _actions(sqlite3.connect(path), "playlist_items")[("video_id", "videos")] == "NO ACTION", "base inchangée"

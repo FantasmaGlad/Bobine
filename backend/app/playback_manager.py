@@ -174,7 +174,7 @@ class PlaybackManager:
             "audio_chain_wait_remaining": None,
             # distingue "lecture
             # manuelle" d'un "reliquat d'une programmation encore en cours"
-            # pour la détection de conflit de scheduling.launch._launch_target
+            # pour la détection de conflit de scheduling.launch.launch_target
             # — sans ce marqueur, la règle réseau "le manuel gagne toujours"
             # s'appliquait aussi à tort à un chevauchement programmation vs
             # programmation, annulant silencieusement la seconde au lieu de

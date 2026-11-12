@@ -20,7 +20,7 @@ from app.models import (  # noqa: E402
     Video,
 )
 from app.playback_manager import get_playback_manager, init_playback_managers  # noqa: E402
-from app.scheduling.launch import _launch_target  # noqa: E402
+from app.scheduling.launch import launch_target  # noqa: E402
 from app.scheduling.resume import resume_running_schedules  # noqa: E402
 from app.scheduling import launch_store as scheduled_launch_store  # noqa: E402
 from app.scheduling.offsets import MIN_REMAINING_SECONDS, playback_offset, playlist_resume_point  # noqa: E402
@@ -109,7 +109,7 @@ class ResumeAfterRestartTests(unittest.IsolatedAsyncioTestCase):
         return get_playback_manager(channel).snapshot()
 
     async def test_un_cours_programme_reprend_a_sa_position_apres_un_redemarrage(self):
-        await _launch_target(self.db, ScheduleTargetType.video, self.video.id, "cable")
+        await launch_target(self.db, ScheduleTargetType.video, self.video.id, "cable")
         record = scheduled_launch_store.get(self.db, "cable")
         record.started_at = datetime.now(timezone.utc) - timedelta(minutes=14)
         self.db.commit()
@@ -125,18 +125,26 @@ class ResumeAfterRestartTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(state["scheduled_launch"])
 
     async def test_un_cours_arrete_a_la_main_n_est_pas_relance(self):
-        await _launch_target(self.db, ScheduleTargetType.video, self.video.id, "cable")
+        await launch_target(self.db, ScheduleTargetType.video, self.video.id, "cable")
         await get_playback_manager("cable").stop()
         self._restart()
         await resume_running_schedules()
         self.assertEqual(self._state()["state"], "waiting")
 
     async def test_une_lecture_manuelle_qui_remplace_le_cours_empeche_sa_reprise(self):
-        await _launch_target(self.db, ScheduleTargetType.video, self.video.id, "cable")
+        await launch_target(self.db, ScheduleTargetType.video, self.video.id, "cable")
         await get_playback_manager("cable").load(self.short.id, self.short.title, self.short.duration_seconds, None)
         self._restart()
         await resume_running_schedules()
         self.assertEqual(self._state()["state"], "waiting")
+
+    async def test_une_lecture_lancee_depuis_le_demarrage_garde_l_ecran(self):
+        scheduled_launch_store.remember(
+            self.db, "cable", "video", self.video.id, datetime.now(timezone.utc) - timedelta(minutes=14)
+        )
+        await get_playback_manager("cable").load(self.short.id, self.short.title, self.short.duration_seconds, None)
+        await resume_running_schedules()
+        self.assertEqual(self._state()["current_video"]["id"], self.short.id)
 
     async def test_un_cours_termine_pendant_la_coupure_n_est_pas_relance(self):
         scheduled_launch_store.remember(
