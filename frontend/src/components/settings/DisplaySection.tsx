@@ -18,7 +18,7 @@ interface DisplaySectionProps {
 }
 
 export default function DisplaySection({ hidden, data, showToast }: DisplaySectionProps) {
-  const { theme, t, wiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount } = useAppSettings();
+  const { t, wiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount } = useAppSettings();
 
   const [lidInfo, setLidInfo] = useState<LidInfo | null>(null);
   const [updatingLid, setUpdatingLid] = useState(false);
