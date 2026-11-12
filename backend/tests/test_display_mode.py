@@ -2,9 +2,6 @@
 
 import os
 
-# Base de test isolée AVANT tout import de l'application (comme les autres
-# tests) : ce fichier ne doit jamais écrire dans la base de développement,
-# même lancé seul.
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
@@ -43,14 +40,13 @@ def test_rapport_identique_n_est_pas_un_changement():
     assert report_external_displays(1, "windows") is True
     assert report_external_displays(1, "windows") is False
     assert report_external_displays(0, "windows") is True
-    assert report_external_displays(-5, "windows") is False  # borné à 0
+    assert report_external_displays(-5, "windows") is False
 
 
 @pytest.fixture()
 def client():
     reset_hardware_state()
     with TestClient(app) as c:
-        # Réglage propre : mode auto.
         c.put("/api/settings", json={"display_mode_setting": "auto"})
         from app.database import SessionLocal
         from app.models import Setting
@@ -94,14 +90,11 @@ def test_validation_des_valeurs(client):
 
 
 def test_sortie_cable_par_defaut_cinema_en_dual_screen(client):
-    # En headless (0 écran externe), la sortie câble par défaut est kiosk
     client.put("/api/display/state", json={"external_count": 0, "source": "linux"})
     assert client.get("/api/settings/display-output").json()["cable"] == "kiosk"
 
-    # En dual_screen (1 écran externe branché), la sortie câble par défaut est cinema
     client.put("/api/display/state", json={"external_count": 1, "source": "linux"})
     assert client.get("/api/settings/display-output").json()["cable"] == "cinema"
 
-    # Un forçage explicite sur le canal câble est respecté
     client.put("/api/settings/display-output", json={"channel": "cable", "output": "kiosk"})
     assert client.get("/api/settings/display-output").json()["cable"] == "kiosk"

@@ -2,10 +2,6 @@
 from typing import Any
 
 
-# Extension d'asset attendue par profil de déploiement — un seul point de
-# vérité, utilisé à la fois par `check_updates()` (affichage) et
-# `apply_update()` (résolution de l'URL à télécharger), qui dupliquaient
-# auparavant chacun leur propre copie de ce mapping.
 ASSET_EXTENSION_BY_PROFILE = {
     "windows": ".exe",
     "linux-desktop": ".deb",
@@ -15,9 +11,7 @@ ASSET_EXTENSION_BY_PROFILE = {
 
 
 def asset_matches_variant(name: str, variant: str | None) -> bool:
-    """Android publie deux APK par release (`Bobine-<v>.apk` pour téléphone/
-    tablette, `Bobine-TV-<v>.apk` pour Android TV, `applicationId` différents)
-    — `variant` "tv" ne retient que le second, toute autre valeur l'exclut."""
+    """Android publie deux APK par release (`Bobine-<v>.apk` pour téléphone/ tablette, `Bobine-TV-<v>.apk` pour Android TV, `applicationId` différents) — `variant` "tv" ne retient que le second, toute autre valeur l'exclut."""
     is_tv = "-tv-" in name or name.startswith("bobine-tv")
     return is_tv if variant == "tv" else not is_tv
 
@@ -39,7 +33,6 @@ def asset_matches_arch(name: str, arch: str) -> bool:
     has_x86 = "amd64" in name or "x86_64" in name or "x64" in name
     if arch == "arm64":
         return has_arm
-    # Sur x86_64, un asset explicitement x86_64/amd64 ou sans suffixe arm64 convient
     return has_x86 or not has_arm
 
 
@@ -50,18 +43,7 @@ def resolve_asset(
     arch: str | None = None,
     linux_ext: str | None = None,
 ) -> dict[str, Any]:
-    """Cherche l'asset adapté au profil de déploiement courant parmi ceux
-    d'une release GitHub. Renvoie systématiquement les quatre mêmes clés
-    (valant `None` si aucun asset ne correspond), pour que les appelants
-    n'aient chacun qu'une seule forme de résultat à gérer. `digest` reprend
-    le champ natif que l'API GitHub Releases fournit déjà pour chaque asset
-    (`"sha256:<hex>"`) — aucune infrastructure de checksum supplémentaire
-    n'est nécessaire pour vérifier l'intégrité d'un téléchargement avant de
-    l'exécuter avec des privilèges élevés (cf.
-    `update_orchestrator.download_with_progress`). `variant` départage les
-    profils qui publient plusieurs assets de même extension (Android TV), et
-    `arch` / `linux_ext` départagent les architectures (`x86_64` vs `arm64`)
-    ainsi que les gestionnaires de paquets Linux (`.deb`, `.rpm`, `.pkg.tar.zst`)."""
+    """Cherche l'asset adapté au profil de déploiement courant parmi ceux d'une release GitHub."""
     if profile == "linux-desktop":
         if linux_ext:
             target_ext = linux_ext
@@ -92,8 +74,6 @@ def resolve_asset(
                     if asset_matches_arch(cname, effective_arch):
                         matched = cand
                         break
-                # Si la release ne contient qu'un seul asset de ce format et qu'aucune
-                # architecture explicite n'a été forcée par l'appelant, repli sur cet unique asset.
                 if matched is None and arch is None and len(candidates) == 1:
                     matched = candidates[0]
             else:

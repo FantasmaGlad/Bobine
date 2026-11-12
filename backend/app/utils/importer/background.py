@@ -21,9 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def import_background_image(src_path: str, original_filename: str, job_id: str | None = None) -> Background:
-    """Fond fixe : pipeline dédié, sans
-    ffmpeg — une image n'a ni codec à valider ni normalisation à envisager,
-    seule sa décodabilité compte (via Pillow)."""
+    """Fond fixe : pipeline dédié, sans ffmpeg — une image n'a ni codec à valider ni normalisation à envisager, seule sa décodabilité compte (via Pillow)."""
     from PIL import Image, UnidentifiedImageError
 
     update_job(job_id, stage="probing")
@@ -89,15 +87,7 @@ def import_background_image(src_path: str, original_filename: str, job_id: str |
 def import_background(
     src_path: str, original_filename: str, source: ImportSource, job_id: str | None = None
 ) -> Background:
-    """
-    Importe un fond animé : même pipeline que import_video
-    (stabilisation, métadonnées, normalisation si nécessaire, miniature) mais
-    dans le dossier dédié `settings.backgrounds_dir`, sans parsing programme/
-    release (non pertinent pour une boucle d'ambiance) et sans piste audio
-    (les fonds animés sont toujours joués sans son).
-
-    `job_id` : voir `import_video` — même mécanique de suivi de progression.
-    """
+    """Importe un fond animé : même pipeline que import_video (stabilisation, métadonnées, normalisation si nécessaire, miniature) mais dans le dossier dédié `settings.backgrounds_dir`, sans parsing programme/ release (non pertinent pour une boucle d'ambiance) et sans piste audio (les fonds animés sont toujours joués sans son)."""
     path_obj = Path(src_path)
 
     if source == ImportSource.watched_folder:
@@ -120,9 +110,6 @@ def import_background(
             f"Le fichier {original_filename} est protégé par DRM et ne peut pas être lu."
         )
 
-    # strict_video_codec=True :
-    # un fond animé boucle indéfiniment, contrairement à un cours lu une
-    # seule fois — seul H.264 est accepté tel quel ici.
     compat = check_compatibility(meta, src_path, strict_video_codec=True)
 
     file_id = uuid.uuid4().hex
@@ -135,17 +122,6 @@ def import_background(
     thumbnail_path = None
 
     try:
-        # Réutilise pleinement `compat["actions"]` — auparavant cette fonction gatait
-        # la normalisation sur la seule extension du fichier (`suffix !=
-        # ".mp4"`) et forçait toujours `["recode_container"]` en ignorant le
-        # codec vidéo réel : un .mp4 avec un codec vidéo non validé passait
-        # sans aucune vérification, et un conteneur non-mp4 (webm compris)
-        # ne recevait jamais de réencodage vidéo même quand le codec source
-        # posait problème pour une lecture en boucle. Un fond animé étant
-        # justement destiné à boucler indéfiniment, on le traite au moins
-        # aussi strictement qu'un cours (pas d'exemption webm : un WebM
-        # "nativement lisible" par Chromium en lecture simple n'a jamais été
-        # testé spécifiquement en boucle sur le Wyse).
         if is_job_cancelled(job_id):
             raise JobCancelledError(f"Job {job_id} annulé")
 
@@ -186,7 +162,6 @@ def import_background(
             )
         except Exception as te:
             logger.error(f"Échec de la génération de miniature pour {dest_path}: {te}")
-            # Miniature de secours : le fond (et les cours audio qui l'utilisent) ne reste pas sans visuel.
             try:
                 thumbnail_path = generate_placeholder_thumbnail(
                     settings.thumbnails_dir, Path(original_filename).stem
@@ -213,7 +188,7 @@ def import_background(
             db.refresh(background)
             logger.info(f"Fond animé indexé avec succès : {background.title} (ID: {background.id})")
             log_activity(db, "background_imported", background.title)
-            db.refresh(background)  # log_activity() a réexpiré les attributs via son propre commit
+            db.refresh(background)
             return background
         except Exception as dbe:
             db.rollback()

@@ -1,5 +1,4 @@
-"""Détection d'Android indépendante de la version de CPython, et ses
-conséquences : profil de déploiement, canal rolling d'un build packagé."""
+"""Détection d'Android indépendante de la version de CPython, et ses conséquences : profil de déploiement, canal rolling d'un build packagé."""
 
 import sys
 from pathlib import Path
@@ -27,8 +26,6 @@ def test_desktop_linux_is_not_android(desktop_env):
 
 
 def test_bootstrap_marker_is_enough(desktop_env, monkeypatch):
-    # Runtime Python 3.11 de Chaquopy : platform.system() == "Linux" et pas de
-    # sys.getandroidapilevel — seul le marqueur posé par le bootstrap reste.
     monkeypatch.setenv("BOBINE_PLATFORM", "android")
     assert android_runtime.is_android() is True
     assert deployment.get_deployment_profile() == "android"

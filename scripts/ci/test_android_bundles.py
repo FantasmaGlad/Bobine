@@ -20,7 +20,6 @@ class BundleSignatureTests(unittest.TestCase):
         cls.addClassCleanup(cls.temporary.cleanup)
         cls.root = Path(cls.temporary.name)
         cls.keystore = cls.root / "test.p12"
-        # Disposable fixture key, never used to build or sign a Bobine release.
         subprocess.run(["keytool", "-genkeypair", "-alias", "test", "-keyalg", "RSA", "-keysize", "2048",
                         "-dname", "CN=Bundle Test", "-validity", "1", "-keystore", str(cls.keystore),
                         "-storepass", "fixture-only", "-keypass", "fixture-only"],

@@ -1,12 +1,4 @@
-"""Moteur des règles temporelles de rappels : « toutes les X minutes » et « à heures fixes ». La règle
-« toutes les N musiques » est vérifiée ailleurs, à chaque fin de piste
- — elle n'a rien de temporel.
-
-Boucle asyncio légère (même patron que RadioPlaybackManager._position_broadcast_loop)
-plutôt qu'APScheduler : les règles sont peu nombreuses, vérifiées à intervalle
-grossier (10 s, largement suffisant pour une granularité à la minute), et
-n'ont pas besoin de jobs persistés/replanifiés comme le Planning.
-"""
+"""Moteur des règles temporelles de rappels : « toutes les X minutes » et « à heures fixes »."""
 import asyncio
 import json
 import logging
@@ -26,16 +18,7 @@ CHECK_INTERVAL_SECONDS = 10.0
 LOCAL_TZ = get_localzone()
 
 _task: asyncio.Task | None = None
-# Dernier déclenchement de chaque règle « toutes les X minutes » (monotonic,
-# insensible aux sauts d'horloge) — initialisé au moment où la règle est VUE
-# pour la première fois plutôt qu'à 0, pour ne pas déclencher immédiatement
-# toutes les règles existantes au redémarrage du service.
-# Clé = (règle, sortie radio) : une règle « les deux sorties » déclenche
-# indépendamment sur chaque moteur.
 _last_minutes_fire: dict[tuple[int, str], float] = {}
-# Dernière minute déclenchée pour chaque règle « heures fixes » (clé
-# "YYYY-MM-DD HH:MM"), pour ne tirer qu'une fois par horaire programmé même
-# si la boucle repasse plusieurs fois dans la même minute.
 _last_fixed_fire: dict[tuple[int, str], str] = {}
 
 
@@ -71,15 +54,11 @@ async def _loop() -> None:
 async def _check_rules() -> None:
     from app.radio_manager import get_all_radio_managers
 
-    # Chaque sortie radio a son propre moteur : ses règles (cible = cette sortie
-    # ou « les deux ») sont évaluées et déclenchées indépendamment.
     for manager in get_all_radio_managers().values():
         await _check_rules_for(manager)
 
 
 async def _check_rules_for(manager) -> None:
-    # Un rappel est déjà en cours (quel que soit son mode) : ne pas en
-    # empiler un second par-dessus.
     if manager.state.get("current_announcement"):
         return
 

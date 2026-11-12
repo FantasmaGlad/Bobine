@@ -1,5 +1,4 @@
-"""Journal du cycle d'un upload par morceaux (technical.log) : création, morceaux
-(taille, durée), complétion, reprise, abandon, purge — sans donnée sensible."""
+"""Journal du cycle d'un upload par morceaux (technical.log) : création, morceaux (taille, durée), complétion, reprise, abandon, purge — sans donnée sensible."""
 
 import logging
 import os
@@ -17,7 +16,7 @@ os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
 from app.utils import staged_uploads as staged  # noqa: E402
 
-DATA = bytes(range(256)) * 100  # 25 600 octets
+DATA = bytes(range(256)) * 100
 SECRET_NAME = "Cours-Secret-Dupont.mov"
 SECRET_FINGERPRINT = "Cours-Secret-Dupont.mov|25600|1700000000000"
 
@@ -34,10 +33,6 @@ def _messages(caplog):
     return [r.getMessage() for r in caplog.records if r.name in ("app.api.routes.uploads", "app.utils.staged_uploads")]
 
 
-# ---------------------------------------------------------------------------
-# Journal du cycle d'un upload
-# ---------------------------------------------------------------------------
-
 def test_upload_lifecycle_is_logged_without_sensitive_data(client, caplog):
     caplog.set_level(logging.INFO)
     r = client.post("/api/uploads", json={"filename": SECRET_NAME, "size": len(DATA), "fingerprint": SECRET_FINGERPRINT})
@@ -45,9 +40,9 @@ def test_upload_lifecycle_is_logged_without_sensitive_data(client, caplog):
     uid = up["upload_id"]
     half = len(DATA) // 2
     client.patch(f"/api/uploads/{uid}", content=DATA[:half], headers={"Upload-Offset": "0"})
-    client.patch(f"/api/uploads/{uid}", content=DATA[half:], headers={"Upload-Offset": "999"})  # désynchronisé
+    client.patch(f"/api/uploads/{uid}", content=DATA[half:], headers={"Upload-Offset": "999"})
     client.patch(f"/api/uploads/{uid}", content=DATA[half:], headers={"Upload-Offset": str(half)})
-    client.post("/api/uploads", json={"filename": SECRET_NAME, "size": len(DATA), "fingerprint": SECRET_FINGERPRINT})  # reprise
+    client.post("/api/uploads", json={"filename": SECRET_NAME, "size": len(DATA), "fingerprint": SECRET_FINGERPRINT})
     staged.take_staged_upload(uid)
 
     text = "\n".join(_messages(caplog))
@@ -56,7 +51,6 @@ def test_upload_lifecycle_is_logged_without_sensitive_data(client, caplog):
     assert "reprise désynchronisée (client à 999, serveur à" in text
     assert "transfert complet" in text
     assert f"Upload {uid[:8]} remis à l'import" in text
-    # Ni le nom du fichier, ni l'empreinte, ni l'identifiant complet.
     assert "Secret" not in text and "Dupont" not in text and "1700000000000" not in text
     assert uid not in text
 

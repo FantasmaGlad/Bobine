@@ -4,7 +4,6 @@ import { pickEntryPoint, pickNeighbor, type Box } from "../src/lib/spatialNav.ts
 
 const box = (left: number, top: number, w = 100, h = 40): Box => ({ left, top, right: left + w, bottom: top + h });
 
-// Grille 3 colonnes x 2 rangées
 const grid = [box(0, 0), box(120, 0), box(240, 0), box(0, 60), box(120, 60), box(240, 60)];
 
 test("grille : droite et gauche restent dans la rangée", () => {
@@ -24,7 +23,6 @@ test("grille : haut et bas restent dans la colonne", () => {
 test("un élément qui ne recouvre pas la rangée n'est choisi qu'à défaut d'autre", () => {
   const a = box(0, 0), sameRow = box(300, 0), otherRow = box(110, 200);
   assert.equal(pickNeighbor(a, [a, sameRow, otherRow], "right"), 1);
-  // Sans voisin dans la rangée, l'élément d'une autre rangée est tout de même atteignable.
   assert.equal(pickNeighbor(a, [a, otherRow], "right"), 1);
 });
 
@@ -48,9 +46,9 @@ test("aucun candidat ou seul l'élément courant : -1", () => {
 
 test("un grand élément qui chevauche l'axe principal reste atteignable s'il est devant", () => {
   const cur = box(0, 0, 100, 40);
-  const tall = box(50, 20, 100, 300); // commence avant la fin de cur, centre bien plus bas
+  const tall = box(50, 20, 100, 300);
   assert.equal(pickNeighbor(cur, [cur, tall], "down"), 1);
-  const behind = box(0, -300, 100, 310); // déborde sur cur mais centre au-dessus
+  const behind = box(0, -300, 100, 310);
   assert.equal(pickNeighbor(cur, [cur, behind], "down"), -1);
 });
 

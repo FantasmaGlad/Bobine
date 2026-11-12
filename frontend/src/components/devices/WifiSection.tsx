@@ -19,7 +19,6 @@ export default function WifiSection({ caps, local, refreshKey, notify, t, focusI
   const [ack, setAck] = useState<AckRequest | null>(null);
   const [busy, setBusy] = useState(false);
   const [forgetting, setForgetting] = useState<string | null>(null);
-  // Secondes écoulées depuis la dernière valeur reçue du serveur (compte à rebours local).
   const [elapsed, setElapsed] = useState(0);
 
   useFocusFlash(focusId, focusNonce, !!data?.supported);
@@ -32,7 +31,6 @@ export default function WifiSection({ caps, local, refreshKey, notify, t, focusI
     return () => clearInterval(timer);
   }, [pending?.seconds_left, pending?.target, pending]);
   const left = secondsLeft(pending, elapsed);
-  // Échéance atteinte : le serveur vient de rétablir l'ancien réseau (ou l'a confirmé) — relit l'état.
   useEffect(() => {
     if (pending && left === 0) {
       const timer = setTimeout(() => { void reload(); }, 1500);

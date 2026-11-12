@@ -76,7 +76,6 @@ test("erreur de tâche : système inconnu → aide Linux ; code inconnu → text
   assert.equal(jobErrorNotice(null, null), undefined);
 });
 
-// Toute clé émise par la logique d'import doit exister en français ET en anglais.
 function lookup(dict: unknown, key: string): unknown {
   return key.split(".").reduce<unknown>((node, part) => (node && typeof node === "object" ? (node as Record<string, unknown>)[part] : undefined), dict);
 }

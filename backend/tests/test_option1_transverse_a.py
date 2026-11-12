@@ -11,10 +11,8 @@ import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# Add backend directory to Python path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# Isolate database and directories for test
 TEST_DIR = Path(__file__).resolve().parent / "data_test_option1"
 os.environ["BOBINE_DATABASE_URL"] = f"sqlite:///{TEST_DIR}/database.db"
 os.environ["BOBINE_MEDIA_DIR"] = str(TEST_DIR / "videos")
@@ -50,7 +48,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         init_db()
-        # Seed test data in database
         db = SessionLocal()
         try:
             db.query(Video).delete()
@@ -65,14 +62,10 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         finally:
             db.close()
 
-        # Seed dummy file in media dir
         media_path = Path(settings.media_dir)
         media_path.mkdir(parents=True, exist_ok=True)
         (media_path / "course1.mp4").write_bytes(b"dummy video data")
 
-    # -----------------------------------------------------------------------
-    # Part 1: Profile-aware updates
-    # -----------------------------------------------------------------------
 
     async def test_check_updates_offline(self):
         """Vérifie que check_updates gère le mode hors-ligne sans planter."""
@@ -110,13 +103,11 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
             ],
         }
 
-        # Mock urllib.request
         mock_resp = MagicMock()
         mock_resp.status = 200
         mock_resp.read.return_value = json.dumps(mock_release).encode("utf-8")
         mock_resp.__enter__.return_value = mock_resp
 
-        # Test Windows profile
         with patch("urllib.request.urlopen", return_value=mock_resp), \
              patch("app.api.routes.updates.get_deployment_profile", return_value="windows"), \
              patch("app.api.routes.updates.get_profile_handler") as mock_handler:
@@ -129,7 +120,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(res["asset_name"], "Bobine-Setup-9.9.9.exe")
             self.assertTrue(res["download_url"].endswith(".exe"))
 
-        # Test Linux Desktop profile (.deb)
         with patch("urllib.request.urlopen", return_value=mock_resp), \
              patch("app.api.routes.updates.get_deployment_profile", return_value="linux-desktop"), \
              patch("app.api.routes.updates.get_profile_handler") as mock_handler:
@@ -139,7 +129,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(res["asset_name"], "bobine_9.9.9_amd64.deb")
             self.assertTrue(res["download_url"].endswith(".deb"))
 
-        # Test macOS profile (.dmg)
         with patch("urllib.request.urlopen", return_value=mock_resp), \
              patch("app.api.routes.updates.get_deployment_profile", return_value="macos"), \
              patch("app.api.routes.updates.get_profile_handler") as mock_handler:
@@ -150,7 +139,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(res["asset_name"], "Bobine-9.9.9.dmg")
             self.assertTrue(res["download_url"].endswith(".dmg"))
 
-        # Test Linux Headless appliance (git auto-apply)
         with patch("urllib.request.urlopen", return_value=mock_resp), \
              patch("app.api.routes.updates.get_deployment_profile", return_value="linux-headless"), \
              patch("app.api.routes.updates.get_profile_handler") as mock_handler:
@@ -159,9 +147,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
             res = await check_updates(db=SessionLocal())
             self.assertTrue(res["can_auto_apply"])
 
-    # -----------------------------------------------------------------------
-    # Part 2: Universal Backup & Restore
-    # -----------------------------------------------------------------------
 
     def test_export_backup(self):
         """Vérifie la génération d'une archive ZIP de sauvegarde valide."""
@@ -169,7 +154,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.media_type, "application/zip")
         self.assertIn("attachment; filename=", response.headers.get("Content-Disposition", ""))
 
-        # Vérification du contenu du ZIP
         buf = io.BytesIO(response.body)
         self.assertTrue(zipfile.is_zipfile(buf))
         with zipfile.ZipFile(buf, "r") as zf:
@@ -186,13 +170,11 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
 
     async def test_restore_backup_invalid_file(self):
         """Vérifie le rejet de fichiers corrompus ou invalides."""
-        # Non-zip file
         upload = UploadFile(filename="corrupt.zip", file=io.BytesIO(b"not a zip file"))
         with self.assertRaises(HTTPException) as ctx:
             await restore_backup(file=upload, db=MagicMock())
         self.assertEqual(ctx.exception.status_code, 400)
 
-        # Zip without database.db
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
             zf.writestr("manifest.json", "{}")
@@ -203,7 +185,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ctx.exception.status_code, 400)
         self.assertIn("database.db manquant", ctx.exception.detail)
 
-        # Zip with fake database.db (not SQLite)
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
             zf.writestr("database.db", "not a sqlite database")
@@ -216,11 +197,9 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
 
     async def test_restore_backup_success(self):
         """Vérifie la restauration réussie d'une sauvegarde valide."""
-        # 1. Export initial backup
         export_resp = export_backup()
         backup_bytes = export_resp.body
 
-        # 2. Modify database (add a video with title 'To be overwritten')
         db = SessionLocal()
         try:
             db.add(Video(
@@ -234,14 +213,12 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         finally:
             db.close()
 
-        # 3. Restore initial backup
         upload = UploadFile(filename="valid_backup.zip", file=io.BytesIO(backup_bytes))
         mock_bg = MagicMock()
         with patch("app.api.routes.settings.backup._run_restore_restart"):
             result = await restore_backup(file=upload, background_tasks=mock_bg, db=MagicMock())
             self.assertEqual(result["status"], "ok")
 
-        # 4. Verify database returned to state of backup (1 video, Course Test 1)
         db = SessionLocal()
         try:
             videos = db.query(Video).all()
@@ -250,13 +227,9 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         finally:
             db.close()
 
-        # 5. Verify .bak file was created
         db_path = Path(settings.database_url.replace("sqlite:///", ""))
         self.assertTrue(db_path.with_suffix(".db.bak").exists())
 
-    # -----------------------------------------------------------------------
-    # Part 3: Clean factory data reset
-    # -----------------------------------------------------------------------
 
     async def test_reset_data_confirmation_required(self):
         """Vérifie qu'une confirmation exacte est exigée."""
@@ -275,12 +248,9 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
             res = await reset_data_system(ResetDataRequest(confirm="reinitialiser"), mock_bg)
             self.assertIn("Remise à zéro des données effectuée", res["message"])
 
-        # Media file inside media_dir must be deleted
         self.assertFalse(media_file.exists())
-        # Media directory itself must still exist
         self.assertTrue(Path(settings.media_dir).exists())
 
-        # Database must be clean and usable
         db = SessionLocal()
         try:
             self.assertEqual(db.query(Video).count(), 0)
@@ -288,9 +258,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
             db.close()
 
     def test_system_usage_normal_and_android_fallback(self):
-        """Vérifie que get_system_usage fonctionne normalement et ne lève jamais
-        d'erreur 500 même si psutil.cpu_percent échoue avec PermissionError (/proc/stat)."""
-        # Cas 1 : appel standard
+        """Vérifie que get_system_usage fonctionne normalement et ne lève jamais d'erreur 500 même si psutil.cpu_percent échoue avec PermissionError (/proc/stat)."""
         usage = get_system_usage()
         self.assertIn("cpu_percent", usage)
         self.assertIn("memory_total_bytes", usage)
@@ -300,7 +268,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         self.assertIsInstance(usage["memory_total_bytes"], int)
         self.assertGreater(usage["memory_total_bytes"], 0)
 
-        # Cas 2 : simulation échec psutil sous Android (SELinux /proc/stat)
         with patch("psutil.cpu_percent", side_effect=PermissionError(13, "Permission denied: '/proc/stat'")), \
              patch("psutil.virtual_memory", side_effect=PermissionError(13, "Permission denied")):
             fallback_usage = get_system_usage()
@@ -310,7 +277,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
             self.assertIn("memory_percent", fallback_usage)
             self.assertIsInstance(fallback_usage["cpu_percent"], float)
             self.assertIsInstance(fallback_usage["memory_total_bytes"], int)
-
 
 
 if __name__ == "__main__":

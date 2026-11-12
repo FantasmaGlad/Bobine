@@ -1,48 +1,17 @@
-// Module applicatif Android.
 plugins {
     id("com.android.application")
     id("com.chaquo.python")
 }
 
-// signature release.
-// Cle dediee generee hors depot (~/.bobine-signing/ sur la machine de
-// build initiale, jamais commitee) - lue ici via variables d'environnement
-// (secrets GitHub Actions en CI : ANDROID_KEYSTORE_PATH pointe vers le
-// fichier decode a partir du secret ANDROID_KEYSTORE_BASE64, cf. le job
-// android-build de ci.yml). Absentes en local -> pas de signingConfig
-// applique, `assembleRelease` produit alors un APK non signe (utilisable
-// pour inspecter le build, pas pour l'installer en mise a jour reelle).
 val androidKeystorePath: String? = System.getenv("ANDROID_KEYSTORE_PATH")
 val androidKeystorePassword: String? = System.getenv("ANDROID_KEYSTORE_PASSWORD")
 val androidKeyAlias: String? = System.getenv("ANDROID_KEY_ALIAS")
 val androidKeyPassword: String? = System.getenv("ANDROID_KEY_PASSWORD")
 val hasReleaseSigningConfig = listOf(androidKeystorePath, androidKeystorePassword, androidKeyAlias, androidKeyPassword).all { !it.isNullOrBlank() }
 
-// mêmes deux valeurs injectées par la CI que sur les autres plateformes
-// (VERSION/COMMIT bundlés, cf. ci.yml) plutôt que la constante figée
-// utilisée jusqu'ici. Le job android-build positionne :
-// - ANDROID_VERSION_NAME = needs.version.outputs.display_version, DEJA du
-//   format "x.y.z" (tag Stable) ou "x.y.z-beta" (push main) partagé avec
-//   Windows/macOS/Linux - aucun format Android-specifique invente ici.
-// - ANDROID_VERSION_CODE = nombre de commits sur main (`git rev-list
-//   --count HEAD`) - entier strictement croissant à chaque commit, condition
-//   exigée par Android pour qu'une mise à jour soit acceptée
-//   par-dessus une installation existante ; un tag Stable pointant sur un
-//   commit de main garde la meme propriete de croissance (pas de retour en
-//   arriere), contrairement a un compteur reinitialise par run CI.
-// Absentes en local -> repli sur les anciennes constantes figees (build de
-// developpement uniquement, jamais installe comme mise a jour d'une
-// version CI reelle).
 val rootVersionFile = rootProject.projectDir.resolve("../VERSION")
 val fallbackVersionName = if (rootVersionFile.exists()) rootVersionFile.readText().trim() else "5.1.2"
 val androidVersionName: String = System.getenv("ANDROID_VERSION_NAME") ?: fallbackVersionName
-// Registre des canaux (Stable, Bêta, Canary) : android/release-channels.json, GÉNÉRÉ par
-// scripts/sync_release_channels.py depuis backend/app/release_channel.py (source unique, aucune
-// liste ni règle recopiée ici). Le canal du BUILD fixe l'icône du lanceur et la bannière Android TV
-// compilées dans l'APK, et le canal proposé par défaut au premier lancement.
-// Règle (identique à release_channel.rolling_channel_of_version) : « x.y.z », puis « -suffixe »
-// ou « ~suffixe » ; tout autre suffixe, ou aucun, donne le canal par défaut. ANDROID_VERSION_NAME
-// porte déjà ce suffixe (cf. ci.yml). `-PbobineChannel=<canal>` le force pour essayer une autre icône.
 @Suppress("UNCHECKED_CAST")
 val releaseChannelRegistry = groovy.json.JsonSlurper()
     .parse(rootProject.projectDir.resolve("release-channels.json")) as Map<String, Any?>
@@ -75,9 +44,6 @@ val fallbackVersionCode: Int = try {
 }
 val androidVersionCode: Int = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: fallbackVersionCode
 
-// Chaquopy lit les ABI dans les flavors, pas dans buildTypes.debug. Une option
-// dédiée ajoute x86_64 pour l'émulateur ; les variantes release/Play sont alors
-// désactivées, pour ne jamais distribuer cette tranche par inadvertance.
 val emulatorBuild = providers.gradleProperty("bobineEmulator").map { it.toBoolean() }.getOrElse(false)
 
 @Suppress("UNCHECKED_CAST")
@@ -86,9 +52,6 @@ val androidToolchain = groovy.json.JsonSlurper()
 
 android {
     namespace = "com.bobine.app"
-    // minSdk 34, targetSdk 36 (tablette pilote réelle : Xiaomi Pad 8, Android 16), priorité
-    // donnée à l'avenir plutôt qu'à la compatibilité descendante. compileSdk 37 est exigé par androidx.core 1.19 ;
-    // il ne change pas le comportement à l'exécution tant que targetSdk reste à 36 (toolchain.json).
     compileSdk = (androidToolchain["compile_sdk"] as Number).toInt()
     buildToolsVersion = androidToolchain["build_tools"] as String
 
@@ -109,11 +72,7 @@ android {
         targetSdk = (androidToolchain["target_sdk"] as Number).toInt()
         versionCode = androidVersionCode
         versionName = androidVersionName
-        // Canal par lequel cet APK a été publié : canal proposé par défaut tant que l'utilisateur
-        // n'en a pas choisi un (écran de démarrage du premier lancement, cf. SplashChannel) ; le
-        // serveur embarqué applique la même règle via BOBINE_VERSION (default_update_channel).
         buildConfigField("String", "BUILD_CHANNEL", "\"$bobineChannel\"")
-        // Canaux valides, séparés par des virgules (UpdateChannelPref) : même registre, aucune liste Kotlin.
         buildConfigField("String", "RELEASE_CHANNELS", "\"${releaseChannels.joinToString(",")}\"")
         buildConfigField("String", "DEFAULT_RELEASE_CHANNEL", "\"$defaultReleaseChannel\"")
     }
@@ -123,8 +82,6 @@ android {
         create("mobile") {
             dimension = "device"
             ndk {
-                // arm64-v8a : tablettes réelles. x86_64 est réservé à l'émulateur,
-                // via -PbobineEmulator=true (seules les variantes debug restent disponibles).
                 abiFilters += listOf("arm64-v8a")
                 if (emulatorBuild) abiFilters += "x86_64"
             }
@@ -133,19 +90,12 @@ android {
             dimension = "device"
             applicationIdSuffix = ".tv"
             ndk {
-                // armeabi-v7a : beaucoup de boîtiers et clés Android TV (Chromecast avec Google TV,
-                // Xiaomi TV Stick/Box...) ont un processeur 64 bits mais un système 32 bits, dont la
-                // liste d'ABI n'est que armeabi-v7a : sans ce dossier natif, l'installation échoue
-                // avec INSTALL_FAILED_NO_MATCHING_ABIS. Chaquopy ne fournit armeabi-v7a que jusqu'à
-                // Python 3.11 (cf. chaquopy.productFlavors ci-dessous), d'où un APK TV universel unique.
                 abiFilters += listOf("armeabi-v7a", "arm64-v8a")
                 if (emulatorBuild) abiFilters += "x86_64"
             }
         }
     }
 
-    // Icône de lanceur et bannière TV du canal du build (cf. bobineChannel plus haut).
-    // (après productFlavors : le jeu de sources « tv » n'existe qu'une fois le flavor déclaré)
     sourceSets {
         getByName("main").res.srcDir("src/channel-$bobineChannel/res")
         getByName("tv").res.srcDir("src/tv-channel-$bobineChannel/res")
@@ -159,9 +109,6 @@ android {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
-        // Variante destinée à Google Play : identique à la release, sans l'autorisation
-        // REQUEST_INSTALL_PACKAGES (src/play/AndroidManifest.xml) et sans mise à jour intégrée depuis GitHub,
-        // que la politique de Google Play interdit (les mises à jour passent par le Play Store).
         create("play") {
             initWith(getByName("release"))
             matchingFallbacks += listOf("release")
@@ -172,29 +119,12 @@ android {
         }
     }
 
-    // par defaut (AGP recent), les libs natives restent compressees
-    // DANS l'APK et sont mappees en memoire par dlopen sans jamais toucher
-    // le disque - parfait pour de vraies bibliotheques partagees (Chaquopy),
-    // mais laisse android:applicationInfo.nativeLibraryDir VIDE. Or
-    // libffmpeg.so/libffprobe.so ne sont pas de vraies bibliotheques : ce
-    // sont des EXECUTABLES renommes en .so pour profiter du seul mecanisme
-    // de packaging natif d'Android, executes via subprocess.run (pas
-    // dlopen) - il leur faut un vrai fichier sur disque, avec le bit
-    // executable, pour que execve() fonctionne. useLegacyPackaging force
-    // l'extraction classique de TOUTES les libs natives a l'installation
-    // (constate en pratique : sans ceci, nativeLibraryDir existe mais reste
-    // vide malgre un packaging Gradle reussi - piege facile a rater vu
-    // qu'aucune erreur n'est levee avant l'echec runtime de subprocess.run).
     packaging {
         jniLibs {
             useLegacyPackaging = true
         }
     }
 
-    // génération de
-    // BuildConfig désactivée par défaut depuis AGP 8+ (surface d'API
-    // réduite par défaut) — nécessaire pour BuildConfig.DEBUG, utilisé par
-    // MainActivity.kt pour ne garder le débogage WebView qu'en build debug.
     buildFeatures {
         buildConfig = true
     }
@@ -203,9 +133,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    // Pas de bloc kotlinOptions { jvmTarget = ... } : DSL supprimee par le
-    // support Kotlin integre d'AGP 9+ (constate en pratique). compileOptions ci-dessus suffit a fixer la
-    // cible JVM 17 pour Kotlin comme pour Java.
 }
 
 androidComponents {
@@ -214,23 +141,6 @@ androidComponents {
     }
 }
 
-// mise en scène du vrai
-// backend/app/ et du frontend statique compile, SANS copier tout backend/
-// (qui contient .venv/, data/, tests/, alembic/ - non pertinents/indesirables
-// dans l'APK).
-//
-// Chaquopy monte le contenu de `chaquopy.sourceSets` sous un dossier FIXE
-// `AssetFinder/app/` sur l'appareil (constate en pratique - pas
-// derive du nom "backend" choisi ici) : la logique de chemins reelle de
-// `backend/app/main.py` (3 `.parent` pour retomber sur un `frontend/out`
-// sibling de `backend/`) ne peut donc PAS fonctionner telle quelle sur
-// Android, `AssetFinder/app/` etant un palier fixe imbrique par Chaquopy,
-// pas un vrai sibling adressable. `main.py` a une branche Android dediee
-// (detectee via `hasattr(sys, "getandroidapilevel")`) qui attend plutot
-// `frontend_out/` comme sibling du paquet `app/` - d'ou la disposition
-// choisie ici :
-//   build/pyStage/backend/app/...          <- chaquopy.sourceSets pointe ici
-//   build/pyStage/backend/frontend_out/...  <- sibling de app/, PAS de backend/
 val pyStageDir = layout.buildDirectory.dir("pyStage")
 
 val buildFrontend = tasks.register<Exec>("buildFrontendStatic") {
@@ -240,14 +150,12 @@ val buildFrontend = tasks.register<Exec>("buildFrontendStatic") {
     inputs.file(workingDir.resolve("package.json"))
     inputs.file(workingDir.resolve("next.config.ts"))
     inputs.file(workingDir.resolve("tsconfig.json"))
-    // Un export par langue (out/fr, out/en) : le script de construction fait partie des entrées.
     inputs.dir(workingDir.resolve("scripts"))
     outputs.dir(workingDir.resolve("out"))
 }
 
 val stagePythonSources = tasks.register<Copy>("stagePythonSources") {
     dependsOn(buildFrontend)
-    // backend/app/ uniquement (pas backend/.venv, data, tests, alembic...).
     from(rootProject.projectDir.resolve("../backend/app")) {
         into("backend/app")
         exclude("**/__pycache__/**")
@@ -272,13 +180,6 @@ val stagePythonSources = tasks.register<Copy>("stagePythonSources") {
     into(pyStageDir)
 }
 
-// Chaquopy doit voir les sources mises en scene AVANT de les fusionner dans
-// l'APK. Le hook preBuild seul ne suffit pas : la validation stricte de
-// Gradle 9 (constatee en pratique) exige une dependance EXPLICITE
-// entre la tache qui lit `pyStageDir` (mergeDebugPythonSources /
-// mergeReleasePythonSources) et celle qui l'ecrit, sinon
-// "Property has implicit dependency" fait echouer le build - une
-// dependance transitive via preBuild ne compte pas comme telle.
 tasks.named("preBuild") {
     dependsOn(stagePythonSources)
 }
@@ -292,95 +193,33 @@ chaquopy {
         }
     }
     productFlavors {
-        // Le runtime Python 3.12+ de Chaquopy n'existe qu'en arm64-v8a et x86_64 (vérifié sur
-        // Maven Central : com.chaquo.python:target:3.13.9-0 n'a pas d'artefact armeabi-v7a, alors
-        // que 3.11.10-0 en a un). Le flavor TV, qui doit couvrir les systèmes 32 bits, reste donc
-        // sur 3.11 ; le backend et les roues épinglées ci-dessous y sont compatibles.
         getByName("tv") { version = "3.11" }
     }
     defaultConfig {
-        // Python 3.13 : c'est la version majeure.mineure disponible sur cette
-        // machine de développement (buildPython doit matcher exactement en
-        // majeur.mineur — dans le plan
-        // d'implémentation, seuls python3.13 et python3.14 sont installés
-        // ici, pas 3.10/3.11/3.12).
         version = "3.13"
 
         pip {
-            // DECISION ACTEE :
-            // pydantic-core (extension Rust, dependance dure de Pydantic v2)
-            // N'A AUCUNE distribution Android reelle - pip installe sinon
-            // silencieusement `pydantic-core==0.0.1`, un PLACEHOLDER VIDE
-            // publie en 2022 par l'auteur de Pydantic, sans code reel.
-            // Decision utilisateur : downgrade Pydantic v1 (pur Python,
-            // aucune extension native) UNIQUEMENT sur le profil Android -
-            // les autres plateformes restent en Pydantic v2/FastAPI
-            // recents. Versions epinglees ci-dessous confirmees par un
-            // build complet reussi (APK genere) :
             install("pydantic==1.10.26")
             install("fastapi==0.99.1")
-            // Sans l'extra [standard] : httptools n'a aucune distribution
-            // Android (confirme). uvicorn nu
-            // retombe sur h11 (pur Python, deja resolu par ailleurs).
             install("uvicorn==0.52.1")
-            // websockets : /ws/playback (sync de lecture temps reel, coeur
-            // de Bobine) NE FONCTIONNE PAS avec uvicorn nu seul - "No
-            // supported WebSocket library detected", 404 sur /ws/playback
-            // (constate en pratique). uvicorn[standard] regroupe
-            // websockets ET httptools/uvloop (ces deux derniers sans
-            // distribution Android) - installer websockets seul
-            // recupere le support WebSocket sans les extras bloquants.
             install("websockets==17.3")
             install("sqlalchemy==2.0.51")
-            // Les migrations du serveur sont intégrées à app.database : aucun appel
-            // Alembic au runtime, ni besoin de son moteur de templates Mako dans l'APK.
             install("python-multipart==0.0.32")
             install("apscheduler==3.11.3")
             install("tzlocal==5.4.4")
-            // tzdata : Android n'a pas de base systeme /usr/share/zoneinfo
-            // a l'emplacement attendu par le module stdlib `zoneinfo` (a la
-            // difference des distributions Linux desktop) - decouvert en
-            // executant reellement app.main sur un emulateur
-            // (ZoneInfoNotFoundError via scheduling -> tzlocal).
-            // Absent de backend/requirements.txt car inutile ailleurs.
             install("tzdata==2026.5")
             install("aiofiles==25.1.0")
-            // pillow==12.3.0 (version desktop) indisponible pour Android -
-            // seule la 11.0.0 existe sur l'index Chaquopy (confirme en
-            // test). API stable entre ces
-            // versions pour l'usage de Bobine (vignettes/redimensionnement).
             install("pillow==11.0.0")
-            // psutil==7.2.2 (desktop) indisponible - seule 7.1.3 existe
-            // pour Android (confirme en test).
             install("psutil==7.1.3")
             install("pystray==0.19.5")
-            // zeroconf==0.151.3 (desktop) indisponible - la plus recente
-            // pour Android est 0.39.4, un ecart de version notable
-            // (a surveiller pour des differences d'API) mais l'API coeur (Zeroconf,
-            // ServiceInfo, register_service) est stable sur cette plage.
             install("zeroconf==0.39.4")
-            // watchdog : AUCUNE distribution Android, non resolu a ce
-            // stade - volontairement absent. backend/app/utils/watcher.py devra etre adapte
-            // (implementation maison ctypes/inotify ou polling) pour le
-            // profil Android specifiquement - non fait ici.
         }
-        // Points de compatibilite Pydantic v1 restant a traiter dans
-        // backend/app/ pour le profil Android (identifies par grep,
-        // perimetre volontairement petit) : `pydantic_settings.BaseSettings` (config.py:6, remplacer
-        // par `pydantic.BaseSettings` integre a v1 sur ce profil),
-        // `field_validator` (api/routes/radio_announcements.py:20,75, syntaxe
-        // v1 = `validator`), `payload.model_dump(...)` (api/routes/settings/values.py,
-        // syntaxe v1 = `.dict(...)`). Non fait a ce stade.
     }
 }
 
 dependencies {
     implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.appcompat:appcompat:1.8.0")
-    // registerForActivityResult/ActivityResultContracts (demande de la
-    // permission POST_NOTIFICATIONS a l'execution).
     implementation("androidx.activity:activity-ktx:1.9.3")
-    // Mises à jour intégrées de Google Play : UNIQUEMENT dans le build « play » (la variante libre, hors
-    // Google, ne contient aucune bibliothèque Google). Chargée par réflexion depuis `StoreUpdates`.
     "playImplementation"("com.google.android.play:app-update:2.1.0")
 }

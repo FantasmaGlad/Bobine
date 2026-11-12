@@ -7,11 +7,6 @@ interface Props {
   className?: string;
 }
 
-/**
- * Barre de choix segmentée (`.view-toggle`) à défilement horizontal pour petit écran : au plus 3 choix
- * visibles, le suivant dépasse (invitation à glisser), fondus aux bords et accroche collante (scroll-snap)
- * sur le choix visé. Le choix actif (`.active`) est ramené au centre. Mise en forme : `.scroll-nav` dans globals.css.
- */
 export default function ScrollNav({ children, className = "" }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [edge, setEdge] = useState<"none" | "start" | "middle" | "end">("none");

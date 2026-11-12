@@ -1,5 +1,4 @@
-"""Build Google Play : la section Mises à jour passe par Google Play (jamais de téléchargement d'APK
-par Bobine) ; le build libre garde le téléchargement des releases."""
+"""Build Google Play : la section Mises à jour passe par Google Play (jamais de téléchargement d'APK par Bobine) ; le build libre garde le téléchargement des releases."""
 
 import os
 

@@ -12,9 +12,6 @@ from .parser import build_parser
 
 
 def _prepare_windows_output() -> None:
-    """Sous Windows, une sortie redirigée utilise la page de code ANSI (cp1252 en français) : un titre ou un journal
-    non latin ferait échouer `print`. Le remplacement par des échappements Unicode garde un JSON valide et évite la
-    traceback ; la console, elle, reste en Unicode."""
     if sys.platform != "win32":
         return
     for stream in (sys.stdout, sys.stderr):
@@ -34,7 +31,7 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_USAGE
     try:
         args = parser.parse_args(argv)
-    except SystemExit as exc:  # argparse : 0 pour --help et --version, 2 pour une erreur d'usage
+    except SystemExit as exc:
         return int(exc.code or 0)
     out = Output(args)
     try:
@@ -52,7 +49,6 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         return 130
     except (TypeError, AttributeError, KeyError, IndexError, ValueError) as exc:
-        # Réponse 200 de forme inattendue (vide, `null`, champ absent) : un message, pas une traceback.
         out.log(1, f"{type(exc).__name__} : {exc}")
         print(f"bobine : réponse inattendue de Bobine ({type(exc).__name__}). Relancez avec -v pour le détail ; "
               "la version de la commande et celle du serveur diffèrent peut-être.", file=sys.stderr)

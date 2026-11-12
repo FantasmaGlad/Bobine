@@ -38,10 +38,6 @@ from .core import router
 logger = logging.getLogger(__name__)
 
 
-# Dossiers de médias dont on additionne l'empreinte disque pour l'indicateur
-# de stockage : ce que l'application
-# consomme réellement, cours + fonds + audio + vignettes + logs + dossiers
-# surveillés. Les chemins sont déjà résolus en absolu par app.config.
 _STORAGE_TRACKED_DIRS = (
     "media_dir",
     "watch_dir",
@@ -59,9 +55,6 @@ _STORAGE_TRACKED_DIRS = (
 
 
 def _dir_size(path: Path) -> int:
-    """Taille cumulée d'un dossier (récursif), tolérante aux erreurs d'accès
-    et aux liens symboliques (non suivis, pour ne pas compter deux fois ni
-    boucler). Renvoie 0 si le dossier n'existe pas encore."""
     total = 0
     try:
         with os.scandir(path) as it:
@@ -82,16 +75,8 @@ def _dir_size(path: Path) -> int:
 
 @router.get("/storage")
 def get_storage() -> dict[str, Any]:
-    """
-    Indicateur de capacité de stockage : espace disque du volume qui héberge les médias (total /
-    utilisé / libre) et empreinte propre de l'application (somme des dossiers
-    de médias). Permet à l'admin de voir combien de cours/fonds/audio il peut
-    encore importer avant de saturer le disque du Wyse.
-    """
+    """Indicateur de capacité de stockage : espace disque du volume qui héberge les médias (total / utilisé / libre) et empreinte propre de l'application (somme des dossiers de médias)."""
     media_dir = Path(runtime_settings.media_dir)
-    # Volume mesuré : le dossier des médias s'il existe, sinon son parent
-    # (tout premier démarrage, avant le premier import) — jamais un chemin
-    # inexistant qui ferait échouer shutil.disk_usage.
     probe = media_dir
     while not probe.exists() and probe != probe.parent:
         probe = probe.parent
@@ -106,8 +91,6 @@ def get_storage() -> dict[str, Any]:
         raw = getattr(runtime_settings, attr, None)
         if not raw:
             continue
-        # Dédoublonnage : plusieurs réglages peuvent pointer le même dossier
-        # (ou un sous-dossier) — on ne compte chaque chemin racine qu'une fois.
         resolved = str(Path(raw))
         if resolved in seen:
             continue
@@ -149,32 +132,17 @@ def purge_logs_manual(retention_days: int | None = None, db: Session = Depends(g
 
 
 async def _run_full_reset():
-    """
-    Diffuse un rechargement à tous les navigateurs connectés (PC/mobile/coach)
-    puis redémarre les services via le handler du profil courant.
-    Exécuté en tâche de fond APRÈS l'envoi de la réponse HTTP : le
-    redémarrage du backend termine le processus courant, il ne peut donc pas
-    avoir lieu pendant le traitement de la requête elle-même.
-
-    Sur le profil headless hors de l'environnement cible (règle sudoers/
-    unités systemd absentes, ex. poste de dev), les appels `systemctl`
-    échouent proprement et sont juste loggés — seule la diffusion
-    `force_reload` a un effet observable en dev.
-    """
     try:
         await ws_manager.broadcast_force_reload()
     except Exception as e:
         logger.warning(f"Échec de la diffusion force_reload : {e}")
 
-    # Laisse le temps au message de partir avant de couper les connexions.
     await asyncio.sleep(1.0)
 
     get_profile_handler().restart_services()
 
 
 async def _run_restart():
-    """Redémarre le service après l'envoi de la réponse. Les écrans ouverts se reconnectent, voient un autre
-    `boot_id` et se rechargent seuls : ils reçoivent alors l'export de la langue enregistrée."""
     await asyncio.sleep(1.0)
     get_profile_handler().restart_services()
 
@@ -189,13 +157,7 @@ async def restart_system(background_tasks: BackgroundTasks, db: Session = Depend
 
 @router.post("/system/reset")
 async def reset_system(background_tasks: BackgroundTasks) -> dict[str, str]:
-    """
-    Réinitialisation complète :
-    force le rechargement de tous les écrans connectés puis redémarre le
-    kiosk et le backend. Action volontairement lourde/perturbatrice — le
-    bouton correspondant côté UI doit demander confirmation avant d'appeler
-    cet endpoint.
-    """
+    """Réinitialisation complète : force le rechargement de tous les écrans connectés puis redémarre le kiosk et le backend."""
     background_tasks.add_task(_run_full_reset)
     return {"message": "Synchronisation en cours : les écrans vident leur cache et rechargent les nouveaux assets."}
 
@@ -205,8 +167,6 @@ class UninstallRequest(BaseModel):
 
 
 async def _run_uninstall():
-    """Laisse la réponse HTTP partir, puis déclenche la désinstallation via
-    le handler du profil courant."""
     await asyncio.sleep(1.0)
     try:
         get_profile_handler().start_uninstall()
@@ -216,21 +176,7 @@ async def _run_uninstall():
 
 @router.post("/system/uninstall")
 async def uninstall_system(payload: UninstallRequest, background_tasks: BackgroundTasks) -> dict[str, str]:
-    """Remise à zéro complète de la machine.
-    Action IRRÉVERSIBLE sur les profils qui la supportent — l'UI exige une
-    phrase de confirmation avant cet appel, quel que soit le profil.
-
-    Sur le profil headless (appliance) : services systemd + config /etc +
-    application + venv + TOUTES les données, via l'enveloppe
-    `/usr/local/sbin/bobine-uninstall` (root sans mot de passe, règle
-    sudoers dédiée posée par `install.sh`). Hors d'une installation cible
-    (enveloppe/sudoers absents, ex. poste de dev), renvoie 400 avec la
-    marche à suivre manuelle plutôt que d'échouer silencieusement.
-
-    Sur les profils desktop (Windows et, plus tard, macOS/Linux de bureau) :
-    aucune action n'est déclenchée depuis le backend (pas d'équivalent sûr à
-    l'enveloppe systemd-run de l'appliance) — la réponse contient les instructions de désinstallation propres
-    à la plateforme."""
+    """Remise à zéro complète de la machine."""
     phrase = payload.confirm.strip().upper().replace("É", "E")
     if phrase != "DESINSTALLER":
         raise HTTPException(status_code=400, detail="Phrase de confirmation incorrecte.")
@@ -263,10 +209,6 @@ _OPENABLE_DIR_FIELDS = (
 
 
 def _openable_roots() -> list[Path]:
-    """Dossiers de données que l'interface propose d'ouvrir (cf. `paths` de
-    `GET /api/settings`) : l'endpoint est joignable par tout appareil du
-    réseau local, il ne doit pas servir à lancer un gestionnaire de fichiers
-    ou à créer des dossiers n'importe où sur la machine."""
     roots = [Path(getattr(runtime_settings, field)).resolve() for field in _OPENABLE_DIR_FIELDS]
     db_url = runtime_settings.database_url
     if db_url.startswith("sqlite:///"):

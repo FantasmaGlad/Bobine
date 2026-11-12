@@ -56,77 +56,50 @@ interface Video {
 
 export default function LibraryPage() {
   const { t } = useAppSettings();
-  // Bascule Médiathèque/Playlists : la création de playlist vidéo vit désormais ici plutôt
-  // que sur une page /playlists séparée.
   const [mode, setMode] = useState<"media" | "playlists">("media");
-  // Dernier catalogue connu de la session : affiché tout de suite, remplacé par la lecture réseau.
   const [videos, setVideos] = useState<Video[]>(() => recallCatalog<Video>("library.videos") ?? []);
   const [loading, setLoading] = useState<boolean>(() => recallCatalog<Video>("library.videos") === undefined);
 
-  // Filters & Search states
   const [search, setSearch] = useState<string>("");
   const [programFilter, setProgramFilter] = useState<string>("");
   const [releaseFilter, setReleaseFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("imported_at");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  // Selected video for details drawer
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
 
-  // Drawer Form fields. `drawerProgram` est un libellé LIBRE (plus de presets
-  // RPM/Sprint/The Trip codés en dur) : saisie texte + suggestions (datalist)
-  // des catégories déjà utilisées.
   const [drawerTitle, setDrawerTitle] = useState<string>("");
   const [drawerProgram, setDrawerProgram] = useState<string>("");
   const [drawerRelease, setDrawerRelease] = useState<string>("");
   const [drawerDescription, setDrawerDescription] = useState<string>("");
   const [isSavingDrawer, setIsSavingDrawer] = useState<boolean>(false);
 
-  // Sous-titres pour le cours ouvert en Studio
   const [studioSubtitles, setStudioSubtitles] = useState<VideoSubtitleItem[]>([]);
   const subtitleInputRef = useRef<HTMLInputElement>(null);
 
-  // Catégories (programmes) réellement présentes dans la bibliothèque, pour
-  // alimenter les suggestions de saisie, le filtre et le regroupement — plus
-  // aucune liste figée.
   const [programs, setPrograms] = useState<string[]>([]);
 
-  // Drag-and-drop zone
   const [dragActive, setDragActive] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
-  // Mini-formulaires pour préparer les métadonnées avant l'upload.
-  // Chaque entrée correspond à un fichier sélectionné mais pas encore envoyé.
   const [pendingSpecs, setPendingSpecs] = useState<Array<PendingUploadSpec & { key: string }>>([]);
 
-  // Delete modal confirmation
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [videoToDelete, setVideoToDelete] = useState<Video | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState<boolean>(false);
 
-  // Sélection multiple
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [playlists, setPlaylists] = useState<{ id: number; name: string }[]>([]);
   const [showAddToPlaylist, setShowAddToPlaylist] = useState<boolean>(false);
   const [bulkTargetPlaylistId, setBulkTargetPlaylistId] = useState<string>("");
 
-  // Toast state
   const { toast, showToast } = useToast();
 
-  // Upload Manager global
   const { addUploads, uploads } = useUploadManager();
-  // Écoute passive uniquement (aucune commande envoyée depuis cette page) :
-  // réagit à `library_change` — un import/modification/suppression fait ailleurs
-  // (autre onglet, dossier surveillé) se reflète ici sans action manuelle.
   const { libraryVersion } = usePlaybackSocket();
-  // `seenDoneIds` évite de
-  // redéclencher un fetch à chaque tick de polling tant qu'aucune tâche
-  // vidéo n'a nouvellement terminé (effet déclaré plus bas, après
-  // `fetchVideos`).
   const seenDoneIds = useRef<Set<string>>(new Set());
 
-  // Load videos
   const fetchVideos = async () => {
     await Promise.resolve();
     if (recallCatalog<Video>("library.videos") === undefined) setLoading(true);
@@ -155,10 +128,6 @@ export default function LibraryPage() {
     }
   };
 
-  // Rafraîchit la bibliothèque dès qu'un import vidéo se termine : les imports sont désormais
-  // traités en arrière-plan (réponse HTTP 202 immédiate), sans ce suivi la
-  // nouvelle vidéo n'apparaissait qu'après une action manuelle (changement
-  // de filtre/tri).
   useEffect(() => {
     const newlyDone = uploads.filter(
       (u) => (u.kind === "video" || u.kind === "video_zip") && u.status === "done" && !seenDoneIds.current.has(u.id)
@@ -169,7 +138,6 @@ export default function LibraryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploads]);
 
-  // Fetch videos on filter/search change
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchVideos();
@@ -190,10 +158,6 @@ export default function LibraryPage() {
   };
   useEffect(fetchPrograms, []);
 
-  // Recharge sur `library_change` venu d'ailleurs (autre onglet, dossier
-  // surveillé) — `libraryVersion === 0` (valeur initiale, avant tout
-  // évènement reçu) est ignoré : l'effet ci-dessus s'en charge déjà au
-  // montage, inutile de refetcher une seconde fois pour rien.
   useEffect(() => {
     if (libraryVersion === 0) return;
     fetchVideos();
@@ -201,10 +165,6 @@ export default function LibraryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [libraryVersion]);
 
-  // Liste de suggestions = catégories du serveur ∪ celles des vidéos déjà
-  // chargées (pour qu'une catégorie tout juste créée apparaisse sans attendre
-  // un rechargement), triée sans casse.
-  // Autocomplétion de la recherche : titres et programmes des cours actuellement chargés.
   const searchSuggestions = React.useMemo(
     () => videos.flatMap((v) => (v.program ? [v.title, v.program] : [v.title])),
     [videos],
@@ -224,8 +184,6 @@ export default function LibraryPage() {
     });
   };
 
-  // Sélection groupée : cases « tout sélectionner » (par groupe de programme en vue
-  // grille, globale en vue liste) + sélection par plage au Maj-clic en liste.
   const setManySelected = (ids: number[], select: boolean) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -238,7 +196,6 @@ export default function LibraryPage() {
   };
   const allSelected = (ids: number[]) => ids.length > 0 && ids.every((id) => selectedIds.has(id));
 
-  // Dernière ligne cochée en vue liste, pour la sélection par plage (Maj-clic).
   const lastListIndexRef = useRef<number | null>(null);
   const handleRowCheckboxClick = (e: React.MouseEvent, index: number, id: number) => {
     if (e.shiftKey && lastListIndexRef.current !== null && lastListIndexRef.current !== index) {
@@ -256,7 +213,6 @@ export default function LibraryPage() {
   const confirmBulkDelete = async () => {
     const ids = Array.from(selectedIds);
     const results = await Promise.allSettled(ids.map((id) => fetch(getApiUrl(`/videos/${id}`), { method: "DELETE" })));
-    // Une réponse d'erreur du serveur résout la promesse : seul `ok` dit que la vidéo est supprimée.
     const failed = results.filter((r) => r.status === "rejected" || !r.value.ok).length;
     showToast(
       failed > 0
@@ -300,11 +256,9 @@ export default function LibraryPage() {
     }
   };
 
-  // Handle video card/row click -> Open Course Studio
   const handleSelectVideo = (video: Video) => {
     setSelectedVideo(video);
     setDrawerTitle(video.title);
-    // Catégorie = libellé libre (plus de presets figés).
     setDrawerProgram(video.program || "");
     setDrawerRelease(video.release || "");
     setDrawerDescription(video.description || "");
@@ -319,7 +273,6 @@ export default function LibraryPage() {
         setStudioSubtitles(Array.isArray(data) ? data : []);
       }
     } catch {
-      // Liste de sous-titres indisponible : le studio s'ouvre sans elle.
     }
   };
 
@@ -361,13 +314,11 @@ export default function LibraryPage() {
     }
   };
 
-  // Close details drawer
   const handleCloseDrawer = () => {
     setSelectedVideo(null);
     setStudioSubtitles([]);
   };
 
-  // Save Video Metadata from Drawer
   const handleSaveMetadata = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedVideo) return;
@@ -393,12 +344,11 @@ export default function LibraryPage() {
         const updatedVideo = await res.json();
         showToast(t("library.metadataSaved"));
 
-        // Update video list in place
         setVideos((prev) =>
           prev.map((v) => (v.id === updatedVideo.id ? updatedVideo : v))
         );
         setSelectedVideo(updatedVideo);
-        fetchPrograms(); // une nouvelle catégorie saisie doit alimenter les suggestions
+        fetchPrograms();
       } else {
         const errData = await res.json();
         showToast(t("library.saveErrorDetail", { detail: errData.detail || t("library.saveErrorFallback") }), "error");
@@ -410,7 +360,6 @@ export default function LibraryPage() {
     }
   };
 
-  // Normalize Video (remux / recode audio if needed)
   const handleNormalize = async () => {
     if (!selectedVideo) return;
     try {
@@ -429,8 +378,6 @@ export default function LibraryPage() {
     }
   };
 
-  // Miniature manuelle. Même mécanique que
-  // handleSaveMetadata ci-dessus (met à jour la liste + le tiroir en place).
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const handleUploadThumbnail = async (file: File) => {
     if (!selectedVideo) return;
@@ -458,13 +405,11 @@ export default function LibraryPage() {
     }
   };
 
-  // Trigger video deletion confirmation
   const triggerDelete = (video: Video) => {
     setVideoToDelete(video);
     setShowDeleteConfirm(true);
   };
 
-  // Confirm and execute deletion
   const confirmDelete = async () => {
     if (!videoToDelete) return;
     try {
@@ -505,10 +450,7 @@ export default function LibraryPage() {
     acceptDroppedOrSelected(Array.from(e.dataTransfer.files));
   };
 
-  /** Ajoute les fichiers vidéo et sous-titres reconnus (type MIME OU extension, cf.
-   *  lib/mediaFiles.ts) et prévient explicitement pour les autres. */
   const acceptDroppedOrSelected = (all: File[]) => {
-    // Une archive (ZIP ou tar) est envoyée telle quelle : le serveur importe un cours par vidéo qu'elle contient.
     const archives = all.filter((f) => isArchiveName(f.name));
     if (archives.length > 0) addUploads(archives.map((file) => ({ kind: "video_zip" as const, file, title: file.name })));
     const files = all.filter((f) => !isArchiveName(f.name));
@@ -516,7 +458,6 @@ export default function LibraryPage() {
     if (accepted.length > 0) {
       addPendingSpecs(accepted, subtitles);
     } else if (subtitles.length > 0) {
-      // Sous-titres déposés seuls : rattachés au premier cours en attente
       setPendingSpecs((prev) => {
         if (prev.length === 0) {
           showToast(t("library.subtitleNeedsVideo"), "warning");
@@ -537,12 +478,9 @@ export default function LibraryPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (files.length > 0) acceptDroppedOrSelected(files);
-    // Réinitialiser l'input pour permettre de re-sélectionner les mêmes fichiers.
     e.target.value = "";
   };
 
-  /** Crée les PendingSpec avec métadonnées pré-remplies par heuristique et
-   *  rattachement automatique des sous-titres (.srt/.vtt) correspondants. */
   const addPendingSpecs = (files: File[], droppedSubtitles: File[] = []) => {
     const known = availablePrograms;
     const specs = files.map((file) => {
@@ -590,16 +528,12 @@ export default function LibraryPage() {
     setPendingSpecs([]);
   };
 
-  // Helper formats
   const formatDuration = (seconds: number | null) => {
     if (seconds === null || seconds === undefined) return "--:--";
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
-
-  // Catégories libres : plus de couleur par programme (RPM/Sprint/… mappaient
-  // déjà tous vers l'accent du thème en CSS). Une seule classe générique suffit.
 
   const getThumbnailSrc = (video: Video) => {
     if (!video.thumbnail_path) return null;
@@ -618,7 +552,6 @@ export default function LibraryPage() {
       onDragLeave={mode === "media" ? handleDrag : undefined}
       onDrop={mode === "media" ? handleDrop : undefined}
     >
-      {/* Médiathèque / Playlists : barre de page commune (PageNav), import à droite. */}
       <PageNav
         tabs={[{ id: "media", icon: "video_library", label: t("library.mediaTab") }, { id: "playlists", icon: "playlist_play", label: t("library.playlistsTab") }]}
         value={mode}
@@ -655,16 +588,12 @@ export default function LibraryPage() {
         <VideoPlaylistManager />
       ) : (
       <>
-      {/* Suggestions de catégories partagées (import + drawer) : les catégories
-          déjà utilisées dans la bibliothèque, sans rien imposer — l'utilisateur
-          peut toujours en saisir une nouvelle. */}
       <datalist id="library-programs">
         {availablePrograms.map((p) => (
           <option key={p} value={p} />
         ))}
       </datalist>
 
-      {/* Dynamic Toast Notifications */}
       {toast && (
         <div className={`toast ${toast.type}`}>
           {toast.type === "success" && <Icon name="check_circle" size={20} color="var(--accent-success-text)" filled />}
@@ -673,7 +602,6 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Import / Upload Section — affichée uniquement au survol glisser-déposer ou quand des fichiers sont prêts */}
       {(dragActive || pendingSpecs.length > 0) && (
       <div 
         className={`upload-zone ${dragActive ? "drag-active" : ""}`}
@@ -754,7 +682,6 @@ export default function LibraryPage() {
                     />
                   </div>
 
-                  {/* Synopsis / Description multi-lignes */}
                   <textarea
                     className="form-control"
                     placeholder="Description / Synopsis du cours (optionnel, style Netflix...)"
@@ -764,7 +691,6 @@ export default function LibraryPage() {
                     style={{ fontSize: "0.82rem", resize: "vertical", minHeight: "52px", lineHeight: "1.4" }}
                   />
 
-                  {/* Sous-titres attachés */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", paddingTop: "6px", borderTop: "1px dashed var(--border-color)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                       <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600 }}>Sous-titres :</span>
@@ -841,7 +767,6 @@ export default function LibraryPage() {
       </div>
       )}
 
-      {/* Barre d'actions groupées */}
       {selectedIds.size > 0 && (
         <div className="interrupted-block">
           <div className="interrupted-text">
@@ -862,7 +787,6 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Toolbar / Search / Filters */}
       <div className="library-toolbar sticky-glass-toolbar">
         <div className="toolbar-filters">
           <SearchBox
@@ -915,7 +839,6 @@ export default function LibraryPage() {
           </div>
         </div>
 
-        {/* Grid / List view toggle */}
         <div className="view-toggle">
           <button
             className={`view-btn olc-press ${viewMode === "grid" ? "active" : ""}`}
@@ -934,7 +857,6 @@ export default function LibraryPage() {
         </div>
       </div>
 
-      {/* Main library listing */}
       {loading ? (
         <div style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center", minHeight: "300px", color: "var(--text-muted)" }}>
           {t("library.loadingLibrary")}
@@ -946,8 +868,6 @@ export default function LibraryPage() {
           <p style={{ fontSize: "0.85rem", margin: "4px 0 0" }}>{t("library.noVideosHint")}</p>
         </div>
       ) : viewMode === "grid" ? (
-        /* GRID VIEW — regroupée dynamiquement par catégorie présente : "" = bucket « sans catégorie », placé
-           en dernier ; les autres triées sans casse. */
         <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
           {Array.from(new Set(videos.map((v) => (v.program && v.program.trim() ? v.program : ""))))
             .sort((a, b) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, "fr", { sensitivity: "base" })))
@@ -958,8 +878,6 @@ export default function LibraryPage() {
             .filter((g) => g.items.length > 0)
             .map((group) => (
               <div key={group.program}>
-                {/* Couleur du thème plutôt que du programme. La case coche
-                    tout le groupe d'un coup. */}
                 <h3
                   style={{
                     fontSize: "0.85rem",
@@ -1028,7 +946,6 @@ export default function LibraryPage() {
             ))}
         </div>
       ) : (
-        /* LIST VIEW */
         <div className="table-wrapper">
           <table className="videos-table responsive-table responsive-table--library">
             <thead>
@@ -1095,11 +1012,9 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Course Studio Modal (Zero-scroll 2-column layout) */}
       {selectedVideo && (
         <div className="course-studio-overlay" onClick={handleCloseDrawer}>
           <div className="course-studio-modal" onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
             <div className="course-studio-header">
               <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
                 <div className="course-studio-icon-badge">
@@ -1119,9 +1034,7 @@ export default function LibraryPage() {
               </button>
             </div>
 
-            {/* Body : 2 colonnes */}
             <div className="course-studio-body">
-              {/* Colonne Gauche : Aperçu vidéo, miniature, specs techniques et actions média */}
               <div className="course-studio-col-left">
                 <div className="drawer-video-container" style={{ borderRadius: "12px", overflow: "hidden" }}>
                   <video
@@ -1148,7 +1061,6 @@ export default function LibraryPage() {
                   <WebRenditionPanel key={selectedVideo.id} videoId={selectedVideo.id} />
                 </div>
 
-                {/* Miniature & Changement */}
                 <div className="course-studio-thumb-row">
                   <div className="course-studio-thumb-preview">
                     {getThumbnailSrc(selectedVideo) ? (
@@ -1186,7 +1098,6 @@ export default function LibraryPage() {
                   </div>
                 </div>
 
-                {/* Specs Bento */}
                 <div className="course-studio-specs-grid">
                   <div className="course-studio-spec-item">
                     <span className="spec-label">{t("library.resolutionLabel")}</span>
@@ -1221,7 +1132,6 @@ export default function LibraryPage() {
                   </div>
                 </div>
 
-                {/* Actions Média (Normalisation + Suppression) */}
                 <div style={{ display: "flex", gap: "10px", marginTop: "auto" }}>
                   <button
                     type="button"
@@ -1245,7 +1155,6 @@ export default function LibraryPage() {
                 </div>
               </div>
 
-              {/* Colonne Droite : Formulaire métadonnées & Sous-titres */}
               <div className="course-studio-col-right">
                 <form onSubmit={handleSaveMetadata} style={{ display: "flex", flexDirection: "column", gap: "14px", height: "100%" }}>
                   <div className="form-group">
@@ -1302,7 +1211,6 @@ export default function LibraryPage() {
                     />
                   </div>
 
-                  {/* Section Sous-titres Studio */}
                   <div className="course-studio-subtitles-section">
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1372,7 +1280,6 @@ export default function LibraryPage() {
                     onNotify={(message, type) => showToast(message, type)}
                   />
 
-                  {/* Boutons validation / enregistrement */}
                   <div style={{ display: "flex", gap: "10px", marginTop: "auto", paddingTop: "8px" }}>
                     <button
                       type="button"
@@ -1399,7 +1306,6 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Confirmation Delete Modal */}
       {showDeleteConfirm && videoToDelete && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -1435,7 +1341,6 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Confirmation Bulk Delete Modal */}
       {bulkDeleteConfirm && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -1457,7 +1362,6 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* Ajout groupé à une playlist */}
       {showAddToPlaylist && (
         <div className="modal-overlay">
           <div className="modal-content">

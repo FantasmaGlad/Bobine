@@ -1,5 +1,4 @@
-"""Détection des écrans externes et fenêtre projecteur desktop.
-Aucune dépendance à un affichage réel : énumération et lancement injectés."""
+"""Détection des écrans externes et fenêtre projecteur desktop."""
 
 import json
 import threading
@@ -38,8 +37,7 @@ def test_parse_xrandr_ignore_les_lignes_inattendues_et_gere_un_decalage_negatif(
 
 
 def test_parse_xrandr_moniteur_defini_a_la_main_sans_prefixe_plus():
-    """Constaté sur une vraie session XWayland : `xrandr --setmonitor` écrit le
-    moniteur SANS le « + » des sorties RandR."""
+    """Constaté sur une vraie session XWayland : `xrandr --setmonitor` écrit le moniteur SANS le « + » des sorties RandR."""
     out = parse_xrandr_listmonitors(
         "Monitors: 2\n 0: +*eDP-1 3072/340x1920/220+0+0  eDP-1\n 1: projecteur-virtuel 1920/508x1080/286+3072+0 \n"
     )
@@ -61,7 +59,6 @@ def test_external_monitors():
     assert external_monitors([]) == []
     assert external_monitors([LAPTOP]) == []
     assert external_monitors([LAPTOP, PROJECTOR]) == [PROJECTOR]
-    # Aucun moniteur marqué principal : le premier fait office de principal.
     assert external_monitors([Monitor("A", 0, 0, 1, 1), Monitor("B", 1, 0, 1, 1)]) == [Monitor("B", 1, 0, 1, 1)]
 
 
@@ -88,7 +85,6 @@ def test_choix_du_navigateur():
         environ={"ProgramFiles": r"C:\Program Files"},
     )
     assert found and found.endswith("chrome.exe")
-    # macOS : fenêtre native, jamais un navigateur piloté ici.
     assert find_kiosk_browser("Darwin", which=lambda n: "/x") is None
 
 
@@ -124,10 +120,10 @@ def test_fenetre_projecteur_idempotente_deplacee_puis_fermee():
     window = _projector(launches)
     assert window.show_on(PROJECTOR) is True
     assert window.show_on(PROJECTOR) is True
-    assert len(launches) == 1  # même moniteur : pas de relance
+    assert len(launches) == 1
     other = Monitor("DP-1", 3840, 0, 2560, 1440)
     window.show_on(other)
-    assert len(launches) == 2 and launches[0][1].terminated is True  # ancienne fenêtre fermée
+    assert len(launches) == 2 and launches[0][1].terminated is True
     window.close()
     assert launches[1][1].terminated is True and window.is_open is False
 
@@ -141,7 +137,7 @@ def test_relance_si_la_fenetre_a_ete_fermee_par_l_utilisateur_au_prochain_change
     launches = []
     window = _projector(launches)
     window.show_on(PROJECTOR)
-    launches[0][1].terminated = True  # fenêtre fermée à la main
+    launches[0][1].terminated = True
     assert window.is_open is False
     window.show_on(PROJECTOR)
     assert len(launches) == 2
@@ -154,8 +150,6 @@ def test_watcher_exige_une_lecture_stable_avant_de_notifier():
     state: dict = {}
     for _ in range(6):
         watcher.poll_once(state)
-    # [LAPTOP] vu 1x puis un clignotement ignoré ; confirmé à la 2e lecture
-    # identique ([LAPTOP] x2), puis [LAPTOP, PROJECTOR] x2.
     assert [len(m) for m in seen] == [1, 2]
 
 
@@ -200,7 +194,7 @@ def test_orchestrateur_attend_le_backend_avant_d_ouvrir_la_fenetre():
 
     def sleep(seconds):
         waits.append(seconds)
-        ready["value"] = len(waits) >= 3  # le backend devient prêt après 3 attentes
+        ready["value"] = len(waits) >= 3
 
     orchestrator = DisplayOrchestrator(
         "u", _projector(launches), reporter=lambda *a: True,
@@ -219,11 +213,11 @@ def test_orchestrateur_une_topologie_recente_annule_l_ouverture_obsolete():
         ready_check=lambda: gate.is_set(), sleep=lambda s: None,
     )
     orchestrator.BACKEND_WAIT_SECONDS = 0.5
-    orchestrator.handle_change([LAPTOP, PROJECTOR])   # attend le backend
-    orchestrator.handle_change([LAPTOP])              # débranché entre-temps
+    orchestrator.handle_change([LAPTOP, PROJECTOR])
+    orchestrator.handle_change([LAPTOP])
     gate.set()
     orchestrator.join()
-    assert launches == []  # la fenêtre obsolète n'a jamais été ouverte
+    assert launches == []
 
 
 def test_reouverture_manuelle_et_absence_d_ecran():
@@ -258,7 +252,6 @@ def test_rapport_au_backend_rejoue_jusqu_au_succes_puis_cede_la_place_au_plus_re
     assert report_display_state("http://x", 1, "1920x1080", source="linux", sleep=lambda s: None, urlopen=urlopen) is True
     assert len(attempts) == 3 and attempts[-1] == {"external_count": 1, "source": "linux", "resolution": "1920x1080"}
 
-    # Un rapport plus récent annule les tentatives du précédent.
     calls = []
 
     def failing(request, timeout=None):
@@ -273,9 +266,6 @@ def test_rapport_au_backend_rejoue_jusqu_au_succes_puis_cede_la_place_au_plus_re
     assert len(calls) <= 3
 
 
-# ----------------------------------------------------------------------
-# Fenêtre native (macOS, plan 4.0 P1-3b)
-# ----------------------------------------------------------------------
 from app.desktop.displays import build_native_projector_command, find_native_projector  # noqa: E402
 
 
@@ -303,10 +293,8 @@ def test_fenetre_native_trouvee_sur_linux_et_windows_si_presente():
 
     assert find_native_projector("Linux", environ={"BOBINE_PROJECTOR_BIN": "/opt/p"}, executable=exe,
                                  exists=lambda p: p == "/opt/p") == "/opt/p"
-    # Surcharge vers un fichier absent : ignorée.
     assert find_native_projector("Linux", environ={"BOBINE_PROJECTOR_BIN": "/nope"}, executable=exe,
                                  exists=lambda p: False) is None
-    # Aucun binaire présent : retourne None.
     assert find_native_projector("Linux", environ={}, executable=exe, exists=lambda p: False) is None
 
 

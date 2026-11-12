@@ -1,7 +1,4 @@
-"""Téléversement par morceaux reprenable : création,
-ajout par offset, reprise après désynchronisation, réutilisation par
-empreinte, protections (dépassement, espace disque, session incomplète) et
-reprise du fichier par un point d'entrée d'import sans recopie."""
+"""Téléversement par morceaux reprenable : création, ajout par offset, reprise après désynchronisation, réutilisation par empreinte, protections (dépassement, espace disque, session incomplète) et reprise du fichier par un point d'entrée d'import sans recopie."""
 
 import os
 import sys
@@ -20,7 +17,7 @@ os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
 from app.utils import staged_uploads as staged  # noqa: E402
 
-DATA = bytes(range(256)) * 100  # 25 600 octets
+DATA = bytes(range(256)) * 100
 
 
 @pytest.fixture
@@ -59,7 +56,6 @@ def test_full_transfer_in_chunks_then_take(client, tmp_path):
 def test_resume_after_desync_reports_real_offset(client):
     up = _create(client)
     _patch(client, up["upload_id"], 0, DATA[:1000])
-    # le client croit être à 0 (réponse perdue) : le serveur indique l'offset réel
     r = _patch(client, up["upload_id"], 0, DATA[:500])
     assert r.status_code == 409
     assert r.json()["offset"] == 1000 and r.headers["Upload-Offset"] == "1000"

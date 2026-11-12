@@ -1,15 +1,4 @@
-"""Refus des requêtes envoyées par une page web d'une autre origine.
-
-Bobine n'a ni mot de passe ni jeton : le réseau local est de confiance. Ce qui reste à empêcher, c'est qu'une page
-web quelconque ouverte sur un appareil du réseau pilote l'API à la place de l'utilisateur (désinstallation,
-remise à zéro, formatage, lecture). Un navigateur joint toujours l'en-tête `Origin` à une requête qui modifie un
-état ou ouvre un WebSocket ; la CLI, Bobine Deploy et `curl` ne l'envoient pas et passent donc sans contrôle.
-
-Comparer `Origin` à `Host` ne suffit pas : par rebinding DNS, une page de `evil.example` dont le nom résout ensuite
-vers l'adresse de Bobine envoie des en-têtes identiques. Le nom joint doit donc aussi être un nom qu'aucun tiers ne
-peut faire résoudre : adresse IP littérale, nom sans point, suffixe réservé aux réseaux privés, nom de la machine,
-ou nom déclaré dans `BOBINE_ALLOWED_HOSTS`.
-"""
+"""Refus des requêtes envoyées par une page web d'une autre origine."""
 from __future__ import annotations
 
 import ipaddress
@@ -21,12 +10,9 @@ from urllib.parse import urlsplit
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-# Serveur de développement Next.js (`npm run dev`), qui appelle l'API sur un autre port.
 DEFAULT_DEV_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 _DEFAULT_PORTS = {"http": 80, "https": 443, "ws": 80, "wss": 443}
-# Suffixes qu'un tiers ne peut pas faire résoudre vers une adresse de son choix : noms jamais délégués dans le DNS
-# public, et noms MagicDNS de Tailscale (résolus par le seul réseau privé virtuel).
 _PRIVATE_SUFFIXES = (".local", ".localhost", ".onion", ".internal", ".home.arpa", ".lan", ".home", ".localdomain", ".ts.net")
 
 
@@ -39,8 +25,7 @@ def dev_origins() -> tuple[str, ...]:
 
 
 def allowed_host_names() -> frozenset[str]:
-    """Nom de la machine et noms déclarés dans `BOBINE_ALLOWED_HOSTS` (liste séparée par des virgules).
-    Pas de `socket.getfqdn()` : sa résolution inverse peut bloquer le démarrage plusieurs dizaines de secondes."""
+    """Nom de la machine et noms déclarés dans `BOBINE_ALLOWED_HOSTS` (liste séparée par des virgules)."""
     names = {socket.gethostname()}
     names.update(os.environ.get("BOBINE_ALLOWED_HOSTS", "").split(","))
     return frozenset(name.strip().lower().rstrip(".") for name in names if name and name.strip())

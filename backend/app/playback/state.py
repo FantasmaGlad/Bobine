@@ -8,9 +8,6 @@ logger = logging.getLogger(__name__)
 
 class StateMixin:
     def _lead_ms(self, nominal_ms: float) -> float:
-        """Délai de démarrage synchronisé : `nominal_ms` s'il y a au moins deux
-        écrans de diffusion sur le canal à caler entre eux, sinon 0 (réponse
-        immédiate). Ne lève jamais : en cas de doute, aucun délai."""
         try:
             return nominal_ms if self.display_counter(self.channel) >= 2 else 0.0
         except Exception:
@@ -33,8 +30,6 @@ class StateMixin:
         self.state["audio_position_seconds"] = pos
 
     def _refresh_position(self) -> None:
-        """Aligne `state["position_seconds"]` (champ historique lu par l'API REST,
-        le planning de reprise et les clients non migrés) sur l'horloge."""
         self._refresh_audio_position()
         current = self.state.get("current_video")
         if current is None:
@@ -53,8 +48,6 @@ class StateMixin:
     def snapshot(self) -> dict:
         self._refresh_position()
         snap = dict(self.state)
-        # Ancre de l'horloge (cf. playback_clock.PlaybackClock.to_dict) : les
-        # écrans en déduisent la position à tout instant, sans tick.
         snap["clock"] = self._clock.to_dict()
         snap["audio_clock"] = self._audio_clock.to_dict()
         return snap
@@ -84,10 +77,6 @@ class StateMixin:
         self._audio_chain_wait_task = None
 
     def _clear_audio_coach(self):
-        """Sort du mode audio coach — appelé par tout ce qui
-        prend le relais sur l'écran (cours vidéo, playlist, fond animé,
-        arrêt manuel). Ne s'applique PAS à la règle de priorité du mode coach, qui
-        empêche au contraire une programmation automatique d'appeler ceci."""
         self._cancel_audio_chain_wait()
         self.state["current_audio_course"] = None
         self.state["audio_tracks"] = None

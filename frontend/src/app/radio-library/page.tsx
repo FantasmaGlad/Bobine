@@ -13,14 +13,6 @@ import { getApiUrl } from "@/lib/apiUrl";
 import { formatMediaDuration } from "@/lib/format";
 import { useToast } from "@/lib/useToast";
 
-// Bibliothèque musicale Radio — écran unique « vue d'ensemble » (refonte).
-// Barre latérale persistante (playlists / tags / genres / artistes, tous
-// cliquables pour filtrer) + grille principale avec sélection multiple et
-// actions groupées (taguer, ajouter à une playlist, supprimer). L'import est
-// une modale (bouton dans la barre) plutôt qu'une zone géante au milieu. Les
-// tags s'attribuent par clics (chips) dans le drawer d'un morceau ou en lot ;
-// les playlists se réordonnent en glisser-déposer.
-
 interface RadioTrack {
   id: number;
   title: string;
@@ -65,13 +57,11 @@ interface TagEntry { id: number; name: string; track_count: number; }
 
 type Filter = { type: "artist" | "album" | "genre" | "tag" | "playlist"; value: string } | null;
 
-/** Sections de la barre de navigation horizontale. */
 type Section = "tracks" | "playlists" | "artists" | "tags" | "import";
 type SortKey = "recent" | "title" | "artist" | "duration";
 type ViewMode = "grid" | "list";
 const VIEW_STORAGE_KEY = "bobine.radioLibrary.view";
 
-// Filtre les fichiers non audio d'un dossier déposé (liste unique : `lib/mediaFiles.ts`).
 const isAudioFile = (name: string) => hasExtension(name, RADIO_AUDIO_EXTENSIONS);
 
 export default function RadioLibraryPage() {
@@ -92,17 +82,14 @@ export default function RadioLibraryPage() {
   const [sortKey, setSortKey] = useState<SortKey>("recent");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [artistsView, setArtistsView] = useState<"artists" | "albums">("artists");
-  // Morceaux de la playlist utilisée comme filtre (chargés au clic sur « Voir les morceaux »).
   const [playlistFilterIds, setPlaylistFilterIds] = useState<Set<number> | null>(null);
 
-  // Vue grille ou liste mémorisée par appareil (accès au stockage protégé : il peut être indisponible).
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture unique d'une préférence locale après hydratation
       if (stored === "grid" || stored === "list") setViewMode(stored);
     } catch {
-      // stockage indisponible : vue grille
     }
   }, []);
   const chooseViewMode = (mode: ViewMode) => {
@@ -110,25 +97,17 @@ export default function RadioLibraryPage() {
     try {
       window.localStorage.setItem(VIEW_STORAGE_KEY, mode);
     } catch {
-      // la préférence reste valable pour cette session
     }
   };
 
-  // Sélection multiple + actions groupées
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkMenu, setBulkMenu] = useState<null | "tag" | "playlist">(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
-  // Import (section « Importer »)
-  // ZIP et pistes partagent désormais le même sélecteur générique
-  // (détecté après coup à la sélection, cf. startFilesUpload) — seul le
-  // dossier a encore besoin d'un mode dédié (sélecteur natif différent,
-  // webkitdirectory).
   const [uploadMode, setUploadMode] = useState<"files" | "folder">("files");
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Édition d'un morceau
   const [selectedTrack, setSelectedTrack] = useState<RadioTrack | null>(null);
   const [form, setForm] = useState({
     title: "", artist: "", album: "", album_artist: "",
@@ -140,7 +119,6 @@ export default function RadioLibraryPage() {
   const [toDelete, setToDelete] = useState<RadioTrack | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  // Playlists
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [editingPlaylist, setEditingPlaylist] = useState<PlaylistDetail | null>(null);
   const [addTrackSearch, setAddTrackSearch] = useState("");
@@ -148,24 +126,15 @@ export default function RadioLibraryPage() {
   const [addingTrackId, setAddingTrackId] = useState<number | null>(null);
   const dragIndexRef = useRef<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  // Sérialise toutes les mutations d'UNE playlist (ajout/retrait/renommage/
-  // réordonnancement) : chacune part de l'état serveur le plus frais plutôt
-  // que d'une valeur capturée au moment du clic, et attend son tour derrière
-  // la précédente. Sans ça, un blur de renommage (PUT snapshot des items) et
-  // un clic "Ajouter" (POST) peuvent partir en parallèle ; celui qui répond
-  // en second écrase le résultat de l'autre — un ajout pouvait disparaître
-  // silencieusement.
   const playlistMutationRef = useRef<Promise<unknown>>(Promise.resolve());
   const editingPlaylistRef = useRef<PlaylistDetail | null>(null);
   useEffect(() => { editingPlaylistRef.current = editingPlaylist; }, [editingPlaylist]);
 
-  // Tags
   const [newTagName, setNewTagName] = useState("");
 
   const { uploads, addUploads } = useUploadManager();
   const seenDoneIds = useRef<Set<string>>(new Set());
 
-  // Imports radio en cours ou récents, affichés dans la section « Importer ».
   const radioUploads = uploads.filter((u) => u.kind === "radio_files" || u.kind === "radio_zip").slice(-12).reverse();
 
   const fetchJson = async <T,>(path: string, fallback: T): Promise<T> => {
@@ -208,12 +177,6 @@ export default function RadioLibraryPage() {
 
   const trackCoverUrl = (id: number) => `${getApiUrl(`/radio/tracks/${id}/cover`)}?v=${coverVersion}`;
 
-  // ---- Import ----
-  // `webkitdirectory` est posé/retiré juste avant `click()`, dans le même
-  // gestionnaire (pas via un effet React) : entre un `setUploadMode(...)` et
-  // le re-rendu qui suivrait, `click()` ouvrirait le sélecteur natif AVANT
-  // que l'attribut n'ait eu le temps d'être appliqué — l'utilisateur verrait
-  // le mauvais type de sélecteur (fichiers au lieu de dossier ou l'inverse).
   const openFilesPicker = () => {
     setUploadMode("files");
     const el = fileInputRef.current;
@@ -235,9 +198,6 @@ export default function RadioLibraryPage() {
 
   const startFilesUpload = (fileList: FileList | null, modeOverride?: "files" | "folder") => {
     if (!fileList || fileList.length === 0) return;
-    // `modeOverride` pour le dépôt glisser-déposer (cf. handleFileDrop) : un
-    // setUploadMode() juste avant cet appel n'aurait pas encore été appliqué
-    // (état React asynchrone) au moment où cette fonction lit `uploadMode`.
     const mode = modeOverride ?? uploadMode;
     let files = Array.from(fileList);
     if (mode === "folder") {
@@ -247,18 +207,10 @@ export default function RadioLibraryPage() {
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
-      // UNE tâche par morceau : comme les vidéos, chaque fichier a sa propre ligne de
-      // progression dans le panneau d'import, au lieu d'un seul lot opaque.
-      // L'endpoint /radio/tracks/upload accepte une liste — un fichier par
-      // requête crée un job d'import distinct, donc un suivi 1-par-1.
       addUploads(files.map((f) => ({ kind: "radio_files" as const, files: [f], title: f.name })));
     } else if (files.length === 1 && isArchiveName(files[0].name)) {
-      // Une seule archive ZIP sélectionnée/déposée : détectée automatiquement,
-      // pas besoin d'un mode dédié.
       addUploads([{ kind: "radio_zip", file: files[0], title: files[0].name }]);
     } else {
-      // Idem sélection multiple de fichiers : une tâche (donc une ligne de
-      // suivi) par morceau.
       addUploads(files.map((f) => ({ kind: "radio_files" as const, files: [f], title: f.name })));
     }
     showToast(t("radioLibrary.importStarted"));
@@ -274,14 +226,9 @@ export default function RadioLibraryPage() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    // Un dépôt glisser-déposer n'est jamais le résultat du sélecteur dossier
-    // natif (webkitdirectory) — toujours des fichiers à plat, quel que soit
-    // le dernier mode utilisé au clic (cf. modeOverride, évite le décalage
-    // d'un setUploadMode() asynchrone).
     startFilesUpload(e.dataTransfer.files, "files");
   };
 
-  // ---- Édition d'un morceau ----
   const openTrack = (track: RadioTrack) => {
     setSelectedTrack(track);
     setForm({
@@ -373,7 +320,6 @@ export default function RadioLibraryPage() {
     finally { setToDelete(null); }
   };
 
-  // ---- Sélection multiple ----
   const toggleSelect = (id: number) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -425,23 +371,10 @@ export default function RadioLibraryPage() {
     refreshAll();
   };
 
-  // ---- Playlists ----
-  // Rafraîchissement léger (compteurs de la barre latérale) après une
-  // mutation de playlist — un refreshAll() complet (5 requêtes, tracks/
-  // artistes/albums/tags compris) à chaque ajout de morceau provoquait un
-  // reflow de toute la page sous le tiroir ouvert, donnant l'impression que
-  // le panneau « se refermait sur lui-même ».
   const refreshPlaylistsSummary = async () => {
     setPlaylists(await fetchJson<PlaylistSummary[]>("/radio/playlists", []));
   };
 
-  // Chaîne toutes les mutations d'une même playlist (ajout, retrait,
-  // renommage, réordonnancement) les unes après les autres : chacune lit
-  // l'état serveur le plus frais (editingPlaylistRef) au moment où elle
-  // s'exécute réellement, pas au moment du clic. Évite qu'un renommage
-  // (PUT avec un instantané des morceaux) et un ajout (POST) partis en
-  // parallèle ne se marchent dessus — celui qui répond en second écrasait
-  // silencieusement le résultat de l'autre.
   const queuePlaylistMutation = (fn: () => Promise<void>) => {
     const run = playlistMutationRef.current.then(fn, fn);
     playlistMutationRef.current = run.catch(() => undefined);
@@ -472,9 +405,6 @@ export default function RadioLibraryPage() {
     } catch { showToast(t("radioLibrary.playlistError"), "error"); }
   };
 
-  // Sauvegarde bas niveau (PUT complet nom + morceaux) : n'est plus appelée
-  // qu'à travers queuePlaylistMutation ci-dessous, jamais directement, pour
-  // que ses écritures restent sérialisées avec les autres mutations.
   const savePlaylist = async (id: number, name: string, trackIds: number[]) => {
     try {
       const res = await fetch(getApiUrl(`/radio/playlists/${id}`), {
@@ -487,7 +417,7 @@ export default function RadioLibraryPage() {
         refreshPlaylistsSummary();
         return true;
       }
-    } catch { /* fallthrough */ }
+    } catch { }
     showToast(t("radioLibrary.playlistError"), "error");
     return false;
   };
@@ -529,7 +459,6 @@ export default function RadioLibraryPage() {
     });
   };
 
-  // Réordonnancement glisser-déposer (natif HTML5, pas de dépendance).
   const handleItemDrop = (dropIndex: number) => {
     const from = dragIndexRef.current;
     dragIndexRef.current = null;
@@ -545,9 +474,6 @@ export default function RadioLibraryPage() {
     });
   };
 
-  // Ambiance par défaut PROPRE à chaque sortie radio (câblée, réseau) : un choix facultatif qui
-  // prime sur la playlist « par défaut » (inchangée, elle reste le repli des deux sorties).
-  // La bibliothèque et les playlists restent uniques — seule la désignation est par sortie.
   const [outputDefaults, setOutputDefaults] = useState<Record<string, { override_playlist_id: number | null; effective_playlist_id: number | null }> | null>(null);
   const loadOutputDefaults = () => {
     fetch(getApiUrl("/radio/default-playlist"), { cache: "no-store" })
@@ -602,7 +528,6 @@ export default function RadioLibraryPage() {
     finally { setPlaylistToDelete(null); }
   };
 
-  // ---- Tags ----
   const createTag = async () => {
     const name = newTagName.trim();
     if (!name) return;
@@ -639,7 +564,6 @@ export default function RadioLibraryPage() {
     } catch { showToast(t("radioLibrary.tagError"), "error"); }
   };
 
-  // Choisir un filtre (artiste, album, tag, style) bascule sur la section Morceaux, où il s'applique.
   const applyFilter = (f: Filter) => { setFilter(f); setPlaylistFilterIds(null); setSection("tracks"); };
 
   const filterByPlaylist = async (playlist: PlaylistSummary) => {
@@ -651,14 +575,12 @@ export default function RadioLibraryPage() {
   };
   const clearFilter = () => { setFilter(null); setPlaylistFilterIds(null); };
 
-  // ---- Dérivés ----
   const genres = useMemo(() => {
     const map = new Map<string, number>();
     tracks.forEach((tr) => { if (tr.genre) map.set(tr.genre, (map.get(tr.genre) ?? 0) + 1); });
     return Array.from(map.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
   }, [tracks]);
 
-  // Autocomplétion : titres, artistes, albums et styles de toute la bibliothèque.
   const trackSuggestions = useMemo(
     () => tracks.flatMap((tr) => [tr.title, tr.artist, tr.album, tr.genre].filter((x): x is string => !!x)),
     [tracks],
@@ -703,7 +625,6 @@ export default function RadioLibraryPage() {
     });
   };
 
-  // État tri-valué d'un tag sur la sélection courante (pour le menu de tag en lot).
   const selectionTagState = (name: string): "all" | "some" | "none" => {
     const targets = tracks.filter((tr) => selected.has(tr.id));
     if (targets.length === 0) return "none";
@@ -713,7 +634,6 @@ export default function RadioLibraryPage() {
     return "some";
   };
 
-  // ---- Rendu : carte morceau ----
   const trackCard = (track: RadioTrack) => {
     const isSel = selected.has(track.id);
     return (
@@ -751,7 +671,6 @@ export default function RadioLibraryPage() {
     );
   };
 
-  // Carte morceau en vue LISTE (dense, pour les grosses bibliothèques).
   const trackRow = (track: RadioTrack) => {
     const isSel = selected.has(track.id);
     return (
@@ -793,7 +712,6 @@ export default function RadioLibraryPage() {
     <div className="radio-lib radio-lib--tabs">
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
 
-      {/* ==================== BARRE DE NAVIGATION HORIZONTALE (même style que « Sortie Câblé ») ==================== */}
       <div className="live-block channel-card rl-nav-card">
         <div className="channel-card-left">
           <h3>
@@ -824,7 +742,6 @@ export default function RadioLibraryPage() {
           <div className="rl-drop-overlay"><Icon name="cloud_upload" size={40} /><span>{t("radioLibrary.dropHere")}</span></div>
         )}
 
-        {/* ---------------- Section MORCEAUX ---------------- */}
         {section === "tracks" && (
           <>
             {selected.size === 0 ? (
@@ -932,7 +849,6 @@ export default function RadioLibraryPage() {
           </>
         )}
 
-        {/* ---------------- Section PLAYLISTS ---------------- */}
         {section === "playlists" && (
           <>
             <div className="rl-toolbar sticky-glass-toolbar">
@@ -988,7 +904,6 @@ export default function RadioLibraryPage() {
           </>
         )}
 
-        {/* ---------------- Section ARTISTES & ALBUMS ---------------- */}
         {section === "artists" && (
           <>
             <div className="rl-toolbar sticky-glass-toolbar">
@@ -1038,7 +953,6 @@ export default function RadioLibraryPage() {
           </>
         )}
 
-        {/* ---------------- Section TAGS & STYLES ---------------- */}
         {section === "tags" && (
           <>
             <div className="rl-toolbar sticky-glass-toolbar">
@@ -1083,7 +997,6 @@ export default function RadioLibraryPage() {
           </>
         )}
 
-        {/* ---------------- Section IMPORTER ---------------- */}
         {section === "import" && (
           <div className="rl-import-section">
             <div className={`upload-zone ${dragActive ? "drag-active" : ""}`}
@@ -1119,10 +1032,8 @@ export default function RadioLibraryPage() {
         )}
       </main>
 
-      {/* Ferme les popovers en cliquant ailleurs */}
       {bulkMenu && <div className="rl-popover-scrim" onClick={() => setBulkMenu(null)} />}
 
-      {/* ==================== DRAWER : édition d'un morceau ==================== */}
       {selectedTrack && (
         <>
           <div className="detail-drawer-overlay" onClick={() => setSelectedTrack(null)} />
@@ -1167,7 +1078,6 @@ export default function RadioLibraryPage() {
                 <div className="form-group"><label className="form-label">{t("radioLibrary.fieldGenre")}</label>
                   <input type="text" className="form-control" value={form.genre} onChange={(e) => setForm({ ...form, genre: e.target.value })} /></div>
 
-                {/* Tags en chips cliquables */}
                 <div className="form-group">
                   <label className="form-label">{t("radioLibrary.fieldTags")}</label>
                   <div className="rl-chips">
@@ -1199,7 +1109,6 @@ export default function RadioLibraryPage() {
         </>
       )}
 
-      {/* ==================== DRAWER : édition d'une playlist (façon "Ajouter à la playlist" YouTube Music : liste unique, recherche épinglée, pas de double zone de scroll imbriquée) ==================== */}
       {editingPlaylist && (
         <>
           <div className="detail-drawer-overlay" onClick={() => setEditingPlaylist(null)} />
@@ -1251,8 +1160,6 @@ export default function RadioLibraryPage() {
               })}
             </div>
 
-            {/* Recherche épinglée : ajouter un morceau ne fait plus défiler ni
-                refermer quoi que ce soit, une seule liste défile en dessous. */}
             <div className="rl-pl-search-bar">
               <Icon name="search" size={18} style={{ opacity: 0.5 }} />
               <SearchBox
@@ -1269,7 +1176,6 @@ export default function RadioLibraryPage() {
 
             <div className="rl-pl-list">
               {addTrackSearch.trim() ? (
-                // Mode recherche : toute la bibliothèque, ajout/retrait en un clic.
                 addableTracks.length === 0 ? (
                   <p className="rl-empty-note" style={{ padding: "16px" }}>{t("radioLibrary.noResults")}</p>
                 ) : addableTracks.map((tr) => {
@@ -1305,7 +1211,6 @@ export default function RadioLibraryPage() {
                   <p style={{ margin: 0 }}>{t("radioLibrary.emptyPlaylist")}</p>
                 </div>
               ) : (
-                // Mode aperçu : morceaux déjà dans la playlist, réordonnables.
                 editingPlaylist.items.map((item, index) => (
                   <div key={item.id}
                     className={`rl-pl-row ${dragOverIndex === index ? "drag-over" : ""}`}
@@ -1339,7 +1244,6 @@ export default function RadioLibraryPage() {
         </>
       )}
 
-      {/* ==================== MODALES de suppression ==================== */}
       {toDelete && (
         <div className="modal-overlay">
           <div className="modal-content">

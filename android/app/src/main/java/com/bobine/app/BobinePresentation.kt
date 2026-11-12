@@ -18,24 +18,9 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 
-// 127.0.0.1 (PAS 127.0.0.2 comme l'ecran tactile, cf. MainActivity) :
-// isWiredDisplay() (frontend/src/lib/useDisplayOutputRedirect.ts) classe
-// cet hostname exact "cable" - la sortie HDMI doit suivre le reglage
-// cableOutput choisi par l'admin,
-// exactement comme le canal Cable existant sur mini PC x86.
-// ?channel=cable EXPLICITE : la sortie HDMI est toujours le
-// canal cable, quel que soit le nom d'hote — voir lib/displayChannel.ts.
 private const val CINEMA_PATH = "/cinema/?channel=cable"
-// Delai entre deux lectures du port publie par le serveur embarque (cf. BackendEndpoint).
 private const val BACKEND_POLL_MS = 200L
 
-/**
- * rendu independant sur
- * l'ecran externe (HDMI via le dock USB-C), pas une simple recopie de
- * l'ecran tactile - c'est le mecanisme standard Android pour du contenu
- * reellement distinct par ecran (utilise par Chromecast/Android Auto).
- * Possede sa propre WebView, chargeant /cinema.
- */
 class BobinePresentation(context: Context, display: Display) : Presentation(context, display) {
 
     private val handler = Handler(Looper.getMainLooper())
@@ -46,8 +31,6 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Configuration de la fenetre : FLAG_NOT_FOCUSABLE conserve pour ne jamais
-        // derober le focus a MainActivity sur la tablette principale.
         window?.let { win ->
             win.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
             if (context !is android.app.Activity) {
@@ -85,7 +68,6 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
         splashLayout.addView(logoView)
         SplashChannel.refreshFromBackendIfUnknown(context, logoView)
 
-        // Fond et texte de la sortie HDMI sont fixes (sombre) ; seul l'accent suit le thème choisi.
         val presentationBackground = android.graphics.Color.parseColor("#0b0e14")
         val presentationText = android.graphics.Color.parseColor("#94a3b8")
         val progressBar = ArcSpinnerView(
@@ -123,28 +105,7 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
         webView.settings.mediaPlaybackRequiresUserGesture = false
-        // LOAD_DEFAULT plutot que LOAD_NO_CACHE : le probleme de fraicheur heuristique qui avait
-        // motive LOAD_NO_CACHE est desormais couvert cote SERVEUR
-        // (Cache-Control: no-cache + ETag sur le frontend statique, cf.
-        // RevalidateStaticFiles dans backend/app/main.py) - une revalidation
-        // ETag (304, quasi gratuite) suffit desormais a garantir la
-        // fraicheur, sans re-telecharger integralement les bundles JS/CSS
-        // (plusieurs Mo) a CHAQUE chargement de /cinema, couteux sur ce
-        // materiel (h11 pur Python, stockage externe FUSE) et repete tres
-        // souvent ici (reconnexion WebSocket, boot_id different -> reload
-        // complet). Le bouton « Synchronisation des ecrans »
-        // (clearCachesAndReload cote frontend) continue de vider le cache
-        // HTTP explicitement pour forcer une vraie mise a jour.
         webView.settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
-        // priorite de
-        // rendu elevee explicite - cette Presentation tourne portee par un
-        // ForegroundService SANS Activity visible (importance systeme
-        // potentiellement plus basse qu'une app au premier plan), alors
-        // qu'elle affiche le flux video principal sur l'ecran HDMI. Sans
-        // ceci, le compositeur de cette WebView herite d'une priorite par
-        // defaut qui peut etre deprioritisee par le systeme au profit de
-        // l'app au premier plan (ex. l'admin ouvert dans Chrome) - cause
-        // probable des saccades video constatees.
         webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(message: ConsoleMessage): Boolean {
@@ -162,8 +123,6 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
                 request: WebResourceRequest,
                 error: WebResourceError
             ) {
-                // Meme raison que dans MainActivity : le serveur peut ne
-                // pas encore ecouter au tout premier affichage.
                 if (request.isForMainFrame) {
                     lastPageFailed = true
                     handler.postDelayed({
@@ -196,8 +155,6 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
         webView.onResume()
     }
 
-    // Charge /cinema des que le serveur embarque a publie son port (cf. BackendEndpoint) ; l'ecran
-    // de chargement reste affiche d'ici la. Un seul essai planifie a la fois.
     private var loadRetry = Runnable { }
 
     private fun loadWhenBackendReady() {

@@ -1,5 +1,4 @@
-"""Garde du réseau local : un client à l'adresse publique n'atteint ni l'API ni un WebSocket ; réseau local, VPN et
-réseaux déclarés passent."""
+"""Garde du réseau local : un client à l'adresse publique n'atteint ni l'API ni un WebSocket ; réseau local, VPN et réseaux déclarés passent."""
 
 import os
 
@@ -59,7 +58,6 @@ def test_http_and_websocket_from_internet_refused():
     response = client.get("/api/state")
     assert response.status_code == 403
     assert response.json()["detail"]["code"] == "public_client"
-    # Le message ASGI est une fermeture 1008 ; uvicorn la traduit en 403 lors de la poignée de main.
     with pytest.raises(WebSocketDisconnect) as closed:
         with client.websocket_connect("/ws") as socket:
             socket.receive_text()

@@ -15,9 +15,7 @@ class Base(DeclarativeBase):
 
 
 class UidMixin:
-    """Identifiant stable, propre à l'objet et jamais modifié (`vid_…`, `pl_…`, `sch_…`) : les fichiers de configuration
-    JSON l'utilisent pour reconnaître un objet quand son titre, son nom ou son fichier changent. Distinct de `id`, qui
-    reste une clé locale à cette base. Posé à l'insertion (`new_uid`), jamais réécrit."""
+    """Identifiant stable, propre à l'objet et jamais modifié (`vid_…`, `pl_…`, `sch_…`) : les fichiers de configuration JSON l'utilisent pour reconnaître un objet quand son titre, son nom ou son fichier changent."""
 
     __uid_prefix__ = "x"
     uid: Mapped[str | None] = mapped_column(String(32), unique=True, index=True, nullable=True)
@@ -44,8 +42,6 @@ class ScheduleType(str, enum.Enum):
 class ScheduleTargetType(str, enum.Enum):
     video = "video"
     playlist = "playlist"
-    # intégration Planning du module Radio — une fenêtre
-    # (ou 24/7) remplace temporairement la playlist d'ambiance par défaut.
     radio_playlist = "radio_playlist"
 
 
@@ -55,29 +51,21 @@ class OverrideAction(str, enum.Enum):
 
 
 class RadioCoverSource(str, enum.Enum):
-    """Origine de la pochette d'un morceau radio : `id3` = extraite du fichier à l'import,
-    `manual` = image fournie/remplacée depuis l'admin, `none` = pas de pochette."""
+    """Origine de la pochette d'un morceau radio : `id3` = extraite du fichier à l'import, `manual` = image fournie/remplacée depuis l'admin, `none` = pas de pochette."""
     id3 = "id3"
     manual = "manual"
     none = "none"
 
 
 class RadioAnnouncementRuleType(str, enum.Enum):
-    """Type de déclenchement d'un rappel :
-    entre les morceaux (`every_n_tracks`), à intervalle régulier
-    (`every_x_minutes`) ou à horaires fixes récurrents (`fixed_times`). Le
-    déclenchement « manuel » n'est pas une règle persistée mais une action à la
-    demande, il n'apparaît donc pas ici."""
+    """Type de déclenchement d'un rappel : entre les morceaux (`every_n_tracks`), à intervalle régulier (`every_x_minutes`) ou à horaires fixes récurrents (`fixed_times`)."""
     every_n_tracks = "every_n_tracks"
     every_x_minutes = "every_x_minutes"
     fixed_times = "fixed_times"
 
 
 class ExternalVolume(Base):
-    """Support externe enregistré comme « bibliothèque » : identifié par l'UUID de son système de
-    fichiers (jamais par son point de montage, qui change à chaque branchement). Les médias qu'il porte
-    sont indexés dans `videos` / `audio_tracks` / `radio_tracks` (colonnes `storage_id` + `rel_path`) ;
-    la base, les miniatures, les pochettes et les caches restent TOUJOURS sur le stockage interne."""
+    """Support externe enregistré comme « bibliothèque » : identifié par l'UUID de son système de fichiers (jamais par son point de montage, qui change à chaque branchement)."""
     __tablename__ = "external_volumes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -88,9 +76,7 @@ class ExternalVolume(Base):
     size_bytes: Mapped[int | None]
     kind: Mapped[str] = mapped_column(default="other")
     enabled: Mapped[bool] = mapped_column(default=True)
-    # Réglages de longévité propres au support (JSON), complétés par `app.storage.longevity.DEFAULTS`.
     settings: Mapped[str | None] = mapped_column(Text)
-    # Octets écrits PAR BOBINE sur ce support depuis l'enregistrement (export) : alimente les avertissements d'usure.
     bytes_written: Mapped[int] = mapped_column(default=0)
     last_mount_path: Mapped[str | None]
     last_seen_at: Mapped[datetime | None]
@@ -99,18 +85,15 @@ class ExternalVolume(Base):
 
 
 class StorageImport(Base):
-    """Trace d'un média déjà importé depuis un support (ou un appareil portable) vers le stockage local.
-
-    Sert à rendre une relance d'import idempotente (« reprise propre ») : un fichier de même chemin, taille et date
-    sur le même support n'est pas copié deux fois. Ne contient aucun chemin local de destination."""
+    """Trace d'un média déjà importé depuis un support (ou un appareil portable) vers le stockage local."""
     __tablename__ = "storage_imports"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    source_id: Mapped[str] = mapped_column(index=True)  # UUID du support ou identifiant d'appareil portable
+    source_id: Mapped[str] = mapped_column(index=True)
     rel_path: Mapped[str] = mapped_column(Text)
     size_bytes: Mapped[int]
     mtime_ns: Mapped[int]
-    kind: Mapped[str]  # video | audio_course | radio
+    kind: Mapped[str]
     local_id: Mapped[int | None]
     imported_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
@@ -122,8 +105,6 @@ class Video(UidMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     file_path: Mapped[str] = mapped_column(unique=True)
     title: Mapped[str]
-    # Programme volontairement en texte libre (pas un enum figé) : d'autres
-    # programmes pourront être ajoutés au-delà de RPM/Sprint/The Trip.
     program: Mapped[str | None]
     release: Mapped[str | None]
     duration_seconds: Mapped[float | None]
@@ -136,20 +117,13 @@ class Video(UidMixin, Base):
     audio_codec: Mapped[str | None]
     fps: Mapped[float | None]
     bitrate_kbps: Mapped[int | None]
-    # Format de pixels (yuv420p, yuv420p10le…) : nécessaire pour savoir si un
-    # navigateur tiers saura décoder le fichier (app/utils/web_profile.py).
     pix_fmt: Mapped[str | None]
-    # Version « lisible partout » produite à la demande (H.264 8 bits ≤ 1080p) ;
-    # `web_status` : None | "pending" | "ready" | "error".
     web_path: Mapped[str | None]
     web_status: Mapped[str | None]
-    # Origine des chapitres : "file" (fichier importé, copie dans `chapters_file`), "embedded" (lus dans la vidéo), "manual".
     chapters_source: Mapped[str | None] = mapped_column(Text, default=None)
     chapters_file: Mapped[str | None] = mapped_column(Text, default=None)
     imported_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     source: Mapped[ImportSource]
-    # Média posé sur un support externe (lecture directe) : `file_path` est le chemin courant (ou un chemin
-    # d'attente `external://…` quand le support est absent), `rel_path` le chemin relatif au support.
     storage_id: Mapped[int | None] = mapped_column(ForeignKey("external_volumes.id", ondelete="SET NULL"), index=True)
     rel_path: Mapped[str | None]
 
@@ -348,10 +322,6 @@ class AudioPlaylistItem(Base):
     playlist_id: Mapped[int] = mapped_column(ForeignKey("audio_playlists.id", ondelete="CASCADE"))
     audio_track_id: Mapped[int] = mapped_column(ForeignKey("audio_tracks.id", ondelete="CASCADE"))
     position: Mapped[int]
-    # Fond d'ambiance propre à CETTE piste dans CETTE playlist : rattaché à l'item plutôt qu'à la piste elle-même, une même
-    # piste pouvant apparaître dans plusieurs playlists avec un fond
-    # différent à chaque fois. Nul = pas de fond propre, le fond de la
-    # playlist/du cours (défini au lancement) reste affiché pour cette piste.
     background_id: Mapped[int | None] = mapped_column(ForeignKey("backgrounds.id", ondelete="SET NULL"))
 
     playlist: Mapped[AudioPlaylist] = relationship(back_populates="items")
@@ -359,20 +329,6 @@ class AudioPlaylistItem(Base):
     background: Mapped[Background | None] = relationship()
 
 
-# ---------------------------------------------------------------------------
-# Module Radio
-#
-# Sous-système musical INDÉPENDANT : tables `radio_*` séparées des
-# cours audio coach (`audio_*`), avec leurs propres métadonnées (artiste, album,
-# genre, pochette) et un 3e canal de diffusion `radio`. Les tables
-# sont créées par `Base.metadata.create_all()` au démarrage — ce projet n'utilise
-# pas Alembic (cf. database.py::_migrate_add_missing_columns).
-# ---------------------------------------------------------------------------
-
-# Association N-N morceaux <-> étiquettes : une table
-# de liaison simple sans données propres, contrairement aux `*_items` qui
-# portent une position — un morceau peut avoir plusieurs tags, un tag plusieurs
-# morceaux.
 radio_track_tags = Table(
     "radio_track_tags",
     Base.metadata,
@@ -400,9 +356,6 @@ class RadioTrack(UidMixin, Base):
     year: Mapped[int | None]
     genre: Mapped[str | None]
     duration_seconds: Mapped[float | None]
-    # Pochette : chemin du fichier image extrait (ID3) ou uploadé, `None` si
-    # aucune. `cover_source` trace son origine pour ne pas réécraser une
-    # pochette manuelle lors d'un ré-import.
     cover_path: Mapped[str | None]
     cover_source: Mapped[RadioCoverSource] = mapped_column(default=RadioCoverSource.none)
     source: Mapped[ImportSource]
@@ -499,9 +452,6 @@ class RadioAnnouncementRule(UidMixin, Base):
     interval_minutes: Mapped[int | None]
     times_of_day: Mapped[str | None]
     enabled: Mapped[bool] = mapped_column(default=True)
-    # Sortie radio concernée par la règle : "radio_cable", "radio_network" ou
-    # "both". Les règles d'avant les deux sorties valent "radio_network" (c'est
-    # l'ancien poste radio unique) — le pool de rappels, lui, reste partagé.
     target: Mapped[str] = mapped_column(default="radio_network", server_default="radio_network")
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
@@ -517,10 +467,6 @@ class Schedule(UidMixin, Base):
     recurrence_rule: Mapped[str | None]
     run_at: Mapped[datetime | None]
     active: Mapped[bool] = mapped_column(default=True)
-    # Canal de diffusion ciblé par cette programmation : "cable", "network",
-    # "radio_cable" ou "radio_network" — chaque canal a son planning propre,
-    # déclenché sur SON état de lecture (l'ancien "radio" est migré vers
-    # "radio_network").
     channel: Mapped[str] = mapped_column(default="cable", server_default="cable")
 
     overrides: Mapped[list["ScheduleOverride"]] = relationship(
@@ -543,16 +489,7 @@ class ScheduleOverride(UidMixin, Base):
 
 
 class PlaybackState(Base):
-    """Mémorise une action différée en attente de reprise ou de relance
-    manuelle depuis l'interface. Deux formes selon `cause` :
-    - "schedule" : lecture manuelle interrompue par une programmation
-      -> `video_id`/`position_seconds` renseignés, reprise à la position exacte.
-    - "coach_priority" : programmation qui n'a PAS pu démarrer car le
-      mode audio coach était actif -> `target_type`/`target_id` renseignés
-      (cible jamais lancée, donc pas de position), relance depuis zéro.
-    Une seule ligne à la fois quelle que soit la cause (la plus récente
-    remplace la précédente non traitée), cf. scheduling.launch.launch_target.
-    """
+    """Mémorise une action différée en attente de reprise ou de relance manuelle depuis l'interface."""
     __tablename__ = "playback_state"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -561,18 +498,12 @@ class PlaybackState(Base):
     target_type: Mapped[str | None]
     target_id: Mapped[int | None]
     cause: Mapped[str | None]
-    # Canal dont la lecture a été interrompue/reportée (une action différée
-    # en attente PAR canal).
     channel: Mapped[str] = mapped_column(default="cable", server_default="cable")
     interrupted_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
 
 class ScheduledLaunch(Base):
-    """Dernier lancement programmé d'un canal de diffusion (une ligne par canal).
-
-    `started_at` est l'heure murale du lancement : après un redémarrage du serveur, la lecture reprend à
-    `maintenant - started_at`. `active` passe à faux dès que ce lancement quitte l'écran (arrêt, lecture
-    manuelle, fin) : un cours arrêté à la main n'est jamais relancé."""
+    """Dernier lancement programmé d'un canal de diffusion (une ligne par canal)."""
     __tablename__ = "scheduled_launches"
 
     channel: Mapped[str] = mapped_column(primary_key=True)
@@ -604,9 +535,9 @@ class CourseRating(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"))
-    rating: Mapped[int] = mapped_column()  # 1 à 5
-    channel: Mapped[str] = mapped_column()  # 'cable' ou 'network'
-    source: Mapped[str] = mapped_column()   # 'grid' ou 'cinema'
+    rating: Mapped[int] = mapped_column()
+    channel: Mapped[str] = mapped_column()
+    source: Mapped[str] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     video: Mapped["Video"] = relationship(back_populates="ratings")
@@ -618,13 +549,13 @@ class PlaybackSession(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"))
-    channel: Mapped[str] = mapped_column()  # 'cable' ou 'network'
+    channel: Mapped[str] = mapped_column()
     started_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     ended_at: Mapped[datetime | None] = mapped_column(nullable=True)
     duration_played_seconds: Mapped[float] = mapped_column(default=0.0)
     total_duration_seconds: Mapped[float] = mapped_column(default=0.0)
     completed: Mapped[bool] = mapped_column(default=False)
-    launch_type: Mapped[str] = mapped_column()  # 'grid', 'cinema', 'schedule', 'kiosk'
+    launch_type: Mapped[str] = mapped_column()
 
     video: Mapped["Video"] = relationship(back_populates="playback_sessions")
 
@@ -644,14 +575,10 @@ class SystemMetricsHistory(Base):
     storage_used_percent: Mapped[float | None] = mapped_column(nullable=True)
     storage_free_bytes: Mapped[int | None] = mapped_column(nullable=True)
     power_watts: Mapped[float | None] = mapped_column(nullable=True)
-    # Champ dynamique (JSON text) pour toute métrique future (NPU, ventilateurs, batterie, réseau, etc.)
     extra_data: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def get_metric(self, name: str) -> float | None:
-        """
-        Extrait dynamiquement la valeur d'une métrique demandée.
-        Supporte les colonnes natives, les alias usuels ou n'importe quelle métrique future stockée dans extra_data (JSON).
-        """
+        """Extrait dynamiquement la valeur d'une métrique demandée."""
         alias_map = {
             "cpu": "cpu_percent",
             "cpu_temp": "cpu_temp_c",

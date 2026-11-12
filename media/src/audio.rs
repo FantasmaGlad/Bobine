@@ -1,10 +1,3 @@
-//! Shared parts of the container readers, and the entry point that selects one.
-//!
-//! Every container reader is a strict whitelist: it understands one layout, reproduces
-//! the tags and the duration ffprobe reports for it, and answers `unsupported`,
-//! `ambiguous_metadata` or `ambiguous_cover` for anything else so that the caller runs
-//! the reference path. A reader never guesses.
-
 use crate::image;
 use crate::{aiff, flac, mp3, mp4, ogg, wav, MediaError};
 use lofty::config::{apply_global_options, GlobalOptions, ParseOptions, ParsingMode};
@@ -20,9 +13,7 @@ pub(crate) const MAX_FILE_BYTES: u64 = 512 * 1024 * 1024;
 pub(crate) const MAX_METADATA_BYTES: usize = 4 * 1024 * 1024;
 pub(crate) const MAX_TEXT_BYTES: usize = 64 * 1024;
 const MAX_READ_BYTES: usize = 16 * 1024 * 1024;
-/// A file whose frames are walked end to end (MP3 without an index) may be read once in full.
 pub(crate) const MAX_CHAIN_BYTES: u64 = 128 * 1024 * 1024;
-/// Delay and padding are 12-bit sample counts: 2 x 4095 samples at 22.05 kHz at most.
 const MAX_GAPLESS_TRIM_SECONDS: f64 = 0.4;
 
 pub(crate) type Result<T> = std::result::Result<T, MediaError>;
@@ -48,8 +39,6 @@ pub(crate) fn ambiguous_cover() -> MediaError {
         "Embedded images require the reference image pipeline",
     )
 }
-/// A picture that cannot be handed over keeps its reference pipeline, unless a size limit
-/// is what stopped the inspection.
 pub(crate) fn cover_error(error: MediaError) -> MediaError {
     if error.reason == "limit_exceeded" {
         error
@@ -70,19 +59,14 @@ pub(crate) fn read_exact(reader: &mut impl Read, bytes: &mut [u8]) -> Result<()>
     })
 }
 
-/// How the duration of a scanned file is obtained.
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub(crate) enum Duration {
-    /// Lofty's reading is equivalent to the reference (FLAC, simple PCM WAV).
     #[default]
     Lofty,
-    /// The reference rule computed by this crate, which Lofty's raw reading must bracket.
     Checked(f64),
-    /// The reference rule computed by this crate, verified against ffprobe on the corpus.
     Exact(f64),
 }
 
-/// A picture announced by the container: the type it declares, if any, and its bytes.
 #[derive(Debug)]
 pub(crate) struct Picture {
     pub declared: Option<String>,
@@ -92,9 +76,7 @@ pub(crate) struct Picture {
 #[derive(Default, Debug)]
 pub(crate) struct Layout {
     pub tags: HashMap<String, String>,
-    /// Number of attached pictures. Only one is eligible for the native cover path.
     pub pictures: usize,
-    /// The first picture, kept only when the reader was asked for it.
     pub picture: Option<Picture>,
     pub duration: Duration,
 }
@@ -113,7 +95,6 @@ impl Layout {
     }
 }
 
-/// A cumulative read budget supplements Lofty's per-item allocation bound.
 pub(crate) struct BudgetReader<R> {
     pub(crate) inner: R,
     pub(crate) remaining: usize,
@@ -187,7 +168,6 @@ pub(crate) fn inspect(path: &str, profile: &str, cover_only: bool) -> Result<Val
             MediaError::new("unreadable", "Media file cannot be read")
         }
     })?;
-    // Reject symlinks and special files before open; only trusted local regular paths are accepted.
     if !info.file_type().is_file() {
         return Err(unsupported());
     }
@@ -234,9 +214,6 @@ pub(crate) fn inspect(path: &str, profile: &str, cover_only: bool) -> Result<Val
         (Duration::Exact(seconds), _) => positive(seconds)?,
         (Duration::Checked(reference), Some(file_type)) => {
             let parsed = lofty_duration(&mut reader, file_type)?;
-            // The reference (ffprobe) removes the encoder delay and padding announced in the
-            // LAME tag; Lofty reports the raw frame count. Two independent readings must agree
-            // within the largest plausible trim before the reference rule is trusted.
             if !reference.is_finite() || reference <= 0.0 {
                 return Err(corrupt());
             }
@@ -273,7 +250,6 @@ fn positive(seconds: f64) -> Result<f64> {
 
 fn lofty_duration(reader: &mut BufReader<BudgetReader<File>>, file_type: FileType) -> Result<f64> {
     reader.rewind().map_err(|_| corrupt())?;
-    // These options are thread-local; apply them on every entry, including threaded tests.
     apply_global_options(
         GlobalOptions::new()
             .allocation_limit(MAX_METADATA_BYTES)
@@ -298,7 +274,6 @@ fn lofty_duration(reader: &mut BufReader<BudgetReader<File>>, file_type: FileTyp
     positive(tagged.properties().duration().as_secs_f64())
 }
 
-/// `null` is a proven absence; one structurally accepted picture is handed over as raw bytes.
 fn cover(layout: &Layout) -> Result<Value> {
     match (layout.pictures, &layout.picture) {
         (0, _) => Ok(Value::Null),
@@ -332,7 +307,6 @@ pub(crate) fn insert(tags: &mut HashMap<String, String>, key: &str, value: Strin
         .chars()
         .any(|character| character.is_numeric() && !character.is_ascii_digit())
     {
-        // Python's Unicode decimal regex/int conversion needs separate parity work.
         return Err(unsupported());
     }
     if tags.insert(key, value).is_some() {

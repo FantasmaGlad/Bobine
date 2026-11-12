@@ -9,12 +9,6 @@ import java.net.Inet4Address
 private const val TAG = "LanAddress"
 private const val LAN_IP_ENV = "BOBINE_LAN_IP"
 
-/**
- * Adresse IPv4 du réseau local (Wi-Fi ou Ethernet), lue sur les réseaux Android
- * eux-mêmes. La route par défaut peut être un VPN ou le réseau mobile : l'adresse
- * que la socket UDP du backend y trouverait ne serait alors pas joignable depuis
- * les autres appareils du Wi-Fi.
- */
 object LanAddress {
 
     @Suppress("DEPRECATION")
@@ -36,7 +30,6 @@ object LanAddress {
         return wired ?: wifi
     }
 
-    /** Transmet l'adresse au backend Python (variable lue par `app/utils/network.py`). */
     fun publish(ip: String?) {
         Thread({
             try {

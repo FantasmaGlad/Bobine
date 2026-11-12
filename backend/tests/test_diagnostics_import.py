@@ -24,10 +24,6 @@ def client(tmp_path, monkeypatch):
     return TestClient(app)
 
 
-# ---------------------------------------------------------------------------
-# GET /api/diagnostics/import
-# ---------------------------------------------------------------------------
-
 def test_diagnostics_reports_every_block(client):
     r = client.get("/api/diagnostics/import")
     assert r.status_code == 200
@@ -73,7 +69,7 @@ def test_diagnostics_never_returns_500_when_a_block_fails(client, monkeypatch):
     assert "panne simulée" in body["ffmpeg"]["error"]
     assert "panne simulée" in body["jobs"]["error"]
     assert "panne simulée" in body["staging_dir"]["error"]
-    assert body["temp_dir"]["writable"] is True  # les autres blocs restent exploitables
+    assert body["temp_dir"]["writable"] is True
 
 
 def test_diagnostics_detects_unwritable_temp_dir(client, monkeypatch, tmp_path):

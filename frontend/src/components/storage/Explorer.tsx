@@ -13,7 +13,6 @@ interface Props extends StorageCtx {
   volumeKey: string;
   name: string;
   portable: boolean;
-  /** Le support peut devenir une bibliothèque externe (UUID connu, pas un téléphone). */
   canExtend: boolean;
   registered: boolean;
   onClose: () => void;
@@ -34,7 +33,6 @@ function entryIcon(entry: BrowseEntry): string {
   }
 }
 
-/** Explorateur d'un support : dossiers, médias, sélection, puis UNE barre d'actions (Importer / Utiliser comme extension). */
 export default function Explorer({ volumeKey, name, portable, canExtend, registered, onClose, onJob, onLibraryChanged, t, lang, notify }: Props) {
   const [path, setPath] = useState("");
   const [entries, setEntries] = useState<BrowseEntry[]>([]);
@@ -68,7 +66,6 @@ export default function Explorer({ volumeKey, name, portable, canExtend, registe
 
   const chosen = useMemo(() => Object.values(selected), [selected]);
   useEffect(() => {
-    // La nature proposée suit la sélection tant que l'utilisateur ne l'a pas choisie lui-même.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- dérivé de la sélection
     if (!kindTouched && chosen.length) setKind(suggestKind(chosen));
   }, [chosen, kindTouched]);

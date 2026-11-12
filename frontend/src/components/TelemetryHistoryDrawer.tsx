@@ -11,7 +11,6 @@ export interface TelemetryHistoryDrawerProps {
   metric: string;
   title: string;
   iconName: string;
-  /** Période choisie dans le bandeau de la page, appliquée au bouton « Période » du tiroir. */
   rangePeriod?: "7d" | "30d" | "this_month" | "all";
 }
 
@@ -63,7 +62,6 @@ export default function TelemetryHistoryDrawer({
   const { t, language } = useAppSettings();
   const locale = language === "fr" ? "fr-FR" : "en-US";
   const gradientId = useId();
-  // « range » = la période du bandeau de la page (7 j, 30 j, mois en cours, tout l'historique conservé).
   const [period, setPeriod] = useState<"1h" | "6h" | "24h" | "range">("range");
   const apiPeriod: ApiPeriod = period === "range" ? rangePeriod : period;
   const [loading, setLoading] = useState(false);
@@ -93,7 +91,6 @@ export default function TelemetryHistoryDrawer({
     }
   }, [isOpen, fetchHistory]);
 
-  // Fermeture par touche Échap
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -113,7 +110,6 @@ export default function TelemetryHistoryDrawer({
   const avgVal = historyData?.avg ?? 0;
   const curVal = historyData?.current ?? 0;
 
-  // Calcul du tracé SVG
   const svgWidth = 460;
   const svgHeight = 220;
   const padLeft = 46;
@@ -124,7 +120,6 @@ export default function TelemetryHistoryDrawer({
   const plotW = svgWidth - padLeft - padRight;
   const plotH = svgHeight - padTop - padBottom;
 
-  // Échelle Y avec marge
   let yMin = Math.floor(Math.min(...(points.length ? points.map((p) => p.value) : [0]), minVal));
   let yMax = Math.ceil(Math.max(...(points.length ? points.map((p) => p.value) : [100]), maxVal));
   if (unit === "%") {
@@ -144,7 +139,6 @@ export default function TelemetryHistoryDrawer({
     return { x, y, pt };
   });
 
-  // Construction de la ligne SVG
   let pathD = "";
   if (coords.length > 0) {
     pathD = `M ${coords[0].x} ${coords[0].y}`;
@@ -153,14 +147,12 @@ export default function TelemetryHistoryDrawer({
     }
   }
 
-  // Construction de l'aire fermée
   let areaD = "";
   if (coords.length > 0) {
     const bottomY = padTop + plotH;
     areaD = `${pathD} L ${coords[coords.length - 1].x} ${bottomY} L ${coords[0].x} ${bottomY} Z`;
   }
 
-  // Formatage horodatage
   const formatTime = (isoString: string) => {
     try {
       const d = new Date(isoString);
@@ -177,21 +169,18 @@ export default function TelemetryHistoryDrawer({
 
   return (
     <>
-      {/* Overlay sombre accessible */}
       <div
         className="telemetry-drawer-overlay"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Tiroir latéral droit */}
       <aside
         className="telemetry-drawer"
         role="dialog"
         aria-modal="true"
         aria-label={t("telemetryDrawer.ariaHistory", { title })}
       >
-        {/* En-tête du tiroir */}
         <div className="telemetry-drawer-header">
           <div className="telemetry-drawer-title-wrap">
             <div className="telemetry-drawer-icon" style={{ color: "var(--accent-text)" }}>
@@ -214,7 +203,6 @@ export default function TelemetryHistoryDrawer({
           </button>
         </div>
 
-        {/* Sélecteur de période temporelle */}
         <div className="telemetry-drawer-filters">
           {(["1h", "6h", "24h", "range"] as const).map((p) => (
             <button
@@ -229,7 +217,6 @@ export default function TelemetryHistoryDrawer({
           ))}
         </div>
 
-        {/* Synthèse des statistiques clés */}
         <div className="telemetry-stats-grid">
           <div className="telemetry-stat-card">
             <span className="telemetry-stat-label">{t("telemetryDrawer.current")}</span>
@@ -257,7 +244,6 @@ export default function TelemetryHistoryDrawer({
           </div>
         </div>
 
-        {/* Section Graphique Temporel */}
         <div className="telemetry-chart-container">
           <div className="telemetry-chart-head">
             <span className="telemetry-chart-caption">
@@ -283,7 +269,6 @@ export default function TelemetryHistoryDrawer({
                 </linearGradient>
               </defs>
 
-              {/* Lignes de repère horizontales */}
               {[0, 0.5, 1].map((ratio) => {
                 const y = padTop + plotH * (1 - ratio);
                 const val = yMin + ySpan * ratio;
@@ -312,10 +297,8 @@ export default function TelemetryHistoryDrawer({
                 );
               })}
 
-              {/* Aire sous la courbe */}
               {areaD && <path d={areaD} fill={`url(#${gradientId})`} />}
 
-              {/* Ligne de tendance principale */}
               {pathD && (
                 <path
                   d={pathD}
@@ -327,7 +310,6 @@ export default function TelemetryHistoryDrawer({
                 />
               )}
 
-              {/* Points interactifs / réticule au survol */}
               {hoveredPoint && (
                 <g className="telemetry-hover-group">
                   <line
@@ -350,7 +332,6 @@ export default function TelemetryHistoryDrawer({
                 </g>
               )}
 
-              {/* Zones invisibles pour interaction souris/tactile fluide */}
               {coords.map((c, i) => {
                 const colW = plotW / Math.max(1, coords.length);
                 return (
@@ -368,7 +349,6 @@ export default function TelemetryHistoryDrawer({
                 );
               })}
 
-              {/* Repères d'horodatage en bas */}
               {coords.length > 0 && (
                 <>
                   <text
@@ -397,7 +377,6 @@ export default function TelemetryHistoryDrawer({
           </div>
         </div>
 
-        {/* Note d'information */}
         <div className="telemetry-drawer-footer">
           <Icon name="info" size={16} />
           <span>

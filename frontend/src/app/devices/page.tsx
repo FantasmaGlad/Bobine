@@ -16,10 +16,6 @@ import { useDevicesEvents } from "@/lib/useDevicesEvents";
 import { useRadioFeed } from "@/lib/useRadioFeed";
 import { useToast } from "@/lib/useToast";
 
-// Périphériques : audio, Bluetooth et Wi-Fi de la machine qui diffuse. Tout appareil du réseau local de confiance
-// y accède directement (voir docs/ARCHITECTURE.md).
-// Même barre de sections horizontale que la bibliothèque radio.
-
 type Tab = "map" | "audio" | "bluetooth" | "wifi" | "routing" | "mixer" | "videosound";
 const TAB_KEY = "bobine.devices.tab";
 
@@ -37,11 +33,11 @@ export default function DevicesPage() {
       const saved = window.localStorage.getItem(TAB_KEY);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- restaure la dernière section (stockage local du navigateur)
       if (saved === "map" || saved === "audio" || saved === "bluetooth" || saved === "wifi" || saved === "routing" || saved === "mixer" || saved === "videosound") setTab(saved);
-    } catch { /* stockage indisponible */ }
+    } catch { }
   }, []);
   const chooseTab = (next: Tab) => {
     setTab(next);
-    try { window.localStorage.setItem(TAB_KEY, next); } catch { /* ignoré */ }
+    try { window.localStorage.setItem(TAB_KEY, next); } catch { }
   };
 
   const loadStatus = useCallback(async () => {
@@ -58,11 +54,8 @@ export default function DevicesPage() {
     void loadStatus();
   }, [loadStatus]);
 
-  // Évènements temps réel : relit les sections affichées (les évènements ne portent aucune donnée).
   useDevicesEvents(() => setRefreshKey((k) => k + 1), !!status);
 
-  // Flux temps réel des sorties radio : seulement pour le graphe et la table de mixage ; le vumètre (mesure par le lecteur)
-  // uniquement quand la table de mixage est affichée.
   const radioFeed = useRadioFeed(!!status && (tab === "routing" || tab === "mixer"), !!status && tab === "mixer");
 
   if (loadError && !status) return <div className="rl-center-note">{t("devices.errors.network")}</div>;

@@ -47,7 +47,6 @@ class Client:
         return self._interpret(status, raw, url, accept_status)
 
     def _interpret(self, status: int, raw: bytes, url: str, accept_status: frozenset[int] = frozenset()) -> Any:
-        """Réponse brute -> charge utile JSON, ou `CliError` au code de sortie stable (400 et 422 : 2 ; 403, 404, 409, 503 : 4)."""
         try:
             payload = json.loads(raw) if raw else None
         except ValueError:
@@ -79,9 +78,6 @@ class Client:
             parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode("utf-8"))
         for name, file in files:
             kind = mimetypes.guess_type(file.name)[0] or "application/octet-stream"
-            # Le nom part tel quel (UTF-8) comme le fait un navigateur : `quote` le rendrait
-            # littéralement « %C3%A9 » côté serveur. On neutralise seulement ce qui casserait
-            # l'en-tête multipart (guillemet, antislash, CR/LF, contrôles).
             filename = "".join(
                 "_" if ch in '"\\\r\n' or ord(ch) < 32 or ord(ch) == 127 else ch
                 for ch in file.name
@@ -162,7 +158,6 @@ def _timeout(args: argparse.Namespace) -> float:
 
 
 def _default_port() -> int:
-    """Port à joindre quand `--port` n'est pas fourni : `BOBINE_PORT`, sinon le port réel de la machine locale."""
     raw = os.environ.get("BOBINE_PORT")
     if raw:
         try:

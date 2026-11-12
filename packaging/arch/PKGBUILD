@@ -1,12 +1,3 @@
-# Maintainer: FantasmaGlad <193235053+FantasmaGlad@users.noreply.github.com>
-#
-# Paquet Arch de Bobine (Arch Linux, Manjaro, EndeavourOS, CachyOS…) : EMBALLE l'arbre
-# PyInstaller déjà construit (même binaire que le .deb), sans compilation. Construit par
-# packaging/arch/build_arch.sh, qui fournit BOBINE_PKGVER / BOBINE_PKGREL et la source
-# (arborescence FHS produite par packaging/common/stage_root.sh).
-#
-# Versions : pkgver = x.y.zalpha.N (Canary), x.y.zbeta.N (Bêta) ou x.y.z (Stable),
-# pkgrel = 1. L'ordre est vérifié avec libalpm/vercmp (packaging/common/version.sh).
 
 pkgname=bobine
 pkgver=${BOBINE_PKGVER:-0.0.0}
@@ -15,7 +6,6 @@ pkgdesc='Video and audio playout for gyms and fitness studios'
 arch=('x86_64' 'aarch64')
 url='https://bobine.fit'
 license=('AGPL-3.0-or-later')
-# Le bundle PyInstaller embarque ses bibliothèques ; seul ffmpeg (CLI) vient du système.
 depends=('ffmpeg' 'glibc' 'hicolor-icon-theme' 'udisks2' 'smartmontools' 'exfatprogs' 'e2fsprogs' 'dosfstools' 'ntfs-3g' 'polkit' 'gvfs' 'gvfs-mtp')
 optdepends=(
     'avahi: découverte automatique sur le réseau local (mDNS)'

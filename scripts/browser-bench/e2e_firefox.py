@@ -1,16 +1,5 @@
 #!/usr/bin/env python3
-"""Banc de bout en bout Firefox (compatibilité Firefox) : pilote un
-vrai Firefox (geckodriver) contre une instance Bobine de TEST et vérifie les
-comportements qui conditionnent le support officiel.
-
-Usage :
-    BOBINE_URL=http://127.0.0.1:8078 python3 scripts/browser-bench/e2e_firefox.py
-
-Prérequis : `geckodriver` et `ffmpeg` dans le PATH, un backend de test isolé
-(jamais vos données réelles — cf. README.md de ce dossier), `frontend/out`
-construit. Code de sortie 0 si tout passe. Les fichiers de test sont générés
-dans un dossier temporaire du dossier PERSONNEL (Firefox en snap ne lit pas /tmp).
-"""
+"""Banc de bout en bout Firefox (compatibilité Firefox) : pilote un vrai Firefox (geckodriver) contre une instance Bobine de TEST et vérifie les comportements qui conditionnent le support officiel."""
 
 import json
 import os
@@ -81,8 +70,7 @@ def import_through_ui(paths: list[Path], timeout: float = 120) -> bool:
 
 
 def resume_after_network_cut(workdir: Path) -> None:
-    """Coupe le réseau en plein transfert (proxy limité à 3 Mo/s tué puis relancé)
-    et vérifie que l'envoi reprend sans recommencer ni échouer."""
+    """Coupe le réseau en plein transfert (proxy limité à 3 Mo/s tué puis relancé) et vérifie que l'envoi reprend sans recommencer ni échouer."""
     from urllib.parse import urlparse
 
     target_port = urlparse(BASE).port or 80
@@ -101,7 +89,7 @@ def resume_after_network_cut(workdir: Path) -> None:
         time.sleep(1)
         wd.execute("Array.from(document.querySelectorAll('button')).find(b=>b.innerText.trim().startsWith('Lancer')).click()")
         reached = wait_for(lambda: (wd.execute("const m=document.body.innerText.match(/(\\d+)%/);return m?+m[1]:0") or 0) >= 30, 60)
-        proxy.kill()  # coupure franche : connexions réinitialisées
+        proxy.kill()
         proxy.wait()
         time.sleep(6)
         proxy = subprocess.Popen(proxy_cmd)
@@ -123,7 +111,6 @@ def main() -> int:
         version = wd.start(headless=True)
         print(f"Firefox {version} — {BASE}")
 
-        # --- 1. pages principales : aucune erreur applicative visible -------------------
         for route in ("/library/", "/radio/", "/kiosk/?channel=network", "/coach/", "/settings/", "/cinema/"):
             wd.navigate(BASE + route)
             time.sleep(2.5)
@@ -131,7 +118,6 @@ def main() -> int:
             overlay = wd.execute("return !!document.querySelector('nextjs-portal')")
             check(f"page {route} se charge", len(body) > 20 and not overlay and "Application error" not in body)
 
-        # --- 2. protocole : HEAD, Range, JSON 404 sur /api ---------------------------------
         wd.navigate(BASE + "/library/")
         time.sleep(1.5)
         head = wd.execute_async(
@@ -143,7 +129,6 @@ def main() -> int:
             "fetch('/api/inexistant').then(r=>done([r.status,r.headers.get('content-type')]))")
         check("chemin /api inconnu -> 404 non HTML", unknown[0] == 404 and "html" not in (unknown[1] or ""), str(unknown))
 
-        # --- 3. import par morceaux, MP4 H.264 + MKV (type MIME souvent vide) -----------
         small = workdir / "e2e_h264.mp4"
         mkv = workdir / "e2e_h264.mkv"
         ffmpeg_clip(small, "libx264", extra=["-pix_fmt", "yuv420p"])
@@ -158,7 +143,6 @@ def main() -> int:
             "return performance.getEntriesByType('resource').filter(e=>e.name.includes('/api/uploads')).length")
         check("le transfert par morceaux (/api/uploads) a bien été utilisé", chunked and chunked >= 2, f"{chunked} requête(s)")
 
-        # --- 4. version web d'un HEVC 10 bits + négociation + lecture réelle -------------
         hevc = workdir / "e2e_hevc10.mkv"
         ffmpeg_clip(hevc, "libx265", extra=["-preset", "ultrafast", "-x265-params", "log-level=error", "-pix_fmt", "yuv420p10le"])
         before_ids = {v["id"] for v in api("/videos")}
@@ -182,12 +166,10 @@ def main() -> int:
                 "v.play().then(()=>setTimeout(()=>done({t:v.currentTime,err:v.error&&v.error.code,w:v.videoWidth}),2500)).catch(e=>done({err:e.name}))")
             check("la version web se lit dans Firefox", played.get("err") in (None, 0) and played.get("t", 0) > 0.5, str(played))
 
-        # --- 5. reprise après coupure réseau (optionnel : --resume) ----------------------
         if "--resume" in sys.argv:
             resume_after_network_cut(workdir)
 
-        # --- 6. diagnostic navigateur dans les Réglages ---------------------------------------
-        wd.navigate(BASE + "/settings/#section-playback")  # les Réglages sont rangés par catégories : lien profond vers « Lecture et médias »
+        wd.navigate(BASE + "/settings/#section-playback")
         time.sleep(2.5)
         text = wd.execute("return document.body.innerText")
         check("section « Compatibilité navigateur » affichée", "H.264" in text and "WebSocket" in text)
@@ -200,7 +182,7 @@ def main() -> int:
             try:
                 gecko.terminate()
             except PermissionError:
-                pass  # geckodriver installé en snap : processus confiné, il s'arrêtera avec la session
+                pass
         shutil.rmtree(workdir, ignore_errors=True)
 
     failed = [r for r in results if not r[1]]

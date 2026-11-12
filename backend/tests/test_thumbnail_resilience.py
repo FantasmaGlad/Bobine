@@ -22,7 +22,6 @@ def no_sleep(monkeypatch):
 
 
 def _fake_run_factory(outcomes):
-    """Chaque appel consomme un résultat : 'timeout', 'fail' ou 'ok' (écrit le fichier de sortie)."""
     calls = []
 
     def fake_run(cmd, **kwargs):
@@ -43,7 +42,7 @@ def test_timeout_does_not_abort_the_fallbacks(tmp_path, monkeypatch):
     monkeypatch.setattr(thumbnails.subprocess, "run", fake)
     path = thumbnails.generate_thumbnail("video.mp4", str(tmp_path), 120.0)
     assert Path(path).stat().st_size > 0
-    assert len(calls) == 3  # 10 %, 0,1 s puis 0 s : le dépassement du premier essai n'a pas tout interrompu
+    assert len(calls) == 3
 
 
 def test_transient_failures_get_a_last_retry(tmp_path, monkeypatch):
@@ -79,4 +78,4 @@ def test_thumbnail_route_without_directory_is_never_a_500():
     client = TestClient(app, raise_server_exceptions=False)
     response = client.get("/api/thumbnails/thumb_absent.jpg")
     assert response.status_code == 404
-    assert directory.is_dir()  # recréé au passage
+    assert directory.is_dir()

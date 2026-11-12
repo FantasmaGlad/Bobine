@@ -1,6 +1,4 @@
-"""Pilote sidecar (Windows/macOS) : protocole JSON-RPC, garde-fou « expérimental », reprise après
-panne, délais d'expiration. Un faux sidecar (script Python) joue le rôle du binaire Rust ; le vrai
-binaire est aussi exercé quand il a été compilé (`devices/target/release`)."""
+"""Pilote sidecar (Windows/macOS) : protocole JSON-RPC, garde-fou « expérimental », reprise après panne, délais d'expiration."""
 
 import asyncio
 import os
@@ -70,7 +68,7 @@ def test_blocked_until_experimental_flag(fake_script, monkeypatch):
         with pytest.raises(DeviceError) as exc:
             await driver.wifi_connect("X", None)
         assert exc.value.code == "unsupported"
-        assert driver._proc is None  # rien n'a été lancé
+        assert driver._proc is None
 
     run(scenario())
 
@@ -135,10 +133,10 @@ def test_desynchronised_reply_kills_the_process(fake_script):
 
     async def scenario():
         with pytest.raises(DeviceError) as exc:
-            await driver.wifi_forget("X")  # le faux sidecar répond avec un mauvais identifiant
+            await driver.wifi_forget("X")
         assert exc.value.code == "sidecar_protocol"
         assert driver._proc is None
-        assert await driver.wifi_current_connection() == "Maison"  # relancé au prochain appel
+        assert await driver.wifi_current_connection() == "Maison"
         await driver.stop()
 
     run(scenario())
@@ -177,8 +175,7 @@ REAL = Path(__file__).resolve().parents[2] / "devices" / "target" / "release" / 
 
 @pytest.mark.skipif(not REAL.is_file() or os.name == "nt", reason="binaire bobine-devices non compilé")
 def test_real_binary_speaks_the_protocol_and_refuses_unknown_methods():
-    """Sur Linux le binaire déclare « plateforme non prise en charge » (Linux passe par D-Bus), mais le
-    protocole (hello, liste blanche, validation) est celui de Windows/macOS."""
+    """Sur Linux le binaire déclare « plateforme non prise en charge » (Linux passe par D-Bus), mais le protocole (hello, liste blanche, validation) est celui de Windows/macOS."""
     driver = SidecarDriver("macos", command=[str(REAL)], experimental=True)
 
     async def scenario():
@@ -187,7 +184,7 @@ def test_real_binary_speaks_the_protocol_and_refuses_unknown_methods():
         assert (await driver.audio_list())["supported"] is False
         with pytest.raises(DeviceError) as exc:
             await driver._rpc("system.exec", {"cmd": "id"})
-        assert exc.value.code == "sidecar_error"  # méthode introuvable : jamais exécutée
+        assert exc.value.code == "sidecar_error"
         with pytest.raises(DeviceError) as bad:
             await driver.bluetooth_pair("pas-une-adresse")
         assert bad.value.code == "bad_params"

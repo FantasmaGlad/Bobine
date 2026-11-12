@@ -1,24 +1,12 @@
-/**
- * Recherche tolérante, partagée par TOUS les champs de recherche et listes déroulantes — logique PURE,
- * sans DOM, pour rester testable (`frontend/tests/`).
- *
- * Règles : insensible à la casse ET aux accents (« ete » trouve « Été »), tous les mots saisis doivent se
- * retrouver (dans n'importe quel ordre), et le classement favorise le début du texte puis le début d'un
- * mot — ce qui donne l'autocomplétion attendue (« bass » propose « Bass Boost » avant « Sub bass »).
- */
-
-/** Minuscules sans accents ni diacritiques, espaces réduits. */
 export function normalizeText(text: string): string {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-/** Mots de la requête, normalisés, sans doublon ni mot vide. */
 export function queryTokens(query: string): string[] {
   const unique = new Set(normalizeText(query).split(" ").filter(Boolean));
   return [...unique];
 }
 
-/** Vrai si tous les mots de la requête figurent dans le texte (requête vide = tout correspond). */
 export function matchesQuery(text: string, query: string): boolean {
   const tokens = queryTokens(query);
   if (tokens.length === 0) return true;
@@ -26,10 +14,6 @@ export function matchesQuery(text: string, query: string): boolean {
   return tokens.every((token) => haystack.includes(token));
 }
 
-/**
- * Score de pertinence (0 = ne correspond pas) : texte qui commence par la requête > début de mot >
- * simple inclusion ; l'ordre des mots saisis est un bonus. Plus le score est haut, mieux c'est.
- */
 export function scoreMatch(text: string, query: string): number {
   const tokens = queryTokens(query);
   if (tokens.length === 0) return 1;
@@ -46,7 +30,6 @@ export function scoreMatch(text: string, query: string): number {
   return score;
 }
 
-/** Éléments correspondants, du plus pertinent au moins pertinent (ordre d'origine à score égal). */
 export function rankByQuery<T>(items: readonly T[], query: string, getText: (item: T) => string): T[] {
   if (queryTokens(query).length === 0) return [...items];
   return items
@@ -56,10 +39,6 @@ export function rankByQuery<T>(items: readonly T[], query: string, getText: (ite
     .map((entry) => entry.item);
 }
 
-/**
- * Suggestions d'autocomplétion : textes UNIQUES (casse et accents ignorés) classés par pertinence, la
- * requête exacte elle-même étant écartée (inutile de proposer ce qui est déjà tapé).
- */
 export function suggestFrom(candidates: readonly string[], query: string, limit = 6): string[] {
   const typed = normalizeText(query);
   if (!typed) return [];
@@ -81,14 +60,9 @@ export interface TextSegment {
   match: boolean;
 }
 
-/**
- * Découpe un texte en segments « trouvé / non trouvé » pour surligner la recherche, en respectant le
- * texte d'ORIGINE (accents et casse conservés) alors que la comparaison est normalisée.
- */
 export function highlightSegments(text: string, query: string): TextSegment[] {
   const tokens = queryTokens(query);
   if (tokens.length === 0 || !text) return [{ text, match: false }];
-  // Normalisation caractère par caractère : conserve la correspondance d'indices avec l'original.
   let normalized = "";
   const origin: number[] = [];
   for (let i = 0; i < text.length; i++) {

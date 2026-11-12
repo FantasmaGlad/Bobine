@@ -1,5 +1,3 @@
-# Volontairement SANS `from __future__ import annotations` : dbus-fast lit les annotations des
-# méthodes comme des signatures D-Bus ("o", "s", "u"...) et ne sait pas interpréter des chaînes différées.
 """Agent d'appairage BlueZ (`org.bluez.Agent1`) : relaie les demandes de confirmation à l'interface."""
 
 from dbus_fast import DBusError
@@ -20,7 +18,7 @@ def make_agent(driver):
 
         @method()
         def RequestPinCode(self, device: "o") -> "s":  # noqa: F821
-            return "0000"  # code historique des casques et enceintes sans écran
+            return "0000"
 
         @method()
         def DisplayPinCode(self, device: "o", pincode: "s"):  # noqa: F821
@@ -48,7 +46,7 @@ def make_agent(driver):
 
         @method()
         def AuthorizeService(self, device: "o", uuid: "s"):  # noqa: F821
-            return  # appareil déjà appairé qui demande un profil audio : accepté
+            return
 
         @method()
         def Cancel(self):  # noqa: N802

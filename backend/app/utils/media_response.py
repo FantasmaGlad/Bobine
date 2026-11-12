@@ -1,25 +1,4 @@
-"""Réponses HTTP des flux média (vidéo, audio, pochettes, fonds) conformes à
-la RFC 9110, pour TOUS les navigateurs — Firefox compris.
-
-Pourquoi un module dédié : l'ancien `_range_stream_response` (app/main.py)
-n'était exposé qu'en `GET`. Un `HEAD /api/videos/{id}/stream` retombait alors
-sur le montage statique du frontend et renvoyait la page HTML 404 avec un
-statut 206 et `content-type: text/html` (reproduit sur Firefox 157). Les gestionnaires de téléchargement,
-extensions, lecteurs externes (VLC, Cast) et sondes de disponibilité
-utilisent `HEAD` pour connaître la taille et le type avant de lire.
-
-Comportements couverts (testés dans backend/tests/test_media_response.py) :
-- `GET` et `HEAD` avec exactement les mêmes en-têtes (HEAD sans corps) ;
-- `Range` : plage `a-b`, ouverte `a-`, suffixe `-n` ; plusieurs plages ou
-  syntaxe invalide -> `Range` ignoré (200 complet, autorisé par la RFC) ;
-  début hors fichier -> 416 avec `Content-Range: bytes */taille` ;
-- `If-Range` (ETag fort ou date) : plage servie seulement si le validateur
-  correspond, sinon contenu complet — évite une lecture corrompue si le
-  fichier a changé entre deux requêtes de plage ;
-- `ETag` fort (taille + mtime_ns) et `Last-Modified` ; `If-None-Match` ->
-  304 pour une requête sans plage ;
-- `X-Content-Type-Options: nosniff` : le type annoncé fait foi.
-"""
+"""Réponses HTTP des flux média (vidéo, audio, pochettes, fonds) conformes à la RFC 9110, pour TOUS les navigateurs — Firefox compris."""
 
 import asyncio
 from email.utils import formatdate, parsedate_to_datetime
@@ -35,9 +14,6 @@ from app.utils.android_runtime import is_android
 
 _IS_ANDROID = is_android()
 
-# 1 Mo sur Android (moins d'allers-retours à travers le démon FUSE du
-# stockage externe qu'à 128 Ko, mesurable sur un flux 4K/60 fps à haut
-# débit), 128 Ko ailleurs.
 _READ_BLOCK_SIZE = 1024 * 1024 if _IS_ANDROID else 8192 * 16
 
 
@@ -46,10 +22,7 @@ class RangeNotSatisfiable(Exception):
 
 
 def parse_byte_range(header: str | None, size: int) -> tuple[int, int] | None:
-    """Renvoie (début, fin) inclusifs, ou None pour servir le fichier entier
-    (en-tête absent, d'une autre unité, multiple ou illisible — la RFC 9110
-    autorise à ignorer `Range`). Lève `RangeNotSatisfiable` si la plage est
-    syntaxiquement valide mais hors du fichier."""
+    """Renvoie (début, fin) inclusifs, ou None pour servir le fichier entier (en-tête absent, d'une autre unité, multiple ou illisible — la RFC 9110 autorise à ignorer `Range`)."""
     if not header:
         return None
     unit, _, spec = header.partition("=")
@@ -83,8 +56,6 @@ def _validators(stat) -> tuple[str, str]:
 
 
 def _if_range_matches(if_range: str | None, etag: str, last_modified: str) -> bool:
-    """Vrai si la plage demandée est toujours valable pour CETTE version du
-    fichier (absence d'`If-Range` = conditions inchangées)."""
     if not if_range:
         return True
     candidate = if_range.strip()
@@ -149,11 +120,6 @@ async def build_media_response(
         return Response(status_code=status, headers=headers)
 
     async def body():
-        # aiofiles : lecture disque non bloquante, la boucle d'évènements
-        # reste disponible pour les autres requêtes pendant la diffusion.
-        # Fermeture BLINDÉE : quand le client coupe (Range, lecteur qui change de piste), Starlette annule le flux
-        # pendant `yield` ; sans `shield`, l'annulation interrompait aussi `close()` et laissait le fichier ouvert —
-        # fatal pour un support externe (démontage « occupé » tant que le processus tient le descripteur).
         handle = await aiofiles.open(file_path, "rb")
         try:
             await handle.seek(start)
@@ -165,14 +131,13 @@ async def build_media_response(
                 remaining -= len(chunk)
                 yield chunk
         except OSError:
-            # Support amovible arraché en pleine lecture (EIO/ENODEV) : la réponse s'arrête net, sans 500 ni trace bruyante.
             return
         finally:
             closing = asyncio.ensure_future(handle.close())
             try:
                 await asyncio.shield(closing)
             except asyncio.CancelledError:
-                pass  # la fermeture se termine seule ; l'annulation de la requête suit son cours
+                pass
             except OSError:
                 pass
 

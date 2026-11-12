@@ -1,16 +1,4 @@
-"""Copie vérifiée entre un support externe et le stockage local (import, export).
-
-Principes :
-
-* **la source n'est JAMAIS modifiée** : lecture seule, aucun `move`, aucun `remove` côté support ;
-* l'import copie d'abord dans le dossier temporaire INTERNE (même disque que les médias), vérifie
-  (taille + SHA-256 calculé pendant la copie puis relecture de la copie), puis appelle l'importeur
-  existant sur la COPIE (les importeurs déplacent leur entrée : ils ne touchent donc jamais au support) ;
-* espace local contrôlé avant le lot et avant chaque fichier ;
-* annulation vérifiée à chaque bloc ; une copie interrompue par un retrait brutal garde son `.part` et
-  reprend à l'octet près si la source est inchangée (taille + date) et que le début copié est identique ;
-* un seul thread de copie à la fois : une clé USB ne se partage pas.
-"""
+"""Copie vérifiée entre un support externe et le stockage local (import, export)."""
 
 from __future__ import annotations
 
@@ -35,7 +23,6 @@ RESERVE_BYTES = 1024**3
 SPACE_FACTOR = 1.1
 STALE_PART_SECONDS = 7 * 24 * 3600
 
-# Un seul transfert à la fois (voir l'en-tête).
 storage_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="bobine-storage")
 
 
@@ -139,10 +126,7 @@ def copy_verified(
     on_bytes: Callable[[int], None] = lambda n: None,
     chunk: int = COPY_CHUNK,
 ) -> dict[str, Any]:
-    """Copie `src` vers `dest` (via `part`) avec reprise et vérification d'intégrité.
-
-    Retourne `{"size", "sha256", "resumed_from"}`. Lève `TransferError` (`source_io`, `source_changed`,
-    `verify_failed`, `dest_io`) ou `Cancelled`. En cas d'erreur de lecture de la source, `part` est CONSERVÉ."""
+    """Copie `src` vers `dest` (via `part`) avec reprise et vérification d'intégrité."""
     try:
         before = os.stat(src)
     except OSError as exc:
@@ -234,11 +218,6 @@ def copy_verified(
     return {"size": size, "sha256": expected, "resumed_from": offset}
 
 
-# ---------------------------------------------------------------------------------------------------------
-# Planification d'un import
-# ---------------------------------------------------------------------------------------------------------
-
-
 @dataclass
 class UnitFile:
     rel: str
@@ -249,10 +228,10 @@ class UnitFile:
 
 @dataclass
 class Unit:
-    kind: str  # video | audio_course | radio
+    kind: str
     title: str
     files: list[UnitFile]
-    key: str  # chemin relatif de référence (dossier du cours, ou fichier)
+    key: str
 
     @property
     def total(self) -> int:
@@ -333,11 +312,6 @@ def plan_import(root: str, entries: list[dict[str, str]], kind: str, source_id: 
     return plan
 
 
-# ---------------------------------------------------------------------------------------------------------
-# Exécution d'un import
-# ---------------------------------------------------------------------------------------------------------
-
-
 def _safe_staged_name(name: str) -> str:
     cleaned = "".join(c for c in name if c.isalnum() or c in (".", "_", "-", " ", "(", ")")).strip()
     return cleaned or "fichier"
@@ -352,7 +326,7 @@ def run_import_job(
     resume: bool = True,
     on_finished: Callable[[], None] = lambda: None,
 ) -> dict[str, Any]:
-    """Exécute le plan : copie vérifiée de chaque unité puis importeur existant. Bloquant : à lancer sur `storage_executor`."""
+    """Exécute le plan : copie vérifiée de chaque unité puis importeur existant."""
     from app.database import SessionLocal
     from app.models import ImportSource
     from app.utils.executors import ffmpeg_executor
@@ -410,9 +384,8 @@ def run_import_job(
                 logger.warning("Import depuis un support : %s (%s)", unit.title, exc.code)
                 summary["failed"].append({"path": unit.key, "code": exc.code, "message": exc.message})
                 if exc.code in ("source_io", "insufficient_space", "dest_io"):
-                    # La suite échouerait de la même façon (support retiré, disque plein) : on s'arrête proprement.
                     break
-            except Exception as exc:  # un fichier défaillant (DRM, format) n'arrête pas le lot
+            except Exception as exc:
                 logger.warning("Import depuis un support : %s : %s", unit.title, exc)
                 summary["failed"].append({"path": unit.key, "code": "import_failed", "message": str(exc)})
             finally:
@@ -449,11 +422,6 @@ def _run_importer(unit, staged, job_id, ffmpeg_executor, import_video, import_au
     return tracks[0].id if tracks else None
 
 
-# ---------------------------------------------------------------------------------------------------------
-# Export : local -> support (écriture temporaire, explicite)
-# ---------------------------------------------------------------------------------------------------------
-
-
 def _fsync_dir(directory: str) -> None:
     try:
         fd = os.open(directory, os.O_RDONLY)
@@ -462,8 +430,6 @@ def _fsync_dir(directory: str) -> None:
     try:
         os.fsync(fd)
     except OSError as exc:
-        # Certains systèmes de fichiers amovibles refusent fsync sur un dossier : l'export reste valide,
-        # seule la durabilité du renommage en cas de coupure n'est pas garantie.
         logger.warning("fsync du dossier %s impossible : %s", directory, exc)
     finally:
         os.close(fd)
@@ -478,8 +444,7 @@ def export_file(
     on_bytes: Callable[[int], None] = lambda n: None,
     chunk: int = COPY_CHUNK,
 ) -> dict[str, Any]:
-    """Copie `src` (local) dans `dest_dir` (support monté en écriture) : nom libre, fichier temporaire puis renommage
-    atomique, fsync, relecture et comparaison SHA-256. N'écrase jamais un fichier existant."""
+    """Copie `src` (local) dans `dest_dir` (support monté en écriture) : nom libre, fichier temporaire puis renommage atomique, fsync, relecture et comparaison SHA-256."""
     dest = paths.unique_dest(dest_dir, paths.safe_dest_name(name))
     tmp = os.path.join(dest_dir, f".bobine-{uuid.uuid4().hex[:10]}.part")
     digest = hashlib.sha256()

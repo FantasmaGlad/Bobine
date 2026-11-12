@@ -12,7 +12,6 @@ import type { ApiError } from "@/lib/devicesApi";
 import { storageErrorText, tr, type StorageCtx } from "./common";
 
 interface Props extends StorageCtx {
-  /** Support à préparer (clé et nom) ; `resume` reprend une opération déjà en cours (page rechargée). */
   target: { key: string; name: string; resume?: FormatJob | null } | null;
   onClose: () => void;
   onChanged: () => void;
@@ -23,7 +22,6 @@ type Stage = "loading" | "refused" | "choose" | "confirm" | "running" | "result"
 const POLL_MS = 700;
 const REFLECTION_SECONDS = 5;
 
-/** Parcours guidé « Préparer ce support » : vérification, choix du format, confirmation forte, déroulement, rapport. */
 export default function FormatWizard({ target, onClose, onChanged, t, lang, notify }: Props) {
   if (!target) return <Sheet open={false} onClose={onClose}>{null}</Sheet>;
   return <WizardBody key={target.key + (target.resume?.job_id ?? "")} target={target} onClose={onClose} onChanged={onChanged} t={t} lang={lang} notify={notify} />;
@@ -77,7 +75,6 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
     return () => clearInterval(timer);
   }, [stage]);
 
-  // Suivi de l'opération : relecture régulière de l'état du travail jusqu'à sa fin.
   useEffect(() => {
     if (stage !== "running" || !job) return;
     const jobId = job.job_id;
@@ -167,7 +164,6 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
     if (canLeaveWizard(job)) onClose();
   };
 
-  // ---------------------------------------------------------------- rendu par étape
   let body: React.ReactNode = null;
   let footer: React.ReactNode;
 

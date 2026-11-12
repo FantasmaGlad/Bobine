@@ -1,21 +1,4 @@
-"""Native inspection for new audio imports only (opt-in, with strict fallback).
-
-Activation: see `app.utils.media_native` (setting `media_native`, environment override).
-The reference utilities are unchanged, including database backfills; every transport,
-protocol or format refusal requests the reference path. Nothing already imported is
-modified: this module only decides how a *new* import reads its tags, its duration and its
-cover.
-
-Covers. The reference turns an embedded picture into a thumbnail in two steps: ffmpeg
-decodes it and re-encodes a JPEG, then Pillow converts to RGB, shrinks to 600x600 and saves
-a quality-85 JPEG. The native path hands over the raw embedded bytes (only structurally
-accepted JPEG/PNG, see media/README.md) and runs the Pillow step directly: the ffmpeg
-re-encode, a lossy and unavoidable stage of the reference, is the one thing skipped. The
-two final files therefore cannot be byte-identical, and are *defined* equivalent when they
-have the same dimensions and a PSNR of at least 33 dB and a mean absolute error of at most
-4/255 (scripts/media-bench/cover_equivalence.py measures it on the corpus). Any picture
-outside the structural families keeps the reference path.
-"""
+"""Native inspection for new audio imports only (opt-in, with strict fallback)."""
 from __future__ import annotations
 
 import io
@@ -34,7 +17,6 @@ COVER_JPEG_QUALITY = 85
 
 
 def _probe(file_path: str, profile: str) -> dict | None:
-    # Avoid even creating the singleton on installations that have not opted in.
     if not media_native.is_enabled():
         return None
     return get_media_client().probe_audio(file_path, profile)
@@ -72,13 +54,11 @@ def render_cover(data: bytes) -> bytes:
 
 
 def _write_native_cover(data: bytes, covers_dir: str, file_id: str) -> str | None:
-    """Write `cover_<id>.jpg` from raw picture bytes; None (and no file) if Pillow refuses them."""
     try:
         rendered = render_cover(data)
         folder = Path(covers_dir)
         folder.mkdir(parents=True, exist_ok=True)
         destination = folder / f"cover_{file_id}.jpg"
-        # A temporary name in the same folder, then an atomic rename: never a partial cover.
         handle = tempfile.NamedTemporaryFile(dir=folder, suffix=".tmp", delete=False)
         try:
             with handle:
@@ -91,7 +71,7 @@ def _write_native_cover(data: bytes, covers_dir: str, file_id: str) -> str | Non
                 pass
             raise
         return str(destination)
-    except Exception as exc:  # Pillow, bomb protection, disk: the reference decides.
+    except Exception as exc:
         logger.info("Native cover not usable (%s): reference pipeline", type(exc).__name__)
         return None
 

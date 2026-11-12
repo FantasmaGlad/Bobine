@@ -1,14 +1,4 @@
-"""Garde-fou de l'architecture des canaux de diffusion : UN registre (app/release_channel.py), des
-consommateurs qui en DÉRIVENT. Ce test échoue dès qu'un consommateur réécrit une liste ou une règle
-de canaux au lieu de la lire, ou qu'un fichier généré est périmé.
-
-  registre Python ──┬── backend (réglages, mises à jour, barre système) : import direct
-                    ├── specs PyInstaller, scripts de paquetage, générateur d'icônes : chargé par son chemin
-                    ├── android/release-channels.json ──── Gradle ──── BuildConfig ──── Kotlin
-                    └── frontend/src/lib/releaseChannels.generated.ts ──── interface web
-
-Guide : scripts/generate_channel_icons.py.
-"""
+"""Garde-fou de l'architecture des canaux de diffusion : UN registre (app/release_channel.py), des consommateurs qui en DÉRIVENT."""
 
 import importlib.util
 import re
@@ -43,17 +33,11 @@ def _load(name: str, relative: str):
     return module
 
 
-# --- Fichiers générés -------------------------------------------------------------------------
-
-
 def test_fichiers_generes_a_jour():
     result = subprocess.run(
         [sys.executable, str(REPO / "scripts" / "sync_release_channels.py"), "--check"], capture_output=True, text=True
     )
     assert result.returncode == 0, result.stderr
-
-
-# --- Adaptateurs de construction : aucune règle recopiée ---------------------------------------
 
 
 def test_le_generateur_d_icones_et_le_paquetage_lisent_le_registre():
@@ -98,12 +82,8 @@ def test_backend_n_ecrit_pas_la_liste_des_canaux_ailleurs_que_dans_le_registre()
             code = line.split("#")[0]
             if re.search(r"""["']canary["']""", code) and re.search(r"""["']beta["']""", code):
                 offenders.append(f"{path.relative_to(REPO)}:{number}")
-    # database.py : la migration historique « beta -> canary » est une donnée figée, pas une liste de canaux.
     offenders = [o for o in offenders if not o.startswith("backend/app/database.py")]
     assert not offenders, "liste de canaux écrite en dur : " + ", ".join(offenders)
-
-
-# --- Android ------------------------------------------------------------------------------------
 
 
 def test_gradle_lit_le_registre_sans_liste_ni_nom_de_canal_en_dur():
@@ -122,14 +102,9 @@ def test_kotlin_derive_ses_canaux_du_registre():
     assert not re.search(r'setOf\("stable"', prefs), "liste de canaux écrite en dur dans UpdateChannelPref"
     splash = _read("android/app/src/main/java/com/bobine/app/SplashChannel.kt")
     assert "UpdateChannelPref.load(context) ?: BuildConfig.BUILD_CHANNEL" in splash
-    # Les ressources d'écran de démarrage sont référencées statiquement (R.drawable) : une branche
-    # par canal du registre, vérifiée ici puisque Kotlin ne peut pas les énumérer.
     for channel in release_channel.CHANNEL_IDS:
         assert f"R.drawable.bobine_splash_logo_{channel}" in splash, f"écran de démarrage Android manquant pour {channel}"
         assert (REPO / f"android/app/src/main/res/drawable-nodpi/bobine_splash_logo_{channel}.png").exists()
-
-
-# --- Frontend ----------------------------------------------------------------------------------
 
 
 def test_frontend_importe_la_liste_generee_et_ne_la_redeclare_pas():
@@ -140,19 +115,10 @@ def test_frontend_importe_la_liste_generee_et_ne_la_redeclare_pas():
     assert not re.search(r'"stable"\s*\|\s*"beta"', context), "type de canal redéclaré dans AppSettingsContext"
 
 
-# --- API de réglages ------------------------------------------------------------------------------
-
-
 def test_les_reglages_exposent_origine_et_canal_d_installation():
     source = _read("backend/app/api/routes/settings/values.py")
     for key in ('"update_channel_source"', '"install_channel"'):
         assert key in source
-
-
-# --- Consommateurs autonomes par nature : vérifiés contre le registre -------------------------------
-# install.sh (distribué par `curl | bash`, il ne peut pas dépendre du dépôt avant de l'avoir cloné)
-# et les workflows CI ne peuvent pas importer le registre. Ils sont
-# donc contrôlés ici : ajouter un canal au registre sans les mettre à jour fait échouer ce test.
 
 
 def test_install_sh_connait_exactement_les_canaux_du_registre():
@@ -162,7 +128,6 @@ def test_install_sh_connait_exactement_les_canaux_du_registre():
     arms = re.findall(r"^\s*([a-z]+)\*\)\s+UPDATE_CHANNEL=\"([a-z]+)\"", source, re.M)
     assert {channel for _, channel in arms} == set(release_channel.ROLLING_CHANNEL_IDS)
     assert all(prefix == channel for prefix, channel in arms)
-
 
 
 def test_ci_publie_exactement_les_canaux_du_registre():

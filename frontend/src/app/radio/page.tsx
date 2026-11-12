@@ -20,24 +20,6 @@ import { getApiUrl } from "@/lib/apiUrl";
 import { formatTime, formatWallClock } from "@/lib/format";
 import { unloadMedia } from "@/lib/mediaElement";
 
-// Écran du poste radio dédié : mise en page "type Spotify", lecteur PRIMAIRE (source de la
-// position rapportée au serveur, comme le kiosk câblé/réseau).
-// Ouvert à la main dans un navigateur standard, PAS de service kiosk
-// systemd dédié (arbitrage A5) — d'où l'écran de déverrouillage ci-dessous
-// (politique d'autoplay des navigateurs).
-//
-// Moteur audio : DEUX <audio> ("slots" A=0/B=1) routés dans un
-// graphe Web Audio API (MediaElementAudioSourceNode -> GainNode ->
-// destination) — impossible de faire chevaucher deux lectures sur un seul
-// élément. `activeSlotRef` désigne le slot que le SERVEUR considère comme la
-// piste en cours ; l'autre sert de tampon pour précharger/fondre la piste
-// suivante en avance (`crossfade_seconds` avant la fin réelle), sans jamais
-// attendre la confirmation serveur pour démarrer le fondu — seule
-// l'officialisation du changement de slot actif attend cette confirmation
-// (cf. handleEvent), pour que la position rapportée reste cohérente avec
-// l'état serveur pendant le chevauchement. Le rappel réutilise
-// le MÊME graphe : la « rampe de gain » n'est plus qu'une primitive partagée.
-
 const DUCK_LEVEL_DEFAULT = 15;
 const DUCK_FADE_MS_DEFAULT = 1500;
 
@@ -47,19 +29,11 @@ const OTHER_SLOT = (slot: Slot): Slot => (slot === 0 ? 1 : 0);
 export default function RadioScreenPage() {
   const { t } = useAppSettings();
 
-  // Deux éléments <audio> (slots A=0/B=1) plutôt qu'un seul :
-  // le crossfade a besoin de faire chevaucher deux lectures. Refs NOMMÉES
-  // individuellement (pas un tableau de refs) : nécessaire pour le binding
-  // `ref=` en JSX, et plus lisible pour le lint hooks/refs.
   const audioARef = useRef<HTMLAudioElement | null>(null);
   const audioBRef = useRef<HTMLAudioElement | null>(null);
   const announcementAudioRef = useRef<HTMLAudioElement | null>(null);
-  // Accès générique par slot (utilisé uniquement dans des gestionnaires
-  // d'évènements/effets, jamais pendant le rendu).
   const getAudioEl = (slot: Slot): HTMLAudioElement | null => (slot === 0 ? audioARef.current : audioBRef.current);
 
-  // Graphe Web Audio (créé UNE FOIS au déverrouillage — un AudioContext exige
-  // un geste utilisateur — jamais recréé ensuite).
   const audioCtxRef = useRef<AudioContext | null>(null);
   const gainARef = useRef<GainNode | null>(null);
   const gainBRef = useRef<GainNode | null>(null);
@@ -70,11 +44,8 @@ export default function RadioScreenPage() {
   };
   const announcementGainRef = useRef<GainNode | null>(null);
   const graphReadyRef = useRef(false);
-  // Chaîne de son de la sortie (égaliseur, basses, loudness, limiteur) et derniers réglages
-  // reçus du serveur : le graphe peut être créé APRÈS leur arrivée (déverrouillage tardif).
   const soundChainRef = useRef<SoundChain | null>(null);
   const soundRef = useRef(defaultSound());
-  // Étage de mixage (faders Musique / Rappels / Sortie, vumètres, porte du repli de route) et derniers réglages reçus.
   const mixStageRef = useRef<MixStage | null>(null);
   const mixRef = useRef(defaultMix());
   const [graphReady, setGraphReady] = useState(false);
@@ -84,36 +55,16 @@ export default function RadioScreenPage() {
   const lastReportRef = useRef(0);
   const isPrimaryRef = useRef(false);
 
-  // Slot que le SERVEUR considère comme actif, et id de piste chargé dans
-  // chaque slot (pour savoir si une piste annoncée est déjà en cours de
-  // fondu — avance anticipée — ou doit être chargée à neuf).
   const activeSlotRef = useRef<Slot>(0);
   const slotTrackIdRef = useRef<[number | null, number | null]>([null, null]);
   const crossfadingRef = useRef(false);
 
-  // Détection de flux bloqué : un hoquet réseau (Wi-Fi de la
-  // salle) peut arrêter la progression du flux SANS jamais déclencher `ended`
-  // ni `error` côté <audio> — la radio restait alors silencieuse
-  // indéfiniment, pendant que useInterpolatedPosition continuait d'extrapoler
-  // un temps qui ne s'écoulait plus réellement (cap ajouté dans ce hook).
-  // `timeupdate` natif du slot ACTIF est notre seul signal de vie fiable.
-  // `unlockedRef`/`playingRef` reflètent l'état React dans des refs (même
-  // patron que `isPrimaryRef` ci-dessous) pour rester lisibles depuis le
-  // watchdog/les handlers, qui ne doivent jamais fermer sur un rendu périmé.
-  // 0 plutôt que Date.now() ici (règle react-hooks/purity — pas d'appel
-  // impur pendant le rendu) : sans incidence, `loadDirect`/`startCrossfade`/
-  // `handleTimeUpdateForSlot` (tous hors rendu) posent un vrai timestamp bien
-  // avant que le watchdog ci-dessous ne fasse sa première vérification (5s).
   const lastProgressRef = useRef<[number, number]>([0, 0]);
   const recoveringRef = useRef(false);
   const unlockedRef = useRef(false);
   const playingRef = useRef(false);
 
   const activeAnnouncementRef = useRef<{ id: number; mode: string } | null>(null);
-  // Fondu d'entrée/sortie du RAPPEL LUI-MÊME. Le timeout de fin de fondu de
-  // sortie est annulable : un nouveau rappel qui démarrerait avant son
-  // expiration (dos-à-dos, écart < fadeMs) ne doit pas se faire couper par un
-  // pause() différé destiné à l'ancien.
   const announcementFadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recoveryPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const duckSettingsRef = useRef({ level: DUCK_LEVEL_DEFAULT, fadeMs: DUCK_FADE_MS_DEFAULT });
@@ -130,19 +81,13 @@ export default function RadioScreenPage() {
       .catch(() => {});
   }, []);
 
-  // ------------------------------------------------------------------
-  // Graphe Web Audio
-  // ------------------------------------------------------------------
   const ensureAudioGraph = (initialVolume: number) => {
     if (graphReadyRef.current) return;
     const AudioContextClass =
       window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return; // navigateur sans Web Audio API : dégradation silencieuse (pas de fondu, l'enchaînement net des pistes reste fonctionnel via onEnded)
+    if (!AudioContextClass) return;
     const ctx = new AudioContextClass();
     audioCtxRef.current = ctx;
-    // Toute la MUSIQUE (les deux slots du fondu enchaîné) passe par UNE chaîne de son, puis par l'étage de mixage
-    // (lib/radioMixGraph.ts) avant la sortie ; les rappels vocaux contournent la chaîne de la musique (intelligibilité)
-    // et ont la leur, neutre par défaut.
     const mixStage = createMixStage(ctx, ctx.destination, mixRef.current);
     mixStageRef.current = mixStage;
     const soundChain = createSoundChain(ctx, mixStage.musicInput, soundRef.current);
@@ -150,7 +95,7 @@ export default function RadioScreenPage() {
     for (const slot of [0, 1] as Slot[]) {
       const el = getAudioEl(slot);
       if (!el) continue;
-      el.volume = 1; // le volume réel passe désormais par le GainNode, jamais par l'élément
+      el.volume = 1;
       const gain = ctx.createGain();
       gain.gain.value = slot === activeSlotRef.current ? initialVolume / 100 : 0;
       gain.connect(soundChain.input);
@@ -188,16 +133,12 @@ export default function RadioScreenPage() {
     gain.gain.linearRampToValueAtTime(to, now + Math.max(0.001, durationMs / 1000));
   };
 
-  // ------------------------------------------------------------------
-  // Chargement direct (pas de fondu) : nouvelle playlist, saut manuel
-  // (suivant/précédent/file d'attente), reprise après un rappel.
-  // ------------------------------------------------------------------
   const loadDirect = (track: RadioTrackInfo, positionSeconds: number, playing: boolean, volumePercent: number) => {
     const slot = activeSlotRef.current;
     const el = getAudioEl(slot);
     if (!el) return;
     slotTrackIdRef.current[slot] = track.id;
-    lastProgressRef.current[slot] = Date.now(); // laisse une vraie fenêtre de grâce à ce chargement
+    lastProgressRef.current[slot] = Date.now();
     el.src = getApiUrl(`/radio/tracks/${track.id}/stream`);
     el.load();
     setGainNow(slot, volumePercent / 100);
@@ -206,20 +147,12 @@ export default function RadioScreenPage() {
       try {
         el.currentTime = positionSeconds || 0;
       } catch {
-        // Rattrapé au prochain évènement si toujours pas prêt.
       }
       if (playing && unlocked) el.play().catch(() => {});
     };
     el.addEventListener("canplay", onReady);
   };
 
-  // ------------------------------------------------------------------
-  // Fondu enchaîné : démarré CÔTÉ CLIENT, en avance sur la
-  // confirmation serveur (qui n'arrive qu'à la fin réelle de la piste
-  // sortante). `activeSlotRef` ne bascule qu'à cette confirmation (cf.
-  // handleEvent) — pendant le chevauchement, la position rapportée reste
-  // celle de la piste officiellement en cours côté serveur.
-  // ------------------------------------------------------------------
   const startCrossfade = (nextTrack: RadioTrackInfo, volumePercent: number, crossfadeSeconds: number) => {
     if (crossfadingRef.current) return;
     const fromSlot = activeSlotRef.current;
@@ -253,18 +186,11 @@ export default function RadioScreenPage() {
     const data = evt.data;
     const announcementAudio = announcementAudioRef.current;
 
-    // --- Rappels : le duck réutilise le graphe Web Audio du
-    // crossfade (rampGain) au lieu du ramp <audio>.volume. ---
     const ann = data.current_announcement;
     const wasAnnouncing = activeAnnouncementRef.current;
     if (announcementAudio && ann && ann.id !== wasAnnouncing?.id) {
       activeAnnouncementRef.current = { id: ann.id, mode: ann.mode };
-      // Un fondu anticipé qui n'a pas eu le temps de se confirmer avant
-      // qu'un rappel ne s'insère est annulé : on revient plein volume sur la
-      // piste officiellement active, pour laisser la place au rappel.
       abortCrossfadeIfAny(data.volume);
-      // Un rappel qui démarre avant l'expiration du fondu de sortie du
-      // précédent (dos-à-dos) annule le pause() différé qui lui était destiné.
       if (announcementFadeOutTimeoutRef.current) {
         clearTimeout(announcementFadeOutTimeoutRef.current);
         announcementFadeOutTimeoutRef.current = null;
@@ -293,9 +219,6 @@ export default function RadioScreenPage() {
         annGain.gain.setValueAtTime(annGain.gain.value, ctx.currentTime);
         annGain.gain.linearRampToValueAtTime(0, ctx.currentTime + Math.max(0.001, fadeMs / 1000));
       }
-      // pause()/removeAttribute différés jusqu'à la fin du fondu de sortie,
-      // sinon l'audio se coupe net avant même que le gain ait eu le temps de
-      // descendre (Web Audio ne coupe pas la lecture, seulement le volume).
       announcementFadeOutTimeoutRef.current = setTimeout(() => {
         unloadMedia(announcementAudio);
         announcementFadeOutTimeoutRef.current = null;
@@ -321,8 +244,6 @@ export default function RadioScreenPage() {
     const otherSlot = OTHER_SLOT(activeSlot);
 
     if (track.id === slotTrackIdRef.current[activeSlot]) {
-      // Piste déjà active : cas courant (tick de position, volume,
-      // pause/reprise, seek...) — rien à charger.
       const el = getAudioEl(activeSlot);
       if (!el) return;
       if (!isDucking) setGainNow(activeSlot, data.volume / 100);
@@ -331,16 +252,10 @@ export default function RadioScreenPage() {
         try {
           el.currentTime = data.position_seconds;
         } catch {
-          // ignore
         }
       }
-      // Postes miroirs : position et lecture/pause suivent l'horloge serveur
-      // (`useMediaClockFollower` plus bas), plus de recalage par seek au-delà
-      // de 1,5 s. Le poste primaire reste la source audio (fondu enchaîné).
 
       if (ann?.mode === "wait_end") {
-        // La piste vient de se terminer et laisse place au rappel : ne
-        // pas la relancer malgré `data.playing` resté à sa valeur d'avant.
       } else if (data.playing && el.paused) {
         if (unlocked) el.play().catch(() => {});
       } else if (!data.playing && !el.paused) {
@@ -350,9 +265,6 @@ export default function RadioScreenPage() {
     }
 
     if (crossfadingRef.current && slotTrackIdRef.current[otherSlot] === track.id) {
-      // Le serveur confirme la piste vers laquelle un fondu était déjà en
-      // cours : on officialise le changement de slot actif,
-      // rien à recharger — tout l'intérêt du fondu anticipé.
       setGainNow(activeSlot, 0);
       setGainNow(otherSlot, isDucking ? duckSettingsRef.current.level / 100 : data.volume / 100);
       getAudioEl(activeSlot)?.pause();
@@ -363,15 +275,10 @@ export default function RadioScreenPage() {
       return;
     }
 
-    // Chargement direct : nouvelle playlist, saut manuel, ou reprise après
-    // un rappel. Annule un fondu en cours s'il y en avait un.
     abortCrossfadeIfAny(data.volume);
     loadDirect(track, data.position_seconds || 0, data.playing, isDucking ? duckSettingsRef.current.level : data.volume);
   };
 
-  // Sortie radio de CE poste : `?channel=cable|network` explicite d'abord, sinon réseau
-  // (`/radio` nu a toujours été le poste radio réseau). Chaque sortie a son propre moteur,
-  // son rôle primaire et ses évènements côté serveur.
   const [displayChannel] = useState(() => getDisplayChannel("radio"));
   const radioChannel = radioChannelId(displayChannel);
   const { state, connected, sendCommand, isPrimary, serverNow, displayOutputCable } = useRadioSocket(
@@ -379,25 +286,19 @@ export default function RadioScreenPage() {
     "kiosk",
     radioChannel,
   );
-  // Réglages de son de la sortie : appliqués à la chaîne dès qu'ils changent (clé JSON stable :
-  // l'objet `sound` est recréé à chaque évènement d'état, seul son contenu compte).
   const soundKey = JSON.stringify(state.sound);
   useEffect(() => {
     soundRef.current = state.sound;
     soundChainRef.current?.apply(state.sound);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `soundKey` résume le contenu de state.sound
   }, [soundKey]);
-  // Table de mixage de la sortie (même principe : clé JSON stable, l'objet est recréé à chaque évènement d'état).
   const mixKey = JSON.stringify(state.mix);
   useEffect(() => {
     mixRef.current = clampMix(state.mix);
     mixStageRef.current?.apply(mixRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `mixKey` résume le contenu de state.mix
   }, [mixKey]);
-  // Route audio de la sortie : appliquée au navigateur de CE poste, résultat rapporté au serveur.
   useAudioRoute({ ctxRef: audioCtxRef, stageRef: mixStageRef, route: state.route ?? null, ready: graphReady, connected, sendCommand });
-  // Vumètre : mesuré (4 fois par seconde) et rapporté par le seul poste primaire, SEULEMENT tant qu'une interface de
-  // mixage le demande (`state.meter`) — aucun coût sinon.
   useEffect(() => {
     const stage = mixStageRef.current;
     if (!graphReady || !stage || !state.meter || !isPrimary) return;
@@ -411,11 +312,7 @@ export default function RadioScreenPage() {
       stage.setMetering(false);
     };
   }, [graphReady, state.meter, isPrimary, sendCommand]);
-  // La radio de la sortie câblée repart vers kiosk/cinéma quand l'admin y rebascule l'écran
-  // câblé (jamais au montage, et jamais pour un poste radio réseau).
   useDisplayOutputRedirect("radio", displayOutputCable, null);
-  // Postes MIROIRS : suivent l'horloge serveur. Pas de suivi pendant un
-  // rappel (état « announcing » : la musique y est gérée par le rappel).
   const activeMediaRef = useMemo(
     () => ({ get current() { return getAudioEl(activeSlotRef.current); } }),
     [],
@@ -442,14 +339,6 @@ export default function RadioScreenPage() {
 
   const livePosition = useInterpolatedPosition(state.position_seconds, state.playing, lastCause);
 
-  // null au premier rendu (plutôt que new Date()) : réglage react-hooks/purity
-  // + correctif hydratation (React error #418) — new Date()
-  // évalué pendant le rendu produit une valeur DIFFÉRENTE à la génération de
-  // l'export statique (figée au moment du `npm run build`) et à l'hydratation
-  // côté client (l'instant réel où la page s'ouvre, potentiellement des jours
-  // après) : React détecte l'écart et rejette tout le HTML pré-rendu. La vraie
-  // heure n'est posée qu'ici, dans l'effet ci-dessous (hors rendu, après
-  // hydratation) — formatWallClock affiche "--:--" le temps de ce premier réglage.
   const [now, setNow] = useState<Date | null>(null);
   const clockOffsetRef = useRef(0);
   useEffect(() => {
@@ -471,8 +360,6 @@ export default function RadioScreenPage() {
     };
   }, []);
 
-  // Ferme proprement le contexte Web Audio si la page se démonte (hygiène —
-  // ce poste reste normalement ouvert en permanence, comme un kiosk).
   useEffect(() => {
     const slotA = audioARef;
     const slotB = audioBRef;
@@ -489,7 +376,7 @@ export default function RadioScreenPage() {
 
   const maybeStartCrossfade = (el: HTMLAudioElement) => {
     if (crossfadingRef.current || !graphReadyRef.current || activeAnnouncementRef.current) return;
-    if (state.repeat === "track") return; // boucle sur elle-même (radio_restart_track), pas de fondu
+    if (state.repeat === "track") return;
     const { duration, currentTime } = el;
     if (!isFinite(duration) || duration <= 0) return;
     const crossfadeSeconds = Math.max(0, state.crossfade_seconds || 0);
@@ -505,13 +392,10 @@ export default function RadioScreenPage() {
     startCrossfade(nextTrack, state.volume, crossfadeSeconds);
   };
 
-  // Gestionnaires pré-liés (pas de curryfication appelée pendant le rendu,
-  // ex. `onTimeUpdate={f(0)}` — évite les faux positifs du lint hooks/refs
-  // sur les fonctions invoquées au rendu qui referment sur des refs).
   const handleTimeUpdateForSlot = (slot: Slot) => {
     const el = getAudioEl(slot);
     if (!el || slot !== activeSlotRef.current) return;
-    lastProgressRef.current[slot] = Date.now(); // signe de vie du flux
+    lastProgressRef.current[slot] = Date.now();
     if (isPrimaryRef.current) {
       const nowMs = Date.now();
       if (nowMs - lastReportRef.current >= 900) {
@@ -525,43 +409,14 @@ export default function RadioScreenPage() {
   const handleTimeUpdateB = () => handleTimeUpdateForSlot(1);
 
   const handleEndedForSlot = (slot: Slot) => {
-    // `track_id` : piste que CE poste vient de terminer — le serveur ignore un
-    // signal périmé (chaque page /radio l'envoie).
     if (slot === activeSlotRef.current) sendCommand("radio_track_ended", { track_id: slotTrackIdRef.current[slot] });
   };
   const handleEndedA = () => handleEndedForSlot(0);
   const handleEndedB = () => handleEndedForSlot(1);
 
-  // ------------------------------------------------------------------
-  // Récupération d'un flux bloqué : ni `onEnded`
-  // (la piste ne s'est pas vraiment terminée) ni le serveur (rien ne lui dit
-  // que ça a coincé) ne peuvent s'en apercevoir seuls — c'est au lecteur, qui
-  // voit le flux réel, de le détecter et de se réparer. Un seul essai de
-  // rechargement à la même position (souvent suffisant pour un hoquet Wi-Fi
-  // passager) ; si ça ne suffit pas, on traite ça comme une fin de piste pour
-  // que le serveur avance normalement plutôt que de rester bloqué en silence.
-  //
-  // CORRECTIF :
-  // un unique contrôle ponctuel à RECOVERY_GRACE_MS donnait de FAUX abandons
-  // — sur un réseau déjà en difficulté (raison même du déclenchement), un
-  // rechargement peut légitimement prendre plus de 5 s à reprendre. Quand ça
-  // arrivait, on envoyait `radio_track_ended` au serveur ALORS QUE la reprise
-  // avait réussi et que la musique rejouait déjà : le serveur croyait la
-  // piste finie (ambiance "toutes les N musiques" → annonce en mode
-  // `wait_end`, qui ne baisse JAMAIS la musique — normal, elle est censée
-  // être silencieuse à ce stade) et avançait, d'où un rappel plaqué sur une
-  // musique bien vivante, sans fade, et potentiellement un chevauchement
-  // avec la piste suivante. Fix : on VÉRIFIE PLUSIEURS FOIS (pas un coup
-  // isolé) et on annule l'abandon dès qu'un vrai `timeupdate` revient,
-  // laissant une vraie chance à une reprise simplement lente.
-  // ------------------------------------------------------------------
   const RECOVERY_GRACE_MS = 10000;
   const RECOVERY_POLL_MS = 1000;
 
-  // useCallback (identité stable via `sendCommand`, lui-même stable) : appelée
-  // depuis le watchdog ci-dessous, qui ne doit pas recréer son `setInterval`
-  // à chaque rendu — tout ce qu'elle lit à part `sendCommand` passe par des
-  // refs, donc rien d'autre à lister en dépendance.
   const attemptRecovery = useCallback((slot: Slot) => {
     if (recoveringRef.current || slot !== activeSlotRef.current) return;
     recoveringRef.current = true;
@@ -572,7 +427,6 @@ export default function RadioScreenPage() {
         el.load();
         el.currentTime = pos;
       } catch {
-        // rattrapé par la vérification de blocage persistant ci-dessous
       }
       if (unlockedRef.current) el.play().catch(() => {});
     }
@@ -580,9 +434,6 @@ export default function RadioScreenPage() {
     lastProgressRef.current[slot] = attemptStartedAt;
     if (recoveryPollRef.current) clearInterval(recoveryPollRef.current);
     const pollId = setInterval(() => {
-      // Un vrai timeupdate est revenu APRÈS le début de cette tentative : la
-      // reprise a fonctionné (fût-elle lente), on arrête là sans rien signaler
-      // au serveur — la piste n'a jamais vraiment fini.
       if (lastProgressRef.current[slot] > attemptStartedAt) {
         clearInterval(pollId);
         recoveringRef.current = false;
@@ -602,19 +453,12 @@ export default function RadioScreenPage() {
     if (slot === activeSlotRef.current) {
       attemptRecovery(slot);
     } else if (crossfadingRef.current) {
-      // La piste préchargée pour le fondu a échoué à charger (hoquet réseau
-      // pile au moment du fondu) : on annule proprement plutôt que de laisser
-      // un fondu à moitié fait — la piste active garde son plein volume, son
-      // `onEnded` naturel déclenchera l'enchaînement normal en fin de piste.
       abortCrossfadeIfAny(state.volume);
     }
   };
   const handleErrorA = () => handleErrorForSlot(0);
   const handleErrorB = () => handleErrorForSlot(1);
 
-  // Filet de sécurité pour le cas où le flux se bloque SANS jamais déclencher
-  // `error` (juste plus aucune progression) : vérifie périodiquement que le
-  // slot actif donne encore signe de vie pendant qu'il est censé jouer.
   const STALL_TIMEOUT_MS = 15000;
   useEffect(() => {
     const id = setInterval(() => {
@@ -627,12 +471,6 @@ export default function RadioScreenPage() {
     return () => clearInterval(id);
   }, [attemptRecovery]);
 
-  // Le contexte audio peut repasser en « suspended » sans geste de
-  // l'utilisateur (Firefox : changement de périphérique de sortie,
-  // économiseur d'énergie, retour d'un onglet masqué) : la radio resterait
-  // alors muette alors que tout paraît « en lecture ». On le relance dès que
-  // l'onglet redevient visible et par un contrôle léger périodique, mais
-  // seulement une fois le poste déverrouillé par un vrai geste.
   useEffect(() => {
     const resumeIfSuspended = () => {
       const ctx = audioCtxRef.current;
@@ -650,12 +488,6 @@ export default function RadioScreenPage() {
     setUnlocked(true);
     ensureAudioGraph(state.volume);
     audioCtxRef.current?.resume().catch(() => {});
-    // Déverrouiller le poste NE lance JAMAIS de son par lui-même quand aucune
-    // radio n'est active : sans piste courante (état « idle »), on se contente
-    // d'armer le contexte audio pour un futur lancement. Démarrer une lecture
-    // ici désynchroniserait l'interface admin (le poste deviendrait source de
-    // position sur un état fantôme). On ne (re)prend le son que si le SERVEUR
-    // signale une radio réellement en cours de lecture.
     const radioIsActive = !!state.current_track && state.state !== "idle";
     const el = getAudioEl(activeSlotRef.current);
     if (el && radioIsActive && state.playing) {
@@ -667,11 +499,6 @@ export default function RadioScreenPage() {
     }
   };
 
-  // Déverrouillage automatique : sur une sortie câblée (kiosque du Wyse, HDMI Android, fenêtre
-  // projecteur) personne ne peut cliquer. Si le navigateur autorise déjà la lecture
-  // automatique (sonde par détection de fonctionnalité), le poste s'arme tout seul ; sinon
-  // l'overlay « Démarrer la radio » reste affiché (navigateur ordinaire). `probed` évite un
-  // flash de l'overlay pendant la sonde.
   const [autoplayProbed, setAutoplayProbed] = useState(false);
   const handleUnlockRef = useRef<() => void>(() => {});
   useEffect(() => {
@@ -695,9 +522,6 @@ export default function RadioScreenPage() {
 
   const handlePlayPause = () => sendCommand(state.playing ? "pause" : "play");
 
-  // Télécommande à dongle USB : transport + volume au clavier/
-  // touches média. Une touche étant un geste utilisateur, elle peut aussi
-  // débloquer l'audio depuis l'overlay « Démarrer la radio ».
   const changeRadioVolume = (delta: number) => {
     sendCommand("volume", { volume: Math.max(0, Math.min(100, state.volume + delta)) });
   };
@@ -705,7 +529,7 @@ export default function RadioScreenPage() {
     if (!unlocked) {
       return { onEnter: handleUnlock, onPlayPause: handleUnlock };
     }
-    if (!currentTrack) return {}; // radio inactive : rien à piloter
+    if (!currentTrack) return {};
     return {
       onPlayPause: handlePlayPause,
       onEnter: handlePlayPause,

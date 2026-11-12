@@ -33,7 +33,6 @@ def _list(ctx: _Context, file: str, document: dict, key: str) -> list:
 
 
 def _flag(ctx: _Context, file: str, label: str, value: Any) -> bool:
-    """Booléen JSON strict : la chaîne « false » ne doit pas valoir vrai par simple vérité Python."""
     if not isinstance(value, bool):
         ctx.fail(file, f"{label} doit être un booléen (true ou false)")
         return False
@@ -41,7 +40,6 @@ def _flag(ctx: _Context, file: str, label: str, value: Any) -> bool:
 
 
 def _text(ctx: _Context, file: str, label: str, value: Any, *, required: bool = False) -> tuple[bool, str | None]:
-    """(valide, valeur nettoyée) : une chaîne vide efface un champ facultatif ; un champ obligatoire ne peut pas l'être."""
     if value is None and not required:
         return True, None
     if not isinstance(value, str):
@@ -82,10 +80,8 @@ def _diff(name: str, before: dict, wanted: dict) -> list[str]:
     clean = {k: v for k, v in wanted.items() if k not in ignored}
     current = {k: v for k, v in before.items() if k not in ignored}
     if name == "library/videos.json":
-        # Liens vers les chapitres et sous-titres : informatifs, jamais appliqués, donc absents de l'écart.
         clean, current = _without_links(clean), _without_links(current)
     if '"uid"' not in json.dumps(clean):
-        # Document de la version 5.1, sans `uid` : l'écart ne porte pas sur les identifiants.
         current = _strip_uids(current)
     if clean == current:
         return []

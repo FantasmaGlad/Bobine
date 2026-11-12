@@ -10,25 +10,19 @@ logger = logging.getLogger(__name__)
 
 
 def get_target_bitrate(width: int | None, height: int | None) -> str:
-    """
-    Calcule un débit binaire adapté garantissant une qualité vidéo native intégrale
-    sans aucune réduction (downscale) de résolution (conservation 2K/4K).
-    """
+    """Calcule un débit binaire adapté garantissant une qualité vidéo native intégrale sans aucune réduction (downscale) de résolution (conservation 2K/4K)."""
     w = width or 1920
     h = height or 1080
     pixels = w * h
-    if pixels >= 3840 * 2160 * 0.8:  # 4K UHD (2160p)
+    if pixels >= 3840 * 2160 * 0.8:
         return "28M"
-    elif pixels >= 2560 * 1440 * 0.8:  # 2K QHD (1440p)
+    elif pixels >= 2560 * 1440 * 0.8:
         return "14M"
-    return "6M"  # 1080p Full HD et inférieur
+    return "6M"
 
 
 def find_vaapi_device() -> str | None:
-    """
-    Recherche un périphérique DRM render node disponible et accessible en lecture/écriture.
-    Priorité aux noeuds conventionnels renderD128 et renderD129, puis balayage de /dev/dri/renderD*.
-    """
+    """Recherche un périphérique DRM render node disponible et accessible en lecture/écriture."""
     candidates = ["/dev/dri/renderD128", "/dev/dri/renderD129"]
     dri_dir = Path("/dev/dri")
     if dri_dir.exists():
@@ -47,43 +41,26 @@ def find_vaapi_device() -> str | None:
 
 
 def get_encoder_args(is_android: bool, width: int | None, height: int | None) -> tuple[list[str], str]:
-    """
-    Détermine les arguments d'encodage optimaux selon la plateforme et le matériel détecté.
-    Retourne (liste_arguments_ffmpeg, nom_encodeur).
-    """
+    """Détermine les arguments d'encodage optimaux selon la plateforme et le matériel détecté."""
     bitrate = get_target_bitrate(width, height)
     system = platform.system().lower()
 
-    # Intervalle de trames clés resserré : sans `-g` explicite, ffmpeg choisit un GOP par défaut
-    # pouvant dépasser plusieurs secondes — un seek admin vers une position
-    # hors keyframe oblige alors le décodeur à rattraper depuis la keyframe
-    # précédente, terrain propice aux blocages sur certains décodeurs
-    # matériels (VA-API, MediaCodec). Une trame clé toutes les 60 images
-    # (~2s à 30 im/s) borne ce rattrapage sans impact perceptible sur le
-    # débit à ces bitrates cibles.
     gop_args = ["-g", "60"]
 
     if is_android:
-        # Qualcomm Snapdragon MediaCodec matériel : operating_rate 1000 pour horloge max,
-        # nv12 pour zéro-copie avec le décodeur matériel.
         return (["-c:v", "h264_mediacodec", "-operating_rate", "1000", "-pix_fmt", "nv12", "-b:v", bitrate, *gop_args], "h264_mediacodec")
 
     if system == "darwin":
-        # macOS : Apple Silicon (puces M1/M2/M3/M4) et Intel via VideoToolbox matériel
         return (["-c:v", "h264_videotoolbox", "-q:v", "65", "-pix_fmt", "yuv420p", *gop_args], "h264_videotoolbox")
 
     if system == "linux":
-        # Dell Wyse 5070 (Intel Gemini Lake UHD 600) ou station Linux avec VA-API
         dev = find_vaapi_device()
         if dev:
             return (["-vaapi_device", dev, "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-async_depth", "4", "-b:v", bitrate, *gop_args], "h264_vaapi")
 
     if system == "windows":
-        # Windows : Intel QuickSync (h264_qsv)
         return (["-c:v", "h264_qsv", "-preset", "fast", "-b:v", bitrate, *gop_args], "h264_qsv")
 
-    # Repli logiciel universel haute compatibilité (serveurs headless sans GPU, repli après échec GPU)
-    # Race to sleep : preset ultrafast et tous les threads CPU disponibles (-threads 0) pour achever la tâche au plus vite
     return (["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-threads", "0", "-pix_fmt", "yuv420p", *gop_args, "-keyint_min", "60"], "libx264")
 
 
@@ -93,14 +70,7 @@ def get_transcode_pipeline(
     width: int | None,
     height: int | None,
 ) -> list[dict]:
-    """
-    Construit le pipeline d'accélération matérielle multi-paliers (Full HW -> Hybride -> Logiciel).
-    Chaque palier est un dictionnaire contenant :
-    - 'name': identifiant lisible du palier
-    - 'encoder_name': nom de l'encodeur (pour les statistiques de vitesse)
-    - 'hw_in': liste d'arguments placés AVANT -i (décodage matériel GPU direct en VRAM)
-    - 'enc_args': liste d'arguments d'encodage vidéo placés APRÈS -i
-    """
+    """Construit le pipeline d'accélération matérielle multi-paliers (Full HW -> Hybride -> Logiciel)."""
     bitrate = get_target_bitrate(width, height)
     system = platform.system().lower()
     gop_args = ["-g", "60"]
@@ -194,12 +164,7 @@ def get_transcode_pipeline(
 
 
 def shares_machine_with_browser() -> bool:
-    """Vrai sur les profils où le navigateur d'administration tourne sur la
-    MÊME machine que le backend (applications Windows, macOS et Linux de
-    bureau) : un réencodage `-threads 0` au plein de la priorité y affame le
-    navigateur (onglet figé, voire tué par manque de mémoire/CPU). Faux sur
-    l'appliance headless dédiée (le « race to sleep » reste voulu : finir
-    vite pour redormir) et sur Android (cf. profil dédié, seccomp)."""
+    """Vrai sur les profils où le navigateur d'administration tourne sur la MÊME machine que le backend (applications Windows, macOS et Linux de bureau) : un réencodage `-threads 0` au plein de la priorité y affame le navigateur (onglet figé, voire tué par manque de mémoire/CPU)."""
     from app.utils.deployment import get_deployment_profile
 
     return get_deployment_profile() in ("windows", "macos", "linux-desktop")
@@ -213,10 +178,7 @@ def background_priority_popen_kwargs() -> dict:
 
 
 def lower_process_priority(pid: int) -> None:
-    """POSIX (macOS, Linux de bureau) : `nice 10` sur le processus ffmpeg. Posé
-    juste après le lancement plutôt que par `preexec_fn`, déconseillé dans un
-    processus multi-threadé (risque d'interblocage). Best-effort : un échec ne
-    doit jamais faire échouer l'import."""
+    """POSIX (macOS, Linux de bureau) : `nice 10` sur le processus ffmpeg."""
     if os.name == "nt" or not shares_machine_with_browser():
         return
     try:

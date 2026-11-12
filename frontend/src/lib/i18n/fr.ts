@@ -1,6 +1,5 @@
 import type { Dict } from "./core.ts";
 
-// Textes de l'interface en français. Une seule langue est embarquée dans chaque export statique (cf. next.config.ts).
 export const dictionary: Dict = {
   nav: {
     dashboard: "Tableau de bord",

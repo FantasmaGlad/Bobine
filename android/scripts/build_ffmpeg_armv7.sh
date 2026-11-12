@@ -1,18 +1,4 @@
 #!/usr/bin/env bash
-# Compile ffmpeg et ffprobe pour armeabi-v7a (Bionic, NDK) et les dépose dans
-# jniLibs/armeabi-v7a sous les noms libffmpeg.so / libffprobe.so.
-#
-# Pourquoi compiler : le seul binaire arm64 publié par le dépôt tiers utilisé
-# pour arm64-v8a n'a pas d'équivalent 32 bits, or beaucoup de boîtiers Android
-# TV (Chromecast avec Google TV, Xiaomi TV Stick/Box) ont un système 32 bits et
-# ne peuvent pas exécuter de binaire arm64. Ce ne sont pas de vraies
-# bibliothèques : des exécutables renommés pour profiter du seul mécanisme de
-# packaging natif d'Android (cf. packaging.jniLibs dans build.gradle.kts).
-#
-# Build LGPL (ni GPL ni non-free), même périmètre que le binaire arm64 :
-# décodage/encodage matériel via MediaCodec, pas de libx264.
-#
-# Usage : ANDROID_NDK_HOME=/chemin/vers/ndk-r28c ./build_ffmpeg_armv7.sh
 set -euo pipefail
 
 FFMPEG_VERSION="8.1.1"

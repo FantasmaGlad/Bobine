@@ -1,26 +1,4 @@
-"""Compression HTTP (gzip) des réponses texte/JSON de l'API et du frontend statique.
-
-Pourquoi : aucune compression n'existait. Mesuré sur la 5.0.2 : `frontend/out`
-2,7 Mo de texte -> 0,76 Mo en gzip, JSON de `/api/radio/tracks` (5000 titres)
-1,09 Mo -> 39 Ko. Les kiosques et télécommandes ouverts depuis un autre appareil
-du réseau local (Wi-Fi) en profitent directement.
-
-Ce qui n'est JAMAIS compressé (sinon la lecture ou la reprise casserait) :
-- les flux média (`/stream`), les miniatures et le branding : binaires déjà
-  compressés, servis avec Range/ETag par `app/utils/media_response.py` ;
-- tout ce qui n'est pas du texte/JSON (audio, vidéo, images, ZIP) ;
-- les requêtes `Range` et les réponses autres que 200 (206, 304...), déjà
-  encodées, avec `Content-Disposition` (téléchargements) ou `ETag` (la
-  compression changerait la représentation : le validateur d'origine ne serait
-  plus exact) ;
-- les WebSocket, les requêtes `HEAD` (longueur annoncée != longueur compressée) ;
-- les clients bouclage (127.0.0.0/8, ::1) : le kiosque Chromium local et la WebView
-  Android parlent à leur propre serveur sans réseau, la compression y coûterait
-  du CPU pour aucun octet économisé.
-
-Compatible Starlette 0.27 (profil Android, FastAPI 0.99) comme 1.x : seules les
-API ASGI et `starlette.datastructures` de base sont utilisées.
-"""
+"""Compression HTTP (gzip) des réponses texte/JSON de l'API et du frontend statique."""
 
 from __future__ import annotations
 
@@ -32,13 +10,9 @@ import anyio.to_thread
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-# Sous ce seuil le gzip ne rapporte rien (en-tête gzip + en-têtes HTTP en plus).
 MIN_COMPRESSIBLE_SIZE = 1024
-# `zlib` libère le GIL : au-delà de ce seuil, la compression part dans un thread
-# pour ne pas bloquer la boucle d'évènements (tâches de lecture, WebSocket).
 _THREAD_THRESHOLD = 32 * 1024
 _COMPRESS_LEVEL = 5
-# 16 + MAX_WBITS : conteneur gzip (et pas zlib brut).
 _GZIP_WBITS = 31
 
 _COMPRESSIBLE_TYPES = frozenset(
@@ -73,7 +47,7 @@ def accepts_gzip(accept_encoding: str | None) -> bool:
         if coding == "*":
             wildcard = quality > 0
         else:
-            return quality > 0  # gzip nommé : prioritaire sur `*`
+            return quality > 0
     return wildcard
 
 
@@ -82,7 +56,7 @@ def is_compressible_media_type(content_type: str | None) -> bool:
     if not content_type:
         return False
     media_type = content_type.split(";", 1)[0].strip().lower()
-    if media_type == "text/event-stream":  # flux continu : la mise en tampon gzip le figerait
+    if media_type == "text/event-stream":
         return False
     return (
         media_type.startswith("text/")
@@ -99,7 +73,7 @@ def is_loopback_client(scope: Scope) -> bool:
     try:
         return ipaddress.ip_address(client[0]).is_loopback
     except ValueError:
-        return False  # nom d'hôte (clients de test) : pas du bouclage
+        return False
 
 
 def request_allows_gzip(scope: Scope) -> bool:
@@ -128,10 +102,7 @@ def add_vary_accept_encoding(headers: MutableHeaders) -> None:
 
 
 class ApiCompressionMiddleware:
-    """gzip des réponses JSON/texte de `/api/*`, uniquement quand le client le
-    demande et que la réponse est une représentation complète sans validateur.
-    Le frontend statique négocie lui-même (ETag par contenu, cf.
-    `RevalidateStaticFiles` dans `app/api/static_files.py`)."""
+    """gzip des réponses JSON/texte de `/api/*`, uniquement quand le client le demande et que la réponse est une représentation complète sans validateur."""
 
     def __init__(
         self,
@@ -198,7 +169,6 @@ class _GzipResponder:
                 self.passthrough = True
                 await self.send(message)
                 return
-            # Mise en attente : la décision (taille) dépend du premier corps.
             self.initial_message = message
             return
 
@@ -213,7 +183,6 @@ class _GzipResponder:
         if self.compressor is None:
             add_vary_accept_encoding(headers)
             if not more_body and len(body) < self.minimum_size:
-                # Réponse complète trop petite : envoyée telle quelle.
                 self.passthrough = True
                 await self.send(self.initial_message)
                 await self.send(message)
@@ -225,7 +194,6 @@ class _GzipResponder:
                 await self.send(self.initial_message)
                 await self.send({"type": "http.response.body", "body": compressed})
                 return
-            # Corps en plusieurs morceaux : longueur inconnue d'avance.
             if "content-length" in headers:
                 del headers["content-length"]
             self.compressor = zlib.compressobj(_COMPRESS_LEVEL, zlib.DEFLATED, _GZIP_WBITS)

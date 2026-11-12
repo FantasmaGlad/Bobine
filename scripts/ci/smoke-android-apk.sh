@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# Démarre le vrai service Chaquopy et attend une base SQLite opérationnelle.
-# Usage : smoke-android-apk.sh mobile|tv [chemin.apk] ; émulateur jetable uniquement.
-# Le port d'écoute n'est pas imposé : le serveur embarqué choisit son port et le publie dans
-# files/backend-runtime.json (app/utils/port.py). La sonde le lit par `run-as` (APK de debug),
-# redirige CE port et sonde l'API par là. Le repli sur un port libre n'est pas exercé ici : seul
-# le port publié par le serveur est sondé.
 set -euo pipefail
 flavor="${1:?flavor mobile ou tv requis}"
 case "$flavor" in
@@ -21,12 +15,10 @@ cleanup() {
   adb exec-out screencap -p > "$logs/screen-$flavor.png" || true
   if [[ -n "${port:-}" ]]; then adb forward --remove "tcp:$port" || true; fi
 }
-# Refuser un appareil réel : ce script installe un APK de test sur un AVD dédié.
 [[ "$(adb shell getprop ro.kernel.qemu | tr -d '\r')" == 1 ]] || {
   echo "Un émulateur Android jetable est requis." >&2; exit 2;
 }
 trap cleanup EXIT
-# Les deux variantes exposent le même port dans l'appareil de test.
 adb shell am force-stop com.bobine.app
 adb shell am force-stop com.bobine.app.tv
 adb install --no-streaming -r -g "$apk"
@@ -48,7 +40,6 @@ except Exception:
   fi
   if [[ -n "${port:-}" ]] && curl --max-time 2 -fsS "http://127.0.0.1:$port/api/health" > "$logs/health-$flavor.json" 2>/dev/null; then
     python3 -c 'import json,sys; p=json.load(open(sys.argv[1])); assert p["status"] == "ok" and p["components"]["database"] == "ok", p' "$logs/health-$flavor.json"
-    # L'API et le frontend embarqué doivent tous deux être servis par l'APK.
     curl --max-time 10 -fsS "http://127.0.0.1:$port/api/settings" > "$logs/settings-$flavor.json"
     curl --max-time 10 -fsS "http://127.0.0.1:$port/" > "$logs/index-$flavor.html"
     grep -qi '<html' "$logs/index-$flavor.html"

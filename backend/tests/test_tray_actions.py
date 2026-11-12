@@ -80,7 +80,7 @@ def test_states_are_cached_briefly_and_refreshed_after_an_action(backend):
     now = [0.0]
     c = controls(backend, lambda: now[0])
     c.states(); c.states(); c.label("playback", "cable", "Câblé")
-    assert len([call for call in backend.calls if call[0] == "GET"]) == 4  # une lecture par sortie, une seule fois
+    assert len([call for call in backend.calls if call[0] == "GET"]) == 4
     now[0] = 5.0
     c.states()
     assert len([call for call in backend.calls if call[0] == "GET"]) == 8
@@ -105,7 +105,7 @@ def test_update_outcome_notification_is_recent_new_and_unacknowledged():
 
     done = {"step": "done", "started_at": 100.0, "updated_at": 110.0, "acknowledged_started_at": None}
     assert notify(done, None, now=120.0)
-    assert not notify(done, 100.0, now=120.0)  # déjà notifiée
-    assert not notify({**done, "acknowledged_started_at": 100.0}, None, now=120.0)  # fermée dans l'interface
-    assert not notify(done, None, now=110.0 + 601)  # ancienne : un redémarrage ne la rejoue pas
+    assert not notify(done, 100.0, now=120.0)
+    assert not notify({**done, "acknowledged_started_at": 100.0}, None, now=120.0)
+    assert not notify(done, None, now=110.0 + 601)
     assert not notify({**done, "step": "installing"}, None, now=120.0)

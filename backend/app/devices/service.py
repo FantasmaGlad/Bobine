@@ -1,8 +1,4 @@
-"""Service des périphériques : pilote unique du processus, évènements WebSocket, filet de sécurité Wi-Fi.
-
-Les évènements WebSocket `devices_changed` ne portent AUCUNE donnée (juste la portée : audio,
-bluetooth, wifi) : les clients relisent l'état par REST.
-"""
+"""Service des périphériques : pilote unique du processus, évènements WebSocket, filet de sécurité Wi-Fi."""
 
 from __future__ import annotations
 
@@ -28,8 +24,6 @@ WIFI_CONFIRM_SECONDS = 60
 MONITOR_INTERVAL_SECONDS = 8.0
 _EVENT_MIN_GAP = 0.25
 
-# Résultats qu'un lecteur /radio peut rapporter après avoir tenté d'appliquer sa route (lib/audioRoute.ts) ; tout autre
-# texte reçu est ramené à « error » (le rapport vient d'un client, il n'est jamais cru sur parole).
 PLAYER_ROUTE_STATUSES = frozenset({"applied", "default", "muted", "unsupported", "insecure", "needs_labels", "no_match", "missing", "error"})
 
 
@@ -37,10 +31,10 @@ PLAYER_ROUTE_STATUSES = frozenset({"applied", "default", "muted", "unsupported",
 class WifiPendingChange:
     """Changement de Wi-Fi à reconfirmer : sans confirmation avant l'échéance, retour à l'ancien réseau."""
 
-    kind: str  # "connect" | "power_off"
+    kind: str
     previous_connection: str | None
     target: str
-    deadline: float  # horloge monotonique
+    deadline: float
 
 
 class DevicesService:
@@ -52,13 +46,11 @@ class DevicesService:
         self._snapshots: dict[str, str] = {}
         self._wifi_pending: WifiPendingChange | None = None
         self._wifi_timer: asyncio.Task[None] | None = None
-        # Routage audio par sortie radio (phase 2)
         self._has_routes = False
         self._server_moved = False
         self._server_status: dict[str, dict[str, Any]] = {}
         self._reconcile_task: asyncio.Task[None] | None = None
 
-    # ------------------------------------------------------------------ pilote
     @property
     def driver(self) -> DeviceDriver:
         if self._driver is None:
@@ -67,14 +59,13 @@ class DevicesService:
         return self._driver
 
     def set_driver(self, driver: DeviceDriver | None) -> None:
-        """Remplace le pilote (tests, rechargement). L'ancien est simplement abandonné."""
+        """Remplace le pilote (tests, rechargement)."""
         self._driver = driver
         if driver is not None:
             driver.set_change_callback(self.notify)
 
-    # ------------------------------------------------------------------ évènements
     def notify(self, scope: str) -> None:
-        """Signale un changement (appelable depuis n'importe quel thread). Limité à ~4/s et par portée."""
+        """Signale un changement (appelable depuis n'importe quel thread)."""
         now = time.monotonic()
         if now - self._last_event.get(scope, 0.0) < _EVENT_MIN_GAP:
             return
@@ -101,7 +92,6 @@ class DevicesService:
         return hashlib.sha1(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
 
     async def _monitor_loop(self) -> None:
-        """Détecte les changements extérieurs (branchement d'un casque, perte du Wi-Fi...) tant qu'un client écoute."""
         while True:
             await asyncio.sleep(MONITOR_INTERVAL_SECONDS)
             try:
@@ -118,13 +108,11 @@ class DevicesService:
                     if previous is not None and previous != digest:
                         self.notify(scope)
                         audio_changed = audio_changed or scope == "audio"
-                # Routes audio : une sortie qui apparaît (haut-parleur reconnecté) ou disparaît change l'état publié aux
-                # lecteurs ; un flux déplacé par le serveur est revérifié (une pause/reprise le recrée sur la sortie par défaut).
                 if audio_changed or self._has_routes or self._server_moved:
                     await self.reconcile_routes()
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # la surveillance ne doit jamais s'arrêter ni perturber la diffusion
+            except Exception as exc:
                 logger.debug("Surveillance des périphériques : %s", exc)
 
     async def start(self) -> None:
@@ -142,8 +130,6 @@ class DevicesService:
         for task in tasks:
             task.cancel()
         self._monitor = self._wifi_timer = self._reconcile_task = None
-        # Cancellation is cooperative: let monitors finish their subprocess
-        # cleanup before stopping the driver and closing the application loop.
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
             for result in results:
@@ -155,7 +141,6 @@ class DevicesService:
             except Exception as exc:
                 logger.debug("Arrêt du pilote de périphériques : %s", exc)
 
-    # ------------------------------------------------------------------ routage audio par sortie radio (phase 2)
     async def current_sinks(self) -> list[dict[str, Any]] | None:
         """Sorties audio actuelles, ou None si la plateforme ne sait pas les lister (route alors « inconnue »)."""
         try:
@@ -163,7 +148,7 @@ class DevicesService:
             if not caps.get("audio_list", {}).get("supported"):
                 return None
             listing = await self.driver.audio_list()
-        except Exception as exc:  # une panne du pilote ne doit jamais toucher à la diffusion
+        except Exception as exc:
             logger.debug("Sorties audio indisponibles pour le routage : %s", exc)
             return None
         return list(listing.get("devices", [])) if listing.get("supported") else None
@@ -174,21 +159,19 @@ class DevicesService:
             return
         try:
             self._reconcile_task = asyncio.get_running_loop().create_task(self.reconcile_routes())
-        except RuntimeError:  # pas de boucle (tests synchrones) : rien à programmer
+        except RuntimeError:
             self._reconcile_task = None
 
     def server_status(self, channel: str) -> dict[str, Any] | None:
         return self._server_status.get(channel)
 
     def note_player_report(self, channel: str) -> None:
-        """Un lecteur a rapporté le résultat de sa route : les interfaces ouvertes se relisent, et le serveur réévalue
-        (il ne déplace un flux que si le navigateur n'a pas pu appliquer la route lui-même)."""
+        """Un lecteur a rapporté le résultat de sa route : les interfaces ouvertes se relisent, et le serveur réévalue (il ne déplace un flux que si le navigateur n'a pas pu appliquer la route lui-même)."""
         self.notify("routing")
         self.schedule_reconcile()
 
     async def reconcile_routes(self) -> None:
-        """Résout les routes mémorisées contre les sorties actuelles, publie l'état « route » aux lecteurs de chaque sortie
-        radio, puis laisse le serveur déplacer un flux quand c'est possible et nécessaire. Ne lève jamais."""
+        """Résout les routes mémorisées contre les sorties actuelles, publie l'état « route » aux lecteurs de chaque sortie radio, puis laisse le serveur déplacer un flux quand c'est possible et nécessaire."""
         from app.database import SessionLocal
         from app.radio_manager import get_all_radio_managers
 
@@ -207,9 +190,6 @@ class DevicesService:
             logger.debug("Réconciliation des routes audio : %s", exc)
 
     async def _apply_server_routes(self, routes: dict[str, dict[str, Any]], sinks: list[dict[str, Any]] | None) -> None:
-        """Mécanisme 2 (serveur, Linux) : déplace le flux du navigateur LOCAL qui joue la radio. Uniquement pour une sortie
-        dont la radio joue, avec un lecteur local, quand aucun lecteur n'a pu appliquer la route lui-même ; un seul candidat à
-        la fois (sinon « ambigu », rien n'est déplacé)."""
         from app.radio_manager import get_all_radio_managers
 
         before = json.dumps(self._server_status, sort_keys=True, default=str)
@@ -227,7 +207,7 @@ class DevicesService:
                 self._server_status[channel] = {"status": "unsupported", "reason": capability.get("reason", "")}
                 continue
             if any((p["report"] or {}).get("status") == "applied" for p in local):
-                self._server_status[channel] = {"status": "browser"}  # le navigateur s'en charge : le serveur n'y touche pas
+                self._server_status[channel] = {"status": "browser"}
                 continue
             resolution = resolve_route(route, sinks)
             if resolution["state"] != "routed" or not manager.state.get("playing"):
@@ -251,9 +231,8 @@ class DevicesService:
                 for channel, _ in candidates:
                     self._server_status[channel] = {"status": "failed", "detail": exc.message}
         if json.dumps(self._server_status, sort_keys=True, default=str) != before:
-            self.notify("routing")  # l'interface relit l'état du routage (aucune donnée dans l'évènement)
+            self.notify("routing")
 
-    # ------------------------------------------------------------------ filet de sécurité Wi-Fi
     @property
     def wifi_pending(self) -> WifiPendingChange | None:
         return self._wifi_pending
@@ -300,7 +279,7 @@ class DevicesService:
             elif pending.previous_connection:
                 await self.driver.wifi_activate(pending.previous_connection)
             self._log("devices_wifi_rollback", f"Retour automatique ({pending.kind}) : {pending.previous_connection or 'Wi-Fi activé'}")
-        except Exception as exc:  # au pire l'administrateur le fera à la main : on journalise
+        except Exception as exc:
             logger.warning("Retour automatique du Wi-Fi impossible : %s", exc)
             self._log("devices_wifi_rollback_failed", "Retour automatique impossible")
         self.notify("wifi")

@@ -1,5 +1,4 @@
-"""Téléversement par morceaux reprenable — voir `app/utils/staged_uploads.py`
-pour le protocole et la justification."""
+"""Téléversement par morceaux reprenable — voir `app/utils/staged_uploads.py` pour le protocole et la justification."""
 
 import logging
 import time
@@ -19,8 +18,6 @@ router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 class UploadCreate(BaseModel):
     filename: str = Field(min_length=1, max_length=512)
     size: int = Field(ge=0)
-    # Empreinte stable côté client (nom|taille|dernière modification) :
-    # permet de reprendre le même fichier après un rechargement de page.
     fingerprint: str | None = Field(default=None, max_length=1024)
 
 
@@ -58,8 +55,6 @@ async def append_chunk(upload_id: str, request: Request) -> JSONResponse:
     try:
         current = session.offset
         if declared != current:
-            # Le client est désynchronisé (réponse perdue, reprise) : on lui
-            # donne l'offset réel, c'est lui qui repart de là.
             logger.info(
                 "Upload %s : reprise désynchronisée (client à %d, serveur à %d)",
                 staged.short_id(upload_id), declared, current,
@@ -88,9 +83,6 @@ async def append_chunk(upload_id: str, request: Request) -> JSONResponse:
             logger.warning("Upload %s : morceau refusé à l'offset %d (dépasse la taille annoncée)", staged.short_id(upload_id), current)
             raise
         except BaseException as exc:
-            # Connexion coupée par le client (onglet fermé, Wi-Fi), disque plein,
-            # annulation : les octets déjà écrits restent et la reprise repartira
-            # de l'offset réel. C'est le journal qui permet de le constater.
             logger.warning(
                 "Upload %s : morceau interrompu à l'offset %d après %d octets reçus en %.1f s (%s)",
                 staged.short_id(upload_id), current, written, time.monotonic() - started, type(exc).__name__,

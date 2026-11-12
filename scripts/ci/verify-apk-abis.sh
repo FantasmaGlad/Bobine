@@ -1,16 +1,4 @@
 #!/usr/bin/env bash
-# Vérifie qu'un APK déclare exactement les ABI natives attendues et que chacune
-# embarque Python, et ffmpeg/ffprobe/composant audio natif sur les ABI ARM,
-# puis que toutes les bibliothèques natives de lib/<abi>/ (Python, ffmpeg,
-# ffprobe, composant audio, Chaquopy) ont leurs segments LOAD alignés sur 16 Kio
-# (check-elf-alignment.py ; bloquant pour arm64-v8a).
-#
-# Garde-fou d'une régression déjà survenue : un APK Android TV sans dossier
-# lib/armeabi-v7a s'installe sur les appareils 64 bits mais échoue avec
-# INSTALL_FAILED_NO_MATCHING_ABIS sur tout boîtier TV dont le système est
-# 32 bits (liste d'ABI = armeabi-v7a seule).
-#
-# Usage : verify-apk-abis.sh <apk> <abi> [<abi>...]
 set -euo pipefail
 
 APK="${1:?chemin de la cible APK}"
@@ -33,7 +21,6 @@ fi
 
 entries="$(unzip -Z1 "${APK}")"
 for abi in "$@"; do
-    # x86_64 (APK debug de l'émulateur de développement, jamais en release) : pas de ffmpeg embarqué.
     libs=(libpython3)
     [[ "${abi}" == x86_64 ]] || libs+=(libffmpeg.so libffprobe.so libbobine_media.so)
     for lib in "${libs[@]}"; do

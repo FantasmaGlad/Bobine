@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# ==============================================================================
-# Assemble l'arborescence FHS de Bobine (profil bureau Linux) à partir de l'arbre
-# PyInstaller déjà construit. Partagé par les paquets RPM et Arch : même contenu
-# que le .deb (cf. packaging/linux/build_deb.sh, étape 4), sans scripts de
-# maintenance (propres à chaque gestionnaire de paquets).
-#
-# Usage : stage_root.sh <dossier PyInstaller dist/Bobine> <dossier destination> [version]
-#   <version> : version annoncée dans le journal AppStream (défaut : fichier VERSION).
-# ==============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,7 +30,6 @@ mkdir -p "${DEST}/usr/share/bobine"
 cp "${REPO_DIR}/packaging/storage/49-bobine-storage.rules.in" "${DEST}/usr/share/bobine/"
 cp "${REPO_DIR}/packaging/storage/configure-storage-access" "${DEST}/usr/lib/bobine/"
 chmod 0755 "${DEST}/usr/lib/bobine/configure-storage-access"
-# Pare-feu : profil ufw, service firewalld et script d'ouverture aux réseaux locaux (rpm, Arch).
 install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.ufw" "${DEST}/etc/ufw/applications.d/bobine"
 install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.firewalld.xml" "${DEST}/usr/lib/firewalld/services/bobine.xml"
 install -m 0755 "${REPO_DIR}/packaging/linux/firewall/configure-firewall" "${DEST}/usr/lib/bobine/configure-firewall"
@@ -53,8 +43,6 @@ chmod 0755 "${DEST}/usr/bin/bobine"
 cp "${LINUX_DIR}/bobine.desktop" "${DEST}/usr/share/applications/com.bobine.app.desktop"
 cp "${LINUX_DIR}/bobine.desktop" "${DEST}/etc/xdg/autostart/com.bobine.app.desktop"
 
-# AppStream : même ajout de l'entrée de version que build_deb.sh. Le doublon au chemin
-# historique /usr/share/appdata (ancien format, déprécié) n'est pas reproduit ici.
 APPSTREAM_TMP="$(mktemp)"
 cp "${LINUX_DIR}/bobine.metainfo.xml" "${APPSTREAM_TMP}"
 APPSTREAM_VERSION="${VERSION//[~+]/-}"
@@ -67,10 +55,8 @@ rm -f "${APPSTREAM_TMP}"
 cp "${LINUX_DIR}/copyright" "${DEST}/usr/share/doc/bobine/copyright"
 cp "${LINUX_DIR}/bobine.service" "${DEST}/usr/lib/systemd/user/bobine.service"
 
-# Icône du lanceur : celle du canal du build (cf. packaging/common/channel.sh).
 install_channel_icons "$(bobine_channel_of_version "${VERSION}")" "${LINUX_DIR}/icons" "${DEST}"
 
-# Permissions : mêmes règles que le .deb.
 find "${DEST}" -type d -exec chmod 0755 {} +
 find "${DEST}/usr/share" "${DEST}/etc" -type f -exec chmod 0644 {} +
 chmod 0644 "${DEST}/usr/lib/systemd/user/bobine.service"

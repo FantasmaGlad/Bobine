@@ -22,12 +22,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Sous Android, les requêtes SQLAlchemy synchrones sortent de la boucle d'évènements.
 _IS_ANDROID = is_android()
 
 
 def _storage_unavailable() -> HTTPException:
-    """503 structuré : le média est sur un support externe débranché (jamais une 500, jamais un 404 trompeur)."""
     return HTTPException(
         status_code=503,
         detail={"code": "storage_unavailable", "message": "Ce média est sur un support externe actuellement débranché : rebranchez-le ou importez le média."},
@@ -38,11 +36,6 @@ def _storage_unavailable() -> HTTPException:
 async def _range_stream_response(
     file_path: Path, request: Request, content_type: str, storage_id: int | None = None
 ) -> Response:
-    """Sert un fichier média avec support HTTP Range complet, en GET comme en
-    HEAD — voir `app/utils/media_response.py` (RFC 9110 : plages, If-Range,
-    ETag, 416). Partagé par tous les flux média (vidéos, fonds animés, pistes
-    audio, pochettes). `storage_id` : média posé sur un support externe — hors
-    ligne ou disparu en cours de route, la réponse est un 503 clair."""
     if storage_id is None:
         return await build_media_response(file_path, request.headers, request.method, content_type)
     if not storage_availability.is_online(storage_id):
@@ -51,7 +44,7 @@ async def _range_stream_response(
     try:
         return await build_media_response(file_path, request.headers, request.method, content_type)
     except HTTPException as exc:
-        if exc.status_code == 404:  # fichier disparu alors que le support est « en ligne » : retrait brutal probable
+        if exc.status_code == 404:
             storage_service.request_refresh()
             raise _storage_unavailable() from exc
         raise
@@ -66,13 +59,7 @@ async def stream_video(
     accept: str | None = None,
     db: Session = Depends(get_db),
 ):
-    """Flux d'une vidéo, avec négociation de la version lisible.
-
-    Sans paramètre : l'original, comme avant. `?accept=h264,hevc` : capacités
-    de décodage annoncées par le navigateur (frontend/src/lib/
-    clientCodecSupport.ts) — si l'original n'est pas décodable par ce client et
-    qu'une version web existe, c'est elle qui est servie. `?profile=web|original`
-    force le choix. L'en-tête `X-Bobine-Rendition` indique la version servie."""
+    """Flux d'une vidéo, avec négociation de la version lisible."""
     video = await run_in_threadpool(lambda: db.query(Video).filter(Video.id == video_id).first())
     if not video:
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
@@ -82,24 +69,18 @@ async def stream_video(
         issues=video.web_issues, web_ready=web_ready, profile=profile, accept=parse_accept(accept),
     )
     if rendition == "original" and not web_ready and accept is not None and video.web_status != "pending":
-        # Client incapable de décoder l'original ET aucune version web : si
-        # l'administrateur a activé la production automatique, on la lance
-        # maintenant (ce premier essai échouera, les suivants seront servis).
         parsed = parse_accept(accept) or set()
         if not client_can_decode(video.web_issues, parsed) and await run_in_threadpool(_auto_web_rendition_enabled, db):
             await run_in_threadpool(request_web_rendition, video.id)
 
     path = Path(video.web_path) if rendition == "web" else Path(video.file_path)
-    # Version web = fichier INTERNE : lisible même support débranché ; l'original dépend du support.
     response = await _range_stream_response(path, request, "video/mp4", video.storage_id if rendition != "web" else None)
     response.headers["X-Bobine-Rendition"] = rendition
     return response
 
 
 def reset_stale_web_rendition_status() -> None:
-    """Une version web « en cours » trouvée au démarrage ne peut venir que d'un
-    arrêt brutal du processus : on la ramène à « absente » plutôt que de laisser
-    l'interface annoncer indéfiniment une production qui n'existe plus."""
+    """Une version web « en cours » trouvée au démarrage ne peut venir que d'un arrêt brutal du processus : on la ramène à « absente » plutôt que de laisser l'interface annoncer indéfiniment une production qui n'existe plus."""
     db = SessionLocal()
     try:
         db.query(Video).filter(Video.web_status == "pending").update({Video.web_status: None})
@@ -134,9 +115,6 @@ async def stream_background(
     if not background:
         raise HTTPException(status_code=404, detail="Fond animé non trouvé")
     suffix = Path(background.file_path).suffix.lower()
-    # Fond figé : servi par le même
-    # endpoint de streaming par plage que les vidéos — une image tient
-    # largement en une seule plage, aucune adaptation du flux nécessaire.
     if suffix in _IMAGE_CONTENT_TYPES:
         return await _range_stream_response(Path(background.file_path), request, _IMAGE_CONTENT_TYPES[suffix])
     content_type = "video/webm" if suffix == ".webm" else "video/mp4"
@@ -163,8 +141,7 @@ async def stream_radio_track(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Flux audio d'un morceau radio. Type MIME déduit de l'extension (tous
-    formats web)."""
+    """Flux audio d'un morceau radio."""
     track = await run_in_threadpool(lambda: db.query(RadioTrack).filter(RadioTrack.id == track_id).first())
     if not track:
         raise HTTPException(status_code=404, detail="Morceau non trouvé")

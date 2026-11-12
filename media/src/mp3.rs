@@ -1,11 +1,3 @@
-//! MPEG Layer III with an optional ID3v2.3/2.4 tag.
-//!
-//! Three duration rules, each the one ffmpeg applies and checked against ffprobe on the
-//! generated corpus: a Xing/Info frame (frame count, minus the LAME gapless trim), a VBRI
-//! frame (frame count), and, without any index, the byte length of a stream whose frames
-//! all share one bitrate. A stream whose bitrate varies and has no index is estimated by
-//! ffmpeg from the packets it happened to probe: not reproduced, so it uses the reference.
-
 use crate::audio::{
     ambiguous, corrupt, cover_error, insert, limit, read_exact, unsupported, Duration, Layout,
     Picture, Result, MAX_METADATA_BYTES, MAX_TEXT_BYTES,
@@ -56,7 +48,6 @@ fn decode_text(bytes: &[u8]) -> Result<String> {
         }
         _ => return Err(unsupported()),
     };
-    // A trailing terminator is ordinary; multiple text values need an explicit merge policy.
     let text = text.trim_end_matches('\0').to_owned();
     if text.contains('\0') {
         return Err(ambiguous());
@@ -64,7 +55,6 @@ fn decode_text(bytes: &[u8]) -> Result<String> {
     Ok(text)
 }
 
-/// APIC: text encoding, Latin-1 MIME type, picture type, description, image bytes.
 fn apic(data: &[u8]) -> Result<Picture> {
     let (&encoding, rest) = data.split_first().ok_or_else(corrupt)?;
     if !matches!(encoding, 0..=3) {
@@ -75,7 +65,6 @@ fn apic(data: &[u8]) -> Result<Picture> {
         .position(|byte| *byte == 0)
         .ok_or_else(corrupt)?;
     let mime: String = rest[..end].iter().map(|byte| char::from(*byte)).collect();
-    // Picture type, then a description whose terminator depends on the encoding.
     let rest = rest.get(end + 2..).ok_or_else(corrupt)?;
     let wide = matches!(encoding, 1 | 2);
     let mut at = 0;
@@ -93,10 +82,8 @@ fn apic(data: &[u8]) -> Result<Picture> {
     })
 }
 
-/// What one MPEG audio frame header announces.
 #[derive(Clone, Copy, PartialEq, Debug)]
 struct Frame {
-    /// MPEG-1 (true) or MPEG-2/2.5 (false): Layer III only.
     mpeg1: bool,
     mono: bool,
     bitrate: u64,
@@ -115,8 +102,6 @@ const BITRATES_MPEG1: [u64; 15] = [
 const BITRATES_MPEG2: [u64; 15] = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
 
 fn parse_frame(header: [u8; 4]) -> Option<Frame> {
-    // Sync, Layer III, and a version, bitrate and rate the standard defines. Free format
-    // (bitrate index 0) has no announced length: outside the subset.
     if header[0] != 0xff || header[1] & 0xe0 != 0xe0 || header[1] & 6 != 2 {
         return None;
     }
@@ -165,7 +150,6 @@ fn parse_frame(header: [u8; 4]) -> Option<Frame> {
 }
 
 impl Frame {
-    /// The properties that must not change along a stream with a constant bitrate.
     fn same_stream(&self, other: &Frame) -> bool {
         self.version_bits == other.version_bits
             && self.bitrate_index == other.bitrate_index
@@ -182,7 +166,6 @@ pub(crate) fn scan<R: Read + Seek>(
     if file_len < 16 {
         return Err(corrupt());
     }
-    // ID3v1/APE coexistence is deliberately not merged with ID3v2.
     let tail_len = file_len.min(160) as usize;
     reader
         .seek(SeekFrom::End(-(tail_len as i64)))
@@ -255,7 +238,6 @@ pub(crate) fn scan<R: Read + Seek>(
             };
             let data = &content[cursor + 10..end];
             if key == "picture" {
-                // Pictures never change the tags: several are only a cover ambiguity.
                 if data.len() > COVER_BYTES {
                     return Err(limit());
                 }
@@ -287,20 +269,16 @@ pub(crate) fn scan<R: Read + Seek>(
         .map_err(|_| corrupt())?;
     let mut audio = [0; 4];
     read_exact(reader, &mut audio)?;
-    // MPEG Layer III only, not a file disguised by its extension or leading junk.
     if audio[0] != 0xff || audio[1] & 0xe0 != 0xe0 || audio[1] & 6 != 2 {
         return Err(corrupt());
     }
     let first = parse_frame(audio).ok_or_else(|| {
-        // A reserved value is corrupt; free format and the other exotic cases are not reproduced.
         if audio[2] >> 4 == 0 {
             unsupported()
         } else {
             corrupt()
         }
     })?;
-    // ffmpeg locates the index after the 4-byte header and the side information, without
-    // accounting for the 2-byte CRC of a protected frame; it then finds none.
     if first.protected {
         return Err(unsupported());
     }
@@ -327,8 +305,6 @@ pub(crate) fn scan<R: Read + Seek>(
         layout.duration = Duration::Exact(vbri_duration(reader, first.samples, first.rate)?);
         return Ok(layout);
     }
-    // No index: the reference estimates from the bitrate and the bytes, which is exact only
-    // when every frame announces that bitrate.
     let total = file_len - audio_offset;
     if total > crate::audio::MAX_CHAIN_BYTES {
         return Err(limit());
@@ -341,8 +317,6 @@ pub(crate) fn scan<R: Read + Seek>(
     Ok(layout)
 }
 
-/// Walk the frames from the current position to the end: all of the same stream, the last
-/// one complete, nothing after it.
 fn chain<R: Read>(reader: &mut R, total: u64, first: &Frame) -> Result<u64> {
     let mut frames = 0;
     let mut position = 0_u64;
@@ -374,7 +348,6 @@ fn chain<R: Read>(reader: &mut R, total: u64, first: &Frame) -> Result<u64> {
                 continue;
             }
             if position == total {
-                // More bytes than the opened length: the file is changing.
                 return Err(unsupported());
             }
             header[have] = buffer[at];
@@ -390,7 +363,6 @@ fn chain<R: Read>(reader: &mut R, total: u64, first: &Frame) -> Result<u64> {
                 frames += 1;
                 have = 0;
                 if position + skip > total {
-                    // A truncated final frame: ffmpeg's estimate is not worth reproducing.
                     return Err(unsupported());
                 }
             }
@@ -398,7 +370,6 @@ fn chain<R: Read>(reader: &mut R, total: u64, first: &Frame) -> Result<u64> {
     }
 }
 
-/// VBRI (Fraunhofer): version 1, delay, quality, byte count, frame count.
 fn vbri_duration<R: Read>(reader: &mut R, samples_per_frame: u64, sample_rate: u64) -> Result<f64> {
     let mut fields = [0; 14];
     read_exact(reader, &mut fields)?;
@@ -412,13 +383,6 @@ fn vbri_duration<R: Read>(reader: &mut R, samples_per_frame: u64, sample_rate: u
     Ok((frames * samples_per_frame) as f64 / sample_rate as f64)
 }
 
-/// Duration the reference (ffmpeg/ffprobe) reports for an MP3 with a Xing/Info frame.
-///
-/// The frame count is mandatory: without it ffmpeg falls back to a bitrate estimate that
-/// this crate does not reproduce. Encoders named LAME, Lavf or Lavc add a 12-bit start
-/// delay and a 12-bit end padding, which ffmpeg subtracts from the total; any other
-/// encoder string leaves the plain `frames * samples_per_frame` count. Both rules were
-/// checked against ffprobe on 148 generated files and on edited copies of one of them.
 fn xing_duration<R: Read>(reader: &mut R, samples_per_frame: u64, sample_rate: u64) -> Result<f64> {
     let mut word = [0; 4];
     read_exact(reader, &mut word)?;
@@ -441,7 +405,6 @@ fn xing_duration<R: Read>(reader: &mut R, samples_per_frame: u64, sample_rate: u
     if flags & 8 != 0 {
         read_exact(reader, &mut word)?;
     }
-    // Encoder (9), revision, lowpass, replay gain (8), flags, bitrate, then 3 delay bytes.
     let mut lame = [0; 24];
     read_exact(reader, &mut lame)?;
     let total = frames.checked_mul(samples_per_frame).ok_or_else(corrupt)?;
@@ -482,7 +445,6 @@ mod tests {
         let picture = apic(&frame).unwrap();
         assert_eq!(picture.declared.as_deref(), Some("image/jpeg"));
         assert_eq!(picture.data, [0xff, 0xd8, 0xff]);
-        // UTF-16 description terminated by a double NUL.
         let mut wide = vec![1];
         wide.extend_from_slice(b"image/png\0");
         wide.push(0);
@@ -492,7 +454,6 @@ mod tests {
         assert!(apic(&[0, b'x']).is_err());
     }
 
-    /// MPEG-1 Layer III stereo frame header followed by a Xing/Info frame.
     fn xing_frame(
         index: &[u8; 4],
         flags: u32,
@@ -523,7 +484,6 @@ mod tests {
         })
     }
 
-    /// `count` frames of 128 kbit/s MPEG-1 (417 bytes, or 418 with padding).
     fn cbr(count: usize, bitrate_index: u8) -> Vec<u8> {
         let mut bytes = Vec::new();
         for _ in 0..count {
@@ -542,18 +502,15 @@ mod tests {
         let stream = cbr(40, 9);
         let seconds = duration_of(&stream).unwrap();
         assert!((seconds - stream.len() as f64 * 8.0 / 128_000.0).abs() < 1e-9);
-        // One frame at another bitrate: ffmpeg's estimate is not reproduced.
         let mut varying = cbr(10, 9);
         varying.extend(cbr(1, 8));
         varying.extend(cbr(10, 9));
         assert_eq!(duration_of(&varying).unwrap_err().reason, "unsupported");
-        // Trailing bytes and a truncated final frame.
         let mut trailing = cbr(20, 9);
         trailing.extend_from_slice(&[0; 7]);
         assert_eq!(duration_of(&trailing).unwrap_err().reason, "unsupported");
         let truncated = &cbr(20, 9)[..20 * 417 - 5];
         assert_eq!(duration_of(truncated).unwrap_err().reason, "unsupported");
-        // Free format and a reserved bitrate.
         assert_eq!(duration_of(&cbr(20, 0)).unwrap_err().reason, "unsupported");
         assert_eq!(duration_of(&cbr(20, 15)).unwrap_err().reason, "corrupt");
     }
@@ -570,7 +527,6 @@ mod tests {
         bytes.resize(417, 0);
         let seconds = duration_of(&bytes).unwrap();
         assert!((seconds - 54.0 * 1152.0 / 44_100.0).abs() < 1e-9);
-        // Unknown version or no frames.
         let mut version = bytes.clone();
         version[41] = 2;
         assert_eq!(duration_of(&version).unwrap_err().reason, "unsupported");
@@ -588,8 +544,6 @@ mod tests {
 
     #[test]
     fn mp3_duration_follows_the_reference_gapless_rule() {
-        // frames * 1152 samples at 44.1 kHz, minus the 12-bit delay and padding of the
-        // encoders ffmpeg trusts; the same count untouched for any other encoder.
         let delays = (576 << 12) | 1000;
         let plain = 100.0 * 1152.0 / 44_100.0;
         let trimmed = (100.0 * 1152.0 - 1576.0) / 44_100.0;
@@ -605,7 +559,6 @@ mod tests {
 
     #[test]
     fn mp3_duration_rejects_unreproducible_or_inconsistent_headers() {
-        // Without the frame counter ffmpeg estimates from the bitrate: leave it to the oracle.
         assert_eq!(
             duration_of(&xing_frame(b"Xing", 0, 0, b"LAME", 0))
                 .unwrap_err()
@@ -618,18 +571,15 @@ mod tests {
                 .reason,
             "unsupported"
         );
-        // A trim larger than the whole stream cannot be a valid gapless tag.
         assert_eq!(
             duration_of(&xing_frame(b"Xing", 1, 1, b"LAME", (600 << 12) | 600))
                 .unwrap_err()
                 .reason,
             "corrupt"
         );
-        // Reserved sampling rate.
         let mut reserved = xing_frame(b"Xing", 1, 10, b"LAME", 0);
         reserved[2] |= 0x0c;
         assert_eq!(duration_of(&reserved).unwrap_err().reason, "corrupt");
-        // A Xing frame cut before the LAME block is a truncated file, never a guess.
         let short = &xing_frame(b"Xing", 1, 10, b"LAME", 0)[..48];
         assert_eq!(duration_of(short).unwrap_err().reason, "corrupt");
     }

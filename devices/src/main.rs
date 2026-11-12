@@ -1,9 +1,3 @@
-//! `bobine-devices` : sidecar de gestion des périphériques (audio, Bluetooth, Wi-Fi).
-//!
-//! Lancé À LA DEMANDE par le backend Bobine, sous le même compte que lui ; parle JSON-RPC 2.0 sur
-//! stdin/stdout (une ligne = une requête ou une réponse), n'ouvre AUCUN port réseau et n'exécute que
-//! la liste blanche de méthodes de `protocol.rs`. Fin de l'entrée standard = arrêt propre.
-
 mod exec;
 mod parse;
 mod platform;

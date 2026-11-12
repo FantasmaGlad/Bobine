@@ -1,11 +1,4 @@
-"""État des écrans externes.
-
-Chaque plateforme (service Android, tray desktop, hotplug du Wyse) remonte ici
-le nombre d'écrans externes réellement connectés ; le mode d'affichage câblé
-effectif (`dual_screen`/`headless`) en est dérivé et diffusé à tous les écrans
-sans rechargement. Endpoint idempotent et tolérant : un rapport identique est
-accepté sans effet, et ne lève jamais d'erreur serveur.
-"""
+"""État des écrans externes."""
 
 import logging
 from typing import Any
@@ -57,9 +50,6 @@ async def put_display_state(report: DisplayStateReport, db: Session = Depends(ge
             f"Écrans externes : {report.external_count} (source={report.source}) — "
             f"mode effectif {mode_before} -> {mode_after}"
         )
-    # On ne diffuse que si le mode EFFECTIF a bougé : un rapport identique
-    # (ré-émission périodique, reconnexion du rapporteur) ne doit générer
-    # aucun trafic WebSocket.
     if mode_after != mode_before:
         await broadcast_display_mode(db)
     return _payload(db)

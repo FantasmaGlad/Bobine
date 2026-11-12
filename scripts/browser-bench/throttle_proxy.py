@@ -1,5 +1,4 @@
-"""Proxy TCP jetable : limite le débit client->serveur (simule un Wi-Fi de salle) et ajoute une latence.
-Usage : python3 throttle_proxy.py <Mo/s> <latence_ms> [port_ecoute] [port_cible]"""
+"""Proxy TCP jetable : limite le débit client->serveur (simule un Wi-Fi de salle) et ajoute une latence."""
 import asyncio, sys
 LISTEN = int(sys.argv[3]) if len(sys.argv) > 3 else 8079
 TARGET = int(sys.argv[4]) if len(sys.argv) > 4 else 1903

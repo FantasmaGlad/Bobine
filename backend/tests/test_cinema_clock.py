@@ -1,9 +1,7 @@
-"""Horloge du cours /cinema lancé par ordre : créée par `launch`,
-pilotée par play/pause/seek, détruite par `stop`, jamais jointe à une lecture locale."""
+"""Horloge du cours /cinema lancé par ordre : créée par `launch`, pilotée par play/pause/seek, détruite par `stop`, jamais jointe à une lecture locale."""
 
 import os
 
-# Base de test isolée AVANT tout import de l'application (comme les autres tests).
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
@@ -71,7 +69,6 @@ def test_stop_detruit_le_cours_lance_par_ordre(fake):
     pb.cinema._apply_cinema_command_to_clock("cable", "stop", {})
     assert "cable" not in pb.cinema._cinema_launched_video
     assert not pb.cinema._cinema_clock_for("cable").running
-    # Un ordre ultérieur sans nouveau launch n'a plus d'horloge à piloter.
     pb.cinema._apply_cinema_command_to_clock("cable", "play", {})
     assert "cable" not in pb.cinema._cinema_launched_video
 

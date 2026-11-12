@@ -40,7 +40,6 @@ interface PlaylistSummary {
   name: string;
   item_count: number;
   total_duration_seconds: number;
-  /** Miniature dérivée du 1er cours de la playlist (même convention que le planning). */
   thumbnail_path?: string | null;
 }
 
@@ -65,11 +64,9 @@ interface InterruptedState {
   id: number;
   cause: string | null;
   interrupted_at: string;
-  // Interruption par programmation (cause="schedule") : lecture manuelle interrompue par une programmation.
   video_id?: number | null;
   title?: string | null;
   position_seconds?: number | null;
-  // Report par le mode coach (cause="coach_priority") : programmation reportée par le mode audio coach.
   target_type?: string | null;
   target_id?: number | null;
 }
@@ -77,18 +74,9 @@ interface InterruptedState {
 const SPEED_OPTIONS = [0.5, 1, 1.25, 1.5, 2];
 
 interface Props {
-  /** Canal de diffusion piloté par ce tableau de bord : toute cette page — état en direct,
-   * lancements, planning à venir, bascule kiosk/cinéma — ne parle QUE de ce
-   * canal, l'autre a sa propre page jumelle totalement indépendante. */
   channel: PlaybackChannel;
 }
 
-/**
- * Tableau de bord d'UN canal de diffusion (PC : page complète ; mobile :
- * télécommande dédiée). :
- * musique/playlist en direct, lancement de cours/playlist, planning et
- * bascule kiosk/cinéma, indépendants entre les deux canaux.
- */
 export default function DashboardScreen({ channel }: Props) {
   const isMobile = useIsMobile();
   const { t, language } = useAppSettings();
@@ -100,36 +88,19 @@ export default function DashboardScreen({ channel }: Props) {
     offline: t("dashboard.stateLabels.offline"),
     playlist_waiting: t("dashboard.stateLabels.playlist_waiting"),
   };
-  // Cause du dernier évènement reçu : seul un rapport de routine ("position_tick")
-  // doit être lissé sans jamais reculer, une vraie discontinuité (chargement,
-  // recherche, arrêt...) doit au contraire s'appliquer immédiatement — voir
-  // useInterpolatedPosition.
   const [lastCause, setLastCause] = useState<string>("sync");
   const handlePlaybackEvent = (evt: PlaybackEvent) => setLastCause(evt.cause);
   const { state, connected, sendCommand, displayOutputCable, displayOutputNetwork, cinemaLocked, lockedReason, cinemaState } =
     usePlaybackSocket(handlePlaybackEvent, undefined, channel, undefined, "dashboard");
   const livePosition = useInterpolatedPosition(state.position_seconds, state.state === "playing", lastCause);
-  // Glissement en cours sur la barre de position du bloc cinéma.
   const [cinemaSeekDrag, setCinemaSeekDrag] = useState<number | null>(null);
-  // Un rapport cinéma est considéré périmé après 8 s sans nouvelles (la page
-  // /cinema rapporte toutes les 2 s) : l'appareil a été fermé ou a perdu le
-  // réseau, on cesse d'afficher une lecture qui n'existe sans doute plus.
-  // Fraîcheur mesurée à la RÉCEPTION locale (pas au timestamp serveur du
-  // rapport, sujet au décalage d'horloge entre machines).
   const cinemaReceivedAtRef = useRef(0);
-  // Play/pause optimiste : l'état affiché ne bougeait qu'au rapport suivant de la page
-  // cinéma — le bouton semblait mort, l'admin re-cliquait et annulait sa
-  // propre commande. On affiche l'état COMMANDÉ immédiatement, et le premier
-  // rapport reçu ensuite (désormais quasi instantané côté cinéma) reprend la
-  // main comme source de vérité.
   const [cinemaPendingPlaying, setCinemaPendingPlaying] = useState<boolean | null>(null);
   useEffect(() => {
     cinemaReceivedAtRef.current = Date.now();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset volontaire à chaque rapport reçu (le rapport redevient la vérité)
     setCinemaPendingPlaying(null);
   }, [cinemaState]);
-  // 250 ms (au lieu de 2 s) : cadence l'interpolation locale de la tête de
-  // lecture ci-dessous — au tick 2 s, la barre avançait par sauts.
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNowTick(Date.now()), 250);
@@ -137,10 +108,6 @@ export default function DashboardScreen({ channel }: Props) {
   }, []);
   const cinemaLiveRaw =
     cinemaState && cinemaState.title && nowTick - cinemaReceivedAtRef.current < 8000 ? cinemaState : null;
-  // Position interpolée localement entre deux rapports (même principe que le
-  // compte à rebours kiosk) : position rapportée + temps écoulé depuis la
-  // RÉCEPTION locale si la lecture est en cours. L'objet enrichi est aussi
-  // celui transmis au mobile — mêmes corrections partout.
   const cinemaLive = cinemaLiveRaw
     ? {
         ...cinemaLiveRaw,
@@ -159,8 +126,6 @@ export default function DashboardScreen({ channel }: Props) {
     sendCommand("cinema_command", { action: next ? "play" : "pause" });
   };
   const [videos, setVideos] = useState<VideoSummary[]>([]);
-  // Même présentation qu'en kiosque : le rapport du cinéma ne porte que le
-  // titre et l'identifiant, le reste vient de la bibliothèque déjà chargée.
   const cinemaVideo = cinemaLive?.video_id ? videos.find((v) => v.id === cinemaLive.video_id) ?? null : null;
   const kioskChapters = useVideoChapters(state.current_video?.id, getApiUrl);
   const cinemaChapters = useVideoChapters(cinemaLive?.video_id, getApiUrl);
@@ -179,14 +144,10 @@ export default function DashboardScreen({ channel }: Props) {
   const [selectedAmbianceBg, setSelectedAmbianceBg] = useState<BackgroundSummary | null>(null);
 
   const isCable = channel === "cable";
-  // Sortie active de CE canal uniquement : le verrou cinéma et le switch
-  // n'observent jamais l'autre canal (zéro interférence).
   const displayOutput = isCable ? displayOutputCable : displayOutputNetwork;
   const channelCinema = displayOutput === "cinema";
-  // Seule la sortie câblée peut être basculée sur Radio (l'écran physique devient un poste radio).
   const channelRadio = isCable && displayOutputCable === "radio";
 
-  // Redirection automatique vers /coach lorsque le mode coach est actif sur le canal câblé
   useEffect(() => {
     if (isCable && state.state === "coach_mode") {
       router.replace("/coach");
@@ -207,7 +168,6 @@ export default function DashboardScreen({ channel }: Props) {
   };
 
   useEffect(() => {
-    // Bloc « Prochainement » : les 3 prochaines occurrences actives DU CANAL.
     const now = new Date();
     const horizon = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
     fetch(
@@ -237,9 +197,6 @@ export default function DashboardScreen({ channel }: Props) {
       .then(setPlaylists)
       .catch(() => setPlaylists([]));
 
-    // Une programmation peut interrompre une lecture manuelle à tout
-    // moment pendant que ce tableau de bord est ouvert — on vérifie donc
-    // périodiquement plutôt qu'au seul chargement de la page.
     fetchInterrupted();
     const id = setInterval(fetchInterrupted, 10000);
     return () => clearInterval(id);
@@ -287,9 +244,6 @@ export default function DashboardScreen({ channel }: Props) {
     sendCommand(state.state === "playing" ? "pause" : "play");
   };
 
-  // Bascule kiosk/cinéma de CE canal : le retour visuel vient de l'évènement
-  // display_output rediffusé par le backend — toutes les interfaces admin
-  // ouvertes se mettent à jour en même temps.
   const handleSetDisplayOutput = (output: DisplayOutput) => {
     fetch(getApiUrl("/settings/display-output"), {
       method: "PUT",
@@ -325,8 +279,6 @@ export default function DashboardScreen({ channel }: Props) {
     );
   }
 
-  // Carte d'en-tête du canal (état + interrupteur de sortie) : partagée entre la vue
-  // vidéo habituelle et la vue « sortie câblée en mode Radio ».
   const channelCard = (
     <div className="live-block channel-card">
       <div className="channel-card-left">
@@ -373,9 +325,6 @@ export default function DashboardScreen({ channel }: Props) {
           </a>
         )}
         {!isCable && (
-          // Écran explicitement rattaché au canal Réseau (lib/displayChannel.ts) :
-          // indispensable pour en ouvrir un sur la machine du serveur, où
-          // 127.0.0.1 désigne sinon le canal câblé.
           <a
             href={`/${displayOutput === "cinema" ? "cinema" : "kiosk"}?channel=network`}
             target="_blank"
@@ -412,9 +361,6 @@ export default function DashboardScreen({ channel }: Props) {
     );
   }
 
-  // Sortie câblée basculée sur Radio : la bibliothèque vidéo n'a plus d'objet (aucun écran
-  // vidéo pour afficher un lancement). La page montre la télécommande radio PARTAGÉE du moteur
-  // radio câblé — la même que /radio-remote, jamais une copie de la bibliothèque.
   if (channelRadio) {
     return (
       <div className="dashboard-container">
@@ -456,11 +402,6 @@ export default function DashboardScreen({ channel }: Props) {
         </div>
       )}
 
-      {/* Le choix du canal (Câblé/Réseau) se fait uniquement depuis la
-          barre latérale — un second sélecteur ici dupliquait exactement
-          cette navigation. */}
-
-      {/* Bascule kiosk/cinéma/radio de CE canal. */}
       {channelCard}
 
       <div className="dashboard-bento-grid" style={channelCinema ? { gridTemplateColumns: "1fr" } : undefined}>
@@ -497,10 +438,6 @@ export default function DashboardScreen({ channel }: Props) {
               </div>
 
               {channelCinema ? (
-                // Mode cinéma : la lecture est LOCALE à l'écran libre-service, mais
-                // la page /cinema du canal rapporte ce qu'elle joue et obéit aux
-                // commandes admin — play/pause/seek/stop relayés tels quels, sans passer
-                // par l'état de lecture partagé du serveur.
                 cinemaLive ? (
                   <>
                     <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
@@ -575,7 +512,6 @@ export default function DashboardScreen({ channel }: Props) {
                 )
               ) : isActive ? (
                 <>
-                  {/* Playlist Indicator & Quick Navigation */}
                   {state.playlist_name && (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "color-mix(in srgb, var(--accent-primary) 3%, transparent)", padding: "10px 12px", borderRadius: "var(--radius-md)", border: "1px solid color-mix(in srgb, var(--accent-primary) 15%, transparent)", marginBottom: "12px" }}>
                       <span style={{ fontSize: "0.85rem", color: "var(--accent-text)", fontWeight: 700 }}>
@@ -612,14 +548,12 @@ export default function DashboardScreen({ channel }: Props) {
                     </div>
                   )}
 
-                  {/* "À suivre" persistant pendant la lecture normale d'une playlist. */}
                   {state.playlist_name && state.state !== "playlist_waiting" && nextPlaylistItem && (
                     <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "12px" }}>
                       {t("dashboard.nextCourseLabel", { title: nextPlaylistItem.title })}
                     </div>
                   )}
 
-                  {/* If in playlist wait transition, show dedicated overlay control */}
                   {state.state === "playlist_waiting" ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "center", justifyContent: "center", padding: "20px", background: "var(--bg-surface-hover)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)" }}>
                       <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>
@@ -808,9 +742,6 @@ export default function DashboardScreen({ channel }: Props) {
             </div>
           </div>
 
-          {/* Sections Bento dédiées : "Passer en mode coach" et "Diffuser un visuel"
-              Réservé au canal câblé pour le coach (anime la salle physique).
-              Diffuser un visuel reste disponible sur les deux canaux. */}
           {!channelCinema && (
             <div className="bento-actions-grid">
               {isCable && (
@@ -860,9 +791,6 @@ export default function DashboardScreen({ channel }: Props) {
             </div>
           )}
 
-          {/* Planning "à venir" : n'a de sens qu'en mode kiosk (la programmation
-              pilote l'écran) — sans objet en mode cinéma (libre-service), donc
-              masqué comme les autres blocs kiosk-only ci-dessous. */}
           {!channelCinema && (
             <div className="live-block">
               <div className="live-header">
@@ -905,8 +833,6 @@ export default function DashboardScreen({ channel }: Props) {
           )}
         </div>
 
-        {/* Lancement de cours/playlist : action kiosk uniquement, sans objet
-            en mode cinéma (les adhérents choisissent eux-mêmes) — masqué. */}
         {!channelCinema && (
           <div className="bento-col-side">
             <div className="launch-block">
@@ -918,7 +844,6 @@ export default function DashboardScreen({ channel }: Props) {
                 {isCable ? t("dashboard.launchCourseCableHint") : t("dashboard.launchCourseNetworkHint")}
               </p>
               <div className="launch-row launch-row--stacked">
-                {/* Sélecteur riche : aperçu du cours, programme, durée et recherche intégrée. */}
                 <ResponsiveSelect
                   style={{ flex: 1, minWidth: 0 }}
                   value={selectedVideoId}

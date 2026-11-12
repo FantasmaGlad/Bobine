@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Signe la liste des empreintes SHA-256 des fichiers d'une release : produit SHA256SUMS et sa signature détachée
-# SHA256SUMS.asc, avec la clé qui signe déjà les dépôts de paquets. Le site s'appuie sur ce couple pour afficher la commande
-# de vérification (gpg --verify, puis sha256sum -c) des fichiers téléchargés en direct.
-# La clé privée est importée par le job appelant dans un GNUPGHOME éphémère ; les demandes de fusion ne lancent jamais cette étape.
 set -euo pipefail
 export LC_ALL=C
 dir="${1:?dossier des assets de la release}"
@@ -13,7 +9,6 @@ actual=$(gpg --batch --with-colons --list-secret-keys "$fingerprint" | awk -F: '
 
 cd "$dir"
 rm -f SHA256SUMS SHA256SUMS.asc
-# Tous les fichiers du dossier, hors la liste et sa signature, dans l'ordre alphabétique.
 find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -printf '%f\n' | sort | xargs -d '\n' sha256sum > SHA256SUMS
 [ -s SHA256SUMS ] || { echo 'Aucun fichier à signer.' >&2; exit 1; }
 gpg --batch --yes --armor --local-user "$fingerprint" --detach-sign --output SHA256SUMS.asc SHA256SUMS

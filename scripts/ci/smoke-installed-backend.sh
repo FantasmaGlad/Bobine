@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Lance le backend INSTALLÉ par un paquet Linux et exige HTTP 200 sur /api/health, comme les jobs Windows et macOS.
-# À lancer après l'installation du paquet (runner ou conteneur), jamais sur l'arbre de construction.
-# Isolation : HOME, XDG_DATA_HOME, XDG_CONFIG_HOME et XDG_CACHE_HOME dans un dossier temporaire, BOBINE_USE_XDG=1.
-# Le port est celui de run_backend.py (1903, fixé dans l'exécutable) : le script refuse de démarrer s'il est déjà occupé.
-# Usage : smoke-installed-backend.sh [exécutable]   (défaut : /usr/lib/bobine/BobineBackend)
 set -euo pipefail
 backend="${1:-/usr/lib/bobine/BobineBackend}"
 port=1903

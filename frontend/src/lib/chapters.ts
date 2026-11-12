@@ -10,7 +10,6 @@ export interface Chapter {
   title: string;
 }
 
-/** Chapitres d'un cours (liste vide sans vidéo, sans chapitre ou en cas d'échec). */
 export function useVideoChapters(videoId: number | null | undefined, getApiUrl: (path: string) => string): Chapter[] {
   const [chapters, setChapters] = useState<Chapter[]>([]);
 
@@ -32,14 +31,12 @@ export function useVideoChapters(videoId: number | null | undefined, getApiUrl: 
     return () => {
       cancelled = true;
     };
-    // getApiUrl est une fonction pure propre à chaque page.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoId]);
 
   return chapters;
 }
 
-/** Indice du chapitre en cours à cette position, -1 avant le premier. */
 export function chapterIndexAt(chapters: Chapter[], position: number): number {
   let index = -1;
   for (let i = 0; i < chapters.length; i++) {
@@ -49,10 +46,6 @@ export function chapterIndexAt(chapters: Chapter[], position: number): number {
   return index;
 }
 
-/**
- * Position où sauter pour le chapitre suivant ou précédent (touches de chaîne de la télécommande), ou `null` si rien
- * ne change. « Précédent » revient d'abord au début du chapitre en cours quand on y est depuis plus de 3 s.
- */
 export function chapterJumpTarget(chapters: Chapter[], position: number, direction: "next" | "prev"): number | null {
   if (!chapters.length) return null;
   const index = chapterIndexAt(chapters, position);

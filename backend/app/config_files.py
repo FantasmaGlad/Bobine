@@ -1,27 +1,4 @@
-"""Configuration de Bobine en fichiers JSON lisibles, rangés par famille.
-
-```
-manifest.json            index : version, identifiant de l'installation, fichiers et nombre d'entrées
-settings.json            réglages communs à toutes les installations
-machine.json             ce qui ne vaut que pour cette machine (écrans, sorties audio, Tor, supports)
-outputs/                 display.json, radio.json
-library/                 videos.json, audio.json, radio.json, backgrounds.json, announcements.json (métadonnées)
-playlists/               video.json, audio.json, radio.json
-schedule/                cable.json, network.json, radio-cable.json, radio-network.json
-radio/                   tags.json, announcement-rules.json
-```
-
-Chaque fichier porte `schema` et `kind` et se suffit à lui-même : on peut le lire, le comparer, le modifier à la main
-puis le réappliquer seul. Chaque objet porte un `uid` (`vid_3f9a1c07b2de`) : identifiant stable, jamais modifié, qui
-survit au renommage et voyage d'une installation à l'autre. Titre, nom ou fichier se modifient librement ; à
-l'application, l'objet se reconnaît par son `uid`, à défaut par son nom ou ses métadonnées. Les médias eux-mêmes
-(vidéos, cours, morceaux, annonces) ne sont pas transportés : le fichier `library/` décrit leurs métadonnées, jamais
-leur contenu, et ne crée ni ne supprime de média.
-
-Une copie à jour est écrite dans le dossier `config/` des données de Bobine après chaque modification : c'est un instantané pour lire et
-déboguer, jamais relu automatiquement. Les noms plats de la version 5.1 (`playlists-video.json`, `schedule-cable.json`…)
-restent acceptés à l'application et traduits (`canonical_name`).
-"""
+"""Configuration de Bobine en fichiers JSON lisibles, rangés par famille."""
 from __future__ import annotations
 
 import json
@@ -55,7 +32,6 @@ def schedule_path(channel: str) -> str:
     return f"schedule/{channel.replace('_', '-')}.json"
 
 
-# Nom de fichier (chemin relatif) -> `kind` du document.
 KINDS: dict[str, str] = {
     "manifest.json": "manifest",
     "settings.json": "settings",
@@ -74,7 +50,6 @@ KINDS: dict[str, str] = {
     "radio/tags.json": "radio-tags",
     "radio/announcement-rules.json": "announcement-rules",
 }
-# Noms plats de la version 5.1, toujours acceptés.
 LEGACY_NAMES: dict[str, str] = {
     "display-outputs.json": "outputs/display.json",
     "radio-outputs.json": "outputs/radio.json",
@@ -92,7 +67,6 @@ def canonical_name(name: str) -> str:
     """Nom d'un fichier dans l'arborescence actuelle (traduit les noms plats de la version 5.1)."""
     return LEGACY_NAMES.get(name.replace("\\", "/"), name.replace("\\", "/"))
 
-# Réglages communs à toutes les installations, tels que l'interface les affiche (valeurs effectives).
 PORTABLE_SETTINGS = (
     "theme", "theme_mode", "language", "active_logo", "update_channel", "auto_update_enabled", "auto_update_time",
     "wait_time_between_courses", "volume_default", "audio_chain_timer_seconds", "logs_retention_days",
@@ -100,8 +74,6 @@ PORTABLE_SETTINGS = (
 )
 _BOOLEAN_SETTINGS = {"auto_update_enabled", "auto_web_rendition", "media_native", "update_tor", "simplified_ui"}
 
-
-# --- références lisibles ---------------------------------------------------------------------------------------------
 
 def _file_name(path: str | None) -> str | None:
     return Path(path).name if path else None
@@ -148,12 +120,9 @@ def _duplicates(names) -> list[str]:
 def _document(kind: str, body: dict[str, Any], warnings: list[str] | None = None) -> dict[str, Any]:
     document: dict[str, Any] = {"schema": SCHEMA, "kind": kind, **body}
     if warnings:
-        # Signalé dans le fichier même : `apply` refusera ces références ambiguës tant qu'elles ne sont pas levées.
         document["warnings"] = warnings
     return document
 
-
-# --- un constructeur par fichier ---------------------------------------------------------------------------------------
 
 def _settings_values(db: Session) -> dict[str, Any]:
     from app.api.routes.settings.values import get_settings
@@ -166,7 +135,6 @@ def _typed(key: str, value: Any) -> Any:
 
 
 def _stored_int(db: Session, key: str, fallback: int) -> int:
-    """Valeur entière persistée dans la table `settings`, ou `fallback` (config.toml) si la ligne est absente ou illisible."""
     from app.models import Setting
 
     row = db.query(Setting).filter(Setting.key == key).first()
@@ -185,9 +153,6 @@ def build_settings(db: Session) -> dict[str, Any]:
     body = {key: _typed(key, values.get(key)) for key in PORTABLE_SETTINGS}
     background_id = values.get("default_coach_background_id")
     body["default_coach_background"] = background_ref(db.get(Background, background_id)) if background_id else None
-    # Lus au démarrage seulement : leur valeur effective dans le processus n'est actualisée qu'au prochain lancement.
-    # Le fichier décrit la valeur PERSISTÉE, pas celle du singleton : après une application, l'export doit renvoyer le
-    # réglage appliqué (sinon l'aller-retour export → application → export perd la modification).
     body["radio"] = {
         "volume_default": _stored_int(db, "radio_volume_default", runtime_settings.radio_volume_default),
         "crossfade_seconds": _stored_int(db, "radio_crossfade_seconds", runtime_settings.radio_crossfade_seconds),
@@ -348,9 +313,6 @@ def _linked_file(path: str | None) -> dict[str, str] | None:
 
 
 def _video_entry(v: Video) -> dict[str, Any]:
-    """Métadonnées modifiables, plus les liens (informatifs, jamais appliqués) vers les chapitres et sous-titres :
-    `chapters` / `subtitles` disent s'il y en a ; `chapters_file` et `subtitle_files` donnent le chemin du fichier
-    importé (`chapters_source` : `file`, `embedded` ou `manual`)."""
     subtitles = sorted(v.subtitles, key=lambda s: (s.language_code, s.id))
     return {
         "uid": v.uid, "title": v.title, "program": v.program, "release": v.release, "description": v.description,
@@ -439,16 +401,13 @@ def dumps(document: dict[str, Any]) -> str:
     return json.dumps(document, ensure_ascii=False, indent=2) + "\n"
 
 
-# --- copie lisible dans les données de Bobine --------------------------------------------------------------------------
-
 MIRROR_DELAY_SECONDS = 2.0
 _mirror_lock = threading.Lock()
 _mirror_timer: threading.Timer | None = None
 
 
 def mirror_dir() -> Path:
-    """`config/` à côté des journaux, dans le dossier de données de Bobine (jamais dans le dossier du code, qui est un
-    dépôt git sur l'appliance)."""
+    """`config/` à côté des journaux, dans le dossier de données de Bobine (jamais dans le dossier du code, qui est un dépôt git sur l'appliance)."""
     from app.config import settings as runtime_settings
 
     return Path(runtime_settings.logs_dir).parent / "config"
@@ -481,7 +440,7 @@ def write_mirror() -> int:
             Path(temporary).unlink(missing_ok=True)
             raise
         written += 1
-    for legacy in LEGACY_NAMES:  # noms plats de la version 5.1 : remplacés par l'arborescence
+    for legacy in LEGACY_NAMES:
         (target / legacy).unlink(missing_ok=True)
     return written
 
@@ -492,7 +451,7 @@ def _mirror_now() -> None:
         _mirror_timer = None
     try:
         write_mirror()
-    except Exception as exc:  # une copie de lecture ne doit jamais gêner Bobine
+    except Exception as exc:
         logger.warning("Copie de la configuration dans %s impossible : %s", mirror_dir(), exc)
 
 
@@ -508,8 +467,7 @@ def schedule_mirror() -> None:
 
 
 class ConfigMirrorTrigger:
-    """Après chaque requête réussie qui modifie quelque chose sous `/api/`, demande la mise à jour de la copie : un seul
-    point d'accroche pour toutes les routes, présentes et futures."""
+    """Après chaque requête réussie qui modifie quelque chose sous `/api/`, demande la mise à jour de la copie : un seul point d'accroche pour toutes les routes, présentes et futures."""
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app

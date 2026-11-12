@@ -1,10 +1,8 @@
-"""Deux moteurs radio indépendants (sortie câblée et sortie réseau), alias
-historique `radio` ramené à la sortie réseau, diffusion et rôle primaire par sortie."""
+"""Deux moteurs radio indépendants (sortie câblée et sortie réseau), alias historique `radio` ramené à la sortie réseau, diffusion et rôle primaire par sortie."""
 
 import asyncio
 import os
 
-# Base de test isolée AVANT tout import de l'application (comme les autres tests).
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
@@ -150,8 +148,6 @@ def test_le_role_primaire_est_distinct_par_sortie_radio():
         ws_cable, ws_network, ws_legacy = FakeWS(), FakeWS(), FakeWS()
         assert await m.register_kiosk(ws_cable, "radio_cable", "page-cable") is True
         assert await m.register_kiosk(ws_network, "radio_network", "page-network") is True
-        # Le poste qui s'identifie avec l'ancien identifiant rejoint la sortie réseau
-        # (déjà occupée par un primaire) : il est miroir.
         assert await m.register_kiosk(ws_legacy, "radio", "page-legacy") is False
         assert m.kiosk_count("radio_cable") == 1
         assert m.kiosk_count("radio_network") == 2
@@ -171,22 +167,18 @@ def test_etat_rest_par_sortie_avec_defaut_et_alias(client):
     assert client.get("/api/radio/state?channel=radio").json()["channel"] == "radio_network"
     assert client.get("/api/radio/state?channel=radio_network").json()["channel"] == "radio_network"
     assert client.get("/api/radio/state?channel=radio_cable").json()["channel"] == "radio_cable"
-    # Une valeur inconnue ne fait jamais une erreur serveur.
     assert client.get("/api/radio/state?channel=zzz").json()["channel"] == "radio_network"
 
 
 def test_websocket_synchronise_les_deux_moteurs_et_accepte_l_alias(client):
     with client.websocket_connect("/ws/playback") as ws:
         sync = {}
-        # boot_id, puis un état par canal de diffusion et par sortie radio.
         while not {"radio_cable", "radio_network"} <= set(sync):
             message = ws.receive_json()
             if message.get("event") == "state_change":
                 sync[message["channel"]] = message
         assert {"radio_cable", "radio_network"} <= set(sync)
         assert "radio" not in sync
-        # Un ancien poste s'identifie encore avec "radio" : il devient primaire
-        # de la sortie réseau.
         ws.send_json({"command": "identify", "params": {"role": "kiosk", "channel": "radio", "client_id": "p-legacy"}})
         message = ws.receive_json()
         while message.get("event") != "kiosk_role":
@@ -200,11 +192,9 @@ def test_commande_ciblee_sur_une_sortie_ne_touche_pas_l_autre(client):
     with client.websocket_connect("/ws/playback") as ws:
         ws.send_json({"command": "volume", "params": {"channel": "radio_cable", "volume": 33}})
         ws.send_json({"command": "volume", "params": {"channel": "radio", "volume": 55}})
-        # Le ping suivant garantit que les deux commandes ont été traitées (ordre WS).
         ws.send_json({"command": "pong", "params": {}})
     try:
         assert cable.state["volume"] == 33
         assert network.state["volume"] == 55
     finally:
-        # Moteurs globaux : ne pas laisser ces volumes aux tests suivants.
         cable.state["volume"] = network.state["volume"] = 100

@@ -34,7 +34,7 @@ def _registry(repo_dir: str):
     path = Path(repo_dir) / "backend" / "app" / "release_channel.py"
     spec = importlib.util.spec_from_file_location("bobine_release_channel", path)
     module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module  # requis par @dataclass pour résoudre ses annotations
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -57,9 +57,7 @@ def build_channel(repo_dir: Path = REPO_DIR) -> str:
 
 
 def runtime_icon_datas(repo_dir: Path = REPO_DIR) -> list[tuple[str, str]]:
-    """Icônes embarquées à plat à côté de l'exécutable (ou dans Contents/Resources sur macOS) :
-    la barre système en choisit une d'après le canal courant (backend/app/desktop/channel_icon.py).
-    `logo_bobine_icon.png` reste le dernier recours."""
+    """Icônes embarquées à plat à côté de l'exécutable (ou dans Contents/Resources sur macOS) : la barre système en choisit une d'après le canal courant (backend/app/desktop/channel_icon.py)."""
     images = Path(repo_dir) / "Assets" / "Images"
     names = ["logo_bobine_icon.png"] + [f"logo_bobine_icon_{channel}.png" for channel in channels(repo_dir)]
     missing = [name for name in names if not (images / name).exists()]
@@ -71,11 +69,7 @@ def runtime_icon_datas(repo_dir: Path = REPO_DIR) -> list[tuple[str, str]]:
 
 
 def stage_icon(source: Path, work_dir: Path, fixed_name: str) -> str:
-    """Copie `source` sous un nom FIXE dans `work_dir` et renvoie le chemin copié.
-
-    PyInstaller embarque une icône sous le nom du fichier source ; les outils en aval
-    (Info.plist `CFBundleIconFile`, contrôle de la CI) attendent un nom stable quel que
-    soit le canal, d'où cette copie."""
+    """Copie `source` sous un nom FIXE dans `work_dir` et renvoie le chemin copié."""
     work_dir = Path(work_dir)
     work_dir.mkdir(parents=True, exist_ok=True)
     destination = work_dir / fixed_name

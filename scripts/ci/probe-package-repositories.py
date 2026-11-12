@@ -58,7 +58,6 @@ def check_follows_release(suite, entries, assets):
     digests = {asset["name"]: asset.get("digest", "") for asset in assets}
     for architecture in ARCHITECTURES:
         name = f"bobine_{suite}_{architecture}.deb"
-        # Seul le paquet bobine suit la release de Bobine ; bobine-deploy suit celle de son propre dépôt.
         match = [entry for entry in entries if entry.get("Architecture") == architecture and entry.get("Package") == "bobine"]
         if len(match) != 1:
             errors.append(f"{suite} : {len(match)} paquet(s) {architecture} dans l'index, un attendu")

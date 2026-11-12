@@ -1,17 +1,12 @@
 #!/usr/bin/env bash
-# Régénère uniquement le canal demandé ; les pages, jeux et autres canaux sont conservés.
-# Dépendances : reprepro, createrepo_c, rpmkeys, GnuPG, Docker (repo-add officiel Arch).
 set -euo pipefail
 export LC_ALL=C
 family="${1:?deb, rpm ou arch}"; channel="${2:?canal (stable, beta, canary...)}"
 packages=$(realpath "${3:?paquets signés}"); destination=$(realpath "${4:?copie du dépôt Pages}")
-# 5e argument facultatif : paquets signés de Bobine Deploy (dernière release de FantasmaGlad/bobine-deploy), publiés à
-# côté de bobine dans le canal. Absent ou vide, le canal garde ceux qu'il porte déjà.
 deploy=""
 [ -n "${5:-}" ] && deploy=$(realpath "$5")
 case "$family" in deb|rpm|arch) ;; *) exit 2 ;; esac
 . "$(dirname "$0")/container-images.sh"
-# Canaux valides : le registre unique (backend/app/release_channel.py), pas une liste recopiée ici.
 python3 "$(dirname "$0")/../../packaging/common/channel.py" is-channel "$channel" || exit 2
 [ "$destination" != / ] && [ "$destination" != "$packages" ] || exit 2
 fingerprint="${BOBINE_SIGNING_FINGERPRINT:-B77D96D72F84F36ACAA3F8729CBF497D829EE15A}"
@@ -55,7 +50,6 @@ EOF
     elif ! grep -q "arm64" "$debian_dir/conf/distributions"; then
         sed -i 's/^Architectures: amd64$/Architectures: amd64 arm64/' "$debian_dir/conf/distributions"
     fi
-    # Les dépôts existants reçoivent la même durée que les nouvelles installations (apt-validity.py : un an, 30 jours pour la Canary).
     python3 "$(dirname "$0")/apt-validity.py" apply "$debian_dir/conf/distributions"
     mapfile -d '' deb_amd64_matches < <(find "$packages" -type f -name "bobine_*_amd64.deb" -print0)
     mapfile -d '' deb_arm64_matches < <(find "$packages" -type f -name "bobine_*_arm64.deb" -print0)
@@ -74,7 +68,6 @@ EOF
         reprepro -b "$debian_dir" includedeb stable "$deb_amd64"
         reprepro -b "$debian_dir" includedeb stable "$deb_arm64"
     fi
-    # L'ancien assistant (bobine-assistant) est remplacé par bobine-deploy.
     reprepro -b "$debian_dir" remove "$channel" bobine-assistant || true
     if [ -n "$deploy" ]; then
         mapfile -d '' deploy_debs < <(find "$deploy" -maxdepth 1 -type f -name "bobine-deploy_*.deb" -print0)
@@ -109,7 +102,6 @@ for arch in x86_64 aarch64; do
         suffix="-$arch.pkg.tar.zst"
     fi
     target="$destination/$sub_dir/$channel/$arch"
-    # Aucun chemin de nettoyage ne vient du contenu d'un paquet.
     [ ! -L "$destination/$sub_dir" ] && [ ! -L "$destination/$sub_dir/$channel" ] && [ ! -L "$target" ] || exit 2
     mapfile -d '' matches < <(find "$packages" -type f -name "bobine-*$suffix" ! -name "bobine-assistant-*" ! -name "bobine-deploy-*" -print0)
     [ "${#matches[@]}" = 1 ] || { echo "Un paquet $family/$arch attendu." >&2; exit 1; }
@@ -121,7 +113,6 @@ for arch in x86_64 aarch64; do
     else
         gpg --batch --verify "$package.sig" "$package"
     fi
-    # Bobine Deploy : le nouveau paquet s'il est fourni, sinon celui que le canal porte déjà.
     extra=()
     if [ "$family" = rpm ]; then
         source_dir=""
@@ -157,7 +148,6 @@ for arch in x86_64 aarch64; do
         for name in bobine.db bobine.files; do
             gpg --batch --yes --local-user "$fingerprint" --detach-sign "$target/$name.tar.gz"
             gpg --batch --verify "$target/$name.tar.gz.sig" "$target/$name.tar.gz"
-            # Pages doit servir les octets de l'archive, pas le texte d'un lien symbolique Git.
             cp --remove-destination "$target/$name.tar.gz" "$target/$name"
             cp "$target/$name.tar.gz.sig" "$target/$name.sig"
         done

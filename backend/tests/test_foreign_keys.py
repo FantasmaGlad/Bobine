@@ -18,7 +18,6 @@ def _engine(path):
 
 
 def _old_schema(path):
-    """Base au schéma du modèle, mais dont deux tables ont des clés sans action, comme avant les règles."""
     Base.metadata.create_all(create_engine(f"sqlite:///{path}"))
     db = sqlite3.connect(path)
     db.executescript(
@@ -62,7 +61,6 @@ def test_old_tables_get_the_model_rules_and_lose_their_orphans(tmp_path):
     db = sqlite3.connect(path)
     assert _actions(db, "playlist_items") == {("playlist_id", "playlists"): "CASCADE", ("video_id", "videos"): "CASCADE"}
     assert _actions(db, "audio_courses") == {("background_id", "backgrounds"): "SET NULL"}
-    # La ligne qui visait une vidéo disparue est retirée ; la colonne facultative est vidée.
     assert db.execute("SELECT id FROM playlist_items").fetchall() == [(1,)]
     assert db.execute("SELECT id, background_id FROM audio_courses ORDER BY id").fetchall() == [(1, 1), (2, None)]
     assert "ix_old_playlist_items_position" in {row[1] for row in db.execute("PRAGMA index_list(playlist_items)")}

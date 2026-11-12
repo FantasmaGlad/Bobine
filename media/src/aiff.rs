@@ -1,9 +1,3 @@
-//! AIFF: big-endian PCM in a `FORM`/`AIFF` container. Not AIFF-C, not an ID3 chunk.
-//!
-//! ffmpeg's muxer writes `NAME` (title), `AUTH` (author), `(c) ` and `ANNO`; the duration
-//! is the frame count of `COMM` over its sample rate. The sound data length must agree
-//! with that count, otherwise the file is not what its header claims.
-
 use crate::audio::{
     ambiguous, corrupt, insert, limit, read_exact, unsupported, Duration, Layout, Result,
     MAX_TEXT_BYTES,
@@ -11,14 +5,12 @@ use crate::audio::{
 use crate::wav::info_text;
 use std::io::{Read, Seek, SeekFrom};
 
-/// IEEE 754 80-bit extended precision (the AIFF sample rate) when it is a plain integer rate.
 fn extended_rate(bytes: &[u8; 10]) -> Result<u64> {
     let exponent = (u16::from(bytes[0] & 0x7f) << 8) | u16::from(bytes[1]);
     let mantissa = u64::from_be_bytes(bytes[2..10].try_into().map_err(|_| corrupt())?);
     if bytes[0] & 0x80 != 0 || mantissa >> 63 == 0 {
         return Err(unsupported());
     }
-    // value = mantissa * 2^(exponent - 16383 - 63)
     let shift = i32::from(exponent) - 16383 - 63;
     let value = if shift >= 0 {
         if shift > 10 {
@@ -52,7 +44,6 @@ pub(crate) fn scan<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<Layo
     }
     let mut layout = Layout::default();
     let mut position = 12_u64;
-    // (frames, rate, bytes per frame) from COMM; length of the sound data from SSND.
     let mut format: Option<(u64, u64, u64)> = None;
     let mut sound: Option<u64> = None;
     for _ in 0..128 {
@@ -116,7 +107,6 @@ pub(crate) fn scan<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<Layo
                 match &chunk[..4] {
                     b"NAME" => insert(&mut layout.tags, "title", text)?,
                     b"AUTH" => insert(&mut layout.tags, "author", text)?,
-                    // Copyright and comment are tags the application does not read.
                     _ => {}
                 }
             }
@@ -134,7 +124,6 @@ mod tests {
     use super::*;
     use std::io::Cursor;
 
-    /// 44.1 kHz in 80-bit extended precision.
     const RATE_44100: [u8; 10] = [0x40, 0x0e, 0xac, 0x44, 0, 0, 0, 0, 0, 0];
 
     fn comm(frames: u32, bits: u16, rate: [u8; 10]) -> Vec<u8> {
@@ -181,7 +170,6 @@ mod tests {
     #[test]
     fn extended_precision_rates() {
         assert_eq!(extended_rate(&RATE_44100).unwrap(), 44_100);
-        // 8 kHz, 48 kHz.
         assert_eq!(
             extended_rate(&[0x40, 0x0b, 0xfa, 0, 0, 0, 0, 0, 0, 0]).unwrap(),
             8000
@@ -190,7 +178,6 @@ mod tests {
             extended_rate(&[0x40, 0x0e, 0xbb, 0x80, 0, 0, 0, 0, 0, 0]).unwrap(),
             48_000
         );
-        // Not normalized, negative, fractional.
         assert!(extended_rate(&[0x40, 0x0e, 0x2c, 0x44, 0, 0, 0, 0, 0, 0]).is_err());
         assert!(extended_rate(&[0xc0, 0x0e, 0xac, 0x44, 0, 0, 0, 0, 0, 0]).is_err());
         assert!(extended_rate(&[0x40, 0x0e, 0xac, 0x44, 0, 0, 0, 0, 0, 1]).is_err());
@@ -217,10 +204,8 @@ mod tests {
 
     #[test]
     fn inconsistent_or_unknown_layouts_are_refused() {
-        // Sound data shorter than the frame count claims.
         let short = form(&[comm(100, 16, RATE_44100), ssnd(100)]);
         assert_eq!(scanned(&short).unwrap_err().reason, "ambiguous_metadata");
-        // Unknown chunk (ID3, markers, application data), AIFF-C, missing parts, bad length.
         let id3 = form(&[comm(10, 16, RATE_44100), text(b"ID3 ", b"abcd"), ssnd(20)]);
         assert_eq!(scanned(&id3).unwrap_err().reason, "unsupported");
         let mut aifc = form(&[comm(10, 16, RATE_44100), ssnd(20)]);

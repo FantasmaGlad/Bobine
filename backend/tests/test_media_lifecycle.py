@@ -1,8 +1,4 @@
-"""Binary discovery in packaged layouts, parent death, and gapless duration parity.
-
-The tests that need the native executable or ffmpeg skip when they are absent, like the
-other optional-component tests; the Rust suite covers the same rules on every platform.
-"""
+"""Binary discovery in packaged layouts, parent death, and gapless duration parity."""
 from pathlib import Path
 import os
 import shutil
@@ -82,7 +78,7 @@ def test_native_process_exits_when_the_parent_is_killed(tmp_path):
     process = subprocess.Popen([sys.executable, str(parent)], stdout=subprocess.PIPE, text=True)
     try:
         child_pid = int(process.stdout.readline())
-        os.kill(child_pid, 0)  # alive while its parent lives
+        os.kill(child_pid, 0)
         process.send_signal(signal.SIGKILL)
         process.wait(timeout=5)
         deadline = time.monotonic() + 5
@@ -93,7 +89,7 @@ def test_native_process_exits_when_the_parent_is_killed(tmp_path):
                 return
             except ProcessLookupError:
                 return
-            if state == "Z":  # exited, only waiting to be reaped by init
+            if state == "Z":
                 return
             if state is None:
                 try:

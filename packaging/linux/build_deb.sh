@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# ==============================================================================
-# Script de construction du paquet Debian (.deb) de Bobine
-# Linux non-headless (profil bureau)
-# ==============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,25 +8,8 @@ source "${REPO_DIR}/packaging/common/channel.sh"
 # shellcheck source=packaging/common/glibc_floor.sh
 source "${REPO_DIR}/packaging/common/glibc_floor.sh"
 
-# Source de vérité unique : fichier
-# VERSION à la racine du dépôt. Surchargeable via l'environnement (CI passe
-# une valeur au format Debian, ex. "5.0.6~1.beta.41" ou "5.0.6~0.canary.42" selon
-# le canal — le '+' trie APRÈS la version de base et le compteur croît à chaque
-# build, cf. dpkg --compare-versions).
-# C'est ce qui va dans le champ Version: du paquet (DEBIAN/control
-# ci-dessous), lu par dpkg/apt — jamais dans le nom de fichier (cf.
-# DEB_FILENAME_VERSION).
 VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
 
-# Version utilisée dans le NOM DU FICHIER .deb — délibérément distincte de
-# VERSION ci-dessus : GitHub Releases
-# réécrit silencieusement le caractère '~' en '.' dans les noms d'assets
-# téléchargés (constaté en pratique), ce qui casserait la convention Debian
-# du nom de fichier pour toute version contenant un '~'. Par défaut identique
-# à VERSION (paquets stables, sans '~') ; la CI passe la valeur fixe "beta"
-# ou "canary" selon le canal rolling concerné — un seul nom de fichier stable
-# dans le temps par canal, jamais de caractère problématique, et aucune
-# accumulation de fichiers versionnés à chaque reconstruction.
 DEB_FILENAME_VERSION="${DEB_FILENAME_VERSION:-$VERSION}"
 PKG_NAME="bobine"
 ARCH="${ARCH:-$(dpkg --print-architecture)}"
@@ -68,9 +47,6 @@ if [ ! -f "${DIST_DIR}/BobineBackend" ] || [ ! -f "${DIST_DIR}/BobineTray" ]; th
     exit 1
 fi
 
-# Composant audio natif (facultatif) : lu par BobineBackend à côté de son exécutable. Compilé en
-# amont (scripts/ci/stage-media.py) ; absent, le paquet reste complet et fonctionnel : la
-# lecture des tags et des pochettes passe alors par ffprobe/ffmpeg.
 MEDIA_BINARY="${BOBINE_MEDIA_BINARY:-${REPO_DIR}/media/target/release/bobine-media}"
 if [ -x "${MEDIA_BINARY}" ]; then
     cp "${MEDIA_BINARY}" "${DIST_DIR}/bobine-media"
@@ -103,27 +79,21 @@ mkdir -p "${STAGING_DIR}/usr/share/bobine"
 cp "${REPO_DIR}/packaging/storage/49-bobine-storage.rules.in" "${STAGING_DIR}/usr/share/bobine/"
 cp "${REPO_DIR}/packaging/storage/configure-storage-access" "${STAGING_DIR}/usr/lib/bobine/"
 chmod 0755 "${STAGING_DIR}/usr/lib/bobine/configure-storage-access"
-# Pare-feu : profil ufw, service firewalld et script d'ouverture aux réseaux locaux (postinst, prerm).
 install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.ufw" "${STAGING_DIR}/etc/ufw/applications.d/bobine"
 install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.firewalld.xml" "${STAGING_DIR}/usr/lib/firewalld/services/bobine.xml"
 install -m 0755 "${REPO_DIR}/packaging/linux/firewall/configure-firewall" "${STAGING_DIR}/usr/lib/bobine/configure-firewall"
 
-# Copie des binaires et assets de l'application
 cp -a "${DIST_DIR}/"* "${STAGING_DIR}/usr/lib/bobine/"
 
-# Wrapper de lancement dans /usr/bin
 cat << 'EOF' > "${STAGING_DIR}/usr/bin/bobine"
 #!/bin/sh
 exec /usr/lib/bobine/BobineTray "$@"
 EOF
 chmod 0755 "${STAGING_DIR}/usr/bin/bobine"
 
-# Fichier .desktop unique (com.bobine.app.desktop pour conformité AppStream et éviter les doublons dans GNOME)
 cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/usr/share/applications/com.bobine.app.desktop"
 cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/etc/xdg/autostart/com.bobine.app.desktop"
 
-# Métadonnées AppStream (pour le Centre d'applications Ubuntu, GNOME Software, Discover).
-# Le journal des versions reçoit l'entrée de la version construite si elle n'y figure pas encore.
 APPSTREAM_TMP="$(mktemp)"
 cp "${SCRIPT_DIR}/bobine.metainfo.xml" "${APPSTREAM_TMP}"
 APPSTREAM_VERSION="${VERSION//[~+]/-}"
@@ -134,37 +104,24 @@ cp "${APPSTREAM_TMP}" "${STAGING_DIR}/usr/share/metainfo/com.bobine.app.metainfo
 cp "${APPSTREAM_TMP}" "${STAGING_DIR}/usr/share/appdata/com.bobine.app.appdata.xml"
 rm -f "${APPSTREAM_TMP}"
 
-# Informations de Licence / Copyright Debian standard
 cp "${SCRIPT_DIR}/copyright" "${STAGING_DIR}/usr/share/doc/bobine/copyright"
 
-# Service systemd utilisateur
 cp "${SCRIPT_DIR}/bobine.service" "${STAGING_DIR}/usr/lib/systemd/user/bobine.service"
 
-# Icônes de l'application (multi-résolution hicolor + fallback pixmaps) : celles du canal du
-# build, déduit de la version du paquet (cf. packaging/common/channel.sh).
 install_channel_icons "$(bobine_channel_of_version "${VERSION}")" "${SCRIPT_DIR}/icons" "${STAGING_DIR}"
 
-# Métadonnées et scripts de maintenance Debian
 cp "${SCRIPT_DIR}/DEBIAN/control" "${STAGING_DIR}/DEBIAN/control"
 cp "${SCRIPT_DIR}/DEBIAN/postinst" "${STAGING_DIR}/DEBIAN/postinst"
 cp "${SCRIPT_DIR}/DEBIAN/prerm" "${STAGING_DIR}/DEBIAN/prerm"
 cp "${SCRIPT_DIR}/DEBIAN/postrm" "${STAGING_DIR}/DEBIAN/postrm"
 
-# Injection dynamique du numéro de version : DEBIAN/control ne porte plus qu'un placeholder "0.0.0" versionné
-# dans le dépôt — remplacé ici par VERSION, jamais figé en dur comme avant
-# (le paquet publié s'annonçait "3.0.0" quelle que soit la version réelle,
-# cf. `dpkg -I` sur un ancien paquet).
 sed -i "s/^Version:.*/Version: ${VERSION}/" "${STAGING_DIR}/DEBIAN/control"
 sed -i "s/^Architecture:.*/Architecture: ${ARCH}/" "${STAGING_DIR}/DEBIAN/control"
 
-# Plancher glibc : apt doit refuser d'installer Bobine sur une distribution dont la glibc est trop ancienne
-# (Ubuntu 22.04, Debian 12) au lieu de l'installer pour qu'il échoue au lancement. La valeur annoncée est
-# packaging/common/MIN_GLIBC ; la construction échoue si les binaires embarqués exigent davantage.
 GLIBC_MIN="$(bobine_glibc_check "${DIST_DIR}")"
 bobine_deb_require_glibc "${STAGING_DIR}/DEBIAN/control" "${GLIBC_MIN}"
 echo "Dépendance libc6 (>= ${GLIBC_MIN}) ajoutée au paquet."
 
-# Calcul dynamique de la taille installée pour le Centre d'applications
 INSTALLED_SIZE=$(du -sk "${STAGING_DIR}/usr" | awk '{print $1}')
 if ! grep -q "^Installed-Size:" "${STAGING_DIR}/DEBIAN/control"; then
     echo "Installed-Size: ${INSTALLED_SIZE}" >> "${STAGING_DIR}/DEBIAN/control"
@@ -177,7 +134,6 @@ chmod 0755 "${STAGING_DIR}/DEBIAN/prerm"
 chmod 0755 "${STAGING_DIR}/DEBIAN/postrm"
 chmod 0644 "${STAGING_DIR}/DEBIAN/control"
 
-# Normalisation des permissions dans le paquet
 find "${STAGING_DIR}" -type d -exec chmod 0755 {} +
 find "${STAGING_DIR}/usr/share" -type f -exec chmod 0644 {} +
 chmod 0755 "${STAGING_DIR}/usr/lib/bobine/BobineBackend"

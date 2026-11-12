@@ -22,13 +22,11 @@ class LaptopLidPayload(BaseModel):
 
 
 def _has_laptop_lid() -> bool:
-    """Détecte si la machine dispose d'un capot (PC Portable)."""
     if sys.platform == "win32":
         try:
             return psutil.sensors_battery() is not None
         except Exception:
             return False
-    # Sous Linux
     lid_proc = Path("/proc/acpi/button/lid")
     if lid_proc.exists():
         try:
@@ -43,7 +41,6 @@ def _has_laptop_lid() -> bool:
 
 
 def _get_lid_prevent_sleep() -> bool:
-    """Lit si la mise en veille à la fermeture du capot est désactivée."""
     if sys.platform == "win32":
         try:
             res = subprocess.run(
@@ -57,7 +54,6 @@ def _get_lid_prevent_sleep() -> bool:
             logger.debug(f"Erreur lecture powercfg capot Windows : {e}")
             return False
 
-    # Sous Linux (GNOME / gsettings)
     if shutil.which("gsettings"):
         try:
             res = subprocess.run(
@@ -75,7 +71,6 @@ def _get_lid_prevent_sleep() -> bool:
 
 
 def _set_lid_prevent_sleep(prevent: bool) -> bool:
-    """Modifie le comportement à la fermeture du capot."""
     if sys.platform == "win32":
         try:
             val = "0" if prevent else "1"
@@ -89,7 +84,6 @@ def _set_lid_prevent_sleep(prevent: bool) -> bool:
             logger.error(f"Erreur écriture powercfg capot Windows : {e}")
             return False
 
-    # Sous Linux
     if shutil.which("gsettings"):
         try:
             action = "nothing" if prevent else "suspend"

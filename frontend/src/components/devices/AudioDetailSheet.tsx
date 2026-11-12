@@ -21,13 +21,11 @@ import { errorText, type SectionProps } from "./common";
 interface Props extends Pick<SectionProps, "caps" | "notify" | "t"> {
   device: AudioDevice | null;
   onClose: () => void;
-  /** Relire la liste des sorties (alias, masquage, volume ont pu changer). */
   onChanged: () => void;
 }
 
 type Tone = "left" | "right" | "both";
 
-/** Détail d'une sortie : niveau, balance, son de test, analyse, profil, nom et visibilité. */
 export default function AudioDetailSheet({ device, caps, notify, t, onClose, onChanged }: Props) {
   const id = device?.id ?? null;
   const [details, setDetails] = useState<AudioDetails | null>(null);
@@ -47,7 +45,6 @@ export default function AudioDetailSheet({ device, caps, notify, t, onClose, onC
     }
   }, [id, t]);
 
-  // Relecture toutes les 2 s tant que le tiroir est ouvert (état, niveau, balance changés ailleurs).
   useEffect(() => {
     if (!id) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement d'une ressource externe (API) à l'ouverture

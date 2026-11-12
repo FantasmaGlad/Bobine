@@ -6,9 +6,7 @@ import { importJobsUrl, isFinished, jobPercent, type ImportJob } from "@/lib/sto
 import { tr, type StorageCtx } from "./common";
 
 interface Props extends StorageCtx {
-  /** Identifiants des travaux lancés depuis cette page (import, ajout à la bibliothèque, export). */
   jobIds: string[];
-  /** Nature de chaque travail pour choisir le verbe (« Import », « Ajout »). */
   modes: Record<string, "import" | "index" | "export">;
   onDone: () => void;
 }
@@ -22,7 +20,6 @@ async function fetchJobs(): Promise<ImportJob[]> {
   }
 }
 
-/** Avancement des travaux en cours : une barre, un verbe, un bilan ; l'annulation passe par la file d'import commune. */
 export default function TransferStatus({ jobIds, modes, onDone, t }: Props) {
   const [jobs, setJobs] = useState<ImportJob[]>([]);
   const doneRef = useRef(onDone);
@@ -58,7 +55,6 @@ export default function TransferStatus({ jobIds, modes, onDone, t }: Props) {
     try {
       await fetch(`${importJobsUrl()}/${id}`, { method: "DELETE", credentials: "include" });
     } catch {
-      /* annulation best-effort */
     }
   };
 

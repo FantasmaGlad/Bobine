@@ -19,12 +19,6 @@ import { getApiUrl } from "@/lib/apiUrl";
 
 type Row = { ok: boolean; label: string; value: string; hint?: string };
 
-/**
- * Section « Diagnostic de l'import » de Réglages : ce dont l'import de médias a
- * besoin (ffmpeg/ffprobe, dossier temporaire, espace libre) et ce qui tourne en
- * ce moment. Un import qui ne progresse pas devient diagnostiquable en un coup
- * d'œil, et le rapport se copie pour une demande d'aide.
- */
 export default function ImportDiagnosticsPanel() {
   const { t } = useAppSettings();
   const [report, setReport] = useState<ImportDiagnostics | null>(null);

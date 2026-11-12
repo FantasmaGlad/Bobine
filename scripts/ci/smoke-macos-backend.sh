@@ -1,14 +1,4 @@
 #!/usr/bin/env bash
-# Sonde de santé du backend macOS : lance l'exécutable, attend HTTP 200 sur /api/health, l'arrête
-# et libère le port. Partagée par la sonde du bundle PyInstaller et celle du Bobine.app copié
-# depuis le dmg monté.
-#
-# Usage : smoke-macos-backend.sh <BobineBackend> [--home DIR] [--log-dir DIR] [--attempts N]
-# --home isole les données : le backend les range sous ~/Library/Application Support/Bobine,
-# HOME est donc redéfini pour le seul processus lancé. Le port d'écoute n'est pas imposé : la sonde
-# choisit un port libre (--port N pour en forcer un), le transmet par BOBINE_PORT avec
-# BOBINE_PORT_STRICT=1 (aucun repli silencieux), sonde ce port et, avec --home, vérifie que le
-# fichier d'exécution du backend publie bien ce port.
 set -euo pipefail
 
 exe="${1:?chemin de BobineBackend requis}"

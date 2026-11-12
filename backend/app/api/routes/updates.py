@@ -34,28 +34,16 @@ router = APIRouter(prefix="/api/updates", tags=["updates"])
 
 
 class AndroidUpdateCallback(BaseModel):
-    """Rappel émis par `UpdateManager.kt` pendant (progression) puis à la fin
-    du téléchargement de l'APK (succès ou échec) — `apply_update()` du profil Android
-    (backend/app/utils/deployment_profiles/android.py) délègue le
-    téléchargement à un thread Kotlin asynchrone et ne peut donc pas
-    connaître l'issue réelle avant que ce rappel n'arrive."""
+    """Rappel émis par `UpdateManager.kt` pendant (progression) puis à la fin du téléchargement de l'APK (succès ou échec) — `apply_update()` du profil Android (backend/app/utils/deployment_profiles/android.py) délègue le téléchargement à un thread Kotlin asynchrone et ne peut donc pas connaître l'issue réelle avant que ce rappel n'arrive."""
 
-    status: str  # "progress", "downloaded" ou "error"
+    status: str
     message: str | None = None
     percent: int | None = None
 
 
 @router.get("/check")
 async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """
-    Vérifie la disponibilité d'une nouvelle release officielle sur GitHub,
-    en respectant le canal choisi dans Réglages → Mises à jour (Stable,
-    Bêta ou Canary). Gère gracieusement le mode hors-ligne sans planter.
-    `refresh` contourne la fenêtre anti-doublon (clic explicite sur
-    "Rechercher", changement de canal) ; la requête reste conditionnelle
-    (ETag).
-    """
-    # Jusqu'à quatre appels `git` synchrones : hors de la boucle d'évènements.
+    """Vérifie la disponibilité d'une nouvelle release officielle sur GitHub, en respectant le canal choisi dans Réglages → Mises à jour (Stable, Bêta ou Canary)."""
     local_info = await run_in_threadpool(get_local_version_info)
     now_iso = datetime.now(timezone.utc).isoformat()
     channel = get_update_channel(db)
@@ -64,7 +52,6 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
     handler = get_profile_handler()
 
     if handler.is_store_managed():
-        # État de la mise à jour côté Google Play (interrogation hors de la boucle d'évènements, délai borné).
         try:
             store = await asyncio.wait_for(asyncio.to_thread(handler.store_update_status), timeout=25)
         except Exception:
@@ -132,10 +119,6 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
     )
 
     asset = resolve_asset(profile, release_data, handler.asset_variant())
-    # Profil sans checkout git : sans asset (ni empreinte) pour CE profil
-    # dans la release, il n'y a rien à installer automatiquement — l'interface
-    # bascule alors sur le lien de téléchargement manuel plutôt que de
-    # proposer un bouton "Mettre à jour" voué à l'échec.
     can_auto_apply = handler.can_auto_apply()
     if can_auto_apply and not handler.supports_git_versioning() and not (
         asset["download_url"] and asset["asset_digest"]
@@ -162,14 +145,12 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
 
 
 class TorCheckRequest(BaseModel):
-    # Adresse à essayer avant de l'enregistrer ; absente : le réglage en vigueur.
     proxy: str | None = Field(default=None, max_length=80)
 
 
 @router.post("/tor-check")
 async def tor_check(payload: TorCheckRequest) -> dict[str, Any]:
-    """Vérifie par le service de contrôle de Tor que les mises à jour sortiraient bien par Tor. `source` :
-    `existing` (proxy déjà ouvert) ou `on_demand` (Tor lancé par Bobine, arrêté après quelques minutes)."""
+    """Vérifie par le service de contrôle de Tor que les mises à jour sortiraient bien par Tor."""
     proxy = payload.proxy
     if proxy is not None:
         try:
@@ -181,31 +162,19 @@ async def tor_check(payload: TorCheckRequest) -> dict[str, Any]:
 
 @router.get("/status")
 async def get_update_status() -> dict[str, Any]:
-    """État courant (ou dernier connu) du pipeline de mise à jour — lu par
-    le frontend au chargement de la page ET par l'overlay de progression
-    en repli si le WebSocket n'est pas connecté au moment où une mise à
-    jour planifiée se termine (cas concret : déclenchement à 3h du matin,
-    personne devant l'écran)."""
+    """État courant (ou dernier connu) du pipeline de mise à jour — lu par le frontend au chargement de la page ET par l'overlay de progression en repli si le WebSocket n'est pas connecté au moment où une mise à jour planifiée se termine (cas concret : déclenchement à 3h du matin, personne devant l'écran)."""
     return get_status()
 
 
 @router.post("/acknowledge")
 async def acknowledge_update() -> dict[str, Any]:
-    """Acquitte le cycle de mise à jour courant (bannière/notification
-    fermée manuellement par l'utilisateur) — persisté côté serveur pour que
-    l'acquittement survive à un rechargement de page ou à un redémarrage de
-    service déclenché par la mise à jour elle-même, au lieu de réapparaître
-    en boucle (cf. `updates.orchestrator.acknowledge_current`)."""
+    """Acquitte le cycle de mise à jour courant (bannière/notification fermée manuellement par l'utilisateur) — persisté côté serveur pour que l'acquittement survive à un rechargement de page ou à un redémarrage de service déclenché par la mise à jour elle-même, au lieu de réapparaître en boucle (cf."""
     return await acknowledge_current()
 
 
 @router.post("/_android-callback")
 async def android_update_callback(payload: AndroidUpdateCallback) -> dict[str, str]:
-    """Rappel interne (boucle locale uniquement, jamais exposé au delà de
-    127.0.0.1 par la configuration réseau du profil Android) : `UpdateManager.
-    kt` l'appelle pendant puis à la fin du téléchargement de l'APK, puisque
-    `apply_update()` côté Python ne peut pas connaître cette issue avant
-    que le thread Kotlin ne l'ait déterminée."""
+    """Rappel interne (boucle locale uniquement, jamais exposé au delà de 127.0.0.1 par la configuration réseau du profil Android) : `UpdateManager."""
     if payload.status == "progress":
         await report_external_event("downloading", message=payload.message, percent=payload.percent)
     elif payload.status == "downloaded":
@@ -251,12 +220,7 @@ async def store_open() -> dict[str, Any]:
 
 @router.post("/apply")
 async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, str]:
-    """Déclenche la mise à jour du système en tâche de fond.
-
-    Vérifie si le profil de déploiement supporte l'application automatique
-    et qu'aucune mise à jour n'est déjà en cours (409 sinon — corrige le
-    risque de deux installations concurrentes sur un double clic ou deux
-    onglets ouverts)."""
+    """Déclenche la mise à jour du système en tâche de fond."""
     handler = get_profile_handler()
     if handler.is_store_managed():
         raise HTTPException(
@@ -274,12 +238,6 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
     if is_running():
         raise HTTPException(status_code=409, detail="Une mise à jour est déjà en cours d'application.")
 
-    # Résout à nouveau la release cible au moment du clic (plutôt que de
-    # faire confiance à une valeur envoyée par le client) : reflète toujours
-    # le canal Stable/Bêta/Canary courant, y compris si l'utilisateur l'a
-    # changé entre le dernier "Rechercher une mise à jour" et ce clic.
-    # `force=True` : jamais sur une réponse en cache vieille de plusieurs
-    # minutes.
     channel = get_update_channel(db)
     release_data, error_code = await fetch_release_for_channel(channel, force=True)
     if not release_data:
@@ -287,9 +245,6 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
             status_code=503,
             detail=LOOKUP_ERROR_MESSAGES.get(error_code or "offline", LOOKUP_ERROR_MESSAGES["offline"]),
         )
-    # Un retour en arrière (is_downgrade) est accepté ICI — c'est l'action
-    # explicite du bouton — mais pas un clic sur une version déjà installée.
-    # Jusqu'à quatre appels `git` synchrones : hors de la boucle d'évènements.
     local_info = await run_in_threadpool(get_local_version_info)
     profile = get_deployment_profile()
     evaluation = await refuse_android_downgrade(

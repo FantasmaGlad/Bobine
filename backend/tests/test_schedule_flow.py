@@ -5,10 +5,8 @@ import unittest
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
-# Add backend directory to Python path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# Set test database
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_schedule_database.db"
 
 from fastapi import HTTPException
@@ -62,8 +60,6 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
                 pass
 
     def setUp(self):
-        # Les tests de programmation remplacent les gestionnaires de lecture globaux (diffusion factice) : ceux de
-        # l'application sont remis ensuite, sinon les tests WebSocket suivants ne reçoivent plus aucun état.
         from app.playback import manager as playback_manager_module
 
         saved_managers = dict(playback_manager_module._managers)
@@ -125,7 +121,6 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(once["target_title"], "RPM 98")
         self.assertTrue(once["active"])
 
-        # Les overrides ne s'appliquent qu'aux programmations récurrentes.
         with self.assertRaises(HTTPException):
             create_override(
                 once["id"],
@@ -164,7 +159,6 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(updated["days_of_week"], [2])
         self.assertEqual(updated["time_of_day"], "09:00")
 
-        # Validations
         with self.assertRaises(HTTPException):
             await create_schedule(
                 ScheduleInput(
@@ -229,7 +223,6 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
                 self.db,
             )
 
-        # Override + suppression en cascade
         override = create_override(
             recurring["id"],
             OverrideInput(occurrence_date="2026-08-04", action=OverrideAction.cancelled),
@@ -246,7 +239,7 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
         await delete_schedule(once["id"], self.db)
 
     async def test_expand_occurrences_with_overrides(self):
-        anchor = date(2026, 7, 16)  # jeudi (cohérent avec la date système de référence)
+        anchor = date(2026, 7, 16)
         created = await create_schedule(
             ScheduleInput(
                 target_type=ScheduleTargetType.video,
@@ -284,7 +277,7 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(occurrences[0]["title"], "RPM 98")
 
         self.assertEqual(occurrences[1]["override_action"], OverrideAction.cancelled)
-        self.assertEqual(occurrences[1]["title"], "RPM 98")  # titre d'origine conservé pour l'affichage barré
+        self.assertEqual(occurrences[1]["title"], "RPM 98")
 
         self.assertEqual(occurrences[2]["override_action"], OverrideAction.replaced)
         self.assertEqual(occurrences[2]["title"], "Sprint 35")
@@ -333,12 +326,9 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
         init_playback_managers(mock_broadcast)
         manager = get_playback_manager()
 
-        # Simule une lecture manuelle en cours (video1 à 42s).
         await manager.load(
             self.video1.id, self.video1.title, self.video1.duration_seconds, self.video1.program
         )
-        # La position vient désormais de l'horloge serveur :
-        # on la déplace via l'API de lecture, plus en écrivant l'état.
         await manager.seek(42.0)
 
         scheduled = await create_schedule(
@@ -353,18 +343,14 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
 
         await fire_schedule(scheduled["id"])
 
-        # La programmation a pris la main (elle est prioritaire).
         self.assertEqual(manager.state["current_video"]["id"], self.video2.id)
 
-        # La lecture manuelle interrompue est mémorisée pour reprise.
         interrupted = self.db.query(PlaybackState).order_by(PlaybackState.id.desc()).first()
         self.assertIsNotNone(interrupted)
         self.assertEqual(interrupted.video_id, self.video1.id)
-        # Tolérance : l'horloge avance en temps réel pendant l'exécution du test.
         self.assertAlmostEqual(interrupted.position_seconds, 42.0, delta=5.0)
         self.assertEqual(interrupted.cause, "schedule")
 
-        # Reprise manuelle depuis l'interface.
         await resume_interrupted_state(db=self.db)
         self.assertEqual(manager.state["current_video"]["id"], self.video1.id)
         self.assertAlmostEqual(manager.state["position_seconds"], 42.0, delta=5.0)
@@ -396,7 +382,6 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
 
         dismiss_interrupted_state(db=self.db)
         self.assertIsNone(self.db.query(PlaybackState).first())
-        # L'abandon ne relance pas la vidéo interrompue.
         self.assertEqual(manager.state["current_video"]["id"], self.video2.id)
 
     async def test_fire_schedule_respects_cancelled_override(self):
@@ -427,7 +412,6 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
 
         await fire_schedule(recurring["id"])
 
-        # L'occurrence du jour est annulée : rien n'est lancé.
         self.assertIsNone(manager.state["current_video"])
         self.assertEqual(len(broadcasts), 0)
 

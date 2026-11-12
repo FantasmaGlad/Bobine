@@ -53,7 +53,6 @@ function formatBytes(bytes?: number): string {
 export default function MetricsSystemPage() {
   const { t } = useAppSettings();
   const [telemetry, setTelemetry] = useState<SystemTelemetry | null>(null);
-  // Même bandeau de période que « Cours » : il règle la profondeur de l'historique affiché au clic sur une carte.
   const [period, setPeriod] = useState<"7d" | "30d" | "this_month" | "all">("7d");
   const [activeDrawer, setActiveDrawer] = useState<{
     metric: string;
@@ -77,7 +76,6 @@ export default function MetricsSystemPage() {
     fetchTelemetry();
   }, [fetchTelemetry]);
 
-  // Actualisation toutes les 5 secondes
   useEffect(() => {
     const id = setInterval(fetchTelemetry, 5000);
     return () => clearInterval(id);
@@ -100,7 +98,6 @@ export default function MetricsSystemPage() {
 
   return (
     <div className="metrics-page">
-      {/* Bandeau de période, identique à celui de la page « Cours » */}
       <div className="metrics-filters-bar" style={{ marginTop: 0 }}>
         <div className="metrics-filter-group">
           <span className="metrics-filter-label">
@@ -128,9 +125,7 @@ export default function MetricsSystemPage() {
         </div>
       </div>
 
-      {/* Grille principale de supervision matérielle harmonisée sur les cartes de cours */}
       <section className="metrics-telemetry-grid">
-        {/* 1. CPU */}
         <div
           className="metrics-telemetry-item interactive"
           role="button"
@@ -161,7 +156,6 @@ export default function MetricsSystemPage() {
           </span>
         </div>
 
-        {/* 2. GPU */}
         <div
           className="metrics-telemetry-item interactive"
           role="button"
@@ -192,7 +186,6 @@ export default function MetricsSystemPage() {
           </span>
         </div>
 
-        {/* 3. RAM */}
         <div
           className="metrics-telemetry-item interactive"
           role="button"
@@ -226,7 +219,6 @@ export default function MetricsSystemPage() {
           </span>
         </div>
 
-        {/* 4. Stockage Principal */}
         <div
           className="metrics-telemetry-item interactive"
           role="button"
@@ -257,7 +249,6 @@ export default function MetricsSystemPage() {
           </span>
         </div>
 
-        {/* 5. Puissance & Énergie */}
         <div
           className="metrics-telemetry-item interactive"
           role="button"
@@ -287,7 +278,6 @@ export default function MetricsSystemPage() {
           </span>
         </div>
 
-        {/* 6. Uptime Système & Runtime Service */}
         <div className="metrics-telemetry-item">
           <div className="metrics-telemetry-item-head">
             <span className="metrics-telemetry-name">{t("metricsPage.runtime")}</span>
@@ -310,7 +300,6 @@ export default function MetricsSystemPage() {
         </div>
       </section>
 
-      {/* Tiroir latéral d'historique avec graphique temporel */}
       {activeDrawer && (
         <TelemetryHistoryDrawer
           isOpen={true}

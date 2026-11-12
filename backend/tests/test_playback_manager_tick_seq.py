@@ -1,8 +1,4 @@
-"""Renforcement reseaux imparfaits (retour utilisateur, session Android) :
-`position_tick` porte un numero de sequence croissant, jamais reinitialise,
-pour que le client detecte un tick perdu en silence et resynchronise
-immediatement au lieu d'attendre le prochain cycle du filet de securite
-REST periodique (15s, cf. usePlaybackSocket.ts)."""
+"""Renforcement reseaux imparfaits (retour utilisateur, session Android) : `position_tick` porte un numero de sequence croissant, jamais reinitialise, pour que le client detecte un tick perdu en silence et resynchronise immediatement au lieu d'attendre le prochain cycle du filet de securite REST periodique (15s, cf."""
 
 import asyncio
 
@@ -46,9 +42,7 @@ def test_non_tick_causes_never_carry_a_tick_seq():
 
 
 def test_tick_sequence_is_never_reset_across_a_new_load():
-    """Le compteur suit le CANAL, pas la video en cours : un changement de
-    cours (load) ne doit pas faire repartir la sequence a zero, sinon un
-    trou juste avant/apres un changement de video serait invisible."""
+    """Le compteur suit le CANAL, pas la video en cours : un changement de cours (load) ne doit pas faire repartir la sequence a zero, sinon un trou juste avant/apres un changement de video serait invisible."""
     received = []
 
     async def _fake_broadcast(payload):
@@ -58,7 +52,7 @@ def test_tick_sequence_is_never_reset_across_a_new_load():
         manager = PlaybackManager(_fake_broadcast, channel="network")
         await manager._emit("position_tick")
         await manager._emit("position_tick")
-        await manager._emit("load")  # changement de cours, pas de tick_seq
+        await manager._emit("load")
         await manager._emit("position_tick")
 
     asyncio.run(_run())

@@ -1,23 +1,4 @@
-"""Téléversement par morceaux reprenable.
-
-Pourquoi : jusqu'ici, un fichier vidéo ou une archive ZIP partait en UNE seule
-requête `multipart/form-data` de plusieurs Go. Une coupure Wi-Fi à 95 %
-obligeait à tout recommencer, une requête aussi longue est fragile face aux
-intermédiaires et pèse sur la mémoire/le disque temporaire du navigateur
-(Firefox pour Android compris). Le client découpe désormais le fichier en
-morceaux (`Blob.slice`), les envoie un par un (`PATCH` avec `Upload-Offset`) et
-peut REPRENDRE à l'octet près après une coupure — y compris après un
-rechargement de page, grâce à l'empreinte du fichier.
-
-Protocole (inspiré de tus, volontairement minimal) :
-  POST   /api/uploads            {filename, size, fingerprint?} -> {upload_id, offset, chunk_size}
-  GET    /api/uploads/{id}       -> {offset, size, complete}
-  PATCH  /api/uploads/{id}       en-tête Upload-Offset, corps binaire -> {offset, complete}
-  DELETE /api/uploads/{id}       abandon
-Puis le point d'entrée d'import habituel (`/api/videos/upload`, etc.) est
-appelé avec le champ de formulaire `upload_id` au lieu du fichier : il reprend
-le fichier déjà reçu sans le recopier (`take_staged_upload`).
-"""
+"""Téléversement par morceaux reprenable."""
 
 import json
 import logging
@@ -37,8 +18,6 @@ logger = logging.getLogger(__name__)
 CHUNK_SIZE = 8 * 1024 * 1024
 STALE_AFTER_SECONDS = 24 * 3600
 _ID_RE = re.compile(r"^[0-9a-f]{32}$")
-# Marge d'espace disque exigée au-delà de la taille annoncée : le fichier
-# reçu est ensuite lu par ffprobe/ffmpeg, qui peut produire une copie normalisée.
 FREE_SPACE_FACTOR = 1.1
 
 _locks_guard = threading.Lock()
@@ -46,9 +25,7 @@ _active: set[str] = set()
 
 
 def short_id(upload_id: str | None) -> str:
-    """Identifiant abrégé pour les journaux (8 premiers caractères) ; une valeur
-    qui n'a pas la forme d'un identifiant n'est jamais recopiée telle quelle
-    (entrée du client)."""
+    """Identifiant abrégé pour les journaux (8 premiers caractères) ; une valeur qui n'a pas la forme d'un identifiant n'est jamais recopiée telle quelle (entrée du client)."""
     return upload_id[:8] if upload_id and _ID_RE.match(upload_id) else "invalide"
 
 
@@ -98,8 +75,6 @@ def _read(upload_id: str) -> Session:
         meta = json.loads(_meta_path(upload_id).read_text(encoding="utf-8"))
         return Session(upload_id, meta["filename"], int(meta["size"]), meta.get("fingerprint"), float(meta["created_at"]))
     except (OSError, ValueError, KeyError):
-        # Journalisé : « session introuvable » est le signe typique d'un dossier
-        # temporaire purgé ou d'un redémarrage avec un autre dossier de données.
         logger.warning("Upload %s : session introuvable ou expirée", short_id(upload_id))
         raise HTTPException(status_code=404, detail="Téléversement introuvable ou expiré")
 
@@ -109,8 +84,6 @@ def create_session(filename: str, size: int, fingerprint: str | None) -> Session
         raise HTTPException(status_code=400, detail="Taille de fichier invalide")
     purge_stale()
     if fingerprint:
-        # Même fichier déjà en cours de transfert (rechargement de page,
-        # coupure) : on reprend la session existante au lieu d'en créer une.
         for meta_file in staging_dir().glob("*.json"):
             try:
                 existing = _read(meta_file.stem)
@@ -142,8 +115,6 @@ def create_session(filename: str, size: int, fingerprint: str | None) -> Session
         encoding="utf-8",
     )
     _part_path(upload_id).touch()
-    # Ni nom de fichier ni empreinte dans le journal : l'extension et la taille
-    # suffisent à diagnostiquer (un .mov de 2 Go, un .zip…).
     logger.info(
         "Upload %s créé : %d octets, extension %s, dossier %s",
         short_id(upload_id), size, Path(session.filename).suffix.lower() or "(aucune)", staging_dir(),
@@ -161,8 +132,7 @@ def get_session(upload_id: str) -> Session:
 
 
 def acquire(upload_id: str) -> None:
-    """Un seul `PATCH` à la fois par session : deux écritures concurrentes à
-    des positions différentes corrompraient le fichier (409 pour le second)."""
+    """Un seul `PATCH` à la fois par session : deux écritures concurrentes à des positions différentes corrompraient le fichier (409 pour le second)."""
     with _locks_guard:
         if upload_id in _active:
             raise HTTPException(status_code=409, detail="Un transfert est déjà en cours pour ce fichier")
@@ -189,9 +159,7 @@ def abort(upload_id: str) -> None:
 
 
 def purge_stale() -> int:
-    """Supprime les sessions abandonnées depuis plus de 24 h (appelé à chaque
-    création et au démarrage) — un transfert interrompu ne doit pas occuper
-    indéfiniment plusieurs Go dans le dossier temporaire."""
+    """Supprime les sessions abandonnées depuis plus de 24 h (appelé à chaque création et au démarrage) — un transfert interrompu ne doit pas occuper indéfiniment plusieurs Go dans le dossier temporaire."""
     removed = 0
     now = time.time()
     for path in staging_dir().glob("*"):
@@ -207,10 +175,7 @@ def purge_stale() -> int:
 
 
 def take_staged_upload(upload_id: str, forced_suffix: str | None = None) -> tuple[str, str]:
-    """Consomme une session terminée : renvoie (chemin du fichier, nom d'origine).
-    Le fichier est renommé (extension d'origine conservée) et appartient dès
-    lors à l'appelant — le job d'import le supprime à la fin, comme pour un
-    fichier reçu en multipart."""
+    """Consomme une session terminée : renvoie (chemin du fichier, nom d'origine)."""
     session = _read(upload_id)
     if not session.complete:
         logger.warning(
@@ -230,10 +195,7 @@ def take_staged_upload(upload_id: str, forced_suffix: str | None = None) -> tupl
 
 
 def receive_single_upload(file: UploadFile | None, upload_id: str | None, forced_suffix: str | None = None) -> tuple[str, str]:
-    """Point d'entrée commun des handlers d'import à fichier unique : soit un
-    fichier déjà téléversé par morceaux (`upload_id`, aucune recopie), soit un
-    `multipart` classique (copié dans un fichier temporaire, comportement
-    historique conservé pour les clients simples et les anciennes versions)."""
+    """Point d'entrée commun des handlers d'import à fichier unique : soit un fichier déjà téléversé par morceaux (`upload_id`, aucune recopie), soit un `multipart` classique (copié dans un fichier temporaire, comportement historique conservé pour les clients simples et les anciennes versions)."""
     import shutil
 
     if upload_id:
@@ -248,7 +210,6 @@ def receive_single_upload(file: UploadFile | None, upload_id: str | None, forced
             shutil.copyfileobj(file.file, temp_file)
             return temp_path, file.filename
     except Exception as e:
-        # Un client qui coupe le transfert laisse sinon un fichier partiel pour toujours dans /tmp.
         if temp_path is not None:
             try:
                 os.unlink(temp_path)

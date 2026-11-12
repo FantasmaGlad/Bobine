@@ -9,7 +9,6 @@ from app.storage.lsblk import classify_kind
 from .model import DiskInfo, PartInfo
 
 DISK_COLUMNS = "NAME,PATH,UUID,LABEL,FSTYPE,SIZE,RM,HOTPLUG,TRAN,MOUNTPOINTS,MODEL,SERIAL,TYPE,RO,ROTA,VENDOR,PARTN,PTTYPE,START"
-# Anciennes versions d'util-linux : colonnes en moins (jamais celles qui servent à écarter les disques système).
 DISK_COLUMNS_FALLBACK = "NAME,PATH,UUID,LABEL,FSTYPE,SIZE,RM,HOTPLUG,TRAN,MOUNTPOINTS,MODEL,SERIAL,TYPE,RO,ROTA"
 
 

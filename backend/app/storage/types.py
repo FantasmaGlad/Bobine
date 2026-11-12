@@ -7,7 +7,6 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-# Natures de support (affichage, règles de longévité).
 KINDS = ("usb", "sd", "hdd", "ssd", "image", "other")
 
 _KEY_SAFE = re.compile(r"[^0-9A-Za-z._-]")
@@ -18,7 +17,7 @@ class Volume:
     """Un système de fichiers d'un support amovible, tel que vu par l'inventaire du système."""
 
     key: str
-    device: str  # /dev/sdb1 : jamais exposé au client comme identifiant d'action
+    device: str
     name: str
     fs_uuid: str | None
     label: str | None
@@ -38,7 +37,7 @@ class Volume:
     kind: str = "other"
     dev_type: str = "part"
     discard_supported: bool = False
-    disk: str | None = None  # nom du disque parent (sdb), sert à la mise en veille / SMART
+    disk: str | None = None
     sd_card: bool = False
 
     @property
@@ -65,7 +64,7 @@ class Excluded:
     """Un support que Bobine refuse de proposer, avec la raison (journal, tests)."""
 
     device: str
-    reason: str  # system | internal | bobine_data | unusable_fs | encrypted | swap
+    reason: str
 
 
 @dataclass
@@ -76,9 +75,7 @@ class Inventory:
 
 
 def make_key(fs_uuid: str | None, serial: str | None, model: str | None, partn: str | None, size: int) -> str:
-    """Clé stable d'un volume : UUID du système de fichiers, sinon empreinte du matériel.
-
-    Le point de montage n'entre jamais dans la clé : il change à chaque branchement."""
+    """Clé stable d'un volume : UUID du système de fichiers, sinon empreinte du matériel."""
     if fs_uuid:
         return "u-" + _KEY_SAFE.sub("_", fs_uuid.strip().lower())
     raw = "|".join([serial or "", model or "", partn or "", str(size)])

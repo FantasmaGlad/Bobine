@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Déclenche le rafraîchissement du miroir après publication des paquets signés.
 set -euo pipefail
 case "${RELEASE_CHANNEL:-}" in stable|beta|canary) ;; *) echo 'Canal de publication invalide' >&2; exit 1 ;; esac
 [[ "${RELEASE_SHA:-}" =~ ^[a-f0-9]{40}$ ]] || { echo 'Révision de publication invalide' >&2; exit 1; }

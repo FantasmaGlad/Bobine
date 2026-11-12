@@ -17,7 +17,7 @@ test("les fichiers identiques dans toutes les langues sont mutualisés, les autr
   for (const lang of ["fr", "en"]) {
     write(root, `${lang}/_next/static/chunks/same.js`, "commun");
     write(root, `${lang}/logo.png`, "png");
-    write(root, `${lang}/index.html`, "<html></html>"); // identique mais jamais mutualisé
+    write(root, `${lang}/index.html`, "<html></html>");
     write(root, `${lang}/_next/static/chunks/dict.js`, `dictionnaire ${lang}`);
   }
   write(root, "fr/only-fr.js", "fr");

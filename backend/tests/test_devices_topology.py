@@ -56,9 +56,9 @@ def test_machine_at_the_center_with_every_source():
     nodes = by_id(g)
     assert nodes["machine"]["ring"] == 0 and nodes["machine"]["label"] == "wyse"
     assert {"wifi", "eth:eth0", "bt:AA:BB:CC:DD:EE:01", "bt:AA:BB:CC:DD:EE:02", "audio:spk", "audio:hdmi"} <= set(nodes)
-    assert "bt:AA:BB:CC:DD:EE:03" not in nodes  # appareil à portée non appairé : pas sur la carte
-    assert "audio:old" not in nodes  # sortie masquée
-    assert nodes["audio:hdmi"]["label"] == "Projecteur"  # alias
+    assert "bt:AA:BB:CC:DD:EE:03" not in nodes
+    assert "audio:old" not in nodes
+    assert nodes["audio:hdmi"]["label"] == "Projecteur"
     assert all(link["from"] in nodes and link["to"] in nodes for link in g["links"])
     assert len({link["id"] for link in g["links"]}) == len(g["links"])
 
@@ -88,7 +88,7 @@ def test_clients_medium_and_anchor():
     kinds = {n["meta"]["ip"]: n["kind"] for n in clients}
     assert kinds["10.0.0.9"] == "remote" and kinds["192.168.1.60"] == "screen"
     wifi_client = next(n for n in clients if n["meta"]["ip"] == "192.168.1.60")
-    assert link_for[wifi_client["id"]]["from"] == "wifi" and link_for[wifi_client["id"]]["medium"] == "wifi"  # via le point d'accès
+    assert link_for[wifi_client["id"]]["from"] == "wifi" and link_for[wifi_client["id"]]["medium"] == "wifi"
     eth_client = next(n for n in clients if n["meta"]["ip"] == "10.0.0.9")
     assert link_for[eth_client["id"]]["from"] == "eth:eth0"
     local = next(n for n in clients if n["meta"]["ip"] == "127.0.0.1")
@@ -101,7 +101,7 @@ def test_clients_medium_and_anchor():
 def test_client_medium_rules():
     own = frozenset({"192.168.1.17"})
     assert client_medium("127.0.0.1", own, None, []) == "local"
-    assert client_medium("192.168.1.17", own, "192.168.1.0/24", []) == "local"  # adresse de la machine elle-même
+    assert client_medium("192.168.1.17", own, "192.168.1.0/24", []) == "local"
     assert client_medium("192.168.1.50", own, "192.168.1.0/24", []) == "wifi"
     assert client_medium("10.1.1.1", own, "192.168.1.0/24", ["10.1.1.0/24"]) == "wired"
     assert client_medium("8.8.8.8", own, "192.168.1.0/24", ["10.1.1.0/24"]) == "lan"
@@ -117,11 +117,6 @@ def test_degrades_when_sources_are_missing():
 def test_ethernet_helper_ignores_virtual_and_wifi_interfaces():
     names = {e["name"] for e in ethernet_interfaces("wlo1")}
     assert not any(n.startswith(("lo", "docker", "veth", "virbr", "lxc", "wlo1")) for n in names)
-
-
-# ---------------------------------------------------------------------------
-# Spectateurs WebSocket et route
-# ---------------------------------------------------------------------------
 
 
 class FakeWS:
@@ -140,13 +135,13 @@ def test_ws_manager_snapshot_groups_kiosks_and_viewers():
         await manager.register_kiosk(b, "radio_network", "k2")
         manager.register_viewer(v1, "network", "cinema")
         manager.register_viewer(v2, "network", "cinema")
-        manager.register_viewer(FakeWS("10.0.0.2"), "inconnu", "dashboard")  # canal invalide : retombe sur câblé
+        manager.register_viewer(FakeWS("10.0.0.2"), "inconnu", "dashboard")
         return manager.client_snapshot()
 
     snap = asyncio.run(scenario())
     assert {"channel": "network", "page": "cinema", "role": "viewer", "ip": "192.168.1.60", "count": 2} in snap
     assert {"channel": "cable", "page": "kiosk", "role": "primary", "ip": "127.0.0.1", "count": 1} in snap
-    assert {"channel": "radio_network", "page": "radio", "role": "primary", "ip": "127.0.0.1", "count": 1} in snap  # page par défaut d'une sortie radio
+    assert {"channel": "radio_network", "page": "radio", "role": "primary", "ip": "127.0.0.1", "count": 1} in snap
     assert any(e["channel"] == "cable" and e["page"] == "dashboard" and e["role"] == "viewer" for e in snap)
 
 
@@ -186,7 +181,6 @@ def test_topology_route_and_viewer_identify(api):
     ids = {n["id"] for n in body["nodes"]}
     assert {"machine", "wifi", "audio:spk", "bt:AA:BB:CC:DD:EE:01"} <= ids
     assert any(n["kind"] == "screen" and n["meta"]["page"] == "cinema" for n in body["nodes"])
-    # Un spectateur n'a aucun effet sur le rôle primaire du canal.
     from app.utils.ws_manager import manager
 
     assert manager.kiosk_count("network") == 0

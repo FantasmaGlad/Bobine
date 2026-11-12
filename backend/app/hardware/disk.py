@@ -11,23 +11,18 @@ from .probe import _HARDWARE_CACHE, _get_android_prop, is_android_system, shutil
 
 
 def get_storage_model() -> str:
-    """
-    Retourne le modèle matériel du disque de stockage principal (SSD, NVMe, UFS, eMMC).
-    Prise en charge multi-OS : Linux, macOS, Windows, Android.
-    """
+    """Retourne le modèle matériel du disque de stockage principal (SSD, NVMe, UFS, eMMC)."""
     if _HARDWARE_CACHE["storage_model"]:
         return _HARDWARE_CACHE["storage_model"]
 
     model = ""
     is_android = is_android_system()
 
-    # 1. ANDROID : détection bus UFS / eMMC
     if is_android:
         bootdevice = _get_android_prop("ro.boot.bootdevice") or _get_android_prop("ro.boot.boot_devices")
         soc_model = _get_android_prop("ro.soc.model").upper()
 
         if "ufshc" in bootdevice.lower():
-            # UFS 4.0 sur les puces haut de gamme Snapdragon 8 Elite (SM8750/SM8735P) et 8 Gen 3
             if any(s in soc_model for s in ("SM8750", "SM8735", "SUN", "SM8650", "PINEAPPLE")):
                 model = "Flash UFS 4.0 (256 Go)"
             elif any(s in soc_model for s in ("SM8550", "KALAMA", "SM8475")):
@@ -37,7 +32,6 @@ def get_storage_model() -> str:
         elif "mmc" in bootdevice.lower():
             model = "Flash eMMC 5.1"
 
-    # 2. LINUX (Desktop & Wyse Headless)
     if not model and sys.platform.startswith("linux"):
         for p in glob.glob("/sys/block/*/device/model"):
             if any(x in p for x in ("loop", "ram", "zram")):
@@ -62,7 +56,6 @@ def get_storage_model() -> str:
             except Exception:
                 pass
 
-    # 3. macOS
     if not model and sys.platform == "darwin":
         try:
             out = subprocess.check_output(["diskutil", "info", "/"], text=True, timeout=2)
@@ -73,7 +66,6 @@ def get_storage_model() -> str:
         except Exception:
             pass
 
-    # 4. WINDOWS
     if not model and sys.platform == "win32":
         try:
             out = subprocess.check_output(
@@ -97,10 +89,7 @@ def get_storage_model() -> str:
 
 
 def get_storage_usage() -> dict[str, Any]:
-    """
-    Mesure l'espace disque réel sur le dossier média applicatif (et non sur / qui
-    est un ramdisk système de 700 Mo en lecture seule sous Android).
-    """
+    """Mesure l'espace disque réel sur le dossier média applicatif (et non sur / qui est un ramdisk système de 700 Mo en lecture seule sous Android)."""
     try:
         from app.config import runtime_settings
         media_dir = Path(runtime_settings.media_dir)

@@ -41,7 +41,7 @@ def test_listing_dirs_first_sorted_hidden_filtered(volume):
     assert [e.name for e in listing.entries] == ["Cours", "Musique"]
     cours = list_directory(str(volume), "Cours")
     names = [e.name for e in cours.entries]
-    assert names == ["RPM", "A.mkv", "b.mp4", "cover.jpg", "notes.txt", "sub.srt", "z.mp3"]  # dossiers d'abord, insensible à la casse
+    assert names == ["RPM", "A.mkv", "b.mp4", "cover.jpg", "notes.txt", "sub.srt", "z.mp3"]
     media = {e.name: e.media for e in cours.entries}
     assert media["A.mkv"] == "video" and media["z.mp3"] == "audio" and media["cover.jpg"] == "image" and media["notes.txt"] is None
     assert list_directory(str(volume), "Cours", show_hidden=True).total == cours.total + 1

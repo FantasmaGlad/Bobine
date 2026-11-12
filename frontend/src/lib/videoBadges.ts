@@ -1,9 +1,3 @@
-/**
- * Helpers pour le formatage des badges de qualité audio et vidéo.
- * Utilisés sur l'écran de pause (épuré : qualité audio + vidéo uniquement)
- * et dans la bibliothèque (détails techniques complets).
- */
-
 export function getResolutionBadge(
   width?: number | null,
   height?: number | null,
@@ -22,7 +16,6 @@ export function getResolutionBadge(
 
 type Translate = (key: string, params?: Record<string, string | number>) => string;
 
-/** Libellé de la qualité audio ; `t` donne les mots de la langue de l'interface (français par défaut). */
 export function getAudioQualityBadge(
   channels?: number | null,
   codec?: string | null,

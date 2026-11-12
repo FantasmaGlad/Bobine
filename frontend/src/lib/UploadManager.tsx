@@ -1,36 +1,5 @@
 "use client";
 
-/**
- * UploadManager — Gestionnaire global des imports (vidéos, fonds animés,
- * cours audio).
- *
- * Problème résolu : dans l'implémentation précédente, le XHR était
- * instancié à l'intérieur du composant LibraryPage. Quand Next.js démontait
- * ce composant lors d'une navigation, le XHR était GC'd et l'upload était
- * annulé.
- *
- * Solution : ce Context React vit dans layout.tsx (niveau racine de l'app).
- * Les XHR sont référencés dans ce Context → ils survivent aux navigations.
- * Un panneau flottant (bas-droit) affiche la progression en permanence, pour
- * les 3 types d'import confondus.
- *
- * Deux phases bien distinctes par tâche :
- * 1. "uploading" — transfert réseau du fichier, suivi par XHR (progress 0-100).
- *    Jusqu'à MAX_CONCURRENT_UPLOADS transferts en parallèle : aucune raison
- *    de les sérialiser, ce n'est que de la bande passante.
- * 2. "processing" — le serveur a accepté le fichier (HTTP 202 + job_id) et
- *    traite l'import en arrière-plan (analyse ffprobe, réencodage ffmpeg
- *    éventuel, miniature, écriture en base). Suivi par polling de
- *    `GET /api/import-jobs`, PAS par XHR (la requête HTTP d'upload, elle,
- *    est déjà terminée). Le réencodage ffmpeg lui-même reste sérialisé
- *    côté serveur (verrou global, cf. app/utils/video_utils/) — c'est
- *    voulu, pour ne pas reproduire le bug déjà corrigé "l'importation des
- *    fonds animés bloque et ne termine jamais" (CPU limité du Wyse 5070) —
- *    mais cette sérialisation n'empêche plus de LANCER d'autres imports
- *    pendant ce temps ni d'en suivre l'avancement réel (étape + position
- *    dans la file) plutôt qu'un indicateur muet.
- */
-
 import React, {
   createContext,
   useCallback,
@@ -63,16 +32,8 @@ import {
 import { getApiUrl } from "@/lib/apiUrl";
 
 const JOB_POLL_INTERVAL_MS = 1500;
-/** Fréquence maximale des mises à jour d'état pendant un transfert : chaque
- *  `setUploads` re-rend tout le contexte — à raison de dizaines d'évènements
- *  `progress` par seconde et par transfert, c'était le premier coût sur un
- *  poste modeste). */
 const PROGRESS_MIN_INTERVAL_MS = 250;
 
-/** Transferts réseau simultanés, adaptés à la machine (jamais
- *  `navigator.deviceMemory`, absent de Firefox) : 3 sur un poste confortable,
- *  1 sur un appareil modeste où plusieurs gros envois en parallèle saturent
- *  CPU, mémoire et lien Wi-Fi. */
 function maxConcurrentUploads(): number {
   const cores = typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 4 : 4;
   if (cores <= 3) return 1;
@@ -80,14 +41,7 @@ function maxConcurrentUploads(): number {
   return 3;
 }
 
-/** Types d'import à fichier unique, potentiellement très volumineux : envoyés
- *  par morceaux reprenables (lib/chunkedUpload.ts). Les imports multi-fichiers
- *  de pistes audio (quelques Mo chacune) restent en `multipart` classique. */
 const CHUNKED_KINDS: ReadonlySet<UploadKind> = new Set<UploadKind>(["video", "background", "video_zip", "background_zip", "audio_zip", "radio_zip"]);
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export type UploadKind =
   | "video" | "background" | "video_zip" | "background_zip" | "audio_files" | "audio_zip"
@@ -95,12 +49,7 @@ export type UploadKind =
 
 export interface PendingUploadSpec {
   kind: UploadKind;
-  /** Fichier unique — vidéo, fond animé, ou archive ZIP (cours audio / radio). */
   file?: File;
-  /** Fichiers multiples — pistes MP3 d'un cours audio ("audio_files"),
-   *  morceaux de la bibliothèque radio ("radio_files"), ou rappels importés
-   *  en lot ("radio_announcement_files", description auto depuis le nom de
-   *  fichier côté serveur). */
   files?: File[];
   title: string;
   program?: string | null;
@@ -114,58 +63,32 @@ export type UploadTaskStatus = "pending" | "uploading" | "processing" | "done" |
 export interface UploadTask extends PendingUploadSpec {
   id: string;
   status: UploadTaskStatus;
-  /** Progression du TRANSFERT réseau (0-100), pas de l'import serveur. */
   progress: number;
-  /** Estimation du temps restant pour le transfert réseau (en secondes). */
   uploadEtaSeconds?: number | null;
-  /** Identifiant de la tâche d'import côté serveur (app.utils.import_jobs),
-   *  connu une fois le transfert terminé (réponse 202). */
   jobId?: string;
-  /** Étape d'import serveur courante (queued/probing/normalizing/...), mise
-   *  à jour par polling tant que status === "processing". */
   stage?: string;
   stageLabel?: string;
-  /** Progression réelle de l'étape de réencodage (0-100%). */
   progressPercent?: number | null;
-  /** Estimation du temps restant pour le réencodage serveur (en secondes). */
   etaSeconds?: number | null;
-  /** Vitesse de traitement rapportée par FFmpeg (ex. '4.2x'). */
   speed?: string | null;
-  /** Position estimée dans la file d'attente (0 = prochain traité). */
   queuePosition?: number | null;
-  /** Estimation initiale du réencodage, posée avant même le démarrage de
-   *  ffmpeg (écrasée par `etaSeconds` dès que la progression réelle démarre). */
   estimatedSeconds?: number | null;
-  /** Temps total estimé avant la fin de CETTE tâche, file d'attente comprise. */
   queueEtaSeconds?: number | null;
-  /** Identifiant de l'élément créé (vidéo/fond/cours) une fois status === "done". */
   resultId?: number | null;
   error?: string;
-  /** Même erreur sous forme traduisible (clé i18n + paramètres) : affichée à la
-   *  place de `error` quand elle existe, `error` restant le texte de repli. */
   errorNotice?: UploadNotice;
-  /** Étape visible pendant le transfert : connexion au serveur, puis envoi. */
   phase?: UploadPhase;
-  /** Message d'état temporaire (reprise après coupure, serveur muet…). */
   notice?: UploadNotice | null;
   xhr?: XMLHttpRequest;
-  /** Annulation d'un transfert par morceaux en cours (équivalent de `xhr.abort()`). */
   abort?: () => void;
 }
 
 interface UploadManagerContextValue {
   uploads: UploadTask[];
-  /** Ajoute une liste de fichiers à la file d'attente et démarre le 1er si idle. */
   addUploads: (specs: PendingUploadSpec[]) => void;
-  /** Annule un upload en cours ou supprime un upload en attente. */
   cancelUpload: (id: string) => void;
-  /** Supprime les uploads terminés (done + error) de l'affichage. */
   clearCompleted: () => void;
 }
-
-// ---------------------------------------------------------------------------
-// Context
-// ---------------------------------------------------------------------------
 
 const UploadManagerContext = createContext<UploadManagerContextValue | null>(null);
 
@@ -195,14 +118,8 @@ const STAGE_ICONS: Record<string, string> = {
   saving: "save",
 };
 
-// ---------------------------------------------------------------------------
-// Provider
-// ---------------------------------------------------------------------------
-
 export function UploadManagerProvider({ children }: { children: React.ReactNode }) {
   const [uploads, setUploads] = useState<UploadTask[]>([]);
-  // Ref pour accéder à la liste sans dépendre du closure de state (nécessaire
-  // dans les callbacks XHR/polling qui capturent la valeur au moment de la création).
   const uploadsRef = useRef<UploadTask[]>([]);
 
   const updateTask = useCallback((id: string, patch: Partial<UploadTask>) => {
@@ -216,15 +133,12 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
   const buildFormData = (task: UploadTask, uploadId?: string): FormData => {
     const formData = new FormData();
     if (uploadId) {
-      // Fichier déjà reçu par morceaux : l'import le reprend côté serveur.
       formData.append("upload_id", uploadId);
     } else if (task.kind === "audio_files" || task.kind === "radio_files" || task.kind === "radio_announcement_files") {
       (task.files ?? []).forEach((f) => formData.append("files", f));
     } else if (task.file) {
       formData.append("file", task.file);
     }
-    // Les endpoints radio n'attendent pas de `title` (métadonnées lues des tags
-    // ID3), mais l'ajouter est inoffensif (FastAPI ignore les champs non déclarés).
     formData.append("title", task.title);
     if (task.kind === "video" || task.kind === "audio_files" || task.kind === "audio_zip") {
       if (task.program) formData.append("program", task.program);
@@ -237,9 +151,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     return formData;
   };
 
-  /** Rapporteur de progression d'un transfert : calcule pourcentage et temps
-   *  restant, et ne touche à l'état React qu'à PROGRESS_MIN_INTERVAL_MS d'écart
-   *  (toujours au début et à la fin). */
   const makeProgressReporter = useCallback(
     (taskId: string) => {
       const startTime = Date.now();
@@ -260,9 +171,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     [updateTask],
   );
 
-  /** Transfert par morceaux reprenable d'un fichier unique (vidéo, fond, ZIP),
-   *  puis appel du point d'entrée d'import avec `upload_id`. Retombe sur
-   *  l'envoi classique si le serveur ne connaît pas le protocole. */
   const runChunkedUpload = useCallback(
     (task: UploadTask, onDone: () => void, fallback: () => void) => {
       const controller = new AbortController();
@@ -329,7 +237,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     [updateTask, makeProgressReporter],
   );
 
-  /** Envoi `multipart/form-data` classique (pistes audio multiples, repli). */
   const runMultipartUpload = useCallback(
     (task: UploadTask, onDone: () => void) => {
       const xhr = new XMLHttpRequest();
@@ -353,8 +260,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
               phase: "processing",
             });
           } catch {
-            // Réponse inattendue (ancienne version du backend ?) : on
-            // considère quand même le transfert réussi.
             updateTask(task.id, { status: "done", progress: 100 });
           }
         } else {
@@ -363,7 +268,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
             const body = JSON.parse(xhr.responseText);
             errMsg = body.detail || errMsg;
           } catch {
-            // réponse non-JSON
           }
           updateTask(task.id, { status: "error", error: errMsg });
         }
@@ -376,7 +280,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
       });
 
       xhr.addEventListener("abort", () => {
-        // L'upload a été annulé volontairement — on retire la tâche.
         setUploads((prev) => {
           const next = prev.filter((t) => t.id !== task.id);
           uploadsRef.current = next;
@@ -391,10 +294,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     [updateTask, makeProgressReporter],
   );
 
-  /** Lance l'upload d'une tâche (appelé par fillSlots). Libère son créneau
-   * réseau (onDone) dès que le TRANSFERT est fini (réponse 202 avec job_id) —
-   * le traitement serveur qui suit ne bloque plus la file d'upload, il est
-   * suivi séparément par le polling des tâches d'import. */
   const runUpload = useCallback(
     (task: UploadTask, onDone: () => void) => {
       const multipart = () => runMultipartUpload(task, onDone);
@@ -407,13 +306,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     [runChunkedUpload, runMultipartUpload],
   );
 
-  /**
-   * Démarre autant d'uploads en attente que de créneaux réseau libres
-   * jusqu'à MAX_CONCURRENT_UPLOADS. Appelé après
-   * chaque fin de transfert (succès, erreur ou annulation) pour reprendre le
-   * créneau libéré, et à l'ajout de nouveaux fichiers — y compris pendant
-   * qu'un import précédent est encore en train d'être traité côté serveur.
-   */
   const fillSlots = useCallback(() => {
     const activeCount = uploadsRef.current.filter((t) => t.status === "uploading").length;
     const slotsFree = maxConcurrentUploads() - activeCount;
@@ -437,7 +329,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
         return next;
       });
 
-      // On utilise setTimeout(0) pour laisser le setState se propager d'abord.
       setTimeout(fillSlots, 0);
     },
     [fillSlots],
@@ -447,8 +338,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     const task = uploadsRef.current.find((t) => t.id === id);
     if (!task) return;
 
-    // Si la tâche est déjà côté serveur (en file d'attente ou en cours de réencodage),
-    // notifier le backend pour arrêter immédiatement FFmpeg et nettoyer les fichiers.
     if (task.jobId) {
       fetch(getApiUrl(`/import-jobs/${task.jobId}`), { method: "DELETE" }).catch((e) => {
         console.error("Erreur lors de l'annulation de la tâche sur le serveur:", e);
@@ -456,8 +345,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     }
 
     if (task.status === "uploading" && (task.xhr || task.abort)) {
-      // XHR : l'évènement "abort" nettoie ; transfert par morceaux : le
-      // contrôleur d'annulation fait de même (cf. runChunkedUpload).
       if (task.xhr) task.xhr.abort();
       else task.abort?.();
     } else {
@@ -477,17 +364,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     });
   }, []);
 
-  // Polling des tâches d'import serveur en cours : ces
-  // tâches (réencodage compris) peuvent durer bien plus longtemps qu'un XHR
-  // ne reste ouvert — un intervalle léger suffit, pas besoin d'un canal
-  // WebSocket dédié pour une progression qui évolue à l'échelle de la seconde.
-  //
-  // Deux silences à ne plus laisser passer (cf. lib/uploadFlow.ts) :
-  //  - la tâche n'apparaît plus dans la liste alors que le serveur répond (état
-  //    en mémoire perdu par un redémarrage, ou tâche expirée) : après
-  //    JOB_MISS_LIMIT sondages consécutifs, elle passe en erreur « perdue » ;
-  //  - le serveur ne répond plus du tout : un message le dit, sans conclure
-  //    qu'une tâche est perdue (une réponse HTTP en erreur n'est PAS une liste vide).
   const missCountsRef = useRef<Map<string, number>>(new Map());
   const pollFailuresRef = useRef(0);
   useEffect(() => {
@@ -564,7 +440,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
                 queuePosition: null,
               });
             } else if (job.stage === "cancelled") {
-              // Retirer de la liste si annulé côté serveur
               setUploads((prev) => {
                 const next = prev.filter((t) => t.id !== task.id);
                 uploadsRef.current = next;
@@ -585,9 +460,6 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
           });
         })
         .catch(() => {
-          // Panne réseau/serveur : le suivi reprend au prochain tick. Après
-          // quelques échecs d'affilée, on le dit (sinon l'interface reste figée
-          // sans explication).
           pollFailuresRef.current = nextPollFailures(pollFailuresRef.current, false);
           if (isServerSilent(pollFailuresRef.current)) {
             processing.forEach((task) => {
@@ -609,19 +481,11 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
   );
 }
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
 export function useUploadManager(): UploadManagerContextValue {
   const ctx = useContext(UploadManagerContext);
   if (!ctx) throw new Error("useUploadManager must be used inside <UploadManagerProvider>");
   return ctx;
 }
-
-// ---------------------------------------------------------------------------
-// Panneau flottant (bas-droit, persistant entre navigations)
-// ---------------------------------------------------------------------------
 
 const KIND_LABEL_KEYS: Record<UploadKind, string> = {
   video: "uploadManager.kindVideo",
@@ -643,8 +507,6 @@ function formatEta(seconds: number | null | undefined): string | null {
   return remSecs > 0 ? `~${mins} min ${remSecs}s restantes` : `~${mins} min restantes`;
 }
 
-// Suffixe "(N devant, ~X min restantes)" affiché tant qu'une tâche attend
-// son tour.
 function formatQueueSuffix(queuePosition: number | null | undefined, queueEtaSeconds: number | null | undefined): string {
   if (typeof queuePosition !== "number" || queuePosition <= 0) return "";
   const eta = formatEta(queueEtaSeconds);
@@ -680,7 +542,6 @@ function UploadFloatingPanel() {
         fontSize: "0.85rem",
       }}
     >
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -705,7 +566,6 @@ function UploadFloatingPanel() {
         </span>
       </div>
 
-      {/* Body */}
       {!minimized && (
         <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", overflowY: "auto" }}>
           {uploads.map((task) => (
@@ -741,10 +601,6 @@ function UploadFloatingPanel() {
                       {task.progress}%{task.uploadEtaSeconds ? ` (${formatEta(task.uploadEtaSeconds)})` : ""}
                     </span>
                   )}
-                  {/* Pourcentage déjà repris avec son ETA dans la ligne de détail
-                      ci-dessous (stage === "normalizing") — un doublon ici, sur une
-                      seule ligne étroite partagée avec le titre, provoquait un
-                      chevauchement visuel dès que le texte d'ETA s'allongeait. */}
                   {(task.status === "uploading" || task.status === "pending" || task.status === "processing") && (
                     <button
                       onClick={() => cancelUpload(task.id)}
@@ -768,8 +624,6 @@ function UploadFloatingPanel() {
               </div>
               <span style={{ color: "var(--text-dim)", fontSize: "0.72rem" }}>
                 {t(KIND_LABEL_KEYS[task.kind])}
-                {/* Phase visible (Connexion / Envoi / Traitement) : sans elle, un
-                    envoi qui ne démarre pas ressemblait à une interface figée à 0 %. */}
                 {task.status === "uploading" && (
                   <>{" — "}{t(phaseLabelKey(task.phase ?? "sending"))}</>
                 )}
@@ -780,11 +634,6 @@ function UploadFloatingPanel() {
                     {task.stage === "normalizing" && typeof task.progressPercent === "number" ? (
                       <>
                         {t("uploadManager.reencoding", { percent: task.progressPercent })}
-                        {/* FFmpeg émet sa
-                            première ligne de progression quasi immédiatement (souvent avant
-                            eta_seconds, qui nécessite une ligne "speed=" préalable) — sans repli
-                            sur estimatedSeconds ici, l'utilisateur ne voyait quasiment jamais
-                            aucune durée, seul le pourcentage brut apparaissait. */}
                         {typeof task.etaSeconds === "number" ? (
                           ` — ${formatEta(task.etaSeconds)}`
                         ) : typeof task.estimatedSeconds === "number" ? (

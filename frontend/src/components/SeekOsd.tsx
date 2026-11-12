@@ -17,7 +17,6 @@ function formatTime(seconds: number) {
   return `${Math.floor(total / 60)}:${Math.floor(total % 60).toString().padStart(2, "0")}`;
 }
 
-/** Surimpression de position (saut de 10 s ou de chapitre à la télécommande) : visible un court instant puis masquée. */
 export function useSeekHud(): [SeekHud & { visible: boolean }, (next: SeekHud) => void] {
   const [hud, setHud] = useState<SeekHud & { visible: boolean }>({ position: 0, duration: 0, visible: false });
   const timer = useRef<number | null>(null);

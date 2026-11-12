@@ -2,17 +2,13 @@ export interface NavLinkConfig {
   href: string;
   labelKey: string;
   iconName: string;
-  /** Masqué par l'interface simplifiée. */
   advanced?: boolean;
 }
 
-// Regroupement dépliable (accordéon) de plusieurs sections sous une même
-// catégorie : `groupKey` est la clé i18n du titre de catégorie.
 export interface NavGroupConfig {
   groupKey: string;
   iconName: string;
   children: NavLinkConfig[];
-  /** Masqué par l'interface simplifiée. */
   advanced?: boolean;
 }
 
@@ -22,14 +18,6 @@ export function isNavGroup(entry: NavEntry): entry is NavGroupConfig {
   return (entry as NavGroupConfig).children !== undefined;
 }
 
-// Arborescence de la barre latérale :
-// - "Sortie Câblé" / "Sortie Réseau" (ex-tableaux de bord) en tête, puis
-//   "Radio" et "Coach" remontés juste en dessous.
-// - "Radio" regroupe télécommande + bibliothèque + rappels.
-// - "Coach" regroupe cours audio + fonds animés.
-// - Pas d'entrée "Playlist" séparée : la création de playlists vidéo vit
-//   dans "Bibliothèque", celle des playlists audio dans "Coach" > "Cours
-//   audio".
 export const navEntries: NavEntry[] = [
   { href: "/dashboard-cable", labelKey: "nav.dashboardCable", iconName: "cable" },
   { href: "/dashboard-network", labelKey: "nav.dashboardNetwork", iconName: "wifi" },
@@ -71,14 +59,10 @@ export const footerNavLinks: NavLinkConfig[] = [
   { href: "/logs", labelKey: "nav.logs", iconName: "receipt_long", advanced: true },
 ];
 
-// Liste PLATE de toutes les sections (groupes aplatis) : utilisée par le mode
-// coach en plein écran, qui liste toutes les pages accessibles sans quitter le
-// plein écran.
 export const navLinks: NavLinkConfig[] = navEntries.flatMap((entry) =>
   isNavGroup(entry) ? entry.children : [entry],
 );
 
-/** Interface simplifiée : sans coach, métriques ni journaux. */
 export function visibleNavEntries(simplified: boolean): NavEntry[] {
   return simplified ? navEntries.filter((entry) => !entry.advanced) : navEntries;
 }

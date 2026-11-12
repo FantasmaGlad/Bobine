@@ -1,5 +1,4 @@
-"""Mises à jour par Tor : le nom d'hôte part au proxy SOCKS5 sans être résolu localement ; option activée et Tor
-indisponible, rien ne part en direct ; Tor lancé à la demande s'arrête seul ; réglages et test exposés par l'API."""
+"""Mises à jour par Tor : le nom d'hôte part au proxy SOCKS5 sans être résolu localement ; option activée et Tor indisponible, rien ne part en direct ; Tor lancé à la demande s'arrête seul ; réglages et test exposés par l'API."""
 
 import os
 
@@ -56,7 +55,7 @@ class FakeSocksProxy:
                 conn.recv(3)
                 conn.sendall(b"\x05\x00")
                 head = conn.recv(4)
-                if len(head) < 4:  # sonde de présence : la connexion s'arrête après la poignée de main
+                if len(head) < 4:
                     continue
                 atyp = head[3]
                 if atyp == 3:
@@ -89,7 +88,6 @@ def test_host_name_is_resolved_by_the_proxy_not_locally():
     proxy = FakeSocksProxy()
     try:
         tor_proxy.configure(True, f"127.0.0.1:{proxy.port}")
-        # `.invalid` ne se résout jamais localement : la réponse prouve que le nom est parti tel quel au proxy.
         with tor_proxy.urlopen("http://releases.bobine.invalid/notes", timeout=5) as resp:
             assert resp.read() == b"ok"
         assert proxy.targets == [(3, b"releases.bobine.invalid", 80)]
@@ -153,7 +151,7 @@ def test_on_demand_tor_starts_once_and_stops_when_idle(monkeypatch, tmp_path):
     launched = []
 
     def popen(command, **_kwargs):
-        assert "-f" in command and os.devnull in command  # jamais le torrc du système (relais possible)
+        assert "-f" in command and os.devnull in command
         process = FakeTorProcess(19999)
         process.stdout = _LineReader(process.stdout)
         launched.append(process)
@@ -239,7 +237,7 @@ def test_automatic_checks_reuse_the_last_result_longer_under_tor(monkeypatch):
     github.RELEASE_CACHE.clear()
     tor_proxy.configure(True, None)
     github.lookup_release_blocking("stable", False)
-    github.RELEASE_CACHE["stable"]["checked_at"] -= 60  # au-delà de la fenêtre directe de 10 s
+    github.RELEASE_CACHE["stable"]["checked_at"] -= 60
     github.lookup_release_blocking("stable", False)
     assert len(calls) == 1
     github.lookup_release_blocking("stable", True)

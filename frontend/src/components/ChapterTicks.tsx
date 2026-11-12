@@ -2,7 +2,6 @@
 
 import type { Chapter } from "@/lib/chapters";
 
-/** Repères de chapitres à poser dans un conteneur `position: relative` autour d'une barre de lecture. */
 export default function ChapterTicks({ chapters, duration }: { chapters: Chapter[]; duration: number }) {
   if (!duration || chapters.length === 0) return null;
   return (

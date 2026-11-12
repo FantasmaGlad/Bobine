@@ -1,8 +1,3 @@
-/**
- * Normalise et nettoie les descriptions textuelles de cours.
- * Élimine les sauts de ligne accidentels (copier-coller depuis PDF ou traitement de texte)
- * au milieu des phrases tout en préservant fidèlement les véritables paragraphes.
- */
 export function formatCleanDescription(desc?: string | null): string {
   if (!desc) return "";
   const norm = desc.replace(/\r\n/g, "\n").trim();

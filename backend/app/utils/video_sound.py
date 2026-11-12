@@ -1,9 +1,4 @@
-"""Réglages de son d'un canal vidéo (câblé, réseau) : mêmes réglages et mêmes bornes que ceux de la radio.
-
-Le TRAITEMENT est fait par le lecteur (graphe Web Audio de `/kiosk` et de `/cinema`) ; le serveur valide, stocke et
-diffuse ces réglages dans l'état du canal, comme le volume. Les bornes viennent de `radio_sound.py` : une seule
-définition d'un réglage de son, quel que soit le canal.
-"""
+"""Réglages de son d'un canal vidéo (câblé, réseau) : mêmes réglages et mêmes bornes que ceux de la radio."""
 from __future__ import annotations
 
 import json

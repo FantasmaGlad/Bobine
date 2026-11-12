@@ -1,5 +1,4 @@
-"""ffmpeg/ffprobe : message clair quand le binaire est introuvable, `-nostdin` (ffmpeg),
-`stdin=DEVNULL` et environnement assaini dans un build figé."""
+"""ffmpeg/ffprobe : message clair quand le binaire est introuvable, `-nostdin` (ffmpeg), `stdin=DEVNULL` et environnement assaini dans un build figé."""
 
 import os
 import subprocess
@@ -29,10 +28,6 @@ def client(tmp_path, monkeypatch):
     return TestClient(app)
 
 
-# ---------------------------------------------------------------------------
-# ffmpeg / ffprobe introuvable
-# ---------------------------------------------------------------------------
-
 @pytest.mark.parametrize("os_name,fragment", [
     ("macos", "brew install ffmpeg"), ("windows", "Réinstallez Bobine"),
     ("linux", "apt install ffmpeg"), ("android", "réinstallez Bobine"),
@@ -57,7 +52,7 @@ def test_ffmpeg_missing_on_normalize_raises_clear_error(monkeypatch, tmp_path):
     with pytest.raises(ffmpeg_binaries.MediaToolMissingError) as exc:
         progress.run_ffmpeg_with_progress([ffmpeg_binaries.FFMPEG_BIN, "-i", "a", "b"], None, 1.0)
     assert str(exc.value).startswith("ffmpeg est introuvable")
-    assert "[Errno 2]" not in str(exc.value).split("(")[0]  # le détail technique est en fin de message seulement
+    assert "[Errno 2]" not in str(exc.value).split("(")[0]
 
 
 def test_ffmpeg_missing_stops_thumbnail_retries_immediately(monkeypatch, tmp_path):
@@ -94,10 +89,6 @@ def test_job_error_carries_code_and_params(client):
     assert body["error_code"] is None and body["error"] == "Fichier corrompu"
 
 
-# ---------------------------------------------------------------------------
-# -nostdin, stdin=DEVNULL, environnement
-# ---------------------------------------------------------------------------
-
 def _raising_popen(error):
     def popen(*args, **kwargs):
         raise error
@@ -115,7 +106,6 @@ class _Recorder:
 
 
 def test_ffprobe_calls_get_devnull_stdin_but_no_nostdin(monkeypatch, tmp_path):
-    # ffprobe 8 refuse -nostdin (« Option not found ») : seul stdin=DEVNULL s'applique.
     rec = _Recorder()
     monkeypatch.setattr(subprocess, "run", rec.run)
     probe.get_video_info("/tmp/x.mp4")

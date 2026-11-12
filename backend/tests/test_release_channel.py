@@ -1,8 +1,4 @@
-"""Registre et résolution des canaux de diffusion (app/release_channel.py).
-
-Règle de fond : sans choix explicite de l'utilisateur, le canal des mises à jour ET des icônes est
-celui par lequel l'application a été installée, sur toutes les plateformes et méthodes
-d'installation. Un choix explicite l'emporte toujours."""
+"""Registre et résolution des canaux de diffusion (app/release_channel.py)."""
 
 import importlib.util
 import subprocess
@@ -21,9 +17,6 @@ from app.updates import github, local_build
 MODULE_PATH = Path(release_channel.__file__)
 
 
-# --- Registre -----------------------------------------------------------------------------------
-
-
 def test_registre_coherent():
     ids = [channel.id for channel in release_channel.CHANNELS]
     assert ids == ["stable", "beta", "canary"]
@@ -38,8 +31,7 @@ def test_registre_coherent():
 
 
 def test_module_autonome_charge_par_son_chemin_sans_le_paquet_app():
-    """Les outils de construction (specs, paquetage, générateur) le chargent par son chemin : il
-    ne doit rien importer d'autre que la bibliothèque standard à l'import."""
+    """Les outils de construction (specs, paquetage, générateur) le chargent par son chemin : il ne doit rien importer d'autre que la bibliothèque standard à l'import."""
     code = (
         "import importlib.util, sys;"
         f"spec = importlib.util.spec_from_file_location('rc', r'{MODULE_PATH}');"
@@ -56,9 +48,6 @@ def test_normalize(value, expected):
     assert release_channel.normalize(value) == expected
 
 
-# --- Canal d'un build d'après sa version ------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     ("version", "expected"),
     [
@@ -71,9 +60,6 @@ def test_normalize(value, expected):
 def test_canal_d_un_build_d_apres_sa_version(version, expected):
     assert release_channel.rolling_channel_of_version(version) == expected
     assert release_channel.build_channel_of_version(version) == (expected or "stable")
-
-
-# --- Canal d'installation et canal effectif ----------------------------------------------------------------
 
 
 def _hint(tmp_path, content):
@@ -119,9 +105,6 @@ def test_un_choix_explicite_l_emporte_et_l_installation_reste_connue(tmp_path):
     assert (choice.effective, choice.source, choice.install) == ("stable", "user", "canary")
     choice = release_channel.resolve("beta", "5.0.5", tmp_path / "absent")
     assert (choice.effective, choice.source, choice.install) == ("beta", "user", "stable")
-
-
-# --- Consommateurs : réglages et mises à jour -------------------------------------------------------
 
 
 @pytest.fixture()
@@ -175,9 +158,6 @@ def test_urls_de_release_derivees_du_registre():
         assert url.endswith(f"/releases/tags/{release_channel.get(channel_id).release_tag}")
 
 
-# --- Build installé sur un checkout git (appliance) : le tag mobile désigne le canal ----------------
-
-
 class _GitProfile:
     @staticmethod
     def supports_git_versioning():
@@ -189,8 +169,8 @@ class _GitProfile:
     [
         (["canary"], "canary", "V5.0.5-canary"),
         (["beta"], "beta", "V5.0.5-beta"),
-        (["canary", "beta"], "beta", "V5.0.5-beta"),  # le premier du registre l'emporte
-        (["V5.0.5", "canary"], None, "V5.0.5"),        # un tag Stable strict l'emporte sur un tag mobile
+        (["canary", "beta"], "beta", "V5.0.5-beta"),
+        (["V5.0.5", "canary"], None, "V5.0.5"),
     ],
 )
 def test_checkout_git_deduit_le_canal_du_tag_mobile(monkeypatch, tags, expected_channel, expected_version):
@@ -203,9 +183,6 @@ def test_checkout_git_deduit_le_canal_du_tag_mobile(monkeypatch, tags, expected_
     assert info["current_version"] == expected_version
     if expected_channel:
         assert info["current_tag"] == release_channel.get(expected_channel).release_tag
-
-
-# --- Build distribué par une boutique (Google Play) : verrouillé sur la Stable --------------------------
 
 
 class _StoreProfile:
@@ -239,7 +216,7 @@ def store_build(monkeypatch):
 
 
 def test_build_boutique_reste_sur_stable_quel_que_soit_le_reglage_enregistre(db, store_build, installed_as_canary):
-    db.add(Setting(key="update_channel", value="canary"))  # p. ex. restauré d'une sauvegarde d'un APK direct
+    db.add(Setting(key="update_channel", value="canary"))
     db.commit()
     payload = settings.values.get_settings(db)
     assert (payload["update_channel"], payload["update_channel_source"]) == ("stable", "locked")

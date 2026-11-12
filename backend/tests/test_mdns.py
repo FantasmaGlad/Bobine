@@ -1,7 +1,4 @@
-"""Non-regression de la consolidation mDNS : re-annonce sur changement
-d'IP (zc.update_service, jamais un second register_service), detection
-d'un avahi-daemon natif sur linux-desktop (evite un double repondeur
-bobine.local), et etat expose par get_status()."""
+"""Non-regression de la consolidation mDNS : re-annonce sur changement d'IP (zc.update_service, jamais un second register_service), detection d'un avahi-daemon natif sur linux-desktop (evite un double repondeur bobine.local), et etat expose par get_status()."""
 
 from unittest.mock import MagicMock
 
@@ -54,14 +51,11 @@ def test_register_or_update_registers_once_then_updates_on_ip_change(monkeypatch
     zc.register_service.assert_called_once()
     zc.update_service.assert_not_called()
 
-    # Meme IP qu'avant : ni un nouvel enregistrement ni une mise a jour.
     second_ip = mdns._register_or_update(zc, 8000)
     assert second_ip == "10.0.0.5"
     zc.register_service.assert_called_once()
     zc.update_service.assert_not_called()
 
-    # IP changee (ex. renouvellement DHCP) : update_service, jamais un
-    # second register_service pour le meme nom de service.
     third_ip = mdns._register_or_update(zc, 8000)
     assert third_ip == "10.0.0.9"
     zc.register_service.assert_called_once()

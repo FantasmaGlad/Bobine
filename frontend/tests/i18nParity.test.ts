@@ -4,7 +4,6 @@ import { test } from "node:test";
 import { dictionaries } from "../src/lib/i18n/all.ts";
 import type { Dict } from "../src/lib/i18n/core.ts";
 
-// Un export ne contient qu'une langue : aucune clé ne peut plus retomber sur l'autre.
 function leaves(dict: Dict, prefix = ""): Map<string, string | string[]> {
   const out = new Map<string, string | string[]>();
   for (const [key, value] of Object.entries(dict)) {

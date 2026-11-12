@@ -1,13 +1,3 @@
-/**
- * Thèmes de l'interface : neuf couleurs, chacune en clair et en sombre. SOURCE UNIQUE des palettes (4 couleurs par
- * palette : fond, surface, accent, texte), relevées telles quelles dans la maquette de l'interface.
- *
- * Les jetons dérivés (`deriveTokens`) sont calculés ici, avec un contrôle de contraste, puis écrits dans
- * `src/app/themes.css` par `scripts/generate-themes.mjs`. Un test vérifie que le fichier CSS est à jour. La liste des
- * couleurs et le défaut sont repris côté serveur par `backend/app/utils/themes.py` (parité vérifiée par un test).
- * Module pur (aucun accès au DOM) : il est aussi chargé tel quel par le lanceur de tests Node, d'où les imports relatifs.
- */
-
 export type ThemeId = "ardoise" | "chili" | "canary" | "rose-vif" | "charbon" | "orchidee" | "foret" | "ocean" | "pumpkin";
 export type ThemeMode = "auto" | "light" | "dark";
 export type ResolvedMode = "light" | "dark";
@@ -22,7 +12,6 @@ export interface Palette {
 export interface ThemeDef {
   id: ThemeId;
   labelKey: string;
-  /** Couleur de base du thème (pastille du sélecteur). */
   base: string;
   light: Palette;
   dark: Palette;
@@ -71,7 +60,6 @@ export function isThemeMode(value: unknown): value is ThemeMode {
   return value === "auto" || value === "light" || value === "dark";
 }
 
-/** Ancien thème (avant la 5.2) → couleur et mode les plus proches ; même table que `backend/app/utils/themes.py`. */
 export const LEGACY_THEMES: Record<string, { theme: ThemeId; mode: ResolvedMode }> = {
   clair: { theme: "chili", mode: "light" },
   "charbon-sombre": { theme: "charbon", mode: "dark" },
@@ -95,10 +83,6 @@ export function paletteOf(theme: ThemeId, mode: ResolvedMode): Palette {
   return mode === "dark" ? def.dark : def.light;
 }
 
-// ---------------------------------------------------------------------------
-// Couleurs et contrastes
-// ---------------------------------------------------------------------------
-
 type Rgb = [number, number, number];
 
 export function hexToRgb(hex: string): Rgb {
@@ -110,7 +94,6 @@ export function rgbToHex(rgb: Rgb): string {
   return "#" + rgb.map((v) => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, "0")).join("");
 }
 
-/** Mélange `from` → `to` : t = 0 donne `from`, t = 1 donne `to`. */
 export function mix(from: string, to: string, t: number): string {
   const a = hexToRgb(from);
   const b = hexToRgb(to);
@@ -131,10 +114,6 @@ export function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/**
- * Plus grand mélange de `from` vers `to` (jusqu'à `maxT`) qui garde `target` de contraste sur toutes les surfaces ;
- * `from` lui-même si même lui n'atteint pas la cible (la palette fournie ne permet rien de mieux).
- */
 function farthestMix(from: string, to: string, surfaces: string[], target: number, maxT: number): string {
   let best = from;
   for (let step = 1; step <= 100; step++) {
@@ -146,7 +125,6 @@ function farthestMix(from: string, to: string, surfaces: string[], target: numbe
   return best;
 }
 
-/** Plus petit mélange de `from` vers `to` qui atteint `target` sur toutes les surfaces ; `to` si aucun n'y arrive. */
 function nearestMix(from: string, to: string, surfaces: string[], target: number): string {
   for (let step = 0; step <= 100; step++) {
     const candidate = mix(from, to, step / 100);
@@ -155,7 +133,6 @@ function nearestMix(from: string, to: string, surfaces: string[], target: number
   return to;
 }
 
-/** Couleurs d'état, communes à tous les thèmes : le sens (succès, attention, erreur) ne change pas avec la couleur choisie. */
 export const SEMANTIC_COLORS = { error: "#ff453a", success: "#30d158", warning: "#ff9f0a", info: "#0ea5e9" } as const;
 
 export interface DerivedTokens {
@@ -177,28 +154,18 @@ export interface DerivedTokens {
   "accent-info-text": string;
 }
 
-/**
- * Jetons d'un thème dans un mode. Les quatre couleurs de la palette sont reprises sans modification ; le reste en est
- * déduit : surfaces relevées vers le texte, textes secondaires rapprochés du fond tant que le contraste AA tient,
- * accent « texte » (liens, contours, anneaux) rapproché du texte jusqu'à AA quand l'accent pur est trop pâle ou trop
- * sombre, et couleur lisible posée sur l'accent plein.
- */
 export function deriveTokens(palette: Palette, mode: ResolvedMode): DerivedTokens {
   const { bg, surface, accent, text } = palette;
-  // Surfaces relevées : vers le texte (plus de relief) ; vers le fond quand le texte a peu de marge sur la surface
-  // (palette serrée), pour que le texte reste lisible sur les surfaces survolées ou relevées.
   const tight = contrast(text, surface) < 7;
   const raise = (amount: number) => (tight ? mix(surface, bg, amount * 2.5) : mix(surface, text, amount));
   const elevated = raise(mode === "dark" ? 0.08 : 0.05);
   const hover = raise(mode === "dark" ? 0.14 : 0.1);
   const grounds = [bg, surface, elevated];
-  // Les textes secondaires restent lisibles aussi sur un élément sélectionné (accent à 12 % sur la surface relevée).
   const selected = mix(elevated, accent, 0.1);
   const errorTint = mix(elevated, SEMANTIC_COLORS.error, 0.15);
   const muted = farthestMix(text, bg, [...grounds, selected, errorTint], 4.7, 0.4);
   const dim = farthestMix(text, bg, [...grounds, selected, errorTint], 4.5, 0.6);
   const accentText = nearestMix(accent, text, grounds, 4.5);
-  // Texte d'état lisible aussi sur les encarts teintés de la couleur d'état (15 % par-dessus la surface relevée).
   const stateText = (color: string) => nearestMix(color, text, [...grounds, mix(elevated, color, 0.45)], 5);
   const candidates = [text, bg, "#000000", "#ffffff"];
   const accentFg = candidates.find((c) => contrast(c, accent) >= 4.5) ?? candidates.sort((a, b) => contrast(b, accent) - contrast(a, accent))[0];
@@ -222,15 +189,11 @@ export function deriveTokens(palette: Palette, mode: ResolvedMode): DerivedToken
   };
 }
 
-/** Mode effectif : `auto` suit le réglage du système (`prefersDark`). */
 export function resolveMode(mode: ThemeMode, prefersDark: boolean): ResolvedMode {
   return mode === "auto" ? (prefersDark ? "dark" : "light") : mode;
 }
 
-/** Ancien nom → couleur + mode ; valeur inconnue → défaut. Même règle que `themes.resolve` côté serveur. */
 export function resolveStored(theme: unknown, mode: unknown): { theme: ThemeId; mode: ThemeMode } {
-  // Trois noms (chili, charbon, orchidee) existaient déjà : ils ne sont traduits que sans mode enregistré. Les autres
-  // anciens noms sont sans ambiguïté ; un mode clair ou sombre déjà choisi est conservé.
   const legacy = typeof theme === "string" && Object.prototype.hasOwnProperty.call(LEGACY_THEMES, theme)
     ? LEGACY_THEMES[theme]
     : undefined;

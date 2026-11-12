@@ -1,5 +1,4 @@
-/* GÉNÉRÉ par scripts/generate-themes.mjs depuis src/lib/themePalettes.ts : ne pas modifier à la main.
-   Neuf thèmes, chacun en clair et en sombre : les quatre couleurs de la palette et les jetons qui en sont déduits. */
+/* Généré par scripts/generate-themes.mjs. */
 :root {
   --bg-main: #252d41;
   --bg-surface: #536383;

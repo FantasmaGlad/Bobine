@@ -25,7 +25,7 @@ def build_storage_driver(profile: str | None = None) -> StorageDriver:
             from .linux import LinuxStorageDriver
 
             return LinuxStorageDriver()
-    except Exception as exc:  # un pilote défaillant n'empêche jamais le démarrage
+    except Exception as exc:
         logger.warning("Pilote de stockage indisponible (%s) : %s", profile, exc)
         return NullStorageDriver(f"Le pilote de stockage de ce profil ({profile}) n'a pas pu démarrer.")
     return NullStorageDriver(_PLANNED.get(profile, "Le stockage externe n'est pas disponible sur cette plateforme."))

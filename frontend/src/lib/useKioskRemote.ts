@@ -2,33 +2,16 @@
 
 import { useEffect, useRef } from "react";
 
-/**
- * Support UNIVERSEL des PÉRIPHÉRIQUES D'ENTRÉE :
- * 1. Télécommandes à dongle USB / Bluetooth (présentateur, télécommande multimédia, "air remote").
- * 2. Claviers physiques.
- * 3. Manettes de jeu USB et Bluetooth (Xbox, PlayStation, 8BitDo, Switch Pro, manettes génériques)
- *    via la HTML5 Gamepad API standardisée.
- * 4. Touches multimédia standard (Play, Pause, Next, Prev, Volume, Stop).
- *
- * `getHandlers` est relu à CHAQUE événement (via ref) pour toujours refléter l'état
- * courant sans réattacher inutilement l'écouteur.
- */
 export interface RemoteHandlers {
   onLeft?: () => void;
   onRight?: () => void;
   onUp?: () => void;
   onDown?: () => void;
-  /** OK / sélection (Entrée / Bouton A / Croix). */
   onEnter?: () => void;
-  /** Retour (Échap / Backspace / touche retour / Bouton B / Rond). */
   onBack?: () => void;
-  /** Espace, touche média Play/Pause ou bouton X / Y / Start. */
   onPlayPause?: () => void;
-  /** Piste/élément suivant (média Next / Page↓ / R1). */
   onNext?: () => void;
-  /** Piste/élément précédent (média Prev / Page↑ / L1). */
   onPrev?: () => void;
-  /** Touches de chaîne (ChannelUp / ChannelDown) : chapitre suivant ou précédent quand l'écran en a. */
   onChapterNext?: () => void;
   onChapterPrev?: () => void;
   onVolumeUp?: () => void;
@@ -36,28 +19,24 @@ export interface RemoteHandlers {
   onMute?: () => void;
 }
 
-/**
- * KEYCODE_* d'Android TV → action de la télécommande (D-pad, médias). Les codes volume (24, 25, 164) restent
- * reconnus pour les claviers et dongles ; sur Android TV, `MainActivity` ne les relaie pas : le volume reste au téléviseur.
- */
 const ANDROID_TV_KEYCODES: Partial<Record<number, keyof RemoteHandlers>> = {
-  4: "onBack", // KEYCODE_BACK
-  19: "onUp", // KEYCODE_DPAD_UP
+  4: "onBack",
+  19: "onUp",
   20: "onDown",
   21: "onLeft",
   22: "onRight",
-  23: "onEnter", // KEYCODE_DPAD_CENTER
-  66: "onEnter", // KEYCODE_ENTER
+  23: "onEnter",
+  66: "onEnter",
   24: "onVolumeUp",
   25: "onVolumeDown",
-  164: "onMute", // KEYCODE_VOLUME_MUTE
-  85: "onPlayPause", // KEYCODE_MEDIA_PLAY_PAUSE
-  126: "onPlayPause", // KEYCODE_MEDIA_PLAY
-  127: "onPlayPause", // KEYCODE_MEDIA_PAUSE
-  87: "onNext", // KEYCODE_MEDIA_NEXT
-  88: "onPrev", // KEYCODE_MEDIA_PREVIOUS
-  166: "onChapterNext", // KEYCODE_CHANNEL_UP
-  167: "onChapterPrev", // KEYCODE_CHANNEL_DOWN
+  164: "onMute",
+  85: "onPlayPause",
+  126: "onPlayPause",
+  127: "onPlayPause",
+  87: "onNext",
+  88: "onPrev",
+  166: "onChapterNext",
+  167: "onChapterPrev",
 };
 
 export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true) {
@@ -67,9 +46,7 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
   useEffect(() => {
     if (!enabled) return;
 
-    // --- 1. Gestion des événements clavier & télécommandes HID ---
     const onKeyDown = (e: KeyboardEvent) => {
-      // Ne jamais détourner les touches quand l'utilisateur tape dans un champ de texte.
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
         return;
@@ -116,7 +93,6 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
         case "AudioVolumeMute":
         case "VolumeMute": action = h.onMute; break;
         default: {
-          // Android TV : la WebView ne renseigne pas toujours `key` pour la télécommande ; on retombe sur `keyCode`.
           const mapped = ANDROID_TV_KEYCODES[e.keyCode];
           if (!mapped) return;
           action = mapped === "onChapterNext" ? (h.onChapterNext ?? h.onNext)
@@ -132,7 +108,6 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
     };
     window.addEventListener("keydown", onKeyDown);
 
-    // --- 2. Support Gamepad API (HTML5) avec polling lissé ---
     let rafId: number | null = null;
     const lastTriggerRef: Record<string, number> = {};
     const AXIS_THRESHOLD = 0.5;
@@ -149,17 +124,14 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
           const gp = gamepads[i];
           if (!gp || !gp.connected) continue;
 
-          // Aide pour déclencher une action avec anti-rebond ou répétition
           const checkAction = (key: string, isPressed: boolean, action?: () => void, isDirectional = false) => {
             if (!action) return;
             const lastTime = lastTriggerRef[key] || 0;
             if (isPressed) {
               if (lastTime === 0) {
-                // Premier appui franc
                 lastTriggerRef[key] = now;
                 action();
               } else if (isDirectional) {
-                // Répétition fluide lors d'un maintien de direction
                 const elapsed = now - lastTime;
                 if (elapsed >= REPEAT_DELAY_MS) {
                   const step = Math.floor((elapsed - REPEAT_DELAY_MS) / REPEAT_RATE_MS);
@@ -171,14 +143,11 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
                 }
               }
             } else {
-              // Bouton ou axe relâché
               delete lastTriggerRef[key];
               delete lastTriggerRef[`${key}_step`];
             }
           };
 
-          // Croix directionnelle (D-Pad standard : 12=Haut, 13=Bas, 14=Gauche, 15=Droite)
-          // et stick analogique gauche (axe 0=X, axe 1=Y)
           const dpadUp = (gp.buttons[12]?.pressed ?? false) || (gp.axes[1] !== undefined && gp.axes[1] < -AXIS_THRESHOLD);
           const dpadDown = (gp.buttons[13]?.pressed ?? false) || (gp.axes[1] !== undefined && gp.axes[1] > AXIS_THRESHOLD);
           const dpadLeft = (gp.buttons[14]?.pressed ?? false) || (gp.axes[0] !== undefined && gp.axes[0] < -AXIS_THRESHOLD);
@@ -189,35 +158,28 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
           checkAction(`gp_${i}_left`, dpadLeft, h.onLeft, true);
           checkAction(`gp_${i}_right`, dpadRight, h.onRight, true);
 
-          // Bouton A / Croix (0) : Valider / Lancer / Play-Pause
           const btnA = gp.buttons[0]?.pressed ?? false;
           checkAction(`gp_${i}_btnA`, btnA, h.onEnter ?? h.onPlayPause);
 
-          // Bouton B / Rond (1) : Retour
           const btnB = gp.buttons[1]?.pressed ?? false;
           checkAction(`gp_${i}_btnB`, btnB, h.onBack);
 
-          // Bouton X / Carré (2) : Play / Pause
           const btnX = gp.buttons[2]?.pressed ?? false;
           checkAction(`gp_${i}_btnX`, btnX, h.onPlayPause);
 
-          // Bouton Y / Triangle (3) : Play / Pause
           const btnY = gp.buttons[3]?.pressed ?? false;
           checkAction(`gp_${i}_btnY`, btnY, h.onPlayPause);
 
-          // Gâchettes hautes L1 (4) / R1 (5) : Précédent / Suivant
           const btnL1 = gp.buttons[4]?.pressed ?? false;
           const btnR1 = gp.buttons[5]?.pressed ?? false;
           checkAction(`gp_${i}_btnL1`, btnL1, h.onPrev);
           checkAction(`gp_${i}_btnR1`, btnR1, h.onNext);
 
-          // Gâchettes analogiques L2 (6) / R2 (7) : Volume Bas / Volume Haut
           const btnL2 = (gp.buttons[6]?.pressed ?? false) || ((gp.buttons[6]?.value ?? 0) > 0.5);
           const btnR2 = (gp.buttons[7]?.pressed ?? false) || ((gp.buttons[7]?.value ?? 0) > 0.5);
           checkAction(`gp_${i}_btnL2`, btnL2, h.onVolumeDown);
           checkAction(`gp_${i}_btnR2`, btnR2, h.onVolumeUp);
 
-          // Select / Back (8) & Start / Options (9)
           const btnSelect = gp.buttons[8]?.pressed ?? false;
           const btnStart = gp.buttons[9]?.pressed ?? false;
           checkAction(`gp_${i}_btnSelect`, btnSelect, h.onBack);
@@ -236,13 +198,10 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
   }, [enabled]);
 }
 
-/** Classe posée par la télécommande ou la manette sur l'élément sélectionné. */
 export const REMOTE_FOCUS_CLASS = "kiosk-remote-focus";
 
-/** Attribut qui marque l'en-tête d'une page : le sélectionner ramène la page tout en haut au lieu de le centrer. */
 export const REMOTE_SCROLL_TOP_ATTR = "data-remote-scroll-top";
 
-/** Sélectionne un élément pour la télécommande : marque, focus, puis défilement (en haut pour un en-tête de page). */
 export function selectRemoteTarget(items: HTMLElement[], el: HTMLElement): void {
   for (const it of items) it.classList.toggle(REMOTE_FOCUS_CLASS, it === el);
   el.focus();
@@ -253,11 +212,6 @@ export function selectRemoteTarget(items: HTMLElement[], el: HTMLElement): void 
   }
 }
 
-/**
- * Déplacement spatial bidirectionnel 2D (Haut / Bas / Gauche / Droite)
- * calculé à partir de la position visuelle géométrique des éléments dans le viewport.
- * Idéal pour naviguer fluidement dans les rangées et grilles de cours avec le D-Pad ou stick.
- */
 export function moveDomFocus2D(
   selector: string,
   direction: "left" | "right" | "up" | "down"
@@ -331,7 +285,6 @@ export function moveDomFocus2D(
     }
 
     if (inDirection) {
-      // Priorité à l'axe principal avec pondération sur l'axe transverse
       const score = mainDist + crossDist * 2.2;
       if (score < bestScore) {
         bestScore = score;
@@ -340,8 +293,6 @@ export function moveDomFocus2D(
     }
   }
 
-  // Si aucun voisin géométrique direct n'est trouvé dans cette direction,
-  // repli propre sur l'ordre séquentiel du DOM
   const targetEl =
     bestItem ??
     items[
@@ -351,9 +302,6 @@ export function moveDomFocus2D(
   if (targetEl) selectRemoteTarget(items, targetEl);
 }
 
-/**
- * Déplace la sélection séquentielle (1D) entre des éléments dans l'ordre du DOM.
- */
 export function moveDomFocus(selector: string, direction: 1 | -1): void {
   if (typeof document === "undefined") return;
   const items = Array.from(document.querySelectorAll<HTMLElement>(selector)).filter(
@@ -367,9 +315,6 @@ export function moveDomFocus(selector: string, direction: 1 | -1): void {
   selectRemoteTarget(items, items[next]);
 }
 
-/**
- * Active (clique) l'élément sélectionné par la télécommande ou manette, ou le premier à défaut.
- */
 export function activateDomFocus(selector: string): void {
   if (typeof document === "undefined") return;
   const items = Array.from(document.querySelectorAll<HTMLElement>(selector)).filter(

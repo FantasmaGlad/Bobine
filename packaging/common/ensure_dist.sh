@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Vérifie (ou, avec BOBINE_BUILD_DIST=1, construit) l'arbre PyInstaller dist/Bobine
-# consommé par les paquets RPM et Arch. En CI l'arbre vient de l'artefact des jobs .deb
-# (même binaire) ; en local il se construit comme dans build_deb.sh (étapes 2 et 3).
-#
-# Usage : ensure_dist.sh   (affiche le chemin de l'arbre sur la dernière ligne de stdout)
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"

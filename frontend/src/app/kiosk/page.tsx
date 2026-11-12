@@ -23,8 +23,6 @@ import { getApiUrl } from "@/lib/apiUrl";
 import { formatTime, formatWallClock } from "@/lib/format";
 import { unloadMedia } from "@/lib/mediaElement";
 
-// Durée hh:mm:ss pour le compte à rebours « prochain cours » de l'écran
-// d'attente (format identique à l'ancien habillage dynamique).
 function formatDuration(seconds: number) {
   const total = Math.max(0, Math.floor(seconds));
   const h = Math.floor(total / 3600);
@@ -48,12 +46,6 @@ interface NextCourse {
 
 export default function KioskPage() {
   const { t } = useAppSettings();
-  // Canal de diffusion de CE kiosk : `?channel=` explicite d'abord (seul moyen d'avoir un écran
-  // réseau sur la machine du serveur, en 127.0.0.1), sinon câblé — défaut
-  // volontaire (commit 675e441 : une TV sur IP LAN reste un écran câblé).
-  // Règle partagée avec /cinema : cf. lib/displayChannel.ts. Chacun
-  // n'applique QUE les évènements de son canal — deux lectures simultanées
-  // totalement indépendantes, zéro interférence.
   const [channel] = useState<"cable" | "network">(() => getDisplayChannel("kiosk"));
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const bgVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -61,23 +53,11 @@ export default function KioskPage() {
   const lastReportRef = useRef(0);
   const lastAudioReportRef = useRef(0);
   const lastSeekTimeRef = useRef(0);
-  // Rôle primaire lisible depuis handleEvent (défini avant l'appel du hook) :
-  // le kiosk primaire est la SOURCE de la position rapportée au serveur — il
-  // ne doit jamais se recaler dessus (boucle d'auto-correction pendant un
-  // rebuffering), seuls les miroirs suivent (correctif "kiosk réseau figé").
   const isPrimaryRef = useRef(false);
-  // Correctif "kiosk réseau figé" : le Chromium du kiosk câblé tourne avec
-  // --autoplay-policy=no-user-gesture-required (voir kiosk-xinitrc), donc
-  // .play() y réussit toujours. Un appareil réseau (téléphone/PC d'un
-  // adhérent) applique la politique d'autoplay standard des navigateurs, qui
-  // bloque silencieusement la lecture avec son sans geste utilisateur — la
-  // vidéo restait alors juste sur sa première image, indéfiniment, sans
-  // aucun repli. Un tap sur ce bandeau relance en son.
   const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
   const [osd, setOsd] = useState<OsdContent>(null);
   const osdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Démontage : flux, tampons et minuterie libérés sans attendre le ramasse-miettes.
   useEffect(() => {
     const video = videoRef;
     const bgVideo = bgVideoRef;
@@ -90,30 +70,17 @@ export default function KioskPage() {
     };
   }, []);
 
-  // Indicateur visuel du changement de volume
   const [volumeHud, showVolumeHud] = useVolumeHud();
   const [seekHud, showSeekHud] = useSeekHud();
   const [now, setNow] = useState(new Date());
-  // Offset en ms entre l'heure serveur et l'heure locale du navigateur. Utilisé pour corriger la dérive d'horloge de la TV kiosk
-  // dont l'horloge système peut être décalée si NTP n'a pas encore synchro.
   const clockOffsetRef = useRef<number>(0);
   const [nextCourse, setNextCourse] = useState<NextCourse | null>(null);
-  // Tick rapide : force un
-  // re-rendu à 5 Hz pour que le compte à rebours avant lancement et le
-  // minuteur s'affichent en interpolation locale continue plutôt que par
-  // à-coups d'un tick serveur toutes les secondes (saccades en cas d'aléa
-  // réseau). Aucune valeur portée par cet état, juste un déclencheur.
   const [, setFastTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setFastTick((t) => (t + 1) % 1_000_000), 200);
     return () => clearInterval(id);
   }, []);
 
-  // Horloge synchronisée avec le serveur : on calcule
-  // l'offset server_ts - Date.now() au démarrage puis toutes les 5 minutes.
-  // Utiliser l'heure serveur plutôt que new Date() permet de corriger la
-  // dérive d'horloge RTC du kiosk TV qui peut ne pas avoir synchro NTP au
-  // moment où le navigateur démarre.
   useEffect(() => {
     const syncClock = () => {
       fetch(getApiUrl("/time"), { cache: "no-store" })
@@ -124,14 +91,10 @@ export default function KioskPage() {
           }
         })
         .catch((err) => {
-          // L'heure serveur est inaccessible : l'offset précédent est conservé
-          // (fallback sur l'heure locale si premier démarrage). Log pour debug.
           console.warn("[clock] Synchronisation heure serveur échouée :", err);
         });
     };
     syncClock();
-    // Resync toutes les 60s (au lieu de 5 min) pour limiter la dérive visible
-    // si NTP corrige l'horloge du serveur Wyse entre-temps.
     const syncId = setInterval(syncClock, 60 * 1000);
     const tickId = setInterval(() => setNow(new Date(Date.now() + clockOffsetRef.current)), 1000);
     return () => {
@@ -143,7 +106,6 @@ export default function KioskPage() {
   useEffect(() => {
     let cancelled = false;
     const fetchNext = () => {
-      // Prochain cours DU CANAL de ce kiosk uniquement (planning par canal).
       fetch(getApiUrl(`/schedule/next?channel=${channel}`), { cache: "no-store" })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
@@ -167,23 +129,6 @@ export default function KioskPage() {
     osdTimerRef.current = setTimeout(() => setOsd(null), 3000);
   }, []);
 
-  /**
-   * Lance la lecture d'un <video>/<audio> avec repli si l'autoplay avec son
-   * est refusé : au lieu de rester
-   * silencieusement figé sur la première image (l'ancien `.catch(() => {})`
-   * n'avait aucun repli), on retente en muet — quasi toujours autorisé —
-   * pour au moins faire avancer l'image, et on affiche un bandeau "Activer
-   * le son" qui, une fois tapé, satisfait le geste utilisateur requis par le
-   * navigateur pour les lectures suivantes.
-   *
-   * Réservé au canal RÉSEAU : l'écran câblé
-   * n'a ni souris ni doigt pour taper ce bandeau (Chromium y tourne de toute
-   * façon avec --autoplay-policy=no-user-gesture-required, cf. kiosk-xinitrc
-   * — l'autoplay avec son n'y est normalement jamais refusé) ; si `.play()`
-   * y échoue quand même une fois (course au chargement, etc.), afficher un
-   * bandeau qu'aucun humain ne peut jamais satisfaire ne fait que polluer
-   * l'affichage indéfiniment sans aucun moyen de le faire disparaître.
-   */
   const tryPlay = useCallback((el: HTMLMediaElement | null | undefined) => {
     if (!el) return;
     el.play().catch(() => {
@@ -221,21 +166,8 @@ export default function KioskPage() {
           ? data.audio_tracks[data.audio_track_index]
           : null;
       const backgroundId = data.current_background?.id ?? data.current_audio_course?.background_id ?? null;
-      // Fond figé (png/jpg...) : rendu par <img> directement depuis l'état,
-      // le <video> de fond ne doit alors JAMAIS recevoir de src.
       const backgroundIsImage = data.current_background?.is_image ?? false;
 
-      // Décharge complètement un élément média (correctif bug "cours
-      // fantôme") : les couches kiosk sont seulement masquées en CSS, donc un
-      // <video>/<audio> non déchargé continue de jouer (son audible) sous la
-      // nouvelle couche. Appelé à chaque changement de mode pour tout élément
-      // qui n'est plus concerné par l'état serveur.
-
-      // Chaque /kiosk (câblé ou réseau) est un canal de diffusion à part
-      // entière : un second
-      // écran connecté depuis le réseau a ses propres enceintes et doit donc
-      // rendre le son lui aussi, au même volume que l'état partagé — plus de
-      // coupure forcée réservée au seul écran câblé au Wyse.
       const applyVolume = (el: HTMLMediaElement) => {
         el.muted = false;
         el.volume = data.volume / 100;
@@ -248,21 +180,11 @@ export default function KioskPage() {
           audio.src = src;
           audio.load();
         }
-        // Ni position ni lecture/pause ici — `useAudioClockFollower`
-        // amène l'<audio> sur l'horloge serveur (départ synchronisé, correction
-        // de dérive par `playbackRate`). `resetTime` reste accepté pour
-        // lisibilité des appelants : une nouvelle piste repart de l'ancre à 0.
         void resetTime;
         applyVolume(audio);
         if (!data.audio_playing) audio.pause();
       };
 
-      // Fond d'ambiance du mode coach : peut désormais changer À CHAQUE PISTE, pas
-      // seulement au lancement du cours/de la playlist ou à un changement
-      // manuel — appelé aussi depuis les causes de navigation de piste
-      // ci-dessous. Ne recharge que si la source a réellement changé (deux
-      // pistes consécutives partageant le même fond ne doivent pas
-      // redémarrer sa boucle).
       const syncBackgroundLayer = () => {
         if (!bgVideo) return;
         if (!backgroundId || backgroundIsImage) {
@@ -273,36 +195,23 @@ export default function KioskPage() {
         if (!bgVideo.src || !bgVideo.src.endsWith(bgSrc)) {
           bgVideo.src = bgSrc;
           bgVideo.load();
-          // changer de fond PENDANT une pause (ex. depuis le sélecteur de
-          // l'interface coach) ne doit pas relancer sa lecture tout seul.
           if (data.audio_playing) bgVideo.play().catch(() => {});
         }
       };
 
       switch (cause) {
         case "sync": {
-          // Resynchronisation (reconnexion, redémarrage du serveur) : on
-          // décharge d'abord tout média que l'état serveur ne référence plus,
-          // sinon un cours chargé avant un redémarrage backend continuerait
-          // de jouer alors que le serveur est repassé en attente.
           if (!data.current_video) unloadMedia(video);
           if (!backgroundId || backgroundIsImage) unloadMedia(bgVideo);
           if (!data.current_audio_course) unloadMedia(audio);
           if (backgroundId && !backgroundIsImage && bgVideo) {
             const bgSrc = getApiUrl(`/backgrounds/${backgroundId}/stream`);
             if (!bgVideo.src || !bgVideo.src.endsWith(bgSrc)) bgVideo.src = bgSrc;
-            // en mode coach, le fond suit l'état pause de la piste audio
-            // plutôt qu'un autoplay inconditionnel — sans ce garde-fou, une
-            // reconnexion (cause "sync") pendant une pause relançait le fond
-            // tout seul. Hors mode coach (fond animé seul, pas de notion de
-            // pause), il continue de démarrer directement.
             if (!data.current_audio_course || data.audio_playing) bgVideo.play().catch(() => {});
             else bgVideo.pause();
           }
           if (data.current_audio_course && audio && currentTrack) {
             const aSrc = getApiUrl(`/audio/tracks/${currentTrack.id}/stream`);
-            // Ne recharger la piste audio que si la source a réellement changé : un sync de reconnexion ne doit pas remettre
-            // à zéro une piste déjà en cours de lecture.
             if (!audio.src || !audio.src.endsWith(aSrc)) {
               audio.src = aSrc;
               audio.load();
@@ -312,11 +221,6 @@ export default function KioskPage() {
           if (!video || !data.current_video) break;
           const src = videoStreamUrl(getApiUrl, data.current_video.id);
           applyVolume(video);
-          // Ne recharger la vidéo que si la source a changé.
-          // Appeler video.load() sur la même source interrompt la lecture en
-          // cours. Ni position ni lecture/pause ici — c'est
-          // `useVideoClockFollower` qui amène le <video> sur l'horloge serveur
-          // (départ synchronisé, correction de dérive par `playbackRate`).
           const srcChanged = !video.src || !video.src.endsWith(src);
           if (srcChanged) {
             video.src = src;
@@ -326,15 +230,8 @@ export default function KioskPage() {
         }
         case "position_tick": {
           if (isPrimaryRef.current) break;
-          // Période de grâce après un seek : laisser le tampon et le décodage se stabiliser
           if (Date.now() - lastSeekTimeRef.current < 3000) break;
           if (data.current_audio_course && audio && currentTrack) {
-            // Position et lecture/pause de la piste : portées par l'horloge
-            // serveur (`useAudioClockFollower`), plus recalées ici par seek.
-            // un kiosk miroir qui rejoint APRÈS le play/pause d'origine (ou
-            // qui rate l'évènement) doit aussi rattraper l'état pause du
-            // fond via ce tick périodique, pas seulement via les causes
-            // play/pause elles-mêmes.
             if (bgVideo && bgVideo.src) {
               if (data.audio_playing && bgVideo.paused) tryPlay(bgVideo);
               else if (!data.audio_playing && !bgVideo.paused) bgVideo.pause();
@@ -343,31 +240,18 @@ export default function KioskPage() {
           break;
         }
         case "load": {
-          // Un cours vidéo prend le relais : le serveur a déjà vidé fond animé
-          // et mode coach de son état, on décharge leurs éléments média ici.
           unloadMedia(bgVideo);
           unloadMedia(audio);
           if (!video || !data.current_video) break;
           video.src = videoStreamUrl(getApiUrl, data.current_video.id);
-          // Pas d'assignation explicite de currentTime ici :
-          // une nouvelle src remet déjà la position à 0 nativement, et
-          // l'assigner nous-mêmes avant HAVE_METADATA lève une exception
-          // dans certains navigateurs/WebView embarqués — exactement le même
-          // piège que seekWhenReady évite plus haut pour le cas "sync". Une
-          // exception ici casserait silencieusement tout le reste du bloc, y
-          // compris le tryPlay() qui lance réellement la lecture.
           applyVolume(video);
-          // pas de tryPlay ici — le suiveur d'horloge lance la
-          // lecture à l'instant de départ synchronisé publié par le serveur.
           video.load();
           break;
         }
         case "load_background": {
-          // Un fond (animé ou figé) prend le relais sur toute lecture en cours.
           unloadMedia(video);
           unloadMedia(audio);
           if (backgroundIsImage) {
-            // Le fond figé est rendu par l'<img> du JSX, rien à charger ici.
             unloadMedia(bgVideo);
             break;
           }
@@ -379,9 +263,6 @@ export default function KioskPage() {
         }
         case "load_audio_course":
         case "audio_set_background": {
-          // Le mode coach prend le relais (ou change de fond en direct) : la
-          // vidéo de cours éventuellement en lecture doit être déchargée, pas
-          // seulement masquée.
           unloadMedia(video);
           syncBackgroundLayer();
           if (cause === "load_audio_course") syncAudioToTrack(true);
@@ -391,27 +272,18 @@ export default function KioskPage() {
         case "audio_previous_track":
         case "audio_jump_to_track":
         case "audio_restart_track":
-          // chaque
-          // piste peut avoir son propre fond, à ressynchroniser à chaque
-          // changement de piste — pas seulement au lancement du cours.
           syncBackgroundLayer();
           syncAudioToTrack(true);
           break;
         case "play":
           if (data.current_audio_course) {
             tryPlay(audio);
-            // le fond du mode coach (bgVideo) suit maintenant
-            // le même play/pause que la piste audio, dans les deux sens.
             if (bgVideo && bgVideo.src) tryPlay(bgVideo);
           }
-          // Vidéo : le suiveur d'horloge démarre la lecture à l'instant publié.
           break;
         case "pause":
           if (data.current_audio_course) {
             audio?.pause();
-            // Voir le commentaire du cas "play" ci-dessus : avant ce
-            // correctif, le fond animé continuait de boucler derrière la
-            // musique en pause.
             bgVideo?.pause();
           } else {
             video?.pause();
@@ -423,16 +295,6 @@ export default function KioskPage() {
           unloadMedia(audio);
           break;
         case "seek":
-          // ce cas
-          // assignait `currentTime` directement, sans passer par
-          // seekWhenReady comme "sync"/"load" plus haut — l'exception
-          // pré-HAVE_METADATA (cf. commentaire au-dessus de seekWhenReady)
-          // était alors avalée par le try/catch de usePlaybackSocket sans
-          // jamais être retentée, laissant l'image figée pendant que la
-          // piste audio du même <video> continuait sa lecture.
-          // Vidéo : la nouvelle position est portée par l'ancre d'horloge, que le
-          // suiveur applique (un seul seek si l'écart est grand, sinon vitesse).
-          // Noms d'icônes Material Symbols — rendus par <Icon> dans le JSX de l'OSD.
           showOsd({
             icon: "fast_forward",
             label: `${formatTime(data.position_seconds)} / ${formatTime(data.current_video?.duration_seconds)}`,
@@ -444,7 +306,6 @@ export default function KioskPage() {
           showVolumeHud({ level: data.volume / 100, muted: false });
           break;
         case "speed":
-          // La vitesse nominale vient de l'ancre d'horloge (suiveur).
           showOsd({ icon: "speed", label: `${data.speed.toFixed(2)}x` });
           break;
         default:
@@ -456,12 +317,9 @@ export default function KioskPage() {
 
   const { state, sendCommand, serverNow, isPrimary, displayOutputCable, displayOutputNetwork } = usePlaybackSocket(handleEvent, "kiosk", channel, undefined, "kiosk");
 
-  // Sous-titres pour la vidéo en cours de lecture
   const subtitles = useVideoSubtitles(state.current_video?.id, getApiUrl);
   useApplySubtitleMode([videoRef], subtitles, state.subtitle ?? null);
   const chapters = useVideoChapters(state.current_video?.id, getApiUrl);
-  // Suit l'horloge de lecture serveur : démarrage simultané
-  // des écrans et correction de dérive sans seek.
   useVideoClockFollower({
     videoRef,
     state,
@@ -471,14 +329,10 @@ export default function KioskPage() {
       lastSeekTimeRef.current = Date.now();
     },
   });
-  // Même modèle pour la piste audio du mode coach.
   useAudioClockFollower({ audioRef, state, serverNow, tryPlay });
   useEffect(() => {
     isPrimaryRef.current = isPrimary;
   }, [isPrimary]);
-  // Bascule kiosk/cinéma par canal : cette page
-  // navigue vers /cinema si SON canal (câblé si c'est l'écran du Wyse,
-  // réseau sinon) est passé en mode cinéma.
   useDisplayOutputRedirect("kiosk", displayOutputCable, displayOutputNetwork);
 
   const handleTimeUpdate = () => {
@@ -501,9 +355,6 @@ export default function KioskPage() {
     }
   };
 
-  // Surveillance douce des décrochages de lecture : ne pause ni ne seek jamais
-  // la vidéo agressivement. Relance simplement .play() si la vidéo est déclarée
-  // en lecture mais figée > 6s.
   useEffect(() => {
     let lastTime = -1;
     let stallCount = 0;
@@ -515,7 +366,6 @@ export default function KioskPage() {
         stallCount = 0;
         return;
       }
-      // Période de grâce après un seek récent (3.5s)
       if (Date.now() - lastSeekTimeRef.current < 3500) {
         lastTime = video.currentTime;
         stallCount = 0;
@@ -539,11 +389,9 @@ export default function KioskPage() {
     return () => window.clearInterval(interval);
   }, []);
 
-  // Son du canal (égaliseur, basses, loudness, limiteur) sur la vidéo et sur l'audio des cours ; repli en son direct.
   useMediaSound(videoRef, state.sound);
   useMediaSound(audioRef, state.sound);
 
-  /** Saut vidéo commandé au serveur, avec la surimpression de position. */
   const seekVideoTo = (seconds: number) => {
     sendCommand("seek", { position_seconds: seconds });
     showSeekHud({ position: seconds, duration: videoRef.current?.duration || state.current_video?.duration_seconds || 0 });
@@ -592,7 +440,6 @@ export default function KioskPage() {
           sendCommand("seek", { position_seconds: Math.min(dur, cur + 10) });
         }
       },
-      // Touches de chaîne : chapitre suivant ou précédent (le serveur pilote la lecture, d'où la commande seek).
       onChapterNext: () => jumpChapter("next"),
       onChapterPrev: () => jumpChapter("prev"),
       onVolumeUp: () => showVolumeHud(adjustMediaVolume([videoRef.current, audioRef.current], VOLUME_STEP)),
@@ -607,7 +454,6 @@ export default function KioskPage() {
   });
 
   const program = state.current_video?.program ?? state.current_audio_course?.program ?? undefined;
-  // Couleur du thème plutôt que du programme du cours.
   const programAccent = "var(--accent-primary)";
   const isIdle = state.state === "waiting" || state.state === "offline";
   const isVideoLayer = state.state === "playing" || state.state === "paused";
@@ -640,14 +486,6 @@ export default function KioskPage() {
 
   return (
     <div className="kiosk-root">
-      {/* Écran d'attente : habillage figé
-          rendu nativement — horloge, logo imposant et bloc « prochain cours ».
-          Les tailles de texte sont en `cqmin` (min de cqw/cqh de .kiosk-root,
-          qui porte container-type: size) — pas `cqh` seul :
-          `cqh` seul dépend UNIQUEMENT de la hauteur du conteneur, donc occupe
-          une fraction de LARGEUR plus grande sur un écran étroit à hauteur
-          égale. Les positions en % reprennent à l'identique l'ancien
-          habillage. */}
       <div className={`kiosk-layer kiosk-waiting ${isIdle ? "visible" : ""}`}>
         <div className="kiosk-waiting-content">
           <span className="kiosk-waiting-clock" suppressHydrationWarning>{formatWallClock(now)}</span>
@@ -716,10 +554,6 @@ export default function KioskPage() {
               sendCommand(state.state === "playing" ? "pause" : "play");
             }
           }}
-          // preload="auto" : demande au navigateur de mettre en tampon en
-          // avance plutôt qu'au tout dernier moment — atténue les saccades sur
-          // l'écran RÉSEAU (lecture par-dessus le LAN/Wi-Fi, contrairement au
-          // câblé servi en loopback 127.0.0.1). Le <video> du cinéma l'a déjà.
           preload="auto"
           playsInline
         >
@@ -745,8 +579,6 @@ export default function KioskPage() {
         <video ref={bgVideoRef} className="kiosk-video" loop muted playsInline autoPlay />
       </div>
 
-      {/* Fond figé (png/jpg/webp) : même couche plein écran que les fonds
-          animés, mais rendue par une simple image. */}
       <div className={`kiosk-layer kiosk-video-layer ${backgroundLayerActive && backgroundIsImage ? "visible" : ""}`}>
         {backgroundIsImage && coachBackgroundId !== null && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -803,10 +635,8 @@ export default function KioskPage() {
       </div>
 
       {isPaused && (
-        // Écran de pause cinématique façon Netflix (logo au centre, ambiance sobre, métadonnées du cours)
         <div className="pause-overlay visible" onClick={() => sendCommand("play")}>
           <div className="pause-center" onClick={(e) => { e.stopPropagation(); }}>
-            {/* Colonne Média (Gauche) avec miniature */}
             <div className="pause-media-col">
               <div
                 className="pause-thumb-wrap"
@@ -844,7 +674,6 @@ export default function KioskPage() {
               </div>
             </div>
 
-            {/* Colonne Détails & Synopsis (Droite) */}
             <div className="pause-details-col">
               <div>
                 <div className="pause-header-row">
@@ -914,7 +743,6 @@ export default function KioskPage() {
         </button>
       )}
 
-      {/* Sidebar Volume OSD Glassmorphism (retour visuel TV & télécommande) */}
       <VolumeOsd {...volumeHud} overVideo={Boolean(state.current_video)} />
     </div>
   );

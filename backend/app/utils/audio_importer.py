@@ -37,10 +37,6 @@ _RESOLUTION_NUMBERS = {"144", "240", "360", "480", "720", "1080", "1440", "2160"
 
 
 def _guess_release(title: str) -> str | None:
-    """
-    Repère le nombre collé à un mot ("Rpm 101") plutôt que le premier chiffre
-    isolé trouvé n'importe où dans le titre.
-    """
     for word, number in re.findall(r"([A-Za-zÀ-ÖØ-öø-ÿ]+)[\s_-]+(\d{1,4})\b", title):
         is_year = len(number) == 4 and 1900 <= int(number) <= 2099
         if is_year or number in _RESOLUTION_NUMBERS:
@@ -50,12 +46,7 @@ def _guess_release(title: str) -> str | None:
 
 
 def wait_for_folder_to_stabilize(dir_path: str, stable_secs: int = 3, timeout: int = 300) -> bool:
-    """
-    Variante de `importer.wait_for_file_to_copy` pour un dossier entier :
-    attend que la taille CUMULÉE de tous les fichiers qu'il contient cesse de
-    changer (copie de plusieurs MP3 en cours dans le dossier surveillé des
-    cours audio).
-    """
+    """Variante de `importer.wait_for_file_to_copy` pour un dossier entier : attend que la taille CUMULÉE de tous les fichiers qu'il contient cesse de changer (copie de plusieurs MP3 en cours dans le dossier surveillé des cours audio)."""
     last_total = -1
     stable_since = 0
     start_time = time.time()
@@ -93,16 +84,7 @@ def import_audio_course_from_files(
     release: str | None = None,
     job_id: str | None = None,
 ) -> AudioCourse:
-    """
-    Importe un cours audio à partir d'une liste de fichiers MP3 déjà présents
-    sur disque : les déplace dans un sous-dossier dédié de
-    `settings.audio_dir`, extrait durée/numéro/titre par piste (ffprobe +
-    parsing du nom de fichier), crée le cours et ses pistes en base dans
-    l'ordre déduit du nom de fichier (réordonnable ensuite depuis l'UI).
-
-    `job_id` : voir
-    `app.utils.importer.import_video` pour la même mécanique de suivi.
-    """
+    """Importe un cours audio à partir d'une liste de fichiers MP3 déjà présents sur disque : les déplace dans un sous-dossier dédié de `settings.audio_dir`, extrait durée/numéro/titre par piste (ffprobe + parsing du nom de fichier), crée le cours et ses pistes en base dans l'ordre déduit du nom de fichier (réordonnable ensuite depuis l'UI)."""
     if not mp3_paths:
         raise ValueError("Aucun fichier MP3 fourni pour l'import du cours audio.")
 
@@ -116,7 +98,6 @@ def import_audio_course_from_files(
         number, title = parse_track_number_and_title(src_path.name)
         parsed.append((number, title, src_path))
 
-    # Tri : par numéro déduit du nom de fichier si présent, sinon par nom (ordre stable)
     parsed.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 0, str(t[2])))
 
     update_job(job_id, stage="saving")
@@ -149,16 +130,7 @@ def import_audio_course_from_files(
         db.commit()
         db.refresh(course)
         logger.info(f"Cours audio importé : {course.title} ({len(parsed)} piste(s), ID {course.id})")
-        # log_activity() fait son propre commit (sur la même session), ce qui
-        # réexpire tous les attributs déjà chargés de `course` (comportement
-        # par défaut de SQLAlchemy, expire_on_commit=True) — il doit donc
-        # s'exécuter AVANT le chargement forcé de `tracks` ci-dessous, pas après.
         log_activity(db, "audio_course_imported", f"{course.title} ({len(parsed)} piste(s))")
-        # Force le chargement de la relation `tracks` pendant que la session
-        # est encore ouverte : l'appelant (routeur FastAPI ou test) accède à
-        # `course.tracks` après le retour de cette fonction, une fois la
-        # session fermée (DetachedInstanceError sinon — la relation est lazy
-        # par défaut et `refresh()` seul ne recharge que les colonnes).
         _ = list(course.tracks)
         return course
     except Exception as e:
@@ -202,11 +174,7 @@ def import_audio_course_from_zip(
 
 
 def import_audio_course_from_watched_folder(course_dir: str, job_id: str | None = None) -> AudioCourse:
-    """
-    Importe un cours audio détecté par le watcher : le nom du sous-dossier devient le titre du cours,
-    tous les MP3 qu'il contient (à plat, non récursif) en deviennent les
-    pistes.
-    """
+    """Importe un cours audio détecté par le watcher : le nom du sous-dossier devient le titre du cours, tous les MP3 qu'il contient (à plat, non récursif) en deviennent les pistes."""
     path = Path(course_dir)
     course_title = path.name.replace("_", " ").replace("-", " ").strip() or "Cours importé"
 
@@ -219,9 +187,6 @@ def import_audio_course_from_watched_folder(course_dir: str, job_id: str | None 
 
     course = import_audio_course_from_files(mp3_paths, course_title, job_id=job_id)
 
-    # Le sous-dossier source (copié par l'utilisateur dans le dossier
-    # surveillé) est maintenant vide de ses MP3 (déplacés dans audio_dir) :
-    # on le supprime pour ne pas laisser un dossier fantôme derrière soi.
     try:
         shutil.rmtree(path, ignore_errors=True)
     except Exception:

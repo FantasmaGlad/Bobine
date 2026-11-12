@@ -35,15 +35,11 @@ def _pick(ctx: _Context, file: str, what: str, candidates: list, ref: dict, path
 
 
 def _by_uid(ctx: _Context, model, ref: Any):
-    """Objet portant le `uid` de `ref` (None sans `uid` valide ou s'il est inconnu ici)."""
     uid = ref.get("uid") if isinstance(ref, dict) else None
     return ctx.db.query(model).filter(model.uid == uid).first() if is_uid(uid) else None
 
 
 def _claim_uid(ctx: _Context, model, entry: Any, obj: Any) -> None:
-    """Un objet créé reprend le `uid` du document s'il est valide et libre (restauration sur une autre installation)."""
     uid = entry.get("uid") if isinstance(entry, dict) else None
-    # Le préfixe fait partie de l'identité (`pl_`, `tag_`...) : un `vid_` glissé dans un fichier de
-    # playlists ne doit pas devenir l'uid d'une playlist.
     if is_uid(uid, getattr(model, "__uid_prefix__", None)) and not ctx.db.query(model).filter(model.uid == uid).first():
         obj.uid = uid

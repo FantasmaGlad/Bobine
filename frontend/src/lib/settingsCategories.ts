@@ -1,16 +1,8 @@
-/**
- * Catégories de la page Réglages : chaque section (identifiant HTML) appartient à une seule catégorie, la page n'affiche
- * que la catégorie choisie, et la recherche retrouve une catégorie par son nom, sa description ou ses mots-clés.
- * Module pur (aucun accès au DOM) : testable seul (`tests/settingsCategories.test.ts`).
- */
-
 export type SettingsCategoryId = "appearance" | "display" | "playback" | "updates" | "data" | "system" | "help" | "danger";
 
 export interface SettingsCategory {
   id: SettingsCategoryId;
-  /** Icône Material Symbols. */
   icon: string;
-  /** Identifiants des sections de la page qui composent la catégorie. */
   sections: readonly string[];
 }
 
@@ -31,15 +23,10 @@ export function categoryOfSection(sectionId: string): SettingsCategoryId | undef
   return SETTINGS_CATEGORIES.find((category) => category.sections.includes(sectionId))?.id;
 }
 
-/** Minuscules sans accents : « Écran » et « ecran » se retrouvent. */
 export function normalizeSearch(text: string): string {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 }
 
-/**
- * Catégories qui répondent à la recherche : chaque mot saisi doit figurer dans le nom, la description ou les mots-clés
- * (`haystack` fournit ce texte, déjà traduit). Une recherche vide ne retient rien (la page affiche alors la catégorie choisie).
- */
 export function matchCategories(query: string, haystack: (id: SettingsCategoryId) => string): Set<SettingsCategoryId> {
   const words = normalizeSearch(query).split(/\s+/).filter(Boolean);
   const found = new Set<SettingsCategoryId>();

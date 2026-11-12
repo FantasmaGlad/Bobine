@@ -49,7 +49,6 @@ interface BackgroundSummary {
 
 interface MobileRemoteProps {
   state: PlaybackState;
-  /** Position lissée calculée par le parent — voir useInterpolatedPosition. */
   livePosition: number;
   connected: boolean;
   sendCommand: (command: string, params?: Record<string, unknown>) => void;
@@ -59,16 +58,9 @@ interface MobileRemoteProps {
   getApiUrl: (path: string) => string;
   displayOutputCable: DisplayOutput | null;
   displayOutputNetwork: "kiosk" | "cinema" | null;
-  /** Lecture en cours sur l'écran cinéma libre-service DE CE CANAL — même source que le bloc "En direct" du
-   * PC admin (`cinemaLive` de `DashboardScreen`), null si rien ne joue ou si
-   * le dernier rapport date de plus de 8s (appareil cinéma fermé/déconnecté). */
   cinemaLive: CinemaRemoteState | null;
-  /** Play/pause du cours cinéma avec état optimiste (géré par le parent, qui
-   * détient l'état commandé-en-attente) : `cinemaLive.playing` reflète déjà l'état COMMANDÉ. */
   onCinemaPlayPause: () => void;
   onSetDisplayOutput: (channel: "cable" | "network", output: DisplayOutput) => void;
-  /** Canal contrôlé par cette instance. Omis = comportement
-   * historique (les deux canaux affichés ensemble), conservé pour "/". */
   channel?: "cable" | "network";
 }
 
@@ -100,18 +92,9 @@ export default function MobileRemote({
   const [cinemaSeekDrag, setCinemaSeekDrag] = useState<number | null>(null);
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Verrou cinéma PAR CANAL :
-  // seul l'état du canal piloté par cette télécommande compte. Les actions
-  // kiosk (lancer un cours/fond/playlist) n'ont pas de sens sur un canal en
-  // libre-service — masquées plutôt que juste désactivées, remplacées par les infos/contrôles de l'écran cinéma.
   const channelCinema = (channel === "network" ? displayOutputNetwork : displayOutputCable) === "cinema";
-  // Sortie câblée basculée sur Radio : la télécommande montre la radio câblée (composant
-  // partagé, variante compacte) à la place des actions vidéo.
   const channelRadio = channel !== "network" && displayOutputCable === "radio";
 
-  // Si le canal bascule en cinéma pendant que la feuille de lancement est
-  // ouverte, elle n'a plus lieu d'être (plus de bouton pour l'ouvrir non
-  // plus, mais l'état pourrait déjà être ouvert au moment de la bascule).
   useEffect(() => {
     if (channelCinema || channelRadio) setSheet("none");
   }, [channelCinema, channelRadio]);
@@ -120,20 +103,11 @@ export default function MobileRemote({
   const duration = state.current_video?.duration_seconds ?? 0;
   const displayPosition = seekDragValue ?? livePosition;
 
-  // Nom de playlist + "à suivre" : absent jusqu'ici du mobile, contrairement au PC.
   const nextPlaylistItem =
     state.playlist_items && state.playlist_index !== null && state.playlist_index !== undefined
       ? state.playlist_items[state.playlist_index + 1]
       : null;
 
-  // Capture du pointeur :
-  // sans setPointerCapture, un tremblement de doigt naturel pendant l'appui
-  // long (650ms) fait glisser le point de contact hors des limites du
-  // bouton, ce qui déclenche `pointerleave` et annule le hold avant son
-  // terme — sur un écran tactile réel, quasiment IMPOSSIBLE à mener à bien.
-  // La capture fixe tous les évènements suivants (up/cancel) sur ce bouton
-  // quel que soit le déplacement du doigt, comme le pattern standard pour
-  // les contrôles "maintenir pour confirmer".
   const startStopHold = (e: React.PointerEvent<HTMLButtonElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     setHoldingStop(true);
@@ -162,7 +136,6 @@ export default function MobileRemote({
   const cinemaChapters = useVideoChapters(cinemaLive?.video_id, getApiUrl);
   const cinemaVideo = cinemaLive?.video_id ? videos.find((v) => v.id === cinemaLive.video_id) ?? null : null;
 
-  // Autocomplétion de la recherche « Lancer un cours » : cours, programmes, playlists, fonds.
   const launchSuggestions = [
     ...videos.flatMap((v) => (v.program ? [v.title, v.program] : [v.title])),
     ...playlists.map((p) => p.name),
@@ -174,9 +147,6 @@ export default function MobileRemote({
 
   return (
     <div className="mobile-remote">
-      {/* Le choix du canal (Câblé/Réseau) se fait uniquement depuis la
-          barre latérale — un second sélecteur ici dupliquait exactement
-          cette navigation. */}
       {connected && (
         <div className="mobile-remote-output olc-anim-in">
           {(!channel || channel === "cable") && (
@@ -201,12 +171,7 @@ export default function MobileRemote({
       ) : channelRadio ? (
         <RadioRemotePanel key="radio_cable" channel="radio_cable" variant="compact" />
       ) : channelCinema ? (
-        // Mode cinéma : lecture LOCALE à l'écran libre-service, rapportée par
-        // la page /cinema du canal (même source que le bloc "En direct" du PC
-        // admin) — pas de lancement possible depuis ici, juste lire/piloter
-        // ce qui joue déjà.
         cinemaLive ? (
-          // Structure en COLONNE, chaque bloc frère du suivant. Même squelette que la vue kiosk ci-dessous.
           <>
             <div className="now-card olc-anim-in">
               <div className="now-card__label">
@@ -357,9 +322,6 @@ export default function MobileRemote({
         </>
       )}
 
-      {/* Contrôles kiosk (précédent/lecture/suivant, stop, volume) : sans
-          objet en mode cinéma, l'écran cinéma a ses propres contrôles
-          affichés plus haut — masqués plutôt que désactivés. */}
       {!channelCinema && (
         <>
           <div className="mobile-remote-controls">
@@ -391,7 +353,6 @@ export default function MobileRemote({
             </button>
           </div>
 
-          {/* Stop en appui long, sans confirmation */}
           <button
             className={`coach-btn coach-btn-wide mobile-remote-stop olc-press ${holdingStop ? "holding" : ""}`}
             style={{ touchAction: "none" }}
@@ -426,11 +387,7 @@ export default function MobileRemote({
                 {t("mobileRemote.launchQuickBtn")}
               </button>
             )}
-            {/* Mode coach réservé au canal câblé : la sortie réseau ne peut jamais s'en servir, le
-                bouton n'apparaît donc pas sur la vue dédiée au canal réseau. */}
             {channel !== "network" && (
-              // Link plutôt qu'un <a> classique : un <a href> natif recharge
-              // toute la page et coupe la Fullscreen API du navigateur.
               <Link href="/coach/" className="btn btn-primary mobile-remote-quick-btn" style={{ textDecoration: "none" }}>
                 <Icon name="mic" size={18} />
                 {t("mobileRemote.coachQuickBtn")}
@@ -438,7 +395,6 @@ export default function MobileRemote({
             )}
           </div>
 
-          {/* Planning DE CE CANAL. */}
           <a
             href={`/schedule/?channel=${channel ?? "cable"}`}
             className="btn btn-secondary"

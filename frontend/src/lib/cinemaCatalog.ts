@@ -1,6 +1,5 @@
 import { getApiUrl } from "./apiUrl.ts";
 
-/** Cours tel que le présentent les écrans de sélection (`/cinema`, `/grid`). */
 export interface CinemaVideo {
   id: number;
   title: string;
@@ -19,7 +18,6 @@ export interface CinemaVideo {
   bitrate_kbps?: number | null;
 }
 
-/** Adresse de la vignette d'un cours, ou `null` s'il n'en a pas. */
 export function thumbnailUrl(video: CinemaVideo): string | null {
   const path = video.thumbnail_path || video.thumbnail_url;
   if (!path) return null;

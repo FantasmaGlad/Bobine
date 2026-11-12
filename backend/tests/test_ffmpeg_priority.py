@@ -1,6 +1,4 @@
-"""Sur les profils où le navigateur partage la machine du
-backend, ffmpeg tourne à priorité réduite pour ne pas affamer l'interface ;
-l'appliance headless dédiée garde la pleine priorité (race to sleep)."""
+"""Sur les profils où le navigateur partage la machine du backend, ffmpeg tourne à priorité réduite pour ne pas affamer l'interface ; l'appliance headless dédiée garde la pleine priorité (race to sleep)."""
 
 import os
 import subprocess

@@ -8,11 +8,6 @@ import androidx.core.content.ContextCompat
 
 private const val TAG = "BootReceiver"
 
-/**
- * Relance Bobine après un redémarrage de l'appareil ou une mise à jour de l'application :
- * le serveur embarqué (service au premier plan) repart seul, puis l'écran s'ouvre. Sans ce
- * récepteur, rien ne redémarrait le service : l'écran restait vide jusqu'à un lancement manuel.
- */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return

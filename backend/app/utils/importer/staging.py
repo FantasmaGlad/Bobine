@@ -4,9 +4,7 @@ import time
 
 
 def wait_for_file_to_copy(file_path: str, stable_secs: int = 3, timeout: int = 300) -> bool:
-    """
-    Attend que la taille du fichier se stabilise (indiquant que la copie/l'upload est terminé).
-    """
+    """Attend que la taille du fichier se stabilise (indiquant que la copie/l'upload est terminé)."""
     last_size = -1
     stable_since = 0
     start_time = time.time()

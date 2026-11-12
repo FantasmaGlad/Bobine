@@ -35,8 +35,8 @@ test("sans route : les deux radios jouent sur la sortie par défaut, rappels et 
   const route = (id: string) => model.edges.find((e) => e.id === id);
   assert.equal(route(`source:radio_cable>${DEFAULT_SINK_ID}`)?.kind, "default");
   assert.equal(route(`source:radio_network>${DEFAULT_SINK_ID}`)?.kind, "default");
-  assert.equal(model.edges.filter((e) => e.kind === "mix").length, 2); // les rappels suivent chaque sortie radio
-  assert.equal(route("source:video>sink:speaker")?.kind, "default"); // l'audio vidéo reste sur la sortie par défaut du système
+  assert.equal(model.edges.filter((e) => e.kind === "mix").length, 2);
+  assert.equal(route("source:video>sink:speaker")?.kind, "default");
 });
 
 test("route vers une sortie présente : arête propre ; seules les radios se re-routent", () => {
@@ -96,7 +96,7 @@ test("disposition : deux colonnes déterministes, nœuds sans chevauchement, ar�
 });
 
 test("la colonne la plus courte est centrée verticalement", () => {
-  const layout = layoutRoutingGraph(buildRoutingGraph(input({ devices: [] }))); // 4 sources, 1 sortie
+  const layout = layoutRoutingGraph(buildRoutingGraph(input({ devices: [] })));
   const sink = layout.nodes.find((n) => n.side === "sink")!;
   const sources = layout.nodes.filter((n) => n.side === "source");
   const centre = (sources[0].y + sources[sources.length - 1].y + NODE_HEIGHT) / 2;
@@ -127,8 +127,6 @@ test("tracé et libellés", () => {
   assert.equal(truncateLabel("court"), "court");
   assert.equal(truncateLabel("x".repeat(40), 10), `${"x".repeat(9)}…`);
 });
-
-// --- résumé d'une route -------------------------------------------------------
 
 const player = (status: string | null, local = true, primary = true): RoutingPlayer => ({ local, primary, status });
 

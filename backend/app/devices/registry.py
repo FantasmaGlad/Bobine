@@ -12,8 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def build_driver(profile: str | None = None) -> DeviceDriver:
-    """Linux (bureau et appliance) → D-Bus/PipeWire/NetworkManager ; Windows/macOS → sidecar Rust ;
-    Android → pont Kotlin. Un profil dont le pilote est indisponible reçoit un `NullDriver` explicite."""
+    """Linux (bureau et appliance) → D-Bus/PipeWire/NetworkManager ; Windows/macOS → sidecar Rust ; Android → pont Kotlin."""
     profile = profile or get_deployment_profile()
     try:
         if profile in ("linux-desktop", "linux-headless"):
@@ -28,7 +27,7 @@ def build_driver(profile: str | None = None) -> DeviceDriver:
             from .android import AndroidDriver
 
             return AndroidDriver()
-    except Exception as exc:  # un pilote défaillant ne doit jamais empêcher l'application de démarrer
+    except Exception as exc:
         logger.warning("Pilote de périphériques indisponible (%s) : %s", profile, exc)
         return NullDriver(f"Le pilote de périphériques de ce profil ({profile}) n'a pas pu démarrer.")
     return NullDriver()

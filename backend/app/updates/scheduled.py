@@ -29,7 +29,7 @@ def something_is_playing() -> bool:
 
     try:
         playback, radios = get_all_playback_managers(), get_all_radio_managers()
-    except RuntimeError:  # moteurs pas encore initialisés : rien ne peut jouer
+    except RuntimeError:
         return False
     for manager in playback.values():
         state = manager.state.get("state")
@@ -39,14 +39,7 @@ def something_is_playing() -> bool:
 
 
 async def run_scheduled_update_if_available(db: Session) -> None:
-    """Appelée par `scheduling` au créneau planifié (Réglages → Mise
-    à jour automatique). Vérifie d'abord qu'une mise à jour existe RÉELLEMENT
-    avant de déclencher quoi que ce soit — contrairement au bouton manuel,
-    personne ne clique ici, donc pas de retour utilisateur immédiat en cas
-    de "rien à faire" à gérer, juste un silence normal dans les journaux.
-    Un retour en arrière (Bêta/Canary -> Stable plus ancienne) n'est JAMAIS
-    déclenché sans clic : la planification n'installe que des mises à jour
-    montantes."""
+    """Appelée par `scheduling` au créneau planifié (Réglages → Mise à jour automatique)."""
     handler = get_profile_handler()
     if not handler.can_schedule_auto_apply() or is_running():
         return
@@ -57,7 +50,6 @@ async def run_scheduled_update_if_available(db: Session) -> None:
     release_data, _ = await fetch_release_for_channel(channel, force=True)
     if not release_data:
         return
-    # Jusqu'à quatre appels `git` synchrones : hors de la boucle d'évènements.
     local_info = await run_in_threadpool(get_local_version_info)
     profile = get_deployment_profile()
     evaluation = await refuse_android_downgrade(

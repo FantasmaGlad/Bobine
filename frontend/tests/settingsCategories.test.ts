@@ -17,12 +17,10 @@ test("chaque section appartient à une seule catégorie", () => {
 
 test("toutes les sections de la page Réglages sont rangées, et inversement", () => {
   const page = readFileSync(new URL("../src/app/settings/page.tsx", import.meta.url), "utf8");
-  // Chaque bloc de la page porte son identifiant et sa visibilité par catégorie : id="x" hidden={!shows("x")}.
   const ids = [...page.matchAll(/\bid="([\w-]+)" hidden=\{!shows\("([\w-]+)"\)\}/g)].map((m) => {
     assert.equal(m[1], m[2], `${m[1]} : identifiant et shows() différents`);
     return m[1];
   });
-  // Les sections extraites dans components/settings/ reçoivent leur visibilité par `hidden` et portent leur identifiant.
   for (const m of page.matchAll(/<([A-Z]\w+)\s+hidden=\{!shows\("([\w-]+)"\)\}/g)) {
     const component = readFileSync(new URL(`../src/components/settings/${m[1]}.tsx`, import.meta.url), "utf8");
     assert.match(component, new RegExp(`id="${m[2]}" hidden=\\{hidden\\}`), `${m[1]} : id="${m[2]}" hidden={hidden} manquant`);

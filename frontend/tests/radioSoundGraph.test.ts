@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { createSoundChain } from "../src/lib/radioSoundGraph.ts";
 import { applyPreset, defaultSound } from "../src/lib/radioSound.ts";
 
-// Faux AudioContext minimal : trace le câblage et les appels de paramètres, sans audio réel.
 class FakeParam {
   value = 0;
   calls: Array<{ kind: string; value?: number }> = [];
@@ -77,8 +76,8 @@ function build() {
 
 test("la chaîne relie préampli, 5 bandes, basses, loudness x2 et limiteur à la sortie, dans l'ordre", () => {
   const { ctx, destination, chain } = build();
-  assert.equal(ctx.biquads.length, 8); // 5 bandes + basses + 2 loudness
-  assert.equal(ctx.gains.length, 1); // préampli seul
+  assert.equal(ctx.biquads.length, 8);
+  assert.equal(ctx.gains.length, 1);
   assert.equal(ctx.compressors.length, 1);
   let node = chain.input as unknown as FakeNode;
   const visited: string[] = [];

@@ -7,8 +7,6 @@ from typing import Any
 
 
 def _command_tree(parser: argparse.ArgumentParser) -> tuple[list[str], dict[str, dict[str, Any]]]:
-    """(options globales, {commande: {"options": [...], "subs": {sous-commande: [options]}}}) lus dans le parser lui-même :
-    la complétion ne peut donc pas diverger de l'aide."""
     def options(p: argparse.ArgumentParser) -> list[str]:
         return sorted({o for a in p._actions for o in a.option_strings if o.startswith("-") and o not in ("-h", "--help")})
 

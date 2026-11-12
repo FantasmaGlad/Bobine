@@ -1,21 +1,4 @@
-"""Activation du composant audio natif (`bobine-media`).
-
-Deux sources, par ordre de priorité :
-
-1. la variable d'environnement `BOBINE_MEDIA_NATIVE` : `1` force l'activation, `0` la
-   désactive ; toute autre valeur (ou l'absence de variable) laisse la main au réglage ;
-2. le réglage `media_native` (table `settings`, `"true"`/`"false"`, **désactivé par
-   défaut**), modifiable depuis Réglages. C'est la seule voie possible sur Android, où
-   l'on ne pose pas de variable d'environnement.
-
-Le composant n'accélère que de nouveaux imports : il n'altère aucune donnée existante, et
-tout échec (binaire absent, format hors périmètre, erreur de protocole, délai dépassé)
-retombe sur le chemin historique ffprobe/ffmpeg + Pillow, sans perte de média.
-
-L'état est tenu en mémoire (les importeurs tournent dans des threads qui ne disposent pas
-d'une session de base de données) : il est chargé au démarrage et mis à jour à chaque
-écriture du réglage.
-"""
+"""Activation du composant audio natif (`bobine-media`)."""
 from __future__ import annotations
 
 import logging
@@ -45,8 +28,6 @@ def configure(value: Any) -> None:
     with _lock:
         previous, _setting_enabled = _setting_enabled, enabled
     if previous and not enabled:
-        # Désactivé à chaud : le processus natif ne doit pas survivre inutilement. Import
-        # différé : ce module est importé par l'adaptateur.
         from app.utils.media_sidecar import close_current_media_client
 
         close_current_media_client()
@@ -88,17 +69,7 @@ def source() -> str:
 
 
 def status() -> dict[str, Any]:
-    """État réel du composant, pour la page Paramètres.
-
-    `state` :
-    - `disabled` : non demandé (le processus n'est pas lancé pour le savoir) ;
-    - `absent` : demandé, mais aucun exécutable joignable ;
-    - `active` : demandé, lancé, et il répond à `hello` (protocole accepté) ;
-    - `fallback` : demandé et présent mais inutilisable (échec de lancement, protocole
-      refusé, délai) — les imports utilisent le chemin historique.
-    Un format ou un fichier que le composant ne sait pas lire ne change pas cet état : il
-    est traité par le chemin historique, fichier par fichier.
-    """
+    """État réel du composant, pour la page Paramètres."""
     from app.utils.media_sidecar import find_binary, get_media_client
 
     enabled = is_enabled()

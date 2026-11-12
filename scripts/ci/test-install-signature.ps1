@@ -1,7 +1,3 @@
-# Contrôle la vérification de signature de packaging/windows/install.ps1 sans l'exécuter : la fonction et le module de
-# la sous-clé sont extraits par l'analyseur PowerShell. Une liste signée doit être acceptée, la même altérée d'un octet
-# refusée. Sans argument : listes publiées de référence ; avec un dossier : SHA256SUMS fraîchement signée d'une release,
-# ce qui arrête la publication si la sous-clé de signature ne correspond plus à celle épinglée dans install.ps1.
 param([string]$Dir = (Join-Path $PSScriptRoot 'fixtures/release-signature'))
 $ErrorActionPreference = 'Stop'
 

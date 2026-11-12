@@ -5,13 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 export interface ToastState {
   message: string;
   type: "success" | "error" | "warning";
-  /** Action au clic sur le message (ex. ouvrir la section concernée). */
   onClick?: () => void;
 }
 
 export type ShowToast = (message: string, type?: ToastState["type"], onClick?: () => void) => void;
 
-/** Message éphémère d'une page : affiché par `showToast`, effacé seul après `durationMs`. */
 export function useToast(durationMs = 4000) {
   const [toast, setToast] = useState<ToastState | null>(null);
 

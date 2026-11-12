@@ -1,6 +1,4 @@
-"""Icône de la barre système selon le canal : détection du canal (API > indice
-d'installation > Stable), ordre de recherche des fichiers, repli. Aucun réseau, aucun
-affichage : tout est injecté (cf. app/desktop/channel_icon.py)."""
+"""Icône de la barre système selon le canal : détection du canal (API > indice d'installation > Stable), ordre de recherche des fichiers, repli."""
 
 from pathlib import Path
 

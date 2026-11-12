@@ -1,7 +1,4 @@
-"""Planning d'une cible supprimée (vidéo, playlist, playlist radio).
-
-Une programmation vise sa cible par type et identifiant, sans clé étrangère : la base ne la retire pas avec la cible.
-"""
+"""Planning d'une cible supprimée (vidéo, playlist, playlist radio)."""
 from __future__ import annotations
 
 from sqlalchemy.orm import Session
@@ -11,11 +8,7 @@ from app.scheduling.jobs import remove_schedule_job
 
 
 def drop_schedules_targeting(db: Session, target_type: ScheduleTargetType, target_ids: list[int]) -> list[int]:
-    """Retire du planning ce qui vise des cibles supprimées, sans valider la transaction.
-
-    Les programmations de la cible sont supprimées ; un remplacement d'occurrence qui la visait devient une
-    annulation (le cours d'origine avait été écarté par l'utilisateur) ; son lancement mémorisé n'est plus repris.
-    Rend les identifiants des programmations supprimées : leurs tâches se retirent après validation."""
+    """Retire du planning ce qui vise des cibles supprimées, sans valider la transaction."""
     if not target_ids:
         return []
     schedules = db.query(Schedule).filter(Schedule.target_type == target_type, Schedule.target_id.in_(target_ids)).all()

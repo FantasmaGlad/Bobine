@@ -1,17 +1,4 @@
-"""Repli du profil Android pour la surveillance de dossier (voir
-docs/ARCHITECTURE.md §3.1) :
-le paquet `watchdog` n'a aucune distribution Android (le noyau expose bien
-inotify, mais aucun wheel du paquet PyPI n'existe pour cette cible). Ce module
-n'est importé que si `watchdog` est absent — voir `app/utils/watcher.py`.
-
-Implémente le sous-ensemble exact de l'API `watchdog.observers.Observer` /
-`watchdog.events.FileSystemEventHandler` utilisé par `watcher.py`
-(`schedule`, `start`, `stop`, `join`, `on_created`, `on_moved`,
-`event.is_directory`, `event.src_path`, `event.dest_path`) — pas une
-réimplémentation générale de watchdog. Un polling périodique (pas d'inotify
-natif) : suffisant ici, l'import de dossier surveillé n'est pas un chemin
-sensible à la latence.
-"""
+"""Repli du profil Android pour la surveillance de dossier (voir docs/ARCHITECTURE.md §3.1) : le paquet `watchdog` n'a aucune distribution Android (le noyau expose bien inotify, mais aucun wheel du paquet PyPI n'existe pour cette cible)."""
 
 import os
 import threading
@@ -25,9 +12,7 @@ class _Event:
 
 
 class FileSystemEventHandler:
-    """Classe de base — les sous-classes de watcher.py redéfinissent
-    on_created/on_moved ; ces implémentations par défaut ne sont là que pour
-    la parité d'API avec watchdog.events.FileSystemEventHandler."""
+    """Classe de base — les sous-classes de watcher.py redéfinissent on_created/on_moved ; ces implémentations par défaut ne sont là que pour la parité d'API avec watchdog.events.FileSystemEventHandler."""
 
     def on_created(self, event):
         pass
@@ -37,11 +22,7 @@ class FileSystemEventHandler:
 
 
 class PollingObserver:
-    """Remplace `watchdog.observers.Observer` : scrute chaque dossier
-    surveillé à intervalle régulier plutôt que de recevoir des événements
-    inotify. Chaque nouvelle entrée (fichier ou dossier) déclenche
-    `on_created` — suffisant pour les handlers de watcher.py, qui ne
-    distinguent pas réellement "créé" de "déplacé" dans leur logique."""
+    """Remplace `watchdog.observers.Observer` : scrute chaque dossier surveillé à intervalle régulier plutôt que de recevoir des événements inotify."""
 
     POLL_INTERVAL_SECONDS = 2.0
 
@@ -51,8 +32,6 @@ class PollingObserver:
         self._stop_event = threading.Event()
 
     def schedule(self, handler, path: str, recursive: bool = False):
-        # `recursive` ignoré : tous les usages actuels de watcher.py
-        # surveillent un seul niveau (recursive=False côté appelant).
         self._watches.append((handler, path))
 
     def start(self):

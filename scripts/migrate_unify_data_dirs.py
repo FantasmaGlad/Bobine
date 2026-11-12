@@ -1,42 +1,5 @@
 #!/usr/bin/env python3
-"""Unifie les données sous ``${REPO}/data``.
-
-Contexte
---------
-Historiquement, le ``config.toml`` de production ne déclarait que
-``media_dir``/``watch_dir``/``thumbnails_dir``. Les autres dossiers
-(``audio_dir``, ``backgrounds_dir``, ``logs_dir`` et leurs variantes surveillées)
-retombaient sur les défauts de ``app.config``, résolus **relativement à
-``backend/``** → les cours audio, fonds animés et logs atterrissaient dans
-``${REPO}/backend/data`` alors que les vidéos étaient dans ``${REPO}/data``.
-Résultat : données éclatées sur deux arbres, et ``install.sh --purge-data`` qui
-n'en nettoyait qu'un.
-
-``install.sh`` déclare désormais **tous** les dossiers sous ``${REPO}/data``. Ce
-script fait converger une installation existante : il déplace les dossiers
-hérités de ``${REPO}/backend/data`` vers ``${REPO}/data`` et réécrit les chemins
-absolus stockés en base (``audio_tracks.file_path`` et ``backgrounds.file_path``,
-seuls chemins média absolus historiquement sous ``backend/data``).
-
-Sûreté
-------
-- **Sauvegarde de la base** (copie horodatée) avant toute réécriture.
-- **Fusion sans écrasement** : un fichier déjà présent à la cible est laissé en
-  place et signalé (jamais écrasé). Les noms de fichiers média sont basés sur des
-  UUID, les collisions sont donc improbables.
-- **Idempotent** : relancé après coup, il ne trouve plus rien à faire.
-- **Garde-fou** : refuse de s'exécuter tant que ``config.toml`` pointe encore
-  vers l'ancien emplacement (lancer ``install.sh`` d'abord).
-
-À lancer **backend / application arrêté(e)** :
-- Sur appliance headless Linux (systemd) :
-    sudo systemctl stop bobine-backend
-    backend/.venv/bin/python scripts/migrate_unify_data_dirs.py [--dry-run]
-    sudo systemctl start bobine-backend
-- Sur application de bureau (Windows, Linux desktop, macOS) :
-    Quitter l'application Bobine depuis la zone de notification (systray), puis exécuter :
-    python scripts/migrate_unify_data_dirs.py [--dry-run]
-"""
+"""Unifie les données sous ``${REPO}/data``."""
 from __future__ import annotations
 
 import os
@@ -46,13 +9,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Sous-dossiers historiquement mal placés sous backend/data. Les vidéos et
-# miniatures étaient déjà sous ${REPO}/data (déclarées dans config.toml), elles
-# ne bougent pas.
 _LEGACY_SUBDIRS = ("audio", "audio_watched", "backgrounds", "backgrounds_watched", "logs")
 
-# Colonnes portant un chemin média absolu susceptible de contenir l'ancien
-# préfixe backend/data (les vidéos/miniatures étaient déjà sous ${REPO}/data).
 _PATH_COLUMNS = (("audio_tracks", "file_path"), ("backgrounds", "file_path"))
 
 
@@ -70,7 +28,6 @@ def _backup_database(db_path: Path, dry: bool, log) -> None:
         src.close()
         dst.close()
     except sqlite3.Error:
-        # Repli si l'API .backup échoue (très ancien SQLite) : copie brute.
         shutil.copy2(db_path, backup)
 
 
@@ -91,7 +48,7 @@ def _move_contents(src: Path, dst: Path, dry: bool, log) -> int:
 
 
 def run_migration(repo_dir: Path, db_path: Path | None, configured_audio_dir: Path, dry: bool, log=print) -> int:
-    """Cœur testable de la migration. Renvoie un code de sortie (0 = OK)."""
+    """Cœur testable de la migration."""
     legacy_root = (repo_dir / "backend" / "data").resolve()
     target_root = (repo_dir / "data").resolve()
 
@@ -99,9 +56,6 @@ def run_migration(repo_dir: Path, db_path: Path | None, configured_audio_dir: Pa
         log("Aucune migration nécessaire (source et cible identiques).")
         return 0
 
-    # Garde-fou : ne rien déplacer tant que la config n'a pas été mise à jour
-    # pour pointer sur ${REPO}/data — sinon on relocaliserait les fichiers loin
-    # de là où le backend les cherche encore.
     expected_audio = (target_root / "audio").resolve()
     if configured_audio_dir.resolve() != expected_audio:
         log(f"ERREUR : config.audio_dir = {configured_audio_dir} (attendu {expected_audio}).")
@@ -116,11 +70,9 @@ def run_migration(repo_dir: Path, db_path: Path | None, configured_audio_dir: Pa
     if dry:
         log("[DRY-RUN] aucune modification ne sera écrite.")
 
-    # 1) Sauvegarde de la base AVANT toute réécriture.
     if db_path and db_path.exists():
         _backup_database(db_path, dry, log)
 
-    # 2) Déplacement des dossiers hérités (fusion, sans écrasement).
     total = 0
     for sub in _LEGACY_SUBDIRS:
         src = legacy_root / sub
@@ -130,7 +82,7 @@ def run_migration(repo_dir: Path, db_path: Path | None, configured_audio_dir: Pa
         total += _move_contents(src, target_root / sub, dry, log)
         if not dry:
             try:
-                src.rmdir()  # ne réussit que s'il est vide (fusion complète)
+                src.rmdir()
             except OSError:
                 pass
     if not dry:
@@ -139,7 +91,6 @@ def run_migration(repo_dir: Path, db_path: Path | None, configured_audio_dir: Pa
         except OSError:
             pass
 
-    # 3) Réécriture des chemins absolus en base (préfixe hérité -> cible).
     if db_path and db_path.exists():
         legacy_prefix = str(legacy_root) + os.sep
         target_prefix = str(target_root) + os.sep
@@ -156,7 +107,6 @@ def run_migration(repo_dir: Path, db_path: Path | None, configured_audio_dir: Pa
                         ).rowcount
                         log(f"    {table}.{col} : {n} ligne(s) réécrite(s)")
                     except sqlite3.OperationalError as e:
-                        # Table absente (base partielle) : sans gravité.
                         log(f"    {table} : ignoré ({e})")
                 conn.commit()
             finally:
@@ -172,7 +122,7 @@ def main() -> int:
     backend_dir = repo_dir / "backend"
     sys.path.insert(0, str(backend_dir))
 
-    from app.config import settings  # import tardif : dépend de sys.path ci-dessus
+    from app.config import settings
 
     db_path = None
     if settings.database_url.startswith("sqlite:///"):

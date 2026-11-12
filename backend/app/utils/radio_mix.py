@@ -1,14 +1,4 @@
-"""Table de mixage applicative d'une sortie radio (phase 3 des périphériques).
-
-Comme pour le son (`radio_sound.py`), le TRAITEMENT est fait par le lecteur `/radio` (graphe Web Audio) : le serveur
-valide, stocke et diffuse les réglages dans l'état du moteur de la sortie (champ `mix`). Aucun traitement audio côté serveur.
-
-Trois tranches par sortie radio : « Musique » (son = `radio_sound`, déjà existant), « Rappels » (avec leur propre égaliseur,
-neutre par défaut) et « Sortie » (gain et mute après les deux). Gain en dB par pas de 1, mute, solo.
-
-Validation par BORNAGE et non par rejet (client ancien, JSON édité à la main) : un réglage de mixage ne produit jamais d'erreur
-serveur. Fonctions pures sur des `dict` (profil Android : pas de dépendance à Pydantic v1/v2).
-"""
+"""Table de mixage applicative d'une sortie radio (phase 3 des périphériques)."""
 import json
 import logging
 import math
@@ -41,7 +31,6 @@ def _gain(value: Any, fallback: int) -> int:
     if isinstance(value, float):
         if not math.isfinite(value):
             return fallback
-        # floor(x + 0.5) = Math.round de JavaScript (le round() de Python arrondit .5 au pair)
         value = math.floor(value + 0.5)
     return max(GAIN_MIN_DB, min(GAIN_MAX_DB, value))
 
@@ -51,8 +40,7 @@ def _flag(value: Any, fallback: bool) -> bool:
 
 
 def sanitize_mix(raw: Any, base: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Réglages valides à partir d'une entrée quelconque ; champs absents ou invalides = valeur de `base` (réglages courants),
-    sinon valeur neutre."""
+    """Réglages valides à partir d'une entrée quelconque ; champs absents ou invalides = valeur de `base` (réglages courants), sinon valeur neutre."""
     neutral = default_mix()
     current = base if isinstance(base, dict) else neutral
     data = raw if isinstance(raw, dict) else {}
@@ -83,7 +71,6 @@ def sanitize_mix(raw: Any, base: dict[str, Any] | None = None) -> dict[str, Any]
 
 
 def mix_setting_key(radio_channel: str) -> str:
-    # Import local : radio_manager importe ce module pour les réglages neutres.
     from app.radio_manager import normalize_radio_channel
 
     return f"radio_mix_{normalize_radio_channel(radio_channel)}"

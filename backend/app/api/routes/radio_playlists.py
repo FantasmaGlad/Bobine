@@ -1,10 +1,4 @@
-"""Router des playlists Radio.
-
-Playlists de morceaux de la bibliothèque radio, sur le modèle des playlists audio
-coach (remplacement complet de la liste ordonnée à la création/mise à jour). En
-plus : une playlist peut être marquée `is_default` — la playlist d'ambiance jouée
-en boucle 24/7, une seule à la fois.
-"""
+"""Router des playlists Radio."""
 import logging
 from datetime import datetime
 from typing import List
@@ -23,13 +17,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/radio/playlists", tags=["radio-playlists"])
 
 
-# ---------------------------------------------------------------------------
-# Schémas
-# ---------------------------------------------------------------------------
 class RadioPlaylistInput(BaseModel):
     name: str
-    # Liste ORDONNÉE des morceaux (remplacement complet, comme les playlists
-    # audio coach) : la position = l'ordre dans ce tableau.
     track_ids: List[int] = []
 
 
@@ -68,7 +57,6 @@ class RadioPlaylistSummaryResponse(BaseModel):
     created_at: datetime
     item_count: int
     total_duration_seconds: float
-    # Pochette d'affichage : premier morceau de la playlist ayant une pochette.
     cover_track_id: int | None
 
 
@@ -101,9 +89,6 @@ def _detail(playlist: RadioPlaylist) -> dict:
 
 
 def _get_or_404(playlist_id: int, db: Session, *, preload_tracks: bool = False) -> RadioPlaylist:
-    """`preload_tracks` : charge éléments + morceaux en 2 requêtes au lieu d'un
-    SELECT par morceau (lecture seule : les routes qui modifient les éléments
-    gardent le chargement paresseux, rechargé après leur `commit`)."""
     query = db.query(RadioPlaylist)
     if preload_tracks:
         query = query.options(selectinload(RadioPlaylist.items).joinedload(RadioPlaylistItem.track))
@@ -121,13 +106,8 @@ def _replace_items(playlist: RadioPlaylist, track_ids: List[int], db: Session) -
         db.add(RadioPlaylistItem(playlist_id=playlist.id, radio_track_id=track_id, position=position))
 
 
-# ---------------------------------------------------------------------------
-# CRUD
-# ---------------------------------------------------------------------------
 @router.get("", response_model=List[RadioPlaylistSummaryResponse])
 def list_playlists(db: Session = Depends(get_db)):
-    # Éléments et morceaux chargés en 2 requêtes au total (voir
-    # `playlists.list_playlists`) au lieu d'un SELECT par playlist et par morceau.
     playlists = (
         db.query(RadioPlaylist)
         .options(selectinload(RadioPlaylist.items).joinedload(RadioPlaylistItem.track))
@@ -184,8 +164,7 @@ def update_playlist(playlist_id: int, data: RadioPlaylistInput, db: Session = De
 
 @router.post("/{playlist_id}/tracks", response_model=RadioPlaylistDetailResponse)
 def add_track(playlist_id: int, data: AddTrackInput, db: Session = Depends(get_db)):
-    """Ajoute un morceau à la fin de la playlist (bouton « ajouter à la playlist »
-    depuis la vue Morceaux)."""
+    """Ajoute un morceau à la fin de la playlist (bouton « ajouter à la playlist » depuis la vue Morceaux)."""
     playlist = _get_or_404(playlist_id, db)
     if not db.query(RadioTrack).filter(RadioTrack.id == data.track_id).first():
         raise HTTPException(status_code=400, detail=f"Morceau {data.track_id} introuvable")
@@ -198,8 +177,7 @@ def add_track(playlist_id: int, data: AddTrackInput, db: Session = Depends(get_d
 
 @router.put("/{playlist_id}/default", response_model=RadioPlaylistDetailResponse)
 def set_default(playlist_id: int, db: Session = Depends(get_db)):
-    """Désigne la playlist d'ambiance par défaut : une seule à la
-    fois, garantie applicativement."""
+    """Désigne la playlist d'ambiance par défaut : une seule à la fois, garantie applicativement."""
     playlist = _get_or_404(playlist_id, db)
     db.query(RadioPlaylist).filter(RadioPlaylist.id != playlist_id, RadioPlaylist.is_default == True).update(  # noqa: E712
         {"is_default": False}

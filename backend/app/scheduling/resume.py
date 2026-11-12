@@ -1,13 +1,4 @@
-"""Reprise des programmations en cours au démarrage du serveur.
-
-Le planificateur vit en mémoire : après une coupure, rien ne relancerait un cours déjà commencé. Deux cas sont
-rattrapés, par canal de diffusion :
-- le cours était à l'écran avant l'arrêt (`ScheduledLaunch` encore actif) : il reprend à sa position ;
-- le serveur était éteint à l'heure prévue : la dernière occurrence du planning démarre à la position qu'elle
-  aurait atteinte.
-Un cours arrêté à la main, remplacé par une autre lecture ou annulé au planning n'est jamais relancé. La radio
-n'est pas concernée : son ambiance par défaut redémarre seule.
-"""
+"""Reprise des programmations en cours au démarrage du serveur."""
 from __future__ import annotations
 
 import asyncio
@@ -28,11 +19,8 @@ from app.scheduling import launch_store as scheduled_launch_store
 
 logger = logging.getLogger(__name__)
 
-# Une occurrence plus ancienne ne peut plus être en cours : aucune playlist de cours ne dure aussi longtemps.
 LOOKBACK = timedelta(hours=12)
-# Le planificateur déclenche avec un léger retard : en deçà, l'occurrence et le lancement mémorisé sont le même.
 SAME_LAUNCH_TOLERANCE = timedelta(minutes=2)
-# Un support externe met quelques secondes à être remonté après le démarrage.
 RETRY_DELAYS_SECONDS = (10.0, 20.0, 30.0)
 PLAYABLE_TARGETS = (ScheduleTargetType.video, ScheduleTargetType.playlist)
 
@@ -48,7 +36,6 @@ class ResumeCandidate:
 
 
 def _last_occurrence(db: Session, channel: str, now: datetime) -> ResumeCandidate | None:
-    """Dernière occurrence de cours du canal déjà commencée, annulations et remplacements résolus."""
     schedules = db.query(Schedule).filter(Schedule.active.is_(True)).all()
     started = [
         o for o in expand_occurrences(db, schedules, now - LOOKBACK, now)
@@ -65,7 +52,6 @@ def choose_candidate(db: Session, channel: str, now: datetime) -> ResumeCandidat
     record = scheduled_launch_store.get(db, channel)
     recorded_at = ensure_utc(record.started_at) if record else None
     occurrence = _last_occurrence(db, channel, now)
-    # Occurrence plus récente que le dernier lancement connu : le serveur était éteint à son heure.
     if occurrence and (recorded_at is None or occurrence.started_at > recorded_at + SAME_LAUNCH_TOLERANCE):
         return occurrence
     if record and record.active and now - recorded_at <= LOOKBACK:
@@ -74,13 +60,12 @@ def choose_candidate(db: Session, channel: str, now: datetime) -> ResumeCandidat
 
 
 async def _resume_channel(channel: str) -> bool:
-    """Relance le canal si besoin. Faux quand le média attend encore son support : à réessayer."""
     with SessionLocal() as db:
         candidate = choose_candidate(db, channel, datetime.now(timezone.utc))
         if candidate is None:
             return True
         if get_playback_manager(channel).snapshot()["state"] != PlaybackStateEnum.waiting.value:
-            return True  # une lecture a déjà été lancée depuis le démarrage : elle garde l'écran
+            return True
         if scheduled_target_unavailable(db, candidate.target_type, candidate.target_id):
             return False
         logger.info(

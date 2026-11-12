@@ -1,7 +1,4 @@
-"""`os_key()` choisit le message d'aide d'un ffmpeg introuvable : sur le
-runtime Python 3.11 de l'APK Android TV (armeabi-v7a), ni
-`sys.getandroidapilevel` ni `platform.system() == "Android"` n'existent,
-seul `is_android()` (marqueur du bootstrap) le reconnaît."""
+"""`os_key()` choisit le message d'aide d'un ffmpeg introuvable : sur le runtime Python 3.11 de l'APK Android TV (armeabi-v7a), ni `sys.getandroidapilevel` ni `platform.system() == "Android"` n'existent, seul `is_android()` (marqueur du bootstrap) le reconnaît."""
 
 import sys
 

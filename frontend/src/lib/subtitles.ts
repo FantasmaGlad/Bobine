@@ -9,13 +9,10 @@ export interface SubtitleTrack {
   vtt_url: string;
 }
 
-/** L'API renvoie `vtt_url` déjà préfixé par `/api` ; `getApiUrl` l'ajoute lui
- *  aussi. Sans retrait, la piste visait `/api/api/...` (404) et restait vide. */
 export function subtitleSrc(getApiUrl: (path: string) => string, vttUrl: string): string {
   return getApiUrl(vttUrl.replace(/^\/api(?=\/)/, ""));
 }
 
-/** Pistes de sous-titres importées pour une vidéo (liste vide sans vidéo ou en cas d'échec). */
 export function useVideoSubtitles(
   videoId: number | null | undefined,
   getApiUrl: (path: string) => string,
@@ -40,18 +37,12 @@ export function useVideoSubtitles(
     return () => {
       cancelled = true;
     };
-    // getApiUrl est une fonction pure propre à chaque page.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoId]);
 
   return tracks;
 }
 
-/**
- * Force le mode de chaque piste : l'attribut `default` n'est pas fiable sur un
- * `<video>` réutilisé d'un cours à l'autre. `activeId` : identifiant à afficher,
- * `"off"` pour aucun sous-titre, `null` pour la première piste importée.
- */
 export function applySubtitleMode(
   video: HTMLVideoElement | null,
   tracks: SubtitleTrack[],
@@ -72,7 +63,6 @@ export function useApplySubtitleMode(
 ): void {
   useEffect(() => {
     videoRefs.forEach((ref) => applySubtitleMode(ref.current, tracks, activeId));
-    // les refs sont stables ; seuls les pistes et le choix actif comptent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tracks, activeId]);
 }

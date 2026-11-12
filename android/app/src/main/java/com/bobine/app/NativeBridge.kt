@@ -12,22 +12,13 @@ private const val KEY_START_ON_BOOT = "start_on_boot"
 private const val KEY_UPDATE_CHANNEL = "update_channel"
 private val HEX_COLOR = Regex("^#[0-9a-fA-F]{6}$")
 
-/** Couleurs du thème choisi dans l'application, pour l'écran de chargement. */
 object ThemeColors {
-    /** `accent` : couleur d'accent du thème (spinner de chargement) ; à défaut, la couleur du texte. */
     data class Pair(val background: Int, val text: Int, val accent: Int = text)
 
-    /**
-     * Thème par défaut tant que l'interface web n'a rien envoyé (premier lancement) : « ardoise » en clair
-     * (valeurs de `:root[data-theme="ardoise"][data-mode="light"]` dans frontend/src/app/themes.css, GÉNÉRÉ :
-     * `--bg-main`, `--text-main`, `--accent-primary` ; un test serveur vérifie l'égalité). Indépendant du mode
-     * sombre du système. Dès que l'interface a envoyé ses couleurs, celles-ci les remplacent (thème et mode réels).
-     */
     private const val DEFAULT_BACKGROUND = "#ffffff"
     private const val DEFAULT_TEXT = "#252d41"
     private const val DEFAULT_ACCENT = "#697485"
 
-    /** Dernières couleurs envoyées par l'interface web ; à défaut, le thème par défaut en clair. */
     fun load(context: Context): Pair {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val bg = prefs.getString(KEY_BG, null)
@@ -39,7 +30,6 @@ object ThemeColors {
         return Pair(Color.parseColor(DEFAULT_BACKGROUND), Color.parseColor(DEFAULT_TEXT), Color.parseColor(DEFAULT_ACCENT))
     }
 
-    /** Accent du thème, envoyé à part (anciens JS : méthode absente, l'accent retombe sur le texte). */
     fun saveAccent(context: Context, accent: String) {
         if (!HEX_COLOR.matches(accent)) return
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_ACCENT, accent).apply()
@@ -52,23 +42,14 @@ object ThemeColors {
     }
 }
 
-/**
- * Canal de mise à jour choisi dans l'application (stable, bêta, canary), pour l'écran de
- * chargement. Même principe que [ThemeColors] : l'interface web envoie la valeur à chaque
- * changement, et le démarrage la LIT de façon synchrone — le logo du bon canal s'affiche dès
- * la première image, sans attendre le serveur Python embarqué (qui n'est pas encore prêt).
- */
 object UpdateChannelPref {
-    // Canaux du registre (android/release-channels.json) via BuildConfig, jamais une liste recopiée.
     private val VALID: Set<String> = BuildConfig.RELEASE_CHANNELS.split(",").toSet()
 
-    /** Dernier canal connu, ou null avant tout premier envoi (premier lancement après installation). */
     fun load(context: Context): String? =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_UPDATE_CHANNEL, null)
             ?.takeIf { it in VALID }
 
-    /** Enregistre un canal valide ; toute autre valeur est ignorée (la préférence reste intacte). */
     fun save(context: Context, channel: String) {
         if (channel !in VALID) return
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
@@ -76,7 +57,6 @@ object UpdateChannelPref {
     }
 }
 
-/** Réglage « lancer au démarrage de l'appareil » (activé par défaut sur Android TV). */
 object StartOnBoot {
     fun isEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -87,10 +67,6 @@ object StartOnBoot {
     }
 }
 
-/**
- * Pont minimal exposé à l'interface web locale (`window.BobineNative`) : couleurs du
- * thème, canal de mise à jour (écran de chargement) et réglage de démarrage. Aucune autre capacité n'est exposée.
- */
 class NativeBridge(private val context: Context) {
     @JavascriptInterface
     fun setThemeColors(background: String, text: String) = ThemeColors.save(context, background, text)

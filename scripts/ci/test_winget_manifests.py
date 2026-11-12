@@ -42,7 +42,6 @@ class WingetManifestTests(unittest.TestCase):
             self.assertTrue(files[name].startswith(f"# yaml-language-server: $schema=https://aka.ms/winget-manifest.{kind}.1.12.0.schema.json\n"))
 
     def test_only_bobine_tags_are_accepted(self):
-        # Bobine Deploy publie ses propres manifestes depuis son dépôt.
         with self.assertRaises(SystemExit):
             winget.manifests({"Bobine-Setup-5.1.1.exe": "A" * 64}, "assistant-V5.1.1")
 

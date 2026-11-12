@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Cycle de vie réel du .dmg dans la CI macOS : montage en lecture seule, contenu, copie de
-# Bobine.app dans un dossier temporaire, signature du bundle copié, lancement de son backend
-# (smoke-macos-backend.sh), puis démontage. La signature est ad hoc : Gatekeeper n'est pas exercé.
-#
-# Usage : smoke-macos-dmg.sh <Bobine.dmg> <dossier de travail>
 set -euo pipefail
 
 dmg="${1:?chemin du .dmg requis}"
@@ -34,7 +29,6 @@ ls -la "$mount_point"
   echo "Lien Applications absent ou incorrect dans le dmg" >&2; exit 1;
 }
 
-# ditto conserve signature, attributs étendus et liens symboliques du bundle.
 ditto "$mount_point/Bobine.app" "$copy_dir/Bobine.app"
 backend="$copy_dir/Bobine.app/Contents/MacOS/BobineBackend"
 for required in BobineBackend bobine-projector bobine-devices bobine-media; do
@@ -43,7 +37,6 @@ done
 [[ -f "$copy_dir/Bobine.app/Contents/Resources/bobine.icns" ]] || { echo "bobine.icns absent du bundle copié" >&2; exit 1; }
 codesign --verify --deep --strict --verbose=1 "$copy_dir/Bobine.app"
 
-# La commande `bobine` du cask Homebrew est un lien symbolique vers BobineTray : elle doit répondre par ce lien.
 mkdir -p "$work/bin"
 ln -sf "$copy_dir/Bobine.app/Contents/MacOS/BobineTray" "$work/bin/bobine"
 cli_version="$("$work/bin/bobine" --version)"

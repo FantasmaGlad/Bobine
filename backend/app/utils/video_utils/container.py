@@ -7,20 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 def is_faststart_mp4(file_path: str) -> bool:
-    """
-    Vrai si l'atome 'moov' (index des échantillons) précède l'atome 'mdat'
-    (données) dans le fichier — condition requise pour qu'un navigateur
-    puisse décoder la moindre image avant d'avoir reçu la quasi-totalité du
-    fichier. ffmpeg écrit 'moov' APRÈS 'mdat' par défaut (à la toute
-    fin du fichier) sauf option explicite `-movflags +faststart` : invisible
-    en boucle localhost (l'écran câblé récupère la fin du fichier quasi
-    instantanément via Range), mais un lecteur sur une vraie liaison LAN/WiFi
-    doit alors télécharger presque tout le fichier — souvent plusieurs
-    centaines de Mo pour un cours — avant de pouvoir peindre une seule image.
-
-    Ne lit que les en-têtes de boîtes top-level (8 ou 16 octets chacune),
-    jamais leur contenu : coût constant quelle que soit la taille du fichier.
-    """
+    """Vrai si l'atome 'moov' (index des échantillons) précède l'atome 'mdat' (données) dans le fichier — condition requise pour qu'un navigateur puisse décoder la moindre image avant d'avoir reçu la quasi-totalité du fichier."""
     try:
         with open(file_path, "rb") as f:
             file_size = os.fstat(f.fileno()).st_size
@@ -36,13 +23,11 @@ def is_faststart_mp4(file_path: str) -> bool:
                 if box_type == "mdat":
                     return False
                 if size == 1:
-                    # Boîte 64 bits : la taille réelle suit l'en-tête normal.
                     ext = f.read(8)
                     if len(ext) < 8:
                         break
                     size = int.from_bytes(ext, "big")
                 elif size == 0:
-                    # Dernière boîte du fichier, s'étend jusqu'à la fin.
                     break
                 if size < 8:
                     break
@@ -54,27 +39,13 @@ def is_faststart_mp4(file_path: str) -> bool:
 
 
 def read_mp4_duration_seconds(file_path: str) -> float | None:
-    """
-    Lit la durée d'un MP4/M4V directement dans l'atome 'mvhd' (imbriqué dans
-    'moov'), sans ffprobe — repli utilisé quand ffprobe est indisponible pour au moins récupérer la durée, seule métadonnée manquante
-    qu'un parcours d'en-têtes pur Python peut raisonnablement reconstituer
-    (largeur/hauteur/codec demanderaient de décoder les box 'stsd', bien plus
-    engagé pour un gain d'affichage secondaire).
-
-    Même style de parcours que is_faststart_mp4 ci-dessus (en-têtes de boîtes
-    uniquement) : d'abord les boîtes top-level jusqu'à 'moov', puis un second
-    parcours, imbriqué, à l'intérieur de son contenu jusqu'à 'mvhd'. Renvoie
-    None si le fichier n'a pas cette structure (pas un vrai MP4/M4V) ou en cas
-    d'erreur de lecture — jamais d'exception, un appelant traite déjà une
-    durée manquante comme telle.
-    """
+    """Lit la durée d'un MP4/M4V directement dans l'atome 'mvhd' (imbriqué dans 'moov'), sans ffprobe — repli utilisé quand ffprobe est indisponible pour au moins récupérer la durée, seule métadonnée manquante qu'un parcours d'en-têtes pur Python peut raisonnablement reconstituer (largeur/hauteur/codec demanderaient de décoder les box 'stsd', bien plus engagé pour un gain d'affichage secondaire)."""
     try:
         with open(file_path, "rb") as f:
             file_size = os.fstat(f.fileno()).st_size
 
             def find_child_box(start: int, end: int, target: bytes) -> tuple[int, int] | None:
-                """Cherche `target` parmi les boîtes enfants directes de
-                l'intervalle [start, end) ; renvoie (offset_contenu, taille_contenu)."""
+                """Cherche `target` parmi les boîtes enfants directes de l'intervalle [start, end) ; renvoie (offset_contenu, taille_contenu)."""
                 pos = start
                 while pos < end:
                     f.seek(pos)

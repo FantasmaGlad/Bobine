@@ -1,21 +1,4 @@
-"""Appareils portables (téléphones, tablettes, appareils photo) via GVFS : MTP, PTP, AFC (iPhone/iPad).
-
-Pourquoi GVFS (`gio mount`) : udev/udisks ne gèrent pas MTP ; GVFS est déjà installé sur tout Linux de
-bureau, fonctionne sans droits d'administrateur et expose l'appareil comme un dossier FUSE lisible
-(`/run/user/UID/gvfs/mtp:host=…`). Aucune dépendance Python ajoutée. Sans GVFS : état `missing_tool`
-et aide d'installation, jamais un échec.
-
-Règles propres aux appareils portables :
-
-* **lecture seule** : jamais d'écriture, jamais de suppression ;
-* **import oui, extension de stockage non** : MTP n'est pas fiable pour le flux (pas d'accès aléatoire
-  garanti, coupures au verrouillage de l'écran) ; l'interface le dit et propose d'importer ;
-* états explicites : `missing_tool`, `detected` (vu sur le port USB, GVFS ne le propose pas encore :
-  verrouillé / mode transfert non activé), `ready`, `mounted`, `busy`, `locked`, `needs_approval`,
-  `not_ready`.
-
-Aucun appareil portable n'a pu être branché pendant le développement : les analyseurs sont testés sur
-des sorties types, **non validés sur matériel**."""
+"""Appareils portables (téléphones, tablettes, appareils photo) via GVFS : MTP, PTP, AFC (iPhone/iPad)."""
 
 from __future__ import annotations
 
@@ -50,8 +33,8 @@ class PortableDevice:
     state: str
     bus: str | None = None
     dev: str | None = None
-    hint: str | None = None  # code de conseil traduit par l'interface
-    root: str | None = None  # dossier FUSE quand monté
+    hint: str | None = None
+    root: str | None = None
     vendor_id: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
@@ -62,7 +45,7 @@ class PortableDevice:
             "state": self.state,
             "hint": self.hint,
             "read_only": True,
-            "direct_playback": False,  # MTP/AFC : import uniquement
+            "direct_playback": False,
             "install": INSTALL_HELP.get(self.scheme) if self.state == "missing_tool" else None,
         }
 
@@ -163,10 +146,7 @@ def classify_mount_error(stderr: str) -> tuple[str, str]:
 
 
 def parse_sysfs_usb(devices: list[dict[str, Any]]) -> list[PortableDevice]:
-    """Appareils USB qui ressemblent à un téléphone/tablette/appareil photo (interfaces PTP/MTP ou usbmux Apple).
-
-    Chaque dict : `busnum`, `devnum`, `idVendor`, `idProduct`, `product`, `manufacturer`, `interfaces` (liste de
-    `{class, subclass, protocol, name}`). Sert à signaler un appareil que GVFS ne propose pas encore."""
+    """Appareils USB qui ressemblent à un téléphone/tablette/appareil photo (interfaces PTP/MTP ou usbmux Apple)."""
     found: list[PortableDevice] = []
     for dev in devices:
         interfaces = dev.get("interfaces") or []
@@ -175,7 +155,7 @@ def parse_sysfs_usb(devices: list[dict[str, Any]]) -> list[PortableDevice]:
         for itf in interfaces:
             klass = str(itf.get("class") or "").lower()
             name = str(itf.get("name") or "").lower()
-            if klass == "06":  # Still Image (PTP)
+            if klass == "06":
                 scheme = "mtp"
             elif klass == "ff" and "mtp" in name:
                 scheme = "mtp"

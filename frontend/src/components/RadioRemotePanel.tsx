@@ -15,22 +15,12 @@ import { rankByQuery } from "@/lib/searchText";
 import { getApiUrl } from "@/lib/apiUrl";
 import { formatMinutes, formatTime } from "@/lib/format";
 
-// Télécommande d'UNE sortie radio (câblée ou réseau) : pilote le RadioPlaybackManager de la
-// sortie à distance (mobile + PC). Le lecteur réel est l'écran /radio?channel=… ; ce composant
-// pilote le moteur (playlist, file d'attente, shuffle, repeat).
-//
-// SEULE implémentation de l'interface de pilotage radio : montée par la page /radio-remote
-// (onglets Câblée / Réseau) ET par la page « Sortie Câblé » quand l'écran câblé est en mode
-// Radio — jamais recopiée. À monter avec `key={channel}` : changer de sortie repart d'un
-// état et d'une connexion neufs plutôt que d'afficher un instant l'état de l'autre sortie.
-
 interface RadioPlaylistSummary {
   id: number;
   name: string;
   is_default: boolean;
   item_count: number;
   total_duration_seconds: number;
-  /** Morceau dont la pochette illustre la playlist (1er morceau ayant une pochette). */
   cover_track_id?: number | null;
 }
 
@@ -47,10 +37,7 @@ interface RadioTrackSearchResult {
 const REPEAT_CYCLE: RadioRepeatMode[] = ["off", "playlist", "track"];
 
 interface RadioRemotePanelProps {
-  /** Sortie radio pilotée : un moteur indépendant par sortie côté serveur. */
   channel: RadioChannelId;
-  /** "compact" : transport, volume et chargement de playlist seulement (écrans étroits ou
-   * tactiles, p. ex. /grid) — sans file d'attente ni recherche. */
   variant?: "full" | "compact";
 }
 
@@ -75,9 +62,6 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
       .catch(() => setPlaylists([]));
   }, []);
 
-  // Bibliothèque chargée UNE fois et filtrée ici : la recherche du serveur compare les accents tels
-  // quels (« ete » ne trouvait pas « Été indien ») ; le filtre local (lib/searchText.ts) les ignore et
-  // fournit aussi l'autocomplétion sur toute la bibliothèque, pas seulement sur les derniers résultats.
   const [allTracks, setAllTracks] = useState<RadioTrackSearchResult[]>([]);
   useEffect(() => {
     if (variant !== "full") return;
@@ -101,12 +85,10 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
   const displayVolume = volumeDragValue ?? state.volume;
   const queue = state.index !== null ? state.order.slice(state.index + 1) : [];
   const queueSeconds = queue.reduce((total, track) => total + (track.duration_seconds ?? 0), 0);
-  // Textes proposés par l'autocomplétion : titres, artistes, albums et styles de toute la bibliothèque.
   const queueSuggestions = useMemo(
     () => allTracks.flatMap((track) => [track.title, track.artist, track.album, track.genre].filter((x): x is string => !!x)),
     [allTracks],
   );
-
 
   const handleLaunch = () => {
     if (!selectedPlaylistId) return;
@@ -323,7 +305,6 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
                   value: String(p.id),
                   label: p.name,
                   sublabel: t("radioRemote.playlistTracksCount", { count: p.item_count }),
-                  // Pochette du 1er morceau illustré, durée totale à droite : aperçu avant de lancer.
                   thumbnail: p.cover_track_id != null ? getApiUrl(`/radio/tracks/${p.cover_track_id}/cover`) : null,
                   square: true,
                   meta: formatMinutes(p.total_duration_seconds, "0 min"),
@@ -338,7 +319,6 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
               <input type="checkbox" checked={shuffleOnLoad} onChange={(e) => setShuffleOnLoad(e.target.checked)} />
               {t("radioRemote.shuffleOnLoad")}
             </label>
-            {/* Lecture aléatoire de TOUTE la bibliothèque, sans playlist : indépendant du sélecteur ci-dessus. */}
             <button className="btn btn-secondary" style={{ width: "100%", marginTop: "12px" }} onClick={() => sendCommand("radio_shuffle_all")}>
               <Icon name="shuffle" size={16} />
               {t("radioRemote.shuffleAll")}
@@ -346,8 +326,6 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
             {playlists.length === 0 && <p className="live-empty" style={{ marginTop: "12px" }}>{t("radioRemote.noPlaylists")}</p>}
           </div>
 
-          {/* Gestion du son de CETTE sortie : égaliseur, basses, préréglages. Appliqué par le
-              lecteur de la sortie (graphe Web Audio), réglages persistés par sortie. */}
           <div className="live-block" style={{ marginTop: "16px" }}>
             <RadioSoundPanel sound={state.sound} sendCommand={sendCommand} variant={variant} />
           </div>
@@ -365,7 +343,6 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
             ) : (
               <>
                 <p className="rq-summary">{t("radioRemote.queueSummary", { count: queue.length, duration: formatMinutes(queueSeconds, "0 min") })}</p>
-                {/* Pochette, titre, artiste, style, durée de chaque morceau; glisser-déposer pour réordonner. */}
                 <RadioQueueList
                   tracks={queue}
                   baseIndex={(state.index ?? -1) + 1}
@@ -377,7 +354,6 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
             )}
 
             <h3 style={{ marginTop: "18px" }}>{t("radioRemote.addToQueueTitle")}</h3>
-            {/* Recherche avec autocomplétion (titres, artistes, albums, styles des résultats) */}
             <SearchBox
               className="filter-select"
               value={queueSearch}

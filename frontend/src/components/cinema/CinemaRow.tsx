@@ -7,20 +7,8 @@ import { formatMinutes } from "@/lib/format";
 import Icon from "@/components/Icon";
 import MarqueeText from "@/components/MarqueeText";
 
-// Fraction de la largeur visible parcourue à chaque clic sur une flèche.
 const ROW_SCROLL_FRACTION = 0.85;
 
-/**
- * Rangée horizontale avec flèches de défilement : remplace la dépendance à la barre de défilement native (peu visible,
- * malaisée à la souris) par des boutons gauche/droite façon Netflix. Chaque
- * rangée gère sa propre référence de scroll, d'où un composant dédié plutôt
- * qu'une simple boucle inline.
- */
-// React.memo : la grille de sélection
-// reste montée (masquée en CSS) même pendant la lecture — sans mémoïsation,
-// chaque mise à jour de position vidéo (plusieurs fois par seconde) forçait
-// React à réconcilier toute la grille, invisible mais bien réelle dans le
-// DOM, sur le CPU modeste du Wyse.
 const CinemaRow = React.memo(function CinemaRow({
   programName,
   items,
@@ -36,7 +24,6 @@ const CinemaRow = React.memo(function CinemaRow({
   onSelect: (video: CinemaVideo) => void;
   onHover: () => void;
   coursesCountLabel: string;
-  /** Titre de la rangée dans la couleur d'accent du thème. */
   accentTitle?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);

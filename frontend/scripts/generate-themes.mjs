@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// Écrit src/app/themes.css à partir des palettes de src/lib/themePalettes.ts (source unique) :
-//   node scripts/generate-themes.mjs          écrit le fichier
-//   node scripts/generate-themes.mjs --check  échoue si le fichier n'est pas à jour (utilisé par un test)
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_THEME, SEMANTIC_COLORS, THEMES, deriveTokens, paletteOf } from "../src/lib/themePalettes.ts";
@@ -18,9 +15,8 @@ export function render() {
     }
   }
   const semantic = Object.entries(SEMANTIC_COLORS).map(([name, value]) => `  --accent-${name}: ${value};`).join("\n");
-  // Valeurs de repli (avant que l'attribut de thème soit posé) : le thème par défaut en sombre, jamais des valeurs recopiées.
   const fallback = Object.entries(deriveTokens(paletteOf(DEFAULT_THEME, "dark"), "dark")).map(([name, value]) => `  --${name}: ${value};`).join("\n");
-  return `/* GÉNÉRÉ par scripts/generate-themes.mjs depuis src/lib/themePalettes.ts : ne pas modifier à la main.\n   Neuf thèmes, chacun en clair et en sombre : les quatre couleurs de la palette et les jetons qui en sont déduits. */\n:root {\n${fallback}\n${semantic}\n}\n\n${blocks.join("\n\n")}\n`;
+  return `/* Généré par scripts/generate-themes.mjs. */\n:root {\n${fallback}\n${semantic}\n}\n\n${blocks.join("\n\n")}\n`;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

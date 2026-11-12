@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# La clé privée est importée par le job appelant dans un GNUPGHOME éphémère.
-# Les demandes de fusion ne lancent jamais cette étape.
 set -euo pipefail
 export LC_ALL=C
 packages="${1:?dossier des paquets}"
@@ -15,7 +13,6 @@ count=0
 while IFS= read -r -d '' package; do
     case "$package" in
         *.rpm)
-            # Ces macros fonctionnent avec RPM 4 et RPM 6 (rpmsign(8)).
             rpmsign --define "_gpg_name $fingerprint" --define "_openpgp_sign_id $fingerprint" \
                 --define "__gpg $(command -v gpg)" --addsign "$package"
             verification=$(rpmkeys --checksig "$package")

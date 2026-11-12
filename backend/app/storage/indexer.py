@@ -1,10 +1,4 @@
-"""Indexation d'une bibliothèque externe : les médias du support sont enregistrés en base SANS être copiés.
-
-Le support n'est lu qu'en lecture seule (ffprobe pour la durée, une image pour la miniature, les
-étiquettes pour la radio). Tout ce que Bobine produit (miniatures, pochettes, base) reste sur le stockage
-interne. Les médias qui exigent une conversion (transcodage) ne peuvent pas être lus directement : ils
-sont signalés « à importer » plutôt que modifiés sur le support.
-"""
+"""Indexation d'une bibliothèque externe : les médias du support sont enregistrés en base SANS être copiés."""
 
 from __future__ import annotations
 
@@ -93,7 +87,7 @@ def _index_video(db, lib_id: int, root: str, unit: Unit):
     name = os.path.basename(f.absolute)
     meta = extract_metadata_or_unknown(f.absolute, name)
     if meta.get("is_drm"):
-        return {"reason": "drm"}  # jamais de suppression de la source
+        return {"reason": "drm"}
     try:
         compat = check_compatibility(meta, f.absolute)
         needs_conversion = bool(compat["needs_normalization"])
@@ -156,7 +150,7 @@ def _index_radio(db, lib_id: int, root: str, unit: Unit):
     if db.query(RadioTrack.id).filter(RadioTrack.storage_id == lib_id, RadioTrack.rel_path == f.rel).first():
         return None
     if needs_transcode(f.absolute):
-        return {"reason": "format_requires_import"}  # transcoder exigerait d'écrire : à importer plutôt
+        return {"reason": "format_requires_import"}
     file_id = uuid.uuid4().hex
     meta = extract_radio_metadata(f.absolute)
     os.makedirs(settings.radio_covers_dir, exist_ok=True)

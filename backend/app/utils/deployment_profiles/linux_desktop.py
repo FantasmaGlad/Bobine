@@ -1,13 +1,4 @@
-"""Handler du profil `linux-desktop` (app de bureau Linux : .deb, .rpm ou .pkg.tar.zst).
-
-Dans ce profil, Bobine tourne en session utilisateur (lancé au login par le
-fichier .desktop autostart ou l'unité systemd utilisateur) avec BobineTray
-comme superviseur local (cf. `backend/app/desktop/tray.py`).
-`restart_services()` se contente de mettre fin au process courant (`os._exit(0)`) :
-c'est le superviseur (BobineTray ou `Restart=always` systemd --user) qui le relance.
-La mise à jour et la désinstallation s'adaptent automatiquement au format de paquet
-de la distribution (`dpkg/apt`, `rpm/dnf` ou `pacman`).
-"""
+"""Handler du profil `linux-desktop` (app de bureau Linux : .deb, .rpm ou .pkg.tar.zst)."""
 
 import logging
 import os
@@ -26,8 +17,7 @@ _NOOP_REPORT: Callable[..., None] = lambda *a, **k: None  # noqa: E731
 
 
 def detect_linux_package_format() -> str:
-    """Détecte le format de paquet Linux ayant installé Bobine (ou celui natif
-    de la distribution hôte) : `.deb`, `.rpm` ou `.pkg.tar.zst`."""
+    """Détecte le format de paquet Linux ayant installé Bobine (ou celui natif de la distribution hôte) : `.deb`, `.rpm` ou `.pkg.tar.zst`."""
     env_override = os.environ.get("BOBINE_LINUX_PKG_FORMAT", "").strip().lower()
     if env_override in (".deb", "deb"):
         return ".deb"
@@ -75,7 +65,6 @@ _SENTINEL_SCRIPT = f'touch {SELF_UPDATE_SENTINEL}; trap "rm -f {SELF_UPDATE_SENT
 
 
 def _as_root(command: list[str]) -> list[str]:
-    """`pkexec` + commande, entourée de la sentinelle lue par les scripts du paquet (prerm, %pre, pre_upgrade)."""
     return ["pkexec", "sh", "-c", _SENTINEL_SCRIPT, "sh", *command]
 
 
@@ -86,15 +75,6 @@ class LinuxDesktopHandler(ProfileHandler):
         return Path(__file__).resolve().parent.parent.parent.parent
 
     def _repo_root(self) -> Path:
-        # `_backend_dir()` (4 niveaux au-dessus de ce fichier) est le dossier
-        # `backend/` — utilisable comme `cwd` pour les commandes git
-        # (git remonte tout seul jusqu'à la racine du dépôt depuis n'importe
-        # quel sous-dossier de l'arbre de travail), mais PAS l'endroit où
-        # chercher `.git` lui-même : `.git` vit à la racine du dépôt, UN
-        # niveau au-dessus de `backend/`. Confondre les deux (bug corrigé
-        # ici) faisait toujours échouer `_is_git_clone()` sur un vrai
-        # checkout git de développement, basculant à tort sur le chemin
-        # "paquet .deb téléchargé" même en environnement de dev.
         return self._backend_dir().parent
 
     def _is_git_clone(self) -> bool:
@@ -102,13 +82,6 @@ class LinuxDesktopHandler(ProfileHandler):
 
     def restart_services(self) -> None:
         logger.info("Déclenchement du redémarrage du service bureau Linux (BobineTray ou systemd --user)...")
-        # Programme une tentative de relance systemd --user en tâche détachée.
-        # `env=clean_subprocess_env()` : ce sous-shell invoque `systemctl`,
-        # un binaire système totalement étranger au bundle PyInstaller — un
-        # `LD_LIBRARY_PATH` hérité de ce process frozen lui ferait charger
-        # la `libcrypto.so.3` embarquée au lieu de celle de l'hôte (cf.
-        # `updates.orchestrator.clean_subprocess_env`, cause racine confirmée
-        # de l'échec `systemctl: ... version 'OPENSSL_3.4.0' not found`).
         cmd = "sleep 1 && (systemctl --user restart bobine.service || systemctl --user restart bobine || true)"
         try:
             subprocess.Popen(
@@ -117,7 +90,6 @@ class LinuxDesktopHandler(ProfileHandler):
         except Exception as e:
             logger.debug(f"Relance systemctl --user non disponible : {e}")
 
-        # Délai de 1.5s avant os._exit(0) pour laisser l'API HTTP répondre
         import threading
         import time
 
@@ -195,7 +167,6 @@ class LinuxDesktopHandler(ProfileHandler):
             self.restart_services()
             return
 
-        # Environnement paquet installé (.deb, .rpm ou .pkg.tar.zst)
         if not download_url:
             raise UpdateUnsupported(
                 "Aucun lien de téléchargement disponible pour mettre à jour le paquet Linux."
@@ -219,12 +190,6 @@ class LinuxDesktopHandler(ProfileHandler):
             on_verifying=lambda: report("verifying", message="Vérification de l'intégrité du paquet…"),
         )
 
-        # Sentinelle lue par `packaging/linux/DEBIAN/prerm`, `packaging/rpm/bobine.spec` (%pre)
-        # et `packaging/arch/bobine.install` (_bobine_stop) : sans elle, le script de pré-mise à jour
-        # de l'ANCIEN paquet tue ce process par nom avant qu'il ait pu se redémarrer proprement
-        # via `restart_services()` juste après.
-        # Posée par la commande root elle-même, dans /run (root seul) : un utilisateur local ne peut pas la
-        # créer d'avance pour empêcher l'arrêt de l'ancienne version pendant une mise à jour d'administrateur.
         report("installing", message="Installation du paquet (autorisation système requise)…")
         try:
             if pkg_ext == ".pkg.tar.zst":
@@ -235,10 +200,6 @@ class LinuxDesktopHandler(ProfileHandler):
                 else:
                     run_checked(_as_root(["rpm", "-Uvh", "--replacepkgs", str(pkg_file)]), timeout=180)
             elif shutil.which("apt-get"):
-                # apt-get installe aussi les dépendances que la nouvelle version ajoute, et répare un paquet laissé
-                # « non configuré » par une tentative précédente : `dpkg -i` échouait sur toute dépendance absente
-                # (smartmontools, par exemple). `--allow-downgrades` garde le comportement de dpkg pour un retour
-                # de canal.
                 run_checked(_as_root(["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y",
                                       "--allow-downgrades", str(pkg_file)]), timeout=900)
             else:

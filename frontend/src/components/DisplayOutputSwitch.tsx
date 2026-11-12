@@ -8,22 +8,11 @@ import type { DisplayOutput } from "@/lib/displayChannel";
 interface DisplayOutputSwitchProps {
   displayOutput: DisplayOutput | null;
   onSetDisplayOutput: (output: DisplayOutput) => void;
-  /** Libellé/infobulle spécifiques au canal — par défaut le texte générique historique. */
   label?: string;
   hint?: string;
-  /** Affiche le 3e état « Radio » : réservé à la sortie câblée (l'écran physique devient un
-   * poste radio). Le réseau a déjà son poste radio par URL et ne le propose pas. */
   allowRadio?: boolean;
 }
 
-/**
- * Sélecteur de la sortie affichée sur UN canal de diffusion (câblé ou
- * réseau) : kiosk (écran piloté par l'admin,
- * défaut), cinéma (les adhérents choisissent leur cours à la souris) ou, pour le câblé
- * seulement, radio (l'écran devient un poste radio). La
- * bascule est instantanée : le backend diffuse le changement et la page
- * affichée navigue d'elle-même. Instancié une fois par canal.
- */
 export default function DisplayOutputSwitch({
   displayOutput,
   onSetDisplayOutput,

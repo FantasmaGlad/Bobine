@@ -1,13 +1,3 @@
-//! Protocole JSON-RPC 2.0 sur stdin/stdout, versionné.
-//!
-//! * une requête = une réponse, une ligne JSON chacune (`\n` final) ;
-//! * `protocol_version` est annoncé par `hello` : le backend refuse un sidecar d'une autre version ;
-//! * **liste blanche** de méthodes : toute autre méthode reçoit « méthode introuvable » avant
-//!   même d'atteindre une plateforme ;
-//! * paramètres validés ici (types, longueurs, formats) — les plateformes ne reçoivent jamais de
-//!   valeur non contrôlée ;
-//! * aucune donnée n'est jamais écrite sur stdout hors réponses (les journaux vont sur stderr).
-
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 
@@ -18,10 +8,8 @@ pub const ERR_PARSE: i64 = -32700;
 pub const ERR_INVALID_REQUEST: i64 = -32600;
 pub const ERR_METHOD_NOT_FOUND: i64 = -32601;
 pub const ERR_INVALID_PARAMS: i64 = -32602;
-/// Erreur applicative : `data.code` porte un code stable (`unsupported`, `tool_missing`, `timeout`...).
 pub const ERR_APPLICATION: i64 = -32000;
 
-/// Méthodes acceptées — rien d'autre n'est jamais exécuté.
 pub const METHODS: &[&str] = &[
     "hello",
     "audio.list",
@@ -74,15 +62,12 @@ impl RpcError {
 
 pub type RpcResult = Result<Value, RpcError>;
 
-/// Plateforme : un backend par système d'exploitation.
 pub trait Platform {
     fn name(&self) -> &'static str;
-    /// `{clé: {"supported": bool, "reason"?: str}}`
     fn capabilities(&self) -> Value;
     fn call(&self, method: &str, params: &Map<String, Value>) -> RpcResult;
 }
 
-/// Traite UNE ligne de requête et renvoie la ligne de réponse (sans `\n`).
 pub fn handle_line(platform: &dyn Platform, line: &str) -> String {
     let response = match serde_json::from_str::<Value>(line) {
         Err(_) => error_response(
@@ -187,10 +172,6 @@ fn error_response(id: Value, err: RpcError) -> Value {
     json!({ "jsonrpc": "2.0", "id": id, "error": err })
 }
 
-// ---------------------------------------------------------------------------
-// Validation des paramètres
-// ---------------------------------------------------------------------------
-
 fn get_str<'a>(params: &'a Map<String, Value>, key: &str) -> Result<&'a str, RpcError> {
     params
         .get(key)
@@ -205,7 +186,6 @@ fn get_bool(params: &Map<String, Value>, key: &str) -> Result<bool, RpcError> {
         .ok_or_else(|| RpcError::invalid_params(format!("paramètre booléen manquant : {key}")))
 }
 
-/// Pas de caractère de contrôle, longueur bornée (un SSID fait au plus 32 octets ; marge pour les identifiants).
 pub fn is_safe_text(text: &str, max_bytes: usize) -> bool {
     !text.is_empty() && text.len() <= max_bytes && !text.chars().any(|c| c.is_control())
 }
@@ -288,7 +268,6 @@ fn check_text(params: &Map<String, Value>, key: &str, max: usize) -> Result<(), 
     }
 }
 
-/// Réponse de capacités uniforme : tout à faux avec la même raison.
 pub fn capabilities_all(supported: bool, reason: &str) -> Value {
     let keys = [
         "audio_list",

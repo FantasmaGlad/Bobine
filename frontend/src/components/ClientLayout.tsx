@@ -22,13 +22,6 @@ interface ClientLayoutProps {
   children: React.ReactNode;
 }
 
-/**
- * Un lien de nav est actif sur sa propre page ET ses sous-pages, mais pas sur
- * une AUTRE page dont le chemin partage juste le même préfixe textuel (bug
- * "Playlists audio sélectionne aussi Cours audio" : "/audio-playlists/"
- * commence bien par "/audio" en tant que chaîne, sans être une sous-page de
- * "/audio/"). On exige donc une frontière de segment (`/`) après le préfixe.
- */
 function isNavLinkActive(pathname: string, href: string): boolean {
   return pathname === href || pathname === `${href}/` || pathname.startsWith(`${href}/`);
 }
@@ -44,53 +37,25 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [updateAvailableVersion, setUpdateAvailableVersion] = useState<string | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState<boolean>(false);
-  // L'annonce d'une nouvelle version se referme seule après 8 s : sur un grand écran, elle masquerait sinon les
-  // commandes. Elle reste accessible dans Réglages.
   useEffect(() => {
     if (!updateAvailableVersion || updateDismissed) return;
     if (pathname === "/settings" || pathname.startsWith("/settings/")) return;
     const timer = setTimeout(() => setUpdateDismissed(true), UPDATE_TOAST_MS);
     return () => clearTimeout(timer);
   }, [updateAvailableVersion, updateDismissed, pathname]);
-  // Branchement ou retrait d'un support externe, où que l'on soit dans l'administration (sans nom : l'évènement n'en porte pas).
   const [plugEvent, setPlugEvent] = useState<"added" | "removed" | "abrupt" | null>(null);
-  // demande le
-  // plein écran navigateur dès le premier tap (le remote/coach mobile n'a
-  // aucune raison de garder la barre d'adresse visible).
   useAutoFullscreen(isMobile);
-  // Son de clic : uniquement dans le studio admin, pas
-  // sur l'écran cinéma/kiosk ni le mode coach (appels de hooks toujours
-  // inconditionnels, seul `enabled` varie selon la route).
-  // Comparaison sur le pathname EXACT (lib/fullscreenRoutes.ts) : /radio est un poste de
-  // diffusion, /radio-library et /radio-remote restent des pages d'admin normales.
   const isFullscreenRoute = isFullscreenPath(pathname);
   useClickSound(!isFullscreenRoute);
-  // Anti-veille automatique (Screen Wake Lock API) sur les écrans de diffusion
-  // et d'attente.
   useScreenWakeLock(isFullscreenRoute);
-  // Marge de sécurité (overscan TV) propre à cet écran, réglée par ?safe=<0-10>.
   useScreenSafeMargin(isFullscreenRoute);
-  // Navigation à la télécommande dans toute l'administration et dans le coach. /cinema, /grid, /kiosk et
-  // /radio gèrent déjà leurs propres touches (useKioskRemote) et ne l'activent pas.
   useDpadNavigation(!isFullscreenRoute || pathname === "/coach" || pathname === "/coach/");
 
-  // La navigation ferme le tiroir mobile automatiquement.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronise l'état du tiroir avec le système de routing externe (Next.js), pas un simple calcul dérivable au rendu
     setDrawerOpen(false);
   }, [pathname]);
 
-  // Notification de mise à jour globale cliquable — vérifiée UNE SEULE FOIS
-  // par chargement de page (`updateCheckedRef`), pas à chaque bascule entre
-  // une route plein écran et une route normale : ce composant reste monté
-  // en permanence, et `isFullscreenRoute` en dépendance seule refaisait un
-  // appel réseau (et pouvait rouvrir la bannière après une fermeture
-  // manuelle) à chaque aller-retour /cinema|/kiosk|/coach|/grid|/radio <->
-  // reste de l'admin — cause racine confirmée du constat "la notification
-  // apparaît en continu". La dépendance sur `isFullscreenRoute` est
-  // conservée pour permettre la toute première vérification une fois
-  // sortie d'une route plein écran, quand la page a été chargée
-  // directement dessus.
   const updateCheckedRef = useRef(false);
   useEffect(() => {
     if (isFullscreenRoute || updateCheckedRef.current) return;
@@ -98,9 +63,6 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     fetch(getApiUrl("/updates/check"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((d) => {
-        // Un retour en arrière Bêta -> Stable est un choix explicite de
-        // l'utilisateur (sélecteur de canal), jamais une "nouveauté" à
-        // annoncer sur chaque page.
         if (d?.has_update && !d.is_downgrade) {
           setUpdateAvailableVersion(d.latest_version ?? null);
         }
@@ -108,15 +70,8 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       .catch(() => {});
   }, [isFullscreenRoute]);
 
-  // icônes Google Material Symbols reprises telles
-  // quelles du design importé (surface "PC Admin") plutôt que les SVG
-  // Heroicons d'origine, pour une identité visuelle cohérente avec le reste
-  // de la refonte.
   const footerLinks = visibleFooterLinks(simplifiedUi).map((link) => ({ ...link, label: t(link.labelKey) }));
 
-  // Regroupements dépliables (accordéon exclusif) :
-  // Lors de la navigation ou d'un clic d'accordéon, fermer les autres
-  // groupes pour garder l'arborescence fermée, lisible et propre.
   const [activeGroup, setActiveGroup] = useState<string | null>(() => {
     for (const entry of navEntries) {
       if (isNavGroup(entry) && entry.children.some((c) => isNavLinkActive(pathname, c.href))) {
@@ -285,17 +240,11 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     );
   };
 
-  // L'écran kiosk, l'interface cinéma adhérents et le mode coach mobile
-  // n'ont ni sidebar ni en-tête d'administration : plein écran dédié
-  // uniquement.
   if (isFullscreenRoute) {
     return <>{children}</>;
   }
 
   if (isMobile) {
-    // Pas de navigation permanente visible sur mobile — l'écran
-    // principal (la page courante, généralement la télécommande) occupe tout
-    // l'espace, la navigation reste dans un tiroir discret (burger).
     return (
       <div className="mobile-app-container">
         <header className="mobile-topbar">
@@ -310,13 +259,6 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
               </>
             )}
           </div>
-          {/* IP/URL de CETTE terminaison plutôt que le logo (trop petit pour
-              être utile ici) : un visiteur dépanné sur plusieurs terminaisons
-              (câblé, réseau, kiosque) doit pouvoir identifier d'un coup
-              d'œil celle qu'il a sous les yeux. Source : `network.localIp`
-              (IP LAN réelle, déjà exposée par le backend pour la découverte
-              réseau), jamais `window.location` — un accès via `bobine.local`
-              ou `localhost` en dev afficherait une valeur non pertinente. */}
           <span className="mobile-topbar-address" title={network.localIp ? `http://${network.localIp}:${network.port}/` : network.mdnsUrl}>
             {network.localIp ? `${network.localIp}:${network.port}` : network.mdnsUrl.replace(/^https?:\/\//, "")}
           </span>
@@ -361,7 +303,6 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
   return (
     <div className="app-container">
-      {/* Sidebar */}
       <aside className="app-sidebar">
         <div>
           <div className="sidebar-brand">
@@ -391,10 +332,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         </div>
       </aside>
 
-      {/* Main Area */}
       <div className="app-main">
-        {/* En-tête retiré : le contenu occupe tout l'espace ;
-            le statut système (Watcher/Écran) est déplacé dans Paramètres. */}
         <main className="page-content">{children}</main>
       </div>
       {renderUpdateToast()}

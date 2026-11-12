@@ -8,20 +8,13 @@ interface SheetProps {
   open: boolean;
   onClose: () => void;
   title?: React.ReactNode;
-  /** Sous le titre, collé en haut pendant le défilement (champ de recherche, onglets). */
   header?: React.ReactNode;
-  /** Barre d'actions collée en bas. */
   footer?: React.ReactNode;
   children: React.ReactNode;
   closeLabel?: string;
-  /** Feuille haute (88 % de l'écran) plutôt qu'ajustée au contenu. */
   tall?: boolean;
 }
 
-/**
- * Feuille basse sur téléphone, fenêtre centrée au-delà de 700 px.
- * Verrouille le défilement de la page, se ferme avec Échap ou en touchant le voile.
- */
 export default function Sheet({ open, onClose, title, header, footer, children, closeLabel = "Fermer", tall = false }: SheetProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const titleId = useId();

@@ -2,10 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-/**
- * Bascule PC / mobile.
- * 768px : même seuil que les presets tablette/mobile du reste de l'outillage.
- */
 export function useIsMobile(breakpoint = 768): boolean {
   const [isMobile, setIsMobile] = useState(false);
 

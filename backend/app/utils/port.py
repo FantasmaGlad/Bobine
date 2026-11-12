@@ -1,33 +1,4 @@
-"""Port d'écoute du backend : résolution unique avec repli dynamique, et
-publication du port réellement utilisé.
-
-Le port PRÉFÉRÉ reste `settings.port` (1903 par défaut, `BOBINE_PORT` ou
-`config.toml`) : le pare-feu (règle Inno Setup, firewalld), l'annonce mDNS, les
-signets et la documentation continuent de parler de 1903, et rien ne change
-tant que ce port est libre. Quand il est occupé (autre application, ancienne
-instance de Bobine qui s'arrête encore, deuxième session utilisateur sur la
-même machine), `resolve_port()` essaie les `FALLBACK_SPAN` ports suivants puis
-demande un port libre au système plutôt que de laisser le backend mourir en
-boucle de relance.
-
-`BOBINE_PORT_STRICT=1` supprime ce repli : le démarrage échoue avec un message
-clair. À utiliser là où le port doit être déterministe — typiquement
-l'appliance systemd, où la redirection 80 → 1903 (`bobine-redirect.service`),
-le pare-feu et les signets supposent 1903.
-
-Le port réellement utilisé est écrit de façon atomique dans un fichier
-d'exécution du dossier de données (`backend-runtime.json` : port, pid), supprimé
-à l'arrêt. C'est la source de vérité des autres processus de l'application
-(barre d'état du bureau, services Android, scripts) : un fichier dont le pid
-n'existe plus est ignoré, donc un arrêt brutal ne laisse pas de port fantôme.
-Hors de ces lecteurs, l'API le publie dans `network.port` et le répondeur mDNS
-dans l'enregistrement du service.
-
-Le sondage « ce port est-il libre ? » et la liaison effective par uvicorn ne
-sont pas atomiques : si un autre processus prend le port entre les deux,
-uvicorn échoue, le processus s'arrête et le superviseur (barre d'état,
-systemd, `ForegroundService`) relance, ce qui refait la résolution.
-"""
+"""Port d'écoute du backend : résolution unique avec repli dynamique, et publication du port réellement utilisé."""
 
 import atexit
 import json
@@ -46,9 +17,6 @@ from app.api.contract import DEFAULT_PORT
 
 logger = logging.getLogger(__name__)
 
-# `DEFAULT_PORT` vient du contrat ; il doit rester égal au défaut de `Settings.port` (app/config.py).
-# Nombre de ports consécutifs essayés après le port préféré avant de demander
-# un port libre au système.
 FALLBACK_SPAN = 10
 STRICT_ENV = "BOBINE_PORT_STRICT"
 RUNTIME_FILE_NAME = "backend-runtime.json"
@@ -60,8 +28,7 @@ _cleanup_hooks_installed = False
 
 
 class PortUnavailableError(RuntimeError):
-    """Aucun port d'écoute utilisable (port préféré occupé en mode strict, ou
-    le système n'a pas pu en attribuer un)."""
+    """Aucun port d'écoute utilisable (port préféré occupé en mode strict, ou le système n'a pas pu en attribuer un)."""
 
 
 def is_strict() -> bool:
@@ -78,9 +45,6 @@ def preferred_port() -> int:
 
 
 def _can_bind(port: int, host: str = _LISTEN_HOST) -> bool:
-    """Même test de liaison que celui d'uvicorn (asyncio) : SO_REUSEADDR sous
-    POSIX seulement. Sous Windows il autoriserait à se lier par-dessus un
-    écouteur actif et masquerait l'occupation du port."""
     return _bind_error(port, host) is None
 
 
@@ -111,14 +75,10 @@ def _system_assigned_port(host: str = _LISTEN_HOST) -> int:
 
 
 def resolve_port(preferred: int | None = None, *, strict: bool | None = None) -> int:
-    """Port d'écoute à utiliser : le préféré s'il est libre ; sinon les
-    `FALLBACK_SPAN` suivants, puis un port attribué par le système. En mode
-    strict, lève `PortUnavailableError` si le préféré est occupé."""
+    """Port d'écoute à utiliser : le préféré s'il est libre ; sinon les `FALLBACK_SPAN` suivants, puis un port attribué par le système."""
     wanted = preferred_port() if preferred is None else int(preferred)
     strict = is_strict() if strict is None else strict
     if not 1 <= wanted <= 65535:
-        # `socket.bind` lève OverflowError hors de cette plage ; sans ce contrôle le lanceur
-        # meurt sur un traceback, et systemd le relance en boucle.
         raise PortUnavailableError(
             f"Le port d'écoute {wanted} est invalide : indiquez une valeur entre 1 et 65535 "
             f"(BOBINE_PORT ou config.toml)."
@@ -138,13 +98,8 @@ def resolve_port(preferred: int | None = None, *, strict: bool | None = None) ->
     return _system_assigned_port()
 
 
-# --- Fichier d'exécution -------------------------------------------------------
-
 def runtime_dir() -> Path:
-    """Dossier du fichier d'exécution : stockage interne de l'application sur
-    Android (lu aussi par le code Kotlin), sinon racine des données. C'est une
-    fonction du système et de l'environnement seuls, donc identique pour le
-    backend et pour la barre d'état."""
+    """Dossier du fichier d'exécution : stockage interne de l'application sur Android (lu aussi par le code Kotlin), sinon racine des données."""
     from app.config import DATA_ROOT, _android_internal_root
     return _android_internal_root() or DATA_ROOT
 
@@ -157,17 +112,16 @@ def _pid_alive(pid: int) -> bool:
     if pid <= 0:
         return False
     if os.name == "nt":
-        # `os.kill(pid, 0)` termine le processus sous Windows : OpenProcess à la place.
         import ctypes
         kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
-        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        handle = kernel32.OpenProcess(0x1000, False, pid)
         if not handle:
             return False
         try:
             exit_code = ctypes.c_ulong()
             if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
                 return True
-            return exit_code.value == 259  # STILL_ACTIVE
+            return exit_code.value == 259
         finally:
             kernel32.CloseHandle(handle)
     try:
@@ -182,8 +136,7 @@ def _pid_alive(pid: int) -> bool:
 
 
 def write_runtime_file(port: int, preferred: int | None = None, directory: Path | str | None = None) -> Path | None:
-    """Écrit (remplacement atomique) le fichier d'exécution. Best-effort : un
-    dossier non inscriptible est journalisé, jamais fatal pour le démarrage."""
+    """Écrit (remplacement atomique) le fichier d'exécution."""
     preferred = preferred_port() if preferred is None else preferred
     payload = {
         "port": int(port),
@@ -215,8 +168,7 @@ def write_runtime_file(port: int, preferred: int | None = None, directory: Path 
 
 
 def clear_runtime_file(directory: Path | str | None = None) -> None:
-    """Supprime le fichier d'exécution s'il appartient à ce processus (un autre
-    backend ayant démarré entre-temps garde le sien)."""
+    """Supprime le fichier d'exécution s'il appartient à ce processus (un autre backend ayant démarré entre-temps garde le sien)."""
     try:
         target = runtime_file(directory)
         info = _read_file(target)
@@ -243,8 +195,7 @@ def _read_file(path: Path) -> dict[str, Any] | None:
 
 
 def read_runtime(directory: Path | str | None = None, *, require_live: bool = True) -> dict[str, Any] | None:
-    """Contenu du fichier d'exécution, ou None s'il manque, est illisible ou
-    (par défaut) décrit un processus qui n'existe plus."""
+    """Contenu du fichier d'exécution, ou None s'il manque, est illisible ou (par défaut) décrit un processus qui n'existe plus."""
     try:
         info = _read_file(runtime_file(directory))
     except Exception:
@@ -262,17 +213,12 @@ def read_runtime_port(directory: Path | str | None = None) -> int | None:
 
 
 def current_port() -> int:
-    """Port à joindre pour parler au backend : celui du fichier d'exécution
-    d'un backend vivant, sinon le port préféré (comportement historique quand
-    rien n'est encore démarré)."""
+    """Port à joindre pour parler au backend : celui du fichier d'exécution d'un backend vivant, sinon le port préféré (comportement historique quand rien n'est encore démarré)."""
     return read_runtime_port() or preferred_port()
 
 
-# --- Cycle de vie utilisé par les lanceurs --------------------------------------
-
 def active_port() -> int:
-    """Port sur lequel CE processus écoute (publié par `acquire_listen_port`),
-    sinon le port préféré (tests, `uvicorn app.main:app` lancé à la main)."""
+    """Port sur lequel CE processus écoute (publié par `acquire_listen_port`), sinon le port préféré (tests, `uvicorn app.main:app` lancé à la main)."""
     return _active_port if _active_port is not None else preferred_port()
 
 
@@ -283,13 +229,6 @@ def _terminate_after_cleanup(signum, _frame) -> None:
 
 
 def _install_cleanup_hooks() -> None:
-    """Supprime le fichier d'exécution aussi quand le processus meurt sur SIGTERM
-    (arrêt par systemd ou par le tray). uvicorn termine l'arrêt propre puis
-    RE-LÈVE le signal avec le gestionnaire d'avant son installation, ce qui tue
-    le processus sans repasser par le `finally` du lanceur : sans ce gestionnaire
-    le fichier resterait (ignoré ensuite grâce au pid, mais inutilement). Sans
-    effet hors du fil principal (Android lance uvicorn dans un fil : son `finally`
-    suffit, et un fichier resté après la mort du processus est ignoré par son pid)."""
     global _cleanup_hooks_installed
     if _cleanup_hooks_installed:
         return
@@ -303,9 +242,7 @@ def _install_cleanup_hooks() -> None:
 
 
 def acquire_listen_port() -> int:
-    """À appeler une fois, avant `uvicorn.run` : résout le port, le publie
-    (fichier d'exécution, `active_port()`) et signale clairement tout repli.
-    Lève `PortUnavailableError` en mode strict."""
+    """À appeler une fois, avant `uvicorn.run` : résout le port, le publie (fichier d'exécution, `active_port()`) et signale clairement tout repli."""
     global _active_port
     wanted = preferred_port()
     port = resolve_port(wanted)

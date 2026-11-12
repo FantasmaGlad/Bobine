@@ -44,35 +44,17 @@ export default function CoachModePage() {
     auto: t("coach.chainModeLabels.auto"),
     manual: t("coach.chainModeLabels.manual"),
   };
-  // hasSynced (correctif "le bouton stop du mode coach ne marche pas") :
-  // marque la réception du tout premier évènement websocket réel. Avant ce
-  // correctif, `state` retombait sur `snapshotState` (pré-hydratation REST
-  // figée au montage) dès que `wsState.current_audio_course` redevenait null
-  // — ce qui est justement le cas normal après un Stop — donc l'écran
-  // restait bloqué sur le cours coach obsolète au lieu de revenir au picker.
   const [hasSynced, setHasSynced] = useState(false);
   const { state: wsState, connected, sendCommand, serverNow } = usePlaybackSocket(() => setHasSynced(true), undefined, "cable", undefined, "coach");
   const [courses, setCourses] = useState<AudioCourseSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  // Playlists audio ("éditions mixées") : onglet séparé du picker de
-  // cours isolés, plutôt qu'une longue liste mélangée.
   const [audioPlaylists, setAudioPlaylists] = useState<AudioPlaylistSummary[]>([]);
   const [pickerTab, setPickerTab] = useState<"courses" | "playlists">("courses");
   const [showTrackList, setShowTrackList] = useState(false);
-  // Sélecteur de fond d'écran : liste les fonds importés dans
-  // l'admin, appliqués en direct sur l'écran câblé via audio_set_background.
   const [showBackgrounds, setShowBackgrounds] = useState(false);
   const [backgrounds, setBackgrounds] = useState<BackgroundSummary[]>([]);
   const [search, setSearch] = useState("");
-  // Accès aux autres fonctions de l'admin sans quitter le mode coach : ClientLayout masque sidebar/tiroir sur cette route en
-  // plein écran, ce menu local est donc la seule porte de sortie vers les
-  // autres pages — la navigation elle-même reste non destructive, le cours
-  // coach continue de tourner côté serveur qu'on y revienne ou non.
   const [showNav, setShowNav] = useState(false);
-  // État de snapshot HTTP : pré-hydrate l'interface avant
-  // que le premier message WebSocket ne soit reçu. Sans cela, tous les boutons
-  // de navigation de piste audio sont disabled car DEFAULT_STATE a
-  // audio_tracks=null. Le WS prend le relais dès sa première notification.
   const [snapshotState, setSnapshotState] = useState<PlaybackState | null>(null);
   const state = hasSynced ? wsState : (snapshotState ?? wsState);
 
@@ -82,7 +64,7 @@ export default function CoachModePage() {
       .then((data: PlaybackState | null) => {
         if (data && data.state) setSnapshotState(data);
       })
-      .catch(() => { /* échec silencieux, le WS prendra le relais */ });
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -105,7 +87,6 @@ export default function CoachModePage() {
 
   const isCoachMode = state.state === "coach_mode";
   const course = state.current_audio_course;
-  // Couleur du thème plutôt que du programme du cours.
   const accent = "var(--accent-primary)";
   const accentFg = useThemeAccentForeground();
   const tracks = state.audio_tracks || [];
@@ -114,11 +95,6 @@ export default function CoachModePage() {
 
   const [localPos, setLocalPos] = useState<number>(0);
 
-  // Minuterie du coach : position déduite de l'ANCRE d'horloge
-  // serveur de la piste (`audio_clock`), recalculée 10 fois par seconde — plus
-  // d'incrément local de 0,1 s recalé à chaque tick, qui dérivait entre deux
-  // messages et n'était pas aligné sur ce que jouent réellement les écrans.
-  // Repli sur `audio_position_seconds` pour un backend sans ancre.
   const audioAnchor = state.audio_clock;
   const trackDuration = currentTrack?.duration_seconds;
   useEffect(() => {
@@ -139,21 +115,15 @@ export default function CoachModePage() {
   const remaining = currentTrack?.duration_seconds
     ? Math.max(0, currentTrack.duration_seconds - localPos)
     : null;
-  // Autocomplétion : titres des cours et des playlists audio.
   const searchSuggestions = [...courses.map((c) => c.title), ...audioPlaylists.map((p) => p.name)];
   const filteredCourses = courses.filter((c) => matchesQuery(c.title, search));
 
   const filteredAudioPlaylists = audioPlaylists.filter((p) => matchesQuery(p.name, search));
 
-  // Tap 2/2 : le choix du cours suffit à le lancer.
   const launchCourse = (courseId: number) => {
     sendCommand("load_audio_course", { audio_course_id: courseId });
   };
 
-  // Idem pour une playlist audio ("édition mixée") : traitée côté
-  // serveur comme un cours virtuel dont les pistes viennent de plusieurs
-  // cours — même flux de lecture qu'un cours normal, pas de notion de
-  // "cours suivant" à enchaîner.
   const launchAudioPlaylist = (playlistId: number) => {
     sendCommand("load_audio_playlist", { audio_playlist_id: playlistId });
   };
@@ -235,7 +205,6 @@ export default function CoachModePage() {
             onChange={setSearch}
             suggestions={searchSuggestions}
           />
-          {/* Onglet Cours isolés / Playlists audio : deux listes distinctes plutôt qu'une seule mélangée. */}
           <div className="coach-picker-tabs">
             <button
               type="button"
@@ -318,18 +287,14 @@ export default function CoachModePage() {
 
   return (
     <div className="coach-screen coach-live-screen" style={{ borderTopColor: accent }}>
-      {/* Barre supérieure universelle */}
       <div className="coach-live-header" style={{ maxWidth: "1280px", justifyContent: "flex-end" }}>
         <button className="coach-icon-btn olc-press" onClick={() => setShowNav(true)} title={t("coach.otherFunctions")}>
           <Icon name="menu" size={20} />
         </button>
       </div>
 
-      {/* Grille responsive Console Régie (2 colonnes sur tablette/laptop, 1 colonne sur smartphone) */}
       <div className="coach-console-grid">
-        {/* Colonne Gauche : Commandes audio centrées */}
         <div className="coach-audio-col">
-          {/* Bloc Piste en cours */}
           <div className="coach-live-track-block olc-anim-in" key={currentTrack?.id} style={{ width: "100%", maxWidth: "420px" }}>
             <span className="coach-live-track-label">
               {currentTrack ? t("coach.trackLabel", { index: trackIndex + 1, total: tracks.length }) : t("coach.noTrack")}
@@ -341,7 +306,6 @@ export default function CoachModePage() {
             </div>
           </div>
 
-          {/* Commandes de lecture principales */}
           <div className="coach-controls-grid">
             <button className="coach-btn olc-press" onClick={() => sendCommand("audio_previous_track")} disabled={trackIndex <= 0} title={t("common.previous")}>
               <Icon name="skip_previous" size={28} filled />
@@ -369,7 +333,6 @@ export default function CoachModePage() {
             {t("coach.restartTrack")}
           </button>
 
-          {/* Volume tactile */}
           <div className="coach-volume-row">
             <button className="coach-btn coach-btn-square olc-press" onClick={() => sendCommand("volume", { volume: Math.max(0, state.volume - 10) })}>
               <Icon name="remove" size={18} />
@@ -383,7 +346,6 @@ export default function CoachModePage() {
             </button>
           </div>
 
-          {/* Mode d'enchaînement */}
           <div className="coach-chain-mode-row">
             {(["auto", "manual"] as const).map((mode) => (
               <button
@@ -397,7 +359,6 @@ export default function CoachModePage() {
             ))}
           </div>
 
-          {/* Bouton d'accès au tiroir déroulant des pistes */}
           <button
             type="button"
             className="coach-btn coach-btn-wide olc-press"
@@ -408,7 +369,6 @@ export default function CoachModePage() {
             <span>{t("coach.viewTracks", { count: tracks.length })}</span>
           </button>
 
-          {/* Bouton Quitter le mode coach centré avec la structure */}
           <button
             type="button"
             className="coach-exit-btn-centered olc-press"
@@ -420,9 +380,7 @@ export default function CoachModePage() {
           </button>
         </div>
 
-        {/* Colonne Droite : Retour Scène HDMI & Palette d'Ambiances */}
         <div className="coach-stage-col">
-          {/* Moniteur Scène Grand Écran (Direct HDMI) */}
           <div className="coach-stage-monitor">
             {activeBgId ? (
               activeBgIsImage ? (
@@ -491,7 +449,6 @@ export default function CoachModePage() {
             </div>
           </div>
 
-          {/* Palette Tactile d'Ambiances Visuelles */}
           <div className="coach-ambiance-panel">
             <div className="coach-ambiance-header">
               <div>
@@ -507,7 +464,6 @@ export default function CoachModePage() {
               </span>
             </div>
 
-            {/* Bouton Écran Sobre */}
             <button
               type="button"
               className={`olc-press ${!activeBgId ? "active" : ""}`}
@@ -533,7 +489,6 @@ export default function CoachModePage() {
               {!activeBgId && <Icon name="check_circle" size={16} filled />}
             </button>
 
-            {/* Grille tactile d'ambiances 16:9 */}
             <div className="coach-ambiance-grid">
               {backgrounds.map((bg) => {
                 const isActive = activeBgId === bg.id;
@@ -610,7 +565,6 @@ export default function CoachModePage() {
         </div>
       </div>
 
-      {/* Bottom sheet Ambiances (sur smartphone) */}
       {showBackgrounds && (
         <div className="coach-sheet-overlay" onClick={() => setShowBackgrounds(false)}>
           <div className="coach-sheet" onClick={(e) => e.stopPropagation()}>
@@ -656,7 +610,6 @@ export default function CoachModePage() {
         </div>
       )}
 
-      {/* Bottom sheet Pistes (sur smartphone) */}
       {showTrackList && (
         <div className="coach-sheet-overlay" onClick={() => setShowTrackList(false)}>
           <div className="coach-sheet" onClick={(e) => e.stopPropagation()}>

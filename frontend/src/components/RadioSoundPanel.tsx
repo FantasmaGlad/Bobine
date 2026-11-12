@@ -16,18 +16,7 @@ import {
   type RadioSoundSettings,
 } from "@/lib/radioSound";
 
-// Gestion du son d'UNE sortie radio : égaliseur 5 bandes, basses, préréglages, loudness et
-// protection anti-saturation. Le traitement est fait par le lecteur (graphe Web Audio) ; ce
-// panneau n'envoie que les réglages (`radio_set_sound`), que le serveur borne, persiste et
-// rediffuse à tous les lecteurs et télécommandes de la sortie.
-//
-// Sliders HORIZONTAUX (et non verticaux) : un range vertical (writing-mode) n'est pas rendu par
-// Firefox ESR, cible de support officielle — une rangée par bande reste lisible partout, au
-// toucher comme à la télécommande.
-
-/** Délai avant d'envoyer le dernier réglage pendant un glissement (évite une écriture en base par pas). */
 const SEND_DELAY_MS = 120;
-/** Durée pendant laquelle le réglage local prime sur l'état serveur après un envoi. */
 const DRAFT_HOLD_MS = 600;
 
 function formatFrequency(hz: number): string {
@@ -39,17 +28,13 @@ function formatGain(db: number): string {
 }
 
 interface RadioSoundPanelProps {
-  /** Réglages courants de la sortie (champ `sound` de l'état diffusé). */
   sound: RadioSoundSettings;
   sendCommand: (command: string, params?: Record<string, unknown>) => void;
-  /** "compact" : sans bandes détaillées, pour les écrans étroits (préréglages, basses, interrupteurs). */
   variant?: "full" | "compact";
 }
 
 export default function RadioSoundPanel({ sound, sendCommand, variant = "full" }: RadioSoundPanelProps) {
   const { t } = useAppSettings();
-  // Réglage local pendant un glissement : l'état serveur n'arrive qu'après l'aller-retour, le
-  // curseur ne doit pas « sauter » entre-temps.
   const [draft, setDraft] = useState<RadioSoundSettings | null>(null);
   const sendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -74,13 +59,11 @@ export default function RadioSoundPanel({ sound, sendCommand, variant = "full" }
     }, SEND_DELAY_MS);
   };
 
-  // Un réglage manuel quitte le préréglage appliqué, sauf s'il en recrée exactement un.
   const setManual = (patch: Partial<RadioSoundSettings>) => {
     const merged = clampSound(patch, current);
     commit({ ...merged, preset: matchingPreset(merged) });
   };
 
-  // Un identifiant mémorisé qui n'existe plus (ancien préréglage) compte comme un réglage manuel.
   const activePreset = knownPresetId(current.preset) ?? matchingPreset(current);
 
   return (

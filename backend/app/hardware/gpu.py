@@ -13,25 +13,18 @@ from .probe import _HARDWARE_CACHE, _get_android_prop, is_android_system, shutil
 
 
 def get_gpu_info() -> tuple[str, float | None, float | None]:
-    """
-    Retourne (gpu_name, gpu_percent, gpu_temp_c).
-    Prend en charge AMD (amdgpu), Intel (i915/xe), NVIDIA (nvidia-smi),
-    Apple Silicon (macOS) et Qualcomm Adreno / Mali (Android).
-    """
+    """Retourne (gpu_name, gpu_percent, gpu_temp_c)."""
     name = _HARDWARE_CACHE["gpu_name"]
     gpu_percent: float | None = None
     gpu_temp: float | None = None
     is_android = is_android_system()
 
-    # 1. ANDROID (Qualcomm Adreno / ARM Mali)
     if is_android:
-        # A. Nom GPU via /sys/class/kgsl/kgsl-3d0/gpu_model
         if not name and os.path.exists("/sys/class/kgsl/kgsl-3d0/gpu_model"):
             try:
                 with open("/sys/class/kgsl/kgsl-3d0/gpu_model", "r", encoding="utf-8") as f:
                     raw_gpu = f.read().strip()
                     if raw_gpu:
-                        # Ex: 'Adreno825' -> 'Qualcomm Adreno 825'
                         m = re.match(r"([A-Za-z]+)(\d+)", raw_gpu)
                         if m:
                             name = f"Qualcomm {m.group(1)} {m.group(2)}"
@@ -40,7 +33,6 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
             except Exception:
                 pass
 
-        # B. Dumpsys SurfaceFlinger pour GLES renderer
         if not name and shutil_which("dumpsys"):
             try:
                 out = subprocess.check_output(["dumpsys", "SurfaceFlinger"], text=True, timeout=1)
@@ -60,7 +52,6 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
             if egl:
                 name = f"Qualcomm {egl.capitalize()}"
 
-        # C. Température GPU Android via /sys/class/thermal
         if gpu_temp is None:
             for tz in glob.glob("/sys/class/thermal/thermal_zone*"):
                 type_file = os.path.join(tz, "type")
@@ -79,7 +70,6 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
                     except Exception:
                         pass
 
-        # D. Charge GPU Android via /sys/class/kgsl/kgsl-3d0/gpubusy
         if gpu_percent is None and os.path.exists("/sys/class/kgsl/kgsl-3d0/gpubusy"):
             try:
                 with open("/sys/class/kgsl/kgsl-3d0/gpubusy", "r", encoding="utf-8") as f:
@@ -91,7 +81,6 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
             except Exception:
                 pass
 
-    # 2. LINUX DESKTOP & HEADLESS : AMD GPU via sysfs
     if gpu_percent is None:
         for busy_path in glob.glob("/sys/class/drm/card*/device/gpu_busy_percent"):
             try:
@@ -103,7 +92,6 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
             except Exception:
                 pass
 
-    # 3. NVIDIA via nvidia-smi (Linux & Windows)
     if (gpu_percent is None or not name) and shutil_which("nvidia-smi"):
         try:
             out = subprocess.check_output(
@@ -122,7 +110,6 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
         except Exception:
             pass
 
-    # 4. Température GPU via psutil si pas déjà trouvée
     if gpu_temp is None:
         try:
             temps = psutil.sensors_temperatures()
@@ -134,7 +121,6 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
         except Exception:
             pass
 
-    # 5. macOS : GPU Apple Silicon
     if not name and sys.platform == "darwin":
         try:
             out = subprocess.check_output(["system_profiler", "SPDisplaysDataType"], text=True, timeout=2)
@@ -146,7 +132,6 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
         except Exception:
             pass
 
-    # 6. Windows : WMI Win32_VideoController
     if not name and sys.platform == "win32":
         try:
             out = subprocess.check_output(
@@ -155,14 +140,12 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
                 timeout=2,
             )
             lines = [line.strip() for line in out.splitlines() if line.strip()]
-            # Filtrer les pilotes virtuels (Miracast, RDP...)
             valid_gpus = [g for g in lines if not any(x in g.lower() for x in ("virtual", "remote", "rdp", "basic display"))]
             if valid_gpus:
                 name = valid_gpus[0]
         except Exception:
             pass
 
-    # 7. Linux lspci & détection dans CPU
     if not name:
         cpu_model = get_cpu_model_name()
         if "w/" in cpu_model:

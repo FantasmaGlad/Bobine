@@ -18,28 +18,13 @@ from app.models import (
     Video,
 )
 
-# Le planning représente le programme réel d'une salle physique : les horaires
-# saisis par l'utilisateur (ex. "RPM tous les mardis 18h00") sont des heures
-# locales de la salle. On ancre donc le scheduler sur le fuseau local de la
-# machine plutôt que UTC, pour que les récurrences restent correctes après un
-# changement d'heure été/hiver (fonctionnement sur l'horloge locale).
 LOCAL_TZ = get_localzone()
 
-# Filet de sécurité anti-boucle infinie lors du déroulé d'une récurrence sur
-# une plage de dates (ne devrait jamais être atteint en usage normal : une
-# programmation hebdomadaire sur une plage d'un an ne produit que ~52 occurrences).
 _MAX_OCCURRENCES_PER_SCHEDULE = 1000
 
 
 def ensure_utc(value: datetime) -> datetime:
-    """
-    SQLite ne conserve pas le fuseau des datetimes stockés : une valeur aware
-    écrite en base est relue *naïve* par SQLAlchemy, alors qu'elle représente
-    toujours un instant UTC (convention utilisée dans tout le schéma —
-    imported_at, created_at, etc.). On la retague donc systématiquement avant
-    toute comparaison ou sérialisation, plutôt que de la laisser se comparer
-    silencieusement de travers avec un datetime.now(timezone.utc) frais.
-    """
+    """SQLite ne conserve pas le fuseau des datetimes stockés : une valeur aware écrite en base est relue *naïve* par SQLAlchemy, alors qu'elle représente toujours un instant UTC (convention utilisée dans tout le schéma — imported_at, created_at, etc.)."""
     return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
 
@@ -65,22 +50,7 @@ def resolve_target_title(
 
 
 def resolve_target_display(db: Session, target_type: ScheduleTargetType, target_id: int) -> dict:
-    """
-    Titre/programme/durée/miniature d'une cible de programmation, pour le
-    planning visuel.
-    Fonction séparée de `resolve_target_title` (plutôt qu'un tuple élargi)
-    pour ne pas devoir toucher tous ses appelants existants qui n'ont besoin
-    que du titre/programme (suppressions, remplacements...).
-
-    - vidéo : durée et miniature propres.
-    - playlist vidéo : `Playlist` n'a pas de champ cover — miniature dérivée
-      du 1er élément (`thumbnail_path`), même convention que RadioPlaylist
-      ci-dessous ; durée = somme des items.
-    - playlist radio (fenêtre programmée) : `duration_seconds` volontairement
-      `None` — le bloc du planning se dimensionne sur la fenêtre horaire
-      choisie (`time_of_day`/`end_time`), pas sur le contenu qui boucle. `cover_track_id` = 1er morceau ayant une pochette, même
-      logique que `api/routes/radio_playlists.py::list_playlists`.
-    """
+    """Titre/programme/durée/miniature d'une cible de programmation, pour le planning visuel."""
     if target_type == ScheduleTargetType.video:
         video = db.query(Video).filter(Video.id == target_id).first()
         if not video:
@@ -123,13 +93,7 @@ def resolve_target_display(db: Session, target_type: ScheduleTargetType, target_
 def expand_occurrences(
     db: Session, schedules: list[Schedule], start: datetime, end: datetime
 ) -> list[dict]:
-    """
-    Développe une liste de programmations actives en occurrences concrètes
-    dans l'intervalle [start, end], overrides résolus.
-
-    Les occurrences annulées sont *incluses* dans le résultat (avec le titre
-    d'origine) plutôt qu'omises : le planning doit pouvoir les afficher barrées, pas simplement les faire disparaître.
-    """
+    """Développe une liste de programmations actives en occurrences concrètes dans l'intervalle [start, end], overrides résolus."""
     if not schedules:
         return []
 
@@ -143,10 +107,6 @@ def expand_occurrences(
 
     results: list[dict] = []
     for schedule in schedules:
-        # fenêtre radio (end_time/24_7) résolue
-        # une fois par programmation, pas par occurrence — sert au calcul de
-        # la taille du bloc côté client pour une cible radio_playlist
-        # (durée du bloc = fenêtre choisie, pas contenu qui boucle).
         window_end_time, window_is_24_7 = None, False
         if schedule.recurrence_rule:
             rule = json.loads(schedule.recurrence_rule)

@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Contrôles du paquet RPM, à lancer DANS un conteneur Fedora (root) :
-#   rpm -qlp, rpmlint, installation réelle (dnf), présence des fichiers, lancement du backend installé, désinstallation.
-# Usage : test_rpm.sh <fichier.rpm> [--no-install]
 set -euo pipefail
 RPM_FILE="${1:?fichier .rpm}"
 INSTALL=1; [ "${2:-}" = "--no-install" ] && INSTALL=0
@@ -15,7 +12,6 @@ rpm -qp --recommends "${RPM_FILE}"
 
 echo "=== rpmlint ==="
 dnf -q -y install rpmlint >/dev/null
-# Filtres justifiés dans bobine.rpmlintrc ; toute autre erreur fait échouer le contrôle.
 rpmlint --ignore-unused-rpmlintrc -r "$(dirname "${BASH_SOURCE[0]}")/bobine.rpmlintrc" "${RPM_FILE}" 
 
 [ "${INSTALL}" = "1" ] || exit 0

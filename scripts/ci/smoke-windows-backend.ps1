@@ -9,7 +9,6 @@ processus écoute déjà dessus et vérifie que le processus lancé est bien cel
 Avec -DataRoot, elle contrôle aussi que le fichier d'exécution du backend publie ce port.
 -DataRoot isole les données : le backend les range sous %ProgramData%\Bobine, la variable est donc
 redéfinie pour le seul processus lancé.
-#>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Exe,
@@ -91,7 +90,6 @@ for ($i = 0; $i -lt $Attempts; $i++) {
             break
         }
     } catch {
-        # Attente de disponibilité
     }
 }
 
@@ -109,8 +107,6 @@ if (-not $ready) {
     if (Test-Path $outLog) { Get-Content $outLog }
 }
 
-# Arrêt de l'arbre de processus, puis attente de la libération du port : le désinstalleur
-# ou la sonde suivante ne doivent trouver ni verrou de fichier ni port occupé.
 if (-not $proc.HasExited) {
     & taskkill.exe /F /T /PID $proc.Id | Out-Null
     $proc.WaitForExit(10000) | Out-Null

@@ -1,5 +1,4 @@
-"""Horloge de lecture serveur : la position est une fonction
-du temps, indépendante de tout kiosque."""
+"""Horloge de lecture serveur : la position est une fonction du temps, indépendante de tout kiosque."""
 
 import asyncio
 
@@ -31,7 +30,7 @@ def test_position_avance_avec_le_temps_et_la_vitesse():
     assert c.position() == 15.0
     c.set_rate(2.0)
     t.advance(3.0)
-    assert c.position() == 21.0  # 15 + 3 * 2, sans saut au changement de vitesse
+    assert c.position() == 21.0
 
 
 def test_pause_fige_et_reprise_continue():
@@ -54,12 +53,11 @@ def test_demarrage_synchronise_position_gelee_jusqu_a_l_instant_de_depart():
     t.advance(0.5)
     assert c.position() == 0.0
     anchor = c.to_dict()
-    # L'ancre est l'instant de départ (dans le futur), pas « maintenant ».
     assert anchor["running"] is True
     assert anchor["pos"] == 0.0
     assert anchor["at_ms"] == int(round(t.epoch + 500))
     t.advance(1.5)
-    assert c.position() == 1.0  # 1 s écoulée depuis l'instant de départ
+    assert c.position() == 1.0
 
 
 def test_ancre_est_reancree_sur_maintenant_a_chaque_emission():
@@ -93,10 +91,6 @@ def test_reset_remet_a_zero_et_conserve_la_vitesse():
     assert c.position() == 0.0 and not c.running and c.rate == 1.5
 
 
-# ---------------------------------------------------------------------------
-# Intégration PlaybackManager
-# ---------------------------------------------------------------------------
-
 def _manager(received):
     async def _bc(payload):
         received.append(payload)
@@ -117,7 +111,7 @@ def test_la_position_avance_sans_aucun_kiosque_connecte():
         fake = FakeTime()
         _patch_clock(m, fake)
         await m.load(1, "Cours", 120.0)
-        fake.advance(10.0)  # aucun écran connecté : pas de délai de démarrage
+        fake.advance(10.0)
         snap = m.snapshot()
         assert snap["state"] == "playing"
         assert abs(snap["position_seconds"] - 10.0) < 1e-6
@@ -167,8 +161,7 @@ def test_report_position_ne_modifie_plus_la_position():
 
 
 def test_video_ended_est_idempotent_et_ignore_le_signal_d_un_autre_cours():
-    """Tous les écrans envoient `video_ended` : le 2e signal ne doit pas
-    terminer le cours suivant."""
+    """Tous les écrans envoient `video_ended` : le 2e signal ne doit pas terminer le cours suivant."""
     async def _run():
         m = _manager([])
         fake = FakeTime()
@@ -178,14 +171,12 @@ def test_video_ended_est_idempotent_et_ignore_le_signal_d_un_autre_cours():
             {"id": 2, "title": "B", "duration_seconds": 10.0},
         ]
         await m.load_playlist(5, "P", items)
-        # wait_time_between_courses est lu dans settings ; on force 0 pour
-        # que le cours suivant démarre aussitôt.
         from app.config import settings
         settings.wait_time_between_courses = 0
-        await m.video_ended(video_id=1)          # écran 1
+        await m.video_ended(video_id=1)
         await asyncio.sleep(0.05)
         assert m.state["current_video"]["id"] == 2
-        await m.video_ended(video_id=1)          # écran 2, signal tardif du cours 1
+        await m.video_ended(video_id=1)
         assert m.state["current_video"]["id"] == 2
         assert m.state["state"] == "playing"
 
@@ -207,13 +198,8 @@ def test_le_serveur_termine_lui_meme_un_cours_depasse():
     asyncio.run(_run())
 
 
-# ---------------------------------------------------------------------------
-# Délai de démarrage synchronisé ADAPTATIF (réponse immédiate avec un seul écran)
-# ---------------------------------------------------------------------------
-
 def test_un_seul_ecran_ou_aucun_demarre_sans_delai():
-    """Mesuré avant correction : play = 300 ms, chargement = 1 009 ms de latence
-    ressentie, alors que pause répondait en 1 à 3 ms."""
+    """Mesuré avant correction : play = 300 ms, chargement = 1 009 ms de latence ressentie, alors que pause répondait en 1 à 3 ms."""
     async def _run():
         for screens in (0, 1):
             m = _manager([])
@@ -265,15 +251,14 @@ def test_un_compteur_d_ecrans_defaillant_ne_bloque_jamais_la_lecture():
 
 
 def test_l_epoch_change_a_chaque_ordre_et_reste_stable_entre_deux_heartbeats():
-    """Permet à un écran de distinguer un ORDRE explicite (à appliquer sans délai
-    de grâce) d'une simple dérive."""
+    """Permet à un écran de distinguer un ORDRE explicite (à appliquer sans délai de grâce) d'une simple dérive."""
     t = FakeTime()
     c = t.clock()
     e0 = c.to_dict()["epoch"]
     c.start(0.0)
     e1 = c.to_dict()["epoch"]
     t.advance(5)
-    assert c.to_dict()["epoch"] == e1  # simple heartbeat : inchangé
+    assert c.to_dict()["epoch"] == e1
     c.seek(40.0)
     e2 = c.to_dict()["epoch"]
     c.pause()

@@ -12,7 +12,6 @@ from app.config_apply.values import _list, _names
 
 
 def _replace_playlist(ctx, file, model, entry, build_items, kept: list):
-    """Crée, renomme ou remplace une playlist reconnue par son `uid`, à défaut par son nom."""
     name = entry["name"]
     playlist = _by_uid(ctx, model, entry) or _unique_by_name(ctx, file, model, name)
     items = build_items()
@@ -31,7 +30,6 @@ def _replace_playlist(ctx, file, model, entry, build_items, kept: list):
 
 
 def _prune(ctx: _Context, file: str, document: dict, model, kept: list) -> None:
-    """`"prune": true` : supprime les objets du type absents du document (opt-in ; jamais pour les médias)."""
     if "prune" in document and not isinstance(document["prune"], bool):
         ctx.fail(file, "« prune » doit être un booléen (true ou false)")
         return

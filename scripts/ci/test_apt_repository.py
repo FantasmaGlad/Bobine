@@ -94,13 +94,11 @@ class AptRepositoryTests(unittest.TestCase):
             index = self.packages_index("canary", architecture)
             self.assertIn("Package: bobine\n", index)
             self.assertIn("Package: bobine-deploy\nVersion: 0.0.1", index)
-        # Publication de Bobine sans release de Bobine Deploy lisible : le paquet déjà publié reste.
         self.prepare("canary")
         self.assertIn("Package: bobine-deploy\n", self.packages_index("canary", "amd64"))
         self.assertTrue(list((self.debian / "pool").rglob("bobine-deploy_*.deb")))
 
     def test_the_former_assistant_is_removed_from_the_channel(self):
-        # Bobine Deploy a son propre dépôt : un bobine-assistant déjà publié disparaît à la publication suivante du canal.
         self.prepare("canary")
         for deb in sorted(self.assistant.glob("*.deb")):
             included = subprocess.run(["reprepro", "-b", str(self.debian), "includedeb", "canary", str(deb)], capture_output=True, text=True, env=self.env)
@@ -120,7 +118,6 @@ class AptRepositoryTests(unittest.TestCase):
     def test_refresh_extends_expiring_and_unlimited_suites_without_touching_packages(self):
         for channel in ("stable", "beta", "canary"):
             self.prepare(channel)
-        # Etat constaté en production : suites stable et beta publiées avant l'ajout de Valid-Until, canary proche de son expiration.
         conf = self.debian / "conf/distributions"
         blocks = []
         for block in conf.read_text().strip().split("\n\n"):

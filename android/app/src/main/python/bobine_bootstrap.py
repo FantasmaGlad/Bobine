@@ -1,72 +1,27 @@
-"""Démarrage du backend réel : import de `app.main` (le vrai backend, mis en
-scène par la tâche Gradle `stagePythonSources`) et lancement d'uvicorn dans
-un thread. Appelé par `BobineForegroundService.kt`.
-
-Reçoit DEUX racines de stockage, pas une seule.
-- `internal_files_dir` (`context.filesDir` côté Kotlin) : stockage privé de
-  l'app sur `/data`, f2fs natif, jamais servi par FUSE — utilisé pour la
-  base SQLite, les miniatures, les logs, le branding et les pochettes radio
-  (petits fichiers à I/O aléatoire fréquente, très sensibles à FUSE).
-- `external_files_dir` (`context.getExternalFilesDir(null)`) : stockage
-  externe spécifique à l'app, persiste entre mises à jour, visible via un
-  gestionnaire de fichiers/MTP, servi par FUSE — reste utilisé pour les
-  médias (vidéos, fonds, audio, radio : gros fichiers lus par blocs
-  séquentiels, coût FUSE par octet négligeable, contrairement à la base).
-
-Auparavant, la base SQLite vivait sur le stockage externe (FUSE) — cause
-racine mesurée de la lenteur/non-réponse réseau. Ce module migre une
-installation existante UNE SEULE FOIS, avant tout import de `app.config`
-(la seule fenêtre où poser les variables d'environnement compte, cf.
-`config.py::DATA_ROOT`/`_android_internal_root()` calculés une fois au
-niveau module).
-"""
+"""Démarrage du backend réel : import de `app.main` (le vrai backend, mis en scène par la tâche Gradle `stagePythonSources`) et lancement d'uvicorn dans un thread."""
 
 import os
 import shutil
 import sqlite3
 import threading
 
-# Ce module n'est importé que par l'application Android : marque la plateforme
-# pour `app.utils.android_runtime.is_android()`, car le runtime Python 3.11 du
-# flavor TV ne la révèle ni par `sys.getandroidapilevel` ni par
-# `platform.system()`.
 os.environ["BOBINE_PLATFORM"] = "android"
 
 _started = False
 _lock = threading.Lock()
 
-# Sous-chemins par défaut de backend/app/config.py::Settings — dupliqués ici
-# à dessein (pas d'import de app.config avant que les variables
-# d'environnement de ce module ne soient posées, sous peine de figer
-# DATA_ROOT sur la mauvaise racine pour toute la durée du process). Garder
-# synchronisé avec les valeurs par défaut de la classe Settings si elles
-# changent un jour.
 _MIGRATED_DB_RELATIVE = "data/database.db"
 _MIGRATED_DIRS_RELATIVE = ("data/thumbnails", "data/logs", "data/branding", "data/radio_covers")
 
 
 def _checkpoint_and_copy_database(external_data_dir, internal_data_dir):
-    """Copie `data/database.db` (+ -wal/-shm) de l'externe vers l'interne,
-    avec vérification d'intégrité AVANT toute utilisation — ne supprime
-    JAMAIS l'original (même philosophie que
-    `backend/app/utils/importer/reconcile.py` : un
-    diagnostic qui se trompe ne doit jamais être destructif). Retourne
-    True si la copie interne est utilisable, False sinon (l'appelant
-    laisse alors `app.config` créer une base neuve sur l'interne, comme
-    pour une toute première installation)."""
     external_db = os.path.join(external_data_dir, _MIGRATED_DB_RELATIVE)
     internal_db = os.path.join(internal_data_dir, _MIGRATED_DB_RELATIVE)
     if not os.path.exists(external_db) or os.path.exists(internal_db):
-        # Rien à migrer (première installation) ou déjà migré (relances
-        # suivantes du service) — idempotent par construction.
         return False
 
     os.makedirs(os.path.dirname(internal_db), exist_ok=True)
     try:
-        # Checkpoint AVANT copie : replie le contenu de -wal dans le fichier
-        # principal, pour ne pas avoir à copier/recaler un -wal séparé, et
-        # pour que le fichier copié soit auto-suffisant, sans dépendre d'un
-        # -shm qui n'a de sens qu'attaché à un process SQLite vivant.
         conn = sqlite3.connect(external_db, timeout=30)
         try:
             conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
@@ -76,11 +31,6 @@ def _checkpoint_and_copy_database(external_data_dir, internal_data_dir):
 
         shutil.copy2(external_db, internal_db)
 
-        # Réécriture des chemins absolus stockés en base : thumbnail_path et
-        # cover_path pointaient vers l'ancien dossier externe, qui ne
-        # contiendra plus ces fichiers une fois les dossiers ci-dessous
-        # migrés — sans cette réécriture, toutes les miniatures/pochettes
-        # deviendraient introuvables (404) après la migration.
         old_thumb_dir = os.path.join(external_data_dir, "data/thumbnails")
         new_thumb_dir = os.path.join(internal_data_dir, "data/thumbnails")
         old_cover_dir = os.path.join(external_data_dir, "data/radio_covers")
@@ -107,10 +57,6 @@ def _checkpoint_and_copy_database(external_data_dir, internal_data_dir):
             return False
         return True
     except Exception:
-        # Toute erreur (verrou, espace disque, permission...) : la copie
-        # interne partielle éventuelle est purgée, l'externe n'a jamais été
-        # touché — repli sûr sur une base neuve côté interne, exactement le
-        # comportement d'une installation neuve.
         try:
             if os.path.exists(internal_db):
                 os.remove(internal_db)
@@ -120,10 +66,6 @@ def _checkpoint_and_copy_database(external_data_dir, internal_data_dir):
 
 
 def _migrate_small_dirs(external_data_dir, internal_data_dir):
-    """Copie (jamais déplace) les dossiers à faible volume vers l'interne.
-    Best-effort et non bloquant : un échec ici (miniatures manquantes) est
-    nettement moins grave qu'un échec sur la base elle-même, régénérable
-    (miniatures) ou reconstructible (logs)."""
     for rel_dir in _MIGRATED_DIRS_RELATIVE:
         src = os.path.join(external_data_dir, rel_dir)
         dst = os.path.join(internal_data_dir, rel_dir)
@@ -145,23 +87,7 @@ def _migrate_to_internal_storage_once(external_files_dir, internal_files_dir):
 
 
 def start_server_once(external_files_dir=None, native_library_dir=None, internal_files_dir=None, app_version=None):
-    """`external_files_dir` : `context.getExternalFilesDir(null)` côté
-    Kotlin — médias uniquement, cf. docstring de
-    module.
-
-    `internal_files_dir` : `context.filesDir` côté Kotlin — base
-    SQLite, miniatures, logs, branding, pochettes radio. Optionnel pour ne
-    pas casser un appelant Kotlin non mis à jour (repli intégral sur
-    `external_files_dir` pour tout, comportement historique).
-
-    `native_library_dir` : `context.applicationInfo.nativeLibraryDir` côté
-    Kotlin — Android 10+ interdit d'exécuter un binaire natif
-    depuis ailleurs que ce dossier (contrainte W^X). Pose
-    BOBINE_FFMPEG_BIN/BOBINE_FFPROBE_BIN vers les binaires statiques ARM64
-    embarqués en lib*.so, UNIQUEMENT s'ils existent réellement (absents
-    d'un build local sans l'étape de récupération CI) — sinon app.utils.ffmpeg_binaries retombe sur les noms nus.
-
-    `app_version` : version de l'application passée depuis BuildConfig.VERSION_NAME."""
+    """`external_files_dir` : `context.getExternalFilesDir(null)` côté Kotlin — médias uniquement, cf."""
     global _started
     with _lock:
         if _started:
@@ -186,9 +112,6 @@ def start_server_once(external_files_dir=None, native_library_dir=None, internal
                 _os.environ["BOBINE_FFMPEG_BIN"] = ffmpeg_path
             if _os.path.exists(ffprobe_path):
                 _os.environ["BOBINE_FFPROBE_BIN"] = ffprobe_path
-            # Discovery does not enable the experimental metadata path: the
-            # `media_native` setting (Réglages) does, since Android cannot set
-            # an environment variable. This only makes the executable reachable.
             if _os.path.isfile(media_path) and _os.access(media_path, _os.X_OK):
                 _os.environ["BOBINE_MEDIA_BIN"] = media_path
 
@@ -197,20 +120,8 @@ def start_server_once(external_files_dir=None, native_library_dir=None, internal
         from app.main import app
         from app.utils.port import acquire_listen_port, release_port
 
-        # Port d'ecoute : celui de la configuration s'il est libre, sinon un port
-        # de repli ; publie dans backend-runtime.json (dossier interne), que le
-        # code Kotlin lit via BackendEndpoint. Jamais un numero fige ici.
         listen_port = acquire_listen_port()
 
-        # keepalive HTTP
-        # allongé (Chromium/WebView ré-ouvrait une connexion TCP entre deux
-        # requêtes Range espacées de plus de 5s, coût élevé sur ce
-        # matériel) ; ping WebSocket natif d'uvicorn désactivé (le
-        # keepalive applicatif de `ws_manager.py` — 30s/60s, tolérant aux
-        # pages en arrière-plan — suffit, deux mécanismes de ping
-        # indépendants n'apportaient rien) ; concurrence plafonnée à une
-        # valeur adaptée à un usage salle (pas un service public), pour
-        # limiter le nombre de tâches concurrentes sur un CPU mobile.
         try:
             uvicorn.run(
                 app, host=settings.host, port=listen_port, workers=1,

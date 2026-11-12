@@ -1,14 +1,6 @@
-# Spécification RPM de Bobine (Fedora et dérivés ; compatibilité entreprise à valider séparément).
-#
-# Ce n'est PAS le .spec PyInstaller (packaging/linux/bobine.spec) : ici on EMBALLE
-# l'arbre PyInstaller déjà construit (même binaire que le .deb), aucune compilation.
-# Construit par packaging/rpm/build_rpm.sh, qui fournit les macros bobine_* et la
-# source (arborescence FHS produite par packaging/common/stage_root.sh).
 
 %global debug_package %{nil}
 %global _build_id_links none
-# Le bundle PyInstaller embarque ses propres bibliothèques : ni strip, ni scan des
-# dépendances/fournitures internes, ni recompilation de bytecode Python.
 %global __os_install_post %{nil}
 %global __requires_exclude_from ^/usr/lib/bobine/.*$
 %global __provides_exclude_from ^/usr/lib/bobine/.*$
@@ -25,16 +17,10 @@ URL:            https://bobine.fit
 Source0:        bobine-root.tar
 AutoReqProv:    no
 
-# ffmpeg complet : « ffmpeg » de RPM Fusion, ou « ffmpeg-free » (codecs limités) des
-# dépôts Fedora. Dépendance exprimée par fichier pour accepter l'un ou l'autre.
 Requires:       /usr/bin/ffmpeg
 Requires:       /usr/bin/ffprobe
-# Le bundle est construit sur une base glibc récente : refuser l'installation plutôt
-# que de planter au lancement (valeur calculée au build, voir build_rpm.sh).
 Requires:       glibc >= %{bobine_glibc}
 Recommends:     avahi
-# Outils de stockage externe facultatifs : le backend signale l'absence de chacun (fonction indisponible) au lieu
-# d'empêcher l'installation ou la mise à jour.
 Recommends:     udisks2
 Recommends:     smartmontools
 Recommends:     exfatprogs
@@ -62,10 +48,8 @@ Released under the GNU AGPL v3.0 or later.
 Source code: https://github.com/FantasmaGlad/Bobine
 
 %prep
-# Rien à décompresser ici : la source est l'arborescence déjà assemblée.
 
 %build
-# Aucune compilation (arbre PyInstaller prêt).
 
 %install
 rm -rf %{buildroot}
@@ -73,9 +57,6 @@ mkdir -p %{buildroot}
 tar -xf %{SOURCE0} -C %{buildroot}
 
 %pre
-# Mise à jour (deux versions installées simultanément) : arrêter Bobine AVANT le
-# remplacement des fichiers, comme le prerm du .deb. Sentinelle posée par la mise à jour
-# interne de Bobine : il se relance alors lui-même.
 if [ "$1" -ge 2 ] && [ ! -f /run/bobine-self-update-in-progress ]; then
     if pgrep -x BobineTray >/dev/null 2>&1 || pgrep -x BobineBackend >/dev/null 2>&1; then
         touch /run/bobine-restart-after-upgrade 2>/dev/null || touch /tmp/bobine-restart-after-upgrade 2>/dev/null || true
@@ -88,7 +69,6 @@ exit 0
 %post
 /usr/lib/bobine/configure-storage-access auto
 /usr/lib/bobine/configure-firewall open || true
-# Raccourci sur le Bureau de l'utilisateur qui a lancé dnf via sudo.
 if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
     USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
     if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
@@ -111,7 +91,6 @@ if [ -d /etc/skel/Desktop ]; then
     cp /usr/share/applications/com.bobine.app.desktop /etc/skel/Desktop/com.bobine.app.desktop
     chmod 0755 /etc/skel/Desktop/com.bobine.app.desktop
 fi
-# Appliance headless (installée par install.sh) : relance des services système si actifs.
 if systemctl is-active --quiet bobine-backend.service 2>/dev/null; then
     systemctl daemon-reload 2>/dev/null || true
     systemctl restart bobine-backend.service 2>/dev/null || true
@@ -122,8 +101,6 @@ fi
 exit 0
 
 %posttrans
-# Relance de l'application de bureau si elle tournait avant la mise à jour (exécuté
-# après la suppression de l'ancienne version : ordre RPM différent de celui de dpkg).
 if [ -f /run/bobine-restart-after-upgrade ] || [ -f /tmp/bobine-restart-after-upgrade ]; then
     rm -f /run/bobine-restart-after-upgrade /tmp/bobine-restart-after-upgrade 2>/dev/null || true
     if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
@@ -141,7 +118,6 @@ exit 0
 
 %preun
 if [ "$1" = 0 ]; then /usr/lib/bobine/configure-storage-access remove; /usr/lib/bobine/configure-firewall close || true; fi
-# Désinstallation complète uniquement ($1 = 0) : arrêt des processus Bobine.
 if [ "$1" -eq 0 ]; then
     pkill -x BobineTray >/dev/null 2>&1 || true
     pkill -x BobineBackend >/dev/null 2>&1 || true

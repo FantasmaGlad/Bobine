@@ -1,13 +1,4 @@
-"""Pilote Linux : PipeWire (audio), BlueZ par D-Bus (Bluetooth), NetworkManager (Wi-Fi).
-
-* Audio : `pw-dump` (lecture JSON) et `wpctl` (volume, sortie par défaut) — sans dépendance Python.
-* Bluetooth : `dbus-fast` (Python pur, asynchrone) sur le bus système ; Bobine enregistre un agent
-  d'appairage BlueZ (`org.bluez.Agent1`) pour confirmer les codes depuis l'interface.
-* Wi-Fi : `nmcli` en mode terse (front-end officiel de NetworkManager) ; les mots de passe sont
-  transmis sur l'entrée standard (`--ask`), JAMAIS en argument (visible dans `ps`) ni journalisés.
-
-Aucun appel ne lève d'exception brute : tout est converti en `DeviceError` ou `unsupported()`.
-"""
+"""Pilote Linux : PipeWire (audio), BlueZ par D-Bus (Bluetooth), NetworkManager (Wi-Fi)."""
 
 from __future__ import annotations
 
@@ -39,7 +30,6 @@ from .linux_parse import (
 
 logger = logging.getLogger(__name__)
 
-# (code retour, stdout, stderr)
 CommandResult = tuple[int, str, str]
 Runner = Callable[..., Awaitable[CommandResult]]
 
@@ -54,7 +44,7 @@ async def run_command(*args: str, timeout: float = 10.0, stdin: str | None = Non
     env = dict(os.environ, LC_ALL="C", LANG="C")
     runtime_dir = f"/run/user/{os.getuid()}" if hasattr(os, "getuid") else ""
     if not env.get("XDG_RUNTIME_DIR") and runtime_dir and os.path.isdir(runtime_dir):
-        env["XDG_RUNTIME_DIR"] = runtime_dir  # service sans session : cible la session PipeWire de l'utilisateur
+        env["XDG_RUNTIME_DIR"] = runtime_dir
     try:
         proc = await asyncio.create_subprocess_exec(
             *args,
@@ -76,8 +66,6 @@ async def run_command(*args: str, timeout: float = 10.0, stdin: str | None = Non
             proc.kill()
         except ProcessLookupError:
             pass
-        # Killing alone leaves the pipe transports attached to this loop.
-        # Drain and reap before timeout/shutdown can close the event loop.
         await proc.communicate()
         if isinstance(exc, asyncio.CancelledError):
             raise
@@ -98,22 +86,19 @@ class LinuxDriver(DeviceDriver):
         self._pending_future: asyncio.Future[bool] | None = None
         self._pairing: dict[str, Any] | None = None
         self._tone_lock = asyncio.Lock()
-        # Flux d'application que Bobine a déplacés (id PipeWire → sortie visée) : pour les rendre à la sortie par défaut.
         self._moved_streams: dict[int, str] = {}
         self._route_lock = asyncio.Lock()
         self._probe_cache: tuple[float, dict[str, dict[str, Any]]] | None = None
         self._wifi_device_cache: tuple[float, dict[str, str] | None] = (0.0, None)
 
-    # ------------------------------------------------------------------ cycle de vie
     async def stop(self) -> None:
         bus, self._bus = self._bus, None
         if bus is not None:
             try:
                 bus.disconnect()
-            except Exception:  # fermeture au mieux
+            except Exception:
                 pass
 
-    # ------------------------------------------------------------------ capacités
     async def capabilities(self) -> dict[str, dict[str, Any]]:
         now = time.monotonic()
         if self._probe_cache and now - self._probe_cache[0] < _PROBE_TTL:
@@ -186,7 +171,6 @@ class LinuxDriver(DeviceDriver):
             return exc.message
         return None if device else "Aucun adaptateur Wi-Fi détecté."
 
-    # ------------------------------------------------------------------ audio
     async def _audio_sinks(self) -> dict[str, Any]:
         code, out, err = await self._run("pw-dump", timeout=8)
         if code != 0:
@@ -266,7 +250,6 @@ class LinuxDriver(DeviceDriver):
                 path = os.path.join(tmp, "tone.wav")
                 with open(path, "wb") as handle:
                     handle.write(tone_wav_bytes(channel))
-                # Niveau du flux plafonné en plus de l'amplitude du fichier : un test ne doit jamais surprendre la salle.
                 code, _, err = await self._run("pw-play", "--target", device_id, "--volume", "0.5", path, timeout=6)
             if code != 0:
                 raise DeviceError("audio_failed", (err.strip() or "Lecture du son de test impossible.")[:200], 502)
@@ -286,25 +269,23 @@ class LinuxDriver(DeviceDriver):
         return parse_output_streams(await self._pw_dump_raw())
 
     async def audio_route_stream(self, sink_id: str | None) -> dict[str, Any]:
-        """Déplace le flux du navigateur qui joue la radio vers `sink_id` (`pw-metadata … target.object`), puis VÉRIFIE par
-        `pw-dump` que le flux est bien relié à cette sortie ; sinon retour arrière. `None` rend les flux déplacés par Bobine
-        à la sortie par défaut. Un seul flux de navigateur en lecture, sinon rien n'est déplacé (voir `choose_browser_stream`)."""
+        """Déplace le flux du navigateur qui joue la radio vers `sink_id` (`pw-metadata … target.object`), puis VÉRIFIE par `pw-dump` que le flux est bien relié à cette sortie ; sinon retour arrière."""
         if not shutil.which("pw-metadata"):
             raise DeviceError("tool_missing", "L'outil pw-metadata est introuvable : le routage système n'est pas disponible.", 501)
         async with self._route_lock:
             streams = await self._output_streams()
             if sink_id is None:
                 return await self._release_streams(streams)
-            await self._pw_id(sink_id)  # 404 si la sortie a disparu
+            await self._pw_id(sink_id)
             verdict, stream = choose_browser_stream(streams)
             if stream is None:
                 return {"status": "ambiguous" if verdict == "ambiguous" else "no_stream"}
-            if stream["sink"] == sink_id:  # déjà au bon endroit (déplacé par Bobine plus tôt, ou choix de l'utilisateur) : on n'y touche pas
+            if stream["sink"] == sink_id:
                 return {"status": "unchanged", "app": stream["app"]}
             code, _, err = await self._run("pw-metadata", "-n", "default", str(stream["id"]), "target.object", sink_id, "Spa:String", timeout=5)
             if code != 0:
                 return {"status": "failed", "app": stream["app"], "detail": (err.strip() or "pw-metadata a échoué.")[:200]}
-            for _ in range(8):  # WirePlumber relie le flux à la nouvelle sortie en quelques dizaines de millisecondes
+            for _ in range(8):
                 await asyncio.sleep(0.25)
                 moved = next((s for s in await self._output_streams() if s["id"] == stream["id"]), None)
                 if moved is not None and moved["sink"] == sink_id:
@@ -350,7 +331,6 @@ class LinuxDriver(DeviceDriver):
                 raise DeviceError("audio_failed", (err.strip() or "Réglage du son coupé refusé.")[:200], 502)
         self._emit("audio")
 
-    # ------------------------------------------------------------------ Bluetooth (D-Bus)
     async def _ensure_bus(self) -> Any:
         if self._bus is not None:
             return self._bus
@@ -383,7 +363,7 @@ class LinuxDriver(DeviceDriver):
         except asyncio.TimeoutError as exc:
             raise DeviceError("timeout", "Le Bluetooth n'a pas répondu dans le délai imparti.", 504) from exc
         except Exception as exc:
-            self._bus = None  # connexion perdue : sera rétablie au prochain appel
+            self._bus = None
             raise DeviceError("dbus_unavailable", "Le service Bluetooth est inaccessible.", 502) from exc
         if reply.message_type == MessageType.ERROR:
             raise DeviceError(*_bluez_error(reply.error_name, reply.body))
@@ -416,7 +396,7 @@ class LinuxDriver(DeviceDriver):
                     member="AddMatch", signature="s", body=["type='signal',sender='org.bluez'"],
                 )
             )
-        except Exception as exc:  # sans signaux, l'écran se met à jour par interrogation périodique
+        except Exception as exc:
             logger.debug("Abonnement aux signaux BlueZ impossible : %s", exc)
 
     async def _register_agent(self, bus: Any) -> None:
@@ -427,7 +407,7 @@ class LinuxDriver(DeviceDriver):
             bus.export(_AGENT_PATH, self._agent)
             await self._call("/org/bluez", "org.bluez.AgentManager1", "RegisterAgent", "os", [_AGENT_PATH, "KeyboardDisplay"])
             await self._call("/org/bluez", "org.bluez.AgentManager1", "RequestDefaultAgent", "o", [_AGENT_PATH])
-        except DeviceError as exc:  # un autre agent (bureau GNOME/KDE) gère déjà l'appairage : on s'en contente
+        except DeviceError as exc:
             logger.info("Agent d'appairage Bluetooth non enregistré : %s", exc.message)
             self._agent = None
 
@@ -493,12 +473,12 @@ class LinuxDriver(DeviceDriver):
             try:
                 await self._call(path, "org.freedesktop.DBus.Properties", "Set", "ssv", ["org.bluez.Device1", "Trusted", Variant("b", True)])
                 await self._call(path, "org.bluez.Device1", "Connect")
-            except DeviceError as exc:  # appairé mais connexion refusée : l'utilisateur peut réessayer
+            except DeviceError as exc:
                 logger.info("Appairé, connexion non établie (%s) : %s", address, exc.message)
             self._pairing = {"address": address, "state": "paired", "error": None}
         except DeviceError as exc:
             self._pairing = {"address": address, "state": "failed", "error": exc.message}
-        except Exception as exc:  # jamais d'exception non rattrapée dans une tâche
+        except Exception as exc:
             logger.warning("Appairage Bluetooth interrompu : %s", exc)
             self._pairing = {"address": address, "state": "failed", "error": "Appairage interrompu."}
         finally:
@@ -524,7 +504,6 @@ class LinuxDriver(DeviceDriver):
         await self._call(adapter, "org.bluez.Adapter1", "RemoveDevice", "o", [bluez_device_path(adapter, address) if is_valid_mac(address) else ""])
         self._emit("bluetooth")
 
-    # --- appels de l'agent d'appairage ---
     def _set_pending(self, pending: dict[str, Any]) -> asyncio.Future[bool]:
         self._pending = pending
         self._pending_future = asyncio.get_running_loop().create_future()
@@ -554,7 +533,6 @@ class LinuxDriver(DeviceDriver):
             address = path.rsplit("dev_", 1)[-1].replace("_", ":")
             return address, address
 
-    # ------------------------------------------------------------------ Wi-Fi (nmcli)
     async def _nmcli(self, *args: str, timeout: float = 15.0, stdin: str | None = None) -> str:
         code, out, err = await self._run("nmcli", *args, timeout=timeout, stdin=stdin)
         if code != 0:
@@ -610,7 +588,7 @@ class LinuxDriver(DeviceDriver):
             raise DeviceError("no_adapter", "Aucun adaptateur Wi-Fi détecté.", 501)
         try:
             await self._nmcli("dev", "wifi", "rescan", "ifname", device["device"], timeout=10)
-        except DeviceError as exc:  # NetworkManager refuse les scans trop rapprochés : on relit simplement la liste
+        except DeviceError as exc:
             if exc.code != "wifi_busy":
                 raise
         self._emit("wifi")
@@ -628,7 +606,6 @@ class LinuxDriver(DeviceDriver):
         if ssid in known and not password:
             await self._nmcli("-w", "30", "connection", "up", "id", ssid, "ifname", device["device"], timeout=40)
         elif password:
-            # --ask : le mot de passe est lu sur l'entrée standard, jamais placé en argument de commande.
             await self._nmcli("--ask", "-w", "30", "dev", "wifi", "connect", ssid, "ifname", device["device"], timeout=40, stdin=password + "\n")
         else:
             await self._nmcli("-w", "30", "dev", "wifi", "connect", ssid, "ifname", device["device"], timeout=40)

@@ -1,12 +1,4 @@
-"""Toutes les copies écrites à la main du numéro de version annoncent celui du fichier VERSION.
-
-`VERSION` (racine du dépôt) est l'unique source : lue par les builds, la CI y ajoute le suffixe de
-canal (« -beta », « -canary ») avant de construire. Quelques fichiers gardent un repli pour le cas où
-VERSION est introuvable (script copié isolément, compilation manuelle) : ils ne se mettent pas à
-jour tout seuls, donc ce test échoue à la préparation d'une release tant qu'ils ne sont pas alignés
-(le commit « chore(release): préparer la version X » doit tous les toucher).
-
-"""
+"""Toutes les copies écrites à la main du numéro de version annoncent celui du fichier VERSION."""
 
 import re
 from pathlib import Path

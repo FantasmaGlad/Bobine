@@ -1,5 +1,4 @@
-"""Configuration en fichiers JSON : un fichier par type de réglage, objets désignés par leurs noms et métadonnées (jamais
-par identifiant interne), homonymes signalés, copie lisible tenue à jour après chaque modification."""
+"""Configuration en fichiers JSON : un fichier par type de réglage, objets désignés par leurs noms et métadonnées (jamais par identifiant interne), homonymes signalés, copie lisible tenue à jour après chaque modification."""
 
 import json
 import os
@@ -149,7 +148,7 @@ def test_api_exports_all_files_or_one(library):
     assert client.get("/api/config/export/library/announcements.json").json()["announcements"][0]["description"] == (
         "Pensez à votre bouteille"
     )
-    assert client.get("/api/config/export/announcements.json").json()["kind"] == "announcements"  # nom plat de la 5.1
+    assert client.get("/api/config/export/announcements.json").json()["kind"] == "announcements"
     assert client.get("/api/config/export/manifest.json").json()["kind"] == "manifest"
     unknown = client.get("/api/config/export/inconnu.json")
     assert unknown.status_code == 404 and unknown.json()["detail"]["code"] == "unknown_config_file"
@@ -157,7 +156,7 @@ def test_api_exports_all_files_or_one(library):
 
 def test_mirror_rewrites_only_changed_files(library, tmp_path, monkeypatch):
     monkeypatch.setattr(config_files, "mirror_dir", lambda: tmp_path / "config")
-    assert config_files.write_mirror() == len(config_files.BUILDERS) + 1  # et le manifeste
+    assert config_files.write_mirror() == len(config_files.BUILDERS) + 1
     assert json.loads((tmp_path / "config" / "settings.json").read_text(encoding="utf-8"))["kind"] == "settings"
     assert (tmp_path / "config" / "playlists" / "video.json").exists()
     assert config_files.write_mirror() == 0

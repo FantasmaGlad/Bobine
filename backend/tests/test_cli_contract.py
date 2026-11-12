@@ -1,5 +1,4 @@
-"""Contrat entre l'API, l'interface et la commande `bobine` : une valeur se déclare une fois (app/api/contract.py), une route
-n'existe pas sans commande ni exemption motivée (app/cli/routes.py), une commande ne dérive pas de l'API."""
+"""Contrat entre l'API, l'interface et la commande `bobine` : une valeur se déclare une fois (app/api/contract.py), une route n'existe pas sans commande ni exemption motivée (app/cli/routes.py), une commande ne dérive pas de l'API."""
 import argparse
 import os
 
@@ -54,8 +53,6 @@ def test_covered_routes_name_a_real_command():
 def test_every_command_listed_for_the_launcher_exists_in_the_parser():
     assert set(cli_completion._command_tree(cli.build_parser())[1]) == set(cli.COMMANDS)
 
-
-# --- les choix du CLI sont ceux de l'API -----------------------------------------------------------------------------------
 
 EXPECTED_CHOICES = {
     ("library", "list", "sort_by"): contract.VIDEO_SORT_FIELDS,
@@ -178,7 +175,6 @@ def test_the_facade_knows_every_action_of_the_contract(client):
 
 
 def test_the_todo_list_only_shrinks():
-    """Garde-fou : le nombre de routes sans commande prévue ne grandit pas sans décision ; le baisser (nouvelle commande)
-    est la bonne direction. Mettre à jour ce plafond avec la commande qui retire des routes de `todo`."""
+    """Garde-fou : le nombre de routes sans commande prévue ne grandit pas sans décision ; le baisser (nouvelle commande) est la bonne direction."""
     todo = [route for route in api_routes() if any(r.status == "todo" for r in cli_routes.exemption_for(route))]
     assert len(todo) <= 120, f"{len(todo)} routes todo : ajouter des commandes plutôt que des exemptions"

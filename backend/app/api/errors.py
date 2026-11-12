@@ -5,7 +5,6 @@ from fastapi.responses import JSONResponse
 
 
 async def _unhandled_error(request: Request, exc: Exception) -> JSONResponse:
-    # La trace est déjà journalisée par le serveur ASGI, qui relève l'exception après cette réponse.
     return JSONResponse(status_code=500, content={"detail": "Erreur interne du serveur."})
 
 

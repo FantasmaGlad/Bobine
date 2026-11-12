@@ -10,23 +10,14 @@ import org.json.JSONObject
 private const val TAG = "StoreUpdates"
 private const val PROVIDER_CLASS = "com.bobine.app.PlayUpdateProvider"
 
-/** Fournisseur de mises à jour d'une boutique (implémenté uniquement par le build Google Play). */
 interface StoreUpdateProvider {
-    /** JSON : `{"state": "none|available|downloading|downloaded|installing|failed", "version_code": n, ...}`. */
     fun check(context: Context): String
 
-    /** Démarre la mise à jour souple (téléchargement en arrière-plan, interface de Google Play). */
     fun start(context: Context): String
 
-    /** Installe la mise à jour téléchargée (l'application redémarre). */
     fun complete(context: Context): String
 }
 
-/**
- * Mises à jour des builds distribués par une boutique : appelé par le backend Python (`AndroidHandler`)
- * depuis Réglages → Mises à jour. Le build libre n'a PAS de fournisseur (les mises à jour y passent par
- * le téléchargement des releases) : `provider()` y renvoie null et rien de Google n'est chargé.
- */
 object StoreUpdates {
     private val provider: StoreUpdateProvider? by lazy {
         if (!BuildConfig.STORE_BUILD) return@lazy null
@@ -53,7 +44,6 @@ object StoreUpdates {
         Log.w(TAG, "complete", e); unavailable()
     }
 
-    /** Ouvre la fiche de l'application dans Google Play (repli : navigateur). Aucune bibliothèque Google requise. */
     fun openListing(context: Context): String {
         val id = context.packageName
         return try {

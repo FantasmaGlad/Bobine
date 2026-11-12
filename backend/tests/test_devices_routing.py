@@ -1,13 +1,9 @@
-"""Phase 2 des périphériques : routage audio par sortie radio.
-
-Aucun matériel ni PipeWire réel : pilote factice pour le routeur et le service, exécuteur de commandes simulé pour le
-déplacement de flux Linux (le test sur de vrais flux PipeWire est un script à part, hors de la suite)."""
+"""Phase 2 des périphériques : routage audio par sortie radio."""
 
 import asyncio
 import json
 import os
 
-# Base de test isolée AVANT tout import de l'application (comme les autres tests).
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
@@ -44,17 +40,12 @@ JBL = {"id": "bluez_output.88_92_CC_9C_41_0E.1", "name": "JBL Live 770NC", "desc
 HDMI = {"id": "alsa_output.hdmi", "name": "HDMI / DP", "description": "Écran HDMI", "kind": "hdmi", "is_default": False, "available": True}
 
 
-# ---------------------------------------------------------------------------
-# Descripteurs, résolution, état publié
-# ---------------------------------------------------------------------------
-
-
 def test_cle_stable_bluetooth_independante_du_profil_et_du_suffixe():
     assert stable_sink_key("bluez_output.88_92_CC_9C_41_0E.1") == "bt:88:92:CC:9C:41:0E"
     assert stable_sink_key("bluez_output.88_92_cc_9c_41_0e.a2dp-sink") == "bt:88:92:CC:9C:41:0E"
     assert stable_sink_key("bluez_sink.88_92_CC_9C_41_0E.a2dp_sink") == "bt:88:92:CC:9C:41:0E"
     assert stable_sink_key("alsa_output.pci-0000_03_00.6.analog-stereo") == "node:alsa_output.pci-0000_03_00.6.analog-stereo"
-    assert stable_sink_key("bluez_output.88_92") == "node:bluez_output.88_92"  # pas une MAC complète
+    assert stable_sink_key("bluez_output.88_92") == "node:bluez_output.88_92"
 
 
 def test_normalisation_des_libelles_ignore_casse_accents_et_ponctuation():
@@ -85,7 +76,6 @@ def test_resolution_presente_absente_inconnue_et_reconnexion_bluetooth():
     assert resolve_route(route, None)["state"] == "unknown"
     assert resolve_route(route, [SPEAKER, HDMI])["state"] == "missing"
     assert resolve_route(route, [SPEAKER, {**JBL, "available": False}])["state"] == "missing"
-    # Le haut-parleur revient avec un autre nom de nœud (autre profil) : même MAC, la route se rétablit.
     reconnected = {**JBL, "id": "bluez_output.88_92_CC_9C_41_0E.a2dp-sink"}
     resolved = resolve_route(route, [SPEAKER, reconnected])
     assert resolved["state"] == "routed" and resolved["sink"]["id"] == reconnected["id"]
@@ -98,7 +88,7 @@ def test_etat_publie_aux_lecteurs_sans_identifiant_de_noeud():
     assert "sink_id" not in state and "88_92" not in json.dumps(state)
     assert player_route_state(None, resolve_route(None, [SPEAKER])) is None
     missing = player_route_state(route, resolve_route(route, [SPEAKER]))
-    assert missing["state"] == "missing" and missing["match"]  # les libellés mémorisés restent disponibles
+    assert missing["state"] == "missing" and missing["match"]
 
 
 def test_persistance_aller_retour_et_valeur_corrompue():
@@ -131,11 +121,6 @@ def test_chargement_au_demarrage_publie_la_route_en_etat_inconnu():
         save_routes(db, {})
         load_routes_into_managers(db)
     assert manager.state["route"] is None
-
-
-# ---------------------------------------------------------------------------
-# Flux PipeWire et déplacement (Linux)
-# ---------------------------------------------------------------------------
 
 
 def _stream(node_id, binary, app_name, state="running"):
@@ -174,7 +159,7 @@ class FakePipeWire:
     """Simule `pw-dump` et `pw-metadata` : un flux de navigateur qui suit `target.object` quand on le lui donne."""
 
     def __init__(self, streams, follow=True):
-        self.streams = streams  # id -> {"binary", "app", "state", "sink"}
+        self.streams = streams
         self.follow = follow
         self.calls: list[tuple] = []
         self.default = "alsa_output.speaker"
@@ -223,7 +208,7 @@ def test_deplacement_verifie_du_flux_unique(pw_tools, monkeypatch):
     assert again["status"] == "unchanged"
     released = asyncio.run(driver.audio_route_stream(None))
     assert released["status"] == "released" and pw.streams[70]["sink"] is None
-    assert asyncio.run(driver.audio_route_stream(None))["status"] == "unchanged"  # rien à rendre
+    assert asyncio.run(driver.audio_route_stream(None))["status"] == "unchanged"
 
 
 async def _no_sleep(_):
@@ -235,7 +220,7 @@ def test_retour_arriere_si_le_flux_ne_rejoint_pas_la_sortie(pw_tools, monkeypatc
     driver, pw = _driver({70: {"binary": "chromium", "app": "Chromium", "state": "running", "sink": None}}, follow=False)
     result = asyncio.run(driver.audio_route_stream("alsa_output.hdmi"))
     assert result["status"] == "failed"
-    assert any("-d" in call for call in pw.calls)  # la métadonnée posée est retirée
+    assert any("-d" in call for call in pw.calls)
 
 
 def test_aucun_deplacement_si_flux_ambigu_ou_absent(pw_tools, monkeypatch):
@@ -290,11 +275,6 @@ def test_tous_les_pilotes_declarent_la_capacite():
     with pytest.raises(DeviceError) as exc:
         asyncio.run(NullDriver().audio_route_stream("x"))
     assert exc.value.status == 501
-
-
-# ---------------------------------------------------------------------------
-# Service : réconciliation et mécanisme serveur
-# ---------------------------------------------------------------------------
 
 
 class RoutingDriver(DeviceDriver):
@@ -381,10 +361,10 @@ def test_reconciliation_publie_l_etat_et_suit_la_reconnexion(routing_env):
     asyncio.run(fresh.reconcile_routes())
     assert get_radio_manager("radio_cable").state["route"]["state"] == "routed"
     assert get_radio_manager("radio_network").state["route"] is None
-    driver.sinks = [SPEAKER, HDMI]  # le haut-parleur Bluetooth s'éteint
+    driver.sinks = [SPEAKER, HDMI]
     asyncio.run(fresh.reconcile_routes())
     assert get_radio_manager("radio_cable").state["route"]["state"] == "missing"
-    driver.sinks = [SPEAKER, {**JBL, "id": "bluez_output.88_92_CC_9C_41_0E.a2dp-sink"}]  # il revient (autre nœud)
+    driver.sinks = [SPEAKER, {**JBL, "id": "bluez_output.88_92_CC_9C_41_0E.a2dp-sink"}]
     asyncio.run(fresh.reconcile_routes())
     assert get_radio_manager("radio_cable").state["route"]["state"] == "routed"
 
@@ -409,7 +389,6 @@ def test_le_serveur_deplace_le_flux_d_un_lecteur_local_qui_joue(routing_env):
     asyncio.run(fresh.reconcile_routes())
     assert driver.routed == [JBL["id"]]
     assert fresh.server_status("radio_cable") == {"status": "moved", "app": "Chromium"}
-    # La route est effacée : le flux déplacé est rendu à la sortie par défaut.
     with SessionLocal() as db:
         save_routes(db, {})
     asyncio.run(fresh.reconcile_routes())
@@ -428,7 +407,7 @@ def test_le_serveur_ne_touche_pas_a_ce_que_le_navigateur_a_applique(routing_env)
 def test_lecteur_distant_ou_radio_a_l_arret_le_serveur_n_agit_pas(routing_env):
     fresh, driver = routing_env
     _route()
-    _add_player("radio_cable", host="203.0.113.9", status="unsupported")  # lecteur sur un autre appareil
+    _add_player("radio_cable", host="203.0.113.9", status="unsupported")
     get_radio_manager("radio_cable").state["playing"] = True
     asyncio.run(fresh.reconcile_routes())
     assert driver.routed == [] and fresh.server_status("radio_cable") is None
@@ -471,13 +450,8 @@ def test_une_panne_du_pilote_ne_leve_jamais_et_ne_touche_pas_a_la_lecture(routin
         raise RuntimeError("D-Bus a planté")
 
     driver.audio_route_stream = boom
-    asyncio.run(fresh.reconcile_routes())  # ne lève pas
+    asyncio.run(fresh.reconcile_routes())
     assert manager.state["playing"] is True
-
-
-# ---------------------------------------------------------------------------
-# API : accès, validation, vue
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -508,7 +482,7 @@ def test_choix_effacement_et_repli_d_une_route(api, monkeypatch):
     assert chosen.status_code == 200
     cable = chosen.json()["outputs"][0]
     assert cable["route"]["label"] == "JBL Live 770NC" and cable["route"]["fallback"] == "default" and cable["state"] == "routed" and cable["sink_id"] == JBL["id"]
-    assert get_radio_manager("radio_cable").state["route"]["state"] == "routed"  # publié au lecteur
+    assert get_radio_manager("radio_cable").state["route"]["state"] == "routed"
     assert get_radio_manager("radio_network").state["route"] is None
     with SessionLocal() as db:
         assert load_routes(db)["radio_cable"]["key"] == "bt:88:92:CC:9C:41:0E"
@@ -528,7 +502,6 @@ def test_alias_de_bobine_utilise_pour_l_affichage_de_la_route(api, monkeypatch):
     assert client.put("/api/devices/audio/meta", json={"id": JBL["id"], "alias": "Enceinte du fond"}).status_code == 200
     route = client.put("/api/devices/routing", json={"channel": "radio_network", "sink_id": JBL["id"]}).json()["outputs"][1]["route"]
     assert route["label"] == "Enceinte du fond"
-    # Les libellés de correspondance restent ceux du système (l'alias n'existe pas dans le navigateur).
     assert "Enceinte du fond" not in get_radio_manager("radio_network").state["route"]["match"]
 
 
@@ -546,7 +519,7 @@ def test_erreurs_structurees_jamais_de_500(api, monkeypatch):
     assert code(client.put("/api/devices/routing", json={"channel": "radio_cable", "sink_id": "disparue"})) == (404, "not_found")
     assert code(client.put("/api/devices/routing", json={"channel": "radio_cable", "fallback": "mute"})) == (400, "no_route")
     assert code(client.put("/api/devices/routing", json={"channel": "radio_cable"})) == (400, "bad_request")
-    assert client.put("/api/devices/routing", json={}).status_code == 422  # corps invalide : validation FastAPI, pas une 500
+    assert client.put("/api/devices/routing", json={}).status_code == 422
 
     async def boom():
         raise DeviceError("audio_unavailable", "PipeWire ne répond pas", 502)
@@ -554,7 +527,7 @@ def test_erreurs_structurees_jamais_de_500(api, monkeypatch):
     driver.audio_list = boom
     assert code(client.put("/api/devices/routing", json={"channel": "radio_cable", "sink_id": JBL["id"]})) == (501, "unsupported")
     view = client.get("/api/devices/routing")
-    assert view.status_code == 200  # la vue dégrade proprement (route « inconnue »)
+    assert view.status_code == 200
 
 
 def test_pilote_nul_vue_non_prise_en_charge(api, monkeypatch):
@@ -568,11 +541,6 @@ def test_pilote_nul_vue_non_prise_en_charge(api, monkeypatch):
     assert response.status_code == 501 and response.json()["detail"]["code"] == "unsupported"
 
 
-# ---------------------------------------------------------------------------
-# WebSocket : rapport du lecteur
-# ---------------------------------------------------------------------------
-
-
 def test_le_rapport_du_lecteur_est_memorise_borne_et_retire_a_la_deconnexion(api, monkeypatch):
     fresh, driver = api
     _local(monkeypatch)
@@ -582,7 +550,7 @@ def test_le_rapport_du_lecteur_est_memorise_borne_et_retire_a_la_deconnexion(api
     monkeypatch.setattr(playback_router.radio_commands, "devices_service", fresh)
     with client.websocket_connect("/ws/playback") as ws:
         ws.send_json({"command": "identify", "params": {"role": "kiosk", "channel": "radio_cable", "client_id": "t1", "page": "radio"}})
-        while ws.receive_json()["event"] != "kiosk_role":  # après boot_id et les états de synchronisation
+        while ws.receive_json()["event"] != "kiosk_role":
             pass
         ws.send_json({"command": "radio_report_route", "params": {"channel": "radio_cable", "status": "needs_labels"}})
         _wait_for(lambda: _players(client, "radio_cable") == ["needs_labels"])

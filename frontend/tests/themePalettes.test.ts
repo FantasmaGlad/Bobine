@@ -59,7 +59,6 @@ test("lisibilité garantie pour les dix-huit palettes : texte, accent « texte �
       }
       assert.ok(contrast(t["accent-primary-fg"], t["accent-primary"]) >= 4.5, `${where} : texte sur bouton plein`);
       assert.ok(contrast(t["border-focus"], t["bg-main"]) >= 3, `${where} : anneau de focus`);
-      // Éléments critiques de diffusion (titre du cours, minuteurs, état, avertissements) : AAA sur le fond de page.
       assert.ok(contrast(t["text-main"], t["bg-main"]) >= 7, `${where} : texte critique sur le fond`);
       assert.ok(contrast(t["accent-error-text"], t["bg-main"]) >= 7 || contrast(t["accent-error-text"], t["bg-main"]) >= 5.5, `${where} : avertissement sur le fond`);
     }

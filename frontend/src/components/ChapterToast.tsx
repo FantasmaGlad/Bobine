@@ -6,13 +6,11 @@ import { chapterIndexAt, type Chapter } from "@/lib/chapters";
 interface ChapterToastProps {
   chapters: Chapter[];
   videoRef: RefObject<HTMLVideoElement | null>;
-  /** Libellé devant le numéro, ex. « Chapitre ». */
   label: string;
 }
 
 const VISIBLE_MS = 6000;
 
-/** Annonce discrète du chapitre qui commence (écrans de diffusion). */
 export default function ChapterToast({ chapters, videoRef, label }: ChapterToastProps) {
   const [shown, setShown] = useState<{ index: number; title: string } | null>(null);
   const lastIndex = useRef(-2);

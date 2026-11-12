@@ -3,12 +3,6 @@
 import { useEffect, useRef } from "react";
 import { getPlaybackWsUrl } from "./apiUrl.ts";
 
-/**
- * Écoute les évènements `devices_changed` (audio, bluetooth, wifi) du serveur et appelle `onChange(scope)`.
- * L'évènement ne porte AUCUNE donnée : l'appelant relit l'état par REST.
- * Connexion légère : abonnement à aucun canal de lecture (seuls les évènements globaux arrivent),
- * reconnexion automatique avec attente croissante, réponse aux ping du serveur.
- */
 export function useDevicesEvents(onChange: (scope: string) => void, enabled = true): void {
   const callbackRef = useRef(onChange);
   useEffect(() => {
@@ -36,7 +30,6 @@ export function useDevicesEvents(onChange: (scope: string) => void, enabled = tr
           if (message.event === "ping") ws.send(JSON.stringify({ command: "pong" }));
           else if (message.event === "devices_changed") callbackRef.current(String(message.scope ?? ""));
         } catch {
-          /* message illisible : ignoré */
         }
       };
       ws.onclose = () => {

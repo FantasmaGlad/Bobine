@@ -17,8 +17,6 @@ def _port80_redirect() -> bool:
 
 
 def _mdns_host() -> str:
-    """Nom réellement publié : `bobine.local` par le répondeur de Bobine ou l'avahi de l'appliance ; sur un Linux de
-    bureau dont l'avahi système tient déjà le rôle (état « external »), c'est le nom de la machine qui est publié."""
     if get_mdns_status().get("state") == "external":
         return f"{socket.gethostname().split('.')[0].lower()}.local"
     return "bobine.local"
@@ -38,18 +36,10 @@ def _access_links() -> list[dict[str, str]]:
 
 _cached_local_ip: str | None = None
 _cached_local_ip_time: float = 0.0
-_LOCAL_IP_CACHE_TTL = 15.0  # Actualisation toutes les 15 secondes maximum
+_LOCAL_IP_CACHE_TTL = 15.0
 
 
 def _get_local_ip() -> str | None:
-    """Adresse IPv4 du réseau local (Wi-Fi ou Ethernet) à afficher et à donner
-    aux autres appareils ; jamais celle d'un VPN ou du réseau mobile (cf.
-    `utils/network.py`). Équivalent de `hostname -I` sans sous-processus, en
-    complément de la découverte mDNS (bobine.local, cf. install.sh).
-
-    Mise en cache avec TTL court (15s) pour éviter des énumérations répétées
-    tout en permettant à l'IP de s'actualiser automatiquement lors d'un
-    changement de réseau ou d'attribution DHCP sans redémarrer le serveur."""
     global _cached_local_ip, _cached_local_ip_time
     now = time.time()
     if _cached_local_ip is not None and (now - _cached_local_ip_time) < _LOCAL_IP_CACHE_TTL:

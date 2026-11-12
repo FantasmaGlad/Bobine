@@ -14,7 +14,6 @@ from typing import Any
 from .client import Client
 from .core import EXIT_ERROR, EXIT_OK, EXIT_USAGE, CliError, Output, parse_params
 
-# Familles de l'arborescence de la configuration (`bobine config export`) : un sous-dossier passé seul garde son préfixe.
 CONFIG_FAMILIES = ("outputs", "library", "playlists", "schedule", "radio")
 
 
@@ -24,11 +23,10 @@ def _read_documents(paths: list[str]) -> dict[str, Any]:
         path = Path(raw)
         targets = sorted(path.rglob("*.json")) if path.is_dir() else [path]
         for target in targets:
-            # Dans un dossier, le nom est le chemin relatif (`playlists/video.json`) ; un fichier seul garde son nom.
             name = target.relative_to(path).as_posix() if path.is_dir() else target.name
             base = path if path.is_dir() else target.parent
             if "/" not in name and base.name in CONFIG_FAMILIES and name != "settings.json":
-                name = f"{base.name}/{name}"  # un sous-dossier de l'arborescence (playlists/, schedule/…) passé seul
+                name = f"{base.name}/{name}"
             if name in files:
                 raise CliError(f"deux fichiers nommés {name} : l'un écraserait l'autre (le nom désigne le type de réglage).", EXIT_USAGE)
             try:
@@ -41,7 +39,6 @@ def _read_documents(paths: list[str]) -> dict[str, Any]:
 
 
 def _checked_export_name(name: object) -> str:
-    """Nom de fichier rendu par le serveur : relatif au dossier demandé, jamais absolu ni `..`."""
     text = str(name)
     normalized = text.replace("\\", "/")
     if (
@@ -58,7 +55,6 @@ def _checked_export_name(name: object) -> str:
 def cmd_config(client: Client, out: Output, args: argparse.Namespace) -> int:
     if args.config_action == "export":
         if args.name:
-            # Le serveur connaît les noms de l'arborescence et les noms plats de la version 5.1.
             document = client.request("GET", "/api/config/export/" + urllib.parse.quote(args.name.replace("\\", "/"), safe="/"),
                                       accept_status=frozenset({404}))
             if not isinstance(document, dict) or "kind" not in document:
@@ -73,7 +69,6 @@ def cmd_config(client: Client, out: Output, args: argparse.Namespace) -> int:
             try:
                 target.mkdir(parents=True, exist_ok=True)
                 for name, document in exported.items():
-                    # Nom fourni par le serveur : jamais un chemin absolu ni une remontée hors du dossier choisi.
                     relative = name if args.name else _checked_export_name(name)
                     path = target / relative
                     path.parent.mkdir(parents=True, exist_ok=True)
@@ -82,7 +77,7 @@ def cmd_config(client: Client, out: Output, args: argparse.Namespace) -> int:
                 raise CliError(f"écriture impossible dans {target} : {exc}", EXIT_ERROR) from exc
             out.result({"written": sorted(exported), "directory": str(target)}, f"{len(exported)} fichier(s) écrit(s) dans {target}")
         else:
-            out.json = True  # sans dossier, le document part sur stdout pour une redirection
+            out.json = True
             out.result(exported if not args.name else exported[args.name])
         return EXIT_OK
     files = _read_documents(args.paths)
@@ -112,7 +107,6 @@ def cmd_settings(client: Client, out: Output, args: argparse.Namespace) -> int:
         out.result(value, json.dumps(value, ensure_ascii=False, indent=2) if not isinstance(value, str) else value)
         return EXIT_OK
     changes = parse_params(args.pairs)
-    # Les réglages booléens se stockent en texte « true » ou « false » côté serveur.
     body = {k: ("true" if v else "false") if isinstance(v, bool) else v for k, v in changes.items()}
     saved = client.request("PUT", "/api/settings", body=body)
     message = "Réglage(s) enregistré(s) : " + ", ".join(body)

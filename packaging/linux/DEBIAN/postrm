@@ -11,7 +11,6 @@ if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
         gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
     fi
 
-    # Nettoyage du raccourci sur le Bureau
     if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
         USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
         if [ -n "$USER_HOME" ]; then

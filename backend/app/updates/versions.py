@@ -11,12 +11,7 @@ SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
 
 
 def parse_version(version_str: str) -> tuple[tuple[int, int, int], tuple]:
-    """Parse une chaîne 'V3.0.1' ou 'V3.0.1-beta.2' en clé de tri conforme à
-    la précédence semver : à base MAJOR.MINOR.PATCH égale, une version SANS
-    pre-release est toujours postérieure à une version AVEC pre-release, et
-    deux pre-releases se comparent identifiant par identifiant (numérique si
-    possible, sinon lexical — les identifiants numériques ont une précédence
-    inférieure aux alphanumériques, comme le veut semver)."""
+    """Parse une chaîne 'V3.0.1' ou 'V3.0.1-beta.2' en clé de tri conforme à la précédence semver : à base MAJOR.MINOR.PATCH égale, une version SANS pre-release est toujours postérieure à une version AVEC pre-release, et deux pre-releases se comparent identifiant par identifiant (numérique si possible, sinon lexical — les identifiants numériques ont une précédence inférieure aux alphanumériques, comme le veut semver)."""
     s = (version_str or "").strip()
     if s[:1] in ("v", "V"):
         s = s[1:]
@@ -41,10 +36,7 @@ def short_sha(sha: str | None, length: int = 7) -> str:
 
 
 def commit_based_update(local_commit: str, release_data: dict[str, Any]) -> bool:
-    """Un canal rolling (Bêta curée ou Canary) n'a pas de numéro de version
-    qui avance à chaque build (tag fixe) — la comparaison porte donc sur le
-    COMMIT plutôt que sur une version sémantique. Partagé par tous les
-    canaux glissants (`ROLLING_CHANNEL_IDS`)."""
+    """Un canal rolling (Bêta curée ou Canary) n'a pas de numéro de version qui avance à chaque build (tag fixe) — la comparaison porte donc sur le COMMIT plutôt que sur une version sémantique."""
     remote_commit = short_sha(release_data.get("target_commitish"))
     if not remote_commit or local_commit in ("unknown", ""):
         return False
@@ -52,8 +44,7 @@ def commit_based_update(local_commit: str, release_data: dict[str, Any]) -> bool
 
 
 def rolling_tag_update(local_commit: str, release_data: dict[str, Any], tag_name: str) -> dict[str, Any]:
-    """Décision pour un canal rolling (Bêta curée ou Canary), paramétrée par
-    le nom du tag mobile concerné — voir `commit_based_update`."""
+    """Décision pour un canal rolling (Bêta curée ou Canary), paramétrée par le nom du tag mobile concerné — voir `commit_based_update`."""
     remote_short = short_sha(release_data.get("target_commitish"))
     return {
         "has_update": commit_based_update(local_commit, release_data),
@@ -63,19 +54,7 @@ def rolling_tag_update(local_commit: str, release_data: dict[str, Any], tag_name
 
 
 def evaluate_update(channel: str, local: dict[str, Any], release_data: dict[str, Any]) -> dict[str, Any]:
-    """Décision pure (aucun I/O, testable) : y a-t-il quelque chose à
-    installer pour ce canal, et est-ce un retour en arrière ?
-
-    Canal Stable : une version strictement plus récente est toujours
-    proposée. Si le build local est un build Bêta/Canary, la Stable la plus
-    récente est proposée même quand elle est numériquement INFÉRIEURE
-    (`is_downgrade`) — c'est le geste "repasser en Stable à tout moment"
-    promis dans Réglages. Jamais appliquée automatiquement par la
-    planification (`run_scheduled_update_if_available`) : un retour en
-    arrière reste toujours un clic explicite.
-
-    Canaux Bêta/Canary (rolling) : comparaison de commits (cf.
-    `rolling_tag_update`)."""
+    """Décision pure (aucun I/O, testable) : y a-t-il quelque chose à installer pour ce canal, et est-ce un retour en arrière ?"""
     if channel in ROLLING_CHANNEL_IDS:
         return rolling_tag_update(local["current_commit"], release_data, channel)
     latest_tag = release_data.get("tag_name") or ""
@@ -88,8 +67,7 @@ def evaluate_update(channel: str, local: dict[str, Any], release_data: dict[str,
 
 
 def release_target_ref(release_data: dict[str, Any]) -> str | None:
-    """Référence git à comparer au build local : le SHA de la release s'il est
-    connu (tag mobile d'un canal rolling), sinon son tag (Stable)."""
+    """Référence git à comparer au build local : le SHA de la release s'il est connu (tag mobile d'un canal rolling), sinon son tag (Stable)."""
     commitish = (release_data.get("target_commitish") or "").lower()
     if SHA_RE.match(commitish):
         return commitish

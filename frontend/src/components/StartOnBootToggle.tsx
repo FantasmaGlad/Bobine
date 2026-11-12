@@ -5,7 +5,6 @@ import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getNativeBridge } from "@/lib/nativeBridge";
 
-/** Réglage Android : relancer le serveur et l'écran au démarrage de l'appareil (absent ailleurs). */
 export default function StartOnBootToggle() {
   const { t } = useAppSettings();
   const [available, setAvailable] = useState(false);

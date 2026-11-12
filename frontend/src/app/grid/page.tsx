@@ -19,17 +19,6 @@ import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 import { getApiUrl } from "@/lib/apiUrl";
 import { formatMinutes, formatTime, formatWallClock } from "@/lib/format";
 
-// écran de sélection
-// SEUL — reprend la présentation visuelle de la grille de `/cinema` (héros
-// + rangées par programme + liste complète), mais sans jamais lire de
-// vidéo localement. Sélectionner un cours envoie une commande `launch` sur
-// le canal câblé plutôt que de démarrer une lecture ici — c'est le(s)
-// `/cinema` du même canal qui joue(nt) réellement le cours (ex. la sortie
-// HDMI de la tablette Android). Cette page reste TOUJOURS affichée sur la
-// grille, y compris pendant qu'un cours joue ailleurs sur le canal.
-//
-// Les rangées et la liste complète sont les composants de `/cinema` (`components/cinema`).
-
 export default function GridPage() {
   const { t, wiredDisplayMode, setWiredDisplayMode, waitTimeBetweenCourses } = useAppSettings();
   const [videos, setVideos] = useState<CinemaVideo[]>([]);
@@ -42,39 +31,18 @@ export default function GridPage() {
 
   const router = useRouter();
 
-  // Toujours le canal câblé : /grid n'a de sens que pour piloter la sortie
-  // câblée (ex. la sortie HDMI de la tablette Android) - pas de variante
-  // réseau pour l'instant (périmètre volontairement limité).
   const { state, sendCommand, displayOutputCable, cinemaState, libraryVersion } = usePlaybackSocket(undefined, undefined, "cable", undefined, "grid");
 
-  // Bascule automatique vers l'interface coach si le mode coach est actif sur le canal câblé
-  // (valable aussi bien sur tablette que sur appliance avec écran en mode headless)
   useEffect(() => {
     if (state.state === "coach_mode") {
       router.replace("/coach");
     }
   }, [state.state, router]);
-  // Avertissement "rien ne se passe" (retour utilisateur) : un ordre "launch"
-  // envoyé alors que la sortie câblée est réglée sur "kiosk" (et non
-  // "cinema") ne sera reçu par AUCUN écran - /kiosk n'écoute pas
-  // cinema_command. displayOutputCable est déjà suivi par usePlaybackSocket
-  // pour un tout autre usage (redirection de /cinema) ; le réutiliser ici en
-  // lecture seule coûte zéro requête supplémentaire. Purement indicatif :
-  // la commande part quand même (displayOutputCable peut être momentanément
-  // périmé/null au tout premier rendu).
   const [launchWarning, setLaunchWarning] = useState<string | null>(null);
   const launchWarningTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const playHoverSound = useHoverSound("/sounds/survole.mp3");
   const themeFg = useThemeAccentForeground();
 
-  // Même sondage que /cinema (15s) - dupliqué plutôt que partagé, cf.
-  // commentaire en tête de fichier.
-  // Un échec transitoire (backend momentanément congestionné) laissait `videos` vide jusqu'au
-  // PROCHAIN sondage à 15s — ressenti comme "il faut recharger plusieurs
-  // fois". Retentative rapide (3s) dédiée sur ÉCHEC uniquement, en plus du
-  // sondage normal ; ne vide JAMAIS une liste déjà chargée sur un échec
-  // (une réponse invalide/une erreur réseau ponctuelle garde l'affichage
-  // précédent plutôt que de faire disparaître la grille).
   useEffect(() => {
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -114,18 +82,12 @@ export default function GridPage() {
       clearInterval(id);
       if (retryTimer) clearTimeout(retryTimer);
     };
-    // libraryVersion : recharge immédiate sur `library_change` (import/
-    // modif/suppression), au lieu d'attendre jusqu'à 15s.
   }, [libraryVersion]);
 
-  // Lancement distant : envoie l'ordre sur le canal câblé plutôt
-  // que de lire quoi que ce soit ici - cette page ne quitte JAMAIS son
-  // propre affichage de grille.
   const lastLaunchRef = useRef<number>(0);
   const handleSelect = useCallback((video: CinemaVideo) => {
     const now = Date.now();
     if (now - lastLaunchRef.current < 1500) {
-      // Protection anti-rebond : ignore les doubles clics ou doubles taps rapides
       return;
     }
     lastLaunchRef.current = now;
@@ -148,13 +110,6 @@ export default function GridPage() {
     };
   }, []);
 
-  // Panneau "en cours de lecture" (demande explicite utilisateur : avancer/
-  // reculer/pause/enlever depuis /grid, l'écran HDMI n'affiche plus aucune
-  // commande) — même mécanique que le bloc "cinéma" du tableau de bord admin
-  // (DashboardScreen.tsx) : `cinemaState` est le rapport passif que /cinema
-  // envoie déjà sur ce canal (titre/position/lecture), et les commandes
-  // play/pause/seek/stop empruntent le même `cinema_command` que "launch".
-  // Dupliqué plutôt que partagé, cf. commentaire en tête de fichier.
   const [nowPlayingTick, setNowPlayingTick] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNowPlayingTick(Date.now()), 250);
@@ -165,8 +120,6 @@ export default function GridPage() {
   const [optimisticSeek, setOptimisticSeek] = useState<{ position: number; timestamp: number } | null>(null);
   const optimisticTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Lissage monotone de la position affichée : pendant la lecture active,
-  // le temps avance continuellement sans jamais faire de saut arrière de 2-3s.
   const smoothedPositionRef = useRef<number>(0);
   const lastTickTimeRef = useRef<number>(Date.now());
 
@@ -191,9 +144,6 @@ export default function GridPage() {
     };
   }, []);
 
-  // Périmé après 8s sans nouveau rapport (même seuil que DashboardScreen) :
-  // /cinema rapporte toutes les 2s, un dépassement signale un écran fermé/
-  // déconnecté plutôt qu'une lecture qui existe encore.
   const nowPlayingRaw =
     cinemaState && cinemaState.title && nowPlayingTick - cinemaReceivedAtRef.current < 8000 ? cinemaState : null;
   const isPlayingEffective = pendingPlaying ?? nowPlayingRaw?.playing ?? false;
@@ -228,11 +178,9 @@ export default function GridPage() {
     computedPosition = nowPlayingRaw.position_seconds;
   } else {
     const expected = smoothedPositionRef.current + dt;
-    // Si écart supérieur à 2.5s (seek réel ou saut de cours), recalage franc
     if (Math.abs(expected - rawPosition) >= 2.5) {
       smoothedPositionRef.current = rawPosition;
     } else {
-      // Monotone : avance avec le temps, ne recule jamais sur un jitter réseau
       smoothedPositionRef.current = Math.max(expected, rawPosition - 0.5);
     }
     const duration = nowPlayingRaw.duration_seconds || Infinity;
@@ -272,7 +220,6 @@ export default function GridPage() {
     sendCommand("cinema_command", { action: "stop" });
   }, [sendCommand]);
 
-  // Système de notation 5 étoiles sur le pupitre coach
   const [ratingCourse, setRatingCourse] = useState<{
     videoId: number;
     title: string;
@@ -294,7 +241,6 @@ export default function GridPage() {
         duration: nowPlaying.duration_seconds,
       };
 
-      // Déclenchement de la notation à 95% de la séance
       if (
         nowPlaying.duration_seconds > 0 &&
         nowPlaying.position_seconds / nowPlaying.duration_seconds >= 0.95 &&
@@ -307,7 +253,6 @@ export default function GridPage() {
         });
       }
     } else if (!nowPlaying && lastPlayingRef.current) {
-      // Fin de cours naturelle (plus de 90% visionné)
       const last = lastPlayingRef.current;
       if (
         last.duration > 0 &&
@@ -444,10 +389,6 @@ export default function GridPage() {
     );
   }
 
-  // Sortie câblée basculée sur Radio : la sortie externe (HDMI) joue la radio câblée
-  // (/radio?channel=cable), il n'y a donc plus de cours à choisir. L'écran tactile devient la
-  // mini-télécommande du moteur radio câblé (la même que dans l'administration, variante
-  // compacte) — /grid garde ainsi son rôle : piloter la sortie câblée.
   if (displayOutputCable === "radio") {
     return (
       <div className="grid-standby-root" style={{ overflowY: "auto", alignItems: "flex-start" }}>
@@ -490,7 +431,6 @@ export default function GridPage() {
                 <img className="cinema-hero-backdrop" src={featuredThumb} alt="" />
               </div>
             )}
-            {/* Masque de transition Netflix : fondu horizontal opaque couleur thème vers miniature + fondu vers le bas */}
             <div className="cinema-hero-scrim" />
             <div className="cinema-hero-content">
               <div className="cinema-hero-brand-row">
@@ -529,7 +469,6 @@ export default function GridPage() {
               </div>
             </div>
 
-            {/* Widget "en cours de lecture" ou carte d'évaluation tactile 5 étoiles */}
             {ratingCourse ? (
               <CourseRatingWidget
                 videoId={ratingCourse.videoId}

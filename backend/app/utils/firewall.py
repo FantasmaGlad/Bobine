@@ -1,12 +1,4 @@
-"""Le pare-feu du système laisse-t-il le réseau local joindre Bobine ? Lecture seule, sans droits d'administrateur.
-
-- macOS : le pare-feu applicatif (socketfilterfw) autorise ou bloque BobineBackend ; il ne se règle qu'en
-  administrateur, d'où la commande exacte proposée en remède.
-- Windows : l'installeur pose la règle « Bobine » (programme BobineBackend.exe, réseaux locaux et VPN) ; son absence
-  coupe la télécommande et l'administration depuis un autre appareil.
-- Linux : les paquets ouvrent le profil ufw ou le service firewalld aux réseaux locaux (configure-firewall) ; leur
-  état ne se lit qu'en root, la sonde n'en dit rien. Android : pas de pare-feu entrant.
-"""
+"""Le pare-feu du système laisse-t-il le réseau local joindre Bobine ?"""
 from __future__ import annotations
 
 import subprocess
@@ -16,7 +8,6 @@ from pathlib import Path
 from app.utils.local_networks import FIREWALL_NETWORKS
 
 SOCKETFILTERFW = "/usr/libexec/ApplicationFirewall/socketfilterfw"
-# Mêmes plages que packaging/linux/firewall/configure-firewall et la règle de packaging/windows/bobine.iss.
 LOCAL_NETWORKS = ",".join(FIREWALL_NETWORKS)
 
 
@@ -25,9 +16,6 @@ def _run(command: list[str]) -> subprocess.CompletedProcess:
 
 
 def _windows_rule_is_usable(output: str, executable: str) -> bool:
-    """La règle existe, est activée, concerne ce programme et n'est pas ouverte à tout Internet (`RemoteIP: Any`).
-
-    `netsh` traduit ses libellés : une sortie illisible n'est pas jugée, la règle compte comme présente."""
     fields = {key.strip().lower(): value.strip() for key, _, value in (line.partition(":") for line in output.splitlines())}
     enabled = fields.get("enabled") or fields.get("activé")
     program = fields.get("program") or fields.get("programme")

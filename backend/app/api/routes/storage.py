@@ -1,9 +1,4 @@
-"""API « Stockage externe » (`/api/storage/*`) : supports amovibles, appareils portables, bibliothèque externe, longévité.
-
-Même provenance que les périphériques (`api/routes/devices.py::require_access`) : ouvert à tout le réseau local de confiance.
-Les erreurs sont toujours structurées `{"detail": {"code", "message", ...}}` : aucune erreur d'OS ne devient une 500,
-et aucun chemin hors des volumes montés n'est jamais exposé (le client n'envoie que des chemins RELATIFS au support).
-"""
+"""API « Stockage externe » (`/api/storage/*`) : supports amovibles, appareils portables, bibliothèque externe, longévité."""
 
 from __future__ import annotations
 
@@ -36,7 +31,6 @@ def _key(key: str) -> str:
 
 
 async def _guard(coro: Awaitable[T]) -> T:
-    """Convertit toute erreur (pilote, chemin, transfert) en réponse structurée ; jamais de 500."""
     try:
         return await coro
     except DeviceError as exc:
@@ -85,7 +79,6 @@ class SettingsRequest(BaseModel):
     auto_mount_library: bool | None = None
 
     def values(self) -> dict[str, Any]:
-        # `.model_dump` (Pydantic v2) sauf sur le profil Android où `.dict` (v1), comme settings.py.
         dump = getattr(self, "model_dump", None) or self.dict
         return {k: v for k, v in dump().items() if v is not None}
 
@@ -187,7 +180,7 @@ async def advisor_format(
     legacy: bool = False,
     _: Access = Depends(require_access),
 ) -> dict[str, Any]:
-    """Système de fichiers conseillé selon l'OS hôte et les OS qui brancheront le support. Ne formate JAMAIS."""
+    """Système de fichiers conseillé selon l'OS hôte et les OS qui brancheront le support."""
     other_oses = tuple(o for o in others.split(",") if o)
     return fsadvisor.recommend_format(host, other_oses, media, legacy_readers=legacy)
 
@@ -207,14 +200,9 @@ async def portable_unmount(device_id: str, _: Access = Depends(require_access)) 
     return await _guard(service.portable_unmount(_key(device_id)))
 
 
-# ---------------------------------------------------------------------------
-# Assistant de formatage : plan (lecture seule) puis exécution (jeton, confirmation, cascade de vérifications)
-# ---------------------------------------------------------------------------
-
-
 class FormatPlanRequest(BaseModel):
     key: str = Field(max_length=80)
-    travels: list[str] = list_max_items(4, default_factory=list)  # OS qui brancheront aussi le support (windows, macos, android)
+    travels: list[str] = list_max_items(4, default_factory=list)
 
 
 class FormatExecuteRequest(BaseModel):
@@ -228,7 +216,7 @@ class FormatExecuteRequest(BaseModel):
 
 @router.post("/format/plan")
 async def format_plan(payload: FormatPlanRequest, access: Access = Depends(require_access)) -> dict[str, Any]:
-    """Plan de formatage : n'écrit RIEN. Renvoie ce qui sera effacé, les formats possibles et un jeton court à usage unique."""
+    """Plan de formatage : n'écrit RIEN."""
     return await _guard(service.formatter.plan(_key(payload.key), owner=access.ip, travels=payload.travels))
 
 

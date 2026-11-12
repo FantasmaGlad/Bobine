@@ -1,6 +1,4 @@
-"""Diagnostic système et journaux unifiés : constats typés à code stable triés par gravité, sonde en échec rendue
-`unknown` sans erreur 500 ; journaux en JSON stable (UTC, niveau minimal, `since` avec fuseau, archives, traces
-rattachées à leur entrée)."""
+"""Diagnostic système et journaux unifiés : constats typés à code stable triés par gravité, sonde en échec rendue `unknown` sans erreur 500 ; journaux en JSON stable (UTC, niveau minimal, `since` avec fuseau, archives, traces rattachées à leur entrée)."""
 
 import os
 import time
@@ -61,8 +59,6 @@ def test_a_failing_probe_is_unknown_not_an_error(client, monkeypatch):
     if not answer.json()["problems"]:
         assert answer.json()["status"] == "unknown"
 
-
-# --- journaux ---------------------------------------------------------------------------------------------------------
 
 @pytest.fixture()
 def technical_log(tmp_path, monkeypatch):
@@ -159,7 +155,7 @@ def test_rotation_while_reading_neither_duplicates_nor_fails(client, technical_l
     rotated = []
 
     def rotate_then_parse(handle):
-        if not rotated:  # le serveur fait tourner ses journaux juste après l'ouverture
+        if not rotated:
             rotated.append(True)
             (tmp_path / "technical.log.1").replace(tmp_path / "technical.log.2")
             (tmp_path / "technical.log").replace(tmp_path / "technical.log.1")

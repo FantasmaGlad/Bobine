@@ -1,5 +1,4 @@
-"""Garde-fous d'entrée : code de langue des sous-titres (nom de fichier sur
-disque) et dossiers ouvrables par `POST /api/settings/open-path`."""
+"""Garde-fous d'entrée : code de langue des sous-titres (nom de fichier sur disque) et dossiers ouvrables par `POST /api/settings/open-path`."""
 
 import os
 import sys

@@ -1,4 +1,4 @@
-"""Assistant de formatage : logique PURE (analyse des disques, identité, cascade de refus, jeton, options). Aucun matériel."""
+"""Assistant de formatage : logique PURE (analyse des disques, identité, cascade de refus, jeton, options)."""
 
 import json
 
@@ -36,7 +36,6 @@ def refusal_code(c):
     return bad.code if bad else None
 
 
-# --------------------------------------------------------------------------------------------------- analyse de lsblk
 LSBLK = {
     "blockdevices": [
         {"name": "nvme0n1", "path": "/dev/nvme0n1", "type": "disk", "size": 512 * GIB, "rm": False, "hotplug": False, "tran": "nvme", "pttype": "gpt",
@@ -62,9 +61,9 @@ LSBLK = {
 
 def test_lsblk_becomes_whole_disks_with_every_partition():
     disks = {d.name: d for d in parse_disks(json.dumps(LSBLK), is_sd_card=lambda n: n == "mmcblk0")}
-    assert set(disks) == {"nvme0n1", "sdb", "loop4", "mmcblk0"}            # lecteur optique ignoré
+    assert set(disks) == {"nvme0n1", "sdb", "loop4", "mmcblk0"}
     sdb = disks["sdb"]
-    assert [p.fstype for p in sdb.partitions] == ["exfat", "crypto_LUKS"]  # y compris la partition que Bobine ne propose jamais
+    assert [p.fstype for p in sdb.partitions] == ["exfat", "crypto_LUKS"]
     assert sdb.removable and sdb.hotplug and sdb.transport == "usb" and sdb.ptable == "gpt" and sdb.size_bytes == 64_000_000_000
     assert sdb.partitions[0].start_sectors == 2048 and sdb.partitions[0].mountpoints == ("/run/media/u/CLUB",) and sdb.partitions[1].mountpoints == ()
     assert disks["mmcblk0"].sd_card and disks["loop4"].dev_type == "loop"
@@ -77,7 +76,6 @@ def test_filesystem_directly_on_the_disk_is_a_whole_disk_entry():
     assert len(d.partitions) == 1 and d.partitions[0].whole_disk and d.ptable is None
 
 
-# --------------------------------------------------------------------------------------------------- identité
 def test_fingerprint_ignores_mounts_but_catches_any_other_change():
     base = disk()
     mounted = disk(parts=[part(mounts=["/run/media/u/CLUB"])])
@@ -107,7 +105,6 @@ def test_candidates_are_strictly_removable_and_images_only_when_allowed():
     assert [d.name for d in candidates([usb, loop], allow_images=True)] == ["sdb", "loop9"]
 
 
-# --------------------------------------------------------------------------------------------------- cascade de refus
 def test_clean_removable_stick_passes_every_check():
     checks = evaluate(ctx(disk()))
     assert all(c.ok for c in checks) and first_refusal(checks) is None
@@ -118,50 +115,38 @@ def test_clean_removable_stick_passes_every_check():
 def test_every_refusal_has_its_clear_code():
     assert refusal_code(GuardContext(supported=False, disk=disk())) == "format_unsupported_platform"
     assert refusal_code(GuardContext(supported=True, disk=None)) == "format_not_found"
-    # disque système : un montage système ou un swap, même sur un disque USB
     assert refusal_code(ctx(disk(parts=[part(fstype="ext4", mounts=["/"])]))) == "format_system_disk"
     assert refusal_code(ctx(disk(parts=[part(mounts=["/boot/efi"])]))) == "format_system_disk"
     assert refusal_code(ctx(disk(parts=[part(mounts=["/home"])]))) == "format_system_disk"
     assert refusal_code(ctx(disk(parts=[part(fstype="swap")]))) == "format_system_disk"
     assert refusal_code(ctx(disk(parts=[part(mounts=["/snap/core/1"])]))) == "format_system_disk"
-    # disque interne fixe
     internal = disk("nvme0n1", transport="nvme", removable=False, hotplug=False, parts=[part("nvme0n1p1", mounts=[])])
     assert refusal_code(ctx(internal)) == "format_internal_disk"
-    assert refusal_code(ctx(disk("sdz", transport="sata", removable=False, hotplug=True))) == "format_internal_disk"   # HOTPLUG seul ne suffit pas
+    assert refusal_code(ctx(disk("sdz", transport="sata", removable=False, hotplug=True))) == "format_internal_disk"
     assert refusal_code(ctx(disk("sdy", transport=None, removable=False, hotplug=False))) == "format_not_removable"
-    # dossiers de données de Bobine : même chemin, chemin contenu, chemin contenant, même périphérique
     for mount in ("/home/alice/.local/share/bobine", "/home/alice/.local/share/bobine/media", "/home/alice"):
         assert refusal_code(ctx(disk(parts=[part(mounts=[mount])]))) == "format_bobine_data", mount
     same_device = GuardContext(disk=disk(parts=[part(mounts=["/mnt/x"])]), protected_paths=["/srv/elsewhere"], protected_devs=frozenset({77}), mount_devs={"/mnt/x": 77})
     assert refusal_code(same_device) == "format_bobine_data"
-    # bibliothèque externe enregistrée : action proposée
     registered = evaluate(ctx(disk(), registered_uuids=frozenset({"aaaa-0001"})))
     bad = first_refusal(registered)
     assert bad.code == "format_library_registered" and bad.actions and bad.actions[0]["id"] == "unregister"
-    # opérations en cours
     assert refusal_code(ctx(disk(), in_use=True)) == "format_in_use"
     assert refusal_code(ctx(disk(), other_format_active=True)) == "format_busy_operation"
-    # protégé en écriture
     assert refusal_code(ctx(disk(read_only=True))) == "format_read_only"
     assert refusal_code(ctx(disk(parts=[part(ro=True)]))) == "format_read_only"
-    # chiffré, RAID, LVM
     for fs in ("crypto_LUKS", "linux_raid_member", "LVM2_member", "zfs_member"):
         assert refusal_code(ctx(disk(parts=[part(fstype=fs)]))) == "format_encrypted_stack", fs
-    # images disque : refusées par défaut
     assert refusal_code(ctx(disk("loop3", dev_type="loop", removable=False, transport=None, hotplug=False))) == "format_image_not_allowed"
     assert refusal_code(ctx(disk("loop3", dev_type="loop", removable=False, transport=None, hotplug=False), allow_images=True)) is None
-    # trop petit
     assert refusal_code(ctx(disk(size_bytes=10 * 1024 * 1024))) == "format_too_small"
-    # liste blanche d'essai : un autre périphérique est refusé même s'il est parfaitement amovible
     assert refusal_code(ctx(disk(), allowlist=frozenset({"/dev/loop29"}))) == "format_not_allowed"
     assert refusal_code(ctx(disk("loop29", path="/dev/loop29", dev_type="loop", removable=False, transport=None, hotplug=False), allow_images=True, allowlist=frozenset({"/dev/loop29"}))) is None
 
 
 def test_cascade_order_system_before_removable_and_first_failure_wins():
-    # un disque interne portant « / » doit être dit « système » (la raison la plus grave), pas seulement « interne »
     system = disk("nvme0n1", transport="nvme", removable=False, hotplug=False, parts=[part("nvme0n1p2", "ext4", mounts=["/"])])
     assert refusal_code(ctx(system)) == "format_system_disk"
-    # plusieurs refus : le premier de la cascade est opposé
     many = disk(read_only=True, parts=[part(fstype="LVM2_member", mounts=["/home/alice/.local/share/bobine/x"])])
     assert refusal_code(ctx(many, in_use=True)) == "format_bobine_data"
 
@@ -175,13 +160,12 @@ def test_simulated_etoile_identity_is_refused_when_registered_or_in_use_or_off_a
     """Identité du vrai disque « Étoile » (exFAT, 238 Go, USB) SIMULÉE : aucun accès au vrai périphérique."""
     etoile = disk("sdq", size_bytes=255_800_000_000, vendor="Generic", model="USB Flash", serial="ETOILE0000",
                   parts=[part("sdq1", "exfat", "Étoile", "E7E7-0238", 255_700_000_000)])
-    assert refusal_code(ctx(etoile)) is None                                                    # une clé quelconque serait formatable...
-    assert refusal_code(ctx(etoile, registered_uuids=frozenset({"e7e7-0238"}))) == "format_library_registered"   # ...pas une bibliothèque enregistrée
+    assert refusal_code(ctx(etoile)) is None
+    assert refusal_code(ctx(etoile, registered_uuids=frozenset({"e7e7-0238"}))) == "format_library_registered"
     assert refusal_code(ctx(etoile, in_use=True)) == "format_in_use"
-    assert refusal_code(ctx(etoile, allowlist=frozenset({"/dev/loop29"}))) == "format_not_allowed"                 # ni hors de la liste blanche d'essai
+    assert refusal_code(ctx(etoile, allowlist=frozenset({"/dev/loop29"}))) == "format_not_allowed"
 
 
-# --------------------------------------------------------------------------------------------------- jeton
 class Clock:
     def __init__(self):
         self.now = 1000.0
@@ -204,12 +188,12 @@ def test_token_is_single_use_and_short_lived():
     clock = Clock()
     tokens = make_tokens(clock)
     token = tokens.issue(key="u-x", identity="id", inventory="inv", owner="10.0.0.1")
-    assert code_of(tokens.check_age, token) == "format_too_early"          # délai de réflexion imposé côté serveur
+    assert code_of(tokens.check_age, token) == "format_too_early"
     clock.now += 5
     tokens.check_age(token)
     record = tokens.consume(token, owner="10.0.0.1")
     assert (record.key, record.identity, record.inventory) == ("u-x", "id", "inv")
-    assert code_of(tokens.consume, token, owner="10.0.0.1") == "format_token_used"     # usage unique
+    assert code_of(tokens.consume, token, owner="10.0.0.1") == "format_token_used"
 
 
 def test_token_expires_after_two_minutes_and_is_bound_to_its_requester():
@@ -234,11 +218,10 @@ def test_token_is_random_and_never_stored_in_clear():
     assert a not in tokens._live and all(len(h) == 64 for h in tokens._live)
 
 
-# --------------------------------------------------------------------------------------------------- options
 def test_labels_are_validated_per_filesystem():
     assert opt.normalize_label("exfat", "  Salle 1 ") == "Salle 1"
-    assert opt.normalize_label("vfat", "cours_a") == "COURS_A"                       # FAT32 : majuscules
-    assert opt.normalize_label("ext4", "é" * 8) == "é" * 8                            # 16 octets
+    assert opt.normalize_label("vfat", "cours_a") == "COURS_A"
+    assert opt.normalize_label("ext4", "é" * 8) == "é" * 8
     for fs, bad, code in (("exfat", "", "label_empty"), ("exfat", "x" * 12, "label_too_long"), ("vfat", "x" * 12, "label_too_long"),
                           ("ext4", "é" * 9, "label_too_long"), ("exfat", "a/b", "label_chars"), ("exfat", 'a"b', "label_chars"),
                           ("vfat", "a.b", "label_chars"), ("vfat", "é", "label_chars"), ("exfat", "a\nb", "label_chars"), ("nope", "x", "fs_unknown")):
@@ -252,10 +235,10 @@ def test_mkfs_parameters_follow_the_capacity_and_use():
     assert opt.exfat_cluster_bytes(16 * GIB) == 32768
     assert opt.exfat_cluster_bytes(238 * GIB) == 131072
     assert opt.mkfs_args("exfat", 238 * GIB) == ["-c", "131072"]
-    assert opt.mkfs_args("ext4", 4 * GIB) == ["-m", "0"]                              # aucun bloc réservé
+    assert opt.mkfs_args("ext4", 4 * GIB) == ["-m", "0"]
     assert opt.mkfs_args("ext4", 238 * GIB) == ["-m", "0", "-T", "largefile"]
     assert opt.mkfs_args("vfat", GIB) == ["-F", "32"]
-    assert "-f" not in opt.mkfs_args("ntfs", GIB) and "--full-format" not in opt.mkfs_args("exfat", GIB)   # jamais d'écrasement complet
+    assert "-f" not in opt.mkfs_args("ntfs", GIB) and "--full-format" not in opt.mkfs_args("exfat", GIB)
     assert opt.partition_bytes_for(64 * GIB) == 64 * GIB - 2 * 1024 * 1024
     assert opt.capacity_limit("vfat", 3 * 1024 ** 4) == "fat32_over_2tib" and opt.capacity_limit("exfat", 3 * 1024 ** 4) is None
 

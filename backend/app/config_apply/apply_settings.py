@@ -72,7 +72,7 @@ def _stage(ctx, file, values, model, to_updates, stage, after) -> None:
     except HTTPException as exc:
         ctx.fail(file, str(exc.detail))
         return
-    except ValueError as exc:  # validation du modèle
+    except ValueError as exc:
         ctx.fail(file, str(exc))
         return
 

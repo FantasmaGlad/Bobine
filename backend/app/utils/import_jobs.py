@@ -8,14 +8,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Suivi de file d'import : les imports (upload web ET dossier
-# surveillé) tournent sur des exécuteurs à threads (app.utils.executors),
-# appelés depuis les threads des exécuteurs ET consultés depuis les threads
-# de requêtes HTTP (asyncio + threads combinés) — un simple dict protégé par
-# un verrou suffit pour un état partagé entre threads d'un même processus.
 _lock = threading.Lock()
 _jobs: dict[str, dict] = {}
-_job_order: list[str] = []  # ids dans l'ordre de création (remplace le zset Redis)
+_job_order: list[str] = []
 _job_futures: dict[str, concurrent.futures.Future] = {}
 _job_leftovers: dict[str, list[str]] = {}
 _job_processes: dict[str, subprocess.Popen] = {}
@@ -27,14 +22,7 @@ class JobCancelledError(Exception):
     pass
 
 
-# Le réencodage le plus long observé en production a dépassé 15 min (cf.
-# FFMPEG_NORMALIZE_TIMEOUT_SECONDS = 1800 dans video_utils/limits.py) : la tâche doit
-# rester visible largement au-delà, sans quoi elle "disparaîtrait" de la
-# file en cours de traitement.
 ACTIVE_TTL_SECONDS = 3600
-# Une tâche terminée (succès, erreur ou annulation) reste visible quelques minutes pour
-# que l'utilisateur voie le résultat, puis s'efface d'elle-même — pas besoin
-# de nettoyage explicite.
 DONE_TTL_SECONDS = 300
 
 _STAGE_LABELS = {
@@ -60,33 +48,24 @@ def _is_expired(job: dict) -> bool:
 
 
 def create_job(kind: str, filename: str, title: str | None = None, source: str = "upload") -> str:
-    """Enregistre une nouvelle tâche d'import (stage initial "queued") et
-    retourne son identifiant. Appelé AVANT de soumettre le travail réel à
-    l'exécuteur, pour que la tâche apparaisse dans la file dès son
-    acceptation plutôt qu'à son démarrage effectif."""
+    """Enregistre une nouvelle tâche d'import (stage initial "queued") et retourne son identifiant."""
     job_id = uuid.uuid4().hex
     now = time.time()
     job = {
         "id": job_id,
-        "kind": kind,  # "video" | "background" | "audio"
-        "source": source,  # "upload" | "watched_folder"
+        "kind": kind,
+        "source": source,
         "filename": filename,
         "title": title,
         "stage": "queued",
         "stage_label": _STAGE_LABELS["queued"],
         "error": None,
-        # Code stable + paramètres quand l'erreur est reconnue (ex. ffmpeg
-        # introuvable) : le client la traduit dans sa langue ; `error` garde
-        # le texte français de repli.
         "error_code": None,
         "error_params": None,
         "result_id": None,
         "progress_percent": None,
         "eta_seconds": None,
         "speed": None,
-        # Estimation initiale du réencodage, posée avant même le démarrage de
-        # ffmpeg — écrasée
-        # par `eta_seconds` dès que la progression ffmpeg réelle démarre.
         "estimated_seconds": None,
         "created_at": now,
         "updated_at": now,
@@ -98,9 +77,7 @@ def create_job(kind: str, filename: str, title: str | None = None, source: str =
 
 
 def register_job_future(job_id: str, future: concurrent.futures.Future, leftovers: list[str] | None = None) -> None:
-    """Associe la Future d'un exécuteur à une tâche pour permettre son annulation en file.
-    `leftovers` : fichiers temporaires que la tâche supprime elle-même en fin de course ;
-    si elle est annulée avant de démarrer, ils sont supprimés ici."""
+    """Associe la Future d'un exécuteur à une tâche pour permettre son annulation en file."""
     with _lock:
         _job_futures[job_id] = future
         if leftovers:
@@ -108,8 +85,7 @@ def register_job_future(job_id: str, future: concurrent.futures.Future, leftover
 
 
 def register_job_process(job_id: str | None, proc: subprocess.Popen) -> None:
-    """Associe le processus sous-jacent (ex. FFmpeg) à la tâche en cours pour permettre
-    son arrêt forcé immédiat en cas d'annulation."""
+    """Associe le processus sous-jacent (ex."""
     if not job_id:
         return
     with _lock:
@@ -133,12 +109,7 @@ def is_job_cancelled(job_id: str | None) -> bool:
 
 
 def cancel_job(job_id: str) -> bool:
-    """
-    Annule immédiatement une tâche d'importation en cours ou en attente :
-    1. Marque le job avec stage="cancelled".
-    2. Annule la Future dans l'exécuteur si elle n'a pas encore démarré.
-    3. Interrompt le processus FFmpeg (SIGTERM puis SIGKILL) s'il tourne.
-    """
+    """Annule immédiatement une tâche d'importation en cours ou en attente : 1."""
     future = None
     proc = None
     found = False
@@ -181,9 +152,7 @@ def cancel_job(job_id: str) -> bool:
 
 
 def update_job(job_id: str | None, **fields) -> None:
-    """Met à jour les champs fournis d'une tâche existante (no-op silencieux
-    si `job_id` est None — permet aux fonctions d'import de rester utilisables
-    sans job à suivre, ex. import déclenché depuis les tests)."""
+    """Met à jour les champs fournis d'une tâche existante (no-op silencieux si `job_id` est None — permet aux fonctions d'import de rester utilisables sans job à suivre, ex."""
     if not job_id:
         return
     with _lock:
@@ -211,12 +180,7 @@ def get_job(job_id: str) -> dict | None:
 
 
 def list_jobs() -> list[dict]:
-    """Tâches d'import récentes (en cours, ou terminées depuis moins de
-    DONE_TTL_SECONDS), triées par ordre de création. Calcule aussi une
-    `queue_position` : nombre
-    de tâches non terminées créées avant celle-ci — une ESTIMATION, pas la
-    position exacte dans l'exécuteur ffmpeg mono-thread partagé
-    (app.utils.executors.ffmpeg_executor) qui arbitre le vrai tour de rôle."""
+    """Tâches d'import récentes (en cours, ou terminées depuis moins de DONE_TTL_SECONDS), triées par ordre de création."""
     with _lock:
         stale_ids = [job_id for job_id in _job_order if job_id not in _jobs or _is_expired(_jobs[job_id])]
         for job_id in stale_ids:
@@ -229,13 +193,6 @@ def list_jobs() -> list[dict]:
         jobs = [dict(_jobs[job_id]) for job_id in _job_order]
 
     pending = [j for j in jobs if j["stage"] not in ("done", "error", "cancelled")]
-    # ETA de file cumulée : pour chaque tâche non terminée, temps encore
-    # nécessaire pour ELLE-MÊME (l'ETA ffmpeg en direct si l'encodage est déjà
-    # démarré, sinon l'estimation initiale posée en fin d'analyse, sinon 0
-    # pour les étapes rapides sans estimation dédiée — copie, miniature,
-    # enregistrement), additionné à celui de toutes les tâches placées avant
-    # elle dans la file. Une ESTIMATION au même titre que `queue_position`
-    # ci-dessus, pas une garantie.
     cumulative = 0.0
     for idx, job in enumerate(pending):
         job["queue_position"] = idx

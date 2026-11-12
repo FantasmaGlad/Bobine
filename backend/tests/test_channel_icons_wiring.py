@@ -1,14 +1,4 @@
-"""Garde-fou du câblage des icônes par canal (Stable / Bêta / Canary) sur TOUTES les plateformes.
-
-Ce test ne vérifie pas un comportement : il échoue quand une des implémentations du
-mécanisme diverge des autres, avant que la divergence n'atteigne une release. Guide du
-mécanisme : scripts/generate_channel_icons.py.
-
-  - la liste des canaux vient du registre unique (voir test_release_channels_wiring.py) ;
-  - fichiers générés présents, à jour et attribués au bon canal ;
-  - chaque plateforme embarque / installe l'icône qu'il faut (specs PyInstaller, paquets
-    Linux, Inno Setup, ressources Android).
-"""
+"""Garde-fou du câblage des icônes par canal (Stable / Bêta / Canary) sur TOUTES les plateformes."""
 
 import importlib.util
 import re
@@ -48,9 +38,6 @@ def spec_helper():
     return _load_module("bobine_packaging_channel", "packaging/common/channel.py")
 
 
-# --- Fichiers générés -----------------------------------------------------------------------
-
-
 def test_fichiers_generes_presents_et_a_jour(generator):
     stale = [o.path for o in generator.all_outputs() if not generator._is_current(o, REPO / o.path)]
     assert not stale, "relancer scripts/generate_channel_icons.py : " + ", ".join(stale)
@@ -68,7 +55,6 @@ def test_aucun_fichier_historique_non_genere_ne_traine():
 
 
 def _blueness(path: Path) -> float:
-    """Écart moyen bleu - rouge sur les pixels opaques et assez saturés (le ruban)."""
     image = Image.open(path).convert("RGBA")
     raw = image.tobytes()
     pixels = zip(raw[0::4], raw[1::4], raw[2::4], raw[3::4])
@@ -102,9 +88,6 @@ def test_icone_par_defaut_historique_est_la_stable():
     assert default.tobytes() == stable.tobytes()
 
 
-# --- Embarquement par plateforme -------------------------------------------------------------
-
-
 def test_les_specs_embarquent_les_icones_de_canal_de_la_barre_systeme(spec_helper):
     datas = spec_helper.runtime_icon_datas(REPO)
     assert sorted(Path(src).name for src, _ in datas) == sorted(
@@ -127,7 +110,6 @@ def test_icone_d_executable_windows_et_du_bundle_macos_suivent_le_canal_du_build
     macos = _read("packaging/macos/bobine.spec")
     assert 'f"bobine-{BUILD_CHANNEL}.icns"' in macos and '"bobine.icns"' in macos
     assert '"CFBundleIconFile": "bobine.icns"' in macos
-    # L'installeur Inno Setup reprend l'icône choisie par le .spec : aucune règle de canal en double.
     assert r"SetupIconFile={#MyDistDir}\bobine.ico" in _read("packaging/windows/bobine.iss")
     for channel in CHANNELS:
         assert (REPO / f"packaging/windows/bobine-{channel}.ico").exists()
@@ -155,8 +137,6 @@ def test_arborescence_installee_identique_pour_chaque_canal_et_couverte_par_le_r
         + [f"usr/share/pixmaps/{n}.png" for n in ("bobine", "com.bobine.app")]
     )
     assert installed == expected
-    # Le %files du RPM liste des motifs : tout fichier installé doit y être couvert, sinon rpmbuild
-    # échoue (« Installed (but unpackaged) file(s) found »).
     spec = _read("packaging/rpm/bobine.spec")
     patterns = [line.strip() for line in spec.splitlines() if line.strip().startswith("/usr/share/icons/hicolor/") or line.strip().startswith("/usr/share/pixmaps")]
     assert patterns, "motifs d'icônes introuvables dans %files"
@@ -174,7 +154,6 @@ def test_android_fournit_icone_et_banniere_pour_chaque_canal():
     gradle = _read("android/app/build.gradle.kts")
     assert 'getByName("main").res.srcDir("src/channel-$bobineChannel/res")' in gradle
     assert 'getByName("tv").res.srcDir("src/tv-channel-$bobineChannel/res")' in gradle
-    # Le fond et la forme adaptative restent communs : un seul ic_launcher.xml, aucune copie par canal.
     assert (REPO / "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml").exists()
     assert not list((REPO / "android/app/src").glob("channel-*/res/mipmap-anydpi-v26"))
 

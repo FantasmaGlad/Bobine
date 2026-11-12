@@ -7,14 +7,12 @@ import { useVideoSubtitles } from "@/lib/subtitles";
 
 interface SubtitlePickerProps {
   videoId: number | null | undefined;
-  /** Choix diffusé par le serveur : null = piste par défaut, "off" = aucune, sinon identifiant. */
   subtitle: number | "off" | null | undefined;
   getApiUrl: (path: string) => string;
   onChange: (subtitle: number | "off") => void;
   className?: string;
 }
 
-/** Sélecteur de sous-titres du cours en cours (absent si le cours n'en a pas). */
 export default function SubtitlePicker({ videoId, subtitle, getApiUrl, onChange, className = "" }: SubtitlePickerProps) {
   const { t } = useAppSettings();
   const tracks = useVideoSubtitles(videoId, getApiUrl);

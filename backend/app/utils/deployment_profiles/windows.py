@@ -1,15 +1,4 @@
-"""Handler du profil `windows` (app de bureau, .exe PyInstaller +
-installeur Inno Setup).
-
-Pas de service Windows dans ce profil (app de bureau
-lancée par un utilisateur connecté, pas une « boîte noire » sans
-supervision) — la supervision du process backend est assurée par
-`BobineTray` (cf. `backend/app/desktop/tray.py`), qui relance
-`BobineBackend.exe` s'il s'arrête. `restart_services()` se contente donc de
-mettre fin proprement au process courant : c'est `BobineTray` qui le
-relance, exactement comme il le ferait pour un arrêt inattendu — aucun
-canal de communication dédié entre le backend et le tray n'est nécessaire.
-"""
+"""Handler du profil `windows` (app de bureau, .exe PyInstaller + installeur Inno Setup)."""
 
 import logging
 import os
@@ -49,11 +38,6 @@ class WindowsHandler(ProfileHandler):
 
     def restart_services(self) -> None:
         logger.info("Arrêt du process pour redémarrage (relance attendue de BobineTray).")
-        # Sortie immédiate plutôt qu'un arrêt FastAPI/uvicorn « propre » :
-        # ce code tourne déjà dans une tâche de fond après l'envoi de la
-        # réponse HTTP (cf. api/routes/settings/maintenance.py::_run_full_reset), il n'y a
-        # plus rien à répondre proprement. `os._exit` évite en plus tout
-        # risque qu'un `finally`/gestionnaire de signal ne bloque l'arrêt.
         os._exit(0)
 
     def can_self_uninstall(self) -> bool:
@@ -118,20 +102,6 @@ del "%~f0" > NUL 2>&1
         )
 
         tray_exe = _app_dir() / "BobineTray.exe"
-        # Ce process va se terminer (`self.restart_services()` en fin de
-        # méthode) AVANT que l'installeur Inno Setup n'ait fini de
-        # remplacer les fichiers verrouillés par le process courant — le
-        # script de relance doit donc s'exécuter dans un process
-        # totalement détaché, qui écrit lui-même l'issue finale dans le
-        # fichier d'état (`status_file_path()`), relu par le PROCHAIN
-        # démarrage du backend (cf. `load_persisted_state_at_startup`).
-        # PowerShell plutôt qu'un script .bat classique (ancien code) :
-        # code de sortie de l'installeur enfin vérifié (`$proc.ExitCode`,
-        # jamais lu auparavant — un échec silencieux d'installation
-        # relançait quand même l'ancien BobineTray sans que personne ne le
-        # sache), et écriture JSON fiable via `ConvertTo-Json` là où
-        # échapper des guillemets dans un `echo` batch est notoirement
-        # fragile.
         ps_script_path = temp_dir / "bobine_update_runner.ps1"
         status_path = status_file_path()
         status_path.parent.mkdir(parents=True, exist_ok=True)

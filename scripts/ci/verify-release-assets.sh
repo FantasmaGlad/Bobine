@@ -1,22 +1,9 @@
 #!/usr/bin/env bash
-# Vérifie qu'un dossier d'assets de release contient TOUS les artefacts
-# attendus avant publication, sous les noms exacts que consomment le site
-# (bobine.fit, src/lib/github-releases.ts), les notes de release, le README et
-# l'auto-mise à jour (backend/app/api/routes/updates.py).
-#
-# Sans ce contrôle, un job de build ignoré ou un artefact manquant donnait une
-# release « verte » mais incomplète : les téléchargements du site retombaient
-# silencieusement sur un lien mort.
-#
-# Usage : verify-release-assets.sh <dossier> <suffixe>
-#   <suffixe> : numéro de version d'une Stable (5.0.0), ou l'identifiant d'un canal rolling (beta, canary).
 set -euo pipefail
 
 DIR="${1:?dossier des assets}"
 S="${2:?suffixe de version (5.0.0, beta ou canary)}"
 
-# Les canaux mobiles ont un nom constant ; les stables gardent le pkgrel natif.
-# « Canal mobile » = canal rolling du registre (backend/app/release_channel.py).
 if python3 "$(dirname "$0")/../../packaging/common/channel.py" is-rolling "$S"; then
     package_version="$S"
 else
@@ -57,14 +44,11 @@ if (( ${#missing[@]} > 0 )); then
     ls -l "${DIR}"
     exit 1
 fi
-# Les paquets de Bobine Deploy (anciennement l'assistant) ont leur propre dépôt : dans une release de Bobine, la mise à jour
-# intégrée des installations existantes pourrait prendre leur installeur (premier .exe, .deb ou .dmg de la bonne architecture).
 stray=$(cd "${DIR}" && ls -1 | grep -iE '^bobine-(assistant|deploy).*\.(exe|deb|rpm|dmg|apk)$' || true)
 if [[ -n "${stray}" ]]; then
     echo "::error::paquets de Bobine Deploy dans une release de Bobine : ${stray//$'\n'/ }"
     exit 1
 fi
-# SHA256SUMS doit lister chaque fichier attendu avec son empreinte réelle (la signature est vérifiée à sa production).
 for name in "${expected[@]}"; do
     case "${name}" in SHA256SUMS|SHA256SUMS.asc) continue ;; esac
     grep -qE "^[0-9a-f]{64}  ${name//./\\.}$" "${DIR}/SHA256SUMS" || { echo "::error::${name} absent de SHA256SUMS"; exit 1; }

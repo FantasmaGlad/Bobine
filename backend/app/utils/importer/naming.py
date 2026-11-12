@@ -3,8 +3,7 @@ from pathlib import Path
 
 
 def parse_title_program_release(original_filename: str) -> tuple[str, str | None, str | None]:
-    """Titre propre, programme (RPM, Sprint, The Trip) et release déduits du nom d'un fichier de cours.
-    Partagé entre l'import (copie locale) et l'indexation d'un support externe (lecture directe)."""
+    """Titre propre, programme (RPM, Sprint, The Trip) et release déduits du nom d'un fichier de cours."""
     import re
 
     title = Path(original_filename).stem.replace("_", " ").replace("-", " ")

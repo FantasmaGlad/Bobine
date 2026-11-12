@@ -1,8 +1,4 @@
-"""Support vu comme un disque entier (données pures) et empreintes d'identité.
-
-Le formatage agit sur le DISQUE (table de partitions GPT + une partition alignée), pas sur une seule partition :
-le plan doit donc montrer TOUTES les partitions qui seront effacées, y compris celles que Bobine ne propose
-jamais (système de fichiers inconnu, chiffré...)."""
+"""Support vu comme un disque entier (données pures) et empreintes d'identité."""
 
 from __future__ import annotations
 
@@ -35,10 +31,10 @@ class PartInfo:
 
 @dataclass(frozen=True)
 class DiskInfo:
-    diskseq: str | None = field(default=None, kw_only=True)  # change à chaque reconnexion du disque
-    name: str                       # sdb, mmcblk0, loop3
-    path: str                       # /dev/sdb : n'est JAMAIS exposé au client
-    dev_type: str                   # disk | loop
+    diskseq: str | None = field(default=None, kw_only=True)
+    name: str
+    path: str
+    dev_type: str
     size_bytes: int
     vendor: str | None = None
     model: str | None = None
@@ -48,7 +44,7 @@ class DiskInfo:
     hotplug: bool = False
     read_only: bool = False
     rotational: bool | None = None
-    ptable: str | None = None       # gpt | dos | None
+    ptable: str | None = None
     sd_card: bool = False
     kind: str = "other"
     partitions: tuple[PartInfo, ...] = field(default_factory=tuple)
@@ -76,8 +72,7 @@ class DiskInfo:
 
 
 def identity(disk: DiskInfo) -> dict[str, Any]:
-    """Ce qui fait CE support (et pas un autre ayant pris le même nom `/dev/sdX`) : jamais l'état de montage,
-    qui change légitimement pendant l'assistant."""
+    """Ce qui fait CE support (et pas un autre ayant pris le même nom `/dev/sdX`) : jamais l'état de montage, qui change légitimement pendant l'assistant."""
     return {
         "path": disk.path,
         "type": disk.dev_type,
@@ -109,8 +104,7 @@ def fingerprint(disk: DiskInfo) -> str:
 
 
 def inventory_digest(disks: list[DiskInfo]) -> str:
-    """Empreinte de l'ensemble des supports candidats branchés : un autre support qui apparaît ou disparaît entre le
-    plan et l'exécution invalide le plan (les noms `/dev/sdX` peuvent alors avoir été réattribués)."""
+    """Empreinte de l'ensemble des supports candidats branchés : un autre support qui apparaît ou disparaît entre le plan et l'exécution invalide le plan (les noms `/dev/sdX` peuvent alors avoir été réattribués)."""
     return _digest(sorted([d.path, d.size_bytes, d.serial or "", d.model or "", [p.uuid or "" for p in d.partitions]] for d in disks))
 
 
@@ -123,7 +117,7 @@ def serial_tail(disk: DiskInfo, n: int = 4) -> str | None:
 class FormatSpec:
     """Ce que le pilote doit créer : une table GPT, UNE partition alignée sur 1 Mio, un système de fichiers (formatage rapide)."""
 
-    fs: str                     # ext4 | exfat | vfat | ntfs
+    fs: str
     label: str
     udisks_type: str
     partition_guid: str

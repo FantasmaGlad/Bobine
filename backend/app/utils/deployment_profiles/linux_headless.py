@@ -1,6 +1,4 @@
-"""Handler du profil `linux-headless` (l'appliance Debian existante,
-`install.sh`) : `sudo systemctl restart`, enveloppe de désinstallation
-`systemd-run`, mise à jour via `git checkout`/`git pull`."""
+"""Handler du profil `linux-headless` (l'appliance Debian existante, `install.sh`) : `sudo systemctl restart`, enveloppe de désinstallation `systemd-run`, mise à jour via `git checkout`/`git pull`."""
 
 import json
 import logging
@@ -28,15 +26,12 @@ def _repo_dir() -> Path:
     return Path(__file__).resolve().parent.parent.parent.parent
 
 
-# Délai laissé au nouveau backend pour répondre en bonne santé avant que le chien de garde ne restaure l'ancien.
 UPDATE_CONFIRMATION_SECONDS = 180
 PENDING_UPDATE_FILE = "update-pending.json"
 
 
 def write_pending_update(repo_dir: Path, previous_ref: str) -> None:
-    """Demande au chien de garde de confirmer la mise à jour ou de revenir à `previous_ref`.
-
-    `pid` est celui du backend qui part : tant qu'il répond encore, sa bonne santé ne prouve rien."""
+    """Demande au chien de garde de confirmer la mise à jour ou de revenir à `previous_ref`."""
     marker = repo_dir / "backend" / PENDING_UPDATE_FILE
     try:
         marker.write_text(
@@ -55,12 +50,6 @@ class LinuxHeadlessHandler(ProfileHandler):
     profile = "linux-headless"
 
     def restart_services(self) -> None:
-        # Redémarrage asynchrone et détaché :
-        # Exécuter `systemctl restart bobine-backend` de façon synchrone dans
-        # le processus Python coupe le process avant la fin de la requête HTTP
-        # et peut bloquer. L'enveloppe détachée (start_new_session=True) avec
-        # un délai de 1 seconde permet à l'API de répondre 200 OK et de clore
-        # ses connexions avant le rechargement effectif des services systemd.
         cmd = (
             "sleep 1 && "
             "(sudo /usr/bin/systemctl restart bobine-kiosk.service || sudo systemctl restart bobine-kiosk.service || true) && "
@@ -73,15 +62,6 @@ class LinuxHeadlessHandler(ProfileHandler):
             logger.error(f"Échec de programmation du redémarrage : {e}")
 
     def _restart_services_checked(self, report: Callable[..., None]) -> None:
-        """Variante utilisée par `apply_update()` : contrairement à
-        `restart_services()` (fire-and-forget, adaptée au bouton
-        "Réinitialiser" appelé depuis une requête HTTP qui doit répondre
-        avant que son propre process ne soit redémarré), le pipeline de
-        mise à jour tourne déjà dans un thread détaché de la requête HTTP
-        — rien n'empêche ici de vérifier réellement que chaque service
-        redevient actif, et de le signaler explicitement en cas d'échec au
-        lieu d'un `... || true` qui masque tout problème (sudoers cassé,
-        unité désactivée, etc.)."""
         report("restarting", message="Redémarrage des services…")
         for unit in (KIOSK_SERVICE_UNIT, BACKEND_SERVICE_UNIT):
             try:
@@ -103,7 +83,6 @@ class LinuxHeadlessHandler(ProfileHandler):
         logger.info("Désinstallation déclenchée (enveloppe systemd-run détachée).")
 
     def uninstall_instructions(self) -> str:
-        # Non utilisé : can_self_uninstall() est True pour ce profil.
         return ""
 
     def supports_git_versioning(self) -> bool:
@@ -116,10 +95,6 @@ class LinuxHeadlessHandler(ProfileHandler):
         return True
 
     def can_schedule_auto_apply(self) -> bool:
-        # Cible de production principale, checkout + réinstallation des
-        # dépendances + reconstruction du frontend + vérification du
-        # redémarrage — le chemin le plus éprouvé, éligible en premier à
-        # la planification automatique.
         return True
 
     def apply_update(
@@ -132,36 +107,14 @@ class LinuxHeadlessHandler(ProfileHandler):
         report = report or _NOOP_REPORT
         repo_dir = _repo_dir()
 
-        # Point de retour AVANT de toucher quoi que ce soit : l'ancien code
-        # laissait l'appliance sur du code neuf avec un frontend ancien (ou
-        # des dépendances à moitié installées) dès qu'une étape suivant le
-        # `git checkout` échouait — typiquement un `npm run build` qui
-        # dépasse son délai sur un Dell Wyse 5070 (Celeron, plusieurs minutes).
         previous_ref = self._current_ref(repo_dir)
 
         report("checking", message="Récupération de la nouvelle version…")
         if target_tag:
-            # Épingle le checkout sur le tag ciblé plutôt qu'un `git pull`
-            # aveugle sur la branche courante : seule façon de supporter un vrai retour en arrière
-            # (ex. Bêta -> dernière Stable, un tag ANTÉRIEUR que `--ff-only`
-            # refuserait). HEAD détaché assumé — cette machine est une cible
-            # de déploiement, jamais un poste de développement git sur ce
-            # dépôt. --force : le canal Bêta est un tag UNIQUE et mobile
-            # ("beta", jamais un nouveau tag par itération) — sans --force,
-            # un fetch classique refuse de mettre à jour un tag local dont
-            # la cible distante a bougé depuis le dernier fetch.
             run_checked(["git", "fetch", "--tags", "--force"], cwd=repo_dir, timeout=45)
-            # `check=True` implicite via `run_checked` : contrairement à
-            # l'ancien code, un checkout qui échoue (arbre de travail sale,
-            # permissions, réseau coupé en cours de fetch) lève désormais
-            # une exception AVANT tout redémarrage de service — évite de
-            # redémarrer "pour rien" sur l'ancienne version en laissant
-            # croire à une mise à jour qui n'a jamais eu lieu.
             run_checked(["git", "checkout", target_tag], cwd=repo_dir, timeout=45)
             logger.info(f"git checkout {target_tag} effectué avec succès.")
         else:
-            # Repli historique (aucun tag résolu côté appelant) : suit la
-            # branche courante par avance rapide uniquement.
             run_checked(["git", "pull", "--ff-only"], cwd=repo_dir, timeout=45)
             logger.info("git pull --ff-only effectué avec succès.")
 
@@ -174,19 +127,12 @@ class LinuxHeadlessHandler(ProfileHandler):
                 outcome = f"le retour à la version précédente ({previous_ref[:12]}) a échoué : relancez l'installateur."
             raise RuntimeError(f"{e} — {outcome}") from e
 
-        # Le chien de garde confirme la nouvelle version par le contrôle de santé, ou restaure la précédente :
-        # un backend qui ne redémarre pas ne pourrait pas le faire lui-même (scripts/watchdog.sh).
         write_pending_update(repo_dir, previous_ref)
 
-        # Hors du `try` : un service qui refuse de redémarrer (sudoers cassé,
-        # unité désactivée) ne justifie PAS d'annuler un code et un frontend
-        # désormais cohérents entre eux — l'erreur est simplement remontée.
         self._restart_services_checked(report)
 
     @staticmethod
     def _current_ref(repo_dir: Path) -> str:
-        """Branche courante si HEAD en suit une, sinon SHA complet (HEAD
-        détaché, état normal après une mise à jour par tag)."""
         try:
             branch = run_checked(["git", "symbolic-ref", "--short", "-q", "HEAD"], cwd=repo_dir, timeout=10)
             if branch.stdout.strip():
@@ -206,15 +152,6 @@ class LinuxHeadlessHandler(ProfileHandler):
             return False
 
     def _rebuild(self, repo_dir: Path, report: Callable[..., None]) -> None:
-        # Réinstallation des dépendances Python et reconstruction du
-        # frontend : `frontend/out` (servi statiquement par le backend)
-        # est gitignoré et NE fait donc jamais partie d'un `git checkout`
-        # — sans cette étape, l'interface servie restait celle d'AVANT la
-        # mise à jour même après un `git checkout` réussi. `pip install`
-        # est réexécuté systématiquement (coût de quelques secondes tout
-        # au plus si `requirements.txt` n'a pas changé, pip ne réinstalle
-        # alors rien) plutôt que de tenter une détection de changement
-        # fragile.
         venv_pip = repo_dir / "backend" / ".venv" / "bin" / "pip"
         if venv_pip.exists():
             report("installing", message="Mise à jour des dépendances serveur…")
@@ -225,8 +162,6 @@ class LinuxHeadlessHandler(ProfileHandler):
         else:
             logger.warning(f"Environnement virtuel introuvable ({venv_pip}) — étape pip ignorée.")
 
-        # Délais larges : la compilation Next.js d'un Celeron J4105/J5005
-        # dépasse régulièrement 5 minutes (constaté sur Wyse 5070).
         report("installing", message="Reconstruction de l'interface (plusieurs minutes sur ce matériel)…")
         run_checked(["npm", "ci", "--no-audit", "--no-fund"], cwd=repo_dir / "frontend", timeout=900)
         run_checked(["npm", "run", "build"], cwd=repo_dir / "frontend", timeout=1200)

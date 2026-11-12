@@ -1,9 +1,4 @@
-"""Router du module Radio — bibliothèque musicale.
-
-Gestion de la bibliothèque (« Piste Audio Radio ») — import, liste
-filtrable, édition des métadonnées et pochettes, navigation artiste/album, tags.
-Le streaming audio et la pochette sont servis par `api/routes/media_streams.py`.
-"""
+"""Router du module Radio — bibliothèque musicale."""
 import logging
 import os
 import shutil
@@ -32,10 +27,7 @@ router = APIRouter(prefix="/api/radio", tags=["radio"])
 
 @router.get("/state")
 def get_radio_state(channel: str | None = None):
-    """Snapshot ponctuel de l'état d'UNE sortie radio (`radio_cable` ou
-    `radio_network`, réseau par défaut — l'alias historique `radio` est accepté),
-    utile au premier rendu de la télécommande admin avant connexion WebSocket —
-    même rôle que GET /api/playback/state pour câblé/réseau."""
+    """Snapshot ponctuel de l'état d'UNE sortie radio (`radio_cable` ou `radio_network`, réseau par défaut — l'alias historique `radio` est accepté), utile au premier rendu de la télécommande admin avant connexion WebSocket — même rôle que GET /api/playback/state pour câblé/réseau."""
     from app.radio_manager import get_radio_manager
 
     return get_radio_manager(channel).snapshot()
@@ -43,8 +35,7 @@ def get_radio_state(channel: str | None = None):
 
 @router.get("/sound")
 def get_radio_sound(channel: str | None = None):
-    """Réglages de son courants d'UNE sortie radio (réseau par défaut) : même valeur
-    que le champ `sound` de l'état diffusé, pour les clients sans WebSocket."""
+    """Réglages de son courants d'UNE sortie radio (réseau par défaut) : même valeur que le champ `sound` de l'état diffusé, pour les clients sans WebSocket."""
     from app.radio_manager import get_radio_manager
 
     return get_radio_manager(channel).state["sound"]
@@ -52,10 +43,7 @@ def get_radio_sound(channel: str | None = None):
 
 @router.put("/sound")
 async def set_radio_sound(payload: dict = Body(...), channel: str | None = None, db: Session = Depends(get_db)):
-    """Modifie les réglages de son d'UNE sortie radio. Les valeurs hors plage sont
-    BORNÉES (jamais d'erreur) et les champs absents gardent leur valeur courante;
-    persisté puis diffusé aux lecteurs et télécommandes de la sortie. Même chemin que
-    la commande WebSocket `radio_set_sound`."""
+    """Modifie les réglages de son d'UNE sortie radio."""
     from app.radio_manager import get_radio_manager
     from app.utils.radio_commands import apply_sound
 
@@ -64,15 +52,12 @@ async def set_radio_sound(payload: dict = Body(...), channel: str | None = None,
 
 class DefaultPlaylistInput(BaseModel):
     channel: str
-    # None = effacer le choix propre à la sortie (retour à la playlist `is_default`).
     playlist_id: int | None = None
 
 
 @router.get("/default-playlist")
 def get_default_playlists(db: Session = Depends(get_db)):
-    """Ambiance par défaut de chaque sortie radio : le choix propre à la sortie
-    (None si aucun) et la playlist effectivement utilisée (choix propre, sinon
-    playlist marquée `is_default`, sinon None = toute la bibliothèque)."""
+    """Ambiance par défaut de chaque sortie radio : le choix propre à la sortie (None si aucun) et la playlist effectivement utilisée (choix propre, sinon playlist marquée `is_default`, sinon None = toute la bibliothèque)."""
     from app.radio_manager import RADIO_CHANNELS
     from app.scheduling.radio import get_radio_default_playlist_override, resolve_radio_default_playlist
 
@@ -88,8 +73,7 @@ def get_default_playlists(db: Session = Depends(get_db)):
 
 @router.put("/default-playlist")
 def set_default_playlist(payload: DefaultPlaylistInput, db: Session = Depends(get_db)):
-    """Choisit l'ambiance par défaut d'UNE sortie radio (démarrage automatique,
-    fin de fenêtre de planning, bascule de la sortie câblée sur Radio)."""
+    """Choisit l'ambiance par défaut d'UNE sortie radio (démarrage automatique, fin de fenêtre de planning, bascule de la sortie câblée sur Radio)."""
     from app.radio_manager import RADIO_CHANNELS
     from app.scheduling.radio import set_radio_default_playlist_override
 
@@ -102,9 +86,6 @@ def set_default_playlist(payload: DefaultPlaylistInput, db: Session = Depends(ge
     return get_default_playlists(db)
 
 
-# ---------------------------------------------------------------------------
-# Schémas
-# ---------------------------------------------------------------------------
 class RadioTrackResponse(BaseModel):
     id: int
     title: str
@@ -131,7 +112,6 @@ class RadioTrackUpdate(BaseModel):
     disc_number: int | None = None
     year: int | None = None
     genre: str | None = None
-    # Si fourni, remplace l'ensemble des tags du morceau (noms ; créés si absents).
     tags: List[str] | None = None
 
 
@@ -162,9 +142,6 @@ def _to_track_response(track: RadioTrack) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Bibliothèque — morceaux
-# ---------------------------------------------------------------------------
 @router.get("/tracks", response_model=List[RadioTrackResponse])
 def list_tracks(
     q: str | None = None,
@@ -174,12 +151,7 @@ def list_tracks(
     tag: str | None = None,
     db: Session = Depends(get_db),
 ):
-    """Liste filtrable des morceaux (vue « Morceaux » + filtres artiste/album/
-    genre/tag des autres vues)."""
-    # `selectinload` : `_to_track_response` lit `track.tags` pour chaque ligne ;
-    # sans lui, SQLAlchemy émet un SELECT par morceau (N+1 : 5000 morceaux =
-    # 5001 requêtes, ~489 ms qui bloquent la boucle d'évènements contre ~54 ms
-    # avec une seule requête supplémentaire pour tous les tags).
+    """Liste filtrable des morceaux (vue « Morceaux » + filtres artiste/album/ genre/tag des autres vues)."""
     query = db.query(RadioTrack).options(selectinload(RadioTrack.tags))
     if q:
         like = f"%{q.strip()}%"
@@ -235,8 +207,7 @@ def _run_zip_import_job(job_id: str, temp_path: str) -> None:
 
 @router.post("/tracks/upload", response_model=ImportJobAccepted, status_code=202)
 def upload_tracks(files: List[UploadFile] = File(...)):
-    """Import multi-fichiers de morceaux (tous formats audio), traité en
-    arrière-plan — voir GET /api/import-jobs."""
+    """Import multi-fichiers de morceaux (tous formats audio), traité en arrière-plan — voir GET /api/import-jobs."""
     tmp_dir = Path(tempfile.mkdtemp(prefix="olmc_radio_upload_"))
     temp_paths = []
     try:
@@ -266,7 +237,6 @@ def upload_tracks_zip(file: UploadFile | None = File(None), upload_id: str | Non
 
 
 def _apply_tags(db: Session, track: RadioTrack, tag_names: List[str]) -> None:
-    """Remplace l'ensemble des tags du morceau par `tag_names` (créés si absents)."""
     resolved: list[RadioTag] = []
     for raw in tag_names:
         name = raw.strip()
@@ -289,14 +259,11 @@ def update_track(track_id: int, payload: RadioTrackUpdate, db: Session = Depends
     if not track:
         raise HTTPException(status_code=404, detail="Morceau non trouvé")
 
-    # `.model_fields_set` (v2) / `.__fields_set__` (v1, profil Android) —
-    # cf. docs/ARCHITECTURE.md §3.1.
     fields_set = getattr(payload, "model_fields_set", None) or payload.__fields_set__
     text_fields = ("title", "artist", "album", "album_artist", "genre")
     for field in text_fields:
         if field in fields_set:
             value = getattr(payload, field)
-            # Chaîne vide -> None (efface le champ) ; sinon valeur nettoyée.
             setattr(track, field, value.strip() if value and value.strip() else None)
     if "title" in fields_set and not track.title:
         raise HTTPException(status_code=400, detail="Le titre ne peut pas être vide")
@@ -341,7 +308,6 @@ def upload_track_cover(track_id: int, file: UploadFile = File(...), db: Session 
     track.cover_source = RadioCoverSource.manual
     db.commit()
     db.refresh(track)
-    # Supprime l'ancienne pochette du disque une fois la bascule committée.
     if old_cover and old_cover != new_cover and Path(old_cover).exists():
         try:
             os.remove(old_cover)
@@ -356,10 +322,8 @@ def delete_track(track_id: int, db: Session = Depends(get_db)):
     if not track:
         raise HTTPException(status_code=404, detail="Morceau non trouvé")
 
-    # Un morceau d'un support externe n'est retiré que de la bibliothèque : le fichier du support reste intact.
     file_path = track.file_path if track.storage_id is None else None
     cover_path = track.cover_path
-    # Ses places dans les playlists et ses tags partent avec lui (clés étrangères en cascade).
     db.delete(track)
     db.commit()
 
@@ -372,9 +336,6 @@ def delete_track(track_id: int, db: Session = Depends(get_db)):
     return {"message": "Morceau supprimé"}
 
 
-# ---------------------------------------------------------------------------
-# Navigation dérivée — artistes / albums
-# ---------------------------------------------------------------------------
 @router.get("/artists")
 def list_artists(db: Session = Depends(get_db)):
     """Artistes dérivés par regroupement (album_artist sinon artist)."""
@@ -395,8 +356,7 @@ def list_artists(db: Session = Depends(get_db)):
 
 @router.get("/albums")
 def list_albums(db: Session = Depends(get_db)):
-    """Albums dérivés par regroupement (album_artist, album). `cover_track_id`
-    = premier morceau de l'album ayant une pochette (pour l'affichage)."""
+    """Albums dérivés par regroupement (album_artist, album)."""
     albums: dict[tuple, dict] = {}
     tracks = (
         db.query(RadioTrack)
@@ -419,9 +379,6 @@ def list_albums(db: Session = Depends(get_db)):
     return sorted(albums.values(), key=lambda a: ((a["album_artist"] or "").lower(), (a["album"] or "").lower()))
 
 
-# ---------------------------------------------------------------------------
-# Tags
-# ---------------------------------------------------------------------------
 @router.get("/tags")
 def list_tags(db: Session = Depends(get_db)):
     rows = (

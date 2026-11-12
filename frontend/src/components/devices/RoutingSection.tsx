@@ -17,7 +17,6 @@ export type RadioSectionProps = SectionProps & { feed: RadioFeed };
 
 const TONE_ICON = { neutral: "info", ok: "check_circle", info: "schedule", warn: "warning", bad: "error" } as const;
 
-/** Demande au navigateur de révéler les noms de ses sorties audio (une permission micro de 0 s, flux aussitôt arrêté, rien n'est enregistré). */
 async function unlockOutputLabels(): Promise<"ok" | "denied" | "unsupported"> {
   if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return "unsupported";
   try {

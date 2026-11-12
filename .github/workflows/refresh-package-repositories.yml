@@ -1,11 +1,5 @@
 name: Rafraîchir les dépôts de paquets
 
-# Les fichiers Release du dépôt APT expirent (Valid-Until) : sans nouvelle publication, `apt update` échoue avec
-# « Release file is expired ». Ce workflow ré-exporte et re-signe chaque semaine les trois suites (stable, beta, canary)
-# sans changer les paquets, puis pousse sur gh-pages de bobine-packages, ce qui déclenche la vérification et le
-# déploiement Pages de ce dépôt. Les dépôts DNF et pacman n'expirent pas : rien à rafraîchir.
-# Il partage le groupe de concurrence de la publication des dépôts (publish-linux-packages) : jamais deux écrivains à la fois.
-
 on:
   schedule:
     - cron: '17 4 * * 1'
@@ -25,8 +19,6 @@ concurrency:
   group: publish-linux-packages
   cancel-in-progress: false
 
-# Un miroir apt qui cale laisse apt attendre jusqu'au délai du job : abandon d'un transfert muet après 30 s,
-# puis nouvel essai.
 env:
   APT_OPTIONS: -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
 

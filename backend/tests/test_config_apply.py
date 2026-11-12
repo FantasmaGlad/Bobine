@@ -1,6 +1,4 @@
-"""Application des fichiers de configuration : essai à blanc sans écriture, aller-retour export → application sans
-écart, tout ou rien (une erreur dans un fichier refuse l'ensemble et les liste toutes), références par nom, planning
-remplacé par canal et resynchronisé, `machine.json` seulement sur demande."""
+"""Application des fichiers de configuration : essai à blanc sans écriture, aller-retour export → application sans écart, tout ou rien (une erreur dans un fichier refuse l'ensemble et les liste toutes), références par nom, planning remplacé par canal et resynchronisé, `machine.json` seulement sur demande."""
 
 import asyncio
 import copy
@@ -104,7 +102,7 @@ def test_ambiguous_names_are_refused(library):  # noqa: F811
     legacy = _export()["schedule/cable.json"]
     for entry in legacy["schedules"]:
         entry.pop("uid", None)
-        entry["target"].pop("uid", None)  # document de la 5.1 : seul le nom désigne la playlist
+        entry["target"].pop("uid", None)
     with pytest.raises(ConfigErrors) as refused:
         _apply({"schedule/cable.json": legacy})
     assert "plusieurs playlists « Lundi soir »" in " ".join(refused.value.errors)

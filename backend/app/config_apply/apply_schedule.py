@@ -102,7 +102,6 @@ def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> N
                 continue
             replacement = _schedule_target(ctx, file, override.get("replacement")) if action == OverrideAction.replaced else None
             overrides.append((override.get("uid"), date, action, replacement))
-        # Reconnaissance : `uid`, à défaut la même programmation (cible, type, date ou récurrence) : les `id` restent.
         schedule = by_uid.get(entry.get("uid")) if is_uid(entry.get("uid"), "sch") else None
         if schedule is None:
             schedule = next((s for s in unused if _signature(s) == _signature(wanted)), None)
@@ -135,7 +134,6 @@ def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> N
 
 
 def _sync_overrides(ctx: _Context, schedule: Schedule, wanted: list) -> None:
-    """Exceptions reconnues par `uid`, à défaut par date ; les `id` et `uid` restent, le reste est créé ou supprimé."""
     from app.scheduling.occurrences import ensure_utc
 
     current = list(schedule.overrides) if schedule.id is not None else []

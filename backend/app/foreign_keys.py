@@ -1,10 +1,4 @@
-"""Clés étrangères SQLite : mise en conformité des bases existantes avant leur activation.
-
-SQLite ne modifie jamais la contrainte d'une table existante : une base créée avant les règles `ondelete` du modèle
-garde des clés sans action, qui refuseraient une suppression une fois les clés activées. Chaque table dont les
-règles diffèrent du modèle est donc reconstruite (procédure documentée par SQLite : nouvelle table, copie, échange),
-après retrait des lignes orphelines qu'une base sans contrôle a pu accumuler.
-"""
+"""Clés étrangères SQLite : mise en conformité des bases existantes avant leur activation."""
 from __future__ import annotations
 
 import logging
@@ -23,7 +17,6 @@ def _quote(name: str) -> str:
 
 
 def _expected_actions(table: Table) -> dict[tuple[str, str], str]:
-    """(colonne, table parente) -> action attendue à la suppression du parent."""
     return {
         (fk.parent.name, fk.column.table.name): (fk.ondelete or "NO ACTION").upper()
         for fk in table.foreign_keys
@@ -35,7 +28,6 @@ def _current_actions(cur: sqlite3.Cursor, table: str) -> dict[tuple[str, str], s
 
 
 def _remove_orphans(cur: sqlite3.Cursor, table: Table) -> int:
-    """Retire les lignes qui visent un parent disparu : la colonne est vidée si elle le permet, la ligne supprimée sinon."""
     fixed = 0
     for fk in table.foreign_keys:
         child, col, parent, ref = table.name, fk.parent.name, fk.column.table.name, fk.column.name
@@ -57,10 +49,7 @@ _COLUMN_FK = re.compile(
 
 
 def with_delete_rules(sql: str, actions: dict[tuple[str, str], str]) -> str:
-    """Instruction de création de la table, avec la règle de suppression du modèle sur chacune de ses clés.
-
-    Le reste de la définition (colonnes, types, contraintes) est gardé tel quel : une base ancienne peut contenir des
-    valeurs que le modèle actuel refuserait, et ces données doivent survivre à la reconstruction."""
+    """Instruction de création de la table, avec la règle de suppression du modèle sur chacune de ses clés."""
     def table_level(m: re.Match) -> str:
         column, parent, ref = m.group(1), m.group(2), m.group(3)
         return f"FOREIGN KEY({column}) REFERENCES {parent} ({ref}) ON DELETE {actions.get((column, parent), 'NO ACTION')}"
@@ -73,7 +62,6 @@ def with_delete_rules(sql: str, actions: dict[tuple[str, str], str]) -> str:
 
 
 def _rebuild(cur: sqlite3.Cursor, table: Table) -> None:
-    """Recrée la table avec les règles de suppression du modèle, en gardant sa définition, ses données et ses index."""
     name = table.name
     temp = f"{name}__fk_rebuild"
     sql = cur.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", (name,)).fetchone()[0]
@@ -91,14 +79,11 @@ def _rebuild(cur: sqlite3.Cursor, table: Table) -> None:
         cur.execute(index_sql)
 
 
-# Vrai une fois la base alignée : les connexions suivantes activent alors le contrôle des clés (database.py). Une base
-# qu'on n'a pas pu aligner reste sans contrôle plutôt que de refuser des suppressions ou d'empêcher le démarrage.
 enforced = False
 
 
 def align_foreign_keys(engine: Engine) -> None:
-    """Met les tables existantes en conformité avec les clés du modèle, puis active le contrôle. Idempotent ; ne fait
-    rien sur une base neuve. Un échec est journalisé et laisse la base telle qu'elle était, sans contrôle des clés."""
+    """Met les tables existantes en conformité avec les clés du modèle, puis active le contrôle."""
     global enforced
     try:
         _align(engine)
@@ -106,7 +91,7 @@ def align_foreign_keys(engine: Engine) -> None:
     except Exception:
         logger.exception("Clés étrangères non alignées : la base reste sans contrôle des clés")
     finally:
-        engine.dispose()  # les connexions déjà ouvertes suivent l'état d'avant : les suivantes suivront `enforced`
+        engine.dispose()
 
 
 def suspend(engine: Engine) -> None:
@@ -117,7 +102,6 @@ def suspend(engine: Engine) -> None:
 
 
 def _alignable(cur: sqlite3.Cursor, table: Table) -> bool:
-    """Faux pour une table d'un schéma ancien qui n'a pas les colonnes de clé du modèle : elle reste telle quelle."""
     columns = {row[1] for row in cur.execute(f"PRAGMA table_info({_quote(table.name)})")}
     missing = sorted(fk.parent.name for fk in table.foreign_keys if fk.parent.name not in columns)
     if missing:
@@ -131,7 +115,7 @@ def _align(engine: Engine) -> None:
     try:
         conn = raw.driver_connection
         previous = conn.isolation_level
-        conn.isolation_level = None  # transactions explicites : les PRAGMA de clés ne s'appliquent qu'hors transaction
+        conn.isolation_level = None
         cur = conn.cursor()
         cur.execute("PRAGMA foreign_keys=OFF")
         existing = {row[0] for row in cur.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
@@ -150,7 +134,6 @@ def _align(engine: Engine) -> None:
                 if _current_actions(cur, table.name) != _expected_actions(table):
                     _rebuild(cur, table)
                     rebuilt.append(table.name)
-            # Contrôle limité aux tables du modèle : une table d'un schéma ancien garde ses lignes et ses clés.
             problems = [row for t in tables for row in cur.execute(f"PRAGMA foreign_key_check({_quote(t.name)})")]
             if problems:
                 raise RuntimeError(f"clés étrangères incohérentes après migration : {problems[:5]}")

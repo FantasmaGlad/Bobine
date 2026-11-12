@@ -25,19 +25,9 @@ import DangerSection from "@/components/settings/DangerSection";
 import { getApiUrl } from "@/lib/apiUrl";
 import { useToast } from "@/lib/useToast";
 
-// Profil de déploiement — détermine si
-// la zone Désinstaller propose une action directe (appliance headless) ou de
-// simples instructions (profils desktop, cf. section "Zone de danger" plus
-// bas).
-// "android" ajouté : absent
-// depuis l'introduction du profil Android — les comparaisons
-// strictes contre "android" existaient déjà ailleurs dans le dépôt
-// (cinema/page.tsx) mais sur des données non typées (`any`), ce qui
-// masquait le type manquant ici.
 type DeploymentProfile = "linux-headless" | "linux-desktop" | "windows" | "macos" | "android";
 
 interface SettingsData {
-  /** Faux sur Android : le redémarrage n'y est pas relancé de façon garantie. */
   restart_guaranteed?: boolean;
   wait_time_between_courses: number;
   volume_default: number;
@@ -51,9 +41,7 @@ interface SettingsData {
     port: number;
     mdns_url: string;
     mdns_status: string | null;
-    /** Vrai si le port 80 renvoie réellement vers Bobine (adresse courte valable). */
     port80_redirect?: boolean;
-    /** Liens d'accès complets (mêmes données que l'API) : boucle locale, réseau local, VPN, bobine.local. */
     access?: { kind: "loopback" | "lan" | "vpn" | "mdns"; interface: string; url: string }[];
   };
   update_channel: UpdateChannel;
@@ -61,22 +49,18 @@ interface SettingsData {
   auto_update_enabled: "true" | "false";
   auto_update_time: string;
   auto_update_supported?: boolean;
-  /** Faux sur l'appliance et en boutique : une partie du trafic de mise à jour ne passerait pas par Tor. */
   update_tor_supported?: boolean;
   update_tor?: "true" | "false";
   update_tor_proxy?: string;
-  /** Build Google Play : les mises à jour passent par la boutique (pas de canaux GitHub ni d'installateur planifié). */
   store_managed?: boolean;
 }
 
-/** État de la mise à jour côté Google Play (build « play » uniquement). */
 interface StoreInfo {
   provider: "google_play";
   state: "none" | "available" | "downloading" | "downloaded" | "installing" | "failed" | "unavailable";
   version_code?: number | null;
   message?: string;
 }
-
 
 interface UpdateInfo {
   online: boolean;
@@ -86,8 +70,6 @@ interface UpdateInfo {
   current_commit: string;
   latest_version: string | null;
   has_update: boolean;
-  /** Vrai quand la version proposée est ANTÉRIEURE à celle installée
-   * (retour Bêta/Canary -> Stable demandé explicitement via le sélecteur de canal). */
   is_downgrade?: boolean;
   error_code?: "offline" | "rate_limited" | `not_found_${UpdateChannel}` | null;
   local_build?: UpdateChannel;
@@ -96,7 +78,6 @@ interface UpdateInfo {
   published_at: string | null;
   html_url: string | null;
   can_auto_apply?: boolean;
-  /** Application installée depuis une boutique (Google Play) : les mises à jour passent par elle. */
   store_managed?: boolean;
   store?: StoreInfo;
   download_url?: string | null;
@@ -107,8 +88,6 @@ interface UpdateInfo {
   checked_at: string;
 }
 
-
-/** Octets -> unité lisible (Go/Mo…), base 1024. */
 function formatBytes(bytes: number): string {
   if (!bytes || bytes < 0) return "0 o";
   const units = ["o", "Ko", "Mo", "Go", "To"];
@@ -122,26 +101,15 @@ interface LidInfo {
   prevent_sleep: boolean;
 }
 
-// Pages plein écran destinées à être ouvertes depuis un AUTRE appareil du
-// réseau local (TV câblée, tablette coach, poste radio dédié…) — même liste que
-// `isFullscreenRoute` dans ClientLayout.tsx.
 const PUBLIC_PAGE_KEYS: { path: string; labelKey: string }[] = [
   { path: "/kiosk", labelKey: "settingsPage.paths.pageKiosk" },
-  // Écran explicitement rattaché au canal RÉSEAU : seul moyen d'en avoir un
-  // sur la machine du serveur (127.0.0.1), où le nom d'hôte désigne sinon le
-  // canal câblé (cf. lib/displayChannel.ts).
   { path: "/kiosk?channel=network", labelKey: "settingsPage.paths.pageKioskNetwork" },
   { path: "/cinema", labelKey: "settingsPage.paths.pageCinema" },
   { path: "/coach", labelKey: "settingsPage.paths.pageCoach" },
-  // Une radio par sortie de diffusion : chacune a son propre moteur (playlist, volume,
-  // rappels, planning, son). `/radio` nu reste un alias historique de la sortie réseau.
   { path: "/radio?channel=cable", labelKey: "settingsPage.paths.pageRadioCable" },
   { path: "/radio?channel=network", labelKey: "settingsPage.paths.pageRadioNetwork" },
 ];
 
-// /grid (écran tactile de sélection) : spécifique au profil
-// Android — inutile de l'afficher sur les autres profils, qui n'ont pas
-// cette page.
 const ANDROID_PAGE_KEYS: { path: string; labelKey: string }[] = [
   { path: "/grid", labelKey: "settingsPage.paths.pageGrid" },
 ];
@@ -164,7 +132,6 @@ const PATH_LABEL_KEYS: Record<string, string> = {
   subtitles_dir: "settingsPage.paths.subtitles_dir",
 };
 
-
 export default function SettingsPage() {
   const {
     theme, themeMode, resolvedMode, storedLanguage, languagePending, simplifiedUi, setSimplifiedUi, setTheme, setThemeMode, setLanguage, t,
@@ -172,7 +139,6 @@ export default function SettingsPage() {
     wiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount,
   } = useAppSettings();
 
-  // Catégories : la page n'affiche que celle choisie ; une recherche affiche toutes les catégories qui répondent.
   const [category, setCategory] = useState<SettingsCategoryId>(DEFAULT_SETTINGS_CATEGORY);
   const [query, setQuery] = useState("");
   const searching = query.trim().length > 0;
@@ -188,7 +154,6 @@ export default function SettingsPage() {
     setQuery("");
     setCategory(id);
   };
-  /** Ouvre la catégorie d'une section puis la fait défiler (liens profonds, notifications). */
   const openSection = useCallback((sectionId: string) => {
     const owner = categoryOfSection(sectionId);
     if (owner) {
@@ -212,7 +177,6 @@ export default function SettingsPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const [restartMessage, setRestartMessage] = useState<string | null>(null);
-  // Redémarrage simple : les écrans ouverts se reconnectent, voient un autre boot_id et se rechargent seuls.
   const restartNow = async () => {
     setRestarting(true);
     setRestartMessage(null);
@@ -221,7 +185,6 @@ export default function SettingsPage() {
       setRestartMessage(t(res.ok ? "settingsPage.languageRestarting" : "settingsPage.languageRestartFailed"));
       if (!res.ok) setRestarting(false);
       else {
-        // Sans relance observable (poste de développement), la page ne se recharge jamais : on rend la main.
         window.setTimeout(() => {
           setRestarting(false);
           setRestartMessage(t("settingsPage.languageRestartFailed"));
@@ -240,13 +203,10 @@ export default function SettingsPage() {
   const [confirmingChannel, setConfirmingChannel] = useState<UpdateChannel | null>(null);
   const [resetting, setResetting] = useState(false);
 
-  // Sauvegarde & Restauration
   const [exportingBackup, setExportingBackup] = useState(false);
   const [restoringBackup, setRestoringBackup] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [selectedBackupFile, setSelectedBackupFile] = useState<File | null>(null);
-
-  // Remise à zéro des données
 
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [storeBusy, setStoreBusy] = useState(false);
@@ -255,7 +215,6 @@ export default function SettingsPage() {
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [changingChannel, setChangingChannel] = useState(false);
 
-  // Nettoyage automatique des journaux & métriques
   const [logsRetentionDays, setLogsRetentionDays] = useState<number>(7);
   const [isPurgingLogs, setIsPurgingLogs] = useState<boolean>(false);
 
@@ -319,9 +278,6 @@ export default function SettingsPage() {
     return () => clearInterval(id);
   }, [fetchSettings]);
 
-
-
-
   const handleLogoUpload = async (file: File) => {
     setUploadingLogo(true);
     try {
@@ -377,25 +333,14 @@ export default function SettingsPage() {
     }
   };
 
-  // `silent` : la
-  // vérification automatique au montage de la page ne doit pas déranger
-  // l'utilisateur avec un toast "Système à jour" à chaque ouverture des
-  // Réglages — seule une mise à jour RÉELLEMENT disponible mérite un toast
-  // non sollicité. Le clic manuel sur "Rechercher une mise à jour" garde
-  // lui son retour complet (y compris "à jour"/erreur), pour confirmer que
-  // le clic a bien fait quelque chose.
   const checkForUpdates = async (silent = false) => {
     setCheckingUpdate(true);
     try {
-      // `refresh=1` : un clic explicite (ou un changement de canal) doit
-      // contourner la fenêtre anti-doublon du serveur ; l'ouverture
-      // silencieuse de la page peut, elle, réutiliser une réponse récente.
       const res = await fetch(getApiUrl(`/updates/check${silent ? "" : "?refresh=1"}`), { cache: "no-store" });
       if (res.ok) {
         const info: UpdateInfo = await res.json();
         setUpdateInfo(info);
         if (info.store_managed) {
-          // Build Google Play : l'état vient de Google Play, jamais des releases GitHub.
           const state = info.store?.state;
           if (state === "available") {
             showToast(t("settingsPage.storeAvailable"), "warning", () => {
@@ -406,11 +351,7 @@ export default function SettingsPage() {
           }
           return;
         }
-        // Un retour en arrière (Bêta -> Stable) est un choix de l'utilisateur,
-        // pas une nouveauté : pas de toast d'alerte non sollicité à chaque
-        // ouverture de la page, la carte ci-dessous suffit.
         if (info.has_update && info.is_downgrade && silent) {
-          // rien : voir commentaire ci-dessus
         } else if (info.has_update) {
           showToast(
             `${t("settingsPage.updateAvailable")} (${info.latest_version})`,
@@ -436,7 +377,6 @@ export default function SettingsPage() {
     }
   };
 
-  // Build Google Play : déclenche l'action demandée (mise à jour souple, installation, fiche Google Play).
   const handleStoreAction = async (action: "start" | "complete" | "open") => {
     setStoreBusy(true);
     try {
@@ -455,7 +395,6 @@ export default function SettingsPage() {
     }
   };
 
-  // Pendant le téléchargement par Google Play, relit l'état toutes les 5 s pour proposer « Redémarrer » dès qu'il est prêt.
   const storeDownloading = updateInfo?.store?.state === "downloading";
   useEffect(() => {
     if (!storeDownloading) return;
@@ -464,10 +403,6 @@ export default function SettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- seule la présence d'un téléchargement en cours compte
   }, [storeDownloading]);
 
-  // Notification proactive : vérifie une fois à l'ouverture des Réglages, sans
-  // attendre un clic manuel sur "Rechercher une mise à jour" — silencieux
-  // sauf si une mise à jour est réellement trouvée (cf. paramètre `silent`
-  // ci-dessus).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- vérification ponctuelle contre une API externe (GitHub via le backend), pas un calcul dérivable au rendu
     checkForUpdates(true);
@@ -483,14 +418,6 @@ export default function SettingsPage() {
     try {
       const res = await fetch(getApiUrl("/updates/apply"), { method: "POST" });
       if (res.ok) {
-        // Le succès RÉEL (ou l'échec) est désormais suivi en direct par
-        // <UpdateProgressOverlay/> (montée globalement dans ClientLayout,
-        // WebSocket "update_progress") — ce toast ne fait plus que
-        // confirmer le DÉCLENCHEMENT, jamais l'issue. Avant ce correctif,
-        // ce même message ("Mise à jour téléchargée...") s'affichait ici
-        // dès cette réponse HTTP, avant même que le téléchargement n'ait
-        // commencé côté serveur — un échec réel (réseau coupé, checkout
-        // git refusé, installeur annulé) restait alors invisible.
         showToast(t("settingsPage.updateInProgressHint"));
       } else if (res.status === 409) {
         showToast(t("settingsPage.updateAlreadyInProgress"), "warning");
@@ -551,12 +478,6 @@ export default function SettingsPage() {
     }
   };
 
-  // Canal de mise à jour (Stable/Bêta/Canary) : bascule
-  // immédiate (comme le thème/la langue), pas de bouton "Enregistrer" séparé
-  // — un choix à 3 états sans état intermédiaire à valider. Relance
-  // aussitôt checkForUpdates() pour que la carte "Mises à jour" reflète tout
-  // de suite le nouveau canal plutôt que de garder l'ancien résultat affiché
-  // jusqu'au prochain clic manuel sur "Rechercher une mise à jour".
   const handleChannelChange = async (channel: UpdateChannel) => {
     if (!data || data.update_channel === channel || changingChannel) return;
     setChangingChannel(true);
@@ -621,8 +542,6 @@ export default function SettingsPage() {
   };
 
   const handleCopyPath = async (p: string) => {
-    // « Copié » seulement si la copie a réellement réussi ; sinon l'adresse est affichée pour être
-    // copiée à la main (cf. lib/clipboard.ts : HTTP simple sur l'IP locale = pas d'API presse-papiers).
     if (await copyText(p)) {
       showToast(t("settingsPage.paths.pathCopied"));
     } else {
@@ -728,7 +647,6 @@ export default function SettingsPage() {
         onChange={(id) => chooseCategory(id as SettingsCategoryId)}
         ariaLabel={t("settingsPage.categoriesLabel")}
       />
-      {/* Recherche : son propre espace, centré sous les catégories. */}
       <div className="settings-search-row">
         <label className="settings-search">
           <Icon name="search" size={18} />
@@ -743,7 +661,6 @@ export default function SettingsPage() {
       </div>
       {searching && matched.size === 0 && <div className="live-empty">{t("settingsPage.searchNone")}</div>}
 
-      {/* ---- Apparence : thèmes + langue ---- */}
       <section className="live-block" id="section-appearance" hidden={!shows("section-appearance")}>
         <h3><Icon name="palette" size={18} /> {t("settingsPage.appearanceSection")}</h3>
         <div className="form-group">
@@ -761,7 +678,6 @@ export default function SettingsPage() {
           />
           <p className="settings-hint">{t("settingsPage.themeModeHint")}</p>
 
-          {/* Les pastilles montrent la palette de chaque thème dans le mode appliqué en ce moment. */}
           <div className="theme-picker-grid">
             {THEMES.map((option) => {
               const palette = paletteOf(option.id, resolvedMode);
@@ -841,7 +757,6 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* ---- Sortie câblée : Pupitre Studio (/grid) vs Headless (Écran physique & HDMI) ---- */}
       <section className="live-block" id="section-display" hidden={!shows("section-display")}>
         <h3><Icon name="tv" size={18} /> {t("settingsPage.wiredDisplaySection")}</h3>
         <p className="settings-hint" style={{ marginTop: "-8px", marginBottom: "16px" }}>
@@ -851,7 +766,6 @@ export default function SettingsPage() {
         <div className="form-group">
           <label className="form-label">{t("settingsPage.wiredDisplayModeLabel")}</label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px", marginTop: "8px" }}>
-            {/* Option 0 : Automatique (dérivé des écrans externes réellement connectés) */}
             <button
               type="button"
               className={`theme-picker-card ${displayModeSetting === "auto" ? "active" : ""}`}
@@ -907,7 +821,6 @@ export default function SettingsPage() {
               </p>
             </button>
 
-            {/* Option 1 : Headless (Affichage Classique / mini-PC autonome) */}
             <button
               type="button"
               className={`theme-picker-card ${displayModeSetting === "headless" ? "active" : ""}`}
@@ -955,7 +868,6 @@ export default function SettingsPage() {
               </p>
             </button>
 
-            {/* Option 2 : Pupitre Studio + Vidéo HDMI */}
             <button
               type="button"
               className={`theme-picker-card ${displayModeSetting === "dual_screen" ? "active" : ""}`}
@@ -1004,7 +916,6 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          {/* Note explicite sur le périmètre de /grid (canal câblé uniquement) */}
           <div
             style={{
               marginTop: "12px",
@@ -1025,10 +936,8 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          {/* Liens d'accès direct au mode Pupitre Studio & Écran Vidéo */}
           {wiredDisplayMode === "dual_screen" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }} className="olc-anim-in">
-              {/* Carte 1 : Pupitre Studio */}
               <a
                 href="/grid"
                 target="_blank"
@@ -1076,7 +985,6 @@ export default function SettingsPage() {
                 </div>
               </a>
 
-              {/* Carte 2 : Écran Vidéo HDMI */}
               <a
                 href="/cinema"
                 target="_blank"
@@ -1126,7 +1034,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Contrôle du capot (PC Portable / Clamshell) */}
           {lidInfo?.has_lid && (
             <div
               style={{
@@ -1182,7 +1089,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Astuce tablette sur profil Android */}
           {data?.deployment_profile === "android" && (
             <p className="settings-hint" style={{ marginTop: "12px" }}>
               {t("settingsPage.wiredDisplayTabletHint")}
@@ -1191,11 +1097,9 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* ---- Branding : image de marque & logo ---- */}
       <section className="live-block" id="section-branding" hidden={!shows("section-branding")}>
         <h3><Icon name="image" size={18} /> {t("settingsPage.brandingSection")}</h3>
         <div className="form-group" style={{ flexDirection: "row", alignItems: "center", gap: "24px", flexWrap: "wrap" }}>
-          {/* Cadre de prévisualisation : dimensions généreuses et padding pour contenir tout logo */}
           <div
             style={{
               width: "180px",
@@ -1215,7 +1119,6 @@ export default function SettingsPage() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", flexGrow: 1, minWidth: "260px" }}>
-            {/* Commutateur de logo (quand un logo personnalisé a été uploadé) */}
             {hasCustomLogo && (
               <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                 <span className="form-label" style={{ margin: 0, fontSize: "0.85rem" }}>
@@ -1291,8 +1194,6 @@ export default function SettingsPage() {
         </div>
       </section>
 
-
-      {/* ---- Mises à jour logicielles ---- */}
       <section className="live-block" id="updates-section" hidden={!shows("updates-section")}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
           <h3 style={{ margin: 0 }}>
@@ -1318,7 +1219,6 @@ export default function SettingsPage() {
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
-          {/* Version actuelle */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>
               {t("settingsPage.currentVersion")} :
@@ -1340,7 +1240,6 @@ export default function SettingsPage() {
 
           {!data.store_managed && (
             <>
-          {/* Canal de mise à jour */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
             <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
               {t("settingsPage.updateChannelLabel")}
@@ -1376,7 +1275,6 @@ export default function SettingsPage() {
           <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.updateChannelHint")}</p>
           {data.update_tor_supported && (
             <>
-              {/* Mises à jour par Tor */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
                 <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
                   {t("settingsPage.updateTorLabel")}
@@ -1465,7 +1363,6 @@ export default function SettingsPage() {
           )}
           {!data.store_managed && data.auto_update_supported !== false && (
             <>
-          {/* Mise à jour automatique planifiée */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
             <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
               {t("settingsPage.autoUpdateSection")}
@@ -1499,7 +1396,6 @@ export default function SettingsPage() {
             </>
           )}
 
-          {/* Résultat de la recherche */}
           {updateInfo && !updateInfo.store_managed && (
             <div className="olc-anim-in" style={{ marginTop: "4px" }}>
               {updateInfo.has_update ? (
@@ -1628,16 +1524,13 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* ---- Compatibilité navigateur (diagnostic local) ---- */}
       <div id="section-playback" hidden={!shows("section-playback")}>
       <PlaybackTimingSettings />
       <BrowserCompatibility />
 
-      {/* ---- Composant audio natif (expérimental, désactivé par défaut) ---- */}
       <MediaNativeSetting />
       </div>
 
-      {/* ---- Sauvegarde & Restauration universelle ---- */}
       <section className="live-block" id="section-backup" hidden={!shows("section-backup")}>
         <h3><Icon name="archive" size={18} /> {t("settingsPage.backupSection")}</h3>
         <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.backupHint")}</p>
@@ -1669,7 +1562,6 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* ---- Maintenance : resync ---- */}
       <section className="live-block" id="section-sync" hidden={!shows("section-sync")}>
         <h3><Icon name="sync" size={18} /> {t("settingsPage.syncSection")}</h3>
         <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.syncHint")}</p>
@@ -1678,7 +1570,6 @@ export default function SettingsPage() {
         </button>
       </section>
 
-      {/* ---- Maintenance : Nettoyage des journaux & métriques ---- */}
       <section className="live-block" id="section-logs" hidden={!shows("section-logs")}>
         <h3><Icon name="auto_delete" size={18} /> {t("settingsPage.logsMaintenanceSection")}</h3>
         <p className="settings-hint" style={{ marginTop: 0 }}>{t("settingsPage.logsMaintenanceHint")}</p>
@@ -1733,7 +1624,6 @@ export default function SettingsPage() {
       <StartOnBootToggle />
       </div>
 
-      {/* ---- Documentation : chemins (lecture seule) ---- */}
       <section className="live-block" id="section-docs" hidden={!shows("section-docs")}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
           <h3 style={{ margin: 0 }}><Icon name="description" size={18} /> {t("settingsPage.docSection")}</h3>
@@ -1750,7 +1640,6 @@ export default function SettingsPage() {
         </div>
         <p className="settings-hint" style={{ marginTop: "4px" }}>{t("settingsPage.docHint")}</p>
 
-        {/* 1. Accès Local (boucle locale 127.0.0.1) */}
         <details className="settings-doc-group" open={!isMobile}>
           <summary className="settings-doc-header">
             <Icon name="tv" size={18} />
@@ -1766,7 +1655,6 @@ export default function SettingsPage() {
           />
         </details>
 
-        {/* 2. Accès Réseau (LAN / Wi-Fi) */}
         <details className="settings-doc-group" open={true}>
           <summary className="settings-doc-header">
             <Icon name="wifi" size={18} />
@@ -1785,8 +1673,6 @@ export default function SettingsPage() {
                   {link.kind === "mdns"
                     ? t("settingsPage.paths.mdnsUrl")
                     : t(link.kind === "vpn" ? "settingsPage.paths.vpnAddress" : "settingsPage.paths.localIp", { name: link.interface })}
-                  {/* État RÉEL du répondeur mDNS (backend utils/mdns.py::get_status) : « failed »/« unavailable »
-                      signifie que seules les adresses IP ci-dessus sont fiables pour le moment. */}
                   {link.kind === "mdns" && (data.network.mdns_status === "failed" || data.network.mdns_status === "unavailable") && (
                     <span title={t("settingsPage.paths.mdnsUnavailableHint")} style={{ display: "inline-flex", color: "var(--accent-warning-text)" }}>
                       <Icon name="warning" size={14} />
@@ -1807,7 +1693,6 @@ export default function SettingsPage() {
           )}
         </details>
 
-        {/* 3. Données et Chemins système */}
         <details className="settings-doc-group" open={!isMobile}>
           <summary className="settings-doc-header">
             <Icon name="folder" size={18} />
@@ -1860,14 +1745,12 @@ export default function SettingsPage() {
         </details>
       </section>
 
-      {/* ---- Zone de danger : réinitialisation usine & désinstallation ---- */}
       <DangerSection
         hidden={!shows("section-danger")}
         deploymentProfile={data.deployment_profile}
         showToast={showToast}
       />
 
-      {/* ---- Modale : resync ---- */}
       {showResetConfirm && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -1883,7 +1766,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ---- Modale : confirmation du passage au canal Bêta ou Canary ---- */}
       {confirmingChannel && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -1916,7 +1798,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ---- Modale : restauration de sauvegarde ---- */}
       {showRestoreConfirm && selectedBackupFile && (
         <div className="modal-overlay">
           <div className="modal-content">

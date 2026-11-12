@@ -44,10 +44,8 @@ runs:
         tip=()
         if [ "$REQUIRE_TIP" = true ]; then
           git fetch --no-tags origin main
-          # Depuis main, le commit doit être la tête de main ; une republication manuelle depuis une autre branche reste permise.
           [ "$GITHUB_REF" = refs/heads/main ] && tip=(--require-tip origin/main)
         fi
-        # Le tag mobile est relu à distance : absent (rc 2) à la première publication, toute autre erreur arrête la publication.
         rc=0; git ls-remote --exit-code --tags origin "$CHANNEL" > /dev/null || rc=$?
         case "$rc" in
           0) git fetch --force --no-tags origin "refs/tags/$CHANNEL:refs/tags/$CHANNEL" ;;
@@ -65,8 +63,6 @@ runs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git tag -f "$CHANNEL" "$SHA"
-        # GITHUB_TOKEN ne peut pas mettre à jour une référence dont le diff touche .github/workflows ("workflows permission") :
-        # le tag est supprimé puis recréé, la création sur un commit existant n'étant pas une mise à jour.
         git push origin ":refs/tags/$CHANNEL" || true
         git push origin "$CHANNEL"
     - name: Generate rolling release notes (README-style layout + changelog since last Stable)
@@ -79,15 +75,10 @@ runs:
         BASE_VERSION: ${{ inputs.base-version }}
       run: |
         notes="/tmp/${CHANNEL}-notes.md"
-        # Bloc statique (bannière, introduction, tableau de téléchargement) : modèle versionné par canal, avec
-        # __COMMIT__ et __VERSION__ remplacés ici (un SHA court et un « x.y.z », sans caractère spécial pour sed).
         cp "scripts/ci/rolling-notes/${CHANNEL}.md" "$notes"
         sed -i "s/__COMMIT__/${COMMIT_SHORT}/; s/__VERSION__/${BASE_VERSION}/" "$notes"
         python3 scripts/ci/render-rolling-notes.py "$CHANNEL" >> "$notes"
 
-        # Bloc dynamique (changelog) ajouté à part, pas via sed : un message de commit peut contenir '/', '&' ou
-        # d'autres caractères qui casseraient une substitution sed, et un fence de code (```) rend le changelog bien
-        # plus lisible qu'un paragraphe brut (le Markdown fusionne des lignes consécutives sans ligne vide entre elles).
         LAST_STABLE="$(git tag --list 'V*' --sort=-v:refname | grep -E '^V[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
         if [ -n "${LAST_STABLE}" ]; then
           CHANGELOG_HEADING="Changements depuis ${LAST_STABLE}"
@@ -110,7 +101,6 @@ runs:
           echo "Retour à la Stable à tout moment, sans perte de données : Réglages → Mises à jour logicielles → Canal de mise à jour → Stable."
         } >> "$notes"
         echo "notes_path=$notes" >> "$GITHUB_OUTPUT"
-    # Mise à jour en place : la release n'est jamais supprimée (pas de 404, pas de canal vide si l'envoi échoue).
     - name: Publish release
       if: steps.guard.outputs.publish == 'true'
       shell: bash

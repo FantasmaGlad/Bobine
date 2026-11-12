@@ -1,5 +1,4 @@
-"""Liens d'accès exacts : `bobine.local` porte le port sauf là où le port 80 renvoie réellement vers Bobine ; chaque
-adresse du réseau local et des VPN est listée ; l'écouteur du port 80 répond une redirection temporaire."""
+"""Liens d'accès exacts : `bobine.local` porte le port sauf là où le port 80 renvoie réellement vers Bobine ; chaque adresse du réseau local et des VPN est listée ; l'écouteur du port 80 répond une redirection temporaire."""
 
 import os
 

@@ -59,7 +59,6 @@ def test_any_other_field_difference_is_reported(bench, change):
 def test_missing_rows_and_different_covers_are_reported(bench):
     assert bench.compare_rows(run([row("A"), row("B")]), run([row("A")]))
     assert bench.compare_rows(run([row()], [("a.mp3", jpeg())]), run([row()], []))
-    # Same file name, picture that is visibly different: not equivalent.
     assert bench.compare_rows(run([row()], [("a.mp3", jpeg())]), run([row()], [("a.mp3", jpeg((255, 255, 255)))]))
 
 

@@ -1,7 +1,4 @@
-"""Codes de refus de l'assistant de formatage : un code stable, un statut HTTP et un message simple.
-
-L'interface traduit chaque code (`storage.format.refusal.<code>`) ; le message français ci-dessous sert de repli et au
-journal. Aucun message ne contient de chemin système, de numéro de série ni de secret."""
+"""Codes de refus de l'assistant de formatage : un code stable, un statut HTTP et un message simple."""
 
 from __future__ import annotations
 
@@ -47,7 +44,7 @@ REFUSALS: dict[str, tuple[int, str]] = {
 
 
 class FormatRefusal(DeviceError):
-    """Refus (ou échec) de l'assistant de formatage ; `extra` transporte les actions proposées (ex. désenregistrer)."""
+    """Refus (ou échec) de l'assistant de formatage ; `extra` transporte les actions proposées (ex."""
 
     def __init__(self, code: str, message: str | None = None, *, status: int | None = None, **extra: Any):
         default_status, default_message = REFUSALS.get(code, (409, "Opération de formatage refusée."))

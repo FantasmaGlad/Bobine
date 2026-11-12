@@ -1,9 +1,4 @@
-"""Optional synchronous transport for the audio metadata component.
-
-The singleton owns one child and serializes callers from import worker threads.
-It is deliberately disconnected from the importers until native parity is proven.
-All failures request the historical media path; no media or database is changed.
-"""
+"""Optional synchronous transport for the audio metadata component."""
 from __future__ import annotations
 
 import atexit
@@ -85,7 +80,6 @@ def find_binary() -> list[str] | None:
             valid = _valid_path(override)
             if valid is None:
                 return None
-            # An explicit but invalid override must not silently select another binary.
             candidate = Path(valid)
             return [str(candidate)] if candidate.is_file() and os.access(candidate, os.X_OK) else None
     if getattr(sys, "frozen", False):
@@ -100,7 +94,6 @@ def find_binary() -> list[str] | None:
 
 
 def _child_env() -> dict[str, str]:
-    # Keep this transport independent of the update orchestration imports.
     env = dict(os.environ)
     if getattr(sys, "frozen", False):
         original = env.pop("LD_LIBRARY_PATH_ORIG", None)
@@ -125,7 +118,6 @@ def _publish(generation: _Generation, value: bytes | _Failure) -> bool:
         generation.replies.put_nowait(value)
         return True
     except queue.Full:
-        # Unsolicited output cannot allocate an unbounded response queue.
         try:
             generation.replies.get_nowait()
         except queue.Empty:
@@ -149,7 +141,6 @@ def _read_replies(generation: _Generation) -> None:
                 return
             for part_index, part in enumerate(chunk.split(b"\n")):
                 if part_index:
-                    # The final CR of CRLF is framing, not part of the payload limit.
                     raw = bytes(pending[:-1] if pending.endswith(b"\r") else pending)
                     pending.clear()
                     if len(raw) > MAX_RESPONSE_BYTES or not _publish(generation, raw):
@@ -188,12 +179,7 @@ def _validate_json(value: Any) -> None:
 
 
 class MediaClient:
-    """Thread-safe, lazy client; close is final for this instance.
-
-    A per-generation bounded reader queue prevents an old process from delivering
-    late replies to its replacement. Pipe workers also work on Windows, where
-    select() cannot wait on anonymous subprocess pipes.
-    """
+    """Thread-safe, lazy client; close is final for this instance."""
     def __init__(self, command: Sequence[str] | None = None, *, timeout: float = 5.0, enabled: bool | None = None):
         if not math.isfinite(timeout) or timeout <= 0:
             raise ValueError("timeout must be finite and positive")
@@ -209,7 +195,6 @@ class MediaClient:
 
     def _shutdown(self, generation: _Generation, *, graceful: bool = False) -> None:
         with generation.shutdown_lock:
-            # Wake a caller blocked on replies before stopping the reader.
             _publish(generation, _Failure("closed"))
             generation.stop.set()
             proc = generation.proc
@@ -224,7 +209,6 @@ class MediaClient:
             try:
                 proc.wait(timeout=1.0)
             except subprocess.TimeoutExpired:
-                # A pathological OS-level uninterruptible wait is not a successful reap.
                 logger.warning("Audio metadata component did not exit after kill")
                 return
             for stream in (proc.stdin, proc.stdout):
@@ -273,7 +257,6 @@ class MediaClient:
             generation.formats = self._hello(hello)
             generation.version = hello["binary_version"]
         except _NativeFailure as exc:
-            # A business refusal before identification never authorizes reuse.
             raise _Failure("handshake") from exc
         return generation
 
@@ -312,7 +295,6 @@ class MediaClient:
         except queue.Empty as exc:
             raise _Failure("timeout") from exc
         finally:
-            # Keep only active workers rather than one Thread object per imported song.
             generation.threads[:] = [thread for thread in generation.threads if thread.is_alive()]
         if isinstance(reply, _Failure):
             raise reply
@@ -357,16 +339,9 @@ class MediaClient:
         return frozenset(formats)
 
     def _is_enabled(self) -> bool:
-        # An explicit constructor flag (tests, comparison bench) wins; otherwise the
-        # environment override and the persisted setting decide (see media_native).
         return (self._enabled if self._enabled is not None else media_native.is_enabled()) is True
 
     def _run(self, action):
-        """Run `action(generation, deadline)` on the single child, starting it if needed.
-
-        Every failure is recorded in `last_failure` and answered with None: the caller then
-        takes the historical path. A transport failure also discards the child.
-        """
         deadline = time.monotonic() + self.timeout
         if not self._serial.acquire(timeout=max(0.0, deadline - time.monotonic())):
             self.last_failure = "timeout"
@@ -394,7 +369,6 @@ class MediaClient:
             reason = exc.reason if isinstance(exc, _Failure) else "io"
             self.last_failure = reason
             logger.info("Audio metadata fallback: %s", reason)
-            # Spawn may fail after assigning its generation but before returning it.
             if generation is None:
                 with self._state:
                     generation = self._generation
@@ -422,11 +396,7 @@ class MediaClient:
         return self._run(action)
 
     def check(self) -> dict | None:
-        """Start the component if needed and report what it announced, or None.
-
-        The settings page uses it to show the real state: it shares the child that imports
-        use, so a successful check costs one process start at most.
-        """
+        """Start the component if needed and report what it announced, or None."""
         if not self._is_enabled():
             self.last_failure = "disabled"
             return None

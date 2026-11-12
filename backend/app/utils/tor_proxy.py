@@ -1,14 +1,4 @@
-"""Mises à jour par Tor : recherche et téléchargement passent par un proxy SOCKS5, jamais en direct.
-
-Tor tourne le moins possible. Un proxy déjà présent (service tor, Tor Browser, Orbot) est utilisé tel quel. Sinon, si
-le programme `tor` est installé, Bobine le lance comme simple client (sa propre configuration, jamais celle du
-système : il ne devient pas un relais) le temps des requêtes, puis l'arrête après quelques minutes sans usage. Son
-cache d'annuaire est gardé dans les données de Bobine : le démarrage suivant est plus court et télécharge moins.
-
-`urllib` ne parle pas SOCKS et Bobine n'ajoute pas de dépendance pour si peu : la connexion SOCKS5 est ouverte ici, le
-nom d'hôte transmis tel quel au proxy (ATYP 3) pour que la résolution DNS se fasse dans Tor, pas sur le réseau local.
-Option activée et Tor indisponible : la requête échoue, elle ne part jamais en direct.
-"""
+"""Mises à jour par Tor : recherche et téléchargement passent par un proxy SOCKS5, jamais en direct."""
 from __future__ import annotations
 
 import http.client
@@ -60,8 +50,6 @@ def parse_proxy(value: str) -> tuple[str, int]:
         raise ValueError("adresse du proxy Tor invalide (attendu hôte:port, par exemple 127.0.0.1:9050)")
     return host, int(port_text)
 
-
-# --- SOCKS5 --------------------------------------------------------------------------------------------------------
 
 def _recv_exact(sock: socket.socket, size: int) -> bytes:
     data = b""
@@ -141,7 +129,6 @@ class _SocksHTTPSHandler(urllib.request.HTTPSHandler):
 
 
 def build_opener(proxy: tuple[str, int]) -> urllib.request.OpenerDirector:
-    # ProxyHandler vide : un proxy HTTP des variables d'environnement ne doit pas court-circuiter Tor.
     return urllib.request.build_opener(urllib.request.ProxyHandler({}), _SocksHTTPHandler(proxy), _SocksHTTPSHandler(proxy))
 
 
@@ -154,8 +141,6 @@ def _proxy_answers(proxy: tuple[str, int]) -> bool:
     except OSError:
         return False
 
-
-# --- Tor lancé à la demande ----------------------------------------------------------------------------------------
 
 def find_tor_binary() -> str | None:
     found = shutil.which("tor")
@@ -174,11 +159,10 @@ def _cache_dir() -> Path:
 
 
 def _linux_parent_death_signal() -> None:
-    """Le Tor lancé par Bobine ne survit pas à Bobine, même après un arrêt brutal."""
     import ctypes
     import signal
 
-    ctypes.CDLL(None).prctl(1, signal.SIGTERM)  # PR_SET_PDEATHSIG
+    ctypes.CDLL(None).prctl(1, signal.SIGTERM)
 
 
 class _OnDemandTor:
@@ -284,8 +268,6 @@ def _drain(process: subprocess.Popen) -> None:
 _on_demand = _OnDemandTor()
 
 
-# --- Réglage et sessions -------------------------------------------------------------------------------------------
-
 _config_lock = threading.Lock()
 _enabled = False
 _proxy_setting = DEFAULT_PROXY
@@ -361,7 +343,6 @@ class TorSession:
 
 
 class _Response:
-    """Réponse dont la fermeture rend la session Tor qui l'a produite."""
 
     def __init__(self, response: Any, session: TorSession) -> None:
         self._response, self._session = response, session

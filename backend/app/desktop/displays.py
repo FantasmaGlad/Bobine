@@ -1,27 +1,4 @@
-"""Détection des écrans externes et fenêtre « projecteur » des profils desktop
-(Windows, Linux de bureau ; macOS : voir plus bas).
-
-Pourquoi : jusqu'ici le tray n'ouvrait ses interfaces qu'UNE fois au démarrage
-(`tray._open_initial_displays`), sans jamais énumérer les moniteurs ni
-positionner le navigateur kiosque : en bureau ÉTENDU, la fenêtre s'ouvrait sur
-l'écran principal (ou était absorbée par une instance de navigateur déjà
-ouverte, qui ignore `--kiosk`) et le projecteur restait noir. Brancher un
-projecteur après le démarrage n'avait aucun effet.
-
-Ce module apporte :
-  * `list_monitors()` — énumération native par OS, défensive (jamais d'exception) ;
-  * `DisplayWatcher` — surveillance du branchement/débranchement (sondage court
-    + stabilisation : un moniteur qui « clignote » pendant une renégociation de
-    mode n'est pas pris pour un débranchement) ;
-  * `ProjectorWindow` — navigateur kiosque DÉDIÉ (profil jetable → instance
-    garantie distincte, donc `--kiosk` honoré) positionné sur le moniteur externe ;
-  * `report_display_state()` — rapport rejouable au backend (`PUT
-    /api/display/state`), d'où le mode d'affichage effectif est dérivé.
-
-Aucun import de `pystray`/GUI ici : tout est testable sans affichage
-(`backend/tests/test_desktop_displays.py`). Les appels d'OS sont enveloppés
-(repli élégant, jamais d'échec fatal).
-"""
+"""Détection des écrans externes et fenêtre « projecteur » des profils desktop (Windows, Linux de bureau ; macOS : voir plus bas)."""
 
 from __future__ import annotations
 
@@ -43,15 +20,8 @@ from typing import Callable, Sequence
 
 logger = logging.getLogger(__name__)
 
-# Sondage de la topologie : une exécution de `xrandr`/`EnumDisplayMonitors`
-# coûte quelques ms, 2 s donnent un branchement perçu comme instantané.
 POLL_INTERVAL_SECONDS = 2.0
-# Une topologie doit être lue à l'identique N fois de suite avant d'être prise
-# en compte : pendant la renégociation de mode d'un projecteur, un moniteur
-# peut disparaître/réapparaître brièvement.
 STABLE_POLLS_REQUIRED = 2
-# Ré-émission périodique de l'état au backend (le rapport y est gardé en
-# mémoire : un redémarrage du backend l'efface).
 REPORT_REFRESH_SECONDS = 60.0
 
 
@@ -69,14 +39,7 @@ class Monitor:
         return f"{self.width}x{self.height}"
 
 
-# ----------------------------------------------------------------------
-# Énumération des moniteurs
-# ----------------------------------------------------------------------
-
 _XRANDR_MONITOR_RE = re.compile(
-    # `flags` = « + » (moniteur issu d'une sortie RandR) et/ou « * » (principal) ;
-    # absents pour un moniteur défini à la main (`xrandr --setmonitor`), cas
-    # constaté sur une vraie session XWayland.
     r"^\s*\d+:\s+(?P<flags>[+*]*)(?P<name>\S+)\s+(?P<w>\d+)/\d+x(?P<h>\d+)/\d+\+(?P<x>-?\d+)\+(?P<y>-?\d+)"
 )
 
@@ -102,8 +65,6 @@ def parse_xrandr_listmonitors(output: str) -> list[Monitor]:
 
 
 def _list_monitors_linux() -> list[Monitor]:
-    # X11 natif, ou XWayland sous Wayland (GNOME/KDE y exposent leurs moniteurs
-    # via RandR) — positionnement « meilleur effort » sous Wayland.
     xrandr = shutil.which("xrandr")
     if not xrandr:
         return []
@@ -119,7 +80,6 @@ def _list_monitors_windows() -> list[Monitor]:
 
     user32 = ctypes.windll.user32  # type: ignore[attr-defined]
     try:
-        # Coordonnées PHYSIQUES (sinon virtualisées par la mise à l'échelle).
         user32.SetProcessDPIAware()
     except Exception:
         pass
@@ -167,10 +127,7 @@ _RESOLUTION_RE = re.compile(r"(\d+)\s*x\s*(\d+)")
 
 
 def parse_macos_displays(profiler_json: str) -> list[Monitor]:
-    """Analyse `system_profiler SPDisplaysDataType -json` (pur, testable). Les
-    positions ne sont pas exposées par cet outil : seuls le nombre d'écrans,
-    leur résolution et l'écran principal sont fiables — suffisant pour dériver
-    le mode ; le placement de fenêtre macOS passe par la fenêtre native."""
+    """Analyse `system_profiler SPDisplaysDataType -json` (pur, testable)."""
     try:
         data = json.loads(profiler_json)
     except (ValueError, TypeError):
@@ -202,8 +159,7 @@ def _list_monitors_macos() -> list[Monitor]:
 
 
 def list_monitors() -> list[Monitor]:
-    """Moniteurs connectés ; liste vide si l'énumération est impossible (ne
-    lève jamais)."""
+    """Moniteurs connectés ; liste vide si l'énumération est impossible (ne lève jamais)."""
     system = platform.system()
     try:
         if system == "Linux":
@@ -218,17 +174,12 @@ def list_monitors() -> list[Monitor]:
 
 
 def external_monitors(monitors: Sequence[Monitor]) -> list[Monitor]:
-    """Moniteurs EXTERNES = tous sauf le principal. Sans moniteur marqué
-    principal (certains OS/sessions), le premier fait office de principal."""
+    """Moniteurs EXTERNES = tous sauf le principal."""
     if len(monitors) <= 1:
         return []
     primary = next((m for m in monitors if m.primary), monitors[0])
     return [m for m in monitors if m is not primary and m != primary]
 
-
-# ----------------------------------------------------------------------
-# Rapport au backend
-# ----------------------------------------------------------------------
 
 _report_generation = 0
 _report_lock = threading.Lock()
@@ -239,9 +190,6 @@ def _source_label() -> str:
 
 
 def _resolve_url(url: "str | Callable[[], str]") -> str:
-    """Les URL du backend peuvent être données sous forme d'appelable : le port
-    du backend est publié à son démarrage (il peut avoir pris un port de repli)
-    et change si le superviseur le relance, donc il est relu à chaque usage."""
     return url() if callable(url) else url
 
 
@@ -255,10 +203,7 @@ def report_display_state(
     urlopen=urllib.request.urlopen,
     max_attempts: int = 60,
 ) -> bool:
-    """`PUT /api/display/state` avec nouvelles tentatives (backend pas encore
-    prêt au démarrage). Un rapport plus récent annule les tentatives du
-    précédent (génération) pour ne jamais écraser un état récent par un ancien.
-    Retourne True si le rapport a été accepté."""
+    """`PUT /api/display/state` avec nouvelles tentatives (backend pas encore prêt au démarrage)."""
     global _report_generation
     with _report_lock:
         _report_generation += 1
@@ -284,18 +229,13 @@ def report_display_state(
     return False
 
 
-# ----------------------------------------------------------------------
-# Fenêtre projecteur
-# ----------------------------------------------------------------------
-
 def find_kiosk_browser(
     system: str | None = None,
     which: Callable[[str], str | None] = shutil.which,
     exists: Callable[[str], bool] = os.path.exists,
     environ: dict | None = None,
 ) -> str | None:
-    """Navigateur Chromium utilisable en kiosque (pur, testable). macOS : None —
-    le projecteur y passe par une fenêtre native."""
+    """Navigateur Chromium utilisable en kiosque (pur, testable)."""
     system = system or platform.system()
     environ = os.environ if environ is None else environ
     if system == "Windows":
@@ -328,11 +268,7 @@ def find_native_projector(
     executable: str | None = None,
     exists: Callable[[str], bool] = os.path.exists,
 ) -> str | None:
-    """Fenêtre native `bobine-projector` :
-    Remplace le navigateur piloté (WKWebView sur macOS, WebView2 sur Windows,
-    WebKitGTK sur Linux) pour éliminer les conflits de positionnement multi-écrans.
-    Cherchée via BOBINE_PROJECTOR_BIN, puis à côté de l'exécutable du tray
-    ou dans le dossier target/release du crate projector. Pur et testable."""
+    """Fenêtre native `bobine-projector` : Remplace le navigateur piloté (WKWebView sur macOS, WebView2 sur Windows, WebKitGTK sur Linux) pour éliminer les conflits de positionnement multi-écrans."""
     system = system or platform.system()
     environ = os.environ if environ is None else environ
     override = environ.get("BOBINE_PROJECTOR_BIN")
@@ -351,7 +287,6 @@ def find_native_projector(
             if exists(str(candidate)):
                 return str(candidate)
     else:
-        # Linux & Windows : à côté de l'exécutable, ou dans target/release/ en environnement dev
         candidates = [
             exe_dir / bin_name,
             exe_dir / "projector" / "target" / "release" / bin_name,
@@ -365,8 +300,7 @@ def find_native_projector(
 
 
 def build_native_projector_command(binary: str, url: str, monitor: str = "external") -> list[str]:
-    """Ligne de commande de la fenêtre native : elle choisit elle-même l'écran
-    externe (les positions ne sont pas exposées par `system_profiler`)."""
+    """Ligne de commande de la fenêtre native : elle choisit elle-même l'écran externe (les positions ne sont pas exposées par `system_profiler`)."""
     return [binary, "--url", url, "--monitor", monitor]
 
 
@@ -378,10 +312,7 @@ def build_projector_command(
     *,
     wayland: bool = False,
 ) -> list[str]:
-    """Ligne de commande du navigateur kiosque positionné sur `monitor` (pur).
-    `--user-data-dir` dédié : sans lui, un navigateur déjà ouvert récupère l'URL
-    et ignore `--kiosk`/`--window-position`. Sous Wayland, Chromium ignore le
-    positionnement : on le force via XWayland (meilleur effort)."""
+    """Ligne de commande du navigateur kiosque positionné sur `monitor` (pur)."""
     command = [
         browser,
         f"--user-data-dir={profile_dir}",
@@ -437,8 +368,7 @@ class ProjectorWindow:
         return self._monitor
 
     def show_on(self, monitor: Monitor) -> bool:
-        """Ouvre (ou déplace) la fenêtre sur `monitor`. Sans changement de
-        moniteur et si la fenêtre vit encore, ne fait rien (idempotent)."""
+        """Ouvre (ou déplace) la fenêtre sur `monitor`."""
         if self.is_open and self._monitor == monitor:
             return True
         self.close()
@@ -446,7 +376,6 @@ class ProjectorWindow:
         native = self._native_finder()
         url = _resolve_url(self._url)
         if native:
-            # Fenêtre native (macOS) : pas de navigateur, pas de profil.
             command = build_native_projector_command(native, url)
         else:
             browser = self._browser_finder()
@@ -490,13 +419,8 @@ class ProjectorWindow:
             self._profile_dir = None
 
 
-# ----------------------------------------------------------------------
-# Surveillance et orchestration
-# ----------------------------------------------------------------------
-
 class DisplayWatcher(threading.Thread):
-    """Interroge la topologie des moniteurs et appelle `on_change(monitors)` à
-    la première lecture stable puis à chaque changement stable."""
+    """Interroge la topologie des moniteurs et appelle `on_change(monitors)` à la première lecture stable puis à chaque changement stable."""
 
     def __init__(
         self,
@@ -541,9 +465,6 @@ class DisplayWatcher(threading.Thread):
 class DisplayOrchestrator:
     """Relie surveillance, rapport au backend et fenêtre projecteur."""
 
-    # Attente maximale du backend avant d'ouvrir la fenêtre : ouvrir un
-    # navigateur sur un serveur qui n'écoute pas encore affiche une page
-    # d'erreur « connexion refusée » qui resterait à l'écran.
     BACKEND_WAIT_SECONDS = 60.0
 
     def __init__(
@@ -584,8 +505,6 @@ class DisplayOrchestrator:
         self._generation += 1
         logger.info(f"Topologie des écrans : {len(monitors)} moniteur(s), {len(externals)} externe(s)")
         resolution = externals[0].resolution if externals else None
-        # Rapport et ouverture de fenêtre hors du thread de sondage : ils
-        # peuvent attendre un backend pas encore prêt.
         self._spawn(self._reporter, self._state_url, len(externals), resolution, name="bobine-display-report")
         self._spawn(self._apply, self._generation, externals, name="bobine-display-apply")
 
@@ -599,7 +518,7 @@ class DisplayOrchestrator:
                 waited += 0.5
         with self._lock:
             if generation != self._generation:
-                return  # une topologie plus récente a pris le relais
+                return
             if externals:
                 self._projector.show_on(externals[0])
             else:

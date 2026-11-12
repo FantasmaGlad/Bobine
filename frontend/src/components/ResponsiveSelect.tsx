@@ -12,13 +12,9 @@ import { useIsMobile } from "@/lib/useIsMobile";
 export interface SelectOption {
   value: string;
   label: string;
-  /** Ligne secondaire (programme, artiste, nombre de cours...). */
   sublabel?: string;
-  /** Aperçu affiché à gauche de l'élément (miniature de cours, pochette…). */
   thumbnail?: string | null;
-  /** Aperçu carré (pochette d'album) plutôt que 16:9 (miniature de cours). */
   square?: boolean;
-  /** Mention à droite (durée, release). */
   meta?: string;
   group?: string;
 }
@@ -27,17 +23,14 @@ interface ResponsiveSelectProps {
   value: string;
   onChange: (value: string) => void;
   options: SelectOption[];
-  /** Texte de l'entrée vide ; absent = pas d'entrée vide. */
   placeholder?: string;
   title?: string;
   className?: string;
   style?: React.CSSProperties;
   disabled?: boolean;
-  /** Champ de recherche intégré (par défaut au-delà de 4 éléments). */
   searchable?: boolean;
 }
 
-/** Hauteur maximale (px) de la liste déroulante sur ordinateur. */
 const POPOVER_MAX_HEIGHT = 380;
 const POPOVER_MIN_WIDTH = 340;
 
@@ -45,7 +38,6 @@ function searchTextOf(option: SelectOption): string {
   return `${option.label} ${option.sublabel ?? ""} ${option.group ?? ""} ${option.meta ?? ""}`;
 }
 
-/** Aperçu + libellés d'une option : partagé par le déclencheur, la liste déroulante et la feuille mobile. */
 function OptionBody({ option, query = "" }: { option: SelectOption; query?: string }) {
   return (
     <>
@@ -83,15 +75,6 @@ function groupOptions(options: SelectOption[]): [string, SelectOption[]][] {
   return [...map.entries()];
 }
 
-/**
- * Liste déroulante riche, la MÊME sur ordinateur et sur téléphone : aperçu (miniature ou pochette),
- * titre, détail et durée de chaque élément, champ de recherche intégré avec autocomplétion (accents et
- * casse ignorés, saisie surlignée) et navigation au clavier (flèches, Entrée, Échap).
- *
- * Ordinateur : liste flottante ancrée au déclencheur (portail, hors des conteneurs qui rogneraient).
- * Téléphone : feuille basse (la liste native d'Android masque l'élément choisi et n'offre aucune
- * recherche).
- */
 export default function ResponsiveSelect({
   value,
   onChange,
@@ -119,7 +102,6 @@ export default function ResponsiveSelect({
   const hasEmptyEntry = placeholder !== undefined && !query;
 
   const visible = useMemo(() => rankByQuery(options, query, searchTextOf), [options, query]);
-  // Lignes navigables, dans l'ordre d'affichage : l'entrée vide d'abord, puis les groupes.
   const flat = useMemo(() => {
     const rows: SelectOption[] = [];
     if (hasEmptyEntry) rows.push({ value: "", label: placeholder ?? "" });
@@ -145,7 +127,6 @@ export default function ResponsiveSelect({
     setOpen(true);
   };
 
-  // Position de la liste flottante : sous le déclencheur, ou au-dessus s'il manque de place en bas.
   const measure = useCallback(() => {
     const trigger = triggerRef.current;
     if (!trigger) return;
@@ -169,7 +150,6 @@ export default function ResponsiveSelect({
     };
   }, [open, isMobile, measure]);
 
-  // Fermeture au clic en dehors (déclencheur et liste exclus).
   useEffect(() => {
     if (!open || isMobile) return;
     const onPointerDown = (event: MouseEvent) => {
@@ -181,12 +161,10 @@ export default function ResponsiveSelect({
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [open, isMobile, close]);
 
-  // Sans champ de recherche, la liste reçoit le focus pour que le clavier la pilote.
   useEffect(() => {
     if (open && anchor && !showSearch && !isMobile) listRef.current?.focus();
   }, [open, anchor, showSearch, isMobile]);
 
-  // L'élément actif reste visible pendant la navigation au clavier.
   useEffect(() => {
     if (!open) return;
     listRef.current?.querySelector<HTMLElement>(`[data-row="${activeIndex}"]`)?.scrollIntoView({ block: "nearest" });
@@ -220,7 +198,6 @@ export default function ResponsiveSelect({
 
   const noResults = visible.length === 0;
 
-  // Lignes (entrée vide + groupes), identiques sur ordinateur et téléphone.
   let rowCounter = hasEmptyEntry ? 1 : 0;
   const rows = (
     <>
@@ -311,7 +288,6 @@ export default function ResponsiveSelect({
           event.preventDefault();
           openList();
         } else if (open && event.key !== "Enter" && event.key !== " ") {
-          // Liste ouverte alors que le focus est encore sur le déclencheur : il pilote la liste.
           handleKeyDown(event);
         }
       }}

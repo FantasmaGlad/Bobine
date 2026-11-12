@@ -1,22 +1,10 @@
-/* Mise en page des écrans étroits (téléphone en portrait).
-   Chargée après globals.css : ces règles précisent le comportement sous 900 px
-   sans toucher à la mise en page bureau.
 
-   Règles de fond :
-   - un enfant flex ou une colonne de grille porte `min-width: 0`, sinon son
-     contenu élargit la page au lieu de se replier ;
-   - une hauteur fixe de barre d'outils tombe dès qu'elle passe sur plusieurs
-     lignes ;
-   - cible tactile minimale de 44 px (`--tap-min`). */
 
 :root {
   --tap-min: 44px;
   --sheet-radius: 22px;
 }
 
-/* ------------------------------------------------------------------ */
-/* Studio d'édition du cours : feuille plein écran                      */
-/* ------------------------------------------------------------------ */
 @media (max-width: 900px) {
   .course-studio-overlay {
     padding: 0;
@@ -53,8 +41,7 @@
     min-width: 0;
     min-height: auto;
   }
-  /* Un enfant ne se comprime jamais : il pousse la hauteur de la colonne
-     (défilement du corps) au lieu de recouvrir son voisin. */
+  
   .course-studio-col-left > *,
   .course-studio-col-right > * {
     flex-shrink: 0;
@@ -84,9 +71,6 @@
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Barres d'outils : plusieurs lignes, hauteur libre                    */
-/* ------------------------------------------------------------------ */
 @media (max-width: 860px) {
   .schedule-toolbar {
     height: auto;
@@ -131,9 +115,6 @@
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Sélecteurs segmentés et barres de filtres : défilement horizontal    */
-/* ------------------------------------------------------------------ */
 @media (max-width: 640px) {
   .view-toggle {
     max-width: 100%;
@@ -175,9 +156,6 @@
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Tableaux : une carte par ligne                                       */
-/* ------------------------------------------------------------------ */
 @media (max-width: 640px) {
   .responsive-table thead {
     display: none;
@@ -212,9 +190,6 @@
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Réglages : onglets de section et adresses                            */
-/* ------------------------------------------------------------------ */
 @media (max-width: 640px) {
 
   .settings-path-row {
@@ -234,18 +209,12 @@
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Coach : le champ de recherche reste un champ                         */
-/* ------------------------------------------------------------------ */
 .coach-picker-search {
   height: auto;
   min-height: var(--tap-min);
   max-height: 56px;
 }
 
-/* ------------------------------------------------------------------ */
-/* Cibles tactiles                                                      */
-/* ------------------------------------------------------------------ */
 @media (pointer: coarse) {
   .card-select-checkbox {
     width: 28px;
@@ -270,8 +239,6 @@
     width: auto;
   }
 
-  /* Bibliothèque en liste : vignette à gauche, titre puis programme, release,
-     durée sur une seconde ligne ; le format technique est masqué. */
   .responsive-table--library tr {
     display: grid;
     grid-template-columns: 28px 88px auto auto minmax(0, 1fr);
@@ -298,9 +265,6 @@
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Réglages > Documentation : adresses sous un hôte unique              */
-/* ------------------------------------------------------------------ */
 .settings-paths--compact {
   gap: 4px;
 }
@@ -365,7 +329,6 @@
   border-color: var(--accent-text);
 }
 
-/* Chemins système : étiquette, chemin tronqué, actions ; empilés sur mobile. */
 .settings-path-row--system {
   display: flex;
   align-items: center;
@@ -416,7 +379,6 @@
   }
 }
 
-/* Groupes repliables (Réglages > Documentation) */
 details.settings-doc-group > summary.settings-doc-header {
   cursor: pointer;
   list-style: none;
@@ -442,9 +404,6 @@ details.settings-doc-group[open] > summary.settings-doc-header::after {
   text-align: left;
 }
 
-/* ------------------------------------------------------------------ */
-/* Feuille (Sheet) : bas d'écran sur téléphone, fenêtre au-delà          */
-/* ------------------------------------------------------------------ */
 .sheet-overlay {
   position: fixed;
   inset: 0;
@@ -625,7 +584,6 @@ details.settings-doc-group[open] > summary.settings-doc-header::after {
   color: var(--text-muted);
 }
 
-/* Déclencheur d'une liste déroulante en feuille */
 .select-trigger {
   display: inline-flex;
   align-items: center;
@@ -646,9 +604,6 @@ details.settings-doc-group[open] > summary.settings-doc-header::after {
   color: var(--text-muted);
 }
 
-/* ------------------------------------------------------------------ */
-/* Carte de cours : liste, aperçu, carte « en cours »                    */
-/* ------------------------------------------------------------------ */
 .course-card {
   display: flex;
   gap: 12px;
@@ -750,7 +705,6 @@ button.course-card.is-selected {
   font-size: 1.25rem;
 }
 
-/* Carte « en cours » de la télécommande : un seul bloc verre. */
 .now-card {
   width: 100%;
   display: flex;
@@ -800,7 +754,6 @@ button.course-card.is-selected {
   margin-top: 2px;
 }
 
-/* Aperçu avant lancement */
 .launch-preview {
   display: flex;
   flex-direction: column;
@@ -836,7 +789,6 @@ button.course-card.is-selected {
   min-height: 40px;
 }
 
-/* Sélecteur de sous-titres du cours en cours */
 .subtitle-picker {
   display: flex;
   align-items: center;
@@ -860,9 +812,6 @@ button.course-card.is-selected {
   margin: 8px 0;
 }
 
-/* ------------------------------------------------------------------ */
-/* Chapitres                                                            */
-/* ------------------------------------------------------------------ */
 .chapter-seek {
   position: relative;
   flex: 1;
@@ -978,7 +927,6 @@ button.course-card.is-selected {
   overflow-wrap: anywhere;
 }
 
-/* Annonce de chapitre sur les écrans de diffusion */
 .chapter-toast {
   position: fixed;
   left: clamp(16px, 3vw, 48px);
@@ -1011,7 +959,6 @@ button.course-card.is-selected {
   line-height: 1.2;
 }
 
-/* Éditeur de chapitres (Studio) */
 .chapter-editor {
   display: flex;
   flex-direction: column;
@@ -1117,9 +1064,6 @@ button.course-card.is-selected {
   accent-color: var(--accent-primary);
 }
 
-/* ------------------------------------------------------------------ */
-/* Liste déroulante riche (ResponsiveSelect) : aperçu, recherche      */
-/* ------------------------------------------------------------------ */
 .rs-trigger {
   width: 100%;
   min-width: 0;

@@ -12,7 +12,6 @@ export default function BluetoothSection({ caps, refreshKey, notify, t, focusId,
 
   useFocusFlash(focusId, focusNonce, !!data?.supported);
   const discovering = data?.discovering === true;
-  // Pendant une recherche, relit la liste toutes les 3 s (les nouveaux appareils arrivent au fil de l'eau).
   useEffect(() => {
     if (!discovering) return;
     const timer = setInterval(() => { void reload(); }, 3000);

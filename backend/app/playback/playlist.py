@@ -53,14 +53,6 @@ class PlaylistMixin:
         )
 
     async def _run_waiting_period(self):
-        # Se retient elle-même : un garde-fou supplémentaire en
-        # plus de l'ordonnancement corrigé dans video_ended() (le task est
-        # désormais assigné à self._waiting_task avant tout await, pour
-        # qu'une commande concurrente — skip_waiting/next_video/previous_video
-        # — puisse toujours l'annuler via _cancel_waiting()). Si malgré ça ce
-        # task n'est plus celui suivi par le manager (annulé puis remplacé
-        # entre deux itérations du sleep), on s'arrête sans jamais avancer la
-        # playlist une seconde fois.
         this_task = asyncio.current_task()
         try:
             remaining = self.state["playlist_waiting_remaining"] or 0.0
@@ -74,16 +66,6 @@ class PlaylistMixin:
 
             if self._waiting_task is not this_task:
                 return
-            # Temps d'attente écoulé : lance la vidéo suivante. On détache CE
-            # task du manager AVANT l'appel (correctif "timer bloqué à 0 en
-            # prod") : _play_next_video() appelle _cancel_waiting(), qui
-            # annulerait sinon le task COURANT (lui-même) — la CancelledError
-            # serait alors levée au prochain await, à l'intérieur du load()
-            # suivant (broadcast). Résultat : l'état passait bien à "playing"
-            # en mémoire mais l'évènement "load" n'était JAMAIS diffusé au
-            # kiosk, qui restait figé sur « 0 ». En mettant self._waiting_task
-            # à None ici, _cancel_waiting() n'a plus rien à annuler et le
-            # broadcast aboutit.
             self._waiting_task = None
             await self._play_next_video()
         except asyncio.CancelledError:
@@ -99,16 +81,11 @@ class PlaylistMixin:
             return
 
         next_idx = idx + 1
-        # Support externe débranché entre-temps : les éléments indisponibles sont sautés (registre en mémoire).
         while next_idx < len(items) and not media_available(items[next_idx].get("storage_id")):
             next_idx += 1
         if next_idx < len(items):
             self.state["playlist_index"] = next_idx
             next_item = items[next_idx]
-            # relu AVANT l'appel qui va le
-            # réécrire, pour que l'avance automatique/manuelle au sein d'une
-            # MÊME playlist ne perde jamais l'origine "programmation" de la
-            # lecture en cours.
             await self.load(
                 video_id=next_item["id"],
                 title=next_item["title"],

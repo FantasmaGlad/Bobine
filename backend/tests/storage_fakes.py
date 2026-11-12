@@ -1,7 +1,4 @@
-"""Pilote de stockage factice : simule branchements, montages et arrachages sans matériel ni root.
-
-Chaque « disque » vit dans `<racine>/disks/<uuid>/` ; un montage est un lien symbolique `<racine>/mnt/<nom>` vers ce dossier
-(un autre nom à chaque montage : le point de montage change d'un branchement à l'autre, comme sur un vrai système)."""
+"""Pilote de stockage factice : simule branchements, montages et arrachages sans matériel ni root."""
 
 from __future__ import annotations
 
@@ -39,14 +36,13 @@ class FakeStorageDriver(StorageDriver):
         self._counter = 0
         self.root_user = False
         self.standby_calls: list[str] = []
-        # --- formatage ---
-        self.ops: list[tuple[str, str]] = []                  # journal des opérations destructives : (opération, disque)
-        self.fail_ops: dict[str, DeviceError] = {}            # opération -> erreur à lever
+        self.ops: list[tuple[str, str]] = []
+        self.fail_ops: dict[str, DeviceError] = {}
         self.tools: dict[str, bool] = {"ext4": True, "exfat": True, "vfat": True, "ntfs": True}
         self.format_ok = True
         self.blank_disks: dict[str, DiskInfo] = {}
-        self.disk_patch: dict[str, Any] = {}                  # nom de disque -> fonction(DiskInfo) -> DiskInfo (scénarios de refus)
-        self.extra_disks: list[DiskInfo] = []                 # disques non proposés (système...) vus par `disks()`
+        self.disk_patch: dict[str, Any] = {}
+        self.extra_disks: list[DiskInfo] = []
         self.busy_unmount_device = False
         self.starts: dict[str, int] = {}
         self.serials: dict[str, str] = {}
@@ -54,9 +50,8 @@ class FakeStorageDriver(StorageDriver):
         self.last_spec: FormatSpec | None = None
         self.unmount_delay = 0.0
         self.format_delay = 0.0
-        self.after_table: Any = None                          # crochet appelé juste après la table (simule une panne)
+        self.after_table: Any = None
 
-    # --- scénarios -----------------------------------------------------------------------------------------
     def plug(self, name: str, uuid: str | None, files: dict[str, bytes] | None = None, *, fstype: str = "exfat", kind: str = "usb",
              label: str | None = None, mounted_rw: bool = False, rotational: bool | None = None, size: int = 64 * 10**9,
              dev_type: str = "part") -> Volume:
@@ -67,7 +62,7 @@ class FakeStorageDriver(StorageDriver):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
         key = make_key(uuid, name, None, "1", size)
-        if key in self.volumes:  # clone (même UUID) : clé distincte, comme `dedupe_keys` côté réel
+        if key in self.volumes:
             key = f"{key}-{name}1"
         vol = Volume(
             key=key, device=f"/dev/{name}1", name=f"{name}1", fs_uuid=uuid, label=label or name.upper(),
@@ -88,7 +83,6 @@ class FakeStorageDriver(StorageDriver):
                 os.remove(vol.mountpoint)
             except OSError:
                 pass
-            # Le dossier du disque reste, mais plus rien n'y mène : les chemins du montage sont morts.
         self._emit("volumes")
 
     def disk_dir(self, key: str) -> Path:
@@ -103,7 +97,6 @@ class FakeStorageDriver(StorageDriver):
         self.volumes[key] = dataclasses.replace(vol, mountpoint=str(mountpoint), mounts=(str(mountpoint),), mount_options=tuple(options))
         return str(mountpoint)
 
-    # --- pilote ------------------------------------------------------------------------------------------------
     async def capabilities(self) -> dict[str, dict[str, Any]]:
         return {k: {"supported": True} for k in ("inventory", "push_events", "mount", "eject", "smart", "trim", "standby", "portable")}
 
@@ -155,7 +148,6 @@ class FakeStorageDriver(StorageDriver):
     async def portable_status(self) -> dict[str, Any]:
         return self.portable
 
-    # --- formatage ------------------------------------------------------------------------------------------------
     def _disk_info(self, name: str) -> DiskInfo:
         vols = [v for v in self.volumes.values() if v.disk == name]
         first = vols[0]

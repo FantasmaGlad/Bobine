@@ -71,25 +71,11 @@ interface BackgroundSummary {
   is_image: boolean;
 }
 
-/** Un morceau dans le séquenceur, avec son fond d'ambiance propre optionnel
- * — `backgroundId` nul = pas de fond propre, le fond de la
- * playlist/du cours reste affiché pour ce morceau. */
 interface PlaylistDraftItem {
   track: AudioTrackSummary;
   backgroundId: number | null;
 }
 
-/**
- * Créateur de playlists audio ("éditions mixées") pour le mode coach,
- * embarqué dans l'onglet "Playlists" de Coach → Cours audio — anciennement la page
- * `/audio-playlists` à part entière.
- *
- * Le panneau "Ajouter depuis les cours" affiche des cartes de cours (vignette
- * = ambiance déjà assignée au cours) dépliables en pistes
- * individuelles, PLUS un bouton "tout le cours" pour ajouter d'un coup toutes
- * ses pistes — une piste ajoutée en bloc reste un
- * item indépendant côté serveur, l'ordre suffit à reconstituer le cours.
- */
 export default function AudioPlaylistManager() {
   const { t } = useAppSettings();
   const isMobile = useIsMobile();
@@ -151,7 +137,6 @@ export default function AudioPlaylistManager() {
         setCourses(await res.json());
       }
     } catch {
-      // silencieux : les cartes de cours retombent sur l'icône générique
     }
   };
 
@@ -162,7 +147,6 @@ export default function AudioPlaylistManager() {
         setBackgrounds(await res.json());
       }
     } catch {
-      // Silencieux : le sélecteur de fond par piste reste juste vide.
     }
   };
 
@@ -270,9 +254,6 @@ export default function AudioPlaylistManager() {
     showToast(t("audioPlaylists.addedToast", { title: track.title }));
   };
 
-  // ajoute TOUTES les pistes du cours (dans leur ordre d'origine) d'un coup —
-  // chacune reste un AudioPlaylistItem indépendant côté serveur, seul l'ordre
-  // d'insertion recrée visuellement le "bloc".
   const handleAddWholeCourse = (courseId: number) => {
     const courseTracks = tracks.filter((tr) => tr.course_id === courseId);
     if (courseTracks.length === 0) return;
@@ -303,8 +284,6 @@ export default function AudioPlaylistManager() {
     });
   };
 
-  // `backgroundId`
-  // nul remet le morceau sur le fond par défaut de la playlist/du cours.
   const handleSetTrackBackground = (index: number, backgroundId: number | null) => {
     setPlaylistItems((prev) => {
       const copy = [...prev];
@@ -448,9 +427,6 @@ export default function AudioPlaylistManager() {
     return matchesSearch && matchesProgram;
   });
 
-  // Regroupement par cours :
-  // seuls les cours ayant au moins une piste après filtrage sont affichés,
-  // dans l'ordre où ils apparaissent déjà côté serveur (titre du cours).
   const groupedCourses = React.useMemo(() => {
     const byId = new Map<number, AudioTrackSummary[]>();
     for (const tr of filteredTracks) {
@@ -482,7 +458,6 @@ export default function AudioPlaylistManager() {
         className="playlists-split-container"
         style={isMobile ? { flexDirection: "column", height: "auto", overflow: "visible" } : undefined}
       >
-        {/* Left Panel: Search & Playlists list */}
         <div
           className="playlists-left-panel"
           style={isMobile ? { maxWidth: "100%", minWidth: 0, height: "auto" } : undefined}
@@ -569,7 +544,6 @@ export default function AudioPlaylistManager() {
           </div>
         </div>
 
-        {/* Right Panel: Editor or Placeholder */}
         <div
           className="playlists-right-panel"
           style={isMobile ? { minWidth: 0, height: "auto", overflow: "visible" } : undefined}
@@ -747,7 +721,6 @@ export default function AudioPlaylistManager() {
                 </div>
               </div>
 
-              {/* Ajout depuis les cours : cartes dépliables + "tout le cours". */}
               <div className="library-picker" style={{ height: isMobile ? "auto" : "340px", maxHeight: isMobile ? "380px" : undefined }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span className="form-label" style={{ fontSize: "0.75rem", margin: 0, textTransform: "uppercase", color: "var(--text-muted)", letterSpacing: "0.05em" }}>

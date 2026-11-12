@@ -2,32 +2,19 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 
-/**
- * Cliquet anti-codage en dur : le verre, les voiles et les ombres passent par les jetons du thème
- * (`--blur-*`, `--saturate-*`, `--glass-*`, `--scrim*`, `--ink`, `--specular`), jamais par des valeurs figées qui ne
- * s'adapteraient ni au thème, ni à « transparence réduite », ni à l'écran. Les plafonds ne peuvent QUE baisser :
- * en migrant des règles, abaissez-les ; ne les relevez jamais, créez ou utilisez un jeton.
- */
 const srcDir = new URL("../src/", import.meta.url);
 const sourceFiles = (readdirSync(srcDir, { recursive: true }) as string[]).filter((f) => /\.(css|tsx?)$/.test(f));
-/** Jetons et règles : tout le CSS (globals, responsive, modules) ; les styles en ligne (.tsx) sont vérifiés à part. */
 const css = sourceFiles.filter((f) => f.endsWith(".css")).map((f) => readFileSync(new URL(f, srcDir), "utf8")).join("\n");
 const inlineStyles = sourceFiles.filter((f) => /\.tsx?$/.test(f)).map((f) => readFileSync(new URL(f, srcDir), "utf8")).join("\n");
 
 const BASELINE = {
-  /** `backdrop-filter` avec un flou en pixels au lieu de `blur(var(--blur-*))`. */
   hardcodedBlur: 0,
-  /** `backdrop-filter` dont la valeur n'est qu'un `var()` sans `blur(...)` : invalide, aucun flou n'est appliqué. */
   invalidBlur: 0,
-  /** `saturate(NNN%)` figé dans un `backdrop-filter`. */
   hardcodedSaturate: 0,
-  /** Blancs figés (`rgba(255,255,255,…)`, `#fff` dans un `color-mix`) au lieu de `var(--specular)`. */
   hardcodedWhite: 0,
-  /** Noirs figés (`rgba(0,0,0,…)`, `#000` dans un `color-mix`) au lieu de `var(--ink)` ou d'un voile. */
   hardcodedBlack: 0,
 };
 
-/** CSS sans commentaires ni ce qui ne peut légitimement pas porter de variable : URL de données, sous-titres vidéo (`::cue`), définitions des neutres. */
 function checkable(): string {
   return css
     .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -37,10 +24,8 @@ function checkable(): string {
 }
 const source = checkable();
 
-/** Valeurs des déclarations `backdrop-filter` (préfixées ou non). */
 const filters = (): string[] => [...source.matchAll(/(?<!-webkit-)backdrop-filter\s*:\s*([^;}]+)[;}]/g)].map((m) => m[1].trim());
 
-/** Contenu de chaque `color-mix(...)` (parenthèses équilibrées). */
 function colorMixes(): string[] {
   const out: string[] = [];
   for (let i = source.indexOf("color-mix("); i !== -1; i = source.indexOf("color-mix(", i + 1)) {
@@ -85,10 +70,9 @@ test("composants de verre récents : uniquement des jetons", () => {
 });
 
 test("jetons : aucune variable utilisée sans être définie", () => {
-  // Une variable absente invalide toute la déclaration (ombre, flou…) ou impose un repli figé : bug silencieux.
   const noComments = css.replace(/\/\*[\s\S]*?\*\//g, "");
   const defined = new Set([...noComments.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
-  for (const m of inlineStyles.matchAll(/["'](--[\w-]+)["']/g)) defined.add(m[1]); // `style={{ "--x": … }}`, setProperty
+  for (const m of inlineStyles.matchAll(/["'](--[\w-]+)["']/g)) defined.add(m[1]);
   const undefinedTokens = [...new Set([...noComments.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1]))].filter((n) => !defined.has(n));
   assert.deepEqual(undefinedTokens, [], `variables non définies : ${undefinedTokens.join(", ")}`);
 });
@@ -107,8 +91,6 @@ test("transparence réduite : les jetons de verre deviennent opaques et le flou 
 });
 
 test("verre : `-webkit-backdrop-filter` précède toujours `backdrop-filter`", () => {
-  // Le minifieur CSS de la chaîne de build ne garde que la dernière des deux déclarations identiques : écrite après,
-  // la version préfixée supprime la version standard, et Chrome, Edge et Firefox n'appliquent alors AUCUN flou.
   const wrongOrder = [...source.matchAll(/(?<![-\w])backdrop-filter\s*:[^;{}]+;\s*-webkit-backdrop-filter\s*:/g)].length;
   assert.equal(wrongOrder, 0, `${wrongOrder} règles déclarent backdrop-filter avant -webkit-backdrop-filter`);
 });

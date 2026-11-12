@@ -10,7 +10,6 @@ import type { FeedLevels } from "@/lib/useRadioFeed";
 import { errorText, useDevicesResource } from "./common";
 import type { RadioSectionProps } from "./RoutingSection";
 
-/** Délai avant d'envoyer le dernier réglage pendant un glissement (une écriture par pause, pas par pas de curseur). */
 const SEND_DELAY_MS = 150;
 
 type MixPatch = { master?: Partial<RadioMix["master"]>; music?: Partial<RadioMix["music"]>; announcements?: Partial<RadioMix["announcements"]> };
@@ -19,7 +18,6 @@ function mergePatch(a: MixPatch, b: MixPatch): MixPatch {
   return { master: { ...a.master, ...b.master }, music: { ...a.music, ...b.music }, announcements: { ...a.announcements, ...b.announcements } };
 }
 
-/** Vumètre : longueur proportionnelle au niveau crête (dBFS −60…0), repères de zone par la couleur ET la valeur lue. */
 function MeterBar({ level, label }: { level: number | undefined; label: string }) {
   const value = level ?? 0;
   return (
@@ -35,7 +33,6 @@ interface StripProps {
   gain: number;
   muted: boolean;
   solo?: boolean;
-  /** Coupée parce qu'une autre tranche est en solo. */
   silencedBySolo: boolean;
   level: number | undefined;
   onGain: (db: number) => void;
@@ -154,7 +151,6 @@ function ChannelMixer({ channel, mix, sound, playing, routeLabel, levels, t, onP
 
 export default function MixerSection({ refreshKey, notify, t, feed }: RadioSectionProps) {
   const stored = useDevicesResource<MixerView>("/mixer", refreshKey);
-  // Réglage local pendant un glissement : l'état serveur n'arrive qu'après l'aller-retour, le curseur ne doit pas « sauter ».
   const [drafts, setDrafts] = useState<Partial<Record<RadioOutputId, { mix?: RadioMix; sound?: RadioSoundSettings }>>>({});
   const pending = useRef<Partial<Record<RadioOutputId, { mix?: MixPatch; sound?: RadioSoundSettings }>>>({});
   const timers = useRef<Partial<Record<RadioOutputId, ReturnType<typeof setTimeout>>>>({});

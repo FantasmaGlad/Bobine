@@ -1,11 +1,4 @@
-"""Registre en mémoire des supports externes en ligne.
-
-Une bibliothèque externe peut compter des milliers de médias : savoir si l'un d'eux est lisible NE
-DOIT PAS coûter une entrée/sortie par ligne (un support débranché bloque `stat`). Le service de
-stockage tient donc à jour ce dictionnaire `storage_id -> racine de montage` à chaque changement ;
-`Video.available` & co. le lisent sans toucher au disque.
-
-Module volontairement sans dépendance (importé par `models.py`)."""
+"""Registre en mémoire des supports externes en ligne."""
 
 from __future__ import annotations
 

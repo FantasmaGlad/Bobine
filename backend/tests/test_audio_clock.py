@@ -1,5 +1,4 @@
-"""Horloge serveur du mode coach : la position de la piste audio est
-une fonction du temps, la fin de piste est idempotente."""
+"""Horloge serveur du mode coach : la position de la piste audio est une fonction du temps, la fin de piste est idempotente."""
 
 import asyncio
 
@@ -42,7 +41,7 @@ def test_la_piste_avance_sans_aucun_ecran_connecte_et_expose_son_ancre():
     async def _run():
         m, fake = _manager()
         await m.load_audio_course(1, "RPM", "RPM", None, TRACKS)
-        assert m.snapshot()["audio_clock"]["running"] is False  # démarre en pause
+        assert m.snapshot()["audio_clock"]["running"] is False
         await m.play()
         fake.advance(12.0)
         snap = m.snapshot()
@@ -77,16 +76,15 @@ def test_piste_suivante_et_relance_remettent_l_horloge_a_zero():
 
 
 def test_fin_de_piste_idempotente_deux_ecrans_ne_sautent_pas_deux_pistes():
-    """Tous les écrans envoient `audio_track_ended` : en mode auto, le second
-    signal (même piste) sautait une piste de plus."""
+    """Tous les écrans envoient `audio_track_ended` : en mode auto, le second signal (même piste) sautait une piste de plus."""
     async def _run():
         m, fake = _manager()
         await m.load_audio_course(1, "RPM", "RPM", None, TRACKS, chain_mode="auto")
         await m.play()
         fake.advance(30.0)
-        await m.audio_track_ended(track_index=0)   # écran 1
+        await m.audio_track_ended(track_index=0)
         assert m.state["audio_track_index"] == 1
-        await m.audio_track_ended(track_index=0)   # écran 2 : signal tardif de la piste 0
+        await m.audio_track_ended(track_index=0)
         assert m.state["audio_track_index"] == 1
         assert m.state["audio_playing"] is True
 
@@ -102,7 +100,7 @@ def test_fin_de_piste_en_mode_manuel_et_minuterie_ne_se_rejoue_pas():
         await m.audio_track_ended(track_index=0)
         assert m.state["audio_playing"] is False
         assert m.snapshot()["audio_clock"]["running"] is False
-        await m.audio_track_ended(track_index=0)   # doublon : sans effet
+        await m.audio_track_ended(track_index=0)
         assert m.state["audio_track_index"] == 0
 
     asyncio.run(_run())

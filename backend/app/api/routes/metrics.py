@@ -55,7 +55,7 @@ def _resolve_period_start(period: str) -> datetime | None:
         return now - timedelta(days=30)
     if period == "this_month":
         return datetime(now.year, now.month, 1, tzinfo=timezone.utc)
-    return None  # "all"
+    return None
 
 
 @router.post("/ratings", status_code=201)
@@ -153,12 +153,9 @@ def get_metrics_dashboard(
     channel: str = Query("all", pattern=regex(DASHBOARD_CHANNELS)),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """
-    Tableau de bord unifié des métriques club et télémétrie matérielle.
-    """
+    """Tableau de bord unifié des métriques club et télémétrie matérielle."""
     start_date = _resolve_period_start(period)
 
-    # 1. Filtres pour les requêtes de sessions
     sess_query = db.query(PlaybackSession)
     if start_date:
         sess_query = sess_query.filter(PlaybackSession.started_at >= start_date)
@@ -167,7 +164,6 @@ def get_metrics_dashboard(
 
     sessions = sess_query.all()
 
-    # 2. Filtres pour les requêtes d'avis
     rating_query = db.query(CourseRating)
     if start_date:
         rating_query = rating_query.filter(CourseRating.created_at >= start_date)
@@ -176,7 +172,6 @@ def get_metrics_dashboard(
 
     ratings = rating_query.all()
 
-    # --- Calcul KPIs ---
     total_sessions = len(sessions)
     completed_sessions = sum(1 for s in sessions if s.completed)
     completion_rate = round((completed_sessions / total_sessions) * 100, 1) if total_sessions > 0 else 0.0
@@ -196,7 +191,6 @@ def get_metrics_dashboard(
         if k in distribution:
             distribution[k] += 1
 
-    # Répartition par launch_type
     launch_breakdown = {"grid": 0, "cinema": 0, "schedule": 0, "kiosk": 0}
     for s in sessions:
         lt = s.launch_type or "kiosk"
@@ -205,10 +199,8 @@ def get_metrics_dashboard(
         else:
             launch_breakdown["kiosk"] += 1
 
-    # --- Histogramme horaire (24 créneaux) ---
     hourly_distribution = [{"hour": h, "count": 0} for h in range(24)]
     for s in sessions:
-        # Conversion heure locale
         try:
             local_dt = s.started_at.astimezone() if s.started_at.tzinfo else s.started_at
             h = local_dt.hour
@@ -217,8 +209,6 @@ def get_metrics_dashboard(
         except Exception:
             pass
 
-    # --- Classement des cours ---
-    # Indexation par video_id
     video_sessions_map: dict[int, list[PlaybackSession]] = {}
     for s in sessions:
         video_sessions_map.setdefault(s.video_id, []).append(s)
@@ -227,7 +217,6 @@ def get_metrics_dashboard(
     for r in ratings:
         video_ratings_map.setdefault(r.video_id, []).append(r)
 
-    # Récupérer toutes les vidéos
     all_videos = db.query(Video).all()
     course_stats = []
 
@@ -238,7 +227,6 @@ def get_metrics_dashboard(
         v_sess_count = len(v_sess)
         v_ratings_count = len(v_ratings)
 
-        # Si aucun visionnage ni note sur la période, on inclut tout de même avec stats à 0
         v_completed_count = sum(1 for s in v_sess if s.completed)
         v_completion_rate = round((v_completed_count / v_sess_count) * 100, 1) if v_sess_count > 0 else 0.0
         v_avg_rating = round(sum(r.rating for r in v_ratings) / v_ratings_count, 1) if v_ratings_count > 0 else 0.0
@@ -264,10 +252,8 @@ def get_metrics_dashboard(
             "ratings_count": v_ratings_count,
         })
 
-    # Tri par popularité (sessions_count desc) par défaut
     course_stats.sort(key=lambda x: (x["sessions_count"], x["average_rating"]), reverse=True)
 
-    # --- Télémétrie Matérielle ---
     hardware = get_system_telemetry_payload()
 
     rating_breakdown = [
@@ -330,9 +316,7 @@ def get_hardware_history(
     period: str = Query("1h", pattern=regex(HISTORY_PERIODS)),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Historique temporel d'une métrique matérielle (1h, 6h, 24h, 7j, 30j, mois en cours, tout l'historique conservé)
-    avec statistiques et points échantillonnés. La profondeur réelle est bornée par la rétention des métriques
-    (réglage « logs_retention_days »)."""
+    """Historique temporel d'une métrique matérielle (1h, 6h, 24h, 7j, 30j, mois en cours, tout l'historique conservé) avec statistiques et points échantillonnés."""
     now = datetime.now(timezone.utc)
     if period == "1h":
         start_time = now - timedelta(hours=1)
@@ -345,8 +329,8 @@ def get_hardware_history(
     elif period == "this_month":
         start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     elif period == "all":
-        start_time = None  # tout ce que la rétention a conservé
-    else:  # "7d"
+        start_time = None
+    else:
         start_time = now - timedelta(days=7)
 
     query = db.query(SystemMetricsHistory)
@@ -367,7 +351,6 @@ def get_hardware_history(
     if metric in metric_meta:
         meta = metric_meta[metric]
     else:
-        # Déduction dynamique de l'unité et du libellé pour toute métrique future
         m_lower = metric.lower()
         unit = "%" if ("pct" in m_lower or "percent" in m_lower) else ("°C" if "temp" in m_lower else ("W" if "watt" in m_lower else ""))
         meta = {"unit": unit, "label": metric.replace("_", " ").title()}
@@ -380,7 +363,6 @@ def get_hardware_history(
             if ts:
                 raw_points.append({"timestamp": ts, "value": round(float(val), 1)})
 
-    # Obtenir la valeur live actuelle
     latest_telemetry = get_system_telemetry_payload()
     current_val_map = {
         "cpu": latest_telemetry.get("cpu_percent"),
@@ -399,7 +381,6 @@ def get_hardware_history(
         else:
             raw_points.append({"timestamp": now.isoformat(), "value": 0.0})
 
-    # Sous-échantillonnage fluide pour un tracé SVG performant (< 80 points)
     if len(raw_points) > 80:
         step = max(1, len(raw_points) // 60)
         sampled = raw_points[::step]

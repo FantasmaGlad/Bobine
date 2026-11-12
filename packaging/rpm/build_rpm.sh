@@ -1,17 +1,4 @@
 #!/usr/bin/env bash
-# ==============================================================================
-# Construit le paquet RPM de Bobine (Fedora et dérivés) pour l'architecture courante
-# (x86_64 ou aarch64) à partir de l'arbre PyInstaller — le même que celui du .deb.
-#
-# Environnement :
-#   VERSION               version de build (défaut : fichier VERSION), p. ex. 5.0.6~0.canary.42
-#   RPM_FILENAME_VERSION  suffixe du fichier produit : "beta"/"canary" => bobine-<canal>.<arch>.rpm ;
-#                         vide => nom RPM natif (stable : bobine-<V>-1.<arch>.rpm)
-#   BOBINE_DIST_DIR       arbre PyInstaller (défaut backend/dist/Bobine) ; BOBINE_BUILD_DIST=1 le construit
-#   RPM_ARCH              architecture cible (défaut : uname -m)
-#   OUTPUT_DIR            dossier de sortie (défaut dist-rpm/)
-# Dépendances : rpm-build, tar, grep (sur Fedora : dnf install rpm-build).
-# ==============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,8 +33,6 @@ tar --owner=0 --group=0 --numeric-owner -cf "${WORK}/rpmbuild/SOURCES/bobine-roo
 cp "${SCRIPT_DIR}/bobine.spec" "${WORK}/rpmbuild/SPECS/"
 
 echo "=== [3/5] Version glibc minimale exigée par les binaires embarqués ==="
-# Plancher annoncé (packaging/common/MIN_GLIBC), identique à celui du .deb ; la construction échoue si les
-# binaires embarqués exigent davantage.
 GLIBC_MIN="$(bobine_glibc_check "${DIST_DIR}")"
 echo "glibc >= ${GLIBC_MIN}"
 

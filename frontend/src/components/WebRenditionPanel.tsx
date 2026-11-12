@@ -11,19 +11,10 @@ interface VideoWebState {
   web_status: "pending" | "ready" | "error" | null;
 }
 
-/** Raisons de non-lisibilité susceptibles d'empêcher le décodage (préfixe
- *  `decode:`, cf. backend `app/utils/web_profile.py`) — les notes de
- *  performance (`perf:*`) n'appellent pas de version compatible. */
 function decodeIssues(issues: string[]): string[] {
   return issues.filter((issue) => issue.startsWith("decode:"));
 }
 
-/**
- * Panneau « version compatible navigateurs » du détail d'une vidéo : n'apparaît que pour un
- * fichier qu'un navigateur tiers pourrait ne pas savoir décoder. L'original n'est jamais
- * modifié ; la version compatible est servie automatiquement aux clients qui
- * en ont besoin (négociation `?accept=`, cf. lib/clientCodecSupport.ts).
- */
 export default function WebRenditionPanel({ videoId }: { videoId: number }) {
   const { t } = useAppSettings();
   const { libraryVersion } = usePlaybackSocket();
@@ -36,7 +27,6 @@ export default function WebRenditionPanel({ videoId }: { videoId: number }) {
       const res = await fetch(getApiUrl(`/videos/${videoId}`), { cache: "no-store" });
       if (res.ok) setState(await res.json());
     } catch {
-      // réseau indisponible : l'état affiché reste celui du dernier succès
     }
   }, [videoId]);
 
@@ -45,8 +35,6 @@ export default function WebRenditionPanel({ videoId }: { videoId: number }) {
     void load();
   }, [load, libraryVersion]);
 
-  // Production en cours : l'évènement WebSocket library_change prévient à la
-  // fin, ce sondage léger couvre un évènement manqué (onglet masqué, coupure).
   useEffect(() => {
     if (state?.web_status !== "pending") return;
     const id = setInterval(() => void load(), 4000);

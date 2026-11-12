@@ -46,14 +46,13 @@ logger = logging.getLogger(__name__)
 
 
 def _sanitized_db_bytes(db_path: Path) -> bytes:
-    """Copie cohérente de la base, compactée."""
     with tempfile.TemporaryDirectory(prefix="bobine_backup_") as tmp_dir:
         copy_path = Path(tmp_dir) / "database.db"
         src = sqlite3.connect(str(db_path))
         dst = sqlite3.connect(str(copy_path))
         try:
             src.backup(dst)
-            dst.execute("VACUUM")  # purge physique des pages libérées
+            dst.execute("VACUUM")
         finally:
             dst.close()
             src.close()
@@ -62,12 +61,7 @@ def _sanitized_db_bytes(db_path: Path) -> bytes:
 
 @router.get("/backup/export")
 def export_backup() -> Response:
-    """
-    Exporte une archive ZIP de sauvegarde contenant :
-    - La base de données SQLite (après checkpoint WAL pour garantir sa consistance)
-    - Le fichier de configuration config.toml (si présent)
-    - Un manifest.json décrivant la version, la date et le profil.
-    """
+    """Exporte une archive ZIP de sauvegarde contenant : - La base de données SQLite (après checkpoint WAL pour garantir sa consistance) - Le fichier de configuration config.toml (si présent) - Un manifest.json décrivant la version, la date et le profil."""
     if not _IS_SQLITE:
         raise HTTPException(status_code=400, detail="L'export de sauvegarde n'est supporté que pour SQLite.")
 
@@ -111,7 +105,6 @@ def export_backup() -> Response:
 
 
 async def _run_restore_restart():
-    """Tâche d'arrière-plan après restauration : force reload puis redémarrage."""
     await asyncio.sleep(1.0)
     try:
         await ws_manager.broadcast_force_reload()
@@ -127,11 +120,7 @@ async def restore_backup(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
-    """
-    Restaure une sauvegarde depuis une archive ZIP uploadée.
-    Valide l'archive, vérifie l'en-tête et les tables SQLite, effectue une copie .bak,
-    remplace la base de données et planifie le redémarrage.
-    """
+    """Restaure une sauvegarde depuis une archive ZIP uploadée."""
     if not _IS_SQLITE:
         raise HTTPException(status_code=400, detail="La restauration n'est supportée que pour SQLite.")
 
@@ -155,9 +144,6 @@ _MAX_RESTORED_CONFIG_BYTES = 1024 * 1024
 
 
 def _stage_backup_archive(source, work_dir: Path) -> tuple[Path, bytes | None]:
-    """Reçoit et valide la sauvegarde sur disque, sans jamais la charger en mémoire :
-    l'archive est copiée par blocs, la base est décompressée par blocs, et la place
-    disponible est vérifiée avant chaque écriture."""
     archive_path = work_dir / "backup.zip"
     with open(archive_path, "wb") as out:
         shutil.copyfileobj(source, out, 1024 * 1024)
@@ -216,7 +202,6 @@ async def _restore_database_file(db_tmp: Path, db_path: Path, config_bytes: byte
         logger.warning("Restauration non inscrite au journal d'activité : %s", e)
 
     try:
-        # Le checkpoint précède la copie de secours : elle contient ainsi les dernières écritures.
         release_sqlite_files(db_path)
         if db_path.exists():
             bak_path = db_path.with_suffix(".db.bak")
@@ -248,7 +233,6 @@ class ResetDataRequest(BaseModel):
 
 
 def _clean_dir_contents(dir_path: Path) -> None:
-    """Supprime tous les fichiers et sous-dossiers d'un répertoire sans supprimer le répertoire lui-même."""
     if not dir_path.exists() or not dir_path.is_dir():
         return
     for item in dir_path.iterdir():
@@ -262,7 +246,6 @@ def _clean_dir_contents(dir_path: Path) -> None:
 
 
 async def _run_reset_data_restart():
-    """Tâche d'arrière-plan après réinitialisation d'usine des données."""
     await asyncio.sleep(1.0)
     try:
         await ws_manager.broadcast_force_reload()
@@ -274,14 +257,7 @@ async def _run_reset_data_restart():
 
 @router.post("/system/reset-data")
 async def reset_data_system(payload: ResetDataRequest, background_tasks: BackgroundTasks) -> dict[str, str]:
-    """
-    Remise à zéro d'usine des données (DATA_ROOT) :
-    - Purge tous les fichiers des dossiers de médias (vidéos, audio, radio, vignettes, fonds, logos, logs).
-    - Réinitialise la base de données SQLite à zéro avec un schéma vierge.
-    - Ne touche STRICTEMENT JAMAIS aux binaires applicatifs (/usr/lib/bobine, %ProgramFiles%, /Applications).
-    - Redémarre les services.
-    Action IRRÉVERSIBLE exigeant la saisie de 'REINITIALISER'.
-    """
+    """Remise à zéro d'usine des données (DATA_ROOT) : - Purge tous les fichiers des dossiers de médias (vidéos, audio, radio, vignettes, fonds, logos, logs)."""
     phrase = payload.confirm.strip().upper().replace("É", "E")
     if phrase != "REINITIALISER":
         raise HTTPException(status_code=400, detail="Phrase de confirmation incorrecte. Saisissez REINITIALISER.")

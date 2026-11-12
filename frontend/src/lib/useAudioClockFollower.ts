@@ -11,7 +11,6 @@ interface AudioOptions {
   onSeek?: () => void;
 }
 
-/** Cible « piste audio du mode coach » : ancre `audio_clock`, lecture/pause selon `audio_playing`. */
 export function selectAudioTarget(state: PlaybackState): ClockTarget {
   if (!state.current_audio_course || state.state !== "coach_mode" || state.audio_track_index === null) {
     return { anchor: null, mode: null };
@@ -24,7 +23,6 @@ export function selectAudioTarget(state: PlaybackState): ClockTarget {
   };
 }
 
-/** Fait suivre l'horloge serveur à l'<audio> du mode coach. */
 export function useAudioClockFollower({ audioRef, state, serverNow, tryPlay, onSeek }: AudioOptions) {
   useMediaClockFollower({ mediaRef: audioRef, state, select: selectAudioTarget, serverNow, tryPlay, onSeek });
 }

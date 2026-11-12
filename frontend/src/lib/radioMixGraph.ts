@@ -1,30 +1,14 @@
-/**
- * Étage de mixage d'une sortie radio, dans le graphe Web Audio du lecteur (phase 3 des périphériques) :
- *
- *   musique (chaîne de son existante) ───→ [fader Musique] ───────────────────────┐
- *   rappels → [chaîne de son des rappels] → [fader Rappels] ──────────────────────┤→ [fader Sortie] → limiteur → [route] → sortie
- *
- * `route` est la porte de sourdine du repli « couper » (sortie choisie débranchée), distincte du mixage : le mixage
- * n'en dépend jamais. Le graphe n'est jamais reconnecté en cours de lecture, les changements sont lissés (comme la
- * chaîne de son). Les vumètres (analyseurs) ne sont branchés que pendant qu'une interface de mixage est ouverte.
- */
-// Imports relatifs avec extension : ce module est aussi chargé tel quel par le lanceur de tests Node (`npm test`).
 import { meterLevel, toMixerParams, type MeterId, type RadioMix } from "./radioMix.ts";
 import { createSoundChain, setParam, type SoundChain } from "./radioSoundGraph.ts";
 
 export type MeterLevels = Record<MeterId, number>;
 
 export interface MixStage {
-  /** Entrée de la musique (sortie de la chaîne de son). */
   musicInput: AudioNode;
-  /** Entrée des rappels (chaîne de son propre aux rappels). */
   announcementsInput: AudioNode;
   apply: (mix: RadioMix, smooth?: boolean) => void;
-  /** Sourdine du repli « couper » ; sans effet sur les réglages de mixage. */
   setRouteMuted: (muted: boolean) => void;
-  /** Branche (ou débranche) les analyseurs du vumètre. */
   setMetering: (on: boolean) => void;
-  /** Niveaux crête 0…100 de chaque tranche depuis la dernière lecture ; vide tant que le vumètre n'est pas branché. */
   readLevels: () => Partial<MeterLevels>;
 }
 
@@ -61,7 +45,6 @@ export function createMixStage(ctx: AudioContext, destination: AudioNode, initia
 
   const setRouteMuted = (muted: boolean) => setParam(routeGate.gain, muted ? 0 : 1, ctx.currentTime, true);
 
-  // Vumètres : un analyseur par tranche, créé et branché à la demande.
   let analysers: Array<{ id: MeterId; node: AnalyserNode; source: AudioNode; buffer: Float32Array<ArrayBuffer> }> | null = null;
   const setMetering = (on: boolean) => {
     if (on && !analysers) {

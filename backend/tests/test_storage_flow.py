@@ -1,8 +1,4 @@
-"""Stockage externe : API ouverte au réseau local, montage/retrait, explorateur sûr, import vérifié, bibliothèque externe,
-disponibilité (arrachage, rebranchement à un autre point de montage), garde-fous, longévité.
-
-Aucun matériel ni root : un pilote factice simule les supports (voir storage_fakes.py). Le test réel sur image
-disque (udisks2) relève de la recette locale séparée."""
+"""Stockage externe : API ouverte au réseau local, montage/retrait, explorateur sûr, import vérifié, bibliothèque externe, disponibilité (arrachage, rebranchement à un autre point de montage), garde-fous, longévité."""
 
 import hashlib
 import os
@@ -12,7 +8,6 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 
-# Base de test isolée AVANT tout import de l'application (comme les autres tests).
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
 os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
@@ -66,8 +61,6 @@ def _cleanup_db():
         for model in (Video, AudioTrack, RadioTrack):
             for row in db.query(model).filter(model.storage_id.isnot(None)).all():
                 db.delete(row)
-        # SessionLocal disables autoflush: complete ORM deletes before a bulk
-        # query can delete the same test video a second time.
         db.flush()
         db.query(Video).filter(Video.title.like("__stk_%")).delete(synchronize_session=False)
         db.query(AudioCourse).filter(AudioCourse.title.like("%stk%")).delete(synchronize_session=False)
@@ -78,7 +71,6 @@ def _cleanup_db():
 
 
 def _purge_local(model, condition) -> None:
-    """Supprime les lignes ET les fichiers locaux créés par un import de test (les tests ne laissent rien dans data/)."""
     with SessionLocal() as db:
         for row in db.query(model).filter(condition).all():
             for attr in ("file_path", "thumbnail_path", "cover_path"):
@@ -130,10 +122,6 @@ def codes(response):
     return response.json()["detail"]["code"]
 
 
-# ---------------------------------------------------------------------------------------------------------
-# Détection, montage, retrait
-# ---------------------------------------------------------------------------------------------------------
-
 def test_hot_plug_listing_never_exposes_paths(env):
     assert get_volumes(env)["volumes"] == []
     vol = env.driver.plug("sda", "7FDB-F2EC", {"Cours/a.mp4": b"x"}, label="COURS")
@@ -161,7 +149,6 @@ def test_mount_defaults_to_read_only_with_wear_friendly_options(env):
     longevity = {i["id"]: i for i in view["longevity"]}
     assert longevity["read_only"]["status"] == "applied" and longevity["noatime"]["status"] == "applied"
     assert longevity["smart"]["status"] in ("applied", "unavailable")
-    # Remonter dans le même mode ne fait rien.
     assert env.client.post(f"/api/storage/volumes/{vol.key}/mount", json={}).json()["changed"] is False
 
 
@@ -181,7 +168,6 @@ def test_rw_mount_is_explicit_and_refused_on_dirty_filesystem(env):
 def test_unknown_and_malformed_keys(env):
     assert env.client.post("/api/storage/volumes/u-inconnu/mount", json={}).status_code == 404
     assert codes(env.client.get("/api/storage/volumes/u-inconnu/browse")) == "volume_not_found"
-    # Un chemin de périphérique ou une injection n'est jamais une clé valable : 404, jamais une action.
     for hostile in ("%2Fdev%2Fsda1", "..%2Fetc", "sda1%3B%20rm%20-rf%20%2F", "x" * 200):
         response = env.client.post(f"/api/storage/volumes/{hostile}/eject")
         assert response.status_code == 404, hostile
@@ -219,10 +205,6 @@ def test_busy_volume_refuses_unmount_and_eject(env):
     assert env.client.post(f"/api/storage/volumes/{vol.key}/unmount").status_code == 200
 
 
-# ---------------------------------------------------------------------------------------------------------
-# Explorateur
-# ---------------------------------------------------------------------------------------------------------
-
 def test_browse_requires_mount_and_blocks_traversal(env):
     vol = env.driver.plug("sda", "AAAA-0006", {"Cours/RPM/101.mp4": b"v", "Cours/notes.txt": b"n", "Musique/a.mp3": b"a", ".cache/x": b"1"})
     secret = env.tmp / "secret"
@@ -237,7 +219,7 @@ def test_browse_requires_mount_and_blocks_traversal(env):
     assert [e["name"] for e in root["entries"]] == ["Cours", "Musique"] and root["total"] == 2 and root["path"] == ""
     cours = env.client.get(base, params={"path": "Cours"}).json()
     names = [e["name"] for e in cours["entries"]]
-    assert names == ["RPM", "notes.txt"] and cours["skipped_links"] == 1 and cours["parent"] == ""  # lien hors volume ignoré
+    assert names == ["RPM", "notes.txt"] and cours["skipped_links"] == 1 and cours["parent"] == ""
     for bad in ("../..", "../../etc", "/etc", "Cours/../../..", "C:/Windows", "Cours\\..\\x", "Cours/evasion/pwd.mp4"):
         response = env.client.get(base, params={"path": bad})
         assert response.status_code in (400, 403, 404) and "code" in response.json()["detail"], bad
@@ -247,13 +229,8 @@ def test_browse_requires_mount_and_blocks_traversal(env):
     assert len(paged["entries"]) == 1 and paged["total"] == 2
     assert env.client.get(base, params={"limit": 5000}).status_code == 422
     assert env.client.get(base, params={"path": "Cours", "media_only": True}).json()["total"] == 1
-    # Les évènements et réponses ne contiennent jamais le point de montage.
     assert str(env.tmp) not in str(root) + str(cours)
 
-
-# ---------------------------------------------------------------------------------------------------------
-# Import : copie vérifiée, source intacte, relance idempotente
-# ---------------------------------------------------------------------------------------------------------
 
 @needs_ffmpeg
 def test_import_copies_verifies_and_never_touches_the_source(env, media):
@@ -268,15 +245,15 @@ def test_import_copies_verifies_and_never_touches_the_source(env, media):
     assert job["stage"] == "done" and job["result_id"] and job["source"] == "storage"
     assert job["bytes_total"] == job["bytes_done"] == media.video.stat().st_size and job["files_done"] == 1
     assert job["details"]["imported"] == 1 and job["details"]["failed"] == []
-    assert source.exists() and (_sha(source), source.stat().st_mtime_ns) == before  # jamais modifiée ni supprimée
+    assert source.exists() and (_sha(source), source.stat().st_mtime_ns) == before
     with SessionLocal() as db:
         video = db.query(Video).filter(Video.id == job["result_id"]).first()
         assert video.storage_id is None and video.rel_path is None and video.duration_seconds
         assert Path(video.file_path).exists() and str(env.tmp) not in video.file_path
         local = Path(video.file_path)
-        assert local.stat().st_size > 0  # (l'intégrité octet à octet de la copie est vérifiée dans test_storage_transfer.py)
+        assert local.stat().st_size > 0
     again = env.client.post(f"/api/storage/volumes/{vol.key}/import", json={"entries": [{"path": "Cours"}], "kind": "video"}).json()
-    assert again["job_id"] is None and again["skipped"][0]["reason"] == "already_imported"  # relance idempotente
+    assert again["job_id"] is None and again["skipped"][0]["reason"] == "already_imported"
     forced = env.client.post(f"/api/storage/volumes/{vol.key}/import", json={"entries": [{"path": "Cours"}], "kind": "video", "force": True}).json()
     assert wait_job(env.client, forced["job_id"])["stage"] == "done"
     _purge_local(Video, Video.title.like("Rpm 101%"))
@@ -304,7 +281,7 @@ def test_import_audio_course_and_radio(env, media):
     with SessionLocal() as db:
         for track in db.query(AudioTrack).filter(AudioTrack.audio_course_id == job["result_id"]).all():
             Path(track.file_path).unlink(missing_ok=True)
-        db.query(AudioCourse).filter(AudioCourse.id == job["result_id"]).delete()  # pistes supprimées en cascade
+        db.query(AudioCourse).filter(AudioCourse.id == job["result_id"]).delete()
         db.commit()
 
 
@@ -330,10 +307,6 @@ def test_import_validates_selection_and_kind(env):
     assert nothing["job_id"] is None and nothing["skipped"][0]["reason"] == "no_media"
 
 
-# ---------------------------------------------------------------------------------------------------------
-# Bibliothèque externe : indexation, lecture directe, disponibilité, remappage
-# ---------------------------------------------------------------------------------------------------------
-
 def _register(env, key):
     response = env.client.post(f"/api/storage/volumes/{key}/library", json={"nickname": "Clé du club"})
     assert response.status_code == 200, response.text
@@ -344,10 +317,9 @@ def _register(env, key):
 def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
     vol = env.driver.plug("sda", "BBBB-0001", {"Cours/Rpm 101 test.mp4": media.video.read_bytes()}, label="CLUB", mounted_rw=True)
     env.refresh()
-    assert vol_view(env, vol.key)["mounted_read_only"] is False  # le bureau a monté en lecture-écriture
+    assert vol_view(env, vol.key)["mounted_read_only"] is False
     assert codes(env.client.post(f"/api/storage/volumes/{vol.key}/index", json={"entries": [{"path": "Cours"}], "kind": "video"})) == "not_registered"
     _register(env, vol.key)
-    # L'enregistrement a remonté le support en lecture seule (zéro écriture).
     assert env.driver.mount_calls[-1][1][0] == "ro" and vol_view(env, vol.key)["mounted_read_only"] is True
     first_mount = env.driver.volumes[vol.key].mountpoint
 
@@ -359,9 +331,8 @@ def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
         video = db.query(Video).filter(Video.id == video_id).first()
         lib = db.query(ExternalVolume).first()
         assert video.storage_id == lib.id and video.rel_path == "Cours/Rpm 101 test.mp4" and video.file_path == f"{first_mount}/Cours/Rpm 101 test.mp4"
-        assert video.duration_seconds and video.thumbnail_path and str(env.tmp) not in video.thumbnail_path  # miniature INTERNE
+        assert video.duration_seconds and video.thumbnail_path and str(env.tmp) not in video.thumbnail_path
         assert video.program == "RPM"
-    # Réindexer ne duplique rien.
     again = env.client.post(f"/api/storage/volumes/{vol.key}/index", json={"entries": [{"path": "Cours"}], "kind": "video"}).json()
     assert wait_job(env.client, again["job_id"])["details"]["skipped"][0]["reason"] == "already_indexed"
 
@@ -374,7 +345,6 @@ def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
     listing = env.client.get("/api/storage/volumes").json()["volumes"][0]
     assert listing["library"]["registered"] and listing["library"]["online"] and listing["library"]["stats"]["videos"] == 1
 
-    # --- arrachage brutal : indisponible, jamais supprimé, plus de 500/404 à la lecture ---
     env.driver.unplug(vol.key)
     env.refresh()
     assert env.client.get(f"/api/videos/{video_id}").json()["available"] is False
@@ -389,8 +359,7 @@ def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
         assert row is not None and row.file_path.startswith("external:") and row.rel_path == "Cours/Rpm 101 test.mp4"
     assert any(not v["available"] for v in env.client.get("/api/videos").json() if v["id"] == video_id)
 
-    # --- rebranchement (même UUID, AUTRE point de montage) : chemins remappés, disponible de nouveau ---
-    env.driver.plug("sdz", "BBBB-0001", None, label="CLUB")  # le contenu du disque est toujours là
+    env.driver.plug("sdz", "BBBB-0001", None, label="CLUB")
     env.refresh()
     new_mount = env.driver.volumes[next(iter(env.driver.volumes))].mountpoint
     assert new_mount != first_mount
@@ -399,14 +368,13 @@ def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
     assert env.client.get(f"/api/videos/{video_id}").json()["available"] is True
     assert env.client.get(f"/api/videos/{video_id}/stream", headers={"Range": "bytes=0-4"}).status_code == 206
 
-    # --- garde-fous : ni suppression, ni renommage, ni normalisation sur le support ---
     on_disk = env.driver.disk_dir(next(iter(env.driver.volumes))) / "Cours" / "Rpm 101 test.mp4"
     assert env.client.put(f"/api/videos/{video_id}", json={"title": "Nouveau titre"}).status_code == 200
     assert on_disk.exists()
     normalize = env.client.post(f"/api/videos/{video_id}/normalize")
     assert normalize.status_code == 409 and normalize.json()["detail"]["code"] == "external_read_only"
     assert env.client.delete(f"/api/videos/{video_id}").status_code == 200
-    assert on_disk.exists() and on_disk.read_bytes() == media.video.read_bytes()  # le fichier de l'utilisateur est intact
+    assert on_disk.exists() and on_disk.read_bytes() == media.video.read_bytes()
 
 
 def test_disk_images_are_never_remounted_automatically(env):
@@ -417,10 +385,10 @@ def test_disk_images_are_never_remounted_automatically(env):
     _register(env, image.key)
     _register(env, usb.key)
     env.refresh()
-    assert env.driver.unmount_calls == [usb.key]  # la clé USB est remontée en lecture seule, l'image est laissée telle quelle
+    assert env.driver.unmount_calls == [usb.key]
     assert vol_view(env, usb.key)["mounted_read_only"] is True and vol_view(env, image.key)["mounted_read_only"] is False
     read_only = {i["id"]: i for i in vol_view(env, image.key)["longevity"]}["read_only"]
-    assert read_only["status"] == "inactive"  # dit honnêtement qu'elle n'est pas en lecture seule
+    assert read_only["status"] == "inactive"
 
 
 @needs_ffmpeg
@@ -492,10 +460,6 @@ def test_volume_without_uuid_imports_but_is_not_registrable(env):
     assert codes(env.client.post(f"/api/storage/volumes/{vol.key}/library", json={})) == "uuid_missing"
 
 
-# ---------------------------------------------------------------------------------------------------------
-# Export (écriture temporaire et explicite) et compteur d'octets écrits
-# ---------------------------------------------------------------------------------------------------------
-
 def test_export_writes_temporarily_then_returns_to_read_only_and_counts_bytes(env, tmp_path):
     vol = env.driver.plug("sda", "DDDD-0001", {"deja.txt": b"1"}, kind="sd", label="CARTE")
     env.refresh()
@@ -514,18 +478,15 @@ def test_export_writes_temporarily_then_returns_to_read_only_and_counts_bytes(en
     assert job["stage"] == "done" and job["details"]["exported"] == 1
     exported = env.driver.disk_dir(vol.key) / "Sauvegarde" / "Bobine" / "__stk_Export.mp4"
     assert exported.exists() and _sha(exported) == _sha(local) and local.exists()
-    assert not list((env.driver.disk_dir(vol.key) / "Sauvegarde" / "Bobine").glob(".bobine-*"))  # pas de temporaire oublié
-    # Le volume cesse d'être « occupé » avant son remontage (le démontage refuse un volume occupé) : attendre le
-    # retour en lecture seule lui-même, pas la fin de l'état occupé.
+    assert not list((env.driver.disk_dir(vol.key) / "Sauvegarde" / "Bobine").glob(".bobine-*"))
     deadline = time.time() + 10
     while time.time() < deadline and vol_view(env, vol.key)["mounted_read_only"] is not True:
         time.sleep(0.2)
     view = vol_view(env, vol.key)
-    assert view["mounted_read_only"] is True  # retour automatique en lecture seule
+    assert view["mounted_read_only"] is True
     rw_calls = [options for _, options in env.driver.mount_calls if options[0] == "rw"]
     assert len(rw_calls) == 1
     assert view["library"]["bytes_written"] == 300_000 and view["library"]["wear_level"] == "ok"
-    # Un second export ne remplace jamais le fichier existant.
     second = env.client.post(f"/api/storage/volumes/{vol.key}/export", json={"kind": "video", "ids": [video_id], "dest": "Sauvegarde/Bobine"}).json()
     assert wait_job(env.client, second["job_id"])["stage"] == "done"
     assert (env.driver.disk_dir(vol.key) / "Sauvegarde" / "Bobine" / "__stk_Export (2).mp4").exists() and exported.exists()
@@ -550,7 +511,7 @@ def test_export_refuses_unsafe_destination_and_unwritable_filesystems(env, tmp_p
     env.client.post(f"/api/storage/volumes/{vol.key}/mount", json={})
     for hostile in ("../../etc", "/etc", "a/../../b"):
         refused = env.client.post(base, json={**body, "dest": hostile})
-        assert refused.status_code == 400 and codes(refused) == "bad_path"  # refusé avant toute écriture ou remontage
+        assert refused.status_code == 400 and codes(refused) == "bad_path"
     assert env.driver.mount_calls[-1][1][0] == "ro" and not (env.tmp / "etc").exists()
     assert codes(env.client.post(base, json={"kind": "video", "ids": [987654]})) == "nothing_to_export"
     assert codes(env.client.post(base, json={"kind": "video", "ids": []})) == "empty_selection"
@@ -561,10 +522,6 @@ def test_export_refuses_unsafe_destination_and_unwritable_filesystems(env, tmp_p
         db.commit()
 
 
-# ---------------------------------------------------------------------------------------------------------
-# Longévité : réglages, santé, TRIM, conseiller
-# ---------------------------------------------------------------------------------------------------------
-
 def test_settings_are_visible_validated_and_disableable(env):
     vol = env.driver.plug("sda", "EEEE-0001")
     env.refresh()
@@ -574,12 +531,12 @@ def test_settings_are_visible_validated_and_disableable(env):
     assert updated["noatime"] is False and updated["standby_minutes"] == 240 and updated["read_only"] is True
     items = {i["id"]: i for i in vol_view(env, vol.key)["longevity"]}
     assert items["noatime"]["status"] == "disabled" and items["noatime"]["enabled"] is False
-    env.client.post(f"/api/storage/volumes/{vol.key}/mount", json={})  # déjà monté ro par l'enregistrement
+    env.client.post(f"/api/storage/volumes/{vol.key}/mount", json={})
     defaults = env.client.put("/api/storage/settings", json={"noexec": False}).json()
     assert defaults["noexec"] is False
     other = env.driver.plug("sdb", "EEEE-0002")
     env.refresh()
-    assert vol_view(env, other.key)["library"]["settings"]["noexec"] is False  # les défauts globaux s'appliquent aux autres supports
+    assert vol_view(env, other.key)["library"]["settings"]["noexec"] is False
     assert env.client.put("/api/storage/settings", json={"standby_minutes": "beaucoup"}).status_code == 422
 
 
@@ -616,7 +573,7 @@ def test_standby_applies_only_to_idle_rotational_disks(env):
     env.client.portal.call(env.service._maintenance)
     assert env.driver.standby_calls == [hdd.key]
     assert vol_view(env, hdd.key)["standby"]["ok"] is True
-    env.client.portal.call(env.service._maintenance)  # pas de répétition tant que le disque n'a pas été réveillé
+    env.client.portal.call(env.service._maintenance)
     env.service._last_maintenance = 0
     env.client.portal.call(env.service._maintenance)
     assert env.driver.standby_calls == [hdd.key]
@@ -628,10 +585,6 @@ def test_format_advisor_endpoint(env):
     assert env.client.get("/api/storage/advisor/format", params={"host": "windows"}).json()["fstype"] == "ntfs"
     assert env.client.get("/api/storage/advisor/format", params={"legacy": True}).json()["fstype"] == "vfat"
 
-
-# ---------------------------------------------------------------------------------------------------------
-# Dégradation propre : lecture, planning, radio
-# ---------------------------------------------------------------------------------------------------------
 
 def test_startup_puts_every_external_path_in_waiting_state(env):
     from app.storage import library
@@ -667,7 +620,7 @@ def test_scheduler_and_playlists_skip_unavailable_media(env):
         db.refresh(playlist)
         assert scheduled_target_unavailable(db, ScheduleTargetType.video, remote_video.id) is True
         assert scheduled_target_unavailable(db, ScheduleTargetType.video, local_video.id) is False
-        assert scheduled_target_unavailable(db, ScheduleTargetType.playlist, playlist.id) is False  # il reste un média local
+        assert scheduled_target_unavailable(db, ScheduleTargetType.playlist, playlist.id) is False
         assert [i["title"] for i in _build_playlist_video_items(playlist)] == ["__stk_Loc"]
         availability.set_online({lib.id: "/mnt/y"})
         assert [i["title"] for i in _build_playlist_video_items(playlist)] == ["__stk_Ext", "__stk_Loc"]
@@ -692,14 +645,14 @@ def test_radio_engine_skips_tracks_of_unplugged_storage():
         manager = RadioPlaybackManager(noop)
         await manager.load_playlist(1, "pl", tracks, shuffle=False, repeat="playlist")
         assert [t["id"] for t in manager.state["order"]] == [1, 2, 3, 4]
-        availability.set_online({})  # le support est arraché pendant la lecture
+        availability.set_online({})
         await manager._advance_or_stop()
-        assert manager.state["current_track"]["id"] == 4  # 2 et 3 sautés
+        assert manager.state["current_track"]["id"] == 4
         await manager._advance_or_stop()
-        assert manager.state["current_track"]["id"] == 1  # boucle sans s'arrêter
+        assert manager.state["current_track"]["id"] == 1
         reloaded = RadioPlaybackManager(noop)
         await reloaded.load_playlist(1, "pl", tracks, shuffle=False)
-        assert [t["id"] for t in reloaded.state["order"]] == [1, 4]  # chargement : seuls les médias lisibles
+        assert [t["id"] for t in reloaded.state["order"]] == [1, 4]
         all_gone = RadioPlaybackManager(noop)
         await all_gone.load_playlist(1, "pl", [tracks[1], tracks[2]], repeat="playlist")
         assert all_gone.state["state"] == "idle" and all_gone.state["current_track"] is None

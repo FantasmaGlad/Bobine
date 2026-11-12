@@ -30,7 +30,6 @@ def capture(corpus, output, repeats):
         os.environ.update({"BOBINE_USE_XDG": "1", "XDG_DATA_HOME": temporary,
                            "BOBINE_DATABASE_URL": f"sqlite:///{isolated / 'unused.db'}"})
         sys.path.insert(0, str(ROOT / "backend"))
-        # These modules have no database import. Never import app.main or database.
         from app.utils.audio_utils import extract_audio_duration
         from app.utils.radio_utils import extract_radio_metadata, extract_embedded_cover
         from app.utils.ffmpeg_binaries import FFPROBE_BIN, FFMPEG_BIN
@@ -38,8 +37,6 @@ def capture(corpus, output, repeats):
         logging.getLogger("app.utils.audio_utils").setLevel(logging.CRITICAL)
         logging.getLogger("app.utils.radio_utils").setLevel(logging.CRITICAL)
         results = []
-        # Final JPEGs of the reference pipeline (ffmpeg, then Pillow) next to the report: the native
-        # cover pipeline is judged against them by compare.py without running ffmpeg a second time.
         reference_covers = output.parent / "reference-covers"
         reference_covers.mkdir(exist_ok=True)
         for entry in manifest["entries"]:

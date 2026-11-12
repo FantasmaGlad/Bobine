@@ -10,13 +10,7 @@ import { getApiUrl } from "@/lib/apiUrl";
 import { formatMediaDuration } from "@/lib/format";
 import { useToast } from "@/lib/useToast";
 
-// Filtre les fichiers non audio d'un dossier déposé (liste unique : `lib/mediaFiles.ts`).
 const isAudioFile = (name: string) => hasExtension(name, RADIO_AUDIO_EXTENSIONS);
-
-// Écran « Rappels » —
-// refonte UI/UX (style de la bibliothèque radio) : en-tête clair, import
-// aéré, liste de rappels en cartes lisibles (lecture / activer / éditer /
-// supprimer), et règles de déclenchement dans une colonne dédiée.
 
 interface Announcement {
   id: number;
@@ -27,8 +21,6 @@ interface Announcement {
 
 type RuleType = "every_n_tracks" | "every_x_minutes" | "fixed_times";
 
-// Sortie radio visée : chaque sortie (câblée, réseau) a son propre moteur et ses propres
-// règles; le pool de rappels (fichiers) reste, lui, unique et partagé.
 type RuleTarget = "radio_cable" | "radio_network" | "both";
 
 interface Rule {
@@ -60,10 +52,6 @@ export default function RadioAnnouncementsPage() {
   const { uploads, addUploads } = useUploadManager();
   const seenDoneIds = useRef<Set<string>>(new Set());
 
-  // `webkitdirectory` posé/retiré juste avant `click()`, dans le même
-  // gestionnaire (pas via un effet React) : un setUploadMode() suivi d'un
-  // click() synchrone ouvrirait le sélecteur natif avant que l'attribut
-  // n'ait eu le temps d'être appliqué par le re-rendu.
   const openFilePicker = () => {
     setUploadMode("file");
     const el = fileInputRef.current;
@@ -103,8 +91,6 @@ export default function RadioAnnouncementsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chargement initial uniquement
   }, []);
 
-  // Rafraîchit la liste dès qu'un import groupé se termine : le job tourne en arrière-plan côté
-  // UploadManager, cette page n'en est notifiée qu'en observant `uploads`.
   useEffect(() => {
     const newlyDone = uploads.filter(
       (u) => u.kind === "radio_announcement_files" && u.status === "done" && !seenDoneIds.current.has(u.id)
@@ -148,9 +134,6 @@ export default function RadioAnnouncementsPage() {
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
-    // Une tâche (donc une ligne de progression) par rappel, comme les vidéos
-    // et la bibliothèque radio. L'endpoint /announcements/upload-batch accepte une liste : un
-    // fichier par requête crée un job distinct, suivi 1-par-1.
     addUploads(files.map((f) => ({ kind: "radio_announcement_files" as const, files: [f], title: f.name })));
     showToast(t("radioAnnouncements.importStarted"));
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -169,9 +152,6 @@ export default function RadioAnnouncementsPage() {
     if (uploadMode === "folder") {
       handleFolderUpload(e.dataTransfer.files);
     } else if (e.dataTransfer.files?.[0] && fileInputRef.current) {
-      // Assigne le fichier déposé à l'input caché pour rester sur le même
-      // chemin (bouton "Importer" + description obligatoire) qu'une
-      // sélection manuelle.
       const dt = new DataTransfer();
       dt.items.add(e.dataTransfer.files[0]);
       fileInputRef.current.files = dt.files;
@@ -224,7 +204,6 @@ export default function RadioAnnouncementsPage() {
     setConfirmDeleteId(null);
   };
 
-  // Sortie où jouer un rappel « maintenant » (réseau par défaut, comme l'ancien poste unique).
   const [playNowTarget, setPlayNowTarget] = useState<RuleTarget>("radio_network");
 
   const handlePlayNow = async (announcementId?: number) => {
@@ -335,8 +314,6 @@ export default function RadioAnnouncementsPage() {
     >
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
 
-      {/* En-tête */}
-      {/* Pas de titre ni de sous-titre : le menu latéral indique déjà la page; les actions restent à droite. */}
       <div className="ra-header" style={{ justifyContent: "flex-end" }}>
         <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
           <button
@@ -363,9 +340,7 @@ export default function RadioAnnouncementsPage() {
       </div>
 
       <div className="ra-grid">
-        {/* -------- Colonne : rappels -------- */}
         <section className="ra-col">
-          {/* Import — affiché à la demande ou au glisser-déposer */}
           {(showImportCard || dragActive || Boolean(selectedFileName)) && (
           <div className="ra-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
@@ -445,7 +420,6 @@ export default function RadioAnnouncementsPage() {
           </div>
           )}
 
-          {/* Liste des rappels */}
           <div className="ra-card">
             <h3 className="ra-card-title">
               <Icon name="record_voice_over" size={18} /> {t("radioAnnouncements.listTitle")}
@@ -509,7 +483,6 @@ export default function RadioAnnouncementsPage() {
           </div>
         </section>
 
-        {/* -------- Colonne : règles de déclenchement -------- */}
         <section className="ra-col">
           <div className="ra-card">
             <h3 className="ra-card-title"><Icon name="schedule" size={18} /> {t("radioAnnouncements.rulesTitle")}</h3>
@@ -536,7 +509,6 @@ export default function RadioAnnouncementsPage() {
               </div>
             )}
 
-            {/* Ajout d'une règle */}
             <div className="ra-add-rule">
               <span className="ra-field-label">{t("radioAnnouncements.addRuleTitle")}</span>
               <ResponsiveSelect

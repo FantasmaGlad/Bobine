@@ -62,14 +62,12 @@ test("appliquer un préréglage change les gains et garde les interrupteurs", ()
   assert.equal(out.preset, "bass");
   assert.equal(out.limiter, false);
   assert.ok(out.bands[0] > 0 && out.bass_boost > 0);
-  // Préréglage inconnu : inchangé.
   assert.equal(applyPreset("inconnu", current), current);
 });
 
 test("un réglage identique à un préréglage est reconnu, sinon manuel", () => {
   assert.equal(matchingPreset(applyPreset("voice", defaultSound())), "voice");
   assert.equal(matchingPreset(applyPreset("soft", defaultSound())), "soft");
-  // À plat : aucun préréglage (le son neutre n'en est pas un).
   assert.equal(matchingPreset(defaultSound()), null);
   assert.equal(matchingPreset({ ...defaultSound(), bands: [1, 0, 0, 0, 0] }), null);
 });
@@ -105,15 +103,12 @@ test("paramètres du graphe : fréquences, formes de filtres et gains reportés"
   assert.equal(p.loudnessLow.gain, 4);
   assert.equal(p.loudnessHigh.gain, 3);
   assert.ok(p.limiter.ratio > 1);
-  // Déterministe.
   assert.deepEqual(toGraphParams(s), p);
 });
 
 test("à plat, le limiteur reste transparent (la musique n'est pas modifiée)", () => {
   assert.equal(toGraphParams(defaultSound()).limiter.ratio, 1);
-  // Dès qu'un réglage relève le son, la protection s'enclenche.
   assert.ok(toGraphParams({ ...defaultSound(), bands: [5, 0, 0, 0, 0] }).limiter.ratio > 1);
-  // Une simple atténuation n'en a pas besoin.
   assert.equal(toGraphParams({ ...defaultSound(), bands: [-5, -5, -5, -5, -5] }).limiter.ratio, 1);
 });
 

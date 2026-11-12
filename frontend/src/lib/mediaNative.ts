@@ -1,13 +1,7 @@
-/**
- * Composant audio natif (expérimental) : lecture de l'état réel renvoyé par
- * `GET /api/settings/media-native` et choix de la clé de traduction à afficher.
- * Partie pure, sans React ni réseau, pour être testée seule.
- */
 export type MediaNativeState = "disabled" | "active" | "fallback" | "absent";
 
 export interface MediaNativeStatus {
   enabled: boolean;
-  /** Valeur du réglage persisté (indépendante du forçage par l'environnement). */
   setting: boolean;
   source: "env" | "setting" | "default";
   forced_by_env: boolean | null;
@@ -20,7 +14,6 @@ export interface MediaNativeStatus {
 
 const STATES: readonly MediaNativeState[] = ["disabled", "active", "fallback", "absent"];
 
-/** Valide la réponse du serveur ; `null` si elle n'a pas la forme attendue. */
 export function parseMediaNativeStatus(value: unknown): MediaNativeStatus | null {
   if (typeof value !== "object" || value === null) return null;
   const v = value as Record<string, unknown>;
@@ -38,17 +31,11 @@ export function parseMediaNativeStatus(value: unknown): MediaNativeStatus | null
   };
 }
 
-/** Clé i18n (sous `mediaNative.`) du texte d'état. */
 export function stateKey(status: MediaNativeStatus | null): string {
   if (!status) return "stateUnknown";
   return `state_${status.state}`;
 }
 
-/**
- * Le réglage est-il modifiable ? Quand l'environnement force l'activation ou la désactivation
- * (variable BOBINE_MEDIA_NATIVE), la case reste affichée mais n'a aucun effet : on la verrouille
- * et on l'explique.
- */
 export function isLockedByEnvironment(status: MediaNativeStatus | null): boolean {
   return status?.forced_by_env !== null && status?.forced_by_env !== undefined;
 }

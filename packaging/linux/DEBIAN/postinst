@@ -5,25 +5,20 @@ if [ "$1" = "configure" ]; then
     /usr/lib/bobine/configure-storage-access auto
     /usr/lib/bobine/configure-firewall open || true
 
-    # Mise à jour de la base des applications de bureau
     if command -v update-desktop-database >/dev/null 2>&1; then
         update-desktop-database -q /usr/share/applications || true
     fi
 
-    # Rafraîchissement du cache d'icônes hicolor
     if command -v gtk-update-icon-cache >/dev/null 2>&1; then
         gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
     fi
 
-    # Raccourci sur le Bureau de l'utilisateur connecté (si le dossier Bureau/Desktop existe)
     if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
         USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
         if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
             for candidate in "$USER_HOME/Desktop" "$USER_HOME/Bureau"; do
                 if [ -d "$candidate" ]; then
-                    # Supprimer d'éventuels anciens doublons bobine.desktop
                     rm -f "$candidate/bobine.desktop" 2>/dev/null || true
-                    # Poser l'unique raccourci officiel com.bobine.app.desktop
                     cp /usr/share/applications/com.bobine.app.desktop "$candidate/com.bobine.app.desktop"
                     chown "$SUDO_USER:" "$candidate/com.bobine.app.desktop" 2>/dev/null || true
                     chmod 0755 "$candidate/com.bobine.app.desktop" 2>/dev/null || true
@@ -36,14 +31,12 @@ if [ "$1" = "configure" ]; then
         fi
     fi
 
-    # Modèle pour les futurs comptes utilisateurs si /etc/skel existe
     if [ -d /etc/skel/Desktop ]; then
         rm -f /etc/skel/Desktop/bobine.desktop 2>/dev/null || true
         cp /usr/share/applications/com.bobine.app.desktop /etc/skel/Desktop/com.bobine.app.desktop
         chmod 0755 /etc/skel/Desktop/com.bobine.app.desktop
     fi
 
-    # Relance automatique des services système si présents (appliance headless)
     if systemctl is-active --quiet bobine-backend.service 2>/dev/null; then
         systemctl daemon-reload 2>/dev/null || true
         systemctl restart bobine-backend.service 2>/dev/null || true
@@ -52,7 +45,6 @@ if [ "$1" = "configure" ]; then
         fi
     fi
 
-    # Relance automatique de l'application de bureau après mise à jour si elle tournait
     if [ -f /run/bobine-restart-after-upgrade ] || [ -f /tmp/bobine-restart-after-upgrade ]; then
         rm -f /run/bobine-restart-after-upgrade /tmp/bobine-restart-after-upgrade 2>/dev/null || true
         if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then

@@ -8,16 +8,13 @@ import { clampSound, defaultSound, type RadioSoundSettings } from "@/lib/radioSo
 import { getDevicesApiUrl } from "@/lib/devicesApi";
 import type { SectionProps } from "./common";
 
-/** Canaux vidéo dont le son se règle ici ; la radio garde sa table de mixage. */
 const CHANNELS = ["cable", "network"] as const;
 type VideoChannel = (typeof CHANNELS)[number];
 
 function playbackUrl(path: string): string {
-  // `getDevicesApiUrl` fixe l'hôte de développement (port 3000) ; on retire son suffixe pour viser /api/playback.
   return getDevicesApiUrl("").replace(/\/devices$/, "") + path;
 }
 
-/** Égaliseur, basses, loudness et limiteur de chaque canal vidéo (câblé, réseau), appliqués par le lecteur du canal. */
 export default function VideoSoundSection({ refreshKey, notify, t }: SectionProps) {
   const [sounds, setSounds] = useState<Record<VideoChannel, RadioSoundSettings>>({ cable: defaultSound(), network: defaultSound() });
   const [channel, setChannel] = useState<VideoChannel>("cable");

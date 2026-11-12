@@ -28,23 +28,15 @@ export interface NetworkInfo {
 export type ActiveLogo = "default" | "custom";
 export type { UpdateChannel };
 export type WiredDisplayMode = "dual_screen" | "headless";
-/** Réglage administrateur : "auto" = dérivé des écrans externes réellement
- * connectés ; sinon forçage manuel. */
 export type DisplayModeSetting = "auto" | WiredDisplayMode;
 
 interface AppSettingsContextValue {
   theme: Theme;
-  /** Choix du mode : suivre le système (« auto »), clair ou sombre. */
   themeMode: ThemeMode;
-  /** Mode réellement appliqué (clair ou sombre). */
   resolvedMode: ResolvedMode;
-  /** Langue de cet export (fixée à la compilation) : toujours celle des textes affichés. */
   language: Language;
-  /** Langue enregistrée dans Réglages ; elle ne s'applique qu'au redémarrage suivant. */
   storedLanguage: Language;
-  /** Vrai quand la langue enregistrée diffère de celle affichée : un redémarrage est requis. */
   languagePending: boolean;
-  /** Interface simplifiée : masque coach, métriques et journaux. */
   simplifiedUi: boolean;
   setSimplifiedUi: (value: boolean) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
@@ -55,27 +47,15 @@ interface AppSettingsContextValue {
   hasCustomLogo: boolean;
   activeLogo: ActiveLogo;
   setActiveLogo: (activeLogo: ActiveLogo) => void;
-  /** Incrémenté à chaque évènement logo (upload/suppression) : à ajouter en
-   * cache-buster (`?v=`) sur l'URL du logo custom, car l'URL elle-même
-   * (/api/branding/logo.png) ne change pas quand un logo remplace un autre
-   * — sans ce compteur, le navigateur pourrait servir l'ancien fichier
-   * depuis son cache. */
   logoVersion: number;
   refreshBranding: () => void;
-  /** Canal de mise à jour courant (stable/beta/canary) — pilote entre autres
-   * l'illustration affichée par AppLogo et le favicon (cf. lib/releaseChannel.ts). */
   updateChannel: UpdateChannel;
   wiredDisplayMode: WiredDisplayMode;
   setWiredDisplayMode: (mode: WiredDisplayMode) => void;
   displayModeSetting: DisplayModeSetting;
   setDisplayModeSetting: (setting: DisplayModeSetting) => void;
-  /** Nombre d'écrans externes détectés par la plateforme (null = aucun rapport). */
   displayExternalCount: number | null;
   waitTimeBetweenCourses: number;
-  /** IP LAN, port et URL mDNS de CET appareil — source déjà fiable pour la
-   * découverte réseau (`_get_local_ip()` côté backend), réutilisée pour
-   * l'en-tête mobile (IP/URL affichée à la place du logo) sans dupliquer
-   * d'appel réseau dédié : ce contexte interroge déjà `/api/settings`. */
   network: NetworkInfo;
 }
 
@@ -116,24 +96,11 @@ export function useAppSettings() {
   return useContext(AppSettingsContext);
 }
 
-/**
- * Thème et langue partagés par toute
- * l'application — PC, mobile ET écran cinéma (ce provider enveloppe
- * ClientLayout dans son ensemble, y compris les routes /kiosk et /coach qui
- * court-circuitent la coquille de navigation).
- *
- * Persistance côté serveur (table `settings`) : chargée une fois
- * au montage. Le flash du mauvais thème au tout premier rendu est évité par
- * un petit script bloquant dans layout.tsx qui applique la valeur mise en
- * cache localStorage avant l'hydratation React — ce provider ne fait que
- * garder React et le DOM synchronisés ensuite et persister les changements.
- */
 export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
   useGlassGovernor();
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
   const [themeMode, setThemeModeState] = useState<ThemeMode>(DEFAULT_MODE);
   const [resolvedMode, setResolvedMode] = useState<ResolvedMode>("light");
-  // `language` (celle des textes) est fixée par l'export ; seule la langue enregistrée évolue.
   const language: Language = UI_LANGUAGE;
   const [storedLanguage, setLanguageState] = useState<Language>(UI_LANGUAGE);
   const [simplifiedUi, setSimplifiedUiState] = useState(false);
@@ -163,14 +130,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       .catch(() => {});
   }, []);
 
-  // Facteur commun au chargement initial ET au filet de sécurité périodique
-  // ci-dessous : appliquer deux fois la même logique de lecture de
-  // `/api/settings` a fait diverger le code par le passé si on ne le
-  // factorisait pas.
   const applySettingsPayload = useCallback((data: Record<string, unknown> | null) => {
     if (!data) return;
     if (typeof data.theme === "string") {
-      // Un ancien nom de thème (serveur ou sauvegarde d'avant la 5.2) donne sa couleur et son mode.
       const stored = resolveStored(data.theme, data.theme_mode);
       setThemeState(stored.theme);
       setThemeModeState(stored.mode);
@@ -222,9 +184,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         setThemeModeState(stored.mode);
       }
     } catch {
-      // localStorage indisponible (navigation privée stricte, ou WebView
-      // Android sans DOM Storage activé : confirmé en pratique que `window.localStorage`
-      // vaut `null` dans la WebView tactile de l'app Android, en pratique) : le défaut/le fetch suffisent.
     }
 
     fetch(getApiUrl("/settings"), { cache: "no-store" })
@@ -233,16 +192,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       .catch(() => {});
   }, [applySettingsPayload]);
 
-  // Filet de sécurité de resynchronisation périodique (même motif que
-  // RESYNC_INTERVAL_MS dans usePlaybackSocket.ts) :
-  // le chargement initial ci-dessus ne s'exécute qu'une fois, et la
-  // synchronisation "temps réel" plus bas dépend d'un `settings_change`
-  // reçu EN DIRECT sur une connexion WebSocket qui peut être en train de se
-  // reconnecter pile au moment où l'admin change le thème (constaté en
-  // pratique sur la tablette Android : un changement de thème décidé
-  // pendant que /grid tournait déjà n'était jamais rattrapé sans recharger
-  // la page). Ce re-fetch REST périodique referme cette fenêtre, exactement
-  // comme le filet de sécurité déjà en place pour l'état de lecture.
   useEffect(() => {
     const id = setInterval(() => {
       fetch(getApiUrl("/settings"), { cache: "no-store" })
@@ -253,28 +202,15 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     return () => clearInterval(id);
   }, [applySettingsPayload]);
 
-  // Synchronisation temps réel (correctif "le thème ne se synchronise pas
-  // avec l'écran cinéma") : jusqu'ici le thème n'était chargé qu'une fois au
-  // montage (fetch ci-dessus) — un changement décidé depuis l'admin pendant
-  // que /cinema (ou tout autre écran) était déjà ouvert n'y apparaissait
-  // jamais sans rechargement manuel de la page. Connexion WebSocket dédiée
-  // et minimale (le backend diffuse l'évènement sur le même canal que la
-  // lecture, réutilisé ici passivement — aucune commande n'est jamais
-  // envoyée) plutôt que de dépendre de usePlaybackSocket, qui n'est pas
-  // toujours monté au-dessus de ce contexte.
   useEffect(() => {
     let cancelled = false;
     let ws: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout>;
-    // Identifiant du lancement du backend vu à la première connexion : un autre, après une reconnexion, signifie un
-    // redémarrage (changement de langue appliqué, mise à jour). L'écran se recharge alors seul et reçoit l'export
-    // de la langue enregistrée, comme les pages qui suivent déjà la lecture (usePlaybackSocket).
     let bootId: string | null = null;
 
     const connect = () => {
       if (cancelled || typeof window === "undefined") return;
       ws = new WebSocket(getPlaybackWsUrl());
-      // N'écoute que les évènements globaux : aucun canal.
       ws.onopen = () => ws?.send(JSON.stringify({ command: "subscribe", params: { channels: [] } }));
       ws.onmessage = (evt) => {
         try {
@@ -320,15 +256,12 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             if (mode === "dual_screen" || mode === "headless") {
               setWiredDisplayModeState(mode);
             }
-            // Branchement/débranchement d'un projecteur : recale aussi le
-            // nombre d'écrans détectés (affiché dans les Réglages).
             fetch(getApiUrl("/settings"), { cache: "no-store" })
               .then((res) => (res.ok ? res.json() : null))
               .then(applySettingsPayload)
               .catch(() => {});
           }
         } catch {
-          // Message illisible : sans conséquence, le prochain évènement suffira.
         }
       };
       ws.onclose = () => {
@@ -345,7 +278,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     };
   }, [applySettingsPayload]);
 
-  // Mode effectif : « auto » suit le réglage du système et le réévalue quand il change.
   useEffect(() => {
     const query = typeof window.matchMedia === "function" ? window.matchMedia("(prefers-color-scheme: dark)") : null;
     const apply = () => {
@@ -365,9 +297,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       localStorage.setItem("olc-theme", theme);
       localStorage.setItem("olc-theme-mode", themeMode);
     } catch {
-      // ignore
     }
-    // Les variables du thème sont résolues à l'image suivante.
     const frame = requestAnimationFrame(() => requestAnimationFrame(pushThemeToNative));
     return () => cancelAnimationFrame(frame);
   }, [theme, themeMode, resolvedMode]);
@@ -376,7 +306,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     document.documentElement.lang = language;
   }, [language]);
 
-  // Onglet du navigateur aux couleurs du canal choisi (cf. lib/releaseChannel.ts).
   useEffect(() => {
     applyChannelFavicon(document, updateChannel);
   }, [updateChannel]);
@@ -392,8 +321,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const setTheme = useCallback(
     (value: Theme) => {
       setThemeState(value);
-      // Paire complète : sans le mode, le serveur lit un ancien nom (chili, charbon, orchidee) comme
-      // une écriture d'avant la 5.2 et écrase le mode courant.
       persist({ theme: value, theme_mode: themeMode });
     },
     [persist, themeMode]
@@ -402,8 +329,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const setThemeMode = useCallback(
     (value: ThemeMode) => {
       setThemeModeState(value);
-      // Envoyer aussi la couleur résolue normalise un ancien nom stocké (ex. lavande) : le serveur ne
-      // relit plus « auto » à travers le mode fixe de cet ancien thème.
       persist({ theme, theme_mode: value });
     },
     [persist, theme]
@@ -441,9 +366,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     [persist]
   );
 
-  // Réglage du mode d'affichage câblé : "auto" (dérivé du matériel, défaut) ou
-  // forçage manuel. En forçage, le mode effectif est appliqué tout de suite
-  // localement ; en auto, le serveur le recalcule et le rediffuse.
   const setDisplayModeSetting = useCallback(
     (value: DisplayModeSetting) => {
       setDisplayModeSettingState(value);
@@ -460,13 +382,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
 
   const tList = useCallback((key: string) => translateList(key), []);
 
-  // useMemo : avant l'ajout du branding/toggle, AppLogo
-  // était un <img> statique sans hook, jamais concerné. Il consomme
-  // désormais ce contexte sur 8 écrans (dont le kiosque, actif en continu) —
-  // sans mémoïsation, CHAQUE render de ce Provider (y compris pour un état
-  // qu'aucun consommateur ne lit, si un futur champ est ajouté ici) recrée
-  // un objet `value` de référence différente et force tous les
-  // useAppSettings() à re-render, AppLogo inclus.
   const value = React.useMemo(
     () => ({
       theme,

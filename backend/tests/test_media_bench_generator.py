@@ -18,7 +18,6 @@ def generator():
 
 
 def _synthetic_mp3(frames=5, id3_size=0):
-    """MPEG-1 Layer III, 44.1 kHz, 128 kbit/s, no CRC: 417-byte frames."""
     tag = b""
     if id3_size:
         syncsafe = bytes((id3_size >> 21 & 0x7F, id3_size >> 14 & 0x7F, id3_size >> 7 & 0x7F, id3_size & 0x7F))
@@ -33,10 +32,9 @@ def test_vbri_frame_is_inserted_after_the_id3_tag_with_exact_counts(generator):
     assert len(result) == len(source) + 417
     assert result[:start] == source[:start]
     assert result[start + 36:start + 40] == b"VBRI"
-    assert int.from_bytes(result[start + 40:start + 42], "big") == 1  # tag version
-    assert int.from_bytes(result[start + 46:start + 50], "big") == 5 * 417  # audio bytes
-    assert int.from_bytes(result[start + 50:start + 54], "big") == 5  # frames
-    # The original audio is untouched and still follows the inserted frame.
+    assert int.from_bytes(result[start + 40:start + 42], "big") == 1
+    assert int.from_bytes(result[start + 46:start + 50], "big") == 5 * 417
+    assert int.from_bytes(result[start + 50:start + 54], "big") == 5
     assert result[start + 417:] == source[start:]
     assert b"Xing" not in result and b"Info" not in result
 
@@ -62,5 +60,4 @@ def test_ffprobe_reads_the_synthesized_vbri_duration(generator, tmp_path):
     vbri.write_bytes(generator.build_vbri_mp3(data))
     probed = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(vbri)],
                             capture_output=True, text=True, check=True, timeout=30)
-    # VBRI makes ffprobe use the frame count rather than the bitrate-based estimate.
     assert float(probed.stdout) == pytest.approx(len(frames) * 1152 / 44100, abs=1e-5)

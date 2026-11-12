@@ -24,12 +24,7 @@ def run_ffmpeg_with_progress(
     width: int | None = None,
     height: int | None = None,
 ) -> tuple[int, str]:
-    """
-    Exécute FFmpeg en sous-processus Popen avec télémétrie en direct (-progress pipe:1),
-    enregistre le processus dans import_jobs pour permettre son annulation immédiate,
-    et calcule en temps réel progress_percent, eta_seconds et speed.
-    Retourne (returncode, stderr_output).
-    """
+    """Exécute FFmpeg en sous-processus Popen avec télémétrie en direct (-progress pipe:1), enregistre le processus dans import_jobs pour permettre son annulation immédiate, et calcule en temps réel progress_percent, eta_seconds et speed."""
     from app.utils.import_jobs import register_job_process, unregister_job_process, is_job_cancelled, update_job, JobCancelledError
     import threading
 
@@ -101,7 +96,6 @@ def run_ffmpeg_with_progress(
                     current_speed = line.split("=", 1)[1].strip()
                 elif line.startswith("out_time_us="):
                     now = time.time()
-                    # Mises à jour throttlées toutes les 500 ms maximum
                     if now - last_update >= 0.5:
                         last_update = now
                         try:

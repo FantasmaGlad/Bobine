@@ -30,7 +30,7 @@ def test_each_language_is_served_from_its_own_export(tmp_path):
         assert "bonjour" in site.get("/").text
         ui_language.set_served("en")
         assert "hello" in site.get("/").text
-        ui_language.set_served("de")  # inconnue : retour au français
+        ui_language.set_served("de")
         assert ui_language.served() == "fr" and "bonjour" in site.get("/").text
     finally:
         ui_language.set_served("fr")
@@ -116,7 +116,7 @@ def test_lifespan_serves_the_stored_language():
     try:
         for language in ("en", "fr"):
             stored(language)
-            with TestClient(app):  # un démarrage du service : le lifespan relit la langue enregistrée
+            with TestClient(app):
                 assert ui_language.served() == language
     finally:
         stored(None)
@@ -160,7 +160,7 @@ def test_shared_assets_are_served_for_both_languages(tmp_path):
         ui_language.set_served("fr")
         from starlette.exceptions import HTTPException
 
-        with pytest.raises(HTTPException) as missing:  # fichier propre à l'autre langue
+        with pytest.raises(HTTPException) as missing:
             site.get("/only.txt")
         assert missing.value.status_code == 404
         assert site.get("/").status_code == 200

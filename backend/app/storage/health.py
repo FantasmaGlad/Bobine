@@ -1,15 +1,10 @@
-"""Santé d'un support : analyse de `smartctl -j -a` (logique PURE) et avertissements.
-
-`smartctl` exige en général des droits d'administrateur ; sans eux, ou pour une clé USB / une carte SD
-(pas de SMART), le résultat est honnête : `available: false` avec une raison (`permission`, `no_smart`,
-`tool_missing`, `device_removed`), jamais une valeur inventée."""
+"""Santé d'un support : analyse de `smartctl -j -a` (logique PURE) et avertissements."""
 
 from __future__ import annotations
 
 import json
 from typing import Any
 
-# Attributs ATA d'usure SSD : la valeur normalisée vaut 100 neuf et descend vers 0 (restant, pas usé).
 _ATA_WEAR_IDS = {177: "Wear_Leveling_Count", 231: "SSD_Life_Left", 233: "Media_Wearout_Indicator", 202: "Percent_Lifetime_Remain"}
 
 TEMP_WARN_C = 55
@@ -84,7 +79,7 @@ def parse_smartctl(output: str | dict[str, Any]) -> dict[str, Any]:
         spare = float(spare_value) if isinstance(spare_value, (int, float)) else None
         media_errors = nvme.get("media_errors") if isinstance(nvme.get("media_errors"), int) else None
         units = nvme.get("data_units_written")
-        written = int(units) * 512_000 if isinstance(units, (int, float)) else None  # unité NVMe : 1000 secteurs de 512 octets
+        written = int(units) * 512_000 if isinstance(units, (int, float)) else None
         if nvme.get("critical_warning"):
             warnings.append("nvme_critical_warning")
             critical = True
@@ -149,10 +144,7 @@ def parse_smartctl(output: str | dict[str, Any]) -> dict[str, Any]:
     }
 
 
-# --- avertissements d'usure fondés sur les écritures de Bobine ------------------------------------------------
-
 GIB = 1024**3
-# Seuils indicatifs d'octets écrits PAR BOBINE (export vers le support) avant d'avertir, par nature de support.
 WRITE_WARN_BYTES = {"sd": 50 * GIB, "usb": 100 * GIB, "ssd": 1024 * GIB, "hdd": None, "image": None, "other": 100 * GIB}
 
 

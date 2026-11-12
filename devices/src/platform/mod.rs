@@ -1,6 +1,3 @@
-//! Backends par système d'exploitation. Tous compilent partout (ils ne font qu'appeler des outils
-//! au moment de l'exécution) ; `current()` choisit celui de la machine.
-
 pub mod macos;
 pub mod unsupported;
 pub mod windows;

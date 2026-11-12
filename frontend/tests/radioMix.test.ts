@@ -9,7 +9,7 @@ test("réglages neutres : tout à 0 dB, rien de coupé, aucun solo", () => {
   const mix = defaultMix();
   assert.deepEqual(effectiveGains(mix), { music: 1, announcements: 1, master: 1 });
   assert.equal(hasSolo(mix), false);
-  mix.music.gain_db = 5; // copie indépendante
+  mix.music.gain_db = 5;
   assert.equal(defaultMix().music.gain_db, 0);
 });
 
@@ -72,8 +72,8 @@ test("vumètre : échelle dBFS −60…0 sur 0…100, bornée", () => {
   assert.equal(meterLevel(NaN), 0);
   assert.equal(meterLevel(1), 100);
   assert.equal(meterLevel(5), 100);
-  assert.equal(meterLevel(0.001), 0); // −60 dBFS
-  assert.equal(meterLevel(0.5), 90); // −6 dBFS
+  assert.equal(meterLevel(0.001), 0);
+  assert.equal(meterLevel(0.5), 90);
   assert.ok(meterLevel(0.01) > 0 && meterLevel(0.01) < meterLevel(0.1));
 });
 

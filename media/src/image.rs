@@ -1,15 +1,6 @@
-//! Structural checks for an embedded cover image, and the transport encoding.
-//!
-//! The component never decodes an image. It only hands the raw bytes to the caller when
-//! the picture belongs to the families whose reference result (ffmpeg re-encoding to
-//! JPEG, then Pillow) was measured to be equivalent to Pillow reading the raw bytes
-//! directly (see media/README.md, "Equivalence of covers"). Everything else keeps the
-//! reference pipeline: `ambiguous_cover`.
-
 use crate::audio::Result;
 use crate::MediaError;
 
-/// Larger bitmaps cost more memory to decode than the reference pipeline is known to bear.
 const MAX_PIXELS: u64 = 40_000_000;
 
 fn refuse() -> MediaError {
@@ -19,11 +10,6 @@ fn refuse() -> MediaError {
     )
 }
 
-/// MIME type of a picture whose structure is inside the accepted families.
-///
-/// `declared` is the type announced by the container, when it announces one. A
-/// declaration that disagrees with the bytes makes ffmpeg choose the wrong decoder, so the
-/// outcome of the reference pipeline cannot be predicted: refuse.
 pub(crate) fn classify(data: &[u8], declared: Option<&str>) -> Result<&'static str> {
     let mime = if data.starts_with(&[0xff, 0xd8, 0xff]) {
         jpeg(data)?;
@@ -54,13 +40,10 @@ fn pixels(width: u32, height: u32) -> Result<()> {
     Ok(())
 }
 
-/// Baseline, extended-sequential or progressive 8-bit JPEG with one or three components,
-/// upright and without an Adobe transform marker.
 fn jpeg(data: &[u8]) -> Result<()> {
     let mut position = 2;
     let mut frame = false;
     loop {
-        // Fill bytes (0xff) may precede a marker.
         if data.get(position) != Some(&0xff) {
             return Err(refuse());
         }
@@ -95,7 +78,6 @@ fn jpeg(data: &[u8]) -> Result<()> {
                 pixels(width, height)?;
                 frame = true;
             }
-            // Lossless, hierarchical, arithmetic coding or a restart outside a scan.
             0xc3 | 0xc5..=0xc7 | 0xc9..=0xcb | 0xcd..=0xcf => return Err(refuse()),
             0xe1 if segment.starts_with(b"Exif\0\0") => exif_upright(&segment[6..])?,
             0xee if segment.starts_with(b"Adobe") => return Err(refuse()),
@@ -107,8 +89,6 @@ fn jpeg(data: &[u8]) -> Result<()> {
     }
 }
 
-/// ffmpeg applies the EXIF orientation of an attached picture, Pillow's `open` does not:
-/// only an absent or neutral orientation gives the same picture.
 fn exif_upright(tiff: &[u8]) -> Result<()> {
     let little = match tiff.get(..4) {
         Some(b"II*\0") => true,
@@ -136,17 +116,15 @@ fn exif_upright(tiff: &[u8]) -> Result<()> {
     let count = usize::from(read16(ifd)?);
     for index in 0..count {
         let entry = ifd + 2 + index * 12;
-        if read16(entry)? == 0x0112 {
-            // Type SHORT, one value, stored inline.
-            if read16(entry + 2)? != 3 || read32(entry + 4)? != 1 || read16(entry + 8)? != 1 {
-                return Err(refuse());
-            }
+        if read16(entry)? == 0x0112
+            && (read16(entry + 2)? != 3 || read32(entry + 4)? != 1 || read16(entry + 8)? != 1)
+        {
+            return Err(refuse());
         }
     }
     Ok(())
 }
 
-/// Non-interlaced 8-bit PNG (grey, RGB, palette, grey+alpha, RGBA) without animation or EXIF.
 fn png(data: &[u8]) -> Result<()> {
     let mut position = 8;
     let mut header = false;
@@ -160,7 +138,6 @@ fn png(data: &[u8]) -> Result<()> {
         let body = data
             .get(position + 8..position + 8 + length)
             .ok_or_else(refuse)?;
-        // The CRC is not verified here: both decoders do, and a failure is a fallback.
         if data
             .get(position + 8 + length..position + 12 + length)
             .is_none()
@@ -199,7 +176,6 @@ fn png(data: &[u8]) -> Result<()> {
                 }
             }
             b"acTL" | b"eXIf" | b"fdAT" => return Err(refuse()),
-            // An unknown critical chunk is not understood by the reference either.
             other if other[0].is_ascii_uppercase() => return Err(refuse()),
             _ => {}
         }
@@ -209,7 +185,6 @@ fn png(data: &[u8]) -> Result<()> {
 
 const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-/// Standard padded Base64 (RFC 4648).
 pub(crate) fn base64_encode(data: &[u8]) -> String {
     let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
     for chunk in data.chunks(3) {
@@ -232,7 +207,6 @@ pub(crate) fn base64_encode(data: &[u8]) -> String {
     out
 }
 
-/// Strict decoder for the Base64 an Ogg comment carries; `None` on any irregularity.
 pub(crate) fn base64_decode(text: &[u8]) -> Option<Vec<u8>> {
     if text.is_empty() || !text.len().is_multiple_of(4) {
         return None;
@@ -255,7 +229,6 @@ pub(crate) fn base64_decode(text: &[u8]) -> Option<Vec<u8>> {
         }
         let bytes = [(triple >> 16) as u8, (triple >> 8) as u8, triple as u8];
         out.extend_from_slice(&bytes[..3 - padding]);
-        // Non-canonical trailing bits would not round-trip.
         if padding > 0 && triple & ((1 << (8 * padding)) - 1) != 0 {
             return None;
         }
@@ -298,10 +271,8 @@ mod tests {
         assert_eq!(classify(&tiny_jpeg(8, 1), None).unwrap(), "image/jpeg");
         assert!(classify(&tiny_jpeg(12, 3), None).is_err());
         assert!(classify(&tiny_jpeg(8, 4), None).is_err());
-        // The declared type must agree with the bytes.
         assert!(classify(&tiny_jpeg(8, 3), Some("image/png")).is_err());
         assert!(classify(&tiny_jpeg(8, 3), Some("-->")).is_err());
-        // Truncated before the scan.
         let jpeg = tiny_jpeg(8, 3);
         assert!(classify(&jpeg[..20], None).is_err());
     }

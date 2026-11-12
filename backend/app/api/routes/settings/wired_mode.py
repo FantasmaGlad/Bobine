@@ -21,10 +21,7 @@ def get_display_mode_setting(db: Session) -> str:
 
 
 def get_effective_wired_display_mode(db: Session) -> str:
-    """Mode d'affichage câblé effectif : forçage admin, sinon
-    dérivé des écrans externes réellement connectés. Sans rapport matériel :
-    `dual_screen` sur Android (tablette = pupitre tactile, comportement
-    historique), `headless` ailleurs."""
+    """Mode d'affichage câblé effectif : forçage admin, sinon dérivé des écrans externes réellement connectés."""
     default = "dual_screen" if get_deployment_profile() == "android" else "headless"
     return effective_wired_display_mode(
         get_display_mode_setting(db), get_hardware_state().external_count, default

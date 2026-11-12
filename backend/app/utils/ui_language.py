@@ -1,8 +1,4 @@
-"""Langue de l'interface : un export statique par langue, celui de la langue enregistrée est servi.
-
-Chaque écran ne charge ainsi que ses textes. Changer de langue dans Réglages enregistre le choix ; il s'applique au
-redémarrage suivant, après lequel les écrans ouverts se rechargent seuls (changement de `boot_id`).
-"""
+"""Langue de l'interface : un export statique par langue, celui de la langue enregistrée est servi."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -31,7 +27,7 @@ def build_dir(root: Path, language: str) -> Path:
     """Dossier de l'export de `language` ; à défaut, la racine (export unique d'une version antérieure)."""
     for name in (language, *(other for other in LANGUAGES if other != language)):
         if (root / name / "index.html").exists():
-            return root / name  # export d'une autre langue plutôt qu'une page 404 (construction partielle)
+            return root / name
     return root
 
 
@@ -39,11 +35,7 @@ SHARED_DIR = "_shared"
 
 
 class LanguageFrontend:
-    """Sert le frontend de la langue du démarrage ; chaque export a son propre `StaticFiles`.
-
-    Les fichiers identiques dans les deux exports (JS et CSS hors dictionnaire, images, polices) ne sont stockés
-    qu'une fois, dans `_shared` (frontend/scripts/share-assets.mjs) : ils sont cherchés après le dossier de la langue,
-    sous le même chemin d'URL."""
+    """Sert le frontend de la langue du démarrage ; chaque export a son propre `StaticFiles`."""
 
     def __init__(self, root: Path, factory: type[StaticFiles]) -> None:
         self.root = root

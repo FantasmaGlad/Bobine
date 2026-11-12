@@ -1,7 +1,3 @@
-// Les exports par langue (out/fr, out/en) ont en commun l'essentiel de leurs fichiers : JS et CSS hors dictionnaire,
-// images, polices, sons. Chaque fichier identique est déplacé une seule fois dans out/_shared ; le backend le sert
-// pour les deux langues (backend/app/utils/ui_language.py). Les pages HTML et les charges RSC (.txt) restent dans
-// leur langue : le serveur de fichiers statiques y cherche d'abord.
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -21,7 +17,6 @@ function listFiles(dir) {
 
 const digest = (path) => createHash("sha256").update(readFileSync(path)).digest("hex");
 
-/** Déplace dans `<root>/_shared` les fichiers de même chemin et de même contenu dans toutes les langues. */
 export function shareIdenticalAssets(root, languages) {
   const [first, ...others] = languages;
   const shared = join(root, SHARED_DIR);

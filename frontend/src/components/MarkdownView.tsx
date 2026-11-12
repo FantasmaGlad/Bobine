@@ -7,17 +7,6 @@ interface MarkdownViewProps {
   className?: string;
 }
 
-/**
- * Composant de rendu Markdown natif, sécurisé et sans dépendance externe lourde.
- * Optimisé pour afficher fidèlement les notes de versions GitHub :
- * - Titres h1, h2, h3
- * - Tableaux Markdown avec en-têtes et bordures
- * - Badges shields.io et images
- * - Liens cliquables avec target="_blank"
- * - Listes à puces
- * - Blocs de code et code inline
- * - Gras, italique et séparateurs horizontaux
- */
 export default function MarkdownView({ content, className = "" }: MarkdownViewProps) {
   if (!content) return null;
 
@@ -31,7 +20,6 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
     let keyIdx = 0;
 
     while (remaining.length > 0) {
-      // 1. Image markdown : ![alt](url)
       const imgMatch = remaining.match(/^!\[(.*?)\]\((.*?)\)/);
       if (imgMatch) {
         const alt = imgMatch[1];
@@ -50,7 +38,6 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
         continue;
       }
 
-      // 2. Balise HTML <img> simple : <img ... src="..." ... />
       const htmlImgMatch = remaining.match(/^<img\s+([^>]*?)src=["'](.*?)["']([^>]*?)\/?>/i);
       if (htmlImgMatch) {
         const src = htmlImgMatch[2];
@@ -68,7 +55,6 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
         continue;
       }
 
-      // 3. Lien markdown : [texte](url)
       const linkMatch = remaining.match(/^\[(.*?)\]\((.*?)\)/);
       if (linkMatch) {
         const linkText = linkMatch[1];
@@ -88,7 +74,6 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
         continue;
       }
 
-      // 4. Code inline : `code`
       const codeMatch = remaining.match(/^`([^`]+)`/);
       if (codeMatch) {
         nodes.push(
@@ -111,7 +96,6 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
         continue;
       }
 
-      // 5. Gras : **texte**
       const boldMatch = remaining.match(/^\*\*([^*]+)\*\*/);
       if (boldMatch) {
         nodes.push(<strong key={`bold-${keyIdx++}`}>{renderInline(boldMatch[1])}</strong>);
@@ -119,7 +103,6 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
         continue;
       }
 
-      // 6. Italique : *texte*
       const italicMatch = remaining.match(/^\*([^*]+)\*/);
       if (italicMatch) {
         nodes.push(<em key={`italic-${keyIdx++}`}>{renderInline(italicMatch[1])}</em>);
@@ -127,14 +110,12 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
         continue;
       }
 
-      // 7. Balises HTML résiduelles
       const htmlTagMatch = remaining.match(/^<(\/?)(\w+)([^>]*?)>/);
       if (htmlTagMatch) {
         remaining = remaining.slice(htmlTagMatch[0].length);
         continue;
       }
 
-      // Caractère standard jusqu'au prochain séparateur spécial
       const nextSpecial = remaining.search(/[!\[`<*]/);
       if (nextSpecial === -1) {
         nodes.push(remaining);
@@ -160,14 +141,12 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
       continue;
     }
 
-    // Séparateur horizontal
     if (/^---$|^___$|^\*\*\*$/.test(trimmed)) {
       elements.push(<hr key={`hr-${i}`} style={{ border: "none", borderTop: "1px solid var(--border-color)", margin: "16px 0" }} />);
       i++;
       continue;
     }
 
-    // Titres #, ##, ###
     const h1Match = trimmed.match(/^#\s+(.+)$/);
     if (h1Match) {
       elements.push(
@@ -201,7 +180,6 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
       continue;
     }
 
-    // Blocs de code ```
     if (trimmed.startsWith("```")) {
       const codeLines: string[] = [];
       i++;
@@ -209,7 +187,7 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
         codeLines.push(lines[i]);
         i++;
       }
-      i++; // Sauter la ligne de fermeture ```
+      i++;
       elements.push(
         <pre
           key={`code-block-${i}`}
@@ -230,10 +208,9 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
       continue;
     }
 
-    // Tableaux Markdown
     if (trimmed.startsWith("|") && trimmed.endsWith("|") && i + 1 < lines.length && lines[i + 1].includes("---")) {
       const headerRow = trimmed.slice(1, -1).split("|").map((c) => c.trim());
-      i += 2; // Sauter en-tête + séparateur | :--- |
+      i += 2;
 
       const bodyRows: string[][] = [];
       while (i < lines.length && lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|")) {
@@ -288,7 +265,6 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
       continue;
     }
 
-    // Listes à puces
     if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
       const listItems: string[] = [];
       while (i < lines.length && (lines[i].trim().startsWith("- ") || lines[i].trim().startsWith("* "))) {
@@ -307,7 +283,6 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
       continue;
     }
 
-    // Paragraphe normal
     elements.push(
       <p key={`p-${i}`} style={{ margin: "6px 0", lineHeight: 1.6, fontSize: "0.88rem", color: "var(--text-main)" }}>
         {renderInline(trimmed)}

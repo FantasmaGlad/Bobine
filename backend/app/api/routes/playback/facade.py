@@ -18,9 +18,6 @@ from .core import CommandRejected
 
 command_router = APIRouter(tags=["playback"])
 
-# Rapports d'un écran (position, fins de média, niveaux, route audio) : l'autorité en revient à l'écran primaire
-# connecté par WebSocket ; les accepter d'un client REST fausserait l'état. Ils restent hors de la façade.
-# Les actions et les sorties de la façade viennent de app.api.contract (partagées avec la commande bobine).
 _KIND_MESSAGES = {"channel": "Canal inconnu", "output": "Sortie radio inconnue", "action": "Action inconnue"}
 
 
@@ -44,8 +41,7 @@ def _unknown(kind: str, value: str, allowed) -> HTTPException:
 async def playback_action(
     channel: str, action: str, params: dict[str, Any] | None = Body(default=None), db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Commande de lecture d'un canal (`cable`, `network`) ; corps JSON : les paramètres de la commande WebSocket.
-    Réponse : l'état du canal après la commande."""
+    """Commande de lecture d'un canal (`cable`, `network`) ; corps JSON : les paramètres de la commande WebSocket."""
     if channel not in CHANNELS:
         raise _unknown("channel", channel, CHANNELS)
     if action not in PLAYBACK_ACTIONS:

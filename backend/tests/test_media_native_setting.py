@@ -1,7 +1,6 @@
 """Réglage `media_native` : défaut désactivé, priorité de la variable, état réel, repli et pochettes."""
 import os
 
-# Base de test isolée AVANT tout import de l'application.
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
@@ -52,8 +51,6 @@ def client():
             db.commit()
 
 
-# --- activation -------------------------------------------------------------------------
-
 def test_disabled_by_default():
     assert media_native.is_enabled() is False
     assert media_native.source() == "default"
@@ -64,7 +61,6 @@ def test_setting_enables_and_disables():
     assert media_native.is_enabled() is True and media_native.source() == "setting"
     media_native.configure("false")
     assert media_native.is_enabled() is False
-    # Anything but "true" is "disabled", never an accidental activation.
     for value in ("1", "yes", "", None, "TRUE ", 1):
         media_native.configure(value)
         assert media_native.is_enabled() is (isinstance(value, str) and value.strip().lower() == "true")
@@ -90,7 +86,7 @@ def test_importers_use_the_reference_when_the_setting_is_off(monkeypatch):
 def test_setting_alone_activates_the_native_path_and_a_failure_falls_back(monkeypatch):
     media_native.configure("true")
     failing = Mock()
-    failing.probe_audio.return_value = None  # the component refused: unsupported, timeout, crash...
+    failing.probe_audio.return_value = None
     failing.extract_cover.return_value = CoverResult(available=False)
     monkeypatch.setattr(media_metadata, "get_media_client", Mock(return_value=failing))
     reference = Mock(return_value=4.25)
@@ -104,8 +100,6 @@ def test_setting_alone_activates_the_native_path_and_a_failure_falls_back(monkey
     cover.assert_called_once_with("a.flac", "covers", "id")
 
 
-# --- API ----------------------------------------------------------------------------------
-
 def test_api_default_write_validation_and_persistence(client):
     assert client.get("/api/settings").json()["media_native"] == "false"
     assert client.put("/api/settings", json={"media_native": "maybe"}).status_code == 400
@@ -114,7 +108,6 @@ def test_api_default_write_validation_and_persistence(client):
     assert response.status_code == 200 and response.json()["media_native"] == "true"
     assert media_native.is_enabled() is True
     assert client.get("/api/settings").json()["media_native"] == "true"
-    # The persisted value is read back at startup.
     media_native.configure(False)
     from app.database import SessionLocal
 
@@ -152,15 +145,13 @@ def test_status_fallback_when_the_executable_does_not_answer_hello(client, monke
 @pytest.mark.skipif(not BINARY.is_file(), reason="bobine-media not built")
 def test_status_active_with_the_real_component_and_environment_forcing(client, monkeypatch):
     monkeypatch.setenv("BOBINE_MEDIA_BIN", str(BINARY))
-    monkeypatch.setenv("BOBINE_MEDIA_NATIVE", "1")  # forced on although the setting is off
+    monkeypatch.setenv("BOBINE_MEDIA_NATIVE", "1")
     body = client.get("/api/settings/media-native").json()
     assert body["state"] == "active" and body["source"] == "env" and body["setting"] is False
     assert body["forced_by_env"] is True and "m4a" in body["formats"] and body["binary_version"]
     monkeypatch.setenv("BOBINE_MEDIA_NATIVE", "0")
     assert client.get("/api/settings/media-native").json()["state"] == "disabled"
 
-
-# --- covers ----------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
 def equivalence():

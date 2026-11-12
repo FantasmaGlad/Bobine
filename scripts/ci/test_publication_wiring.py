@@ -30,7 +30,7 @@ class RollingReleaseTests(unittest.TestCase):
             self.assertIn(f"suffix: {channel}", text)
             self.assertLess(text.index("assemble-release-assets"), text.index("publish-rolling-release"))
             self.assertIn("published: ${{ steps.rolling.outputs.published }}", text)
-            self.assertIn("fetch-depth: 0", text)  # le changelog et la garde lisent l'historique
+            self.assertIn("fetch-depth: 0", text)
 
     def test_the_shared_action_publishes_in_place_behind_the_guard(self):
         text = ROLLING_ACTION
@@ -139,7 +139,6 @@ class HealthProbeTests(unittest.TestCase):
     def test_it_compares_both_rolling_channels_with_their_release(self):
         for channel in ("canary", "beta"):
             self.assertIn(f'--release {channel}="$RUNNER_TEMP/{channel}.json"', self.PROBE)
-
 
 
 if __name__ == "__main__":

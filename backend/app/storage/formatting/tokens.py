@@ -1,7 +1,4 @@
-"""Jeton de formatage : court (≈ 2 minutes), à usage unique, lié à l'identité du support et au demandeur.
-
-Seule l'empreinte SHA-256 du jeton est gardée en mémoire. Le jeton ne prouve pas l'autorisation de formater : il
-prouve que CE plan, sur CE support, a été présenté à CE demandeur il y a peu. L'exécution rejoue ensuite toute la cascade."""
+"""Jeton de formatage : court (≈ 2 minutes), à usage unique, lié à l'identité du support et au demandeur."""
 
 from __future__ import annotations
 
@@ -14,7 +11,7 @@ from typing import Callable
 from .refusals import FormatRefusal
 
 TTL_SECONDS = 120.0
-MIN_AGE_SECONDS = 4.0          # délai de réflexion imposé aussi côté serveur
+MIN_AGE_SECONDS = 4.0
 _MAX_TOMBSTONES = 256
 
 

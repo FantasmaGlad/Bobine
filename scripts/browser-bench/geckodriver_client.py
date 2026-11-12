@@ -1,6 +1,4 @@
-"""Mini client WebDriver W3C (bibliothèque standard uniquement) pour piloter
-geckodriver/Firefox depuis les scripts de ce dossier — aucune dépendance
-(selenium/playwright) à installer. Voir `README.md` de ce dossier."""
+"""Mini client WebDriver W3C (bibliothèque standard uniquement) pour piloter geckodriver/Firefox depuis les scripts de ce dossier — aucune dépendance (selenium/playwright) à installer."""
 
 import base64
 import json

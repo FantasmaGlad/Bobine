@@ -29,15 +29,11 @@ class ActivityLogResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1) - v2 ignore silencieusement cette cle inconnue
+        orm_mode = True
 
-
-# --- Lecture unifiée et stable (`GET /api/logs`), pour la CLI et un agent externe ------------------------------------
 
 LEVELS = LOG_LEVELS
-# Format de `logging.basicConfig` (app/main.py) : « 2026-11-05 20:54:00,517 INFO app.main: message », heure locale.
 _LINE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),(\d{3}) (DEBUG|INFO|WARNING|ERROR|CRITICAL) ([^:\s]+): ?(.*)$")
-# Rotation : fichier courant puis `.1` à `.5` (5 Mo chacun) ; plafond de lecture par fichier, au cas où.
 _MAX_FILE_BYTES = 8 * 1024 * 1024
 _ARCHIVES = 5
 
@@ -61,8 +57,6 @@ def _parse_since(value: str | None) -> datetime | None:
 
 
 def _open_technical_files(stack: ExitStack) -> list[BinaryIO]:
-    """Fichier courant puis archives, tous ouverts AVANT toute lecture : une rotation pendant la lecture renomme les
-    fichiers mais ne change pas ce qu'un descripteur ouvert lit (pas de doublon) ; un fichier disparu est ignoré."""
     base = Path(settings.technical_log_path)
     handles = []
     for path in [base, *(base.with_name(f"{base.name}.{i}") for i in range(1, _ARCHIVES + 1))]:
@@ -74,7 +68,6 @@ def _open_technical_files(stack: ExitStack) -> list[BinaryIO]:
 
 
 def _parse_technical(handle: BinaryIO) -> tuple[list[dict[str, Any]], int]:
-    """Entrées d'un fichier, dans l'ordre du fichier ; les lignes de suite (traces) rejoignent l'entrée précédente."""
     handle.seek(max(0, os.fstat(handle.fileno()).st_size - _MAX_FILE_BYTES))
     text = handle.read().decode("utf-8", errors="replace")
     entries: list[dict[str, Any]] = []
@@ -84,11 +77,8 @@ def _parse_technical(handle: BinaryIO) -> tuple[list[dict[str, Any]], int]:
         match = _LINE_RE.match(line)
         if match:
             naive = datetime.strptime(f"{match[1]}.{match[2]}", "%Y-%m-%d %H:%M:%S.%f")
-            stamp = naive.astimezone()  # heure locale, premier passage (fold=0)
+            stamp = naive.astimezone()
             if previous is not None and stamp < previous:
-                # Heure locale répétée au retour à l'heure d'hiver : le premier passage situe
-                # l'horodatage avant la ligne précédente ; le second passage (fold=1) le remet
-                # dans l'ordre du fichier.
                 later = naive.replace(fold=1).astimezone()
                 if later > previous:
                     stamp = later
@@ -109,9 +99,7 @@ def read_logs(
     limit: int = Query(200, ge=1, le=1000),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    """Journaux en JSON stable, du plus récent au plus ancien. `source` : `technical` (journal du serveur, archives
-    comprises) ou `activity` (actions de l'administration) ; `level` : niveau minimal ; `since` : ISO 8601 avec
-    fuseau ; `limit` : 1 à 1000. Horodatages en UTC. `truncated` : d'autres entrées correspondaient."""
+    """Journaux en JSON stable, du plus récent au plus ancien."""
     if source not in ("technical", "activity"):
         raise HTTPException(status_code=400, detail={"code": "invalid_source", "message": "source attend technical ou activity."})
     if level is not None and level not in LEVELS:
@@ -123,7 +111,7 @@ def read_logs(
     skipped = 0
     if source == "activity":
         if threshold > LEVELS.index("info"):
-            rows = []  # le journal d'activité n'a que des entrées informatives
+            rows = []
         else:
             query = db.query(ActivityLog).order_by(ActivityLog.id.desc())
             if start is not None:
@@ -141,7 +129,7 @@ def read_logs(
                 skipped += orphans
                 for entry in reversed(parsed):
                     if start is not None and entry["time"] < start:
-                        done = True  # fichiers et entrées sont chronologiques : tout le reste est plus ancien
+                        done = True
                         break
                     if LEVELS.index(entry["level"]) < threshold:
                         continue
@@ -211,9 +199,7 @@ def delete_activity_logs(
     limit: int | None = Query(None, gt=0),
     db: Session = Depends(get_db),
 ):
-    """Supprime des logs d'activité : par identifiants précis (sélection dans
-    le tableau), les `limit` plus récents (purge), ou tout si aucun des deux
-    n'est fourni (bouton "vider")."""
+    """Supprime des logs d'activité : par identifiants précis (sélection dans le tableau), les `limit` plus récents (purge), ou tout si aucun des deux n'est fourni (bouton "vider")."""
     if ids:
         deleted = db.query(ActivityLog).filter(ActivityLog.id.in_(ids)).delete(synchronize_session=False)
     elif limit:

@@ -1,12 +1,3 @@
-/**
- * Graphe de routage des sorties radio (phase 3) — disposition PURE, déterministe et testable (aucune simulation).
- *
- * Deux colonnes : les SOURCES à gauche (radio câblée, radio réseau, rappels, audio vidéo) et les SORTIES à droite (la
- * sortie par défaut du système, puis chaque sortie audio détectée). Une arête relie une source à la sortie où elle
- * joue. Seules les sources `radio_*` se re-routent (glisser vers une sortie, ou sélection puis validation) : les
- * rappels jouent dans le lecteur de chaque sortie radio, l'audio vidéo reste sur la sortie par défaut du système
- * (le cahier ne route que les sorties radio).
- */
 import type { AudioDevice, AudioKind, RadioOutputId, RoutingOutput } from "./devicesApi.ts";
 
 export type SourceKind = "radio" | "announcements" | "video";
@@ -16,19 +7,15 @@ export interface GraphSource {
   kind: SourceKind;
   channel: RadioOutputId | null;
   playing: boolean;
-  /** Re-routable (glisser / sélection) : seulement les sorties radio. */
   draggable: boolean;
 }
 
 export interface GraphSink {
   id: string;
-  /** Identifiant de sortie du pilote, `null` pour « sortie par défaut du système ». */
   sinkId: string | null;
   label: string;
   kind: AudioKind | "default";
-  /** C'est la sortie par défaut du système. */
   isDefault: boolean;
-  /** Sortie mémorisée mais débranchée (fantôme). */
   absent: boolean;
 }
 
@@ -52,11 +39,8 @@ export const DEFAULT_SINK_ID = "sink:default";
 export interface GraphInput {
   outputs: RoutingOutput[];
   devices: AudioDevice[];
-  /** Lecture en direct (flux temps réel) qui prime sur celle de la dernière lecture REST. */
   playing?: Partial<Record<RadioOutputId, boolean>>;
-  /** Libellé d'une sortie (alias de Bobine compris). */
   displayName: (device: AudioDevice) => string;
-  /** Libellé de la sortie par défaut du système. */
   defaultLabel: string;
 }
 
@@ -89,7 +73,6 @@ export function buildRoutingGraph(input: GraphInput): RoutingGraphModel {
       sinks.push({ id: ghost, sinkId: route.sink_id, label: route.label, kind: route.kind, isDefault: false, absent: true });
       edges.push({ id: `${id}>${ghost}`, from: id, to: ghost, kind: "route", playing: false, absent: true });
     } else {
-      // Sortie présente (id courant) ; état « inconnu » : la sortie mémorisée si elle est listée.
       const target = output.sink_id ?? route.sink_id;
       const node = sinks.find((s) => s.sinkId === target);
       const to = node ? node.id : DEFAULT_SINK_ID;
@@ -98,7 +81,6 @@ export function buildRoutingGraph(input: GraphInput): RoutingGraphModel {
   }
   const announcements = sourceId("announcements", null);
   sources.push({ id: announcements, kind: "announcements", channel: null, playing: input.outputs.some((o) => playingOf(o)), draggable: false });
-  // Les rappels jouent dans le lecteur de chaque sortie radio : ils suivent la sortie de chacune.
   for (const edge of [...edges]) {
     if (edge.from.startsWith("source:radio_")) {
       edges.push({ id: `${announcements}>${edge.to}#${edge.from}`, from: announcements, to: edge.to, kind: "mix", playing: edge.playing, absent: edge.absent });
@@ -137,7 +119,6 @@ const ROW_GAP = 16;
 const COLUMN_GAP = 220;
 const PADDING = 12;
 
-/** Disposition en deux colonnes, rangées régulières ; la colonne la plus courte est centrée verticalement. */
 export function layoutRoutingGraph(model: RoutingGraphModel): GraphLayout {
   const rows = Math.max(model.sources.length, model.sinks.length, 1);
   const columnHeight = (count: number) => count * NODE_HEIGHT + Math.max(0, count - 1) * ROW_GAP;
@@ -160,14 +141,12 @@ export function layoutRoutingGraph(model: RoutingGraphModel): GraphLayout {
   return { nodes, edges, width, height };
 }
 
-/** Courbe de Bézier horizontale d'une source à une sortie. */
 export function edgePath(x1: number, y1: number, x2: number, y2: number): string {
   const dx = Math.max(40, (x2 - x1) / 2);
   return `M${r(x1)} ${r(y1)} C${r(x1 + dx)} ${r(y1)} ${r(x2 - dx)} ${r(y2)} ${r(x2)} ${r(y2)}`;
 }
 const r = (n: number) => Math.round(n * 10) / 10;
 
-/** Sortie sous le point (coordonnées du graphe) : `null` hors de toute sortie. */
 export function sinkAt(layout: GraphLayout, point: { x: number; y: number }): string | null {
   const hit = layout.nodes.find((n) => n.side === "sink" && point.x >= n.x && point.x <= n.x + n.width && point.y >= n.y && point.y <= n.y + n.height);
   return hit ? hit.id : null;
@@ -175,14 +154,9 @@ export function sinkAt(layout: GraphLayout, point: { x: number; y: number }): st
 
 export interface Assignment {
   channel: RadioOutputId;
-  /** `null` = retour à la sortie par défaut (efface la route). */
   sinkId: string | null;
 }
 
-/**
- * Re-routage demandé par un dépôt (ou une sélection validée) : seule une source radio peut être déposée, et
- * seulement sur une sortie réelle ou sur la sortie par défaut ; une sortie fantôme (débranchée) ne reçoit rien.
- */
 export function assignmentFor(model: RoutingGraphModel, sourceNodeId: string, sinkNodeId: string): Assignment | null {
   const source = model.sources.find((s) => s.id === sourceNodeId);
   const sink = model.sinks.find((s) => s.id === sinkNodeId);
@@ -190,7 +164,6 @@ export function assignmentFor(model: RoutingGraphModel, sourceNodeId: string, si
   return { channel: source.channel, sinkId: sink.sinkId };
 }
 
-/** Texte tronqué à `max` caractères avec « … » (les libellés SVG ne se replient pas). */
 export function truncateLabel(text: string, max = 26): string {
   return text.length > max ? `${text.slice(0, Math.max(1, max - 1)).trimEnd()}…` : text;
 }

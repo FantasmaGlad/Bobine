@@ -1,7 +1,6 @@
 import React from "react";
 import { highlightSegments } from "@/lib/searchText";
 
-/** Texte avec la recherche surlignée (accents et casse tolérés, texte d'origine conservé). */
 export default function Highlight({ text, query }: { text: string; query: string }) {
   const segments = highlightSegments(text, query);
   if (segments.length === 1 && !segments[0].match) return <>{text}</>;

@@ -77,7 +77,6 @@ export default function MetricsCoursesPage() {
     fetchDashboard();
   }, [fetchDashboard]);
 
-  // Actualisation discrète toutes les 15 secondes
   useEffect(() => {
     const id = setInterval(fetchDashboard, 15000);
     return () => clearInterval(id);
@@ -91,7 +90,6 @@ export default function MetricsCoursesPage() {
 
   return (
     <div className="metrics-page">
-      {/* Barre de filtres épurée (Période & Canal) */}
       <div className="metrics-filters-bar" style={{ marginTop: 0 }}>
         <div className="metrics-filter-group">
           <span className="metrics-filter-label">
@@ -159,9 +157,7 @@ export default function MetricsCoursesPage() {
         </div>
       </div>
 
-      {/* Cartes KPI Principales */}
       <section className="metrics-kpis-grid">
-        {/* 1. Satisfaction Globale */}
         <div className="metrics-kpi-card">
           <div className="metrics-kpi-header">
             <span className="metrics-kpi-title">{t("metricsPage.kpiSatisfaction")}</span>
@@ -179,7 +175,6 @@ export default function MetricsCoursesPage() {
             {t("metricsPage.kpiSatisfactionCount", { count: kpis?.ratings_count ?? 0 })}
           </p>
 
-          {/* Répartition des étoiles */}
           {ratingBreakdown.length > 0 && (
             <div className="metrics-rating-bars">
               {[5, 4, 3, 2, 1].map((star) => {
@@ -204,7 +199,6 @@ export default function MetricsCoursesPage() {
           )}
         </div>
 
-        {/* 2. Taux de Complétion */}
         <div className="metrics-kpi-card">
           <div className="metrics-kpi-header">
             <span className="metrics-kpi-title">{t("metricsPage.kpiCompletionRate")}</span>
@@ -230,7 +224,6 @@ export default function MetricsCoursesPage() {
           </div>
         </div>
 
-        {/* 3. Volume de Diffusion */}
         <div className="metrics-kpi-card">
           <div className="metrics-kpi-header">
             <span className="metrics-kpi-title">{t("metricsPage.kpiBroadcastHours")}</span>
@@ -247,7 +240,6 @@ export default function MetricsCoursesPage() {
           <p className="metrics-kpi-detail">{t("metricsPage.kpiBroadcastDesc")}</p>
         </div>
 
-        {/* 4. Séances Lancées */}
         <div className="metrics-kpi-card">
           <div className="metrics-kpi-header">
             <span className="metrics-kpi-title">{t("metricsPage.kpiTotalSessions")}</span>
@@ -265,7 +257,6 @@ export default function MetricsCoursesPage() {
         </div>
       </section>
 
-      {/* Histogramme d'affluence 24h CSS */}
       <section className="metrics-section-card metrics-chart-card">
         <div className="metrics-section-header">
           <div>
@@ -309,7 +300,6 @@ export default function MetricsCoursesPage() {
         </div>
       </section>
 
-      {/* Palmarès des Cours (Leaderboard) avec icône moderne et teintes dynamiques */}
       <section className="metrics-section-card">
         <div className="metrics-section-header">
           <div>
@@ -344,11 +334,6 @@ export default function MetricsCoursesPage() {
                       </td>
                       <td>
                         <div className="metrics-course-cell">
-                          {/* Miniature + style/catégorie (déjà affiché via
-                              metrics-course-program) pour identifier un
-                              cours au coup d'œil dans le palmarès, même
-                              pattern que la Bibliothèque/le Planning
-                              (card-thumbnail 16:9 + repli icône). */}
                           <div className="metrics-course-thumb">
                             {thumbSrc ? (
                               // eslint-disable-next-line @next/next/no-img-element

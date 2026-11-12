@@ -10,7 +10,6 @@ from pathlib import Path
 
 REPO = "FantasmaGlad/Bobine"
 MANIFEST_VERSION = "1.12.0"
-# Installeur Inno Setup par machine.
 PRODUCTS = {
     "bobine": {
         "identifier": "FantasmaGlad.Bobine", "name": "Bobine", "tag": r"V(\d+\.\d+\.\d+)",
@@ -68,7 +67,6 @@ def manifests(sums: dict[str, str], tag: str) -> dict[str, str]:
         f"ReleaseNotesUrl: https://github.com/{REPO}/releases/tag/{tag}\n"
     )
     def schema(kind: str) -> str:
-        # winget-pkgs refuse un manifeste sans cette ligne (SchemaHeaderNotFound).
         return f"# yaml-language-server: $schema=https://aka.ms/winget-manifest.{kind}.{MANIFEST_VERSION}.schema.json\n\n"
 
     documents = {

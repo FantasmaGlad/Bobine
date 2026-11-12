@@ -1,15 +1,4 @@
-"""Diagnostic de la chaîne d'import (`GET /api/diagnostics/import`).
-
-Pourquoi : un import qui reste à 0 % sans erreur (signalé en production sur
-macOS) laissait l'utilisateur et le support sans aucun moyen de savoir si
-ffmpeg était absent, si le dossier temporaire était inaccessible ou plein, ou
-si un import précédent occupait l'unique thread ffmpeg. Ce point d'entrée
-regroupe ces constats en une seule réponse lisible depuis Réglages.
-
-Règle de robustesse (jamais de HTTP 500 sur un appel d'état) : chaque bloc est
-calculé dans son propre `try/except` ; un échec devient `{"error": "..."}` pour
-ce bloc seulement, le reste de la réponse reste exploitable.
-"""
+"""Diagnostic de la chaîne d'import (`GET /api/diagnostics/import`)."""
 
 import logging
 import sys
@@ -26,11 +15,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/diagnostics", tags=["diagnostics"])
 
-# En dessous, un import de quelques Go (vidéo + copie normalisée) échoue pour
-# manque de place avant même de démarrer.
 LOW_DISK_BYTES = 2 * 1024**3
-# Une tâche active sans aucune mise à jour (progression, étape) depuis ce délai
-# est suspecte : même un réencodage long met sa progression à jour chaque seconde.
 STUCK_JOB_SECONDS = 300
 
 
@@ -43,8 +28,6 @@ def _safe(block: Callable[[], Any]) -> Any:
 
 
 def _directory_state(path: Path | str) -> dict:
-    """Existence, accès en écriture (par création réelle d'un fichier : les bits
-    de permission ne disent pas tout, ex. volume en lecture seule) et espace libre."""
     target = Path(path)
     state: dict = {"path": str(target), "exists": target.is_dir(), "writable": False, "free_bytes": None, "total_bytes": None}
     if not state["exists"]:
@@ -94,7 +77,7 @@ def _jobs_state() -> dict:
             continue
         active.append({
             "id": job["id"][:8],
-            "job_id": job["id"],  # identifiant complet : `bobine diagnose --auto-fix` annule par lui
+            "job_id": job["id"],
             "kind": job.get("kind"),
             "source": job.get("source"),
             "stage": job["stage"],
@@ -116,7 +99,6 @@ def _staging_state() -> dict:
 
 
 def _problems(report: dict) -> list[str]:
-    """Constats à afficher en tête de Réglages (codes stables, traduits côté client)."""
     problems: list[str] = []
     for tool in ("ffmpeg", "ffprobe"):
         info = report.get(tool)
@@ -158,19 +140,12 @@ def import_diagnostics() -> dict:
         "jobs": _safe(_jobs_state),
     }
     report["problems"] = _safe(lambda: _problems(report))
-    if isinstance(report["problems"], dict):  # le calcul des constats a lui-même échoué
+    if isinstance(report["problems"], dict):
         report["problems"] = []
     return report
 
 
-# ---------------------------------------------------------------------------
-# Diagnostic système (`GET /api/diagnostics/system`) : un constat typé par problème, pour l'interface, la CLI et un
-# agent externe. Sondes rapides et locales seulement (aucun appel réseau, aucun droit administrateur) : la santé
-# SMART des supports et le test Tor restent des actions explicites de leurs propres pages.
-# ---------------------------------------------------------------------------
-
 SEVERITIES = ("critical", "warning", "info")
-# Sous ce seuil, le prochain import ou réencodage d'une vidéo longue risque de manquer de place.
 LOW_MEDIA_DISK_BYTES = 5 * 1024**3
 
 
@@ -186,8 +161,7 @@ class _Report:
         self.checks.append(entry)
 
     def problem(self, check: str, code: str, severity: str, message: str, remedy: str, fix: dict | None = None) -> None:
-        """`fix` (facultatif) décrit une correction sans risque que `bobine diagnose --auto-fix` peut appliquer :
-        `{"action": "cancel_import_jobs", "job_ids": [...]}` ou `{"action": "set_settings", "settings": {...}}`."""
+        """`fix` (facultatif) décrit une correction sans risque que `bobine diagnose --auto-fix` peut appliquer : `{"action": "cancel_import_jobs", "job_ids": [...]}` ou `{"action": "set_settings", "settings": {...}}`."""
         entry = {"code": code, "severity": severity, "message": message, "remedy": remedy}
         if fix:
             entry["fix"] = fix
@@ -362,9 +336,7 @@ async def _probe_storage(report: _Report) -> None:
 
 @router.get("/system")
 async def system_diagnostics() -> dict:
-    """État de santé de Bobine : `status` (`ok`, `warning`, `critical`, ou `unknown` si une sonde n'a pas pu répondre
-    sans qu'aucun problème soit trouvé), `problems` triés par gravité, chacun
-    `{code, severity, message, remedy}` avec un code stable, et `checks` (chaque sonde, même saine)."""
+    """État de santé de Bobine : `status` (`ok`, `warning`, `critical`, ou `unknown` si une sonde n'a pas pu répondre sans qu'aucun problème soit trouvé), `problems` triés par gravité, chacun `{code, severity, message, remedy}` avec un code stable, et `checks` (chaque sonde, même saine)."""
     from datetime import datetime, timezone
 
     from fastapi.concurrency import run_in_threadpool
@@ -385,7 +357,6 @@ async def system_diagnostics() -> dict:
     severities = {p["severity"] for p in report.problems}
     status = "critical" if "critical" in severities else "warning" if "warning" in severities else "ok"
     if status == "ok" and any(check["status"] == "unknown" for check in report.checks):
-        # Aucun problème trouvé, mais au moins une sonde n'a pas pu répondre : « ok » serait une affirmation fausse.
         status = "unknown"
     return {
         "schema": 1,

@@ -1,10 +1,8 @@
-"""Horloge serveur du canal Radio : position fonction du temps,
-fin de piste idempotente, filet de sécurité serveur."""
+"""Horloge serveur du canal Radio : position fonction du temps, fin de piste idempotente, filet de sécurité serveur."""
 
 import asyncio
 import os
 
-# Base de test isolée AVANT tout import de l'application (comme les autres tests).
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
@@ -86,11 +84,11 @@ def test_precedent_apres_3_secondes_redemarre_la_piste_courante():
         await m.load_playlist(1, "Ambiance", TRACKS, shuffle=False)
         await m.next_track()
         fake.advance(10.0)
-        await m.previous_track()   # > 3 s : redémarre la piste courante (B)
+        await m.previous_track()
         fake.advance(1.0)
         snap = m.snapshot()
         assert snap["current_track"]["id"] == 12 and abs(snap["position_seconds"] - 1.0) < 1e-6
-        await m.previous_track()   # < 3 s : piste précédente (A)
+        await m.previous_track()
         assert m.snapshot()["current_track"]["id"] == 11
 
     asyncio.run(_run())
@@ -101,9 +99,9 @@ def test_fin_de_piste_idempotente_deux_postes_ne_sautent_pas_deux_pistes():
         m, fake = _manager()
         await m.load_playlist(1, "Ambiance", TRACKS, shuffle=False)
         fake.advance(30.0)
-        await m.track_ended(track_id=11)   # poste 1
+        await m.track_ended(track_id=11)
         assert m.state["current_track"]["id"] == 12
-        await m.track_ended(track_id=11)   # poste 2 : signal périmé de la piste A
+        await m.track_ended(track_id=11)
         assert m.state["current_track"]["id"] == 12
 
     asyncio.run(_run())
@@ -143,7 +141,6 @@ def test_le_serveur_enchaine_lui_meme_une_piste_depassee_et_pas_pendant_un_rappe
         fake.advance(0.2)
         assert await m._end_track_if_overdue() is True
         assert m.state["current_track"]["id"] == 12
-        # Pendant un rappel (état « announcing »), pas de filet : le rappel gère.
         m.state["state"] = "announcing"
         fake.advance(500.0)
         assert await m._end_track_if_overdue() is False
@@ -188,8 +185,8 @@ def test_la_regle_toutes_les_n_musiques_n_est_pas_comptee_deux_fois_par_un_doubl
         await m.load_playlist(1, "Ambiance", TRACKS, shuffle=False)
         monkeypatch.setattr(playback_router.radio_commands, "_due_wait_end_announcement", lambda db, manager: None)
         fake.advance(30.0)
-        await playback_router.radio_commands._handle_radio_track_ended(m, None, None, 11)   # poste 1
-        await playback_router.radio_commands._handle_radio_track_ended(m, None, None, 11)   # poste 2 : doublon
+        await playback_router.radio_commands._handle_radio_track_ended(m, None, None, 11)
+        await playback_router.radio_commands._handle_radio_track_ended(m, None, None, 11)
         assert m.state["tracks_since_announcement"] == 1
         assert m.state["current_track"]["id"] == 12
 
