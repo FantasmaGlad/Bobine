@@ -951,7 +951,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <UpdatesSection t={t} data={data} setData={setData} showToast={showToast} hidden={!shows("updates-section")} openSection={openSection} />
+      <UpdatesSection hidden={!shows("updates-section")} t={t} data={data} setData={setData} showToast={showToast} openSection={openSection} />
       <div id="section-playback" hidden={!shows("section-playback")}>
       <PlaybackTimingSettings />
       <BrowserCompatibility />
